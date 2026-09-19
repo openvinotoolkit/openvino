@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"b5677b26d05c8ee05263db7525ad5c5f4ce9017bc9217adafede9fde4dac33ab","body_hash":"e82e6ffeabdd19542b96fafc73c00e804b47eda383dbd7f111627fb608027ffc","compiler_version":"v0.88.7","strict":true,"agent_id":"copilot","agent_model":"claude-sonnet-5","engine_versions":{"copilot":"1.0.80"}}
-# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_DEFAULT_OTLP_HEADERS","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN","TEAMS_WEBHOOK_URL"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/setup-python","sha":"5fda3b95a4ea91299a34e894583c3862153e4b97","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"github/gh-aw-actions/setup","sha":"5e508589e03a7757a7e05b26e834292f5445bfb6","version":"v0.88.7"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.14","digest":"sha256:f7df036c86575527b61f3f7df91c4412349a12b2a74988d929eafa2999230c98","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.14@sha256:f7df036c86575527b61f3f7df91c4412349a12b2a74988d929eafa2999230c98"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.14","digest":"sha256:6f95e2234dd9bd6333a8ff28ccea7ecf0204acd4a09108723844dbd2bf6268c5","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.14@sha256:6f95e2234dd9bd6333a8ff28ccea7ecf0204acd4a09108723844dbd2bf6268c5"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.14","digest":"sha256:2ce8df3abf3e9b76e9c0cf5863da41f1ab3f89b20ad14b988806ab89e7bf2cd5","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.14@sha256:2ce8df3abf3e9b76e9c0cf5863da41f1ab3f89b20ad14b988806ab89e7bf2cd5"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.18","digest":"sha256:85b940556a8faa4e1fdbef124bfd75f2c4ebd855a10b88a1c3b6f3e97f6f1a53","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.18@sha256:85b940556a8faa4e1fdbef124bfd75f2c4ebd855a10b88a1c3b6f3e97f6f1a53"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e","pinned_image":"ghcr.io/github/gh-aw-node@sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e"},{"image":"ghcr.io/github/github-mcp-server:v1.11.0","digest":"sha256:fbec75de11c255213fa08d80fb166abe73d851fff631c51c0079872967720699","pinned_image":"ghcr.io/github/github-mcp-server:v1.11.0@sha256:fbec75de11c255213fa08d80fb166abe73d851fff631c51c0079872967720699"}],"mcp_servers":[{"name":"github","tools":["actions_get","actions_list","get_commit","get_file_contents","get_job_logs","get_latest_release","get_me","get_pull_request","get_pull_request_comments","get_pull_request_diff","get_pull_request_files","get_pull_request_review_comments","get_pull_request_reviews","get_pull_request_status","get_release_by_tag","get_tag","issue_read","list_branches","list_commits","list_issue_types","list_issues","list_pull_requests","list_releases","list_starred_repositories","list_tags","pull_request_read","search_code","search_issues","search_pull_requests","search_repositories"]},{"name":"safeoutputs","tools":["missing_data","missing_tool","noop","notify_teams"]}]}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"3237efbdaabb62ac437bae0f5268bb734d9ac10a91cc56655b57ffe379bf9a41","body_hash":"3f8410ad6e91e4f0af525768441150f5582c806456ad026a21360a892dd41db3","compiler_version":"v0.88.7","strict":true,"agent_id":"copilot","agent_model":"claude-sonnet-5","engine_versions":{"copilot":"1.0.80"}}
+# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_CI_TRIGGER_TOKEN","GH_AW_DEFAULT_OTLP_HEADERS","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/setup-python","sha":"5fda3b95a4ea91299a34e894583c3862153e4b97","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"github/gh-aw-actions/setup","sha":"5e508589e03a7757a7e05b26e834292f5445bfb6","version":"v0.88.7"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.28.14","digest":"sha256:f7df036c86575527b61f3f7df91c4412349a12b2a74988d929eafa2999230c98","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.28.14@sha256:f7df036c86575527b61f3f7df91c4412349a12b2a74988d929eafa2999230c98"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.14","digest":"sha256:6f95e2234dd9bd6333a8ff28ccea7ecf0204acd4a09108723844dbd2bf6268c5","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.28.14@sha256:6f95e2234dd9bd6333a8ff28ccea7ecf0204acd4a09108723844dbd2bf6268c5"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.28.14","digest":"sha256:2ce8df3abf3e9b76e9c0cf5863da41f1ab3f89b20ad14b988806ab89e7bf2cd5","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.28.14@sha256:2ce8df3abf3e9b76e9c0cf5863da41f1ab3f89b20ad14b988806ab89e7bf2cd5"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.18","digest":"sha256:85b940556a8faa4e1fdbef124bfd75f2c4ebd855a10b88a1c3b6f3e97f6f1a53","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.18@sha256:85b940556a8faa4e1fdbef124bfd75f2c4ebd855a10b88a1c3b6f3e97f6f1a53"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e","pinned_image":"ghcr.io/github/gh-aw-node@sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e"},{"image":"ghcr.io/github/github-mcp-server:v1.11.0","digest":"sha256:fbec75de11c255213fa08d80fb166abe73d851fff631c51c0079872967720699","pinned_image":"ghcr.io/github/github-mcp-server:v1.11.0@sha256:fbec75de11c255213fa08d80fb166abe73d851fff631c51c0079872967720699"}],"mcp_servers":[{"name":"github","tools":["actions_get","actions_list","get_commit","get_file_contents","get_job_logs","get_latest_release","get_me","get_pull_request","get_pull_request_comments","get_pull_request_diff","get_pull_request_files","get_pull_request_review_comments","get_pull_request_reviews","get_pull_request_status","get_release_by_tag","get_tag","issue_read","list_branches","list_commits","list_issue_types","list_issues","list_pull_requests","list_releases","list_starred_repositories","list_tags","pull_request_read","search_code","search_issues","search_pull_requests","search_repositories"]},{"name":"safeoutputs","tools":["create_pull_request","missing_data","missing_tool","noop","upload_artifact"]}]}
 # This file was automatically generated by gh-aw (v0.88.7). DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -23,32 +23,26 @@
 #
 # For more information: https://github.github.com/gh-aw/introduction/overview/
 #
-# This workflow is an automated CI failure investigator for post-commit (push)
-# runs on the OpenVINO repository. It triggers when monitored workflows fail on a
-# push to a protected branch, performs a deep analysis of the failure, records the
-# problem in a persistent knowledge base, and reports it via a Microsoft Teams
-# notification. Unlike the Merge Queue doctor, it never re-runs or re-queues
-# pipelines — it only collects and reports.
-#
-# The investigation protocol shared with the Merge Queue doctor lives in the
-# parameterised `shared/agentic-workflows/ci-doctor-*.md` fragments imported below;
-# the body of this file only holds the post-commit-specific additions.
+# Weekly maintenance workflow that consumes the CI Doctor knowledge base. It collects
+# the investigations and failure patterns recorded by the two automatic CI Doctors
+# (Merge Queue and Post-Commit) over the past week from their dedicated repo-memory
+# branches, analyses the recurring issues, and proposes a concrete, per-issue
+# remediation. Issues that can be fixed in code become draft pull requests (at most 3
+# per run); every identified issue — code-fixable or not — is also written to a Markdown
+# report uploaded as a run artifact. This workflow only reads the knowledge base; it
+# never writes to the memory branches and never re-runs or re-queues any pipeline.
 #
 # Resolved workflow manifest:
 #   Imports:
-#     - shared/agentic-workflows/download-failure-logs.md
-#     - shared/agentic-workflows/notify-teams.md
-#     - shared/agentic-workflows/ci-doctor-investigation-protocol.md
-#     - shared/agentic-workflows/ci-doctor-knowledge-base.md
-#     - shared/agentic-workflows/ci-doctor-reporting.md
+#     - shared/agentic-workflows/collect-ci-doctor-history.md
 #
 # Secrets used:
 #   - COPILOT_GITHUB_TOKEN
+#   - GH_AW_CI_TRIGGER_TOKEN
 #   - GH_AW_DEFAULT_OTLP_HEADERS
 #   - GH_AW_GITHUB_MCP_SERVER_TOKEN
 #   - GH_AW_GITHUB_TOKEN
 #   - GITHUB_TOKEN
-#   - TEAMS_WEBHOOK_URL
 #
 # Custom actions used:
 #   - actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -70,10 +64,10 @@
 #   - ghcr.io/github/gh-aw-node@sha256:bac2192f6374d6262116399b34fc5e143d576f82719e90a18261cae7480f4d4e
 #   - ghcr.io/github/github-mcp-server:v1.11.0@sha256:fbec75de11c255213fa08d80fb166abe73d851fff631c51c0079872967720699
 
-name: "CI Failure Doctor — Post-Commit"
+name: "CI Doctor — Weekly Remediation"
 on:
-  # bots: # Bots processed as bot check in pre-activation job
-  # - github-merge-queue # Bots processed as bot check in pre-activation job
+  schedule:
+    - cron: "21 23 * * 1"  # Friendly format: weekly on monday (scattered)
   workflow_dispatch:
     inputs:
       aw_context:
@@ -81,56 +75,28 @@ on:
         description: "Agent caller context (used internally by Agentic Workflows)."
         required: false
         type: string
-      link:
-        description: Link to a workflow to investigate (for manual testing across repositories)
+      days:
+        default: "7"
+        description: Look-back window in days for the collected CI Doctor knowledge (default 7).
         required: false
-      run_id:
-        description: Workflow run ID to investigate (for manual testing)
-        required: false
-  workflow_run:
-    # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation
-    branches:
-      - master
-    types:
-      - completed
-    workflows:
-      - Linux (Ubuntu 22.04, Python 3.11)
-      - Linux (Ubuntu 24.04, Python 3.12)
-      - Android
-      - Linux ARM64 (Ubuntu 22.04, Python 3.11)
-      - Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)
-      - Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)
-      - Linux RISC-V (Ubuntu 22.04, Python 3.10)
-      - Windows (VS 2022, Python 3.11, Release)
-      - Windows (VS 2022, Python 3.11, Debug)
-      - Windows Conditional Compilation (VS 2022, Python 3.11)
-      - Webassembly
-      - Manylinux 2_28
-      - Clang-tidy static analysis (Ubuntu 24.04, Python 3.12, Clang-18, Clang-tidy-18)
 
 permissions: {}
 
 concurrency:
   group: gh-aw-${{ github.workflow }}
 
-run-name: "CI Failure Doctor — Post-Commit"
+run-name: "CI Doctor — Weekly Remediation"
 
 env:
   OTEL_EXPORTER_OTLP_ENDPOINT: ${{ vars.GH_AW_DEFAULT_OTLP_ENDPOINT }}
-  OTEL_SERVICE_NAME: gh-aw.ci-doctor-post-commit
-  OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=CI%20Failure%20Doctor%20%E2%80%94%20Post-Commit,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }},gh-aw.engine.id=copilot'
+  OTEL_SERVICE_NAME: gh-aw.ci-doctor-remediation
+  OTEL_RESOURCE_ATTRIBUTES: 'gh-aw.workflow.name=CI%20Doctor%20%E2%80%94%20Weekly%20Remediation,gh-aw.repository=${{ github.repository }},gh-aw.run.id=${{ github.run_id }},github.run_id=${{ github.run_id }},gh-aw.engine.id=copilot'
   OTEL_EXPORTER_OTLP_HEADERS: ${{ secrets.GH_AW_DEFAULT_OTLP_HEADERS }}
   GH_AW_OTLP_ENDPOINTS: '[{"url":"${{ vars.GH_AW_DEFAULT_OTLP_ENDPOINT }}","headers":"${{ secrets.GH_AW_DEFAULT_OTLP_HEADERS }}"}]'
   GH_AW_OTLP_IF_MISSING: ignore
 
 jobs:
   activation:
-    needs: pre_activation
-    # zizmor: ignore[dangerous-triggers] - workflow_run trigger is secured with role and fork validation
-    if: >
-      (needs.pre_activation.outputs.activated == 'true' && (github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'failure' &&
-      github.event.workflow_run.event == 'push'))) && (github.event_name != 'workflow_run' || github.event.workflow_run.repository.id == github.repository_id &&
-      (!(github.event.workflow_run.repository.fork)))
     runs-on: ubuntu-slim
     permissions:
       actions: read
@@ -161,12 +127,10 @@ jobs:
         with:
           destination: ${{ runner.temp }}/gh-aw/actions
           job-name: ${{ github.job }}
-          trace-id: ${{ needs.pre_activation.outputs.setup-trace-id }}
-          parent-span-id: ${{ needs.pre_activation.outputs.setup-parent-span-id || needs.pre_activation.outputs.setup-span-id }}
           safe-output-artifact-client: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "CI Failure Doctor — Post-Commit"
-          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ci-doctor-post-commit.lock.yml@${{ github.ref }}
+          GH_AW_SETUP_WORKFLOW_NAME: "CI Doctor — Weekly Remediation"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ci-doctor-remediation.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.80"
           GH_AW_INFO_AWF_VERSION: "v0.28.14"
           GH_AW_INFO_ENGINE_ID: "copilot"
@@ -181,7 +145,7 @@ jobs:
           GH_AW_INFO_VERSION: "1.0.80"
           GH_AW_INFO_AGENT_VERSION: "1.0.80"
           GH_AW_INFO_CLI_VERSION: "v0.88.7"
-          GH_AW_INFO_WORKFLOW_NAME: "CI Failure Doctor — Post-Commit"
+          GH_AW_INFO_WORKFLOW_NAME: "CI Doctor — Weekly Remediation"
           GH_AW_INFO_EXPERIMENTAL: "false"
           GH_AW_INFO_SUPPORTS_TOOLS_ALLOWLIST: "true"
           GH_AW_INFO_STAGED: "false"
@@ -207,8 +171,8 @@ jobs:
         continue-on-error: true
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          key: agentic-workflow-usage-cidoctorpostcommit-${{ github.run_id }}
-          restore-keys: agentic-workflow-usage-cidoctorpostcommit-
+          key: agentic-workflow-usage-cidoctorremediation-${{ github.run_id }}
+          restore-keys: agentic-workflow-usage-cidoctorremediation-
           path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl
       - name: Restore daily AIC usage cache (artifact fallback)
         id: restore-daily-aic-cache-fallback
@@ -232,8 +196,8 @@ jobs:
         if: ${{ env.GH_AW_MAX_DAILY_AI_CREDITS != '' }}
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_AW_WORKFLOW_NAME: "CI Failure Doctor — Post-Commit"
-          GH_AW_WORKFLOW_ID: "ci-doctor-post-commit"
+          GH_AW_WORKFLOW_NAME: "CI Doctor — Weekly Remediation"
+          GH_AW_WORKFLOW_ID: "ci-doctor-remediation"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_WORKFLOW_DISPATCH_AW_CONTEXT: ${{ github.event.inputs.aw_context || '' }}
           GH_AW_HAS_SLASH_COMMAND: "false"
@@ -284,7 +248,7 @@ jobs:
         id: check-lock-file
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_AW_WORKFLOW_FILE: "ci-doctor-post-commit.lock.yml"
+          GH_AW_WORKFLOW_FILE: "ci-doctor-remediation.lock.yml"
           GH_AW_CONTEXT_WORKFLOW_REF: "${{ github.workflow_ref }}"
         with:
           script: |
@@ -315,34 +279,23 @@ jobs:
           GH_AW_ACTIONS_DIR: ${{ runner.temp }}/gh-aw/actions
           GH_AW_PROMPT: ${{ runner.temp }}/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ runner.temp }}/gh-aw/safeoutputs/outputs.jsonl
-          GH_AW_PROMPT_CONFIG: "{\"items\":[{\"content_env\":\"GH_AW_PROMPT_CONTENT_0000\"},{\"file\":\"xpia.md\"},{\"file\":\"temp_folder_prompt.md\"},{\"file\":\"markdown.md\"},{\"file\":\"repo_memory_prompt.md\"},{\"file\":\"safe_outputs_prompt.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0001\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0002\"},{\"file\":\"mcp_cli_tools_with_safeoutputs_prompt.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0003\"},{\"file\":\"github_mcp_tools_with_safeoutputs_prompt.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0004\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0005\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0006\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0007\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0008\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0009\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0010\"}]}"
+          GH_AW_PROMPT_CONFIG: "{\"items\":[{\"content_env\":\"GH_AW_PROMPT_CONTENT_0000\"},{\"file\":\"xpia.md\"},{\"file\":\"temp_folder_prompt.md\"},{\"file\":\"markdown.md\"},{\"file\":\"safe_outputs_prompt.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0001\"},{\"file\":\"safe_outputs_create_pull_request.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0002\"},{\"file\":\"mcp_cli_tools_with_safeoutputs_prompt.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0003\"},{\"file\":\"github_mcp_tools_with_safeoutputs_prompt.md\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0004\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0005\"},{\"content_env\":\"GH_AW_PROMPT_CONTENT_0006\"}]}"
           GH_AW_EXPR_1A3A194A: ${{ github.event.discussion.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'discussion' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
           GH_AW_EXPR_463A214A: ${{ github.event.pull_request.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'pull_request' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
+          GH_AW_EXPR_55839564: ${{ github.event.inputs.days || '7' }}
           GH_AW_EXPR_802A9F6A: ${{ github.event.issue.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'issue' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
           GH_AW_EXPR_FF1D34CE: ${{ github.event.comment.id || fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').comment_id }}
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
-          GH_AW_GITHUB_EVENT_INPUTS_LINK: ${{ github.event.inputs.link }}
-          GH_AW_GITHUB_EVENT_INPUTS_RUN_ID: ${{ github.event.inputs.run_id }}
-          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_EVENT: ${{ github.event.workflow_run.event }}
-          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL: ${{ github.event.workflow_run.html_url }}
-          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
-          GH_AW_WIKI_NOTE: ${{ '' }}
           GH_AW_PROMPT_CONTENT_0000: "<system>\n"
-          GH_AW_PROMPT_CONTENT_0001: "<safe-output-tools>\nTools: missing_tool, missing_data, noop, notify_teams\n"
+          GH_AW_PROMPT_CONTENT_0001: "<safe-output-tools>\nTools: create_pull_request(max:3), missing_tool, missing_data, noop\n"
           GH_AW_PROMPT_CONTENT_0002: "</safe-output-tools>\n"
           GH_AW_PROMPT_CONTENT_0003: "<github-context>\nThe following GitHub context information is available for this workflow:\n{{#if github.actor}}\n- **actor**: __GH_AW_GITHUB_ACTOR__\n{{/if}}\n{{#if github.repository}}\n- **repository**: __GH_AW_GITHUB_REPOSITORY__\n{{/if}}\n{{#if github.workspace}}\n- **workspace**: __GH_AW_GITHUB_WORKSPACE__\n{{/if}}\n{{#if github.event.issue.number || (github.aw.context.item_type == 'issue' && github.aw.context.item_number)}}\n- **issue-number**: #__GH_AW_EXPR_802A9F6A__\n{{/if}}\n{{#if github.event.discussion.number || (github.aw.context.item_type == 'discussion' && github.aw.context.item_number)}}\n- **discussion-number**: #__GH_AW_EXPR_1A3A194A__\n{{/if}}\n{{#if github.event.pull_request.number || (github.aw.context.item_type == 'pull_request' && github.aw.context.item_number)}}\n- **pull-request-number**: #__GH_AW_EXPR_463A214A__\n{{/if}}\n{{#if github.event.comment.id || github.aw.context.comment_id}}\n- **comment-id**: __GH_AW_EXPR_FF1D34CE__\n{{/if}}\n{{#if github.run_id}}\n- **workflow-run-id**: __GH_AW_GITHUB_RUN_ID__\n{{/if}}\n</github-context>\n\n"
           GH_AW_PROMPT_CONTENT_0004: "</system>\n"
-          GH_AW_PROMPT_CONTENT_0005: "{{#runtime-import .github/workflows/shared/agentic-workflows/download-failure-logs.md}}\n"
-          GH_AW_PROMPT_CONTENT_0006: "{{#runtime-import .github/workflows/shared/agentic-workflows/notify-teams.md}}\n"
-          GH_AW_PROMPT_CONTENT_0007: "# CI Failure Doctor — Post-Commit\n\nYou are the CI Failure Doctor for post-commit CI, an expert investigative agent that analyzes failed GitHub Actions workflows **triggered by `push` events** (post-commit runs) to identify root causes and patterns. Your mission is to conduct a deep investigation when a post-commit CI workflow fails, record the problem in a persistent knowledge base, and report it via Microsoft Teams.\n\nThis prompt is assembled from a shared CI Doctor protocol followed by a **workflow-specific instructions** section at the very end (`# CI Failure Doctor — Post-Commit: Workflow-Specific Instructions`). Read that section before you start: it extends the phases below (extra data sources, extra fields, extra safe-output tools) and takes precedence wherever it conflicts with the shared protocol.\n\n## Current Context\n\n- **Repository**: __GH_AW_GITHUB_REPOSITORY__\n- **Workflow Run**: __GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID__\n- **Conclusion**: __GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION__\n- **Run URL**: __GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL__\n- **Head SHA**: __GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA__\n- **Trigger Event**: __GH_AW_GITHUB_EVENT_WORKFLOW_RUN_EVENT__\n\n## Pre-Analysis Data\n\nLogs have been pre-downloaded before this session started:\n\n- **Summary**: `/tmp/gh-aw/agent/ci-doctor/summary.txt` — failed jobs, failed steps, all file locations, and pre-located error hints\n- **Job metadata**: `/tmp/gh-aw/agent/ci-doctor/logs/failed-jobs.json` — structured list of failed jobs and their failed steps\n- **Log files**: `/tmp/gh-aw/agent/ci-doctor/logs/job-<job-id>.log` — full job logs downloaded from GitHub Actions\n- **Hint files**: `/tmp/gh-aw/agent/ci-doctor/filtered/*-hints.txt` — pre-located error lines (from logs) via generic grep heuristics\n\nThe workflow-specific instructions may list additional pre-collected files (for example pull-request metadata).\n\n**Start here**: Read `/tmp/gh-aw/agent/ci-doctor/summary.txt` first — it lists every file location and the first few hint matches. Then examine the relevant hint files to jump directly to error locations (read ~50 lines around each hinted line number before loading the full log).\n\n## Investigation Protocol\n\n**Trigger detection:**\n\n- If triggered by `workflow_run` event: ONLY proceed if **all** of the following are true:\n  1. `__GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION__` is `failure` or `cancelled`.\n  2. `__GH_AW_GITHUB_EVENT_WORKFLOW_RUN_EVENT__` is `push`.\n  If either condition fails, call the `noop` tool and exit immediately. This workflow is exclusively for post-commit (`push`) failures — do **not** investigate runs triggered by any other event (e.g. `pull_request`).\n- If triggered by `workflow_dispatch` event: check if `__GH_AW_GITHUB_EVENT_INPUTS_RUN_ID__` is provided, use that run ID to fetch the workflow run details. If no `run_id` is provided, check if `__GH_AW_GITHUB_EVENT_INPUTS_LINK__` is provided, use that workflow link to fetch the workflow run details. If neither is provided, exit immediately.\n\n### Phase 1: Initial Triage\n\n1. **Verify Failure**: Check that `__GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION__` is `failure` or `cancelled`\n   - **If the workflow was successful**: Call the `noop` tool with message \"Post-Commit workflow completed successfully - no investigation needed\" and **stop immediately**. Do not proceed with any further analysis.\n   - **If the workflow failed or was cancelled**: Proceed with the investigation steps below.\n2. **Verify Trigger Event**: Confirm that `__GH_AW_GITHUB_EVENT_WORKFLOW_RUN_EVENT__` is `push`. If it is not, call the `noop` tool with message \"Not a post-commit run - skipping\" and **stop immediately**.\n3. **Get Workflow Details**: Use `get_workflow_run` to get full details of the failed run\n4. **List Jobs**: Use `list_workflow_jobs` to identify which specific jobs failed\n5. **Quick Assessment**: Determine if this is a new type of failure or a recurring pattern\n\n### Phase 2: Deep Log Analysis\n\n1. **Use Pre-Downloaded Logs**: Start with the files in `/tmp/gh-aw/agent/ci-doctor/`:\n   - Read `/tmp/gh-aw/agent/ci-doctor/summary.txt` and the hint files first (minimal context load).\n   - Read ~50 lines around each hinted line number in the full log file.\n   - Only load the full log content if the hints are insufficient.\n2. **Fallback Log Retrieval**: If the pre-downloaded files are unavailable, use `get_job_logs` with `failed_only=true` to get logs from all failed jobs. **This step is mandatory — do not skip it or substitute with source code analysis.**\n3. **Pattern Recognition**: Analyze logs for:\n   - Error messages and stack traces\n   - Dependency installation failures\n   - Test failures with specific patterns\n   - Infrastructure or runner issues\n   - Timeout patterns\n   - Memory or resource constraints\n4. **Extract Key Information**:\n   - Primary error messages\n   - File paths and line numbers where failures occurred\n   - Test names that failed\n   - Dependency versions involved\n   - Timing patterns\n\n### Phase 3: Historical Context Analysis\n\n1. **Search Investigation History**: Use file-based storage to search for similar failures:\n   - Read from investigation files in `/tmp/gh-aw/repo-memory/default/post-commit/investigations/` (this is the directory mounted by `tools.repo-memory` and persisted indefinitely via a dedicated Git branch `memory/ci-doctor-post-commit`; files written elsewhere are not persisted across runs)\n   - Parse previous failure patterns and solutions\n   - Look for recurring error signatures\n2. **Issue History**: Search existing issues for related problems\n3. **Commit Analysis**: Examine the commit (`__GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA__`) that triggered the failure\n4. **PR Context**: If the failure can be associated with a pull request (the workflow-specific instructions describe how PR context is resolved for this doctor), note its number/author for the report and use its changed files to scope the source inspection in Phase 4; otherwise treat the failure as commit-scoped.\n\n### Phase 4: Root Cause Investigation\n\n1. **Categorize Failure Type**:\n   - **Code Issue**: Syntax errors, logic bugs, test failures\n   - **Infrastructure**: Runner issues, network problems, resource constraints\n   - **Dependencies**: Version conflicts, missing packages, outdated libraries\n   - **Configuration**: Workflow configuration, environment variables\n   - **Flaky Test**: Intermittent failures, timing issues\n   - **External Service**: Third-party API failures, downstream dependencies\n   - **Network**: unreachable network/services, exceeded max retries\n\n2. **Deep Dive Analysis**:\n   - For test failures: Identify specific test methods and assertions\n   - For build failures: Analyze compilation errors and missing dependencies\n   - For infrastructure issues: Check runner logs and resource usage\n   - For timeout issues: Identify slow operations and bottlenecks\n\n3. **Source Code Inspection Safeguards**:\n   The investigation must stay narrowly scoped. Do **not** attempt to analyze the\n   whole codebase or browse files unrelated to the failure signal extracted from\n   the logs. Apply the following hard limits:\n\n   - **Log-first, code-second**: Only inspect source files after you have\n     extracted concrete file paths, symbols, or component names from the failed\n     job logs. If the logs do not point to a specific area, do **not** start\n     opening source files at random — proceed to reporting with the log-derived\n     findings instead.\n   - **Component scoping**: Identify the affected component (e.g., a single\n     plugin under `src/plugins/<name>/`, a frontend under `src/frontends/<name>/`,\n     a binding under `src/bindings/<lang>/`, or a specific test suite directory).\n     Restrict all source code reads to that component's directory and the exact\n     files referenced in the logs or in the PR diff (when a PR is known).\n   - **File budget**: Read at most **10 source files** total per investigation,\n     and at most **400 lines** per file. Prefer targeted reads of the lines\n     surrounding the error (±50 lines) over reading entire files. Never iterate\n     over a directory's contents file-by-file.\n   - **No bulk traversal**: Do not list, enumerate, or sequentially read the\n     contents of test directories, suite folders, or component trees. Do not\n     attempt to \"read every test file\" to understand a failure — use the failing\n     test name from the logs to jump directly to the one relevant file.\n   - **Repository search discipline**: Use repository search (grep/code search)\n     with **specific** error strings, symbol names, or file fragments taken from\n     the logs. Do not run broad searches (e.g., single common words, wildcards\n     across the whole repo). Cap searches at **5 queries** per investigation.\n   - **PR-scoped diffs**: When the failure can be associated with a PR, prefer\n     reading only the files changed in that PR plus files explicitly named in\n     the error output.\n   - **Stop conditions**: As soon as you have a plausible root cause supported\n     by the logs and at most a handful of code references, stop investigating\n     and proceed to Phase 5. Additional code reading beyond that point is\n     out of scope for this agent.\n   - **When in doubt, report and stop**: If the failure cannot be localized to\n     a component within the limits above, report it as \"needs human triage\"\n     with the log evidence collected so far. Do **not** expand the search to\n     compensate.\n"
-          GH_AW_PROMPT_CONTENT_0008: "### Phase 5: Pattern Storage and Knowledge Building\n\n**Artefact schemas (MANDATORY — read before writing anything):**\nEvery JSON artefact this phase writes MUST conform to a fixed JSON Schema committed in the repository. The repository is sparse-checked-out at the path reported as **workspace** in the Current Context (environment variable `GITHUB_WORKSPACE`). The schemas are:\n\n- **Investigation records** → `${GITHUB_WORKSPACE}/.github/ci-doctor-post-commit/schemas/investigation.schema.json`\n  Applies to every `<timestamp>-<run-id>.json` file under `investigations/` **except** the aggregate `index.json`.\n- **Pattern records** → `${GITHUB_WORKSPACE}/.github/ci-doctor-post-commit/schemas/pattern.schema.json`\n  Applies to every `<signature-hash>.json` file under `patterns/`.\n- **Investigations index** → `${GITHUB_WORKSPACE}/.github/ci-doctor-post-commit/schemas/index.schema.json`\n  Applies to the single aggregate `investigations/index.json` file.\n\nRules that apply to all artefact types:\n\n- Read the relevant schema file **before** composing an artefact so the structure and field names match exactly. Do not invent your own field names or layout.\n- Set `\"schema_version\": \"1.0\"` on every artefact you write.\n- These schemas declare `\"additionalProperties\": false`. Do **not** add fields that are not defined in the schema — extra fields make the artefact invalid.\n- Use the exact field names, types, and `enum` values from the schema. `category` must be one of the seven categories; `confidence` must be `High`/`Medium`/`Low`.\n- Timestamp **values** inside JSON use full ISO 8601 with colons (e.g., `2026-05-12T14:30:00Z`); only **file names** use the colon-free `YYYY-MM-DD-HH-MM-SS-sss` form.\n- The workflow-specific instructions may require additional schema fields (for example a rerun hook) — apply them on top of the procedures below.\n\n**Validation procedure (run immediately after writing each artefact — MANDATORY):**\n\n1. Read the artefact back from disk and parse it as JSON (this also confirms it is well-formed).\n2. Read the matching schema file.\n3. Validate the parsed object against the schema. If a JSON Schema validator is available in the run environment (e.g., Python with the `jsonschema` package — `python3 -c \"import jsonschema, json, sys; jsonschema.validate(json.load(open(sys.argv[1])), json.load(open(sys.argv[2])))\" <artefact> <schema>`), use it. Otherwise perform an explicit conformance check covering: every `required` field present; each field's `type`/`enum`/`format` honoured; **no** field outside the schema's `properties` (because `additionalProperties` is `false`); and array `minItems`/`maxItems` limits respected.\n4. If validation fails, fix the artefact and repeat until it validates. **Never leave an invalid artefact on disk**, and do not proceed to the next phase with an unvalidated artefact.\n\n1. **Store Investigation**: Save structured investigation data to files in the persistent repo-memory directory:\n   - **Persistent path**: `/tmp/gh-aw/repo-memory/default/` is the directory mounted by `tools.repo-memory` and persisted indefinitely via a dedicated Git branch (`memory/ci-doctor-post-commit`). Files written here survive across runs permanently. Files written elsewhere are **not** persisted and will be lost.\n   - **Workflow-specific subdirectory**: This workflow uses `/tmp/gh-aw/repo-memory/default/post-commit/` to keep its investigations isolated from any other workflows using repo-memory.\n   - Create the subdirectory if needed: `mkdir -p /tmp/gh-aw/repo-memory/default/post-commit/investigations /tmp/gh-aw/repo-memory/default/post-commit/patterns`.\n   - Write the investigation report to `/tmp/gh-aw/repo-memory/default/post-commit/investigations/<timestamp>-<run-id>.json`\n     - The file content MUST conform to the **investigation schema** (`investigation.schema.json`) described in the \"Artefact schemas\" block above, and MUST be validated with the validation procedure right after writing.\n     - **Important**: Use filesystem-safe timestamp format `YYYY-MM-DD-HH-MM-SS-sss` (e.g., `2026-02-12-11-20-45-458`)\n     - **Do NOT use** ISO 8601 format with colons (e.g., `2026-02-12T11:20:45.458Z`) - colons are not safe in filenames\n   - Store error patterns in `/tmp/gh-aw/repo-memory/default/post-commit/patterns/` as `.json` files (one file per failure signature, e.g., `<signature-hash>.json`), each conforming to the **pattern schema** (`pattern.schema.json`)\n   - Update the investigations index at `/tmp/gh-aw/repo-memory/default/post-commit/investigations/index.json` following the **MANDATORY read-modify-write procedure** in step 1a below (it appends the current run and preserves existing entries; the only sanctioned place the index ever shrinks is the retention prune in step 5). Never recreate this file from scratch.\n\n1a. **Update Investigations Index — MANDATORY read-modify-write procedure**:\n\n   The index at `/tmp/gh-aw/repo-memory/default/post-commit/investigations/index.json` is a single rolling-retention aggregate that references the most recent `INDEX_RETENTION_MAX` investigations (older references are trimmed by the retention step, step 5 — the *permanent* recurrence signal lives in the per-signature pattern records, not here). It MUST conform to the **index schema** (`index.schema.json`). Accidentally losing or overwriting entries **during this read-modify-write** is a **critical data-loss bug** — the following procedure exists specifically to prevent it, and you MUST follow it exactly. Deliberate trimming of the oldest entries happens ONLY in step 5, never here.\n\n   **Step A — Read the existing index (never skip):**\n   - Attempt to read `/tmp/gh-aw/repo-memory/default/post-commit/investigations/index.json`.\n   - If it exists, parse it as JSON into `existing`. If it exists but fails to parse (corrupted/truncated), **do NOT overwrite it**: copy it aside to `index.corrupt-<timestamp>.json`, then reconstruct `existing.entries` by scanning every `*.json` investigation record already present under `investigations/` (excluding `index.json` itself) so no prior investigation is dropped.\n   - If the file does NOT exist, set `existing = { \"schema_version\": \"1.0\", \"total\": 0, \"entries\": [] }`.\n   - Normalize legacy shapes: if `existing` has a deprecated `investigations` array, merge its elements into `existing.entries` (deduplicating by `investigation_id`+`run_id`) and drop the `investigations` key. Map any legacy `id` field to `investigation_id`.\n   - Record `PREV_COUNT = length(existing.entries)`.\n\n   **Step B — Append the current investigation (never remove or replace prior entries):**\n   - Build the new entry from the investigation you just wrote, using the fields defined in `index.schema.json`: `investigation_id`, `run_id` (string), `timestamp`, `title`, `category`, `signature_hash`, and `commit_sha` (string or null).\n   - If an entry with the same `investigation_id` already exists, update that one entry in place; otherwise **append** the new entry to the end of `existing.entries`.\n   - Under no circumstances truncate, replace wholesale, reorder-destructively, or shrink `existing.entries` **in this step**. The only allowed mutations here are: appending a new entry, or updating a single matching existing entry in place. (Bounded pruning of the oldest entries happens later, in the retention step 5.)\n\n   **Step C — Recompute and write:**\n   - Set `total = length(entries)`.\n   - Assert the **in-run never-shrink invariant**: `total >= PREV_COUNT` (this step only appends/updates; it must not drop entries). If this assertion fails, you have a bug — stop, re-read the existing file, and redo from Step A. Do NOT write a smaller index **here** — the retention step 5 is the only place the index is deliberately trimmed.\n   - Write the object `{ schema_version: \"1.0\", total, entries }` back to `index.json`, overwriting the file with the **superset** you just computed.\n\n   **Step D — MANDATORY verification (read-back check):**\n   - Read `index.json` back, parse it, and validate against `index.schema.json` (see the validation procedure in the \"Artefact schemas\" block).\n   - Verify `total == length(entries)` and `total >= PREV_COUNT`.\n   - Verify the current investigation's `investigation_id` is present in `entries` exactly once.\n   - Verify every entry that was in the pre-write `existing.entries` is still present (no prior entry was dropped).\n   - If any check fails, **do not leave the shrunken/invalid index on disk** — restore from the pre-write copy and redo from Step A.\n\n   **Common failure modes to avoid:**\n   - Recreating `index.json` from scratch (e.g., writing only the current entry) — this destroys all history.\n   - Skipping Step A and overwriting instead of appending.\n   - Writing a `total` smaller than the `PREV_COUNT` you read in Step A of **this** step (deliberate retention trimming happens only in step 5, never during the append).\n   - Dropping the deprecated `investigations` array's contents instead of merging them into `entries`.\n\n2. **Update Pattern Database — MANDATORY read-modify-write procedure**:\n\n   Each failure signature gets exactly one JSON file at `/tmp/gh-aw/repo-memory/default/post-commit/patterns/<signature-hash>.json`.\n\n   **Schema:** the authoritative definition is `${GITHUB_WORKSPACE}/.github/ci-doctor-post-commit/schemas/pattern.schema.json`. Read that file for the exact field list, types, and constraints, and validate the record against it (see the validation procedure in the \"Artefact schemas\" block above).\n\n   **Step-by-step procedure (follow EXACTLY in this order):**\n\n   **Step A — Compute signature hash:**\n   Derive a stable `<signature-hash>` from ONLY inputs that do NOT change between reruns of the same failure **and that do NOT depend on which job the error occurred in** — the same underlying error frequently surfaces in several different jobs (e.g., the same test failing on Linux and Windows, or across shards), and those MUST collapse into a single pattern:\n   - Normalized primary error message: strip absolute paths, line/column numbers, hex addresses, PIDs, timestamps, run IDs, commit SHAs, tmp dirs, UUIDs, and any embedded job / runner / OS / shard names or indices\n   - Failure category — MUST be exactly one of the values from the `category` `enum` defined in `pattern.schema.json` (identical to the `category` enum in `investigation.schema.json`). Use the schema's spelling verbatim (e.g., `Code Issue`, `Flaky Test`, `External Service`, `Network`); do **not** invent a category or use the looser prose labels from Phase 4.\n\n   Do **NOT** include the failed job name in the hash. Keying on the job name would split one underlying error into a separate pattern for every job that hits it, inflating the database and breaking recurrence counting. Treat the job name(s) as descriptive metadata only (record them in `title` / the investigation, not in the hash).\n\n   Concatenate the two inputs as `<normalized-error>|<category>`, then compute a hash (e.g., first 16 chars of SHA-256). The same normalized error in the same category MUST always produce the same hash regardless of which job(s) it occurred in, and two reruns of the same failure MUST produce the same hash.\n\n   **Step B — Read existing file:**\n   Attempt to read `/tmp/gh-aw/repo-memory/default/post-commit/patterns/<signature-hash>.json`.\n   - If the file exists, parse it as JSON into a variable called `existing`.\n   - If the file does NOT exist, set `existing = null`.\n\n   **Step C — Compute the updated record:**\n\n   ~~~pseudocode\n   NOW = current UTC time in ISO 8601 format (e.g., \"2026-05-12T14:30:00Z\")\n   CURRENT_RUN_URL = the URL of the current workflow run\n   SCOPE_REF = the head SHA of the current workflow run (or null if unknown)\n\n   IF existing != null:\n       record.schema_version = \"1.0\"\n       record.signature   = existing.signature\n       record.signature_hash = existing.signature_hash\n       record.title       = title from investigation (refresh always)\n       record.category    = category from investigation (refresh always)\n       record.count       = existing.count + 1          ← MUST increment\n       record.first_seen  = existing.first_seen         ← NEVER change\n       record.last_seen   = NOW\n       record.recent_run_urls = [CURRENT_RUN_URL] + existing.recent_run_urls\n           → deduplicate by URL, then truncate to first 10 entries\n       record.affected_commits = (if SCOPE_REF: [SCOPE_REF] + existing.affected_commits else existing.affected_commits)\n           → deduplicate, then truncate to first 10 entries\n       record.recent_timestamps = [NOW] + existing.recent_timestamps\n           → keep only entries where timestamp >= (NOW - 24 hours)\n   ELSE:\n       record.schema_version = \"1.0\"\n       record.signature   = the <normalized-error>|<category> signature string from Step A\n       record.signature_hash = <signature-hash>\n       record.title       = title from investigation\n       record.category    = category from investigation\n       record.count       = 1\n       record.first_seen  = NOW\n       record.last_seen   = NOW\n       record.recent_run_urls = [CURRENT_RUN_URL]\n       record.affected_commits = (if SCOPE_REF: [SCOPE_REF] else [])\n       record.recent_timestamps = [NOW]\n\n   Additionally set every workflow-specific pattern field required by the\n   workflow-specific instructions (if any), in both branches.\n   ~~~\n\n   **Step D — Write the file:**\n   Write `record` as JSON to `/tmp/gh-aw/repo-memory/default/post-commit/patterns/<signature-hash>.json`. Overwrite the file completely with the new content.\n\n   **Step E — MANDATORY verification (read-back check):**\n   Immediately after writing, read the file back and verify:\n   - the record validates against `pattern.schema.json` (run the validation procedure from the \"Artefact schemas\" block)\n   - `schema_version` equals `\"1.0\"` and `signature_hash` matches the file name\n   - `count` equals the value you just computed (NOT 1 unless this is genuinely the first occurrence)\n   - `recent_timestamps` contains the current timestamp `NOW` as the first entry\n   - `last_seen` equals `NOW`\n   - `first_seen` has NOT changed from `existing.first_seen` (if file existed before)\n   - every additional check listed in the workflow-specific instructions passes\n\n   If any check fails, you have a bug in your write logic. Fix it before proceeding.\n\n   **Common failure modes to avoid:**\n   - Writing `count: 1` because you forgot to read the existing file first\n   - Writing `count: 1` because you recomputed the signature hash differently (different normalization) and created a new file instead of updating the old one\n   - Omitting `recent_timestamps` entirely (this breaks recurrence detection)\n   - Setting `first_seen` to NOW when the file already existed\n   - Forgetting to include the current timestamp in `recent_timestamps`\n\n3. **Build Statistics Snapshot**: After step 2, aggregate all `.json` files under `/tmp/gh-aw/repo-memory/default/post-commit/patterns/` into the statistics fields for `notify_teams`. For each file:\n   - Read and parse the JSON\n   - Use the `count`, `first_seen`, `last_seen`, `title`, `category` values AS-IS from the file (do NOT recompute them)\n   - The current failure's pattern MUST report `count == notify_teams.occurrence_count`\n\n   Sort patterns by `count` descending (ties broken by most recent `last_seen`). Format as the markdown table and JSON described in the Output Requirements section.\n\n   **Validation before calling notify_teams:** Read back the current pattern file one more time. The `count` field in the file MUST equal the `occurrence_count` value you are about to pass to `notify_teams`. If they differ, go back to Step B and redo the update.\n\n4. **Save Artifacts**: Store detailed logs and analysis in the cached directories.\n\n5. **Retention & Compaction (MANDATORY — keeps the knowledge base under the repo-memory caps)**:\n\n   The repo-memory branch enforces hard `max-file-count` (1000) and `max-file-size` (1 MiB) caps on every push; once either is exceeded, **the entire push is rejected** and this run's investigation — and all future ones — silently fail to persist. To stay under them, prune the two unbounded, low-value-over-time datasets down to rolling windows **after** writing this run's artefacts (steps 1–3). No permanent signal is lost: long-term recurrence lives in the per-signature `patterns/*.json` `count`/`first_seen`/`last_seen` fields, which are **never** pruned.\n\n   Constants:\n   - `INVESTIGATION_RETENTION_MAX = 300` — max per-run investigation record files to keep under `investigations/`.\n   - `INDEX_RETENTION_MAX = 2000` — max entries to keep in `index.json` (≈600 KiB, comfortably under the 1 MiB file cap).\n\n   **Step A — Prune raw investigation records:**\n   - List every `*.json` file under `/tmp/gh-aw/repo-memory/default/post-commit/investigations/` **except** `index.json`.\n   - If the count exceeds `INVESTIGATION_RETENTION_MAX`, delete the oldest files (order by the `YYYY-MM-DD-HH-MM-SS-sss` timestamp in the filename, oldest first) until exactly `INVESTIGATION_RETENTION_MAX` remain. **Never** delete the record you wrote in this run.\n   - Deleting a raw record does not erase the failure from history: its lightweight reference stays in `index.json` (until the index prune below) and its recurrence is already folded into the pattern record.\n\n   **Step B — Compact the index to its rolling window:**\n   - Re-read `index.json` (the superset written in step 1a).\n   - If `length(entries) > INDEX_RETENTION_MAX`, keep only the newest `INDEX_RETENTION_MAX` entries (sort by `timestamp` descending, take the first `INDEX_RETENTION_MAX`). This is the ONLY sanctioned place the index shrinks.\n   - Set `total = length(entries)`, write the object back, then validate against `index.schema.json` and confirm this run's `investigation_id` is still present (it is one of the newest, so it must survive the trim).\n\n   **Step C — Verify headroom (monitoring):**\n   - Count all persisted files under `/tmp/gh-aw/repo-memory/default/post-commit/` and confirm the total is `< max-file-count` (1000).\n   - Confirm `index.json` on disk is `< max-file-size` (1 MiB). If it is within ~10% of the cap despite the entry trim, lower the effective `INDEX_RETENTION_MAX` for this write and note it in the investigation.\n   - Never leave the branch over any cap — an over-cap push is rejected wholesale and this run's investigation is lost. If pattern records alone approach `max-file-count`, flag it in the Teams report so a maintainer can raise the cap or archive old signatures.\n"
-          GH_AW_PROMPT_CONTENT_0009: "### Phase 6: Reporting and Recommendations\n\n1. **Create Investigation Report**: Generate a comprehensive analysis including:\n   - **Executive Summary**: Quick overview of the failure\n   - **Root Cause Analysis**: Single, consolidated section covering category, failed jobs, key error excerpts, the actual root-cause explanation, and your confidence level. Do **not** add a separate \"Investigation Findings\" or \"Deep Analysis\" section — it would duplicate this one.\n   - **Reproduction Steps**: How to reproduce the issue locally\n   - **Recommended Actions**: Specific steps to fix the issue\n   - **Prevention Strategies**: How to avoid similar failures\n   - **AI Team Self-Improvement**: Give a short set of additional prompting instructions to copy-and-paste into instructions.md for AI coding agents to help prevent this type of failure in future\n   - **Historical Context**: Similar past failures and their resolutions\n\n2. **Actionable Deliverables**:\n   - Send a Microsoft Teams notification with the investigation results (see Output Requirements below)\n   - Provide specific file locations and line numbers for fixes\n   - Suggest code changes or configuration updates\n   - Produce every additional deliverable listed in the workflow-specific instructions (and none that they forbid)\n\n### Phase 7: Output Format Validation (MANDATORY before any safe-output call)\n\nYou MUST validate and normalise the payload before calling `notify_teams` or any other safe-output tool listed in the workflow-specific instructions.\n\n**Every numeric-looking field in these tools is declared as `type: string` and\nMUST be passed as a JSON string, not a JSON number.** Wrap the value in quotes.\n\n1. **Build the payload object first**, then run the checklist below against it.\n   Do not call the safe-output tool until every check passes.\n\n2. **String-encoding checklist** — for each field, confirm the value is a string\n   (quoted), never a bare number, boolean, null, or object:\n\n   For `notify_teams`:\n   - `source` — the string `\"post_commit\"` (MANDATORY for this workflow, so the Teams card shows the matching source badge and states the failure is a Post-Commit one)\n   - `title` — non-empty string\n   - `failed_workflow` — non-empty string\n   - `pipeline_url` — non-empty string (a valid URL)\n   - `description` — non-empty string\n   - `db_entries` — string-encoded non-negative integer, e.g. `\"42\"` (NOT `42`)\n   - `occurrence_count` — string-encoded positive integer, e.g. `\"4\"` (NOT `4`)\n   - `statistics` — non-empty string\n   - `statistics_json` — string (a JSON document serialized into a string; the\n     value itself must be a string, even though its contents are JSON)\n   - `pr_number` — when provided, string-encoded integer, e.g. `\"27618\"`\n     (NOT `27618`). This is the field most commonly rejected — double-check it.\n   - `pr_url` — when provided, string\n   - `author` — when provided, string\n\n   The workflow-specific instructions add the checklist for any further safe-output tools.\n\n3. **Normalization rule**: if you computed any of the numeric fields as an\n   integer (e.g., `count` read from a pattern file, a file count, or a PR number\n   parsed from the API), explicitly convert it to its string form before placing\n   it in the payload. For example, treat `pr_number` derived as `27618` as\n   `\"27618\"`.\n\n4. **Optional-field rule**: for optional fields (`pr_number`, `pr_url`,\n   `author`), either provide a correctly-typed string value OR an explicit string \"not_found\". Never pass `null`, an empty object, or a bare number.\n\n5. **Final self-check**: re-read the assembled payload one last time and verify\n   that no value that should be a string is an unquoted number, and that `source`\n   is set to `\"post_commit\"`. Only after this check passes may you call the\n   safe-output tool. If you are unsure whether a field is correctly typed, coerce\n   it to a string — string is always the safe choice for these tools.\n\n## Output Requirements\n\nReport the investigation as a Microsoft Teams notification by calling the `notify_teams` safe-output tool exactly once.\n\nThe workflow-specific instructions may require additional safe-output calls (for example a PR comment or an escalation alert); follow them in addition to the guidance below.\n\n### `notify_teams` field guidance\n\nProvide all required fields and include the optional PR-related fields whenever the failure can be associated with a pull request.\n\n- **`source`** (required) — Always pass the string `\"post_commit\"`. This makes the Teams card render the matching badge and a \"Source: Post-Commit\" fact so readers can immediately tell a post-commit failure apart from the other CI Doctor's failures.\n\n- **`title`** (required) — Short, searchable description of the failure. **Do not** include PR, commit or run numbers. Examples:\n  * iGPU tests fail with incorrect input argument\n  * SmartCI fails to fetch GenAI repo after actions/checkout update\n  * smoke_Bucketize tests fail on comparison\n  * smoke_ConvertCPULayerTest - Value of: primTypeCheck(primType) is unexpected\n  * smoke/LoraPatternMatmul returned/aborted with exit code -9\n\n  Use a phrasing that could be reused verbatim as a summary in a tracking system like JIRA.\n\n- **`pipeline_url`** (required) — `__GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL__` for `workflow_run` triggers, or the `link` input / resolved run URL when triggered manually.\n\n- **`failed_workflow`** (required) — Name of the workflow whose run is being investigated, taken from `get_workflow_run` (field `name`). For example: `Linux (Ubuntu 22.04, Python 3.11)`. Never pass the name of this CI Failure Doctor Post-Commit workflow itself.\n\n- **`pr_number`** / **`pr_url`** / **`author`** (optional) — Provide these only when the failure can be associated with a pull request / author. The workflow-specific instructions define where these values come from for this doctor. Omit or pass `\"not_found\"` when they cannot be determined.\n\n- **`db_entries`** (required) — Current total number of unique entries in the CI Doctor Post-Commit investigation database. Compute it during Phase 5 by counting distinct files under `/tmp/gh-aw/repo-memory/default/post-commit/investigations/` (including the one this run just wrote, excluding `index.json`) and pass the resulting non-negative integer as a string (e.g., `\"42\"`). If the directory does not yet exist, report `\"0\"` (or `\"1\"` if you just created the first entry). Note: counting files under any path other than `/tmp/gh-aw/repo-memory/default/post-commit/investigations/` will give a wrong result.\n\n- **`occurrence_count`** (required) — How many times **this same issue** has been recorded in the CI Doctor Post-Commit database, including the current investigation. This value MUST be read directly from the `count` field of the pattern file at `/tmp/gh-aw/repo-memory/default/post-commit/patterns/<signature-hash>.json` AFTER you have completed the Phase 5 step 2 write and verification. Do NOT compute this independently — read it from the file. Pass as a positive integer encoded as a string (e.g., `\"1\"`, `\"4\"`).\n\n- **`statistics`** (required) — Markdown snapshot of the pattern database, rendered inline in the Teams card. Build it from the per-pattern files maintained in Phase 5. Show the top **20** patterns sorted by reproduction count descending (ties broken by most recent `last_seen`). Use a Markdown table with columns: `Pattern`, `Category`, `Count`, `First seen (UTC)`, `Last seen (UTC)`. Highlight the current failure's row with a leading `▶` marker in the `Pattern` column. Apply the same Teams rendering rules as `description` (no raw HTML, use tilde fences if you need code blocks). Keep total length under ~3 KB so the Adaptive Card renders cleanly. Example:\n\n  ~~~markdown\n  | Pattern | Category | Count | First seen (UTC) | Last seen (UTC) |\n  | --- | --- | ---: | --- | --- |\n  | ▶ smoke_Bucketize tests fail on comparison | Code Issue | 7 | 2026-01-04T09:11:02Z | 2026-04-30T14:22:51Z |\n  | iGPU tests fail with incorrect input argument | Infrastructure | 4 | 2026-02-19T03:45:10Z | 2026-04-28T19:07:33Z |\n  ~~~\n\n- **`statistics_json`** (required) — Full pattern database serialized as a compact JSON string (single line, no surrounding code fence). Must include **every** pattern currently tracked, not just the top 20. Schema is documented on the input field. This payload is uploaded as the `ci-doctor-post-commit-statistics` workflow artifact (alongside the rendered Markdown) and is intended for offline analysis or dashboarding. Keep `recent_run_urls` capped at 10 entries per pattern.\n\n  **Count consistency (mandatory):** the `count` value for every pattern in `statistics_json` (and in the rendered `statistics` table) MUST be the persisted `count` read from the corresponding `/tmp/gh-aw/repo-memory/default/post-commit/patterns/<signature-hash>.json` file *after* Phase 5 step 2 has updated it. In particular, the current failure's pattern MUST report `count == occurrence_count`. Do NOT emit `count: 1` for every pattern — that is a symptom of either (a) overwriting the persisted record instead of read-modify-write, or (b) generating a fresh signature hash on each run. Validate this invariant before calling `notify_teams`; if it fails, fix the persistence step rather than the reported numbers.\n\n- **`description`** (required) — Thorough Markdown body. Microsoft Teams Adaptive Cards render only a **limited subset of Markdown** — specifically: headings (`#`/`##`/`###`), bold/italic, inline code, fenced code blocks, ordered/unordered lists, and links. **Do not** use raw HTML tags such as `<details>`, `<summary>`, `<br>`, `<b>`, `<table>`, etc. — they appear as literal text in Teams. Use `###` headings for every section (no collapsibles). Use this structure (the workflow-specific instructions may insert additional `###` sections):\n\n```markdown\n### Summary\n\n[Brief description of the post-commit failure]\n\n### Failure Details\n\n- **Run**: [__GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID__](__GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL__)\n- **Commit**: __GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA__\n- **Trigger**: push (post-commit)\n\n### Root Cause Analysis\n\nWrite this as a single, consolidated section. Do NOT add a separate \"Investigation Findings\", \"Deep Analysis\", or standalone \"Failed Jobs and Errors\" section — they duplicate this one. Use the following fixed sub-structure with `####` headings, in this order; omit a sub-heading only if there is genuinely nothing to say.\n\n#### Category\n\nOne of: Code Issue / Infrastructure / Dependencies / Configuration / Flaky Test / External Service / Network. Add a half-sentence justification.\n\n#### Failed Jobs\n\nBulleted list of `job-name` — short symptom (one line each).\n\n#### Key Errors\n\nOne or more fenced code blocks with the most relevant raw log excerpts (trimmed). Cite file paths and line numbers from the logs verbatim.\n\n**Fence rules (critical for Teams rendering):**\n\n- Use **tilde fences** (`~~~`), not backticks, to delimit log excerpts. Backtick fences inside the description frequently collide with stray backticks in log output and cause everything that follows to render as a single unterminated code block in Teams.\n- Open with a line containing exactly `~~~` (optionally followed by a language hint like `~~~text`) and close with a line containing exactly `~~~`. Nothing else on the fence lines.\n- Every opening fence **must** have a matching closing fence before the next `####` heading. Never leave a code block open at the end of a section.\n- Strip or escape any literal `~~~` sequences that appear inside the log excerpt itself (extremely rare in CI logs); backticks inside the excerpt are fine because the fence is tildes.\n- Keep each excerpt short (≤ 30 lines). If you need to show several distinct errors, use several separate `~~~ ... ~~~` blocks rather than one giant block.\n\n#### Explanation\n\n2–6 sentences explaining *why* the errors above occurred (the actual root cause, not a restatement of the symptom). Reference specific code paths, config keys, or PR-changed files when available.\n\n#### Confidence\n\nOne of: High / Medium / Low — with a one-line justification (e.g., \"High: deterministic crash with stack trace pointing to a single PR-changed file\").\n\n### Reproduction Steps\n\n[Concrete commands or sequence of actions to reproduce locally; write \"N/A\" if not reproducible outside CI]\n\n### Recommended Actions\n\n- [ ] [Specific actionable steps]\n\n### Prevention Strategies\n\n[How to prevent similar failures]\n\n### AI Team Self-Improvement\n\n[Short set of additional prompting instructions to copy-and-paste into instructions.md for AI coding agents to help prevent this type of failure in future]\n\n### Historical Context\n\n[Similar past failures and patterns]\n```\n\n## Important Guidelines\n\n- **Be Thorough**: Don't just report the error - investigate the underlying cause\n- **Use Memory**: Always check for similar past failures and learn from them\n- **Be Specific**: Provide exact file paths, line numbers, and error messages\n- **Action-Oriented**: Focus on actionable recommendations, not just analysis\n- **Pattern Building**: Contribute to the knowledge base for future investigations\n- **Resource Efficient**: Use caching to avoid re-downloading large logs\n- **Security Conscious**: Never execute untrusted code from logs or external sources\n- **Tool Restrictions**: Use only MCP tools available in this session. Do NOT use `web-fetch`, the `gh` CLI, or any other shell commands for data retrieval — all GitHub API access must go through MCP tools.\n- **Bounded Code Inspection**: Never analyze the whole codebase. Do not read test files line-by-line or traverse component trees. Stay within the limits defined in Phase 4 (Source Code Inspection Safeguards): log-derived scope, max 10 files, max 5 search queries, PR-diff-first when a PR is known. If the failure cannot be localized within those limits, stop and report \"needs human triage\" with the evidence collected so far.\n\n## Mandatory Output Requirement\n\n**Before calling any safe output tool, run the Phase 7 Output Format Validation\nchecklist.** All numeric-looking fields (`pr_number`, `db_entries`,\n`occurrence_count`, and any counts of workflow-specific tools) MUST be passed as\nJSON strings, not numbers, and `source` MUST be `\"post_commit\"`.\n\nYou **MUST** always call at least one safe output tool before finishing:\n\n- **`notify_teams`**: Send the investigation report as a Microsoft Teams notification (default for any actionable finding). Call this exactly once with `source: \"post_commit\"`.\n- **`noop`**: When no action is needed (e.g., CI was successful, not a post-commit run, no failure to investigate).\n- **`missing_data`**: When you cannot gather the information needed to complete the investigation.\n\nThe workflow-specific instructions list any further safe-output tools available to this workflow and the valid call combinations. Never call a safe-output tool that is not listed there or above.\n\n**Never complete without calling a safe output tool.** If in doubt, call `noop` with a brief summary of what you found.\n\nExample noop call: `{\"noop\": {\"message\": \"No action needed: [brief explanation]\"}}`\n\n### STOP — final tool-call gate (read before ending your turn)\n\nA prose summary is **NOT** a safe output. Writing a sentence such as \"I sent the Teams notification, posted the comment and requested remediation\" does nothing on its own — the action only happens when you actually **call** the corresponding safe-output tool (`notify_teams`, `add_comment`, `remediate_transient_failure`, `noop`, ...) so that it is emitted to the output file. A run that finishes with a written summary but no tool call is silently discarded as an empty no-op, and all of your work is lost.\n\nBefore you end your turn, verify:\n\n1. Every action you described in your summary has a matching safe-output **tool call** you actually made this session — not just narration.\n2. At minimum, `notify_teams` (or `noop` / `missing_data`) has been called.\n\nIf you have written such a summary but have not yet called the tools it describes, **call them now** before finishing. Do not end your turn until the required tool calls have been emitted.\n\n## Memory Strategy\n\n- **Persistent location**: `tools.repo-memory` mounts a dedicated Git branch (`memory/ci-doctor-post-commit`) at `/tmp/gh-aw/repo-memory/default/`. This directory persists **indefinitely** across workflow runs with no expiry. Anything written elsewhere (e.g., `/tmp/memory/`, `/tmp/investigation/`) is discarded when the runner is torn down.\n- Store the investigation database and knowledge patterns in `/tmp/gh-aw/repo-memory/default/post-commit/investigations/` and `/tmp/gh-aw/repo-memory/default/post-commit/patterns/`.\n- Build cumulative knowledge about failure patterns and solutions using structured JSON files.\n- **Filename Requirements**: Use filesystem-safe characters only (no colons, quotes, or special characters)\n  - ✅ Good: `2026-02-12-11-20-45-458-12345.json`\n  - ❌ Bad: `2026-02-12T11:20:45.458Z-12345.json` (contains colons)\n- **Allowed file extensions**: Only save artifacts as `.json`, `.md`, or `.jsonl` files. These are the only extensions tracked by `tools.repo-memory`. Files with any other extension (e.g., `.txt`, `.log`, `.yaml`) will **not** be persisted to the `memory/ci-doctor-post-commit` branch and will be lost when the runner is torn down. If there are any files with not-allowed extensions present in the `/tmp/gh-aw/repo-memory/default/post-commit` folder, remove them safely before finishing.\n- **Isolated branch**: This workflow uses `/tmp/gh-aw/repo-memory/default/post-commit/` as its own subdirectory within the dedicated `memory/ci-doctor-post-commit` branch. This keeps post-commit failure patterns isolated from every other workflow's knowledge base, so recurrence counting only counts post-commit occurrences.\n"
-          GH_AW_PROMPT_CONTENT_0010: "{{#runtime-import .github/workflows/ci-doctor-post-commit.md}}\n"
+          GH_AW_PROMPT_CONTENT_0005: "{{#runtime-import .github/workflows/shared/agentic-workflows/collect-ci-doctor-history.md}}\n"
+          GH_AW_PROMPT_CONTENT_0006: "{{#runtime-import .github/workflows/ci-doctor-remediation.md}}\n"
         with:
           script: |
             const { setupGlobals } = require(process.env.GH_AW_ACTIONS_DIR + '/setup_globals.cjs');
@@ -354,13 +307,8 @@ jobs:
         env:
           GH_AW_PROMPT: ${{ runner.temp }}/gh-aw/aw-prompts/prompt.txt
           GH_AW_ENGINE_ID: "copilot"
-          GH_AW_GITHUB_EVENT_INPUTS_LINK: ${{ github.event.inputs.link }}
-          GH_AW_GITHUB_EVENT_INPUTS_RUN_ID: ${{ github.event.inputs.run_id }}
-          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_EVENT: ${{ github.event.workflow_run.event }}
-          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL: ${{ github.event.workflow_run.html_url }}
-          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
+          GH_AW_GITHUB_ACTOR: ${{ github.actor }}
+          GH_AW_EXPR_55839564: ${{ github.event.inputs.days || '7' }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
         with:
           script: |
@@ -376,27 +324,14 @@ jobs:
           GH_AW_PROMPT: ${{ runner.temp }}/gh-aw/aw-prompts/prompt.txt
           GH_AW_EXPR_1A3A194A: ${{ github.event.discussion.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'discussion' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
           GH_AW_EXPR_463A214A: ${{ github.event.pull_request.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'pull_request' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
+          GH_AW_EXPR_55839564: ${{ github.event.inputs.days || '7' }}
           GH_AW_EXPR_802A9F6A: ${{ github.event.issue.number || (fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_type == 'issue' && fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').item_number) }}
           GH_AW_EXPR_FF1D34CE: ${{ github.event.comment.id || fromJSON(github.event.inputs.aw_context || github.event.client_payload.aw_context || '{}').comment_id }}
           GH_AW_GITHUB_ACTOR: ${{ github.actor }}
-          GH_AW_GITHUB_EVENT_INPUTS_LINK: ${{ github.event.inputs.link }}
-          GH_AW_GITHUB_EVENT_INPUTS_RUN_ID: ${{ github.event.inputs.run_id }}
-          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION: ${{ github.event.workflow_run.conclusion }}
-          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_EVENT: ${{ github.event.workflow_run.event }}
-          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
-          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL: ${{ github.event.workflow_run.html_url }}
-          GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_MCP_CLI_SERVERS_LIST: "- `github` — run `github --help` to see available tools\n- `safeoutputs` — run `safeoutputs --help` to see available tools"
-          GH_AW_MEMORY_BRANCH_NAME: 'memory/ci-doctor-post-commit'
-          GH_AW_MEMORY_CONSTRAINTS: "\n\n**Constraints:**\n- **Max File Size**: 1048576 bytes (1.00 MB) per file\n- **Max File Count**: 1000 files per commit\n- **Max Patch Size**: 1048576 bytes (1024 KB) total per push (max: 1024 KB)\n"
-          GH_AW_MEMORY_DESCRIPTION: ''
-          GH_AW_MEMORY_DIR: '/tmp/gh-aw/repo-memory/default/'
-          GH_AW_MEMORY_TARGET_REPO: ' of the current repository'
-          GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
-          GH_AW_WIKI_NOTE: ''
         with:
           script: |
             const path = require('path');
@@ -412,27 +347,14 @@ jobs:
               substitutions: {
                 GH_AW_EXPR_1A3A194A: process.env.GH_AW_EXPR_1A3A194A,
                 GH_AW_EXPR_463A214A: process.env.GH_AW_EXPR_463A214A,
+                GH_AW_EXPR_55839564: process.env.GH_AW_EXPR_55839564,
                 GH_AW_EXPR_802A9F6A: process.env.GH_AW_EXPR_802A9F6A,
                 GH_AW_EXPR_FF1D34CE: process.env.GH_AW_EXPR_FF1D34CE,
                 GH_AW_GITHUB_ACTOR: process.env.GH_AW_GITHUB_ACTOR,
-                GH_AW_GITHUB_EVENT_INPUTS_LINK: process.env.GH_AW_GITHUB_EVENT_INPUTS_LINK,
-                GH_AW_GITHUB_EVENT_INPUTS_RUN_ID: process.env.GH_AW_GITHUB_EVENT_INPUTS_RUN_ID,
-                GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION: process.env.GH_AW_GITHUB_EVENT_WORKFLOW_RUN_CONCLUSION,
-                GH_AW_GITHUB_EVENT_WORKFLOW_RUN_EVENT: process.env.GH_AW_GITHUB_EVENT_WORKFLOW_RUN_EVENT,
-                GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA: process.env.GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HEAD_SHA,
-                GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL: process.env.GH_AW_GITHUB_EVENT_WORKFLOW_RUN_HTML_URL,
-                GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID: process.env.GH_AW_GITHUB_EVENT_WORKFLOW_RUN_ID,
                 GH_AW_GITHUB_REPOSITORY: process.env.GH_AW_GITHUB_REPOSITORY,
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
                 GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE,
-                GH_AW_MCP_CLI_SERVERS_LIST: process.env.GH_AW_MCP_CLI_SERVERS_LIST,
-                GH_AW_MEMORY_BRANCH_NAME: process.env.GH_AW_MEMORY_BRANCH_NAME,
-                GH_AW_MEMORY_CONSTRAINTS: process.env.GH_AW_MEMORY_CONSTRAINTS,
-                GH_AW_MEMORY_DESCRIPTION: process.env.GH_AW_MEMORY_DESCRIPTION,
-                GH_AW_MEMORY_DIR: process.env.GH_AW_MEMORY_DIR,
-                GH_AW_MEMORY_TARGET_REPO: process.env.GH_AW_MEMORY_TARGET_REPO,
-                GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: process.env.GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED,
-                GH_AW_WIKI_NOTE: process.env.GH_AW_WIKI_NOTE
+                GH_AW_MCP_CLI_SERVERS_LIST: process.env.GH_AW_MCP_CLI_SERVERS_LIST
               }
             });
       - name: Validate prompt placeholders
@@ -490,7 +412,7 @@ jobs:
       GH_AW_PR_HEAD_BASE_SHA: ""
       GH_AW_PR_HEAD_REPO: ""
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
-      GH_AW_WORKFLOW_ID_SANITIZED: cidoctorpostcommit
+      GH_AW_WORKFLOW_ID_SANITIZED: cidoctorremediation
     outputs:
       agentic_engine_timeout: ${{ steps.detect-agent-errors.outputs.agentic_engine_timeout || 'false' }}
       ai_credits_rate_limit_error: ${{ steps.parse-mcp-gateway.outputs.ai_credits_rate_limit_error || 'false' }}
@@ -525,8 +447,8 @@ jobs:
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "CI Failure Doctor — Post-Commit"
-          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ci-doctor-post-commit.lock.yml@${{ github.ref }}
+          GH_AW_SETUP_WORKFLOW_NAME: "CI Doctor — Weekly Remediation"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ci-doctor-remediation.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.80"
           GH_AW_INFO_AWF_VERSION: "v0.28.14"
           GH_AW_INFO_ENGINE_ID: "copilot"
@@ -562,16 +484,6 @@ jobs:
         with:
           name: activation
           path: /tmp/gh-aw
-      # Repo memory git-based storage configuration from frontmatter processed below
-      - name: Clone repo-memory branch (default)
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_SERVER_URL: ${{ github.server_url }}
-          BRANCH_NAME: memory/ci-doctor-post-commit
-          TARGET_REPO: ${{ github.repository }}
-          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
-          CREATE_ORPHAN: true
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh"
       - name: Set up Python
         uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
@@ -579,14 +491,13 @@ jobs:
       - name: Install PyGithub
         run: python -m pip install --quiet PyGithub==2.9.1
       - env:
+          DAYS: ${{ github.event.inputs.days || '7' }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.issue.number }}
           REPO: ${{ github.repository }}
-          RUN_ID: ${{ github.event.workflow_run.id || github.event.inputs.run_id }}
-        name: Download CI failure logs
+        name: Collect CI Doctor knowledge base
         run: |
           export PYTHONPATH=.github/scripts/agentic-workflows/:${PYTHONPATH}
-          python .github/scripts/agentic-workflows/download_failure_logs.py
+          python .github/scripts/agentic-workflows/collect_ci_doctor_history.py
 
       - name: Configure Git credentials
         env:
@@ -651,12 +562,13 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs"
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
+          mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts"
       - name: Generate Safe Outputs Config
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_FILE_ROOT: "${{ runner.temp }}/gh-aw"
           GH_AW_FILE_CONFIG: "{\"files\":[{\"path\":\"safeoutputs/config.json\",\"content_env\":\"GH_AW_SAFE_OUTPUTS_CONFIG\"}]}"
-          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"false\"},\"notify-teams\":{\"description\":\"Send a CI failure investigation summary to Microsoft Teams. Call this exactly once at the end of the investigation with a concise title and a thorough description of the failure.\",\"inputs\":{\"author\":{\"default\":\"not_found\",\"description\":\"GitHub login of the PR author or commit author, if known. Omit otherwise.\",\"required\":false,\"type\":\"string\"},\"db_entries\":{\"default\":null,\"description\":\"Total number of unique entries currently in this CI Doctor's investigation database (count of distinct investigation files under the doctor's own investigations directory, `/tmp/gh-aw/repo-memory/default/<slug>/investigations/` where `<slug>` is `mq` for Merge Queue or `post-commit` for Post-Commit, including the one created by this run). Report as a non-negative integer encoded as a string.\",\"required\":true,\"type\":\"string\"},\"description\":{\"default\":null,\"description\":\"Thorough markdown description of the problem: root cause, failed jobs, key error messages, and recommended actions.\",\"required\":true,\"type\":\"string\"},\"failed_workflow\":{\"default\":null,\"description\":\"Name of the GitHub Actions workflow that failed (as reported by `get_workflow_run`, e.g. 'Linux (Ubuntu 22.04, Python 3.11)'). Do NOT pass the CI Doctor workflow's own name.\",\"required\":true,\"type\":\"string\"},\"occurrence_count\":{\"default\":null,\"description\":\"How many times this same issue has been recorded in this CI Doctor's database, including the current investigation. Compute by matching the current failure signature (normalized error message + failure category, job-agnostic) against prior investigation/pattern files under the doctor's own store, `/tmp/gh-aw/repo-memory/default/<slug>/` (`<slug>` = `mq` or `post-commit`). Must be >= 1. Report as a positive integer encoded as a string.\",\"required\":true,\"type\":\"string\"},\"pipeline_url\":{\"default\":null,\"description\":\"URL of the failed GitHub Actions workflow run.\",\"required\":true,\"type\":\"string\"},\"pr_number\":{\"default\":\"not_found\",\"description\":\"Pull request number if the failure is associated with a PR (e.g. a merge-queue PR). Omit otherwise.\",\"required\":false,\"type\":\"string\"},\"pr_url\":{\"default\":\"not_found\",\"description\":\"Pull request URL if the failure is associated with a PR (e.g. a merge-queue PR). Omit otherwise.\",\"required\":false,\"type\":\"string\"},\"source\":{\"default\":null,\"description\":\"Which CI Doctor produced this notification: 'merge_queue' for the Merge Queue investigator or 'post_commit' for the Post-Commit investigator. Controls the badge shown in the Teams card ([MQ] / [PC]) and the uploaded statistics artifact name.\",\"required\":true,\"type\":\"string\"},\"statistics\":{\"default\":null,\"description\":\"Markdown-formatted statistics summary of this CI Doctor's pattern database. Must include a table (or list) of every known failure pattern with: pattern signature/title, total reproduction count, first-seen timestamp (UTC, ISO 8601), and last-seen timestamp (UTC, ISO 8601). Sort patterns by reproduction count descending. Compute from files under the doctor's own store, `/tmp/gh-aw/repo-memory/default/<slug>/investigations/` and `/tmp/gh-aw/repo-memory/default/<slug>/patterns/` (`<slug>` = `mq` or `post-commit`). Keep concise (top 20 patterns max). Use the rendering rules from the description field (tilde fences, no raw HTML).\",\"required\":true,\"type\":\"string\"},\"statistics_json\":{\"default\":null,\"description\":\"Full statistics database serialized as a compact JSON string. Must be a JSON object of the form {\\\"generated_at\\\": <ISO8601 UTC>, \\\"total_patterns\\\": <int>, \\\"total_investigations\\\": <int>, \\\"patterns\\\": [{\\\"signature\\\": <str>, \\\"title\\\": <str>, \\\"category\\\": <str>, \\\"count\\\": <int>, \\\"first_seen\\\": <ISO8601 UTC>, \\\"last_seen\\\": <ISO8601 UTC>, \\\"recent_run_urls\\\": [<str>, ...]}]}. Include ALL known patterns, not just the top N. This payload is uploaded as a workflow artifact for offline analysis.\",\"required\":true,\"type\":\"string\"},\"title\":{\"default\":null,\"description\":\"Short, searchable description of the failure (e.g. 'smoke_Bucketize tests fail on comparison'). No PR/run numbers.\",\"required\":true,\"type\":\"string\"}},\"output\":\"Notification sent to Microsoft Teams.\"},\"push_repo_memory\":{\"memories\":[{\"allowed_extensions\":[\".md\",\".json\",\".jsonl\"],\"dir\":\"/tmp/gh-aw/repo-memory/default\",\"id\":\"default\",\"max_file_count\":1000,\"max_file_size\":1048576,\"max_patch_size\":1048576}]},\"report_incomplete\":{}}"
+          GH_AW_SAFE_OUTPUTS_CONFIG: "{\"create_pull_request\":{\"assignees\":[\"akashchi\"],\"draft\":true,\"labels\":[\"agentic-workflows\",\"automated-fix\"],\"max\":3,\"max_patch_files\":100,\"max_patch_size\":4096,\"protect_top_level_dot_folders\":true,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CODEOWNERS\",\"DESIGN.md\",\"README.md\",\"CONTRIBUTING.md\",\"CHANGELOG.md\",\"SECURITY.md\",\"CODE_OF_CONDUCT.md\",\"AGENTS.md\"],\"protected_files_policy\":\"allowed\",\"reviewers\":[\"akashchi\"],\"title_prefix\":\"[ci-doctor] \"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"false\"},\"report_incomplete\":{},\"upload_artifact\":{\"max-size-bytes\":104857600,\"max-uploads\":1}}"
         with:
           script: |
             const path = require('path');
@@ -669,85 +581,73 @@ jobs:
         env:
           GH_AW_TOOLS_META_JSON: |
             {
-              "description_suffixes": {},
+              "description_suffixes": {
+                "create_pull_request": " CONSTRAINTS: Maximum 3 pull request(s) can be created. Title will be prefixed with \"[ci-doctor] \". Labels [\"agentic-workflows\" \"automated-fix\"] will be automatically added. PRs will be created as drafts. Reviewers [\"akashchi\"] will be assigned. Assignees [\"akashchi\"] will be assigned to the created pull request and any fallback issue."
+              },
               "repo_params": {},
-              "dynamic_tools": [
-                {
-                  "description": "Send a CI failure investigation summary to Microsoft Teams. Call this exactly once at the end of the investigation with a concise title and a thorough description of the failure.",
-                  "inputSchema": {
-                    "additionalProperties": false,
-                    "properties": {
-                      "author": {
-                        "default": "not_found",
-                        "description": "GitHub login of the PR author or commit author, if known. Omit otherwise.",
-                        "type": "string"
-                      },
-                      "db_entries": {
-                        "description": "Total number of unique entries currently in this CI Doctor's investigation database (count of distinct investigation files under the doctor's own investigations directory, `/tmp/gh-aw/repo-memory/default/\u003cslug\u003e/investigations/` where `\u003cslug\u003e` is `mq` for Merge Queue or `post-commit` for Post-Commit, including the one created by this run). Report as a non-negative integer encoded as a string.",
-                        "type": "string"
-                      },
-                      "description": {
-                        "description": "Thorough markdown description of the problem: root cause, failed jobs, key error messages, and recommended actions.",
-                        "type": "string"
-                      },
-                      "failed_workflow": {
-                        "description": "Name of the GitHub Actions workflow that failed (as reported by `get_workflow_run`, e.g. 'Linux (Ubuntu 22.04, Python 3.11)'). Do NOT pass the CI Doctor workflow's own name.",
-                        "type": "string"
-                      },
-                      "occurrence_count": {
-                        "description": "How many times this same issue has been recorded in this CI Doctor's database, including the current investigation. Compute by matching the current failure signature (normalized error message + failure category, job-agnostic) against prior investigation/pattern files under the doctor's own store, `/tmp/gh-aw/repo-memory/default/\u003cslug\u003e/` (`\u003cslug\u003e` = `mq` or `post-commit`). Must be \u003e= 1. Report as a positive integer encoded as a string.",
-                        "type": "string"
-                      },
-                      "pipeline_url": {
-                        "description": "URL of the failed GitHub Actions workflow run.",
-                        "type": "string"
-                      },
-                      "pr_number": {
-                        "default": "not_found",
-                        "description": "Pull request number if the failure is associated with a PR (e.g. a merge-queue PR). Omit otherwise.",
-                        "type": "string"
-                      },
-                      "pr_url": {
-                        "default": "not_found",
-                        "description": "Pull request URL if the failure is associated with a PR (e.g. a merge-queue PR). Omit otherwise.",
-                        "type": "string"
-                      },
-                      "source": {
-                        "description": "Which CI Doctor produced this notification: 'merge_queue' for the Merge Queue investigator or 'post_commit' for the Post-Commit investigator. Controls the badge shown in the Teams card ([MQ] / [PC]) and the uploaded statistics artifact name.",
-                        "type": "string"
-                      },
-                      "statistics": {
-                        "description": "Markdown-formatted statistics summary of this CI Doctor's pattern database. Must include a table (or list) of every known failure pattern with: pattern signature/title, total reproduction count, first-seen timestamp (UTC, ISO 8601), and last-seen timestamp (UTC, ISO 8601). Sort patterns by reproduction count descending. Compute from files under the doctor's own store, `/tmp/gh-aw/repo-memory/default/\u003cslug\u003e/investigations/` and `/tmp/gh-aw/repo-memory/default/\u003cslug\u003e/patterns/` (`\u003cslug\u003e` = `mq` or `post-commit`). Keep concise (top 20 patterns max). Use the rendering rules from the description field (tilde fences, no raw HTML).",
-                        "type": "string"
-                      },
-                      "statistics_json": {
-                        "description": "Full statistics database serialized as a compact JSON string. Must be a JSON object of the form {\"generated_at\": \u003cISO8601 UTC\u003e, \"total_patterns\": \u003cint\u003e, \"total_investigations\": \u003cint\u003e, \"patterns\": [{\"signature\": \u003cstr\u003e, \"title\": \u003cstr\u003e, \"category\": \u003cstr\u003e, \"count\": \u003cint\u003e, \"first_seen\": \u003cISO8601 UTC\u003e, \"last_seen\": \u003cISO8601 UTC\u003e, \"recent_run_urls\": [\u003cstr\u003e, ...]}]}. Include ALL known patterns, not just the top N. This payload is uploaded as a workflow artifact for offline analysis.",
-                        "type": "string"
-                      },
-                      "title": {
-                        "description": "Short, searchable description of the failure (e.g. 'smoke_Bucketize tests fail on comparison'). No PR/run numbers.",
-                        "type": "string"
-                      }
-                    },
-                    "required": [
-                      "db_entries",
-                      "description",
-                      "failed_workflow",
-                      "occurrence_count",
-                      "pipeline_url",
-                      "source",
-                      "statistics",
-                      "statistics_json",
-                      "title"
-                    ],
-                    "type": "object"
-                  },
-                  "name": "notify_teams"
-                }
-              ]
+              "dynamic_tools": []
             }
           GH_AW_VALIDATION_JSON: |
             {
+              "create_pull_request": {
+                "defaultMax": 1,
+                "fields": {
+                  "base": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 128
+                  },
+                  "body": {
+                    "required": true,
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 65000
+                  },
+                  "branch": {
+                    "required": true,
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 256
+                  },
+                  "dependencies": {
+                    "type": "array",
+                    "itemType": "string",
+                    "itemSanitize": true,
+                    "itemMaxLength": 256
+                  },
+                  "draft": {
+                    "type": "boolean"
+                  },
+                  "labels": {
+                    "type": "array",
+                    "itemType": "string",
+                    "itemSanitize": true,
+                    "itemMaxLength": 128
+                  },
+                  "repo": {
+                    "type": "string",
+                    "maxLength": 256
+                  },
+                  "stack_position": {
+                    "optionalPositiveInteger": true
+                  },
+                  "stack_root": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 256
+                  },
+                  "temporary_id": {
+                    "type": "string",
+                    "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$"
+                  },
+                  "title": {
+                    "required": true,
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 128
+                  }
+                }
+              },
               "missing_data": {
                 "defaultMax": 20,
                 "fields": {
@@ -805,16 +705,6 @@ jobs:
                   }
                 }
               },
-              "push_repo_memory": {
-                "defaultMax": 1,
-                "fields": {
-                  "memory_id": {
-                    "type": "string",
-                    "sanitize": true,
-                    "maxLength": 128
-                  }
-                }
-              },
               "report_incomplete": {
                 "defaultMax": 5,
                 "fields": {
@@ -828,6 +718,21 @@ jobs:
                     "type": "string",
                     "sanitize": true,
                     "maxLength": 1024
+                  }
+                }
+              },
+              "upload_artifact": {
+                "defaultMax": 10,
+                "fields": {
+                  "filters": {
+                    "type": "object"
+                  },
+                  "path": {
+                    "type": "string"
+                  },
+                  "temporary_id": {
+                    "type": "string",
+                    "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$"
                   }
                 }
               }
@@ -991,7 +896,7 @@ jobs:
       - name: Execute GitHub Copilot CLI
         id: agentic_execution
         # Copilot CLI tool arguments (sorted):
-        timeout-minutes: 20
+        timeout-minutes: 30
         run: |
           set -o pipefail
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
@@ -1044,7 +949,7 @@ jobs:
           GH_AW_AWF_LOG_FILE=/tmp/gh-aw/agent-stdio.log \
           GH_AW_AWF_ATTEMPT_LOG_NAME=copilot \
           bash "${RUNNER_TEMP}/gh-aw/actions/run_awf_with_startup_retries.sh" -- \
-            awf --config "${RUNNER_TEMP}/gh-aw/awf-config.json" --container-workdir "${GITHUB_WORKSPACE}" --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw:/host${RUNNER_TEMP}/gh-aw:ro" ${GH_AW_TOOL_CACHE_MOUNT:+--mount "$GH_AW_TOOL_CACHE_MOUNT"} ${GH_AW_DOCKER_HOST:+--docker-host "$GH_AW_DOCKER_HOST"} --env-all --exclude-env ACTIONS_ID_TOKEN_REQUEST_TOKEN --exclude-env ACTIONS_ID_TOKEN_REQUEST_URL --exclude-env COPILOT_GITHUB_TOKEN --exclude-env GITHUB_MCP_SERVER_TOKEN --exclude-env MCP_GATEWAY_AGENT_ID --mount /tmp/gh-aw:/tmp/gh-aw:rw --log-level info --skip-pull \
+            awf --config "${RUNNER_TEMP}/gh-aw/awf-config.json" --container-workdir "${GITHUB_WORKSPACE}" --mount "${RUNNER_TEMP}/gh-aw:${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw:/host${RUNNER_TEMP}/gh-aw:ro" --mount "${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts:${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts:rw" ${GH_AW_TOOL_CACHE_MOUNT:+--mount "$GH_AW_TOOL_CACHE_MOUNT"} ${GH_AW_DOCKER_HOST:+--docker-host "$GH_AW_DOCKER_HOST"} --env-all --exclude-env ACTIONS_ID_TOKEN_REQUEST_TOKEN --exclude-env ACTIONS_ID_TOKEN_REQUEST_URL --exclude-env COPILOT_GITHUB_TOKEN --exclude-env GITHUB_MCP_SERVER_TOKEN --exclude-env MCP_GATEWAY_AGENT_ID --mount /tmp/gh-aw:/tmp/gh-aw:rw --log-level info --skip-pull \
             -- /bin/bash -c 'set +o histexpand; export PATH="${RUNNER_TEMP}/gh-aw/mcp-cli/bin:$PATH" && : "${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}"; GH_AW_TOOL_CACHE="$RUNNER_TOOL_CACHE"; GH_AW_TOOL_BINS="$(find "$GH_AW_TOOL_CACHE" -maxdepth 5 -type d -name bin 2>/dev/null | tr '\''\n'\'' '\'':'\'')"; GH_AW_TOOL_BINS="${GH_AW_TOOL_BINS%:}"; export PATH="$PATH${GH_AW_TOOL_BINS:+:}$GH_AW_TOOL_BINS"; [ -n "$GOROOT" ] && export PATH="$GOROOT/bin:$PATH" || true; [ -n "$ERLANG_HOME" ] && export PATH="$ERLANG_HOME/bin:$PATH" || true && GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; GH_AW_NPM_GLOBAL_ROOT="$(npm root -g 2>/dev/null || true)"; if [ -n "$GH_AW_NPM_GLOBAL_ROOT" ]; then export NODE_PATH="${GH_AW_NPM_GLOBAL_ROOT}${NODE_PATH:+:${NODE_PATH}}"; fi; "$GH_AW_NODE_EXEC" "${RUNNER_TEMP}/gh-aw/actions/copilot_harness.cjs" "${RUNNER_TEMP}/gh-aw/bin/copilot" --add-dir /tmp/gh-aw/ --log-level all --log-dir /tmp/gh-aw/sandbox/agent/logs/ --disable-builtin-mcps --no-ask-user --allow-all-tools --allow-all-paths --add-dir "${GITHUB_WORKSPACE}" --prompt-file /tmp/gh-aw/aw-prompts/prompt.txt'
         env:
           AWF_REFLECT_ENABLED: 1
@@ -1058,7 +963,7 @@ jobs:
           GH_AW_PHASE: agent
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}
-          GH_AW_TIMEOUT_MINUTES: 20
+          GH_AW_TIMEOUT_MINUTES: 30
           GH_AW_VERSION: v0.88.7
           GITHUB_API_URL: ${{ github.api_url }}
           GITHUB_AW: true
@@ -1081,7 +986,7 @@ jobs:
         continue-on-error: true
         env:
           GH_AW_AGENTIC_EXECUTION_OUTCOME: ${{ steps.agentic_execution.outcome }}
-          GH_AW_ENGINE_STEP_TIMEOUT_MINUTES: 20
+          GH_AW_ENGINE_STEP_TIMEOUT_MINUTES: 30
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -1227,47 +1132,15 @@ jobs:
           if [ ! -f /tmp/gh-aw/agent_output.json ]; then
             echo '{"items":[]}' > /tmp/gh-aw/agent_output.json
           fi
-      # Upload repo memory as artifacts for push job
-      - name: Sanitize repo-memory filenames (default)
+      # Upload safe-outputs upload-artifact staging for the upload_artifact job
+      - name: Upload upload-artifact staging
         if: always()
-        continue-on-error: true
-        env:
-          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/sanitize_repo_memory_filenames.sh"
-      - name: Filter repo-memory files (default)
-        id: filter_repo_memory_64656661756c74
-        if: always()
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
-          ALLOWED_EXTENSIONS: '[".md",".json",".jsonl"]'
-        with:
-          script: |
-            const path = require('path');
-            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
-            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require(path.join(actionsDir, 'memory_file_eligibility.cjs'));
-            await main();
-      - name: Upload repo-memory artifact (default)
-        if: always() && steps.filter_repo_memory_64656661756c74.outcome == 'success'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: repo-memory-default
-          path: /tmp/gh-aw/repo-memory/default
+          name: safe-outputs-upload-artifacts
+          path: ${{ runner.temp }}/gh-aw/safeoutputs/upload-artifacts/
           retention-days: 1
           if-no-files-found: ignore
-      - if: always()
-        name: Upload CI Doctor investigations and patterns (post-commit)
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          if-no-files-found: ignore
-          name: ci-doctor-post-commit-investigations
-          path: |
-            /tmp/gh-aw/repo-memory/default/post-commit/investigations
-            /tmp/gh-aw/repo-memory/default/post-commit/patterns
-          retention-days: 90
-
       # Small dedicated copy of the agent output so safe-output processing
       # survives a failed or timed-out upload of the larger agent artifact
       - name: Upload agent output fallback artifact
@@ -1312,8 +1185,6 @@ jobs:
       - activation
       - agent
       - detection
-      - notify_teams
-      - push_repo_memory
       - safe_outputs
     if: >
       always() && (needs.agent.result != 'skipped' || needs.activation.outputs.lockdown_check_failed == 'true' ||
@@ -1322,9 +1193,11 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       actions: read
+      contents: write
       issues: write
+      pull-requests: write
     concurrency:
-      group: "gh-aw-conclusion-ci-doctor-post-commit"
+      group: "gh-aw-conclusion-ci-doctor-remediation"
       cancel-in-progress: false
       queue: max
     env:
@@ -1344,8 +1217,8 @@ jobs:
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "CI Failure Doctor — Post-Commit"
-          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ci-doctor-post-commit.lock.yml@${{ github.ref }}
+          GH_AW_SETUP_WORKFLOW_NAME: "CI Doctor — Weekly Remediation"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ci-doctor-remediation.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.80"
           GH_AW_INFO_AWF_VERSION: "v0.28.14"
           GH_AW_INFO_ENGINE_ID: "copilot"
@@ -1412,8 +1285,8 @@ jobs:
         continue-on-error: true
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          key: agentic-workflow-usage-cidoctorpostcommit-${{ github.run_id }}
-          restore-keys: agentic-workflow-usage-cidoctorpostcommit-
+          key: agentic-workflow-usage-cidoctorremediation-${{ github.run_id }}
+          restore-keys: agentic-workflow-usage-cidoctorremediation-
           path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl
       - name: Write daily AIC usage cache entry
         id: write-daily-aic-cache
@@ -1435,7 +1308,7 @@ jobs:
         continue-on-error: true
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          key: agentic-workflow-usage-cidoctorpostcommit-${{ github.run_id }}
+          key: agentic-workflow-usage-cidoctorremediation-${{ github.run_id }}
           path: /tmp/gh-aw/agentic-workflow-usage-cache.jsonl
       - name: Upload daily AIC usage cache artifact
         id: upload-daily-aic-cache
@@ -1453,15 +1326,15 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_NOOP_MAX: "1"
-          GH_AW_WORKFLOW_NAME: "CI Failure Doctor — Post-Commit"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/ci-doctor-post-commit.md"
+          GH_AW_WORKFLOW_NAME: "CI Doctor — Weekly Remediation"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/ci-doctor-remediation.md"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
           GH_AW_NOOP_REPORT_AS_ISSUE: "false"
           GH_AW_AIC: ${{ needs.agent.outputs.aic }}
           GH_AW_THREAT_DETECTION_AIC: ${{ needs.detection.outputs.aic }}
           GH_AW_AMBIENT_CONTEXT: ${{ needs.agent.outputs.ambient_context }}
-          GH_AW_WORKFLOW_ID: "ci-doctor-post-commit"
+          GH_AW_WORKFLOW_ID: "ci-doctor-remediation"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1476,8 +1349,8 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "CI Failure Doctor — Post-Commit"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/ci-doctor-post-commit.md"
+          GH_AW_WORKFLOW_NAME: "CI Doctor — Weekly Remediation"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/ci-doctor-remediation.md"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.outputs.detection_conclusion }}
           GH_AW_DETECTION_REASON: ${{ needs.detection.outputs.detection_reason }}
@@ -1496,8 +1369,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_MISSING_TOOL_CREATE_ISSUE: "true"
-          GH_AW_WORKFLOW_NAME: "CI Failure Doctor — Post-Commit"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/ci-doctor-post-commit.md"
+          GH_AW_WORKFLOW_NAME: "CI Doctor — Weekly Remediation"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/ci-doctor-remediation.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1513,8 +1386,8 @@ jobs:
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
           GH_AW_REPORT_INCOMPLETE_CREATE_ISSUE: "true"
-          GH_AW_WORKFLOW_NAME: "CI Failure Doctor — Post-Commit"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/ci-doctor-post-commit.md"
+          GH_AW_WORKFLOW_NAME: "CI Doctor — Weekly Remediation"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/ci-doctor-remediation.md"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1530,11 +1403,11 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "CI Failure Doctor — Post-Commit"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/ci-doctor-post-commit.md"
+          GH_AW_WORKFLOW_NAME: "CI Doctor — Weekly Remediation"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/ci-doctor-remediation.md"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
-          GH_AW_WORKFLOW_ID: "ci-doctor-post-commit"
+          GH_AW_WORKFLOW_ID: "ci-doctor-remediation"
           GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS: "0"
           GH_AW_ENGINE_ID: "copilot"
           GH_AW_SECRET_VERIFICATION_RESULT: ${{ needs.activation.outputs.secret_verification_result }}
@@ -1556,21 +1429,21 @@ jobs:
           GH_AW_MISSING_MODEL_PRICING_MODEL_NAME: ${{ needs.agent.outputs.missing_model_pricing_model_name }}
           GH_AW_SHELL_EXPANSION_GUARD_REJECTED: ${{ needs.agent.outputs.shell_expansion_guard_rejected }}
           GH_AW_ENGINE_API_HOSTS: "api.enterprise.githubcopilot.com,api.githubcopilot.com,api.business.githubcopilot.com,api.individual.githubcopilot.com"
+          GH_AW_CODE_PUSH_FAILURE_ERRORS: ${{ needs.safe_outputs.outputs.code_push_failure_errors }}
+          GH_AW_CODE_PUSH_FAILURE_COUNT: ${{ needs.safe_outputs.outputs.code_push_failure_count }}
           GH_AW_LOCKDOWN_CHECK_FAILED: ${{ needs.activation.outputs.lockdown_check_failed }}
           GH_AW_OAUTH_TOKEN_CHECK_FAILED: ${{ needs.activation.outputs.oauth_token_check_failed }}
           GH_AW_STALE_LOCK_FILE_FAILED: ${{ needs.activation.outputs.stale_lock_file_failed }}
           GH_AW_DAILY_AI_CREDITS_EXCEEDED: ${{ needs.activation.outputs.daily_ai_credits_exceeded }}
           GH_AW_DAILY_AI_CREDITS_TOTAL_EFFECTIVE_TOKENS: ${{ needs.activation.outputs.daily_ai_credits_total_effective_tokens }}
           GH_AW_DAILY_AI_CREDITS_THRESHOLD: ${{ needs.activation.outputs.daily_ai_credits_threshold }}
-          GH_AW_PUSH_REPO_MEMORY_RESULT: ${{ needs.push_repo_memory.result }}
-          GH_AW_REPO_MEMORY_VALIDATION_FAILED_default: ${{ needs.push_repo_memory.outputs.validation_failed_default }}
-          GH_AW_REPO_MEMORY_VALIDATION_ERROR_default: ${{ needs.push_repo_memory.outputs.validation_error_default }}
-          GH_AW_REPO_MEMORY_PATCH_SIZE_EXCEEDED_default: ${{ needs.push_repo_memory.outputs.patch_size_exceeded_default }}
+          GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e Generated by [{workflow_name}]({run_url})\"}"
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
+          GH_AW_FAILURE_CATEGORIES_FILTER: "[\"agent_failure\",\"missing_safe_outputs\",\"timed_out\"]"
           GH_AW_MISSING_TOOL_REPORT_AS_FAILURE: "true"
           GH_AW_MISSING_DATA_REPORT_AS_FAILURE: "true"
-          GH_AW_TIMEOUT_MINUTES: "20"
+          GH_AW_TIMEOUT_MINUTES: "30"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
@@ -1586,8 +1459,8 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_AGENT_OUTPUT: ${{ steps.setup-agent-output-env.outputs.GH_AW_AGENT_OUTPUT }}
-          GH_AW_WORKFLOW_NAME: "CI Failure Doctor — Post-Commit"
-          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/ci-doctor-post-commit.md"
+          GH_AW_WORKFLOW_NAME: "CI Doctor — Weekly Remediation"
+          GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/ci-doctor-remediation.md"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_REPORT_FAILED_JOBS: "true"
         with:
@@ -1626,8 +1499,8 @@ jobs:
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "CI Failure Doctor — Post-Commit"
-          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ci-doctor-post-commit.lock.yml@${{ github.ref }}
+          GH_AW_SETUP_WORKFLOW_NAME: "CI Doctor — Weekly Remediation"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ci-doctor-remediation.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.80"
           GH_AW_INFO_AWF_VERSION: "v0.28.14"
           GH_AW_INFO_ENGINE_ID: "copilot"
@@ -1694,8 +1567,8 @@ jobs:
         if: always() && steps.detection_guard.outputs.run_detection == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          WORKFLOW_NAME: "CI Failure Doctor — Post-Commit"
-          WORKFLOW_DESCRIPTION: "This workflow is an automated CI failure investigator for post-commit (push)\nruns on the OpenVINO repository. It triggers when monitored workflows fail on a\npush to a protected branch, performs a deep analysis of the failure, records the\nproblem in a persistent knowledge base, and reports it via a Microsoft Teams\nnotification. Unlike the Merge Queue doctor, it never re-runs or re-queues\npipelines — it only collects and reports.\n\nThe investigation protocol shared with the Merge Queue doctor lives in the\nparameterised `shared/agentic-workflows/ci-doctor-*.md` fragments imported below;\nthe body of this file only holds the post-commit-specific additions."
+          WORKFLOW_NAME: "CI Doctor — Weekly Remediation"
+          WORKFLOW_DESCRIPTION: "Weekly maintenance workflow that consumes the CI Doctor knowledge base. It collects\nthe investigations and failure patterns recorded by the two automatic CI Doctors\n(Merge Queue and Post-Commit) over the past week from their dedicated repo-memory\nbranches, analyses the recurring issues, and proposes a concrete, per-issue\nremediation. Issues that can be fixed in code become draft pull requests (at most 3\nper run); every identified issue — code-fixable or not — is also written to a Markdown\nreport uploaded as a run artifact. This workflow only reads the knowledge base; it\nnever writes to the memory branches and never re-runs or re-queues any pipeline."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
           GH_AW_DETECTION_SKIP_PROMPT_SUMMARY: "true"
@@ -1762,8 +1635,8 @@ jobs:
           GIT_COMMITTER_NAME: github-actions[bot]
           RUNNER_TEMP: ${{ runner.temp }}
           TRACEPARENT: ${{ env.GITHUB_AW_OTEL_TRACE_ID != '' && env.GITHUB_AW_OTEL_PARENT_SPAN_ID != '' && format('00-{0}-{1}-01', env.GITHUB_AW_OTEL_TRACE_ID, env.GITHUB_AW_OTEL_PARENT_SPAN_ID) || '' }}
-          WORKFLOW_NAME: "CI Failure Doctor — Post-Commit"
-          WORKFLOW_DESCRIPTION: "This workflow is an automated CI failure investigator for post-commit (push)\nruns on the OpenVINO repository. It triggers when monitored workflows fail on a\npush to a protected branch, performs a deep analysis of the failure, records the\nproblem in a persistent knowledge base, and reports it via a Microsoft Teams\nnotification. Unlike the Merge Queue doctor, it never re-runs or re-queues\npipelines — it only collects and reports.\n\nThe investigation protocol shared with the Merge Queue doctor lives in the\nparameterised `shared/agentic-workflows/ci-doctor-*.md` fragments imported below;\nthe body of this file only holds the post-commit-specific additions."
+          WORKFLOW_NAME: "CI Doctor — Weekly Remediation"
+          WORKFLOW_DESCRIPTION: "Weekly maintenance workflow that consumes the CI Doctor knowledge base. It collects\nthe investigations and failure patterns recorded by the two automatic CI Doctors\n(Merge Queue and Post-Commit) over the past week from their dedicated repo-memory\nbranches, analyses the recurring issues, and proposes a concrete, per-issue\nremediation. Issues that can be fixed in code become draft pull requests (at most 3\nper run); every identified issue — code-fixable or not — is also written to a Markdown\nreport uploaded as a run artifact. This workflow only reads the knowledge base; it\nnever writes to the memory branches and never re-runs or re-queues any pipeline."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
           GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         run: |
@@ -1862,173 +1735,6 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/conclude_threat_detection.sh" /tmp/gh-aw/threat-detection/detection_result.json
 
-  notify_teams:
-    needs:
-      - agent
-      - detection
-    if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'notify_teams')
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - name: Download agent output artifact
-        continue-on-error: true
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          pattern: "{agent,agent-output-fallback}"
-          merge-multiple: true
-          path: ${{ runner.temp }}/gh-aw/safe-jobs/
-      - name: Checkout agentic-workflow scripts
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
-        with:
-          persist-credentials: false
-          sparse-checkout: .github/scripts/agentic-workflows
-      - name: Set up Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
-        with:
-          python-version: "3.13"
-      - name: Send Teams notification
-        id: notify
-        run: |
-          export PYTHONPATH=.github/scripts/agentic-workflows/:${PYTHONPATH}
-          python .github/scripts/agentic-workflows/notify_teams.py
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
-          RUN_URL: ${{ github.event.workflow_run.html_url || github.event.inputs.link || '' }}
-          TEAMS_WEBHOOK_URL: ${{ secrets.TEAMS_WEBHOOK_URL }}
-      - name: Upload statistics artifact
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        env:
-          GH_AW_AGENT_OUTPUT: ${{ runner.temp }}/gh-aw/safe-jobs/agent_output.json
-        with:
-          if-no-files-found: ignore
-          name: ${{ steps.notify.outputs.artifact_name || 'ci-doctor-mq-statistics' }}
-          path: ${{ steps.notify.outputs.stats_dir || format('{0}/ci-doctor-mq-statistics', runner.temp) }}
-          retention-days: 90.0
-
-  pre_activation:
-    if: >
-      github.event_name == 'workflow_dispatch' || (github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event == 'push')
-    runs-on: ubuntu-slim
-    env:
-      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
-    outputs:
-      activated: ${{ steps.check_membership.outputs.is_team_member == 'true' }}
-      matched_command: ''
-      setup-parent-span-id: ${{ steps.setup.outputs.parent-span-id || steps.setup.outputs.span-id }}
-      setup-span-id: ${{ steps.setup.outputs.span-id }}
-      setup-trace-id: ${{ steps.setup.outputs.trace-id }}
-    steps:
-      - name: Setup Scripts
-        id: setup
-        uses: github/gh-aw-actions/setup@5e508589e03a7757a7e05b26e834292f5445bfb6 # v0.88.7
-        with:
-          destination: ${{ runner.temp }}/gh-aw/actions
-          job-name: ${{ github.job }}
-        env:
-          GH_AW_SETUP_WORKFLOW_NAME: "CI Failure Doctor — Post-Commit"
-          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ci-doctor-post-commit.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.80"
-          GH_AW_INFO_AWF_VERSION: "v0.28.14"
-          GH_AW_INFO_ENGINE_ID: "copilot"
-      - name: Check team membership for workflow
-        id: check_membership
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          GH_AW_REQUIRED_ROLES: "admin,maintainer,write"
-          GH_AW_ALLOWED_BOTS: "github-merge-queue"
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const path = require('path');
-            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
-            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require(path.join(actionsDir, 'check_membership.cjs'));
-            await main();
-
-  push_repo_memory:
-    needs:
-      - activation
-      - agent
-      - detection
-    if: >
-      always() && (!cancelled()) && (needs.detection.result == 'success' || needs.detection.result == 'skipped') &&
-      needs.agent.result == 'success'
-    runs-on: ubuntu-slim
-    permissions:
-      contents: write
-    concurrency:
-      group: "push-repo-memory-${{ github.repository }}|memory/ci-doctor-post-commit"
-      cancel-in-progress: false
-    env:
-      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
-    outputs:
-      patch_size_exceeded_default: ${{ steps.push_repo_memory_default.outputs.patch_size_exceeded }}
-      validation_error_default: ${{ steps.push_repo_memory_default.outputs.validation_error }}
-      validation_failed_default: ${{ steps.push_repo_memory_default.outputs.validation_failed }}
-    steps:
-      - name: Setup Scripts
-        id: setup
-        uses: github/gh-aw-actions/setup@5e508589e03a7757a7e05b26e834292f5445bfb6 # v0.88.7
-        with:
-          destination: ${{ runner.temp }}/gh-aw/actions
-          job-name: ${{ github.job }}
-          trace-id: ${{ needs.activation.outputs.setup-trace-id }}
-          parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
-        env:
-          GH_AW_SETUP_WORKFLOW_NAME: "CI Failure Doctor — Post-Commit"
-          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ci-doctor-post-commit.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.80"
-          GH_AW_INFO_AWF_VERSION: "v0.28.14"
-          GH_AW_INFO_ENGINE_ID: "copilot"
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          sparse-checkout: .
-      - name: Configure Git credentials
-        env:
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_SERVER_URL: ${{ github.server_url }}
-          GITHUB_TOKEN: ${{ github.token }}
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh"
-      - name: Download repo-memory artifact (default)
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        continue-on-error: true
-        with:
-          name: repo-memory-default
-          path: /tmp/gh-aw/repo-memory/default
-      - name: Push repo-memory changes (default)
-        id: push_repo_memory_default
-        if: always()
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          GITHUB_SERVER_URL: ${{ github.server_url }}
-          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/default
-          MEMORY_ID: default
-          TARGET_REPO: ${{ github.repository }}
-          BRANCH_NAME: memory/ci-doctor-post-commit
-          MAX_FILE_SIZE: 1048576
-          MAX_FILE_COUNT: 1000
-          MAX_PATCH_SIZE: 1048576
-          ALLOWED_EXTENSIONS: '[".md",".json",".jsonl"]'
-        with:
-          script: |
-            const path = require('path');
-            const actionsDir = path.join(process.env.RUNNER_TEMP, 'gh-aw', 'actions');
-            const { setupGlobals } = require(path.join(actionsDir, 'setup_globals.cjs'));
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require(path.join(actionsDir, 'push_repo_memory.cjs'));
-            await main();
-
   safe_outputs:
     needs:
       - activation
@@ -2037,29 +1743,33 @@ jobs:
     if: (!cancelled()) && needs.agent.result != 'skipped' && needs.detection.result == 'success'
     runs-on: ubuntu-slim
     permissions:
+      contents: write
       issues: write
+      pull-requests: write
     timeout-minutes: 45
     env:
       GH_AW_AGENT_AIC: ${{ needs.agent.outputs.aic }}
       GH_AW_AIC: ${{ needs.agent.outputs.aic }}
       GH_AW_AMBIENT_CONTEXT: ${{ needs.agent.outputs.ambient_context }}
-      GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/ci-doctor-post-commit"
+      GH_AW_CALLER_WORKFLOW_ID: "${{ github.repository }}/ci-doctor-remediation"
       GH_AW_DETECTION_CONCLUSION: ${{ needs.detection.outputs.detection_conclusion }}
       GH_AW_DETECTION_REASON: ${{ needs.detection.outputs.detection_reason }}
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_ENGINE_MODEL: "claude-sonnet-5"
-      GH_AW_HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
+      GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e Generated by [{workflow_name}]({run_url})\"}"
       GH_AW_THREAT_DETECTION_AIC: ${{ needs.detection.outputs.aic }}
-      GH_AW_WORKFLOW_ID: "ci-doctor-post-commit"
-      GH_AW_WORKFLOW_NAME: "CI Failure Doctor — Post-Commit"
-      GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/ci-doctor-post-commit.md"
+      GH_AW_WORKFLOW_ID: "ci-doctor-remediation"
+      GH_AW_WORKFLOW_NAME: "CI Doctor — Weekly Remediation"
+      GH_AW_WORKFLOW_SOURCE_URL: "${{ github.server_url }}/${{ github.repository }}/blob/${{ github.ref_name }}/.github/workflows/ci-doctor-remediation.md"
     outputs:
       code_push_failure_count: ${{ steps.process_safe_outputs.outputs.code_push_failure_count }}
       code_push_failure_errors: ${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}
       create_discussion_error_count: ${{ steps.process_safe_outputs.outputs.create_discussion_error_count }}
       create_discussion_errors: ${{ steps.process_safe_outputs.outputs.create_discussion_errors }}
+      created_pr_number: ${{ steps.process_safe_outputs.outputs.created_pr_number }}
+      created_pr_url: ${{ steps.process_safe_outputs.outputs.created_pr_url }}
       process_safe_outputs_items_applied: ${{ steps.process_safe_outputs.outputs.items_applied }}
       process_safe_outputs_items_cancelled: ${{ steps.process_safe_outputs.outputs.items_cancelled }}
       process_safe_outputs_items_deferred: ${{ steps.process_safe_outputs.outputs.items_deferred }}
@@ -2070,6 +1780,8 @@ jobs:
       process_safe_outputs_processed_count: ${{ steps.process_safe_outputs.outputs.processed_count }}
       process_safe_outputs_status: ${{ steps.process_safe_outputs.outputs.status }}
       process_safe_outputs_temporary_id_map: ${{ steps.process_safe_outputs.outputs.temporary_id_map }}
+      upload_artifact_count: ${{ steps.process_safe_outputs.outputs.upload_artifact_count }}
+      upload_artifact_slot_0_tmp_id: ${{ steps.process_safe_outputs.outputs.slot_0_tmp_id }}
     steps:
       - name: Setup Scripts
         id: setup
@@ -2079,9 +1791,10 @@ jobs:
           job-name: ${{ github.job }}
           trace-id: ${{ needs.activation.outputs.setup-trace-id }}
           parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
+          safe-output-artifact-client: 'true'
         env:
-          GH_AW_SETUP_WORKFLOW_NAME: "CI Failure Doctor — Post-Commit"
-          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ci-doctor-post-commit.lock.yml@${{ github.ref }}
+          GH_AW_SETUP_WORKFLOW_NAME: "CI Doctor — Weekly Remediation"
+          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/ci-doctor-remediation.lock.yml@${{ github.ref }}
           GH_AW_INFO_VERSION: "1.0.80"
           GH_AW_INFO_AWF_VERSION: "v0.28.14"
           GH_AW_INFO_ENGINE_ID: "copilot"
@@ -2104,6 +1817,25 @@ jobs:
           if [ -f "/tmp/gh-aw/agent_output.json" ]; then
             echo "GH_AW_AGENT_OUTPUT=/tmp/gh-aw/agent_output.json" >> "$GITHUB_OUTPUT"
           fi
+      - name: Download patch artifact
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: agent
+          path: /tmp/gh-aw/
+      - name: Checkout repository
+        if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'create_pull_request')
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: true
+          token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+      - name: Configure Git credentials
+        if: (!cancelled()) && needs.agent.result != 'skipped' && contains(needs.agent.outputs.output_types, 'create_pull_request')
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GIT_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh"
       - name: Configure GH_HOST for enterprise compatibility
         id: ghes-host-config
         shell: bash
@@ -2113,6 +1845,12 @@ jobs:
           GH_HOST="${GITHUB_SERVER_URL#https://}"
           GH_HOST="${GH_HOST#http://}"
           echo "GH_HOST=${GH_HOST}" >> "$GITHUB_ENV"
+      - name: Download upload-artifact staging
+        continue-on-error: true
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: safe-outputs-upload-artifacts
+          path: ${{ runner.temp }}/gh-aw/safeoutputs/upload-artifacts/
       - name: Process Safe Outputs
         id: process_safe_outputs
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -2122,8 +1860,8 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "api.snapcraft.io,archive.ubuntu.com,azure.archive.ubuntu.com,crl.geotrust.com,crl.globalsign.com,crl.identrust.com,crl.sectigo.com,crl.thawte.com,crl.usertrust.com,crl.verisign.com,crl3.digicert.com,crl4.digicert.com,crls.ssl.com,json-schema.org,json.schemastore.org,keyserver.ubuntu.com,ocsp.digicert.com,ocsp.geotrust.com,ocsp.globalsign.com,ocsp.identrust.com,ocsp.sectigo.com,ocsp.ssl.com,ocsp.thawte.com,ocsp.usertrust.com,ocsp.verisign.com,packagecloud.io,packages.cloud.google.com,packages.microsoft.com,ppa.launchpad.net,s.symcb.com,s.symcd.com,security.ubuntu.com,ts-crl.ws.symantec.com,ts-ocsp.ws.symantec.com,www.googleapis.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUT_JOBS: "{\"notify_teams\":\"\"}"
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"false\"},\"report_incomplete\":{}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_pull_request\":{\"assignees\":[\"akashchi\"],\"draft\":true,\"labels\":[\"agentic-workflows\",\"automated-fix\"],\"max\":3,\"max_patch_files\":100,\"max_patch_size\":4096,\"protect_top_level_dot_folders\":true,\"protected_files\":[\"package.json\",\"bun.lockb\",\"bunfig.toml\",\"deno.json\",\"deno.jsonc\",\"deno.lock\",\"global.json\",\"NuGet.Config\",\"Directory.Packages.props\",\"mix.exs\",\"mix.lock\",\"go.mod\",\"go.sum\",\"stack.yaml\",\"stack.yaml.lock\",\"pom.xml\",\"build.gradle\",\"build.gradle.kts\",\"settings.gradle\",\"settings.gradle.kts\",\"gradle.properties\",\"package-lock.json\",\"yarn.lock\",\"pnpm-lock.yaml\",\"npm-shrinkwrap.json\",\"requirements.txt\",\"Pipfile\",\"Pipfile.lock\",\"pyproject.toml\",\"setup.py\",\"setup.cfg\",\"Gemfile\",\"Gemfile.lock\",\"uv.lock\",\"CODEOWNERS\",\"DESIGN.md\",\"README.md\",\"CONTRIBUTING.md\",\"CHANGELOG.md\",\"SECURITY.md\",\"CODE_OF_CONDUCT.md\",\"AGENTS.md\"],\"protected_files_policy\":\"allowed\",\"reviewers\":[\"akashchi\"],\"title_prefix\":\"[ci-doctor] \"},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"false\"},\"report_incomplete\":{},\"upload_artifact\":{\"max-size-bytes\":104857600,\"max-uploads\":1}}"
+          GH_AW_CI_TRIGGER_TOKEN: ${{ secrets.GH_AW_CI_TRIGGER_TOKEN }}
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
