@@ -40,7 +40,7 @@ public:
         auto params = GetParam();
         const auto output_type =
             params.expected.type == params.input.type ? ov::element::dynamic : params.expected.type;
-        function = CreateFunction(params.input, params.eps, params.scale, output_type);
+        function = CreateFunction(params.input, params.eps, params.scale, output_type, params.reductionAxes);
         if (!params.scale.data) {
             inputData = {params.input.data};
         } else {
@@ -71,16 +71,21 @@ private:
     static std::shared_ptr<Model> CreateFunction(const reference_tests::Tensor& input,
                                                  const double eps,
                                                  const reference_tests::Tensor& scale,
-                                                 const ov::element::Type& output_type) {
+                                                 const ov::element::Type& output_type,
+                                                 const reference_tests::Tensor& reductionAxes) {
         const auto in = std::make_shared<op::v0::Parameter>(input.type, input.shape);
+        int64_t axis = -1;
+        if (reductionAxes.data) {
+            axis = op::v0::Constant(reductionAxes.data).cast_vector<int64_t>()[0];
+        }
 
         if (!scale.data) {
             const auto scale_const = std::make_shared<op::v0::Constant>(input.type, input.shape, 1.0);
-            const auto rms_norm = std::make_shared<op::internal::RMS>(in, scale_const, eps, output_type);
+            const auto rms_norm = std::make_shared<op::internal::RMS>(in, scale_const, eps, output_type, axis);
             return std::make_shared<ov::Model>(OutputVector{rms_norm}, ParameterVector{in});
         }
         const auto scale_param = std::make_shared<op::v0::Parameter>(scale.type, scale.shape);
-        const auto rms_norm = std::make_shared<op::internal::RMS>(in, scale_param, eps, output_type);
+        const auto rms_norm = std::make_shared<op::internal::RMS>(in, scale_param, eps, output_type, axis);
         return std::make_shared<ov::Model>(OutputVector{rms_norm}, ParameterVector{in, scale_param});
     }
 };
@@ -433,5 +438,20 @@ INSTANTIATE_TEST_SUITE_P(
                                                0.3818359375,  0.0000549555,  0.9018554688,  -1.0996093750, 0.0776977539,
                                                -0.6708984375, -0.1179199219, 1.5468750000,  0.0331726074,  3.3847656250,
                                                0.0784912109,  -2.2246093750, -0.1185913086, 2.4902343750}},
-                  reference_tests::Tensor{Shape{4}, ov::element::f32, std::vector<float>{0.5, 1.5, 0.25, 2.0}})),
+                  reference_tests::Tensor{Shape{4}, ov::element::f32, std::vector<float>{0.5, 1.5, 0.25, 2.0}}),
+        RMSParams(reference_tests::Tensor{Shape{1, 2, 2, 2},
+                                          ov::element::f32,
+                                          std::vector<float>{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f}},
+                  reference_tests::Tensor{Shape{1}, ov::element::i64, std::vector<int64_t>({1})},
+                  1e-5,
+                  reference_tests::Tensor{Shape{1, 2, 2, 2},
+                                          ov::element::f32,
+                                          std::vector<float>{0.27734998f,
+                                                             0.4472135f,
+                                                             0.55708593f,
+                                                             0.6324554f,
+                                                             1.38675f,
+                                                             1.3416405f,
+                                                             1.2998672f,
+                                                             1.2649108f}})),
     ReferenceRMSLayerTest::getTestCaseName);

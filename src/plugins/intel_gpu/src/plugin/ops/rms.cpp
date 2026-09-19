@@ -17,9 +17,8 @@ static void CreateRMSOp(ProgramBuilder& p, const std::shared_ptr<RMS>& op) {
     std::string primitive_name = layer_type_name_ID(op);
     const float epsilon = static_cast<float>(op->get_epsilon());
 
-    auto rms = op->get_elementwise_affine()
-        ? cldnn::rms(primitive_name, inputs[0], inputs[1], epsilon)
-        : cldnn::rms(primitive_name, inputs[0], epsilon);
+    auto rms = op->get_elementwise_affine() ? cldnn::rms(primitive_name, inputs[0], inputs[1], epsilon, op->get_axis())
+                                            : cldnn::rms(primitive_name, inputs[0], epsilon, op->get_axis());
     rms.output_data_types = get_output_data_types(op);
     p.add_primitive(*op, rms);
 }

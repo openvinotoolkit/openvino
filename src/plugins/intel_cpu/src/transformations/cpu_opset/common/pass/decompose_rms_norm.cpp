@@ -42,7 +42,7 @@ DecomposeRMSNorm::DecomposeRMSNorm() {
 
         auto power_const = ov::op::v0::Constant::create(data_precision, {}, std::vector<float>{2.F});
         auto power = std::make_shared<ov::op::v1::Power>(data, power_const);
-        auto mean_axes = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {-1});
+        auto mean_axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {node->get_axis()});
         auto mean = std::make_shared<ov::op::v1::ReduceMean>(power, mean_axes, true);
         auto eps = ov::op::v0::Constant::create(data_precision, {}, {node->get_epsilon()});
         auto add_eps = std::make_shared<ov::op::v1::Add>(mean, eps);
