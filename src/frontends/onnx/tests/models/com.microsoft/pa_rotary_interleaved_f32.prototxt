@@ -1,0 +1,226 @@
+ir_version: 10
+graph {
+  node {
+    input: "query"
+    input: "key"
+    input: "value"
+    input: "key_cache"
+    input: "value_cache"
+    input: "cumulative_sequence_length"
+    input: "past_seqlens"
+    input: "block_table"
+    input: "cos_cache"
+    input: "sin_cache"
+    output: "output"
+    output: "key_cache_out"
+    output: "value_cache_out"
+    name: "PagedAttention_0"
+    op_type: "PagedAttention"
+    attribute {
+      name: "num_heads"
+      i: 2
+      type: INT
+    }
+    attribute {
+      name: "kv_num_heads"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "scale"
+      f: 0
+      type: FLOAT
+    }
+    attribute {
+      name: "softcap"
+      f: 0
+      type: FLOAT
+    }
+    attribute {
+      name: "local_window_size"
+      i: -1
+      type: INT
+    }
+    attribute {
+      name: "do_rotary"
+      i: 1
+      type: INT
+    }
+    attribute {
+      name: "rotary_interleaved"
+      i: 1
+      type: INT
+    }
+    domain: "com.microsoft"
+  }
+  name: "PagedAttention_Graph"
+  input {
+    name: "query"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_param: "num_tokens" }
+          dim { dim_value: 16 }
+        }
+      }
+    }
+  }
+  input {
+    name: "key"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_param: "num_tokens" }
+          dim { dim_value: 8 }
+        }
+      }
+    }
+  }
+  input {
+    name: "value"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_param: "num_tokens" }
+          dim { dim_value: 8 }
+        }
+      }
+    }
+  }
+  input {
+    name: "key_cache"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_param: "num_blocks" }
+          dim { dim_value: 4 }
+          dim { dim_value: 1 }
+          dim { dim_value: 8 }
+        }
+      }
+    }
+  }
+  input {
+    name: "value_cache"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_param: "num_blocks" }
+          dim { dim_value: 4 }
+          dim { dim_value: 1 }
+          dim { dim_value: 8 }
+        }
+      }
+    }
+  }
+  input {
+    name: "cumulative_sequence_length"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+  input {
+    name: "past_seqlens"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim { dim_value: 1 }
+        }
+      }
+    }
+  }
+  input {
+    name: "block_table"
+    type {
+      tensor_type {
+        elem_type: 6
+        shape {
+          dim { dim_value: 1 }
+          dim { dim_value: 2 }
+        }
+      }
+    }
+  }
+  input {
+    name: "cos_cache"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_param: "max_sequence_length" }
+          dim { dim_value: 4 }
+        }
+      }
+    }
+  }
+  input {
+    name: "sin_cache"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_param: "max_sequence_length" }
+          dim { dim_value: 4 }
+        }
+      }
+    }
+  }
+  output {
+    name: "output"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_param: "num_tokens" }
+          dim { dim_value: 16 }
+        }
+      }
+    }
+  }
+  output {
+    name: "key_cache_out"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_param: "num_blocks" }
+          dim { dim_value: 4 }
+          dim { dim_value: 1 }
+          dim { dim_value: 8 }
+        }
+      }
+    }
+  }
+  output {
+    name: "value_cache_out"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim { dim_param: "num_blocks" }
+          dim { dim_value: 4 }
+          dim { dim_value: 1 }
+          dim { dim_value: 8 }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 11
+}
+opset_import {
+  domain: "com.microsoft"
+  version: 1
+}
