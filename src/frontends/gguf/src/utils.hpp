@@ -29,6 +29,9 @@ namespace gguf {
 
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs);
 
+/// \brief Resolve one combined or two explicit GLU inputs and apply the decoder's swapped flag.
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> get_glu_inputs(const NodeContext& context);
+
 /// \brief Find a Parameter whose friendly name or output tensor names include `name`.
 /// Returns nullptr if the model has no such Parameter.
 std::shared_ptr<ov::op::v0::Parameter> find_parameter(const std::shared_ptr<ov::Model>& model, const std::string& name);

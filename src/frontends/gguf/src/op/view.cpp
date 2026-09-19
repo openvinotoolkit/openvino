@@ -27,6 +27,12 @@ namespace {
 // element-count conservation: product(tgt) / product(res_ps's static dims). No-op for a static
 // res_ps, where the target is already exact and a -1 could land on the wrong axis.
 void place_dynamic_token_axis(std::vector<int64_t>& tgt, const ov::PartialShape& res_ps) {
+    if (std::find(tgt.begin(), tgt.end(), -1) != tgt.end()) {
+        // The decoder can identify the runtime axis exactly from ggml strides/permutations. Keep
+        // that stronger contract, especially for zero-length captures where element-count
+        // inference below is intentionally impossible.
+        return;
+    }
     if (res_ps.rank().is_dynamic()) {
         return;
     }
@@ -425,7 +431,11 @@ OutputVector translate_view(const NodeContext& context) {
         }
 
         if (byte_offset == 0 && ov::shape_size(src_shape) == ov::shape_size(dst_shape)) {
-            auto target = ov::op::v0::Constant::create(ov::element::i64, {dst_shape.size()}, dst_shape);
+            auto target_shape = context.get_attribute<std::vector<int64_t>>("view_reshape", {});
+            if (target_shape.empty()) {
+                target_shape.assign(dst_shape.begin(), dst_shape.end());
+            }
+            auto target = ov::op::v0::Constant::create(ov::element::i64, {target_shape.size()}, target_shape);
             auto result = std::make_shared<ov::op::v1::Reshape>(context.get_input(0), target, false);
             return rename_outputs_with_suffix({std::move(result)}, context.get_name());
         }

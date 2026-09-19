@@ -25,13 +25,24 @@ OutputVector translate_cont(const NodeContext& context) {
 
     ov::Output<Node> res;
 
-    if (op_case == 1) {
-        // Input from PERMUTE: translate_permute already emitted a real Transpose, so the OV tensor
-        // is logically contiguous -- CONT (a ggml memory-contiguity op) is a no-op for us.
-        return {context.get_input(0)};
-    } else if (op_case == 2) {
-        // The input comes from a TRANSPOSE
-        return {context.get_input(0)};
+    if (op_case == 1 || op_case == 2) {
+        // PERMUTE/TRANSPOSE is already materialized as an OV Transpose, but ggml CONT may also
+        // collapse dimensions (attention heads are commonly flattened before the output
+        // projection). Preserve that logical output shape instead of returning the transposed
+        // tensor with an extra head axis.
+        auto input = context.get_input(0);
+        if (input.get_partial_shape().compatible(context.get_output_shape())) {
+            return {input};
+        }
+        auto tgt = context.get_attribute<std::vector<int64_t>>("cont_reshape", {});
+        FRONT_END_OP_CONVERSION_CHECK(!tgt.empty(),
+                                      "CONT from a transpose requires a \"cont_reshape\" target: input ",
+                                      input.get_partial_shape(),
+                                      " != output ",
+                                      context.get_output_shape());
+        res = std::make_shared<ov::op::v1::Reshape>(input,
+                                                    ov::op::v0::Constant::create(ov::element::i64, {tgt.size()}, tgt),
+                                                    false);
     } else {
         // The input comes from a VIEW. Resolve the view, then reshape to the CONT's own output layout
         // (ggml_cont can merge/split dims, e.g. qwen3-next's a/b: [tok,8,2,1] -> [8*tok,2,1,1]). The
@@ -54,9 +65,11 @@ OutputVector translate_cont(const NodeContext& context) {
             auto tgt_node = ov::op::v0::Constant::create(ov::element::i64, {tgt.size()}, tgt);
             res = std::make_shared<ov::op::v1::Reshape>(input, tgt_node, false);
             res.get_node_shared_ptr()->set_friendly_name("cont_reshape_" + context.get_name());
-            return rename_outputs_with_suffix({std::move(res)}, context.get_name());
         }
-        res = input;
+        if (!res.get_node_shared_ptr()) {
+            // A pass-through CONT must not rename the shared input producer.
+            return {input};
+        }
     }
 
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
