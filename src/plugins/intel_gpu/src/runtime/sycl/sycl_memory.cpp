@@ -158,17 +158,46 @@ event::ptr gpu_buffer::fill(stream& stream, unsigned char pattern, const std::ve
     }
 }
 
-shared_mem_params gpu_buffer::get_internal_params(runtime_types rt_type) const {
-    OPENVINO_ASSERT(rt_type == runtime_types::sycl, "[GPU] gpu_buffer can not provide internal params for non-SYCL runtime");
-    auto sycl_engine = downcast<const sycl::sycl_engine>(_engine);
-    return {shared_mem_type::shared_mem_buffer, const_cast<shared_handle>(static_cast<const void*>(&(sycl_engine->get_sycl_context()))), nullptr,
-            const_cast<shared_handle>(static_cast<const void*>(&_buffer)),
+shared_mem_params gpu_buffer::get_internal_params(runtime_types runtime_type) const {
+    const auto* sycl_engine = downcast<const sycl::sycl_engine>(_engine);
+    if (runtime_type == runtime_types::sycl) {
+        return {shared_mem_type::shared_mem_buffer,
+                const_cast<shared_handle>(static_cast<const void*>(&(sycl_engine->get_sycl_context()))),
+                nullptr,
+                const_cast<shared_handle>(static_cast<const void*>(&_buffer)),
 #ifdef _WIN32
-        nullptr,
+                nullptr,
 #else
-        0,
+                0,
 #endif
-        0};
+                0};
+    }
+
+    if (runtime_type == runtime_types::ocl && sycl_engine->backend_type() == backend_types::ocl) {
+        auto native_buffers = ::sycl::get_native<::sycl::backend::opencl>(_buffer);
+        OPENVINO_ASSERT(!native_buffers.empty(), "[GPU] SYCL buffer has no native OpenCL allocation");
+        return {shared_mem_type::shared_mem_buffer,
+                reinterpret_cast<shared_handle>(::sycl::get_native<::sycl::backend::opencl>(sycl_engine->get_sycl_context())),
+                nullptr,
+                reinterpret_cast<shared_handle>(native_buffers.front()),
+#ifdef _WIN32
+                nullptr,
+#else
+                0,
+#endif
+                0};
+    }
+
+    return {shared_mem_type::shared_mem_empty,
+            nullptr,
+            nullptr,
+            nullptr,
+#ifdef _WIN32
+            nullptr,
+#else
+            0,
+#endif
+            0};
 }
 
 event::ptr gpu_buffer::copy_from(stream& stream, const void* data_ptr, size_t src_offset, size_t dst_offset, size_t size, bool blocking) {
@@ -585,13 +614,36 @@ dnnl::memory gpu_usm::get_onednn_memory(dnnl::memory::desc desc, int64_t offset)
 }
 #endif
 
-shared_mem_params gpu_usm::get_internal_params(runtime_types rt_type) const {
-    OPENVINO_ASSERT(rt_type == runtime_types::sycl, "[GPU] gpu_usm can not provide internal params for non-SYCL runtime");
-    auto sycl_engine = downcast<const sycl::sycl_engine>(_engine);
+shared_mem_params gpu_usm::get_internal_params(runtime_types runtime_type) const {
+    const auto* sycl_engine = downcast<const sycl::sycl_engine>(_engine);
+    shared_handle context = nullptr;
+    shared_handle user_device = nullptr;
+
+    if (runtime_type == runtime_types::sycl) {
+        context = const_cast<shared_handle>(static_cast<const void*>(&(sycl_engine->get_sycl_context())));
+        user_device = const_cast<shared_handle>(static_cast<const void*>(&(sycl_engine->get_sycl_device())));
+    } else if (runtime_type == runtime_types::ocl && sycl_engine->backend_type() == backend_types::ocl) {
+        context = reinterpret_cast<shared_handle>(::sycl::get_native<::sycl::backend::opencl>(sycl_engine->get_sycl_context()));
+    } else if (runtime_type == runtime_types::ze && sycl_engine->backend_type() == backend_types::ze) {
+        context = reinterpret_cast<shared_handle>(::sycl::get_native<::sycl::backend::ext_oneapi_level_zero>(sycl_engine->get_sycl_context()));
+        user_device = reinterpret_cast<shared_handle>(::sycl::get_native<::sycl::backend::ext_oneapi_level_zero>(sycl_engine->get_sycl_device()));
+    } else {
+        return {shared_mem_type::shared_mem_empty,
+                nullptr,
+                nullptr,
+                nullptr,
+#ifdef _WIN32
+                nullptr,
+#else
+                0,
+#endif
+                0};
+    }
+
     return {
-        shared_mem_type::shared_mem_usm,  // shared_mem_type
-        static_cast<shared_handle>(const_cast<::sycl::context*>(&(sycl_engine->get_sycl_context()))),  // context handle
-        static_cast<shared_handle>(const_cast<::sycl::device*>(&(sycl_engine->get_sycl_device()))),  // user_device handle
+        shared_mem_type::shared_mem_usm,            // shared_mem_type
+        context,                                    // context handle
+        user_device,                                // user_device handle
         static_cast<shared_handle>(_buffer.get()),  // mem handle
 #ifdef _WIN32
         nullptr,  // surface handle

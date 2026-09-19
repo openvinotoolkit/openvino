@@ -5,6 +5,7 @@
 #include <tuple>
 #include <vector>
 
+#include "activation_inst.h"
 #include "convolution_inst.h"
 #include "data_inst.h"
 #include "fully_connected_inst.h"

@@ -14,6 +14,7 @@
 #include "include/f4_utils.cl"
 #endif
 
+#include "include/batch_headers/bf16_utils.cl"
 #include "include/reshape_dims.cl"
 #include "include/fetch_utils.cl"
 

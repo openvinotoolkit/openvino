@@ -181,4 +181,3 @@ std::unique_ptr<primitive_impl> ReorderImplementationManager::create_impl(const 
 }  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::reorder_impl)
-BIND_BINARY_BUFFER_WITH_TYPE(cldnn::reorder)
