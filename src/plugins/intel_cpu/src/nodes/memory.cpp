@@ -24,6 +24,7 @@
 #include "graph.h"
 #include "graph_context.h"
 #include "kernels/scaled_attn/cache_spec.hpp"
+#include "kernels/scaled_attn/codecs/oscar_quantize.hpp"
 #include "kernels/scaled_attn/mha_kv_cache_codec.hpp"
 #include "memory_desc/cpu_memory_desc.h"
 #include "memory_desc/cpu_memory_desc_utils.h"
@@ -1089,7 +1090,7 @@ MemStatePtr MemoryInputSDPA::makeState() const {
     const bool is_key = static_cast<size_t>(m_child_port_idx) == sdpa_inputs - 2;
     auto kv_precision = is_key ? node->getKeyCachePrecision() : node->getValueCachePrecision();
     ov::Extensions::Cpu::CacheSpec quant_param;
-    if (kv_precision == ov::element::u8 || kv_precision == ov::element::u4) {
+    if (kv_precision == ov::element::u8 || kv_precision == ov::element::u4 || kv_precision == ov::element::u2) {
         quant_param = is_key ? node->getKeySpec() : node->getValueSpec();
     }
 
@@ -1111,6 +1112,18 @@ MemStatePtr MemoryInputSDPA::makeState() const {
         min_dims.back() = packed;
         max_dims.back() = packed;
         internal_shape = Shape(min_dims, max_dims);
+    } else if (qp.alg == ov::internal::CacheQuantAlgorithm::OSCAR) {
+        auto min_dims = internal_shape.getMinDims();
+        auto max_dims = internal_shape.getMaxDims();
+        const auto head_dim = static_cast<int>(max_dims.back());
+        // V mirrors K (with_norms=true) until V-fold lands; keeps cache layout in sync
+        // with oscar_stage_cache which writes norms whenever residual_norms tensor exists.
+        const bool with_norms = true;
+        const size_t per_token =
+            ov::Extensions::Cpu::XARCH::oscar_per_token_bytes(head_dim, with_norms);
+        min_dims.back() = per_token;
+        max_dims.back() = per_token;
+        internal_shape = Shape(min_dims, max_dims);
     }
 
     auto internal_desc = ArbitraryOrderDescCreator(order).createSharedDesc(kv_precision, internal_shape);
@@ -1130,6 +1143,7 @@ void MemoryInputSDPA::runDynamic([[maybe_unused]] dnnl::stream strm) {
     // reads the packed cache directly via m_k_state->internal_state_mem(), bypassing this output.
     const auto& base_shape = getBaseMemDescAtOutputPort(0)->getShape();
     const bool is_tbq = sdpaState && sdpaState->get_spec().alg == ov::internal::CacheQuantAlgorithm::TURBO;
+    const bool is_oscar = sdpaState && sdpaState->get_spec().alg == ov::internal::CacheQuantAlgorithm::OSCAR;
 
     if (currentState->is_reset_state()) {
         if (getParentEdges().empty()) {
@@ -1147,7 +1161,7 @@ void MemoryInputSDPA::runDynamic([[maybe_unused]] dnnl::stream strm) {
                         " is empty, node name: ",
                         getName());
 
-        if (is_tbq) {
+        if (is_tbq || is_oscar) {
             auto dims = stateMem->getStaticDims();
             dims.back() = base_shape.getDims().back();
             redefineOutputMemory({dims});
