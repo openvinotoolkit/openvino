@@ -27,7 +27,7 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_sdpa(const ov::
     }
 
     const auto order = op::SDPA::default_order(query.get_partial_shape().rank().get_length());
-    return register_new_node<op::SDPA>(inputs,
+    auto sdpa = register_new_node<op::SDPA>(inputs,
                                        is_causal,
                                        order,
                                        order,
@@ -35,6 +35,10 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_sdpa(const ov::
                                        order,
                                        ov::element::dynamic,
                                        is_causal ? op::SDPA::CausalMaskAlignment::LOWER_RIGHT : op::SDPA::CausalMaskAlignment::UPPER_LEFT);
+    if (m_local_window_size >= 1) {
+        sdpa->set_sliding_window_size(m_local_window_size);
+    }
+    return sdpa;
 }
 
 std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_attention_mask(const ov::Output<ov::Node>& curr_seqlen_scalar,
@@ -49,7 +53,12 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_attention_mask(
                                                                                 bool sliding_window_cache,
                                                                                 float scale,
                                                                                 bool has_sink) {
-    if (causal && local_window_size == -1 && !sliding_window_cache && !external_bias.get_node() && scale == 0.0f && !has_sink) {
+    m_local_window_size = local_window_size;
+
+    // The kernel applies the window natively via is_causal + sliding_window_size (see make_sdpa),
+    // so the explicit mask subgraph is unneeded whenever that path is reachable.
+    if (causal && !external_bias.get_node() && scale == 0.0f && !has_sink &&
+        (local_window_size == -1 || sliding_window_cache)) {
         return nullptr;
     }
 
