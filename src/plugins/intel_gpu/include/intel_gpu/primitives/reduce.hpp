@@ -55,18 +55,35 @@ struct reduce : public primitive_base<reduce> {
            const bool keep_dims)
         : primitive_base(id, {input}), mode(mode), axes(axes), keep_dims(keep_dims) {}
 
+    /// @brief Constructs a weighted reduce primitive. The second input is
+    /// multiplied elementwise with the first input before reduction.
+    reduce(const primitive_id& id,
+           const input_info& input,
+           const input_info& weights,
+           const reduce_mode mode,
+           const std::vector<int64_t> axes,
+           const bool keep_dims)
+        : primitive_base(id, {input, weights}),
+          mode(mode),
+          axes(axes),
+          keep_dims(keep_dims),
+          weighted(true) {}
+
     /// @brief Reduce operation type
     reduce_mode mode;
     /// @brief List of axes to reduce
     std::vector<int64_t> axes;
     /// @brief Keep the reduced dimension or not, 1 mean keep reduced dimension
     bool keep_dims = false;
+    /// @brief Multiply input 0 by broadcastable input 1 before reduction.
+    bool weighted = false;
 
     size_t hash() const override {
         size_t seed = primitive::hash();
         seed = hash_combine(seed, mode);
         seed = hash_range(seed, axes.begin(), axes.end());
         seed = hash_combine(seed, keep_dims);
+        seed = hash_combine(seed, weighted);
         return seed;
     }
 
@@ -77,9 +94,7 @@ struct reduce : public primitive_base<reduce> {
 
         auto rhs_casted = downcast<const reduce>(rhs);
 
-        return mode == rhs_casted.mode &&
-               axes == rhs_casted.axes &&
-               keep_dims == rhs_casted.keep_dims;
+        return mode == rhs_casted.mode && axes == rhs_casted.axes && keep_dims == rhs_casted.keep_dims && weighted == rhs_casted.weighted;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -87,6 +102,7 @@ struct reduce : public primitive_base<reduce> {
         ob << make_data(&mode, sizeof(reduce_mode));
         ob << axes;
         ob << keep_dims;
+        ob << weighted;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -94,6 +110,7 @@ struct reduce : public primitive_base<reduce> {
         ib >> make_data(&mode, sizeof(reduce_mode));
         ib >> axes;
         ib >> keep_dims;
+        ib >> weighted;
     }
 };
 }  // namespace cldnn
