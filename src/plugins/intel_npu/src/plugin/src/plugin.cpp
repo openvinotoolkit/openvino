@@ -517,6 +517,22 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         const bool shouldForceThroughput = successfullyDebatched && !performanceHintSetByUser;
         const bool shouldWarnAboutLatency = successfullyDebatched && performanceHintSetByUser &&
                                             localConfig.get<PERFORMANCE_HINT>() == ov::hint::PerformanceMode::LATENCY;
+        const bool shouldDisablePerfCountForInferProfiling =
+            localConfig.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER && localConfig.get<PERF_COUNT>();
+
+        std::optional<FilteredConfig> modifiedConfig;  // Copy only when needed
+        if (shouldDisablePerfCountForInferProfiling || shouldForceThroughput) {
+            modifiedConfig = localConfig;
+        }
+        FilteredConfig& compilerConfig = modifiedConfig.has_value() ? *modifiedConfig : localConfig;
+
+        if (shouldDisablePerfCountForInferProfiling) {
+            _logger.info(
+                "%s=INFER: overriding compiler-only %s from YES to NO; runtime configuration remains unchanged",
+                ov::intel_npu::profiling_type.name(),
+                ov::enable_profiling.name());
+            compilerConfig.update(ov::enable_profiling.name(), PERF_COUNT::toString(false));
+        }
 
         if (shouldWarnAboutLatency) {
             _logger.warning("PERFORMANCE_HINT is explicitly set to LATENCY mode, but batch dimension (N) is "
@@ -530,13 +546,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
         if (shouldForceThroughput) {
             _logger.info("Setting performance mode to THROUGHPUT for batched model compilation.");
-
-            auto modifiedConfig = localConfig;  // Copy only when needed
-            modifiedConfig.updateAny(ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT);
-            graph = compileWithConfig(std::move(modelToCompile), modifiedConfig);
-        } else {
-            graph = compileWithConfig(std::move(modelToCompile), localConfig);
+            compilerConfig.updateAny(ov::hint::performance_mode.name(), ov::hint::PerformanceMode::THROUGHPUT);
         }
+
+        graph = compileWithConfig(std::move(modelToCompile), compilerConfig);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
