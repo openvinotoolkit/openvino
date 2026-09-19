@@ -417,7 +417,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, ArchIn5000SeriesSetsNpuTilesInDefault
         EXPECT_EQ(prop_i64(call->props, "NPU_TILES"), 3);
         expect_prop(call->props,
                     "NPU_COMPILATION_MODE_PARAMS",
-                    "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm");
+                    "compute-layers-with-higher-precision=Add_BeforeRMSNorm,Sqrt,Power,ReduceMean,Add_RMSNorm");
     }
 }
 
@@ -520,7 +520,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, Arch2700SkipsNpuTilesInDefaultStageCo
         expect_missing_prop(call->props, "NPU_TILES");
         expect_prop(call->props,
                     "NPU_COMPILATION_MODE_PARAMS",
-                    "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm");
+                    "compute-layers-with-higher-precision=Add_BeforeRMSNorm,Sqrt,Power,ReduceMean,Add_RMSNorm");
     }
 }
 // avtual config for one of platform with embargo details.
@@ -543,7 +543,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, ArchAutoDetectSkipsNpuTilesInDefaultS
         expect_prop(
             call->props,
             "NPU_COMPILATION_MODE_PARAMS",
-            "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm performance-hint-override=latency");
+            "compute-layers-with-higher-precision=Add_BeforeRMSNorm,Sqrt,Power,ReduceMean,Add_RMSNorm performance-hint-override=latency");
     }
 }
 
@@ -565,7 +565,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, Arch4000AddsOptimizationLevelAndSetsN
         EXPECT_EQ(prop_i64(call->props, "NPU_TILES"), 4);
         expect_prop(call->props,
                     "NPU_COMPILATION_MODE_PARAMS",
-                    "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm optimization-level=3");
+                    "compute-layers-with-higher-precision=Add_BeforeRMSNorm,Sqrt,Power,ReduceMean,Add_RMSNorm optimization-level=3");
     }
 }
 
@@ -587,7 +587,7 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, ArchAtLeast6000UsesDefaultConfig) {
         expect_missing_prop(call->props, "NPU_TILES");
         expect_prop(call->props,
                     "NPU_COMPILATION_MODE_PARAMS",
-                    "compute-layers-with-higher-precision=Sqrt,Power,ReduceMean,Add_RMSNorm");
+                    "compute-layers-with-higher-precision=Add_BeforeRMSNorm,Sqrt,Power,ReduceMean,Add_RMSNorm");
     }
 }
 
