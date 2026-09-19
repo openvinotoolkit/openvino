@@ -748,6 +748,35 @@ static void fill_q4_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Ten
     });
 }
 
+// Q1_0 binary: block = |f16 d|u1 qs[16]| (18 bytes / 128 weights), value = bit ? +d : -d.
+// ggml packs the 128 single-bit codes 8 per byte, LSB-first (dequantize_row_q1_0:
+// `(qs[j/8] >> (j%8)) & 1`). Codes are re-expressed as i4 nibbles (0 -> -1 -> 0xF, 1 -> +1 ->
+// 0x1) and packed two-per-byte low-nibble-first, matching OpenVINO's i4 Constant convention
+// (see unpack_32_4 above), so the same SYMMETRIC_I4 weight layout as Q4_0 can be reused as-is.
+static void fill_q1_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
+    const uint64_t bytes_per_block = 18;
+    const uint64_t out_bytes_per_block = 64;  // 128 elements as i4, 2 per byte
+    auto data = static_cast<const uint8_t*>(tensor.weights_data);
+    auto weights = static_cast<uint8_t*>(weights_arr.data());
+    auto scales = scales_arr.data<ov::element_type_traits<ov::element::f16>::value_type>();
+
+    ov::parallel_for(scales_arr.get_size(), [&](size_t i) {
+        const uint8_t* block = data + i * bytes_per_block;
+        uint16_t scale_bits;
+        std::memcpy(&scale_bits, block, sizeof(scale_bits));
+        scales[i] = ov::float16::from_bits(scale_bits);
+        const uint8_t* qs = block + 2;
+        uint8_t* out = weights + i * out_bytes_per_block;
+        for (int j = 0; j < 128; j += 2) {
+            const int bit0 = (qs[j / 8] >> (j % 8)) & 1;
+            const int bit1 = (qs[(j + 1) / 8] >> ((j + 1) % 8)) & 1;
+            const uint8_t nib0 = bit0 ? 0x1 : 0xF;
+            const uint8_t nib1 = bit1 ? 0x1 : 0xF;
+            out[j / 2] = static_cast<uint8_t>(nib0 | (nib1 << 4));
+        }
+    });
+}
+
 // Q8_K symmetric: block = |f32 d|i8 qs[256]|i16 bsums[16]| (292 bytes/block).
 // bsums are partial sums for dot-product acceleration; unused in dequant-then-multiply.
 void fill_q8_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
@@ -794,10 +823,13 @@ void gguf_fill_q2_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tenso
     });
 }
 
-// Symmetric types (Q4_0, Q8_0, Q5_0, Q6_K, Q3_K): fill weights + scales (f16), no zero-point.
-// Q8_K uses f32 scales and is handled by a separate overload dispatched on tensor.type.
+// Symmetric types (Q1_0, Q4_0, Q8_0, Q5_0, Q6_K, Q3_K): fill weights + scales (f16), no
+// zero-point. Q8_K uses f32 scales and is handled by a separate overload dispatched on
+// tensor.type.
 void gguf_fill_sym(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales) {
-    if (tensor.type == GGUF_TYPE_Q4_0) {
+    if (tensor.type == GGUF_TYPE_Q1_0) {
+        fill_q1_0(tensor, weights, scales);
+    } else if (tensor.type == GGUF_TYPE_Q4_0) {
         fill_q4_0(tensor, weights, scales);
     } else if (tensor.type == GGUF_TYPE_Q8_0) {
         fill_q8_0(tensor, weights, scales);
