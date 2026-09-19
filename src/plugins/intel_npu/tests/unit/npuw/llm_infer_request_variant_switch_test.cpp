@@ -46,6 +46,14 @@ struct LLMVariantSwitchTestAccess {
         compiled->m_kvcache_desc.num_stored_tokens = num_tokens;
     }
 
+    static void set_num_stored_tokens(ov::npuw::LLMInferRequest& req, uint32_t num_tokens) {
+        req.m_npuw_llm_compiled_model->m_kvcache_desc.num_stored_tokens = num_tokens;
+    }
+
+    static void set_total_size(ov::npuw::LLMInferRequest& req, uint32_t total_size) {
+        req.m_npuw_llm_compiled_model->m_kvcache_desc.total_size = total_size;
+    }
+
     static uint32_t kv_dim_for_name(const ov::npuw::LLMInferRequest& req, const std::string& name) {
         const auto& desc = req.m_npuw_llm_compiled_model->m_kvcache_desc;
         return (ov::npuw::util::isPastValueParam(name) && desc.v_tensors_transposed_gen) ? 3u : desc.dim;
@@ -152,6 +160,18 @@ struct LLMVariantSwitchTestAccess {
                                                                    const std::shared_ptr<const ov::IPlugin>& plugin) {
         ov::npuw::s11n::CompiledContext ctx(false, nullptr, nullptr);
         return ov::npuw::LLMCompiledModel::deserialize(stream, plugin, {}, ctx);
+    }
+
+    static void generate(ov::npuw::LLMInferRequest& req,
+                         ov::SoPtr<ov::ITensor> input_ids,
+                         ov::SoPtr<ov::ITensor> attention_mask,
+                         ov::SoPtr<ov::ITensor> position_ids) {
+        req.m_generate_initialized = true;
+        req.infer_generate(std::move(input_ids), std::move(attention_mask), std::move(position_ids), {});
+    }
+
+    static ov::SoPtr<ov::ITensor> generate_attention_mask(const ov::npuw::LLMInferRequest& req) {
+        return req.m_kvcache_request->get_tensor(req.m_kvcache_in_ports.at("attention_mask"));
     }
 };
 

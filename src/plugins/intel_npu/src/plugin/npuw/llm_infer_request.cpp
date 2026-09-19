@@ -1573,41 +1573,26 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         //       kv layers) and the set of "1" units of number of previously calculated
         //       tokens on the left (for past kv layers).
         auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask));
-        // NB: `attention_mask` is caller-provided and may be sized independently of the generate
-        //     variant `select_generate_request()` picked (e.g. a caller-side fixed max_length buffer,
-        //     not grown with the actual token count). The selected variant must still fit the tracked
-        //     context, and any caller-mask tail beyond its capacity must be padding before it can be
-        //     omitted. This avoids both an out-of-bounds copy and silently dropping valid history.
-        OPENVINO_ASSERT(attention_mask->get_size() >= input_tokens_len,
-                        "Attention mask size is smaller than the current generate input length.");
+        // NB: Past length comes from the tracked KV-cache, not the caller mask size: the caller mask
+        //     may be a static max-length buffer (e.g. WebNN) rather than past_len + input_tokens_len.
         OPENVINO_ASSERT(kv_attn_mask->get_size() >= kvcache_desc.max_generation_token_len,
                         "Generate attention mask is smaller than the configured generation window.");
-        const size_t requested_past_len = attention_mask->get_size() - input_tokens_len;
+        const size_t past_len = kvcache_desc.num_stored_tokens;
         const size_t dest_past_capacity = kv_attn_mask->get_size() - kvcache_desc.max_generation_token_len;
-        OPENVINO_ASSERT(kvcache_desc.num_stored_tokens <= dest_past_capacity,
+        OPENVINO_ASSERT(past_len <= dest_past_capacity,
                         "Selected generate variant cannot hold the stored attention context: ",
-                        kvcache_desc.num_stored_tokens,
+                        past_len,
                         " past tokens exceed capacity ",
                         dest_past_capacity,
-                        ". Switch to a larger generate variant or reduce the context.");
-        OPENVINO_ASSERT(requested_past_len >= kvcache_desc.num_stored_tokens,
-                        "Attention mask does not cover the stored attention context: expected at least ",
-                        kvcache_desc.num_stored_tokens,
-                        " past entries, got ",
-                        requested_past_len,
                         ".");
-        const auto* attention_mask_data = attention_mask->data<int64_t>();
-        if (requested_past_len > dest_past_capacity) {
-            OPENVINO_ASSERT(std::all_of(attention_mask_data + dest_past_capacity,
-                                        attention_mask_data + requested_past_len,
-                                        [](int64_t value) {
-                                            return value == 0;
-                                        }),
-                            "Attention mask has valid entries beyond the selected generate variant's past-token "
-                            "capacity.");
-        }
-        const size_t past_len = std::min(requested_past_len, dest_past_capacity);
-        std::copy_n(attention_mask_data, past_len, kv_attn_mask->data<int64_t>());
+        OPENVINO_ASSERT(attention_mask->get_size() >= past_len,
+                "Attention mask does not cover the stored past: expected at least ",
+                past_len,
+                        " entries, got ",
+                        attention_mask->get_size(),
+                        ".");
+        std::copy_n(attention_mask->data<int64_t>(), past_len, kv_attn_mask->data<int64_t>());
+        // Clear stale entries left by a larger past (e.g. after speculative-decoding trim).
         if (past_len < dest_past_capacity) {
             std::fill_n(kv_attn_mask->data<int64_t>() + past_len, dest_past_capacity - past_len, 0);
         }
