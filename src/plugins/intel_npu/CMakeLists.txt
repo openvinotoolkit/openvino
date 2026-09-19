@@ -17,6 +17,7 @@ set(NPU_INTERNAL_COMPONENT "${NPU_PLUGIN_COMPONENT}_internal")
 set(NPU_PLUGIN_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 include(cmake/features.cmake)
+ov_add_zero_loader()
 
 if(ENABLE_INTEL_NPU_COMPILER)
     if(BUILD_SHARED_LIBS)

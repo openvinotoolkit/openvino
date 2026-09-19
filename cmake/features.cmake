@@ -33,32 +33,8 @@ else()
     set(ENABLE_INTEL_GPU_DEFAULT OFF)
 endif()
 
-ov_dependent_option (ENABLE_INTEL_GPU "GPU OpenCL-based plugin for OpenVINO Runtime" ${ENABLE_INTEL_GPU_DEFAULT} "X86_64 OR AARCH64;NOT APPLE;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
-
-if (ANDROID OR MINGW OR (CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 7.0))
-    # oneDNN doesn't support old compilers and Android builds for now, so we'll build GPU plugin without oneDNN
-    set(ENABLE_ONEDNN_FOR_GPU_DEFAULT OFF)
-else()
-    set(ENABLE_ONEDNN_FOR_GPU_DEFAULT ON)
-endif()
-
-# Set default GPU runtime to OCL. COMBINED (build ZE and OCL plugins side by side) is
-# opt-in only; the default is never flipped.
-set(OV_GPU_DEFAULT_RT "OCL")
-if (ENABLE_INTEL_GPU)
-    ov_option_enum (GPU_RT_TYPE "Type of GPU runtime. Supported values: OCL (default), SYCL, ZE (L0 alias), and COMBINED (ZE+OCL, shared builds only)" ${OV_GPU_DEFAULT_RT} ALLOWED_VALUES ZE OCL L0 SYCL COMBINED)
-    if(GPU_RT_TYPE STREQUAL "L0")
-        set(GPU_RT_TYPE "ZE" CACHE STRING "Type of GPU runtime" FORCE)
-    endif()
-    # COMBINED ships two plugin libraries via plugins.xml, which requires shared libs.
-    if(GPU_RT_TYPE STREQUAL "COMBINED" AND NOT BUILD_SHARED_LIBS)
-        message(FATAL_ERROR "GPU_RT_TYPE=COMBINED requires BUILD_SHARED_LIBS=ON. "
-                            "Static/monolithic builds support a single GPU runtime only.")
-    endif()
-endif()
-
-ov_dependent_option (ENABLE_ONEDNN_FOR_GPU "Enable oneDNN with GPU support" ${ENABLE_ONEDNN_FOR_GPU_DEFAULT} "ENABLE_INTEL_GPU" OFF)
-ov_dependent_option (ENABLE_CM_FOR_GPU "Enable C for Metal (CM) kernels at GPU runtime" ON "ENABLE_INTEL_GPU" OFF)
+ov_dependent_option (ENABLE_INTEL_GPU "GPU plugin for OpenVINO Runtime" ${ENABLE_INTEL_GPU_DEFAULT}
+    "X86_64 OR AARCH64;NOT APPLE;NOT WINDOWS_STORE;NOT WINDOWS_PHONE" OFF)
 
 ov_dependent_option (ENABLE_INTEL_NPU "NPU plugin for OpenVINO runtime" ON "X86_64;WIN32 OR LINUX OR ANDROID" OFF)
 # matches ENABLE_INTEL_NPU_COMPILER default: internal NPU tools aren't built for static libs
@@ -236,13 +212,6 @@ if(NOT BUILD_SHARED_LIBS AND ENABLE_OV_TF_FRONTEND)
     set(FORCE_FRONTENDS_USE_PROTOBUF ON)
 else()
     set(FORCE_FRONTENDS_USE_PROTOBUF OFF)
-endif()
-
-# COMBINED includes a ZE build, so it needs the Level Zero loader too.
-if(ENABLE_INTEL_NPU OR (ENABLE_INTEL_GPU AND (GPU_RT_TYPE STREQUAL "ZE" OR GPU_RT_TYPE STREQUAL "COMBINED")))
-    set(ENABLE_OV_ZERO_LOADER ON)
-else()
-    set(ENABLE_OV_ZERO_LOADER OFF)
 endif()
 
 #
