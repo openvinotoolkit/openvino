@@ -325,9 +325,7 @@ double run_inference(ov::CompiledModel& compiled_model,
                      const std::string& data_shape_string,
                      size_t iterations,
                      bool skip_warmup) {
-    if (iterations == 0) {
-        OPENVINO_THROW("Number of inference iterations must be greater than zero.");
-    }
+    OPENVINO_ASSERT(iterations != 0, "Number of inference iterations must be greater than zero.");
 
     ov::InferRequest infer_request = compiled_model.create_infer_request();
     const auto data_shapes = data_shape_string.empty() ? std::map<std::string, ov::PartialShape>{}
