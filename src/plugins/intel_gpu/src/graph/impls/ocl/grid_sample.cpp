@@ -73,6 +73,7 @@ attach_grid_sample_impl::attach_grid_sample_impl() {
     auto types = {data_types::u8, data_types::i8, data_types::f16, data_types::f32, data_types::i32, data_types::i64};
 
     auto formats = {format::bfyx,
+                    format::bfzyx,
                     format::b_fs_yx_fsv16,
                     format::b_fs_yx_fsv32,
                     format::bs_fs_yx_bsv16_fsv16,
