@@ -8,4 +8,4 @@ ov_add_sample(NAME hello_affinity
                       "${CMAKE_CURRENT_SOURCE_DIR}/utils.cpp"
               HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/inference.hpp"
                       "${CMAKE_CURRENT_SOURCE_DIR}/utils.hpp"
-              DEPENDENCIES ie_samples_utils)
+              DEPENDENCIES ie_samples_utils nlohmann_json::nlohmann_json)
