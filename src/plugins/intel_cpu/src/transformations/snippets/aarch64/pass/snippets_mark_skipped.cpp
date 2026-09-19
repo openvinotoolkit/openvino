@@ -125,6 +125,22 @@ bool isSuitableConvolutionParent(const std::shared_ptr<const Node>& node) {
     const bool has_only_child = all_of(1U, out.size(), out[0].get_target_inputs().size());
     return is_suitable_node && has_only_child;
 }
+bool isSuitableSubtractAsZeroPointsParent(const std::shared_ptr<const Node>& node) {
+    const bool is_suitable_node = ov::is_type<ov::op::v1::Subtract>(node);
+    // have single output, with 2 parents (activation, zeropoint)
+    const auto out = node->outputs();
+    const bool has_only_child = all_of(1U, out.size(), out[0].get_target_inputs().size());
+    const bool has_two_parents = node->get_input_size() == 2;
+    const bool all_conditions = is_suitable_node && has_only_child && has_two_parents;
+    if (!all_conditions) {
+        return false;
+    }
+
+    const auto child = node->get_output_target_inputs(0).begin()->get_node()->shared_from_this();
+    const bool is_conv = ov::is_type<ov::op::v1::Convolution>(child);
+    auto zero_point_node = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1));  // can be null
+    return is_conv && zero_point_node;
+}
 bool isSuitableBinaryConvolutionParent(const std::shared_ptr<const Node>& node) {
     const bool is_suitable_node = ov::is_type<ov::op::v1::BinaryConvolution>(node);
     // has a single output, connected to a single child
@@ -333,6 +349,9 @@ bool SnippetsMarkSkipped::run_on_model(const std::shared_ptr<ov::Model>& m) {
         if (isSuitableConvolutionParent(node)) {
             // Initiate fusing chain
             SetNodeFusingType(node, NodeFusingType::FusedWithConvolution);
+            channelAxis = DEFAULT_AXIS;
+        } else if (isSuitableSubtractAsZeroPointsParent(node)) {
+            SetSnippetsNodeType(node, snippets::pass::SnippetsNodeType::SkippedByPlugin);
             channelAxis = DEFAULT_AXIS;
         } else if (isSuitableBinaryConvolutionParent(node)) {
             SetNodeFusingType(node, NodeFusingType::FusedWithBinaryConvolution);

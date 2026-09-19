@@ -71,10 +71,24 @@ ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16(
             return false;
         }
 
-        // If there's a Subtract (zero-point dequantization), always apply fallback —
-        // int8 ACL convolution executor does not support zero-point yet
         const bool has_subtract = ov::is_type<ov::op::v1::Subtract>(conv->get_input_node_ptr(0));
-        if (!has_subtract && fake_quantize->get_output_element_type(0) == conv->get_input_element_type(0)) {
+        const auto activation_out = conv_mul_add_fq->get_anchor("activation", pattern_map);
+        if (has_subtract) {
+            if (const auto zp_constant = ov::as_type_ptr<ov::op::v0::Constant>(
+                    conv->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(1))) {
+                const auto zp = zp_constant->cast_vector<float>();
+                if (zp.empty()) {
+                    return false;
+                }
+                const auto zp_values = zp[0];
+                const bool uniform = std::all_of(zp.begin(), zp.end(), [zp_values](float value) {
+                    return value == zp_values;
+                });
+                if (uniform && !activation_out && fake_quantize->get_output_element_type(0) == element::u8) {
+                    return false;
+                }
+            }
+        } else if (fake_quantize->get_output_element_type(0) == conv->get_input_element_type(0)) {
             return false;
         }
 

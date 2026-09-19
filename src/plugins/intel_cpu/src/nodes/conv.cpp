@@ -890,5 +890,10 @@ void Convolution::initializeInputZeroPoints(const uint8_t* inputZpData, const si
         m_attrs.inputZeroPointsType = ZeroPointsType::PerChannel;
     }
 }
+void Convolution::initializeInputZeroPointsACL(int32_t zeroPoint) {
+    CPU_NODE_ASSERT(inputZeroPoints.empty() && legacyInputZeroPoints.empty(), "input zero points are already set");
+    m_attrs.inputZeroPoint = zeroPoint;
+    m_attrs.inputZeroPointsType = ZeroPointsType::PerTensor;
+}
 
 }  // namespace ov::intel_cpu::node
