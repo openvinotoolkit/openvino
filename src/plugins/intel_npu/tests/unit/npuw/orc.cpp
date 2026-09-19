@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
+#include <cstring>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -129,6 +131,51 @@ TEST(OrcTest, RejectsTruncatedFile) {
 
     std::stringstream truncated(bytes, std::ios::in | std::ios::out | std::ios::binary);
     EXPECT_THROW(read_file(truncated), ov::Exception);
+}
+
+// A forged element count must not drive an unbounded vector::reserve()
+// before any element has actually been decoded.
+TEST(OrcTest, RejectsOversizedVectorCountBeforeReserve) {
+    const std::size_t forged_count = 0x10000000ULL;  // ~268M elements => multi-GB reserve<uint64_t> if unguarded
+    std::array<std::byte, sizeof(forged_count)> payload{};
+    std::memcpy(payload.data(), &forged_count, sizeof(forged_count));
+
+    auto reader = Stream::memory_reader(payload.data(), payload.size());
+    std::vector<std::uint64_t> decoded;
+    EXPECT_THROW(reader & decoded, ov::Exception);
+    EXPECT_EQ(decoded.capacity(), 0u);
+}
+
+// Same forged count, but through an istream-backed Stream::reader — the actual path
+// used by CompiledModel/LLMCompiledModel to decode embedded ParameterVector/NodeVector
+// metadata. remaining() is unavailable for this stream kind, so the fix must rely on
+// incremental push_back (no upfront reserve()) rather than the memory-stream bound
+// check; this proves that guarantee still holds for the security-critical call sites.
+TEST(OrcTest, RejectsOversizedVectorCountViaIstreamReaderBeforeGrowth) {
+    const std::size_t forged_count = 0x10000000ULL;  // ~268M elements, no element data follows
+    std::array<std::byte, sizeof(forged_count)> payload{};
+    std::memcpy(payload.data(), &forged_count, sizeof(forged_count));
+
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    buffer.write(reinterpret_cast<const char*>(payload.data()), payload.size());
+
+    auto reader = Stream::reader(buffer);
+    std::vector<std::uint64_t> decoded;
+    EXPECT_THROW(reader & decoded, ov::Exception);
+    EXPECT_EQ(decoded.capacity(), 0u);
+}
+
+TEST(OrcTest, AcceptsVectorCountMatchingAvailableElements) {
+    const std::size_t count = 1u;
+    const std::uint64_t element = 7u;
+    std::array<std::byte, sizeof(count) + sizeof(element)> payload{};
+    std::memcpy(payload.data(), &count, sizeof(count));
+    std::memcpy(payload.data() + sizeof(count), &element, sizeof(element));
+
+    auto reader = Stream::memory_reader(payload.data(), payload.size());
+    std::vector<std::uint64_t> decoded;
+    reader & decoded;
+    EXPECT_EQ(decoded, std::vector<std::uint64_t>({7u}));
 }
 
 TEST(OrcTest, ScopedSectionsRoundTripMetadataBeforeChildren) {
