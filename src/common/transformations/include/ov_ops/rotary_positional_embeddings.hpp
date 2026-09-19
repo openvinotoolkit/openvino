@@ -26,6 +26,7 @@ public:
         bool input_trans0213 = false;   // transpose input dim 1&2
         bool output_trans0213 = false;  // implies trans0213 happens after RoPE
         bool is_interleaved = false;    // coordinates are interleaved
+        bool input_interleaved = false; // input pairs are interleaved, output uses half layout
         size_t rotary_ndims = 0;        // dimensions to be embedded (d in the description)
         bool is_chatglm = false;        // chatglm is special which overrides other setting
         bool support_2d_rope = false;   // 2d rope mode, Support 2 dimentional rope which is independant of batch and

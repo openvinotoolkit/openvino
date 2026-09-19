@@ -45,6 +45,7 @@ struct rope : public primitive_base<rope> {
         seed = hash_combine(seed, config.support_2d_rope);
         seed = hash_combine(seed, config.output_trans0213);
         seed = hash_combine(seed, config.is_interleaved);
+        seed = hash_combine(seed, config.input_interleaved);
         seed = hash_combine(seed, config.is_qwen);
         seed = hash_combine(seed, config.use_rope_cache);
         seed = hash_combine(seed, config.is_ltx_video);
@@ -70,6 +71,7 @@ struct rope : public primitive_base<rope> {
                config.support_2d_rope == rhs_casted.config.support_2d_rope &&
                config.output_trans0213 == rhs_casted.config.output_trans0213 &&
                config.is_interleaved == rhs_casted.config.is_interleaved &&
+               config.input_interleaved == rhs_casted.config.input_interleaved &&
                config.is_qwen == rhs_casted.config.is_qwen &&
                config.use_rope_cache == rhs_casted.config.use_rope_cache &&
                config.is_ltx_video == rhs_casted.config.is_ltx_video &&
@@ -90,6 +92,7 @@ struct rope : public primitive_base<rope> {
         ob << config.support_3d_rope;
         ob << config.output_trans0213;
         ob << config.is_interleaved;
+        ob << config.input_interleaved;
         ob << config.is_qwen;
         ob << config.use_rope_cache;
         ob << config.is_ltx_video;
@@ -110,6 +113,7 @@ struct rope : public primitive_base<rope> {
         ib >> config.support_3d_rope;
         ib >> config.output_trans0213;
         ib >> config.is_interleaved;
+        ib >> config.input_interleaved;
         ib >> config.is_qwen;
         ib >> config.use_rope_cache;
         ib >> config.is_ltx_video;

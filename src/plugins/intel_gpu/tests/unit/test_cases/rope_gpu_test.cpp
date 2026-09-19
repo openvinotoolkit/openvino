@@ -154,6 +154,49 @@ static void rope_interleaved_ref(const memory::ptr input, const memory::ptr cos,
     }
 }
 
+static void rope_interleaved_input_ref(const memory::ptr input, const memory::ptr cos, const memory::ptr sin,
+                                       memory::ptr output, size_t batch, size_t head_cnt, size_t seq,
+                                       size_t head_size, size_t rotary_ndims) {
+    const size_t half = rotary_ndims / 2;
+
+    cldnn::mem_lock<ov::bfloat16> src_bf16(input, get_test_stream());
+    cldnn::mem_lock<ov::float16> src_f16(input, get_test_stream());
+    cldnn::mem_lock<ov::bfloat16> cosv_bf16(cos, get_test_stream());
+    cldnn::mem_lock<ov::float16> cosv_f16(cos, get_test_stream());
+    cldnn::mem_lock<ov::bfloat16> sinv_bf16(sin, get_test_stream());
+    cldnn::mem_lock<ov::float16> sinv_f16(sin, get_test_stream());
+    cldnn::mem_lock<ov::bfloat16> dst_bf16(output, get_test_stream());
+    cldnn::mem_lock<ov::float16> dst_f16(output, get_test_stream());
+
+    auto read = [](auto& bf16, auto& f16, bool is_bf16, size_t index) {
+        return is_bf16 ? static_cast<float>(bf16[index]) : static_cast<float>(f16[index]);
+    };
+    const bool is_bf16 = input->get_layout().data_type == data_types::bf16;
+
+    for (size_t b = 0; b < batch; ++b) {
+        for (size_t h = 0; h < head_cnt; ++h) {
+            for (size_t p = 0; p < seq; ++p) {
+                const size_t base = ((b * head_cnt + h) * seq + p) * head_size;
+                for (size_t i = 0; i < half; ++i) {
+                    const float even = read(src_bf16, src_f16, is_bf16, base + 2 * i);
+                    const float odd = read(src_bf16, src_f16, is_bf16, base + 2 * i + 1);
+                    const float out1 = read(cosv_bf16, cosv_f16, is_bf16, p * head_size + i) * even -
+                                       read(sinv_bf16, sinv_f16, is_bf16, p * head_size + i) * odd;
+                    const float out2 = read(cosv_bf16, cosv_f16, is_bf16, p * head_size + half + i) * odd +
+                                       read(sinv_bf16, sinv_f16, is_bf16, p * head_size + half + i) * even;
+                    if (is_bf16) {
+                        dst_bf16[base + i] = ov::bfloat16(out1);
+                        dst_bf16[base + half + i] = ov::bfloat16(out2);
+                    } else {
+                        dst_f16[base + i] = ov::float16(out1);
+                        dst_f16[base + half + i] = ov::float16(out2);
+                    }
+                }
+            }
+        }
+    }
+}
+
 // ============================================================================
 // BF16/F16 RoPE reference (QWEN per-head mode, config.is_qwen). Input
 // [batch, seq, head_cnt*head_size] bfyx, per-head cos/sin tables
@@ -304,7 +347,7 @@ static void rope_chatglm_ref(const memory::ptr input, const memory::ptr cos, con
     }
 }
 
-enum class rope_variant { rotate_half, interleaved, qwen_per_head, chatglm };
+enum class rope_variant { rotate_half, interleaved, interleaved_input, qwen_per_head, chatglm };
 
 static void run_rope(data_types dt, const ov::PartialShape& in_shape, size_t head_cnt, size_t head_size,
                      bool input_trans0213, bool dynamic,
@@ -369,6 +412,8 @@ static void run_rope(data_types dt, const ov::PartialShape& in_shape, size_t hea
 
     if (variant == rope_variant::interleaved) {
         rope_interleaved_ref(input, cos, sin, output_ref, batch, head_cnt, seq, head_size, rotary_ndims);
+    } else if (variant == rope_variant::interleaved_input) {
+        rope_interleaved_input_ref(input, cos, sin, output_ref, batch, head_cnt, seq, head_size, rotary_ndims);
     } else if (variant == rope_variant::qwen_per_head) {
         rope_qwen_ref(input, cos, sin, output_ref, batch, head_cnt, seq, head_size, rotary_ndims);
     } else if (variant == rope_variant::chatglm) {
@@ -383,6 +428,7 @@ static void run_rope(data_types dt, const ov::PartialShape& in_shape, size_t hea
     config.rotary_ndims = rotary_ndims;
     config.input_trans0213 = input_trans0213 && variant == rope_variant::rotate_half;
     config.is_interleaved = variant == rope_variant::interleaved;
+    config.input_interleaved = variant == rope_variant::interleaved_input;
     config.is_qwen = variant == rope_variant::qwen_per_head;
     config.is_chatglm = variant == rope_variant::chatglm;
     config.use_rope_cache = use_rope_cache;
@@ -487,6 +533,14 @@ TEST_P(rope_gpu_test, rope_interleaved) {
 // RoPE interleaved variant, 8 heads x 16 positions x 64 dims - VEC_SIZE=16 path
 TEST_P(rope_gpu_test, rope_interleaved_large) {
     run_rope(GetParam(), ov::PartialShape{1, 8, 16, 64}, 8, 64, false, false, rope_variant::interleaved);
+}
+
+TEST_P(rope_gpu_test, rope_interleaved_input) {
+    run_rope(GetParam(), ov::PartialShape{2, 2, 4, 8}, 2, 8, false, false, rope_variant::interleaved_input);
+}
+
+TEST_P(rope_gpu_test, rope_interleaved_input_large) {
+    run_rope(GetParam(), ov::PartialShape{1, 8, 16, 64}, 8, 64, false, false, rope_variant::interleaved_input);
 }
 
 // RoPE QWEN per-head variant (input [b, seq, H*HS], per-head cos/sin tables), small head - VEC_SIZE=1 path
