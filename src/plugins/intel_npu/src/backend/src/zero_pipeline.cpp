@@ -73,7 +73,9 @@ IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
       _pipeline_unique_id_per_graph(get_graph_unique_id_or_throw(graph)),
       _logger(logName, _config.get<LOG_LEVEL>()) {
     _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, _graph->get_command_queue_desc());
+}
 
+void Pipeline::setup_profiling() {
     bool perf_count_enabled = _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>();
     std::optional<bool> compiled_with_profiling = _graph->is_profiling_blob();
 
@@ -111,9 +113,9 @@ IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
             enable_profiling();
         }  // else appendGraphExecute will fail in case the model was compiled with profiling enabled
     }
-};
+}
 
-std::vector<ov::ProfilingInfo> IPipeline::get_profiling_info() const {
+std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
     _logger.debug("get_profiling_info - started");
     if (!_config.has<PERF_COUNT>() || !_config.get<PERF_COUNT>()) {
         _logger.warning("get_profiling_info - completed with empty result");
@@ -138,7 +140,7 @@ std::vector<ov::ProfilingInfo> IPipeline::get_profiling_info() const {
     }
 }
 
-void IPipeline::enable_profiling() {
+void Pipeline::enable_profiling() {
     auto profiling_pool =
         std::make_shared<zeroProfiling::ProfilingPool>(_init_structs, _graph, zeroProfiling::POOL_SIZE);
     _profiling_query = std::make_unique<zeroProfiling::ProfilingQuery>(_init_structs, 0);
@@ -160,6 +162,9 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
     OV_ITT_SCOPED_TASK(itt::domains::LevelZeroBackend, "Zero_infer_request::Pipeline::Pipeline");
 
     _logger.debug("Pipeline - initialization started, batch size: %i", _batch_size);
+
+    // must run before the command lists are built below: populates _npu_profiling/_profiling_query
+    setup_profiling();
 
     if (_run_inferences_sequentially) {
         _graph->resize_last_submitted_event(_batch_size);
