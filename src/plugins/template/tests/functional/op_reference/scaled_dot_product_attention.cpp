@@ -453,4 +453,54 @@ INSTANTIATE_TEST_SUITE_P(smoke_SDPA_With_Sink,
                          ReferenceSDPATest,
                          testing::ValuesIn(generateCombinedParamsWithSink()),
                          ReferenceSDPATest::getTestCaseName);
+
+template <element::Type_t ET>
+std::vector<SDPAParams> generateParamsFullyMaskedRow() {
+    using T = typename element_type_traits<ET>::value_type;
+    std::vector<SDPAParams> params;
+    const PartialShape q_shape{1, 1, 2, 2};
+    const PartialShape k_shape{1, 1, 2, 2};
+    const PartialShape v_shape{1, 1, 2, 2};
+    const PartialShape attention_mask_shape{2, 2};
+    const PartialShape output_shape{1, 1, 2, 2};
+
+    const std::vector<T> q_data{T{1}, T{0}, T{0}, T{1}};
+    const std::vector<T> k_data{T{1}, T{0}, T{0}, T{1}};
+    const std::vector<T> v_data{T{1}, T{1}, T{1}, T{1}};
+    const std::vector<char> attention_mask_data{1, 1, 0, 0};
+    const std::vector<T> expected_output_data{T{1}, T{1}, T{0}, T{0}};
+
+    params.push_back(PrepareTestCaseParams<T, char>(q_shape,
+                                                    k_shape,
+                                                    v_shape,
+                                                    attention_mask_shape,
+                                                    output_shape,
+                                                    /*isCausal=*/false,
+                                                    q_data,
+                                                    k_data,
+                                                    v_data,
+                                                    attention_mask_data,
+                                                    expected_output_data,
+                                                    "fully_masked_row"));
+
+    return params;
+}
+
+std::vector<SDPAParams> generateCombinedParamsFullyMaskedRow() {
+    const std::vector<std::vector<SDPAParams>> generatedParams{
+        generateParamsFullyMaskedRow<element::Type_t::f32>(),
+        generateParamsFullyMaskedRow<element::Type_t::f16>(),
+        generateParamsFullyMaskedRow<element::Type_t::f64>()};
+    std::vector<SDPAParams> combinedParams;
+
+    for (const auto& params : generatedParams) {
+        combinedParams.insert(combinedParams.end(), params.begin(), params.end());
+    }
+    return combinedParams;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_SDPA_With_Fully_Masked_Row,
+                         ReferenceSDPATest,
+                         testing::ValuesIn(generateCombinedParamsFullyMaskedRow()),
+                         ReferenceSDPATest::getTestCaseName);
 }  // namespace
