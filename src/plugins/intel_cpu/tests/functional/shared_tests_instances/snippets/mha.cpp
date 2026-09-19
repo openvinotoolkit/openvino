@@ -4,6 +4,8 @@
 
 #include "snippets/mha.hpp"
 
+#include <algorithm>
+
 #include "utils.hpp"
 
 namespace ov {
@@ -58,6 +60,26 @@ std::vector<std::vector<InputShape>> transposedShape_4D_matmul1_const_b() {
 
 std::vector<std::vector<InputShape>> transposedShape_4D_v3_broadcast() {
     return SNIPPETS_TESTS_STATIC_SHAPES({{1, 128, 12, 64}, {1, 128, 12, 64}, {1, 1, 128, 128}, {1, 128, 12, 64}});
+}
+
+std::vector<std::vector<InputShape>> transposedShape_4D_shapeof_broadcast() {
+    auto shapes = transposedShape_4D();
+    for (auto& inputs : shapes) {
+        for (size_t i = 0; i < inputs[2].second.size(); ++i) {
+            const auto& query = inputs[0].second[i];
+            const auto& key = inputs[1].second[i];
+            auto& mask = inputs[2].second[i];
+            auto& value = inputs[3].second[i];
+            const Shape target{std::max(query[0], key[0]), std::max(query[2], key[2]), query[1], key[1]};
+            for (size_t axis = 0; axis < mask.size(); ++axis) {
+                if (mask[axis] != 1) {
+                    mask[axis] = target[axis];
+                }
+            }
+            value[1] = key[1];
+        }
+    }
+    return shapes;
 }
 
 std::vector<std::vector<InputShape>> twoConstBShape_4D() {
@@ -142,6 +164,30 @@ INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D_V3_Broadcast,
                                             ::testing::Values(ov::test::utils::DEVICE_CPU),
                                             ::testing::Values(CPUTestUtils::empty_plugin_config)),
                          MHAWithBroadcast::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D_ShapeOf_Broadcast,
+                         MHAWithShapeOfBroadcast,
+                         ::testing::Combine(::testing::ValuesIn(transposedShape_4D_shapeof_broadcast()),
+                                            ::testing::ValuesIn(precision_f32(4)),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(false),
+                                            ::testing::Values(expected_nodes_mha_4d_f32),
+                                            ::testing::Values(2),  // decomposed Transpose + MHA
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                         MHAWithShapeOfBroadcast::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D_ShapeOf_Reshape,
+                         MHAWithShapeOfReshape,
+                         ::testing::Combine(::testing::ValuesIn(transposedShape_4D()),
+                                            ::testing::ValuesIn(precision_f32(4)),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(false),
+                                            ::testing::Values(2),  // decomposed Transpose + MHA
+                                            ::testing::Values(2),
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                            ::testing::Values(CPUTestUtils::empty_plugin_config)),
+                         MHAWithShapeOfReshape::getTestCaseName);
 
 // Ticket: CVS-180477
 INSTANTIATE_TEST_SUITE_P(smoke_Snippets_MHA_4D_TwoConstB_StaticShapesCacheCollisionRegression,
