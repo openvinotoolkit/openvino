@@ -517,13 +517,13 @@ void SubgraphBaseTest::validate() {
 }
 
 void SubgraphBaseTest::init_thresholds() {
-    const auto& [max_abs_threshold, max_rel_threshold] =
+    const auto thresholds =
         ov::test::utils::calculate_thresholds_by_model(function, functionRefs, inference_precision);
     if (abs_threshold == disable_threshold) {
-        abs_threshold = max_abs_threshold;
+        abs_threshold = thresholds.abs_threshold;
     }
     if (rel_threshold == disable_threshold) {
-        rel_threshold = max_rel_threshold;
+        rel_threshold = thresholds.rel_threshold;
     }
 }
 
