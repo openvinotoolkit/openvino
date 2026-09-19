@@ -744,3 +744,38 @@ INSTANTIATE_TEST_SUITE_P(OnnxConvertEquivalence,
                              }
                              return n;
                          });
+
+TEST(FrontEndGraphIteratorTest, rejects_empty_dropout_training_mode) {
+    auto model = std::make_shared<ONNX_NAMESPACE::ModelProto>();
+    model->set_ir_version(13);
+    auto* opset = model->add_opset_import();
+    opset->set_version(12);
+    auto* graph = model->mutable_graph();
+    auto* node = graph->add_node();
+    node->set_op_type("Dropout");
+    node->add_input("X");
+    node->add_input("");
+    node->add_input("training_mode");
+    node->add_output("Y");
+    auto* init = graph->add_initializer();
+    init->set_name("training_mode");
+    init->set_data_type(ONNX_NAMESPACE::TensorProto_DataType_BOOL);
+    init->add_dims(0);
+    auto* input = graph->add_input();
+    input->set_name("X");
+    input->mutable_type()->mutable_tensor_type()->set_elem_type(ONNX_NAMESPACE::TensorProto_DataType_FLOAT);
+    input->mutable_type()->mutable_tensor_type()->mutable_shape()->add_dim()->set_dim_value(1);
+    auto* output = graph->add_output();
+    output->set_name("Y");
+    output->mutable_type()->mutable_tensor_type()->set_elem_type(ONNX_NAMESPACE::TensorProto_DataType_FLOAT);
+    output->mutable_type()->mutable_tensor_type()->mutable_shape()->add_dim()->set_dim_value(1);
+    auto iterator = std::make_shared<ov::frontend::onnx::GraphIteratorProto>(
+        ov::frontend::onnx::GraphIteratorProtoMemoryManagementMode::External_Stream);
+    iterator->initialize(model);
+    iterator->reset();
+    auto frontend = ov::frontend::FrontEndManager().load_by_framework("onnx");
+    ASSERT_NE(frontend, nullptr);
+    auto input_model = frontend->load(std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(iterator));
+    ASSERT_NE(input_model, nullptr);
+    EXPECT_THROW(frontend->convert(input_model), ov::Exception);
+}
