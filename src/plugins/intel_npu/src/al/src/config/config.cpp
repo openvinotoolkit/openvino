@@ -4,7 +4,24 @@
 
 #include "intel_npu/config/config.hpp"
 
+#include <cctype>
+#include <limits>
+
 namespace intel_npu {
+
+namespace {
+
+// `std::sto*` stops at the first character which is not part of the number, so without this check a valid
+// prefix would be enough to accept malformed values such as "12oops". Only trailing whitespace is tolerated.
+void assertFullyConsumed(const std::string& str, size_t pos) {
+    while (pos < str.size() && std::isspace(static_cast<unsigned char>(str[pos]))) {
+        ++pos;
+    }
+
+    OPENVINO_ASSERT(pos == str.size());
+}
+
+}  // namespace
 
 // Splits the `str` string onto separate elements using `delim` as delimiter and
 // call `callback` for each element.
@@ -37,9 +54,9 @@ bool OptionParser<bool>::parse(std::string_view val) {
     std::transform(strVal.begin(), strVal.end(), strVal.begin(), [](char c) {
         return std::toupper(c);
     });
-    if (strVal == "YES" || strVal == "TRUE" || strVal == "1") {
+    if (strVal == "YES" || strVal == "TRUE" || strVal == "ON" || strVal == "1") {
         return true;
-    } else if (strVal == "NO" || strVal == "FALSE" || strVal == "0") {
+    } else if (strVal == "NO" || strVal == "FALSE" || strVal == "OFF" || strVal == "0") {
         return false;
     }
 
@@ -48,58 +65,67 @@ bool OptionParser<bool>::parse(std::string_view val) {
 
 int32_t OptionParser<int32_t>::parse(std::string_view val) {
     try {
-        return std::stol(val.data());
+        const std::string str(val);
+        size_t pos = 0;
+        const auto parsed = std::stoll(str, &pos);
+        assertFullyConsumed(str, pos);
+        OPENVINO_ASSERT(parsed >= std::numeric_limits<int32_t>::min() && parsed <= std::numeric_limits<int32_t>::max());
+        return static_cast<int32_t>(parsed);
     } catch (...) {
-        OPENVINO_THROW("Value '", val.data(), "' is not a valid INT32 option");
+        OPENVINO_THROW("Value '", val, "' is not a valid INT32 option");
     }
 }
 
 uint32_t OptionParser<uint32_t>::parse(std::string_view val) {
     try {
-        return std::stoul(val.data());
+        // Note: "std::stoul" silently wraps negative values around, hence the signed intermediate
+        const std::string str(val);
+        size_t pos = 0;
+        const auto parsed = std::stoll(str, &pos);
+        assertFullyConsumed(str, pos);
+        OPENVINO_ASSERT(parsed >= 0 && parsed <= std::numeric_limits<uint32_t>::max());
+        return static_cast<uint32_t>(parsed);
     } catch (...) {
-        OPENVINO_THROW("Value '", val.data(), "' is not a valid UINT32 option");
+        OPENVINO_THROW("Value '", val, "' is not a valid UINT32 option");
     }
 }
 
 int64_t OptionParser<int64_t>::parse(std::string_view val) {
     try {
-        return std::stoll(val.data());
+        const std::string str(val);
+        size_t pos = 0;
+        const auto parsed = std::stoll(str, &pos);
+        assertFullyConsumed(str, pos);
+        return parsed;
     } catch (...) {
-        OPENVINO_THROW("Value '", val.data(), "' is not a valid INT64 option");
+        OPENVINO_THROW("Value '", val, "' is not a valid INT64 option");
     }
 }
 
 uint64_t OptionParser<uint64_t>::parse(std::string_view val) {
     try {
-        return std::stoull(val.data());
+        // Note: "std::stoull" silently wraps negative values around, hence the explicit check
+        const std::string str(val);
+        OPENVINO_ASSERT(str.find('-') == std::string::npos);
+        size_t pos = 0;
+        const auto parsed = std::stoull(str, &pos);
+        assertFullyConsumed(str, pos);
+        return parsed;
     } catch (...) {
-        OPENVINO_THROW("Value '", val.data(), "' is not a valid UINT64 option");
+        OPENVINO_THROW("Value '", val, "' is not a valid UINT64 option");
     }
 }
 
 double OptionParser<double>::parse(std::string_view val) {
     try {
-        return std::stod(val.data());
+        const std::string str(val);
+        size_t pos = 0;
+        const auto parsed = std::stod(str, &pos);
+        assertFullyConsumed(str, pos);
+        return parsed;
     } catch (...) {
-        OPENVINO_THROW("Value '", val.data(), "' is not a valid FP64 option");
+        OPENVINO_THROW("Value '", val, "' is not a valid FP64 option");
     }
-}
-
-ov::log::Level OptionParser<ov::log::Level>::parse(std::string_view val) {
-    std::string strVal(val);
-    std::istringstream is(strVal);
-    ov::log::Level level;
-    is >> level;
-    return level;
-}
-
-ov::hint::ExecutionMode OptionParser<ov::hint::ExecutionMode>::parse(std::string_view val) {
-    std::string strVal(val);
-    std::istringstream is(strVal);
-    ov::hint::ExecutionMode mode;
-    is >> mode;
-    return mode;
 }
 
 //
@@ -108,18 +134,6 @@ ov::hint::ExecutionMode OptionParser<ov::hint::ExecutionMode>::parse(std::string
 
 std::string OptionPrinter<bool>::toString(bool val) {
     return val ? "YES" : "NO";
-}
-
-std::string OptionPrinter<ov::log::Level>::toString(ov::log::Level val) {
-    std::ostringstream os;
-    os << val;
-    return os.str();
-}
-
-std::string OptionPrinter<ov::hint::ExecutionMode>::toString(ov::hint::ExecutionMode val) {
-    std::ostringstream os;
-    os << val;
-    return os.str();
 }
 
 //
@@ -183,45 +197,6 @@ bool OptionsDesc::has(std::string_view key) const {
     return false;
 }
 
-std::vector<std::string> OptionsDesc::getSupported(bool includePrivate) const {
-    std::vector<std::string> res;
-    res.reserve(_impl.size());
-
-    for (const auto& p : _impl) {
-        if (p.second.isPublic() || includePrivate) {
-            res.push_back(p.first.data());
-        }
-    }
-
-    return res;
-}
-
-std::vector<ov::PropertyName> OptionsDesc::getSupportedOptions(bool includePrivate) const {
-    std::vector<ov::PropertyName> res;
-    res.reserve(_impl.size());
-
-    for (const auto& p : _impl) {
-        if (p.second.isPublic() || includePrivate) {
-            res.push_back({p.first.data(), p.second.mutability()});
-        }
-    }
-
-    return res;
-}
-
-std::string OptionsDesc::getSupportedAsString(bool includePrivate) const {
-    std::string res;
-
-    for (const auto& p : _impl) {
-        if (p.second.isPublic() || includePrivate) {
-            res += p.first;
-            res += " ";
-        }
-    }
-
-    return res;
-}
-
 void OptionsDesc::walk(std::function<void(const details::OptionConcept&)> cb) const {
     for (const auto& itr : _impl) {
         cb(itr.second);
@@ -246,7 +221,7 @@ void Config::parseEnvVars() {
                            opt.envVar().data());
 
                 try {
-                    _impl[opt.key().data()] = opt.validateAndParseFromString(envVar);
+                    _impl[opt.key().data()] = opt.validateAndParse(std::string(envVar));
                 } catch (const std::exception& e) {
                     _log.warning(
                         "Environment variable '%s' with value '%s' was ignored for option '%s' due to error:\n%s",
@@ -273,31 +248,15 @@ void Config::update(const ConfigMap& options) {
         _log.trace("Update option '%s' to value '%s'", p.first.c_str(), p.second.c_str());
 
         const auto opt = _desc->get(p.first);
-        _impl[opt.key().data()] = opt.validateAndParseFromString(p.second);
+        _impl[opt.key().data()] = opt.validateAndParse(p.second);
     }
 }
 
-void Config::updateAny(const ov::AnyMap& options) {
-    for (const auto& p : options) {
-        _log.trace("Update option '%s' to given 'ov::Any' value", p.first.c_str());
-
-        const auto opt = _desc->get(p.first);
-        _impl[opt.key().data()] = opt.validateAndParseFromAny(p.second);
-    }
-}
-
-void Config::update(std::string_view key, std::string_view value) {
-    _log.trace("Update option '%s' to value '%s'", std::string(key).c_str(), std::string(value).c_str());
+void Config::update(std::string_view key, const ov::Any& value) {
+    _log.trace("Update option '%s'", std::string(key).c_str());
 
     const auto opt = _desc->get(key);
-    _impl[opt.key().data()] = opt.validateAndParseFromString(value);
-}
-
-void Config::updateAny(std::string_view key, const ov::Any& value) {
-    _log.trace("Update option '%s' to given 'ov::Any' value", std::string(key).c_str());
-
-    const auto opt = _desc->get(key);
-    _impl[opt.key().data()] = opt.validateAndParseFromAny(value);
+    _impl[opt.key().data()] = opt.validateAndParse(value);
 }
 
 std::string Config::toString() const {
@@ -337,20 +296,95 @@ void Config::fromString(const std::string& str) {
     parse_token(str_cfg);
 }
 
-//
-// envVarStrToBool
-//
+bool Config::hasOpt(std::string_view key) const {
+    return _desc->has(key);
+}
 
-bool envVarStrToBool(const char* varName, const char* varValue) {
-    try {
-        const auto intVal = std::stoi(varValue);
-        if (intVal != 0 && intVal != 1) {
-            throw std::invalid_argument("Only 0 and 1 values are supported");
-        }
-        return (intVal != 0);
-    } catch (const std::exception& e) {
-        OPENVINO_THROW(std::string("Environment variable ") + varName + " has wrong value : " + e.what());
+details::OptionConcept Config::getOpt(std::string_view key) const {
+    return _desc->get(key);
+}
+
+void Config::addOrUpdateInternal(std::string key, std::string value) {
+    auto log = Logger::global().clone("Config");
+    if (_internal_compiler_configs.count(key) != 0) {
+        log.warning("Internal compiler option '%s' was already registered! Updating value only!", key.c_str());
+        _internal_compiler_configs.at(key) = std::move(value);
+    } else {
+        // manual insert
+        log.trace("Store internal compiler option %s: %s", key.c_str(), value.c_str());
+        _internal_compiler_configs.emplace(key, std::move(value));
     }
+}
+
+bool Config::hasInternal(std::string_view key) const {
+    return _internal_compiler_configs.count(std::string(key)) != 0;
+}
+
+void Config::removeCompileTimeConfigs() {
+    for (auto it = _impl.begin(); it != _impl.end();) {
+        if (_desc->get(it->first).mode() == OptionMode::CompileTime) {
+            it = _impl.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
+    _internal_compiler_configs.clear();
+}
+
+std::string Config::getInternal(std::string key) const {
+    if (_internal_compiler_configs.count(key) == 0) {
+        OPENVINO_THROW(std::string("Internal compiler option " + key + " does not exist! "));
+    }
+    return _internal_compiler_configs.at(key);
+}
+
+std::string Config::toStringForCompiler(const std::function<bool(const std::string&)>& isSupported) const {
+    if (!isSupported) {
+        OPENVINO_THROW("Config::toStringForCompiler requires a valid support predicate");
+    }
+
+    std::stringstream resultStream;
+    bool hasSerializedValue = false;
+
+    const auto append = [&](const std::string& key, const std::string& serializedValue) {
+        if (hasSerializedValue) {
+            resultStream << " ";
+        }
+        resultStream << key << "=\"" << serializedValue << "\"";
+        hasSerializedValue = true;
+    };
+
+    for (const auto& [key, value] : _impl) {
+        if (!_desc->has(key)) {
+            OPENVINO_THROW("[ NOT_FOUND ] Option '" + std::string(key) +
+                           "' is not supported for current configuration");
+        }
+
+        const auto mode = _desc->get(key).mode();
+        if (mode != OptionMode::CompileTime && mode != OptionMode::Both) {
+            continue;
+        }
+        if (mode == OptionMode::CompileTime && !isSupported(std::string(key))) {
+            OPENVINO_THROW("[ NOT_FOUND ] Option '" + std::string(key) +
+                           "' is not supported for current configuration");
+        }
+        if (mode == OptionMode::Both && !isSupported(std::string(key))) {
+            continue;
+        }
+
+        append(std::string(key), value->toString());
+    }
+
+    for (const auto& [key, value] : _internal_compiler_configs) {
+        if (!isSupported(std::string(key))) {
+            OPENVINO_THROW("[ NOT_FOUND ] Option '" + std::string(key) +
+                           "' is not supported for current configuration");
+        }
+        append(std::string(key), value);
+    }
+
+    return resultStream.str();
 }
 
 }  // namespace intel_npu

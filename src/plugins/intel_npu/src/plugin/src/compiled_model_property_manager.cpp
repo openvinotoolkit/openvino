@@ -55,7 +55,7 @@ std::string buildRuntimeRequirements(const std::shared_ptr<intel_npu::IGraph>& g
 
 namespace intel_npu {
 
-CompiledModelPropertyManager::CompiledModelPropertyManager(const FilteredConfig& config,
+CompiledModelPropertyManager::CompiledModelPropertyManager(const Config& config,
                                                            const ov::AnyMap& properties,
                                                            const std::shared_ptr<IDevice>& device,
                                                            const std::shared_ptr<IGraph>& graph,
@@ -123,7 +123,7 @@ ov::Any CompiledModelPropertyManager::getProperty(const std::string& name) const
     }
 }
 
-FilteredConfig CompiledModelPropertyManager::getConfig() const {
+Config CompiledModelPropertyManager::getConfig() const {
     std::lock_guard<std::mutex> lock(_mutex);
     return _config;
 }
@@ -266,7 +266,7 @@ void CompiledModelPropertyManager::registerProperties() {
             return ov::EncryptionCallbacks{nullptr, nullptr};
         },
         [this](const ov::Any& value) {
-            _config.updateAny(ov::cache_encryption_callbacks.name(), value);
+            _config.update(ov::cache_encryption_callbacks.name(), value);
         }
     );
     register_property(ov::hint::model.name(), true, ov::PropertyMutability::RO,

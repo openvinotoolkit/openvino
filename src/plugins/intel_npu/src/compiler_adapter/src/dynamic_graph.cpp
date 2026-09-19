@@ -185,7 +185,7 @@ void DynamicGraph::initialize_engine() {
 
 DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                            ov::Tensor blob,
-                           const FilteredConfig& config,
+                           const Config& config,
                            BlobType blobType)
     : _zeroInitStruct(zeroInitStruct),
       _blob(std::move(blob)),
@@ -315,7 +315,7 @@ void* DynamicGraph::get_handle() const {
     return _engine;
 }
 
-void DynamicGraph::initialize_impl(const FilteredConfig& config) {
+void DynamicGraph::initialize_impl(const Config& config) {
     _logger.debug("Graph initialize start");
 
     if (!_engineInitialized) {
@@ -366,7 +366,7 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
     _init_completed.store(true, std::memory_order_release);
 }
 
-bool DynamicGraph::release_blob(const FilteredConfig& config) {
+bool DynamicGraph::release_blob(const Config& config) {
     _logger.warning("Release blob is skipped, no handle for DynamicGraph");
     return false;
 };

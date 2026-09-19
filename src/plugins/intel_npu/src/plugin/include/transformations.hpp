@@ -10,7 +10,6 @@
 #include <set>
 #include <string>
 
-#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"

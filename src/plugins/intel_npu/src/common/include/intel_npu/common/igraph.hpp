@@ -10,8 +10,8 @@
 #include <mutex>
 #include <vector>
 
-#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/network_metadata.hpp"
+#include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
@@ -56,7 +56,7 @@ public:
                                                  const void* data,
                                                  const std::vector<size_t>& strides) const;
 
-    void initialize(const FilteredConfig& config);
+    void initialize(const Config& config);
 
     virtual ~IGraph() = default;
 
@@ -115,7 +115,7 @@ public:
     virtual std::optional<std::string_view> get_compatibility_descriptor() const;
 
 protected:
-    virtual void initialize_impl(const FilteredConfig& config);
+    virtual void initialize_impl(const Config& config);
 
     // Used to protect graph initialization (including zero pipeline creation) in the graph. Initialization should
     // happen only once per graph, typically when the graph is first used (e.g. when the first inference starts)

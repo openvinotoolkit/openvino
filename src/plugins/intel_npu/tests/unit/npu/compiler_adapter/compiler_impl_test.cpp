@@ -14,7 +14,7 @@
 #include <vector>
 
 #include "fake_vcl.hpp"
-#include "intel_npu/common/filtered_config.hpp"
+#include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "model_serializer.hpp"
@@ -25,7 +25,7 @@
 #include "ze_graph_ext_wrappers.hpp"
 
 using ::fake_vcl::FakeVcl;
-using ::intel_npu::FilteredConfig;
+using ::intel_npu::Config;
 using ::intel_npu::IDevice;
 using ::intel_npu::OptionsDesc;
 using ::intel_npu::VCLCompilerImpl;
@@ -40,10 +40,10 @@ std::shared_ptr<OptionsDesc> makeOptionsDesc() {
     return desc;
 }
 
-FilteredConfig makeConfig() {
+Config makeConfig() {
     // Registration is all that is needed: compileWsIterative writes WS_COMPILE_CALL_NUMBER via
     // update(), and MODEL_SERIALIZER_VERSION is read through config.get<>.
-    return FilteredConfig(makeOptionsDesc());
+    return Config(makeOptionsDesc());
 }
 
 /// A minimal model with one weight, enough for the serializer to produce a real IR.
