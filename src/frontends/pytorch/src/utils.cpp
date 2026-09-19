@@ -335,15 +335,21 @@ PadType convert_pad(const std::string& pt_pad) {
     return TORCH_AUTO_PAD_TO_OV.at(pt_pad);
 };
 
+Output<Node> flatten_list_element_for_concat(const Output<Node>& elem) {
+    // Elements of a shape-building list reach us with inconsistent ranks
+    // (rank-0 literal ints vs rank-1 Gather(ShapeOf,dim)); reshape to 1-D
+    // rather than unsqueeze, so Concat doesn't reject the mixed ranks.
+    const auto minus_one = v0::Constant::create(element::i32, Shape{1}, {-1});
+    return std::make_shared<v1::Reshape>(elem, minus_one, false);
+}
+
 Output<Node> concat_list_construct(const Output<Node>& input) {
     if (auto seq_mark = ov::as_type_ptr<SequenceMark>(input.get_node_shared_ptr())) {
         auto list_inputs = seq_mark->input_values();
         OutputVector node_vector;
-        auto zero = v0::Constant::create(element::i32, Shape{}, {0});
         for (size_t i = 0; i < list_inputs.size(); i++) {
             auto node = concat_list_construct(list_inputs[i]);
-            auto unsqueezed_node = std::make_shared<v0::Unsqueeze>(node, zero);
-            node_vector.push_back(unsqueezed_node);
+            node_vector.push_back(flatten_list_element_for_concat(node));
         }
         return std::make_shared<v0::Concat>(node_vector, 0);
     }
@@ -719,7 +725,6 @@ std::tuple<Output<Node>, Output<Node>> get_inputs_with_promoted_types(const Node
 std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool unsqueeze_for_concat) {
     std::deque<Output<Node>> res;
     auto current_output = start;
-    const auto zero = v0::Constant::create(element::i32, Shape{}, {0});
 
     FRONT_END_OP_CONVERSION_CHECK(
         !ov::as_type_ptr<v5::Loop>(current_output.get_node_shared_ptr()),
@@ -729,7 +734,7 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool uns
     if (auto seq_mark = ov::as_type_ptr<SequenceMark>(current_output.get_node_shared_ptr())) {
         for (auto& elem : seq_mark->get_sequence()) {
             if (unsqueeze_for_concat) {
-                elem = std::make_shared<v0::Unsqueeze>(elem, zero);
+                elem = flatten_list_element_for_concat(elem);
             }
             res.push_back(elem);
         }
@@ -748,7 +753,7 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool uns
         if (op_type == "aten::append") {
             auto elem = fw_node->get_input_source_output(1);
             if (unsqueeze_for_concat) {
-                elem = std::make_shared<v0::Unsqueeze>(elem, zero);
+                elem = flatten_list_element_for_concat(elem);
             }
             res.push_front(elem);
         } else if (op_type == "aten::add") {
@@ -768,7 +773,7 @@ std::deque<Output<Node>> get_list_as_outputs(const Output<Node>& start, bool uns
         for (auto it = inputs.rbegin(); it != inputs.rend(); ++it) {
             auto elem = it->get_source_output();
             if (unsqueeze_for_concat) {
-                elem = std::make_shared<v0::Unsqueeze>(elem, zero);
+                elem = flatten_list_element_for_concat(elem);
             }
             res.push_front(elem);
         }

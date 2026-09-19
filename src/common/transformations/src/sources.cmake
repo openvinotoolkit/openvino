@@ -42,6 +42,7 @@ set(COMMON_OPTIMIZATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/eliminate_loop_inputs_outputs.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/eliminate_unsqueeze_gather.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/enable_shapeof_constant_folding.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/erase_redundant_convert_pair.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fold_subgraph_empty_inputs.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fq_concat_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fq_eliminate_sequential.cpp
@@ -81,6 +82,8 @@ set(COMMON_OPTIMIZATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nonzero_horizontal_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/nop_elimination.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/normalize_l2_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/normalize_vllm_mlp.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/normalize_vllm_rope.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/optimize_strided_slice.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/pack_multi_head_attention.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/pad_fusion.cpp

@@ -1,0 +1,6 @@
+# Extra dependencies for the vLLM + OpenVINO torchdynamo backend tests.
+# CPU-only vLLM build; version pinned to the one validated against this
+# backend integration -- bump deliberately and re-validate test_run.py's
+# eager-vs-openvino parity check before raising it.
+
+vllm-cpu==0.28.0

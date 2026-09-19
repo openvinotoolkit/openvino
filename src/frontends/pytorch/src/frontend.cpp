@@ -30,6 +30,7 @@
 #include "transforms/einsum_list_construct.hpp"
 #include "transforms/index_loop_getitem_replacer.hpp"
 #include "transforms/listconstruct_replacer.hpp"
+#include "transforms/mark_compressed_weights_cast.hpp"
 #include "transforms/max_pool_dynamic_kernel_resolver.hpp"
 #include "transforms/min_max_prim_list_construct_replacer.hpp"
 #include "transforms/prim_list_tuple_construct_replacer.hpp"
@@ -280,6 +281,9 @@ void FrontEnd::normalize(const std::shared_ptr<ov::Model>& model) const {
     }
     manager.register_pass<ov::frontend::pytorch::pass::U4BlockRepack>(sym);
     manager.register_pass<ov::frontend::pytorch::pass::U4ConvertReshape>();
+    // Marks a decompression cast MarkCompressedFloatConstants can't see;
+    // must run after the U4 passes produce a Constant->Convert head.
+    manager.register_pass<ov::frontend::pytorch::pass::MarkCompressedWeightsCast>();
 
     manager.register_pass<ov::pass::RemoveMultiSubGraphOpDanglingParamsResults>();
     manager.run_passes(model);
