@@ -71,12 +71,13 @@ class TestNormal(PytorchLayerTest):
     class aten_normal6(torch.nn.Module):
         def forward(self, x):
             x = x.to(torch.float32)
-            return torch.normal(0., 1., x.shape)
+            return torch.normal(0., 1., x.shape), x
 
     class aten_normal7(torch.nn.Module):
         def forward(self, x):
             x = x.to(torch.float32)
-            return torch.normal(0., 1., x.shape, out=x), x
+            before = x.clone()
+            return torch.normal(0., 1., x.shape, out=x), x, before
 
     @pytest.mark.nightly
     @pytest.mark.precommit
@@ -89,6 +90,7 @@ class TestNormal(PytorchLayerTest):
         (aten_normal6(), [1, 3, 224, 224]),
         (aten_normal7(), [1, 3, 224, 224]),
     ])
+    @pytest.mark.precommit_torch_export
     def test_inplace_normal(self, model, inputs, ie_device, precision, ir_version):
         self.inputs = inputs
         self._test(model, "aten::normal",
@@ -96,6 +98,43 @@ class TestNormal(PytorchLayerTest):
 
 
 class TestStatistics():
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("shape", [(257,), (16, 32)])
+    @pytest.mark.parametrize("use_out", [False, True])
+    def test_normal_scalar_mean(self, shape, use_out, ie_device, precision):
+        import numpy as np
+        import openvino as ov
+
+        class Model(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.use_out = use_out
+
+            def forward(self, std):
+                if self.use_out:
+                    out = torch.empty_like(std)
+                    return torch.normal(2.5, std, out=out)
+                return torch.normal(2.5, std)
+
+        std = torch.full(shape, 3.0)
+        model = Model()
+        if PytorchLayerTest.use_torch_export():
+            input_model = torch.export.export(model, (std,))
+        else:
+            input_model = torch.jit.trace(model, (std,), check_trace=False)
+        ov_model = ov.convert_model(input_model)
+        config = {"INFERENCE_PRECISION_HINT": "f32"} if precision == "FP32" else {}
+        compiled_model = ov.Core().compile_model(ov_model, ie_device, config)
+        result = compiled_model([std.numpy()])[0]
+
+        assert result.shape == shape
+        assert np.isfinite(result).all()
+        # A scalar random sample broadcast over std has the right shape but no
+        # variation between elements. This must generate a sample per element.
+        assert np.ptp(result) > 0
+
     class aten_normal(torch.nn.Module):
         def forward(self, mean, std):
             return torch.normal(mean, std)
