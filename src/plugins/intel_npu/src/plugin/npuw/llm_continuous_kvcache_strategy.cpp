@@ -8,6 +8,7 @@
 
 #include "infer_request_utils.hpp"
 #include "llm_infer_request.hpp"
+#include "llm_longrope_kv.hpp"
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "util.hpp"
@@ -150,6 +151,23 @@ void LLMContinuousKVCacheStrategy::on_generate_step_done(uint32_t input_tokens_l
                              m_req.m_kvcache_out_ports,
                              input_tokens_len,
                              v_transposed);
+}
+
+// Each layer keeps its whole past in one tensor whose row r is the key of position
+// first_position_id + r, which is exactly the shape the flat rewrite expects.
+void LLMContinuousKVCacheStrategy::rerotate_longrope_keys(const std::shared_ptr<ov::IAsyncInferRequest>& request,
+                                                          const PortsMap& in_ports,
+                                                          uint32_t num_cached_tokens,
+                                                          bool to_long) {
+    const auto& compiled = m_req.m_npuw_llm_compiled_model;
+    ov::npuw::longrope::rerotate_cached_keys(request,
+                                             in_ports,
+                                             m_req.m_kvcache_past_names,
+                                             compiled->m_longrope_tables,
+                                             compiled->m_kvcache_desc.dim,
+                                             num_cached_tokens,
+                                             m_req.m_first_position_id,
+                                             to_long);
 }
 
 namespace {

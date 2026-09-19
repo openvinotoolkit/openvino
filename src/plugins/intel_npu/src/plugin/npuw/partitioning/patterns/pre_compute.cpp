@@ -366,7 +366,7 @@ uint64_t read_context_limit(const std::shared_ptr<ov::Node>& limit_node) {
     return static_cast<uint64_t>(limit_values.front());
 }
 
-// The regime switch is re-evaluated on the host as max(position_ids) >= context_limit,
+// The mode switch is re-evaluated on the host as max(position_ids) >= context_limit,
 // which only reproduces the graph's `max(position_ids) + offset` comparison for an
 // offset of exactly 1. The matchers accept any constant there, so refuse to rewrite a
 // model whose offset differs rather than silently binding the wrong coefficients.
@@ -419,7 +419,7 @@ ov::npuw::patterns::pre_compute::RopeCacheMatcher::RopeCacheMatcher(const uint32
     rpe->run_on_model(model);
 
     // LongRoPE cos/sin LUTs are model inputs, not Constants: the host picks the
-    // short/long factor regime and binds the matching rows, so no in-graph Select - and
+    // short/long factor mode and binds the matching rows, so no in-graph Select - and
     // hence no npuw_longrope_input scalar - is created for either LongRoPE pattern.
     std::shared_ptr<ov::op::v0::Parameter> lr_cos_param;
     std::shared_ptr<ov::op::v0::Parameter> lr_sin_param;
@@ -523,8 +523,8 @@ void ov::npuw::patterns::pre_compute::LongRopeCosSin::rebuild_tables() {
     if (max_len == 0 || rotary_ndims == 0 || inv_freq_short.empty()) {
         return;
     }
-    const size_t regimes = has_long ? 2u : 1u;
-    const ov::Shape shape{1, regimes * max_len, rotary_ndims};
+    const size_t modes = has_long ? 2u : 1u;
+    const ov::Shape shape{1, modes * max_len, rotary_ndims};
     cos = ov::Tensor(ov::element::f16, shape);
     sin = ov::Tensor(ov::element::f16, shape);
 
