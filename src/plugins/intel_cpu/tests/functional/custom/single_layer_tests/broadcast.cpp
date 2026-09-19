@@ -7,6 +7,11 @@
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/runtime/core.hpp"
+#include "openvino/runtime/tensor.hpp"
 
 using namespace CPUTestUtils;
 
@@ -177,6 +182,32 @@ protected:
 TEST_P(BroadcastLayerCPUTest, CompareWithRefs) {
     run();
     CheckPluginRelatedResults(compiledModel, "Broadcast");
+}
+
+TEST(BroadcastLayerCPUTest, ScalarInt64ConstantKeepsPrecision) {
+    constexpr int64_t fill_value = 7LL * (1LL << 45);
+    const ov::Shape output_shape{4};
+
+    auto scalar = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {fill_value});
+    auto target_shape = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1});
+    auto broadcast = std::make_shared<ov::op::v3::Broadcast>(scalar, target_shape, ov::op::BroadcastType::NUMPY);
+    auto result = std::make_shared<ov::op::v0::Result>(broadcast);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{target_shape});
+
+    ov::Core core;
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_CPU);
+    auto infer_request = compiled_model.create_infer_request();
+
+    int64_t shape_value = static_cast<int64_t>(output_shape.front());
+    infer_request.set_input_tensor(ov::Tensor{ov::element::i64, ov::Shape{1}, &shape_value});
+    infer_request.infer();
+
+    const auto output = infer_request.get_output_tensor();
+    ASSERT_EQ(output.get_shape(), output_shape);
+
+    const auto* data = output.data<const int64_t>();
+    const std::vector<int64_t> actual(data, data + ov::shape_size(output_shape));
+    EXPECT_EQ(actual, std::vector<int64_t>(ov::shape_size(output_shape), fill_value));
 }
 
 namespace {
