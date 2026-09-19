@@ -462,8 +462,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     bool is_cumulative =
         (auto_s_context->m_performance_hint == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT) ? true : false;
     std::list<DeviceInformation> devices_with_priority(support_devices.begin(), support_devices.end());
+    bool is_stateful_model = false;
     if (model_path.empty()) {
-        support_devices = filter_device_by_model(support_devices_by_property, model, load_config);
+        support_devices = filter_device_by_model(support_devices_by_property, model, load_config, is_stateful_model);
     } else {
         // AUTO / MULTI don't support caching explicitly, but can redirect this functionality to actual HW plugin
         LOG_INFO_TAG("compile model with model path");
@@ -503,6 +504,21 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     }
     auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
+    auto_s_context->m_dynamic_device_selection =
+        !is_cumulative && !is_stateful_model &&
+        (!auto_s_context->m_selection_policy.utilization_thresholds.empty() ||
+         !auto_s_context->m_selection_policy.perf_curve_table.empty() ||
+         !auto_s_context->m_low_power_device.empty());
+    if (auto_s_context->m_dynamic_device_selection) {
+        LOG_INFO_TAG("[dynamic] per inference device selection enabled by the resource aware selection properties");
+        // the CPU accelerator assumes a fixed target device for the whole model lifetime
+        auto_s_context->m_startup_fallback = false;
+    } else if (is_stateful_model &&
+               (!auto_s_context->m_selection_policy.utilization_thresholds.empty() ||
+                !auto_s_context->m_selection_policy.perf_curve_table.empty() ||
+                !auto_s_context->m_low_power_device.empty())) {
+        LOG_WARNING_TAG("resource aware device selection properties are ignored for stateful models");
+    }
     // in case of mismatching shape conflict when AUTO creates the infer requests for actual device with reshaped model
     auto_s_context->m_model = model_path.empty() ? std::const_pointer_cast<ov::Model>(model) : nullptr;
     auto_s_context->m_model_path = model_path;
@@ -1245,7 +1261,9 @@ std::vector<DeviceInformation> Plugin::filter_device(const std::vector<DeviceInf
 
 std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<DeviceInformation>& meta_devices,
                                                               const std::shared_ptr<const ov::Model>& model,
-                                                              PluginConfig& load_config) const {
+                                                              PluginConfig& load_config,
+                                                              bool& is_stateful_model) const {
+    is_stateful_model = false;
     if (meta_devices.empty()) {
         OPENVINO_THROW("No available device to filter ", get_device_name(), " plugin");
     }
@@ -1276,6 +1294,7 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
         // not stateful model
         return meta_devices;
     }
+    is_stateful_model = true;
 
     // disable CPU_HELP and runtime fallback if model is stateful
     disable_startup_runtime_fallback();
