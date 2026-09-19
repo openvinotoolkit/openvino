@@ -2,8 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <type_traits>
+
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
+#include "openvino/op/util/arithmetic_reduction.hpp"
 
 namespace ov {
 namespace frontend {
@@ -51,6 +54,29 @@ NamedOutputs reduce_ops(const NodeContext& node) {
                 scalar_output = false;
                 break;
             }
+        }
+    }
+
+    // Paddle's reduce_sum/reduce_prod carry an `out_dtype` attribute (a VarType_Type code,
+    // -1 == "derive from input"). The arithmetic reductions reject boolean input and, when an
+    // explicit out_dtype is requested, must accumulate in that type. Convert the input *before*
+    // reducing to match Paddle's cast-before-accumulate semantics (e.g. paddle.sum(fp32 {1.9,1.9},
+    // dtype='int64') == 2, not 3). Logical reductions (reduce_all/reduce_any) accept booleans and
+    // are left untouched.
+    ov::element::Type out_type = element::dynamic;
+    if (node.has_attribute("out_dtype")) {
+        if (node.get_attribute<int32_t>("out_dtype") != -1) {
+            out_type = node.get_attribute<ov::element::Type>("out_dtype");
+        }
+    }
+    constexpr bool is_arithmetic = std::is_base_of<ov::op::util::ArithmeticReduction, T>::value;
+    if (is_arithmetic) {
+        const auto input_type = x.get_element_type();
+        if (input_type == ov::element::boolean) {
+            // Paddle promotes sums/prods of boolean tensors to int64 by default.
+            x = std::make_shared<default_opset::Convert>(x, out_type.is_dynamic() ? ov::element::i64 : out_type);
+        } else if (input_type.is_static() && out_type.is_static() && out_type != input_type) {
+            x = std::make_shared<default_opset::Convert>(x, out_type);
         }
     }
 
