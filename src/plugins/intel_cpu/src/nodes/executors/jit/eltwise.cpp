@@ -375,7 +375,7 @@ void EltwiseJitExecutor::exec(const jit_eltwise_call_args_ptrs& args_ptrs,
 
 bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
                                   const size_t rank,
-                                  [[maybe_unused]] const std::vector<ov::element::Type>& input_precisions,
+                                  const std::vector<ov::element::Type>& input_precisions,
                                   [[maybe_unused]] const std::vector<ov::element::Type>& output_precisions) {
 #if defined(OPENVINO_ARCH_X86_64)
     const auto isISASupportedByJIT = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::sse41);
@@ -404,6 +404,20 @@ bool EltwiseJitExecutor::supports(const EltwiseAttrs& attrs,
     }
 
 #if defined(OPENVINO_ARCH_X86_64)
+    if (any_of(algorithm,
+               Algorithm::EltwiseAdd,
+               Algorithm::EltwiseSubtract,
+               Algorithm::EltwiseMultiply,
+               Algorithm::EltwiseDivide,
+               Algorithm::EltwiseNegative)) {
+        const auto isNarrowInt = [](const ov::element::Type& p) {
+            return any_of(p, ov::element::i8, ov::element::u8, ov::element::i16, ov::element::u16);
+        };
+        if (std::any_of(input_precisions.begin(), input_precisions.end(), isNarrowInt) ||
+            std::any_of(output_precisions.begin(), output_precisions.end(), isNarrowInt)) {
+            return false;
+        }
+    }
     return true;
 
 #elif defined(OPENVINO_ARCH_ARM64)
