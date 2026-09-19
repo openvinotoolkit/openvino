@@ -15,6 +15,7 @@
 #include <intel_gpu/primitives/concatenation.hpp>
 
 #include <cmath>
+#include <limits>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -1151,6 +1152,116 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_fp32_prelu_eltwise, ::testing::Values
     convolution_test_params{ CASE_CONV_FP16_2, 2, 2, 4 },
     convolution_test_params{ CASE_CONV_FP16_3, 2, 2, 4 },
     convolution_test_params{ CASE_CONV_FP16_4, 2, 2, 4 },
+}));
+
+// Fused PReLU must propagate NaN the same way the standalone activation kernel
+// does: a NaN reaching the activation input (carried here through the
+// convolution) must reach the output unchanged whether the PReLU is fused into
+// the conv kernel or executed standalone.
+class conv_prelu_nan : public ConvFusingTest {};
+TEST_P(conv_prelu_nan, basic) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        // Small weights and bias keep the finite outputs well inside the f16 range,
+        // so only the injected NaN values show up as special values in the output.
+        data("weights", get_mem(get_weights_layout(p), -1, 1)),
+        data("bias", get_mem(get_per_channel_layout(p), 0.25f)),
+        data("slope_data", get_mem(get_per_channel_layout(p), 0.5f)),
+        convolution("conv_prim", input_info("input"), "weights", "bias", p.groups, p.stride, p.dilation, p.pad, p.pad, format::is_grouped(get_weights_layout(p).format)),
+        activation("activation", input_info("conv_prim"), "slope_data", activation_func::relu_negative_slope),
+        reorder("reorder_bfyx", input_info("activation"), p.default_format, data_types::f32)
+    );
+
+    // Force the OCL conv implementation so the PReLU is fused into the CL kernel
+    // and the fused activation code generation is exercised, not a oneDNN post-op.
+    ov::intel_gpu::ImplementationDesc conv_impl = { p.input_format, "", impl_types::ocl };
+    cfg_fused.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ { "conv_prim", conv_impl } }));
+
+    tolerance = default_tolerance(p.data_type);
+
+    // Fill the input so that the convolution output carries both NaN and finite
+    // values: one spatial half of the input is NaN, the other half is finite.
+    // The fill is done by logical (b, f, y, x) coordinates via get_linear_offset,
+    // so it stays correct for blocked layouts such as b_fs_yx_fsv16 where a
+    // linear index does not correspond to the x coordinate.
+    auto in_layout = get_input_layout(p);
+    auto input_prim = engine.allocate_memory(in_layout);
+    const ov::Shape logical_shape = in_layout.get_shape();
+    const int64_t batch = static_cast<int64_t>(logical_shape[0]);
+    const int64_t feature = static_cast<int64_t>(logical_shape[1]);
+    const int64_t height = logical_shape.size() > 3 ? static_cast<int64_t>(logical_shape[2]) : 1;
+    const int64_t width = logical_shape.size() > 3 ? static_cast<int64_t>(logical_shape[3])
+                                                   : static_cast<int64_t>(logical_shape.back());
+    const size_t phys_size = in_layout.get_linear_size();
+    auto logical_value = [&](int64_t b, int64_t f, int64_t y, int64_t x) -> float {
+        const int64_t logical_idx = ((b * feature + f) * height + y) * width + x;
+        if (x < width / 2) {
+            return std::numeric_limits<float>::quiet_NaN();
+        }
+        return -1.0f - static_cast<float>(logical_idx % 7);
+    };
+    if (in_layout.data_type == data_types::f16) {
+        std::vector<ov::float16> input_vals(phys_size, ov::float16(0.0f));
+        for (int64_t b = 0; b < batch; ++b) {
+            for (int64_t f = 0; f < feature; ++f) {
+                for (int64_t y = 0; y < height; ++y) {
+                    for (int64_t x = 0; x < width; ++x) {
+                        const size_t offset = in_layout.get_linear_offset(tensor(b, f, x, y));
+                        input_vals[offset] = ov::float16(logical_value(b, f, y, x));
+                    }
+                }
+            }
+        }
+        set_values(input_prim, input_vals);
+    } else {
+        std::vector<float> input_vals(phys_size, 0.0f);
+        for (int64_t b = 0; b < batch; ++b) {
+            for (int64_t f = 0; f < feature; ++f) {
+                for (int64_t y = 0; y < height; ++y) {
+                    for (int64_t x = 0; x < width; ++x) {
+                        const size_t offset = in_layout.get_linear_offset(tensor(b, f, x, y));
+                        input_vals[offset] = logical_value(b, f, y, x);
+                    }
+                }
+            }
+        }
+        set_values(input_prim, input_vals);
+    }
+
+    network network_not_fused(this->engine, this->topology_non_fused, cfg_not_fused);
+    network network_fused(this->engine, this->topology_fused, cfg_fused);
+    network_fused.set_input_data("input", input_prim);
+    network_not_fused.set_input_data("input", input_prim);
+
+    // Verify the PReLU is actually fused into the conv kernel before checking outputs.
+    check_fusions_correctness(network_fused, {{"conv_prim", {"activation"}}});
+
+    auto outputs_ref = network_not_fused.execute();
+    auto outputs_fused = network_fused.execute();
+    auto val_ref = get_output_values_to_float(network_not_fused, outputs_ref.begin()->second);
+    auto val_opt = get_output_values_to_float(network_fused, outputs_fused.begin()->second);
+    ASSERT_EQ(val_ref.size(), val_opt.size());
+
+    // ASSERT_NEAR fails on NaN == NaN, so compare NaN and finite lanes separately.
+    bool has_nan = false;
+    bool has_finite = false;
+    for (size_t i = 0; i < val_ref.size(); ++i) {
+        if (std::isnan(val_ref[i])) {
+            has_nan = true;
+            ASSERT_TRUE(std::isnan(val_opt[i])) << "i = " << i << ": expected NaN, got " << val_opt[i];
+        } else {
+            has_finite = true;
+            ASSERT_NEAR(val_ref[i], val_opt[i], tolerance) << "i = " << i;
+        }
+    }
+    ASSERT_TRUE(has_nan) << "no NaN reached the output - input injection failed";
+    ASSERT_TRUE(has_finite) << "no finite value reached the output - input injection failed";
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, conv_prelu_nan, ::testing::ValuesIn(std::vector<convolution_test_params>{
+    convolution_test_params{ CASE_CONV_FP32_1, 2, 2 },
+    convolution_test_params{ CASE_CONV_FP16_2, 2, 2 },
 }));
 
 class conv_fp32_multi_eltwise_2 : public ConvFusingTest {};
