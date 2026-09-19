@@ -36,11 +36,28 @@ struct qsa : public primitive_base<qsa> {
     // page table, to own the indexer raw-K/summary persistent state independently of the
     // main-attention side. The primitive's declared attention output is left uninitialized
     // in this mode; callers only care about the mutated raw-K/summary cache buffers.
+    // dense_mode: implements design doc chapter 15's QSA_SDPA_DENSE addressing mode.
+    // The address MATH (qsa::kv_cache_offset / raw_k_offset / summary_offset in
+    // qsa_common.hpp) is reused completely unchanged -- for a single degenerate page
+    // per sequence (page 0), "token_in_page = position % PA_BLOCK_SIZE" already IS a
+    // plain dense offset as long as PA_BLOCK_SIZE >= the sequence's actual length. What
+    // dense_mode changes is HOW the QSA_PA_BLOCK_SIZE JIT constant is derived: instead
+    // of always using the fixed Config::pa_block_size (a compile-time capacity BUDGET),
+    // it is derived from the ACTUAL RUNTIME LAYOUT of the cache tensor for this call
+    // (see make_qsa_jit()/get_jit_constants() in graph/impls/cm/qsa/qsa.cpp). This lets
+    // the caller feed a cache tensor that is genuinely smaller than the configured
+    // capacity and grow it call-over-call (e.g. via a real ov::intel_gpu::op::KVCache
+    // or the QSAIndexerCache growth path below), without recompiling Q1/Q2/Q3's address
+    // arithmetic for every distinct length -- only distinct RUNTIME LAYOUT buckets (e.g.
+    // KVCache's own prealloc/relocation tiers) cause a new JIT-specialized kernel build.
+    // Every existing caller (paged QSA) leaves this at its default `false`, so existing
+    // behavior is unchanged; skip_kv_write/prepare_only remain orthogonal flags.
     qsa(const primitive_id& id,
         const std::vector<input_info>& inputs,
         const ov::intel_gpu::op::QSA::Config& config,
         bool skip_kv_write = false,
-        bool prepare_only = false)
+        bool prepare_only = false,
+        bool dense_mode = false)
         : primitive_base(id, inputs),
           heads_num(config.heads_num),
           kv_heads_num(config.kv_heads_num),
@@ -61,7 +78,8 @@ struct qsa : public primitive_base<qsa> {
           has_output_gate(config.has_output_gate),
           is_causal(config.is_causal),
           skip_kv_write(skip_kv_write),
-          prepare_only(prepare_only) {
+          prepare_only(prepare_only),
+          dense_mode(dense_mode) {
         // prepare_only declares 2 outputs (mutated raw-K cache, mutated summary cache --
         // see qsa_inst::calc_output_layouts) instead of the normal single attention
         // output; every existing (non-prepare_only) caller is unaffected since this only
@@ -92,6 +110,7 @@ struct qsa : public primitive_base<qsa> {
     bool is_causal = true;
     bool skip_kv_write = false;
     bool prepare_only = false;
+    bool dense_mode = false;
 
     /// @brief Pre-allocated width of the selected-token metadata: budget + r - 1.
     size_t max_selected_tokens() const {
@@ -143,6 +162,7 @@ struct qsa : public primitive_base<qsa> {
         seed = hash_combine(seed, is_causal);
         seed = hash_combine(seed, skip_kv_write);
         seed = hash_combine(seed, prepare_only);
+        seed = hash_combine(seed, dense_mode);
         return seed;
     }
 
@@ -156,7 +176,7 @@ struct qsa : public primitive_base<qsa> {
                indexer_head_dim == r.indexer_head_dim && indexer_rotary_dim == r.indexer_rotary_dim && budget == r.budget &&
                compress_ratio == r.compress_ratio && qsa_block_tokens == r.qsa_block_tokens && pa_block_size == r.pa_block_size && block_topk == r.block_topk &&
                scale == r.scale && indexer_norm_eps == r.indexer_norm_eps && has_output_gate == r.has_output_gate && is_causal == r.is_causal &&
-               skip_kv_write == r.skip_kv_write && prepare_only == r.prepare_only;
+               skip_kv_write == r.skip_kv_write && prepare_only == r.prepare_only && dense_mode == r.dense_mode;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -181,6 +201,7 @@ struct qsa : public primitive_base<qsa> {
         ob << is_causal;
         ob << skip_kv_write;
         ob << prepare_only;
+        ob << dense_mode;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -205,6 +226,7 @@ struct qsa : public primitive_base<qsa> {
         ib >> is_causal;
         ib >> skip_kv_write;
         ib >> prepare_only;
+        ib >> dense_mode;
     }
 };
 

@@ -31,6 +31,54 @@ std::vector<layout> qsa_inst::calc_output_layouts(const qsa_node& /*node*/, cons
         // consumers (e.g. an Assign writing back to persistent Variable state) a genuine
         // graph dependency edge to schedule on; see execute()'s set_output_memory() calls.
         //
+        // design chapter 15 (QSAIndexerCache dynamic growth): in dense_mode, the caller
+        // (see plugin/ops/qsa_indexer_cache.cpp) feeds the OLD (small) raw-K/summary
+        // history as INDEXER_RAW_K_CACHE/INDEXER_SUMMARY_CACHE; this call's declared
+        // output is the GROWN buffer (old_length + this call's new entries), computed
+        // purely from already-resolved input shapes -- the same "read
+        // impl_param.get_input_layout(...) at shape-inference time" pattern
+        // kv_cache_inst::compute_trim_length uses for its own dynamic shape inference,
+        // just without needing to read any tensor's VALUES (raw-K grows by exactly this
+        // call's new token count -- MIXED's own row count -- and summary grows to
+        // floor(new_raw_length / r), which only depends on lengths, not content).
+        // execute()'s copy_from() (see impls/cm/qsa/qsa.cpp) then populates the new
+        // buffer's valid prefix from the old one before Q1 (completely unmodified)
+        // reads/writes it in place.
+        if (desc->dense_mode) {
+            const auto old_raw_shape = impl_param.get_input_layout(qsa::QSAInputIdx::INDEXER_RAW_K_CACHE).get<ShapeType>();
+            const auto old_summary_shape = impl_param.get_input_layout(qsa::QSAInputIdx::INDEXER_SUMMARY_CACHE).get<ShapeType>();
+            OPENVINO_ASSERT(old_raw_shape.rank().is_static() && old_raw_shape.size() == 3 && old_summary_shape.rank().is_static() &&
+                                old_summary_shape.size() == 3,
+                            "[GPU] qsa prepare_only+dense_mode expects rank-3 [B, L, Di] raw-K/summary cache inputs");
+            const auto raw_dt = impl_param.get_input_layout(qsa::QSAInputIdx::INDEXER_RAW_K_CACHE).data_type;
+            const auto summary_dt = impl_param.get_input_layout(qsa::QSAInputIdx::INDEXER_SUMMARY_CACHE).data_type;
+
+            const auto mixed_shape = impl_param.get_input_layout(qsa::QSAInputIdx::MIXED).get<ShapeType>();
+            // Graph-build-time shape propagation (compile_model()'s initial static pass,
+            // before any concrete per-call runtime shape is known) calls this same
+            // function with MIXED's/old_raw_shape's dynamic dimensions still
+            // unresolved -- gracefully fall back to a fully dynamic declared output
+            // shape in that case; the EXACT length is only computable once real,
+            // per-call values are available (the ordinary runtime shape-inference pass
+            // that precedes every execute()).
+            if (!mixed_shape.rank().is_static() || mixed_shape.size() < 1 || !mixed_shape[0].is_static() || !old_raw_shape[1].is_static()) {
+                ShapeType raw_dyn{old_raw_shape[0], ov::Dimension::dynamic(), old_raw_shape[2]};
+                ShapeType summary_dyn{old_summary_shape[0], ov::Dimension::dynamic(), old_summary_shape[2]};
+                return {layout{raw_dyn, raw_dt, cldnn::format::get_default_format(3)}, layout{summary_dyn, summary_dt, cldnn::format::get_default_format(3)}};
+            }
+
+            const int64_t old_raw_length = old_raw_shape[1].get_length();
+            const int64_t new_token_count = mixed_shape[0].get_length();
+            const int64_t new_raw_length = old_raw_length + new_token_count;
+            const int64_t r = static_cast<int64_t>(desc->compress_ratio);
+            OPENVINO_ASSERT(r > 0, "[GPU] qsa dense_mode requires compress_ratio > 0");
+            const int64_t new_summary_length = new_raw_length / r;  // floor: total completed blocks so far
+
+            ShapeType raw_out{old_raw_shape[0], ov::Dimension(new_raw_length), old_raw_shape[2]};
+            ShapeType summary_out{old_summary_shape[0], ov::Dimension(new_summary_length), old_summary_shape[2]};
+            return {layout{raw_out, raw_dt, cldnn::format::get_default_format(3)}, layout{summary_out, summary_dt, cldnn::format::get_default_format(3)}};
+        }
+
         // The declared shape is the dense 3D [num_blocks, pa_block_size, Di] form (the
         // paged 4D [num_blocks, 1, pa_block_size, Di] input's head axis, always 1, is
         // squeezed out) rather than a literal copy of the paged input layout: aliasing

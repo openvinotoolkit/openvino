@@ -270,8 +270,35 @@ QSARuntimeParams* rt_of(ImplRuntimeParams* rt) {
     return p;
 }
 
+/// design chapter 15 / QSA_SDPA_DENSE: in dense_mode, QSA_PA_BLOCK_SIZE (the JIT
+/// constant the existing paged address math keys off) is derived from the ACTUAL
+/// runtime layout of this call's cache tensor instead of the fixed Config::pa_block_size
+/// capacity budget. This is safe for the degenerate single-page-per-sequence layout
+/// dense_mode always uses (page 0): "token_in_page = position % PA_BLOCK_SIZE" is a
+/// plain dense offset as long as PA_BLOCK_SIZE covers this call's actual valid length,
+/// which the runtime layout always does since it is exactly the (possibly grown, e.g.
+/// by a real KVCache/QSAIndexerCache producer) buffer this call was dispatched with.
+/// Q1 in prepare_only (QSAIndexerCache growth) mode WRITES into its own freshly grown
+/// [B, new_length, Di] OUTPUT (see qsa_inst::calc_output_layouts' dense_mode branch and
+/// execute()'s explicit allocation) -- its INDEXER_RAW_K_CACHE *input* is instead the
+/// small OLD (pre-growth) buffer, so PA_BLOCK_SIZE must come from the OUTPUT layout's
+/// sequence axis (index 1 of its rank-3 [B, L, Di] shape), not from any input. The
+/// QSASDPA main-attention path (prepare_only == false) instead reads KEY_CACHE (a
+/// rank-4 [B, Hkv, S, Dh] *input*, already fully formed, nothing grows within this
+/// primitive's own execution), since that is what Q2/Q3 actually address into.
+size_t dense_pa_block_size(const RuntimeParams& params, const qsa& desc) {
+    if (desc.prepare_only) {
+        const auto& shape = params.get_output_layout(0).get_shape();
+        OPENVINO_ASSERT(shape.size() >= 2, "[GPU][CM] qsa dense_mode expects a rank>=2 [B, L, Di] declared output, got rank ", shape.size());
+        return std::max<size_t>(1, shape[1]);
+    }
+    const auto& shape = params.get_input_layout(QSAIn::KEY_CACHE).get_shape();
+    OPENVINO_ASSERT(shape.size() >= 3, "[GPU][CM] qsa dense_mode expects a rank>=3 cache input, got rank ", shape.size());
+    return std::max<size_t>(1, shape[2]);
+}
+
 /// JIT constants shared by every QSA kernel family.
-JitConstants make_qsa_jit(const std::shared_ptr<const qsa>& desc) {
+JitConstants make_qsa_jit(const std::shared_ptr<const qsa>& desc, const RuntimeParams& params) {
     JitConstants jit;
     jit.make("QSA_HEADS", desc->heads_num);
     jit.make("QSA_KV_HEADS", desc->kv_heads_num);
@@ -285,7 +312,7 @@ JitConstants make_qsa_jit(const std::shared_ptr<const qsa>& desc) {
     jit.make("QSA_BLOCK_TOPK", desc->block_topk);
     jit.make("QSA_BUDGET", desc->budget);
     jit.make("QSA_MAX_SELECTED", desc->max_selected_tokens());
-    jit.make("QSA_PA_BLOCK_SIZE", desc->pa_block_size);
+    jit.make("QSA_PA_BLOCK_SIZE", desc->dense_mode ? dense_pa_block_size(params, *desc) : desc->pa_block_size);
     jit.make("QSA_HAS_OUTPUT_GATE", desc->has_output_gate ? 1 : 0);
     jit.make("QSA_IS_CAUSAL", desc->is_causal ? 1 : 0);
     jit.add(make_jit_constant("QSA_SCALE", desc->scale));
@@ -336,7 +363,7 @@ protected:
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        jit.add(make_qsa_jit(params.typed_desc<qsa>()));
+        jit.add(make_qsa_jit(params.typed_desc<qsa>(), params));
         jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
         return jit;
     }
@@ -394,7 +421,7 @@ protected:
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        jit.add(make_qsa_jit(params.typed_desc<qsa>()));
+        jit.add(make_qsa_jit(params.typed_desc<qsa>(), params));
         jit.make("QSA_PREPARE_WG", prepare_wg_size);
         if (can_use_dpas_projection(*params.typed_desc<qsa>(), params.get_device_info())) {
             jit.make("QSA_PREPROJECTED", 1);
@@ -418,8 +445,23 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUBSEQUENCE_BEGINS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::BLOCK_INDICES});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::BLOCK_INDICES_BEGINS});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_RAW_K_CACHE});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_SUMMARY_CACHE});
+        // QSAIndexerCache dynamic growth (dense_mode && prepare_only): the primitive's
+        // own two declared outputs are a FRESH, larger buffer (sized by
+        // qsa_inst::calc_output_layouts to old_length + this call's new entries), not an
+        // alias of the small INDEXER_RAW_K_CACHE/INDEXER_SUMMARY_CACHE *inputs* -- see
+        // execute()'s pre-dispatch copy_from() of old history into the new buffer's
+        // front. The kernel is therefore given the OUTPUT ports (already containing that
+        // copied-forward history) to read AND write in place, exactly like the
+        // non-growth prepare_only path reads/writes its (there, aliased) INPUT. Ordinary
+        // prepare_only (non-dense_mode, degenerate paging) keeps binding the INPUT ports
+        // directly, unchanged.
+        if (params.typed_desc<qsa>()->dense_mode && params.typed_desc<qsa>()->prepare_only) {
+            args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
+            args.push_back({ArgumentDescriptor::Types::OUTPUT, 1});
+        } else {
+            args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_RAW_K_CACHE});
+            args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_SUMMARY_CACHE});
+        }
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAInternalBufIdx::INDEXER_Q});
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAInternalBufIdx::PREPARE_MAP});
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});
@@ -462,7 +504,7 @@ protected:
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        jit.add(make_qsa_jit(params.typed_desc<qsa>()));
+        jit.add(make_qsa_jit(params.typed_desc<qsa>(), params));
         jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
         return jit;
     }
@@ -511,7 +553,7 @@ protected:
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        jit.add(make_qsa_jit(params.typed_desc<qsa>()));
+        jit.add(make_qsa_jit(params.typed_desc<qsa>(), params));
         jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
         return jit;
     }
@@ -565,7 +607,7 @@ protected:
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        jit.add(make_qsa_jit(params.typed_desc<qsa>()));
+        jit.add(make_qsa_jit(params.typed_desc<qsa>(), params));
         jit.make("QSA_SCORE_WG", score_wg_size);
         // Always row-chunk aware: QSACmImpl::execute() always dispatches this kernel in a
         // per-chunk loop (a shape small enough to fit the score budget in one chunk just
@@ -629,7 +671,7 @@ protected:
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        jit.add(make_qsa_jit(params.typed_desc<qsa>()));
+        jit.add(make_qsa_jit(params.typed_desc<qsa>(), params));
         jit.make("QSA_PARTITION_BLOCKS", partition_blocks);
         // Always row-chunk aware; see QSAScoreTileDpasGenerator for the rationale.
         jit.make("QSA_SCORE_ROW_CHUNK", 1);
@@ -697,7 +739,7 @@ protected:
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        jit.add(make_qsa_jit(params.typed_desc<qsa>()));
+        jit.add(make_qsa_jit(params.typed_desc<qsa>(), params));
         jit.make("QSA_TOPK_WG", topk_wg_size);
         jit.make("QSA_TOPK_CACHE_CAPACITY", topk_cache_capacity);
         // Always row-chunk aware; see QSAScoreTileDpasGenerator for the rationale.
@@ -759,7 +801,7 @@ protected:
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
         const auto desc = params.typed_desc<qsa>();
-        jit.add(make_qsa_jit(desc));
+        jit.add(make_qsa_jit(desc, params));
         jit.make("QSA_ATT_WORKERS", std::max<size_t>(1, dpas_attention_workers(*desc)));
         jit.make("QSA_HEADS_PER_TILE", dpas_heads_per_tile(*desc));
         jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
@@ -831,7 +873,7 @@ protected:
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        jit.add(make_qsa_jit(params.typed_desc<qsa>()));
+        jit.add(make_qsa_jit(params.typed_desc<qsa>(), params));
         jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
         return jit;
     }
@@ -906,7 +948,7 @@ protected:
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        jit.add(make_qsa_jit(params.typed_desc<qsa>()));
+        jit.add(make_qsa_jit(params.typed_desc<qsa>(), params));
         jit.make("QSA_GQA_HEAD_MAJOR", 1);
         jit.make("QSA_GQA_VECTOR_META", 1);
         jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
@@ -982,7 +1024,7 @@ protected:
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        jit.add(make_qsa_jit(params.typed_desc<qsa>()));
+        jit.add(make_qsa_jit(params.typed_desc<qsa>(), params));
         jit.make("QSA_SPLIT_PARTITIONS", split_partitions);
         jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
         return jit;
@@ -1050,7 +1092,7 @@ protected:
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
-        jit.add(make_qsa_jit(params.typed_desc<qsa>()));
+        jit.add(make_qsa_jit(params.typed_desc<qsa>(), params));
         jit.make("QSA_SPLIT_PARTITIONS", split_partitions);
         jit.add(make_jit_constant("KERNEL_NAME", get_entry_point(params)));
         return jit;
@@ -1275,6 +1317,7 @@ public:
         update_rt_params(instance);
         auto* rtp = &rt();
         const auto& params = *instance.get_impl_params();
+        const auto desc = params.typed_desc<qsa>();
 
         g_qsa_stage_events.clear();
         upload_prepare_map(instance);
@@ -1300,6 +1343,63 @@ public:
             record_stage_event("Q1_project", proj_event);
             prepare_deps = {proj_event};
         }
+
+        // QSAIndexerCache dynamic growth (design doc chapter 15): qsa_inst::
+        // calc_output_layouts already sized this call's two declared outputs to
+        // old_length + this call's new raw-K/summary entries (see its dense_mode
+        // branch); get_arguments_desc() above binds qsa_prepare's raw_k_cache/
+        // summary_cache kernel parameters to those OUTPUT ports instead of the small
+        // INDEXER_RAW_K_CACHE/INDEXER_SUMMARY_CACHE *inputs* in this mode. Before Q1
+        // dispatches, copy the old (small) history into the front of the new (larger)
+        // buffers so Q1 -- completely unmodified -- sees exactly the same
+        // "already-degenerate-paged, valid prefix populated" contract it always has;
+        // it only ever reads/writes at absolute positions, never inspects declared
+        // capacity. This is the same copy_from() primitive kv_cache_inst's own OCL
+        // implementation uses for its relocation-on-growth path.
+        if (desc->dense_mode && desc->prepare_only) {
+            // A null dependency memory is a legitimate state here: a freshly-created
+            // Variable that has never been Assign-ed yet (this sequence's very first
+            // call) may not have any backing memory allocated for its ReadValue output.
+            // Treat it the same as an explicit zero-length buffer -- no history to copy
+            // forward.
+            auto old_raw_k = instance.dep_memory_ptr(QSAIn::INDEXER_RAW_K_CACHE);
+            auto old_summary = instance.dep_memory_ptr(QSAIn::INDEXER_SUMMARY_CACHE);
+
+            // Unlike the (aliased) non-dense prepare_only path, this primitive's outputs
+            // here are NOT a generically-preallocated buffer -- qsa's outputs have
+            // historically always been provided via set_output_memory() (aliasing), so
+            // the common auto-allocate-before-execute() path was never exercised for
+            // this primitive and instance.output_memory_ptr() may be null at this point.
+            // qsa_inst::calc_output_layouts already computed the exact required shape
+            // (available via get_output_layout() regardless of whether memory for it
+            // exists yet), so allocate it explicitly here.
+            auto& engine = instance.get_network().get_engine();
+            auto new_raw_k = engine.allocate_memory(instance.get_output_layout(0), false);
+            auto new_summary = engine.allocate_memory(instance.get_output_layout(1), false);
+
+            auto& stream = instance.get_network().get_stream();
+            std::vector<event::ptr> copy_deps = prepare_deps;
+            if (old_raw_k != nullptr && old_raw_k->size() > 0 && old_raw_k.get() != new_raw_k.get()) {
+                OPENVINO_ASSERT(old_raw_k->size() <= new_raw_k->size(),
+                                "[GPU][CM] qsa dense_mode growth: old raw-K buffer (", old_raw_k->size(), " B) does not fit in the new one (",
+                                new_raw_k->size(), " B)");
+                copy_deps.push_back(new_raw_k->copy_from(stream, *old_raw_k, 0, 0, old_raw_k->size(), false));
+            }
+            if (old_summary != nullptr && old_summary->size() > 0 && old_summary.get() != new_summary.get()) {
+                OPENVINO_ASSERT(old_summary->size() <= new_summary->size(),
+                                "[GPU][CM] qsa dense_mode growth: old summary buffer (", old_summary->size(), " B) does not fit in the new one (",
+                                new_summary->size(), " B)");
+                copy_deps.push_back(new_summary->copy_from(stream, *old_summary, 0, 0, old_summary->size(), false));
+            }
+            prepare_deps = copy_deps;
+
+            // Register the freshly-allocated (and now history-populated) buffers as
+            // this call's outputs BEFORE dispatching Q1, so get_arguments_desc()'s
+            // OUTPUT-port binding for raw_k_cache/summary_cache resolves to them.
+            instance.set_output_memory(new_raw_k, false, 0);
+            instance.set_output_memory(new_summary, false, 1);
+        }
+
         auto prepare_event = execute_stage(prepare_deps, instance, prepare);
         record_stage_event("Q1_prepare", prepare_event);
 
@@ -1312,8 +1412,15 @@ public:
             // back) gets a real graph dependency edge to schedule on. `check=false`
             // mirrors read_value.cpp/ocl/kv_cache.cpp's own use of this same pattern for
             // variable-backed state: the layout is already known to match by construction.
-            instance.set_output_memory(instance.dep_memory_ptr(QSAIn::INDEXER_RAW_K_CACHE), false, 0);
-            instance.set_output_memory(instance.dep_memory_ptr(QSAIn::INDEXER_SUMMARY_CACHE), false, 1);
+            //
+            // dense_mode is the one exception: its two outputs are already independently
+            // allocated (a fresh, larger buffer per calc_output_layouts, populated by the
+            // copy_from() above plus Q1's own writes), not an alias of the small inputs,
+            // so aliasing here would incorrectly discard that larger buffer.
+            if (!desc->dense_mode) {
+                instance.set_output_memory(instance.dep_memory_ptr(QSAIn::INDEXER_RAW_K_CACHE), false, 0);
+                instance.set_output_memory(instance.dep_memory_ptr(QSAIn::INDEXER_SUMMARY_CACHE), false, 1);
+            }
             return prepare_event;
         }
 

@@ -7,7 +7,6 @@
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/qsa.hpp"
-#include "intel_gpu/primitives/reshape.hpp"
 
 // NOTE: like ops/qsa.cpp, QSASDPA is lowered from the base ov::op::internal::QSASDPA
 // type; ov::intel_gpu::op::QSASDPA ("gpu_opset") publicly inherits from it and adds no
@@ -59,22 +58,6 @@ cldnn::input_info make_iota_constant(ProgramBuilder& p, const std::shared_ptr<ov
     return cldnn::input_info(id);
 }
 
-// Reinterprets a dense [B, S, Di] indexer cache tensor as the paged [B, 1, S, Di] shape
-// cldnn::qsa expects (pure relabeling: same element count, same memory, no data
-// movement).
-cldnn::input_info make_dense_to_paged_reshape(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, const std::string& layer_name,
-                                              const std::string& suffix, const cldnn::input_info& input, const ov::PartialShape& target_shape) {
-    OPENVINO_ASSERT(target_shape.is_static(), "[GPU] QSASDPA '", layer_name, "': reshape '", suffix, "' requires a static target shape");
-    std::vector<int64_t> pattern;
-    pattern.reserve(target_shape.size());
-    for (const auto& d : target_shape) {
-        pattern.push_back(d.get_length());
-    }
-    const auto id = layer_name + suffix;
-    p.add_primitive(*op, cldnn::reshape(id, input, /*special_zero=*/false, pattern, target_shape));
-    return cldnn::input_info(id);
-}
-
 void CreateQSASDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::QSASDPA>& op) {
     validate_inputs_count(op, {QSASDPAIn::COUNT});
     const auto inputs = p.GetInputInfo(op);
@@ -84,35 +67,23 @@ void CreateQSASDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::
     std::string reason;
     OPENVINO_ASSERT(ov::op::internal::QSASDPA::validate_config(config, reason), "[GPU] Cannot lower QSASDPA op '", layer_name, "': ", reason);
 
-    // v1 requires a fully static, compile-time-known degenerate page table. Rationale:
-    // pa_block_size is baked into the underlying CM kernels as a JIT constant (see
-    // graph/impls/cm/qsa/qsa.cpp's "QSA_PA_BLOCK_SIZE" jit define), so the "one page per
-    // sequence, page size == max sequence length" degenerate scheme this op lowers to can
-    // only work if both the number of sequences (B) and the page size (S) are fixed at
-    // graph-construction time. This is the concrete, enforced form of "dynamic B is
-    // unsupported", extended to also require a fixed
-    // max-sequence-length capacity (section 8): callers must size KEY_CACHE_DENSE /
-    // VALUE_CACHE_DENSE / INDEXER_RAW_K_CACHE_DENSE / INDEXER_SUMMARY_CACHE_DENSE's S axis
-    // to config.pa_block_size up front (a "reserve full capacity" strategy, not a
-    // dynamically-growing-exactly-to-S one -- see the implementation record for why the
-    // latter would require far more invasive graph surgery).
+    // design QSA_SDPA_DENSE: the main K/V and indexer raw-K/summary
+    // caches are genuinely dynamically-shaped (e.g. the real, growing output of an
+    // ov::intel_gpu::op::KVCache / QSAIndexerCache node) -- there is no requirement that
+    // their sequence axis equal a fixed compile-time config.pa_block_size, and no
+    // identity/degenerate page table is synthesized any more. The underlying cldnn::qsa
+    // primitive is dispatched with dense_mode=true (see primitives/qsa.hpp and
+    // graph/impls/cm/qsa/qsa.cpp's dense_pa_block_size()): the existing paged address
+    // math is reused UNCHANGED with QSA_PA_BLOCK_SIZE derived from THIS call's actual
+    // KEY_CACHE_DENSE runtime layout instead of a fixed Config value, and
+    // block_indices[i] == i / block_indices_begins == identity (one degenerate page per
+    // sequence, unchanged) still makes each sequence's own dense row the "whole page" --
+    // only now that page's size can differ from call to call.
     const auto& key_cache_ps = op->get_input_partial_shape(QSASDPAIn::KEY_CACHE_DENSE);
     OPENVINO_ASSERT(key_cache_ps.rank().is_static() && key_cache_ps.size() == 4, "[GPU] QSASDPA '", layer_name, "': KEY_CACHE_DENSE must be rank-4");
-    OPENVINO_ASSERT(key_cache_ps.is_static(),
-                    "[GPU] QSASDPA '",
-                    layer_name,
-                    "': KEY_CACHE_DENSE must have a fully static shape in v1 (dynamic B / unbounded max sequence "
-                    "length are not supported)");
+    OPENVINO_ASSERT(key_cache_ps[0].is_static(), "[GPU] QSASDPA '", layer_name, "': KEY_CACHE_DENSE's batch dimension must be static (v1 requires a fixed"
+                                                 " batch of independently-growing sequences)");
     const int64_t B = key_cache_ps[0].get_length();
-    const int64_t S = key_cache_ps[2].get_length();
-    OPENVINO_ASSERT(static_cast<size_t>(S) == config.pa_block_size,
-                    "[GPU] QSASDPA '",
-                    layer_name,
-                    "': KEY_CACHE_DENSE's sequence axis (",
-                    S,
-                    ") must equal config.pa_block_size (",
-                    config.pa_block_size,
-                    "), the fixed max-sequence-length capacity this op's degenerate paging reserves upfront");
 
     const auto& past_lens_ps = op->get_input_partial_shape(QSASDPAIn::PAST_LENS);
     OPENVINO_ASSERT(past_lens_ps.rank().is_static() && past_lens_ps[0].is_static() && past_lens_ps[0].get_length() == B,
@@ -125,10 +96,7 @@ void CreateQSASDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::
     const int64_t Hkv = static_cast<int64_t>(config.kv_heads_num);
     const int64_t Dh = static_cast<int64_t>(config.k_head_size);
     const int64_t Dv = static_cast<int64_t>(config.v_head_size);
-    const int64_t Di = static_cast<int64_t>(config.indexer_head_dim);
-    const int64_t r = static_cast<int64_t>(config.compress_ratio);
-    OPENVINO_ASSERT(r > 0, "[GPU] QSASDPA '", layer_name, "': compress_ratio must be > 0");
-    const int64_t summaries = S / r;
+    OPENVINO_ASSERT(config.compress_ratio > 0, "[GPU] QSASDPA '", layer_name, "': compress_ratio must be > 0");
 
     std::vector<cldnn::input_info> qsa_inputs(QSAIn::COUNT);
     qsa_inputs[QSAIn::MIXED] = inputs[QSASDPAIn::MIXED];
@@ -141,17 +109,21 @@ void CreateQSASDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::
     qsa_inputs[QSAIn::BLOCK_INDICES_BEGINS] = make_iota_constant(p, op, layer_name, "_block_indices_begins", B + 1);
     qsa_inputs[QSAIn::KEY_CACHE] = inputs[QSASDPAIn::KEY_CACHE_DENSE];
     qsa_inputs[QSAIn::VALUE_CACHE] = inputs[QSASDPAIn::VALUE_CACHE_DENSE];
-    qsa_inputs[QSAIn::INDEXER_RAW_K_CACHE] =
-        make_dense_to_paged_reshape(p, op, layer_name, "_raw_k_paged", inputs[QSASDPAIn::INDEXER_RAW_K_CACHE_DENSE], ov::PartialShape{B, 1, S, Di});
-    qsa_inputs[QSAIn::INDEXER_SUMMARY_CACHE] = make_dense_to_paged_reshape(p, op, layer_name, "_summary_paged", inputs[QSASDPAIn::INDEXER_SUMMARY_CACHE_DENSE],
-                                                                          ov::PartialShape{B, 1, summaries, Di});
+    // Fed directly as dense [B, L, Di] tensors: for the degenerate one-page-per-sequence
+    // table, a plain row-major dense tensor's byte layout is IDENTICAL to the "paged"
+    // [B, 1, L, Di] layout the address math conceptually assumes (the page axis
+    // contributes a zero offset for page 0 regardless of whether it is materialized), so
+    // no reshape is needed -- unlike the previous (replaced) implementation, which
+    // required a fixed pa_block_size-sized paged reshape.
+    qsa_inputs[QSAIn::INDEXER_RAW_K_CACHE] = inputs[QSASDPAIn::INDEXER_RAW_K_CACHE_DENSE];
+    qsa_inputs[QSAIn::INDEXER_SUMMARY_CACHE] = inputs[QSASDPAIn::INDEXER_SUMMARY_CACHE_DENSE];
     qsa_inputs[QSAIn::INDEXER_QK_WEIGHT] = inputs[QSASDPAIn::INDEXER_QK_WEIGHT];
     qsa_inputs[QSAIn::INDEXER_Q_NORM_WEIGHT] = inputs[QSASDPAIn::INDEXER_Q_NORM_WEIGHT];
     qsa_inputs[QSAIn::INDEXER_K_NORM_WEIGHT] = inputs[QSASDPAIn::INDEXER_K_NORM_WEIGHT];
     qsa_inputs[QSAIn::ROTARY_COS_SIN] = inputs[QSASDPAIn::ROTARY_COS_SIN];
     qsa_inputs[QSAIn::POSITION_IDS] = inputs[QSASDPAIn::POSITION_IDS];
 
-    cldnn::qsa prim(layer_name, qsa_inputs, config, /*skip_kv_write=*/true, /*prepare_only=*/false);
+    cldnn::qsa prim(layer_name, qsa_inputs, config, /*skip_kv_write=*/true, /*prepare_only=*/false, /*dense_mode=*/true);
     prim.num_outputs = op->get_output_size();
     prim.output_data_types = get_output_data_types(op);
 

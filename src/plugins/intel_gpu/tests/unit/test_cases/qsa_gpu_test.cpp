@@ -1968,11 +1968,11 @@ TEST(qsa_gpu_test, qsa_indexer_cache_clone_preserves_both_variables) {
 // KVCache-fused or QSAIndexerCache-backed path produced by QSASDPAFusion; that path is
 // covered separately by the QSAIndexerCache end-to-end test below.
 //
-// Per the lowering's own static-shape requirement (see ops/qsa_sdpa.cpp's block comment:
-// pa_block_size is a JIT compile-time constant, so both B and the max-sequence-length
-// capacity S must be static), `config.pa_block_size` is set to the exact total sequence
-// length used by this one-shot call (a "reserve exactly what this call needs" degenerate
-// case of the general "reserve max_seq_len capacity upfront" v1 strategy).
+// Per design chapter 15 (QSA_SDPA_DENSE): the cache Parameters are declared with a
+// DYNAMIC sequence axis, and config.pa_block_size is set to a value deliberately
+// DIFFERENT from the actual total sequence length -- QSASDPA's dense_mode lowering
+// derives its address arithmetic from THIS call's real runtime cache layout, not from a
+// fixed compile-time capacity, so the two are fully decoupled (only B must be static).
 // ---------------------------------------------------------------------------
 
 std::vector<float> run_qsasdpa_ov_model(const qsa_reference& ref, bool has_gate) {
@@ -2035,12 +2035,17 @@ std::vector<float> run_qsasdpa_ov_model(const qsa_reference& ref, bool has_gate)
     auto query_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{static_cast<size_t>(q_len), static_cast<size_t>(q_width)});
     auto past_lens_p = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
     auto subseq_p = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2});
-    auto key_cache_p =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, d.Hkv, static_cast<size_t>(total), d.Dh});
-    auto value_cache_p =
-        std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, d.Hkv, static_cast<size_t>(total), d.Dv});
-    auto raw_k_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, static_cast<size_t>(total), d.Di});
-    auto summary_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, static_cast<size_t>(summaries), d.Di});
+    // design chapter 15 validation: the cache Parameters are declared with a DYNAMIC
+    // sequence axis (not the previous implementation's fixed, exactly-matching static
+    // shape) -- QSASDPA's dense_mode lowering derives its address arithmetic from
+    // THIS call's actual runtime layout, not from a compile-time-fixed capacity, so
+    // there is no requirement that the declared shape equal config.pa_block_size (set
+    // below to a deliberately LARGER, unrelated "capacity budget" value to prove the
+    // two are fully decoupled).
+    auto key_cache_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, static_cast<int64_t>(d.Hkv), -1, static_cast<int64_t>(d.Dh)});
+    auto value_cache_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, static_cast<int64_t>(d.Hkv), -1, static_cast<int64_t>(d.Dv)});
+    auto raw_k_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, -1, static_cast<int64_t>(d.Di)});
+    auto summary_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, -1, static_cast<int64_t>(d.Di)});
     auto idx_w_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{static_cast<size_t>(J), d.D});
     auto q_norm_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{d.Di});
     auto k_norm_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{d.Di});
@@ -2048,7 +2053,11 @@ std::vector<float> run_qsasdpa_ov_model(const qsa_reference& ref, bool has_gate)
     auto position_ids_p = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{static_cast<size_t>(q_len)});
 
     auto config = make_config(d, has_gate);
-    config.pa_block_size = static_cast<size_t>(total);
+    // Deliberately NOT equal to `total`: config.pa_block_size is now purely an
+    // internal-scratch-buffer sizing hint (chapter 15), fully decoupled from the
+    // caches' actual runtime shape. Must still satisfy validate_config's own
+    // (dense_mode-independent) "divisible by compress_ratio" invariant.
+    config.pa_block_size = ((static_cast<size_t>(total) + 37 + d.r - 1) / d.r) * d.r;
 
     ov::OutputVector args = {mixed_p,   query_p,      past_lens_p, subseq_p,   key_cache_p, value_cache_p, raw_k_p,
                             summary_p, idx_w_p,      q_norm_p,    k_norm_p,   rotary_p,    position_ids_p};
@@ -2078,14 +2087,26 @@ std::vector<float> run_qsasdpa_ov_model(const qsa_reference& ref, bool has_gate)
             dst[i] = data[i];
         }
     };
+    // The cache inputs are now dynamically-shaped Parameters (see above): unlike
+    // get_input_tensor()'s in-place write (only valid for an already fully-allocated,
+    // statically-shaped tensor), a concrete Tensor with THIS call's actual shape must be
+    // constructed and bound explicitly.
+    auto set_f16 = [&](const std::shared_ptr<ov::op::v0::Parameter>& param, const ov::Shape& shape, const std::vector<float>& data) {
+        ov::Tensor tensor(ov::element::f16, shape);
+        auto* dst = tensor.data<ov::float16>();
+        for (size_t i = 0; i < data.size(); i++) {
+            dst[i] = ov::float16(data[i]);
+        }
+        infer_request.set_tensor(param, tensor);
+    };
     fill_f16(0, cur_mixed);
     fill_f16(1, ref.query_cur);
     fill_i32(2, past_lens);
     fill_i32(3, subsequence_begins);
-    fill_f16(4, key_cache_dense);
-    fill_f16(5, value_cache_dense);
-    fill_f16(6, raw_k_dense);
-    fill_f16(7, summary_dense);
+    set_f16(key_cache_p, ov::Shape{1, d.Hkv, static_cast<size_t>(total), d.Dh}, key_cache_dense);
+    set_f16(value_cache_p, ov::Shape{1, d.Hkv, static_cast<size_t>(total), d.Dv}, value_cache_dense);
+    set_f16(raw_k_p, ov::Shape{1, static_cast<size_t>(total), d.Di}, raw_k_dense);
+    set_f16(summary_p, ov::Shape{1, static_cast<size_t>(summaries), d.Di}, summary_dense);
     fill_f16(8, ref.idx_w);
     fill_f16(9, ref.q_norm);
     fill_f16(10, ref.k_norm);
@@ -2429,7 +2450,6 @@ TEST(qsa_gpu_test, qsasdpa_rejects_dynamic_key_cache_shape) {
 
 std::shared_ptr<ov::Model> make_qsa_indexer_cache_model(const qsa_dims& d, int64_t B, int64_t S) {
     const int64_t Di = static_cast<int64_t>(d.Di);
-    const int64_t r = static_cast<int64_t>(d.r);
     const int64_t J = static_cast<int64_t>((d.Hidx + 1) * d.Di);
 
     auto mixed_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, static_cast<int64_t>(d.D)});
@@ -2442,10 +2462,15 @@ std::shared_ptr<ov::Model> make_qsa_indexer_cache_model(const qsa_dims& d, int64
     auto subseq_p = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{B + 1});
     auto position_ids_p = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
 
-    auto raw_k_variable =
-        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{ov::PartialShape{B, S, Di}, ov::element::f16, "qsa_indexer_raw_k_e2e"});
-    auto summary_variable =
-        std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{ov::PartialShape{B, S / r, Di}, ov::element::f16, "qsa_indexer_summary_e2e"});
+    // design chapter 15 (QSAIndexerCache dynamic growth): the Variable's sequence/
+    // summary-count axis is genuinely DYNAMIC (bounded by `S`, not pre-reserved to it --
+    // the caller-supplied `S` here is used both as this bound and as
+    // config.pa_block_size, an internal-scratch-buffer sizing hint; the two are allowed
+    // to differ in general, see run_qsasdpa_ov_model's deliberately-mismatched values).
+    auto raw_k_variable = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{ov::PartialShape{B, ov::Dimension(0, S), Di}, ov::element::f16, "qsa_indexer_raw_k_e2e"});
+    auto summary_variable = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{ov::PartialShape{B, ov::Dimension(0, S), Di}, ov::element::f16, "qsa_indexer_summary_e2e"});
 
     auto config = make_config(d, false);
     config.pa_block_size = static_cast<size_t>(S);
@@ -2483,8 +2508,10 @@ TEST(qsa_gpu_test, qsa_indexer_cache_ov_model_persists_state_across_two_infer_ca
 
     qsa_dims d;
     const size_t q_len1 = 20, q_len2 = 20;
-    const size_t total = q_len1 + q_len2;  // 40, well within the reserved capacity below
-    const int64_t S = 64;                 // config.pa_block_size: reserved capacity, > total
+    const size_t total = q_len1 + q_len2;  // 40
+    const int64_t S = 64;                 // config.pa_block_size: an internal-scratch-buffer sizing
+                                           // hint only (chapter 15) -- the Variables themselves grow
+                                           // dynamically and are not pre-reserved to this capacity.
     auto ref = make_reference(rg, d, /*past_len=*/0, /*q_len=*/total, /*has_gate=*/false);
 
     auto model = make_qsa_indexer_cache_model(d, /*B=*/1, S);
@@ -2540,11 +2567,29 @@ TEST(qsa_gpu_test, qsa_indexer_cache_ov_model_persists_state_across_two_infer_ca
 
     // Call 1: from scratch.
     run_call(/*past_len=*/0, q_len1);
+    // design chapter 15 validation: the raw-K/summary output tensors' ACTUAL shape after
+    // call 1 must reflect exactly q_len1 valid entries -- NOT a fixed pre-reserved
+    // capacity (the previous, replaced implementation always allocated the full
+    // config.pa_block_size regardless of how many tokens had actually been seen). This is
+    // the direct, observable proof that capacity is no longer coupled to a fixed
+    // compile-time budget.
+    {
+        const auto raw_k_shape_1 = infer_request.get_output_tensor(0).get_shape();
+        const auto summary_shape_1 = infer_request.get_output_tensor(1).get_shape();
+        ASSERT_EQ(raw_k_shape_1, (ov::Shape{1, q_len1, d.Di})) << "raw-K must grow to exactly q_len1 entries, not a fixed reserved capacity";
+        ASSERT_EQ(summary_shape_1, (ov::Shape{1, q_len1 / d.r, d.Di})) << "summary must grow to exactly floor(q_len1/r) entries";
+    }
     // Call 2: continues the SAME sequence. Crucially, `run_call` only ever feeds THIS
     // call's new tokens (mixed[q_len1:total]) -- call 1's tokens are never resubmitted.
     // If the second call's output nonetheless reflects positions [0, q_len1) correctly,
     // that content can only have come from the persisted Variable state.
     run_call(/*past_len=*/q_len1, q_len2);
+    {
+        const auto raw_k_shape_2 = infer_request.get_output_tensor(0).get_shape();
+        const auto summary_shape_2 = infer_request.get_output_tensor(1).get_shape();
+        ASSERT_EQ(raw_k_shape_2, (ov::Shape{1, total, d.Di})) << "raw-K must grow further to exactly total entries after call 2";
+        ASSERT_EQ(summary_shape_2, (ov::Shape{1, total / d.r, d.Di})) << "summary must grow further to exactly floor(total/r) entries";
+    }
 
     auto raw_k_tensor = infer_request.get_output_tensor(0);
     auto summary_tensor = infer_request.get_output_tensor(1);

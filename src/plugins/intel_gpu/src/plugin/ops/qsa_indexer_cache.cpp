@@ -9,7 +9,6 @@
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/qsa.hpp"
 #include "intel_gpu/primitives/read_value.hpp"
-#include "intel_gpu/primitives/reshape.hpp"
 
 // NOTE: QSAIndexerCache has no ov::op::internal counterpart (like ov::intel_gpu::op::
 // KVCache, and unlike QSA/QSASDPA/GatedResidual): it is only ever produced internally by a
@@ -68,19 +67,6 @@ cldnn::input_info make_iota_constant(ProgramBuilder& p, const std::shared_ptr<ov
     return cldnn::input_info(id);
 }
 
-cldnn::input_info make_dense_to_paged_reshape(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, const std::string& layer_name,
-                                              const std::string& suffix, const cldnn::input_info& input, const ov::PartialShape& target_shape) {
-    OPENVINO_ASSERT(target_shape.is_static(), "[GPU] QSAIndexerCache '", layer_name, "': reshape '", suffix, "' requires a static target shape");
-    std::vector<int64_t> pattern;
-    pattern.reserve(target_shape.size());
-    for (const auto& d : target_shape) {
-        pattern.push_back(d.get_length());
-    }
-    const auto id = layer_name + suffix;
-    p.add_primitive(*op, cldnn::reshape(id, input, /*special_zero=*/false, pattern, target_shape));
-    return cldnn::input_info(id);
-}
-
 void CreateQSAIndexerCacheOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_gpu::op::QSAIndexerCache>& op) {
     validate_inputs_count(op, {QSAIndexerCacheIn::COUNT});
     const auto inputs = p.GetInputInfo(op);
@@ -91,31 +77,29 @@ void CreateQSAIndexerCacheOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_
     auto summary_variable = op->get_summary_variable();
     OPENVINO_ASSERT(raw_k_variable && summary_variable, "[GPU] QSAIndexerCache '", layer_name, "' requires both a raw-K and a summary Variable");
 
-    // Same static-shape requirement as QSASDPA (see ops/qsa_sdpa.cpp's block comment):
-    // pa_block_size is a JIT compile-time constant, so the Variables' declared capacity
-    // (batch size B and max-sequence-length S) must be fully static and consistent with
-    // config.pa_block_size -- there is no dynamic growth here, the Variable is declared
-    // at its full reserved capacity from the start and Q1 just fills in the valid prefix.
-    const auto& raw_k_shape = raw_k_variable->get_info().data_shape;
-    OPENVINO_ASSERT(raw_k_shape.is_static() && raw_k_shape.size() == 3,
-                    "[GPU] QSAIndexerCache '", layer_name, "': raw-K Variable must have a fully static rank-3 [B, pa_block_size, Di] shape");
-    const int64_t B = raw_k_shape[0].get_length();
-    const int64_t S = raw_k_shape[1].get_length();
     const int64_t Di = static_cast<int64_t>(config.indexer_head_dim);
-    OPENVINO_ASSERT(raw_k_shape[2].get_length() == Di, "[GPU] QSAIndexerCache '", layer_name, "': raw-K Variable's last dim must equal config.indexer_head_dim");
-    OPENVINO_ASSERT(static_cast<size_t>(S) == config.pa_block_size,
-                    "[GPU] QSAIndexerCache '", layer_name, "': raw-K Variable's S axis (", S, ") must equal config.pa_block_size (", config.pa_block_size,
-                    ")");
-
     const int64_t r = static_cast<int64_t>(config.compress_ratio);
     OPENVINO_ASSERT(r > 0, "[GPU] QSAIndexerCache '", layer_name, "': compress_ratio must be > 0");
-    const int64_t summaries = S / r;
+
+    // design chapter 15 (QSAIndexerCache dynamic growth): raw-K/summary are genuinely
+    // dynamic-length runtime state -- capacity grows call-over-call (see qsa_inst::
+    // calc_output_layouts' dense_mode branch and impls/cm/qsa/qsa.cpp's execute()
+    // copy_from()-based relocation), NOT pre-reserved to a fixed pa_block_size Variable
+    // like the previous (replaced) degenerate-paging lowering. Only the batch and
+    // indexer-head-dim axes need to be statically known; the sequence/summary-count axis
+    // is dynamic.
+    const auto& raw_k_shape = raw_k_variable->get_info().data_shape;
+    OPENVINO_ASSERT(raw_k_shape.rank().is_static() && raw_k_shape.size() == 3 && raw_k_shape[0].is_static(),
+                    "[GPU] QSAIndexerCache '", layer_name, "': raw-K Variable must be a rank-3 [B, ?, Di] shape with a static batch dimension");
+    OPENVINO_ASSERT(raw_k_shape[2].is_static() && raw_k_shape[2].get_length() == Di,
+                    "[GPU] QSAIndexerCache '", layer_name, "': raw-K Variable's last dim must equal config.indexer_head_dim");
+    const int64_t B = raw_k_shape[0].get_length();
 
     const auto& summary_shape = summary_variable->get_info().data_shape;
-    OPENVINO_ASSERT(summary_shape.is_static() && summary_shape.size() == 3 && summary_shape[0].get_length() == B &&
-                       summary_shape[1].get_length() == summaries && summary_shape[2].get_length() == Di,
-                    "[GPU] QSAIndexerCache '", layer_name, "': summary Variable must be a fully static [", B, ", ", summaries, ", ", Di,
-                    "] shape consistent with the raw-K Variable and config");
+    OPENVINO_ASSERT(summary_shape.rank().is_static() && summary_shape.size() == 3 && summary_shape[0].is_static() &&
+                        summary_shape[0].get_length() == B && summary_shape[2].is_static() && summary_shape[2].get_length() == Di,
+                    "[GPU] QSAIndexerCache '", layer_name, "': summary Variable must be a rank-3 [", B,
+                    ", ?, Di] shape consistent with the raw-K Variable and config");
 
     const auto& past_lens_ps = op->get_input_partial_shape(QSAIndexerCacheIn::PAST_LENS);
     OPENVINO_ASSERT(past_lens_ps.rank().is_static() && past_lens_ps[0].is_static() && past_lens_ps[0].get_length() == B,
@@ -125,23 +109,21 @@ void CreateQSAIndexerCacheOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_
     const int64_t Dh = static_cast<int64_t>(config.k_head_size);
     const int64_t Dv = static_cast<int64_t>(config.v_head_size);
 
-    // ReadValue (0 inputs): returns the Variable's current value, zero-filled at its full
-    // reserved capacity on first access (before any Assign has ever run for this
-    // variable_id) -- see impls/cpu/read_value.cpp's `variable.get_memory()->fill(stream)`
-    // fallback. No Concat/padding is needed across calls because the capacity never
-    // changes; Q1 always sees the full [B, pa_block_size, ...] buffer and only the prefix
-    // up to past_lens is ever meaningful.
-    const cldnn::layout raw_k_layout(ov::PartialShape{B, S, Di}, cldnn::data_types::f16, cldnn::format::bfyx);
+    // ReadValue (0 inputs): returns the Variable's CURRENT valid-length content. Unlike
+    // the previous fixed-capacity implementation, the declared layout's sequence axis
+    // reuses the Variable's OWN declared dimension as-is (static, bounded-dynamic, or
+    // fully dynamic -- whatever the caller declared it as; see qsa_indexer_cache.hpp's
+    // class comment) rather than a fixed pa_block_size. On the very first call (before
+    // any Assign has run for this variable_id) impls/cpu/read_value.cpp falls back to a
+    // zero-length allocation, giving old_length == 0, exactly the desired "empty
+    // history" start state.
+    const cldnn::layout raw_k_decl(ov::PartialShape{B, raw_k_shape[1], Di}, cldnn::data_types::f16, cldnn::format::bfyx);
     const auto raw_k_read_id = layer_name + "_raw_k_read";
-    p.add_primitive(*op, cldnn::read_value(raw_k_read_id, {}, raw_k_variable->get_info().variable_id, {raw_k_layout}));
+    p.add_primitive(*op, cldnn::read_value(raw_k_read_id, {}, raw_k_variable->get_info().variable_id, {raw_k_decl}));
 
-    const cldnn::layout summary_layout(ov::PartialShape{B, summaries, Di}, cldnn::data_types::f16, cldnn::format::bfyx);
+    const cldnn::layout summary_decl(ov::PartialShape{B, summary_shape[1], Di}, cldnn::data_types::f16, cldnn::format::bfyx);
     const auto summary_read_id = layer_name + "_summary_read";
-    p.add_primitive(*op, cldnn::read_value(summary_read_id, {}, summary_variable->get_info().variable_id, {summary_layout}));
-
-    const auto raw_k_paged = make_dense_to_paged_reshape(p, op, layer_name, "_raw_k_paged", cldnn::input_info(raw_k_read_id), ov::PartialShape{B, 1, S, Di});
-    const auto summary_paged =
-        make_dense_to_paged_reshape(p, op, layer_name, "_summary_paged", cldnn::input_info(summary_read_id), ov::PartialShape{B, 1, summaries, Di});
+    p.add_primitive(*op, cldnn::read_value(summary_read_id, {}, summary_variable->get_info().variable_id, {summary_decl}));
 
     std::vector<cldnn::input_info> qsa_inputs(QSAIn::COUNT);
     qsa_inputs[QSAIn::MIXED] = inputs[QSAIndexerCacheIn::MIXED];
@@ -159,47 +141,48 @@ void CreateQSAIndexerCacheOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_
     qsa_inputs[QSAIn::VALUE] = make_zero_constant(p, op, layer_name, "_dummy_value", ov::PartialShape{1, Hkv * Dv}, cldnn::data_types::f16);
     qsa_inputs[QSAIn::PAST_LENS] = inputs[QSAIndexerCacheIn::PAST_LENS];
     qsa_inputs[QSAIn::SUBSEQUENCE_BEGINS] = inputs[QSAIndexerCacheIn::SUBSEQUENCE_BEGINS];
-    qsa_inputs[QSAIn::BLOCK_INDICES] = make_iota_constant(p, op, layer_name, "_block_indices", B);
-    qsa_inputs[QSAIn::BLOCK_INDICES_BEGINS] = make_iota_constant(p, op, layer_name, "_block_indices_begins", B + 1);
-    // KEY_CACHE / VALUE_CACHE are dead in prepare_only mode (only Q2/Q3 read them, and
-    // neither is ever dispatched here) -- zero-filled dummies at the real degenerate
-    // shape so get_internal_buffer_descs()' size estimate stays sane, mirroring the
-    // raw-topology prepare_only tests' own convention.
-    qsa_inputs[QSAIn::KEY_CACHE] =
-        make_zero_constant(p, op, layer_name, "_dummy_key_cache", ov::PartialShape{B, Hkv, S, Dh}, cldnn::data_types::f16);
-    qsa_inputs[QSAIn::VALUE_CACHE] =
-        make_zero_constant(p, op, layer_name, "_dummy_value_cache", ov::PartialShape{B, Hkv, S, Dv}, cldnn::data_types::f16);
-    qsa_inputs[QSAIn::INDEXER_RAW_K_CACHE] = raw_k_paged;
-    qsa_inputs[QSAIn::INDEXER_SUMMARY_CACHE] = summary_paged;
+    // BLOCK_INDICES/BLOCK_INDICES_BEGINS are structurally dead in dense_mode (the
+    // degenerate paged-address helpers are still called with page==0 internally, but
+    // dense_mode derives QSA_PA_BLOCK_SIZE from the runtime cache layout rather than
+    // consulting these tables at all -- see qsa.cpp's dense_pa_block_size()); a single
+    // fixed-size placeholder is enough regardless of the real batch size.
+    qsa_inputs[QSAIn::BLOCK_INDICES] = make_iota_constant(p, op, layer_name, "_block_indices", 1);
+    qsa_inputs[QSAIn::BLOCK_INDICES_BEGINS] = make_iota_constant(p, op, layer_name, "_block_indices_begins", 2);
+    // KEY_CACHE/VALUE_CACHE are dead in prepare_only mode (only Q2/Q3 read them, and
+    // neither is ever dispatched here); a minimal static placeholder is enough since
+    // dense_mode's growth math never inspects their shape either.
+    qsa_inputs[QSAIn::KEY_CACHE] = make_zero_constant(p, op, layer_name, "_dummy_key_cache", ov::PartialShape{1, Hkv, 1, Dh}, cldnn::data_types::f16);
+    qsa_inputs[QSAIn::VALUE_CACHE] = make_zero_constant(p, op, layer_name, "_dummy_value_cache", ov::PartialShape{1, Hkv, 1, Dv}, cldnn::data_types::f16);
+    // Fed directly as dense [B, old_length, Di] tensors -- dense_mode's qsa_inst::
+    // calc_output_layouts expects rank-3 inputs with no degenerate paged head axis, so
+    // (unlike the previous implementation) no reshape is inserted here.
+    qsa_inputs[QSAIn::INDEXER_RAW_K_CACHE] = cldnn::input_info(raw_k_read_id);
+    qsa_inputs[QSAIn::INDEXER_SUMMARY_CACHE] = cldnn::input_info(summary_read_id);
     qsa_inputs[QSAIn::INDEXER_QK_WEIGHT] = inputs[QSAIndexerCacheIn::INDEXER_QK_WEIGHT];
     qsa_inputs[QSAIn::INDEXER_Q_NORM_WEIGHT] = inputs[QSAIndexerCacheIn::INDEXER_Q_NORM_WEIGHT];
     qsa_inputs[QSAIn::INDEXER_K_NORM_WEIGHT] = inputs[QSAIndexerCacheIn::INDEXER_K_NORM_WEIGHT];
     qsa_inputs[QSAIn::ROTARY_COS_SIN] = inputs[QSAIndexerCacheIn::ROTARY_COS_SIN];
     qsa_inputs[QSAIn::POSITION_IDS] = inputs[QSAIndexerCacheIn::POSITION_IDS];
 
-    cldnn::qsa prim(layer_name, qsa_inputs, config, /*skip_kv_write=*/false, /*prepare_only=*/true);
+    cldnn::qsa prim(layer_name, qsa_inputs, config, /*skip_kv_write=*/false, /*prepare_only=*/true, /*dense_mode=*/true);
     prim.num_outputs = 2;
     prim.output_data_types = get_output_data_types(op);
     p.add_primitive(*op, prim);
 
-    // qsa's own two outputs are already declared in the dense 3D shape matching the
-    // Variables (see qsa_inst::calc_output_layouts' prepare_only branch, which squeezes
-    // out the paged head axis for exactly this reason -- aliasing only swaps a memory
-    // pointer, so the declared rank is a free choice), so they can be assigned back
-    // directly with no reshape needed.
+    // Write the (now Q1-grown) raw-K/summary buffers back to their Variables. The
+    // declared layout's sequence axis stays dynamic here too -- it only communicates the
+    // Variable's persistent rank/dtype, not this call's concrete length, which
+    // execute()/calc_output_layouts already resolved for qsa's own two outputs.
     //
-    // Write the (now Q1-extended) raw-K/summary buffers back to their Variables. These
-    // Assign primitives have no consumers of their own (nothing in the OV graph reads an
-    // "assign result" -- their entire purpose is the side effect on Variable state), but
-    // they DO have real dependencies (qsa's output0/output1), so cldnn's dangling-node
-    // removal (program::remove_if_dangling, which requires BOTH empty users AND empty
-    // dependencies to prune) does not remove them; see the design doc's implementation
-    // record for the verification that they are still scheduled correctly across
-    // multiple network executions.
+    // These Assign primitives have no consumers of their own (nothing in the OV graph
+    // reads an "assign result" -- their entire purpose is the side effect on Variable
+    // state), but they DO have real dependencies (qsa's output0/output1), so cldnn's
+    // dangling-node removal (program::remove_if_dangling, which requires BOTH empty
+    // users AND empty dependencies to prune) does not remove them.
     p.add_primitive(*op, cldnn::assign(layer_name + "_raw_k_assign", {cldnn::input_info(layer_name, 0)}, raw_k_variable->get_info().variable_id,
-                                       raw_k_layout));
+                                       raw_k_decl));
     p.add_primitive(*op, cldnn::assign(layer_name + "_summary_assign", {cldnn::input_info(layer_name, 1)}, summary_variable->get_info().variable_id,
-                                       summary_layout));
+                                       summary_decl));
 
     // The add_primitive() calls above each overwrote primitive_ids[layer_name] (every
     // add_primitive(op, ...) call remaps op's canonical id to whatever was just added --
