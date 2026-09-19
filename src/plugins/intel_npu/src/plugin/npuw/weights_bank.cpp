@@ -61,6 +61,7 @@ int64_t Bank::registerLT(const LazyTensor& tensor, const std::string& device) {
         device_bank.storage[uid] = {tensor, ov::Tensor()};
         return uid;
     } else {
+        // Already registered - can be safely detach the incoming tensor
         const_cast<LazyTensor&>(tensor).detach();
     }
 
@@ -78,8 +79,7 @@ ov::Tensor Bank::get(int64_t uid, const std::string& device) {
     NPUW_ASSERT(iter_device != device_bank.storage.end() && iter_device->second.tensor &&
                 "Tensor should be registered and allocated first!");
 
-    const auto& tensor = iter_device->second.tensor;
-    return tensor;
+    return iter_device->second.tensor;
 }
 
 struct TensorToAllocate {
@@ -174,6 +174,7 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
         auto transformed = stored_tensor.lt.eval();
         transformed.copy_to(allocated.allocated_tensor);
         stored_tensor.tensor = std::move(allocated.allocated_tensor);
+        
         // Detach the evaluated LazyTensor from its memory here - when it is 100%
         // not needed anymore (transformations, if any, and copies are done)
         // Note: this is the non-CPU path!
