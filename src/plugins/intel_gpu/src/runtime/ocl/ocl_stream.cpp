@@ -7,6 +7,8 @@
 #include <cassert>
 #include <memory>
 #include <string>
+#include <cstdio>
+#include <cstdlib>
 #include <vector>
 
 #include "CL/cl.h"
@@ -314,6 +316,23 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
         _command_queue.enqueueNDRangeKernel(kern, cl::NullRange, global, local, dep_events_ptr, set_output_event ? &ret_ev : nullptr);
     } catch (const cl::Error& err) {
         ocl::rethrow(err, _engine.get_device_info());
+    }
+
+    // Diagnostic: force per-kernel completion so CL_OUT_OF_RESOURCES surfaces at the exact cldnn OCL kernel.
+    static const bool finish_after_enqueue = []() {
+        const char *e = std::getenv("OV_GPU_FINISH_AFTER_ENQUEUE");
+        return e && e[0] == '1';
+    }();
+    if (finish_after_enqueue) {
+        try {
+            _command_queue.finish();
+        } catch (cl::Error const& err) {
+            std::string kname;
+            try { kname = kern.getInfo<CL_KERNEL_FUNCTION_NAME>(); } catch (...) {}
+            std::fprintf(stderr, "[FINISH_AFTER_ENQUEUE][cldnn] kernel='%s' finish err=%d\n", kname.c_str(), err.err());
+            std::fflush(stderr);
+            ocl::rethrow(err, _engine.get_device_info());
+        }
     }
 
     return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
