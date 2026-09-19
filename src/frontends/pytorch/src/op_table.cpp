@@ -228,6 +228,7 @@ OP_CONVERTER(translate_randn);
 OP_CONVERTER(translate_randint);
 OP_CONVERTER(translate_rand_like);
 OP_CONVERTER(translate_randn_like);
+OP_CONVERTER(translate_ravel);
 OP_CONVERTER(translate_reciprocal);
 OP_CONVERTER(translate_reflection_pad_nd);
 OP_CONVERTER(translate_relu6);
@@ -699,6 +700,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::randint", op::translate_randint},
         {"aten::randn", op::translate_randn},
         {"aten::randn_like", op::translate_randn_like},
+        {"aten::ravel", op::translate_ravel},
         {"aten::real", common_translators::translate_real},
         {"aten::reciprocal", op::optional_out<op::translate_reciprocal, 1>},
         {"aten::reciprocal_", op::inplace_op<op::translate_reciprocal>},
@@ -1091,6 +1093,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.prod.default", op::translate_prod_fx},
         {"aten.prod.dim_int", op::translate_prod_fx},
         {"aten.rand.default", op::translate_rand},
+        {"aten.ravel.default", op::translate_ravel},
         {"aten.reciprocal.default", op::translate_reciprocal},
         {"aten.reflection_pad1d.default", op::translate_reflection_pad_nd},
         {"aten.reflection_pad2d.default", op::translate_reflection_pad_nd},
