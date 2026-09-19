@@ -9,6 +9,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/result.hpp"
 #include <common_test_utils/ov_tensor_utils.hpp>
+#include <limits>
 
 namespace ov {
 namespace test {
@@ -139,6 +140,10 @@ void ActivationLayerTest::generate_inputs(const std::vector<ov::Shape>& targetIn
         inject(1, -1.0f);
         inject(2,  2.0f);
         inject(3, -1.5f);
+    }
+    // Inject a NaN value so Sign(NaN) -> NaN propagation is exercised.
+    if (activationDecl.first == ActivationTypes::Sign && funcInput->get_element_type() == ov::element::f32) {
+        static_cast<float*>(data_tensor.data())[0] = std::numeric_limits<float>::quiet_NaN();
     }
     inputs.insert({funcInput->get_node_shared_ptr(), data_tensor});
 }
