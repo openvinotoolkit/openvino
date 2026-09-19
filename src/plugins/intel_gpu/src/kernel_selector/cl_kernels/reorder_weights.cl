@@ -563,6 +563,18 @@ KERNEL (reorder_weights)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE
     const unsigned z = (zyx / OUTPUT_SIZE_X) / OUTPUT_SIZE_Y;
 #endif
 
+#if !REORDER_ROTATE
+    uint output_idx = FUNC_CALL(get_output_index)(g, o, i, z, y, x);
+#else
+    uint output_idx = FUNC_CALL(get_output_index)(g, o, i, OUTPUT_SIZE_Z - z - 1, OUTPUT_SIZE_Y - y - 1, OUTPUT_SIZE_X - x - 1);
+#endif
+#if IMAD_ISV4_PADDING
+    if (i >= OUTPUT_IFM_NUM) {
+        output[output_idx] = (OUTPUT_TYPE)0;
+        return;
+    }
+#endif
+
 #if OUTPUT_GROUPS_NUM > 1 //  Add grouped macro instead this check
     uint8 ir = RESHAPE_WEIGHT_DIMS_WITH_GROUPS(OUTPUT, INPUT0, g, o, i, 0, z, y, x);
 #else
@@ -570,11 +582,6 @@ KERNEL (reorder_weights)(const __global INPUT0_TYPE* input, __global OUTPUT_TYPE
 #endif
 
     uint input_idx = FUNC_CALL(get_input_index)(ir.s0,ir.s1,ir.s2,ir.s4,ir.s5,ir.s6);
-#if !REORDER_ROTATE
-    uint output_idx = FUNC_CALL(get_output_index)(g, o, i, z, y, x);
-#else
-    uint output_idx = FUNC_CALL(get_output_index)(g, o, i, OUTPUT_SIZE_Z - z - 1, OUTPUT_SIZE_Y - y - 1, OUTPUT_SIZE_X - x - 1);
-#endif
 #ifdef BF16_INPUT
     output[output_idx] = TO_OUTPUT_TYPE(_convert_as_bfloat16_float(input[input_idx]));
 #else
