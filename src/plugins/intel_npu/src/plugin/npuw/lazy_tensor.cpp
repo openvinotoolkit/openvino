@@ -4,6 +4,7 @@
 
 #include "lazy_tensor.hpp"
 
+#include <optional>
 #include <tuple>
 #include <type_traits>
 #include <variant>
@@ -19,6 +20,7 @@
 #include "openvino/util/mmap_object.hpp"
 #include "orc.hpp"
 #include "util.hpp"
+#include "util_xarch.hpp"
 
 using ov::npuw::weights::LazyTensor;
 
@@ -36,6 +38,7 @@ Const::Const(const std::shared_ptr<ov::op::v0::Constant>& n) : m_node(n) {
     auto weightless_cache_attr = rt_info.find(ov::WeightlessCacheAttribute::get_type_info_static());
     if (weightless_cache_attr != rt_info.end()) {
         m_offset = weightless_cache_attr->second.as<ov::WeightlessCacheAttribute>().bin_offset;
+        m_has_weightless_offset = true;
     } else {
         // See the comment in serialize() for more details
         LOG_WARN("Some pattern introduced a new Constant node not present in the original weights file. We need to "
@@ -45,8 +48,15 @@ Const::Const(const std::shared_ptr<ov::op::v0::Constant>& n) : m_node(n) {
 }
 
 std::size_t Const::hash() const {
-    std::size_t seed = std::hash<const void*>()(m_cached_ptr) + 0x9e3779b9;
+    std::optional<std::size_t> weightless_offset;
+    if (m_has_weightless_offset) {
+        weightless_offset = m_offset;
+    }
+
+    std::size_t seed =
+        weightless_offset ? std::hash<std::size_t>()(*weightless_offset) : std::hash<const void*>()(m_cached_ptr);
     seed ^= m_cached_type.hash() + 0x9e3779b9;
+    seed ^= std::hash<std::size_t>()(m_byte_size) + 0x9e3779b9;
     for (const auto& dim : m_cached_shape) {
         seed ^= std::hash<std::size_t>()(dim) + 0x9e3779b9;
     }
@@ -54,8 +64,20 @@ std::size_t Const::hash() const {
 }
 
 bool Const::operator==(const Const& other) const {
-    return (m_cached_type == other.m_cached_type && m_cached_shape == other.m_cached_shape &&
-            m_cached_ptr == other.m_cached_ptr);
+    auto get_weightless_offset = [](const Const& constant) -> std::optional<std::size_t> {
+        if (constant.m_has_weightless_offset) {
+            return constant.m_offset;
+        }
+        return std::nullopt;
+    };
+
+    const auto this_offset = get_weightless_offset(*this);
+    const auto other_offset = get_weightless_offset(other);
+    const bool same_storage = this_offset && other_offset
+                                  ? *this_offset == *other_offset
+                                  : !this_offset && !other_offset && m_cached_ptr == other.m_cached_ptr;
+    return m_cached_type == other.m_cached_type && m_cached_shape == other.m_cached_shape &&
+           m_byte_size == other.m_byte_size && same_storage;
 }
 
 void Const::validate_weight_range(std::size_t weights_size) const {
@@ -129,6 +151,7 @@ void Const::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
         // already deserialized, see the comment in serialize() for more details
         return;
     }
+    m_has_weightless_offset = true;
     if (ctx.weights) {
         // ctx.weights maps the very same file eval() maps lazily later on, so a malformed
         // weight description is rejected already at import time - for both branches below.
@@ -325,6 +348,37 @@ void Convert::detach() {
     tensor.detach();
 }
 
+std::size_t Subtract128::hash() const {
+    return tensor.get_hash() ^ (ov::element::i8.hash() + 0x9e3779b9);
+}
+
+bool Subtract128::operator==(const Subtract128& other) const {
+    return tensor == other.tensor;
+}
+
+ov::Tensor Subtract128::eval() const {
+    const auto source = tensor.eval();
+    OPENVINO_ASSERT(source.get_element_type() == ov::element::u8, "Subtract128 requires u8 input");
+    ov::Tensor result(ov::element::i8, source.get_shape());
+    const auto& get_tensor_impl = ov::get_tensor_impl;
+    ov::npuw::util::XARCH::subtract_128(get_tensor_impl(source), get_tensor_impl(result));
+    return result;
+}
+
+LazyTensor::Meta Subtract128::eval_meta() const {
+    const auto meta = tensor.eval_meta();
+    OPENVINO_ASSERT(meta.type == ov::element::u8, "Subtract128 requires u8 input");
+    return {meta.shape, ov::element::i8};
+}
+
+void Subtract128::read_weight(const ov::npuw::s11n::WeightsContext& ctx) {
+    tensor.read_weight(ctx);
+}
+
+void Subtract128::detach() {
+    tensor.detach();
+}
+
 std::size_t Gather::hash() const {
     std::size_t seed = w.get_hash() + 0x9e3779b9;
     seed ^= t.get_element_type().hash() + 0x9e3779b9;
@@ -396,6 +450,7 @@ enum class TransformType : std::uint16_t {
     PERMUTE = 4,
     CONVERT = 5,
     GATHER = 6,
+    SUBTRACT_128 = 7,
 };
 
 struct LazyTensorImpl {
@@ -458,6 +513,10 @@ ov::npuw::weights::TransformType get_transform_type(const ov::npuw::weights::op:
     return ov::npuw::weights::TransformType::GATHER;
 }
 
+ov::npuw::weights::TransformType get_transform_type(const ov::npuw::weights::op::Subtract128&) {
+    return ov::npuw::weights::TransformType::SUBTRACT_128;
+}
+
 }  // namespace
 
 namespace ov {
@@ -517,6 +576,10 @@ void Convert::serialize(ov::npuw::orc::Stream& stream) {
     }
 }
 
+void Subtract128::serialize(ov::npuw::orc::Stream& stream) {
+    stream & tensor;
+}
+
 void Gather::serialize(ov::npuw::orc::Stream& stream) {
     std::string type_str;
     if (stream.output()) {
@@ -564,6 +627,9 @@ void LazyTensorImpl::serialize(ov::npuw::orc::Stream& stream) {
         break;
     case TransformType::GATHER:
         m_transform.emplace<op::Gather>(ov::npuw::orc::load_versioned_payload<op::Gather>(section));
+        break;
+    case TransformType::SUBTRACT_128:
+        m_transform.emplace<op::Subtract128>(ov::npuw::orc::load_versioned_payload<op::Subtract128>(section));
         break;
     default:
         OPENVINO_THROW("ORC LazyTensor: unknown op_type ", section.type, " — please upgrade NPUW");
@@ -661,6 +727,10 @@ void LazyTensorImpl::get_transformations(std::vector<LazyTensor::Transform>& vec
                        auto next_tr = op.tensor.get_transformations();
                        vec.insert(vec.end(), next_tr.begin(), next_tr.end());
                    },
+                   [&vec](const op::Subtract128& op) {
+                       auto next_tr = op.tensor.get_transformations();
+                       vec.insert(vec.end(), next_tr.begin(), next_tr.end());
+                   },
                    [&vec](const op::Permute& op) {
                        auto next_tr = op.tensor.get_transformations();
                        vec.insert(vec.end(), next_tr.begin(), next_tr.end());
@@ -713,6 +783,12 @@ LazyTensor LazyTensor::permute(const std::vector<std::size_t>& axes) {
 LazyTensor LazyTensor::convert(const ov::element::Type& type) {
     LazyTensor new_lt;
     new_lt.m_impl = std::make_shared<LazyTensorImpl>(op::Convert(*this, type));
+    return new_lt;
+}
+
+LazyTensor LazyTensor::subtract_128() {
+    LazyTensor new_lt;
+    new_lt.m_impl = std::make_shared<LazyTensorImpl>(op::Subtract128(*this));
     return new_lt;
 }
 

@@ -350,10 +350,24 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
     std::vector<std::size_t> closure_copy_required;
 
     auto& desc_closure = comp_model_desc.closure.get().closure;
+    const bool weight_buffer_debug = ov::npuw::get_log_level() >= ov::npuw::LogLevel::Debug;
 
     for (std::size_t cidx = 0u; cidx < desc_closure.size(); cidx++) {
         auto& closure = desc_closure[cidx];
         const auto closure_param_id = comp_model_desc.param_base + cidx;
+        if (weight_buffer_debug) {
+            LOG_DEBUG("WEIGHT_BUFFER closure_bind_slot request="
+                      << this << " subgraph=" << idx << " closure=" << cidx
+                      << " closure_initialized=" << static_cast<bool>(closure)
+                      << " lazy_initialized=" << static_cast<bool>(comp_model_desc.lazy_closure[cidx])
+                      << " uid=" << comp_model_desc.closure.get().closure_uid[cidx]
+                      << " is_gather=" << m_npuw_model->is_gather_closure(idx, cidx) << " host_gather_dst="
+                      << func_desc.host_gather.dst_idx << " host_gather_src=" << func_desc.host_gather.src_idx
+                      << " quant_gather_dst=" << func_desc.quant_unpack_gather.dst_idx
+                      << " quant_gather_src_w=" << func_desc.quant_unpack_gather.src_w_idx
+                      << " quant_gather_src_z=" << func_desc.quant_unpack_gather.src_z_idx
+                      << " quant_gather_src_s=" << func_desc.quant_unpack_gather.src_s_idx);
+        }
 
         if (m_npuw_model->is_gather_closure(idx, cidx)) {
             // No need to set/copy the host_gather's closure tensor int
@@ -363,6 +377,21 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
         }
 
         auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
+        if (closure) {
+            if (weight_buffer_debug) {
+                LOG_DEBUG("WEIGHT_BUFFER closure request="
+                          << this << " subgraph=" << idx << " port=" << iport << " type=" << closure.get_element_type()
+                          << " shape=" << closure.get_shape() << " bytes=" << closure.get_byte_size()
+                          << " data=" << closure.data());
+            }
+        } else {
+            if (weight_buffer_debug) {
+                LOG_DEBUG("WEIGHT_BUFFER closure request="
+                          << this << " subgraph=" << idx << " closure=" << cidx << " port=" << iport << " initialized=0"
+                          << " lazy_initialized=" << static_cast<bool>(comp_model_desc.lazy_closure[cidx]));
+            }
+            continue;
+        }
         if (m_npuw_model->unpack_required(idx, cidx)) {
             // Remember where the unpack is required
             closure_unpack_required.push_back(cidx);
@@ -373,6 +402,16 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
             } else {
                 // Easy case, just set one to another
                 request->set_tensor(iport, ov::get_tensor_impl(closure));
+                const auto bound = request->get_tensor(iport);
+                if (weight_buffer_debug) {
+                    if (bound) {
+                        LOG_DEBUG("WEIGHT_BUFFER bound request=" << this << " subgraph=" << idx << " port=" << iport
+                                                                 << " data=" << bound->data());
+                    } else {
+                        LOG_DEBUG("WEIGHT_BUFFER bound request=" << this << " subgraph=" << idx << " port=" << iport
+                                                                 << " initialized=0");
+                    }
+                }
             }
         }
     }  // for(closure)
@@ -385,6 +424,17 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
         auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
         auto clparam = request->get_tensor(iport);
         ov::get_tensor_impl(closure)->copy_to(clparam._ptr);
+        if (weight_buffer_debug) {
+            if (closure && clparam) {
+                LOG_DEBUG("WEIGHT_BUFFER copied request=" << this << " subgraph=" << idx << " port=" << iport
+                                                          << " source=" << closure.data()
+                                                          << " data=" << clparam->data());
+            } else {
+                LOG_DEBUG("WEIGHT_BUFFER copied request=" << this << " subgraph=" << idx << " port=" << iport
+                                                          << " source_initialized=" << static_cast<bool>(closure)
+                                                          << " destination_initialized=" << static_cast<bool>(clparam));
+            }
+        }
     });
     // }); // ms_to_run
 
@@ -416,6 +466,17 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
             // Unpacking this weight doesn't require scaling
             ov::npuw::util::unpack(ov::get_tensor_impl(closure), clparam);
         }
+        if (weight_buffer_debug) {
+            if (closure && clparam) {
+                LOG_DEBUG("WEIGHT_BUFFER unpacked request=" << this << " subgraph=" << idx << " port=" << iport
+                                                            << " source=" << closure.data()
+                                                            << " data=" << clparam->data());
+            } else {
+                LOG_DEBUG("WEIGHT_BUFFER unpacked request="
+                          << this << " subgraph=" << idx << " port=" << iport << " source_initialized="
+                          << static_cast<bool>(closure) << " destination_initialized=" << static_cast<bool>(clparam));
+            }
+        }
     }
 }
 
@@ -425,6 +486,41 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
 
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+    const bool weight_buffer_debug = ov::npuw::get_log_level() >= ov::npuw::LogLevel::Debug;
+
+    if (weight_buffer_debug) {
+        LOG_DEBUG("WEIGHT_BUFFER runtime request="
+                  << this << " model=" << m_npuw_model.get() << " subgraph=" << idx << " function=" << real_idx
+                  << " replaced=" << comp_model_desc.replaced_by.has_value() << " lazy_closures="
+                  << comp_model_desc.lazy_closure.size() << " host_gather_dst=" << comp_model_desc.host_gather.dst_idx
+                  << " quant_host_gather_dst=" << comp_model_desc.quant_unpack_gather.dst_idx);
+    }
+    if (weight_buffer_debug && comp_model_desc.replaced_by) {
+        const auto& closure_desc = comp_model_desc.closure.get();
+        for (std::size_t cidx = 0; cidx < closure_desc.closure.size(); ++cidx) {
+            const auto& source = closure_desc.closure[cidx];
+            const auto& port = request->get_inputs()[comp_model_desc.param_base + cidx];
+            LOG_DEBUG("WEIGHT_BUFFER runtime_closure request=" << this << " subgraph=" << idx << " port=" << port
+                                                               << " bank=" << m_npuw_model->get_weights_bank().get()
+                                                               << " closure=" << cidx);
+            if (source) {
+                LOG_DEBUG("WEIGHT_BUFFER runtime_source request="
+                          << this << " subgraph=" << idx << " port=" << port << " type=" << source.get_element_type()
+                          << " shape=" << source.get_shape() << " bytes=" << source.get_byte_size()
+                          << " data=" << source.data());
+            }
+            if (!m_npuw_model->is_gather_closure(idx, cidx)) {
+                const auto bound = request->get_tensor(port);
+                if (bound) {
+                    LOG_DEBUG("WEIGHT_BUFFER runtime_bound request=" << this << " subgraph=" << idx << " port=" << port
+                                                                     << " data=" << bound->data());
+                } else {
+                    LOG_DEBUG("WEIGHT_BUFFER runtime_bound request=" << this << " subgraph=" << idx << " port=" << port
+                                                                     << " initialized=0");
+                }
+            }
+        }
+    }
 
     const bool do_copy = needs_copy(idx);
     const auto& iodesc = m_subrequests_gio.at(idx);
@@ -507,6 +603,15 @@ void ov::npuw::IBaseInferRequest::bind_global_params(std::size_t idx, RqPtr requ
         const auto lookup = request->get_tensor(lport);
 
         ov::npuw::util::gather(ov::get_tensor_impl(vocab), lookup, gather);
+        if (weight_buffer_debug) {
+            if (vocab) {
+                LOG_DEBUG("WEIGHT_BUFFER host_gather request="
+                          << this << " subgraph=" << idx << " type=" << vocab.get_element_type() << " shape="
+                          << vocab.get_shape() << " bytes=" << vocab.get_byte_size() << " data=" << vocab.data());
+            } else {
+                LOG_DEBUG("WEIGHT_BUFFER host_gather request=" << this << " subgraph=" << idx << " initialized=0");
+            }
+        }
     }
 
     // Run host-side quantized gather, if required
@@ -557,6 +662,7 @@ void ov::npuw::IBaseInferRequest::alloc_quant_gather_tensors(std::size_t idx, Rq
 void ov::npuw::IBaseInferRequest::handle_quant_host_gather(std::size_t idx, RqPtr request) {
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     auto& quant_unpack_gather = comp_model_desc.quant_unpack_gather;
+    const bool weight_buffer_debug = ov::npuw::get_log_level() >= ov::npuw::LogLevel::Debug;
 
     if (quant_unpack_gather.dst_idx != -1) {
         NPUW_ASSERT(quant_unpack_gather.idx_idx != -1 && quant_unpack_gather.src_w_idx != -1);
@@ -564,13 +670,33 @@ void ov::npuw::IBaseInferRequest::handle_quant_host_gather(std::size_t idx, RqPt
         const auto& lport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.idx_idx];
         const auto& lookup = request->get_tensor(lport);
 
+        const auto src_w_idx = static_cast<std::size_t>(quant_unpack_gather.src_w_idx);
         const auto& gport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.dst_idx];
         const auto& gather = request->get_tensor(gport);
 
-        const auto& wport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_w_idx];
+        const auto& wport = comp_model_desc.compiled_model->inputs()[src_w_idx];
         const auto& vocabw = request->get_tensor(wport);
+        const auto closure_index = src_w_idx >= comp_model_desc.param_base ? src_w_idx - comp_model_desc.param_base
+                                                                           : std::numeric_limits<std::size_t>::max();
+        const auto closure_uid = closure_index < comp_model_desc.closure.get().closure_uid.size()
+                                     ? comp_model_desc.closure.get().closure_uid[closure_index]
+                                     : -1;
 
         // Gather weight
+        if (weight_buffer_debug) {
+            LOG_DEBUG("WEIGHT_BUFFER quant_host_gather_source request="
+                      << this << " subgraph=" << idx << " src_w_idx=" << src_w_idx << " param_base="
+                      << comp_model_desc.param_base << " closure=" << closure_index << " uid=" << closure_uid);
+            if (vocabw) {
+                LOG_DEBUG("WEIGHT_BUFFER quant_host_gather request="
+                          << this << " subgraph=" << idx << " port=" << wport << " type=" << vocabw->get_element_type()
+                          << " shape=" << vocabw->get_shape() << " bytes=" << vocabw->get_byte_size()
+                          << " data=" << vocabw->data());
+            } else {
+                LOG_DEBUG("WEIGHT_BUFFER quant_host_gather request=" << this << " subgraph=" << idx << " port=" << wport
+                                                                     << " initialized=0");
+            }
+        }
         ov::npuw::util::gather(vocabw, lookup, ov::get_tensor_impl(m_quant_gather_tensors.w));
 
         if (quant_unpack_gather.src_z_idx != -1 && quant_unpack_gather.src_s_idx != -1) {

@@ -462,6 +462,20 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     m_total_stat.ops = partitioning.total_ops;
     const std::vector<ov::npuw::Subgraph>& orderedSubgraphs = partitioning.subgraphs;
 
+    LOG_DEBUG("WEIGHT_BUFFER partition model="
+              << m_name << " funcall_for_all=" << m_cfg.get<::intel_npu::NPUW_FUNCALL_FOR_ALL>()
+              << " host_gather=" << m_cfg.get<::intel_npu::NPUW_HOST_GATHER>()
+              << " subgraphs=" << orderedSubgraphs.size() << " functions=" << partitioning.functions.size());
+    for (std::size_t subgraph_idx = 0; subgraph_idx < orderedSubgraphs.size(); ++subgraph_idx) {
+        const auto& subgraph = orderedSubgraphs[subgraph_idx];
+        LOG_DEBUG("WEIGHT_BUFFER partition_subgraph model="
+                  << m_name << " index=" << subgraph_idx << " function=" << subgraph._funcall
+                  << " parameters=" << subgraph._parameters.size() << " closure=" << subgraph._closure.size()
+                  << " lazy_closure=" << subgraph._lazy_closure.size()
+                  << " host_gather_dst=" << subgraph._host_gather.dst_idx
+                  << " quant_host_gather_dst=" << subgraph._quant_unpack_gather.dst_idx);
+    }
+
     // Prepare mapping between original inputs/outputs and compiled
     // submodels inputs/outputs. Example:
     // original input 0 -> submodel 0 input 0,
@@ -793,8 +807,11 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     }
 
     // Finalize memory in closures and weight banks
+    LOG_DEBUG("WEIGHT_BUFFER finalize_call_begin model=" << this);
     finalize_weights_bank();
+    LOG_DEBUG("WEIGHT_BUFFER finalize_call_returned model=" << this);
     detach_memory();
+    LOG_DEBUG("WEIGHT_BUFFER detach_returned model=" << this);
 
     // Print stats report when possible
     {
@@ -1287,9 +1304,11 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
 }
 
 ov::npuw::CompiledModel::~CompiledModel() {
+    LOG_DEBUG("WEIGHT_BUFFER compiled_model_destructor_begin model=" << this);
     if (m_eval_future.valid()) {
         m_eval_future.wait();
     }
+    LOG_DEBUG("WEIGHT_BUFFER compiled_model_destructor_done model=" << this);
 }
 
 void ov::npuw::CompiledModel::export_model(std::ostream& raw_stream) const {
@@ -1805,10 +1824,23 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
             if (desc_closure.closure[cidx]) {
                 // host-side closure - already set, do nothing
                 NPUW_ASSERT(!desc_closure.is_remote[cidx]);
+                LOG_DEBUG("WEIGHT_BUFFER reconstruct_host model=" << this << " subgraph=" << idx
+                                                                  << " function=" << real_idx << " closure=" << cidx
+                                                                  << " data=" << desc_closure.closure[cidx].data());
                 continue;
             }
             NPUW_ASSERT(desc_closure.closure_uid[cidx] != -1);
             desc_closure.closure[cidx] = m_weights_bank->get(desc_closure.closure_uid[cidx], submodel_device(real_idx));
+            if (desc_closure.closure[cidx]) {
+                LOG_DEBUG("WEIGHT_BUFFER reconstruct model="
+                          << this << " subgraph=" << idx << " function=" << real_idx << " closure=" << cidx
+                          << " uid=" << desc_closure.closure_uid[cidx] << " device=" << submodel_device(real_idx)
+                          << " data=" << desc_closure.closure[cidx].data());
+            } else {
+                LOG_DEBUG("WEIGHT_BUFFER reconstruct model=" << this << " subgraph=" << idx << " function=" << real_idx
+                                                             << " closure=" << cidx << " uid="
+                                                             << desc_closure.closure_uid[cidx] << " initialized=0");
+            }
         }
     }
 }
@@ -1835,7 +1867,7 @@ void ov::npuw::CompiledModel::set_weights_bank(std::shared_ptr<ov::npuw::weights
 
 void ov::npuw::CompiledModel::finalize_weights_bank() {
     LOG_INFO("Finalizing weights bank...");
-    std::shared_future<void> weights_bank_evaluation = std::async(std::launch::async, [&]() {
+    auto finalize_weights = [&]() {
         // Register lazy tensors
         for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
             auto& comp_model_desc = m_compiled_submodels[idx];
@@ -1853,16 +1885,35 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
                                             comp_model_desc.closure.unsafe_get().closure_uid.size());
 
             for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
+                LOG_DEBUG("WEIGHT_BUFFER closure_register_slot model="
+                          << this << " subgraph=" << idx << " closure=" << tidx << " closure_initialized="
+                          << static_cast<bool>(comp_model_desc.closure.unsafe_get().closure[tidx])
+                          << " lazy_initialized=" << static_cast<bool>(comp_model_desc.lazy_closure[tidx])
+                          << " uid_before=" << comp_model_desc.closure.unsafe_get().closure_uid[tidx]);
                 if (comp_model_desc.closure.unsafe_get().closure[tidx]) {
                     continue;  // host-side closure
                 }
+                LOG_DEBUG("WEIGHT_BUFFER register_begin model=" << this << " subgraph=" << idx << " closure=" << tidx);
+                const auto registration_device = submodel_device(real_idx);
+                LOG_DEBUG("WEIGHT_BUFFER register_device model=" << this << " subgraph=" << idx << " closure=" << tidx
+                                                                 << " device=" << registration_device);
                 comp_model_desc.closure.unsafe_get().closure_uid[tidx] =
-                    m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], submodel_device(real_idx));
+                    m_weights_bank->registerLT(comp_model_desc.lazy_closure[tidx], registration_device);
+                LOG_DEBUG("WEIGHT_BUFFER register_done model="
+                          << this << " subgraph=" << idx << " closure=" << tidx
+                          << " uid=" << comp_model_desc.closure.unsafe_get().closure_uid[tidx]);
+                LOG_DEBUG("WEIGHT_BUFFER register model="
+                          << this << " subgraph=" << idx << " function=" << real_idx << " closure=" << tidx
+                          << " uid=" << comp_model_desc.closure.unsafe_get().closure_uid[tidx]
+                          << " device=" << submodel_device(real_idx)
+                          << " lazy_hash=" << comp_model_desc.lazy_closure[tidx].get_hash());
             }
         }
 
         // Evaluate and allocate all LazyTensors inside the bank
+        LOG_DEBUG("WEIGHT_BUFFER bank_evaluate_begin model=" << this);
         m_weights_bank->evaluate_and_allocate();
+        LOG_DEBUG("WEIGHT_BUFFER bank_evaluate_done model=" << this);
 
         // Set evaluated and allocated ov::Tensors to closures
         for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
@@ -1875,8 +1926,23 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
 
             const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
             auto& desc_closure = comp_model_desc.closure.unsafe_get();
+            const auto registration_device = submodel_device(real_idx);
+            LOG_DEBUG("WEIGHT_BUFFER finalize_model_begin model=" << this << " subgraph=" << idx
+                                                                  << " function=" << real_idx
+                                                                  << " closures=" << desc_closure.closure.size());
 
             for (std::size_t tidx = 0; tidx < desc_closure.closure.size(); ++tidx) {
+                LOG_DEBUG("WEIGHT_BUFFER closure_finalize_slot model="
+                          << this << " subgraph=" << idx << " closure=" << tidx
+                          << " closure_initialized=" << static_cast<bool>(desc_closure.closure[tidx])
+                          << " lazy_initialized=" << static_cast<bool>(comp_model_desc.lazy_closure[tidx])
+                          << " uid=" << desc_closure.closure_uid[tidx]
+                          << " host_gather_dst=" << comp_model_desc.host_gather.dst_idx
+                          << " host_gather_src=" << comp_model_desc.host_gather.src_idx
+                          << " quant_gather_dst=" << comp_model_desc.quant_unpack_gather.dst_idx
+                          << " quant_gather_src_w=" << comp_model_desc.quant_unpack_gather.src_w_idx
+                          << " quant_gather_src_z=" << comp_model_desc.quant_unpack_gather.src_z_idx
+                          << " quant_gather_src_s=" << comp_model_desc.quant_unpack_gather.src_s_idx);
                 if (desc_closure.closure[tidx]) {
                     // host-side closure - already set, do nothing
                     desc_closure.is_remote[tidx] = false;
@@ -1884,14 +1950,36 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
                 }
                 const auto& uid = desc_closure.closure_uid[tidx];
                 NPUW_ASSERT(uid != -1);  // All tensors should be registered at this point
+                LOG_DEBUG("WEIGHT_BUFFER finalize_get_begin model=" << this << " subgraph=" << idx
+                                                                    << " closure=" << tidx << " uid=" << uid
+                                                                    << " device=" << submodel_device(real_idx));
                 desc_closure.closure[tidx] = m_weights_bank->get(uid, submodel_device(real_idx));
+                LOG_DEBUG("WEIGHT_BUFFER finalize_get_done model=" << this << " subgraph=" << idx << " closure=" << tidx
+                                                                   << " uid=" << uid);
+                const auto remote = m_weights_bank->is_remote(uid);
+                if (desc_closure.closure[tidx]) {
+                    LOG_DEBUG("WEIGHT_BUFFER finalize model=" << this << " subgraph=" << idx << " function=" << real_idx
+                                                              << " closure=" << tidx << " uid=" << uid << " device="
+                                                              << submodel_device(real_idx) << " remote=" << remote
+                                                              << " data=" << desc_closure.closure[tidx].data());
+                } else {
+                    LOG_DEBUG("WEIGHT_BUFFER finalize model=" << this << " subgraph=" << idx << " function=" << real_idx
+                                                              << " closure=" << tidx << " uid=" << uid
+                                                              << " device=" << submodel_device(real_idx)
+                                                              << " remote=" << remote << " initialized=0");
+                }
                 // FIXME: find a more reliable way to do so
-                desc_closure.is_remote[tidx] = m_weights_bank->is_remote(uid);
+                desc_closure.is_remote[tidx] = remote;
             }
+            LOG_DEBUG("WEIGHT_BUFFER finalize_model_done model=" << this << " subgraph=" << idx);
         }
 
+        LOG_DEBUG("WEIGHT_BUFFER import_context_reset_begin model=" << this);
         m_import_weights_ctx.reset();
-    });
+        LOG_DEBUG("WEIGHT_BUFFER import_context_reset_done model=" << this);
+    };
+
+    std::shared_future<void> weights_bank_evaluation = std::async(std::launch::async, finalize_weights);
 
     m_eval_future = weights_bank_evaluation;
 
@@ -2716,6 +2804,11 @@ bool ov::npuw::CompiledModel::unpack_required(const std::size_t idx, const std::
     const auto closure_param_id = comp_model_desc.param_base + cidx;
 
     auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
+    if (!closure) {
+        LOG_DEBUG("WEIGHT_BUFFER unpack_required subgraph=" << idx << " closure=" << cidx << " port=" << iport
+                                                            << " initialized=0");
+        return false;
+    }
     return (closure.get_element_type() != iport.get_element_type());
 }
 
