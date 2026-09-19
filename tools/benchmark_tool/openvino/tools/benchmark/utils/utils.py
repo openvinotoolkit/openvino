@@ -146,7 +146,7 @@ def pre_post_processing(model: Model, app_inputs_info, input_precision: str, out
     for info in app_inputs_info:
         pre_post_processor.input(info.name).model().set_layout(info.layout)
 
-    model = pre_post_processor.build()
+    return pre_post_processor.build()
 
 
 def parse_input_output_precision(arg_map: str):
