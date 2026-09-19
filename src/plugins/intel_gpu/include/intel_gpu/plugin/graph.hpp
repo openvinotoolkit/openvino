@@ -15,6 +15,7 @@
 #include <vector>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -77,6 +78,7 @@ public:
     std::mutex& get_mutex() { return m_infer_mutex; }
 
     bool use_external_queue() const;
+    std::optional<size_t> get_paged_attention_block_size() const { return m_paged_attention_block_size; }
 
     std::vector<HostTimeProfilingEntry> host_exec_times;
 
@@ -97,6 +99,7 @@ private:
     std::vector<cldnn::primitive_id> profilingIDs;
 
     std::map<size_t, cldnn::layout> m_input_layouts;
+    std::optional<size_t> m_paged_attention_block_size;
 
     void build(std::shared_ptr<cldnn::program> program);
     std::shared_ptr<ov::Model> get_runtime_model(std::vector<cldnn::primitive_info>& pi, bool filter_const_primitives = true);
