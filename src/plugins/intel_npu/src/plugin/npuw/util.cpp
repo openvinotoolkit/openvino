@@ -298,8 +298,12 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         NPUW_ASSERT(type_scale == ov::element::f16 || type_scale == ov::element::f32);
         NPUW_ASSERT(type_to == ov::element::f16);
     } else if (type_from == ov::element::u8) {
-        NPUW_ASSERT(type_zerop == ov::element::u8);
+        NPUW_ASSERT(type_zerop == type_from);
         NPUW_ASSERT(type_scale == ov::element::f16);
+        NPUW_ASSERT(type_to == ov::element::f16);
+    } else if (type_from == ov::element::i8) {
+        NPUW_ASSERT(type_zerop == type_from);
+        NPUW_ASSERT(type_scale == ov::element::f16 || type_scale == ov::element::f32);
         NPUW_ASSERT(type_to == ov::element::f16);
     } else {
         NPUW_ASSERT(false && "Unsupported combination");
@@ -344,7 +348,7 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         } else {
             NPUW_ASSERT(false);
         }
-    } else if (type_from == ov::element::u8) {
+    } else if (type_from == ov::element::u8 || type_from == ov::element::i8) {
         if (scale_shape.size() == 3 && scale_shape[1] == 1 && scale_shape[2] == 1) {
             // Special case for broadcasting vocab by 2 dimensions
             // FIXME: all this logic probably should be in some specific unpack or another util function
@@ -364,11 +368,19 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
                                     scale->data(),
                                     ov::Strides{scale_strides[0], scale_strides[2]});
 
-            ov::npuw::util::XARCH::unpack_u8f16(ov::get_tensor_impl(wraped_from),
-                                                ov::get_tensor_impl(wraped_zerop),
-                                                ov::get_tensor_impl(wraped_scale),
-                                                to,
-                                                unpack_options);
+            if (type_from == ov::element::u8) {
+                ov::npuw::util::XARCH::unpack_u8f16(ov::get_tensor_impl(wraped_from),
+                                                    ov::get_tensor_impl(wraped_zerop),
+                                                    ov::get_tensor_impl(wraped_scale),
+                                                    to,
+                                                    unpack_options);
+            } else {
+                ov::npuw::util::XARCH::unpack_i8f16_zp(ov::get_tensor_impl(wraped_from),
+                                                       ov::get_tensor_impl(wraped_zerop),
+                                                       ov::get_tensor_impl(wraped_scale),
+                                                       to,
+                                                       unpack_options);
+            }
         } else if (scale_shape.size() == 3 && scale_shape[0] == 1 && scale_shape[2] == 1) {
             // Special case for broadcasting vocab by 2 dimensions
             // FIXME: all this logic probably should be in some specific unpack or another util function
@@ -380,17 +392,34 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
                                     ov::Shape{scale_shape[1], scale_shape[2]},
                                     scale->data());
 
-            ov::npuw::util::XARCH::unpack_u8f16(ov::get_tensor_impl(wraped_from),
-                                                ov::get_tensor_impl(wraped_zerop),
-                                                ov::get_tensor_impl(wraped_scale),
-                                                to,
-                                                unpack_options);
+            if (type_from == ov::element::u8) {
+                ov::npuw::util::XARCH::unpack_u8f16(ov::get_tensor_impl(wraped_from),
+                                                    ov::get_tensor_impl(wraped_zerop),
+                                                    ov::get_tensor_impl(wraped_scale),
+                                                    to,
+                                                    unpack_options);
+            } else {
+                ov::npuw::util::XARCH::unpack_i8f16_zp(ov::get_tensor_impl(wraped_from),
+                                                       ov::get_tensor_impl(wraped_zerop),
+                                                       ov::get_tensor_impl(wraped_scale),
+                                                       to,
+                                                       unpack_options);
+            }
         } else if (scale_shape.size() == 2 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1) {
-            ov::npuw::util::XARCH::unpack_u8f16(from, zerop, scale, to, unpack_options);
+            if (type_from == ov::element::u8) {
+                ov::npuw::util::XARCH::unpack_u8f16(from, zerop, scale, to, unpack_options);
+            } else {
+                ov::npuw::util::XARCH::unpack_i8f16_zp(from, zerop, scale, to, unpack_options);
+            }
         } else {
             NPUW_ASSERT(false);
         }
     }
+}
+
+void ov::npuw::util::subtract_128(const ov::SoPtr<ov::ITensor>& from,
+                                  const ov::SoPtr<ov::ITensor>& to) {
+    ov::npuw::util::XARCH::subtract_128(from, to);
 }
 
 void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor>& src,

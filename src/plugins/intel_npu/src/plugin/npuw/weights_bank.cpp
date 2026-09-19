@@ -174,7 +174,7 @@ void Bank::evaluate_and_allocate_on_device(Bank::DeviceBank& device_bank,
         auto transformed = stored_tensor.lt.eval();
         transformed.copy_to(allocated.allocated_tensor);
         stored_tensor.tensor = std::move(allocated.allocated_tensor);
-
+        
         // Detach the evaluated LazyTensor from its memory here - when it is 100%
         // not needed anymore (transformations, if any, and copies are done)
         // Note: this is the non-CPU path!
