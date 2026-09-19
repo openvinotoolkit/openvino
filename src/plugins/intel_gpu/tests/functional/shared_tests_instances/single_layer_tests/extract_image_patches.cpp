@@ -45,7 +45,8 @@ const std::vector<ov::element::Type> netPrecisions = {
     ov::element::u8,
     ov::element::i16,
     ov::element::i32,
-    ov::element::f32
+    ov::element::f32,
+    ov::element::boolean
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_layers_GPU1, ExtractImagePatchesTest,

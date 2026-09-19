@@ -72,7 +72,7 @@ DECLARE_2D_TILE(
         a_scale_tile_type, float, SUBGROUP_SIZE, ugemm_vs_sg_tile_n, 1, 1, 1)
 
 
-DECLARE_2D_TILE(mask_tile_type, half, SUBGROUP_SIZE, ugemm_kq_c_type_block0, ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0, ugemm_kq_c_type_nblock1)
+DECLARE_2D_TILE(mask_tile_type, MSK_DATA_T, SUBGROUP_SIZE, ugemm_kq_c_type_block0, ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0, ugemm_kq_c_type_nblock1)
 DECLARE_2D_TILE(mask_tile_type_float, float, SUBGROUP_SIZE, ugemm_kq_c_type_block0, ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0, ugemm_kq_c_type_nblock1)
 
 #ifdef BLOCK_A
@@ -177,7 +177,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #endif
 #endif
 #if WITH_ATTN_MASK
-        const global half *msk,
+        const global MSK_DATA_T *msk,
 #endif
 #if WITH_SCALE
         global SCALE_DATA_T *scale_ptr,
@@ -964,16 +964,22 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         tile_elementwise(S_tile, mask_scale_op);
 #elif WITH_ATTN_MASK
         mask_tile_type_float mask_tile_float;
-#if INPUT0_IS_BF16
+#if INPUT0_IS_BF16 && !defined(BOOLEAN_ATTN_MASK)
         // Mask buffer holds bf16 values but the kernel reads it as half*;
         // reinterpret the 16-bit values as bf16 bits when converting to float.
         tile_copy_bf16bits_to_float(mask_tile, mask_tile_float);
 #else
         tile_copy(mask_tile, mask_tile_float);
 #endif
+#ifdef BOOLEAN_ATTN_MASK
+#define boolean_to_additive_mask(x) ((x) != 0.0f ? 0.0f : INPUT0_VAL_MIN)
+        tile_elementwise(mask_tile_float, boolean_to_additive_mask);
+#endif
 #ifdef LOG_2_E_MUL_SCALE
+#ifndef BOOLEAN_ATTN_MASK
 #define unscale(x) ((x)*iscale)
         tile_elementwise(mask_tile_float, unscale);
+#endif
 #else
 #define scale(x) ((x)* scale)
         tile_elementwise(S_tile, scale);

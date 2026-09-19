@@ -40,11 +40,13 @@ namespace detail {
 
 attach_space_to_depth_impl::attach_space_to_depth_impl() {
     implementation_map<space_to_depth>::add(impl_types::ocl, typed_primitive_impl_ocl<space_to_depth>::create<space_to_depth_impl>, {
+        std::make_tuple(data_types::boolean, format::bfzyx),
         std::make_tuple(data_types::f32, format::bfzyx),
         std::make_tuple(data_types::f16, format::bfzyx),
         std::make_tuple(data_types::u8, format::bfzyx),
         std::make_tuple(data_types::i8, format::bfzyx),
         std::make_tuple(data_types::i32, format::bfzyx),
+        std::make_tuple(data_types::boolean, format::bfyx),
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),

@@ -7,6 +7,7 @@
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/plugin/remote_tensor.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 
 using namespace cldnn;
 using namespace ov::intel_gpu;
@@ -37,4 +38,43 @@ TEST(convert_and_copy_test, remote_tensor_fast_path_does_not_fall_through) {
     for (size_t i = 0; i < src_values.size(); ++i) {
         ASSERT_EQ(dst_ptr[i], src_values[i]);
     }
+}
+
+TEST(convert_and_copy_test, boolean_padded_source) {
+    auto& engine = get_test_engine();
+    auto& stream = get_test_stream();
+
+    const ov::Shape shape{1, 1, 2, 2};
+    bool src_values[] = {false, false, true, false, false, true};
+    auto src_tensor = ov::make_tensor(ov::element::boolean, shape, src_values);
+
+    layout src_layout{shape,
+                      data_types::boolean,
+                      format::bfyx,
+                      padding{{0, 0, 1, 0}, {0, 0, 0, 0}}};
+    auto dst_mem = engine.allocate_memory(layout{shape, data_types::boolean, format::bfyx});
+
+    OV_ASSERT_NO_THROW(convert_and_copy(src_tensor.get(), dst_mem, stream, src_layout, false));
+
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> dst_ptr(dst_mem, stream);
+    const std::vector<uint8_t> expected{1, 0, 0, 1};
+    ASSERT_EQ(std::vector<uint8_t>(dst_ptr.begin(), dst_ptr.end()), expected);
+}
+
+TEST(convert_and_copy_test, boolean_transposed_source) {
+    auto& engine = get_test_engine();
+    auto& stream = get_test_stream();
+
+    const ov::Shape src_shape{1, 1, 2, 3};
+    bool src_values[] = {true, false, true, false, true, false};
+    auto src_tensor = ov::make_tensor(ov::element::boolean, src_shape, src_values);
+
+    auto dst_mem = engine.allocate_memory(layout{{1, 1, 3, 2}, data_types::boolean, format::bfyx});
+    layout src_layout{src_shape, data_types::boolean, format::bfyx};
+
+    OV_ASSERT_NO_THROW(convert_and_copy(src_tensor.get(), dst_mem, stream, src_layout, true));
+
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> dst_ptr(dst_mem, stream);
+    const std::vector<uint8_t> expected{1, 0, 0, 1, 1, 0};
+    ASSERT_EQ(std::vector<uint8_t>(dst_ptr.begin(), dst_ptr.end()), expected);
 }

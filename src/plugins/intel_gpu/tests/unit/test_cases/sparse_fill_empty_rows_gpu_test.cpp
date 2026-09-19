@@ -182,8 +182,10 @@ public:
         auto impl = inst->get_impl();
         ASSERT_TRUE(impl != nullptr);
         ASSERT_TRUE(impl->is_dynamic());
+        ASSERT_EQ(inst->get_output_layout(2).data_type, data_types::boolean);
 
         auto outputs = network->execute();
+        ASSERT_EQ(inst->get_output_layout(2).data_type, data_types::boolean);
         auto output_indices = outputs.at("output_indices").get_memory();
         auto output_values = outputs.at("output_values").get_memory();
         auto output_empty_row_indicator = outputs.at("output_empty_row_indicator").get_memory();
@@ -218,6 +220,55 @@ std::vector<SparseFillEmptyRowsTestParams> generateTestParams() {
 #undef TEST_DATA
 
     return params;
+}
+
+TEST(sparse_fill_empty_rows_gpu_test, boolean_values_and_indicator) {
+    auto& engine = get_test_engine();
+    auto stream = get_test_stream_ptr(get_test_default_config(engine));
+
+    auto values = engine.allocate_memory(layout{{2}, data_types::boolean, format::bfyx});
+    auto dense_shape = engine.allocate_memory(layout{{2}, data_types::i64, format::bfyx});
+    auto indices = engine.allocate_memory(layout{{2, 2}, data_types::i64, format::bfyx});
+    auto default_value = engine.allocate_memory(layout{ov::PartialShape{}, data_types::boolean, format::bfyx});
+    set_values(values, std::vector<uint8_t>{1, 0});
+    set_values(dense_shape, std::vector<int64_t>{4, 3});
+    set_values(indices, std::vector<int64_t>{0, 1, 2, 0});
+    set_values(default_value, std::vector<uint8_t>{1});
+
+    topology topology;
+    topology.add(input_layout("values", layout{ov::PartialShape::dynamic(1), data_types::boolean, format::bfyx}));
+    topology.add(input_layout("dense_shape", layout{ov::PartialShape::dynamic(1), data_types::i64, format::bfyx}));
+    topology.add(input_layout("indices", layout{ov::PartialShape::dynamic(2), data_types::i64, format::bfyx}));
+    topology.add(input_layout("default_value", layout{ov::PartialShape::dynamic(0), data_types::boolean, format::bfyx}));
+    topology.add(sparse_fill_empty_rows("sparse_fill_empty_rows",
+                                        {input_info("values"),
+                                         input_info("dense_shape"),
+                                         input_info("indices"),
+                                         input_info("default_value")}));
+    topology.add(reorder("output_indices", input_info("sparse_fill_empty_rows", 0), format::bfyx, data_types::i64));
+    topology.add(reorder("output_values", input_info("sparse_fill_empty_rows", 1), format::bfyx, data_types::boolean));
+    topology.add(reorder("output_indicator", input_info("sparse_fill_empty_rows", 2), format::bfyx, data_types::boolean));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto network = get_network(engine, topology, config, stream, false);
+    network->set_input_data("values", values);
+    network->set_input_data("dense_shape", dense_shape);
+    network->set_input_data("indices", indices);
+    network->set_input_data("default_value", default_value);
+
+    auto outputs = network->execute();
+    auto output_values = outputs.at("output_values").get_memory();
+    auto output_indicator = outputs.at("output_indicator").get_memory();
+    ASSERT_EQ(output_values->get_layout().data_type, data_types::boolean);
+    ASSERT_EQ(output_indicator->get_layout().data_type, data_types::boolean);
+
+    mem_lock<uint8_t, mem_lock_type::read> output_values_ptr(output_values, get_test_stream());
+    mem_lock<uint8_t, mem_lock_type::read> output_indicator_ptr(output_indicator, get_test_stream());
+    ASSERT_EQ(std::vector<uint8_t>(output_values_ptr.begin(), output_values_ptr.end()),
+              (std::vector<uint8_t>{1, 1, 0, 1}));
+    ASSERT_EQ(std::vector<uint8_t>(output_indicator_ptr.begin(), output_indicator_ptr.end()),
+              (std::vector<uint8_t>{0, 1, 0, 1}));
 }
 
 }  // namespace

@@ -41,7 +41,8 @@ attach_eye_impl::attach_eye_impl() {
                                         data_types::i8,
                                         data_types::u8,
                                         data_types::i32,
-                                        data_types::i64};
+                                        data_types::i64,
+                                        data_types::boolean};
     const std::vector<format::type> formats{
         format::bfyx,
         format::b_fs_yx_fsv16,

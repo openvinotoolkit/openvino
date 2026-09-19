@@ -185,7 +185,7 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_CLDNN_FP32, StridedSliceLayerTest,
         ::testing::Combine(
             ::testing::ValuesIn(ss_only_test_cases_fp32),
-            ::testing::Values(ov::element::f32),
+            ::testing::Values(ov::element::f32, ov::element::boolean),
             ::testing::Values(ov::test::utils::DEVICE_GPU)),
         StridedSliceLayerTest::getTestCaseName);
 
