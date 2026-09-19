@@ -165,6 +165,73 @@ TDim make_dim(const TDim& dim, const Bounds& start, const Bounds& stop, int64_t 
 }
 
 /**
+ * \brief Check if the slice provably preserves the dimension size.
+ *
+ * True only if the step is +/-1 and start/stop cover the whole dimension for every length within `dim` and every
+ * start/stop value within their bounds; interval equality is not enough.
+ *
+ * \param dim    Input dimension.
+ * \param start  Slice start bounds.
+ * \param stop   Slice stop bounds.
+ * \param step   Slice step.
+ *
+ * \return True if the slice is size preserving, otherwise false.
+ */
+inline bool is_size_preserving_slice(const ov::Dimension& dim,
+                                     const Bounds& start,
+                                     const Bounds& stop,
+                                     const int64_t step) {
+    if (step != 1 && step != -1) {
+        // |step| >= 2 gives ceil(L / |step|) < L for every length L >= 2, so the size can never be preserved
+        return false;
+    }
+
+    // The max length of an unbounded dimension is Interval::s_max (INT64_MAX), same normalization make_dim uses via
+    // value_convert; a negative start/stop bound b means index L + b for a length L within the dimension, so the
+    // worst case (start.second, the largest possible start; stop.second, the smallest magnitude negative stop) is
+    // the one that must still clip for every L up to max_length.
+    const auto max_length = dim.get_interval().get_max_val();
+    if (step == 1) {
+        // start clips to the first element for every L: start == 0, or start.second <= -max_length (so
+        // start.second + L <= -max_length + L <= 0 for every L <= max_length);
+        // stop clips to the last element (or past it) for every L: stop.first >= max_length.
+        const auto start_at_begin = start == Bounds{0, 0} || start.second <= -max_length;
+        const auto stop_at_end = stop.first >= max_length;
+        return start_at_begin && stop_at_end;
+    }
+    // start clips to the last element for every L: start == -1, or start.first >= max_length - 1 (so
+    // start.first >= L - 1 for every L <= max_length);
+    // stop clips to before the first element for every L: stop.second <= -max_length - 1.
+    const auto start_at_last = start == Bounds{-1, -1} || start.first >= max_length - 1;
+    const auto stop_before_begin = stop.second <= -max_length - 1;
+    return start_at_last && stop_before_begin;
+}
+
+/**
+ * \brief Merge the input dimension symbol into the sliced dimension if the slice provably preserves its size.
+ *
+ * Equal intervals do not imply equal sizes (e.g. step 2 on `[1..inf]` stays `[1..inf]`), so the symbol is merged only
+ * if the sliced dimension equals the input one, is not fully dynamic, and the input is static or the slice is size
+ * preserving.
+ *
+ * \param sliced  Sliced dimension (updated in place).
+ * \param dim     Input dimension.
+ * \param start   Slice start bounds.
+ * \param stop    Slice stop bounds.
+ * \param step    Slice step.
+ */
+inline void merge_symbol_if_size_preserved(ov::Dimension& sliced,
+                                           const ov::Dimension& dim,
+                                           const Bounds& start,
+                                           const Bounds& stop,
+                                           const int64_t step) {
+    if (sliced == dim && sliced != ov::Dimension::dynamic() &&
+        (dim.is_static() || is_size_preserving_slice(dim, start, stop, step))) {
+        ov::Dimension::merge(sliced, sliced, dim);
+    }
+}
+
+/**
  * \brief Computes the size of the default strides ([1, 1, ..., 1]) of a StridedSlice.
  *
  * \param begin  Begin argument of a StridedSlice.
