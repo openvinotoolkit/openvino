@@ -303,6 +303,27 @@ class TestShapesParsing(UnitTestWithMockedTelemetry):
             argv_input = parse_inputs("inp1->[1.0]")
             input_to_input_cut_info(argv_input)
 
+    def test_trailing_comma_single_input(self):
+        # a trailing comma must not become part of the tensor name
+        argv_input = parse_inputs("inp1[1,3],")
+        inputs = input_to_input_cut_info(argv_input)
+        inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([1, 3]))]
+        self.assertEqual(inputs, inputs_ref)
+
+    def test_trailing_comma_several_inputs(self):
+        argv_input = parse_inputs("inp1[1,22],inp2[2,33],")
+        inputs = input_to_input_cut_info(argv_input)
+        inputs_ref = [_InputCutInfo(name='inp1', shape=PartialShape([1, 22])),
+                      _InputCutInfo(name='inp2', shape=PartialShape([2, 33]))]
+        self.assertEqual(inputs, inputs_ref)
+
+    def test_trailing_comma_no_shapes(self):
+        argv_input = parse_inputs("inp1,inp2,")
+        inputs = input_to_input_cut_info(argv_input)
+        inputs_ref = [_InputCutInfo(name='inp1'),
+                      _InputCutInfo(name='inp2')]
+        self.assertEqual(inputs, inputs_ref)
+
 
 class PathCheckerFunctions(unittest.TestCase):
     READABLE_DIR = tempfile.gettempdir()
