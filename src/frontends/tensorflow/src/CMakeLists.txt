@@ -2,11 +2,16 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+include(${CMAKE_CURRENT_SOURCE_DIR}/sources.cmake)
+
 ov_add_frontend(NAME tensorflow
                 PROTOBUF_REQUIRED
                 LINKABLE_FRONTEND
                 FILEDESCRIPTION "FrontEnd to load and convert TensorFlow file format"
-                LINK_LIBRARIES openvino::core::dev openvino::frontend::tensorflow_common)
+                LINK_LIBRARIES openvino::core::dev openvino::frontend::tensorflow_common
+                SOURCES ${TENSORFLOW_FRONTEND_SRCS}
+                HEADERS ${TENSORFLOW_FRONTEND_HEADERS}
+                PUBLIC_HEADERS ${TENSORFLOW_FRONTEND_PUBLIC_HEADERS})
 
 if(ENABLE_SNAPPY_COMPRESSION)
     target_link_libraries(openvino_tensorflow_frontend PRIVATE openvino::snappy)

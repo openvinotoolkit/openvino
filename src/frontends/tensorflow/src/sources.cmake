@@ -1,0 +1,89 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+set(TENSORFLOW_FRONTEND_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/checkpoint_utils.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/checkpoint_v1_reader.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/decoder_argdef.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/decoder_proto.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/frontend.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/graph_iterator_meta.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/graph_iterator_saved_model.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/input_model.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/node_context.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/assign_add.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/assign_add_variable_op.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/assign.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/assign_sub.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/assign_sub_variable_op.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/assign_variable_op.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/block_lstm.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/enter.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/exit.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/fifo_queue.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/gru_block_cell.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/hash_table.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/if.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/iterator.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/lookup_table_find.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/lookup_table_import.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/lookup_table_size.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/loop_cond.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/merge.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/next_iteration.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/partitioned_call.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/placeholder.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/queue_dequeue.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/read_variable_op.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/sparse_reshape.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/switch.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/tensor_array_operations.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/var_handle.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/variable.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/while.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/write_file.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/xla_conv_v2.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/xla_dot.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_table.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/tensorflow.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/tf_utils.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/switch_merge_resolve.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/uninitialized_variable_resolve.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/translate_session.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/variables_index.cpp
+)
+
+set(TENSORFLOW_FRONTEND_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/checkpoint_utils.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/checkpoint_v1_reader.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/decoder_argdef.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/decoder_proto.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/graph_iterator_meta.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/graph_iterator_proto.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/graph_iterator_proto_txt.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/graph_iterator_saved_model.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/input_model.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_table.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/parse_output_index.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/tf_utils.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/switch_merge_resolve.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/uninitialized_variable_resolve.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/translate_session.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/variables_index.hpp
+)
+
+set(TENSORFLOW_FRONTEND_PUBLIC_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/../include/openvino/frontend/tensorflow/decoder.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/../include/openvino/frontend/tensorflow/exception.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/../include/openvino/frontend/tensorflow/extension/conversion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/../include/openvino/frontend/tensorflow/extension/op.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/../include/openvino/frontend/tensorflow/frontend.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/../include/openvino/frontend/tensorflow/graph_iterator.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/../include/openvino/frontend/tensorflow/hash_table.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/../include/openvino/frontend/tensorflow/node_context.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/../include/openvino/frontend/tensorflow/special_types.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/../include/openvino/frontend/tensorflow/variable.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/../include/openvino/frontend/tensorflow/variables_map.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/../include/openvino/frontend/tensorflow/visibility.hpp
+)

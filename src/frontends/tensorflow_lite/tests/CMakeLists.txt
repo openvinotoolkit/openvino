@@ -40,8 +40,7 @@ target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_TENSORFLOW_LITE_MODELS
 if (tensorflow_FOUND)
     set(TEST_TENSORFLOW_LITE_MODELS "${TEST_MODEL_ZOO_OUTPUT_DIR}/tensorflow_lite_test_models")
 
-    file(GLOB_RECURSE TENSORFLOW_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_scripts/generate_*.py)
-    file(GLOB_RECURSE TENSORFLOW_ALL_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/*.py)
+    include(sources.cmake)
     set(OUT_FILES "")
     foreach(GEN_SCRIPT ${TENSORFLOW_GEN_SCRIPTS})
         get_filename_component(FILE_WE ${GEN_SCRIPT} NAME_WE)

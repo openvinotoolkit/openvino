@@ -1,0 +1,62 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+set(TENSORFLOW_LITE_FRONTEND_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/decoder.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/decoder_flatbuffer.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/frontend.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/graph_iterator.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/graph_iterator_flatbuffer.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/input_model.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/complex_abs.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/concatenation.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/conv2d.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/conv3d.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/depthwise_conv2d.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/embedding_lookup.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/fully_connected.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/gather.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/l2_normalization.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/op_translation_utils.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/pool2d.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/quantize.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/reshape.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/rfft2d.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/softmax.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/stablehlo_composite.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/transpose_conv.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/unique.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/while.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_table.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/quantization_info.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/sparsity_info.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/tensorflow_lite.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/tensor_lite_place.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/tflite_transformations/rfft2d_complex_abs.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/tflite_transformations/tflite_quantize_resolver.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/utils.cpp
+)
+
+set(TENSORFLOW_LITE_FRONTEND_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/graph_iterator_flatbuffer.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/input_model.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/op/op_translation_utils.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_table.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/tensor_lite_place.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/tflite_transformations/tflite_quantize_resolver.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/tflite_ops/tflite_quantize.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/utils.hpp
+)
+
+set(TENSORFLOW_LITE_FRONTEND_PUBLIC_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/../include/openvino/frontend/tensorflow_lite/decoder.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/../include/openvino/frontend/tensorflow_lite/extension/conversion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/../include/openvino/frontend/tensorflow_lite/extension/op.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/../include/openvino/frontend/tensorflow_lite/frontend.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/../include/openvino/frontend/tensorflow_lite/graph_iterator.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/../include/openvino/frontend/tensorflow_lite/node_context.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/../include/openvino/frontend/tensorflow_lite/quantization_info.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/../include/openvino/frontend/tensorflow_lite/sparsity_info.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/../include/openvino/frontend/tensorflow_lite/visibility.hpp
+)
