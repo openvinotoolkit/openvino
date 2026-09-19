@@ -417,6 +417,11 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
     }
 }
 
+void ov::npuw::util::subtract_128(const ov::SoPtr<ov::ITensor>& from,
+                                  const ov::SoPtr<ov::ITensor>& to) {
+    ov::npuw::util::XARCH::subtract_128(from, to);
+}
+
 void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor>& src,
                             const ov::SoPtr<ov::ITensor>& idx,
                             const ov::SoPtr<ov::ITensor>& dst) {

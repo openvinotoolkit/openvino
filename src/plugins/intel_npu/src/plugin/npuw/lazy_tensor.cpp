@@ -19,7 +19,6 @@
 #include "openvino/util/mmap_object.hpp"
 #include "orc.hpp"
 #include "util.hpp"
-#include "util_xarch.hpp"
 
 using ov::npuw::weights::LazyTensor;
 
@@ -339,7 +338,7 @@ ov::Tensor Subtract128::eval() const {
     OPENVINO_ASSERT(source.get_element_type() == ov::element::u8, "Subtract128 requires u8 input");
     ov::Tensor result(ov::element::i8, source.get_shape());
     const auto& get_tensor_impl = ov::get_tensor_impl;
-    ov::npuw::util::XARCH::subtract_128(get_tensor_impl(source), get_tensor_impl(result));
+    ov::npuw::util::subtract_128(get_tensor_impl(source), get_tensor_impl(result));
     return result;
 }
 
