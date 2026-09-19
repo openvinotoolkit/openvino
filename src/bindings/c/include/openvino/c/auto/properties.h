@@ -32,3 +32,11 @@ ov_property_key_intel_auto_enable_startup_fallback;
  */
 OPENVINO_C_VAR(const char*)
 ov_property_key_intel_auto_enable_runtime_fallback;
+
+/**
+ * @brief Read-write property<string> to enable/disable compiling the model to all candidate devices in the
+ * background to populate cache blobs for faster subsequent loading (requires a configured cache directory)
+ * @ingroup ov_property_c_api
+ */
+OPENVINO_C_VAR(const char*)
+ov_property_key_intel_auto_compile_for_all;
