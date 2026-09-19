@@ -503,6 +503,85 @@ TEST(TensorTest, smoke_canReallocateDeviceInputForHostTensor) {
     OV_ASSERT_NO_THROW(inf_req.infer());
 }
 
+// An ROI tensor shares the parent's strides and may not be contiguous.
+// Inference must match a contiguous tensor with the same values, whether the ROI is the first input
+// (allocating device memory) or follows a contiguous input (reusing existing device memory).
+using InferRequestNonContiguousInputParams = std::tuple<ov::PartialShape,                           // Model input shape
+                                                        std::pair<ov::Coordinate, ov::Coordinate>,  // ROI begin and end in the parent tensor
+                                                        std::string>;                               // Device name
+
+class InferRequestNonContiguousInput : public ::testing::TestWithParam<InferRequestNonContiguousInputParams> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<InferRequestNonContiguousInputParams>& obj) {
+        const auto& [input_shape, roi, target_device] = obj.param;
+
+        std::ostringstream result;
+        result << "IS=" << ov::test::utils::partialShape2str({input_shape}) << "_";
+        result << "begin=" << ov::test::utils::vec2str(roi.first) << "_";
+        result << "end=" << ov::test::utils::vec2str(roi.second) << "_";
+        result << "trgDev=" << target_device;
+        return result.str();
+    }
+};
+
+TEST_P(InferRequestNonContiguousInput, Inference) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+    const auto& [input_shape, roi, target_device] = GetParam();
+
+    // Give the parent elements distinct values so that a sheared read cannot pass by chance
+    ov::Tensor parent(ov::element::f32, {1, 3, 16, 16});
+    for (size_t i = 0; i < parent.get_size(); ++i) {
+        parent.data<float>()[i] = static_cast<float>(i);
+    }
+    auto view = ov::Tensor(parent, roi.first, roi.second);
+    ASSERT_FALSE(view.is_continuous());
+
+    // The reference input: the same values in a contiguous tensor
+    ov::Tensor packed(view.get_element_type(), view.get_shape());
+    view.copy_to(packed);
+
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, input_shape);
+    auto add = std::make_shared<ov::op::v1::Add>(param, ov::op::v0::Constant::create(ov::element::f32, {1}, {1.f}));
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{param});
+    auto core = ov::Core();
+    auto compiled_model = core.compile_model(model, target_device);
+
+    // Returns a copy of the output, which the request may overwrite on its next run
+    auto infer = [](ov::InferRequest& request, const ov::Tensor& input) {
+        request.set_input_tensor(input);
+        request.infer();
+        auto output = request.get_output_tensor();
+        ov::Tensor copy(output.get_element_type(), output.get_shape());
+        output.copy_to(copy);
+        return copy;
+    };
+
+    // Reused device memory: the request has already run the contiguous tensor
+    auto request = compiled_model.create_infer_request();
+    auto expected = infer(request, packed);
+    ov::test::utils::compare(expected, infer(request, view), 0.0, 0.0);
+
+    // Fresh request: the view is its very first input
+    auto fresh_request = compiled_model.create_infer_request();
+    ov::test::utils::compare(expected, infer(fresh_request, view), 0.0, 0.0);
+}
+
+const std::vector<ov::PartialShape> input_shapes = {
+    {1, 3, 8, 8},    // static
+    {1, 3, -1, -1},  // dynamic
+};
+
+// 8x8 views into the {1, 3, 16, 16} parent. Neither is contiguous; the second one starts at the parent's data()
+const std::vector<std::pair<ov::Coordinate, ov::Coordinate>> rois = {
+    {{0, 0, 4, 6}, {1, 3, 12, 14}},
+    {{0, 0, 0, 0}, {1, 3, 8, 8}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_GPU_BehaviorTests,
+                         InferRequestNonContiguousInput,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes), ::testing::ValuesIn(rois), ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         InferRequestNonContiguousInput::getTestCaseName);
+
 TEST(VariablesTest, smoke_canSetStateTensor) {
     auto ov = ov::Core();
     const ov::Shape virable_shape = {1, 3, 2, 4};
