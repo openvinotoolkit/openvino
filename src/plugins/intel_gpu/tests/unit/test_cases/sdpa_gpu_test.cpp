@@ -293,7 +293,8 @@ INSTANTIATE_TEST_SUITE_P(
         sdpa_test_params{512, 8, 1, 1024, 2, true},
         sdpa_test_params{64, 32, 128, 128, 2, true, data_types::bf16},   // bf16 dynamic
         sdpa_test_params{64, 32, 128, 128, 2, false, data_types::bf16},  // bf16 static
-        sdpa_test_params{64, 10, 77, 77, 1, true, data_types::bf16}      // bf16 two ranks mask
+        sdpa_test_params{64, 10, 77, 77, 1, true, data_types::bf16},     // bf16 two ranks mask
+        sdpa_test_params{64, 32, 990, 128, 2, false, data_types::bf16}   // bf16 per-key [b, h, 1, kv] mask (static: MASK_PER_KEY needs a static mask shape)
     ),
     sdpa_gpu_test::PrintToStringParamName
 );
