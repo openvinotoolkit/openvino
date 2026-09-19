@@ -2614,7 +2614,94 @@ public:
             ASSERT_FLOAT_EQ(expected_result[i], output_ptr[i]) << "i = " << i;
         }
     }
+
+    // The only thing in the tree that compiles the "#elif COMPRESSED_WEIGHTS_UINT2" arm of
+    // gather_ref.cl. Values are chosen so the whole result is exactly representable and every
+    // decoded u2 level (0..3) appears, which is what makes a wrong unpack shift visible.
+    void test_compressed_scale_zp_u2(bool is_caching_test, bool use_zp) {
+        auto& engine = get_test_engine();
+
+        auto input_mem = engine.allocate_memory({{2, 3}, data_types::i32, format::bfyx});
+        auto weights_mem = engine.allocate_memory({{2, 8}, data_types::u2, format::bfyx});
+        auto scale_mem = engine.allocate_memory({{2, 1}, data_types::f32, format::bfyx});
+        auto zp_mem = use_zp ? engine.allocate_memory({{2, 1}, data_types::f32, format::bfyx}) : nullptr;
+
+        set_values(input_mem, {0, 2, 7,
+                               7, 1, 0});
+        // u2 is 4 values per byte, LSB-first: 0x39 -> {1,2,3,0} and 0x1B -> {3,2,1,0}. Both rows
+        // repeat their byte so index i and i+4 must decode identically.
+        set_values<uint8_t>(weights_mem, {0x39, 0x39,
+                                          0x1B, 0x1B});
+        set_values(scale_mem, {2.0f, 4.0f});
+        if (use_zp)
+            set_values(zp_mem, {1.0f, 2.0f});
+
+        topology topology(input_layout("input", input_mem->get_layout()),
+                          data("weights", weights_mem),
+                          data("scale", scale_mem));
+        if (use_zp) {
+            topology.add(data("zp", zp_mem));
+            topology.add(gather("gather_prim",
+                                input_info("weights"),
+                                input_info("input"),
+                                1,
+                                input_info("scale"),
+                                input_info("zp"),
+                                data_types::f32,
+                                2,
+                                ov::Shape{2, 3},
+                                1));
+        } else {
+            topology.add(gather("gather_prim",
+                                input_info("weights"),
+                                input_info("input"),
+                                1,
+                                input_info("scale"),
+                                input_info(""),
+                                data_types::f32,
+                                2,
+                                ov::Shape{2, 3},
+                                1));
+        }
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input_mem);
+
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "gather_prim");
+
+        auto output_mem = outputs.begin()->second.get_memory();
+        cldnn::mem_lock<float> output_ptr(output_mem, get_test_stream());
+
+        ov::PartialShape expected_shape{2, 3};
+        ASSERT_EQ(expected_shape, output_mem->get_layout().get_partial_shape());
+
+        // row 0 = {1,2,3,0,1,2,3,0} * 2 - zp*2 ; row 1 = {3,2,1,0,3,2,1,0} * 4 - zp*4
+        // indices are per-batch (batch_dim 1): row 0 takes {0,2,7}, row 1 takes {7,1,0}.
+        std::vector<float> expected_result = use_zp ? std::vector<float>{0.0f, 4.0f, -2.0f, -8.0f, 0.0f, 4.0f}
+                                                   : std::vector<float>{2.0f, 6.0f, 0.0f, 0.0f, 8.0f, 12.0f};
+
+        for (size_t i = 0; i < expected_result.size(); i++) {
+            ASSERT_FLOAT_EQ(expected_result[i], output_ptr[i]) << "i = " << i;
+        }
+    }
 };
+
+TEST_F(gather_gpu_tests, compressed_scale_zp_u2) {
+    this->test_compressed_scale_zp_u2(false, true);
+}
+
+TEST_F(gather_gpu_tests, compressed_scale_zp_u2_cached) {
+    this->test_compressed_scale_zp_u2(true, true);
+}
+
+TEST_F(gather_gpu_tests, compressed_scale_u2) {
+    this->test_compressed_scale_zp_u2(false, false);
+}
 
 TEST_F(gather_gpu_tests, compressed_scale_zp) {
     this->test_compressed_scale_zp(false);

@@ -1291,7 +1291,7 @@ bool primitive_inst::use_async_compilation() {
             auto batch_size = std::accumulate(input_shape.begin(), input_shape.end() - 1, size_t{1}, std::multiplies<size_t>());
 
             // Disable async compilation for all int4 FC, except in the case of batch_size == 1
-            if (one_of(weights_dt, {data_types::i4, data_types::u4}) && batch_size != 1) {
+            if (one_of(weights_dt, {data_types::i4, data_types::u4, data_types::u2}) && batch_size != 1) {
                 compile_fc_impls = false;
             }
         } else {

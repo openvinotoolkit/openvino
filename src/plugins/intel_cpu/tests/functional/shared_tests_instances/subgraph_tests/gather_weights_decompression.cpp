@@ -20,7 +20,8 @@ const std::vector<ov::element::Type> output_precisions = {ov::element::f32, ov::
 const std::vector<ov::element::Type> weights_precisions = {ov::element::u8,
                                                            ov::element::i8,
                                                            ov::element::u4,
-                                                           ov::element::i4};
+                                                           ov::element::i4,
+                                                           ov::element::u2};
 const std::vector<GatherDecompressionShapeParams> input_shapes_basic = {
     {{2, 5}, {{-1, -1}, {{2, 3}}}, 0, 0},
     {{15, 32}, {{-1, -1}, {{2, 3}}}, 1, 0, 16},

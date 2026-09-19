@@ -59,6 +59,8 @@ public:
     static int8_t get_u4(const uint8_t& val, bool high);
     template <typename OUT_TYPE, int8_t get4Bit(const uint8_t&, bool)>
     void execCompressed4Bit();
+    template <typename OUT_TYPE>
+    void execCompressed2Bit();
     bool canFuse(const NodePtr& node) const override;
 
 protected:
