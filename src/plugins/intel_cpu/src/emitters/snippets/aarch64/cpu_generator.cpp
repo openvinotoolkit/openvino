@@ -6,6 +6,7 @@
 
 #include <xbyak_aarch64/xbyak_aarch64_reg.h>
 
+#include <algorithm>
 #include <common/c_types_map.hpp>
 #include <cpu/aarch64/cpu_isa_traits.hpp>
 #include <cpu/aarch64/jit_generator.hpp>
@@ -30,6 +31,7 @@
 #include "emitters/snippets/cpu_runtime_configurator.hpp"
 #include "jit_snippets_emitters.hpp"
 #include "openvino/core/except.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/core/type.hpp"
@@ -186,6 +188,42 @@ public:
 };
 
 namespace intel_cpu::aarch64 {
+
+namespace {
+
+bool has_no_isa_specific_emitter(const std::shared_ptr<ov::Node>& op) {
+    return ov::is_type_any_of<op::v0::Parameter,
+                              snippets::op::Result,
+                              snippets::op::Buffer,
+                              snippets::op::VectorBuffer,
+                              snippets::op::RankNormalization,
+                              snippets::op::Reshape,
+                              snippets::op::Reorder>(op);
+}
+
+bool has_sve_emitter(const std::shared_ptr<ov::Node>& op) {
+    return ov::is_type_any_of<snippets::op::LoopBegin,
+                              snippets::op::LoopEnd,
+                              snippets::op::KernelStatic,
+                              snippets::op::KernelDynamic,
+                              snippets::op::RegSpillBegin,
+                              snippets::op::RegSpillEnd,
+                              op::v1::Add,
+                              snippets::op::Load,
+                              snippets::op::LoadReorder,
+                              snippets::op::BroadcastLoad,
+                              snippets::op::Store,
+                              intel_cpu::LoadConvertSaturation,
+                              intel_cpu::LoadConvertTruncation,
+                              intel_cpu::StoreConvertSaturation,
+                              intel_cpu::StoreConvertTruncation>(op);
+}
+
+bool is_sve_compatible(const std::shared_ptr<ov::Node>& op) {
+    return has_no_isa_specific_emitter(op) || has_sve_emitter(op);
+}
+
+}  // namespace
 
 CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa, ov::intel_cpu::MultiCacheWeakPtr cache)
     : TargetMachine(std::make_shared<CPURuntimeConfigurator>(cache)),
@@ -369,7 +407,21 @@ std::shared_ptr<snippets::TargetMachine> CPUTargetMachine::clone() const {
 }
 
 bool CPUTargetMachine::is_supported() const {
-    return dnnl::impl::cpu::aarch64::mayiuse(dnnl::impl::cpu::aarch64::asimd);
+    return dnnl::impl::cpu::aarch64::mayiuse(isa);
+}
+
+bool CPUTargetMachine::supports_current_isa(const std::shared_ptr<ov::Model>& body) const {
+    OPENVINO_ASSERT(body, "Snippet body is empty");
+
+    namespace aarch64 = dnnl::impl::cpu::aarch64;
+    if (!aarch64::is_superset(isa, aarch64::sve_128)) {
+        return true;
+    }
+
+    const auto ordered_ops = body->get_ordered_ops();
+    return std::all_of(ordered_ops.begin(), ordered_ops.end(), [this](const auto& op) {
+        return !has(op->get_type_info()) || is_sve_compatible(op);
+    });
 }
 
 snippets::CompiledSnippetPtr CPUTargetMachine::get_snippet() {
@@ -386,6 +438,12 @@ size_t CPUTargetMachine::get_lanes() const {
     switch (isa) {
     case dnnl::impl::cpu::aarch64::asimd:
         return dnnl::impl::cpu::aarch64::cpu_isa_traits<dnnl::impl::cpu::aarch64::asimd>::vlen / sizeof(float);
+    case dnnl::impl::cpu::aarch64::sve_128:
+        return dnnl::impl::cpu::aarch64::cpu_isa_traits<dnnl::impl::cpu::aarch64::sve_128>::vlen / sizeof(float);
+    case dnnl::impl::cpu::aarch64::sve_256:
+        return dnnl::impl::cpu::aarch64::cpu_isa_traits<dnnl::impl::cpu::aarch64::sve_256>::vlen / sizeof(float);
+    case dnnl::impl::cpu::aarch64::sve_512:
+        return dnnl::impl::cpu::aarch64::cpu_isa_traits<dnnl::impl::cpu::aarch64::sve_512>::vlen / sizeof(float);
     default:
         OPENVINO_THROW("unknown isa ", isa);
     }
@@ -419,6 +477,12 @@ std::vector<snippets::Reg> CPUTargetMachine::get_vec_reg_pool() const {
         switch (isa) {
         case dnnl::impl::cpu::aarch64::asimd:
             return dnnl::impl::cpu::aarch64::cpu_isa_traits<dnnl::impl::cpu::aarch64::asimd>::n_vregs;
+        case dnnl::impl::cpu::aarch64::sve_128:
+            return dnnl::impl::cpu::aarch64::cpu_isa_traits<dnnl::impl::cpu::aarch64::sve_128>::n_vregs;
+        case dnnl::impl::cpu::aarch64::sve_256:
+            return dnnl::impl::cpu::aarch64::cpu_isa_traits<dnnl::impl::cpu::aarch64::sve_256>::n_vregs;
+        case dnnl::impl::cpu::aarch64::sve_512:
+            return dnnl::impl::cpu::aarch64::cpu_isa_traits<dnnl::impl::cpu::aarch64::sve_512>::n_vregs;
         default:
             OPENVINO_THROW("unknown isa ", isa);
         }
