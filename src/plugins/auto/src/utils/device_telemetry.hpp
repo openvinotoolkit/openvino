@@ -33,6 +33,12 @@ public:
 
     std::optional<float> utilization(const std::string& device_name, const std::string& device_type = "");
 
+    // Fetches one JSON snapshot from IPF covering utilization for all devices in a single round
+    // trip. Returns an empty string if the client isn't initialized or the query fails. Callers
+    // should fetch this once per decision and reuse it via utilization_from_snapshot() for every
+    // candidate device, instead of querying IPF once per device.
+    std::string fetch_utilization_snapshot();
+
     // Whether the platform is currently in low power mode, based on startup CurrentGear state and
     // any later IPF/DTT OnEpoGearChanged notifications. std::nullopt means the mode is unknown.
     // Lazy-initializes DTT version/gear queries and event registration on first call.
@@ -45,6 +51,13 @@ private:
     class Impl;
     std::unique_ptr<Impl> m_impl;
 };
+
+// Parses one device's utilization out of a snapshot string previously obtained via
+// TelemetryClient::fetch_utilization_snapshot(). Pure parsing, no IPF call, so callers can fetch
+// a snapshot once per decision and reuse it across every candidate device.
+std::optional<float> utilization_from_snapshot(const std::string& snapshot,
+                                                const std::string& device_name,
+                                                const std::string& device_type = "");
 
 inline constexpr std::string_view k_cpu_utilization_metric = "CPUUtilization";
 inline constexpr std::string_view k_igpu_utilization_metric = "IGPUUtilization";
