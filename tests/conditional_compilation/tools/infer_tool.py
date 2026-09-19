@@ -1,8 +1,7 @@
-# !/usr/bin/env python3
-
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+# !/usr/bin/env python3
 # pylint:disable=invalid-name,no-name-in-module,logging-format-interpolation,redefined-outer-name
 
 """ Tool for running inference and storing results in npz files.
@@ -19,16 +18,18 @@ from openvino import Core
 log.basicConfig(format="[ %(levelname)s ] %(message)s", level=log.INFO, stream=sys.stdout)
 
 
-def input_preparation(model):
+def input_preparation(compiled_model):
     """
     Function to prepare reproducible from run to run input data
-    :param model: OpenVINO Model object
-    :return: Dict where keys are layers' names and values are numpy arrays with layers' shapes
+    :param compiled_model: OpenVINO CompiledModel object
+    :return: Dict where keys are input ports and values are numpy arrays with input shapes
     """
 
     feed_dict = {}
-    for layer_name, layer_data in model.input_info.items():
-        feed_dict.update({layer_name: np.ones(shape=layer_data.input_data.shape)})
+    # Key by the ConstOutput port (not any_name): a port isn't guaranteed to have tensor
+    # names, and Model.inputs' plain Output isn't a valid key for compiled_model().
+    for model_input in compiled_model.inputs:
+        feed_dict[model_input] = np.ones(shape=list(model_input.shape))
     return feed_dict
 
 
@@ -43,7 +44,7 @@ def infer(ir_path, device):
     core = Core()
     model = core.read_model(ir_path)
     compiled_model = core.compile_model(model, device)
-    res = compiled_model(input_preparation(model))
+    res = compiled_model(input_preparation(compiled_model))
 
     del model
     # It's important to delete compiled model first to avoid double free in plugin offloading.
