@@ -49,7 +49,9 @@ if(NOT TARGET nlohmann_json::nlohmann_json)
     endif()
 endif()
 
-target_link_libraries(${TARGET_NAME} PUBLIC openvino::runtime PRIVATE ${GFLAGS_TARGET})
+target_link_libraries(${TARGET_NAME}
+    PUBLIC openvino::runtime
+    PRIVATE ${GFLAGS_TARGET} nlohmann_json::nlohmann_json)
 
 if(COMMAND ov_add_clang_format_target)
     ov_add_clang_format_target(${TARGET_NAME}_clang FOR_TARGETS ${TARGET_NAME})
