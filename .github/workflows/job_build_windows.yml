@@ -22,7 +22,7 @@ on:
         type: string
         required: true
       build-additional-python-wheels:
-        description: 'Whether to build additional, i.e., non-system Python wheels. Should have Python 3.10-3.13 installed'
+        description: 'Whether to build additional, i.e., non-system Python wheels. Should have Python 3.11-3.13 installed'
         type: boolean
         required: false
         default: false
@@ -215,16 +215,6 @@ jobs:
         run: cmake --install ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${{ env.INSTALL_DIR }} --component samples_bin
 
       # Setup additional Python versions for wheels building
-      - name: Setup Python 3.10
-        if: ${{ inputs.build-additional-python-wheels }}
-        uses: ./openvino/.github/actions/setup_python
-        with:
-          version: '3.10'
-          use-pip-proxy: 'true'
-          set-pip-install-path: 'true'
-          self-hosted-runner: 'true'
-
-      # Setup additional Python versions for wheels building
       - name: Setup Python 3.12
         if: ${{ inputs.build-additional-python-wheels }}
         uses: ./openvino/.github/actions/setup_python
@@ -257,7 +247,7 @@ jobs:
       - name: Build additional Python wheels
         if: ${{ inputs.build-additional-python-wheels }}
         run: |
-          $pyVersions = '3.10', '3.11', '3.12', '3.13', '3.14'
+          $pyVersions = '3.11', '3.12', '3.13', '3.14'
           foreach ($pyVersion in $pyVersions) {
             $pyBuildDir = "${{ github.workspace }}/py$pyVersion"
             New-Item -ItemType Directory -Path "$pyBuildDir" -Force
