@@ -19,6 +19,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/scatter_update.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 
 namespace ov {
 namespace pass {
@@ -220,6 +221,11 @@ bool PaKVReorderFusion::run_on_model(const std::shared_ptr<ov::Model>& m) {
         if (m_cache_precision != ov::element::dynamic) {
             key_path.cache->set_element_type(m_cache_precision);
             value_path.cache->set_element_type(m_cache_precision);
+
+            if (m_cache_precision == ov::element::f16 || m_cache_precision == ov::element::bf16) {
+                ov::disable_conversion(key_path.cache, m_cache_precision, ov::element::f32);
+                ov::disable_conversion(value_path.cache, m_cache_precision, ov::element::f32);
+            }
         }
 
         auto pa_kv_reorder = std::make_shared<ov::op::internal::PaKVReorder>(key_path.cache->output(0),
