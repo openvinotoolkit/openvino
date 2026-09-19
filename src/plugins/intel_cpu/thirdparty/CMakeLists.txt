@@ -148,10 +148,22 @@ function(ov_add_onednn)
         set(DNNL_ARCH_OPT_FLAGS "" CACHE STRING "Disable oneDNN's automatic -mcpu=generic to avoid conflicts with OpenVINO ARM flags" FORCE)
     endif()
 
+    # oneDNN distinguishes clang-cl from other Clang drivers via the non-standard
+    # helper variable CMAKE_BASE_NAME. Set it before add_subdirectory(onednn) so
+    # Visual Studio project generation emits /Oy- directly instead of unsupported
+    # GNU-style frame-pointer flags. Keep the real CMake compiler identity intact.
+    if(WIN32
+       AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang"
+       AND (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC"
+            OR OV_COMPILER_IS_CLANG_CL)
+       AND NOT DEFINED CMAKE_BASE_NAME)
+        get_filename_component(CMAKE_BASE_NAME "${CMAKE_CXX_COMPILER}" NAME)
+    endif()
+
     add_subdirectory(onednn EXCLUDE_FROM_ALL)
 
     # 3rd-party code (Windows): don't fail the build on its warnings, but don't hide them either
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32) OR OV_COMPILER_IS_CLANG_CL)
         target_compile_options(dnnl PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:/WX->)
     endif()
 
@@ -183,10 +195,26 @@ endif()
 
 if(ENABLE_MLAS_FOR_CPU)
     add_subdirectory(mlas EXCLUDE_FROM_ALL)
+
     # 3rd-party code (Windows): don't fail the build on its warnings, but don't hide them either
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32) OR OV_COMPILER_IS_CLANG_CL)
         target_compile_options(mlas PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:/WX->)
     endif()
+
+    if(OV_COMPILER_IS_CLANG_CL)
+        # Keep the MLAS target baseline ISA unchanged. The MLAS submodule already
+        # assigns AVX/AVX2 flags to its matching source groups; from the parent
+        # directory we only patch the Windows clang-cl gaps for sources that do
+        # not already receive the required per-file ISA flags.
+        set(OV_MLAS_SRC_DIR "${intel_cpu_thirdparty_SOURCE_DIR}/mlas/lib")
+        set_source_files_properties(${OV_MLAS_SRC_DIR}/qgemm_kernel_sse41.cpp
+            TARGET_DIRECTORY mlas
+            PROPERTIES COMPILE_FLAGS "/clang:-msse4.1 /clang:-mssse3")
+        set_source_files_properties(${OV_MLAS_SRC_DIR}/intrinsics/avx512/quantize_avx512f.cpp
+            TARGET_DIRECTORY mlas
+            PROPERTIES COMPILE_FLAGS "/clang:-mavx512f")
+    endif()
+
     ov_install_static_lib(mlas ${OV_CPACK_COMP_CORE})
 endif()
 

@@ -274,6 +274,20 @@ public:
         return m_handle;
     }
 
+#if defined(__clang__)
+    // On Windows, INVALID_HANDLE_VALUE expands to ((HANDLE)(LONG_PTR)-1), which
+    // relies on an integer-to-pointer cast. clang/clang-cl does not treat that
+    // expression as a valid constexpr pointer value, so a constexpr valid()
+    // overload would try to call a non-constexpr helper and fail. Keep both
+    // overloads non-constexpr under clang-based Windows builds.
+    bool valid() const {
+        return valid(m_handle);
+    }
+
+    static bool valid(HANDLE h) {
+        return h != INVALID_HANDLE_VALUE && h != nullptr;
+    }
+#else
     constexpr bool valid() const {
         return valid(m_handle);
     }
@@ -281,6 +295,7 @@ public:
     static constexpr bool valid(HANDLE h) {
         return h != INVALID_HANDLE_VALUE && h != nullptr;
     }
+#endif
 };
 
 class MapHolder : public ov::MappedMemory {

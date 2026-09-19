@@ -499,7 +499,7 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
 
     // helper to recreate dequantization nodes - TODO: probably better to insert Dequantize Node, than decompose it or
     // not.
-    auto create_dequant_nodes = [&model, &create_parameter_with_name, &clear_embedding_index, &make_name](
+    auto create_dequant_nodes = [&create_parameter_with_name, &clear_embedding_index, &make_name](
                                     std::shared_ptr<ov::Node> start_node,
                                     std::shared_ptr<ov::Node> concat_node,
                                     bool isKey,

@@ -22,6 +22,9 @@ macro(ov_deprecated_no_errors)
         else()
             set(ov_c_cxx_deprecated_no_errors "-Wno-error=deprecated-declarations")
         endif()
+    elseif(OV_COMPILER_IS_CLANG_CL)
+        set(ov_c_cxx_deprecated_no_errors
+            "/clang:-Wno-error=deprecated-declarations /clang:-Wno-cpp")
     elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX)
         set(ov_c_cxx_deprecated_no_errors "-Wno-error=deprecated-declarations")
         # Suppress #warning messages
@@ -42,7 +45,12 @@ endmacro()
 # Exports flags for 3rdparty modules, but without errors
 #
 macro(ov_dev_package_no_errors)
-    if(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
+    if(OV_COMPILER_IS_CLANG_CL)
+        set(ov_c_cxx_dev_no_errors "/clang:-Wno-all")
+        if(SUGGEST_OVERRIDE_SUPPORTED)
+            set(ov_cxx_dev_no_errors "/clang:-Wno-error=suggest-override")
+        endif()
+    elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
         set(ov_c_cxx_dev_no_errors "-Wno-all")
         if(SUGGEST_OVERRIDE_SUPPORTED)
             set(ov_cxx_dev_no_errors "-Wno-error=suggest-override")
@@ -317,6 +325,13 @@ function(ov_disable_all_warnings)
         if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
             # restrict to C/CXX sources only
             target_compile_options(${target} PRIVATE $<$<COMPILE_LANGUAGE:C,CXX>:/WX->)
+        elseif(OV_COMPILER_IS_CLANG_CL)
+            # Scope warning-suppression to C/C++ compile rules only so MASM
+            # and other non-C/C++ toolchains don't receive /clang:-w.
+            target_compile_options(${target} PRIVATE
+                $<$<COMPILE_LANGUAGE:C>:/clang:-w>
+                $<$<COMPILE_LANGUAGE:CXX>:/clang:-w>
+            )
         elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
             target_compile_options(${target} PRIVATE -w)
             # required for LTO
@@ -338,8 +353,25 @@ endfunction()
 #
 macro(ov_add_compiler_flags)
     foreach(flag ${ARGN})
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flag}")
+        if(OV_COMPILER_IS_CLANG_CL)
+            if(flag MATCHES "^/")
+                # MSVC-style option, keep as global CMAKE_*_FLAGS
+                set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}")
+                set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flag}")
+            elseif(flag MATCHES "^-")
+                set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /clang:${flag}")
+                set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /clang:${flag}")
+                if(flag STREQUAL "-Wextra")
+                    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /clang:-Wno-unused-parameter")
+                    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /clang:-Wno-unused-parameter")
+                endif()
+            else()
+                message(VERBOSE "Skipping unknown-style flag '${flag}' for clang-cl")
+            endif()
+        else()
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${flag}")
+            set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flag}")
+        endif()
     endforeach()
 endmacro()
 
@@ -349,7 +381,7 @@ endmacro()
 # Forced includes certain header file to all target source files
 #
 function(ov_force_include target scope header_file)
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32))
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR (OV_COMPILER_IS_INTEL_LLVM AND WIN32) OR OV_COMPILER_IS_CLANG_CL)
         target_compile_options(${target} ${scope} /FI"${header_file}")
     elseif(OV_COMPILER_IS_CLANG OR CMAKE_COMPILER_IS_GNUCXX OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
         target_compile_options(${target} ${scope} -include "${header_file}")
