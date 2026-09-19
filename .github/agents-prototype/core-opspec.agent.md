@@ -1,7 +1,7 @@
 ---
 name: Core Opset Agent
 description: OpenVINO Core operation specialist. Implements missing or incomplete operation specifications in the OpenVINO opset — C++ class definition, shape inference, opset registration, reference kernel, and RST documentation. Invoked by OV Orchestrator after the FE Agent escalates with status=escalate_to_core, or directly when a core op is missing. On completion unlocks the parallel Transformation, CPU, and GPU agents.
-model: claude-sonnet-4.6
+model: claude-sonnet-5
 ---
 # Core OpSpec Agent
 
