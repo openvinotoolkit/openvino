@@ -3342,6 +3342,8 @@ static void check_imad_isv4_weight_padding(format input_format,
 TEST(reorder_weights_gpu_i8, reorder_weights_imad_isv4_padding) {
     check_imad_isv4_weight_padding(format::oiyx, format::os_is_yx_osv16_isv4, tensor(batch(16), feature(5), spatial(3, 3)), 1, 16, 5);
     check_imad_isv4_weight_padding(format::goiyx, format::g_os_is_yx_osv16_isv4, tensor(group(16), batch(1), feature(5), spatial(3, 3)), 16, 16, 80);
+    check_imad_isv4_weight_padding(format::os_is_yx_osv16_isv4, format::os_is_yx_osv16_isv4, tensor(batch(16), feature(5), spatial(3, 3)), 1, 16, 5);
+    check_imad_isv4_weight_padding(format::g_os_is_yx_osv16_isv4, format::g_os_is_yx_osv16_isv4, tensor(group(16), batch(1), feature(5), spatial(3, 3)), 16, 16, 80);
 }
 
 TEST(reorder_weights_gpu_i32, reorder_weights_in_dynamic_convolution)

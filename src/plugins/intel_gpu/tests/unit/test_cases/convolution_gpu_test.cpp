@@ -4828,6 +4828,59 @@ TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activatio
         }
 }
 
+TEST(convolution_int8_fw_gpu, dynamic_same_layout_weights_initialize_imad_isv4_padding) {
+    auto& engine = get_test_engine();
+
+    const auto input_layout_dynamic = layout{ov::PartialShape{1, 5, -1, -1}, data_types::i8, format::b_fs_yx_fsv16};
+    const auto input_layout_static = layout{ov::PartialShape{1, 5, 8, 8}, data_types::i8, format::b_fs_yx_fsv16};
+    const auto weights_layout = layout{data_types::i8,
+                                       format::os_is_yx_osv16_isv4,
+                                       tensor(batch(16), feature(5), spatial(3, 3))};
+
+    auto input = engine.allocate_memory(input_layout_static);
+    set_values(input, std::vector<int8_t>(input_layout_static.get_linear_size(), 0));
+
+    auto weights = engine.allocate_memory(weights_layout);
+    set_values(weights, std::vector<int8_t>(weights_layout.get_linear_size(), 42));
+
+    topology topology(input_layout("input", input_layout_dynamic),
+                      data("weights", weights),
+                      convolution("conv", input_info("input"), "weights", no_bias, 1, {1, 1}, {1, 1}, {1, 1}, {1, 1}, false));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    const ov::intel_gpu::ImplementationDesc conv_impl = {
+        format::b_fs_yx_fsv16, "convolution_gpu_imad", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"conv", conv_impl}}));
+
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    network.execute();
+
+    auto conv_inst = std::dynamic_pointer_cast<convolution_inst>(network.get_primitive("conv"));
+    ASSERT_NE(conv_inst, nullptr);
+    auto reordered_weights = conv_inst->weights_memory();
+    ASSERT_FALSE(engine.is_the_same_buffer(*weights, *reordered_weights));
+
+    cldnn::mem_lock<int8_t, mem_lock_type::read> reordered_weights_ptr(reordered_weights, get_test_stream());
+    for (size_t output_feature = 0; output_feature < 16; ++output_feature) {
+        for (size_t input_feature = 5; input_feature < 8; ++input_feature) {
+            for (size_t y = 0; y < 3; ++y) {
+                for (size_t x = 0; x < 3; ++x) {
+                    const size_t offset = input_feature % 4 +
+                                          output_feature * 4 +
+                                          x * 16 * 4 +
+                                          y * 16 * 4 * 3 +
+                                          input_feature / 4 * 16 * 4 * 3 * 3;
+                    ASSERT_EQ(reordered_weights_ptr[offset], 0)
+                        << "at output_feature=" << output_feature << " input_feature=" << input_feature
+                        << " y=" << y << " x=" << x;
+                }
+            }
+        }
+    }
+}
+
 TEST(convolution_int8_fw_gpu, quantized_convolution_u8s8f32_asymmetric_activations_per_channel_3ic_with_sub) {
     auto& engine = get_test_engine();
 
