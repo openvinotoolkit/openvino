@@ -287,6 +287,11 @@ macro(ov_add_frontend)
 
         ov_link_system_libraries(${TARGET_NAME} PRIVATE ${protobuf_target_name})
 
+        if(ENABLE_SYSTEM_PROTOBUF AND
+           TARGET absl::log AND TARGET absl::hash)
+            target_link_libraries(${TARGET_NAME} PRIVATE absl::log absl::hash)
+        endif()
+
         # GCC emits warnings even from SYSTEM includes of header-only libraries
         if(CMAKE_COMPILER_IS_GNUCXX)
             target_compile_options(${TARGET_NAME} PRIVATE

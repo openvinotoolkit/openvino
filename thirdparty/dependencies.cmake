@@ -391,6 +391,9 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
             find_package(Protobuf 5.26.0 REQUIRED ${protobuf_config})
         endif()
 
+        # Newer system protobuf headers require Abseil libraries.
+        find_package(absl CONFIG QUIET)
+
         # with newer protobuf versions (4.22 and newer), we use CONFIG first
         # so, the Protobuf_PROTOC_EXECUTABLE variable must be checked explicitly,
         # because it's not used in this case (oppositely to MODULE case)
