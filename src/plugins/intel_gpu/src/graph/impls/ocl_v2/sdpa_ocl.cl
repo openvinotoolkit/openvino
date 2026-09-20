@@ -389,7 +389,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         const __global INPUT3_TYPE* block_indices_begins,
     #endif
 #endif
-#if WITH_ATTN_MASK
+#if WITH_ATTN_MASK || defined(HAS_SCALAR_ATTN_MASK)
         const global half *msk,
 #endif
 #if WITH_SCALE
@@ -1861,6 +1861,11 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     float s = S_tile[mb][qb][mm] + sub_group_broadcast(k_mask[mask_idx], mask_lane);
 #ifdef STATIC_SCALAR_ATTN_MASK_VALUE
                     s += STATIC_SCALAR_ATTN_MASK_VALUE * iscale;
+#endif
+#ifdef HAS_SCALAR_ATTN_MASK
+                    // Single-element runtime mask (rank-0 scalar / 1-element 1D): the value broadcasts
+                    // to every logit, matching the const-scalar path above.
+                    s += MASK_TO_FLOAT(msk[0]) * iscale;
 #endif
                     #if WITH_ATTN_MASK
                         if (MASK_IS_PER_KEY) {
