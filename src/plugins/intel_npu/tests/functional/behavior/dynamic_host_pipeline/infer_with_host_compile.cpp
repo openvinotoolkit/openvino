@@ -34,9 +34,9 @@ namespace behavior {
 // The batch/height/width bounds and NHWC-vs-NCHW layout are parameterized so every test model in this file
 // (see espcnModelConfigs) shares the same, already-validated graph shape.
 inline std::shared_ptr<ov::Model> createESPCNX2Model(ov::Dimension batchDimension = ov::Dimension(1, 2),
-                                                      ov::Dimension heightDimension = ov::Dimension(32, 64),
-                                                      ov::Dimension widthDimension = ov::Dimension(32, 64),
-                                                      bool nhwcLayout = true) {
+                                                     ov::Dimension heightDimension = ov::Dimension(32, 64),
+                                                     ov::Dimension widthDimension = ov::Dimension(32, 64),
+                                                     bool nhwcLayout = true) {
     const ov::PartialShape inputShape = nhwcLayout
                                             ? ov::PartialShape{batchDimension, heightDimension, widthDimension, 1}
                                             : ov::PartialShape{batchDimension, 1, heightDimension, widthDimension};
@@ -62,10 +62,7 @@ inline std::shared_ptr<ov::Model> createESPCNX2Model(ov::Dimension batchDimensio
                                 float weightValue,
                                 float biasValue) -> ov::Output<ov::Node> {
         auto weights = ov::op::v0::Constant::create(ov::element::f32,
-                                                    ov::Shape{outputChannels,
-                                                              inputChannels,
-                                                              kernelSize,
-                                                              kernelSize},
+                                                    ov::Shape{outputChannels, inputChannels, kernelSize, kernelSize},
                                                     {weightValue});
         auto convolution = std::make_shared<ov::op::v1::Convolution>(data,
                                                                      weights,
@@ -74,9 +71,7 @@ inline std::shared_ptr<ov::Model> createESPCNX2Model(ov::Dimension batchDimensio
                                                                      ov::CoordinateDiff{0, 0},
                                                                      ov::Strides{1, 1},
                                                                      ov::op::PadType::SAME_UPPER);
-        auto bias = ov::op::v0::Constant::create(ov::element::f32,
-                                                 ov::Shape{1, outputChannels, 1, 1},
-                                                 {biasValue});
+        auto bias = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, outputChannels, 1, 1}, {biasValue});
         return std::make_shared<ov::op::v1::Add>(convolution, bias);
     };
 
@@ -85,10 +80,10 @@ inline std::shared_ptr<ov::Model> createESPCNX2Model(ov::Dimension batchDimensio
     auto secondConv = makeConvAdd(firstRelu, 64, 32, 3, 0.011f, 0.001f);
     auto secondRelu = std::make_shared<ov::op::v0::Relu>(secondConv);
     auto thirdConv = makeConvAdd(secondRelu, 32, 4, 3, 0.012f, 0.001f);
-    auto depthToSpace = std::make_shared<ov::op::v0::DepthToSpace>(
-        thirdConv,
-        ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
-        2);
+    auto depthToSpace =
+        std::make_shared<ov::op::v0::DepthToSpace>(thirdConv,
+                                                   ov::op::v0::DepthToSpace::DepthToSpaceMode::BLOCKS_FIRST,
+                                                   2);
     auto output = std::make_shared<ov::op::v0::Tanh>(depthToSpace);
     output->set_friendly_name("NCHW_output");
     output->get_output_tensor(0).set_names({"NCHW_output:0"});
@@ -112,19 +107,27 @@ struct DynamicModelConfig {
     ov::Dimension batch;
     ov::Dimension height;
     ov::Dimension width;
-    bool nhwcLayout; // only for test deafult compilation mode
+    bool nhwcLayout;  // only for test deafult compilation mode
 };
 
 inline const std::map<std::string, DynamicModelConfig>& espcnModelConfigs() {
     static const std::map<std::string, DynamicModelConfig> configs = {
         {"ESPCN_x2_DynHW_FHD2", {ov::Dimension(1), ov::Dimension(10, 2160), ov::Dimension(10, 3840), true}},
         {"ESPCN_x2_DynHW_FHD", {ov::Dimension(1), ov::Dimension(10, 1080), ov::Dimension(10, 1920), true}},
-        {"ESPCN_x2_DynNHW_FHD", {ov::Dimension(1, 10), ov::Dimension(1, 1080), ov::Dimension(10, 1920), true,}},
+        {"ESPCN_x2_DynNHW_FHD",
+         {
+             ov::Dimension(1, 10),
+             ov::Dimension(1, 1080),
+             ov::Dimension(10, 1920),
+             true,
+         }},
         {"ESPCN_x2_DynHW_HD", {ov::Dimension(1), ov::Dimension(10, 720), ov::Dimension(10, 1280), true}},
-        {"ESPCN_x2_DynNHW_HD_NCHW",
-         {ov::Dimension(1, 10), ov::Dimension(10, 720), ov::Dimension(10, 1280), false}},
-         {"ESPCN_x2_DynN_HD_NCHW",
-         {ov::Dimension(1, 10), ov::Dimension(720), ov::Dimension(1280), false}}, // only for InferWithDefaultHostCompileTests
+        {"ESPCN_x2_DynNHW_HD_NCHW", {ov::Dimension(1, 10), ov::Dimension(10, 720), ov::Dimension(10, 1280), false}},
+        {"ESPCN_x2_DynN_HD_NCHW",
+         {ov::Dimension(1, 10),
+          ov::Dimension(720),
+          ov::Dimension(1280),
+          false}},  // only for InferWithDefaultHostCompileTests
     };
     return configs;
 }
@@ -136,13 +139,13 @@ inline const DynamicModelConfig& getModelConfig(const std::string& modelName) {
     return it->second;
 }
 
-
 inline bool hasDynamicBatch(const std::string& modelName) {
     return getModelConfig(modelName).batch.is_dynamic();
 }
 
 inline bool hasOnlyDynamicBatch(const std::string& modelName) {
-    return getModelConfig(modelName).batch.is_dynamic() && !getModelConfig(modelName).height.is_dynamic() && !getModelConfig(modelName).width.is_dynamic();
+    return getModelConfig(modelName).batch.is_dynamic() && !getModelConfig(modelName).height.is_dynamic() &&
+           !getModelConfig(modelName).width.is_dynamic();
 }
 
 // Resolve the model input's declared bounds into a concrete shape: batch is set explicitly (it is always the
@@ -162,7 +165,8 @@ inline ov::Shape makeInputShape(const std::shared_ptr<ov::Model>& model, size_t 
             // in ESPCN_x2, the channel dimension is static and should be kept as-is
             shape.push_back(static_cast<size_t>(dim.get_length()));
         } else {
-            // The test dimensions are common sizes for the output dimensions. The output of the ESPCN_x2 graph scales the
+            // The test dimensions are common sizes for the output dimensions. The output of the ESPCN_x2 graph scales
+            // the
             //  input shape's H (height) and W (width) by a factor of two, so the
             const auto interval = dim.get_interval();
             const int64_t value =
@@ -170,7 +174,7 @@ inline ov::Shape makeInputShape(const std::shared_ptr<ov::Model>& model, size_t 
             shape.push_back(static_cast<size_t>(value));
         }
     }
-     
+
     std::cout << "[Manually log]Concrete shape: " << shape << std::endl;
     return shape;
 }
@@ -564,7 +568,8 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
 
     // Start from a regular host tensor sized to the model's upper bounds.
     ov::Shape shape = makeInputShape(model, 1, /*useLargeShape=*/true);
-    std::cout << "[Manually log][CompileAndInferWithZeroTensor] Input shape for the first infer: " << shape << std::endl;
+    std::cout << "[Manually log][CompileAndInferWithZeroTensor] Input shape for the first infer: " << shape
+              << std::endl;
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
@@ -597,11 +602,12 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     std::memcpy(inputTensorForThirdInfer.data(),
                 hostTensorSourceForThirdInfer.data(),
                 hostTensorSourceForThirdInfer.get_byte_size());
-    setInputInferAndCompare(model,
-                            reqDynamic1,
-                            reqReference1,
-                            inputTensorForThirdInfer,  // shape is ov::Shape shape = makeInputShape(model, 1, /*useLargeShape=*/true);
-                            "CompileAndInferWithZeroTensor_third");
+    setInputInferAndCompare(
+        model,
+        reqDynamic1,
+        reqReference1,
+        inputTensorForThirdInfer,  // shape is ov::Shape shape = makeInputShape(model, 1, /*useLargeShape=*/true);
+        "CompileAndInferWithZeroTensor_third");
     // Feeding a context-allocated tensor with a new data pointer, ptr change detected and rebuild runtime
     // TODO: Update commandlist once dynamic stride supported
     ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
@@ -676,9 +682,12 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
         << "Expected log to contain 'Reset command list to run with runtime' for sixth inference, but got: "
         << logCapture.str();
 
-    std::cout << "[Manually log][InferWithHostCompileTests][ADD TEST] Re-running sixth inference with zero tensor..." << std::endl;
-    std::cout << "[Manually log][InferWithHostCompileTests][ADD TEST] model->input() is " << model->input() << std::endl;
-    std::cout << "[Manually log][InferWithHostCompileTests][ADD TEST] model->output() is " << model->output() << std::endl;
+    std::cout << "[Manually log][InferWithHostCompileTests][ADD TEST] Re-running sixth inference with zero tensor..."
+              << std::endl;
+    std::cout << "[Manually log][InferWithHostCompileTests][ADD TEST] model->input() is " << model->input()
+              << std::endl;
+    std::cout << "[Manually log][InferWithHostCompileTests][ADD TEST] model->output() is " << model->output()
+              << std::endl;
 }
 
 TEST_P(InferWithHostCompileTests, DynamicNHWUsesOneVMExecution) {
@@ -762,11 +771,11 @@ inline bool isElfBlob(const std::string& blob) {
     return header.find("ELF\x00") != std::string_view::npos;
 };
 
-
-//const std::vector<std::string> defaultHCModelNames = {"ESPCN_x2_DynN_HD_NCHW", "ESPCN_x2_DynNHW_HD_NCHW"};
+// const std::vector<std::string> defaultHCModelNames = {"ESPCN_x2_DynN_HD_NCHW", "ESPCN_x2_DynNHW_HD_NCHW"};
 /// Test case for default compilation model for different model
 /// only batch dimension is dynamic, use dafault compilation mode: DefaultHW
-/// when weight dimension or height dimension is also dynamic, will set the default compilation mode to HostCompile_Interpreter.
+/// when weight dimension or height dimension is also dynamic, will set the default compilation mode to
+/// HostCompile_Interpreter.
 TEST_P(InferWithDefaultHostCompileTests, CompileDynamicModelWithNoHostCompileMode) {
     SKIP_IF_NOT_TARGET_DEVICE()
 
@@ -784,16 +793,16 @@ TEST_P(InferWithDefaultHostCompileTests, CompileDynamicModelWithNoHostCompileMod
     }
 
     if (hasOnlyDynamicBatch(selectedModelName)) {
-        std::cout << "Model has only dynamic batch dimension. batch is" << 
-        getModelConfig(selectedModelName).batch.is_dynamic() << " height is " <<
-        getModelConfig(selectedModelName).height.is_dynamic() << " width is " <<
-        getModelConfig(selectedModelName).width.is_dynamic() << std::endl;
+        std::cout << "Model has only dynamic batch dimension. batch is"
+                  << getModelConfig(selectedModelName).batch.is_dynamic() << " height is "
+                  << getModelConfig(selectedModelName).height.is_dynamic() << " width is "
+                  << getModelConfig(selectedModelName).width.is_dynamic() << std::endl;
         ASSERT_TRUE(isElfBlob(modelStream.str())) << "Expected exported model to be an ELF blob";
     } else {
-        std::cout << "Model has NOT only dynamic batch dimension. batch is" << 
-        getModelConfig(selectedModelName).batch.is_dynamic() << " height is " <<
-        getModelConfig(selectedModelName).height.is_dynamic() << " width is " <<
-        getModelConfig(selectedModelName).width.is_dynamic() << std::endl;
+        std::cout << "Model has NOT only dynamic batch dimension. batch is"
+                  << getModelConfig(selectedModelName).batch.is_dynamic() << " height is "
+                  << getModelConfig(selectedModelName).height.is_dynamic() << " width is "
+                  << getModelConfig(selectedModelName).width.is_dynamic() << std::endl;
         ASSERT_TRUE(isByteCodeBlob(modelStream.str())) << "Expected exported model to be a bytecode";
     }
 
@@ -845,12 +854,12 @@ const std::vector<ov::AnyMap> configs = {
 
 // Every name maps to the same ESPCN_x2 graph (see espcnModelConfigs) built with different dynamic N/H/W bounds
 // and layout; the concrete test shapes are derived from those bounds via makeInputShape.
-const std::vector<std::string> modelNames = {"ESPCN_x2_DynHW_FHD",  // [1,1..1080,10..1920,1]
-                                             "ESPCN_x2_DynNHW_FHD", // [1..10,1..1080,10..1920,1]
-                                             "ESPCN_x2_DynHW_HD",   // [1,10..720,10..1280,1]
-                                             "ESPCN_x2_DynHW_FHD2", //[1, 10..2160, 10..3840,1]
-                                            };
-
+const std::vector<std::string> modelNames = {
+    "ESPCN_x2_DynHW_FHD",   // [1,1..1080,10..1920,1]
+    "ESPCN_x2_DynNHW_FHD",  // [1..10,1..1080,10..1920,1]
+    "ESPCN_x2_DynHW_HD",    // [1,10..720,10..1280,1]
+    "ESPCN_x2_DynHW_FHD2",  //[1, 10..2160, 10..3840,1]
+};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferWithHostCompileTests,
@@ -871,9 +880,8 @@ const std::vector<ov::AnyMap> defaultHostCompileconfigs = {
     },
 };
 
-
 /// This was originally intended to test:
-/// Only N is dynamic [1..10, 1080, 1920, 1] (takes the static pipeline); 
+/// Only N is dynamic [1..10, 1080, 1920, 1] (takes the static pipeline);
 /// At least one of height or width is dynamic [1..10, 10..1080, 10..1920, 1] (takes the dynamic pipeline).
 ///  What is origin being tested:
 ///        ESPCN_x2_DynHW_HD_NCHW  [1,10..720,10..1280,1]  -- neeed update for new pipeline
