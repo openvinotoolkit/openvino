@@ -106,17 +106,8 @@ inline std::shared_ptr<ov::Model> createESPCNX2Model(ov::Dimension batchDimensio
 // Every test model is the same ESPCN_x2 graph built with different dynamic N/H/W bounds and layout. Keeping the
 // declared bounds and the model characteristics in one registry lets the test shapes be derived from the bounds
 // (see makeInputShape) instead of hard-coding numbers that must be kept in sync by hand.
-
-// 所有的测试模型都是同一个 ESPCN_x2 计算图，只是构建时采用了不同的动态 N/H/W（批量大小/高度/宽度）边界和布局。将
-// 声明的边界和模型特征统一保存在一个注册表（registry）中，可以让我们直接从边界中推导出生出测试形状
-//（参见 makeInputShape），而无需手动硬编码那些必须保持同步的数字
-
 // The test dimensions are common sizes for the output dimensions. The output of the ESPCN_x2 graph scales the
 //  input shape's H (height) and W (width) by a factor of two.
-
-// 测试维度为输出维度的常见大小，ESPCN_x2 计算图的输出会将输入shapede H和W放大两倍。
-
-
 struct DynamicModelConfig {
     ov::Dimension batch;
     ov::Dimension height;
@@ -130,17 +121,10 @@ inline const std::map<std::string, DynamicModelConfig>& espcnModelConfigs() {
         {"ESPCN_x2_DynHW_FHD", {ov::Dimension(1), ov::Dimension(10, 1080), ov::Dimension(10, 1920), true}},
         {"ESPCN_x2_DynNHW_FHD", {ov::Dimension(1, 10), ov::Dimension(1, 1080), ov::Dimension(10, 1920), true,}},
         {"ESPCN_x2_DynHW_HD", {ov::Dimension(1), ov::Dimension(10, 720), ov::Dimension(10, 1280), true}},
-        // // Spatial upper bounds are kept large enough for the compiler's multi-cluster tiling of the dynamic H/W;
-        // // smaller bounds hit a compiler crash in MultiClusterStrategyAssignment on multi-tile devices.
-        // {"ESPCN_x2_DynNHW_Tiny", {ov::Dimension(1, 2), ov::Dimension(32, 270), ov::Dimension(32, 555), true}}, 
-        // {"ESPCN_x2_DynNHW_Tiny2", {ov::Dimension(1, 2), ov::Dimension(10, 480), ov::Dimension(640), true}}, 
-        // {"ESPCN_x2_DynHW_HD_NCHW", {ov::Dimension(1), ov::Dimension(10, 720), ov::Dimension(10, 1280), false}},
         {"ESPCN_x2_DynNHW_HD_NCHW",
          {ov::Dimension(1, 10), ov::Dimension(10, 720), ov::Dimension(10, 1280), false}},
          {"ESPCN_x2_DynN_HD_NCHW",
          {ov::Dimension(1, 10), ov::Dimension(720), ov::Dimension(1280), false}}, // only for InferWithDefaultHostCompileTests
-        //  {"ESPCN_x2_DynNHW_HD_NCHW_ODD",
-        //  {ov::Dimension(1, 10), ov::Dimension(10, 710), ov::Dimension(10, 1010), false}},
     };
     return configs;
 }
@@ -152,9 +136,6 @@ inline const DynamicModelConfig& getModelConfig(const std::string& modelName) {
     return it->second;
 }
 
-// inline bool isTinyDynamicModel(const std::string& modelName) {
-//     return getModelConfig(modelName).tinyVariant;
-// }
 
 inline bool hasDynamicBatch(const std::string& modelName) {
     return getModelConfig(modelName).batch.is_dynamic();
@@ -167,10 +148,6 @@ inline bool hasOnlyDynamicBatch(const std::string& modelName) {
 // Resolve the model input's declared bounds into a concrete shape: batch is set explicitly (it is always the
 // leading dimension for both NHWC and NCHW), static dims are kept as-is, and each dynamic spatial dim uses its
 // upper bound for the large shape or half of it (never below the lower bound) for the small shape.
-// 将模型输入所声明的动态/静态范围（bounds）解析为具体的形状（concrete shape）：
-// Batch 会被显式设置（无论是 NHWC 还是 NCHW 布局，它始终是首个维度）；
-// 静态维度保持不变；对于动态空间维度，大形状（large shape）会直接使用其上限（upper bound），
-// 而小形状（small shape）则使用其上限的一半（但绝不低于其下限）。
 inline ov::Shape makeInputShape(const std::shared_ptr<ov::Model>& model, size_t batch, bool useLargeShape) {
     const ov::PartialShape& partialShape = model->input().get_partial_shape();
     std::cout << "[Manually log]Partial shape: " << partialShape << std::endl;
@@ -179,10 +156,14 @@ inline ov::Shape makeInputShape(const std::shared_ptr<ov::Model>& model, size_t 
     for (size_t i = 0; i < partialShape.size(); ++i) {
         const ov::Dimension& dim = partialShape[i];
         if (i == 0) {
+            // batch dimension is always the first dimension and is set explicitly
             shape.push_back(batch);
         } else if (dim.is_static()) {
+            // in ESPCN_x2, the channel dimension is static and should be kept as-is
             shape.push_back(static_cast<size_t>(dim.get_length()));
         } else {
+            // The test dimensions are common sizes for the output dimensions. The output of the ESPCN_x2 graph scales the
+            //  input shape's H (height) and W (width) by a factor of two, so the
             const auto interval = dim.get_interval();
             const int64_t value =
                 useLargeShape ? interval.get_max_val() : std::max(interval.get_min_val(), interval.get_max_val() / 2);
@@ -193,8 +174,6 @@ inline ov::Shape makeInputShape(const std::shared_ptr<ov::Model>& model, size_t 
     std::cout << "[Manually log]Concrete shape: " << shape << std::endl;
     return shape;
 }
-//不能把测试形状固定一下吗？或者把测试形状加成对应的map?   输入不应该是输出的一半吗？
-
 
 // All test models share the ESPCN_x2 architecture: single output channel with the spatial dims doubled by
 // DepthToSpace. The output is NCHW, so this expects an NHWC input shape {N, H, W, 1}.
@@ -282,7 +261,7 @@ public:
         }
         originalLogLevel = core->get_property("NPU", ov::log::level.name()).as<ov::log::Level>();
 
-        APIBaseTest::SetUp();///有必要加吗？感觉没有
+        APIBaseTest::SetUp();
     }
 
     void TearDown() override {
@@ -428,9 +407,7 @@ InferWithHostCompileTests::RuntimeCompareSetupResult InferWithHostCompileTests::
 
 TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
     SKIP_IF_NOT_TARGET_DEVICE()
-    // if (isTinyDynamicModel(selectedModelName)) {
-    //     GTEST_SKIP() << "The tiny ESPCN_x2 model is covered by the DynamicNHW tests";
-    // }
+
     auto model = createModelByName(selectedModelName);
 
     ov::CompiledModel compiledModel;
@@ -449,12 +426,8 @@ TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
 
 // Compile, infer with a large shape, then shrink the input shape and verify both output correctness and command-list
 // reuse behavior.
-//看看这个为什么失败？
 TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     SKIP_IF_NOT_TARGET_DEVICE()
-    // if (isTinyDynamicModel(selectedModelName)) {
-    //     GTEST_SKIP() << "The tiny ESPCN_x2 model is covered by the DynamicNHW tests";
-    // }
 
     auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
@@ -470,7 +443,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     auto& testContext = setupResult.context;
 
     // Start with the largest shape allowed by the model's declared bounds.
-    ov::Shape shape = makeInputShape(model, 1, /*useLargeShape=*/true); /// 形状不会不匹配吗？
+    ov::Shape shape = makeInputShape(model, 1, /*useLargeShape=*/true);
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
@@ -511,15 +484,10 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
         << logCapture.str();
 }
 
-
-//看看这个为什么失败？
 // Compile, infer with a small shape, then grow the input shape and verify both output correctness and command-list
 // reuse behavior.
 TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
     SKIP_IF_NOT_TARGET_DEVICE()
-    // if (isTinyDynamicModel(selectedModelName)) {
-    //     GTEST_SKIP() << "The tiny ESPCN_x2 model is covered by the DynamicNHW tests";
-    // }
 
     auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
@@ -563,7 +531,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
                             "CompileAndInferWithIncreasedSize_third");
 
     logCapture.clear();
-    ov::Shape shape2 = makeInputShape(model, 1, /*useLargeShape=*/true); // 形状不会不匹配吗？？？
+    ov::Shape shape2 = makeInputShape(model, 1, /*useLargeShape=*/true);
     ov::Tensor inTensor3 = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape2, 100, 0);
     setInputInferAndCompare(model,
                             testContext.reqDynamic,
@@ -578,13 +546,8 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithIncreasedSize) {
 }
 
 // Exercise imported Level Zero tensors and verify both output correctness and command-list pointer updates.
-//看看这个为什么失败？
 TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     SKIP_IF_NOT_TARGET_DEVICE()
-    //这部分也就是为了测试更多shape的大小来测试的
-    // if (isTinyDynamicModel(selectedModelName)) {
-    //     GTEST_SKIP() << "The tiny ESPCN_x2 model is covered by the DynamicNHW tests";
-    // }
 
     auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
@@ -600,7 +563,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
     auto& testContext = setupResult.context;
 
     // Start from a regular host tensor sized to the model's upper bounds.
-    ov::Shape shape = makeInputShape(model, 1, /*useLargeShape=*/true); /// 形状不会不匹配吗？为什么要使用large shape???感觉用大的或者小的都可以？
+    ov::Shape shape = makeInputShape(model, 1, /*useLargeShape=*/true);
     std::cout << "[Manually log][CompileAndInferWithZeroTensor] Input shape for the first infer: " << shape << std::endl;
     ov::Tensor inTensor = ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), shape, 100, 0);
     setInputInferAndCompare(model,
@@ -693,9 +656,9 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
 
     auto outputShapeForSixthInfer = reqDynamic1.get_tensor(model->output()).get_shape();
     auto zeroOutputTensorForSixthInfer =
-        zeroContext.create_host_tensor(model->output().get_element_type(), outputShapeForSixthInfer);///一点点不一样的地方
+        zeroContext.create_host_tensor(model->output().get_element_type(), outputShapeForSixthInfer);
     auto hostTensorSourceForOutputForSixthInfer =
-        ov::test::utils::create_and_fill_tensor(model->output().get_element_type(), outputShapeForSixthInfer, 100, 0);//一点点不一样的地方
+        ov::test::utils::create_and_fill_tensor(model->output().get_element_type(), outputShapeForSixthInfer, 100, 0);
     ASSERT_EQ(hostTensorSourceForOutputForSixthInfer.get_byte_size(), zeroOutputTensorForSixthInfer.get_byte_size())
         << "Source and destination tensors must have identical byte sizes for copy";
     std::memcpy(zeroOutputTensorForSixthInfer.data(),
@@ -713,7 +676,6 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
         << "Expected log to contain 'Reset command list to run with runtime' for sixth inference, but got: "
         << logCapture.str();
 
-    /////复现原来的结果：
     std::cout << "[Manually log][InferWithHostCompileTests][ADD TEST] Re-running sixth inference with zero tensor..." << std::endl;
     std::cout << "[Manually log][InferWithHostCompileTests][ADD TEST] model->input() is " << model->input() << std::endl;
     logCapture.clear();
@@ -725,9 +687,9 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
 
     auto outputShapeForSixthInfer2 = reqDynamic1.get_tensor(model->output()).get_shape();
     auto zeroOutputTensorForSixthInfer2 =
-        zeroContext.create_host_tensor(model->input().get_element_type(), outputShapeForSixthInfer2);///一点点不一样的地方
+        zeroContext.create_host_tensor(model->input().get_element_type(), outputShapeForSixthInfer2);
     auto hostTensorSourceForOutputForSixthInfer2 =
-        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), outputShapeForSixthInfer2, 100, 0);//一点点不一样的地方
+        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), outputShapeForSixthInfer2, 100, 0);
     ASSERT_EQ(hostTensorSourceForOutputForSixthInfer2.get_byte_size(), zeroOutputTensorForSixthInfer2.get_byte_size())
         << "Source and destination tensors must have identical byte sizes for copy";
     std::memcpy(zeroOutputTensorForSixthInfer2.data(),
@@ -748,8 +710,6 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
 
 }
 
-
-//只测试dynamic-batch模型, 其余维度可以是dynamic,也可以不是dynamic
 TEST_P(InferWithHostCompileTests, DynamicNHWUsesOneVMExecution) {
     SKIP_IF_NOT_TARGET_DEVICE()
     // Only dynamic-batch ESPCN_x2 variants can aggregate two N=1 tensors into one N=2 VM execution.
@@ -774,7 +734,6 @@ TEST_P(InferWithHostCompileTests, DynamicNHWUsesOneVMExecution) {
     ov::InferRequest reqReference1 = testContext.referenceCompiledModel.create_infer_request();
 
     // A single N=2 tensor must execute as one dynamic VM inference.
-    // model input 除了2，改为输入的 batch 大小，但是这里为什么使用的false?  小形状
     const ov::Shape batchShape = makeInputShape(model, 2, /*useLargeShape=*/false);
     auto fullBatchTensor =
         ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), batchShape, 100, 0);
@@ -817,109 +776,6 @@ TEST_P(InferWithHostCompileTests, DynamicNHWUsesOneVMExecution) {
 
     ASSERT_EQ(countVMExecutions(logCapture.str()), 1u) << logCapture.str();
 }
-
-// // Grow N, H and W simultaneously within the model's declared bounds and verify both output correctness and
-// // command-list reconfiguration behavior.
-// //看看这个为什么失败？
-// TEST_P(InferWithHostCompileTests, DynamicNHWIncreasedSize) {
-//     SKIP_IF_NOT_TARGET_DEVICE()
-//     // Only dynamic-batch ESPCN_x2 variants are exercised by the dynamic-batch VM pipeline here.
-//     if (!hasDynamicBatch(selectedModelName)) {
-//         GTEST_SKIP() << "Only applies to the dynamic-batch model";
-//     }
-
-//     auto model = createModelByName(selectedModelName);
-//     ScopedLogCapture logCapture;
-
-//     core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
-//     auto setupResult = prepareRuntimeCompareContext(model);
-//     if (setupResult.status == RuntimeCompareStatus::fail) {
-//         FAIL() << setupResult.message;
-//     }
-//     if (setupResult.status == RuntimeCompareStatus::skip) {
-//         GTEST_SKIP() << setupResult.message;
-//     }
-//     auto& testContext = setupResult.context;
-
-//     // Start with a small valid N/H/W combination.
-//     ov::Shape smallShape = makeInputShape(model, 1, /*useLargeShape=*/false);
-//     ov::Tensor smallTensor =
-//         ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), smallShape, 100, 0);
-//     setInputInferAndCompare(model,
-//                             testContext.reqDynamic,
-//                             testContext.reqReference,
-//                             smallTensor,
-//                             "DynamicNHWIncreasedSize_small");
-//     ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
-//         << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
-
-//     logCapture.clear();
-//     // Grow N, H and W at once.
-//     ov::Shape largeShape = makeInputShape(model, 2, /*useLargeShape=*/true);
-//     ov::Tensor largeTensor =
-//         ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), largeShape, 100, 0);
-//     setInputInferAndCompare(model,
-//                             testContext.reqDynamic,
-//                             testContext.reqReference,
-//                             largeTensor,
-//                             "DynamicNHWIncreasedSize_large");
-//     ASSERT_EQ(testContext.reqDynamic.get_tensor(model->output()).get_shape(), dynamicNHWOutputShape(largeShape));
-//     ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
-//         << "Expected log to contain 'Reset command list to run with runtime' after growing N/H/W simultaneously, but "
-//            "got: "
-//         << logCapture.str();
-// }
-
-// // Shrink N, H and W simultaneously and verify both output correctness and command-list reconfiguration behavior.
-// //看看这个为什么失败？
-// TEST_P(InferWithHostCompileTests, DynamicNHWDecreasedSize) {
-//     SKIP_IF_NOT_TARGET_DEVICE()
-//     // Only dynamic-batch ESPCN_x2 variants are exercised by the dynamic-batch VM pipeline here.
-//     if (!hasDynamicBatch(selectedModelName)) {
-//         GTEST_SKIP() << "Only applies to the dynamic-batch model";
-//     }
-
-//     auto model = createModelByName(selectedModelName);
-//     ScopedLogCapture logCapture;
-
-//     core->set_property("NPU", ov::log::level(ov::log::Level::DEBUG));
-//     auto setupResult = prepareRuntimeCompareContext(model);
-//     if (setupResult.status == RuntimeCompareStatus::fail) {
-//         FAIL() << setupResult.message;
-//     }
-//     if (setupResult.status == RuntimeCompareStatus::skip) {
-//         GTEST_SKIP() << setupResult.message;
-//     }
-//     auto& testContext = setupResult.context;
-
-//     // Start with the larger N/H/W combination.
-//     ov::Shape largeShape = makeInputShape(model, 2, /*useLargeShape=*/true);
-//     ov::Tensor largeTensor =
-//         ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), largeShape, 100, 0);
-//     setInputInferAndCompare(model,
-//                             testContext.reqDynamic,
-//                             testContext.reqReference,
-//                             largeTensor,
-//                             "DynamicNHWDecreasedSize_large");
-//     ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
-//         << "Expected log to contain 'Reset command list to run with runtime', but got: " << logCapture.str();
-
-//     logCapture.clear();
-//     // Shrink N, H and W at once.
-//     ov::Shape smallShape = makeInputShape(model, 1, /*useLargeShape=*/false);
-//     ov::Tensor smallTensor =
-//         ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), smallShape, 100, 0);
-//     setInputInferAndCompare(model,
-//                             testContext.reqDynamic,
-//                             testContext.reqReference,
-//                             smallTensor,
-//                             "DynamicNHWDecreasedSize_small");
-//     ASSERT_EQ(testContext.reqDynamic.get_tensor(model->output()).get_shape(), dynamicNHWOutputShape(smallShape));
-//     ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
-//         << "Expected log to contain 'Reset command list to run with runtime' after shrinking N/H/W simultaneously, "
-//            "but got: "
-//         << logCapture.str();
-// }
 
 using InferWithDefaultHostCompileTests = InferWithHostCompileTests;
 
@@ -1019,15 +875,10 @@ const std::vector<ov::AnyMap> configs = {
 // Every name maps to the same ESPCN_x2 graph (see espcnModelConfigs) built with different dynamic N/H/W bounds
 // and layout; the concrete test shapes are derived from those bounds via makeInputShape.
 const std::vector<std::string> modelNames = {"ESPCN_x2_DynHW_FHD",  // [1,1..1080,10..1920,1]
-                                             "ESPCN_x2_DynNHW_FHD", // [1..10,1..1080,10..1920,1] (1920x1080)
-                                             "ESPCN_x2_DynHW_HD",   // [1,10..720,10..1280,1]   （1280x720）
-                                            //  "ESPCN_x2_DynNHW_Tiny",
-                                            //  "ESPCN_x2_DynNHW_Tiny2",
+                                             "ESPCN_x2_DynNHW_FHD", // [1..10,1..1080,10..1920,1]
+                                             "ESPCN_x2_DynHW_HD",   // [1,10..720,10..1280,1]
                                              "ESPCN_x2_DynHW_FHD2", //[1, 10..2160, 10..3840,1]
-                                            //  "ESPCN_x2_DynNHW_HD_NCHW_ODD" // 不知道这个会不会有什么问题 [1,10..710), 10..1010,1]
-                                            }; //[1..2,32..270,10..1280,1] (nhwcLayout)
-
-                                            //缺乏奇数的model 测试
+                                            };
 
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
@@ -1050,10 +901,11 @@ const std::vector<ov::AnyMap> defaultHostCompileconfigs = {
 };
 
 
-/// 这个应该测试的是
-////  仅N为dynamic [1..10,1080,1920,1] （static pipeline）；height和width至少有一个为dynamic的 [1..10,10..1080,10..1920,1] （dynamic pipeline）
-/// 现在测试的内容
-///        ESPCN_x2_DynHW_HD_NCHW  [1,10..720,10..1280,1]
+/// This was originally intended to test:
+/// Only N is dynamic [1..10, 1080, 1920, 1] (takes the static pipeline); 
+/// At least one of height or width is dynamic [1..10, 10..1080, 10..1920, 1] (takes the dynamic pipeline).
+///  What is origin being tested:
+///        ESPCN_x2_DynHW_HD_NCHW  [1,10..720,10..1280,1]  -- neeed update for new pipeline
 ///        ESPCN_x2_DynNHW_HD_NCHW    [2..10,10..720,10..1280,1]
 const std::vector<std::string> defaultHCModelNames = {"ESPCN_x2_DynN_HD_NCHW", "ESPCN_x2_DynNHW_HD_NCHW"};
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
