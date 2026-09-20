@@ -51,6 +51,7 @@ inline std::shared_ptr<ov::Model> createESPCNX2Model(ov::Dimension batchDimensio
         // set_tensors()/batched inference requires the batch (N) dimension to be identifiable via layout.
         input->set_layout("NHWC");
         auto transposeOrder = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
+        // NHWC -> NCHW transpose,convert the layout from NHWC to NCHW
         nchwInput = std::make_shared<ov::op::v1::Transpose>(input, transposeOrder);
     } else {
         input->set_layout("NCHW");
