@@ -314,12 +314,12 @@ TEST(HostFlashAttentionFromTest, SupportsAttentionSinkWithPostQKScale) {
     EXPECT_NE(result->_tile_param_index_map.find(ov::npuw::HFATileInputId::SCALE), result->_tile_param_index_map.end());
     EXPECT_TRUE(
         std::any_of(result->_tile_model->inputs().begin(), result->_tile_model->inputs().end(), [](const auto& input) {
-            return input.get_names().count("SCALE") != 0;
+            return input.get_node()->get_friendly_name() == "SCALE";
         }));
     EXPECT_TRUE(std::any_of(result->_final_tile_model->inputs().begin(),
                             result->_final_tile_model->inputs().end(),
                             [](const auto& input) {
-                                return input.get_names().count("SCALE") != 0;
+                                return input.get_node()->get_friendly_name() == "SCALE";
                             }));
 }
 
