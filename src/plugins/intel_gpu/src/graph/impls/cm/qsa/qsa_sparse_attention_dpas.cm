@@ -171,7 +171,12 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,                 
     static_assert(DV % (W * QSA_REG_N) == 0, "v head size must split evenly into per-worker dpas N tiles");
     static_assert(R % 2 == 0, "VNNI row pairs require an even compress ratio");
     static_assert(QSA_BLKS_PER_STEP * R == NKV, "compress ratio must divide the dpas K step");
+#if !QSA_DENSE_MODE
+    // Paged-backend-only invariant -- see qsa_prepare.cm's identical guard for the
+    // rationale (dense_mode always has exactly one degenerate page, so a compressed
+    // block can never straddle a page boundary regardless of this divisibility).
     static_assert(PA_BLOCK % R == 0, "a compressed block must not cross a KV page");
+#endif
     static_assert(DH_W % QSA_WIDE_COLS == 0 && DV_W % QSA_WIDE_COLS == 0,
                   "wide loads must cover every worker dimension");
     static_assert(HT * TT == NQ, "the dpas N axis must be filled exactly by heads x tokens");

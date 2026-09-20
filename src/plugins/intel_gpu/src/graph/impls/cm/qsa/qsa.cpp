@@ -313,6 +313,22 @@ JitConstants make_qsa_jit(const std::shared_ptr<const qsa>& desc, const RuntimeP
     jit.make("QSA_BUDGET", desc->budget);
     jit.make("QSA_MAX_SELECTED", desc->max_selected_tokens());
     jit.make("QSA_PA_BLOCK_SIZE", desc->dense_mode ? dense_pa_block_size(params, *desc) : desc->pa_block_size);
+    // dense_mode always addresses through a SINGLE degenerate page whose size equals
+    // QSA_PA_BLOCK_SIZE (this call's actual runtime cache length): every block/token
+    // index computed by qsa_prepare.cm/qsa_sparse_attention_dpas.cm/
+    // qsa_sparse_attention_split.cm's page-relative math (`p / PA_BLOCK`,
+    // `qsa_block / (PA_BLOCK / R)`) is therefore ALWAYS 0 regardless of whether
+    // PA_BLOCK is a multiple of R -- the "a compressed block must not cross a page"
+    // static_assert those kernels carry is a real PAGED-mode structural invariant
+    // (pa_block_size is a fixed, validate_config()-checked multiple of compress_ratio
+    // there) that does not apply here: there is no second page to cross into. In dense
+    // mode QSA_PA_BLOCK_SIZE instead tracks the CURRENT call's total sequence length,
+    // which is a multiple of compress_ratio only by coincidence (e.g. never for a
+    // single-token decode step unless total_len % compress_ratio == 0), so keeping the
+    // assert unconditional would make dense_mode fail to even COMPILE for the common
+    // case. This flag lets those kernels skip only that specific compile-time check in
+    // dense_mode; every other invariant (head-size alignment, dpas tiling, ...) is kept.
+    jit.make("QSA_DENSE_MODE", desc->dense_mode ? 1 : 0);
     jit.make("QSA_HAS_OUTPUT_GATE", desc->has_output_gate ? 1 : 0);
     jit.make("QSA_IS_CAUSAL", desc->is_causal ? 1 : 0);
     jit.add(make_jit_constant("QSA_SCALE", desc->scale));

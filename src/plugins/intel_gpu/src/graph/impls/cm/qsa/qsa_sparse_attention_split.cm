@@ -22,7 +22,13 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(const half* query ATTR,
     constexpr uint R = QSA_COMPRESS_RATIO, PA_BLOCK = QSA_PA_BLOCK_SIZE;
     constexpr uint K_TOPK = QSA_BLOCK_TOPK, P = QSA_SPLIT_PARTITIONS;
     static_assert(DH % 16 == 0 && DV % 16 == 0, "head sizes must be multiples of 16");
-    static_assert(P > 0 && PA_BLOCK % R == 0 && HQ % HKV == 0, "invalid split geometry");
+    static_assert(P > 0 && HQ % HKV == 0, "invalid split geometry");
+#if !QSA_DENSE_MODE
+    // Paged-backend-only invariant -- see qsa_prepare.cm's identical guard for the
+    // rationale (dense_mode always has exactly one degenerate page, so a compressed
+    // block can never straddle a page boundary regardless of this divisibility).
+    static_assert(PA_BLOCK % R == 0, "invalid split geometry: a compressed block must not cross a KV page");
+#endif
     const uint head = cm_global_id(0), token_idx = cm_global_id(1), part = cm_global_id(2);
     if (head >= HQ || token_idx >= num_tokens || part >= P) return;
     uint seq = 0, abs_pos = 0;

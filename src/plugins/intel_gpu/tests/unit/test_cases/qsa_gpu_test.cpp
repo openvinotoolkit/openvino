@@ -2176,6 +2176,226 @@ TEST(qsa_gpu_test, qsasdpa_ov_model_decode_continuation_matches_reference) {
     expect_qsasdpa_matches_reference(ref, false);
 }
 
+// ---------------------------------------------------------------------------
+// QSASDPA single-batch DYNAMIC SEQUENCE LENGTH across repeated infer() calls: builds ONE
+// compiled model (mixed/query/position_ids/every dense cache declared with a DYNAMIC
+// sequence axis) and ONE ov::InferRequest, then dispatches several infer() calls with
+// DIFFERENT actual `S`/`q_len` values back to back (growing chunked-prefill continuation
+// followed by several single-token decode steps). Every QSASDPA end-to-end test above
+// instead builds a brand-new ov::Core/ov::Model/infer_request PER TEST and calls infer()
+// EXACTLY ONCE -- none of them can catch a bug where an internal scratch buffer
+// (BLOCK_SCORES/SELECTED_BLOCKS/PREPARE_MAP/SCORE_TILE_MAP, see
+// QSACmImpl::get_internal_buffer_descs) is sized once from an EARLIER call's shape and
+// never grown for a LATER, longer call on the SAME compiled primitive_inst -- exactly the
+// "single batch, dynamic sequence length" scenario the design doc's final baseline
+// (QSA_SDPA_DESIGN.md section 15) requires.
+//
+// `full` must be a single reference spanning the WHOLE eventual history (past_len==0,
+// q_len==sum of every step's q_len, built via ONE make_reference() call so every step
+// reads from the SAME underlying random data/weights). Each `steps[i] = {past_len, q_len}`
+// slices `full`'s own query_cur/mixed_all/key_all/value_all at that absolute-position
+// window -- generalizing the `decode = prefill; decode.past_len = ...;
+// decode.query_cur.assign(...)` pattern already used throughout this file for
+// prefill/decode agreement tests to more than 2 windows. Every step's dense caches are
+// (re)built from scratch containing the FULL valid history up to `past_len` (the
+// "advanced caller manages all cache state externally" mode, same as
+// run_qsasdpa_ov_model) -- QSASDPA itself never persists anything across calls, so this
+// test's caller-side bookkeeping IS the persistence, exactly as the design intends.
+void expect_qsasdpa_matches_reference_growing(const qsa_reference& full, const std::vector<std::pair<size_t, size_t>>& steps, bool has_gate,
+                                              float tol = 5e-2f) {
+    ov::Core core;
+    std::vector<std::string> available_devices;
+    try {
+        available_devices = core.get_available_devices();
+    } catch (...) {
+    }
+    const bool has_gpu = std::any_of(available_devices.begin(), available_devices.end(), [](const std::string& device) {
+        return device.rfind("GPU", 0) == 0;
+    });
+    if (!has_gpu) {
+        GTEST_SKIP() << "GPU plugin is not available in ov::Core (unit test binary may lack plugin discovery).";
+    }
+
+    const auto& d = full.d;
+    size_t total_check = 0;
+    for (const auto& step : steps) {
+        ASSERT_EQ(step.first, total_check) << "steps must cover a contiguous, non-overlapping prefix of `full`";
+        total_check += step.second;
+    }
+    ASSERT_EQ(total_check, full.total_len()) << "steps must cover exactly `full`'s whole history";
+
+    const int64_t Hkv = static_cast<int64_t>(d.Hkv);
+    const int64_t Dh = static_cast<int64_t>(d.Dh);
+    const int64_t Dv = static_cast<int64_t>(d.Dv);
+    const int64_t Di = static_cast<int64_t>(d.Di);
+    const int64_t J = static_cast<int64_t>((d.Hidx + 1) * d.Di);
+    const int64_t q_width = has_gate ? 2 * static_cast<int64_t>(d.Hq) * Dh : static_cast<int64_t>(d.Hq) * Dh;
+
+    auto mixed_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, static_cast<int64_t>(d.D)});
+    auto query_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, q_width});
+    auto past_lens_p = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+    auto subseq_p = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2});
+    auto key_cache_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, Hkv, -1, Dh});
+    auto value_cache_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, Hkv, -1, Dv});
+    auto raw_k_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, -1, Di});
+    auto summary_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, -1, Di});
+    auto idx_w_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{static_cast<size_t>(J), d.D});
+    auto q_norm_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{d.Di});
+    auto k_norm_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{d.Di});
+    auto rotary_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{d.max_positions, d.rotary});
+    auto position_ids_p = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
+
+    auto config = make_config(d, has_gate);
+    // Purely an internal-scratch-buffer sizing hint (see run_qsasdpa_ov_model); fully
+    // decoupled from any step's actual runtime cache length.
+    config.pa_block_size = ((full.total_len() + 37 + d.r - 1) / d.r) * d.r;
+
+    ov::OutputVector args = {mixed_p,   query_p,      past_lens_p, subseq_p,   key_cache_p, value_cache_p, raw_k_p,
+                            summary_p, idx_w_p,      q_norm_p,    k_norm_p,   rotary_p,    position_ids_p};
+    static_assert(ov::intel_gpu::op::QSASDPA::InputIdx::COUNT == 13, "keep this test in sync with QSASDPA::InputIdx");
+    auto qsasdpa = std::make_shared<ov::intel_gpu::op::QSASDPA>(args, config);
+    auto result = std::make_shared<ov::op::v0::Result>(qsasdpa);
+    auto model = std::make_shared<ov::Model>(
+        ov::ResultVector{result},
+        ov::ParameterVector{mixed_p, query_p, past_lens_p, subseq_p, key_cache_p, value_cache_p, raw_k_p, summary_p, idx_w_p, q_norm_p, k_norm_p, rotary_p,
+                           position_ids_p});
+
+    auto compiled = core.compile_model(model, "GPU");
+    auto infer_request = compiled.create_infer_request();
+
+    auto fill_f16 = [&](size_t idx, const std::vector<float>& data) {
+        auto tensor = infer_request.get_input_tensor(idx);
+        auto* dst = tensor.data<ov::float16>();
+        for (size_t i = 0; i < data.size(); i++) {
+            dst[i] = ov::float16(data[i]);
+        }
+    };
+    fill_f16(8, full.idx_w);
+    fill_f16(9, full.q_norm);
+    fill_f16(10, full.k_norm);
+    fill_f16(11, full.rotary);
+
+    auto set_f16 = [&](const std::shared_ptr<ov::op::v0::Parameter>& param, const ov::Shape& shape, const std::vector<float>& data) {
+        ov::Tensor tensor(ov::element::f16, shape);
+        auto* dst = tensor.data<ov::float16>();
+        for (size_t i = 0; i < data.size(); i++) {
+            dst[i] = ov::float16(data[i]);
+        }
+        infer_request.set_tensor(param, tensor);
+    };
+    auto set_i32 = [&](const std::shared_ptr<ov::op::v0::Parameter>& param, const ov::Shape& shape, const std::vector<int32_t>& data) {
+        ov::Tensor tensor(ov::element::i32, shape);
+        auto* dst = tensor.data<int32_t>();
+        for (size_t i = 0; i < data.size(); i++) {
+            dst[i] = data[i];
+        }
+        infer_request.set_tensor(param, tensor);
+    };
+
+    size_t compared = 0;
+    for (const auto& step : steps) {
+        const size_t past_len = step.first;
+        const size_t q_len = step.second;
+        const size_t total = past_len + q_len;
+
+        qsa_reference step_ref = full;
+        step_ref.past_len = past_len;
+        step_ref.q_len = q_len;
+        step_ref.query_cur.assign(full.query_cur.begin() + static_cast<long>(past_len * static_cast<size_t>(q_width)),
+                                  full.query_cur.begin() + static_cast<long>(total * static_cast<size_t>(q_width)));
+
+        // Dense main K/V cache: full history [0, total) -- as if an external KVCache node
+        // had already appended every token up to and including this call's new ones.
+        std::vector<float> key_cache_dense(d.Hkv * total * d.Dh, 0.0f);
+        std::vector<float> value_cache_dense(d.Hkv * total * d.Dv, 0.0f);
+        for (size_t p = 0; p < total; p++) {
+            for (size_t h = 0; h < d.Hkv; h++) {
+                for (size_t j = 0; j < d.Dh; j++) {
+                    key_cache_dense[(h * total + p) * d.Dh + j] = full.key_all[p * d.Hkv * d.Dh + h * d.Dh + j];
+                }
+                for (size_t j = 0; j < d.Dv; j++) {
+                    value_cache_dense[(h * total + p) * d.Dv + j] = full.value_all[p * d.Hkv * d.Dv + h * d.Dv + j];
+                }
+            }
+        }
+        // Indexer raw-K/summary: only pre-populated up to past_len -- Q1 computes and
+        // appends this call's new entries itself (see run_qsasdpa_ov_model).
+        std::vector<float> raw_k_dense(total * d.Di, 0.0f);
+        for (size_t p = 0; p < past_len; p++) {
+            const auto proj = full.project(p);
+            for (size_t j = 0; j < d.Di; j++) {
+                raw_k_dense[p * d.Di + j] = proj[d.Hidx * d.Di + j];
+            }
+        }
+        const size_t summaries = total / d.r;
+        std::vector<float> summary_dense(summaries * d.Di, 0.0f);
+        for (size_t b = 0; b * d.r + d.r <= past_len; b++) {
+            const auto s = full.summary(b);
+            for (size_t j = 0; j < d.Di; j++) {
+                summary_dense[b * d.Di + j] = s[j];
+            }
+        }
+
+        std::vector<int32_t> position_ids(q_len);
+        for (size_t t = 0; t < q_len; t++) {
+            position_ids[t] = static_cast<int32_t>(past_len + t);
+        }
+
+        set_f16(mixed_p, ov::Shape{q_len, d.D},
+                std::vector<float>(full.mixed_all.begin() + static_cast<long>(past_len * d.D), full.mixed_all.begin() + static_cast<long>(total * d.D)));
+        set_f16(query_p, ov::Shape{q_len, static_cast<size_t>(q_width)}, step_ref.query_cur);
+        set_i32(past_lens_p, ov::Shape{1}, {static_cast<int32_t>(past_len)});
+        set_i32(subseq_p, ov::Shape{2}, {0, static_cast<int32_t>(q_len)});
+        set_f16(key_cache_p, ov::Shape{1, d.Hkv, total, d.Dh}, key_cache_dense);
+        set_f16(value_cache_p, ov::Shape{1, d.Hkv, total, d.Dv}, value_cache_dense);
+        set_f16(raw_k_p, ov::Shape{1, total, d.Di}, raw_k_dense);
+        set_f16(summary_p, ov::Shape{1, summaries, d.Di}, summary_dense);
+        set_i32(position_ids_p, ov::Shape{q_len}, position_ids);
+
+        infer_request.infer();
+
+        auto out_tensor = infer_request.get_output_tensor(0);
+        const auto* out = out_tensor.data<ov::float16>();
+        std::vector<float> margins;
+        const auto want = step_ref.attention(&margins);
+        ASSERT_EQ(out_tensor.get_size(), want.size()) << "step past_len=" << past_len << " q_len=" << q_len;
+
+        const size_t width = d.Hq * d.Dv;
+        for (size_t t = 0; t < q_len; t++) {
+            if (margins[t] < kMinSelectionMargin) {
+                continue;
+            }
+            compared++;
+            for (size_t i = t * width; i < (t + 1) * width; i++) {
+                ASSERT_NEAR(static_cast<float>(out[i]), want[i], tol) << "step past_len=" << past_len << " q_len=" << q_len << " mismatch at " << i;
+            }
+        }
+    }
+    ASSERT_GE(compared, std::min(full.q_len, kMinComparedTokens))
+        << "only " << compared << " of " << full.q_len << " tokens across all steps had an unambiguous top-k boundary";
+}
+
+TEST(qsa_gpu_test, qsasdpa_ov_model_single_batch_dynamic_length_grows_across_infer_calls) {
+    if (!cm_qsa_available()) {
+        GTEST_SKIP() << "CM JIT / systolic GPU is required for qsa";
+    }
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+
+    qsa_dims d;
+    const size_t total = 36;  // 24 (prefill) + 8 (continuation) + 4 x 1 (decode)
+    ASSERT_SELECTION_IS_DISCRIMINATING(d, 0, total);
+    auto full = make_reference(rg, d, /*past_len=*/0, /*q_len=*/total, /*has_gate=*/false);
+
+    // Growing chunked-prefill continuation (S: 24 -> 32) followed by four single-token
+    // decode steps (S: 32 -> 33 -> 34 -> 35 -> 36) -- all on the SAME compiled model and
+    // SAME ov::InferRequest, mirroring real autoregressive serving.
+    const std::vector<std::pair<size_t, size_t>> steps = {
+        {0, 24}, {24, 8}, {32, 1}, {33, 1}, {34, 1}, {35, 1},
+    };
+    expect_qsasdpa_matches_reference_growing(full, steps, /*has_gate=*/false);
+}
+
 // MIXED: a batch of >1 sequence sharing one layer's weights, some with q_len > 1
 // (prefill/continuation) and some with q_len == 1 (decode), all in a single
 // network.execute() call -- exercises the SAME QSAStage::MIXED host-side dispatch path
@@ -2612,6 +2832,167 @@ TEST(qsa_gpu_test, qsa_indexer_cache_ov_model_persists_state_across_two_infer_ca
             const float expected = s[j];
             const float actual = static_cast<float>(summary_out[b * d.Di + j]);
             ASSERT_NEAR(actual, expected, 5e-2f) << "summary mismatch at block " << b << " dim " << j;
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// QSAIndexerCache single-batch DYNAMIC SEQUENCE LENGTH: the Variables are declared with
+// a FULLY UNBOUNDED sequence axis (`ov::Dimension::dynamic()`, no upper bound at all --
+// unlike make_qsa_indexer_cache_model's `ov::Dimension(0, S)`, which is a genuine OV
+// shape CONSTRAINT that infer()'s own output-tensor-compatibility check enforces, not
+// merely a hint), while `config.pa_block_size` (the internal-scratch-buffer sizing hint
+// consumed by dense_pa_block_size()/get_internal_buffer_descs()) is set to a value far
+// SMALLER than the total number of tokens this test grows the cache to across three
+// infer() calls. This is the direct, observable proof that the scratch-sizing hint does
+// NOT cap actual growth -- unlike the persists-state-across-two-infer-calls test above,
+// whose q_len1+q_len2 total (40) never exceeds its own S=64 hint either way.
+// ---------------------------------------------------------------------------
+
+std::shared_ptr<ov::Model> make_qsa_indexer_cache_model_unbounded(const qsa_dims& d, int64_t B, int64_t pa_block_hint) {
+    const int64_t Di = static_cast<int64_t>(d.Di);
+    const int64_t J = static_cast<int64_t>((d.Hidx + 1) * d.Di);
+
+    auto mixed_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, static_cast<int64_t>(d.D)});
+    auto idx_w_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{J, static_cast<int64_t>(d.D)});
+    auto q_norm_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{Di});
+    auto k_norm_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{Di});
+    auto rotary_p =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{static_cast<int64_t>(d.max_positions), static_cast<int64_t>(d.rotary)});
+    auto past_lens_p = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{B});
+    auto subseq_p = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{B + 1});
+    auto position_ids_p = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
+
+    auto raw_k_variable = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{ov::PartialShape{B, ov::Dimension::dynamic(), Di}, ov::element::f16, "qsa_indexer_raw_k_unbounded"});
+    auto summary_variable = std::make_shared<ov::op::util::Variable>(
+        ov::op::util::VariableInfo{ov::PartialShape{B, ov::Dimension::dynamic(), Di}, ov::element::f16, "qsa_indexer_summary_unbounded"});
+
+    auto config = make_config(d, false);
+    config.pa_block_size = static_cast<size_t>(pa_block_hint);
+
+    ov::OutputVector args = {mixed_p, idx_w_p, q_norm_p, k_norm_p, rotary_p, past_lens_p, subseq_p, position_ids_p};
+    static_assert(ov::intel_gpu::op::QSAIndexerCache::InputIdx::COUNT == 8, "keep this test in sync with QSAIndexerCache::InputIdx");
+    auto cache = std::make_shared<ov::intel_gpu::op::QSAIndexerCache>(args, raw_k_variable, summary_variable, config);
+
+    auto raw_k_result = std::make_shared<ov::op::v0::Result>(cache->output(0));
+    auto summary_result = std::make_shared<ov::op::v0::Result>(cache->output(1));
+    return std::make_shared<ov::Model>(
+        ov::ResultVector{raw_k_result, summary_result},
+        ov::ParameterVector{mixed_p, idx_w_p, q_norm_p, k_norm_p, rotary_p, past_lens_p, subseq_p, position_ids_p});
+}
+
+TEST(qsa_gpu_test, qsa_indexer_cache_ov_model_grows_beyond_initial_capacity_hint) {
+    if (!cm_qsa_available()) {
+        GTEST_SKIP() << "CM JIT / systolic GPU is required for qsa";
+    }
+    ov::Core core;
+    std::vector<std::string> available_devices;
+    try {
+        available_devices = core.get_available_devices();
+    } catch (...) {
+    }
+    const bool has_gpu = std::any_of(available_devices.begin(), available_devices.end(), [](const std::string& device) {
+        return device.rfind("GPU", 0) == 0;
+    });
+    if (!has_gpu) {
+        GTEST_SKIP() << "GPU plugin is not available in ov::Core (unit test binary may lack plugin discovery).";
+    }
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+
+    qsa_dims d;
+    const size_t q_len_per_call = 20;
+    const size_t num_calls = 3;
+    const size_t total = q_len_per_call * num_calls;  // 60
+    const int64_t S = 24;  // deliberately << total: only an internal-scratch-buffer sizing
+                           // hint (config.pa_block_size), not a shape bound -- the
+                           // Variables themselves are declared fully unbounded above.
+    auto ref = make_reference(rg, d, /*past_len=*/0, /*q_len=*/total, /*has_gate=*/false);
+
+    auto model = make_qsa_indexer_cache_model_unbounded(d, /*B=*/1, S);
+    auto compiled = core.compile_model(model, "GPU");
+    auto infer_request = compiled.create_infer_request();
+
+    auto set_f16 = [&](const std::shared_ptr<ov::op::v0::Parameter>& param, const ov::Shape& shape, const std::vector<float>& data) {
+        ov::Tensor tensor(ov::element::f16, shape);
+        auto* dst = tensor.data<ov::float16>();
+        for (size_t i = 0; i < data.size(); i++) {
+            dst[i] = ov::float16(data[i]);
+        }
+        infer_request.set_tensor(param, tensor);
+    };
+    auto set_i32 = [&](const std::shared_ptr<ov::op::v0::Parameter>& param, const ov::Shape& shape, const std::vector<int32_t>& data) {
+        ov::Tensor tensor(ov::element::i32, shape);
+        auto* dst = tensor.data<int32_t>();
+        for (size_t i = 0; i < data.size(); i++) {
+            dst[i] = data[i];
+        }
+        infer_request.set_tensor(param, tensor);
+    };
+
+    const auto& params = model->get_parameters();
+    auto mixed_p = params[0];
+    auto idx_w_p = params[1];
+    auto q_norm_p = params[2];
+    auto k_norm_p = params[3];
+    auto rotary_p = params[4];
+    auto past_lens_p = params[5];
+    auto subseq_p = params[6];
+    auto position_ids_p = params[7];
+
+    set_f16(idx_w_p, ov::Shape{(d.Hidx + 1) * d.Di, d.D}, ref.idx_w);
+    set_f16(q_norm_p, ov::Shape{d.Di}, ref.q_norm);
+    set_f16(k_norm_p, ov::Shape{d.Di}, ref.k_norm);
+    set_f16(rotary_p, ov::Shape{d.max_positions, d.rotary}, ref.rotary);
+
+    auto run_call = [&](size_t past_len, size_t q_len) {
+        const std::vector<float> cur_mixed(ref.mixed_all.begin() + past_len * d.D, ref.mixed_all.begin() + (past_len + q_len) * d.D);
+        std::vector<int32_t> position_ids(q_len);
+        for (size_t t = 0; t < q_len; t++) {
+            position_ids[t] = static_cast<int32_t>(past_len + t);
+        }
+        set_f16(mixed_p, ov::Shape{q_len, d.D}, cur_mixed);
+        set_i32(past_lens_p, ov::Shape{1}, {static_cast<int32_t>(past_len)});
+        set_i32(subseq_p, ov::Shape{2}, {0, static_cast<int32_t>(q_len)});
+        set_i32(position_ids_p, ov::Shape{q_len}, position_ids);
+        infer_request.infer();
+    };
+
+    for (size_t call_idx = 0; call_idx < num_calls; call_idx++) {
+        const size_t past_len = call_idx * q_len_per_call;
+        run_call(past_len, q_len_per_call);
+        const size_t expect_raw = past_len + q_len_per_call;
+        const auto raw_k_shape = infer_request.get_output_tensor(0).get_shape();
+        const auto summary_shape = infer_request.get_output_tensor(1).get_shape();
+        ASSERT_EQ(raw_k_shape, (ov::Shape{1, expect_raw, d.Di}))
+            << "call " << call_idx << ": raw-K must grow to exactly " << expect_raw
+            << " entries even though the declared capacity hint S=" << S << " was already exceeded";
+        ASSERT_EQ(summary_shape, (ov::Shape{1, expect_raw / d.r, d.Di}))
+            << "call " << call_idx << ": summary must grow to exactly floor(" << expect_raw << "/r) entries beyond the S=" << S << " hint";
+    }
+
+    auto raw_k_tensor = infer_request.get_output_tensor(0);
+    auto summary_tensor = infer_request.get_output_tensor(1);
+    const auto* raw_k_out = raw_k_tensor.data<ov::float16>();
+    const auto* summary_out = summary_tensor.data<ov::float16>();
+
+    for (size_t p = 0; p < total; p++) {
+        const auto proj = ref.project(p);
+        for (size_t j = 0; j < d.Di; j++) {
+            const float expected = proj[d.Hidx * d.Di + j];
+            const float actual = static_cast<float>(raw_k_out[p * d.Di + j]);
+            ASSERT_NEAR(actual, expected, 5e-2f) << "raw_k mismatch at token " << p << " (beyond the S=" << S << " capacity hint) dim " << j;
+        }
+    }
+    const size_t n_complete = total / d.r;
+    for (size_t b = 0; b < n_complete; b++) {
+        const auto s = ref.summary(b);
+        for (size_t j = 0; j < d.Di; j++) {
+            const float expected = s[j];
+            const float actual = static_cast<float>(summary_out[b * d.Di + j]);
+            ASSERT_NEAR(actual, expected, 5e-2f) << "summary mismatch at block " << b << " (beyond the S=" << S << " capacity hint) dim " << j;
         }
     }
 }

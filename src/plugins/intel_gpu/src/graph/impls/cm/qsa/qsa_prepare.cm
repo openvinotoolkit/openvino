@@ -75,7 +75,16 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
 
     static_assert(DI % 16 == 0, "indexer head dim must be a multiple of 16");
     static_assert(D % 16 == 0, "hidden size must be a multiple of 16");
+#if !QSA_DENSE_MODE
+    // Only a real invariant for the paged backend, where PA_BLOCK is a fixed,
+    // validate_config()-checked capacity and multiple physical pages can exist: it
+    // guarantees a compressed block never straddles two pages. In dense_mode PA_BLOCK
+    // is this call's actual (runtime-varying) total sequence length and there is only
+    // ever ONE degenerate page (index 0), so `qsa_block / (PA_BLOCK / R)` is always 0
+    // regardless of this divisibility -- see qsa.cpp's make_qsa_jit() for the full
+    // rationale.
     static_assert(PA_BLOCK % R == 0, "PA_BLOCK_SIZE must be divisible by compress_ratio");
+#endif
     static_assert(HIDX + 1 <= WG, "one thread per indexer head plus one for raw K");
 
     // Widest contiguous chunk that always divides D, so activation staging and the weight
