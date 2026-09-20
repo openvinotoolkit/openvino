@@ -283,6 +283,7 @@ static const std::vector<std::string> models{
     std::string("layer_norm_noscale/layer_norm_noscale.pdmodel"),
     std::string("layer_norm_noshift/layer_norm_noshift.pdmodel"),
     std::string("leaky_relu/leaky_relu.pdmodel"),
+    std::string("leaky_relu_float64/leaky_relu_float64.pdmodel"),
     std::string("less_than_float32/less_than_float32.pdmodel"),
     std::string("less_than_int32/less_than_int32.pdmodel"),
     std::string("less_than_int64/less_than_int64.pdmodel"),
