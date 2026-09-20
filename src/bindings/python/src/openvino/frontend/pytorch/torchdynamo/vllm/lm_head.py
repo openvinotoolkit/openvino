@@ -34,7 +34,7 @@ def _ov_type_for(torch_dtype):
     }.get(torch_dtype)
 
 
-def _copy_into(ov_tensor, t):
+def _copy_into(ov_tensor, tensor):
     """Fill an OV tensor from a torch tensor, preserving bf16 bits.
 
     numpy has no bfloat16, so bf16 goes through a uint16 re-tag on both sides
@@ -45,7 +45,7 @@ def _copy_into(ov_tensor, t):
     import torch
 
     dst = np.asarray(ov_tensor.data)
-    src = t.contiguous()
+    src = tensor.contiguous()
     if src.dtype == torch.bfloat16:
         dst.view(np.uint16)[:] = src.view(torch.uint16).numpy()
     else:
@@ -73,15 +73,15 @@ def build_ov_lm_head(weight, nthreads=None):
         # there is nothing to share it with. 0 means "let OV decide".
         nthreads = int(os.environ.get("OV_INFERENCE_NUM_THREADS", "0") or 0)
 
-    V, H = weight.shape
-    wt = ov.Tensor(et, [V, H])
+    vocab_size, hidden_size = weight.shape
+    wt = ov.Tensor(et, [vocab_size, hidden_size])
     _copy_into(wt, weight)
 
     # transpose_b: vLLM stores lm_head as [vocab, hidden]; avoids copying a
     # 131-467 MB weight to consume it the other way.
-    p = op.parameter([-1, H], et, name="x")
-    model = ov.Model([op.result(op.matmul(p, op.constant(wt), False, True))],
-                     [p], "ov_lm_head")
+    param = op.parameter([-1, hidden_size], et, name="x")
+    model = ov.Model([op.result(op.matmul(param, op.constant(wt), False, True))],
+                     [param], "ov_lm_head")
 
     # Compute at the model's own dtype, not preset's f16->bf16 substitute --
     # bf16's narrower mantissa would flip greedy argmax on near-ties.
@@ -94,14 +94,14 @@ def build_ov_lm_head(weight, nthreads=None):
     iport, oport = compiled.inputs[0], compiled.outputs[0]
     staging = {}
 
-    def cpu_linear(x, weight, bias):
-        rows = x.shape[0]
+    def cpu_linear(inp, weight, bias):
+        rows = inp.shape[0]
         buf = staging.get(rows)
         if buf is None:
             if len(staging) >= _MAX_CACHED_SHAPES:
                 staging.clear()
-            buf = staging[rows] = ov.Tensor(et, [rows, H])
-        _copy_into(buf, x)
+            buf = staging[rows] = ov.Tensor(et, [rows, hidden_size])
+        _copy_into(buf, inp)
         req.set_tensor(iport, buf)
         req.infer()
 
@@ -114,5 +114,5 @@ def build_ov_lm_head(weight, nthreads=None):
         return out + bias if bias is not None else out
 
     logger.info("[OV plugin] lm_head compiled on OV: [%d, %d] %s, %s threads",
-                V, H, et.get_type_name(), nthreads or "auto")
+                vocab_size, hidden_size, et.get_type_name(), nthreads or "auto")
     return cpu_linear

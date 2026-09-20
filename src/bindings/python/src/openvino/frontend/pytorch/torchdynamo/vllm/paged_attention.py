@@ -17,7 +17,6 @@ binds the KV cache, block tables and lengths from vllm.forward_context.
 # mypy: ignore-errors
 
 import logging
-from typing import List, Tuple
 
 logger = logging.getLogger(__name__)
 
@@ -105,11 +104,11 @@ def rewrite_unified_attention_to_paged_attention(gm) -> int:
     rewrites = 0
     for node in to_rewrite:
         kw = dict(node.kwargs)
-        q = kw.get("query")
-        k = kw.get("key")
-        v = kw.get("value")
+        query = kw.get("query")
+        key = kw.get("key")
+        value = kw.get("value")
         layer_name = kw.get("layer_name")
-        if q is None or k is None or v is None or layer_name is None:
+        if query is None or key is None or value is None or layer_name is None:
             logger.warning(
                 "Skipping unified_attention rewrite: missing q/k/v/layer_name in kwargs"
             )
@@ -118,7 +117,7 @@ def rewrite_unified_attention_to_paged_attention(gm) -> int:
         with gm.graph.inserting_after(node):
             new_node = gm.graph.call_function(
                 paged_attention_op,
-                args=(q, k, v, layer_name),
+                args=(query, key, value, layer_name),
             )
 
         # auto_functionalized_v2 writes output to _all_bases[_output_base_index];

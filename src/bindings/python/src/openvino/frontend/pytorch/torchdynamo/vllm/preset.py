@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -29,13 +30,13 @@ def bool_opt(options, key: str, default: bool) -> bool:
     not need the preset lookup.
     """
     if options is not None and key in options:
-        v = options[key]
+        value = options[key]
     else:
         if is_vllm_preset(options) and has_preset_flag(key):
-            v = preset_flag(key)
+            value = preset_flag(key)
         else:
             return default
-    return bool(v) and str(v).lower() not in ("false", "0")
+    return bool(value) and str(value).lower() not in ("false", "0")
 
 
 # Expanded from options["vllm"]=True; caller-supplied flags win (see bool_opt).
@@ -84,8 +85,8 @@ def is_vllm_preset(options) -> bool:
     """True iff options["vllm"] is set to a truthy value."""
     if options is None or "vllm" not in options:
         return False
-    v = options["vllm"]
-    return bool(v) and str(v).lower() not in ("false", "0")
+    value = options["vllm"]
+    return bool(value) and str(value).lower() not in ("false", "0")
 
 
 def preset_flag(key: str):
@@ -104,8 +105,8 @@ def merge_preset_config(base: Optional[dict], model_precision: Optional[str] = N
     pair — see precision_config().
     """
     out = dict(base or {})
-    for k, v in _PRESET_CONFIG.items():
-        out.setdefault(k, v)
-    for k, v in precision_config(model_precision).items():
-        out.setdefault(k, v)
+    for key, value in _PRESET_CONFIG.items():
+        out.setdefault(key, value)
+    for key, value in precision_config(model_precision).items():
+        out.setdefault(key, value)
     return out

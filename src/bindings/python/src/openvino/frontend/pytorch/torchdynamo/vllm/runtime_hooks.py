@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
@@ -20,22 +21,23 @@ _fastinfer_out_static = {}  # id(compiled) -> bool: output views are reusable
 
 
 # Sentinel returned by run_pa_infer to signal "skip this infer; use eager".
-class _PA_Skip:
+class _PaSkip:
     __slots__ = ()
 
 
-PA_SKIP = _PA_Skip()
+PA_SKIP = _PaSkip()
 
 
 def run_pa_infer(compiled, req, ov_inputs):
     """PA-side-channel infer entry point, called from execute.openvino_execute.
 
     Returns one of:
-      * ``PA_SKIP`` — vLLM warmup/profile_run; run eager gm(*args) instead.
-      * ``dict``    — infer result, OV output port -> numpy view. Caller wraps
-                      with torch.from_numpy(...).
-      * ``None``    — no ``__pa__`` inputs; use the normal positional
-                      ``req.infer(ov_inputs, ...)`` path.
+
+    - ``PA_SKIP`` -- vLLM warmup/profile_run; run eager ``gm(*args)`` instead.
+    - ``dict`` -- infer result, OV output port -> numpy view. Caller wraps
+      with ``torch.from_numpy(...)``.
+    - ``None`` -- no ``__pa__`` inputs; use the normal positional
+      ``req.infer(ov_inputs, ...)`` path.
     """
     if not has_pa_inputs(compiled):
         return None
@@ -53,8 +55,8 @@ def has_pa_inputs(compiled) -> bool:
         names = inp.get_names()
         if not names:
             continue
-        for n in names:
-            if n.startswith("__pa__"):
+        for name in names:
+            if name.startswith("__pa__"):
                 return True
     return False
 
@@ -102,9 +104,9 @@ def build_call_kwargs(compiled, ov_inputs):
     tensor_pos = 0
     for inp in compiled.inputs:
         pa_tensor = None
-        for n in inp.get_names():
-            if n.startswith("__pa__") and n in pa_inputs_by_pos:
-                pa_tensor = pa_inputs_by_pos[n]
+        for name in inp.get_names():
+            if name.startswith("__pa__") and name in pa_inputs_by_pos:
+                pa_tensor = pa_inputs_by_pos[name]
                 break
         if pa_tensor is not None:
             call_kwargs[inp] = pa_tensor
