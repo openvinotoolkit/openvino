@@ -102,16 +102,16 @@ main-attention Q processing is required.
 
 | Index | Name | Required shape/meaning |
 |---:|---|---|
-| 0 | `MIXED` | `[tokens, D]`; output of the gated-residual read/mix stage |
-| 1 | `QUERY` | Prepared main-attention Q: `[tokens, Hq*Dh]`, or `[tokens, 2*Hq*Dh]` with the output-gate payload. It is consumed directly by Q3; QSA does not apply main-Q RMSNorm or RoPE. |
-| 2 | `KEY` | Current token keys, `[tokens, Hkv*Dh]` |
-| 3 | `VALUE` | Current token values, `[tokens, Hkv*Dv]` |
-| 4 | `PAST_LENS` | `[num_seqs]`; integer history length before the current call for each sequence. It selects the append position and visible causal prefix. |
-| 5 | `SUBSEQUENCE_BEGINS` | `[num_seqs+1]`; prefix offsets into ragged token-major `MIXED`, `QUERY`, `KEY`, and `VALUE`. Sequence `s` occupies `[begins[s], begins[s+1])`. |
-| 6 | `BLOCK_INDICES` | `[used_blocks]`; physical page IDs. Logical page `floor(position/PA_BLOCK_SIZE)` is translated through the per-sequence range selected by `BLOCK_INDICES_BEGINS`. |
-| 7 | `BLOCK_INDICES_BEGINS` | `[num_seqs+1]`; offsets into `BLOCK_INDICES`, one range per sequence. |
-| 8 | `KEY_CACHE` | Main K cache, `[num_blocks, Hkv, PA_BLOCK_SIZE, Dh]`, f16 in the current GPU implementation. It is written by Q0 and read by Q3. |
-| 9 | `VALUE_CACHE` | Main V cache, `[num_blocks, Hkv, PA_BLOCK_SIZE, Dv]`, f16 in the current GPU implementation. It is written by Q0 and read by Q3. |
+| 0 | `QUERY` | Prepared main-attention Q: `[tokens, Hq*Dh]`, or `[tokens, 2*Hq*Dh]` with the output-gate payload. It is consumed directly by Q3; QSA does not apply main-Q RMSNorm or RoPE. |
+| 1 | `KEY` | Current token keys, `[tokens, Hkv*Dh]` |
+| 2 | `VALUE` | Current token values, `[tokens, Hkv*Dv]` |
+| 3 | `KEY_CACHE` | Main K cache, `[num_blocks, Hkv, PA_BLOCK_SIZE, Dh]`, f16 in the current GPU implementation. It is written by Q0 and read by Q3. |
+| 4 | `VALUE_CACHE` | Main V cache, `[num_blocks, Hkv, PA_BLOCK_SIZE, Dv]`, f16 in the current GPU implementation. It is written by Q0 and read by Q3. |
+| 5 | `PAST_LENS` | `[num_seqs]`; integer history length before the current call for each sequence. It selects the append position and visible causal prefix. |
+| 6 | `SUBSEQUENCE_BEGINS` | `[num_seqs+1]`; prefix offsets into ragged token-major `MIXED`, `QUERY`, `KEY`, and `VALUE`. Sequence `s` occupies `[begins[s], begins[s+1])`. |
+| 7 | `BLOCK_INDICES` | `[used_blocks]`; physical page IDs. Logical page `floor(position/PA_BLOCK_SIZE)` is translated through the per-sequence range selected by `BLOCK_INDICES_BEGINS`. |
+| 8 | `BLOCK_INDICES_BEGINS` | `[num_seqs+1]`; offsets into `BLOCK_INDICES`, one range per sequence. |
+| 9 | `MIXED` | `[tokens, D]`; output of the gated-residual read/mix stage |
 | 10 | `INDEXER_RAW_K_CACHE` | Unnormalized/unrotated raw indexer-K state, `[num_blocks, 1, PA_BLOCK_SIZE, Di]`; written by Q1 and used to form summaries. |
 | 11 | `INDEXER_SUMMARY_CACHE` | Normalized/rotated completed-block summaries, `[num_blocks, 1, PA_BLOCK_SIZE/R, Di]`; written by Q1 and read by Q2. |
 | 12 | `INDEXER_QK_WEIGHT` | Fused indexer projection, `[H_i*D_i + D_i, D]`; the first `H_i*D_i` rows produce indexer Q and the final `D_i` rows produce indexer K. |
@@ -167,12 +167,12 @@ be connected to `QSASDPA::QUERY`.
 
 | Index | Name | Required shape/meaning |
 |---:|---|---|
-| 0 | `MIXED` | `[tokens, D]` |
-| 1 | `QUERY` | Prepared main-attention Q: `[tokens, Hq*Dh]`, or `[tokens, 2*Hq*Dh]` when the output gate is carried with it. |
-| 2 | `PAST_LENS` | `[num_seqs]`; history length before this call. |
-| 3 | `SUBSEQUENCE_BEGINS` | `[num_seqs+1]`; ragged-token offsets. |
-| 4 | `KEY_CACHE_DENSE` | Dense main K state, `[B, Hkv, L_k, Dh]`; upstream KV cache owns current-token append. |
-| 5 | `VALUE_CACHE_DENSE` | Dense main V state, `[B, Hkv, L_v, Dv]`; upstream KV cache owns current-token append. |
+| 0 | `QUERY` | Prepared main-attention Q: `[tokens, Hq*Dh]`, or `[tokens, 2*Hq*Dh]` when the output gate is carried with it. |
+| 1 | `KEY_CACHE_DENSE` | Dense main K state, `[B, Hkv, L_k, Dh]`; upstream KV cache owns current-token append. |
+| 2 | `VALUE_CACHE_DENSE` | Dense main V state, `[B, Hkv, L_v, Dv]`; upstream KV cache owns current-token append. |
+| 3 | `PAST_LENS` | `[num_seqs]`; history length before this call. |
+| 4 | `SUBSEQUENCE_BEGINS` | `[num_seqs+1]`; ragged-token offsets. |
+| 5 | `MIXED` | `[tokens, D]` |
 | 6 | `INDEXER_RAW_K_CACHE_DENSE` | Runtime dense raw-K view, `[B, L_raw, D_i]`, supplied by the `qsa_inst` indexer-cache state descriptor. |
 | 7 | `INDEXER_SUMMARY_CACHE_DENSE` | Runtime dense summary view, `[B, L_summary, D_i]`, supplied by the `qsa_inst` indexer-cache state descriptor. |
 | 8 | `INDEXER_QK_WEIGHT` | Fused indexer projection, `[H_i*D_i + D_i, D]`. |

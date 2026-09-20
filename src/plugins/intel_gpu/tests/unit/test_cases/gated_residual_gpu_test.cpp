@@ -1,7 +1,7 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// Unit tests for the CM gated_residual primitive (design section 12).
+// Unit tests for the CM gated_residual primitive.
 //
 // Covered:
 //  - READ / MIX: per-branch, per-channel comparison with an FP32 reference, including
@@ -859,7 +859,7 @@ void print_measurement(const char* phase, size_t tokens, const char* stage, doub
 /// `phase == "prefill"` runs the whole context as one call (`rows = tokens`);
 /// `phase == "decode"` runs a single row, matching the QSA harness's query counts. The
 /// shape is the production hyper-connection width: hidden_size = 2560, C = 4 branches
-/// (D = 640), low-rank width = 320 (design section 3).
+/// (D = 640), low-rank width = 320.
 void run_point(const char* phase, size_t tokens) {
     if (!cm_gr_available()) {
         GTEST_SKIP() << "CM JIT / systolic GPU is required for gated_residual";

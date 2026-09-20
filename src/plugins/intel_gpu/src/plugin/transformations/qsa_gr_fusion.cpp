@@ -679,8 +679,8 @@ QSAFusion::QSAFusion() {
 
         // Publish the proven indexer configuration. Production models export
         // ov::intel_gpu::op::QSA directly; the remaining QSA inputs (indexer raw-K / summary caches, page table, RoPE table)
-        // cannot be proven from a generic decomposed graph, so per the design the pass
-        // keeps the original operators instead of guessing.
+        // cannot be proven from a generic decomposed graph, so the pass keeps the
+        // original operators instead of guessing.
         auto& rt = root->get_rt_info();
         rt["qsa_indexer_detected"] = true;
         rt["qsa_indexer_head_dim"] = static_cast<int64_t>(sig.indexer_head_dim);

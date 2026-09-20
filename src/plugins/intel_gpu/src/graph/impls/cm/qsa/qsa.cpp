@@ -96,7 +96,7 @@ bool can_use_dpas_score(const qsa& desc, const cldnn::device_info& info) {
 
 // Upper bound on the BLOCK_SCORES scratch buffer's byte size, regardless of how many
 // query rows a call actually has, so a 128K-token prefill never allocates the tens-of-GB
-// [tokens, max_blocks] f32 buffer an unbounded design would need. Q2 instead runs as a
+// [tokens, max_blocks] f32 buffer a naive implementation would need. Q2 instead runs as a
 // sequence of query-row chunks, each scoring/selecting into the SAME bounded buffer
 // before the next chunk reuses it.
 //
@@ -469,8 +469,8 @@ protected:
         // new buffer's front. The kernel is therefore given the OUTPUT ports (already
         // containing that copied-forward history) to read AND write in place, exactly
         // like the non-growth prepare_only path reads/writes its (there, aliased)
-        // INPUT. The port numbers differ by mode: prepare_only (QSAIndexerCache's
-        // now-retired growth path) declares raw-K/summary at ports 0/1 whenever
+        // INPUT. The port numbers differ by mode. prepare_only declares raw-K/summary
+        // at ports 0/1 whenever
         // dense_mode is set (no attention output exists); QSASDPA's own dense dispatch
         // (prepare_only=false) only takes this branch when it explicitly opted in via
         // grow_dense_state, declaring them at ports 1/2 alongside the attention result
@@ -1426,8 +1426,8 @@ public:
         // declared capacity. This is the same copy_from() primitive kv_cache_inst's own
         // OCL implementation uses for its relocation-on-growth path.
         //
-        // This applies whenever dense_mode growth is active: prepare_only (QSAIndexerCache's
-        // now-retired growth path) declares raw-K/summary at output ports 0/1 whenever
+        // This applies whenever dense_mode growth is active. prepare_only declares
+        // raw-K/summary at output ports 0/1 whenever
         // dense_mode is set; QSASDPA's own full dense dispatch (prepare_only=false) only
         // owns this SAME growth+write responsibility when it
         // explicitly opts in via grow_dense_state, and then declares them at output ports

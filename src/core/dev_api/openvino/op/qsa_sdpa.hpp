@@ -11,8 +11,6 @@
 
 namespace ov::op::internal {
 
-/// \note QSASDPA op class is under development and subject to change.
-///
 /// \brief SDPA-style (dense, KVCache-managed) variant of QSA (Qwen Sparse Attention).
 ///
 /// QSASDPA is the "no physical page table" sibling of `ov::op::internal::QSA`: it exposes
@@ -52,12 +50,12 @@ public:
     /// new tokens) also disappear: they are already folded into `KEY_CACHE_DENSE`/
     /// `VALUE_CACHE_DENSE` by the upstream `KVCache` node's Concat before this op runs.
     struct InputIdx {
-        static constexpr size_t MIXED = 0;                        ///< [tokens, D] GR READ/MIX output
-        static constexpr size_t QUERY = 1;                        ///< [tokens, Hq*Dh] (or [tokens, 2*Hq*Dh] when gate is fused)
-        static constexpr size_t PAST_LENS = 2;                    ///< [num_seqs], same semantics as QSA::InputIdx::PAST_LENS
-        static constexpr size_t SUBSEQUENCE_BEGINS = 3;           ///< [num_seqs+1], same semantics as QSA::InputIdx::SUBSEQUENCE_BEGINS
-        static constexpr size_t KEY_CACHE_DENSE = 4;              ///< [num_seqs, Hkv, S, Dh], KVCache "present" output
-        static constexpr size_t VALUE_CACHE_DENSE = 5;            ///< [num_seqs, Hkv, S, Dv], KVCache "present" output
+        static constexpr size_t QUERY = 0;                        ///< [tokens, Hq*Dh] (or [tokens, 2*Hq*Dh] when gate is fused)
+        static constexpr size_t KEY_CACHE_DENSE = 1;               ///< [num_seqs, Hkv, S, Dh], KVCache "present" output
+        static constexpr size_t VALUE_CACHE_DENSE = 2;             ///< [num_seqs, Hkv, S, Dv], KVCache "present" output
+        static constexpr size_t PAST_LENS = 3;                    ///< [num_seqs], same semantics as QSA::InputIdx::PAST_LENS
+        static constexpr size_t SUBSEQUENCE_BEGINS = 4;           ///< [num_seqs+1], same semantics as QSA::InputIdx::SUBSEQUENCE_BEGINS
+        static constexpr size_t MIXED = 5;                        ///< [tokens, D] GR READ/MIX output
         static constexpr size_t INDEXER_RAW_K_CACHE_DENSE = 6;    ///< [num_seqs, S, Di], QSAIndexerCache output 0
         static constexpr size_t INDEXER_SUMMARY_CACHE_DENSE = 7;  ///< [num_seqs, S/r, Di], QSAIndexerCache output 1
         static constexpr size_t INDEXER_QK_WEIGHT = 8;            ///< [Hidx*Di + Di, D] row-major

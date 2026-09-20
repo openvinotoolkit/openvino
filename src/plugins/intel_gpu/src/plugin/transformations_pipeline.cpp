@@ -1651,7 +1651,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
         manager.register_pass<ov::intel_gpu::SwiGluFusionWithClamp>();
         // QSA / Gated Residual pattern recognition. Both matchers keep the original
-        // generic graph whenever the pattern cannot be proven (design section 4.3).
+        // generic graph whenever the pattern cannot be proven safe to replace.
         manager.register_pass<ov::intel_gpu::QSAGatedResidualFusion>();
         // This Validate is needed for proper data type propagation after applying IncreasePositionIdsPrecision pass
         manager.register_pass<ov::pass::Validate>();

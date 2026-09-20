@@ -10,8 +10,8 @@
 #include "intel_gpu/primitives/read_value.hpp"
 
 // NOTE: QSAIndexerCache has no ov::op::internal counterpart (like ov::intel_gpu::op::
-// KVCache, and unlike QSA/QSASDPA/GatedResidual): it is only ever produced internally by a
-// future graph-fusion pass, never constructed directly by a model author, so it does not
+// KVCache, and unlike QSA/QSASDPA/GatedResidual): it is produced by the GPU graph-fusion
+// path and is not constructed directly by a model author, so it does not
 // need a dev_api-exposed base class. REGISTER_FACTORY_IMPL(internal, X) hardcodes the C++
 // type as ov::op::internal::X, so -- exactly like ops/kv_cache.cpp does for KVCache -- an
 // alias is declared so the macro resolves to the real (gpu_opset-only) class. This is safe

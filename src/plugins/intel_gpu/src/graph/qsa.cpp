@@ -36,10 +36,8 @@ std::vector<layout> qsa_inst::calc_output_layouts(const qsa_node& /*node*/, cons
         return {raw_layout, summary_layout};
     }
 
-    // Shared by prepare_only+dense_mode (QSAIndexerCache's now-retired growth path, kept
-    // for potential direct/primitive-level use) and !prepare_only+dense_mode (QSASDPA's
-    // own dense dispatch, which now owns reserve/grow/Q1-write 
-    // and ops/qsa_sdpa.cpp::CreateQSASDPAOp): the OLD (small) raw-K/summary history is fed
+    // Shared by prepare_only+dense_mode and !prepare_only+dense_mode: the existing
+    // raw-K/summary history is fed into a newly sized output buffer.
     // as INDEXER_RAW_K_CACHE/INDEXER_SUMMARY_CACHE; the declared output is the GROWN
     // buffer (old_length + this call's new entries), computed purely from already-resolved
     // input shapes -- the same "read impl_param.get_input_layout(...) at shape-inference

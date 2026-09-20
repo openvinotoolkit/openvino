@@ -10,8 +10,6 @@
 
 namespace ov::op::internal {
 
-/// \note QSA op class is under development and subject to change.
-///
 /// \brief Qwen Sparse Attention (QSA) operation.
 ///
 /// QSA fuses the indexer (block scoring + top-k selection) with the sparse main attention
@@ -33,16 +31,16 @@ public:
 
     /// @brief Fixed input order of the QSA op / cldnn::qsa primitive.
     struct InputIdx {
-        static constexpr size_t MIXED = 0;                   ///< [tokens, D] GR READ/MIX output
-        static constexpr size_t QUERY = 1;                   ///< [tokens, Hq*Dh] (or [tokens, 2*Hq*Dh] when gate is fused)
-        static constexpr size_t KEY = 2;                     ///< [tokens, Hkv*Dh]
-        static constexpr size_t VALUE = 3;                   ///< [tokens, Hkv*Dv]
-        static constexpr size_t PAST_LENS = 4;               ///< [num_seqs]
-        static constexpr size_t SUBSEQUENCE_BEGINS = 5;      ///< [num_seqs+1]
-        static constexpr size_t BLOCK_INDICES = 6;           ///< [used_blocks]
-        static constexpr size_t BLOCK_INDICES_BEGINS = 7;    ///< [num_seqs+1]
-        static constexpr size_t KEY_CACHE = 8;               ///< [num_blocks, Hkv, PA_BLOCK_SIZE, Dh]
-        static constexpr size_t VALUE_CACHE = 9;             ///< [num_blocks, Hkv, PA_BLOCK_SIZE, Dv]
+        static constexpr size_t QUERY = 0;                   ///< [tokens, Hq*Dh] (or [tokens, 2*Hq*Dh] when gate is fused)
+        static constexpr size_t KEY = 1;                     ///< [tokens, Hkv*Dh]
+        static constexpr size_t VALUE = 2;                   ///< [tokens, Hkv*Dv]
+        static constexpr size_t KEY_CACHE = 3;               ///< [num_blocks, Hkv, PA_BLOCK_SIZE, Dh]
+        static constexpr size_t VALUE_CACHE = 4;             ///< [num_blocks, Hkv, PA_BLOCK_SIZE, Dv]
+        static constexpr size_t PAST_LENS = 5;               ///< [num_seqs]
+        static constexpr size_t SUBSEQUENCE_BEGINS = 6;      ///< [num_seqs+1]
+        static constexpr size_t BLOCK_INDICES = 7;           ///< [used_blocks]
+        static constexpr size_t BLOCK_INDICES_BEGINS = 8;    ///< [num_seqs+1]
+        static constexpr size_t MIXED = 9;                   ///< [tokens, D] GR READ/MIX output
         static constexpr size_t INDEXER_RAW_K_CACHE = 10;    ///< [num_blocks, 1, PA_BLOCK_SIZE, Di]
         static constexpr size_t INDEXER_SUMMARY_CACHE = 11;  ///< [num_blocks, 1, PA_BLOCK_SIZE/r, Di]
         static constexpr size_t INDEXER_QK_WEIGHT = 12;      ///< [Hidx*Di + Di, D] row-major

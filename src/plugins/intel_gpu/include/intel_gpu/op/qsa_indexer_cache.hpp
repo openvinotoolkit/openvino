@@ -34,9 +34,8 @@ namespace ov::intel_gpu::op {
 /// consumers that need both (state reset, beam reorder, ProgramBuilder lowering) must use
 /// the explicit accessors rather than the generic `VariableExtension` interface.
 ///
-/// Beam search reordering (see design section 4.9) and `trim`/dynamic-B support are NOT
-/// implemented by this class yet; it currently only supports a single, growing sequence
-/// per batch slot, mirroring the scope already implemented for `QSASDPA` itself.
+/// Beam-search reordering and `trim`/dynamic-batch support are not implemented. The
+/// current implementation supports one growing sequence per batch slot.
 class QSAIndexerCache : public ov::op::Op, public ov::op::util::VariableExtension {
 public:
     OPENVINO_OP("QSAIndexerCache", "gpu_opset");

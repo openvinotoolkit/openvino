@@ -10,8 +10,6 @@
 
 namespace ov::op::internal {
 
-/// \note GatedResidual op class is under development and subject to change.
-///
 /// \brief Gated Residual (Hyper Connection) operation.
 ///
 /// The op models the two halves of the gated-residual mechanism used by

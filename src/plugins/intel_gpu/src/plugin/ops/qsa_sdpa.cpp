@@ -23,6 +23,47 @@ namespace {
 using QSASDPAIn = ov::op::internal::QSASDPA::InputIdx;
 using QSAIn = ov::op::internal::QSA::InputIdx;
 
+enum class DenseCachePath {
+    ExternalState,
+    IndexerCacheState,
+};
+
+struct IndexerCacheTopology {
+    DenseCachePath path = DenseCachePath::ExternalState;
+    std::shared_ptr<ov::intel_gpu::op::QSAIndexerCache> producer;
+};
+
+IndexerCacheTopology detect_dense_cache_path(const std::shared_ptr<ov::op::internal::QSASDPA>& op) {
+    const auto raw_node = op->get_input_node_shared_ptr(QSASDPAIn::INDEXER_RAW_K_CACHE_DENSE);
+    const auto summary_node = op->get_input_node_shared_ptr(QSASDPAIn::INDEXER_SUMMARY_CACHE_DENSE);
+    const auto raw_producer = ov::as_type_ptr<ov::intel_gpu::op::QSAIndexerCache>(raw_node);
+    const auto summary_producer = ov::as_type_ptr<ov::intel_gpu::op::QSAIndexerCache>(summary_node);
+
+    // The two dense indexer inputs form one logical stateful topology. Do not infer
+    // the path from ParameterVector size or from just one input: those are different
+    // namespaces and a partially wired graph must fail during lowering, not later in
+    // InferRequest creation.
+    OPENVINO_ASSERT((raw_producer != nullptr) == (summary_producer != nullptr),
+                    "[GPU] QSASDPA '",
+                    op->get_friendly_name(),
+                    "': INDEXER_RAW_K_CACHE_DENSE and INDEXER_SUMMARY_CACHE_DENSE must either both be produced by QSAIndexerCache or both be externally managed");
+
+    if (!raw_producer) {
+        return {};
+    }
+
+    OPENVINO_ASSERT(raw_producer == summary_producer,
+                    "[GPU] QSASDPA '",
+                    op->get_friendly_name(),
+                    "': raw-K and summary cache inputs must come from the same QSAIndexerCache node");
+    OPENVINO_ASSERT(raw_producer->get_variable() && raw_producer->get_summary_variable(),
+                    "[GPU] QSASDPA '",
+                    op->get_friendly_name(),
+                    "': QSAIndexerCache producer is missing one of its Variables");
+
+    return {DenseCachePath::IndexerCacheState, raw_producer};
+}
+
 // Builds a small all-zero cldnn::data constant -- used for the underlying cldnn::qsa
 // primitive's QSA::InputIdx::KEY / VALUE ("current-step new tokens") slots, which are
 // structurally dead when skip_kv_write=true: only Q0 (qsa_kv_cache_update) reads them,
@@ -69,17 +110,17 @@ void CreateQSASDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::
     std::string reason;
     OPENVINO_ASSERT(ov::op::internal::QSASDPA::validate_config(config, reason), "[GPU] Cannot lower QSASDPA op '", layer_name, "': ", reason);
 
-    // design QSA_SDPA_DENSE: the main K/V and indexer raw-K/summary
-    // caches are genuinely dynamically-shaped (e.g. the real, growing output of an
+    // The main K/V and indexer raw-K/summary caches may be dynamically shaped (for
+    // example, the growing output of an
     // ov::intel_gpu::op::KVCache / QSAIndexerCache node) -- there is no requirement that
     // their sequence axis equal a fixed compile-time config.pa_block_size, and no
     // identity/degenerate page table is synthesized any more. The underlying cldnn::qsa
     // primitive is dispatched with dense_mode=true (see primitives/qsa.hpp and
     // graph/impls/cm/qsa/qsa.cpp's dense_pa_block_size()): the existing paged address
-    // math is reused UNCHANGED with QSA_PA_BLOCK_SIZE derived from THIS call's actual
+    // math is reused with QSA_PA_BLOCK_SIZE derived from this call's actual
     // KEY_CACHE_DENSE runtime layout instead of a fixed Config value, and
     // block_indices[i] == i / block_indices_begins == identity (one degenerate page per
-    // sequence, unchanged) still makes each sequence's own dense row the "whole page" --
+    // sequence) still makes each sequence's own dense row the "whole page" --
     // only now that page's size can differ from call to call.
     const auto& key_cache_ps = op->get_input_partial_shape(QSASDPAIn::KEY_CACHE_DENSE);
     OPENVINO_ASSERT(key_cache_ps.rank().is_static() && key_cache_ps.size() == 4, "[GPU] QSASDPA '", layer_name, "': KEY_CACHE_DENSE must be rank-4");
@@ -135,12 +176,14 @@ void CreateQSASDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::
     // keeps its original single-output, in-place-mutate contract: the caller is assumed
     // to have already sized INDEXER_RAW_K_CACHE_DENSE/INDEXER_SUMMARY_CACHE_DENSE to
     // this call's final (post-append) length itself.
-    auto raw_k_producer = ov::as_type_ptr<ov::intel_gpu::op::QSAIndexerCache>(op->get_input_node_shared_ptr(QSASDPAIn::INDEXER_RAW_K_CACHE_DENSE));
+    const auto cache_topology = detect_dense_cache_path(op);
+    const bool owns_indexer_cache_state = cache_topology.path == DenseCachePath::IndexerCacheState;
+    const auto& raw_k_producer = cache_topology.producer;
 
     cldnn::qsa prim(layer_name, qsa_inputs, config, /*skip_kv_write=*/true, /*prepare_only=*/false, /*dense_mode=*/true, /*state_only=*/false,
-                    /*grow_dense_state=*/raw_k_producer != nullptr);
+                    /*grow_dense_state=*/owns_indexer_cache_state);
     prim.output_data_types = get_output_data_types(op);
-    if (raw_k_producer) {
+    if (owns_indexer_cache_state) {
         // Declare 2 extra, OV-invisible primitive outputs (grown raw-K @1, grown
         // summary @2) alongside the attention result @0. impls/cm/qsa/qsa.cpp's
         // execute() grows/copies them forward and Q1 writes into them exactly like the
@@ -153,7 +196,7 @@ void CreateQSASDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::
 
     p.add_primitive(*op, prim);
 
-    if (raw_k_producer) {
+    if (owns_indexer_cache_state) {
         auto raw_k_variable = raw_k_producer->get_variable();
         auto summary_variable = raw_k_producer->get_summary_variable();
         OPENVINO_ASSERT(raw_k_variable && summary_variable, "[GPU] QSASDPA '", layer_name,
