@@ -425,8 +425,13 @@ RoPEFusionPreprocess::RoPEFusionPreprocess() {
 
         auto config = rope_node->get_config();
         if (pattern_map.count(input_to_slice) && slice_start.is_integer() && slice_stop.is_integer()) {
-            config.slice_start = static_cast<size_t>(slice_start.i());
-            config.slice_stop = static_cast<size_t>(slice_stop.i());
+            // Reject negative or non-increasing Slice bounds before size_t conversion.
+            const auto start = slice_start.i();
+            const auto stop = slice_stop.i();
+            if (start < 0 || stop < 0 || stop <= start)
+                return false;
+            config.slice_start = static_cast<size_t>(start);
+            config.slice_stop = static_cast<size_t>(stop);
             config.input_trans0213 = true;
             rope_node->set_argument(0, pattern_map.at(input_to_slice));
         } else if (pattern_map.count(input_to_trans)) {
