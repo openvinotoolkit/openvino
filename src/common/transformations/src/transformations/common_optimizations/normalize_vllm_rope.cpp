@@ -181,10 +181,43 @@ NormalizeVLLMRoPE::NormalizeVLLMRoPE() {
         ov::Output<ov::Node> sin_full = sin_val;
         std::shared_ptr<ov::Node> cos_cat_node, sin_cat_node;
         if (cos_needs_dup) {
-            cos_cat_node = std::make_shared<ov::op::v0::Concat>(
-                ov::OutputVector{cos_val, cos_val}, -1);
-            sin_cat_node = std::make_shared<ov::op::v0::Concat>(
-                ov::OutputVector{sin_val, sin_val}, -1);
+            // All layers share one cos/sin, and this pass matches per RoPE
+            // site, so reuse an existing duplication Concat instead of
+            // emitting one copy per site.
+            auto existing_dup = [](const ov::Output<ov::Node>& src) -> std::shared_ptr<ov::Node> {
+                for (const auto& target : src.get_target_inputs()) {
+                    auto cat = ov::as_type_ptr<ov::op::v0::Concat>(
+                        target.get_node()->shared_from_this());
+                    if (!cat || cat->get_input_size() != 2) {
+                        continue;
+                    }
+                    if (cat->input_value(0) != src || cat->input_value(1) != src) {
+                        continue;
+                    }
+                    const auto& src_ps = src.get_partial_shape();
+                    const auto& cat_ps = cat->get_output_partial_shape(0);
+                    if (!src_ps.rank().is_static() || !cat_ps.rank().is_static() ||
+                        src_ps.rank() != cat_ps.rank()) {
+                        continue;
+                    }
+                    const auto last = src_ps.rank().get_length() - 1;
+                    if (src_ps[last].is_static() && cat_ps[last].is_static() &&
+                        cat_ps[last].get_length() == 2 * src_ps[last].get_length()) {
+                        return cat;
+                    }
+                }
+                return nullptr;
+            };
+            cos_cat_node = existing_dup(cos_val);
+            if (!cos_cat_node) {
+                cos_cat_node = std::make_shared<ov::op::v0::Concat>(
+                    ov::OutputVector{cos_val, cos_val}, -1);
+            }
+            sin_cat_node = existing_dup(sin_val);
+            if (!sin_cat_node) {
+                sin_cat_node = std::make_shared<ov::op::v0::Concat>(
+                    ov::OutputVector{sin_val, sin_val}, -1);
+            }
             cos_full = cos_cat_node->output(0);
             sin_full = sin_cat_node->output(0);
         }

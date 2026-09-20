@@ -39,7 +39,6 @@
 #include "transformations/common_optimizations/matmul_multiply_fusion.hpp"
 #include "transformations/common_optimizations/moc_transformations.hpp"
 #include "transformations/common_optimizations/normalize_vllm_rope.hpp"
-#include "transformations/common_optimizations/erase_redundant_convert_pair.hpp"
 #include "transformations/common_optimizations/mul_conv_fusion.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
@@ -272,7 +271,6 @@ bool ov::pass::CommonOptimizations::run_on_model(const std::shared_ptr<ov::Model
     // other CommonOptimizations callers are unaffected.
     if (f->has_rt_info("vllm_model") && f->get_rt_info<bool>("vllm_model")) {
         REGISTER_PASS(manager, NormalizeVLLMRoPE)
-        REGISTER_PASS(manager, EraseRedundantConvertPair)
     }
 
     // StridesOptimization should be at the very end

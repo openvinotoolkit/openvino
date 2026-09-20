@@ -58,7 +58,6 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/eliminate_split_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/eliminate_unsqueeze_gather.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/enable_shapeof_constant_folding.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/erase_redundant_convert_pair_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/flush_fp32_subnormals_to_zero_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fold_subgraph_empty_inputs_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/fq_concat_fusion_test.cpp

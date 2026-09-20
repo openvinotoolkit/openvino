@@ -1,17 +1,15 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// Covers the "vllm_model" rt_info gate around NormalizeVLLMRoPE and
-// EraseRedundantConvertPair: other CommonOptimizations callers see neither fire.
+// Covers the "vllm_model" rt_info gate around NormalizeVLLMRoPE: other
+// CommonOptimizations callers must not see it fire.
 #include "transformations/common_optimizations/common_optimizations.hpp"
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/relu.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/opsets/opset1_decl.hpp"
@@ -55,16 +53,6 @@ std::shared_ptr<ov::Model> build_vllm_rope_model() {
     return std::make_shared<ov::Model>(concat, ov::ParameterVector{x, cos, sin});
 }
 
-// Round-trip pair, not identity Convert: a generic dead-code pass already
-// eliminates identity Converts regardless of this gate.
-std::shared_ptr<ov::Model> build_round_trip_convert_model() {
-    auto x = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 4});
-    auto narrow = std::make_shared<ov::op::v0::Convert>(x, ov::element::bf16);
-    auto wide = std::make_shared<ov::op::v0::Convert>(narrow, ov::element::f32);
-    auto relu = std::make_shared<ov::opset1::Relu>(wide);
-    return std::make_shared<ov::Model>(relu, ov::ParameterVector{x});
-}
-
 }  // namespace
 
 TEST(vllm_gating, rope_pass_skipped_without_vllm_model_flag) {
@@ -87,21 +75,4 @@ TEST(vllm_gating, rope_pass_applied_with_vllm_model_flag) {
     // NormalizeVLLMRoPE applied: Split replaced by VariadicSplit.
     EXPECT_EQ(count_of_type(model, ov::op::v1::Split::get_type_info_static()), 0u);
     EXPECT_EQ(count_of_type(model, ov::op::v1::VariadicSplit::get_type_info_static()), 1u);
-}
-
-TEST(vllm_gating, erase_redundant_convert_pair_skipped_without_vllm_model_flag) {
-    auto model = build_round_trip_convert_model();
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::CommonOptimizations>();
-    manager.run_passes(model);
-    EXPECT_EQ(count_of_type(model, ov::op::v0::Convert::get_type_info_static()), 2u);
-}
-
-TEST(vllm_gating, erase_redundant_convert_pair_applied_with_vllm_model_flag) {
-    auto model = build_round_trip_convert_model();
-    model->set_rt_info(true, "vllm_model");
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::CommonOptimizations>();
-    manager.run_passes(model);
-    EXPECT_EQ(count_of_type(model, ov::op::v0::Convert::get_type_info_static()), 0u);
 }
