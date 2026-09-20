@@ -33,8 +33,6 @@ namespace behavior {
 // Builds a model with the ESPCN_x2 architecture (single-channel input, DepthToSpace x2 upscaling).
 // The batch/height/width bounds and NHWC-vs-NCHW layout are parameterized so every test model in this file
 // (see espcnModelConfigs) shares the same, already-validated graph shape.
-//构建一个基于 ESPCN_x2 架构的模型（单通道输入，通过 DepthToSpace 进行 x2 倍率的上采样）。
-// Batch/高度/宽度 的范围以及 NHWC 与 NCHW 的布局均已进行参数化配置，因此本文件中的所有测试模型（参见 espcnModelConfigs）都共享同一个已被验证过的图结构（graph shape）。
 inline std::shared_ptr<ov::Model> createESPCNX2Model(ov::Dimension batchDimension = ov::Dimension(1, 2),
                                                       ov::Dimension heightDimension = ov::Dimension(32, 64),
                                                       ov::Dimension widthDimension = ov::Dimension(32, 64),
@@ -51,7 +49,7 @@ inline std::shared_ptr<ov::Model> createESPCNX2Model(ov::Dimension batchDimensio
         // set_tensors()/batched inference requires the batch (N) dimension to be identifiable via layout.
         input->set_layout("NHWC");
         auto transposeOrder = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 3, 1, 2});
-        // NHWC -> NCHW transpose,convert the layout from NHWC to NCHW
+        // NHWC -> NCHW transpose, convert the input layout from NHWC to NCHW
         nchwInput = std::make_shared<ov::op::v1::Transpose>(input, transposeOrder);
     } else {
         input->set_layout("NCHW");
@@ -108,34 +106,41 @@ inline std::shared_ptr<ov::Model> createESPCNX2Model(ov::Dimension batchDimensio
 // Every test model is the same ESPCN_x2 graph built with different dynamic N/H/W bounds and layout. Keeping the
 // declared bounds and the model characteristics in one registry lets the test shapes be derived from the bounds
 // (see makeInputShape) instead of hard-coding numbers that must be kept in sync by hand.
+
+// 所有的测试模型都是同一个 ESPCN_x2 计算图，只是构建时采用了不同的动态 N/H/W（批量大小/高度/宽度）边界和布局。将
+// 声明的边界和模型特征统一保存在一个注册表（registry）中，可以让我们直接从边界中推导出生出测试形状
+//（参见 makeInputShape），而无需手动硬编码那些必须保持同步的数字
+
+// The test dimensions are common sizes for the output dimensions. The output of the ESPCN_x2 graph scales the
+//  input shape's H (height) and W (width) by a factor of two.
+
+// 测试维度为输出维度的常见大小，ESPCN_x2 计算图的输出会将输入shapede H和W放大两倍。
+
+
 struct DynamicModelConfig {
     ov::Dimension batch;
     ov::Dimension height;
     ov::Dimension width;
-    bool nhwcLayout;
-    bool tinyVariant;  // small single-channel variant, only exercised by the DynamicNHW tests
+    bool nhwcLayout; // only for test deafult compilation mode
 };
-//batch,height, weidth, nhwcLayout, tinyVariant
-//注意输入和输出的大小是不一致的，请注意这个在测试时的需不需要额外的处理？
+
 inline const std::map<std::string, DynamicModelConfig>& espcnModelConfigs() {
     static const std::map<std::string, DynamicModelConfig> configs = {
-        {"ESPCN_x2_DynHW_FHD2", {ov::Dimension(1), ov::Dimension(10, 2160), ov::Dimension(10, 3840), true, false}},
-        {"ESPCN_x2_DynHW_FHD", {ov::Dimension(1), ov::Dimension(10, 1080), ov::Dimension(10, 1920), true, false}},
-        {"ESPCN_x2_DynNHW_FHD", {ov::Dimension(1, 10), ov::Dimension(1, 1080), ov::Dimension(10, 1920), true, false}},/// ????为什么遥测不同layout的
-        {"ESPCN_x2_DynHW_HD", {ov::Dimension(1), ov::Dimension(10, 720), ov::Dimension(10, 1280), true, false}},/// ????为什么遥测不同layout的
-        // Spatial upper bounds are kept large enough for the compiler's multi-cluster tiling of the dynamic H/W;
-        // smaller bounds hit a compiler crash in MultiClusterStrategyAssignment on multi-tile devices.
-        {"ESPCN_x2_DynNHW_Tiny", {ov::Dimension(1, 2), ov::Dimension(32, 270), ov::Dimension(32, 555), true, true}}, 
-        ////？？？？？为什么不用一个大一点的shape？仅和ESPCN_x2_DynNHW_FHD的最后一个tinyVariant不一样
-        {"ESPCN_x2_DynNHW_Tiny2", {ov::Dimension(1, 2), ov::Dimension(10, 480), ov::Dimension(640), true, true}}, /// ????为什么遥测不同layout的
-        ////？？？？？为什么不用一个大一点的shape？仅和ESPCN_x2_DynNHW_FHD的最后一个tinyVariant不一样
-        {"ESPCN_x2_DynHW_HD_NCHW", {ov::Dimension(1), ov::Dimension(10, 720), ov::Dimension(10, 1280), false, false}},/// ????为什么遥测不同layout的
+        {"ESPCN_x2_DynHW_FHD2", {ov::Dimension(1), ov::Dimension(10, 2160), ov::Dimension(10, 3840), true}},
+        {"ESPCN_x2_DynHW_FHD", {ov::Dimension(1), ov::Dimension(10, 1080), ov::Dimension(10, 1920), true}},
+        {"ESPCN_x2_DynNHW_FHD", {ov::Dimension(1, 10), ov::Dimension(1, 1080), ov::Dimension(10, 1920), true,}},
+        {"ESPCN_x2_DynHW_HD", {ov::Dimension(1), ov::Dimension(10, 720), ov::Dimension(10, 1280), true}},
+        // // Spatial upper bounds are kept large enough for the compiler's multi-cluster tiling of the dynamic H/W;
+        // // smaller bounds hit a compiler crash in MultiClusterStrategyAssignment on multi-tile devices.
+        // {"ESPCN_x2_DynNHW_Tiny", {ov::Dimension(1, 2), ov::Dimension(32, 270), ov::Dimension(32, 555), true}}, 
+        // {"ESPCN_x2_DynNHW_Tiny2", {ov::Dimension(1, 2), ov::Dimension(10, 480), ov::Dimension(640), true}}, 
+        // {"ESPCN_x2_DynHW_HD_NCHW", {ov::Dimension(1), ov::Dimension(10, 720), ov::Dimension(10, 1280), false}},
         {"ESPCN_x2_DynNHW_HD_NCHW",
-         {ov::Dimension(1, 10), ov::Dimension(10, 720), ov::Dimension(10, 1280), false, false}},
+         {ov::Dimension(1, 10), ov::Dimension(10, 720), ov::Dimension(10, 1280), false}},
          {"ESPCN_x2_DynN_HD_NCHW",
-         {ov::Dimension(1, 10), ov::Dimension(720), ov::Dimension(1280), false, false}}, // only for InferWithDefaultHostCompileTests
-         {"ESPCN_x2_DynNHW_HD_NCHW_ODD",
-         {ov::Dimension(1, 10), ov::Dimension(10, 710), ov::Dimension(10, 1010), false, false}},
+         {ov::Dimension(1, 10), ov::Dimension(720), ov::Dimension(1280), false}}, // only for InferWithDefaultHostCompileTests
+        //  {"ESPCN_x2_DynNHW_HD_NCHW_ODD",
+        //  {ov::Dimension(1, 10), ov::Dimension(10, 710), ov::Dimension(10, 1010), false}},
     };
     return configs;
 }
@@ -147,9 +152,9 @@ inline const DynamicModelConfig& getModelConfig(const std::string& modelName) {
     return it->second;
 }
 
-inline bool isTinyDynamicModel(const std::string& modelName) {
-    return getModelConfig(modelName).tinyVariant;
-}
+// inline bool isTinyDynamicModel(const std::string& modelName) {
+//     return getModelConfig(modelName).tinyVariant;
+// }
 
 inline bool hasDynamicBatch(const std::string& modelName) {
     return getModelConfig(modelName).batch.is_dynamic();
@@ -423,9 +428,9 @@ InferWithHostCompileTests::RuntimeCompareSetupResult InferWithHostCompileTests::
 
 TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
     SKIP_IF_NOT_TARGET_DEVICE()
-    if (isTinyDynamicModel(selectedModelName)) {
-        GTEST_SKIP() << "The tiny ESPCN_x2 model is covered by the DynamicNHW tests";
-    }
+    // if (isTinyDynamicModel(selectedModelName)) {
+    //     GTEST_SKIP() << "The tiny ESPCN_x2 model is covered by the DynamicNHW tests";
+    // }
     auto model = createModelByName(selectedModelName);
 
     ov::CompiledModel compiledModel;
@@ -447,9 +452,9 @@ TEST_P(InferWithHostCompileTests, CompileAndImportAndInfer) {
 //看看这个为什么失败？
 TEST_P(InferWithHostCompileTests, CompileAndInferWithDecreasedSize) {
     SKIP_IF_NOT_TARGET_DEVICE()
-    if (isTinyDynamicModel(selectedModelName)) {
-        GTEST_SKIP() << "The tiny ESPCN_x2 model is covered by the DynamicNHW tests";
-    }
+    // if (isTinyDynamicModel(selectedModelName)) {
+    //     GTEST_SKIP() << "The tiny ESPCN_x2 model is covered by the DynamicNHW tests";
+    // }
 
     auto model = createModelByName(selectedModelName);
     ScopedLogCapture logCapture;
@@ -1017,9 +1022,9 @@ const std::vector<std::string> modelNames = {"ESPCN_x2_DynHW_FHD",  // [1,1..108
                                              "ESPCN_x2_DynNHW_FHD", // [1..10,1..1080,10..1920,1] (1920x1080)
                                              "ESPCN_x2_DynHW_HD",   // [1,10..720,10..1280,1]   （1280x720）
                                             //  "ESPCN_x2_DynNHW_Tiny",
-                                             "ESPCN_x2_DynNHW_Tiny2",
-                                             "ESPCN_x2_DynHW_FHD2",
-                                             "ESPCN_x2_DynNHW_HD_NCHW_ODD" // 不知道这个会不会有什么问题 [1,10..710), 10..1010,1]
+                                            //  "ESPCN_x2_DynNHW_Tiny2",
+                                             "ESPCN_x2_DynHW_FHD2", //[1, 10..2160, 10..3840,1]
+                                            //  "ESPCN_x2_DynNHW_HD_NCHW_ODD" // 不知道这个会不会有什么问题 [1,10..710), 10..1010,1]
                                             }; //[1..2,32..270,10..1280,1] (nhwcLayout)
 
                                             //缺乏奇数的model 测试
