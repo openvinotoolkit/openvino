@@ -95,7 +95,7 @@ public:
             add_stage(regular_finalization, params);
             add_stage(indirect_finalization, params);
 #ifdef ENABLE_ONEDNN_FOR_GPU
-            if (SDPAOpt::supports_micro_sdpa(params) && (!use_ocl || SDPAOclGenerator::supported(params))) {
+            if (SDPAOpt::supports_micro_sdpa(params, use_ocl) && (!use_ocl || SDPAOclGenerator::supported(params))) {
                 GPU_DEBUG_TRACE_DETAIL << "add stage for micro_sdpa  dynamic ...\n";
                 add_stage(regular_micro_multi_tokens, params);
                 add_stage(regular_micro_single_token, params);
@@ -105,12 +105,18 @@ public:
         } else {
             auto is_indirect = params.typed_desc<scaled_dot_product_attention>()->indirect_axis != -1;
             GPU_DEBUG_TRACE_DETAIL << "add stage for non-dynamic, is_indirect = " << is_indirect << "\n";
-            if (is_prefill_stage(params) || unaligned_head_size(params)) {
+            // The sdpa_ocl single-token kernel handles unaligned head sizes (head < d / value < dv /
+            // DKS_ACTIVE guards), so on the ocl path we let an unaligned decode fall through to the
+            // single-token stages instead of forcing the multi-tokens kernel. sdpa_micro and the opt
+            // single-token kernel do not support unaligned head sizes, and indirect keeps its opt
+            // fallback, so both are excluded.
+            const bool use_ocl_single_token_unaligned = use_ocl && !is_indirect;
+            if (is_prefill_stage(params) || (unaligned_head_size(params) && !use_ocl_single_token_unaligned)) {
                 if (is_indirect) {
                     GPU_DEBUG_TRACE_DETAIL << "add stage for indirect non-dynamic with prefill_stage \n";
                     add_stage(indirect_multi_tokens, params);
 #ifdef ENABLE_ONEDNN_FOR_GPU
-                } else if (SDPAOpt::supports_micro_sdpa(params) && (!use_ocl || SDPAOclGenerator::supported(params))) {
+                } else if (SDPAOpt::supports_micro_sdpa(params, use_ocl) && (!use_ocl || SDPAOclGenerator::supported(params))) {
                     GPU_DEBUG_TRACE_DETAIL << "add stage for micro_sdpa non-dynamic with prefill_stage \n";
                     add_stage(regular_micro_multi_tokens, params);
                     // Sometimes micro kernel will fail due to "Insufficient registers in requested bundle",
@@ -130,7 +136,7 @@ public:
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 const auto& gfx_ver = params.get_program().get_engine().get_device_info().gfx_ver;
                 bool is_ARL_H = (gfx_ver.major == 12 && gfx_ver.minor == 74);
-                bool can_use_micro_sdpa = SDPAOpt::supports_micro_sdpa(params) && !is_ARL_H && !is_indirect &&
+                bool can_use_micro_sdpa = SDPAOpt::supports_micro_sdpa(params, use_ocl) && !is_ARL_H && !is_indirect &&
                                           (!use_ocl || SDPAOclGenerator::supported(params));
                 if (can_use_micro_sdpa) {
                     add_stage(regular_micro_single_token, params);
@@ -171,8 +177,12 @@ public:
         // So far this case was observed only from the non-lm models such as vision embedding model.
         // If we need to optimize unaligned head size SDPA for 2nd+ token phase of LM model,
         // we'll need to fix single_token kernel to support unaligned head size.
-        if (use_multi_tokens) {
-            GPU_DEBUG_TRACE_DETAIL << "execute multi_tokens with indirect = " << is_indirect << "\n";
+        // The sdpa_ocl single-token kernel does support unaligned head sizes (head < d / value < dv /
+        // DKS_ACTIVE guards). When it is staged (ocl, non-indirect decode) it is used instead; the
+        // has_stage() check keeps this decision consistent with the stage registration in the ctor.
+        if (is_prefill || (unaligned_head_size(new_params) &&
+                           !(use_ocl && !is_indirect && has_stage(regular_micro_single_token)))) {
+            GPU_DEBUG_TRACE_DETAIL << "execute multi_tokens for prefill with indirect = " << is_indirect << "\n";
             return execute_stage(events, instance, is_indirect ? indirect_multi_tokens : regular_multi_tokens);
         }
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -241,7 +251,7 @@ bool SDPAOpt::has_bf16_compressed_kv_zero_point(const kernel_impl_params& params
 #endif
 }
 
-bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
+bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params, bool allow_scalar_mask) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
     // Knob (OV_GPU_ENABLE_SDPA_MICRO=0): force the SDPA backend onto the OCL sdpa_opt kernel
     // instead of the oneDNN-derived micro kernel, for accuracy A/B without rebuilding.
@@ -299,10 +309,12 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
     }
 
     auto data_inputs_num = get_data_inputs_num(*desc);
-    // TODO: To support sdpa_micro kernel with non-const scalar mask / scale inputs
+    // A single-element runtime attention mask (rank-0 scalar or 1-element 1D placeholder) is
+    // supported only by the sdpa_ocl kernel, which reads the one value and adds it to every logit.
+    // sdpa_micro does not support it, so it is rejected unless the caller (ocl path) allows it.
     const auto mask_idx = 3lu;
     if (!desc->attn_mask_val.has_value() && data_inputs_num > mask_idx && !params.get_input_layout(mask_idx).is_dynamic() &&
-        params.get_input_layout(mask_idx).count() == 1) {
+        params.get_input_layout(mask_idx).count() == 1 && !allow_scalar_mask) {
         return false;
     }
     if (q_layout.get_partial_shape()[mask_idx].get_length() > 512) {
