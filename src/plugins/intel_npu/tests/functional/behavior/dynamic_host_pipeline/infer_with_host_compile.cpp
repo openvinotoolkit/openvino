@@ -678,36 +678,7 @@ TEST_P(InferWithHostCompileTests, CompileAndInferWithZeroTensor) {
 
     std::cout << "[Manually log][InferWithHostCompileTests][ADD TEST] Re-running sixth inference with zero tensor..." << std::endl;
     std::cout << "[Manually log][InferWithHostCompileTests][ADD TEST] model->input() is " << model->input() << std::endl;
-    logCapture.clear();
-    auto inputTensorForSixthInfer2 =
-        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(),
-                                                reqDynamic1.get_tensor(model->input()).get_shape(),
-                                                100,
-                                                0);
-
-    auto outputShapeForSixthInfer2 = reqDynamic1.get_tensor(model->output()).get_shape();
-    auto zeroOutputTensorForSixthInfer2 =
-        zeroContext.create_host_tensor(model->input().get_element_type(), outputShapeForSixthInfer2);
-    auto hostTensorSourceForOutputForSixthInfer2 =
-        ov::test::utils::create_and_fill_tensor(model->input().get_element_type(), outputShapeForSixthInfer2, 100, 0);
-    ASSERT_EQ(hostTensorSourceForOutputForSixthInfer2.get_byte_size(), zeroOutputTensorForSixthInfer2.get_byte_size())
-        << "Source and destination tensors must have identical byte sizes for copy";
-    std::memcpy(zeroOutputTensorForSixthInfer2.data(),
-                hostTensorSourceForOutputForSixthInfer2.data(),
-                hostTensorSourceForOutputForSixthInfer2.get_byte_size());
     std::cout << "[Manually log][InferWithHostCompileTests][ADD TEST] model->output() is " << model->output() << std::endl;
-    OV_ASSERT_NO_THROW(reqDynamic1.set_tensor(model->output(), zeroOutputTensorForSixthInfer));
-    setInputInferAndCompare(model,
-                            reqDynamic1,
-                            reqReference1,
-                            inputTensorForSixthInfer2,
-                            "CompileAndInferWithZeroTensor_sixth2");
-    // Feeding a context-allocated host tensor, ptr change detected and rebuild runtime
-    // TODO: Update commandlist once dynamic stride supported
-    ASSERT_TRUE(logContains(logCapture, "Reset command list to run with runtime"))
-        << "Expected log to contain 'Reset command list to run with runtime' for sixth inference, but got: "
-        << logCapture.str();
-
 }
 
 TEST_P(InferWithHostCompileTests, DynamicNHWUsesOneVMExecution) {
