@@ -394,12 +394,20 @@ TEST_F(Qwen3RouterTest, RouterNodesNotIsolated_WithConvertAndSlice) {
 // Unsqueeze output (the pattern root).
 // Gemma4 differences vs Qwen3:
 //   - FP32 plain-weight MatMul (no dequantisation chain)
-//   - Per-expert learned scale via Gather before scatter
-//   - Extra Slice between scores and ScatterElementsUpdate
+//   - Per-expert learned scale via Gather (or an OneHot-expand equivalent) before scatter
+//   - Optional Slice between scores and ScatterElementsUpdate
+// use_onehot_scale: build the OneHot->Reshape->Multiply->ReduceSum->Reshape alternative
+//   for the per-expert scale instead of a literal Gather (the other Or-branch in
+//   build_gemma4_router_scale()).
+// with_slice / with_tail_reshape: control presence of the two optional structural ops
+// that some Gemma4 export variants omit.
 std::shared_ptr<Node> build_gemma4_router_layer(const std::shared_ptr<op::v0::Parameter>& router_input,
                                                 int64_t k_value,
                                                 int layer_idx,
-                                                size_t num_experts) {
+                                                size_t num_experts,
+                                                bool use_onehot_scale = false,
+                                                bool with_slice = true,
+                                                bool with_tail_reshape = true) {
     const size_t hidden_dim = router_input->get_shape()[1];
     const std::string prefix = "__module.model.layer" + std::to_string(layer_idx) + ".router/";
 
@@ -423,46 +431,103 @@ std::shared_ptr<Node> build_gemma4_router_layer(const std::shared_ptr<op::v0::Pa
     auto reduce_sum = std::make_shared<op::v1::ReduceSum>(topk->output(0), reduce_axes, /*keep_dims=*/true);
     auto divide = std::make_shared<op::v1::Divide>(topk->output(0), reduce_sum);
 
-    // Per-expert learned scale: Gather(per_expert_scale, Convert(topk_indices), axis=0)
-    auto per_expert_scale =
-        op::v0::Constant::create(element::f32, Shape{num_experts}, std::vector<float>(num_experts, 1.0f));
+    // Per-expert learned scale: either Gather(per_expert_scale, Convert(topk_indices), axis=0),
+    // or the OneHot-expand equivalent some exporters use instead.
     auto topk_indices_convert = std::make_shared<op::v0::Convert>(topk->output(1), element::i64);
-    auto gather_axis = op::v0::Constant::create(element::i64, Shape{}, {0LL});
-    auto gather = std::make_shared<op::v8::Gather>(per_expert_scale, topk_indices_convert, gather_axis);
+    Output<Node> per_expert_scale_out;
+    if (!use_onehot_scale) {
+        auto per_expert_scale =
+            op::v0::Constant::create(element::f32, Shape{num_experts}, std::vector<float>(num_experts, 1.0f));
+        auto gather_axis = op::v0::Constant::create(element::i64, Shape{}, {0LL});
+        auto gather = std::make_shared<op::v8::Gather>(per_expert_scale, topk_indices_convert, gather_axis);
+        per_expert_scale_out = gather->output(0);
+    } else {
+        // OneHot(topk_indices, depth=num_experts) -> Reshape -> Multiply(per_expert_scale)
+        // -> ReduceSum(over experts) -> Reshape(back to [1, k]).
+        auto per_expert_scale =
+            op::v0::Constant::create(element::f32, Shape{num_experts}, std::vector<float>(num_experts, 1.0f));
+        auto onehot_depth = op::v0::Constant::create(element::i64, Shape{}, {static_cast<int64_t>(num_experts)});
+        auto on_value = op::v0::Constant::create(element::f32, Shape{}, {1.0f});
+        auto off_value = op::v0::Constant::create(element::f32, Shape{}, {0.0f});
+        auto onehot =
+            std::make_shared<op::v1::OneHot>(topk_indices_convert, onehot_depth, on_value, off_value, /*axis=*/-1);
+        auto onehot_reshape_shape =
+            op::v0::Constant::create(element::i64,
+                                     Shape{2},
+                                     std::vector<int64_t>{k_value, static_cast<int64_t>(num_experts)});
+        auto onehot_reshape = std::make_shared<op::v1::Reshape>(onehot, onehot_reshape_shape, false);
+        auto scale_multiply = std::make_shared<op::v1::Multiply>(onehot_reshape, per_expert_scale);
+        auto reduce_axis = op::v0::Constant::create(element::i64, Shape{1}, {1LL});
+        auto scale_reduce_sum = std::make_shared<op::v1::ReduceSum>(scale_multiply, reduce_axis, /*keep_dims=*/false);
+        auto scale_reshape_shape = op::v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{1LL, k_value});
+        auto scale_reshape = std::make_shared<op::v1::Reshape>(scale_reduce_sum, scale_reshape_shape, false);
+        per_expert_scale_out = scale_reshape->output(0);
+    }
 
     // Combine renormalised scores with per-expert scale
-    auto scores_multiply = std::make_shared<op::v1::Multiply>(divide, gather);
+    auto scores_multiply = std::make_shared<op::v1::Multiply>(divide, per_expert_scale_out);
 
-    // Slice(scores_multiply, 0, k_value, step=1, axis=1) — Gemma4-specific trim
-    auto sl_begin = op::v0::Constant::create(element::i64, Shape{1}, {0LL});
-    auto sl_end = op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{k_value});
-    auto sl_step = op::v0::Constant::create(element::i64, Shape{1}, {1LL});
-    auto sl_axes = op::v0::Constant::create(element::i64, Shape{1}, {1LL});
-    auto slice = std::make_shared<op::v8::Slice>(scores_multiply, sl_begin, sl_end, sl_step, sl_axes);
+    // Slice(scores_multiply, 0, k_value, step=1, axis=1) — Gemma4-specific trim, optional
+    Output<Node> scatter_scores = scores_multiply->output(0);
+    if (with_slice) {
+        auto sl_begin = op::v0::Constant::create(element::i64, Shape{1}, {0LL});
+        auto sl_end = op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{k_value});
+        auto sl_step = op::v0::Constant::create(element::i64, Shape{1}, {1LL});
+        auto sl_axes = op::v0::Constant::create(element::i64, Shape{1}, {1LL});
+        auto slice = std::make_shared<op::v8::Slice>(scores_multiply, sl_begin, sl_end, sl_step, sl_axes);
+        scatter_scores = slice->output(0);
+    }
 
     // Scatter selected scores to full-expert dimension
     auto zero_base =
         op::v0::Constant::create(element::f32, Shape{1, num_experts}, std::vector<float>(num_experts, 0.0f));
     auto scatter_axis = op::v0::Constant::create(element::i64, Shape{}, {1LL});
     auto scatter_indices = std::make_shared<op::v0::Convert>(topk->output(1), element::i64);
-    auto scatter = std::make_shared<op::v12::ScatterElementsUpdate>(zero_base, scatter_indices, slice, scatter_axis);
+    auto scatter =
+        std::make_shared<op::v12::ScatterElementsUpdate>(zero_base, scatter_indices, scatter_scores, scatter_axis);
 
-    // Tail: Transpose -> Reshape -> Unsqueeze  (pattern root)
+    // Tail: Transpose -> [Reshape] -> Unsqueeze  (pattern root, Reshape optional)
     auto t_order = op::v0::Constant::create(element::i32, Shape{2}, std::vector<int32_t>{1, 0});
     auto transpose = std::make_shared<op::v1::Transpose>(scatter, t_order);
 
-    auto reshape_shape =
-        op::v0::Constant::create(element::i64, Shape{3}, std::vector<int64_t>{static_cast<int64_t>(num_experts), 1, 1});
-    auto reshape = std::make_shared<op::v1::Reshape>(transpose, reshape_shape, false);
-
-    auto unsqueeze_axis = op::v0::Constant::create(element::i64, Shape{}, {3LL});
-    return std::make_shared<op::v0::Unsqueeze>(reshape, unsqueeze_axis);
+    if (with_tail_reshape) {
+        auto reshape_shape = op::v0::Constant::create(element::i64,
+                                                      Shape{3},
+                                                      std::vector<int64_t>{static_cast<int64_t>(num_experts), 1, 1});
+        auto reshape = std::make_shared<op::v1::Reshape>(transpose, reshape_shape, false);
+        auto unsqueeze_axis = op::v0::Constant::create(element::i64, Shape{}, {3LL});
+        return std::make_shared<op::v0::Unsqueeze>(reshape, unsqueeze_axis);
+    }
+    // Without the tail Reshape, Transpose's own rank leaves room for the same final
+    // unsqueeze axis one position earlier ([num_experts, 1] -> [num_experts, 1, 1]).
+    auto unsqueeze_axis = op::v0::Constant::create(element::i64, Shape{}, {2LL});
+    return std::make_shared<op::v0::Unsqueeze>(transpose, unsqueeze_axis);
 }
 
 std::shared_ptr<Model> build_gemma4_router_graph(int64_t k_value, size_t hidden_dim = 16, size_t num_experts = 8) {
     auto router_input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, hidden_dim});
     router_input->set_friendly_name("router_input");
     auto out = build_gemma4_router_layer(router_input, k_value, 0, num_experts);
+    return std::make_shared<Model>(ResultVector{std::make_shared<op::v0::Result>(out)}, ParameterVector{router_input});
+}
+
+// Builds a Gemma4 Router graph exercising the newly-optional matcher variants:
+// the OneHot-expand per-expert scale, and/or the absent pre-scatter Slice / tail Reshape.
+std::shared_ptr<Model> build_gemma4_router_graph_variant(int64_t k_value,
+                                                         bool use_onehot_scale,
+                                                         bool with_slice,
+                                                         bool with_tail_reshape,
+                                                         size_t hidden_dim = 16,
+                                                         size_t num_experts = 8) {
+    auto router_input = std::make_shared<op::v0::Parameter>(element::f32, Shape{1, hidden_dim});
+    router_input->set_friendly_name("router_input");
+    auto out = build_gemma4_router_layer(router_input,
+                                         k_value,
+                                         0,
+                                         num_experts,
+                                         use_onehot_scale,
+                                         with_slice,
+                                         with_tail_reshape);
     return std::make_shared<Model>(ResultVector{std::make_shared<op::v0::Result>(out)}, ParameterVector{router_input});
 }
 
@@ -556,6 +621,79 @@ TEST_F(Gemma4RouterTest, ConsistentKAcrossLayersTagsBothNodes) {
 TEST_F(Gemma4RouterTest, InconsistentKAcrossLayersThrows) {
     auto model = build_two_gemma4_router_model(/*k0=*/2, /*k1=*/4);
     EXPECT_THROW(run_pass(model), ov::Exception) << "Inconsistent K values across MoE layers must throw";
+}
+
+// Verifies the OneHot-expand alternative for the per-expert scale (the other Or-branch
+// in build_gemma4_router_scale()) matches and tags K, not just the literal Gather form.
+TEST_F(Gemma4RouterTest, OneHotScaleTagsTopKWithCorrectK) {
+    constexpr int64_t K = 4;
+    auto model = build_gemma4_router_graph_variant(K,
+                                                   /*use_onehot_scale=*/true,
+                                                   /*with_slice=*/true,
+                                                   /*with_tail_reshape=*/true);
+    run_pass(model);
+
+    auto topks = find_all_topk(model);
+    ASSERT_EQ(topks.size(), 1u);
+    const auto& rt = topks[0]->get_rt_info();
+    ASSERT_NE(rt.find(ov::npuw::patterns::moe::RT_INFO_MOE_K), rt.end())
+        << "K must be tagged when the per-expert scale uses the OneHot-expand form";
+    EXPECT_EQ(rt.at(ov::npuw::patterns::moe::RT_INFO_MOE_K).as<size_t>(), static_cast<size_t>(K));
+}
+
+// Verifies the absent-optional path: no pre-scatter Slice and no router-tail Reshape.
+TEST_F(Gemma4RouterTest, MissingSliceAndTailReshapeTagsTopKWithCorrectK) {
+    constexpr int64_t K = 4;
+    auto model = build_gemma4_router_graph_variant(K,
+                                                   /*use_onehot_scale=*/false,
+                                                   /*with_slice=*/false,
+                                                   /*with_tail_reshape=*/false);
+    run_pass(model);
+
+    auto topks = find_all_topk(model);
+    ASSERT_EQ(topks.size(), 1u);
+    const auto& rt = topks[0]->get_rt_info();
+    ASSERT_NE(rt.find(ov::npuw::patterns::moe::RT_INFO_MOE_K), rt.end())
+        << "K must be tagged when the optional Slice and tail Reshape are both absent";
+    EXPECT_EQ(rt.at(ov::npuw::patterns::moe::RT_INFO_MOE_K).as<size_t>(), static_cast<size_t>(K));
+}
+
+// Combines all three newly-optional matcher variants at once: OneHot scale, no Slice,
+// no tail Reshape.
+TEST_F(Gemma4RouterTest, OneHotScaleWithoutSliceOrTailReshapeTagsTopKWithCorrectK) {
+    constexpr int64_t K = 4;
+    auto model = build_gemma4_router_graph_variant(K,
+                                                   /*use_onehot_scale=*/true,
+                                                   /*with_slice=*/false,
+                                                   /*with_tail_reshape=*/false);
+    run_pass(model);
+
+    auto topks = find_all_topk(model);
+    ASSERT_EQ(topks.size(), 1u);
+    const auto& rt = topks[0]->get_rt_info();
+    ASSERT_NE(rt.find(ov::npuw::patterns::moe::RT_INFO_MOE_K), rt.end())
+        << "K must be tagged when OneHot scale, missing Slice, and missing tail Reshape combine";
+    EXPECT_EQ(rt.at(ov::npuw::patterns::moe::RT_INFO_MOE_K).as<size_t>(), static_cast<size_t>(K));
+}
+
+// Callback must still return false (no isolation) for the fully-absent-optional variant.
+TEST_F(Gemma4RouterTest, RouterNodesNotIsolated_OneHotWithoutSliceOrTailReshape) {
+    constexpr int64_t K = 4;
+    auto model = build_gemma4_router_graph_variant(K,
+                                                   /*use_onehot_scale=*/true,
+                                                   /*with_slice=*/false,
+                                                   /*with_tail_reshape=*/false);
+    auto snapshot = std::make_shared<ov::npuw::online::Snapshot>(model);
+    snapshot->buildGraph();
+
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::moe::Gemma4Router>(snapshot, "router");
+    rewr.run_on_model(model);
+
+    for (const auto& [node, group] : *snapshot->getNodeToGroupMap()) {
+        EXPECT_NE(group->isolatedTag(), "router")
+            << "Node \"" << node->get_friendly_name() << "\" was unexpectedly isolated";
+    }
 }
 
 }  // namespace
