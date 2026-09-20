@@ -270,7 +270,7 @@ QSARuntimeParams* rt_of(ImplRuntimeParams* rt) {
     return p;
 }
 
-/// design chapter 15 / QSA_SDPA_DENSE: in dense_mode, QSA_PA_BLOCK_SIZE (the JIT
+/// QSA_SDPA_DENSE: in dense_mode, QSA_PA_BLOCK_SIZE (the JIT
 /// constant the existing paged address math keys off) is derived from the ACTUAL
 /// runtime layout of this call's cache tensor instead of the fixed Config::pa_block_size
 /// capacity budget. This is safe for the degenerate single-page-per-sequence layout
@@ -1344,7 +1344,7 @@ public:
             prepare_deps = {proj_event};
         }
 
-        // QSAIndexerCache dynamic growth (design doc chapter 15): qsa_inst::
+        // QSAIndexerCache dynamic growth: qsa_inst::
         // calc_output_layouts already sized this call's two declared outputs to
         // old_length + this call's new raw-K/summary entries (see its dense_mode
         // branch); get_arguments_desc() above binds qsa_prepare's raw_k_cache/

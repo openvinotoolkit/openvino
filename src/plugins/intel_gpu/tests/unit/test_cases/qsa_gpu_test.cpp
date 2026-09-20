@@ -1968,7 +1968,7 @@ TEST(qsa_gpu_test, qsa_indexer_cache_clone_preserves_both_variables) {
 // KVCache-fused or QSAIndexerCache-backed path produced by QSASDPAFusion; that path is
 // covered separately by the QSAIndexerCache end-to-end test below.
 //
-// Per design chapter 15 (QSA_SDPA_DENSE): the cache Parameters are declared with a
+// QSA_SDPA_DENSE: the cache Parameters are declared with a
 // DYNAMIC sequence axis, and config.pa_block_size is set to a value deliberately
 // DIFFERENT from the actual total sequence length -- QSASDPA's dense_mode lowering
 // derives its address arithmetic from THIS call's real runtime cache layout, not from a
@@ -2035,7 +2035,7 @@ std::vector<float> run_qsasdpa_ov_model(const qsa_reference& ref, bool has_gate)
     auto query_p = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{static_cast<size_t>(q_len), static_cast<size_t>(q_width)});
     auto past_lens_p = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
     auto subseq_p = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2});
-    // design chapter 15 validation: the cache Parameters are declared with a DYNAMIC
+    // validation: the cache Parameters are declared with a DYNAMIC
     // sequence axis (not the previous implementation's fixed, exactly-matching static
     // shape) -- QSASDPA's dense_mode lowering derives its address arithmetic from
     // THIS call's actual runtime layout, not from a compile-time-fixed capacity, so
@@ -2054,7 +2054,7 @@ std::vector<float> run_qsasdpa_ov_model(const qsa_reference& ref, bool has_gate)
 
     auto config = make_config(d, has_gate);
     // Deliberately NOT equal to `total`: config.pa_block_size is now purely an
-    // internal-scratch-buffer sizing hint (chapter 15), fully decoupled from the
+    // internal-scratch-buffer sizing hint, fully decoupled from the
     // caches' actual runtime shape. Must still satisfy validate_config's own
     // (dense_mode-independent) "divisible by compress_ratio" invariant.
     config.pa_block_size = ((static_cast<size_t>(total) + 37 + d.r - 1) / d.r) * d.r;
@@ -2462,7 +2462,7 @@ std::shared_ptr<ov::Model> make_qsa_indexer_cache_model(const qsa_dims& d, int64
     auto subseq_p = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{B + 1});
     auto position_ids_p = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{-1});
 
-    // design chapter 15 (QSAIndexerCache dynamic growth): the Variable's sequence/
+    // QSAIndexerCache dynamic growth: the Variable's sequence/
     // summary-count axis is genuinely DYNAMIC (bounded by `S`, not pre-reserved to it --
     // the caller-supplied `S` here is used both as this bound and as
     // config.pa_block_size, an internal-scratch-buffer sizing hint; the two are allowed
@@ -2510,7 +2510,7 @@ TEST(qsa_gpu_test, qsa_indexer_cache_ov_model_persists_state_across_two_infer_ca
     const size_t q_len1 = 20, q_len2 = 20;
     const size_t total = q_len1 + q_len2;  // 40
     const int64_t S = 64;                 // config.pa_block_size: an internal-scratch-buffer sizing
-                                           // hint only (chapter 15) -- the Variables themselves grow
+                                           // hint only -- the Variables themselves grow
                                            // dynamically and are not pre-reserved to this capacity.
     auto ref = make_reference(rg, d, /*past_len=*/0, /*q_len=*/total, /*has_gate=*/false);
 
@@ -2567,7 +2567,7 @@ TEST(qsa_gpu_test, qsa_indexer_cache_ov_model_persists_state_across_two_infer_ca
 
     // Call 1: from scratch.
     run_call(/*past_len=*/0, q_len1);
-    // design chapter 15 validation: the raw-K/summary output tensors' ACTUAL shape after
+    // validation: the raw-K/summary output tensors' ACTUAL shape after
     // call 1 must reflect exactly q_len1 valid entries -- NOT a fixed pre-reserved
     // capacity (the previous, replaced implementation always allocated the full
     // config.pa_block_size regardless of how many tokens had actually been seen). This is

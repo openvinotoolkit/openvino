@@ -81,7 +81,7 @@ void CreateQSAIndexerCacheOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_
     const int64_t r = static_cast<int64_t>(config.compress_ratio);
     OPENVINO_ASSERT(r > 0, "[GPU] QSAIndexerCache '", layer_name, "': compress_ratio must be > 0");
 
-    // design chapter 15 (QSAIndexerCache dynamic growth): raw-K/summary are genuinely
+    // QSAIndexerCache dynamic growth: raw-K/summary are genuinely
     // dynamic-length runtime state -- capacity grows call-over-call (see qsa_inst::
     // calc_output_layouts' dense_mode branch and impls/cm/qsa/qsa.cpp's execute()
     // copy_from()-based relocation), NOT pre-reserved to a fixed pa_block_size Variable

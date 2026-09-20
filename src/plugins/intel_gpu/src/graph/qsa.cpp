@@ -31,7 +31,7 @@ std::vector<layout> qsa_inst::calc_output_layouts(const qsa_node& /*node*/, cons
         // consumers (e.g. an Assign writing back to persistent Variable state) a genuine
         // graph dependency edge to schedule on; see execute()'s set_output_memory() calls.
         //
-        // design chapter 15 (QSAIndexerCache dynamic growth): in dense_mode, the caller
+        // QSAIndexerCache dynamic growth: in dense_mode, the caller
         // (see plugin/ops/qsa_indexer_cache.cpp) feeds the OLD (small) raw-K/summary
         // history as INDEXER_RAW_K_CACHE/INDEXER_SUMMARY_CACHE; this call's declared
         // output is the GROWN buffer (old_length + this call's new entries), computed

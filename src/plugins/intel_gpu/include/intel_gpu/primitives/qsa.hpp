@@ -36,7 +36,7 @@ struct qsa : public primitive_base<qsa> {
     // page table, to own the indexer raw-K/summary persistent state independently of the
     // main-attention side. The primitive's declared attention output is left uninitialized
     // in this mode; callers only care about the mutated raw-K/summary cache buffers.
-    // dense_mode: implements design doc chapter 15's QSA_SDPA_DENSE addressing mode.
+    // dense_mode: implements QSA_SDPA_DENSE addressing mode.
     // The address MATH (qsa::kv_cache_offset / raw_k_offset / summary_offset in
     // qsa_common.hpp) is reused completely unchanged -- for a single degenerate page
     // per sequence (page 0), "token_in_page = position % PA_BLOCK_SIZE" already IS a
