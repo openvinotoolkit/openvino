@@ -572,11 +572,19 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task pipeline_task, cons
         } else {
             device = select_dynamic_device();
         }
+        const bool is_pinned = !preferred_device.empty();
+        const auto pinned_device_name = device.device_name;
         OPENVINO_ASSERT(ensure_device_ready(device),
                         "[",
                         get_log_tag(),
                         "] failed to compile the model on the selected device ",
                         device.device_name);
+        // reject if a pinned request ended up compiled on a different device
+        OPENVINO_ASSERT(!is_pinned || device.device_name == pinned_device_name,
+                        "[",
+                        get_log_tag(),
+                        "] failed to compile the model on the device pinned by the remote tensor ",
+                        pinned_device_name);
         const auto& device_name = device.device_name;
         {
             std::lock_guard<std::mutex> lock(m_gate_mutex);
@@ -651,8 +659,8 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
     // failure; drop that registration right away, same as the primary per inference selection above
     m_plugin->unregister_priority(m_context->m_model_priority, context.m_device_info.unique_name);
     device = context.m_device_info;
-    m_dynamic_compiled_models[device.device_name] = context.m_compiled_model;
     generate_workers(device.device_name, context.m_compiled_model);
+    m_dynamic_compiled_models[device.device_name] = context.m_compiled_model;
     LOG_INFO_TAG("[dynamic] device:%s is ready in %lf ms",
                  device.device_name.c_str(),
                  std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start_time).count());

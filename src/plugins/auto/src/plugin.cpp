@@ -505,7 +505,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
     auto_s_context->m_dynamic_device_selection =
-        !is_cumulative && !is_stateful_model &&
+        // dynamic selection is only enabled for models compiled from an in-memory ov::Model
+        model_path.empty() && !is_cumulative && !is_stateful_model &&
         (!auto_s_context->m_selection_policy.utilization_thresholds.empty() ||
          !auto_s_context->m_selection_policy.perf_curve_table.empty() ||
          !auto_s_context->m_low_power_device.empty());
@@ -1008,12 +1009,12 @@ void Plugin::unregister_priority(const unsigned int& priority, const std::string
     if (m_mtx && m_priority_map) {
         std::lock_guard<std::mutex> lck(*m_mtx);
         auto& priority_devices = (*m_priority_map)[priority];
-        for (auto iter = priority_devices.begin(); iter != priority_devices.end();) {
+        // remove the most recently registered matching entry
+        for (auto iter = priority_devices.rbegin(); iter != priority_devices.rend(); ++iter) {
             if (*iter == device_name) {
-                priority_devices.erase(iter);
+                priority_devices.erase(std::next(iter).base());
                 break;
             }
-            iter++;
         }
     }
 }
