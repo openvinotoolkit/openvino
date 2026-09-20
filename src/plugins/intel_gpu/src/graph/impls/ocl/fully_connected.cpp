@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "primitive_base.hpp"
-#include "kernel_base.h"
-#include "fully_connected_inst.h"
 #include "fully_connected/fully_connected_kernel_selector.h"
 #include "fully_connected/fully_connected_params.h"
+#include "fully_connected_inst.h"
+#include "kernel_base.h"
+#include "primitive_base.hpp"
 
 namespace cldnn {
 namespace ocl {
@@ -30,9 +30,8 @@ struct fully_connected_impl : typed_primitive_impl_ocl<fully_connected> {
                 return ov::PartialShape({shape[0], shape[1]});
             };
 
-            auto weights_reorder_params = std::make_shared<WeightsReorderParams>(from_weights_tensor(params.src),
-                                                                                 from_weights_tensor(params.dest),
-                                                                                 params.rotate);
+            auto weights_reorder_params =
+                std::make_shared<WeightsReorderParams>(from_weights_tensor(params.src), from_weights_tensor(params.dest), params.rotate);
             auto output_layout = weights_reorder_params->get_output_layout();
             output_layout.set_partial_shape(crop_to_2d(output_layout.get_partial_shape()));
             weights_reorder_params->set_output_layout(output_layout);
@@ -65,13 +64,15 @@ protected:
         args.weights = instance.weights_memory();
         args.bias = instance.bias_term() ? instance.bias_memory() : nullptr;
 
-        args.inputs = { instance.input_memory_ptr(0) };
+        args.inputs = {instance.input_memory_ptr(0)};
         size_t in_id = instance.bias_term() ? 3 : 2;
-        if (desc->decompression_scale.is_valid())
+        if (desc->decompression_scale.is_valid()) {
             args.inputs.push_back(instance.dep_memory_ptr(in_id++));
+        }
 
-        if (desc->decompression_zero_point.is_valid())
+        if (desc->decompression_zero_point.is_valid()) {
             args.inputs.push_back(instance.dep_memory_ptr(in_id));
+        }
 
         return args;
     }
@@ -86,10 +87,9 @@ public:
                     auto static_shape = shape.to_shape();
                     size_t total = std::accumulate(static_shape.begin(), static_shape.end(), static_cast<size_t>(1), std::multiplies<size_t>());
                     auto dim = feature.is_static() ? feature.get_length() : static_cast<int64_t>(static_shape[rank - 1]);
-                    return ov::PartialShape{ static_cast<int64_t>(total) / dim, dim };
+                    return ov::PartialShape{static_cast<int64_t>(total) / dim, dim};
                 }
                 return ov::PartialShape{ov::Dimension::dynamic(), feature};
-
             };
 
             auto input0_layout = input_layouts[0];
@@ -138,11 +138,11 @@ public:
             auto input0_pshape = input_layouts[0].get_partial_shape();
             auto input1_pshape = input_layouts[1].get_partial_shape();
             const auto out_features_dim = primitive->weights_transposed ? input1_pshape[0] : input1_pshape[1];
-            ov::PartialShape updated_out_pshape {input0_pshape[0], out_features_dim};
+            ov::PartialShape updated_out_pshape{input0_pshape[0], out_features_dim};
             const auto output_feature_size = swiglu_fused ? out_features_dim / 2 : out_features_dim;
 
             if (primitive->input_size == 3) {
-                updated_out_pshape = { input0_pshape[0], input0_pshape[1], output_feature_size};
+                updated_out_pshape = {input0_pshape[0], input0_pshape[1], output_feature_size};
             }
             updated_out_layout.set_partial_shape(updated_out_pshape);
 
@@ -154,8 +154,9 @@ public:
         bool swiglu_fused = false;
         if (!updated_impl_param.fused_desc.empty()) {
             for (const auto& f : updated_impl_param.fused_desc) {
-                if (f.is_type<swiglu>())
+                if (f.is_type<swiglu>()) {
                     swiglu_fused = true;
+                }
             }
         }
 
@@ -184,8 +185,7 @@ public:
             if (with_zp) {
                 params.has_decompression_zp = true;
                 params.decompression_zero_point = convert_data_tensor(updated_impl_param.input_layouts[3]);
-                if (updated_impl_param.input_layouts[3].get_linear_size() == 1 &&
-                    primitive->decompression_zero_point_scalar.has_value()) {
+                if (updated_impl_param.input_layouts[3].get_linear_size() == 1 && primitive->decompression_zero_point_scalar.has_value()) {
                     params.scalar_zp = true;
                     params.zp_value = primitive->decompression_zero_point_scalar.value();
                 }
@@ -196,12 +196,14 @@ public:
             }
         }
 
-        if (primitive->input_size != 3)
-            params.outputs = { params.outputs[0].FlattenFeatureAndSpatials() };
+        if (primitive->input_size != 3) {
+            params.outputs = {params.outputs[0].FlattenFeatureAndSpatials()};
+        }
 
         bool is_quantized = true;
-        for (const auto& input : impl_param.input_layouts)
+        for (const auto& input : impl_param.input_layouts) {
             is_quantized &= data_type_traits::is_quantized(input.data_type);
+        }
 
         if (is_quantized) {
             params.quantization = kernel_selector::QuantizationType::SYMMETRIC;
@@ -209,8 +211,7 @@ public:
             params.quantization = kernel_selector::QuantizationType::NONE;
         }
 
-        params.dynamic_quantization_group_size =
-            impl_param.get_program().get_config().get_dynamic_quantization_group_size();
+        params.dynamic_quantization_group_size = impl_param.get_program().get_config().get_dynamic_quantization_group_size();
 
         return params;
     }
@@ -226,7 +227,7 @@ public:
         update_shapes(params, updated_impl_param);
 
         if (impl_param.typed_desc<fully_connected>()->input_size != 3) {
-            params.outputs = { params.outputs[0].FlattenFeatureAndSpatials() };
+            params.outputs = {params.outputs[0].FlattenFeatureAndSpatials()};
         }
 
         (_kernel_data.update_dispatch_data_func)(*_kernel_data.params, _kernel_data);
@@ -238,45 +239,47 @@ namespace detail {
 attach_fully_connected_impl::attach_fully_connected_impl() {
     implementation_map<fully_connected>::add(impl_types::ocl,
                                              shape_types::dynamic_shape,
-                                             typed_primitive_impl_ocl<fully_connected>::create<fully_connected_impl>, {
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::bfyx),
-    });
+                                             typed_primitive_impl_ocl<fully_connected>::create<fully_connected_impl>,
+                                             {
+                                                 std::make_tuple(data_types::f32, format::bfyx),
+                                                 std::make_tuple(data_types::f16, format::bfyx),
+                                                 std::make_tuple(data_types::i32, format::bfyx),
+                                                 std::make_tuple(data_types::u8, format::bfyx),
+                                                 std::make_tuple(data_types::i8, format::bfyx),
+                                             });
     implementation_map<fully_connected>::add(impl_types::ocl,
                                              shape_types::static_shape,
-                                             typed_primitive_impl_ocl<fully_connected>::create<fully_connected_impl>, {
-        std::make_tuple(data_types::f32, format::yxfb),
-        std::make_tuple(data_types::f16, format::yxfb),
-        std::make_tuple(data_types::f32, format::bfyx),
-        std::make_tuple(data_types::f16, format::bfyx),
-        std::make_tuple(data_types::i32, format::bfyx),
-        std::make_tuple(data_types::f32, format::bfzyx),
-        std::make_tuple(data_types::f16, format::bfzyx),
-        std::make_tuple(data_types::f32, format::bfwzyx),
-        std::make_tuple(data_types::f16, format::bfwzyx),
-        std::make_tuple(data_types::f32, format::byxf),
-        std::make_tuple(data_types::f16, format::byxf),
-        std::make_tuple(data_types::i8, format::bfyx),
-        std::make_tuple(data_types::u8, format::bfyx),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::f32, format::b_fs_yx_fsv4),
-        std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
-        std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
-        std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
-        std::make_tuple(data_types::f32, format::bs_fs_fsv8_bsv8),
-        std::make_tuple(data_types::f16, format::bs_fs_fsv8_bsv8),
-        std::make_tuple(data_types::f16, format::bs_fs_fsv8_bsv16),
-        std::make_tuple(data_types::i8, format::bfzyx),
-        std::make_tuple(data_types::u8, format::bfzyx),
-    });
+                                             typed_primitive_impl_ocl<fully_connected>::create<fully_connected_impl>,
+                                             {
+                                                 std::make_tuple(data_types::f32, format::yxfb),
+                                                 std::make_tuple(data_types::f16, format::yxfb),
+                                                 std::make_tuple(data_types::f32, format::bfyx),
+                                                 std::make_tuple(data_types::f16, format::bfyx),
+                                                 std::make_tuple(data_types::i32, format::bfyx),
+                                                 std::make_tuple(data_types::f32, format::bfzyx),
+                                                 std::make_tuple(data_types::f16, format::bfzyx),
+                                                 std::make_tuple(data_types::f32, format::bfwzyx),
+                                                 std::make_tuple(data_types::f16, format::bfwzyx),
+                                                 std::make_tuple(data_types::f32, format::byxf),
+                                                 std::make_tuple(data_types::f16, format::byxf),
+                                                 std::make_tuple(data_types::i8, format::bfyx),
+                                                 std::make_tuple(data_types::u8, format::bfyx),
+                                                 std::make_tuple(data_types::i8, format::b_fs_yx_fsv32),
+                                                 std::make_tuple(data_types::u8, format::b_fs_yx_fsv32),
+                                                 std::make_tuple(data_types::i8, format::b_fs_yx_fsv4),
+                                                 std::make_tuple(data_types::u8, format::b_fs_yx_fsv4),
+                                                 std::make_tuple(data_types::f32, format::b_fs_yx_fsv4),
+                                                 std::make_tuple(data_types::i8, format::b_fs_yx_fsv16),
+                                                 std::make_tuple(data_types::u8, format::b_fs_yx_fsv16),
+                                                 std::make_tuple(data_types::i8, format::bs_fs_yx_bsv16_fsv16),
+                                                 std::make_tuple(data_types::u8, format::bs_fs_yx_bsv16_fsv16),
+                                                 std::make_tuple(data_types::f16, format::fs_b_yx_fsv32),
+                                                 std::make_tuple(data_types::f32, format::bs_fs_fsv8_bsv8),
+                                                 std::make_tuple(data_types::f16, format::bs_fs_fsv8_bsv8),
+                                                 std::make_tuple(data_types::f16, format::bs_fs_fsv8_bsv16),
+                                                 std::make_tuple(data_types::i8, format::bfzyx),
+                                                 std::make_tuple(data_types::u8, format::bfzyx),
+                                             });
 }
 
 }  // namespace detail

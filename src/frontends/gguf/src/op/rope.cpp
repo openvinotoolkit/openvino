@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/decompositions/rope.hpp"
+
 #include <cstdint>
 #include <memory>
 #include <vector>
 
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
-#include "openvino/decompositions/rope.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -27,9 +30,6 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/node_registry.hpp"
-
-#include "node_context.hpp"
-#include "op_table.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -45,7 +45,10 @@ OutputVector translate_rope(const NodeContext& context) {
     ov::Output<Node> res;
 
     auto data = context.get_input(0);
-    auto output_shape = context.get_output_shape().to_shape();
+    auto output_shape = context.get_output_shape();
+    if (output_shape.rank().is_dynamic()) {
+        output_shape = context.get_input_shape(0);
+    }
     auto rope_config = context.get_attribute<RopeConfig>("rope_config");
     const int mode = (op_case & 0xFFFF0000) >> 16;
     op_case = (op_case & 0x0000FFFF);
@@ -79,17 +82,17 @@ OutputVector translate_rope(const NodeContext& context) {
         return ov::op::v0::Constant::create(
             ov::element::i64,
             {4},
-            std::vector<int64_t>{0, -1, (int64_t)output_shape[2], (int64_t)output_shape[3]});
+            std::vector<int64_t>{0, -1, (int64_t)output_shape[2].get_length(), (int64_t)output_shape[3].get_length()});
     };
 
     if (op_case == 2) {
         // The input comes from a VIEW
-        int slice_len = static_cast<int>(output_shape[2] * output_shape[3]);
+        int slice_len = static_cast<int>(output_shape[2].get_length() * output_shape[3].get_length());
         data = process_view_input(context, 0, slice_len);
         data = std::make_shared<ov::op::v1::Reshape>(data, make_bhsd_shape(), true);
     }
 
-    const auto output_type = context.get_output_type();
+    const auto output_type = data.get_element_type();
     if (data.get_element_type() != ov::element::f32) {
         data = std::make_shared<ov::op::v0::Convert>(data, ov::element::f32);
     }
@@ -99,8 +102,8 @@ OutputVector translate_rope(const NodeContext& context) {
         // folds this subgraph into ov::op::internal::RoPE → GPU ocl::rope::opt kernel.
         // RoPEFusionFlux requires rank-4 x with static last two dims [n_heads, head_size].
         // After the VIEW prologue the data is already [B,L,n_heads,head_size].
-        const int64_t n_heads   = static_cast<int64_t>(output_shape[2]);
-        const int64_t head_size = static_cast<int64_t>(output_shape[3]);
+        const int64_t n_heads = static_cast<int64_t>(output_shape[2].get_length());
+        const int64_t head_size = static_cast<int64_t>(output_shape[3].get_length());
         const int64_t n_rot = rope_config.n_dims > 0 ? rope_config.n_dims : head_size;
         const int64_t half = n_rot / 2;
 
@@ -132,20 +135,20 @@ OutputVector translate_rope(const NodeContext& context) {
         auto x1_neg = std::make_shared<ov::op::v1::Multiply>(x1, neg_one_f);
 
         auto x_rotated_paired = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{x1_neg, x0}, -1);
-        auto rotary_shape = ov::op::v0::Constant::create(
-            ov::element::i64, {4}, std::vector<int64_t>{0, -1, n_heads, n_rot});
+        auto rotary_shape =
+            ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, -1, n_heads, n_rot});
         auto x_rotated = std::make_shared<ov::op::v1::Reshape>(x_rotated_paired, rotary_shape, true);
 
         // Expand cos/sin from [B, L, 1, half] to [B, L, 1, head_size].
         auto expand_cos_sin = [&](ov::Output<ov::Node> cs) -> ov::Output<ov::Node> {
-            auto cs_unsq = std::make_shared<ov::op::v0::Unsqueeze>(
-                cs, ov::op::v0::Constant::create(ov::element::i64, {1}, {-1LL}));
-            auto bcast_target = ov::op::v0::Constant::create(
-                ov::element::i64, {5}, std::vector<int64_t>{1, 1, 1, half, 2});
-            auto bcast = std::make_shared<ov::op::v3::Broadcast>(
-                cs_unsq, bcast_target, ov::op::BroadcastType::BIDIRECTIONAL);
-            auto flat = ov::op::v0::Constant::create(
-                ov::element::i64, {4}, std::vector<int64_t>{0, 0, 0, n_rot});
+            auto cs_unsq =
+                std::make_shared<ov::op::v0::Unsqueeze>(cs,
+                                                        ov::op::v0::Constant::create(ov::element::i64, {1}, {-1LL}));
+            auto bcast_target =
+                ov::op::v0::Constant::create(ov::element::i64, {5}, std::vector<int64_t>{1, 1, 1, half, 2});
+            auto bcast =
+                std::make_shared<ov::op::v3::Broadcast>(cs_unsq, bcast_target, ov::op::BroadcastType::BIDIRECTIONAL);
+            auto flat = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 0, 0, n_rot});
             return std::make_shared<ov::op::v1::Reshape>(bcast, flat, /*special_zero=*/true);
         };
         auto cos_full = expand_cos_sin(cos_theta_node);
@@ -154,32 +157,30 @@ OutputVector translate_rope(const NodeContext& context) {
         auto y1 = std::make_shared<ov::op::v1::Multiply>(rotary_data, cos_full);
         auto y2 = std::make_shared<ov::op::v1::Multiply>(x_rotated, sin_full);
         ov::Output<ov::Node> rotated = std::make_shared<ov::op::v1::Add>(y1, y2);
-        res = n_rot < head_size
-                  ? std::make_shared<ov::op::v0::Concat>(ov::OutputVector{rotated, pass_through}, -1)
-                  : rotated;
+        res = n_rot < head_size ? std::make_shared<ov::op::v0::Concat>(ov::OutputVector{rotated, pass_through}, -1)
+                                : rotated;
     } else if (mode == TYPE_NEOX) {
         // Partial rotary (ggml n_dims < head_dim): only the first n_dims of every head are
         // rotated; the remaining tail is passed through unchanged. cos/sin have width n_dims/2,
         // so the rotated block must be exactly n_dims wide.
-        const int64_t head_dim = static_cast<int64_t>(output_shape[3]);
+        const int64_t head_dim = static_cast<int64_t>(output_shape[3].get_length());
         const int64_t n_rot = rope_config.n_dims > 0 ? rope_config.n_dims : head_dim;
 
         // Split the head into the rotated block [0, n_rot) and the untouched tail [n_rot, head_dim)
         // on the innermost axis. Both branches below rotate `rotary_in` and re-concatenate the tail.
-        auto split_rotary = [&](ov::Output<ov::Node> x,
-                                ov::Output<ov::Node>& rotary_in,
-                                ov::Output<ov::Node>& pass_through) {
-            rotary_in = x;
-            if (n_rot < head_dim) {
-                auto neg_one = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
-                auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
-                auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
-                auto n_rot_c = ov::op::v0::Constant::create(ov::element::i64, {1}, {n_rot});
-                auto head_c = ov::op::v0::Constant::create(ov::element::i64, {1}, {head_dim});
-                rotary_in = std::make_shared<ov::op::v8::Slice>(x, zero, n_rot_c, one, neg_one);
-                pass_through = std::make_shared<ov::op::v8::Slice>(x, n_rot_c, head_c, one, neg_one);
-            }
-        };
+        auto split_rotary =
+            [&](ov::Output<ov::Node> x, ov::Output<ov::Node>& rotary_in, ov::Output<ov::Node>& pass_through) {
+                rotary_in = x;
+                if (n_rot < head_dim) {
+                    auto neg_one = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+                    auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+                    auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+                    auto n_rot_c = ov::op::v0::Constant::create(ov::element::i64, {1}, {n_rot});
+                    auto head_c = ov::op::v0::Constant::create(ov::element::i64, {1}, {head_dim});
+                    rotary_in = std::make_shared<ov::op::v8::Slice>(x, zero, n_rot_c, one, neg_one);
+                    pass_through = std::make_shared<ov::op::v8::Slice>(x, n_rot_c, head_c, one, neg_one);
+                }
+            };
 
         // Build the canonical NEOX RoPE via the shared decomposition helper, which emits the exact
         // split-halves + Multiply(-1)+Add + Concat pattern that ov::pass::RoPEFusion (specifically
@@ -191,8 +192,8 @@ OutputVector translate_rope(const NodeContext& context) {
         // the decomposition there, and transpose the result back. The math is unchanged; the
         // wrapping Transposes are sunk / cancelled against the adjacent PERMUTE during
         // TransposeSinking.
-        const int64_t n_head_rope = static_cast<int64_t>(output_shape[2]);
-        const int64_t head_size_rope = static_cast<int64_t>(output_shape[3]);
+        const int64_t n_head_rope = static_cast<int64_t>(output_shape[2].get_length());
+        const int64_t head_size_rope = static_cast<int64_t>(output_shape[3].get_length());
         const auto perm_bhls = ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3});
 
         // Data reaches this op in inconsistent shapes depending on the layer's upstream rank:
@@ -213,7 +214,7 @@ OutputVector translate_rope(const NodeContext& context) {
             return std::make_shared<ov::op::v1::Transpose>(x, perm_bhls);
         };
 
-        auto x_bhls = data_to_bhls(data);           // [B, H, L, S]
+        auto x_bhls = data_to_bhls(data);                // [B, H, L, S]
         auto cos_bhls = cossin_to_bhls(cos_theta_node);  // [B, 1, L, n_rot/2]
         auto sin_bhls = cossin_to_bhls(sin_theta_node);  // [B, 1, L, n_rot/2]
 
@@ -242,7 +243,7 @@ OutputVector translate_rope(const NodeContext& context) {
         // exactly n_rot wide; using the full head here rotates the pass-through tail and corrupts
         // every full-attention layer. (Use output_shape, not data.get_shape() which throws
         // on a dynamic dim.)
-        const int64_t head_dim = static_cast<int64_t>(output_shape[3]);
+        const int64_t head_dim = static_cast<int64_t>(output_shape[3].get_length());
         const int64_t n_rot = rope_config.n_dims > 0 ? rope_config.n_dims : head_dim;
 
         Output<Node> rotary_in = data;
@@ -287,7 +288,7 @@ OutputVector translate_rope(const NodeContext& context) {
         res = std::make_shared<ov::op::v0::Convert>(res, output_type);
     }
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

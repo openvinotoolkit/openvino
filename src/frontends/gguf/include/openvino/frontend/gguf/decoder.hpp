@@ -81,10 +81,7 @@ public:
 
     // DecoderBase override: GGUF resolves connectivity through the TensorMap (name-keyed),
     // not through port-to-port decoder traversal, so this is never called.
-    void get_input_node(size_t,
-                        std::string&,
-                        std::string&,
-                        size_t&) const override {}
+    void get_input_node(size_t, std::string&, std::string&, size_t&) const override {}
 
     virtual std::vector<std::string> get_input_names() const = 0;
 

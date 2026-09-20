@@ -380,6 +380,66 @@ TEST_F(IRFrontendTests, model_with_missing_weights) {
     ASSERT_THROW(core.read_model(testModelV11, ov::Tensor()), ov::Exception);
 }
 
+TEST_F(IRFrontendTests, const_layer_with_missing_shape_attribute) {
+    std::string testModelV11 = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer id="0" name="value1" type="Const" version="opset1">
+            <data element_type="boolean" offset="0" size="1" />
+            <output>
+                <port id="0" precision="BOOL"/>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="1" version="opset1">
+            <input>
+                <port id="0" precision="BOOL"/>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    std::vector<unsigned char> buffer(1, 0);
+    createTemporalModelFile(testModelV11, buffer);
+
+    OV_EXPECT_THROW(core.read_model(xmlFileName, binFileName),
+                    ov::Exception,
+                    testing::HasSubstr("Missing attribute 'shape' for Const"));
+}
+
+TEST_F(IRFrontendTests, const_layer_with_missing_element_type_attribute) {
+    std::string testModelV11 = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer id="0" name="value1" type="Const" version="opset1">
+            <data shape="1" offset="0" size="1" />
+            <output>
+                <port id="0" precision="BOOL"/>
+            </output>
+        </layer>
+        <layer name="output" type="Result" id="1" version="opset1">
+            <input>
+                <port id="0" precision="BOOL"/>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    std::vector<unsigned char> buffer(1, 0);
+    createTemporalModelFile(testModelV11, buffer);
+
+    OV_EXPECT_THROW(core.read_model(xmlFileName, binFileName),
+                    ov::Exception,
+                    testing::HasSubstr("Missing attribute 'element_type' for Const"));
+}
+
 TEST_P(IRFrontendMMapTests, model_with_weights_reading_from_disk) {
     std::string xmlModel = R"V0G0N(
 <?xml version="1.0" ?>
@@ -584,16 +644,22 @@ TEST_P(IRFrontendMMapTests, read_model_get_weights_map) {
         ov::save_model(model, xmlFileName);
     }
 
-    const auto model = core.read_model(xmlFileName, binFileName, {ov::enable_mmap(GetParam())});
+    const auto is_mmap_enabled = GetParam();
+    const auto model = core.read_model(xmlFileName, binFileName, {ov::enable_mmap(is_mmap_enabled)});
 
     const auto wt_sources = ov::wsh::Extension::get_weight_sources(*model);
-    ASSERT_GE(wt_sources.size(), 1);
-
     const auto wt_map = ov::wsh::Extension::get_weight_registry(*model);
-    ASSERT_GE(wt_map.size(), 1);
-
-    const auto& wt_meta_map = wt_map.begin()->second;
-    EXPECT_EQ(wt_meta_map.size(), 2);
+    if (is_mmap_enabled) {
+        ASSERT_EQ(wt_sources.size(), 1);
+        ASSERT_EQ(wt_map.size(), 1);
+        EXPECT_EQ(wt_map.begin()->second.size(), 2);
+    } else {
+        ASSERT_EQ(wt_sources.size(), 2);
+        ASSERT_EQ(wt_map.size(), 2);
+        for (const auto& [key, wt_meta_map] : wt_map) {
+            EXPECT_EQ(wt_meta_map.size(), 1);
+        }
+    }
 }
 
 INSTANTIATE_TEST_SUITE_P(EnableMMapPropery, IRFrontendMMapTests, ::testing::Bool());
@@ -1931,4 +1997,59 @@ TEST_F(IRFrontendTests, string_const_offset_plus_size_overflow_is_rejected) {
     createTemporalModelFile(xmlModel, buffer);
 
     ASSERT_THROW(core.read_model(xmlFileName, binFileName), ov::Exception);
+}
+
+TEST_F(IRFrontendTests, read_value_layer_with_missing_variable_id_attribute) {
+    std::string testModelV11 = R"V0G0N(
+<net name="Network" version="11">
+    <layers>
+        <layer id="0" name="input" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,1,128"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="ReadValue" type="ReadValue" version="opset6">
+            <data variable_type="f32" variable_shape="1,1,128"/>
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </input>
+            <output>
+                <port id="1" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="2" name="output" type="Result" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                    <dim>128</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="1" to-port="0"/>
+        <edge from-layer="1" from-port="1" to-layer="2" to-port="0"/>
+    </edges>
+</net>
+)V0G0N";
+
+    // Regression test: a ReadValue layer without a "variable_id" attribute must not crash (null Variable
+    // dereference), it must be rejected with a clean exception instead.
+    OV_EXPECT_THROW(core.read_model(testModelV11, ov::Tensor()),
+                    ov::Exception,
+                    testing::HasSubstr("Variable is not initialized."));
 }

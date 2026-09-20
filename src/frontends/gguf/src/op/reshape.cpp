@@ -2,21 +2,25 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "node_context.hpp"
-#include "op_table.hpp"
-#include "utils.hpp"
+#include "openvino/op/reshape.hpp"
 
 #include <cstdint>
 #include <memory>
+#include <stdexcept>
+#include <vector>
+
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
-#include "openvino/op/reshape.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
-#include <stdexcept>
-#include <vector>
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -25,7 +29,44 @@ namespace op {
 
 OutputVector translate_reshape(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
-    if (context.get_input_shape(0) == context.get_output_shape()) {
+    const auto target = context.get_attribute<std::vector<int64_t>>("reshape_target", {});
+    if (!target.empty() && (context.get_op_case() == 0 || context.get_op_case() == 6)) {
+        auto pattern = ov::op::v0::Constant::create(ov::element::i64, {target.size()}, target);
+        return rename_outputs_with_suffix(
+            {std::make_shared<ov::op::v1::Reshape>(context.get_input(0),
+                                                   pattern,
+                                                   context.get_attribute<bool>("special_zero", false))},
+            context.get_name());
+    }
+    if (context.get_attribute<bool>("merge_heads", false)) {
+        const auto input = context.get_input(0);
+        const auto shape = input.get_partial_shape();
+        FRONT_END_OP_CONVERSION_CHECK(shape.rank() == 4, "Head merging requires a rank-4 input");
+        ov::Output<ov::Node> pattern;
+        if (shape[2].is_static() && shape[3].is_static()) {
+            pattern = ov::op::v0::Constant::create(
+                ov::element::i64,
+                {4},
+                std::vector<int64_t>{0, 1, -1, shape[2].get_length() * shape[3].get_length()});
+        } else {
+            auto dimensions = std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64);
+            auto heads =
+                std::make_shared<ov::op::v8::Gather>(dimensions,
+                                                     ov::op::v0::Constant::create(ov::element::i64, {2}, {2, 3}),
+                                                     ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
+            auto width =
+                std::make_shared<ov::op::v1::ReduceProd>(heads,
+                                                         ov::op::v0::Constant::create(ov::element::i64, {1}, {0}),
+                                                         true);
+            pattern = std::make_shared<ov::op::v0::Concat>(
+                ov::OutputVector{ov::op::v0::Constant::create(ov::element::i64, {3}, {0, 1, -1}), width},
+                0);
+        }
+        return rename_outputs_with_suffix({std::make_shared<ov::op::v1::Reshape>(input, pattern, true)},
+                                          context.get_name());
+    }
+    if (!context.get_attribute<bool>("preserve_dynamic_layout", false) &&
+        context.get_input_shape(0) == context.get_output_shape()) {
         return {context.get_input(0)};
     }
 
@@ -109,13 +150,12 @@ OutputVector translate_reshape(const NodeContext& context) {
     } else if (op_case == 7) {
         // General fully-static reshape (no dynamic token axis): reshape straight to the static
         // output shape. Used by qwen3-next's recurrent-state predelta reshape [262144]->[16,128,128].
-        new_shape_node = ov::op::v0::Constant::create(
-            ov::element::i64, {output_shape.size()},
-            std::vector<int64_t>(output_shape.begin(), output_shape.end()));
-
+        new_shape_node = ov::op::v0::Constant::create(ov::element::i64,
+                                                      {output_shape.size()},
+                                                      std::vector<int64_t>(output_shape.begin(), output_shape.end()));
     }
     auto res = std::make_shared<ov::op::v1::Reshape>(context.get_input(0), new_shape_node, false);
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op

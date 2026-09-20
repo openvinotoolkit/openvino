@@ -1108,3 +1108,26 @@ TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_ParameterCompressedWe
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input, weights});
     }
 }
+
+// A last-two-dims Transpose in front of the weights is skipped by the pass, so its input already has
+// the [N, K] layout FullyConnected expects. Re-applying the transpose would undo that.
+TEST_F(TransformationTestsF, ConvertMatMulToFullyConnected_ReusedTransposeOnWeights) {
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 5, 4});
+        auto weights = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3, 4});
+        auto transpose_constant = ov::opset1::Constant::create(ov::element::i32, ov::Shape{3}, {0, 2, 1});
+        auto transpose = std::make_shared<ov::opset1::Transpose>(weights, transpose_constant);
+        auto matmul = std::make_shared<ov::opset1::MatMul>(input, transpose, false, false);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{input, weights});
+        manager.register_pass<ConvertMatMulToFullyConnected>();
+    }
+    {
+        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 5, 4});
+        auto weights = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 3, 4});
+        auto no_bias = std::make_shared<ov::intel_gpu::op::Placeholder>();
+        auto fc = std::make_shared<op::FullyConnected>(input, weights, no_bias, ov::element::f32, /*transpose_b=*/true);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{fc}, ov::ParameterVector{input, weights});
+    }
+}

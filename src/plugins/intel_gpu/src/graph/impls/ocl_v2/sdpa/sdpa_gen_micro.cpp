@@ -49,6 +49,8 @@ micro::Type convert_type(ov::element::Type t) {
         return micro::Type::f32;
     case ov::element::f16:
         return micro::Type::f16;
+    case ov::element::bf16:
+        return micro::Type::bf16;
     case ov::element::i8:
         return micro::Type::s8;
     case ov::element::u8:
@@ -336,7 +338,7 @@ sdpa_config_t xehpg_q_h512_s64_2nd = {8, 16, 32, 8, 32, 1, 16, 2};
 sdpa_config_t xehpg_q_h512_s256_2nd = {16, 8, 32, 8, 16, 2, 16, 2};
 sdpa_config_t xehpg_q_h512_2nd = {16, 8, 16, 8, 32, 1, 32, 1};
 
-sdpa_config_t xehpg_h512_pa = {16, 16, 16, 16, 8, 2, 32, 2};
+sdpa_config_t xehpg_h512_pa = {16, 16, 16, 16, 32, 1, 32, 1};
 sdpa_config_t xehpg_h512 = {8, 16, 32, 16, 16, 2, 16, 2};
 sdpa_config_t xehpg_h512_2nd = {8, 8, 32, 8, 16, 1, 16, 1};
 
@@ -384,7 +386,7 @@ sdpa_config_t xehpc_h256 = {16, 32, 32, 32, 8, 4, 8, 4};
 sdpa_config_t xehpc_h256_s64 = {16, 32, 32, 32, 8, 1, 8, 1};
 sdpa_config_t xehpc_h256_2nd = {16, 16, 16, 16, 16, 1, 16, 1};
 
-sdpa_config_t xehpc_h512_pa = {16, 16, 16, 16, 16, 1, 32, 1};
+sdpa_config_t xehpc_h512_pa = {16, 16, 32, 16, 16, 2, 16, 2};
 sdpa_config_t xehpc_h512 = {32, 16, 64, 16, 8, 4, 8, 4};
 sdpa_config_t xehpc_h512_s64 = {16, 16, 64, 16, 8, 2, 8, 2};
 sdpa_config_t xehpc_h512_s128_2nd = {16, 16, 64, 16, 8, 1, 8, 1};
@@ -454,121 +456,157 @@ sdpa_config_t xe3_q_h512_2nd = {32, 16, 32, 16, 16, 1, 16, 1};
 
 sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool quantized, bool is_pa, bool is_prefill) {
     if (head_size <= 32) {
-        if (seq <= 0 && is_pa)
+        if (seq <= 0 && is_pa) {
             return &xehpg_h32_pa;
+        }
         if (quantized && seq >= 128) {
-            if (thin_q)
+            if (thin_q) {
                 return &xehpg_q_h32_2nd;
+            }
             return &xehpg_q_h32;
         }
-        if (thin_q)
+        if (thin_q) {
             return &xehpg_h32_2nd;
-        if (seq <= 32)
+        }
+        if (seq <= 32) {
             return &xehpg_h32_s32;
-        if (seq <= 64)
+        }
+        if (seq <= 64) {
             return &xehpg_h32_s64;
-        if (seq <= 256)
+        }
+        if (seq <= 256) {
             return &xehpg_h32_s256;
+        }
         return &xehpg_h32;
     }
     if (head_size <= 64) {
-        if (seq <= 0 && is_pa)
+        if (seq <= 0 && is_pa) {
             return is_prefill ? &xehpg_h64 : &xehpg_h64_pa;
+        }
         if (quantized) {
             if (thin_q) {
-                if (seq <= 64)
+                if (seq <= 64) {
                     return &xehpg_q_h64_s64_2nd;
-                if (seq <= 128)
+                }
+                if (seq <= 128) {
                     return &xehpg_q_h64_s128_2nd;
+                }
                 return &xehpg_q_h64_2nd;
             }
-            if (seq <= 32)
+            if (seq <= 32) {
                 return &xehpg_q_h64_s32;
-            if (seq <= 64)
+            }
+            if (seq <= 64) {
                 return &xehpg_q_h64_s64;
-            if (seq <= 128)
+            }
+            if (seq <= 128) {
                 return &xehpg_q_h64_s128;
+            }
             return &xehpg_q_h64;
         }
-        if (thin_q)
+        if (thin_q) {
             return &xehpg_h64_2nd;
-        if (seq <= 64)
+        }
+        if (seq <= 64) {
             return &xehpg_h64_s64;
-        if (seq <= 128)
+        }
+        if (seq <= 128) {
             return &xehpg_h64_s128;
+        }
         return &xehpg_h64;
     }
     if (head_size <= 128) {
-        if (seq <= 0 && is_pa)
+        if (seq <= 0 && is_pa) {
             return is_prefill ? &xehpg_h128 : &xehpg_h128_pa;
+        }
         if (quantized) {
             if (thin_q) {
-                if (seq <= 1)
+                if (seq <= 1) {
                     return &xehpg_q_h128_2nd;
-                if (seq <= 96)
+                }
+                if (seq <= 96) {
                     return &xehpg_q_h128_s96_2nd;
+                }
                 return &xehpg_q_h128_2nd;
             }
-            if (seq <= 64)
+            if (seq <= 64) {
                 return &xehpg_q_h128_s64;
-            if (seq <= 512)
+            }
+            if (seq <= 512) {
                 return &xehpg_q_h128_s512;
+            }
             return &xehpg_q_h128;
         }
         if (thin_q) {
-            if (seq <= 256)
+            if (seq <= 256) {
                 return &xehpg_q_h128_2nd;
+            }
             return &xehpg_h128_2nd;
         }
-        if (seq <= 32)
+        if (seq <= 32) {
             return &xehpg_h128_s32;
+        }
         return &xehpg_h128;
     }
     if (head_size <= 256) {
-        if (seq <= 0 && is_pa)
+        if (seq <= 0 && is_pa) {
             return is_prefill ? &xehpg_h256 : &xehpg_h256_pa;
+        }
         if (thin_q) {
             if (quantized) {
-                if (seq <= 96)
+                if (seq <= 96) {
                     return &xehpg_q_h256_s96_2nd;
+                }
                 return &xehpg_q_h256_2nd;
             }
-            if (seq <= 32)
+            if (seq <= 32) {
                 return &xehpg_h256_s32_2nd;
-            if (seq <= 64)
+            }
+            if (seq <= 64) {
                 return &xehpg_h256_s64_2nd;
+            }
             return &xehpg_h256_2nd;
         }
         if (quantized) {
-            if (seq <= 64)
+            if (seq <= 64) {
                 return &xehpg_q_h256_s64;
-            if (seq <= 512)
+            }
+            if (seq <= 512) {
                 return &xehpg_q_h256_s512;
+            }
             return &xehpg_q_h256;
         }
-        if (seq <= 32)
+        if (seq <= 32) {
             return &xehpg_h256_s32;
-        if (seq <= 128)
+        }
+        if (seq <= 128) {
             return &xehpg_h256_s128;
+        }
         return &xehpg_h256;
     }
     if (head_size <= 512) {
-        if (seq <= 0 && is_pa)
+        if (seq <= 0 && is_pa) {
             return is_prefill ? &xehpg_h512 : &xehpg_h512_pa;
+        }
         if (quantized) {
             if (thin_q) {
-                if (seq <= 64)
+                if (seq <= 64) {
                     return &xehpg_q_h512_s64_2nd;
-                if (seq <= 256)
+                }
+                if (seq <= 256) {
                     return &xehpg_q_h512_s256_2nd;
+                }
                 return &xehpg_q_h512_2nd;
             }
-            if (seq <= 64)
+            if (seq <= 64) {
                 return &xehpg_q_h512_s64;
-            if (seq <= 128)
+            }
+            if (seq <= 128) {
                 return &xehpg_q_h512_s128;
-            if (seq <= 256)
+            }
+            if (seq <= 256) {
                 return &xehpg_q_h512_s256;
+            }
             return &xehpg_q_h512;
         }
         if (thin_q) {
@@ -581,59 +619,75 @@ sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
 
 sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool quantized, bool is_integrated, bool is_pa, bool is_prefill) {
     if (head_size <= 32) {
-        if (seq <= 0 && is_pa)
+        if (seq <= 0 && is_pa) {
             return is_prefill ? &xehpc_h32 : &xehpc_h32_pa;
-        if (thin_q)
+        }
+        if (thin_q) {
             return &xehpc_h32_2nd;
-        if (seq <= 32)
+        }
+        if (seq <= 32) {
             return &xehpc_h32_s32;
+        }
         return &xehpc_h32;
     }
     if (head_size <= 64) {
-        if (seq <= 0 && is_pa)
+        if (seq <= 0 && is_pa) {
             return is_prefill ? &xehpc_h64 : (thin_q ? &xehpc_h64_pa_2nd : &xehpc_h64_pa);
+        }
         if (thin_q) {
             if (quantized) {
-                if (seq <= 96)
+                if (seq <= 96) {
                     return &xehpc_q_h64_s96_2nd;
-                if (seq <= 256)
+                }
+                if (seq <= 256) {
                     return &xehpc_q_h64_s256_2nd;
-                if (seq <= 1152)
+                }
+                if (seq <= 1152) {
                     return &xehpc_q_h64_s1152_2nd;
+                }
                 return &xehpc_q_h64_2nd;
             }
 
-            if (seq <= 64)
+            if (seq <= 64) {
                 return &xehpc_h64_s64_2nd;
+            }
             return &xehpc_h64_2nd;
         }
         if (quantized) {
-            if (seq <= 64)
+            if (seq <= 64) {
                 return &xehpc_q_h64_s64;
-            if (seq <= 384)
+            }
+            if (seq <= 384) {
                 return &xehpc_q_h64_s384;
-            if (seq <= 1024)
+            }
+            if (seq <= 1024) {
                 return &xehpc_q_h64_s1024;
+            }
             return &xehpc_q_h64;
         }
-        if (seq <= 32)
+        if (seq <= 32) {
             return &xehpc_h64_s32;
-        if (seq <= 64)
+        }
+        if (seq <= 64) {
             return &xehpc_h64_s64;
+        }
         return &xehpc_h64;
     }
     if (head_size <= 128) {
-        if (seq <= 0 && is_pa)
+        if (seq <= 0 && is_pa) {
             return is_prefill ? &xehpc_h128 : &xehpc_h128_pa;
+        }
         if (quantized) {
             if (thin_q) {
                 if (is_integrated) {
                     return &xehpc_q_h128_2nd_integrated;
                 }
-                if (seq <= 96)
+                if (seq <= 96) {
                     return &xehpc_q_h128_s96_2nd;
-                if (seq <= 512)
+                }
+                if (seq <= 512) {
                     return &xehpc_q_h128_s512_2nd;
+                }
                 return &xehpc_q_h128_2nd;
             }
             if (is_integrated) {
@@ -641,86 +695,112 @@ sdpa_config_t* choose_config_xehpc(int head_size, int seq, bool thin_q, bool qua
                     return &xehpc_q_h128_s128_integrated;
                 }
             }
-            if (seq <= 32)
+            if (seq <= 32) {
                 return &xehpc_q_h128_s32;
-            if (seq <= 128)
+            }
+            if (seq <= 128) {
                 return &xehpc_q_h128_s128;
+            }
             return &xehpc_q_h128;
         }
-        if (is_integrated)
+        if (is_integrated) {
             return &xehpc_q_h128_2nd_integrated;
-        if (thin_q)
+        }
+        if (thin_q) {
             return &xehpc_h128_2nd;
-        if (seq <= 32)
+        }
+        if (seq <= 32) {
             return &xehpc_h128_s32;
-        if (seq <= 64)
+        }
+        if (seq <= 64) {
             return &xehpc_h128_s64;
+        }
         return &xehpc_h128;
     }
     if (head_size <= 256) {
-        if (seq <= 0 && is_pa)
+        if (seq <= 0 && is_pa) {
             return is_prefill ? &xehpc_h256 : &xehpc_h256_pa;
-        if (thin_q)
+        }
+        if (thin_q) {
             return &xehpc_h256_2nd;
-        if (seq <= 64)
+        }
+        if (seq <= 64) {
             return &xehpc_h256_s64;
+        }
         return &xehpc_h256;
     }
     if (head_size <= 512) {
-        if (seq <= 0 && is_pa)
+        if (seq <= 0 && is_pa) {
             return is_prefill ? &xehpc_h512 : &xehpc_h512_pa;
+        }
         if (thin_q) {
             if (quantized) {
                 if (is_integrated) {
-                    if (seq <= 64)
+                    if (seq <= 64) {
                         return &xehpc_q_h512_s64_2nd_integrated;
-                    if (seq <= 128)
+                    }
+                    if (seq <= 128) {
                         return &xehpc_q_h512_s128_2nd_integrated;
-                    if (seq <= 256)
+                    }
+                    if (seq <= 256) {
                         return &xehpc_q_h512_s256_2nd_integrated;
-                    if (seq <= 512)
+                    }
+                    if (seq <= 512) {
                         return &xehpc_q_h512_s512_2nd_integrated;
-                    if (seq <= 1024)
+                    }
+                    if (seq <= 1024) {
                         return &xehpc_q_h512_s1024_2nd_integrated;
+                    }
                     return &xehpc_q_h512_2nd_integrated;
                 }
-                if (seq <= 512)
+                if (seq <= 512) {
                     return &xehpc_q_h512_s512_2nd;
-                if (seq <= 1024)
+                }
+                if (seq <= 1024) {
                     return &xehpc_q_h512_s1024_2nd;
+                }
                 return &xehpc_q_h512_2nd;
             }
 
             if (is_integrated) {
-                if (seq <= 256)
+                if (seq <= 256) {
                     return &xehpc_h512_s256_2nd_integrated;
-                if (seq <= 1024)
+                }
+                if (seq <= 1024) {
                     return &xehpc_h512_s1024_2nd_integrated;
+                }
                 return &xehpc_h512_2nd_integrated;
             }
-            if (seq <= 128)
+            if (seq <= 128) {
                 return &xehpc_h512_s128_2nd;
-            if (seq <= 512)
+            }
+            if (seq <= 512) {
                 return &xehpc_h512_s512_2nd;
-            if (seq <= 1024)
+            }
+            if (seq <= 1024) {
                 return &xehpc_h512_s1024_2nd;
+            }
             return &xehpc_h512_2nd;
         }
 
         if (quantized) {
-            if (is_integrated)
+            if (is_integrated) {
                 return &xehpc_q_h512_integrated;
-            if (seq <= 128)
+            }
+            if (seq <= 128) {
                 return &xehpc_q_h512_s128;
+            }
             return &xehpc_q_h512;
         }
         if (is_integrated) {
-            if (seq <= 128)
+            if (seq <= 128) {
                 return &xehpc_h512_s128_integrated;
+            }
             return &xehpc_h512_integrated;
         }
-        if (seq <= 64)
+        if (seq <= 64) {
             return &xehpc_h512_s64;
+        }
         return &xehpc_h512;
     }
     return nullptr;
@@ -734,39 +814,52 @@ sdpa_config_t* choose_config_xe2(int head_size, int seq, bool thin_q, bool quant
         if (quantized) {
             if (thin_q) {
                 if (is_integrated) {
-                    if (seq <= 96)
+                    if (seq <= 96) {
                         return &xe2_q_h64_s96_2nd_integrated;
-                    if (seq <= 384)
+                    }
+                    if (seq <= 384) {
                         return &xe2_q_h64_s384_2nd_integrated;
+                    }
                     return &xe2_q_h64_2nd_integrated;
                 }
-                if (seq <= 64)
+                if (seq <= 64) {
                     return &xe2_q_h64_s64_2nd;
-                if (seq <= 128)
+                }
+                if (seq <= 128) {
                     return &xe2_q_h64_s128_2nd;
-                if (seq <= 384)
+                }
+                if (seq <= 384) {
                     return &xe2_q_h64_s384_2nd;
-                if (seq <= 512)
+                }
+                if (seq <= 512) {
                     return &xe2_q_h64_s512_2nd;
-                if (seq <= 768)
+                }
+                if (seq <= 768) {
                     return &xe2_q_h64_s768_2nd;
+                }
                 return &xe2_q_h64_2nd;
             }
-            if (seq <= 32)
+            if (seq <= 32) {
                 return &xe2_q_h64_s32;
-            if (is_integrated) {
-                if (seq <= 128)
-                    return &xe2_q_h64_s128_integrated;
             }
-            if (seq <= 128)
-                return &xe2_q_h64_s128;
-            if (seq <= 384)
-                return &xe2_q_h64_s384;
-            if (seq <= 512)
-                return &xe2_q_h64_s512;
             if (is_integrated) {
-                if (seq <= 1024)
+                if (seq <= 128) {
+                    return &xe2_q_h64_s128_integrated;
+                }
+            }
+            if (seq <= 128) {
+                return &xe2_q_h64_s128;
+            }
+            if (seq <= 384) {
+                return &xe2_q_h64_s384;
+            }
+            if (seq <= 512) {
+                return &xe2_q_h64_s512;
+            }
+            if (is_integrated) {
+                if (seq <= 1024) {
                     return &xe2_q_h64_s1024_integrated;
+                }
             }
             return &xe2_q_h64;
         }
@@ -780,28 +873,37 @@ sdpa_config_t* choose_config_xe2(int head_size, int seq, bool thin_q, bool quant
         if (quantized) {
             if (is_integrated) {
                 if (thin_q) {
-                    if (seq < 384)
+                    if (seq < 384) {
                         return &xe2_q_h256_s384_2nd_integrated;
-                    if (seq < 512)
+                    }
+                    if (seq < 512) {
                         return &xe2_q_h256_s512_2nd_integrated;
-                    if (seq < 768)
+                    }
+                    if (seq < 768) {
                         return &xe2_q_h256_s768_2nd_integrated;
-                    if (seq < 1152)
+                    }
+                    if (seq < 1152) {
                         return &xe2_q_h256_s1152_2nd_integrated;
+                    }
                     return &xe2_q_h256_2nd_integrated;
                 }
-                if (seq <= 64)
+                if (seq <= 64) {
                     return &xe2_q_h256_s64_integrated;
-                if (seq <= 128)
+                }
+                if (seq <= 128) {
                     return &xe2_q_h256_s128_integrated;
+                }
             }
             if (!thin_q) {
-                if (seq <= 64)
+                if (seq <= 64) {
                     return &xe2_q_h256_s64;
-                if (seq <= 128)
+                }
+                if (seq <= 128) {
                     return &xe2_q_h256_s128;
-                if (seq <= 384)
+                }
+                if (seq <= 384) {
                     return &xe2_q_h256_s384;
+                }
                 return &xe2_q_h256;
             }
         }
@@ -836,6 +938,10 @@ std::string SDPAMicroGenerator::get_build_options(const kernel_impl_params& para
     extra_options += " -Dcl_intel_global_float_atomic";
     extra_options += " -Dcl_intel_subgroup_matrix_multiply_accumulate";
     extra_options += " -Dcl_intel_subgroup_split_matrix_multiply_accumulate";
+    bool debug_pa_integrity_check = GPU_DEBUG_VALUE_OR(params.get_program().get_config().get_pa_integrity_check(), false);
+    if (debug_pa_integrity_check && !m_is_gqa_single_token) {
+        extra_options += " -DPA_INTEGRITY_CHECK=1";
+    }
 
     return base_options + extra_options;
 }
@@ -904,11 +1010,13 @@ void SDPAMicroGenerator::init_sdpa_configuration(const kernel_impl_params& impl_
         const auto has_alibi = impl_param.get_input_layout(11).count() > 0;
         const auto has_scale_input = !desc->scale_val.has_value();
         sdpa_config.input_num = 7;
-        if (has_scale_input)
+        if (has_scale_input) {
             sdpa_config.input_num++;
+        }
 
-        if (has_alibi)
+        if (has_alibi) {
             sdpa_config.input_num++;
+        }
     }
 }
 
@@ -1078,6 +1186,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
     size_t scale_input_idx = 4;
     jit.make("IS_CAUSAL", config.is_causal);
+    jit.make("CAUSAL_MASK_LOWER_RIGHT", config.causal_lower_right);
     if (!config.is_paged_attention) {
         const bool has_attn_mask_input = sdpa_has_runtime_attn_mask_input(params);
         if (config.has_const_attn_mask_val) {
@@ -1234,8 +1343,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         constexpr size_t packed_elems_per_uint = sizeof(uint32_t) / sizeof(ov::float16);
         constexpr size_t max_block_elems = 16;  // max 16 elements per block load/store per item
         const auto q_block_elems = (d_max / packed_elems_per_uint) / sg_size;
-        if (ldq % 4 == 0 && q_block_elems <= max_block_elems)
+        if (ldq % 4 == 0 && q_block_elems <= max_block_elems) {
             jit.make("BLOCK_Q", 1);
+        }
         // TODO: Causes accuracy drop for static SD model. Enable back once the issue is resolved
         // const auto a_block_elems = static_cast<size_t>(gemm_vs.getSetting("sg_tile_m")) / sg_size;
         // if (lda % 4 == 0 && v_full && a_block_elems <= max_block_elems)
@@ -1251,8 +1361,9 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         const bool use_block2d = lda % 16 == 0 && vbytes % 4 == 0 && block2d_compatible;
         GPU_DEBUG_TRACE_DETAIL << "BLOCK_2D_A check: sg_tile_m=" << sg_tile_m << " sg_size=" << sg_size << " lda=" << lda << " vbytes=" << vbytes
                                << " block2d_compatible=" << block2d_compatible << " => " << (use_block2d ? "enabled" : "disabled") << std::endl;
-        if (use_block2d)
+        if (use_block2d) {
             jit.make("BLOCK_2D_A", 1);
+        }
     }
 
     if (device_info.arch >= gpu_arch::xe_hpc) {
@@ -1346,8 +1457,9 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
     Arguments args;
     sdpa_configuration config;
     init_sdpa_configuration(params, config);
-    if (params.is_dynamic())
+    if (params.is_dynamic()) {
         args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
+    }
 
     auto data_inputs_num = micro_get_input_num(params, config);
 
@@ -1373,11 +1485,13 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
             args.push_back({ArgumentDescriptor::Types::INPUT, 7});  // block_indices
             args.push_back({ArgumentDescriptor::Types::INPUT, 8});  // block_indices_begins
         }
-        if (!config.has_const_scale_val)
+        if (!config.has_const_scale_val) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SCALE});  // scale
+        }
 
-        if (desc->has_sink_input)
+        if (desc->has_sink_input) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});  // sink
+        }
 
         if (has_qq_bias && !m_is_prefill) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});  // qq_bias
@@ -1397,14 +1511,17 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});                                        // A
 
         const uint32_t attn_mask_idx = ScaledDotProductAttentionInputIdx::ATTN_MASK;
-        if (sdpa_has_runtime_attn_mask_input(params))
+        if (sdpa_has_runtime_attn_mask_input(params)) {
             args.push_back({ArgumentDescriptor::Types::INPUT, attn_mask_idx});  // mask
+        }
         const uint32_t scale_idx = ScaledDotProductAttentionInputIdx::SCALE;
-        if (config.input_num > scale_idx && !config.has_const_scale_val)
+        if (config.input_num > scale_idx && !config.has_const_scale_val) {
             args.push_back({ArgumentDescriptor::Types::INPUT, scale_idx});  // Scale
+        }
         const uint32_t sink_idx = ScaledDotProductAttentionInputIdx::SINK;
-        if (config.input_num > sink_idx)
+        if (config.input_num > sink_idx) {
             args.push_back({ArgumentDescriptor::Types::INPUT, sink_idx});  // Sink
+        }
 
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // D
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // K
@@ -1415,12 +1532,14 @@ Arguments SDPAMicroGenerator::get_arguments_desc(const kernel_impl_params& param
         const bool is_asym_quantization = config.use_asymmetric_quantization;
         uint32_t input_idx = static_cast<uint32_t>(data_inputs_num);
         args.push_back({ArgumentDescriptor::Types::INPUT, input_idx + 0});  // K scales
-        if (is_asym_quantization)
+        if (is_asym_quantization) {
             args.push_back({ArgumentDescriptor::Types::INPUT, input_idx + 2});  // K zp
+        }
 
         args.push_back({ArgumentDescriptor::Types::INPUT, input_idx + 1});  // V scales
-        if (is_asym_quantization)
+        if (is_asym_quantization) {
             args.push_back({ArgumentDescriptor::Types::INPUT, input_idx + 3});  // V zp
+        }
     }
 
     return args;
@@ -1447,8 +1566,9 @@ DispatchDataFunc SDPAMicroGenerator::get_dispatch_data_func() const {
 
             if (params.is_type<paged_attention>()) {
                 auto* pa_rt_params = static_cast<PagedAttentionRuntimeParams*>(rt_params);
-                if (pa_rt_params->stage == PagedAttentionStage::GENERATE)
+                if (pa_rt_params->stage == PagedAttentionStage::GENERATE) {
                     head_num = micro_get_num_heads(params, 1);
+                }
             }
 
             auto wg_tile_q = gemm_kq.getSetting("wg_tile_n");
@@ -1535,8 +1655,9 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     /* Retrieve pre-tuned kernel configuration */
     sdpa_config_t* config = nullptr;
     bool thin_q = (!n_queries.is_dynamic() && n_queries.get_length() <= 16) || !is_prefill;
-    if (is_paged_attention && !is_prefill)
+    if (is_paged_attention && !is_prefill) {
         thin_q = is_gqa_single_token;
+    }
     bool is_integrated = device_info.dev_type == device_type::integrated_gpu;
 
     bool is_quantized =
@@ -1563,6 +1684,17 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     }
     }
 
+    if (!is_prefill) {
+        const auto& wg_cfg = GPU_DEBUG_VALUE_OR(params.get_program().get_config().get_micro_sdpa_workgroup_config(), std::vector<int>{});
+        if (wg_cfg.size() >= 4) {
+            config->wg_m_kq = wg_cfg[0];
+            config->wg_n_kq = wg_cfg[1];
+            config->wg_m_vs = wg_cfg[2];
+            config->wg_n_vs = wg_cfg[3];
+        }
+    }
+    GPU_DEBUG_TRACE_DETAIL << "is_prefill=" << is_prefill << " single_token " << is_gqa_single_token << " Chosen config for xe_hpg: " << config->wg_m_kq << ", "
+                           << config->wg_n_kq << ", " << config->wg_m_vs << ", " << config->wg_n_vs << ", " << std::endl;
     OPENVINO_ASSERT(config != nullptr);
 
     /* Get device information */
@@ -1585,7 +1717,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
         problem.Ta_ext = convert_type(kv_cache_precision);
     }
 
-    problem.Ta = problem.Tb = micro::Type::f16;
+    problem.Ta = problem.Tb = (Q.data_type == ov::element::bf16) ? micro::Type::bf16 : micro::Type::f16;
     problem.Tc = problem.Tc_ext = micro::Type::f32;
     problem.Ts = problem.Tc;
 

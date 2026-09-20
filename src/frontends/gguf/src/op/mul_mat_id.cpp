@@ -6,6 +6,10 @@
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <vector>
+
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/op/bitwise_and.hpp"
 #include "openvino/op/bitwise_right_shift.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -22,10 +26,6 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "ov_ops/gather_matmul.hpp"
 #include "transformations/utils/utils.hpp"
-#include <vector>
-
-#include "node_context.hpp"
-#include "op_table.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -40,7 +40,10 @@ std::shared_ptr<ov::op::v0::Constant> const_i64(const std::vector<int64_t>& valu
 }
 
 ov::Output<ov::Node> slice_axis(const ov::Output<ov::Node>& input, int64_t axis, int64_t begin, int64_t end) {
-    return std::make_shared<ov::op::v8::Slice>(input, const_i64({begin}), const_i64({end}), const_i64({1}),
+    return std::make_shared<ov::op::v8::Slice>(input,
+                                               const_i64({begin}),
+                                               const_i64({end}),
+                                               const_i64({1}),
                                                const_i64({axis}));
 }
 
@@ -67,38 +70,39 @@ ov::Output<ov::Node> slice_axis(const ov::Output<ov::Node>& input, int64_t axis,
 // OpenVINO -- and meaningless, as there is nothing to replicate -- whereas here the empty count simply
 // flows into the token axis and yields an empty result.
 ov::Output<ov::Node> activations_per_expert(const ov::Output<ov::Node>& activations,
-                                           const std::shared_ptr<ov::op::v3::ShapeOf>& activations_shape,
-                                           const ov::Output<ov::Node>& ids,
-                                           const std::shared_ptr<ov::op::v3::ShapeOf>& ids_shape) {
+                                            const std::shared_ptr<ov::op::v3::ShapeOf>& activations_shape,
+                                            const ov::Output<ov::Node>& ids,
+                                            const std::shared_ptr<ov::op::v3::ShapeOf>& ids_shape) {
     const auto& acts_ps = activations.get_partial_shape();  // [n_token, 1 | n_used, k], or [1, n_token, k]
     const auto& ids_ps = ids.get_partial_shape();           // [n_token, n_used]
     // The expert-axis match alone is ambiguous: the plain 2D layout [1, n_token, k] also satisfies it
     // when n_token == n_used (the warmup graph). The token axis (1 vs n_token) disambiguates.
     const bool already_per_expert = acts_ps.rank().is_static() && acts_ps.rank().get_length() == 3 &&
                                     ids_ps.rank().is_static() && ids_ps.rank().get_length() == 2 &&
-                                    acts_ps[1].is_static() && ids_ps[1].is_static() &&
-                                    ids_ps[1].get_length() > 1 && acts_ps[1] == ids_ps[1] &&
+                                    acts_ps[1].is_static() && ids_ps[1].is_static() && ids_ps[1].get_length() > 1 &&
+                                    acts_ps[1] == ids_ps[1] &&
                                     (acts_ps[0].is_dynamic() || ids_ps[0].is_dynamic() || acts_ps[0] == ids_ps[0]);
 
     ov::Output<ov::Node> rows = activations;
     if (!already_per_expert) {
         rows = std::make_shared<ov::op::v1::Reshape>(
             activations,
-            std::make_shared<ov::op::v0::Concat>(ov::OutputVector{get_dimensions(ids_shape, {0}), const_i64({1}),
+            std::make_shared<ov::op::v0::Concat>(ov::OutputVector{get_dimensions(ids_shape, {0}),
+                                                                  const_i64({1}),
                                                                   get_dimensions(activations_shape, {2})},
                                                  0),
             false);
     }
     auto target = std::make_shared<ov::op::v0::Concat>(
-        ov::OutputVector{get_dimensions(ids_shape, {0, 1}), get_dimensions(activations_shape, {2})}, 0);
+        ov::OutputVector{get_dimensions(ids_shape, {0, 1}), get_dimensions(activations_shape, {2})},
+        0);
     return std::make_shared<ov::op::v3::Broadcast>(rows, target, ov::op::BroadcastType::BIDIRECTIONAL);
 }
 
 // Packed-MXFP4 MoE path: expert weights arrive as raw u8 blocks of shape
 // [1, n_expert, m, k_blocks, 17] (1 e8m0 scale byte + 16 nibble-packed f4e2m1 quants per 32-block).
 // The dequant (nibble unpack + LUT + scale) is done on-graph, per selected expert.
-ov::Output<ov::Node> translate_mul_mat_id_mxfp4_packed(const NodeContext& context,
-                                                       ov::Output<ov::Node> expert_weights,
+ov::Output<ov::Node> translate_mul_mat_id_mxfp4_packed(ov::Output<ov::Node> expert_weights,
                                                        ov::Output<ov::Node> activations,
                                                        ov::Output<ov::Node> ids) {
     auto packed_shape = expert_weights.get_partial_shape().to_shape();
@@ -127,8 +131,8 @@ ov::Output<ov::Node> translate_mul_mat_id_mxfp4_packed(const NodeContext& contex
 
     auto gather_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
 
-    static const std::vector<float> f4e2m1_lut = {0.0f,  0.5f,  1.0f,  1.5f,  2.0f,  3.0f,  4.0f,  6.0f,
-                                                  -0.0f, -0.5f, -1.0f, -1.5f, -2.0f, -3.0f, -4.0f, -6.0f};
+    static const std::vector<float> f4e2m1_lut =
+        {0.0f, 0.5f, 1.0f, 1.5f, 2.0f, 3.0f, 4.0f, 6.0f, -0.0f, -0.5f, -1.0f, -1.5f, -2.0f, -3.0f, -4.0f, -6.0f};
     // Input-independent e8m0 exponent table; build once (was rebuilt per invocation).
     static const std::vector<float> e8m0_lut = [] {
         std::vector<float> lut(256);
@@ -147,10 +151,14 @@ ov::Output<ov::Node> translate_mul_mat_id_mxfp4_packed(const NodeContext& contex
     auto selected_packed_weights = std::make_shared<ov::op::v8::Gather>(expert_weights, ids, gather_axis);
     auto scale_byte = slice_axis(selected_packed_weights, 4, 0, 1);
     auto qs = slice_axis(selected_packed_weights, 4, 1, 17);
-    auto low = std::make_shared<ov::op::v13::BitwiseAnd>(
-        qs, ov::op::v0::Constant::create(ov::element::u8, ov::Shape{}, {0x0F}), ov::op::AutoBroadcastType::NUMPY);
+    auto low =
+        std::make_shared<ov::op::v13::BitwiseAnd>(qs,
+                                                  ov::op::v0::Constant::create(ov::element::u8, ov::Shape{}, {0x0F}),
+                                                  ov::op::AutoBroadcastType::NUMPY);
     auto high_shift = std::make_shared<ov::op::v15::BitwiseRightShift>(
-        qs, ov::op::v0::Constant::create(ov::element::u8, ov::Shape{}, {4}), ov::op::AutoBroadcastType::NUMPY);
+        qs,
+        ov::op::v0::Constant::create(ov::element::u8, ov::Shape{}, {4}),
+        ov::op::AutoBroadcastType::NUMPY);
     auto nibbles = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{low, high_shift}, 4);
     auto nibble_indices = std::make_shared<ov::op::v0::Convert>(nibbles, ov::element::i32);
     auto weights_f32 = std::make_shared<ov::op::v8::Gather>(f4_lut, nibble_indices, gather_axis);
@@ -162,7 +170,8 @@ ov::Output<ov::Node> translate_mul_mat_id_mxfp4_packed(const NodeContext& contex
 
     auto ids_shape = std::make_shared<ov::op::v3::ShapeOf>(ids, ov::element::i64);
     auto selected_weights_target_dims = std::make_shared<ov::op::v0::Concat>(
-        ov::OutputVector{get_dimensions(ids_shape, {0, 1}), const_i64({rows, cols})}, 0);
+        ov::OutputVector{get_dimensions(ids_shape, {0, 1}), const_i64({rows, cols})},
+        0);
     selected_weights = std::make_shared<ov::op::v1::Reshape>(selected_weights, selected_weights_target_dims, false);
 
     auto activations_shape = std::make_shared<ov::op::v3::ShapeOf>(activations, ov::element::i64);
@@ -174,14 +183,11 @@ ov::Output<ov::Node> translate_mul_mat_id_mxfp4_packed(const NodeContext& contex
 
     auto batch_dim = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
     auto row_dim = ov::op::v0::Constant::create(ov::element::i64, {1}, {rows});
-    auto result_target_dims = std::make_shared<ov::op::v0::Concat>(
-        ov::OutputVector{batch_dim, get_dimensions(ids_shape, {0, 1}), row_dim}, 0);
+    auto result_target_dims =
+        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{batch_dim, get_dimensions(ids_shape, {0, 1}), row_dim},
+                                             0);
     result = std::make_shared<ov::op::v1::Reshape>(result, result_target_dims, false);
 
-    const auto output_type = context.get_attribute<ov::element::Type>("output_type");
-    if (result.get_element_type() != output_type) {
-        result = std::make_shared<ov::op::v0::Convert>(result, output_type);
-    }
     return result;
 }
 
@@ -202,8 +208,7 @@ ov::Output<ov::Node> translate_mul_mat_id_mxfp4_packed(const NodeContext& contex
 //   expert_weights (as) : [n_expert, rows, cols]  (or reversed rank-4 [1, n_expert, rows, cols])
 //   activations (b)     : [.., T, cols] (gate/up, shared input) or [.., T, K, cols] (down)
 //   ids                 : [1, 1, T, K]
-ov::Output<ov::Node> translate_mul_mat_id_gathermatmul(const NodeContext& context,
-                                                       ov::Output<ov::Node> expert_weights,
+ov::Output<ov::Node> translate_mul_mat_id_gathermatmul(ov::Output<ov::Node> expert_weights,
                                                        ov::Output<ov::Node> activations,
                                                        ov::Output<ov::Node> ids) {
     // Normalize the expert weights to the rank-3 [n_expert, rows, cols] GatherMatmul expects. The
@@ -273,8 +278,7 @@ ov::Output<ov::Node> translate_mul_mat_id_gathermatmul(const NodeContext& contex
 // batched MatMul. Handles non-constant expert weights (e.g. the single-op unit tests) that the CPU
 // GatherMatmul node does not support. Expects reversed rank-4 inputs
 // (weights [1, n_expert, m, k], activations [1, T, 1_or_K, k], ids [1, 1, T, K]).
-ov::Output<ov::Node> translate_mul_mat_id_generic(const NodeContext& context,
-                                                  ov::Output<ov::Node> expert_weights,
+ov::Output<ov::Node> translate_mul_mat_id_generic(ov::Output<ov::Node> expert_weights,
                                                   ov::Output<ov::Node> activations,
                                                   ov::Output<ov::Node> ids) {
     auto expert_weights_shape_4d = std::make_shared<ov::op::v3::ShapeOf>(expert_weights, ov::element::i64);
@@ -284,9 +288,8 @@ ov::Output<ov::Node> translate_mul_mat_id_generic(const NodeContext& context,
     expert_weights = std::make_shared<ov::op::v1::Reshape>(expert_weights,
                                                            get_dimensions(expert_weights_shape_4d, {1, 2, 3}),
                                                            false);
-    activations = std::make_shared<ov::op::v1::Reshape>(activations,
-                                                        get_dimensions(activations_shape_4d, {1, 2, 3}),
-                                                        false);
+    activations =
+        std::make_shared<ov::op::v1::Reshape>(activations, get_dimensions(activations_shape_4d, {1, 2, 3}), false);
     ids = std::make_shared<ov::op::v1::Reshape>(ids, get_dimensions(ids_shape_4d, {2, 3}), false);
 
     if (ids.get_element_type() != ov::element::i32 && ids.get_element_type() != ov::element::i64) {
@@ -296,7 +299,6 @@ ov::Output<ov::Node> translate_mul_mat_id_generic(const NodeContext& context,
     auto gather_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
     ov::Output<ov::Node> selected_weights = std::make_shared<ov::op::v8::Gather>(expert_weights, ids, gather_axis);
 
-    const auto output_type = context.get_attribute<ov::element::Type>("output_type");
     if (selected_weights.get_element_type() != ov::element::f32) {
         selected_weights = std::make_shared<ov::op::v0::Convert>(selected_weights, ov::element::f32);
     }
@@ -312,11 +314,12 @@ ov::Output<ov::Node> translate_mul_mat_id_generic(const NodeContext& context,
     auto activations_expanded = std::make_shared<ov::op::v0::Unsqueeze>(acts_broadcasted, unsqueeze_axes);
 
     auto batch_dim = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
-    auto output_shape = context.get_output_shape();
-    FRONT_END_OP_CONVERSION_CHECK(output_shape.rank().is_static() && output_shape.rank().get_length() == 4,
-                                  "Unexpected MUL_MAT_ID output rank");
-    FRONT_END_OP_CONVERSION_CHECK(output_shape[3].is_static(), "Expected static row dimension for MUL_MAT_ID output");
-    auto row_dim = ov::op::v0::Constant::create(ov::element::i64, {1}, {output_shape[3].get_length()});
+    const auto weights_shape = selected_weights.get_partial_shape();
+    FRONT_END_OP_CONVERSION_CHECK(weights_shape.rank().is_static() && weights_shape.size() >= 2,
+                                  "MUL_MAT_ID requires a known weight rank");
+    const auto rows = weights_shape[weights_shape.size() - 2];
+    FRONT_END_OP_CONVERSION_CHECK(rows.is_static(), "MUL_MAT_ID requires a static row dimension");
+    auto row_dim = ov::op::v0::Constant::create(ov::element::i64, {1}, {rows.get_length()});
 
     ov::Output<ov::Node> result =
         std::make_shared<ov::op::v0::MatMul>(activations_expanded, selected_weights, false, true);
@@ -324,9 +327,6 @@ ov::Output<ov::Node> translate_mul_mat_id_generic(const NodeContext& context,
         std::make_shared<ov::op::v0::Concat>(ov::OutputVector{batch_dim, get_dimensions(ids_shape, {0, 1}), row_dim},
                                              0);
     result = std::make_shared<ov::op::v1::Reshape>(result, result_target_dims, false);
-    if (result.get_element_type() != output_type) {
-        result = std::make_shared<ov::op::v0::Convert>(result, output_type);
-    }
     return result;
 }
 
@@ -343,11 +343,14 @@ OutputVector translate_mul_mat_id(const NodeContext& context) {
 
     auto expert_weights = context.get_input(0);
     auto activations = context.get_input(1);
+    if (activations.get_element_type() != ov::element::f32) {
+        activations = std::make_shared<ov::op::v0::Convert>(activations, ov::element::f32);
+    }
     auto ids = context.get_input(2);
 
     if (expert_weights.get_element_type() == ov::element::u8 && expert_weights.get_partial_shape().rank().is_static() &&
         expert_weights.get_partial_shape().rank().get_length() == 5) {
-        return rename_outputs_with_suffix({translate_mul_mat_id_mxfp4_packed(context, expert_weights, activations, ids)},
+        return rename_outputs_with_suffix({translate_mul_mat_id_mxfp4_packed(expert_weights, activations, ids)},
                                           context.get_name());
     }
 
@@ -357,11 +360,11 @@ OutputVector translate_mul_mat_id(const NodeContext& context) {
     // GatherMatmul on CPU, so fall back to the portable Gather + MatMul lowering.
     ov::Output<ov::Node> result;
     if (ov::op::util::is_on_path<ov::op::v0::Constant>(expert_weights)) {
-        result = translate_mul_mat_id_gathermatmul(context, expert_weights, activations, ids);
+        result = translate_mul_mat_id_gathermatmul(expert_weights, activations, ids);
     } else {
-        result = translate_mul_mat_id_generic(context, expert_weights, activations, ids);
+        result = translate_mul_mat_id_generic(expert_weights, activations, ids);
     }
-    return rename_outputs_with_suffix({result}, context.get_name());
+    return rename_outputs_with_suffix({std::move(result)}, context.get_name());
 }
 
 }  // namespace op

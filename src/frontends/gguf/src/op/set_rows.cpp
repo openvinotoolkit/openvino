@@ -2,19 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "node_context.hpp"
-#include "op_table.hpp"
-#include "openvino/frontend/gguf/set_rows_op.hpp"
-#include "utils.hpp"
-
 #include <cstdint>
 #include <memory>
+
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/frontend/exception.hpp"
+#include "openvino/frontend/gguf/set_rows_op.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
@@ -26,14 +26,14 @@ namespace op {
 // ScatterUpdate form; a caller-registered stateful lowering may instead turn the SetRows that
 // feeds attention into a stateful KV-cache subgraph. This keeps conversion identical regardless
 // of execution mode and needs no KV-vs-non-KV classification at translate time.
-OutputVector translate_set_rows(const NodeContext & context) {
+OutputVector translate_set_rows(const NodeContext& context) {
     num_inputs_check(context, 3, 3);
 
     auto data = context.get_input(0);
     auto indices = context.get_input(1);
     auto dst = context.get_input(2);
 
-    data = std::make_shared<ov::op::v0::Convert>(data, context.get_output_type());
+    data = std::make_shared<ov::op::v0::Convert>(data, dst.get_element_type());
 
     // Row size = the destination cache's innermost dim. Using the dst input (not the SET_ROWS
     // output shape) matters for the flattened KV-cache write (gpt-oss cache_v is stored as
@@ -55,7 +55,7 @@ OutputVector translate_set_rows(const NodeContext & context) {
         true);
 
     auto set_rows = std::make_shared<SetRows>(data_reshaped, ind_squeezed, dst);
-    return rename_outputs_with_suffix({set_rows}, context.get_name());
+    return rename_outputs_with_suffix({std::move(set_rows)}, context.get_name());
 }
 
 }  // namespace op

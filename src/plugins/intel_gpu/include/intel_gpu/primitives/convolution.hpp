@@ -231,8 +231,9 @@ struct convolution : public primitive_base<convolution> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const convolution>(rhs);
 
@@ -307,17 +308,21 @@ protected:
         OPENVINO_ASSERT(weights.is_valid());
         ret[idx++] = &weights;
 
-        if (bias.is_valid())
+        if (bias.is_valid()) {
             ret[idx++] = &bias;
+        }
 
-        if (weights_zero_points.is_valid())
+        if (weights_zero_points.is_valid()) {
             ret[idx++] = &weights_zero_points;
+        }
 
-        if (activations_zero_points.is_valid())
+        if (activations_zero_points.is_valid()) {
             ret[idx++] = &activations_zero_points;
+        }
 
-        if (compensation.is_valid())
+        if (compensation.is_valid()) {
             ret[idx++] = &compensation;
+        }
 
         return ret;
     }

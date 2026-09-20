@@ -17,7 +17,9 @@ using namespace cldnn;
 const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<paged_selective_ssm>::get_implementations() {
     static const std::vector<std::shared_ptr<ImplementationManager>> impls = {
 #if OV_GPU_WITH_OCL
-        OV_GPU_CREATE_INSTANCE_OCL(ocl::PagedSelectiveSSMOpt, shape_types::any)
+        OV_GPU_CREATE_INSTANCE_OCL(ocl::PagedSelectiveSSMJitIntegrated, shape_types::any)
+            OV_GPU_CREATE_INSTANCE_OCL(ocl::PagedSelectiveSSMJitDiscrete, shape_types::any)
+                OV_GPU_CREATE_INSTANCE_OCL(ocl::PagedSelectiveSSMOpt, shape_types::any)
 #endif
     };
 
