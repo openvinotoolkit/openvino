@@ -340,11 +340,11 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
     if (m_resources.sorted_chunk_sizes.empty())
         OPENVINO_THROW("MoE: Sorted chunk sizes cannot be empty");
 
-    // Clear output accumulator before accumulating expert outputs
-    std::memset(m_resources.expert_output_accumulator->data(),
-                0,
-                m_resources.expert_output_accumulator->get_byte_size());
-
+    // expert_output_accumulator is NOT cleared here: routing is dense, i.e. every
+    // (token, expert_slot) cell gets memcpy'd (not accumulated) by scatter_expert_outputs()
+    // exactly once. If routing ever changes to allow dropped/unfilled slots (e.g. a
+    // capacity-drop policy), stale data from a previous call would leak through and this
+    // buffer would need clearing again.
     auto expert_input_source = io.expert_input;
 
     // Use the embed_dim already validated against the accumulator buffer during prepare().
@@ -433,7 +433,12 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
         });
         const auto& data = expert_ring[inflight->ring_idx & 1];
         const auto cm = m_config.compiled_models.at(inflight->cs);
-        auto output = req->get_tensor(cm->outputs()[0]);
+        // get_tensor() was previously unattributed overhead sitting between the
+        // NPU Wait and Scatter Output buckets — give it its own bucket.
+        ov::SoPtr<ov::ITensor> output;
+        m_profile->iterative["Get Output Tensor"].record([&]() {
+            output = req->get_tensor(cm->outputs()[0]);
+        });
         m_profile->iterative["Scatter Output"].record([&]() {
             ov::npuw::moe::scatter_expert_outputs(output,
                                                   m_resources.expert_output_accumulator,
@@ -450,21 +455,37 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
     // Gives each token's expert-slot index in O(1) without a full two-pass scan.
     std::vector<size_t> token_slot_count(num_tokens, 0);
 
+    // Records a selected token into the given (tokens, slots) pair, used by both the
+    // full O(num_tokens) threshold scan and the prefetch scan below.
+    auto fill_token = [&](std::vector<size_t>& tokens, std::vector<size_t>& slots, size_t token_id) {
+        tokens.push_back(token_id);
+        slots.push_back(token_slot_count[token_id]++);
+    };
+
     // Parse-ahead buffer: pre-scan the NEXT expert's router row after drain(k-1) but
     // while NPU k is still executing.  This hides the O(num_tokens) threshold scan
     // inside the NPU overlap window instead of paying for it on the critical path
     // before item k+1's dispatch.
     //
-    // The buffer stores only token IDs that passed the threshold (v > 1e-6).
-    // Slot assignment (O(selected) not O(num_tokens)) is still done at the
-    // top of the next expert iteration.
+    // Slot assignment (fill_token) now also happens at prefetch time instead of being
+    // deferred, so the buffer holds fully-resolved (token, slot) pairs for the next
+    // expert. This stays correct because experts are still consumed strictly in order —
+    // we only ever look one expert ahead, so token_slot_count is never advanced early
+    // relative to any expert other than the immediate next one.
     //
-    // Timeline with parse-ahead:
-    //   CPU: [Unpack(k)+Gather(k)] → start(k) → drain(k-1) → [Parse(k+1)] → [Unpack(k+1)+Gather(k+1)] → start(k+1)
-    //   NPU:                         [=================NPU(k)==================] [==NPU(k+1)==]
+    // Knowing the next expert's token count ahead of time also lets us predict its first
+    // chunk's (chunk_size, buffer_slot) and prefetch-unpack that closure right here,
+    // instead of paying for it synchronously right before start_async(k+1) — that unpack
+    // is where nearly every dispatch previously stalled the NPU launch, since the 2-slot
+    // ring almost never holds the same expert twice in a row (near-0% cache hit rate).
+    //
+    // Timeline with parse+unpack-ahead:
+    //   CPU: [Gather(k)] → start(k) → drain(k-1) → [Parse+Unpack(k+1)] → [Gather(k+1)] → start(k+1)
+    //   NPU:               [=================NPU(k)==================] [==NPU(k+1)==]
     //
     struct ParseAheadBuffer {
         std::vector<size_t> tokens;   // pre-filtered token IDs for next expert
+        std::vector<size_t> slots;    // pre-assigned per-token slot indices for next expert
         size_t expert_id = SIZE_MAX;  // which expert was pre-scanned (sentinel = none)
     };
     ParseAheadBuffer parse_ahead;
@@ -479,23 +500,18 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
             cur.slots.clear();
 
             const auto* row = data + expert_id * num_tokens;
-            // Shared by both the parse-ahead fast path and the full threshold scan below.
-            auto fill_token = [&](size_t token_id) {
-                cur.tokens.push_back(token_id);
-                cur.slots.push_back(token_slot_count[token_id]++);
-            };
             m_profile->iterative["Parse Router Row"].record([&]() {
                 if (parse_ahead.expert_id == expert_id) {
-                    // Fast path: token IDs already filtered; only slot updates remain.
-                    for (size_t token_id : parse_ahead.tokens) {
-                        fill_token(token_id);
-                    }
+                    // Fast path: tokens and slots were already resolved during the
+                    // previous expert's prefetch phase — just adopt them directly.
+                    cur.tokens = std::move(parse_ahead.tokens);
+                    cur.slots = std::move(parse_ahead.slots);
                     parse_ahead.expert_id = SIZE_MAX;  // consumed
                 } else {
                     // Full O(num_tokens) threshold scan (first expert, or parse-ahead missed).
                     for (size_t token_id = 0; token_id < num_tokens; ++token_id) {
                         if (is_nonzero(row[token_id])) {
-                            fill_token(token_id);
+                            fill_token(cur.tokens, cur.slots, token_id);
                         }
                     }
                 }
@@ -516,8 +532,14 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
                 do_unpack(cs, s, req, expert_id);
                 {
                     const auto cm = m_config.compiled_models.at(cs);
-                    auto router_dest = req->get_tensor(cm->inputs()[m_config.router_scores.compiled.value()]);
-                    auto input_dest = req->get_tensor(cm->inputs()[m_config.expert_input.compiled.value()]);
+                    // get_tensor() lookups were previously unattributed overhead sitting
+                    // between Unpack Closure and the Gather buckets — give them their own bucket.
+                    ov::SoPtr<ov::ITensor> router_dest;
+                    ov::SoPtr<ov::ITensor> input_dest;
+                    m_profile->iterative["Get I/O Tensors"].record([&]() {
+                        router_dest = req->get_tensor(cm->inputs()[m_config.router_scores.compiled.value()]);
+                        input_dest = req->get_tensor(cm->inputs()[m_config.expert_input.compiled.value()]);
+                    });
                     m_profile->iterative["Gather Router Scores"].record([&]() {
                         ov::npuw::moe::gather_router_scores(io.router_scores,
                                                             router_dest,
@@ -553,11 +575,21 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
                 const size_t next_id = expert_id + 1;
                 const auto* next_row = data + next_id * num_tokens;
                 parse_ahead.tokens.clear();
+                parse_ahead.slots.clear();
                 parse_ahead.expert_id = next_id;
                 for (size_t token_id = 0; token_id < num_tokens; ++token_id) {
                     if (is_nonzero(next_row[token_id])) {
-                        parse_ahead.tokens.push_back(token_id);
+                        fill_token(parse_ahead.tokens, parse_ahead.slots, token_id);
                     }
+                }
+
+                // Unpack-ahead: the next expert's first chunk will land on (cs_next, slot_next).
+                // Preload its closure now, while this expert's last NPU chunk is still in
+                // flight, so start_async(next expert) doesn't stall on a synchronous weight copy.
+                if (!parse_ahead.tokens.empty()) {
+                    const size_t cs_next = select_chunk(parse_ahead.tokens.size());
+                    const size_t slot_next = global_slot & 1;
+                    do_unpack(cs_next, slot_next, get_req(cs_next, slot_next), next_id);
                 }
             }
 
