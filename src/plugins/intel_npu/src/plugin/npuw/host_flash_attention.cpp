@@ -1483,15 +1483,8 @@ PositionIDs::PositionIDs(std::size_t param_idx, std::size_t original_query_lengt
 }
 
 Selector::Ptr PositionIDs::find(std::size_t original_query_length, const ov::ISyncInferRequest& rq) {
-    auto is_position_ids = [](const ov::Output<const ov::Node>& p) {
-        const auto& shape = p.get_shape();
-        // FIXME: 2D/3D position IDs are not supported here YET
-        return p.get_node()->get_friendly_name() == "position_ids" &&
-               (shape.size() == 1 || (shape.size() == 2 && shape[0] == 1));
-    };
-
     const auto& inputs = rq.get_inputs();
-    auto pos_ids_iter = std::find_if(inputs.begin(), inputs.end(), is_position_ids);
+    auto pos_ids_iter = std::find_if(inputs.begin(), inputs.end(), ov::npuw::util::is_supported_position_ids_input);
     if (pos_ids_iter != inputs.end()) {
         const auto param_idx = std::distance(inputs.begin(), pos_ids_iter);
         return Selector::Ptr{new PositionIDs(param_idx, original_query_length, rq)};

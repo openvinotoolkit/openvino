@@ -100,9 +100,9 @@ OutputVector translate_view(const NodeContext& context) {
 
         // Restore the original ggml (base) shape if the OV input was already reshaped, mirroring
         // op_case 3. The base is [F, T] (ggml) == OV [.., T, F]; we then split F into G x group_stride.
-        auto input_ggml_shape = context.get_attribute<ov::Shape>("input_ggml_shape");
+        auto input_ggml_shape = context.get_attribute<ov::Shape>("input_ggml_shape", {});
         auto input_ov_shape = input.get_partial_shape();
-        if (input_ov_shape.rank().is_static() &&
+        if (!input_ggml_shape.empty() && input_ov_shape.rank().is_static() &&
             static_cast<size_t>(input_ov_shape.rank().get_length()) != input_ggml_shape.size()) {
             input = std::make_shared<ov::op::v1::Reshape>(
                 input,
@@ -184,10 +184,10 @@ OutputVector translate_view(const NodeContext& context) {
     if (context.get_attribute<int>("op_case", 0) == 3) {
         auto input = context.get_input(0);
         auto input_ov_shape = input.get_partial_shape();
-        auto input_ggml_shape = context.get_attribute<ov::Shape>("input_ggml_shape");
+        auto input_ggml_shape = context.get_attribute<ov::Shape>("input_ggml_shape", {});
 
         // Input already reshaped: restore the original ggml (base) shape before slicing.
-        if (input_ov_shape.rank().is_static() &&
+        if (!input_ggml_shape.empty() && input_ov_shape.rank().is_static() &&
             static_cast<size_t>(input_ov_shape.rank().get_length()) != input_ggml_shape.size()) {
             input = std::make_shared<ov::op::v1::Reshape>(
                 input,
@@ -268,7 +268,7 @@ OutputVector translate_view(const NodeContext& context) {
             const auto ref_rank = ref.get_partial_shape().rank();
             FRONT_END_OP_CONVERSION_CHECK(ref_rank.is_static(),
                                           "VIEW case 104 shape reference must have a static rank");
-            const auto d_ps = context.get_output_shape();
+            const auto d_ps = input.get_partial_shape();
             const int64_t rank = ref_rank.get_length();
             FRONT_END_OP_CONVERSION_CHECK(d_ps.rank().is_static() && d_ps[d_ps.rank().get_length() - 1].is_static(),
                                           "VIEW case 104 requires a static per-layer embedding width");

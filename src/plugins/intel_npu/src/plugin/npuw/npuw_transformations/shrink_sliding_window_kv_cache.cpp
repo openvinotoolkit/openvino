@@ -153,26 +153,34 @@ std::shared_ptr<ov::op::v0::Concat> scan_kv_path(const std::shared_ptr<SDPA>& sd
 
             const size_t kv_axis = vals.size() - 2;
             const int64_t old_val = vals[kv_axis];
-            OPENVINO_ASSERT(old_val == kvcache_size || old_val == -1,
-                            "[SWA] ",
-                            cur->get_type_name(),
-                            " target shape kv_axis expected ",
-                            kvcache_size,
-                            " or -1, got ",
-                            old_val,
-                            ".");
-
-            if (old_val == -1) {
+            // Reshape/Broadcast target-shape subgraphs may be shared (CSE'd) across multiple SWA
+            // layers, so a node reached via one layer may already carry new_kv_total from another.
+            if (old_val == new_kv_total) {
                 LOG_DEBUG("[SWA]   " << cur->get_type_name() << " '" << cur->get_friendly_name()
-                                     << "' kv_axis=" << kv_axis << " uses inferred extent (-1); keep it unchanged.");
+                                     << "' already patched (shared across SWA layers); skipping.");
             } else {
-                vals[kv_axis] = new_kv_total;
-                auto priv =
-                    std::make_shared<ov::op::v0::Constant>(src.get_element_type(), ov::Shape{vals.size()}, vals);
-                priv->set_friendly_name(cur->get_friendly_name() + "/swa_kv_patched");
-                cur->input(kShapeInputIdx).replace_source_output(priv);
-                LOG_DEBUG("[SWA]   Patched " << cur->get_type_name() << " '" << cur->get_friendly_name() << "' kv_axis="
-                                             << kv_axis << ": " << kvcache_size << " -> " << new_kv_total);
+                OPENVINO_ASSERT(old_val == kvcache_size || old_val == -1,
+                                "[SWA] ",
+                                cur->get_type_name(),
+                                " target shape kv_axis expected ",
+                                kvcache_size,
+                                " or -1, got ",
+                                old_val,
+                                ".");
+
+                if (old_val == -1) {
+                    LOG_DEBUG("[SWA]   " << cur->get_type_name() << " '" << cur->get_friendly_name() << "' kv_axis="
+                                         << kv_axis << " uses inferred extent (-1); keep it unchanged.");
+                } else {
+                    vals[kv_axis] = new_kv_total;
+                    auto priv =
+                        std::make_shared<ov::op::v0::Constant>(src.get_element_type(), ov::Shape{vals.size()}, vals);
+                    priv->set_friendly_name(cur->get_friendly_name() + "/swa_kv_patched");
+                    cur->input(kShapeInputIdx).replace_source_output(priv);
+                    LOG_DEBUG("[SWA]   Patched " << cur->get_type_name() << " '" << cur->get_friendly_name()
+                                                 << "' kv_axis=" << kv_axis << ": " << kvcache_size << " -> "
+                                                 << new_kv_total);
+                }
             }
         }
         cur = cur->input_value(0).get_node_shared_ptr();
