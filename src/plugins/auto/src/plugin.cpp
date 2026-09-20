@@ -504,9 +504,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     }
     auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
+    auto_s_context->m_bind_buffer = load_config.get_property(ov::intel_auto::device_bind_buffer);
     auto_s_context->m_dynamic_device_selection =
-        // dynamic selection is only enabled for models compiled from an in-memory ov::Model
-        model_path.empty() && !is_cumulative && !is_stateful_model &&
+        // dynamic selection requires an in-memory model and is incompatible with bind_buffer
+        model_path.empty() && !is_cumulative && !is_stateful_model && !auto_s_context->m_bind_buffer &&
         (!auto_s_context->m_selection_policy.utilization_thresholds.empty() ||
          !auto_s_context->m_selection_policy.perf_curve_table.empty() ||
          !auto_s_context->m_low_power_device.empty());
@@ -535,7 +536,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     OPENVINO_ASSERT(auto_s_context->m_ov_core);
     auto_s_context->m_log_tag = get_device_name();
     auto_s_context->m_model_precision = model_precision;
-    auto_s_context->m_bind_buffer = load_config.get_property(ov::intel_auto::device_bind_buffer);
     auto_s_context->m_schedule_policy = load_config.get_property(ov::intel_auto::schedule_policy);
     auto_s_context->m_mtx = m_mtx;
     auto_s_context->m_priority_map = m_priority_map;
