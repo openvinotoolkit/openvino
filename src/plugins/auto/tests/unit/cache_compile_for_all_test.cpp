@@ -85,7 +85,7 @@ TEST_P(AutoCacheCompileForAllTest, compileForAllCompilesOtherDevicesWhenEnabled)
             return devices;
         });
     // Always select GPU.1 as the actual device.
-    ON_CALL(*plugin, select_device(_, _, _)).WillByDefault(Return(metaDevices[2]));
+    ON_CALL(*plugin, select_device(_, _, _, _, _)).WillByDefault(Return(metaDevices[2]));
 
     config.insert(ov::device::priorities(cpuHelpDevice + std::string(",") + otherDevice + std::string(",") + actualDevice));
     config.insert(ov::intel_auto::compile_for_all(compileForAll));
