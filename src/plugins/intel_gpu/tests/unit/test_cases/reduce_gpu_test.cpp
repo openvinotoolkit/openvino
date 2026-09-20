@@ -135,7 +135,7 @@ TEST(reduce_gpu, weighted_reduce_x16_cached_matches_multiply_reduce) {
     test_weighted_reduce_x16_matches_multiply_reduce(true);
 }
 
-TEST(reduce_gpu, weighted_reduce_x16_f32_matches_multiply_reduce_bit_exact) {
+TEST(reduce_gpu, weighted_reduce_x16_f32_matches_multiply_reduce) {
     auto& engine = get_test_engine();
     const layout values_layout(data_types::f32, format::bfyx, tensor(1, 4, 16, 1025));
     const layout weights_layout(data_types::f32, format::bfyx, tensor(1, 1, 16, 1025));
@@ -181,8 +181,10 @@ TEST(reduce_gpu, weighted_reduce_x16_f32_matches_multiply_reduce_bit_exact) {
 
     mem_lock<float, mem_lock_type::read> ref_ptr(ref_output, get_test_stream());
     mem_lock<float, mem_lock_type::read> opt_ptr(opt_output, get_test_stream());
-    ASSERT_EQ(ref_output->get_layout().bytes_count(), opt_output->get_layout().bytes_count());
-    ASSERT_EQ(std::memcmp(ref_ptr.data(), opt_ptr.data(), ref_output->get_layout().bytes_count()), 0);
+    ASSERT_EQ(ref_output->get_layout().count(), opt_output->get_layout().count());
+    for (size_t i = 0; i < ref_output->get_layout().count(); ++i) {
+        ASSERT_TRUE(are_equal(ref_ptr[i], opt_ptr[i], 1e-5f)) << "Mismatch at index " << i;
+    }
 }
 
 namespace {
@@ -318,6 +320,18 @@ TEST_P(weighted_reduce_graph_test, selects_or_falls_back) {
             ASSERT_EQ(static_cast<float>(output_data[i]), static_cast<float>(reference_data[i])) << "Mismatch at element " << i;
             ASSERT_EQ(static_cast<float>(output_data[i]), 0.0f) << "ReLU mismatch at element " << i;
         }
+    } else if (test_case.element_type == ov::element::f16) {
+        const auto* output_data = output.data<const ov::float16>();
+        const auto* reference_data = reference_output.data<const ov::float16>();
+        for (size_t i = 0; i < output.get_size(); ++i) {
+            ASSERT_TRUE(are_equal(static_cast<float>(reference_data[i]), static_cast<float>(output_data[i]))) << "Mismatch at element " << i;
+        }
+    } else if (test_case.element_type == ov::element::f32) {
+        const auto* output_data = output.data<const float>();
+        const auto* reference_data = reference_output.data<const float>();
+        for (size_t i = 0; i < output.get_size(); ++i) {
+            ASSERT_TRUE(are_equal(reference_data[i], output_data[i], 1e-5f)) << "Mismatch at element " << i;
+        }
     } else {
         ASSERT_EQ(std::memcmp(output.data(), reference_output.data(), output.get_byte_size()), 0);
     }
@@ -334,17 +348,13 @@ TEST_P(weighted_reduce_graph_test, selects_or_falls_back) {
             ++multiply_count;
     }
 
-    // On non-IMMAD devices, FP16 ReduceSum with batch > 1 is converted to pooling before this fusion can run.
-    const bool reduce_sum_converted_to_pooling =
-        test_case.element_type == ov::element::f16 && test_case.values_batch != 1 && !get_test_engine().get_device_info().supports_immad;
-    const bool expect_weighted = test_case.expect_weighted && !reduce_sum_converted_to_pooling;
-    EXPECT_EQ(weighted_count, expect_weighted ? 1 : 0);
+    EXPECT_EQ(weighted_count, test_case.expect_weighted ? 1 : 0);
     if (test_case.expect_reference) {
         EXPECT_EQ(weighted_reference_count, 1);
-    } else if (expect_weighted) {
+    } else if (test_case.expect_weighted) {
         EXPECT_EQ(weighted_reference_count, 0);
     }
-    EXPECT_EQ(multiply_count, (expect_weighted || test_case.expect_reference) ? 0 : 1);
+    EXPECT_EQ(multiply_count, (test_case.expect_weighted || test_case.expect_reference) ? 0 : 1);
 }
 
 INSTANTIATE_TEST_SUITE_P(

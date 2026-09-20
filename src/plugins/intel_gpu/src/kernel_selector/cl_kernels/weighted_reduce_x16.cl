@@ -25,8 +25,7 @@ KERNEL(weighted_reduce_x16)(const __global INPUT0_TYPE* values, const __global I
 #endif
 
 #if INPUT0_TYPE_SIZE == 2
-    // Match the existing FP16 reduction order after the vload8 Multiply has
-    // rounded and stored each product.
+    // Accumulate the two vload8 product blocks separately, then combine them.
     ACCUMULATOR_TYPE acc0 = ACCUMULATOR_VAL_ZERO;
     ACCUMULATOR_TYPE acc1 = ACCUMULATOR_VAL_ZERO;
     unroll_for(uint i = 0; i < 8; ++i) acc0 += TO_ACCUMULATOR_TYPE(products0[i]);
