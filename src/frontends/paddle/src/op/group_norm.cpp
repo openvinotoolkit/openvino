@@ -27,6 +27,7 @@ NamedOutputs group_norm(const NodeContext& node) {
     size_t num_groups = static_cast<size_t>(node.get_attribute<int32_t>("groups"));
     auto epsilon = node.get_attribute<float>("epsilon", 1e-5f);
     auto data_layout = node.get_attribute<std::string>("data_layout", "NCHW");
+    PADDLE_OP_CHECK(node, data_layout == "NCHW" || data_layout == "NHWC", "Only NCHW and NHWC data layouts are supported");
 
     const auto& pshape = data.get_partial_shape();
     PADDLE_OP_CHECK(node, pshape.rank().is_static());
