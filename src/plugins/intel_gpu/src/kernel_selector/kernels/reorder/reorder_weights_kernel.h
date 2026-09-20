@@ -16,5 +16,8 @@ public:
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
+
+private:
+    bool NeedsImadIsv4Padding(const reorder_weights_params& params) const;
 };
 }  // namespace kernel_selector
