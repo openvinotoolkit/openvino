@@ -57,7 +57,9 @@ struct qsa : public primitive_base<qsa> {
         const ov::intel_gpu::op::QSA::Config& config,
         bool skip_kv_write = false,
         bool prepare_only = false,
-        bool dense_mode = false)
+        bool dense_mode = false,
+        bool state_only = false,
+        bool grow_dense_state = false)
         : primitive_base(id, inputs),
           heads_num(config.heads_num),
           kv_heads_num(config.kv_heads_num),
@@ -79,14 +81,37 @@ struct qsa : public primitive_base<qsa> {
           is_causal(config.is_causal),
           skip_kv_write(skip_kv_write),
           prepare_only(prepare_only),
-          dense_mode(dense_mode) {
+          dense_mode(dense_mode),
+          state_only(state_only),
+          grow_dense_state(grow_dense_state) {
         // prepare_only declares 2 outputs (mutated raw-K cache, mutated summary cache --
         // see qsa_inst::calc_output_layouts) instead of the normal single attention
         // output; every existing (non-prepare_only) caller is unaffected since this only
         // changes num_outputs away from its primitive_base default of 1 when
         // prepare_only is set.
-        if (prepare_only) {
+        //
+        // state_only declares the SAME 2 outputs as prepare_only, but dispatches ZERO
+        // kernel stages (see impls/cm/qsa/qsa.cpp's QSACmImpl ctor/execute()): its two
+        // outputs are a pure alias of its two INDEXER_RAW_K_CACHE/INDEXER_SUMMARY_CACHE
+        // inputs, with no growth math and no Q1 dispatch. This is the primitive
+        // ops/qsa_indexer_cache.cpp uses for QSAIndexerCache -- a pure state
+        // DECLARATION that must not compute or write any cache content.
+        //
+        // grow_dense_state: when true (alongside dense_mode, prepare_only=false), this
+        // dispatch ALSO owns reserve/grow/Q1-write for the persistent indexer raw-K/
+        // summary state: it declares 2 EXTRA outputs (grown
+        // raw-K/summary, at ports 1/2) alongside the attention result at port 0, exactly
+        // like ops/qsa_sdpa.cpp does when its INDEXER_RAW_K_CACHE_DENSE/
+        // INDEXER_SUMMARY_CACHE_DENSE inputs come from a real QSAIndexerCache node. When
+        // false (the default), dense_mode behaves exactly as it always has: Q1 mutates
+        // the INDEXER_RAW_K_CACHE/INDEXER_SUMMARY_CACHE inputs in place, assuming the
+        // caller has already sized them to this call's final (post-append) length --
+        // this is the "advanced caller manages all cache state externally" mode, and
+        // must not silently change semantics just because dense_mode is set.
+        if (prepare_only || state_only) {
             num_outputs = 2;
+        } else if (dense_mode && grow_dense_state) {
+            num_outputs = 3;
         }
     }
 
@@ -111,6 +136,8 @@ struct qsa : public primitive_base<qsa> {
     bool skip_kv_write = false;
     bool prepare_only = false;
     bool dense_mode = false;
+    bool state_only = false;
+    bool grow_dense_state = false;
 
     /// @brief Pre-allocated width of the selected-token metadata: budget + r - 1.
     size_t max_selected_tokens() const {
@@ -163,6 +190,8 @@ struct qsa : public primitive_base<qsa> {
         seed = hash_combine(seed, skip_kv_write);
         seed = hash_combine(seed, prepare_only);
         seed = hash_combine(seed, dense_mode);
+        seed = hash_combine(seed, state_only);
+        seed = hash_combine(seed, grow_dense_state);
         return seed;
     }
 
@@ -176,7 +205,8 @@ struct qsa : public primitive_base<qsa> {
                indexer_head_dim == r.indexer_head_dim && indexer_rotary_dim == r.indexer_rotary_dim && budget == r.budget &&
                compress_ratio == r.compress_ratio && qsa_block_tokens == r.qsa_block_tokens && pa_block_size == r.pa_block_size && block_topk == r.block_topk &&
                scale == r.scale && indexer_norm_eps == r.indexer_norm_eps && has_output_gate == r.has_output_gate && is_causal == r.is_causal &&
-               skip_kv_write == r.skip_kv_write && prepare_only == r.prepare_only && dense_mode == r.dense_mode;
+               skip_kv_write == r.skip_kv_write && prepare_only == r.prepare_only && dense_mode == r.dense_mode && state_only == r.state_only &&
+               grow_dense_state == r.grow_dense_state;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
@@ -202,6 +232,8 @@ struct qsa : public primitive_base<qsa> {
         ob << skip_kv_write;
         ob << prepare_only;
         ob << dense_mode;
+        ob << state_only;
+        ob << grow_dense_state;
     }
 
     void load(BinaryInputBuffer& ib) override {
@@ -227,6 +259,8 @@ struct qsa : public primitive_base<qsa> {
         ib >> skip_kv_write;
         ib >> prepare_only;
         ib >> dense_mode;
+        ib >> state_only;
+        ib >> grow_dense_state;
     }
 };
 

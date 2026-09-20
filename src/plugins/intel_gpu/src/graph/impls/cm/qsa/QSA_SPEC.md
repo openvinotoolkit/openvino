@@ -15,7 +15,7 @@ This proposal exposes two related GPU operations:
 - `ov::intel_gpu::op::QSA`: a paged-cache operation for callers that already manage physical pages and block tables, such as a continuous-batching scheduler.
 - `ov::intel_gpu::op::QSASDPA`: an SDPA-style sibling that consumes dense, state-managed cache tensors and hides the physical page table from the model graph.
 
-Both operations share the same `QSA::Config`, numerical semantics, host dispatch logic, and CM kernel families. `QSASDPA` lowers dense cache tensors to a degenerate paged representation at compile time; it does not introduce a second attention implementation.
+Both operations share the same `QSA::Config`, numerical semantics, host dispatch logic, and CM kernel families. `QSASDPA` uses the shared QSA implementation in dense mode with runtime-resolved cache layouts; it does not introduce a second attention implementation.
 
 The design deliberately preserves OpenVINO fallback behavior. A graph transformation is allowed to replace a generic graph only when the required topology, shapes, attributes, cache ownership, and rotary-table representation can be proven. Otherwise the original graph remains valid and is left unchanged.
 
@@ -25,7 +25,7 @@ The design deliberately preserves OpenVINO fallback behavior. A graph transforma
 
 1. Provide a fused operation definition for Qwen Sparse Attention(QSA).
 2. Define PA-style QSA interface (`ov::intel_gpu::op::QSA`) for callers that manage physical pages and block tables.
-3. Definie SDPA-style QSA interface (`ov::intel_gpu::op::QSASDPA`) and Indexer Cache (`ov::intel_gpu::op::QSAIndexerCache`) for dense/KVCache-managed deployments.
+3. Define SDPA-style QSA interface (`ov::intel_gpu::op::QSASDPA`) and Indexer Cache (`ov::intel_gpu::op::QSAIndexerCache`) for dense/KVCache-managed deployments.
 4. Make sure to reuse the same kernels for both the PA-style and SDPA-style QSA implementations.
 5. Preserve causal, ragged-token, GQA/MQA, compressed-indexer, and output-gate semantics.
 6. Provide OpenVINO graph transformations pattern pass for both PA-style and SDPA-style QSA operations.
@@ -171,10 +171,10 @@ be connected to `QSASDPA::QUERY`.
 | 1 | `QUERY` | Prepared main-attention Q: `[tokens, Hq*Dh]`, or `[tokens, 2*Hq*Dh]` when the output gate is carried with it. |
 | 2 | `PAST_LENS` | `[num_seqs]`; history length before this call. |
 | 3 | `SUBSEQUENCE_BEGINS` | `[num_seqs+1]`; ragged-token offsets. |
-| 4 | `KEY_CACHE_DENSE` | Dense main K state, `[B, Hkv, S, Dh]`; upstream KV cache owns current-token append. |
-| 5 | `VALUE_CACHE_DENSE` | Dense main V state, `[B, Hkv, S, Dv]`; upstream KV cache owns current-token append. |
-| 6 | `INDEXER_RAW_K_CACHE_DENSE` | Dense raw-K view, `[B, S, D_i]`; output 0 of `QSAIndexerCache`, reshaped internally to `[B, 1, S, D_i]`. |
-| 7 | `INDEXER_SUMMARY_CACHE_DENSE` | Dense summary view, `[B, S/R, D_i]`; output 1 of `QSAIndexerCache`, reshaped internally to `[B, 1, S/R, D_i]`. |
+| 4 | `KEY_CACHE_DENSE` | Dense main K state, `[B, Hkv, L_k, Dh]`; upstream KV cache owns current-token append. |
+| 5 | `VALUE_CACHE_DENSE` | Dense main V state, `[B, Hkv, L_v, Dv]`; upstream KV cache owns current-token append. |
+| 6 | `INDEXER_RAW_K_CACHE_DENSE` | Runtime dense raw-K view, `[B, L_raw, D_i]`, supplied by the `qsa_inst` indexer-cache state descriptor. |
+| 7 | `INDEXER_SUMMARY_CACHE_DENSE` | Runtime dense summary view, `[B, L_summary, D_i]`, supplied by the `qsa_inst` indexer-cache state descriptor. |
 | 8 | `INDEXER_QK_WEIGHT` | Fused indexer projection, `[H_i*D_i + D_i, D]`. |
 | 9 | `INDEXER_Q_NORM_WEIGHT` | Indexer-Q RMSNorm gain, `[D_i]`. |
 | 10 | `INDEXER_K_NORM_WEIGHT` | Indexer-K/summary RMSNorm gain, `[D_i]`. |
@@ -183,49 +183,61 @@ be connected to `QSASDPA::QUERY`.
 
 `KEY` and `VALUE` current-token inputs are intentionally absent: their values have already been incorporated into the dense cache by the upstream cache operation. The QSA lowering therefore uses `skip_kv_write=true`.
 
-#### Dense-to-paged lowering
+#### Dense lowering and runtime addressing
 
-At compile time, the Intel GPU plugin creates a degenerate page representation:
+The Intel GPU lowering uses `cldnn::qsa` with `dense_mode=true` and `skip_kv_write=true`.
+It retains the existing QSA stage implementation while deriving the effective dense
+page/block span from the **current resolved cache layout**, rather than from a fixed
+`Config::pa_block_size`. The lowering still supplies identity page metadata
+(`BLOCK_INDICES = [0, ..., B-1]` and `BLOCK_INDICES_BEGINS = [0, ..., B]`) because the
+existing primitive contract requires these inputs; dense-mode address calculation treats
+each sequence as its own contiguous degenerate page and uses the runtime length/stride.
+This is an implementation bridge, not a fixed-capacity requirement.
 
-- one physical page per sequence slot;
-- `PA_BLOCK_SIZE = S`, where `S` is the statically known cache capacity;
-- `BLOCK_INDICES = [0, 1, ..., B-1]`;
-- `BLOCK_INDICES_BEGINS = [0, 1, ..., B]`;
-- dense indexer cache tensors receive the size-one indexer-head dimension required by the underlying primitive;
-- Q0 is skipped because the upstream dense cache has already appended current K/V.
-
-The Q1, Q2, and Q3 CM stages are the same stages used by `QSA`. No new attention kernel is introduced by `QSASDPA`.
-
-The dense cache layout is a logical, state-managed view rather than a physical page-table
-layout:
+The dense cache layout is a logical, state-managed view:
 
 ```text
 KEY_CACHE_DENSE   [batch, kv_head, position, Dh]
 VALUE_CACHE_DENSE [batch, kv_head, position, Dv]
 INDEXER_RAW_K_CACHE_DENSE [batch, position, Di]
-INDEXER_SUMMARY_CACHE_DENSE [batch, qsa_block, Di]
+INDEXER_SUMMARY_CACHE_DENSE [batch, completed_block, Di]
 ```
 
-The lowering creates a size-one page-head axis and identity page indices. In version 1,
-the dense sequence capacity `S` is also `Config::pa_block_size`; this is a degenerate
-compatibility mapping, not a claim that arbitrary dense capacity and physical page size
-are always interchangeable.
+The current implementation passes dense rank-3 raw-K/summary state directly to dense mode;
+no fixed-capacity reshape is required. The Q1/Q2/Q3 CM stages are the same validated QSA
+stages, with dense-mode runtime addressing and runtime dispatch parameters. Q0 is not
+scheduled because the upstream dense `KVCache` has already appended the current K/V. No
+second attention implementation is introduced by `QSASDPA`.
 
-#### Static-shape requirement
+#### Shape and batch contract
 
-`PA_BLOCK_SIZE` is compiled into the CM kernel as a JIT constant. Therefore version 1 requires:
+The following dimensions are resolved at runtime and may change between calls:
 
-- statically known batch/sequence-slot count `B` at compilation;
-- statically known cache capacity `S`;
-- `S == Config::pa_block_size`;
-- compatible static K/V cache layouts;
-- a static `PAST_LENS` batch dimension matching `B`.
+- main K/V cache sequence lengths;
+- raw-K length;
+- summary length;
+- current token count and per-sequence history lengths.
 
-Unsupported dynamic shapes must be rejected clearly during lowering rather than silently producing an invalid dispatch.
+The following properties remain required at graph/lowering time:
+
+- cache ranks, head counts, head widths, element types, and dense layout semantics must
+  match the QSA configuration;
+- the batch/sequence-slot count `B` must be statically known;
+- `PAST_LENS` and the sequence metadata must have a static batch dimension equal to `B`;
+- dynamic batch changes are unsupported and must not silently reuse state allocated for a
+  different number of sequences.
+
+`Config::pa_block_size` remains a paged-QSA configuration field and a logical kernel
+parameter for the shared implementation; it is not the total dynamic dense cache length.
+The lowering must not require `S == Config::pa_block_size` and must not reject a valid
+single-batch dynamic sequence length solely because the current cache exceeds an initial
+capacity hint. If the batch contract or dense layout cannot be proved, the graph pass must
+fall back conservatively.
 
 ### 4.3 `QSAIndexerCache`
 
-`QSAIndexerCache` is a GPU-internal stateful operation for the dense SDPA-style path. It owns two independent `Variable` states:
+`QSAIndexerCache` is a GPU-internal stateful operation for the dense SDPA-style path. It
+owns two independent, dynamically growing `Variable` states:
 
 1. raw indexer keys;
 2. compressed block summaries.
@@ -237,45 +249,60 @@ Unsupported dynamic shapes must be rejected clearly during lowering rather than 
 
 This distinction is normative for state reset, cloning, lowering, and future beam-reorder logic.
 
-#### Inputs
+#### Graph-level state declaration
 
-| Index | Name | Meaning |
-|---:|---|---|
-| 0 | `MIXED` | `[tokens, D]` |
-| 1 | `INDEXER_QK_WEIGHT` | Fused Q/K projection weight |
-| 2 | `INDEXER_Q_NORM_WEIGHT` | Indexer Q RMSNorm gain |
-| 3 | `INDEXER_K_NORM_WEIGHT` | Indexer K RMSNorm gain |
-| 4 | `ROTARY_COS_SIN` | Packed rotary table |
-| 5 | `PAST_LENS` | Per-sequence history lengths |
-| 6 | `SUBSEQUENCE_BEGINS` | Ragged token offsets |
-| 7 | `POSITION_IDS` | Absolute positions/mRoPE ranks |
+`QSAIndexerCache` has no runtime data inputs and is not an independent Q1 producer. It
+declares the identity of two persistent states and stores the graph-level `QSA::Config`:
 
-#### Outputs and state transition
+1. raw-K state, represented by the generic `VariableExtension` accessors;
+2. summary state, represented by explicit summary-variable accessors because
+   `VariableExtension` exposes only one variable per node.
 
-- Output 0: current raw-K state, `[B, S, D_i]`.
-- Output 1: current summary state, `[B, S/R, D_i]`.
-- The Q1 prepare kernel computes the current indexer data and updates the two state buffers.
-- The operation lowers to `cldnn::qsa` with `prepare_only=true`; Q0, Q2, and Q3 are not scheduled.
-- `ReadValue` and `Assign` provide persistence across independent `InferRequest::infer()` calls.
+The operation therefore must not receive `MIXED`, indexer projection weights, RMSNorm
+weights, `ROTARY_COS_SIN`, `PAST_LENS`, `SUBSEQUENCE_BEGINS`, or `POSITION_IDS`. Those
+values are required by the actual Q1/Q2/Q3 computation in `QSASDPA`, not by the state
+declaration. In particular, `QSAIndexerCache` does not recompute indexer Q/K, apply
+RoPE, append raw K, or generate summaries as a separate graph operation.
 
-The fixed-capacity state is zero-initialized as needed and updated at offsets derived from `PAST_LENS`. `reset_state()` must clear both variables consistently.
+The runtime `qsa_inst` owning the corresponding `QSASDPA` execution performs the
+following state-management steps before and during the QSA dispatch:
+
+- calculate the new raw-K and summary valid lengths from the current token count and
+  `compress_ratio`;
+- reserve or grow storage and relocate the valid old prefixes when necessary;
+- update per-sequence base, stride, capacity, valid-length, phase, and reservation
+  descriptors;
+- execute the dense Q1/Q2/Q3 stages, with Q1 writing the raw-K and summary states;
+- publish the new logical lengths only as part of the same runtime-state update.
+
+There is no separate `cldnn::qsa_indexer_cache_state` primitive, `commit`/`finalize`
+graph node, or `ReadValue -> prepare_only Q1 -> Assign` graph path in the target design.
+The state declaration is analogous to `KVCache`; the runtime state manager is analogous
+to the state handling inside `kv_cache_inst`.
+
+The state contract still requires both Variables to share the same batch size `B` and
+indexer width `D_i`. Runtime capacity may exceed valid length, and kernels must use the
+published valid length rather than infer history from physical capacity. Reset, trim,
+release, and future beam reorder must operate on raw-K and summary as one logical cache
+contract.
 
 #### Indexer-cache layout
 
 The public state views are dense:
 
 ```text
-raw-K state:   [B, S,   Di]
-summary state: [B, S/R, Di]
+raw-K state:   [B, L_raw,     Di]
+summary state: [B, L_summary, Di]
 ```
 
-The GPU lowering reshapes them, without a data copy, to the QSA primitive's degenerate
-paged forms `[B, 1, S, Di]` and `[B, 1, S/R, Di]`. `S` is the fixed reserved capacity;
-`PAST_LENS` identifies the valid prefix for each call. Raw K is retained in its
-pre-normalization/pre-RoPE form, while summaries are pooled, K-normalized, and rotated at
-the block-start position. The two Variables are one state contract: reset, clone,
-serialization, and future beam reorder must handle both together.
-
+Dense mode consumes the runtime descriptors directly. Per-sequence valid lengths and
+position metadata identify the readable history, while physical capacity describes only
+the current allocation. Raw K is retained in its pre-normalization/pre-RoPE form, while
+summaries are pooled, K-normalized, and rotated at the block-start position. The two
+Variables are one state contract: reset, clone, serialization, trim, release, and future
+beam reorder must handle both together. The initial implementation is single-batch/
+single-sequence decode; ragged batching, dynamic batch, and broader per-sequence capacity
+management remain outside the current implementation contract.
 ## 5. Configuration and validation
 
 `QSASDPA` reuses `QSA::Config` verbatim. Important fields are:
@@ -294,14 +321,19 @@ serialization, and future beam reorder must handle both together.
 | `budget` | Selected-token budget |
 | `compress_ratio` | $R$; zero means the layer is not a QSA layer |
 | `qsa_block_tokens` | Must be consistent with `compress_ratio` |
-| `pa_block_size` | Compiled page/capacity size |
+| `pa_block_size` | Paged-QSA page-size parameter; it is not the total length or capacity of a dynamic dense `QSASDPA` cache |
 | `block_topk` | Must be consistent with budget and compression ratio |
 | `scale` | Main attention scale, normally $1/\sqrt{D_h}$ |
 | `indexer_norm_eps` | Indexer RMSNorm epsilon |
 | `has_output_gate` | Whether query carries the output-gate component |
 | `is_causal` | Causal attention flag |
 
-Validation must reject inconsistent geometry, zero or incompatible dimensions, invalid compression/budget relationships, unsupported page sizes, and unsupported dynamic shapes. The method returns a reason where possible so a transformation can fall back to the original graph.
+Validation must reject inconsistent geometry, zero or incompatible dimensions, invalid
+compression/budget relationships, unsupported page sizes, dynamic batch, and layouts that
+cannot be proven to satisfy the dense cache contract. Dynamic sequence lengths and
+runtime-growing raw-K/summary state are supported; they must not be rejected merely because
+the current length differs from the initial allocation. The method returns a reason where
+possible so a transformation can fall back to the original graph.
 
 ## 6. Internal kernel fusion and execution stages
 
@@ -350,8 +382,9 @@ attention score computation, or output projection. The page-table indirection is
 the ordinary `QSA` path suitable for externally scheduled continuous batching.
 
 For `QSASDPA`, the upstream dense `KVCache` has already appended the current K/V. Therefore
-Q0 is not scheduled (`skip_kv_write=true`); the dense cache is reinterpreted as one
-degenerate page per sequence slot during lowering.
+Q0 is not scheduled (`skip_kv_write=true`). Dense mode uses the current resolved cache
+layout and identity sequence metadata to reuse the common Q1/Q2/Q3 implementation; it does
+not require a compile-time cache-length/page-size equality.
 
 **Kernel partition:** `qsa_kv_cache_update.cm` owns only the writes above. It is scheduled
 before Q1 and Q2/Q3 depend on its completion when `skip_kv_write` is false.
@@ -416,9 +449,11 @@ recompute the entire history on every call.
 - Both variants write the same logical raw-K and summary state and must remain numerically
   interchangeable within the documented tolerance.
 
-`QSAIndexerCache` schedules Q1 only (`prepare_only=true`). `QSA` schedules Q1 as part of
-the complete operation. `QSASDPA` also schedules Q1 for the current query-side indexer
-data, while its persistent raw-K/summary inputs are supplied by `QSAIndexerCache`.
+`QSA` schedules Q1 as part of the complete operation. `QSASDPA` schedules the dense Q1,
+Q2, and Q3 stages through the owning `qsa_inst`; Q1 writes the persistent raw-K/summary
+state and also produces the current query-side indexer data needed by Q2. `QSAIndexerCache`
+does not schedule a separate `prepare_only` dispatch. It declares the state identity and
+provides the runtime descriptor used by the same `qsa_inst`.
 
 ### 6.3 Q2: block scoring and TopK selection
 
@@ -532,14 +567,15 @@ For `QSASDPA`, the order is:
 
 ```text
 upstream KVCache update
-  -> Q1/QSAIndexerCache state update
-  -> Q1/QSASDPA query preparation
+  -> qsa_inst IndexerCache.reserve()
+  -> dense Q1: write raw-K/summary and prepare query-side indexer data
   -> Q2
   -> Q3
 ```
 
 Q0 is omitted because the upstream dense KV cache owns the main K/V update. For
-`QSAIndexerCache`, only the Q1 portion and its state write-back are scheduled.
+`QSAIndexerCache`, reserve/relocation and logical-length publication are runtime state
+operations associated with the same `qsa_inst`; no separate graph execution is scheduled.
 
 The design intentionally fuses at the operation/primitive boundary while keeping
 surrounding projections as ordinary graph operations. This limits semantic ownership and
@@ -578,22 +614,23 @@ OpenVINO nodes. Kernel stage boundaries do not imply graph-pass boundaries.
 - an indexer raw-K history backed by `ReadValue`/`Variable`;
 - a downstream `ScaledDotProductAttention` node;
 - main K and V operands backed by distinct cache state;
-- statically provable batch and cache capacity;
+- statically provable batch and dense cache ownership/layout, while allowing runtime sequence growth;
 - one already-packed rotary table in the supported representation.
 
-On success it creates the paired internal operations:
+On success it creates the state declaration and the attention operation:
 
 ```text
-QSAIndexerCache -> raw-K and summary state
+QSAIndexerCache (state identity/configuration)
                  \
-                  -> QSASDPA -> attention output
+                  -> QSASDPA/qsa_inst -> attention output
 ```
 
-`QSASDPAFusion` is a complete replacement, but ownership is split into two internal
-operations because dense cache state has two different lifetimes:
+`QSASDPAFusion` is a complete replacement. The graph contains a state declaration and an
+attention operation, while runtime ownership is unified in the corresponding `qsa_inst`:
 
-- `QSAIndexerCache` owns persistent Q1 raw-K append and summary maintenance;
-- `QSASDPA` owns the current query-side Q1 work, Q2 scoring, and Q3 sparse attention.
+- `QSAIndexerCache` declares persistent raw-K/summary state identity and configuration;
+- `qsa_inst` owns reserve, relocation, valid lengths, descriptors, and state publication;
+- `QSASDPA`/`qsa_inst` executes Q1, Q2 scoring, and Q3 sparse attention.
 
 Q0 is intentionally absent from `QSASDPA`: the upstream dense KV cache already owns the
 current K/V append. Thus the pass is not incomplete merely because Q0 is not constructed
@@ -602,9 +639,12 @@ ownership, while Q1/Q2/Q3 are preserved through the paired operation contract. T
 does not fuse arbitrary `q_proj`, `k_proj`, `v_proj`, or `o_proj` nodes; those remain
 ordinary graph operations.
 
-For the current real Qwen export, dynamic K/V cache shapes and separate `full_cos`/`full_sin`
-parameters are intentional bail-out conditions. Graph-side rotary repacking is a future
-extension, not an implicit assumption.
+For the current real Qwen export, separate `full_cos`/`full_sin` parameters are an
+intentional bail-out condition because the supported contract requires one packed rotary
+table. Dynamic sequence/cache dimensions are not, by themselves, a bail-out: the pass may
+replace the graph when the batch is statically provable and the main `KVCache` plus both
+indexer Variables have the required ownership and dense layout. Dynamic batch remains a
+conservative rejection/fallback condition. Graph-side rotary repacking is future work.
 
 ## 8. Performance design
 
@@ -616,25 +656,28 @@ online-softmax, and causal-tail code.
 
 ### 8.2 Avoided work
 
-`QSAIndexerCache` avoids recomputing the complete raw-K history and its block summaries on
-every call. Only the new token range and newly completed blocks are processed by Q1.
-
-The current two-operation design may execute Q1 twice per call: once to update persistent
-indexer state and once inside `QSASDPA` to produce the current query-side indexer data
-needed by Q2. This is a deliberate version-1 trade-off that avoids changing the validated
-Q1 kernel. A future split-indexer design may remove this duplicate work.
+The runtime state manager avoids reallocating or copying the complete raw-K history and its
+block summaries on every call. It reserves only the required new valid length; Q1 processes
+the new token range and newly completed blocks, writes the persistent states, and produces
+the current query-side indexer data needed by Q2. There is no separate Q1 execution in a
+`QSAIndexerCache` graph node and therefore no duplicate Q1 work caused by that node.
 
 ### 8.3 Degenerate-page cost
 
-The dense lowering reserves cache capacity as one page per sequence slot. Compared with
-true paging, this can increase memory reservation and Q2 scratch upper bounds for large
-batches. It is efficient for single-stream and small-batch deployments, while paged `QSA`
-remains preferred for scheduler-driven continuous batching.
+The dense lowering uses one logical contiguous sequence region per batch slot. Compared
+with true paging, this can increase memory reservation and Q2 scratch upper bounds for
+large batches. Runtime state and scratch buffers are reused when capacity is sufficient
+and grown when the resolved layout exceeds the previous allocation. It is efficient for
+single-stream and small fixed-batch deployments, while paged `QSA` remains preferred for
+scheduler-driven continuous batching or dynamic batch management.
 
 ### 8.4 Dispatch reuse
 
 `PAST_LENS` and `SUBSEQUENCE_BEGINS` are retained in `QSASDPA` to preserve the existing
-`PREFILL`, `GENERATE`, and `MIXED` host dispatch paths within the static-capacity envelope.
+`PREFILL`, `GENERATE`, and `MIXED` host dispatch paths. Dispatch scalars and scratch/state
+descriptors are refreshed from the resolved runtime layouts on shape changes; reuse is
+bounded by the currently allocated capacity rather than by a fixed compile-time sequence
+length.
 
 ## 9. OpenVINO conformance and integration requirements
 
@@ -676,8 +719,9 @@ Other planned extensions are:
 
 1. **Packed rotary-table normalization:** support graph-side conversion from separate cosine
   and sine parameters after numerical and shape proofs are available.
-2. **Dynamic batch/capacity:** either introduce a true dynamic dense implementation or retain
-  a documented fallback to paged `QSA`.
+2. **Dynamic batch:** support for changing the number of dense sequence slots remains
+  future work; until then, reject it or fall back to paged `QSA`. Dynamic sequence lengths,
+  cache growth, and indexer-state growth are already supported for a fixed batch.
 3. **Unequal per-sequence capacities:** support shared-capacity padding with explicit
   validation and tests.
 4. **Beam reorder:** coordinate main K/V, raw-K, and summary state. The safe first
@@ -699,14 +743,20 @@ The test plan must include:
 - paged QSA regression tests;
 - dense QSASDPA prefill and decode numerical comparisons;
 - mixed dispatch tests;
-- dynamic-shape rejection tests;
-- QSAIndexerCache persistence across two independent inference calls;
+- dynamic sequence acceptance and cache-growth tests across repeated inference calls;
+- explicit dynamic-batch rejection/fallback tests;
+- QSAIndexerCache persistence, relocation/copy-forward, and summary-boundary tests across
+  two or more independent inference calls;
 - reset-state behavior for both cache variables;
 - fusion success and conservative bail-out cases;
 - real-model topology checks;
 - performance measurements for memory, Q1 duplication, scratch size, and latency.
 
-The current repository contains host-side operation tests, real Intel GPU lowering tests for QSASDPA, persistent indexer-cache tests, and graph-transformation tests. The remaining roadmap items above must be treated as explicit coverage gaps rather than assumed support.
+The current repository contains host-side operation tests, real Intel GPU lowering tests for
+QSASDPA, repeated-inference indexer-cache growth tests, and graph-transformation tests.
+These tests establish fixed-batch dynamic sequence support; dynamic batch, unequal
+per-sequence capacity/padding, beam reorder, and rotary-table repacking remain explicit
+coverage gaps rather than assumed support.
 
 ## 12. oneDNN applicability and requested support
 

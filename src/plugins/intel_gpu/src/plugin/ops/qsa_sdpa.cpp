@@ -3,8 +3,10 @@
 //
 
 #include "openvino/op/qsa_sdpa.hpp"
+#include "intel_gpu/op/qsa_indexer_cache.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/primitives/assign.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/primitives/qsa.hpp"
 
@@ -123,11 +125,70 @@ void CreateQSASDPAOp(ProgramBuilder& p, const std::shared_ptr<ov::op::internal::
     qsa_inputs[QSAIn::ROTARY_COS_SIN] = inputs[QSASDPAIn::ROTARY_COS_SIN];
     qsa_inputs[QSAIn::POSITION_IDS] = inputs[QSASDPAIn::POSITION_IDS];
 
-    cldnn::qsa prim(layer_name, qsa_inputs, config, /*skip_kv_write=*/true, /*prepare_only=*/false, /*dense_mode=*/true);
-    prim.num_outputs = op->get_output_size();
+    // If (and only if) the upstream indexer raw-K/summary producer is a real
+    // QSAIndexerCache node (the QSASDPAFusion-produced topology; not the "advanced
+    // caller manages all cache state externally" mode covered by the plain-Parameter
+    // end-to-end test), THIS dispatch owns reserve/grow/Q1-write for the persistent
+    // indexer raw-K/summary state (see QSAIndexerCache's class
+    // doc comment, which is a pure state declaration and never does this itself) and
+    // persists the grown buffers back into ITS two Variables. Otherwise, dense_mode
+    // keeps its original single-output, in-place-mutate contract: the caller is assumed
+    // to have already sized INDEXER_RAW_K_CACHE_DENSE/INDEXER_SUMMARY_CACHE_DENSE to
+    // this call's final (post-append) length itself.
+    auto raw_k_producer = ov::as_type_ptr<ov::intel_gpu::op::QSAIndexerCache>(op->get_input_node_shared_ptr(QSASDPAIn::INDEXER_RAW_K_CACHE_DENSE));
+
+    cldnn::qsa prim(layer_name, qsa_inputs, config, /*skip_kv_write=*/true, /*prepare_only=*/false, /*dense_mode=*/true, /*state_only=*/false,
+                    /*grow_dense_state=*/raw_k_producer != nullptr);
     prim.output_data_types = get_output_data_types(op);
+    if (raw_k_producer) {
+        // Declare 2 extra, OV-invisible primitive outputs (grown raw-K @1, grown
+        // summary @2) alongside the attention result @0. impls/cm/qsa/qsa.cpp's
+        // execute() grows/copies them forward and Q1 writes into them exactly like the
+        // old QSAIndexerCache prepare_only path did, just as part of THIS SAME dispatch
+        // instead of a separate one.
+        prim.num_outputs = 3;
+    } else {
+        prim.num_outputs = op->get_output_size();
+    }
 
     p.add_primitive(*op, prim);
+
+    if (raw_k_producer) {
+        auto raw_k_variable = raw_k_producer->get_variable();
+        auto summary_variable = raw_k_producer->get_summary_variable();
+        OPENVINO_ASSERT(raw_k_variable && summary_variable, "[GPU] QSASDPA '", layer_name,
+                        "': upstream QSAIndexerCache is missing a raw-K or summary Variable");
+
+        const auto& raw_k_ps = op->get_input_partial_shape(QSASDPAIn::INDEXER_RAW_K_CACHE_DENSE);
+        const auto& summary_ps = op->get_input_partial_shape(QSASDPAIn::INDEXER_SUMMARY_CACHE_DENSE);
+        OPENVINO_ASSERT(raw_k_ps.rank().is_static() && raw_k_ps.size() == 3 && summary_ps.rank().is_static() && summary_ps.size() == 3,
+                        "[GPU] QSASDPA '", layer_name, "': INDEXER_RAW_K_CACHE_DENSE/INDEXER_SUMMARY_CACHE_DENSE must be rank-3 [B, ?, Di]");
+        // The declared layout's sequence axis stays dynamic here too -- it only
+        // communicates the Variable's persistent rank/dtype, not this call's concrete
+        // length, which execute()/calc_output_layouts already resolved for qsa's own
+        // grown outputs (ports 1/2).
+        const cldnn::layout raw_k_decl(ov::PartialShape{raw_k_ps[0], ov::Dimension::dynamic(), raw_k_ps[2]}, cldnn::data_types::f16, cldnn::format::bfyx);
+        const cldnn::layout summary_decl(ov::PartialShape{summary_ps[0], ov::Dimension::dynamic(), summary_ps[2]}, cldnn::data_types::f16,
+                                         cldnn::format::bfyx);
+
+        // These Assign primitives have no consumers of their own (nothing in the OV
+        // graph reads an "assign result" -- their entire purpose is the side effect on
+        // Variable state), but they DO have real dependencies (qsa's output1/output2), so
+        // cldnn's dangling-node removal (program::remove_if_dangling, which requires BOTH
+        // empty users AND empty dependencies to prune) does not remove them.
+        p.add_primitive(*op, cldnn::assign(layer_name + "_raw_k_assign", {cldnn::input_info(layer_name, 1)}, raw_k_variable->get_info().variable_id,
+                                           raw_k_decl));
+        p.add_primitive(*op, cldnn::assign(layer_name + "_summary_assign", {cldnn::input_info(layer_name, 2)}, summary_variable->get_info().variable_id,
+                                           summary_decl));
+
+        // The add_primitive() calls above each overwrote primitive_ids[layer_name] (every
+        // add_primitive(op, ...) call remaps op's canonical id to whatever was just added
+        // -- see ProgramBuilder::add_primitive). Restore it to the qsa primitive itself
+        // (id == layer_name, see the ctor above): it is the one with QSASDPA's actual
+        // declared output (the attention result at port 0), which is what any downstream
+        // consumer must resolve to via GetInputInfo().
+        p.primitive_ids[layer_name] = layer_name;
+    }
 }
 
 }  // namespace

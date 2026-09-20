@@ -11,20 +11,20 @@
 
 namespace ov::intel_gpu::op {
 
-/// @brief GPU-internal stateful cache for the QSA indexer's raw-K and block-summary tensors,
-/// used by the SDPA-style `QSASDPA` op.
+/// @brief GPU-internal state DECLARATION for the QSA indexer's raw-K and block-summary
+/// tensors, used by the SDPA-style `QSASDPA` op.
 ///
-/// `QSA` (PagedAttention-style) keeps the indexer raw-K/summary caches as physically-paged
-/// graph inputs managed by an external continuous-batching scheduler. `QSASDPA` instead
-/// needs `SDPA`-style dense, `Variable`-backed state, analogous to `ov::intel_gpu::op::
-/// KVCache` for the main K/V. Unlike the main K/V, the indexer raw-K append and the Q1
-/// (`qsa_prepare.cm`) indexer-K projection are fused into a single CM kernel, so the "new"
-/// raw-K/summary values are NOT plain precomputed dense tensors that a generic `Concat`
-/// could append (this is why `QSAIndexerCache` exists instead of reusing `KVCache`
-/// directly). `QSAIndexerCache` computes its own "new" data internally by re-running Q1
-/// unchanged (lowered to the same `cldnn::qsa` primitive with `prepare_only=true`), the same
-/// way `ReadValue` derives its output purely from `Variable` state rather than from an
-/// explicit "new value" graph input.
+/// \note `QSAIndexerCache` does not compute or write cache
+/// content. It has NO runtime data inputs and is not an independent Q1 producer: it only
+/// declares the identity of the two persistent Variables and carries the graph-level QSA
+/// `Config`. The corresponding `qsa_inst` that executes `QSASDPA` (see
+/// ops/qsa_sdpa.cpp::CreateQSASDPAOp) is the sole owner of reserve/grow, Q1 dispatch, and
+/// state publication (`Assign`) for both Variables. This mirrors `ov::intel_gpu::op::
+/// KVCache` at the OV level (a state declaration), while the runtime growth/write logic
+/// lives in `qsa_inst`, analogous to `kv_cache_inst`.
+///
+/// Output 0/1 report the CURRENT (pre-call) dense content of the raw-K/summary Variables,
+/// exactly like a bare `ReadValue` node would report a single Variable's current value.
 ///
 /// This op owns TWO independent pieces of state (raw-K and summary), but
 /// `ov::op::util::VariableExtension` only supports a single `Variable` per node. This class
@@ -46,26 +46,13 @@ public:
     /// but kept so the same Config object can be threaded through unchanged from QSASDPA.
     using Config = ov::op::internal::QSA::Config;
 
-    /// @brief Fixed input order of the QSAIndexerCache op.
-    struct InputIdx {
-        static constexpr size_t MIXED = 0;                   ///< [tokens, D], same graph output QSASDPA also consumes
-        static constexpr size_t INDEXER_QK_WEIGHT = 1;       ///< [Hidx*Di + Di, D] row-major
-        static constexpr size_t INDEXER_Q_NORM_WEIGHT = 2;   ///< [Di], unused output but needed by the fused Q1 kernel
-        static constexpr size_t INDEXER_K_NORM_WEIGHT = 3;   ///< [Di]
-        static constexpr size_t ROTARY_COS_SIN = 4;          ///< [max_positions, indexer_rotary_dim]
-        static constexpr size_t PAST_LENS = 5;               ///< [num_seqs]
-        static constexpr size_t SUBSEQUENCE_BEGINS = 6;      ///< [num_seqs+1]
-        static constexpr size_t POSITION_IDS = 7;            ///< [tokens] absolute position / mRoPE rank, needed by Q1's RoPE
-                                                              ///< application -- not synthesizable in general (mRoPE), so unlike
-                                                              ///< QUERY/KEY/VALUE this is a genuine, non-dead input.
-
-        static constexpr size_t COUNT = 8;
-    };
-
     QSAIndexerCache() = default;
 
-    QSAIndexerCache(const ov::OutputVector& args,
-                     const std::shared_ptr<ov::op::util::Variable>& raw_k_variable,
+    /// @brief Pure state declaration: zero data inputs. `MIXED`, the indexer projection
+    /// weights, `ROTARY_COS_SIN`, `PAST_LENS`, `SUBSEQUENCE_BEGINS`, and `POSITION_IDS`
+    /// are NOT inputs of this op -- they are only needed by the actual Q1/Q2/Q3
+    /// computation, which is owned by `QSASDPA`'s own `qsa_inst`.
+    QSAIndexerCache(const std::shared_ptr<ov::op::util::Variable>& raw_k_variable,
                      const std::shared_ptr<ov::op::util::Variable>& summary_variable,
                      const Config& config);
 

@@ -8,11 +8,10 @@
 
 namespace ov::intel_gpu::op {
 
-QSAIndexerCache::QSAIndexerCache(const ov::OutputVector& args,
-                                 const std::shared_ptr<ov::op::util::Variable>& raw_k_variable,
+QSAIndexerCache::QSAIndexerCache(const std::shared_ptr<ov::op::util::Variable>& raw_k_variable,
                                  const std::shared_ptr<ov::op::util::Variable>& summary_variable,
                                  const Config& config)
-    : Op(args)
+    : Op(ov::OutputVector{})
     , m_summary_variable(summary_variable)
     , m_config(config) {
     m_variable = raw_k_variable;
@@ -42,7 +41,7 @@ bool QSAIndexerCache::visit_attributes(ov::AttributeVisitor& visitor) {
 }
 
 void QSAIndexerCache::validate_and_infer_types() {
-    NODE_VALIDATION_CHECK(this, get_input_size() == InputIdx::COUNT, "QSAIndexerCache expects ", InputIdx::COUNT, " inputs, got ", get_input_size());
+    NODE_VALIDATION_CHECK(this, get_input_size() == 0, "QSAIndexerCache is a pure state declaration and expects 0 inputs, got ", get_input_size());
     OPENVINO_ASSERT(m_variable, "QSAIndexerCache requires a raw-K Variable");
     OPENVINO_ASSERT(m_summary_variable, "QSAIndexerCache requires a summary Variable");
 
@@ -56,7 +55,7 @@ void QSAIndexerCache::validate_and_infer_types() {
 
 std::shared_ptr<Node> QSAIndexerCache::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
-    return std::make_shared<QSAIndexerCache>(new_args, m_variable, m_summary_variable, m_config);
+    return std::make_shared<QSAIndexerCache>(m_variable, m_summary_variable, m_config);
 }
 
 }  // namespace ov::intel_gpu::op

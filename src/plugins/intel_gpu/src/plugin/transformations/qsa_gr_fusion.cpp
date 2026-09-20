@@ -956,16 +956,12 @@ QSASDPAFusion::QSASDPAFusion() {
             ov::op::util::VariableInfo{ov::PartialShape{1, ov::Dimension::dynamic(), static_cast<int64_t>(Di)}, raw_k_info.data_type,
                                        raw_k_info.variable_id + "_qsasdpa_summary"});
 
-        ov::OutputVector cache_inputs(ov::intel_gpu::op::QSAIndexerCache::InputIdx::COUNT);
-        cache_inputs[ov::intel_gpu::op::QSAIndexerCache::InputIdx::MIXED] = mixed_2d;
-        cache_inputs[ov::intel_gpu::op::QSAIndexerCache::InputIdx::INDEXER_QK_WEIGHT] = qk_weight_src;
-        cache_inputs[ov::intel_gpu::op::QSAIndexerCache::InputIdx::INDEXER_Q_NORM_WEIGHT] = q_norm_const;
-        cache_inputs[ov::intel_gpu::op::QSAIndexerCache::InputIdx::INDEXER_K_NORM_WEIGHT] = k_norm_const;
-        cache_inputs[ov::intel_gpu::op::QSAIndexerCache::InputIdx::ROTARY_COS_SIN] = rope_const;
-        cache_inputs[ov::intel_gpu::op::QSAIndexerCache::InputIdx::PAST_LENS] = past_lens;
-        cache_inputs[ov::intel_gpu::op::QSAIndexerCache::InputIdx::SUBSEQUENCE_BEGINS] = subsequence_begins;
-        cache_inputs[ov::intel_gpu::op::QSAIndexerCache::InputIdx::POSITION_IDS] = position_ids;
-        auto indexer_cache = std::make_shared<ov::intel_gpu::op::QSAIndexerCache>(cache_inputs, raw_k_variable, summary_variable, config);
+        // QSAIndexerCache is a pure state declaration (see qsa_indexer_cache.hpp's class
+        // doc comment): it takes no data inputs of its own. MIXED,
+        // the indexer projection weights, the rotary table, and the sequence metadata
+        // are wired only into QSASDPA below, which is what actually runs Q1/Q2/Q3 and
+        // owns growth/write-back of both Variables.
+        auto indexer_cache = std::make_shared<ov::intel_gpu::op::QSAIndexerCache>(raw_k_variable, summary_variable, config);
         new_ops.push_back(indexer_cache);
 
         ov::OutputVector sdpa_inputs(ov::intel_gpu::op::QSASDPA::InputIdx::COUNT);

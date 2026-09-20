@@ -461,19 +461,29 @@ protected:
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUBSEQUENCE_BEGINS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::BLOCK_INDICES});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::BLOCK_INDICES_BEGINS});
-        // QSAIndexerCache dynamic growth (dense_mode && prepare_only): the primitive's
-        // own two declared outputs are a FRESH, larger buffer (sized by
-        // qsa_inst::calc_output_layouts to old_length + this call's new entries), not an
-        // alias of the small INDEXER_RAW_K_CACHE/INDEXER_SUMMARY_CACHE *inputs* -- see
-        // execute()'s pre-dispatch copy_from() of old history into the new buffer's
-        // front. The kernel is therefore given the OUTPUT ports (already containing that
-        // copied-forward history) to read AND write in place, exactly like the
-        // non-growth prepare_only path reads/writes its (there, aliased) INPUT. Ordinary
-        // prepare_only (non-dense_mode, degenerate paging) keeps binding the INPUT ports
-        // directly, unchanged.
-        if (params.typed_desc<qsa>()->dense_mode && params.typed_desc<qsa>()->prepare_only) {
-            args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
-            args.push_back({ArgumentDescriptor::Types::OUTPUT, 1});
+        // Dense-mode indexer raw-K/summary growth (see execute()'s growth block above):
+        // the primitive's declared raw-K/summary outputs are a FRESH, larger buffer
+        // (sized by qsa_inst::calc_output_layouts to old_length + this call's new
+        // entries), not an alias of the small INDEXER_RAW_K_CACHE/INDEXER_SUMMARY_CACHE
+        // *inputs* -- see execute()'s pre-dispatch copy_from() of old history into the
+        // new buffer's front. The kernel is therefore given the OUTPUT ports (already
+        // containing that copied-forward history) to read AND write in place, exactly
+        // like the non-growth prepare_only path reads/writes its (there, aliased)
+        // INPUT. The port numbers differ by mode: prepare_only (QSAIndexerCache's
+        // now-retired growth path) declares raw-K/summary at ports 0/1 whenever
+        // dense_mode is set (no attention output exists); QSASDPA's own dense dispatch
+        // (prepare_only=false) only takes this branch when it explicitly opted in via
+        // grow_dense_state, declaring them at ports 1/2 alongside the attention result
+        // at port 0. Everything else (including the "advanced caller manages all cache
+        // state externally" dense_mode usage, and ordinary non-dense_mode degenerate
+        // paging) keeps binding the INPUT ports directly, unchanged.
+        const auto* qsa_desc = params.typed_desc<qsa>().get();
+        if (qsa_desc->dense_mode && (qsa_desc->prepare_only || qsa_desc->grow_dense_state)) {
+            const bool prep_only = qsa_desc->prepare_only;
+            const uint32_t raw_port = prep_only ? 0 : 1;
+            const uint32_t summary_port = prep_only ? 1 : 2;
+            args.push_back({ArgumentDescriptor::Types::OUTPUT, raw_port});
+            args.push_back({ArgumentDescriptor::Types::OUTPUT, summary_port});
         } else {
             args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_RAW_K_CACHE});
             args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_SUMMARY_CACHE});
@@ -574,10 +584,21 @@ protected:
         return jit;
     }
 
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAInternalBufIdx::INDEXER_Q});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_SUMMARY_CACHE});
+        // Dense-mode growth (see QSAPrepareGenerator::get_arguments_desc and
+        // execute()'s growth block): when QSASDPA owns growth (grow_dense_state), Q1
+        // writes newly-completed summaries into output port 2 (the grown buffer)
+        // rather than the small INDEXER_SUMMARY_CACHE input, so Q2 must read the score
+        // input from that SAME port to see them. Otherwise (including the "advanced
+        // caller manages all cache state externally" mode), Q1 mutated the INPUT in
+        // place, so Q2 keeps reading it directly.
+        if (params.typed_desc<qsa>()->grow_dense_state) {
+            args.push_back({ArgumentDescriptor::Types::OUTPUT, 2});
+        } else {
+            args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_SUMMARY_CACHE});
+        }
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::PAST_LENS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUBSEQUENCE_BEGINS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::BLOCK_INDICES});
@@ -633,10 +654,16 @@ protected:
         return jit;
     }
 
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAInternalBufIdx::INDEXER_Q});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_SUMMARY_CACHE});
+        // See QSAScoreTopkFusedGenerator::get_arguments_desc for why grow_dense_state
+        // reads the grown output port instead of the small INDEXER_SUMMARY_CACHE input.
+        if (params.typed_desc<qsa>()->grow_dense_state) {
+            args.push_back({ArgumentDescriptor::Types::OUTPUT, 2});
+        } else {
+            args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_SUMMARY_CACHE});
+        }
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::PAST_LENS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUBSEQUENCE_BEGINS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::BLOCK_INDICES});
@@ -695,10 +722,16 @@ protected:
         return jit;
     }
 
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, QSAInternalBufIdx::INDEXER_Q});
-        args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_SUMMARY_CACHE});
+        // See QSAScoreTopkFusedGenerator::get_arguments_desc for why grow_dense_state
+        // reads the grown output port instead of the small INDEXER_SUMMARY_CACHE input.
+        if (params.typed_desc<qsa>()->grow_dense_state) {
+            args.push_back({ArgumentDescriptor::Types::OUTPUT, 2});
+        } else {
+            args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::INDEXER_SUMMARY_CACHE});
+        }
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::PAST_LENS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::SUBSEQUENCE_BEGINS});
         args.push_back({ArgumentDescriptor::Types::INPUT, QSAIn::BLOCK_INDICES});
@@ -1187,6 +1220,19 @@ public:
     }
 
     explicit QSACmImpl(const RuntimeParams& params) : QSACmImpl() {
+        // state_only (QSAIndexerCache's pure state-declaration lowering, see
+        // cldnn::qsa::state_only) still registers the SAME single
+        // `prepare` (Q1) stage as prepare_only below: the underlying kernel-dispatch
+        // framework requires at least one real, compiled kernel per primitive_impl, so a
+        // literal zero-stage impl is not an option. This is made a genuine no-op at
+        // runtime instead: update_rt_params() naturally computes prepare_wg_count == 0
+        // from state_only's all-zero/empty dummy MIXED/PAST_LENS/SUBSEQUENCE_BEGINS
+        // inputs (see ops/qsa_indexer_cache.cpp), and qsa_prepare.cm's own
+        // `if (wg >= num_wg) return;` bounds check (num_wg is dispatched as that same 0)
+        // makes the one work-group the fixed `std::max<size_t>(1, ...)` dispatch floor
+        // still launches immediately return without reading or writing anything. See
+        // execute()'s final `!use_attention()` branch for how the two declared outputs
+        // are then aliased directly to the two inputs, unmodified.
         const bool dpas_score = use_dpas_score(params);
         const bool dpas_attention = use_dpas_attention(params);
         const bool dpas_projection = use_dpas_projection(params);
@@ -1199,8 +1245,9 @@ public:
         }
         add_stage(prepare, params);
         if (!use_attention(params)) {
-            // prepare_only: Q1 is the whole story (see cldnn::qsa::prepare_only) -- no
-            // score/top-k/attention stage is ever needed, so none of them are registered.
+            // prepare_only/state_only: Q1 is the whole story (see cldnn::qsa::
+            // prepare_only/state_only) -- no score/top-k/attention stage is ever needed,
+            // so none of them are registered.
             return;
         }
         add_stage(score_topk_fused, params);
@@ -1245,16 +1292,20 @@ public:
     // Whether Q0 (main-KV-cache write) should be dispatched at all. False for the
     // QSASDPA dense/degenerate-paging lowering (see cldnn::qsa::skip_kv_write), where an
     // external KVCache node already appended the new K/V before this primitive runs, and
-    // also false whenever prepare_only is set (Q0 is irrelevant to an indexer-only call).
+    // also false whenever prepare_only or state_only is set (Q0 is irrelevant to an
+    // indexer-only call or a pure state declaration).
     static bool use_kv_write(const kernel_impl_params& params) {
         const auto desc = params.typed_desc<qsa>();
-        return !desc->skip_kv_write && !desc->prepare_only;
+        return !desc->skip_kv_write && !desc->prepare_only && !desc->state_only;
     }
     // Whether Q2 (score/top-k) and Q3 (sparse attention) should be dispatched at all.
-    // False only for the future QSAIndexerCache lowering (see cldnn::qsa::prepare_only),
-    // which only ever needs Q1's raw-K/summary update, never the main attention output.
+    // False for the QSAIndexerCache prepare_only lowering (retained but no longer used by
+    // any current caller -- see cldnn::qsa::prepare_only) and for the state_only
+    // declaration lowering (see cldnn::qsa::state_only), neither of which ever needs the
+    // main attention output.
     static bool use_attention(const kernel_impl_params& params) {
-        return !params.typed_desc<qsa>()->prepare_only;
+        const auto desc = params.typed_desc<qsa>();
+        return !desc->prepare_only && !desc->state_only;
     }
 
     // Runtime state must be refreshed before the base sizes the internal buffers.
@@ -1273,7 +1324,10 @@ public:
 
         // Sizes are derived from the static input layouts, never from the runtime state:
         // internal buffers are allocated once per shape, while past_lens / subsequence_begins
-        // change every iteration, so a runtime-derived size would under-allocate.
+        // change every iteration, so a runtime-derived size would under-allocate. For
+        // state_only, every input is a minimal fixed-size dummy constant (see
+        // ops/qsa_indexer_cache.cpp), so this naturally sizes tiny buffers for a
+        // guaranteed-no-op Q1 dispatch.
         const auto tokens = std::max<size_t>(1, params.get_input_layout(QSAIn::QUERY).get_shape()[0]);
         const auto seqs = std::max<size_t>(1, params.get_input_layout(QSAIn::PAST_LENS).get_shape()[0]);
 
@@ -1360,19 +1414,32 @@ public:
             prepare_deps = {proj_event};
         }
 
-        // QSAIndexerCache dynamic growth: qsa_inst::
-        // calc_output_layouts already sized this call's two declared outputs to
-        // old_length + this call's new raw-K/summary entries (see its dense_mode
-        // branch); get_arguments_desc() above binds qsa_prepare's raw_k_cache/
-        // summary_cache kernel parameters to those OUTPUT ports instead of the small
-        // INDEXER_RAW_K_CACHE/INDEXER_SUMMARY_CACHE *inputs* in this mode. Before Q1
-        // dispatches, copy the old (small) history into the front of the new (larger)
-        // buffers so Q1 -- completely unmodified -- sees exactly the same
-        // "already-degenerate-paged, valid prefix populated" contract it always has;
-        // it only ever reads/writes at absolute positions, never inspects declared
-        // capacity. This is the same copy_from() primitive kv_cache_inst's own OCL
-        // implementation uses for its relocation-on-growth path.
-        if (desc->dense_mode && desc->prepare_only) {
+        // Dense-mode indexer raw-K/summary growth: qsa_inst::calc_output_layouts already
+        // sized this call's declared raw-K/summary outputs to old_length + this call's
+        // new entries (see its dense_mode branch); get_arguments_desc() binds
+        // qsa_prepare's raw_k_cache/summary_cache kernel parameters to those OUTPUT
+        // ports instead of the small INDEXER_RAW_K_CACHE/INDEXER_SUMMARY_CACHE *inputs*
+        // in this mode. Before Q1 dispatches, copy the old (small) history into the
+        // front of the new (larger) buffers so Q1 -- completely unmodified -- sees
+        // exactly the same "already-degenerate-paged, valid prefix populated" contract
+        // it always has; it only ever reads/writes at absolute positions, never inspects
+        // declared capacity. This is the same copy_from() primitive kv_cache_inst's own
+        // OCL implementation uses for its relocation-on-growth path.
+        //
+        // This applies whenever dense_mode growth is active: prepare_only (QSAIndexerCache's
+        // now-retired growth path) declares raw-K/summary at output ports 0/1 whenever
+        // dense_mode is set; QSASDPA's own full dense dispatch (prepare_only=false) only
+        // owns this SAME growth+write responsibility when it
+        // explicitly opts in via grow_dense_state, and then declares them at output ports
+        // 1/2, alongside the attention result at port 0. When dense_mode is set but
+        // grow_dense_state is not (the "advanced caller manages all cache state
+        // externally" mode), this block is skipped entirely and Q1 keeps mutating the
+        // INDEXER_RAW_K_CACHE/INDEXER_SUMMARY_CACHE inputs in place, unchanged.
+        const bool do_growth = desc->dense_mode && (desc->prepare_only || desc->grow_dense_state);
+        if (do_growth) {
+            const size_t raw_k_port = desc->prepare_only ? 0 : 1;
+            const size_t summary_port = desc->prepare_only ? 1 : 2;
+
             // A null dependency memory is a legitimate state here: a freshly-created
             // Variable that has never been Assign-ed yet (this sequence's very first
             // call) may not have any backing memory allocated for its ReadValue output.
@@ -1390,8 +1457,8 @@ public:
             // (available via get_output_layout() regardless of whether memory for it
             // exists yet), so allocate it explicitly here.
             auto& engine = instance.get_network().get_engine();
-            auto new_raw_k = engine.allocate_memory(instance.get_output_layout(0), false);
-            auto new_summary = engine.allocate_memory(instance.get_output_layout(1), false);
+            auto new_raw_k = engine.allocate_memory(instance.get_output_layout(raw_k_port), false);
+            auto new_summary = engine.allocate_memory(instance.get_output_layout(summary_port), false);
 
             auto& stream = instance.get_network().get_stream();
             std::vector<event::ptr> copy_deps = prepare_deps;
@@ -1412,8 +1479,8 @@ public:
             // Register the freshly-allocated (and now history-populated) buffers as
             // this call's outputs BEFORE dispatching Q1, so get_arguments_desc()'s
             // OUTPUT-port binding for raw_k_cache/summary_cache resolves to them.
-            instance.set_output_memory(new_raw_k, false, 0);
-            instance.set_output_memory(new_summary, false, 1);
+            instance.set_output_memory(new_raw_k, false, raw_k_port);
+            instance.set_output_memory(new_summary, false, summary_port);
         }
 
         auto prepare_event = execute_stage(prepare_deps, instance, prepare);
@@ -1429,11 +1496,16 @@ public:
             // mirrors read_value.cpp/ocl/kv_cache.cpp's own use of this same pattern for
             // variable-backed state: the layout is already known to match by construction.
             //
-            // dense_mode is the one exception: its two outputs are already independently
-            // allocated (a fresh, larger buffer per calc_output_layouts, populated by the
-            // copy_from() above plus Q1's own writes), not an alias of the small inputs,
-            // so aliasing here would incorrectly discard that larger buffer.
-            if (!desc->dense_mode) {
+            // dense_mode is otherwise the exception: its two outputs are already
+            // independently allocated (a fresh, larger buffer per calc_output_layouts,
+            // populated by the copy_from() above plus Q1's own writes), not an alias of
+            // the small inputs, so aliasing here would incorrectly discard that larger
+            // buffer. state_only is a further exception to THAT exception: it never runs
+            // the growth block above (do_growth is false for it), so its declared
+            // outputs were never otherwise populated -- Q1 dispatched as a guaranteed
+            // no-op (see the QSACmImpl ctor comment), so aliasing directly to the inputs
+            // is the only correct choice, exactly like the non-dense_mode case.
+            if (!desc->dense_mode || desc->state_only) {
                 instance.set_output_memory(instance.dep_memory_ptr(QSAIn::INDEXER_RAW_K_CACHE), false, 0);
                 instance.set_output_memory(instance.dep_memory_ptr(QSAIn::INDEXER_SUMMARY_CACHE), false, 1);
             }

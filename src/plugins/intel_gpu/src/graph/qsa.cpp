@@ -22,70 +22,84 @@ template <typename ShapeType>
 std::vector<layout> qsa_inst::calc_output_layouts(const qsa_node& /*node*/, const kernel_impl_params& impl_param) {
     const auto& desc = impl_param.typed_desc<qsa>();
 
+    if (desc->state_only) {
+        // QSAIndexerCache lowering (see ops/qsa_indexer_cache.cpp): a pure state
+        // DECLARATION dispatches zero kernel stages, so its two declared outputs are
+        // simply a pass-through of its two INDEXER_RAW_K_CACHE/INDEXER_SUMMARY_CACHE
+        // inputs -- no growth math (that would need this call's new token count, which a
+        // state declaration never receives) and no mutation.
+        const auto& raw_layout = impl_param.get_input_layout(qsa::QSAInputIdx::INDEXER_RAW_K_CACHE);
+        const auto& summary_layout = impl_param.get_input_layout(qsa::QSAInputIdx::INDEXER_SUMMARY_CACHE);
+        OPENVINO_ASSERT(raw_layout.get<ShapeType>().rank().is_static() && raw_layout.get<ShapeType>().size() == 3 &&
+                            summary_layout.get<ShapeType>().rank().is_static() && summary_layout.get<ShapeType>().size() == 3,
+                        "[GPU] qsa state_only expects rank-3 [B, L, Di] raw-K/summary cache inputs");
+        return {raw_layout, summary_layout};
+    }
+
+    // Shared by prepare_only+dense_mode (QSAIndexerCache's now-retired growth path, kept
+    // for potential direct/primitive-level use) and !prepare_only+dense_mode (QSASDPA's
+    // own dense dispatch, which now owns reserve/grow/Q1-write 
+    // and ops/qsa_sdpa.cpp::CreateQSASDPAOp): the OLD (small) raw-K/summary history is fed
+    // as INDEXER_RAW_K_CACHE/INDEXER_SUMMARY_CACHE; the declared output is the GROWN
+    // buffer (old_length + this call's new entries), computed purely from already-resolved
+    // input shapes -- the same "read impl_param.get_input_layout(...) at shape-inference
+    // time" pattern kv_cache_inst::compute_trim_length uses for its own dynamic shape
+    // inference, just without needing to read any tensor's VALUES (raw-K grows by exactly
+    // this call's new token count -- MIXED's own row count -- and summary grows to
+    // floor(new_raw_length / r), which only depends on lengths, not content). execute()'s
+    // copy_from() (see impls/cm/qsa/qsa.cpp) then populates the new buffer's valid prefix
+    // from the old one before Q1 writes/reads it.
+    auto compute_dense_growth_layouts = [&]() -> std::vector<layout> {
+        const auto old_raw_shape = impl_param.get_input_layout(qsa::QSAInputIdx::INDEXER_RAW_K_CACHE).get<ShapeType>();
+        const auto old_summary_shape = impl_param.get_input_layout(qsa::QSAInputIdx::INDEXER_SUMMARY_CACHE).get<ShapeType>();
+        OPENVINO_ASSERT(old_raw_shape.rank().is_static() && old_raw_shape.size() == 3 && old_summary_shape.rank().is_static() &&
+                            old_summary_shape.size() == 3,
+                        "[GPU] qsa dense_mode expects rank-3 [B, L, Di] raw-K/summary cache inputs");
+        const auto raw_dt = impl_param.get_input_layout(qsa::QSAInputIdx::INDEXER_RAW_K_CACHE).data_type;
+        const auto summary_dt = impl_param.get_input_layout(qsa::QSAInputIdx::INDEXER_SUMMARY_CACHE).data_type;
+
+        const auto mixed_shape = impl_param.get_input_layout(qsa::QSAInputIdx::MIXED).get<ShapeType>();
+        // Graph-build-time shape propagation (compile_model()'s initial static pass,
+        // before any concrete per-call runtime shape is known) calls this same
+        // function with MIXED's/old_raw_shape's dynamic dimensions still
+        // unresolved -- gracefully fall back to a fully dynamic declared output
+        // shape in that case; the EXACT length is only computable once real,
+        // per-call values are available (the ordinary runtime shape-inference pass
+        // that precedes every execute()).
+        if (!mixed_shape.rank().is_static() || mixed_shape.size() < 1 || !mixed_shape[0].is_static() || !old_raw_shape[1].is_static()) {
+            ShapeType raw_dyn{old_raw_shape[0], ov::Dimension::dynamic(), old_raw_shape[2]};
+            ShapeType summary_dyn{old_summary_shape[0], ov::Dimension::dynamic(), old_summary_shape[2]};
+            return {layout{raw_dyn, raw_dt, cldnn::format::get_default_format(3)}, layout{summary_dyn, summary_dt, cldnn::format::get_default_format(3)}};
+        }
+
+        const int64_t old_raw_length = old_raw_shape[1].get_length();
+        const int64_t new_token_count = mixed_shape[0].get_length();
+        const int64_t new_raw_length = old_raw_length + new_token_count;
+        const int64_t r = static_cast<int64_t>(desc->compress_ratio);
+        OPENVINO_ASSERT(r > 0, "[GPU] qsa dense_mode requires compress_ratio > 0");
+        const int64_t new_summary_length = new_raw_length / r;  // floor: total completed blocks so far
+
+        ShapeType raw_out{old_raw_shape[0], ov::Dimension(new_raw_length), old_raw_shape[2]};
+        ShapeType summary_out{old_summary_shape[0], ov::Dimension(new_summary_length), old_summary_shape[2]};
+        return {layout{raw_out, raw_dt, cldnn::format::get_default_format(3)}, layout{summary_out, summary_dt, cldnn::format::get_default_format(3)}};
+    };
+
     if (desc->prepare_only) {
-        // QSAIndexerCache lowering: Q1 mutates the
-        // INDEXER_RAW_K_CACHE / INDEXER_SUMMARY_CACHE inputs in place, so the primitive's
-        // two declared outputs are simply those same (post-mutation) buffers -- there is
-        // no separate "attention output" to compute when Q2/Q3 never run. Declaring them
-        // as real outputs (rather than leaving the mutation implicit) gives downstream
-        // consumers (e.g. an Assign writing back to persistent Variable state) a genuine
-        // graph dependency edge to schedule on; see execute()'s set_output_memory() calls.
-        //
-        // QSAIndexerCache dynamic growth: in dense_mode, the caller
-        // (see plugin/ops/qsa_indexer_cache.cpp) feeds the OLD (small) raw-K/summary
-        // history as INDEXER_RAW_K_CACHE/INDEXER_SUMMARY_CACHE; this call's declared
-        // output is the GROWN buffer (old_length + this call's new entries), computed
-        // purely from already-resolved input shapes -- the same "read
-        // impl_param.get_input_layout(...) at shape-inference time" pattern
-        // kv_cache_inst::compute_trim_length uses for its own dynamic shape inference,
-        // just without needing to read any tensor's VALUES (raw-K grows by exactly this
-        // call's new token count -- MIXED's own row count -- and summary grows to
-        // floor(new_raw_length / r), which only depends on lengths, not content).
-        // execute()'s copy_from() (see impls/cm/qsa/qsa.cpp) then populates the new
-        // buffer's valid prefix from the old one before Q1 (completely unmodified)
-        // reads/writes it in place.
+        // Q1 mutates the INDEXER_RAW_K_CACHE / INDEXER_SUMMARY_CACHE inputs in place, so
+        // the primitive's two declared outputs are simply those same (post-mutation)
+        // buffers -- there is no separate "attention output" to compute when Q2/Q3 never
+        // run. Declaring them as real outputs (rather than leaving the mutation implicit)
+        // gives downstream consumers a genuine graph dependency edge to schedule on; see
+        // execute()'s set_output_memory() calls.
         if (desc->dense_mode) {
-            const auto old_raw_shape = impl_param.get_input_layout(qsa::QSAInputIdx::INDEXER_RAW_K_CACHE).get<ShapeType>();
-            const auto old_summary_shape = impl_param.get_input_layout(qsa::QSAInputIdx::INDEXER_SUMMARY_CACHE).get<ShapeType>();
-            OPENVINO_ASSERT(old_raw_shape.rank().is_static() && old_raw_shape.size() == 3 && old_summary_shape.rank().is_static() &&
-                                old_summary_shape.size() == 3,
-                            "[GPU] qsa prepare_only+dense_mode expects rank-3 [B, L, Di] raw-K/summary cache inputs");
-            const auto raw_dt = impl_param.get_input_layout(qsa::QSAInputIdx::INDEXER_RAW_K_CACHE).data_type;
-            const auto summary_dt = impl_param.get_input_layout(qsa::QSAInputIdx::INDEXER_SUMMARY_CACHE).data_type;
-
-            const auto mixed_shape = impl_param.get_input_layout(qsa::QSAInputIdx::MIXED).get<ShapeType>();
-            // Graph-build-time shape propagation (compile_model()'s initial static pass,
-            // before any concrete per-call runtime shape is known) calls this same
-            // function with MIXED's/old_raw_shape's dynamic dimensions still
-            // unresolved -- gracefully fall back to a fully dynamic declared output
-            // shape in that case; the EXACT length is only computable once real,
-            // per-call values are available (the ordinary runtime shape-inference pass
-            // that precedes every execute()).
-            if (!mixed_shape.rank().is_static() || mixed_shape.size() < 1 || !mixed_shape[0].is_static() || !old_raw_shape[1].is_static()) {
-                ShapeType raw_dyn{old_raw_shape[0], ov::Dimension::dynamic(), old_raw_shape[2]};
-                ShapeType summary_dyn{old_summary_shape[0], ov::Dimension::dynamic(), old_summary_shape[2]};
-                return {layout{raw_dyn, raw_dt, cldnn::format::get_default_format(3)}, layout{summary_dyn, summary_dt, cldnn::format::get_default_format(3)}};
-            }
-
-            const int64_t old_raw_length = old_raw_shape[1].get_length();
-            const int64_t new_token_count = mixed_shape[0].get_length();
-            const int64_t new_raw_length = old_raw_length + new_token_count;
-            const int64_t r = static_cast<int64_t>(desc->compress_ratio);
-            OPENVINO_ASSERT(r > 0, "[GPU] qsa dense_mode requires compress_ratio > 0");
-            const int64_t new_summary_length = new_raw_length / r;  // floor: total completed blocks so far
-
-            ShapeType raw_out{old_raw_shape[0], ov::Dimension(new_raw_length), old_raw_shape[2]};
-            ShapeType summary_out{old_summary_shape[0], ov::Dimension(new_summary_length), old_summary_shape[2]};
-            return {layout{raw_out, raw_dt, cldnn::format::get_default_format(3)}, layout{summary_out, summary_dt, cldnn::format::get_default_format(3)}};
+            return compute_dense_growth_layouts();
         }
 
         // The declared shape is the dense 3D [num_blocks, pa_block_size, Di] form (the
         // paged 4D [num_blocks, 1, pa_block_size, Di] input's head axis, always 1, is
         // squeezed out) rather than a literal copy of the paged input layout: aliasing
         // (execute()'s set_output_memory()) only swaps a memory pointer, so this is a free
-        // choice of *declared* rank with no effect on the underlying bytes, and 3D is what
-        // QSAIndexerCache's own Variable-backed state (and its OV-level declared output
-        // shape) is declared as -- avoiding a redundant reshape pair in its lowering.
+        // choice of *declared* rank with no effect on the underlying bytes.
         auto squeeze_head_axis = [](const layout& l) {
             auto shape = l.get<ShapeType>();
             OPENVINO_ASSERT(shape.rank().is_static() && shape.size() == 4,
@@ -119,8 +133,23 @@ std::vector<layout> qsa_inst::calc_output_layouts(const qsa_node& /*node*/, cons
     const auto out_dt =
         desc->output_data_types.empty() || !desc->output_data_types[0].has_value() ? query_layout.data_type : desc->output_data_types[0].value();
 
-    return {layout{out_shape, out_dt, query_layout.format}};
+    const layout attn_layout{out_shape, out_dt, query_layout.format};
+
+    if (desc->dense_mode && desc->grow_dense_state) {
+        // QSASDPA's own dense dispatch owns growth of the persistent indexer raw-K/
+        // summary state only when explicitly opted in via
+        // grow_dense_state (set by ops/qsa_sdpa.cpp when its indexer cache inputs come
+        // from a real QSAIndexerCache node). Outputs 1/2, alongside the attention result
+        // at output 0, are the grown buffers that CreateQSASDPAOp Assigns back into
+        // QSAIndexerCache's Variables. When grow_dense_state is false (the "advanced
+        // caller manages all cache state externally" mode), dense_mode keeps its
+        // original single-output, in-place-mutate contract unchanged.
+        auto growth = compute_dense_growth_layouts();
+        return {attn_layout, growth[0], growth[1]};
+    }
+    return {attn_layout};
 }
+
 
 template std::vector<layout> qsa_inst::calc_output_layouts<ov::PartialShape>(const qsa_node& node, const kernel_impl_params& impl_param);
 

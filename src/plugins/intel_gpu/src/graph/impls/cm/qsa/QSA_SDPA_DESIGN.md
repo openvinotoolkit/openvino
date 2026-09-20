@@ -1,36 +1,41 @@
-## 15. 最终设计基线：分层 QSASDPA + IndexerCache
+## 15. Final Design Baseline: Layered QSASDPA + IndexerCache
 
-  本章是当前讨论版本的**最终设计基线**。它把前文的探索、取舍和修正收敛成一个
-  可以直接用于人工评审、接口设计和后续实现拆分的方案。若前文历史章节与本章有
-  冲突，以本章为准。
+  This chapter is the **final design baseline** for the current discussion. It consolidates
+  the exploration, trade-offs, and corrections from the preceding sections into a design
+  that can be used directly for human review, interface design, and implementation
+  breakdown. If any historical section conflicts with this chapter, this chapter takes
+  precedence.
 
-  ### 15.1 设计目标
+  ### 15.1 Design Goals
 
-  最终方案满足以下要求：
+  The final design satisfies the following requirements:
 
-  1. 每个 transformer layer 拥有独立的 `IndexerCache`，不同层之间不共享 indexer
-     cache memory 或 state。
-  2. `QSAIndexerCache` 在图级声明 raw-K/summary 的 Variable 和 state identity；其
-     runtime state 由执行 `cldnn::qsa` 的 `qsa_inst` 持有，负责 cache memory 的
-     申请、动态扩容、搬迁、shape/capacity/valid-length 管理、reset、trim、beam
-     metadata 和 release。该分层与 `KVCache`/`kv_cache_inst` 一致。
-  3. `IndexerCache` **不计算新的 indexer cache 内容**，不执行 projection、RMSNorm、
-     RoPE、raw-K pooling 或 summary 生成。
-  4. `QSASDPA`/`cldnn::qsa` 负责当前调用的新数据计算和 cache 更新：indexer Q、
-     raw-K、完成 block 的 summary，以及 Q2/Q3 attention 读取；cache memory 和
-     logical state 仍由同一个 `qsa_inst` 内的 runtime state 管理。
-  5. `reserve` 在 QSASDPA 执行前根据运行时 token/block 信息一次性计算新 cache
-     长度、capacity 和写入范围；不需要独立 `commit` 节点，也不需要 runtime
-     finalization。
-  6. 当前 paged `QSA` 路径保持不变；动态 `QSASDPA` 使用连续 dense cache 和直接
-     stride 寻址。
-  7. `IndexerCache` 的 reserve/扩容/搬迁是同步 CPU 管理操作；只要 reserve 返回，
-     QSASDPA kernel 所需的 descriptor 和写入范围就已经准备完成，不为 CPU manager
-     额外建立 `IndexerCache`↔`QSASDPA` event。GPU 侧仍保留 QSASDPA completion
-     event，用于后续 GPU 使用、reset/trim/release 和输出依赖，不增加 cache 内容
-     检查阶段。
+    1. Each transformer layer has its own `IndexerCache`; indexer cache memory or state is
+      not shared between layers.
+    2. `QSAIndexerCache` declares the raw-K/summary Variables and state identity at graph
+      level. Its runtime state is owned by the `qsa_inst` that executes `cldnn::qsa`, which
+      manages cache allocation, dynamic growth, relocation, shape/capacity/valid-length
+      bookkeeping, reset, trim, beam metadata, and release. This layering is consistent
+      with `KVCache`/`kv_cache_inst`.
+    3. `IndexerCache` **does not compute new indexer cache content** and does not perform
+      projection, RMSNorm, RoPE, raw-K pooling, or summary generation.
+    4. `QSASDPA`/`cldnn::qsa` computes the new data and updates the cache for the current
+      invocation: indexer Q, raw-K, completed-block summaries, and Q2/Q3 attention reads.
+      Cache memory and logical state remain managed by runtime state inside the same
+      `qsa_inst`.
+    5. Before QSASDPA executes, `reserve` computes the new cache lengths, capacities, and
+      write ranges in one step from runtime token/block information. No independent
+      `commit` node or runtime finalization is required.
+    6. The current paged `QSA` path remains unchanged. Dynamic `QSASDPA` uses contiguous
+      dense caches with direct-stride addressing.
+    7. `IndexerCache` reserve/growth/relocation is synchronous CPU-side management. Once
+      reserve returns, the descriptor and write ranges required by the QSASDPA kernel are
+      ready. No additional `IndexerCache`↔`QSASDPA` event is created for the CPU manager.
+      The GPU side still retains the QSASDPA completion event for subsequent GPU use,
+      reset/trim/release, and output dependencies; no cache-content checking phase is
+      added.
 
-  ### 15.2 每层的组件关系
+  ### 15.2 Per-Layer Component Relationship
 
   ```text
                layer l
@@ -42,7 +47,7 @@
   hidden[l] -------------------------> QSASDPA[l]
                          ^
                          |
-                  writable descriptor (reserve 同步返回)
+                  writable descriptor (synchronous reserve return)
                          |
                     IndexerCache[l]
                   raw-K state + summary state
@@ -55,38 +60,40 @@
   qsa_event[l] -> hidden_ready[l + 1] -> QSASDPA[l + 1]
   ```
 
-  主 K/V 始终由已有 `ov::intel_gpu::op::KVCache[l]` 管理和更新；`QSASDPA` 只消费
-  已经更新好的主 K/V，绝不写入、扩容、搬迁或改变主 K/V cache。QSASDPA 不包含
-  dense Q0；QSA paged path 的 Q0 继续由原有 QSA 实现负责。实际 dispatch 必须显式
-  表达：
+  Main K/V is always managed and updated by the existing
+  `ov::intel_gpu::op::KVCache[l]`. `QSASDPA` only consumes the already-updated main
+  K/V; it never writes, grows, relocates, or otherwise changes the main K/V cache.
+  QSASDPA does not contain dense Q0; Q0 on the QSA paged path continues to be handled
+  by the existing QSA implementation. The actual dispatch must explicitly express:
 
   ```text
   KVCache[l] completion -> qsa_inst[l] Q1/Q2/Q3
   qsa_inst[l] completion -> hidden/output of layer l
   ```
 
-  `QSAIndexerCache[l]` 和 `QSASDPA[l]` 不能各自创建两份独立的 raw-K/summary
-  runtime state。lowering 必须通过稳定的 layer/state identity 把图级
-  `QSAIndexerCache[l]` 绑定到唯一的 `qsa_inst[l]` runtime owner；如果当前 graph
-  仍保留两个独立 node，则它们只能共享同一个 runtime state handle，不能各自执行
-  allocation、relocation 或 state publication。
+  `QSAIndexerCache[l]` and `QSASDPA[l]` must not create two independent copies of the
+  raw-K/summary runtime state. Lowering must bind graph-level
+  `QSAIndexerCache[l]` to the single `qsa_inst[l]` runtime owner through a stable
+  layer/state identity. If the graph retains two separate nodes, they may only share the
+  same runtime-state handle; neither node may independently perform allocation,
+  relocation, or state publication.
 
-  ### 15.3 每层 IndexerCache 的 state
+  ### 15.3 Per-Layer IndexerCache State
 
-  每个 `IndexerCache[l]` 至少包含两个独立 state：
+  Each `IndexerCache[l]` contains at least two independent states:
 
   ```text
   raw-K state:
     memory handle / per-sequence base
     [B, raw_capacity, Di] storage
     raw_length[B]
-    raw_capacity[B] 或统一 capacity
+    raw_capacity[B] or a shared capacity
 
   summary state:
     memory handle / per-sequence base
     [B, summary_capacity, Di] storage
     summary_length[B]
-    summary_capacity[B] 或统一 capacity
+    summary_capacity[B] or a shared capacity
 
   common metadata:
     layer/state identifier
@@ -97,53 +104,55 @@
     optional beam/trim metadata
   ```
 
-  raw-K 与 summary 必须独立扩容，因为 raw-K 每个新 token 增加一项，而 summary
-  只有压缩 block 完成时才增加一项。两者的 capacity、stride、trim 边界和 runtime
-  shape 不能相互推导。
+  Raw-K and summary must grow independently because raw-K gains one entry per new token,
+  while summary gains an entry only when a compressed block is completed. Their capacity,
+  stride, trim boundaries, and runtime shapes must not be derived from one another.
 
-  `QSA_PA_BLOCK_SIZE` 不参与 dense cache capacity 计算。它只属于旧 paged backend
-  的 page stride；dynamic dense backend 使用逻辑 block 大小 `R` 和 runtime stride。
+  `QSA_PA_BLOCK_SIZE` does not participate in dense-cache capacity calculation. It belongs
+  only to the page stride of the legacy paged backend; the dynamic dense backend uses the
+  logical block size `R` and the runtime stride.
 
-  ### 15.4 职责边界
+  ### 15.4 Responsibility Boundaries
 
-  #### `IndexerCache` 负责
+  #### `IndexerCache` is responsible for
 
-  - 创建或获取 raw-K/summary 的 VariableState；
-  - 首次调用时分配初始 memory；
-  - 计算新 raw-K 和 summary 所需长度；
-  - 检查 capacity，必要时分配新 memory；
-  - 搬迁有效历史；
-  - 发布 QSASDPA 可写的 cache descriptor；
-  - 管理 shape、capacity、length、per-sequence base、memory handle 和最后一次 GPU
-    使用完成状态；这些是 `qsa_inst` 内部 runtime state 的职责，OpenVINO op 本身
-    只保存 graph-level Variable/config。
-  - reset、trim、beam reorder 和 release。
+  - Creating or retrieving the raw-K/summary VariableState;
+  - Allocating initial memory on the first invocation;
+  - Computing the lengths required for new raw-K and summary entries;
+  - Checking capacity and allocating new memory when necessary;
+  - Relocating valid history;
+  - Publishing a cache descriptor writable by QSASDPA;
+  - Managing shape, capacity, length, per-sequence base, memory handle, and the completion
+    state of the last GPU use. These are responsibilities of runtime state inside
+    `qsa_inst`; the OpenVINO op itself stores only the graph-level Variable/config.
+  - Reset, trim, beam reorder, and release.
 
-  #### `IndexerCache` 不负责
+  #### `IndexerCache` is not responsible for
 
-  - indexer Q/K projection；
-  - RMSNorm 或 RoPE；
-  - raw-K 内容计算；
-  - block mean pooling；
-  - summary RMSNorm/RoPE；
-  - Q2 score/top-k；
-  - Q3 attention；
-  - 独立 commit graph node；
-  - QSASDPA 之后的 finalization kernel。
+  - Indexer Q/K projection;
+  - RMSNorm or RoPE;
+  - Raw-K content computation;
+  - Block mean pooling;
+  - Summary RMSNorm/RoPE;
+  - Q2 scoring/top-k;
+  - Q3 attention;
+  - An independent commit graph node;
+  - A finalization kernel after QSASDPA.
 
-  #### `QSASDPA` 负责
+  #### `QSASDPA` is responsible for
 
-  - indexer Q 计算；
-  - 新 raw-K 计算与写入；
-  - completed block summary 计算与写入；
-  - Q2 score/top-k；
-  - Q3 sparse attention；
-  - 产生本层 completion event。
+  - Computing indexer Q;
+  - Computing and writing new raw-K;
+  - Computing and writing summaries for completed blocks;
+  - Q2 scoring/top-k;
+  - Q3 sparse attention;
+  - Producing the completion event for the layer.
 
-  ### 15.5 Reserve contract
+  ### 15.5 Reserve Contract
 
-  `IndexerCache[l]` 的 reserve 是同步 CPU manager 的 planning/allocation action，
-  不是内容计算 kernel，也不是需要独立 GPU event 的 graph operation。输入包括：
+  `IndexerCache[l]` reserve is a synchronous CPU-manager planning/allocation action. It
+  is neither a content-computation kernel nor a graph operation requiring an independent
+  GPU event. Its inputs are:
 
   ```text
   old_raw_length[b]
@@ -152,10 +161,10 @@
   subsequence_begins[b + 1]
   new_token_count[b]
   compress_ratio = R
-  last_qsa_completion[l]（仅在复用/搬迁仍被 GPU 使用的 storage 时需要等待）
+  last_qsa_completion[l] (wait only when reused/relocated storage is still in GPU use)
   ```
 
-  对每个 sequence 计算：
+  For each sequence, compute:
 
   ```text
   new_raw_length[b] = old_raw_length[b] + new_token_count[b]
@@ -169,36 +178,39 @@
   summary_write_range[b] = [old_summary_length[b], new_summary_length[b])
   ```
 
-  其中 `completed_blocks(old, new, R, block_phase)` 不是简单地假设每次调用从
-  position 0 开始。无 trim 时可以退化为：
+  `completed_blocks(old, new, R, block_phase)` must not simply assume that every invocation
+  starts at position 0. Without trim, it can be reduced to:
 
   ```text
   completed_blocks(old, new, R, 0) = floor(new / R) - floor(old / R)
   ```
 
-  若发生 trim、滑窗或保留 partial block，则 descriptor 还必须携带当前 sequence
-  的 `position_base`/`block_phase`，并按绝对 token 位置判断本次跨过了哪些 block
-  boundary。这样才能保证 partial block 只生成一次 summary，且 trim 后不会重复或
-  遗漏 summary。`old_summary_length` 必须与该 phase 对应，不能仅由 raw length
-  重新猜测。
+  If trim, sliding windows, or retained partial blocks are used, the descriptor must also
+  carry the current sequence's `position_base`/`block_phase` and determine which block
+  boundaries were crossed this time using absolute token positions. This ensures that a
+  partial block produces exactly one summary and that trim does not duplicate or omit a
+  summary. `old_summary_length` must correspond to that phase and cannot be reconstructed
+  from raw length alone.
 
-  reserve 需要完成：
+  Reserve must:
 
-    1. 在 CPU 侧完成本次 reserve；如果旧 storage 仍有未完成的 GPU 使用，则在复用或
-      释放该 storage 前等待 `last_qsa_completion[l]`；如果 relocation 需要 device-to-
-      device copy，则该 copy 必须在 reserve 返回前完成，或由同一个 runtime owner
-      内部同步完成。不得把一个尚未完成的 relocation 隐藏在已经返回的 descriptor 后；
-  2. 判断 raw-K/summary 是否需要扩容；
-  3. 必要时分配新 memory 并搬迁 `[0, old_length)` 的有效历史；
-  4. 生成新的 base、stride、capacity 和 write range；
-  5. 发布本次 QSASDPA 使用的 descriptor；
-  6. reserve 返回后直接把 descriptor 交给 QSASDPA；不产生 `reserve_event[l]`。
+    1. Complete the reserve on the CPU side. If old storage still has unfinished GPU use,
+      wait for `last_qsa_completion[l]` before reusing or releasing it. If relocation
+      requires a device-to-device copy, complete that copy before reserve returns, or
+      synchronize it internally within the same runtime owner. An unfinished relocation
+      must not be hidden behind an already-returned descriptor;
+  2. Determine whether raw-K/summary capacity must grow;
+  3. Allocate new memory when necessary and relocate valid history in `[0, old_length)`;
+  4. Generate the new base, stride, capacity, and write ranges;
+  5. Publish the descriptor used by this QSASDPA invocation;
+  6. Pass the descriptor directly to QSASDPA after reserve returns; do not create a
+     `reserve_event[l]`.
 
-  reserve 不读取 hidden state，也不计算新的 indexer 内容。
+  Reserve does not read hidden state or compute new indexer content.
 
-  ### 15.6 Writable descriptor
+  ### 15.6 Writable Descriptor
 
-  建议使用明确的 runtime descriptor 解耦 manager 和 QSASDPA：
+  A dedicated runtime descriptor is recommended to decouple the manager from QSASDPA:
 
   ```cpp
   struct qsa_indexer_cache_desc {
@@ -224,22 +236,24 @@
   };
   ```
 
-  上述 `device_ptr` 是设计示意，不是要求最终 C++ API 把所有字段都实现成裸 GPU
-  指针。它只表示“该字段如果作为 kernel 参数使用，必须指向 device-visible
-  metadata”。`reserve` 在 CPU 侧仍可使用 host-side `uint32_t` scalar/array 或
-  runtime memory abstraction；只有在 Q1/Q2/Q3 需要按 `b` 动态读取这些值时，才需要
-  将对应数组放入 device-visible buffer，并在 descriptor 中传入其 device address。
-  因此最终实现可以采用：
+  The `device_ptr` fields above are design notation; the final C++ API is not required to
+  represent every field as a raw GPU pointer. They mean that, if a field is used as a
+  kernel argument, it must point to device-visible metadata. `reserve` may still use
+  host-side `uint32_t` scalars/arrays or a runtime memory abstraction. Only when Q1/Q2/Q3
+  need to read a value dynamically by `b` must the corresponding array be placed in a
+  device-visible buffer and its device address passed through the descriptor. The final
+  implementation may therefore use:
 
   ```text
   host state:   CPU-visible old/new length, phase and reservation bookkeeping
   device view:  optional device-visible length/phase arrays consumed by CM kernels
   ```
 
-  两者必须来自同一次 reserve，不能分别维护互相矛盾的值。若某个 metadata 只在
-  CPU 侧使用，则应保留为 host/runtime field，不应伪装成 kernel 参数。
+  Both views must come from the same reserve and must not maintain contradictory values.
+  If metadata is used only on the CPU side, it should remain a host/runtime field rather
+  than being disguised as a kernel argument.
 
-  ### 15.7 QSASDPA 执行阶段
+  ### 15.7 QSASDPA Execution Stages
 
   ```text
   Q1  indexer projection + Q normalization/RoPE
@@ -249,10 +263,11 @@
   Q3  sparse attention over main K/V
   ```
 
-  主 K/V update 不属于 QSASDPA 的任何 stage。进入 QSASDPA 前，调用方必须保证
-  `KVCache[l]` 已完成本轮主 K/V 写入；QSASDPA 只读取该 cache。
+  Main K/V update is not part of any QSASDPA stage. Before entering QSASDPA, the caller
+  must ensure that `KVCache[l]` has completed the main K/V write for the current
+  invocation; QSASDPA only reads that cache.
 
-  Q1 必须严格遵守 descriptor：
+  Q1 must strictly follow the descriptor:
 
   ```text
   raw-K writes:
@@ -262,25 +277,30 @@
     summary_base[b] + [old_summary_length[b], new_summary_length[b])
   ```
 
-  Q1 不申请 memory、不修改 base/stride/capacity，也不自行决定 logical length。
+  Q1 does not allocate memory, modify base/stride/capacity, or decide the logical length
+  on its own.
 
-  ### 15.8 Partial block 规则
+  ### 15.8 Partial-Block Rules
 
-  1. 新 token 先全部追加到 raw-K state；
-  2. block 未完成时只写 raw-K，不写 summary；
-  3. 下一次调用继续追加缺失的 raw-K token；
-  4. 当绝对 token position 跨过 `block_start + R` 时生成 exactly one summary；
-  5. summary 写入位置由 `old_summary_length` 和 completed block 数决定；
-  6. 已完成 block 不得重复生成 summary。
+    1. Append all new tokens to the raw-K state first;
+    2. While a block is incomplete, write only raw-K and do not write a summary;
+    3. Continue appending missing raw-K tokens on the next invocation;
+    4. Generate exactly one summary when the absolute token position crosses
+      `block_start + R`;
+    5. Determine the summary write position from `old_summary_length` and the number of
+      completed blocks;
+    6. Never generate a summary more than once for a completed block.
 
-  summary 生成需要读取完整 raw-K block，包括上一轮保留的 partial raw-K 和本轮
-  新写入的 raw-K。Q1 可以用 SLM/register 复用本轮数据，但跨调用历史必须从
-  raw-K state 连续读取。
+  Summary generation must read the complete raw-K block, including the partial raw-K
+  retained from the previous invocation and the raw-K written in the current invocation.
+  Q1 may reuse current-invocation data in SLM/registers, but history across invocations
+  must be read continuously from the raw-K state.
 
-  ### 15.9 Dynamic dense storage 和连续寻址
+  ### 15.9 Dynamic Dense Storage and Contiguous Addressing
 
-  QSASDPA 复用现有 `cldnn::qsa` primitive，通过 JIT mode 选择 dense/paged 地址
-  后端，不新增 `cldnn::qsa_dense` primitive。建议增加以下 JIT 控制：
+  QSASDPA reuses the existing `cldnn::qsa` primitive and selects the dense/paged address
+  backend through JIT mode; it does not add a `cldnn::qsa_dense` primitive. The following
+  JIT controls are recommended:
 
   ```text
   QSA_SDPA_DENSE          = 1
@@ -291,7 +311,7 @@
   QSA_MAIN_V_STRIDE
   ```
 
-  dense 地址逻辑为：
+  Dense address logic is:
 
   ```text
   raw_k_ptr  = raw_base[b]     + position * raw_k_stride   + dim_offset
@@ -299,35 +319,38 @@
   main_ptr   = main_base[b]    + head/position runtime stride
   ```
 
-  `raw_k_base[b]` 和 `summary_base[b]` 应复用现有 `KVCache` 的 per-sequence
-  addressing 方式：manager 为每个 sequence 保存 base device pointer 或等价的
-  memory offset，并配合 sequence stride/element stride 提供 descriptor。这里的
-  `b` 不代表把所有 sequence 强行压成一个固定 page；它只是选择该 sequence 的
-  独立 base。这样可以自然支持不同 sequence 的 valid length 和后续扩容，同时不
-  改变现有 `KVCache` 的 state/lifecycle 设计原则。
+  `raw_k_base[b]` and `summary_base[b]` should reuse the per-sequence addressing approach
+  of the existing `KVCache`: the manager stores a base device pointer or equivalent
+  memory offset for each sequence and provides it in the descriptor together with the
+  sequence and element strides. Here `b` does not mean that all sequences are forced
+  into one fixed page; it selects the independent base for that sequence. This naturally
+  supports different valid lengths and later growth without changing the existing
+  `KVCache` state/lifecycle principles.
 
-  当 `QSA_SDPA_DENSE=0` 时保留现有 `block_indices -> physical page -> offset`；
-  当 `QSA_SDPA_DENSE=1` 时禁止使用 paged `kv_cache_offset`、`raw_k_offset` 和
-  `summary_offset` 作为动态 cache 地址。两种 backend 可以共享数学算法和 dispatch
-  逻辑，但必须使用不同的 address helper；primitive、stage dispatch 和现有 QSA
-  JIT 配置路径保持复用。
+  When `QSA_SDPA_DENSE=0`, retain the existing
+  `block_indices -> physical page -> offset` path. When `QSA_SDPA_DENSE=1`, do not use
+  paged `kv_cache_offset`, `raw_k_offset`, or `summary_offset` as dynamic cache
+  addresses. The two backends may share mathematical algorithms and dispatch logic, but
+  must use different address helpers. The primitive, stage dispatch, and existing QSA
+  JIT configuration path remain shared.
 
-  ### 15.10 同步与 event contract
+  ### 15.10 Synchronization and Event Contract
 
-  `QSAIndexerCache` 的 OpenVINO op 只声明 state；类似 `KVCache` op 与
-  `kv_cache_inst` 的关系，实际 runtime state 和 reserve 由执行 `cldnn::qsa` 的
-  `qsa_inst` 持有。reserve 的 memory/state 部分在 CPU 侧同步完成，因此不需要把
-  `IndexerCache` 伪装成一个异步 GPU producer。每层 `l` 的正常调用顺序是：
+  The OpenVINO `QSAIndexerCache` op only declares state. As with the relationship between
+  `KVCache` and `kv_cache_inst`, the actual runtime state and reserve are owned by the
+  `qsa_inst` executing `cldnn::qsa`. The memory/state portion of reserve is completed
+  synchronously on the CPU, so `IndexerCache` need not be disguised as an asynchronous
+  GPU producer. The normal invocation order for layer `l` is:
 
   ```text
   qsa_inst[l]
       -> CPU-side indexer_cache_runtime_state.reserve()
-      - capacity/relocation/descriptor 完成
-      - reserve 返回
+      - capacity/relocation/descriptor ready
+      - reserve returns
       |
       v
   cldnn::qsa[l]
-      - QSA_SDPA_DENSE=1 时执行 dense Q1/Q2/Q3
+      - execute dense Q1/Q2/Q3 when QSA_SDPA_DENSE=1
       |
       v
   qsa_event[l]
@@ -336,55 +359,61 @@
       +--> hidden_ready[l + 1]
   ```
 
-  reserve 的同步返回值表示扩容/搬迁已经完成，descriptor 对同一个 `qsa_inst` 的
-  QSA kernel 有效；不需要 `reserve_event[l]`。`qsa_event[l]` 只表示本层 Q1 写入
-  和 Q2/Q3 读取已经完成，用于 GPU 后续使用、storage 复用以及 layer output 依赖。
-  reserve 已精确计算写入数量和 capacity，logical length 的发布作为同一个
-  `qsa_inst` runtime execution 的 state bookkeeping 完成，不是独立 graph node，
-  也不需要写入后扫描、summary 校验或额外 finalization kernel。
+  The synchronous return from reserve means that growth/relocation is complete and that
+  the descriptor is valid for the QSA kernel of the same `qsa_inst`; no
+  `reserve_event[l]` is needed. `qsa_event[l]` only indicates that this layer's Q1 writes
+  and Q2/Q3 reads have completed, and is used for later GPU use, storage reuse, and layer
+  output dependencies. Because reserve has precisely computed the write counts and
+  capacity, logical-length publication is runtime bookkeeping in the same `qsa_inst`
+  execution, not an independent graph node. No post-write scan, summary validation, or
+  additional finalization kernel is required.
 
-  层间只通过 hidden/output 建立依赖：
+  Layers establish dependencies only through hidden/output:
 
   ```text
   qsa_event[l] -> hidden_ready[l + 1]
   hidden_ready[l + 1] -> QSASDPA[l + 1]
   ```
 
-  下一层不读取上一层的 IndexerCache，因此不建立 `IndexerCache[l] ->
-  IndexerCache[l + 1]` 的 cache 依赖。若 CPU manager 未来改为异步 GPU relocation，
-  只需在那时为 relocation 增加内部同步，不改变 QSASDPA 的公开 contract。
+  The next layer does not read the previous layer's IndexerCache, so no
+  `IndexerCache[l] -> IndexerCache[l + 1]` cache dependency is created. If the CPU
+  manager later changes to asynchronous GPU relocation, only internal relocation
+  synchronization needs to be added; the public QSASDPA contract does not change.
 
-  ### 15.11 Shape、capacity 和 valid length
+  ### 15.11 Shape, Capacity, and Valid Length
 
   ```text
   capacity:
-    实际分配的物理存储上限
+    physical storage limit actually allocated
 
   valid length:
-    QSASDPA 可以读取或本次允许写入的逻辑边界
+    logical boundary that QSASDPA may read or write in this invocation
 
   runtime shape:
-    对 graph/lowering 暴露的 cache 形状描述
+    cache shape description exposed to graph/lowering
   ```
 
-  reserve 已知新的 valid length，因此可以更新 descriptor 和 runtime shape；物理
-  capacity 可以大于 valid length。Q1/Q2/Q3 必须使用 valid length，不能扫描整个
-  capacity，也不能从 static capacity shape 反推有效历史长度。state publication 必须
-  以 descriptor 为单位完成：本次 descriptor 的 base、capacity、length、phase 和
-  reservation id 必须来自同一次 reserve，不能让下一次调用观察到部分更新的 state。
+  Reserve knows the new valid length and can therefore update the descriptor and runtime
+  shape; physical capacity may exceed valid length. Q1/Q2/Q3 must use valid length and
+  must not scan the entire capacity or infer valid history length from a static capacity
+  shape. State publication must be atomic at descriptor granularity: the base, capacity,
+  length, phase, and reservation id in a descriptor must come from the same reserve, and
+  the next invocation must never observe partially updated state.
 
-  ### 15.12 生命周期操作
+  ### 15.12 Lifecycle Operations
 
-  - **Reset**：清空本层 raw-K/summary valid length、position base、last event 和
-    reservation metadata；capacity 是否保留由统一 memory policy 决定。
-  - **Trim**：manager 搬迁保留的 raw-K，按完整 block 边界裁剪 summary，更新
-    position base 并发布新 descriptor；QSASDPA 不负责搬迁。
-  - **Release**：释放前依赖本层最后一个 `qsa_event[l]`，确保所有 relocation、
-    Q1 写入和 Q2/Q3 读取完成。
-  - **Beam reorder**：同步重排本层 raw-K、summary 和主 K/V metadata；每层使用
-    自己的 beam state。
+  - **Reset**: Clear the current layer's raw-K/summary valid lengths, position base, last
+    event, and reservation metadata. Whether capacity is retained is determined by a
+    common memory policy.
+  - **Trim**: The manager relocates retained raw-K, trims summary at complete-block
+    boundaries, updates position base, and publishes a new descriptor. QSASDPA does not
+    perform relocation.
+  - **Release**: Before release, depend on the layer's last `qsa_event[l]` to ensure that
+    all relocation, Q1 writes, and Q2/Q3 reads have completed.
+  - **Beam reorder**: Synchronously reorder the layer's raw-K, summary, and main-K/V
+    metadata. Each layer uses its own beam state.
 
-  ### 15.13 推荐接口和实现拆分
+  ### 15.13 Recommended Interface and Implementation Breakdown
 
   ```text
   ov::intel_gpu::op::QSAIndexerCache
@@ -406,45 +435,53 @@
     - analogous to kv_cache_inst's runtime VariableState handling
   ```
 
-  不创建独立的 `cldnn::qsa_indexer_cache_state` primitive，也不创建独立的
-  `QSAIndexerCache::commit`、`finalize` 或 `content_check` graph node。前者的职责
-  融合为 `qsa_inst` 内部 runtime state/helper；后者已经由同步 reserve 返回值、
-  descriptor、同一个 `qsa_inst` 的 state bookkeeping 和 GPU completion event 表达。
+  Do not create an independent `cldnn::qsa_indexer_cache_state` primitive or an
+  independent `QSAIndexerCache::commit`, `finalize`, or `content_check` graph node. The
+  former responsibility is folded into runtime state/helpers inside `qsa_inst`; the
+  latter is expressed by the synchronous reserve return, descriptor, state bookkeeping
+  in the same `qsa_inst`, and the GPU completion event.
 
-  ### 15.14 已确定的接口决策与剩余问题
+  ### 15.14 Settled Interface Decisions and Remaining Issues
 
-  以下接口已经确定，不再作为开放问题：
+  The following interface decisions are settled and are no longer open questions:
 
-  1. `QSAIndexerCache` 是图级 state declaration，声明 raw-K/summary 两个 Variable
-     和 QSA Config；实际 runtime manager 融合到 `qsa_inst` 内部，采用
-     `KVCache`/`kv_cache_inst` 的分层方式。
-  2. per-sequence base、memory offset 和 stride 复用现有 `KVCache` 的对应抽象。
-  3. 主 K/V 始终由已有 `KVCache` 更新，QSASDPA 不提供 Q0 update。
-  4. `QSA_SDPA_DENSE` 复用现有 `cldnn::qsa` 的 JIT mode，不新增
-     `cldnn::qsa_dense` primitive。
-  5. 不创建独立的 `cldnn::qsa_indexer_cache_state`、`reserve_event` 或
-     `QSAIndexerCache::commit` graph node。
+    1. `QSAIndexerCache` is a graph-level state declaration containing two Variables for
+      raw-K/summary and the QSA Config. The actual runtime manager is integrated into
+      `qsa_inst` using the `KVCache`/`kv_cache_inst` layering model.
+    2. Per-sequence base, memory offset, and stride reuse the corresponding abstractions
+      from the existing `KVCache`.
+    3. Main K/V is always updated by the existing `KVCache`; QSASDPA does not provide Q0
+      update.
+    4. `QSA_SDPA_DENSE` reuses the existing `cldnn::qsa` JIT mode and does not add a
+      `cldnn::qsa_dense` primitive.
+    5. Do not create an independent `cldnn::qsa_indexer_cache_state`, `reserve_event`, or
+      `QSAIndexerCache::commit` graph node.
 
-    首期实现策略也在此处固定，避免把未实现能力误当成隐含 contract：
+    The initial implementation strategy is also fixed here, so that unimplemented
+    capabilities are not mistaken for an implicit contract:
 
-    1. runtime shape 对外暴露 valid length；physical capacity 和 explicit length/phase
-      metadata 由 descriptor 管理，kernel 不能从 capacity shape 推断 valid length；
-    2. 首期限定为单 batch/单序列 decode，trim 仅允许在完整 block 边界执行；beam
-      reorder、ragged/continuous batching 和滑窗 trim 作为后续扩展，启用前必须保留
-      `position_base`/`block_phase` 的同一套 descriptor 语义；
-    3. device error 采用 invalidate-current-state 策略：失败 reservation 不得发布，
-      已发布但 dispatch 失败的 state 标为 invalid，调用方必须显式 reset/recover；
-      首期不提供 shadow-state 事务回滚。
+    1. Runtime shape exposes valid length. Physical capacity and explicit length/phase
+      metadata are managed by the descriptor; kernels must not infer valid length from
+      capacity shape.
+    2. The initial version is limited to single-batch/single-sequence decode, and trim is
+      allowed only at complete-block boundaries. Beam reorder, ragged/continuous
+      batching, and sliding-window trim are future extensions; before enabling them, the
+      same `position_base`/`block_phase` descriptor semantics must be retained.
+    3. Device errors use an invalidate-current-state policy: a failed reservation must not
+      be published; state whose dispatch fails after publication is marked invalid, and
+      the caller must explicitly reset/recover. The initial version does not provide
+      shadow-state transactional rollback.
 
-  ### 15.15 `reserve` 与现有 `KVCache` 流程的关系
+  ### 15.15 Relationship Between `reserve` and the Existing `KVCache` Flow
 
-  `IndexerCache.reserve()` **在 state/memory 管理语义上复用 `KVCache` 的思路，
-  但不应被理解为复刻一个独立的 `KVCache` graph node**。两者的共同点是：都由
-  runtime instance 维护 Variable-like state，都根据历史 valid length 和本次 token
-  数保证 capacity，都能使用 per-sequence base/stride，并在必要时完成扩容、搬迁和
-  lifecycle 操作。
+  `IndexerCache.reserve()` **reuses the `KVCache` approach for state/memory management,
+  but must not be understood as replicating an independent `KVCache` graph node**. The
+  common properties are that both maintain Variable-like state in a runtime instance,
+  ensure capacity from historical valid length and the current token count, support
+  per-sequence base/stride, and perform growth, relocation, and lifecycle operations when
+  necessary.
 
-  现有 `KVCache` 的典型执行方式是：
+  The typical execution flow of the existing `KVCache` is:
 
   ```text
   caller provides current K/V as new_token_data
@@ -455,89 +492,99 @@
       -> return the updated cache view
   ```
 
-  `KVCache` 可以在一次 runtime execution 中同时完成规划、数据复制和 state 更新，
-  因为它已经拿到了可以直接复制的 `new_token_data`。
+  `KVCache` can complete planning, data copying, and state updates in one runtime
+  execution because it already has `new_token_data` that can be copied directly.
 
-  `IndexerCache` 的流程也由同一个 `qsa_inst` runtime owner 串联，只是其中 reserve
-  是同步 CPU-side memory/state 管理，而 Q1/Q2/Q3 是 GPU kernel：
+  The `IndexerCache` flow is likewise coordinated by the same `qsa_inst` runtime owner,
+  except that reserve is synchronous CPU-side memory/state management while Q1/Q2/Q3 are
+  GPU kernels:
 
   ```text
   qsa_inst[l]
       -> CPU-side indexer_cache_runtime_state.reserve()
-      -> 读取 raw-K/summary 的旧 valid length
-      -> 计算本次 new length 和 raw/summary write range
+      -> read old raw-K/summary valid lengths
+      -> compute this invocation's new lengths and raw/summary write ranges
       -> ensure capacity / relocate if necessary
-      -> 发布 per-sequence base、stride、capacity、old/new length
-      -> reserve 返回 writable descriptor
+      -> publish per-sequence base, stride, capacity, and old/new lengths
+      -> reserve returns a writable descriptor
 
       -> cldnn::qsa (QSA_SDPA_DENSE=1)
-      -> 计算 indexer Q 和新 raw-K
-      -> 写入 reserve 授权的 raw-K range
-      -> 计算并写入新完成 block 的 summary range
-      -> 执行 Q2/Q3
-      -> 产生 qsa_event[l]
+      -> compute indexer Q and new raw-K
+      -> write the raw-K range authorized by reserve
+      -> compute and write the summary range for newly completed blocks
+      -> execute Q2/Q3
+      -> produce qsa_event[l]
 
       -> qsa_inst state bookkeeping
-      -> 以 reserve 已确定的 new length 作为下一次调用的逻辑边界
-      -> 复用 storage 前使用 qsa_event[l] 保证本次 GPU 写入/读取完成
+      -> use the new length determined by reserve as the next invocation's logical boundary
+      -> use qsa_event[l] before reusing storage to ensure this invocation's GPU reads/writes complete
   ```
 
-  因此，调用顺序与 `KVCache` 的核心生命周期是一致的：
+  Therefore, the invocation order is consistent with the core `KVCache` lifecycle:
 
-        | 阶段 | `KVCache` | `IndexerCache` |
+        | Stage | `KVCache` | `IndexerCache` |
         |---|---|---|
-        | 读取历史 | 读取 Variable/state 的 valid length | 读取 raw-K/summary 各自的 valid length |
-        | 规划容量 | 根据 `new_token_data` 和目标长度规划 | 根据 token 数、压缩比 `R` 和 block boundary 规划 |
-        | 扩容搬迁 | manager/runtime 内部完成 | reserve 的同步 CPU manager 完成 |
-        | 新内容 | 调用方已经提供 K/V | QSASDPA 在 GPU 上计算 raw-K/summary |
-        | state 写入 | cache execute 内部完成 | reserve 发布 planned length，QSASDPA 只写 descriptor 授权范围 |
-        | 完成依赖 | cache runtime 返回/事件保证可见 | `qsa_event[l]` 保证 GPU 写入和读取完成 |
+        | Read history | Read Variable/state valid length | Read independent raw-K/summary valid lengths |
+        | Plan capacity | Plan from `new_token_data` and target length | Plan from token count, compression ratio `R`, and block boundaries |
+        | Growth/relocation | Completed inside manager/runtime | Completed by the synchronous CPU manager in reserve |
+        | New content | K/V is already provided by the caller | Raw-K/summary are computed by QSASDPA on the GPU |
+        | State write | Completed inside cache execution | Reserve publishes the planned length; QSASDPA writes only the ranges authorized by the descriptor |
+        | Completion dependency | Cache runtime return/event guarantees visibility | `qsa_event[l]` guarantees completion of GPU writes/reads |
 
-  关键差异只有两点：
+  There are only two key differences:
 
-      1. `KVCache` 的输入内容已经存在，所以它可以把“容量管理”和“数据追加”放在
-        同一个 runtime operation 中；`IndexerCache` 的 raw-K 和 summary 内容依赖
-        QSASDPA 的 Q1 计算，因此 reserve 不能替代 QSASDPA，也不能自行生成内容。
-      2. `IndexerCache` 的 summary 不是每个 token 都追加，而是只有 block 完成时才追加；
-        所以 reserve 必须同时计算 raw-K range 和 summary range，不能只套用一个
-        `new_token_data` 的单轴 append。
+      1. `KVCache` already has the input content, so it can place capacity management and
+        data append in one runtime operation. `IndexerCache` raw-K and summary content
+        depends on QSASDPA's Q1 computation, so reserve cannot replace QSASDPA or generate
+        content by itself.
+      2. `IndexerCache` summary is not appended for every token; it is appended only when
+        a block is complete. Therefore reserve must compute both raw-K and summary ranges,
+        rather than applying a single-axis `new_token_data` append.
 
-  结论是：**reserve 的 state/capacity/base/lifecycle 语义与 `KVCache` 一致，但数据
-  生产者和调用边界不同**。当前设计不需要 `reserve_event`、独立 `commit` 或
-  finalization node；同步 reserve 返回表示 descriptor 已准备好，同一个 `qsa_inst`
-  内部完成 state bookkeeping，`qsa_event[l]` 负责 GPU 完成后的可见性、storage
-  复用和后续执行依赖。
+  The conclusion is: **reserve has the same state/capacity/base/lifecycle semantics as
+  `KVCache`, but the data producer and invocation boundary are different**. The current
+  design does not need a `reserve_event`, independent `commit`, or finalization node. A
+  synchronous reserve return means that the descriptor is ready; state bookkeeping is
+  completed inside the same `qsa_inst`, while `qsa_event[l]` handles post-GPU-completion
+  visibility, storage reuse, and subsequent execution dependencies.
 
-    ### 15.16 最终设计不变量和失败路径
+    ### 15.16 Final-Design Invariants and Failure Paths
 
-    为避免实现时出现“图级 state、runtime state 和 kernel descriptor 各自维护一份
-    真相”的问题，必须满足以下不变量：
+    To prevent graph-level state, runtime state, and the kernel descriptor from each
+    maintaining a separate source of truth, the following invariants must hold:
 
-    1. **单一 runtime owner**：每个 layer/state identity 只对应一个
-      `qsa_inst::qsa_indexer_cache_runtime_state`；`QSAIndexerCache` graph node 和
-      `QSASDPA` graph node（如果同时存在）只能引用它，不能各自分配 cache。
-    2. **主 KV 只读**：`qsa_inst` 对主 `KVCache[l]` 只有 read dependency，没有 write、
-      resize 或 relocation 入口；主 KV completion 必须先于 Q2/Q3。
-    3. **descriptor 自洽**：base、stride、capacity、old/new length、position phase 和
-      reservation id 必须来自同一个 reserve；Q1 只能写入 descriptor 授权的两个
-      range。
-    4. **状态单调性**：正常 decode 中 raw length 不下降，summary length 只在完整
-      block 完成时增加；trim/reset 是显式 lifecycle 操作，不能由普通 Q1 调用隐式
-      触发。
-    5. **事件闭合**：旧 storage 的复用、释放或搬迁必须等待对应的 `qsa_event`；主
-      KV 的读取必须等待 `KVCache` completion；layer output 必须发布
-      `qsa_event` 后才能被下一层消费。
-    6. **失败不发布半状态**：reserve 失败时不得替换当前 descriptor；relocation
-      失败时不得更新 base/capacity；QSA kernel dispatch 失败时当前 reservation 必须
-      标记 invalid，后续调用只能显式 reset/recover，不能把未完成的 new length 当成
-      已提交历史继续使用。
+    1. **Single runtime owner**: Each layer/state identity maps to exactly one
+      `qsa_inst::qsa_indexer_cache_runtime_state`. The `QSAIndexerCache` graph node and
+      the `QSASDPA` graph node, if both exist, may only reference it; neither may allocate
+      its own cache.
+    2. **Main KV is read-only**: `qsa_inst` has only a read dependency on main
+      `KVCache[l]`; it has no write, resize, or relocation entry point. Main-KV completion
+      must precede Q2/Q3.
+    3. **Self-consistent descriptor**: Base, stride, capacity, old/new length, position
+      phase, and reservation id must come from the same reserve. Q1 may write only to the
+      two ranges authorized by the descriptor.
+    4. **Monotonic state**: During normal decode, raw length never decreases and summary
+      length increases only when a complete block is finished. Trim/reset are explicit
+      lifecycle operations and must not be triggered implicitly by an ordinary Q1 call.
+    5. **Closed event dependencies**: Reuse, release, or relocation of old storage must
+      wait for the corresponding `qsa_event`. Main-KV reads must wait for KVCache
+      completion. Layer output may be consumed by the next layer only after
+      `qsa_event` is published.
+    6. **Do not publish partial state on failure**: A failed reserve must not replace the
+      current descriptor; a failed relocation must not update base/capacity; and a failed
+      QSA kernel dispatch must mark the current reservation invalid. Later calls may only
+      proceed after explicit reset/recovery and must not treat an unfinished new length as
+      committed history.
 
-    对应的最小验收场景是：首次调用、partial block、一次跨 block boundary、capacity
-    growth/relocation、连续两次 infer、reset、trim 边界、主 KV event 缺失、Q1 dispatch
-    失败和下一层 event 依赖。任何场景如果需要额外的 hidden commit、cache scan 或
-    独立 reserve event，说明上述单一 owner 或 descriptor contract 没有正确落地。
+    The corresponding minimum acceptance scenarios are: first invocation, partial block,
+    one block-boundary crossing, capacity growth/relocation, two consecutive inferences,
+    reset, trim boundaries, missing main-KV event, Q1 dispatch failure, and next-layer
+    event dependencies. If any scenario requires a hidden commit, cache scan, or
+    independent reserve event, the single-owner or descriptor contract above has not
+    been implemented correctly.
 
-  除上述接口选择外，最终职责和执行语义已经确定：
+  Apart from the interface choices above, the final responsibilities and execution
+  semantics are fixed:
 
   ```text
   QSAIndexerCache[l]
