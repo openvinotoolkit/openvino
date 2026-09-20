@@ -140,9 +140,6 @@ protected:
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
-            if (params.is_dynamic()) {
-                return;
-            }
             const auto desc = params.typed_desc<gated_residual>();
             const size_t num_rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
 
@@ -192,9 +189,6 @@ protected:
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
-            if (params.is_dynamic()) {
-                return;
-            }
             const auto desc = params.typed_desc<gated_residual>();
             const size_t num_rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
             const size_t tile = gr_best_tile(desc->hidden_size);
@@ -246,9 +240,6 @@ protected:
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
-            if (params.is_dynamic()) {
-                return;
-            }
             const auto desc = params.typed_desc<gated_residual>();
             const size_t num_rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
 
@@ -297,9 +288,6 @@ protected:
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
-            if (params.is_dynamic()) {
-                return;
-            }
             const auto desc = params.typed_desc<gated_residual>();
             const size_t num_rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
 
@@ -349,9 +337,6 @@ protected:
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
-            if (params.is_dynamic()) {
-                return;
-            }
             const auto desc = params.typed_desc<gated_residual>();
             const size_t num_rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
             const size_t cd = desc->hc_count * desc->hidden_size;
@@ -400,9 +385,6 @@ protected:
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
-            if (params.is_dynamic()) {
-                return;
-            }
             const auto desc = params.typed_desc<gated_residual>();
             const size_t num_rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
 
@@ -452,9 +434,6 @@ protected:
 
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override {
         return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
-            if (params.is_dynamic()) {
-                return;
-            }
             const auto desc = params.typed_desc<gated_residual>();
             const size_t num_rows = get_num_rows(params.get_input_layout(0), desc->hc_count * desc->hidden_size);
             const size_t tile = gr_best_tile(desc->hidden_size);
