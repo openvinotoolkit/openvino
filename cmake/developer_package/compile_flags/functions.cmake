@@ -290,7 +290,11 @@ macro(ov_arm_sve_optimization_flags flags)
                 # (svld1/svmla_f32/...) and are unaffected. Both GCC and Clang auto-vectorize to SVE here,
                 # but the knob is compiler-specific (Android/MSVC/IntelLLVM handled above).
                 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-                    list(APPEND ${flags} --param=aarch64-autovec-preference=1)
+                    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
+                        list(APPEND ${flags} --param=aarch64-autovec-preference=asimd-only)
+                    else()
+                        list(APPEND ${flags} --param=aarch64-autovec-preference=1)
+                    endif()
                 elseif(CMAKE_CXX_COMPILER_ID MATCHES "^(Clang|AppleClang)$")
                     list(APPEND ${flags} -mllvm -scalable-vectorization=off)
                 endif()
