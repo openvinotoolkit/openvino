@@ -608,8 +608,10 @@ void AutoSchedule::dispatch_dynamic_task(ov::threading::Task pipeline_task, cons
         // report the failure through the pipeline, otherwise the request would never complete
         m_this_scheduling_exception = std::current_exception();
         m_this_worker_infer_request = nullptr;
-        pipeline_task();
         release_execution_slot();
+        if (pipeline_task) {
+            pipeline_task();
+        }
     }
 }
 
@@ -640,6 +642,7 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
         return true;
     }
     const auto start_time = std::chrono::steady_clock::now();
+    const auto requested_device_name = device.device_name;
     AutoCompileContext context;
     context.m_device_info = device;
     context.m_model_precision = m_context->m_model_precision;
@@ -649,6 +652,18 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
     }
     LOG_INFO_TAG("[dynamic] device:%s is used for the first time, compiling the model", device.device_name.c_str());
     try_to_compile_model(context, m_dynamic_model ? m_dynamic_model->clone() : nullptr);
+    if (context.m_device_info.device_name != requested_device_name || !context.m_is_load_success) {
+        // the requested device failed to compile (try_to_compile_model() may have silently fallen back to
+        // another one); exclude it from the shared candidate list so future inferences stop retrying it
+        std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
+        const auto iter = deviceChecker().check_and_return_if_device_in_list<DeviceInformation>(
+            requested_device_name, m_context->m_device_priorities, true);
+        if (iter != m_context->m_device_priorities.end()) {
+            m_context->m_device_priorities.erase(iter);
+            LOG_WARNING_TAG("[dynamic] device:%s failed to compile, excluding it from future selection",
+                            requested_device_name.c_str());
+        }
+    }
     if (!context.m_is_load_success) {
         LOG_WARNING_TAG("[dynamic] compiling the model on device:%s failed, %s",
                         device.device_name.c_str(),

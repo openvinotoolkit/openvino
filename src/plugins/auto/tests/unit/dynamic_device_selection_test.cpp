@@ -182,6 +182,24 @@ TEST_F(AutoDynamicDeviceSelectionTest, stateful_model_disables_dynamic_selection
     OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
 }
 
+// filter_device_by_model() used to only classify a model as stateful after it had more than one
+// candidate device, so a single-candidate stateful model with a resource aware property configured slipped
+// through with dynamic selection enabled - breaking the passthrough guarantee that each user created
+// infer request gets its own, independent underlying request/state.
+TEST_F(AutoDynamicDeviceSelectionTest, stateful_model_with_a_single_candidate_disables_dynamic_selection) {
+    // overwrite the GPU.0,CPU priorities inserted by SetUp(): ov::AnyMap::insert() keeps the first entry
+    config.erase(ov::device::priorities.name());
+    config.insert(ov::device::priorities("GPU.0"));
+    model = create_stateful_model();
+    config.insert(ov::intel_auto::low_power_device("CPU"));
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+    // select_device() is already called once by init() to pick the sole candidate; if dynamic selection were
+    // (incorrectly) left enabled it would be called again for every inference below.
+    EXPECT_CALL(*plugin, select_device).Times(0);
+    run_inferences(compiled_model, 3);
+}
+
 // Reproduces try_to_compile_model()'s on-demand fallback: the per inference target (GPU.1)
 // fails to compile, so try_to_compile_model() internally re-selects and successfully compiles
 // CPU. Note the failing device cannot be CPU itself: try_to_compile_model() deliberately skips
@@ -190,6 +208,8 @@ TEST_F(AutoDynamicDeviceSelectionTest, stateful_model_disables_dynamic_selection
 // becomes the active dynamic worker, otherwise CPU stays reserved under our model's priority
 // and a lower priority AUTO instance can never select it.
 TEST_F(AutoDynamicDeviceSelectionTest, fallback_device_priority_is_released_after_a_successful_retry) {
+    // overwrite the GPU.0,CPU priorities inserted by SetUp(): ov::AnyMap::insert() keeps the first entry
+    config.erase(ov::device::priorities.name());
     config.insert(ov::device::priorities("GPU.0,GPU.1,CPU"));
     config.insert(ov::hint::model_priority(ov::hint::Priority::HIGH));
     config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));

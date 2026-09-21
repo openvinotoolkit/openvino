@@ -1280,10 +1280,8 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
         }
     };
 
-    if (meta_devices.size() == 1) {
-        return meta_devices;
-    }
-
+    // detect statefulness before the single-candidate early return below, so callers that gate behavior on
+    // is_stateful_model (e.g. per inference dynamic device selection) get a correct answer even then
     std::vector<std::string> stateful_node_names;
     for (auto& op : model->get_ops()) {
         if (ov::as_type_ptr<ov::op::util::AssignBase>(op) ||
@@ -1291,11 +1289,15 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
             stateful_node_names.push_back(op->get_friendly_name());
         }
     }
-    if (stateful_node_names.empty()) {
-        // not stateful model
+    is_stateful_model = !stateful_node_names.empty();
+
+    if (meta_devices.size() == 1) {
         return meta_devices;
     }
-    is_stateful_model = true;
+
+    if (!is_stateful_model) {
+        return meta_devices;
+    }
 
     // disable CPU_HELP and runtime fallback if model is stateful
     disable_startup_runtime_fallback();
