@@ -93,6 +93,7 @@ set(TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/test_extensions.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_op_coverage.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_ops.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_parser.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_weights.cpp"
 )
 

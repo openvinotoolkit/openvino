@@ -390,10 +390,11 @@ ov::element::Type gguf_zero_point_type(const std::string& name, GgufTensorType q
     // decoded and requantized to an OpenVINO u4 grid with an integer zero-point. Strict oracle
     // validation can request Q4_K's faithful f16 zero-point via OV_GGUF_Q4_K_ZP_F16. Q2_0's
     // zero-point is exactly 1, so u8 is faithful there. Other asymmetric formats keep f16 because
-    // their zero-point can exceed u8 range. Tensors selected for Q8_0_C are excluded because their
-    // faithful dequantization feeds that separate requantization path.
-    const bool integer_zp = qtype == GGUF_TYPE_Q2_0 || (qtype == GGUF_TYPE_Q4_K && !q4_k_f16_zero_point_enabled());
-    return (integer_zp && !needs_q8_0_c_requant(name, qtype)) ? ov::element::u8 : ov::element::f16;
+    // their zero-point can exceed u8 range. Q4_K tensors selected for Q8_0_C retain a faithful
+    // f16 zero-point for that separate requantization path.
+    const bool integer_zp = qtype == GGUF_TYPE_Q2_0 || (qtype == GGUF_TYPE_Q4_K && !q4_k_f16_zero_point_enabled() &&
+                                                        !needs_q8_0_c_requant(name, qtype));
+    return integer_zp ? ov::element::u8 : ov::element::f16;
 }
 
 std::shared_ptr<ov::Node> make_weight_node(const WeightTensors& tensors,
@@ -618,7 +619,7 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
     // they are not perf-critical here, and their zp = -min/scale can fall outside u8 range. The
     // requant path (token_embd/output) also keeps f16 -- its dequant feeds channel-wise Q8_0_C.
     const bool requant = needs_q8_0_c_requant(name, qtype);
-    const ov::element::Type zp_type = gguf_zero_point_type(name, qtype);
+    const ov::element::Type zp_type = requant ? ov::element::f16 : gguf_zero_point_type(name, qtype);
     if (requant) {
         notify_lossy_weight_approximation(LossyWeightApproximation::Q8_0_C_REQUANT);
     }

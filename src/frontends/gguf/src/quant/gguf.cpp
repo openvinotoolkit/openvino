@@ -507,7 +507,9 @@ GGUFLoad get_gguf_data(const std::string& file) {
             return s;
         }();
         OPENVINO_ASSERT(!shape.empty(), "[load_gguf] tensor '", ti.name, "' is quantized but has rank 0");
-        OPENVINO_ASSERT(shape.back() != 0, "[load_gguf] tensor '", ti.name, "' has a zero-sized dimension");
+        if (ti.type == GGUF_TYPE_MXFP4) {
+            OPENVINO_ASSERT(shape.back() != 0, "[load_gguf] tensor '", ti.name, "' has a zero-sized dimension");
+        }
 
         const auto bytes = [&ti](const ov::element::Type& et, const ov::Shape& s) {
             const auto n = ov::util::get_memory_size_safe(et, s);
@@ -622,8 +624,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
         ov::Tensor scales = carve(layout->scale_type, scale_shape);
         ov::Tensor zp;
         if (layout->asymmetric) {
-            // Both ingest paths must agree on the zero-point representation; see
-            // gguf_zero_point_type in quant/weights.hpp for why it matters.
+            // Preserve the native zero-point representation, including u8 for Q2_0.
             zp = carve(gguf_zero_point_type(name, static_cast<GgufTensorType>(ti.type)), scale_shape);
         }
 
