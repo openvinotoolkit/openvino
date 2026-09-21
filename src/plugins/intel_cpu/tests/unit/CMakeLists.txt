@@ -34,6 +34,7 @@ if(NOT X86_64)
       ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/brgemm_executor_test.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/brgemm_factory_test.cpp
+      ${CMAKE_CURRENT_SOURCE_DIR}/brgemm_kernel_ir_test.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/xattention_test.cpp
       ${CMAKE_CURRENT_SOURCE_DIR}/softmax_kernel_test.cpp)
 endif()

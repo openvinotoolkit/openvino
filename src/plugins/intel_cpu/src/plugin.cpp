@@ -64,6 +64,10 @@
 #include "weights_cache.hpp"
 #include "xbyak/xbyak_util.h"
 
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "nodes/kernels/x64/brgemm_kernel_ir.hpp"
+#endif
+
 using namespace ov::threading;
 
 namespace ov::intel_cpu {
@@ -240,6 +244,15 @@ Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpec
     const auto& ov_version = ov::get_openvino_version();
     m_compiled_model_runtime_properties["OV_VERSION"] = std::string(ov_version.buildNumber);
     m_msg_manager = ov::threading::message_manager();
+
+#if defined(OPENVINO_ARCH_X86_64)
+    // Offer the IR-mode BRGEMM generator to oneDNN. Installed here rather
+    // than from a static initializer so the ordering against oneDNN's own
+    // initialization is explicit. The factory declines every descriptor
+    // outside its supported slice, so this is inert when the generator
+    // does not cover what a model needs.
+    kernel::brgemm_kernel_ir::register_factory(kernel::brgemm_kernel_ir::enabled_by_env());
+#endif
 }
 
 Plugin::~Plugin() {
