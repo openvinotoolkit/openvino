@@ -11,8 +11,7 @@ import openvino as ov
 from openvino import op
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from infer_tool import input_preparation  # noqa: E402 pylint: disable=import-error,wrong-import-position
-
+from infer_tool import input_preparation  # noqa: E402 pylint: disable=import-error,wrong-import-position,wrong-import-order
 
 def _compile_model(shapes):
     """Build and compile a model with one Parameter/Result pair per shape in `shapes`."""
@@ -70,6 +69,8 @@ def test_input_preparation_single_input():
 
 
 def test_input_preparation_multiple_inputs():
+    """input_preparation() must key every input, not just the first one."""
+
     compiled_model = _compile_model([[1, 3], [2, 5]])
 
     feed_dict = input_preparation(compiled_model)

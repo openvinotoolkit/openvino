@@ -80,8 +80,10 @@ if __name__ == "__main__":
 
     for model in ir_path:
         result = infer(ir_path=model, device=device)
+        # OVDict keys are ports, not strings; np.savez needs string keyword keys.
+        named_result = {(port.any_name if port.get_names() else f"output_{i}"): value for i, (port, value) in enumerate(result.items())}
 
-        np.savez(out_path / f"{Path(model).name}.npz", **result)
+        np.savez(out_path / f"{Path(model).name}.npz", **named_result)
 
         log.info("Path for inference results: {}".format(out_path))
         log.debug("Inference results:")

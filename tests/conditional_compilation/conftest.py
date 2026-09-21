@@ -81,6 +81,10 @@ def pytest_addoption(parser):
 
 def pytest_generate_tests(metafunc):
     """Generate tests depending on command line options."""
+    # Skip test modules (e.g. tools/test_infer_tool.py) that don't use these fixtures.
+    if "test_id" not in metafunc.fixturenames or "models" not in metafunc.fixturenames:
+        return
+
     params = []
     ids = []
 
