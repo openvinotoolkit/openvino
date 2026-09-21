@@ -353,7 +353,12 @@ TEST(CompiledModelOrcImportValidationTest, RejectsNoLinkPrevOutputProducer) {
 // submodel assigned to `device`. Reused by every test below so that none of them call
 // validate_dev_list_against_allowlist() or make_submodel_import_config() directly - they all
 // exercise the real deserialize_orc_container() / CompiledModelDesc::serialize() call sites.
-std::string build_single_submodel_orc_blob(const std::string& device, bool encrypted = false) {
+// `embedded_allowlist`, when set, forges an NPUW_ALLOWED_IMPORT_DEVICES entry inside the
+// blob's own (untrusted) m_non_npuw_props, which is deserialized before the allowlist check
+// runs - it must never be able to widen the caller-supplied policy.
+std::string build_single_submodel_orc_blob(const std::string& device,
+                                           bool encrypted = false,
+                                           const std::optional<std::string>& embedded_allowlist = std::nullopt) {
     auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
     compiled->m_dev_list = {device};
     compiled->m_cfg.update({{"NPUW_DEVICES", device}});
@@ -364,6 +369,10 @@ std::string build_single_submodel_orc_blob(const std::string& device, bool encry
     desc.compiled_model =
         ov::SoPtr<ov::ICompiledModel>{std::make_shared<FakeSubCompiledModel>(sub_model, sub_plugin, device)};
     compiled->m_compiled_submodels.push_back(std::move(desc));
+
+    if (embedded_allowlist) {
+        compiled->m_non_npuw_props["NPUW_ALLOWED_IMPORT_DEVICES"] = *embedded_allowlist;
+    }
 
     if (encrypted) {
         compiled->m_non_npuw_props[ov::cache_encryption_callbacks.name()] =
@@ -396,11 +405,10 @@ void expect_rejected_before_nested_import(const std::string& blob, const std::st
     }
 }
 
-// Imports a single-submodel blob assigned to `device` with `properties` and returns how many
-// times the choke-point Core::import_model was actually invoked - 0 means the allowlist check
-// rejected the blob before any nested submodel was touched, >=1 means it was let through.
-int import_and_count_nested_calls(const std::string& device, const ov::AnyMap& properties) {
-    const auto blob = build_single_submodel_orc_blob(device);
+// Imports a genuine ORC `blob` with `properties` and returns how many times the choke-point
+// Core::import_model() was actually invoked - 0 means the allowlist check rejected the blob
+// before any nested submodel was touched, >=1 means it was let through.
+int import_and_count_nested_calls_for_blob(const std::string& blob, const ov::AnyMap& properties) {
     auto [plugin, core] = make_test_plugin_with_core();
 
     int call_count = 0;
@@ -422,12 +430,32 @@ int import_and_count_nested_calls(const std::string& device, const ov::AnyMap& p
     return call_count;
 }
 
+// Imports a single-submodel blob assigned to `device` with `properties` and returns how many
+// times the choke-point Core::import_model was actually invoked - 0 means the allowlist check
+// rejected the blob before any nested submodel was touched, >=1 means it was let through.
+int import_and_count_nested_calls(const std::string& device, const ov::AnyMap& properties) {
+    return import_and_count_nested_calls_for_blob(build_single_submodel_orc_blob(device), properties);
+}
+
 TEST(CompiledModelOrcImportValidationTest, RejectsDisallowedDeviceBeforeNestedImportPlainContainer) {
     expect_rejected_before_nested_import(build_single_submodel_orc_blob("GPU"), "NPU");
 }
 
 TEST(CompiledModelOrcImportValidationTest, RejectsDisallowedDeviceBeforeNestedImportEncryptedContainer) {
     expect_rejected_before_nested_import(build_single_submodel_orc_blob("GPU", /*encrypted=*/true), "NPU");
+}
+
+// m_non_npuw_props (which can embed NPUW_ALLOWED_IMPORT_DEVICES) is untrusted blob metadata
+// deserialized before the allowlist check runs. A blob that embeds its own conflicting
+// NPUW_ALLOWED_IMPORT_DEVICES=GPU must not be able to widen the caller's real policy of
+// NPUW_ALLOWED_IMPORT_DEVICES=NPU - only the caller-supplied `properties` may authorize a
+// device; a future change that merges blob metadata into validation properties would
+// silently regress this.
+TEST(CompiledModelOrcImportValidationTest, RejectsDisallowedDeviceEvenWhenBlobEmbedsConflictingAllowlist) {
+    const auto blob = build_single_submodel_orc_blob("GPU", /*encrypted=*/false, /*embedded_allowlist=*/"GPU");
+    const ov::AnyMap properties{{"NPUW_ALLOWED_IMPORT_DEVICES", "NPU"}};
+
+    EXPECT_EQ(import_and_count_nested_calls_for_blob(blob, properties), 0);
 }
 
 // An ORC blob's own m_dev_list is untrusted (it comes from the deserialized blob metadata,
