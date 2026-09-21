@@ -98,12 +98,8 @@ void CreateQSAIndexerCacheOp(ProgramBuilder& p, const std::shared_ptr<ov::intel_
 
     const int64_t Di = static_cast<int64_t>(config.indexer_head_dim);
 
-    // QSAIndexerCache dynamic growth: raw-K/summary are genuinely dynamic-length runtime
-    // state -- capacity grows call-over-call inside QSASDPA's own qsa_inst (see
-    // qsa_inst::calc_output_layouts' dense_mode branch and impls/cm/qsa/qsa.cpp's
-    // execute()), NOT pre-reserved to a fixed pa_block_size Variable. Only the batch and
-    // indexer-head-dim axes need to be statically known here; the sequence/summary-count
-    // axis is dynamic.
+    // Keep the indexer state at a fixed capacity. QSA_PA_BLOCK_SIZE is a JIT constant;
+    // growing this layout on every decode step would create a new kernel specialization.
     const auto& raw_k_shape = raw_k_variable->get_info().data_shape;
     OPENVINO_ASSERT(raw_k_shape.rank().is_static() && raw_k_shape.size() == 3 && raw_k_shape[0].is_static(),
                     "[GPU] QSAIndexerCache '", layer_name, "': raw-K Variable must be a rank-3 [B, ?, Di] shape with a static batch dimension");

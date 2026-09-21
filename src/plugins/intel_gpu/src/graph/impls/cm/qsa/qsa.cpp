@@ -1448,39 +1448,36 @@ public:
             auto old_raw_k = instance.dep_memory_ptr(QSAIn::INDEXER_RAW_K_CACHE);
             auto old_summary = instance.dep_memory_ptr(QSAIn::INDEXER_SUMMARY_CACHE);
 
-            // Unlike the (aliased) non-dense prepare_only path, this primitive's outputs
-            // here are NOT a generically-preallocated buffer -- qsa's outputs have
-            // historically always been provided via set_output_memory() (aliasing), so
-            // the common auto-allocate-before-execute() path was never exercised for
-            // this primitive and instance.output_memory_ptr() may be null at this point.
-            // qsa_inst::calc_output_layouts already computed the exact required shape
-            // (available via get_output_layout() regardless of whether memory for it
-            // exists yet), so allocate it explicitly here.
-            auto& engine = instance.get_network().get_engine();
-            auto new_raw_k = engine.allocate_memory(instance.get_output_layout(raw_k_port), false);
-            auto new_summary = engine.allocate_memory(instance.get_output_layout(summary_port), false);
+            const auto& new_raw_layout = instance.get_output_layout(raw_k_port);
+            const auto& new_summary_layout = instance.get_output_layout(summary_port);
+            const bool raw_k_fixed_capacity = old_raw_k != nullptr && old_raw_k->get_layout() == new_raw_layout;
+            const bool summary_fixed_capacity = old_summary != nullptr && old_summary->get_layout() == new_summary_layout;
+            if (raw_k_fixed_capacity && summary_fixed_capacity) {
+                instance.set_output_memory(old_raw_k, false, raw_k_port);
+                instance.set_output_memory(old_summary, false, summary_port);
+            } else {
+                auto& engine = instance.get_network().get_engine();
+                auto new_raw_k = engine.allocate_memory(new_raw_layout, false);
+                auto new_summary = engine.allocate_memory(new_summary_layout, false);
 
-            auto& stream = instance.get_network().get_stream();
-            std::vector<event::ptr> copy_deps = prepare_deps;
-            if (old_raw_k != nullptr && old_raw_k->size() > 0 && old_raw_k.get() != new_raw_k.get()) {
-                OPENVINO_ASSERT(old_raw_k->size() <= new_raw_k->size(),
-                                "[GPU][CM] qsa dense_mode growth: old raw-K buffer (", old_raw_k->size(), " B) does not fit in the new one (",
-                                new_raw_k->size(), " B)");
-                copy_deps.push_back(new_raw_k->copy_from(stream, *old_raw_k, 0, 0, old_raw_k->size(), false));
+                auto& stream = instance.get_network().get_stream();
+                std::vector<event::ptr> copy_deps = prepare_deps;
+                if (old_raw_k != nullptr && old_raw_k->size() > 0 && old_raw_k.get() != new_raw_k.get()) {
+                    OPENVINO_ASSERT(old_raw_k->size() <= new_raw_k->size(),
+                                    "[GPU][CM] qsa dense_mode growth: old raw-K buffer (", old_raw_k->size(), " B) does not fit in the new one (",
+                                    new_raw_k->size(), " B)");
+                    copy_deps.push_back(new_raw_k->copy_from(stream, *old_raw_k, 0, 0, old_raw_k->size(), false));
+                }
+                if (old_summary != nullptr && old_summary->size() > 0 && old_summary.get() != new_summary.get()) {
+                    OPENVINO_ASSERT(old_summary->size() <= new_summary->size(),
+                                    "[GPU][CM] qsa dense_mode growth: old summary buffer (", old_summary->size(), " B) does not fit in the new one (",
+                                    new_summary->size(), " B)");
+                    copy_deps.push_back(new_summary->copy_from(stream, *old_summary, 0, 0, old_summary->size(), false));
+                }
+                prepare_deps = copy_deps;
+                instance.set_output_memory(new_raw_k, false, raw_k_port);
+                instance.set_output_memory(new_summary, false, summary_port);
             }
-            if (old_summary != nullptr && old_summary->size() > 0 && old_summary.get() != new_summary.get()) {
-                OPENVINO_ASSERT(old_summary->size() <= new_summary->size(),
-                                "[GPU][CM] qsa dense_mode growth: old summary buffer (", old_summary->size(), " B) does not fit in the new one (",
-                                new_summary->size(), " B)");
-                copy_deps.push_back(new_summary->copy_from(stream, *old_summary, 0, 0, old_summary->size(), false));
-            }
-            prepare_deps = copy_deps;
-
-            // Register the freshly-allocated (and now history-populated) buffers as
-            // this call's outputs BEFORE dispatching Q1, so get_arguments_desc()'s
-            // OUTPUT-port binding for raw_k_cache/summary_cache resolves to them.
-            instance.set_output_memory(new_raw_k, false, raw_k_port);
-            instance.set_output_memory(new_summary, false, summary_port);
         }
 
         auto prepare_event = execute_stage(prepare_deps, instance, prepare);

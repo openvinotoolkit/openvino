@@ -948,12 +948,17 @@ QSASDPAFusion::QSASDPAFusion() {
                                                  ov::element::i64);
         new_ops.push_back(position_ids);
 
-        // The indexer's own Variable is reused verbatim; the block-summary Variable is
-        // brand new (the decomposed graph never persisted one - see class doc comment).
+        // Reuse the indexer's existing Variable verbatim. The Model already registers
+        // the ReadValue-backed Variable, while creating a second raw-K Variable here
+        // would leave QSAIndexerCache referring to an undeclared state object. The
+        // existing declaration is intentionally retained for compatibility with the
+        // original ReadValue/Concat subgraph; fixed-capacity callers declare it static
+        // before this fusion pass runs.
         auto raw_k_variable = raw_k_read_value->get_variable();
         const auto& raw_k_info = raw_k_variable->get_info();
+        const int64_t summary_capacity = static_cast<int64_t>(S / r);
         auto summary_variable = std::make_shared<ov::op::util::Variable>(
-            ov::op::util::VariableInfo{ov::PartialShape{1, ov::Dimension::dynamic(), static_cast<int64_t>(Di)}, raw_k_info.data_type,
+            ov::op::util::VariableInfo{ov::PartialShape{1, summary_capacity, static_cast<int64_t>(Di)}, raw_k_info.data_type,
                                        raw_k_info.variable_id + "_qsasdpa_summary"});
 
         // QSAIndexerCache is a pure state declaration (see qsa_indexer_cache.hpp's class

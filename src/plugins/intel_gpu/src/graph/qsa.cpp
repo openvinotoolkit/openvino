@@ -19,7 +19,7 @@ layout qsa_inst::calc_output_layout(const qsa_node& node, const kernel_impl_para
 }
 
 template <typename ShapeType>
-std::vector<layout> qsa_inst::calc_output_layouts(const qsa_node& /*node*/, const kernel_impl_params& impl_param) {
+std::vector<layout> qsa_inst::calc_output_layouts(const qsa_node& node, const kernel_impl_params& impl_param) {
     const auto& desc = impl_param.typed_desc<qsa>();
 
     if (desc->state_only) {
@@ -55,6 +55,16 @@ std::vector<layout> qsa_inst::calc_output_layouts(const qsa_node& /*node*/, cons
                         "[GPU] qsa dense_mode expects rank-3 [B, L, Di] raw-K/summary cache inputs");
         const auto raw_dt = impl_param.get_input_layout(qsa::QSAInputIdx::INDEXER_RAW_K_CACHE).data_type;
         const auto summary_dt = impl_param.get_input_layout(qsa::QSAInputIdx::INDEXER_SUMMARY_CACHE).data_type;
+
+        const auto& declared_raw_pshape = node.get_input_pshape(qsa::QSAInputIdx::INDEXER_RAW_K_CACHE);
+        const auto& declared_summary_pshape = node.get_input_pshape(qsa::QSAInputIdx::INDEXER_SUMMARY_CACHE);
+        const bool declared_fixed_capacity = declared_raw_pshape.rank().is_static() && declared_raw_pshape.size() == 3 &&
+                              declared_raw_pshape[1].is_static() && declared_summary_pshape.rank().is_static() &&
+                              declared_summary_pshape.size() == 3 && declared_summary_pshape[1].is_static();
+        if (declared_fixed_capacity) {
+            return {layout{old_raw_shape, raw_dt, cldnn::format::get_default_format(3)},
+                layout{old_summary_shape, summary_dt, cldnn::format::get_default_format(3)}};
+        }
 
         const auto mixed_shape = impl_param.get_input_layout(qsa::QSAInputIdx::MIXED).get<ShapeType>();
         // Graph-build-time shape propagation (compile_model()'s initial static pass,
