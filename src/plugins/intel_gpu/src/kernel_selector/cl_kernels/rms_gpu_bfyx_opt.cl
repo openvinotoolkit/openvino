@@ -322,7 +322,9 @@ KERNEL(rms_gpu_bfyx_opt)(
             FUSED_OPS;
             normalized = FUSED_OPS_RESULT;
         #endif
-        output[output_data_offset + workers_per_data * items_num + in_data_idx] = normalized;
+        #if !HAS_DYNAMIC_QUANTIZE // DQ never enters this path and causes compilation error because of unsupported cast.
+            output[output_data_offset + workers_per_data * items_num + in_data_idx] = normalized;
+        #endif
     }
 }
 #undef USE_BLOCK_WRITE
