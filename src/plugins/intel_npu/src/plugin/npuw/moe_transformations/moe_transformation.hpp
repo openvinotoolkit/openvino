@@ -36,7 +36,7 @@ struct ParamIndex {
 namespace function {
 
 // Default chunk size variants for dynamic iterative mode chunking
-constexpr std::array<size_t, 5> DEFAULT_ITERATIVE_CHUNKING_VARIANTS = {16, 32, 64, 128, 256};
+constexpr std::array<size_t, 8> DEFAULT_ITERATIVE_CHUNKING_VARIANTS = {16, 32, 64, 128, 192, 256, 384, 512};
 
 // Complete structure analysis result (immutable after analysis)
 struct MoEStructureInfo {
