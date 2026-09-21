@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-21-15-08-45-278-35611487106",
+  "timestamp": "2026-09-21T15:08:45Z",
+  "run_id": "35611487106",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35611487106",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "38190",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38190",
+  "author": "alvoron",
+  "category": "Network",
+  "title": "OpenVINO tokenizers extension build fails downloading pcre2-10.48.zip (HTTP 504 from github.com)",
+  "signature": "downloading pcre2-10.48.zip failed HTTP response code said error 504|Network",
+  "signature_hash": "2baab38e090720ec",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO tokenizers extension / OpenVINO tokenizers extension",
+      "conclusion": "failure",
+      "symptom": "pip wheel build for openvino_tokenizers fails: CMake FetchContent download step for the vendored pcre2-10.48 source archive from github.com returns HTTP 504, aborting the cmake configure step."
+    }
+  ],
+  "key_errors": [
+    "CMake Error at pcre2-subbuild/pcre2-populate-prefix/src/pcre2-populate-stamp/download-pcre2-populate.cmake:163 (message):\n  Each download failed!\n    error: downloading 'https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.48/pcre2-10.48.zip' failed\n          status_code: 22\n          status_string: \"HTTP response code said error\"\n    HTTP/2 504\n    The requested URL returned error: 504",
+    "gmake[2]: *** [CMakeFiles/pcre2-populate.dir/build.make:100: pcre2-populate-prefix/src/pcre2-populate-stamp/pcre2-populate-download] Error 1\nCMake Error ... Build step for pcre2 failed: 2\nsrc/CMakeLists.txt:395 (ov_tokenizers_link_pcre2)\n-- Configuring incomplete, errors occurred!",
+    "py_build_cmake.common.FormattedErrorMessage: CMake failed\nerror: metadata-generation-failed"
+  ],
+  "root_cause": "The openvino_tokenizers wheel build vendors the pcre2 library source via CMake FetchContent, downloading pcre2-10.48.zip directly from github.com release assets at configure time. On this run's first attempt, github.com's release-asset CDN returned an HTTP 504 Gateway Timeout for that single GET request, causing FetchContent_Populate to abort and the pip wheel build to fail with a metadata-generation error. The identical job succeeded outright on the automatic second attempt (run_attempt=2) with no code or workflow changes, confirming a transient upstream GitHub CDN blip rather than a PR-induced regression; the PR's changes are entirely in src/plugins/intel_cpu (JIT ISA selection) and unrelated to the tokenizers build.",
+  "reproduction_steps": "N/A - not reliably reproducible locally; requires hitting a transient HTTP 504 from github.com's release CDN while CMake FetchContent downloads https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.48/pcre2-10.48.zip during the openvino_tokenizers wheel build (job 'OpenVINO tokenizers extension').",
+  "recommended_actions": [
+    "No PR-side action needed: rerun the failed job or re-add the PR to the merge queue (already succeeded on retry, run_attempt=2).",
+    "Consider vendoring/mirroring pcre2-10.48.zip in an internal artifact cache or GitHub Packages to avoid depending on github.com release-asset availability during CI builds.",
+    "Add a CMake FetchContent retry/backoff (e.g., FETCHCONTENT_TIMEOUT / multiple URLs) for the pcre2-populate download step in openvino_tokenizers/src/CMakeLists.txt to reduce sensitivity to single transient CDN errors."
+  ],
+  "prevention_strategies": "Mirror third-party source archives fetched via CMake FetchContent (e.g., pcre2) to a controlled, higher-availability location (GitHub Packages, internal artifactory) instead of pulling directly from github.com release assets at build time; add retry logic around FetchContent downloads in CI-critical build paths.",
+  "historical_context": "Similar but distinct GitHub-CDN HTTP error patterns have recurred multiple times: node-api-headers HTTP 502 (pattern 204f6134e10bd5d3, 1 occurrence), oneapi-tbb CMake download HTTP error (pattern 2a69e2049aca6b9b, 1 occurrence), and EasyOCR HTTP 504 Gateway Time-out during PyTorch Models tests (pattern 9cb03e077ef3024a, 2 occurrences). This is the first recorded occurrence of the pcre2-10.48.zip download failing specifically; it is tracked as a new pattern (2baab38e090720ec) rather than merged with the above since the source URL/package differs."
+}

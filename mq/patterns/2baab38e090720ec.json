@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "downloading pcre2-10.48.zip failed HTTP response code said error 504|Network",
+  "signature_hash": "2baab38e090720ec",
+  "title": "OpenVINO tokenizers extension build fails downloading pcre2-10.48.zip (HTTP 504 from github.com)",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-09-21T15:08:45Z",
+  "last_seen": "2026-09-21T15:08:45Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/35611487106"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38190"
+  ],
+  "recent_timestamps": [
+    "2026-09-21T15:08:45Z"
+  ],
+  "rerun_search_string": "downloading 'https://github.com/PCRE2Project/pcre2/releases/download/pcre2-10.48/pcre2-10.48.zip' failed"
+}
