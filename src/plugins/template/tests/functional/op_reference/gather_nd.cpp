@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include "base_reference_test.hpp"
+#include "common_test_utils/test_assertions.hpp"
 
 using namespace reference_tests;
 using namespace ov;
@@ -415,4 +416,19 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherND_With_Hardcoded_Refs,
                          ReferenceGatherND8Test,
                          testing::ValuesIn(generateCombinedParams_v8()),
                          ReferenceGatherND8Test::getTestCaseName);
+
+class ReferenceGatherND8LayerTestNegative : public ReferenceGatherND8Test {};
+
+TEST_P(ReferenceGatherND8LayerTestNegative, IndicesOutOfRangeThrows) {
+    OV_EXPECT_THROW_HAS_SUBSTRING(Exec(), ov::Exception, "Accessing out-of-range dimension");
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_GatherNDNegative,
+    ReferenceGatherND8LayerTestNegative,
+    ::testing::Values(GatherNDParams(reference_tests::Tensor(element::f32, {16, 64}, std::vector<float>(16 * 64, 1.0f)),
+                                     reference_tests::Tensor(element::i64, {1, 1}, std::vector<int64_t>{40}),
+                                     0,
+                                     reference_tests::Tensor(element::f32, {1, 64}, std::vector<float>(64, 0.0f)))),
+    ReferenceGatherND8LayerTestNegative::getTestCaseName);
 }  // namespace
