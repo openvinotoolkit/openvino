@@ -510,3 +510,15 @@ std::optional<ov::npuw::orc::OrcHeader> ov::npuw::orc::is_orc(std::istream& stre
     restore();
     return OrcHeader{version, uuid};
 }
+
+ov::npuw::orc::TypeId ov::npuw::orc::peek_blob_id(std::istream& stream) {
+    const auto saved = stream.tellg();
+    const auto restore = [&] {
+        stream.clear();
+        stream.seekg(saved);
+    };
+    std::ignore = read_file_header(stream);
+    ov::npuw::orc::ScopedReadSection root(stream);
+    restore();
+    return root.header().type;
+}

@@ -375,7 +375,8 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
 namespace {
 bool is_partitioned_orc(std::istream& stream) {
     const auto header = ov::npuw::orc::is_orc(stream);
-    return header.has_value() && header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA;
+    return header.has_value() && (header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA ||
+                                  header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA);
 }
 
 bool has_npuw_indicator(std::istream& stream) {
@@ -403,7 +404,15 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model
     // The partitioned CompiledModel is a plain ORC container with no indicator
     // header of its own.
     if (is_partitioned_orc(stream)) {
-        return ov::npuw::CompiledModel::import_model(stream, plugin, properties);
+        auto typeID = ov::npuw::orc::peek_blob_id(stream);
+        switch (typeID) {
+        case ov::npuw::GQACompiledModel::kOrcType:
+            return ov::npuw::GQACompiledModel::import_model(stream, plugin, properties);
+        case ov::npuw::CompiledModel::kOrcType:
+            return ov::npuw::CompiledModel::import_model(stream, plugin, properties);
+        default:
+            NPUW_ASSERT(false && "Couldn't determine blob type from ORC root section");
+        }
     }
 
     const auto stream_start_pos = stream.tellg();
@@ -421,14 +430,13 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model
 
     if (compiled_model_indicator == NPUW_FLUX2_COMPILED_MODEL_INDICATOR) {
         return ov::npuw::Flux2CompiledModel::import_model(stream, plugin, properties);
-    } else if (compiled_model_indicator == NPUW_GQA_COMPILED_MODEL_INDICATOR) {
-        return ov::npuw::GQACompiledModel::import_model(stream, plugin, properties);
     } else if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
         // Properties are required for ov::weights_path
         return ov::npuw::LLMCompiledModel::import_model(stream, plugin, properties);
     } else if (compiled_model_indicator == NPUW_BATCHED_COMPILED_MODEL_INDICATOR) {
         return ov::npuw::batched::CompiledModel::import_model(stream, plugin, properties);
-    } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
+    } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR ||
+               compiled_model_indicator == NPUW_GQA_COMPILED_MODEL_INDICATOR) {
         // The flat CompiledModel moved to the ORC container above; its old
         // indicator-headed layout has no reader anymore.
         OPENVINO_THROW("Legacy flat NPUW CompiledModel blobs are no longer supported. Re-export the model with "
