@@ -15,7 +15,7 @@ on:
   merge_group:
   push:
     branches:
-      # - master
+      - master
       - 'releases/**'
 
 concurrency:
