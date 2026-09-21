@@ -4,20 +4,21 @@
   "signature_hash": "602c52a223d7ebfe",
   "title": "RISC-V clang-tidy build fails - artifact upload FinalizeArtifact returns 403 Forbidden",
   "category": "Infrastructure",
-  "count": 2,
+  "count": 3,
   "first_seen": "2026-07-17T15:26:00Z",
-  "last_seen": "2026-07-27T15:12:50Z",
+  "last_seen": "2026-09-21T21:22:50Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/35653600747",
     "https://github.com/openvinotoolkit/openvino/actions/runs/30275600133",
     "https://github.com/openvinotoolkit/openvino/actions/runs/29591125373"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38168",
     "https://github.com/openvinotoolkit/openvino/pull/37029",
     "https://github.com/openvinotoolkit/openvino/pull/36905"
   ],
   "recent_timestamps": [
-    "2026-07-27T15:12:50Z",
-    "2026-07-17T15:26:00Z"
+    "2026-09-21T21:22:50Z"
   ],
   "rerun_search_string": "Failed to FinalizeArtifact: Received non-retryable error: Failed request: (403) Forbidden"
 }

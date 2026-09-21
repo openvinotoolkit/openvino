@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-21-21-22-50-199-35653600747",
+  "timestamp": "2026-09-21T21:22:50Z",
+  "run_id": "35653600747",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35653600747",
+  "workflow_name": "Manylinux 2_28",
+  "pr_number": "38168",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38168",
+  "author": "mvafin",
+  "category": "Infrastructure",
+  "title": "Manylinux 2_28 build fails to upload openvino_package artifact - FinalizeArtifact 403 Forbidden",
+  "signature": "Failed to FinalizeArtifact non-retryable error 403 Forbidden|Infrastructure",
+  "signature_hash": "602c52a223d7ebfe",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build",
+      "conclusion": "failure",
+      "symptom": "Upload OpenVINO package step failed: FinalizeArtifact received a non-retryable 403 Forbidden from the Actions artifact storage backend after the artifact content was fully uploaded."
+    },
+    {
+      "name": "ci/gha_overall_status_manylinux_2_28",
+      "conclusion": "failure",
+      "symptom": "Aggregation gate step 'Check status of all jobs' failed because the Build job it depends on failed."
+    }
+  ],
+  "key_errors": [
+    "2026-09-21T21:10:36.5122347Z Beginning upload of artifact content to blob storage\n2026-09-21T21:10:40.3358801Z Uploaded bytes 89704296\n2026-09-21T21:10:40.3359354Z Finished uploading artifact content to blob storage!\n2026-09-21T21:10:40.3361054Z Finalizing artifact upload\n2026-09-21T21:10:40.3382718Z ##[error]Failed to FinalizeArtifact: Received non-retryable error: Failed request: (403) Forbidden: Error from intermediary with HTTP status code 403 \"Forbidden\""
+  ],
+  "root_cause": "The Build job (attempt 1) successfully uploaded the full openvino_package.tar.gz content (~90 MB) to Actions blob storage, but the FinalizeArtifact call that commits the artifact was rejected with a non-retryable 403 Forbidden from an intermediary proxy fronting the Actions artifact service. This is a GitHub Actions artifact-service/infrastructure-side failure, not something the workflow or PR code caused: the upload content itself succeeded, only the finalize commit call was blocked. Attempt 1's Build job failed at the 'Upload OpenVINO package' step as a direct result, cascading to the overall status gate failing; attempt 2 of the run was cancelled before Build (job 106519180073, tail 22 bytes) even produced meaningful logs, consistent with the run being torn down/retried after the same recurring intermediary 403 pattern already seen twice before for this exact FinalizeArtifact signature.",
+  "reproduction_steps": "N/A - not reproducible locally; this is a GitHub Actions-hosted Artifact service / edge-proxy failure that occurs only when a workflow run uploads an artifact through actions/upload-artifact (or the openvino-org fork of it) during a merge-queue build.",
+  "recommended_actions": [
+    "Re-run only the failed jobs for this workflow run (a plain retry typically clears this since the failure is on GitHub's artifact-service intermediary, not the payload).",
+    "If the 403 recurs on retry, check the GitHub Actions status page (githubstatus.com) for Actions/Artifacts incidents around the failure timestamp.",
+    "Consider adding retry-with-backoff around the 'Upload OpenVINO package' step (actions/upload-artifact already retries transient network errors, but does not retry a non-retryable 403 from FinalizeArtifact) if this pattern's occurrence count keeps climbing."
+  ],
+  "prevention_strategies": "This class of failure originates in GitHub's Actions artifact backend, not in OpenVINO CI configuration, so it cannot be fully prevented from this repository. Mitigate impact by keeping merge-queue rerun automation (workflow_rerun) tuned to this signature so transient service blips do not block merges, and periodically check for occurrence-rate trends that would indicate a broader GitHub Actions outage rather than a one-off blip.",
+  "historical_context": "This exact failure signature (Failed to FinalizeArtifact non-retryable error 403 Forbidden) has now been seen 3 times: 2026-07-17 (PR #37029, RISC-V clang-tidy build), 2026-07-27 (PR #36905), and now 2026-09-21 (PR #38168, Manylinux 2_28 Build). All three occurrences are on unrelated jobs/PRs, confirming this is a shared, job-agnostic GitHub Actions artifact-service intermediary issue rather than a code or workflow-configuration defect."
+}
