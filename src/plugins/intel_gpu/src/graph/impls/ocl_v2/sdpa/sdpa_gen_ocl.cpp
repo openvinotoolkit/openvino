@@ -874,8 +874,19 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
             jit.make("HAS_SINK_INPUT", 1);
         }
 
-        // QQ_BIAS is only consumed by the generate/mixed stage, which never runs this kernel.
-        jit.make("HAS_QQ_BIAS", 0);
+        // QQ_BIAS is consumed only by the MIXED variant of this kernel (the same split sdpa_micro
+        // uses); the PREFILL variant reads the contiguous KEY input where the qq_bias mask never
+        // applies. Must stay in lockstep with get_arguments_desc(), which pushes the qq_bias inputs
+        // under the same predicate.
+        if (desc->has_qq_bias && !m_is_prefill) {
+            jit.make("HAS_QQ_BIAS", 1);
+            const auto& qq_bias_layout = params.input_layouts[PagedAttentionInputIdx::QQ_BIAS];
+            jit.make("QQ_BIAS_DATA_T", to_ocl_type(qq_bias_layout.data_type));
+            const auto& qq_bias_begins_layout = params.input_layouts[PagedAttentionInputIdx::QQ_BIAS_BEGINS];
+            jit.make("QQ_BIAS_BEGINS_DATA_T", to_ocl_type(qq_bias_begins_layout.data_type));
+        } else {
+            jit.make("HAS_QQ_BIAS", 0);
+        }
     } else {
         const auto desc = params.typed_desc<scaled_dot_product_attention>();
         jit.add(make_tensors_jit_constants(params));
