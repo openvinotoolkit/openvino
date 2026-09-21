@@ -437,9 +437,9 @@ TEST(update_shape_test, paged_attention_mixed_stage_token_type_ids_buffer_layout
     auto adaptive_rkv_diversity_block_set_indices_begins_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
     auto adaptive_rkv_diversity_block_set_indices_begins_mem = engine.allocate_memory(adaptive_rkv_diversity_block_set_indices_begins_layout);
 
-    auto token_type_ids_layout = layout{ov::PartialShape{1}, data_types::i32, format::bfyx};
+    auto token_type_ids_layout = layout{ov::PartialShape{9}, data_types::i32, format::bfyx};
     auto token_type_ids_mem = engine.allocate_memory(token_type_ids_layout);
-    set_values(token_type_ids_mem, {1});
+    set_values(token_type_ids_mem, {0, 0, 0, 0, 0, 0, 0, 0, 0});
 
     auto qq_bias_layout = layout{ov::PartialShape{16}, data_types::u8, format::bfyx};
     auto qq_bias_mem = engine.allocate_memory(qq_bias_layout);
