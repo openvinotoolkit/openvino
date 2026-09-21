@@ -910,6 +910,27 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // KVCache layout with XAttention -
             // k: [num_blocks, num_kv_heads, block_size(256), head_size]
             // v: [num_blocks, num_kv_heads, block_size(256), head_size]
+            // The i8/u4 BY_CHANNEL K cache may be materialized token-major, but only when every
+            // K-cache consumer in the model can read that page. The token-major writer is understood
+            // by sdpa_ocl_decode / sdpa_ocl (MIXED) alone; a scores output or adaptive R-KV forces the
+            // GENERATE stage onto the d-major-only pa_single_token kernel, so either one forbids the
+            // layout model-wide. Rotation is NOT on this list: kv_cache_rotate reads the token-major
+            // BY_CHANNEL page itself (pa_kv_cache_rotate_ref.cl) and sdpa_ocl_decode does not reject
+            // it. qq_bias / alibi / token_type_ids are intentionally ignored here -- sdpa_ocl_decode
+            // is expected to grow support for them (its supported() still rejects them today, so some
+            // cases will fail until then).
+            bool allow_by_channel_token_major = true;
+            for (const auto& op : func->get_ops()) {
+                if (const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op)) {
+                    const bool has_scores = pa->get_output_size() > 1 && !pa->get_output_target_inputs(1).empty();
+                    const bool has_adaptive_rkv = pa->get_output_size() > 2 && !pa->get_output_target_inputs(2).empty();
+                    if (has_scores || has_adaptive_rkv) {
+                        allow_by_channel_token_major = false;
+                        break;
+                    }
+                }
+            }
+
             ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
             const auto key_cache_quant_mode = config.get_key_cache_quant_mode();
             auto kv_cache_precision = config.get_kv_cache_precision();
@@ -928,12 +949,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             } else {
                 kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size;
                 // Token-major K (same dim order as V and as XAttention). Uncompressed and i8/u8
-                // BY_TOKEN qualify; BY_CHANNEL and INT4 inline scale/zp along the axis this flips.
-                // See paged_attention::k_token_major_for().
+                // BY_TOKEN qualify; i8/u4 BY_CHANNEL qualify only under the staging switch AND when
+                // no model consumer needs the d-major page (scores / adaptive R-KV).
+                // See paged_attention::k_token_major_for() / k_by_channel_token_major_for().
                 const bool is_by_channel = key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL;
                 const bool k_token_major =
                     cldnn::paged_attention::k_token_major_for(kv_cache_precision, is_by_channel) ||
-                    cldnn::paged_attention::k_by_channel_token_major_for(kv_cache_precision, is_by_channel);
+                    (allow_by_channel_token_major &&
+                     cldnn::paged_attention::k_by_channel_token_major_for(kv_cache_precision, is_by_channel));
                 kv_cache_config.keyCacheDimOrder = k_token_major ? std::vector<size_t>{0, 1, 2, 3} : std::vector<size_t>{0, 1, 3, 2};
             }
             kv_cache_config.keyCacheQuantBychannel = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);

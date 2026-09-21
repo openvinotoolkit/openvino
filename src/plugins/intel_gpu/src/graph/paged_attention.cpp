@@ -71,12 +71,15 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
     // config precision (key_cache_dt) can tell it apart from a real u8 BY_TOKEN cache.
     // A token-major BY_CHANNEL page keeps the SAME size (k_head_size * (block_size + 4)), so
     // expected_block_size above is still the adjusted 20 -- it just moves from dim 3 to dim 2 with the
-    // rest of the token-major dim order. See paged_attention::k_by_channel_token_major_for().
+    // rest of the token-major dim order. The BY_CHANNEL half is read off the PHYSICAL cache shape
+    // (the block-size dim landing at dim[2] is what makes it token-major), matching the single
+    // layout decision made in transformations_pipeline.cpp.
     const auto k_cache_precision =
         is_int4 ? key_cache_dt : ov::element::Type(impl_param.get_input_layout(key_cache_idx).data_type);
     const bool k_token_major =
         cldnn::paged_attention::k_token_major_for(k_cache_precision, desc->is_key_by_channel) ||
-        cldnn::paged_attention::k_by_channel_token_major_for(k_cache_precision, desc->is_key_by_channel);
+        (desc->is_key_by_channel &&
+         cldnn::paged_attention::k_by_channel_token_major_layout(key_cache_ps, expected_block_size));
     const auto block_size_idx = (desc->has_xattention || k_token_major) ? 2 : 3;
     bool valid_block_size = key_cache_ps.is_dynamic() ||
                             (key_cache_ps[block_size_idx].get_length() == static_cast<ov::Dimension::value_type>(expected_block_size));

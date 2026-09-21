@@ -130,6 +130,12 @@ struct PagedAttentionManager {
     std::vector<int> adaptive_rkv_diversity_block_set_indices;
     std::vector<int> adaptive_rkv_diversity_block_set_indices_begins;
 
+    // Whether this case carries a scores output (LAST_TOKEN / SNAPKV) and/or adaptive R-KV. Either
+    // one forbids the token-major BY_CHANNEL K layout (the d-major-only decode path is forced), so
+    // k_cache_token_major() must gate on these exactly like transformations_pipeline.cpp does.
+    bool has_scores_output;
+    bool has_adaptive_rkv;
+
     std::vector<std::vector<uint8_t>> qq_bias;
     std::vector<int> qq_bias_begins;
 
@@ -158,7 +164,9 @@ struct PagedAttentionManager {
                           bool has_score_aggregation,
                           bool has_xattention,
                           CacheRotationDescriptor rotation_config,
-                          ov::element::Type kv_cache_precision = ov::element::dynamic)
+                          ov::element::Type kv_cache_precision = ov::element::dynamic,
+                          bool has_scores_output = false,
+                          bool has_adaptive_rkv = false)
         : num_heads(num_heads),
           num_kv_heads(num_kv_heads),
           k_head_size(k_head_size),
@@ -172,6 +180,8 @@ struct PagedAttentionManager {
           rotation_config(rotation_config),
           subsequence_descs(subsequence_descs),
           has_xattention(has_xattention),
+          has_scores_output(has_scores_output),
+          has_adaptive_rkv(has_adaptive_rkv),
           test_engine(engine),
           test_stream(stream),
           rg(rg) {
@@ -383,8 +393,11 @@ struct PagedAttentionManager {
         const auto precision = is_int4_kv_cache() ? kv_cache_precision
                                                   : (kv_cache_compression ? ov::element::i8 : ov::element::f16);
         const bool is_by_channel = key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL;
+        // The BY_CHANNEL token-major layout is gated on the same condition the plugin uses
+        // (transformations_pipeline.cpp): scores output or adaptive R-KV forces the d-major page.
+        const bool allow_by_channel_tm = !has_scores_output && !has_adaptive_rkv;
         return cldnn::paged_attention::k_token_major_for(precision, is_by_channel) ||
-               cldnn::paged_attention::k_by_channel_token_major_for(precision, is_by_channel);
+               (allow_by_channel_tm && cldnn::paged_attention::k_by_channel_token_major_for(precision, is_by_channel));
     }
 
     cldnn::memory::ptr get_key_cache_memory() {
@@ -2097,7 +2110,9 @@ public:
                     p.scores_mode == ScoresMode::SNAPKV,
                     p.has_xattention,
                     p.rotation_config,
-                    p.kv_cache_precision);
+                    p.kv_cache_precision,
+                    p.scores_mode != ScoresMode::DISABLED,
+                    p.has_adaptive_rkv);
 
         if (p.zero_key_data) {
             for (auto& sequence_key_data : pam->key_data) {

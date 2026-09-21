@@ -1068,15 +1068,16 @@ protected:
         // flips; the token-major arm re-packs it two CHANNELS per byte, which is why the writer needs a
         // branch rather than just new strides. XAttention is excluded: its cache is built and read by
         // the CM path, which does not know this layout.
-        // The predicate needs the CONFIG precision, not the layout dtype -- an int4 cache is
-        // materialized as u8 -- so this uses the same lookup get_k_token_major() does.
-        const auto k_cache_precision =
-            data_type_traits::is_i4_u4(kv_cache_dt)
-                ? kv_cache_dt
-                : ov::element::Type(params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type);
+        // The layout is read off the PHYSICAL cache shape -- dim[2] holding the adjusted block size
+        // is exactly what transformations_pipeline.cpp materialized for the token-major BY_CHANNEL
+        // page (and it stays d-major for a scores / adaptive-R-KV model). XAttention never qualifies.
+        const auto k_scales_zp_size = is_kv_compressed ? get_element_size(params.input_layouts[PagedAttentionInputIdx::KEY].data_type) * 2 : 0;
         const bool k_by_channel_token_major =
-            !desc->has_xattention &&
-            cldnn::paged_attention::k_by_channel_token_major_for(k_cache_precision, is_key_by_channel);
+            !desc->has_xattention && is_key_by_channel &&
+            cldnn::paged_attention::k_by_channel_token_major_layout(
+                params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].get_partial_shape(),
+                data_type_traits::is_i4_u4(kv_cache_dt) ? paged_attention_block_size / u4_elems_per_byte + k_scales_zp_size
+                                                        : paged_attention_block_size + k_scales_zp_size);
         jit.make("IS_KEY_BY_CHANNEL_TOKEN_MAJOR", k_by_channel_token_major ? 1 : 0);
 
         // Give the PREFILL stage one extra workgroup along gws[2] that only quantizes V. V is
@@ -1197,13 +1198,15 @@ protected:
         if (is_kv_compressed) {
             auto scales_zp_size = get_element_size(original_cache_dt) * 2;  // scale + zp;
             const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-            const auto k_cache_precision =
-                data_type_traits::is_i4_u4(kv_cache_dt)
-                    ? kv_cache_dt
-                    : ov::element::Type(params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type);
+            // Token-major i8/u4 BY_CHANNEL is read off the PHYSICAL cache shape (adjusted block size
+            // at dim[2]), matching the single layout decision in transformations_pipeline.cpp. XAttention
+            // never qualifies.
             const bool k_by_channel_token_major =
-                !desc->has_xattention &&
-                cldnn::paged_attention::k_by_channel_token_major_for(k_cache_precision, is_key_by_channel);
+                !desc->has_xattention && is_key_by_channel &&
+                cldnn::paged_attention::k_by_channel_token_major_layout(
+                    params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].get_partial_shape(),
+                    data_type_traits::is_i4_u4(kv_cache_dt) ? paged_attention_block_size / u4_elems_per_byte + scales_zp_size
+                                                            : paged_attention_block_size + scales_zp_size);
             jit.make("IS_KEY_BY_CHANNEL_TOKEN_MAJOR", k_by_channel_token_major ? 1 : 0);
             if (data_type_traits::is_i4_u4(kv_cache_dt)) {
                 jit.add(make_uint4_kv_cache_jit_constants(params));
@@ -1526,13 +1529,15 @@ public:
         if (stage == PagedAttentionStage::MIXED && use_ocl && get_kv_compressed(params)) {
             const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
             const bool int4 = data_type_traits::is_i4_u4(kv_cache_dt);
-            // The predicate needs the CONFIGURED precision for int4 -- the cache is materialized as u8,
-            // so the layout dtype alone cannot tell it from a real u8 one. Same lookup as
-            // get_k_token_major().
-            const auto key_cache_dt =
-                int4 ? kv_cache_dt : ov::element::Type(params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type);
+            // Token-major i8/u4 BY_CHANNEL is read off the PHYSICAL cache shape (adjusted block size
+            // at dim[2]) -- the model-wide layout was decided once in transformations_pipeline.cpp.
+            const auto scales_zp_size = 2 * ov::element::Type(params.input_layouts[PagedAttentionInputIdx::KEY].data_type).size();
             const bool by_channel_tm =
-                cldnn::paged_attention::k_by_channel_token_major_for(key_cache_dt, desc->is_key_by_channel);
+                desc->is_key_by_channel &&
+                cldnn::paged_attention::k_by_channel_token_major_layout(
+                    params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].get_partial_shape(),
+                    int4 ? paged_attention_block_size / u4_elems_per_byte + scales_zp_size
+                         : paged_attention_block_size + scales_zp_size);
             // int4 has no d-major reader here at all, so it needs the switch unconditionally; i8 only
             // needs it in BY_CHANNEL, since BY_TOKEN is already the layout this kernel reads.
             if (int4 ? !by_channel_tm : (desc->is_key_by_channel && !by_channel_tm))
