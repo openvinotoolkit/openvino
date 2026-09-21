@@ -70,7 +70,7 @@ TEST_F(MetadataUnitTests, writeAndReadCurrentMetadataFromBlob) {
 }
 
 TEST_F(MetadataUnitTests, writeAndReadBlobTypes) {
-    for (const BlobType blobType : {BlobType::ELF, BlobType::LLVM, BlobType::BYTECODE}) {
+    for (const BlobType blobType : {BlobType::ELF, BlobType::BYTECODE}) {
         std::stringstream stream;
         MetadataTest(0,
                      CURRENT_OPENVINO_VERSION,

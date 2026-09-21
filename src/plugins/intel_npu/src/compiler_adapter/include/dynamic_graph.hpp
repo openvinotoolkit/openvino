@@ -21,7 +21,7 @@ class DynamicGraph final : public IGraph {
 public:
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                  ov::Tensor blob,
-                 BlobType blobType = BlobType::LLVM);
+                 BlobType blobType = BlobType::BYTECODE);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
@@ -76,7 +76,7 @@ private:
     CommandQueueDesc _commandQueueDesc;
 
     std::optional<ov::Tensor> _blob;
-    BlobType _blobType = BlobType::LLVM;
+    BlobType _blobType = BlobType::BYTECODE;
 
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported

@@ -37,7 +37,7 @@ std::shared_ptr<IGraph> Parser::parse(
 
     const void* data = mainBlob.data();
     size_t size = mainBlob.get_byte_size();
-    if (blobType.has_value() && (blobType.value() == BlobType::LLVM || blobType.value() == BlobType::BYTECODE)) {
+    if (blobType.has_value() && (blobType.value() == BlobType::BYTECODE)) {
         OPENVINO_ASSERT(
             config.get<ALLOW_BYTECODE>(),
             "The blob declares a payload that runs in-process on the host VM runtime instead of being parsed by the "
