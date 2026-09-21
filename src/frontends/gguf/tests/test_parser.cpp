@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <array>
 #include <fstream>
+#include <utility>
 
 #include "common_test_utils/common_utils.hpp"
 #include "op_test_utils.hpp"
@@ -83,19 +85,22 @@ TEST_F(GGUFParser, Q2_0KeepsIntegerZeroPointsForAllWeightNames) {
 }
 
 TEST_F(GGUFParser, AcceptsEmptyQuantizedTensors) {
-    for (const auto type : {GGUF_TYPE_Q4_0,
-                            GGUF_TYPE_Q4_1,
-                            GGUF_TYPE_Q5_0,
-                            GGUF_TYPE_Q5_1,
-                            GGUF_TYPE_Q8_0,
-                            GGUF_TYPE_Q2_K,
-                            GGUF_TYPE_Q2_0,
-                            GGUF_TYPE_Q3_K,
-                            GGUF_TYPE_Q4_K,
-                            GGUF_TYPE_Q5_K,
-                            GGUF_TYPE_Q6_K,
-                            GGUF_TYPE_Q8_K}) {
-        SCOPED_TRACE(static_cast<uint32_t>(type));
+    constexpr std::array types{
+        std::pair{"Q4_0", GGUF_TYPE_Q4_0},
+        std::pair{"Q4_1", GGUF_TYPE_Q4_1},
+        std::pair{"Q5_0", GGUF_TYPE_Q5_0},
+        std::pair{"Q5_1", GGUF_TYPE_Q5_1},
+        std::pair{"Q8_0", GGUF_TYPE_Q8_0},
+        std::pair{"Q2_K", GGUF_TYPE_Q2_K},
+        std::pair{"Q2_0", GGUF_TYPE_Q2_0},
+        std::pair{"Q3_K", GGUF_TYPE_Q3_K},
+        std::pair{"Q4_K", GGUF_TYPE_Q4_K},
+        std::pair{"Q5_K", GGUF_TYPE_Q5_K},
+        std::pair{"Q6_K", GGUF_TYPE_Q6_K},
+        std::pair{"Q8_K", GGUF_TYPE_Q8_K},
+    };
+    for (const auto& [name, type] : types) {
+        SCOPED_TRACE(name);
         ASSERT_NO_FATAL_FAILURE(write_tensor("empty.weight", type, 0, 2));
         const auto loaded = get_gguf_data(m_path);
         const auto& arrays = std::get<1>(loaded);

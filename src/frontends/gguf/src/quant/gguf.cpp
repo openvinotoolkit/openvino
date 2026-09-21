@@ -108,31 +108,33 @@ struct QuantLayout {
 };
 
 std::optional<QuantLayout> quant_layout(uint32_t type) {
+    constexpr bool asymmetric = true;
+    constexpr bool symmetric = false;
     switch (type) {
     case GGUF_TYPE_Q4_0:
-        return QuantLayout{ov::element::i4, 1, ov::element::f16, 32, false};
+        return QuantLayout{ov::element::i4, 1, ov::element::f16, 32, symmetric};
     case GGUF_TYPE_Q3_K:
-        return QuantLayout{ov::element::i4, 1, ov::element::f16, 16, false};
+        return QuantLayout{ov::element::i4, 1, ov::element::f16, 16, symmetric};
     case GGUF_TYPE_Q5_0:
     case GGUF_TYPE_Q8_0:
-        return QuantLayout{ov::element::i8, 1, ov::element::f16, 32, false};
+        return QuantLayout{ov::element::i8, 1, ov::element::f16, 32, symmetric};
     case GGUF_TYPE_Q6_K:
-        return QuantLayout{ov::element::i8, 1, ov::element::f16, 16, false};
+        return QuantLayout{ov::element::i8, 1, ov::element::f16, 16, symmetric};
     case GGUF_TYPE_Q8_K:
         // 256 i8 weights + an f32 (not f16) scale + 16 i16 bsums, which the dequant ignores.
-        return QuantLayout{ov::element::i8, 1, ov::element::f32, 256, false};
+        return QuantLayout{ov::element::i8, 1, ov::element::f32, 256, symmetric};
     case GGUF_TYPE_Q2_K:
-        return QuantLayout{ov::element::u2, 1, ov::element::f16, 16, true};
+        return QuantLayout{ov::element::u2, 1, ov::element::f16, 16, asymmetric};
     case GGUF_TYPE_Q2_0:
-        return QuantLayout{ov::element::u2, 1, ov::element::f16, 64, true};
+        return QuantLayout{ov::element::u2, 1, ov::element::f16, 64, asymmetric};
     case GGUF_TYPE_Q4_1:
     case GGUF_TYPE_Q4_K:
-        return QuantLayout{ov::element::u32, 8, ov::element::f16, 32, true};
+        return QuantLayout{ov::element::u32, 8, ov::element::f16, 32, asymmetric};
     case GGUF_TYPE_Q5_1:
     case GGUF_TYPE_Q5_K:
-        return QuantLayout{ov::element::i8, 1, ov::element::f16, 32, true};
+        return QuantLayout{ov::element::i8, 1, ov::element::f16, 32, asymmetric};
     case GGUF_TYPE_MXFP4:
-        return QuantLayout{ov::element::f4e2m1, 1, ov::element::f8e8m0, 32, false};
+        return QuantLayout{ov::element::f4e2m1, 1, ov::element::f8e8m0, 32, symmetric};
     default:
         return std::nullopt;
     }
@@ -535,9 +537,9 @@ GGUFLoad get_gguf_data(const std::string& file) {
             continue;
         }
         quant_bytes[i] = quant_sizes(infos[i], *layout);
-        for (size_t part : quant_bytes[i]) {
-            OPENVINO_ASSERT(!ov::util::add_overflow(total_quant_bytes, part, total_quant_bytes),
-                            "[load_gguf] total quantized buffer size overflows size_t");
+        for (const size_t part : quant_bytes[i]) {
+            const bool overflow = ov::util::add_overflow(total_quant_bytes, part, total_quant_bytes);
+            OPENVINO_ASSERT(!overflow, "[load_gguf] total quantized buffer size overflows size_t");
         }
     }
 
@@ -596,10 +598,8 @@ GGUFLoad get_gguf_data(const std::string& file) {
         const auto layout = quant_layout(ti.type);
         if (!layout) {
             ov::Tensor loaded = extract_tensor_data(tensor, mapped);  // zero-copy mmap view
-            OPENVINO_ASSERT(arrays.emplace(name, std::move(loaded)).second,
-                            "[load_gguf] duplicate tensor name '",
-                            name,
-                            "'");
+            const bool inserted = arrays.emplace(name, std::move(loaded)).second;
+            OPENVINO_ASSERT(inserted, "[load_gguf] duplicate tensor name '", name, "'");
             qtype.emplace(name_prefix + ".qtype", static_cast<GgufTensorType>(ti.type));
             continue;
         }

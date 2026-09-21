@@ -32,7 +32,7 @@ static constexpr uint64_t kQ6K_BLOCK_BYTES = 128 + 64 + 16 + 2;      // ql + qh 
 static inline uint8_t quantize_zp_u8(float zpval) {
     OPENVINO_ASSERT(std::isfinite(zpval), "[GGUF] cannot quantize a non-finite zero-point");
     long r = std::lround(zpval);
-    return static_cast<uint8_t>(std::min<long>(255, std::max<long>(0, r)));
+    return static_cast<uint8_t>(std::clamp(r, 0L, 255L));
 }
 
 // A block's zero-point in quantized units: its affine offset divided by its scale. A zero scale
@@ -293,7 +293,7 @@ void fill_q4_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& sc
                 initial_scale = std::numeric_limits<float>::epsilon();
             }
             const auto rounded_zp = static_cast<long>(std::nearbyint(-min_value / initial_scale));
-            const uint8_t zp = static_cast<uint8_t>(std::min<long>(15, std::max<long>(0, rounded_zp)));
+            const uint8_t zp = static_cast<uint8_t>(std::clamp(rounded_zp, 0L, 15L));
 
             const auto evaluate = [&](float scale_candidate, uint8_t* quantized) {
                 const ov::float16 scale_f16(scale_candidate);
@@ -305,16 +305,17 @@ void fill_q4_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& sc
                 }
                 for (int k = 0; k < 32; ++k) {
                     const long rounded = static_cast<long>(std::nearbyint(values[k] / runtime_scale)) + zp;
-                    quantized[k] = static_cast<uint8_t>(std::min<long>(15, std::max<long>(0, rounded)));
+                    quantized[k] = static_cast<uint8_t>(std::clamp(rounded, 0L, 15L));
                 }
                 return std::make_pair(scale_f16, measure(runtime_scale, zp, quantized));
             };
 
             const auto accept = [&](const std::pair<ov::float16, Error>& candidate, const uint8_t* candidate_q) {
-                if (candidate.second.squared < best_error.squared && candidate.second.max_abs <= fallback_max_error) {
-                    best_scale = candidate.first;
+                const auto& [scale, error] = candidate;
+                if (error.squared < best_error.squared && error.max_abs <= fallback_max_error) {
+                    best_scale = scale;
                     best_zp = zp;
-                    best_error = candidate.second;
+                    best_error = error;
                     std::copy_n(candidate_q, 32, best_q);
                 }
             };
@@ -456,7 +457,8 @@ bool requantize_q8_0_channelwise_faithful(const GgufTensor& tensor,
     }
     const uint8_t* data = static_cast<const uint8_t*>(tensor.weights_data);
     ov::parallel_for(rows, [&](size_t r) {
-        // Per-thread scratch reused across rows (dq() overwrites all cols); avoids per-row malloc.
+        // Reuse scratch across rows; capacity follows the largest row seen and is retained
+        // until the worker thread exits. dq() overwrites all cols, avoiding per-row allocation.
         thread_local std::vector<float> rowf;
         rowf.resize(cols);
         dq(data + r * bytes_per_row, cols, rowf.data());

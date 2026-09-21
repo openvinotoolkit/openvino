@@ -319,7 +319,8 @@ std::shared_ptr<ov::Node> requantize_extracted_q8_0_channelwise(const WeightTens
     auto* w = weights.data<int8_t>();
     auto* s = scales.data<ov::float16>();
     ov::parallel_for(rows, [&](size_t r) {
-        // Per-thread scratch reused across rows; only `cols` floats are live per worker.
+        // Reuse scratch across rows; capacity follows the largest row seen and is retained
+        // until the worker thread exits, avoiding per-row allocation.
         thread_local std::vector<float> rowf;
         rowf.resize(cols);
         dequant_extracted_row_to_f32(tensors, r, cols, rowf.data());
