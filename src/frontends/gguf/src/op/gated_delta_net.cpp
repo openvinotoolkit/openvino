@@ -43,14 +43,14 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context);
 OutputVector translate_gated_delta_net(const NodeContext& context) {
     num_inputs_check(context, 6, 6);
 
-    auto v_shape = context.get_input_shape(2).to_shape();  // [B, T, H_v, S_v]
-    auto q_shape = context.get_input_shape(0).to_shape();  // [B, T, H_k, S_k]
-    auto g_shape = context.get_input_shape(3).to_shape();  // [B, T, H_v, 1 or S_v]
+    auto v_shape = context.get_input_shape(2);  // [B, T, H_v, S_v]
+    auto q_shape = context.get_input_shape(0);  // [B, T, H_k, S_k]
+    auto g_shape = context.get_input_shape(3);  // [B, T, H_v, 1 or S_v]
 
-    const int64_t H_v = v_shape[2];
-    const int64_t S_v = v_shape[3];
-    const int64_t H_k = q_shape[2];
-    const bool kda = (g_shape[3] == (size_t)S_v);
+    const int64_t H_v = v_shape[2].get_length();
+    const int64_t S_v = v_shape[3].get_length();
+    const int64_t H_k = q_shape[2].get_length();
+    const bool kda = (g_shape[3].get_length() == S_v);
 
     // ggml reserves K * S_v * n_seqs state rows for K per-token snapshots (K = 1 + n_rs_seq, > 1 only
     // for speculative-decode rollback), while both paths here pack exactly one S_v-row block. Reject
@@ -122,23 +122,18 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
     auto beta = context.get_input(4);
     auto state = context.get_input(5);
 
-    auto v_shape = context.get_input_shape(2).to_shape();  // [B, T, H_v, S_v]
-    auto q_shape = context.get_input_shape(0).to_shape();  // [B, T, H_k, S_k]
-    auto g_shape = context.get_input_shape(3).to_shape();  // [B, T, H_v, 1 or S_v]
+    auto v_shape = context.get_input_shape(2);  // [B, T, H_v, S_v]
+    auto q_shape = context.get_input_shape(0);  // [B, T, H_k, S_k]
+    auto g_shape = context.get_input_shape(3);  // [B, T, H_v, 1 or S_v]
 
-    const int64_t B = v_shape[0];
-    const int64_t T = v_shape[1];
-    const int64_t H_v = v_shape[2];
-    const int64_t S_v = v_shape[3];
-    const int64_t H_k = q_shape[2];
-    const bool kda = (g_shape[3] == (size_t)S_v);
+    const int64_t B = v_shape[0].get_length();
+    const int64_t H_v = v_shape[2].get_length();
+    const int64_t S_v = v_shape[3].get_length();
+    const int64_t H_k = q_shape[2].get_length();
+    const bool kda = (g_shape[3].get_length() == S_v);
 
     const int64_t rq1 = H_v / H_k;  // GQA head repeat factor
     const float scale = 1.0f / std::sqrt((float)S_v);
-
-    // T is dynamic at runtime: T-dependent reshapes use -1 and the Loop trip count is read at
-    // runtime, so the convert-time T is only used for the static dims (B/H_v/S_v/H_k).
-    (void)T;
 
     auto axis_0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
     auto axis_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});

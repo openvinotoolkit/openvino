@@ -86,10 +86,12 @@ inline std::vector<int32_t> convert_pads(const std::vector<size_t>& pad, size_t 
         for (auto p : pad) {
             new_pad.push_back(static_cast<int32_t>(p));
         }
-        if (new_pad.size() > 2)
+        if (new_pad.size() > 2) {
             std::reverse(new_pad.begin() + 2, new_pad.end());
-        for (size_t i = new_pad.size(); i < rank || i < 4; ++i)
+        }
+        for (size_t i = new_pad.size(); i < rank || i < 4; ++i) {
             new_pad.push_back(0);
+        }
     }
 
     return new_pad;
@@ -102,24 +104,27 @@ inline kernel_selector::interpolate_axis convert_axis(int64_t axis, size_t rank)
         case 1:
             return kernel_selector::interpolate_axis::FEATURE;
         case 2:
-            if (rank == 6)
+            if (rank == 6) {
                 return kernel_selector::interpolate_axis::W;
-            else if (rank == 5)
+            } else if (rank == 5) {
                 return kernel_selector::interpolate_axis::Z;
-            else
+            } else {
                 return kernel_selector::interpolate_axis::Y;
+            }
         case 3:
-            if (rank == 6)
+            if (rank == 6) {
                 return kernel_selector::interpolate_axis::Z;
-            else if (rank == 5)
+            } else if (rank == 5) {
                 return kernel_selector::interpolate_axis::Y;
-            else
+            } else {
                 return kernel_selector::interpolate_axis::X;
+            }
         case 4:
-            if (rank == 6)
+            if (rank == 6) {
                 return kernel_selector::interpolate_axis::Y;
-            else
+            } else {
                 return kernel_selector::interpolate_axis::X;
+            }
         case 5:
             return kernel_selector::interpolate_axis::X;
         default:

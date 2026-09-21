@@ -78,6 +78,24 @@ TEST(ONNXFeConvertException, exception_if_qlinear_concat_invalid_x_input_triplet
                     testing::AllOf(testing::HasSubstr("expected 2 + 3*N inputs"), testing::HasSubstr(" got: 6")));
 }
 
+TEST(ONNXFeConvertException, exception_if_matmulnbits_weight_prepacked_unsupported) {
+    OV_EXPECT_THROW(convert_model("com.microsoft/matmulnbits_weight_prepacked_unsupported.onnx"),
+                    ov::AssertFailure,
+                    testing::HasSubstr("weight_prepacked != 0"));
+}
+
+TEST(ONNXFeConvertException, exception_if_matmulnbits_group_idx_out_of_range) {
+    OV_EXPECT_THROW(convert_model("com.microsoft/matmulnbits_group_idx_out_of_range.onnx"),
+                    ov::AssertFailure,
+                    testing::HasSubstr("group_idx values must be within"));
+}
+
+TEST(ONNXFeConvertException, exception_if_matmulnbits_reordered_layout_with_group_idx_unsupported) {
+    OV_EXPECT_THROW(convert_model("com.microsoft/matmulnbits_reordered_group_idx_unsupported.onnx"),
+                    ov::AssertFailure,
+                    testing::HasSubstr("reordered B layout"));
+}
+
 TEST(ONNXFeConvertException, exception_if_scan_num_scan_inputs_exceeds_body_inputs) {
     OV_EXPECT_THROW(convert_model("scan15_num_scan_inputs_exceeds_body_inputs.onnx"),
                     ov::frontend::OpConversionFailure,
@@ -94,4 +112,18 @@ TEST(ONNXFeConvertException, exception_if_scan_body_fewer_outputs_than_initial_v
     OV_EXPECT_THROW(convert_model("scan15_body_fewer_outputs_than_initial_values.onnx"),
                     ov::frontend::OpConversionFailure,
                     testing::HasSubstr("num_scan_outputs can't be negative"));
+}
+
+/// Tests that Crop rejects a 'border' attribute with fewer than 2 values, since border[0] and
+/// border[1] are read to build the slice 'begin' constant regardless of the 'scale' attribute.
+TEST(ONNXFeConvertException, exception_if_crop_border_too_short) {
+    OV_EXPECT_THROW(convert_model("crop_border_too_short.onnx"),
+                    ov::AssertFailure,
+                    testing::HasSubstr("expects at least 2 values in 'border' attribute, found: 1"));
+}
+
+TEST(ONNXFeConvertException, exception_if_crop_border_empty) {
+    OV_EXPECT_THROW(convert_model("crop_border_empty.onnx"),
+                    ov::AssertFailure,
+                    testing::HasSubstr("expects at least 2 values in 'border' attribute, found: 0"));
 }

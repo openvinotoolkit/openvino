@@ -360,6 +360,9 @@ static const ov::Version version = {CI_BUILD_NUMBER, "openvino_auto_plugin"};
 OV_DEFINE_PLUGIN_CREATE_FUNCTION(ov::auto_plugin::Plugin, version)
 // ! [plugin:create_plugin_engine]
 
+// This plugin does not participate in device-name dispatch; export the probe as a stub.
+OV_DEFINE_PLUGIN_ENUMERATE_STUB()
+
 Plugin::Plugin() {
     set_device_name("AUTO");
 }

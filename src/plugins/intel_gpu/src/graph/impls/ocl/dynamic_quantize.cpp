@@ -41,12 +41,14 @@ struct dynamic_quantize_impl : typed_primitive_impl_ocl<dynamic_quantize> {
         // It refers to IFM value of weight of fully connected, resolved when the primitive was created.
         params.fc_ifm_size = primitive->innermost_size;
 
-        if (impl_param.output_layouts.size() > 2)
+        if (impl_param.output_layouts.size() > 2) {
             params.outputs.push_back(convert_data_tensor(impl_param.get_output_layout(2)));
+        }
 
         // Keep 2d data as bf layout
-        if (primitive->input_size == 2)
+        if (primitive->input_size == 2) {
             params.outputs[0] = params.outputs[0].FlattenFeatureAndSpatials();
+        }
 
         const auto& desc = impl_param.typed_desc<dynamic_quantize>();
         params.group_sizes = desc->attrs.group_sizes;
