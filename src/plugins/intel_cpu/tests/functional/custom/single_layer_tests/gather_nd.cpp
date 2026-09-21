@@ -179,6 +179,35 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherND8DynamicBD_2,
                          subset_BD2,
                          GatherNDLayerCPUTest::getTestCaseName);
 
+class GatherND8LayerCPUTestNegative : public GatherND8LayerCPUTest {};
+
+TEST_P(GatherND8LayerCPUTestNegative, ThrowsOnOutOfRangeIndices) {
+    bool exception_caught = false;
+    set_callback_exception([&exception_caught](const std::exception& ex) {
+        exception_caught = true;
+        EXPECT_NE(dynamic_cast<const ov::Exception*>(&ex), nullptr) << "Expected ov::Exception but got: " << ex.what();
+    });
+    run();
+    EXPECT_TRUE(exception_caught) << "Expected an ov::Exception to be thrown for out-of-range indices";
+}
+
+const std::vector<InputShape> inputShapesOutOfRange = {
+    {{4, 4}, {{4, 4}}},
+};
+
+const std::vector<std::pair<Shape, std::vector<int>>> indexesShapesOutOfRange = {
+    std::pair<Shape, std::vector<int>>{{1, 2}, {40, 0}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_GatherND8OutOfRangeIndices,
+                         GatherND8LayerCPUTestNegative,
+                         ::testing::Combine(::testing::ValuesIn(inputShapesOutOfRange),
+                                            ::testing::ValuesIn(indexesShapesOutOfRange),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::ValuesIn(indexesPrecisions),
+                                            ::testing::Values(0)),
+                         GatherND8LayerCPUTest::getTestCaseName);
+
 }  // namespace
 }  // namespace test
 }  // namespace ov

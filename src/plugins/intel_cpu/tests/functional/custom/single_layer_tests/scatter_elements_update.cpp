@@ -169,5 +169,32 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs,
                                             ::testing::ValuesIn(inputPrecisions),
                                             ::testing::ValuesIn(constantPrecisions)),
                          ScatterElementsUpdateLayerCPUTest::getTestCaseName);
+
+class ScatterElementsUpdateLayerCPUTestNegative : public ScatterElementsUpdateLayerCPUTest {};
+
+TEST_P(ScatterElementsUpdateLayerCPUTestNegative, ThrowsOnOutOfRangeIndices) {
+    bool exception_caught = false;
+    set_callback_exception([&exception_caught](const std::exception& ex) {
+        exception_caught = true;
+        EXPECT_NE(dynamic_cast<const ov::Exception*>(&ex), nullptr) << "Expected ov::Exception but got: " << ex.what();
+    });
+    run();
+    EXPECT_TRUE(exception_caught) << "Expected an ov::Exception to be thrown for out-of-range indices";
+}
+
+const std::vector<ScatterElementsUpdateLayerParams> scatterOutOfRangeParams = {
+    ScatterElementsUpdateLayerParams{
+        ScatterElementsUpdateShapes{{{-1, -1}, {{2, 2}}}, {{-1, -1}, {{2, 2}}}, {{-1, -1}, {{2, 2}}}},
+        IndicesValues{-1000, 1, 0, 0},
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterElementsUpdateOutOfRangeIndices,
+                         ScatterElementsUpdateLayerCPUTestNegative,
+                         ::testing::Combine(::testing::ValuesIn(scatterOutOfRangeParams),
+                                            ::testing::Values(std::int64_t{0}),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::ValuesIn(constantPrecisions)),
+                         ScatterElementsUpdateLayerCPUTest::getTestCaseName);
 }  // namespace test
 }  // namespace ov

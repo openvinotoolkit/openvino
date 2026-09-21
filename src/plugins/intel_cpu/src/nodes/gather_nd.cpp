@@ -271,9 +271,11 @@ void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr,
 
 int32_t GatherND::GatherNDExecutor::HandleNegativeIndices(const int32_t* indices, size_t idx) const {
     int32_t index = indices[idx];
+    const auto dimSize = static_cast<int32_t>(srcDims[idx + batchDims]);
     if (index < 0) {
-        index += static_cast<int32_t>(srcDims[idx + batchDims]);
+        index += dimSize;
     }
+    OPENVINO_ASSERT(index >= 0 && index < dimSize, "GatherND indices value is out of bounds.");
     return index;
 }
 
