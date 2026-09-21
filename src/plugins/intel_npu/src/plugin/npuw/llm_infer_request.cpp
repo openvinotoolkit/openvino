@@ -1015,7 +1015,6 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     }
 
     auto attn_mask_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
-    auto pos_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
 
     const auto token_type_ids_it = m_prefill_in_ports.find(layer_names::token_type_ids);
     const bool has_token_type_ids = token_type_ids_it != m_prefill_in_ports.end();
@@ -1100,6 +1099,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                 // [3, BATCH, SEQ_LEN]
                 // Copy postion ids with considering the 3D position_ids
                 // The caller tensor is delta-relative during a continued prefill.
+                auto pos_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
                 auto last_dim = position_ids->get_shape().size() - 1;
                 const uint32_t pos_src_offset = kvcache_desc.num_stored_tokens - m_continued_prefill_base;
                 auto actual_position_ids_slice =
@@ -1108,11 +1108,11 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                                                     pos_src_offset,
                                                     pos_src_offset + static_cast<uint32_t>(current_prompts_len));
 
-                    auto pos_ids_slice =
-                        ov::npuw::util::make_tensor_slice(pos_ids_in_tensor,
-                                                        static_cast<uint32_t>(last_dim),
-                                                        static_cast<uint32_t>(chunk_prompt_len - current_prompts_len),
-                                                        static_cast<uint32_t>(chunk_prompt_len));
+                auto pos_ids_slice =
+                    ov::npuw::util::make_tensor_slice(pos_ids_in_tensor,
+                                                    static_cast<uint32_t>(last_dim),
+                                                    static_cast<uint32_t>(chunk_prompt_len - current_prompts_len),
+                                                    static_cast<uint32_t>(chunk_prompt_len));
 
                 // Copy with proper stride handling
                 NPUW_ASSERT(pos_ids_slice._ptr &&
