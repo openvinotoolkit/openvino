@@ -11,7 +11,7 @@ import openvino as ov
 from openvino import op
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from infer_tool import input_preparation  # noqa: E402 pylint: disable=import-error,wrong-import-position,wrong-import-order
+from infer_tool import input_preparation, result_to_named_dict  # noqa: E402 pylint: disable=import-error,wrong-import-position,wrong-import-order
 
 def _compile_model(shapes):
     """Build and compile a model with one Parameter/Result pair per shape in `shapes`."""
@@ -123,3 +123,95 @@ def test_infer_with_nameless_port_keyed_feed_dict():
     result = compiled_model(input_preparation(compiled_model))
 
     assert result[compiled_model.output(0)].shape == (1, 3)
+
+
+def test_result_to_named_dict_uses_real_names():
+    """Outputs with tensor names should keep those names as dict keys."""
+    compiled_model = _compile_model([[1, 3]])
+
+    result = compiled_model(input_preparation(compiled_model))
+    named_result = result_to_named_dict(result)
+
+    assert set(named_result.keys()) == {compiled_model.output(0).any_name}
+
+
+def test_result_to_named_dict_falls_back_for_nameless_output():
+    """Outputs without tensor names get a deterministic positional fallback name."""
+    core = ov.Core()
+    model = core.read_model(model=_IR_WITHOUT_PORT_NAMES, weights=b"")
+    assert not model.outputs[0].get_names(), "test setup must produce a nameless output"
+    compiled_model = core.compile_model(model, "CPU")
+
+    result = compiled_model(input_preparation(compiled_model))
+    named_result = result_to_named_dict(result)
+
+    assert set(named_result.keys()) == {"output_0"}
+
+
+# Two-output IR: output 0 has no tensor names, output 1 is explicitly named
+# "output_0" - the same string the fallback would generate for output 0.
+_IR_WITH_COLLIDING_OUTPUT_NAMES = b"""<?xml version="1.0"?>
+<net name="test_model" version="11">
+    <layers>
+        <layer id="0" name="input0" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,1"/>
+            <output>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="1" name="input1" type="Parameter" version="opset1">
+            <data element_type="f32" shape="1,1"/>
+            <output>
+                <port id="0" precision="FP32" names="output_0">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                </port>
+            </output>
+        </layer>
+        <layer id="2" name="output0" type="Result" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                </port>
+            </input>
+        </layer>
+        <layer id="3" name="output1" type="Result" version="opset1">
+            <input>
+                <port id="0" precision="FP32">
+                    <dim>1</dim>
+                    <dim>1</dim>
+                </port>
+            </input>
+        </layer>
+    </layers>
+    <edges>
+        <edge from-layer="0" from-port="0" to-layer="2" to-port="0"/>
+        <edge from-layer="1" from-port="0" to-layer="3" to-port="0"/>
+    </edges>
+</net>
+"""
+
+
+def test_result_to_named_dict_avoids_collision_with_real_name():
+    """A real output name matching the fallback pattern must not overwrite another output."""
+    core = ov.Core()
+    model = core.read_model(model=_IR_WITH_COLLIDING_OUTPUT_NAMES, weights=b"")
+    assert not model.outputs[0].get_names() and model.outputs[1].get_names() == {
+        "output_0"
+    }, "test setup must produce a nameless output colliding with a named one"
+    compiled_model = core.compile_model(model, "CPU")
+
+    result = compiled_model(
+        {
+            compiled_model.inputs[0]: np.array([[1.0]], dtype=np.float32),
+            compiled_model.inputs[1]: np.array([[2.0]], dtype=np.float32),
+        }
+    )
+    named_result = result_to_named_dict(result)
+
+    assert len(named_result) == 2
+    assert sorted(v.item() for v in named_result.values()) == [1.0, 2.0]

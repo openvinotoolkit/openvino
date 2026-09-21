@@ -33,6 +33,23 @@ def input_preparation(compiled_model):
     return feed_dict
 
 
+def result_to_named_dict(result):
+    """
+    Convert an inference OVDict (keyed by output ports) to unique string keys for np.savez.
+    :param result: OVDict returned by calling a CompiledModel
+    :return: Dict with unique string keys and the same values as `result`
+    """
+
+    named_result = {}
+    for i, (port, value) in enumerate(result.items()):
+        key = port.any_name if port.get_names() else f"output_{i}"
+        # Guard against a real tensor name colliding with the positional fallback.
+        while key in named_result:
+            key = f"{key}_{i}"
+        named_result[key] = value
+    return named_result
+
+
 def infer(ir_path, device):
     """
     Function to perform OV inference using python API "in place"
@@ -81,7 +98,7 @@ if __name__ == "__main__":
     for model in ir_path:
         result = infer(ir_path=model, device=device)
         # OVDict keys are ports, not strings; np.savez needs string keyword keys.
-        named_result = {(port.any_name if port.get_names() else f"output_{i}"): value for i, (port, value) in enumerate(result.items())}
+        named_result = result_to_named_dict(result)
 
         np.savez(out_path / f"{Path(model).name}.npz", **named_result)
 
