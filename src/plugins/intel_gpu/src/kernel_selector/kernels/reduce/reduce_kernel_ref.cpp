@@ -28,7 +28,16 @@ ParamsKey ReduceKernelRef::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableDifferentTypes();
     k.EnableDynamicShapesSupport();
+    k.EnableEltwiseBroadcast();
     return k;
+}
+
+bool ReduceKernelRef::Validate(const Params& p) const {
+    if (!ReduceKernelBase::Validate(p)) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+
+    return true;
 }
 
 CommonDispatchData ReduceKernelRef::SetDefault(const reduce_params& params) const {

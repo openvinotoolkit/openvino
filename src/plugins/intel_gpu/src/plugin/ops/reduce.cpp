@@ -2,29 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
-#include "openvino/op/reduce_sum.hpp"
-#include "openvino/op/reduce_prod.hpp"
-#include "openvino/op/reduce_mean.hpp"
-#include "openvino/op/reduce_logical_or.hpp"
-#include "openvino/op/reduce_logical_and.hpp"
-#include "openvino/op/reduce_l1.hpp"
-#include "openvino/op/reduce_l2.hpp"
-#include "openvino/op/reduce_min.hpp"
-#include "openvino/op/reduce_max.hpp"
-#include "openvino/op/constant.hpp"
-
 #include "intel_gpu/primitives/reduce.hpp"
+
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/plugin/weighted_reduce.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/reduce_l1.hpp"
+#include "openvino/op/reduce_l2.hpp"
+#include "openvino/op/reduce_logical_and.hpp"
+#include "openvino/op/reduce_logical_or.hpp"
+#include "openvino/op/reduce_max.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/reduce_min.hpp"
+#include "openvino/op/reduce_prod.hpp"
+#include "openvino/op/reduce_sum.hpp"
 
 namespace ov::intel_gpu {
 
 static void CreateReduceOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& op, cldnn::reduce_mode mode, bool keep_dims) {
     validate_inputs_count(op, {2});
-    auto inputs = p.GetInputInfo(op);
     std::string layerName = layer_type_name_ID(op);
     auto input_pshape = op->get_input_partial_shape(0);
     int64_t rank = input_pshape.size();
@@ -43,13 +42,13 @@ static void CreateReduceOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& o
         }
     }
 
-    auto reducePrim = cldnn::reduce(layerName,
-                                    inputs[0],
-                                    mode,
-                                    axes,
-                                    keep_dims);
-
-    p.add_primitive(*op, reducePrim);
+    if (const auto match = get_weighted_reduce_match(op.get())) {
+        const auto multiply_inputs = p.GetInputInfo(match->multiply);
+        p.add_primitive(*op, cldnn::reduce(layerName, multiply_inputs[match->values_idx], multiply_inputs[match->weights_idx], mode, axes, keep_dims));
+    } else {
+        const auto inputs = p.GetInputInfo(op);
+        p.add_primitive(*op, cldnn::reduce(layerName, inputs[0], mode, axes, keep_dims));
+    }
 
     if (input_pshape.is_dynamic() || p.use_new_shape_infer()) {
         return;

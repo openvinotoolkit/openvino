@@ -6,15 +6,17 @@
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/plugin/weighted_reduce.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/bitwise_and.hpp"
-#include "openvino/op/bitwise_or.hpp"
-#include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/bitwise_left_shift.hpp"
+#include "openvino/op/bitwise_or.hpp"
 #include "openvino/op/bitwise_right_shift.hpp"
+#include "openvino/op/bitwise_xor.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/floor_mod.hpp"
@@ -34,6 +36,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/not_equal.hpp"
 #include "openvino/op/power.hpp"
+#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/xor.hpp"
@@ -104,6 +107,8 @@ static void CreateAddOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Add
 }
 
 static void CreateMultiplyOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Multiply>& op) {
+    if (is_weighted_reduce_multiply(op.get()))
+        return;
     CreateElementwiseOp(p, op, cldnn::eltwise_mode::prod);
 }
 

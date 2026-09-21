@@ -25,13 +25,34 @@ bool ReduceKernelBase::Validate(const Params& p) const {
         }
     }
 
+    if (params.weighted && (!SupportsWeightedReduce() || !IsWeightedReducePattern(params))) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+
     return true;
+}
+
+bool ReduceKernelBase::IsWeightedReducePattern(const reduce_params& params) {
+    if (!params.weighted || params.is_shape_agnostic || params.inputs.size() != 2 || params.outputs.size() != 1 ||
+        (params.reduceMode != ReduceMode::SUM && params.reduceMode != ReduceMode::MEAN) || params.reduceAxes.size() != 1 || params.reduceAxes[0] != 2) {
+        return false;
+    }
+
+    const auto& values = params.inputs[0];
+    const auto& weights = params.inputs[1];
+    const auto& output = params.outputs[0];
+    return values.Dimentions() == 4 && weights.Dimentions() == 4 && output.Dimentions() == 4 &&
+           (values.GetDType() == Datatype::F16 || values.GetDType() == Datatype::F32) && values.GetDType() == weights.GetDType() && values.X().v == 16 &&
+           weights.X().v == 16 && output.X().v == 1 && values.Y().v > 1024 && values.Batch().v == weights.Batch().v && values.Batch().v == output.Batch().v &&
+           weights.Feature().v == 1 && values.Feature().v > 1 && values.Feature().v == output.Feature().v && values.Y().v == weights.Y().v &&
+           values.Y().v == output.Y().v;
 }
 
 JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
     jit.AddConstant(MakeJitConstant("REDUCE_" + toString(params.reduceMode) + "_MODE", 1));
     jit.AddConstant(MakeJitConstant("KEEP_DIMS", params.keepDims));
+    jit.AddConstant(MakeJitConstant("WEIGHTED_REDUCE", params.weighted));
 
     auto inputDims = params.inputs[0].LogicalDims();
     std::reverse(inputDims.begin(), inputDims.end());
@@ -287,7 +308,7 @@ KernelsData ReduceKernelBase::GetCommonKernelsData(const Params& p) const {
                      EXE_MODE_DEFAULT,
                      false,
                      false,
-                     1,
+                     static_cast<int>(params.inputs.size()),
                      GetFusedPrimitiveInputsCount(params),
                      1,
                      params.is_shape_agnostic);
