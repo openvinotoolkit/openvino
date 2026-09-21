@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-21-15-45-59-000-35611485728",
+  "timestamp": "2026-09-21T15:45:59Z",
+  "run_id": "35611485728",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35611485728",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "38190",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38190",
+  "author": "alvoron",
+  "category": "Dependencies",
+  "title": "LLM accuracy tests fail importing openvino_genai - libopenvino.so.2640 not found",
+  "signature": "importerror libopenvino so 2640 cannot open shared object file no such file or directory|Dependencies",
+  "signature_hash": "a87e95431b0e8175",
+  "confidence": "Medium",
+  "failed_jobs": [
+    {
+      "name": "LLM accuracy CPU tests / LLM accuracy CPU tests",
+      "conclusion": "failure",
+      "symptom": "pytest collection error: ImportError: libopenvino.so.2640: cannot open shared object file: No such file or directory (raised while importing openvino_genai via whowhatbench)"
+    },
+    {
+      "name": "LLM accuracy iGPU tests / LLM accuracy GPU tests",
+      "conclusion": "failure",
+      "symptom": "Identical pytest collection error: ImportError: libopenvino.so.2640: cannot open shared object file: No such file or directory"
+    }
+  ],
+  "key_errors": [
+    "ImportError while importing test module '/__w/openvino/openvino/tests/llm/accuracy_conformance.py'.\ntests/llm/accuracy_conformance.py:15: in <module>\n    import whowhatbench as wwb\n/venv/lib/python3.12/site-packages/whowhatbench/__init__.py:7: in <module>\n    from .text2image_evaluator import Text2ImageEvaluator\n/venv/lib/python3.12/site-packages/whowhatbench/text2image_evaluator.py:11: in <module>\n    import openvino_genai\n/venv/lib/python3.12/site-packages/openvino_genai/__init__.py:13: in <module>\n    from .py_openvino_genai import (\nE   ImportError: libopenvino.so.2640: cannot open shared object file: No such file or directory",
+    "Successfully installed ... openvino-genai-2026.4.0.0 openvino-tokenizers-2026.4.0.0 ... (installed transitively via the whowhatbench/optimum-intel dependency chain, pulled from PyPI rather than the job's locally-built OpenVINO wheel)"
+  ],
+  "root_cause": "The job_llm_accuracy_tests.yml workflow explicitly installs the locally-built 'openvino' and 'openvino_tokenizers' wheels via the install_ov_wheels composite action, but the subsequent 'pip install -r tests/llm/requirements.txt' step pulls in 'whowhatbench' (from openvino.genai git subdirectory) which depends on 'optimum-intel[nncf,tests]', which transitively requires 'openvino-genai'. Pip resolves and installs 'openvino-genai-2026.4.0.0' and 'openvino-tokenizers-2026.4.0.0' from the public/proxy index as prebuilt wheels bundling their own libopenvino.so with SOVERSION 2640 embedded rpath, while overwriting/shadowing the previously-installed local 'openvino_tokenizers' wheel (log shows 'Uninstalling openvino-tokenizers-2026.4.1.0' then reinstalling 2026.4.0.0). The 'openvino_genai' native extension (py_openvino_genai) then looks for its bundled libopenvino.so.2640 which pip's dependency resolver did not actually provision (only the metadata/wheel for openvino-genai's Python side was pulled, not the matching core runtime it was linked against), causing the shared-library load to fail at import time. This affected both CPU and iGPU device variants identically, since the requirements install step is device-agnostic and runs before the device-specific pytest invocation.",
+  "reproduction_steps": "In a fresh venv: 1) pip install <local openvino wheel> <local openvino_tokenizers wheel>; 2) pip install -r tests/llm/requirements.txt (which pulls whowhatbench from openvino.genai git + optimum-intel[nncf,tests]); 3) python3 -c \"import openvino_genai\" -> reproduces ImportError: libopenvino.so.2640: cannot open shared object file: No such file or directory.",
+  "recommended_actions": [
+    "Pin 'openvino-genai' (and its embedded openvino/openvino-tokenizers versions) as a locally-built wheel dependency in tests/llm/requirements.txt or install it explicitly via install_ov_wheels alongside 'openvino' and 'openvino_tokenizers', instead of letting pip resolve it transitively from the index.",
+    "Add a '--no-deps' or constraint entry in tests/constraints.txt to prevent pip from silently reinstalling a different-versioned openvino-tokenizers/openvino-genai during the 'pip install -r requirements.txt' step.",
+    "After installing test requirements, run 'python3 -c \"import openvino_genai\"' as a fast-fail sanity check step before running the full pytest suite, to catch this class of ABI/version mismatch earlier with a clearer error.",
+    "Verify LD_LIBRARY_PATH / RPATH setup is not being overridden when the transitively-installed openvino-genai wheel takes precedence over the locally built one."
+  ],
+  "prevention_strategies": "Add an explicit version constraint (or the locally-built wheel path) for openvino-genai and openvino-tokenizers in tests/llm/constraints.txt so pip cannot silently swap in a different, un-linked prebuilt runtime during transitive dependency resolution. Consider a CI smoke-import step immediately after wheel installation for any job that installs additional OpenVINO-dependent python packages.",
+  "historical_context": "No prior investigation with this exact signature (libopenvino.so.2640 ImportError) was found in the CI Doctor MQ pattern database; this appears to be a new failure mode, first observed in this run for both the CPU and iGPU LLM accuracy jobs simultaneously."
+}

@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "importerror libopenvino so 2640 cannot open shared object file no such file or directory|Dependencies",
+  "signature_hash": "a87e95431b0e8175",
+  "title": "LLM accuracy tests fail importing openvino_genai - libopenvino.so.2640 not found",
+  "category": "Dependencies",
+  "count": 1,
+  "first_seen": "2026-09-21T15:45:59Z",
+  "last_seen": "2026-09-21T15:45:59Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/35611485728"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38190"
+  ],
+  "recent_timestamps": [
+    "2026-09-21T15:45:59Z"
+  ],
+  "rerun_search_string": null
+}

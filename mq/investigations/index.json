@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 253,
+  "total": 254,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2485,6 +2485,17 @@
       "title": "OpenVINO tokenizers extension build fails downloading pcre2-10.48.zip (HTTP 504 from github.com)",
       "category": "Network",
       "signature_hash": "2baab38e090720ec",
+      "pr_number": "38190"
+    },
+    {
+      "investigation_id": "2026-09-21-15-45-59-000-35611485728",
+      "run_id": "35611485728",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35611485728",
+      "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+      "timestamp": "2026-09-21T15:45:59Z",
+      "title": "LLM accuracy tests fail importing openvino_genai - libopenvino.so.2640 not found",
+      "category": "Dependencies",
+      "signature_hash": "a87e95431b0e8175",
       "pr_number": "38190"
     }
   ]
