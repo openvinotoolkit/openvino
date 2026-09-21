@@ -20,6 +20,28 @@ namespace npuw {
 namespace moe {
 
 /**
+ * @brief Single source of truth for MoE profiling bucket names.
+ *
+ * Chunk-size-dependent tags (NPU Wait, Scatter Output) are NOT here: their
+ * names depend on runtime chunk size values, so they're precomputed into
+ * MoEResources::wait_tag / scatter_tag instead of being static literals.
+ */
+namespace tags {
+constexpr const char* kParseRouterOutput = "Parse Router Output";
+constexpr const char* kTotalExpertBatch = "Total Expert Batch";
+constexpr const char* kTotalExpertIterative = "Total Expert Iterative";
+constexpr const char* kUnpackClosure = "Unpack Closure";
+constexpr const char* kSetRouterInput = "Set Router Input";
+constexpr const char* kExpertInference = "Expert Inference";
+constexpr const char* kGetOutputTensor = "Get Output Tensor";
+constexpr const char* kParseRouterRow = "Parse Router Row";
+constexpr const char* kGetIOTensors = "Get I/O Tensors";
+constexpr const char* kGatherRouterScores = "Gather Router Scores";
+constexpr const char* kGatherExpertInput = "Gather Expert Input";
+constexpr const char* kNpuStart = "NPU Start";
+}  // namespace tags
+
+/**
  * @brief MoE performance profiling structure.
  *
  * Tracks performance metrics for MoE operations in different processing modes.
