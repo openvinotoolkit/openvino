@@ -869,3 +869,9 @@ else()
     list(APPEND CPU_FUNC_TESTS_CHECK_SOURCES_EXCLUDE_FILES
         ${CPU_FUNC_TESTS_ARM_SRCS} ${TMP_LIST_OF_ARM_TEST_INSTANCES} ${TMP_LIST_OF_ARM_SUBGRAPH_TESTS})
 endif()
+
+# Link order defines cross-translation-unit static initialization order: `classes/*.cpp` define
+# accessors (e.g. matmulFusingParams()) that must be initialized before the `instances/*.cpp`
+# namespace-scope test parameters which read them, otherwise fusing specs silently collapse to
+# empty and gtest aborts on duplicate parameterized test names.
+list(SORT CPU_FUNC_TESTS_SRCS)
