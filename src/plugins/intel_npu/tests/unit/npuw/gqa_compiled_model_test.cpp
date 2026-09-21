@@ -45,18 +45,6 @@ using ov::test::npuw::build_llm_test_model;
 using ov::test::npuw::MockSubCompiledModel;
 using ov::test::npuw::NullPlugin;
 
-std::string make_gqa_header(const std::size_t claimed_version_size, const std::string& version) {
-    std::ostringstream stream;
-    ov::npuw::s11n::write(stream, NPUW_SERIALIZATION_INDICATOR);
-    ov::npuw::s11n::write(stream, NPUW_GQA_COMPILED_MODEL_INDICATOR);
-    ov::npuw::s11n::write(stream, OPENVINO_VERSION_MAJOR);
-    ov::npuw::s11n::write(stream, OPENVINO_VERSION_MINOR);
-    ov::npuw::s11n::write(stream, OPENVINO_VERSION_PATCH);
-    ov::npuw::s11n::write(stream, claimed_version_size);
-    stream.write(version.data(), static_cast<std::streamsize>(version.size()));
-    return stream.str();
-}
-
 template <class Op>
 std::size_t count_ops(const std::shared_ptr<ov::Model>& model) {
     const auto ops = model->get_ops();
@@ -1576,11 +1564,11 @@ private:
 
 class FakeInnerCompiledModel final : public ov::npuw::ICompiledModel {
 public:
-        FakeInnerCompiledModel(const std::shared_ptr<ov::Model>& model,
-                                                     const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                     std::shared_ptr<FakeInnerRequestState> state)
-                : ov::npuw::ICompiledModel(model, plugin),
-                    m_state(std::move(state)) {}
+    FakeInnerCompiledModel(const std::shared_ptr<ov::Model>& model,
+                           const std::shared_ptr<const ov::IPlugin>& plugin,
+                           std::shared_ptr<FakeInnerRequestState> state)
+        : ov::npuw::ICompiledModel(model, plugin),
+          m_state(std::move(state)) {}
     void export_model(std::ostream&) const override {}
     std::shared_ptr<const ov::Model> get_runtime_model() const override {
         return {};
@@ -1659,9 +1647,10 @@ TEST_F(GQACompiledModelTest, SharedCallerKvBuffersDoNotAllocateInnerKvTensors) {
             auto tensor = make_f16_kv_cache_tensor(shape, 1.f);
             request->set_tensor(input, tensor);
             const auto output_name = name == "past_keys_0" ? "present_keys_0" : "present_values_0";
-            const auto output = std::find_if(compiled->outputs().begin(), compiled->outputs().end(), [&](const auto& port) {
-                return port.get_node()->get_friendly_name() == output_name;
-            });
+            const auto output =
+                std::find_if(compiled->outputs().begin(), compiled->outputs().end(), [&](const auto& port) {
+                    return port.get_node()->get_friendly_name() == output_name;
+                });
             ASSERT_NE(output, compiled->outputs().end());
             request->set_tensor(*output, tensor);
             EXPECT_EQ(state->tensors.at(name)._ptr, tensor._ptr);
@@ -1705,7 +1694,7 @@ TEST_F(GQACompiledModelTest, PaddingBufferIsLazyZeroedAndReleasedWhenReplaced) {
                 EXPECT_FLOAT_EQ(static_cast<float>(data[index]), 0.f);
             } else {
                 const auto source_index = axis == 2 ? (index / (16 * row_size)) * 4 * row_size + index % (16 * row_size)
-                                                     : (index / 16) * 4 + index % 16;
+                                                    : (index / 16) * 4 + index % 16;
                 EXPECT_FLOAT_EQ(static_cast<float>(data[index]), static_cast<float>(source_data[source_index]));
             }
         }
@@ -1950,20 +1939,16 @@ TEST(GQACompiledModelSerializationTest, RoundTripsOuterModelPortsAndDynamicAxisM
     const std::unordered_map<std::string, size_t> axis_map{{"past_keys_0", 2u}, {"past_values_0", 2u}};
 
     std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
-    ov::npuw::GQACompiledModel::write_port_list(buffer, outer_inputs);
-    ov::npuw::GQACompiledModel::write_port_list(buffer, outer_outputs);
-    {
-        auto writer = ov::npuw::orc::Stream::writer(buffer);
-        writer & axis_map;
-    }
+    auto writer = ov::npuw::orc::Stream::writer(buffer);
+    ov::npuw::GQACompiledModel::write_port_list(writer, outer_inputs);
+    ov::npuw::GQACompiledModel::write_port_list(writer, outer_outputs);
+    writer & axis_map;
 
-    ov::ParameterVector read_parameters = ov::npuw::GQACompiledModel::read_input_port_list(buffer);
-    ov::NodeVector read_results = ov::npuw::GQACompiledModel::read_output_port_list(buffer);
+    auto reader = ov::npuw::orc::Stream::reader(buffer);
+    ov::ParameterVector read_parameters = ov::npuw::GQACompiledModel::read_input_port_list(reader);
+    ov::NodeVector read_results = ov::npuw::GQACompiledModel::read_output_port_list(reader);
     std::unordered_map<std::string, size_t> read_axis_map;
-    {
-        auto reader = ov::npuw::orc::Stream::reader(buffer);
-        reader & read_axis_map;
-    }
+    reader & read_axis_map;
 
     ASSERT_EQ(read_parameters.size(), outer_inputs.size());
     ASSERT_EQ(read_results.size(), outer_outputs.size());
@@ -2013,8 +1998,10 @@ TEST(GQACompiledModelSerializationTest, RoundTripsTensorNamesSeparatelyFromFrien
     std::vector<ov::Output<const ov::Node>> ports{param->output(0)};
 
     std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
-    ov::npuw::GQACompiledModel::write_port_list(buffer, ports);
-    auto read_back = ov::npuw::GQACompiledModel::read_input_port_list(buffer);
+    auto writer = ov::npuw::orc::Stream::writer(buffer);
+    ov::npuw::GQACompiledModel::write_port_list(writer, ports);
+    auto reader = ov::npuw::orc::Stream::reader(buffer);
+    auto read_back = ov::npuw::GQACompiledModel::read_input_port_list(reader);
 
     ASSERT_EQ(read_back.size(), 1u);
     EXPECT_EQ(read_back[0]->get_friendly_name(), "past_keys_0");
@@ -2067,8 +2054,10 @@ TEST(GQACompiledModelSerializationTest, RoundTripsBoundedDynamicDimensionAndNonF
     std::vector<ov::Output<const ov::Node>> ports{param->output(0)};
 
     std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
-    ov::npuw::GQACompiledModel::write_port_list(buffer, ports);
-    auto read_back = ov::npuw::GQACompiledModel::read_input_port_list(buffer);
+    auto writer = ov::npuw::orc::Stream::writer(buffer);
+    ov::npuw::GQACompiledModel::write_port_list(writer, ports);
+    auto reader = ov::npuw::orc::Stream::reader(buffer);
+    auto read_back = ov::npuw::GQACompiledModel::read_input_port_list(reader);
 
     ASSERT_EQ(read_back.size(), 1u);
     EXPECT_EQ(read_back[0]->get_friendly_name(), "attention_bias");
@@ -2408,42 +2397,84 @@ TEST(GQACompiledModelPresentToPastParamNamesTest, MapsDotStyleNamesNotMatchingSu
     EXPECT_EQ(map.at("present.0.value"), "past_key_values.0.value");
 }
 
-TEST_F(GQACompiledModelTest, ImportRejectsExcessiveSerializationVersionLengthBeforeAllocation) {
-    const auto header = make_gqa_header(std::numeric_limits<std::size_t>::max(), NPUW_SERIALIZATION_VERSION);
-    std::istringstream stream(header);
+TEST_F(GQACompiledModelTest, ImportRejectsNonORCGQACompiledModelWithPrettyMessage) {
+    std::stringstream stream;
+    ov::npuw::s11n::write(stream, NPUW_SERIALIZATION_INDICATOR);
+    ov::npuw::s11n::write(stream, NPUW_GQA_COMPILED_MODEL_INDICATOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_MAJOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_MINOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_PATCH);
+    ov::npuw::s11n::write(stream, std::string(NPUW_SERIALIZATION_VERSION));
 
-    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
-                                  ov::Exception,
-                                  "the maximum is 64");
+    OV_EXPECT_THROW_HAS_SUBSTRING(
+        ov::npuw::ICompiledModel::import_model(stream, m_plugin, {}),
+        ov::Exception,
+        "Legacy flat NPUW CompiledModel blobs are no longer supported. Re-export the model with "
+        "the current ORC serializer.");
 }
 
-TEST_F(GQACompiledModelTest, ImportRejectsSerializationVersionLongerThanCap) {
-    const std::string version(65u, 'x');
-    const auto header = make_gqa_header(version.size(), version);
-    std::istringstream stream(header);
+TEST_F(GQACompiledModelTest, ImportRejectsNonORCGQASchema) {
+    std::stringstream stream;
+    ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA);
+    ov::npuw::orc::with_section(stream,
+                                ov::npuw::GQACompiledModel::kOrcType,
+                                ov::npuw::GQACompiledModel::kOrcVersion,
+                                0u,
+                                [&] {});
 
     OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
                                   ov::Exception,
-                                  "serialization version string is 65 bytes, the maximum is 64");
+                                  "Unsupported ORC schema for NPUW GQACompiledModel");
 }
 
-TEST_F(GQACompiledModelTest, ImportReportsVersionMismatchForVersionAtCap) {
-    const std::string version(64u, 'x');
-    const auto header = make_gqa_header(version.size(), version);
-    std::istringstream stream(header);
+TEST_F(GQACompiledModelTest, ImportRejectsNewerORCGQAVersion) {
+    constexpr ov::npuw::orc::Version newer_gqa_version = ov::npuw::GQACompiledModel::kOrcVersion + 1;
+
+    std::stringstream stream;
+    ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA);
+    ov::npuw::orc::with_section(stream, ov::npuw::GQACompiledModel::kOrcType, newer_gqa_version, 0u, [&] {});
 
     OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
                                   ov::Exception,
-                                  "NPUW serialized by version " + version);
+                                  "GQA blob was produced by a newer NPUW");
 }
 
-TEST_F(GQACompiledModelTest, ImportReportsVersionMismatchForDifferentVersionLength) {
-    const auto header = make_gqa_header(3u, "0.3");
-    std::istringstream stream(header);
+TEST_F(GQACompiledModelTest, ImportRejectsORCGQAMetaMissingOrNonLeafSection) {
+    std::stringstream stream;
+    ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA);
+    ov::npuw::orc::with_section(stream,
+                                ov::npuw::GQACompiledModel::kOrcType,
+                                ov::npuw::GQACompiledModel::kOrcVersion,
+                                0u,
+                                [&] {
+                                    // It is expected for GQACompiledModel to have an inner ov::npuw::CompiledModel
+                                    // section, but not before META section
+                                    ov::npuw::orc::with_section(stream,
+                                                                ov::npuw::CompiledModel::kOrcType,
+                                                                ov::npuw::CompiledModel::kOrcVersion,
+                                                                0u,
+                                                                [&] {});
+                                });
 
     OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
                                   ov::Exception,
-                                  "NPUW serialized by version 0.3");
+                                  "Expected ORC NPUW metadata section, got type");
+
+    stream.str(std::string());
+    ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_GQA_SCHEMA);
+    ov::npuw::orc::with_section(
+        stream,
+        ov::npuw::GQACompiledModel::kOrcType,
+        ov::npuw::GQACompiledModel::kOrcVersion,
+        0u,
+        [&] {
+            // Even if it is a nested section of META type, import still rejects it because it is not a LEAF section
+            ov::npuw::orc::with_section(stream, ov::npuw::orc::META_SECTION_TYPE, 0u, 0u, [&] {});
+        });
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "Expected ORC NPUW metadata section, got type");
 }
 
 }  // namespace
