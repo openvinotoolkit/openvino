@@ -74,7 +74,6 @@ private:
             ov::intel_npu::compiler_dynamic_quantization.name(),
             ov::intel_npu::compiler_type.name(),
             ov::intel_npu::dma_engines.name(),
-            ov::intel_npu::driver_version.name(),
             ov::intel_npu::dynamic_shape_to_static.name(),
             ov::intel_npu::enable_strides_for.name(),
             ov::intel_npu::max_tiles.name(),
