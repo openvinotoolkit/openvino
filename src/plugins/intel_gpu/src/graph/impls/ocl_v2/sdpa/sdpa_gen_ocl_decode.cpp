@@ -248,7 +248,13 @@ bool SDPAOclDecodeGenerator::supported(const RuntimeParams& params) {
     if (desc->has_scores_output() || desc->has_score_aggregation) {
         return false;
     }
-    if (desc->has_alibi || desc->has_qq_bias || desc->has_xattention) {
+    // qq_bias is deliberately NOT rejected: GENERATE processes exactly one new token per sequence, so
+    // its speculative-tree mask is always the 1x1 identity (a query may always attend itself) and the
+    // kernel's plain causal masking already yields the correct result without reading qq_bias at all.
+    // This is what lets a qq_bias model use the token-major BY_CHANNEL K layout -- the writer,
+    // sdpa_ocl_decode and sdpa_ocl (MIXED) all understand it, and the transformations_pipeline gate
+    // intentionally leaves qq_bias out of allow_by_channel_token_major's rejection list.
+    if (desc->has_alibi || desc->has_xattention) {
         return false;
     }
 
