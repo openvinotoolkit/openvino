@@ -1,0 +1,20 @@
+{
+    "schema_version": "1.0",
+    "signature": "context canceled the operation was canceled|Infrastructure",
+    "signature_hash": "48900859e95c4f3d",
+    "title": "Merge-queue run cancelled after being superseded by a newer run on the same ref",
+    "category": "Infrastructure",
+    "count": 1,
+    "first_seen": "2026-09-21T20:57:23Z",
+    "last_seen": "2026-09-21T20:57:23Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/35643124789"
+    ],
+    "affected_prs": [
+        "https://github.com/openvinotoolkit/openvino/pull/38168"
+    ],
+    "recent_timestamps": [
+        "2026-09-21T20:57:23Z"
+    ],
+    "rerun_search_string": "The operation was canceled."
+}

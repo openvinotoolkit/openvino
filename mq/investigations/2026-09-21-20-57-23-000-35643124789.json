@@ -1,0 +1,35 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-09-21-20-57-23-000-35643124789",
+    "timestamp": "2026-09-21T20:57:23Z",
+    "run_id": "35643124789",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35643124789",
+    "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+    "pr_number": "38168",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38168",
+    "author": "mvafin",
+    "category": "Infrastructure",
+    "title": "Merge-queue run cancelled after being superseded by a newer run on the same ref",
+    "signature": "context canceled the operation was canceled|Infrastructure",
+    "signature_hash": "48900859e95c4f3d",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "iGPU RoPE Tests / GPU_RoPE",
+            "conclusion": "cancelled",
+            "symptom": "Download OpenVINO artifacts (package) step aborted mid-download with 'context canceled' / 'The operation was canceled.'"
+        }
+    ],
+    "key_errors": [
+        "2026-09-21T20:51:31.1975567Z context canceled\n2026-09-21T20:51:31.2174773Z ##[error]The operation was canceled."
+    ],
+    "root_cause": "The run's overall conclusion was 'cancelled' (not 'failure'). Only one job ('iGPU RoPE Tests / GPU_RoPE') actually shows a cancelled conclusion, and its logs show a generic 'context canceled' / 'The operation was canceled.' error mid-way through an artifact download step -- there is no application-level error. All other 38 jobs in the run were 'success' or 'skipped'. The ubuntu_22.yml workflow (and its sibling per-OS workflows) define concurrency.group as `${{ github.ref }}-ubuntu-22` with cancel-in-progress: true (lines 27-30). Merge-queue runs share the same head_branch (gh-readonly-queue/master/pr-38168-<sha>) across attempts/re-queues of the same PR, so github.ref is identical across consecutive runs for this PR. Listing workflow runs on that same head_branch shows two later runs (35653415300 and the in-progress 35653600791) created shortly after this run started, both on the identical concurrency group key. GitHub Actions' cancel-in-progress concurrency control therefore cancelled this older, still-running run 35643124789 in favor of the newer one, which is the expected/intended behavior of the cancel-in-progress concurrency guard rather than a code, dependency, or test defect.",
+    "reproduction_steps": "N/A - not reproducible as a code/test failure. To confirm the same behavior: trigger two merge-queue attempts for the same PR in quick succession and observe that the earlier run's jobs are cancelled once the newer run starts, because both share the concurrency group `${{ github.ref }}-ubuntu-22` with cancel-in-progress: true.",
+    "recommended_actions": [
+        "No code fix needed for this PR; the run was intentionally superseded by concurrency control, not an application failure.",
+        "If this canceled-and-superseded pattern recurs, verify the merge-queue is not repeatedly re-queuing the same PR/commit (e.g., due to flaky prerequisite checks) which would waste CI capacity on runs that are cancelled before completing.",
+        "Rely on the newer, still-in-progress run (35653415300 / 35653600791) for the actual pass/fail signal for this PR revision."
+    ],
+    "prevention_strategies": "This is expected GitHub Actions concurrency-group behavior (cancel-in-progress: true) and does not need prevention, but repeated re-queues of the same PR causing repeated cancellations may indicate an upstream flakiness/re-add loop worth monitoring via the pattern database's occurrence count.",
+    "historical_context": "No prior CI Doctor MQ investigation recorded this exact 'superseded-by-newer-run cancellation' signature; other stored Infrastructure patterns involve runner shutdown signals or jobs cancelled before runner assignment, which are distinct failure modes from a cancel-in-progress concurrency-group supersession."
+}
