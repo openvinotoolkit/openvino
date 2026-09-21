@@ -3,7 +3,6 @@
 #
 
 add_subdirectory(vectorized)
-include(${CMAKE_CURRENT_SOURCE_DIR}/sources.cmake)
 
 set(TARGET_NAME ov_cpu_unit_tests)
 
@@ -14,6 +13,8 @@ endif()
 if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     ov_add_compiler_flags(/wd5051)
 endif()
+
+include(${CMAKE_CURRENT_SOURCE_DIR}/sources.cmake)
 
 set(CPU_UNIT_TESTS_CHECK_SOURCES_EXCLUDE_FILES)
 if(ARM OR AARCH64)
