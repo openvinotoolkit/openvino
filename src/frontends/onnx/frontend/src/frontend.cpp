@@ -232,7 +232,14 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         FRONT_END_GENERAL_CHECK(
             model_proto_ptr->has_ir_version() && model_proto_ptr->ir_version() < Version::IR_VERSION,
             "A ModelProto object contains unsupported IR version");
-        return std::make_shared<InputModel>(std::make_shared<ModelProto>(*model_proto_ptr), m_extensions);
+        auto model_proto = std::make_shared<ModelProto>(*model_proto_ptr);
+        if (!gi_enabled) {
+            return std::make_shared<InputModel>(std::move(model_proto), m_extensions);
+        }
+        auto graph_iterator = std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
+        graph_iterator->initialize(std::move(model_proto));
+        graph_iterator->reset();
+        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, m_extensions.telemetry);
     }
     // !!! End of Experimental feature
 

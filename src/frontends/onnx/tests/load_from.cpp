@@ -191,7 +191,7 @@ TEST(FrontEndInputModel, InitializersAreNotModelInputs) {
 namespace {
 
 // Exercise both the default and explicit iterator setting, as well as the legacy fallback.
-class ONNXStreamLoadTest : public testing::TestWithParam<std::tuple<const char*, bool>> {
+class ONNXInMemoryLoadTest : public testing::TestWithParam<std::tuple<const char*, bool>> {
 protected:
     std::optional<std::string> previous_iterator_setting;
 
@@ -241,7 +241,7 @@ protected:
     }
 };
 
-TEST_P(ONNXStreamLoadTest, selects_iterator_or_legacy_and_owns_stream_data) {
+TEST_P(ONNXInMemoryLoadTest, selects_iterator_or_legacy_and_owns_stream_data) {
     FrontEndManager manager;
     auto frontend = std::make_shared<ov::frontend::onnx::FrontEnd>();
     InputModel::Ptr input_model;
@@ -267,7 +267,7 @@ TEST_P(ONNXStreamLoadTest, selects_iterator_or_legacy_and_owns_stream_data) {
     check_initializer_model(frontend->convert(input_model));
 }
 
-TEST_P(ONNXStreamLoadTest, loads_from_current_stream_position) {
+TEST_P(ONNXInMemoryLoadTest, loads_from_current_stream_position) {
     std::istringstream stream("prefix" + model_bytes("add_abc_initializers.onnx"));
     stream.seekg(6);
     auto frontend = FrontEndManager().load_by_framework("onnx");
@@ -276,7 +276,7 @@ TEST_P(ONNXStreamLoadTest, loads_from_current_stream_position) {
     check_initializer_model(frontend->convert(input_model));
 }
 
-TEST_P(ONNXStreamLoadTest, recovers_stream_at_eof) {
+TEST_P(ONNXInMemoryLoadTest, recovers_stream_at_eof) {
     std::istringstream stream(model_bytes("add_abc_initializers.onnx"));
     stream.seekg(0, std::ios::end);
     stream.peek();
@@ -287,7 +287,7 @@ TEST_P(ONNXStreamLoadTest, recovers_stream_at_eof) {
     check_initializer_model(frontend->convert(input_model));
 }
 
-TEST_P(ONNXStreamLoadTest, rejects_malformed_stream) {
+TEST_P(ONNXInMemoryLoadTest, rejects_malformed_stream) {
     std::istringstream stream("not an ONNX protobuf");
     auto frontend = FrontEndManager().load_by_framework("onnx");
     OV_EXPECT_THROW(frontend->load(static_cast<std::istream*>(&stream), enable_mmap()),
@@ -295,7 +295,7 @@ TEST_P(ONNXStreamLoadTest, rejects_malformed_stream) {
                     testing::HasSubstr("Error during import of ONNX model provided as input stream"));
 }
 
-TEST_P(ONNXStreamLoadTest, decodes_stream_like_file) {
+TEST_P(ONNXInMemoryLoadTest, decodes_stream_like_file) {
     auto frontend = FrontEndManager().load_by_framework("onnx");
     std::shared_ptr<ov::Model> decoded;
     {
@@ -315,7 +315,7 @@ TEST_P(ONNXStreamLoadTest, decodes_stream_like_file) {
     EXPECT_TRUE(result.valid) << result.message;
 }
 
-TEST_P(ONNXStreamLoadTest, loads_external_weights_relative_to_stream_path) {
+TEST_P(ONNXInMemoryLoadTest, loads_external_weights_relative_to_stream_path) {
     auto frontend = FrontEndManager().load_by_framework("onnx");
     // The ONNX file need not exist: the supplied path only locates the external weights.
     const auto path = std::filesystem::path(model_path("external_data/stream_only.onnx"));
@@ -335,7 +335,7 @@ TEST_P(ONNXStreamLoadTest, loads_external_weights_relative_to_stream_path) {
     }
 }
 
-TEST_P(ONNXStreamLoadTest, converts_control_flow_from_stream) {
+TEST_P(ONNXInMemoryLoadTest, converts_control_flow_from_stream) {
     std::istringstream stream(model_bytes("controlflow/loop_2d_add.onnx"));
     auto frontend = FrontEndManager().load_by_framework("onnx");
     auto input_model = frontend->load(static_cast<std::istream*>(&stream), enable_mmap());
@@ -349,7 +349,7 @@ TEST_P(ONNXStreamLoadTest, converts_control_flow_from_stream) {
     test_case.run();
 }
 
-TEST_P(ONNXStreamLoadTest, applies_conversion_extension_to_stream) {
+TEST_P(ONNXInMemoryLoadTest, applies_conversion_extension_to_stream) {
     auto frontend = FrontEndManager().load_by_framework("onnx");
     frontend->add_extension(
         std::make_shared<ov::frontend::onnx::ConversionExtension>("Add", [](const ov::frontend::NodeContext& node) {
@@ -366,8 +366,70 @@ TEST_P(ONNXStreamLoadTest, applies_conversion_extension_to_stream) {
     test_case.run();
 }
 
+TEST_P(ONNXInMemoryLoadTest, selects_iterator_or_legacy_and_copies_model_proto) {
+    FrontEndManager manager;
+    auto frontend = std::make_shared<ov::frontend::onnx::FrontEnd>();
+    InputModel::Ptr input_model;
+    {
+        ModelProto model_proto;
+        ASSERT_TRUE(model_proto.ParseFromString(model_bytes("add_abc_initializers.onnx")));
+        const auto original = model_proto.SerializeAsString();
+        const auto address = reinterpret_cast<uint64_t>(&model_proto);
+        ASSERT_NE(manager.load_by_model(address), nullptr);
+        ASSERT_TRUE(frontend->supported(address));
+        input_model = frontend->load(address, enable_mmap());
+        ASSERT_NE(input_model, nullptr);
+        EXPECT_EQ(model_proto.SerializeAsString(), original);
+        model_proto.Clear();
+    }
+
+    auto file_model = frontend->load(model_path("add_abc_initializers.onnx"), enable_mmap());
+    ASSERT_NE(file_model, nullptr);
+    EXPECT_TRUE(typeid(*input_model) == typeid(*file_model));
+    check_initializer_model(frontend->convert(input_model));
+}
+
+TEST_P(ONNXInMemoryLoadTest, rejects_invalid_model_proto) {
+    auto frontend = FrontEndManager().load_by_framework("onnx");
+    EXPECT_FALSE(frontend->supported(uint64_t{0}));
+    OV_EXPECT_THROW(frontend->load(uint64_t{0}, enable_mmap()), ov::Exception, testing::HasSubstr("Wrong address"));
+
+    ModelProto model_proto;
+    ASSERT_TRUE(model_proto.ParseFromString(model_bytes("add_abc_initializers.onnx")));
+    const auto address = reinterpret_cast<uint64_t>(&model_proto);
+    model_proto.clear_ir_version();
+    EXPECT_FALSE(frontend->supported(address));
+    OV_EXPECT_THROW(frontend->load(address, enable_mmap()),
+                    ov::Exception,
+                    testing::HasSubstr("unsupported IR version"));
+
+    model_proto.set_ir_version(Version::IR_VERSION + 1);
+    EXPECT_FALSE(frontend->supported(address));
+    OV_EXPECT_THROW(frontend->load(address, enable_mmap()),
+                    ov::Exception,
+                    testing::HasSubstr("unsupported IR version"));
+}
+
+TEST_P(ONNXInMemoryLoadTest, converts_control_flow_from_model_proto) {
+    auto frontend = FrontEndManager().load_by_framework("onnx");
+    InputModel::Ptr input_model;
+    {
+        ModelProto model_proto;
+        ASSERT_TRUE(model_proto.ParseFromString(model_bytes("controlflow/loop_2d_add.onnx")));
+        input_model = frontend->load(reinterpret_cast<uint64_t>(&model_proto), enable_mmap());
+        ASSERT_NE(input_model, nullptr);
+    }
+    auto model = frontend->convert(input_model);
+    ASSERT_NE(model, nullptr);
+    ov::test::TestCase test_case(model);
+    test_case.add_input<float>({0.f, 0.f});
+    test_case.add_expected_output<float>(ov::Shape{1, 2}, {3.f, 3.f});
+    test_case.add_expected_output<float>(ov::Shape{3, 1, 2}, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f});
+    test_case.run();
+}
+
 INSTANTIATE_TEST_SUITE_P(ONNX,
-                         ONNXStreamLoadTest,
+                         ONNXInMemoryLoadTest,
                          testing::Combine(testing::Values(static_cast<const char*>(nullptr), "1", "0"),
                                           testing::Bool()));
 

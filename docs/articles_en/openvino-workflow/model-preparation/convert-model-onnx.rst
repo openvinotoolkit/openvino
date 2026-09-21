@@ -24,7 +24,8 @@ that enables AI developers to easily transfer models between different framework
 .. note::
 
    The ONNX Frontend uses the ``GraphIterator`` interface by default
-   for file and stream inputs, including the CLI ``ovc`` tool and the Python
+   for file, stream, and experimental C++ ``ModelProto`` pointer inputs,
+   including the CLI ``ovc`` tool and the Python
    ``openvino.convert_model`` function. No user-visible changes are
    expected. If you encounter issues, set the environment variable
    ``ONNX_ITERATOR=0`` to fall back to the legacy path. The legacy
