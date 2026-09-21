@@ -39,10 +39,19 @@ struct brgemm_kernel_ir : public dnnl::impl::cpu::x64::brgemm_kernel_t, public j
 
     explicit brgemm_kernel_ir(const brgemm_desc_t& brg);
 
+    // Why this generator will not take a descriptor, or nullptr when it
+    // will. A reason rather than a bool because the answer has to be
+    // reportable: in force mode it is the error message, and in the
+    // differential test it is the skip message. A bare false tells you a
+    // shape was declined but not which line declined it.
+    static const char* unsupported_reason(const brgemm_desc_t& brg);
+
     // Which descriptors this generator handles. Everything else falls
     // through to oneDNN. Deliberately narrow; widened one flag at a time,
     // each widening paid for by the differential test.
-    static bool is_supported(const brgemm_desc_t& brg);
+    static bool is_supported(const brgemm_desc_t& brg) {
+        return unsupported_reason(brg) == nullptr;
+    }
 
     // Registered with oneDNN via brgemm_kernel_set_factory(). Returns a
     // constructed but not yet created kernel: oneDNN calls create_kernel()
@@ -50,13 +59,26 @@ struct brgemm_kernel_ir : public dnnl::impl::cpu::x64::brgemm_kernel_t, public j
     static status_t factory(dnnl::impl::cpu::x64::brgemm_kernel_t** kernel,
                             const brgemm_desc_t& brg);
 
-    // Installs (or, with `false`, removes) the factory. Called once during
-    // plugin construction rather than from a static initializer, so
-    // ordering against oneDNN's own initialization is not a question.
-    static void register_factory(bool enable);
+    // OV_JIT_IR_BRGEMM:
+    //   unset/0  off    — the factory is not installed at all
+    //   1        offer  — take what is supported, let oneDNN have the rest
+    //   2        force  — take what is supported and fail on the rest
+    //
+    // `force` exists because `offer` cannot tell a passing test from a
+    // test that never ran this generator: an unsupported descriptor falls
+    // through to oneDNN and everything stays green. Under `force` the
+    // same descriptor is a hard error naming the reason, so coverage gaps
+    // surface instead of hiding. Not for production — a model containing
+    // one unsupported shape will refuse to compile.
+    enum class mode : std::uint8_t { off, offer, force };
 
-    // True when OV_JIT_IR_BRGEMM selects this generator.
-    static bool enabled_by_env();
+    static mode env_mode();
+
+    // Installs the factory, or removes it when the mode is `off`. Called
+    // once during plugin construction rather than from a static
+    // initializer, so ordering against oneDNN's own initialization is not
+    // a question.
+    static void register_factory(mode m);
 
     // ── brgemm_kernel_t ───────────────────────────────────────────────
     // jit_generator_t declares create_kernel() with the same signature, so

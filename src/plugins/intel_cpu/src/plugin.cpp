@@ -251,7 +251,7 @@ Plugin::Plugin() : deviceFullName(getDeviceFullName()), specialSetup(new CPUSpec
     // initialization is explicit. The factory declines every descriptor
     // outside its supported slice, so this is inert when the generator
     // does not cover what a model needs.
-    kernel::brgemm_kernel_ir::register_factory(kernel::brgemm_kernel_ir::enabled_by_env());
+    kernel::brgemm_kernel_ir::register_factory(kernel::brgemm_kernel_ir::env_mode());
 #endif
 }
 

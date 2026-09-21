@@ -128,10 +128,12 @@ TEST_P(BrgemmKernelIrDifferential, MatchesBuiltInKernel) {
     brgemm_desc_t desc {};
     ASSERT_TRUE(make_desc(desc, shape)) << "descriptor rejected by oneDNN";
 
-    if (!brgemm_kernel_ir::is_supported(desc)) {
-        // Reported rather than skipped: this is the number that has to
-        // fall as the slice widens, and a silent skip would hide it.
-        GTEST_SKIP() << "not claimed by brgemm_kernel_ir yet: " << shape_name(shape);
+    if (const char* reason = brgemm_kernel_ir::unsupported_reason(desc)) {
+        // Named rather than silently skipped: this is the count that has
+        // to fall as the slice widens, and the reason says which check
+        // declined it.
+        GTEST_SKIP() << "not claimed by brgemm_kernel_ir yet (" << reason
+                     << "): " << shape_name(shape);
     }
 
     // oneDNN's kernel, with the factory out of the way.
@@ -189,6 +191,47 @@ TEST(BrgemmKernelIr, DeclinesDescriptorsOutsideTheSlice) {
     EXPECT_FALSE(brgemm_kernel_ir::is_supported(bf16_desc));
 
     brgemm_kernel_t* kernel = nullptr;
-    EXPECT_EQ(brgemm_kernel_ir::factory(&kernel, bf16_desc), status::unimplemented);
+    const status_t st = brgemm_kernel_ir::factory(&kernel, bf16_desc);
     EXPECT_EQ(kernel, nullptr);
+    // Under force the same refusal is an error rather than a fall-through;
+    // see ForceModeReportsAReasonInsteadOfFallingThrough.
+    if (brgemm_kernel_ir::env_mode() != brgemm_kernel_ir::mode::force) {
+        EXPECT_EQ(st, status::unimplemented);
+    } else {
+        EXPECT_NE(st, status::unimplemented);
+    }
+}
+
+// OV_JIT_IR_BRGEMM=2 is the mode that makes a coverage gap visible: an
+// unsupported descriptor becomes an error instead of falling through, so
+// a suite cannot pass while never once running this generator.
+//
+// The env var is read once into a static, so a test cannot flip modes in
+// process. What is checked here is the part that does not depend on the
+// mode — that declining produces a reason, and that the reason is what
+// the forced path would report — plus, when the suite is actually run
+// under =2, that the factory refuses rather than falls through.
+TEST(BrgemmKernelIr, ForceModeReportsAReasonInsteadOfFallingThrough) {
+    if (!mayiuse(avx512_core)) {
+        GTEST_SKIP() << "requires AVX-512";
+    }
+    brgemm_desc_t desc {};
+    ASSERT_TRUE(make_desc(desc, {16, 16, 16, 1}));
+    desc.dt_a = data_type::bf16;  // outside the slice
+
+    const char* reason = brgemm_kernel_ir::unsupported_reason(desc);
+    ASSERT_NE(reason, nullptr);
+    EXPECT_STRNE(reason, "");
+
+    brgemm_kernel_t* kernel = nullptr;
+    const status_t st = brgemm_kernel_ir::factory(&kernel, desc);
+    EXPECT_EQ(kernel, nullptr);
+
+    if (brgemm_kernel_ir::env_mode() == brgemm_kernel_ir::mode::force) {
+        EXPECT_NE(st, status::unimplemented)
+            << "under force, declining must not look like 'let oneDNN handle it'";
+        EXPECT_NE(st, status::success);
+    } else {
+        EXPECT_EQ(st, status::unimplemented) << "offer mode falls through to oneDNN";
+    }
 }

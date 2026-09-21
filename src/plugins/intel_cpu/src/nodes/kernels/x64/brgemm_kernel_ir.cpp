@@ -11,6 +11,7 @@
 #    include <cpu/x64/cpu_isa_traits.hpp>
 
 #    include <cstdlib>
+#    include <iostream>
 #    include <string>
 
 #    include "openvino/core/except.hpp"
@@ -35,17 +36,27 @@ brgemm_kernel_ir::brgemm_kernel_ir(const brgemm_desc_t& brg)
     : jit_kernel(jit_name()),
       m_brg(brg) {}
 
-bool brgemm_kernel_ir::enabled_by_env() {
-    static const bool value = [] {
+brgemm_kernel_ir::mode brgemm_kernel_ir::env_mode() {
+    static const mode value = [] {
         const char* env = std::getenv("OV_JIT_IR_BRGEMM");
-        return env != nullptr && std::string(env) == "1";
+        if (env == nullptr) {
+            return mode::off;
+        }
+        const std::string requested(env);
+        if (requested == "1") {
+            return mode::offer;
+        }
+        if (requested == "2") {
+            return mode::force;
+        }
+        return mode::off;
     }();
     return value;
 }
 
-bool brgemm_kernel_ir::is_supported(const brgemm_desc_t& brg) {
+const char* brgemm_kernel_ir::unsupported_reason(const brgemm_desc_t& brg) {
     if (!generator_available) {
-        return false;
+        return "no code generator yet";
     }
 
     // The first slice: a plain f32 batched GEMM and nothing else. Each
@@ -55,31 +66,31 @@ bool brgemm_kernel_ir::is_supported(const brgemm_desc_t& brg) {
     // Data types: one, and the same one throughout.
     if (brg.dt_a != data_type::f32 || brg.dt_b != data_type::f32 ||
         brg.dt_c != data_type::f32 || brg.dt_d != data_type::f32) {
-        return false;
+        return "only f32 throughout";
     }
 
     // AVX-512 only. AVX2 needs the epilogue tail strategy and a 16-register
     // budget; both work in the DSL but change the accumulator blocking.
     if (!is_superset(brg.isa_impl, avx512_core)) {
-        return false;
+        return "only avx512_core and above";
     }
 
     // AMX is a separate register file plus tile configuration held as
     // machine state — a fourth register class and an analogue of RVV's vl,
     // neither of which the IR models yet.
     if (brg.is_tmm || brg.is_dgmm) {
-        return false;
+        return "AMX tiles and depthwise are not modelled";
     }
 
     // Batch kind: the pointer-array form BrgemmKernel (MHA/SDPA) uses.
     // brgemm_strd, which snippets uses, is the next one to add.
     if (brg.type != brgemm_addr) {
-        return false;
+        return "only brgemm_addr batching";
     }
 
     // alpha != 1 and beta != 0 are a scale and a read-modify-write of C.
     if (brg.alpha != 1.0F || brg.beta != 0.0F) {
-        return false;
+        return "only alpha 1 and beta 0";
     }
 
     // Post-ops run through jit_uni_postops_injector, which reserves and
@@ -88,7 +99,7 @@ bool brgemm_kernel_ir::is_supported(const brgemm_desc_t& brg) {
     // have yet.
     if (brg.with_binary || brg.with_sum || brg.with_eltwise || brg.with_bias ||
         brg.with_src_scales || brg.with_wei_scales || brg.with_dst_scales) {
-        return false;
+        return "post-ops, bias and scales are not supported";
     }
 
     // Quantization, compensation and weight decompression: each is an
@@ -98,35 +109,46 @@ bool brgemm_kernel_ir::is_supported(const brgemm_desc_t& brg) {
         brg.zp_type_b != brgemm_broadcast_t::none ||
         brg.zp_type_c != brgemm_broadcast_t::none || brg.with_src_dyn_quant ||
         brg.with_wei_decomp) {
-        return false;
+        return "quantization, compensation and weight decompression are not supported";
     }
 
     // Virtual padding makes the row range of each iteration dynamic.
     if (brg.brgattr.max_top_vpad > 0 || brg.brgattr.max_bottom_vpad > 0) {
-        return false;
+        return "virtual padding is not supported";
     }
 
     // Tails last: a full-width N keeps the first kernel to unmasked
     // stores. The ld tail then reuses the active-length machinery the DSL
     // already has, which is the cheapest of the widenings.
     if (brg.ldb_tail != 0 || brg.bdb_tail != 0 || brg.rdb_tail != 0) {
-        return false;
+        return "tails are not supported";
     }
 
-    return true;
+    return nullptr;
 }
 
 status_t brgemm_kernel_ir::factory(dnnl::impl::cpu::x64::brgemm_kernel_t** kernel,
                                    const brgemm_desc_t& brg) {
-    if (!is_supported(brg)) {
-        return status::unimplemented;
+    if (const char* reason = unsupported_reason(brg)) {
+        if (env_mode() != mode::force) {
+            return status::unimplemented;  // oneDNN's generators take over
+        }
+        // Forced: refuse to let the fallback hide the gap, and say which
+        // descriptor was declined so the message is actionable.
+        std::cerr << "[brgemm_kernel_ir] OV_JIT_IR_BRGEMM=2 and this descriptor is not"
+                     " supported: "
+                  << reason << " (M=" << brg.bcast_dim << " N=" << brg.load_dim
+                  << " K=" << brg.reduce_dim << " dt_a=" << static_cast<int>(brg.dt_a)
+                  << " dt_b=" << static_cast<int>(brg.dt_b) << " beta=" << brg.beta
+                  << ")\n";
+        return status::runtime_error;
     }
     *kernel = new brgemm_kernel_ir(brg);  // NOLINT(cppcoreguidelines-owning-memory)
     return status::success;
 }
 
-void brgemm_kernel_ir::register_factory(bool enable) {
-    brgemm_kernel_set_factory(enable ? &brgemm_kernel_ir::factory : nullptr);
+void brgemm_kernel_ir::register_factory(mode m) {
+    brgemm_kernel_set_factory(m == mode::off ? nullptr : &brgemm_kernel_ir::factory);
 }
 
 status_t brgemm_kernel_ir::create_kernel() {
