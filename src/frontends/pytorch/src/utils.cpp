@@ -347,9 +347,11 @@ Output<Node> concat_list_construct(const Output<Node>& input) {
     if (auto seq_mark = ov::as_type_ptr<SequenceMark>(input.get_node_shared_ptr())) {
         auto list_inputs = seq_mark->input_values();
         OutputVector node_vector;
+        auto zero = v0::Constant::create(element::i32, Shape{}, {0});
         for (size_t i = 0; i < list_inputs.size(); i++) {
             auto node = concat_list_construct(list_inputs[i]);
-            node_vector.push_back(flatten_list_element_for_concat(node));
+            auto unsqueezed_node = std::make_shared<v0::Unsqueeze>(node, zero);
+            node_vector.push_back(unsqueezed_node);
         }
         return std::make_shared<v0::Concat>(node_vector, 0);
     }
