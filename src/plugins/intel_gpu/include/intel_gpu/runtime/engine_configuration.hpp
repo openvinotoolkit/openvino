@@ -13,7 +13,8 @@ namespace cldnn {
 enum class engine_types : int32_t {
     ocl,
     sycl,
-    ze
+    ze,
+    vulkan,
 };
 
 inline std::ostream& operator<<(std::ostream& os, const engine_types& type) {
@@ -21,6 +22,9 @@ inline std::ostream& operator<<(std::ostream& os, const engine_types& type) {
     case engine_types::ocl: os << "ocl"; break;
     case engine_types::sycl: os << "sycl"; break;
     case engine_types::ze: os << "ze"; break;
+    case engine_types::vulkan:
+        os << "vulkan";
+        break;
     default: os << "unknown"; break;
     }
 
@@ -32,6 +36,7 @@ enum class runtime_types : int32_t {
     ocl,
     sycl,
     ze,
+    vulkan,
 };
 
 inline std::ostream& operator<<(std::ostream& os, const runtime_types& type) {
@@ -39,6 +44,9 @@ inline std::ostream& operator<<(std::ostream& os, const runtime_types& type) {
     case runtime_types::ocl: os << "ocl"; break;
     case runtime_types::sycl: os << "sycl"; break;
     case runtime_types::ze: os << "ze"; break;
+    case runtime_types::vulkan:
+        os << "vulkan";
+        break;
     default: os << "unknown"; break;
     }
 
@@ -51,6 +59,7 @@ enum class backend_types : int32_t {
     hip,
     ocl,
     ze,
+    vulkan,
 };
 
 inline std::ostream& operator<<(std::ostream& os, const backend_types& type) {
@@ -59,6 +68,9 @@ inline std::ostream& operator<<(std::ostream& os, const backend_types& type) {
     case backend_types::hip: os << "hip"; break;
     case backend_types::ocl: os << "ocl"; break;
     case backend_types::ze: os << "ze"; break;
+    case backend_types::vulkan:
+        os << "vulkan";
+        break;
     default: os << "unknown"; break;
     }
 
@@ -71,7 +83,7 @@ engine_types get_default_engine_type();
 /// @brief Get default runtime type
 runtime_types get_default_runtime_type();
 
-// Stable string tag for a runtime type ("OCL"/"ZE"/"SYCL"), used to partition on-disk
+// Stable string tag for a runtime type ("OCL"/"ZE"/"SYCL"/"VULKAN"), used to partition on-disk
 // caches per runtime. This is a COMPATIBILITY CONSTANT: changing a returned value
 // invalidates every existing GPU cache keyed with the old value.
 std::string_view to_cache_tag(runtime_types type);

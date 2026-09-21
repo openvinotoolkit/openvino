@@ -18,6 +18,10 @@
 #include "reshape_inst.h"
 #include "test_utils.h"
 
+#ifdef OV_GPU_TESTS_WITH_VULKAN
+#    include "vulkan/vulkan_device.hpp"
+#endif
+
 using namespace cldnn;
 using namespace ::tests;
 
@@ -333,6 +337,19 @@ void run_eltwise_bool_generic_test(cldnn::eltwise_mode mode)
     generic_eltwise_int_test<int8_t, int8_t>(test_inputs_fmt, 1, 1, input_size.first, input_size.second, mode, 0, 0, 0, 0, -2, 2, -2, 2);
 }
 
+bool supports_int64_arithmetic() {
+#ifdef OV_GPU_TESTS_WITH_VULKAN
+    const auto device = get_test_engine().get_device();
+    if (device->get_runtime_type() == runtime_types::vulkan) {
+        const auto& vulkan_device = static_cast<const cldnn::vulkan::vulkan_device&>(*device);
+        VkPhysicalDeviceFeatures features{};
+        vkGetPhysicalDeviceFeatures(vulkan_device.get_physical_device(), &features);
+        return features.shaderInt64;
+    }
+#endif
+    return true;
+}
+
 void run_eltwise_int_shift_generic_test(cldnn::eltwise_mode mode) {
     OPENVINO_ASSERT(mode == eltwise_mode::right_shift || mode == eltwise_mode::left_shift,
                     "Only right_shift amd left_shift mode is supported for this test");
@@ -361,6 +378,11 @@ void run_eltwise_int_shift_generic_test(cldnn::eltwise_mode mode) {
     ELTWISE_INT_TEST_CASES(uint16_t);
     ELTWISE_INT_TEST_CASES(int32_t);
     ELTWISE_INT_TEST_CASES(uint32_t);
+    if (!supports_int64_arithmetic()) {
+        ::testing::Test::RecordProperty("executed_integer_types", "i8,u8,i16,u16,i32,u32");
+        GTEST_SKIP() << "Int64 subcase only: Vulkan shaderInt64 is unavailable; "
+                        "all six narrower integer types executed.";
+    }
     ELTWISE_INT_TEST_CASES(int64_t);
 
 #undef ELTWISE_INT_TEST_CASES
@@ -392,6 +414,11 @@ void run_eltwise_int_bitwise_generic_test(cldnn::eltwise_mode mode) {
     ELTWISE_INT_TEST_CASES(uint16_t);
     ELTWISE_INT_TEST_CASES(int32_t);
     ELTWISE_INT_TEST_CASES(uint32_t);
+    if (!supports_int64_arithmetic()) {
+        ::testing::Test::RecordProperty("executed_integer_types", "i8,u8,i16,u16,i32,u32");
+        GTEST_SKIP() << "Int64 subcase only: Vulkan shaderInt64 is unavailable; "
+                        "all six narrower integer types executed.";
+    }
     ELTWISE_INT_TEST_CASES(int64_t);
 
 #undef ELTWISE_INT_TEST_CASES

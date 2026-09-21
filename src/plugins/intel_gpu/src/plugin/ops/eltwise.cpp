@@ -9,12 +9,13 @@
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/reshape.hpp"
+#include "intel_gpu/runtime/runtime_backend_registry.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/bitwise_and.hpp"
-#include "openvino/op/bitwise_or.hpp"
-#include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/bitwise_left_shift.hpp"
+#include "openvino/op/bitwise_or.hpp"
 #include "openvino/op/bitwise_right_shift.hpp"
+#include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/floor_mod.hpp"
@@ -166,7 +167,8 @@ static void CreateLogicalXorOp(ProgramBuilder& p, const std::shared_ptr<ov::op::
 static void CreatePowerOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v1::Power>& op) {
     validate_inputs_count(op, {2});
     auto power_node = ov::as_type_ptr<ov::op::v0::Constant>(op->get_input_node_shared_ptr(1));
-    if (power_node) {
+    const auto& operation_lowering = cldnn::runtime_backend_registry::get(p.get_engine().runtime_type()).operation_lowering;
+    if (power_node && !operation_lowering.direct_binary_power) {
         if (ov::shape_size(power_node->get_output_shape(0)) == 1 &&
             op->get_input_partial_shape(0).same_scheme(op->get_output_partial_shape(0))) {
             float pow;

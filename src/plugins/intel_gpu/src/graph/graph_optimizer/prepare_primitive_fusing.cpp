@@ -59,35 +59,56 @@
 using namespace cldnn;
 
 void prepare_primitive_fusing::run(program& p) {
+    const bool run_graph_cleanup = _stage != primitive_fusing_stage::implementation_fusions;
+    const bool run_implementation_fusions = _stage != primitive_fusing_stage::graph_cleanup;
+
     GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
         size_t value = GPU_DEBUG_VALUE_OR(p.get_config().get_disable_post_ops_fusions(), 0);
         switch (value) {
             case 2:
-                fuse_reorders(p); return;
+                if (run_graph_cleanup)
+                    fuse_reorders(p);
+                return;
             case 3:
-                remove_redundant_reshape(p); return;
+                if (run_graph_cleanup)
+                    remove_redundant_reshape(p);
+                return;
             case 4:
-                fuse_swiglu(p); return;
+                if (run_implementation_fusions)
+                    fuse_swiglu(p);
+                return;
             case 5:
-                fuse_bias(p); return;
+                if (run_implementation_fusions)
+                    fuse_bias(p);
+                return;
             case 6:
-                fuse_simple_primitives(p); return;
+                if (run_implementation_fusions)
+                    fuse_simple_primitives(p);
+                return;
             case 7:
-                fuse_constant_transposes(p); return;
+                if (run_implementation_fusions)
+                    fuse_constant_transposes(p);
+                return;
             case 8:
-                optimize_fused_ops(p); return;
+                if (run_implementation_fusions)
+                    optimize_fused_ops(p);
+                return;
             default:
                 return;
         }
     }
 
-    fuse_reorders(p);
-    remove_redundant_reshape(p);
-    fuse_swiglu(p);
-    fuse_bias(p);
-    fuse_simple_primitives(p);
-    fuse_constant_transposes(p);
-    optimize_fused_ops(p);
+    if (run_graph_cleanup) {
+        fuse_reorders(p);
+        remove_redundant_reshape(p);
+    }
+    if (run_implementation_fusions) {
+        fuse_swiglu(p);
+        fuse_bias(p);
+        fuse_simple_primitives(p);
+        fuse_constant_transposes(p);
+        optimize_fused_ops(p);
+    }
 }
 
 static std::optional<size_t> find_eltwise_const_dep_idx(const eltwise_node& node) {

@@ -57,6 +57,7 @@ std::shared_ptr<cldnn::engine> create_test_engine(cldnn::engine_types engine_typ
                                                   cldnn::runtime_types runtime_type,
                                                   bool allow_usm_mem = true);
 cldnn::engine& get_test_engine();
+void release_test_runtime();
 cldnn::stream_ptr get_test_stream_ptr(cldnn::ExecutionConfig cfg);
 cldnn::stream_ptr get_test_stream_ptr();
 cldnn::stream& get_test_stream();

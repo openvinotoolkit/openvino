@@ -13,14 +13,15 @@
 namespace cldnn {
 
 enum class allocation_type {
-    unknown,     // Not specified (i.e simple_attached_memory class).
-    cl_mem,      // Use standard OpenCL cl_mem allocations.
-    usm_host,    // Accessible by host and device. Not Migratable
-    usm_shared,  // Accessible by host and device. Migrtable.
-    usm_device,  // Accessible only by device. Not migratable.
-    sycl_buffer, // Use standard SYCL buffer allocations.
-    ze_image,    // Level Zero image allocation. Accessible only by device.
-    max_value,   // Used for data array size. Shall be last
+    unknown,        // Not specified (i.e simple_attached_memory class).
+    cl_mem,         // Use standard OpenCL cl_mem allocations.
+    usm_host,       // Accessible by host and device. Not Migratable
+    usm_shared,     // Accessible by host and device. Migrtable.
+    usm_device,     // Accessible only by device. Not migratable.
+    sycl_buffer,    // Use standard SYCL buffer allocations.
+    ze_image,       // Level Zero image allocation. Accessible only by device.
+    device_buffer,  // Backend-owned device buffer allocation.
+    max_value,      // Used for data array size. Shall be last
 };
 
 inline std::ostream& operator<<(std::ostream& out, const allocation_type& alloc_type) {
@@ -31,6 +32,9 @@ inline std::ostream& operator<<(std::ostream& out, const allocation_type& alloc_
         case allocation_type::usm_device: out << "usm_device"; break;
         case allocation_type::sycl_buffer: out << "sycl_buffer"; break;
         case allocation_type::ze_image:    out << "ze_image";    break;
+        case allocation_type::device_buffer:
+            out << "device_buffer";
+            break;
         default: out << "unknown"; break;
     }
 

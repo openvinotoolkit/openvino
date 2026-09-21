@@ -5,6 +5,7 @@
 
 #include "../utils/kernel_generator.hpp"
 #include "common_utils/jitter.hpp"
+#include "common_utils/shape_utils.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "ocl_v2/utils/jitter.hpp"
