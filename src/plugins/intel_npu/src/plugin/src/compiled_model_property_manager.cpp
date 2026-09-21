@@ -93,6 +93,8 @@ void CompiledModelPropertyManager::setProperty(const ov::AnyMap& properties) {
 
     for (const auto& property : properties) {
         const auto propertyIt = _properties.find(property.first);
+        // This should never happen due to the previous check, fixing potential issue with missing property
+        OPENVINO_ASSERT(propertyIt != _properties.end(), "Unsupported configuration key: ", property.first);
         propertyIt->second.set(property.second);
     }
 }
@@ -271,8 +273,9 @@ void CompiledModelPropertyManager::registerProperties() {
         [](const ov::AnyMap&) {
             return true;
         },
-        [this](const ov::AnyMap&) {
-            return _config.get<MODEL_PTR>().lock();
+        [this](const ov::AnyMap&) -> ov::Any {
+            std::shared_ptr<const ov::Model> model = _config.get<MODEL_PTR>().lock();
+            return ov::Any(std::move(model));
         },
         readOnlySetter
     );

@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
 #include <map>
 #include <memory>
 #include <string>
@@ -466,6 +467,43 @@ TEST(PyramidAttentionTest, FromSucceedsOnValidPrefillModel) {
     EXPECT_EQ(pyramid->_query_length, 128u);
     EXPECT_EQ(pyramid->_full_context_length, 256u);
     EXPECT_EQ(pyramid->num_models(), 2u);
+}
+
+// Regression test for num_models rounding: with a non-multiple full_context_length/pyramid_step
+// (generate: 1536/1024), floor division would yield 1 model (no tiering at all), silently
+// dropping the smaller intermediate tier.
+TEST(PyramidAttentionTest, FromRoundsUpNumModelsForNonMultipleGenerateContext) {
+    AttentionModelConfig cfg;
+    cfg.query_len = 1;
+    cfg.past_len = 1535;  // context = 1536, step = 1024 -> ceil(1536/1024) = 2 models
+    auto model = build_isolated_attention_model(cfg);
+
+    auto pyramid = ov::npuw::function::PyramidAttention::from(model);
+
+    ASSERT_TRUE(pyramid.has_value());
+    EXPECT_TRUE(pyramid->is_valid());
+    EXPECT_EQ(pyramid->_full_context_length, 1536u);
+    ASSERT_EQ(pyramid->num_models(), 2u);
+    EXPECT_EQ(pyramid->_attentions[0].context_len(), 1024u);
+    EXPECT_EQ(pyramid->_attentions[1].context_len(), 1536u);
+}
+
+// Same rounding check for prefill (pyramid_step == query_len): a past length that is not a
+// multiple of query_len must still produce a rounded-up intermediate tier.
+TEST(PyramidAttentionTest, FromRoundsUpNumModelsForNonMultiplePrefillContext) {
+    AttentionModelConfig cfg;
+    cfg.query_len = 128;
+    cfg.past_len = 100;  // context = 228, step = 128 -> ceil(228/128) = 2 models
+    auto model = build_isolated_attention_model(cfg);
+
+    auto pyramid = ov::npuw::function::PyramidAttention::from(model);
+
+    ASSERT_TRUE(pyramid.has_value());
+    EXPECT_TRUE(pyramid->is_valid());
+    EXPECT_EQ(pyramid->_full_context_length, 228u);
+    ASSERT_EQ(pyramid->num_models(), 2u);
+    EXPECT_EQ(pyramid->_attentions[0].context_len(), 128u);
+    EXPECT_EQ(pyramid->_attentions[1].context_len(), 228u);
 }
 
 TEST(PyramidAttentionTest, FromReusesOriginalModelForLastPyramidModel) {
@@ -1003,7 +1041,7 @@ void expect_invalid_port_indices_rejected(Pyramid& src,
 
 TEST(PyramidAttentionTest, ValidPortIndicesPassValidation) {
     ov::npuw::compiled::PyramidAttentionContiguous src;
-    src.query_size = 1;
+    src.original_query_length = 1;
     src.full_context_size = 64;
     src._context_lengths = {64};
     ov::npuw::compiled::PyramidAttentionContiguousInfo info;
@@ -1027,7 +1065,7 @@ TEST(PyramidAttentionTest, MalformedSerializedPyramidStateIsRejectedOnDeserializ
     auto stub_model = make_stub_model(3, plugin);
 
     auto src = std::make_shared<ov::npuw::compiled::PyramidAttentionContiguous>();
-    src->query_size = 1;
+    src->original_query_length = 1;
     src->full_context_size = 64;
     src->_context_lengths = {64};
     ContigInfo info;
@@ -1062,7 +1100,7 @@ TEST(PyramidAttentionTest, ZeroModelPyramidStateIsRejectedOnDeserialize) {
     // Craft a malformed serialized state directly so we test only deserialize-time
     // validation (num_models == 0 with non-empty attention metadata).
     ov::npuw::compiled::PyramidAttentionContiguous src;
-    src.query_size = 1;
+    src.original_query_length = 1;
     src.full_context_size = 64;
     src._context_lengths = {64};
     ContigInfo info;
@@ -1098,8 +1136,8 @@ TEST(PyramidAttentionTest, ZeroModelPyramidStateIsRejectedOnDeserialize) {
             FAIL() << "Pyramid metadata with num_models == 0 must be rejected during deserialization";
         } catch (const ov::Exception& ex) {
             const std::string msg = ex.what();
-            EXPECT_NE(msg.find("pyramid attention info count"), std::string::npos)
-                << "Expected validate_port_indices info-count mismatch, got: " << msg;
+            EXPECT_NE(msg.find("pyramid attention has no compiled models"), std::string::npos)
+                << "Expected validate_port_indices zero-model rejection, got: " << msg;
         }
     }
 }
@@ -1110,7 +1148,7 @@ TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
 
     {
         ov::npuw::compiled::PyramidAttentionContiguous src;
-        src.query_size = 1;
+        src.original_query_length = 1;
         src.full_context_size = 64;
         src._context_lengths = {64};
         ContigInfo info;
@@ -1121,7 +1159,7 @@ TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
 
     {
         ov::npuw::compiled::PyramidAttentionContiguous src;
-        src.query_size = 1;
+        src.original_query_length = 1;
         src.full_context_size = 64;
         src._context_lengths = {64};
         ContigInfo info;
@@ -1133,9 +1171,11 @@ TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
 
     {
         ov::npuw::compiled::PyramidAttentionBlock src;
-        src.query_size = 1;
+        src.original_query_length = 1;
         src.full_context_size = 64;
         src._context_lengths = {64};
+        src.past_key_block_global_param_indices = {0};
+        src.past_value_block_global_param_indices = {0};
         BlockInfo info;
         info.mask_idx_local = 0xFF;
         src._attention_infos = {info};
@@ -1144,7 +1184,7 @@ TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
 
     {
         ov::npuw::compiled::PyramidAttentionBlock src;
-        src.query_size = 1;
+        src.original_query_length = 1;
         src.full_context_size = 64;
         src._context_lengths = {64};
         src.past_key_block_global_param_indices = {0, 1};
@@ -1157,7 +1197,7 @@ TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
 
     {
         ov::npuw::compiled::PyramidAttentionBlock src;
-        src.query_size = 1;
+        src.original_query_length = 1;
         src.full_context_size = 64;
         src._context_lengths = {64};
         src.past_key_block_global_param_indices = {7};
@@ -1170,7 +1210,7 @@ TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
 
     {
         ov::npuw::compiled::PyramidAttentionBlock src;
-        src.query_size = 1;
+        src.original_query_length = 1;
         src.full_context_size = 64;
         src._context_lengths = {64};
         src.past_key_block_global_param_indices = {0};
@@ -1183,7 +1223,141 @@ TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
 
     {
         ov::npuw::compiled::PyramidAttentionBlock src;
-        src.query_size = 1;
+        src.original_query_length = 1;
+        src.full_context_size = 64;
+        src._context_lengths = {64};
+        src.past_key_block_global_param_indices = {0};
+        src.past_value_block_global_param_indices = {0};
+        BlockInfo info;
+        info.mask_idx_local = 0;
+        info.param_port_map = {{0, 0xFF}};
+        src._attention_infos = {info};
+        expect_invalid_port_indices_rejected(src, 1u, {4}, "block param_port_map value out of range");
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionBlock src;
+        src.original_query_length = 1;
+        src.full_context_size = 64;
+        src._context_lengths = {64};
+        src.past_key_block_global_param_indices = {0};
+        src.past_value_block_global_param_indices = {0};
+        BlockInfo info;
+        info.mask_idx_local = 0;
+        info.param_port_map = {{0, std::numeric_limits<size_t>::max()}};
+        src._attention_infos = {info};
+        expect_invalid_port_indices_rejected(src, 1u, {4}, "block param_port_map size_t::max value");
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionBlock src;
+        src.original_query_length = 1;
+        src.full_context_size = 64;
+        src._context_lengths = {64};
+        src.past_key_block_global_param_indices = {0};
+        src.past_value_block_global_param_indices = {0};
+        BlockInfo info;
+        info.mask_idx_local = 0;
+        info.past_key_block_port_set = {0xFF};
+        src._attention_infos = {info};
+        expect_invalid_port_indices_rejected(src, 1u, {4}, "block key port_set element out of range");
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionBlock src;
+        src.original_query_length = 1;
+        src.full_context_size = 64;
+        src._context_lengths = {64};
+        src.past_key_block_global_param_indices = {0};
+        src.past_value_block_global_param_indices = {0};
+        BlockInfo info;
+        info.mask_idx_local = 0;
+        info.past_value_block_port_set = {0xFF};
+        src._attention_infos = {info};
+        expect_invalid_port_indices_rejected(src, 1u, {4}, "block value port_set element out of range");
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionBlock src;
+        src.original_query_length = 1;
+        src.full_context_size = 64;
+        src._context_lengths = {64};
+        BlockInfo info;
+        info.mask_idx_local = 0;
+        src._attention_infos = {info};
+        expect_invalid_port_indices_rejected(src, 1u, {4}, "block empty global KV vectors");
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionBlock block;
+        EXPECT_THROW(block.validate_port_indices(), ov::Exception);
+        ov::npuw::compiled::PyramidAttentionContiguous contig;
+        EXPECT_THROW(contig.validate_port_indices(), ov::Exception);
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionContiguous src;
+        src.original_query_length = 1;
+        src.full_context_size = 64;
+        ContigInfo info;
+        info.mask_idx_local = 0;
+        src._attention_infos = {info};
+        expect_invalid_port_indices_rejected(src, 0u, {3}, "contiguous context length count mismatch");
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionBlock src;
+        src.original_query_length = 1;
+        src.full_context_size = 64;
+        src.past_key_block_global_param_indices = {0};
+        src.past_value_block_global_param_indices = {0};
+        BlockInfo info;
+        info.mask_idx_local = 0;
+        src._attention_infos = {info};
+        expect_invalid_port_indices_rejected(src, 1u, {4}, "block context length count mismatch");
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionContiguous src;
+        src.original_query_length = 1;
+        src.full_context_size = 64;
+        src._context_lengths = {64};
+        src.global_mask_idx = 0xFF;
+        ContigInfo info;
+        info.mask_idx_local = 0;
+        src._attention_infos = {info};
+        expect_invalid_port_indices_rejected(src, 0u, {3}, "contiguous global_mask_idx out of range");
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionBlock src;
+        src.original_query_length = 1;
+        src.full_context_size = 64;
+        src._context_lengths = {64};
+        src.past_key_block_global_param_indices = {0};
+        src.past_value_block_global_param_indices = {0};
+        src.global_mask_idx = 0xFF;
+        BlockInfo info;
+        info.mask_idx_local = 0;
+        src._attention_infos = {info};
+        expect_invalid_port_indices_rejected(src, 1u, {4}, "block global_mask_idx out of range");
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionContiguous src;
+        src.original_query_length = 1;
+        src.full_context_size = 64;
+        src._context_lengths = {64};
+        ContigInfo info;
+        info.mask_idx_local = 0;
+        info.params = {{0, 5}};
+        src._attention_infos = {info};
+        expect_invalid_port_indices_rejected(src, 0u, {3}, "contiguous param dim out of range");
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionBlock src;
+        src.original_query_length = 1;
         src.full_context_size = 64;
         src._context_lengths = {64};
         src.past_key_block_global_param_indices = {0};
@@ -1202,7 +1376,22 @@ TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
 
     {
         ov::npuw::compiled::PyramidAttentionContiguous src;
-        src.query_size = 1;
+        src.original_query_length = 1;
+        src.full_context_size = 64;
+        src._context_lengths = {64};
+        ContigInfo info;
+        info.mask_idx_local = 0;
+        src._attention_infos = {info};
+
+        auto pyramid = import_pyramid_from_stream(src, 0u);
+        ASSERT_NE(pyramid, nullptr);
+        pyramid->_compiled_models = {ov::SoPtr<ov::ICompiledModel>{}};
+        EXPECT_THROW(pyramid->validate_port_indices(), ov::Exception);
+    }
+
+    {
+        ov::npuw::compiled::PyramidAttentionContiguous src;
+        src.original_query_length = 1;
         src.full_context_size = 64;
         src._context_lengths = {64};
         ContigInfo info;
@@ -1216,6 +1405,84 @@ TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
         pyramid->_compiled_models = {make_stub_model(3, plugin), make_stub_model(3, plugin)};
         EXPECT_THROW(pyramid->validate_port_indices(), ov::Exception);
     }
+}
+
+// ---------------------------------------------------------------------------
+// runtime::pyramid_attention::PositionIDs::find() shape matching
+// ---------------------------------------------------------------------------
+namespace {
+
+// Minimal ISyncInferRequest: find() only reads get_inputs(), so no tensors are needed.
+class PosIdsFakeInferRequest final : public ov::ISyncInferRequest {
+public:
+    explicit PosIdsFakeInferRequest(const std::shared_ptr<const ov::ICompiledModel>& cm) : ov::ISyncInferRequest(cm) {}
+
+    void infer() override {}
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override {
+        return {};
+    }
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
+        return {};
+    }
+    void check_tensors() const override {}
+};
+
+// Builds a model with a single "position_ids" parameter of the given shape (plus a dummy
+// output so the model is valid) and wraps it into a fake infer request usable by find().
+std::shared_ptr<ov::ISyncInferRequest> make_position_ids_request(const ov::Shape& position_ids_shape,
+                                                                 const std::shared_ptr<const ov::IPlugin>& plugin) {
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, position_ids_shape);
+    position_ids->set_friendly_name("position_ids");
+    position_ids->output(0).get_tensor().set_names({"position_ids"});
+    auto result = std::make_shared<ov::op::v0::Result>(position_ids);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{position_ids});
+
+    auto compiled = std::make_shared<StubCompiledModel>(model, plugin);
+    return std::make_shared<PosIdsFakeInferRequest>(compiled);
+}
+
+}  // namespace
+
+TEST(PyramidAttentionPositionIdsFindTest, Matches1D) {
+    ov::npuw::compiled::PyramidAttentionContiguous d;
+    d.original_query_length = 16;
+    auto plugin = std::make_shared<NullPluginStub>();
+    auto rq = make_position_ids_request(ov::Shape{16}, plugin);
+    EXPECT_NE(ov::npuw::runtime::pyramid_attention::PositionIDs::find(d, *rq), nullptr);
+}
+
+TEST(PyramidAttentionPositionIdsFindTest, Matches2D) {
+    ov::npuw::compiled::PyramidAttentionContiguous d;
+    d.original_query_length = 16;
+    auto plugin = std::make_shared<NullPluginStub>();
+    auto rq = make_position_ids_request(ov::Shape{1, 16}, plugin);
+    EXPECT_NE(ov::npuw::runtime::pyramid_attention::PositionIDs::find(d, *rq), nullptr);
+}
+
+// Qwen2.5-VL mrope layout: [3, 1, seq_len].
+TEST(PyramidAttentionPositionIdsFindTest, Matches3DMropeThreeSections) {
+    ov::npuw::compiled::PyramidAttentionContiguous d;
+    d.original_query_length = 16;
+    auto plugin = std::make_shared<NullPluginStub>();
+    auto rq = make_position_ids_request(ov::Shape{3, 1, 16}, plugin);
+    EXPECT_NE(ov::npuw::runtime::pyramid_attention::PositionIDs::find(d, *rq), nullptr);
+}
+
+// Qwen3.5-VL mrope layout: [4, 1, seq_len].
+TEST(PyramidAttentionPositionIdsFindTest, Matches3DMropeFourSections) {
+    ov::npuw::compiled::PyramidAttentionContiguous d;
+    d.original_query_length = 16;
+    auto plugin = std::make_shared<NullPluginStub>();
+    auto rq = make_position_ids_request(ov::Shape{4, 1, 16}, plugin);
+    EXPECT_NE(ov::npuw::runtime::pyramid_attention::PositionIDs::find(d, *rq), nullptr);
+}
+
+TEST(PyramidAttentionPositionIdsFindTest, RejectsNonUnitBatchDimIn3D) {
+    ov::npuw::compiled::PyramidAttentionContiguous d;
+    d.original_query_length = 16;
+    auto plugin = std::make_shared<NullPluginStub>();
+    auto rq = make_position_ids_request(ov::Shape{3, 2, 16}, plugin);
+    EXPECT_EQ(ov::npuw::runtime::pyramid_attention::PositionIDs::find(d, *rq), nullptr);
 }
 
 }  // namespace
