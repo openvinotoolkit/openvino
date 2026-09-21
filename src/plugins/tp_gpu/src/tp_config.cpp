@@ -13,9 +13,6 @@ namespace ov {
 namespace tp_gpu {
 
 std::vector<std::string> TPConfig::requested_device_names() const {
-    // Import is allowed to say nothing about the topology: the blob carries
-    // the one it was produced on.  Only a caller that asks for a topology has
-    // to spell out a consistent one.
     if (get_tp_size() == 0 && get_device_ids().empty()) {
         return {};
     }
@@ -69,9 +66,6 @@ void TPConfig::erase_own_properties(ov::AnyMap& config) const {
 std::vector<ov::PropertyName> TPConfig::supported_properties() const {
     std::vector<ov::PropertyName> properties;
     for (const auto& entry : m_options_map) {
-        // Only the release tier is part of the public surface.  The rest is
-        // reachable through the environment and the config file, which is
-        // what "not settable via the public API" means.
         if (entry.second->get_visibility() == ov::OptionVisibility::RELEASE) {
             properties.emplace_back(entry.first, ov::PropertyMutability::RW);
         }

@@ -7,7 +7,7 @@ set(TARGET_NAME ov_tp_gpu_unit_tests)
 file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 
 # The plugin is built as a MODULE and exports no symbols, so the sources under
-# test are compiled into the test binary.  The collective ops already live in a
+# test are compiled into the test binary. The collective ops already live in a
 # static library, which is linked instead.
 list(APPEND SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../../src/graph_rewriter.cpp)
 

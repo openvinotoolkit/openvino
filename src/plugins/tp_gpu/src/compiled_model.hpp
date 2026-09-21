@@ -20,7 +20,7 @@ namespace tp_gpu {
 
 class CompiledModel : public ov::ICompiledModel {
 public:
-    /// \param model  The user model.  Null when the compiled model was
+    /// \param model The user model. Null when the compiled model was
     ///        restored from a blob: there is no IR at that point, and
     ///        `inputs()`/`outputs()` fall back to rank 0 instead.
     CompiledModel(const std::shared_ptr<const ov::Model>& model,
@@ -56,24 +56,24 @@ public:
     const std::vector<std::string>& get_device_names() const { return m_device_names; }
 
     /// Ids of the variables whose per-rank states each hold a slice of the KV
-    /// cache along the kv-head axis.  A caller reading or writing whole state
+    /// cache along the kv-head axis. A caller reading or writing whole state
     /// tensors has to see them gathered and scattered; every other variable is
     /// replicated and can be fanned out as is.
     const std::vector<std::string>& get_sharded_state_ids() const { return m_sharded_state_ids; }
 
     /// The paged-attention cache this model owns, or null when the model does
-    /// not use one.  Shared by every infer request of this model: one cache,
+    /// not use one. Shared by every infer request of this model: one cache,
     /// one scheduler driving it.
     const CacheControllerPtr& get_cache_controller() const { return m_cache_controller; }
 
     /// The rank rendezvous, Level Zero command lists and shared scratch arena
-    /// support one outer inference at a time.  Rank execution inside that
+    /// support one outer inference at a time. Rank execution inside that
     /// inference remains parallel.
     std::unique_lock<std::mutex> lock_inference() const {
         return std::unique_lock<std::mutex>(m_inference_mutex);
     }
 
-    /// Threads the ranks run on.  Created on first use, which is always under
+    /// Threads the ranks run on. Created on first use, which is always under
     /// lock_inference(), and kept for the life of the model: creating them per
     /// inference costs tens of microseconds of start-up skew, and that skew is
     /// paid again at every one of the model's AllReduce points.

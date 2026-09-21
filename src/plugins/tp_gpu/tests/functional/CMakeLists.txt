@@ -18,10 +18,6 @@ target_link_libraries(${TARGET_NAME} PRIVATE
     gtest
     gtest_main)
 
-# The GPU plugin dlopens libze_loader by soname.  The test itself calls no L0
-# symbol, so --as-needed would drop the dependency; forcing it keeps the loader
-# in the process image, where dlopen resolves it by soname without a search.
-# That also puts the loader's build directory on the test's RPATH.
 if(TARGET LevelZero::LevelZero)
     target_link_options(${TARGET_NAME} PRIVATE "LINKER:--no-as-needed")
     target_link_libraries(${TARGET_NAME} PRIVATE LevelZero::LevelZero)

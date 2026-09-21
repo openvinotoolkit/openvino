@@ -68,7 +68,6 @@ private:
         ov::SoPtr<ov::IRemoteContext> context;
         std::vector<ov::Output<const ov::Node>> ports;
         std::vector<ov::element::Type> precisions;
-        /// Port shapes with the block count still open at dimension 0.
         std::vector<ov::Shape> shapes;
         std::vector<ov::SoPtr<ov::ITensor>> tensors;
     };
