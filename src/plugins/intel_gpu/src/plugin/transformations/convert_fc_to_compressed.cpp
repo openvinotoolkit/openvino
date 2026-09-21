@@ -49,7 +49,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         bool has_transpose = pattern_map.count(transpose_m) != 0u;
         auto scale_shape = pattern_map.at(mul_const_m).get_shape();
         bool sub_with_convert = pattern_map.count(sub_with_convert_m) > 0 ||
-                    pattern_map.count(sub_value_param_convert_m) > 0;;
+                    pattern_map.count(sub_value_param_convert_m) > 0;
 
         auto weight_shape = fc->get_input_shape(1);
         bool is_weight_3d = (std::count_if(weight_shape.begin(), weight_shape.end(), [](size_t d) {
@@ -90,6 +90,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             if (constant) {
                 auto new_constant = std::make_shared<ov::op::v0::Constant>(*constant, new_shape);
                 ov::copy_weightless_cache_attr(constant, new_constant);
+                result_nodes.push_back(new_constant);
                 return new_constant;
             }
 
@@ -103,13 +104,15 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         };
 
         auto convert_const_to_u8 = [&](std::shared_ptr<ov::Node> node) {
-           std::shared_ptr<ov::Node> source = node;
+            std::shared_ptr<ov::Node> source = node;
             while (ov::is_type<ov::op::v1::Reshape>(source) || ov::is_type<ov::op::v0::Convert>(source)) {
                 source = source->get_input_node_shared_ptr(0);
             }
             std::shared_ptr<ov::Node> result = node;
             // Convert ZP to u8
-            if (source->get_element_type() == ov::element::u4 || source->get_element_type() == ov::element::u2) {
+            if (node->get_element_type() == ov::element::u8) {
+                return result;
+            } else if (source->get_element_type() == ov::element::u4 || source->get_element_type() == ov::element::u2) {
                 result = std::make_shared<ov::op::v0::Convert>(node, ov::element::u8);
                 // Only unsigned ZP types can be converted to u8.
             } else if (weight_u8 && sub_with_convert && !source->get_element_type().is_signed()) {
@@ -117,6 +120,9 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             }
 
             ov::copy_weightless_cache_attr(node, result);
+            if (result != node) {
+                result_nodes.push_back(result);
+            }
             return result;
         };
 
@@ -166,6 +172,7 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
                 std::iota(new_order.begin(), new_order.end(), 0);
                 std::swap(new_order[new_order.size() - 1], new_order[new_order.size() - 2]);
                 transpose_const = std::make_shared<ov::op::v0::Constant>(ov::element::i32, ov::Shape{new_order.size()}, new_order);
+                result_nodes.push_back(transpose_const);
             }
 
             fc_input_b = transpose->clone_with_new_inputs({fc_input_b->output(0), transpose_const});
