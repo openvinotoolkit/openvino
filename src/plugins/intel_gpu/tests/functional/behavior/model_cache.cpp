@@ -31,11 +31,11 @@
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 #include "shared_test_classes/subgraph/weights_decompression_params.hpp"
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
-#ifndef WIN32
+#ifndef _WIN32
 #    include <unistd.h>
 #endif
 
-#ifdef WIN32
+#ifdef _WIN32
 #    define stat _stat
 #endif
 
