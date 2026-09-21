@@ -10,10 +10,16 @@ Registered via the `vllm.general_plugins` entry point. Patches
 post-load weight mutation. No-op unless the user requested the OV backend.
 """
 
+import itertools
 import logging
 import os
 
 logger = logging.getLogger(__name__)
+
+# One id per compiled model, threaded into execute.py's compile caches so a
+# second model can never reuse the first's compiled graph (and its weights)
+# via an id(gm)/id(self.model)-style key that Python can recycle after GC.
+_next_model_id = itertools.count()
 
 
 def _ov_active(self) -> bool:
@@ -191,7 +197,7 @@ def _patch_cpu_model_runner():
         logger.info("[OV plugin] Compiling model with torch.compile backend=openvino")
         # "vllm": True turns on every vLLM-required flag (see preset.py).
         # Precision keys are deliberately absent: derived per-model dtype.
-        options = {"aot_autograd": True, "vllm": True}
+        options = {"aot_autograd": True, "vllm": True, "model_id": next(_next_model_id)}
         # dynamic=None: specializes first, then symbolizes only the dim that
         # varies -- cheaper than dynamic=True (~1.7x steady-state cost).
         compiled = torch.compile(

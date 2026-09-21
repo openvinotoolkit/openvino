@@ -119,7 +119,9 @@ def _structural_key(gm, args, options=None):
     except Exception:
         parts = [str(id(gm))]
     shape_agnostic = _shape_agnostic_compile(gm, args, options)
-    sig = ["|".join(parts)]
+    # Scopes reuse to one model: structural equality alone can't tell two
+    # same-architecture models apart (their weights differ, not their ops).
+    sig = [f"M{options.get('model_id') if options else None}", "|".join(parts)]
     for arg in args:
         if isinstance(arg, torch.Tensor):
             # Rank and dtype still matter even when sizes don't: they change
@@ -393,7 +395,10 @@ def openvino_execute_partitioned(gm: GraphModule, *args, executor_parameters=Non
     )
     model_hash_str = executor_parameters.get("model_hash_str", None)
 
-    signature = str(id(gm))
+    # model_id (set once per compiled model in vllm/plugin.py) stops a second
+    # model from reusing the first's compiled graph if id(gm) gets recycled.
+    _model_id = options.get("model_id") if options else None
+    signature = f"{_model_id}_{id(gm)}"
     if (not _get_aot_autograd(options)):
         # Coarsen to dtype/rank and drop int values only when
         # _shape_agnostic_compile agrees -- same predicate _structural_key uses.
