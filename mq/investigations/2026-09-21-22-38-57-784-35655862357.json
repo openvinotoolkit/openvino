@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-21-22-38-57-784-35655862357",
+  "timestamp": "2026-09-21T22:38:57Z",
+  "run_id": "35655862357",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35655862357",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "38168",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38168",
+  "author": "mvafin",
+  "category": "Flaky Test",
+  "title": "TestKerasLSTM test_keras_lstm_flags_float32 numerical accuracy mismatch with dropout",
+  "signature": "test keras lstm flags numerical mismatch with dropout float32|Flaky Test",
+  "signature_hash": "a284d27dfee44614",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+      "conclusion": "failure",
+      "symptom": "test_keras_lstm_flags_float32 fails with small numerical mismatch between OV CPU inference and TensorFlow reference output"
+    }
+  ],
+  "key_errors": [
+    "FAILED .../tensorflow2_keras_tests/test_tf2_keras_lstm.py::TestKerasLSTM::test_keras_lstm_flags_float32[ ie_device:CPU - precision: - params:{'input_names': ['x'], 'input_shapes': [[4, 8, 3]], 'input_type': tf.float32, 'dropouts': (0.1, 0.3), 'units': 3, 'activation': 'relu', 'use_bias': False, 'recurrent_activation': 'tanh', 'flags': True} ] - AssertionError: Comparing with Framework failed: ie_res={'output_0': array([[-2.5847703e-04, 0.0000000e+00, 0.0000000e+00], [6.8144254e-02, 0.0000000e+00, -1.5218937e-01], [-1.2693751e+00, -8.0073160e-01, -0.0000000e+00], [0.0000000e+00, -2.1492870e+00, -0.0000000e+00]], dtype=float32)}; framework_res={'output_0': ... array([[-2.5819108e-04, 0.0000000e+00, 0.0000000e+00], [6.8340160e-02, 0.0000000e+00, -1.5156347e-01], [-1.2648255e+00, -8.5546768e-01, -0.0000000e+00], [0.0000000e+00, -2.1550763e+00, -0.0000000e+00]], dtype=float32)>}.",
+    "= 1 failed, 2113 passed, 111 skipped, 6 xfailed, 27 xpassed, 2677 warnings in 583.71s (0:09:43) ="
+  ],
+  "root_cause": "test_keras_lstm_flags_float32 exercises an LSTM layer with dropout (0.1, 0.3) enabled. Keras/TensorFlow's dropout uses a nondeterministic random mask on each invocation (no seed pinned in the test), so the reference (framework) output itself differs run to run, while OpenVINO CPU inference is deterministic for the same input. The two outputs are close in magnitude (differences ~1e-2 to ~5e-2, e.g. -0.8007 vs -0.8555) but exceed the FP32 comparison epsilon (1e-4), causing an assertion failure. This is a known recurring flaky test unrelated to the PR's GGUF frontend changes - the PR touches only src/frontends/gguf/** and tests/model_hub_tests/gguf/**, nowhere near the TensorFlow Keras LSTM layer test suite. Run attempt 2 (job re-run) completed successfully, confirming the failure is transient/non-reproducible.",
+  "reproduction_steps": "Run locally: pytest src/tests/layer_tests/tensorflow2_keras_tests/test_tf2_keras_lstm.py -k 'test_keras_lstm_flags_float32 and dropouts' -v (repeat several times; failure rate is intermittent due to unseeded dropout randomness in the TF reference computation).",
+  "recommended_actions": [
+    "Pin a deterministic random seed (tf.random.set_seed) before invoking the Keras LSTM reference model in test_tf2_keras_lstm.py so framework outputs are reproducible across runs.",
+    "Alternatively, loosen the comparison epsilon for LSTM configurations that use dropout, since dropout-induced variance is expected and not an OpenVINO correctness issue.",
+    "Consider skip_framework/reference-caching for dropout-enabled LSTM cases to avoid re-sampling framework output on each CI run.",
+    "No action required on PR #38168 (GGUF frontend) - the failure is unrelated to the changed files."
+  ],
+  "prevention_strategies": "Seed all randomness (numpy, tensorflow) in the framework-vs-OV comparison layer tests, especially for ops using dropout in test mode. Add a note in the test class docstring flagging tests with intentional stochastic behavior so future contributors do not attempt bit-exact comparisons on them.",
+  "historical_context": "This exact failure signature (TestKerasLSTM::test_keras_lstm_flags_float32 numerical mismatch, dropout params) has recurred 2 prior times (2026-08-27, 2026-09-18), tracked under pattern a284d27dfee44614, previously affecting PRs #37654 and #37611. A related but distinct dropout-agnostic LSTM signature (pattern 134f01149f41adcc, 'AssertionError: Comparing with Framework failed ie_res framework_res') recurred 3 times between 2026-06-26 and 2026-07-01. Both point to the same underlying unseeded-dropout root cause."
+}
