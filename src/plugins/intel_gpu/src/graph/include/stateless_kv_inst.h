@@ -39,7 +39,7 @@ public:
         auto input0_shape = layouts[0].get_partial_shape();
         input0_shape[axis] = ov::Dimension::dynamic();
         layouts[0].set_partial_shape(input0_shape);
-        layouts[0].data_padding._dynamic_dims_mask[axis] = 1;
+        layouts[0].data_padding._dynamic_dims_mask[axis] = true;
         return layouts;
     }
 };

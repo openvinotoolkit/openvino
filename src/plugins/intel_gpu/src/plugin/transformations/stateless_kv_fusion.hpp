@@ -80,7 +80,7 @@ namespace ov::intel_gpu {
 ///                                     └─────────┘
 ///
 /// StatelessKV's output0 is the complete present_kv for Result, output1 is the valid view consumed by SDPA.
-/// In case2, SDPA will recieve a trimmed view and mask will also be trimmed with present_len.
+/// In case2, SDPA will receive a trimmed view and mask will also be trimmed with present_len.
 class StatelessKVFusionMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("StatelessKVFusionMatcher");

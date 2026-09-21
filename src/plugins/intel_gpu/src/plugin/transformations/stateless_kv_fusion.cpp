@@ -24,7 +24,6 @@
 #include "openvino/op/range.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
-#include "openvino/op/scatter_update.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/subtract.hpp"
@@ -36,7 +35,6 @@
 #include "openvino/pass/pattern/op/label.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
-#include "openvino/pass/pattern/op/or.hpp"
 #include "transformations/utils/utils.hpp"
 
 namespace ov::intel_gpu {
@@ -64,18 +62,17 @@ StatelessKVFusionMatcher::StatelessKVFusionMatcher() {
     auto cur_seqlen_neg_const = wrap_type<ov::op::v0::Constant>(rank_equals(1));
     auto past_seqlen_add = wrap_type<ov::op::v1::Add>({concat_kv_len, cur_seqlen_neg | cur_seqlen_neg_const});
     auto past_seqlen_sub = wrap_type<ov::op::v1::Subtract>({concat_kv_len, cur_seqlen});
+    auto past_seqlen_actual = past_seqlen_add | past_seqlen_sub | any_input();
 
     auto range_cur = wrap_type<ov::op::v4::Range>({0, any_input(), 1});
     auto const_range_cur = wrap_type<ov::op::v0::Constant>(rank_equals(1));
     auto pos_idx_base = range_cur | const_range_cur;
-    auto past_seqlen_from_param = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past_seqlen_add, past_seqlen_sub, any_input()});
-    auto shifted_pos_idx = wrap_type<ov::op::v1::Add>({pos_idx_base, past_seqlen_from_param});
+    auto shifted_pos_idx = wrap_type<ov::op::v1::Add>({pos_idx_base, past_seqlen_actual});
     auto pos_idx = shifted_pos_idx | any_input();
     auto scatter_axis = wrap_type<ov::op::v0::Constant>(shape_matches("[1]"));
     auto scatter_update = wrap_type<ov::op::util::ScatterBase>({past, pos_idx, new_token_data, scatter_axis});
 
     auto slice_axis = wrap_type<ov::op::v0::Constant>();
-    auto past_seqlen_actual = std::make_shared<ov::pass::pattern::op::Or>(OutputVector{past_seqlen_add, past_seqlen_sub, any_input()});
     auto slice = wrap_type<ov::op::v8::Slice>({past, 0, past_seqlen_actual, 1, slice_axis});
     auto concat = wrap_type<ov::op::v0::Concat>({slice, new_token_data});
 
@@ -261,7 +258,7 @@ StatelessKVFusionMatcher::StatelessKVFusionMatcher() {
                     return false;
                 }
 
-                ov::Output<ov::Node> past_seqlen_output = pattern_map.at(past_seqlen_from_param).get_node_shared_ptr();
+                ov::Output<ov::Node> past_seqlen_output = pattern_map.at(past_seqlen_actual).get_node_shared_ptr();
                 // make sure idx_* starts from 0 so that the other input is the past_seqlen_node
                 if (pattern_map.count(const_range_cur) > 0) {
                     ov::op::v0::Constant* idx_const = ov::as_type<ov::op::v0::Constant>(pattern_map.at(const_range_cur).get_node());

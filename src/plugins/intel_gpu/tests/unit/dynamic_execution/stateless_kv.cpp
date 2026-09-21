@@ -18,6 +18,7 @@ struct stateless_kv_runtime_params {
     int64_t seq_len;
     bool is_seq_len_present_len;
     bool has_pos_idx;
+    bool use_caching = false;
 };
 
 class stateless_kv_runtime : public testing::TestWithParam<stateless_kv_runtime_params> {};
@@ -65,7 +66,8 @@ TEST_P(stateless_kv_runtime, output_memory_reuse) {
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
 
-    network network(engine, topology, config);
+    auto network_ptr = get_network(engine, topology, config, get_test_stream_ptr(), params.use_caching);
+    auto& network = *network_ptr;
     auto past = engine.allocate_memory(past_layout);
     auto new_token = engine.allocate_memory(new_token_layout);
     auto seq_len = engine.allocate_memory(seq_len_layout);
@@ -140,11 +142,15 @@ INSTANTIATE_TEST_SUITE_P(smoke,
                                          stateless_kv_runtime_params{2, 18, true, true},
                                          stateless_kv_runtime_params{2, 13, false, true},
                                          stateless_kv_runtime_params{1, 15, false, true},
-                                         stateless_kv_runtime_params{2, 16, false, true}),
+                                         stateless_kv_runtime_params{2, 16, false, true},
+                                         stateless_kv_runtime_params{2, 15, true, false, true},
+                                         stateless_kv_runtime_params{2, 15, false, false, true},
+                                         stateless_kv_runtime_params{2, 15, true, true, true}),
                          [](const testing::TestParamInfo<stateless_kv_runtime_params>& info) {
                              const auto& params = info.param;
                              return std::string{params.is_seq_len_present_len ? "PresentSeq" : "PastSeq"} + std::to_string(params.seq_len) + "_NewToken" +
-                                    std::to_string(params.new_token_len) + (params.has_pos_idx ? "_Scatter" : "_Concat");
+                                    std::to_string(params.new_token_len) + (params.has_pos_idx ? "_Scatter" : "_Concat") +
+                                    (params.use_caching ? "_cached" : "");
                          });
 
 TEST(stateless_kv_runtime, reallocation_across_executions) {

@@ -738,6 +738,53 @@ void primitive_inst::realloc_intermediates() {
     GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO(memalloc_info);
 }
 
+void primitive_inst::realloc_outputs_for_stateless_kv() {
+    const auto& users = get_user_insts();
+    const auto output_it = std::find_if(users.begin(), users.end(), [](primitive_inst* user) {
+        return user->is_output();
+    });
+    OPENVINO_ASSERT(output_it != users.end(), "[GPU] stateless_kv should directly connect to an output");
+
+    const auto& past_layout = _impl_params->get_input_layout();
+    const auto& mid_layout = _impl_params->get_output_layout(0);     // output to present_kv
+    const auto& target_layout = _impl_params->get_output_layout(1);  // output to sdpa
+
+    auto& result = **output_it;
+    if (result.is_dynamic()) {
+        if (!result._update_shape_done_by_other) {
+            result.update_shape();
+            result._update_shape_done_by_other = true;
+        }
+    }
+    if (!result.output_memory_ptr() || past_layout != mid_layout) {
+        result.set_can_be_optimized(false);
+    }
+    result.realloc_if_needed();
+
+    const auto past_tensor = input_memory_ptr(0);
+    OPENVINO_ASSERT(past_tensor, "[GPU] Input memory is not prepared for stateless_kv node ", id());
+    const auto present_tensor = result.output_memory_ptr();
+    OPENVINO_ASSERT(present_tensor, "[GPU] Output memory of ", result.id(), " is not prepared for stateless_kv node ", id());
+    const auto is_same = _network.get_engine().is_the_same_buffer(*present_tensor, *past_tensor);
+    const auto& present_layout = result._impl_params->get_output_layout();
+    if (mid_layout == present_layout) {
+        result.set_can_be_optimized(true);
+    }
+    GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << past_tensor->buffer_ptr() << "](" << past_tensor->get_layout().to_short_string() << ") and output["
+                           << present_tensor->buffer_ptr() << "](" << present_tensor->get_layout().to_short_string() << ")(" << result.id()
+                           << ") same:" << is_same << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << past_layout.to_short_string() << "] -> mid[" << mid_layout.to_short_string() << "]["
+                           << target_layout.to_short_string() << "] -> output[" << present_layout.to_short_string() << "](" << result.id()
+                           << ") opt:" << result.can_be_optimized() << std::endl;
+
+    if (_outputs[0]) {
+        OPENVINO_ASSERT(!_mem_allocated, "stateless_kv should never allocate output[0] for itself");
+    }
+    _outputs[0] = present_tensor;
+    _outputs[1] = get_network().get_engine().reinterpret_buffer(*present_tensor, target_layout);
+    this->_mem_allocated = false;
+}
+
 void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("realloc_outputs: " + id()));
     GPU_DEBUG_PROFILED_STAGE(instrumentation::pipeline_stage::memory_allocation);
@@ -789,51 +836,8 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         return;
     }
 
-    
     if (get_node().is_type<stateless_kv>()) {
-        const auto output_it = std::find_if(users.begin(), users.end(), [](primitive_inst* user) {
-            return user->is_output();
-        });
-        OPENVINO_ASSERT(output_it != users.end(), "[GPU] stateless_kv should directly connect to an output");
-
-        const auto& past_layout = _impl_params->get_input_layout();
-        const auto& mid_layout = _impl_params->get_output_layout(0);  // output to present_kv
-        const auto& target_layout = _impl_params->get_output_layout(1);  // output to sdpa
-
-        auto& result = **output_it;
-        if (result.is_dynamic()) {
-            if (!result._update_shape_done_by_other) {
-                result.update_shape();
-                result._update_shape_done_by_other = true;
-            }
-        }
-        if (!result.output_memory_ptr() || past_layout != mid_layout) {
-            result.set_can_be_optimized(false);
-        }
-        result.realloc_if_needed();
-
-        const auto past_tensor = input_memory_ptr(0);
-        OPENVINO_ASSERT(past_tensor, "[GPU] Input memory is not prepared for stateless_kv node ", id());
-        const auto present_tensor = result.output_memory_ptr();
-        OPENVINO_ASSERT(present_tensor, "[GPU] Output memory of ", result.id(), " is not prepared for stateless_kv node ", id());
-        const auto is_same = _network.get_engine().is_the_same_buffer(*present_tensor, *past_tensor);
-        const auto& present_layout = result._impl_params->get_output_layout();
-        if (mid_layout == present_layout) {
-            result.set_can_be_optimized(true);
-        }
-        GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << past_tensor->buffer_ptr() << "](" << past_tensor->get_layout().to_short_string() << ") and output["
-                               << present_tensor->buffer_ptr() << "](" << present_tensor->get_layout().to_short_string() << ")(" << result.id()
-                               << ") same:" << is_same << std::endl;
-        GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << past_layout.to_short_string() << "] -> mid[" << mid_layout.to_short_string() << "]["
-                               << target_layout.to_short_string() << "] -> output[" << present_layout.to_short_string() << "](" << result.id()
-                               << ") opt:" << result.can_be_optimized() << std::endl;
-
-        if (_outputs[0]) {
-            OPENVINO_ASSERT(!_mem_allocated, "stateless_kv should never allocate output[0] for itself");
-        }
-        _outputs[0] = present_tensor;
-        _outputs[1] = get_network().get_engine().reinterpret_buffer(*present_tensor, target_layout);
-        this->_mem_allocated = false;
+        realloc_outputs_for_stateless_kv();
         return;
     }
 
