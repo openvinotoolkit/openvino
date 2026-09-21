@@ -132,9 +132,6 @@ struct VisualizeTreeSanitizeParam {
 class VisualizeTreeSanitizeTest : public VisualizeTreeTest,
                                   public testing::WithParamInterface<VisualizeTreeSanitizeParam> {};
 
-// CWE-31: any character outside the allowlist [A-Za-z0-9._-] must be escaped as "~XY" (X, Y hex
-// digits), covering both the Windows path separator '\' and the NTFS alternate-data-stream
-// separator ':', and the dump must still succeed (no exception).
 TEST_P(VisualizeTreeSanitizeTest, subgraph_friendly_name_with_disallowed_characters_is_sanitized) {
     const auto& param = GetParam();
     const auto model = make_dummy_if_model(param.friendly_name);
@@ -151,15 +148,11 @@ TEST_P(VisualizeTreeSanitizeTest, subgraph_friendly_name_with_disallowed_charact
     std::filesystem::remove(subgraph_file_path);
 }
 
-INSTANTIATE_TEST_SUITE_P(
-    CWE31,
-    VisualizeTreeSanitizeTest,
-    testing::Values(VisualizeTreeSanitizeParam{"x\\..\\..\\..\\Users\\Public\\kb_poc_visualize",
-                                               "x~5c..~5c..~5c..~5cUsers~5cPublic~5ckb_poc_visualize"},
-                    VisualizeTreeSanitizeParam{"evil:stream", "evil~3astream"}));
+INSTANTIATE_TEST_SUITE_P(DisallowedCharacters,
+                         VisualizeTreeSanitizeTest,
+                         testing::Values(VisualizeTreeSanitizeParam{"x\\y", "x~5cy"},
+                                         VisualizeTreeSanitizeParam{"evil:stream", "evil~3astream"}));
 
-// Two friendly names that differ only in which disallowed character they contain must not sanitize to the same subgraph
-// dump path (which would silently truncate/overwrite one node's dump with the other's).
 TEST_F(VisualizeTreeTest, subgraph_friendly_names_with_different_disallowed_characters_do_not_collide) {
     const auto model = make_dummy_two_if_model("a:b", "a?b");
 
@@ -181,7 +174,6 @@ TEST_F(VisualizeTreeTest, subgraph_friendly_names_with_different_disallowed_char
     std::filesystem::remove(second_subgraph_file_path);
 }
 
-// Regression: an allowed friendly name still dumps the subgraph file as before.
 TEST_F(VisualizeTreeTest, subgraph_friendly_name_with_safe_characters_is_dumped) {
     const auto model = make_dummy_if_model("safe_name-1.2");
 
