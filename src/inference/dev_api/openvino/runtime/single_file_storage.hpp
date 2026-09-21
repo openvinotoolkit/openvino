@@ -38,9 +38,7 @@ public:
      * @param enable_mmap Whether to use memory mapping for reading the blob data.
      * @param reader The function to read the blob data.
      */
-    void read_cache_entry(const std::string& blob_id,
-                          bool mmap_enabled,
-                          StreamReader reader) override;
+    void read_cache_entry(const std::string& blob_id, bool mmap_enabled, StreamReader reader) override;
 
     /**
      * @brief Remove a cache entry from the storage.

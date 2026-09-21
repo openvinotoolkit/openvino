@@ -245,9 +245,7 @@ void SingleFileStorage::write_cache_entry(const std::string& blob_id, StreamWrit
     write_blob_entry(stream, convert_blob_id(blob_id), writer);
 }
 
-void SingleFileStorage::read_cache_entry(const std::string& blob_id,
-                                         bool enable_mmap,
-                                         StreamReader reader) {
+void SingleFileStorage::read_cache_entry(const std::string& blob_id, bool enable_mmap, StreamReader reader) {
     ScopedLocale plocal_C(LC_ALL, "C");
 
     const auto cid = convert_blob_id(blob_id);

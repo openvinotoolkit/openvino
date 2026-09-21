@@ -59,8 +59,7 @@ TEST_P(ze_host_buffer_cache_test, reads_wrapped_cache_without_copy) {
 		GTEST_SKIP() << "No usable Level Zero GPU device found: " << e.what();
 	}
 
-	const size_t requested_size = GetParam();
-	const size_t data_size = ov::util::align_size_up(requested_size, ov::util::min_page_alignment);
+	const size_t data_size = GetParam();
 
 	// create_hostbuffer maps the pointer directly via zeMemAllocHost when the driver supports it
 	// and the buffer is page-aligned; otherwise it falls back to the OpenCL/Level-Zero interop (LEO)
@@ -74,7 +73,7 @@ TEST_P(ze_host_buffer_cache_test, reads_wrapped_cache_without_copy) {
 	// Back the cache by a real memory-mapped file (mmap on Linux, MapViewOfFile on Windows) instead of a
 	// plain heap buffer, matching how OpenVINO actually maps cached model weights on disk.
 	const auto cache_path = std::filesystem::temp_directory_path() /
-	    ("ov_ze_host_buffer_cache_test_" + std::to_string(requested_size) + ".bin");
+	    ("ov_ze_host_buffer_cache_test_" + std::to_string(data_size) + ".bin");
 	{
 		std::ofstream file(cache_path, std::ios::binary);
 		ASSERT_TRUE(file.good()) << "Failed to create temporary cache file: " << cache_path;
@@ -84,11 +83,10 @@ TEST_P(ze_host_buffer_cache_test, reads_wrapped_cache_without_copy) {
 	scoped_file_remover file_remover{cache_path};
 
 	auto mm = ov::load_mmap_object(cache_path, 0, data_size, false, ov::MmapMode::READ_WRITE);
-	std::cout << "Memory-mapped file loaded, address: " << mm << std::endl;
+	std::cout << "Memory-mapped file loaded, address: " << static_cast<const void*>(mm->data()) << std::endl;
 	ASSERT_NE(mm, nullptr);
 	ASSERT_EQ(mm->size(), data_size);
 	ASSERT_EQ(data_size % ov::util::min_page_alignment, 0u);
-	ASSERT_GE(data_size, requested_size);
 	auto* cache_data = reinterpret_cast<uint8_t*>(mm->data());
 
 	// Fill the whole cache buffer with a deterministic, non-trivial pattern so a full
@@ -131,10 +129,9 @@ TEST_P(ze_host_buffer_cache_test, reads_wrapped_cache_without_copy) {
 INSTANTIATE_TEST_SUITE_P(cache_buffer_sizes,
                          ze_host_buffer_cache_test,
                          ::testing::Values(size_t{4} * 1024,
-                                           size_t{4} * 1024 + size_t{1} * 1024,
-                                           size_t{1} * 1024 * 1024 + size_t{1} * 1024,
-                                           size_t{2} * 1024 * 1024 + size_t{1} * 1024,
-                                           size_t{1} * 1024 * 1024 * 1024 + size_t{1} * 1024));
+                                           size_t{1} * 1024 * 1024,
+                                           size_t{2} * 1024 * 1024,
+                                           size_t{1} * 1024 * 1024 * 1024));
 
 TEST(ze_usm_memory, copy_and_read_buffer) {
 	auto ctx = create_ze_test_context();

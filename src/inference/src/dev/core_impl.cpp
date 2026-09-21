@@ -1262,7 +1262,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::string& mod
         // hint::compiled_blob is set and imported skip compilation
     } else if (cache_manager && device_supports_model_caching(plugin, parsed.m_config) && !is_proxy_device(plugin)) {
         emplace_cache_dir_if_supported(parsed.m_config, plugin, cache_dir);
-        CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap(), {}};
+        CacheContent cache_content{cache_manager, parsed.m_core_config.get_enable_mmap()};
         get_cache_wsh_ctx_manager().init_and_sync_context(std::filesystem::hash_value(cache_dir),
                                                           cache_content.m_shared_ctx);
         cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
@@ -2056,7 +2056,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::load_model_from_cache(
                                        : plugin.import_model(stream, update_config);
                     }};
                 compiled_model = std::visit(model_importer, compiled_blob);
-                });
+            });
     } catch (const HeaderException&) {
         // For these exceptions just remove old cache and set that import didn't work
         cache_content.m_cache_manager->remove_cache_entry(cache_content.m_blob_id);
@@ -2166,7 +2166,8 @@ bool ov::CoreConfig::get_enable_mmap() const {
 
 ov::CoreConfig::CacheConfig ov::CoreConfig::get_cache_config_for_device(const ov::Plugin& plugin) const {
     std::lock_guard<std::mutex> lock(m_cache_config_mutex);
-    return m_devices_cache_config.count(plugin.get_name()) ? m_devices_cache_config.at(plugin.get_name()) : m_cache_config;
+    return m_devices_cache_config.count(plugin.get_name()) ? m_devices_cache_config.at(plugin.get_name())
+                                                           : m_cache_config;
 }
 
 ov::CoreConfig::CacheConfig ov::CoreConfig::CacheConfig::create(const std::filesystem::path& dir) {
