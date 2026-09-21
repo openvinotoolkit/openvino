@@ -410,16 +410,19 @@ class TestSession:
 
     def run_test_case(self, test_case: TestCase):
         try:
-            if self.report_reference:
-                run_num = 3
-            else:
-                run_num = 1
+            run_num = 3 if self.report_reference else 1
             results = [
                 run_test_executable_extract_result([
                     str(self.executable), test_case.model_path, test_case.device])
                 for _ in range(run_num)
             ]
-            return aggregate_results(results)
+            errors = ["error" in r for r in results]
+            if run_num > 1 and all(errors):
+                print("All attempts failed")
+                return results[0]
+            if run_num > 1 and any(errors):
+                print("Some attempts failed:", repr([r for r in results if "error" in r]))
+            return aggregate_results([r for r in results if "error" not in r])
         except Exception as ex:
             print(f"  When running test an unexpected error happened: {ex}")
             return {"error": "unexpected error", "exception": ex}
