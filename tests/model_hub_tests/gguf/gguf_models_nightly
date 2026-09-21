@@ -30,3 +30,5 @@ glm4moe,,,skip,"Smallest checkpoint (GLM-4.5-Air) is ~40 GiB, impractical even f
 exaone-moe,,,skip,"Smallest checkpoint is ~9 GiB / 32B, not currently validated (see supported_models.md)"
 minimax-m2,,,skip,"Smallest checkpoint is ~78 GiB, impractical even for nightly"
 jais2,,,skip,"No small checkpoint publicly available (see supported_models.md)"
+nemotron_h,bartowski/nvidia_Nemotron-H-8B-Reasoning-128K-GGUF,nvidia_Nemotron-H-8B-Reasoning-128K-Q4_K_M.gguf
+mamba2-2.7b,Nicholas55555/mamba2-2.7b-Q8_0-GGUF,mamba2-2.7b-q8_0.gguf
