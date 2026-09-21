@@ -76,8 +76,10 @@ class TestUnique2(PytorchLayerTest):
     @pytest.mark.parametrize("return_counts", [False, True])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_unique2(self, input_shape, sorted, return_inverse, return_counts, ie_device, precision, ir_version):
         if sys.platform == "win32" and input_shape == [16, 3, 32, 32] and parse_version(torch.__version__).release == (2, 4, 0):
             pytest.skip(reason="torch==2.4.0 fails on windows, but is fixed in nightly.")
         self.input_tensor = self.random.randint(0, 10, size=input_shape, dtype=np.int32)
-        self._test(*self.create_model(sorted, return_inverse, return_counts), ie_device, precision, ir_version)
+        self._test(*self.create_model(sorted, return_inverse, return_counts), ie_device, precision, ir_version,
+                   fx_kind="aten._unique2.default")
