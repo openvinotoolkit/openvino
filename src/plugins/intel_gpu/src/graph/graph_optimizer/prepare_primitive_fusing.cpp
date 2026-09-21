@@ -1084,28 +1084,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             p.fuse_nodes(input_data, quantize_node, &fusing_history);
         };
 
-        auto fuse_dynamic_quantize_f = [&](dynamic_quantize_node& dynamic_quantize_node) {
-            auto& input_data = dynamic_quantize_node.get_dependency(0);
-            if (!input_data.is_type<rms>() || input_data.get_users().size() != 1 || input_data.get_dependencies().empty())
-                return;
-
-            if (input_data.in_shape_of_subgraph || dynamic_quantize_node.in_shape_of_subgraph)
-                return;
-
-            auto dyn_quan_prim = dynamic_quantize_node.get_primitive();
-            auto attrs = dyn_quan_prim->attrs;
-
-            bool is_mxfp8 = attrs.scale_dt == ov::element::f8e8m0 &&
-                            (attrs.quantization_dt == ov::element::f8e4m3 || attrs.quantization_dt == ov::element::f8e5m2) && attrs.group_sizes.back() == 32;
-
-            if (!is_mxfp8) {
-                return;
-            }
-
-            OPENVINO_ASSERT(attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Symmetric);
-            p.fuse_nodes(input_data, dynamic_quantize_node, &fusing_history);
-        };
-
         auto fuse_eltwise_f = [&](eltwise_node& node) {
             GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
                 GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 13)
@@ -1424,6 +1402,32 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
             }
 
             p.fuse_nodes(*fused_node, node, &fusing_history);
+        };
+
+        auto fuse_dynamic_quantize_f = [&](dynamic_quantize_node& dynamic_quantize_node) {
+            GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
+                GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 14)
+                    return;
+            }
+            auto& input_data = dynamic_quantize_node.get_dependency(0);
+            if (!input_data.is_type<rms>() || input_data.get_users().size() != 1 || input_data.get_dependencies().empty())
+                return;
+
+            if (input_data.in_shape_of_subgraph || dynamic_quantize_node.in_shape_of_subgraph)
+                return;
+
+            auto dyn_quan_prim = dynamic_quantize_node.get_primitive();
+            auto attrs = dyn_quan_prim->attrs;
+
+            bool is_mxfp8 = attrs.scale_dt == ov::element::f8e8m0 &&
+                            (attrs.quantization_dt == ov::element::f8e4m3 || attrs.quantization_dt == ov::element::f8e5m2) && attrs.group_sizes.back() == 32;
+
+            if (!is_mxfp8) {
+                return;
+            }
+
+            OPENVINO_ASSERT(attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Symmetric);
+            p.fuse_nodes(input_data, dynamic_quantize_node, &fusing_history);
         };
 
         // Debug config DISABLE_POST_OPS_FUSION=11 to 14 specify enabling only one of fusions activation, quantize, eltwise and dynamic quantize
