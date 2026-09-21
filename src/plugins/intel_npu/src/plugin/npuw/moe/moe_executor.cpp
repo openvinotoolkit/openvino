@@ -73,6 +73,7 @@ void MoEExecutor::prepare(size_t idx, size_t real_idx, size_t num_sublayers, siz
                                                      pool_size);
         } else {
             m_resources.initialize_expert_iterative_mode(m_config, m_allocator, get_device_name(idx, &desc));
+            m_chunk_stats.init(m_config.num_experts, ov::npuw::profiling_enabled());
         }
     } else {
         LOG_DEBUG("Reusing existing shared MoE config and resources");
@@ -428,7 +429,7 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
     auto do_drain = [&]() {
         NPUW_ASSERT(inflight.has_value() && "do_drain called with no in-flight item");
         auto& req = get_req(inflight->cs, inflight->req_slot);
-        m_profile->iterative["NPU Wait"].record([&]() {
+        m_profile->iterative[m_resources.wait_tag.at(inflight->cs)].record([&]() {
             req->wait();
         });
         const auto& data = expert_ring[inflight->ring_idx & 1];
@@ -523,11 +524,17 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
 
             // -- Dispatch: slice tokens into chunks and pipeline NPU execution --
             size_t processed = 0;
+            size_t chunks_for_expert = 0;
             while (processed < cur.tokens.size()) {
-                const size_t cs = select_chunk(cur.tokens.size() - processed);
-                const size_t actual = std::min(cs, cur.tokens.size() - processed);
+                const size_t remaining = cur.tokens.size() - processed;
+                const size_t cs = select_chunk(remaining);
+                const size_t actual = std::min(cs, remaining);
                 const size_t s = global_slot & 1;
                 auto& req = get_req(cs, s);
+
+                m_chunk_stats.record_chunk(cs, actual);
+                m_chunk_stats.record_remaining(remaining);
+                ++chunks_for_expert;
 
                 do_unpack(cs, s, req, expert_id);
                 {
@@ -569,6 +576,7 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
                 ++global_slot;
                 processed += actual;
             }
+            m_chunk_stats.record_expert(expert_id, cur.tokens.size(), chunks_for_expert);
 
             // -- Prefetch: scan next expert's row while the last NPU chunk runs --
             if ((expert_id + 1) < num_experts) {
