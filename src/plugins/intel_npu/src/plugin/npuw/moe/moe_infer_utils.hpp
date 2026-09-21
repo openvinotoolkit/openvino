@@ -39,6 +39,7 @@ constexpr const char* kGetIOTensors = "Get I/O Tensors";
 constexpr const char* kGatherRouterScores = "Gather Router Scores";
 constexpr const char* kGatherExpertInput = "Gather Expert Input";
 constexpr const char* kNpuStart = "NPU Start";
+constexpr const char* kClearUnfilledSlots = "Clear Unfilled Slots";
 }  // namespace tags
 
 /**
@@ -217,6 +218,26 @@ void scatter_expert_outputs(const ov::SoPtr<ov::ITensor>& expert_output,
                             size_t embed_dim,
                             size_t input_token_count,
                             const std::vector<size_t>& expert_slots_for_tokens);
+
+/**
+ * @brief Zero out only the (token, expert_slot) cells that scatter_expert_outputs() never wrote.
+ *
+ * Cheaper than clearing the whole accumulator up front: with dense top-K routing every
+ * token normally fills all num_active_experts slots, so this is a near-free O(num_tokens)
+ * scan in the common case, touching memory only for the rare token whose is_nonzero()
+ * filtering left a slot unfilled.
+ *
+ * @param global_output_buffer Global output buffer [K, 1, num_tokens, embed_dim]
+ * @param token_slot_count Per-token count of slots actually filled during this call
+ * @param num_active_experts K, the number of expert slots expected per token
+ * @param embed_dim Embedding dimension size
+ * @param input_token_count Total number of input tokens
+ */
+void clear_unfilled_accumulator_slots(const ov::SoPtr<ov::ITensor>& global_output_buffer,
+                                      const std::vector<size_t>& token_slot_count,
+                                      size_t num_active_experts,
+                                      size_t embed_dim,
+                                      size_t input_token_count);
 
 /**
  * @brief MoE Request Cache - LRU cache for expert inference requests.

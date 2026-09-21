@@ -341,11 +341,12 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
     if (m_resources.sorted_chunk_sizes.empty())
         OPENVINO_THROW("MoE: Sorted chunk sizes cannot be empty");
 
-    // expert_output_accumulator is NOT cleared here: routing is dense, i.e. every
-    // (token, expert_slot) cell gets memcpy'd (not accumulated) by scatter_expert_outputs()
-    // exactly once. If routing ever changes to allow dropped/unfilled slots (e.g. a
-    // capacity-drop policy), stale data from a previous call would leak through and this
-    // buffer would need clearing again.
+    // expert_output_accumulator is not cleared up front (profiled as too heavy for a buffer this
+    // size). Routing is expected to be dense — every (token, expert_slot) cell gets memcpy'd
+    // exactly once by scatter_expert_outputs() — but is_nonzero()'s 1e-6 threshold could filter
+    // out a legitimately selected expert with a tiny/underflowed score, leaving a slot unfilled.
+    // token_slot_count (below) tracks exactly which slots that happens to, so instead we do a
+    // targeted clear of only the missing cells after dispatch — see clear_unfilled_accumulator_slots().
     auto expert_input_source = io.expert_input;
 
     // Use the embed_dim already validated against the accumulator buffer during prepare().
@@ -360,11 +361,13 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
                     "layout may have changed, update embed_dim derivation");
     }
 
-    // num_tokens and num_experts come from config, validated once during prepare().
-    // The router tensor's token dimension is guaranteed to match input_token_count because
-    // both are derived from the same compiled model structure at prepare() time.
+    // num_tokens, num_experts and num_active_experts come from config, validated once
+    // during prepare(). The router tensor's token dimension is guaranteed to match
+    // input_token_count because both are derived from the same compiled model structure
+    // at prepare() time.
     const size_t num_tokens = m_config.input_token_count;
     const size_t num_experts = m_config.num_experts;
+    const size_t num_active_experts = m_config.num_active_experts;
 
     // Chunk-size selector
     auto select_chunk = [&](size_t remaining) -> size_t {
@@ -620,6 +623,17 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
 
     // Drain the last in-flight item
     do_drain();
+
+    // Zero any (token, slot) cells that dense routing was expected to fill but didn't (see
+    // comment above token_slot_count's declaration). No-op in the common case where every
+    // token reached num_active_experts.
+    m_profile->iterative[tags::kClearUnfilledSlots].record([&]() {
+        ov::npuw::moe::clear_unfilled_accumulator_slots(m_resources.expert_output_accumulator,
+                                                         token_slot_count,
+                                                         num_active_experts,
+                                                         embed_dim,
+                                                         num_tokens);
+    });
 }
 
 void MoEExecutor::set_router_scores(size_t idx,

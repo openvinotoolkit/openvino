@@ -5,6 +5,7 @@
 #include "moe_infer_utils.hpp"
 
 #include <algorithm>
+#include <cstring>
 #include <iomanip>
 #include <iostream>
 
@@ -325,6 +326,32 @@ void scatter_expert_outputs(const ov::SoPtr<ov::ITensor>& expert_output,
         scatter(expert_output->data<ov::float16>(), global_output_buffer->data<ov::float16>());
     } else {
         OPENVINO_THROW("MoE: Unsupported element type for chunk output relayout: ", elem_type);
+    }
+}
+
+void clear_unfilled_accumulator_slots(const ov::SoPtr<ov::ITensor>& global_output_buffer,
+                                      const std::vector<size_t>& token_slot_count,
+                                      size_t num_active_experts,
+                                      size_t embed_dim,
+                                      size_t input_token_count) {
+    const size_t slot_stride = input_token_count * embed_dim;
+
+    auto clear = [&](auto* base) {
+        const size_t elem_bytes = embed_dim * sizeof(*base);
+        for (size_t token_id = 0; token_id < token_slot_count.size(); ++token_id) {
+            for (size_t slot = token_slot_count[token_id]; slot < num_active_experts; ++slot) {
+                std::memset(base + slot * slot_stride + token_id * embed_dim, 0, elem_bytes);
+            }
+        }
+    };
+
+    const auto elem_type = global_output_buffer->get_element_type();
+    if (elem_type == ov::element::f32) {
+        clear(global_output_buffer->data<float>());
+    } else if (elem_type == ov::element::f16) {
+        clear(global_output_buffer->data<ov::float16>());
+    } else {
+        OPENVINO_THROW("MoE: Unsupported element type for accumulator clear: ", elem_type);
     }
 }
 
