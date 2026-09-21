@@ -48,8 +48,16 @@ static void CreatePagedAttentionExtensionOp(ProgramBuilder& p, const std::shared
     const bool is_int4_cache = cfg_kv_precision == ov::element::u4 || cfg_kv_precision == ov::element::i4;
     const bool is_by_channel = p.get_config().get_key_cache_quant_mode() == ov::internal::CacheQuantMode::BY_CHANNEL;
     const auto k_cache_precision = is_int4_cache ? cfg_kv_precision : op->get_input_element_type(3);
-    const bool k_token_major = cldnn::paged_attention::k_token_major_for(k_cache_precision, is_by_channel) ||
-                               cldnn::paged_attention::k_by_channel_token_major_for(k_cache_precision, is_by_channel);
+    // i8/u4 BY_CHANNEL token-major is read off the PHYSICAL cache shape (the block-size dim moved to
+    // dim[2]), not re-derived from the predicate -- the model-wide layout decision was made once in
+    // transformations_pipeline.cpp and is authoritative. k_token_major_for() covers the remaining
+    // (uncompressed / BY_TOKEN) cases, which the shape cannot disambiguate.
+    const bool k_by_channel_tm = is_by_channel &&
+                                 cldnn::paged_attention::k_by_channel_token_major_layout(
+                                     key_cache_ps,
+                                     is_int4_cache ? cldnn::paged_attention::block_size / 2 + 4
+                                                   : cldnn::paged_attention::block_size + cldnn::paged_attention::block_size / 16 * 4);
+    const bool k_token_major = cldnn::paged_attention::k_token_major_for(k_cache_precision, is_by_channel) || k_by_channel_tm;
     const auto k_head_size_idx = (prim.has_xattention || k_token_major) ? 3 : 2;
 
     auto k_head_size = has_rt_params ? rt_info.at(k_head_size_id).as<int64_t>() : key_cache_ps[k_head_size_idx].get_length();

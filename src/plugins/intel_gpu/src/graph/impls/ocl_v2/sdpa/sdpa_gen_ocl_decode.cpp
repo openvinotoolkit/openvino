@@ -287,10 +287,16 @@ bool SDPAOclDecodeGenerator::supported(const RuntimeParams& params) {
     // Upstream BY_CHANNEL is d-major (it appends a scale/zp pair to every COLUMN), so
     // k_token_major_for() rejects it; it qualifies only under its own staging switch, which relays the
     // per-channel comp to the end of the page and flips the writer to match. V is always BY_TOKEN.
-    // Feed the predicate the config precision for u4, for the same reason as above.
+    // The BY_CHANNEL half is derived from the PHYSICAL cache shape (adjusted block size at dim[2]),
+    // matching the single layout decision made in transformations_pipeline.cpp. Feed the predicate
+    // the config precision for u4, for the same reason as above.
     const auto key_cache_dt = kv_u4 ? ov::element::u4 : ov::element::Type(key_cache.data_type);
-    const bool k_token_major = paged_attention::k_token_major_for(key_cache_dt, desc->is_key_by_channel) ||
-                               paged_attention::k_by_channel_token_major_for(key_cache_dt, desc->is_key_by_channel);
+    const bool by_channel_tm =
+        desc->is_key_by_channel &&
+        paged_attention::k_by_channel_token_major_layout(
+            key_cache.get_partial_shape(),
+            kv_u4 ? paged_attention::block_size / 2 + 4 : paged_attention::block_size + 4);
+    const bool k_token_major = paged_attention::k_token_major_for(key_cache_dt, desc->is_key_by_channel) || by_channel_tm;
     if (!k_token_major) {
         return false;
     }
