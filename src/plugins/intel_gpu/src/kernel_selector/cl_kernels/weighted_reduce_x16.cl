@@ -6,6 +6,9 @@
 
 KERNEL(weighted_reduce_x16)(const __global INPUT0_TYPE* values, const __global INPUT1_TYPE* weights, __global OUTPUT_TYPE* output) {
     const uint gid = (uint)get_global_id(0);
+    if (gid >= OUTPUT_LENGTH)
+        return;
+
     const uint y = gid % OUTPUT_SIZE_Y;
     const uint f = (gid / OUTPUT_SIZE_Y) % OUTPUT_FEATURE_NUM;
     const uint b = gid / (OUTPUT_SIZE_Y * OUTPUT_FEATURE_NUM);
