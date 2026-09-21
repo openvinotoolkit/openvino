@@ -1407,4 +1407,82 @@ TEST(PyramidAttentionTest, InvalidPortIndicesAreRejected) {
     }
 }
 
+// ---------------------------------------------------------------------------
+// runtime::pyramid_attention::PositionIDs::find() shape matching
+// ---------------------------------------------------------------------------
+namespace {
+
+// Minimal ISyncInferRequest: find() only reads get_inputs(), so no tensors are needed.
+class PosIdsFakeInferRequest final : public ov::ISyncInferRequest {
+public:
+    explicit PosIdsFakeInferRequest(const std::shared_ptr<const ov::ICompiledModel>& cm) : ov::ISyncInferRequest(cm) {}
+
+    void infer() override {}
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override {
+        return {};
+    }
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
+        return {};
+    }
+    void check_tensors() const override {}
+};
+
+// Builds a model with a single "position_ids" parameter of the given shape (plus a dummy
+// output so the model is valid) and wraps it into a fake infer request usable by find().
+std::shared_ptr<ov::ISyncInferRequest> make_position_ids_request(const ov::Shape& position_ids_shape,
+                                                                 const std::shared_ptr<const ov::IPlugin>& plugin) {
+    auto position_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, position_ids_shape);
+    position_ids->set_friendly_name("position_ids");
+    position_ids->output(0).get_tensor().set_names({"position_ids"});
+    auto result = std::make_shared<ov::op::v0::Result>(position_ids);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{position_ids});
+
+    auto compiled = std::make_shared<StubCompiledModel>(model, plugin);
+    return std::make_shared<PosIdsFakeInferRequest>(compiled);
+}
+
+}  // namespace
+
+TEST(PyramidAttentionPositionIdsFindTest, Matches1D) {
+    ov::npuw::compiled::PyramidAttentionContiguous d;
+    d.original_query_length = 16;
+    auto plugin = std::make_shared<NullPluginStub>();
+    auto rq = make_position_ids_request(ov::Shape{16}, plugin);
+    EXPECT_NE(ov::npuw::runtime::pyramid_attention::PositionIDs::find(d, *rq), nullptr);
+}
+
+TEST(PyramidAttentionPositionIdsFindTest, Matches2D) {
+    ov::npuw::compiled::PyramidAttentionContiguous d;
+    d.original_query_length = 16;
+    auto plugin = std::make_shared<NullPluginStub>();
+    auto rq = make_position_ids_request(ov::Shape{1, 16}, plugin);
+    EXPECT_NE(ov::npuw::runtime::pyramid_attention::PositionIDs::find(d, *rq), nullptr);
+}
+
+// Qwen2.5-VL mrope layout: [3, 1, seq_len].
+TEST(PyramidAttentionPositionIdsFindTest, Matches3DMropeThreeSections) {
+    ov::npuw::compiled::PyramidAttentionContiguous d;
+    d.original_query_length = 16;
+    auto plugin = std::make_shared<NullPluginStub>();
+    auto rq = make_position_ids_request(ov::Shape{3, 1, 16}, plugin);
+    EXPECT_NE(ov::npuw::runtime::pyramid_attention::PositionIDs::find(d, *rq), nullptr);
+}
+
+// Qwen3.5-VL mrope layout: [4, 1, seq_len].
+TEST(PyramidAttentionPositionIdsFindTest, Matches3DMropeFourSections) {
+    ov::npuw::compiled::PyramidAttentionContiguous d;
+    d.original_query_length = 16;
+    auto plugin = std::make_shared<NullPluginStub>();
+    auto rq = make_position_ids_request(ov::Shape{4, 1, 16}, plugin);
+    EXPECT_NE(ov::npuw::runtime::pyramid_attention::PositionIDs::find(d, *rq), nullptr);
+}
+
+TEST(PyramidAttentionPositionIdsFindTest, RejectsNonUnitBatchDimIn3D) {
+    ov::npuw::compiled::PyramidAttentionContiguous d;
+    d.original_query_length = 16;
+    auto plugin = std::make_shared<NullPluginStub>();
+    auto rq = make_position_ids_request(ov::Shape{3, 2, 16}, plugin);
+    EXPECT_EQ(ov::npuw::runtime::pyramid_attention::PositionIDs::find(d, *rq), nullptr);
+}
+
 }  // namespace

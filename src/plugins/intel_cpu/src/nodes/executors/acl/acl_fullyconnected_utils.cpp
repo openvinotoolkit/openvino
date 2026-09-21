@@ -52,6 +52,7 @@
 #include "thread_pool_imp.hpp"
 #include "utils/cpu_utils.hpp"
 #include "utils/debug_capabilities.h"
+#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
@@ -276,9 +277,19 @@ MemoryPtr acl_fc_executor::prepareWeightMemory(const MemoryArgs& memory,
     // TODO: ACLWeightFormatGenerator should be replaced with Reorder executor
     // that calls ACL NEReorder + NETranspose or dnnl::reorder depending on backend availability
     auto aclWeightsRepack = std::make_shared<acl_fc_executor::ACLWeightFormatGenerator>(attrs, memoryArgs);
-    bool isNeededReorder = aclWeightsRepack->update(memoryArgs);
-    expectedWeightFormat =
-        isNeededReorder ? aclWeightsRepack->getOptImplWeightFormat() : arm_compute::WeightFormat::UNSPECIFIED;
+    expectedWeightFormat = arm_compute::WeightFormat::UNSPECIFIED;
+    if (aclWeightsRepack->update(memoryArgs)) {
+        const auto optImplWeightFormat = aclWeightsRepack->getOptImplWeightFormat();
+        // UNSPECIFIED/ANY are not concrete layouts (interleave_by()/block_by() are 0 for them), so
+        // reorder_to_weight_format() would build a zero-strided, zero-sized weights descriptor.
+        // Keep UNSPECIFIED for those: callers also read expectedWeightFormat to decide whether to
+        // ask ACL for a fixed-format run, which must not happen with ordinary-layout weights.
+        if (none_of(optImplWeightFormat, arm_compute::WeightFormat::UNSPECIFIED, arm_compute::WeightFormat::ANY)) {
+            expectedWeightFormat = optImplWeightFormat;
+        }
+    }
+    // Repacking is needed exactly when ACL selected a concrete weight format.
+    const bool isNeededReorder = expectedWeightFormat != arm_compute::WeightFormat::UNSPECIFIED;
     weiTensorInfo = aclWeightsRepack->getTensorInfo(ACLArgs::ACL_WEI);
 
     if (isNeededReorder) {
