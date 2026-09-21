@@ -196,6 +196,13 @@ public:
         return m_profile;
     }
 
+    /**
+     * @brief Get per-expert / per-chunk-size routing and padding stats (EXPERT_ITERATIVE mode)
+     */
+    const MoEChunkStats& get_chunk_stats() const {
+        return m_chunk_stats;
+    }
+
 private:
     // === Dependency injection ===
     ISubrequestAccessor& m_accessor;  // Access to JustInferRequest internals
@@ -204,6 +211,9 @@ private:
     // === Profiling ===
     std::optional<MoEProfile>
         m_profile;  // Performance statistics (always collects, reports based on profiling_enabled())
+
+    // Token routing / chunk padding stats, EXPERT_ITERATIVE mode only (see MoEChunkStats)
+    MoEChunkStats m_chunk_stats;
 
     // === Weight unpacking methods ===
     /**

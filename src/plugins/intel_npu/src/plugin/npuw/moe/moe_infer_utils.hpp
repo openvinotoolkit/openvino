@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <array>
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <vector>
 
@@ -28,6 +30,58 @@ struct MoEProfile {
     ov::npuw::perf::Profile<ov::npuw::perf::metric<ov::npuw::perf::MSec>> batch;      // EXPERT_BATCH mode
 
     MoEProfile();
+};
+
+/**
+ * @brief Standalone stats for EXPERT_ITERATIVE token routing and chunk padding.
+ *
+ * Independent of MoEProfile (which only times named code blocks): this tracks
+ * *what* gets dispatched rather than *how long* it takes — per-expert token
+ * counts (routing skew) and per-chunk-size padding waste (real tokens vs the
+ * fixed chunk capacity actually paid for on the NPU).
+ */
+struct MoEChunkStats {
+    // Accumulated across all run_expert_iterative() calls for one expert_id.
+    struct PerExpert {
+        uint64_t selections = 0;  // number of calls where this expert got >=1 token
+        uint64_t tokens = 0;      // total tokens routed to this expert
+        uint64_t chunks = 0;      // total chunk dispatches used to process them
+    };
+
+    // Accumulated across all chunks dispatched at a given compiled chunk size.
+    struct PerChunkSize {
+        uint64_t chunks = 0;  // number of chunks dispatched at this size
+        uint64_t tokens = 0;  // real (non-padding) tokens carried by those chunks
+    };
+
+    // Upper-exclusive bucket edges for the "remaining tokens" histogram, sampled right
+    // before each select_chunk() call. Locates real gaps between compiled chunk sizes
+    // (e.g. a spike at 128-192 means a cs=192 model would help), independent of
+    // whatever chunk sizes happen to be compiled today.
+    static constexpr std::array<size_t, 9> remaining_hist_edges = {8, 16, 32, 64, 128, 192, 256, 384, 512};
+
+    bool enabled = false;
+    std::vector<PerExpert> per_expert;             // indexed by expert_id
+    std::map<size_t, PerChunkSize> per_chunk_size;  // keyed by chunk size
+    std::array<uint64_t, remaining_hist_edges.size() + 1> remaining_hist{};  // last bucket = ">= last edge"
+
+    // Must be called once num_experts is known (prepare()), before any record_*() call.
+    void init(size_t num_experts, bool active);
+
+    void record_expert(size_t expert_id, uint64_t tokens, uint64_t chunks);
+    void record_chunk(size_t chunk_size, uint64_t actual_tokens);
+    void record_remaining(size_t remaining);
+
+    void report() const;
+
+    ~MoEChunkStats() {
+        if (enabled) {
+            try {
+                report();
+            } catch (...) {
+            }
+        }
+    }
 };
 
 template <typename T>

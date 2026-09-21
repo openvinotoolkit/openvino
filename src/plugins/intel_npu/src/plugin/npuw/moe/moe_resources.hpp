@@ -49,6 +49,10 @@ struct MoEResources {
     // Used to select optimal chunk size for token batches
     std::vector<size_t> sorted_chunk_sizes;
 
+    // Precomputed "NPU Wait[cs=N]" profiling tag per chunk size, so run_expert_iterative()
+    // never has to build these strings on the hot path.
+    std::map<size_t, std::string> wait_tag;
+
     // Infer requests for different chunk sizes, double-buffered for pipeline overlap.
     // Map: chunk_size -> [slot0, slot1]
     // Pipeline alternates between slot 0 and slot 1 so that Unpack+Gather for item i+1
