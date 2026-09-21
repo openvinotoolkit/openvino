@@ -26,7 +26,11 @@ OutputVector translate_unique2(const NodeContext& context) {
     // Tuple[Tensor, Tensor, Tensor]
     num_inputs_check(context, 1, 4);
     auto x = context.get_input(0);
-    auto const_empty = std::make_shared<v0::Constant>(element::i64, Shape{0}, std::vector<int64_t>{});
+    // Each unused slot gets its own empty tensor: sharing one node between two slots makes the
+    // two tuple elements the same tensor, which trips up the FX output naming.
+    const auto make_empty = []() {
+        return std::make_shared<v0::Constant>(element::i64, Shape{0}, std::vector<int64_t>{});
+    };
     auto const_zero = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
 
     bool return_inverse = false;
@@ -50,16 +54,24 @@ OutputVector translate_unique2(const NodeContext& context) {
         auto inverse = context.mark_node(std::make_shared<v1::Reshape>(outputs->output(2), x_shape, false));
         result.push_back(inverse);
     } else {
-        result.push_back(const_empty);
+        result.push_back(make_empty());
     }
     if (return_counts) {
         auto counts = outputs->output(3);
         result.push_back(counts);
     } else {
-        result.push_back(const_empty);
+        result.push_back(make_empty());
     }
 
     return result;
+}
+
+OutputVector translate_unique2_fx(const NodeContext& context) {
+    // aten._unique2.default(Tensor self, bool sorted=True, bool return_inverse=False, bool return_counts=False)
+    //   -> Tuple[Tensor, Tensor, Tensor]
+    // The FX graph consumes the tuple through getitem, so the three tensors have to be
+    // packed into a list output rather than returned as three separate node outputs.
+    return {context.mark_node(make_list_construct(translate_unique2(context)))};
 }
 
 }  // namespace op
