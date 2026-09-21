@@ -905,9 +905,8 @@ void PluginPropertyManager::registerProperties() {
             return _config.hasOpt(ov::hint::model.name());
         },
         [this](const ov::AnyMap&) -> ov::Any {
-            // Retrieve the weak pointer to the model and lock it to get a shared pointer. Fix potential dangling pointer issue.
-            const auto model = _config.get<MODEL_PTR>();
-            return model.lock();
+            std::shared_ptr<const ov::Model> model = _config.get<MODEL_PTR>().lock();
+            return ov::Any(std::move(model));
         },
         [](const ov::Any&) {
             OPENVINO_THROW("Property '", ov::hint::model.name(),"' can only be provided when importing a compiled model, it cannot be set otherwise");
