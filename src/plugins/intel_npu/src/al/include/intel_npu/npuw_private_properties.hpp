@@ -22,6 +22,13 @@ namespace ov::intel_npu::npuw {
 
 inline constexpr ov::Property<ov::FileHandleProvider> weights_handle_provider{"NPUW_WEIGHTS_HANDLE_PROVIDER"};
 
+// Caller-only trust boundary for ORC import: a comma-separated allowlist of device names
+// that a deserialized NPUW blob's (untrusted, blob-embedded) device list is permitted to
+// reference. Must be supplied directly in the `properties` passed to `Core::import_model()`
+// by the trusted caller - it is never read from, or influenced by, the serialized blob
+// itself. When absent, all devices embedded in the blob are accepted (pre-existing behavior).
+inline constexpr ov::Property<std::string> allowed_import_devices{"NPUW_ALLOWED_IMPORT_DEVICES"};
+
 namespace llm {
 
 // Read-only compiled-model capability: continuous prefill is active for this
