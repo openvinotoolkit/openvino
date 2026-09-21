@@ -323,7 +323,7 @@ void AutoSchedule::compile_for_all_other_devices_for_cache() {
     }
     const std::string& actual_device = actual_device_info.device_name;
     std::vector<DeviceInformation> devices_to_precompile;
-    for (const auto& device : m_context->m_device_priorities) {
+    for (const auto& device : m_context->m_device_priorities_initial) {
         // Skip the actual device and CPU (already handled by CPU_HELP).
         if (device.device_name == actual_device || device.device_name.find("CPU") != std::string::npos) {
             continue;
@@ -342,12 +342,14 @@ void AutoSchedule::compile_for_all_other_devices_for_cache() {
     }
 
     for (const auto& device : devices_to_precompile) {
-        m_precompile_executor->run([this, core = m_context->m_ov_core, device, model, model_path] {
+        // Clone synchronously here, before compile_model() returns to the caller
+        const auto model_snapshot = model ? model->clone() : nullptr;
+        m_precompile_executor->run([this, core = m_context->m_ov_core, device, model_snapshot, model_path] {
             const auto compile_begin = std::chrono::steady_clock::now();
             try {
                 // Follow the same model-source priority as the blob existence check: model first, then path.
-                SoCompiledModel precompile_model = model
-                    ? core->compile_model(model->clone(), device.device_name, device.config)
+                SoCompiledModel precompile_model = model_snapshot
+                    ? core->compile_model(model_snapshot, device.device_name, device.config)
                     : core->compile_model(model_path, device.device_name, device.config);
                 // The cache blob is generated during compilation; release the compiled model right away
                 // so we do not keep holding device resources.
