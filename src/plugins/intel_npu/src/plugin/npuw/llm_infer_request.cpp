@@ -395,14 +395,28 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         OPENVINO_ASSERT(m_lm_head_request);
         const ov::Output<const ov::Node> lm_head_embed_port = m_lm_head_request->get_inputs()[0];
         m_lm_head_logits_port = m_lm_head_request->get_outputs()[0];
-        m_prefill_request->set_tensor(m_prefill_out_ports.at(layer_names::output_embeds),
-                                      m_lm_head_request->get_tensor(lm_head_embed_port));
+        auto shared_head_input = m_lm_head_request->get_tensor(lm_head_embed_port);
+        const auto& shared_head_shape = shared_head_input->get_shape();
+        OPENVINO_ASSERT(shared_head_shape.size() == 3u && shared_head_shape[1] > 0u,
+                        "Expected shared LM-head input shape [batch, sequence, hidden], got ",
+                        shared_head_shape);
+        auto last_hidden_state = ov::npuw::util::make_tensor_slice(shared_head_input,
+                                                                   1u,
+                                                                   static_cast<uint32_t>(shared_head_shape[1] - 1u),
+                                                                   static_cast<uint32_t>(shared_head_shape[1]));
+        const auto& prefill_outputs = compiled_model->m_prefill_compiled->outputs();
+        for (size_t output_idx = 0; output_idx < prefill_outputs.size(); ++output_idx) {
+            if (prefill_outputs[output_idx].get_names().count(LLMCompiledModel::shared_head_passthrough_output) != 0u) {
+                OPENVINO_ASSERT(output_idx < compiled_model->outputs().size());
+                set_tensor(compiled_model->outputs()[output_idx], last_hidden_state);
+            }
+        }
+        m_prefill_request->set_tensor(m_prefill_out_ports.at(layer_names::output_embeds), shared_head_input);
 
         // Set output_embeds tensor for all generate variants
         for (auto& generate_req : m_generate_requests) {
             const auto& variant_out_ports = m_generate_variant_out_ports.at(generate_req);
-            generate_req->set_tensor(variant_out_ports.at(layer_names::output_embeds),
-                                     m_lm_head_request->get_tensor(lm_head_embed_port));
+            generate_req->set_tensor(variant_out_ports.at(layer_names::output_embeds), shared_head_input);
         }
     }
 
