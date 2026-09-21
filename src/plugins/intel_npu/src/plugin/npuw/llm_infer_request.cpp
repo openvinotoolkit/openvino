@@ -259,6 +259,7 @@ void process_longrope_tables(const std::shared_ptr<ov::IAsyncInferRequest>& infe
     infer_req->set_tensor(cos_port_it->second, ov::get_tensor_impl(tables.cos_rows(lut_len, is_long)));
     infer_req->set_tensor(sin_port_it->second, ov::get_tensor_impl(tables.sin_rows(lut_len, is_long)));
 }
+
 }  // anonymous namespace
 
 void ov::npuw::LLMInferRequest::init_lora_states() {
