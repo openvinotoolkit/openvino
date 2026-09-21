@@ -272,13 +272,13 @@ SoftmaxGeneric::SoftmaxGeneric(ov::element::Type inpPrc, ov::element::Type outPr
     jcp.src_dt = inpPrc;
     jcp.dst_dt = outPrc;
 
-    if (mayiuse(x64::avx512_core)) {
+    if (ov::with_cpu_x86_avx512_core()) {
         softmax_kernel = std::make_shared<jit_uni_softmax_kernel_f32<x64::avx512_core>>(jcp);
         block_size = 16;
-    } else if (mayiuse(x64::avx2)) {
+    } else if (ov::with_cpu_x86_avx2()) {
         softmax_kernel = std::make_shared<jit_uni_softmax_kernel_f32<x64::avx2>>(jcp);
         block_size = 8;
-    } else if (mayiuse(x64::sse41)) {
+    } else if (ov::with_cpu_x86_sse42()) {
         softmax_kernel = std::make_shared<jit_uni_softmax_kernel_f32<x64::sse41>>(jcp);
         block_size = 4;
     }

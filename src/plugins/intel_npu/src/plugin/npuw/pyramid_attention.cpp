@@ -786,8 +786,13 @@ std::optional<PyramidAttention> PyramidAttention::from(const std::shared_ptr<ov:
     bool is_generate = query_length == 1;
     size_t kv_step = full_context_length - full_past_kv_length;
     size_t pyramid_step = is_generate ? 1024u : kv_step;
-    // FIXME: Check all the right alignments
-    size_t num_models = full_context_length / pyramid_step;
+    // Round up: floor division would drop the remainder tier entirely (e.g.
+    // full_context_length=1536, pyramid_step=1024 -> 1 model, i.e. no tiering at all --
+    // every call would run the full-size model). The last model_idx (num_models - 1) below
+    // always reuses the original model directly (context = full_context_length) regardless
+    // of how num_models is computed, so a non-multiple remainder is still handled correctly
+    // -- rounding up just ensures we also get the smaller intermediate tier(s).
+    size_t num_models = (full_context_length + pyramid_step - 1) / pyramid_step;
     LOG_INFO("Creating " << num_models << " pyramid attention models");
 
     // Store Attention instances for each model
@@ -1113,7 +1118,7 @@ std::shared_ptr<PyramidAttention> PyramidAttention::make(const function::Pyramid
 
     if (!is_block) {
         auto obj = std::make_shared<PyramidAttentionContiguous>();
-        obj->query_size = func_pyramid._query_length;
+        obj->original_query_length = func_pyramid._query_length;
         obj->full_context_size = func_pyramid._full_context_length;
         obj->_models_to_compile = func_pyramid._models;
         obj->_data_left_aligned = func_pyramid._data_left_aligned;
@@ -1129,7 +1134,7 @@ std::shared_ptr<PyramidAttention> PyramidAttention::make(const function::Pyramid
                 info.params.push_back({static_cast<std::size_t>(model->get_parameter_index(input.param)), input.dim});
             }
             info.mask_idx_local = static_cast<std::size_t>(model->get_parameter_index(func_attn._mask));
-            info.query_size = func_attn.query_len();
+            info.compiled_query_size = func_attn.query_len();
             info.context_length = func_attn.context_len();
             obj->_context_lengths.push_back(info.context_length);
             obj->_attention_infos.push_back(std::move(info));
@@ -1142,7 +1147,7 @@ std::shared_ptr<PyramidAttention> PyramidAttention::make(const function::Pyramid
         return obj;
     } else {
         auto obj = std::make_shared<PyramidAttentionBlock>();
-        obj->query_size = func_pyramid._query_length;
+        obj->original_query_length = func_pyramid._query_length;
         obj->full_context_size = func_pyramid._full_context_length;
         obj->_models_to_compile = func_pyramid._models;
         obj->past_key_block_global_param_indices = gk;
@@ -1158,7 +1163,7 @@ std::shared_ptr<PyramidAttention> PyramidAttention::make(const function::Pyramid
             const auto& model = func_pyramid._models[i];
             PyramidAttentionBlockInfo info;
             info.mask_idx_local = static_cast<std::size_t>(model->get_parameter_index(func_attn._mask));
-            info.query_size = func_attn.query_len();
+            info.compiled_query_size = func_attn.query_len();
             info.context_length = func_attn.context_len();
             // Covers every retained parameter (mask, retained KV blocks, everything else).
             // A dropped KV block simply has no entry here; see
@@ -1203,7 +1208,7 @@ namespace pyramid_attention {
 // Pyramid Attention PositionIDs implementation
 PositionIDs::PositionIDs(std::size_t param_idx, const compiled::PyramidAttention& d, const ov::ISyncInferRequest& rq)
     : m_position_ids_idx(param_idx),
-      m_query_size(d.query_size),
+      m_query_size(d.original_query_length),
       m_pyramid_attention(&d),
       m_rq(rq) {
     // FIXME: speculative decode is indistinguishable at this point!
@@ -1211,15 +1216,8 @@ PositionIDs::PositionIDs(std::size_t param_idx, const compiled::PyramidAttention
 }
 
 Selector::Ptr PositionIDs::find(const compiled::PyramidAttention& d, const ov::ISyncInferRequest& rq) {
-    auto is_position_ids = [](const ov::Output<const ov::Node>& p) {
-        const auto& shape = p.get_shape();
-        // FIXME: 2D/3D position IDs are not supported here YET
-        return p.get_node()->get_friendly_name() == "position_ids" &&
-               (shape.size() == 1 || (shape.size() == 2 && shape[0] == 1));
-    };
-
     const auto& inputs = rq.get_inputs();
-    auto pos_ids_iter = std::find_if(inputs.begin(), inputs.end(), is_position_ids);
+    auto pos_ids_iter = std::find_if(inputs.begin(), inputs.end(), ov::npuw::util::is_supported_position_ids_input);
     if (pos_ids_iter == inputs.end()) {
         return Selector::Ptr{};
     }
@@ -1294,8 +1292,8 @@ GlobalPositionIDs::GlobalPositionIDs(std::size_t param_idx,
                                      const compiled::PyramidAttention& d,
                                      const ov::ISyncInferRequest& rq)
     : m_position_ids_idx(param_idx),
-      m_query_size(d.query_size),
-      m_pyramid_step(d._context_lengths.empty() ? d.query_size : d._context_lengths[0]),
+      m_query_size(d.original_query_length),
+      m_pyramid_step(d._context_lengths.empty() ? d.original_query_length : d._context_lengths[0]),
       m_pyramid_attention(&d),
       m_rq(rq) {
     // FIXME: speculative decode is indistinguishable at this point!

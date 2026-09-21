@@ -1,97 +1,138 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-// The native builder's architecture accept list, and the one per-architecture property that
-// cannot be derived from the GGUF tensor table (the RoPE mode).
-//
-// Adding a same-family architecture is a one-line change here and nothing else: the decoder
-// builder derives everything else -- QK-norm, biases, fused QKV, MoE routing, SWA, soft-caps --
-// from the tensor table and metadata. See docs/adding_an_architecture.md.
 
 #include "arch_registry.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+#include "openvino/core/except.hpp"
+
+namespace ov::frontend::gguf {
+
+namespace {
+struct DecoderEntry {
+    const char* name;
+    RopeMode rope;
+    Maturity maturity;
+};
+const DecoderEntry decoders[] = {
+    {"bailingmoe2", RopeMode::Neox, Maturity::Verified},     {"deepseek2-ocr", RopeMode::Neox, Maturity::Verified},
+    {"ernie4_5-moe", RopeMode::Normal, Maturity::Verified},  {"exaone-moe", RopeMode::Neox, Maturity::Experimental},
+    {"exaone4", RopeMode::Neox, Maturity::Verified},         {"gemma", RopeMode::Neox, Maturity::Verified},
+    {"gemma2", RopeMode::Neox, Maturity::Verified},          {"gemma3", RopeMode::Neox, Maturity::Verified},
+    {"gemma4", RopeMode::Neox, Maturity::Verified},          {"glm4moe", RopeMode::Neox, Maturity::Experimental},
+    {"gpt-oss", RopeMode::Neox, Maturity::Verified},         {"hunyuan-dense", RopeMode::Neox, Maturity::Verified},
+    {"hunyuan-moe", RopeMode::Neox, Maturity::Experimental}, {"jais2", RopeMode::Neox, Maturity::Experimental},
+    {"llama", RopeMode::Normal, Maturity::Verified},         {"llama-embed", RopeMode::Normal, Maturity::Experimental},
+    {"maincoder", RopeMode::Normal, Maturity::Verified},     {"mellum", RopeMode::Neox, Maturity::Verified},
+    {"minicpm", RopeMode::Normal, Maturity::Verified},       {"minimax-m2", RopeMode::Neox, Maturity::Experimental},
+    {"mistral3", RopeMode::Normal, Maturity::Verified},      {"muse-glimmer", RopeMode::Normal, Maturity::Verified},
+    {"olmoe", RopeMode::Neox, Maturity::Verified},           {"phi3", RopeMode::Neox, Maturity::Verified},
+    {"plamo3", RopeMode::Neox, Maturity::Experimental},      {"qwen2", RopeMode::Neox, Maturity::Verified},
+    {"qwen3", RopeMode::Neox, Maturity::Verified},           {"qwen35", RopeMode::Interleaved, Maturity::Verified},
+    {"qwen3moe", RopeMode::Neox, Maturity::Verified},        {"smollm3", RopeMode::Normal, Maturity::Verified},
+};
+}  // namespace
+
+std::vector<ArchitectureDefinition> builtin_architectures() {
+    std::vector<ArchitectureDefinition> definitions;
+    for (const auto& entry : decoders) {
+        definitions.push_back(make_decoder_architecture(entry.name, entry.rope, {}, entry.maturity));
+    }
+    // Add custom definitions here; their factories and builders are shared with external plugins.
+    return definitions;
+}
 
 bool arch_uses_neox_rope(const std::string& arch) {
-    return arch == "qwen2" || arch == "qwen3" || arch == "phi3" || arch == "hunyuan-dense" || arch == "gpt-oss" ||
-           arch == "gemma" || arch == "gemma2" || arch == "gemma3" || arch == "gemma4" || arch == "olmoe" ||
-           // H2 2025 dense additions
-           arch == "exaone4" || arch == "plamo3" || arch == "mellum" ||
-           // H2 2025 MoE additions
-           arch == "hunyuan-moe" || arch == "glm4moe" || arch == "bailingmoe2" || arch == "exaone-moe" ||
-           arch == "minimax-m2" ||
-           // H2 2025 VL backbone / other
-           arch == "jais2" || arch == "deepseek2-ocr";
+    for (const auto& entry : decoders) {
+        if (arch == entry.name)
+            return entry.rope == RopeMode::Neox;
+    }
+    return false;
 }
 
 const std::set<std::string>& verified_archs() {
-    static const std::set<std::string> archs = {
-        "llama",  // llama-2 / llama-3
-        "qwen2",  // qwen2 / qwen2.5
-        "qwen3",
-        "phi3",           // phi-3 (fused QKV)
-        "minicpm",        // NORMAL rope + scalar scales
-        "hunyuan-dense",  // NEOX rope + per-head QK-norm after RoPE
-        "olmoe",          // OLMoE 1B-7B (MoE)
-        // Qwen3.5/3.6 hybrid: Gated-DeltaNet linear attention on 3 of every 4 layers, full
-        // attention with M-RoPE and an interleaved query+gate projection on the rest. Verified
-        // token-exact against llama.cpp on Qwen3.5-0.8B-Q8_0 and Ternary-Bonsai-27B-Q2_g64.
-        // GREEDY / BATCH 1 ONLY: the recurrent conv and delta states are not reordered by
-        // beam_idx and have a static batch of 1, so beam search or batch > 1 fails at inference
-        // (a Concat shape mismatch on the conv window) rather than producing wrong output.
-        "qwen35",
-        "gpt-oss",  // MoE + sinks + SWA
-        "gemma3",   // Gemma 3: post-norms + final logit soft-cap
-        "gemma4",   // Gemma 4: SWA, per-layer embeddings, shared KV
-    };
-    return archs;
+    static const auto names = [] {
+        std::set<std::string> result;
+        for (const auto& entry : decoders)
+            if (entry.maturity == Maturity::Verified)
+                result.insert(entry.name);
+        return result;
+    }();
+    return names;
 }
 
 const std::set<std::string>& experimental_archs() {
-    static const std::set<std::string> archs = {
-        // H2 2025: dense
-        "llama-embed",  // Bidirectional LLaMA (embedding, no causal mask)
-        "exaone4",      // EXAONE 4.0: NEOX rope, post-norms (attn+ffn)
-        "plamo3",       // PLaMo-3: NEOX rope, post-norms (attn+ffn)
-        "smollm3",      // SmolLM3: NORMAL rope + SWA
-        // H2 2025: MoE
-        "hunyuan-moe",   // Hunyuan MoE: NEOX rope, MoE routing, QK-norm
-        "glm4moe",       // GLM 4.5 MoE: NEOX rope, 1 dense lead layer, MoE + attn post-norm
-        "exaone-moe",    // EXAONE MoE: NEOX rope, SWA + MoE, shared expert
-        "minimax-m2",    // Minimax M2: NEOX rope, pure MoE
-        "ernie4_5-moe",  // Ernie 4.5 MoE: NORMAL rope, dense lead layers + MoE stride
-        "bailingmoe2",   // BailingMoe V2: NEOX rope, MoE + shared expert + QK-norm
-        // 2026: dense
-        "maincoder",     // Maincoder-1B: NORMAL rope, QK-norm (auto-detected)
-        "mistral3",      // Ministral-3B: NORMAL rope, dense
-        "muse-glimmer",  // Muse Glimmer (Meta Onyx): NORMAL rope on SWA layers only (global
-                         // layers are NoPE), sigmoid attention output gate, QK-norm,
-                         // pre+post norms, final logit soft-cap
-        // 2026: MoE
-        "mellum",         // JetBrains Mellum: NEOX rope, pure MoE
-        "deepseek2-ocr",  // DeepSeekOCR: NEOX rope, dense lead layers + MoE
-        "jais2",          // JAIS-2: NEOX rope, dense (biases auto-detected)
-        // Demoted from verified_archs(): the GenAI-vs-llama.cpp measured status (see
-        // docs/supported_models.md) found these produce degenerate output (or, for `gemma`,
-        // throw) through the native builder despite passing conversion. Re-promote once fixed.
-        "qwen3moe",  // Qwen3 MoE: same topology as olmoe
-        "gemma",     // Gemma 2B / 7B
-        "gemma2",    // Gemma 2: post-norms + attention soft-cap
-    };
-    return archs;
+    static const auto names = [] {
+        std::set<std::string> result;
+        for (const auto& entry : decoders)
+            if (entry.maturity == Maturity::Experimental)
+                result.insert(entry.name);
+        return result;
+    }();
+    return names;
 }
 
 const std::set<std::string>& supported_archs() {
-    static const std::set<std::string> archs = [] {
-        std::set<std::string> a = verified_archs();
-        a.insert(experimental_archs().begin(), experimental_archs().end());
-        return a;
+    static const auto names = [] {
+        auto result = verified_archs();
+        result.insert(experimental_archs().begin(), experimental_archs().end());
+        return result;
     }();
-    return archs;
+    return names;
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+ArchRegistry::ArchRegistry(std::vector<ArchitectureDefinition> definitions) {
+    for (auto& definition : definitions)
+        add(std::move(definition), RegistrationMode::Add);
+}
+
+void ArchRegistry::add(ArchitectureDefinition definition, RegistrationMode mode) {
+    OPENVINO_ASSERT(!definition.id.empty() && !definition.architecture.empty(),
+                    "[GGUF] architecture definition requires a handler id and architecture name");
+    OPENVINO_ASSERT(definition.factory, "[GGUF] architecture '", definition.id, "' has no builder factory");
+    const auto existing = m_definitions.find(definition.id);
+    if (mode == RegistrationMode::Add) {
+        OPENVINO_ASSERT(existing == m_definitions.end(),
+                        "[GGUF] duplicate architecture handler '",
+                        definition.id,
+                        "'; use RegistrationMode::Replace to replace it explicitly");
+    } else {
+        OPENVINO_ASSERT(existing != m_definitions.end(),
+                        "[GGUF] cannot replace unknown architecture handler '",
+                        definition.id,
+                        "'");
+    }
+    const auto id = definition.id;
+    m_definitions[id] = std::make_shared<const ArchitectureDefinition>(std::move(definition));
+}
+
+void ArchRegistry::add_extension(const ArchitectureExtension::Ptr& ext) {
+    OPENVINO_ASSERT(ext, "[GGUF] null ArchitectureExtension");
+    add(ext->definition(), ext->registration_mode());
+}
+
+std::shared_ptr<const ArchitectureDefinition> ArchRegistry::find(const GgufMetadata& meta) const {
+    std::shared_ptr<const ArchitectureDefinition> found;
+    for (const auto& [id, definition] : m_definitions) {
+        if (!definition->matches(meta))
+            continue;
+        OPENVINO_ASSERT(!found, "[GGUF] architecture handlers '", found->id, "' and '", id, "' both claim this file");
+        found = definition;
+    }
+    return found;
+}
+
+std::string ArchRegistry::describe_supported() const {
+    std::string out;
+    for (const auto& [id, definition] : m_definitions) {
+        out += (out.empty() ? "" : ", ") + id;
+    }
+    return out;
+}
+
+const ArchRegistry& default_arch_registry() {
+    static const ArchRegistry registry;
+    return registry;
+}
+
+}  // namespace ov::frontend::gguf
