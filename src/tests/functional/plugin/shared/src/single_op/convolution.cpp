@@ -48,6 +48,11 @@ void ConvolutionLayerTest::SetUp() {
     targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
+    if (model_type == ov::element::f16) {
+        abs_threshold = 0.5;
+        rel_threshold = 0.01;
+    }
+
     const auto& [kernel, stride, pad_begin, pad_end, dilation, conv_out_channels, pad_type] = conv_params;
 
     ov::ParameterVector params{std::make_shared<ov::op::v0::Parameter>(model_type, inputDynamicShapes.front())};

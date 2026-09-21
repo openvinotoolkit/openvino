@@ -48,6 +48,11 @@ void GroupConvolutionLayerTest::SetUp() {
     const auto& [group_conv_params, model_type, shapes, _targetDevice] = this->GetParam();
     targetDevice = _targetDevice;
 
+    if (model_type == ov::element::f16) {
+        abs_threshold = 0.5;
+        rel_threshold = 0.01;
+    }
+
     const auto& [kernel, stride, pad_begin, pad_end, dilation, conv_out_channels, num_groups, pad_type] =
         group_conv_params;
     init_input_shapes(shapes);

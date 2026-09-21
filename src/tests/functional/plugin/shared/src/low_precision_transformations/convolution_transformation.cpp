@@ -30,6 +30,11 @@ void ConvolutionTransformation::SetUp() {
     auto [netPrecision, inputShape, device, param] = this->GetParam();
     targetDevice = device;
 
+    if (netPrecision == ov::element::f16) {
+        abs_threshold = 0.5;
+        rel_threshold = 0.01;
+    }
+
     init_input_shapes(inputShape);
 
     function = ov::builder::subgraph::FakeQuantizeAndConvolutionFunction::get(

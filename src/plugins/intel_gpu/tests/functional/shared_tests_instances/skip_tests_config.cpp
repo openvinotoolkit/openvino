@@ -16,10 +16,7 @@ bool isGPU1Present() {
     std::string deviceID{"1"};
     ov::Core ie = ov::test::utils::create_core();
     auto deviceIDs = ie.get_property(target_device, ov::available_devices);
-    if (std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) == deviceIDs.end()) {
-        return false;
-    }
-    return true;
+    return std::find(deviceIDs.begin(), deviceIDs.end(), deviceID) != deviceIDs.end();
 }
 
 bool immadSupported() {
@@ -94,36 +91,12 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(smoke_MemoryTestV3.*)"),
             // by calc abs_threshold with expected value
             std::regex(R"(.*smoke_CTCLoss_Set2/CTCLossLayerTest.Inference/IS=\(\[\]\)_TS=\{\(3.6.8\)\}_LL=\(6.5.6\)_A=\(4.1.2.3.4.5\)\(5.4.3.0.1.0\)\(2.1.3.1.3.0\)_AL=\(3.3.5\)_BI=7_PCR=1_CMR=1_U=0_PF=f32_PI=i64.*)"),
-            std::regex(R"(.*smoke_ConvolutionBackpropData2D_ExplicitPadding/ConvolutionBackpropDataLayerTest.Inference/IS=\(\[\]\)_TS=.*1.16.10.10.*_OS=\(\)_K\(1.1\)_S\(1.3\).*)"),
-            std::regex(R"(.*smoke_ConvolutionBackpropData2D_ExplicitPadding/ConvolutionBackpropDataLayerTest.Inference/IS=\(\[\]\)_TS=.*1.32.10.10.*_OS=\(\)_K\(1.1\)_S\(1.3\).*)"),
-            std::regex(R"(.*smoke_ConvolutionBackpropData2D_ExplicitPadding/ConvolutionBackpropDataLayerTest.Inference/IS=\(\[\]\)_TS=.*1.3.30.30.*_OS=\(\)_K\(1.1\)_S\(1.3\).*O=16.*)"),
-            std::regex(R"(.*smoke_ConvolutionBackpropData2D_AutoPadValid/ConvolutionBackpropDataLayerTest.Inference/IS=\(\[\]\)_TS=\{\((1\.32\.10\.10|1\.16\.10\.10)\)\}_OS=\(\)_K\(1.1\)_S\(1.3\)_PB\(0.0\)_PE\(0.0\)_D=\(1.1\)_OP=\(\)_O=(1|5|16)_AP=valid_netPRC=f16.*)"),
-            std::regex(R"(.*smoke_ConvolutionBackpropData2D_AutoPadValid/ConvolutionBackpropDataLayerTest.Inference/IS=\(\[\]\)_TS=.*1.3.30.30.*_OS=\(\)_K\(1.1\)_S\(1.3\)_PB\(0.0\)_PE\(0.0\)_D=\(1.1\)_OP=\(\)_O=16_AP=valid_netPRC=f16.*)"),
-            std::regex(R"(.*smoke_ConvolutionBackpropData2D_ExplicitPadding_OutputPaddingDefined/ConvolutionBackpropDataLayerTest.Inference/IS=\(\[\]\)_TS=\{\((1.32.10.10|1.16.10.10|1.3.30.30)\)\}_OS=\(\)_K\(1.1\)_S\(3.3\)_PB\(0.0\)_PE\(0.0\)_D=\(1.1\)_OP=\((1.1|2.2)\)_O=(1|5|16)_AP=valid_netPRC=f16.*)"),
-            std::regex(R"(.*smoke_ConvolutionBackpropData2D_AutoPadding_OutputPaddingDefined/ConvolutionBackpropDataLayerTest.Inference/IS=\(\[\]\)_TS=\{\((1.32.10.10|1.16.10.10|1.3.30.30)\)\}_OS=\(\)_K\(1.1\)_S\(3.3\)_PB\(0.0\)_PE\((0.0|1.1)\)_D=\(1.1\)_OP=\((1.1|2.2)\)_O=(1|5|16).*)"),
             std::regex(R"(.*smoke_GridSample/GridSampleLayerTest.Inference/DS=\((5.2.3.5|5.3.4.6)\)_GS=\((5.7.3.2|5.2.8.2)\)_align_corners=(0|1)_Mode=(bilinear|bicubic)_padding_mode=zeros_model_type=f16_grid_type=f32.*)"),
             std::regex(R"(.*smoke_MatMul_BothTranspose/MatMulLayerTest.Inference/IS=\(\[\]_\[\]\)_TS=\{\(5\)_\(5\)\}_transpose_a=1_transpose_b=1_secondary_input_type=(CONSTANT|PARAMETER)_modelType=(f16|f32).*)"),
             std::regex(R"(.*smoke_dynamic_conv_reshape_fullyconnected/ConvReshapeFullyConnectedDynamicGPUTestDynamic.Inference/IS=\[\?\.64\.1\.\?\.\?\]_\[1\.64\.1\.1\.1\]_model_type=f16.*)"),
             std::regex(R"(.*smoke_empty_tensor/EmptyTensorDynamicGPUTest.Inference/IS=\[\?\]_\[30\]_\[40\]_\[50\]_\[10\]_\[7\]_\[\?.\?\]_\[1.0\]_\[1.8\]_\[1.0\]_\[1.3\]_\[1.20\]_NetType=i32.*)"),
-            std::regex(R"(.*smoke_Convolution2D_ExplicitPadding/ActivatiConvolutionLayerTestonLayerTest.Inference.*netPRC=f16.*)"),
-            std::regex(R"(.*smoke_Convolution2D_AutoPadValid/ConvolutionLayerTest.Inference.*netPRC=f16.*)"),
-            std::regex(R"(.*smoke_Convolution3D_Basic1/ConvolutionLayerTest.*)"),
-            std::regex(R"(.*smoke_ConvolutionBackpropData2D_ExplicitPadding/ConvolutionBackpropDataLayerTest.*)"),
-            std::regex(R"(.*smoke_ConvolutionBackpropData2D_AutoPadValid/ConvolutionBackpropDataLayerTest.*K\((3.5|3.3)\).*netPRC=f16.*)"),
-            std::regex(R"(.*smoke_ConvolutionBackpropData2D_ExplicitPadding_OutputPaddingDefined/ConvolutionBackpropDataLayerTest.*K\((3.5|3.3)\).*netPRC=f16.*)"),
-            std::regex(R"(.*smoke_ConvolutionBackpropData2D_AutoPadding_OutputPaddingDefined/ConvolutionBackpropDataLayerTest.Inference/.*K\((3.5|3.3)\).*PE\(1.1\).*netPRC=f16.*)"),
-            std::regex(R"(.*smoke_ConvolutionBackpropData2D_AutoPadding_OutputPaddingDefined/ConvolutionBackpropDataLayerTest.Inference/.*TS=\{\(1.32.10.10\).*K\((3.5|3.3)\).*PE\(0.0\).*netPRC=f16.*)"),
-            std::regex(R"(.*smoke_ConvolutionBackpropData2D_AutoPadding_OutputPaddingDefined/ConvolutionBackpropDataLayerTest.Inference/.*TS=\{\((1.3.30.30|1.16.10.10)\).*K\(3.5\).*PE\(0.0\).*netPRC=f16.*)"),
-            std::regex(R"(.*smoke_ConvolutionBackpropData2D_AutoPadding_OutputPaddingDefined/ConvolutionBackpropDataLayerTest.Inference/.*TS=\{\((1.3.30.30|1.16.10.10)\).*K\(3.3\).*PE\(0.0\).*O=(1|5|16)_AP=explicit_netPRC=f16.*)"),
-            std::regex(R"(.*smoke_ConvolutionBackpropData3D_ExplicitPadding_OutputPaddingDefined/ConvolutionBackpropDataLayerTest.Inference/.*TS=\{\((1.16.5.5.5|1.32.5.5.5)\)\}.*O=(1|5)_AP=valid_netPRC=f16.*)"),
-            std::regex(R"(.*smoke_ConvolutionBackpropData3D_ExplicitPadding_OutputPaddingDefined/ConvolutionBackpropDataLayerTest.Inference.*O=16_AP=valid_netPRC=f16.*)"),
-            std::regex(R"(.*moke_ConvolutionBackpropData3D_AutoPadding_OutputPaddingDefined/ConvolutionBackpropDataLayerTest.Inference/.*TS=\{\((1.16.5.5.5|1.32.5.5.5)\)\}.*O=(1|5)_AP=valid_netPRC=f16.*)"),
-            std::regex(R"(.*moke_ConvolutionBackpropData3D_AutoPadding_OutputPaddingDefined/ConvolutionBackpropDataLayerTest.Inference.*O=16_AP=valid_netPRC=f16.*)"),
-            std::regex(R"(.*smoke_DeformableConvolution2D_ExplicitPadding/DeformableConvolutionLayerTest.Inference.*O=(1|5)_AP=explicit_BI_PAD=0_MODULATION=1_netPRC=f16.*)"),
-            std::regex(R"(.*smoke_DeformableConvolution2D_AutoPadValid/DeformableConvolutionLayerTest.Inference.*O=(1|5)_AP=valid_BI_PAD=0_MODULATION=1_netPRC=f16.*)"),
-            std::regex(R"(.*smoke_DeformableConvolution2D_DeformableGroups_ExplicitPadding/DeformableConvolutionLayerTest.Inference.*O=(1|5)_AP=explicit_BI_PAD=(0|1)_MODULATION=(0|1)_netPRC=f16.*)"),
-            std::regex(R"(.*smoke_DeformableConvolution2D_SingleTestCase/DeformableConvolutionLayerTest.Inference.*O=(1|5)_AP=explicit_BI_PAD=(0|1)_MODULATION=(0|1)_netPRC=f16.*)"),
-            std::regex(R"(.*smoke_DeformableConvolution2D_MultipleGroup.*/DeformableConvolutionLayerTest.Inference.*O=(1|5)_AP=explicit_BI_PAD=(0|1)_MODULATION=(0|1)_netPRC=f16.*)"),
+            std::regex(R"(.*smoke_DeformableConvolution2D_DeformableGroups_ExplicitPadding/.*MODULATION=(0|1)_netPRC=f16.*)"),
+            std::regex(R"(.*smoke_DeformableConvolution2D_MultipleGroup.*/.*MODULATION=(0|1)_netPRC=f16.*)"),
             std::regex(R"(.*smoke_DFT_5d/DFTLayerTest.Inference/IS=\(\[\]\)_TS=\{\(10.4.8.2.2\)\}_Precision=f32_Axes=\(0.1.2.3\)_signal_size=\(\)_Inverse=0.*)"),
             std::regex(R"(.*smoke_DFT_6d/DFTLayerTest.Inference/IS=\(\[\]\)_TS=\{\(10.4.8.2.5.2\)\}_Precision=f32_Axes=\(0.1.2.3.4\)_signal_.*_Inverse=0.*)"),
             std::regex(R"(.*smoke_ConvolutionLayerGPUTest_ExplicitPad1D/ConvolutionLayerGPUTestDynamic.*netPRC=f16.*)"),
@@ -154,10 +127,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke_dynamic_reduce_deconv_concat/ReduceDeconvConcatDynamicGPUTest.Inference/IS=\[1.32.64.\?.\?\]_\[1.32.64.64.64\]_\[1.8.128.\?.\?.4\]_\[1.8.128.128.128.4\]_model_type=f16.*)"),
             std::regex(R"(.*smoke_GPU_Dynamic/KVCacheTest.Inference.*_precision=f16.*)"),
             std::regex(R"(.*smoke_dynamic_shapeof_activation_sqrt/shapeofActivationDynamicGPUTest.Inference/IS=\[\?.\?.1.64\]_\[1.3136.1.64\]_\[1.49.1.64\]_\[2.49.1.64\]_NetType=f16_targetDevice=GPU_activatioinType=23_inShape=\(\)_constantValue=\(\).*)"),
-            std::regex(R"(.*smoke_GroupConvolutionLayerGPUTest_dynamic2D.*/GroupConvolutionLayerGPUTestDynamic.Inference/.*_netPRC=f16.*)"),
             std::regex(R"(.*smoke_(DFT|IDFT|IRDFT)_GPU_4D/DFTLayerGPUTest.CompareWithRefs.*)"),
             std::regex(R"(.*smoke_RDFT_GPU_4D/DFTLayerGPUTest.CompareWithRefs/prec=(f32|f16)_IS0=\[\?.\?.\?.\?\]_TS0=\(\(1.192.36.64\)\)_IS1=\[\?\]_TS1=\(\(1\)\)_IS2=\[\?\]_TS2=\(\(1\)\).*)"),
-            std::regex(R"(.*smoke_ConvolutionLayerGPUTest_dynamic.*ConvolutionLayerGPUTestDynamic.*netPRC=f16.*)"),
             std::regex(R"(.*smoke_NoReshape/SplitConvConcat.CompareWithRefImpl/IS=\(1.6.40.40\)_ET=f16_.*)"),
             std::regex(R"(.*smoke_basic/PermConvPermConcat.CompareWithRefs/IS=\(1.1.7.32\)_KS=\(1.3\)_OC=(32|64)_ET=f32.*)"),
             std::regex(R"(.*smoke_basic/PermConvPermConcat.CompareWithRefs/IS=\(1.1.8.16\)_KS=\(1.5\)_OC=(32|64)_ET=f32.*)"),
@@ -170,11 +141,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke_MatMul_SecondTranspose/MatMulLayerTest.Inference/.*_TS=\{\(1.64.80\)_\(1.77.80\)\}_.*_modelType=f16_.*)"),
             std::regex(R"(.*smoke_MatMul_SecondTranspose/MatMulLayerTest.Inference/.*_TS=\{\(65.100\)_\(73.100\)\}_.*_modelType=f16_.*)"),
             std::regex(R"(.*smoke_MatMul_BothTranspose/MatMulLayerTest.Inference/.*_TS=\{\(100.65\)_\(73.100\)\}_.*_modelType=f16_.*)"),
-            std::regex(R"(.*smoke_Convolution2D_ExplicitPadding/ConvolutionLayerTest.Inference/.*_TS=\{\(1.3.30.30\)\}_K\(3.5\)_.*_O=5_AP=explicit_netPRC=f16.*)"),
-            std::regex(R"(.*smoke_ConvolutionBackpropData3D_AutoPadding_OutputPaddingDefined/ConvolutionBackpropDataLayerTest.Inference/.*_TS=\{\(1.3.10.10.10\)\}_.*_PE\((0.0.0|1.1.1)\)_D=\(1.1.1\)_OP=\((1.1.1|2.2.2)\)_O=16_AP=explicit_netPRC=f16_.*)"),
-            std::regex(R"(.*smoke_ConvolutionBackpropData3D_AutoPadding_OutputPaddingDefined/ConvolutionBackpropDataLayerTest.Inference/.*_TS=\{\(1.32.5.5.5\)\}_.*_netPRC=f16_.*)"),
-            std::regex(R"(.*smoke_ConvolutionBackpropData3D_AutoPadding_OutputPaddingDefined/ConvolutionBackpropDataLayerTest.Inference/.*_TS=\{\(1.16.5.5.5\)\}_.*_netPRC=f16_.*)"),
-            std::regex(R"(.*smoke_ConvolutionBackpropData3D_AutoPadding_OutputPaddingDefined/ConvolutionBackpropDataLayerTest.Inference/.*_TS=\{\(1.16.5.5.5\)\}_.*_netPRC=f16_.*)"),
             std::regex(R"(.*smoke_PSROIPooling_average/PSROIPoolingLayerTest.Inference/IS=\(3.8.16.16\)_coord_shape=\(10.5\)_out_dim=2_group_size=2_scale=(0.625|1)_bins_x=1_bins_y=1_mode=average_modelType=f16.*)"),
             std::regex(R"(.*smoke_RDFT_5d_last_axis/RDFTLayerTest.Inference/IS=\(10.4.8.2.5\)_modelType=f32_Axes=\(0.1.2.3.4\)_SignalSize=\(\).*)"),
             // Issue: 136862

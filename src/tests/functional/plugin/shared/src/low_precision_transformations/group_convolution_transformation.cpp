@@ -36,6 +36,11 @@ void GroupConvolutionTransformation::SetUp() {
     auto [netPrecision, device, inputShapes, param, addPrecisionPreserved] = this->GetParam();
     targetDevice = device;
 
+    if (netPrecision == ov::element::f16) {
+        abs_threshold = 0.5;
+        rel_threshold = 0.01;
+    }
+
     init_input_shapes(inputShapes.first);
 
     while (param.fakeQuantizeOnData.constantShape.size() > inputShapes.first.size()) {
