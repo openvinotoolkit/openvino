@@ -47,7 +47,7 @@ public:
     }
 
 private:
-    void write_cache_entry(const std::string& id, StreamWriter writer, bool /* align_mmap_to_page */ = false) override {
+    void write_cache_entry(const std::string& id, StreamWriter writer) override {
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
         ScopedLocale plocal_C(LC_ALL, "C");
         const auto blob_path = get_blob_file(id);
@@ -69,8 +69,7 @@ private:
 
     void read_cache_entry(const std::string& id,
                           bool enable_mmap,
-                          StreamReader reader,
-                          bool /* align_mmap_to_page */ = false) override {
+                          StreamReader reader) override {
         // Fix the bug caused by pugixml, which may return unexpected results if the locale is different from "C".
         ScopedLocale plocal_C(LC_ALL, "C");
         const auto blob_path = get_blob_file(id);

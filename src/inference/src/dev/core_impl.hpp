@@ -37,11 +37,8 @@ public:
     struct CacheConfig {
         std::filesystem::path m_cache_dir;
         std::shared_ptr<ov::ICacheManager> m_cache_manager;
-        // True when the target device is GPU running on the Level Zero (ZE) runtime, in which case cached
-        // blobs should be mmap'ed from an aligned address so the GPU ZE backend can zero-copy import them directly.
-        bool m_align_mmap_to_page = false;
 
-        static CacheConfig create(const std::filesystem::path& dir, const ov::Plugin* device = nullptr);
+        static CacheConfig create(const std::filesystem::path& dir);
     };
 
     void set(const ov::AnyMap& config, const std::string& device_name);
@@ -174,22 +171,17 @@ private:
     struct CacheContent {
         explicit CacheContent(const std::shared_ptr<ov::ICacheManager>& cache_manager,
                               bool mmap_enabled = false,
-                              const std::filesystem::path model_path = {},
-                              bool align_mmap_to_page = false)
+                              const std::filesystem::path model_path = {})
             : m_cache_manager(cache_manager),
               m_shared_ctx(dynamic_cast<ov::IContextStore*>(cache_manager.get())),
               m_model_path(model_path),
-              m_mmap_enabled{mmap_enabled},
-              m_align_mmap_to_page{align_mmap_to_page} {}
+              m_mmap_enabled{mmap_enabled} {}
         std::shared_ptr<ov::ICacheManager> m_cache_manager{};
         ov::IContextStore* m_shared_ctx{};
         std::string m_blob_id{};
         std::filesystem::path m_model_path{};
         std::shared_ptr<const ov::Model> model{};
         bool m_mmap_enabled{};
-        // True for a GPU device running the Level Zero (ZE) runtime: cached blobs should be mmap'ed
-        // with page address/size alignment for zero-copy import (see CoreConfig::CacheConfig).
-        bool m_align_mmap_to_page{};
     };
 
     // Core settings (cache config, etc)

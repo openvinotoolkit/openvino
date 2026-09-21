@@ -84,6 +84,7 @@ TEST_P(ze_host_buffer_cache_test, reads_wrapped_cache_without_copy) {
 	scoped_file_remover file_remover{cache_path};
 
 	auto mm = ov::load_mmap_object(cache_path, 0, data_size, false, ov::MmapMode::READ_WRITE);
+	std::cout << "Memory-mapped file loaded, address: " << mm << std::endl;
 	ASSERT_NE(mm, nullptr);
 	ASSERT_EQ(mm->size(), data_size);
 	ASSERT_EQ(data_size % ov::util::min_page_alignment, 0u);

@@ -30,7 +30,7 @@ public:
      * @param blob_id The identifier of the blob.
      * @param writer The function to write the blob data.
      */
-    void write_cache_entry(const std::string& blob_id, StreamWriter writer, bool align_mmap_to_page = false) override;
+    void write_cache_entry(const std::string& blob_id, StreamWriter writer) override;
 
     /**
      * @brief Read a cache entry from the storage.
@@ -40,8 +40,7 @@ public:
      */
     void read_cache_entry(const std::string& blob_id,
                           bool mmap_enabled,
-                          StreamReader reader,
-                          bool align_mmap_to_page = false) override;
+                          StreamReader reader) override;
 
     /**
      * @brief Remove a cache entry from the storage.

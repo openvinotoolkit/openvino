@@ -238,7 +238,7 @@ void SingleFileStorage::write_blob_entry(std::fstream& stream, BlobIdType blob_i
     m_blob_index[blob_id] = {static_cast<uint64_t>(blob_pos), static_cast<uint64_t>(blob_size), std::move(model_name)};
 }
 
-void SingleFileStorage::write_cache_entry(const std::string& blob_id, StreamWriter writer, bool) {
+void SingleFileStorage::write_cache_entry(const std::string& blob_id, StreamWriter writer) {
     ScopedLocale plocal_C(LC_ALL, "C");
     std::fstream stream(m_file_path, std::ios::binary | std::ios::in | std::ios::out | std::ios::ate);
     OPENVINO_ASSERT(stream.good(), "Failed to open cache file ", m_file_path, " for writing blob id ", blob_id);
@@ -247,8 +247,7 @@ void SingleFileStorage::write_cache_entry(const std::string& blob_id, StreamWrit
 
 void SingleFileStorage::read_cache_entry(const std::string& blob_id,
                                          bool enable_mmap,
-                                         StreamReader reader,
-                                         bool) {
+                                         StreamReader reader) {
     ScopedLocale plocal_C(LC_ALL, "C");
 
     const auto cid = convert_blob_id(blob_id);
