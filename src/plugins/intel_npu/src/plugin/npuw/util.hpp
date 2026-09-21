@@ -36,6 +36,12 @@ ov::Tensor copy_tensor_from_const(const std::shared_ptr<ov::Node>& node);
 
 bool starts_with(const std::string& str, const std::string& prefix);
 
+// Shared by the attention/pyramid_attention/host_flash_attention runtime selectors:
+// matches a "position_ids" input of a supported shape - flat [seq_len], regular
+// [1, seq_len], or 3D mrope [num_sections, 1, seq_len] (e.g. Qwen2.5-VL uses 3
+// sections, Qwen3.5-VL uses 4).
+bool is_supported_position_ids_input(const ov::Output<const ov::Node>& p);
+
 std::string fmt(std::size_t number, std::size_t total);
 
 // Matches the three DynamicQuantize decomposition implementations declared in
@@ -225,6 +231,10 @@ bool matchLoRAMatMulAlphaString(const std::string& input);
 bool matchLinCacheString(const std::string& input, const std::string& past_or_present = "past");
 
 bool starts_with_past_lincache(const std::string& input_name);
+
+// Matches past_key_values.N.key/value Parameter (and present.N.key/value output) names of
+// layers managed by sliding window attention.
+bool is_swa_kv_cache_name(const std::string& input_name);
 
 // Matches the paged KV cache inputs of the PagedAttention model deployed by
 // the GenAI continuous-batching pipeline (key_cache.N / value_cache.N, named

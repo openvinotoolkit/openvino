@@ -16,7 +16,7 @@ on:
         description: 'NodeJS version to setup. E.g., "22"'
         type: string
         required: false
-        default: "21"
+        default: "22"
 
 permissions: read-all
 
