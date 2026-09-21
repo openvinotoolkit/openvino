@@ -1061,17 +1061,27 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     const bool pa_i8 = pa_kv_compressed && !data_type_traits::is_i4_u4(cfg_kv_cache_dt);
     const bool pa_key_by_channel = params.typed_desc<paged_attention>()->is_key_by_channel;
     const bool pa_i8_by_token = pa_i8 && !pa_key_by_channel;
+    // Token-major i8/u4 BY_CHANNEL is derived from the PHYSICAL cache shape (adjusted block size at
+    // dim[2]) -- the model-wide layout decision was made once in transformations_pipeline.cpp. Only
+    // the MIXED stage reads the cache (prefill reads the contiguous KEY input), hence !m_is_prefill.
+    const auto adjusted_block_size = [&]() -> size_t {
+        const size_t scales_zp_size = 2 * ov::element::Type(params.input_layouts[PagedAttentionInputIdx::KEY].data_type).size();
+        return data_type_traits::is_i4_u4(cfg_kv_cache_dt) ? paged_attention::block_size / 2 + scales_zp_size
+                                                           : paged_attention::block_size + scales_zp_size;
+    };
     const bool pa_i8_by_channel_tm =
-        pa_i8 && !m_is_prefill &&
-        paged_attention::k_by_channel_token_major_for(ov::element::Type(K.data_type), pa_key_by_channel);
+        pa_i8 && !m_is_prefill && pa_key_by_channel &&
+        paged_attention::k_by_channel_token_major_layout(params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].get_partial_shape(),
+                                                         adjusted_block_size());
     // u4 under the SAME staging switch. It has to be recognised from the CONFIG precision, not from
     // K.data_type: an int4 cache is materialized as a u8 tensor, so the layout alone cannot tell it
     // from a real u8 one. u4 ONLY, deliberately not is_i4_u4 -- the int4 quantizer clamps to [0, 15]
     // with zp = -min*scale, so u4's nibbles are unsigned by construction, while i4 would need a signed
     // widen that nothing below implements. This mirrors sdpa_ocl_decode's gate.
     const bool pa_u4_by_channel_tm =
-        pa_kv_compressed && !m_is_prefill && cfg_kv_cache_dt == ov::element::u4 &&
-        paged_attention::k_by_channel_token_major_for(cfg_kv_cache_dt, pa_key_by_channel);
+        pa_kv_compressed && !m_is_prefill && cfg_kv_cache_dt == ov::element::u4 && pa_key_by_channel &&
+        paged_attention::k_by_channel_token_major_layout(params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].get_partial_shape(),
+                                                         adjusted_block_size());
     const bool pa_by_channel_tm = pa_i8_by_channel_tm || pa_u4_by_channel_tm;
     const bool pa_cache_dequant_ok = pa_i8_by_token || pa_by_channel_tm;
     // Where BY_CHANNEL's per-channel scale/zp fold. In THIS kernel's KQ the A operand is K itself
