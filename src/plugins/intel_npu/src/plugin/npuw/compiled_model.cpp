@@ -407,8 +407,6 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model
 
     if (compiled_model_indicator == NPUW_FLUX2_COMPILED_MODEL_INDICATOR) {
         return ov::npuw::Flux2CompiledModel::import_model(stream, plugin, properties);
-    } else if (compiled_model_indicator == NPUW_GQA_COMPILED_MODEL_INDICATOR) {
-        return ov::npuw::GQACompiledModel::import_model(stream, plugin, properties);
     } else if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
         // Properties are required for ov::weights_path
         return ov::npuw::LLMCompiledModel::import_model(stream, plugin, properties);
