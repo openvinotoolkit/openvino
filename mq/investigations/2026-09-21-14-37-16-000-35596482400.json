@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-21-14-37-16-000-35596482400",
+  "timestamp": "2026-09-21T14:37:16Z",
+  "run_id": "35596482400",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35596482400",
+  "workflow_name": "LLM accuracy iGPU tests",
+  "pr_number": "38293",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38293",
+  "author": "pereanub",
+  "category": "Flaky Test",
+  "title": "LLM accuracy GPU test fails \u2014 Qwen2-0.5B-Instruct-INT8 metric drop exceeds threshold",
+  "signature": "metric drop exceeds threshold|Flaky Test",
+  "signature_hash": "47caedf70a4041f8",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "LLM accuracy iGPU tests / LLM accuracy GPU tests",
+      "conclusion": "failure",
+      "symptom": "test_accuracy_conformance[Qwen/Qwen2-0.5B-Instruct-INT8-GPU] failed: metric drop 0.0329 exceeds threshold 0.03"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Downstream aggregate status check failed because the LLM accuracy GPU job failed"
+    }
+  ],
+  "key_errors": [
+    "tests/llm/accuracy_conformance.py::test_accuracy_conformance[Qwen/Qwen2-0.5B-Instruct-INT8-GPU] FAILED [ 75%]",
+    "File \"/__w/openvino/openvino/tests/llm/accuracy_conformance.py\", line 258, in test_accuracy_conformance\n    assert metric_drop <= threshold, f\"Metric drop {metric_drop} exceeds threshold {threshold}\"\nAssertionError: Metric drop 0.03294575214385986 exceeds threshold 0.03\nassert np.float32(0.032945752) <= 0.03"
+  ],
+  "root_cause": "The Qwen2-0.5B-Instruct-INT8 GPU accuracy conformance test compares a WWB-computed similarity/accuracy metric against a fixed 0.03 drop threshold. The measured drop (0.0329) is only marginally over the threshold, consistent with normal run-to-run numerical noise (GPU kernel nondeterminism, quantization calibration sampling) rather than a code defect introduced by this PR. The PR under investigation (#38293) only touches src/plugins/intel_npu/src/plugin/src/{compiled_model_property_manager,plugin_property_manager}.cpp (NPU plugin property handling), which is unrelated to the GPU LLM weight-compression/accuracy path exercised by this test, further supporting a pre-existing flaky test rather than a regression caused by this change. This exact signature (same model/dtype/device, same threshold assertion) has recurred 5 times in the last month across unrelated PRs, per repo-memory pattern 47caedf70a4041f8.",
+  "reproduction_steps": "Run locally with GPU: `python3 -m pytest tests/llm/accuracy_conformance.py -k GPU --tb native --log-cli-level ERROR` (requires HF cache and an Intel GPU); the specific case is `test_accuracy_conformance[Qwen/Qwen2-0.5B-Instruct-INT8-GPU]`. The failure may not reproduce on every run given its borderline/flaky nature.",
+  "recommended_actions": [
+    "Re-run the failed job; this is very likely a transient/flaky threshold breach unrelated to the PR's NPU-only changes.",
+    "If this Qwen2-0.5B-Instruct-INT8-GPU case keeps recurring (5th time in the pattern database), file a tracking ticket to review/relax the 0.03 drop threshold or stabilize the reference metric for this specific model/device/dtype combination.",
+    "Consider adding a small tolerance margin or averaging over multiple runs for this specific conformance case to reduce false failures blocking unrelated merge-queue PRs."
+  ],
+  "prevention_strategies": "Track flaky accuracy-conformance cases in a dedicated allowlist with automatic retry, or tighten the metric computation (e.g., fixed seeds, deterministic GPU kernels) so the 0.03 threshold is not repeatedly breached by noise alone.",
+  "historical_context": "Same failure signature (Qwen2-0.5B-Instruct-INT8-GPU metric drop exceeding 0.03) recorded 5 prior times between 2026-08-27 and 2026-09-16 across unrelated PRs (#37637, #37178, #37799, #37768, #37611), all categorized as Flaky Test. This is now the 6th occurrence."
+}

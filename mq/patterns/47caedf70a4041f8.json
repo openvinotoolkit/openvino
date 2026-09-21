@@ -4,10 +4,11 @@
   "signature_hash": "47caedf70a4041f8",
   "title": "LLM accuracy GPU test fails \u2014 Qwen2-0.5B-Instruct-INT8 metric drop exceeds threshold",
   "category": "Flaky Test",
-  "count": 5,
+  "count": 6,
   "first_seen": "2026-08-27T09:43:45Z",
-  "last_seen": "2026-09-16T02:58:00Z",
+  "last_seen": "2026-09-21T14:37:16Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/35596482400",
     "https://github.com/openvinotoolkit/openvino/actions/runs/35043753992",
     "https://github.com/openvinotoolkit/openvino/actions/runs/34620952707",
     "https://github.com/openvinotoolkit/openvino/actions/runs/33753760233",
@@ -15,6 +16,7 @@
     "https://github.com/openvinotoolkit/openvino/actions/runs/33046110641"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38293",
     "https://github.com/openvinotoolkit/openvino/pull/37637",
     "https://github.com/openvinotoolkit/openvino/pull/37178",
     "https://github.com/openvinotoolkit/openvino/pull/37799",
@@ -22,7 +24,7 @@
     "https://github.com/openvinotoolkit/openvino/pull/37611"
   ],
   "recent_timestamps": [
-    "2026-09-16T02:58:00Z"
+    "2026-09-21T14:37:16Z"
   ],
   "rerun_search_string": "Metric drop"
 }
