@@ -5,7 +5,7 @@
 import torch
 import pytest
 from packaging import version
-
+from openvino.frontend.pytorch.torchdynamo.backend_utils import _is_testing
 
 class AtenDiv(torch.nn.Module):
     # aten::div can have str or NoneType constant
@@ -778,3 +778,20 @@ def test_pytorch_fx_decoder_extracts_signature():
     assert nc_decoder.get_input_signature_name(0) == "a"
     assert nc_decoder.get_input_signature_name(1) == "b"
     assert nc_decoder._input_signature == ["a", "b"]
+
+
+@pytest.mark.parametrize(
+    ("testing_value", "expected"),
+    [
+        ("false", False),
+        ("0", False),
+        (False, False),
+        ("true", True),
+        ("1", True),
+        (True, True),
+    ],
+)
+def test_is_testing_flag(testing_value, expected):
+    """Test that the _is_testing flag evaluates correctly."""
+    assert _is_testing({"testing": testing_value}) == expected
+    

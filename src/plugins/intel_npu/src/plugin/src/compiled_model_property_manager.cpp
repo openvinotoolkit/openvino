@@ -273,10 +273,9 @@ void CompiledModelPropertyManager::registerProperties() {
         [](const ov::AnyMap&) {
             return true;
         },
-        [this](const ov::AnyMap&) {
-            // Retrieve the weak pointer to the model and lock it to get a shared pointer. Fix potential dangling pointer issue.
-            const auto model = _config.get<MODEL_PTR>();
-            return model.lock();
+        [this](const ov::AnyMap&) -> ov::Any {
+            std::shared_ptr<const ov::Model> model = _config.get<MODEL_PTR>().lock();
+            return ov::Any(std::move(model));
         },
         readOnlySetter
     );
