@@ -262,6 +262,7 @@ void LLMContinuousKVCacheStrategy::continue_prefill(uint32_t keep, uint32_t delt
             // flight hold staging memory at any moment rather than the whole
             // preserved prefix at once.
             auto temp = uu::allocMem(src->get_element_type(), src_slice->get_shape(), "CPU", nullptr);
+            NPUW_ASSERT(temp._ptr && "CPU buffer allocation for KV repack failed — check memory availability");
             src_slice->copy_to(temp._ptr);
             uu::copy_tensor_by_dim(temp, dst_slice, entry.src_dim, entry.dst_dim);
         } else {
