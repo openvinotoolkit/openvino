@@ -32,6 +32,7 @@ public:
 
 protected:
     bool Validate(const Params&) const override;
+    static bool IsWeightedReducePattern(const reduce_params& params);
     virtual JitConstants GetJitConstants(const reduce_params& params) const;
     virtual CommonDispatchData SetDefault(const reduce_params& params) const = 0;
     virtual bool SupportsWeightedReduce() const {

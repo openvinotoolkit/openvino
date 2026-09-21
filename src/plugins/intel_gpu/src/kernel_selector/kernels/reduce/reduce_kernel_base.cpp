@@ -25,11 +25,27 @@ bool ReduceKernelBase::Validate(const Params& p) const {
         }
     }
 
-    if (params.weighted && !SupportsWeightedReduce()) {
+    if (params.weighted && (!SupportsWeightedReduce() || !IsWeightedReducePattern(params))) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
     return true;
+}
+
+bool ReduceKernelBase::IsWeightedReducePattern(const reduce_params& params) {
+    if (!params.weighted || params.is_shape_agnostic || params.inputs.size() != 2 || params.outputs.size() != 1 || params.reduceMode != ReduceMode::SUM ||
+        params.reduceAxes.size() != 1 || params.reduceAxes[0] != 2) {
+        return false;
+    }
+
+    const auto& values = params.inputs[0];
+    const auto& weights = params.inputs[1];
+    const auto& output = params.outputs[0];
+    return values.Dimentions() == 4 && weights.Dimentions() == 4 && output.Dimentions() == 4 &&
+           (values.GetDType() == Datatype::F16 || values.GetDType() == Datatype::F32) && values.GetDType() == weights.GetDType() && values.X().v == 16 &&
+           weights.X().v == 16 && output.X().v == 1 && values.Y().v > 1024 && values.Batch().v == weights.Batch().v && values.Batch().v == output.Batch().v &&
+           weights.Feature().v == 1 && values.Feature().v > 1 && values.Feature().v == output.Feature().v && values.Y().v == weights.Y().v &&
+           values.Y().v == output.Y().v;
 }
 
 JitConstants ReduceKernelBase::GetJitConstants(const reduce_params& params) const {
