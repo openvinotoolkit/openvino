@@ -971,20 +971,15 @@ TEST_P(rms_mxfp8_dynamic_quantize_test, rms_test_bfyx_opt_mxfp8_dynamic_quantize
     };
 
     auto config = get_test_default_config(engine);
-    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
-        {"rms", {format::bfyx, "rms_gpu_bfyx_opt"}},
-    }));
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
 
     network fused_network(engine, make_topology(), config);
     fused_network.set_input_data("input", input);
     auto outputs = fused_network.execute();
 
     auto ref_config = get_test_default_config(engine);
-    ref_config.set_property(ov::intel_gpu::disable_post_ops_fusions(1));
-    ref_config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
-        {"rms", {format::bfyx, "rms_gpu_bfyx_opt"}},
-    }));
+    ref_config.set_property(ov::intel_gpu::optimize_data(false));
     ref_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     network ref_network(engine, make_topology(), ref_config);
     ref_network.set_input_data("input", input);
