@@ -150,7 +150,7 @@ private:
 };
 
 /**
- * @brief Optional capability: hints for managing a buffer's physical-memory residency.
+ * @brief Capability: hints for managing a buffer's physical-memory residency.
  */
 class IMemoryHints {
 public:
