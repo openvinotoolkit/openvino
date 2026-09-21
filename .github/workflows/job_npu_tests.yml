@@ -156,6 +156,13 @@ jobs:
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_edsr.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupA_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupA_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s > ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_compiler_%NPU_PLATFORM%.log 2>&1
+            set PYTEST_EXIT_CODE=%ERRORLEVEL%
+          python3 .github\scripts\parse_npu_compiler_log.py ^
+            --platform %NPU_PLATFORM% ^
+            --input ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_compiler_%NPU_PLATFORM%.log ^
+            --output ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_compiler_%NPU_PLATFORM%.json
+          type ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_compiler_%NPU_PLATFORM%.log
+          exit /b %PYTEST_EXIT_CODE%
 
       # Group B: hf_transformers + easyocr + gfpgan + tpsmm share compatible deps.
       - name: Install PyTorch tests requirements (group B - hf_transformers/easyocr/gfpgan/tpsmm)
