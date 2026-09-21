@@ -239,7 +239,7 @@ protected:
         return frontend->load(static_cast<std::istream*>(&stream), enable_mmap());
     }
 
-    void check_progress(bool as_proto) {
+    void check_progress(bool as_proto, bool as_iterator = false) {
         for (bool materialize_places : {false, true}) {
             for (int conversion_kind : {0, 1, 2}) {
                 SCOPED_TRACE(testing::Message()
@@ -252,7 +252,18 @@ protected:
                     }));
                 ModelProto model_proto;
                 ASSERT_TRUE(model_proto.ParseFromString(model_bytes("add_abc_initializers.onnx")));
-                auto input_model = load_in_memory(frontend, model_proto, as_proto);
+                const auto expected_total = static_cast<unsigned int>(model_proto.graph().node_size());
+                InputModel::Ptr input_model;
+                if (as_iterator) {
+                    auto iterator =
+                        std::make_shared<ov::frontend::onnx::GraphIteratorProto>(ov::frontend::onnx::Internal_Stream);
+                    iterator->initialize(std::make_shared<ModelProto>(model_proto));
+                    iterator->reset();
+                    EXPECT_EQ(iterator->size(), expected_total);
+                    input_model = frontend->load(std::static_pointer_cast<ov::frontend::onnx::GraphIterator>(iterator));
+                } else {
+                    input_model = load_in_memory(frontend, model_proto, as_proto);
+                }
                 ASSERT_NE(input_model, nullptr);
                 if (materialize_places) {
                     ASSERT_EQ(input_model->get_inputs().size(), 1);
@@ -264,13 +275,12 @@ protected:
                 } else {
                     frontend->decode(input_model);
                 }
-                ASSERT_GT(progress.size(), 1);
+                ASSERT_EQ(progress.size(), expected_total);
                 float previous_fraction = 0.f;
                 unsigned int previous_completed = 0;
-                const auto expected_total = std::get<1>(progress.front());
                 for (const auto& [fraction, total, completed] : progress) {
                     EXPECT_EQ(total, expected_total);
-                    EXPECT_GT(completed, previous_completed);
+                    EXPECT_EQ(completed, previous_completed + 1);
                     EXPECT_LE(completed, total);
                     EXPECT_GE(fraction, previous_fraction);
                     EXPECT_FLOAT_EQ(fraction, static_cast<float>(completed) / total);
@@ -493,6 +503,48 @@ TEST_P(ONNXInMemoryLoadTest, reports_progress_from_stream) {
 
 TEST_P(ONNXInMemoryLoadTest, reports_progress_from_model_proto) {
     check_progress(true);
+}
+
+TEST_P(ONNXInMemoryLoadTest, reports_operation_progress_from_explicit_iterator) {
+    check_progress(false, true);
+}
+
+TEST_P(ONNXInMemoryLoadTest, uses_default_for_undefined_optional_attribute) {
+    for (const auto& attribute_mode : {"absent", "undefined", "defined"}) {
+        for (bool as_proto : {false, true}) {
+            for (bool materialize_places : {false, true}) {
+                SCOPED_TRACE(testing::Message() << attribute_mode << ", as_proto=" << as_proto
+                                                << ", materialize_places=" << materialize_places);
+                ModelProto model_proto;
+                ASSERT_TRUE(model_proto.ParseFromString(model_bytes("abs.onnx")));
+                auto node = model_proto.mutable_graph()->mutable_node(0);
+                node->set_op_type("LeakyRelu");
+                const bool defined = std::string(attribute_mode) == "defined";
+                if (std::string(attribute_mode) != "absent") {
+                    auto attr = node->add_attribute();
+                    attr->set_name("alpha");
+                    attr->set_type(defined ? ::ONNX_NAMESPACE::AttributeProto_AttributeType_FLOAT
+                                           : ::ONNX_NAMESPACE::AttributeProto_AttributeType_UNDEFINED);
+                    if (defined) {
+                        attr->set_f(0.5f);
+                    }
+                }
+                auto frontend = FrontEndManager().load_by_framework("onnx");
+                auto input_model = load_in_memory(frontend, model_proto, as_proto);
+                ASSERT_NE(input_model, nullptr);
+                if (materialize_places) {
+                    ASSERT_EQ(input_model->get_inputs().size(), 1);
+                }
+                auto model = frontend->convert(input_model);
+                ov::test::TestCase test_case(model);
+                test_case.add_input<float>({-1.f, 2.f, -3.f});
+                test_case.add_expected_output<float>(
+                    ov::Shape{1, 3},
+                    defined ? std::vector<float>{-0.5f, 2.f, -1.5f} : std::vector<float>{-0.01f, 2.f, -0.03f});
+                test_case.run();
+            }
+        }
+    }
 }
 
 TEST_P(ONNXInMemoryLoadTest, preserves_optimized_out_input_names) {

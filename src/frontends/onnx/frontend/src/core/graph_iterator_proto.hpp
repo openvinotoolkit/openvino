@@ -94,7 +94,7 @@ public:
     void reset() override;
 
     size_t size() const override {
-        return m_decoders.size();
+        return m_graph ? static_cast<size_t>(m_graph->node_size()) : 0;
     }
 
     /// Moves to the next node in the graph

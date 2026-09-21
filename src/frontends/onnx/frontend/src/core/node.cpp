@@ -188,7 +188,7 @@ std::shared_ptr<ov::Model> Node::Impl::get_subgraph(const std::string name) cons
 template <typename T>
 T Node::Impl::get_attribute_value(const std::string& name, T default_value) const {
     auto it = std::find_if(std::begin(m_attributes), std::end(m_attributes), [&](const Attribute& attribute) {
-        return attribute.get_name() == name;
+        return attribute.get_name() == name && attribute.get_type() != Attribute::Type::undefined;
     });
     if (it == std::end(m_attributes)) {
         return std::forward<T>(default_value);
@@ -211,7 +211,7 @@ template <>
 std::shared_ptr<ov::Model> Node::Impl::get_attribute_value(const std::string& name,
                                                            std::shared_ptr<ov::Model> default_value) const {
     auto it = std::find_if(std::begin(m_attributes), std::end(m_attributes), [&](const Attribute& attribute) {
-        return attribute.get_name() == name;
+        return attribute.get_name() == name && attribute.get_type() != Attribute::Type::undefined;
     });
     if (it == std::end(m_attributes)) {
         return std::forward<std::shared_ptr<ov::Model>>(default_value);

@@ -305,7 +305,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
 
         size_t completed = 0;
         const auto total = graph_iterator->size();
-        for (; !graph_iterator->is_end(); graph_iterator->next(), report_progress(++completed, total)) {
+        for (; !graph_iterator->is_end(); graph_iterator->next()) {
             const auto& decoder = graph_iterator->get_decoder();
 
             if (const auto tensor_decoder = std::dynamic_pointer_cast<onnx::DecoderBaseTensor>(decoder)) {
@@ -335,6 +335,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
             materialize_inputs_and_translate(op_decoder, [&](const std::string&, size_t i) {
                 return make_transient_place(op_decoder->get_input_tensor_info(i));
             });
+            report_progress(++completed, total);
             if (telemetry) {
                 // Key by the iterator's resolved opset so op_count events match load_model()'s.
                 op_statistics[op_decoder->get_op_type() + "-" +
