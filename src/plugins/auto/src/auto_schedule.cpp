@@ -301,10 +301,16 @@ void AutoSchedule::compile_for_all_other_devices_for_cache() {
     if (!m_context->m_compile_for_all) {
         return;
     }
-    const std::string cache_dir =
-        m_compile_context[ACTUALDEVICE].m_device_info.config.count(ov::cache_dir.name())
-            ? m_compile_context[ACTUALDEVICE].m_device_info.config[ov::cache_dir.name()].as<std::string>()
-            : m_context->m_ov_core->get_property("", ov::cache_dir);
+    // ACTUALDEVICE's device_info can still be mutated/reassigned by try_to_compile_model() under
+    // m_context->m_mutex while its background compile is running, so snapshot it under the lock.
+    DeviceInformation actual_device_info;
+    {
+        std::lock_guard<std::mutex> lock(m_context->m_mutex);
+        actual_device_info = m_compile_context[ACTUALDEVICE].m_device_info;
+    }
+    const std::string cache_dir = actual_device_info.config.count(ov::cache_dir.name())
+                                       ? actual_device_info.config[ov::cache_dir.name()].as<std::string>()
+                                       : m_context->m_ov_core->get_property("", ov::cache_dir);
     if (cache_dir.empty()) {
         LOG_INFO_TAG("Skip cache pre-compilation when cache dir is not set");
         return;
@@ -316,7 +322,18 @@ void AutoSchedule::compile_for_all_other_devices_for_cache() {
     if (!model && model_path.empty()) {
         return;
     }
-    const std::string& actual_device = m_compile_context[ACTUALDEVICE].m_device_info.device_name;
+    const std::string& actual_device = actual_device_info.device_name;
+    std::vector<DeviceInformation> devices_to_precompile;
+    for (const auto& device : m_context->m_device_priorities) {
+        // Skip the actual device and CPU (already handled by CPU_HELP).
+        if (device.device_name == actual_device || device.device_name.find("CPU") != std::string::npos) {
+            continue;
+        }
+        devices_to_precompile.push_back(device);
+    }
+    if (devices_to_precompile.empty()) {
+        return;
+    }
     if (!m_precompile_executor) {
         m_precompile_executor =
             m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(ov::threading::IStreamsExecutor::Config{
@@ -325,11 +342,7 @@ void AutoSchedule::compile_for_all_other_devices_for_cache() {
                 0 /*default threads per stream, workaround for ticket 62376*/});
     }
 
-    for (const auto& device : m_context->m_device_priorities) {
-        // Skip the actual device and CPU (already handled by CPU_HELP).
-        if (device.device_name == actual_device || device.device_name.find("CPU") != std::string::npos) {
-            continue;
-        }
+    for (const auto& device : devices_to_precompile) {
         m_precompile_executor->run([this, core = m_context->m_ov_core, device, model, model_path] {
             const auto compile_begin = std::chrono::steady_clock::now();
             try {
