@@ -56,8 +56,9 @@ struct sparse_fill_empty_rows : public primitive_base<sparse_fill_empty_rows> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
         auto rhs_casted = downcast<const sparse_fill_empty_rows>(rhs);
         return indices == rhs_casted.indices &&
                values == rhs_casted.values &&

@@ -50,16 +50,19 @@ struct fused_primitive_desc {
     template<typename T>
     std::shared_ptr<T> get_typed_fuse_params() const {
         auto p = std::dynamic_pointer_cast<T>(f_param);
-        if (!p)
+        if (!p) {
             throw std::runtime_error("Invalid dynamic cast of fused parameters!");
+        }
         return p;
     }
 
     bool operator==(const fused_primitive_desc& rhs) const {
-        if (total_num_deps != rhs.total_num_deps)
+        if (total_num_deps != rhs.total_num_deps) {
             return false;
-        if (outer_dep_start_idx != rhs.outer_dep_start_idx)
+        }
+        if (outer_dep_start_idx != rhs.outer_dep_start_idx) {
             return false;
+        }
 
         return *desc == *rhs.desc;
     }

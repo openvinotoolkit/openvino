@@ -55,6 +55,10 @@ struct memory {
     }
     // only supports gpu_usm
     virtual void* buffer_ptr() const { return nullptr; }
+#ifdef ENABLE_MLIR_FOR_GPU
+    // Returns the handle to the underlying memory object (e.g. cl_mem for OpenCL)
+    virtual void* get_native_handle() const { return nullptr; }
+#endif
 
     size_t size() const { return _bytes_count; }
     size_t count() const { return _layout.count(); }
@@ -279,8 +283,9 @@ inline std::vector<T> read_vector(cldnn::memory::ptr mem, const cldnn::stream& s
     } else {
         auto append_from_lock = [](auto& lock, std::vector<T>& out) {
             out.reserve(lock.end() - lock.begin());
-            for (auto it = lock.begin(); it != lock.end(); ++it)
+            for (auto it = lock.begin(); it != lock.end(); ++it) {
                 out.push_back(static_cast<T>(*it));
+            }
         };
         switch (mem_dtype) {
             case data_types::i32: {
