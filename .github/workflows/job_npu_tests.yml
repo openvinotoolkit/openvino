@@ -79,6 +79,7 @@ jobs:
           sparse-checkout: |
             .github/actions/setup_python/action.yml
             .github/actions/install_ov_wheels/action.yml
+            .github/scripts/parse_npu_compiler_log.py
           sparse-checkout-cone-mode: false
           path: 'openvino'
 
@@ -157,7 +158,7 @@ jobs:
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupA_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupA_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s > ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_compiler_%NPU_PLATFORM%.log 2>&1
             set PYTEST_EXIT_CODE=%ERRORLEVEL%
-          python3 .github\scripts\parse_npu_compiler_log.py ^
+          python3 openvino\.github\scripts\parse_npu_compiler_log.py ^
             --platform %NPU_PLATFORM% ^
             --input ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_compiler_%NPU_PLATFORM%.log ^
             --output ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_compiler_%NPU_PLATFORM%.json
@@ -233,5 +234,6 @@ jobs:
           path: |
             ${{ env.INSTALL_TEST_DIR }}\TEST*.html
             ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_compiler_*.log
+            ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_compiler_*.json
             ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_unsupported_ops_*.log
           if-no-files-found: 'error'
