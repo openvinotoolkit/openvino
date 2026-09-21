@@ -343,6 +343,22 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelKeepsExplicitUserO
     EXPECT_FALSE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
 }
 
+TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelDoesNotOverridePrefixCaching) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    // Shrink must not be auto-enabled here: it is mutually exclusive with prefix caching
+    // (see the assert in the ShrinkSlidingWindowKVCache application site), so silently
+    // defaulting it to YES would turn this valid config into a compilation failure.
+    ASSERT_NO_THROW(compiled = create_compiled_model(ov::test::npuw::build_per_layer_inputs_probe_model(),
+                                                     {{"NPUW_LLM_ENABLE_PREFIX_CACHING", "YES"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK").as<bool>());
+    EXPECT_TRUE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
+}
+
 TEST_F(LLMCompiledModelFactoryOptionsTest, DefaultStageConfigsCarryBaselineNpuwOptions) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
