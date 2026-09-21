@@ -477,17 +477,11 @@ bool needs_q8_0_c_requant(const std::string& name, GgufTensorType qtype) {
     return qtype == GGUF_TYPE_Q5_K;
 }
 
-// Opt-in switch: represent Q4_K's asymmetric zero-point as a faithful f16 constant instead of
-// the default integer (u8) one. Left unset, production (genai) keeps the u8 zero-point for the
-// ~2x faster compressed-FC dequant; llama.cpp's test-backend-ops compares against an f32
-// reference with a tolerance the rounded u8 zero-point can miss, so its CI sets this to trade
-// that speedup for exact accuracy. See gguf_zero_point_type.
+// Keep an exact-decode escape hatch for strict validation against ggml's original Q4_K values.
+// Production leaves this unset and uses the compressed-FC-friendly u4 requantization.
 bool q4_k_f16_zero_point_enabled() {
-    static const bool enabled = [] {
-        const char* env = std::getenv("OV_GGUF_Q4_K_ZP_F16");
-        return env != nullptr && *env != '\0' && std::strcmp(env, "0") != 0;
-    }();
-    return enabled;
+    const char* env = std::getenv("OV_GGUF_Q4_K_ZP_F16");
+    return env != nullptr && *env != '\0' && std::strcmp(env, "0") != 0;
 }
 
 }  // namespace
@@ -513,12 +507,12 @@ void notify_lossy_weight_approximation(LossyWeightApproximation kind) {
                       << std::endl;
         });
         break;
-    case LossyWeightApproximation::INTEGER_ZERO_POINT:
+    case LossyWeightApproximation::Q4_K_REQUANT:
         std::call_once(zero_point_once, [] {
-            std::cerr << "[GGUF] accuracy notice: Q4_K weights use an integer (u8) zero-point, which rounds each "
-                         "sub-block's minimum to a multiple of its scale. This is lossy, so results may differ "
-                         "slightly from the original GGUF weights. It keeps the dequantization foldable into an "
-                         "int8 MatMul, which is roughly twice as fast at prefill. Reported once per process."
+            std::cerr << "[GGUF] accuracy notice: Q4_K weights are faithfully decoded and requantized group-wise "
+                         "to OpenVINO u4. This adds a small quantization error, so results may differ slightly "
+                         "from the original GGUF weights. The integer zero-point keeps decompression foldable "
+                         "into a compressed FullyConnected operation. Reported once per process."
                       << std::endl;
         });
         break;
@@ -527,12 +521,12 @@ void notify_lossy_weight_approximation(LossyWeightApproximation kind) {
 
 ov::element::Type gguf_zero_point_type(const std::string& name, GgufTensorType qtype) {
     // The CPU compressed-FullyConnected fast path only folds the dequant when the zero-point is an
-    // INTEGER constant; a fractional f16 one leaves a ~2x slower kernel. Q4_K carries the matmul
-    // weights of modern models and Q2_0's zp is the exact integer 1, so both use u8 by default. The
-    // others keep a faithful f16 zp: their zp = min/scale can exceed u8 range, and rounding it
-    // injects error into every weight. Tensors that are requantized to Q8_0_C are excluded --
-    // their dequant feeds the channel-wise path, not a compressed FC. Q4_K's u8 zp can be switched
-    // back to a faithful f16 one via OV_GGUF_Q4_K_ZP_F16 (see q4_k_f16_zero_point_enabled).
+    // INTEGER constant; a fractional f16 one leaves a ~2x slower kernel. Q4_K matmul weights are
+    // decoded and requantized to an OpenVINO u4 grid with an integer zero-point. Strict oracle
+    // validation can request Q4_K's faithful f16 zero-point via OV_GGUF_Q4_K_ZP_F16. Q2_0's
+    // zero-point is exactly 1, so u8 is faithful there. Other asymmetric formats keep f16 because
+    // their zero-point can exceed u8 range. Tensors selected for Q8_0_C are excluded because their
+    // faithful dequantization feeds that separate requantization path.
     const bool integer_zp = qtype == GGUF_TYPE_Q2_0 || (qtype == GGUF_TYPE_Q4_K && !q4_k_f16_zero_point_enabled());
     return (integer_zp && !needs_q8_0_c_requant(name, qtype)) ? ov::element::u8 : ov::element::f16;
 }
@@ -766,9 +760,8 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
 
     // Asymmetric zero-points. The CPU plugin only folds the dequant into the MatMul when the
     // zp is an INTEGER (u8) low-precision constant; a fractional f16 zp leaves a standalone
-    // dequant MatMul (~2x slower prefill). Q4_K is the asymmetric type that appears as MatMul
-    // weights in modern models (Q4_K_M = Q4_K + symmetric Q6_K), so it uses integer zp to match
-    // the original ggml-openvino backend; Q2_0's zp is the exact integer 1, so it does too.
+    // dequant MatMul (~2x slower prefill). Q4_K is decoded to f32 one 32-element group at a time
+    // and requantized to an integer-zp u4 grid. Q2_0's zp is exactly 1, so it also uses u8.
     // The legacy Q4_1/Q5_1/Q2_K types keep a faithful f16 zp:
     // they are not perf-critical here, and their zp = -min/scale can fall outside u8 range. The
     // requant path (token_embd/output) also keeps f16 -- its dequant feeds channel-wise Q8_0_C.
@@ -777,9 +770,9 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
     if (requant) {
         notify_lossy_weight_approximation(LossyWeightApproximation::Q8_0_C_REQUANT);
     }
-    // Only Q4_K's integer zp actually rounds: Q2_0's zero-point is the exact integer 1.
+    // Q4_K performs a real group-wise requantization; Q2_0's integer zero-point is exact.
     if (zp_type == ov::element::u8 && qtype == GGUF_TYPE_Q4_K) {
-        notify_lossy_weight_approximation(LossyWeightApproximation::INTEGER_ZERO_POINT);
+        notify_lossy_weight_approximation(LossyWeightApproximation::Q4_K_REQUANT);
     }
 
     // K-quant requant sources: the fused dequant -> Q8_0_C streams from the raw bytes, so skip the

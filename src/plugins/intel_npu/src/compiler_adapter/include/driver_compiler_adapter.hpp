@@ -45,7 +45,7 @@ private:
     std::optional<std::string> get_compatibility_descriptor(ze_graph_handle_t graphHandle) const;
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
-    std::shared_ptr<OptionSupportCache> _optionSupportCache;
+    ScopedOptionSupportCache _optionSupportCache;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
 
     ze_device_graph_properties_t _compilerProperties = {};

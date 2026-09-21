@@ -57,8 +57,9 @@ std::string moe_mask_gen_inst::to_string(moe_mask_gen_node const& node) {
 
     json_composite moe_mask_gen_info;
     for (auto o : desc->output_data_types) {
-        if (o.has_value())
+        if (o.has_value()) {
             moe_mask_gen_info.add("out dt: ", dt_to_str(*o));
+        }
     }
 
     node_info->dump(primitive_description);
@@ -110,8 +111,9 @@ std::string moe_mask_gen_reshape_inst::to_string(moe_mask_gen_reshape_node const
 
     json_composite moe_mask_gen_reshape_info;
     for (auto o : desc->output_data_types) {
-        if (o.has_value())
+        if (o.has_value()) {
             moe_mask_gen_reshape_info.add("out dt: ", dt_to_str(*o));
+        }
     }
     node_info->dump(primitive_description);
 
@@ -127,14 +129,17 @@ void moe_mask_gen_reshape_inst::on_execute() {
 }
 
 void moe_mask_gen_reshape_inst::update_output_memory() {
-    if (!can_be_optimized())
+    if (!can_be_optimized()) {
         return;
-    if (_node != nullptr)
+    }
+    if (_node != nullptr) {
         build_deps();
+    }
 
     _mem_allocated = false;
-    if (_impl_params->get_input_layout(0).is_dynamic())
+    if (_impl_params->get_input_layout(0).is_dynamic()) {
         return;
+    }
     for (size_t i = 0; i < _outputs.size(); ++i) {
         if (static_cast<bool>(_outputs[i]) && get_node().get_program().get_config().get_enable_memory_pool()) {
             _network.get_memory_pool().release_memory(_outputs[i].get(), get_node().get_unique_id(), get_node().id(), _network.get_id());
