@@ -398,6 +398,10 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #ifdef HAS_SINK_INPUT
         const global SINK_DATA_T *sink_ptr,
 #endif
+#if HAS_QQ_BIAS && IS_PAGED_ATTENTION && !IS_PREFILL
+        const global QQ_BIAS_DATA_T *qq_bias,
+        const global QQ_BIAS_BEGINS_DATA_T *qq_bias_begins,
+#endif
 #if HAS_TOKEN_TYPE_IDS
         const __global int* token_type_ids,
         const int token_type_ids_count,
@@ -429,9 +433,15 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     const uint subsequence_end = subsequence_begins[gws_mapping + 1];
     const uint subsequence_query_block_idx = block_start_pos - subsequence_begin;
     int q = subsequence_end - subsequence_begin;
-    #if HAS_QQ_BIAS
+    #if HAS_QQ_BIAS && !IS_PREFILL
+        // Speculative tree mask (QQ_BIAS) applies only to the "new" part of K, which is exactly the
+        // range the MIXED stage reads through the cache / current-token split. qq_bias is
+        // [subsequence, QQ_BIAS_NUM (query_spec), QQ_BIAS_NUM (key_spec)], addressed from the
+        // cumulative per-subsequence offset; qq_bias_num is the element count of this subsequence's
+        // mask (a perfect square: spec_num x spec_num).
         const uint qq_bias_num = qq_bias_begins[gws_mapping + 1] - qq_bias_begins[gws_mapping];
         const uint cumulated_spec_num = qq_bias_begins[gws_mapping];
+        const uint spec_num = (uint)native_sqrt((float)qq_bias_num);
     #endif
     #if IS_PREFILL
         const int past_len = 0;
@@ -1878,6 +1888,23 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                             s += MASK_TO_FLOAT(msk[MSK_OFF(0, 0, mask_query, mask_key)]) * iscale;
                         }
                     #endif
+#if HAS_QQ_BIAS && IS_PAGED_ATTENTION && !IS_PREFILL
+                    // Speculative tree mask for the "new" part of K (MIXED stage). Both coordinates
+                    // are subsequence-relative NEW-token indices: query is already wg_j0 +
+                    // sg_j0_kq + ... with wg_j0 == subsequence_query_block_idx, and key counts from
+                    // the cached-context start, so key_spec = key - past_len. qq_bias[row][col] == 0
+                    // masks (query, key); rows/cols are ordered exactly as the reference builds the
+                    // mask over the new tokens (openvino/reference/paged_attention.hpp and the
+                    // test-harness apply_mask_for_head use past_len + j for the key).
+                    if (qq_bias_num > 0 && key >= past_len && key < past_len + (int)spec_num) {
+                        const int key_spec = key - past_len;
+                        if (query >= 0 && query < (int)spec_num) {
+                            const uint qq_off = cumulated_spec_num + (uint)query * spec_num + (uint)key_spec;
+                            if (qq_bias[qq_off] == (QQ_BIAS_DATA_T)0)
+                                s = -INFINITY;
+                        }
+                    }
+#endif
 #if IS_CAUSAL
                     if (!causal_block_clear) {
     #if SLIDING_WINDOW_SIZE
