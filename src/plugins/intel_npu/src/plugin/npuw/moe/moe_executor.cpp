@@ -440,7 +440,7 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
         m_profile->iterative["Get Output Tensor"].record([&]() {
             output = req->get_tensor(cm->outputs()[0]);
         });
-        m_profile->iterative["Scatter Output"].record([&]() {
+        m_profile->iterative[m_resources.scatter_tag.at(inflight->cs)].record([&]() {
             ov::npuw::moe::scatter_expert_outputs(output,
                                                   m_resources.expert_output_accumulator,
                                                   data.tokens,
