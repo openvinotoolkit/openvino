@@ -41,23 +41,30 @@ TEST_P(IsSizePreservingSliceTest, is_size_preserving_slice) {
 namespace {
 constexpr auto i64_max = std::numeric_limits<int64_t>::max();
 constexpr auto i64_min = std::numeric_limits<int64_t>::min();
-const auto inf = ov::Dimension(1, -1);
 }  // namespace
 
 INSTANTIATE_TEST_SUITE_P(
     shape_inference_utils_test,
     IsSizePreservingSliceTest,
-    testing::Values(IsSizePreservingSliceParams{inf, {0, 0}, {i64_max, i64_max}, 1, true},
-                    IsSizePreservingSliceParams{inf, {0, 0}, {i64_max, i64_max}, 2, false},
-                    IsSizePreservingSliceParams{inf, {0, 0}, {i64_max, i64_max}, 3, false},
-                    IsSizePreservingSliceParams{inf, {0, 0}, {i64_max, i64_max}, -1, false},
-                    IsSizePreservingSliceParams{inf, {i64_min, i64_min}, {i64_max, i64_max}, 1, true},
-                    IsSizePreservingSliceParams{inf, {i64_max, i64_max}, {i64_min, i64_min}, -1, true},
-                    IsSizePreservingSliceParams{inf, {-1, -1}, {i64_min, i64_min}, -1, true},
-                    IsSizePreservingSliceParams{inf, {1, 1}, {i64_max, i64_max}, 1, false},
-                    IsSizePreservingSliceParams{inf, {0, 0}, {2147483647, 2147483647}, 1, false},
-                    IsSizePreservingSliceParams{inf, {i64_min, 0}, {i64_max, i64_max}, 1, false},
-                    IsSizePreservingSliceParams{inf, {0, 0}, {1, i64_max}, 1, false},
+    testing::Values(IsSizePreservingSliceParams{ov::Dimension::dynamic(), {0, 0}, {i64_max, i64_max}, 1, true},
+                    IsSizePreservingSliceParams{ov::Dimension::dynamic(), {0, 0}, {i64_max, i64_max}, 2, false},
+                    IsSizePreservingSliceParams{ov::Dimension::dynamic(), {0, 0}, {i64_max, i64_max}, 3, false},
+                    IsSizePreservingSliceParams{ov::Dimension::dynamic(), {0, 0}, {i64_max, i64_max}, -1, false},
+                    IsSizePreservingSliceParams{ov::Dimension::dynamic(),
+                                                {i64_min, i64_min},
+                                                {i64_max, i64_max},
+                                                1,
+                                                true},
+                    IsSizePreservingSliceParams{ov::Dimension::dynamic(),
+                                                {i64_max, i64_max},
+                                                {i64_min, i64_min},
+                                                -1,
+                                                true},
+                    IsSizePreservingSliceParams{ov::Dimension::dynamic(), {-1, -1}, {i64_min, i64_min}, -1, true},
+                    IsSizePreservingSliceParams{ov::Dimension::dynamic(), {1, 1}, {i64_max, i64_max}, 1, false},
+                    IsSizePreservingSliceParams{ov::Dimension::dynamic(), {0, 0}, {2147483647, 2147483647}, 1, false},
+                    IsSizePreservingSliceParams{ov::Dimension::dynamic(), {i64_min, 0}, {i64_max, i64_max}, 1, false},
+                    IsSizePreservingSliceParams{ov::Dimension::dynamic(), {0, 0}, {1, i64_max}, 1, false},
                     IsSizePreservingSliceParams{ov::Dimension(10), {0, 0}, {10, 10}, 1, true},
                     IsSizePreservingSliceParams{ov::Dimension(10), {0, 0}, {9, 9}, 1, false},
                     IsSizePreservingSliceParams{ov::Dimension(10), {-20, -20}, {20, 20}, 1, true},
@@ -74,5 +81,13 @@ INSTANTIATE_TEST_SUITE_P(
                     IsSizePreservingSliceParams{ov::Dimension(0, 1), {0, 0}, {i64_max, i64_max}, 2, false},
                     // a start/stop bound one away from the INT64_MIN/INT64_MAX sentinel still clips for every length up
                     // to max_length (max_length - 1 away from the sentinel in the opposite direction of the check)
-                    IsSizePreservingSliceParams{inf, {i64_min + 1, i64_min + 1}, {i64_max, i64_max}, 1, true},
-                    IsSizePreservingSliceParams{inf, {i64_max - 1, i64_max - 1}, {i64_min, i64_min}, -1, true}));
+                    IsSizePreservingSliceParams{ov::Dimension::dynamic(),
+                                                {i64_min + 1, i64_min + 1},
+                                                {i64_max, i64_max},
+                                                1,
+                                                true},
+                    IsSizePreservingSliceParams{ov::Dimension::dynamic(),
+                                                {i64_max - 1, i64_max - 1},
+                                                {i64_min, i64_min},
+                                                -1,
+                                                true}));

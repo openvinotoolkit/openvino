@@ -181,11 +181,6 @@ inline bool is_size_preserving_slice(const ov::Dimension& dim,
                                      const Bounds& start,
                                      const Bounds& stop,
                                      const int64_t step) {
-    if (step != 1 && step != -1) {
-        // |step| >= 2 gives ceil(L / |step|) < L for every length L >= 2, so the size can never be preserved
-        return false;
-    }
-
     // The max length of an unbounded dimension is Interval::s_max (INT64_MAX), same normalization make_dim uses via
     // value_convert; a negative start/stop bound b means index L + b for a length L within the dimension, so the
     // worst case (start.second, the largest possible start; stop.second, the smallest magnitude negative stop) is
@@ -198,13 +193,17 @@ inline bool is_size_preserving_slice(const ov::Dimension& dim,
         const auto start_at_begin = start == Bounds{0, 0} || start.second <= -max_length;
         const auto stop_at_end = stop.first >= max_length;
         return start_at_begin && stop_at_end;
+    } else if (step == -1) {
+        // start clips to the last element for every L: start == -1, or start.first >= max_length - 1 (so
+        // start.first >= L - 1 for every L <= max_length);
+        // stop clips to before the first element for every L: stop.second <= -max_length - 1.
+        const auto start_at_last = start == Bounds{-1, -1} || start.first >= max_length - 1;
+        const auto stop_before_begin = stop.second <= -max_length - 1;
+        return start_at_last && stop_before_begin;
+    } else {
+        // |step| >= 2 gives ceil(L / |step|) < L for every length L >= 2, so the size can never be preserved
+        return false;
     }
-    // start clips to the last element for every L: start == -1, or start.first >= max_length - 1 (so
-    // start.first >= L - 1 for every L <= max_length);
-    // stop clips to before the first element for every L: stop.second <= -max_length - 1.
-    const auto start_at_last = start == Bounds{-1, -1} || start.first >= max_length - 1;
-    const auto stop_before_begin = stop.second <= -max_length - 1;
-    return start_at_last && stop_before_begin;
 }
 
 /**
