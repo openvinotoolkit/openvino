@@ -301,8 +301,7 @@ void AutoSchedule::compile_for_all_other_devices_for_cache() {
     if (!m_context->m_compile_for_all) {
         return;
     }
-    // ACTUALDEVICE's device_info can still be mutated/reassigned by try_to_compile_model() under
-    // m_context->m_mutex while its background compile is running, so snapshot it under the lock.
+    // Snapshot device info under the mutex to avoid concurrent access.
     DeviceInformation actual_device_info;
     {
         std::lock_guard<std::mutex> lock(m_context->m_mutex);
