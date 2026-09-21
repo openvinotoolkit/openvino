@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-21-23-05-27-132-35655862348",
+  "timestamp": "2026-09-21T23:05:27Z",
+  "run_id": "35655862348",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35655862348",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "38168",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38168",
+  "author": "mvafin",
+  "category": "Network",
+  "title": "NPU Models Tests artifact upload fails with FinalizeArtifact ECONNREFUSED",
+  "signature": "Failed to FinalizeArtifact: Unable to make request: ECONNREFUSED|Network",
+  "signature_hash": "0c33a04c2cbe783c",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "NPU Models Tests / 6010",
+      "conclusion": "failure",
+      "symptom": "All test steps passed (4 passed, 7 skipped); job failed only during the 'Upload Test Results' step with ECONNREFUSED while finalizing the artifact."
+    },
+    {
+      "name": "ci/gha_overall_status_windows",
+      "conclusion": "failure",
+      "symptom": "Aggregation gate job runs `exit 1` because an upstream required job (NPU Models Tests / 6010) did not report success."
+    }
+  ],
+  "key_errors": [
+    "2026-09-21T22:38:15.4214575Z SHA256 digest of uploaded artifact is 9fa7ffc7729b2230f05d0a906adaa81092fc13373590fab569b4811d78df73d3\n2026-09-21T22:38:15.4214575Z Finalizing artifact upload\n2026-09-21T22:38:17.4592676Z ##[error]Failed to FinalizeArtifact: Unable to make request: ECONNREFUSED\nIf you are using self-hosted runners, please make sure your runner has access to all GitHub endpoints",
+    "2026-09-21T22:55:35.4145654Z ##[group]Run exit 1\n2026-09-21T22:55:35.4146341Z exit 1\n2026-09-21T22:55:35.4912301Z ##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The self-hosted Windows runner for the 'NPU Models Tests / 6010' job lost outbound connectivity to the GitHub Actions artifact/blob-storage endpoint after all tests had already completed successfully (4 passed, 7 skipped). The artifact content itself uploaded fine (SHA256 digest logged), but the final 'FinalizeArtifact' API call was refused (ECONNREFUSED), marking the job (and consequently the overall merge-queue status gate) as failed even though the test suite itself passed. This is a transient self-hosted-runner network connectivity issue, not a code or test regression, and matches a recurring known pattern (pattern 0c33a04c2cbe783c, previously seen on PR #36902).",
+  "reproduction_steps": "N/A - not reproducible outside CI; failure is caused by a transient network blip on the self-hosted Windows runner's connection to the GitHub Actions artifact service during the FinalizeArtifact call, after all test steps already completed successfully.",
+  "recommended_actions": [
+    "Re-run the failed jobs for this workflow run; the underlying test suite already passed and only the artifact finalization step failed.",
+    "If ECONNREFUSED errors on FinalizeArtifact/ListArtifacts recur frequently for self-hosted Windows runners, escalate to the CI infrastructure team to check network egress/firewall rules for the artifact/blob-storage endpoints from the aks-runners pool."
+  ],
+  "prevention_strategies": "Consider adding automatic retry/backoff around actions/upload-artifact's FinalizeArtifact call for self-hosted runners, or monitor self-hosted runner network health checks so transient connectivity blips do not fail otherwise-passing test jobs.",
+  "historical_context": "This exact signature (Failed to FinalizeArtifact: Unable to make request: ECONNREFUSED) was previously recorded once on 2026-07-16 for a JAX Layer Tests job on PR #36902 (run 29495320592). This is the second occurrence, now on the NPU Models Tests job for PR #38168, confirming this is a recurring, transient self-hosted-runner network issue rather than a one-off event."
+}
