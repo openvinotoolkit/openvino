@@ -1788,6 +1788,10 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         uint32_t num_variants = 0;
         stream & num_variants;
 
+        // num_variants == 0 is valid (prefill-only/encoder embedding models have no generate variants).
+        NPUW_ASSERT(static_cast<size_t>(num_variants) == compiled->m_kvcache_sizes.size() &&
+                    "NPUW LLM: mismatched number of generate model variants and kvcache sizes in serialized blob!");
+
         compiled->m_generate_compiled_variants.reserve(num_variants);
 
         // Deserialize CompiledModels

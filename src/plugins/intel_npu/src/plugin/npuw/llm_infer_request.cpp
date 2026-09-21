@@ -536,6 +536,8 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::LLMInferRequest::select_genera
     int64_t expected_total_tokens = prompt_length + min_response_len;
 
     const auto& kvcache_sizes = m_npuw_llm_compiled_model->m_kvcache_sizes;
+    NPUW_ASSERT(kvcache_sizes.size() == m_generate_requests.size() &&
+                "NPUW LLM: kvcache_sizes/m_generate_requests size mismatch!");
     // Find the smallest variant that can accommodate the expected token count
     for (size_t i = 0; i < kvcache_sizes.size(); ++i) {
         if (expected_total_tokens <= kvcache_sizes[i]) {
