@@ -4,9 +4,9 @@
 
 #include "openvino/pass/visualize_tree.hpp"
 
+#include <cctype>
 #include <cmath>
 #include <fstream>
-#include <string_view>
 
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/graph_util.hpp"
@@ -172,24 +172,26 @@ static char hex_nibble(unsigned char v) {
     return static_cast<char>(v < 10 ? '0' + v : 'a' + (v - 10));
 }
 
+// Allowlist, not a denylist of path-sensitive characters, since those are platform-dependent
+// (e.g. ':' only matters on NTFS).
+static bool is_safe(unsigned char c) {
+    return (c < 0x80 && std::isalnum(c)) || c == '_' || c == '.' || c == '-';
+}
+
 static std::filesystem::path name_of_subgraph_file(const std::shared_ptr<ov::Node> op,
                                                    const std::filesystem::path& current_file_name,
                                                    const size_t i) {
     // friendly is never empty it is either friendly (set by user) or unique (auto-generated) name
     const auto& node_name = op->get_friendly_name();
-    static constexpr std::string_view allowed_chars =
-        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_.-";
 
-    // '~' is not in allowed_chars, so it only ever appears here as an escape lead byte: every
-    // disallowed byte becomes the 3-char token "~XY" (X, Y hex digits) instead of collapsing to a
-    // single '_', keeping the mapping injective so distinct friendly names (e.g. "a:b" vs "a?b")
-    // can't collide onto the same subgraph dump path and silently overwrite each other.
     std::string sanitized_name;
     sanitized_name.reserve(node_name.size());
     for (unsigned char c : node_name) {
-        if (allowed_chars.find(static_cast<char>(c)) != std::string_view::npos) {
+        if (is_safe(c)) {
             sanitized_name += static_cast<char>(c);
         } else {
+            // '~' is not in is_safe()'s allowlist, so it only ever appears here as an escape's
+            // lead byte, keeping this "~xy" encoding unambiguous.
             sanitized_name += '~';
             sanitized_name += hex_nibble(c >> 4);
             sanitized_name += hex_nibble(c & 0xF);
