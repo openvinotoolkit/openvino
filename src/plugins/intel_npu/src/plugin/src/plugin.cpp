@@ -372,7 +372,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     // HostCompile dynamic models retain their dynamic dimensions for the VM runtime instead of plugin debatching.
     const bool useDynamicGraphForDynamicModel = model->is_dynamic() &&
                                                 compilerType == ov::intel_npu::CompilerType::PLUGIN &&
-                                                localConfig.get<COMPILATION_MODE>().find("HostCompile") == 0;
+                                                localConfig.get<COMPILATION_MODE>().find("HostCompile_Interpreter") == 0;
 
     // Handle batch mode configuration
     std::optional<ov::Dimension> originalBatch = std::nullopt;
