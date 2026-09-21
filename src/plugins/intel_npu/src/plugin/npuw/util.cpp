@@ -194,6 +194,12 @@ bool ov::npuw::util::starts_with(const std::string& str, const std::string& pref
     return str.substr(0, prefix.size()) == prefix;
 }
 
+bool ov::npuw::util::is_supported_position_ids_input(const ov::Output<const ov::Node>& p) {
+    const auto& shape = p.get_shape();
+    return p.get_node()->get_friendly_name() == "position_ids" &&
+           (shape.size() == 1 || (shape.size() == 2 && shape[0] == 1) || (shape.size() == 3 && shape[1] == 1));
+}
+
 std::string ov::npuw::util::fmt(std::size_t number, std::size_t total) {
     std::size_t regs = 1;
     while (total /= 10) {
@@ -472,6 +478,13 @@ ov::SoPtr<ov::ITensor> ov::npuw::util::view(const ov::SoPtr<ov::ITensor>& src,
 
     // Sub-byte views are not supported here
     NPUW_ASSERT(type != ov::element::u4 && type != ov::element::i4);
+
+    // Bounds guard: from[d] <= to[d] <= shape[d] (prevents OOB views and unsigned wrap below).
+    const auto& shape = src->get_shape();
+    NPUW_ASSERT(from.size() == shape.size());
+    for (std::size_t d = 0; d < from.size(); ++d) {
+        NPUW_ASSERT(from[d] <= to[d] && to[d] <= shape[d]);
+    }
 
     const auto num_dims = from.size();
     ov::Shape view_shape;
@@ -952,6 +965,11 @@ bool ov::npuw::util::starts_with_past_lincache(const std::string& input_name) {
            ov::npuw::util::starts_with(input_name, past_lin_ssm_cache);
 }
 
+bool ov::npuw::util::is_swa_kv_cache_name(const std::string& input_name) {
+    // SWA-managed names carry an extra "swa" segment, e.g. "past_key_values.0.swa.key".
+    return input_name.find(".swa.") != std::string::npos;
+}
+
 bool ov::npuw::util::is_pa_kv_cache_name(const std::string& input_name) {
     return ov::npuw::util::starts_with(input_name, "key_cache.") ||
            ov::npuw::util::starts_with(input_name, "value_cache.");
@@ -963,14 +981,20 @@ void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fi
 }
 
 bool ov::npuw::util::isPastKeyParam(const std::string& str) {
-    // Match any past key param: contiguous or block-split (e.g. key_block_3, key_block_tail).
-    static const std::regex pattern(R"(past_key_values\.\d+\.key(_block_(\d+|tail))?)");
+    // Match any past key param:
+    //   - contiguous, e.g. past_key_values.0.key
+    //   - block-split, e.g. past_key_values.0.key_block_3, past_key_values.0.key_block_tail
+    //   - SWA-managed, e.g. past_key_values.0.swa.key
+    static const std::regex pattern(R"(past_key_values\.\d+(?:\.[^.]+)*\.key(_block_(\d+|tail))?)");
     return std::regex_match(str, pattern);
 }
 
 bool ov::npuw::util::isPastValueParam(const std::string& str) {
-    // Match any past value param: contiguous or block-split.
-    static const std::regex pattern(R"(past_key_values\.\d+\.value(_block_(\d+|tail))?)");
+    // Match any past value param:
+    //   - contiguous, e.g. past_key_values.0.value
+    //   - block-split, e.g. past_key_values.0.value_block_3, past_key_values.0.value_block_tail
+    //   - SWA-managed, e.g. past_key_values.0.swa.value
+    static const std::regex pattern(R"(past_key_values\.\d+(?:\.[^.]+)*\.value(_block_(\d+|tail))?)");
     return std::regex_match(str, pattern);
 }
 
