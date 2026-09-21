@@ -866,6 +866,17 @@ void PluginPropertyManager::registerProperties() {
             _config.update(ov::intel_npu::compile_log_level.name(), value.as<std::string>());
         }
     );
+    register_property(ov::intel_npu::ws_compile_call_number.name(), false, ov::PropertyMutability::RO, //The RO isn't true here, it will throw even if trying to read it
+        [this](const ov::AnyMap&) {
+            return _config.hasOpt(ov::intel_npu::ws_compile_call_number.name());
+        },
+        [](const ov::AnyMap&) -> ov::Any {
+            OPENVINO_THROW("Property '", ov::intel_npu::ws_compile_call_number.name(), "' cannot be accessed.");
+        },
+        [](const ov::Any&) {
+            OPENVINO_THROW("Property '", ov::intel_npu::ws_compile_call_number.name(), "' cannot be accessed.");
+        }
+    );
 
     const auto alwaysSupported = [](const ov::AnyMap&) {
         return true;
