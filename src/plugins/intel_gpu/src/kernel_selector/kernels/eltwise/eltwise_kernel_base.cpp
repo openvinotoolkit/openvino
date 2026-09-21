@@ -411,6 +411,10 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
     return jit;
 }
 
+std::string EltwiseKernelBase::GetVload8InputIndex(const eltwise_params& /*params*/, size_t /*input_idx*/) const {
+    return "global_id";
+}
+
 JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& params, bool useVload8) const {
     JitConstants jit = {};
     std::string vload_decls;
@@ -464,7 +468,7 @@ JitConstants EltwiseKernelBase::MakeLoadJitConstants(const eltwise_params& param
             if (params.inputs[i].PhysicalSize() == 1) {  // Scalar case
                 vload_decls += " = (" + toCLType(params.inputs[i].GetDType()) + "8)(input" + toCodeString(i) + "[0]";
             } else {  // Buffer case
-                vload_decls += " = vload8(global_id, input" + toCodeString(i);
+                vload_decls += " = vload8(" + GetVload8InputIndex(params, i) + ", input" + toCodeString(i);
             }
             vload_decls += ");";
         }
