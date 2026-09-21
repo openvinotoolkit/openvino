@@ -5,12 +5,12 @@
 //
 // Each case compiles one synthetic transformer block twice -- once on a single
 // GPU, once on TP_GPU with the model split across several of them -- feeds both
-// the same input and compares the outputs.  Tensor parallelism is a pure
+// the same input and compares the outputs. Tensor parallelism is a pure
 // refactoring of the computation, so the two must agree up to the reordering of
 // the AllReduce summation.
 //
 // What varies between cases is the sharding: MLP shape, bias, weight layout,
-// quantization group alignment, head split.  Attention is here to make the
+// quantization group alignment, head split. Attention is here to make the
 // block realistic, not as the subject -- these blocks use SDPA, and the
 // PagedAttention formulation has its own suite in paged_attention_test.cpp.
 //
@@ -31,13 +31,8 @@
 namespace ov::tp_gpu::tests {
 namespace {
 
-/// Sequence length used for the comparison: long enough for the attention to
-/// mix all heads, short enough to keep the test quick.
 constexpr size_t sequence_length = 16;
 
-/// World size and the arithmetic both sides are pinned to.  Pinning matters:
-/// left to itself the GPU picks f16, and a single ULP there is already ~1e-3 --
-/// the same magnitude as a genuine sharding error, which would go unnoticed.
 using Param = std::tuple<uint32_t, ov::element::Type>;
 
 const std::vector<uint32_t> world_sizes = {2, 3, 4};
@@ -57,8 +52,6 @@ protected:
         try {
             gpu_count = ov::Core{}.get_property("GPU", ov::available_devices).size();
         } catch (const std::exception& e) {
-            // No GPU plugin, or it failed to initialize.  Keep the reason: a
-            // broken environment otherwise looks like a machine without GPUs.
             gpu_error = e.what();
         }
     }
@@ -68,9 +61,6 @@ protected:
             GTEST_SKIP() << "need >= " << world_size() << " GPUs, found " << gpu_count << gpu_error;
     }
 
-    /// Splitting a reduction across devices reorders the additions, so the two
-    /// results differ in the last bits.  One ULP of the inference precision is
-    /// the floor; these leave room for a few accumulated roundings on top.
     static double tolerance() {
         return inference_precision() == ov::element::f16 ? 1e-2 : 1e-5;
     }
@@ -105,7 +95,7 @@ protected:
     }
 
     /// Drops the trailing `tokens` positions from every KV cache state, the
-    /// same read-slice-write GenAI performs between chat turns.  KV cache
+    /// same read-slice-write GenAI performs between chat turns. KV cache
     /// states are [batch, kv_heads, seq, head_dim].
     static void trim_kv_cache(ov::InferRequest& request, size_t tokens) {
         constexpr size_t seq_axis = 2;
@@ -176,7 +166,7 @@ TEST_P(TPGpuAccuracyTest, MatchesSingleGpuOnBiasedProjections) {
 }
 
 // A row-parallel projection sums partial products across ranks, so its bias
-// must be added exactly once.  Adding it on every rank would scale the bias by
+// must be added exactly once. Adding it on every rank would scale the bias by
 // the world size, which only shows up once the collective has run.
 TEST_P(TPGpuAccuracyTest, MatchesSingleGpuOnUntransposedWeights) {
     BlockConfig config;
@@ -213,7 +203,7 @@ TEST_P(TPGpuAccuracyTest, MatchesSingleGpuAcrossStatefulSteps) {
 }
 
 // GenAI drops the tail of the KV cache between chat turns by reading each
-// state, slicing off the trailing tokens and writing it back.  On TP every
+// state, slicing off the trailing tokens and writing it back. On TP every
 // rank holds a slice of the kv heads, so the read has to gather and the write
 // has to scatter; getting that wrong overwrites the other ranks' heads with
 // rank 0's and the next step silently produces a different answer.
@@ -247,7 +237,7 @@ TEST_P(TPGpuAccuracyTest, MatchesSingleGpuAfterKvCacheTrim) {
 
 // Every other case leaves `intermediate` at 448 -- 14 quantization groups, so
 // three and four ranks cannot divide it evenly and the split falls back on
-// whole groups.  512 is 16 groups, which two and four ranks do divide evenly;
+// whole groups. 512 is 16 groups, which two and four ranks do divide evenly;
 // running both tells an error in that fallback apart from one in the split
 // itself.
 TEST_P(TPGpuAccuracyTest, MatchesSingleGpuOnEvenlyDivisibleMlp) {
@@ -259,7 +249,7 @@ TEST_P(TPGpuAccuracyTest, MatchesSingleGpuOnEvenlyDivisibleMlp) {
     expect_close(reference, parallel);
 }
 
-// The default 4 KV heads divide evenly over two and four ranks.  Five do not,
+// The default 4 KV heads divide evenly over two and four ranks. Five do not,
 // for any world size the tests use, so the ranks end up with different numbers
 // of attention heads -- and with the remainder handed to the lower ranks, the
 // last rank is the one that gets shorted.
@@ -274,7 +264,7 @@ TEST_P(TPGpuAccuracyTest, MatchesSingleGpuOnUnevenHeadSplit) {
 }
 
 // The vocabulary projection is split by output feature and the bands are
-// copied back into rank 0 -- the only rank whose outputs anyone reads.  A band
+// copied back into rank 0 -- the only rank whose outputs anyone reads. A band
 // written at the wrong offset, or a rank whose slice never arrives, shows up
 // here as logits that stop matching partway along the vocabulary.
 TEST_P(TPGpuAccuracyTest, MatchesSingleGpuOnAVocabularyProjection) {

@@ -33,7 +33,6 @@ bool TPAllReduce::visit_attributes(AttributeVisitor& visitor) {
 }
 
 void TPAllReduce::validate_and_infer_types() {
-    // AllReduce: output shape == input shape, same element type
     set_output_type(0, get_input_element_type(0), get_input_partial_shape(0));
 }
 

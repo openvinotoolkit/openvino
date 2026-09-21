@@ -38,10 +38,6 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
 }
 
 const std::vector<ov::Output<const ov::Node>>& CompiledModel::inputs() const {
-    // Restored from a blob: no IR was available to derive ports from. The
-    // rank models keep the user model's parameters untouched -- sharding only
-    // rewrites what happens between them -- so rank 0 describes the same
-    // interface, in the same order.
     const auto& own = ov::ICompiledModel::inputs();
     return own.empty() ? m_rank_compiled.front()->inputs() : own;
 }

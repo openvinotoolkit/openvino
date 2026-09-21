@@ -11,14 +11,13 @@ namespace tp_gpu {
 namespace op {
 
 /// \brief All-reduce collective: sums (or reduces) a tensor across all TP ranks.
-/// Output shape == input shape.
 class TPAllReduce : public ov::op::Op {
 public:
     OPENVINO_OP("TPAllReduce", "tp_gpu", Op);
 
     TPAllReduce() = default;
 
-    /// \param data   The tensor to reduce
+    /// \param data           The tensor to reduce
     /// \param group_id       Logical group identifier
     /// \param collective_id  Unique id for matching across ranks
     /// \param rank           This rank's index within the group

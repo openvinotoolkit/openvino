@@ -91,7 +91,7 @@ inline std::shared_ptr<ov::Node> transpose_heads(const ov::Output<ov::Node>& inp
 }
 
 /// Expands KV heads up to the query head count the way exported models do:
-/// Unsqueeze -> multiply by a tensor of ones -> Reshape.  The ones constant
+/// Unsqueeze -> multiply by a tensor of ones -> Reshape. The ones constant
 /// broadcasts over the KV dimension, so the subgraph keeps working after the
 /// rewriter shards it -- exactly like the ShapeOf-driven form real exports use.
 inline std::shared_ptr<ov::Node> expand_kv_heads(const ov::Output<ov::Node>& kv, const BlockConfig& config) {
@@ -198,7 +198,7 @@ inline std::shared_ptr<ov::Model> make_transformer_block(const BlockConfig& conf
 
 /// The same block, ending the way a full language model ends: the last hidden
 /// state goes straight into a projection over the vocabulary and from there
-/// into the only Result.  Nothing sits in between, which is the shape the
+/// into the only Result. Nothing sits in between, which is the shape the
 /// rewriter accepts for splitting the projection across ranks.
 inline std::shared_ptr<ov::Model> make_block_with_lm_head(const BlockConfig& config, size_t vocab) {
     auto block = make_transformer_block(config);

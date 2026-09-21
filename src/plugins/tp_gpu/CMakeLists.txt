@@ -15,7 +15,7 @@ include(${CMAKE_CURRENT_SOURCE_DIR}/cmake/embed_kernels.cmake)
 # openvino_tp_gpu_ops -- the collective ops (TPAllReduce & co).
 #
 # The GPU plugin has to know these types: it casts to them in its op factory
-# and needs their typeinfo/vtable symbols.  Exposing them as a proper static
+# and needs their typeinfo/vtable symbols. Exposing them as a proper static
 # library keeps that dependency declared and reviewable instead of having
 # intel_gpu compile TP sources of its own.
 # ---------------------------------------------------------------------------

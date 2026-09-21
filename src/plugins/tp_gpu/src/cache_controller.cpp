@@ -41,7 +41,7 @@ size_t block_size_of(const ov::Shape& value_cache_shape) {
 }
 
 /// Cache tensors live in device memory, and a device-to-device copy only works
-/// through the owning plugin's own tensor type.  Wrapping one in a generic
+/// through the owning plugin's own tensor type. Wrapping one in a generic
 /// region-of-interest tensor produces something the plugin refuses to
 /// recognize, so regions are expressed as byte offsets into the tensor instead.
 ov::IRemoteTensor& as_remote(const ov::SoPtr<ov::ITensor>& tensor) {

@@ -13,13 +13,8 @@
 namespace ov {
 namespace tp_gpu {
 
-/// Where the plugin's diagnostics go.
-///
-/// Inline on purpose: the collective primitives live in the intel_gpu plugin,
-/// which does not link the TP_GPU plugin module, so anything they call has to
-/// be header-only.
 inline std::ostream& log_stream() {
-    return std::cerr;
+    return std::cout;
 }
 
 /// Collects one message and hands it to the core logger on destruction.
@@ -46,14 +41,14 @@ private:
 // Call-site macros.
 //
 // Everything here keys off TP_DEBUG_CONFIG, which CMake defines from
-// ENABLE_TP_GPU_DEBUG_CAPS -- one switch for the whole plugin.  The option
+// ENABLE_TP_GPU_DEBUG_CAPS -- one switch for the whole plugin. The option
 // table in options.inl uses the same switch, so a debug option either exists
 // everywhere or nowhere; there is no build in which one is settable and
 // silently ignored.
 //
 // Without it the debug options have no getters at all, so every use of one has
 // to go through TP_DEBUG_OPT, which substitutes the release-build value
-// instead of touching the config.  The conditions then fold to constants and
+// instead of touching the config. The conditions then fold to constants and
 // the guarded code disappears with them.
 //
 // Note: the macros below name ov::tp_gpu::TPConfig, so a translation unit that
@@ -66,7 +61,7 @@ private:
 #    define TP_DEBUG_CODE(...) __VA_ARGS__
 
 /// The value of a per-model debug option, or `release_value` where the option
-/// does not exist.  `config` is any TPConfig, `option` the bare property name.
+/// does not exist. `config` is any TPConfig, `option` the bare property name.
 #    define TP_DEBUG_OPT(config, option, release_value) ((config).get_##option())
 
 /// The same for a global debug option, which has a static getter and no
@@ -87,12 +82,12 @@ private:
 
 #endif
 
-/// Whether the requested verbosity is in effect.  Reads the process-global
+/// Whether the requested verbosity is in effect. Reads the process-global
 /// option, so it works from code that has no config object at hand -- which is
 /// the case for the collectives living inside the intel_gpu plugin.
 #define TP_VERBOSE_AT_LEAST(level) (ov::tp_gpu::TPConfig::verbosity() >= (level))
 
-/// Errors that must never be silent, down to per-call tracing.  `TP_LOG_ERR`
+/// Errors that must never be silent, down to per-call tracing. `TP_LOG_ERR`
 /// and `TP_LOG_WARN` are for things a user needs to see; the rest are for
 /// whoever is debugging the plugin.
 #define TP_LOG_ERR   TP_LOG_RAW(ov::log::Level::ERR)
@@ -101,11 +96,9 @@ private:
 #define TP_LOG_DEBUG TP_LOG_RAW(ov::log::Level::DEBUG)
 #define TP_LOG_TRACE TP_LOG_RAW(ov::log::Level::TRACE)
 
-/// A warning the user sees in every build type.  Not gated by the verbosity:
+/// A warning the user sees in every build type. Not gated by the verbosity:
 /// these report a real configuration problem, not a diagnostic.
 #define TP_WARN_ALWAYS ov::tp_gpu::AlwaysWarn{}.stream()
 
-/// Measurement output.  Printed whenever profiling is on, whatever the
-/// verbosity, because asking for measurements and getting silence would be
-/// surprising.
+/// Measurement output. Printed whenever profiling is on, whatever the verbosity.
 #define TP_REPORT ov::tp_gpu::log_stream()

@@ -36,9 +36,7 @@ void TPGather::validate_and_infer_types() {
     auto pshape = get_input_partial_shape(0);
 
     // Only the root ends up holding every slice; the others keep their own,
-    // which is what stops this from allocating a full-vocabulary tensor on
-    // every rank -- at prompt length that would be over a hundred megabytes
-    // each, written by no one.
+    // which is what stops this from allocating a full-vocabulary tensor on every rank
     if (m_rank == 0 && pshape.rank().is_static()) {
         const auto rank_len = pshape.rank().get_length();
         const auto norm_axis = m_axis >= 0 ? m_axis : m_axis + rank_len;

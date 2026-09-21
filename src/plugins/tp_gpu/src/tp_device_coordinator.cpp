@@ -57,6 +57,17 @@ const std::shared_ptr<ov::ZeroApi>& ze_api() {
 // the reduce kernel.
 constexpr std::size_t kRingAlignElems = 128;
 
+// How much a halving step may exceed half of the range it splits.
+//
+// halving_mid snaps the boundary down to kRingAlignElems, so the two halves are
+// not equal: whoever keeps the lower one sends the upper, which can be longer
+// than half by almost a full alignment unit.  Sizing a step's staging region at
+// exactly half therefore lets the transfer run into the next step's region,
+// where a partner delivering the following step overwrites it.  That showed up
+// as a payload of 1021 f32 on four ranks losing its last 125 elements -- and
+// only sometimes, because it is a race between two devices.
+constexpr std::size_t kHalvingSlackBytes = kRingAlignElems * 4;  // f32 is the widest element
+
 // Payload ceiling for recursive halving, in bytes.
 //
 // Halving and the ring move the same 1.5*S per rank, but they place it
@@ -476,9 +487,13 @@ bool TPDeviceCoordinator::ensure_scratch_capacity(std::size_t payload_bytes) {
 
     // Ring: N slots per rank, one per chunk, so concurrent steps never share
     // a slot.  The stride is the largest chunk rounded up for alignment; the
-    // total lands within one payload per rank.
+    // total lands within one payload per rank.  The halving slack rides along:
+    // halving lays its steps out inside the same region, and its steps are
+    // slightly larger than half of what they split (see kHalvingSlackBytes).
     const std::size_t chunk_stride =
-        m_use_ring ? align_up((payload_bytes + m_world_size - 1) / m_world_size, 256) : 0;
+        m_use_ring ? align_up((payload_bytes + m_world_size - 1) / m_world_size + kHalvingSlackBytes,
+                              256)
+                   : 0;
 
     try {
         if (m_use_ring) {
@@ -683,18 +698,23 @@ void TPDeviceCoordinator::halving_range(std::size_t n, int rank, int level,
 }
 
 void* TPDeviceCoordinator::halving_stage(int rank, int step, int buffer) const {
-    // The steps take half as much as the one before, so laying them end to
-    // end costs less than one payload -- which is what the ring arena already
-    // reserves per buffer.
+    // Each step stages at most half of what the previous one left, plus the
+    // alignment slack halving_mid can introduce.  Laying the steps end to end
+    // still costs about one payload, which the ring arena reserves per buffer
+    // -- ensure_scratch_capacity adds the slack on top.
     std::size_t offset = 0;
-    std::size_t size = m_scratch.payload_capacity_bytes;
+    std::size_t span = m_scratch.payload_capacity_bytes;
+    auto step_bytes = [](std::size_t range) {
+        return (range + 1) / 2 + kHalvingSlackBytes;
+    };
     for (int j = 0; j < step; ++j) {
-        size = (size + 1) / 2;
-        offset += align_up(size, 256);
+        const std::size_t staged = step_bytes(span);
+        offset += align_up(staged, 256);
+        span = staged;
     }
     const std::size_t region =
         static_cast<std::size_t>(m_world_size) * m_scratch.chunk_capacity_bytes;
-    OPENVINO_ASSERT(offset + align_up((size + 1) / 2, 256) <= region,
+    OPENVINO_ASSERT(offset + align_up(step_bytes(span), 256) <= region,
                     "[TP][L0] halving staging does not fit the ring arena");
     return static_cast<uint8_t*>(ring_slot(rank, 0, buffer)) + offset;
 }
