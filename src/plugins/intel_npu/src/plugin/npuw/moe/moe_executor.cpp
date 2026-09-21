@@ -462,6 +462,9 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
     // Records a selected token into the given (tokens, slots) pair, used by both the
     // full O(num_tokens) threshold scan and the prefetch scan below.
     auto fill_token = [&](std::vector<size_t>& tokens, std::vector<size_t>& slots, size_t token_id) {
+        // Guards the accumulator's slot bound against a token selected by more than K experts.
+        NPUW_ASSERT(token_slot_count[token_id] < num_active_experts &&
+                    "MoE: token selected by more experts than num_active_experts");
         tokens.push_back(token_id);
         slots.push_back(token_slot_count[token_id]++);
     };
