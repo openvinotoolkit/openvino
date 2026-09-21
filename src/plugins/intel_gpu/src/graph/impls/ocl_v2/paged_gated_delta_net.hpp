@@ -81,9 +81,6 @@ struct PagedGatedDeltaNetOpt : public PagedGatedDeltaNetBase {
 
 protected:
     bool validate_internal(const program_node& node) const override {
-        if (node.get_dependencies().size() == 13) {
-            return false;
-        }
         const auto& q_shape = node.get_input_layout(paged_gated_delta_net::QUERY).get_partial_shape();
         const auto& v_shape = node.get_input_layout(paged_gated_delta_net::VALUE).get_partial_shape();
 

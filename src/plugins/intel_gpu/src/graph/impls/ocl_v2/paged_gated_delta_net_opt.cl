@@ -92,6 +92,10 @@ KERNEL(paged_gated_delta_net_opt)
  __global INPUT8_TYPE* block_indices_begins,
  __global INPUT9_TYPE* past_lens,
  __global INPUT10_TYPE* cache_interval,
+#if HAS_TREE_MASK
+ __global INPUT11_TYPE* qq_bias,
+ __global INPUT12_TYPE* qq_bias_begins,
+#endif
  __global OUTPUT_TYPE* output,
  int num_sequences,
  int query_head_offset,
@@ -115,6 +119,15 @@ KERNEL(paged_gated_delta_net_opt)
     const int past_len = past_lens[seq];
     const int interval = cache_interval[seq];
     const int prev_nums = interval > 0 ? past_len % interval : 0;
+#if HAS_TREE_MASK
+    const int seq_tokens = token_end - token_begin;
+    const int qq_begin = qq_bias_begins[seq];
+    const int qq_end = qq_bias_begins[seq + 1];
+    const int tree_mode = qq_end > qq_begin;
+    const int block_end = block_indices_begins[seq + 1];
+    if (tree_mode && (qq_end - qq_begin != seq_tokens * seq_tokens || block_end - block_begin < seq_tokens + 1))
+        return;
+#endif
 
     const int group_size = V_HEAD_NUM / K_HEAD_NUM;
     const int hk = h / group_size;
@@ -146,6 +159,152 @@ KERNEL(paged_gated_delta_net_opt)
     }
 
     int token = token_begin;
+#if HAS_TREE_MASK
+    if (tree_mode) {
+        for (; token < token_end; token++) {
+            const int node = token - token_begin;
+            if (qq_bias[qq_begin + node * seq_tokens + node] == 0)
+                return;
+
+            int parent = -1;
+            for (int candidate = node - 1; candidate >= 0; candidate--) {
+                if (qq_bias[qq_begin + node * seq_tokens + candidate] != 0) {
+                    parent = candidate;
+                    break;
+                }
+            }
+
+            const int parent_block_id = block_indices[block_begin + (parent < 0 ? 0 : parent + 1)];
+            const int parent_block_base = (parent_block_id * V_HEAD_NUM + h) * state_stride;
+#pragma unroll
+            for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
+                const int curr_iv = start_iv + v_idx;
+                const int base = parent_block_base + curr_iv * K_HEAD_DIM;
+#if (K_VEC_SIZE == 8) && (K_VEC_COUNT == 1)
+                state[v_idx][0] = K_VEC_LOAD_STATE(recurrent_state_table, base);
+#else
+#    pragma unroll
+                for (int kc = 0; kc < K_VEC_COUNT; kc++) {
+                    const int k_base = kc * K_VEC_SIZE * SUBGROUP_SIZE;
+                    state[v_idx][kc] = K_VEC_LOAD_STATE(recurrent_state_table, base + k_base);
+                }
+#endif
+            }
+
+            const int q_base = token * q_token_stride + q_head_base;
+            const int k_base = token * k_token_stride + k_head_base;
+            const int v_base = token * v_token_stride + v_head_base;
+            const int g_idx = token * V_HEAD_NUM + h;
+
+#if (K_VEC_SIZE == 8) && (K_VEC_COUNT == 1)
+            q_norm[0] = K_VEC_LOAD_Q(query, q_base);
+            k_norm[0] = K_VEC_LOAD_K(key, k_base);
+            FUNC(normalize_kq_128)(&k_norm[0], &q_norm[0]);
+#else
+            float q_sum_local = 0.0f;
+            float k_sum_local = 0.0f;
+#    pragma unroll
+            for (int kc = 0; kc < K_VEC_COUNT; kc++) {
+                const int offset = kc * K_VEC_SIZE * SUBGROUP_SIZE;
+                q_norm[kc] = K_VEC_LOAD_Q(query, q_base + offset);
+                k_norm[kc] = K_VEC_LOAD_K(key, k_base + offset);
+                q_sum_local += K_VEC_SUM_SQ(q_norm[kc]);
+                k_sum_local += K_VEC_SUM_SQ(k_norm[kc]);
+            }
+
+            float q_scale = SCALE_FACTOR;
+            float k_scale = 1.0f;
+#    if FUSE_QK_L2NORM
+            const float q_sum = sub_group_reduce_add(q_sum_local);
+            const float k_sum = sub_group_reduce_add(k_sum_local);
+            q_scale = FUNC(l2norm_scale)(q_sum, SCALE_FACTOR, Q_L2_NORM_EPS);
+            k_scale = FUNC(l2norm_scale)(k_sum, 1.0f, K_L2_NORM_EPS);
+#    endif
+#    pragma unroll
+            for (int kc = 0; kc < K_VEC_COUNT; kc++) {
+                q_norm[kc] *= q_scale;
+                k_norm[kc] *= k_scale;
+            }
+#endif
+
+            const float b_g = exp(convert_float(gate[g_idx]));
+            const float b_beta = convert_float(beta[g_idx]);
+            float b_v_block[V_BLOCK_SIZE];
+            float h_k_block[V_BLOCK_SIZE];
+            float update_block[V_BLOCK_SIZE];
+            float out_block[V_BLOCK_SIZE];
+
+#pragma unroll
+            for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
+                const int curr_iv = start_iv + v_idx;
+                const int v_base_aligned = v_base + (curr_iv & ~(SUBGROUP_SIZE - 1));
+                const int v_lane = curr_iv & (SUBGROUP_SIZE - 1);
+                const float v_val = convert_float(BLOCK_READN(INPUT2_TYPE, 1, value, v_base_aligned));
+                b_v_block[v_idx] = sub_group_broadcast(v_val, v_lane);
+            }
+
+#pragma unroll
+            for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
+                float h_k_local = 0.0f;
+#if (K_VEC_SIZE == 8) && (K_VEC_COUNT == 1)
+                state[v_idx][0] *= b_g;
+                h_k_local = FUNC(sum8)(state[v_idx][0] * k_norm[0]);
+#else
+#    pragma unroll
+                for (int kc = 0; kc < K_VEC_COUNT; kc++) {
+                    state[v_idx][kc] *= b_g;
+                    h_k_local += K_VEC_DOT(state[v_idx][kc], k_norm[kc]);
+                }
+#endif
+                h_k_block[v_idx] = sub_group_reduce_add(h_k_local);
+                update_block[v_idx] = (b_v_block[v_idx] - h_k_block[v_idx]) * b_beta;
+            }
+
+#pragma unroll
+            for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
+                float out_val_local = 0.0f;
+#if (K_VEC_SIZE == 8) && (K_VEC_COUNT == 1)
+                state[v_idx][0] = fma(k_norm[0], update_block[v_idx], state[v_idx][0]);
+                out_val_local = FUNC(sum8)(state[v_idx][0] * q_norm[0]);
+#else
+#    pragma unroll
+                for (int kc = 0; kc < K_VEC_COUNT; kc++) {
+                    state[v_idx][kc] = fma(k_norm[kc], update_block[v_idx], state[v_idx][kc]);
+                    out_val_local += K_VEC_DOT(state[v_idx][kc], q_norm[kc]);
+                }
+#endif
+                out_block[v_idx] = sub_group_reduce_add(out_val_local);
+            }
+
+#pragma unroll
+            for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
+                const int curr_iv = start_iv + v_idx;
+                if (lid == 0) {
+                    const int out_offset = (token * V_HEAD_NUM + h) * V_HEAD_DIM + curr_iv;
+                    output[out_offset] = TO_OUTPUT_TYPE(out_block[v_idx]);
+                }
+            }
+
+            const int output_block_id = block_indices[block_begin + node + 1];
+            const int output_block_base = (output_block_id * V_HEAD_NUM + h) * state_stride;
+#pragma unroll
+            for (int v_idx = 0; v_idx < V_BLOCK_SIZE; v_idx++) {
+                const int curr_iv = start_iv + v_idx;
+                const int base = output_block_base + curr_iv * K_HEAD_DIM;
+#if (K_VEC_SIZE == 8) && (K_VEC_COUNT == 1)
+                BLOCK_WRITEN(INPUT3_TYPE, K_VEC_SIZE, recurrent_state_table, base, K_VEC_TO_STATE(state[v_idx][0]));
+#else
+#    pragma unroll
+                for (int kc = 0; kc < K_VEC_COUNT; kc++) {
+                    const int k_base = kc * K_VEC_SIZE * SUBGROUP_SIZE;
+                    BLOCK_WRITEN(INPUT3_TYPE, K_VEC_SIZE, recurrent_state_table, base + k_base, K_VEC_TO_STATE(state[v_idx][kc]));
+                }
+#endif
+            }
+        }
+        return;
+    }
+#endif
     int slot = 1;
     int tokens_to_next_boundary = interval > 0 ? (prev_nums > 0 ? (interval - prev_nums) : interval) : (token_end - token_begin);
     while (token < token_end) {
