@@ -42,7 +42,6 @@ set(COMMON_OPTIMIZATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/eliminate_loop_inputs_outputs.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/eliminate_unsqueeze_gather.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/enable_shapeof_constant_folding.cpp
-    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/erase_redundant_convert_pair.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fold_subgraph_empty_inputs.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fq_concat_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/fq_eliminate_sequential.cpp

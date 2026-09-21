@@ -155,17 +155,35 @@ def bake_symint_constants(om, args, dyn_shapes: bool = True, gm=None):
     sources = symint_shape_sources(gm, args)
     n_int_args = sum(1 for a in args if isinstance(a, int))
 
+    # The frontend can drop a consumer-less placeholder, shifting om.inputs
+    # out of position -- match by name instead of index to avoid corruption.
+    placeholders = [n for n in gm.graph.nodes if n.op == "placeholder"] if gm is not None else None
+    name_to_input = None
+    if placeholders is not None and len(placeholders) == len(args):
+        name_to_input = {}
+        for port in om.inputs:
+            for port_name in port.get_names():
+                name_to_input.setdefault(port_name, port)
+
+    def _om_input_for(idx):
+        if name_to_input is not None:
+            return name_to_input.get(placeholders[idx].name)
+        return om.inputs[idx] if idx < len(om.inputs) else None
+
     params_to_remove = []
     for idx, input_data in enumerate(args):
         if isinstance(input_data, int):
-            param_node = om.inputs[idx].get_node()
+            om_input = _om_input_for(idx)
+            if om_input is None:
+                continue  # dropped by the frontend: no Parameter to touch
+            param_node = om_input.get_node()
             src = sources.get(idx)
             if src is None:
                 repl = _opset1.constant(np.array([int(input_data)], dtype=np.int64))
             else:
-                # om.inputs is still 1:1 with args; Parameters are removed after.
                 tensor_arg_idx, dim = src
-                shape_of = _opset8.shape_of(om.inputs[tensor_arg_idx], output_type="i64")
+                tensor_input = _om_input_for(tensor_arg_idx)
+                shape_of = _opset8.shape_of(tensor_input, output_type="i64")
                 repl = _opset8.gather(
                     shape_of,
                     _opset1.constant(np.array([dim], dtype=np.int64)),
@@ -181,18 +199,17 @@ def bake_symint_constants(om, args, dyn_shapes: bool = True, gm=None):
         logger.debug("symint inputs sourced from ShapeOf; forcing dynamic input shapes")
     dyn = dyn_shapes or all_symints_sourced
 
-    tensor_idx = 0
-    for input_data in args:
+    for idx, input_data in enumerate(args):
         if isinstance(input_data, int):
             continue
-        om.inputs[tensor_idx].get_node().set_element_type(_dtype_mapping[input_data.dtype])
+        om_input = _om_input_for(idx)
+        if om_input is None:
+            continue
+        om_input.get_node().set_element_type(_dtype_mapping[input_data.dtype])
         if dyn:
-            om.inputs[tensor_idx].get_node().set_partial_shape(
-                PartialShape([-1] * input_data.ndim))
+            om_input.get_node().set_partial_shape(PartialShape([-1] * input_data.ndim))
         else:
-            om.inputs[tensor_idx].get_node().set_partial_shape(
-                PartialShape(list(input_data.size())))
-        tensor_idx += 1
+            om_input.get_node().set_partial_shape(PartialShape(list(input_data.size())))
 
     # set_partial_shape only touches the Parameter; the caller must re-infer
     # downstream shapes, or a stale ShapeOf const-folds back to the frozen size.

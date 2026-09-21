@@ -8,17 +8,21 @@ import os
 
 import pytest
 
-pytest.importorskip("vllm")
-
 os.environ.setdefault("VLLM_LOGGING_LEVEL", "WARNING")
+# test_run.py ships a plain function through collective_rpc; msgspec can't
+# serialize callables, and this is local test-only IPC, not a network RPC.
+os.environ.setdefault("VLLM_ALLOW_INSECURE_SERIALIZATION", "1")
 
-# Must precede the first `import vllm`: vLLM reads this at module import,
-# well before the plugin entry point loads. See vllm.preset.set_pre_import_env.
+# Must precede the first `import vllm` (including importorskip below): vLLM
+# reads this at module import, well before the plugin entry point loads.
+# See vllm.preset.set_pre_import_env.
 from openvino.frontend.pytorch.torchdynamo.vllm.preset import (  # noqa: E402
     set_pre_import_env,
 )
 
 set_pre_import_env()
+
+pytest.importorskip("vllm")
 
 MODEL_ID = "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
 
