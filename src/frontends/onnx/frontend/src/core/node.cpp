@@ -155,7 +155,7 @@ std::size_t Node::Impl::get_outputs_size() const {
 
 bool Node::Impl::has_attribute(const std::string& name) const {
     auto it = std::find_if(std::begin(m_attributes), std::end(m_attributes), [&](const Attribute& attribute) {
-        return attribute.get_name() == name;
+        return attribute.get_name() == name && attribute.get_type() != Attribute::Type::undefined;
     });
     return it != std::end(m_attributes);
 }

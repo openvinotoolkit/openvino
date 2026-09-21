@@ -6,6 +6,7 @@
 #include <gtest/gtest.h>
 #include <onnx/onnx_pb.h>
 
+#include <algorithm>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -21,6 +22,7 @@
 #include "core/graph_iterator_proto.hpp"
 #include "onnx_utils.hpp"
 #include "openvino/core/preprocess/pre_post_process.hpp"
+#include "openvino/frontend/extension/progress_reporter.hpp"
 #include "openvino/frontend/onnx/extension/conversion.hpp"
 #include "openvino/frontend/onnx/frontend.hpp"
 #include "openvino/op/multiply.hpp"
@@ -218,7 +220,7 @@ protected:
         return std::get<1>(GetParam());
     }
 
-    static std::string model_path(const std::string& name) {
+    static std::filesystem::path model_path(const std::string& name) {
         return ov::util::path_join({ov::test::utils::getExecutableDirectory(), TEST_ONNX_MODELS_DIRNAME, name});
     }
 
@@ -227,6 +229,58 @@ protected:
         std::ostringstream buffer;
         buffer << file.rdbuf();
         return buffer.str();
+    }
+
+    InputModel::Ptr load_in_memory(const FrontEnd::Ptr& frontend, ModelProto& model_proto, bool as_proto) const {
+        if (as_proto) {
+            return frontend->load(reinterpret_cast<uint64_t>(&model_proto), enable_mmap());
+        }
+        std::istringstream stream(model_proto.SerializeAsString());
+        return frontend->load(static_cast<std::istream*>(&stream), enable_mmap());
+    }
+
+    void check_progress(bool as_proto) {
+        for (bool materialize_places : {false, true}) {
+            for (int conversion_kind : {0, 1, 2}) {
+                SCOPED_TRACE(testing::Message()
+                             << "materialize_places=" << materialize_places << ", conversion_kind=" << conversion_kind);
+                auto frontend = FrontEndManager().load_by_framework("onnx");
+                std::vector<std::tuple<float, unsigned int, unsigned int>> progress;
+                frontend->add_extension(std::make_shared<ProgressReporterExtension>(
+                    [&](float fraction, unsigned int total, unsigned int completed) {
+                        progress.emplace_back(fraction, total, completed);
+                    }));
+                ModelProto model_proto;
+                ASSERT_TRUE(model_proto.ParseFromString(model_bytes("add_abc_initializers.onnx")));
+                auto input_model = load_in_memory(frontend, model_proto, as_proto);
+                ASSERT_NE(input_model, nullptr);
+                if (materialize_places) {
+                    ASSERT_EQ(input_model->get_inputs().size(), 1);
+                }
+                if (conversion_kind == 0) {
+                    frontend->convert(input_model);
+                } else if (conversion_kind == 1) {
+                    frontend->convert_partially(input_model);
+                } else {
+                    frontend->decode(input_model);
+                }
+                ASSERT_GT(progress.size(), 1);
+                float previous_fraction = 0.f;
+                unsigned int previous_completed = 0;
+                const auto expected_total = std::get<1>(progress.front());
+                for (const auto& [fraction, total, completed] : progress) {
+                    EXPECT_EQ(total, expected_total);
+                    EXPECT_GT(completed, previous_completed);
+                    EXPECT_LE(completed, total);
+                    EXPECT_GE(fraction, previous_fraction);
+                    EXPECT_FLOAT_EQ(fraction, static_cast<float>(completed) / total);
+                    previous_fraction = fraction;
+                    previous_completed = completed;
+                }
+                EXPECT_FLOAT_EQ(previous_fraction, 1.f);
+                EXPECT_EQ(previous_completed, expected_total);
+            }
+        }
     }
 
     static void check_initializer_model(const std::shared_ptr<ov::Model>& model) {
@@ -262,7 +316,10 @@ TEST_P(ONNXInMemoryLoadTest, selects_iterator_or_legacy_and_owns_stream_data) {
     iterator->reset();
     auto iterator_model = frontend->load(std::static_pointer_cast<ov::frontend::onnx::GraphIterator>(iterator));
     ASSERT_NE(iterator_model, nullptr);
-    EXPECT_EQ(typeid(*input_model) == typeid(*iterator_model), ov::frontend::onnx::tests::is_graph_iterator_enabled());
+    const auto& loaded_model = *input_model;
+    const auto& explicit_iterator_model = *iterator_model;
+    EXPECT_EQ(typeid(loaded_model) == typeid(explicit_iterator_model),
+              ov::frontend::onnx::tests::is_graph_iterator_enabled());
 
     check_initializer_model(frontend->convert(input_model));
 }
@@ -385,7 +442,9 @@ TEST_P(ONNXInMemoryLoadTest, selects_iterator_or_legacy_and_copies_model_proto) 
 
     auto file_model = frontend->load(model_path("add_abc_initializers.onnx"), enable_mmap());
     ASSERT_NE(file_model, nullptr);
-    EXPECT_TRUE(typeid(*input_model) == typeid(*file_model));
+    const auto& loaded_model = *input_model;
+    const auto& reference_model = *file_model;
+    EXPECT_TRUE(typeid(loaded_model) == typeid(reference_model));
     check_initializer_model(frontend->convert(input_model));
 }
 
@@ -426,6 +485,111 @@ TEST_P(ONNXInMemoryLoadTest, converts_control_flow_from_model_proto) {
     test_case.add_expected_output<float>(ov::Shape{1, 2}, {3.f, 3.f});
     test_case.add_expected_output<float>(ov::Shape{3, 1, 2}, {1.f, 1.f, 2.f, 2.f, 3.f, 3.f});
     test_case.run();
+}
+
+TEST_P(ONNXInMemoryLoadTest, reports_progress_from_stream) {
+    check_progress(false);
+}
+
+TEST_P(ONNXInMemoryLoadTest, reports_progress_from_model_proto) {
+    check_progress(true);
+}
+
+TEST_P(ONNXInMemoryLoadTest, preserves_optimized_out_input_names) {
+    ov::Core core;
+    try {
+        core.register_plugin(
+            ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
+                                               std::string("openvino_template_plugin") + OV_BUILD_POSTFIX),
+            "TEMPLATE");
+    } catch (...) {
+        // The template plugin may already be registered by plugins.xml.
+    }
+    for (const auto& op_type : {"Min", "Max", "Sum", "Identity"}) {
+        for (bool as_proto : {false, true}) {
+            for (bool materialize_places : {false, true}) {
+                SCOPED_TRACE(testing::Message()
+                             << op_type << ", as_proto=" << as_proto << ", materialize_places=" << materialize_places);
+                ModelProto model_proto;
+                ASSERT_TRUE(model_proto.ParseFromString(model_bytes("abs.onnx")));
+                model_proto.mutable_graph()->mutable_node(0)->set_op_type(op_type);
+                auto frontend = FrontEndManager().load_by_framework("onnx");
+                auto input_model = load_in_memory(frontend, model_proto, as_proto);
+                if (materialize_places) {
+                    ASSERT_EQ(input_model->get_inputs().size(), 1);
+                }
+                auto model = frontend->convert(input_model);
+                auto compiled = core.compile_model(model, "TEMPLATE");
+                auto request = compiled.create_infer_request();
+                auto input = request.get_tensor("x");
+                const std::vector<float> values{-1.f, 2.f, -3.f};
+                std::copy(values.begin(), values.end(), input.data<float>());
+                request.infer();
+                auto output = request.get_tensor("y");
+                EXPECT_EQ(std::vector<float>(output.data<float>(), output.data<float>() + output.get_size()), values);
+            }
+        }
+    }
+}
+
+TEST_P(ONNXInMemoryLoadTest, preserves_zero_length_model_input) {
+    for (bool as_proto : {false, true}) {
+        for (bool materialize_places : {false, true}) {
+            SCOPED_TRACE(testing::Message()
+                         << "as_proto=" << as_proto << ", materialize_places=" << materialize_places);
+            ModelProto model_proto;
+            ASSERT_TRUE(model_proto.ParseFromString(model_bytes("abs.onnx")));
+            auto graph = model_proto.mutable_graph();
+            for (auto value_info : {graph->mutable_input(0), graph->mutable_output(0)}) {
+                auto shape = value_info->mutable_type()->mutable_tensor_type()->mutable_shape();
+                shape->clear_dim();
+                shape->add_dim()->set_dim_value(0);
+            }
+            auto frontend = FrontEndManager().load_by_framework("onnx");
+            auto input_model = load_in_memory(frontend, model_proto, as_proto);
+            if (materialize_places) {
+                ASSERT_EQ(input_model->get_inputs().size(), 1);
+            }
+            auto model = frontend->convert(input_model);
+            ASSERT_EQ(model->inputs().size(), 1);
+            EXPECT_EQ(model->input().get_shape(), ov::Shape{0});
+            ov::test::TestCase test_case(model);
+            test_case.add_input<float>(ov::Shape{0}, {});
+            test_case.add_expected_output<float>(ov::Shape{0}, {});
+            test_case.run();
+        }
+    }
+}
+
+TEST_P(ONNXInMemoryLoadTest, converts_loss_with_optional_ignore_index) {
+    for (const auto& ignore_mode : {"absent", "undefined", "negative", "high"}) {
+        for (bool as_proto : {false, true}) {
+            SCOPED_TRACE(testing::Message() << ignore_mode << ", as_proto=" << as_proto);
+            ModelProto model_proto;
+            ASSERT_TRUE(model_proto.ParseFromString(model_bytes("negativelog_likelihood_loss.onnx")));
+            auto node = model_proto.mutable_graph()->mutable_node(0);
+            node->mutable_attribute(0)->set_s("sum");
+            const bool ignore = std::string(ignore_mode) == "negative" || std::string(ignore_mode) == "high";
+            const int64_t ignored_target = std::string(ignore_mode) == "negative" ? -1 : 5;
+            if (std::string(ignore_mode) != "absent") {
+                auto attr = node->add_attribute();
+                attr->set_name("ignore_index");
+                attr->set_type(ignore ? ::ONNX_NAMESPACE::AttributeProto_AttributeType_INT
+                                      : ::ONNX_NAMESPACE::AttributeProto_AttributeType_UNDEFINED);
+                if (ignore) {
+                    attr->set_i(ignored_target);
+                }
+            }
+            auto frontend = FrontEndManager().load_by_framework("onnx");
+            auto input_model = load_in_memory(frontend, model_proto, as_proto);
+            auto model = frontend->convert(input_model);
+            ov::test::TestCase test_case(model);
+            test_case.add_input<float>(std::vector<float>(30, -1.f));
+            test_case.add_input<int64_t>({ignore ? ignored_target : 0, 1, 0, 1, 0, 1});
+            test_case.add_expected_output<float>(ov::Shape{}, {ignore ? 5.f : 6.f});
+            test_case.run();
+        }
+    }
 }
 
 INSTANTIATE_TEST_SUITE_P(ONNX,

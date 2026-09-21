@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "core/attribute.hpp"
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -147,17 +146,8 @@ ov::OutputVector negative_log_likelihood_loss(const ov::frontend::onnx::Node& no
     const auto inputs = node.get_ov_inputs();
 
     const auto reduction = node.get_attribute_value<std::string>("reduction", "mean");
-    bool ignore_index = node.has_attribute("ignore_index") == true;
-    int64_t ignore_index_value = 0;
-
-    // In some cases attribute may exist but have an "undefined" type, which we treat as missing.
-    if (ignore_index) {
-        const auto& attr = node.get_attribute("ignore_index");
-        ignore_index = attr.get_type() != Attribute::Type::undefined;
-        if (ignore_index) {
-            ignore_index_value = node.get_attribute_value<int64_t>("ignore_index");
-        }
-    }
+    const bool ignore_index = node.has_attribute("ignore_index");
+    const auto ignore_index_value = ignore_index ? node.get_attribute_value<int64_t>("ignore_index") : 0;
 
     CHECK_VALID_NODE(node,
                      reduction == "none" || reduction == "sum" || reduction == "mean",

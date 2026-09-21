@@ -527,7 +527,7 @@ void FrontEnd::translate_graph(const InputModel::Ptr& input_model,
     auto translators_map = std::make_shared<OperatorsBridge>();
     translators_map->register_extensions(m_extensions.conversions);
 
-    TranslateSession translate_session(input_model, translators_map, "MainGraph");
+    TranslateSession translate_session(input_model, translators_map, "MainGraph", m_extensions.progress_reporter);
     translate_session.set_fail_fast(fail_fast);
     try {
         ov_model = translate_session.get_converted_model();
