@@ -81,7 +81,7 @@ ov_add_frontend(NAME onnx
                 HEADERS ${ONNX_FRONTEND_HEADERS}
                 PUBLIC_HEADERS ${ONNX_FRONTEND_PUBLIC_HEADERS})
 
-set(ONNX_OPSET_VERSION 26 CACHE INTERNAL "Supported version of ONNX operator set")
+set(ONNX_OPSET_VERSION 27 CACHE INTERNAL "Supported version of ONNX operator set")
 target_compile_definitions(${TARGET_NAME} PRIVATE ONNX_OPSET_VERSION=${ONNX_OPSET_VERSION})
 
 if(BUILD_SHARED_LIBS)
