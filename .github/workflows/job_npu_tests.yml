@@ -154,7 +154,7 @@ jobs:
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_torchvision_models.py ^
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_timm.py ^
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_edsr.py -m "%MODEL_SCOPE%" ^
-            --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupA_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
+            --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupA_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupA_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s > ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_compiler_%NPU_PLATFORM%.log 2>&1
 
       # Group B: hf_transformers + easyocr + gfpgan + tpsmm share compatible deps.
