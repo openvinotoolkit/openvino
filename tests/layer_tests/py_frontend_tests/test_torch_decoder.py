@@ -5,7 +5,7 @@
 import torch
 import pytest
 from packaging import version
-
+from openvino.frontend.pytorch.torchdynamo.backend_utils import _is_testing
 
 class AtenDiv(torch.nn.Module):
     # aten::div can have str or NoneType constant
@@ -805,3 +805,19 @@ def test_pytorch_fx_pool_without_output_metadata(return_indices):
     assert len(actual) == len(expected)
     for index, value in enumerate(expected):
         np.testing.assert_array_equal(actual[index], value.numpy())
+
+
+@pytest.mark.parametrize(
+    ("testing_value", "expected"),
+    [
+        ("false", False),
+        ("0", False),
+        (False, False),
+        ("true", True),
+        ("1", True),
+        (True, True),
+    ],
+)
+def test_is_testing_flag(testing_value, expected):
+    """Test that the _is_testing flag evaluates correctly."""
+    assert _is_testing({"testing": testing_value}) == expected
