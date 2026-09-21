@@ -490,7 +490,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     if (!device_utilization_thresholds.empty()) {
         auto_s_context->m_selection_policy.utilization_thresholds.insert(device_utilization_thresholds.begin(),
                                                                         device_utilization_thresholds.end());
-        // Log once here, where the property is actually read, instead of on every select_device() call.
         for (const auto& item : device_utilization_thresholds) {
             LOG_DEBUG_TAG("Device: %s. Utilization threshold: %s",
                           item.first.c_str(),
@@ -501,7 +500,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     auto perf_curve_table = load_config.get_property(ov::intel_auto::perf_curve_table);
     if (!perf_curve_table.empty()) {
         auto_s_context->m_selection_policy.perf_curve_table = perf_curve_table;
-        // Log once here, where the property is actually read, instead of on every select_device() call.
         LOG_DEBUG_TAG("PERF_CURVE_TABLE contains %s device curves", std::to_string(perf_curve_table.size()).c_str());
         for (const auto& [device_key, curve] : perf_curve_table) {
             LOG_DEBUG_TAG("PERF_CURVE_TABLE[%s] contains %s points", device_key.c_str(), std::to_string(curve.size()).c_str());
@@ -608,10 +606,10 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 }
 
 std::unordered_map<std::string, float> Plugin::get_device_utilizations(const std::list<DeviceInformation>& devices) {
+    std::unordered_map<std::string, float> result;
     std::call_once(m_telemetry_client_init_once, [this]() {
         m_telemetry_client = std::make_unique<device_monitor::TelemetryClient>();
     });
-    std::unordered_map<std::string, float> result;
     const std::string snapshot = m_telemetry_client->fetch_utilization_snapshot();
     if (snapshot.empty()) {
         return result;
@@ -754,13 +752,6 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
     const auto& perf_curve_table = selection_policy.perf_curve_table;
     std::list<DeviceInformation> valid_devices = get_valid_device(meta_devices, model_precision);
 
-    // Fetch every candidate device's utilization up front (only when actually needed) via a
-    // single IPF round trip, instead of issuing one IPF query per device.
-    const std::unordered_map<std::string, float> device_utilizations =
-        (!utilization_thresholds.empty() || !perf_curve_table.empty()) ? get_device_utilizations(valid_devices)
-                                                                       : std::unordered_map<std::string, float>{};
-
-
     // all available Devices are in valid_devices now
     // need to remove higher priority devices
     // save the last device first
@@ -809,10 +800,7 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
         }
         return std::nullopt;
     };
-    // low_power_device (driven by IPF/DTT OnEpoGearChanged) takes precedence over
-    // devices_utilization_threshold whenever the platform is in low power mode.
-    // Match by exact device name (e.g. "NPU.5010") first, then fall back to the
-    // base device name (e.g. "NPU"), mirroring find_utilization_threshold.
+    // Finds the configured low-power device by exact or base device name.
     auto find_low_power_device = [&]() -> DeviceInformation* {
         if (low_power_device.empty()) {
             return nullptr;
@@ -835,7 +823,11 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
     } else if (auto* low_power_selected = find_low_power_device()) {
         ptr_select_device = low_power_selected;
     } else {
-        // When both properties are configured, apply utilization thresholds first.
+        std::unordered_map<std::string, float> device_utilizations;
+        if (!utilization_thresholds.empty() || !perf_curve_table.empty()) {
+            device_utilizations = get_device_utilizations(valid_devices);
+        }
+        // Apply utilization thresholds before performance-curve ranking.
         if (!utilization_thresholds.empty()) {
             last_device = valid_devices.front();
             std::list<DeviceInformation> threshold_filtered_devices;
@@ -867,7 +859,7 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
             }
 
             if (threshold_filtered_devices.empty()) {
-                // All candidates were filtered by threshold: keep previous fallback behavior.
+                // Fall back when all candidates exceed their thresholds.
                 ptr_select_device = &last_device;
             } else {
                 valid_devices = std::move(threshold_filtered_devices);
@@ -875,8 +867,7 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
         }
 
         if (!ptr_select_device && !perf_curve_table.empty()) {
-            // perf_curve_table ranks only candidates that already passed threshold filtering;
-            // scored_count > 0 confirms at least one candidate resolved to a curve entry.
+            // Rank candidates with performance curves.
             size_t scored_count = 0;
             perf_curve_sorted_devices =
                 sort_device_by_perf_curve(device_utilizations, valid_devices, perf_curve_table, &scored_count);

@@ -82,8 +82,7 @@ public:
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
-    // Fetches each given device's utilization via a single IPF round trip, instead of
-    // triggering one IPF query per candidate device.
+    // Returns utilization values for the specified devices.
     MOCKTESTMACRO std::unordered_map<std::string, float> get_device_utilizations(
         const std::list<DeviceInformation>& devices);
 

@@ -111,6 +111,26 @@ TEST(DeviceMonitorTest, telemetry_client_unknown_device_returns_nullopt) {
 }
 
 #ifdef OV_AUTO_ENABLE_IPF
+TEST(DeviceMonitorTest, utilization_values_are_parsed_from_one_snapshot) {
+    const std::string snapshot = R"({
+        "Performance": {
+            "CPUUtilization": 12.5,
+            "NPUUtilization": 37.5
+        },
+        "Status": "Online"
+    })";
+
+    const auto cpu_utilization = device_monitor::utilization_from_snapshot(snapshot, "CPU");
+    const auto npu_utilization = device_monitor::utilization_from_snapshot(snapshot, "NPU");
+
+    ASSERT_TRUE(cpu_utilization.has_value());
+    ASSERT_TRUE(npu_utilization.has_value());
+    EXPECT_FLOAT_EQ(cpu_utilization.value(), 12.5f);
+    EXPECT_FLOAT_EQ(npu_utilization.value(), 37.5f);
+}
+#endif
+
+#ifdef OV_AUTO_ENABLE_IPF
 TEST(DeviceMonitorTest, parse_utilization_uses_gpu_fallback_for_igpu) {
     const std::string aiselector_json = R"({
         "Performance": {
