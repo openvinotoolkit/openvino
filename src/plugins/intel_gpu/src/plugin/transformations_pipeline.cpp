@@ -19,6 +19,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
+#include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/op/read_value.hpp"
