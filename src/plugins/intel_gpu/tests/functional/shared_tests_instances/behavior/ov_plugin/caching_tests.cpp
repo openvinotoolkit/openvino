@@ -88,46 +88,26 @@ protected:
     void SetUp() override {
         setenv("OV_GPU_ENABLE_ZERO_COPY_CACHE_LOAD", "YES", 1);
         CompileModelLoadFromCacheTest::SetUp();
-    }
-
-    void TearDown() override {
-        CompileModelLoadFromCacheTest::TearDown();
-        unsetenv("OV_GPU_ENABLE_ZERO_COPY_CACHE_LOAD");
-    }
-};
-
-TEST_P(CompileModelZeroCopyCacheLoadTest, CanLoadFromCache) {
-    run();
-}
-
-INSTANTIATE_TEST_SUITE_P(smoke_ZeroCopyCacheLoad_GPU,
-                         CompileModelZeroCopyCacheLoadTest,
-                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
-                                            ::testing::Values(ov::AnyMap{})),
-                         CompileModelZeroCopyCacheLoadTest::getTestCaseName);
-
-class CompileModelZeroCopySingleFileCacheLoadTest : public CompileModelZeroCopyCacheLoadTest {
-    void SetUp() override {
-        CompileModelZeroCopyCacheLoadTest::SetUp();
         m_cacheFolderName += ".cache.bin";
         std::filesystem::remove(m_cacheFolderName);
     }
 
     void TearDown() override {
-        CompileModelZeroCopyCacheLoadTest::TearDown();
+        CompileModelLoadFromCacheTest::TearDown();
         std::filesystem::remove(m_cacheFolderName);
+        unsetenv("OV_GPU_ENABLE_ZERO_COPY_CACHE_LOAD");
     }
 };
 
-TEST_P(CompileModelZeroCopySingleFileCacheLoadTest, CanLoadFromCache) {
+TEST_P(CompileModelZeroCopyCacheLoadTest, CanLoadFromSingleFileCache) {
     run();
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_ZeroCopySingleFileCacheLoad_GPU,
-                         CompileModelZeroCopySingleFileCacheLoadTest,
+                         CompileModelZeroCopyCacheLoadTest,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_GPU),
                                             ::testing::Values(ov::AnyMap{})),
-                         CompileModelZeroCopySingleFileCacheLoadTest::getTestCaseName);
+                         CompileModelZeroCopyCacheLoadTest::getTestCaseName);
 INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU,
                          CompileModelWithCacheEncryptionTest,
                          ::testing::Values(ov::test::utils::DEVICE_GPU),
