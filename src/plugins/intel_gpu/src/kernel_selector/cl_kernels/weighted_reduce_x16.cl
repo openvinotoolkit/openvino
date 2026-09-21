@@ -42,6 +42,11 @@ KERNEL(weighted_reduce_x16)(const __global INPUT0_TYPE* values, const __global I
     unroll_for(uint i = 0; i < 8; ++i) acc += products1[i];
 #endif
 
+    FINAL_ACCUMULATOR_TYPE final_acc = TO_FINAL_ACCUMULATOR_TYPE(acc);
+#if REDUCE_MEAN_MODE
+    final_acc /= DIVIDER;
+#endif
+
     const uint output_idx = OUTPUT_GET_INDEX(b, f, y, 0);
-    output[output_idx] = TO_OUTPUT_TYPE(acc);
+    output[output_idx] = TO_OUTPUT_TYPE(final_acc);
 }

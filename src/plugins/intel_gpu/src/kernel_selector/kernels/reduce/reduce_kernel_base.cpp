@@ -33,8 +33,8 @@ bool ReduceKernelBase::Validate(const Params& p) const {
 }
 
 bool ReduceKernelBase::IsWeightedReducePattern(const reduce_params& params) {
-    if (!params.weighted || params.is_shape_agnostic || params.inputs.size() != 2 || params.outputs.size() != 1 || params.reduceMode != ReduceMode::SUM ||
-        params.reduceAxes.size() != 1 || params.reduceAxes[0] != 2) {
+    if (!params.weighted || params.is_shape_agnostic || params.inputs.size() != 2 || params.outputs.size() != 1 ||
+        (params.reduceMode != ReduceMode::SUM && params.reduceMode != ReduceMode::MEAN) || params.reduceAxes.size() != 1 || params.reduceAxes[0] != 2) {
         return false;
     }
 

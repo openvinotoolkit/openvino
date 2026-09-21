@@ -14,6 +14,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/result.hpp"
@@ -28,7 +29,7 @@
 using namespace cldnn;
 using namespace ::tests;
 
-static void test_weighted_reduce_x16_matches_multiply_reduce(bool is_caching_test) {
+static void test_weighted_reduce_x16_matches_multiply_reduce(reduce_mode mode, bool is_caching_test) {
     auto& engine = get_test_engine();
     const layout values_layout(data_types::f16, format::bfyx, tensor(2, 32, 16, 1025));
     const layout weights_layout(data_types::f16, format::bfyx, tensor(2, 1, 16, 1025));
@@ -96,7 +97,7 @@ static void test_weighted_reduce_x16_matches_multiply_reduce(bool is_caching_tes
     ref_topology.add(input_layout("weights", weights_layout));
     ref_topology.add(eltwise("multiply", {input_info("values"), input_info("weights")}, eltwise_mode::prod));
     ref_topology.add(reorder("multiply_fsv16", input_info("multiply"), format::b_fs_yx_fsv16, data_types::f16));
-    ref_topology.add(reduce("reference", input_info("multiply_fsv16"), reduce_mode::sum, {3}, false));
+    ref_topology.add(reduce("reference", input_info("multiply_fsv16"), mode, {3}, false));
     ref_topology.add(reorder("reference_out", input_info("reference"), format::bfyx, data_types::f16));
     ExecutionConfig ref_config = get_test_default_config(engine);
     ref_config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"reference_out"}));
@@ -109,7 +110,7 @@ static void test_weighted_reduce_x16_matches_multiply_reduce(bool is_caching_tes
     topology opt_topology;
     opt_topology.add(input_layout("values", values_layout));
     opt_topology.add(input_layout("weights", weights_layout));
-    opt_topology.add(reduce("weighted", input_info("values"), input_info("weights"), reduce_mode::sum, {3}, false));
+    opt_topology.add(reduce("weighted", input_info("values"), input_info("weights"), mode, {3}, false));
     opt_topology.add(reorder("weighted_out", input_info("weighted"), format::bfyx, data_types::f16));
     ExecutionConfig opt_config = get_test_default_config(engine);
     opt_config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"weighted_out"}));
@@ -129,14 +130,22 @@ static void test_weighted_reduce_x16_matches_multiply_reduce(bool is_caching_tes
 }
 
 TEST(reduce_gpu, weighted_reduce_x16_matches_multiply_reduce) {
-    test_weighted_reduce_x16_matches_multiply_reduce(false);
+    test_weighted_reduce_x16_matches_multiply_reduce(reduce_mode::sum, false);
 }
 
 TEST(reduce_gpu, weighted_reduce_x16_cached_matches_multiply_reduce) {
-    test_weighted_reduce_x16_matches_multiply_reduce(true);
+    test_weighted_reduce_x16_matches_multiply_reduce(reduce_mode::sum, true);
 }
 
-TEST(reduce_gpu, weighted_reduce_x16_rejects_mixed_input_types) {
+TEST(reduce_gpu, weighted_reduce_x16_mean_matches_multiply_reduce) {
+    test_weighted_reduce_x16_matches_multiply_reduce(reduce_mode::mean, false);
+}
+
+TEST(reduce_gpu, weighted_reduce_x16_mean_cached_matches_multiply_reduce) {
+    test_weighted_reduce_x16_matches_multiply_reduce(reduce_mode::mean, true);
+}
+
+static kernel_selector::reduce_params make_weighted_reduce_x16_params() {
     kernel_selector::reduce_params params;
     params.inputs = {
         kernel_selector::DataTensor(std::vector<size_t>{16, 1025, 32, 1}, kernel_selector::Datatype::F16, kernel_selector::DataLayout::bfyx),
@@ -148,15 +157,27 @@ TEST(reduce_gpu, weighted_reduce_x16_rejects_mixed_input_types) {
     params.reduceMode = kernel_selector::ReduceMode::SUM;
     params.reduceAxes = {2};
     params.weighted = true;
+    return params;
+}
 
+TEST(reduce_gpu, weighted_reduce_x16_accepts_sum_and_mean) {
+    auto params = make_weighted_reduce_x16_params();
     kernel_selector::ReduceKernelWeightedX16 kernel;
     ASSERT_TRUE(kernel.Validate(params));
-
-    params.inputs[1] = kernel_selector::DataTensor(std::vector<size_t>{16, 1025, 1, 1}, kernel_selector::Datatype::F32, kernel_selector::DataLayout::bfyx);
+    params.reduceMode = kernel_selector::ReduceMode::MEAN;
+    ASSERT_TRUE(kernel.Validate(params));
+    params.reduceMode = kernel_selector::ReduceMode::MAX;
     EXPECT_FALSE(kernel.Validate(params));
 }
 
-TEST(reduce_gpu, weighted_reduce_x16_f32_matches_multiply_reduce) {
+TEST(reduce_gpu, weighted_reduce_x16_rejects_mixed_input_types) {
+    auto params = make_weighted_reduce_x16_params();
+    params.inputs[1] = kernel_selector::DataTensor(std::vector<size_t>{16, 1025, 1, 1}, kernel_selector::Datatype::F32, kernel_selector::DataLayout::bfyx);
+    kernel_selector::ReduceKernelWeightedX16 kernel;
+    EXPECT_FALSE(kernel.Validate(params));
+}
+
+static void test_weighted_reduce_x16_f32_matches_multiply_reduce(reduce_mode mode) {
     auto& engine = get_test_engine();
     const layout values_layout(data_types::f32, format::bfyx, tensor(1, 4, 16, 1025));
     const layout weights_layout(data_types::f32, format::bfyx, tensor(1, 1, 16, 1025));
@@ -176,7 +197,7 @@ TEST(reduce_gpu, weighted_reduce_x16_f32_matches_multiply_reduce) {
     ref_topology.add(input_layout("weights", weights_layout));
     ref_topology.add(eltwise("multiply", {input_info("values"), input_info("weights")}, eltwise_mode::prod));
     ref_topology.add(reorder("multiply_fsv16", input_info("multiply"), format::b_fs_yx_fsv16, data_types::f32));
-    ref_topology.add(reduce("reference", input_info("multiply_fsv16"), reduce_mode::sum, {3}, false));
+    ref_topology.add(reduce("reference", input_info("multiply_fsv16"), mode, {3}, false));
     ref_topology.add(reorder("reference_out", input_info("reference"), format::bfyx, data_types::f32));
     ExecutionConfig ref_config = get_test_default_config(engine);
     ref_config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"reference_out"}));
@@ -189,7 +210,7 @@ TEST(reduce_gpu, weighted_reduce_x16_f32_matches_multiply_reduce) {
     topology opt_topology;
     opt_topology.add(input_layout("values", values_layout));
     opt_topology.add(input_layout("weights", weights_layout));
-    opt_topology.add(reduce("weighted", input_info("values"), input_info("weights"), reduce_mode::sum, {3}, false));
+    opt_topology.add(reduce("weighted", input_info("values"), input_info("weights"), mode, {3}, false));
     opt_topology.add(reorder("weighted_out", input_info("weighted"), format::bfyx, data_types::f32));
     ExecutionConfig opt_config = get_test_default_config(engine);
     opt_config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{"weighted_out"}));
@@ -206,6 +227,14 @@ TEST(reduce_gpu, weighted_reduce_x16_f32_matches_multiply_reduce) {
     for (size_t i = 0; i < ref_output->get_layout().count(); ++i) {
         ASSERT_TRUE(are_equal(ref_ptr[i], opt_ptr[i], 1e-5f)) << "Mismatch at index " << i;
     }
+}
+
+TEST(reduce_gpu, weighted_reduce_x16_f32_matches_multiply_reduce) {
+    test_weighted_reduce_x16_f32_matches_multiply_reduce(reduce_mode::sum);
+}
+
+TEST(reduce_gpu, weighted_reduce_x16_mean_f32_matches_multiply_reduce) {
+    test_weighted_reduce_x16_f32_matches_multiply_reduce(reduce_mode::mean);
 }
 
 namespace {
@@ -231,7 +260,13 @@ struct weighted_reduce_graph_case {
     std::vector<int64_t> axes;
     int64_t weights_y = 0;
     int64_t weights_x = 0;
+    bool reduce_mean = false;
 };
+
+weighted_reduce_graph_case use_reduce_mean(weighted_reduce_graph_case test_case) {
+    test_case.reduce_mean = true;
+    return test_case;
+}
 
 std::vector<ov::Dimension> make_weighted_reduce_dims(const weighted_reduce_graph_case& test_case, int64_t batch, int64_t features, bool is_weights) {
     const auto y = is_weights && test_case.weights_y > 0 ? test_case.weights_y : test_case.y;
@@ -269,7 +304,12 @@ std::shared_ptr<ov::Model> make_weighted_reduce_model(const weighted_reduce_grap
     multiply->set_friendly_name("multiply");
     const auto axes_values = test_case.axes.empty() ? std::vector<int64_t>{test_case.axis} : test_case.axes;
     auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{axes_values.size()}, axes_values);
-    auto reduce = std::make_shared<ov::op::v1::ReduceSum>(multiply, axes, test_case.keep_dims);
+    std::shared_ptr<ov::Node> reduce;
+    if (test_case.reduce_mean) {
+        reduce = std::make_shared<ov::op::v1::ReduceMean>(multiply, axes, test_case.keep_dims);
+    } else {
+        reduce = std::make_shared<ov::op::v1::ReduceSum>(multiply, axes, test_case.keep_dims);
+    }
     reduce->set_friendly_name("reduce");
     std::shared_ptr<ov::Node> output = reduce;
     if (test_case.relu) {
@@ -384,6 +424,11 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Values(
         weighted_reduce_graph_case{1025, 16, 3, false, false, false, false, false, ov::element::f16, true, false, "positive_f16"},
         weighted_reduce_graph_case{1025, 16, 3, false, false, false, false, false, ov::element::f32, true, false, "positive_f32"},
+        use_reduce_mean(weighted_reduce_graph_case{1025, 16, 3, false, false, false, false, false, ov::element::f16, true, false, "positive_mean_f16"}),
+        use_reduce_mean(weighted_reduce_graph_case{1025, 16, 3, false, false, false, false, false, ov::element::f32, true, false, "positive_mean_f32"}),
+        use_reduce_mean(weighted_reduce_graph_case{1025, 16, 3, false, false, false, false, false, ov::element::f16, true, false, "batch_2_mean", 2, 2}),
+        use_reduce_mean(weighted_reduce_graph_case{1025, 8, 3, false, false, false, false, false, ov::element::f16, false, false, "wrong_x_mean"}),
+        use_reduce_mean(weighted_reduce_graph_case{1025, 16, 3, false, false, false, true, true, ov::element::f16, false, true, "fused_relu_mean"}),
         weighted_reduce_graph_case{1025, 16, 3, true, false, false, false, false, ov::element::f16, true, false, "reversed_inputs"},
         weighted_reduce_graph_case{1025, 16, -1, false, false, false, false, false, ov::element::f16, true, false, "negative_last_axis"},
         weighted_reduce_graph_case{1025, 16, 3, false, false, false, true, false, ov::element::f16, true, false, "keep_dims"},
@@ -417,6 +462,7 @@ struct weighted_reduce_layout_case {
     bool use_f32;
     bool cache;
     const char* name;
+    reduce_mode mode = reduce_mode::sum;
 };
 
 class weighted_reduce_layout_fallback_test : public ::testing::TestWithParam<weighted_reduce_layout_case> {};
@@ -453,6 +499,8 @@ TEST_P(weighted_reduce_layout_fallback_test, selects_reference_and_executes) {
                 float acc = 0.0f;
                 for (size_t x = 0; x < 16; ++x)
                     acc += values_data[(f * 1025 + y) * 16 + x] * weights_data[y * 16 + x];
+                if (test_case.mode == reduce_mode::mean)
+                    acc /= 16.0f;
                 expected_f32[f * 1025 + y] = acc;
             }
         }
@@ -472,6 +520,8 @@ TEST_P(weighted_reduce_layout_fallback_test, selects_reference_and_executes) {
                     const auto product = ov::float16(static_cast<float>(values_data[(f * 1025 + y) * 16 + x]) * static_cast<float>(weights_data[y * 16 + x]));
                     acc += static_cast<float>(product);
                 }
+                if (test_case.mode == reduce_mode::mean)
+                    acc /= 16.0f;
                 expected_f16[f * 1025 + y] = ov::float16(acc);
             }
         }
@@ -482,7 +532,7 @@ TEST_P(weighted_reduce_layout_fallback_test, selects_reference_and_executes) {
     topology.add(input_layout("weights", weights_input_layout));
     topology.add(reorder("values_prepared", input_info("values"), values_prepared_layout));
     topology.add(reorder("weights_prepared", input_info("weights"), weights_prepared_layout));
-    auto weighted = reduce("weighted", input_info("values_prepared"), input_info("weights_prepared"), reduce_mode::sum, {3}, false);
+    auto weighted = reduce("weighted", input_info("values_prepared"), input_info("weights_prepared"), test_case.mode, {3}, false);
     if (test_case.pad_output)
         weighted.output_paddings = {padding({0, 0, 0, 1}, {0, 0, 0, 0})};
     topology.add(weighted);
@@ -508,17 +558,21 @@ TEST_P(weighted_reduce_layout_fallback_test, selects_reference_and_executes) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(weighted_reduce_layout_fallback,
-                         weighted_reduce_layout_fallback_test,
-                         ::testing::Values(weighted_reduce_layout_case{format::b_fs_yx_fsv16, false, false, false, false, false, "blocked_f16"},
-                                           weighted_reduce_layout_case{format::b_fs_yx_fsv16, false, false, false, true, false, "blocked_f32"},
-                                           weighted_reduce_layout_case{format::bfyx, true, false, false, false, false, "padded_values"},
-                                           weighted_reduce_layout_case{format::bfyx, false, true, false, false, false, "padded_weights"},
-                                           weighted_reduce_layout_case{format::bfyx, false, false, true, false, false, "padded_output"},
-                                           weighted_reduce_layout_case{format::b_fs_yx_fsv16, false, false, false, false, true, "blocked_cached"}),
-                         [](const ::testing::TestParamInfo<weighted_reduce_layout_case>& info) {
-                             return info.param.name;
-                         });
+INSTANTIATE_TEST_SUITE_P(
+    weighted_reduce_layout_fallback,
+    weighted_reduce_layout_fallback_test,
+    ::testing::Values(weighted_reduce_layout_case{format::b_fs_yx_fsv16, false, false, false, false, false, "blocked_f16"},
+                      weighted_reduce_layout_case{format::b_fs_yx_fsv16, false, false, false, true, false, "blocked_f32"},
+                      weighted_reduce_layout_case{format::bfyx, true, false, false, false, false, "padded_values"},
+                      weighted_reduce_layout_case{format::bfyx, false, true, false, false, false, "padded_weights"},
+                      weighted_reduce_layout_case{format::bfyx, false, false, true, false, false, "padded_output"},
+                      weighted_reduce_layout_case{format::b_fs_yx_fsv16, false, false, false, false, true, "blocked_cached"},
+                      weighted_reduce_layout_case{format::b_fs_yx_fsv16, false, false, false, false, false, "blocked_mean_f16", reduce_mode::mean},
+                      weighted_reduce_layout_case{format::b_fs_yx_fsv16, false, false, false, true, false, "blocked_mean_f32", reduce_mode::mean},
+                      weighted_reduce_layout_case{format::b_fs_yx_fsv16, false, false, false, false, true, "blocked_mean_cached", reduce_mode::mean}),
+    [](const ::testing::TestParamInfo<weighted_reduce_layout_case>& info) {
+        return info.param.name;
+    });
 
 template <typename InputT>
 struct accumulator_type {

@@ -14,6 +14,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
 
 namespace ov::intel_gpu {
@@ -24,9 +25,9 @@ struct WeightedReduceMatch {
     size_t weights_idx = 1;
 };
 
-/// @brief Returns the operands of an eligible Multiply-ReduceSum weighted reduction.
+/// @brief Returns the operands of an eligible Multiply followed by ReduceSum or ReduceMean.
 inline std::optional<WeightedReduceMatch> get_weighted_reduce_match(const ov::Node* reduce_node) {
-    if (reduce_node == nullptr || !ov::is_type<ov::op::v1::ReduceSum>(reduce_node)) {
+    if (reduce_node == nullptr || (!ov::is_type<ov::op::v1::ReduceSum>(reduce_node) && !ov::is_type<ov::op::v1::ReduceMean>(reduce_node))) {
         return std::nullopt;
     }
 

@@ -243,6 +243,10 @@
 namespace {
 template<typename T>
 static bool disable_reduce_decomposition(const std::shared_ptr<const ov::Node> node) {
+    // Preserve eligible weighted reductions until GPU primitive creation.
+    if (ov::intel_gpu::get_weighted_reduce_match(node.get()))
+        return true;
+
     if (auto op = std::dynamic_pointer_cast<const T>(node)) {
         if (op->input(0).get_partial_shape().is_static()) {
             bool fp16_batch_not_1 = op->get_element_type() == ov::element::f16 && op->input(0).get_partial_shape()[0] != 1;
@@ -1187,14 +1191,10 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             manager.register_pass<DecomposeReduceForFalseKeepDims>();
         } else {
             pass_config->set_callback<ov::pass::ConvertReduceSumToPooling>([](const_node_ptr& node) -> bool {
-                // Preserve eligible Multiply-ReduceSum patterns until GPU primitive creation.
-                if (get_weighted_reduce_match(node.get()))
-                    return true;
                 return disable_reduce_decomposition<ov::op::v1::ReduceSum>(node);
             });
 
-            pass_config->set_callback<ov::pass::ConvertReduceMeanToPooling>(
-            [](const_node_ptr &node) -> bool {
+            pass_config->set_callback<ov::pass::ConvertReduceMeanToPooling>([](const_node_ptr& node) -> bool {
                 return disable_reduce_decomposition<ov::op::v1::ReduceMean>(node);
             });
 
