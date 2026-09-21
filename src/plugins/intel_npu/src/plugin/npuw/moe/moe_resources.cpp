@@ -58,8 +58,10 @@ void MoEResources::initialize_expert_iterative_mode(
     LOG_DEBUG("Created " << chunk_infer_requests.size() << " chunk infer requests with sorted sizes");
 
     wait_tag.clear();
+    scatter_tag.clear();
     for (size_t cs : sorted_chunk_sizes) {
         wait_tag[cs] = "NPU Wait[cs=" + std::to_string(cs) + "]";
+        scatter_tag[cs] = "Scatter Output[cs=" + std::to_string(cs) + "]";
     }
 
     // Step 3: Allocate output accumulator buffer
