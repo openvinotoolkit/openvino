@@ -207,11 +207,22 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     }
     if (variants[0].is<std::istream*>()) {
         const auto stream = variants[0].as<std::istream*>();
-        if (variants.size() > 1)
+        std::filesystem::path model_path;
+        if (variants.size() > 1) {
             if (const auto path = get_path_from_any(variants[1])) {
-                return std::make_shared<InputModel>(*stream, path.value(), enable_mmap, m_extensions);
+                model_path = path.value();
+                if (variants.size() > 2 && variants[2].is<bool>()) {
+                    enable_mmap = variants[2].as<bool>();
+                }
             }
-        return std::make_shared<InputModel>(*stream, enable_mmap, m_extensions);
+        }
+        if (!gi_enabled) {
+            return std::make_shared<InputModel>(*stream, model_path, enable_mmap, m_extensions);
+        }
+        auto graph_iterator = std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
+        graph_iterator->initialize(*stream, model_path);
+        graph_iterator->reset();
+        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, m_extensions.telemetry);
     }
     // !!! Experimental feature, it may be changed or removed in the future !!!
     if (variants[0].is<uint64_t>()) {

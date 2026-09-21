@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "decoder_proto.hpp"
+#include "onnx_common/parser.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "openvino/util/file_util.hpp"
@@ -578,6 +579,11 @@ void GraphIteratorProto::initialize(const std::filesystem::path& path) {
         m_tensors.clear();
         throw;
     }
+}
+
+void GraphIteratorProto::initialize(std::istream& stream, const std::filesystem::path& path) {
+    m_model_dir = ov::util::get_directory(path);
+    initialize(std::make_shared<ModelProto>(common::parse_from_istream(stream)));
 }
 
 void GraphIteratorProto::initialize(std::shared_ptr<ModelProto> model) {
