@@ -6,11 +6,13 @@
 
 #include <algorithm>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include "gqa_compiled_model.hpp"
 #include "llm_test_helpers.hpp"
+#include "openvino/core/node_vector.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
 #include "openvino/op/convert.hpp"
@@ -25,6 +27,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "serialization.hpp"
 
 namespace {
 
@@ -144,11 +147,12 @@ std::shared_ptr<ov::Model> build_full_gqa_transformer_model(int64_t num_heads = 
     return std::make_shared<ov::Model>(results, params, "gqa_full_transformer_model");
 }
 
-// Same wiring as build_full_gqa_transformer_model(), but past_key/past_value's
-// KV-cache dimension is left dynamic at `axis` (2 for the plain [N,H,S,E] layout, 3 for
-// the transpose_v-applied [N,H,E,S] layout) to exercise has_dynamic_max_seq_len()/prepare().
-std::shared_ptr<ov::Model> build_gqa_model_with_dynamic_kv_cache(size_t axis) {
-    auto model = build_full_gqa_transformer_model();
+// Leaves past_key/past_value's KV-cache dimension dynamic at `axis` (2 for the plain
+// [N,H,S,E] layout, 3 for the transpose_v-applied [N,H,E,S] layout) on an existing model,
+// to exercise has_dynamic_max_seq_len()/prepare(). Real deployed GQA models always have a
+// dynamic KV-cache (that's the entire premise of this wrapper), so tests exercising
+// supports()'s auto-dispatch decision should use a dynamic-shaped model like this one.
+void make_kv_cache_dynamic(const std::shared_ptr<ov::Model>& model, size_t axis) {
     for (const auto& parameter : model->get_parameters()) {
         const auto& name = parameter->get_friendly_name();
         if (name != "past_keys_0" && name != "past_values_0") {
@@ -159,6 +163,14 @@ std::shared_ptr<ov::Model> build_gqa_model_with_dynamic_kv_cache(size_t axis) {
         parameter->set_partial_shape(shape);
     }
     model->validate_nodes_and_infer_types();
+}
+
+// Same wiring as build_full_gqa_transformer_model(), but past_key/past_value's
+// KV-cache dimension is left dynamic at `axis` (2 for the plain [N,H,S,E] layout, 3 for
+// the transpose_v-applied [N,H,E,S] layout) to exercise has_dynamic_max_seq_len()/prepare().
+std::shared_ptr<ov::Model> build_gqa_model_with_dynamic_kv_cache(size_t axis) {
+    auto model = build_full_gqa_transformer_model();
+    make_kv_cache_dynamic(model, axis);
     return model;
 }
 
@@ -626,7 +638,22 @@ TEST_F(GQACompiledModelTest, ForwardsPropertyAccessToInnerCompiledModel) {
 }
 
 TEST(GQACompiledModelSupportsTest, ReturnsTrueForWellFormedGqaTransformerModel) {
-    EXPECT_TRUE(ov::npuw::GQACompiledModel::supports(build_full_gqa_transformer_model()));
+    // supports() is the auto-dispatch gate: a well-formed GQA model must also have a
+    // dynamic KV-cache to be routed here (see GQACompiledModelSupportsTest.*DynamicShape*).
+    auto model = build_full_gqa_transformer_model();
+    make_kv_cache_dynamic(model, 2);
+    EXPECT_TRUE(ov::npuw::GQACompiledModel::supports(model));
+}
+
+TEST(GQACompiledModelSupportsTest, ReturnsFalseForFullyStaticGqaTransformerModel) {
+    // identify_case() still classifies a fully static model as a known GQA family (it's
+    // the value of GQA family classification decoupled from shape-dynamism), but
+    // supports() -- the auto-dispatch gate -- must not route it here: this wrapper only
+    // exists to bridge a dynamic max_seq_len to the NPU's static-shape requirement, so a
+    // fully static model of a known family doesn't need it.
+    auto model = build_full_gqa_transformer_model();  // no dynamic dims anywhere
+    EXPECT_NE(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::Unknown);
+    EXPECT_FALSE(ov::npuw::GQACompiledModel::supports(model));
 }
 
 TEST(GQACompiledModelSupportsTest, ReturnsFalseForBareGqaOpWithoutSurroundingModelContext) {
@@ -671,16 +698,22 @@ TEST(GQACompiledModelSupportsTest, ReturnsFalseWithoutPastPresentKvCacheNaming) 
 }
 
 TEST(GQACompiledModelSupportsTest, IdentifiesCaseV1ForExplicitPositionIdsModel) {
+    // identify_case() classifies purely from structure, regardless of shape-dynamism.
     auto model = build_full_gqa_transformer_model(4, 2, true, PositionSignal::PositionIds);
     EXPECT_EQ(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::V1);
+    // supports() additionally requires a dynamic KV-cache to auto-dispatch.
+    make_kv_cache_dynamic(model, 2);
     EXPECT_TRUE(ov::npuw::GQACompiledModel::supports(model));
 }
 
 TEST(GQACompiledModelSupportsTest, IdentifiesCaseV0ForSeqLenPairModel) {
     // Wiring: no position_ids input at all -- RoPE
     // position is implied by past_seq_len/total_seq_len instead.
+    // identify_case() classifies purely from structure, regardless of shape-dynamism.
     auto model = build_full_gqa_transformer_model(4, 2, true, PositionSignal::SeqLenPair);
     EXPECT_EQ(ov::npuw::GQACompiledModel::identify_case(model), ov::npuw::GQACompiledModel::Case::V0);
+    // supports() additionally requires a dynamic KV-cache to auto-dispatch.
+    make_kv_cache_dynamic(model, 2);
     EXPECT_TRUE(ov::npuw::GQACompiledModel::supports(model));
 }
 
@@ -833,6 +866,183 @@ TEST(GQACompiledModelCopyKvCachePrefixTest, CopiesPrefixAlongAxis3LeftAligned) {
     // Row 0 (e=0): src[0,1] into dst's first 2 (of 4) slots; row 1 (e=1) likewise.
     EXPECT_EQ(std::vector<float>(dst_values.begin(), dst_values.begin() + 2), (std::vector<float>{0, 1}));
     EXPECT_EQ(std::vector<float>(dst_values.begin() + 4, dst_values.begin() + 6), (std::vector<float>{2, 3}));
+}
+
+// Exercises the wire-format round trip that GQACompiledModel::export_model()/import_model()
+// rely on: outer-facing ports (Output<const Node> -> Parameter/Result reconstruction) plus
+// the dynamic-axis map must survive a write/read cycle through the same ov::npuw::orc::Stream
+// machinery, so that import_model() can rebuild an outer model whose dynamic KV-cache/
+// attention-bias axes match what was exported -- instead of silently losing them.
+TEST(GQACompiledModelSerializationTest, RoundTripsOuterModelPortsAndDynamicAxisMap) {
+    auto model = build_gqa_model_with_dynamic_kv_cache(2);
+
+    std::vector<ov::Output<const ov::Node>> outer_inputs;
+    for (const auto& p : model->get_parameters()) {
+        outer_inputs.push_back(p->output(0));
+    }
+    std::vector<ov::Output<const ov::Node>> outer_outputs;
+    for (const auto& r : model->get_results()) {
+        outer_outputs.push_back(r->output(0));
+    }
+    const std::unordered_map<std::string, size_t> axis_map{{"past_keys_0", 2u}, {"past_values_0", 2u}};
+
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    ov::npuw::GQACompiledModel::write_port_list(buffer, outer_inputs);
+    ov::npuw::GQACompiledModel::write_port_list(buffer, outer_outputs);
+    {
+        auto writer = ov::npuw::orc::Stream::writer(buffer);
+        writer & axis_map;
+    }
+
+    ov::ParameterVector read_parameters = ov::npuw::GQACompiledModel::read_input_port_list(buffer);
+    ov::NodeVector read_results = ov::npuw::GQACompiledModel::read_output_port_list(buffer);
+    std::unordered_map<std::string, size_t> read_axis_map;
+    {
+        auto reader = ov::npuw::orc::Stream::reader(buffer);
+        reader & read_axis_map;
+    }
+
+    ASSERT_EQ(read_parameters.size(), outer_inputs.size());
+    ASSERT_EQ(read_results.size(), outer_outputs.size());
+    EXPECT_EQ(read_axis_map, axis_map);
+
+    // Positional correspondence matters: GQAInferRequest::map_port_locked() and the
+    // dynamic-axis lookups assume outer_inputs/outer_outputs line up index-by-index with
+    // what's read back, and that friendly names + element types + shapes are preserved
+    // exactly (not just "some Parameter with a plausible name").
+    for (size_t i = 0; i < outer_inputs.size(); ++i) {
+        EXPECT_EQ(read_parameters[i]->get_friendly_name(), outer_inputs[i].get_node()->get_friendly_name());
+        EXPECT_EQ(read_parameters[i]->get_element_type(), outer_inputs[i].get_element_type());
+        EXPECT_EQ(read_parameters[i]->get_partial_shape(), outer_inputs[i].get_partial_shape());
+    }
+    for (size_t i = 0; i < outer_outputs.size(); ++i) {
+        EXPECT_EQ(read_results[i]->get_friendly_name(), outer_outputs[i].get_node()->get_friendly_name());
+        EXPECT_EQ(read_results[i]->get_output_element_type(0), outer_outputs[i].get_element_type());
+        EXPECT_EQ(read_results[i]->get_output_partial_shape(0), outer_outputs[i].get_partial_shape());
+    }
+
+    // The reconstructed vectors must also form a valid ov::Model (this is exactly what
+    // import_model() does with them) with inputs()/outputs() preserving the same order.
+    auto rebuilt_model =
+        std::make_shared<ov::Model>(ov::as_output_vector(read_results), read_parameters, "gqa_outer_model");
+    ASSERT_EQ(rebuilt_model->inputs().size(), outer_inputs.size());
+    for (size_t i = 0; i < outer_inputs.size(); ++i) {
+        EXPECT_EQ(rebuilt_model->input(i).get_node()->get_friendly_name(),
+                  outer_inputs[i].get_node()->get_friendly_name());
+    }
+
+    bool found_dynamic_past_key = false;
+    for (const auto& p : read_parameters) {
+        if (p->get_friendly_name() == "past_keys_0") {
+            found_dynamic_past_key = true;
+            EXPECT_TRUE(p->get_partial_shape().is_dynamic());
+            ASSERT_GT(p->get_partial_shape().rank().get_length(), 2);
+            EXPECT_TRUE(p->get_partial_shape()[2].is_dynamic());
+        }
+    }
+    EXPECT_TRUE(found_dynamic_past_key);
+}
+
+// Regression test for a real crash: ORT/OVEP matches its own input/output names to
+// OpenVINO ports via *tensor names* (Output::get_names()), not the node's friendly name.
+// A reconstructed port with an empty tensor-name set (friendly name restored, tensor
+// names dropped) passes every friendly-name-keyed assertion above yet still breaks
+// ORT-side name lookup -- this is what previously crashed with ACCESS_VIOLATION right
+// after infer request creation on a real cache-hit deserialize.
+TEST(GQACompiledModelSerializationTest, RoundTripsTensorNamesSeparatelyFromFriendlyName) {
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 32, -1, 64});
+    param->set_friendly_name("past_keys_0");
+    param->output(0).get_tensor().set_names({"past_key_values.0.key"});
+    std::vector<ov::Output<const ov::Node>> ports{param->output(0)};
+
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    ov::npuw::GQACompiledModel::write_port_list(buffer, ports);
+    auto read_back = ov::npuw::GQACompiledModel::read_input_port_list(buffer);
+
+    ASSERT_EQ(read_back.size(), 1u);
+    EXPECT_EQ(read_back[0]->get_friendly_name(), "past_keys_0");
+    EXPECT_EQ(read_back[0]->output(0).get_names(), std::unordered_set<std::string>{"past_key_values.0.key"});
+}
+
+// Guards the string-based shape/type round trip specifically for a *bounded* dynamic
+// dimension (e.g. "1..8192", as opposed to the fully-unbounded "?" used above) and a
+// non-f32 element type, since real attention-mask/KV-cache ports commonly use both.
+TEST(GQACompiledModelSerializationTest, RoundTripsBoundedDynamicDimensionAndNonF32Type) {
+    const ov::PartialShape shape{1, 32, ov::Dimension(1, 8192), 64};
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, shape);
+    param->set_friendly_name("attention_bias");
+    std::vector<ov::Output<const ov::Node>> ports{param->output(0)};
+
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    ov::npuw::GQACompiledModel::write_port_list(buffer, ports);
+    auto read_back = ov::npuw::GQACompiledModel::read_input_port_list(buffer);
+
+    ASSERT_EQ(read_back.size(), 1u);
+    EXPECT_EQ(read_back[0]->get_friendly_name(), "attention_bias");
+    EXPECT_EQ(read_back[0]->get_element_type(), ov::element::f16);
+    ASSERT_EQ(read_back[0]->get_partial_shape().rank().get_length(), 4);
+    EXPECT_EQ(read_back[0]->get_partial_shape()[2], ov::Dimension(1, 8192));
+    EXPECT_EQ(read_back[0]->get_partial_shape(), shape);
+}
+
+TEST(GQACompiledModelPresentAxisTest, FindsDynamicPresentOutputsAtAxis2) {
+    // build_gqa_model_with_dynamic_kv_cache() leaves past_keys_0/past_values_0 dynamic
+    // at `axis`, which propagates (via GroupQueryAttention::validate_and_infer_types(),
+    // present = past + current) to present_keys_0/present_values_0 becoming dynamic too.
+    auto model = build_gqa_model_with_dynamic_kv_cache(2);
+    std::vector<ov::Output<const ov::Node>> outputs;
+    for (const auto& result : model->get_results()) {
+        std::shared_ptr<const ov::Node> node = result;
+        outputs.emplace_back(node, 0);
+    }
+    auto axes = ov::npuw::GQACompiledModel::find_dynamic_kv_cache_output_axes(outputs);
+    ASSERT_EQ(axes.count("present_keys_0"), 1u);
+    ASSERT_EQ(axes.count("present_values_0"), 1u);
+    EXPECT_EQ(axes.at("present_keys_0"), 2u);
+    EXPECT_EQ(axes.at("present_values_0"), 2u);
+}
+
+TEST(GQACompiledModelPresentAxisTest, IgnoresFullyStaticPresentOutputs) {
+    auto model = build_full_gqa_transformer_model();  // no dynamic dims anywhere
+    std::vector<ov::Output<const ov::Node>> outputs;
+    for (const auto& result : model->get_results()) {
+        std::shared_ptr<const ov::Node> node = result;
+        outputs.emplace_back(node, 0);
+    }
+    auto axes = ov::npuw::GQACompiledModel::find_dynamic_kv_cache_output_axes(outputs);
+    EXPECT_TRUE(axes.empty());
+}
+
+TEST(GQACompiledModelPresentAxisTest, MatchesSinkPortSuffixedFriendlyName) {
+    // Mirrors the ONNX frontend's Result-node convention (translate_session.cpp),
+    // which appends "/sink_port_0" to the friendly name while the tensor's *name*
+    // stays clean -- find_dynamic_kv_cache_output_axes() must still recognize it.
+    auto model = build_gqa_model_with_dynamic_kv_cache(2);
+    for (const auto& result : model->get_results()) {
+        if (result->get_friendly_name() == "present_keys_0") {
+            result->set_friendly_name("present_keys_0/sink_port_0");
+        }
+    }
+    std::vector<ov::Output<const ov::Node>> outputs;
+    for (const auto& result : model->get_results()) {
+        std::shared_ptr<const ov::Node> node = result;
+        outputs.emplace_back(node, 0);
+    }
+    auto axes = ov::npuw::GQACompiledModel::find_dynamic_kv_cache_output_axes(outputs);
+    ASSERT_EQ(axes.count("present_keys_0/sink_port_0"), 1u);
+    EXPECT_EQ(axes.at("present_keys_0/sink_port_0"), 2u);
+}
+
+TEST(GQACompiledModelPresentToPastNameTest, StripsSinkPortSuffixAndSwapsPresentForPast) {
+    EXPECT_EQ(ov::npuw::GQACompiledModel::present_to_past_name("present_keys_0/sink_port_0"), "past_keys_0");
+    EXPECT_EQ(ov::npuw::GQACompiledModel::present_to_past_name("present_values_3"), "past_values_3");
+    // Matching is case-insensitive, but the replacement literal ("past") is not
+    // case-adapted to the matched substring's original casing.
+    EXPECT_EQ(ov::npuw::GQACompiledModel::present_to_past_name("Present.3"), "past.3");
+}
+
+TEST(GQACompiledModelPresentToPastNameTest, ReturnsNulloptWhenNoPresentSubstring) {
+    EXPECT_FALSE(ov::npuw::GQACompiledModel::present_to_past_name("input_hidden_states").has_value());
 }
 
 }  // namespace
