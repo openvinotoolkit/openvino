@@ -301,9 +301,13 @@ wraps it. For emitter internals (xbyak, register allocation, debugging) see the
 > executor implementations should gate on AVX2 as the minimal JIT baseline and
 > fall back to the portable reference executor below that.
 
-Reference JIT executors to study: Eltwise (`EltwiseStatefulExecutor`, multiple
-layouts), RMSNorm (`kernels/x64/rms_kernel.hpp`, reduction + normalize), RoPE
-(`kernels/x64/rope_kernel.hpp`, element-wise with indexing).
+Reference JIT executor implementations to study:
+
+| Op | Executor | Key Pattern |
+|----|----------|-------------|
+| Eltwise | `EltwiseStatefulExecutor` (Jit + Ref) | Element-wise, multiple layouts |
+| RMSNorm | [`kernels/x64/rms_kernel.hpp`](../kernels/x64/rms_kernel.hpp) | Reduction + normalize |
+| RoPE | [`kernels/x64/rope_kernel.hpp`](../kernels/x64/rope_kernel.hpp) | Element-wise with indexing |
 
 ## oneDNN executors
 
