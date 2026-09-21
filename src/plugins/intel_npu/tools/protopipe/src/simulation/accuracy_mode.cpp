@@ -159,6 +159,7 @@ void OutputDataVisitor::operator()(const LayerVariantAttr<std::string>&) {
 
 void OutputDataVisitor::operator()(std::string path_str) {
     // NB: Single path provided - creates _REFERENCE and _TARGET dump paths for dual-device comparison.
+    const bool had_trailing_sep = !path_str.empty() && (path_str.back() == '\\' || path_str.back() == '/');
 
     // NB: Strip trailing path separators before appending suffixes.
     while (path_str.back() == '\\' || path_str.back() == '/') {
@@ -170,7 +171,9 @@ void OutputDataVisitor::operator()(std::string path_str) {
     const auto layer_names = extractLayerNames(infer.output_layers);
 
     auto createDumpPaths = [&](const std::filesystem::path& root) -> std::vector<std::filesystem::path> {
-        if (isDirectory(root)) {
+        const bool as_directory =
+                std::filesystem::exists(root) ? std::filesystem::is_directory(root) : had_trailing_sep;
+        if (as_directory) {
             return createDirectoryLayout(root, layer_names);
         }
         if (infer.output_layers.size() > 1) {
