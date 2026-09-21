@@ -120,11 +120,36 @@ struct paged_attention : public primitive_base<paged_attention> {
     // ⚠ MUST be given the CONFIGURED kv-cache precision, not the KEY_CACHE layout dtype: an int4 cache
     // is materialized as u8 (and an i4 one as i8, which would otherwise masquerade as a real i8 cache).
     // See paged_attention_opt.cpp's get_k_token_major() for the same lookup.
+    //
+    // This predicate is only meaningful at LAYOUT-CREATION time (transformations_pipeline.cpp), where
+    // it gates whether the model-wide K cache is materialized token-major for i8/u4 BY_CHANNEL. A
+    // model is only allowed the token-major page when every K-cache consumer can read it; today that
+    // means no scores output and no adaptive-R-KV (both force a d-major-only decode path). Every
+    // OTHER site that needs to know the page layout must derive it from the actual K cache shape via
+    // k_by_channel_token_major_layout() below instead of re-running this predicate -- the layout is
+    // the single source of truth once created.
     static bool k_by_channel_token_major_for(const ov::element::Type& key_cache_precision, bool is_key_by_channel) {
         if (!k_by_channel_token_major() || !is_key_by_channel) {
             return false;
         }
         return key_cache_precision == ov::element::i8 || key_cache_precision == ov::element::u4;
+    }
+
+    // Whether the K cache layout holds token-major BY_CHANNEL pages, derived from the PHYSICAL cache
+    // shape. Token-major puts the (adjusted) block size at dim[2]; the upstream d-major BY_CHANNEL
+    // page keeps it at dim[3]. Every consumer of the K cache (pa_sdpa_opt, decode, rotate, mixed,
+    // graph/ops head-size indexers) must use this rather than k_by_channel_token_major_for(), so the
+    // model-wide decision made once in transformations_pipeline.cpp cannot drift between sites.
+    // adjusted_block_size: i8 = block_size + block_size/16*4 (20), u4 = block_size/2 + 4 (12) -- the
+    // same value graph/paged_attention.cpp's expected_block_size and the ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE
+    // jit constants carry. A dynamic dim[2] is treated as not-token-major (conservative d-major).
+    static bool k_by_channel_token_major_layout(const ov::PartialShape& key_cache_ps, size_t adjusted_block_size) {
+        if (key_cache_ps.size() != 4) {
+            return false;
+        }
+        const auto& block_dim = key_cache_ps[2];
+        return block_dim.is_static() &&
+               block_dim.get_length() == static_cast<ov::Dimension::value_type>(adjusted_block_size);
     }
 
     paged_attention() : primitive_base("", {}) {}
