@@ -127,7 +127,7 @@ jobs:
     with:
       device: 'dgpu'
       test_type: 'unit'
-      runner: "[ 'self-hosted', 'dgpu', 'Arc-B50', 'Linux' ]"
+      runner: "[ 'ov-dmz-22' ]"
       runner-group: 'Intel-GPU'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
@@ -141,7 +141,7 @@ jobs:
       with:
         device: 'dgpu'
         test_type: 'func'
-        runner: "[ 'self-hosted', 'dgpu', 'Arc-B50', 'Linux' ]"
+        runner: "[ 'ov-dmz-22' ]"
         runner-group: 'Intel-GPU'
         image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
         options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
