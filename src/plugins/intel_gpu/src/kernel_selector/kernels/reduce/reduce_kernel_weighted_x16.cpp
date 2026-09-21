@@ -35,9 +35,10 @@ bool ReduceKernelWeightedX16::Validate(const Params& p) const {
     const auto& values = params.inputs[0];
     const auto& weights = params.inputs[1];
     const auto& output = params.outputs[0];
-    if (values.GetLayout() != DataLayout::bfyx || weights.GetLayout() != DataLayout::bfyx || output.GetLayout() != DataLayout::bfyx ||
-        values.PitchesDifferFromLogicalDims() || weights.PitchesDifferFromLogicalDims() || output.PitchesDifferFromLogicalDims() ||
-        values.GetFirstElementOffset() != 0 || weights.GetFirstElementOffset() != 0 || output.GetFirstElementOffset() != 0) {
+    if (values.GetDType() != weights.GetDType() || values.GetLayout() != DataLayout::bfyx || weights.GetLayout() != DataLayout::bfyx ||
+        output.GetLayout() != DataLayout::bfyx || values.PitchesDifferFromLogicalDims() || weights.PitchesDifferFromLogicalDims() ||
+        output.PitchesDifferFromLogicalDims() || values.GetFirstElementOffset() != 0 || weights.GetFirstElementOffset() != 0 ||
+        output.GetFirstElementOffset() != 0) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 

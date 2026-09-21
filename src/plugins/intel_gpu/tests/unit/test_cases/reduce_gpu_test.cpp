@@ -20,6 +20,7 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "random_generator.hpp"
+#include "reduce/reduce_kernel_weighted_x16.h"
 #include "reduce_inst.h"
 #include "registry/implementation_manager.hpp"
 #include "test_utils.h"
@@ -133,6 +134,26 @@ TEST(reduce_gpu, weighted_reduce_x16_matches_multiply_reduce) {
 
 TEST(reduce_gpu, weighted_reduce_x16_cached_matches_multiply_reduce) {
     test_weighted_reduce_x16_matches_multiply_reduce(true);
+}
+
+TEST(reduce_gpu, weighted_reduce_x16_rejects_mixed_input_types) {
+    kernel_selector::reduce_params params;
+    params.inputs = {
+        kernel_selector::DataTensor(std::vector<size_t>{16, 1025, 32, 1}, kernel_selector::Datatype::F16, kernel_selector::DataLayout::bfyx),
+        kernel_selector::DataTensor(std::vector<size_t>{16, 1025, 1, 1}, kernel_selector::Datatype::F16, kernel_selector::DataLayout::bfyx),
+    };
+    params.outputs = {
+        kernel_selector::DataTensor(std::vector<size_t>{1, 1025, 32, 1}, kernel_selector::Datatype::F16, kernel_selector::DataLayout::bfyx),
+    };
+    params.reduceMode = kernel_selector::ReduceMode::SUM;
+    params.reduceAxes = {2};
+    params.weighted = true;
+
+    kernel_selector::ReduceKernelWeightedX16 kernel;
+    ASSERT_TRUE(kernel.Validate(params));
+
+    params.inputs[1] = kernel_selector::DataTensor(std::vector<size_t>{16, 1025, 1, 1}, kernel_selector::Datatype::F32, kernel_selector::DataLayout::bfyx);
+    EXPECT_FALSE(kernel.Validate(params));
 }
 
 TEST(reduce_gpu, weighted_reduce_x16_f32_matches_multiply_reduce) {
