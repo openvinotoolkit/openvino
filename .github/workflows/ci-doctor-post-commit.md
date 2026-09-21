@@ -40,8 +40,6 @@ on:
       - completed
     branches:
       - master
-  # Post-commit pushes to master land via the merge queue, so the triggering actor is a bot
-  bots: [github-merge-queue]
 concurrency:
   group: gh-aw-${{ github.workflow }}
 
