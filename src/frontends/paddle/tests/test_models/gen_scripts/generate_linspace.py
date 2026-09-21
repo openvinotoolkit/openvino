@@ -52,10 +52,12 @@ def main():
     stop = np.array([-4]).astype(np.int64)
     num = np.array([1]).astype(np.int32)
     linspace("linspace_3", start, stop, num, "int64")
-    # issue 37949: dtype=float64 must not be silently downgraded to float32
-    start = np.array([0.1]).astype(np.float32)
-    stop = np.array([0.9]).astype(np.float32)
-    num = np.array([3]).astype(np.int32)
+    # issue 37949: dtype=float64 must not be silently downgraded to float32.
+    # Endpoints are the ones from the issue's reproducer; the reference output is Paddle's float64
+    # result, so the test fails if the front-end drops the declared float64 output type.
+    start = np.array([-1.2345678901234567]).astype(np.float64)
+    stop = np.array([7.654321098765432]).astype(np.float64)
+    num = np.array([5]).astype(np.int32)
     linspace("linspace_float64", start, stop, num, "float64")
 
 

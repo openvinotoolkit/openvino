@@ -95,6 +95,9 @@ void FrontEndFuzzyOpTest::runConvertedModel(const std::shared_ptr<ov::Model> mod
             addInputOutput<float>(output, testCase, false);
             useFloatTest = true;
         } else if (outputDtype == ov::element::f64) {
+            // the reference is computed by the source framework in f64, but the CPU plugin executes
+            // f64 as f32 (see get_convert_precisions() in its transformation pipeline), so the
+            // f32 tolerance below applies to f64 outputs as well
             addInputOutput<double>(output, testCase, false);
             useFloatTest = true;
         } else if (outputDtype == ov::element::i32) {
