@@ -359,6 +359,36 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelDoesNotOverridePre
     EXPECT_TRUE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
 }
 
+TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelDoesNotOverrideEagle) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    // Speculative decoding (Eagle) doesn't work with a shrunk/sliding KV cache, so shrink
+    // must stay off here even though the model has consumed per_layer_inputs.
+    ASSERT_NO_THROW(compiled = create_compiled_model(ov::test::npuw::build_per_layer_inputs_probe_model(),
+                                                     {{"NPUW_EAGLE", "YES"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK").as<bool>());
+    EXPECT_TRUE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelDoesNotOverrideContinuousPrefill) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    // Continuous prefill doesn't work with a shrunk/sliding KV cache either (see
+    // compute_continuous_prefill_supported()), so shrink must stay off here too.
+    ASSERT_NO_THROW(compiled = create_compiled_model(ov::test::npuw::build_per_layer_inputs_probe_model(),
+                                                     {{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK").as<bool>());
+    EXPECT_TRUE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
+}
+
 TEST_F(LLMCompiledModelFactoryOptionsTest, DefaultStageConfigsCarryBaselineNpuwOptions) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
