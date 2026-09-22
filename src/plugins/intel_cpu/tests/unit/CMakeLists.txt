@@ -83,50 +83,9 @@ ov_build_target_faster(${TARGET_NAME}
     PCH
 )
 
-function(group_source_files GROUP_NAME)
-    foreach(source_file ${ARGN})
-        set_source_files_properties(${source_file} PROPERTIES UNITY_GROUP ${GROUP_NAME})
-    endforeach()
-endfunction()
-
+# unity groups are assigned in sources.cmake
 if(ENABLE_UNITY_BUILD)
     set_target_properties(${TARGET_NAME} PROPERTIES UNITY_BUILD ON UNITY_BUILD_MODE GROUP)
-    group_source_files(unit_src_nodes
-        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/eltwise_node_test.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/nodes/reorder_node_test.cpp)
-    group_source_files(unit_src_transformations
-        ${CMAKE_CURRENT_SOURCE_DIR}/transformations/convert_gather_matmul_to_compressed_test.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/transformations/convert_matmul_test.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/transformations/convert_to_leaky_relu_test.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/transformations/disable_bf16_comp_cumsum_sin_gen_test.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/transformations/move_fc_reshape_to_weights.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/transformations/optimize_sequence_transposes_test.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/transformations/permute_slice_n_interpolation.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/transformations/readvalue_subgraph.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/transformations/state_concat_sdpa.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/transformations/swap_convert_transpose.cpp)
-    group_source_files(unit_src_custom_shape_infer
-        ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer/adaptive_avg_pool.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer/adaptive_max_pool.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer/binary_elementwise_arithmetic.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer/color_covert_shape_inference.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer/convolution.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer/custom_shape_infer.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer/elementwises.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer/fullconnect.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer/gather.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer/matmul.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer/ngram.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer/one_hot.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer/prior_box.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer/prior_box_clustered.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer/reshape.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer/scaled_attn.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer/shape_node.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer/squeeze.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer/strided_slice.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer/transpose.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/shape_inference_test/custom_shape_infer/unsqueeze.cpp)
 endif()
 
 # explicitly set include directories for gtest before the dnnl include directories as dnnl third_party dir also contains
