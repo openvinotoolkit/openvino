@@ -147,11 +147,11 @@ ov::Shape per_group_shape(const ov::Shape& orig, size_t num_groups) {
     return s;
 }
 
-// Build a low-bit weight Constant wrapping `weight`'s bytes (no copy: the ov::Tensor is held
+// Build a Constant with an explicit shape wrapping `weight`'s bytes (no copy: the Tensor is held
 // alive by the Constant's shared buffer).
-std::shared_ptr<ov::op::v0::Constant> make_compressed_weight_constant(ov::element::Type et,
-                                                                      const ov::Shape& shape,
-                                                                      const ov::Tensor& weight) {
+std::shared_ptr<ov::op::v0::Constant> make_shared_constant(ov::element::Type et,
+                                                           const ov::Shape& shape,
+                                                           const ov::Tensor& weight) {
     // Shared-buffer ctor: the Constant wraps the bytes without copying and keeps the Tensor alive.
     return std::make_shared<ov::op::v0::Constant>(et,
                                                   shape,
@@ -174,19 +174,17 @@ std::shared_ptr<ov::Node> make_compressed(const WeightTensors& tensors, ov::elem
     const size_t num_groups = tensors.scales.get_shape().back();
     const auto scale_shape = per_group_shape(orig_shape, num_groups);
 
-    ov::Tensor scales = tensors.scales;
-    scales.set_shape(scale_shape);
-    ov::Tensor zp_t = tensors.zero_point;
-    if (zp_t) {
-        zp_t.set_shape(scale_shape);
-    }
-
     auto weights_node =
-        make_compressed_weight_constant(et,
-                                        grouped_weight_shape(orig_shape, num_groups, orig_shape.back() / num_groups),
-                                        tensors.weight);
-    auto scales_node = std::make_shared<ov::op::v0::Constant>(scales);
-    const auto zp_node = zp_t ? std::make_shared<ov::op::v0::Constant>(zp_t) : nullptr;
+        make_shared_constant(et,
+                             grouped_weight_shape(orig_shape, num_groups, orig_shape.back() / num_groups),
+                             tensors.weight);
+    // Tensor copies share their shape metadata. View each buffer through a Constant
+    // without reshaping the caller's tensors: tied K/V projections reuse them.
+    auto scales_node = make_shared_constant(tensors.scales.get_element_type(), scale_shape, tensors.scales);
+    const auto zp_node =
+        tensors.zero_point
+            ? make_shared_constant(tensors.zero_point.get_element_type(), scale_shape, tensors.zero_point)
+            : nullptr;
     auto final_shape_node =
         std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{orig_shape.size()}, orig_shape);
 
@@ -233,8 +231,7 @@ std::shared_ptr<ov::Node> make_mxfp4(const WeightTensors& tensors) {
         false);
     auto w_f16 = std::make_shared<ov::op::v0::Convert>(w_grp, ov::element::f16);
 
-    scales.set_shape(ov::Shape{rows, num_groups, 1});
-    auto s_node = std::make_shared<ov::op::v0::Constant>(scales);
+    auto s_node = make_shared_constant(scales.get_element_type(), {rows, num_groups, 1}, scales);
     auto s_f16 = std::make_shared<ov::op::v0::Convert>(s_node, ov::element::f16);
 
     auto scaled = std::make_shared<ov::op::v1::Multiply>(w_f16, s_f16, ov::op::AutoBroadcastType::NUMPY);
@@ -255,7 +252,7 @@ static std::shared_ptr<ov::Node> build_q8_0_c_node(ov::Tensor weights, ov::Tenso
     // The 2D form (group == cols, a single group per row) is what the CPU/GPU plugin fuses
     // into an int8 MatMul; routing it through the grouped low_precision_dequantize path
     // (3D weight + Reshape) defeats that fusion and roughly halves prefill throughput.
-    auto weights_node = make_compressed_weight_constant(ov::element::i8, ov::Shape{rows, cols}, weights);
+    auto weights_node = make_shared_constant(ov::element::i8, ov::Shape{rows, cols}, weights);
     auto weights_f16 = std::make_shared<ov::op::v0::Convert>(weights_node, ov::element::f16);
     auto scales_node = std::make_shared<ov::op::v0::Constant>(scales);  // {rows, 1}
     auto scaled = std::make_shared<ov::op::v1::Multiply>(weights_f16, scales_node, ov::op::AutoBroadcastType::NUMPY);
