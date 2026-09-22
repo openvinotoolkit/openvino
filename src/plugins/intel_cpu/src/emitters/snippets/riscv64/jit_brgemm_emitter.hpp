@@ -37,7 +37,6 @@ private:
     void emit_impl(const std::vector<size_t>& in, const std::vector<size_t>& out) const override;
 
     std::vector<size_t> m_memory_offsets;
-    std::vector<size_t> m_buffer_ids;
     std::shared_ptr<BrgemmKernelExecutor> m_kernel_executor;
 };
 

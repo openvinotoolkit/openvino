@@ -13,11 +13,9 @@
 #include "cache/multi_cache.h"
 #include "emitters/plugin/riscv64/jit_context_helpers.hpp"
 #include "emitters/plugin/riscv64/jit_emitter.hpp"
-#include "emitters/snippets/jit_snippets_call_args.hpp"
 #include "emitters/snippets/riscv64/jit_binary_call_emitter.hpp"
 #include "emitters/snippets/riscv64/kernel_executors/brgemm.hpp"
 #include "emitters/snippets/riscv64/utils.hpp"
-#include "emitters/snippets/utils/utils.hpp"
 #include "emitters/utils.hpp"
 #include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
 #include "nodes/kernels/riscv64/jit_generator.hpp"
@@ -44,15 +42,16 @@ jit_brgemm_emitter::jit_brgemm_emitter(ov::intel_cpu::riscv64::jit_generator_t* 
 
     const auto brgemm = ov::as_type_ptr<ov::intel_cpu::BrgemmCPU>(expr->get_node());
     OV_CPU_JIT_EMITTER_ASSERT(brgemm, "Expected BrgemmCPU node");
+    m_memory_offsets = {brgemm->get_offset_a(), brgemm->get_offset_b(), brgemm->get_offset_c()};
+    for (const auto offset : m_memory_offsets) {
+        OV_CPU_JIT_EMITTER_ASSERT(!snippets::utils::is_dynamic_value(offset),
+                                  "Dynamic BRGEMM offsets are not supported on RV64");
+    }
+
     m_kernel_executor =
         kernel_table->register_kernel<BrgemmKernelExecutor>(expr,
                                                             compiled_kernel_cache,
                                                             BrgemmKernelConfig{brgemm->get_input_element_type(0)});
-
-    m_memory_offsets = {brgemm->get_offset_a(), brgemm->get_offset_b(), brgemm->get_offset_c()};
-    m_buffer_ids = {ov::intel_cpu::utils::get_buffer_cluster_id(expr->get_input_port(0)),
-                    ov::intel_cpu::utils::get_buffer_cluster_id(expr->get_input_port(1)),
-                    ov::intel_cpu::utils::get_buffer_cluster_id(expr->get_output_port(0))};
 }
 
 std::set<std::vector<element::Type>> jit_brgemm_emitter::get_supported_precisions(
@@ -93,12 +92,7 @@ void jit_brgemm_emitter::emit_impl(const std::vector<size_t>& in, const std::vec
     };
 
     for (size_t i = 0; i < memory_ptrs.size(); ++i) {
-        if (snippets::utils::is_dynamic_value(m_memory_offsets[i])) {
-            const auto runtime_offset = GET_OFF(buffer_offsets) + m_buffer_ids[i] * sizeof(size_t);
-            h->ld(auxiliary, Xbyak_riscv::a0, static_cast<int32_t>(runtime_offset));
-            h->add(auxiliary, memory_ptrs[i], auxiliary);
-            h->sd(auxiliary, Xbyak_riscv::sp, argument_offsets[i]);
-        } else if (m_memory_offsets[i] == 0) {
+        if (m_memory_offsets[i] == 0) {
             h->sd(memory_ptrs[i], Xbyak_riscv::sp, argument_offsets[i]);
         } else {
             h->uni_li(auxiliary, m_memory_offsets[i]);
