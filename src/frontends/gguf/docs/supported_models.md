@@ -44,6 +44,9 @@ that loads but emits garbage is **not** counted as supported.
 
 Experimental vision/audio encoder-projector conversion is described separately in
 [native multimodal conversion](mmproj.md), including its coverage and validation gaps.
+The [September 2026 checkpoint matrix](mmproj_acceptance.md) records Qwen3.5/3.6/3.8,
+Gemma4 and Muse Glimmer Q4_0/Q4_K_M results. Native decoding, GenAI SDPA/PA,
+encoder accuracy and multimodal generation have separate acceptance outcomes.
 
 The native architecture catalog is defined in
 [`src/builder/arch_registry.cpp`](../src/builder/arch_registry.cpp):
