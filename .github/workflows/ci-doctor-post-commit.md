@@ -84,6 +84,12 @@ imports:
       source: post_commit
       slug: post-commit
 
+safe-outputs:
+  report-failure-as-issue:   # defeat the silent "produced no safe outputs" no-op
+    - agent_failure
+    - missing_safe_outputs
+    - timed_out
+
 timeout-minutes: 20
 
 ---
