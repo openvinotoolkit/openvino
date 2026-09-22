@@ -16,6 +16,9 @@
 namespace cldnn {
 namespace onednn {
 
+// False when the linked oneDNN build has no registered GPU SDPA implementation.
+bool is_onednn_sdpa_available(cldnn::engine& engine);
+
 struct SDPAImplementationManager : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("onednn::sdpa")
     SDPAImplementationManager(shape_types shape_type) : ImplementationManager(impl_types::onednn, shape_type) {}
@@ -44,6 +47,11 @@ struct SDPAImplementationManager : public ImplementationManager {
 
         if (node.has_fused_primitives()) {
             GPU_DEBUG_TRACE_DETAIL << "onednn::sdpa validate_impl: has fused primitives" << std::endl;
+            return false;
+        }
+
+        if (!is_onednn_sdpa_available(node.get_program().get_engine())) {
+            GPU_DEBUG_TRACE_DETAIL << "onednn::sdpa validate_impl: oneDNN build has no SDPA implementation" << std::endl;
             return false;
         }
 

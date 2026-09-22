@@ -15,6 +15,8 @@
 #include <oneapi/dnnl/dnnl_types.h>
 
 #include <cmath>
+#include <map>
+#include <mutex>
 #include <sstream>
 
 namespace cldnn {
@@ -110,8 +112,10 @@ dnnl::primitive_desc create_sdpa_primitive_desc(const kernel_impl_params& impl_p
     dnnl::primitive_attr qk_attr;
     dnnl::primitive_attr vs_attr;
 
+    const auto causal_mask_type =
+        prim->causal_lower_right ? dnnl::impl::attn_mask_type::bottom_right : dnnl::impl::attn_mask_type::top_left;
     const auto mask_type = use_runtime_mask ? dnnl::impl::attn_mask_type::buffer
-                                            : prim->is_causal ? dnnl::impl::attn_mask_type::top_left
+                                            : prim->is_causal ? causal_mask_type
                                                               : dnnl::impl::attn_mask_type::undef;
     const auto kv_head_number = static_cast<dnnl_dim_t>(k_md.get_dims()[1]);
 
@@ -159,6 +163,61 @@ dnnl::primitive_desc create_sdpa_primitive_desc(const kernel_impl_params& impl_p
 }
 
 }  // namespace
+
+bool is_onednn_sdpa_available(cldnn::engine& engine) {
+    static std::mutex cache_mutex;
+    static std::map<const cldnn::engine*, bool> cache;
+
+    std::lock_guard<std::mutex> lock(cache_mutex);
+    const auto it = cache.find(&engine);
+    if (it != cache.end())
+        return it->second;
+
+    // oneDNN can be built without the SDPA primitive, in which case descriptor creation returns
+    // dnnl_unimplemented. Probe once per engine so selection can fall back to OCL instead of asserting.
+    const auto dt = dnnl::memory::data_type::f16;
+    const dnnl::memory::desc q_md({1, 1, 16, 32}, dt, dnnl::memory::format_tag::abcd);
+    const dnnl::memory::desc k_md({1, 1, 32, 16}, dt, dnnl::memory::format_tag::abdc);
+    const dnnl::memory::desc v_md({1, 1, 16, 32}, dt, dnnl::memory::format_tag::abcd);
+    const dnnl::memory::desc dst_md({1, 1, 16, 32}, dt, dnnl::memory::format_tag::abcd);
+    const auto scale_md = dnnl::memory::desc::host_scalar(dnnl::memory::data_type::f32);
+    const dnnl::memory::desc mask_md{};
+
+    dnnl::primitive_attr attr;
+    attr.set_scratchpad_mode(dnnl::scratchpad_mode::user);
+    dnnl::primitive_attr qk_attr;
+    dnnl::primitive_attr vs_attr;
+
+    dnnl_primitive_desc_t c_pd = nullptr;
+    const auto status = sdpa_primitive_desc_create(&c_pd,
+                                                   engine.get_onednn_engine().get(),
+                                                   q_md.get(),
+                                                   k_md.get(),
+                                                   v_md.get(),
+                                                   dst_md.get(),
+                                                   mask_md.get(),
+                                                   scale_md.get(),
+                                                   false,
+                                                   1,
+                                                   static_cast<int>(dnnl::impl::attn_mask_type::undef),
+                                                   dnnl_softmax_accurate,
+                                                   dnnl_forward_inference,
+                                                   attr.get(),
+                                                   qk_attr.get(),
+                                                   vs_attr.get());
+
+    const bool available = (status == dnnl_success && c_pd != nullptr);
+    if (c_pd != nullptr) {
+        // Takes ownership and releases the descriptor on scope exit.
+        const dnnl::primitive_desc probe_pd(c_pd);
+    }
+
+    GPU_DEBUG_TRACE_DETAIL << "onednn::sdpa capability probe: available=" << available
+                           << " status=" << dnnl_status_to_string(status) << std::endl;
+
+    cache.emplace(&engine, available);
+    return available;
+}
 
 struct sdpa_onednn : typed_primitive_onednn_impl<scaled_dot_product_attention> {
     using parent = typed_primitive_onednn_impl<scaled_dot_product_attention>;
