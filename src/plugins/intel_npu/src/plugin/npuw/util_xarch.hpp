@@ -80,6 +80,14 @@ void unpack_u8f16(const ov::SoPtr<ov::ITensor>& from,
                   const ov::SoPtr<ov::ITensor>& to,
                   const ov::npuw::util::UnpackOptions& _options);
 
+void unpack_i8f16_zp(const ov::SoPtr<ov::ITensor>& from,
+                     const ov::SoPtr<ov::ITensor>& zerop,
+                     const ov::SoPtr<ov::ITensor>& scale,
+                     const ov::SoPtr<ov::ITensor>& to,
+                     const ov::npuw::util::UnpackOptions& _options);
+
+void subtract_128(const ov::SoPtr<ov::ITensor>& from, const ov::SoPtr<ov::ITensor>& to);
+
 ov::Tensor to_f16(const ov::Tensor& t);
 
 void copy_row_as_column(const ov::SoPtr<ov::ITensor>& from, const ov::SoPtr<ov::ITensor>& to);

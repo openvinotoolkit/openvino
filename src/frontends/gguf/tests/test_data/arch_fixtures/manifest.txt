@@ -69,7 +69,7 @@ llama-moe.gguf.hdr 7096448 convert
 llama4-moe.gguf.hdr 13921664 reject
 maincoder-dense.gguf.hdr 4732800 convert
 mamba-dense.gguf.hdr 5029120 reject
-mamba2-dense.gguf.hdr 4509120 reject
+mamba2-dense.gguf.hdr 4509120 convert
 minicpm-dense.gguf.hdr 4741248 convert
 minicpm-moe.gguf.hdr 7096448 convert
 minicpm3-dense.gguf.hdr 7616512 reject
@@ -79,7 +79,7 @@ mistral3-moe.gguf.hdr 7096448 convert
 mistral4-moe.gguf.hdr 4403296 reject
 mpt-dense.gguf.hdr 4094464 reject
 nemotron-dense.gguf.hdr 3956480 reject
-nemotron_h-dense.gguf.hdr 4230240 reject
+nemotron_h-dense.gguf.hdr 4230240 convert
 nemotron_h_moe-dense.gguf.hdr 4230240 reject
 olmo-dense.gguf.hdr 4725632 reject
 olmoe-moe.gguf.hdr 7098240 convert
