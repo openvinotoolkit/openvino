@@ -994,8 +994,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // auto-enable both options for them unless the user explicitly configured it.
     bool propagate_slice_up = m_cfg.get<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>();
     if (is_per_layer_inputs_model) {
-        // SWA shrink is incompatible with prefix caching, Eagle speculative decoding, and continuous prefill.
-        const bool swa_shrink_compatible = !m_enable_prefix_caching && !m_is_eagle && !m_enable_continuous_prefill;
+        // SWA shrink is incompatible with prefix caching, multi-token generation (e.g. speculative
+        // decoding), and continuous prefill.
+        const bool swa_shrink_compatible =
+            !m_enable_prefix_caching && max_generation_token_len == 1 && !m_enable_continuous_prefill;
         if (swa_shrink_compatible && !m_cfg.has<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
             m_cfg.update({{"NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK", "YES"}});
             LOG_INFO("Gemma-4 cross-group KV model: auto-enabling NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK");

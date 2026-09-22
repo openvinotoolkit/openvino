@@ -359,14 +359,15 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelDoesNotOverridePre
     EXPECT_TRUE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
 }
 
-TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelDoesNotOverrideEagle) {
+TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelDoesNotOverrideMultiTokenGeneration) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
 
-    // Speculative decoding (Eagle) doesn't work with a shrunk/sliding KV cache, so shrink
-    // must stay off here even though the model has consumed per_layer_inputs.
+    // Generating more than 1 token per inference (e.g. speculative decoding) doesn't work
+    // with a shrunk/sliding KV cache, so shrink must stay off here even though the model
+    // has consumed per_layer_inputs.
     ASSERT_NO_THROW(compiled = create_compiled_model(ov::test::npuw::build_per_layer_inputs_probe_model(),
-                                                     {{"NPUW_EAGLE", "YES"}},
+                                                     {{"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "8"}},
                                                      recorder));
     ASSERT_NE(compiled, nullptr);
 
