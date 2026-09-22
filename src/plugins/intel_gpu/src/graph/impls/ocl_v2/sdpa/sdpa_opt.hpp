@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
@@ -30,16 +31,12 @@ struct SDPAOpt : public ImplementationManager {
     [[nodiscard]] static bool supports_micro_sdpa(const kernel_impl_params& params);
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
         const auto desc = node.as<scaled_dot_product_attention>().get_primitive();
-        static constexpr std::array supported_q_types = {
-            ov::element::f32,
-            ov::element::f16,
-            ov::element::bf16,
+        const auto& supported_precisions = ov::intel_gpu::op::SDPA::get_supported_precisions();
+        const auto is_supported_precision = [&supported_precisions](const ov::element::Type& dt) {
+            return one_of(dt, supported_precisions);
         };
-        static constexpr std::array supported_kv_types = {
-            ov::element::f32,
-            ov::element::f16,
-            ov::element::bf16,
-            ov::element::i8,
+        const auto is_supported_kv_precision = [&is_supported_precision](const ov::element::Type& dt) {
+            return is_supported_precision(dt) || dt == ov::element::i8;
         };
         const auto& q_layout = node.get_input_layout(ScaledDotProductAttentionInputIdx::QUERY);
         const auto& k_layout = node.get_input_layout(ScaledDotProductAttentionInputIdx::KEY);
@@ -49,11 +46,11 @@ struct SDPAOpt : public ImplementationManager {
             return false;
         }
 
-        if (!one_of(k_layout.data_type, supported_kv_types) || !one_of(v_layout.data_type, supported_kv_types)) {
+        if (!is_supported_kv_precision(k_layout.data_type) || !is_supported_kv_precision(v_layout.data_type)) {
             return false;
         }
 
-        if (!one_of(q_layout.data_type, supported_q_types) || !one_of(out_layout.data_type, supported_q_types)) {
+        if (!is_supported_precision(q_layout.data_type) || !is_supported_precision(out_layout.data_type)) {
             return false;
         }
 
