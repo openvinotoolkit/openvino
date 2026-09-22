@@ -4,20 +4,23 @@
   "signature_hash": "a87e95431b0e8175",
   "title": "LLM accuracy tests fail importing openvino_genai - libopenvino.so.2640 not found",
   "category": "Dependencies",
-  "count": 4,
+  "count": 5,
   "first_seen": "2026-09-21T15:45:59Z",
-  "last_seen": "2026-09-22T16:19:47Z",
+  "last_seen": "2026-09-22T17:33:10Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/35751991888",
     "https://github.com/openvinotoolkit/openvino/actions/runs/35742977292",
     "https://github.com/openvinotoolkit/openvino/actions/runs/35719650364",
     "https://github.com/openvinotoolkit/openvino/actions/runs/35717727822",
     "https://github.com/openvinotoolkit/openvino/actions/runs/35611485728"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38200",
     "https://github.com/openvinotoolkit/openvino/pull/38329",
     "https://github.com/openvinotoolkit/openvino/pull/38190"
   ],
   "recent_timestamps": [
+    "2026-09-22T17:33:10Z",
     "2026-09-22T16:19:47Z",
     "2026-09-22T12:30:15Z",
     "2026-09-22T12:10:20Z"
