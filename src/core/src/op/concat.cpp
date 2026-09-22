@@ -42,7 +42,7 @@ concat_kind get_concat_kind(const element::Type& elem_type,
         return concat_kind::string;
     } else if (const auto bitwidth = elem_type.bitwidth(); bitwidth >= 8) {
         return concat_kind::regular;
-    } else if (bitwidth == 0 || elem_type == element::u3 || elem_type == element::u6) {
+    } else if (bitwidth == 0) {
         return concat_kind::unsupported;
     } else {
         const auto steps = ov::shape_size(output_shape.begin(), output_shape.begin() + axis);
@@ -122,7 +122,7 @@ bool Concat::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     case concat_kind::packed:
         outputs.front().set_shape(out_shape);
         reference::concat(get_data_ptrs<int8_t>(inputs),
-                          outputs[0].data<int8_t>(),
+                          static_cast<int8_t*>(outputs[0].data()),
                           arg_shapes,
                           out_shape,
                           axis,
@@ -145,7 +145,7 @@ bool Concat::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
 
 bool Concat::has_evaluate() const {
     OV_OP_SCOPE(v0_Concat_has_evaluate);
-    return true;
+    return get_output_element_type(0).is_static();
 }
 
 bool Concat::evaluate_lower(TensorVector& output_values) const {

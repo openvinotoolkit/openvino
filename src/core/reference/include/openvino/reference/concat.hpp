@@ -27,7 +27,7 @@ void concat(const std::vector<const std::string*>& args,
             const Shape& out_shape,
             int64_t concatenation_axis);
 
-/// \brief Concatenates sub-byte packed data (bitwidth < 8: u1, u2, u4, i4, nf4, f4e2m1, all stored as int8_t).
+/// \brief Concatenates sub-byte packed data.
 void concat(const std::vector<const int8_t*>& args,
             int8_t* out,
             const std::vector<Shape>& in_shapes,
