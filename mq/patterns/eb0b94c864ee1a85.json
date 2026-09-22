@@ -4,19 +4,21 @@
   "signature_hash": "eb0b94c864ee1a85",
   "title": "smoke_FC_3D_FP32/MatMulDecompressConvertTest primTypeCheck(primType) is unexpected (undef_f32 vs acl_f32)",
   "category": "Flaky Test",
-  "count": 2,
+  "count": 3,
   "first_seen": "2026-09-11T10:27:48Z",
-  "last_seen": "2026-09-16T16:21:17Z",
+  "last_seen": "2026-09-22T21:49:37Z",
   "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/35783641423",
     "https://github.com/openvinotoolkit/openvino/actions/runs/35116998343",
     "https://github.com/openvinotoolkit/openvino/actions/runs/34586539583"
   ],
   "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38052",
     "https://github.com/openvinotoolkit/openvino/pull/37885",
     "https://github.com/openvinotoolkit/openvino/pull/37783"
   ],
   "recent_timestamps": [
-    "2026-09-16T16:21:17Z"
+    "2026-09-22T21:49:37Z"
   ],
   "rerun_search_string": "primType is unexpected"
 }

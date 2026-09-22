@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-22-21-49-37-000-35783641423",
+  "timestamp": "2026-09-22T21:49:37Z",
+  "run_id": "35783641423",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35783641423",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "38052",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38052",
+  "author": "culhatsker",
+  "category": "Flaky Test",
+  "title": "smoke_ConvertCPULayerTest - Value of: primTypeCheck(primType) is unexpected",
+  "signature": "primType is unexpected undef_f32 Expected acl_f32|Flaky Test",
+  "signature_hash": "eb0b94c864ee1a85",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "smoke_AvgPool_CPU_4D/PoolingLayerCPUTest.CompareWithRefs fails an ACL primitive-type assertion (undef_f32 vs acl_f32)"
+    },
+    {
+      "name": "ci/gha_overall_status_linux_arm64",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because CPU functional tests failed"
+    }
+  ],
+  "key_errors": [
+    "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure\nValue of: primTypeCheck(primType)\n  Actual: false\nExpected: true\nprimType is unexpected : undef_f32 Expected : acl_f32",
+    "[  FAILED  ] smoke_AvgPool_CPU_4D/PoolingLayerCPUTest.CompareWithRefs/IS=([1..10.16.8.8])_TS=(1.16.8.8)_(2.16.8.8)_Prc=f32_AvgPool_ExcludePad=1_K(2.2)_S(2.2)_PB(1.0)_PE(0.0)_Rounding=floor_AutoPad=same_lower_INT8=0__primitive=acl"
+  ],
+  "root_cause": "The ARM64 CPU functional test suite runs a single flaky test out of ~71k: PoolingLayerCPUTest (AvgPool, 4D, ExcludePad, floor rounding, same_lower autopad) expects the executed primitive to be selected as the ACL (Arm Compute Library) kernel ('acl_f32'), but the CPU plugin's primitive-descriptor selection instead reports 'undef_f32' for this particular parameter combination. This is a non-deterministic primitive/executor selection issue in the CPU plugin's ACL-vs-reference dispatch logic for AvgPool with these padding/shape parameters, not something introduced by the PR under test (tests/memory_tests/tools/run_tests.py, unrelated to CPU functional tests). The exact same signature (undef_f32 vs acl_f32 primType mismatch) has now recurred 3 times across unrelated PRs, confirming it is a known intermittent CPU-plugin/ACL executor-selection flake rather than a PR-induced regression.",
+  "reproduction_steps": "Run locally: ./install/tests/ov_cpu_func_tests --gtest_filter=*smoke_AvgPool_CPU_4D/PoolingLayerCPUTest.CompareWithRefs*ExcludePad=1_K(2.2)_S(2.2)_PB(1.0)_PE(0.0)_Rounding=floor_AutoPad=same_lower*primitive=acl* on an ARM64 build with ACL enabled; failure is intermittent and may require multiple repetitions or specific machine/thread-count conditions to reproduce.",
+  "recommended_actions": [
+    "Re-run the failed job (transient, not caused by this PR's change to tests/memory_tests/tools/run_tests.py).",
+    "File/track a CPU-plugin issue for the AvgPool ACL executor-selection flake (PoolingLayerCPUTest, ExcludePad+floor+same_lower on ARM64) referencing this pattern's 3 occurrences.",
+    "Consider adding a temporary retry or disabling the specific parameterization if it keeps blocking merge-queue runs while the plugin bug is investigated."
+  ],
+  "prevention_strategies": "Add a deterministic reproduction harness or debug logging in the CPU plugin's ACL primitive-descriptor selection path for AvgPool executor picking so root cause of the undef_f32 fallback can be diagnosed; consider gating flaky ARM64 ACL pooling tests behind a known-issues skip list until fixed.",
+  "historical_context": "Same normalized signature ('primType is unexpected undef_f32 Expected acl_f32') previously seen on 2026-09-11 (PR #37783) and 2026-09-16 (PR #37885); this is the 3rd occurrence within about 11 days, all on unrelated PRs, confirming a recurring CPU-plugin/ACL flake rather than a regression from any single PR."
+}
