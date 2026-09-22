@@ -19,9 +19,7 @@
 #include "openvino/util/log.hpp"
 #include "quant/gguf.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 namespace {
 
@@ -97,6 +95,4 @@ GraphBuilder load_gguf_builder(const std::string& file, const ArchRegistry& regi
     };
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

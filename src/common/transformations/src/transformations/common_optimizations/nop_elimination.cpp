@@ -223,6 +223,18 @@ static size_t count_unknown_dims(const PartialShape& ps) {
     return rc;
 }
 
+static bool has_static_zero_dim(const PartialShape& shape) {
+    if (shape.rank().is_dynamic()) {
+        return false;
+    }
+    for (const auto& dim : shape) {
+        if (dim.is_static() && dim.get_length() == 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
 static bool replace_squeeze_unsqueeze(const std::shared_ptr<Node>& node) {
     auto shape_ps = node->get_output_partial_shape(0);
     if (shape_ps.rank().get_length() == 0) {
@@ -240,11 +252,20 @@ static bool replace_squeeze_unsqueeze(const std::shared_ptr<Node>& node) {
         }
     }
 
-    std::shared_ptr<Node> reshape;
     auto input = node->input_value(0).get_node_shared_ptr();
     auto pat = v0::Constant::create<int64_t>(element::i64, Shape{target_shape.size()}, target_shape);
+    std::shared_ptr<Node> reshape;
 
-    if (ov::is_type<v1::Reshape>(input) || ov::is_type<v0::Squeeze>(input) || ov::is_type<v0::Unsqueeze>(input)) {
+    if (ov::is_type_any_of<v1::Reshape, v0::Squeeze, v0::Unsqueeze>(input)) {
+        const auto& source_shape = input->get_input_partial_shape(0);
+        const auto element_counts_differ =
+            source_shape.is_static() && shape_ps.is_static() &&
+            ov::shape_size(source_shape.to_shape()) != ov::shape_size(shape_ps.to_shape());
+        const auto loses_guaranteed_zero_extent = has_static_zero_dim(source_shape) && !has_static_zero_dim(shape_ps);
+
+        if (element_counts_differ || loses_guaranteed_zero_extent) {
+            return false;
+        }
         reshape = std::make_shared<v1::Reshape>(input->input_value(0), pat, false);
     } else {
         reshape = std::make_shared<v1::Reshape>(node->input_value(0), pat, false);

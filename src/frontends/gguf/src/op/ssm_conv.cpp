@@ -12,10 +12,7 @@
 #include "openvino/op/transpose.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 // GGML_OP_SSM_CONV: depthwise 1D causal convolution over the conv-state window (SSM / Mamba-style
 // models, e.g. qwen3next). Implemented as a GroupConvolution with groups == channels.
@@ -61,7 +58,4 @@ OutputVector translate_ssm_conv(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op
