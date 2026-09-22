@@ -10,6 +10,7 @@
 #include <sstream>
 #include <string>
 #include <tuple>
+#include <unordered_map>
 #include <vector>
 
 #include "utils/device_telemetry.hpp"
@@ -90,24 +91,24 @@ TEST(DeviceMonitorTest, telemetry_client_low_power_mode_is_safe) {
 #endif
 }
 
-// TelemetryClient::utilization must never throw and must return a value within
-// [0.0, 100.0] when available, or std::nullopt otherwise. On builds without the
-// telemetry backend it consistently returns std::nullopt.
-TEST(DeviceMonitorTest, telemetry_client_utilization_is_safe) {
+// TelemetryClient::utilizations must never throw and must return values within
+// [0.0, 100.0] when available. On builds without the telemetry backend it consistently
+// returns an empty map.
+TEST(DeviceMonitorTest, telemetry_client_utilizations_is_safe) {
     device_monitor::TelemetryClient client;
-    std::optional<float> utilization;
-    ASSERT_NO_THROW(utilization = client.utilization("CPU"));
-    if (utilization.has_value()) {
-        EXPECT_GE(utilization.value(), 0.0f);
-        EXPECT_LE(utilization.value(), 100.0f);
+    std::unordered_map<std::string, float> utilizations;
+    ASSERT_NO_THROW(utilizations = client.utilizations({{"CPU", ""}}));
+    for (const auto& [device_name, utilization] : utilizations) {
+        EXPECT_GE(utilization, 0.0f);
+        EXPECT_LE(utilization, 100.0f);
     }
 }
 
-TEST(DeviceMonitorTest, telemetry_client_unknown_device_returns_nullopt) {
+TEST(DeviceMonitorTest, telemetry_client_unknown_device_is_excluded) {
     device_monitor::TelemetryClient client;
-    std::optional<float> utilization;
-    ASSERT_NO_THROW(utilization = client.utilization("UNKNOWN_DEVICE"));
-    EXPECT_FALSE(utilization.has_value());
+    std::unordered_map<std::string, float> utilizations;
+    ASSERT_NO_THROW(utilizations = client.utilizations({{"UNKNOWN_DEVICE", ""}}));
+    EXPECT_EQ(utilizations.count("UNKNOWN_DEVICE"), 0u);
 }
 
 #ifdef OV_AUTO_ENABLE_IPF

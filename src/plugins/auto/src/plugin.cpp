@@ -606,22 +606,19 @@ ov::SupportedOpsMap Plugin::query_model(const std::shared_ptr<const ov::Model>& 
 }
 
 std::unordered_map<std::string, float> Plugin::get_device_utilizations(const std::list<DeviceInformation>& devices) {
-    std::unordered_map<std::string, float> result;
     std::call_once(m_telemetry_client_init_once, [this]() {
         m_telemetry_client = std::make_unique<device_monitor::TelemetryClient>();
     });
-    const std::string snapshot = m_telemetry_client->fetch_utilization_snapshot();
-    if (snapshot.empty()) {
-        return result;
-    }
+    std::vector<std::pair<std::string, std::string>> device_name_and_type;
+    device_name_and_type.reserve(devices.size());
     for (const auto& device : devices) {
-        const auto device_type = resolve_device_key(device.device_name).device_type;
-        auto utilization = device_monitor::utilization_from_snapshot(snapshot, device.device_name, device_type);
-        if (utilization.has_value()) {
-            LOG_DEBUG_TAG("[IPF] Device %s utilization: %s",
-                          device.device_name.c_str(),
-                          std::to_string(*utilization).c_str());
-            result.emplace(device.device_name, *utilization);
+        device_name_and_type.emplace_back(device.device_name, resolve_device_key(device.device_name).device_type);
+    }
+    const auto result = m_telemetry_client->utilizations(device_name_and_type);
+    for (const auto& device : devices) {
+        const auto it = result.find(device.device_name);
+        if (it != result.end()) {
+            LOG_DEBUG_TAG("[IPF] Device %s utilization: %s", device.device_name.c_str(), std::to_string(it->second).c_str());
         } else {
             LOG_DEBUG_TAG("[IPF] Device %s utilization query failed/unavailable", device.device_name.c_str());
         }

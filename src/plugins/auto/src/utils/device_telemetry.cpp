@@ -39,10 +39,9 @@ void gear_changed_callback(const char* path, const char* event, void* context);
 
 namespace {
 
-std::optional<float> parse_utilization_from_aiselector_json_impl(const std::string& json_str,
-                                                                 const std::string& metric_key,
-                                                                 std::string_view metric_key_view,
-                                                                 const std::string& device_name) {
+// Parses the raw IPF response once; returns the "Performance" section, or nullopt if
+// malformed/missing so callers can look up multiple devices' metrics without reparsing.
+std::optional<nlohmann::json> parse_performance_section(const std::string& json_str) {
     try {
         LOG_DEBUG_TAG("TelemetryClient: raw IPF response: %s", json_str.c_str());
         const auto parsed = nlohmann::json::parse(json_str);
@@ -50,45 +49,51 @@ std::optional<float> parse_utilization_from_aiselector_json_impl(const std::stri
             LOG_WARNING_TAG("TelemetryClient: JSON missing 'Performance' section");
             return std::nullopt;
         }
-        const auto& performance = parsed["Performance"];
-        auto metric_it = performance.find(metric_key);
-        // IGPU may be reported under either IGPUUtilization or GPUUtilization; fall back to the latter.
-        const bool igpu_fallback_attempted = metric_it == performance.end() && metric_key_view == k_igpu_utilization_metric;
-        if (igpu_fallback_attempted) {
-            static const std::string igpu_fallback_key{k_igpu_utilization_fallback_metric};
-            metric_it = performance.find(igpu_fallback_key);
-        }
-        if (metric_it == performance.end()) {
-            if (igpu_fallback_attempted) {
-                LOG_WARNING_TAG("TelemetryClient: Performance section missing keys: %s and fallback %.*s",
-                                metric_key.c_str(),
-                                static_cast<int>(k_igpu_utilization_fallback_metric.size()),
-                                k_igpu_utilization_fallback_metric.data());
-            } else {
-                LOG_WARNING_TAG("TelemetryClient: Performance section missing key: %s", metric_key.c_str());
-            }
-            return std::nullopt;
-        }
-        if (!metric_it->is_number()) {
-            const auto& resolved_metric_key = metric_it.key();
-            LOG_WARNING_TAG("TelemetryClient: Performance value for key %s is not a number", resolved_metric_key.c_str());
-            return std::nullopt;
-        }
-        float value = metric_it->get<float>();
-        const std::string value_as_string = std::to_string(value);
-        LOG_DEBUG_TAG("TelemetryClient: parsed utilization=%s for device=%s", value_as_string.c_str(), device_name.c_str());
-        if (!std::isfinite(value) || value < 0.0f || value > 100.0f) {
-            LOG_WARNING_TAG("TelemetryClient: utilization value out of supported range [0,100], value=%s for device=%s",
-                            value_as_string.c_str(),
-                            device_name.c_str());
-            return std::nullopt;
-        }
-
-        return value;
+        return parsed["Performance"];
     } catch (const nlohmann::json::exception& e) {
         LOG_DEBUG_TAG("TelemetryClient: JSON parsing exception: %s", e.what());
         return std::nullopt;
     }
+}
+
+std::optional<float> extract_utilization(const nlohmann::json& performance,
+                                         const std::string& metric_key,
+                                         std::string_view metric_key_view,
+                                         const std::string& device_name) {
+    auto metric_it = performance.find(metric_key);
+    // IGPU may be reported under either IGPUUtilization or GPUUtilization; fall back to the latter.
+    const bool igpu_fallback_attempted = metric_it == performance.end() && metric_key_view == k_igpu_utilization_metric;
+    if (igpu_fallback_attempted) {
+        static const std::string igpu_fallback_key{k_igpu_utilization_fallback_metric};
+        metric_it = performance.find(igpu_fallback_key);
+    }
+    if (metric_it == performance.end()) {
+        if (igpu_fallback_attempted) {
+            LOG_WARNING_TAG("TelemetryClient: Performance section missing keys: %s and fallback %.*s",
+                            metric_key.c_str(),
+                            static_cast<int>(k_igpu_utilization_fallback_metric.size()),
+                            k_igpu_utilization_fallback_metric.data());
+        } else {
+            LOG_WARNING_TAG("TelemetryClient: Performance section missing key: %s", metric_key.c_str());
+        }
+        return std::nullopt;
+    }
+    if (!metric_it->is_number()) {
+        const auto& resolved_metric_key = metric_it.key();
+        LOG_WARNING_TAG("TelemetryClient: Performance value for key %s is not a number", resolved_metric_key.c_str());
+        return std::nullopt;
+    }
+    float value = metric_it->get<float>();
+    const std::string value_as_string = std::to_string(value);
+    LOG_DEBUG_TAG("TelemetryClient: parsed utilization=%s for device=%s", value_as_string.c_str(), device_name.c_str());
+    if (!std::isfinite(value) || value < 0.0f || value > 100.0f) {
+        LOG_WARNING_TAG("TelemetryClient: utilization value out of supported range [0,100], value=%s for device=%s",
+                        value_as_string.c_str(),
+                        device_name.c_str());
+        return std::nullopt;
+    }
+
+    return value;
 }
 
 }  // namespace
@@ -180,15 +185,14 @@ public:
         return get_node("Platform.Features.AISelector");
     }
 
-    std::optional<float> utilization(const std::string& device_name, const std::string& device_type) {
-        if (device_to_metric_key(device_name, device_type).empty()) {
-            return std::nullopt;
-        }
+    // Fetches one snapshot and resolves utilization for every requested device from it.
+    std::unordered_map<std::string, float> utilizations(
+        const std::vector<std::pair<std::string, std::string>>& devices) {
         const std::string snapshot = fetch_utilization_snapshot();
         if (snapshot.empty()) {
-            return std::nullopt;
+            return {};
         }
-        return utilization_from_snapshot(snapshot, device_name, device_type);
+        return utilization_from_snapshot(snapshot, devices);
     }
 
     std::optional<bool> is_low_power_mode() {
@@ -407,32 +411,46 @@ TelemetryClient::TelemetryClient() : m_impl(std::make_unique<Impl>()) {}
 
 TelemetryClient::~TelemetryClient() = default;
 
-std::string TelemetryClient::fetch_utilization_snapshot() {
-    return m_impl->fetch_utilization_snapshot();
-}
-
-std::optional<float> TelemetryClient::utilization(const std::string& device_name, const std::string& device_type) {
-    return m_impl->utilization(device_name, device_type);
+std::unordered_map<std::string, float> TelemetryClient::utilizations(
+    const std::vector<std::pair<std::string, std::string>>& devices) {
+    return m_impl->utilizations(devices);
 }
 
 std::optional<bool> TelemetryClient::is_low_power_mode() {
     return m_impl->is_low_power_mode();
 }
 
+std::unordered_map<std::string, float> utilization_from_snapshot(
+    const std::string& snapshot,
+    const std::vector<std::pair<std::string, std::string>>& devices) {
+    std::unordered_map<std::string, float> result;
+    if (snapshot.empty() || devices.empty()) {
+        return result;
+    }
+    const auto performance = parse_performance_section(snapshot);
+    if (!performance.has_value()) {
+        return result;
+    }
+    for (const auto& [device_name, device_type] : devices) {
+        const auto metric_key_view = device_to_metric_key(device_name, device_type);
+        if (metric_key_view.empty()) {
+            continue;
+        }
+        const auto utilization =
+            extract_utilization(*performance, std::string{metric_key_view}, metric_key_view, device_name);
+        if (utilization.has_value()) {
+            result.emplace(device_name, *utilization);
+        }
+    }
+    return result;
+}
+
 std::optional<float> utilization_from_snapshot(const std::string& snapshot,
                                                 const std::string& device_name,
                                                 const std::string& device_type) {
-    if (snapshot.empty()) {
-        return std::nullopt;
-    }
-    const auto metric_key_view = device_to_metric_key(device_name, device_type);
-    if (metric_key_view.empty()) {
-        return std::nullopt;
-    }
-    return parse_utilization_from_aiselector_json_impl(snapshot,
-                                                       std::string{metric_key_view},
-                                                       metric_key_view,
-                                                       device_name);
+    const auto result = utilization_from_snapshot(snapshot, std::vector<std::pair<std::string, std::string>>{{device_name, device_type}});
+    const auto it = result.find(device_name);
+    return it != result.end() ? std::optional<float>(it->second) : std::nullopt;
 }
 
 #ifdef MULTIUNITTEST
@@ -459,16 +477,18 @@ TelemetryClient::TelemetryClient() : m_impl(nullptr) {}
 
 TelemetryClient::~TelemetryClient() = default;
 
-std::string TelemetryClient::fetch_utilization_snapshot() {
+std::unordered_map<std::string, float> TelemetryClient::utilizations(const std::vector<std::pair<std::string, std::string>>&) {
     return {};
-}
-
-std::optional<float> TelemetryClient::utilization(const std::string&, const std::string&) {
-    return std::nullopt;
 }
 
 std::optional<bool> TelemetryClient::is_low_power_mode() {
     return std::nullopt;
+}
+
+std::unordered_map<std::string, float> utilization_from_snapshot(
+    const std::string&,
+    const std::vector<std::pair<std::string, std::string>>&) {
+    return {};
 }
 
 std::optional<float> utilization_from_snapshot(const std::string&, const std::string&, const std::string&) {
