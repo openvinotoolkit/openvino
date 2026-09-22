@@ -141,11 +141,15 @@ TEST_P(VisualizeTreeSanitizeTest, subgraph_friendly_name_with_disallowed_charact
     OV_ASSERT_NO_THROW(vt.run_on_model(model));
     ASSERT_TRUE(util::file_exists(dot_file_path)) << dot_file_path;
 
-    auto subgraph_file_path = vt_svg_file_path;
-    subgraph_file_path.replace_extension("._node_" + param.sanitized_name + "_subgraph_#0");
-    subgraph_file_path += ".dot";
-    ASSERT_TRUE(util::file_exists(subgraph_file_path)) << subgraph_file_path;
-    std::filesystem::remove(subgraph_file_path);
+    // If has both a then_body and an else_body, so it dumps subgraph #0 and #1.
+    for (const auto subgraph_index : {0, 1}) {
+        auto subgraph_file_path = vt_svg_file_path;
+        subgraph_file_path.replace_extension("._node_" + param.sanitized_name + "_subgraph_#" +
+                                             std::to_string(subgraph_index));
+        subgraph_file_path += ".dot";
+        ASSERT_TRUE(util::file_exists(subgraph_file_path)) << subgraph_file_path;
+        std::filesystem::remove(subgraph_file_path);
+    }
 }
 
 INSTANTIATE_TEST_SUITE_P(DisallowedCharacters,
@@ -161,17 +165,20 @@ TEST_F(VisualizeTreeTest, subgraph_friendly_names_with_different_disallowed_char
     OV_ASSERT_NO_THROW(vt.run_on_model(model));
     ASSERT_TRUE(util::file_exists(dot_file_path)) << dot_file_path;
 
-    auto first_subgraph_file_path = vt_svg_file_path;
-    first_subgraph_file_path.replace_extension("._node_a~3ab_subgraph_#0");
-    first_subgraph_file_path += ".dot";
-    auto second_subgraph_file_path = vt_svg_file_path;
-    second_subgraph_file_path.replace_extension("._node_a~3fb_subgraph_#0");
-    second_subgraph_file_path += ".dot";
+    // Each If has both a then_body and an else_body, so each dumps subgraph #0 and #1.
+    for (const auto subgraph_index : {0, 1}) {
+        auto first_subgraph_file_path = vt_svg_file_path;
+        first_subgraph_file_path.replace_extension("._node_a~3ab_subgraph_#" + std::to_string(subgraph_index));
+        first_subgraph_file_path += ".dot";
+        auto second_subgraph_file_path = vt_svg_file_path;
+        second_subgraph_file_path.replace_extension("._node_a~3fb_subgraph_#" + std::to_string(subgraph_index));
+        second_subgraph_file_path += ".dot";
 
-    ASSERT_TRUE(util::file_exists(first_subgraph_file_path)) << first_subgraph_file_path;
-    ASSERT_TRUE(util::file_exists(second_subgraph_file_path)) << second_subgraph_file_path;
-    std::filesystem::remove(first_subgraph_file_path);
-    std::filesystem::remove(second_subgraph_file_path);
+        ASSERT_TRUE(util::file_exists(first_subgraph_file_path)) << first_subgraph_file_path;
+        ASSERT_TRUE(util::file_exists(second_subgraph_file_path)) << second_subgraph_file_path;
+        std::filesystem::remove(first_subgraph_file_path);
+        std::filesystem::remove(second_subgraph_file_path);
+    }
 }
 
 TEST_F(VisualizeTreeTest, subgraph_friendly_name_with_safe_characters_is_dumped) {
@@ -182,10 +189,13 @@ TEST_F(VisualizeTreeTest, subgraph_friendly_name_with_safe_characters_is_dumped)
     OV_ASSERT_NO_THROW(vt.run_on_model(model));
     ASSERT_TRUE(util::file_exists(dot_file_path)) << dot_file_path;
 
-    auto subgraph_file_path = vt_svg_file_path;
-    subgraph_file_path.replace_extension("._node_safe_name-1.2_subgraph_#0");
-    subgraph_file_path += ".dot";
-    ASSERT_TRUE(util::file_exists(subgraph_file_path)) << subgraph_file_path;
-    std::filesystem::remove(subgraph_file_path);
+    // If has both a then_body and an else_body, so it dumps subgraph #0 and #1.
+    for (const auto subgraph_index : {0, 1}) {
+        auto subgraph_file_path = vt_svg_file_path;
+        subgraph_file_path.replace_extension("._node_safe_name-1.2_subgraph_#" + std::to_string(subgraph_index));
+        subgraph_file_path += ".dot";
+        ASSERT_TRUE(util::file_exists(subgraph_file_path)) << subgraph_file_path;
+        std::filesystem::remove(subgraph_file_path);
+    }
 }
 }  // namespace ov::test
