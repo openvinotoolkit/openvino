@@ -302,6 +302,82 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_mixed_seq_layout_1) {
     test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
 }
 
+// Inputs and reference outputs of lstm_fwd_initial_h_c.onnx, in the ONNX layout=0 convention.
+// W, R and B are reused from lstm_fwd_mixed_seq; seq_length and batch_size differ on purpose so
+// that a wrong axis order changes the output shapes. The expected values were computed from the
+// ONNX LSTM specification and cross-checked against onnx.reference.ReferenceEvaluator.
+namespace lstm_fwd_initial_h_c {
+const std::vector<float> in_X{1.f, 2.f, 10.f, 11.f, 5.f, 6.f};
+const std::vector<float> in_initial_h{-0.16f, -0.07f, 0.02f, 0.11f, 0.20f, 0.29f};
+const std::vector<float> in_initial_c{-0.09f, -0.03f, 0.03f, 0.09f, 0.15f, 0.21f};
+
+const std::vector<float> out_Y{0.24263948f,
+                               0.34453541f,
+                               0.47140008f,
+                               0.40377864f,
+                               0.57015294f,
+                               0.68911171f,
+                               0.81572270f,
+                               0.88674504f,
+                               0.91484076f,
+                               0.88340819f,
+                               0.93248248f,
+                               0.95069653f,
+                               0.86339754f,
+                               0.97003090f,
+                               0.98395663f,
+                               0.91011900f,
+                               0.98452914f,
+                               0.99148357f};
+const std::vector<float> out_Y_h{0.86339754f, 0.97003090f, 0.98395663f, 0.91011900f, 0.98452914f, 0.99148357f};
+const std::vector<float> out_Y_c{1.86717939f, 2.18597698f, 2.40985966f, 2.14066553f, 2.49125576f, 2.72758770f};
+}  // namespace lstm_fwd_initial_h_c
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_initial_h_c) {
+    auto model = convert_model("lstm_fwd_initial_h_c.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(lstm_fwd_initial_h_c::in_X);
+    test_case.add_input<float>(lstm_fwd_mixed_seq::in_W);
+    test_case.add_input<float>(lstm_fwd_mixed_seq::in_R);
+    test_case.add_input<float>(lstm_fwd_mixed_seq::in_B);
+    test_case.add_input<float>(lstm_fwd_initial_h_c::in_initial_h);
+    test_case.add_input<float>(lstm_fwd_initial_h_c::in_initial_c);
+
+    test_case.add_expected_output<float>(Shape{3, 1, 2, 3}, lstm_fwd_initial_h_c::out_Y);
+    test_case.add_expected_output<float>(Shape{1, 2, 3}, lstm_fwd_initial_h_c::out_Y_h);
+    test_case.add_expected_output<float>(Shape{1, 2, 3}, lstm_fwd_initial_h_c::out_Y_c);
+
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
+}
+
+// layout=1 twin of lstm_fwd_initial_h_c, covering the permutation of the explicitly provided
+// initial_h and initial_c against the same reference values.
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_initial_h_c_layout_1) {
+    auto model = convert_model("lstm_fwd_initial_h_c_layout_1.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    // X: [seq, batch, input] -> [batch, seq, input]
+    test_case.add_input<float>(transpose(lstm_fwd_initial_h_c::in_X, Shape{3, 2, 1}, {1, 0, 2}));
+    test_case.add_input<float>(lstm_fwd_mixed_seq::in_W);
+    test_case.add_input<float>(lstm_fwd_mixed_seq::in_R);
+    test_case.add_input<float>(lstm_fwd_mixed_seq::in_B);
+    // initial_h, initial_c: [num_directions, batch, hidden] -> [batch, num_directions, hidden]
+    test_case.add_input<float>(transpose(lstm_fwd_initial_h_c::in_initial_h, Shape{1, 2, 3}, {1, 0, 2}));
+    test_case.add_input<float>(transpose(lstm_fwd_initial_h_c::in_initial_c, Shape{1, 2, 3}, {1, 0, 2}));
+
+    // Y: [seq, num_directions, batch, hidden] -> [batch, seq, num_directions, hidden]
+    test_case.add_expected_output<float>(Shape{2, 3, 1, 3},
+                                         transpose(lstm_fwd_initial_h_c::out_Y, Shape{3, 1, 2, 3}, {2, 0, 1, 3}));
+    // Y_h, Y_c: [num_directions, batch, hidden] -> [batch, num_directions, hidden]
+    test_case.add_expected_output<float>(Shape{2, 1, 3},
+                                         transpose(lstm_fwd_initial_h_c::out_Y_h, Shape{1, 2, 3}, {1, 0, 2}));
+    test_case.add_expected_output<float>(Shape{2, 1, 3},
+                                         transpose(lstm_fwd_initial_h_c::out_Y_c, Shape{1, 2, 3}, {1, 0, 2}));
+
+    test_case.run(DEFAULT_FLOAT_TOLERANCE_BITS + 1);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_lstm_fwd_hardsigmoid_activation) {
     auto model = convert_model("lstm_fwd_hardsigmoid_activation.onnx");
 

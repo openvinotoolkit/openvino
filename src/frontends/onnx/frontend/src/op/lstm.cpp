@@ -50,7 +50,7 @@ struct LSTMNgInputMap {
         // Packed input sequences.
         // ONNX Shape: [seq_length, batch_size, input_size] (layout=0) or
         //             [batch_size, seq_length, input_size] (layout=1)
-        // OpenVino Shape: [batch_size, seq_length, input_size]
+        // OpenVINO Shape: [batch_size, seq_length, input_size]
 
         // First normalize rank if needed, THEN reorder axes
         // This is important because Squeeze/Unsqueeze changes dimension indices
@@ -106,7 +106,7 @@ struct LSTMNgInputMap {
         // ------ Optional inputs ------
         // `B` - The bias tensor for input gate.
         // ONNX Shape: [num_directions, 8*hidden_size]
-        // OpenVino Shape: [num_directions, 4*hidden_size]
+        // OpenVINO Shape: [num_directions, 4*hidden_size]
         if (ng_inputs.size() > 3 && !ov::op::util::is_null(ng_inputs.at(3))) {
             auto bias = normalize_tensor_rank(ng_inputs.at(3), 2, "LSTM", "B");
             auto split_bias = ov::op::util::make_split(bias, 2, 1);
@@ -130,7 +130,7 @@ struct LSTMNgInputMap {
         // `initial_h` - The initial value of the hidden.
         // ONNX Shape: [num_directions, batch_size, hidden_size] (layout=0) or
         //             [batch_size, num_directions, hidden_size] (layout=1)
-        // OpenVino Shape: [batch_size, num_directions, hidden_size]
+        // OpenVINO Shape: [batch_size, num_directions, hidden_size]
         if (ng_inputs.size() > 5 && !ov::op::util::is_null(ng_inputs.at(5))) {
             auto init_h = ng_inputs.at(5);
             // First normalize rank, THEN reorder axes
@@ -147,7 +147,7 @@ struct LSTMNgInputMap {
         // `initial_c` - The initial value of the cell.
         // ONNX Shape: [num_directions, batch_size, hidden_size] (layout=0) or
         //             [batch_size, num_directions, hidden_size] (layout=1)
-        // OpenVino Shape: [batch_size, num_directions, hidden_size]
+        // OpenVINO Shape: [batch_size, num_directions, hidden_size]
         if (ng_inputs.size() > 6 && !ov::op::util::is_null(ng_inputs.at(6))) {
             auto init_c = ng_inputs.at(6);
             // First normalize rank, THEN reorder axes
@@ -163,7 +163,7 @@ struct LSTMNgInputMap {
         }
         // `P` - The weight tensor for peepholes.
         // ONNX Shape: [num_directions, 3*hidden_size]
-        // OpenVino Shape: [num_directions, 4*hidden_size]
+        // OpenVINO Shape: [num_directions, 4*hidden_size]
         if (ng_inputs.size() > 7 && !ov::op::util::is_null(ng_inputs.at(7))) {
             auto peepholes = normalize_tensor_rank(ng_inputs.at(7), 2, "LSTM", "P");
             m_input_map[LSTMInput::LSTM_INPUT_P] =
