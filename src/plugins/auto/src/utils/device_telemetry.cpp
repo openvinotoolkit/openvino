@@ -181,6 +181,9 @@ public:
     }
 
     std::optional<float> utilization(const std::string& device_name, const std::string& device_type) {
+        if (device_to_metric_key(device_name, device_type).empty()) {
+            return std::nullopt;
+        }
         const std::string snapshot = fetch_utilization_snapshot();
         if (snapshot.empty()) {
             return std::nullopt;
