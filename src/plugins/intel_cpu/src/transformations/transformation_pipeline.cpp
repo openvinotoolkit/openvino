@@ -1394,9 +1394,11 @@ void Transformations::MainSnippets() {
         if (!matmul) {
             return false;
         }
+#    if defined(OPENVINO_ARCH_RISCV64)
         if (n->is_dynamic()) {
             return false;
         }
+#    endif
         const auto in_type0 = matmul->get_input_element_type(0);
         const auto in_type1 = matmul->get_input_element_type(1);
         const auto is_fp32 = (in_type0 == ov::element::f32 && in_type1 == ov::element::f32 &&
