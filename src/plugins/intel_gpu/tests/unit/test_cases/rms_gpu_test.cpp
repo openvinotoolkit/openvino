@@ -213,6 +213,134 @@ TEST(rms_gpu_test, rms_test_bfyx_ref_rank4_scalar_gamma_dyn) {
     }
 }
 
+TEST(rms_gpu_test, rms_test_bfyx_opt_feature_axis) {
+    auto& engine = get_test_engine();
+
+    constexpr size_t batch_size = 1;
+    constexpr size_t feature_size = 18;
+    constexpr size_t y_size = 2;
+    constexpr size_t x_size = 5;
+    constexpr float epsilon = 1e-5f;
+    const ov::PartialShape input_shape{batch_size, feature_size, y_size, x_size};
+    auto input = engine.allocate_memory({input_shape, data_types::f32, format::bfyx});
+    auto gamma = engine.allocate_memory({ov::PartialShape{feature_size}, data_types::f32, format::bfyx});
+
+    std::vector<float> input_values(input->count());
+    std::vector<float> gamma_values(feature_size);
+    for (size_t index = 0; index < input_values.size(); ++index) {
+        input_values[index] = static_cast<float>(index % 23) * 0.125f - 1.25f;
+    }
+    for (size_t feature = 0; feature < feature_size; ++feature) {
+        gamma_values[feature] = 0.5f + static_cast<float>(feature) * 0.03125f;
+    }
+    set_values(input, input_values);
+    set_values(gamma, gamma_values);
+
+    std::vector<float> expected(input_values.size());
+    for (size_t y = 0; y < y_size; ++y) {
+        for (size_t x = 0; x < x_size; ++x) {
+            float sum_squares = 0.0f;
+            for (size_t feature = 0; feature < feature_size; ++feature) {
+                const auto offset = (feature * y_size + y) * x_size + x;
+                sum_squares += input_values[offset] * input_values[offset];
+            }
+            const float scale = 1.0f / std::sqrt(sum_squares / feature_size + epsilon);
+            for (size_t feature = 0; feature < feature_size; ++feature) {
+                const auto offset = (feature * y_size + y) * x_size + x;
+                expected[offset] = input_values[offset] * scale * gamma_values[feature];
+            }
+        }
+    }
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(input_layout("gamma", gamma->get_layout()));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), epsilon, 1));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"rms", {format::bfyx, "rms_gpu_bfyx_opt"}}
+    }));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    network.set_input_data("gamma", gamma);
+
+    auto output = network.execute().at("rms").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    for (size_t index = 0; index < expected.size(); ++index) {
+        EXPECT_NEAR(output_ptr[index], expected[index], 1e-4f) << " index=" << index;
+    }
+}
+
+TEST(rms_gpu_test, rms_test_bfzyx_opt_feature_axis_dyn) {
+    auto& engine = get_test_engine();
+
+    constexpr size_t feature_size = 18;
+    constexpr size_t z_size = 2;
+    constexpr size_t y_size = 2;
+    constexpr size_t x_size = 5;
+    constexpr float epsilon = 1e-5f;
+    const ov::PartialShape input_shape{1, feature_size, z_size, y_size, x_size};
+    auto input = engine.allocate_memory({input_shape, data_types::f32, format::bfzyx});
+    auto gamma = engine.allocate_memory({ov::PartialShape{feature_size}, data_types::f32, format::bfzyx});
+
+    std::vector<float> input_values(input->count());
+    std::vector<float> gamma_values(feature_size);
+    for (size_t index = 0; index < input_values.size(); ++index) {
+        input_values[index] = static_cast<float>(index % 23) * 0.125f - 1.25f;
+    }
+    for (size_t feature = 0; feature < feature_size; ++feature) {
+        gamma_values[feature] = 0.5f + static_cast<float>(feature) * 0.03125f;
+    }
+    set_values(input, input_values);
+    set_values(gamma, gamma_values);
+
+    std::vector<float> expected(input_values.size());
+    for (size_t z = 0; z < z_size; ++z) {
+        for (size_t y = 0; y < y_size; ++y) {
+            for (size_t x = 0; x < x_size; ++x) {
+                float sum_squares = 0.0f;
+                for (size_t feature = 0; feature < feature_size; ++feature) {
+                    const auto offset = ((feature * z_size + z) * y_size + y) * x_size + x;
+                    sum_squares += input_values[offset] * input_values[offset];
+                }
+                const float scale = 1.0f / std::sqrt(sum_squares / feature_size + epsilon);
+                for (size_t feature = 0; feature < feature_size; ++feature) {
+                    const auto offset = ((feature * z_size + z) * y_size + y) * x_size + x;
+                    expected[offset] = input_values[offset] * scale * gamma_values[feature];
+                }
+            }
+        }
+    }
+
+    topology topology;
+    topology.add(input_layout("input", layout{ov::PartialShape{-1, feature_size, -1, -1, -1},
+                                               data_types::f32,
+                                               format::bfzyx}));
+    topology.add(input_layout("gamma", gamma->get_layout()));
+    topology.add(rms("rms", input_info("input"), input_info("gamma"), epsilon, 1));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
+        {"rms", {format::bfzyx, "rms_gpu_bfyx_opt"}}
+    }));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+    network.set_input_data("gamma", gamma);
+
+    auto impl = network.get_primitive("rms")->get_impl();
+    ASSERT_NE(impl, nullptr);
+    ASSERT_TRUE(impl->is_dynamic());
+    ASSERT_EQ(impl->get_kernel_name(), "rms_gpu_bfyx_opt");
+
+    auto output = network.execute().at("rms").get_memory();
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    for (size_t index = 0; index < expected.size(); ++index) {
+        EXPECT_NEAR(output_ptr[index], expected[index], 1e-4f) << " index=" << index;
+    }
+}
+
 TEST(rms_gpu_test, rms_test_bfyx_opt_rank4_scalar_gamma_dyn) {
     auto& engine = get_test_engine();
 

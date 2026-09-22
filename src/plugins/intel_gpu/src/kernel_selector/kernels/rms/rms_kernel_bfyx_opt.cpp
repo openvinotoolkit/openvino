@@ -62,6 +62,21 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
     }
     jit.AddConstant(MakeJitConstant("RMS_GAMMA_IS_SCALAR", gamma_is_scalar));
 
+    if (GetNormalizationAxis(params) == Tensor::DataChannelName::FEATURE) {
+        jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
+        if (!params.fused_ops.empty()) {
+            std::vector<std::string> idx_order;
+            if (params.inputs[0].GetDims().size() == 5) {
+                idx_order = {"(b)", "(f)", "(z)", "(y)", "(x)"};
+            } else {
+                idx_order = {"(b)", "(f)", "(y)", "(x)"};
+            }
+            auto conf = FusedOpsConfiguration("", idx_order, "normalized", params.outputs[0].GetDType(), 1);
+            jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
+        }
+        return jit;
+    }
+
     // Check for any padding (dynamic or static) on input dimensions.
     // The flat addressing path (data_idx * data_size) assumes contiguous memory,
     // which breaks when padding introduces gaps between slices (e.g., from in-place crop).
@@ -156,6 +171,13 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
 RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& params) const {
     DispatchData dispatchData;
     const auto& input = params.inputs[0];
+
+    if (!params.has_dynamic_tensors() && GetNormalizationAxis(params) == Tensor::DataChannelName::FEATURE) {
+        const auto spatial_size = input.X().v * input.Y().v * input.Z().v;
+        dispatchData.gws = {Align(spatial_size, subgroup_size), input.Batch().v, 1};
+        dispatchData.lws = {subgroup_size, 1, 1};
+        return dispatchData;
+    }
 
     auto local_mem_per_wi = 2 * BytesPerElement(input.GetDType());
     auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);

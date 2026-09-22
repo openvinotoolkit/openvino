@@ -37,6 +37,49 @@ KERNEL(rms_gpu_bfyx_opt)(
     #endif
 )
 {
+#if NORMALIZE_FEATURE
+    const uint spatial_idx = get_global_id(0);
+    const uint spatial_size = INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X;
+    if (spatial_idx >= spatial_size)
+        return;
+
+    const uint b = get_global_id(1);
+    const uint x = spatial_idx % INPUT0_SIZE_X;
+    const uint yz = spatial_idx / INPUT0_SIZE_X;
+    const uint y = yz % INPUT0_SIZE_Y;
+    const uint z = yz / INPUT0_SIZE_Y;
+
+    ACCUMULATOR_TYPE rms = ACCUMULATOR_VAL_ZERO;
+    for (uint f = 0; f < INPUT0_FEATURE_NUM; f++) {
+        const uint input_idx = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, 0, z, y, x);
+        const ACCUMULATOR_TYPE value = TO_ACCUMULATOR_TYPE(input[input_idx]);
+        rms = fma(value, value, rms);
+    }
+    rms = native_rsqrt(rms / INPUT0_FEATURE_NUM + EPSILON);
+
+#if ELEMENTWISE_AFFINE && RMS_GAMMA_IS_SCALAR
+    const ACCUMULATOR_TYPE gamma_scalar = TO_ACCUMULATOR_TYPE(gamma[0]);
+#endif
+    for (uint f = 0; f < INPUT0_FEATURE_NUM; f++) {
+        const uint input_idx = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, 0, z, y, x);
+        const uint output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, 0, z, y, x);
+#if ELEMENTWISE_AFFINE
+#if RMS_GAMMA_IS_SCALAR
+        OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(input[input_idx]) * gamma_scalar);
+#else
+        OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(input[input_idx]) *
+                                                TO_ACCUMULATOR_TYPE(gamma[INPUT1_OFFSET + f]));
+#endif
+#else
+        OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(input[input_idx]));
+#endif
+#if HAS_FUSED_OPS
+        FUSED_OPS;
+        normalized = FUSED_OPS_RESULT;
+#endif
+        output[output_idx] = normalized;
+    }
+#else
     const uint data_idx = get_global_id(1);
     const uint in_data_idx = get_global_id(0);
     const uint workers_per_data = LWS;
@@ -246,6 +289,7 @@ KERNEL(rms_gpu_bfyx_opt)(
         #endif
         output[output_data_offset + workers_per_data * items_num + in_data_idx] = normalized;
     }
+#endif
 }
 #undef USE_BLOCK_WRITE
 #undef BLOCK_READ

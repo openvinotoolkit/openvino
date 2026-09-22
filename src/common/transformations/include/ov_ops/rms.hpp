@@ -62,10 +62,19 @@ public:
         m_elementwise_affine = elementwise_affine;
     }
 
+    int64_t get_axis() const {
+        return m_axis;
+    }
+
+    void set_axis(int64_t axis) {
+        m_axis = axis;
+    }
+
 private:
     double m_epsilon{0};
     ov::element::Type m_output_type;
     bool m_elementwise_affine{true};
+    int64_t m_axis{-1};
 };
 
 }  // namespace internal
