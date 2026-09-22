@@ -176,7 +176,7 @@ jobs:
 
   LLM_Accuracy_CPU:
     name: LLM accuracy CPU tests
-    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers, Openvino_genai ]
     if: |
       github.event_name != 'schedule' && (
         fromJSON(needs.smart_ci.outputs.affected_components).CPU ||
@@ -194,7 +194,7 @@ jobs:
 
   LLM_Accuracy_iGPU:
     name: LLM accuracy iGPU tests
-    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers, Openvino_genai ]
     if: |
       github.event_name != 'schedule' && (
         fromJSON(needs.smart_ci.outputs.affected_components).GPU ||
@@ -213,7 +213,7 @@ jobs:
 
   LLM_Accuracy_dGPU:
     name: LLM accuracy dGPU tests
-    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers ]
+    needs: [ Docker, Build, Smart_CI, Openvino_tokenizers, Openvino_genai ]
     if: github.event_name == 'schedule'
     uses: ./.github/workflows/job_llm_accuracy_tests.yml
     with:
@@ -289,6 +289,25 @@ jobs:
         fromJSON(needs.smart_ci.outputs.affected_components).Core
       )
 
+  Openvino_genai:
+    name: OpenVINO GenAI
+    needs: [ Build, Smart_CI, Docker, Openvino_tokenizers ]
+    uses: ./.github/workflows/job_genai.yml
+    with:
+      runner: 'aks-linux-4-cores-16gb'
+      shell: bash
+      image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
+      affected-components: ${{ needs.smart_ci.outputs.affected_components }}
+      python-version: '3.12'
+      target-branch: ${{ inputs.target-branch }}
+    if: |
+      github.event_name != 'schedule' && (
+        fromJSON(needs.smart_ci.outputs.affected_components).CPU ||
+        fromJSON(needs.smart_ci.outputs.affected_components).GPU ||
+        fromJSON(needs.smart_ci.outputs.affected_components).transformations ||
+        fromJSON(needs.smart_ci.outputs.affected_components).Core
+      )
+
   dGPU_B50_Nightly:
     name: dGPU Arc-B50 Tests Nightly
     needs: [ Build, Smart_CI, Docker ]
@@ -327,7 +346,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_ubuntu_24
-    needs: [Smart_CI, Build, Debian_Packages, Samples, Python_Unit_Tests, Pytorch_Layer_Tests, TensorFlow_Layer_Tests, Openvino_tokenizers, LLM_Accuracy_CPU, LLM_Accuracy_iGPU]
+    needs: [Smart_CI, Build, Debian_Packages, Samples, Python_Unit_Tests, Pytorch_Layer_Tests, TensorFlow_Layer_Tests, Openvino_tokenizers, Openvino_genai, LLM_Accuracy_CPU, LLM_Accuracy_iGPU]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
