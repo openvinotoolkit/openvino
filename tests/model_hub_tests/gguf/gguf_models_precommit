@@ -33,3 +33,4 @@ smollm3,bartowski/HuggingFaceTB_SmolLM3-3B-GGUF,HuggingFaceTB_SmolLM3-3B-Q4_K_M.
 maincoder,mradermacher/Maincoder-1B-GGUF,Maincoder-1B.Q4_K_M.gguf
 mistral3,mradermacher/Ministral-3b-instruct-GGUF,Ministral-3b-instruct.Q4_K_M.gguf
 qwen35,ggml-org/Qwen3.5-0.8B-GGUF,Qwen3.5-0.8B-Q4_0.gguf
+mamba2,rpatel622/mamba2-130m-hf-Q8_0-GGUF,mamba2-130m-q8_0.gguf

@@ -138,7 +138,7 @@ def convert_gguf_model(path: str) -> ov.Model:
     return fe.convert(fe.load(path))
 
 
-def _state_outputs(compiled_model, outputs) -> dict[str, np.ndarray]:
+def _state_outputs(compiled_model, outputs, recurrent_states: dict[str, str]) -> dict[str, np.ndarray]:
     """Copy state outputs and map them back to their corresponding input names."""
     data_input_names = {
         "beam_idx",
@@ -158,6 +158,7 @@ def _state_outputs(compiled_model, outputs) -> dict[str, np.ndarray]:
     state = {}
     for port, value in outputs.items():
         state_name = port.get_node().get_friendly_name()
+        state_name = recurrent_states.get(state_name, state_name)
         if state_name.endswith("_1"):
             state_name = state_name[:-2]
         if state_name.endswith("_out"):
@@ -169,22 +170,21 @@ def _state_outputs(compiled_model, outputs) -> dict[str, np.ndarray]:
     return state
 
 
-def _assert_valid_kv_cache(state: dict[str, np.ndarray]):
-    kv_tensors = {name: value for name, value in state.items() if name.startswith(("cache_k_", "cache_v_"))}
-    assert kv_tensors, "GGUF model exposes no K/V cache tensors"
-    for name, value in kv_tensors.items():
+def _assert_valid_state(state: dict[str, np.ndarray]):
+    assert state, "GGUF model exposes no cache or recurrent state tensors"
+    for name, value in state.items():
         assert value.size > 0, f"{name} is empty"
         assert np.isfinite(value).all(), f"{name} contains NaN/Inf"
         assert np.any(value != 0), f"{name} was not populated"
 
 
-def _run_two_steps(compiled_model, is_imrope: bool) -> np.ndarray:
+def _run_two_steps(compiled_model, is_imrope: bool, recurrent_states: dict[str, str] | None = None) -> np.ndarray:
     request = compiled_model.create_infer_request()
 
     first_feed = build_single_token_inputs(compiled_model, token_id=1, is_imrope=is_imrope)
     first_outputs = request.infer(first_feed)
-    first_state = _state_outputs(compiled_model, first_outputs)
-    _assert_valid_kv_cache(first_state)
+    first_state = _state_outputs(compiled_model, first_outputs, recurrent_states or {})
+    _assert_valid_state(first_state)
 
     second_feed = build_single_token_inputs(
         compiled_model,
@@ -195,8 +195,8 @@ def _run_two_steps(compiled_model, is_imrope: bool) -> np.ndarray:
         kv_cache_length=2,
     )
     second_outputs = request.infer(second_feed)
-    second_state = _state_outputs(compiled_model, second_outputs)
-    _assert_valid_kv_cache(second_state)
+    second_state = _state_outputs(compiled_model, second_outputs, recurrent_states or {})
+    _assert_valid_state(second_state)
 
     kv_names = [name for name in first_state if name.startswith(("cache_k_", "cache_v_"))]
     for name in kv_names:
@@ -205,6 +205,10 @@ def _run_two_steps(compiled_model, is_imrope: bool) -> np.ndarray:
             f"{name} did not preserve the first-step cache slot"
         )
         assert np.any(second_state[name][:, 1, ...] != 0), f"{name} did not populate the second cache slot"
+
+    for name in first_state.keys() - set(kv_names):
+        assert first_state[name].shape == second_state[name].shape, f"{name} changed recurrent state shape"
+        assert not np.array_equal(first_state[name], second_state[name]), f"{name} did not update on decode"
 
     return second_outputs[compiled_model.output(0)]
 
@@ -223,7 +227,11 @@ def run_gguf_model(repo_id: str, filename: str, device: str = "CPU"):
     if "gguf_is_imrope" in model.get_rt_info():
         is_imrope = bool(model.get_rt_info(["gguf_is_imrope"]).get())
     compiled_model = core.compile_model(model, device)
-    return _run_two_steps(compiled_model, is_imrope)
+    recurrent_states = {}
+    if "gguf_recurrent_states" in model.get_rt_info():
+        pairs = model.get_rt_info(["gguf_recurrent_states"]).get()
+        recurrent_states = dict(zip(pairs[1::2], pairs[::2]))
+    return _run_two_steps(compiled_model, is_imrope, recurrent_states)
 
 
 def assert_valid_logits(logits: np.ndarray):

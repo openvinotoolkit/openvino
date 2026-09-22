@@ -534,7 +534,7 @@ void expect_attention_equal(const ov::npuw::compiled::Attention& expected,
 
 void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionContiguous& expected,
                                     const ov::npuw::compiled::PyramidAttentionContiguous& actual) {
-    EXPECT_EQ(expected.query_size, actual.query_size);
+    EXPECT_EQ(expected.original_query_length, actual.original_query_length);
     EXPECT_EQ(expected.full_context_size, actual.full_context_size);
     EXPECT_EQ(expected._context_lengths, actual._context_lengths);
     EXPECT_EQ(expected.global_mask_idx, actual.global_mask_idx);
@@ -544,7 +544,7 @@ void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionCo
         const auto& lhs = expected._attention_infos[i];
         const auto& rhs = actual._attention_infos[i];
         EXPECT_EQ(lhs.mask_idx_local, rhs.mask_idx_local);
-        EXPECT_EQ(lhs.query_size, rhs.query_size);
+        EXPECT_EQ(lhs.compiled_query_size, rhs.compiled_query_size);
         EXPECT_EQ(lhs.context_length, rhs.context_length);
         EXPECT_EQ(lhs.params.size(), rhs.params.size());
         for (std::size_t j = 0; j < lhs.params.size(); ++j) {
@@ -556,7 +556,7 @@ void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionCo
 
 void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionBlock& expected,
                                     const ov::npuw::compiled::PyramidAttentionBlock& actual) {
-    EXPECT_EQ(expected.query_size, actual.query_size);
+    EXPECT_EQ(expected.original_query_length, actual.original_query_length);
     EXPECT_EQ(expected.full_context_size, actual.full_context_size);
     EXPECT_EQ(expected._context_lengths, actual._context_lengths);
     EXPECT_EQ(expected.past_key_block_global_param_indices, actual.past_key_block_global_param_indices);
@@ -568,7 +568,7 @@ void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionBl
         const auto& lhs = expected._attention_infos[i];
         const auto& rhs = actual._attention_infos[i];
         EXPECT_EQ(lhs.mask_idx_local, rhs.mask_idx_local);
-        EXPECT_EQ(lhs.query_size, rhs.query_size);
+        EXPECT_EQ(lhs.compiled_query_size, rhs.compiled_query_size);
         EXPECT_EQ(lhs.context_length, rhs.context_length);
         EXPECT_EQ(lhs.param_port_map, rhs.param_port_map);
         EXPECT_EQ(lhs.past_key_block_port_set, rhs.past_key_block_port_set);
@@ -600,7 +600,8 @@ void expect_host_flash_attention_equal(const ov::npuw::compiled::HostFlashAttent
     EXPECT_EQ(lhs._tile_output_indices.acc, rhs._tile_output_indices.acc);
     EXPECT_EQ(lhs._tile_output_indices.max, rhs._tile_output_indices.max);
     EXPECT_EQ(lhs._tile_output_indices.d, rhs._tile_output_indices.d);
-    EXPECT_EQ(expected._tile_size, actual._tile_size);
+    EXPECT_EQ(expected._past_tile_size, actual._past_tile_size);
+    EXPECT_EQ(expected._final_tile_size, actual._final_tile_size);
     EXPECT_EQ(expected._can_use_tensor_view, actual._can_use_tensor_view);
 }
 
@@ -1031,7 +1032,7 @@ TEST(SerializationTest, OVTypes_PyramidAttention) {
     using namespace ov::npuw::s11n;
 
     ov::npuw::compiled::PyramidAttentionContiguous var;
-    var.query_size = 16;
+    var.original_query_length = 16;
     var.full_context_size = 128;
     var._context_lengths = {16, 32, 64, 128};
     var.global_mask_idx = 4;
@@ -1040,13 +1041,13 @@ TEST(SerializationTest, OVTypes_PyramidAttention) {
     ov::npuw::compiled::PyramidAttentionContiguousInfo info1;
     info1.params = {{0, 2}, {1, 3}};
     info1.mask_idx_local = 4;
-    info1.query_size = 16;
+    info1.compiled_query_size = 16;
     info1.context_length = 32;
 
     ov::npuw::compiled::PyramidAttentionContiguousInfo info2;
     info2.params = {{2, 1}};
     info2.mask_idx_local = 5;
-    info2.query_size = 16;
+    info2.compiled_query_size = 16;
     info2.context_length = 64;
 
     var._attention_infos = {info1, info2};
@@ -1065,7 +1066,7 @@ TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode) {
     using namespace ov::npuw::s11n;
 
     ov::npuw::compiled::PyramidAttentionBlock var;
-    var.query_size = 16;
+    var.original_query_length = 16;
     var.full_context_size = 128;
     var._context_lengths = {16, 32, 64, 128};
     var.past_key_block_global_param_indices = {10, 11, 12};
@@ -1075,14 +1076,14 @@ TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode) {
 
     ov::npuw::compiled::PyramidAttentionBlockInfo info1;
     info1.mask_idx_local = 4;
-    info1.query_size = 16;
+    info1.compiled_query_size = 16;
     info1.context_length = 32;
     // This variant dropped all KV blocks — no entries for global indices 10/11/12/20/21/22.
     info1.param_port_map = {{4, 4}};
 
     ov::npuw::compiled::PyramidAttentionBlockInfo info2;
     info2.mask_idx_local = 5;
-    info2.query_size = 16;
+    info2.compiled_query_size = 16;
     info2.context_length = 64;
     // This variant retained one K block (global 10 -> local 0) and one V block (global 20 -> local 1).
     info2.param_port_map = {{4, 5}, {10, 0}, {20, 1}};
@@ -1110,7 +1111,7 @@ TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode_RebuildsGlobalBlockSe
     using namespace ov::npuw::s11n;
 
     ov::npuw::compiled::PyramidAttentionBlock var;
-    var.query_size = 16;
+    var.original_query_length = 16;
     var.full_context_size = 128;
     var._context_lengths = {16, 32, 64, 128};
     var.past_key_block_global_param_indices = {10, 11, 12};
@@ -1155,7 +1156,8 @@ TEST(SerializationTest, OVTypes_HostFlashAttention) {
     var._sdpa_attention_info._sdpa_indices = {3, {4}, {5}, 6, 7, 8};
     var._sdpa_attention_info._tile_input_indices = {9, 10, 11, 12, 13, 14, 15};
     var._sdpa_attention_info._tile_output_indices = {16, 17, 18};
-    var._tile_size = 64;
+    var._past_tile_size = 64;
+    var._final_tile_size = 8;
     var._can_use_tensor_view = true;
 
     ov::npuw::compiled::HostFlashAttention res;
@@ -1183,7 +1185,8 @@ TEST(SerializationTest, OVTypes_HostFlashAttention_OOBTileIndexRejected) {
     var._sdpa_attention_info._sdpa_indices = {3, {4}, {5}, 6, 7, 8};
     var._sdpa_attention_info._tile_input_indices = {9, 10, 11, 12, std::numeric_limits<std::size_t>::max(), 14, 15};
     var._sdpa_attention_info._tile_output_indices = {0, 1, 2};
-    var._tile_size = 64;
+    var._past_tile_size = 64;
+    var._final_tile_size = 8;
     var._can_use_tensor_view = true;
 
     ov::npuw::compiled::HostFlashAttention res;
@@ -1552,6 +1555,42 @@ TEST(SerializationTest, OVTypes_LazyTensor_concat_permute_convert_roundtrip) {
     EXPECT_EQ(var.get_hash(), res.get_hash());
     EXPECT_EQ(var.eval_meta().shape, res.eval_meta().shape);
     EXPECT_EQ(var.eval_meta().type, res.eval_meta().type);
+}
+
+TEST(SerializationTest, OVTypes_LazyTensor_subtract128_roundtrip) {
+    using namespace ov::npuw::s11n;
+
+    auto constant = make_weightless_constant<uint8_t>(ov::element::u8, ov::Shape{2, 3},
+                                                       {0, 1, 127, 128, 254, 255}, 0);
+    auto var = ov::npuw::weights::LazyTensor(constant).subtract_128();
+    ov::npuw::weights::LazyTensor res;
+    const auto expected = var.eval();
+
+    std::stringstream ss;
+    write(ss, var);
+    var.detach();
+    read(ss, res);
+    res.read_weight(WeightsContext(nullptr, "", make_consts_cache({constant}), {}));
+
+    expect_lazy_tensor_transform_types_equal(var, res);
+    EXPECT_EQ(var.get_hash(), res.get_hash());
+    EXPECT_EQ(res.eval_meta().shape, (ov::Shape{2, 3}));
+    EXPECT_EQ(res.eval_meta().type, ov::element::i8);
+    expect_tensors_equal(expected, res.eval());
+}
+
+TEST(SerializationTest, OVTypes_LazyTensor_subtract128_embedded_roundtrip) {
+    using namespace ov::npuw::s11n;
+
+    auto constant = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{4}, {0, 127, 128, 255});
+    auto var = ov::npuw::weights::LazyTensor(constant).subtract_128();
+    const auto expected = var.eval();
+    ov::npuw::weights::LazyTensor res;
+    std::stringstream ss;
+    write(ss, var);
+    read(ss, res);
+
+    expect_tensors_equal(expected, res.eval());
 }
 
 TEST(SerializationTest, OVTypes_LazyTensor_unpack_roundtrip) {
