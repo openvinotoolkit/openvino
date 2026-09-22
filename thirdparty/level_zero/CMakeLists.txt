@@ -2,59 +2,38 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-set(BUILD_SHARED_LIBS OFF)
-
-
-# We have to avoid linking against loader with debug postfix due it's a part of driver
-# and the name will be the same for release and debug configurations
-set(CMAKE_DEBUG_POSTFIX "")
-
-# Skip warnings as errors for thirdparty
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-    ov_add_compiler_flags(/WX-)
-    # Close spectre for ze loader
-    add_compile_options("/Qspectre-")
-
-    string(REGEX REPLACE "[-/]INCREMENTAL" "/INCREMENTAL:NO" CMAKE_STATIC_LINKER_FLAGS_DEBUG "${CMAKE_STATIC_LINKER_FLAGS_DEBUG}")
-    string(REGEX REPLACE "[-/]INCREMENTAL" "/INCREMENTAL:NO" CMAKE_SHARED_LINKER_FLAGS_DEBUG "${CMAKE_SHARED_LINKER_FLAGS_DEBUG}")
-    string(REGEX REPLACE "[-/]INCREMENTAL" "/INCREMENTAL:NO" CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG}")
-elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
-    ov_add_compiler_flags(-Wno-error)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} \
-        -Wno-undef \
-        -Wno-missing-declarations")
-    if(UNUSED_BUT_SET_VARIABLE_SUPPORTED)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-but-set-variable")
+if("${OV_ZE_INCLUDE_DIR}" STREQUAL "")
+    set(ze_headers_source "${CMAKE_CURRENT_SOURCE_DIR}/level-zero/include")
+else()
+    if(NOT EXISTS "${OV_ZE_INCLUDE_DIR}/level_zero/ze_api.h")
+        message(FATAL_ERROR
+            "Level Zero headers not found. Please check value of OV_ZE_INCLUDE_DIR."
+            "(${OV_ZE_INCLUDE_DIR}/level_zero/ze_api.h does not exist)")
     endif()
+    set(ze_headers_source "${OV_ZE_INCLUDE_DIR}/level_zero")
 endif()
-set(CMAKE_COMPILE_WARNING_AS_ERROR OFF)
-add_subdirectory(level-zero EXCLUDE_FROM_ALL)
 
-set(ZE_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include/")
-file(GLOB_RECURSE LEVEL_ZERO_HEADERS "${CMAKE_CURRENT_SOURCE_DIR}/level-zero/include/*.h")
-set(ZE_HEADERS_STAMP_FILE ${CMAKE_CURRENT_BINARY_DIR}/ze_headers.stamp)
+# Headers from the level zero submodule are directly inside "include" directory
+# Copy them to "include/level_zero/" inside binary directory to allow level_zero/ prefix
+set(ze_headers_binary_dir "${CMAKE_CURRENT_BINARY_DIR}/include")
+file(GLOB_RECURSE LEVEL_ZERO_HEADERS CONFIGURE_DEPENDS "${ze_headers_source}/*.h")
+set(ZE_HEADERS_STAMP_FILE "${CMAKE_CURRENT_BINARY_DIR}/ze_headers.stamp")
 add_custom_command(OUTPUT "${ZE_HEADERS_STAMP_FILE}"
-    DEPENDS "${COMPUTE_RUNTIME_HEADERS}" "${LEVEL_ZERO_HEADERS}"
-    COMMAND "${CMAKE_COMMAND}" -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/level-zero/include" "${ZE_INCLUDE_DIR}/level_zero"
+    DEPENDS ${LEVEL_ZERO_HEADERS}
+    COMMAND "${CMAKE_COMMAND}" -E rm -rf "${ze_headers_binary_dir}/level_zero"
+    COMMAND "${CMAKE_COMMAND}" -E copy_directory "${ze_headers_source}" "${ze_headers_binary_dir}/level_zero"
     COMMAND "${CMAKE_COMMAND}" -E touch "${ZE_HEADERS_STAMP_FILE}"
     COMMENT "Copying Level Zero headers..."
 )
-add_custom_target(prepare_ze_headers ALL DEPENDS "${ZE_HEADERS_STAMP_FILE}")
-add_dependencies(ze_loader prepare_ze_headers)
+add_custom_target(prepare_ze_headers DEPENDS "${ZE_HEADERS_STAMP_FILE}")
 
-# OpenVINO prefers include pattern with level-zero pattern 
-# include pattern without level_zero/ prefix is supported for thirdparty 
-set_property(TARGET ze_loader APPEND PROPERTY INTERFACE_INCLUDE_DIRECTORIES
-    $<BUILD_INTERFACE:${ZE_INCLUDE_DIR}>
-    $<BUILD_INTERFACE:${ZE_INCLUDE_DIR}/level_zero>
+add_library(level_zero_headers INTERFACE)
+add_library(LevelZero::Headers ALIAS level_zero_headers)
+add_dependencies(level_zero_headers prepare_ze_headers)
+
+# OpenVINO includes Level Zero headers with the level_zero/ prefix
+# thirdparty code includes them without the prefix. Expose both layouts.
+target_include_directories(level_zero_headers INTERFACE
+    $<BUILD_INTERFACE:${ze_headers_binary_dir}>
+    $<BUILD_INTERFACE:${ze_headers_binary_dir}/level_zero>
 )
-
-# Install Level Zero loader next to the GPU plugin on all supported platforms.
-install(TARGETS ze_loader
-    LIBRARY DESTINATION ${OV_CPACK_LIBRARYDIR}
-    RUNTIME DESTINATION ${OV_CPACK_RUNTIMEDIR}
-    ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR}
-    COMPONENT gpu)
-
-# This VERSION file created by L0 may cause compilation issue of oneTBB headers, so remove it
-file(REMOVE "${CMAKE_BINARY_DIR}/VERSION")
