@@ -389,7 +389,15 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model
     // The partitioned CompiledModel is a plain ORC container with no indicator
     // header of its own.
     if (is_partitioned_orc(stream)) {
-        return ov::npuw::CompiledModel::import_model(stream, plugin, properties);
+        auto typeID = ov::npuw::orc::peek_blob_id(stream);
+        switch (typeID) {
+        case ov::npuw::GQACompiledModel::kOrcType:
+            return ov::npuw::GQACompiledModel::import_model(stream, plugin, properties);
+        case ov::npuw::CompiledModel::kOrcType:
+            return ov::npuw::CompiledModel::import_model(stream, plugin, properties);
+        default:
+            NPUW_ASSERT(false && "Couldn't determine blob type from ORC root section");
+        }
     }
 
     const auto stream_start_pos = stream.tellg();
@@ -1518,6 +1526,13 @@ void ov::npuw::CompiledModel::serialize_orc_container(std::ostream& stream,
     });
 }
 
+std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::import_container(
+    std::istream& stream,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties) {
+    return deserialize_orc_container(stream, plugin, properties, true, {});
+}
+
 std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_orc(
     std::istream& stream,
     const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -1831,6 +1846,10 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
         ensure_output_port_index("m_submodels_input_to_prev_output", routing_idx, kvp.second, false);
         ++routing_idx;
     }
+}
+
+void ov::npuw::CompiledModel::write_container(std::ostream& sream) const {
+    serialize_orc_container(sream, true, get_encrypt_callback(m_non_npuw_props));
 }
 
 void ov::npuw::CompiledModel::serialize(std::ostream& stream, const ov::npuw::s11n::CompiledContext& enc_ctx) const {

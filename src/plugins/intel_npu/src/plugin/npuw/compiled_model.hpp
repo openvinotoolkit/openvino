@@ -142,6 +142,10 @@ public:
     void finalize_weights_bank() override;
     void reconstruct_closure() override;
     void serialize(std::ostream& stream, const s11n::CompiledContext& ctx) const override;
+    static std::shared_ptr<CompiledModel> import_container(std::istream& stream,
+                                                           const std::shared_ptr<const ov::IPlugin>& pluginSO,
+                                                           const ov::AnyMap& properties);
+    void write_container(std::ostream& stream) const;
 
 private:
     // FIXME: This class has many friends..

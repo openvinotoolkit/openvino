@@ -220,7 +220,9 @@ ov::npuw::GQACompiledModel::GQACompiledModel(PreparedState prepared,
 void ov::npuw::GQACompiledModel::export_model(std::ostream& stream) const {
     ov::npuw::orc::write_file_header(stream, ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA);
     ov::npuw::orc::with_section(stream, kOrcType, kOrcVersion, ov::npuw::orc::SectionFlags{0ull}, [&] {
-        m_compiled_model->export_model(stream);
+        NPUW_ASSERT(std::dynamic_pointer_cast<ov::npuw::CompiledModel>(m_compiled_model) != nullptr &&
+                    "Cannot cast `ov::npuw::ICompiledModel` to `ov::npuw::CompiledModel`");
+        std::dynamic_pointer_cast<ov::npuw::CompiledModel>(m_compiled_model)->write_container(stream);
     });
 }
 
@@ -231,31 +233,10 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
     LOG_INFO("Deserializing GQACompiledModel...");
     LOG_BLOCK();
 
-    const auto saved = stream.tellg();
-    struct ScopedSeek {
-        std::istream& m_stream;
-        std::streampos m_saved;
-        bool m_deactivated = false;
-        ScopedSeek(std::istream& stream, std::streampos saved) : m_stream(stream), m_saved(saved) {}
-        ~ScopedSeek() {
-            if (!m_deactivated) {
-                m_stream.clear();
-                m_stream.seekg(m_saved);
-            }
-        }
-    } scoped_seek(stream, saved);
     const auto header = orc::read_file_header(stream);
     OPENVINO_ASSERT(header.schema_uuid == orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA,
                     "Unsupported ORC schema for NPUW GQACompiledModel");
 
-<<<<<<< HEAD
-    read_and_check_header(stream, NPUW_GQA_COMPILED_MODEL_INDICATOR, "GQACompiledModel");
-
-    // The rest of the stream is the inner CompiledModel ORC blob.
-    // After import it is fully self-contained; no outer GQA wrapper is needed
-    // because the partitioning is already baked in and port mappings are consistent.
-    return ov::npuw::CompiledModel::import_model(stream, plugin, properties);
-=======
     orc::ScopedReadSection root(stream);
     OPENVINO_ASSERT(root.header().type == kOrcType, "Not a GQA ORC blob");
     OPENVINO_ASSERT(root.header().version <= kOrcVersion,
@@ -266,12 +247,10 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
                     ")");
     OPENVINO_ASSERT(!orc::has_flag(root.header().flags, orc::SectionFlag::LEAF),
                     "Unsupported ORC NPUW GQA root section");
-    stream.seekg(saved);
-    auto inner = CompiledModel::import_model(stream, plugin, properties);
+
+    auto inner = CompiledModel::import_container(stream, plugin, properties);
     root.expect_end();
-    scoped_seek.m_deactivated = true;
     return inner;
->>>>>>> be24fd1f12 (POC to implement `ORC` (de)serialization for `GQACompiledModel`)
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::GQACompiledModel::get_runtime_model() const {
