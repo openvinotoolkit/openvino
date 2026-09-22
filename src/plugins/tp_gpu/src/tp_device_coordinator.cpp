@@ -57,6 +57,18 @@ const std::shared_ptr<ov::ZeroApi>& ze_api() {
 // the reduce kernel.
 constexpr std::size_t kRingAlignElems = 128;
 
+uint64_t alloc_id_of(ze_context_handle_t context, void* ptr) {
+    ze_memory_allocation_properties_t props{ZE_STRUCTURE_TYPE_MEMORY_ALLOCATION_PROPERTIES,
+                                            nullptr, ZE_MEMORY_TYPE_UNKNOWN, 0, 0};
+    ze_device_handle_t device = nullptr;
+    if (ze_api()->zeMemGetAllocProperties(context, ptr, &props, &device) != ZE_RESULT_SUCCESS) {
+        // Not a buffer the driver knows about any more.
+        // Forcing the plan to be overwritten with a non-existent id.
+        return std::numeric_limits<uint64_t>::max();
+    }
+    return props.id;
+}
+
 // How much a halving step may exceed half of the range it splits.
 //
 // halving_mid snaps the boundary down to kRingAlignElems, so the two halves are
@@ -287,6 +299,10 @@ TPDeviceCoordinator::TPDeviceCoordinator(TPL0SharedContextPtr shared,
             rdz->in_ptrs[1].assign(world_size, nullptr);
             rdz->out_ptrs[0].assign(world_size, nullptr);
             rdz->out_ptrs[1].assign(world_size, nullptr);
+            rdz->in_ids[0].assign(world_size, 0);
+            rdz->in_ids[1].assign(world_size, 0);
+            rdz->out_ids[0].assign(world_size, 0);
+            rdz->out_ids[1].assign(world_size, 0);
             m_rendezvous[i] = std::move(rdz);
 
             // Command lists are cheap to keep but not to create: making them
@@ -467,6 +483,8 @@ void TPDeviceCoordinator::destroy_plan(Plan& plan) {
               plan.recorded_scratch_generation.end(), 0);
     plan.in_ptrs.clear();
     plan.out_ptrs.clear();
+    plan.in_ids.clear();
+    plan.out_ids.clear();
     plan.n = 0;
     plan.dtype = ov::element::dynamic;
     plan.max_payload_bytes = 0;
@@ -1680,10 +1698,14 @@ void TPDeviceCoordinator::gather_to_root(int collective_id,
 
     // Enter barrier: publish this rank's slice and, on the root, the buffer
     // everyone writes into.
+    const uint64_t my_in_id  = alloc_id_of(m_shared->context, in_dev);
+    const uint64_t my_out_id = alloc_id_of(m_shared->context, out_dev);
     {
         std::unique_lock<std::mutex> lk(rdz.mtx);
         rdz.in_ptrs[0][rank]  = in_dev;
         rdz.out_ptrs[0][rank] = out_dev;
+        rdz.in_ids[0][rank]   = my_in_id;
+        rdz.out_ids[0][rank]  = my_out_id;
         const uint64_t my_gen = rdz.enter_gen;
         if (++rdz.arrived == m_world_size) {
             rdz.arrived = 0;
@@ -1724,7 +1746,8 @@ void TPDeviceCoordinator::gather_to_root(int collective_id,
         OPENVINO_ASSERT(rdz.out_ptrs[0][0] != nullptr,
                         "[TP][L0] gather ", collective_id, " has no destination on the root");
         const bool recorded_matches =
-            slot->matches_gather(rdz.in_ptrs[0], rdz.out_ptrs[0], rows, slice_elems, dtype) &&
+            slot->matches_gather(rdz.in_ptrs[0], rdz.out_ptrs[0], rdz.in_ids[0], rdz.out_ids[0],
+                                 rows, slice_elems, dtype) &&
             std::all_of(slot->recorded.begin(), slot->recorded.end(),
                         [](uint8_t v) { return v != 0; });
         if (!recorded_matches) {
@@ -1732,6 +1755,8 @@ void TPDeviceCoordinator::gather_to_root(int collective_id,
             slot->kind = Plan::Kind::gather;
             slot->in_ptrs = rdz.in_ptrs[0];
             slot->out_ptrs = rdz.out_ptrs[0];
+            slot->in_ids = rdz.in_ids[0];
+            slot->out_ids = rdz.out_ids[0];
             slot->rows = rows;
             slot->slice_elems = slice_elems;
             slot->n = checked_multiply(rows, slice_elems, "gather slice");
@@ -1934,6 +1959,8 @@ void TPDeviceCoordinator::allreduce(int collective_id,
     uint64_t entry_gen = 0;
     int rdz_set = 0;
     uint64_t rec_gen_at_entry = 0;
+    const uint64_t my_in_id  = alloc_id_of(m_shared->context, in_dev);
+    const uint64_t my_out_id = alloc_id_of(m_shared->context, out_dev);
     {
         std::unique_lock<std::mutex> lk(rdz.mtx);
         // Read the generation before publishing: it selects which of the two
@@ -1945,6 +1972,8 @@ void TPDeviceCoordinator::allreduce(int collective_id,
         rec_gen_at_entry = rdz.record_gen;
         rdz.in_ptrs[rdz_set][rank]  = in_dev;
         rdz.out_ptrs[rdz_set][rank] = out_dev;
+        rdz.in_ids[rdz_set][rank]   = my_in_id;
+        rdz.out_ids[rdz_set][rank]  = my_out_id;
         if (rank == 0) {
             rdz.n     = n;
             rdz.dtype = dtype;
@@ -2042,7 +2071,9 @@ void TPDeviceCoordinator::allreduce(int collective_id,
 
         const auto payload_bytes = collective_payload_bytes(n, dtype);
         const bool scratch_grew = ensure_scratch_capacity(payload_bytes);
-        const bool signature_matches = slot->matches(rdz.in_ptrs[rdz_set], rdz.out_ptrs[rdz_set], n, dtype);
+        const bool signature_matches = slot->matches(rdz.in_ptrs[rdz_set], rdz.out_ptrs[rdz_set],
+                                                     rdz.in_ids[rdz_set], rdz.out_ids[rdz_set],
+                                                     n, dtype);
         // Every rank has to be recorded against the current signature and the
         // current staging arena.  They move together today, but they are kept
         // per rank because that is what lets a rank re-record on its own.
@@ -2071,14 +2102,19 @@ void TPDeviceCoordinator::allreduce(int collective_id,
                         << std::endl;
         }
 
-        if (!signature_matches) {
-            slot->in_ptrs = rdz.in_ptrs[rdz_set];
-            slot->out_ptrs = rdz.out_ptrs[rdz_set];
-            slot->n = n;
-            slot->dtype = dtype;
-        }
-        slot->max_payload_bytes = std::max(previous_max_payload, payload_bytes);
-
+        // Invalidation comes first, and the signature after it.
+        //
+        // The other ranks read both without the lock, so the order they
+        // become visible in is the whole contract: a rank that sees
+        // recorded[r] still set must not be able to also see a signature
+        // that has already moved to the new buffers, or it concludes its own
+        // recording is current, skips the gate, and submits a list the rest
+        // of the group is about to replace.  The group then waits on ring
+        // events that recording will never signal -- the queue never drains,
+        // and the driver reports the device as lost.  With the store to
+        // `recorded` published first, seeing it set means the signature is
+        // still the old one, which no longer matches what this instance
+        // brought, so the rank waits.
         if (need_record) {
             // Only invalidate here.  A ring or pair recording reads none of
             // its neighbours' pointers -- just its own and the staging arena
@@ -2087,8 +2123,19 @@ void TPDeviceCoordinator::allreduce(int collective_id,
             // reason.  The arena and the signature are settled by the time
             // the others are released, which is what they need.
             std::fill(slot->recorded.begin(), slot->recorded.end(), 0);
+            std::atomic_thread_fence(std::memory_order_release);
             m_totals.records.bump();
         }
+
+        if (!signature_matches) {
+            slot->in_ptrs = rdz.in_ptrs[rdz_set];
+            slot->out_ptrs = rdz.out_ptrs[rdz_set];
+            slot->in_ids = rdz.in_ids[rdz_set];
+            slot->out_ids = rdz.out_ids[rdz_set];
+            slot->n = n;
+            slot->dtype = dtype;
+        }
+        slot->max_payload_bytes = std::max(previous_max_payload, payload_bytes);
         tr1 = stamp();
 
         {
@@ -2103,10 +2150,32 @@ void TPDeviceCoordinator::allreduce(int collective_id,
         // recording was built from, and the arena generation still matches --
         // there is nothing to settle and nothing to wait for.  That is the
         // common case by a wide margin: 768 recordings across 130944 calls.
+        //
+        // Read the recording flag before the signature, to pair with the
+        // order rank 0 publishes them in; see the comment there.
+        //
+        // The test has to be the one rank 0 is about to make, over the whole
+        // group, not just over this rank.  Asking only about itself is what a
+        // rank can see cheapest, but it lets the two disagree: this rank finds
+        // its own recording current and skips the gate, while rank 0 finds
+        // some other rank's stale, invalidates everyone and has the group
+        // re-record.  The rank that skipped then submits the recording the
+        // others just replaced, so it signals ring events nobody is waiting
+        // on any more and waits for events nobody will signal.  The queue
+        // never drains and the driver reports the device as lost -- which is
+        // the crash and the hang this used to produce roughly once in fifty
+        // runs, whenever intel_gpu reallocated buffers between inferences.
+        const bool all_ranks_recorded =
+            std::all_of(slot->recorded.begin(), slot->recorded.end(),
+                        [](uint8_t v) { return v != 0; });
+        std::atomic_thread_fence(std::memory_order_acquire);
         const bool nothing_to_settle =
-            slot->matches(rdz.in_ptrs[rdz_set], rdz.out_ptrs[rdz_set], n, dtype) &&
-            slot->recorded[rank] != 0 &&
-            slot->recorded_scratch_generation[rank] == m_scratch.generation &&
+            all_ranks_recorded &&
+            std::all_of(slot->recorded_scratch_generation.begin(),
+                        slot->recorded_scratch_generation.end(),
+                        [this](uint64_t g) { return g == m_scratch.generation; }) &&
+            slot->matches(rdz.in_ptrs[rdz_set], rdz.out_ptrs[rdz_set],
+                          rdz.in_ids[rdz_set], rdz.out_ids[rdz_set], n, dtype) &&
             !scratch_needs_growth(collective_payload_bytes(n, dtype));
         if (measure_host) {
             (nothing_to_settle ? m_skew.gate_fast[rank] : m_skew.gate_slow[rank]).bump();

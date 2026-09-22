@@ -232,6 +232,8 @@ private:
         // Signature
         std::vector<void*>          in_ptrs;        // [N]
         std::vector<void*>          out_ptrs;       // [N]
+        std::vector<uint64_t>       in_ids;         // [N]
+        std::vector<uint64_t>       out_ids;        // [N]
         std::size_t                 n{0};
         ov::element::Type           dtype{ov::element::dynamic};
         std::size_t                 max_payload_bytes{0};
@@ -303,18 +305,24 @@ private:
 
         bool matches(const std::vector<void*>& ins,
                      const std::vector<void*>& outs,
+                     const std::vector<uint64_t>& in_alloc_ids,
+                     const std::vector<uint64_t>& out_alloc_ids,
                      std::size_t want_n,
                      ov::element::Type want_dtype) const {
-            return n == want_n && dtype == want_dtype && in_ptrs == ins && out_ptrs == outs;
+            return n == want_n && dtype == want_dtype && in_ptrs == ins && out_ptrs == outs &&
+                   in_ids == in_alloc_ids && out_ids == out_alloc_ids;
         }
 
         bool matches_gather(const std::vector<void*>& ins,
                             const std::vector<void*>& outs,
+                            const std::vector<uint64_t>& in_alloc_ids,
+                            const std::vector<uint64_t>& out_alloc_ids,
                             std::size_t want_rows,
                             std::size_t want_slice,
                             ov::element::Type want_dtype) const {
             return kind == Kind::gather && rows == want_rows && slice_elems == want_slice &&
-                   dtype == want_dtype && in_ptrs == ins && out_ptrs == outs;
+                   dtype == want_dtype && in_ptrs == ins && out_ptrs == outs &&
+                   in_ids == in_alloc_ids && out_ids == out_alloc_ids;
         }
     };
 
@@ -371,6 +379,8 @@ private:
         // never rewritten while anyone still needs it.
         std::vector<void*>          in_ptrs[2];     // [2][N], filled by ranks
         std::vector<void*>          out_ptrs[2];    // [2][N], filled by ranks
+        std::vector<uint64_t>       in_ids[2];      // [2][N], filled by ranks
+        std::vector<uint64_t>       out_ids[2];     // [2][N], filled by ranks
         int                         arrived{0};
         int                         departed{0};
         bool                        done{false};
@@ -764,17 +774,17 @@ private:
     // One recording per slot, deliberately.  Generation alternates between the
     // prompt-sized prefill and the single-token decode, so every switch
     // re-records every collective, and keeping both shapes recorded would
-    // obviously avoid that.  It is not safe: the only thing identifying a
-    // buffer here is its address, a recorded command list holds the driver's
-    // allocation objects in its residency list, and intel_gpu frees and
-    // reallocates network buffers between inferences.  A new allocation
-    // landing on an old address makes matches() report a hit and the next
-    // submit walks a destroyed GraphicsAllocation -- a segfault inside
-    // zeCommandQueueExecuteCommandLists, reproducible on the second benchmark
-    // iteration.  Re-recording is what clears the stale residency, so it
-    // cannot simply be skipped.  The cost disappears on its own once the
-    // collective moves into the GPU plugin's own stream and stops being
-    // recorded ahead of time at all.
+    // obviously avoid that.  It is not safe: a recorded command list holds the
+    // driver's allocation objects in its residency list, and intel_gpu frees
+    // and reallocates network buffers between inferences.  A new allocation
+    // landing on an old address used to make matches() report a hit and the
+    // next submit walked a destroyed GraphicsAllocation -- a segfault inside
+    // zeCommandQueueExecuteCommandLists.  The signature now carries the
+    // driver's allocation id as well as the address, so that case is caught
+    // and re-records; what re-recording is for is clearing the stale
+    // residency, so it cannot simply be skipped.  The cost disappears on its
+    // own once the collective moves into the GPU plugin's own stream and stops
+    // being recorded ahead of time at all.
     std::vector<std::unique_ptr<Plan>>       m_plans;
 
     // Where recording time goes, split by stage, in nanoseconds.  Atomic

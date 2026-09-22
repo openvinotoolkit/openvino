@@ -185,8 +185,9 @@ struct RankScratch {
     }
 
     void wait_for_model_queue() {
-        if (immediate != nullptr)
+        if (immediate != nullptr) {
             EXPECT_ZE(ov::zeCommandListHostSynchronize(immediate, UINT64_MAX));
+        }
     }
 
     ze_command_list_handle_t immediate{nullptr};
@@ -1055,6 +1056,105 @@ TEST_F(TPDeviceCoordinatorTest, SwitchesDtypeInOneSlot) {
     expect_allreduce_sum<float>(*coord, buffers, 0, n, ov::element::f32, f32_tolerance);
     expect_allreduce_sum<ov::float16>(*coord, buffers, 0, n, ov::element::f16, f16_tolerance);
     EXPECT_FALSE(coord->is_aborted());
+}
+
+// ---------------------------------------------------------------------------
+// Stale recordings.
+//
+// A plan is identified by the addresses it was recorded from and nothing else.
+// intel_gpu frees and reallocates network buffers between inferences, so an
+// allocation can land on an address a recording still refers to: matches()
+// reports a hit, the recording is reused, and its residency list points at a
+// GraphicsAllocation the driver has destroyed.  The next submit walks that
+// list.
+//
+// In a model this needs the allocator to hand back the same address, which is
+// why it shows up as roughly one crash in fifty runs.  Here it is forced.
+// ---------------------------------------------------------------------------
+
+TEST_F(TPDeviceCoordinatorTest, SurvivesABufferAddressBeingReused) {
+    Watchdog watchdog(120);
+    const int ranks = std::min(available_gpus, 4);
+    auto shared = make_shared_ctx(ranks);
+    auto coord = std::make_shared<TPDeviceCoordinator>(shared, ranks, 1);
+
+    constexpr size_t n = 4096;
+    const size_t bytes = n * sizeof(ov::float16);
+
+    // Same size and same collective every round, so whatever the allocator
+    // returns after the free has a good chance of being the address the
+    // previous recording was built from.
+    std::vector<void*> seen;
+    for (int round = 0; round < 16; ++round) {
+        SCOPED_TRACE("round " + std::to_string(round));
+        auto buffers = std::make_unique<CollectiveBuffers>(shared, ranks, bytes);
+        seen.push_back(buffers->ins[0]);
+        expect_allreduce_sum<ov::float16>(*coord, *buffers, 0, n, ov::element::f16, f16_tolerance);
+        buffers.reset();  // frees the device USM the recording still names
+    }
+
+    // Report whether the reuse actually happened: without it the case proves
+    // nothing, and that is worth knowing when it passes.
+    std::vector<void*> distinct = seen;
+    std::sort(distinct.begin(), distinct.end());
+    const bool reused = std::unique(distinct.begin(), distinct.end()) != distinct.end();
+    EXPECT_TRUE(reused) << "the allocator never returned a previous address; "
+                           "this run did not exercise the stale-recording path";
+    EXPECT_FALSE(coord->is_aborted());
+}
+
+// The same hazard as above, driven the way a model drives it: several
+// collectives per step, a large prefill followed by short decodes, and the
+// buffers reallocated whenever the prompt length changes.  That last part is
+// what makes the crash rare in practice -- the allocator has to hand an old
+// address back while a recording still names it -- so the loop runs long
+// enough to give it many chances.  TP_GPU_STRESS_ROUNDS raises the count for
+// hunting, the default keeps the case affordable in CI.
+TEST_F(TPDeviceCoordinatorTest, SurvivesAModelShapedAllocationChurn) {
+    const int rounds = [] {
+        const char* env = std::getenv("TP_GPU_STRESS_ROUNDS");
+        return env ? std::max(1, std::atoi(env)) : 40;
+    }();
+    Watchdog watchdog(60 + rounds * 8);
+    const int ranks = std::min(available_gpus, 4);
+    auto shared = make_shared_ctx(ranks);
+
+    // More than one collective, because a plan holds its own command lists
+    // and a stale one only hurts when something else ran in between.
+    constexpr int collectives = 8;
+    auto coord = std::make_shared<TPDeviceCoordinator>(shared, ranks, collectives);
+
+    // Stand-ins for the prompt lengths the crash was seen with.
+    const std::vector<size_t> prompt_elems{32, 128, 1024, 8192, 32768};
+    constexpr size_t decode_elems = 128;
+
+    for (int round = 0; round < rounds; ++round) {
+        SCOPED_TRACE("round " + std::to_string(round));
+        const size_t prefill = prompt_elems[static_cast<size_t>(round) % prompt_elems.size()];
+
+        // Prefill: one pass over every collective at the prompt size.
+        {
+            auto buffers = std::make_unique<CollectiveBuffers>(shared, ranks,
+                                                               prefill * sizeof(ov::float16));
+            for (int cid = 0; cid < collectives; ++cid) {
+                expect_allreduce_sum<ov::float16>(*coord, *buffers, cid, prefill,
+                                                  ov::element::f16, f16_tolerance);
+            }
+        }
+
+        // Decode: a different size on the same slots, with the buffers
+        // reallocated each step so addresses keep being recycled.
+        for (int step = 0; step < 4; ++step) {
+            auto buffers = std::make_unique<CollectiveBuffers>(shared, ranks,
+                                                               decode_elems * sizeof(ov::float16));
+            for (int cid = 0; cid < collectives; ++cid) {
+                expect_allreduce_sum<ov::float16>(*coord, *buffers, cid, decode_elems,
+                                                  ov::element::f16, f16_tolerance);
+            }
+        }
+
+        ASSERT_FALSE(coord->is_aborted()) << "coordinator aborted in round " << round;
+    }
 }
 
 // ---------------------------------------------------------------------------
