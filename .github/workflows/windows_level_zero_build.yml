@@ -86,7 +86,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_windows_l0_build
-    needs: [ Smart_CI, Build ]
+    needs: [Smart_CI, Build]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

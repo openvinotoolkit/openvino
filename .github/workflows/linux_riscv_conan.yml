@@ -273,7 +273,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_linux_riscv_conan
-    needs: [Smart_CI, Build]
+    needs: [Smart_CI, Docker, Build]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
