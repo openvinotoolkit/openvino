@@ -1364,12 +1364,12 @@ void set_default_params(const kernel_impl_params& param_info, kernel_selector::b
             desc.dep_idx_start = fused_prim.outer_dep_start_idx;
             desc.dep_size = fused_prim.deps.size();
             desc.op_id = op_id++;
-            OPENVINO_ASSERT(desc.output_tensors.empty());
             for (const auto& layout : fused_prim.output_layouts) {
                 desc.output_tensors.push_back(convert_data_tensor(layout));
             }
-            OPENVINO_ASSERT(fused_prim.output_layouts.size() == 1 || std::addressof(fused_prim) == std::addressof(param_info.fused_desc.back())); // Only the last post-op may have multiple outputs
-            prim_id_type_map[fused_prim.desc->id] = std::make_pair(desc.op_id, desc.output_tensors[0].GetDType()); // TODO: handle this
+            OPENVINO_ASSERT(fused_prim.output_layouts.size() == 1 || std::addressof(fused_prim) == std::addressof(param_info.fused_desc.back()),
+                            "Only the last post-op may have multiple outputs.");
+            prim_id_type_map[fused_prim.desc->id] = std::make_pair(desc.op_id, desc.output_tensors[0].GetDType());
             if (fused_prim.has_outer_dep()) {
                 for (size_t i = desc.dep_idx_start; i < desc.dep_idx_start + desc.dep_size; i++) {
                     desc.tensors.push_back(convert_data_tensor(param_info.get_input_layout(i)));

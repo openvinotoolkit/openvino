@@ -257,7 +257,7 @@ JitConstants DeconvolutionKernel_b_fs_zyx_fsv16::GetJitConstants(const deconvolu
 
         auto load_type = LoadType::LT_ALIGNED_READ;
         for (const auto& fused_op : params.fused_ops) {
-            OPENVINO_ASSERT(fused_op.output_tensors.size() == 1);
+            OPENVINO_ASSERT(fused_op.output_tensors.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
             if (!fused_op.output_tensors[0].SameDims(params.outputs[0]) &&
                 (fused_op.output_tensors[0].X().v > 1 || fused_op.output_tensors[0].Y().v > 1 || fused_op.output_tensors[0].Z().v > 1)) {
                 load_type = LoadType::LT_UNALIGNED;

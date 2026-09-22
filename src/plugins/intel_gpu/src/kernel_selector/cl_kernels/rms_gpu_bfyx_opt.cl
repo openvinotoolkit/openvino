@@ -211,7 +211,7 @@ KERNEL(rms_gpu_bfyx_opt)(
 #define NUM_SCALES_PER_SUBGROUP 4
 #endif
                 // 32 consecutive elements in tmp[0] && tmp[1] etc, assuming SIMD16
-                MAKE_VECTOR_TYPE(NORMALIZED_TYPE, NUM_SCALES_PER_SUBGROUP) max_values = 0.000000059604645h;
+                MAKE_VECTOR_TYPE(NORMALIZED_TYPE, NUM_SCALES_PER_SUBGROUP) max_values = DQ_MAX_SEARCH_INIT_VAL;
                 MAKE_VECTOR_TYPE(float, NUM_SCALES_PER_SUBGROUP) tmp_scales;
             #endif // HAS_DYNAMIC_QUANTIZE
             unroll_for (int j = 0; j < SUBGROUP_BLOCK_SIZE; j++) {
@@ -239,9 +239,9 @@ KERNEL(rms_gpu_bfyx_opt)(
                 max_values[j] = sub_group_reduce_max(max_values[j]);
                 tmp_scales[j] = exp2(floor(log2(_convert_float(OUTPUT_VAL_MAX) / max_values[j])));
             }
-            unroll_for (int j = get_sub_group_local_id(); j < NUM_SCALES_PER_SUBGROUP; ++j) {
-                int scale_output_idx = (output_data_offset + subgroup_offset + i * get_sub_group_size()) / 32 + j;
-                scale[scale_output_idx] = TO_OUTPUT1_TYPE(1.0f / tmp_scales[j]);
+            if (get_sub_group_local_id() < NUM_SCALES_PER_SUBGROUP) {
+                int scale_output_idx = (output_data_offset + subgroup_offset + i * get_sub_group_size()) / 32 + get_sub_group_local_id();
+                scale[scale_output_idx] = TO_OUTPUT1_TYPE(1.0f / tmp_scales[get_sub_group_local_id()]);
             }
             unroll_for (int j = 0; j < SUBGROUP_BLOCK_SIZE; j++) {
                 vec_tmp[j] *= tmp_scales[j / 2];
@@ -263,7 +263,7 @@ KERNEL(rms_gpu_bfyx_opt)(
         iters_per_scale = 4;
     }
     NORMALIZED_TYPE cache[4];
-    NORMALIZED_TYPE max_value = 0.000000059604645h;
+    NORMALIZED_TYPE max_value = DQ_MAX_SEARCH_INIT_VAL;
 #endif
     for (; i < items_num; i++)
     {
@@ -298,7 +298,7 @@ KERNEL(rms_gpu_bfyx_opt)(
                     int scale_output_idx = (output_data_offset + subgroup_offset + i_ * get_sub_group_size()) / 32;
                     scale[scale_output_idx] = TO_OUTPUT1_TYPE(1.0f / scale_value);
                 }
-                max_value = 0.000000059604645h;
+                max_value = DQ_MAX_SEARCH_INIT_VAL;
             }
         #else
             output[output_data_offset + subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()] = normalized;

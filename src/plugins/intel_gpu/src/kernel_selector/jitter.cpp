@@ -2174,7 +2174,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                     op_decls += "\\\n\t" + tmp_var + " = " + tmp_var + " + " + pre_shift + ";";
 
                 // Round operation isn't needed if output type is int8/uint8 and scale coefficient in all output channels is equal to 1.0
-                OPENVINO_ASSERT(desc.output_tensors.size() == 1);
+                OPENVINO_ASSERT(desc.output_tensors.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
                 bool output_type_is_int8 = desc.output_tensors[0].GetDType() == Datatype::UINT8 || desc.output_tensors[0].GetDType() == Datatype::INT8;
                 if (((p->has_post_scale || p->has_post_shift) && output_type_is_int8) || !output_type_is_int8)
                     op_decls += "\\\n\t" + tmp_var + " = round(" + tmp_var + ");";
@@ -2232,7 +2232,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                     op_decls += "\\\n\t" + tmp_var + " = " + tmp_var + " + " + pre_shift + ";";
 
                 // Round operation isn't needed if output type is int8/uint8 and scale coefficient in all output channels is equal to 1.0
-                OPENVINO_ASSERT(desc.output_tensors.size() == 1);
+                OPENVINO_ASSERT(desc.output_tensors.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
                 bool output_type_is_int8 = desc.output_tensors[0].GetDType() == Datatype::UINT8 || desc.output_tensors[0].GetDType() == Datatype::INT8;
                 if (((p->has_post_scale || p->has_post_shift) && output_type_is_int8) || !output_type_is_int8)
                     op_decls += "\\\n\t" + tmp_var + " = round(" + tmp_var + ");";
@@ -2250,7 +2250,7 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                 break;
         }
         case KernelType::ACTIVATION: {
-            OPENVINO_ASSERT(desc.output_tensors.size() == 1);
+            OPENVINO_ASSERT(desc.output_tensors.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
             const auto& out_type = desc.output_tensors[0].GetDType();
             auto p = desc.GetOpParams<activation_fuse_params>();
             base_activation_params activation_p = p->param;

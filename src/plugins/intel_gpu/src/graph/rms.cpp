@@ -21,16 +21,15 @@ std::vector<layout> rms_inst::calc_output_layouts(rms_node const& node, kernel_i
 
 	std::vector<layout> output_layouts;
     if (impl_param.has_fused_primitives()) {
-        const auto& fused_prims = node.get_fused_primitives();
-        auto dq_it = std::find_if(fused_prims.begin(), fused_prims.end(), [](const cldnn::fused_primitive_desc& f) {
+        auto dq_it = std::find_if(impl_param.fused_desc.begin(), impl_param.fused_desc.end(), [](const cldnn::fused_primitive_desc& f) {
             return f.is_type<dynamic_quantize>();
         });
-        if (dq_it != fused_prims.end()) {
-            OPENVINO_ASSERT(std::addressof(*dq_it) == std::addressof(fused_prims.back()), "Dynamic quantize should be the last fused operation!");
+        if (dq_it != impl_param.fused_desc.end()) {
+            OPENVINO_ASSERT(std::addressof(*dq_it) == std::addressof(impl_param.fused_desc.back()), "Dynamic quantize should be the last fused operation!");
             ov::op::internal::DynamicQuantize dq_op;
-            dq_op.set_attrs(fused_prims.back().typed_desc<dynamic_quantize>()->attrs);
+            dq_op.set_attrs(impl_param.fused_desc.back().typed_desc<dynamic_quantize>()->attrs);
             const auto output_shapes = ov::op::internal::DynamicQuantize::shape_infer(&dq_op, {input_layout.get_partial_shape()});
-            auto dq_attrs = fused_prims.back().typed_desc<dynamic_quantize>()->attrs;
+            auto dq_attrs = impl_param.fused_desc.back().typed_desc<dynamic_quantize>()->attrs;
             output_layouts = {layout{output_shapes[0], dq_attrs.quantization_dt, input_layout.format}, layout{output_shapes[1], dq_attrs.scale_dt, input_layout.format}};
         } else {
             output_type = impl_param.get_output_element_type();

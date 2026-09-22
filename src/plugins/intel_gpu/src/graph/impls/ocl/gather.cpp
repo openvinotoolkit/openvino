@@ -148,7 +148,7 @@ public:
             for (size_t fi = 0; fi < updated_impl_params.fused_desc.size(); fi++) {
                 auto& fd = updated_impl_params.fused_desc[fi];
                 // Extend fused op output_layout rank to match the restored output rank
-                OPENVINO_ASSERT(fd.output_layouts.size() == 1);
+                OPENVINO_ASSERT(fd.output_layouts.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
                 auto fd_out_pshape = fd.output_layouts[0].get_partial_shape();
                 if (fd_out_pshape.size() < output_pshape.size()) {
                     fd_out_pshape.insert(fd_out_pshape.begin() + prim->axis, ov::Dimension(1));

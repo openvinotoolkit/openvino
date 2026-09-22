@@ -169,7 +169,6 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
         auto conf = FusedOpsConfiguration("", idx_order, "normalized", fused_output_type, 1);
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
         if (has_dynamic_quantize) {
-	    OPENVINO_ASSERT(dispatchData.subgroupBlockSize != 1 && dispatchData.leftovers == 0 && subgroup_size == 16);
             jit.AddConstant(MakeJitConstant("HAS_DYNAMIC_QUANTIZE", "1"));
             jit.AddConstant(MakeJitConstant("OUTPUT1", get_dq_it(params)->output_tensors[1]));
         }
@@ -230,6 +229,9 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
         }
     } else {
         dispatchData.subgroupBlockSize = 8;
+    }
+    if (has_dynamic_quantize_post_op(params)) {
+        OPENVINO_ASSERT(dispatchData.subgroupBlockSize != 1 && dispatchData.leftovers == 0 && subgroup_size == 16);
     }
     return dispatchData;
 }

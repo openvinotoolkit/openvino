@@ -195,7 +195,7 @@ public:
                 };
 
                 for (auto& desc : cp.fused_ops) {
-                    OPENVINO_ASSERT(desc.output_tensors.size() == 1);
+                    OPENVINO_ASSERT(desc.output_tensors.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
                     if (!can_swap(desc.output_tensors[0])) {
                         return false;
                     }

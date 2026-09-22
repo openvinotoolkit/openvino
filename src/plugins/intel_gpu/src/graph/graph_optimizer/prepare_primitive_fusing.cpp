@@ -1426,7 +1426,6 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return;
             }
 
-            OPENVINO_ASSERT(attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Symmetric);
             p.fuse_nodes(input_data, dynamic_quantize_node, &fusing_history);
         };
 
@@ -1621,7 +1620,7 @@ void prepare_primitive_fusing::optimize_fused_ops(program& p) {
                 const auto& act_prim = fp.typed_desc<activation>();
                 const auto& quant_param = fp_next.get_typed_fuse_params<QuantizeFuseParams>();
 
-                OPENVINO_ASSERT(fp_next.output_layouts.size() == 1);
+                OPENVINO_ASSERT(fp_next.output_layouts.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
                 bool can_skip = fp.deps.empty() && data_type_traits::is_i8_u8(fp_next.output_layouts[0].data_type);
                 can_skip &= ((act_prim->activation_function == activation_func::relu) && (act_prim->additional_params.a == 0.0f));
                 can_skip &= (quant_param->_scale_shift_opt && !quant_param->_need_pre_shift);

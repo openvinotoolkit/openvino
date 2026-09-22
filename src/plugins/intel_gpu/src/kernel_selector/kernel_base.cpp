@@ -139,6 +139,13 @@ bool KernelBase::IsSIMDSizeSupported(const EngineInfo &info, size_t simd_size) c
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // MakeFusedOpsJitConstants
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+JitConstants KernelBase::MakeFusedDynamicQuantizationJitConstants(const kernel_selector::base_params& params,
+                                                                  const std::vector<FusedOpsConfiguration>& conf) const {
+    JitConstants jit = {};
+    jit.AddConstant(MakeJitConstant("DQ_MAX_SEARCH_INIT_VAL", "0.000000059604645h"));
+    return jit;
+}
+
 JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_params &params,
                                                   const std::vector<FusedOpsConfiguration> &conf) const {
     JitConstants jit = {};
@@ -148,6 +155,7 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
         return jit;
     }
 
+    jit.Merge(MakeFusedDynamicQuantizationJitConstants(params, conf));
     if (std::all_of(params.fused_ops.cbegin(), params.fused_ops.cend(), [](fused_operation_desc desc) {
             return cldnn::one_of(desc.GetType(), {KernelType::REORDER, KernelType::DYNAMIC_QUANTIZE});
         })) {
@@ -190,7 +198,7 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
                     fused_ops_calc += "\\\n\tFUSED_OP" + toCodeString(i) + "_LOAD" + c.suffix;
                 }
                 fused_ops_calc += "\\\n\tFUSED_OP" + toCodeString(i) + "_ACTION" + c.suffix;
-                OPENVINO_ASSERT(params.fused_ops[i].output_tensors.size() == 1);
+                OPENVINO_ASSERT(params.fused_ops[i].output_tensors.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
                 last_fused_out_dtype = params.fused_ops[i].output_tensors[0].GetDType();
             }
 

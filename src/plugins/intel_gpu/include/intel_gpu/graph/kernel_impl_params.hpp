@@ -152,7 +152,7 @@ struct kernel_impl_params final {
     ov::element::Type_t get_output_element_type(size_t idx = 0) const {
         if (fused_desc.empty()) {
             return output_layouts[idx].data_type;
-	}
+        }
         return fused_desc.back().output_layouts[idx].data_type;
     }
 

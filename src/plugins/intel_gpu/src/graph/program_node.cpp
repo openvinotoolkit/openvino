@@ -183,7 +183,7 @@ void program_node::replace_dependency(size_t idx, program_node& new_dep, bool re
     return replace_dependency(idx, std::make_pair(&new_dep, 0), remove_if_dangling);
 }
 
-void program_node::replace_dependency(program_node const& old_dep, std::pair<program_node*, int32_t> new_dep, bool remove_if_dangling) {
+void program_node::replace_dependency(const program_node& old_dep, std::pair<program_node*, int32_t> new_dep, bool remove_if_dangling) {
     for (size_t i = 0; i < dependencies.size(); ++i) {
         if (dependencies[i].first == &old_dep) {
             return replace_dependency(i, new_dep, remove_if_dangling);
@@ -1852,7 +1852,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
                 }
 
                 // 2. round
-                OPENVINO_ASSERT(desc.output_layouts.size() == 1);
+                OPENVINO_ASSERT(desc.output_layouts.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
                 auto out_dt = desc.output_layouts[0].data_type;
                 {
                     bool output_type_is_int8 = out_dt == data_types::u8 || out_dt == data_types::i8;

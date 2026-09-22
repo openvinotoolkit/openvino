@@ -456,7 +456,7 @@ void remove_redundant_reorders::run(program& p) {
             auto& node = node_ptr->as<reorder>();
 
             auto& input = node.input();
-            OPENVINO_ASSERT(node.get_output_layouts().size() == 1);
+            OPENVINO_ASSERT(node.get_output_layouts().size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
             auto output_layout = node.get_output_layout();
 
             if (!node.is_simple_reorder()) {

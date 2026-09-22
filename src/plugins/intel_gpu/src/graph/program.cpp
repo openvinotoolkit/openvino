@@ -1198,14 +1198,15 @@ bool program::move_node(program_node& node,
 
 program_node* program::maybe_update_fused_node(program_node &fused_node, program_node& peer_node) {
     auto peer_layouts = peer_node.get_output_layouts();
+    // Introduction of dynamic_quantize fusion came with a design change, previously the code assumed the number of layouts is always 1.
     OPENVINO_ASSERT(peer_layouts.size() == 1 || (peer_layouts.size() == 2 && peer_node.is_type<dynamic_quantize>()));
-    if (peer_layouts.size() == 2 && fused_node.is_type<rms>() && peer_node.is_type<dynamic_quantize>()) {
+    if (peer_layouts.size() == 2) {
         // Recreate fused_node with 2 outputs
         auto orig_rms = fused_node.as<rms>().typed_desc();
         auto num_inputs = orig_rms->input.size();
-        OPENVINO_ASSERT(num_inputs == 1 || num_inputs == 2);
         const size_t num_outputs = 2;
 
+        OPENVINO_ASSERT(num_inputs == 1 || num_inputs == 2, "Unexpected number of rms inputs");
         auto* new_rms = &get_or_create(
             orig_rms->input.size() == 1
                 ? std::make_shared<rms>(orig_rms->id + "_fused",

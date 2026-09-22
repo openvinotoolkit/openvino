@@ -62,7 +62,7 @@ std::vector<layout> permute_inst::calc_output_layouts(permute_node const& node, 
         output_type = impl_param.get_output_element_type();
         for (const auto& desc : impl_param.fused_desc) {
             if (desc.is_type<reorder>()) {
-                OPENVINO_ASSERT(desc.output_layouts.size() == 1);
+                OPENVINO_ASSERT(desc.output_layouts.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
                 output_fmt = desc.output_layouts[0].format;
             }
         }
