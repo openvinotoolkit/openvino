@@ -133,13 +133,16 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::PyramidAttenti
         var.past_key_block_port_set & var.past_value_block_port_set;
 }
 
+void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::HostFlashAttentionInfo::HFATileInputIndices& var) {
+    stream & var.q & var.k & var.v & var.mask & var.acc & var.max & var.d & var.scale;
+}
+
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::HostFlashAttention& var) {
     auto& info = var._sdpa_attention_info;
     stream & info._query_size & info._context_size & info._k_seq_dim & info._v_seq_dim & info._sdpa_indices.query &
         info._sdpa_indices.past_key_blocks & info._sdpa_indices.past_value_blocks & info._sdpa_indices.present_key &
-        info._sdpa_indices.present_value & info._sdpa_indices.attention_mask & info._tile_input_indices.q &
-        info._tile_input_indices.k & info._tile_input_indices.v & info._tile_input_indices.mask &
-        info._tile_input_indices.acc & info._tile_input_indices.max & info._tile_input_indices.d &
+        info._sdpa_indices.present_value & info._sdpa_indices.attention_mask & info._sdpa_indices.attention_scale &
+        info._sdpa_indices.attention_sink & info._tile_input_indices & info._final_tile_input_indices &
         info._tile_output_indices.acc & info._tile_output_indices.max & info._tile_output_indices.d &
         var._past_tile_size & var._final_tile_size & var._can_use_tensor_view;
     if (stream.input()) {
@@ -155,6 +158,22 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::HostFlashAtten
                             info._tile_output_indices.max <= kMaxPortIndex &&
                             info._tile_output_indices.d <= kMaxPortIndex,
                         "HFA tile output index out of range in deserialized blob");
+        OPENVINO_ASSERT(!info._sdpa_indices.attention_sink || *info._sdpa_indices.attention_sink <= kMaxPortIndex,
+                        "HFA attention sink input index out of range in deserialized blob");
+        OPENVINO_ASSERT(!info._sdpa_indices.attention_scale || *info._sdpa_indices.attention_scale <= kMaxPortIndex,
+                        "HFA attention scale input index out of range in deserialized blob");
+        OPENVINO_ASSERT(!info._tile_input_indices.scale || *info._tile_input_indices.scale <= kMaxPortIndex,
+                        "HFA tile scale input index out of range in deserialized blob");
+        OPENVINO_ASSERT(info._final_tile_input_indices.q <= kMaxPortIndex &&
+                            info._final_tile_input_indices.k <= kMaxPortIndex &&
+                            info._final_tile_input_indices.v <= kMaxPortIndex &&
+                            info._final_tile_input_indices.mask <= kMaxPortIndex &&
+                            info._final_tile_input_indices.acc <= kMaxPortIndex &&
+                            info._final_tile_input_indices.max <= kMaxPortIndex &&
+                            info._final_tile_input_indices.d <= kMaxPortIndex,
+                        "HFA final tile input index out of range in deserialized blob");
+        OPENVINO_ASSERT(!info._final_tile_input_indices.scale || *info._final_tile_input_indices.scale <= kMaxPortIndex,
+                        "HFA final tile scale input index out of range in deserialized blob");
     }
 }
 
