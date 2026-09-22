@@ -8,10 +8,7 @@
 #include "openvino/opsets/opset6.hpp"
 #include "openvino/opsets/opset8.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 // helper func - get pad_begin and pad_end
 static void get_paddings(const NodeContext& node, ov::Shape& pad_begin, ov::Shape& pad_end, ov::op::PadType& auto_pad) {
     if (node.has_attribute("padding_algorithm")) {
@@ -179,7 +176,4 @@ NamedOutputs pool2d(const NodeContext& node) {
     }
 }
 
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

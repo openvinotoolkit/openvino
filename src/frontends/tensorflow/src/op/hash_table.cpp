@@ -14,10 +14,7 @@
 using namespace ov;
 using namespace std;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 
 OutputVector translate_hash_table_op(const ov::frontend::tensorflow::NodeContext& node) {
     default_op_checks(node, 0, {"MutableHashTable", "MutableHashTableV2", "HashTable", "HashTableV2"});
@@ -58,7 +55,4 @@ OutputVector translate_hash_table_op(const ov::frontend::tensorflow::NodeContext
     return {hash_table};
 }
 
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

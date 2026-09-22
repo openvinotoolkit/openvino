@@ -26,9 +26,7 @@ namespace ONNX_NAMESPACE {
 class ModelProto;
 }  // namespace ONNX_NAMESPACE
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 class Model;
 
 class ONNXFrameworkNode : public ov::op::util::FrameworkNode {
@@ -137,6 +135,4 @@ public:
     virtual bool visit_attributes(ov::AttributeVisitor& visitor) override;
 };
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

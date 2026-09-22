@@ -19,9 +19,7 @@
 #    include "snappy.h"
 #endif
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
+namespace ov::frontend::tensorflow {
 
 namespace {
 // RestoreV2 data inputs (per the TF Op definition): prefix(0), tensor_names(1),
@@ -539,6 +537,4 @@ void VariablesIndex::map_assignvariable(const std::shared_ptr<::tensorflow::Grap
     }
 }
 
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow

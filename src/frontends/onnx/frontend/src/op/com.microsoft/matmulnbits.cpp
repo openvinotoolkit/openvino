@@ -28,11 +28,7 @@
 
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace com_microsoft {
-namespace opset_1 {
+namespace ov::frontend::onnx::com_microsoft::opset_1 {
 namespace {
 // MatMulNBits repacks B/scales/zero_point initializers into new low-bit Constants. Preserve the
 // original ONNX initializer's friendly name and tensor names on the repacked Constant so weight
@@ -522,8 +518,4 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("MatMulNBits", OPSET_SINCE(1), com_microsoft::opset_1::matmulnbits, MICROSOFT_DOMAIN);
 
-}  // namespace opset_1
-}  // namespace com_microsoft
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::com_microsoft::opset_1

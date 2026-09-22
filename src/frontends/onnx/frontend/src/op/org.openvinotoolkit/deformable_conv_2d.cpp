@@ -20,11 +20,7 @@
 #include "utils/convpool.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace org_openvinotoolkit {
-namespace opset_1 {
+namespace ov::frontend::onnx::org_openvinotoolkit::opset_1 {
 ov::OutputVector deformable_conv_2d(const ov::frontend::onnx::Node& node) {
     const ov::OutputVector& inputs = node.get_ov_inputs();
     const auto strides = convpool::get_strides(node);
@@ -63,8 +59,4 @@ ov::OutputVector deformable_conv_2d(const ov::frontend::onnx::Node& node) {
     }
 }
 ONNX_OP("DeformableConv2D", OPSET_SINCE(1), org_openvinotoolkit::opset_1::deformable_conv_2d, OPENVINO_ONNX_DOMAIN);
-}  // namespace opset_1
-}  // namespace org_openvinotoolkit
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::org_openvinotoolkit::opset_1

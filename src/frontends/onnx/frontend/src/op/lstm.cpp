@@ -16,10 +16,7 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 namespace {
 // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~ INPUT NODES PARSING ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -251,7 +248,4 @@ ov::OutputVector lstm(const ov::frontend::onnx::Node& node) {
 }
 ONNX_OP("LSTM", OPSET_SINCE(1), ai_onnx::opset_1::lstm);
 }  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

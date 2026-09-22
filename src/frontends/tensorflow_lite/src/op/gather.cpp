@@ -2,16 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+using namespace std;
+
 #include "common_op_table.hpp"
 #include "op_translation_utils.hpp"
 #include "utils.hpp"
-
-using namespace std;
-
-namespace ov {
-namespace frontend {
-namespace tensorflow_lite {
-namespace op {
+namespace ov::frontend::tensorflow_lite::op {
 
 OutputVector gather(const ov::frontend::tensorflow_lite::NodeContext& node) {
     auto axis_value = node.get_attribute<int32_t>("axis");
@@ -24,7 +20,4 @@ OutputVector gather(const ov::frontend::tensorflow_lite::NodeContext& node) {
     return res->outputs();
 }
 
-}  // namespace op
-}  // namespace tensorflow_lite
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow_lite::op

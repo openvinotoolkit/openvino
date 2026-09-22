@@ -16,9 +16,7 @@
 
 #include "onnx_framework_node.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 std::shared_ptr<ov::Node> ONNXFrameworkNode::clone_with_new_inputs(const ov::OutputVector& inputs) const {
     return std::make_shared<ONNXFrameworkNode>(m_node, inputs);
 }
@@ -46,6 +44,4 @@ bool NotSupportedONNXNode::visit_attributes(ov::AttributeVisitor& visitor) {
     return true;
 }
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

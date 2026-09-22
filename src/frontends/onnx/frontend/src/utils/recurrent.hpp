@@ -14,10 +14,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/util/attr_types.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace recurrent {
+namespace ov::frontend::onnx::recurrent {
 
 // Normalize a recurrent-operator input to target_rank. Dynamic rank is returned unchanged.
 // rank > target: squeeze leading size-1 dims (rejects statically-known non-1 leading dims).
@@ -103,7 +100,4 @@ struct OpAttributes {
     std::vector<float> m_activations_beta;
 };
 
-}  // namespace recurrent
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::recurrent

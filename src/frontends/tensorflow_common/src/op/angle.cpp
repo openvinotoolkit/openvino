@@ -22,10 +22,7 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 
 OutputVector translate_angle_op(const NodeContext& node) {
     default_op_checks(node, 1, {"Angle"}, true);
@@ -38,7 +35,4 @@ OutputVector translate_angle_op(const NodeContext& node) {
     set_node_name(node.get_name(), angle.get_node_shared_ptr());
     return {angle};
 }
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op
