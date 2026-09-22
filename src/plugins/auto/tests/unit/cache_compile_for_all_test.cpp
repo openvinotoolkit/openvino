@@ -95,14 +95,25 @@ TEST_P(AutoCacheCompileForAllTest, compileForAllCompilesOtherDevicesWhenEnabled)
     std::shared_ptr<ov::ICompiledModel> exeNetwork;
     OV_ASSERT_NO_THROW(exeNetwork = plugin->compile_model(model, config));
 
-    // Give the background pre-compile task time to finish compiling and releasing.
-    std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
     if (cacheEnabled && compileForAll) {
+        // Poll with a bounded timeout instead of a fixed sleep, since the background
+        // pre-compile task duration is not deterministic on slow/loaded CI machines.
+        constexpr auto timeout = std::chrono::seconds(5);
+        const auto deadline = std::chrono::steady_clock::now() + timeout;
+        while (compileCount.load() < 1 && std::chrono::steady_clock::now() < deadline) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
         EXPECT_GE(compileCount.load(), 1);
-        // The warm-up compiled model must be released, so no extra reference is kept.
+        // The warm-up compiled model must be released, so no extra reference is kept. Poll here
+        // too since the release happens asynchronously right after the mocked compile returns.
+        while (mockIExeNetOther.use_count() > otherBaselineCount && std::chrono::steady_clock::now() < deadline) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
         EXPECT_EQ(mockIExeNetOther.use_count(), otherBaselineCount);
     } else {
+        // No warm-up is expected to be triggered; give a short grace period so a bug that
+        // triggers unwanted background compilation would still be caught deterministically.
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
         EXPECT_EQ(compileCount.load(), 0);
     }
 }

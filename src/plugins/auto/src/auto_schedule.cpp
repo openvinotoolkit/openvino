@@ -3,6 +3,7 @@
 //
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+#include <algorithm>
 #include <chrono>
 
 #include "auto_schedule.hpp"
@@ -334,10 +335,15 @@ void AutoSchedule::compile_for_all_other_devices_for_cache() {
         return;
     }
     if (!m_precompile_executor) {
+        // Bound the stream count by the number of devices to precompile to avoid oversubscription,
+        // and clamp to at least 1 since hardware_concurrency() may return 0.
+        const int num_streams = std::max(1,
+                                          std::min(static_cast<int>(devices_to_precompile.size()),
+                                                   static_cast<int>(std::thread::hardware_concurrency())));
         m_precompile_executor =
             m_plugin->get_executor_manager()->get_idle_cpu_streams_executor(ov::threading::IStreamsExecutor::Config{
                 "AutoDeviceCachePreCompilation",
-                static_cast<int>(std::thread::hardware_concurrency()) /* max possible #streams*/,
+                num_streams,
                 0 /*default threads per stream, workaround for ticket 62376*/});
     }
 
@@ -353,8 +359,7 @@ void AutoSchedule::compile_for_all_other_devices_for_cache() {
                     : core->compile_model(model_path, device.device_name, device.config);
                 // The cache blob is generated during compilation; release the compiled model right away
                 // so we do not keep holding device resources.
-                precompile_model._ptr.reset();
-                precompile_model._so.reset();
+                precompile_model = {};
                 const auto compile_end = std::chrono::steady_clock::now();
                 const auto compile_ms = std::chrono::duration<double, std::milli>(compile_end - compile_begin).count();
                 LOG_INFO_TAG("cache pre-compilation finished for device: %s, compile time: %lf ms",
