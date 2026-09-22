@@ -1,7 +1,9 @@
 # OpenVINO Frontend Review
 
 Apply to ONNX, TensorFlow, TFLite, PyTorch, JAX, Paddle, GGUF, and other
-frontend changes.
+frontend changes, including their Python decoders and bindings under
+`src/bindings/python/src/openvino/frontend/` and
+`src/bindings/python/src/pyopenvino/frontend/`.
 
 ## Review focus
 
@@ -21,6 +23,30 @@ frontend changes.
   type information when runtime graph computation is required.
 - Check that user-visible frontend behavior has focused regression tests,
   including dynamic, boundary, and malformed-input cases where applicable.
+
+## Python decoders and bindings
+
+- Review Python decoder changes as conversion logic. Check the graph, tensor
+  types, shapes, constants, attributes, and input/output ordering exposed to
+  the C++ frontend, including decoder and framework-object lifetimes.
+- For PyTorch, check the affected
+  [TorchScript](../../../../src/bindings/python/src/openvino/frontend/pytorch/ts_decoder.py)
+  or [FX/export](../../../../src/bindings/python/src/openvino/frontend/pytorch/fx_decoder.py)
+  path. Preserve mutation and alias semantics and verify that regression tests
+  exercise the changed capture path.
+- For [JAX](../../../../src/bindings/python/src/openvino/frontend/jax/jaxpr_decoder.py),
+  check Jaxpr variable identity, literals and captured constants, primitive
+  parameters, and output ordering against the C++ decoder contract.
+- Apply [bindings guidance](bindings.md) when Python API, exception handling,
+  ownership, or C++/Python interaction changes.
+
+## Transformations
+
+For frontend normalization and decomposition passes, also apply the
+[transformation review guidance](transformations.md). Verify that pass ordering
+and handling of framework placeholder nodes preserve conversion semantics.
+These passes must follow the same hardware- and plugin-agnostic rules as
+operation translators and Python decoders.
 
 ## Evidence and scope
 

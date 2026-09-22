@@ -99,10 +99,11 @@ or documentation, select by the behavior exercised or described.
 
 | Changed paths or behavior | Reference |
 | --- | --- |
-| `src/core/` (including `src/pass/`, `src/pattern/`, and their public headers), `src/inference/`, `src/common/transformations/`, `src/common/low_precision_transformations/`, `src/common/offline_transformations/`, `src/common/snippets/` | [Runtime, core, and transformations](references/runtime.md) |
+| `src/core/`, `src/inference/` | [Runtime and core](references/runtime.md) |
+| `src/common/transformations/`, `src/common/low_precision_transformations/`, `src/common/offline_transformations/`, `src/common/snippets/`, `src/core/src/pass/`, `src/core/src/pattern/`, `src/core/include/openvino/pass/`, transformation passes and tests under frontends or plugins, `src/bindings/python/tests/test_transformations/` | [Transformations](references/transformations.md), plus the owning component's guidance |
 | `src/plugins/`, including plugin-local tests | [Plugins](references/plugins.md) |
 | `src/tests/functional/` shared operator and inference behavior tests | [Runtime](references/runtime.md) and [plugins](references/plugins.md), as exercised |
-| `src/frontends/`, framework conversion tests in `tests/layer_tests/` and `tests/model_hub_tests/` | [Frontends](references/frontend.md) |
+| `src/frontends/`, `src/bindings/python/src/openvino/frontend/` (including PyTorch and JAX decoders), `src/bindings/python/src/pyopenvino/frontend/`, framework conversion tests in `tests/layer_tests/` and `tests/model_hub_tests/` | [Frontends](references/frontend.md); also apply [bindings](references/bindings.md) for Python API and language-boundary changes |
 | `src/bindings/`, public API changes under `src/core/include/` or `src/inference/include/` | [Bindings and public APIs](references/bindings.md) |
 | `.github/workflows/`, `.github/actions/`, `.github/scripts/`, `.github/dockerfiles/`, Smart CI and dependency configuration under `.github/`, `cmake/`, `CMakeLists.txt` and `*.cmake` at any depth, dependency manifests and integration changes | [CI, build, and dependencies](references/ci.md) |
 

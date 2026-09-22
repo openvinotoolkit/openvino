@@ -1,5 +1,10 @@
 # Bindings and Public APIs Review
 
+For frontend Python code under `src/bindings/python/src/openvino/frontend/`
+or `src/bindings/python/src/pyopenvino/frontend/`, also apply
+[frontend guidance](frontend.md). This includes the Python-based PyTorch
+and JAX decoders, whose changes affect model conversion semantics.
+
 - When a public C++ API changes, check applicable Python, C, and JavaScript
   bindings, documentation, and tests.
 - Check that operator docstrings, input validation, and typing agree with core

@@ -138,6 +138,7 @@
 /CMakeLists.txt @openvinotoolkit/openvino-ie-maintainers
 /.github/skills/code-review/references/frontend.md @openvinotoolkit/openvino-common-frontend-maintainers
 /.github/skills/code-review/references/runtime.md @openvinotoolkit/openvino-ngraph-maintainers @openvinotoolkit/openvino-ie-transformations-maintainers
+/.github/skills/code-review/references/transformations.md @openvinotoolkit/openvino-ie-transformations-maintainers
 /.github/skills/code-review/references/plugins.md @openvinotoolkit/openvino-ie-maintainers
 /.github/skills/code-review/references/bindings.md @openvinotoolkit/openvino-ie-python-api-maintainers @openvinotoolkit/openvino-c-api-maintainers @openvinotoolkit/openvino-js-api-maintainers
 /.github/skills/code-review/references/ci.md @openvinotoolkit/openvino-ci-maintainers
