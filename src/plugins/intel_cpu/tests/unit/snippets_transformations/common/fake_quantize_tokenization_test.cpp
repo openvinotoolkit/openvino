@@ -27,7 +27,9 @@ namespace snippets {
 
 class FakeQuantizeTokenizationTest : public TransformationTestsF {
 public:
-    void register_passes() {
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+
         ov::snippets::pass::TokenizationConfig config(std::numeric_limits<size_t>::max());
 #if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_X86_64)
         manager.register_pass<ov::intel_cpu::SnippetsMarkSkipped>();
@@ -70,10 +72,8 @@ TEST_F(FakeQuantizeTokenizationTest, smoke_Snippets_FakeQuantize_PerTensor) {
     model_ref = FakeQuantizeFunction::getSubgraphWithFakeQuantize({{1, 3, 16, 16}},
                                                                   element::f32,
                                                                   {{}, {}, {}, {}},
-                                                                  true,
-                                                                  FunctionHelper::makePrerequisitesOriginal());
-
-    register_passes();
+                                                              true,
+                                                              FunctionHelper::makePrerequisitesOriginal());
 }
 
 TEST_F(FakeQuantizeTokenizationTest, smoke_Snippets_FakeQuantize_PerChannels) {
@@ -89,8 +89,6 @@ TEST_F(FakeQuantizeTokenizationTest, smoke_Snippets_FakeQuantize_PerChannels) {
                                                           {{1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}, {1, 3, 1, 1}},
                                                           true,
                                                           FunctionHelper::makePrerequisitesOriginal());
-
-    register_passes();
 }
 
 TEST_F(FakeQuantizeTokenizationTest, smoke_Snippets_ConvolutionWithFakeQuantize) {
@@ -101,23 +99,23 @@ TEST_F(FakeQuantizeTokenizationTest, smoke_Snippets_ConvolutionWithFakeQuantize)
                                                               FunctionHelper::makePrerequisitesOriginal(),
                                                               std::make_shared<ov::op::v1::Convolution>());
 
+#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
+    // ARM64 and RISC-V64 do not skip this chain in SnippetsMarkSkipped, so FQ is tokenized.
+    model_ref = FakeQuantizeFunction::getSubgraphWithFakeQuantize({{1, 3, 16, 16}},
+                                                                  element::f32,
+                                                                  {{}, {}, {}, {}},
+                                                                  true,
+                                                                  FunctionHelper::makePrerequisitesOriginal(),
+                                                                  {std::make_shared<ov::op::v1::Convolution>()});
+#else
+    // X64 SnippetsMarkSkipped marks the Convolution-FQ chain as fused by the plugin, so FQ is not tokenized.
     model_ref = FakeQuantizeFunction::getOperationAndFakeQuantize({{1, 3, 16, 16}},
                                                                   element::f32,
                                                                   {{}, {}, {}, {}},
                                                                   true,
                                                                   FunctionHelper::makePrerequisitesOriginal(),
                                                                   std::make_shared<ov::op::v1::Convolution>());
-#if defined(OPENVINO_ARCH_ARM64) || defined(OPENVINO_ARCH_RISCV64)
-    for (const auto& node : model_ref->get_ordered_ops()) {
-        if (ov::is_type<ov::op::v0::FakeQuantize>(node)) {
-            auto subgraph = ov::snippets::op::Subgraph::wrap_node_as_subgraph(node);
-            ov::replace_node(node, subgraph);
-            break;
-        }
-    }
 #endif
-
-    register_passes();
 }
 
 }  // namespace snippets
