@@ -64,6 +64,7 @@ public:
                   const DeviceSelectionPolicy& selection_policy = {},
                   const std::string& low_power_device = {});
     MOCKTESTMACRO std::list<DeviceInformation> sort_device_by_perf_curve(
+        const std::unordered_map<std::string, float>& device_utilizations,
         const std::list<DeviceInformation>& valid_devices,
         const ov::intel_auto::PerfCurveTable& perf_curve_table,
         size_t* out_scored_count = nullptr);
@@ -81,8 +82,9 @@ public:
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream& model,
                                                              const ov::SoPtr<ov::IRemoteContext>& context,
                                                              const ov::AnyMap& properties) const override;
-    MOCKTESTMACRO std::optional<float> get_device_utilization(const std::string& device_name,
-                                                              const std::string& device_type = "");
+    // Returns utilization values for the specified devices.
+    MOCKTESTMACRO std::unordered_map<std::string, float> get_device_utilizations(
+        const std::list<DeviceInformation>& devices);
 
     // Whether the platform is currently in low power mode; see device_monitor::TelemetryClient.
     MOCKTESTMACRO std::optional<bool> get_low_power_mode();
@@ -106,7 +108,8 @@ private:
                                                           PluginConfig& load_config) const;
     std::string get_log_tag() const noexcept;
     // Base family name, perf_curve_table lookup key ("iGPU"/"dGPU" for GPUs via ov::device::type,
-    // empty when it cannot be determined), and the ov::device::type string used by get_device_utilization.
+    // empty when it cannot be determined), and the ov::device::type string used to resolve a
+    // device's IPF utilization metric key.
     struct DeviceKey {
         std::string base_name;
         std::string logical_key;

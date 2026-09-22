@@ -435,8 +435,9 @@ Graph nodes alone do not describe how consumers should maintain state or form ma
 - `add_recurrent_state(input, update)` declares an overwritten state and marks the update as an
   output. `GGUFMakeStateful` consumes this relationship. Its existing batch/beam restrictions still
   apply.
-- `set_output(value)` declares other outputs. `finish()` validates references and outputs and seals
-  the context against further emission.
+- `set_output(value)` appends an output. `set_primary_output(value)` puts the data output
+  before auxiliary outputs already registered by decoder blocks (for example, logits before KV
+  caches). `finish()` validates references and outputs and seals the context against further emission.
 
 These declarations are passed through the same `GgufGraph` and `TranslateSession` pipeline as the
 built-in decoder. A consumer selects `GGUFMakeStateful` and `AdaptToGenAI` through transformation

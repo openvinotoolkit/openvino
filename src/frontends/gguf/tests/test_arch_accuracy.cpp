@@ -23,10 +23,12 @@ class GGUFArchitectureAccuracy : public ::testing::TestWithParam<const char*> {}
 
 TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     const char* override_dir = std::getenv("OV_GGUF_ACCURACY_DATA");
+    const bool mamba = std::string(GetParam()).find("mamba2") == 0 || std::string(GetParam()) == "nemotron_h";
     const auto directory = override_dir ? std::filesystem::path(override_dir)
                                         : std::filesystem::path(ov_gguf_test::test_data_dir()) / "arch_accuracy";
     ASSERT_TRUE(std::filesystem::exists(directory)) << "Missing architecture reference data: " << directory;
     const auto base = directory / GetParam();
+    const bool real_checkpoint = override_dir && !std::filesystem::exists(base.string() + ".npz");
     std::vector<std::vector<int64_t>> schedule{{1, 2, 3}, {4}, {5, 6}};
     std::vector<float> reference;
     int32_t vocab = 0;
@@ -38,7 +40,7 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
                 std::filesystem::remove(path);
         }
     } temporary;
-    if (override_dir) {
+    if (real_checkpoint) {
         std::ifstream file(base.string() + ".bin", std::ios::binary);
         ASSERT_TRUE(file) << base;
         file.read(reinterpret_cast<char*>(&vocab), sizeof(vocab));
@@ -90,6 +92,10 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     fe.add_extension(
         std::make_shared<ov::frontend::DecoderTransformationExtension>(ov::frontend::gguf::pass::AdaptToGenAI()));
     auto model = fe.convert(fe.load(model_path));
+    if (mamba) {
+        EXPECT_EQ(model->input("input_ids").get_partial_shape(), (ov::PartialShape{1, -1}));
+        EXPECT_NO_THROW(model->input("beam_idx"));
+    }
     ov::Core core;
     auto compiled = core.compile_model(model,
                                        "CPU",
@@ -99,14 +105,10 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
                                        ov::hint::dynamic_quantization_group_size(0),
                                        ov::hint::kv_cache_precision(ov::element::f16));
     auto request = compiled.create_infer_request();
-    size_t past = 0;
-    size_t step = 0;
-    size_t matching_tokens = 0;
-    for (const auto& tokens : schedule) {
+    const auto infer = [&](const std::vector<int64_t>& tokens, size_t past) {
         const auto count = tokens.size();
-        SCOPED_TRACE("past=" + std::to_string(past) + ", tokens=" + std::to_string(count));
         ov::Tensor ids(ov::element::i64, {1, count});
-        ov::Tensor positions(ov::element::i64, {1, count});
+        ov::Tensor positions(ov::element::i64, ids.get_shape());
         ov::Tensor mask(ov::element::i64, {1, past + count});
         ov::Tensor beam(ov::element::i32, {1});
         *beam.data<int32_t>() = 0;
@@ -123,43 +125,71 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
             }))
             request.set_tensor("beam_idx", beam);
         request.infer();
-        const auto result = request.get_output_tensor();
-        ASSERT_EQ(result.get_element_type(), ov::element::f32);
-        ASSERT_GE(result.get_size(), static_cast<size_t>(vocab));
-        const auto* actual = result.data<const float>() + result.get_size() - vocab;
-        const auto* expected = reference.data() + step++ * vocab;
+        return request.get_output_tensor();
+    };
+    const auto nmse = [vocab](const float* actual, const float* expected) {
         double error = 0, norm = 0;
         for (int32_t i = 0; i < vocab; ++i) {
-            ASSERT_TRUE(std::isfinite(actual[i]));
+            EXPECT_TRUE(std::isfinite(actual[i]));
             const double difference = actual[i] - expected[i];
             error += difference * difference;
             norm += expected[i] * expected[i];
         }
-        ASSERT_GT(norm, 1e-12) << "Reference must contain nonzero logits";
+        EXPECT_GT(norm, 1e-12) << "Reference must contain nonzero logits";
+        return error / norm;
+    };
+    size_t past = 0;
+    size_t step = 0;
+    size_t matching_tokens = 0;
+    for (const auto& tokens : schedule) {
+        SCOPED_TRACE("past=" + std::to_string(past) + ", tokens=" + std::to_string(tokens.size()));
+        const auto result = infer(tokens, past);
+        ASSERT_EQ(result.get_element_type(), ov::element::f32);
+        ASSERT_GE(result.get_size(), static_cast<size_t>(vocab));
+        const auto* actual = result.data<const float>() + result.get_size() - vocab;
+        const auto* expected = reference.data() + step++ * vocab;
+        const auto error = nmse(actual, expected);
         const auto predicted = std::max_element(actual, actual + vocab) - actual;
         const auto wanted = std::max_element(expected, expected + vocab) - expected;
         matching_tokens += predicted == wanted;
         RecordProperty("top1_match_step_" + std::to_string(step), predicted == wanted ? 1 : 0);
-        RecordProperty("nmse_step_" + std::to_string(step), std::to_string(error / norm));
-        if (override_dir) {
-            // Real quantized checkpoints use lossy weight conversions. Check the first prediction
+        RecordProperty("nmse_step_" + std::to_string(step), std::to_string(error));
+        if (real_checkpoint) {
+            // Real checkpoints can use different quantization arithmetic. Check the first prediction
             // and continuation agreement; keep their full-logit metrics in the XML report.
             if (step == 1) {
                 EXPECT_EQ(predicted, wanted);
             }
         } else {
-            EXPECT_LT(error / norm, 1e-5) << "Normalized MSE against llama.cpp CPU";
+            EXPECT_LT(error, 1e-5) << "Normalized MSE against llama.cpp CPU";
         }
-        past += count;
+        past += tokens.size();
     }
-    if (override_dir) {
+    if (mamba) {
+        const auto states = request.query_state();
+        ASSERT_FALSE(states.empty());
+        for (auto state : states)
+            state.reset();
+        const auto logits = infer(schedule.front(), 0);
+        const auto* actual = logits.data<const float>() + logits.get_size() - vocab;
+        const auto error = nmse(actual, reference.data());
+        if (real_checkpoint)
+            EXPECT_EQ(std::max_element(actual, actual + vocab) - actual,
+                      std::max_element(reference.begin(), reference.begin() + vocab) - reference.begin());
+        else
+            EXPECT_LT(error, 1e-5) << "Fresh prefill after resetting recurrent states";
+    }
+    if (real_checkpoint) {
         EXPECT_GE(matching_tokens * 10, schedule.size() * 9) << "Fewer than 90% of greedy choices match";
     }
 }
 
 INSTANTIATE_TEST_SUITE_P(Architectures,
                          GGUFArchitectureAccuracy,
-                         ::testing::Values("llama",
+                         ::testing::Values("nemotron_h",
+                                           "mamba2",
+                                           "mamba2-tied",
+                                           "llama",
                                            "qwen2",
                                            "qwen3",
                                            "phi3",
