@@ -607,6 +607,8 @@ struct onednn_sdpa_test_params {
     bool use_runtime_scale = false;
     bool use_runtime_mask = false;
     bool dynamic = false;
+    bool is_causal = false;
+    bool causal_lower_right = false;
 };
 
 struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_params> {
@@ -629,7 +631,9 @@ struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_p
                                       const std::optional<layout>& mask_layout,
                                       const std::optional<layout>& scale_layout,
                                       bool use_onednn,
-                                      const std::optional<float>& scale_val) {
+                                      const std::optional<float>& scale_val,
+                                      bool is_causal = false,
+                                      bool causal_lower_right = false) {
         auto& engine = get_test_engine();
 
         topology topo;
@@ -649,14 +653,15 @@ struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_p
 
         auto sdpa = scaled_dot_product_attention("sdpa",
                                                  inputs,
-                                                 false,
+                                                 is_causal,
                                                  -1,
                                                  {0, 1, 2, 3},
                                                  {0, 1, 2, 3},
                                                  {0, 1, 2, 3},
                                                  {0, 1, 2, 3},
                                                  {},
-                                                 false);
+                                                 false,
+                                                 causal_lower_right);
         if (scale_val.has_value()) {
             sdpa.scale_val = scale_val.value();
         }
@@ -740,7 +745,8 @@ struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_p
             set_values(scale_mem, scale_data);
         }
 
-        auto onednn_net = build_network(q_topology_layout, k_topology_layout, v_topology_layout, mask_topology_layout, scale_topology_layout, true, p.scale_val);
+        auto onednn_net = build_network(q_topology_layout, k_topology_layout, v_topology_layout, mask_topology_layout, scale_topology_layout, true, p.scale_val,
+                                        p.is_causal, p.causal_lower_right);
         assert_onednn_sdpa_selected(onednn_net);
 
         auto set_inputs = [&](const network::ptr& net) {
@@ -755,7 +761,8 @@ struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_p
 
         set_inputs(onednn_net);
 
-        auto ref_net = build_network(q_topology_layout, k_topology_layout, v_topology_layout, mask_topology_layout, scale_topology_layout, false, p.scale_val);
+        auto ref_net = build_network(q_topology_layout, k_topology_layout, v_topology_layout, mask_topology_layout, scale_topology_layout, false, p.scale_val,
+                                     p.is_causal, p.causal_lower_right);
         set_inputs(ref_net);
 
         auto ref_output = ref_net->execute().at("sdpa").get_memory();
@@ -802,6 +809,9 @@ struct onednn_sdpa_gpu_test : public ::testing::TestWithParam<onednn_sdpa_test_p
         if (info.param.dynamic) {
             result += "_dynamic";
         }
+        if (info.param.is_causal) {
+            result += info.param.causal_lower_right ? "_causal_lower_right" : "_causal_top_left";
+        }
         return result;
     }
 };
@@ -822,12 +832,15 @@ TEST(onednn_sdpa_gpu_validation_test, rejects_unsupported_runtime_scale_and_batc
     const layout q_layout({2, 2, 4, 32}, data_types::f16, format::bfyx);
     const layout k_layout({2, 2, 6, 32}, data_types::f16, format::bfyx);
     const layout v_layout({2, 2, 6, 32}, data_types::f16, format::bfyx);
+    // A valid mask must be supplied so that scale lands on input index SCALE(4); without it the
+    // scale would be consumed as ATTN_MASK(3) and the scale validation path would never run.
+    const layout valid_mask_layout({2, 2, 1, 6}, data_types::f16, format::bfyx);
     const layout invalid_scale_layout({1, 2, 1, 1}, data_types::f16, format::bfyx);
 
     auto invalid_scale_net = onednn_sdpa_gpu_test::build_network(q_layout,
                                                                  k_layout,
                                                                  v_layout,
-                                                                 std::nullopt,
+                                                                 valid_mask_layout,
                                                                  invalid_scale_layout,
                                                                  true,
                                                                  std::nullopt);
@@ -852,7 +865,11 @@ INSTANTIATE_TEST_SUITE_P(
         onednn_sdpa_test_params{1, 2, 4, 6, 32, std::nullopt},
         onednn_sdpa_test_params{1, 2, 4, 6, 32, 0.125f},
         onednn_sdpa_test_params{1, 2, 4, 6, 32, std::nullopt, false, true, true},
-        onednn_sdpa_test_params{1, 2, 4, 6, 32, std::nullopt, true, true, true}
+        onednn_sdpa_test_params{1, 2, 4, 6, 32, std::nullopt, true, true, true},
+        // Causal masking: top-left and lower-right alignment must both match the OCL reference.
+        onednn_sdpa_test_params{1, 2, 4, 6, 32, std::nullopt, false, false, false, true, false},
+        onednn_sdpa_test_params{1, 2, 4, 6, 32, std::nullopt, false, false, false, true, true},
+        onednn_sdpa_test_params{1, 2, 6, 6, 32, std::nullopt, false, false, false, true, true}
     ),
     onednn_sdpa_gpu_test::PrintToStringParamName);
 #endif
