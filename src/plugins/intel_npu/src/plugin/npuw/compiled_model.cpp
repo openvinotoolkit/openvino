@@ -1835,7 +1835,7 @@ void ov::npuw::CompiledModel::set_weights_bank(std::shared_ptr<ov::npuw::weights
 
 void ov::npuw::CompiledModel::finalize_weights_bank() {
     LOG_INFO("Finalizing weights bank...");
-    std::shared_future<void> weights_bank_evaluation = std::async(std::launch::async, [&]() {
+    auto finalize_weights = [&]() {
         // Register lazy tensors
         for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
             auto& comp_model_desc = m_compiled_submodels[idx];
@@ -1891,9 +1891,9 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
         }
 
         m_import_weights_ctx.reset();
-    });
+    };
 
-    m_eval_future = weights_bank_evaluation;
+    m_eval_future = std::async(std::launch::async, finalize_weights);
 
     for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
@@ -1903,7 +1903,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             continue;
         }
 
-        comp_model_desc.closure.set_future(weights_bank_evaluation);
+        comp_model_desc.closure.set_future(m_eval_future);
     }
 
     LOG_INFO("Done.");
