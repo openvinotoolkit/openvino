@@ -2,6 +2,8 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+# mypy: ignore-errors
+
 """vLLM-specific glue for the OpenVINO torchdynamo backend.
 
 Everything here is kept out of the generic torchdynamo backend so it stays

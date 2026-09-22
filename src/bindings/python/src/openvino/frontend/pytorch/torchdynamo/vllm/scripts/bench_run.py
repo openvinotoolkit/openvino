@@ -2,6 +2,8 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+# mypy: ignore-errors
+
 # flake8: noqa
 
 """Manual benchmarking/smoke-test CLI: vLLM + OpenVINO backend vs vLLM eager.

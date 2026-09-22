@@ -95,8 +95,6 @@ jobs:
           wheels-to-install: 'openvino openvino_tokenizers'
 
       - name: Install vLLM tests requirements
-        # Gated alongside the test step below: this pulls vllm-cpu and its
-        # pinned torch build, which is the bulk of the job's runtime.
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test }}
         run: |
           python3 -m pip install -r ${VLLM_TESTS_INSTALL_DIR}/requirements.txt

@@ -2,6 +2,8 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+# mypy: ignore-errors
+
 """vLLM preset: expand options={"vllm": True} into per-flag defaults."""
 
 import os

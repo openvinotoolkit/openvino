@@ -257,8 +257,8 @@ jobs:
     name: vLLM tests
     needs: [ Docker, Build, Smart_CI ]
     # Installs vllm-cpu and downloads a model, so keep it out of the nightly
-    # scope; the PyTorch_FE component gate is applied per-step inside the job.
-    if: ${{ github.event_name != 'schedule' }}
+    # scope.
+    if: ${{ github.event_name != 'schedule' && fromJSON(needs.smart_ci.outputs.affected_components).PyTorch_FE.test }}
     uses: ./.github/workflows/job_vllm_tests.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
