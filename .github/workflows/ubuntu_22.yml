@@ -155,7 +155,7 @@ jobs:
     needs: [ Build, Smart_CI, Docker ]
     uses: ./.github/workflows/job_onnx_runtime.yml
     with:
-      runner: 'aks-linux-16-cores-32gb-ab'
+      runner: 'aks-lin-x64-build-16c32gb-ab'
       cmake-build-parallel-level: '15'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
       sccache-azure-key-prefix: 'ubuntu22_x86_64_onnxruntime'
@@ -166,7 +166,7 @@ jobs:
     needs: [ Docker, Build, Smart_CI ]
     uses: ./.github/workflows/job_gguf_llamacpp_validation.yml
     with:
-      runner: 'aks-linux-16-cores-32gb-ab'
+      runner: 'aks-lin-x64-build-16c32gb-ab'
       cmake-build-parallel-level: '15'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
 
@@ -177,7 +177,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb-ab
+    runs-on: aks-lin-x64-build-16c32gb-ab
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64_nvidia }}
       volumes:

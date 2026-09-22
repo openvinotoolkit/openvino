@@ -132,7 +132,7 @@ jobs:
     needs: [ Build, Smart_CI, Docker ]
     uses: ./.github/workflows/job_onnx_runtime.yml
     with:
-      runner: 'aks-linux-16-cores-32gb-arm-ab'
+      runner: 'aks-lin-arm64-build-16c32gb-ab'
       cmake-build-parallel-level: '15'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_arm64 }}
       sccache-azure-key-prefix: 'ubuntu22_aarch64_onnxruntime'
