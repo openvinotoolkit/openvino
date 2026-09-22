@@ -61,14 +61,14 @@ void place_dynamic_token_axis(std::vector<int64_t>& tgt, const ov::PartialShape&
 
 // Cases 2-5 are shared by both ingest paths: the llama.cpp cgraph decoder classifies a ggml view
 // into them (see ggml-decoder.cpp::compute_op_case) and the native .gguf builder describes its own
-// views the same way. Case 104 is builder-only: it takes a second (shape-reference) input the
-// cgraph path does not supply, so it has a different arity than the shared cases. See its comment
-// below, and docs/frontend_design.md for the other two builder-only cases in the frontend.
+// views the same way. The native builder can supply an optional second shape-reference input
+// for case 3 to preserve the runtime token layout. Builder-only case 104 also uses that input.
+// See its comment below and docs/frontend_design.md for the builder-only cases.
 OutputVector translate_view(const NodeContext& context) {
     num_inputs_check(context, 1, 2);
 
-    const auto output_shape = context.get_output_shape();
-    const auto input_shape = context.get_input_shape(0);
+    const auto& output_shape = context.get_output_shape();
+    const auto& input_shape = context.get_input_shape(0);
     if ((output_shape.is_static() && ov::shape_size(output_shape.to_shape()) == 0) ||
         (input_shape.is_static() && ov::shape_size(input_shape.to_shape()) == 0)) {
         // Empty recurrent-cache reorder views have no values and their CPY
@@ -100,9 +100,9 @@ OutputVector translate_view(const NodeContext& context) {
 
         // Restore the original ggml (base) shape if the OV input was already reshaped, mirroring
         // op_case 3. The base is [F, T] (ggml) == OV [.., T, F]; we then split F into G x group_stride.
-        auto input_ggml_shape = context.get_attribute<ov::Shape>("input_ggml_shape");
+        auto input_ggml_shape = context.get_attribute<ov::Shape>("input_ggml_shape", {});
         auto input_ov_shape = input.get_partial_shape();
-        if (input_ov_shape.rank().is_static() &&
+        if (!input_ggml_shape.empty() && input_ov_shape.rank().is_static() &&
             static_cast<size_t>(input_ov_shape.rank().get_length()) != input_ggml_shape.size()) {
             input = std::make_shared<ov::op::v1::Reshape>(
                 input,
@@ -135,9 +135,9 @@ OutputVector translate_view(const NodeContext& context) {
                                                       ov::op::v0::Constant::create(ov::element::i64, {tgt.size()}, tgt),
                                                       false);
             res->set_friendly_name("gdn_view_reshape_" + context.get_name());
-            return rename_outputs_with_suffix({res}, context.get_name());
+            return rename_outputs_with_suffix({std::move(res)}, context.get_name());
         }
-        return rename_outputs_with_suffix({sliced}, context.get_name());
+        return rename_outputs_with_suffix({std::move(sliced)}, context.get_name());
     }
     if (context.get_attribute<int>("op_case", 0) == 4) {
         // qwen3-next GDN packed output view. The GATED_DELTA_NET result is [1, 1, T + S_v, S_v*H_v]
@@ -177,17 +177,17 @@ OutputVector translate_view(const NodeContext& context) {
                 std::make_shared<ov::op::v1::Reshape>(sliced,
                                                       ov::op::v0::Constant::create(ov::element::i64, {tgt.size()}, tgt),
                                                       false);
-            return rename_outputs_with_suffix({res}, context.get_name());
+            return rename_outputs_with_suffix({std::move(res)}, context.get_name());
         }
-        return rename_outputs_with_suffix({sliced}, context.get_name());
+        return rename_outputs_with_suffix({std::move(sliced)}, context.get_name());
     }
     if (context.get_attribute<int>("op_case", 0) == 3) {
         auto input = context.get_input(0);
         auto input_ov_shape = input.get_partial_shape();
-        auto input_ggml_shape = context.get_attribute<ov::Shape>("input_ggml_shape");
+        auto input_ggml_shape = context.get_attribute<ov::Shape>("input_ggml_shape", {});
 
         // Input already reshaped: restore the original ggml (base) shape before slicing.
-        if (input_ov_shape.rank().is_static() &&
+        if (!input_ggml_shape.empty() && input_ov_shape.rank().is_static() &&
             static_cast<size_t>(input_ov_shape.rank().get_length()) != input_ggml_shape.size()) {
             input = std::make_shared<ov::op::v1::Reshape>(
                 input,
@@ -201,14 +201,31 @@ OutputVector translate_view(const NodeContext& context) {
         // ggml strides.
         auto slice = context.get_attribute<std::vector<int64_t>>("view_slice", {});
         ov::Output<ov::Node> result = input;
-        if (slice.size() == 3) {
+        bool whole_concat_input = false;
+        // Selecting a complete Concat input needs no packing or copy. This also keeps
+        // SSM token outputs independent of the final state when converting to paged execution.
+        const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(input.get_node_shared_ptr());
+        if (slice.size() == 3 && concat && concat->get_input_size() == 2 && concat->get_axis() == slice[0] &&
+            slice[0] >= 0 && concat->get_input_partial_shape(1).rank().is_static()) {
+            const auto& tail = concat->get_input_partial_shape(1)[slice[0]];
+            if (tail.is_static() && tail.get_length() > 0) {
+                const auto count = tail.get_length();
+                const bool prefix = slice[1] == 0 && slice[2] == -count;
+                const bool suffix = slice[1] == -count && slice[2] == count;
+                if (prefix || suffix) {
+                    result = concat->input_value(suffix ? 1 : 0);
+                    whole_concat_input = true;
+                }
+            }
+        }
+        if (!whole_concat_input && slice.size() == 3) {
             const int64_t axis = slice[0], start = slice[1], len = slice[2];
             if (axis >= 0 && static_cast<size_t>(axis) < input_ggml_shape.size() &&
                 start >= static_cast<int64_t>(input_ggml_shape[axis])) {
                 // A one-past-end recurrent cache view represents an empty
                 // slot-reorder destination. Its CPY consumer is routed to the
                 // cache base, so no standalone slice is needed.
-                return {input};
+                return {std::move(input)};
             }
             auto begin = ov::op::v0::Constant::create(ov::element::i64, {1}, {start});
             // A negative start is an end-anchored TAIL slice (conv_state_last: last d_conv-1 columns
@@ -236,13 +253,18 @@ OutputVector translate_view(const NodeContext& context) {
                                                       false);
             result.get_node_shared_ptr()->set_friendly_name("view_reshape_" + context.get_name());
         }
-        // A view that neither restores rank, slices nor reshapes is a pass-through: the value is
-        // still the producer's output, so renaming it here would rename a node owned by another
-        // ggml tensor (and the suffix compounds, since the helper appends).
-        if (result == context.get_input(0)) {
-            return {result};
+        // A second operand provides the runtime layout for a view of a packed recurrent
+        // output. This preserves token placement when paged execution flattens the batch.
+        if (context.get_input_size() == 2) {
+            result = std::make_shared<ov::op::v1::Reshape>(result,
+                                                           std::make_shared<ov::op::v3::ShapeOf>(context.get_input(1)),
+                                                           false);
         }
-        return rename_outputs_with_suffix({result}, context.get_name());
+        // Preserve producer names when the view reuses an existing value.
+        if (result == context.get_input(0) || (whole_concat_input && tgt.empty() && context.get_input_size() == 1)) {
+            return {std::move(result)};
+        }
+        return rename_outputs_with_suffix({std::move(result)}, context.get_name());
     }
     // op_case 104 (builder): layer-index slice for per-layer embedding.
     // Input [1, n_layer, T, D] -> slice the layer axis (1) -> [1, 1, T, D].
@@ -268,7 +290,7 @@ OutputVector translate_view(const NodeContext& context) {
             const auto ref_rank = ref.get_partial_shape().rank();
             FRONT_END_OP_CONVERSION_CHECK(ref_rank.is_static(),
                                           "VIEW case 104 shape reference must have a static rank");
-            const auto d_ps = context.get_output_shape();
+            const auto d_ps = input.get_partial_shape();
             const int64_t rank = ref_rank.get_length();
             FRONT_END_OP_CONVERSION_CHECK(d_ps.rank().is_static() && d_ps[d_ps.rank().get_length() - 1].is_static(),
                                           "VIEW case 104 requires a static per-layer embedding width");
@@ -343,7 +365,7 @@ OutputVector translate_view(const NodeContext& context) {
                     ov::op::v0::Constant::create(ov::element::i64, {end.size()}, end),
                     ov::op::v0::Constant::create(ov::element::i64, {step.size()}, step),
                     ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes));
-                return rename_outputs_with_suffix({result}, context.get_name());
+                return rename_outputs_with_suffix({std::move(result)}, context.get_name());
             }
 
             // A ggml view may start inside a row and continue into the next row while preserving
@@ -369,7 +391,7 @@ OutputVector translate_view(const NodeContext& context) {
                         ov::op::v0::Constant::create(ov::element::i64, {1}, {2}));
                     auto target = ov::op::v0::Constant::create(ov::element::i64, {dst_shape.size()}, dst_shape);
                     auto result = std::make_shared<ov::op::v1::Reshape>(selected, target, false);
-                    return rename_outputs_with_suffix({result}, context.get_name());
+                    return rename_outputs_with_suffix({std::move(result)}, context.get_name());
                 }
             }
         }
@@ -420,14 +442,14 @@ OutputVector translate_view(const NodeContext& context) {
                     ov::op::v0::Constant::create(ov::element::i64, {end.size()}, end),
                     ov::op::v0::Constant::create(ov::element::i64, {step.size()}, step),
                     ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes));
-                return rename_outputs_with_suffix({result}, context.get_name());
+                return rename_outputs_with_suffix({std::move(result)}, context.get_name());
             }
         }
 
         if (byte_offset == 0 && ov::shape_size(src_shape) == ov::shape_size(dst_shape)) {
             auto target = ov::op::v0::Constant::create(ov::element::i64, {dst_shape.size()}, dst_shape);
             auto result = std::make_shared<ov::op::v1::Reshape>(context.get_input(0), target, false);
-            return rename_outputs_with_suffix({result}, context.get_name());
+            return rename_outputs_with_suffix({std::move(result)}, context.get_name());
         }
     }
     return {context.get_input(0)};

@@ -9,6 +9,7 @@
 #include "embedding/redirect_new_kv_to_output.hpp"
 #include "embedding/remove_empty_kv_inputs.hpp"
 #include "infer_request_utils.hpp"
+#include "intel_npu/npu_private_properties.hpp"
 #include "llm_compiled_model_utils.hpp"
 #include "llm_infer_request.hpp"
 #include "logging.hpp"
@@ -17,14 +18,17 @@
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
 #include "npuw_transformations/duplicate_shared_kv_concat.hpp"
+#include "npuw_transformations/insert_vocab_sub128.hpp"
 #include "npuw_transformations/lora_stateful_to_stateless.hpp"
 #include "npuw_transformations/optimize_value_tensors.hpp"
 #include "npuw_transformations/patch_sliding_window_mask.hpp"
+#include "npuw_transformations/propagate_slice.hpp"
 #include "npuw_transformations/remove_token_type_ids.hpp"
 #include "npuw_transformations/replace_deepstack_scatter_with_add.hpp"
 #include "npuw_transformations/reshape_sliced_head_to_static.hpp"
 #include "npuw_transformations/reshape_to_static.hpp"
 #include "npuw_transformations/right_align_mask_slice_for_conv.hpp"
+#include "npuw_transformations/shrink_sliding_window_kv_cache.hpp"
 #include "npuw_transformations/slice_out_embeds.hpp"
 #include "npuw_transformations/split_kvcache_into_blocks.hpp"
 #include "openvino/op/convert.hpp"
@@ -256,10 +260,13 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
         LOG_WARN(compiler_gate_support_msg << "unsupported");
     }
 
-    if (desc.arch == "5010" && desc.compiler_ver >= ONEAPI_MAKE_VERSION(8, 1)) {
-        // Flash attention tile with GQA is supported starting from compiler version 8.1 on NPU5010
-        desc.support_flash_attention_tile = true;
-    }
+    static const std::unordered_set<std::string_view> flash_attention_tile_supported_platforms = {
+        ov::intel_npu::Platform::NPU5010,
+        ov::intel_npu::Platform::NPU6010};
+
+    // Flash attention tile with GQA is supported starting from compiler version 8.1 on supported platforms
+    desc.support_flash_attention_tile =
+        flash_attention_tile_supported_platforms.count(desc.arch) && desc.compiler_ver >= ONEAPI_MAKE_VERSION(8, 1);
 
     return std::make_optional(std::move(desc));
 }
@@ -424,6 +431,33 @@ void split_llm_properties(const ov::AnyMap& properties, ov::AnyMap& llm_properti
         } else {
             other_properties.insert(*it);
         }
+    }
+}
+
+// Decide on using fused flash attention tile based on provided option and NPU capabilities.
+// If hardware supports and attention hint is set to HFA, then we can use fused flash attention implementation
+// automatically, unless user explicitly disables it via NPUW_ATTN_HFA_FUSED=NO option.
+void resolve_hfa_fused_attention(::intel_npu::Config& cfg,
+                                 ov::AnyMap& other_props,
+                                 const std::optional<NPUDesc>& npudesc) {
+    uint32_t max_prompt_len = align_to(cfg.get<::intel_npu::NPUW_LLM_MAX_PROMPT_LEN>(), 64u);
+    const auto prefill_attn_hint_provided = cfg.has<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>();
+    const auto hfa_fused_npu_supported = npudesc.has_value() && npudesc->support_flash_attention_tile;
+    const auto prompt_length_supported =
+        max_prompt_len >= 4096;  // HFA fused attention tile is optimal prompt length >= 4096
+
+    // If NPUW_LLM_PREFILL_ATTENTION_HINT was not provided, set HFA automatically
+    // when the hardware and prompt length favor the fused flash attention tile implementation
+    if (!prefill_attn_hint_provided && hfa_fused_npu_supported && prompt_length_supported) {
+        cfg.update({{"NPUW_LLM_PREFILL_ATTENTION_HINT", "HFA"}});
+        LOG_INFO("Auto-selected NPUW_LLM_PREFILL_ATTENTION_HINT to HFA");
+    }
+
+    const auto is_hfa =
+        cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>() == ::intel_npu::npuw::llm::AttentionHint::HFA;
+    if (other_props.count("NPUW_ATTN_HFA_FUSED") == 0 && is_hfa && hfa_fused_npu_supported) {
+        other_props["NPUW_ATTN_HFA_FUSED"] = "YES";
+        LOG_INFO("Set NPUW_ATTN_HFA_FUSED to YES");
     }
 }
 
@@ -667,6 +701,24 @@ std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_gener
         ov::npuw::ReshapeToStatic(max_generation_token_len, kv_size, axes, m_max_lora_rank, whisper_lhs_seq_size)
             .run_on_model(generate_variant);
 
+        if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
+            // Must run after ReshapeToStatic, before OptimizeValueTensors (V-tensor optimization).
+            // No-op (returns false) for models without sliding-window attention layers.
+            ov::npuw::ShrinkSlidingWindowKVCache swa_pass(kv_size, max_generation_token_len, axes);
+            if (swa_pass.run_on_model(generate_variant)) {
+                // m_swa_window_size was already set from the prefill model earlier in the
+                // constructor; here we only verify every generate variant agrees with it.
+                OPENVINO_ASSERT(m_swa_window_size == swa_pass.window_size(),
+                                "SWA window size mismatch: ",
+                                m_swa_window_size,
+                                " vs ",
+                                swa_pass.window_size());
+                LOG_INFO("ShrinkSlidingWindowKVCache applied to generate variant (kv_size="
+                         << kv_size << ", max_generation_token_len=" << max_generation_token_len
+                         << ", window_size=" << m_swa_window_size << ")");
+            }
+        }
+
         // Set unique name for this variant
         generate_variant->set_friendly_name(generate_model->get_friendly_name() + "_kv" + std::to_string(kv_size));
         generate_model_variants.push_back(generate_variant);
@@ -754,16 +806,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     refine_dynamic_props(npuw_llm_props, npudesc);
     m_cfg.update(any_copy(npuw_llm_props));
 
-    // Decide on using fused flash attention tile based on provided option and NPU capabilities.
-    // If hardware supports and attention hint is set to HFA, then we can use fused flash attention implementation
-    // automatically, unless user explicitly disables it via NPUW_ATTN_HFA_FUSED=NO option.
-    const auto is_hfa =
-        m_cfg.get<::intel_npu::NPUW_LLM_PREFILL_ATTENTION_HINT>() == ::intel_npu::npuw::llm::AttentionHint::HFA;
-    const auto hfa_fused_npu_supported = npudesc.has_value() && npudesc->support_flash_attention_tile;
-    if (other_props.count("NPUW_ATTN_HFA_FUSED") == 0 && is_hfa && hfa_fused_npu_supported) {
-        other_props["NPUW_ATTN_HFA_FUSED"] = "YES";
-        LOG_INFO("Set NPUW_ATTN_HFA_FUSED to YES");
-    }
+    resolve_hfa_fused_attention(m_cfg, other_props, npudesc);
 
     m_is_whisper = m_cfg.get<::intel_npu::NPUW_WHISPER>();
     if (m_is_whisper) {
@@ -858,6 +901,13 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     LOG_DEBUG("Creating kvcache model as clone of passed one.");
     auto kvcache_model = model->clone();
 
+    if (m_cfg.get<::intel_npu::NPUW_LLM_VOCAB_ASYM_SHARED>()) {
+        ov::npuw::InsertVocabSub128 pass;
+        if (!pass.run_on_model(kvcache_model)) {
+            LOG_INFO("No asymmetric u8 vocab found - graph Sub128 insertion is skipped.");
+        }
+    }
+
     auto use_text_embed_key = pop_option(other_props, std::string("NPUW_TEXT_EMBED"));
     m_is_embedding = use_text_embed_key.value_or(false).as<bool>() == true;
 
@@ -934,7 +984,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     ov::npuw::DetectAttentionMask().run_on_model(kvcache_model);
     ov::npuw::log_detected_masks(kvcache_model);
 
-    if (!m_is_whisper) {
+    // Two mutually-exclusive ways to handle sliding-window attention (SWA) layers:
+    //  - PatchSlidingWindowMask (default): only fixes up the attention mask for correctness;
+    //    the KV cache still keeps the full context (no memory/perf savings).
+    //  - ShrinkSlidingWindowKVCache: shrinks the KV cache to the window size and
+    //    manages it as a sliding buffer at runtime for better memory/perf.
+    if (!m_is_whisper && !m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
         LOG_DEBUG("Try patch sliding window attention mask (Phi-3, Gemma-2, Gemma-3, Gemma-4), if it exists.");
         ov::npuw::PatchSlidingWindowMask().run_on_model(kvcache_model);
     }
@@ -1001,6 +1056,24 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
     LOG_DEBUG("Make kvcache model with static shapes");
 
+    if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
+        // Must run after ReshapeToStatic, before OptimizeValueTensors (V-tensor optimization).
+        // No-op (returns false) for models without sliding-window attention layers.
+        const uint32_t prefill_input_size =
+            m_use_chunk_prefill ? static_cast<uint32_t>(m_prefill_chunk_size) : m_kvcache_desc.max_prompt_size;
+        ov::npuw::ShrinkSlidingWindowKVCache swa_pass(m_kvcache_desc.max_prompt_size, prefill_input_size, axes);
+        if (swa_pass.run_on_model(prefill_model)) {
+            m_swa_window_size = swa_pass.window_size();
+            LOG_INFO("ShrinkSlidingWindowKVCache applied to prefill model (max_prompt_size="
+                     << m_kvcache_desc.max_prompt_size << ", prefill_input_size=" << prefill_input_size
+                     << ", window_size=" << m_swa_window_size << ")");
+            OPENVINO_ASSERT(!m_enable_prefix_caching,
+                            "NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK and NPUW_LLM_ENABLE_PREFIX_CACHING cannot be enabled "
+                            "simultaneously: the prefix cache restores KV blocks at offsets sized against "
+                            "the full prompt capacity, which does not fit the window-shrunk SWA KV tensors.");
+        }
+    }
+
     // In case of Gemma3, we should remove `token_type_ids` from generate version of the model,
     // as it leads to inaccurate output otherwise.
     // NOTE: It is important to preserve `token_type_ids` in prefill model, however, as `token_type_ids`
@@ -1017,11 +1090,25 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Encoder embedding model: skipping generate model variants (prefill-only).");
     }
 
+    const bool is_per_layer_inputs_model = has_per_layer_inputs(prefill_model);
+    bool propagate_slice_up = m_cfg.get<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>();
+
     if (lm_head_model) {
         LOG_DEBUG("Shared LM head: slice the prefill output");
         // KVCache model is already reshaped to [1, max_generation_token_len, embed size],
         // so only apply slice to the Prefill model:
         ov::npuw::SliceOutEmbeds(axes.batch, m_kvcache_desc.max_generation_token_len).run_on_model(prefill_model);
+        // Gemma-4 E2B/E4B cross-group KV sharing models benefit the most from hoisting the slice
+        // through the SWA/Global boundary, so auto-enable this option for them unless the user
+        // explicitly configured it.
+        if (is_per_layer_inputs_model && !m_cfg.has<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>()) {
+            m_cfg.update({{"NPUW_LLM_PROPAGATE_SLICE_UP", "YES"}});
+            propagate_slice_up = true;
+            LOG_INFO("Gemma-4 cross-group KV model: auto-enabling NPUW_LLM_PROPAGATE_SLICE_UP");
+        }
+        if (propagate_slice_up) {
+            ov::npuw::PropagateSliceUp().run_on_model(prefill_model);
+        }
         LOG_DEBUG("Make LM head model with static shapes");
         ov::npuw::ReshapeSlicedHeadToStatic(axes.batch, m_kvcache_desc.max_generation_token_len)
             .run_on_model(lm_head_model);
@@ -1175,8 +1262,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         // Both variants fall below the default keep_blocks=5 threshold and remain as
         // separate FCE compile units.  Lower to 3 so both are folded into REP and
         // reused across their respective instances.
-        if (has_per_layer_inputs(prefill_model)) {
+        if (is_per_layer_inputs_model) {
             prefill_config["NPUW_ONLINE_KEEP_BLOCKS"] = "3";
+            if (propagate_slice_up) {
+                prefill_config["NPUW_ONLINE_KEEP_BLOCKS_TAGGED"] = "attn";
+            }
             LOG_INFO("Gemma-4 cross-group KV model: setting NPUW_ONLINE_KEEP_BLOCKS=3 for prefill");
         }
     }
@@ -1490,7 +1580,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
             m_kvcache_desc.v_tensors_transposed_gen & m_prefill_chunk_size & m_use_chunk_prefill & m_max_lora_rank &
             m_enable_prefix_caching & m_prefix_caching_block_size & m_prefix_caching_max_num_blocks &
             m_longrope_context_limit & m_is_whisper & m_eos_token_id & m_decomposed_sdpa_size & m_is_eagle &
-            m_is_embedding & m_is_block_kv_cache & m_is_encoder_embedding;
+            m_is_embedding & m_is_block_kv_cache & m_is_encoder_embedding & m_swa_window_size;
 
         // LongRoPE cos/sin tables: the transformed graphs have npuw_lr_cos/npuw_lr_sin
         // inputs the host must fill every call, but deserialization imports already-
@@ -1724,7 +1814,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_prefix_caching_block_size & compiled->m_prefix_caching_max_num_blocks &
             compiled->m_longrope_context_limit & compiled->m_is_whisper & compiled->m_eos_token_id &
             compiled->m_decomposed_sdpa_size & compiled->m_is_eagle & compiled->m_is_embedding &
-            compiled->m_is_block_kv_cache & compiled->m_is_encoder_embedding;
+            compiled->m_is_block_kv_cache & compiled->m_is_encoder_embedding & compiled->m_swa_window_size;
 
         // LongRoPE cos/sin tables - see the matching comment in serialize()
         stream & compiled->m_longrope_tables;
@@ -1806,6 +1896,9 @@ bool ov::npuw::LLMCompiledModel::compute_continuous_prefill_supported() const {
     }
     if (m_longrope_context_limit > 0u) {
         return false;  // LongRoPE threshold can be crossed mid-generation
+    }
+    if (m_swa_window_size > 0u) {
+        return false;
     }
     OPENVINO_ASSERT(m_prefill_compiled, "Continuous prefill probe requires a compiled prefill model.");
     const auto& prefill_inputs = m_prefill_compiled->inputs();
@@ -1923,6 +2016,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::optimize_fp8, NPUW_LLM_OPTIMIZE_FP8, get),
                           BIND(npuw::llm::cache_rope, NPUW_LLM_CACHE_ROPE, get),
                           BIND(npuw::llm::enable_block_based_kv_cache, NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE, get),
+                          BIND(npuw::llm::enable_swa_kv_cache_shrink, NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK, get),
                           BIND(npuw::llm::enable_continuous_prefill, NPUW_LLM_ENABLE_CONTINUOUS_PREFILL, get),
                           BIND(npuw::llm::prefill_moe_hint, NPUW_LLM_PREFILL_MOE_HINT, get),
                           BIND(npuw::llm::generate_moe_hint, NPUW_LLM_GENERATE_MOE_HINT, get),
@@ -1933,6 +2027,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::llm::prefill_attn_hint, NPUW_LLM_PREFILL_ATTENTION_HINT, getString),
                           BIND(npuw::llm::generate_attn_hint, NPUW_LLM_GENERATE_ATTENTION_HINT, getString),
                           BIND(npuw::llm::shared_lm_head, NPUW_LLM_SHARED_HEAD, get),
+                          BIND(npuw::llm::propagate_slice_up, NPUW_LLM_PROPAGATE_SLICE_UP, get),
                           BIND(npuw::whisper::enabled, NPUW_WHISPER, get),
                           BIND(npuw::whisper::whisper_eos_token, NPUW_WHISPER_EOS_TOKEN, get),
                           BIND(npuw::whisper::whisper_decompose_sdpa, NPUW_WHISPER_DECOMPOSE_SDPA, get),

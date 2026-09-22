@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <array>
-#include <cstddef>
-#include <exception>
 #include <gmock/gmock-matchers.h>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+
+#include <array>
+#include <cstddef>
+#include <exception>
 #include <memory>
 #include <random>
 #include <thread>
@@ -144,6 +145,52 @@ TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithZeroTensor) {
     EXPECT_EQ(zero_state->get_state()->get_element_type(), zero_state->get_zero_state()->get_element_type());
 
     OV_ASSERT_NO_THROW(zero_state->reset());
+}
+
+TEST_P(ZeroVariableStateTests, SetStateRejectsTensorSmallerThanStateBuffer) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 2, 2, 2};
+    auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, element::f32, shape, true);
+    auto zero_state = std::make_shared<::intel_npu::ZeroVariableState>(init_struct, "state", zero_tensor, 1, 1);
+
+    // The state input and its state output share this buffer; a smaller tensor would let the device write past it
+    // through the state output, so set_state must reject it instead of aliasing the undersized buffer.
+    auto smaller_shape = Shape{1};
+    auto smaller_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, element::f32, smaller_shape, true);
+
+    EXPECT_THROW(zero_state->set_state(smaller_tensor), ov::Exception);
+}
+
+TEST_P(ZeroVariableStateTests, SetStateRejectsTensorWithDifferentElementType) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 2, 2, 2};
+    auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, element::f32, shape, true);
+    auto zero_state = std::make_shared<::intel_npu::ZeroVariableState>(init_struct, "state", zero_tensor, 1, 1);
+
+    // A tensor with the same shape but a wider element type is larger than the state buffer, so it passes the capacity
+    // check; the compiled graph would still read the shared buffer as f32, so set_state must reject the type mismatch.
+    auto f64_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, element::f64, shape, true);
+    ASSERT_GT(f64_tensor->get_byte_size(), zero_tensor->get_byte_size());
+
+    EXPECT_THROW(zero_state->set_state(f64_tensor), ov::Exception);
+}
+
+TEST_P(ZeroVariableStateTests, SetStateRejectsTensorWithDifferentShape) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+
+    auto shape = Shape{1, 2, 2, 2};
+    auto zero_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, element::f32, shape, true);
+    auto zero_state = std::make_shared<::intel_npu::ZeroVariableState>(init_struct, "state", zero_tensor, 1, 1);
+
+    // A tensor with the same element type and byte size but a different shape passes the capacity check; the compiled
+    // graph would interpret the shared buffer with the state's shape, so set_state must reject the shape mismatch.
+    auto reshaped = Shape{ov::shape_size(shape)};
+    auto reshaped_tensor = std::make_shared<::intel_npu::ZeroTensor>(init_struct, element::f32, reshaped, true);
+    ASSERT_EQ(reshaped_tensor->get_byte_size(), zero_tensor->get_byte_size());
+
+    EXPECT_THROW(zero_state->set_state(reshaped_tensor), ov::Exception);
 }
 
 TEST_P(ZeroVariableStateTests, CreateZeroStateAndUseSetStateWithNormalTensor) {
