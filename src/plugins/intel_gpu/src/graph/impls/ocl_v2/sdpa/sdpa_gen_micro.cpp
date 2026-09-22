@@ -970,40 +970,40 @@ sdpa_config_t* choose_config_xe3p(int head_size, int seq, bool thin_q, bool quan
     //   hs<=512 : plain -> h512 ; 2nd -> h512_2nd ; quant|2nd / plain|quant
     //             (via {xe3p,512,fma|quant}) -> q_h512_2nd
     //   hs>512  : no xe3p row -> fall back to xe2
-	// xe3p tuning table is only for non-PA SDPA; PA uses the xe2 fallback below because
-	// xe3p-specific PA configs have not been validated yet.
-	if(!is_pa) {
-    if (head_size <= 32) {
-        if (thin_q)
-            return quantized ? &xe3p_h32 : &xe3p_h64_2nd;
-        return quantized ? &xe3p_h128 : &xe3p_h32;
+    // xe3p tuning table is only for non-PA SDPA; PA uses the xe2 fallback below because
+    // xe3p-specific PA configs have not been validated yet.
+    if (!is_pa) {
+        if (head_size <= 32) {
+            if (thin_q)
+                return quantized ? &xe3p_h32 : &xe3p_h64_2nd;
+            return quantized ? &xe3p_h128 : &xe3p_h32;
+        }
+        if (head_size <= 64) {
+            if (thin_q)
+                return &xe3p_h64_2nd;  // {xe3p,64, fma|2nd} and {fma|2nd|quant}
+            return &xe3p_h128;         // no {xe3p,64} plain/quant -> ceiling to {xe3p,128}
+        }
+        if (head_size <= 128) {
+            if (thin_q)
+                return &xe3p_h128_2nd;  // {xe3p,128, 2nd} and {2nd|quant}
+            return &xe3p_h128;          // {xe3p,128} and {quant}
+        }
+        if (head_size <= 256) {
+            if (thin_q)
+                return &xe3p_h256_2nd;  // {xe3p,256, 2nd} and {2nd|quant}
+            if (quantized)
+                return &xe3p_q_h256;  // {xe3p,256, quant}
+            // No {xe3p,256} plain row -> head_size ceiling matches {xe3p,512} plain.
+            return &xe3p_h512;
+        }
+        if (head_size <= 512) {
+            if (thin_q)
+                return quantized ? &xe3p_q_h512_2nd : &xe3p_h512_2nd;  // {512,2nd}/{512,2nd|quant}
+            if (quantized)
+                return &xe3p_q_h512_2nd;  // {xe3p,512, fma|quant} (fma folded; same config)
+            return &xe3p_h512;            // {xe3p,512} plain
+        }
     }
-    if (head_size <= 64) {
-        if (thin_q)
-            return &xe3p_h64_2nd;  // {xe3p,64, fma|2nd} and {fma|2nd|quant}
-        return &xe3p_h128;         // no {xe3p,64} plain/quant -> ceiling to {xe3p,128}
-    }
-    if (head_size <= 128) {
-        if (thin_q)
-            return &xe3p_h128_2nd;  // {xe3p,128, 2nd} and {2nd|quant}
-        return &xe3p_h128;          // {xe3p,128} and {quant}
-    }
-    if (head_size <= 256) {
-        if (thin_q)
-            return &xe3p_h256_2nd;  // {xe3p,256, 2nd} and {2nd|quant}
-        if (quantized)
-            return &xe3p_q_h256;    // {xe3p,256, quant}
-        // No {xe3p,256} plain row -> head_size ceiling matches {xe3p,512} plain.
-        return &xe3p_h512;
-    }
-    if (head_size <= 512) {
-        if (thin_q)
-            return quantized ? &xe3p_q_h512_2nd : &xe3p_h512_2nd;  // {512,2nd}/{512,2nd|quant}
-        if (quantized)
-            return &xe3p_q_h512_2nd;  // {xe3p,512, fma|quant} (fma folded; same config)
-        return &xe3p_h512;            // {xe3p,512} plain
-    }
-	}
     return choose_config_xe2(head_size, seq, thin_q, quantized, is_integrated, is_pa, is_prefill);
 }
 
@@ -1776,12 +1776,11 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
 
     GPU_DEBUG_IF(ExecutionConfig::get_verbose() >= static_cast<std::underlying_type_t<LogLevel>>(LogLevel::TRACE_DETAIL)) {
         std::ostringstream oss;
-        oss << "[choose_config arch=" << static_cast<int>(device_info.arch) << "] head_size=" << static_cast<int32_t>(k_head_size)
-            << " seq=" << nkeys_v << " thin_q=" << thin_q << " quantized=" << is_quantized << " is_integrated=" << is_integrated
-            << " is_pa=" << is_paged_attention << " is_prefill=" << is_prefill << " is_gqa_single_token=" << is_gqa_single_token
-            << " => config={" << config->unroll_m_kq << "," << config->unroll_n_kq << "," << config->unroll_m_vs << ","
-            << config->unroll_n_vs << "," << config->wg_m_kq << "," << config->wg_n_kq << "," << config->wg_m_vs << ","
-            << config->wg_n_vs << "}";
+        oss << "[choose_config arch=" << static_cast<int>(device_info.arch) << "] head_size=" << static_cast<int32_t>(k_head_size) << " seq=" << nkeys_v
+            << " thin_q=" << thin_q << " quantized=" << is_quantized << " is_integrated=" << is_integrated << " is_pa=" << is_paged_attention
+            << " is_prefill=" << is_prefill << " is_gqa_single_token=" << is_gqa_single_token << " => config={" << config->unroll_m_kq << ","
+            << config->unroll_n_kq << "," << config->unroll_m_vs << "," << config->unroll_n_vs << "," << config->wg_m_kq << "," << config->wg_n_kq << ","
+            << config->wg_m_vs << "," << config->wg_n_vs << "}";
         static std::set<std::string> seen_choose_config;
         if (seen_choose_config.insert(oss.str()).second)
             GPU_DEBUG_TRACE_DETAIL << oss.str() << "\n";
@@ -2092,18 +2091,16 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
             return std::to_string(t.bits()) + (t.isInteger() && !t.isSigned() ? "u" : "") + k;
         };
         auto fmt_pkg = [&](std::ostringstream& o, const micro::Package& pkg) {
-            o << "sg_tile=" << setting_or(pkg, "sg_tile_m") << "x" << setting_or(pkg, "sg_tile_n")
-              << " wg_tile=" << setting_or(pkg, "wg_tile_m") << "x" << setting_or(pkg, "wg_tile_n")
-              << " sg_per_wg=" << setting_or(pkg, "sg_per_wg_m") << "x" << setting_or(pkg, "sg_per_wg_n")
-              << "x" << setting_or(pkg, "sg_per_wg_k") << " slm=" << setting_or(pkg, "slm_size")
-              << " systolic=" << pkg.systolic << " grfMin=" << pkg.grfMin << " barriers=" << pkg.barrierCount;
+            o << "sg_tile=" << setting_or(pkg, "sg_tile_m") << "x" << setting_or(pkg, "sg_tile_n") << " wg_tile=" << setting_or(pkg, "wg_tile_m") << "x"
+              << setting_or(pkg, "wg_tile_n") << " sg_per_wg=" << setting_or(pkg, "sg_per_wg_m") << "x" << setting_or(pkg, "sg_per_wg_n") << "x"
+              << setting_or(pkg, "sg_per_wg_k") << " slm=" << setting_or(pkg, "slm_size") << " systolic=" << pkg.systolic << " grfMin=" << pkg.grfMin
+              << " barriers=" << pkg.barrierCount;
         };
         std::ostringstream oss;
         oss << "[micro_selected arch=" << static_cast<int>(device_info.arch) << "] head_size=" << static_cast<int32_t>(k_head_size)
-            << " v_head_size=" << static_cast<int32_t>(v_head_size) << " d_max=" << d_max
-            << " is_pa=" << is_paged_attention << " is_prefill=" << is_prefill << " thin_q=" << thin_q
-            << " quantized=" << is_quantized
-            << " | KQ{Ta_ext=" << fmt_type(problem_kq.Ta_ext) << " Tb_ext=" << fmt_type(problem_kq.Tb_ext) << " ";
+            << " v_head_size=" << static_cast<int32_t>(v_head_size) << " d_max=" << d_max << " is_pa=" << is_paged_attention << " is_prefill=" << is_prefill
+            << " thin_q=" << thin_q << " quantized=" << is_quantized << " | KQ{Ta_ext=" << fmt_type(problem_kq.Ta_ext)
+            << " Tb_ext=" << fmt_type(problem_kq.Tb_ext) << " ";
         fmt_pkg(oss, gemm_kq);
         oss << "} | VS{Ta_ext=" << fmt_type(problem_vs.Ta_ext) << " ";
         fmt_pkg(oss, gemm_vs);

@@ -10,7 +10,6 @@
 
 #include "sdpa_opt.hpp"
 
-
 #include "../primitive_ocl_base.hpp"
 #include "../utils/kernel_generator.hpp"
 #include "common_utils/jitter.hpp"
