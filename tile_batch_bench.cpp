@@ -21,9 +21,7 @@
 // data_dir must contain:
 //   best-ort_dynamic.xml/.bin   (dynamic-batch IR)
 //   best-ort_b<N>.xml/.bin      (static-batch IR for this N, optional)
-//   tiles_b<N>.npy              (input tensor, optional -- when it is missing
-//                                the tool feeds synthetic random data shaped
-//                                after the model input instead)
+//   tiles_b<N>.npy              (input tensor, produced by prepare_tiles.py)
 
 #include <algorithm>
 #include <chrono>
@@ -31,9 +29,7 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <memory>
 #include <numeric>
-#include <random>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -47,7 +43,7 @@ namespace {
 // Returns raw bytes, the element type, and the shape.
 struct NpyArray {
     std::vector<uint8_t> raw;
-    ov::element::Type_t dtype = ov::element::Type_t::f32;
+    ov::element::Type_t dtype;
     std::vector<size_t> shape;
 };
 
@@ -116,44 +112,6 @@ double mean(const std::vector<double>& v) {
     return std::accumulate(v.begin(), v.end(), 0.0) / static_cast<double>(v.size());
 }
 
-// Input shape for a synthetic batch: the model's own input shape with the batch
-// dimension pinned to n. Every other dimension has to be static.
-ov::Shape synthetic_shape(const std::shared_ptr<ov::Model>& model, size_t n) {
-    auto pshape = model->input().get_partial_shape();
-    if (pshape.rank().is_dynamic()) {
-        throw std::runtime_error("Model input rank is dynamic, cannot synthesize an input tensor");
-    }
-    pshape[0] = ov::Dimension(static_cast<ov::Dimension::value_type>(n));
-    if (pshape.is_dynamic()) {
-        std::stringstream ss;
-        ss << "Model input keeps dynamic dimensions besides the batch one: " << pshape;
-        throw std::runtime_error(ss.str());
-    }
-    return pshape.to_shape();
-}
-
-// Deterministic pseudo-random payload -- the numbers are meaningless, we only
-// measure latency, but a fixed seed keeps successive runs comparable.
-void fill_random(ov::Tensor& t) {
-    std::mt19937 gen(42);
-    if (t.get_element_type() == ov::element::f32) {
-        std::uniform_real_distribution<float> dist(0.0f, 1.0f);
-        auto* p = t.data<float>();
-        for (size_t i = 0; i < t.get_size(); ++i) {
-            p[i] = dist(gen);
-        }
-    } else if (t.get_element_type() == ov::element::u8) {
-        std::uniform_int_distribution<int> dist(0, 255);
-        auto* p = t.data<uint8_t>();
-        for (size_t i = 0; i < t.get_size(); ++i) {
-            p[i] = static_cast<uint8_t>(dist(gen));
-        }
-    } else {
-        throw std::runtime_error("Unsupported model input type for synthetic data: " +
-                                 t.get_element_type().get_type_name());
-    }
-}
-
 // Runs `iters` inferences (after `warmup`) with the given input data already
 // bound, returns {avg_total_ms, avg_per_image_ms}.
 std::pair<double, double> run_batch(ov::InferRequest& req, size_t n, size_t warmup, size_t iters) {
@@ -184,29 +142,24 @@ double bench(const std::string& tag,
     auto compiled = core.compile_model(model, device);
     auto req = compiled.create_infer_request();
 
+    ov::Shape shape{n, tiles.shape[1], tiles.shape[2], tiles.shape[3]};
     const auto port_type = compiled.input().get_element_type();
 
     ov::Tensor input;
-    if (tiles.raw.empty()) {
-        input = ov::Tensor(port_type, synthetic_shape(model, n));
-        fill_random(input);
-    } else {
-        ov::Shape shape{n, tiles.shape[1], tiles.shape[2], tiles.shape[3]};
-        if (port_type == tiles.dtype) {
-            input = ov::Tensor(port_type, shape, const_cast<uint8_t*>(tiles.raw.data()));
-        } else if (port_type == ov::element::f32 && tiles.dtype == ov::element::u8) {
-            // Model expects float input but we only loaded uint8 pixels: convert.
-            input = ov::Tensor(ov::element::f32, shape);
-            auto* dst = input.data<float>();
-            const auto* src = tiles.raw.data();
-            for (size_t i = 0; i < input.get_size(); ++i) {
-                dst[i] = static_cast<float>(src[i]);
-            }
-        } else {
-            throw std::runtime_error("Unhandled combination: npy dtype=" +
-                                     std::string(tiles.dtype == ov::element::u8 ? "u8" : "f32") +
-                                     " vs model port dtype=" + port_type.get_type_name());
+    if (port_type == tiles.dtype) {
+        input = ov::Tensor(port_type, shape, const_cast<uint8_t*>(tiles.raw.data()));
+    } else if (port_type == ov::element::f32 && tiles.dtype == ov::element::u8) {
+        // Model expects float input but we only loaded uint8 pixels: convert.
+        input = ov::Tensor(ov::element::f32, shape);
+        auto* dst = input.data<float>();
+        const auto* src = tiles.raw.data();
+        for (size_t i = 0; i < input.get_size(); ++i) {
+            dst[i] = static_cast<float>(src[i]);
         }
+    } else {
+        throw std::runtime_error("Unhandled combination: npy dtype=" +
+                                  std::string(tiles.dtype == ov::element::u8 ? "u8" : "f32") +
+                                  " vs model port dtype=" + port_type.get_type_name());
     }
     req.set_input_tensor(input);
 
@@ -227,7 +180,7 @@ int main(int argc, char** argv) {
     // All arguments are optional -- sensible defaults let you just run
     // `./tile_batch_bench` with no arguments at all.
     const size_t n = argc > 1 ? static_cast<size_t>(std::stoul(argv[1])) : 32;
-    const std::string data_dir = argc > 2 ? argv[2] : "C:\\Users\\mmiotk\\Downloads\\dynamic_batch_repro";
+    const std::string data_dir = argc > 2 ? argv[2] : "/home/gta/dynamic_batch_repro";
     const std::string device = argc > 3 ? argv[3] : "GPU";
     const size_t warmup = argc > 4 ? static_cast<size_t>(std::stoul(argv[4])) : 2;
     const size_t iters = argc > 5 ? static_cast<size_t>(std::stoul(argv[5])) : 10;
@@ -239,17 +192,28 @@ int main(int argc, char** argv) {
     const std::string xml_static = data_dir + "/best-ort_b" + std::to_string(n) + ".xml";
     const std::string npy_path = data_dir + "/tiles_b" + std::to_string(n) + ".npy";
 
-    std::cout << "OpenVINO " << ov::get_openvino_version().buildNumber << std::endl;
-
-    // The .npy batch is optional: without it every IR is fed synthetic random data
-    // of its own input shape, which is enough to compare dynamic vs static latency.
-    NpyArray tiles;
-    if (file_exists(npy_path)) {
-        tiles = load_npy(npy_path);
-        std::cout << "Loaded tiles: batch=" << tiles.shape[0] << " (using " << n << ")" << std::endl;
-    } else {
-        std::cout << "No " << npy_path << " -- using synthetic random input" << std::endl;
+    if (!file_exists(npy_path)) {
+        // Auto-generate the input tensor .npy the first time this batch size is used,
+        // so you don't have to remember to run prepare_tiles.py yourself.
+        std::cout << "Missing " << npy_path << " -- generating it via prepare_tiles.py ..." << std::endl;
+        std::string script_dir = std::string(argv[0]);
+        auto slash = script_dir.find_last_of('/');
+        script_dir = slash == std::string::npos ? "." : script_dir.substr(0, slash);
+        // Prefer the user's ~/venv (has numpy/opencv) if present, else fall back to plain python3.
+        std::string python = file_exists(std::string(getenv("HOME") ? getenv("HOME") : "") + "/venv/bin/python3")
+                                  ? std::string(getenv("HOME")) + "/venv/bin/python3"
+                                  : "python3";
+        std::string cmd = python + " \"" + script_dir + "/prepare_tiles.py\" " + std::to_string(n) +
+                           " --data-dir \"" + data_dir + "\"";
+        if (std::system(cmd.c_str()) != 0 || !file_exists(npy_path)) {
+            std::cerr << "Failed to auto-generate " << npy_path << ". Run manually:\n  " << cmd << std::endl;
+            return 1;
+        }
     }
+
+    std::cout << "OpenVINO " << ov::get_openvino_version().buildNumber << std::endl;
+    NpyArray tiles = load_npy(npy_path);
+    std::cout << "Loaded tiles: batch=" << tiles.shape[0] << " (using " << n << ")" << std::endl;
 
     std::cout << "===== batch=" << n << " device=" << device << " =====" << std::endl;
     double p_dyn = bench("Dynamic IR", xml_dyn, n, tiles, device, warmup, iters);

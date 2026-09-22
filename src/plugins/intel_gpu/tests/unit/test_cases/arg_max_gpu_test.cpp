@@ -1102,10 +1102,12 @@ TEST(arg_max_min_test, check_second_output_data_type) {
 // Conditions: f16/f32 input, SORT_VALUES, N >= 2, N <= 65535, SLM fits
 // =============================================================================
 
-// Helper: create ExecutionConfig that forces the radix TopK kernel
-inline ExecutionConfig get_radix_topk_config(const cldnn::engine& engine) {
+// Helper: create ExecutionConfig that forces the radix TopK kernel.
+// `fmt` is also forced as the preferred layout of the arg_max node, so passing
+// format::byxf makes the graph reorder the arg_max input/output to byxf.
+inline ExecutionConfig get_radix_topk_config(const cldnn::engine& engine, format::type fmt = format::bfyx) {
     auto config = get_test_default_config(engine);
-    ov::intel_gpu::ImplementationDesc radix_impl = {format::bfyx, "arg_max_min_topk_radix", impl_types::ocl};
+    ov::intel_gpu::ImplementationDesc radix_impl = {fmt, "arg_max_min_topk_radix", impl_types::ocl};
     config.set_property(ov::intel_gpu::force_implementations(
         ov::intel_gpu::ImplForcingMap{{"arg_max", radix_impl}}));
     return config;
@@ -1500,6 +1502,209 @@ TYPED_TEST(arg_max_gpu_topk_radix, max_n100k_k256_axis_feature) {
         ASSERT_NEAR(static_cast<float>(val_ptr[k]), 100.0f + static_cast<float>(top_k - k),
                     topk_radix_tolerance<T>()) << "value mismatch at k=" << k;
         ASSERT_EQ(static_cast<int>(idx_ptr[k]), k * stride) << "index mismatch at k=" << k;
+    }
+}
+
+// =============================================================================
+// byxf layout coverage for the arg_max_min_topk_radix kernel.
+//
+// byxf keeps the feature dimension innermost, so as soon as the spatial dims are
+// larger than 1 the memory order differs from bfyx. These cases only pass if the
+// kernel resolves addresses through INPUT0_GET_INDEX / OUTPUT_GET_INDEX
+// (fetch_utils.cl) instead of assuming bfyx pitches.
+// =============================================================================
+
+namespace {
+struct topk_radix_planted_input {
+    std::vector<float> values;          // bfyx ordered input data
+    std::vector<int> planted_features;  // [pos * top_k + k] -> expected feature index
+};
+
+// For every (b, y, x) position plant `top_k` maxima (100, 99, 98, ...) at position
+// dependent feature indices; every other element stays below 3.0. All planted values
+// and indices are small integers, so they are exact in f16 as well as f32.
+// Requires top_k * 101 < feature_num so the planted features never collide.
+inline topk_radix_planted_input make_topk_radix_planted_input(int batch_num,
+                                                              int feature_num,
+                                                              int y_size,
+                                                              int x_size,
+                                                              int top_k) {
+    topk_radix_planted_input res;
+    res.values.resize(static_cast<size_t>(batch_num) * feature_num * y_size * x_size);
+    res.planted_features.resize(static_cast<size_t>(batch_num) * y_size * x_size * top_k);
+
+    auto bfyx_offset = [&](int b, int f, int y, int x) {
+        return ((static_cast<size_t>(b) * feature_num + f) * y_size + y) * x_size + x;
+    };
+
+    for (int b = 0; b < batch_num; b++) {
+        for (int y = 0; y < y_size; y++) {
+            for (int x = 0; x < x_size; x++) {
+                const int pos = (b * y_size + y) * x_size + x;
+                for (int f = 0; f < feature_num; f++)
+                    res.values[bfyx_offset(b, f, y, x)] = static_cast<float>(f % 7) * 0.5f;
+                for (int k = 0; k < top_k; k++) {
+                    const int f = (pos * 7 + k * 101) % feature_num;
+                    res.planted_features[static_cast<size_t>(pos) * top_k + k] = f;
+                    res.values[bfyx_offset(b, f, y, x)] = 100.0f - static_cast<float>(k);
+                }
+            }
+        }
+    }
+    return res;
+}
+}  // namespace
+
+// byxf radix test: values output, axis=feature, non trivial spatial dims
+TYPED_TEST(arg_max_gpu_topk_radix, byxf_max_axis_feature_values) {
+    using T = TypeParam;
+    const data_types dt = ov::element::from<T>();
+    auto& engine = get_test_engine();
+
+    const int batch_num = 2, feature_num = 512, y_size = 3, x_size = 5;
+    const int top_k = 4;
+    const auto planted = make_topk_radix_planted_input(batch_num, feature_num, y_size, x_size, top_k);
+
+    auto input = engine.allocate_memory({dt, format::bfyx, {batch_num, feature_num, x_size, y_size}});
+    set_values(input, topk_radix_typed_vec<T>(planted.values));
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(arg_max_min("arg_max", {input_info("input")},
+                             ov::op::TopKMode::MAX, top_k, 1,
+                             ov::op::TopKSortType::SORT_VALUES, true, false, dt));
+    topology.add(reorder("plane_arg_max", input_info("arg_max"), format::bfyx, dt));
+
+    network network(engine, topology, get_radix_topk_config(engine, format::byxf));
+    ASSERT_NO_FATAL_FAILURE(assert_radix_topk_selected(network));
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("plane_arg_max").get_memory();
+    cldnn::mem_lock<T, mem_lock_type::read> out_ptr(output, get_test_stream());
+
+    for (int b = 0; b < batch_num; b++) {
+        for (int y = 0; y < y_size; y++) {
+            for (int x = 0; x < x_size; x++) {
+                for (int k = 0; k < top_k; k++) {
+                    const size_t out_idx = ((static_cast<size_t>(b) * top_k + k) * y_size + y) * x_size + x;
+                    ASSERT_NEAR(static_cast<float>(out_ptr[out_idx]), 100.0f - static_cast<float>(k),
+                                topk_radix_tolerance<T>())
+                        << "value mismatch at b=" << b << " y=" << y << " x=" << x << " k=" << k;
+                }
+            }
+        }
+    }
+}
+
+// byxf radix test: indices output (values_first = false), axis=feature
+TYPED_TEST(arg_max_gpu_topk_radix, byxf_max_axis_feature_indices) {
+    using T = TypeParam;
+    const data_types dt = ov::element::from<T>();
+    auto& engine = get_test_engine();
+
+    const int batch_num = 2, feature_num = 512, y_size = 3, x_size = 5;
+    const int top_k = 4;
+    const auto planted = make_topk_radix_planted_input(batch_num, feature_num, y_size, x_size, top_k);
+
+    auto input = engine.allocate_memory({dt, format::bfyx, {batch_num, feature_num, x_size, y_size}});
+    set_values(input, topk_radix_typed_vec<T>(planted.values));
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(arg_max_min("arg_max", {input_info("input")},
+                             ov::op::TopKMode::MAX, top_k, 1,
+                             ov::op::TopKSortType::SORT_VALUES, false, false, dt));
+    topology.add(reorder("plane_arg_max", input_info("arg_max"), format::bfyx, dt));
+
+    network network(engine, topology, get_radix_topk_config(engine, format::byxf));
+    ASSERT_NO_FATAL_FAILURE(assert_radix_topk_selected(network));
+    network.set_input_data("input", input);
+    auto outputs = network.execute();
+
+    auto output = outputs.at("plane_arg_max").get_memory();
+    cldnn::mem_lock<T, mem_lock_type::read> out_ptr(output, get_test_stream());
+
+    for (int b = 0; b < batch_num; b++) {
+        for (int y = 0; y < y_size; y++) {
+            for (int x = 0; x < x_size; x++) {
+                const int pos = (b * y_size + y) * x_size + x;
+                for (int k = 0; k < top_k; k++) {
+                    const size_t out_idx = ((static_cast<size_t>(b) * top_k + k) * y_size + y) * x_size + x;
+                    ASSERT_EQ(static_cast<int>(out_ptr[out_idx]),
+                              planted.planted_features[static_cast<size_t>(pos) * top_k + k])
+                        << "index mismatch at b=" << b << " y=" << y << " x=" << x << " k=" << k;
+                }
+            }
+        }
+    }
+}
+
+// byxf radix test: the byxf result must be identical to the bfyx one
+TYPED_TEST(arg_max_gpu_topk_radix, byxf_matches_bfyx_reference) {
+    using T = TypeParam;
+    const data_types dt = ov::element::from<T>();
+    auto& engine = get_test_engine();
+
+    const int batch_num = 1, feature_num = 384, y_size = 2, x_size = 3;
+    const int top_k = 6;
+
+    // 97 is coprime with 384, so for a fixed (b, y, x) the values below are a permutation
+    // of 0..383: no ties, and every value is exact in f16.
+    std::vector<float> input_vec(static_cast<size_t>(batch_num) * feature_num * y_size * x_size);
+    for (int b = 0; b < batch_num; b++) {
+        for (int y = 0; y < y_size; y++) {
+            for (int x = 0; x < x_size; x++) {
+                const int pos = (b * y_size + y) * x_size + x;
+                for (int f = 0; f < feature_num; f++) {
+                    const size_t offset = ((static_cast<size_t>(b) * feature_num + f) * y_size + y) * x_size + x;
+                    input_vec[offset] = static_cast<float>((f * 97 + pos * 31) % feature_num);
+                }
+            }
+        }
+    }
+
+    const size_t out_size = static_cast<size_t>(batch_num) * top_k * y_size * x_size;
+    auto run = [&](format::type fmt, std::vector<float>& result) {
+        auto input = engine.allocate_memory({dt, format::bfyx, {batch_num, feature_num, x_size, y_size}});
+        set_values(input, topk_radix_typed_vec<T>(input_vec));
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(arg_max_min("arg_max", {input_info("input")},
+                                 ov::op::TopKMode::MAX, top_k, 1,
+                                 ov::op::TopKSortType::SORT_VALUES, true, false, dt));
+        topology.add(reorder("plane_arg_max", input_info("arg_max"), format::bfyx, dt));
+
+        network net(engine, topology, get_radix_topk_config(engine, fmt));
+        ASSERT_NO_FATAL_FAILURE(assert_radix_topk_selected(net));
+        net.set_input_data("input", input);
+        auto outputs = net.execute();
+
+        auto output = outputs.at("plane_arg_max").get_memory();
+        cldnn::mem_lock<T, mem_lock_type::read> out_ptr(output, get_test_stream());
+        result.resize(out_size);
+        for (size_t i = 0; i < out_size; i++)
+            result[i] = static_cast<float>(out_ptr[i]);
+    };
+
+    std::vector<float> bfyx_result, byxf_result;
+    ASSERT_NO_FATAL_FAILURE(run(format::bfyx, bfyx_result));
+    ASSERT_NO_FATAL_FAILURE(run(format::byxf, byxf_result));
+
+    for (int b = 0; b < batch_num; b++) {
+        for (int y = 0; y < y_size; y++) {
+            for (int x = 0; x < x_size; x++) {
+                for (int k = 0; k < top_k; k++) {
+                    const size_t out_idx = ((static_cast<size_t>(b) * top_k + k) * y_size + y) * x_size + x;
+                    ASSERT_EQ(byxf_result[out_idx], bfyx_result[out_idx])
+                        << "byxf/bfyx mismatch at b=" << b << " y=" << y << " x=" << x << " k=" << k;
+                    ASSERT_NEAR(byxf_result[out_idx], static_cast<float>(feature_num - 1 - k),
+                                topk_radix_tolerance<T>())
+                        << "value mismatch at b=" << b << " y=" << y << " x=" << x << " k=" << k;
+                }
+            }
+        }
     }
 }
 

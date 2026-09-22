@@ -77,6 +77,7 @@ attach_tile_impl::attach_tile_impl() {
     auto types = {data_types::i8, data_types::u8, data_types::i32, data_types::f16, data_types::bf16, data_types::f32};
     auto static_formats = {
         format::bfyx,
+        format::byxf,
         format::bfzyx,
         format::bfwzyx,
         format::b_fs_zyx_fsv16,
@@ -100,6 +101,7 @@ attach_tile_impl::attach_tile_impl() {
 
     auto dynamic_formats = {
         format::bfyx,
+        format::byxf,
         format::bfzyx,
         format::bfwzyx
     };
