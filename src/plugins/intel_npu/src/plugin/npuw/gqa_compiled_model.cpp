@@ -38,8 +38,17 @@
 
 namespace {
 
-// Static capacity (in tokens) a dynamic KV-cache is reshaped to for NPU compilation.
-constexpr size_t kMaxSeqLen = 2 * 1024 /*32768*/;
+// Reads a single NPUW option out of a raw (not yet Config-wrapped) properties AnyMap,
+// falling back to the option's own default when absent. Mirrors the cfg_get<>() helper
+// in compiled_model.cpp/flux2_compiled_model.cpp.
+template <typename T>
+auto cfg_get(const ov::AnyMap& properties) -> typename T::ValueType {
+    const auto& opt_name = std::string(T::key());
+    if (properties.count(opt_name)) {
+        return properties.at(opt_name).as<typename T::ValueType>();
+    }
+    return T::defaultValue();
+}
 
 // True if GQA-specific diagnostic tracing (the "[GQA-TRACE] ..." lines throughout this
 // file) is enabled via the OPENVINO_NPUW_GQA_LOG=1 environment variable. Checked once and
@@ -55,8 +64,9 @@ bool gqa_trace_enabled() {
 }
 
 // Scans `model`'s past_key/past_value Parameters for a dynamic dimension and returns the
-// axis to pin to kMaxSeqLen, keyed by Parameter friendly name. A KV-cache Parameter with
-// more than one dynamic dimension is ambiguous and not something we can safely resolve.
+// axis to pin to the configured static capacity (NPUW_LLM_MAX_CONTEXT_LEN), keyed by
+// Parameter friendly name. A KV-cache Parameter with more than one dynamic dimension is
+// ambiguous and not something we can safely resolve.
 std::unordered_map<std::string, size_t> find_dynamic_kv_cache_axes(const std::shared_ptr<const ov::Model>& model) {
     std::unordered_map<std::string, size_t> result;
 
@@ -217,12 +227,14 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
 
     // with_gqa_defaults() only runs once identify_case() already confirmed V0 or V1,
     // so online partitioning is disabled for both.
-    ov::AnyMap config = {{"NPUW_ONLINE_PIPELINE", "NONE"},
-                         {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU"},
-                         {ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SPEED},
-                         {std::string(::intel_npu::NPUW_UNQDQ::key()), "YES"},
-                         {"NPU_COMPILER_TYPE", "DRIVER"},
-                         {"LOG_LEVEL", "LOG_INFO"}};
+    ov::AnyMap config = {
+        {"NPUW_ONLINE_PIPELINE", "NONE"},
+        {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU"},
+        {ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SPEED},
+        {std::string(::intel_npu::NPUW_UNQDQ::key()), "YES"},
+        // {"NPU_COMPILER_TYPE", "DRIVER"},
+        // {"LOG_LEVEL", "LOG_INFO"}
+    };
 
     const auto stage = detect_gqa_model_stage();
     if (stage == GQAModelStage::PREFILL) {
@@ -306,6 +318,10 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
     std::shared_ptr<ov::Model> compiled_model = model;
     std::unordered_map<std::string, size_t> dynamic_kv_cache_axes;
     if (has_dynamic_max_seq_len(model)) {
+        // Static capacity (in tokens) a dynamic KV-cache is reshaped to for NPU
+        // compilation. Configurable via NPUW_LLM_MAX_CONTEXT_LEN; falls back to that
+        // option's own default (8192) if it isn't present in `properties`.
+        const size_t max_seq_len = cfg_get<::intel_npu::NPUW_LLM_MAX_CONTEXT_LEN>(properties);
         dynamic_kv_cache_axes = find_dynamic_kv_cache_axes(model);
         OPENVINO_ASSERT(!dynamic_kv_cache_axes.empty(),
                         "GQA model has a dynamic max_seq_len but no resolvable KV-cache Parameter was found");
@@ -318,7 +334,7 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
             });
             OPENVINO_ASSERT(it != params.end(), "KV-cache parameter '", name, "' not found in the cloned model");
             auto new_shape = (*it)->get_partial_shape();
-            new_shape[axis] = ov::Dimension(static_cast<int64_t>(kMaxSeqLen));
+            new_shape[axis] = ov::Dimension(static_cast<int64_t>(max_seq_len));
             new_shapes[(*it)->output(0)] = new_shape;
         }
         compiled_model->reshape(new_shapes);
@@ -331,10 +347,10 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
                             "Reshaping the GQA KV-cache parameter '",
                             name,
                             "' to a static capacity of ",
-                            kMaxSeqLen,
+                            max_seq_len,
                             " did not make it fully static");
         }
-        LOG_INFO("Reshaped dynamic GQA KV-cache to a static capacity of " << kMaxSeqLen << " tokens");
+        LOG_INFO("Reshaped dynamic GQA KV-cache to a static capacity of " << max_seq_len << " tokens");
     }
 
     return {model, compiled_model, std::move(prepared_properties), std::move(dynamic_kv_cache_axes)};
@@ -1038,10 +1054,13 @@ void ov::npuw::GQAInferRequest::infer() {
 // right after infer() completes. The inner request's own tensor for such an output is
 // the full-capacity static buffer (e.g. 2048) with new K/V scattered in-place at
 // [past_seq_len, past_seq_len + new_seq_len); anything beyond that is stale data from a
-// previous step, not something the caller should see. This copies out a prefix into a
-// densely-shaped tensor -- cached per output name in m_dynamic_kv_cache_output_tensors
-// and reused/overwritten call-over-call, only (re)allocated on the first call or if the
-// shape ever changes -- that get_tensor() then hands back as-is.
+// previous step, not something the caller should see. When trimming is actually needed
+// (valid_len < capacity), this copies the valid prefix into a densely-shaped tensor --
+// cached per output name in m_dynamic_kv_cache_output_tensors and reused/overwritten
+// call-over-call, only (re)allocated when a private buffer isn't already there or the
+// shape changed -- that get_tensor() then hands back as-is. When no trimming is needed
+// (valid_len == capacity), the outer tensor is aliased directly onto the inner tensor
+// instead, skipping the copy entirely (see m_dynamic_kv_cache_output_aliased).
 void ov::npuw::GQAInferRequest::refresh_present_tensors_locked() const {
     const auto& output_axes = m_compiled_model->m_dynamic_kv_cache_output_axes;
     if (output_axes.empty()) {
@@ -1069,11 +1088,26 @@ void ov::npuw::GQAInferRequest::refresh_present_tensors_locked() const {
                 valid_len = std::min<size_t>(capacity, past_it->second->get_shape().at(axis));
             }
         }
+
+        if (valid_len == capacity) {
+            // No trimming needed -- the whole inner buffer is valid, so alias the outer
+            // tensor directly onto it instead of copying. NEVER call set_shape() on this
+            // entry while it's aliased (see m_dynamic_kv_cache_output_aliased); it's the
+            // inner request's own live working buffer.
+            m_dynamic_kv_cache_output_tensors[name] = inner_tensor;
+            m_dynamic_kv_cache_output_aliased.insert(name);
+            continue;
+        }
+
         auto out_shape = inner_tensor->get_shape();
         out_shape.at(axis) = valid_len;
 
         auto& outer_tensor = m_dynamic_kv_cache_output_tensors[name];
-        if (!outer_tensor) {
+        const bool was_aliased = m_dynamic_kv_cache_output_aliased.erase(name) != 0;
+        if (!outer_tensor || was_aliased) {
+            // Either never allocated, or the existing entry is an alias onto the inner
+            // tensor from a previous no-trimming call -- can't resize that in place
+            // (see above), so allocate a fresh, privately-owned buffer instead.
             // FIXME: CPU allocation here
             outer_tensor = ov::SoPtr<ov::ITensor>(ov::make_tensor(inner_tensor->get_element_type(), out_shape));
         } else if (outer_tensor->get_shape() != out_shape) {
@@ -1081,11 +1115,6 @@ void ov::npuw::GQAInferRequest::refresh_present_tensors_locked() const {
             // (matters if the caller/ORT-OVEP IO binding cached the returned object or
             // its data pointer), rather than handing back a different tensor instance.
             outer_tensor->set_shape(out_shape);
-        }
-
-        if (valid_len == capacity) {
-            ov::npuw::GQACompiledModel::copy_kv_cache_prefix(inner_tensor, outer_tensor, axis);
-            continue;
         }
 
         // A strided ROI view over the inner buffer's [0, valid_len) prefix, purely as a
@@ -1127,7 +1156,7 @@ ov::SoPtr<ov::ITensor> ov::npuw::GQAInferRequest::get_tensor(const ov::Output<co
     const auto& name = port.get_node()->get_friendly_name();
     GQA_TRACE("GQAInferRequest::get_tensor(port='" << name << "')");
     if (m_compiled_model->m_dynamic_kv_cache_axes.count(name) != 0) {
-        // The inner request's tensor for this port is the static, kMaxSeqLen-sized
+        // The inner request's tensor for this port is the static, configured-capacity
         // buffer -- not what the caller set. Hand back the exact user-owned tensor
         // instead; there is nothing to allocate on our side for the dynamic shape.
         auto it = m_dynamic_kv_cache_tensors.find(name);
@@ -1167,9 +1196,13 @@ void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& por
         return;
     }
 
-    // This KV-cache input was compiled with a static capacity of kMaxSeqLen: keep the
-    // inner request's own (already-allocated, statically-shaped) tensor and copy the
-    // user-supplied, variable-length data into its valid prefix instead of replacing it.
+    // This KV-cache input was compiled with a static capacity for NPU compilation. If the
+    // caller-supplied tensor is EXACTLY that capacity (not just <=), there's no "valid
+    // prefix" to carve out -- the whole buffer is meant to be seen, so we can alias the
+    // inner request directly onto the caller's tensor and skip the prefix copy entirely
+    // (this is also the largest, most expensive copy case, since it's a full-capacity
+    // buffer). Otherwise, keep the inner request's own (already-allocated, statically-
+    // shaped) tensor and defer copying the variable-length prefix to infer() time.
     const auto axis = it->second;
     const auto& inner_tensor = m_inner_request->get_tensor(map_port_locked(port));
     const auto requested_len = tensor->get_shape().at(axis);
@@ -1184,6 +1217,15 @@ void ov::npuw::GQAInferRequest::set_tensor(const ov::Output<const ov::Node>& por
                     " exceeds the static capacity (",
                     capacity,
                     ") it was compiled with");
+    if (requested_len == capacity) {
+        // Exact match: alias the inner request directly onto the caller's tensor instead
+        // of copying into a separate, static buffer -- no copy is needed since the whole
+        // buffer is valid and there's nothing to trim.
+        m_inner_request->set_tensor(map_port_locked(port), tensor);
+        m_dynamic_kv_cache_tensors[name] = tensor;
+        GQA_TRACE("    -> requested_len == capacity, aliased inner request tensor directly (no copy)");
+        return;
+    }
     // Data is intentionally NOT copied here: the caller may keep writing into `tensor`
     // after this call and before infer() (e.g. set_tensor(t); write_into(t); infer();).
     // Only sync_dynamic_kv_cache_tensors_locked(), called right before the inner
@@ -1206,6 +1248,13 @@ void ov::npuw::GQAInferRequest::sync_dynamic_kv_cache_tensors_locked() const {
             continue;
         }
         const auto& inner_tensor = m_inner_request->get_tensor(map_port_locked(*port_it));
+        if (&*tensor_it->second == &*inner_tensor) {
+            // set_tensor() already aliased the inner request directly onto this tensor
+            // (the exact-capacity case) -- it's the very same object, so there's nothing
+            // to copy; doing so would just be a wasteful full-buffer self-copy.
+            GQA_TRACE("sync_dynamic_kv_cache_tensors_locked(): '" << name << "' already aliased, skipping copy");
+            continue;
+        }
         GQA_TRACE("sync_dynamic_kv_cache_tensors_locked(): '"
                   << name << "' axis=" << axis << " copying live prefix, shape=" << tensor_it->second->get_shape());
         ov::npuw::GQACompiledModel::copy_kv_cache_prefix(tensor_it->second, inner_tensor, axis);

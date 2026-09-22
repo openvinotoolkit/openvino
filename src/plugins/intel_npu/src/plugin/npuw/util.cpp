@@ -203,6 +203,7 @@ bool ov::npuw::util::contains_ignore_case(const std::string& str, const std::str
     return it != str.end();
 }
 
+// FIXME: I am not sure if it has to be there - DM
 bool ov::npuw::util::is_supported_position_ids_input(const ov::Output<const ov::Node>& p) {
     const auto& shape = p.get_shape();
     return p.get_node()->get_friendly_name() == "position_ids" &&

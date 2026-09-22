@@ -36,16 +36,14 @@ ov::Tensor copy_tensor_from_const(const std::shared_ptr<ov::Node>& node);
 
 bool starts_with(const std::string& str, const std::string& prefix);
 
-<<<<<<< HEAD
 // Case-insensitive substring search.
 bool contains_ignore_case(const std::string& str, const std::string& substr);
-=======
+
 // Shared by the attention/pyramid_attention/host_flash_attention runtime selectors:
 // matches a "position_ids" input of a supported shape - flat [seq_len], regular
 // [1, seq_len], or 3D mrope [num_sections, 1, seq_len] (e.g. Qwen2.5-VL uses 3
 // sections, Qwen3.5-VL uses 4).
 bool is_supported_position_ids_input(const ov::Output<const ov::Node>& p);
->>>>>>> origin/master
 
 std::string fmt(std::size_t number, std::size_t total);
 

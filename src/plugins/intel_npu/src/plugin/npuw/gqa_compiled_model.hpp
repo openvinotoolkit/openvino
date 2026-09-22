@@ -10,6 +10,7 @@
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "npuw/compiled_model.hpp"
@@ -50,6 +51,14 @@ private:
     // get_tensor() and refreshed (valid prefix copied out of the inner static buffer)
     // at the end of every infer(). Keyed by port friendly name.
     mutable std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_dynamic_kv_cache_output_tensors;
+    // Names (subset of m_dynamic_kv_cache_output_tensors' keys) whose entry is currently
+    // an alias directly onto the inner request's own live tensor (valid_len == capacity,
+    // i.e. no trimming needed -- see refresh_present_tensors_locked()), not a private
+    // buffer we own. Must never call set_shape() on an aliased entry: that would resize
+    // the inner request's actual working KV-cache buffer, corrupting future inference.
+    // When trimming becomes necessary again, an aliased entry is discarded and a fresh,
+    // privately-owned tensor is allocated instead of being resized in place.
+    mutable std::unordered_set<std::string> m_dynamic_kv_cache_output_aliased;
 
     ov::SoPtr<ov::ITensor> get_present_tensor_locked(const std::string& name, size_t axis) const;
     void refresh_present_tensors_locked() const;
@@ -59,7 +68,9 @@ private:
     // inner request, not inside set_tensor() itself: a caller may keep writing into the
     // same tensor object after set_tensor() and before infer() (e.g. set_tensor(t);
     // write_into(t); infer();), and only data present at infer() time is guaranteed to
-    // be picked up.
+    // be picked up. No-op for ports set_tensor() already aliased directly onto the inner
+    // request (exact-capacity tensors) -- those are the same object, so there's nothing
+    // to copy.
     void sync_dynamic_kv_cache_tensors_locked() const;
     // Diagnostic-only: prints the current values of any sequence-length-style input
     // this model exposes (seqlens_k / past_seq_len / total_seq_len), read fresh from
