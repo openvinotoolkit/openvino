@@ -157,7 +157,7 @@ struct stateless_kv_impl : typed_primitive_impl_ocl<stateless_kv> {
         } else {
             copy_shape[primitive->concat_axis] = ov::Dimension::dynamic();
             past_layout.set_partial_shape(copy_shape);
-            past_layout.data_padding._dynamic_dims_mask[primitive->concat_axis] = 1;
+            past_layout.data_padding._dynamic_dims_mask[primitive->concat_axis] = true;
         }
         params.axis = convert_concat_axis(primitive->concat_axis, impl_param.get_output_layout(0).get_rank());
         params.inputs.resize(2);
