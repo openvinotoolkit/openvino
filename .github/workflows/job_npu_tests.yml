@@ -100,6 +100,14 @@ jobs:
       - name: Install certifi and set SSL_CERT_FILE for model downloading
         run: python3 -m pip install certifi && echo SSL_CERT_FILE=$(python3 -m certifi) >> $env:GITHUB_ENV
 
+      # Every test step below redirects pytest stdout/stderr into a per-suite log
+      # so that parse_npu_compiler_log.py can extract per-model compilation memory
+      # usage and compile time into a JSON file uploaded with the test results.
+      # NOTE (cmd.exe): the pytest exit code must be captured on its own line
+      # immediately after pytest - both `type` and `python3` reset %ERRORLEVEL%.
+      # `type` prints the captured log back to the Actions console (the redirect
+      # would otherwise hide the test output).
+
       # --- TensorFlow ---------------------------------------------------------
       - name: Install TF Models tests requirements
         if: fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.affected-components).TF_FE.test
@@ -111,7 +119,15 @@ jobs:
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\tensorflow\test_tf_convert_model.py -m "%MODEL_SCOPE%" ^
-            --html=${{ env.INSTALL_TEST_DIR }}\TEST-tf_fe_npu_convert_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
+            --html=${{ env.INSTALL_TEST_DIR }}\TEST-tf_fe_npu_convert_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s ^
+            > ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_tf_convert_model_%NPU_PLATFORM%.log 2>&1
+          set PYTEST_EXIT_CODE=%ERRORLEVEL%
+          type ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_tf_convert_model_%NPU_PLATFORM%.log
+          python3 openvino\.github\scripts\parse_npu_compiler_log.py ^
+            --platform %NPU_PLATFORM% ^
+            --input ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_tf_convert_model_%NPU_PLATFORM%.log ^
+            --output ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_tf_convert_model_%NPU_PLATFORM%.json
+          exit /b %PYTEST_EXIT_CODE%
 
       - name: TensorFlow Models Tests - NPU compile-only (read_model)
         if: ${{ !cancelled() && (fromJSON(inputs.affected-components).NPU.test || fromJSON(inputs.affected-components).TF_FE.test) }}
@@ -119,7 +135,15 @@ jobs:
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\tensorflow\test_tf_read_model.py -m "%MODEL_SCOPE%" ^
-            --html=${{ env.INSTALL_TEST_DIR }}\TEST-tf_fe_npu_read_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
+            --html=${{ env.INSTALL_TEST_DIR }}\TEST-tf_fe_npu_read_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s ^
+            > ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_tf_read_model_%NPU_PLATFORM%.log 2>&1
+          set PYTEST_EXIT_CODE=%ERRORLEVEL%
+          type ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_tf_read_model_%NPU_PLATFORM%.log
+          python3 openvino\.github\scripts\parse_npu_compiler_log.py ^
+            --platform %NPU_PLATFORM% ^
+            --input ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_tf_read_model_%NPU_PLATFORM%.log ^
+            --output ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_tf_read_model_%NPU_PLATFORM%.json
+          exit /b %PYTEST_EXIT_CODE%
 
       # --- JAX ----------------------------------------------------------------
       - name: Install JAX Models tests requirements
@@ -132,7 +156,15 @@ jobs:
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\jax\test_hf_transformers.py -m "%MODEL_SCOPE%" ^
-            --html=${{ env.INSTALL_TEST_DIR }}\TEST-jax_npu_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
+            --html=${{ env.INSTALL_TEST_DIR }}\TEST-jax_npu_model_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s ^
+            > ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_jax_%NPU_PLATFORM%.log 2>&1
+          set PYTEST_EXIT_CODE=%ERRORLEVEL%
+          type ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_jax_%NPU_PLATFORM%.log
+          python3 openvino\.github\scripts\parse_npu_compiler_log.py ^
+            --platform %NPU_PLATFORM% ^
+            --input ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_jax_%NPU_PLATFORM%.log ^
+            --output ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_jax_%NPU_PLATFORM%.json
+          exit /b %PYTEST_EXIT_CODE%
 
       # --- PyTorch (runs after TF/JAX within the same leg) --------------------
       # Group A: torchvision + timm + edsr share compatible deps (installed together).
@@ -156,13 +188,13 @@ jobs:
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_timm.py ^
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_edsr.py -m "%MODEL_SCOPE%" ^
             --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupA_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s ^
-            > ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_compiler_%NPU_PLATFORM%.log 2>&1
+            > ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_groupA_%NPU_PLATFORM%.log 2>&1
           set PYTEST_EXIT_CODE=%ERRORLEVEL%
-          type ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_compiler_%NPU_PLATFORM%.log
+          type ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_groupA_%NPU_PLATFORM%.log
           python3 openvino\.github\scripts\parse_npu_compiler_log.py ^
             --platform %NPU_PLATFORM% ^
-            --input ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_compiler_%NPU_PLATFORM%.log ^
-            --output ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_compiler_%NPU_PLATFORM%.json
+            --input ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_groupA_%NPU_PLATFORM%.log ^
+            --output ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_groupA_%NPU_PLATFORM%.json
           exit /b %PYTEST_EXIT_CODE%
 
       # Group B: hf_transformers + easyocr + gfpgan + tpsmm share compatible deps.
@@ -187,7 +219,15 @@ jobs:
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_easyocr.py ^
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_gfpgan.py ^
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_tpsmm.py -m "%MODEL_SCOPE%" ^
-            --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupB_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
+            --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupB_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s ^
+            > ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_groupB_%NPU_PLATFORM%.log 2>&1
+          set PYTEST_EXIT_CODE=%ERRORLEVEL%
+          type ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_groupB_%NPU_PLATFORM%.log
+          python3 openvino\.github\scripts\parse_npu_compiler_log.py ^
+            --platform %NPU_PLATFORM% ^
+            --input ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_groupB_%NPU_PLATFORM%.log ^
+            --output ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_groupB_%NPU_PLATFORM%.json
+          exit /b %PYTEST_EXIT_CODE%
 
       # Group C: aliked + detectron2 share compatible deps (installed together).
       # Disabled, re-enable: E-229647
@@ -205,7 +245,15 @@ jobs:
           python3 -m pytest ^
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_aliked.py ^
             ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_detectron2.py -m "%MODEL_SCOPE%" ^
-            --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupC_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
+            --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_groupC_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s ^
+            > ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_groupC_%NPU_PLATFORM%.log 2>&1
+          set PYTEST_EXIT_CODE=%ERRORLEVEL%
+          type ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_groupC_%NPU_PLATFORM%.log
+          python3 openvino\.github\scripts\parse_npu_compiler_log.py ^
+            --platform %NPU_PLATFORM% ^
+            --input ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_groupC_%NPU_PLATFORM%.log ^
+            --output ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_groupC_%NPU_PLATFORM%.json
+          exit /b %PYTEST_EXIT_CODE%
 
       # Group D: llm. Disabled on NPU (if: false) - needs additional changes to enable
       # on Windows (gptqmodel deps + export_mode path). llm_build_deps must precede llm.txt.
@@ -224,7 +272,15 @@ jobs:
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ${{ env.INSTALL_TEST_DIR }}\model_hub_tests\pytorch\test_llm.py -m "%MODEL_SCOPE%" ^
-            --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_llm_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s
+            --html=${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_llm_%NPU_PLATFORM%_%MODEL_SCOPE%.html --self-contained-html -v -s ^
+            > ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_groupD_%NPU_PLATFORM%.log 2>&1
+          set PYTEST_EXIT_CODE=%ERRORLEVEL%
+          type ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_groupD_%NPU_PLATFORM%.log
+          python3 openvino\.github\scripts\parse_npu_compiler_log.py ^
+            --platform %NPU_PLATFORM% ^
+            --input ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_groupD_%NPU_PLATFORM%.log ^
+            --output ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_groupD_%NPU_PLATFORM%.json
+          exit /b %PYTEST_EXIT_CODE%
 
       - name: Upload Test Results
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -233,7 +289,7 @@ jobs:
           name: test-results-npu-models-${{ matrix.npu-platform }}-${{ inputs.model-scope }}
           path: |
             ${{ env.INSTALL_TEST_DIR }}\TEST*.html
-            ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_compiler_*.log
-            ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_compiler_*.json
+            ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_*.log
+            ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_*.json
             ${{ env.INSTALL_TEST_DIR }}\TEST-pt_npu_unsupported_ops_*.log
           if-no-files-found: 'error'
