@@ -12,6 +12,7 @@ also measures differences in their quantized execution kernels.
 import argparse
 import hashlib
 import json
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -19,6 +20,8 @@ from pathlib import Path
 import numpy as np
 import openvino as ov
 from openvino.frontend import FrontEndManager
+
+from mmproj_fixtures import muse_glimmer_indices
 
 
 def sha256(path):
@@ -34,6 +37,8 @@ def main():
     parser.add_argument("model", type=Path)
     parser.add_argument("--oracle", type=Path, required=True)
     parser.add_argument("--report", type=Path, required=True)
+    parser.add_argument("--oracle-revision", default="16fb7d9d326a3fe69a331ce5fbe7a679a1a281bb",
+                        help="Exact llama.cpp revision used to build the supplied oracle")
     parser.add_argument("--reference-model", type=Path,
                         help="llama.cpp reference checkpoint; use an F32 copy of the represented weights")
     parser.add_argument("--nmse-threshold", type=float, default=1e-5,
@@ -63,7 +68,7 @@ def main():
     rng = np.random.default_rng(42)
     feeds = {}
     if args.modality == "vision":
-        if projector not in {"gemma3", "gemma4v", "gemma4uv", "pixtral", "phi4", "qwen3vl_merger"}:
+        if projector not in {"gemma3", "gemma4v", "gemma4uv", "pixtral", "phi4", "qwen3vl_merger", "muse-glimmer"}:
             raise ValueError(f"Add processor/index inputs for {projector} before checkpoint validation")
         default = int(metadata["clip.vision.image_size"])
         width, height = args.width or default, args.height or default
@@ -77,6 +82,12 @@ def main():
             rows, cols = np.indices((height // patch, width // patch))
             feeds["vision.position_x"] = cols.astype(np.int32).reshape(1, 1, 1, -1)
             feeds["vision.position_y"] = rows.astype(np.int32).reshape(1, 1, 1, -1)
+        if projector == "muse-glimmer":
+            if height % patch or width % patch:
+                raise ValueError("Muse Glimmer image dimensions must be divisible by the patch size")
+            feeds.update({"vision." + name: value for name, value in muse_glimmer_indices(
+                height // patch, width // patch, int(metadata["vision.window_size"]),
+                int(metadata["vision.merge"])).items()})
         if projector == "qwen3vl_merger":
             if width % (2 * patch) or height % (2 * patch):
                 raise ValueError("Qwen image dimensions must be divisible by twice the patch size")
@@ -136,8 +147,9 @@ def main():
     reference_digest = model_digest if reference_model.resolve() == args.model.resolve() else sha256(reference_model)
     report = {"model": str(args.model.resolve()), "sha256": model_digest,
               "reference_model": str(reference_model.resolve()), "reference_sha256": reference_digest,
-              "reference_revision": "16fb7d9d326a3fe69a331ce5fbe7a679a1a281bb",
+              "reference_revision": args.oracle_revision,
               "openvino_version": ov.get_version(), "input_shape": shape,
+              "q4k_f16_zero_point": os.getenv("OV_GGUF_Q4_K_ZP_F16", "0") not in {"", "0"},
               "modality": args.modality, "projector": projector,
               "normalized_mse": nmse, "max_absolute_error": float(np.max(np.abs(error))),
               "nmse_threshold": args.nmse_threshold,

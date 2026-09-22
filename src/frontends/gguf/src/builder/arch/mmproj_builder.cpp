@@ -29,6 +29,7 @@ enum class EncoderTopology {
     UnifiedVision,
     UnifiedAudio,
     MiniCPM46,
+    MuseGlimmer,
     Phi4,
     Gemma4Audio,
     Ocr,
@@ -51,6 +52,7 @@ constexpr ProjectorDefinition projector_catalog[] = {
     {"vision", "deepseekocr2", EncoderTopology::Ocr2},
     {"vision", "pixtral", EncoderTopology::Pixtral},
     {"vision", "phi4", EncoderTopology::Phi4},
+    {"vision", "muse-glimmer", EncoderTopology::MuseGlimmer},
     {"vision", "gemma4v", EncoderTopology::Gemma4},
     {"vision", "gemma4uv", EncoderTopology::UnifiedVision},
     {"audio", "gemma4a", EncoderTopology::Gemma4Audio},
@@ -184,6 +186,14 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality) {
             }
             return c;
         }
+        if (c.topology == EncoderTopology::MuseGlimmer) {
+            c.merge = meta.get_int(key + "spatial_merge_size").value_or(2);
+            c.window_pattern = 4;
+            c.activation = "GGML_UNARY_OP_GELU_ERF";
+            OPENVINO_ASSERT(c.merge > 0 && c.width / c.heads % 4 == 0,
+                            "[GGUF] invalid Muse Glimmer merge or rotary head dimensions");
+            return c;
+        }
         if (c.topology == EncoderTopology::Resampler) {
             c.version = meta.get_int("clip.minicpmv_version").value_or(2);
             if (c.version == 0)
@@ -276,6 +286,8 @@ public:
             graph->mmproj_config[c.modality + ".output"] = c.modality + ".embeddings";
             graph->mmproj_config[c.modality + ".output_layout"] = std::string("1,B,T,D");
             graph->mmproj_config[c.modality + ".merge"] = std::to_string(c.merge);
+            if (c.topology == EncoderTopology::MuseGlimmer)
+                graph->mmproj_config["vision.window_size"] = std::to_string(vision_window_size);
             if (c.topology == EncoderTopology::Resampler) {
                 graph->mmproj_config["vision.minicpmv_version"] = std::to_string(c.version);
                 graph->mmproj_config["vision.query_count"] = std::to_string(c.queries);
@@ -298,6 +310,7 @@ private:
     GgufValue default_clip_min, default_clip_max;
     // Set once per encoder in build(); the Gemma4 families clamp every linear's input and output.
     bool clippable = false;
+    int64_t vision_window_size = 0;
 
     GgufValue reshape(const GgufValue& x, std::vector<int64_t> shape, bool special_zero = false) {
         return g.node("GGML_OP_RESHAPE",
@@ -475,7 +488,7 @@ private:
                                     {slice(value, 3, 0, r.n_dims), rope_positions},
                                     mode,
                                     {{"rope_config", r}});
-                    if (c.topology != EncoderTopology::Gemma4)
+                    if (c.topology == EncoderTopology::Pixtral)
                         r.freq_scale = std::pow(r.freq_base, -2.f / float(c.width / c.heads));
                     auto b = g.node("GGML_OP_ROPE",
                                     {slice(value, 3, r.n_dims, r.n_dims), rope_positions_b},
@@ -499,8 +512,10 @@ private:
             }
             if (c.topology == EncoderTopology::Gemma4)
                 v = g.build_norm(v, {}, c.eps);
-            const auto mask =
-                window_mask && (c.window_pattern == 0 || (i + 1) % c.window_pattern != 0) ? window_mask : GgufValue{};
+            const auto mask = window_mask && (c.window_pattern == 0 || (i + 1) % c.window_pattern != 0) &&
+                                      !(c.topology == EncoderTopology::MuseGlimmer && i == c.layers - 1)
+                                  ? window_mask
+                                  : GgufValue{};
             z = attention(q,
                           k,
                           v,
@@ -553,6 +568,8 @@ private:
             return minicpm46(c);
         if (c.topology == EncoderTopology::Qwen)
             return qwen_vision(c);
+        if (c.topology == EncoderTopology::MuseGlimmer)
+            return muse_glimmer_vision(c);
         if (c.topology == EncoderTopology::Resampler)
             return resampler_vision(c);
         auto x = g.add_input("vision.pixel_values", ov::element::f32, {1, 3, c.image_size, c.image_size});
@@ -773,6 +790,33 @@ private:
         x = attention(q, k, v, 1.f / std::sqrt(128.f));
         x = linear(reshape(x, {1, 1, c.queries, width}), "resampler.attn.out");
         return linear(norm(x, "resampler.ln_post", c.eps), "resampler.proj");
+    }
+    GgufValue muse_glimmer_vision(const EncoderConfig& c) {
+        auto pixels = g.add_input("vision.pixel_values", ov::element::f32, {1, 3, -1, -1});
+        auto spatial = convolution(pixels, "v.patch_embd.weight", c.patch);
+        auto x = patch_embeddings(spatial, c.width);
+        auto table = g.tensors().require("v.position_embd.weight");
+        const int64_t side = int64_t(std::sqrt(double(table.ne(1))));
+        OPENVINO_ASSERT(side * side == table.ne(1), "[GGUF] Muse Glimmer position table must be square");
+        vision_window_size = side;
+        table = transpose(reshape(table, {1, side, side, c.width}), {0, 3, 1, 2});
+        table = g.node("GGML_OP_UPSCALE", {table, spatial}, 0, {{"resize_like", true}, {"interpolation_mode", 1}});
+        x = add(x, reshape(transpose(table, {0, 2, 3, 1}), {1, 1, -1, c.width}));
+        const auto indices = [&](const std::string& name) {
+            return g.add_input("vision." + name, ov::element::i32, {1, 1, 1, -1});
+        };
+        x = g.node("GGML_OP_GET_ROWS", {x, indices("patch_indices")});
+        auto pos_x = indices("position_x"), pos_y = indices("position_y");
+        auto mask = g.add_input("vision.attention_mask", ov::element::f32, {1, 1, -1, -1});
+        x = vit(x, c, {}, pos_x, mask, pos_y);
+        x = g.node("GGML_OP_GET_ROWS", {x, indices("output_indices")});
+        x = g.node("GGML_OP_GET_ROWS", {x, indices("merge_indices")});
+        // Channel-outer pixel shuffle: each channel's spatial neighbours stay together.
+        x = reshape(x, {1, -1, c.merge * c.merge, c.width});
+        x = reshape(transpose(x, {0, 1, 3, 2}), {1, 1, -1, c.width * c.merge * c.merge});
+        x = g.node("GGML_UNARY_OP_GELU_ERF", {linear(x, "mm.0", false)});
+        x = g.node("GGML_UNARY_OP_GELU_ERF", {linear(x, "mm.1", false)});
+        return linear(x, "mm.2", false);
     }
     GgufValue qwen_vision(const EncoderConfig& c) {
         // A temporal pair; still-image callers duplicate the image. Index inputs specify
