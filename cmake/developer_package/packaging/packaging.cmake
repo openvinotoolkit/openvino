@@ -194,8 +194,8 @@ macro(ov_register_static_deps_in_export _ov_rsde_targets_var _ov_rsde_export)
             install(TARGETS "${_ov_rsde_real}"
                     EXPORT "${_ov_rsde_export}"
                     ARCHIVE DESTINATION ${OV_CPACK_ARCHIVEDIR}
-                    COMPONENT ${OV_CPACK_COMP_CORE}
-                    ${OV_CPACK_COMP_CORE_EXCLUDE_ALL})
+                    COMPONENT ${OV_CPACK_COMP_INTERNAL_EXPORT_DEPS}
+                    EXCLUDE_FROM_ALL)
         endif()
     endforeach()
     unset(_ov_rsde_root)
@@ -377,6 +377,8 @@ macro(ov_define_component_names)
     set(OV_CPACK_COMP_CORE_C "core_c")
     set(OV_CPACK_COMP_CORE_DEV "core_dev")
     set(OV_CPACK_COMP_CORE_C_DEV "core_c_dev")
+    # internal component used only to keep CMake export sets valid; never packaged
+    set(OV_CPACK_COMP_INTERNAL_EXPORT_DEPS "internal_export_deps")
     # licensing
     set(OV_CPACK_COMP_LICENSING "licensing")
     # samples

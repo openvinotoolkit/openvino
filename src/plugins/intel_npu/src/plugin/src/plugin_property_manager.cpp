@@ -286,6 +286,7 @@ void PluginPropertyManager::registerProperties() const {
     try_register_property_based_on_config<DISABLE_VERSION_CHECK>(_config, _properties, ov::intel_npu::disable_version_check.name());
     try_register_property_based_on_config<EXPORT_RAW_BLOB>(_config, _properties, ov::intel_npu::export_raw_blob.name());
     try_register_property_based_on_config<IMPORT_RAW_BLOB>(_config, _properties, ov::intel_npu::import_raw_blob.name());
+    try_register_property_based_on_config<ALLOW_BYTECODE>(_config, _properties, ov::intel_npu::allow_bytecode.name());
     try_register_property_based_on_config<BATCH_COMPILER_MODE_SETTINGS>(_config, _properties, ov::intel_npu::batch_compiler_mode_settings.name());
     OPENVINO_SUPPRESS_DEPRECATED_START
     try_register_property_based_on_config<ENABLE_CPU_PINNING>(_config, _properties, ov::hint::enable_cpu_pinning.name());
