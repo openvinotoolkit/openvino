@@ -51,7 +51,7 @@ static void test_shape_infer_dependency(bool with_squeeze) {
     auto source_input_layout = layout{{1, 1}, data_types::i64, format::bfyx};
 
     auto one_memory = engine.allocate_memory(shape_input_layout);
-    set_values<int64_t>(one_memory, {1, 1});
+    set_values<int64_t>(one_memory, {1});
 
     topology topology;
     topology.add(input_layout("shape_input", shape_input_layout));
