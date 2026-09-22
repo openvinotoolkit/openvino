@@ -18,8 +18,6 @@ name: Linux Static CC (Ubuntu 22.04, Python 3.11, Clang)
 name: Linux RISC-V (Ubuntu 22.04, Python 3.10)
 ==> ./linux_riscv_conan.yml <==
 name: Linux RISC-V with Conan (Ubuntu 22.04, Python 3.10)
-==> ./linux_sanitizers.yml <==
-name: Linux Sanitizers (Ubuntu 22.04, Python 3.11)
 ==> ./manylinux_2_28.yml <==
 name: Manylinux 2_28
 ==> ./ubuntu_22.yml <==
