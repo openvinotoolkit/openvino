@@ -55,6 +55,7 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_compiled_model.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_compiled_model_utils.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_infer_request.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_swa_cache.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_block_kvcache_strategy.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_continuous_kvcache_strategy.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/llm_infer_base_request.cpp
@@ -176,6 +177,7 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/gather_sub128_matcher_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_continuation_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_continued_prefill_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_swa_cache_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/stored_tokens_state_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_infer_request_variant_switch_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_infer_request_port_names_test.cpp

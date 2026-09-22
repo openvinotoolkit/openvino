@@ -42,7 +42,6 @@ public:
 
 private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
-    std::shared_ptr<OptionSupportCache> _optionSupportCache;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;
     ov::SoPtr<VCLCompilerImpl> _compiler;
 

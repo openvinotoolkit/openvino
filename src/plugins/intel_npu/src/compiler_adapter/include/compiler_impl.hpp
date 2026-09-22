@@ -13,6 +13,7 @@
 
 #include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/npu.hpp"
+#include "intel_npu/common/option_support_cache.hpp"
 #include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
@@ -24,8 +25,15 @@ namespace intel_npu {
 
 class VCLCompilerImpl final : public std::enable_shared_from_this<VCLCompilerImpl> {
 public:
+    /**
+     * @param functions A shared pointer to the VCL function table
+     * @param deviceProperties The properties of the device the compilation targets, if known
+     * @param optionSupportCache The cache used for storing the compiler's option support answers, already bound to
+     *        this compiler's cache key. May be disabled, in which case the compiler is queried every time.
+     */
     VCLCompilerImpl(std::shared_ptr<const VCLFunctionTable> functions,
-                    const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt);
+                    const std::optional<IDevice::DeviceProperties>& deviceProperties = std::nullopt,
+                    ScopedOptionSupportCache optionSupportCache = {});
     ~VCLCompilerImpl();
 
     /**
@@ -88,6 +96,8 @@ public:
 
     /**
      * @brief Returns the compiler supported options list
+     * @note The result is stored in the option support cache, if one was provided, so that subsequent
+     *       "is_option_supported" calls for these options can be answered without querying the compiler.
      */
     std::vector<std::string> get_supported_options() const;
 
@@ -96,6 +106,9 @@ public:
      * @param option The option name to check
      * @param optValue The option value to validate
      * @return true if the option and value are supported, false otherwise
+     * @note Queries without a value are served from and recorded in the option support cache, if one was
+     *       provided. Queries carrying a value always reach the compiler, since the cache is keyed by option
+     *       name alone and cannot tell whether a specific value is accepted.
      */
     bool is_option_supported(const std::string& option,
                              const std::optional<std::string>& optValue = std::nullopt) const;
@@ -116,6 +129,9 @@ private:
     vcl_compiler_properties_t _compilerProperties;
     vcl_version_info_t _vclVersion;
     vcl_version_info_t _vclProfilingVersion;
+
+    ScopedOptionSupportCache _optionSupportCache;
+
     Logger _logger;
 };
 

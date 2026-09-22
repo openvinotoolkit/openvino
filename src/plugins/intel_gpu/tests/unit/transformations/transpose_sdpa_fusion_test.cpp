@@ -202,6 +202,56 @@ TEST_F(TransformationTestsF, TranposeSDPAFusion5) {
     }
 }
 
+class TransposeSDPAFusionPrecisionTest : public TransformationTestsF,
+                                         public ::testing::WithParamInterface<ov::element::Type> {};
+
+TEST_P(TransposeSDPAFusionPrecisionTest, AllInputsTransposed) {
+    const auto input_type = GetParam();
+    const bool is_causal = false;
+    {
+        auto input_a = std::make_shared<ov::op::v0::Parameter>(input_type, ov::PartialShape::dynamic(4));
+        auto transpose_a_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
+        auto transpose_a = std::make_shared<ov::op::v1::Transpose>(input_a, transpose_a_const);
+        auto input_b = std::make_shared<ov::op::v0::Parameter>(input_type, ov::PartialShape::dynamic(4));
+        auto transpose_b_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
+        auto transpose_b = std::make_shared<ov::op::v1::Transpose>(input_b, transpose_b_const);
+        auto input_c = std::make_shared<ov::op::v0::Parameter>(input_type, ov::PartialShape::dynamic(4));
+        auto transpose_c_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
+        auto transpose_c = std::make_shared<ov::op::v1::Transpose>(input_c, transpose_c_const);
+
+        auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(transpose_a, transpose_b, transpose_c, is_causal);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_a, input_b, input_c});
+        manager.register_pass<TransposeFusion>();
+    }
+    {
+        std::vector<int64_t> order_a = {0, 2, 1, 3};
+        std::vector<int64_t> order_b = {0, 2, 1, 3};
+        std::vector<int64_t> order_c = {0, 2, 1, 3};
+        std::vector<int64_t> order_output = {0, 1, 2, 3};
+        auto input_a = std::make_shared<ov::op::v0::Parameter>(input_type, ov::PartialShape::dynamic(4));
+        auto input_b = std::make_shared<ov::op::v0::Parameter>(input_type, ov::PartialShape::dynamic(4));
+        auto input_c = std::make_shared<ov::op::v0::Parameter>(input_type, ov::PartialShape::dynamic(4));
+        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{input_a, input_b, input_c},
+                                                              is_causal,
+                                                              order_a,
+                                                              order_b,
+                                                              order_c,
+                                                              order_output,
+                                                              ov::element::dynamic);
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_a, input_b, input_c});
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(TransposeSDPAFusionInputPrecision,
+                         TransposeSDPAFusionPrecisionTest,
+                         ::testing::ValuesIn(ov::intel_gpu::op::SDPA::get_supported_precisions()),
+                         [](const ::testing::TestParamInfo<ov::element::Type>& info) {
+                             return info.param.get_type_name();
+                         });
+
 }  // namespace intel_gpu
 }  // namespace test
 }  // namespace ov

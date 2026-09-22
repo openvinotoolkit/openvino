@@ -4,6 +4,7 @@
 
 #include "arch_registry.hpp"
 
+#include "builder/arch/mamba_builder.hpp"
 #include "openvino/core/except.hpp"
 
 namespace ov::frontend::gguf {
@@ -38,7 +39,8 @@ std::vector<ArchitectureDefinition> builtin_architectures() {
     for (const auto& entry : decoders) {
         definitions.push_back(make_decoder_architecture(entry.name, entry.rope, {}, entry.maturity));
     }
-    // Add custom definitions here; their factories and builders are shared with external plugins.
+    definitions.push_back(mamba2_architecture("mamba2"));
+    definitions.push_back(mamba2_architecture("nemotron_h"));
     return definitions;
 }
 
@@ -53,9 +55,9 @@ bool arch_uses_neox_rope(const std::string& arch) {
 const std::set<std::string>& verified_archs() {
     static const auto names = [] {
         std::set<std::string> result;
-        for (const auto& entry : decoders)
-            if (entry.maturity == Maturity::Verified)
-                result.insert(entry.name);
+        for (const auto& definition : builtin_architectures())
+            if (definition.maturity == Maturity::Verified)
+                result.insert(definition.architecture);
         return result;
     }();
     return names;
@@ -64,9 +66,9 @@ const std::set<std::string>& verified_archs() {
 const std::set<std::string>& experimental_archs() {
     static const auto names = [] {
         std::set<std::string> result;
-        for (const auto& entry : decoders)
-            if (entry.maturity == Maturity::Experimental)
-                result.insert(entry.name);
+        for (const auto& definition : builtin_architectures())
+            if (definition.maturity == Maturity::Experimental)
+                result.insert(definition.architecture);
         return result;
     }();
     return names;
