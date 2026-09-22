@@ -102,5 +102,6 @@ opset_import {
   version: 7
 }
 opset_import {
+  domain: "com.microsoft"
   version: 1
 }

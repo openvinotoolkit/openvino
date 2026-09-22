@@ -409,14 +409,17 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                     // reject an undersized initializer to avoid reading past it (a larger source is fine).
                     // The reordered layout is already size-validated above.
                     const auto required_zp_bytes = ov::util::get_memory_size_safe(zp_element_type, casted_zp_shape);
-                    CHECK_VALID_NODE(
-                        node,
-                        required_zp_bytes.has_value() && zero_points_const->get_byte_size() >= *required_zp_bytes,
-                        "MatMulNBits limitation: packed uint8 zero_points is too small for shape "
-                        "[N][CeilDiv(n_blocks_per_col * bits, 8)], need at least ",
-                        required_zp_bytes.value_or(0),
-                        " bytes, got: ",
-                        zero_points_const->get_byte_size());
+                    CHECK_VALID_NODE(node,
+                                     required_zp_bytes.has_value(),
+                                     "MatMulNBits limitation: cannot compute packed uint8 zero_points size for shape ",
+                                     casted_zp_shape);
+                    CHECK_VALID_NODE(node,
+                                     zero_points_const->get_byte_size() >= *required_zp_bytes,
+                                     "MatMulNBits limitation: packed uint8 zero_points is too small for shape "
+                                     "[N][CeilDiv(n_blocks_per_col * bits, 8)], need at least ",
+                                     *required_zp_bytes,
+                                     " bytes, got: ",
+                                     zero_points_const->get_byte_size());
                 }
                 auto casted_zp_org =
                     std::make_shared<v0::Constant>(zp_element_type, casted_zp_shape, zero_points_const->get_data_ptr());
