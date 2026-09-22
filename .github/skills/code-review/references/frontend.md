@@ -5,6 +5,10 @@ frontend changes.
 
 ## Review focus
 
+- Keep frontend code hardware- and plugin-agnostic. Conversion must preserve
+  framework semantics without targeting a specific device or plugin. Flag
+  device-dependent conversion branches or backend-specific optimizations;
+  those belong in the relevant plugin's transformation or execution pipeline.
 - Check rank, dimension, element type, layout, optional inputs, attributes,
   opset or framework-version behavior, and dynamic-shape handling.
 - Verify that conversion emits the intended OpenVINO graph and preserves
