@@ -284,7 +284,7 @@ void AutoSchedule::init() {
                                                 : cpuhelp_all_end_times.back() - cpuhelp_all_start_times.front();
                             m_cpuhelp_fps = cpuhelp_all_start_times.size() * 1000 / duration.count();
                             LOG_INFO_TAG("CPU_HELP: first inference time:%lf ms", first_infer_time.count());
-                            LOG_INFO_TAG("CPU_HELP:infer:%ld", m_cpuhelp_infer_count);
+                            LOG_INFO_TAG("CPU_HELP:infer:%zu", m_cpuhelp_infer_count);
                             LOG_INFO_TAG("CPU_HELP:fps:%lf", m_cpuhelp_fps);
                         }
                     });
@@ -539,19 +539,25 @@ bool AutoSchedule::schedule_to_worker_infer_request(ov::threading::Task pipeline
 }
 
 bool AutoSchedule::schedule_dynamic_task(ov::threading::Task pipeline_task, const DeviceName& preferred_device) {
+    std::shared_ptr<ov::threading::IStreamsExecutor> executor;
     {
         std::lock_guard<std::mutex> lock(m_gate_mutex);
+        if (m_dynamic_shutdown) {
+            // AutoSchedule is being torn down, do not touch m_dynamic_executor anymore
+            return false;
+        }
         if (m_gate_busy) {
             m_gate_pending_tasks.emplace_back(std::move(pipeline_task), preferred_device);
-            LOG_DEBUG_TAG("[dynamic] an inference is still running, request queued, queue size:%ld",
-                          static_cast<long>(m_gate_pending_tasks.size()));
+            LOG_DEBUG_TAG("[dynamic] an inference is still running, request queued, queue size:%zu",
+                          m_gate_pending_tasks.size());
             return false;
         }
         m_gate_busy = true;
+        executor = m_dynamic_executor;
     }
     // dispatching is offloaded so that neither start_async() nor the completion callback of a device is blocked
     // by the device re-selection and by the compilation of the model on a newly selected device
-    m_dynamic_executor->run([this, task = std::move(pipeline_task), preferred_device]() mutable {
+    executor->run([this, task = std::move(pipeline_task), preferred_device]() mutable {
         dispatch_dynamic_task(std::move(task), preferred_device);
     });
     return true;
@@ -684,13 +690,21 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
 
 void AutoSchedule::release_execution_slot() {
     std::pair<ov::threading::Task, DeviceName> next;
+    std::shared_ptr<ov::threading::IStreamsExecutor> executor;
     {
         std::lock_guard<std::mutex> lock(m_gate_mutex);
         m_gate_busy = false;
+        if (m_dynamic_shutdown) {
+            // AutoSchedule is being torn down, do not touch m_dynamic_executor anymore and drop any
+            // still-queued follow-up request: the compiled model is being destroyed, so nothing else
+            // is waiting on their completion.
+            return;
+        }
         if (!m_gate_pending_tasks.empty()) {
             next = std::move(m_gate_pending_tasks.front());
             m_gate_pending_tasks.pop_front();
             m_gate_busy = true;
+            executor = m_dynamic_executor;
         }
     }
     if (!next.first) {
@@ -698,18 +712,29 @@ void AutoSchedule::release_execution_slot() {
         return;
     }
     LOG_DEBUG_TAG("[dynamic] inference finished, dispatching the next queued request");
-    m_dynamic_executor->run([this, task = std::move(next.first), device = std::move(next.second)]() mutable {
+    executor->run([this, task = std::move(next.first), device = std::move(next.second)]() mutable {
         dispatch_dynamic_task(std::move(task), device);
     });
 }
 
 AutoSchedule::~AutoSchedule() {
-    if (m_dynamic_executor) {
-        LOG_INFO_TAG("[dynamic] total inference:%ld, device switch:%ld",
-                     static_cast<long>(m_dynamic_infer_count.load()),
-                     static_cast<long>(m_dynamic_switch_count.load()));
-        m_plugin->get_executor_manager()->clear("AutoDynamicSchedule");
-        m_dynamic_executor.reset();
+    std::shared_ptr<ov::threading::IStreamsExecutor> dynamic_executor;
+    {
+        // serialize with schedule_dynamic_task()/release_execution_slot(), which read/snapshot
+        // m_dynamic_executor under the same lock, so none of them races with resetting it below
+        std::lock_guard<std::mutex> lock(m_gate_mutex);
+        m_dynamic_shutdown = true;
+        dynamic_executor = std::move(m_dynamic_executor);
+    }
+    if (dynamic_executor) {
+        LOG_INFO_TAG("[dynamic] total inference:%zu, device switch:%zu",
+                     m_dynamic_infer_count.load(),
+                     m_dynamic_switch_count.load());
+        // do not clear the executor manager's "AutoDynamicSchedule" entry here: get_idle_cpu_streams_executor()
+        // hands out the same shared executor by name to any concurrently alive AutoSchedule instance, so an
+        // unconditional clear() by name could evict entries still owned by another instance. Just drop our
+        // own reference and let the executor manager keep/reuse or destroy it once the last owner releases it.
+        dynamic_executor.reset();
     }
     // this is necessary to guarantee member destroyed after getting future
     if (m_compile_context[CPU].m_is_enabled) {

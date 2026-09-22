@@ -57,6 +57,9 @@ private:
     std::shared_ptr<ov::Model>                                           m_dynamic_model;
     std::mutex                                                           m_gate_mutex;
     bool                                                                 m_gate_busy = false;
+    // guarded by m_gate_mutex; set once in ~AutoSchedule() so in-flight dynamic tasks stop touching
+    // m_dynamic_executor once teardown has started
+    bool                                                                 m_dynamic_shutdown = false;
     DeviceName                                                           m_gate_current_device;
     std::deque<std::pair<ov::threading::Task, DeviceName>>               m_gate_pending_tasks;
     DeviceMap<SoCompiledModel>                                           m_dynamic_compiled_models;
