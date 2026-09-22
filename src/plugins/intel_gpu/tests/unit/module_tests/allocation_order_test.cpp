@@ -195,11 +195,13 @@ TEST(allocation_order, comparator_is_strict_weak_ordering) {
     for (const auto& a : keys) {
         EXPECT_FALSE(a < a);
         for (const auto& b : keys) {
-            if (a < b)
+            if (a < b) {
                 EXPECT_FALSE(b < a);
+            }
             for (const auto& c : keys) {
-                if (a < b && b < c)
+                if (a < b && b < c) {
                     EXPECT_TRUE(a < c);
+                }
                 if (!(a < b) && !(b < a) && !(b < c) && !(c < b)) {
                     EXPECT_FALSE(a < c);
                     EXPECT_FALSE(c < a);
