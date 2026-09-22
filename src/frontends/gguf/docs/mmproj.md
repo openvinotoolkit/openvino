@@ -9,6 +9,10 @@ This implementation is partial. Conversion, encoder accuracy and GenAI generatio
 are separate qualification levels. A catalog entry does not certify every checkpoint,
 preprocessing variant or associated language backbone.
 
+The [September 2026 acceptance matrix](mmproj_acceptance.md) records the newer
+Qwen3.5/3.6/3.8, Gemma4 and Muse Glimmer checkpoint runs, including failures.
+It supersedes the older checkpoint-status summaries below for those exact files.
+
 ## Priority: registered language backbones
 
 Further work prioritizes mmproj checkpoints paired with language architectures in
@@ -40,7 +44,7 @@ promise of support for every similarly named marketing release.
 
 | Modality | Projectors | F32 CPU oracle | Real-checkpoint encoder | GenAI adapter |
 |---|---|---|---|---|
-| Vision | `gemma3` | Pass, separate/fused QKV and legacy FFN names | Pass, Gemma3 4B F16 projector | Gemma3, experimental |
+| Vision | `gemma3` | Pass, separate/fused QKV and legacy FFN names | Pass, Gemma3 4B F16 projector | Historical prototype; absent from tested GenAI revision |
 | Vision | `muse-glimmer` | Pass, sparse/global attention, two-axis RoPE, resized positions and channel-outer pixel shuffle | Represented-weight F32 and faithful Q4_K decoding pass; default Q4_K requantization fails strict accuracy | Pending |
 | Vision | `mlp` (including normalized variant) | Pass | Pending | Pending |
 | Vision | `idefics3`, `janus_pro`, `internvl` | Pass | Pending | Pending |
@@ -128,9 +132,15 @@ External cgraph decoders return an empty mmproj metadata map by default.
 
 ## GenAI integration
 
-The separately delivered companion GenAI change accepts a language GGUF and
-projector GGUF in memory. This OpenVINO branch alone does not add `mmproj_path`
-to an installed GenAI package; the matching GenAI integration is required:
+The tested GenAI revision `0943b301` does **not** implement the GGUF `mmproj_path`
+route. Pair construction attempts to load `openvino_language_model.xml` under the
+language GGUF path and fails. Thus image, audio, video and mixed-media generation
+remain blocked even when both frontend models convert and their encoder outputs
+pass numerical checks. See the current acceptance matrix above.
+
+The following describes the **historical Gemma3 prototype**, delivered separately
+in GenAI commit `6c533420` and removed before the tested revision. Its API example
+and results below are historical evidence, not instructions for the current branch:
 
 ```python
 pipe = openvino_genai.VLMPipeline(
@@ -140,7 +150,7 @@ result = pipe.generate("Describe the image.", images=[image],
                        max_new_tokens=20, do_sample=False)
 ```
 
-The current adapter requires a Gemma3 pair. It constructs the tokenizer from GGUF
+That prototype requires a Gemma3 pair. It constructs the tokenizer from GGUF
 metadata, extracts a shared-weight text lookup model, and exposes `inputs_embeds`
 while preserving state. Token embeddings receive Gemma scaling exactly once; image
 embeddings compensate for that scaling before assembly. Image tokens use a
