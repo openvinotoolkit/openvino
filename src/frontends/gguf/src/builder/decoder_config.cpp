@@ -84,7 +84,7 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     {
         const int probe = (std::max(0, n_dense_lead) / moe_layer_step + 1) * moe_layer_step - 1;
         const std::string pp = "blk." + std::to_string(probe) + ".";
-        is_moe = has(pp + "ffn_gate_exps.weight");
+        is_moe = has(pp + "ffn_gate_exps.weight") || has(pp + "ffn_gate_up_exps.weight");
     }
     // Gemma/Gemma2 use GeGLU (GELU-gated FFN). Detected by arch name since other archs
     // in the supported set (llama, qwen2, qwen3, phi3) all use SwiGLU.

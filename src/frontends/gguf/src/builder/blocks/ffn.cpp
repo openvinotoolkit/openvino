@@ -153,16 +153,35 @@ std::string moe_ffn(GraphEmitter& e, const DecoderConfig& cfg, const std::string
     // expert FFN via MUL_MAT_ID. The routed input x is broadcast to K slots; the
     // translator gathers each token's selected expert matrices. gpt-oss adds per-expert
     // biases (ADD_ID gathers the selected experts' bias rows).
-    e.add_weight(p + "ffn_gate_exps.weight");
-    e.add_weight(p + "ffn_up_exps.weight");
     e.add_weight(p + "ffn_down_exps.weight");
     const bool eb = cfg.has_moe_expert_bias;
-    auto up = e.add_op("GGML_OP_MUL_MAT_ID", p + "moe_up", {p + "ffn_up_exps.weight", ffn_norm, selected});
+    std::string gate, up;
+    if (e.has_weight(p + "ffn_gate_up_exps.weight")) {
+        e.add_weight(p + "ffn_gate_up_exps.weight");
+        auto joint =
+            e.add_op("GGML_OP_MUL_MAT_ID", p + "moe_gate_up", {p + "ffn_gate_up_exps.weight", ffn_norm, selected});
+        const auto width = e.value(joint).get_partial_shape()[3].get_length();
+        OPENVINO_ASSERT(width % 2 == 0, "[GGUF] fused expert projection must contain equal gate and up halves");
+        gate = e.add_op("GGML_OP_VIEW",
+                        p + "moe_gate",
+                        {joint},
+                        3,
+                        {{"view_slice", std::vector<int64_t>{3, 0, width / 2}}});
+        up = e.add_op("GGML_OP_VIEW",
+                      p + "moe_up",
+                      {joint},
+                      3,
+                      {{"view_slice", std::vector<int64_t>{3, width / 2, width / 2}}});
+    } else {
+        e.add_weight(p + "ffn_gate_exps.weight");
+        e.add_weight(p + "ffn_up_exps.weight");
+        gate = e.add_op("GGML_OP_MUL_MAT_ID", p + "moe_gate", {p + "ffn_gate_exps.weight", ffn_norm, selected});
+        up = e.add_op("GGML_OP_MUL_MAT_ID", p + "moe_up", {p + "ffn_up_exps.weight", ffn_norm, selected});
+    }
     if (eb) {
         e.add_named_weight(p + "ffn_up_exps.bias");
         up = e.add_op("GGML_OP_ADD_ID", p + "moe_up_b", {up, p + "ffn_up_exps.bias", selected});
     }
-    auto gate = e.add_op("GGML_OP_MUL_MAT_ID", p + "moe_gate", {p + "ffn_gate_exps.weight", ffn_norm, selected});
     if (eb) {
         e.add_named_weight(p + "ffn_gate_exps.bias");
         gate = e.add_op("GGML_OP_ADD_ID", p + "moe_gate_b", {gate, p + "ffn_gate_exps.bias", selected});

@@ -18,7 +18,7 @@ Verified language architectures take priority over experimental registrations.
 | Model family | Eligible language architecture | Frontend conversion gap | Accuracy / GenAI gap |
 |---|---|---|---|
 | Gemma3 | `gemma3` | Initial vision path implemented | Broader checkpoint qualification; original Q4_K_M run failed; companion GenAI integration required |
-| Dense Qwen3.5 | `qwen35` | `qwen3vl_merger` implemented | Real encoder comparison, preprocessing, multimodal positions, DeepStack assembly and cached generation |
+| Qwen3.5 / 3.6 / 3.8 | `qwen35`, `qwen35moe` (experimental) | `qwen3vl_merger` implemented | Real encoder comparison, preprocessing, multimodal positions, DeepStack assembly and cached generation |
 | MiniCPM-V/o resampler variants | Checkpoint-dependent `minicpm`, `llama`, `qwen2` | `resampler` implemented | Real checkpoint comparisons, tiling, query placement and GenAI adapter; audio qualified separately |
 | MiniCPM-V 4.6 | `qwen35` | `minicpmv4_6` implemented; window/downsample merger oracle passes | Real checkpoints and full pipeline validation |
 | Gemma4 | `gemma4` | `gemma4v`, `gemma4a`, `gemma4uv`, `gemma4ua` implemented | E2B Q8 vision/audio pass against dequantized F32 reference; other checkpoints, preprocessing and generation pending |
@@ -28,7 +28,7 @@ Verified language architectures take priority over experimental registrations.
 | Eligible LLaVA variants | Checkpoint-dependent `llama`, `qwen2` | `mlp` implemented | Checkpoint-specific feature selection, image assembly and generation |
 | Eligible InternVL / Idefics / audio variants | Require an exact registered backbone | Several projectors implemented below | Pair-by-pair encoder and processor equivalence, then GenAI integration |
 
-`qwen35moe`, `qwen2vl`, `qwen3vl`, `llama4` and `gemma3n` are distinct,
+`qwen2vl`, `qwen3vl`, `llama4` and `gemma3n` are distinct,
 unregistered language architectures. Their support does not follow from `qwen35`,
 `qwen2`, `qwen3`, `llama` or `gemma3`. Projector conversion already present for
 such families remains available, but their full pipelines are outside this priority.
