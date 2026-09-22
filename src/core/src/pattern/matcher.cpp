@@ -152,13 +152,10 @@ bool Matcher::match_permutations(OutputVector& pattern_args, const OutputVector&
     // the matcher commits to the first permutation that matches, so when more than one permutation
     // of a commutative pattern can match (e.g. a label competing with any_input()), the order
     // decides which graph operand each pattern operand binds to. Order-sensitive patterns rely on
-    // the long-standing lexicographic enumeration (sort + next_permutation over the Output<Node>
-    // ordering); replacing it with an unordered scheme such as Heap's algorithm changes those
-    // bindings.
-    const auto less = [](const ov::Output<ov::Node>& n1, const ov::Output<ov::Node>& n2) {
-        return n1 < n2;
-    };
-    std::sort(pattern_args.begin(), pattern_args.end(), less);
+    // the long-standing lexicographic enumeration (sort + next_permutation under Output<Node>'s
+    // operator<, i.e. node instance id then output index); replacing it with an unordered scheme such
+    // as Heap's algorithm changes those bindings.
+    std::sort(pattern_args.begin(), pattern_args.end());
     do {
         OPENVINO_LOG_MATCHER6(this);
         auto saved = start_match();
@@ -168,7 +165,7 @@ bool Matcher::match_permutations(OutputVector& pattern_args, const OutputVector&
             return res;
         }
         OPENVINO_LOG_MATCHER8(this);
-    } while (std::next_permutation(pattern_args.begin(), pattern_args.end(), less));
+    } while (std::next_permutation(pattern_args.begin(), pattern_args.end()));
     return false;
 }
 
