@@ -256,44 +256,179 @@ static std::vector<float> reference_matmul(const ov::Shape& shape,
     return expected;
 }
 
-// A caller buffer sized for the max shape stays bound and correct across smaller/larger runtime shapes.
-TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostGrowthWithinCapacity) {
-    auto core = ov::Core();
-    if (!gpu_supports_usm_host_output_sharing(core)) {
-        GTEST_SKIP() << "Caller-owned USM-host output sharing requires an iGPU with USM support";
+static int64_t gpu_mem_in_use(const ov::Core& core) {
+    int64_t total = 0;
+    for (const auto& [type, bytes] : core.get_property(ov::test::utils::DEVICE_GPU, ov::intel_gpu::memory_statistics)) {
+        total += static_cast<int64_t>(bytes);
     }
+    return total;
+}
 
-    auto compiled_model = core.compile_model(makeDynamicReluModel(), core.get_default_context(ov::test::utils::DEVICE_GPU));
+static int64_t f32_bytes(const ov::Shape& shape) {
+    return static_cast<int64_t>(ov::shape_size(shape) * sizeof(float));
+}
+
+// Imported caller USM isn't engine-tracked, so a copy fallback shows up as >= one extra output buffer.
+// Half an output buffer of margin absorbs run-to-run variance but still catches a full extra buffer.
+static void expect_extra_output_buffer(int64_t growth, int64_t baseline_growth, int64_t output_bytes) {
+    EXPECT_GE(growth - baseline_growth, output_bytes - output_bytes / 2)
+        << "growth=" << growth << " B, baseline=" << baseline_growth << " B, output=" << output_bytes
+        << " B: expected a plugin-owned output buffer (copy fallback)";
+}
+
+static void expect_no_extra_output_buffer(int64_t growth, int64_t baseline_growth, int64_t output_bytes) {
+    EXPECT_LT(growth - baseline_growth, output_bytes / 2)
+        << "growth=" << growth << " B, baseline=" << baseline_growth << " B, output=" << output_bytes
+        << " B: caller USM-host output likely fell back to a plugin-owned copy";
+}
+
+// Small integers stay exact through the default f16 inference precision.
+static float relu_test_input(size_t i) {
+    return static_cast<float>(i % 17) - 8.0f;
+}
+
+static void fill_relu_test_input(ov::Tensor& tensor) {
+    auto* data = tensor.data<float>();
+    for (size_t i = 0; i < tensor.get_size(); ++i) {
+        data[i] = relu_test_input(i);
+    }
+}
+
+static bool matches_relu_of_test_input(const ov::Tensor& tensor) {
+    const auto* data = tensor.data<const float>();
+    for (size_t i = 0; i < tensor.get_size(); ++i) {
+        const float in = relu_test_input(i);
+        if (data[i] != (in > 0.0f ? in : 0.0f)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+// Tracked-memory growth of a non-aliased (zero-copy) run of the f32 MatMul model: the baseline for alias tests.
+static int64_t zero_copy_matmul_growth(size_t k, const ov::Shape& shape, bool remote_input, int iterations) {
+    auto core = ov::Core();
+    std::vector<float> weights_data;
+    auto compiled_model = core.compile_model(makeDynamicMatMulModel(k, weights_data),
+                                             core.get_default_context(ov::test::utils::DEVICE_GPU),
+                                             ov::hint::inference_precision(ov::element::f32));
     auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
     auto request = compiled_model.create_infer_request();
 
-    const ov::Shape max_shape{8, 4};
-    auto usm_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, max_shape);
+    auto input_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
+    auto output_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
+    std::fill_n(static_cast<float*>(input_allocation.get()), ov::shape_size(shape), 1.0f);
+    if (remote_input) {
+        request.set_input_tensor(input_allocation);
+    } else {
+        request.set_input_tensor(ov::Tensor(ov::element::f32, shape, input_allocation.get()));
+    }
+    request.set_output_tensor(ov::Tensor(ov::element::f32, shape, output_allocation.get()));
 
-    // Bind the max-capacity caller buffer exactly once; the loop varies only the input shape.
-    ov::Tensor output_tensor(ov::element::f32, max_shape, usm_allocation.get());
-    request.set_output_tensor(output_tensor);
+    const int64_t before = gpu_mem_in_use(core);
+    for (int iter = 0; iter < iterations; ++iter) {
+        request.infer();
+    }
+    return gpu_mem_in_use(core) - before;
+}
 
-    for (const size_t rows : {size_t{2}, size_t{8}, size_t{4}}) {
-        const ov::Shape shape{rows, 4};
-        // The first bind (pre-shrink) fixes capacity at max_shape and same-pointer rebinds are
-        // no-ops (is_the_same_buffer), so the caller buffer stays zero-copy across all shapes.
-
-        ov::Tensor input_tensor(ov::element::f32, shape);
-        for (size_t i = 0; i < input_tensor.get_size(); ++i) {
-            input_tensor.data<float>()[i] = static_cast<float>(i) - 4.0f;
-        }
-        request.set_input_tensor(input_tensor);
-        OV_ASSERT_NO_THROW(request.infer());
-
-        auto actual = request.get_output_tensor();
-        ASSERT_EQ(actual.data(), usm_allocation.get());
-        ASSERT_EQ(actual.get_shape(), shape);
-        for (size_t i = 0; i < actual.get_size(); ++i) {
-            const float in = static_cast<float>(i) - 4.0f;
-            ASSERT_FLOAT_EQ(actual.data<const float>()[i], in > 0.0f ? in : 0.0f);
+// Experimental: zero-copy must allocate ~one output buffer less than the same run with an ordinary
+// host output (copy fallback).
+TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostAllocatesLessThanCopyFallback) {
+    {
+        auto core = ov::Core();
+        if (!gpu_supports_usm_host_output_sharing(core)) {
+            GTEST_SKIP() << "Caller-owned USM-host output sharing requires an iGPU with USM support";
         }
     }
+
+    // makeDynamicReluModel is [?, 4]; 262144 rows makes a 4 MB f32 output so it dominates noise.
+    const ov::Shape shape{262144, 4};
+    constexpr size_t kIterations = 3;
+
+    // Each variant uses its own Core so graph-held buffers from the other variant can't leak in.
+    auto measure = [&](bool usm_output) -> int64_t {
+        auto core = ov::Core();
+        auto remote_context = core.get_default_context(ov::test::utils::DEVICE_GPU);
+        auto compiled_model = core.compile_model(makeDynamicReluModel(), remote_context);
+        auto gpu_context = remote_context.as<ov::intel_gpu::ocl::ClContext>();
+        auto request = compiled_model.create_infer_request();
+
+        // Allocated in both variants so the caller buffer's own tracked bytes don't skew the delta.
+        auto usm_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
+        std::vector<float> host_output(ov::shape_size(shape));
+        ov::Tensor input_tensor(ov::element::f32, shape);
+        fill_relu_test_input(input_tensor);
+        void* output_ptr = usm_output ? usm_allocation.get() : static_cast<void*>(host_output.data());
+        request.set_input_tensor(input_tensor);
+        request.set_output_tensor(ov::Tensor(ov::element::f32, shape, output_ptr));
+
+        const int64_t before = gpu_mem_in_use(core);
+        for (size_t iter = 0; iter < kIterations; ++iter) {
+            request.infer();
+        }
+        const int64_t delta = gpu_mem_in_use(core) - before;
+
+        auto actual = request.get_output_tensor();
+        EXPECT_EQ(actual.data(), output_ptr);
+        EXPECT_TRUE(matches_relu_of_test_input(actual)) << "usm_output=" << usm_output;
+        return delta;
+    };
+
+    const int64_t zero_copy_delta = measure(true);
+    const int64_t copy_delta = measure(false);
+    expect_extra_output_buffer(copy_delta, zero_copy_delta, f32_bytes(shape));
+}
+
+// A caller buffer sized for the max shape stays bound and correct across smaller/larger runtime shapes.
+TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostGrowthWithinCapacity) {
+    {
+        auto core = ov::Core();
+        if (!gpu_supports_usm_host_output_sharing(core)) {
+            GTEST_SKIP() << "Caller-owned USM-host output sharing requires an iGPU with USM support";
+        }
+    }
+
+    // Rows are scaled so the max output (8 MB) dominates allocation noise.
+    constexpr size_t kRowScale = 65536;
+    const ov::Shape max_shape{8 * kRowScale, 4};
+
+    // Same run with a caller USM-host output vs an ordinary host output (copy fallback), each in its own Core.
+    auto measure = [&](bool usm_output) -> int64_t {
+        auto core = ov::Core();
+        auto compiled_model = core.compile_model(makeDynamicReluModel(), core.get_default_context(ov::test::utils::DEVICE_GPU));
+        auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+        auto request = compiled_model.create_infer_request();
+
+        auto usm_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, max_shape);
+        std::vector<float> host_output(ov::shape_size(max_shape));
+        void* output_ptr = usm_output ? usm_allocation.get() : static_cast<void*>(host_output.data());
+
+        // Bind the max-capacity caller buffer exactly once; the loop varies only the input shape.
+        request.set_output_tensor(ov::Tensor(ov::element::f32, max_shape, output_ptr));
+
+        const int64_t before = gpu_mem_in_use(core);
+        for (const size_t rows : {size_t{2}, size_t{8}, size_t{4}}) {
+            const ov::Shape shape{rows * kRowScale, 4};
+            // The first bind (pre-shrink) fixes capacity at max_shape and same-pointer rebinds are
+            // no-ops (is_the_same_buffer), so the caller buffer stays zero-copy across all shapes.
+
+            ov::Tensor input_tensor(ov::element::f32, shape);
+            fill_relu_test_input(input_tensor);
+            request.set_input_tensor(input_tensor);
+            request.infer();
+
+            auto actual = request.get_output_tensor();
+            EXPECT_EQ(actual.data(), output_ptr);
+            EXPECT_EQ(actual.get_shape(), shape);
+            EXPECT_TRUE(matches_relu_of_test_input(actual)) << "rows=" << shape[0] << " usm_output=" << usm_output;
+        }
+        return gpu_mem_in_use(core) - before;
+    };
+
+    const int64_t zero_copy_growth = measure(true);
+    const int64_t copy_growth = measure(false);
+    expect_extra_output_buffer(copy_growth, zero_copy_growth, f32_bytes(max_shape));
 }
 
 // Runtime output exceeding the caller buffer fails safely (throws) without corrupting caller memory.
@@ -343,7 +478,8 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRebindsAllocation) {
     auto compiled_model = core.compile_model(makeDynamicReluModel(), core.get_default_context(ov::test::utils::DEVICE_GPU));
     auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
     auto request = compiled_model.create_infer_request();
-    const ov::Shape shape{2, 4};
+    // Large enough that an extra plugin-owned output buffer stands out in tracked memory.
+    const ov::Shape shape{262144, 4};
 
     auto first_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
     auto second_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
@@ -358,7 +494,9 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRebindsAllocation) {
     std::fill_n(static_cast<float*>(first_allocation.get()), ov::shape_size(shape), sentinel);
     std::fill_n(input_tensor.data<float>(), input_tensor.get_size(), 2.0f);
     request.set_output_tensor(ov::Tensor(ov::element::f32, shape, second_allocation.get()));
+    const int64_t before_rebind = gpu_mem_in_use(core);
     OV_ASSERT_NO_THROW(request.infer());
+    expect_no_extra_output_buffer(gpu_mem_in_use(core) - before_rebind, 0, f32_bytes(shape));
 
     auto actual = request.get_output_tensor();
     ASSERT_EQ(actual.data(), second_allocation.get());
@@ -380,7 +518,8 @@ TEST(TensorTest, smoke_dynamicOutputSwitchesFromUsmHostToCopyFallback) {
     auto compiled_model = core.compile_model(makeDynamicReluModel(), core.get_default_context(ov::test::utils::DEVICE_GPU));
     auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
     auto request = compiled_model.create_infer_request();
-    const ov::Shape shape{2, 4};
+    // Large enough that the plugin-owned copy buffer stands out in tracked memory.
+    const ov::Shape shape{262144, 4};
 
     auto usm_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
     ov::Tensor input_tensor(ov::element::f32, shape);
@@ -394,7 +533,9 @@ TEST(TensorTest, smoke_dynamicOutputSwitchesFromUsmHostToCopyFallback) {
     std::vector<float> host_output(ov::shape_size(shape), sentinel);
     std::fill_n(input_tensor.data<float>(), input_tensor.get_size(), 3.0f);
     request.set_output_tensor(ov::Tensor(ov::element::f32, shape, host_output.data()));
+    const int64_t before_switch = gpu_mem_in_use(core);
     OV_ASSERT_NO_THROW(request.infer());
+    expect_extra_output_buffer(gpu_mem_in_use(core) - before_switch, 0, f32_bytes(shape));
 
     auto actual = request.get_output_tensor();
     ASSERT_EQ(actual.data(), host_output.data());
@@ -449,6 +590,7 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostInputOutputAliasIsSafe) {
     // In-place aliasing corruption is a nondeterministic GPU data race: with the fix every run is
     // correct, without it a run is expected to diverge. Repeat so a regression is caught reliably.
     constexpr int kIterations = 16;
+    const int64_t before = gpu_mem_in_use(core);
     for (int iter = 0; iter < kIterations; ++iter) {
         std::copy(input_values.begin(), input_values.end(), buffer);  // a prior corrupted run may have overwritten the input
 
@@ -462,6 +604,10 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostInputOutputAliasIsSafe) {
                 << "aliased input/output corrupted at element " << i << " on iteration " << iter;
         }
     }
+    // Deterministic proof the alias guard rejected zero-copy, independent of whether the race fired.
+    expect_extra_output_buffer(gpu_mem_in_use(core) - before,
+                               zero_copy_matmul_growth(K, shape, false, kIterations),
+                               f32_bytes(shape));
 }
 
 TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRemoteInputAliasIsSafe) {
@@ -493,6 +639,7 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRemoteInputAliasIsSafe) {
     request.set_output_tensor(output_wrapper);
 
     constexpr int kIterations = 16;
+    const int64_t before = gpu_mem_in_use(core);
     for (int iter = 0; iter < kIterations; ++iter) {
         std::copy(input_values.begin(), input_values.end(), buffer);
 
@@ -506,6 +653,9 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRemoteInputAliasIsSafe) {
                 << "remote aliased input/output corrupted at element " << i << " on iteration " << iter;
         }
     }
+    expect_extra_output_buffer(gpu_mem_in_use(core) - before,
+                               zero_copy_matmul_growth(K, shape, true, kIterations),
+                               f32_bytes(shape));
 }
 
 // The same remote (USM-host) tensor is set as BOTH dynamic input and output. Since a remote output
@@ -539,6 +689,7 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRemoteOutputAliasIsSafe) {
     request.set_output_tensor(remote_aliased);
 
     constexpr int kIterations = 16;
+    const int64_t before = gpu_mem_in_use(core);
     for (int iter = 0; iter < kIterations; ++iter) {
         std::copy(input_values.begin(), input_values.end(), buffer);
 
@@ -550,6 +701,9 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRemoteOutputAliasIsSafe) {
                 << "remote aliased output corrupted at element " << i << " on iteration " << iter;
         }
     }
+    expect_extra_output_buffer(gpu_mem_in_use(core) - before,
+                               zero_copy_matmul_growth(K, shape, true, kIterations),
+                               f32_bytes(shape));
 }
 
 // A remote output that was bound zero-copy in an earlier non-aliased inference and only later
@@ -579,8 +733,9 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRemoteOutputBecomesAliased
     const auto expected = reference_matmul(shape, K, input_values, weights_data);
 
     // First inference: distinct input, remote output bound zero-copy (no aliasing yet).
-    ov::Tensor distinct_input(ov::element::f32, shape);
-    std::copy(input_values.begin(), input_values.end(), distinct_input.data<float>());
+    // A USM-host input is shared, not engine-tracked, so switching inputs below doesn't free tracked memory.
+    auto distinct_input = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
+    std::copy(input_values.begin(), input_values.end(), static_cast<float*>(distinct_input.get()));
     request.set_input_tensor(distinct_input);
     request.set_output_tensor(remote_output);
     OV_ASSERT_NO_THROW(request.infer());
@@ -592,6 +747,7 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRemoteOutputBecomesAliased
     // The stale-binding race has a narrow window (depends on infer-1's binding surviving), so use a
     // higher iteration count than the from-start alias tests to sample it reliably.
     constexpr int kIterations = 64;
+    const int64_t before_alias = gpu_mem_in_use(core);
     for (int iter = 0; iter < kIterations; ++iter) {
         std::copy(input_values.begin(), input_values.end(), out_buffer);
 
@@ -602,6 +758,8 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRemoteOutputBecomesAliased
                 << "remote output corrupted after becoming aliased at element " << i << " on iteration " << iter;
         }
     }
+    // Infer-1 was zero-copy, so the transition must add a plugin-owned output buffer.
+    expect_extra_output_buffer(gpu_mem_in_use(core) - before_alias, 0, f32_bytes(shape));
 }
 
 TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostPartialInputAliasFallsBack) {
@@ -636,6 +794,7 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostPartialInputAliasFallsBack
     request.set_output_tensor(output_tensor);
 
     constexpr int kIterations = 16;
+    const int64_t before = gpu_mem_in_use(core);
     for (int iter = 0; iter < kIterations; ++iter) {
         std::copy(input_values.begin(), input_values.end(), usm_data);
 
@@ -650,6 +809,9 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostPartialInputAliasFallsBack
                 << "partially aliased input/output corrupted at element " << i << " on iteration " << iter;
         }
     }
+    expect_extra_output_buffer(gpu_mem_in_use(core) - before,
+                               zero_copy_matmul_growth(K, shape, false, kIterations),
+                               f32_bytes(shape));
 }
 
 // The output overlap must use the caller buffer's capacity, not the current (possibly shrunk) logical
