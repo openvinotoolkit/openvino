@@ -64,6 +64,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/graph_manipulation_gpu_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/impls_registry_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/impls_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/input_output_alias_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/jitter_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/kernel_impl_params_relevance_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/layout_test.cpp

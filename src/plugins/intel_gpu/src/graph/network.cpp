@@ -656,6 +656,82 @@ bool network::does_node_need_lockable_output(const primitive_id& id) const {
     return prim_inst->get_impl() ? prim_inst->get_impl()->is_cpu() : true;
 }
 
+bool network::can_bind_user_output_memory(const primitive_id& output_id, const memory& candidate) const {
+    auto output = find_primitive(output_id);
+    // Only a real network output can safely adopt caller-owned memory. An unallocated or empty
+    // candidate cannot provide a usable allocation identity for the checks below.
+    if (!output->is_output() || candidate.buffer_ptr() == nullptr || candidate.size() == 0)
+        return false;
+
+    auto& engine = const_cast<cldnn::engine&>(get_engine());
+    const auto candidate_type = candidate.get_allocation_type();
+    const auto candidate_ptr = reinterpret_cast<uintptr_t>(candidate.buffer_ptr());
+    size_t overlapping_inputs = 0;
+    const primitive_inst* aliased_input = nullptr;
+    for (const auto& input_id : get_input_ids()) {
+        auto input = find_primitive(input_id);
+        auto input_memory = input->output_memory_ptr();
+        if (!input_memory || input_memory->buffer_ptr() == nullptr || input_memory->size() == 0)
+            continue;
+
+        // Only same-type USM pointers are addresses in one space; cl_mem buffer_ptr() is an object handle.
+        if (candidate_type != input_memory->get_allocation_type() || !memory_capabilities::is_usm_type(candidate_type)) {
+            if (!engine.is_the_same_buffer(*input_memory, candidate))
+                continue;
+        } else {
+            // A partial or offset overlap is never safe. An exact start address is accepted provisionally
+            // and must still match the producer's explicit input/output alias declaration below.
+            const auto input_ptr = reinterpret_cast<uintptr_t>(input_memory->buffer_ptr());
+            const bool overlaps = candidate_ptr < input_ptr ? input_ptr - candidate_ptr < candidate.size()
+                                                            : candidate_ptr - input_ptr < input_memory->size();
+            if (!overlaps)
+                continue;
+            if (candidate_ptr != input_ptr)
+                return false;
+        }
+        if (++overlapping_inputs > 1)
+            return false;
+        aliased_input = input.get();
+    }
+
+    if (overlapping_inputs == 0)
+        return true;
+
+    // The writer of the candidate is the output itself, or its direct producer when the output is an
+    // optimized-out forwarding node. Deeper optimized chains are conservatively rejected.
+    const primitive_inst* writer = output.get();
+    size_t writer_port = 0;
+    if (output->can_be_optimized()) {
+        const auto& dependencies = output->dependencies();
+        if (dependencies.size() != 1)
+            return false;
+        writer = dependencies.front().first;
+        writer_port = static_cast<size_t>(dependencies.front().second);
+        if (writer->can_be_optimized())
+            return false;
+    }
+
+    const auto alias = writer->get_node().get_supported_input_output_alias();
+    if (!alias || alias->second != writer_port || alias->first >= writer->dependencies().size())
+        return false;
+
+    // The declaration only covers the writer's own kernel, so no other node may read the aliased input.
+    const auto& input_users = aliased_input->get_node().get_users();
+    if (input_users.size() != 1 || input_users.front() != &writer->get_node())
+        return false;
+    const auto& writer_deps = writer->dependencies();
+    for (size_t i = 0; i < writer_deps.size(); ++i) {
+        if ((writer_deps[i].first == aliased_input) != (i == alias->first))
+            return false;
+    }
+
+    const auto declared_input = writer->input_memory_ptr(alias->first);
+    if (!declared_input)
+        return false;
+    // Compare actual runtime allocations, not primitive IDs or model-port mappings.
+    return engine.is_the_same_buffer(*declared_input, candidate);
+}
+
 std::string network::get_implementation_info(const primitive_id& id) const {
     try {
         auto it = _primitives.find(id);
