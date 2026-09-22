@@ -1,6 +1,7 @@
 # Native GGUF multimodal conversion (experimental)
 
 Reference: llama.cpp `16fb7d9d326a3fe69a331ce5fbe7a679a1a281bb`.
+Muse Glimmer uses `03fa73cb27f5c251b9528489b18d303b1366aca4`, which adds its encoder.
 The reference is used only by offline fixture generators and validation executables.
 It is not a production dependency.
 
@@ -40,6 +41,7 @@ promise of support for every similarly named marketing release.
 | Modality | Projectors | F32 CPU oracle | Real-checkpoint encoder | GenAI adapter |
 |---|---|---|---|---|
 | Vision | `gemma3` | Pass, separate/fused QKV and legacy FFN names | Pass, Gemma3 4B F16 projector | Gemma3, experimental |
+| Vision | `muse-glimmer` | Pass, sparse/global attention, two-axis RoPE, resized positions and channel-outer pixel shuffle | Represented-weight F32 and faithful Q4_K decoding pass; default Q4_K requantization fails strict accuracy | Pending |
 | Vision | `mlp` (including normalized variant) | Pass | Pending | Pending |
 | Vision | `idefics3`, `janus_pro`, `internvl` | Pass | Pending | Pending |
 | Vision | `resampler` | Pass, rectangular grids, explicit queries and legacy defaults | Pending | Pending |
@@ -70,6 +72,7 @@ Preprocessing belongs to the caller. All activation inputs are F32; indices are 
 | Qwen vision | `vision.patch_indices [1,1,1,T]`, patch ordering; `vision.position_ids [1,1,1,4*T]`, four position sections |
 | Qwen2.5 vision | Also `vision.attention_mask [1,1,T,T]`, additive window mask, and `vision.output_indices [1,1,1,T/4]`, inverse window order |
 | Pixtral / Phi4 / Gemma4 vision | Dynamic `vision.pixel_values [1,3,H,W]`; Pixtral/Gemma4 also take I32 `vision.position_x`, `vision.position_y [1,1,1,T]` |
+| Muse Glimmer | Dynamic pixels, one-based `position_x`/`position_y`, window `patch_indices`, inverse `output_indices`, pixel-shuffle `merge_indices`, and additive `attention_mask`; names are vision-qualified. `vision.window_size` records the learned position-grid side. |
 | MiniCPM-V 4.6 | Pixels and learned position IDs; `window_indices`, `inverse_window_indices`, additive `attention_mask`, and four `vit_merger.indices.N` / `merger.indices.N` row selectors, all vision-qualified |
 | DeepSeek-OCR / OCR2 | `vision.pixel_values [B,3,H,W]`, local/global relative-position index matrices, and `vision.output_indices` for reference token ordering |
 | Gemma4 audio | `audio.features [1,1,mel,frames]`, `position_embeddings [1,1,13,D]`, additive `attention_mask [1,1,T,T]`, and I32 `relative_indices [1,1,T,T]` |
@@ -164,6 +167,7 @@ Build `ov_gguf_frontend_tests` and `ov_gguf_architecture_library_tests`. Run bot
 without filters to include decoder architecture, quantization, extension and op
 coverage gates. `tests/gen_mmproj_accuracy.py` regenerates small nonzero fixtures
 using `tests/mmproj_oracle.cpp` linked against the pinned CPU-only libmtmd/libggml.
+`tests/gen_muse_mmproj_accuracy.py` generates the Muse Glimmer static and dynamic-grid oracle checks.
 `tests/gen_mmproj_supported_accuracy.py` adds 14 fixtures for the nine newly added
 projector types, reusing compiled raw/adapted models across shapes and back again.
 Gemma4 fixtures also cover one-sided clipping bounds and their reference defaults.
