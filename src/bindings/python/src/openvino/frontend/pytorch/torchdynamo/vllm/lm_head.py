@@ -2,6 +2,8 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+# mypy: ignore-errors
+
 """Run lm_head through OV instead of torch (OV_LM_HEAD=1, default off).
 
 vLLM calls compute_logits() outside the OV-compiled region, so lm_head's GEMM

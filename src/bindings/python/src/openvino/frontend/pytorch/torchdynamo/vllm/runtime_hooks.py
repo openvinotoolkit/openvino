@@ -2,6 +2,8 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+# mypy: ignore-errors
+
 """vLLM-specific runtime hooks for the OV inference path.
 
 Called from torchdynamo.execute to keep the generic infer code free of

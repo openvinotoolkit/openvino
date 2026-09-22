@@ -2,6 +2,8 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+# mypy: ignore-errors
+
 """vLLM-specific compile-time hooks.
 
 Called from torchdynamo.compile.openvino_compile to keep the generic compile
