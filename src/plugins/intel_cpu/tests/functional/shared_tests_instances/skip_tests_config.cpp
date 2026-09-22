@@ -511,6 +511,7 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(MultipleLSTMCellTest/MultipleLSTMCellTest.CompareWithRefs.*)"),
             // Compressed weights are not supported
             std::regex(R"(smoke_MatMulSharedCompressedWeights.*)"),
+            std::regex(R"(smoke_MatMulGroupedWeightsDecompressionBRGEMM.*)"),
             std::regex(R"(smoke_Model_Distribution_MatMulSharedCompressedWeights.*)"),
             std::regex(R"(smoke_MatmulAndGatherSharedWeightsDecompression.*)"),
             // Issue: 170863
