@@ -121,7 +121,8 @@ inline const std::map<std::string, DynamicModelConfig>& espcnModelConfigs() {
              ov::Dimension(10, 1920),
              true,
          }},
-        {"ESPCN_x2_DynHW_HD", {ov::Dimension(1), ov::Dimension(10, 720), ov::Dimension(10, 1280), true}},
+        {"ESPCN_x2_DynHW_HD", {ov::Dimension(1), ov::Dimension(10, 1080), ov::Dimension(10, 1280), true}}, 
+        //use [1,10..720 10..1280,1] compilationfailed on 4000
         {"ESPCN_x2_DynNHW_HD_NCHW", {ov::Dimension(1, 10), ov::Dimension(10, 720), ov::Dimension(10, 1280), false}},
         {"ESPCN_x2_DynN_HD_NCHW",
          {ov::Dimension(1, 10),
