@@ -1898,7 +1898,7 @@ void FakeQuantize::executeQuantization(const std::unique_ptr<jit_uni_quantize_ke
     const bool has_ncsp_layout = srcDesc.hasLayoutType(LayoutType::ncsp);
     const bool has_valid_rank = any_of(srcDesc.getShape().getRank(), 3U, 4U, 5U);
     const bool is_ncsp_with_valid_rank = has_ncsp_layout && has_valid_rank;
-    if (!is_ncsp_with_valid_rank && mayiuse(cpu::x64::avx512_core)) {
+    if (!is_ncsp_with_valid_rank && ov::with_cpu_x86_avx512_core()) {
         blk_size = 16;
     } else if (!is_ncsp_with_valid_rank) {
         blk_size = 8;
@@ -2458,19 +2458,19 @@ bool FakeQuantize::appendAttrPostOps(DnnlPostOpsComposerLegacy& dnnlpoc,
 FakeQuantize::FakeQuantizeJitExecutor::FakeQuantizeJitExecutor([[maybe_unused]] const jit_quantize_params& _jqp) {
 #if defined(OPENVINO_ARCH_X86_64)
     bool isBinarization = _jqp.op_type == Algorithm::FQBinarization;
-    if (mayiuse(cpu::x64::avx512_core)) {
+    if (ov::with_cpu_x86_avx512_core()) {
         if (isBinarization) {
             pKernel = std::make_unique<jit_uni_binarization_kernel<cpu::x64::avx512_core>>(_jqp);
         } else {
             pKernel = std::make_unique<jit_uni_quantization_kernel<cpu::x64::avx512_core>>(_jqp);
         }
-    } else if (mayiuse(cpu::x64::avx2)) {
+    } else if (ov::with_cpu_x86_avx2()) {
         if (isBinarization) {
             pKernel = std::make_unique<jit_uni_binarization_kernel<cpu::x64::avx2>>(_jqp);
         } else {
             pKernel = std::make_unique<jit_uni_quantization_kernel<cpu::x64::avx2>>(_jqp);
         }
-    } else if (mayiuse(cpu::x64::sse41)) {
+    } else if (ov::with_cpu_x86_sse42()) {
         if (isBinarization) {
             pKernel = std::make_unique<jit_uni_binarization_kernel<cpu::x64::sse41>>(_jqp);
         } else {
