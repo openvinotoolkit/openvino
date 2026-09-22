@@ -14,16 +14,6 @@ namespace intel_npu {
 
 namespace {
 
-// `std::sto*` stops at the first character which is not part of the number, so without this check a valid
-// prefix would be enough to accept malformed values such as "12oops". Only trailing whitespace is tolerated.
-void assertFullyConsumed(const std::string& str, size_t pos) {
-    while (pos < str.size() && std::isspace(static_cast<unsigned char>(str[pos]))) {
-        ++pos;
-    }
-
-    OPENVINO_ASSERT(pos == str.size());
-}
-
 // `std::from_chars` does the range checking for the exact target type on its own (unlike the `std::sto*`
 // functions, which either need a wider signed intermediate or silently wrap negative values around), but it
 // neither skips leading whitespace nor reports anything about the characters left after the number. Hence
@@ -32,8 +22,10 @@ void assertFullyConsumed(const std::string& str, size_t pos) {
 template <typename T>
 T parseNumber(std::string_view val, std::string_view typeName) {
     auto trimmed = ov::util::trim(val);
-    // Unlike `std::from_chars`, the `std::sto*` functions used before accepted an explicit plus sign
-    if (!trimmed.empty() && trimmed.front() == '+') {
+    // Unlike `std::from_chars`, the `std::sto*` functions used before accepted an explicit plus sign. Only a
+    // plus directly followed by a digit is dropped, so that "+-1" is still rejected instead of being turned
+    // into a well formed "-1".
+    if (trimmed.size() > 1 && trimmed.front() == '+' && std::isdigit(static_cast<unsigned char>(trimmed[1]))) {
         trimmed.remove_prefix(1);
     }
 
@@ -117,11 +109,18 @@ uint64_t OptionParser<uint64_t>::parse(std::string_view val) {
 }
 
 double OptionParser<double>::parse(std::string_view val) {
+    // `std::from_chars` has no floating point overload in every supported standard library, so `std::stod` is
+    // used here. Same as in `parseNumber`, the surrounding whitespace is trimmed upfront and the parse is
+    // required to reach the end of the value, so that a valid prefix alone ("1.5oops") is not enough.
     try {
-        const std::string str(val);
+        const auto trimmed = ov::util::trim(val);
+        // `ov::util::trim` hands back a default constructed view for a blank value, whose `data()` is null
+        OPENVINO_ASSERT(!trimmed.empty(), "Value '", val, "' holds no number at all");
+
+        const std::string str(trimmed);
         size_t pos = 0;
         const auto parsed = std::stod(str, &pos);
-        assertFullyConsumed(str, pos);
+        OPENVINO_ASSERT(pos == str.size(), "Value '", val, "' has leftover characters after the number");
         return parsed;
     } catch (...) {
         OPENVINO_THROW("Value '", val, "' is not a valid FP64 option");
@@ -235,11 +234,11 @@ void Config::parseEnvVars() {
     });
 }
 
-bool Config::has(std::string key) const {
+bool Config::has(std::string_view key) const {
     return _impl.count(key) != 0;
 }
 
-void Config::remove(std::string key) {
+void Config::remove(std::string_view key) {
     _impl.erase(key);
 }
 
@@ -305,13 +304,11 @@ details::OptionConcept Config::getOpt(std::string_view key) const {
 }
 
 void Config::addOrUpdateInternal(std::string key, std::string value) {
-    if (_internal_compiler_configs.count(key) != 0) {
-        _log.warning("Internal compiler option '%s' was already registered! Updating value only!", key.c_str());
-        _internal_compiler_configs.at(key) = std::move(value);
+    const auto [it, inserted] = _internal_compiler_configs.insert_or_assign(std::move(key), std::move(value));
+    if (inserted) {
+        _log.trace("Store internal compiler option %s: %s", it->first.c_str(), it->second.c_str());
     } else {
-        // manual insert
-        _log.trace("Store internal compiler option %s: %s", key.c_str(), value.c_str());
-        _internal_compiler_configs.emplace(key, std::move(value));
+        _log.warning("Internal compiler option '%s' was already registered! Updating value only!", it->first.c_str());
     }
 }
 
@@ -331,11 +328,14 @@ void Config::removeCompileTimeConfigs() {
     _internal_compiler_configs.clear();
 }
 
-std::string Config::getInternal(std::string key) const {
-    if (_internal_compiler_configs.count(key) == 0) {
-        OPENVINO_THROW("Internal compiler option " + key + " does not exist!");
+std::string Config::getInternal(std::string_view key) const {
+    // `ConfigMap` is keyed by `std::string` and uses the default comparator, so it has no heterogeneous lookup
+    const auto it = _internal_compiler_configs.find(std::string(key));
+    if (it == _internal_compiler_configs.end()) {
+        OPENVINO_THROW("Internal compiler option ", key, " does not exist!");
     }
-    return _internal_compiler_configs.at(key);
+
+    return it->second;
 }
 
 std::string Config::toStringForCompiler(const std::function<bool(const std::string&)>& isSupported) const {

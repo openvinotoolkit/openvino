@@ -5,11 +5,12 @@
 #include "intel_npu/config/config.hpp"
 
 #include <gtest/gtest.h>
-#include <stdlib.h>
 
 #include <algorithm>
 #include <chrono>
+#include <cstdlib>
 #include <limits>
+#include <sstream>
 
 #include "common_test_utils/test_assertions.hpp"
 #include "intel_npu/config/options.hpp"
@@ -23,7 +24,7 @@ namespace intel_npu {
 enum class DummyTestOption {
     TESTVALUE_0 = 0,
     TESTVALUE_1 = 1,
-    TESTVALUE_3 = 3  // not parsed
+    TESTVALUE_2 = 2  // not parsed
 };
 
 static std::string_view stringifyEnum(DummyTestOption dummyTestOption) {
@@ -35,6 +36,32 @@ static std::string_view stringifyEnum(DummyTestOption dummyTestOption) {
     default:
         OPENVINO_THROW("Cannot stringify DummyTestOption!");
     }
+}
+
+// Unscoped enums promote to their underlying type, so they are streamable even with no `operator<<` of their own
+enum DummyUnscopedTestOption : uint32_t { UNSCOPED_TESTVALUE_0 = 0, UNSCOPED_TESTVALUE_1 = 1 };
+
+static std::string_view stringifyEnum(DummyUnscopedTestOption dummyTestOption) {
+    switch (dummyTestOption) {
+    case UNSCOPED_TESTVALUE_0:
+        return "UNSCOPED_TESTVALUE_0";
+    case UNSCOPED_TESTVALUE_1:
+        return "UNSCOPED_TESTVALUE_1";
+    default:
+        OPENVINO_THROW("Cannot stringify DummyUnscopedTestOption!");
+    }
+}
+
+// An enum may end up with both a `stringifyEnum` overload and an `operator<<`, each of them printing the value
+// differently. The two spellings below only differ so that the printer's choice between them can be observed.
+enum class DummyStreamableTestOption { TESTVALUE_0 };
+
+static std::string_view stringifyEnum(DummyStreamableTestOption) {
+    return "FROM_STRINGIFY_ENUM";
+}
+
+inline std::ostream& operator<<(std::ostream& os, const DummyStreamableTestOption&) {
+    return os << "FROM_STREAM_OPERATOR";
 }
 
 static constexpr ov::Property<DummyTestOption, PropertyMutability::RO> dummy_test_option{"DUMMY_TEST_OPTION"};
@@ -89,8 +116,8 @@ using Milliseconds = std::chrono::duration<int64_t, std::milli>;
 using StringToInt64Map = std::map<std::string, int64_t>;
 
 static constexpr std::string_view hardcodedTestValue1 = "TESTVALUE_1";
-static constexpr std::string_view hardcodedTestValue3 = "TESTVALUE_3";
-static constexpr std::string_view expectedParseErrorMessage = "Cannot parse DummyTestOption: TESTVALUE_3";
+static constexpr std::string_view hardcodedTestValue2 = "TESTVALUE_2";
+static constexpr std::string_view expectedParseErrorMessage = "Cannot parse DummyTestOption: TESTVALUE_2";
 
 //
 // Dummy options used to exercise the `OptionsDesc` / `Config` plumbing
@@ -225,10 +252,19 @@ struct DUMMY_DEPRECATED_KEYS_OPTION final : intel_npu::OptionBase<DUMMY_DEPRECAT
     }
 };
 
+// There is neither an `operator<<` nor an `ov::util::Write` specialization for this type, so `ov::Any::print()`
+// is a no-op for it and `ov::Any::as<std::string>()` hands back an empty string instead of failing
+struct UnprintablePayload final {
+    int value = 0;
+};
+
 //
 // Helpers
 //
 
+// NB: the previous value of the variable is not saved and restored, the variable is simply cleared again on
+// destruction. That is enough for the `OV_NPU_*` variables of the dummy options used here, which nothing else
+// sets, but this helper must not be reused as is for a variable which may already be set in the environment.
 class ScopedEnvVar final {
 public:
     ScopedEnvVar(std::string name, const std::string& value) : _name(std::move(name)) {
@@ -355,6 +391,27 @@ TEST_F(OptionParserUnitTests, NumericParsersRejectTrailingGarbage) {
                                   ov::Exception,
                                   "is not a valid UINT64 option");
     OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<double>::parse("1.5oops"), ov::Exception, "is not a valid FP64 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<double>::parse("1.5 oops"), ov::Exception, "is not a valid FP64 option");
+}
+
+// An explicit plus sign was accepted by the `std::sto*` functions used before, so it still is
+TEST_F(OptionParserUnitTests, NumericParsersAcceptAnExplicitPlusSign) {
+    EXPECT_EQ(12, OptionParser<int32_t>::parse("+12"));
+    EXPECT_EQ(12u, OptionParser<uint32_t>::parse("+12"));
+    EXPECT_EQ(12, OptionParser<int64_t>::parse("+12"));
+    EXPECT_EQ(12u, OptionParser<uint64_t>::parse("+12"));
+    EXPECT_DOUBLE_EQ(1.5, OptionParser<double>::parse(" +1.5 "));
+}
+
+// Dropping the plus sign must not turn a malformed value into a well formed one
+TEST_F(OptionParserUnitTests, NumericParsersRejectAMalformedSign) {
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<int32_t>::parse("+-1"), ov::Exception, "is not a valid INT32 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<int64_t>::parse("+-1"), ov::Exception, "is not a valid INT64 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<uint32_t>::parse("+-1"), ov::Exception, "is not a valid UINT32 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<int32_t>::parse("++1"), ov::Exception, "is not a valid INT32 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<int32_t>::parse("+"), ov::Exception, "is not a valid INT32 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<int32_t>::parse("+ 1"), ov::Exception, "is not a valid INT32 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<double>::parse("+-1.5"), ov::Exception, "is not a valid FP64 option");
 }
 
 // Surrounding whitespace is still tolerated, only actual content may not be left over
@@ -383,6 +440,35 @@ TEST_F(OptionParserUnitTests, MapParserSplitsOnCommaAndColon) {
 
 TEST_F(OptionParserUnitTests, MapParserRejectsEntryWithoutValue) {
     EXPECT_ANY_THROW(OptionParser<StringToInt64Map>::parse("a"));
+}
+
+// An empty spelling means "nothing to parse" for the string and container parsers. `Config` relies on this
+// when it decides which `ov::Any` payloads may be stringified, so the behaviour is pinned in both directions.
+TEST_F(OptionParserUnitTests, StringAndContainerParsersAcceptAnEmptyValue) {
+    EXPECT_EQ("", OptionParser<std::string>::parse(""));
+    EXPECT_TRUE(OptionParser<std::vector<int64_t>>::parse("").empty());
+    EXPECT_TRUE(OptionParser<StringToInt64Map>::parse("").empty());
+}
+
+TEST_F(OptionParserUnitTests, ScalarParsersRejectAnEmptyValue) {
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<bool>::parse(""), ov::Exception, "is not a valid BOOL option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<int32_t>::parse(""), ov::Exception, "is not a valid INT32 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<uint32_t>::parse(""), ov::Exception, "is not a valid UINT32 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<int64_t>::parse(""), ov::Exception, "is not a valid INT64 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<uint64_t>::parse(""), ov::Exception, "is not a valid UINT64 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<double>::parse(""), ov::Exception, "is not a valid FP64 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<Milliseconds>::parse(""), ov::Exception, "as time duration");
+    EXPECT_ANY_THROW(OptionParser<ov::log::Level>::parse(""));
+}
+
+// A blank value is trimmed down to an empty one, which the numeric parsers must report instead of reading
+// through the null pointer `ov::util::trim` hands back for it
+TEST_F(OptionParserUnitTests, NumericParsersRejectABlankValue) {
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<int32_t>::parse("   "), ov::Exception, "is not a valid INT32 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<uint32_t>::parse("   "), ov::Exception, "is not a valid UINT32 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<int64_t>::parse("   "), ov::Exception, "is not a valid INT64 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<uint64_t>::parse("   "), ov::Exception, "is not a valid UINT64 option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(OptionParser<double>::parse("   "), ov::Exception, "is not a valid FP64 option");
 }
 
 TEST_F(OptionParserUnitTests, DurationParserRejectsNegativeAndGarbage) {
@@ -449,7 +535,23 @@ TEST_F(OptionPrinterUnitTests, EnumWithStreamOperatorUsesIt) {
 // Enums with no `operator<<` fall back onto the `stringifyEnum` overload
 TEST_F(OptionPrinterUnitTests, EnumWithoutStreamOperatorUsesStringifyEnum) {
     EXPECT_EQ(std::string(hardcodedTestValue1), OptionPrinter<DummyTestOption>::toString(DummyTestOption::TESTVALUE_1));
-    EXPECT_ANY_THROW(OptionPrinter<DummyTestOption>::toString(DummyTestOption::TESTVALUE_3));
+    EXPECT_ANY_THROW(OptionPrinter<DummyTestOption>::toString(DummyTestOption::TESTVALUE_2));
+}
+
+// Unscoped enums are implicitly streamable through integral promotion, the `stringifyEnum` overload still wins
+TEST_F(OptionPrinterUnitTests, UnscopedEnumUsesStringifyEnum) {
+    EXPECT_EQ("UNSCOPED_TESTVALUE_1", OptionPrinter<DummyUnscopedTestOption>::toString(UNSCOPED_TESTVALUE_1));
+}
+
+// When an enum provides both, the `stringifyEnum` overload is the one which takes precedence
+TEST_F(OptionPrinterUnitTests, StringifyEnumTakesPrecedenceOverStreamOperator) {
+    EXPECT_EQ("FROM_STRINGIFY_ENUM",
+              OptionPrinter<DummyStreamableTestOption>::toString(DummyStreamableTestOption::TESTVALUE_0));
+
+    // Makes sure the expectation above is not met just because the `operator<<` is unusable to begin with
+    std::stringstream stream;
+    stream << DummyStreamableTestOption::TESTVALUE_0;
+    EXPECT_EQ("FROM_STREAM_OPERATOR", stream.str());
 }
 
 TEST_F(OptionPrinterUnitTests, MapIsPrintedAsCommaSeparatedPairs) {
@@ -663,7 +765,7 @@ TEST_F(ConfigUnitTests, UpdateWithStringPayloadUsesTheOptionParser) {
     EXPECT_EQ(-1, config.get<DUMMY_CUSTOM_PARSE_OPTION>());
 }
 
-TEST_F(ConfigUnitTests, UpdateAndUpdateAcceptTheSameBooleanSpellings) {
+TEST_F(ConfigUnitTests, StringAndAnyPayloadsAcceptTheSameBooleanSpellings) {
     for (const auto& val : {"YES", "yes", "TRUE", "ON", "1"}) {
         auto fromString = makeConfig();
         fromString.update(DUMMY_BOOL_OPTION::key(), val);
@@ -732,6 +834,56 @@ TEST_F(ConfigUnitTests, UpdateWithMismatchedArithmeticPayloadGoesThroughTheParse
     config.update(DUMMY_UINT32_OPTION::key(), ov::Any(int64_t{7}));
 
     EXPECT_EQ(7u, config.get<DUMMY_UINT32_OPTION>());
+}
+
+// An unprintable payload is stringified into an empty spelling, which the `std::string` parser would otherwise
+// accept, silently setting the option to an empty value instead of reporting the unusable payload
+TEST_F(ConfigUnitTests, UpdateWithUnprintablePayloadIsRejected) {
+    auto config = makeConfig();
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(config.update(DUMMY_BOTH_OPTION::key(), ov::Any(UnprintablePayload{})),
+                                  ov::Exception,
+                                  "can't be converted to a string");
+
+    EXPECT_FALSE(config.has<DUMMY_BOTH_OPTION>());
+    EXPECT_EQ("both_default", config.get<DUMMY_BOTH_OPTION>());
+}
+
+// An empty `ov::Any` is stringified into an empty spelling as well
+TEST_F(ConfigUnitTests, UpdateWithEmptyPayloadIsRejected) {
+    auto config = makeConfig();
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(config.update(DUMMY_BOTH_OPTION::key(), ov::Any()),
+                                  ov::Exception,
+                                  "No value was provided");
+
+    EXPECT_FALSE(config.has<DUMMY_BOTH_OPTION>());
+    EXPECT_EQ("both_default", config.get<DUMMY_BOTH_OPTION>());
+}
+
+// An empty spelling is still accepted when it really was given as a string, for an option whose parser takes it
+TEST_F(ConfigUnitTests, UpdateWithEmptyStringPayloadIsAccepted) {
+    auto config = makeConfig();
+    config.update(DUMMY_BOTH_OPTION::key(), ov::Any(std::string()));
+
+    EXPECT_TRUE(config.has<DUMMY_BOTH_OPTION>());
+    EXPECT_EQ("", config.get<DUMMY_BOTH_OPTION>());
+}
+
+// A string literal reaches the option's parser as an empty spelling as well, which is not the same thing as
+// providing no value at all: here it is the option's own parser which rejects it
+TEST_F(ConfigUnitTests, UpdateWithEmptyStringPayloadIsRejectedByTheOptionParser) {
+    auto config = makeConfig();
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(config.update(DUMMY_BOOL_OPTION::key(), ""),
+                                  ov::Exception,
+                                  "is not a valid BOOL option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(config.update(DUMMY_RUN_TIME_OPTION::key(), ov::Any(std::string())),
+                                  ov::Exception,
+                                  "is not a valid INT64 option");
+
+    EXPECT_FALSE(config.has<DUMMY_BOOL_OPTION>());
+    EXPECT_FALSE(config.has<DUMMY_RUN_TIME_OPTION>());
 }
 
 TEST_F(ConfigUnitTests, RemoveDropsThePreviouslySetValue) {

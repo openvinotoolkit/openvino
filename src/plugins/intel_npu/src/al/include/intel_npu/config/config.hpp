@@ -79,12 +79,13 @@ struct IsIStreamable : std::false_type {};
 template <typename T>
 struct IsIStreamable<T, std::void_t<decltype(std::declval<std::istream&>() >> std::declval<T&>())>> : std::true_type {};
 
+// NB: detecting `operator<<` instead would be useless for unscoped enums, since those promote to their
+// underlying integral type and therefore always match one of the built-in `operator<<` overloads.
 template <typename T, typename = void>
-struct IsOStreamable : std::false_type {};
+struct HasStringifyEnum : std::false_type {};
 
 template <typename T>
-struct IsOStreamable<T, std::void_t<decltype(std::declval<std::ostream&>() << std::declval<const T&>())>>
-    : std::true_type {};
+struct HasStringifyEnum<T, std::void_t<decltype(stringifyEnum(std::declval<const T&>()))>> : std::true_type {};
 
 // `operator>>` stops at the first character it can't consume, so a successfully parsed prefix alone is not
 // enough to accept a value. Returns false when anything besides trailing whitespace is left in the stream.
@@ -218,8 +219,8 @@ struct OptionPrinter final {
         std::stringstream ss;
         if constexpr (std::is_floating_point_v<std::decay_t<T>>) {
             ss << std::fixed << std::setprecision(2) << val;
-        } else if constexpr (std::is_enum_v<std::decay_t<T>> && !details::IsOStreamable<std::decay_t<T>>::value) {
-            // Enums which don't provide an `operator<<` are expected to provide a `stringifyEnum` overload
+        } else if constexpr (std::is_enum_v<std::decay_t<T>> && details::HasStringifyEnum<std::decay_t<T>>::value) {
+            // A `stringifyEnum` overload wins over an `operator<<`, enums are expected to provide either of the two
             ss << stringifyEnum(val);
         } else {
             ss << val;
@@ -512,13 +513,13 @@ public:
      * @param key The key of the option to check.
      * @return True if a value was set, false if only the default value (if any) is available.
      */
-    bool has(std::string key) const;
+    bool has(std::string_view key) const;
 
     /**
      * @brief Erases the value set for the given option key. Does nothing if no value was set.
      * @param key The key of the option to erase.
      */
-    void remove(std::string key);
+    void remove(std::string_view key);
 
     /**
      * @brief Removes all compile-time and internal compiler configuration entries.
@@ -586,7 +587,7 @@ public:
      * @param key The key of the internal configuration to retrieve.
      * @return The value associated with the specified internal configuration key.
      */
-    std::string getInternal(std::string key) const;
+    std::string getInternal(std::string_view key) const;
 
     /**
      * @brief Generates a compiler configuration string for options supported by the current compiler.
