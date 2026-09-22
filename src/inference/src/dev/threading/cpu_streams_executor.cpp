@@ -169,10 +169,19 @@ struct CPUStreamsExecutor::Impl {
                     _stream_type = STREAM_WITHOUT_PARAM;
                 }
             }
+            const int group_base = get_num_processor_groups() > 1 ? stream_id : -1;
             if (_stream_type == STREAM_WITHOUT_PARAM) {
-                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
-                                                            .set_max_concurrency(concurrency)
-                                                            .set_max_threads_per_core(max_threads_per_core)});
+                // On multi-group Windows (group_base >= 0) distribute the arena's threads across processor
+                // groups; max_threads_per_core is dropped so tbbbind does not confine it to one group.
+                if (group_base >= 0) {
+                    _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                                .set_max_concurrency(concurrency)
+                                                                .set_processor_group_base(group_base)});
+                } else {
+                    _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                                .set_max_concurrency(concurrency)
+                                                                .set_max_threads_per_core(max_threads_per_core)});
+                }
             } else if (_stream_type == STREAM_WITH_NUMA_ID) {
                 // Numa node id has used different mapping methods in TBBBind since oneTBB 2021.4.0
 #    if USE_TBBBIND_2_5
@@ -183,10 +192,18 @@ struct CPUStreamsExecutor::Impl {
                     real_numa_node_id = _numaNodeId;
                 }
 #    endif
-                _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
-                                                            .set_numa_id(real_numa_node_id)
-                                                            .set_max_concurrency(concurrency)
-                                                            .set_max_threads_per_core(max_threads_per_core)});
+                // On multi-group Windows (group_base >= 0) distribute the arena's threads across processor
+                // groups; max_threads_per_core is dropped so tbbbind does not confine it to one group.
+                if (group_base >= 0) {
+                    _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                                .set_max_concurrency(concurrency)
+                                                                .set_processor_group_base(group_base)});
+                } else {
+                    _taskArena.reset(new custom::task_arena{custom::task_arena::constraints{}
+                                                                .set_numa_id(real_numa_node_id)
+                                                                .set_max_concurrency(concurrency)
+                                                                .set_max_threads_per_core(max_threads_per_core)});
+                }
             } else if (_stream_type == STREAM_WITH_CORE_TYPE) {
                 // sys_core_types = [LPECore, Ecore, Pcore]
                 const auto sys_core_types = custom::info::core_types();

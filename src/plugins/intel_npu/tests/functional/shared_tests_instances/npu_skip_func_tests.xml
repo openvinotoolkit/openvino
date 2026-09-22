@@ -7,6 +7,9 @@ Example:
             <backend></backend> (special case for no backend)
             <device>3720</device>
             <device>!4000</device> (using "!" to negate rule)
+            <driver_version>1688</driver_version> (exact build number, safe only for PV builds)
+            <driver_release>PV</driver_release> (driver type from --driver_release CLI arg: PV | RELEASE | LATEST)
+            <driver_release>!LATEST</driver_release> (negate: applies on PV and RELEASE)
             <operating_system>windows</operating_system>
             <operating_system>linux</operating_system>
         </enable_rules>
@@ -47,15 +50,68 @@ Example:
     </skip_config>
 
     <skip_config>
+        <message>Data type u1 not supported by NPU</message>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u1\D.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Data type u2 and 4-bit network outputs not supported by NPU3720</message>
+        <enable_rules>
+            <device>3720</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u2.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=i4.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=u4.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=nf4.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u2.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i4.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u4.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=nf4.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Data type f4e2m1 not supported by NPU</message>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=f4e2m1.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=f4e2m1.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Data type f8e8m0 not supported by NPU</message>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=f8e8m0.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=f8e8m0.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Data types f8e4m3, f8e5m2 not supported by NPU3720, NPU4000</message>
+        <enable_rules>
+            <device>3720</device>
+            <device>4000</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferRequestCheckTensorPrecision.*type=f8e4m3.*</filter>
+            <filter>.*InferRequestCheckTensorPrecision.*type=f8e5m2.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=f8e4m3.*</filter>
+            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=f8e5m2.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
         <message>Data types not supported by NPU3720 PV Driver.</message>
         <enable_rules>
             <device>3720</device>
-            <driver_version>1688</driver_version>
+            <driver_release>PV</driver_release>
         </enable_rules>
         <filters>
             <filter>.*InferRequestIOTensorSetPrecisionTest.*type=boolean.*</filter>
-            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i4.*</filter>
-            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u4.*</filter>
             <filter>.*InferRequestIOTensorSetPrecisionTest.*type=i16.*</filter>
             <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u16.*</filter>
             <filter>.*InferRequestIOTensorSetPrecisionTest.*type=bf16.*</filter>
@@ -96,16 +152,6 @@ Example:
         </filters>
     </skip_config>
 
-    <skip_config>
-        <message>Output I4 / U4 precision is not currently supported.</message>
-        <filters>
-            <filter>.*smoke.*OVInferRequestCheckTensorPrecision.*type=i4.*</filter>
-            <filter>.*smoke.*OVInferRequestCheckTensorPrecision.*type=u4.*</filter>
-            <filter>.*smoke.*OVInferRequestIOTensorSetPrecisionTestNPU.*type=i4.*</filter>
-            <filter>.*smoke.*OVInferRequestIOTensorSetPrecisionTestNPU.*type=u4.*</filter>
-        </filters>
-    </skip_config>
-
     <!-- E#112064 -->
     <skip_config>
         <message>INFERENCE_PRECISION_HINT = FP32 not supported on NPU</message>
@@ -120,7 +166,7 @@ Example:
         <message>Failing Windows PV Driver core threading tests</message>
         <enable_rules>
             <device>3720</device>
-            <driver_version>1688</driver_version>
+            <driver_release>PV</driver_release>
             <operating_system>windows</operating_system>
         </enable_rules>
         <filters>
@@ -220,27 +266,6 @@ Example:
         </filters>
     </skip_config>
 
-    <!-- E#170977 -->
-    <skip_config>
-        <message>Data type u2 not supported by NPU3720</message>
-        <enable_rules>
-            <device>3720</device>
-        </enable_rules>
-        <filters>
-            <filter>.*InferRequestCheckTensorPrecision.*type=u2.*</filter>
-            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u2.*</filter>
-        </filters>
-    </skip_config>
-
-    <!-- E###### -->
-    <skip_config>
-        <message>Data type u1 not supported by NPU</message>
-        <filters>
-            <filter>.*InferRequestCheckTensorPrecision.*type=u1\D.*</filter>
-            <filter>.*InferRequestIOTensorSetPrecisionTest.*type=u1\D.*</filter>
-        </filters>
-    </skip_config>
-
     <skip_config>
         <message>Tests skipped to reduce overall log length</message>
         <filters>
@@ -252,9 +277,10 @@ Example:
 
     <!-- C#191861 -->
     <skip_config>
-        <message>Blobs for OVBlobCompatibilityNPU need to be updated for NPU5010</message>
+        <message>Blobs for OVBlobCompatibilityNPU need to be updated for NPU5010 and NPU6010</message>
         <enable_rules>
             <device>5010</device>
+            <device>6010</device>
         </enable_rules>
         <filters>
             <filter>.*OVBlobCompatibilityNPU.*</filter>
@@ -265,7 +291,7 @@ Example:
         <message>PV driver cannot create infer request for models with boolean inputs</message>
         <enable_rules>
             <device>3720</device>
-            <driver_version>1688</driver_version>
+            <driver_release>PV</driver_release>
         </enable_rules>
         <filters>
             <filter>.*BooleanPrecisionInferRequestRunTests.*</filter>
@@ -308,7 +334,7 @@ Example:
         <message>UD12 driver does not support CACHE_ENCRYPTION_CALLBACKS on MTL</message>
         <enable_rules>
             <device>3720</device>
-            <driver_version>2020568</driver_version>
+            <driver_release>RELEASE</driver_release>
         </enable_rules>
         <filters>
             <filter>.*OVClassCompiledModelPropertiesTests.CanUseCache.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
@@ -322,7 +348,7 @@ Example:
     <skip_config>
         <message>UD12 driver does not support secure compilation</message>
         <enable_rules>
-            <driver_version>2020568</driver_version>
+            <driver_release>RELEASE</driver_release>
         </enable_rules>
         <filters>
             <filter>.*WeightlessCacheAccuracy.ReadConcatSplitAssign.*do_encryption=True.*(config=_|NPU_COMPILER_TYPE\[DRIVER\]).*</filter>
@@ -335,7 +361,7 @@ Example:
         <message>PV driver cannot compile models securely</message>
         <enable_rules>
             <device>3720</device>
-            <driver_version>1688</driver_version>
+            <driver_release>PV</driver_release>
         </enable_rules>
         <filters>
             <filter>.*OVHoldersTestNPU.CompileModelWithEncryptionWorksAfterConfigDeallocate.*</filter>
@@ -370,6 +396,52 @@ Example:
         </enable_rules>
         <filters>
             <filter>.*InferWithHostCompileTests.*model=MaxPool.*</filter>
+        </filters>
+    </skip_config>
+
+    <!-- C#191823 -->
+    <skip_config>
+        <message>HostCompile cannot compile the dynamic Add model because AdjustScaleShiftForDWConv requires static Reshape shapes.</message>
+        <enable_rules>
+            <device>4000</device>
+            <device>5010</device>
+        </enable_rules>
+        <filters>
+            <filter>.*DynamicBatchingTests.DynamicCheckMultipleBatchingRun0.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchingTests.DynamicCheckMultipleBatchingRunsSeq.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.DynamicSetInputRemoteTensorsMultipleInfer.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.DynamicSetInputRemoteTensorsDynamicBatchInflation.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.DynamicSetInputRemoteTensorsDynamicBatchDeflation.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.SetInputRemoteSingleBatchedTensorSingleInfer.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.SetInputRemoteSingleBatchedTensorSingleInferWithExportImport.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.SetInputRemoteSingleBatchedTensorDynamicBatchInflation.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.SetInputRemoteSingleBatchedTensorDynamicBatchInflationWithExportImport.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.SetInputRemoteSingleBatchedTensorDynamicBatchDeflation.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*DynamicBatchedTensorsRunTests.DynamicSetInputDifferentTensorsMultipleInfer.*NPU_BATCH_MODE_PLUGIN.*</filter>
+            <filter>.*RoiTensorsTestsRun.RunStridedTensorWithDynamicBoundedBatching.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>HostCompile cannot compile the dynamic MaxPool model because ConvertBatchedLayerTo1N requires static AffineReshape shapes.</message>
+        <enable_rules>
+            <device>4000</device>
+            <device>5010</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferWithDefaultHostCompileTests.CompileDynamicModelWithNoHostCompileMode.*model=MaxPool_NCHW_DynBatch.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Random accuracy issue for multithread test.</message>
+        <enable_rules>
+            <device>4000</device>
+            <device>5010</device>
+            <device>6010</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferWithHostCompileMultithreadTests.MT_ConcurrentInferThenSetPriorityAndInfer.*</filter>
         </filters>
     </skip_config>
 

@@ -9,8 +9,9 @@
 #include <string>
 
 #include "backends_registry.hpp"
-#include "blob_format_importers.hpp"
+#include "blob_source.hpp"
 #include "compiler_option_support_helper.hpp"
+#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/runtime/iplugin.hpp"
@@ -63,17 +64,9 @@ public:
                                     const ov::AnyMap& properties) const override;
 
 private:
-    void update_log_level(const ov::AnyMap& properties) const;
+    void update_global_properties(const ov::AnyMap& properties) const;
 
-    /**
-     * @brief Looks for "DISABLE_VERSION_CHECK" and "IMPORT_RAW_BLOB" to determine whether or not the blob to be
-     * imported should be treated as a "raw" one (i.e. the whole blob is a compiler main schedule).
-     */
-    bool should_import_raw_blob(const ov::AnyMap& properties) const;
-
-    std::shared_ptr<ov::ICompiledModel> import_model(const std::unique_ptr<IBlobFormatImporter>& blobFormatHandler,
-                                                     FilteredConfig& localConfig,
-                                                     ov::AnyMap& localProperties) const;
+    std::shared_ptr<ov::ICompiledModel> import_model(BlobSource& blobSource, ov::AnyMap& properties) const;
 
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 

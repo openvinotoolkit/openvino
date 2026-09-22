@@ -22,6 +22,7 @@ public:
                 get_device_utilization,
                 ((const std::string&), (const std::string&)),
                 (override));
+    MOCK_METHOD((std::optional<bool>), get_low_power_mode, (), (override));
     MOCK_METHOD((std::string),
                 get_device_list,
                 ((ov::AnyMap&), const std::shared_ptr<const ov::Model>&, const std::filesystem::path&),
@@ -36,7 +37,14 @@ public:
                 ((const std::vector<DeviceInformation>&),
                  const std::string&,
                  unsigned int,
-                 (const std::unordered_map<std::string, unsigned>&)),
+                 (const DeviceSelectionPolicy&),
+                 const std::string&),
+                (override));
+    MOCK_METHOD((std::list<DeviceInformation>),
+                sort_device_by_perf_curve,
+                ((const std::list<DeviceInformation>&),
+                 (const ov::intel_auto::PerfCurveTable&),
+                 size_t*),
                 (override));
     MOCK_METHOD((std::vector<DeviceInformation>),
                 parse_meta_devices,

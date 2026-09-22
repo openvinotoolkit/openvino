@@ -195,6 +195,20 @@ ov_status_e ov_compiled_model_set_property(const ov_compiled_model_t* compiled_m
     return ov_status_e::OK;
 }
 
+ov_status_e ov_compiled_model_set_properties(const ov_compiled_model_t* compiled_model,
+                                             const size_t num_properties,
+                                             const ov_property_t* properties) {
+    if (!compiled_model || !properties || num_properties == 0) {
+        return ov_status_e::INVALID_C_PARAM;
+    }
+    try {
+        ov::AnyMap property = ov_build_property_map(properties, num_properties);
+        compiled_model->object->set_property(property);
+    }
+    CATCH_OV_EXCEPTIONS
+    return ov_status_e::OK;
+}
+
 ov_status_e ov_compiled_model_get_property(const ov_compiled_model_t* compiled_model,
                                            const char* key,
                                            char** property_value) {

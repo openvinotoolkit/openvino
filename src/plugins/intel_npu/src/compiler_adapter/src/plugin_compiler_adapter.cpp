@@ -37,16 +37,22 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
                                              const std::shared_ptr<OptionSupportCache>& optionSupportCache,
                                              const std::optional<IDevice::DeviceProperties>& deviceProperties)
     : _zeroInitStruct(zeroInitStruct),
-      _optionSupportCache(optionSupportCache),
       _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.info("initialize PluginCompilerAdapter start");
 
     _logger.info("Loading PLUGIN compiler");
     try {
         auto ovLibPath = ov::util::path_to_string(ov::util::get_ov_lib_path());
-        auto vclCompilerPtr = std::make_shared<VCLCompilerImpl>(ovLibPath, deviceProperties);
+        auto vclLoader = VCLLoader::getInstance(ovLibPath);
+        OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
+        auto vclCompilerPtr =
+            std::make_shared<VCLCompilerImpl>(vclLoader->sharedFunctions(),
+                                              deviceProperties,
+                                              ScopedOptionSupportCache{optionSupportCache, pluginOptionSupportKey});
         OPENVINO_ASSERT(vclCompilerPtr != nullptr, "VCL compiler is nullptr");
-        auto vclLib = vclCompilerPtr->getLinkedLibrary();
+        // Pair the compiler with the library so the .so cannot be unloaded while the compiler
+        // dispatches into it. The compiler itself no longer knows a library is involved.
+        auto vclLib = vclLoader->getLibrary();
         _logger.info("PLUGIN VCL compiler is loading");
         OPENVINO_ASSERT(vclLib != nullptr, "VCL library is nullptr");
         _compiler = ov::SoPtr<VCLCompilerImpl>(vclCompilerPtr, vclLib);
@@ -73,34 +79,11 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                                        const FilteredConfig& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
-    // specify HostCompile_Interpreter mode for dynamic model (inputs and outputs both dynamic) if NPU_COMPILATION_MODE
-    // is not set
-    FilteredConfig effectiveConfig = config;
-    if (!config.has<COMPILATION_MODE>() &&
-        !(config.has<DYNAMIC_SHAPE_TO_STATIC>() && config.get<DYNAMIC_SHAPE_TO_STATIC>())) {
-        const auto isDynamic = [](const auto& port) {
-            auto& shape = port.get_partial_shape();
-            return shape.is_dynamic() && (shape.rank().get_length() == 4) && shape[0].is_static();
-        };
-
-        if (model) {
-            const auto& inputs = model->inputs();
-            const auto& outputs = model->outputs();
-            const bool inputsDynamic = std::any_of(inputs.begin(), inputs.end(), isDynamic);
-            const bool outputsDynamic = std::any_of(outputs.begin(), outputs.end(), isDynamic);
-            if (inputsDynamic && outputsDynamic) {
-                _logger.info("NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' "
-                             "for fully-dynamic model (inputs and outputs both dynamic)");
-                effectiveConfig.update({{ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter"}});
-            }
-        }
-    }
-
     _logger.debug("compile start");
-    auto [tensor, compatibilityDescriptor] = _compiler->compile(model, effectiveConfig);
+    auto [tensor, compatibilityDescriptor] = _compiler->compile(model, config);
     _logger.debug("compile end");
 
-    const auto& compilationMode = effectiveConfig.get<COMPILATION_MODE>();
+    const auto& compilationMode = config.get<COMPILATION_MODE>();
     const bool isHostCompile = compilationMode.find("HostCompile") != std::string::npos;
     const BlobType blobType =
         isHostCompile ? (compilationMode.find("HostCompile_Interpreter") != std::string::npos ? BlobType::BYTECODE
@@ -152,7 +135,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 
     FilteredConfig localConfig = config;
     if (!localConfig.has<SEPARATE_WEIGHTS_VERSION>()) {
-        localConfig.update({{ov::intel_npu::separate_weights_version.name(), "ONE_SHOT"}});
+        localConfig.update(ov::intel_npu::separate_weights_version.name(), "ONE_SHOT");
     }
 
     _logger.info("SEPARATE_WEIGHTS_VERSION: %s",
@@ -170,10 +153,13 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     ov::Tensor tensorMain;
     GraphDescriptor mainGraphDesc;
     NetworkMetadata mainNetworkMetadata;
+    std::optional<std::string> compatibilityDescriptor;
 
     switch (localConfig.get<SEPARATE_WEIGHTS_VERSION>()) {
     case ov::intel_npu::WSVersion::ONE_SHOT: {
-        std::vector<ov::Tensor> initMainTensors = _compiler->compileWsOneShot(model, localConfig);
+        auto oneShotResult = _compiler->compileWsOneShot(model, localConfig);
+        auto initMainTensors = std::move(oneShotResult.first);
+        compatibilityDescriptor = std::move(oneShotResult.second);
 
         tensorMain = initMainTensors.back();
         initMainTensors.pop_back();
@@ -235,7 +221,20 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         std::shared_ptr<ov::Model> targetModel = model;
         size_t i = 0;
 
-        while (auto tensor = _compiler->compileWsIterative(targetModel, localConfig, i++)) {
+        OPENVINO_ASSERT(is_option_supported(ov::intel_npu::ws_compile_call_number.name()),
+                        "WS_COMPILE_CALL_NUMBER is a compiler option and must be supported by the compiler.");
+        OPENVINO_ASSERT(!localConfig.has(ov::intel_npu::ws_compile_call_number.name()),
+                        "WS_COMPILE_CALL_NUMBER is an internal option owned by the weights separation compilation "
+                        "loop and must not be set by the user.");
+        while (true) {
+            auto iterativeResult = _compiler->compileWsIterative(targetModel, localConfig, i++);
+            auto tensor = std::move(iterativeResult.first);
+            if (iterativeResult.second.has_value()) {
+                compatibilityDescriptor = std::move(iterativeResult.second);
+            }
+            if (!tensor) {
+                break;
+            }
             GraphDescriptor graphDesc = _zeGraphExt->getGraphDescriptor(tensor.data(), tensor.get_byte_size());
             NetworkMetadata networkMetadata = _zeGraphExt->getNetworkMeta(graphDesc);
 
@@ -282,7 +281,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         tensorsInits,
         std::move(model),
         localConfig,
-        /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
+        /* persistentBlob = */ true,
+        compatibilityDescriptor);  // exporting the blob shall be available in such a scenario
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
@@ -298,53 +298,17 @@ uint32_t PluginCompilerAdapter::get_version() const {
 }
 
 std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
-    std::vector<char> options;
-    _compiler->get_supported_options(options);
-    size_t optionsSize = options.size();
-    while (optionsSize > 0 && options[optionsSize - 1] == '\0') {
-        --optionsSize;
-    }
-    if (optionsSize == 0) {
-        _logger.info("get_supported_options returned no options; returning an empty supported options vector.");
-        return {};
-    }
-
-    std::string compilerOptionsStr(options.data(), optionsSize);
-    _logger.debug("VCLCompilerImpl return supported_options: %s", compilerOptionsStr.c_str());
-    // vectorize string
-    std::istringstream suppstream(compilerOptionsStr);
-    std::vector<std::string> compilerOpts = {};
-    std::string option;
-    while (suppstream >> option) {
-        compilerOpts.push_back(option);
-    }
-
-    if (_optionSupportCache) {
-        _optionSupportCache->setSupportedOptions(pluginOptionSupportKey, compilerOpts);
-    }
-    return compilerOpts;
+    return _compiler->get_supported_options();
 }
 
 bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
                                                 const std::optional<std::string>& optValue) const {
-    bool optionSupportCache = _optionSupportCache && !optValue.has_value();
-    if (optionSupportCache) {
-        const auto cachedSupport = _optionSupportCache->isOptionSupported(pluginOptionSupportKey, optname);
-        if (cachedSupport.has_value()) {
-            return cachedSupport.value();
-        }
-    }
-
     const bool supported = _compiler->is_option_supported(optname, optValue);
-    if (optionSupportCache) {
-        _optionSupportCache->addSupportedOption(pluginOptionSupportKey, optname, supported);
-    }
 
-    const char* valueForLog = optValue.has_value() ? optValue->c_str() : "null";
-    _logger.debug("Option %s %s `%s` by VCLCompilerImpl",
+    _logger.debug("Option %s with value '%s' %s by PluginCompilerAdapter",
                   optname.c_str(),
-                  supported ? "is supported" : "is not supported",
-                  valueForLog);
+                  optValue.has_value() ? optValue->c_str() : "null",
+                  supported ? "is supported" : "is not supported");
 
     return supported;
 }

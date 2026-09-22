@@ -479,9 +479,11 @@ public:
 
     explicit Config(const std::shared_ptr<const OptionsDesc>& desc);
 
-    virtual void update(const ConfigMap& options);
+    void update(const ConfigMap& options);
+    void updateAny(const ov::AnyMap& options);
 
-    virtual void updateAny(const ov::AnyMap& options);
+    void update(std::string_view key, std::string_view value);
+    void updateAny(std::string_view key, const ov::Any& value);
 
     void parseEnvVars();
 
@@ -489,6 +491,7 @@ public:
     bool has() const;
 
     bool has(std::string key) const;
+    void remove(std::string key);
 
     template <class Opt>
     typename Opt::ValueType get() const;

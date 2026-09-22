@@ -6,6 +6,7 @@
 
 #include "core/null_node.hpp"
 #include "core/operator_set.hpp"
+#include "exceptions.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/variadic_split.hpp"
 using namespace ov::op;
@@ -53,6 +54,7 @@ ov::OutputVector split(const ov::frontend::onnx::Node& node) {
     if (node.has_attribute("num_outputs")) {
         const auto inputs = node.get_ov_inputs();
         const auto outputs_number = node.get_attribute_value<int64_t>("num_outputs", 0);
+        CHECK_VALID_NODE(node, outputs_number > 0, "'num_outputs' must be greater than zero, got: ", outputs_number);
         const auto axis = node.get_attribute_value<int64_t>("axis", 0);
         return ov::op::util::make_split(inputs.at(0), outputs_number, axis);
     }

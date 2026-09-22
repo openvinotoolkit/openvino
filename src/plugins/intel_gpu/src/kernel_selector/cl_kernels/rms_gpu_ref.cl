@@ -3,6 +3,7 @@
 //
 
 #include "include/fetch_utils.cl"
+#include "include/batch_headers/bf16_utils.cl"
 
 #if NORMALIZE_BATCH
     #define NORM_SIZE INPUT0_BATCH_NUM
@@ -55,7 +56,7 @@ KERNEL(rms_gpu_ref)(
             }
 
             rms /= NORM_SIZE;
-            rms = pow(sqrt(rms + TO_ACCUMULATOR_TYPE(EPSILON)), -1);
+            rms = pow(sqrt(rms + EPSILON), -1);
 
             for (uint n = 0; n < NORM_SIZE; n++) {
                 NORM_INDEX = n;
@@ -63,9 +64,9 @@ KERNEL(rms_gpu_ref)(
                 const uint output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, 0, z, y, x);
 #if ELEMENTWISE_AFFINE
                 const uint gamma_idx = INPUT1_OFFSET + (INPUT1_LENGTH == 1 ? 0 : n);
-                OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms) * TO_OUTPUT_TYPE(input[input_idx]) * TO_OUTPUT_TYPE(gamma[gamma_idx]);
+                OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(input[input_idx]) * TO_ACCUMULATOR_TYPE(gamma[gamma_idx]));
 #else
-                OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms) * TO_OUTPUT_TYPE(input[input_idx]);
+                OUTPUT_TYPE result = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(input[input_idx]));
 #endif
                 #if HAS_FUSED_OPS
                     FUSED_OPS;

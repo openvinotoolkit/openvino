@@ -30,9 +30,10 @@ OutputVector translate_copy_(const NodeContext& context) {
 };
 
 OutputVector translate_copy_fx(const NodeContext& context) {
+    // aten::copy(Tensor self, Tensor src, bool non_blocking=False) -> Tensor
     // copy = torch.ops.aten.copy.default(slice_4);
     // copy = torch.ops.aten.copy.default(slice_4, clone);
-    num_inputs_check(context, 1, 2);
+    num_inputs_check(context, 1, 3);
     auto self = context.get_input(0);
     if (context.input_is_none(1)) {
         return {self};

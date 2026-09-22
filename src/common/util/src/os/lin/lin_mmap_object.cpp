@@ -30,6 +30,10 @@ int64_t get_system_page_size() {
     return page_size;
 }
 
+size_t get_system_alloc_granularity() {
+    return static_cast<size_t>(get_system_page_size());
+}
+
 /**
  * @brief Creates a memory region for mmap operations.
  *
@@ -141,18 +145,18 @@ class MapHolder final : public MappedMemory {
 public:
     MapHolder() = default;
 
-    void set(const std::filesystem::path& path, const size_t offset, const size_t size) {
-        int mode = O_RDONLY;
+    void set(const std::filesystem::path& path, const size_t offset, const size_t size, const MmapMode mmap_mode) {
+        int mode = (mmap_mode == MmapMode::READ_WRITE) ? O_RDWR : O_RDONLY;
         int fd = open(path.c_str(), mode);
         if (fd == -1) {
             throw std::runtime_error("Can not open file " + util::path_to_string(path) +
                                      " for mapping. Ensure that file exists and has appropriate permissions.");
         }
-        set_from_fd(fd, offset, size);
-        m_id = util::get_id_for_file(path, offset, size);
+        set_from_fd(fd, offset, size, mmap_mode);
+        m_id = (mmap_mode == MmapMode::READ_WRITE) ? no_mapping_id : util::get_id_for_file(path, offset, size);
     }
 
-    void set_from_fd(const int fd, const size_t offset, const size_t size) {
+    void set_from_fd(const int fd, const size_t offset, const size_t size, const MmapMode mmap_mode = MmapMode::READ) {
         m_handle = HandleHolder(fd);
 
         struct stat sb = {};
@@ -166,17 +170,21 @@ public:
         }
 
         if (m_size > 0) {
+            const auto prot = (mmap_mode == MmapMode::READ_WRITE) ? (PROT_READ | PROT_WRITE) : PROT_READ;
             const auto& [aligned_offset, length, gap] = util::make_mmap_region(offset, m_size);
             m_mapped_view_size = length;
-            m_mapped_view = mmap(nullptr, length, PROT_READ, MAP_SHARED, fd, aligned_offset);
+            m_mapped_view = mmap(nullptr, length, prot, MAP_SHARED, fd, aligned_offset);
             if (m_mapped_view == MAP_FAILED) {
                 throw std::runtime_error("Can not create file mapping for " + std::to_string(fd) +
                                          ", err=" + std::strerror(errno));
             }
             m_data = static_cast<char*>(m_mapped_view) + gap;
         }
-        m_id =
-            util::u64_hash_combine(static_cast<uint64_t>(sb.st_ino), {static_cast<uint64_t>(sb.st_dev), offset, size});
+        // A read-write mapping is not an immutable data source, so it must not be shared through id-based caches.
+        m_id = (mmap_mode == MmapMode::READ_WRITE)
+                   ? no_mapping_id
+                   : util::u64_hash_combine(static_cast<uint64_t>(sb.st_ino),
+                                            {static_cast<uint64_t>(sb.st_dev), offset, size});
     }
 
     uint64_t get_id() const noexcept override {
@@ -231,9 +239,10 @@ public:
 std::shared_ptr<MappedMemory> load_mmap_object(const std::filesystem::path& path,
                                                size_t offset,
                                                size_t size,
-                                               bool /* no_placeholder */) {
+                                               bool /* no_placeholder */,
+                                               MmapMode mode) {
     auto holder = std::make_shared<MapHolder>();
-    holder->set(path, offset, size);
+    holder->set(path, offset, size, mode);
     return holder;
 }
 

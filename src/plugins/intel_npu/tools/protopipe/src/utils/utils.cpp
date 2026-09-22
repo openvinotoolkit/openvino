@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -12,9 +11,13 @@
 
 namespace utils {
 
+int toPhysicalDepth(int depth) {
+    return depth == kBooleanDepth ? CV_8U : depth;
+}
+
 void createNDMat(cv::Mat& mat, const std::vector<int>& dims, int depth) {
     GAPI_Assert(!dims.empty());
-    mat.create(dims, depth);
+    mat.create(dims, toPhysicalDepth(depth));
     if (dims.size() == 1) {
         // FIXME: Well-known 1D mat WA
         mat.dims = 1;

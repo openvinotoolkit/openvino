@@ -2,22 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "node_context.hpp"
-#include "op_table.hpp"
-#include "utils.hpp"
-
 #include <cstdint>
 #include <memory>
 #include <vector>
+
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
+#include "utils.hpp"
 
 namespace ov {
 namespace frontend {
 namespace gguf {
 namespace op {
 
-OutputVector translate_cont(const NodeContext & context) {
+OutputVector translate_cont(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
 
     int op_case = context.get_attribute<int>("op_case", 0);
@@ -53,12 +53,13 @@ OutputVector translate_cont(const NodeContext & context) {
         if (!tgt.empty()) {
             auto tgt_node = ov::op::v0::Constant::create(ov::element::i64, {tgt.size()}, tgt);
             res = std::make_shared<ov::op::v1::Reshape>(input, tgt_node, false);
-            return rename_outputs_with_suffix({res}, context.get_name());
+            res.get_node_shared_ptr()->set_friendly_name("cont_reshape_" + context.get_name());
+            return rename_outputs_with_suffix({std::move(res)}, context.get_name());
         }
         res = input;
     }
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 }  // namespace op
