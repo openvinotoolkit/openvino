@@ -46,6 +46,18 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         if (!fc || transformation_callback(fc)) {
             return false;
         }
+
+        auto has_static_output_shape = [](const std::shared_ptr<ov::Node>& node) {
+            return node->get_output_partial_shape(0).is_static();
+        };
+        const bool with_zero_point = pattern_map.count(sub_no_convert_m) > 0 || pattern_map.count(sub_with_convert_m) > 0;
+        if (!fc->get_input_partial_shape(1).is_static() || !has_static_output_shape(pattern_map.at(mul_const_m).get_node_shared_ptr())) {
+            return false;
+        }
+        if (with_zero_point && !has_static_output_shape(pattern_map.at(sub_const_m).get_node_shared_ptr())) {
+            return false;
+        }
+
         bool has_transpose = pattern_map.count(transpose_m) != 0u;
         auto scale_shape = pattern_map.at(mul_const_m).get_shape();
         bool sub_with_convert = pattern_map.count(sub_with_convert_m) > 0 ||
@@ -131,7 +143,6 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
         const auto& scale = reshape_decompression_input(pattern_map.at(mul_const_m).get_node_shared_ptr());
         std::shared_ptr<ov::Node> optional_zero_point = nullptr;
 
-        const bool with_zero_point = pattern_map.count(sub_no_convert_m) > 0 || pattern_map.count(sub_with_convert_m) > 0;
         if (with_zero_point) {
             optional_zero_point = convert_const_to_u8(reshape_decompression_input(pattern_map.at(sub_const_m).get_node_shared_ptr()));
         }
