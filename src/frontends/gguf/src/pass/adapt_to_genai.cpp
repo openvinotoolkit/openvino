@@ -36,10 +36,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace pass {
+namespace ov::frontend::gguf::pass {
 
 namespace {
 
@@ -429,7 +426,4 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     return true;
 }
 
-}  // namespace pass
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::pass

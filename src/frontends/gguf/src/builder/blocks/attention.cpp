@@ -10,10 +10,7 @@
 #include "builder/blocks/common.hpp"
 #include "builder/blocks/qkv_repack.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace blocks {
+namespace ov::frontend::gguf::blocks {
 
 using ov::element::f32;
 
@@ -273,7 +270,4 @@ std::string attention(GraphEmitter& e,
     return attn_out;
 }
 
-}  // namespace blocks
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::blocks
