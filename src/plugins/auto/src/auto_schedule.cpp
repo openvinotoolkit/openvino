@@ -658,7 +658,8 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
     }
     LOG_INFO_TAG("[dynamic] device:%s is used for the first time, compiling the model", device.device_name.c_str());
     try_to_compile_model(context, m_dynamic_model ? m_dynamic_model->clone() : nullptr);
-    if (context.m_device_info.device_name != requested_device_name || !context.m_is_load_success) {
+    const bool fell_back_to_other_device = context.m_device_info.device_name != requested_device_name;
+    if (fell_back_to_other_device || !context.m_is_load_success) {
         // the requested device failed to compile (try_to_compile_model() may have silently fallen back to
         // another one); exclude it from the shared candidate list so future inferences stop retrying it
         std::lock_guard<std::mutex> lock(m_context->m_fallback_mutex);
@@ -676,12 +677,23 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
                         context.m_err_message.c_str());
         return false;
     }
-    // try_to_compile_model() may have internally reselected and registered a fallback device on compile
-    // failure; drop that registration right away, same as the primary per inference selection above
-    m_plugin->unregister_priority(m_context->m_model_priority, context.m_device_info.unique_name);
+    if (fell_back_to_other_device) {
+        // try_to_compile_model() internally reselected and registered a fallback device on compile
+        // failure; drop that registration right away, same as the primary per inference selection above.
+        // when the requested device compiles successfully on the first try, no extra registration was
+        // made, so unregistering here would wrongly drop another schedule's reservation for that device.
+        m_plugin->unregister_priority(m_context->m_model_priority, context.m_device_info.unique_name);
+    }
     device = context.m_device_info;
-    generate_workers(device.device_name, context.m_compiled_model);
-    m_dynamic_compiled_models[device.device_name] = context.m_compiled_model;
+    if (m_dynamic_compiled_models.find(device.device_name) == m_dynamic_compiled_models.end()) {
+        generate_workers(device.device_name, context.m_compiled_model);
+        m_dynamic_compiled_models[device.device_name] = context.m_compiled_model;
+    } else {
+        // the fallback landed on a device this schedule already compiled and has a worker for;
+        // reuse it instead of generating a second (duplicate) worker for the same device
+        LOG_DEBUG_TAG("[dynamic] fallback device:%s is already cached, reusing its compiled model/worker",
+                      device.device_name.c_str());
+    }
     LOG_INFO_TAG("[dynamic] device:%s is ready in %lf ms",
                  device.device_name.c_str(),
                  std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start_time).count());
