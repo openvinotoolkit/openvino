@@ -303,6 +303,12 @@ static const std::vector<CPUSpecificParams>& bitwiseCpuParams() {
         CPUSpecificParams({nchw, nchw}, {nchw}, {}, bitwiseExpectedPrimitive())};
     return params;
 }
+#if defined(OPENVINO_ARCH_ARM64)
+static const std::vector<CPUSpecificParams>& bitwiseSnippetsCpuParams() {
+    static const std::vector<CPUSpecificParams> params = {CPUSpecificParams({}, {}, {}, "jit")};
+    return params;
+}
+#endif
 static const std::vector<CPUSpecificParams>& bitwiseCpuParamsI32() {
     static const std::vector<CPUSpecificParams> params = {
         CPUSpecificParams({nhwc, nhwc}, {nhwc}, {}, bitwiseI32ExpectedPrimitive()),
@@ -345,6 +351,50 @@ const auto params_4D_bitwise = ::testing::Combine(
     ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Bitwise, EltwiseLayerCPUTest, params_4D_bitwise, EltwiseLayerCPUTest::getTestCaseName);
+
+#if defined(OPENVINO_ARCH_ARM64)
+const auto params_4D_bitwise_snippets =
+    ::testing::Combine(::testing::Combine(::testing::ValuesIn(bitwise_in_shapes_4D),
+                                          ::testing::ValuesIn({ov::test::utils::EltwiseTypes::BITWISE_AND,
+                                                               ov::test::utils::EltwiseTypes::BITWISE_OR,
+                                                               ov::test::utils::EltwiseTypes::BITWISE_XOR}),
+                                          ::testing::ValuesIn(secondaryInputTypes()),
+                                          ::testing::ValuesIn({ov::test::utils::OpType::VECTOR}),
+                                          ::testing::ValuesIn({ov::element::Type_t::i8, ov::element::Type_t::u8}),
+                                          ::testing::Values(ov::element::Type_t::dynamic),
+                                          ::testing::Values(ov::element::Type_t::dynamic),
+                                          ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                          ::testing::Values(ov::AnyMap())),
+                       ::testing::ValuesIn(bitwiseSnippetsCpuParams()),
+                       ::testing::Values(emptyFusingSpec),
+                       ::testing::Values(true));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Bitwise_Snippets,
+                         EltwiseLayerCPUTest,
+                         params_4D_bitwise_snippets,
+                         EltwiseLayerCPUTest::getTestCaseName);
+
+const auto params_4D_bitwise_scalar_snippets =
+    ::testing::Combine(::testing::Combine(::testing::ValuesIn(bitwise_in_shapes_4D),
+                                          ::testing::ValuesIn({ov::test::utils::EltwiseTypes::BITWISE_AND,
+                                                               ov::test::utils::EltwiseTypes::BITWISE_OR,
+                                                               ov::test::utils::EltwiseTypes::BITWISE_XOR}),
+                                          ::testing::Values(ov::test::utils::InputLayerType::CONSTANT),
+                                          ::testing::Values(ov::test::utils::OpType::SCALAR),
+                                          ::testing::ValuesIn({ov::element::Type_t::i8, ov::element::Type_t::u8}),
+                                          ::testing::Values(ov::element::Type_t::dynamic),
+                                          ::testing::Values(ov::element::Type_t::dynamic),
+                                          ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                          ::testing::Values(ov::AnyMap())),
+                       ::testing::ValuesIn(bitwiseSnippetsCpuParams()),
+                       ::testing::Values(emptyFusingSpec),
+                       ::testing::Values(true));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Bitwise_Scalar_Snippets,
+                         EltwiseLayerCPUTest,
+                         params_4D_bitwise_scalar_snippets,
+                         EltwiseLayerCPUTest::getTestCaseName);
+#endif
 
 const auto params_2D_bitwise_broadcast =
     ::testing::Combine(::testing::Combine(::testing::ValuesIn(bitwise_in_shapes_2D_broadcast),
@@ -402,6 +452,27 @@ const auto params_4D_bitwise_NOT = ::testing::Combine(
     ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Bitwise_NOT, EltwiseLayerCPUTest, params_4D_bitwise_NOT, EltwiseLayerCPUTest::getTestCaseName);
+
+#if defined(OPENVINO_ARCH_ARM64)
+const auto params_4D_bitwise_NOT_snippets =
+    ::testing::Combine(::testing::Combine(::testing::ValuesIn(bitwise_in_shapes_4D),
+                                          ::testing::ValuesIn({ov::test::utils::EltwiseTypes::BITWISE_NOT}),
+                                          ::testing::ValuesIn({ov::test::utils::InputLayerType::CONSTANT}),
+                                          ::testing::ValuesIn({ov::test::utils::OpType::VECTOR}),
+                                          ::testing::ValuesIn({ov::element::Type_t::i8, ov::element::Type_t::u8}),
+                                          ::testing::Values(ov::element::Type_t::dynamic),
+                                          ::testing::Values(ov::element::Type_t::dynamic),
+                                          ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                          ::testing::Values(ov::AnyMap())),
+                       ::testing::ValuesIn(bitwiseSnippetsCpuParams()),
+                       ::testing::Values(emptyFusingSpec),
+                       ::testing::Values(true));
+
+INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_Bitwise_NOT_Snippets,
+                         EltwiseLayerCPUTest,
+                         params_4D_bitwise_NOT_snippets,
+                         EltwiseLayerCPUTest::getTestCaseName);
+#endif
 
 const auto params_4D_bitwise_NOT_i32 = ::testing::Combine(
     ::testing::Combine(

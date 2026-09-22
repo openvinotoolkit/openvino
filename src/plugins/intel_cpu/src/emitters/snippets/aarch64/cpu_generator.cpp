@@ -36,6 +36,10 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/bitwise_and.hpp"
+#include "openvino/op/bitwise_not.hpp"
+#include "openvino/op/bitwise_or.hpp"
+#include "openvino/op/bitwise_xor.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/clamp.hpp"
 #include "openvino/op/divide.hpp"
@@ -261,6 +265,9 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
 
     // binary
     jitters[op::v1::Add::get_type_info_static()] = emitter_factory.from_node<jit_add_emitter>();
+    jitters[op::v13::BitwiseAnd::get_type_info_static()] = emitter_factory.from_node<jit_bitwise_and_emitter>();
+    jitters[op::v13::BitwiseOr::get_type_info_static()] = emitter_factory.from_node<jit_bitwise_or_emitter>();
+    jitters[op::v13::BitwiseXor::get_type_info_static()] = emitter_factory.from_node<jit_bitwise_xor_emitter>();
     jitters[op::v1::Divide::get_type_info_static()] = emitter_factory.from_node<jit_divide_emitter>();
     jitters[op::v1::Maximum::get_type_info_static()] = emitter_factory.from_node<jit_maximum_emitter>();
     jitters[op::v1::Minimum::get_type_info_static()] = emitter_factory.from_node<jit_minimum_emitter>();
@@ -289,6 +296,7 @@ CPUTargetMachine::CPUTargetMachine(dnnl::impl::cpu::aarch64::cpu_isa_t host_isa,
 
     // unary
     jitters[ov::op::v0::Abs::get_type_info_static()] = emitter_factory.from_node<jit_abs_emitter>();
+    jitters[op::v13::BitwiseNot::get_type_info_static()] = emitter_factory.from_node<jit_bitwise_not_emitter>();
     jitters[ov::op::v0::Ceiling::get_type_info_static()] = emitter_factory.from_node<jit_ceiling_emitter>();
     jitters[ov::op::v0::Clamp::get_type_info_static()] = emitter_factory.from_node<jit_clamp_emitter>();
     jitters[ov::op::v0::Elu::get_type_info_static()] = emitter_factory.from_node<jit_elu_emitter>();
