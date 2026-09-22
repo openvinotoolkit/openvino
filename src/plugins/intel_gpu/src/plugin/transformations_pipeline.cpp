@@ -19,6 +19,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
+#include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/op/read_value.hpp"
@@ -169,6 +170,9 @@
 #include "transformations/init_node_info.hpp"
 #include "transformations/normalize_l2_decomposition.hpp"
 #include "transformations/low_precision/mark_dequantization_subgraph.hpp"
+#ifdef OV_GPU_MLIR_BACKEND_LINKED
+#    include "transformations/mlir/interface/convert.hpp"
+#endif  // OV_GPU_MLIR_BACKEND_LINKED
 #include "transformations/op_conversions/bidirectional_sequences_decomposition.hpp"
 #include "transformations/op_conversions/convert_batch_to_space.hpp"
 #include "transformations/op_conversions/convert_broadcast3.hpp"
@@ -798,6 +802,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         });
         manager.register_pass<ov::pass::RMSFusion>(false, true);
         manager.register_pass<DisableFP16CompForGemma3RMSPattern>();
+        manager.register_pass<DisableFP16CompForDecomposedRMSPattern>();
         const bool fp16_activation_scaling_enabled =
             config.get_activations_scale_factor() > 0.f && infer_precision == ov::element::f16;
         // Gated residuals need FP32 protection only when FP16 activation scaling is enabled.
@@ -975,6 +980,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         pass_config->set_callback<ov::pass::ScaledDotProductAttentionDecomposition>([&](const std::shared_ptr<const ov::Node> node){
+            // Never decompose if mlir-path is enabled
+            if (GPU_DEBUG_VALUE_OR(ExecutionConfig::get_enable_mlir(), false)) {
+                return true;
+            }
+
             if (!config.get_enable_sdpa_optimization())
                 return false;
 
@@ -1697,6 +1707,25 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.run_passes(func);
     }
 
+    if (GPU_DEBUG_VALUE_OR(ExecutionConfig::get_enable_mlir(), false)) {
+        // Guarded by OV_GPU_MLIR_BACKEND_LINKED rather than ENABLE_MLIR_FOR_GPU: this file is also
+        // compiled into ov_gpu_unit_tests, which does not link the MLIR objects providing transformMLIR().
+#ifdef OV_GPU_MLIR_BACKEND_LINKED
+        auto loweringContext = std::make_shared<ov::EvaluationContext>();
+        auto it = m_context->get_property().find(ov::intel_gpu::ocl_context.name());
+        if (it != m_context->get_property().end()) {
+            // We assume here that there's only one device per context and that an
+            // actual device will be extracted later by the 'mlir_op'.
+            loweringContext->insert(ov::intel_gpu::ocl_context(it->second.as<ov::intel_gpu::gpu_handle_param>()));
+        }
+        ov::intel_gpu::mlir::transformMLIR(func, config, loweringContext);
+#else
+        OPENVINO_THROW("[GPU] Property 'GPU_ENABLE_MLIR' (or OV_GPU_ENABLE_MLIR env var) is enabled, "
+                        "but this binary was built without Graph Compiler support. "
+                        "Rebuild OpenVINO with -DENABLE_MLIR_FOR_GPU=ON to enable MLIR execution.");
+#endif  // OV_GPU_MLIR_BACKEND_LINKED
+    }
+
     {
         ov::pass::Manager manager("GPU:PostLPT");
         manager.set_per_pass_validation(false);
@@ -1834,8 +1863,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return true;
                 }
 
-                auto weight_shape = root->get_input_partial_shape(1);
-                const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
+                auto fc = ov::as_type_ptr<const ov::intel_gpu::op::FullyConnectedCompressed>(root);
+                auto weight_shape = fc->get_input_partial_shape(1);
+                const size_t k_axis = weight_shape.size() - (fc->get_transpose_b() ? 1 : 2);
+                const size_t n_axis = weight_shape.size() - (fc->get_transpose_b() ? 2 : 1);
+                const size_t innermost_size = weight_shape[k_axis].get_length();
                 const size_t simd = 16;
                 if (innermost_size < 32 || (innermost_size % (simd * 2) != 0)) {
                     GPU_DEBUG_TRACE << root->get_friendly_name()
@@ -1856,6 +1888,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 if (has_wzp && !cldnn::one_of(root->get_input_element_type(4), {ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4})) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
                                                                     " unsupported weight zp type: " << root->get_input_element_type(4) << std::endl;
+                    return true;
+                }
+
+                // A single output feature (N == 1) FC has a matmul too small to amortize
+                // the cost of dynamically quantizing its activation
+                const auto& n_dim = weight_shape[n_axis];
+                if (n_dim.is_static() && n_dim.get_length() == 1) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
+                                                                    " compressed weight with N==1 (activation quantization is unprofitable;"
+                                                                    " keep weight-only quantization with f16 activation)" << std::endl;
                     return true;
                 }
 
