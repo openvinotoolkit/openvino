@@ -842,9 +842,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // whose ConstantFolding folds the mask away when indices and depth are constants.
         manager.register_pass<ov::intel_gpu::DecomposeOneHotNonConstValues>();
 
-        // Convert decomposed-attention Select (where) masks into additive masks so the common
-        // ov::pass::SDPAFusion (registered inside the CommonOptimizations below) can fuse them.
-        manager.register_pass<ov::intel_gpu::SDPASelectMaskFusion>();
+        if (config.get_enable_sdpa_optimization())
+            manager.register_pass<ov::intel_gpu::SDPASelectMaskFusion>();
 
         manager.register_pass<ov::pass::CommonOptimizations>();
         pass_config->disable<ov::pass::GroupQueryAttentionDecomposition>();

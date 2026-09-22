@@ -2,10 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
+#include <cctype>
+#include <cmath>
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/coordinate_diff.hpp"
 #include "openvino/core/strides.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -17,6 +22,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/opsets/opset13_decl.hpp"
@@ -479,4 +485,263 @@ INSTANTIATE_TEST_SUITE_P(SDPAFusionTests,
                                                              0.1f,
                                                              0.1f,
                                                              GQAMode::DirectBroadcast)));
+
+// -------------------------------------------------------------------------------------------------
+// Select (where) mask variant of the decomposed attention: SDPASelectMaskFusion rewrites
+// Select(mask, scores, sentinel) into the additive mask form the common SDPAFusion understands, so
+// a complete attention must end up as one fused SDPA layer while every other graph stays untouched.
+// -------------------------------------------------------------------------------------------------
+const float kSelectMaskSentinel = static_cast<float>(std::numeric_limits<ov::float16>::lowest());
+constexpr float kSelectMaskWeakSentinel = -10000.0f;
+
+constexpr int64_t kSelectMaskHeads = 4;
+constexpr int64_t kSelectMaskSeqLen = 8;
+// The SDPA transformation is only kept for a head size of at least 64 (and even) to prevent
+// decomposes SDPA
+constexpr int64_t kSelectMaskHeadDim = 64;
+
+enum class SelectMaskVariant {
+    FullAttention,
+    NoValueMatMul,
+    NoQueryMatmul,
+    PdpdBroadcast,
+};
+
+struct SelectMaskTestParams {
+    ov::element::Type in_type;
+    float sentinel;
+    SelectMaskVariant variant;
+    bool sdpa_optimization;
+    bool expect_fused;
+    float abs_threshold;
+    float rel_threshold;
+    std::string name;
+};
+
+std::string to_lower(std::string value) {
+    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) {
+        return static_cast<char>(std::tolower(c));
+    });
+    return value;
+}
+
+std::string layer_type_of(const std::shared_ptr<const ov::Node>& node) {
+    const auto& rt_info = node->get_rt_info();
+    const auto it = rt_info.find(ov::exec_model_info::LAYER_TYPE);
+    return it == rt_info.end() ? std::string{} : it->second.as<std::string>();
+}
+
+std::shared_ptr<ov::Model> build_select_mask_attention(const ov::element::Type& in_type,
+                                                       float sentinel,
+                                                       SelectMaskVariant variant) {
+    const bool pdpd = variant == SelectMaskVariant::PdpdBroadcast;
+    const bool has_query_matmul = variant != SelectMaskVariant::NoQueryMatmul;
+    const bool has_value_matmul = variant == SelectMaskVariant::FullAttention || pdpd;
+    const auto mask_shape = pdpd ? ov::Shape{kSelectMaskHeads, kSelectMaskSeqLen, kSelectMaskSeqLen}
+                                 : ov::Shape{1, 1, kSelectMaskSeqLen, kSelectMaskSeqLen};
+
+    ov::ParameterVector params;
+    std::shared_ptr<ov::Node> scores;
+    if (has_query_matmul) {
+        const auto query = std::make_shared<ov::op::v0::Parameter>(
+            in_type, ov::Shape{1, kSelectMaskHeads, kSelectMaskSeqLen, kSelectMaskHeadDim});
+        const auto key = std::make_shared<ov::op::v0::Parameter>(
+            in_type, ov::Shape{1, kSelectMaskHeads, kSelectMaskHeadDim, kSelectMaskSeqLen});
+        params.push_back(query);
+        params.push_back(key);
+        const auto scale = ov::op::v0::Constant::create(in_type, ov::Shape{}, {0.125f});
+        scores = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::MatMul>(query, key), scale);
+    } else {
+        const auto plain_scores = std::make_shared<ov::op::v0::Parameter>(
+            in_type, ov::Shape{1, kSelectMaskHeads, kSelectMaskSeqLen, kSelectMaskSeqLen});
+        params.push_back(plain_scores);
+        scores = plain_scores;
+    }
+
+    const auto mask = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, mask_shape);
+    const auto sentinel_const = ov::op::v0::Constant::create(in_type, ov::Shape{}, {sentinel});
+    std::shared_ptr<ov::Node> select;
+    if (pdpd) {
+        select = std::make_shared<ov::op::v1::Select>(mask,
+                                                      scores,
+                                                      sentinel_const,
+                                                      ov::op::AutoBroadcastSpec(ov::op::AutoBroadcastType::PDPD, 1));
+    } else {
+        select = std::make_shared<ov::op::v1::Select>(mask, scores, sentinel_const);
+    }
+
+    const auto softmax = std::make_shared<ov::op::v8::Softmax>(select, -1);
+    std::shared_ptr<ov::Node> output = softmax;
+    if (has_value_matmul) {
+        const auto value = std::make_shared<ov::op::v0::Parameter>(
+            in_type, ov::Shape{1, kSelectMaskHeads, kSelectMaskSeqLen, kSelectMaskHeadDim});
+        params.push_back(value);
+        output = std::make_shared<ov::op::v0::MatMul>(softmax, value);
+    }
+
+    params.push_back(mask);
+    return std::make_shared<ov::Model>(ov::OutputVector{output}, params, "select_mask_attention");
+}
+
+std::shared_ptr<ov::Model> build_additive_mask_attention(const ov::element::Type& in_type) {
+    const auto query = std::make_shared<ov::op::v0::Parameter>(
+        in_type, ov::Shape{1, kSelectMaskHeads, kSelectMaskSeqLen, kSelectMaskHeadDim});
+    const auto key = std::make_shared<ov::op::v0::Parameter>(
+        in_type, ov::Shape{1, kSelectMaskHeads, kSelectMaskHeadDim, kSelectMaskSeqLen});
+    const auto value = std::make_shared<ov::op::v0::Parameter>(
+        in_type, ov::Shape{1, kSelectMaskHeads, kSelectMaskSeqLen, kSelectMaskHeadDim});
+    const auto mask = std::make_shared<ov::op::v0::Parameter>(
+        in_type, ov::Shape{1, 1, kSelectMaskSeqLen, kSelectMaskSeqLen});
+    const auto scale = ov::op::v0::Constant::create(in_type, ov::Shape{}, {0.125f});
+    const auto scores = std::make_shared<ov::op::v1::Multiply>(std::make_shared<ov::op::v0::MatMul>(query, key), scale);
+    const auto masked = std::make_shared<ov::op::v1::Add>(scores, mask);
+    const auto softmax = std::make_shared<ov::op::v8::Softmax>(masked, -1);
+    const auto output = std::make_shared<ov::op::v0::MatMul>(softmax, value);
+    return std::make_shared<ov::Model>(ov::OutputVector{output},
+                                       ov::ParameterVector{query, key, value, mask},
+                                       "additive_mask_attention");
+}
+
+class SDPAFusionSelectMask : public ov::test::SubgraphBaseStaticTest,
+                             public testing::WithParamInterface<SelectMaskTestParams> {
+protected:
+    void create_model() {
+        const auto& params = GetParam();
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        inType = params.in_type;
+        if (!params.sdpa_optimization)
+            configuration.insert({ov::intel_gpu::hint::enable_sdpa_optimization.name(), false});
+
+        function = build_select_mask_attention(params.in_type, params.sentinel, params.variant);
+        functionRefs = function->clone();
+        abs_threshold = params.abs_threshold;
+        rel_threshold = params.rel_threshold;
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& func_inputs = function->get_parameters();
+        for (size_t i = 0; i < func_inputs.size(); ++i) {
+            const auto& param = func_inputs[i];
+            const auto shape = targetInputStaticShapes[i];
+            if (param->get_element_type() == ov::element::boolean) {
+                ov::Tensor mask(ov::element::boolean, shape);
+                auto* data = mask.data<bool>();
+                // Keep every row with at least one true entry; fully masked rows are checked
+                // separately by SDPASelectMaskFullyMasked.
+                for (size_t j = 0; j < mask.get_size(); ++j)
+                    data[j] = (j % static_cast<size_t>(kSelectMaskSeqLen)) % 7 != 0;
+                inputs.insert({param, mask});
+            } else {
+                inputs.insert({param,
+                               ov::test::utils::create_and_fill_tensor(param->get_element_type(),
+                                                                       shape,
+                                                                       ov::test::utils::InputGenerateData(0, 2, 8, 1))});
+            }
+        }
+    }
+
+    size_t count_fused_layers(const ov::CompiledModel& compiled_model) {
+        size_t count = 0;
+        for (const auto& node : compiled_model.get_runtime_model()->get_ordered_ops())
+            if (layer_type_of(node) == "scaled_dot_product_attention")
+                ++count;
+        return count;
+    }
+
+    size_t expected_fused_count() {
+        if (!GetParam().expect_fused)
+            return 0;
+        const auto baseline = core->compile_model(build_additive_mask_attention(GetParam().in_type),
+                                                 targetDevice,
+                                                 configuration);
+        return count_fused_layers(baseline);
+    }
+
+    void check_select_mask_fusion() {
+        const auto& params = GetParam();
+        ov::test::CheckNumberOfNodesWithType(compiledModel,
+                                             "scaled_dot_product_attention",
+                                             expected_fused_count());
+
+        if (params.variant != SelectMaskVariant::NoQueryMatmul)
+            return;
+        // A plain Select -> Softmax graph must keep its Select: the rewrite used to show up as an
+        // extra Eltwise in front of the SoftMax.
+        size_t softmax_count = 0;
+        for (const auto& node : compiledModel.get_runtime_model()->get_ordered_ops()) {
+            if (to_lower(layer_type_of(node)) != "softmax")
+                continue;
+            ++softmax_count;
+            for (const auto& input : node->inputs())
+                EXPECT_NE(to_lower(layer_type_of(input.get_source_output().get_node_shared_ptr())), "eltwise");
+        }
+        EXPECT_EQ(softmax_count, 1u);
+    }
+};
+
+TEST_P(SDPAFusionSelectMask, Inference) {
+    create_model();
+    run();
+    check_select_mask_fusion();
+}
+
+class SDPASelectMaskFullyMasked : public ov::test::SubgraphBaseStaticTest {
+protected:
+    void SetUp() override {
+        targetDevice = ov::test::utils::DEVICE_GPU;
+        inType = ov::element::f16;
+        function = build_select_mask_attention(inType, kSelectMaskSentinel, SelectMaskVariant::FullAttention);
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& func_inputs = function->get_parameters();
+        for (size_t i = 0; i < func_inputs.size(); ++i) {
+            const auto& param = func_inputs[i];
+            const auto shape = targetInputStaticShapes[i];
+            if (param->get_element_type() == ov::element::boolean) {
+                ov::Tensor mask(ov::element::boolean, shape);
+                std::fill_n(mask.data<bool>(), mask.get_size(), false);
+                inputs.insert({param, mask});
+            } else {
+                inputs.insert({param,
+                               ov::test::utils::create_and_fill_tensor(param->get_element_type(),
+                                                                       shape,
+                                                                       ov::test::utils::InputGenerateData(0, 2, 8, 1))});
+            }
+        }
+    }
+};
+
+TEST_F(SDPASelectMaskFullyMasked, RowsStayFinite) {
+    compile_model();
+    std::vector<ov::Shape> input_shapes;
+    for (const auto& param : function->get_parameters())
+        input_shapes.push_back(param->get_shape());
+    generate_inputs(input_shapes);
+    infer();
+
+    ov::test::CheckNumberOfNodesWithType(compiledModel, "scaled_dot_product_attention", 1);
+    const auto output = inferRequest.get_output_tensor(0);
+    for (size_t i = 0; i < output.get_size(); ++i)
+        ASSERT_TRUE(std::isfinite(static_cast<float>(output.data<const ov::float16>()[i]))) << "index " << i;
+}
+
+const std::vector<SelectMaskTestParams> select_mask_test_params = {
+    {ov::element::f16, kSelectMaskSentinel, SelectMaskVariant::FullAttention, true, true, 0.025f, 0.025f, "f16_saturated_sentinel"},
+    {ov::element::bf16, kSelectMaskSentinel, SelectMaskVariant::FullAttention, true, true, 0.1f, 0.1f, "bf16_saturated_sentinel"},
+    {ov::element::f16, kSelectMaskWeakSentinel, SelectMaskVariant::FullAttention, true, false, 0.025f, 0.025f, "weak_sentinel_not_rewritten"},
+    {ov::element::f16, kSelectMaskSentinel, SelectMaskVariant::NoValueMatMul, true, false, 0.025f, 0.025f, "missing_value_matmul_not_rewritten"},
+    {ov::element::f16, kSelectMaskSentinel, SelectMaskVariant::NoQueryMatmul, true, false, 0.025f, 0.025f, "non_attention_not_rewritten"},
+    {ov::element::f16, kSelectMaskSentinel, SelectMaskVariant::PdpdBroadcast, true, false, 0.025f, 0.025f, "pdpd_broadcast_not_rewritten"},
+    {ov::element::f16, kSelectMaskSentinel, SelectMaskVariant::FullAttention, false, false, 0.025f, 0.025f, "sdpa_optimization_disabled"},
+};
+
+INSTANTIATE_TEST_SUITE_P(SDPAFusionSelectMaskTests,
+                         SDPAFusionSelectMask,
+                         ::testing::ValuesIn(select_mask_test_params),
+                         [](const testing::TestParamInfo<SelectMaskTestParams>& info) {
+                             return info.param.name;
+                         });
 }  // namespace
