@@ -9,6 +9,23 @@
 using namespace ov::test::behavior;
 
 namespace {
+
+void set_env(const char* name, const char* value) {
+#ifdef _WIN32
+    _putenv_s(name, value);
+#else
+    ::setenv(name, value, 1);
+#endif
+}
+
+void unset_env(const char* name) {
+#ifdef _WIN32
+    _putenv_s(name, "");
+#else
+    ::unsetenv(name);
+#endif
+}
+
 static const std::vector<ov::element::Type> precisionsGPU = {
     ov::element::f32,
     ov::element::f16,
@@ -85,13 +102,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_CachingSupportCase_GPU,
 class CompileModelZeroCopyCacheLoadTest : public CompileModelLoadFromFileTestBase {
 protected:
     void SetUp() override {
-        setenv("OV_GPU_ENABLE_ZERO_COPY_CACHE_LOAD", "YES", 1);
+        set_env("OV_GPU_ENABLE_ZERO_COPY_CACHE_LOAD", "YES");
         CompileModelLoadFromFileTestBase::SetUp();
     }
 
     void TearDown() override {
         CompileModelLoadFromFileTestBase::TearDown();
-        unsetenv("OV_GPU_ENABLE_ZERO_COPY_CACHE_LOAD");
+        unset_env("OV_GPU_ENABLE_ZERO_COPY_CACHE_LOAD");
     }
 };
 
