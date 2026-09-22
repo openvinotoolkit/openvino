@@ -23,32 +23,27 @@ Result reportValidationResult(const std::vector<FailedIter>& failed_iters, const
 void updateCriterion(ITermCriterion::Ptr* criterion, cv::util::optional<uint64_t> required_num_iterations);
 void dumpIterOutput(const cv::Mat& mat, const Dump& dump, const size_t iter);
 
+// NB: Graph output order doesn't match the model's output layer order, so the validator bound to
+// each output at build time is the only reliable way to tell which layer an output belongs to.
 static std::vector<std::string> compareOutputs(
     const std::vector<cv::Mat>& ref_mats,
     const std::vector<cv::Mat>& tgt_mats,
-    const InferDesc& infer,
-    const AccuracySimulation::Options& opts) {
+    const std::vector<Meta>& out_meta) {
 
     std::vector<std::string> failed_list;
 
-    if (ref_mats.size() < infer.output_layers.size() || tgt_mats.size() < infer.output_layers.size()) {
-        THROW_ERROR("Model: " << infer.tag << " produced " << ref_mats.size() << " reference and " << tgt_mats.size()
-                              << " target output(s), but has " << infer.output_layers.size() << " output layer(s)");
+    if (ref_mats.size() != out_meta.size() || tgt_mats.size() != out_meta.size()) {
+        THROW_ERROR("Expected " << out_meta.size() << " output(s), but got " << ref_mats.size() << " reference and "
+                               << tgt_mats.size() << " target output(s)");
     }
 
-    auto default_metric = opts.global_metric ? opts.global_metric : std::make_shared<Norm>(0.0);
-    auto per_layer_metrics = unpackWithDefault(
-        opts.metrics_map.at(infer.tag),
-        extractLayerNames(infer.output_layers),
-        default_metric
-    );
-
-    for (size_t i = 0; i < infer.output_layers.size(); ++i) {
-        const auto& layer = infer.output_layers[i];
-        LayerValidator validator{infer.tag, layer.name, per_layer_metrics.at(layer.name)};
-        auto result = validator(ref_mats[i], tgt_mats[i]);
+    for (size_t i = 0; i < out_meta.size(); ++i) {
+        if (!out_meta[i].has<AccuracyValidate>()) {
+            continue;
+        }
+        auto result = out_meta[i].get<AccuracyValidate>().validator(ref_mats[i], tgt_mats[i]);
         if (!result) {
-            failed_list.push_back(std::move(result.str()));
+            failed_list.push_back(result.str());
         }
     }
 
@@ -58,15 +53,18 @@ static std::vector<std::string> compareOutputs(
 static Result performValidation(
     const std::vector<std::vector<cv::Mat>>& ref_outputs,
     const std::vector<std::vector<cv::Mat>>& tgt_outputs,
-    const InferDesc& infer,
-    const AccuracySimulation::Options& opts) {
+    const std::vector<Meta>& out_meta) {
+
+    if (ref_outputs.empty()) {
+        return Error{"Reference device produced no output to validate against"};
+    }
 
     std::vector<FailedIter> failed_iters;
 
     // NB: Use tgt_outputs.size() as iteration count to match validation mode behavior.
     // Reference outputs are cycled via modulo if fewer iterations are available.
     for (size_t i = 0; i < tgt_outputs.size(); ++i) {
-        auto failed_list = compareOutputs(ref_outputs[i % ref_outputs.size()], tgt_outputs[i], infer, opts);
+        auto failed_list = compareOutputs(ref_outputs[i % ref_outputs.size()], tgt_outputs[i], out_meta);
         if (!failed_list.empty()) {
             failed_iters.push_back(FailedIter{i, std::move(failed_list)});
         }
@@ -208,14 +206,12 @@ public:
     // so only one input / output iteration must be generated.
     cv::optional<uint64_t> required_num_iterations;
     const AccuracySimulation::Options& opts;
-    InferDesc current_infer;
 };
 
 AccuracyStrategy::AccuracyStrategy(const AccuracySimulation::Options& _opts): opts(_opts) {
 }
 
 IBuildStrategy::InferBuildInfo AccuracyStrategy::build(const InferDesc& infer) {
-    current_infer = infer;
     const auto& input_data = opts.input_data_map.at(infer.tag);
     InputDataVisitor in_data_visitor{infer, opts};
     std::visit(in_data_visitor, input_data);
@@ -238,6 +234,15 @@ IBuildStrategy::InferBuildInfo AccuracyStrategy::build(const InferDesc& infer) {
     OutputDataVisitor out_data_visitor{infer, opts};
     std::visit(out_data_visitor, output_data);
 
+    auto default_metric = opts.global_metric ? opts.global_metric : std::make_shared<Norm>(0.0);
+    auto per_layer_metrics = unpackWithDefault(opts.metrics_map.at(infer.tag),
+                                              extractLayerNames(infer.output_layers), default_metric);
+    for (size_t i = 0; i < infer.output_layers.size(); ++i) {
+        const auto& layer = infer.output_layers[i];
+        out_data_visitor.metas[i].set(
+                AccuracyValidate{LayerValidator{infer.tag, layer.name, per_layer_metrics.at(layer.name)}});
+    }
+
     return {std::move(in_data_visitor.providers), std::move(in_data_visitor.metas), std::move(out_data_visitor.metas)};
 }
 
@@ -253,9 +258,7 @@ public:
     SyncSimulation(cv::GCompiled&& ref_compiled, cv::GCompiled&& tgt_compiled,
                    std::vector<DummySource::Ptr>&& ref_sources, std::vector<DummySource::Ptr>&& tgt_sources,
                    std::vector<Meta>&& out_meta,
-                   cv::util::optional<uint64_t> required_num_iterations,
-                   const AccuracySimulation::Options& opts,
-                   const InferDesc& infer);
+                   cv::util::optional<uint64_t> required_num_iterations);
 
     Result run(ITermCriterion::Ptr criterion) override;
 
@@ -268,8 +271,6 @@ private:
     std::vector<DummySource::Ptr> m_tgt_sources;
     std::vector<Meta> m_out_meta;
     cv::optional<uint64_t> m_required_num_iterations;
-    const AccuracySimulation::Options m_opts;
-    const InferDesc m_infer;
 
     std::vector<std::vector<cv::Mat>> m_ref_out_iter;
     std::vector<std::vector<cv::Mat>> m_tgt_out_iter;
@@ -283,9 +284,7 @@ public:
     PipelinedSimulation(cv::GStreamingCompiled&& ref_compiled, cv::GStreamingCompiled&& tgt_compiled,
                         std::vector<DummySource::Ptr>&& ref_sources, std::vector<DummySource::Ptr>&& tgt_sources,
                         std::vector<Meta>&& out_meta,
-                        cv::util::optional<uint64_t> required_num_iterations,
-                        const AccuracySimulation::Options& opts,
-                        const InferDesc& infer);
+                        cv::util::optional<uint64_t> required_num_iterations);
 
     Result run(ITermCriterion::Ptr criterion) override;
 
@@ -298,8 +297,6 @@ private:
     std::vector<DummySource::Ptr> m_tgt_sources;
     std::vector<Meta> m_out_meta;
     cv::optional<uint64_t> m_required_num_iterations;
-    const AccuracySimulation::Options m_opts;
-    const InferDesc m_infer;
 
     std::vector<std::vector<cv::Mat>> m_ref_out_iter;
     std::vector<std::vector<cv::Mat>> m_tgt_out_iter;
@@ -312,19 +309,15 @@ private:
 SyncSimulation::SyncSimulation(cv::GCompiled&& ref_compiled, cv::GCompiled&& tgt_compiled,
                                std::vector<DummySource::Ptr>&& ref_sources, std::vector<DummySource::Ptr>&& tgt_sources,
                                std::vector<Meta>&& out_meta,
-                               cv::util::optional<uint64_t> required_num_iterations,
-                               const AccuracySimulation::Options& opts,
-                               const InferDesc& infer)
+                               cv::util::optional<uint64_t> required_num_iterations)
         : m_ref_exec(std::move(ref_compiled)),
           m_tgt_exec(std::move(tgt_compiled)),
           m_ref_sources(std::move(ref_sources)),
           m_tgt_sources(std::move(tgt_sources)),
-          m_infer(std::move(infer)),
           m_out_meta(std::move(out_meta)),
-          m_opts(std::move(opts)),
+          m_required_num_iterations(required_num_iterations),
           m_ref_iter_idx(0u),
-          m_tgt_iter_idx(0u),
-          m_required_num_iterations(required_num_iterations) {
+          m_tgt_iter_idx(0u) {
 }
 
 Result SyncSimulation::run(ITermCriterion::Ptr criterion) {
@@ -350,12 +343,7 @@ Result SyncSimulation::run(ITermCriterion::Ptr criterion) {
     ref_future.get();
     tgt_future.get();
 
-    auto validation_result = performValidation(
-        m_ref_out_iter,
-        m_tgt_out_iter,
-        m_infer,
-        m_opts
-    );
+    auto validation_result = performValidation(m_ref_out_iter, m_tgt_out_iter, m_out_meta);
 
     if (!validation_result) {
         return validation_result;
@@ -407,17 +395,13 @@ bool SyncSimulation::process(cv::GCompiled& pipeline, DeviceType device_type) {
 PipelinedSimulation::PipelinedSimulation(cv::GStreamingCompiled&& ref_compiled, cv::GStreamingCompiled&& tgt_compiled,
                                          std::vector<DummySource::Ptr>&& ref_sources, std::vector<DummySource::Ptr>&& tgt_sources,
                                          std::vector<Meta>&& out_meta,
-                                         cv::util::optional<uint64_t> required_num_iterations,
-                                         const AccuracySimulation::Options& opts,
-                                         const InferDesc& infer)
+                                         cv::util::optional<uint64_t> required_num_iterations)
         : m_ref_exec(std::move(ref_compiled)),
           m_tgt_exec(std::move(tgt_compiled)),
           m_ref_sources(std::move(ref_sources)),
           m_tgt_sources(std::move(tgt_sources)),
           m_out_meta(std::move(out_meta)),
           m_required_num_iterations(required_num_iterations),
-          m_opts(std::move(opts)),
-          m_infer(std::move(infer)),
           m_ref_iter_idx(0u),
           m_tgt_iter_idx(0u) {
 }
@@ -450,12 +434,7 @@ Result PipelinedSimulation::run(ITermCriterion::Ptr criterion) {
     ref_future.get();
     tgt_future.get();
 
-    auto validation_result = performValidation(
-        m_ref_out_iter,
-        m_tgt_out_iter,
-        m_infer,
-        m_opts
-    );
+    auto validation_result = performValidation(m_ref_out_iter, m_tgt_out_iter, m_out_meta);
 
     if (!validation_result) {
         return validation_result;
@@ -554,8 +533,7 @@ std::shared_ptr<PipelinedCompiled> AccuracySimulation::compilePipelined(DummySou
 
     return std::make_shared<PipelinedSimulation>(std::move(ref_compiled), std::move(tgt_compiled),
                                                  std::move(ref_sources), std::move(tgt_sources),
-                                                 std::move(out_meta), m_strategy->required_num_iterations,
-                                                 std::move(m_opts), m_strategy->current_infer);
+                                                 std::move(out_meta), m_strategy->required_num_iterations);
 }
 
 std::shared_ptr<PipelinedCompiled> AccuracySimulation::compilePipelined(const bool drop_frames) {
@@ -592,8 +570,7 @@ std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(DummySources&& ref
 
     return std::make_shared<SyncSimulation>(std::move(ref_compiled), std::move(tgt_compiled),
                                             std::move(ref_sources), std::move(tgt_sources),
-                                            std::move(out_meta), m_strategy->required_num_iterations,
-                                            std::move(m_opts), m_strategy->current_infer);
+                                            std::move(out_meta), m_strategy->required_num_iterations);
 }
 
 std::shared_ptr<SyncCompiled> AccuracySimulation::compileSync(const bool drop_frames) {

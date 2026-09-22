@@ -48,6 +48,12 @@ struct Validate {
     std::vector<cv::Mat> reference;
 };
 
+// NB: Carries the layer identity for accuracy mode, where both operands are produced at runtime.
+struct AccuracyValidate {
+    using F = std::function<Result(const cv::Mat& lhs, const cv::Mat& rhs)>;
+    F validator;
+};
+
 struct InferDesc {
     std::string tag;
     LayersInfo input_layers;
