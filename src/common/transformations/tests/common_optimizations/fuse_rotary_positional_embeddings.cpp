@@ -559,14 +559,16 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ) {
                                                     {"config.support_2d_rope", false},
                                                     {"config.support_3d_rope", false},
                                                     {"config.is_qwen", false},
-                                                    {"config.use_rope_cache", false},
+                                                    {"config.use_rope_cache", true},
                                                     {"config.is_ltx_video", false},
                                                     {"config.head_cnt", 0},
                                                     {"config.head_size", 0},
                                                     {"config.rotary_ndims", rotary_ndims},
+                                                    {"config.cos_sin_ndims", rotary_ndims / 2},
                                                     {"config.gather_position_arg_id", 0}});
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, cos_sin});
     }
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
 }
 
 // Parametrized ConvertToROPE_chatGLM tests to check both unpack->output(0) and unpack->output(1)
@@ -910,14 +912,16 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_Slice) {
                                                     {"config.support_2d_rope", false},
                                                     {"config.support_3d_rope", false},
                                                     {"config.is_qwen", false},
-                                                    {"config.use_rope_cache", false},
+                                                    {"config.use_rope_cache", true},
                                                     {"config.is_ltx_video", false},
                                                     {"config.head_cnt", 0},
                                                     {"config.head_size", 0},
                                                     {"config.rotary_ndims", rotary_ndims},
+                                                    {"config.cos_sin_ndims", rotary_ndims / 2},
                                                     {"config.gather_position_arg_id", 0}});
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, cos_sin});
     }
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertToROPE_chatGLM_2d_rope) {
@@ -1467,6 +1471,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul) {
         config.rotary_ndims = ndims;
         config.head_cnt = num_heads;
         config.head_size = ndims;
+        config.cos_sin_ndims = ndims;
         auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{x, t_cos, t_sin}, config);
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{x, t_cos, t_sin});
     }
@@ -1521,6 +1526,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_Flux_squeeze_mul_unsqueeze) {
         config.rotary_ndims = ndims;
         config.head_cnt = num_heads;
         config.head_size = ndims;
+        config.cos_sin_ndims = ndims;
         auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{x, t_cos, t_sin}, config);
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{x, t_cos, t_sin});
     }
@@ -1575,6 +1581,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul_squeeze_unsqueeze) {
         config.rotary_ndims = ndims;
         config.head_cnt = num_heads;
         config.head_size = ndims;
+        config.cos_sin_ndims = ndims;
         auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{x, t_cos, t_sin}, config);
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{x, t_cos, t_sin});
     }
@@ -1631,6 +1638,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_Flux_mul_squeeze_unsqueeze_num_heads)
         config.rotary_ndims = ndims;
         config.head_cnt = num_heads;
         config.head_size = ndims;
+        config.cos_sin_ndims = ndims;
         auto rope = std::make_shared<ov::op::internal::RoPE>(ov::OutputVector{x, t_cos, t_sin}, config);
         model_ref = std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{x, t_cos, t_sin});
     }
@@ -1879,11 +1887,12 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_PagedAttention) {
                                                     {"config.output_trans0213", false},
                                                     {"config.is_interleaved", true},
                                                     {"config.rotary_ndims", rotary_ndims},
+                                                    {"config.cos_sin_ndims", rotary_ndims / 2},
                                                     {"config.is_chatglm", false},
                                                     {"config.support_2d_rope", false},
                                                     {"config.support_3d_rope", false},
                                                     {"config.is_qwen", false},
-                                                    {"config.use_rope_cache", false},
+                                                    {"config.use_rope_cache", true},
                                                     {"config.is_ltx_video", false},
                                                     {"config.head_cnt", 0},
                                                     {"config.head_size", 0},
@@ -1891,6 +1900,7 @@ TEST_F(TransformationTestsF, ConvertToROPE_GPTJ_PagedAttention) {
         model_ref =
             std::make_shared<ov::Model>(ov::OutputVector{rope}, ov::ParameterVector{input, aten_gather_GatherElements});
     }
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
 }
 
 TEST_F(TransformationTestsF, ConvertToROPE_chatGLM4_PagedAttention) {

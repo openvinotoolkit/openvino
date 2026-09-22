@@ -28,6 +28,7 @@ const std::vector<ov::element::Type> model_types = {
     ov::element::u64,
     ov::element::i64,
     ov::element::f32,
+    ov::element::f64,
     ov::element::boolean
 };
 
