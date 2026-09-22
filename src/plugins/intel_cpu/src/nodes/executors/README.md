@@ -222,14 +222,21 @@ const auto nodeDescList = m_factory->getProperMemoryDescriptors(descs);
 // emplace one supportedPrimitiveDescriptor per returned descriptor set
 ```
 
-In `prepareParams()`: refresh `m_memory`, create the executor once, then `update`:
+In `createPrimitive()`: bind the selected memories, create the executor, and record
+its implementation type:
 
 ```cpp
 m_memory[ARG_SRC] = getSrcMemoryAtPort(0);
 m_memory[ARG_DST] = getDstMemoryAtPort(0);
-if (!m_executor) {
-    m_executor = m_factory->make(m_memory);
-}
+m_executor = m_factory->make(m_memory);
+getSelectedPrimitiveDescriptor()->setImplementationType(m_executor->implType());
+```
+
+In `prepareParams()`: refresh `m_memory`, then update the existing executor:
+
+```cpp
+m_memory[ARG_SRC] = getSrcMemoryAtPort(0);
+m_memory[ARG_DST] = getDstMemoryAtPort(0);
 m_executor->update(m_memory);
 ```
 
@@ -336,11 +343,14 @@ OV_CPU_INSTANCE_DNNL_X64(
     )
 ```
 
-The `DnnlExecutor<Primitive, Attrs, ShapeAgnosticData>` template calls
-`Primitive::createShapeAgnosticData()` up front to build shape-agnostic data (and,
-from it, the primitive descriptor), manages primitive caching via
-`ExecutorContext`, and implements `update()`/`execute()` around the oneDNN
-primitive. `CreateDnnlDefault` accepts optional flags `{cacheWeights, fc3Das2D}`.
+The `DnnlExecutor<Primitive, Attrs, ShapeAgnosticData>` template uses a two-phase
+lifecycle. Its constructor calls `Primitive::createShapeAgnosticData()` up front
+to build shape-agnostic data (and, from it, the primitive descriptor). On each
+`update()`, `CreateDnnlDefault` calls `Primitive::create(memory, attrs, context,
+shapeAgnosticData)` to instantiate the executable primitive, then updates its
+memory arguments. It manages primitive caching via `ExecutorContext` and
+implements `execute()` around the oneDNN primitive. `CreateDnnlDefault` accepts
+optional flags `{cacheWeights, fc3Das2D}`.
 `MemoryFormatFilter` (in the extended `supports` predicate) expresses required
 layouts. For convolution-specific post-op and zero-point mechanisms see
 [convolution_post_ops.md](../../../docs/convolution_post_ops.md).
