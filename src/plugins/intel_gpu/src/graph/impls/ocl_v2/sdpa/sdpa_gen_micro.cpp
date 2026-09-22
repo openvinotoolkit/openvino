@@ -1184,8 +1184,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     const bool transpose_v = micro_transpose_v(params);
     const auto v_seq_len = micro_get_seq_length(params, 2).get_max_length();
     // With a transposed V the leading dimension is the token count, not the head size.
-    auto ldv = static_cast<size_t>(transpose_v && v_seq_len > 0 ? v_seq_len : static_cast<int64_t>(v_head_size)) *
-               ov::element::Type(V.data_type).size();
+    auto ldv = static_cast<size_t>(transpose_v && v_seq_len > 0 ? v_seq_len : static_cast<int64_t>(v_head_size)) * ov::element::Type(V.data_type).size();
     auto lda = v_head_size * ov::element::Type(out.data_type).size();
 
     jit.make("D_MAX", d_max);
@@ -1235,9 +1234,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     // Same reasoning as problem_vs.A's alignment: a padded V is strided by its y pitch, which the
     // token count does not describe, so fall back to the element alignment.
     jit.make("V_ALIGN",
-             micro::alignment_for_ld(transpose_v && params.input_layouts[2].data_padding
-                                         ? static_cast<int>(ov::element::Type(V.data_type).size())
-                                         : static_cast<int>(ldv)));
+             micro::alignment_for_ld(transpose_v && params.input_layouts[2].data_padding ? static_cast<int>(ov::element::Type(V.data_type).size())
+                                                                                         : static_cast<int>(ldv)));
     jit.make("A_ALIGN", micro::alignment_for_ld(static_cast<int>(lda)));
 
     jit.make("IS_PREFILL", m_is_prefill);
@@ -1496,8 +1494,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         // asserts on one, so the rank is established before the shape is indexed. A mask whose
         // rank is not known here takes the general path, as it did before this kernel existed.
         const auto& msk_shape = params.input_layouts[3].get_partial_shape();
-        const bool per_key = msk_shape.rank().is_static() && msk_shape.size() == 4 && msk_shape[2].is_static() &&
-                             msk_shape[2].get_length() == 1 && msk_shape[3].is_static() && msk_shape[3].get_length() > 1;
+        const bool per_key = msk_shape.rank().is_static() && msk_shape.size() == 4 && msk_shape[2].is_static() && msk_shape[2].get_length() == 1 &&
+                             msk_shape[3].is_static() && msk_shape[3].get_length() > 1;
         jit.make("MASK_PER_KEY", per_key ? 1 : 0);
     }
 
@@ -2034,8 +2032,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     // understating it costs the wide loads and never emits an illegal one.
     const bool v_padded = static_cast<bool>(params.input_layouts[2].data_padding);
     auto transposed_v_alignment = [&](micro::Type ta) {
-        return micro::alignment_for_ld(v_padded ? static_cast<int>(ta.size())
-                                                : static_cast<int>(n_keys.get_length() * ta));
+        return micro::alignment_for_ld(v_padded ? static_cast<int>(ta.size()) : static_cast<int>(n_keys.get_length() * ta));
     };
     GPU_DEBUG_IF(transpose_v && v_padded) {
         GPU_DEBUG_TRACE_DETAIL << "sdpa micro: V is padded, claiming element alignment for the "

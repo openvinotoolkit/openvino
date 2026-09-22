@@ -8,8 +8,8 @@
 #include <utility>
 
 #include "program_node.h"
-#include "rope_inst.h"
 #include "registry/implementation_manager.hpp"
+#include "rope_inst.h"
 
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
@@ -48,7 +48,7 @@ struct RopeOpt : public ImplementationManager {
             ov::element::i8,
         };
 
-        if (out_layout.data_type != in0_layout.data_type && !(out_layout.data_type == ov::element::i8 && i8_output_supported(node))) {
+        if (out_layout.data_type != in0_layout.data_type && (out_layout.data_type != ov::element::i8 || !i8_output_supported(node))) {
             return false;
         }
 

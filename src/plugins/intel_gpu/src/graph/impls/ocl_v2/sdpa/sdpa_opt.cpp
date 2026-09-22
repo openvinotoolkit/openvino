@@ -158,8 +158,7 @@ public:
         // above have been declined by now -- the reachable reason is a micro stage that failed to
         // build. Running the remaining stages would compute attention over an unrotated Q and
         // report success.
-        OPENVINO_ASSERT(!new_params.typed_desc<scaled_dot_product_attention>()->has_rope_q,
-                        "SDPA: a fused Q rotation reached a stage that cannot apply it");
+        OPENVINO_ASSERT(!new_params.typed_desc<scaled_dot_product_attention>()->has_rope_q, "SDPA: a fused Q rotation reached a stage that cannot apply it");
 
         const auto num_of_partitions = get_partitions_num(new_params, SDPAStage::SINGLE_TOKEN);
         GPU_DEBUG_TRACE_DETAIL << "execute single_tokens with indirect = " << is_indirect << "\n";

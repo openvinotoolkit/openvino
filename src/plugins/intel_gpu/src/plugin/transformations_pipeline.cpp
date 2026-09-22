@@ -1829,7 +1829,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                                           device_info.arch >= cldnn::gpu_arch::xe_hpg &&
                                           // ARL-H steers single-token decode away from the micro kernel, so a
                                           // fused node would compile for prefill and fail at the second token.
-                                          !(device_info.gfx_ver.major == 12 && device_info.gfx_ver.minor == 74) &&
+                                          (device_info.gfx_ver.major != 12 || device_info.gfx_ver.minor != 74) &&
                                           // A 4-bit KV cache disables the micro kernel at execute time.
                                           ov::element::Type(config.get_kv_cache_precision()).bitwidth() != 4;
         if (micro_sdpa_available) {
