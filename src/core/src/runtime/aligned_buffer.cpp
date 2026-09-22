@@ -8,6 +8,7 @@
 #include <memory>
 #include <utility>
 
+#include "openvino/core/except.hpp"
 #include "openvino/util/memory.hpp"
 
 namespace ov {
@@ -17,6 +18,7 @@ AlignedBuffer::AlignedBuffer() : m_aligned_buffer(nullptr), m_byte_size(0) {}
 
 AlignedBuffer::AlignedBuffer(size_t byte_size, size_t alignment) : m_byte_size(std::max<size_t>(1, byte_size)) {
     m_aligned_buffer = static_cast<char*>(util::aligned_alloc(m_byte_size, alignment));
+    OPENVINO_ASSERT(m_aligned_buffer, "Failed to allocate ", m_byte_size, " bytes (alignment: ", alignment, ")");
 }
 
 AlignedBuffer::AlignedBuffer(AlignedBuffer&& other)

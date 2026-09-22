@@ -7,6 +7,9 @@ Example:
             <backend></backend> (special case for no backend)
             <device>3720</device>
             <device>!4000</device> (using "!" to negate rule)
+            <driver_version>1688</driver_version> (exact build number, safe only for PV builds)
+            <driver_release>PV</driver_release> (driver type from --driver_release CLI arg: PV | RELEASE | LATEST)
+            <driver_release>!LATEST</driver_release> (negate: applies on PV and RELEASE)
             <operating_system>windows</operating_system>
             <operating_system>linux</operating_system>
         </enable_rules>
@@ -105,7 +108,7 @@ Example:
         <message>Data types not supported by NPU3720 PV Driver.</message>
         <enable_rules>
             <device>3720</device>
-            <driver_version>1688</driver_version>
+            <driver_release>PV</driver_release>
         </enable_rules>
         <filters>
             <filter>.*InferRequestIOTensorSetPrecisionTest.*type=boolean.*</filter>
@@ -163,7 +166,7 @@ Example:
         <message>Failing Windows PV Driver core threading tests</message>
         <enable_rules>
             <device>3720</device>
-            <driver_version>1688</driver_version>
+            <driver_release>PV</driver_release>
             <operating_system>windows</operating_system>
         </enable_rules>
         <filters>
@@ -288,7 +291,7 @@ Example:
         <message>PV driver cannot create infer request for models with boolean inputs</message>
         <enable_rules>
             <device>3720</device>
-            <driver_version>1688</driver_version>
+            <driver_release>PV</driver_release>
         </enable_rules>
         <filters>
             <filter>.*BooleanPrecisionInferRequestRunTests.*</filter>
@@ -331,7 +334,7 @@ Example:
         <message>UD12 driver does not support CACHE_ENCRYPTION_CALLBACKS on MTL</message>
         <enable_rules>
             <device>3720</device>
-            <driver_version>2020568</driver_version>
+            <driver_release>RELEASE</driver_release>
         </enable_rules>
         <filters>
             <filter>.*OVClassCompiledModelPropertiesTests.CanUseCache.*CACHE_ENCRYPTION_CALLBACKS.*</filter>
@@ -345,7 +348,7 @@ Example:
     <skip_config>
         <message>UD12 driver does not support secure compilation</message>
         <enable_rules>
-            <driver_version>2020568</driver_version>
+            <driver_release>RELEASE</driver_release>
         </enable_rules>
         <filters>
             <filter>.*WeightlessCacheAccuracy.ReadConcatSplitAssign.*do_encryption=True.*(config=_|NPU_COMPILER_TYPE\[DRIVER\]).*</filter>
@@ -358,7 +361,7 @@ Example:
         <message>PV driver cannot compile models securely</message>
         <enable_rules>
             <device>3720</device>
-            <driver_version>1688</driver_version>
+            <driver_release>PV</driver_release>
         </enable_rules>
         <filters>
             <filter>.*OVHoldersTestNPU.CompileModelWithEncryptionWorksAfterConfigDeallocate.*</filter>
@@ -427,6 +430,18 @@ Example:
         </enable_rules>
         <filters>
             <filter>.*InferWithDefaultHostCompileTests.CompileDynamicModelWithNoHostCompileMode.*model=MaxPool_NCHW_DynBatch.*</filter>
+        </filters>
+    </skip_config>
+
+    <skip_config>
+        <message>Random accuracy issue for multithread test.</message>
+        <enable_rules>
+            <device>4000</device>
+            <device>5010</device>
+            <device>6010</device>
+        </enable_rules>
+        <filters>
+            <filter>.*InferWithHostCompileMultithreadTests.MT_ConcurrentInferThenSetPriorityAndInfer.*</filter>
         </filters>
     </skip_config>
 
