@@ -3,6 +3,7 @@
 //
 
 #include "op_table.hpp"
+#include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/avg_pool.hpp"
 #include "openvino/op/concat.hpp"
@@ -12,16 +13,25 @@
 #include "openvino/op/floor_mod.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gelu.hpp"
+#include "openvino/op/greater.hpp"
 #include "openvino/op/interpolate.hpp"
+#include "openvino/op/less.hpp"
+#include "openvino/op/logical_and.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/pad.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
@@ -29,6 +39,60 @@ namespace ov::frontend::gguf::op {
 namespace {
 std::shared_ptr<ov::op::v0::Constant> i64_const(std::vector<int64_t> v) {
     return ov::op::v0::Constant::create(ov::element::i64, {v.size()}, v);
+}
+// ggml discards out-of-bounds taps and renormalizes the remaining triangle weights.
+// Interpolate's edge extension differs when downsampling, so use separable filters.
+ov::Output<ov::Node> antialiased_bilinear(const ov::Output<ov::Node>& input,
+                                          const ov::Output<ov::Node>& sizes,
+                                          bool align_corners) {
+    using namespace ov::op;
+    const auto zero = v0::Constant::create(ov::element::f32, {}, {0});
+    const auto one = v0::Constant::create(ov::element::f32, {}, {1});
+    const auto offset = v0::Constant::create(ov::element::f32, {}, {align_corners ? 0.f : .5f});
+    const auto shape = std::make_shared<v3::ShapeOf>(input);
+    const auto dimension = [&](const ov::Output<ov::Node>& value, int64_t axis) {
+        return std::make_shared<v0::Convert>(
+            std::make_shared<v8::Gather>(value, v0::Constant::create(ov::element::i64, {}, {axis}), i64_const({0})),
+            ov::element::f32);
+    };
+    const auto filter = [&](int64_t axis) -> ov::Output<ov::Node> {
+        const auto in_size = dimension(shape, axis);
+        const auto out_size = dimension(sizes, axis - 2);
+        ov::Output<ov::Node> scale = std::make_shared<v1::Divide>(out_size, in_size);
+        if (align_corners) {
+            auto valid = std::make_shared<v1::LogicalAnd>(std::make_shared<v1::Greater>(in_size, one),
+                                                          std::make_shared<v1::Greater>(out_size, one));
+            auto corners = std::make_shared<v1::Divide>(
+                std::make_shared<v1::Subtract>(out_size, one),
+                std::make_shared<v1::Maximum>(std::make_shared<v1::Subtract>(in_size, one), one));
+            scale = std::make_shared<v1::Select>(valid, corners, scale);
+        }
+        auto support = std::make_shared<v1::Maximum>(one, std::make_shared<v1::Divide>(one, scale));
+        auto src = std::make_shared<v4::Range>(zero, in_size, one, ov::element::f32);
+        auto dst = std::make_shared<v4::Range>(zero, out_size, one, ov::element::f32);
+        auto center = std::make_shared<v1::Divide>(std::make_shared<v1::Add>(dst, offset), scale);
+        auto distance = std::make_shared<v1::Subtract>(
+            std::make_shared<v0::Unsqueeze>(std::make_shared<v1::Add>(src, offset), i64_const({0})),
+            std::make_shared<v0::Unsqueeze>(center, i64_const({1})));
+        auto weights = std::make_shared<v1::Maximum>(
+            zero,
+            std::make_shared<v1::Subtract>(one,
+                                           std::make_shared<v1::Divide>(std::make_shared<v0::Abs>(distance), support)));
+        // ggml truncates the exclusive upper bound to an integer, including with
+        // align_corners (zero pixel offset), where the omitted tap can be nonzero.
+        auto end = std::make_shared<v0::Convert>(
+            std::make_shared<v0::Convert>(std::make_shared<v1::Add>(std::make_shared<v1::Add>(center, support), offset),
+                                          ov::element::i64),
+            ov::element::f32);
+        auto valid_taps = std::make_shared<v1::Less>(std::make_shared<v0::Unsqueeze>(src, i64_const({0})),
+                                                     std::make_shared<v0::Unsqueeze>(end, i64_const({1})));
+        auto clipped = std::make_shared<v1::Select>(valid_taps, weights, zero);
+        return std::make_shared<v1::Divide>(clipped, std::make_shared<v1::ReduceSum>(clipped, i64_const({1}), true));
+    };
+    auto width = std::make_shared<v0::MatMul>(input, filter(3), false, true);
+    auto transposed = std::make_shared<v1::Transpose>(width, i64_const({0, 1, 3, 2}));
+    auto height = std::make_shared<v0::MatMul>(transposed, filter(2), false, true);
+    return std::make_shared<v1::Transpose>(height, i64_const({0, 1, 3, 2}));
 }
 }  // namespace
 
@@ -52,6 +116,10 @@ OutputVector translate_upscale(const NodeContext& context) {
     auto sizes = context.get_attribute<bool>("resize_like", false)
                      ? get_dimensions(context.get_input(1), axes)->output(0)
                      : context.get_input(1);
+    if ((flags & 0xff) == 1 && attrs.antialias) {
+        return rename_outputs_with_suffix({antialiased_bilinear(context.get_input(0), sizes, (flags & 0x100) != 0)},
+                                          context.get_name());
+    }
     auto result = std::make_shared<Interpolate>(
         context.get_input(0),
         sizes,

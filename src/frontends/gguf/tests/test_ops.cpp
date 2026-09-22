@@ -2883,22 +2883,33 @@ TEST(GGUFOps, MultimodalRopeMatchesIndependentSections) {
 }
 
 TEST(GGUFOps, InterpolateBilinearAntialiasDynamicSize) {
-    // Reference: multimodal_rope_oracle.cpp resize, ggml CPU.
-    auto model = SingleOpBuilder()
-                     .op("GGML_OP_UPSCALE")
-                     .input("data", ov::element::f32, {1, 2, -1, -1})
-                     .input("sizes", ov::element::i64, {2})
-                     .output("out", ov::element::f32, {1, 2, -1, -1})
-                     .attr<int>("interpolation_mode", 1 | 0x200)
-                     .build();
-    std::vector<float> data(12);
-    for (size_t i = 0; i < data.size(); ++i)
-        data[i] = std::sin(float(i) * 0.13f);
-    ov::Tensor sizes(ov::element::i64, {2});
-    sizes.data<int64_t>()[0] = 4;
-    sizes.data<int64_t>()[1] = 5;
-    auto actual = run_on_cpu(model, {{"data", make_f32_tensor({1, 2, 2, 3}, data)}, {"sizes", sizes}});
-    expect_near(actual, load_npy<float>("mmproj_interpolate_expected"));
+    for (bool corners : {false, true}) {
+        // Reference: multimodal_rope_oracle.cpp resize, ggml CPU.
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_UPSCALE")
+                         .input("data", ov::element::f32, {1, 2, -1, -1})
+                         .input("sizes", ov::element::i64, {2})
+                         .output("out", ov::element::f32, {1, 2, -1, -1})
+                         .attr<int>("interpolation_mode", 1 | 0x200 | (corners ? 0x100 : 0))
+                         .build();
+        std::vector<float> data(12);
+        for (size_t i = 0; i < data.size(); ++i)
+            data[i] = std::sin(float(i) * 0.13f);
+        ov::Tensor sizes(ov::element::i64, {2});
+        sizes.data<int64_t>()[0] = 4;
+        sizes.data<int64_t>()[1] = 5;
+        auto actual = run_on_cpu(model, {{"data", make_f32_tensor({1, 2, 2, 3}, data)}, {"sizes", sizes}});
+        expect_near(actual,
+                    load_npy<float>(corners ? "mmproj_interpolate_corners_expected" : "mmproj_interpolate_expected"));
+        // Downsampling exercises clipped filter support at the border of a learned position grid.
+        data.resize(2 * 8 * 12);
+        for (size_t i = 0; i < data.size(); ++i)
+            data[i] = std::sin(float(i) * 0.13f);
+        actual = run_on_cpu(model, {{"data", make_f32_tensor({1, 2, 8, 12}, data)}, {"sizes", sizes}});
+        expect_near(
+            actual,
+            load_npy<float>(corners ? "mmproj_interpolate_down_corners_expected" : "mmproj_interpolate_down_expected"));
+    }
 }
 
 TEST(GGUFOps, Im2colDynamicRectangularGridsMatchCPU) {

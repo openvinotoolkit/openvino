@@ -141,7 +141,7 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     // ---- qwen35 (Qwen3.5/3.6): hybrid Gated-DeltaNet + full attention ----
     // Layers alternate: every full_attention_interval-th layer is full attention, the rest
     // run a linear-attention (GDN) block. llama.cpp src/models/qwen35.cpp.
-    is_qwen35 = arch == "qwen35";
+    is_qwen35 = arch == "qwen35" || arch == "qwen35moe";
     ssm_conv_kernel = cfg_i("ssm_conv_kernel");
     ssm_state_size = cfg_i("ssm_state_size");
     ssm_group_count = cfg_i("ssm_group_count");
@@ -193,8 +193,9 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     attention_scale = cfg_f("attention_scale");            // 0 -> 1/sqrt(head_size)
     expert_weights_scale = cfg_f("expert_weights_scale");  // 0 -> 1.0 no-op
     // These llama.cpp builders require normalization independently of optional GGUF metadata.
-    expert_weights_norm = options.normalize_expert_weights.value_or(
-        arch == "qwen3moe" || arch == "ernie4_5-moe" || arch == "mellum" || cfg_i("expert_weights_norm") != 0);
+    expert_weights_norm =
+        options.normalize_expert_weights.value_or(arch == "qwen3moe" || arch == "qwen35moe" || arch == "ernie4_5-moe" ||
+                                                  arch == "mellum" || cfg_i("expert_weights_norm") != 0);
     rope_freq_base_swa = cfg_f("rope_freq_base_swa");
     swa_layer_pattern = cfg_i("swa_layer_pattern");
     // Gemma4: per-layer SWA boolean flags (non-empty when swa_layer_pattern==0).

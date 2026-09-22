@@ -45,7 +45,7 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
                     p + "beta_4d",
                     {beta},
                     6,
-                    {{"reshape_target", std::vector<int64_t>{0, -1, H_v, 1}}, {"special_zero", true}});
+                    {{"reshape_target", std::vector<int64_t>{1, -1, H_v, 1}}, {"special_zero", true}});
 
     // g = softplus(ssm_alpha @ x + ssm_dt.bias) * ssm_a   (ggml: -A_log.exp() * softplus)
     e.add_weight(p + "ssm_alpha.weight");
@@ -59,7 +59,7 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
                  p + "gate_4d",
                  {g},
                  6,
-                 {{"reshape_target", std::vector<int64_t>{0, -1, H_v, 1}}, {"special_zero", true}});
+                 {{"reshape_target", std::vector<int64_t>{1, -1, H_v, 1}}, {"special_zero", true}});
 
     // ---- causal depthwise conv over [conv state | this step's tokens] ----
     // conv_state holds the trailing d_conv-1 columns of the previous step's conv input.
@@ -132,14 +132,15 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
                          p + "z_4d",
                          {z},
                          6,
-                         {{"reshape_target", std::vector<int64_t>{0, -1, H_v, head_v}}, {"special_zero", true}});
+                         {{"reshape_target", std::vector<int64_t>{1, -1, H_v, head_v}}, {"special_zero", true}});
     auto z_silu = e.add_op("GGML_UNARY_OP_SILU", p + "z_silu", {z_4d});
     out = e.add_op("GGML_OP_MUL", p + "gdn_gated", {out, z_silu});
     out = e.add_op("GGML_OP_RESHAPE",
                    p + "gdn_merged",
-                   {out},
-                   6,
-                   {{"reshape_target", std::vector<int64_t>{0, 1, -1, value_dim}}, {"special_zero", true}});
+                   {out, attn_norm},
+                   0,
+                   {{"reshape_target", std::vector<int64_t>{1, 1, -1, value_dim}},
+                    {"shape_axes", std::vector<int64_t>{0, 1, 2, -1}}});
 
     e.add_weight(p + "ssm_out.weight");
     return e.add_op("GGML_OP_MUL_MAT", p + "linear_attn_out", {p + "ssm_out.weight", out});

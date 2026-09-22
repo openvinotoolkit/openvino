@@ -85,7 +85,14 @@ std::string dense_ffn(GraphEmitter& e, const DecoderConfig& cfg, const std::stri
     return out;
 }
 
-std::string moe_ffn(GraphEmitter& e, const DecoderConfig& cfg, const std::string& p, const std::string& ffn_norm) {
+std::string moe_ffn(GraphEmitter& e, const DecoderConfig& cfg, const std::string& p, const std::string& input) {
+    // Routing uses one flat token axis for both SDPA and PA layouts.
+    const auto ffn_norm =
+        e.add_op("GGML_OP_RESHAPE",
+                 p + "moe_input",
+                 {input},
+                 6,
+                 {{"reshape_target", std::vector<int64_t>{1, 1, -1, cfg.n_embd}}, {"special_zero", false}});
     // --- router: logits [1,1,T,E] = gate_inp · x ---
     e.add_weight(p + "ffn_gate_inp.weight");
     auto logits = e.add_op("GGML_OP_MUL_MAT", p + "moe_logits", {p + "ffn_gate_inp.weight", ffn_norm});
@@ -202,9 +209,26 @@ std::string moe_ffn(GraphEmitter& e, const DecoderConfig& cfg, const std::string
                                     /*has_bias=*/false);
         e.add_weight(p + "ffn_down_shexp.weight");
         auto s_down = e.add_op("GGML_OP_MUL_MAT", p + "shexp_out", {p + "ffn_down_shexp.weight", s_act});
+        if (e.has_weight(p + "ffn_gate_inp_shexp.weight")) {
+            e.add_weight(p + "ffn_gate_inp_shexp.weight");
+            auto gate_weight =
+                e.add_op("GGML_OP_RESHAPE",
+                         p + "shexp_router_weight",
+                         {p + "ffn_gate_inp_shexp.weight"},
+                         6,
+                         {{"reshape_target", std::vector<int64_t>{1, 1, 1, cfg.n_embd}}, {"special_zero", false}});
+            auto gate = e.add_op("GGML_OP_MUL_MAT", p + "shexp_router", {gate_weight, ffn_norm});
+            gate = e.add_op("GGML_UNARY_OP_SIGMOID", p + "shexp_router_sigmoid", {gate});
+            s_down = e.add_op("GGML_OP_MUL", p + "shexp_gated", {s_down, gate});
+        }
         moe_out = e.add_op("GGML_OP_ADD", p + "moe_shared_out", {moe_out, s_down});
     }
-    return moe_out;
+    return e.add_op("GGML_OP_RESHAPE",
+                    p + "moe_output_layout",
+                    {moe_out, input},
+                    0,
+                    {{"reshape_target", std::vector<int64_t>{1, 1, -1, cfg.n_embd}},
+                     {"shape_axes", std::vector<int64_t>{0, 1, 2, -1}}});
 }
 
 }  // namespace ov::frontend::gguf::blocks

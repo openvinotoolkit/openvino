@@ -19,6 +19,7 @@ import gguf
 import numpy as np
 
 CASES = {
+    "qwen35": {}, "qwen35moe": {},
     "nemotron_h": {},
     "mamba2": {}, "mamba2-tied": {"architecture": "mamba2", "tied": True},
     "llama": {}, "qwen2": {"bias": True}, "qwen3": {"qk": True},
@@ -105,8 +106,81 @@ def write_mamba2_model(path, opts, arch="mamba2"):
     w.close()
 
 
+def write_qwen35_model(path, arch):
+    w = gguf.GGUFWriter(path, arch)
+    d, head, heads, kv, ff, vocab = 32, 16, 4, 2, 48, 32
+    state, groups, vheads, kernel = 8, 2, 4, 4
+    inner, conv = state * vheads, state * (2 * groups + vheads)
+    w.add_context_length(128)
+    w.add_embedding_length(d)
+    w.add_block_count(4)
+    w.add_feed_forward_length(ff)
+    w.add_head_count(heads)
+    w.add_head_count_kv(kv)
+    w.add_key_length(head)
+    w.add_value_length(head)
+    w.add_rope_dimension_count(8)
+    w.add_rope_freq_base(10000.)
+    w.add_array(arch + ".rope.dimension_sections", [1, 1, 2, 0])
+    w.add_layer_norm_rms_eps(1e-5)
+    w.add_vocab_size(vocab)
+    w.add_tokenizer_model("none")
+    for key, value in {"inner_size": inner, "time_step_rank": vheads, "group_count": groups,
+                       "state_size": state, "conv_kernel": kernel}.items():
+        w.add_uint32(arch + ".ssm." + key, value)
+    w.add_uint32(arch + ".full_attention_interval", 4)
+    moe = arch == "qwen35moe"
+    if moe:
+        w.add_expert_count(4)
+        w.add_expert_used_count(2)
+        w.add_expert_feed_forward_length(ff)
+        w.add_expert_shared_feed_forward_length(ff)
+    rng = np.random.default_rng(20260922)
+
+    def tensor(name, shape, norm=False):
+        values = rng.uniform(-1, 1, shape).astype(np.float32)
+        w.add_tensor(name, 1 + values * .3 if norm else values * .2)
+
+    tensor("token_embd.weight", (vocab, d))
+    tensor("output_norm.weight", (d,), True)
+    tensor("output.weight", (vocab, d))
+    for layer in range(4):
+        p = f"blk.{layer}."
+        tensor(p + "attn_norm.weight", (d,), True)
+        tensor(p + "post_attention_norm.weight", (d,), True)
+        if layer < 3:
+            tensor(p + "attn_qkv.weight", (conv, d))
+            tensor(p + "attn_gate.weight", (inner, d))
+            tensor(p + "ssm_conv1d.weight", (conv, kernel))
+            tensor(p + "ssm_dt.bias", (vheads,))
+            w.add_tensor(p + "ssm_a", -rng.uniform(.5, 1.5, vheads).astype(np.float32))
+            for name in ("beta", "alpha"):
+                tensor(p + f"ssm_{name}.weight", (vheads, d))
+            tensor(p + "ssm_norm.weight", (state,), True)
+            tensor(p + "ssm_out.weight", (d, inner))
+        else:
+            for name, width in (("q", 2 * heads * head), ("k", kv * head), ("v", kv * head)):
+                tensor(p + f"attn_{name}.weight", (width, d))
+            for name in ("q", "k"):
+                tensor(p + f"attn_{name}_norm.weight", (head,), True)
+            tensor(p + "attn_output.weight", (d, heads * head))
+        if moe:
+            tensor(p + "ffn_gate_inp.weight", (4, d))
+            for name, shape in (("gate", (4, ff, d)), ("up", (4, ff, d)), ("down", (4, d, ff))):
+                tensor(p + f"ffn_{name}_exps.weight", shape)
+            tensor(p + "ffn_gate_inp_shexp.weight", (d,))
+        for name, shape in (("gate", (ff, d)), ("up", (ff, d)), ("down", (d, ff))):
+            tensor(p + f"ffn_{name}" + ("_shexp" if moe else "") + ".weight", shape)
+    w.write_header_to_file()
+    w.write_kv_data_to_file()
+    w.write_tensors_to_file()
+    w.close()
+
+
 def write_model(path, arch, opts):
     arch = opts.get("architecture", arch)
+    if arch in ("qwen35", "qwen35moe"):
+        return write_qwen35_model(path, arch)
     if arch in ("mamba2", "nemotron_h"):
         return write_mamba2_model(path, opts, arch)
     w = gguf.GGUFWriter(path, arch)
