@@ -1128,6 +1128,7 @@ public:
     [[nodiscard]] jit_kernel_ir::EmitFn gpr_imul_imm(std::uint64_t imm) const override;
     [[nodiscard]] jit_kernel_ir::EmitFn gpr_bump(std::int64_t delta) const override;
     [[nodiscard]] jit_kernel_ir::EmitFn gpr_offset(std::size_t imm) const override;
+    [[nodiscard]] jit_kernel_ir::EmitFn gpr_load(std::size_t imm) const override;
     [[nodiscard]] jit_kernel_ir::EmitFn gpr_cmp_imm(std::uint64_t imm) const override;
     [[nodiscard]] jit_kernel_ir::EmitFn gpr_cmp_reg() const override;
     [[nodiscard]] jit_kernel_ir::EmitFn clamped_len(std::size_t lanes) const override;
@@ -1302,6 +1303,16 @@ public:
 
     // A compile-time constant in a GPR IR value.
     variable<size_t> ir_gpr_imm(size_t value);
+
+    // Load a pointer-sized value from `base + byte_offset` into a GPR.
+    // The form an array of pointers needs — BRGEMM's batch descriptor,
+    // for instance. Marked may_load, so folding and dead-def elimination
+    // treat it as a memory access rather than pure arithmetic.
+    // ResT names what was loaded — usually a pointer type, so the value
+    // can be handed straight to ir_load/ir_broadcast, which check the
+    // element type they are addressing.
+    template <typename ResT, typename PtrT>
+    variable<ResT> ir_load_gpr(const variable<PtrT>& base, size_t byte_offset = 0);
 
     // `ptr + byte_offset` as an IR pointer value. Returns the original
     // value id when the offset is zero, so the common case costs nothing.
@@ -2245,6 +2256,20 @@ jit_kernel::variable<float[N]> jit_kernel::ir_load(const variable<PtrT>& src_ptr
         op.mem_offset = 0;
     }
     return variable<float[N]>(*this, vid);
+}
+
+template <typename ResT, typename PtrT>
+jit_kernel::variable<ResT> jit_kernel::ir_load_gpr(const variable<PtrT>& base,
+                                                   size_t byte_offset) {
+    auto pvid = base.vid();
+    OPENVINO_ASSERT(pvid != jit_kernel_ir::invalid_value,
+                    "ir_load_gpr: pointer is not an IR value");
+    auto vid = ir_def_gpr({pvid}, gpr_load(byte_offset), "load_gpr");
+    auto& op = _ir->last();
+    op.may_load = true;
+    op.mem_ptr_read = 0;
+    op.mem_offset = static_cast<std::uint32_t>(byte_offset);
+    return variable<ResT>(*this, vid);
 }
 
 template <typename PtrT>

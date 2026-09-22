@@ -638,6 +638,14 @@ jit_kernel_ir::EmitFn jit_kernel::gpr_offset(std::size_t imm) const {
     };
 }
 
+jit_kernel_ir::EmitFn jit_kernel::gpr_load(std::size_t imm) const {
+    return [this, imm](const jit_kernel_ir::EmitContext& ctx) {
+        auto* self = const_cast<jit_kernel*>(this);
+        self->mov(Xbyak::Reg64(ctx.def->idx),
+                  self->address_frame(sizeof(size_t))[Xbyak::Reg64(ctx.reads[0].idx) + imm]);
+    };
+}
+
 jit_kernel_ir::EmitFn jit_kernel::gpr_cmp_imm(std::uint64_t imm) const {
     return [this, imm](const jit_kernel_ir::EmitContext& ctx) {
         const_cast<jit_kernel*>(this)->cmp(Xbyak::Reg64(ctx.reads[0].idx), imm);

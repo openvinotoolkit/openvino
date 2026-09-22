@@ -87,6 +87,10 @@ struct arch_emitter {
     // def = reads[0] + imm, leaving reads[0] alone.
     [[nodiscard]] virtual jit_kernel_ir::EmitFn gpr_offset(std::size_t imm) const = 0;
 
+    // def = *(reads[0] + imm), a pointer-sized load. Recorded with
+    // may_load so no pass moves it across a store.
+    [[nodiscard]] virtual jit_kernel_ir::EmitFn gpr_load(std::size_t imm) const = 0;
+
     // Set the condition state from reads[0] against an immediate or
     // against reads[1]. No def: the flags are not modelled as a value, so
     // the op is the side-effecting form and nothing may be scheduled

@@ -23,12 +23,13 @@ namespace ov::intel_cpu::kernel {
 
 namespace {
 
-// Increment 3 turns this on. Until then the predicate below describes the
-// intended slice but accepts nothing, so oneDNN keeps serving every
-// descriptor and enabling OV_JIT_IR_BRGEMM changes no generated code.
+// Emitting an M tile unrolls the whole accumulator block, so a shape with
+// many tiles would produce an enormous kernel. oneDNN loops over them; we
+// do not have a reason to yet, and a cap is honest about it.
 //
-// @todo claude: no code generator yet — generate() throws.
-constexpr bool generator_available = false;
+// @todo claude: loop over bdb instead of unrolling, once a shape that
+// needs it is in the slice.
+constexpr dim_t max_unrolled_m_blocks = 4;
 
 }  // namespace
 
@@ -55,9 +56,6 @@ brgemm_kernel_ir::mode brgemm_kernel_ir::env_mode() {
 }
 
 const char* brgemm_kernel_ir::unsupported_reason(const brgemm_desc_t& brg) {
-    if (!generator_available) {
-        return "no code generator yet";
-    }
 
     // The first slice: a plain f32 batched GEMM and nothing else. Each
     // line here is a feature of the built-in kernel that has to be
@@ -124,6 +122,20 @@ const char* brgemm_kernel_ir::unsupported_reason(const brgemm_desc_t& brg) {
         return "tails are not supported";
     }
 
+    // The generator assumes one accumulator register per 16 columns.
+    if (brg.ld_block != 16) {
+        return "only a 16-column ld_block";
+    }
+
+    if (brg.bdb > max_unrolled_m_blocks) {
+        return "too many M blocks to unroll";
+    }
+
+    // A degenerate descriptor would emit a kernel that stores nothing.
+    if (brg.bd_block <= 0 || brg.ld_block2 <= 0 || brg.rdb <= 0 || brg.rd_block <= 0) {
+        return "degenerate blocking";
+    }
+
     return nullptr;
 }
 
@@ -165,12 +177,104 @@ void brgemm_kernel_ir::operator()(brgemm_kernel_params_t* params) const {
 }
 
 void brgemm_kernel_ir::generate() {
-    // @todo claude: increment 3. is_supported() accepts nothing yet, so
-    // this is unreachable; it throws rather than emitting an empty kernel,
-    // because a kernel that returns without writing C is a silent wrong
-    // answer and that is the failure mode this branch has already paid
-    // for once (the spill stub that emitted nothing).
-    OPENVINO_THROW("brgemm_kernel_ir: no code generator yet");
+    OPENVINO_ASSERT(unsupported_reason(m_brg) == nullptr,
+                    "brgemm_kernel_ir::generate: descriptor outside the supported slice");
+
+    // f32 on AVX-512: one accumulator register holds 16 columns, which is
+    // what oneDNN calls ld_block.
+    constexpr size_t N = 16;
+    OPENVINO_ASSERT(static_cast<size_t>(m_brg.ld_block) == N,
+                    "brgemm_kernel_ir: unexpected ld_block ", m_brg.ld_block);
+
+    using Params = brgemm_kernel_params_t;
+    using element = brgemm_batch_element_t;
+
+    // The blocking is oneDNN's, taken from the descriptor rather than
+    // re-derived: bd_block rows by ld_block2 column groups per tile, bdb
+    // tiles down M, rdb steps of rd_block along K.
+    const auto bd_block = static_cast<size_t>(m_brg.bd_block);
+    const auto ld_block2 = static_cast<size_t>(m_brg.ld_block2);
+    const auto bdb = static_cast<size_t>(m_brg.bdb);
+    const auto rdb = static_cast<size_t>(m_brg.rdb);
+    const auto rd_block = static_cast<size_t>(m_brg.rd_block);
+    const auto lda = static_cast<size_t>(m_brg.LDA);
+    const auto ldb = static_cast<size_t>(m_brg.LDB);
+    const auto ldc = static_cast<size_t>(m_brg.LDC);
+    constexpr size_t ts = sizeof(float);
+
+    preamble();
+    set_vec_width(N * ts * 8);  // 512: the whole register file is allocable
+    begin_ir();
+
+    auto batch_base = arg<const element*>(&Params::batch);
+    auto c_base = arg<float*>(&Params::ptr_C);
+    auto bs_count = arg(&Params::BS);
+
+    // One M tile at a time, unrolled at record time because bdb is known
+    // here and small (capped in unsupported_reason). Each tile owns its
+    // accumulators and stores them before the next begins, so peak
+    // pressure is one tile, not all of them.
+    for (size_t m_blk = 0; m_blk < bdb; ++m_blk) {
+        const size_t row0 = m_blk * bd_block;
+
+        // The accumulator tile. Defined before the batch loop: an
+        // accumulator initialized inside a loop restarts every trip.
+        std::vector<variable<float[N]>> acc;
+        acc.reserve(bd_block * ld_block2);
+        for (size_t i = 0; i < bd_block * ld_block2; ++i) {
+            acc.push_back(ir_zero<N>());
+        }
+        auto at = [&](size_t bd, size_t ld) -> variable<float[N]>& {
+            return acc[bd * ld_block2 + ld];
+        };
+
+        // Walks the batch descriptor array; A and B come from it, one
+        // pair per batch element (brgemm_addr).
+        auto cursor = ir_def_gpr({batch_base.vid()}, gpr_copy(), "batch_cursor");
+        auto cursor_var = variable<const element*>(*this, cursor);
+
+        foreach(size_t{0}, bs_count, [&](const variable<size_t>&) {
+            auto a_ptr = ir_load_gpr<const float*>(cursor_var, offsetof(element, ptr.A));
+            auto b_ptr = ir_load_gpr<const float*>(cursor_var, offsetof(element, ptr.B));
+
+            // This tile's rows start part-way down A.
+            if (row0 != 0) {
+                ir_advance(a_ptr, row0 * lda * ts);
+            }
+
+            foreach(size_t{0}, rdb, [&](const variable<size_t>&) {
+                // rd_block reduction steps unrolled inside the loop body,
+                // matching how oneDNN blocks K. Everything addressed off
+                // the two cursors with constant displacements.
+                for (size_t rd = 0; rd < rd_block; ++rd) {
+                    std::vector<variable<float[N]>> b_col;
+                    b_col.reserve(ld_block2);
+                    for (size_t ld = 0; ld < ld_block2; ++ld) {
+                        b_col.push_back(ir_load<N>(b_ptr, (rd * ldb + ld * N) * ts));
+                    }
+                    for (size_t bd = 0; bd < bd_block; ++bd) {
+                        auto a_val = ir_broadcast<N>(a_ptr, (bd * lda + rd) * ts);
+                        for (size_t ld = 0; ld < ld_block2; ++ld) {
+                            ir_accumulate(at(bd, ld), Insn3::fmadd231ps, a_val, b_col[ld]);
+                        }
+                    }
+                }
+                ir_advance(a_ptr, rd_block * ts);
+                ir_advance(b_ptr, rd_block * ldb * ts);
+            });
+
+            ir_advance(cursor_var, sizeof(element));
+        });
+
+        for (size_t bd = 0; bd < bd_block; ++bd) {
+            for (size_t ld = 0; ld < ld_block2; ++ld) {
+                ir_store<N>(c_base, ((row0 + bd) * ldc + ld * N) * ts, at(bd, ld));
+            }
+        }
+    }
+
+    end_ir();
+    postamble();
 }
 
 }  // namespace ov::intel_cpu::kernel
