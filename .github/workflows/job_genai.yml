@@ -88,17 +88,9 @@ jobs:
           path: ${{ env.INSTALL_WHEELS_DIR }}
           merge-multiple: true
 
-      - name: Install OpenVINO Python wheels
-        uses: ./.github/actions/install_ov_wheels
-        with:
-          wheels-dir-path: ${{ env.INSTALL_WHEELS_DIR }}
-          wheels-to-install: 'openvino openvino_tokenizers'
-
       - name: Build GenAI wheel
         working-directory: ${{ env.OPENVINO_GENAI_REPO }}
         run: python3 -m pip wheel -v --no-deps --wheel-dir ${GENAI_BUILD_DIR} --find-links ${INSTALL_WHEELS_DIR} .
-        env:
-          CMAKE_BUILD_PARALLEL_LEVEL: '4'
 
       - name: Upload OpenVINO GenAI wheel
         if: ${{ always() }}
