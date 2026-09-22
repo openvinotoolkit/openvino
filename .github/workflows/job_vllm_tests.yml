@@ -99,8 +99,7 @@ jobs:
         # pinned torch build, which is the bulk of the job's runtime.
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test }}
         run: |
-          python3 -m pip install -r ${INSTALL_TEST_DIR}/requirements_pytorch \
-            -r ${VLLM_TESTS_INSTALL_DIR}/requirements.txt
+          python3 -m pip install -r ${VLLM_TESTS_INSTALL_DIR}/requirements.txt
 
       - name: vLLM Tests
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test }}
