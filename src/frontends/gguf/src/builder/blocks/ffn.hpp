@@ -34,6 +34,17 @@ std::string geglu_ffn(GraphEmitter& e,
 // Routing: logits = gate_inp·x; probs = softmax/identity; pick top-k experts; per-token expert
 // matmuls via MUL_MAT_ID; gated activation; weighted sum over the used experts; plus the optional
 // always-active shared experts.
-std::string moe_ffn(GraphEmitter& e, const DecoderConfig& cfg, const std::string& prefix, const std::string& ffn_norm);
+std::string moe_ffn(GraphEmitter& e,
+                    const DecoderConfig& cfg,
+                    const std::string& prefix,
+                    const std::string& ffn_norm,
+                    const std::string& router_input = "");
+
+// Gemma4 uses separately normalized dense and routed experts and a scaled router.
+std::string gemma4_moe_ffn(GraphEmitter& e,
+                           const DecoderConfig& cfg,
+                           const std::string& prefix,
+                           const std::string& input,
+                           const std::string& dense_norm);
 
 }  // namespace ov::frontend::gguf::blocks

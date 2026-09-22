@@ -25,8 +25,8 @@
 namespace {
 class GGUFArchitectureAccuracy : public ::testing::TestWithParam<const char*> {};
 
-TEST(GGUFHybridAdaptation, QwenDenseAndMoEConvertToPagedAttention) {
-    for (const auto* family : {"qwen35", "qwen35moe", "qwen35moe-fused"}) {
+TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaConvertToPagedAttention) {
+    for (const auto* family : {"qwen35", "qwen35moe", "qwen35moe-fused", "gemma4-mqa", "gemma4-moe"}) {
         SCOPED_TRACE(family);
         auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
         const auto& bytes = ov_gguf_test::npz_array(arrays, "model");
@@ -53,19 +53,23 @@ TEST(GGUFHybridAdaptation, QwenDenseAndMoEConvertToPagedAttention) {
         ASSERT_NO_THROW(manager.run_passes(model));
         // Multiple tokens expose accidental [tokens,tokens,...] M-RoPE broadcasts.
         model->reshape({{"input_ids", {5}}, {"position_ids", {5}}});
+        const bool gemma = std::string(family).find("gemma4") == 0;
         size_t attention = 0, recurrent = 0;
         for (const auto& node : model->get_ops()) {
             if (auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
                 ++attention;
-                EXPECT_EQ(pa->get_input_partial_shape(0), (ov::PartialShape{5, 64}));
+                const auto& query_shape = pa->get_input_partial_shape(0);
+                EXPECT_EQ(query_shape.rank(), 2);
+                EXPECT_EQ(query_shape[0], 5);
+                EXPECT_TRUE(query_shape[1] == 64 || (gemma && query_shape[1] == 32));
             }
             if (auto gdn = ov::as_type_ptr<ov::op::internal::PagedGatedDeltaNet>(node)) {
                 ++recurrent;
                 EXPECT_EQ(gdn->get_input_partial_shape(0)[0], 5);
             }
         }
-        EXPECT_EQ(attention, 1);
-        EXPECT_EQ(recurrent, 3);
+        EXPECT_EQ(attention, gemma ? 2 : 1);
+        EXPECT_EQ(recurrent, gemma ? 0 : 3);
         EXPECT_TRUE(model->get_sinks().empty());
     }
 }
@@ -227,6 +231,8 @@ INSTANTIATE_TEST_SUITE_P(Architectures,
                          ::testing::Values("qwen35",
                                            "qwen35moe",
                                            "qwen35moe-fused",
+                                           "gemma4-mqa",
+                                           "gemma4-moe",
                                            "nemotron_h",
                                            "mamba2",
                                            "mamba2-tied",

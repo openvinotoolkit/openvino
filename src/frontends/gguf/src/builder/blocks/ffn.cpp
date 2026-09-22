@@ -5,6 +5,7 @@
 #include "builder/blocks/ffn.hpp"
 
 #include <limits>
+#include <cmath>
 
 #include "builder/blocks/common.hpp"
 
@@ -85,7 +86,11 @@ std::string dense_ffn(GraphEmitter& e, const DecoderConfig& cfg, const std::stri
     return out;
 }
 
-std::string moe_ffn(GraphEmitter& e, const DecoderConfig& cfg, const std::string& p, const std::string& input) {
+std::string moe_ffn(GraphEmitter& e,
+                    const DecoderConfig& cfg,
+                    const std::string& p,
+                    const std::string& input,
+                    const std::string& router_input) {
     // Routing uses one flat token axis for both SDPA and PA layouts.
     const auto ffn_norm =
         e.add_op("GGML_OP_RESHAPE",
@@ -95,7 +100,15 @@ std::string moe_ffn(GraphEmitter& e, const DecoderConfig& cfg, const std::string
                  {{"reshape_target", std::vector<int64_t>{1, 1, -1, cfg.n_embd}}, {"special_zero", false}});
     // --- router: logits [1,1,T,E] = gate_inp · x ---
     e.add_weight(p + "ffn_gate_inp.weight");
-    auto logits = e.add_op("GGML_OP_MUL_MAT", p + "moe_logits", {p + "ffn_gate_inp.weight", ffn_norm});
+    auto router =
+        router_input.empty()
+            ? ffn_norm
+            : e.add_op("GGML_OP_RESHAPE",
+                       p + "moe_router_input",
+                       {router_input},
+                       6,
+                       {{"reshape_target", std::vector<int64_t>{1, 1, -1, cfg.n_embd}}, {"special_zero", false}});
+    auto logits = e.add_op("GGML_OP_MUL_MAT", p + "moe_logits", {p + "ffn_gate_inp.weight", router});
     if (cfg.has_moe_gate_bias) {
         logits = add_bias(e, logits, p + "ffn_gate_inp.bias", p + "moe_logits_b");
     }
@@ -195,12 +208,29 @@ std::string moe_ffn(GraphEmitter& e, const DecoderConfig& cfg, const std::string
                            // is the external contract the shared translators read: glu_alpha/glu_limit.
                        {{"swapped", false}, {"glu_alpha", 1.702f}, {"glu_limit", 7.0f}});
     } else {
-        act = e.add_op("GGML_GLU_OP_SWIGLU", p + "moe_act", {gate, up}, 0, {{"swapped", false}});
+        act = e.add_op(cfg.is_geglu ? "GGML_GLU_OP_GEGLU" : "GGML_GLU_OP_SWIGLU",
+                       p + "moe_act",
+                       {gate, up},
+                       0,
+                       {{"swapped", false}});
     }
     auto experts = e.add_op("GGML_OP_MUL_MAT_ID", p + "moe_down", {p + "ffn_down_exps.weight", act, selected});
     if (eb) {
         e.add_named_weight(p + "ffn_down_exps.bias");
         experts = e.add_op("GGML_OP_ADD_ID", p + "moe_down_b", {experts, p + "ffn_down_exps.bias", selected});
+    }
+
+    if (e.has_weight(p + "ffn_down_exps.scale")) {
+        e.add_named_weight(p + "ffn_down_exps.scale");
+        auto scales =
+            e.add_op("GGML_OP_RESHAPE",
+                     p + "moe_scale_row",
+                     {p + "ffn_down_exps.scale"},
+                     6,
+                     {{"reshape_target", std::vector<int64_t>{1, 1, 1, cfg.n_expert}}, {"special_zero", false}});
+        scales = e.add_op("GGML_OP_REPEAT", p + "moe_expert_scales", {scales, probs});
+        scales = e.add_op("GGML_OP_GET_ROWS", p + "moe_selected_scales", {scales, selected}, 10);
+        weights = e.add_op("GGML_OP_MUL", p + "moe_scaled_weights", {weights, scales});
     }
 
     // Weighted sum over the K selected experts. weights is [1,T,K,1] (per-expert col).
@@ -248,6 +278,25 @@ std::string moe_ffn(GraphEmitter& e, const DecoderConfig& cfg, const std::string
                     0,
                     {{"reshape_target", std::vector<int64_t>{1, 1, -1, cfg.n_embd}},
                      {"shape_axes", std::vector<int64_t>{0, 1, 2, -1}}});
+}
+
+std::string gemma4_moe_ffn(GraphEmitter& e,
+                           const DecoderConfig& cfg,
+                           const std::string& p,
+                           const std::string& input,
+                           const std::string& dense_norm) {
+    auto dense = geglu_ffn(e, cfg, p, dense_norm);
+    dense = rms_norm(e, dense, p + "post_ffw_norm_1.weight", p + "dense_post_norm", cfg.rms_eps);
+    auto routed_input = rms_norm(e, input, p + "pre_ffw_norm_2.weight", p + "expert_pre_norm", cfg.rms_eps);
+    auto router = e.add_op("GGML_OP_RMS_NORM", p + "router_norm", {input}, 0, {{"eps", cfg.rms_eps}});
+    router = scale(e, router, 1.f / std::sqrt(float(cfg.n_embd)), p + "router_scale");
+    e.add_named_weight(p + "ffn_gate_inp.scale");
+    router = e.add_op("GGML_OP_MUL", p + "router_weighted", {router, p + "ffn_gate_inp.scale"});
+    auto expert_cfg = cfg;
+    expert_cfg.expert_weights_norm = true;
+    auto routed = moe_ffn(e, expert_cfg, p, routed_input, router);
+    routed = rms_norm(e, routed, p + "post_ffw_norm_2.weight", p + "expert_post_norm", cfg.rms_eps);
+    return e.add_op("GGML_OP_ADD", p + "combined_experts", {dense, routed});
 }
 
 }  // namespace ov::frontend::gguf::blocks
