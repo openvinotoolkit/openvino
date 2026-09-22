@@ -5,8 +5,8 @@ logit vectors (`logits`, float32). `gen_arch_accuracy.py` creates the weights;
 `architecture_oracle.cpp` evaluates them with the real llama.cpp CPU backend.
 OpenVINO does not participate in reference generation.
 
-The 30 fixtures, including Muse Glimmer and Qwen3.5 dense/MoE (separate and fused
-expert projections), use the CPU oracle from upstream
+The 32 fixtures, including Muse Glimmer and Qwen3.5 dense/MoE (separate and fused
+expert projections) and Gemma4 mixed-head MQA/MoE variants, use the CPU oracle from upstream
 [ggml-org/llama.cpp `03fa73cb27f5c251b9528489b18d303b1366aca4`](https://github.com/ggml-org/llama.cpp/commit/03fa73cb27f5c251b9528489b18d303b1366aca4)
 (2026-09-08). Muse Glimmer support is included upstream; no fork is needed.
 

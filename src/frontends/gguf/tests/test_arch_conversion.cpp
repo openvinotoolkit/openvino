@@ -181,18 +181,18 @@ struct Fingerprint {
 const std::map<std::string, Fingerprint>& fingerprints() {
     static const std::map<std::string, Fingerprint> fp{
         {"mamba2-dense.gguf.hdr", {293, 6}},     {"nemotron_h-dense.gguf.hdr", {280, 8}},
-        {"bailingmoe2-moe.gguf.hdr", {488, 10}}, {"ernie4_5-moe-moe.gguf.hdr", {470, 10}},
+        {"bailingmoe2-moe.gguf.hdr", {499, 10}}, {"ernie4_5-moe-moe.gguf.hdr", {481, 10}},
         {"exaone4-dense.gguf.hdr", {417, 11}},   {"gemma-dense.gguf.hdr", {365, 10}},
-        {"gemma2-dense.gguf.hdr", {415, 11}},    {"glm4moe-moe.gguf.hdr", {500, 10}},
-        {"gpt-oss-moe.gguf.hdr", {604, 11}},     {"hunyuan-dense-dense.gguf.hdr", {416, 10}},
-        {"hunyuan-moe-moe.gguf.hdr", {584, 10}}, {"llama-dense.gguf.hdr", {400, 10}},
-        {"llama-moe.gguf.hdr", {536, 10}},       {"maincoder-dense.gguf.hdr", {432, 10}},
-        {"minicpm-dense.gguf.hdr", {398, 10}},   {"minicpm-moe.gguf.hdr", {534, 10}},
-        {"minimax-m2-moe.gguf.hdr", {564, 10}},  {"mistral3-dense.gguf.hdr", {400, 10}},
-        {"mistral3-moe.gguf.hdr", {536, 10}},    {"olmoe-moe.gguf.hdr", {564, 10}},
+        {"gemma2-dense.gguf.hdr", {415, 11}},    {"glm4moe-moe.gguf.hdr", {511, 10}},
+        {"gpt-oss-moe.gguf.hdr", {626, 11}},     {"hunyuan-dense-dense.gguf.hdr", {416, 10}},
+        {"hunyuan-moe-moe.gguf.hdr", {606, 10}}, {"llama-dense.gguf.hdr", {400, 10}},
+        {"llama-moe.gguf.hdr", {558, 10}},       {"maincoder-dense.gguf.hdr", {432, 10}},
+        {"minicpm-dense.gguf.hdr", {398, 10}},   {"minicpm-moe.gguf.hdr", {556, 10}},
+        {"minimax-m2-moe.gguf.hdr", {586, 10}},  {"mistral3-dense.gguf.hdr", {400, 10}},
+        {"mistral3-moe.gguf.hdr", {558, 10}},    {"olmoe-moe.gguf.hdr", {586, 10}},
         {"phi3-dense.gguf.hdr", {380, 10}},      {"qwen2-dense.gguf.hdr", {368, 10}},
-        {"qwen3-dense.gguf.hdr", {416, 10}},     {"qwen3moe-moe.gguf.hdr", {576, 10}},
-        {"qwen35-dense.gguf.hdr", {391, 10}},    {"qwen35moe-moe.gguf.hdr", {571, 10}},
+        {"qwen3-dense.gguf.hdr", {416, 10}},     {"qwen3moe-moe.gguf.hdr", {598, 10}},
+        {"qwen35-dense.gguf.hdr", {391, 10}},    {"qwen35moe-moe.gguf.hdr", {593, 10}},
         {"smollm3-dense.gguf.hdr", {384, 10}},
     };
     return fp;

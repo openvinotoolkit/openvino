@@ -28,6 +28,8 @@ CASES = {
     "olmoe": {"moe": True, "full_qk": True},
     "hunyuan-dense": {"qk": True}, "hunyuan-moe": {"qk": True, "moe": True, "shared": True},
     "qwen3moe": {"qk": True, "moe": True},
+    "gemma4-mqa": {"architecture": "gemma4"},
+    "gemma4-moe": {"architecture": "gemma4", "moe": True},
     "gemma": {"mqa": True, "tied": True},
     "gemma2": {"post": True, "swa": True, "tied": True, "softcap": True},
     "gemma3": {"post": True, "swa": True, "tied": True, "qk": True, "linear": 8.0},
@@ -182,8 +184,75 @@ def write_qwen35_model(path, arch, fused_experts=False):
     w.close()
 
 
+def write_gemma4_model(path, opts):
+    w = gguf.GGUFWriter(path, "gemma4")
+    d, heads, layers, vocab, ff = 32, 4, 2, 32, 48
+    w.add_context_length(128)
+    w.add_embedding_length(d)
+    w.add_block_count(layers)
+    w.add_head_count(heads)
+    w.add_head_count_kv([2, 1])
+    w.add_feed_forward_length(ff)
+    w.add_key_length(16)
+    w.add_value_length(16)
+    w.add_layer_norm_rms_eps(1e-6)
+    w.add_vocab_size(vocab)
+    w.add_tokenizer_model("none")
+    for key, value in {"attention.key_length_swa": 8, "attention.value_length_swa": 8,
+                       "attention.sliding_window": 2, "attention.shared_kv_layers": 0,
+                       "embedding_length_per_layer_input": 0, "rope.dimension_count": 16,
+                       "rope.dimension_count_swa": 8}.items():
+        w.add_uint32("gemma4." + key, value)
+    w.add_array("gemma4.attention.sliding_window_pattern", [True, False])
+    w.add_float32("gemma4.rope.freq_base", 1000000.)
+    w.add_float32("gemma4.rope.freq_base_swa", 10000.)
+    w.add_float32("gemma4.final_logit_softcapping", 30.)
+    if opts.get("moe"):
+        w.add_expert_count(4)
+        w.add_expert_used_count(2)
+        w.add_uint32("gemma4.expert_feed_forward_length", 24)
+    rng = np.random.default_rng(20260922)
+
+    def tensor(name, shape, norm=False):
+        values = rng.uniform(-1, 1, shape).astype(np.float32)
+        w.add_tensor(name, 1 + values * .3 if norm else values * .2)
+
+    tensor("token_embd.weight", (vocab, d))
+    tensor("output_norm.weight", (d,), True)
+    tensor("rope_freqs.weight", (8,), True)
+    for layer in range(layers):
+        p = f"blk.{layer}."
+        head, kv = (8, 2) if layer == 0 else (16, 1)
+        for name in ("attn_norm", "ffn_norm", "post_attention_norm", "post_ffw_norm"):
+            tensor(p + name + ".weight", (d,), True)
+        tensor(p + "attn_q.weight", (heads * head, d))
+        tensor(p + "attn_k.weight", (kv * head, d))
+        if layer == 0:
+            tensor(p + "attn_v.weight", (kv * head, d))
+        for name in ("q", "k"):
+            tensor(p + f"attn_{name}_norm.weight", (head,), True)
+        tensor(p + "attn_output.weight", (d, heads * head))
+        for name, shape in (("gate", (ff, d)), ("up", (ff, d)), ("down", (d, ff))):
+            tensor(p + f"ffn_{name}.weight", shape)
+        tensor(p + "layer_output_scale.weight", (1,), True)
+        if opts.get("moe"):
+            for name in ("pre_ffw_norm_2", "post_ffw_norm_1", "post_ffw_norm_2"):
+                tensor(p + name + ".weight", (d,), True)
+            tensor(p + "ffn_gate_inp.weight", (4, d))
+            tensor(p + "ffn_gate_inp.scale", (d,), True)
+            tensor(p + "ffn_gate_up_exps.weight", (4, 48, d))
+            tensor(p + "ffn_down_exps.weight", (4, d, 24))
+            tensor(p + "ffn_down_exps.scale", (4,), True)
+    w.write_header_to_file()
+    w.write_kv_data_to_file()
+    w.write_tensors_to_file()
+    w.close()
+
+
 def write_model(path, arch, opts):
     arch = opts.get("architecture", arch)
+    if arch == "gemma4":
+        return write_gemma4_model(path, opts)
     if arch in ("qwen35", "qwen35moe"):
         return write_qwen35_model(path, arch, opts.get("fused_experts", False))
     if arch in ("mamba2", "nemotron_h"):

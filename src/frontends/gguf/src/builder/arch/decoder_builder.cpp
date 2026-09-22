@@ -275,7 +275,9 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
 
     // Hybrid MoE: lead layers (il < n_dense_lead) are always dense regardless of is_moe.
     const bool is_moe_layer = m_cfg.layer_is_moe(il);
-    std::string down = is_moe_layer     ? blocks::moe_ffn(m_emit, m_cfg, p, ffn_norm)
+    std::string down = is_moe_layer && m_emit.has_weight(p + "pre_ffw_norm_2.weight")
+                           ? blocks::gemma4_moe_ffn(m_emit, m_cfg, p, ffn_inp, ffn_norm)
+                       : is_moe_layer   ? blocks::moe_ffn(m_emit, m_cfg, p, ffn_norm)
                        : m_cfg.is_geglu ? blocks::geglu_ffn(m_emit, m_cfg, p, ffn_norm)
                                         : blocks::dense_ffn(m_emit, m_cfg, p, ffn_norm);
     // MiniCPM scales the FFN sublayer output before the residual add.
