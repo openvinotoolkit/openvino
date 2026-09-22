@@ -25,6 +25,7 @@
 #endif  // ENABLE_ONEDNN_FOR_GPU
 
 #include <memory>
+#include <cstdlib>
 #include <set>
 #include <string>
 #include <utility>
@@ -1182,6 +1183,7 @@ dnnl::post_ops program_node::try_optimize_post_ops(std::vector<fused_primitive_d
         case onednn_post_op_type::binary_add:
         case onednn_post_op_type::binary_sub:
         case onednn_post_op_type::binary_mul:
+        case onednn_post_op_type::binary_mul_inplace:
         case onednn_post_op_type::binary_max:
         case onednn_post_op_type::binary_min:
         case onednn_post_op_type::binary_div: {
@@ -1651,7 +1653,8 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
         auto has_memory_buffers = type == onednn_post_op_type::binary_add || type == onednn_post_op_type::binary_sub ||
                                   type == onednn_post_op_type::binary_mul || type == onednn_post_op_type::binary_max ||
                                   type == onednn_post_op_type::binary_min || type == onednn_post_op_type::binary_relu ||
-                                  type == onednn_post_op_type::binary_div || type == onednn_post_op_type::scale || type == onednn_post_op_type::sum;
+                                  type == onednn_post_op_type::binary_div || type == onednn_post_op_type::scale ||
+                                  type == onednn_post_op_type::sum || type == onednn_post_op_type::binary_mul_inplace;
 
         if (has_memory_buffers) {
             memory_offset++;
@@ -1668,6 +1671,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
     };
 
     int32_t num_sum_post_ops = 0;
+    int32_t num_binary_mul_inplace_post_ops = 0;
     for (size_t idx = 0; idx < cldnn_post_ops.size(); idx++) {
         const auto& desc = cldnn_post_ops[idx];
         if (desc.is_type<activation>()) {
@@ -1763,7 +1767,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
 
             if (desc.typed_desc<eltwise>()->mode == eltwise_mode::sum) {
                 auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*this, cldnn_post_ops[idx]);
-                if (fusing_type == add_fusing_type::sum && num_sum_post_ops == 0) {
+                if (fusing_type == add_fusing_type::sum && num_sum_post_ops == 0 && num_binary_mul_inplace_post_ops == 0) {
                     if (is_type<convolution>()) {
                         post_ops.append_sum(1.0f, 0 /*zero-point*/, onednn::convert_data_type(in.data_type));
                     } else {
@@ -1777,7 +1781,16 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
             } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::sub) {
                 set_binary_op(dnnl::algorithm::binary_sub, onednn_post_op_type::binary_sub);
             } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::prod) {
-                set_binary_op(dnnl::algorithm::binary_mul, onednn_post_op_type::binary_mul);
+                // RHS = DST in-place multiplication lets onednn accumulate directly into the residual's
+                // buffer (reused as this node's output), avoiding a separate binary read of that tensor.
+                const bool force_binary_mul = std::getenv("OV_GPU_FORCE_BINARY_MUL") != nullptr;
+                if (!force_binary_mul && onednn_add_fusing_helpers::can_use_mul_inplace(*this, cldnn_post_ops[idx])
+                    && num_sum_post_ops == 0) {
+                    set_binary_op(dnnl::algorithm::binary_mul_inplace, onednn_post_op_type::binary_mul_inplace);
+                    num_binary_mul_inplace_post_ops++;
+                } else {
+                    set_binary_op(dnnl::algorithm::binary_mul, onednn_post_op_type::binary_mul);
+                }
             } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::div) {
                 set_binary_op(dnnl::algorithm::binary_div, onednn_post_op_type::binary_div);
             } else {

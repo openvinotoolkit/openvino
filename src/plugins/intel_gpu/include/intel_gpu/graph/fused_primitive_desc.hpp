@@ -117,6 +117,7 @@ enum class onednn_post_op_type : uint32_t {
     eltwise_round,
     eltwise_hardsigmoid,
     binary_mul,
+    binary_mul_inplace,
     binary_add,
     binary_sub,
     binary_max,
@@ -141,6 +142,7 @@ static inline std::ostream& operator<< (std::ostream& os, onednn_post_op_type& t
         case onednn_post_op_type::eltwise_round: os << "eltwise_round"; break;
         case onednn_post_op_type::eltwise_hardsigmoid: os << "eltwise_hardsigmoid"; break;
         case onednn_post_op_type::binary_mul: os << "binary_mul"; break;
+        case onednn_post_op_type::binary_mul_inplace: os << "binary_mul_inplace"; break;
         case onednn_post_op_type::binary_add: os << "binary_add"; break;
         case onednn_post_op_type::binary_sub: os << "binary_sub"; break;
         case onednn_post_op_type::binary_max: os << "binary_max"; break;

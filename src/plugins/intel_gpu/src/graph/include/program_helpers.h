@@ -10,6 +10,8 @@
 #include "data_inst.h"
 #include "eltwise_inst.h"
 #include "convolution_inst.h"
+#include "gemm_inst.h"
+#include "fully_connected_inst.h"
 
 #include <string>
 #include <vector>
@@ -132,6 +134,9 @@ struct onednn_add_fusing_helpers {
     static void for_eltwise(const program_node& conv_node, eltwise_mode mode,
                             std::function<void(const program_node&, const fused_primitive_desc&)> func);
     static add_fusing_type get_add_fusing_type(const program_node& node, const fused_primitive_desc& desc);
+    // Checks whether the fused prod post-op can use oneDNN's in-place binary multiplication.
+    // Matmul-based primitives (gemm/fully_connected) support the operation with the same buffer-reuse conditions as sum.
+    static bool can_use_mul_inplace(const program_node& node, const fused_primitive_desc& desc);
     static int32_t get_reused_eltwmem_idx(const program_node& node);
 };
 
