@@ -26,7 +26,7 @@ namespace {
 class GGUFArchitectureAccuracy : public ::testing::TestWithParam<const char*> {};
 
 TEST(GGUFHybridAdaptation, QwenDenseAndMoEConvertToPagedAttention) {
-    for (const auto* family : {"qwen35", "qwen35moe"}) {
+    for (const auto* family : {"qwen35", "qwen35moe", "qwen35moe-fused"}) {
         SCOPED_TRACE(family);
         auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
         const auto& bytes = ov_gguf_test::npz_array(arrays, "model");
@@ -226,6 +226,7 @@ INSTANTIATE_TEST_SUITE_P(Architectures,
                          GGUFArchitectureAccuracy,
                          ::testing::Values("qwen35",
                                            "qwen35moe",
+                                           "qwen35moe-fused",
                                            "nemotron_h",
                                            "mamba2",
                                            "mamba2-tied",

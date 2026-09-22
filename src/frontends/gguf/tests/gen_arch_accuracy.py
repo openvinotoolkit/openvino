@@ -20,6 +20,7 @@ import numpy as np
 
 CASES = {
     "qwen35": {}, "qwen35moe": {},
+    "qwen35moe-fused": {"architecture": "qwen35moe", "fused_experts": True},
     "nemotron_h": {},
     "mamba2": {}, "mamba2-tied": {"architecture": "mamba2", "tied": True},
     "llama": {}, "qwen2": {"bias": True}, "qwen3": {"qk": True},
@@ -106,7 +107,7 @@ def write_mamba2_model(path, opts, arch="mamba2"):
     w.close()
 
 
-def write_qwen35_model(path, arch):
+def write_qwen35_model(path, arch, fused_experts=False):
     w = gguf.GGUFWriter(path, arch)
     d, head, heads, kv, ff, vocab = 32, 16, 4, 2, 48, 32
     state, groups, vheads, kernel = 8, 2, 4, 4
@@ -166,8 +167,12 @@ def write_qwen35_model(path, arch):
             tensor(p + "attn_output.weight", (d, heads * head))
         if moe:
             tensor(p + "ffn_gate_inp.weight", (4, d))
-            for name, shape in (("gate", (4, ff, d)), ("up", (4, ff, d)), ("down", (4, d, ff))):
-                tensor(p + f"ffn_{name}_exps.weight", shape)
+            if fused_experts:
+                tensor(p + "ffn_gate_up_exps.weight", (4, 2 * ff, d))
+            else:
+                for name in ("gate", "up"):
+                    tensor(p + f"ffn_{name}_exps.weight", (4, ff, d))
+            tensor(p + "ffn_down_exps.weight", (4, d, ff))
             tensor(p + "ffn_gate_inp_shexp.weight", (d,))
         for name, shape in (("gate", (ff, d)), ("up", (ff, d)), ("down", (d, ff))):
             tensor(p + f"ffn_{name}" + ("_shexp" if moe else "") + ".weight", shape)
@@ -180,7 +185,7 @@ def write_qwen35_model(path, arch):
 def write_model(path, arch, opts):
     arch = opts.get("architecture", arch)
     if arch in ("qwen35", "qwen35moe"):
-        return write_qwen35_model(path, arch)
+        return write_qwen35_model(path, arch, opts.get("fused_experts", False))
     if arch in ("mamba2", "nemotron_h"):
         return write_mamba2_model(path, opts, arch)
     w = gguf.GGUFWriter(path, arch)
