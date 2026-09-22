@@ -100,7 +100,7 @@ jobs:
           wheels-to-install: 'openvino openvino_tokenizers'
 
       - name: Install LLM accuracy test requirements
-        run: python3 -m pip install -r ${LLM_TEST_DIR}/requirements.txt
+        run: python3 -m pip install -r ${LLM_TEST_DIR}/requirements.txt --find-links ${env:INSTALL_DIR}
 
       - name: LLM accuracy ${{ inputs.device }} tests
         env:
