@@ -66,12 +66,5 @@ and automatic maintainer review requests are defined separately in
 
 When working in a component, first look for its nearest `README.md`,
 developer documentation, tests, and build instructions. For frontend work,
-also consult the relevant frontend documentation or source directory:
-[GGUF](../src/frontends/gguf/README.md),
-[IR](../src/frontends/ir/README.md),
-[JAX](../src/frontends/jax/),
-[ONNX](../src/frontends/onnx/README.md),
-[Paddle](../src/frontends/paddle/README.md),
-[PyTorch](../src/frontends/pytorch/README.md),
-[TensorFlow](../src/frontends/tensorflow/README.md), or
-[TensorFlow Lite](../src/frontends/tensorflow_lite/).
+use the [frontend index](../src/frontends/README.md) to find the relevant
+documentation and source directory.
