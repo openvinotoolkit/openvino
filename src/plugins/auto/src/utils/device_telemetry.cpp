@@ -6,6 +6,7 @@
 
 #ifdef OV_AUTO_ENABLE_IPF
 
+#    include <algorithm>
 #    include <atomic>
 #    include <cmath>
 #    include <memory>
@@ -188,6 +189,12 @@ public:
     // Fetches one snapshot and resolves utilization for every requested device from it.
     std::unordered_map<std::string, float> utilizations(
         const std::vector<std::pair<std::string, std::string>>& devices) {
+        const bool any_supported = std::any_of(devices.begin(), devices.end(), [](const auto& device) {
+            return !device_to_metric_key(device.first, device.second).empty();
+        });
+        if (!any_supported) {
+            return {};
+        }
         const std::string snapshot = fetch_utilization_snapshot();
         if (snapshot.empty()) {
             return {};

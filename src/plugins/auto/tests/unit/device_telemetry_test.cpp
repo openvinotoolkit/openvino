@@ -121,13 +121,14 @@ TEST(DeviceMonitorTest, utilization_values_are_parsed_from_one_snapshot) {
         "Status": "Online"
     })";
 
-    const auto cpu_utilization = device_monitor::utilization_from_snapshot(snapshot, "CPU");
-    const auto npu_utilization = device_monitor::utilization_from_snapshot(snapshot, "NPU");
+    const auto utilizations = device_monitor::utilization_from_snapshot(
+        snapshot,
+        std::vector<std::pair<std::string, std::string>>{{"CPU", ""}, {"NPU", ""}});
 
-    ASSERT_TRUE(cpu_utilization.has_value());
-    ASSERT_TRUE(npu_utilization.has_value());
-    EXPECT_FLOAT_EQ(cpu_utilization.value(), 12.5f);
-    EXPECT_FLOAT_EQ(npu_utilization.value(), 37.5f);
+    ASSERT_EQ(utilizations.count("CPU"), 1u);
+    ASSERT_EQ(utilizations.count("NPU"), 1u);
+    EXPECT_FLOAT_EQ(utilizations.at("CPU"), 12.5f);
+    EXPECT_FLOAT_EQ(utilizations.at("NPU"), 37.5f);
 }
 #endif
 
