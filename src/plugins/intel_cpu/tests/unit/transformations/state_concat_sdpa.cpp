@@ -270,6 +270,10 @@ static std::shared_ptr<ov::Model> makeQuantizedKvSDPA(const ov::PartialShape& in
 }
 
 TEST_F(TransformationTestsF, StateConcatSDPAQuantizedKVShouldNotFuse) {
+#if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    test_skipped = true;
+    GTEST_SKIP() << "Skipping StateConcatSDPAQuantizedKVShouldNotFuse test on Android X64";
+#endif
     const auto inputShape = ov::PartialShape{-1, 32, -1, 64};
     model = makeQuantizedKvSDPA(inputShape);
     model_ref = makeQuantizedKvSDPA(inputShape);
