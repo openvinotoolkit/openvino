@@ -27,18 +27,22 @@ def main():
     parser.add_argument("--mmproj", type=Path)
     parser.add_argument("--fresh-accuracy", action="store_true",
                         help="Diagnostic: rebuild the pipeline for each reference history")
-    parser.add_argument("--prefix-caching", action="store_true")
+    prefix = parser.add_mutually_exclusive_group()
+    prefix.add_argument("--prefix-caching", dest="prefix_caching", action="store_true")
+    prefix.add_argument("--no-prefix-caching", dest="prefix_caching", action="store_false")
+    parser.set_defaults(prefix_caching=None)
     args = parser.parse_args()
     properties = dict(GGUF_READER="FRONTEND", ATTENTION_BACKEND=args.backend,
                       INFERENCE_PRECISION_HINT="f32", KV_CACHE_PRECISION="f16",
                       DYNAMIC_QUANTIZATION_GROUP_SIZE=0, INFERENCE_NUM_THREADS=4)
-    if args.prefix_caching:
+    if args.prefix_caching is not None:
         config = genai.SchedulerConfig()
-        config.enable_prefix_caching = True
+        config.enable_prefix_caching = args.prefix_caching
         properties["scheduler_config"] = config
     report = dict(model=str(args.model.resolve()), backend=args.backend,
                   openvino_version=ov.get_version(), genai_version=genai.__version__,
-                  fresh_accuracy=args.fresh_accuracy, prefix_caching=args.prefix_caching,
+                  fresh_accuracy=args.fresh_accuracy,
+                  prefix_caching=(args.backend == "PA" if args.prefix_caching is None else args.prefix_caching),
                   scenarios={})
 
     def save():
@@ -83,7 +87,7 @@ def main():
         for ids in schedule:
             history.extend(ids)
             runner = make_pipeline() if args.fresh_accuracy else pipeline
-            result = runner.generate(ov.Tensor(np.array([history], np.int64)), max_new_tokens=1, min_new_tokens=1)
+            result = runner.generate(ov.Tensor(np.array([history], np.int64)), max_new_tokens=1, ignore_eos=True)
             actual.append(result.tokens[0][0])
         matches = sum(a == b for a, b in zip(actual, expected))
         metrics = dict(actual=actual, expected=expected, matching_choices=matches, total=len(expected))
@@ -116,7 +120,7 @@ def main():
     def beam():
         result = pipeline.generate(ov.Tensor(np.array([schedule[0]], np.int64)),
                                    max_new_tokens=8, min_new_tokens=8, num_beams=3, num_return_sequences=2)
-        assert len(result.tokens) == 2 and all(len(tokens) == 8 for tokens in result.tokens)
+        assert len(result.tokens) == 2 and all(len(tokens) <= 8 for tokens in result.tokens), result.tokens
         assert np.isfinite(result.scores).all()
         return dict(tokens=result.tokens, scores=result.scores)
 

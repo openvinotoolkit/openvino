@@ -102,7 +102,7 @@ time. External definitions and custom-family catalog entries extend the same reg
 ### Numerical regression coverage
 
 [`GGUFArchitectureAccuracy`](../tests/test_arch_accuracy.cpp) contains 29 small, nonzero F32
-fixtures covering 22 verified architecture identifiers and experimental `hunyuan-moe`.
+fixtures, including the experimental `hunyuan-moe` and `qwen35moe` families.
 Additional model variants exercise YaRN and position-dependent attention scaling under
 `llama` and `mistral3`. Gemma3 covers distinct global/local RoPE scaling. The suite
 does not cover `gemma4` or `gpt-oss`. Qwen dense and MoE hybrid fixtures also exercise PA conversion with multiple tokens.
