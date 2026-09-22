@@ -252,6 +252,40 @@ struct DUMMY_DEPRECATED_KEYS_OPTION final : intel_npu::OptionBase<DUMMY_DEPRECAT
     }
 };
 
+// Declares more than one deprecated spelling, and is neither a string nor free of validation, so it also
+// covers parsing and validation being reached through an alias
+struct DUMMY_MULTI_DEPRECATED_KEYS_OPTION final
+    : intel_npu::OptionBase<DUMMY_MULTI_DEPRECATED_KEYS_OPTION, int64_t> {
+    static std::string_view key() {
+        return "DUMMY_MULTI_DEPRECATED_KEYS_OPTION";
+    }
+
+    static std::vector<std::string_view> deprecatedKeys() {
+        return {"DUMMY_FIRST_OLD_KEY", "DUMMY_SECOND_OLD_KEY"};
+    }
+
+    static int64_t defaultValue() {
+        return 0;
+    }
+
+    static void validateValue(const int64_t& val) {
+        OPENVINO_ASSERT(val >= 0, "DUMMY_MULTI_DEPRECATED_KEYS_OPTION expects non-negative values, got ", val);
+    }
+};
+
+// Claims a deprecated key which `DUMMY_DEPRECATED_KEYS_OPTION` already owns, used only to check that the
+// clash is rejected at registration time. Never added to the shared descriptor.
+struct DUMMY_CLASHING_DEPRECATED_KEY_OPTION final
+    : intel_npu::OptionBase<DUMMY_CLASHING_DEPRECATED_KEY_OPTION, std::string> {
+    static std::string_view key() {
+        return "DUMMY_CLASHING_DEPRECATED_KEY_OPTION";
+    }
+
+    static std::vector<std::string_view> deprecatedKeys() {
+        return {"DUMMY_OLD_KEY"};
+    }
+};
+
 // There is neither an `operator<<` nor an `ov::util::Write` specialization for this type, so `ov::Any::print()`
 // is a no-op for it and `ov::Any::as<std::string>()` hands back an empty string instead of failing
 struct UnprintablePayload final {
@@ -306,6 +340,7 @@ std::shared_ptr<OptionsDesc> makeDummyOptionsDesc() {
     desc->add<DUMMY_BOOL_OPTION>();
     desc->add<DUMMY_CUSTOM_PARSE_OPTION>();
     desc->add<DUMMY_DEPRECATED_KEYS_OPTION>();
+    desc->add<DUMMY_MULTI_DEPRECATED_KEYS_OPTION>();
     return desc;
 }
 
@@ -592,6 +627,12 @@ TEST_F(OptionBaseUnitTests, DefaultsAreBothModeAndNoEnvVar) {
     EXPECT_TRUE(DUMMY_NO_DEFAULT_OPTION::deprecatedKeys().empty());
 }
 
+TEST_F(OptionBaseUnitTests, DeprecatedKeysAreReportedInDeclarationOrder) {
+    EXPECT_EQ(std::vector<std::string_view>({"DUMMY_OLD_KEY"}), DUMMY_DEPRECATED_KEYS_OPTION::deprecatedKeys());
+    EXPECT_EQ(std::vector<std::string_view>({"DUMMY_FIRST_OLD_KEY", "DUMMY_SECOND_OLD_KEY"}),
+              DUMMY_MULTI_DEPRECATED_KEYS_OPTION::deprecatedKeys());
+}
+
 //
 // OptionsDesc
 //
@@ -625,6 +666,53 @@ TEST_F(OptionsDescUnitTests, DeprecatedKeyResolvesToTheActualOption) {
 
     EXPECT_TRUE(desc->has("DUMMY_OLD_KEY"));
     EXPECT_EQ(DUMMY_DEPRECATED_KEYS_OPTION::key(), desc->get("DUMMY_OLD_KEY").key());
+}
+
+TEST_F(OptionsDescUnitTests, EveryDeprecatedKeyOfAnOptionResolvesToIt) {
+    const auto desc = makeDummyOptionsDesc();
+
+    for (const auto& deprecatedKey : DUMMY_MULTI_DEPRECATED_KEYS_OPTION::deprecatedKeys()) {
+        EXPECT_TRUE(desc->has(deprecatedKey)) << "key: " << deprecatedKey;
+        // the whole descriptor, not just the key, is the one of the actual option
+        const auto opt = desc->get(deprecatedKey);
+        EXPECT_EQ(DUMMY_MULTI_DEPRECATED_KEYS_OPTION::key(), opt.key()) << "key: " << deprecatedKey;
+        EXPECT_EQ(DUMMY_MULTI_DEPRECATED_KEYS_OPTION::mode(), opt.mode()) << "key: " << deprecatedKey;
+    }
+}
+
+TEST_F(OptionsDescUnitTests, DeprecatedKeyIsNotAnOptionOfItsOwn) {
+    OptionsDesc desc;
+    desc.add<DUMMY_DEPRECATED_KEYS_OPTION>();
+
+    std::vector<std::string> visited;
+    desc.walk([&](const intel_npu::details::OptionConcept& opt) {
+        visited.emplace_back(opt.key());
+    });
+
+    // deprecated keys are a lookup alias only, they are never advertised as options
+    EXPECT_EQ(std::vector<std::string>({std::string(DUMMY_DEPRECATED_KEYS_OPTION::key())}), visited);
+}
+
+TEST_F(OptionsDescUnitTests, RegisteringTheSameDeprecatedKeyTwiceThrows) {
+    OptionsDesc desc;
+    desc.add<DUMMY_DEPRECATED_KEYS_OPTION>();
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(desc.add<DUMMY_CLASHING_DEPRECATED_KEY_OPTION>(),
+                                  ov::Exception,
+                                  "Option 'DUMMY_OLD_KEY' was already registered");
+}
+
+TEST_F(OptionsDescUnitTests, ResetRemovesDeprecatedKeys) {
+    OptionsDesc desc;
+    desc.add<DUMMY_DEPRECATED_KEYS_OPTION>();
+    ASSERT_TRUE(desc.has("DUMMY_OLD_KEY"));
+
+    desc.reset();
+
+    EXPECT_FALSE(desc.has("DUMMY_OLD_KEY"));
+    OV_EXPECT_THROW_HAS_SUBSTRING(desc.get("DUMMY_OLD_KEY"), ov::Exception, "[ NOT_FOUND ]");
+    // the alias table is cleared too, so the same option can be registered again afterwards
+    EXPECT_NO_THROW(desc.add<DUMMY_DEPRECATED_KEYS_OPTION>());
 }
 
 TEST_F(OptionsDescUnitTests, ResetRemovesRegisteredOptions) {
@@ -718,6 +806,55 @@ TEST_F(ConfigUnitTests, UpdateThroughDeprecatedKeySetsTheActualOption) {
     EXPECT_EQ("some_value", config.get<DUMMY_DEPRECATED_KEYS_OPTION>());
     // the value is stored under the actual key, not the deprecated one
     EXPECT_FALSE(config.has("DUMMY_OLD_KEY"));
+}
+
+TEST_F(ConfigUnitTests, UpdateThroughEachDeprecatedKeySetsTheActualOption) {
+    for (const auto& deprecatedKey : DUMMY_MULTI_DEPRECATED_KEYS_OPTION::deprecatedKeys()) {
+        auto config = makeConfig();
+        config.update({{std::string(deprecatedKey), "7"}});
+
+        EXPECT_TRUE(config.has<DUMMY_MULTI_DEPRECATED_KEYS_OPTION>()) << "key: " << deprecatedKey;
+        EXPECT_EQ(7, config.get<DUMMY_MULTI_DEPRECATED_KEYS_OPTION>()) << "key: " << deprecatedKey;
+    }
+}
+
+TEST_F(ConfigUnitTests, UpdateThroughDeprecatedKeyAcceptsAnAnyPayload) {
+    auto config = makeConfig();
+    config.update("DUMMY_FIRST_OLD_KEY", ov::Any(int64_t{7}));
+
+    EXPECT_EQ(7, config.get<DUMMY_MULTI_DEPRECATED_KEYS_OPTION>());
+}
+
+// The alias is resolved before anything is parsed, so the option's own `parse()` and `validateValue()` are the
+// ones which run, and errors are reported against the actual key
+TEST_F(ConfigUnitTests, UpdateThroughDeprecatedKeyRunsParsingAndValidation) {
+    auto config = makeConfig();
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(config.update("DUMMY_FIRST_OLD_KEY", "abc"),
+                                  ov::Exception,
+                                  "Failed to parse 'DUMMY_MULTI_DEPRECATED_KEYS_OPTION' option");
+    OV_EXPECT_THROW_HAS_SUBSTRING(config.update("DUMMY_FIRST_OLD_KEY", "-1"),
+                                  ov::Exception,
+                                  "expects non-negative values");
+    EXPECT_FALSE(config.has<DUMMY_MULTI_DEPRECATED_KEYS_OPTION>());
+}
+
+TEST_F(ConfigUnitTests, DeprecatedAndActualKeysWriteToTheSameSlot) {
+    auto config = makeConfig();
+    config.update("DUMMY_FIRST_OLD_KEY", "1");
+    config.update("DUMMY_SECOND_OLD_KEY", "2");
+    config.update(DUMMY_MULTI_DEPRECATED_KEYS_OPTION::key(), "3");
+
+    EXPECT_EQ(3, config.get<DUMMY_MULTI_DEPRECATED_KEYS_OPTION>());
+    // a single entry, serialized under the actual key
+    EXPECT_EQ("DUMMY_MULTI_DEPRECATED_KEYS_OPTION=\"3\"", config.toString());
+}
+
+TEST_F(ConfigUnitTests, OptionDescriptorLookupResolvesDeprecatedKeys) {
+    const auto config = makeConfig();
+
+    EXPECT_TRUE(config.hasOpt("DUMMY_OLD_KEY"));
+    EXPECT_EQ(DUMMY_DEPRECATED_KEYS_OPTION::key(), config.getOpt("DUMMY_OLD_KEY").key());
 }
 
 TEST_F(ConfigUnitTests, UpdateWithUnknownKeyThrows) {

@@ -181,6 +181,7 @@ details::OptionConcept OptionsDesc::get(std::string_view key) const {
 
 void OptionsDesc::reset() {
     _impl.clear();
+    _deprecated.clear();
 }
 
 bool OptionsDesc::has(std::string_view key) const {
