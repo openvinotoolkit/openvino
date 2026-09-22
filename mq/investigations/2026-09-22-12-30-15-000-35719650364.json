@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-22-12-30-15-000-35719650364",
+  "timestamp": "2026-09-22T12:30:15Z",
+  "run_id": "35719650364",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35719650364",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "38190",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38190",
+  "author": "alvoron",
+  "category": "Dependencies",
+  "title": "LLM accuracy tests fail importing openvino_genai - libopenvino.so.2640 not found",
+  "signature": "importerror libopenvino so 2640 cannot open shared object file no such file or directory|Dependencies",
+  "signature_hash": "a87e95431b0e8175",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "LLM accuracy CPU tests / LLM accuracy CPU tests",
+      "conclusion": "failure",
+      "symptom": "pytest collection error: ImportError: libopenvino.so.2640: cannot open shared object file: No such file or directory (raised while importing openvino_genai via whowhatbench)"
+    },
+    {
+      "name": "LLM accuracy iGPU tests / LLM accuracy GPU tests",
+      "conclusion": "failure",
+      "symptom": "Identical pytest collection error: ImportError: libopenvino.so.2640: cannot open shared object file: No such file or directory"
+    }
+  ],
+  "key_errors": [
+    "ImportError while importing test module '/__w/openvino/openvino/tests/llm/accuracy_conformance.py'.\ntests/llm/accuracy_conformance.py:15: in <module>\n    import whowhatbench as wwb\n/venv/lib/python3.12/site-packages/whowhatbench/__init__.py:7: in <module>\n    from .text2image_evaluator import Text2ImageEvaluator\n/venv/lib/python3.12/site-packages/whowhatbench/text2image_evaluator.py:11: in <module>\n    import openvino_genai\n/venv/lib/python3.12/site-packages/openvino_genai/__init__.py:13: in <module>\n    from .py_openvino_genai import (\nE   ImportError: libopenvino.so.2640: cannot open shared object file: No such file or directory",
+    "Successfully installed numpy-2.5.3 openvino-2026.4.1 openvino-telemetry-2025.2.0 (locally-built wheel installed first by install_ov_wheels)",
+    "Collecting openvino-genai (from optimum-intel[nncf,tests]->-r /__w/openvino/openvino/tests/llm/requirements.txt (line 3)) ... Downloading .../openvino_genai-2026.4.0.0-2635-cp312-cp312-manylinux_2_28_x86_64.whl (pulled from proxy index during the subsequent 'pip install -r tests/llm/requirements.txt' step, uninstalling the locally-built openvino-tokenizers-2026.4.1.0 wheel and replacing it with openvino-tokenizers-2026.4.0.0)"
+  ],
+  "root_cause": "Third recorded occurrence of the exact same failure signature for PR #38190 (previously seen 2026-09-21T15:45:59Z run 35611485728, and 2026-09-22T12:10:20Z run 35717727822). job_llm_accuracy_tests.yml installs the locally-built 'openvino' (2026.4.1) and 'openvino_tokenizers' (2026.4.1.0) wheels via install_ov_wheels, but the following 'pip install -r tests/llm/requirements.txt' step resolves 'whowhatbench' -> 'optimum-intel[nncf,tests]' -> 'openvino-genai', pulling prebuilt 'openvino-genai-2026.4.0.0' and 'openvino-tokenizers-2026.4.0.0' wheels from the pip proxy index and silently uninstalling the just-installed local 'openvino-tokenizers-2026.4.1.0'. The prebuilt 'openvino_genai' native extension was linked against a different core 'openvino' SOVERSION (libopenvino.so.2640) than the one actually installed in this environment, so importing openvino_genai fails at pytest collection time before any test runs. The fix recommended in the first two investigations (pin/constrain openvino-genai and openvino-tokenizers, or install them from the same local artifact set) has still not been applied to job_llm_accuracy_tests.yml or tests/llm/requirements.txt.",
+  "reproduction_steps": "In a fresh venv: 1) pip install <local openvino-2026.4.1 wheel> <local openvino_tokenizers-2026.4.1.0 wheel>; 2) pip install -r tests/llm/requirements.txt (pulls whowhatbench -> optimum-intel[nncf,tests] -> openvino-genai from the index, uninstalling the local openvino-tokenizers); 3) python3 -c \"import openvino_genai\" reproduces 'ImportError: libopenvino.so.2640: cannot open shared object file: No such file or directory'.",
+  "recommended_actions": [
+    "Pin/constrain 'openvino-genai' and 'openvino-tokenizers' in tests/llm/requirements.txt (or a constraints.txt) so pip cannot silently substitute the locally-built wheels for mismatched prebuilt ones during transitive resolution of whowhatbench/optimum-intel.",
+    "Install openvino-genai explicitly from the same locally-built artifact set as 'openvino'/'openvino_tokenizers' via install_ov_wheels, before running 'pip install -r tests/llm/requirements.txt', passing '--no-deps' (or an equivalent constraint) on the requirements install.",
+    "Add a fast-fail 'python3 -c \"import openvino_genai\"' smoke-check step immediately after wheel installation in job_llm_accuracy_tests.yml so this ABI/version mismatch surfaces clearly instead of as an opaque pytest collection error.",
+    "This is now the THIRD occurrence for the same PR across two separate merge-queue attempts and a prior run; escalate directly to the PR author/CI infra owner since the previously recommended fix has still not been applied."
+  ],
+  "prevention_strategies": "Add explicit version constraints (or install-from-local-wheel steps) for openvino-genai and openvino-tokenizers in tests/llm/requirements.txt / constraints.txt so pip cannot silently substitute a mismatched prebuilt runtime during transitive dependency resolution. Add a CI smoke-import step right after wheel installation for any job that installs additional OpenVINO-dependent python packages, so ABI mismatches fail fast with a clear message instead of as an opaque pytest collection error.",
+  "historical_context": "Identical failure signature (a87e95431b0e8175) was first recorded on 2026-09-21T15:45:59Z in run 35611485728, recurred on 2026-09-22T12:10:20Z in run 35717727822, and now recurs a third time on 2026-09-22T12:30:15Z in run 35719650364 - all three for PR #38190. This is the third occurrence of the same unresolved issue within roughly 21 hours; the recommended constraint/pin fix has not been applied."
+}
