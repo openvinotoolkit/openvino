@@ -54,7 +54,7 @@ The native architecture catalog is defined in
 Without additional architecture registrations, names outside this catalog are rejected at load
 time. External definitions and custom-family catalog entries extend the same registry.
 
-### Verified — 23 architectures
+### Verified — 25 architectures
 
 | Architecture | Notes |
 |---|---|
@@ -70,10 +70,12 @@ time. External definitions and custom-family catalog entries extend the same reg
 | `hunyuan-dense` | learned QK-norm after RoPE |
 | `llama` | llama-2 / llama-3 |
 | `maincoder` | NORMAL RoPE; learned QK-norm after RoPE |
+| `mamba2` | Mamba 2 mixer, tied or separate output embeddings; stateful greedy decoding with one sequence |
 | `mellum` | MoE with normalized expert weights |
 | `minicpm` | NORMAL RoPE; embedding/residual scales and inverse logit scale |
 | `mistral3` | dense decoder, NORMAL RoPE |
 | `muse-glimmer` | RoPE on SWA layers, attention output gate, pre/post norms |
+| `nemotron_h` | dense hybrid Mamba 2 / attention / ReLU-squared FFN; stateful greedy decoding with one sequence |
 | `olmoe` | full-width QK-norm and MoE |
 | `phi3` | fused QKV |
 | `qwen2` | qwen2 / qwen2.5 |
@@ -96,8 +98,8 @@ time. External definitions and custom-family catalog entries extend the same reg
 
 ### Numerical regression coverage
 
-[`GGUFArchitectureAccuracy`](../tests/test_arch_accuracy.cpp) contains 23 small, nonzero F32
-fixtures covering 19 verified architecture identifiers and experimental `hunyuan-moe`.
+[`GGUFArchitectureAccuracy`](../tests/test_arch_accuracy.cpp) contains 26 small, nonzero F32
+fixtures covering 21 verified architecture identifiers and experimental `hunyuan-moe`.
 Additional model variants exercise YaRN and position-dependent attention scaling under
 `llama` and `mistral3`. The suite does not cover `gemma3`, `gemma4`, `gpt-oss` or `qwen35`.
 
@@ -111,6 +113,20 @@ sliding-window boundaries, SmolLM3's fourth NoPE layer, ERNIE shared experts wit
 `expert_shared_count`, and Bailing's sigmoid/grouped routing. Configuration tests also
 cover Gemma2-27B's attention scale, EXAONE4's 64-layer SWA defaults and ERNIE's interleaved
 dense/MoE schedule. Zero-weight conversion fingerprints provide structural smoke coverage.
+
+### Mamba 2 execution
+
+`GGML_OP_SSM_SCAN` uses the existing `SelectiveSSM` operation. `GGUFMakeStateful` normalizes
+convolution caches for OpenVINO's recurrent fusions. Stateful execution supports greedy
+decoding with one sequence and resettable convolution/SSM caches.
+
+CPU tests cover prefill, decode and state reset through the stateful frontend path.
+GenAI paged integration is not included. Beam search and prefix-cache reuse are not verified.
+Mamba 1 and `nemotron_h_moe` are not supported.
+
+Regenerate the Mamba references with `gen_arch_accuracy.py --oracle <oracle>
+--architectures mamba2 mamba2-tied nemotron_h`, using
+`architecture_oracle.cpp` built against llama.cpp `476c01efe88aad7880a8132d5d3a415f2ca75139`.
 
 ### Reference-checked checkpoints
 
@@ -132,10 +148,12 @@ choices across prefill and those twelve steps. Q4_K checks use
 | `hunyuan-dense` | Hunyuan-0.5B-Instruct Q8_0 | 13/13 |
 | `llama` | Devstral Small 2507, 24B Q4_K_M | 13/13 |
 | `maincoder` | Maincoder-1B Q4_K_M | 13/13 |
+| `mamba2` | Mamba2-2.7B Q8_0 | 12/13 |
 | `mellum` | Mellum2-12B-A2.5B-Instruct Q4_K_M | 12/13 |
 | `mistral3` | Devstral Small 2, 24B Q4_K_M (text) | 13/13 |
 | `mistral3` | Ministral-3-3B-Instruct-2512 Q4_K_M | 13/13 |
 | `muse-glimmer` | Muse-Glimmer-30B Q4_0 | 13/13 |
+| `nemotron_h` | NVIDIA Nemotron-H-8B-Reasoning-128K Q4_K_M | 12/13 |
 | `qwen3moe` | Qwen3-0.9B-A0.6B Q4_K_M | 13/13 |
 | `smollm3` | SmolLM3-3B Q4_K_M | 12/13 |
 
@@ -144,6 +162,16 @@ choices. It records full-logit errors but does not apply the F32 fixture toleran
 lossy weight conversions. This is bounded decoder validation, not a quality benchmark
 or a guarantee for every checkpoint, context length, quantization or device. In particular,
 default integer-zero-point Q4_K and U8 KV-cache approximations can change output.
+
+Native Q8_0 preserves weight codes and scales. These comparisons disable OpenVINO's dynamic
+activation quantization (`DYNAMIC_QUANTIZATION_GROUP_SIZE=0`) and use F32 inference.
+llama.cpp's Q8 CPU path quantizes activations. Running llama.cpp with F32 arithmetic on
+the same decoded weights, while keeping OpenVINO's settings unchanged, gives 13/13 matching
+choices for Mamba2-130M and Mamba2-2.7B. The 130M checkpoint has model-hub smoke coverage but
+falls below the agreement threshold against Q8 CPU arithmetic with OpenVINO dynamic
+quantization disabled (11/13). Enabling it with group size 32 gives 13/13 matching choices
+for both checkpoints against llama.cpp Q8 CPU in stateful execution. Full logits still
+differ; their mean normalized error increases despite the improved token agreement.
 
 See [reference generation and reproduction instructions](../tests/test_data/arch_accuracy/README.md).
 These references are shipped with the frontend tests; no model download or llama.cpp

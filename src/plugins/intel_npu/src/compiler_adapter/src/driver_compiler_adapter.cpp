@@ -70,7 +70,7 @@ const std::vector<PropertySupportInfo> _supportedPropertiesWithVersions = {
 DriverCompilerAdapter::DriverCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                                              const std::shared_ptr<OptionSupportCache>& optionSupportCache)
     : _zeroInitStruct(zeroInitStruct),
-      _optionSupportCache(optionSupportCache),
+      _optionSupportCache(optionSupportCache, driverOptionSupportKey),
       _logger("DriverCompilerAdapter", Logger::global().level()) {
     _logger.info("initialize DriverCompilerAdapter start");
 
@@ -210,6 +210,11 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         return is_option_supported(optionName);
     };
 
+    OPENVINO_ASSERT(is_option_supported(ov::intel_npu::ws_compile_call_number.name()),
+                    "WS_COMPILE_CALL_NUMBER is a compiler option and must be supported by the compiler.");
+    OPENVINO_ASSERT(!updatedConfig.has(ov::intel_npu::ws_compile_call_number.name()),
+                    "WS_COMPILE_CALL_NUMBER is an internal option owned by the weights separation compilation "
+                    "loop and must not be set by the user.");
     while (true) {
         _logger.debug("compileWS iteration %d", callNumber);
         updatedConfig.update(ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber++));
@@ -335,9 +340,7 @@ std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
             compilerOpts.push_back(option);
         }
 
-        if (_optionSupportCache) {
-            _optionSupportCache->setSupportedOptions(driverOptionSupportKey, compilerOpts);
-        }
+        _optionSupportCache.setSupportedOptions(compilerOpts);
         return compilerOpts;
     }
 
@@ -353,17 +356,15 @@ std::vector<std::string> DriverCompilerAdapter::get_supported_options() const {
         return {};
     }
 
-    if (_optionSupportCache) {
-        _optionSupportCache->setSupportedOptions(driverOptionSupportKey, compilerOpts);
-    }
+    _optionSupportCache.setSupportedOptions(compilerOpts);
     return compilerOpts;
 }
 
 bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
                                                 const std::optional<std::string>& optValue) const {
-    bool optionSupportCache = _optionSupportCache && !optValue.has_value();
-    if (optionSupportCache) {
-        const auto cachedSupport = _optionSupportCache->isOptionSupported(driverOptionSupportKey, optName);
+    const bool useCache = !optValue.has_value();
+    if (useCache) {
+        const auto cachedSupport = _optionSupportCache.isOptionSupported(optName);
         if (cachedSupport.has_value()) {
             _logger.debug("Option %s %s by DriverCompilerAdapter",
                           optName.c_str(),
@@ -375,8 +376,8 @@ bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
     auto isOptionSupported = _zeGraphExt->isOptionSupported(optName, optValue);
     if (isOptionSupported.has_value()) {
         const bool supported = isOptionSupported.value();
-        if (optionSupportCache) {
-            _optionSupportCache->addSupportedOption(driverOptionSupportKey, optName, supported);
+        if (useCache) {
+            _optionSupportCache.addSupportedOption(optName, supported);
         }
 
         _logger.debug("Option %s with value '%s' %s by DriverCompilerAdapter",
@@ -391,9 +392,9 @@ bool DriverCompilerAdapter::is_option_supported(const std::string& optName,
     for (const auto& prop : _supportedPropertiesWithVersions) {
         if (prop.name == optName) {
             const bool supported = isVersionSupportedByCompiler(prop.version, compilerVersion);
-            if (_optionSupportCache) {
-                _optionSupportCache->addSupportedOption(driverOptionSupportKey, optName, supported);
-            }
+            // The legacy path resolves support from the option name alone, so the answer is cacheable
+            // even when the query carried a value.
+            _optionSupportCache.addSupportedOption(optName, supported);
             _logger.debug("Option %s %s by DriverCompilerAdapter",
                           optName.c_str(),
                           supported ? "is supported" : "is not supported");
