@@ -11,9 +11,11 @@
 // pipeline (two-address -> liveness -> allocate -> verify -> lower).
 //
 // Invariants:
-//   - SSA at record time: every Op.def is a fresh value id. TwoAddressPass
-//     deliberately breaks this afterwards (one id, several defs) exactly as
-//     LLVM does post-two-address; passes after it must not assume single-def.
+//   - Mostly SSA at record time: Op.def is a fresh value id except where
+//     def_into() deliberately redefines an existing one, which is how a
+//     loop-carried accumulator is expressed. TwoAddressPass breaks
+//     single-def further (one id, several defs) exactly as LLVM does
+//     post-two-address; no pass may assume single-def.
 //   - Op is a plain struct with room to grow.
 //   - Allocation is a pass over (IR, PassContext) -> Assignment.
 //   - Lowering is mechanical substitution: walk the IR, resolve reads/def to
@@ -23,6 +25,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <cstdint>
 #include <functional>
 #include <iosfwd>
@@ -34,6 +37,8 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+#include "openvino/core/except.hpp"
 
 namespace ov::intel_cpu::jit_kernel_ir {
 
@@ -209,6 +214,46 @@ public:
         op.name = name;
         target().push_back(std::move(op));
         return id;
+    }
+
+    // Record an op that redefines an existing value instead of creating a
+    // new one: one value id, several defs, the op reading and writing the
+    // same register.
+    //
+    // This is what a loop-carried accumulator needs — a value initialized
+    // before a loop and updated in place inside it, so the update survives
+    // the back edge. Recording a fresh def instead (the ordinary
+    // `def_tied` path) produces a body that reads the initial value every
+    // trip and throws its own result away, which compiles, allocates and
+    // runs while computing the wrong thing.
+    //
+    // LLVM spells this as a PHI at the loop header joined by the preheader
+    // and the latch; PHIElimination and TwoAddressInstructionPass then
+    // lower it to exactly this form. TwoAddressPass already produces the
+    // same shape here for tied operands — the difference is only that the
+    // initializing def belongs outside the loop, which is the caller's
+    // job and cannot be expressed by a pass that only sees the tie.
+    //
+    // No tied_to: the constraint is satisfied by construction, since the
+    // op reads the value it defines.
+    void def_into(value_id existing, std::vector<value_id> reads, EmitFn emit,
+                  const char* name = "", RegisterClass rc = RegisterClass::Vec) {
+        OPENVINO_ASSERT(existing != invalid_value && existing < _next_value,
+                        "def_into: not an existing value");
+        // An in-place update has to read what it updates. A value that
+        // does not depend on its previous contents wants a fresh def, and
+        // writing it through def_into would hide a dead initialization
+        // from the reader as much as from the verifier — which has no
+        // dominance check to catch it.
+        OPENVINO_ASSERT(std::find(reads.begin(), reads.end(), existing) != reads.end(),
+                        "def_into: the updated value must appear among the reads");
+        Op op;
+        op.reads = std::move(reads);
+        op.def = existing;
+        op.emit = std::move(emit);
+        op.def_rc = rc;
+        op.name = name;
+        target().push_back(std::move(op));
     }
 
     // Record an op that reads values but defines none (e.g. a store).

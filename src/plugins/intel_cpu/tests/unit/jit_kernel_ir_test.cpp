@@ -582,6 +582,100 @@ TEST(JitKernelIR, LiveRangesUsedAfterBranch) {
     EXPECT_EQ(ranges[a].endIndex(), 11U);
 }
 
+// ── Loop-carried accumulators ──────────────────────────────────────────
+//
+// def_into() redefines an existing value instead of creating a new one,
+// which is how an accumulator survives a back edge. The two properties
+// that matter: the value stays live across the whole loop (so nothing
+// else may take its register), and it keeps one register rather than
+// being copied per iteration.
+
+TEST(JitKernelIR, AccumulatorStaysLiveAcrossTheLoop) {
+    IR ir;
+    const value_id acc = ir.def({}, stub(), "zero");     // 0: before the loop
+    const value_id idx = ir.def({}, stub(), "idx", RegisterClass::GPR);  // 1
+
+    ir.loop({idx}, stub(), [&] {                          // 2: header
+        const value_id x = ir.def({}, stub(), "load");    // 3
+        ir.def_into(acc, {acc, x}, stub(), "accumulate"); // 4
+    });
+    ir.use({acc}, stub(), "store");                       // 5
+
+    auto ranges = compute_live_ranges(ir);
+
+    // Live from its definition through the loop to the store: a hole
+    // anywhere here would let the allocator reuse the register mid-loop.
+    EXPECT_EQ(ranges[acc].beginIndex(), 1U);
+    EXPECT_GE(ranges[acc].endIndex(), 10U) << "must reach the store at op 5";
+
+    // Two defs of one value, which is the whole point.
+    std::size_t def_count = 0;
+    for (const auto& op : ir.ops()) {
+        def_count += (op.def == acc) ? 1 : 0;
+        if (op.body) {
+            for (const auto& inner : op.body->ops()) {
+                def_count += (inner.def == acc) ? 1 : 0;
+            }
+        }
+    }
+    EXPECT_EQ(def_count, 2U);
+}
+
+TEST(JitKernelIR, AccumulatorKeepsOneRegisterAndNeedsNoCopy) {
+    IR ir;
+    const value_id acc = ir.def({}, stub(), "zero");
+    const value_id idx = ir.def({}, stub(), "idx", RegisterClass::GPR);
+    ir.loop({idx}, stub(), [&] {
+        const value_id x = ir.def({}, stub(), "load");
+        ir.def_into(acc, {acc, x}, stub(), "accumulate");
+    });
+    ir.use({acc}, stub(), "store");
+
+    auto ranges = compute_live_ranges(ir);
+    auto assignment = assign_registers_test(ir, ranges, /*vec_pool_size=*/4, {0, 1});
+    ASSERT_TRUE(assignment.has_value());
+
+    // TwoAddressPass inserts a copy for a *tied* operand; def_into needs
+    // none, because the op already reads the value it defines.
+    PassContext ctx;
+    TwoAddressPass two_address;
+    EXPECT_FALSE(two_address.run(ir, ctx)) << "no tie left to lower";
+}
+
+// Several accumulators at once, which is the brgemm shape: a register
+// tile live across the whole loop nest. Checks the allocator keeps them
+// distinct rather than reusing a register that is still accumulating.
+TEST(JitKernelIR, ManyAccumulatorsGetDistinctRegisters) {
+    constexpr std::uint32_t tile = 12;
+    IR ir;
+    std::vector<value_id> acc;
+    acc.reserve(tile);
+    for (std::uint32_t i = 0; i < tile; ++i) {
+        acc.push_back(ir.def({}, stub(), "zero"));
+    }
+    const value_id idx = ir.def({}, stub(), "idx", RegisterClass::GPR);
+
+    ir.loop({idx}, stub(), [&] {
+        const value_id b = ir.def({}, stub(), "load_b");
+        for (auto a : acc) {
+            ir.def_into(a, {a, b}, stub(), "accumulate");
+        }
+    });
+    for (auto a : acc) {
+        ir.use({a}, stub(), "store");
+    }
+
+    auto ranges = compute_live_ranges(ir);
+    auto assignment = assign_registers_test(ir, ranges, tile + 2, {0, 1});
+    ASSERT_TRUE(assignment.has_value()) << "tile of " << tile << " did not fit";
+
+    std::set<std::uint32_t> used;
+    for (auto a : acc) {
+        used.insert(assignment->reg.at(a).idx);
+    }
+    EXPECT_EQ(used.size(), tile) << "accumulators must not share registers";
+}
+
 // ── Memory operand folding ─────────────────────────────────────────────
 
 namespace {
@@ -2607,6 +2701,124 @@ TEST(JitKernelIR, PredicatedInterleavedStoreMatchesScalarizedForm) {
         // about six live GPR values instead of about twenty, which is what
         // made the scalarized path a pool-exhaustion risk.
         EXPECT_NE(size_pred, size_scal) << "count=" << count;
+    }
+}
+
+// ── Differential: accumulation across a runtime loop ───────────────────
+//
+// The IR tests above check the shape — one value, two defs, live across
+// the loop. This checks the arithmetic, which is what actually goes wrong
+// if the accumulator is recorded as a fresh value: the kernel then reads
+// the initial zero every trip and stores only the last iteration's
+// contribution. That compiles, allocates and runs.
+
+namespace {
+
+struct AccumulateParams {
+    const float* a;
+    const float* b;
+    float* dst;
+    size_t count;
+};
+
+template <size_t N, bool UseFma>
+struct jit_ir_accumulate_kernel : public jit_kernel {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_ir_accumulate_kernel)
+
+    jit_ir_accumulate_kernel() : jit_kernel(jit_name()) {}
+
+    using fn_t = void (*)(const AccumulateParams*);
+    fn_t fn_ = nullptr;
+
+    void init() {
+        if (create_kernel() != dnnl::impl::status::success) {
+            OPENVINO_THROW("Can't generate jit kernel");
+        }
+        fn_ = (fn_t)(jit_ker());  // NOLINT
+    }
+
+    void operator()(const AccumulateParams& args) const { fn_(&args); }
+
+    void generate() override {
+        preamble();
+        set_vec_width(N * sizeof(float) * 8);
+        begin_ir();
+
+        auto a = arg<const float*>(&AccumulateParams::a);
+        auto b = arg<const float*>(&AccumulateParams::b);
+        auto dst = arg<float*>(&AccumulateParams::dst);
+        auto count = arg(&AccumulateParams::count);
+
+        // Defined before the loop: the initialization has to be outside,
+        // or every iteration starts from zero again.
+        auto acc = ir_zero<N>();
+
+        foreach(size_t{0}, count, [&](const variable<size_t>&) {
+            auto va = ir_load<N>(a, size_t{0});
+            if constexpr (UseFma) {
+                auto vb = ir_load<N>(b, size_t{0});
+                ir_accumulate(acc, Insn3::fmadd231ps, va, vb);
+                ir_advance(b, N * sizeof(float));
+            } else {
+                ir_accumulate(acc, Insn2::vaddps, va);
+            }
+            ir_advance(a, N * sizeof(float));
+        });
+
+        ir_store<N>(dst, size_t{0}, acc);
+
+        end_ir();
+        postamble();
+    }
+};
+
+template <size_t N, bool UseFma>
+void run_accumulate_differential() {
+    jit_ir_accumulate_kernel<N, UseFma> kernel;
+    kernel.init();
+
+    std::mt19937 rng(20260922);
+    std::uniform_real_distribution<float> dist(-2.0F, 2.0F);
+
+    for (size_t count : {size_t{0}, size_t{1}, size_t{2}, size_t{7}, size_t{33}}) {
+        std::vector<float> a(std::max<size_t>(count, 1) * N);
+        std::vector<float> b(a.size());
+        for (size_t i = 0; i < a.size(); ++i) {
+            a[i] = dist(rng);
+            b[i] = dist(rng);
+        }
+        std::vector<float> dst(N, -1.0F);
+
+        AccumulateParams args{a.data(), b.data(), dst.data(), count};
+        kernel(args);
+
+        for (size_t lane = 0; lane < N; ++lane) {
+            float expected = 0.0F;
+            for (size_t i = 0; i < count; ++i) {
+                if constexpr (UseFma) {
+                    expected = std::fma(a[i * N + lane], b[i * N + lane], expected);
+                } else {
+                    expected += a[i * N + lane];
+                }
+            }
+            EXPECT_FLOAT_EQ(dst[lane], expected)
+                << (UseFma ? "fma" : "add") << " count=" << count << " lane=" << lane;
+        }
+    }
+}
+
+}  // namespace
+
+TEST(JitKernelIR, DifferentialAccumulateAcrossLoop) {
+    using namespace dnnl::impl::cpu::x64;
+    if (mayiuse(cpu_isa_t::avx512_core)) {
+        run_accumulate_differential<16, false>();
+        run_accumulate_differential<16, true>();
+    } else if (mayiuse(cpu_isa_t::avx2)) {
+        run_accumulate_differential<8, false>();
+        run_accumulate_differential<8, true>();
+    } else {
+        GTEST_SKIP() << "requires AVX2 or AVX-512";
     }
 }
 

@@ -1191,6 +1191,34 @@ public:
                               const variable<float[N]>& a,
                               const variable<float[N]>& b);
 
+    // ── Accumulation: update a value in place ─────────────────────────
+    //
+    //   acc op= x          acc ±= a * b
+    //
+    // Unlike the expression forms above, these do not produce a new value:
+    // they redefine `acc`, so the update survives a loop back edge. That
+    // is the difference between a running sum and a body that recomputes
+    // from the initial value every trip, and the latter is what writing
+    // `acc = acc + x` inside a loop actually records — a fresh value the
+    // next iteration never sees.
+    //
+    // The accumulator must be defined before the loop it is updated in.
+    // Nothing checks that: the verifier has no dominance check, and
+    // liveness over-approximates rather than rejecting, so an accumulator
+    // first defined inside the loop reads whatever the register held.
+    //
+    // LLVM would write a PHI at the loop header; after PHIElimination and
+    // TwoAddressInstructionPass it becomes exactly this — one register,
+    // initialized in the preheader, redefined in place in the body.
+    template <size_t N>
+    void ir_accumulate(const variable<float[N]>& acc, Insn2 insn,
+                       const variable<float[N]>& x);
+
+    template <size_t N>
+    void ir_accumulate(const variable<float[N]>& acc, Insn3 insn,
+                       const variable<float[N]>& a,
+                       const variable<float[N]>& b);
+
     // Copy a vector value. In IR mode, records a copy op (coalescing hint).
     // In eager mode, emits vmovups into a fresh register.
     template <size_t N>
@@ -1892,6 +1920,69 @@ void jit_kernel::lower(Insn2 insn, const Reg& d, const Reg& s1, const Reg& s2) {
     case Insn2::vminps: uni_vminps(d, s1, s2); break;
     default: OPENVINO_THROW("jit_kernel::lower: unknown Insn2 value ", static_cast<int>(insn));
     }
+}
+
+template <size_t N>
+void jit_kernel::ir_accumulate(const variable<float[N]>& acc, Insn2 insn,
+                               const variable<float[N]>& x) {
+    using reg_type = typename reg_traits<float[N]>::type;
+    OPENVINO_ASSERT(acc.vid() != jit_kernel_ir::invalid_value,
+                    "ir_accumulate: the accumulator is not an IR value");
+
+    _ir->def_into(acc.vid(), {acc.vid(), x.vid()},
+        [this, insn](const jit_kernel_ir::EmitContext& ctx) {
+            lower(insn,
+                  reg_type(ctx.def->idx),
+                  reg_type(ctx.reads[0].idx),
+                  reg_type(ctx.reads[1].idx));
+        },
+        "accumulate");
+
+    // Only the addend may come from memory. The accumulator is the
+    // destination, and folding it would mean reading the running total
+    // from memory and writing it to a register — a different program.
+    auto& op = _ir->last();
+    op.foldable_reads = 0b10;
+    op.fold_emit = [this, insn](const jit_kernel_ir::EmitContext& ctx) {
+        lower(insn,
+              reg_type(ctx.def->idx),
+              reg_type(ctx.reads[0].idx),
+              address_frame(sizeof(reg_type))[Xbyak::Reg64(ctx.folded->base.idx) +
+                                              ctx.folded->offset]);
+    };
+}
+
+template <size_t N>
+void jit_kernel::ir_accumulate(const variable<float[N]>& acc, Insn3 insn,
+                               const variable<float[N]>& a,
+                               const variable<float[N]>& b) {
+    using reg_type = typename reg_traits<float[N]>::type;
+    OPENVINO_ASSERT(acc.vid() != jit_kernel_ir::invalid_value,
+                    "ir_accumulate: the accumulator is not an IR value");
+
+    // No tie and no seed copy: the FMA is destructive in its accumulator
+    // and that is exactly what is wanted here, so the post-two-address
+    // form is recorded directly.
+    _ir->def_into(acc.vid(), {acc.vid(), a.vid(), b.vid()},
+        [this, insn](const jit_kernel_ir::EmitContext& ctx) {
+            lower(insn,
+                  reg_type(ctx.def->idx),
+                  reg_type(ctx.reads[1].idx),
+                  reg_type(ctx.reads[2].idx));
+        },
+        "accumulate_fma");
+
+    // Either multiplicand may come from memory; the accumulator may not.
+    auto& op = _ir->last();
+    op.foldable_reads = 0b110;
+    op.fold_emit = [this, insn](const jit_kernel_ir::EmitContext& ctx) {
+        const auto kept = (ctx.folded->read == 1) ? 2U : 1U;
+        lower(insn,
+              reg_type(ctx.def->idx),
+              reg_type(ctx.reads[kept].idx),
+              address_frame(sizeof(reg_type))[Xbyak::Reg64(ctx.folded->base.idx) +
+                                              ctx.folded->offset]);
+    };
 }
 
 template <size_t N>
