@@ -37,3 +37,6 @@ target_include_directories(level_zero_headers INTERFACE
     $<BUILD_INTERFACE:${ze_headers_binary_dir}>
     $<BUILD_INTERFACE:${ze_headers_binary_dir}/level_zero>
 )
+ov_developer_package_export_targets(TARGET level_zero_headers
+    INSTALL_INCLUDE_DIRECTORIES ${ze_headers_binary_dir})
+ov_install_static_lib(level_zero_headers ${OV_CPACK_COMP_CORE})
