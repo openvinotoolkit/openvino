@@ -8,6 +8,7 @@ This document explains how to create new workflows and add tests.
 
 ## Table of Contents
 
+* [Skill Validation](#skill-validation)
 * [Adding Tests to an Existing Workflow](#adding-tests-to-an-existing-workflow)
   * [Adding Tests to an Existing Test Suite](#adding-tests-to-an-existing-test-suite)
   * [Creating a Step in a Job](#creating-a-step-in-a-job)
@@ -17,6 +18,33 @@ This document explains how to create new workflows and add tests.
   * [Adding a Step](#adding-a-step)
   * [Adding a Job](#adding-a-job)
   * [Adding a Workflow](#adding-a-workflow)
+
+## Skill Validation
+
+The [Skills Check workflow](../../../../.github/workflows/skills_check.yml) runs only
+for changes under `.github/skills/**`: on pull requests, and on pushes to `master`
+or `releases/**`. It validates all skills in that directory so that removed or
+renamed shared references are checked too. The existing `.claude/skills` and
+`.github/agents-prototype/skills` collections are outside this check's scope.
+
+The validator checks [Agent Skills metadata](https://agentskills.io/specification),
+directory/name agreement, duplicate YAML keys, non-empty instructions, and local
+Markdown link/image targets in skill documents and their supporting Markdown files.
+External URLs and heading fragments are not checked. Skill scripts are not executed;
+instruction quality and agent behavior still need review.
+
+Run from the repository root (also when changing the validator or workflow itself,
+which do not independently trigger this workflow):
+
+```sh
+python -m pip install -r .github/scripts/skills/requirements.txt
+python -m unittest discover -s .github/scripts/skills -p 'test_*.py'
+python .github/scripts/skills/validate.py
+```
+
+This path-filtered workflow is not a required merge check: unrelated changes do not
+produce a status. Use an always-triggered workflow with a conditional job if it
+needs to become required.
 
 ## Adding Tests to an Existing Workflow
 
