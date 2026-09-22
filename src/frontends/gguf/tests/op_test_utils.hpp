@@ -230,10 +230,8 @@ inline ov::Tensor make_f32_tensor(const ov::Shape& shape, const std::vector<floa
 // Compile on CPU and run one inference with the given named inputs; return the single output.
 //
 // Inference precision is requested as f32: these tests validate the converted graph against an fp32
-// reference, not the plugin's reduced-precision arithmetic, so wherever fp32 inference is available we
-// want it regardless of the plugin's performance-mode default (e.g. bf16 on avx512_core_bf16 hosts).
-// Where fp32 is not supported (ARM, which always infers in fp16) the request is silently ignored, and
-// the wider tolerance below covers the resulting rounding error.
+// reference, so request fp32 regardless of the plugin's performance-mode default
+// (e.g. bf16 on avx512_core_bf16 hosts or fp16 on ARM).
 inline ov::Tensor run_on_cpu(const std::shared_ptr<ov::Model>& model, const std::map<std::string, ov::Tensor>& inputs) {
     ov::Core core;
     auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
@@ -245,14 +243,8 @@ inline ov::Tensor run_on_cpu(const std::shared_ptr<ov::Model>& model, const std:
     return req.get_output_tensor(0);
 }
 
-// Default relative tolerance, per inference precision the CPU plugin actually uses.
-//
-// On ARM the f32 request above cannot be honored (the plugin always infers in fp16), so rounding
-// error accumulates through long op chains such as rope; the measured worst case needs ~3e-3.
-//
-// Everywhere else the f32 request holds and the measured worst case across this suite is ~1.4e-6,
-// so the bound stays near fp32 precision — tight enough that a real conversion error cannot hide
-// inside it.
+// Default relative tolerance accounts for differences in platform-specific FP32 math kernels.
+// ARM approximations can accumulate error through op chains such as rope.
 #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
 #    define OV_GGUF_TEST_DEFAULT_RTOL 1e-2f
 #else
@@ -261,8 +253,7 @@ inline ov::Tensor run_on_cpu(const std::shared_ptr<ov::Model>& model, const std:
 
 // Compare against an fp32 reference with a combined absolute + relative tolerance:
 //   |actual - expected| <= atol + rtol * |expected|
-// The relative term matters on hardware that runs the graph in fp16 (e.g. ARM CPU), where the
-// rounding error grows with the magnitude of the value.
+// The relative term accounts for error that grows with the magnitude of the value.
 inline void expect_near(const ov::Tensor& actual,
                         const std::vector<float>& expected,
                         float atol = 1e-4f,
