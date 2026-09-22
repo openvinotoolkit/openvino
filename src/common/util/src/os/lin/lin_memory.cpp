@@ -27,7 +27,11 @@ void madvise_hint(void* ptr, size_t size) noexcept {
 }  // namespace
 
 void* aligned_alloc(size_t size, size_t alignment) noexcept {
-    if (alignment == 0) {
+    // std::aligned_alloc only has to honour alignments that the implementation supports.
+    // glibc accepts alignments smaller than sizeof(void*), but macOS rejects them and
+    // returns nullptr. Raise the request to the largest fundamental alignment so that every
+    // platform behaves the same. A stronger alignment also satisfies any weaker request.
+    if (alignment < alignof(std::max_align_t)) {
         alignment = alignof(std::max_align_t);
     }
     return std::aligned_alloc(alignment, align_size_up(size, alignment));
