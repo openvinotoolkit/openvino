@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-22-18-05-30-000-35755893592",
+  "timestamp": "2026-09-22T18:05:30Z",
+  "run_id": "35755893592",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35755893592",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "38341",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38341",
+  "author": "whitneyfoster",
+  "category": "Dependencies",
+  "title": "LLM accuracy tests fail importing openvino_genai - libopenvino.so.2640 not found",
+  "signature": "importerror libopenvino so 2640 cannot open shared object file no such file or directory|Dependencies",
+  "signature_hash": "a87e95431b0e8175",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "LLM accuracy iGPU tests / LLM accuracy GPU tests",
+      "conclusion": "failure",
+      "symptom": "pytest collection error importing openvino_genai due to missing libopenvino.so.2640"
+    },
+    {
+      "name": "LLM accuracy CPU tests / LLM accuracy CPU tests",
+      "conclusion": "failure",
+      "symptom": "pytest collection error importing openvino_genai due to missing libopenvino.so.2640"
+    }
+  ],
+  "key_errors": [
+    "tests/llm/accuracy_conformance.py:15: in <module>\n    import whowhatbench as wwb\n/venv/lib/python3.12/site-packages/whowhatbench/__init__.py:7: in <module>\n    from .text2image_evaluator import Text2ImageEvaluator\n/venv/lib/python3.12/site-packages/whowhatbench/text2image_evaluator.py:11: in <module>\n    import openvino_genai\n/venv/lib/python3.12/site-packages/openvino_genai/__init__.py:13: in <module>\n    from .py_openvino_genai import (\nE   ImportError: libopenvino.so.2640: cannot open shared object file: No such file or directory"
+  ],
+  "root_cause": "The pinned openvino-genai/openvino-tokenizers wheels (2026.4.0.0) installed by the LLM accuracy test job link against libopenvino.so.2640, but the OpenVINO runtime build actually installed/on LD_LIBRARY_PATH in this merge-queue run does not provide that exact SONAME (a build/packaging or version-skew mismatch between the freshly built runtime and the pre-built GenAI wheel). This is unrelated to the PR under test, which only edits a docs .rst file, and the identical failure has now been recorded 5+ times across unrelated PRs since 2026-09-21, confirming it is an environment/packaging regression rather than a code defect introduced by this PR.",
+  "reproduction_steps": "Not reproducible from this PR's diff (docs-only). To reproduce: build openvino runtime from the merge-queue commit, install openvino-genai==2026.4.0.0 and openvino-tokenizers==2026.4.0.0 from the pinned requirements, then run `python3 -m pytest tests/llm/accuracy_conformance.py -k CPU` and observe the ImportError for libopenvino.so.2640.",
+  "recommended_actions": [
+    "Verify that the openvino-genai/openvino-tokenizers wheel versions pinned in the LLM test requirements match the SONAME (libopenvino.so.<version>) actually produced by the current runtime build",
+    "Check for a recent bump of the OpenVINO core version/SONAME without a corresponding openvino-genai wheel rebuild/republish",
+    "Ensure LD_LIBRARY_PATH / INSTALL_DIR wiring in the LLM accuracy test job points at the freshly built libopenvino.so rather than a stale one",
+    "Re-run once the packaging mismatch is fixed; this failure is unrelated to the current PR's docs change"
+  ],
+  "prevention_strategies": "Add a CI smoke check that imports openvino_genai right after installing the runtime + GenAI wheel in the LLM accuracy job, failing fast with a clear packaging-mismatch message instead of deep inside pytest collection. Pin openvino-genai/openvino-tokenizers wheel builds to the exact runtime SONAME via a compatibility check in the release pipeline.",
+  "historical_context": "Same signature (a87e95431b0e8175) recorded 5 times since 2026-09-21T15:45:59Z, most recently at 2026-09-22T17:33:10Z, across unrelated PRs #38200, #38329, #38190 \u2014 confirms a persistent environment/packaging issue, not code introduced by this PR."
+}
