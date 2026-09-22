@@ -16,10 +16,59 @@
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
+#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/sdpa_to_paged_attention.hpp"
 
 namespace {
 class GGUFArchitectureAccuracy : public ::testing::TestWithParam<const char*> {};
+
+TEST(GGUFHybridAdaptation, QwenDenseAndMoEConvertToPagedAttention) {
+    for (const auto* family : {"qwen35", "qwen35moe"}) {
+        SCOPED_TRACE(family);
+        auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
+        const auto& bytes = ov_gguf_test::npz_array(arrays, "model");
+        struct TemporaryModel {
+            std::filesystem::path path =
+                std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + ".gguf");
+            ~TemporaryModel() {
+                std::filesystem::remove(path);
+            }
+        } temporary;
+        {
+            std::ofstream stream(temporary.path, std::ios::binary);
+            stream.write(bytes.data<char>(), bytes.num_vals);
+            ASSERT_TRUE(stream);
+        }
+        ov::frontend::gguf::FrontEnd frontend;
+        frontend.add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(
+            ov::frontend::gguf::pass::GGUFMakeStateful()));
+        frontend.add_extension(
+            std::make_shared<ov::frontend::DecoderTransformationExtension>(ov::frontend::gguf::pass::AdaptToGenAI()));
+        auto model = frontend.convert(frontend.load(temporary.path.string()));
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::SDPAToPagedAttention>();
+        ASSERT_NO_THROW(manager.run_passes(model));
+        // Multiple tokens expose accidental [tokens,tokens,...] M-RoPE broadcasts.
+        model->reshape({{"input_ids", {5}}, {"position_ids", {5}}});
+        size_t attention = 0, recurrent = 0;
+        for (const auto& node : model->get_ops()) {
+            if (auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
+                ++attention;
+                EXPECT_EQ(pa->get_input_partial_shape(0), (ov::PartialShape{5, 64}));
+            }
+            if (auto gdn = ov::as_type_ptr<ov::op::internal::PagedGatedDeltaNet>(node)) {
+                ++recurrent;
+                EXPECT_EQ(gdn->get_input_partial_shape(0)[0], 5);
+            }
+        }
+        EXPECT_EQ(attention, 1);
+        EXPECT_EQ(recurrent, 3);
+        EXPECT_TRUE(model->get_sinks().empty());
+    }
+}
 
 TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     const char* override_dir = std::getenv("OV_GGUF_ACCURACY_DATA");
@@ -175,7 +224,9 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
 
 INSTANTIATE_TEST_SUITE_P(Architectures,
                          GGUFArchitectureAccuracy,
-                         ::testing::Values("nemotron_h",
+                         ::testing::Values("qwen35",
+                                           "qwen35moe",
+                                           "nemotron_h",
                                            "mamba2",
                                            "mamba2-tied",
                                            "llama",

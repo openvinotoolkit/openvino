@@ -17,13 +17,15 @@ int main(int argc, char** argv) {
     if (argc != 3)
         return 2;
     const bool vision = std::string(argv[1]) == "vision";
-    const bool resize = std::string(argv[1]) == "resize";
+    const bool resize = std::string(argv[1]).find("resize") == 0;
+    const bool downsample = std::string(argv[1]).find("resize_down") == 0;
+    const bool corners = std::string(argv[1]).find("corners") != std::string::npos;
     const bool im2col = std::string(argv[1]).find("im2col") == 0;
     const int image_width = std::string(argv[1]) == "im2col7" ? 7 : 9;
     const int image_height = image_width == 7 ? 5 : 4;
     auto* ctx = ggml_init({16 * 1024 * 1024, nullptr, true});
     auto* x = im2col   ? ggml_new_tensor_4d(ctx, GGML_TYPE_F32, image_width, image_height, 2, 1)
-              : resize ? ggml_new_tensor_4d(ctx, GGML_TYPE_F32, 3, 2, 2, 1)
+              : resize ? ggml_new_tensor_4d(ctx, GGML_TYPE_F32, downsample ? 12 : 3, downsample ? 8 : 2, 2, 1)
                        : ggml_new_tensor_4d(ctx, GGML_TYPE_F32, 64, 3, 2, 1);
     auto* positions = ggml_new_tensor_1d(ctx, GGML_TYPE_I32, 8);
     int vision_sections[4] = {16, 16, 16, 16};
@@ -39,7 +41,14 @@ int main(int argc, char** argv) {
                                    1,
                                    true,
                                    GGML_TYPE_F32)
-              : resize ? ggml_interpolate(ctx, x, 5, 4, 2, 1, GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS)
+              : resize ? ggml_interpolate(ctx,
+                                          x,
+                                          5,
+                                          4,
+                                          2,
+                                          1,
+                                          GGML_SCALE_MODE_BILINEAR | GGML_SCALE_FLAG_ANTIALIAS |
+                                              (corners ? GGML_SCALE_FLAG_ALIGN_CORNERS : 0))
                        : ggml_rope_multi(ctx,
                                          x,
                                          positions,

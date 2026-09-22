@@ -63,7 +63,7 @@ def main():
     rng = np.random.default_rng(42)
     feeds = {}
     if args.modality == "vision":
-        if projector not in {"gemma3", "gemma4v", "gemma4uv", "pixtral", "phi4"}:
+        if projector not in {"gemma3", "gemma4v", "gemma4uv", "pixtral", "phi4", "qwen3vl_merger"}:
             raise ValueError(f"Add processor/index inputs for {projector} before checkpoint validation")
         default = int(metadata["clip.vision.image_size"])
         width, height = args.width or default, args.height or default
@@ -77,25 +77,43 @@ def main():
             rows, cols = np.indices((height // patch, width // patch))
             feeds["vision.position_x"] = cols.astype(np.int32).reshape(1, 1, 1, -1)
             feeds["vision.position_y"] = rows.astype(np.int32).reshape(1, 1, 1, -1)
+        if projector == "qwen3vl_merger":
+            if width % (2 * patch) or height % (2 * patch):
+                raise ValueError("Qwen image dimensions must be divisible by twice the patch size")
+            gh, gw = height // patch, width // patch
+            indices = [y * gw + x + dy * gw + dx
+                       for y in range(0, gh, 2) for x in range(0, gw, 2)
+                       for dy in range(2) for dx in range(2)]
+            rows, cols = np.divmod(indices, gw)
+            feeds["vision.pixel_values"] = np.repeat(values, 2, axis=0)
+            feeds["vision.patch_indices"] = np.array(indices, np.int32).reshape(1, 1, 1, -1)
+            feeds["vision.position_ids"] = np.array([rows, cols, rows, cols], np.int32).reshape(1, 1, 1, -1)
+            shape = list(feeds["vision.pixel_values"].shape)
         raw = values[0].transpose(1, 2, 0)
     else:
-        if projector != "gemma4a":
+        if projector not in {"gemma4a", "gemma4ua"}:
             raise ValueError(f"Add audio input contract for {projector}")
-        width, height = args.width or 101, int(metadata["clip.audio.num_mel_bins"])
-        shape = [1, 1, height, width]
-        values = rng.normal(0, .4, shape).astype(np.float32)
-        feeds["audio.features"] = values
-        channels = int(metadata["clip.audio.embedding_length"])
-        n = (width + 3) // 4
-        q, k = np.indices((n, n))
-        distance = q - k
-        timescale = np.exp(-np.arange(channels // 2, dtype=np.float32) *
-                           (np.log(np.float32(10000)) / max(channels // 2 - 1, 1)))
-        theta = np.arange(12, -1, -1, dtype=np.float32)[:, None] * timescale[None]
-        feeds["audio.position_embeddings"] = np.concatenate([np.sin(theta), np.cos(theta)], axis=1)[None, None]
-        feeds["audio.attention_mask"] = np.where((distance >= 0) & (distance < 12), 0, -1e9).astype(np.float32)[None, None]
-        feeds["audio.relative_indices"] = np.clip(12 - distance, 0, 12).astype(np.int32)[None, None]
-        raw = values
+        if projector == "gemma4ua":
+            width, height = args.width or 9, 640
+            raw = rng.normal(0, .4, (height, width)).astype(np.float32)
+            shape = [1, 1, width, height]
+            feeds["audio.waveform_frames"] = raw.T.reshape(shape)
+        else:
+            width, height = args.width or 101, int(metadata["clip.audio.num_mel_bins"])
+            shape = [1, 1, height, width]
+            values = rng.normal(0, .4, shape).astype(np.float32)
+            feeds["audio.features"] = values
+            channels = int(metadata["clip.audio.embedding_length"])
+            n = (width + 3) // 4
+            q, k = np.indices((n, n))
+            distance = q - k
+            timescale = np.exp(-np.arange(channels // 2, dtype=np.float32) *
+                               (np.log(np.float32(10000)) / max(channels // 2 - 1, 1)))
+            theta = np.arange(12, -1, -1, dtype=np.float32)[:, None] * timescale[None]
+            feeds["audio.position_embeddings"] = np.concatenate([np.sin(theta), np.cos(theta)], axis=1)[None, None]
+            feeds["audio.attention_mask"] = np.where((distance >= 0) & (distance < 12), 0, -1e9).astype(np.float32)[None, None]
+            feeds["audio.relative_indices"] = np.clip(12 - distance, 0, 12).astype(np.int32)[None, None]
+            raw = values
     with tempfile.TemporaryDirectory() as directory:
         directory = Path(directory)
         raw.tofile(directory / "input.f32")
