@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-using namespace std;
-
 #include "common_op_table.hpp"
 #include "op_translation_utils.hpp"
 #include "utils.hpp"
+
+using namespace std;
+
 namespace ov::frontend::tensorflow_lite::op {
 
 OutputVector embedding_lookup(const ov::frontend::tensorflow_lite::NodeContext& node) {
