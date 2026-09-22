@@ -291,6 +291,7 @@ struct OptionBase {
         static_assert(TypePrinter<T>::hasName(),
                       "Options type is not a standard type, please add `getTypeName()` to your option");
     }
+
     // Overload this to provide environment variable support.
     static std::string_view envVar() {
         return "";
@@ -318,16 +319,6 @@ struct OptionBase {
     // Overload this to provide more specific implementation.
     static OptionMode mode() {
         return OptionMode::Both;
-    }
-
-    static bool isValueSupported(std::string_view val) {
-        try {
-            (void)ActualOpt::parse(val);
-            return true;
-        } catch (...) {
-            // failed to parse, return false below
-        }
-        return false;
     }
 
     static std::string toString(const ValueType& val) {
@@ -394,6 +385,24 @@ struct OptionConcept final {
     std::shared_ptr<OptionValue> (*validateAndParse)(const ov::Any& val) = nullptr;
 };
 
+// `ov::Any::as<std::string>()` is lenient where the option parsers are not: it yields an empty string both
+// for an empty `ov::Any` and for a payload whose type provides neither `operator<<` nor an
+// `ov::util::Write` specialization (its `print()` is then a no-op). Parsers which accept an empty spelling as
+// "nothing to parse" (`std::string`, `std::vector`, `std::map`) would silently turn such a payload into an
+// empty option value, so reject it here instead. An empty spelling is only let through when it really was
+// given as a string.
+inline std::string stringifyForParsing(const ov::Any& val) {
+    OPENVINO_ASSERT(!val.empty(), "No value was provided");
+
+    auto valAsString = val.as<std::string>();
+    OPENVINO_ASSERT(!valAsString.empty() || val.is<std::string>(),
+                    "Value of type '",
+                    val.type_info().name(),
+                    "' can't be converted to a string");
+
+    return valAsString;
+}
+
 template <class Opt>
 std::shared_ptr<OptionValue> validateAndParse(const ov::Any& val) {
     using ValueType = typename Opt::ValueType;
@@ -406,7 +415,7 @@ std::shared_ptr<OptionValue> validateAndParse(const ov::Any& val) {
         // arithmetic conversion (e.g. -2.0f silently wrapping around into a `uint32_t`, which then passes the
         // option validation) or re-parse a string on its own, through `operator>>`, bypassing the option
         // entirely. For options which are themselves strings the parser is an identity conversion.
-        auto parsedVal = val.is<ValueType>() ? val.as<ValueType>() : Opt::parse(val.as<std::string>());
+        auto parsedVal = val.is<ValueType>() ? val.as<ValueType>() : Opt::parse(stringifyForParsing(val));
         Opt::validateValue(parsedVal);
         return std::make_shared<OptionValueImpl<Opt, ValueType>>(std::move(parsedVal), &Opt::toString);
     } catch (const std::exception& e) {
@@ -545,7 +554,7 @@ public:
     std::string toString() const;
 
     /**
-     * @brief Checks if a specific option exists in the configuration's descriptorDesc.
+     * @brief Checks if a specific option exists in the configuration's descriptor.
      * @param key The key of the option to check.
      * @return True if the option exists, false otherwise.
      */
@@ -585,8 +594,6 @@ public:
      * @return A string containing the supported configuration keys and values.
      */
     std::string toStringForCompiler(const std::function<bool(const std::string&)>& isSupported) const;
-
-    virtual ~Config() = default;
 
 private:
     std::shared_ptr<const OptionsDesc> _desc;

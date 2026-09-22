@@ -406,7 +406,7 @@ void DynamicGraph::initialize_impl(const Config& config) {
 bool DynamicGraph::release_blob(const Config& config) {
     _logger.warning("Release blob is skipped, no handle for DynamicGraph");
     return false;
-};
+}
 
 uint32_t DynamicGraph::get_unique_id() {
     return _uniqueId++;

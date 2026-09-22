@@ -115,7 +115,7 @@ inline std::ostream& operator<<(std::ostream& out, const BatchMode& fmt) {
 }
 
 /**
- * @brief Reads a value for batching on plugin from a stream
+ * @brief Reads a string representation of ov::intel_npu::BatchMode from a stream
  */
 inline std::istream& operator>>(std::istream& is, BatchMode& fmt) {
     std::string str;

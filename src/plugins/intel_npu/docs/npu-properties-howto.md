@@ -146,54 +146,45 @@ struct OptionBase {
     // static std::string_view key() 
 
     static constexpr std::string_view getTypeName() { 
-        if constexpr (TypePrinter<T>::hasName()) { 
-            return TypePrinter<T>::name(); 
-        } 
-        static_assert(TypePrinter<T>::hasName(), 
-                      "Options type is not a standard type, please add `getTypeName()` to your option"); 
-    } 
-    // Overload this to provide environment variable support. 
-    static std::string_view envVar() { 
-        return ""; 
-    } 
+        if constexpr (TypePrinter<T>::hasName()) {
+            return TypePrinter<T>::name();
+        }
+        static_assert(TypePrinter<T>::hasName(),
+                      "Options type is not a standard type, please add `getTypeName()` to your option");
+    }
 
-    // Overload this to provide deprecated keys names. 
-    static std::vector<std::string_view> deprecatedKeys() { 
-        return {}; 
-    } 
+    // Overload this to provide environment variable support.
+    static std::string_view envVar() {
+        return "";
+    }
 
-    // Overload this to provide default value if it wasn't specified by user. 
-    // If it is std::nullopt - exception will be thrown in case of missing option access. 
-    static std::optional<T> defaultValue() { 
-        return std::nullopt; 
-    } 
+    // Overload this to provide deprecated keys names.
+    static std::vector<std::string_view> deprecatedKeys() {
+        return {};
+    }
 
-    // Overload this to provide more specific parser. 
-    static ValueType parse(std::string_view val) { 
-        return OptionParser<ValueType>::parse(val); 
-    } 
+    // Overload this to provide default value if it wasn't specified by user.
+    // If it is std::nullopt - exception will be thrown in case of missing option access.
+    static std::optional<T> defaultValue() {
+        return std::nullopt;
+    }
 
-    // Overload this to provide more specific validation 
-    static void validateValue(const ValueType&) {} 
+    // Overload this to provide more specific parser.
+    static ValueType parse(std::string_view val) {
+        return OptionParser<ValueType>::parse(val);
+    }
 
-    // Overload this to provide more specific implementation. 
-    static OptionMode mode() { 
-        return OptionMode::Both; 
-    } 
+    // Overload this to provide more specific validation
+    static void validateValue(const ValueType&) {}
 
-    // Overload this for private options. 
-    static bool isPublic() { 
-        return false; 
-    } 
+    // Overload this to provide more specific implementation.
+    static OptionMode mode() {
+        return OptionMode::Both;
+    }
 
-    // Overload this for read-only properties 
-    static ov::PropertyMutability mutability() { 
-        return ov::PropertyMutability::RW; 
-    } 
-
-    static std::string toString(const ValueType& val) { 
-        return OptionPrinter<ValueType>::toString(val); 
-    } 
+    static std::string toString(const ValueType& val) {
+        return OptionPrinter<ValueType>::toString(val);
+    }
 }; 
 ```
 
@@ -274,6 +265,11 @@ struct EXAMPLE_PROPERTY final : OptionBase<EXAMPLE_PROPERTY, ov::intel_npu::Exam
         return "IE_NPU_EXAMPLE_PROPERTY";
     }
 
+    /*
+     * @note `parse` / `toString` methods are optional. If the value type provides `operator>>` / `operator<<`,
+     * the defaults in `OptionParser` / `OptionPrinter` handle it.
+     * Only implement them for types with no stream operators, or when the string form differs from the stream form.
+     */
     static ov::intel_npu::ExampleType parse(std::string_view val) {
         if (val == "VAL1") {
             return ov::intel_npu::ExampleType::VAL1;
@@ -283,7 +279,16 @@ struct EXAMPLE_PROPERTY final : OptionBase<EXAMPLE_PROPERTY, ov::intel_npu::Exam
             return ov::intel_npu::ExampleType::VAL3;
         }
 
-        OPENVINO_THROW("Value '", val, "'is not a valid EXAMPLE_PROPERTY option");
+        OPENVINO_THROW("Value '", val, "' is not a valid EXAMPLE_PROPERTY option");
+    }
+
+    static void validateValue(const ov::intel_npu::ExampleType& val) {
+        OPENVINO_ASSERT(val != ov::intel_npu::ExampleType::VAL2,
+                        "Wrong value ",
+                        val,
+                        " for property key ",
+                        ov::intel_npu::example_property.name(),
+                        ". Supported values: VAL1, VAL3");
     }
 
     static std::string toString(const ov::intel_npu::ExampleType& val) {
@@ -299,15 +304,14 @@ Notes:
 - key(): needs to return the string name of the property (the NPU_EXAMPLE_PROPERTY defined in the property at step 1)  
 - getTypeName: returns the type name as a human-readable string  
 - defaultValue: returns the option's default value (if there was no user-defined value set, config.get or get_property(EXAMPLE_PROPERTY) will call this function)
-- isPublic: defines whether the option is a **public or a private** one  
 - mode: defines the OptionMode of this option. Can be:  
     - CompileTime (for options used ONLY by the compiler)  
     - Runtime (for options only used by plugin and runtime)  
     - Both (for options used by both).  
     **Only options of CompileTime and Both will be sent to compiler at model compilation.**  
-- mutability: whether the option is **Read-Write** or **Read-Only**  
 - envVar: environment variable (if needed) for this property. The config manager will check if the options have envVar defined. For each option which has envVar, it will look in environment variables and update the option value from there at init.  
 - parse: string to custom datatype parser. If the property will be set with a string value, this parser will convert it into the internal datatype.  
+- validateValue: additional validation of the option value, called right after parsing (both for string and for `ov::Any` updates) and before the value is stored in the config. Use it to reject values which are of the correct datatype but out of the accepted range/set. If no extra validation is needed, do not define it - the default implementation accepts any parsed value.  
 - toString: for converting the option value from the custom datatype to string 
 
 **(!!)** None of the member functions are mandatory to be defined.  

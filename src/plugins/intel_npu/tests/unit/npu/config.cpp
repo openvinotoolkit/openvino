@@ -473,19 +473,6 @@ TEST_F(OptionPrinterUnitTests, OptionModeIsStringified) {
 
 using OptionBaseUnitTests = ::testing::Test;
 
-TEST_F(OptionBaseUnitTests, ValueSupportIsDerivedFromTheParser) {
-    // parsable values are reported as supported
-    EXPECT_TRUE(DUMMY_TEST_OPTION::isValueSupported(hardcodedTestValue1));
-
-    // make sure TESTVALUE_3 cannot be parsed by DUMMY_TEST_OPTION
-    OV_EXPECT_THROW_HAS_SUBSTRING(DUMMY_TEST_OPTION::parse(hardcodedTestValue3),
-                                  ov::Exception,
-                                  expectedParseErrorMessage.data());
-
-    // unparsable values are not reported as supported
-    EXPECT_FALSE(DUMMY_TEST_OPTION::isValueSupported(hardcodedTestValue3));
-}
-
 TEST_F(OptionBaseUnitTests, DefaultValueIsOptionalUnlessOverridden) {
     EXPECT_FALSE(DUMMY_NO_DEFAULT_OPTION::defaultValue().has_value());
     EXPECT_EQ("both_default", DUMMY_BOTH_OPTION::defaultValue());

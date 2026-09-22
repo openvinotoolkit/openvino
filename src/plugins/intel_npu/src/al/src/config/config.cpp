@@ -5,7 +5,10 @@
 #include "intel_npu/config/config.hpp"
 
 #include <cctype>
-#include <limits>
+#include <charconv>
+#include <string_view>
+
+#include "openvino/util/common_util.hpp"
 
 namespace intel_npu {
 
@@ -19,6 +22,39 @@ void assertFullyConsumed(const std::string& str, size_t pos) {
     }
 
     OPENVINO_ASSERT(pos == str.size());
+}
+
+// `std::from_chars` does the range checking for the exact target type on its own (unlike the `std::sto*`
+// functions, which either need a wider signed intermediate or silently wrap negative values around), but it
+// neither skips leading whitespace nor reports anything about the characters left after the number. Hence
+// the surrounding whitespace is trimmed upfront and the parse is required to reach the end of the value, so
+// that a valid prefix alone ("12oops") is not enough to accept it.
+template <typename T>
+T parseNumber(std::string_view val, std::string_view typeName) {
+    auto trimmed = ov::util::trim(val);
+    // Unlike `std::from_chars`, the `std::sto*` functions used before accepted an explicit plus sign
+    if (!trimmed.empty() && trimmed.front() == '+') {
+        trimmed.remove_prefix(1);
+    }
+
+    T parsed{};
+    // `ov::util::trim` hands back a default constructed view for a blank value, whose `data()` is null
+    auto errorCode = std::errc::invalid_argument;
+    auto parseEnd = trimmed.data();
+    if (!trimmed.empty()) {
+        const auto parseResult = std::from_chars(trimmed.data(), trimmed.data() + trimmed.size(), parsed);
+        parseEnd = parseResult.ptr;
+        errorCode = parseResult.ec;
+    }
+
+    OPENVINO_ASSERT(errorCode == std::errc{} && parseEnd == trimmed.data() + trimmed.size(),
+                    "Value '",
+                    val,
+                    "' is not a valid ",
+                    typeName,
+                    " option");
+
+    return parsed;
 }
 
 }  // namespace
@@ -52,7 +88,7 @@ void splitAndApply(const std::string& str, char delim, std::function<void(std::s
 bool OptionParser<bool>::parse(std::string_view val) {
     std::string strVal(val);
     std::transform(strVal.begin(), strVal.end(), strVal.begin(), [](char c) {
-        return std::toupper(c);
+        return static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
     });
     if (strVal == "YES" || strVal == "TRUE" || strVal == "ON" || strVal == "1") {
         return true;
@@ -64,56 +100,20 @@ bool OptionParser<bool>::parse(std::string_view val) {
 }
 
 int32_t OptionParser<int32_t>::parse(std::string_view val) {
-    try {
-        const std::string str(val);
-        size_t pos = 0;
-        const auto parsed = std::stoll(str, &pos);
-        assertFullyConsumed(str, pos);
-        OPENVINO_ASSERT(parsed >= std::numeric_limits<int32_t>::min() && parsed <= std::numeric_limits<int32_t>::max());
-        return static_cast<int32_t>(parsed);
-    } catch (...) {
-        OPENVINO_THROW("Value '", val, "' is not a valid INT32 option");
-    }
+    return parseNumber<int32_t>(val, "INT32");
 }
 
 uint32_t OptionParser<uint32_t>::parse(std::string_view val) {
-    try {
-        // Note: "std::stoul" silently wraps negative values around, hence the signed intermediate
-        const std::string str(val);
-        size_t pos = 0;
-        const auto parsed = std::stoll(str, &pos);
-        assertFullyConsumed(str, pos);
-        OPENVINO_ASSERT(parsed >= 0 && parsed <= std::numeric_limits<uint32_t>::max());
-        return static_cast<uint32_t>(parsed);
-    } catch (...) {
-        OPENVINO_THROW("Value '", val, "' is not a valid UINT32 option");
-    }
+    // Note: `std::from_chars` rejects negative values for unsigned types instead of wrapping them around
+    return parseNumber<uint32_t>(val, "UINT32");
 }
 
 int64_t OptionParser<int64_t>::parse(std::string_view val) {
-    try {
-        const std::string str(val);
-        size_t pos = 0;
-        const auto parsed = std::stoll(str, &pos);
-        assertFullyConsumed(str, pos);
-        return parsed;
-    } catch (...) {
-        OPENVINO_THROW("Value '", val, "' is not a valid INT64 option");
-    }
+    return parseNumber<int64_t>(val, "INT64");
 }
 
 uint64_t OptionParser<uint64_t>::parse(std::string_view val) {
-    try {
-        // Note: "std::stoull" silently wraps negative values around, hence the explicit check
-        const std::string str(val);
-        OPENVINO_ASSERT(str.find('-') == std::string::npos);
-        size_t pos = 0;
-        const auto parsed = std::stoull(str, &pos);
-        assertFullyConsumed(str, pos);
-        return parsed;
-    } catch (...) {
-        OPENVINO_THROW("Value '", val, "' is not a valid UINT64 option");
-    }
+    return parseNumber<uint64_t>(val, "UINT64");
 }
 
 double OptionParser<double>::parse(std::string_view val) {
@@ -305,13 +305,12 @@ details::OptionConcept Config::getOpt(std::string_view key) const {
 }
 
 void Config::addOrUpdateInternal(std::string key, std::string value) {
-    auto log = Logger::global().clone("Config");
     if (_internal_compiler_configs.count(key) != 0) {
-        log.warning("Internal compiler option '%s' was already registered! Updating value only!", key.c_str());
+        _log.warning("Internal compiler option '%s' was already registered! Updating value only!", key.c_str());
         _internal_compiler_configs.at(key) = std::move(value);
     } else {
         // manual insert
-        log.trace("Store internal compiler option %s: %s", key.c_str(), value.c_str());
+        _log.trace("Store internal compiler option %s: %s", key.c_str(), value.c_str());
         _internal_compiler_configs.emplace(key, std::move(value));
     }
 }
@@ -334,7 +333,7 @@ void Config::removeCompileTimeConfigs() {
 
 std::string Config::getInternal(std::string key) const {
     if (_internal_compiler_configs.count(key) == 0) {
-        OPENVINO_THROW(std::string("Internal compiler option " + key + " does not exist! "));
+        OPENVINO_THROW("Internal compiler option " + key + " does not exist!");
     }
     return _internal_compiler_configs.at(key);
 }
@@ -347,7 +346,7 @@ std::string Config::toStringForCompiler(const std::function<bool(const std::stri
     std::stringstream resultStream;
     bool hasSerializedValue = false;
 
-    const auto append = [&](const std::string& key, const std::string& serializedValue) {
+    const auto append = [&](std::string_view key, std::string_view serializedValue) {
         if (hasSerializedValue) {
             resultStream << " ";
         }
@@ -373,15 +372,14 @@ std::string Config::toStringForCompiler(const std::function<bool(const std::stri
             continue;
         }
 
-        append(std::string(key), value->toString());
+        append(key, value->toString());
     }
 
     for (const auto& [key, value] : _internal_compiler_configs) {
-        if (!isSupported(std::string(key))) {
-            OPENVINO_THROW("[ NOT_FOUND ] Option '" + std::string(key) +
-                           "' is not supported for current configuration");
+        if (!isSupported(key)) {
+            OPENVINO_THROW("[ NOT_FOUND ] Option '" + key + "' is not supported for current configuration");
         }
-        append(std::string(key), value);
+        append(key, value);
     }
 
     return resultStream.str();
