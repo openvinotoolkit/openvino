@@ -176,7 +176,7 @@ private:
 
 | Question | If yes | If no |
 |----------|--------|-------|
-| Does the op need ISA-specific or multi-backend paths? | Use the Executor framework (`ExecutorFactory` + `ExecutorPtr`) — see [Executor Pattern](../../../../../.github/agents-prototype/skills/add-cpu-op/step2-implementation.md#executor-pattern-standard-architecture-for-non-trivial-ops) | Use direct `execute()` with `OV_SWITCH` type dispatch |
+| Does the op need ISA-specific or multi-backend paths? | Use the Executor framework (`ExecutorFactory` + `ExecutorPtr`) — see [executors/README.md](executors/README.md) | Use direct `execute()` with `OV_SWITCH` type dispatch |
 | Does the op need custom shape inference? | Add custom `ShapeInferFactory` | Use `NgraphShapeInferFactory` |
 | Does the op need `prepareParams()`? | Override `needPrepareParams` → `true` | Override → `false` |
 | Does the op have a data-dependent output shape? | Override `needShapeInfer()` | Don't override |
@@ -261,9 +261,10 @@ void OpName::execute([[maybe_unused]] const dnnl::stream& strm) {
 
 For nodes more complex than portable C++ (JIT, oneDNN, multi-ISA), the body of
 `initSupportedPrimitiveDescriptors`/`prepareParams`/`execute` is driven by the
-executor framework, documented separately.
+executor framework — see [executors/README.md](executors/README.md).
 
 ## See also
 
+- [executors/README.md](executors/README.md) — executor framework for non-trivial ops.
 - [kernels/simd/README.md](kernels/simd/README.md) — SIMD abstraction for kernels.
 - [../../docs/selective_build.md](../../docs/selective_build.md#in-code-conditional-compilation) — `OV_SWITCH` / `OV_CPU_INSTANCE_*` and conditional compilation.
