@@ -103,7 +103,6 @@ using CompileModelLoadFromCacheParams = std::tuple<std::string,  // device name
 class CompileModelLoadFromCacheTest : public testing::WithParamInterface<CompileModelLoadFromCacheParams>,
                                       virtual public SubgraphBaseTest,
                                       virtual public OVPluginTestBase {
-protected:
     std::string m_cacheFolderName;
     std::string m_modelName;
     std::string m_weightsName;
