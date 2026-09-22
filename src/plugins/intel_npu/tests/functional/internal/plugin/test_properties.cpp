@@ -738,77 +738,64 @@ TEST_P(CompatibilityCheckTests, CheckCacheEncryptionCallbacksWithGetMergedConfig
     ASSERT_TRUE(unknownProperties.empty());
 }
 
-TEST_P(CompatibilityCheckTests, CheckInternalCompilerOptionWithGetMergedConfigAndUnknownPropertiesOnCompile) {
-    auto [filteredConfig, unknownProperties] = [&]() {
-        return propertiesManager->getMergedConfigAndUnknownProperties(
-            {{{"WS_COMPILE_CALL_NUMBER", ov::Any(1)},
-              ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}},
-            ::intel_npu::ConfigMergeMode::Compile);
-    }();
+using WSCompileCallNumberPropertyTests = PropertiesManagerTests;
 
-    ASSERT_TRUE(filteredConfig.hasInternal("WS_COMPILE_CALL_NUMBER"));
-    ASSERT_TRUE(unknownProperties.empty());
+TEST_P(WSCompileCallNumberPropertyTests, IsNotExposedToTheUser) {
+    ASSERT_FALSE(propertiesManager->isPropertySupported(ov::intel_npu::ws_compile_call_number.name()));
+
+    std::vector<ov::PropertyName> supportedProperties;
+    OV_ASSERT_NO_THROW(supportedProperties =
+                           propertiesManager->getProperty(ov::supported_properties.name())
+                               .as<std::vector<ov::PropertyName>>());
+    ASSERT_EQ(std::find(supportedProperties.cbegin(),
+                        supportedProperties.cend(),
+                        ov::intel_npu::ws_compile_call_number.name()),
+              supportedProperties.cend());
 }
 
-TEST_P(CompatibilityCheckTests,
-       CheckInternalCompilerOptionWithGetMergedConfigAndUnknownPropertiesOnImportLoadedFromCache) {
-    std::string logs;
-    std::mutex logs_mutex;
-
-    std::function<void(std::string_view)> log_cb = [&](std::string_view msg) {
-        std::lock_guard<std::mutex> lock(logs_mutex);
-        logs.append(msg);
-        logs.push_back('\n');
-    };
-
-    auto [filteredConfig, unknownProperties] = [&]() {
-        utils::LogCallbackGuard log_callback_guard(log_cb);
-        utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
-        return propertiesManager->getMergedConfigAndUnknownProperties(
-            {{{"WS_COMPILE_CALL_NUMBER", ov::Any(1)},
-              ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN),
-              {ov::loaded_from_cache.name(), ov::Any(true)}}},
-            ::intel_npu::ConfigMergeMode::Import);
-    }();
-
-    ASSERT_FALSE(filteredConfig.hasInternal("WS_COMPILE_CALL_NUMBER"));
-    ASSERT_TRUE(unknownProperties.empty());
-    ASSERT_NE(logs.find("Property 'WS_COMPILE_CALL_NUMBER' is recognized as a compiler option, will not be used for "
-                        "current configuration."),
-              std::string::npos);
-}
-
-TEST_P(CompatibilityCheckTests, CheckInternalCompilerOptionWithGetMergedConfigAndUnknownPropertiesOnImport) {
-    auto [filteredConfig, unknownProperties] = [&]() {
-        return propertiesManager->getMergedConfigAndUnknownProperties(
-            {{{"WS_COMPILE_CALL_NUMBER", ov::Any(1)},
-              ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}},
-            ::intel_npu::ConfigMergeMode::Import);
-    }();
-
-    ASSERT_FALSE(filteredConfig.hasInternal("WS_COMPILE_CALL_NUMBER"));
-    ASSERT_EQ(unknownProperties.size(), 1);
-    ASSERT_TRUE(unknownProperties.count("WS_COMPILE_CALL_NUMBER"));
-}
-
-TEST_P(CompatibilityCheckTests, CheckInternalCompilerOptionWithSetPropertyAndGetProperty) {
-    OV_ASSERT_NO_THROW(
-        propertiesManager->setProperty({{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}}));
-    ov::intel_npu::CompilerType compilerType = ov::intel_npu::CompilerType::DRIVER;
-    OV_ASSERT_NO_THROW(
-        compilerType =
-            propertiesManager->getProperty(ov::intel_npu::compiler_type.name()).as<ov::intel_npu::CompilerType>());
-    ASSERT_EQ(compilerType, ov::intel_npu::CompilerType::PLUGIN);  // make sure plugin compiler is set
-
-    OV_EXPECT_THROW(propertiesManager->getProperty("WS_COMPILE_CALL_NUMBER"),
+TEST_P(WSCompileCallNumberPropertyTests, CannotBeReadThroughGetProperty) {
+    OV_EXPECT_THROW(propertiesManager->getProperty(ov::intel_npu::ws_compile_call_number.name()),
                     ov::Exception,
-                    testing::HasSubstr("Unsupported configuration key: WS_COMPILE_CALL_NUMBER"));
+                    HasSubstr("Property 'WS_COMPILE_CALL_NUMBER' cannot be accessed."));
+}
 
-    OV_ASSERT_NO_THROW(propertiesManager->setProperty({{"WS_COMPILE_CALL_NUMBER", ov::Any(5)}}));
-    uint32_t ws_compile_call_number = 0;
-    OV_ASSERT_NO_THROW(ws_compile_call_number =
-                           propertiesManager->getProperty("WS_COMPILE_CALL_NUMBER").as<uint32_t>());
-    ASSERT_EQ(ws_compile_call_number, 5);
+TEST_P(WSCompileCallNumberPropertyTests, CannotBeWrittenThroughSetProperty) {
+    OV_EXPECT_THROW(propertiesManager->setProperty({{ov::intel_npu::ws_compile_call_number(5)}}),
+                    ov::Exception,
+                    HasSubstr("READ-ONLY configuration key: WS_COMPILE_CALL_NUMBER"));
+
+    // The rejected value must not have been stored as an internal compiler option either.
+    OV_EXPECT_THROW(propertiesManager->getProperty(ov::intel_npu::ws_compile_call_number.name()),
+                    ov::Exception,
+                    HasSubstr("Property 'WS_COMPILE_CALL_NUMBER' cannot be accessed."));
+}
+
+TEST_P(WSCompileCallNumberPropertyTests, IsRejectedByGetMergedConfigAndUnknownProperties) {
+    for (const auto mergeMode :
+         {::intel_npu::ConfigMergeMode::Compile, ::intel_npu::ConfigMergeMode::Import,
+          ::intel_npu::ConfigMergeMode::Query}) {
+        OV_EXPECT_THROW(propertiesManager->getMergedConfigAndUnknownProperties(
+                            {{ov::intel_npu::ws_compile_call_number(1),
+                              ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}},
+                            mergeMode),
+                        ov::Exception,
+                        HasSubstr("READ-ONLY configuration key: WS_COMPILE_CALL_NUMBER"));
+    }
+}
+
+TEST_P(WSCompileCallNumberPropertyTests, RemainsAvailableAsInternalCompilerOption) {
+    // The option itself stays registered so that the compiler adapters can still set it internally, it is only the
+    // user-facing property which is unusable.
+    auto [filteredConfig, unknownProperties] = propertiesManager->getMergedConfigAndUnknownProperties(
+        {{ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}},
+        ::intel_npu::ConfigMergeMode::Compile);
+
+    ASSERT_TRUE(filteredConfig.hasOpt(ov::intel_npu::ws_compile_call_number.name()));
+    ASSERT_FALSE(filteredConfig.hasInternal(ov::intel_npu::ws_compile_call_number.name()));
+    ASSERT_TRUE(unknownProperties.empty());
+
+    OV_ASSERT_NO_THROW(filteredConfig.update(ov::intel_npu::ws_compile_call_number.name(), "3"));
+    ASSERT_EQ(filteredConfig.get<::intel_npu::WS_COMPILE_CALL_NUMBER>(), 3);
 }
 
 using ExpectLoadingCompilerPropertySupported = PropertiesManagerTests;
@@ -837,6 +824,60 @@ TEST_P(ExpectLoadingCompilerPropertySupported, ExpectCompilerPropertyIsSupported
     ASSERT_EQ(logs.find("initialize PluginCompilerAdapter start"), std::string::npos);
 }
 
+using SharedCommonQueueCompatibilityTests = PropertiesManagerTests;
+
+TEST_P(SharedCommonQueueCompatibilityTests, BothDisabledIsAlwaysSupported) {
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty(
+        {{ov::intel_npu::run_inferences_sequentially(false)}, {ov::intel_npu::shared_common_queue(false)}}));
+
+    ASSERT_FALSE(propertiesManager->getProperty(ov::intel_npu::run_inferences_sequentially.name()).as<bool>());
+    ASSERT_FALSE(propertiesManager->getProperty(ov::intel_npu::shared_common_queue.name()).as<bool>());
+}
+
+TEST_P(SharedCommonQueueCompatibilityTests, SharedCommonQueueEnabledWithSequentialInferencesDisabledIsSupported) {
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty(
+        {{ov::intel_npu::run_inferences_sequentially(false)}, {ov::intel_npu::shared_common_queue(true)}}));
+
+    ASSERT_FALSE(propertiesManager->getProperty(ov::intel_npu::run_inferences_sequentially.name()).as<bool>());
+    ASSERT_TRUE(propertiesManager->getProperty(ov::intel_npu::shared_common_queue.name()).as<bool>());
+}
+
+TEST_P(SharedCommonQueueCompatibilityTests, SequentialInferencesEnabledWithSharedCommonQueueDisabledIsSupported) {
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty(
+        {{ov::intel_npu::run_inferences_sequentially(true)}, {ov::intel_npu::shared_common_queue(false)}}));
+
+    ASSERT_TRUE(propertiesManager->getProperty(ov::intel_npu::run_inferences_sequentially.name()).as<bool>());
+    ASSERT_FALSE(propertiesManager->getProperty(ov::intel_npu::shared_common_queue.name()).as<bool>());
+}
+
+TEST_P(SharedCommonQueueCompatibilityTests, BothEnabledDependsOnCommandQueueVersion) {
+    const ov::AnyMap bothEnabled = {{ov::intel_npu::run_inferences_sequentially(true)},
+                                    {ov::intel_npu::shared_common_queue(true)}};
+
+    // Ask the properties manager instead of re-deriving the driver requirement here: RUN_INFERENCES_SEQUENTIALLY is
+    // reported as supported only when the driver provides the required command queue version.
+    if (propertiesManager->isPropertySupported(ov::intel_npu::run_inferences_sequentially.name())) {
+        OV_ASSERT_NO_THROW(propertiesManager->setProperty(bothEnabled));
+        ASSERT_TRUE(propertiesManager->getProperty(ov::intel_npu::run_inferences_sequentially.name()).as<bool>());
+        ASSERT_TRUE(propertiesManager->getProperty(ov::intel_npu::shared_common_queue.name()).as<bool>());
+    } else {
+        OV_EXPECT_THROW(propertiesManager->setProperty(bothEnabled),
+                        ov::Exception,
+                        HasSubstr("Unsupported configuration key"));
+    }
+}
+
+// A single-property update must be judged on its own requested value: disabling one of them while the other one is
+// already enabled in the config is a no-op with respect to the driver requirement.
+TEST_P(SharedCommonQueueCompatibilityTests, DisablingOnePropertyWhileTheOtherIsEnabledIsSupported) {
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty({{ov::intel_npu::shared_common_queue(true)}}));
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty({{ov::intel_npu::run_inferences_sequentially(false)}}));
+
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty({{ov::intel_npu::shared_common_queue(false)}}));
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty({{ov::intel_npu::run_inferences_sequentially(true)}}));
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty({{ov::intel_npu::shared_common_queue(false)}}));
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
@@ -860,10 +901,22 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
                                             ::testing::Values(std::string{})),
                          PropertiesManagerTests::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
+                         WSCompileCallNumberPropertyTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::Values(std::string{})),
+                         PropertiesManagerTests::getTestCaseName);
+
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          ExpectLoadingCompilerPropertySupported,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::ValuesIn(supported_compiler_configs)),
+                         PropertiesManagerTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
+                         SharedCommonQueueCompatibilityTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::Values(std::string{})),
                          PropertiesManagerTests::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
