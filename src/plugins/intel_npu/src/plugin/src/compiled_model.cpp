@@ -69,8 +69,11 @@ std::shared_ptr<ov::IAsyncInferRequest> CompiledModel::create_infer_request() co
     const std::shared_ptr<InferRequest>& inferRequest = _device->createInferRequest(shared_from_this(), localConfig);
 
     std::call_once(_streamExecutorsInitFlag, [this, &localConfig] {
-        const_cast<CompiledModel*>(this)->configure_stream_executors(localConfig.get<NUM_STREAMS>(),
-                                                                     localConfig.get<RUN_INFERENCES_SEQUENTIALLY>());
+        const_cast<CompiledModel*>(this)->configure_stream_executors(
+            localConfig.get<NUM_STREAMS>(),
+            localConfig.get<RUN_INFERENCES_SEQUENTIALLY>(),
+            localConfig.get<SHARED_COMMON_QUEUE>(),
+            localConfig.get<SHARED_COMMON_QUEUE>() ? _graph->get_command_queue_desc().key() : 0);
     });
 
     return std::make_shared<AsyncInferRequest>(inferRequest,
@@ -218,10 +221,25 @@ void CompiledModel::release_memory() {
     }
 }
 
-void CompiledModel::configure_stream_executors(ov::streams::Num numStreams, bool runInferencesSequentially) {
+void CompiledModel::configure_stream_executors(ov::streams::Num numStreams,
+                                               bool runInferencesSequentially,
+                                               bool useSharedExecutors,
+                                               uint64_t sharedExecutorsId) {
     // In case of sequential execution of async requests for the same compiled model, the compiled model must use
     // dedicated executors with a single thread to ensure sequential execution of its async requests.
     if (runInferencesSequentially) {
+        if (useSharedExecutors) {
+            // In case of sequential execution with shared executors, use the global single-threaded executors
+            // provided by the executor manager, so that async requests of all compiled models belonging to the same
+            // shared group are also executed sequentially relative to each other.
+            set_task_executor(ov::threading::executor_manager()->get_executor(
+                std::string("Intel NPU plugin start inferences executor") + " " + std::to_string(sharedExecutorsId)));
+            _resultExecutor = ov::threading::executor_manager()->get_executor(
+                std::string("Intel NPU plugin wait inferences executor") + " " + std::to_string(sharedExecutorsId));
+
+            return;
+        }
+
         set_task_executor(make_executor("Intel NPU plugin start inferences executor", 1));
         _resultExecutor = make_executor("Intel NPU plugin wait inferences executor", 1);
 
