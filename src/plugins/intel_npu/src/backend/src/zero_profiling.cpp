@@ -192,6 +192,26 @@ NpuInferStatistics NpuInferProfiling::getNpuInferStatistics() const {
                                   "MAX",
                                   std::chrono::microseconds::zero()};
     npuPerfCounts.push_back(std::move(info_max));
+
+    std::vector<int64_t> steady_avg_inputs = _npu_steady_avg_chunks;
+    if (!_npu_current_steady_avg_chunk.empty()) {
+        steady_avg_inputs.push_back(computeTrimmedMean(_npu_current_steady_avg_chunk));
+    }
+    if (!steady_avg_inputs.empty()) {
+        const int64_t steady_avg_cc = std::accumulate(steady_avg_inputs.begin(),
+                                                     steady_avg_inputs.end(),
+                                                     int64_t{0}) /
+                                     static_cast<int64_t>(steady_avg_inputs.size());
+        ov::ProfilingInfo info_steady_avg = {ov::ProfilingInfo::Status::EXECUTED,
+                                            std::chrono::microseconds(convertCCtoUS(steady_avg_cc)),
+                                            std::chrono::microseconds(convertCCtoUS(steady_avg_cc)),
+                                            "STEADY_AVG",
+                                            "STEADY_AVG",
+                                            "STEADY_AVG",
+                                            std::chrono::microseconds::zero()};
+        npuPerfCounts.push_back(std::move(info_steady_avg));
+    }
+
     return npuPerfCounts;
 }
 
@@ -235,12 +255,43 @@ void NpuInferProfiling::sampleNpuTimestamps() {
         _npu_infer_stats_max_cc = infer_duration_cc;
     _npu_infer_stats_accu_cc += infer_duration_cc;
     _npu_infer_stats_cnt++;
+
+    _npu_current_steady_avg_chunk.push_back(infer_duration_cc);
+    if (_npu_current_steady_avg_chunk.size() >= _npu_steady_avg_chunk_size) {
+        _npu_steady_avg_chunks.push_back(computeTrimmedMean(_npu_current_steady_avg_chunk));
+        _npu_current_steady_avg_chunk.clear();
+    }
+
     /// only log individual infer durations if requested
     if (_loglevel >= ov::log::Level::WARNING) {
         _npu_infer_duration_log[_npu_infer_logidx++] = infer_duration_cc;
         if (_npu_infer_logidx >= _npu_infer_log_maxsize)
             _npu_infer_logidx = 0;
     }
+}
+
+int64_t NpuInferProfiling::computeTrimmedMean(const std::vector<int64_t>& values) const {
+    if (values.empty()) {
+        return 0;
+    }
+
+    const int64_t mean_cc = std::accumulate(values.begin(), values.end(), int64_t{0}) /
+                            static_cast<int64_t>(values.size());
+    const int64_t trim_delta_cc = mean_cc * 5 / 100;
+    std::vector<int64_t> trimmed_values;
+    trimmed_values.reserve(values.size());
+    for (const auto value_cc : values) {
+        if (value_cc >= mean_cc - trim_delta_cc && value_cc <= mean_cc + trim_delta_cc) {
+            trimmed_values.push_back(value_cc);
+        }
+    }
+
+    if (trimmed_values.empty()) {
+        return mean_cc;
+    }
+
+    return std::accumulate(trimmed_values.begin(), trimmed_values.end(), int64_t{0}) /
+           static_cast<int64_t>(trimmed_values.size());
 }
 
 int64_t NpuInferProfiling::convertCCtoUS(int64_t val_cc) const {

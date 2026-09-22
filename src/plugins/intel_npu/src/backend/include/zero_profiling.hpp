@@ -9,6 +9,7 @@
 
 #include <climits>
 #include <map>
+#include <vector>
 
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/config/options.hpp"
@@ -103,11 +104,17 @@ private:
     uint32_t _npu_infer_stats_cnt = 0;
     uint32_t _npu_infer_logidx = 0;
     static const uint32_t _npu_infer_log_maxsize = 1024;
+    static const uint32_t _npu_steady_avg_chunk_size = 1024;
     /// rolling buffer to store duration of last <_npu_infer_log_maxsize number> infers
     int64_t _npu_infer_duration_log[_npu_infer_log_maxsize];
+    /// current chunk of infer durations, used to calculate a chunk-level trimmed steady average
+    std::vector<int64_t> _npu_current_steady_avg_chunk;
+    /// steady averages for completed chunks; final STEADY_AVG is the mean of these values
+    std::vector<int64_t> _npu_steady_avg_chunks;
 
     /// Helper function to convert npu clockcycles to usec
     int64_t convertCCtoUS(int64_t val_cc) const;
+    int64_t computeTrimmedMean(const std::vector<int64_t>& values) const;
 };
 
 }  // namespace zeroProfiling
