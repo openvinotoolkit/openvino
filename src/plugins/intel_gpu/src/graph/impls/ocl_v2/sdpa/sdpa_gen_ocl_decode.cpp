@@ -361,15 +361,9 @@ JitConstants SDPAOclDecodeGenerator::get_jit_constants(const RuntimeParams& para
     // llama-3.1-8b (head 128, M=4), V-only, against 1.1194e9 ns with prefetch off:
     // dist 1 -> 1.1031e9, 2 -> 1.0984e9, 4 -> 1.0958e9. Monotone, so the barrier window is the
     // better place for them.
+    // Only V is prefetched (K measured 3.6% slower), and the first V prefetches are issued in the
+    // pre-S*V barrier wait (0.7 pp of the 2.1% win at dist 4).
     jit.make("PREFETCH_DIST", std::max(0, env_flag("SDPA_OCL_DECODE_PREFETCH", 4)));
-    // K prefetch defaults OFF because it measured 3.6% SLOWER: the KQ loop already runs KEY_GROUPS
-    // independent DPAS chains over a 4 KB page, so its loads were already pipelined and the ~129
-    // extra instructions were pure loss. Kept as a toggle to record the result, not to be enabled.
-    jit.make("PREFETCH_K", env_flag("SDPA_OCL_DECODE_PF_K", 0) ? 1 : 0);
-    jit.make("PREFETCH_V", env_flag("SDPA_OCL_DECODE_PF_V", 1) ? 1 : 0);
-    // Spend the pre-S*V barrier wait issuing the first V prefetches instead of idling. Worth 0.7 pp
-    // of the 2.1% V-prefetch win at dist 4 (1.0958e9 with, 1.1037e9 without).
-    jit.make("PREFETCH_AT_BARRIER", env_flag("SDPA_OCL_DECODE_PF_BARRIER", 1) ? 1 : 0);
 
     jit.make("K_HEAD_SIZE", desc->k_head_size);
     jit.make("V_HEAD_SIZE", desc->v_head_size);
