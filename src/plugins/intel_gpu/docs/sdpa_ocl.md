@@ -1,0 +1,431 @@
+# sdpa_ocl: OpenCL SDPA and paged-attention kernels for Xe2
+
+`sdpa_ocl` is a plain OpenCL C implementation of scaled dot-product attention built on the Xe2
+DPAS (`cl_intel_subgroup_matrix_multiply_accumulate`) and 2D block IO
+(`cl_intel_subgroup_2d_block_io`) builtins. It replaces the oneDNN-microkernel based `sdpa_micro`
+on Xe2 and later, for both the `scaled_dot_product_attention` primitive and the prefill/mixed
+stages of `paged_attention`. A separate kernel, `sdpa_ocl_decode`, covers the paged-attention
+GENERATE stage.
+
+This document holds the design rationale, derivations and measurements behind the two kernels.
+The code comments only keep the short "why" at each site.
+
+## Where it runs
+
+| Primitive / stage | Generator | Kernel | Gate |
+|---|---|---|---|
+| SDPA prefill and single-token | `SDPAOclGenerator` | `sdpa_ocl.cl` | `sdpa_opt.cpp`: `SDPAOpt::supports_micro_sdpa()` and `SDPAOclGenerator::supported()` |
+| PA PREFILL / MIXED | `SDPAOclGenerator(prefill)` | `sdpa_ocl.cl` | `paged_attention_opt.cpp`: `supports_micro_sdpa()` at construction, `can_use_micro_sdpa_for()` per dispatch |
+| PA GENERATE | `SDPAOclDecodeGenerator` | `sdpa_ocl_decode.cl` | `SDPAOclDecodeGenerator::supported()` |
+
+`TEST_USE_SDPA_OCL=0` selects `SDPAMicroGenerator` instead of `SDPAOclGenerator` (unset or `1`
+selects the OpenCL one); `TEST_USE_SDPA_OCL_DECODE=0` disables `SDPAOclDecodeGenerator`, so
+GENERATE falls back to the `paged_attention_opt` single-token kernels.
+`SDPAOclGenerator::supported()` requires Xe2 or later and f16/bf16 Q and output. Plain SDPA
+additionally requires equal K and V head sizes (`SDPAOpt::supports_micro_sdpa()`), paged
+attention does not.
+
+Paged attention adds the PREFILL and MIXED stages together, so both variants are compiled even
+when only one is dispatched. `can_use_micro_sdpa_for()` keeps MIXED off `sdpa_ocl` for cache
+layouts its dequant cannot read (d-major BY_CHANNEL, INT4 without the token-major staging switch);
+those compile but fall back to `pa_multi_token`.
+
+Reachable configurations on Xe2 with XMX and no environment overrides:
+
+| Kernel | Default | With user settings | Compiled, not dispatched |
+|---|---|---|---|
+| `sdpa_ocl` | PA PREFILL f16 (MICRO_MATH=1); PA MIXED i8/u4 BY_CHANNEL token-major with raw f16 Kc/Vc; plain SDPA f16 prefill and single-token | PA MIXED f16 and i8 BY_TOKEN d-major; plain i8 KV compression (always asymmetric + planar); plain bf16; token-major f16/i8 BY_TOKEN (`OV_GPU_PA_K_TOKEN_MAJOR=1`) | d-major BY_CHANNEL MIXED, plain int4 |
+| `sdpa_ocl_decode` | PA GENERATE i8/u4 BY_CHANNEL token-major | f16 and i8 BY_TOKEN (`OV_GPU_PA_K_TOKEN_MAJOR=1`) | — |
+
+## Source layout
+
+| File | Contents |
+|---|---|
+| `impls/ocl_v2/sdpa_ocl.cl` | The kernel: extension pragmas, batch-header includes, the helper-header includes and the kernel body |
+| `impls/ocl_v2/sdpa_ocl_config.cl` | Every compile-time macro: dtype and DPAS selection, derived tiling, DKS, mask/bidir predicates, PA page geometry, u4 labelling, 1D page mapping, expression macros, and all host/kernel invariants as `#error` |
+| `impls/ocl_v2/sdpa_ocl_mask.cl` | Attention-mask helpers |
+| `impls/ocl_v2/sdpa_ocl_qk_load.cl` | Q staging and K tile loaders |
+| `impls/ocl_v2/sdpa_ocl_v_load.cl` | V tile loaders |
+| `impls/ocl_v2/sdpa_ocl_decode.cl` | The decode kernel (self-contained) |
+| `impls/ocl_v2/sdpa/sdpa_gen_ocl.{hpp,cpp}` | `SDPAOclGenerator`: gate, tiling (`choose_config()`), jit constants, arguments, dispatch |
+| `impls/ocl_v2/sdpa/sdpa_gen_ocl_decode.{hpp,cpp}` | `SDPAOclDecodeGenerator` |
+
+The kernels are embedded at build time by `common_utils/kernels_db_gen.py`, and a few of its rules
+shape the header split:
+
+- A non-batch `#include "x.cl"` is inlined once per kernel. A second include of the same file is
+  dropped, and an include that cannot be resolved is silently replaced by nothing. Each header
+  therefore ends with a sentinel (`#define SDPA_OCL_<NAME>_INL 1`) that `sdpa_ocl.cl` checks with
+  `#error`.
+- Every `#define` gets an `#undef` appended, except a bodyless `#ifndef X` / `#define X` pair. A
+  classic include guard would therefore make the second kernel of a batched program skip the
+  header, which is why the headers have none.
+- Kernels share one OpenCL program when batched, so helper functions must be `FUNC(name)` /
+  `FUNC_CALL(name)` decorated. `OV_GPU_MAX_KERNELS_PER_BATCH=1` hides name collisions.
+- The `.cl` list is globbed at configure time: a new `.cl` file needs a CMake re-run.
+- Comments never reach the runtime (the minimizer strips them), so a comment-only change is
+  provably a no-op on the embedded text.
+
+## sdpa_ocl
+
+### Tiling
+
+The host picks the tiling in `choose_config()` (per-head-size tables, `SDPA_OCL_KQ_*` overrides)
+and `solve_sv_split()`:
+
+- KQ: each subgroup computes a `kq_sg_tile_keys x kq_sg_tile_queries` score tile; a workgroup has
+  `kq_sg_per_wg_keys x kq_sg_per_wg_queries` subgroups (`sg_per_wg`). `kq_sg_tile_keys` is 16 or
+  32 (`k_mask` and `mask_tile` hold at most two 16-key entries, one i8 transform read covers 32
+  keys).
+- S*V: the same subgroups are re-split into `sv_sg_per_wg_scores x sv_sg_per_wg_values`, each
+  owning `sv_sg_tile_scores` queries and `sv_sg_tile_values` value columns.
+
+The invariants below are checked by `#error` because a violation does not fail, it silently leaves
+part of the output uncomputed: the S*V split uses exactly `sg_per_wg` subgroups, its score tiles
+cover `kq_wg_tile_queries`, and its value tiles cover `V_HEAD_SIZE`.
+
+`DKS = D_MAX / DPAS_K` where `D_MAX` is `K_HEAD_SIZE` rounded up to a power of two. At head 72
+(`D_MAX` 128) only `ceil(72 / 16) = 5` of the 8 depth tiles hold data, 4.5 tiles' worth: the rest
+would load nothing and add zero, 1.78x the necessary KQ DPAS and K loads. `DKS_ACTIVE` bounds the KQ
+depth loop and the Q staging to the real tiles; `D_MAX` itself stays, because the S*V split
+(`sv_sg_tile_values * sv_sg_per_wg_values == d_max`) and the alpha nesting are derived from it.
+`sdpa_micro` never paid this, since its `ugemm_kq` takes the reduction extent as a runtime argument.
+For u4, `DKS_ACTIVE` is rounded up to even (the depth permutation pairs tiles).
+
+A caveat measured with ocloc on the head-72 configuration: shrinking the depth loop makes the 2D
+block path strictly better, but makes the scalar fallback path spill more, monotonically:
+
+| DKS_ACTIVE | instCount | spill bytes |
+|---|---|---|
+| 8 | 7043 | 2688 |
+| 6 | 5808 | 13568 |
+| 5 | 5631 | 16064 |
+
+It only matters where `DKS_FULL < DKS` and a scalar fallback is still taken.
+
+### Kernel flow
+
+1. Q is staged to SLM (`Q_slm`) cooperatively: the `q_blocks x DKS_ACTIVE` (query block, depth
+   tile) tiles are dealt round-robin over all subgroups.
+2. The key range is bounded: `causal_k` (causal upper bound), `window_k0_begin` (sliding-window
+   lower bound), both extended for bidirectional image groups.
+3. For every `kq_wg_tile_keys` key tile `k0`:
+   - K tiles are loaded per depth tile `db` and multiplied with DPAS. The A operand is K itself
+     (`lane == head dim`, 8 keys per row-block), B is Q from SLM, so the score tile lands
+     `lane == query`.
+   - Masks are applied and the running max is combined across subgroups with an SLM atomic max
+     (`S_max_slm`).
+   - The softmax exponentials go to `S_slm` in the input's 16-bit type, and the previous output is
+     rescaled by alpha.
+   - S*V: A is the score tile from SLM (`lane == key`), B is V in VNNI layout (`lane == value
+     column`).
+4. The output is divided by the summed denominators (`S_sum_slm`) and stored.
+
+`MICRO_MATH=1` (PA PREFILL f16 without sink/alibi/sliding window/token_type_ids) reproduces
+`sdpa_micro`'s rounding: raw maxima subtracted before scaling, keys summed in order, and each S*V
+key tile accumulated from zero and added afterwards (`A_tile1`), as `ugemm_vs` does.
+
+The alpha rescale selects `alpha[alpha_qb]` with a select chain: `alpha_qb` comes from `sg_ij`, a
+runtime value, and a runtime-indexed private array is moved to scratch. On the llama-3.2-1b MIXED
+kernel that was `private memory size 128` (`kq_query_blocks` floats x 16 lanes x 4 bytes) plus two
+scratch stores and two scratch loads inside the k0 loop.
+
+### Key-range bounds
+
+Without the causal bound the loop walks the full key range and every tile past the diagonal is
+loaded, multiplied and masked away: at q = k = 1024 with `kq_wg_tile_queries = 32` that is 256
+tile iterations instead of 144 (1.78x). `sdpa_micro` has had this bound
+(`causal_k = min(k, wg_j0 + wg_tile_n)`) since the start.
+
+The block-level causal skip (`causal_block_clear`) is the counterpart of `sdpa_micro`'s
+`causal_k_end > causal_q_begin` guard. Measured at q = k = 4096 with the default tiling, 96.6% of
+(key x query) blocks are entirely inside the causal region; without the skip every one of them
+still paid 32 selects and 8 compares per (qb, k0) iteration, 16% of the loop body.
+
+For `CAUSAL_MASK_LOWER_RIGHT` (plain SDPA) every query moves by `causal_offset = max(0, k - q)`,
+the shift `sdpa_micro` / reference / `sdpa_opt` apply. Without it a single new token (q == 1,
+k == 512) would only see the first tile of keys.
+
+### Paged-attention MIXED: current tokens from Kc/Vc
+
+With `PA_CUR_KV_F16` the MIXED kernel reads keys `[0, past_len)` from the paged cache and the new
+keys `[past_len, k)` from the raw f16 K/V inputs (`Kc`/`Vc`). A compressed cache is a lossy round
+trip, so reading the new rows back from it is not equivalent. A key tile that crosses `past_len` is
+shortened (`k_chunk`) so that every iteration reads one source, which is `sdpa_micro`'s boundary
+handling. For u4 two optimisations ride on this split: whole S*V blocks past `k_chunk` are skipped,
+and the Vc tiles are prefetched before the softmax.
+
+The u4 cache forces a permuted depth axis (below), which a 16b block read of Kc cannot produce.
+The u4 Kc read therefore views Kc as a DWORD surface: channels `(win + 2L, win + 2L + 1)` are one
+dword, and the parity is a half-select. It reads each window twice (once per parity) — 2x L1
+traffic on a tile that is already cached, and still about 4x fewer instructions than the page
+path's nibble extract, zero-point subtract and scale multiply. It needs the head's first channel
+at an even half offset from the (64B-aligned) surface origin. That depends on runtime padding, so
+the kernel tests it (`kc_dword_ok`) and falls back to a per-lane gather from Kc when it fails.
+
+## Paged-attention cache layouts
+
+A K cache page is either d-major (`[head_size, block_size]`, the upstream layout) or token-major
+(`[block_size, head_size]`, the same as V). Token-major is selected by
+`paged_attention::k_token_major_for()` (`OV_GPU_PA_K_TOKEN_MAJOR`) for f16 and i8 BY_TOKEN, and by
+the separate staging switch `paged_attention::k_by_channel_token_major_for()`
+(`OV_GPU_PA_BY_CHANNEL_TOKEN_MAJOR`, on by default) for i8/u4 BY_CHANNEL. The MIXED kernel reads
+d-major pages only through a per-key scalar gather; token-major pages can use block reads.
+`PA_K_TOKEN_STRIDE` / `PA_K_HIDDEN_STRIDE` let one gather path address both.
+
+A page is a data region followed by a comp region holding the dequantisation parameters. The
+comp region grows whichever of the two page factors it is indexed by, so the host jits
+`ADJUSTED_K_HEAD_SIZE` and `ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE` and every layout is their product
+(`h` = head size, block size 16):
+
+| Cache | Data row pitch (bytes) | Comp region | K page stride (bytes) |
+|---|---|---|---|
+| f16 | `2h` | none | `32h` |
+| i8 BY_TOKEN | `h` | per-token f16 scale at `[t]`, zp at `[16 + t]` | `16 * (h + 4)` |
+| i8 BY_CHANNEL (token-major) | `h` | per-channel interleaved (scale, zp) f16 pairs, one dword at `[c]` | `20h` |
+| u4 BY_CHANNEL K (token-major) | `h / 2` | as i8 BY_CHANNEL | `12h` |
+| u4 BY_TOKEN V | `Align(h / 2, 16)` | as i8 BY_TOKEN | `16 * (Align(h / 2, 16) + 4)` |
+
+The comp region always starts right after the data region, at `PA_K_ROW_ELEMS * block_size` /
+`PA_V_ROW_ELEMS * block_size` (`PA_K_COMP_OFF` / `PA_V_COMP_OFF`), the same offsets
+`pa_kv_cache_update_ref.cl` writes. The u4 K row is `h / 2` exactly and deliberately
+not aligned up: `16 * (h / 2)` data bytes plus `4 * h` comp bytes is `12h`, which is what makes the
+token-major page a byte-exact fit into the allocation the upstream d-major INT4 page already has.
+Aligning would overflow it whenever `h % 32 != 0`. The u4 V row can be aligned for free, because
+the trailing comp slack absorbs it (`16 * PV + 64 == 16 * (PV + 4)`).
+
+### u4 K: the permuted depth axis
+
+The KQ A operand is K itself, so `lane == head dim` (the DPAS depth index) — the mirror of
+`sdpa_ocl_decode.cl`, where K is the B operand and `lane == token`. The K page uses the upstream
+adjacent nibble order (byte `b` holds channel `2b` in its low nibble and `2b + 1` in its high one).
+The writer needs that order: `NUM_K_HEAD_SIZE_PARTITIONS` splits the channel range across
+workgroups, and a split-at-`h/2` convention would put a byte's two channels in different
+workgroups.
+
+A byte column is therefore a channel pair, and the 8-bit VNNI-transform read (whose lane is the
+byte column) hands lane `L` channels `(2L, 2L + 1)` of a window, never the contiguous `base + L`
+a DPAS tile wants. No lane-local rearrangement can fix that. Depth is a contraction axis, though:
+permuting it identically in A and B leaves `sum_d K[key][d] * Q[query][d]` unchanged. So both
+operands adopt this labelling, in which tile `db` of the pair covering the 32-channel window
+`win = (db >> 1) * 32` owns the even channels for even `db` and the odd ones for odd `db`:
+
+```
+PA_K_U4_CHANNEL(db, L) = win + 2L + (db & 1)        byte = win/2 + L,  nibble = db & 1
+```
+
+Every consumer falls out cheaply:
+
+- the 2D read at byte column `win / 2` lands exactly this, one read per tile pair;
+- the per-lane fallback addresses byte `win / 2 + L`, lane-contiguous (better coalesced than the
+  natural order), with a lane-uniform nibble select;
+- the per-channel comp is one `vload2` per window, serving both tiles of the pair;
+- Q pays the whole cost once per workgroup in the SLM staging: a chunk spans 32 consecutive
+  channels, read as two windows, and each output dword takes one half of two input dwords
+  (three operations per dword). Q's staging traffic doubles, which is negligible next to K/V.
+
+V keeps the split convention instead (byte `b` holds dims `b` and `b + PA_V_ROW_ELEMS`), because V
+is the S*V B operand where `lane == head dim` as well: with adjacent packing a lane would own two
+different dims, which no DPAS N axis can express. A read at the folded byte column hands lane `c`
+head dim `base + c` from either nibble, so the S*V tile loop is unchanged except for the column
+fold and a nibble select.
+
+### u4 1D page read
+
+A u4 row is `h / 2` (K) or `Align(h / 2, 16)` (V) bytes, 32 at head 64, below the 64-byte block2d
+minimum for both tensors. Without another path every element was fetched by a per-lane byte gather:
+on the gpt-oss-20b MIXED kernel that was 64 K and 128 V scattered messages per k0 iteration against
+16 DPAS, plus 5952 bytes of spill from the address arithmetic.
+
+The page's data region is one contiguous run of `16 * ROW` bytes, and
+`intel_sub_group_block_read_uc16` lands component `i` of lane `L` on byte `SUBGROUP_SIZE * i + L`.
+Both consumers want byte (token `t`, 16-byte column group `c`) `+ L`, with `COLS = ROW / 16`:
+
+```
+SUBGROUP_SIZE * (16 * r + i) + L  ==  t * ROW + SUBGROUP_SIZE * c + L
+                              <=>  16 * r + i == t * COLS + c
+```
+
+so `PA_PAGE_R` / `PA_PAGE_I` place any `(t, c)` with no shuffle and no per-lane address, and
+`COLS` reads cover a whole column group. `r` is a compile-time constant whenever `t` is, even if
+`c` is not, because `c < COLS` and `COLS` divides 16 (the host requires a power of two). `i` is
+not, so a caller with a runtime `c` (V, whose column group comes from `sg_j0_sv`) biases the base
+by `SUBGROUP_SIZE * c` and passes `c = 0`, which keeps the `uchar16` component select a register
+subscript. K's `c` is `db >> 1`, a constant, so K reads at the plain page base and hoists the reads
+out of the depth loop.
+
+The last byte touched is `SUBGROUP_SIZE * c + COLS * 256 - 1`: 527 bytes for the head-64 u4 V page
+(`COLS = 2`, `c <= 1`) against a 576-byte page, and 511 bytes for K against 768. The overhang past
+the data region only lands in the page's own comp arrays, and only unused components read it.
+
+The host enables it only where block2d is off (in practice u4 head 32 and 64, plus V alone at head
+48, whose `Align(24, 16) = 32`-byte row qualifies while the 24-byte K row does not), and it was
+measured at 3.92x on gpt-oss-20b.
+
+### Block2d rules
+
+The 2D block builtins need a surface width of at least 64 bytes and a multiple of 4, a pitch of at
+least 64 bytes and a multiple of 16, and a 64-byte aligned base.
+
+- Plain SDPA and the PA current-token inputs: `block2d_layout_ok()` (`row_bytes >= 64 &&
+  row_bytes % 64 == 0`) needs no base repair; `block2d_layout_fixup_ok()` (`row_bytes >= 64 &&
+  row_bytes % 16 == 0`, and no padding on the innermost axis, so the pitch stays a multiple of
+  `row_bytes`) relies on `BLOCK2D_KV_BASE_FIXUP` / `BLOCK2D_KV_CUR_BASE_FIXUP`. The fixup tier is
+  what lets a Q/K/V that is a crop view of a fused QKV tensor (phi-4-multimodal's vision tower) use
+  block IO; without it `sdpa_ocl` fell back to the scalar gather and ran 7.5x slower than
+  `sdpa_micro` there.
+- Cache pages: `block2d_page_ok()` (`row_bytes >= 64 && row_bytes % 16 == 0`). A page base is
+  always a whole number of pages, and in each layout above the pitch rule already makes the page
+  stride a multiple of 64 (f16 `32h` with `h % 8`; i8 BY_TOKEN `256n + 64`; i8 BY_CHANNEL `320n`;
+  u4 K `384n`; u4 V `256k + 64`).
+- u4 stays on the strict `% 64` rule on purpose: the 1D page read is gated on block2d being off,
+  and relaxing the rule would displace it on head sizes that have no model to measure.
+
+`BLOCK2D_KV_BASE_FIXUP` repairs the base the way `sdpa_micro`'s `block2d_load` does: round it down
+to 64 bytes, shift x and widen the surface by the same number of bytes. The per-head offset is a
+multiple of the row width but not of 64 (a 144-byte row at head 72 lands 16, 32 or 48 bytes past a
+boundary for `head % 4 != 0`). The widening extends backwards, so the surface still ends at the
+head's last element: columns past the head dim stay out of bounds and are zero-filled by the
+hardware, which is what the scalar path's `head < d` guard did. The shift always divides exactly:
+the offset is a whole number of elements, so `prem` is a multiple of the element size (all the 16b
+builtins need); `prem % 16 == 0`, which a 32-bit transposed read would need, follows from
+`base = m * row_bytes` and the host's `row_bytes % 16 == 0` gate.
+
+## Dequantisation
+
+Paged-attention caches: `(q - zp) * scale`, in half. The cache writer stores `1 / scale`, so the
+value read back is already the multiplier. The block-read and scalar paths use exactly the same
+arithmetic, which makes the `*_PA_I8_2D` and `*_PA_1D` switches clean bisection toggles.
+
+Plain-SDPA i8 (the bias trick): `as_half(0x6480 ^ byte) == signed_byte + 1152` exactly, since
+`0x6480` is `1152.0h` and XOR-ing the byte into its mantissa maps the two's-complement range onto
+consecutive halves. With `zp + 1152` folded into the zero point, a byte dequantises as
+`(as_half(0x6480 ^ byte) - (zp + 1152)) * scale` with no convert: a microbenchmark measured 69%
+fewer moves than the `convert_float` widen for K and 66% fewer than `convert_half4` for V. Extracting
+bytes with shift and mask also avoids the `:b` region deinterleave that `as_char4` costs. The fold
+has a price: f16 has a 1.0 ulp at 1152, so a non-integer zp is rounded. The paged-attention paths
+deliberately do not use the trick, since the cache writer's zp is not an integer.
+
+The per-key scale and zero point are hoisted out of the depth and key loops. Read from the
+innermost position they are lane-uniform, and IGC emits one SIMD-1 load each: about 128 per k0
+iteration for the plain i8 path, and 256 per k0 tile for the paged i8 cache at head 128 (the
+MIXED kernel's load count was dominated by scale/zp: 272 `d16u32` messages against 128 `d8u32`
+data loads). The page lookup (`block_indices[]`) is hoisted the same way, from
+`DKS * kq_key_blocks * DPAS_ROWS` loads (64 at head 64) to `kq_key_blocks`.
+
+## Masks
+
+- `MASK_KIND` is the host's compile-time proof of the mask shape: 2 = full 2D, 1 = per key,
+  0 = scalar/broadcast, -1 = decide at runtime from `MSK_D2`/`MSK_D3`. For a dynamic mask the host
+  infers the kind from the stage, so a `[B, H, 1, K]` per-key mask can be compiled as kind 2. The
+  full-2D path therefore clamps the query row to 0 when `MSK_D2 == 1`, and the key column when
+  `MSK_D3 == 1`. Without the clamp the read walks past the single row, which on Xe2 surfaces as
+  `CL_OUT_OF_RESOURCES` or a NaN mask value.
+- `HAS_SCALAR_ATTN_MASK` / `STATIC_SCALAR_ATTN_MASK_VALUE`: a single-element mask broadcast to
+  every logit.
+- `HAS_QQ_BIAS` (MIXED only): the speculative-decoding tree mask over the new keys.
+
+### Bidirectional image groups
+
+For models with `token_type_ids` (gemma-4 and friends) a maximal run of `token_type_ids[t] == 1`
+is an image group whose members attend to each other in both directions, on top of the causal and
+sliding-window region (`openvino/reference/paged_attention.hpp`).
+
+- `token_type_ids` covers the new tokens only, so it is indexed in LOCAL coordinates
+  (subsequence-relative, `[0, q)`), while keys and `causal_k` / `window_k_begin` are KEY coordinates
+  (`key = query_position_offset + local`). PREFILL is the `past_len == 0` case of the same code.
+  `sdpa_micro.cl` and `sdpa_opt.cl` omit the subsequence bump of the buffer, which only agrees for a
+  single subsequence starting at token 0.
+- The causal bound and the window start are extended to cover the groups that straddle them.
+  Groups never leave the new-token region, and reading a future key from the cache relies on
+  `pa_kv_cache_update` running before this stage, as the reference does.
+- The mask loop needs only per-query group bounds `[begin, end)`, computed once per workgroup;
+  `sdpa_micro` instead re-scans `token_type_ids` per (query, key) pair.
+- A runtime-empty `token_type_ids` (`[B_token | 0]`) is legal while `HAS_TOKEN_TYPE_IDS` is decided
+  at compile time from a possibly dynamic shape, so every read is gated on the runtime count.
+- GENERATE never needs any of this: one new token per subsequence makes every group the query
+  itself.
+
+### Attention sink
+
+The sink is an extra per-head logit whose value vector is zero, so it only joins the softmax max
+and denominator. `sdpa_ocl` seeds the online-softmax state with it (running max = sink, running sum
+= 1 on one subgroup, output = 0), which leaves the key loop untouched. `sdpa_micro` instead injects
+it per k0 tile from the subgroup owning the last key and has to pre-scale the score tile.
+`sdpa_ocl_decode` adds it in partition 0 only, because the finalization rescales and sums the
+per-partition denominators.
+
+## sdpa_ocl_decode
+
+Decode has one query per sequence, which flips the DPAS operand roles: A = Q (M = `Q_PER_WG`
+heads), B = K, so the scores land one per lane with `lane == key` and the softmax is a pair of
+subgroup reductions instead of an SLM tile plus an alpha rescale. Almost nothing is shared with
+`sdpa_ocl.cl`.
+
+- GQA: `Q_PER_WG` q-heads of one kv group share every K/V tile load. `pa_gqa_single_token` does the
+  same amortisation with scalar MADs, but its candidates are {4, 3, 2}; DPAS carries M in the repeat
+  count, so M = 8 costs the same MACs per cycle as M = 1. The host caps M by a live-register
+  estimate: on gemma-4's head-512 layers M = 8 spilled 34432 bytes and ran 3.14x slower than
+  `pa_sdpa_opt`, while M = 1 spilled nothing.
+- The key axis is split into partitions of `SEQ_LEN_PARTITION_SIZE`, and the kernel writes
+  `pa_sdpa_finalization_stage`'s intermediates unchanged (see the contract at the top of the file).
+- S*V splits the head dim, not the keys: a subgroup that owns a head-dim tile reduces over every
+  key and produces a final result. The earlier key split left every subgroup holding a partial over
+  all dims and cost a `SG_PER_WG * Q_PER_WG * V_HEAD_SIZE` SLM round trip — 16 KB at head 128, which
+  capped Xe-core occupancy at 7 workgroups instead of 8. The DPAS and V-load counts are the same
+  either way (16 per subgroup at head 128).
+- The probabilities go through SLM indexed by key with the heads as the vector element. Storing
+  them head-major instead cost 64 separate 32-byte reads per subgroup (SLM loads 44 -> 72,
+  instCount +12%).
+- The partition's page table is read once, one chunk per lane, and broadcast where needed; a
+  per-use lookup cost 18 separate scalar loads.
+
+Compressed caches factor the affine dequant off the B operands:
+
+```
+BY_TOKEN K:    S[key] = sc[key] * (sum_d Q[d] * q[key][d] - zp[key] * sum_d Q[d])
+BY_CHANNEL K:  S[key] = sum_d (Q[d] * sc[d]) * q[key][d] - sum_d (Q[d] * sc[d]) * zp[d]
+V:             O[d]   = sum_key (P[key] * sc[key]) * (q[key][d] - zp[key])
+```
+
+The int8 B operand is widened with `as_half(0x6480 ^ b) == b + 1152` as pure dword arithmetic.
+Xe2 has no direct byte-to-half convert, so `convert_half16(as_char16(...))` costs three moves per
+element (a stride-4 byte gather, b->w, w->hf): instCount 4431 / 2852 mov against 4045 / 2022 for
+the dword widen at head 128, M = 4. The bias is removed with the zero point in the float score
+correction, so zp stays exact. u4 uses `as_half(0x6400 | n) == 1024 + n`.
+
+The BY_CHANNEL correction `k_corr` must multiply by the f16-rounded `Q * sc` the DPAS sees, not
+the float product: the bias cancels exactly only against the same half. Computing it in float
+raised the worst-case error over the BY_CHANNEL cases from 7.21e-04 to 1.68e-03 (2.3x, consistent
+with the bias-to-signal ratio times a half ulp). That is below a 6e-3 accuracy threshold, so a
+passing test does not protect it.
+
+V is prefetched `PREFETCH_DIST` chunks ahead with the 2D block prefetch. The limit was
+memory-level parallelism: doubling K/V traffic cost 23%, while cutting instructions 6.8% and SLM
+traffic 86% bought only 1.2%, and every occupancy knob (`SG_PER_WG` 2/4/16, 256 GRF) was neutral
+or worse. Each prefetch costs about 8 instructions of address and descriptor setup. On
+llama-3.1-8b (head 128, M = 4) prefetching V was 2.1% faster, because S*V walks 16 different pages
+on one accumulator chain. Prefetching K was 3.6% slower, because the KQ loop already runs
+`KEY_GROUPS` independent DPAS chains over one page, so K is not prefetched.
+
+## Debug and bisection switches
+
+All are read on the host when the kernel is compiled.
+
+| Variable | Effect |
+|---|---|
+| `TEST_USE_SDPA_OCL`, `TEST_USE_SDPA_OCL_DECODE` | `0` selects the micro / opt path instead |
+| `SDPA_OCL_KQ_TILE_KEYS`, `_TILE_QUERIES`, `_PER_WG_KEYS`, `_PER_WG_QUERIES` | Override the KQ tiling (`kq_sg_tile_keys` must be 16 or 32) |
+| `SDPA_OCL_TRACE_CONFIG`, `SDPA_OCL_TRACE_STAGE` | Print the chosen tiling / PA stage |
+| `SDPA_OCL_256GRF`, `SDPA_OCL_DECODE_256GRF` | Large-GRF compile |
+| `SDPA_OCL_Q_2D`, `_KV_2D`, `_A_2D`, `_K_I8_2D`, `_V_I8_2D` | Plain-SDPA block IO paths |
+| `SDPA_OCL_K_PA_2D`, `_V_PA_2D`, `_K_PA_I8_2D`, `_V_PA_I8_2D`, `_K_PA_1D`, `_V_PA_1D` | Cache page read paths (`0` = scalar gather, same dequant) |
+| `SDPA_OCL_PA_CUR_F16` | MIXED current tokens from Kc/Vc (`0` = from the cache) |
+| `SDPA_OCL_MICRO_MATH` | `0` disables `sdpa_micro` rounding on PA prefill |
+| `SDPA_OCL_BIDIR`, `SDPA_OCL_BIDIR_GATE` | Negative controls for the image-group mask and its empty-buffer gate |
+| `SDPA_OCL_DECODE_M`, `_SG_PER_WG`, `_PREFETCH`, `_K_2D`, `_V_2D` | Decode tuning and block IO paths |
+| `OV_GPU_PA_K_TOKEN_MAJOR`, `OV_GPU_PA_BY_CHANNEL_TOKEN_MAJOR` | K cache layout staging switches |
+| `OV_GPU_PA_K_TM_BREAK=<consumer>` | Forces one consumer back to the d-major read, to test whether a suite observes it |
+
+The negative controls must fail the token-type suites when disabled; a pass means the suite does
+not observe the feature.
