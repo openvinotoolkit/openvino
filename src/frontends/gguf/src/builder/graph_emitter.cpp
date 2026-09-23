@@ -10,9 +10,7 @@
 #include "openvino/op/constant.hpp"
 #include "translate_session.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 namespace {
 
@@ -181,6 +179,4 @@ void GraphEmitter::add_named_weight(const std::string& ggml_name) {
     emit_weight_op(ggml_name, {w, {}, {}}, qtype);
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

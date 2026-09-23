@@ -38,6 +38,14 @@ public:
     static std::shared_ptr<ov::npuw::ICompiledModel> create(const std::shared_ptr<ov::Model>& model,
                                                             const std::shared_ptr<const ov::IPlugin>& plugin,
                                                             const ov::AnyMap& properties);
+    // True when the stream holds an NPUW blob: a partitioned ORC container or an
+    // indicator-headed blob. The stream position is left where it was.
+    static bool is_npuw_blob(std::istream& stream);
+    // Imports any NPUW blob, routing it to the matching implementation's
+    // import_model(). The import counterpart of create().
+    static std::shared_ptr<ov::npuw::ICompiledModel> import_model(std::istream& stream,
+                                                                  const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                                  const ov::AnyMap& properties);
     ICompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin);
 };
 
