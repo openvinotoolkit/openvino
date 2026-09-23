@@ -19,9 +19,15 @@ constexpr std::string_view INVALID_STATE_MESSAGE = "Invalid state";
 constexpr std::string_view NEW_PAGE_ALIGNED_BUFFER_MESSAGE =
     "A new, page aligned buffer of size %zu has been allocated to host a compiled model";
 constexpr std::string_view NULL_GRAPH_MESSAGE = "The section's code cannot operate on a null \"graph\" object";
+constexpr std::string_view SECTION_TOO_SHORT_MESSAGE = "The given section is too short";
 constexpr size_t SIZE_OF_INIT_SCHEDULE_SIZE = sizeof(uint64_t);
 constexpr char LIST_START_DELIMITER = '[';
 constexpr char LIST_END_DELIMITER = ']';
+
+constexpr size_t SIZE_OF_PADDING_SIZE = sizeof(uint16_t);
+constexpr size_t MINIMUM_MAIN_SCHEDULE_SECTION_SIZE = SIZE_OF_PADDING_SIZE;
+constexpr size_t NUMBER_OF_INITS_SIZE = sizeof(uint16_t);
+constexpr size_t MINIMUM_INIT_SCHEDULES_SECTION_SIZE = NUMBER_OF_INITS_SIZE;
 
 std::function<std::string(const std::string&)> get_encryption_callback_from_config(
     const std::optional<FilteredConfig>& config) {
@@ -122,20 +128,21 @@ void ELFMainScheduleSection::decrypt(const std::function<std::string(const std::
 std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob_reader) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFMainScheduleSection::read");
     const Logger logger("ELFMainScheduleSection", blob_reader.get_log_level());
+    OPENVINO_ASSERT(blob_reader.get_total_section_size() >= MINIMUM_MAIN_SCHEDULE_SECTION_SIZE,
+                    SECTION_TOO_SHORT_MESSAGE);
 
     // Skip the first padding region
     // TODO double check no "size_t" used for r/w sizes
     uint16_t padding_size;
     blob_reader.read_into_buffer(&padding_size, sizeof(padding_size));
-    OPENVINO_ASSERT(padding_size <= blob_reader.get_total_section_size(),
+    OPENVINO_ASSERT(padding_size <= blob_reader.get_remaining_section_size(),
                     "The read padding size is greater than the length of the blob section");
     blob_reader.move_cursor_relative_to_current_section(blob_reader.get_offset_relative_to_current_section() +
                                                         padding_size);
 
     logger.debug("Skipped %lu padding from offset %lu", padding_size, blob_reader.get_offset_relative_to_npu_region());
 
-    // TODO check this is secure
-    const size_t main_schedule_size = blob_reader.get_total_section_size() - sizeof(padding_size) - padding_size;
+    const size_t main_schedule_size = blob_reader.get_remaining_section_size();
 
     if (!blob_reader.source_is_contiguous()) {
         ov::Tensor main_schedule = utils::allocate_aligned_tensor(main_schedule_size);
@@ -193,7 +200,8 @@ void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
     const auto* weightless_graph = std::get_if<std::shared_ptr<WeightlessGraph>>(&m_graph_or_schedules);
     OPENVINO_ASSERT(weightless_graph, INVALID_STATE_MESSAGE);
 
-    const uint64_t number_of_inits = (*weightless_graph)->get_number_of_inits();
+    // TODO check all written data types to eliminate some redundancy in size
+    const uint16_t number_of_inits = (*weightless_graph)->get_number_of_inits();
     writer.write_from(&number_of_inits, sizeof(number_of_inits));
 
     m_logger.debug("Writting %lu init schedules", number_of_inits);
@@ -260,13 +268,10 @@ void ELFInitSchedulesSection::decrypt(const std::function<std::string(const std:
 std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blob_reader) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFInitSchedulesSection::read");
     Logger logger("ELFInitSchedulesSection", blob_reader.get_log_level());
+    OPENVINO_ASSERT(blob_reader.get_total_section_size() >= MINIMUM_INIT_SCHEDULES_SECTION_SIZE,
+                    SECTION_TOO_SHORT_MESSAGE);
 
-    const size_t section_length = blob_reader.get_total_section_size();
-
-    uint64_t number_of_inits;
-    OPENVINO_ASSERT(section_length >= sizeof(number_of_inits),
-                    "The section length is smaller than the minimum required");
-
+    uint16_t number_of_inits;
     blob_reader.read_into_buffer(&number_of_inits, sizeof(number_of_inits));
     OPENVINO_ASSERT(number_of_inits <= blob_reader.get_remaining_section_size() / SIZE_OF_INIT_SCHEDULE_SIZE,
                     "The number of init schedules read from the blob is too great relative to the size of the section");

@@ -30,7 +30,6 @@ public:
 
     bool operator<=(const MajorMinorVersion& other) const;
 
-    // TODO test these
     std::string to_string() const;
 
     static MajorMinorVersion from_string(const std::string_view version);

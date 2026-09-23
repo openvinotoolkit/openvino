@@ -44,7 +44,7 @@ public:
 
     static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 
-    // TODO can't this happend during `read`, by getting the callbacks from the BlobReader?
+    // TODO can't this happen during `read`, by getting the callbacks from the BlobReader?
     void decrypt(const std::function<std::string(const std::string&)>& decryption_callback);
 
     std::optional<std::string> get_individual_compatibility_requirements() const override;

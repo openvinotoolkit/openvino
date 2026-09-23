@@ -260,7 +260,6 @@ public:
         }
     }
 
-    // TODO tests for this
     /**
      * @brief Constructs a blob writer that can be used to re-export the blob.
      * @details The sections are built using the content found within the V1 format.

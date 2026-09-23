@@ -46,7 +46,6 @@ std::vector<std::shared_ptr<CREToken>> ISection::get_compatibility_requirements_
     return {};
 }
 
-// TODO test these
 std::string section_type_and_id_to_string(const SectionType type, const SectionID id) {
     return type.to_string() + TYPE_AND_ID_DELIMITER.data() + id.to_string();
 }

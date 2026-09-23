@@ -48,7 +48,6 @@ bool SectionType::operator<(const SectionType& other) const {
     return m_code < other.get_code();
 }
 
-// TODO test these
 std::string SectionType::to_string() const {
     switch (m_code) {
     case SectionTypeCode::RUNTIME_REQUIREMENTS:
