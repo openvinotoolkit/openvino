@@ -10,6 +10,7 @@
 #include <cstring>
 #include <filesystem>
 #include <map>
+#include <memory>
 #include <openvino/frontend/exception.hpp>
 #include <openvino/frontend/graph_iterator.hpp>
 #include <openvino/frontend/input_model.hpp>
@@ -114,6 +115,10 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingGraphIteratorExternalStreams) {
     iter->initialize(path);
     iter->reset();
 
+    auto owned_data = iter->allocate_data(1);
+    std::weak_ptr<uint8_t> data_lifetime = owned_data;
+    owned_data.reset();
+
     auto graph_iter = std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(iter);
     ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework("onnx"))
         << "Could not create the ONNX FE using a pointer GraphIterator";
@@ -127,6 +132,21 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingGraphIteratorExternalStreams) {
     std::shared_ptr<ov::Model> model;
     ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel)) << "Could not convert the model to OV representation";
     ASSERT_NE(model, nullptr);
+    ASSERT_FALSE(data_lifetime.expired());
+    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
+    ASSERT_NE(model, nullptr);
+    ASSERT_FALSE(data_lifetime.expired());
+
+    ASSERT_EQ(m_inputModel->get_inputs().size(), 1);
+    ASSERT_EQ(m_inputModel->get_outputs().size(), 1);
+    ASSERT_FALSE(data_lifetime.expired());
+    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
+    ASSERT_NE(model, nullptr);
+    ASSERT_FALSE(data_lifetime.expired());
+    ov::test::TestCase test_case(model);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>(ov::Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
+    test_case.run();
 
     ASSERT_EQ(iter->get_mmap_cache(), nullptr);
     ASSERT_NE(iter->get_stream_cache(), nullptr);

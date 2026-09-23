@@ -614,16 +614,19 @@ std::shared_ptr<DecoderProtoTensor> GraphIteratorProto::get_tensor(const std::st
 }
 
 void GraphIteratorProto::reset() {
-    // In case we have any stored external data - free it before beginning
-    if (m_data_holder != nullptr) {
-        m_data_holder->clear();
-    }
-    if (m_stream_cache != nullptr) {
-        m_stream_cache->clear();
-    }
     node_index = 0;
-    if (m_decoders.size() > 0 || m_model == nullptr || m_graph == nullptr)
+    if (!m_decoders.empty() || !m_tensors.empty() || m_model == nullptr || m_graph == nullptr)
         return;
+    // Decoders keep raw pointers into external data. Only clear storage before the top-level
+    // decoder cache is first built; nested iterators share the parent's storage.
+    if (m_parent == nullptr) {
+        if (m_data_holder != nullptr) {
+            m_data_holder->clear();
+        }
+        if (m_stream_cache != nullptr) {
+            m_stream_cache->clear();
+        }
+    }
     const auto& graph = *m_graph;
     m_decoders.reserve(graph.initializer_size() + graph.input_size() + graph.output_size() + graph.node_size());
 
