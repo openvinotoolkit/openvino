@@ -228,8 +228,14 @@ size_t calculate_auto_offload_ratio(const MoEOffloadWeightStats& stats, uint64_t
         return 0;  // everything fits, no offload needed
     }
 
+    if (budget_for_moe <= 0.0) {
+        return MAX_AUTO_OFFLOAD_RATIO;
+    }
+
     const double resident_fraction = budget_for_moe / static_cast<double>(stats.routed);
-    return static_cast<size_t>(std::lround((1.0 - resident_fraction) * 100.0));
+    const auto raw_ratio = static_cast<int64_t>(std::lround((1.0 - resident_fraction) * 100.0));
+    // Clamp to [0, MAX_AUTO_OFFLOAD_RATIO]: preventing ratio=100 from disabling OTD downstream.
+    return static_cast<size_t>(std::clamp<int64_t>(raw_ratio, 0, static_cast<int64_t>(MAX_AUTO_OFFLOAD_RATIO)));
 }
 
 }  // namespace

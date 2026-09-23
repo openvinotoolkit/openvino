@@ -18,6 +18,10 @@
 
 namespace ov::intel_gpu {
 
+/// Maximum offload ratio that AUTO mode can select (e.g. 8-expert models with top_k=2 require
+/// at least 2 resident slots, so max offload is 1 - 2/8 = 75%).
+static constexpr size_t MAX_AUTO_OFFLOAD_RATIO = 75;
+
 /// Classifies a Constant's role relative to the MoE fused op.
 enum class MoEConstantRole { NotMoE, RoutedExpert, SharedExpert };
 
@@ -84,7 +88,7 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
                                              const cldnn::format& const_format,
                                              const cldnn::layout& const_layout);
 
-/// Resolves an "auto" OFFLOAD_RATIO into a concrete percentage in [0, 100].
+/// Resolves an "auto" OFFLOAD_RATIO into a concrete percentage in [0, MAX_AUTO_OFFLOAD_RATIO].
 /// Computes offloadable MoE routed-expert and fixed weight sizes from @p model,
 /// estimates available memory budget (device memory for dGPU, OS/tracked-memory
 /// budget for iGPU), and returns the percentage of routed-expert weights

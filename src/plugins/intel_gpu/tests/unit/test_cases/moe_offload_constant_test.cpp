@@ -196,3 +196,22 @@ TEST(moe_offload_constant, auto_ratio_counts_shared_expert_bytes_as_fixed_weight
 
     EXPECT_GT(resolve_auto_offload_ratio_for_budget(*g.to_model(), budget), 0U);
 }
+
+TEST(moe_offload_constant, auto_ratio_non_positive_budget_for_moe_resolves_to_max) {
+    auto g = MoETestGraph::build();
+    const uint64_t fixed_bytes = sum_constant_bytes(g, MoEConstantRole::SharedExpert);
+    // Set budget such that budget * 0.85 <= fixed_bytes (i.e. budget_for_moe <= 0)
+    const uint64_t budget = fixed_bytes;
+
+    EXPECT_EQ(resolve_auto_offload_ratio_for_budget(*g.to_model(), budget), MAX_AUTO_OFFLOAD_RATIO);
+}
+
+TEST(moe_offload_constant, auto_ratio_exceeding_max_clamped_to_max) {
+    auto g = MoETestGraph::build();
+    const uint64_t routed_bytes = sum_constant_bytes(g, MoEConstantRole::RoutedExpert);
+    const uint64_t fixed_bytes = sum_constant_bytes(g, MoEConstantRole::SharedExpert);
+    // Allow only 10% of routed weights to be resident -> raw ratio would be 90%, clamped to MAX_AUTO_OFFLOAD_RATIO (75)
+    const uint64_t budget = static_cast<uint64_t>((static_cast<double>(fixed_bytes) + 0.1 * static_cast<double>(routed_bytes)) / 0.85);
+
+    EXPECT_EQ(resolve_auto_offload_ratio_for_budget(*g.to_model(), budget), MAX_AUTO_OFFLOAD_RATIO);
+}
