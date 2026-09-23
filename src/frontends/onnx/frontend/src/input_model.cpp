@@ -548,10 +548,7 @@ void InputModel::reshape_model_inputs(std::shared_ptr<Model>& model) {
     }
 }
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace unify {
+namespace ov::frontend::onnx::unify {
 
 class InputModel::InputModelONNXImpl {
 public:
@@ -1153,7 +1150,4 @@ std::filesystem::path InputModel::get_model_dir() const {
     return _impl->get_model_dir();
 }
 
-}  // namespace unify
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::unify

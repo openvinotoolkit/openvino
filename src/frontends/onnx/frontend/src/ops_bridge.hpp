@@ -17,9 +17,7 @@
 #include "openvino/frontend/onnx/extension/conversion.hpp"
 #include "version_range.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 
 class OperatorsBridge {
 public:
@@ -95,6 +93,4 @@ private:
 // An empty domain denotes the default ONNX opset ("ai.onnx").
 const std::vector<std::pair<std::string, std::string>>& get_supported_ops_via_tokenizers();
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

@@ -24,10 +24,7 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 
 OutputVector translate_unravel_index_op(const NodeContext& node) {
     default_op_checks(node, 2, {"UnravelIndex"});
@@ -91,7 +88,4 @@ OutputVector translate_unravel_index_op(const NodeContext& node) {
     return {result_indices};
 }
 
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op
