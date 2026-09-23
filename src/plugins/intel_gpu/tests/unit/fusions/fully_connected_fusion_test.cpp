@@ -1163,6 +1163,27 @@ TEST_P(fc_fp32_activation_relu, basic) {
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp32_activation_relu, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
     fully_connected_test_params{ CASE_FC_FP32_1, 2, 3 }
 }));
+
+class fc_fp16_eltwise_add_input : public FullyConnectedFusingTestOneDNN {};
+TEST_P(fc_fp16_eltwise_add_input, matches_unfused_reference) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        input_layout("eltwise_data", get_output_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        fully_connected("fc_prim", input_info("input"), "weights", "", get_output_dim_size(p)),
+        eltwise("eltwise", {input_info("fc_prim"), input_info("eltwise_data")}, eltwise_mode::sum),
+        reorder("reorder_bfyx", input_info("eltwise"), p.default_format, data_types::f32));
+
+    extra_inputs["eltwise_data"] = get_output_layout(p);
+    tolerance = 1e-2f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_add_input, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_3, 3, 4 },
+}));
+
 #endif
 
 class fc_fp16_eltwise_add_ocl_dynamic : public FullyConnectedFusingTest {
