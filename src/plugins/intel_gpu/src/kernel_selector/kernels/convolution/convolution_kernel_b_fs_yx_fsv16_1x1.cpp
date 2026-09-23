@@ -344,7 +344,7 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16_1x1::GetJitConstants(const convolut
             if (!CheckConvolutionExplicitPaddings(newParams))
                 return {};
         } else {
-            kd.reorderInput = ConvolutionUpdateInputParams(newParams);
+            kd.reorderInput = UpdatePaddedInputParams(newParams);
 
             if (kd.reorderInput && !newParams.allowInputReordering)
                 return {};

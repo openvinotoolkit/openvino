@@ -64,6 +64,7 @@ protected:
     virtual WeightsLayout GetPreferredWeightsLayout(const convolution_params &) const = 0;
     virtual std::string GetKernelName(const convolution_params&) const { return kernelName; }
     virtual bool NeedPaddedInput() const { return false; }
+    virtual bool UpdatePaddedInputParams(convolution_params& params, int autoTuneIndex = -1) const;
     bool Validate(const Params& p) const override;
     using WeightBiasKernelBase::GetJitConstants;
     JitConstants GetJitConstantsWithLoopUnroll(const convolution_params& params, const DispatchData& dispatchData) const;
@@ -86,6 +87,7 @@ protected:
 bool ConvolutionCheckInput(const Params& p);
 bool CheckConvolutionPaddedInputDesc(const convolution_params& params, const DataTensor& reqDesc);
 bool CheckConvolutionExplicitPaddings(const convolution_params& conv_params);
+DataTensor GetConvolutionBFYXPaddedTensor(const convolution_params& cp);
 bool ConvolutionUpdateInputParams(convolution_params& params);
 
 }  // namespace kernel_selector

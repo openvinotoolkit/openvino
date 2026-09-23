@@ -15,6 +15,9 @@
 #include <intel_gpu/primitives/permute.hpp>
 
 #include "openvino/reference/convolution.hpp"
+#include "convolution/convolution_kernel_b_fs_yx_fsv16.h"
+#include "convolution/convolution_kernel_b_fs_yx_fsv16_1x1.h"
+#include "convolution/convolution_params.h"
 
 #include <algorithm>
 #include <array>
@@ -47,6 +50,109 @@ T kahan_summation(std::vector<T> &input) {
         sum = t;
     }
     return sum;
+}
+
+kernel_selector::DataTensor make_padded_tensor(const std::vector<size_t>& dims,
+                                               kernel_selector::Datatype dtype,
+                                               kernel_selector::DataLayout layout,
+                                               size_t x_pad_before = 0,
+                                               size_t x_pad_after = 0,
+                                               size_t y_pad_before = 0,
+                                               size_t y_pad_after = 0,
+                                               float padded_value = 0.f) {
+    auto tensor = kernel_selector::DataTensor(dims, dtype, layout);
+    auto ndims = tensor.GetDims();
+
+    ndims[0].pad.before = x_pad_before;
+    ndims[0].pad.after = x_pad_after;
+    ndims[1].pad.before = y_pad_before;
+    ndims[1].pad.after = y_pad_after;
+
+    size_t pitch = 1;
+    for (size_t i = 0; i < ndims.size(); i++) {
+        ndims[i].pitch = pitch;
+        pitch *= ndims[i].LogicalDimPadded();
+    }
+
+    return {ndims, dtype, layout, 0, 0, padded_value};
+}
+
+kernel_selector::convolution_params make_convolution_gpu_bfyx_f16_params(bool allow_input_reordering,
+                                                                          size_t x_pad_before = 0,
+                                                                          size_t x_pad_after = 0,
+                                                                          float padded_value = 0.f) {
+    kernel_selector::convolution_params params;
+    params.layerID = "conv_padding_test";
+    params.allowStaticInputReordering = true;
+    params.allowInputReordering = allow_input_reordering;
+    params.engineInfo.supports_fp16 = true;
+    params.engineInfo.maxWorkGroupSize = 256;
+    params.engineInfo.maxThreadsPerDevice = 4096;
+    params.engineInfo.deviceType = kernel_selector::dev_type::integrated_gpu;
+
+    params.inputs.push_back(make_padded_tensor(std::vector<size_t>{5, 3, 32, 1},
+                                               kernel_selector::Datatype::F16,
+                                               kernel_selector::DataLayout::b_fs_yx_fsv16,
+                                               x_pad_before,
+                                               x_pad_after,
+                                               0,
+                                               0,
+                                               padded_value));
+    params.outputs.push_back(kernel_selector::DataTensor(std::vector<size_t>{5, 3, 32, 1},
+                                                         kernel_selector::Datatype::F16,
+                                                         kernel_selector::DataLayout::b_fs_yx_fsv16));
+    params.weights = kernel_selector::WeightsTensor(std::vector<size_t>{3, 3, 32, 32},
+                                                    kernel_selector::WeightsType::F16,
+                                                    kernel_selector::WeightsLayout::oiyx);
+    params.filterSize = kernel_selector::uSize(3, 3, 1);
+    params.stride = kernel_selector::uSize(1, 1, 1);
+    params.dilation = kernel_selector::uSize(1, 1, 1);
+    params.padding_begin = kernel_selector::uSize(1, 1, 0);
+    params.padding_end = kernel_selector::uSize(1, 1, 0);
+
+    return params;
+}
+
+kernel_selector::convolution_params make_convolution_gpu_bfyx_f16_1x1_params(bool allow_input_reordering,
+                                                                              size_t x_pad_before = 0,
+                                                                              size_t x_pad_after = 0,
+                                                                              float padded_value = 0.f) {
+    kernel_selector::convolution_params params;
+    params.layerID = "conv_padding_test_1x1";
+    params.allowStaticInputReordering = true;
+    params.allowInputReordering = allow_input_reordering;
+    params.engineInfo.supports_fp16 = true;
+    params.engineInfo.maxWorkGroupSize = 256;
+    params.engineInfo.maxThreadsPerDevice = 4096;
+    params.engineInfo.deviceType = kernel_selector::dev_type::integrated_gpu;
+
+    params.inputs.push_back(make_padded_tensor(std::vector<size_t>{5, 3, 32, 1},
+                                               kernel_selector::Datatype::F16,
+                                               kernel_selector::DataLayout::b_fs_yx_fsv16,
+                                               x_pad_before,
+                                               x_pad_after,
+                                               0,
+                                               0,
+                                               padded_value));
+    params.outputs.push_back(kernel_selector::DataTensor(std::vector<size_t>{5, 3, 32, 1},
+                                                         kernel_selector::Datatype::F16,
+                                                         kernel_selector::DataLayout::b_fs_yx_fsv16));
+    params.weights = kernel_selector::WeightsTensor(std::vector<size_t>{1, 1, 32, 32},
+                                                    kernel_selector::WeightsType::F16,
+                                                    kernel_selector::WeightsLayout::oiyx);
+    params.filterSize = kernel_selector::uSize(1, 1, 1);
+    params.stride = kernel_selector::uSize(1, 1, 1);
+    params.dilation = kernel_selector::uSize(1, 1, 1);
+    params.padding_begin = kernel_selector::uSize(0, 0, 0);
+    params.padding_end = kernel_selector::uSize(0, 0, 0);
+
+    return params;
+}
+
+kernel_selector::DataTensor make_dynamic_x_tensor(const kernel_selector::DataTensor& tensor) {
+    auto ndims = tensor.GetDims();
+    ndims[0].is_dynamic = true;
+    return {ndims, tensor.GetDType(), tensor.GetLayout(), 0, 0, tensor.GetPaddedVal()};
 }
 }  // namespace
 
@@ -13225,4 +13331,95 @@ TEST(convolution_gpu_bfyx_f16, dynamic_tail_spatial_block_with_output_padding) {
         const float tol = atol + rtol * std::fabs(ref_val);
         ASSERT_NEAR(test_val, ref_val, tol) << "Mismatch at idx=" << i;
     }
+}
+
+TEST(convolution_kernel_selector_bfyx_f16, requests_blocked_x_padding_reorder) {
+    kernel_selector::ConvolutionKernel_b_fs_yx_fsv16 kernel;
+    auto params = make_convolution_gpu_bfyx_f16_params(true);
+
+    auto kernels_data = kernel.GetKernelsData(params);
+    ASSERT_EQ(kernels_data.size(), size_t(1));
+    ASSERT_TRUE(kernels_data[0].reorderInput);
+
+    const auto& updated_params = *static_cast<kernel_selector::convolution_params*>(kernels_data[0].params.get());
+    ASSERT_EQ(updated_params.inputs[0].X().pad.before, size_t(1));
+    ASSERT_EQ(updated_params.inputs[0].X().pad.after, size_t(2));
+    ASSERT_EQ(updated_params.inputs[0].Y().pad.before, size_t(1));
+    ASSERT_EQ(updated_params.inputs[0].Y().pad.after, size_t(1));
+    ASSERT_EQ(updated_params.inputs[0].GetPaddedVal(), 0.f);
+
+    ASSERT_NE(kernels_data[0].kernels[0].code.kernelString, nullptr);
+    ASSERT_NE(kernels_data[0].kernels[0].code.kernelString->jit.find("CONV_FSV16_USE_BLOCKED_X_PADDING 1"),
+              std::string::npos);
+}
+
+TEST(convolution_kernel_selector_bfyx_f16, reuses_sufficient_zero_padding_without_reorder) {
+    kernel_selector::ConvolutionKernel_b_fs_yx_fsv16 kernel;
+    auto params = make_convolution_gpu_bfyx_f16_params(true, 1, 2);
+
+    auto kernels_data = kernel.GetKernelsData(params);
+    ASSERT_EQ(kernels_data.size(), size_t(1));
+    ASSERT_FALSE(kernels_data[0].reorderInput);
+}
+
+TEST(convolution_kernel_selector_bfyx_f16, requests_reorder_for_nonzero_existing_padding) {
+    kernel_selector::ConvolutionKernel_b_fs_yx_fsv16 kernel;
+    auto params = make_convolution_gpu_bfyx_f16_params(true, 1, 2, 1.0f);
+
+    auto kernels_data = kernel.GetKernelsData(params);
+    ASSERT_EQ(kernels_data.size(), size_t(1));
+    ASSERT_TRUE(kernels_data[0].reorderInput);
+
+    const auto& updated_params = *static_cast<kernel_selector::convolution_params*>(kernels_data[0].params.get());
+    ASSERT_EQ(updated_params.inputs[0].GetPaddedVal(), 0.f);
+}
+
+TEST(convolution_kernel_selector_bfyx_f16, rejects_missing_blocked_padding_without_reorder_permission) {
+    kernel_selector::ConvolutionKernel_b_fs_yx_fsv16 kernel;
+    auto params = make_convolution_gpu_bfyx_f16_params(false);
+
+    auto kernels_data = kernel.GetKernelsData(params);
+    ASSERT_TRUE(kernels_data.empty());
+}
+
+TEST(convolution_kernel_selector_bfyx_f16_1x1, accepts_zero_padded_input_without_reorder) {
+    kernel_selector::ConvolutionKernel_b_fs_yx_fsv16_1x1 kernel;
+    auto params = make_convolution_gpu_bfyx_f16_1x1_params(true, 1, 2);
+
+    auto kernels_data = kernel.GetKernelsData(params);
+    ASSERT_EQ(kernels_data.size(), size_t(1));
+    ASSERT_FALSE(kernels_data[0].reorderInput);
+}
+
+TEST(convolution_kernel_selector_bfyx_f16_1x1, accepts_nonzero_padded_input_without_reorder) {
+    kernel_selector::ConvolutionKernel_b_fs_yx_fsv16_1x1 kernel;
+    auto params = make_convolution_gpu_bfyx_f16_1x1_params(true, 1, 2, 1.0f);
+
+    auto kernels_data = kernel.GetKernelsData(params);
+    ASSERT_EQ(kernels_data.size(), size_t(1));
+    ASSERT_FALSE(kernels_data[0].reorderInput);
+}
+
+TEST(convolution_kernel_selector_bfyx_f16_1x1, accepts_when_input_reordering_is_disallowed) {
+    kernel_selector::ConvolutionKernel_b_fs_yx_fsv16_1x1 kernel;
+    auto params = make_convolution_gpu_bfyx_f16_1x1_params(false, 1, 2);
+
+    auto kernels_data = kernel.GetKernelsData(params);
+    ASSERT_EQ(kernels_data.size(), size_t(1));
+    ASSERT_FALSE(kernels_data[0].reorderInput);
+}
+
+TEST(convolution_kernel_selector_bfyx_f16, dynamic_x_uses_explicit_padding_path_without_reorder) {
+    kernel_selector::ConvolutionKernel_b_fs_yx_fsv16 kernel;
+    auto params = make_convolution_gpu_bfyx_f16_params(false, 1, 1);
+    params.inputs[0] = make_dynamic_x_tensor(params.inputs[0]);
+    params.outputs[0] = make_dynamic_x_tensor(params.outputs[0]);
+    params.has_explicit_paddings = true;
+
+    auto kernels_data = kernel.GetKernelsData(params);
+    ASSERT_EQ(kernels_data.size(), size_t(1));
+    ASSERT_FALSE(kernels_data[0].reorderInput);
+    ASSERT_NE(kernels_data[0].kernels[0].code.kernelString, nullptr);
+    ASSERT_EQ(kernels_data[0].kernels[0].code.kernelString->jit.find("CONV_FSV16_USE_BLOCKED_X_PADDING 1"),
+              std::string::npos);
 }

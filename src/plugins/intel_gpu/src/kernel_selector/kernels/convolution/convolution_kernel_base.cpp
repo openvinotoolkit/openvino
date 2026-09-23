@@ -161,6 +161,10 @@ ConvolutionKernelBase::DispatchData ConvolutionKernelBase::SetDefault(const conv
     return dispatchData;
 }
 
+bool ConvolutionKernelBase::UpdatePaddedInputParams(convolution_params& params, int) const {
+    return ConvolutionUpdateInputParams(params);
+}
+
 void ConvolutionKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     kd.update_dispatch_data_func = [this](const Params& params, KernelData& kd) {
         const auto& prim_params = static_cast<const convolution_params&>(params);
@@ -206,7 +210,7 @@ KernelsData ConvolutionKernelBase::GetCommonKernelsData(const Params& params,
             if (!CheckConvolutionExplicitPaddings(newParams))
                 return {};
         } else {
-            kd.reorderInput = ConvolutionUpdateInputParams(newParams);
+            kd.reorderInput = UpdatePaddedInputParams(newParams, autoTuneIndex);
 
             if (kd.reorderInput && !newParams.allowInputReordering)
                 return {};
@@ -283,7 +287,7 @@ bool CheckConvolutionPaddedInputDesc(const convolution_params& params, const Dat
     return properPadding;
 }
 
-static DataTensor GetConvolutionBFYXPaddedTensor(const convolution_params& cp) {
+DataTensor GetConvolutionBFYXPaddedTensor(const convolution_params& cp) {
     assert(cp.inputs.size() >= 1);
     auto ndims = cp.inputs[0].GetDims().size();
 
