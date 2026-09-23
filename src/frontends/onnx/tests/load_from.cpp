@@ -479,6 +479,32 @@ TEST_P(ONNXInMemoryLoadTest, rejects_invalid_model_proto) {
                     testing::HasSubstr("unsupported IR version"));
 }
 
+TEST_P(ONNXInMemoryLoadTest, string_initializer_is_not_a_runtime_input) {
+    ModelProto model_proto;
+    ASSERT_TRUE(model_proto.ParseFromString(model_bytes("abs.onnx")));
+    auto graph = model_proto.mutable_graph();
+    auto initializer = graph->add_initializer();
+    initializer->set_name("label");
+    initializer->set_data_type(::ONNX_NAMESPACE::TensorProto_DataType_STRING);
+    initializer->add_dims(1);
+    initializer->add_string_data("constant label");
+    auto input = graph->add_input();
+    input->set_name("label");
+    auto tensor_type = input->mutable_type()->mutable_tensor_type();
+    tensor_type->set_elem_type(::ONNX_NAMESPACE::TensorProto_DataType_STRING);
+    tensor_type->mutable_shape()->add_dim()->set_dim_value(1);
+
+    auto frontend = FrontEndManager().load_by_framework("onnx");
+    for (bool as_proto : {false, true}) {
+        SCOPED_TRACE(testing::Message() << "as_proto=" << as_proto);
+        auto input_model = load_in_memory(frontend, model_proto, as_proto);
+        ASSERT_NE(input_model, nullptr);
+        const auto inputs = input_model->get_inputs();
+        ASSERT_EQ(inputs.size(), 1);
+        EXPECT_THAT(inputs.front()->get_names(), ElementsAre("x"));
+    }
+}
+
 TEST_P(ONNXInMemoryLoadTest, converts_control_flow_from_model_proto) {
     auto frontend = FrontEndManager().load_by_framework("onnx");
     InputModel::Ptr input_model;

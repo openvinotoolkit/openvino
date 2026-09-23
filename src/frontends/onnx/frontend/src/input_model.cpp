@@ -548,10 +548,7 @@ void InputModel::reshape_model_inputs(std::shared_ptr<Model>& model) {
     }
 }
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace unify {
+namespace ov::frontend::onnx::unify {
 
 class InputModel::InputModelONNXImpl {
 public:
@@ -716,7 +713,8 @@ void InputModel::InputModelONNXImpl::load_model() {
             tensor_place->set_input_index(tensor_decoder->get_input_idx());
             tensor_place->set_output_index(output_idx);
 
-            const bool has_data = tensor_place->get_data() != nullptr || tensor_place->get_data_location() != nullptr;
+            const bool has_data = tensor_place->get_data() != nullptr || tensor_place->get_data_location() != nullptr ||
+                                  !tensor_place->get_data_any().empty();
             // Skip constants that are not graph outputs — they don't contribute to the model graph.
             if (has_data && output_idx < 0)
                 continue;
@@ -1153,7 +1151,4 @@ std::filesystem::path InputModel::get_model_dir() const {
     return _impl->get_model_dir();
 }
 
-}  // namespace unify
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::unify

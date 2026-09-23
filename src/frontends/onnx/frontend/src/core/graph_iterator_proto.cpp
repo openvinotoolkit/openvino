@@ -319,9 +319,7 @@ void topological_sort_graph(GraphProto* graph) {
 }
 }  // namespace
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 
 namespace {
 bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_meta_info,
@@ -936,6 +934,4 @@ bool is_valid_model(std::istream& model) {
     }
 }
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

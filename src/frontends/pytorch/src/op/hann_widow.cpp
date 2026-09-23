@@ -17,10 +17,7 @@
 #include "openvino/op/subtract.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 
@@ -68,7 +65,4 @@ OutputVector translate_hann_window(const NodeContext& context) {
     return {squared_sin};
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

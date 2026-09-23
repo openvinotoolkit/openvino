@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
+
 #include <onnx/onnx_pb.h>
 
 #include <filesystem>
@@ -23,9 +24,7 @@ using ::ONNX_NAMESPACE::TensorProto_DataType;
 using ::ONNX_NAMESPACE::ValueInfoProto;
 using ::ONNX_NAMESPACE::Version;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 
 class DecoderProtoTensor;
 using MappedMemoryHandles = std::shared_ptr<std::map<std::filesystem::path, std::shared_ptr<ov::MappedMemory>>>;
@@ -150,6 +149,4 @@ protected:
 private:
 };
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx
