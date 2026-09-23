@@ -350,9 +350,12 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
                         dep_layout.set_partial_shape(*folded);
                         dep_layout.format = format::adjust_to_rank(dep_layout.format, out_pshape.size());
                     } else {
-                        OPENVINO_ASSERT(broadcastable(extend_shape_to_rank_from_end(dep_shape),
-                                                    extend_shape_to_rank_from_end(out_pshape),
-                                                    use_new_shape_infer, /*first_to_second_only=*/true),
+                        // Kernels index the peer by axis name (b, f, z, y, x), as layout::get_tensor() does.
+                        OPENVINO_ASSERT(dep_layout.is_static() && out_layout.is_static() &&
+                                            broadcastable(ov::PartialShape(dep_layout.get_tensor().sizes()),
+                                                          ov::PartialShape(out_layout.get_tensor().sizes()),
+                                                          /*use_new_shape_infer=*/false,
+                                                          /*first_to_second_only=*/true),
                                         "Fused eltwise peer ", dep_layout.to_short_string(),
                                         " cannot broadcast into host ", out_layout.to_short_string());
                     }
