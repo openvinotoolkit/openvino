@@ -10,10 +10,7 @@
 #include "builder/blocks/common.hpp"
 #include "builder/blocks/qkv_repack.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace blocks {
+namespace ov::frontend::gguf::blocks {
 
 using ov::element::f32;
 
@@ -64,7 +61,7 @@ std::string attention(GraphEmitter& e,
         register_qwen35_q_gate(e, cfg, il);
         e.add_weight(p + "attn_k.weight");
         e.add_weight(p + "attn_v.weight");
-    } else if (cfg.has_fused_qkv) {
+    } else if (e.has_weight(p + "attn_qkv.weight")) {
         register_fused_qkv(e, cfg, il);
     } else {
         e.add_weight(p + "attn_q.weight");
@@ -86,7 +83,8 @@ std::string attention(GraphEmitter& e,
     // Q/K/V projection biases (qwen2 / qwen2.5: separate attn_{q,k,v}.bias; phi-3-style
     // fused-QKV archs: attn_qkv.bias, already split into attn_{q,k,v}.bias by
     // register_fused_qkv above).
-    if (cfg.has_qkv_bias) {
+    // Qwen35 repacks a joint Q/gate projection; retain its separate bias policy.
+    if (cfg.is_qwen35 ? cfg.has_qkv_bias : e.has_weight(p + "attn_q.bias")) {
         q = add_bias(e, q, p + "attn_q.bias", p + "Qcur_b");
         k = add_bias(e, k, p + "attn_k.bias", p + "Kcur_b");
         v = add_bias(e, v, p + "attn_v.bias", p + "Vcur_b");
@@ -266,13 +264,10 @@ std::string attention(GraphEmitter& e,
     // output projection (+ optional bias)
     e.add_weight(p + "attn_output.weight");
     auto attn_out = e.add_op("GGML_OP_MUL_MAT", p + "attn_out", {p + "attn_output.weight", attn_2d});
-    if (cfg.has_attn_out_bias) {
+    if (cfg.is_qwen35 ? cfg.has_attn_out_bias : e.has_weight(p + "attn_output.bias")) {
         attn_out = add_bias(e, attn_out, p + "attn_output.bias", p + "attn_out_b");
     }
     return attn_out;
 }
 
-}  // namespace blocks
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::blocks

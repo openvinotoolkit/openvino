@@ -36,10 +36,7 @@
 #include "openvino/runtime/properties.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace pass {
+namespace ov::frontend::gguf::pass {
 
 namespace {
 
@@ -196,7 +193,9 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     auto inp_pos = find_parameter(model, "inp_pos");
     auto self_kq_mask = find_parameter(model, "self_kq_mask");
     auto token_len_per_seq = find_parameter(model, "token_len_per_seq");
-    if (!inp_tokens || !inp_pos || !self_kq_mask) {
+    const bool has_recurrent_states = model->get_rt_info().count(gguf_recurrent_states_key()) != 0;
+    const bool recurrent_only = !inp_pos && !self_kq_mask && has_recurrent_states;
+    if (!inp_tokens || (!recurrent_only && !self_kq_mask)) {
         return false;
     }
 
@@ -208,7 +207,10 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     self_correcting_axis_manager.run_passes(model);
 
     // ---- new genai inputs: input_ids / attention_mask / position_ids [b, seq] i64 ----
-    auto input_ids = make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
+    // Recurrent state buffers currently hold one sequence. Keep that constraint explicit.
+    auto input_ids =
+        make_shared<v0::Parameter>(ov::element::i64,
+                                   has_recurrent_states ? ov::PartialShape{1, -1} : ov::PartialShape{-1, -1});
     name_output(input_ids, "input_ids");
     auto attention_mask = make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
     name_output(attention_mask, "attention_mask");
@@ -219,10 +221,17 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // sets it via set_tensor("beam_idx"). Keep that Parameter so its wiring is preserved. Its absence
     // means the model is not stateful, which the genai contract requires.
     auto beam_idx = find_parameter(model, "beam_idx");
-    OPENVINO_ASSERT(beam_idx,
+    OPENVINO_ASSERT(beam_idx || (recurrent_only && !model->get_variables().empty()),
                     "[gguf] AdaptToGenAI: model has no 'beam_idx' input, so it is not stateful. "
                     "Register a make-stateful transformation extension (e.g. "
                     "ov::frontend::gguf::pass::MakeStateful) before converting.");
+    if (!beam_idx) {
+        // GenAI sets beam_idx even for greedy decoding. Pure recurrent models have
+        // one fixed state slot, so keep the single-element input as part of the API.
+        beam_idx = make_shared<v0::Parameter>(ov::element::i32, ov::PartialShape{1});
+        name_output(beam_idx, "beam_idx");
+        model->add_parameters({beam_idx});
+    }
 
     // ---- token_len_per_seq = number of tokens in input_ids -> [1] ----
     // The token count is the ELEMENT COUNT of input_ids, not any single dimension of it. genai feeds
@@ -271,7 +280,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         pos_i32 = make_shared<v0::Tile>(pos_i32, tile_repeats);
     }
     auto pos_4d = make_shared<v1::Reshape>(pos_i32, shape_keep0_1_1_rest, true);
-    inp_pos->output(0).replace(pos_4d->output(0));
+    if (inp_pos)
+        inp_pos->output(0).replace(pos_4d->output(0));
 
     // ---- self_kq_mask [1,1,seq,kv_len] f32: 0 where attended, -inf above causal ----
     // kv_len = attention_mask length (= past + seq). query absolute positions = position_ids[0].
@@ -311,7 +321,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
     auto allowed = make_shared<v1::LessEqual>(k_row, q_pos_col);  // [seq, kv_len] bool
     auto mask_4d = to_mask_4d(allowed);
-    self_kq_mask->output(0).replace(mask_4d->output(0));
+    if (self_kq_mask)
+        self_kq_mask->output(0).replace(mask_4d->output(0));
 
     // Sliding-window mask: for prompts within the window this equals the full causal mask, but
     // once the context (prompt + generated tokens) exceeds it, reusing the causal mask would
@@ -415,7 +426,4 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     return true;
 }
 
-}  // namespace pass
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::pass
