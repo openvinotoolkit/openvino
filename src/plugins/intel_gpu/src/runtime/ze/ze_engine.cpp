@@ -237,6 +237,11 @@ memory_ptr ze_engine::create_hostbuffer_impl(void* cpu_address,
         return std::make_shared<ze::gpu_usm>(this, output_layout, imported_buffer, allocation, nullptr);
     }
 
+    OPENVINO_ASSERT(get_device_info().supports_leo,
+                    "[GPU] Cannot import a host pointer: the device supports neither the native "
+                    "ZE_extension_external_memory_mapping extension nor Level Zero - OpenCL interoperability (LEO), "
+                    "which the OpenCL fallback path requires");
+
     ze_export_ocl_context(ctx, get_device());
     cl_int err = CL_SUCCESS;
     cl_mem_flags flags = access_flags | CL_MEM_USE_HOST_PTR;

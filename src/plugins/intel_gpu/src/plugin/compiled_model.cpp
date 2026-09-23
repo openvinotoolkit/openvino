@@ -9,6 +9,7 @@
 #include "openvino/core/version.hpp"
 #include "openvino/core/memory_util.hpp"
 #include "openvino/util/memory.hpp"
+#include "openvino/util/mmap_object.hpp"
 
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/engine_configuration.hpp"
@@ -278,7 +279,8 @@ void CompiledModel::export_model(std::ostream& model) const {
 
     get_graph(0)->export_model(ob);
     if (!ob.is_encrypted() && m_config.get_enable_zero_copy_cache_load()) {
-        const auto pad = ov::util::align_padding_size(ov::util::min_page_alignment, ob.get_offset());
+        const auto pad =
+            ov::util::align_padding_size(static_cast<size_t>(ov::util::get_system_page_size()), ob.get_offset());
         if (pad > 0) {
             std::vector<uint8_t> zeros(pad, 0);
             ob << cldnn::make_data(zeros.data(), zeros.size());
