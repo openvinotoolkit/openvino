@@ -759,7 +759,7 @@ bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
 
     // The plain-SDPA dequant reads separate scale and zero-point tensors. KV-cache compression is always
     // asymmetric with planar storage on the XMX parts this kernel runs on (kv_cache_compression.cpp),
-    // so any other combination is rejected rather than implemented; sdpa_ocl.cl #errors on it.
+    // so any other combination is rejected rather than implemented; sdpa_ocl_config.cl #errors on it.
     const auto desc = params.typed_desc<scaled_dot_product_attention>();
     if (desc->is_kv_compressed &&
         (desc->quantization_attributes.quantization_type != ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric ||
@@ -1027,7 +1027,7 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // kernel's A operand has lane == head dim, so a byte column is a channel PAIR and no lane-local
     // rearrangement can produce the contiguous (base + lane) a DPAS tile wants. Depth is a contraction
     // axis, so both operands adopt the permuted labelling instead and Q pays for it once, in the SLM
-    // staging. See the PA_K_U4_CHANNEL block in sdpa_ocl.cl.
+    // staging. See the PA_K_U4_CHANNEL block in sdpa_ocl_config.cl.
     jit.make("IS_PA_K_U4", pa_u4_by_channel_tm ? 1 : 0);
     // Paged-attention MIXED: read the keys at/above past_len -- this iteration's NEW tokens -- from the
     // raw f16 K/V inputs (the kernel's Kc/Vc) instead of from the cache pages they were just written
@@ -1185,7 +1185,7 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // messages per k0 iteration against 16 dpas, plus 5952 B of spill from the address arithmetic).
     // The page's data region is contiguous though, so intel_sub_group_block_read_uc16 can take the
     // whole thing in PA_PAGE_COLS messages and land it in the DPAS operand layout with no shuffle --
-    // see the PA_PAGE_* derivation in sdpa_ocl.cl.
+    // see the PA_PAGE_* derivation in sdpa_ocl_config.cl.
     //
     // Conditions, all structural rather than tuned:
     //   row % subgroup_size == 0    a 16-byte column group is what a single read's component covers,
@@ -1417,7 +1417,7 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
             const auto& value_cache_comp_zp = params.input_layouts[data_inputs_num + 3];
             jit.make("KEY_ATTR_ZP_DATA_T", to_ocl_type(key_cache_comp_zp.data_type));
             jit.make("VAL_ATTR_ZP_DATA_T", to_ocl_type(value_cache_comp_zp.data_type));
-            // Only tested for presence (sdpa_ocl.cl #errors without them): supported() admits asymmetric
+            // Only tested for presence (sdpa_ocl_config.cl #errors without them): supported() admits asymmetric
             // compression only, so the zero-point tensors always exist here.
             jit.make("KEY_ZERO_POINTS", 1);
             jit.make("VAL_ZERO_POINTS", 1);
