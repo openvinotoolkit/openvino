@@ -20,11 +20,11 @@ namespace intel_npu {
 class ELFMainScheduleSection final : public ISection {
 public:
     ELFMainScheduleSection(const std::shared_ptr<Graph>& graph,
-                           const std::optional<ov::EncryptionCallbacks>& encryption_callbacks = std::nullopt,
+                           const std::function<std::string(const std::string&)>& encryption_callback = nullptr,
                            const ov::log::Level log_level = ov::log::Level::WARNING);
 
     ELFMainScheduleSection(ov::Tensor&& main_schedule,
-                           const std::optional<ov::EncryptionCallbacks>& encryption_callbacks = std::nullopt,
+                           const std::function<std::string(const std::string&)>& encryption_callback = nullptr,
                            const ov::log::Level log_level = ov::log::Level::WARNING);
 
     std::vector<std::shared_ptr<CREToken>> get_compatibility_requirements_subexpression(
@@ -45,7 +45,7 @@ public:
     static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 
     // TODO can't this happend during `read`, by getting the callbacks from the BlobReader?
-    void decrypt(const ov::EncryptionCallbacks& encryption_callbacks);
+    void decrypt(const std::function<std::string(const std::string&)>& decryption_callback);
 
     std::optional<std::string> get_individual_compatibility_requirements() const override;
 
@@ -55,9 +55,10 @@ private:
      */
     std::variant<std::shared_ptr<Graph>, ov::Tensor> m_graph_or_schedule;
     /**
-     * @brief If available, the decryption callback from here is used when `decrypt()` is called.
+     * @brief Used to encrypt the schedule before writing it if available.
+     * @note Entryption will happen only if this attribute is not null.
      */
-    std::optional<ov::EncryptionCallbacks> m_encryption_callbacks;
+    std::function<std::string(const std::string&)> m_encryption_callback;
 
     Logger m_logger;
 };
@@ -69,11 +70,11 @@ private:
 class ELFInitSchedulesSection final : public ISection {
 public:
     ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph,
-                            const std::optional<ov::EncryptionCallbacks>& encryption_callbacks = std::nullopt,
+                            const std::function<std::string(const std::string&)>& encryption_callback = nullptr,
                             const ov::log::Level log_level = ov::log::Level::WARNING);
 
     ELFInitSchedulesSection(std::vector<ov::Tensor>&& init_schedules,
-                            const std::optional<ov::EncryptionCallbacks>& encryption_callbacks = std::nullopt,
+                            const std::function<std::string(const std::string&)>& encryption_callback = nullptr,
                             const ov::log::Level log_level = ov::log::Level::WARNING);
 
     std::vector<std::shared_ptr<CREToken>> get_compatibility_requirements_subexpression(
@@ -90,7 +91,7 @@ public:
 
     static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 
-    void decrypt(const ov::EncryptionCallbacks& encryption_callbacks);
+    void decrypt(const std::function<std::string(const std::string&)>& decryption_callback);
 
 private:
     /**
@@ -98,9 +99,10 @@ private:
      */
     std::variant<std::shared_ptr<WeightlessGraph>, std::vector<ov::Tensor>> m_graph_or_schedules;
     /**
-     * @brief If available, the decryption callback from here is used when `decrypt()` is called.
+     * @brief Used to encrypt the schedules before writing it if available.
+     * @note Entryption will happen only if this attribute is not null.
      */
-    std::optional<ov::EncryptionCallbacks> m_encryption_callbacks;
+    std::function<std::string(const std::string&)> m_encryption_callback;
 
     std::variant<std::shared_ptr<Graph>, ov::Tensor> m_graph_or_schedule;
 
@@ -113,12 +115,12 @@ private:
 class DynamicScheduleSection final : public ISection {
 public:
     DynamicScheduleSection(const std::shared_ptr<DynamicGraph>& graph,
-                           const std::optional<ov::EncryptionCallbacks>& encryption_callbacks = std::nullopt,
+                           const std::function<std::string(const std::string&)>& encryption_callback = nullptr,
                            const ov::log::Level log_level = ov::log::Level::WARNING);
 
     DynamicScheduleSection(ov::Tensor&& main_schedule,
                            const BlobType blob_type,
-                           const std::optional<ov::EncryptionCallbacks>& encryption_callbacks = std::nullopt,
+                           const std::function<std::string(const std::string&)>& encryption_callback = nullptr,
                            const ov::log::Level log_level = ov::log::Level::WARNING);
 
     std::vector<std::shared_ptr<CREToken>> get_compatibility_requirements_subexpression(
@@ -138,7 +140,7 @@ public:
 
     static std::shared_ptr<ISection> read(BlobReaderInterface& blob_reader);
 
-    void decrypt(const ov::EncryptionCallbacks& encryption_callbacks);
+    void decrypt(const std::function<std::string(const std::string&)>& decryption_callback);
 
     std::optional<std::string> get_individual_compatibility_requirements() const override;
 

@@ -23,37 +23,39 @@ constexpr size_t SIZE_OF_INIT_SCHEDULE_SIZE = sizeof(uint64_t);
 constexpr char LIST_START_DELIMITER = '[';
 constexpr char LIST_END_DELIMITER = ']';
 
-std::optional<ov::EncryptionCallbacks> get_encryption_callbacks_from_config(
+std::function<std::string(const std::string&)> get_encryption_callback_from_config(
     const std::optional<FilteredConfig>& config) {
-    OPENVINO_ASSERT(config.has_value(), "A config object is required to query the encryption callbacks");
+    OPENVINO_ASSERT(config.has_value(), "A config object is required to query the encryption callback");
 
     if (config->has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
         config->get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr) {
-        return config->get<CACHE_ENCRYPTION_CALLBACKS>();
+        return config->get<CACHE_ENCRYPTION_CALLBACKS>().encrypt;
     }
-    return std::nullopt;
+    return nullptr;
 }
 
 }  // namespace
 
 namespace intel_npu {
 
-ELFMainScheduleSection::ELFMainScheduleSection(const std::shared_ptr<Graph>& graph,
-                                               const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
-                                               const ov::log::Level log_level)
+ELFMainScheduleSection::ELFMainScheduleSection(
+    const std::shared_ptr<Graph>& graph,
+    const std::function<std::string(const std::string&)>& encryption_callback,
+    const ov::log::Level log_level)
     : ISection(SectionTypeCode::ELF_MAIN_SCHEDULE),
       m_graph_or_schedule(graph),
-      m_encryption_callbacks(encryption_callbacks),
+      m_encryption_callback(encryption_callback),
       m_logger("ELFMainScheduleSection", log_level) {
     OPENVINO_ASSERT(graph, NULL_GRAPH_MESSAGE);
 }
 
-ELFMainScheduleSection::ELFMainScheduleSection(ov::Tensor&& main_schedule,
-                                               const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
-                                               const ov::log::Level log_level)
+ELFMainScheduleSection::ELFMainScheduleSection(
+    ov::Tensor&& main_schedule,
+    const std::function<std::string(const std::string&)>& encryption_callback,
+    const ov::log::Level log_level)
     : ISection(SectionTypeCode::ELF_MAIN_SCHEDULE),
       m_graph_or_schedule(std::move(main_schedule)),
-      m_encryption_callbacks(encryption_callbacks),
+      m_encryption_callback(encryption_callback),
       m_logger("ELFMainScheduleSection", log_level) {}
 
 std::vector<std::shared_ptr<CREToken>> ELFMainScheduleSection::get_compatibility_requirements_subexpression(
@@ -78,14 +80,12 @@ void ELFMainScheduleSection::write(BlobWriterInterface& writer) {
 
     m_logger.debug("Added %lu padding to offset %lu", padding_size, offset);
 
-    if (!m_encryption_callbacks.has_value()) {
+    if (!m_encryption_callback) {
         (*graph)->export_main_blob(writer.m_stream.get());
         return;
     }
 
     // Encrypt the compiler payload, then write it
-    OPENVINO_ASSERT(m_encryption_callbacks->encrypt, "Missing encryption callback");
-
     std::string encrypted_payload;
     {
         std::string tmp_plain_payload;
@@ -94,7 +94,7 @@ void ELFMainScheduleSection::write(BlobWriterInterface& writer) {
             (*graph)->export_main_blob(tmp_stream);  // +1x blob size
             tmp_plain_payload = tmp_stream.str();    // +2x blob size
         }  // -1x blob size when deallocating temporary stringstream
-        encrypted_payload = m_encryption_callbacks->encrypt(tmp_plain_payload);  // +2x blob size
+        encrypted_payload = m_encryption_callback(tmp_plain_payload);  // +2x blob size
     }  // -1x blob size when deallocating temporary blob string
 
     writer.write_from(encrypted_payload.c_str(), encrypted_payload.size());
@@ -112,11 +112,11 @@ ov::Tensor ELFMainScheduleSection::get_schedule() const {
     return *schedule;
 }
 
-void ELFMainScheduleSection::decrypt(const ov::EncryptionCallbacks& encryption_callbacks) {
+void ELFMainScheduleSection::decrypt(const std::function<std::string(const std::string&)>& decryption_callback) {
     auto* schedule = std::get_if<ov::Tensor>(&m_graph_or_schedule);
     OPENVINO_ASSERT(schedule, INVALID_STATE_MESSAGE);
 
-    utils::decrypt_payload(*schedule, encryption_callbacks, m_logger);
+    utils::decrypt_payload(*schedule, decryption_callback, m_logger);
 }
 
 std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob_reader) {
@@ -143,12 +143,12 @@ std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob
 
         logger.info(NEW_PAGE_ALIGNED_BUFFER_MESSAGE.data(), main_schedule_size);
         return std::make_shared<ELFMainScheduleSection>(std::move(main_schedule),
-                                                        get_encryption_callbacks_from_config(blob_reader.get_config()),
+                                                        get_encryption_callback_from_config(blob_reader.get_config()),
                                                         logger.level());
     }
 
     return std::make_shared<ELFMainScheduleSection>(blob_reader.create_roi_tensor(main_schedule_size),
-                                                    get_encryption_callbacks_from_config(blob_reader.get_config()),
+                                                    get_encryption_callback_from_config(blob_reader.get_config()),
                                                     logger.level());
 }
 
@@ -161,22 +161,24 @@ std::optional<std::string> ELFMainScheduleSection::get_individual_compatibility_
                : std::nullopt;
 }
 
-ELFInitSchedulesSection::ELFInitSchedulesSection(const std::shared_ptr<WeightlessGraph>& weightless_graph,
-                                                 const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
-                                                 const ov::log::Level log_level)
+ELFInitSchedulesSection::ELFInitSchedulesSection(
+    const std::shared_ptr<WeightlessGraph>& weightless_graph,
+    const std::function<std::string(const std::string&)>& encryption_callback,
+    const ov::log::Level log_level)
     : ISection(SectionTypeCode::ELF_INIT_SCHEDULES),
       m_graph_or_schedules(weightless_graph),
-      m_encryption_callbacks(encryption_callbacks),
+      m_encryption_callback(encryption_callback),
       m_logger("ELFInitSchedulesSection", log_level) {
     OPENVINO_ASSERT(weightless_graph, NULL_GRAPH_MESSAGE);
 }
 
-ELFInitSchedulesSection::ELFInitSchedulesSection(std::vector<ov::Tensor>&& init_schedules,
-                                                 const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
-                                                 const ov::log::Level log_level)
+ELFInitSchedulesSection::ELFInitSchedulesSection(
+    std::vector<ov::Tensor>&& init_schedules,
+    const std::function<std::string(const std::string&)>& encryption_callback,
+    const ov::log::Level log_level)
     : ISection(SectionTypeCode::ELF_INIT_SCHEDULES),
       m_graph_or_schedules(std::move(init_schedules)),
-      m_encryption_callbacks(encryption_callbacks),
+      m_encryption_callback(encryption_callback),
       m_logger("ELFInitSchedulesSection", log_level) {}
 
 std::vector<std::shared_ptr<CREToken>> ELFInitSchedulesSection::get_compatibility_requirements_subexpression(
@@ -208,12 +210,10 @@ void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
 
     std::vector<uint64_t> init_sizes = (*weightless_graph)->export_init_blobs(writer.m_stream.get());
 
-    if (!m_encryption_callbacks.has_value()) {
+    if (!m_encryption_callback) {
         init_sizes = (*weightless_graph)->export_init_blobs(writer.m_stream.get());
     } else {
         // Encrypt the compiler payload, then write it
-        OPENVINO_ASSERT(m_encryption_callbacks->encrypt, "Missing encryption callback");
-
         std::string encrypted_payload;
         {
             std::string tmp_plain_payload;
@@ -222,7 +222,7 @@ void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
                 init_sizes = (*weightless_graph)->export_init_blobs(tmp_stream);
                 tmp_plain_payload = tmp_stream.str();  // +2x blob size
             }  // -1x blob size when deallocating temporary stringstream
-            encrypted_payload = m_encryption_callbacks->encrypt(tmp_plain_payload);  // +2x blob size
+            encrypted_payload = m_encryption_callback(tmp_plain_payload);  // +2x blob size
         }  // -1x blob size when deallocating temporary blob string
 
         writer.write_from(encrypted_payload.c_str(), encrypted_payload.size());
@@ -248,12 +248,12 @@ std::vector<ov::Tensor> ELFInitSchedulesSection::get_schedules() const {
     return *schedules;
 }
 
-void ELFInitSchedulesSection::decrypt(const ov::EncryptionCallbacks& encryption_callbacks) {
+void ELFInitSchedulesSection::decrypt(const std::function<std::string(const std::string&)>& decryption_callback) {
     auto* schedules = std::get_if<std::vector<ov::Tensor>>(&m_graph_or_schedules);
     OPENVINO_ASSERT(schedules, INVALID_STATE_MESSAGE);
 
     for (ov::Tensor& schedule : *schedules) {
-        utils::decrypt_payload(schedule, encryption_callbacks, m_logger);
+        utils::decrypt_payload(schedule, decryption_callback, m_logger);
     }
 }
 
@@ -312,24 +312,26 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
     }
 
     return std::make_shared<ELFInitSchedulesSection>(std::move(init_schedules),
-                                                     get_encryption_callbacks_from_config(blob_reader.get_config()),
+                                                     get_encryption_callback_from_config(blob_reader.get_config()),
                                                      logger.level());
 }
 
-DynamicScheduleSection::DynamicScheduleSection(const std::shared_ptr<DynamicGraph>& graph,
-                                               const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
-                                               const ov::log::Level log_level)
+DynamicScheduleSection::DynamicScheduleSection(
+    const std::shared_ptr<DynamicGraph>& graph,
+    const std::function<std::string(const std::string&)>& encryption_callback,
+    const ov::log::Level log_level)
     : ISection(SectionTypeCode::DYNAMIC_SCHEDULE),
-      m_impl(std::dynamic_pointer_cast<Graph>(graph), encryption_callbacks, log_level),
+      m_impl(std::dynamic_pointer_cast<Graph>(graph), encryption_callback, log_level),
       m_blob_type(graph->get_blob_type()),
       m_logger("DynamicScheduleSection", log_level) {}
 
-DynamicScheduleSection::DynamicScheduleSection(ov::Tensor&& main_schedule,
-                                               const BlobType blob_type,
-                                               const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
-                                               const ov::log::Level log_level)
+DynamicScheduleSection::DynamicScheduleSection(
+    ov::Tensor&& main_schedule,
+    const BlobType blob_type,
+    const std::function<std::string(const std::string&)>& encryption_callback,
+    const ov::log::Level log_level)
     : ISection(SectionTypeCode::DYNAMIC_SCHEDULE),
-      m_impl(std::move(main_schedule), encryption_callbacks, log_level),
+      m_impl(std::move(main_schedule), encryption_callback, log_level),
       m_blob_type(blob_type),
       m_logger("DynamicScheduleSection", log_level) {}
 
@@ -360,8 +362,8 @@ BlobType DynamicScheduleSection::get_blob_type() const {
     return m_blob_type;
 }
 
-void DynamicScheduleSection::decrypt(const ov::EncryptionCallbacks& encryption_callbacks) {
-    m_impl.decrypt(encryption_callbacks);
+void DynamicScheduleSection::decrypt(const std::function<std::string(const std::string&)>& decryption_callback) {
+    m_impl.decrypt(decryption_callback);
 }
 
 std::shared_ptr<ISection> DynamicScheduleSection::read(BlobReaderInterface& blob_reader) {
@@ -374,7 +376,7 @@ std::shared_ptr<ISection> DynamicScheduleSection::read(BlobReaderInterface& blob
     return std::make_shared<DynamicScheduleSection>(
         std::dynamic_pointer_cast<ELFMainScheduleSection>(ELFMainScheduleSection::read(blob_reader))->get_schedule(),
         blob_type,
-        get_encryption_callbacks_from_config(blob_reader.get_config()),
+        get_encryption_callback_from_config(blob_reader.get_config()),
         blob_reader.get_log_level());
 }
 

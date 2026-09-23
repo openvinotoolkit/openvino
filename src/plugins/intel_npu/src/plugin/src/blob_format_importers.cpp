@@ -192,7 +192,7 @@ private:
             "encrypted or not.");
 
         m_logger.debug(DECRYPTING_PAYLOAD_MESSAGE.data());
-        utils::decrypt_payload(m_main_schedule, m_config.get<CACHE_ENCRYPTION_CALLBACKS>(), m_logger);
+        utils::decrypt_payload(m_main_schedule, m_config.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt, m_logger);
     }
 
     ov::Tensor extract_main_schedule() const override {
@@ -273,28 +273,29 @@ public:
         // Register the compiler schedules
         const bool encryption_enabled = m_config.has(CACHE_ENCRYPTION_CALLBACKS::key().data()) &&
                                         m_config.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr;
-        const std::optional<ov::EncryptionCallbacks> encryption_callbacks =
-            encryption_enabled ? std::make_optional<>(m_config.get<CACHE_ENCRYPTION_CALLBACKS>()) : std::nullopt;
+        const std::function<std::string(const std::string&)> encryption_callback =
+            encryption_enabled ? m_config.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt : nullptr;
 
         switch (m_graph->get_kind()) {
         case GraphKind::Dynamic: {
             auto dynamic_graph = std::dynamic_pointer_cast<DynamicGraph>(m_graph);
             OPENVINO_ASSERT(dynamic_graph, GRAPH_CLASS_MISMATCH_MESSAGE);
             blob_writer->register_section(
-                std::make_shared<DynamicScheduleSection>(dynamic_graph, encryption_callbacks, m_logger.level()));
+                std::make_shared<DynamicScheduleSection>(dynamic_graph, encryption_callback, m_logger.level()));
             break;
         }
         case GraphKind::Weightless: {
             auto weightless_graph = std::dynamic_pointer_cast<WeightlessGraph>(m_graph);
             OPENVINO_ASSERT(weightless_graph, GRAPH_CLASS_MISMATCH_MESSAGE);
             blob_writer->register_section(
-                std::make_shared<ELFInitSchedulesSection>(weightless_graph, encryption_callbacks, m_logger.level()));
+                std::make_shared<ELFInitSchedulesSection>(weightless_graph, encryption_callback, m_logger.level()));
+            // break omitted on purpose, since in the weightless case we also need to register a main schedule
         }
         case GraphKind::Weightful: {
             auto graph = std::dynamic_pointer_cast<Graph>(m_graph);
             OPENVINO_ASSERT(graph, GRAPH_CLASS_MISMATCH_MESSAGE);
             blob_writer->register_section(
-                std::make_shared<ELFMainScheduleSection>(graph, encryption_callbacks, m_logger.level()));
+                std::make_shared<ELFMainScheduleSection>(graph, encryption_callback, m_logger.level()));
             break;
         }
         default: {
@@ -345,7 +346,7 @@ private:
         OPENVINO_ASSERT(!is_null_decryption, "Blob is encrypted, but no decryption callback was provided!");
 
         m_logger.debug(DECRYPTING_PAYLOAD_MESSAGE.data());
-        utils::decrypt_payload(m_compiler_payload, m_config.get<CACHE_ENCRYPTION_CALLBACKS>(), m_logger);
+        utils::decrypt_payload(m_compiler_payload, m_config.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt, m_logger);
     }
 
     // TODO check blob ownership management
@@ -535,13 +536,14 @@ private:
                                           m_config.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt != nullptr);
         OPENVINO_ASSERT(!is_null_decryption, "Blob is encrypted, but no decryption callback was provided!");
 
-        const ov::EncryptionCallbacks encryption_callbacks = m_config.get<CACHE_ENCRYPTION_CALLBACKS>();
+        const std::function<std::string(const std::string&)> decryption_callback =
+            m_config.get<CACHE_ENCRYPTION_CALLBACKS>().decrypt;
 
         auto dynamic_schedule_section = std::dynamic_pointer_cast<DynamicScheduleSection>(
             m_blob_reader.retrieve_any_section(SectionTypeCode::DYNAMIC_SCHEDULE));
         if (dynamic_schedule_section) {
             m_logger.debug("Decrypting the dynamic compiler schedule");
-            dynamic_schedule_section->decrypt(encryption_callbacks);
+            dynamic_schedule_section->decrypt(decryption_callback);
             return;
         }
 
@@ -550,13 +552,13 @@ private:
         OPENVINO_ASSERT(main_schedule_section, MISSING_MAIN_SCHEDULE_MESSAGE);
 
         m_logger.debug("Decrypting the compiler main schedule");
-        main_schedule_section->decrypt(encryption_callbacks);
+        main_schedule_section->decrypt(decryption_callback);
 
         auto init_schedules_section = std::dynamic_pointer_cast<ELFInitSchedulesSection>(
             m_blob_reader.retrieve_any_section(SectionTypeCode::ELF_INIT_SCHEDULES));
         if (init_schedules_section) {
             m_logger.debug("Decrypting the compiler init schedules");
-            init_schedules_section->decrypt(encryption_callbacks);
+            init_schedules_section->decrypt(decryption_callback);
         }
     }
 
