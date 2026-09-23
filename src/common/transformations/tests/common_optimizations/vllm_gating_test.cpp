@@ -3,8 +3,6 @@
 //
 // Covers the "vllm_model" rt_info gate around NormalizeVLLMRoPE: other
 // CommonOptimizations callers must not see it fire.
-#include "transformations/common_optimizations/common_optimizations.hpp"
-
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
@@ -14,6 +12,7 @@
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/opsets/opset1_decl.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/common_optimizations.hpp"
 
 namespace {
 

@@ -9,10 +9,10 @@
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/gelu.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/slice.hpp"
-#include "openvino/op/gelu.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/swish.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -31,7 +31,8 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
     auto callback = [=](Matcher& m) -> bool {
         auto root = m.get_match_root();
         auto mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(root);
-        if (!mul) return false;
+        if (!mul)
+            return false;
 
         std::shared_ptr<ov::op::v4::Swish> swish;
         std::shared_ptr<ov::op::v7::Gelu> gelu;
@@ -42,16 +43,31 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
         for (size_t i = 0; i < 2; ++i) {
             auto sw = std::dynamic_pointer_cast<ov::op::v4::Swish>(mul->get_input_node_shared_ptr(i));
             auto ge = std::dynamic_pointer_cast<ov::op::v7::Gelu>(mul->get_input_node_shared_ptr(i));
-            std::shared_ptr<ov::Node> act = sw ? std::static_pointer_cast<ov::Node>(sw)
-                                                : std::static_pointer_cast<ov::Node>(ge);
-            if (!act) continue;
+            std::shared_ptr<ov::Node> act =
+                sw ? std::static_pointer_cast<ov::Node>(sw) : std::static_pointer_cast<ov::Node>(ge);
+            if (!act)
+                continue;
             auto other = mul->input_value(1 - i);
             auto sl = std::dynamic_pointer_cast<ov::op::v8::Slice>(other.get_node_shared_ptr());
             auto vs = std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(other.get_node_shared_ptr());
-            if (sl) { swish = sw; gelu = ge; activation = act; up_slice = sl; break; }
-            if (vs) { swish = sw; gelu = ge; activation = act; up_vsplit = vs; up_out = other; break; }
+            if (sl) {
+                swish = sw;
+                gelu = ge;
+                activation = act;
+                up_slice = sl;
+                break;
+            }
+            if (vs) {
+                swish = sw;
+                gelu = ge;
+                activation = act;
+                up_vsplit = vs;
+                up_out = other;
+                break;
+            }
         }
-        if (!activation || (!up_slice && !up_vsplit)) return false;
+        if (!activation || (!up_slice && !up_vsplit))
+            return false;
         auto _make_act = [&](const ov::Output<ov::Node>& in) -> std::shared_ptr<ov::Node> {
             if (gelu) {
                 return std::make_shared<ov::op::v7::Gelu>(in, gelu->get_approximation_mode());
@@ -64,33 +80,35 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
         if (up_vsplit) {
             auto sw_in = activation->input_value(0);
             auto gate_vs = std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(sw_in.get_node_shared_ptr());
-            if (!gate_vs || gate_vs.get() != up_vsplit.get()) return false;
+            if (!gate_vs || gate_vs.get() != up_vsplit.get())
+                return false;
 
             auto sl_const = std::dynamic_pointer_cast<ov::op::v0::Constant>(up_vsplit->get_input_node_shared_ptr(2));
-            if (!sl_const) return false;
+            if (!sl_const)
+                return false;
             auto et = sl_const->get_element_type();
             auto shp = sl_const->get_shape();
             bool lens_ok = (et == ov::element::i32 && shp.size() == 1 && shp[0] == 2);
 
-            auto axis_const_chk = std::dynamic_pointer_cast<ov::op::v0::Constant>(up_vsplit->get_input_node_shared_ptr(1));
+            auto axis_const_chk =
+                std::dynamic_pointer_cast<ov::op::v0::Constant>(up_vsplit->get_input_node_shared_ptr(1));
             bool axis_is_neg_one = false;
             if (axis_const_chk) {
                 auto av = axis_const_chk->cast_vector<int64_t>();
-                if (!av.empty() && av[0] == -1) axis_is_neg_one = true;
+                if (!av.empty() && av[0] == -1)
+                    axis_is_neg_one = true;
             }
 
             // Detect a narrow-Convert wedged between the gate_up MatMul and
             // this VariadicSplit, and bypass it so the f32 pattern matches.
             ov::Output<ov::Node> new_vs_data = up_vsplit->input_value(0);
-            auto pre_cvt = std::dynamic_pointer_cast<ov::op::v0::Convert>(
-                new_vs_data.get_node_shared_ptr());
+            auto pre_cvt = std::dynamic_pointer_cast<ov::op::v0::Convert>(new_vs_data.get_node_shared_ptr());
             bool bypassed_pre_cvt = false;
             if (pre_cvt) {
                 auto src = pre_cvt->input_value(0);
                 auto src_t = src.get_element_type();
                 auto dst_t = pre_cvt->get_destination_type();
-                if ((dst_t == ov::element::bf16 || dst_t == ov::element::f16) &&
-                    src_t == ov::element::f32) {
+                if ((dst_t == ov::element::bf16 || dst_t == ov::element::f16) && src_t == ov::element::f32) {
                     new_vs_data = src;
                     bypassed_pre_cvt = true;
                 }
@@ -104,57 +122,58 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
             if (bypassed_pre_cvt) {
                 // Walk pre-cvt (which we bypassed above) -> MatMul -> weight
                 // Convert -> weight Constant.
-                auto mm = std::dynamic_pointer_cast<ov::op::v0::MatMul>(
-                    pre_cvt->input_value(0).get_node_shared_ptr());
+                auto mm = std::dynamic_pointer_cast<ov::op::v0::MatMul>(pre_cvt->input_value(0).get_node_shared_ptr());
                 if (mm) {
-                    auto wcvt = std::dynamic_pointer_cast<ov::op::v0::Convert>(
-                        mm->input_value(1).get_node_shared_ptr());
+                    auto wcvt =
+                        std::dynamic_pointer_cast<ov::op::v0::Convert>(mm->input_value(1).get_node_shared_ptr());
                     if (wcvt) {
-                        auto wcst = std::dynamic_pointer_cast<ov::op::v0::Constant>(
-                            wcvt->input_value(0).get_node_shared_ptr());
+                        auto wcst =
+                            std::dynamic_pointer_cast<ov::op::v0::Constant>(wcvt->input_value(0).get_node_shared_ptr());
                         if (wcst && wcst->get_element_type() == ov::element::bf16 &&
                             wcvt->get_destination_type() == ov::element::f32) {
                             // Static bf16 -> fp16 recast, lossless in range
                             // for MLP weights.
                             auto vals = wcst->cast_vector<float>();
-                            new_gate_up_weight_const = ov::op::v0::Constant::create(
-                                ov::element::f16, wcst->get_shape(), vals);
+                            new_gate_up_weight_const =
+                                ov::op::v0::Constant::create(ov::element::f16, wcst->get_shape(), vals);
                             old_weight_cvt = wcvt;
                         }
                     }
                 }
             }
 
-            if (lens_ok && axis_is_neg_one && !bypassed_pre_cvt) return false;
+            if (lens_ok && axis_is_neg_one && !bypassed_pre_cvt)
+                return false;
 
             auto vals = sl_const->cast_vector<int64_t>();
-            if (vals.size() != 2) return false;
+            if (vals.size() != 2)
+                return false;
 
-            auto axis_const_new = ov::op::v0::Constant::create(
-                ov::element::i32, ov::Shape{}, {static_cast<int32_t>(-1)});
-            auto split_lengths_new = ov::op::v0::Constant::create(
-                ov::element::i32, ov::Shape{2},
-                {static_cast<int32_t>(vals[0]), static_cast<int32_t>(vals[1])});
+            auto axis_const_new =
+                ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {static_cast<int32_t>(-1)});
+            auto split_lengths_new =
+                ov::op::v0::Constant::create(ov::element::i32,
+                                             ov::Shape{2},
+                                             {static_cast<int32_t>(vals[0]), static_cast<int32_t>(vals[1])});
             // If we rewrote the weight, redirect the MatMul's weight Convert
             // to the new f16 Constant to match intel_cpu's expected pattern.
             if (new_gate_up_weight_const && old_weight_cvt) {
-                auto new_wcvt = std::make_shared<ov::op::v0::Convert>(
-                    new_gate_up_weight_const, ov::element::f32);
+                auto new_wcvt = std::make_shared<ov::op::v0::Convert>(new_gate_up_weight_const, ov::element::f32);
                 for (auto& c : old_weight_cvt->output(0).get_target_inputs()) {
                     c.replace_source_output(new_wcvt->output(0));
                 }
             }
 
-            auto new_vsplit = std::make_shared<ov::op::v1::VariadicSplit>(
-                new_vs_data, axis_const_new, split_lengths_new);
+            auto new_vsplit =
+                std::make_shared<ov::op::v1::VariadicSplit>(new_vs_data, axis_const_new, split_lengths_new);
 
             size_t gate_idx = sw_in.get_index();
             size_t up_idx = up_out.get_index();
-            if (gate_idx == up_idx) up_idx = 1 - gate_idx;
+            if (gate_idx == up_idx)
+                up_idx = 1 - gate_idx;
 
             auto new_swish = _make_act(new_vsplit->output(gate_idx));
-            auto new_mul = std::make_shared<ov::op::v1::Multiply>(
-                new_swish->output(0), new_vsplit->output(up_idx));
+            auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_swish->output(0), new_vsplit->output(up_idx));
             new_mul->set_friendly_name(mul->get_friendly_name());
             ov::copy_runtime_info({up_vsplit, activation, mul}, {new_vsplit, new_swish, new_mul});
             ov::replace_node(mul, new_mul);
@@ -164,7 +183,8 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
             std::shared_ptr<ov::op::v0::MatMul> down_proj_mm;
             for (auto& consumer : new_mul->output(0).get_target_inputs()) {
                 auto cvt = ov::as_type<ov::op::v0::Convert>(consumer.get_node());
-                if (!cvt) continue;
+                if (!cvt)
+                    continue;
                 auto cvt_src = new_mul->output(0).get_element_type();
                 auto cvt_dst = cvt->get_destination_type();
                 // Only elide a same-type (redundant) Convert; leave a
@@ -178,16 +198,14 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
 
             // If the source is rank-2, MLPFusion needs rank-3: wrap the
             // interior chain in Unsqueeze/Squeeze; other consumers see rank-2.
-            auto gate_up_mm_walk = std::dynamic_pointer_cast<ov::op::v0::MatMul>(
-                new_vs_data.get_node_shared_ptr());
+            auto gate_up_mm_walk = std::dynamic_pointer_cast<ov::op::v0::MatMul>(new_vs_data.get_node_shared_ptr());
             if (gate_up_mm_walk) {
                 auto shared_src = gate_up_mm_walk->input_value(0);
                 auto src_ps_rk2 = shared_src.get_partial_shape();
                 if (src_ps_rk2.rank().is_static() && src_ps_rk2.rank().get_length() == 2) {
                     // Locate down_proj MatMul reached from new_mul (possibly
                     // through an intermediate Convert).
-                    auto walk_to_matmul = [](const ov::Output<ov::Node>& out)
-                            -> std::shared_ptr<ov::op::v0::MatMul> {
+                    auto walk_to_matmul = [](const ov::Output<ov::Node>& out) -> std::shared_ptr<ov::op::v0::MatMul> {
                         for (auto& consumer : out.get_target_inputs()) {
                             auto node = consumer.get_node()->shared_from_this();
                             if (auto mm = std::dynamic_pointer_cast<ov::op::v0::MatMul>(node)) {
@@ -207,20 +225,17 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
                     down_proj_mm = walk_to_matmul(new_mul->output(0));
                     if (down_proj_mm) {
                         auto out_ps_rk2 = down_proj_mm->output(0).get_partial_shape();
-                        if (out_ps_rk2.rank().is_static() &&
-                            out_ps_rk2.rank().get_length() == 2) {
-                            auto zero_axis = ov::op::v0::Constant::create(
-                                ov::element::i32, ov::Shape{1}, {0});
-                            auto unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(
-                                shared_src, zero_axis);
+                        if (out_ps_rk2.rank().is_static() && out_ps_rk2.rank().get_length() == 2) {
+                            auto zero_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
+                            auto unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(shared_src, zero_axis);
                             gate_up_mm_walk->input(0).replace_source_output(unsqueezed->output(0));
 
-                            auto zero_axis_sq = ov::op::v0::Constant::create(
-                                ov::element::i32, ov::Shape{1}, {0});
-                            auto squeezed = std::make_shared<ov::op::v0::Squeeze>(
-                                down_proj_mm->output(0), zero_axis_sq);
+                            auto zero_axis_sq = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{1}, {0});
+                            auto squeezed =
+                                std::make_shared<ov::op::v0::Squeeze>(down_proj_mm->output(0), zero_axis_sq);
                             for (auto& c : down_proj_mm->output(0).get_target_inputs()) {
-                                if (c.get_node() == squeezed.get()) continue;
+                                if (c.get_node() == squeezed.get())
+                                    continue;
                                 c.replace_source_output(squeezed->output(0));
                             }
                             ov::copy_runtime_info(ov::NodeVector{gate_up_mm_walk}, unsqueezed);
@@ -234,62 +249,75 @@ NormalizeVLLMMLP::NormalizeVLLMMLP() {
 
         // Branch A: two Slice ops on the same source.
         auto gate_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(activation->get_input_node_shared_ptr(0));
-        if (!gate_slice) return false;
+        if (!gate_slice)
+            return false;
         auto gate_src = gate_slice->input_value(0);
         auto up_src = up_slice->input_value(0);
-        if (gate_src != up_src) return false;
+        if (gate_src != up_src)
+            return false;
 
         auto src_ps = gate_src.get_partial_shape();
-        if (!src_ps.rank().is_static()) return false;
+        if (!src_ps.rank().is_static())
+            return false;
         auto r = src_ps.rank().get_length();
-        if (r < 1) return false;
-        if (!src_ps[r - 1].is_static()) return false;
+        if (r < 1)
+            return false;
+        if (!src_ps[r - 1].is_static())
+            return false;
         int64_t full = src_ps[r - 1].get_length();
-        if (full <= 0 || full % 2 != 0) return false;
+        if (full <= 0 || full % 2 != 0)
+            return false;
         int64_t half = full / 2;
 
-        auto check_slice = [&](const std::shared_ptr<ov::op::v8::Slice>& s,
-                               int64_t expect_start, int64_t expect_stop) -> bool {
-            if (s->get_input_size() < 5) return false;
+        auto check_slice =
+            [&](const std::shared_ptr<ov::op::v8::Slice>& s, int64_t expect_start, int64_t expect_stop) -> bool {
+            if (s->get_input_size() < 5)
+                return false;
             auto starts = std::dynamic_pointer_cast<ov::op::v0::Constant>(s->get_input_node_shared_ptr(1));
-            auto stops  = std::dynamic_pointer_cast<ov::op::v0::Constant>(s->get_input_node_shared_ptr(2));
-            auto steps  = std::dynamic_pointer_cast<ov::op::v0::Constant>(s->get_input_node_shared_ptr(3));
-            auto axes   = std::dynamic_pointer_cast<ov::op::v0::Constant>(s->get_input_node_shared_ptr(4));
-            if (!starts || !stops || !steps || !axes) return false;
+            auto stops = std::dynamic_pointer_cast<ov::op::v0::Constant>(s->get_input_node_shared_ptr(2));
+            auto steps = std::dynamic_pointer_cast<ov::op::v0::Constant>(s->get_input_node_shared_ptr(3));
+            auto axes = std::dynamic_pointer_cast<ov::op::v0::Constant>(s->get_input_node_shared_ptr(4));
+            if (!starts || !stops || !steps || !axes)
+                return false;
             auto sv = starts->cast_vector<int64_t>();
             auto ev = stops->cast_vector<int64_t>();
             auto stv = steps->cast_vector<int64_t>();
             auto av = axes->cast_vector<int64_t>();
-            if (sv.size() != 1 || ev.size() != 1 || stv.size() != 1 || av.size() != 1) return false;
-            if (stv[0] != 1) return false;
-            int64_t ax = av[0]; if (ax < 0) ax += r;
-            if (ax != r - 1) return false;
+            if (sv.size() != 1 || ev.size() != 1 || stv.size() != 1 || av.size() != 1)
+                return false;
+            if (stv[0] != 1)
+                return false;
+            int64_t ax = av[0];
+            if (ax < 0)
+                ax += r;
+            if (ax != r - 1)
+                return false;
             int64_t stop_val = ev[0];
-            if (stop_val > full) stop_val = full;
-            if (sv[0] != expect_start || stop_val != expect_stop) return false;
+            if (stop_val > full)
+                stop_val = full;
+            if (sv[0] != expect_start || stop_val != expect_stop)
+                return false;
             return true;
         };
 
         bool order_normal = check_slice(gate_slice, 0, half) && check_slice(up_slice, half, full);
-        bool order_swapped = !order_normal &&
-                             check_slice(gate_slice, half, full) && check_slice(up_slice, 0, half);
-        if (!order_normal && !order_swapped) return false;
+        bool order_swapped = !order_normal && check_slice(gate_slice, half, full) && check_slice(up_slice, 0, half);
+        if (!order_normal && !order_swapped)
+            return false;
 
-        auto axis_const = ov::op::v0::Constant::create(
-            ov::element::i32, ov::Shape{}, {static_cast<int32_t>(-1)});
-        auto split_lengths = ov::op::v0::Constant::create(
-            ov::element::i32, ov::Shape{2},
-            {static_cast<int32_t>(half), static_cast<int32_t>(half)});
+        auto axis_const = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {static_cast<int32_t>(-1)});
+        auto split_lengths = ov::op::v0::Constant::create(ov::element::i32,
+                                                          ov::Shape{2},
+                                                          {static_cast<int32_t>(half), static_cast<int32_t>(half)});
         auto vsplit = std::make_shared<ov::op::v1::VariadicSplit>(gate_src, axis_const, split_lengths);
 
         size_t gate_idx = order_normal ? 0 : 1;
-        size_t up_idx   = order_normal ? 1 : 0;
+        size_t up_idx = order_normal ? 1 : 0;
 
         auto new_swish = _make_act(vsplit->output(gate_idx));
         auto new_mul = std::make_shared<ov::op::v1::Multiply>(new_swish->output(0), vsplit->output(up_idx));
         new_mul->set_friendly_name(mul->get_friendly_name());
-        ov::copy_runtime_info({gate_slice, up_slice, activation, mul},
-                              {vsplit, new_swish, new_mul});
+        ov::copy_runtime_info({gate_slice, up_slice, activation, mul}, {vsplit, new_swish, new_mul});
         ov::replace_node(mul, new_mul);
         return true;
     };
