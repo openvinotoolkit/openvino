@@ -182,6 +182,10 @@ class paged_attention_kv_head_size_uses_sdpa_ocl_test : public PagedAttentionTes
 TEST_P(paged_attention_kv_head_size_uses_sdpa_ocl_test, dispatches_sdpa_ocl) {
     if (!tests::get_test_engine().get_device_info().supports_immad)
         GTEST_SKIP() << "sdpa_ocl requires DPAS/XMX support";
+    // sdpa_ocl is Xe2+ only; on pre-Xe2 DPAS parts (xe_hpg/xe_hpc) the k != v MIXED cases fall back
+    // to sdpa_micro / pa_multi_token, so there is no sdpa_ocl kernel to assert on.
+    if (tests::get_test_engine().get_device_info().arch < cldnn::gpu_arch::xe2)
+        GTEST_SKIP() << "sdpa_ocl is only selected on Xe2 and later";
     if (!sdpa_ocl_selected())
         GTEST_SKIP() << "TEST_USE_SDPA_OCL=0 selects sdpa_micro, so there is no sdpa_ocl kernel to assert on";
 
