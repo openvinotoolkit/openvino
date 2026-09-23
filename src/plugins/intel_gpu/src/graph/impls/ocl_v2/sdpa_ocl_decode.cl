@@ -264,29 +264,12 @@
 // destination and just warms the cache. The measured elasticities say this is where the time goes --
 // doubling K/V traffic costs 23% while cutting instructions 6.8% and SLM 86% bought only 1.2%, and
 // every occupancy knob (SG_PER_WG 2/4/16, 256 GRF) was neutral or worse.
-// sdpa_ocl.cl uses the same builtin for its prefill V blocks but explicitly excludes PA decode
-// (`!(IS_PAGED_ATTENTION && !IS_PREFILL)`), so this path has never been exercised here.
-// Gated per side because the two turned out to be opposite bets. Each prefetch costs ~8 instructions
-// of a64 address and descriptor setup (16 K + 16 V prefetches took instCount 1202 -> 1469, mostly
-// mov), and on llama-3.1-8b head 128 / M=4 that bought:
-//   K only : 3.6% SLOWER  -- the KQ loop already runs KEY_GROUPS independent DPAS chains over a
-//                            single 4 KB page, so its loads were pipelined already. Default OFF.
-//   V only : 2.1% FASTER  -- S*V walks 16 different pages with one accumulator chain, so its loads
-//                            were the ones exposing latency. Default ON.
-//   both   : 0.8% slower  -- K's loss swamps V's win.
-// Kept as toggles rather than deleting the K path, so the negative result stays recorded.
-// PREFETCH_DIST 0 disables both.
-#define USE_PREFETCH_K (PREFETCH_DIST > 0 && PREFETCH_K)
-#define USE_PREFETCH_V (PREFETCH_DIST > 0 && PREFETCH_V)
-
-// Indexed by READ, not by tile: x is 8 dwords per read for both precisions (see the K read below),
-// so the descriptor arithmetic is dtype-independent and sizeof(INPUT1_TYPE) covers the rest.
-#define PREFETCH_K_TILE(page_off, read)                                                   \
-    intel_sub_group_2d_block_prefetch_32b_16r8x1c((__global void*)(key_cache + (page_off)), \
-                                                  K_ROW_BYTES,                              \
-                                                  PAGED_ATTENTION_BLOCK_SIZE,               \
-                                                  K_ROW_BYTES,                              \
-                                                  (int2)((read) * 8, 0))
+// Only V is prefetched. Each prefetch costs ~8 instructions of a64 address and descriptor setup, and
+// on llama-3.1-8b head 128 / M=4 prefetching V was 2.1% FASTER (S*V walks 16 different pages with one
+// accumulator chain, so its loads were the ones exposing latency) while prefetching K was 3.6% SLOWER
+// (the KQ loop already runs KEY_GROUPS independent DPAS chains over one 4 KB page). PREFETCH_DIST 0
+// disables it.
+#define USE_PREFETCH_V (PREFETCH_DIST > 0)
 
 #if IS_KV_COMPRESSED
 // Matches the 8-bit VNNI-transform read below. x is in elements (bytes here), and a multiple of
@@ -341,17 +324,13 @@
 #    error "sdpa_ocl_decode.cl: SV_KEY_SGS must divide the partition's chunk count"
 #endif
 #if PAGED_ATTENTION_BLOCK_SIZE != SUBGROUP_SIZE
-// S*V walks the partition one chunk at a time and treats each chunk as exactly one cache page.
-#    error "sdpa_ocl_decode.cl: an S*V chunk must be one page"
+// A key group and an S*V chunk are each exactly one cache page: that is what lets the page index be
+// hoisted out of the d loop and lets a 16-row block read cover exactly the group.
+#    error "sdpa_ocl_decode.cl: PAGED_ATTENTION_BLOCK_SIZE must equal SUBGROUP_SIZE"
 #endif
 #if CHUNKS > SUBGROUP_SIZE
 // The partition's page table is held one chunk per lane so it can be read in a single message.
 #    error "sdpa_ocl_decode.cl: the partition must not span more chunks than a subgroup has lanes"
-#endif
-#if PAGED_ATTENTION_BLOCK_SIZE != SUBGROUP_SIZE
-// A key group is one cache page: that is what lets the page index be hoisted out of the d loop
-// and lets a 16-row block read cover exactly the group.
-#    error "sdpa_ocl_decode.cl: PAGED_ATTENTION_BLOCK_SIZE must equal SUBGROUP_SIZE"
 #endif
 #if SEQ_LEN_PARTITION_SIZE % (SG_PER_WG * SUBGROUP_SIZE) != 0
 #    error "sdpa_ocl_decode.cl: the partition must split evenly into whole key groups per subgroup"
@@ -616,15 +595,6 @@ KERNEL(sdpa_ocl_decode)(
 #    endif
 #endif
 
-#if USE_PREFETCH_K && USE_2D_BLOCK_IO_K
-    // Prime the pipeline before the Q read below, so the Q load's own latency is spent usefully.
-    unroll_for(uint r = 0; r < (PREFETCH_DIST < K_READS ? PREFETCH_DIST : K_READS); ++r) {
-        unroll_for(uint g = 0; g < KEY_GROUPS; ++g) {
-            PREFETCH_K_TILE(k_page_off[g], r);
-        }
-    }
-#endif
-
     // ---- KQ. The K_TILES accumulations into one s[g] are serially dependent, so the g loop is
     // innermost: KEY_GROUPS independent DPAS chains interleave and hide each other's latency.
     // One DPAS per (tile, g) regardless of Q_PER_WG -- M rides in the repeat count, and the loaded K
@@ -635,14 +605,6 @@ KERNEL(sdpa_ocl_decode)(
     }
 
     unroll_for(uint r = 0; r < K_READS; ++r) {
-#if USE_PREFETCH_K && USE_2D_BLOCK_IO_K
-        // Compile-time bound, so the guard costs nothing and the tail simply stops prefetching.
-        if (r + PREFETCH_DIST < K_READS) {
-            unroll_for(uint g = 0; g < KEY_GROUPS; ++g) {
-                PREFETCH_K_TILE(k_page_off[g], r + PREFETCH_DIST);
-            }
-        }
-#endif
         // One A operand per tile the read covers. K_TILES_PER_READ is 1 everywhere except the i8
         // block-read path.
         A_VEC_TYPE a[K_TILES_PER_READ];
@@ -847,12 +809,12 @@ KERNEL(sdpa_ocl_decode)(
     }
 
     // Which head-dim tiles and which chunks this subgroup will take in S*V. Hoisted above the
-    // barrier so the wait can be spent prefetching the first V tiles instead of idling -- the same
-    // arrive/prefetch/wait split sdpa_ocl.cl:817-828 uses for its prefill V blocks.
+    // barrier so the wait can be spent prefetching the first V tiles instead of idling (split
+    // arrive/prefetch/wait).
     const uint dim_slot = sgid % SV_DIM_SGS;
     const uint key_slot = sgid / SV_DIM_SGS;
 
-#if USE_PREFETCH_V && USE_2D_BLOCK_IO_V && PREFETCH_AT_BARRIER
+#if USE_PREFETCH_V && USE_2D_BLOCK_IO_V
     intel_work_group_barrier_arrive(CLK_LOCAL_MEM_FENCE);
     unroll_for(uint i = 0; i < (PREFETCH_DIST < CHUNKS_PER_KEY_SG ? PREFETCH_DIST : CHUNKS_PER_KEY_SG); ++i) {
         const size_t pf_page = (size_t)sub_group_broadcast(my_page, key_slot * CHUNKS_PER_KEY_SG + i);
