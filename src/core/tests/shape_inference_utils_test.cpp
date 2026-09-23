@@ -29,11 +29,7 @@ class IsSizePreservingSliceTest : public testing::TestWithParam<IsSizePreserving
 // True only if the slice yields exactly L elements for every length L within the dimension interval and every
 // start/stop value within the bounds.
 TEST_P(IsSizePreservingSliceTest, is_size_preserving_slice) {
-    const auto& dim = std::get<0>(GetParam());
-    const auto& start = std::get<1>(GetParam());
-    const auto& stop = std::get<2>(GetParam());
-    const auto step = std::get<3>(GetParam());
-    const auto expected = std::get<4>(GetParam());
+    const auto& [dim, start, stop, step, expected] = GetParam();
 
     EXPECT_EQ(ov::op::slice::is_size_preserving_slice(dim, start, stop, step), expected);
 }
