@@ -423,6 +423,28 @@ TEST(PreComputeTest, RotaryNdimsMatchesFactorSizeAcceptsLargestNonOverflowingFac
     EXPECT_FALSE(LongRopeCosSin::rotary_ndims_matches_factor_size(1u, largest_safe_factor_size));
 }
 
+// The table-element-count check (regimes * max_len * rotary_ndims) is a separate
+// overflow guard from rotary_ndims_matches_factor_size, and it is only load-bearing for
+// has_long=true: `regimes * max_len` is computed in rebuild_tables() itself (regimes=2)
+// and wraps to a small value *before* ov::Tensor ever sees the true size, so its own
+// internal overflow-safe allocation check cannot catch this case (unlike has_long=false,
+// where regimes=1 keeps max_len unwrapped and Tensor's own check would already reject
+// it). rotary_ndims=2 keeps the factor vectors one element long, so no oversized
+// allocation is ever attempted - the assert must fire first.
+TEST(PreComputeTest, RebuildTablesRejectsMaxLenThatOverflowsTableElementCountWithLongRegime) {
+    using ov::npuw::patterns::pre_compute::LongRopeCosSin;
+    constexpr size_t max = std::numeric_limits<size_t>::max();
+
+    LongRopeCosSin tables;
+    tables.rotary_ndims = 2;
+    tables.has_long = true;
+    tables.inv_freq_short = {1.0f};  // consistent: 2 * 1 == rotary_ndims
+    tables.inv_freq_long = {2.0f};   // consistent: 2 * 1 == rotary_ndims
+    tables.max_len = max / 2 + 1;    // already overflows regimes(2) * max_len alone
+
+    EXPECT_THROW(tables.rebuild_tables(), ov::AssertFailure);
+}
+
 // Negative control mirroring the report: one short-factor element correctly produces a
 // two-element (duplicated) row and must be accepted.
 TEST(PreComputeTest, RebuildTablesAcceptsConsistentRotaryNdims) {
