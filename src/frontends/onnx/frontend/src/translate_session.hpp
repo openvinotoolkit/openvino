@@ -10,8 +10,7 @@
 #include "openvino/frontend/input_model.hpp"
 #include "openvino/op/parameter.hpp"
 
-namespace ov {
-namespace frontend {
+namespace ov::frontend {
 
 class TelemetryExtension;
 
@@ -95,5 +94,4 @@ private:
     ParameterVector m_parameters;
 };
 }  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend

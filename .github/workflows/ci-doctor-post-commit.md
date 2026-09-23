@@ -40,6 +40,8 @@ on:
       - completed
     branches:
       - master
+  # Post-commit pushes to master land via the merge queue, so the triggering actor is a bot
+  bots: [github-merge-queue]
 concurrency:
   group: gh-aw-${{ github.workflow }}
 
@@ -81,6 +83,12 @@ imports:
       event: push
       source: post_commit
       slug: post-commit
+
+safe-outputs:
+  report-failure-as-issue:   # defeat the silent "produced no safe outputs" no-op
+    - agent_failure
+    - missing_safe_outputs
+    - timed_out
 
 timeout-minutes: 20
 

@@ -14,9 +14,7 @@
 #include "builder/blocks/gated_delta_net.hpp"
 #include "openvino/op/constant.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 using ov::element::f32;
 using ov::element::i32;
@@ -256,6 +254,4 @@ std::shared_ptr<GgufGraph> GgufGraphContext::finish() {
     return graph;
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

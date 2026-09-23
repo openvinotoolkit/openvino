@@ -29,11 +29,7 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 
 static std::shared_ptr<ov::Node> get_dynamic_all_axes_range(const ov::Output<ov::Node>& input) {
     const auto shape_of_input = std::make_shared<v3::ShapeOf>(input);
@@ -168,8 +164,4 @@ ov::OutputVector negative_log_likelihood_loss(const ov::frontend::onnx::Node& no
 }
 
 ONNX_OP("NegativeLogLikelihoodLoss", OPSET_SINCE(1), ai_onnx::opset_1::negative_log_likelihood_loss);
-}  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1

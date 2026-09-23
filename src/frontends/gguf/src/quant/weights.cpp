@@ -28,9 +28,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/util/common_util.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 namespace {
 
@@ -696,6 +694,4 @@ std::shared_ptr<ov::Node> make_weight_node(const ov::Tensor& data,
     return make_weight_node(tensors, qtype, name);
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf
