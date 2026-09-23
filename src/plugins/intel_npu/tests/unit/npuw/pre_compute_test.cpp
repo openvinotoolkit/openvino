@@ -370,6 +370,70 @@ TEST(PreComputeTest, LongRopeCosSinSerializationRoundTripEmpty) {
     EXPECT_FALSE(dst.is_valid());
 }
 
+// Rotary_ndims sizes the cos/sin allocation while
+// inv_freq_short/inv_freq_long independently size writeCosSinRows' writes
+// (row width == 2 * inv_freq.size()). A blob whose serialized fields disagree must be
+// rejected by rebuild_tables() before it allocates undersized tensors and overflows them.
+TEST(PreComputeTest, RebuildTablesRejectsRotaryNdimsInconsistentWithShortFactors) {
+    ov::npuw::patterns::pre_compute::LongRopeCosSin tables;
+    tables.max_len = 1;
+    tables.rotary_ndims = 2;
+    tables.has_long = false;
+    tables.inv_freq_short = {1.0f, 2.0f};  // would make writeCosSinRows write 4 values, not 2
+
+    EXPECT_THROW(tables.rebuild_tables(), ov::AssertFailure);
+}
+
+TEST(PreComputeTest, RebuildTablesRejectsRotaryNdimsInconsistentWithLongFactors) {
+    ov::npuw::patterns::pre_compute::LongRopeCosSin tables;
+    tables.max_len = 1;
+    tables.rotary_ndims = 4;
+    tables.has_long = true;
+    tables.inv_freq_short = {0.5f, 0.25f};  // consistent: 2 * 2 == 4
+    tables.inv_freq_long = {0.1f, 0.05f, 0.2f};  // inconsistent: 2 * 3 != 4
+
+    EXPECT_THROW(tables.rebuild_tables(), ov::AssertFailure);
+}
+
+// Negative control mirroring the report: one short-factor element correctly produces a
+// two-element (duplicated) row and must be accepted.
+TEST(PreComputeTest, RebuildTablesAcceptsConsistentRotaryNdims) {
+    ov::npuw::patterns::pre_compute::LongRopeCosSin tables;
+    tables.max_len = 1;
+    tables.rotary_ndims = 2;
+    tables.has_long = false;
+    tables.inv_freq_short = {1.0f};
+
+    EXPECT_NO_THROW(tables.rebuild_tables());
+    ASSERT_TRUE(tables.is_valid());
+    EXPECT_EQ(tables.cos.get_shape(), (ov::Shape{1, 1, 2}));
+}
+
+// End-to-end via the production ORC deserialization path (LongRopeCosSin::serialize on
+// read calls rebuild_tables()), reproducing the report's exact malicious field values.
+TEST(PreComputeTest, LongRopeCosSinDeserializeRejectsInconsistentSerializedWidth) {
+    using ov::npuw::orc::Stream;
+
+    ov::npuw::patterns::pre_compute::LongRopeCosSin src;
+    src.max_len = 1;
+    src.rotary_ndims = 2;
+    src.has_long = false;
+    src.inv_freq_short = {1.0f, 2.0f};
+    src.inv_freq_long = {};
+
+    std::stringstream ss;
+    {
+        auto writer = Stream::writer(ss);
+        // src.rebuild_tables() would itself throw now, so write the raw fields directly
+        // to reproduce a blob forged by an attacker who bypassed the production writer.
+        writer & src.max_len & src.rotary_ndims & src.has_long & src.inv_freq_short & src.inv_freq_long;
+    }
+
+    ov::npuw::patterns::pre_compute::LongRopeCosSin dst;
+    auto reader = Stream::reader(ss);
+    EXPECT_THROW(reader & dst, ov::AssertFailure);
+}
+
 TEST(PreComputeTest, RopeCacheThrowsOnMismatchedFactorSizesInLongRopeV5) {
     // multiply has scalar shape {1}: graph is valid by broadcast, but calculate_freq requires exact size match.
     auto model = make_longrope_v5_model({1.0f, 2.0f}, {4.0f, 5.0f}, {1.0f}, {1.0f});
