@@ -532,7 +532,7 @@ sdpa_config_t* choose_config_xehpg(int head_size, int seq, bool thin_q, bool qua
                 if (seq <= 96 && seq > 1) {
                     return &xehpg_q_h128_s96_2nd;
                 }
-                return &xehpg_q_h128_2nd;
+                return &xehpg_h128_2nd;
             }
             if (seq <= 64) {
                 return &xehpg_q_h128_s64;
