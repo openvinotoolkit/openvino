@@ -866,6 +866,17 @@ void PluginPropertyManager::registerProperties() {
             _config.update(ov::intel_npu::compile_log_level.name(), value.as<std::string>());
         }
     );
+    register_property(ov::intel_npu::ws_compile_call_number.name(), false, ov::PropertyMutability::RO, //The RO isn't true here, it will throw even if trying to read it
+        [this](const ov::AnyMap&) {
+            return _config.hasOpt(ov::intel_npu::ws_compile_call_number.name());
+        },
+        [](const ov::AnyMap&) -> ov::Any {
+            OPENVINO_THROW("Property '", ov::intel_npu::ws_compile_call_number.name(), "' cannot be accessed.");
+        },
+        [](const ov::Any&) {
+            OPENVINO_THROW("Property '", ov::intel_npu::ws_compile_call_number.name(), "' cannot be accessed.");
+        }
+    );
 
     const auto alwaysSupported = [](const ov::AnyMap&) {
         return true;
@@ -894,9 +905,8 @@ void PluginPropertyManager::registerProperties() {
             return _config.hasOpt(ov::hint::model.name());
         },
         [this](const ov::AnyMap&) -> ov::Any {
-            // Retrieve the weak pointer to the model and lock it to get a shared pointer. Fix potential dangling pointer issue.
-            const auto model = _config.get<MODEL_PTR>();
-            return model.lock();
+            std::shared_ptr<const ov::Model> model = _config.get<MODEL_PTR>().lock();
+            return ov::Any(std::move(model));
         },
         [](const ov::Any&) {
             OPENVINO_THROW("Property '", ov::hint::model.name(),"' can only be provided when importing a compiled model, it cannot be set otherwise");

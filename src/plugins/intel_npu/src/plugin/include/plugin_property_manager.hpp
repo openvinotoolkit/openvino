@@ -63,6 +63,7 @@ private:
         std::vector<ov::PropertyName> properties = {
             ov::cache_mode.name(),
             ov::enable_profiling.name(),
+            ov::intel_npu::profiling_type.name(),
             ov::device::architecture.name(),
             ov::hint::execution_mode.name(),
             ov::hint::inference_precision.name(),
