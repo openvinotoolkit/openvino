@@ -22,11 +22,12 @@ Verified language architectures take priority over experimental registrations.
 
 | Model family | Eligible language architecture | Frontend conversion gap | Accuracy / GenAI gap |
 |---|---|---|---|
-| Gemma3 | `gemma3` | Initial vision path implemented | Broader checkpoint qualification; original Q4_K_M run failed; companion GenAI integration required |
-| Qwen3.5 / 3.6 / 3.8 | `qwen35`, `qwen35moe` (experimental) | `qwen3vl_merger` implemented | Real encoder comparison, preprocessing, multimodal positions, DeepStack assembly and cached generation |
+| Gemma3 | `gemma3` | Initial vision path implemented | GenAI adapter implemented; broader checkpoint qualification remains |
+| Qwen3.5 / 3.6 / 3.8 | `qwen35`, `qwen35moe` (experimental) | `qwen3vl_merger` implemented | GenAI adapters and real encoder comparisons available; exact checkpoint/API qualification tracked in the acceptance matrix |
+| Muse Glimmer | `muse-glimmer` | Vision builder implemented | GenAI adapter implemented; remaining checkpoint accuracy failures tracked in the acceptance matrix |
 | MiniCPM-V/o resampler variants | Checkpoint-dependent `minicpm`, `llama`, `qwen2` | `resampler` implemented | Real checkpoint comparisons, tiling, query placement and GenAI adapter; audio qualified separately |
 | MiniCPM-V 4.6 | `qwen35` | `minicpmv4_6` implemented; window/downsample merger oracle passes | Real checkpoints and full pipeline validation |
-| Gemma4 | `gemma4` | `gemma4v`, `gemma4a`, `gemma4uv`, `gemma4ua` implemented | E2B Q8 vision/audio pass against dequantized F32 reference; other checkpoints, preprocessing and generation pending |
+| Gemma4 | `gemma4` | `gemma4v`, `gemma4a`, `gemma4uv`, `gemma4ua` implemented | Vision/audio adapters implemented; exact checkpoint/API qualification tracked in the acceptance matrix |
 | Pixtral / Mistral multimodal | Checkpoint-dependent `llama`, `mistral3` | `pixtral` implemented, including patch merger and row separators | Ministral 3 Q8 passes against dequantized F32 reference; preprocessing and GenAI validation pending |
 | DeepSeek-OCR / OCR2 | `deepseek2-ocr` | `deepseekocr`, `deepseekocr2` implemented; SAM and projector oracles pass | Real checkpoints, crops/layout preprocessing and OCR generation |
 | Phi4 multimodal | `phi3` | `phi4` implemented; dynamic-resolution oracle passes | Real checkpoints, preprocessing and GenAI validation |
@@ -44,17 +45,17 @@ promise of support for every similarly named marketing release.
 
 | Modality | Projectors | F32 CPU oracle | Real-checkpoint encoder | GenAI adapter |
 |---|---|---|---|---|
-| Vision | `gemma3` | Pass, separate/fused QKV and legacy FFN names | Pass, Gemma3 4B F16 projector | Historical prototype; absent from tested GenAI revision |
-| Vision | `muse-glimmer` | Pass, sparse/global attention, two-axis RoPE, resized positions and channel-outer pixel shuffle | Represented-weight F32 and faithful Q4_K decoding pass; default Q4_K requantization fails strict accuracy | Pending |
+| Vision | `gemma3` | Pass, separate/fused QKV and legacy FFN names | Pass, Gemma3 4B F16 projector | Implemented in `gguf-frontend-mmproj`; checkpoint qualification remains |
+| Vision | `muse-glimmer` | Pass, sparse/global attention, two-axis RoPE, resized positions and channel-outer pixel shuffle | Represented-weight F32 and native Q4_K decoding pass | Implemented; checkpoint accuracy tracked separately |
 | Vision | `mlp` (including normalized variant) | Pass | Pending | Pending |
 | Vision | `idefics3`, `janus_pro`, `internvl` | Pass | Pending | Pending |
 | Vision | `resampler` | Pass, rectangular grids, explicit queries and legacy defaults | Pending | Pending |
-| Vision | `qwen2vl_merger`, `qwen2.5vl_merger`, `qwen3vl_merger` | Pass, rectangular grids, temporal merging, window ordering and DeepStack | Pending | Pending |
+| Vision | `qwen2vl_merger`, `qwen2.5vl_merger`, `qwen3vl_merger` | Pass, rectangular grids, temporal merging, window ordering and DeepStack | Qwen3.5/3.6/3.8 pairs measured | Qwen3.5/3.6/3.8 adapters implemented |
 | Vision | `pixtral` | Pass, rectangular grids, patch merger, row separators | Pass, Ministral 3 Q8 against dequantized F32 reference | Pending |
 | Vision | `phi4`, `minicpmv4_6` | Pass, resized positions / window attention and two-stage merging | Pending | Pending |
-| Vision | `gemma4v`, `gemma4uv` | Pass, two-axis positions, clipping, pooling / patch normalization | E2B `gemma4v` Q8 passes against dequantized F32 reference; unified pending | Pending |
+| Vision | `gemma4v`, `gemma4uv` | Pass, two-axis positions, clipping, pooling / patch normalization | E2B/E4B/12B/26B/31B pairs measured | Implemented; checkpoint/API qualification tracked separately |
 | Vision | `deepseekocr`, `deepseekocr2` | Pass, SAM local/global attention, position resize, tile rows, GQA, queries, overview separators | Pending | Pending |
-| Audio | `gemma4a`, `gemma4ua` | Pass, context boundaries, causal convolution / waveform frames | E2B `gemma4a` Q8 passes against dequantized F32 reference; unified pending | Pending |
+| Audio | `gemma4a`, `gemma4ua` | Pass, context boundaries, causal convolution / waveform frames | E2B/E4B/12B pairs measured | Implemented; checkpoint/API qualification tracked separately |
 | Audio | `qwen2a`, `ultravox`, `voxtral`, `musicflamingo`, `meralion`, `glma` | Pass | Pending | Pending |
 
 The legacy `qwen2.5o` name resolves to Qwen2.5 VL for vision and Qwen2 audio.

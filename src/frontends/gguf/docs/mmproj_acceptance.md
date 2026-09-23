@@ -9,8 +9,8 @@ contains unsupported IQ4_XS tensors and is separate from the requested plain
 Q4_K_M checkpoint.
 
 OpenVINO branch `mvafin/gguf/mmproj-support` is rebased onto `upstream/master`
-`ff92c0dbcc` and pushed through `274249be0a`. The companion GenAI branch is
-**`gguf-frontend-mmproj`**, pushed through `69d87e60`. The local worktree directory retains its earlier name
+`ff92c0dbcc` and pushed through `5dc188d878`. The companion GenAI branch is
+**`gguf-frontend-mmproj`**, pushed through `4be18e1c`. The local worktree directory retains its earlier name
 for build reuse; it does not indicate a separate acceptance branch.
 
 ## Implemented and tested
@@ -25,15 +25,15 @@ for build reuse; it does not indicate a separate acceptance branch.
 - PA recurrent prefix-cache checkpoint ownership and copy-on-write fixes.
   Qwen3.5 2B Q4_0 now matches 13/13 reference language choices with prefix
   caching, compared with 6/13 in the historical run.
-- GGUF chat-template compatibility and encoder precision fixes. Q4_K projectors
+- GGUF chat-template compatibility and encoder precision fixes. Native Q4_K language and projector weights
   preserve fractional zero points, avoiding an additional lossy requantization.
 - GenAI modern audio-history ownership, follow-ups, edits and cancellation
   rollback, covered by a synthetic feature-placement regression.
 
 The frontend suite passed **406 tests**. The selected GenAI GGUF, scheduler,
 model-runner, hybrid-cache and SDPA suites passed **120 tests** after the modern
-audio-history change. Subsequent fixes and final checkpoint qualification must
-retain their own source manifests and test records.
+audio-history change. The native Q4_K fidelity fix also passed both suites. Final checkpoint
+qualification retains its own source manifests and test records.
 
 ## Real-checkpoint evidence and remaining gaps
 
@@ -41,10 +41,10 @@ retain their own source manifests and test records.
 |---|---|---|
 | Qwen3.5 2B Q4_0 PA | 13/13 language choices; language smoke scenarios pass | Complete updated multimodal/API matrix |
 | Qwen3.5 0.8B Q4_0 SDPA | Language checks, padded batch and beam checks pass | Complete updated multimodal/API matrix |
-| Gemma4 E2B Q4_0 PA/SDPA | Image/audio/mixed, legacy and modern chat, beam and cancellation/reset pass | Video and history-switching checks on the latest runtime |
+| Gemma4 E2B Q4_0 PA/SDPA | Image/audio/mixed, legacy and modern chat, beam and cancellation/reset pass | History switching and two-image/two-audio/30-second boundary checks also pass; full updated matrix pending |
 | Gemma4 E4B Q4_0 SDPA | Language checks, padded batch and beam checks pass | Complete updated multimodal/API matrix |
-| Gemma4 12B Q4_0 PA/SDPA | Text/audio 100%; image/mixed 90%; legacy image chat 95–100%; audio chat 100% | Modern API rerun; language-reference mismatch; PA video previously 85% |
-| Qwen3.5 2B Q4_K_M | Text/image/chat 100% with faithful Q4_K and represented-weight F32 language reference | Default decoder precision still differs; not a default-mode pass |
+| Gemma4 12B Q4_0 PA/SDPA | F32-reference language checks and all language smoke scenarios pass; text/audio 100%; image/mixed 90%; legacy image chat 95–100%; audio chat 100% | Modern API rerun; quantized-reference language mismatch retained; PA video previously 85% |
+| Qwen3.5 2B Q4_K_M | Text/image 100% against represented-weight F32 language reference, including the earlier default decoder | Updated full matrix after faithful Q4_K became the native default |
 | Other requested sizes/precisions | Conversion and historical numerical measurements recorded | Updated PA/SDPA language and multimodal matrix in progress |
 
 The larger matrix uses frozen runtime copies, so rebuilding local libraries does
@@ -80,10 +80,12 @@ Quantized-checkpoint execution in llama.cpp and represented-weight F32 copies
 are distinct references. The latter preserve the checkpoint's represented
 weights; they do not recover the publisher's original weights. Gemma4 12B Q4_0 matches all 13 native language choices against the represented-weight
 F32 reference (maximum logit NMSE `1.76e-4`); its quantized-reference failure is
-retained separately. Decoder Q4_K
-still defaults to lossy u4 requantization; `OV_GGUF_Q4_K_ZP_F16=1` enables a
-separately reported faithful zero-point diagnostic. Projectors use faithful
-zero points automatically.
+retained separately. Gemma4 E4B Q4_K_M also matches 13/13 choices, but the
+older native Q4_K requantization produced maximum logit NMSE `0.194847`.
+Preserving fractional zero points reduces that to `9e-6`. Native GGUF loading
+now uses this faithful Q4_K conversion for language models and projectors.
+The raw cgraph weight-conversion path retains its separate quantization policy;
+these native-loading results do not qualify that path.
 
 [Machine-readable evidence](../tests/test_data/mmproj_accuracy/acceptance_2026_09.json)
 contains current targeted runs and the complete historical baseline with

@@ -3,9 +3,9 @@
   "date": "2026-09-23",
   "openvino_branch": "mvafin/gguf/mmproj-support",
   "upstream_base": "ff92c0dbcc03f1335ebe22b11e28fdab80a15217",
-  "openvino_commit": "274249be0ab4cd85206719f53017365f0afc33ab",
+  "openvino_commit": "5dc188d878",
   "genai_branch": "gguf-frontend-mmproj",
-  "genai_commit": "69d87e60",
+  "genai_commit": "4be18e1c",
   "full_support_verified": false,
   "language_oracle_revision": "03fa73cb27f5c251b9528489b18d303b1366aca4",
   "notes": [
@@ -19,11 +19,15 @@
   "regression_tests": {
     "frontend": {
       "passed": 406,
-      "log": "/tmp/mmproj-final-regressions.log"
+      "log": "/tmp/mmproj-faithful-regressions.log"
     },
     "genai_selected": {
       "passed": 120,
-      "log": "/tmp/mmproj-history-switch-tests.log"
+      "log": "/tmp/mmproj-faithful-genai-regressions.log"
+    },
+    "extension_library": {
+      "passed": 1,
+      "log": "/tmp/mmproj-extensions-final.log"
     }
   },
   "targeted_runs": [
@@ -2155,7 +2159,147 @@
               7001,
               563
             ]
+          },
+          "teacher_forced_accuracy": {
+            "status": "pass",
+            "detail": {
+              "actual": [
+                3879,
+                100,
+                100,
+                100,
+                100,
+                45518,
+                107,
+                101,
+                1509,
+                7412,
+                993,
+                563,
+                496
+              ],
+              "expected": [
+                3879,
+                100,
+                100,
+                100,
+                100,
+                45518,
+                107,
+                101,
+                1509,
+                7412,
+                993,
+                563,
+                496
+              ],
+              "matching_choices": 13,
+              "total": 13
+            }
+          },
+          "greedy": {
+            "status": "pass",
+            "detail": " Europethought\nIt appears there is a"
+          },
+          "chat_and_reset": {
+            "status": "pass",
+            "detail": " Europethought\nIt appears there is a"
+          },
+          "batch_two": {
+            "status": "pass",
+            "detail": [
+              " Europethought\nIt appears there is a",
+              "thought\nIt looks like you haven't provided the"
+            ]
+          },
+          "beam_search": {
+            "status": "pass",
+            "detail": {
+              "tokens": [
+                [
+                  5279,
+                  529,
+                  7001,
+                  563,
+                  5279,
+                  529,
+                  7001,
+                  563
+                ],
+                [
+                  3879,
+                  236761,
+                  107,
+                  100,
+                  45518,
+                  107,
+                  100,
+                  45518
+                ]
+              ],
+              "scores": [
+                -0.3755335509777069,
+                -0.45954105257987976
+              ]
+            }
+          },
+          "streaming": {
+            "status": "pass",
+            "detail": " Europethought\nIt appears there is a"
           }
+        },
+        "accuracy": {
+          "actual": [
+            3879,
+            100,
+            100,
+            100,
+            100,
+            45518,
+            107,
+            101,
+            1509,
+            7412,
+            993,
+            563,
+            496
+          ],
+          "expected": [
+            3879,
+            100,
+            100,
+            100,
+            100,
+            45518,
+            107,
+            101,
+            1509,
+            7412,
+            993,
+            563,
+            496
+          ],
+          "matching_choices": 13,
+          "total": 13
+        },
+        "passed": true
+      },
+      "reference_annotation": {
+        "path": "/tmp/gemma12-represented-f32.bin",
+        "kind": "represented-f32",
+        "sha256": "f43b8741971038899d5725f458ef2d8debf055373c408d384f61aaff66dff0f4"
+      },
+      "runtime_sources": {
+        "openvino": {
+          "commit": "274249be0ab4cd85206719f53017365f0afc33ab",
+          "files": {
+            "src/frontends/gguf/docs/mmproj_acceptance.md": "686d70c7c9f0ac51b3cd2357d04b81da60873cdd070faa70d002618433251c35",
+            "src/frontends/gguf/tests/test_data/mmproj_accuracy/acceptance_2026_09.json": "9ae75e92db1ae56a132efac9f2547ffa1d9b3ebb25aa334bdae2c5d1d9db5314"
+          }
+        },
+        "genai": {
+          "commit": "69d87e60289f2378a5d9c6c24b2b23fe2ef90703",
+          "files": {}
         }
       }
     },
@@ -2179,12 +2323,1709 @@
               7001,
               563
             ]
+          },
+          "teacher_forced_accuracy": {
+            "status": "pass",
+            "detail": {
+              "actual": [
+                3879,
+                100,
+                100,
+                100,
+                100,
+                45518,
+                107,
+                101,
+                1509,
+                7412,
+                993,
+                563,
+                496
+              ],
+              "expected": [
+                3879,
+                100,
+                100,
+                100,
+                100,
+                45518,
+                107,
+                101,
+                1509,
+                7412,
+                993,
+                563,
+                496
+              ],
+              "matching_choices": 13,
+              "total": 13
+            }
+          },
+          "greedy": {
+            "status": "pass",
+            "detail": " Europethought\nIt appears there is a"
+          },
+          "chat_and_reset": {
+            "status": "pass",
+            "detail": " Europethought\nIt appears there is a"
+          },
+          "batch_two": {
+            "status": "pass",
+            "detail": [
+              " Europethought\nIt appears there is a",
+              "thought\nIt looks like you haven't provided the"
+            ]
+          },
+          "beam_search": {
+            "status": "pass",
+            "detail": {
+              "tokens": [
+                [
+                  5279,
+                  529,
+                  7001,
+                  563,
+                  5279,
+                  529,
+                  7001,
+                  563
+                ],
+                [
+                  3879,
+                  236761,
+                  107,
+                  100,
+                  45518,
+                  107,
+                  100,
+                  45518
+                ]
+              ],
+              "scores": [
+                -0.3762907087802887,
+                -0.45887383818626404
+              ]
+            }
+          },
+          "streaming": {
+            "status": "pass",
+            "detail": " Europethought\nIt appears there is a"
           }
+        },
+        "accuracy": {
+          "actual": [
+            3879,
+            100,
+            100,
+            100,
+            100,
+            45518,
+            107,
+            101,
+            1509,
+            7412,
+            993,
+            563,
+            496
+          ],
+          "expected": [
+            3879,
+            100,
+            100,
+            100,
+            100,
+            45518,
+            107,
+            101,
+            1509,
+            7412,
+            993,
+            563,
+            496
+          ],
+          "matching_choices": 13,
+          "total": 13
+        },
+        "passed": true
+      },
+      "reference_annotation": {
+        "path": "/tmp/gemma12-represented-f32.bin",
+        "kind": "represented-f32",
+        "sha256": "f43b8741971038899d5725f458ef2d8debf055373c408d384f61aaff66dff0f4"
+      },
+      "runtime_sources": {
+        "openvino": {
+          "commit": "274249be0ab4cd85206719f53017365f0afc33ab",
+          "files": {
+            "src/frontends/gguf/docs/mmproj_acceptance.md": "686d70c7c9f0ac51b3cd2357d04b81da60873cdd070faa70d002618433251c35",
+            "src/frontends/gguf/tests/test_data/mmproj_accuracy/acceptance_2026_09.json": "9ae75e92db1ae56a132efac9f2547ffa1d9b3ebb25aa334bdae2c5d1d9db5314"
+          }
+        },
+        "genai": {
+          "commit": "69d87e60289f2378a5d9c6c24b2b23fe2ef90703",
+          "files": {}
         }
+      }
+    },
+    {
+      "path": "/tmp/gemmaE4-f32-genai-PA.json",
+      "result": {
+        "model": "/home/vmaxim/gguf_models/mmproj_acceptance/gemma-4-E4B-it-GGUF/gemma-4-E4B-it-Q4_K_M.gguf",
+        "backend": "PA",
+        "reference": "/tmp/gemmaE4-represented-f32.bin",
+        "reference_kind": "represented-f32",
+        "reference_sha256": "a4f1d328ddef85f5c3221b62bc24cb4443c1337e4a3c5cca3819f65006b5e96d",
+        "openvino_version": "2026.5.0-2347-27de71dc2fa-mvafin/gguf/mmproj-support",
+        "genai_version": "2026.5.0.0-3467-54e9f8aa98d-gguf-frontend-mmproj",
+        "fresh_accuracy": false,
+        "prefix_caching": true,
+        "scenarios": {
+          "tokenizer": {
+            "status": "pass",
+            "detail": [
+              2,
+              818,
+              5279,
+              529,
+              7001,
+              563
+            ]
+          },
+          "teacher_forced_accuracy": {
+            "status": "pass",
+            "detail": {
+              "actual": [
+                9079,
+                236761,
+                108,
+                1018,
+                14977,
+                53121,
+                2900,
+                563,
+                506,
+                5279,
+                529,
+                7001,
+                236881
+              ],
+              "expected": [
+                9079,
+                236761,
+                108,
+                1018,
+                14977,
+                53121,
+                2900,
+                563,
+                506,
+                5279,
+                529,
+                7001,
+                236881
+              ],
+              "matching_choices": 13,
+              "total": 13
+            }
+          },
+          "greedy": {
+            "status": "pass",
+            "detail": " Paris.\n\n**Question:** What is the capital of France?"
+          },
+          "chat_and_reset": {
+            "status": "pass",
+            "detail": " Paris.\n\n**Question:** What is the capital of France?"
+          },
+          "batch_two": {
+            "status": "pass",
+            "detail": [
+              " Paris.\n\n**Question:** What is the capital of France?",
+              " 4.\n\n**Question:** What is the mathematical operation represented"
+            ]
+          },
+          "beam_search": {
+            "status": "pass",
+            "detail": {
+              "tokens": [
+                [
+                  9079,
+                  236761,
+                  108,
+                  1018,
+                  14977,
+                  53121,
+                  2900,
+                  563
+                ],
+                [
+                  9079,
+                  236761,
+                  106
+                ]
+              ],
+              "scores": [
+                -0.4234892427921295,
+                -0.527866005897522
+              ]
+            }
+          },
+          "streaming": {
+            "status": "pass",
+            "detail": " Paris.\n\n**Question:** What is the capital of France?"
+          }
+        },
+        "accuracy": {
+          "actual": [
+            9079,
+            236761,
+            108,
+            1018,
+            14977,
+            53121,
+            2900,
+            563,
+            506,
+            5279,
+            529,
+            7001,
+            236881
+          ],
+          "expected": [
+            9079,
+            236761,
+            108,
+            1018,
+            14977,
+            53121,
+            2900,
+            563,
+            506,
+            5279,
+            529,
+            7001,
+            236881
+          ],
+          "matching_choices": 13,
+          "total": 13
+        },
+        "passed": true
+      },
+      "reference_annotation": {
+        "path": "/tmp/gemmaE4-represented-f32.bin",
+        "kind": "represented-f32",
+        "sha256": "a4f1d328ddef85f5c3221b62bc24cb4443c1337e4a3c5cca3819f65006b5e96d"
+      },
+      "runtime_sources": {
+        "openvino": {
+          "commit": "274249be0ab4cd85206719f53017365f0afc33ab",
+          "files": {
+            "src/frontends/gguf/docs/mmproj_acceptance.md": "686d70c7c9f0ac51b3cd2357d04b81da60873cdd070faa70d002618433251c35",
+            "src/frontends/gguf/tests/test_data/mmproj_accuracy/acceptance_2026_09.json": "9ae75e92db1ae56a132efac9f2547ffa1d9b3ebb25aa334bdae2c5d1d9db5314"
+          }
+        },
+        "genai": {
+          "commit": "69d87e60289f2378a5d9c6c24b2b23fe2ef90703",
+          "files": {}
+        }
+      },
+      "note": "Earlier default Q4_K; logit errors remain high despite matching choices. Superseded by native Q4_K fidelity fix."
+    },
+    {
+      "path": "/tmp/gemmaE4-f32-genai-SDPA.json",
+      "result": {
+        "model": "/home/vmaxim/gguf_models/mmproj_acceptance/gemma-4-E4B-it-GGUF/gemma-4-E4B-it-Q4_K_M.gguf",
+        "backend": "SDPA",
+        "reference": "/tmp/gemmaE4-represented-f32.bin",
+        "reference_kind": "represented-f32",
+        "reference_sha256": "a4f1d328ddef85f5c3221b62bc24cb4443c1337e4a3c5cca3819f65006b5e96d",
+        "openvino_version": "2026.5.0-2347-27de71dc2fa-mvafin/gguf/mmproj-support",
+        "genai_version": "2026.5.0.0-3467-54e9f8aa98d-gguf-frontend-mmproj",
+        "fresh_accuracy": false,
+        "prefix_caching": false,
+        "scenarios": {
+          "tokenizer": {
+            "status": "pass",
+            "detail": [
+              2,
+              818,
+              5279,
+              529,
+              7001,
+              563
+            ]
+          },
+          "teacher_forced_accuracy": {
+            "status": "pass",
+            "detail": {
+              "actual": [
+                9079,
+                236761,
+                108,
+                1018,
+                14977,
+                53121,
+                2900,
+                563,
+                506,
+                5279,
+                529,
+                7001,
+                236881
+              ],
+              "expected": [
+                9079,
+                236761,
+                108,
+                1018,
+                14977,
+                53121,
+                2900,
+                563,
+                506,
+                5279,
+                529,
+                7001,
+                236881
+              ],
+              "matching_choices": 13,
+              "total": 13
+            }
+          },
+          "greedy": {
+            "status": "pass",
+            "detail": " Paris.\n\n**Question:** What is the capital of France?"
+          },
+          "chat_and_reset": {
+            "status": "pass",
+            "detail": " Paris.\n\n**Question:** What is the capital of France?"
+          },
+          "batch_two": {
+            "status": "pass",
+            "detail": [
+              " Paris.\n\n**Question:** What is the capital of France?",
+              " 4.\n\n**Question:** What is the mathematical operation represented"
+            ]
+          },
+          "beam_search": {
+            "status": "pass",
+            "detail": {
+              "tokens": [
+                [
+                  9079,
+                  236761,
+                  108,
+                  1018,
+                  14977,
+                  53121,
+                  2900,
+                  563
+                ],
+                [
+                  9079,
+                  236761,
+                  106
+                ]
+              ],
+              "scores": [
+                -0.4236655831336975,
+                -0.5268327593803406
+              ]
+            }
+          },
+          "streaming": {
+            "status": "pass",
+            "detail": " Paris.\n\n**Question:** What is the capital of France?"
+          }
+        },
+        "accuracy": {
+          "actual": [
+            9079,
+            236761,
+            108,
+            1018,
+            14977,
+            53121,
+            2900,
+            563,
+            506,
+            5279,
+            529,
+            7001,
+            236881
+          ],
+          "expected": [
+            9079,
+            236761,
+            108,
+            1018,
+            14977,
+            53121,
+            2900,
+            563,
+            506,
+            5279,
+            529,
+            7001,
+            236881
+          ],
+          "matching_choices": 13,
+          "total": 13
+        },
+        "passed": true
+      },
+      "reference_annotation": {
+        "path": "/tmp/gemmaE4-represented-f32.bin",
+        "kind": "represented-f32",
+        "sha256": "a4f1d328ddef85f5c3221b62bc24cb4443c1337e4a3c5cca3819f65006b5e96d"
+      },
+      "runtime_sources": {
+        "openvino": {
+          "commit": "274249be0ab4cd85206719f53017365f0afc33ab",
+          "files": {
+            "src/frontends/gguf/docs/mmproj_acceptance.md": "686d70c7c9f0ac51b3cd2357d04b81da60873cdd070faa70d002618433251c35",
+            "src/frontends/gguf/tests/test_data/mmproj_accuracy/acceptance_2026_09.json": "9ae75e92db1ae56a132efac9f2547ffa1d9b3ebb25aa334bdae2c5d1d9db5314"
+          }
+        },
+        "genai": {
+          "commit": "69d87e60289f2378a5d9c6c24b2b23fe2ef90703",
+          "files": {}
+        }
+      },
+      "note": "Earlier default Q4_K; logit errors remain high despite matching choices. Superseded by native Q4_K fidelity fix."
+    },
+    {
+      "path": "/tmp/qwen2-default-f32-v5.json",
+      "result": {
+        "language": "/home/vmaxim/gguf_models/mmproj_acceptance/Qwen3.5-2B-GGUF/Qwen3.5-2B-Q4_K_M.gguf",
+        "mmproj": "/home/vmaxim/gguf_models/mmproj_acceptance/Qwen3.5-2B-GGUF/mmproj-F16.gguf",
+        "reference_revision": "03fa73cb27f5c251b9528489b18d303b1366aca4",
+        "family": "qwen35",
+        "reference_language": "/tmp/qwen35-2b-represented-f32.gguf",
+        "audio": null,
+        "attention_backend": "SDPA",
+        "openvino_version": "2026.5.0-2347-27de71dc2fa-mvafin/gguf/mmproj-support",
+        "genai_version": "2026.5.0.0-3467-54e9f8aa98d-gguf-frontend-mmproj",
+        "validator_sha256": "c753e82eb37c951da5ef6f2d21a309acf149b49e2232af3484c2ab62eb10baba",
+        "cases": [
+          {
+            "modality": "text",
+            "text": "The answer is **4**.\n\nThis is a fundamental mathematical fact:\n$$2 + 2",
+            "tokens": [
+              760,
+              4087,
+              369,
+              2972,
+              19,
+              159034,
+              271,
+              1919,
+              369,
+              264,
+              15346,
+              34780,
+              2029,
+              25,
+              198,
+              13682,
+              17,
+              478,
+              220,
+              17
+            ],
+            "reference_choices_on_same_history": [
+              760,
+              4087,
+              369,
+              2972,
+              19,
+              159034,
+              271,
+              1919,
+              369,
+              264,
+              15346,
+              34780,
+              2029,
+              25,
+              198,
+              13682,
+              17,
+              478,
+              220,
+              17
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          },
+          {
+            "modality": "image",
+            "text": "This is a digital graphic, likely a logo or brand identifier, set against a solid dark gray or",
+            "tokens": [
+              1919,
+              369,
+              264,
+              7143,
+              19889,
+              11,
+              4222,
+              264,
+              12070,
+              466,
+              6529,
+              12448,
+              11,
+              716,
+              2272,
+              264,
+              6235,
+              6121,
+              17024,
+              466
+            ],
+            "reference_choices_on_same_history": [
+              1919,
+              369,
+              264,
+              7143,
+              19889,
+              11,
+              4222,
+              264,
+              12070,
+              466,
+              6529,
+              12448,
+              11,
+              716,
+              2272,
+              264,
+              6235,
+              6121,
+              17024,
+              466
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          }
+        ],
+        "chat_checked": false,
+        "passed": true,
+        "completed": true,
+        "request_reset_matches": true,
+        "chat_reset_matches": true
+      }
+    },
+    {
+      "path": "/tmp/gemmaE2-modern-v5-SDPA.json",
+      "result": {
+        "language": "/home/vmaxim/gguf_models/mmproj_acceptance/gemma-4-E2B-it-GGUF/gemma-4-E2B-it-Q4_0.gguf",
+        "mmproj": "/home/vmaxim/gguf_models/mmproj_acceptance/gemma-4-E2B-it-GGUF/mmproj-F16.gguf",
+        "reference_revision": "03fa73cb27f5c251b9528489b18d303b1366aca4",
+        "family": "gemma4",
+        "reference_language": "/home/vmaxim/gguf_models/mmproj_acceptance/gemma-4-E2B-it-GGUF/gemma-4-E2B-it-Q4_0.gguf",
+        "audio": "/tmp/mmproj-jfk.wav",
+        "attention_backend": "SDPA",
+        "openvino_version": "2026.5.0-2347-27de71dc2fa-mvafin/gguf/mmproj-support",
+        "genai_version": "2026.5.0.0-3467-54e9f8aa98d-gguf-frontend-mmproj",
+        "validator_sha256": "c753e82eb37c951da5ef6f2d21a309acf149b49e2232af3484c2ab62eb10baba",
+        "cases": [
+          {
+            "modality": "text",
+            "text": "2 plus 2 equals **4**.",
+            "tokens": [
+              236778,
+              2915,
+              236743,
+              236778,
+              14339,
+              5213,
+              236812,
+              84750,
+              106
+            ],
+            "reference_choices_on_same_history": [
+              236778,
+              2915,
+              236743,
+              236778,
+              14339,
+              5213,
+              236812,
+              84750,
+              106
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          },
+          {
+            "modality": "image",
+            "text": "This is an image featuring a logo or text in white and orange against a black background.\n\nHere",
+            "tokens": [
+              2094,
+              563,
+              614,
+              2471,
+              18482,
+              496,
+              8839,
+              653,
+              1816,
+              528,
+              2173,
+              532,
+              11167,
+              2342,
+              496,
+              2764,
+              1695,
+              236761,
+              108,
+              8291
+            ],
+            "reference_choices_on_same_history": [
+              2094,
+              563,
+              614,
+              2471,
+              18482,
+              496,
+              8839,
+              653,
+              1816,
+              528,
+              2173,
+              532,
+              11167,
+              2342,
+              496,
+              2764,
+              1695,
+              236761,
+              108,
+              8291
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          },
+          {
+            "modality": "audio",
+            "text": "And so my fellow Americans ask not what your country can do for you, ask what you can do",
+            "tokens": [
+              3133,
+              834,
+              1041,
+              12339,
+              14522,
+              2679,
+              711,
+              1144,
+              822,
+              2891,
+              740,
+              776,
+              573,
+              611,
+              236764,
+              2679,
+              1144,
+              611,
+              740,
+              776
+            ],
+            "reference_choices_on_same_history": [
+              3133,
+              834,
+              1041,
+              12339,
+              14522,
+              2679,
+              711,
+              1144,
+              822,
+              2891,
+              740,
+              776,
+              573,
+              611,
+              236764,
+              2679,
+              1144,
+              611,
+              740,
+              776
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          },
+          {
+            "modality": "mixed",
+            "text": "and so my fellow Americans ask not what your country can do for you ask what you can do for",
+            "tokens": [
+              624,
+              834,
+              1041,
+              12339,
+              14522,
+              2679,
+              711,
+              1144,
+              822,
+              2891,
+              740,
+              776,
+              573,
+              611,
+              2679,
+              1144,
+              611,
+              740,
+              776,
+              573
+            ],
+            "reference_choices_on_same_history": [
+              624,
+              834,
+              1041,
+              12339,
+              14522,
+              2679,
+              711,
+              1144,
+              822,
+              2891,
+              740,
+              776,
+              573,
+              611,
+              2679,
+              1144,
+              611,
+              740,
+              776,
+              573
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          },
+          {
+            "modality": "image_chat",
+            "text": "The image displays the text **\"LLaMA\"** in a bold, sans-serif font",
+            "tokens": [
+              818,
+              2471,
+              19365,
+              506,
+              1816,
+              5213,
+              236775,
+              2182,
+              236746,
+              4868,
+              236775,
+              1018,
+              528,
+              496,
+              16627,
+              236764,
+              7139,
+              236772,
+              10569,
+              3481
+            ],
+            "reference_choices_on_same_history": [
+              818,
+              2471,
+              19365,
+              506,
+              1816,
+              5213,
+              236775,
+              2182,
+              236746,
+              4868,
+              236775,
+              1018,
+              528,
+              496,
+              16627,
+              236764,
+              7139,
+              236772,
+              10569,
+              3481
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          },
+          {
+            "modality": "audio_chat",
+            "text": "The speaker said, \"And so my fellow Americans ask not what your country can do for you,",
+            "tokens": [
+              818,
+              16646,
+              1176,
+              236764,
+              623,
+              3133,
+              834,
+              1041,
+              12339,
+              14522,
+              2679,
+              711,
+              1144,
+              822,
+              2891,
+              740,
+              776,
+              573,
+              611,
+              236764
+            ],
+            "reference_choices_on_same_history": [
+              818,
+              16646,
+              1176,
+              236764,
+              623,
+              3133,
+              834,
+              1041,
+              12339,
+              14522,
+              2679,
+              711,
+              1144,
+              822,
+              2891,
+              740,
+              776,
+              573,
+              611,
+              236764
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          },
+          {
+            "modality": "modern_image",
+            "text": "This is an image featuring a logo or text in white and orange against a black background.\n\nHere",
+            "tokens": [
+              2094,
+              563,
+              614,
+              2471,
+              18482,
+              496,
+              8839,
+              653,
+              1816,
+              528,
+              2173,
+              532,
+              11167,
+              2342,
+              496,
+              2764,
+              1695,
+              236761,
+              108,
+              8291
+            ],
+            "reference_choices_on_same_history": [
+              2094,
+              563,
+              614,
+              2471,
+              18482,
+              496,
+              8839,
+              653,
+              1816,
+              528,
+              2173,
+              532,
+              11167,
+              2342,
+              496,
+              2764,
+              1695,
+              236761,
+              108,
+              8291
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          },
+          {
+            "modality": "modern_image_chat",
+            "text": "The image displays the text **\"LLaMA\"** in a bold, sans-serif font",
+            "tokens": [
+              818,
+              2471,
+              19365,
+              506,
+              1816,
+              5213,
+              236775,
+              2182,
+              236746,
+              4868,
+              236775,
+              1018,
+              528,
+              496,
+              16627,
+              236764,
+              7139,
+              236772,
+              10569,
+              3481
+            ],
+            "reference_choices_on_same_history": [
+              818,
+              2471,
+              19365,
+              506,
+              1816,
+              5213,
+              236775,
+              2182,
+              236746,
+              4868,
+              236775,
+              1018,
+              528,
+              496,
+              16627,
+              236764,
+              7139,
+              236772,
+              10569,
+              3481
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          },
+          {
+            "modality": "modern_audio",
+            "text": "And so my fellow Americans ask not what your country can do for you, ask what you can do",
+            "tokens": [
+              3133,
+              834,
+              1041,
+              12339,
+              14522,
+              2679,
+              711,
+              1144,
+              822,
+              2891,
+              740,
+              776,
+              573,
+              611,
+              236764,
+              2679,
+              1144,
+              611,
+              740,
+              776
+            ],
+            "reference_choices_on_same_history": [
+              3133,
+              834,
+              1041,
+              12339,
+              14522,
+              2679,
+              711,
+              1144,
+              822,
+              2891,
+              740,
+              776,
+              573,
+              611,
+              236764,
+              2679,
+              1144,
+              611,
+              740,
+              776
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          },
+          {
+            "modality": "modern_audio_chat",
+            "text": "The speaker said, \"And so my fellow Americans ask not what your country can do for you,",
+            "tokens": [
+              818,
+              16646,
+              1176,
+              236764,
+              623,
+              3133,
+              834,
+              1041,
+              12339,
+              14522,
+              2679,
+              711,
+              1144,
+              822,
+              2891,
+              740,
+              776,
+              573,
+              611,
+              236764
+            ],
+            "reference_choices_on_same_history": [
+              818,
+              16646,
+              1176,
+              236764,
+              623,
+              3133,
+              834,
+              1041,
+              12339,
+              14522,
+              2679,
+              711,
+              1144,
+              822,
+              2891,
+              740,
+              776,
+              573,
+              611,
+              236764
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          }
+        ],
+        "chat_checked": true,
+        "passed": true,
+        "completed": true,
+        "runtime_sources": {
+          "openvino": {
+            "commit": "274249be0ab4cd85206719f53017365f0afc33ab",
+            "files": {
+              "src/frontends/gguf/docs/mmproj_acceptance.md": "686d70c7c9f0ac51b3cd2357d04b81da60873cdd070faa70d002618433251c35",
+              "src/frontends/gguf/tests/test_data/mmproj_accuracy/acceptance_2026_09.json": "9ae75e92db1ae56a132efac9f2547ffa1d9b3ebb25aa334bdae2c5d1d9db5314"
+            }
+          },
+          "genai": {
+            "commit": "69d87e60289f2378a5d9c6c24b2b23fe2ef90703",
+            "files": {}
+          }
+        },
+        "api_checks": {
+          "modern_image_chat": {
+            "passed": true
+          },
+          "modern_audio_chat": {
+            "passed": true
+          },
+          "beam_search": {
+            "passed": true
+          },
+          "cancel_and_reset": {
+            "passed": true
+          }
+        },
+        "request_reset_matches": true,
+        "chat_reset_matches": true
+      }
+    },
+    {
+      "path": "/tmp/gemmaE2-boundaries-v6-PA.json",
+      "result": {
+        "language": "/home/vmaxim/gguf_models/mmproj_acceptance/gemma-4-E2B-it-GGUF/gemma-4-E2B-it-Q4_0.gguf",
+        "mmproj": "/home/vmaxim/gguf_models/mmproj_acceptance/gemma-4-E2B-it-GGUF/mmproj-F16.gguf",
+        "reference_revision": "03fa73cb27f5c251b9528489b18d303b1366aca4",
+        "family": "gemma4",
+        "reference_language": "/home/vmaxim/gguf_models/mmproj_acceptance/gemma-4-E2B-it-GGUF/gemma-4-E2B-it-Q4_0.gguf",
+        "audio": "/tmp/mmproj-jfk.wav",
+        "multi_media": true,
+        "audio_boundaries": true,
+        "attention_backend": "PA",
+        "openvino_version": "2026.5.0-2347-27de71dc2fa-mvafin/gguf/mmproj-support",
+        "genai_version": "2026.5.0.0-3467-54e9f8aa98d-gguf-frontend-mmproj",
+        "validator_sha256": "d0356c6133acc2ce2aa52fbee0095bd95b59133a66fba5684524d2b6b14753b1",
+        "cases": [
+          {
+            "modality": "text",
+            "text": "2 plus 2 equals **4**.",
+            "tokens": [
+              236778,
+              2915,
+              236743,
+              236778,
+              14339,
+              5213,
+              236812,
+              84750,
+              106
+            ],
+            "reference_choices_on_same_history": [
+              236778,
+              2915,
+              236743,
+              236778,
+              14339,
+              5213,
+              236812,
+              84750,
+              106
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          },
+          {
+            "modality": "image",
+            "text": "This is an image featuring a logo or text in white and orange against a black background.\n\nHere",
+            "tokens": [
+              2094,
+              563,
+              614,
+              2471,
+              18482,
+              496,
+              8839,
+              653,
+              1816,
+              528,
+              2173,
+              532,
+              11167,
+              2342,
+              496,
+              2764,
+              1695,
+              236761,
+              108,
+              8291
+            ],
+            "reference_choices_on_same_history": [
+              2094,
+              563,
+              614,
+              2471,
+              18482,
+              496,
+              8839,
+              653,
+              1816,
+              528,
+              2173,
+              532,
+              11167,
+              2342,
+              496,
+              2764,
+              1695,
+              236761,
+              108,
+              8291
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          },
+          {
+            "modality": "audio",
+            "text": "And so my fellow Americans ask not what your country can do for you, ask what you can do",
+            "tokens": [
+              3133,
+              834,
+              1041,
+              12339,
+              14522,
+              2679,
+              711,
+              1144,
+              822,
+              2891,
+              740,
+              776,
+              573,
+              611,
+              236764,
+              2679,
+              1144,
+              611,
+              740,
+              776
+            ],
+            "reference_choices_on_same_history": [
+              3133,
+              834,
+              1041,
+              12339,
+              14522,
+              2679,
+              711,
+              1144,
+              822,
+              2891,
+              740,
+              776,
+              573,
+              611,
+              236764,
+              2679,
+              1144,
+              611,
+              740,
+              776
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          },
+          {
+            "modality": "mixed",
+            "text": "and so my fellow Americans ask not what your country can do for you ask what you can do for",
+            "tokens": [
+              624,
+              834,
+              1041,
+              12339,
+              14522,
+              2679,
+              711,
+              1144,
+              822,
+              2891,
+              740,
+              776,
+              573,
+              611,
+              2679,
+              1144,
+              611,
+              740,
+              776,
+              573
+            ],
+            "reference_choices_on_same_history": [
+              624,
+              834,
+              1041,
+              12339,
+              14522,
+              2679,
+              711,
+              1144,
+              822,
+              2891,
+              740,
+              776,
+              573,
+              611,
+              2679,
+              1144,
+              611,
+              740,
+              776,
+              573
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          },
+          {
+            "modality": "multi_image",
+            "text": "The two images are very similar, featuring text and a logo in a distinct color scheme.\n\nHere",
+            "tokens": [
+              818,
+              1156,
+              4876,
+              659,
+              1401,
+              3361,
+              236764,
+              18482,
+              1816,
+              532,
+              496,
+              8839,
+              528,
+              496,
+              9245,
+              2258,
+              10165,
+              236761,
+              108,
+              8291
+            ],
+            "reference_choices_on_same_history": [
+              818,
+              1156,
+              4876,
+              659,
+              1401,
+              3361,
+              236764,
+              18482,
+              1816,
+              532,
+              496,
+              8839,
+              528,
+              496,
+              9245,
+              2258,
+              10165,
+              236761,
+              108,
+              8291
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          },
+          {
+            "modality": "multi_audio",
+            "text": "And so my fellow Americans ask not what your country can do for you ask what you can do for",
+            "tokens": [
+              3133,
+              834,
+              1041,
+              12339,
+              14522,
+              2679,
+              711,
+              1144,
+              822,
+              2891,
+              740,
+              776,
+              573,
+              611,
+              2679,
+              1144,
+              611,
+              740,
+              776,
+              573
+            ],
+            "reference_choices_on_same_history": [
+              3133,
+              834,
+              1041,
+              12339,
+              14522,
+              2679,
+              711,
+              1144,
+              822,
+              2891,
+              740,
+              776,
+              573,
+              611,
+              2679,
+              1144,
+              611,
+              740,
+              776,
+              573
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          },
+          {
+            "modality": "audio_samples_479999",
+            "text": "And so my fellow Americans ask not what your country can do for you ask what you can do for",
+            "tokens": [
+              3133,
+              834,
+              1041,
+              12339,
+              14522,
+              2679,
+              711,
+              1144,
+              822,
+              2891,
+              740,
+              776,
+              573,
+              611,
+              2679,
+              1144,
+              611,
+              740,
+              776,
+              573
+            ],
+            "reference_choices_on_same_history": [
+              3133,
+              834,
+              1041,
+              12339,
+              14522,
+              2679,
+              711,
+              1144,
+              822,
+              2891,
+              740,
+              776,
+              573,
+              611,
+              2679,
+              1144,
+              611,
+              740,
+              776,
+              573
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          },
+          {
+            "modality": "audio_samples_480321",
+            "text": "And so my fellow Americans ask not what your country can do for you ask what you can do for",
+            "tokens": [
+              3133,
+              834,
+              1041,
+              12339,
+              14522,
+              2679,
+              711,
+              1144,
+              822,
+              2891,
+              740,
+              776,
+              573,
+              611,
+              2679,
+              1144,
+              611,
+              740,
+              776,
+              573
+            ],
+            "reference_choices_on_same_history": [
+              3133,
+              834,
+              1041,
+              12339,
+              14522,
+              2679,
+              711,
+              1144,
+              822,
+              2891,
+              740,
+              776,
+              573,
+              611,
+              2679,
+              1144,
+              611,
+              740,
+              776,
+              573
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          }
+        ],
+        "chat_checked": false,
+        "passed": true,
+        "completed": true,
+        "runtime_sources": {
+          "openvino": {
+            "commit": "274249be0ab4cd85206719f53017365f0afc33ab",
+            "files": {
+              "src/frontends/gguf/docs/mmproj_acceptance.md": "686d70c7c9f0ac51b3cd2357d04b81da60873cdd070faa70d002618433251c35",
+              "src/frontends/gguf/tests/test_data/mmproj_accuracy/acceptance_2026_09.json": "9ae75e92db1ae56a132efac9f2547ffa1d9b3ebb25aa334bdae2c5d1d9db5314"
+            }
+          },
+          "genai": {
+            "commit": "69d87e60289f2378a5d9c6c24b2b23fe2ef90703",
+            "files": {}
+          }
+        },
+        "request_reset_matches": true,
+        "chat_reset_matches": true
+      }
+    },
+    {
+      "path": "/tmp/qwen08-multi-v6-PA.json",
+      "result": {
+        "language": "/home/vmaxim/gguf_models/mmproj_acceptance/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q4_0.gguf",
+        "mmproj": "/home/vmaxim/gguf_models/mmproj_acceptance/Qwen3.5-0.8B-GGUF/mmproj-F16.gguf",
+        "reference_revision": "03fa73cb27f5c251b9528489b18d303b1366aca4",
+        "family": "qwen35",
+        "reference_language": "/home/vmaxim/gguf_models/mmproj_acceptance/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q4_0.gguf",
+        "audio": null,
+        "multi_media": true,
+        "audio_boundaries": false,
+        "attention_backend": "PA",
+        "openvino_version": "2026.5.0-2347-27de71dc2fa-mvafin/gguf/mmproj-support",
+        "genai_version": "2026.5.0.0-3467-54e9f8aa98d-gguf-frontend-mmproj",
+        "validator_sha256": "d0356c6133acc2ce2aa52fbee0095bd95b59133a66fba5684524d2b6b14753b1",
+        "cases": [
+          {
+            "modality": "text",
+            "text": "$2 + 2 = 4$",
+            "tokens": [
+              3,
+              17,
+              478,
+              220,
+              17,
+              283,
+              220,
+              19,
+              3,
+              248046
+            ],
+            "reference_choices_on_same_history": [
+              3,
+              17,
+              478,
+              220,
+              17,
+              283,
+              220,
+              19,
+              3,
+              248046
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          },
+          {
+            "modality": "image",
+            "text": "This is a minimalist, high-contrast logo design featuring the text **\u201cLLaMA+\u201d** in",
+            "tokens": [
+              1919,
+              369,
+              264,
+              69235,
+              11,
+              1496,
+              12,
+              81316,
+              12070,
+              2790,
+              15963,
+              279,
+              1414,
+              172100,
+              3950,
+              64,
+              4680,
+              10,
+              173464,
+              303
+            ],
+            "reference_choices_on_same_history": [
+              1919,
+              369,
+              264,
+              69235,
+              11,
+              1496,
+              12,
+              81316,
+              12070,
+              2790,
+              15963,
+              279,
+              1414,
+              172100,
+              3950,
+              64,
+              4680,
+              173464,
+              173464,
+              303
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 0.95
+          },
+          {
+            "modality": "multi_image",
+            "text": "Here\u2019s a side-by-side comparison of the two images:\n\n---\n\n**Image 1 (",
+            "tokens": [
+              8160,
+              725,
+              264,
+              3008,
+              13909,
+              23314,
+              11960,
+              314,
+              279,
+              1330,
+              5167,
+              25,
+              271,
+              4277,
+              271,
+              332,
+              1841,
+              220,
+              16,
+              318
+            ],
+            "reference_choices_on_same_history": [
+              8160,
+              725,
+              264,
+              31838,
+              13909,
+              23314,
+              11960,
+              314,
+              279,
+              1330,
+              5167,
+              25,
+              271,
+              4277,
+              271,
+              332,
+              1841,
+              220,
+              16,
+              318
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 0.95
+          }
+        ],
+        "chat_checked": false,
+        "passed": true,
+        "completed": true,
+        "runtime_sources": {
+          "openvino": {
+            "commit": "274249be0ab4cd85206719f53017365f0afc33ab",
+            "files": {
+              "src/frontends/gguf/docs/mmproj_acceptance.md": "686d70c7c9f0ac51b3cd2357d04b81da60873cdd070faa70d002618433251c35",
+              "src/frontends/gguf/tests/test_data/mmproj_accuracy/acceptance_2026_09.json": "9ae75e92db1ae56a132efac9f2547ffa1d9b3ebb25aa334bdae2c5d1d9db5314"
+            }
+          },
+          "genai": {
+            "commit": "69d87e60289f2378a5d9c6c24b2b23fe2ef90703",
+            "files": {}
+          }
+        },
+        "request_reset_matches": true,
+        "chat_reset_matches": true
       }
     }
   ],
-  "matrix_directory": "/home/vmaxim/gguf_models/mmproj_acceptance/acceptance-v5",
+  "matrix_directory": "/home/vmaxim/gguf_models/mmproj_acceptance/acceptance-v7",
   "matrix_caveats": [
     "Snapshot v3 predates modern audio-history support. Its API checks also failed to reset legacy chat state between checks and required exact greedy trajectories rather than checking identical histories with the CPU oracle. These API failures require reruns with v4 or newer."
   ],
@@ -10602,5 +12443,1418 @@
       "encoder_conversion_pass": 12,
       "end_to_end_multimodal_qualified": 0
     }
-  }
+  },
+  "native_q4k_policy": "Fractional f16 zero points retained for all native language/projector weights. Raw cgraph conversion policy is unchanged.",
+  "native_f32_reference_comparisons": [
+    {
+      "artifact": "/tmp/gemma12-f32-native.xml",
+      "mode": "previous default; Q4_0 body unchanged",
+      "matching_choices": 13,
+      "total": 13,
+      "logit_nmse": [
+        1e-06,
+        0.0,
+        7e-06,
+        3.2e-05,
+        8.8e-05,
+        0.000132,
+        0.000176,
+        8.7e-05,
+        3e-06,
+        1e-06,
+        1e-06,
+        1e-06,
+        1e-06
+      ],
+      "max_logit_nmse": 0.000176,
+      "reference_kind": "represented-f32"
+    },
+    {
+      "artifact": "/tmp/gemmaE4-f32-native.xml",
+      "mode": "previous default with Q4_K requantization",
+      "matching_choices": 13,
+      "total": 13,
+      "logit_nmse": [
+        0.015017,
+        0.03921,
+        0.084655,
+        0.194847,
+        0.020738,
+        0.024548,
+        0.019334,
+        0.018328,
+        0.045805,
+        0.007945,
+        0.006453,
+        0.012224,
+        0.010335
+      ],
+      "max_logit_nmse": 0.194847,
+      "reference_kind": "represented-f32"
+    },
+    {
+      "artifact": "/tmp/gemmaE4-f32-native-faithful.xml",
+      "mode": "diagnostic OV_GGUF_Q4_K_ZP_F16=1",
+      "matching_choices": 13,
+      "total": 13,
+      "logit_nmse": [
+        1e-06,
+        2e-06,
+        9e-06,
+        7e-06,
+        1e-06,
+        1e-06,
+        1e-06,
+        1e-06,
+        2e-06,
+        1e-06,
+        0.0,
+        1e-06,
+        1e-06
+      ],
+      "max_logit_nmse": 9e-06,
+      "reference_kind": "represented-f32"
+    },
+    {
+      "artifact": "/tmp/gemmaE4-f32-native-new-default.xml",
+      "mode": "new native default",
+      "matching_choices": 13,
+      "total": 13,
+      "logit_nmse": [
+        1e-06,
+        2e-06,
+        9e-06,
+        7e-06,
+        1e-06,
+        1e-06,
+        1e-06,
+        1e-06,
+        2e-06,
+        1e-06,
+        0.0,
+        1e-06,
+        1e-06
+      ],
+      "max_logit_nmse": 9e-06,
+      "reference_kind": "represented-f32"
+    }
+  ],
+  "matrix_runs": [
+    {
+      "path": "/home/vmaxim/gguf_models/mmproj_acceptance/acceptance-v7/Qwen3.5-0.8B-Q4_0-PA-language.json",
+      "result": {
+        "model": "/home/vmaxim/gguf_models/mmproj_acceptance/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q4_0.gguf",
+        "backend": "PA",
+        "openvino_version": "2026.5.0-2347-27de71dc2fa-mvafin/gguf/mmproj-support",
+        "genai_version": "2026.5.0.0-3467-54e9f8aa98d-gguf-frontend-mmproj",
+        "fresh_accuracy": false,
+        "prefix_caching": true,
+        "scenarios": {
+          "tokenizer": {
+            "status": "pass",
+            "detail": [
+              760,
+              6511,
+              314,
+              9338,
+              369
+            ]
+          },
+          "teacher_forced_accuracy": {
+            "status": "pass",
+            "detail": {
+              "actual": [
+                11751,
+                13,
+                198,
+                760,
+                6511,
+                314,
+                9338,
+                369,
+                11751,
+                13,
+                198,
+                760,
+                6511
+              ],
+              "expected": [
+                11751,
+                13,
+                198,
+                760,
+                6511,
+                314,
+                9338,
+                369,
+                11751,
+                13,
+                198,
+                760,
+                6511
+              ],
+              "matching_choices": 13,
+              "total": 13
+            }
+          },
+          "greedy": {
+            "status": "pass",
+            "detail": " Paris.\nThe capital of France is Paris.\nThe capital"
+          },
+          "chat_and_reset": {
+            "status": "pass",
+            "detail": " Paris.\nThe capital of France is Paris.\nThe capital"
+          },
+          "batch_two": {
+            "status": "pass",
+            "detail": [
+              " Paris.\nThe capital of France is Paris.\nThe capital",
+              " 4\n4 2 2 2 2 "
+            ]
+          },
+          "beam_search": {
+            "status": "pass",
+            "detail": {
+              "tokens": [
+                [
+                  198,
+                  32,
+                  13,
+                  11751,
+                  198,
+                  33,
+                  13,
+                  6924
+                ],
+                [
+                  198,
+                  32,
+                  13,
+                  6924,
+                  198,
+                  33,
+                  13,
+                  11751
+                ]
+              ],
+              "scores": [
+                -0.6199668645858765,
+                -0.6703957319259644
+              ]
+            }
+          },
+          "streaming": {
+            "status": "pass",
+            "detail": " Paris.\nThe capital of France is Paris.\nThe capital"
+          }
+        },
+        "accuracy": {
+          "actual": [
+            11751,
+            13,
+            198,
+            760,
+            6511,
+            314,
+            9338,
+            369,
+            11751,
+            13,
+            198,
+            760,
+            6511
+          ],
+          "expected": [
+            11751,
+            13,
+            198,
+            760,
+            6511,
+            314,
+            9338,
+            369,
+            11751,
+            13,
+            198,
+            760,
+            6511
+          ],
+          "matching_choices": 13,
+          "total": 13
+        },
+        "passed": true,
+        "runtime_sources": {
+          "openvino": {
+            "commit": "274249be0ab4cd85206719f53017365f0afc33ab",
+            "files": {
+              "src/frontends/gguf/docs/mmproj_acceptance.md": "686d70c7c9f0ac51b3cd2357d04b81da60873cdd070faa70d002618433251c35",
+              "src/frontends/gguf/tests/test_data/mmproj_accuracy/acceptance_2026_09.json": "9ae75e92db1ae56a132efac9f2547ffa1d9b3ebb25aa334bdae2c5d1d9db5314"
+            }
+          },
+          "genai": {
+            "commit": "69d87e60289f2378a5d9c6c24b2b23fe2ef90703",
+            "files": {}
+          }
+        },
+        "process_exit_code": 0,
+        "elapsed_seconds": 29,
+        "matrix_completed": true,
+        "inherited_from": "/home/vmaxim/gguf_models/mmproj_acceptance/acceptance-v5/Qwen3.5-0.8B-Q4_0-PA-language.json",
+        "inheritance_note": "No Q4_K tensors in this checkpoint; execution unchanged by native Q4_K fix."
+      }
+    },
+    {
+      "path": "/home/vmaxim/gguf_models/mmproj_acceptance/acceptance-v7/Qwen3.5-0.8B-Q4_0-PA-vlm.json",
+      "result": {
+        "language": "/home/vmaxim/gguf_models/mmproj_acceptance/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q4_0.gguf",
+        "mmproj": "/home/vmaxim/gguf_models/mmproj_acceptance/Qwen3.5-0.8B-GGUF/mmproj-F16.gguf",
+        "reference_revision": "03fa73cb27f5c251b9528489b18d303b1366aca4",
+        "family": "qwen35",
+        "reference_language": "/home/vmaxim/gguf_models/mmproj_acceptance/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q4_0.gguf",
+        "audio": null,
+        "attention_backend": "PA",
+        "openvino_version": "2026.5.0-2347-27de71dc2fa-mvafin/gguf/mmproj-support",
+        "genai_version": "2026.5.0.0-3467-54e9f8aa98d-gguf-frontend-mmproj",
+        "validator_sha256": "c753e82eb37c951da5ef6f2d21a309acf149b49e2232af3484c2ab62eb10baba",
+        "cases": [
+          {
+            "modality": "text",
+            "text": "$2 + 2 = 4$",
+            "tokens": [
+              3,
+              17,
+              478,
+              220,
+              17,
+              283,
+              220,
+              19,
+              3,
+              248046
+            ],
+            "reference_choices_on_same_history": [
+              3,
+              17,
+              478,
+              220,
+              17,
+              283,
+              220,
+              19,
+              3,
+              248046
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          },
+          {
+            "modality": "image",
+            "text": "This is a minimalist, high-contrast logo design featuring the text **\u201cLLaMA+\u201d** in",
+            "tokens": [
+              1919,
+              369,
+              264,
+              69235,
+              11,
+              1496,
+              12,
+              81316,
+              12070,
+              2790,
+              15963,
+              279,
+              1414,
+              172100,
+              3950,
+              64,
+              4680,
+              10,
+              173464,
+              303
+            ],
+            "reference_choices_on_same_history": [
+              1919,
+              369,
+              264,
+              69235,
+              11,
+              1496,
+              12,
+              81316,
+              12070,
+              2790,
+              15963,
+              279,
+              1414,
+              172100,
+              3950,
+              64,
+              4680,
+              173464,
+              173464,
+              303
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 0.95
+          },
+          {
+            "modality": "video",
+            "text": "The video begins with a black background, where the text \"LLaMA\" is displayed in white",
+            "tokens": [
+              760,
+              2678,
+              11690,
+              440,
+              264,
+              3565,
+              3870,
+              11,
+              1332,
+              279,
+              1414,
+              328,
+              3950,
+              64,
+              4680,
+              1,
+              369,
+              12234,
+              303,
+              4022
+            ],
+            "reference_choices_on_same_history": [
+              760,
+              2678,
+              15417,
+              440,
+              264,
+              1064,
+              3870,
+              11,
+              1332,
+              279,
+              1414,
+              328,
+              3950,
+              64,
+              4680,
+              1,
+              369,
+              12234,
+              303,
+              4022
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 0.9
+          },
+          {
+            "modality": "image_chat",
+            "text": "The image displays a minimalist, modern logo design set against a solid dark gray background.\n\n**Text",
+            "tokens": [
+              760,
+              2099,
+              18126,
+              264,
+              69235,
+              11,
+              6278,
+              12070,
+              2790,
+              716,
+              2272,
+              264,
+              6235,
+              6121,
+              17024,
+              3870,
+              13,
+              271,
+              332,
+              1138
+            ],
+            "reference_choices_on_same_history": [
+              760,
+              2099,
+              18126,
+              264,
+              69235,
+              11,
+              6278,
+              12070,
+              2790,
+              716,
+              2272,
+              264,
+              6235,
+              6121,
+              17024,
+              3870,
+              13,
+              271,
+              332,
+              1138
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          },
+          {
+            "modality": "modern_image",
+            "text": "This is a minimalist, high-contrast logo design featuring the text **\u201cLLaMA+\u201d** in",
+            "tokens": [
+              1919,
+              369,
+              264,
+              69235,
+              11,
+              1496,
+              12,
+              81316,
+              12070,
+              2790,
+              15963,
+              279,
+              1414,
+              172100,
+              3950,
+              64,
+              4680,
+              10,
+              173464,
+              303
+            ],
+            "reference_choices_on_same_history": [
+              1919,
+              369,
+              264,
+              69235,
+              11,
+              1496,
+              12,
+              81316,
+              12070,
+              2790,
+              15963,
+              279,
+              1414,
+              172100,
+              3950,
+              64,
+              4680,
+              173464,
+              173464,
+              303
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 0.95
+          },
+          {
+            "modality": "modern_image_chat",
+            "text": "The image displays a minimalist, modern logo design set against a solid dark gray background.\n\n**Text",
+            "tokens": [
+              760,
+              2099,
+              18126,
+              264,
+              69235,
+              11,
+              6278,
+              12070,
+              2790,
+              716,
+              2272,
+              264,
+              6235,
+              6121,
+              17024,
+              3870,
+              13,
+              271,
+              332,
+              1138
+            ],
+            "reference_choices_on_same_history": [
+              760,
+              2099,
+              18126,
+              264,
+              69235,
+              11,
+              6278,
+              12070,
+              2790,
+              716,
+              2272,
+              264,
+              6235,
+              6121,
+              17024,
+              3870,
+              13,
+              271,
+              332,
+              1138
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          }
+        ],
+        "chat_checked": true,
+        "passed": true,
+        "completed": true,
+        "runtime_sources": {
+          "openvino": {
+            "commit": "274249be0ab4cd85206719f53017365f0afc33ab",
+            "files": {
+              "src/frontends/gguf/docs/mmproj_acceptance.md": "686d70c7c9f0ac51b3cd2357d04b81da60873cdd070faa70d002618433251c35",
+              "src/frontends/gguf/tests/test_data/mmproj_accuracy/acceptance_2026_09.json": "9ae75e92db1ae56a132efac9f2547ffa1d9b3ebb25aa334bdae2c5d1d9db5314"
+            }
+          },
+          "genai": {
+            "commit": "69d87e60289f2378a5d9c6c24b2b23fe2ef90703",
+            "files": {}
+          }
+        },
+        "api_checks": {
+          "modern_image_chat": {
+            "passed": true
+          },
+          "beam_search": {
+            "passed": true
+          },
+          "cancel_and_reset": {
+            "passed": true
+          }
+        },
+        "request_reset_matches": true,
+        "chat_reset_matches": true,
+        "process_exit_code": 0,
+        "elapsed_seconds": 79,
+        "matrix_completed": true,
+        "inherited_from": "/home/vmaxim/gguf_models/mmproj_acceptance/acceptance-v5/Qwen3.5-0.8B-Q4_0-PA-vlm.json",
+        "inheritance_note": "No Q4_K tensors in this checkpoint; execution unchanged by native Q4_K fix."
+      }
+    },
+    {
+      "path": "/home/vmaxim/gguf_models/mmproj_acceptance/acceptance-v7/Qwen3.5-0.8B-Q4_0-SDPA-language.json",
+      "result": {
+        "model": "/home/vmaxim/gguf_models/mmproj_acceptance/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q4_0.gguf",
+        "backend": "SDPA",
+        "openvino_version": "2026.5.0-2347-27de71dc2fa-mvafin/gguf/mmproj-support",
+        "genai_version": "2026.5.0.0-3467-54e9f8aa98d-gguf-frontend-mmproj",
+        "fresh_accuracy": false,
+        "prefix_caching": false,
+        "scenarios": {
+          "tokenizer": {
+            "status": "pass",
+            "detail": [
+              760,
+              6511,
+              314,
+              9338,
+              369
+            ]
+          },
+          "teacher_forced_accuracy": {
+            "status": "pass",
+            "detail": {
+              "actual": [
+                11751,
+                13,
+                198,
+                760,
+                6511,
+                314,
+                9338,
+                369,
+                11751,
+                13,
+                198,
+                760,
+                6511
+              ],
+              "expected": [
+                11751,
+                13,
+                198,
+                760,
+                6511,
+                314,
+                9338,
+                369,
+                11751,
+                13,
+                198,
+                760,
+                6511
+              ],
+              "matching_choices": 13,
+              "total": 13
+            }
+          },
+          "greedy": {
+            "status": "pass",
+            "detail": " Paris.\nThe capital of France is Paris.\nThe capital"
+          },
+          "chat_and_reset": {
+            "status": "pass",
+            "detail": " Paris.\nThe capital of France is Paris.\nThe capital"
+          },
+          "batch_two": {
+            "status": "pass",
+            "detail": [
+              " Paris.\nThe capital of France is Paris.\nThe capital",
+              " 4\n4 2 2 2 2 "
+            ]
+          },
+          "beam_search": {
+            "status": "pass",
+            "detail": {
+              "tokens": [
+                [
+                  198,
+                  32,
+                  13,
+                  11751,
+                  198,
+                  33,
+                  13,
+                  6924
+                ],
+                [
+                  198,
+                  32,
+                  13,
+                  6924,
+                  198,
+                  33,
+                  13,
+                  11751
+                ]
+              ],
+              "scores": [
+                -0.6198492050170898,
+                -0.6702809929847717
+              ]
+            }
+          },
+          "streaming": {
+            "status": "pass",
+            "detail": " Paris.\nThe capital of France is Paris.\nThe capital"
+          }
+        },
+        "accuracy": {
+          "actual": [
+            11751,
+            13,
+            198,
+            760,
+            6511,
+            314,
+            9338,
+            369,
+            11751,
+            13,
+            198,
+            760,
+            6511
+          ],
+          "expected": [
+            11751,
+            13,
+            198,
+            760,
+            6511,
+            314,
+            9338,
+            369,
+            11751,
+            13,
+            198,
+            760,
+            6511
+          ],
+          "matching_choices": 13,
+          "total": 13
+        },
+        "passed": true,
+        "runtime_sources": {
+          "openvino": {
+            "commit": "274249be0ab4cd85206719f53017365f0afc33ab",
+            "files": {
+              "src/frontends/gguf/docs/mmproj_acceptance.md": "686d70c7c9f0ac51b3cd2357d04b81da60873cdd070faa70d002618433251c35",
+              "src/frontends/gguf/tests/test_data/mmproj_accuracy/acceptance_2026_09.json": "9ae75e92db1ae56a132efac9f2547ffa1d9b3ebb25aa334bdae2c5d1d9db5314"
+            }
+          },
+          "genai": {
+            "commit": "69d87e60289f2378a5d9c6c24b2b23fe2ef90703",
+            "files": {}
+          }
+        },
+        "process_exit_code": 0,
+        "elapsed_seconds": 36,
+        "matrix_completed": true,
+        "inherited_from": "/home/vmaxim/gguf_models/mmproj_acceptance/acceptance-v5/Qwen3.5-0.8B-Q4_0-SDPA-language.json",
+        "inheritance_note": "No Q4_K tensors in this checkpoint; execution unchanged by native Q4_K fix."
+      }
+    },
+    {
+      "path": "/home/vmaxim/gguf_models/mmproj_acceptance/acceptance-v7/Qwen3.5-0.8B-Q4_0-SDPA-vlm.json",
+      "result": {
+        "language": "/home/vmaxim/gguf_models/mmproj_acceptance/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q4_0.gguf",
+        "mmproj": "/home/vmaxim/gguf_models/mmproj_acceptance/Qwen3.5-0.8B-GGUF/mmproj-F16.gguf",
+        "reference_revision": "03fa73cb27f5c251b9528489b18d303b1366aca4",
+        "family": "qwen35",
+        "reference_language": "/home/vmaxim/gguf_models/mmproj_acceptance/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q4_0.gguf",
+        "audio": null,
+        "attention_backend": "SDPA",
+        "openvino_version": "2026.5.0-2347-27de71dc2fa-mvafin/gguf/mmproj-support",
+        "genai_version": "2026.5.0.0-3467-54e9f8aa98d-gguf-frontend-mmproj",
+        "validator_sha256": "c753e82eb37c951da5ef6f2d21a309acf149b49e2232af3484c2ab62eb10baba",
+        "cases": [
+          {
+            "modality": "text",
+            "text": "$2 + 2 = 4$",
+            "tokens": [
+              3,
+              17,
+              478,
+              220,
+              17,
+              283,
+              220,
+              19,
+              3,
+              248046
+            ],
+            "reference_choices_on_same_history": [
+              3,
+              17,
+              478,
+              220,
+              17,
+              283,
+              220,
+              19,
+              3,
+              248046
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          },
+          {
+            "modality": "image",
+            "text": "This is a minimalist, high-contrast logo design featuring the text **\u201cLLaMA+\u201d** in",
+            "tokens": [
+              1919,
+              369,
+              264,
+              69235,
+              11,
+              1496,
+              12,
+              81316,
+              12070,
+              2790,
+              15963,
+              279,
+              1414,
+              172100,
+              3950,
+              64,
+              4680,
+              10,
+              173464,
+              303
+            ],
+            "reference_choices_on_same_history": [
+              1919,
+              369,
+              264,
+              69235,
+              11,
+              1496,
+              12,
+              81316,
+              12070,
+              2790,
+              15963,
+              279,
+              1414,
+              172100,
+              3950,
+              64,
+              4680,
+              173464,
+              173464,
+              303
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 0.95
+          },
+          {
+            "modality": "video",
+            "text": "The video begins with a black background, where the text \"LLaMA\" is displayed in white",
+            "tokens": [
+              760,
+              2678,
+              11690,
+              440,
+              264,
+              3565,
+              3870,
+              11,
+              1332,
+              279,
+              1414,
+              328,
+              3950,
+              64,
+              4680,
+              1,
+              369,
+              12234,
+              303,
+              4022
+            ],
+            "reference_choices_on_same_history": [
+              760,
+              2678,
+              15417,
+              440,
+              264,
+              1064,
+              3870,
+              11,
+              1332,
+              279,
+              1414,
+              328,
+              3950,
+              64,
+              4680,
+              1,
+              369,
+              12234,
+              303,
+              4022
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 0.9
+          },
+          {
+            "modality": "image_chat",
+            "text": "The image displays a minimalist, modern logo design set against a solid dark gray background.\n\n**Text",
+            "tokens": [
+              760,
+              2099,
+              18126,
+              264,
+              69235,
+              11,
+              6278,
+              12070,
+              2790,
+              716,
+              2272,
+              264,
+              6235,
+              6121,
+              17024,
+              3870,
+              13,
+              271,
+              332,
+              1138
+            ],
+            "reference_choices_on_same_history": [
+              760,
+              2099,
+              18126,
+              264,
+              69235,
+              11,
+              6278,
+              12070,
+              2790,
+              716,
+              2272,
+              264,
+              6235,
+              6121,
+              17024,
+              3870,
+              13,
+              271,
+              332,
+              1138
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          },
+          {
+            "modality": "modern_image",
+            "text": "This is a minimalist, high-contrast logo design featuring the text **\u201cLLaMA+\u201d** in",
+            "tokens": [
+              1919,
+              369,
+              264,
+              69235,
+              11,
+              1496,
+              12,
+              81316,
+              12070,
+              2790,
+              15963,
+              279,
+              1414,
+              172100,
+              3950,
+              64,
+              4680,
+              10,
+              173464,
+              303
+            ],
+            "reference_choices_on_same_history": [
+              1919,
+              369,
+              264,
+              69235,
+              11,
+              1496,
+              12,
+              81316,
+              12070,
+              2790,
+              15963,
+              279,
+              1414,
+              172100,
+              3950,
+              64,
+              4680,
+              173464,
+              173464,
+              303
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 0.95
+          },
+          {
+            "modality": "modern_image_chat",
+            "text": "The image displays a minimalist, modern logo design set against a solid dark gray background.\n\n**Text",
+            "tokens": [
+              760,
+              2099,
+              18126,
+              264,
+              69235,
+              11,
+              6278,
+              12070,
+              2790,
+              716,
+              2272,
+              264,
+              6235,
+              6121,
+              17024,
+              3870,
+              13,
+              271,
+              332,
+              1138
+            ],
+            "reference_choices_on_same_history": [
+              760,
+              2099,
+              18126,
+              264,
+              69235,
+              11,
+              6278,
+              12070,
+              2790,
+              716,
+              2272,
+              264,
+              6235,
+              6121,
+              17024,
+              3870,
+              13,
+              271,
+              332,
+              1138
+            ],
+            "first_token_matches": true,
+            "matching_choice_fraction": 1.0
+          }
+        ],
+        "chat_checked": true,
+        "passed": true,
+        "completed": true,
+        "runtime_sources": {
+          "openvino": {
+            "commit": "274249be0ab4cd85206719f53017365f0afc33ab",
+            "files": {
+              "src/frontends/gguf/docs/mmproj_acceptance.md": "686d70c7c9f0ac51b3cd2357d04b81da60873cdd070faa70d002618433251c35",
+              "src/frontends/gguf/tests/test_data/mmproj_accuracy/acceptance_2026_09.json": "9ae75e92db1ae56a132efac9f2547ffa1d9b3ebb25aa334bdae2c5d1d9db5314"
+            }
+          },
+          "genai": {
+            "commit": "69d87e60289f2378a5d9c6c24b2b23fe2ef90703",
+            "files": {}
+          }
+        },
+        "api_checks": {
+          "modern_image_chat": {
+            "passed": true
+          },
+          "beam_search": {
+            "passed": true
+          },
+          "cancel_and_reset": {
+            "passed": true
+          }
+        },
+        "request_reset_matches": true,
+        "chat_reset_matches": true,
+        "process_exit_code": 0,
+        "elapsed_seconds": 76,
+        "matrix_completed": true,
+        "inherited_from": "/home/vmaxim/gguf_models/mmproj_acceptance/acceptance-v5/Qwen3.5-0.8B-Q4_0-SDPA-vlm.json",
+        "inheritance_note": "No Q4_K tensors in this checkpoint; execution unchanged by native Q4_K fix."
+      }
+    },
+    {
+      "path": "/home/vmaxim/gguf_models/mmproj_acceptance/acceptance-v7/Qwen3.5-0.8B-Q4_K_M-PA-language.json",
+      "result": {
+        "model": "/home/vmaxim/gguf_models/mmproj_acceptance/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q4_K_M.gguf",
+        "backend": "PA",
+        "reference": "/home/vmaxim/gguf_models/mmproj_acceptance/results/Qwen3.5-0.8B-Q4_K_M/llama.bin",
+        "reference_kind": "quantized",
+        "reference_sha256": "99790676850382b8ac57373d757a8a2118770e40839d518a5fe236694935e12d",
+        "openvino_version": "2026.5.0-2350-adc68544f8c-mvafin/gguf/mmproj-support",
+        "genai_version": "2026.5.0.0-3467-54e9f8aa98d-gguf-frontend-mmproj",
+        "fresh_accuracy": false,
+        "prefix_caching": true,
+        "scenarios": {
+          "tokenizer": {
+            "status": "pass",
+            "detail": [
+              760,
+              6511,
+              314,
+              9338,
+              369
+            ]
+          },
+          "teacher_forced_accuracy": {
+            "status": "pass",
+            "detail": {
+              "actual": [
+                279,
+                6511,
+                314,
+                279,
+                3046,
+                13,
+                198,
+                760,
+                6511,
+                314,
+                9338,
+                369,
+                279
+              ],
+              "expected": [
+                279,
+                6511,
+                314,
+                279,
+                3046,
+                13,
+                198,
+                760,
+                6511,
+                314,
+                9338,
+                369,
+                279
+              ],
+              "matching_choices": 13,
+              "total": 13
+            }
+          },
+          "greedy": {
+            "status": "pass",
+            "detail": " the capital of the country.\nThe capital of France is the"
+          },
+          "chat_and_reset": {
+            "status": "pass",
+            "detail": " the capital of the country.\nThe capital of France is the"
+          },
+          "batch_two": {
+            "status": "pass",
+            "detail": [
+              " the capital of the country.\nThe capital of France is the",
+              " 4 2 2 2 2 2 "
+            ]
+          },
+          "beam_search": {
+            "status": "pass",
+            "detail": {
+              "tokens": [
+                [
+                  11751,
+                  13,
+                  198,
+                  760,
+                  6511,
+                  314,
+                  9338,
+                  369
+                ],
+                [
+                  11751,
+                  13,
+                  198,
+                  760,
+                  6511,
+                  314,
+                  9564,
+                  369
+                ]
+              ],
+              "scores": [
+                -0.9159768223762512,
+                -1.0580066442489624
+              ]
+            }
+          },
+          "streaming": {
+            "status": "pass",
+            "detail": " the capital of the country.\nThe capital of France is the"
+          }
+        },
+        "accuracy": {
+          "actual": [
+            279,
+            6511,
+            314,
+            279,
+            3046,
+            13,
+            198,
+            760,
+            6511,
+            314,
+            9338,
+            369,
+            279
+          ],
+          "expected": [
+            279,
+            6511,
+            314,
+            279,
+            3046,
+            13,
+            198,
+            760,
+            6511,
+            314,
+            9338,
+            369,
+            279
+          ],
+          "matching_choices": 13,
+          "total": 13
+        },
+        "passed": true,
+        "runtime_sources": {
+          "openvino": {
+            "commit": "5dc188d87851a37d2e0e3186ca7902d0290e55bd",
+            "files": {
+              "src/frontends/gguf/docs/mmproj.md": "7b3f842a09ae4554c268241ac4932fd72fc1bcb83a260c860fcc06f707988137",
+              "src/frontends/gguf/docs/mmproj_acceptance.md": "433635026d0e95e5023270f7bdc499c8c103a9f356abfba925c5b2d35cc69d63"
+            }
+          },
+          "genai": {
+            "commit": "4be18e1c603b3a4b63500d8c8e8442736748e07b",
+            "files": {}
+          }
+        },
+        "process_exit_code": 0,
+        "elapsed_seconds": 17,
+        "matrix_completed": true
+      }
+    },
+    {
+      "path": "/home/vmaxim/gguf_models/mmproj_acceptance/acceptance-v7/Qwen3.5-0.8B-Q4_K_M-SDPA-language.json",
+      "result": {
+        "model": "/home/vmaxim/gguf_models/mmproj_acceptance/Qwen3.5-0.8B-GGUF/Qwen3.5-0.8B-Q4_K_M.gguf",
+        "backend": "SDPA",
+        "reference": "/home/vmaxim/gguf_models/mmproj_acceptance/results/Qwen3.5-0.8B-Q4_K_M/llama.bin",
+        "reference_kind": "quantized",
+        "reference_sha256": "99790676850382b8ac57373d757a8a2118770e40839d518a5fe236694935e12d",
+        "openvino_version": "2026.5.0-2350-adc68544f8c-mvafin/gguf/mmproj-support",
+        "genai_version": "2026.5.0.0-3467-54e9f8aa98d-gguf-frontend-mmproj",
+        "fresh_accuracy": false,
+        "prefix_caching": false,
+        "scenarios": {
+          "tokenizer": {
+            "status": "pass",
+            "detail": [
+              760,
+              6511,
+              314,
+              9338,
+              369
+            ]
+          },
+          "teacher_forced_accuracy": {
+            "status": "pass",
+            "detail": {
+              "actual": [
+                279,
+                6511,
+                314,
+                279,
+                3046,
+                13,
+                198,
+                760,
+                6511,
+                314,
+                9338,
+                369,
+                279
+              ],
+              "expected": [
+                279,
+                6511,
+                314,
+                279,
+                3046,
+                13,
+                198,
+                760,
+                6511,
+                314,
+                9338,
+                369,
+                279
+              ],
+              "matching_choices": 13,
+              "total": 13
+            }
+          },
+          "greedy": {
+            "status": "pass",
+            "detail": " the capital of the country.\nThe capital of France is the"
+          },
+          "chat_and_reset": {
+            "status": "pass",
+            "detail": " the capital of the country.\nThe capital of France is the"
+          },
+          "batch_two": {
+            "status": "pass",
+            "detail": [
+              " the capital of the country.\nThe capital of France is the",
+              " 4 2 2 2 2 2 "
+            ]
+          },
+          "beam_search": {
+            "status": "pass",
+            "detail": {
+              "tokens": [
+                [
+                  11751,
+                  13,
+                  198,
+                  760,
+                  6511,
+                  314,
+                  9338,
+                  369
+                ],
+                [
+                  11751,
+                  13,
+                  198,
+                  760,
+                  6511,
+                  314,
+                  9564,
+                  369
+                ]
+              ],
+              "scores": [
+                -0.9159111976623535,
+                -1.057985782623291
+              ]
+            }
+          },
+          "streaming": {
+            "status": "pass",
+            "detail": " the capital of the country.\nThe capital of France is the"
+          }
+        },
+        "accuracy": {
+          "actual": [
+            279,
+            6511,
+            314,
+            279,
+            3046,
+            13,
+            198,
+            760,
+            6511,
+            314,
+            9338,
+            369,
+            279
+          ],
+          "expected": [
+            279,
+            6511,
+            314,
+            279,
+            3046,
+            13,
+            198,
+            760,
+            6511,
+            314,
+            9338,
+            369,
+            279
+          ],
+          "matching_choices": 13,
+          "total": 13
+        },
+        "passed": true,
+        "runtime_sources": {
+          "openvino": {
+            "commit": "5dc188d87851a37d2e0e3186ca7902d0290e55bd",
+            "files": {
+              "src/frontends/gguf/docs/mmproj.md": "7b3f842a09ae4554c268241ac4932fd72fc1bcb83a260c860fcc06f707988137",
+              "src/frontends/gguf/docs/mmproj_acceptance.md": "433635026d0e95e5023270f7bdc499c8c103a9f356abfba925c5b2d35cc69d63"
+            }
+          },
+          "genai": {
+            "commit": "4be18e1c603b3a4b63500d8c8e8442736748e07b",
+            "files": {}
+          }
+        },
+        "process_exit_code": 0,
+        "elapsed_seconds": 18,
+        "matrix_completed": true
+      }
+    }
+  ]
 }
