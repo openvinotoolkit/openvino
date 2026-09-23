@@ -9,8 +9,8 @@ contains unsupported IQ4_XS tensors and is separate from the requested plain
 Q4_K_M checkpoint.
 
 OpenVINO branch `mvafin/gguf/mmproj-support` is rebased onto `upstream/master`
-`ff92c0dbcc` and pushed through `5dc188d878`. The companion GenAI branch is
-**`gguf-frontend-mmproj`**, pushed through `4be18e1c`. The local worktree directory retains its earlier name
+`ff92c0dbcc` and pushed through `12ba63a17d`. The companion GenAI branch is
+**`gguf-frontend-mmproj`**, pushed through `ce37b94e`. The local worktree directory retains its earlier name
 for build reuse; it does not indicate a separate acceptance branch.
 
 ## Implemented and tested
@@ -29,26 +29,34 @@ for build reuse; it does not indicate a separate acceptance branch.
   preserve fractional zero points, avoiding an additional lossy requantization.
 - GenAI modern audio-history ownership, follow-ups, edits and cancellation
   rollback, covered by a synthetic feature-placement regression.
+- PA multimodal chat tokenization now recognizes templates applied by the caller,
+  preventing a duplicate BOS token in legacy and modern histories. A real Gemma4
+  E2B Q4_K_M reset reproducer now returns identical tokens for independent image
+  requests and fresh chats, including after audio requests.
 
 The frontend suite passed **406 tests**. The selected GenAI GGUF, scheduler,
-model-runner, hybrid-cache and SDPA suites passed **120 tests** after the modern
-audio-history change. The native Q4_K fidelity fix also passed both suites. Final checkpoint
-qualification retains its own source manifests and test records.
+model-runner, hybrid-cache and SDPA suites passed **121 tests** after the chat
+tokenization fix. Final checkpoint qualification retains its own source manifests
+and test records.
 
 ## Real-checkpoint evidence and remaining gaps
 
 | Configuration | Evidence | Remaining qualification |
 |---|---|---|
-| Qwen3.5 2B Q4_0 PA | 13/13 language choices; language smoke scenarios pass | Complete updated multimodal/API matrix |
-| Qwen3.5 0.8B Q4_0 SDPA | Language checks, padded batch and beam checks pass | Complete updated multimodal/API matrix |
-| Gemma4 E2B Q4_0 PA/SDPA | Image/audio/mixed, legacy and modern chat, beam and cancellation/reset pass | History switching and two-image/two-audio/30-second boundary checks also pass; full updated matrix pending |
-| Gemma4 E4B Q4_0 SDPA | Language checks, padded batch and beam checks pass | Complete updated multimodal/API matrix |
-| Gemma4 12B Q4_0 PA/SDPA | F32-reference language checks and all language smoke scenarios pass; text/audio 100%; image/mixed 90%; legacy image chat 95–100%; audio chat 100% | Modern API rerun; quantized-reference language mismatch retained; PA video previously 85% |
-| Qwen3.5 2B Q4_K_M | Text/image 100% against represented-weight F32 language reference, including the earlier default decoder | Updated full matrix after faithful Q4_K became the native default |
+| Qwen3.5 0.8B/2B/4B, both precisions and backends | Language, image/video, legacy/modern chat, beam and reset checks pass on v7 | Broader media/context coverage |
+| Qwen3.5 9B Q4_0 PA/SDPA | Language and full bounded multimodal/API checks pass on v7 | Q4_K_M runs in progress |
+| Gemma4 E2B Q4_0 PA/SDPA | Language, image/audio/mixed, chat, beam and reset checks pass on v7 | PA chat rerun after the tokenization fix |
+| Gemma4 E2B Q4_K_M | Language passes; v9 PA has 100% represented-F32 agreement for all 11 media/chat cases, with beam, cancellation and reset passing; SDPA represented-F32 run also passes | Original quantized-reference audio first-token failure retained |
+| Gemma4 E4B, both precisions and backends | Language and bounded multimodal/API checks pass on v7 | PA chat rerun after the tokenization fix |
+| Gemma4 12B Q4_0 PA/SDPA | Represented-F32 language checks pass; earlier text/audio 100%, image/mixed 90% | Updated full multimodal/API matrix; quantized-reference language mismatch retained |
+| Gemma4 26B Q4_0 | Represented-F32 native comparison matches 12/13 choices; layer comparison identifies a near-tied expert selection at layer 8 | First-token criterion remains failed; complete updated GenAI matrix |
 | Other requested sizes/precisions | Conversion and historical numerical measurements recorded | Updated PA/SDPA language and multimodal matrix in progress |
 
 The larger matrix uses frozen runtime copies, so rebuilding local libraries does
-not invalidate running tests. Snapshot v3 predates modern audio-history fixes.
+not invalidate running tests. Snapshot v9 includes the PA chat tokenization fix.
+It retains v7 results for unchanged language, SDPA and Qwen execution paths;
+affected PA multimodal cases are rerun. Each inherited result retains its
+original runtime provenance. Snapshot v3 predates modern audio-history fixes.
 Its extended API checks also lacked cleanup between scenarios and compared exact
 greedy trajectories across API paths. Those API results require reruns. Updated
 checks isolate scenarios and compare choices against llama.cpp on identical
@@ -84,6 +92,13 @@ retained separately. Gemma4 E4B Q4_K_M also matches 13/13 choices, but the
 older native Q4_K requantization produced maximum logit NMSE `0.194847`.
 Preserving fractional zero points reduces that to `9e-6`. Native GGUF loading
 now uses this faithful Q4_K conversion for language models and projectors.
+Gemma4 26B Q4_0 still fails first-token agreement against represented F32
+(maximum logit NMSE `0.012255`). Layer outputs agree closely through layer 7.
+At layer 8, router-logit NMSE is `1.8e-8`, but experts 56 and 35 exchange places
+at the top-8 cutoff for the last prompt token. The reference gap is `0.000263`.
+This localizes the first amplified difference to routing sensitivity; it does
+not establish the source of all later error or satisfy the first-token criterion.
+
 The raw cgraph weight-conversion path retains its separate quantization policy;
 these native-loading results do not qualify that path.
 
