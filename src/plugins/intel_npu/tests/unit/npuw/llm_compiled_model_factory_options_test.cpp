@@ -317,6 +317,79 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, TextRerankTagKeptOutOfStageConfigs) {
     expect_missing_prop(generate.props, "NPUW_TEXT_RERANK");
 }
 
+TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelAutoEnablesSwaShrinkAndPropagateSliceUp) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled =
+                        create_compiled_model(ov::test::npuw::build_per_layer_inputs_probe_model(), {}, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_TRUE(compiled->get_property("NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK").as<bool>());
+    EXPECT_TRUE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelKeepsExplicitUserOverrides) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        ov::test::npuw::build_per_layer_inputs_probe_model(),
+                        {{"NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK", "NO"}, {"NPUW_LLM_PROPAGATE_SLICE_UP", "NO"}},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK").as<bool>());
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelDoesNotOverridePrefixCaching) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    // Shrink must not be auto-enabled here: it is mutually exclusive with prefix caching
+    // (see the assert in the ShrinkSlidingWindowKVCache application site), so silently
+    // defaulting it to YES would turn this valid config into a compilation failure.
+    ASSERT_NO_THROW(compiled = create_compiled_model(ov::test::npuw::build_per_layer_inputs_probe_model(),
+                                                     {{"NPUW_LLM_ENABLE_PREFIX_CACHING", "YES"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK").as<bool>());
+    EXPECT_TRUE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelDoesNotOverrideMultiTokenGeneration) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    // Generating more than 1 token per inference (e.g. speculative decoding) doesn't work
+    // with a shrunk/sliding KV cache, so shrink must stay off here even though the model
+    // has consumed per_layer_inputs.
+    ASSERT_NO_THROW(compiled = create_compiled_model(ov::test::npuw::build_per_layer_inputs_probe_model(),
+                                                     {{"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "8"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK").as<bool>());
+    EXPECT_TRUE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelDoesNotOverrideContinuousPrefill) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    // Continuous prefill doesn't work with a shrunk/sliding KV cache either (see
+    // compute_continuous_prefill_supported()), so shrink must stay off here too.
+    ASSERT_NO_THROW(compiled = create_compiled_model(ov::test::npuw::build_per_layer_inputs_probe_model(),
+                                                     {{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK").as<bool>());
+    EXPECT_TRUE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
+}
+
 TEST_F(LLMCompiledModelFactoryOptionsTest, DefaultStageConfigsCarryBaselineNpuwOptions) {
     RecordingFactory recorder;
     std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
