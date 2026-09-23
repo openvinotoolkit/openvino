@@ -19,3 +19,7 @@ and JAX decoders, whose changes affect model conversion semantics.
   trace discrepancies to the bindings or
   [stub generator](../../../../src/bindings/python/scripts/generate_pyapi_stubs.py)
   and request regeneration when applicable.
+- The dependency versions should remain consistent across components and requirements files, especially frontend packages like torch and ONNX, but also packages like protobuf.
+- There is a strict backwards compatibility policy. Any changes which may break it require a proper deprecation notice with a deprecation warning test.
+- Extending public Python API also needs careful review, as once merged and released, we commit to maintaining it.
+- The Python API should be a wrapper around C++ code - as much as possible should be done by underlying C++ API, instead of extending Python or pybind binding logic.
