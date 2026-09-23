@@ -13485,6 +13485,8 @@ TEST(convolution_kernel_selector_bfyx_f16, dynamic_x_uses_explicit_padding_path_
     ASSERT_NE(kernels_data[0].kernels[0].code.kernelString, nullptr);
     ASSERT_EQ(kernels_data[0].kernels[0].code.kernelString->jit.find("CONV_FSV16_USE_BLOCKED_X_PADDING 1"),
               std::string::npos);
+}
+
 TEST(convolution_gpu_bfyx_f16, dynamic_fused_input_scalar_and_non_scalar_fp32) {
     auto& engine = get_test_engine();
 
