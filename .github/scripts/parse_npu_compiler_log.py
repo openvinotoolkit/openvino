@@ -36,6 +36,11 @@ from pathlib import Path
 
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
 METRIC_KEYS = ("compilation_memory_usage_kb", "compile_net_time_ms")
+TEST_TYPES = {
+    "tensorflow": {"convert_model", "read_model"},
+    "jax": {"jax"},
+    "pytorch": {"pt_groupA", "pt_groupB", "pt_groupC", "pt_groupD"},
+}
 
 # pytest -v output, for example:
 # tests/.../test_timm.py::TestTimm::test_timm_precommit[NPU-resnet18-...] PASSED
@@ -68,7 +73,12 @@ def is_metrics_dict(value: object) -> bool:
     return isinstance(value, dict) and set(value).issubset(METRIC_KEYS) and bool(value)
 
 
-def get_framework_bucket(result: dict, platform_name: str, framework_name: str) -> dict[str, dict[str, object]]:
+def get_framework_bucket(
+    result: dict,
+    platform_name: str,
+    framework_name: str,
+    valid_test_types: set[str],
+) -> dict[str, dict[str, object]]:
     platform = result.setdefault(platform_name, {})
     if not isinstance(platform, dict):
         raise SystemExit(f"Existing platform bucket for '{platform_name}' is not a JSON object")
@@ -78,16 +88,16 @@ def get_framework_bucket(result: dict, platform_name: str, framework_name: str) 
         raise SystemExit(f"Existing framework bucket for '{framework_name}' is not a JSON object")
 
     for bucket_name, models in framework.items():
+        if bucket_name not in valid_test_types:
+            raise SystemExit(
+                f"Existing output has an unexpected test-type bucket '{framework_name}/{bucket_name}'. "
+                "Delete the output file and rerun all parser steps to regenerate it."
+            )
         if not isinstance(models, dict):
             raise SystemExit(f"Existing test-type bucket for '{framework_name}/{bucket_name}' is not a JSON object")
         if any(key in METRIC_KEYS for key in models):
             raise SystemExit(
                 f"Existing output uses the legacy non-namespaced schema for framework '{framework_name}'. "
-                "Delete the output file and rerun all parser steps to regenerate it."
-            )
-        if not models:
-            raise SystemExit(
-                f"Existing output has an empty bucket for '{framework_name}/{bucket_name}', which is ambiguous with the legacy schema. "
                 "Delete the output file and rerun all parser steps to regenerate it."
             )
         if any(not is_metrics_dict(metrics) for metrics in models.values()):
@@ -130,9 +140,15 @@ def main() -> None:
     )
     args = parser.parse_args()
 
-    result = load_existing(args.output)
-    framework = get_framework_bucket(result, str(args.platform), args.framework)
+    valid_test_types = TEST_TYPES[args.framework]
+    if args.test_type not in valid_test_types:
+        raise SystemExit(
+            f"Unsupported test type '{args.test_type}' for framework '{args.framework}'. "
+            f"Expected one of: {', '.join(sorted(valid_test_types))}."
+        )
 
+    result = load_existing(args.output)
+    framework = get_framework_bucket(result, str(args.platform), args.framework, valid_test_types)
     models: dict[str, dict[str, object]] | None = None
     current_model: str | None = None
 

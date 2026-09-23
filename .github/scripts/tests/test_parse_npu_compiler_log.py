@@ -229,4 +229,49 @@ def test_legacy_framework_schema_is_rejected_deliberately(tmp_path):
     )
 
     assert result.returncode != 0
-    assert "legacy non-namespaced schema" in result.stderr
+    assert "unexpected test-type bucket" in result.stderr
+
+
+def test_empty_namespaced_bucket_is_preserved_and_reused(tmp_path):
+    output_path = tmp_path / "metrics.json"
+    output_path.write_text(
+        json.dumps(
+            {
+                "3720": {
+                    "tensorflow": {
+                        "convert_model": {},
+                    }
+                }
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result, _ = run_parser(
+        tmp_path,
+        platform="3720",
+        framework="tensorflow",
+        test_type="read_model",
+        log_text="""
+        tests/model_hub_tests/tensorflow/test_tf_read_model.py::TestTFReadModel::test_precommit[NPU-model-a] PASSED
+        Compilation memory usage: Peak 110.0 KB
+        Compile net time: 111.0 ms
+        """,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert json.loads(output_path.read_text(encoding="utf-8")) == {
+        "3720": {
+            "tensorflow": {
+                "convert_model": {},
+                "read_model": {
+                    "NPU-model-a": {
+                        "compilation_memory_usage_kb": 110.0,
+                        "compile_net_time_ms": 111.0,
+                    }
+                },
+            }
+        }
+    }
