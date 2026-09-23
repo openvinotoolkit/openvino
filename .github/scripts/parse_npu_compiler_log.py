@@ -6,9 +6,11 @@ Output structure:
     {
       "<npu_platform>": {
         "<framework>": {
-          "<model>": {
-            "compilation_memory_usage_kb": <float|null>,
-            "compile_net_time_ms": <float|null>
+          "<test_type>": {
+            "<model>": {
+              "compilation_memory_usage_kb": <float|null>,
+              "compile_net_time_ms": <float|null>
+            }
           }
         }
       }
@@ -17,7 +19,12 @@ Output structure:
 The script merges into an existing output JSON when present, so several
 invocations (e.g. the four PyTorch groups, or the TensorFlow
 convert_model/read_model steps) accumulate into a single file per NPU
-platform.
+platform without overwriting models that appear in multiple suites.
+
+Only the namespaced schema above is supported for merging. If the target
+JSON still contains the legacy framework -> model -> metrics layout for a
+framework, the script exits with an error instead of silently mixing the
+two formats.
 """
 
 from __future__ import annotations
@@ -28,6 +35,7 @@ import re
 from pathlib import Path
 
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+METRIC_KEYS = ("compilation_memory_usage_kb", "compile_net_time_ms")
 
 # pytest -v output, for example:
 # tests/.../test_timm.py::TestTimm::test_timm_precommit[NPU-resnet18-...] PASSED
@@ -52,6 +60,35 @@ def find_value(patterns: list[re.Pattern[str]], line: str) -> float | None:
     return None
 
 
+def default_metrics() -> dict[str, float | None]:
+    return {key: None for key in METRIC_KEYS}
+
+
+def is_metrics_dict(value: object) -> bool:
+    return isinstance(value, dict) and set(value).issubset(METRIC_KEYS) and bool(value)
+
+
+def get_models_bucket(result: dict, platform_name: str, framework_name: str, test_type: str) -> dict[str, dict[str, object]]:
+    platform = result.setdefault(platform_name, {})
+    if not isinstance(platform, dict):
+        raise SystemExit(f"Existing platform bucket for '{platform_name}' is not a JSON object")
+
+    framework = platform.setdefault(framework_name, {})
+    if not isinstance(framework, dict):
+        raise SystemExit(f"Existing framework bucket for '{framework_name}' is not a JSON object")
+
+    if any(is_metrics_dict(value) for value in framework.values()):
+        raise SystemExit(
+            f"Existing output uses the legacy non-namespaced schema for framework '{framework_name}'. "
+            "Delete the output file and rerun all parser steps to regenerate it."
+        )
+
+    models = framework.setdefault(test_type, {})
+    if not isinstance(models, dict):
+        raise SystemExit(f"Existing test-type bucket for '{framework_name}/{test_type}' is not a JSON object")
+    return models
+
+
 def load_existing(path: Path) -> dict:
     """Return previously collected results, or an empty dict."""
     if not path.is_file():
@@ -64,13 +101,18 @@ def load_existing(path: Path) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--platform", required=True, help="NPU platform, e.g. 3720")
     parser.add_argument(
         "--framework",
         required=True,
         choices=["pytorch", "tensorflow", "jax"],
         help="Frontend/framework the parsed models belong to",
+    )
+    parser.add_argument(
+        "--test-type",
+        required=True,
+        help="Stable test namespace within the framework, e.g. convert_model, read_model, jax, pt_groupA",
     )
     parser.add_argument("--input", required=True, type=Path, help="Compiler log file")
     parser.add_argument(
@@ -82,8 +124,7 @@ def main() -> None:
     args = parser.parse_args()
 
     result = load_existing(args.output)
-    platform = result.setdefault(str(args.platform), {})
-    models: dict[str, dict[str, object]] = platform.setdefault(args.framework, {})
+    models = get_models_bucket(result, str(args.platform), args.framework, args.test_type)
 
     current_model: str | None = None
 
@@ -93,13 +134,7 @@ def main() -> None:
         case = PYTEST_CASE.match(line)
         if case:
             current_model = case.group("model")
-            models.setdefault(
-                current_model,
-                {
-                    "compilation_memory_usage_kb": None,
-                    "compile_net_time_ms": None,
-                },
-            )
+            models.setdefault(current_model, default_metrics())
             continue
 
         if current_model is None:
