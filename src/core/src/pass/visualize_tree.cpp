@@ -172,10 +172,13 @@ static char hex_nibble(unsigned char v) {
     return static_cast<char>(v < 10 ? '0' + v : 'a' + (v - 10));
 }
 
+// std::isalnum() is locale-dependent above 7-bit ASCII; this bound keeps is_safe() locale-independent.
+constexpr unsigned char ascii_limit = 0x80;
+
 // Allowlist, not a denylist of path-sensitive characters, since those are platform-dependent
 // (e.g. ':' only matters on NTFS).
 static bool is_safe(unsigned char c) {
-    return (c < 0x80 && std::isalnum(c)) || c == '_' || c == '.' || c == '-';
+    return (c < ascii_limit && std::isalnum(c)) || c == '_' || c == '.' || c == '-';
 }
 
 static std::filesystem::path name_of_subgraph_file(const std::shared_ptr<ov::Node> op,
