@@ -988,6 +988,27 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     ov::npuw::DetectAttentionMask().run_on_model(kvcache_model);
     ov::npuw::log_detected_masks(kvcache_model);
 
+    const bool is_per_layer_inputs_model = has_per_layer_inputs(kvcache_model);
+    // Gemma-4 E2B/E4B cross-group KV sharing models benefit the most from shrinking the SWA KV
+    // cache and from hoisting the LM-head output slice through the SWA/Global boundary, so
+    // auto-enable both options for them unless the user explicitly configured it.
+    bool propagate_slice_up = m_cfg.get<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>();
+    if (is_per_layer_inputs_model) {
+        // SWA shrink is incompatible with prefix caching, multi-token generation (e.g. speculative
+        // decoding), and continuous prefill.
+        const bool swa_shrink_compatible =
+            !m_enable_prefix_caching && max_generation_token_len == 1 && !m_enable_continuous_prefill;
+        if (swa_shrink_compatible && !m_cfg.has<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
+            m_cfg.update({{"NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK", "YES"}});
+            LOG_INFO("Gemma-4 cross-group KV model: auto-enabling NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK");
+        }
+        if (!m_cfg.has<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>()) {
+            m_cfg.update({{"NPUW_LLM_PROPAGATE_SLICE_UP", "YES"}});
+            propagate_slice_up = true;
+            LOG_INFO("Gemma-4 cross-group KV model: auto-enabling NPUW_LLM_PROPAGATE_SLICE_UP");
+        }
+    }
+
     // Two mutually-exclusive ways to handle sliding-window attention (SWA) layers:
     //  - PatchSlidingWindowMask (default): only fixes up the attention mask for correctness;
     //    the KV cache still keeps the full context (no memory/perf savings).
@@ -1094,22 +1115,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Encoder embedding model: skipping generate model variants (prefill-only).");
     }
 
-    const bool is_per_layer_inputs_model = has_per_layer_inputs(prefill_model);
-    bool propagate_slice_up = m_cfg.get<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>();
-
     if (lm_head_model) {
         LOG_DEBUG("Shared LM head: slice the prefill output");
         // KVCache model is already reshaped to [1, max_generation_token_len, embed size],
         // so only apply slice to the Prefill model:
         ov::npuw::SliceOutEmbeds(axes.batch, m_kvcache_desc.max_generation_token_len).run_on_model(prefill_model);
-        // Gemma-4 E2B/E4B cross-group KV sharing models benefit the most from hoisting the slice
-        // through the SWA/Global boundary, so auto-enable this option for them unless the user
-        // explicitly configured it.
-        if (is_per_layer_inputs_model && !m_cfg.has<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>()) {
-            m_cfg.update({{"NPUW_LLM_PROPAGATE_SLICE_UP", "YES"}});
-            propagate_slice_up = true;
-            LOG_INFO("Gemma-4 cross-group KV model: auto-enabling NPUW_LLM_PROPAGATE_SLICE_UP");
-        }
         if (propagate_slice_up) {
             ov::npuw::PropagateSliceUp().run_on_model(prefill_model);
         }
