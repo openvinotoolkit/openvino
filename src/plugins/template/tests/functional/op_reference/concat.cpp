@@ -201,10 +201,14 @@ std::vector<ConcatParams> generateParamsBitPackedU3() {
             reference_tests::Tensor(ET,
                                     {2, 8},
                                     std::vector<T>{0x1a, static_cast<T>(0xc2), static_cast<T>(0xfa), 0x77, 0x39, 0x05}),
-            reference_tests::Tensor(
-                ET,
-                {2, 8},
-                std::vector<T>{static_cast<T>(0xd1), 0x58, 0x1f, static_cast<T>(0x88), static_cast<T>(0xc6), static_cast<T>(0xfa)}),
+            reference_tests::Tensor(ET,
+                                    {2, 8},
+                                    std::vector<T>{static_cast<T>(0xd1),
+                                                   0x58,
+                                                   0x1f,
+                                                   static_cast<T>(0x88),
+                                                   static_cast<T>(0xc6),
+                                                   static_cast<T>(0xfa)}),
             reference_tests::Tensor(ET, {2, 0}, std::vector<T>{}),
             1,
             reference_tests::Tensor(ET,
@@ -385,10 +389,10 @@ TEST(concat_evaluate, misaligned_bit_packed_segment_is_not_supported) {
 
 struct ConcatSupportParams {
     ConcatSupportParams(const element::Type& et,
-                       const Shape& shape,
-                       int64_t axis,
-                       bool supported,
-                       const std::string& testcaseName)
+                        const Shape& shape,
+                        int64_t axis,
+                        bool supported,
+                        const std::string& testcaseName)
         : et(et),
           shape(shape),
           axis(axis),
