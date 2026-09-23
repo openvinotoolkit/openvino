@@ -147,8 +147,8 @@ static bool IsThreeSpatialResample(const resample_params& params) {
     return input.Dimentions() == 5 && input.Z().v != output.Z().v;
 }
 
-JitConstants ResampleKernelOnnx::GetJitConstants(const resample_params& params) const {
-    auto jit = Parent::GetJitConstants(params);
+JitConstants ResampleKernelOnnx::get_jit_constants(const resample_params& params, bool legacy_scale) const {
+    auto jit = Parent::get_jit_constants(params);
 
     auto opt_x_block_size = GetOptimalBlockSize(params);
     if (params.outputs[0].X().v > 32 && opt_x_block_size == 1) {

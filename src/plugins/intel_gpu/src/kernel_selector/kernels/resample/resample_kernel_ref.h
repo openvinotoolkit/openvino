@@ -16,7 +16,7 @@ public:
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;
-    JitConstants GetJitConstants(const resample_params& params) const override;
+    JitConstants get_jit_constants(const resample_params& params, bool legacy_scale = false) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::QUANTIZE,
                  FusedOpType::ELTWISE,
