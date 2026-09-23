@@ -386,6 +386,12 @@ std::string get_blob_id_or_compute(const ov::AnyMap& user_config, std::function<
     }
 }
 
+std::string get_model_hash_sync_key(const std::shared_ptr<const ov::Model>& model) {
+    // Serializes hashing of the same Model instance across devices fanned out from one compile_model() call
+    // (e.g. MULTI/AUTO), before any per-hash CacheGuard lock exists.
+    return "model_hash_" + std::to_string(reinterpret_cast<uintptr_t>(model.get()));
+}
+
 ov::SharedContextManager& get_cache_wsh_ctx_manager() {
     static ov::SharedContextManager s_cache_wsh_ctx_manager;
     return s_cache_wsh_ctx_manager;
@@ -1161,6 +1167,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
 
         const auto compiled_config = create_compile_config(plugin, parsed.m_config);
         cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
+            const auto model_hash_lock = m_cache_guard.get_hash_lock(get_model_hash_sync_key(model));
             return ModelCache::compute_hash(model, cache_content.m_model_path, compiled_config);
         });
         cache_content.model = model;
@@ -1200,6 +1207,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
                                                           cache_content.m_shared_ctx);
         const auto compiled_config = create_compile_config(plugin, parsed.m_config);
         cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
+            const auto model_hash_lock = m_cache_guard.get_hash_lock(get_model_hash_sync_key(model));
             return ModelCache::compute_hash(model, cache_content.m_model_path, compiled_config);
         });
         cache_content.model = model;
@@ -1234,6 +1242,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::filesystem:
         get_cache_wsh_ctx_manager().init_and_sync_context(std::filesystem::hash_value(cache_dir),
                                                           cache_content.m_shared_ctx);
         cache_content.m_blob_id = get_blob_id_or_compute(config, [&] {
+            const auto model_hash_lock = m_cache_guard.get_hash_lock(util::path_to_string(model_path));
             return ModelCache::compute_hash(cache_content.m_model_path, create_compile_config(plugin, parsed.m_config));
         });
         const auto lock = m_cache_guard.get_hash_lock(cache_content.m_blob_id);

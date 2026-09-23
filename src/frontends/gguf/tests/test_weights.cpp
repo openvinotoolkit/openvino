@@ -93,26 +93,29 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
 
 // token_embd / output are requantized to channel-wise Q8_0_C, and that path reads the zero-point
 // as f16 -- Q2_0 used to hard-code u8 here, which threw for every ternary model.
-TEST(GGUFWeightRequant, Q2_0AsTokenEmbd) {
+TEST(GGUFWeightRequant, Q2_0AsTokenEmbdAndOutput) {
     const auto qbytes = load_npy<uint8_t>("q2_0_qbytes");
     const auto ref = load_npy<float>("q2_0_deq");
     ASSERT_EQ(ref.size(), kRows * kCols);
 
-    auto model = SingleOpBuilder()
-                     .op("GGML_OP_NONE")
-                     .output("token_embd.weight", ov::element::f32, {kRows, kCols})
-                     .attr<ov::Tensor>("data", bytes_to_u8_tensor(qbytes))
-                     .attr<std::string>("quant_type", "Q2_0")
-                     .build();
+    for (const std::string name : {"token_embd.weight", "output.weight"}) {
+        SCOPED_TRACE(name);
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_NONE")
+                         .output(name, ov::element::f32, {kRows, kCols})
+                         .attr<ov::Tensor>("data", bytes_to_u8_tensor(qbytes))
+                         .attr<std::string>("quant_type", "Q2_0")
+                         .build();
 
-    auto out = run_on_cpu(model, {});
-    ASSERT_EQ(out.get_size(), ref.size());
+        auto out = run_on_cpu(model, {});
+        ASSERT_EQ(out.get_size(), ref.size());
 
-    const float* a = out.data<float>();
-    float max_diff = 0.f;
-    for (size_t i = 0; i < ref.size(); ++i)
-        max_diff = std::max(max_diff, std::fabs(a[i] - ref[i]));
-    EXPECT_LE(max_diff, kTolRequant) << "Q2_0 token_embd requant diverges from ggml to_float";
+        const float* a = out.data<float>();
+        float max_diff = 0.f;
+        for (size_t i = 0; i < ref.size(); ++i)
+            max_diff = std::max(max_diff, std::fabs(a[i] - ref[i]));
+        EXPECT_LE(max_diff, kTolRequant) << "Q2_0 requant diverges from ggml to_float";
+    }
 }
 
 // An F16 weight is wrapped directly as a constant (no dequant); round-trips the raw bytes.
