@@ -34,7 +34,7 @@ ConvolutionKernel_b_fs_yx_fsv16::ConvolutionKernel_b_fs_yx_fsv16() : Convolution
 }
 
 ConvolutionKernel_b_fs_yx_fsv16::AutoTuneOption ConvolutionKernel_b_fs_yx_fsv16::GetAutoTuneOptions(const Params& params,
-                                                                                                    int /*autoTuneIndex*/) const {
+                                                                                                     int /*autoTuneIndex*/) const {
     const convolution_params& cp = static_cast<const convolution_params&>(params);
     auto x = cp.outputs[0].X().v;
     auto f = cp.outputs[0].Feature().v;
@@ -131,7 +131,7 @@ DeviceFeaturesKey ConvolutionKernel_b_fs_yx_fsv16::get_required_device_features_
 }
 
 ConvolutionKernelBase::DispatchData ConvolutionKernel_b_fs_yx_fsv16::SetDefault(const convolution_params& params,
-                                                                                int autoTuneIndex) const {
+                                                                                 int autoTuneIndex) const {
     DispatchData dispatchData = ConvolutionKernelBase::SetDefault(params);
 
     ConvolutionTuningData tuning_data = GetTuningParams(params);
@@ -191,11 +191,9 @@ bool ConvolutionKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    // Check that padding before features doesn't miss-align the blocks
     if (input.Feature().pad.before % tuning_data.feature_block_size != 0 || output.Feature().pad.before % tuning_data.feature_block_size != 0)
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 
-    // Not supporting batch padding for different format (reorder-fused case)
     if (input.GetLayout() == DataLayout::b_fs_yx_fsv16 && output.GetLayout() == DataLayout::bfyx) {
         if (output.Batch().pad.before != 0 || output.Batch().pad.after != 0)
             DO_NOT_USE_THIS_KERNEL(p.layerID);
@@ -208,7 +206,7 @@ bool ConvolutionKernel_b_fs_yx_fsv16::Validate(const Params& p) const {
 }
 
 JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_params& params,
-                                                              const DispatchData& dispatchData) const {
+                                                               const DispatchData& dispatchData) const {
     auto input = params.inputs[0];
     auto output = params.outputs[0];
     auto jit = Parent::GetJitConstants(params, dispatchData);
@@ -251,8 +249,25 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_
         jit.Merge(MakeFusedOpsJitConstants(params, {conf_vec, conf_scalar}));
     }
 
-    size_t input_line_size = std::min(params.stride.x * (blockWidth - 1) + (params.weights.X().v - 1)*params.dilation.x + 1,
-                                      input.X().v + input.X().pad.Total());
+    const size_t blocked_input_line_size = params.stride.x * (blockWidth - 1) +
+                                           (params.weights.X().v - 1) * params.dilation.x + 1;
+    const size_t input_line_size = std::min(blocked_input_line_size, input.X().v + input.X().pad.Total());
+    const size_t x_blocks = CeilDiv(output.X().v, blockWidth);
+
+    const int64_t first_block_input_x = -static_cast<int64_t>(params.padding_begin.x);
+    const int64_t last_block_input_x =
+        static_cast<int64_t>((x_blocks - 1) * blockWidth * params.stride.x) -
+        static_cast<int64_t>(params.padding_begin.x);
+    const size_t required_x_pad_before = first_block_input_x < 0 ? static_cast<size_t>(-first_block_input_x) : 0;
+    const int64_t last_block_input_end = last_block_input_x + static_cast<int64_t>(blocked_input_line_size);
+    const size_t required_x_pad_after = last_block_input_end > static_cast<int64_t>(input.X().v)
+        ? static_cast<size_t>(last_block_input_end - static_cast<int64_t>(input.X().v))
+        : 0;
+
+    const bool use_blocked_x_padding = input.X().pad.before >= required_x_pad_before &&
+                                       input.X().pad.after >= required_x_pad_after &&
+                                       input.GetPaddedVal() == 0.0f;
+    jit.AddConstant(MakeJitConstant("CONV_FSV16_USE_BLOCKED_X_PADDING", use_blocked_x_padding));
 
     auto outFeaturesPerGroup = output.Feature().v / params.groups;
     auto inFeaturesPerGroup = input.Feature().v / params.groups;
@@ -268,7 +283,7 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_
     jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", blockWidth));
     jit.AddConstant(MakeJitConstant("INPUT_LINE_SIZE", input_line_size));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", tuning_data.sub_group_size));
-    jit.AddConstant(MakeJitConstant("X_BLOCKS", CeilDiv(output.X().v, blockWidth)));
+    jit.AddConstant(MakeJitConstant("X_BLOCKS", x_blocks));
     jit.AddConstant(MakeJitConstant("SLM_DIV_FACTOR", tuning_data.slm_div_factor));
     jit.AddConstant(MakeJitConstant("WORK_GROUP_SIZE", tuning_data.work_group_size));
     jit.AddConstant(MakeJitConstant("IC_BLOCKS", CeilDiv(inFeaturesPerGroup, tuning_data.feature_block_size)));
@@ -283,7 +298,7 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_
 }
 
 KernelsData ConvolutionKernel_b_fs_yx_fsv16::GetTunedKernelsDataByIndex(const Params& params,
-                                                                        const int autoTuneIndex) const {
+                                                                         const int autoTuneIndex) const {
     auto tuneOptions = GetAutoTuneOptions(params, autoTuneIndex);
     return GetCommonKernelsData(params, tuneOptions.exeMode, autoTuneIndex);
 }
