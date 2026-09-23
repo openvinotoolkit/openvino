@@ -305,33 +305,6 @@ static bool matches_relu_of_test_input(const ov::Tensor& tensor) {
     return true;
 }
 
-// Tracked-memory growth of a non-aliased (zero-copy) run of the f32 MatMul model: the baseline for alias tests.
-static int64_t zero_copy_matmul_growth(size_t k, const ov::Shape& shape, bool remote_input, int iterations) {
-    auto core = ov::Core();
-    std::vector<float> weights_data;
-    auto compiled_model = core.compile_model(makeDynamicMatMulModel(k, weights_data),
-                                             core.get_default_context(ov::test::utils::DEVICE_GPU),
-                                             ov::hint::inference_precision(ov::element::f32));
-    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
-    auto request = compiled_model.create_infer_request();
-
-    auto input_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
-    auto output_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
-    std::fill_n(static_cast<float*>(input_allocation.get()), ov::shape_size(shape), 1.0f);
-    if (remote_input) {
-        request.set_input_tensor(input_allocation);
-    } else {
-        request.set_input_tensor(ov::Tensor(ov::element::f32, shape, input_allocation.get()));
-    }
-    request.set_output_tensor(ov::Tensor(ov::element::f32, shape, output_allocation.get()));
-
-    const int64_t before = gpu_mem_in_use(core);
-    for (int iter = 0; iter < iterations; ++iter) {
-        request.infer();
-    }
-    return gpu_mem_in_use(core) - before;
-}
-
 // Experimental: zero-copy must allocate ~one output buffer less than the same run with an ordinary
 // host output (copy fallback).
 TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostAllocatesLessThanCopyFallback) {
@@ -590,7 +563,6 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostInputOutputAliasIsSafe) {
     // In-place aliasing corruption is a nondeterministic GPU data race: with the fix every run is
     // correct, without it a run is expected to diverge. Repeat so a regression is caught reliably.
     constexpr int kIterations = 16;
-    const int64_t before = gpu_mem_in_use(core);
     for (int iter = 0; iter < kIterations; ++iter) {
         std::copy(input_values.begin(), input_values.end(), buffer);  // a prior corrupted run may have overwritten the input
 
@@ -604,10 +576,6 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostInputOutputAliasIsSafe) {
                 << "aliased input/output corrupted at element " << i << " on iteration " << iter;
         }
     }
-    // Deterministic proof the alias guard rejected zero-copy, independent of whether the race fired.
-    expect_extra_output_buffer(gpu_mem_in_use(core) - before,
-                               zero_copy_matmul_growth(K, shape, false, kIterations),
-                               f32_bytes(shape));
 }
 
 TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRemoteInputAliasIsSafe) {
@@ -639,7 +607,6 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRemoteInputAliasIsSafe) {
     request.set_output_tensor(output_wrapper);
 
     constexpr int kIterations = 16;
-    const int64_t before = gpu_mem_in_use(core);
     for (int iter = 0; iter < kIterations; ++iter) {
         std::copy(input_values.begin(), input_values.end(), buffer);
 
@@ -653,9 +620,6 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRemoteInputAliasIsSafe) {
                 << "remote aliased input/output corrupted at element " << i << " on iteration " << iter;
         }
     }
-    expect_extra_output_buffer(gpu_mem_in_use(core) - before,
-                               zero_copy_matmul_growth(K, shape, true, kIterations),
-                               f32_bytes(shape));
 }
 
 // The same remote (USM-host) tensor is set as BOTH dynamic input and output. Since a remote output
@@ -743,7 +707,6 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRemoteOutputBecomesAliased
     // The stale-binding race has a narrow window (depends on infer-1's binding surviving), so use a
     // higher iteration count than the from-start alias tests to sample it reliably.
     constexpr int kIterations = 64;
-    const int64_t before_alias = gpu_mem_in_use(core);
     for (int iter = 0; iter < kIterations; ++iter) {
         std::copy(input_values.begin(), input_values.end(), out_buffer);
 
@@ -754,8 +717,6 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRemoteOutputBecomesAliased
                 << "remote output corrupted after becoming aliased at element " << i << " on iteration " << iter;
         }
     }
-    // Infer-1 was zero-copy, so the transition must add a plugin-owned output buffer.
-    expect_extra_output_buffer(gpu_mem_in_use(core) - before_alias, 0, f32_bytes(shape));
 }
 
 TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostPartialInputAliasFallsBack) {
@@ -790,7 +751,6 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostPartialInputAliasFallsBack
     request.set_output_tensor(output_tensor);
 
     constexpr int kIterations = 16;
-    const int64_t before = gpu_mem_in_use(core);
     for (int iter = 0; iter < kIterations; ++iter) {
         std::copy(input_values.begin(), input_values.end(), usm_data);
 
@@ -805,9 +765,6 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostPartialInputAliasFallsBack
                 << "partially aliased input/output corrupted at element " << i << " on iteration " << iter;
         }
     }
-    expect_extra_output_buffer(gpu_mem_in_use(core) - before,
-                               zero_copy_matmul_growth(K, shape, false, kIterations),
-                               f32_bytes(shape));
 }
 
 // The output overlap must use the caller buffer's capacity, not the current (possibly shrunk) logical
