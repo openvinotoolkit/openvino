@@ -438,11 +438,12 @@ std::optional<ov::intel_npu::CompilerType> PluginPropertyManager::resolveCompile
     }
 
     try {
+        std::cout << "Resolving compiler type for deviceId: " << deviceId << " and platform: " << platform << std::endl;
         auto device = utils::getDeviceById(_backend, deviceId);
-        auto compilationPlatform = utils::getCompilationPlatform(
-            platform,
-            device == nullptr ? deviceId : device->getName(),
-            _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+        auto compilationPlatform =
+            utils::getCompilationPlatform(_backend, platform, device == nullptr ? deviceId : device->getName());
+
+        std::cout << "Compilation platform resolved to: " << compilationPlatform << std::endl;
 
         CompilerAdapterFactory factory;
         factory.decideCompilerType(compilerType, device, compilationPlatform);
@@ -1040,9 +1041,10 @@ void PluginPropertyManager::registerProperties() {
                 auto deviceId = getDeviceId(arguments);
                 auto device = utils::getDeviceById(_backend, deviceId);
                 compilationPlatform = utils::getCompilationPlatform(
+                    _backend,
                     platform,
-                    device == nullptr ? deviceId : device->getName(),
-                    _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+                    device == nullptr ? deviceId : device->getName()
+                    );
             }
 
             try {
@@ -1062,9 +1064,9 @@ void PluginPropertyManager::registerProperties() {
                 auto deviceId = getDeviceId(arguments);
                 auto device = utils::getDeviceById(_backend, deviceId);
                 compilationPlatform = utils::getCompilationPlatform(
+                    _backend,
                     platform,
-                    device == nullptr ? deviceId : device->getName(),
-                    _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+                    device == nullptr ? deviceId : device->getName());
             }
 
             CompilerAdapterFactory factory;
