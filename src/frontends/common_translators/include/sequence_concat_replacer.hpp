@@ -6,9 +6,7 @@
 
 #include "openvino/pass/matcher_pass.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pass {
+namespace ov::frontend::pass {
 
 /// \brief Replaces ConcatFromSequence operations with standard OpenVINO ops.
 ///
@@ -23,6 +21,4 @@ public:
     SequenceConcatReplacer();
 };
 
-}  // namespace pass
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pass

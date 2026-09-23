@@ -8,10 +8,7 @@
 
 #include "builder/blocks/common.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace blocks {
+namespace ov::frontend::gguf::blocks {
 
 namespace {
 
@@ -210,7 +207,4 @@ std::string moe_ffn(GraphEmitter& e, const DecoderConfig& cfg, const std::string
     return moe_out;
 }
 
-}  // namespace blocks
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::blocks
