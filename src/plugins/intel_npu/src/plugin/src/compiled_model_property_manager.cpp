@@ -302,11 +302,11 @@ void CompiledModelPropertyManager::registerProperties() {
         readOnlySetter
     );
     register_property(ov::execution_devices.name(), true, ov::PropertyMutability::RO,
-        [](const ov::AnyMap&) {
-            return true;
+        [this](const ov::AnyMap&) {
+            return _device != nullptr;
         },
         [](const ov::AnyMap&) {
-            return ov::Any(std::vector<std::string>{"NPU"});
+            return decltype(ov::execution_devices)::value_type{"NPU.0"};
         },
         readOnlySetter
     );
