@@ -1,9 +1,6 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
-#ifndef ENABLE_ONEDNN_FOR_GPU
-    #define ENABLE_ONEDNN_FOR_GPU 1
-#endif
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 // clang-format off
@@ -13,12 +10,10 @@
 #include "paged_attention_opt.hpp"
 
 #include "intel_gpu/graph/kernel_impl_params.hpp"
-#include "openvino/core/type/float16.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
 #include "ocl_v2/utils/jitter.hpp"
 #include "scaled_dot_product_attention_inst.h"
 #include "paged_attention_inst.h"
-#include "paged_attention_opt.hpp"
 #include "sdpa_base.hpp"
 #include "../utils/kernel_generator.hpp"
 // clang-format on
@@ -497,7 +492,9 @@ JitConstants unit_parameters(const std::string& prefix) {
     return definitions;
 }
 
-JitConstants convert_strides(std::string target_prefix, std::string source_prefix, const std::vector<int64_t> order) {
+// target_S0..3 = the source's pitches in `order`; target_D0..3 (the sizes) only for with_sizes, since
+// the attention mask is the only tensor whose dims the kernel reads (MSK_D*).
+JitConstants convert_strides(std::string target_prefix, std::string source_prefix, const std::vector<int64_t> order, bool with_sizes = false) {
     JitConstants definitions({});
 
     std::vector<std::string> target_stride_definitions = {
@@ -530,7 +527,8 @@ JitConstants convert_strides(std::string target_prefix, std::string source_prefi
 
     for (size_t i = 0; i < target_stride_definitions.size(); i++) {
         definitions.make(target_stride_definitions[i], source_stride_definitions[order[i]]);
-        definitions.make(target_size_definitions[i], source_size_definitions[order[i]]);
+        if (with_sizes)
+            definitions.make(target_size_definitions[i], source_size_definitions[order[i]]);
     }
 
     return definitions;
@@ -606,28 +604,6 @@ inline size_t micro_get_head_size(const kernel_impl_params& params, size_t qkv_i
     OPENVINO_THROW("[GPU] Invalid qkv index in micro_get_head_size");
 }
 
-inline ov::Dimension micro_get_seq_length(const kernel_impl_params& params, int32_t qkv_idx) {
-    if (qkv_idx < 0 || qkv_idx > 2) {
-        OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
-    }
-    if (params.is_type<paged_attention>()) {
-        return ov::Dimension(params.input_layouts[qkv_idx].get_partial_shape()[0]);
-    } else {
-        const auto desc = params.typed_desc<scaled_dot_product_attention>();
-        switch (qkv_idx) {
-        case 0:
-            return get_seq_length(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
-        case 1:
-            return get_seq_length(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
-        case 2:
-            return get_seq_length(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
-        default:
-            OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
-        }
-    }
-    return ov::Dimension();
-}
-
 inline ov::Dimension micro_get_aligned_seq_length(const kernel_impl_params& params, int32_t qkv_idx, int64_t target_seq_len_block_size = 16) {
     if (qkv_idx < 0 || qkv_idx > 2) {
         OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
@@ -657,16 +633,6 @@ inline ov::Dimension micro_get_aligned_seq_length(const kernel_impl_params& para
         }
     }
     return ov::Dimension();
-}
-
-inline size_t micro_get_input_num(const kernel_impl_params& params, const sdpa_configuration& config) {
-    auto data_inputs_num = config.input_num;
-    bool is_paged_attention = params.is_type<paged_attention>() ? true : false;
-    if (!is_paged_attention) {
-        auto desc = params.typed_desc<scaled_dot_product_attention>();
-        data_inputs_num = get_data_inputs_num(*desc);
-    }
-    return data_inputs_num;
 }
 
 }  // namespace
@@ -699,69 +665,26 @@ void SDPAOclGenerator::init_sdpa_configuration(const kernel_impl_params& impl_pa
         auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
         auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
         auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
-        auto extended_output_transpose_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
 
         sdpa_config = get_sdpa_configuration(impl_param, extended_input_q_transpose_order, extended_input_k_transpose_order, extended_input_v_transpose_order);
     } else {
-        bool is_dynamic = impl_param.is_dynamic();
+        // Only the fields this generator reads. is_kv_compressed describes the plain-SDPA scale/zp
+        // inputs and stays false here: a compressed PA cache is described by the IS_PA_* jit constants.
         const auto desc = impl_param.typed_desc<paged_attention>();
-        sdpa_config.k_head_size = desc->k_head_size;
-        sdpa_config.v_head_size = desc->v_head_size;
         sdpa_config.heads_num = desc->heads_num;
         sdpa_config.kv_heads_num = desc->kv_heads_num;
-        sdpa_config.has_alibi_input = desc->has_alibi;
         sdpa_config.is_causal = true;
         sdpa_config.is_paged_attention = true;
         sdpa_config.paged_attention_block_size = static_cast<int64_t>(paged_attention::block_size);
         sdpa_config.paged_attention_sliding_window = desc->sliding_window;
-        sdpa_config.has_score_aggregation = desc->has_score_aggregation;
-
-        if (desc->scale_val.has_value()) {
-            sdpa_config.has_const_scale_val = true;
+        sdpa_config.has_const_scale_val = desc->scale_val.has_value();
+        if (sdpa_config.has_const_scale_val)
             sdpa_config.scale_val = desc->scale_val.value();
-        } else {
-            sdpa_config.has_const_scale_val = false;
-        }
-
-        sdpa_config.has_score_aggregation = desc->has_score_aggregation;
-        sdpa_config.has_rotated_blocks = desc->has_rotated_blocks;
-
-        if (desc->heads_num != desc->kv_heads_num) {
-            sdpa_config.broadcast_axis = 1;
-            sdpa_config.kv_group_size = desc->heads_num / desc->kv_heads_num;
-        }
-
-        if (desc->has_scores_output() && !is_dynamic) {
-            const auto& input_mem = impl_param.memory_deps;
-            const auto max_context_len = input_mem.at(12);  // PagedAttentionInputIdx::MAX_CONTEXT_LEN
-            mem_lock<int32_t, mem_lock_type::read> max_context_len_mem_lock(max_context_len, *impl_param.strm);
-            sdpa_config.paged_attention_max_len = max_context_len_mem_lock[0];
-
-            if (desc->has_score_aggregation) {
-                const auto score_aggregation = input_mem.at(13);  // PagedAttentionInputIdx::SCORE_AGGREGATION
-                mem_lock<int32_t, mem_lock_type::read> score_aggregation_mem_lock(score_aggregation, *impl_param.strm);
-
-                auto total_tokens_num = 0;
-                for (size_t i = 0; i < score_aggregation_mem_lock.size(); i++) {
-                    total_tokens_num += score_aggregation_mem_lock[i];
-                }
-                sdpa_config.paged_attention_snap_kv_tokens = total_tokens_num;
-            }
-        }
-
-        // If micro sdpa kernel is called by paged attention, then it is always used for prefill stage, and compressed QKV is not used.
         sdpa_config.is_kv_compressed = false;
         sdpa_config.use_asymmetric_quantization = false;
 
-        // PagedAttentionInputIdx::ALIBI
-        const auto has_alibi = impl_param.get_input_layout(11).count() > 0;
-        const auto has_scale_input = !desc->scale_val.has_value();
-        sdpa_config.input_num = 7;
-        if (has_scale_input)
-            sdpa_config.input_num++;
-
-        if (has_alibi)
-            sdpa_config.input_num++;
+        const auto has_alibi = impl_param.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
+        sdpa_config.input_num = 7 + (sdpa_config.has_const_scale_val ? 0 : 1) + (has_alibi ? 1 : 0);
     }
 }
 
@@ -834,14 +757,18 @@ bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
                is_compilable_kv(params.input_layouts[PagedAttentionInputIdx::VALUE_CACHE].data_type);
     }
 
+    // The plain-SDPA dequant reads separate scale and zero-point tensors. KV-cache compression is always
+    // asymmetric with planar storage on the XMX parts this kernel runs on (kv_cache_compression.cpp),
+    // so any other combination is rejected rather than implemented; sdpa_ocl.cl #errors on it.
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    if (desc->is_kv_compressed &&
+        (desc->quantization_attributes.quantization_type != ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric ||
+         desc->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar)) {
+        return false;
+    }
+
     return is_compilable_kv(params.input_layouts[1].data_type) && is_compilable_kv(params.input_layouts[2].data_type);
 }
-
-// Use 'maybe_unused' to avoid DPC++ build error
-[[maybe_unused]] const bool kq_common_scales = false;
-[[maybe_unused]] const bool kq_common_zp = false;
-[[maybe_unused]] const bool vs_common_scales = false;
-[[maybe_unused]] const bool vs_common_zp = false;
 
 JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& params) const {
     auto jit = make_base_jit_constants(params);
@@ -853,9 +780,9 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
         // a plain 1:1 mapping of params.input_layouts: INPUT3 in particular must describe
         // SUBSEQUENCE_BEGINS (the kernel declares subsequence_begins as INPUT3_TYPE*), not the key
         // cache. This mirrors SDPAMicroGenerator.
+        // The scale input is read through SCALE_DATA_T and alibi is rejected upstream, so neither needs
+        // an INPUTn layout.
         const auto desc = params.typed_desc<paged_attention>();
-        const auto has_alibi = params.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
-        const auto has_scale_input = !desc->scale_val.has_value();
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
         const auto& out_offsets_map = params.out_port_to_shape_info_offset;
@@ -866,14 +793,6 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
         for (size_t i = 0; i < input_ids.size(); i++) {
             const size_t tensor_id = input_ids[i];
             jit.add(make_layout_jit_constants("INPUT" + to_code_string(i), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
-        }
-        if (has_scale_input) {
-            const size_t tensor_id = PagedAttentionInputIdx::SCALE;
-            jit.add(make_layout_jit_constants("INPUT" + to_code_string(4), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
-        }
-        if (has_alibi) {
-            const size_t tensor_id = PagedAttentionInputIdx::ALIBI;
-            jit.add(make_layout_jit_constants("INPUT" + to_code_string(5), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
         }
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
 
@@ -935,7 +854,7 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // and per-key-tile PV accumulation order. Matching its tile boundaries still requires
     // the SDPA_OCL_KQ_* overrides. Keep the arithmetic change opt-in and scoped to plain
     // causal FP16 prefill; sink initialization, mixed and decode use other paths.
-    if (config.is_paged_attention && m_is_prefill && //k_head_size > 64 && v_head_size > 64 &&
+    if (config.is_paged_attention && m_is_prefill &&
         Q.data_type == data_types::f16 && K.data_type == data_types::f16 &&
         V.data_type == data_types::f16 && out.data_type == data_types::f16) {
         const auto desc = params.typed_desc<paged_attention>();
@@ -962,14 +881,6 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     jit.make("sv_sg_per_wg_values", ocl_config.sv_sg_per_wg_values);
     jit.make("D_MAX", d_max);
     jit.make("DKS", "(D_MAX / DPAS_K)");
-    // Bound the KQ depth loop by the head-dim tiles that actually hold data instead of by DKS
-    // (= D_MAX / DPAS_K, with D_MAX the head size rounded UP to a power of two). At head 72 that is
-    // 5 tiles instead of 8: three whole tiles were loading nothing and feeding zeros to the dpas.
-    // =0 restores the DKS bound -- see the measured scalar-path spill caveat in sdpa_ocl.cl.
-    int use_dks_active = 1;
-    if (const char* env = std::getenv("SDPA_OCL_DKS_ACTIVE"))
-        use_dks_active = std::atoi(env);
-    jit.make("USE_DKS_ACTIVE", use_dks_active);
     jit.make("Q_DWORDS", 8);        // 16 half values per Q KSTEP packed as 8 uint dwords.
     jit.make("SUBGROUP_SIZE", ocl_config.subgroup_size);
     // Q is f16 and carries no dequant, so this is independent of the KV-cache precision. The only
@@ -1014,10 +925,6 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // numerically correct on a surface the gate would otherwise have rejected -- before this, forcing
     // the toggle on at head 72 gave right timings and wrong results for 12 of 16 heads.
     jit.make("BLOCK2D_KV_BASE_FIXUP", (kv_2d && !kv_aligned) ? 1 : 0);
-    int v_f16_multiblock = 0;
-    if (const char* env = std::getenv("SDPA_OCL_V_F16_MULTIBLOCK"))
-        v_f16_multiblock = std::atoi(env);
-    jit.make("V_F16_MULTIBLOCK_READ", v_f16_multiblock);
     // Paged-attention mixed stage: read the V cache with the 16b VNNI-transform block read instead
     // of the per-lane scalar gather. Each (block, kv_head) cache page is a
     // [PAGED_ATTENTION_BLOCK_SIZE, v_head_size] row-major f16 tile, so the kernel points the
@@ -1079,7 +986,8 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // .cl, which is itself prefill-gated.
     const auto cfg_kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
     const bool pa_i8 = pa_kv_compressed && !data_type_traits::is_i4_u4(cfg_kv_cache_dt);
-    const bool pa_key_by_channel = params.typed_desc<paged_attention>()->is_key_by_channel;
+    // typed_desc<paged_attention>() is an unchecked cast: only evaluate it for paged attention.
+    const bool pa_key_by_channel = config.is_paged_attention && params.typed_desc<paged_attention>()->is_key_by_channel;
     const bool pa_i8_by_token = pa_i8 && !pa_key_by_channel;
     // Token-major i8/u4 BY_CHANNEL is derived from the PHYSICAL cache shape (adjusted block size at
     // dim[2]) -- the model-wide layout decision was made once in transformations_pipeline.cpp. Only
@@ -1148,9 +1056,8 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
         // first channel to be an EVEN number of halves from the surface origin -- and that parity comes
         // out of subsequence_begin * ldk + b0_kv * head_size + the feature padding, which is a runtime
         // value whenever the padding is dynamic. Gating it here would mean rejecting every dynamically
-        // padded K, i.e. every u4 MIXED case the unit suite has, so the kernel tests the parity itself.
-        // Exact-split mode uses a scalar Kc fallback when the dword read is not representable; the
-        // legacy mode retains its cache fallback for same-build performance comparison.
+        // padded K, i.e. every u4 MIXED case the unit suite has, so the kernel tests the parity itself
+        // and falls back to a scalar Kc gather when the dword read is not representable.
         //
         // The =0 override selects cache-only reads for same-build performance attribution.
         // It is not an exact baseline for compressed current tokens.
@@ -1160,36 +1067,6 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
             pa_cur_kv_f16 = std::atoi(env);
     }
     jit.make("PA_CUR_KV_F16", pa_cur_kv_f16);
-    // Performance/correctness bisection controls. GRAN=1 is the production path: it splits the
-    // outer key loop exactly at past_len, so each iteration reads either cache K/V or raw Kc/Vc.
-    // GRAN=0 retains the old WG-rounded boundary only as a same-build performance baseline. SIDE is
-    // honored only by that legacy mode: bit 0 enables Kc and bit 1 enables Vc.
-    int pa_cur_gran = 1;
-    if (const char* env = std::getenv("SDPA_OCL_PA_CUR_GRAN"))
-        pa_cur_gran = std::atoi(env);
-    jit.make("PA_CUR_KV_GRAN", pa_cur_gran);
-    int pa_cur_side = 3;
-    if (const char* env = std::getenv("SDPA_OCL_PA_CUR_SIDE"))
-        pa_cur_side = std::atoi(env);
-    jit.make("PA_CUR_KV_SIDE", pa_cur_side);
-    // Enable S*V trimming by default for exact u4 MIXED chunks. The environment override
-    // can disable it for performance comparisons within this variant.
-    int pa_cur_sv_trim = 0;
-    if (pa_u4_by_channel_tm && pa_cur_kv_f16 && pa_cur_gran) {
-        pa_cur_sv_trim = 1;
-        if (const char* env = std::getenv("SDPA_OCL_PA_CUR_SV_TRIM"))
-            pa_cur_sv_trim = std::atoi(env) != 0;
-    }
-    jit.make("PA_CUR_SV_TRIM", pa_cur_sv_trim);
-    // Enable raw-current V prefetch by default for exact u4 MIXED chunks. The environment
-    // override can disable it for performance comparisons within this variant.
-    int pa_cur_v_prefetch = 0;
-    if (pa_u4_by_channel_tm && pa_cur_kv_f16 && pa_cur_gran) {
-        pa_cur_v_prefetch = 1;
-        if (const char* env = std::getenv("SDPA_OCL_PA_CUR_V_PREFETCH"))
-            pa_cur_v_prefetch = std::atoi(env) != 0;
-    }
-    jit.make("PA_CUR_V_PREFETCH", pa_cur_v_prefetch);
     // Same rule as BLOCK2D_KV_BASE_FIXUP: derived from the alignment, not from fixup_ok, and computed
     // after the override so forcing the toggle on cannot turn the fixup off.
     //
@@ -1223,9 +1100,9 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     // and the scale/zp source (inside the page instead of separate tensors) differ.
     // The builtin has a hard 32-row minimum on Xe2 (no _8b_16r variant exists -- probed), while a
     // page holds only PAGED_ATTENTION_BLOCK_SIZE == 16 tokens, so the kernel clamps the surface
-    // height to the page and consumes uints 0..3. It must NOT use V_I8_PAIRED_READ: pairing assumes
-    // the next 16 keys are the next 16 rows of the SAME surface, but here consecutive key groups
-    // live in different, non-adjacent pages via block_indices.
+    // height to the page and consumes uints 0..3. It cannot pair two key groups into one read the way
+    // the plain-SDPA i8 path does: that assumes the next 16 keys are the next 16 rows of the SAME
+    // surface, but here consecutive key groups live in different, non-adjacent pages via block_indices.
     // BY_CHANNEL applies to the KEY cache only (valueCacheQuantBychannel is unconditionally false), and
     // ADJUSTED_V_HEAD_SIZE is v_head_size + 4 in both quant modes, so the V page geometry, its comp
     // offset and this gate are all identical for the two -- pa_cache_dequant_ok, not pa_i8_by_token.
@@ -1266,7 +1143,7 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     const bool pa_k_token_major =
         (config.is_paged_attention && !m_is_prefill &&
          paged_attention::k_token_major_for(data_type_traits::is_i4_u4(cfg_kv_cache_dt) ? cfg_kv_cache_dt : ov::element::Type(K.data_type),
-                                            params.typed_desc<paged_attention>()->is_key_by_channel)) ||
+                                            pa_key_by_channel)) ||
         pa_by_channel_tm;
     jit.make("IS_PA_K_TOKEN_MAJOR", pa_k_token_major ? 1 : 0);
     int k_pa_2d = 0;
@@ -1350,17 +1227,6 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     if (const char* env = std::getenv("SDPA_OCL_A_2D"))
         a_2d = std::atoi(env);
     jit.make("USE_2D_BLOCK_IO_A", a_2d);
-    // Block-level causal-mask skip in the .cl (skip the per-element cmp+sel when a subgroup's whole
-    // key x query block sits inside the causal region). Default on; =0 restores the unconditional
-    // per-element mask so a wrong-result tiling can be bisected against this optimisation.
-    int block_skip_causal = 1;
-    if (const char* env = std::getenv("SDPA_OCL_BLOCK_SKIP"))
-        block_skip_causal = std::atoi(env);
-    jit.make("BLOCK_SKIP_CAUSAL", block_skip_causal);
-    int max_barrier_v_prefetch = 0;
-    if (const char* env = std::getenv("SDPA_OCL_MAX_BARRIER_V_PREFETCH"))
-        max_barrier_v_prefetch = std::atoi(env);
-    jit.make("MAX_BARRIER_V_PREFETCH", max_barrier_v_prefetch);
     // int8 compressed V uses an 8-bit VNNI-transform 2D block read
     // (intel_sub_group_2d_block_read_transform_8b_32r16x1c) instead of the scalar gather+dequant:
     // one coalesced read gives a 32-key x 16-value tile already in VNNI layout (lane=value, each
@@ -1385,29 +1251,6 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
             v_i8_2d = std::atoi(env);
     }
     jit.make("USE_2D_BLOCK_IO_V_I8", v_i8_2d);
-    // The _8b_32r16x1c builtin returns 32 key rows, but one cp-block is only SUBGROUP_SIZE == 16
-    // keys, so the naive per-cp read discards uints 4..7 of every message and consecutive cp
-    // reads overlap by 16 rows. Paired mode issues the read on even cp only and feeds cp from
-    // uints 0..3 and cp+1 from uints 4..7, halving the V message count for every head size.
-    // Default on; SDPA_OCL_V_I8_PAIRED=0 restores the per-cp read for A/B measurement.
-    int v_i8_paired = 1;
-    if (const char* env = std::getenv("SDPA_OCL_V_I8_PAIRED"))
-        v_i8_paired = std::atoi(env);
-    jit.make("V_I8_PAIRED_READ", v_i8_paired);
-    // A subgroup owns sv_sg_tile_values value columns but the x1c builtin covers a fixed 16, so
-    // the .cl issues sv_value_blocks reads per cp-block. The extension also defines the multi-
-    // block _8b_32r16x2c / _8b_32r16x4c variants, which fetch 32 / 64 columns in ONE message and
-    // -- GPU-probed on B580 (test/microbench/probe_v_multiblock) -- lay their blocks out
-    // BLOCK-MAJOR, i.e. bit-identical to the per-cd loop writing into &vt[cd * 8]. So the kernel
-    // swaps the read only; the dequant indexing is untouched. Combined with the paired read this
-    // takes the V messages per k0 iteration from 8 to 4 at head 256 and from 16 to 4 at head 512
-    // (head <= 128 has sv_value_blocks == 1 and is unaffected). Default on; the .cl falls back to
-    // the x1c loop for any sv_value_blocks with no matching builtin.
-    // SDPA_OCL_V_I8_MULTIBLOCK=0 restores the per-cd x1c reads for A/B measurement.
-    int v_i8_multiblock = 1;
-    if (const char* env = std::getenv("SDPA_OCL_V_I8_MULTIBLOCK"))
-        v_i8_multiblock = std::atoi(env);
-    jit.make("V_I8_MULTIBLOCK_READ", v_i8_multiblock);
     // int8 compressed K via the SAME 8-bit VNNI-transform read (intel_sub_group_2d_block_read_
     // transform_8b_32r16x1c). Reading K memory (row-major [key, head]) at (x=head, y=key) yields
     // lane=head, each uint packing 4 consecutive keys as bytes -- GPU-probed to match the DPAS-A
@@ -1441,7 +1284,7 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     jit.make("K_HEAD_SIZE", k_head_size);
     jit.make("V_HEAD_SIZE", v_head_size);
 
-    auto data_inputs_num = micro_get_input_num(params, config);
+    auto data_inputs_num = config.input_num;
 
     size_t scale_input_idx = 4;
     jit.make("IS_CAUSAL", config.is_causal);
@@ -1459,7 +1302,6 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
         if (config.has_const_attn_mask_val) {
             jit.make("WITH_ATTN_MASK", 0);
             jit.make("STATIC_SCALAR_ATTN_MASK_VALUE", config.attn_mask_val);
-            // scale_input_idx -= 1;
         } else if (has_scalar_mask_input) {
             jit.make("WITH_ATTN_MASK", 0);
             jit.make("HAS_SCALAR_ATTN_MASK", 1);
@@ -1516,7 +1358,6 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
             jit.make("HAS_TOKEN_TYPE_IDS", 1);
             // Bisection toggle for the bidirectional mask logic only -- it does NOT gate the
             // parameter, so flipping it can never desync the argument list from the signature.
-            // Same pattern as BLOCK_SKIP_CAUSAL / USE_DKS_ACTIVE above.
             int use_bidir_mask = 1;
             if (const char* env = std::getenv("SDPA_OCL_BIDIR"))
                 use_bidir_mask = std::atoi(env);
@@ -1536,16 +1377,10 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
         jit.make("STATIC_SCALE_VALUE", config.scale_val);
         jit.make("STATIC_SCALE_VALUE_INV", 1.0f / config.scale_val);
     } else {
-        jit.make("WITH_SCALE", data_inputs_num > scale_input_idx);
+        jit.make("WITH_SCALE", data_inputs_num > static_cast<int64_t>(scale_input_idx));
     }
 
-    jit.make("Q_ALIGN", micro::alignment_for_ld(static_cast<int>(ldq)));
-    jit.make("K_ALIGN", micro::alignment_for_ld(static_cast<int>(ldk)));
-    jit.make("V_ALIGN", micro::alignment_for_ld(static_cast<int>(ldv)));
-    jit.make("A_ALIGN", micro::alignment_for_ld(static_cast<int>(lda)));
-
     jit.make("IS_PREFILL", m_is_prefill);
-    jit.make("TRANSPOSE_K", false);
     jit.make("IS_PAGED_ATTENTION", config.is_paged_attention ? 1 : 0);
     jit.make("KV_HEADS_NUM", config.kv_heads_num);
     jit.make("HEADS_NUM", config.heads_num);
@@ -1558,16 +1393,6 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
     jit.make("KEY_DATA_T", to_ocl_type(K.data_type));
     jit.make("VAL_DATA_T", to_ocl_type(V.data_type));
 
-    auto elems_per_byte = [](ov::element::Type dt) {
-        switch (dt) {
-        case ov::element::u4:
-        case ov::element::i4:
-            return 2;
-        default:
-            return 1;
-        }
-    };
-
     const bool use_asymmetric_quantization = config.use_asymmetric_quantization;
     if (!config.is_paged_attention && config.is_kv_compressed) {
         const auto& key_cache_comp_scale = params.input_layouts[data_inputs_num];
@@ -1576,15 +1401,6 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
         jit.make("KEY_ATTR_SCALES_DATA_T", to_ocl_type(key_cache_comp_scale.data_type));
         jit.make("VAL_ATTR_SCALES_DATA_T", to_ocl_type(value_cache_comp_scale.data_type));
 
-        int kq_scale_mask = (static_cast<int>(config.is_kv_compressed) << 1) | static_cast<int>(kq_common_scales);
-        int vs_scale_mask = (static_cast<int>(config.is_kv_compressed) << 1) | static_cast<int>(vs_common_scales);
-        jit.make("KEY_SCALES", kq_scale_mask);
-        jit.make("VAL_SCALES", vs_scale_mask);
-        // The dequant group spans a whole head row of the tensor it belongs to, so K's is the K head
-        // size and V's the V head size. `head_size` here is the QUERY head size, which only happens
-        // to equal both when they are all the same.
-        jit.make("KEY_GROUP_SIZE", k_head_size);
-        jit.make("VAL_GROUP_SIZE", v_head_size);
 
         jit.add(make_layout_jit_constants("KEY_SCALE", key_cache_comp_scale, params.in_port_to_shape_info_offset.at(data_inputs_num)));
         jit.add(make_layout_jit_constants("VAL_SCALE", value_cache_comp_scale, params.in_port_to_shape_info_offset.at(data_inputs_num + 1)));
@@ -1601,19 +1417,15 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
             const auto& value_cache_comp_zp = params.input_layouts[data_inputs_num + 3];
             jit.make("KEY_ATTR_ZP_DATA_T", to_ocl_type(key_cache_comp_zp.data_type));
             jit.make("VAL_ATTR_ZP_DATA_T", to_ocl_type(value_cache_comp_zp.data_type));
-
-            int kq_zp_mask = (static_cast<int>(use_asymmetric_quantization) << 1) | static_cast<int>(kq_common_zp);
-            int vs_zp_mask = (static_cast<int>(use_asymmetric_quantization) << 1) | static_cast<int>(vs_common_zp);
-            jit.make("KEY_ZERO_POINTS", kq_zp_mask);
-            jit.make("VAL_ZERO_POINTS", vs_zp_mask);
-            jit.make("KEY_ZP_ELEMENTS_PER_BYTE", elems_per_byte(key_cache_comp_zp.data_type));
-            jit.make("VAL_ZP_ELEMENTS_PER_BYTE", elems_per_byte(value_cache_comp_zp.data_type));
+            // Only tested for presence (sdpa_ocl.cl #errors without them): supported() admits asymmetric
+            // compression only, so the zero-point tensors always exist here.
+            jit.make("KEY_ZERO_POINTS", 1);
+            jit.make("VAL_ZERO_POINTS", 1);
         }
     }
 
     if (config.is_paged_attention && data_type_traits::is_i8_u8(K.data_type)) {
         auto pa_desc = params.typed_desc<paged_attention>();
-        jit.make("IS_KV_COMPRESSED_PA", true);
 
         const auto kv_precision = params.get_program().get_config().get_kv_cache_precision();
         const bool is_int4_logical = data_type_traits::is_i4_u4(kv_precision);
@@ -1626,8 +1438,6 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
             //    packed_block = block_size/2 bytes, scales = 4 bytes
             // V: dim order {0,1,2,3} (row-major), packed head_size in innermost dim
             //    physical: [blocks, heads, block_size, packed_head + scales] u8
-            jit.make("IS_INT4_KV_CACHE", 1);
-            jit.make("IS_KEY_BY_CHANNEL", 1);
             jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size);
             // The V page's packed head size is ALIGNED to the subgroup size -- that is what
             // paged_attention_opt.cpp's PACKED_ADJUSTED_V_HEAD_SIZE (and therefore the allocation and
@@ -1637,7 +1447,6 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
                      align_up(v_head_size / 2, static_cast<size_t>(ocl_config.subgroup_size)) + scales_zp_size);
             jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size / 2 + scales_zp_size);
         } else if (pa_desc->is_key_by_channel) {
-            jit.make("IS_KEY_BY_CHANNEL", 1);
             jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size);
             jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size + scales_zp_size);
             jit.make("ADJUSTED_V_HEAD_SIZE", v_head_size + scales_zp_size);
@@ -1652,83 +1461,25 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
         jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size);
     }
 
-    jit.make("KEY_ELEMENTS_PER_BYTE", elems_per_byte(params.input_layouts[1].data_type));
-    jit.make("VAL_ELEMENTS_PER_BYTE", elems_per_byte(params.input_layouts[2].data_type));
 
-
-    auto convert_strides = [](std::string target_prefix, std::string source_prefix, const std::vector<int64_t> order) {
-        JitConstants definitions({});
-
-        std::vector<std::string> target_stride_definitions = {
-            target_prefix + "_S0",
-            target_prefix + "_S1",
-            target_prefix + "_S2",
-            target_prefix + "_S3",
-        };
-
-        std::vector<std::string> source_stride_definitions = {
-            source_prefix + "_BATCH_PITCH",
-            source_prefix + "_FEATURE_PITCH",
-            source_prefix + "_Y_PITCH",
-            source_prefix + "_X_PITCH",
-        };
-
-        std::vector<std::string> target_size_definitions = {
-            target_prefix + "_D0",
-            target_prefix + "_D1",
-            target_prefix + "_D2",
-            target_prefix + "_D3",
-        };
-
-        std::vector<std::string> source_size_definitions = {
-            source_prefix + "_BATCH_NUM",
-            source_prefix + "_FEATURE_NUM",
-            source_prefix + "_SIZE_Y",
-            source_prefix + "_SIZE_X",
-        };
-
-        for (size_t i = 0; i < target_stride_definitions.size(); i++) {
-            definitions.make(target_stride_definitions[i], source_stride_definitions[order[i]]);
-            definitions.make(target_size_definitions[i], source_size_definitions[order[i]]);
-        }
-
-        return definitions;
-    };
-
-    if (config.is_paged_attention) {
-        const std::vector<int64_t> default_order = {0, 1, 2, 3};
-        jit.add(convert_strides("QRY", "INPUT0", default_order));
-        jit.add(convert_strides("KEY", "INPUT1", default_order));
-        jit.add(convert_strides("VAL", "INPUT2", default_order));
-        jit.add(convert_strides("DST", "OUTPUT", default_order));
-
-    } else {
+    if (!config.is_paged_attention) {
+        // Plain SDPA addresses Q/K/V/output through the permuted QRY_/KEY_/VAL_/DST_ strides
+        // (sdpa_utils.cl *_OFF); paged attention derives its 2D addressing in-kernel.
         auto desc = params.typed_desc<scaled_dot_product_attention>();
-        auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
-        auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
-        auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
-        auto extended_output_transpose_order = extend_order_in_num_heads_dim(desc->output_transpose_order);
-        jit.add(convert_strides("QRY", "INPUT0", extended_input_q_transpose_order));
-        jit.add(convert_strides("KEY", "INPUT1", extended_input_k_transpose_order));
-        jit.add(convert_strides("VAL", "INPUT2", extended_input_v_transpose_order));
-        jit.add(convert_strides("DST", "OUTPUT", extended_output_transpose_order));
+        jit.add(convert_strides("QRY", "INPUT0", extend_order_in_num_heads_dim(desc->input_q_transpose_order)));
+        jit.add(convert_strides("KEY", "INPUT1", extend_order_in_num_heads_dim(desc->input_k_transpose_order)));
+        jit.add(convert_strides("VAL", "INPUT2", extend_order_in_num_heads_dim(desc->input_v_transpose_order)));
+        jit.add(convert_strides("DST", "OUTPUT", extend_order_in_num_heads_dim(desc->output_transpose_order)));
+        jit.add(unit_parameters("QRY"));
+        jit.add(unit_parameters("KEY"));
+        jit.add(unit_parameters("VAL"));
+        jit.add(unit_parameters("DST"));
+
+        if (data_inputs_num > 3 && sdpa_has_runtime_attn_mask_input(params)) {
+            jit.add(convert_strides("MSK", "INPUT3", {0, 1, 2, 3}, true));
+            jit.add(unit_parameters("MSK"));
+        }
     }
-
-    jit.add(unit_parameters("QRY"));
-    jit.add(unit_parameters("KEY"));
-    jit.add(unit_parameters("VAL"));
-    jit.add(unit_parameters("DST"));
-
-    if (data_inputs_num > 3 && !config.is_paged_attention && sdpa_has_runtime_attn_mask_input(params)) {
-        jit.add(convert_strides("MSK", "INPUT3", {0, 1, 2, 3}));
-        jit.add(unit_parameters("MSK"));
-    }
-
-    // std::cout << "JIT for micro kernel:" << std::endl;
-    // for (auto it : jit) {
-    //     std::cout << "jit[" << it.name << "] = " << it.value << std::endl;
-    // }
-    // std::cout << std::endl;
 
     return jit;
 }
@@ -1740,7 +1491,7 @@ Arguments SDPAOclGenerator::get_arguments_desc(const kernel_impl_params& params)
     if (params.is_dynamic())
         args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
 
-    auto data_inputs_num = micro_get_input_num(params, config);
+    auto data_inputs_num = config.input_num;
 
     if (config.is_paged_attention) {
         const auto desc = params.typed_desc<paged_attention>();
@@ -1773,7 +1524,7 @@ Arguments SDPAOclGenerator::get_arguments_desc(const kernel_impl_params& params)
         if (has_qq_bias && !m_is_prefill) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});  // qq_bias
             args.push_back(
-                {ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins                              // qq_bias_num
+                {ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins
         }
 
         if (sdpa_ocl_has_token_type_ids(params)) {
@@ -1803,7 +1554,6 @@ Arguments SDPAOclGenerator::get_arguments_desc(const kernel_impl_params& params)
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});  // D
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});  // K
         args.push_back({ArgumentDescriptor::Types::SCALAR, 2});  // Q
-        // args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // scale
     }
 
     if (config.is_kv_compressed) {
@@ -1822,7 +1572,7 @@ Arguments SDPAOclGenerator::get_arguments_desc(const kernel_impl_params& params)
 }
 
 DispatchDataFunc SDPAOclGenerator::get_dispatch_data_func() const {
-    return DispatchDataFunc{[](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams* rt_params) {
+    return DispatchDataFunc{[](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams*) {
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         scalars.clear();
@@ -1840,25 +1590,24 @@ DispatchDataFunc SDPAOclGenerator::get_dispatch_data_func() const {
             const auto vd_max = get_d_max(v_head_size);
             const auto ocl_config = choose_config(device_info.arch, d_max, vd_max);
 
-            const ov::Dimension n_keys = micro_get_aligned_seq_length(params, 1, ocl_config.kq_wg_tile_keys());
+            const bool is_pa = params.is_type<paged_attention>();
             const ov::Dimension n_queries = micro_get_aligned_seq_length(params, 0, ocl_config.kq_wg_tile_queries());
+            // Scalars 0..2 (d, k, q) are bound only by the plain-SDPA signature; paged attention derives
+            // them in-kernel, so it skips the key count (another subsequence_begins lock).
+            const int64_t n_keys = is_pa ? 0 : micro_get_aligned_seq_length(params, 1, ocl_config.kq_wg_tile_keys()).get_length();
 
             size_t q = n_queries.get_length();
 
             wgs.local = {static_cast<size_t>(ocl_config.subgroup_size), static_cast<size_t>(ocl_config.sg_per_wg()), 1};
             wgs.global = wgs.local;
             wgs.global[0] = wgs.global[0] * ((q + ocl_config.kq_wg_tile_queries() - 1) / ocl_config.kq_wg_tile_queries());
-            if (params.is_type<paged_attention>()) {
+            if (is_pa) {
                 // Paged attention Q/K/V/output are 2D [total_tokens, num_heads * head_size], so the
                 // output partial shape carries neither a head nor a batch dimension: dim 1 must be
                 // driven by the head count and dim 2 collapses to a single group (subsequences are
-                // resolved in-kernel through blocked_indexes_start_and_gws_mapping).
-                auto head_num = micro_get_num_heads(params, 0);
-                const auto* pa_rt_params = static_cast<const PagedAttentionRuntimeParams*>(rt_params);
-                if (pa_rt_params->stage == PagedAttentionStage::GENERATE)
-                    head_num = micro_get_num_heads(params, 1);
-                wgs.global[1] *= head_num;
-                wgs.global[2] *= 1;
+                // resolved in-kernel through blocked_indexes_start_and_gws_mapping). GENERATE never
+                // reaches this generator -- sdpa_ocl_decode serves it.
+                wgs.global[1] *= micro_get_num_heads(params, 0);
             } else {
                 // gws dim 1 is the HEAD index -- the kernel reads b0 = get_group_id(1) and offsets
                 // Q/K/V/A by QRY_OFF(b1, b0, 0, 0) & co. -- so it must come from micro_get_num_heads(),
@@ -1891,7 +1640,7 @@ DispatchDataFunc SDPAOclGenerator::get_dispatch_data_func() const {
             scalars.push_back(s_d);
 
             ScalarDescriptor s_k{ScalarDescriptor::Types::INT32};
-            s_k.v.s32 = to_int32(n_keys.get_length());
+            s_k.v.s32 = to_int32(static_cast<size_t>(n_keys));
             scalars.push_back(s_k);
 
             ScalarDescriptor s_q{ScalarDescriptor::Types::INT32};
@@ -1904,10 +1653,6 @@ DispatchDataFunc SDPAOclGenerator::get_dispatch_data_func() const {
             ScalarDescriptor s_token_type_ids_count{ScalarDescriptor::Types::INT32};
             s_token_type_ids_count.v.s32 = sdpa_ocl_token_type_ids_count(params);
             scalars.push_back(s_token_type_ids_count);
-
-            // ScalarDescriptor s_scale{ScalarDescriptor::Types::FLOAT32};
-            // s_scale.v.f32 = static_cast<float>(1.0f / std::sqrt(static_cast<float>(v_head_size)));
-            // scalars.push_back(s_scale);
         }
     }};
 }
