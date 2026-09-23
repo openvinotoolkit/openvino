@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -152,9 +152,9 @@ TEST_F(memory_dependency_construction, dense_restrictions_keep_immediate_members
 
 TEST_F(memory_dependency_construction, serialize_dense_set_then_load_and_extend) {
     auto* node = add_node("node");
-    std::vector<size_t> ids(4096);
+    std::vector<uint32_t> ids(4096);
     std::iota(ids.begin(), ids.end(), 10000);
-    node->add_memory_dependency(ids);
+    node->add_memory_dependency(std::vector<size_t>(ids.begin(), ids.end()));
     std::stringstream storage;
     BinaryOutputBuffer output(storage);
     node->save(output);
@@ -162,7 +162,7 @@ TEST_F(memory_dependency_construction, serialize_dense_set_then_load_and_extend)
     BinaryInputBuffer input(storage, engine_ref);
     node->load(input);
     EXPECT_FALSE(node->has_memory_dependency(9999));
-    EXPECT_EQ(node->get_memory_dependencies(), std::vector<uint32_t>(ids.begin(), ids.end()));
+    EXPECT_EQ(node->get_memory_dependencies(), ids);
     node->add_memory_dependency(std::vector<size_t>{9999, 10000, 14096});
     EXPECT_EQ(node->get_memory_dependencies().size(), ids.size() + 2);
 }
@@ -172,8 +172,9 @@ TEST_F(memory_dependency_construction, id_list_preserves_range_check) {
     const auto max_id = std::numeric_limits<uint32_t>::max();
     node->add_memory_dependency(std::vector<size_t>{0, max_id, max_id});
     EXPECT_EQ(node->get_memory_dependencies(), (std::vector<uint32_t>{0, max_id}));
-    if (std::numeric_limits<size_t>::max() > max_id)
+    if (std::numeric_limits<size_t>::max() > max_id) {
         EXPECT_ANY_THROW(node->add_memory_dependency(std::vector<size_t>{static_cast<size_t>(max_id) + 1}));
+    }
 }
 
 // A set-based oracle keeps intermediate membership independent of the production representation.

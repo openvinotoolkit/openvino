@@ -1,4 +1,4 @@
-// Copyright (C) 2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -27,8 +27,9 @@ void check_insertions(const std::vector<uint32_t>& ids, bool read_during_constru
         expected.insert(id);
         ASSERT_TRUE(actual.contains(id));
         ASSERT_EQ(actual.contains(id ^ 1), expected.count(id ^ 1) != 0);
-        if (read_during_construction && i % 127 == 0)
+        if (read_during_construction && i % 127 == 0) {
             ASSERT_EQ(actual.values(), std::vector<uint32_t>(expected.begin(), expected.end()));
+        }
     }
     const std::vector<uint32_t> result(expected.begin(), expected.end());
     EXPECT_EQ(actual.values(), result);
