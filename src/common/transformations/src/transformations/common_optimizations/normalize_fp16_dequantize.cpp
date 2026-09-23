@@ -37,8 +37,7 @@ namespace ov::pass {
 NormalizeDequantizeFP16::NormalizeDequantizeFP16() {
     MATCHER_SCOPE(NormalizeDequantizeFP16);
 
-    auto fq_pattern = pattern::wrap_type<v0::FakeQuantize>(
-        {pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input(), pattern::any_input()});
+    auto fq_pattern = pattern::wrap_type<v0::FakeQuantize>();
 
     auto conv1_pattern = pattern::wrap_type<v0::Convert>(
         {fq_pattern},
@@ -72,7 +71,6 @@ NormalizeDequantizeFP16::NormalizeDequantizeFP16() {
 
         const bool has_zp = map.count(zp_pattern) > 0;
         auto scale = to_f32(map.at(scale_pattern));
-        auto zp = has_zp ? to_f32(map.at(zp_pattern)) : Output<Node>{};
 
         auto conv2_node = map.at(conv2_pattern).get_node_shared_ptr();
         auto mul_node = map.at(mul_pattern).get_node_shared_ptr();
@@ -86,6 +84,7 @@ NormalizeDequantizeFP16::NormalizeDequantizeFP16() {
 
         if (has_zp) {
             old_dq_nodes.push_back(map.at(sub_pattern).get_node_shared_ptr());
+            auto zp = to_f32(map.at(zp_pattern));
             auto new_sub = std::make_shared<v1::Subtract>(prev, zp);
             new_dq_nodes.push_back(new_sub);
             prev = new_sub;
