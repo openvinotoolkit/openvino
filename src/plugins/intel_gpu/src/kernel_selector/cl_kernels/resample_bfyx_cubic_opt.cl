@@ -4,8 +4,6 @@
 
 #include "include/fetch_utils.cl"
 
-#pragma OPENCL FP_CONTRACT OFF
-
 #ifdef RTE_OUTPUT
     #define TO_OUTPUT_COMPUTE_TYPE(x)   CAT(CAT(convert_, OUTPUT_TYPE), _rte)(x)
 #endif
@@ -44,33 +42,51 @@ inline float FUNC(get_original_coordinate)(float num, float scale, int length_re
 
 inline void FUNC(get_cubic_coeff)(float* cubic_coef, float coord, float coef)
 {
+    // NOTE: The multiply-then-add/sub sequences below (e.g. "t0 - 5.0f * coef")
+    // must be evaluated with separate rounding steps (as-if FP_CONTRACT were OFF)
+    // to match the reference implementation bit-for-bit. Instead of disabling
+    // FP_CONTRACT for the whole translation unit (which would also block FMA
+    // fusion for unrelated, perf-sensitive code), we locally block fusion only
+    // for these specific multiplications by routing them through a volatile
+    // temporary, forcing the multiply to be rounded/stored before it is used
+    // in the following add/sub.
     float abs_num = fabs(coord);
     float x0 = abs_num + 1.0f;
     float x1 = abs_num;
     float x2 = 1.0f - abs_num;
     float x3 = 2.0f - abs_num;
+
     float t0 = coef * x0;
-    t0 = t0 - 5.0f * coef;
+    volatile float t0_mul_5c = 5.0f * coef;
+    t0 = t0 - t0_mul_5c;
     t0 = t0 * x0;
-    t0 = t0 + 8.0f * coef;
+    volatile float t0_mul_8c = 8.0f * coef;
+    t0 = t0 + t0_mul_8c;
     t0 = t0 * x0;
-    cubic_coef[0] = t0 - 4.0f * coef;
+    volatile float t0_mul_4c = 4.0f * coef;
+    cubic_coef[0] = t0 - t0_mul_4c;
+
     float t1 = (coef + 2.0f) * x1;
     t1 = t1 - (coef + 3.0f);
     t1 = t1 * x1;
     t1 = t1 * x1;
     cubic_coef[1] = t1 + 1.0f;
+
     float t2 = (coef + 2.0f) * x2;
     t2 = t2 - (coef + 3.0f);
     t2 = t2 * x2;
     t2 = t2 * x2;
     cubic_coef[2] = t2 + 1.0f;
+
     float t3 = coef * x3;
-    t3 = t3 - 5.0f * coef;
+    volatile float t3_mul_5c = 5.0f * coef;
+    t3 = t3 - t3_mul_5c;
     t3 = t3 * x3;
-    t3 = t3 + 8.0f * coef;
+    volatile float t3_mul_8c = 8.0f * coef;
+    t3 = t3 + t3_mul_8c;
     t3 = t3 * x3;
-    cubic_coef[3] = t3 - 4.0f * coef;
+    volatile float t3_mul_4c = 4.0f * coef;
+    cubic_coef[3] = t3 - t3_mul_4c;
 }
 
 KERNEL (resample_bfyx_cubic_opt)(

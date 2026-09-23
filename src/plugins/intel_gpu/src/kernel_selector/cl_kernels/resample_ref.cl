@@ -4,8 +4,6 @@
 
 #include "include/fetch_utils.cl"
 
-#pragma OPENCL FP_CONTRACT OFF
-
 #ifdef RTE_OUTPUT
     #define TO_OUTPUT_COMPUTE_TYPE(x)   CAT(CAT(convert_, OUTPUT_TYPE), _rte)(x)
 #endif
@@ -77,33 +75,51 @@ inline float FUNC(get_original_coordinate)(float num, float scale, int length_re
 
 inline void FUNC(get_cubic_coeff)(float* cubic_coef, float coord, float coef)
 {
+    // NOTE: The multiply-then-add/sub sequences below (e.g. "t0 - 5.0f * coef")
+    // must be evaluated with separate rounding steps (as-if FP_CONTRACT were OFF)
+    // to match the reference implementation bit-for-bit. Instead of disabling
+    // FP_CONTRACT for the whole translation unit (which would also block FMA
+    // fusion for unrelated, perf-sensitive code), we locally block fusion only
+    // for these specific multiplications by routing them through a volatile
+    // temporary, forcing the multiply to be rounded/stored before it is used
+    // in the following add/sub.
     float abs_num = fabs(coord);
     float x0 = abs_num + 1.0f;
     float x1 = abs_num;
     float x2 = 1.0f - abs_num;
     float x3 = 2.0f - abs_num;
+
     float t0 = coef * x0;
-    t0 = t0 - 5.0f * coef;
+    volatile float t0_mul_5c = 5.0f * coef;
+    t0 = t0 - t0_mul_5c;
     t0 = t0 * x0;
-    t0 = t0 + 8.0f * coef;
+    volatile float t0_mul_8c = 8.0f * coef;
+    t0 = t0 + t0_mul_8c;
     t0 = t0 * x0;
-    cubic_coef[0] = t0 - 4.0f * coef;
+    volatile float t0_mul_4c = 4.0f * coef;
+    cubic_coef[0] = t0 - t0_mul_4c;
+
     float t1 = (coef + 2.0f) * x1;
     t1 = t1 - (coef + 3.0f);
     t1 = t1 * x1;
     t1 = t1 * x1;
     cubic_coef[1] = t1 + 1.0f;
+
     float t2 = (coef + 2.0f) * x2;
     t2 = t2 - (coef + 3.0f);
     t2 = t2 * x2;
     t2 = t2 * x2;
     cubic_coef[2] = t2 + 1.0f;
+
     float t3 = coef * x3;
-    t3 = t3 - 5.0f * coef;
+    volatile float t3_mul_5c = 5.0f * coef;
+    t3 = t3 - t3_mul_5c;
     t3 = t3 * x3;
-    t3 = t3 + 8.0f * coef;
+    volatile float t3_mul_8c = 8.0f * coef;
+    t3 = t3 + t3_mul_8c;
     t3 = t3 * x3;
-    cubic_coef[3] = t3 - 4.0f * coef;
+    volatile float t3_mul_4c = 4.0f * coef;
+    cubic_coef[3] = t3 - t3_mul_4c;
 }
 
 #define TRIANGLE_COEFF(x) (ACCUMULATOR_MAX_FUNC(ACCUMULATOR_VAL_ZERO, ACCUMULATOR_VAL_ONE - ACCUMULATOR_ABS_FUNC(x)))
@@ -262,16 +278,24 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         // resized (e.g. explicit sizes matching the padded input size) must keep
         // that behavior, otherwise an incorrect half-pixel shift would be applied.
         if (SCALES[i] != 1.0f) {
-            if ((PADS_BEGIN[i] == 0) != (PADS_END[i] == 0))
-                orig_coord = ((float)out_coords[i] + 0.5f) / (float)out_size[i] * (float)(in_size[i] + PADS_BEGIN[i] + PADS_END[i]) - PADS_BEGIN[i];
-            else if (PADS_BEGIN[i] != 0 && PADS_END[i] != 0) {
+            if ((PADS_BEGIN[i] == 0) != (PADS_END[i] == 0)) {
+                // Split into separate statements (with a volatile intermediate)
+                // so the final "- PADS_BEGIN[i]" is not fused by the compiler
+                // with the preceding multiplication into a single FMA, which
+                // would change rounding relative to the reference.
+                volatile float scaled = ((float)out_coords[i] + 0.5f) / (float)out_size[i] * (float)(in_size[i] + PADS_BEGIN[i] + PADS_END[i]);
+                orig_coord = scaled - PADS_BEGIN[i];
+            } else if (PADS_BEGIN[i] != 0 && PADS_END[i] != 0) {
                 volatile float inv_scale = 1.0f / SCALES[i];
-                orig_coord = ((float)out_coords[i] + 0.5f) * inv_scale - PADS_BEGIN[i];
+                volatile float scaled = ((float)out_coords[i] + 0.5f) * inv_scale;
+                orig_coord = scaled - PADS_BEGIN[i];
             }
         }
     #elif SHAPE_CALC_MODE_SIZES && PADDING_USED == 1 && defined(COORD_TRANS_MODE_ASYMMETRIC)
-        if (SCALES[i] != 1.0f)
-            orig_coord = (float)out_coords[i] / (float)out_size[i] * (float)(in_size[i] + PADS_BEGIN[i] + PADS_END[i]) - PADS_BEGIN[i];
+        if (SCALES[i] != 1.0f) {
+            volatile float scaled = (float)out_coords[i] / (float)out_size[i] * (float)(in_size[i] + PADS_BEGIN[i] + PADS_END[i]);
+            orig_coord = scaled - PADS_BEGIN[i];
+        }
     #endif
         in_coords[i] = floor(orig_coord);
         orig_coord = (orig_coord - in_coords[i]) * AXES_USED[i];
