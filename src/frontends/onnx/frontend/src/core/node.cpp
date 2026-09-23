@@ -16,9 +16,7 @@
 #include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "translate_session.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 class Node::Impl {
 public:
     Impl() = delete;
@@ -1240,6 +1238,4 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     FRONT_END_NOT_IMPLEMENTED(get_attribute_as_constant);
 }
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

@@ -10,9 +10,7 @@
 #include "openvino/frontend/gguf/builder/metadata.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 // Opaque graph produced by GgufGraphContext; defined in builder/gguf_graph.hpp.
 struct GgufGraph;
@@ -43,6 +41,4 @@ public:
     virtual std::shared_ptr<GgufGraph> build() = 0;
 };
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

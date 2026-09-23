@@ -5,6 +5,7 @@
 #include "propagate_slice.hpp"
 
 #include <cstring>
+#include <functional>
 #include <map>
 #include <optional>
 #include <tuple>
@@ -54,6 +55,21 @@ std::size_t resolve_original_query_length(std::size_t fallback_length, const std
 namespace {
 
 using namespace ov::pass::pattern;
+
+// Wraps a matcher callback to trace (rule name, matched Slice root) whenever it fires, via the
+// standard NPUW logging channel (LOG_DEBUG, enabled with OPENVINO_NPUW_LOG_LEVEL=DEBUG), so the
+// exact sequence of rewrites within a single GraphRewrite fixpoint can be reconstructed.
+static std::function<bool(Matcher&)> with_debug_trace(const char* rule_name, std::function<bool(Matcher&)> cb) {
+    return [rule_name, cb](Matcher& m) {
+        bool matched = cb(m);
+        if (matched) {
+            auto root = m.get_match_root();
+            LOG_DEBUG("PropagateSliceUp[" << rule_name << "] matched Slice root '" << root->get_friendly_name() << "' ("
+                                          << root->get_type_name() << ")");
+        }
+        return matched;
+    };
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -326,24 +342,26 @@ public:
                                ov::op::v0::Convert>({data});
         auto slice = wrap_type<ov::op::v8::Slice>({unary, any_input(), any_input(), any_input(), any_input()});
 
-        register_matcher(std::make_shared<Matcher>(slice, "PropagateSliceThroughUnary"), [=](Matcher& m) {
-            auto& map = m.get_pattern_value_map();
-            auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
-            auto unary_node = map[unary].get_node_shared_ptr();
+        register_matcher(std::make_shared<Matcher>(slice, "PropagateSliceThroughUnary"),
+                         with_debug_trace("PropagateSliceThroughUnary", [=](Matcher& m) {
+                             auto& map = m.get_pattern_value_map();
+                             auto slice_node =
+                                 std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
+                             auto unary_node = map[unary].get_node_shared_ptr();
 
-            if (get_propagation_axis(slice_node, unary_node) == -1) {
-                return false;
-            }
+                             if (get_propagation_axis(slice_node, unary_node) == -1) {
+                                 return false;
+                             }
 
-            // Slice(Unary(X)) -> Unary(Slice(X))
-            auto new_slice = clone_slice(slice_node, unary_node->input_value(0));
-            auto new_unary = unary_node->clone_with_new_inputs({new_slice});
-            new_unary->set_friendly_name(unary_node->get_friendly_name());
-            new_unary->validate_and_infer_types();
+                             // Slice(Unary(X)) -> Unary(Slice(X))
+                             auto new_slice = clone_slice(slice_node, unary_node->input_value(0));
+                             auto new_unary = unary_node->clone_with_new_inputs({new_slice});
+                             new_unary->set_friendly_name(unary_node->get_friendly_name());
+                             new_unary->validate_and_infer_types();
 
-            ov::replace_node(slice_node, new_unary);
-            return true;
-        });
+                             ov::replace_node(slice_node, new_unary);
+                             return true;
+                         }));
     }
 };
 
@@ -372,72 +390,76 @@ public:
                                 ov::op::v1::GreaterEqual>({input_a, input_b});
         auto slice = wrap_type<ov::op::v8::Slice>({binary, any_input(), any_input(), any_input(), any_input()});
 
-        register_matcher(std::make_shared<Matcher>(slice, "PropagateSliceThroughBinary"), [=](Matcher& m) {
-            auto& map = m.get_pattern_value_map();
-            auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
-            auto binary_node = map[binary].get_node_shared_ptr();
+        register_matcher(std::make_shared<Matcher>(slice, "PropagateSliceThroughBinary"),
+                         with_debug_trace("PropagateSliceThroughBinary", [=](Matcher& m) {
+                             auto& map = m.get_pattern_value_map();
+                             auto slice_node =
+                                 std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
+                             auto binary_node = map[binary].get_node_shared_ptr();
 
-            int64_t slice_axis = get_propagation_axis(slice_node, binary_node);
-            if (slice_axis == -1) {
-                return false;
-            }
+                             int64_t slice_axis = get_propagation_axis(slice_node, binary_node);
+                             if (slice_axis == -1) {
+                                 return false;
+                             }
 
-            const auto& shape_a = binary_node->get_input_partial_shape(0);
-            const auto& shape_b = binary_node->get_input_partial_shape(1);
-            if (shape_a.is_dynamic() || shape_b.is_dynamic())
-                return false;
+                             const auto& shape_a = binary_node->get_input_partial_shape(0);
+                             const auto& shape_b = binary_node->get_input_partial_shape(1);
+                             if (shape_a.is_dynamic() || shape_b.is_dynamic())
+                                 return false;
 
-            // Determine which inputs need a Slice and which can stay as-is.
-            // An input can stay if the sliced axis has size 1 in that input
-            // (it will be broadcast to match the other input after slicing).
-            auto needs_slice = [&](const ov::PartialShape& shape) -> bool {
-                auto s = shape.to_shape();
-                // Rank-align: leading dims may be absent for lower-rank tensors
-                int64_t rank_diff =
-                    static_cast<int64_t>(slice_node->get_output_shape(0).size()) - static_cast<int64_t>(s.size());
-                int64_t local_ax = slice_axis - rank_diff;
-                if (local_ax < 0)
-                    return false;  // dimension does not exist -> broadcast (size-1 implied)
-                if (s[static_cast<size_t>(local_ax)] != 1) {
-                    return true;  // real data on this axis, must slice
-                }
-                return false;  // sliced axis is broadcast dim, no slice needed
-            };
+                             // Determine which inputs need a Slice and which can stay as-is.
+                             // An input can stay if the sliced axis has size 1 in that input
+                             // (it will be broadcast to match the other input after slicing).
+                             auto needs_slice = [&](const ov::PartialShape& shape) -> bool {
+                                 auto s = shape.to_shape();
+                                 // Rank-align: leading dims may be absent for lower-rank tensors
+                                 int64_t rank_diff = static_cast<int64_t>(slice_node->get_output_shape(0).size()) -
+                                                     static_cast<int64_t>(s.size());
+                                 int64_t local_ax = slice_axis - rank_diff;
+                                 if (local_ax < 0)
+                                     return false;  // dimension does not exist -> broadcast (size-1 implied)
+                                 if (s[static_cast<size_t>(local_ax)] != 1) {
+                                     return true;  // real data on this axis, must slice
+                                 }
+                                 return false;  // sliced axis is broadcast dim, no slice needed
+                             };
 
-            bool slice_a = needs_slice(shape_a);
-            bool slice_b = needs_slice(shape_b);
+                             bool slice_a = needs_slice(shape_a);
+                             bool slice_b = needs_slice(shape_b);
 
-            if (!slice_a && !slice_b) {
-                // Neither operand is affected – shouldn't happen for a reducing slice
-                return false;
-            }
+                             if (!slice_a && !slice_b) {
+                                 // Neither operand is affected – shouldn't happen for a reducing slice
+                                 return false;
+                             }
 
-            // Check if both inputs come from the same output (same node AND same output port -
-            // e.g. Add(split->output(0), split->output(1)) must NOT be treated as same_input,
-            // otherwise a Slice of output 0 would be wrongly reused for output 1 as well).
-            bool same_input = (binary_node->input_value(0) == binary_node->input_value(1));
+                             // Check if both inputs come from the same output (same node AND same output port -
+                             // e.g. Add(split->output(0), split->output(1)) must NOT be treated as same_input,
+                             // otherwise a Slice of output 0 would be wrongly reused for output 1 as well).
+                             bool same_input = (binary_node->input_value(0) == binary_node->input_value(1));
 
-            ov::Output<ov::Node> new_a, new_b;
+                             ov::Output<ov::Node> new_a, new_b;
 
-            if (same_input && slice_a && slice_b) {
-                // Both inputs are the same node and both need slicing
-                // Create only ONE slice and reuse it for both inputs to avoid duplicates
-                auto shared_slice = clone_slice(slice_node, binary_node->input_value(0));
-                new_a = shared_slice;
-                new_b = shared_slice;
-            } else {
-                // Different inputs or only one needs slicing
-                new_a = slice_a ? clone_slice(slice_node, binary_node->input_value(0)) : binary_node->input_value(0);
-                new_b = slice_b ? clone_slice(slice_node, binary_node->input_value(1)) : binary_node->input_value(1);
-            }
+                             if (same_input && slice_a && slice_b) {
+                                 // Both inputs are the same node and both need slicing
+                                 // Create only ONE slice and reuse it for both inputs to avoid duplicates
+                                 auto shared_slice = clone_slice(slice_node, binary_node->input_value(0));
+                                 new_a = shared_slice;
+                                 new_b = shared_slice;
+                             } else {
+                                 // Different inputs or only one needs slicing
+                                 new_a = slice_a ? clone_slice(slice_node, binary_node->input_value(0))
+                                                 : binary_node->input_value(0);
+                                 new_b = slice_b ? clone_slice(slice_node, binary_node->input_value(1))
+                                                 : binary_node->input_value(1);
+                             }
 
-            auto new_binary = binary_node->clone_with_new_inputs({new_a, new_b});
-            new_binary->set_friendly_name(binary_node->get_friendly_name());
-            new_binary->validate_and_infer_types();
+                             auto new_binary = binary_node->clone_with_new_inputs({new_a, new_b});
+                             new_binary->set_friendly_name(binary_node->get_friendly_name());
+                             new_binary->validate_and_infer_types();
 
-            ov::replace_node(slice_node, new_binary);
-            return true;
-        });
+                             ov::replace_node(slice_node, new_binary);
+                             return true;
+                         }));
     }
 };
 
@@ -454,118 +476,120 @@ public:
         auto sdpa = wrap_type<ov::op::v13::ScaledDotProductAttention>();
         auto slice = wrap_type<ov::op::v8::Slice>({sdpa, any_input(), any_input(), any_input(), any_input()});
 
-        register_matcher(std::make_shared<Matcher>(slice, "PropagateSliceThroughSDPA"), [=](Matcher& m) {
-            auto& map = m.get_pattern_value_map();
-            auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
-            auto sdpa_node = map[sdpa].get_node_shared_ptr();
+        register_matcher(
+            std::make_shared<Matcher>(slice, "PropagateSliceThroughSDPA"),
+            with_debug_trace("PropagateSliceThroughSDPA", [=](Matcher& m) {
+                auto& map = m.get_pattern_value_map();
+                auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
+                auto sdpa_node = map[sdpa].get_node_shared_ptr();
 
-            // SDPA output: [B, num_heads, seq_q, head_size]  (4-D after DecomposeGQA)
-            // Q input:     [B, num_heads, seq_q, head_size]
-            // The sequence axis for Q is typically dim 2 (after head split).
-            // Before DecomposeGQA, output may be [B, seq_q, hidden] – seq axis is 1.
-            const auto& out_shape = slice_node->get_input_shape(0);  // SDPA output shape
+                // SDPA output: [B, num_heads, seq_q, head_size]  (4-D after DecomposeGQA)
+                // Q input:     [B, num_heads, seq_q, head_size]
+                // The sequence axis for Q is typically dim 2 (after head split).
+                // Before DecomposeGQA, output may be [B, seq_q, hidden] – seq axis is 1.
+                const auto& out_shape = slice_node->get_input_shape(0);  // SDPA output shape
 
-            int64_t seq_axis = get_propagation_axis(slice_node, sdpa_node);
-            if (seq_axis == -1) {
-                return false;
-            }
-
-            // Guard: seq_axis must be the canonical Q-sequence axis, i.e. the second-to-last
-            // axis of the SDPA output ([B,H,Sq,D] -> axis=2, or [B,Sq,hidden] -> axis=1).
-            // Unlike Reshape, SDPA has no "total element count" invariant to fall back on:
-            // the check below only compares dimension *values*, not axis *semantics*. Without
-            // this guard, a Slice that happens to reduce some other axis (e.g. head_size or
-            // num_heads) whose size coincidentally matches Q's dimension at the same axis index
-            // would be silently mistreated as a sequence-dimension slice.
-            if (seq_axis != static_cast<int64_t>(out_shape.size()) - 2) {
-                return false;
-            }
-
-            // Check Q input shape
-            const auto& q_shape = sdpa_node->get_input_partial_shape(0);
-            if (q_shape.is_dynamic()) {
-                return false;
-            }
-
-            auto q_shape_static = q_shape.to_shape();
-
-            // The SDPA output seq dim and Q seq dim must match
-            if (q_shape[seq_axis].get_length() != static_cast<int64_t>(out_shape[static_cast<size_t>(seq_axis)])) {
-                return false;
-            }
-
-            // Slice Q
-            auto new_q = clone_slice(slice_node, sdpa_node->input_value(0));
-
-            // Validate that the mask is either a broadcast dim on the sequence axis or matches the
-            // sliced sequence length, then report whether it actually needs slicing. Requires the
-            // mask to have the SAME rank as the SDPA output: rank-aligning a lower-rank mask (e.g.
-            // [B,Sq,Sk] vs a 4-D [B,H,Sq,D] output) would need to remap seq_axis onto the mask's own
-            // axes, and cloning the original (output-indexed) Slice unchanged onto such a mask would
-            // silently slice the wrong axis. Rejecting rank mismatches keeps the mapping trivial and
-            // correct instead of guessing; returns nullopt to abort propagation in that case.
-            auto mask_needs_slice = [&](size_t input_idx) -> std::optional<bool> {
-                const auto& shape = sdpa_node->get_input_partial_shape(input_idx);
-                if (shape.is_dynamic()) {
-                    return std::nullopt;
-                }
-                auto s = shape.to_shape();
-
-                if (s.size() != out_shape.size()) {
-                    return std::nullopt;  // rank mismatch -> axis mapping unreliable, don't propagate
-                }
-                if (s[static_cast<size_t>(seq_axis)] == 1) {
-                    return false;  // broadcast dim -> no slice needed
-                }
-                if (s[static_cast<size_t>(seq_axis)] != out_shape[static_cast<size_t>(seq_axis)]) {
-                    return std::nullopt;  // neither broadcast nor a length match -> unsafe to propagate
-                }
-                return true;  // real data on this axis, must slice
-            };
-
-            const bool has_mask = sdpa_node->get_input_size() > 3;
-            bool mask_needs_slicing = false;
-            if (has_mask) {
-                auto decision = mask_needs_slice(3);
-                if (!decision.has_value()) {
+                int64_t seq_axis = get_propagation_axis(slice_node, sdpa_node);
+                if (seq_axis == -1) {
                     return false;
                 }
-                mask_needs_slicing = *decision;
-            }
 
-            // Build new inputs: Q always sliced, K/V unchanged, mask conditionally sliced
-            ov::OutputVector new_inputs;
-            for (size_t i = 0; i < sdpa_node->get_input_size(); ++i) {
-                if (i == 0) {
-                    // Q: always slice
-                    new_inputs.push_back(new_q);
-                } else if (i == 3 && has_mask) {
-                    // attention mask (optional input 3)
-                    if (mask_needs_slicing) {
-                        auto new_mask = clone_slice(slice_node, sdpa_node->input_value(3));
-                        new_inputs.push_back(new_mask);
-                    } else {
-                        new_inputs.push_back(sdpa_node->input_value(3));
-                    }
-                } else {
-                    // K, V, scale, or other inputs: unchanged
-                    new_inputs.push_back(sdpa_node->input_value(i));
+                // Guard: seq_axis must be the canonical Q-sequence axis, i.e. the second-to-last
+                // axis of the SDPA output ([B,H,Sq,D] -> axis=2, or [B,Sq,hidden] -> axis=1).
+                // Unlike Reshape, SDPA has no "total element count" invariant to fall back on:
+                // the check below only compares dimension *values*, not axis *semantics*. Without
+                // this guard, a Slice that happens to reduce some other axis (e.g. head_size or
+                // num_heads) whose size coincidentally matches Q's dimension at the same axis index
+                // would be silently mistreated as a sequence-dimension slice.
+                if (seq_axis != static_cast<int64_t>(out_shape.size()) - 2) {
+                    return false;
                 }
-            }
 
-            auto new_sdpa = sdpa_node->clone_with_new_inputs(new_inputs);
-            new_sdpa->set_friendly_name(sdpa_node->get_friendly_name());
-            new_sdpa->validate_and_infer_types();
+                // Check Q input shape
+                const auto& q_shape = sdpa_node->get_input_partial_shape(0);
+                if (q_shape.is_dynamic()) {
+                    return false;
+                }
 
-            // Store metadata for downstream passes (e.g., pyramid attention):
-            // Although Q's sequence length is now sliced, K/V still contain the original sequence length.
-            // Record the original query_length so pyramid attention can correctly identify prefill vs. generate.
-            auto& rt_info = new_sdpa->get_rt_info();
-            rt_info[ov::npuw::NPUW_ORIGINAL_QUERY_LENGTH_RT_KEY] = q_shape_static[static_cast<size_t>(seq_axis)];
+                auto q_shape_static = q_shape.to_shape();
 
-            ov::replace_node(slice_node, new_sdpa);
-            return true;
-        });
+                // The SDPA output seq dim and Q seq dim must match
+                if (q_shape[seq_axis].get_length() != static_cast<int64_t>(out_shape[static_cast<size_t>(seq_axis)])) {
+                    return false;
+                }
+
+                // Slice Q
+                auto new_q = clone_slice(slice_node, sdpa_node->input_value(0));
+
+                // Validate that the mask is either a broadcast dim on the sequence axis or matches the
+                // sliced sequence length, then report whether it actually needs slicing. Requires the
+                // mask to have the SAME rank as the SDPA output: rank-aligning a lower-rank mask (e.g.
+                // [B,Sq,Sk] vs a 4-D [B,H,Sq,D] output) would need to remap seq_axis onto the mask's own
+                // axes, and cloning the original (output-indexed) Slice unchanged onto such a mask would
+                // silently slice the wrong axis. Rejecting rank mismatches keeps the mapping trivial and
+                // correct instead of guessing; returns nullopt to abort propagation in that case.
+                auto mask_needs_slice = [&](size_t input_idx) -> std::optional<bool> {
+                    const auto& shape = sdpa_node->get_input_partial_shape(input_idx);
+                    if (shape.is_dynamic()) {
+                        return std::nullopt;
+                    }
+                    auto s = shape.to_shape();
+
+                    if (s.size() != out_shape.size()) {
+                        return std::nullopt;  // rank mismatch -> axis mapping unreliable, don't propagate
+                    }
+                    if (s[static_cast<size_t>(seq_axis)] == 1) {
+                        return false;  // broadcast dim -> no slice needed
+                    }
+                    if (s[static_cast<size_t>(seq_axis)] != out_shape[static_cast<size_t>(seq_axis)]) {
+                        return std::nullopt;  // neither broadcast nor a length match -> unsafe to propagate
+                    }
+                    return true;  // real data on this axis, must slice
+                };
+
+                const bool has_mask = sdpa_node->get_input_size() > 3;
+                bool mask_needs_slicing = false;
+                if (has_mask) {
+                    auto decision = mask_needs_slice(3);
+                    if (!decision.has_value()) {
+                        return false;
+                    }
+                    mask_needs_slicing = *decision;
+                }
+
+                // Build new inputs: Q always sliced, K/V unchanged, mask conditionally sliced
+                ov::OutputVector new_inputs;
+                for (size_t i = 0; i < sdpa_node->get_input_size(); ++i) {
+                    if (i == 0) {
+                        // Q: always slice
+                        new_inputs.push_back(new_q);
+                    } else if (i == 3 && has_mask) {
+                        // attention mask (optional input 3)
+                        if (mask_needs_slicing) {
+                            auto new_mask = clone_slice(slice_node, sdpa_node->input_value(3));
+                            new_inputs.push_back(new_mask);
+                        } else {
+                            new_inputs.push_back(sdpa_node->input_value(3));
+                        }
+                    } else {
+                        // K, V, scale, or other inputs: unchanged
+                        new_inputs.push_back(sdpa_node->input_value(i));
+                    }
+                }
+
+                auto new_sdpa = sdpa_node->clone_with_new_inputs(new_inputs);
+                new_sdpa->set_friendly_name(sdpa_node->get_friendly_name());
+                new_sdpa->validate_and_infer_types();
+
+                // Store metadata for downstream passes (e.g., pyramid attention):
+                // Although Q's sequence length is now sliced, K/V still contain the original sequence length.
+                // Record the original query_length so pyramid attention can correctly identify prefill vs. generate.
+                auto& rt_info = new_sdpa->get_rt_info();
+                rt_info[ov::npuw::NPUW_ORIGINAL_QUERY_LENGTH_RT_KEY] = q_shape_static[static_cast<size_t>(seq_axis)];
+
+                ov::replace_node(slice_node, new_sdpa);
+                return true;
+            }));
     }
 };
 
@@ -586,73 +610,76 @@ public:
             wrap_type<ov::op::util::ArithmeticReductionKeepDims, ov::op::util::LogicalReductionKeepDims>({data, axes});
         auto slice = wrap_type<ov::op::v8::Slice>({reduce, any_input(), any_input(), any_input(), any_input()});
 
-        register_matcher(std::make_shared<Matcher>(slice, "PropagateSliceThroughReduce"), [=](Matcher& m) {
-            auto& map = m.get_pattern_value_map();
-            auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
-            auto reduce_node = map[reduce].get_node_shared_ptr();
+        register_matcher(
+            std::make_shared<Matcher>(slice, "PropagateSliceThroughReduce"),
+            with_debug_trace("PropagateSliceThroughReduce", [=](Matcher& m) {
+                auto& map = m.get_pattern_value_map();
+                auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
+                auto reduce_node = map[reduce].get_node_shared_ptr();
 
-            int64_t output_slice_axis = get_propagation_axis(slice_node, reduce_node);
-            if (output_slice_axis == -1) {
-                return false;
-            }
-
-            // Get reduction axes
-            auto reduce_axes_const =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(reduce_node->get_input_node_shared_ptr(1));
-            if (!reduce_axes_const) {
-                return false;
-            }
-
-            auto reduce_axes_vec = reduce_axes_const->cast_vector<int64_t>();
-            const auto& input_shape = reduce_node->get_input_shape(0);
-            const auto& output_shape = reduce_node->get_output_shape(0);
-
-            // Normalize reduction axes to positive indices
-            std::vector<int64_t> normalized_reduce_axes;
-            for (int64_t ax : reduce_axes_vec) {
-                normalized_reduce_axes.push_back(
-                    static_cast<int64_t>(ov::util::normalize_axis(ax, static_cast<int64_t>(input_shape.size()))));
-            }
-
-            // Map output slice axis to input axis, accounting for reduced dimensions
-            // If keep_dims=False, reduced axes are removed, so we need to adjust
-            bool keep_dims = (input_shape.size() == output_shape.size());
-            int64_t input_slice_axis = output_slice_axis;
-
-            if (!keep_dims) {
-                // Count how many reduction axes are before the output slice axis
-                int64_t reduced_before = 0;
-                for (int64_t reduce_ax : normalized_reduce_axes) {
-                    if (reduce_ax <= output_slice_axis + reduced_before) {
-                        reduced_before++;
-                    }
-                }
-                input_slice_axis = output_slice_axis + reduced_before;
-            }
-
-            // Check if the input slice axis conflicts with any reduction axis
-            for (int64_t reduce_ax : normalized_reduce_axes) {
-                if (input_slice_axis == reduce_ax) {
+                int64_t output_slice_axis = get_propagation_axis(slice_node, reduce_node);
+                if (output_slice_axis == -1) {
                     return false;
                 }
-            }
 
-            // Safe to propagate: Slice(Reduce(X, axis)) -> Reduce(Slice(X), axis)
-            int64_t start = 0, stop = 0, step = 0;
-            if (!get_slice_axis_params(slice_node, output_slice_axis, start, stop, step)) {
-                return false;
-            }
+                // Get reduction axes
+                auto reduce_axes_const =
+                    std::dynamic_pointer_cast<ov::op::v0::Constant>(reduce_node->get_input_node_shared_ptr(1));
+                if (!reduce_axes_const) {
+                    return false;
+                }
 
-            // Create new slice on input with mapped axis
-            auto new_slice = create_slice_with_params(reduce_node->input_value(0), input_slice_axis, start, stop, step);
-            new_slice->set_friendly_name(slice_node->get_friendly_name() + "_propagated");
+                auto reduce_axes_vec = reduce_axes_const->cast_vector<int64_t>();
+                const auto& input_shape = reduce_node->get_input_shape(0);
+                const auto& output_shape = reduce_node->get_output_shape(0);
 
-            auto new_reduce = reduce_node->clone_with_new_inputs({new_slice, reduce_node->input_value(1)});
-            new_reduce->set_friendly_name(reduce_node->get_friendly_name());
-            new_reduce->validate_and_infer_types();
-            ov::replace_node(slice_node, new_reduce);
-            return true;
-        });
+                // Normalize reduction axes to positive indices
+                std::vector<int64_t> normalized_reduce_axes;
+                for (int64_t ax : reduce_axes_vec) {
+                    normalized_reduce_axes.push_back(
+                        static_cast<int64_t>(ov::util::normalize_axis(ax, static_cast<int64_t>(input_shape.size()))));
+                }
+
+                // Map output slice axis to input axis, accounting for reduced dimensions
+                // If keep_dims=False, reduced axes are removed, so we need to adjust
+                bool keep_dims = (input_shape.size() == output_shape.size());
+                int64_t input_slice_axis = output_slice_axis;
+
+                if (!keep_dims) {
+                    // Count how many reduction axes are before the output slice axis
+                    int64_t reduced_before = 0;
+                    for (int64_t reduce_ax : normalized_reduce_axes) {
+                        if (reduce_ax <= output_slice_axis + reduced_before) {
+                            reduced_before++;
+                        }
+                    }
+                    input_slice_axis = output_slice_axis + reduced_before;
+                }
+
+                // Check if the input slice axis conflicts with any reduction axis
+                for (int64_t reduce_ax : normalized_reduce_axes) {
+                    if (input_slice_axis == reduce_ax) {
+                        return false;
+                    }
+                }
+
+                // Safe to propagate: Slice(Reduce(X, axis)) -> Reduce(Slice(X), axis)
+                int64_t start = 0, stop = 0, step = 0;
+                if (!get_slice_axis_params(slice_node, output_slice_axis, start, stop, step)) {
+                    return false;
+                }
+
+                // Create new slice on input with mapped axis
+                auto new_slice =
+                    create_slice_with_params(reduce_node->input_value(0), input_slice_axis, start, stop, step);
+                new_slice->set_friendly_name(slice_node->get_friendly_name() + "_propagated");
+
+                auto new_reduce = reduce_node->clone_with_new_inputs({new_slice, reduce_node->input_value(1)});
+                new_reduce->set_friendly_name(reduce_node->get_friendly_name());
+                new_reduce->validate_and_infer_types();
+                ov::replace_node(slice_node, new_reduce);
+                return true;
+            }));
     }
 };
 
@@ -670,55 +697,57 @@ public:
         auto matmul = wrap_type<ov::op::v0::MatMul>({data, weight});
         auto slice = wrap_type<ov::op::v8::Slice>({matmul, any_input(), any_input(), any_input(), any_input()});
 
-        register_matcher(std::make_shared<Matcher>(slice, "PropagateSliceThroughMatMul"), [=](Matcher& m) {
-            auto& map = m.get_pattern_value_map();
-            auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
-            auto matmul_node = std::dynamic_pointer_cast<ov::op::v0::MatMul>(map[matmul].get_node_shared_ptr());
+        register_matcher(
+            std::make_shared<Matcher>(slice, "PropagateSliceThroughMatMul"),
+            with_debug_trace("PropagateSliceThroughMatMul", [=](Matcher& m) {
+                auto& map = m.get_pattern_value_map();
+                auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
+                auto matmul_node = std::dynamic_pointer_cast<ov::op::v0::MatMul>(map[matmul].get_node_shared_ptr());
 
-            int64_t slice_axis = get_propagation_axis(slice_node, matmul_node);
-            if (slice_axis == -1) {
-                return false;
-            }
+                int64_t slice_axis = get_propagation_axis(slice_node, matmul_node);
+                if (slice_axis == -1) {
+                    return false;
+                }
 
-            const auto& input_shape = matmul_node->get_input_shape(0);
-            if (input_shape.size() < 2) {
-                return false;
-            }
-            const int64_t rank = static_cast<int64_t>(input_shape.size());
+                const auto& input_shape = matmul_node->get_input_shape(0);
+                if (input_shape.size() < 2) {
+                    return false;
+                }
+                const int64_t rank = static_cast<int64_t>(input_shape.size());
 
-            // The MatMul output's last axis is the "column" dimension contributed by the weight
-            // input (input 1) - it has no corresponding axis in the data input (input 0) at all,
-            // so we can never propagate a Slice on that axis onto the data input.
-            if (slice_axis == rank - 1) {
-                return false;
-            }
+                // The MatMul output's last axis is the "column" dimension contributed by the weight
+                // input (input 1) - it has no corresponding axis in the data input (input 0) at all,
+                // so we can never propagate a Slice on that axis onto the data input.
+                if (slice_axis == rank - 1) {
+                    return false;
+                }
 
-            // Map the sliced output axis to the corresponding axis of the data input.
-            // Without transpose_a, MatMul contracts on the data input's last axis, and all other
-            // axes (batch dims + the "row" dim at rank-2) keep the same position in input and output.
-            // With transpose_a, the data input's last two axes are swapped before the multiply:
-            // the row dim (free, safe to slice) ends up at output axis rank-2 but lives on the raw
-            // (untransposed) data input's LAST axis, while the contracted axis is the input's
-            // second-to-last axis instead.
-            int64_t input_axis = slice_axis;
-            if (matmul_node->get_transpose_a() && slice_axis == rank - 2) {
-                input_axis = rank - 1;
-            }
+                // Map the sliced output axis to the corresponding axis of the data input.
+                // Without transpose_a, MatMul contracts on the data input's last axis, and all other
+                // axes (batch dims + the "row" dim at rank-2) keep the same position in input and output.
+                // With transpose_a, the data input's last two axes are swapped before the multiply:
+                // the row dim (free, safe to slice) ends up at output axis rank-2 but lives on the raw
+                // (untransposed) data input's LAST axis, while the contracted axis is the input's
+                // second-to-last axis instead.
+                int64_t input_axis = slice_axis;
+                if (matmul_node->get_transpose_a() && slice_axis == rank - 2) {
+                    input_axis = rank - 1;
+                }
 
-            // Safe to propagate: Slice(MatMul(X, W)) -> MatMul(Slice(X), W)
-            // Extract params for slice_axis only, to avoid copying unrelated axes from the original Slice
-            int64_t start = 0, stop = 0, step = 0;
-            if (!get_slice_axis_params(slice_node, slice_axis, start, stop, step)) {
-                return false;
-            }
-            auto new_slice = create_slice_with_params(matmul_node->input_value(0), input_axis, start, stop, step);
+                // Safe to propagate: Slice(MatMul(X, W)) -> MatMul(Slice(X), W)
+                // Extract params for slice_axis only, to avoid copying unrelated axes from the original Slice
+                int64_t start = 0, stop = 0, step = 0;
+                if (!get_slice_axis_params(slice_node, slice_axis, start, stop, step)) {
+                    return false;
+                }
+                auto new_slice = create_slice_with_params(matmul_node->input_value(0), input_axis, start, stop, step);
 
-            auto new_matmul = matmul_node->clone_with_new_inputs({new_slice, matmul_node->input_value(1)});
-            new_matmul->set_friendly_name(matmul_node->get_friendly_name());
-            new_matmul->validate_and_infer_types();
-            ov::replace_node(slice_node, new_matmul);
-            return true;
-        });
+                auto new_matmul = matmul_node->clone_with_new_inputs({new_slice, matmul_node->input_value(1)});
+                new_matmul->set_friendly_name(matmul_node->get_friendly_name());
+                new_matmul->validate_and_infer_types();
+                ov::replace_node(slice_node, new_matmul);
+                return true;
+            }));
     }
 };
 
@@ -734,156 +763,158 @@ public:
         auto reshape = wrap_type<ov::op::v1::Reshape>();
         auto slice = wrap_type<ov::op::v8::Slice>({reshape, any_input(), any_input(), any_input(), any_input()});
 
-        register_matcher(std::make_shared<Matcher>(slice, "PropagateSliceThroughReshape"), [=](Matcher& m) {
-            auto& map = m.get_pattern_value_map();
-            auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
-            auto reshape_node = std::dynamic_pointer_cast<ov::op::v1::Reshape>(map[reshape].get_node_shared_ptr());
+        register_matcher(
+            std::make_shared<Matcher>(slice, "PropagateSliceThroughReshape"),
+            with_debug_trace("PropagateSliceThroughReshape", [=](Matcher& m) {
+                auto& map = m.get_pattern_value_map();
+                auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
+                auto reshape_node = std::dynamic_pointer_cast<ov::op::v1::Reshape>(map[reshape].get_node_shared_ptr());
 
-            int64_t output_slice_axis = get_propagation_axis(slice_node, reshape_node);
-            if (output_slice_axis == -1) {
-                return false;
-            }
-
-            const auto& input_shape = reshape_node->get_input_shape(0);
-            const auto& output_shape = reshape_node->get_output_shape(0);
-            const auto& sliced_output_shape = slice_node->get_output_shape(0);
-
-            // Check if Reshape is squeeze-like (only inserts/removes dims of size 1)
-            // If so, we can use Unsqueeze/Squeeze after propagating Slice instead of updating pattern
-            size_t input_elements = 1;
-            for (auto d : input_shape)
-                input_elements *= d;
-            size_t output_elements = 1;
-            for (auto d : output_shape)
-                output_elements *= d;
-
-            bool is_squeeze_like = (input_elements == output_elements);
-
-            // Find which input axis corresponds to the sliced output axis
-            // Strategy: find the input axis where the dimension value matches
-            size_t sliced_dim_value = output_shape[output_slice_axis];
-            int64_t input_slice_axis = -1;
-
-            // Try to find matching dimension in input
-            for (size_t i = 0; i < input_shape.size(); ++i) {
-                if (input_shape[i] == sliced_dim_value) {
-                    // Verify this is a valid mapping by checking cumulative products.
-                    // Calculate how many elements are "before" this dimension (prefix product)
-                    // and "after" this dimension (suffix product) on both sides.
-                    size_t input_prefix_prod = 1;
-                    for (size_t j = 0; j < i; ++j) {
-                        input_prefix_prod *= input_shape[j];
-                    }
-
-                    size_t output_prefix_prod = 1;
-                    for (int64_t j = 0; j < output_slice_axis; ++j) {
-                        output_prefix_prod *= output_shape[j];
-                    }
-
-                    // NOTE: because a valid Reshape always preserves the total element count
-                    // (input_elements == output_elements), prefix_in == prefix_out already implies
-                    // suffix_in == suffix_out. We still check the suffix explicitly as a defensive,
-                    // self-documenting guard rather than relying on that implication silently.
-                    size_t input_suffix_prod = 1;
-                    for (size_t j = i + 1; j < input_shape.size(); ++j) {
-                        input_suffix_prod *= input_shape[j];
-                    }
-
-                    size_t output_suffix_prod = 1;
-                    for (size_t j = static_cast<size_t>(output_slice_axis) + 1; j < output_shape.size(); ++j) {
-                        output_suffix_prod *= output_shape[j];
-                    }
-
-                    if (input_prefix_prod == output_prefix_prod && input_suffix_prod == output_suffix_prod) {
-                        input_slice_axis = static_cast<int64_t>(i);
-                        break;
-                    }
-                }
-            }
-
-            if (input_slice_axis == -1) {
-                return false;
-            }
-
-            int64_t start = 0, stop = 0, step = 0;
-            if (!get_slice_axis_params(slice_node, output_slice_axis, start, stop, step)) {
-                return false;
-            }
-
-            // Create new slice on input with mapped axis
-            auto new_slice =
-                create_slice_with_params(reshape_node->input_value(0), input_slice_axis, start, stop, step);
-            new_slice->set_friendly_name(slice_node->get_friendly_name() + "_propagated");
-
-            ov::Output<ov::Node> final_output;
-
-            // If Reshape is squeeze-like, use Unsqueeze to restore dimension structure
-            if (is_squeeze_like) {
-                // Find which axes were inserted (dims that are 1 in output but don't exist in sliced input)
-                auto sliced_input_shape = new_slice->get_output_shape(0);
-
-                // Compute which axes need to be unsqueezed to match sliced_output_shape
-                std::vector<int64_t> unsqueeze_axes;
-                size_t input_idx = 0;
-                for (size_t output_idx = 0; output_idx < sliced_output_shape.size(); ++output_idx) {
-                    if (input_idx < sliced_input_shape.size() &&
-                        sliced_input_shape[input_idx] == sliced_output_shape[output_idx]) {
-                        // Dimension matches, continue
-                        input_idx++;
-                    } else if (sliced_output_shape[output_idx] == 1) {
-                        // Output has size-1 dim that input doesn't have - need unsqueeze
-                        unsqueeze_axes.push_back(static_cast<int64_t>(output_idx));
-                    } else {
-                        // Dimension mismatch that's not size-1 - can't use simple unsqueeze
-                        unsqueeze_axes.clear();
-                        break;
-                    }
-                }
-
-                if (!unsqueeze_axes.empty()) {
-                    auto unsqueeze_axes_const = ov::op::v0::Constant::create(ov::element::i64,
-                                                                             ov::Shape{unsqueeze_axes.size()},
-                                                                             unsqueeze_axes);
-                    auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(new_slice, unsqueeze_axes_const);
-                    unsqueeze->set_friendly_name(reshape_node->get_friendly_name() + "_unsqueeze");
-                    unsqueeze->validate_and_infer_types();
-                    final_output = unsqueeze;
-                } else {
-                    // Fall through to dynamic pattern approach
-                }
-            }
-
-            // If not squeeze-like or unsqueeze failed, update Reshape pattern
-            if (!final_output.get_node_shared_ptr()) {
-                // Check if Reshape pattern is constant - we can directly update it
-                auto pattern_const =
-                    std::dynamic_pointer_cast<ov::op::v0::Constant>(reshape_node->get_input_node_shared_ptr(1));
-
-                if (!pattern_const) {
-                    // Dynamic pattern and not squeeze-like - too complex, skip
+                int64_t output_slice_axis = get_propagation_axis(slice_node, reshape_node);
+                if (output_slice_axis == -1) {
                     return false;
                 }
 
-                // Static pattern: compute new pattern directly
-                auto original_pattern = pattern_const->cast_vector<int64_t>();
+                const auto& input_shape = reshape_node->get_input_shape(0);
+                const auto& output_shape = reshape_node->get_output_shape(0);
+                const auto& sliced_output_shape = slice_node->get_output_shape(0);
 
-                // Compute new pattern: same structure but with sliced dimension
-                std::vector<int64_t> new_pattern = original_pattern;
-                new_pattern[output_slice_axis] = sliced_output_shape[output_slice_axis];
+                // Check if Reshape is squeeze-like (only inserts/removes dims of size 1)
+                // If so, we can use Unsqueeze/Squeeze after propagating Slice instead of updating pattern
+                size_t input_elements = 1;
+                for (auto d : input_shape)
+                    input_elements *= d;
+                size_t output_elements = 1;
+                for (auto d : output_shape)
+                    output_elements *= d;
 
-                auto new_pattern_const =
-                    ov::op::v0::Constant::create(ov::element::i64, ov::Shape{new_pattern.size()}, new_pattern);
+                bool is_squeeze_like = (input_elements == output_elements);
 
-                auto new_reshape = reshape_node->clone_with_new_inputs({new_slice, new_pattern_const});
-                new_reshape->set_friendly_name(reshape_node->get_friendly_name());
-                new_reshape->validate_and_infer_types();
-                final_output = new_reshape;
-            }
+                // Find which input axis corresponds to the sliced output axis
+                // Strategy: find the input axis where the dimension value matches
+                size_t sliced_dim_value = output_shape[output_slice_axis];
+                int64_t input_slice_axis = -1;
 
-            // Replace original Slice with the final output (either Unsqueeze or updated Reshape)
-            ov::replace_node(slice_node, final_output.get_node_shared_ptr());
-            return true;
-        });
+                // Try to find matching dimension in input
+                for (size_t i = 0; i < input_shape.size(); ++i) {
+                    if (input_shape[i] == sliced_dim_value) {
+                        // Verify this is a valid mapping by checking cumulative products.
+                        // Calculate how many elements are "before" this dimension (prefix product)
+                        // and "after" this dimension (suffix product) on both sides.
+                        size_t input_prefix_prod = 1;
+                        for (size_t j = 0; j < i; ++j) {
+                            input_prefix_prod *= input_shape[j];
+                        }
+
+                        size_t output_prefix_prod = 1;
+                        for (int64_t j = 0; j < output_slice_axis; ++j) {
+                            output_prefix_prod *= output_shape[j];
+                        }
+
+                        // NOTE: because a valid Reshape always preserves the total element count
+                        // (input_elements == output_elements), prefix_in == prefix_out already implies
+                        // suffix_in == suffix_out. We still check the suffix explicitly as a defensive,
+                        // self-documenting guard rather than relying on that implication silently.
+                        size_t input_suffix_prod = 1;
+                        for (size_t j = i + 1; j < input_shape.size(); ++j) {
+                            input_suffix_prod *= input_shape[j];
+                        }
+
+                        size_t output_suffix_prod = 1;
+                        for (size_t j = static_cast<size_t>(output_slice_axis) + 1; j < output_shape.size(); ++j) {
+                            output_suffix_prod *= output_shape[j];
+                        }
+
+                        if (input_prefix_prod == output_prefix_prod && input_suffix_prod == output_suffix_prod) {
+                            input_slice_axis = static_cast<int64_t>(i);
+                            break;
+                        }
+                    }
+                }
+
+                if (input_slice_axis == -1) {
+                    return false;
+                }
+
+                int64_t start = 0, stop = 0, step = 0;
+                if (!get_slice_axis_params(slice_node, output_slice_axis, start, stop, step)) {
+                    return false;
+                }
+
+                // Create new slice on input with mapped axis
+                auto new_slice =
+                    create_slice_with_params(reshape_node->input_value(0), input_slice_axis, start, stop, step);
+                new_slice->set_friendly_name(slice_node->get_friendly_name() + "_propagated");
+
+                ov::Output<ov::Node> final_output;
+
+                // If Reshape is squeeze-like, use Unsqueeze to restore dimension structure
+                if (is_squeeze_like) {
+                    // Find which axes were inserted (dims that are 1 in output but don't exist in sliced input)
+                    auto sliced_input_shape = new_slice->get_output_shape(0);
+
+                    // Compute which axes need to be unsqueezed to match sliced_output_shape
+                    std::vector<int64_t> unsqueeze_axes;
+                    size_t input_idx = 0;
+                    for (size_t output_idx = 0; output_idx < sliced_output_shape.size(); ++output_idx) {
+                        if (input_idx < sliced_input_shape.size() &&
+                            sliced_input_shape[input_idx] == sliced_output_shape[output_idx]) {
+                            // Dimension matches, continue
+                            input_idx++;
+                        } else if (sliced_output_shape[output_idx] == 1) {
+                            // Output has size-1 dim that input doesn't have - need unsqueeze
+                            unsqueeze_axes.push_back(static_cast<int64_t>(output_idx));
+                        } else {
+                            // Dimension mismatch that's not size-1 - can't use simple unsqueeze
+                            unsqueeze_axes.clear();
+                            break;
+                        }
+                    }
+
+                    if (!unsqueeze_axes.empty()) {
+                        auto unsqueeze_axes_const = ov::op::v0::Constant::create(ov::element::i64,
+                                                                                 ov::Shape{unsqueeze_axes.size()},
+                                                                                 unsqueeze_axes);
+                        auto unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(new_slice, unsqueeze_axes_const);
+                        unsqueeze->set_friendly_name(reshape_node->get_friendly_name() + "_unsqueeze");
+                        unsqueeze->validate_and_infer_types();
+                        final_output = unsqueeze;
+                    } else {
+                        // Fall through to dynamic pattern approach
+                    }
+                }
+
+                // If not squeeze-like or unsqueeze failed, update Reshape pattern
+                if (!final_output.get_node_shared_ptr()) {
+                    // Check if Reshape pattern is constant - we can directly update it
+                    auto pattern_const =
+                        std::dynamic_pointer_cast<ov::op::v0::Constant>(reshape_node->get_input_node_shared_ptr(1));
+
+                    if (!pattern_const) {
+                        // Dynamic pattern and not squeeze-like - too complex, skip
+                        return false;
+                    }
+
+                    // Static pattern: compute new pattern directly
+                    auto original_pattern = pattern_const->cast_vector<int64_t>();
+
+                    // Compute new pattern: same structure but with sliced dimension
+                    std::vector<int64_t> new_pattern = original_pattern;
+                    new_pattern[output_slice_axis] = sliced_output_shape[output_slice_axis];
+
+                    auto new_pattern_const =
+                        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{new_pattern.size()}, new_pattern);
+
+                    auto new_reshape = reshape_node->clone_with_new_inputs({new_slice, new_pattern_const});
+                    new_reshape->set_friendly_name(reshape_node->get_friendly_name());
+                    new_reshape->validate_and_infer_types();
+                    final_output = new_reshape;
+                }
+
+                // Replace original Slice with the final output (either Unsqueeze or updated Reshape)
+                ov::replace_node(slice_node, final_output.get_node_shared_ptr());
+                return true;
+            }));
     }
 };
 
@@ -899,51 +930,53 @@ public:
         auto transpose = wrap_type<ov::op::v1::Transpose>();
         auto slice = wrap_type<ov::op::v8::Slice>({transpose, any_input(), any_input(), any_input(), any_input()});
 
-        register_matcher(std::make_shared<Matcher>(slice, "PropagateSliceThroughTranspose"), [=](Matcher& m) {
-            auto& map = m.get_pattern_value_map();
-            auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
-            auto transpose_node =
-                std::dynamic_pointer_cast<ov::op::v1::Transpose>(map[transpose].get_node_shared_ptr());
+        register_matcher(
+            std::make_shared<Matcher>(slice, "PropagateSliceThroughTranspose"),
+            with_debug_trace("PropagateSliceThroughTranspose", [=](Matcher& m) {
+                auto& map = m.get_pattern_value_map();
+                auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
+                auto transpose_node =
+                    std::dynamic_pointer_cast<ov::op::v1::Transpose>(map[transpose].get_node_shared_ptr());
 
-            int64_t output_slice_axis = get_propagation_axis(slice_node, transpose_node);
-            if (output_slice_axis == -1) {
-                return false;
-            }
+                int64_t output_slice_axis = get_propagation_axis(slice_node, transpose_node);
+                if (output_slice_axis == -1) {
+                    return false;
+                }
 
-            // Get the permutation
-            auto perm_const =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose_node->get_input_node_shared_ptr(1));
-            if (!perm_const) {
-                return false;
-            }
+                // Get the permutation
+                auto perm_const =
+                    std::dynamic_pointer_cast<ov::op::v0::Constant>(transpose_node->get_input_node_shared_ptr(1));
+                if (!perm_const) {
+                    return false;
+                }
 
-            auto perm = perm_const->cast_vector<int64_t>();
+                auto perm = perm_const->cast_vector<int64_t>();
 
-            // OpenVINO Transpose semantics: output[i] = input[order[i]], so the input axis that
-            // ends up at output axis `output_slice_axis` is simply order[output_slice_axis]
-            if (output_slice_axis < 0 || static_cast<size_t>(output_slice_axis) >= perm.size()) {
-                return false;
-            }
-            int64_t input_slice_axis = perm[static_cast<size_t>(output_slice_axis)];
+                // OpenVINO Transpose semantics: output[i] = input[order[i]], so the input axis that
+                // ends up at output axis `output_slice_axis` is simply order[output_slice_axis]
+                if (output_slice_axis < 0 || static_cast<size_t>(output_slice_axis) >= perm.size()) {
+                    return false;
+                }
+                int64_t input_slice_axis = perm[static_cast<size_t>(output_slice_axis)];
 
-            // Safe to propagate: Slice(Transpose(X)) -> Transpose(Slice(X))
-            // We need to extract the slice parameters from output_slice_axis and apply them to input_slice_axis
-            int64_t start = 0, stop = 0, step = 0;
-            if (!get_slice_axis_params(slice_node, output_slice_axis, start, stop, step)) {
-                return false;
-            }
+                // Safe to propagate: Slice(Transpose(X)) -> Transpose(Slice(X))
+                // We need to extract the slice parameters from output_slice_axis and apply them to input_slice_axis
+                int64_t start = 0, stop = 0, step = 0;
+                if (!get_slice_axis_params(slice_node, output_slice_axis, start, stop, step)) {
+                    return false;
+                }
 
-            // Create new slice parameters for the input axis
-            auto new_slice =
-                create_slice_with_params(transpose_node->input_value(0), input_slice_axis, start, stop, step);
-            new_slice->set_friendly_name(slice_node->get_friendly_name() + "_propagated");
+                // Create new slice parameters for the input axis
+                auto new_slice =
+                    create_slice_with_params(transpose_node->input_value(0), input_slice_axis, start, stop, step);
+                new_slice->set_friendly_name(slice_node->get_friendly_name() + "_propagated");
 
-            auto new_transpose = transpose_node->clone_with_new_inputs({new_slice, transpose_node->input_value(1)});
-            new_transpose->set_friendly_name(transpose_node->get_friendly_name());
-            new_transpose->validate_and_infer_types();
-            ov::replace_node(slice_node, new_transpose);
-            return true;
-        });
+                auto new_transpose = transpose_node->clone_with_new_inputs({new_slice, transpose_node->input_value(1)});
+                new_transpose->set_friendly_name(transpose_node->get_friendly_name());
+                new_transpose->validate_and_infer_types();
+                ov::replace_node(slice_node, new_transpose);
+                return true;
+            }));
     }
 };
 
@@ -988,98 +1021,101 @@ public:
         auto vsplit = wrap_type<ov::op::v1::VariadicSplit>();
         auto slice = wrap_type<ov::op::v8::Slice>({vsplit, any_input(), any_input(), any_input(), any_input()});
 
-        register_matcher(std::make_shared<Matcher>(slice, "PropagateSliceThroughVariadicSplit"), [=](Matcher& m) {
-            auto& map = m.get_pattern_value_map();
-            auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
-            auto vsplit_node = std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(map[vsplit].get_node_shared_ptr());
+        register_matcher(
+            std::make_shared<Matcher>(slice, "PropagateSliceThroughVariadicSplit"),
+            with_debug_trace("PropagateSliceThroughVariadicSplit", [=](Matcher& m) {
+                auto& map = m.get_pattern_value_map();
+                auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
+                auto vsplit_node =
+                    std::dynamic_pointer_cast<ov::op::v1::VariadicSplit>(map[vsplit].get_node_shared_ptr());
 
-            // Get the split axis first (cheap check before the more expensive consumer scan below)
-            auto split_axis_const =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(vsplit_node->get_input_node_shared_ptr(1));
-            if (!split_axis_const) {
-                return false;
-            }
-
-            int64_t split_axis = split_axis_const->cast_vector<int64_t>()[0];
-            split_axis = static_cast<int64_t>(
-                ov::util::normalize_axis(split_axis, static_cast<int64_t>(vsplit_node->get_input_shape(0).size())));
-
-            // Get the sliced axis; also verifies vsplit_node has exactly one live consumer per output
-            int64_t slice_axis = get_propagation_axis(slice_node, vsplit_node);
-            if (slice_axis == -1) {
-                return false;
-            }
-
-            // Cannot propagate if slicing the split axis
-            if (slice_axis == split_axis) {
-                return false;
-            }
-
-            std::vector<std::shared_ptr<ov::op::v8::Slice>> slice_consumers;
-            for (size_t out_idx = 0; out_idx < vsplit_node->get_output_size(); ++out_idx) {
-                auto consumer =
-                    vsplit_node->output(out_idx).get_target_inputs().begin()->get_node()->shared_from_this();
-                auto consumer_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(consumer);
-                if (!consumer_slice) {
-                    return false;
-                }
-                slice_consumers.push_back(consumer_slice);
-            }
-
-            if (slice_consumers.empty()) {
-                return false;
-            }
-
-            // Check if all Slice nodes have the same parameters (on the non-split axis).
-            // Extract the first Slice's axis/params once - they are invariant across the loop below.
-            auto first_slice = slice_consumers[0];
-            int64_t first_slice_axis = get_single_sliced_axis(first_slice);
-            int64_t first_start = 0, first_stop = 0, first_step = 0;
-            if (first_slice_axis == -1 ||
-                !get_slice_axis_params(first_slice, first_slice_axis, first_start, first_stop, first_step)) {
-                return false;
-            }
-
-            for (size_t i = 1; i < slice_consumers.size(); ++i) {
-                auto other_slice = slice_consumers[i];
-                int64_t other_slice_axis = get_single_sliced_axis(other_slice);
-
-                if (other_slice_axis == -1 || first_slice_axis != other_slice_axis) {
+                // Get the split axis first (cheap check before the more expensive consumer scan below)
+                auto split_axis_const =
+                    std::dynamic_pointer_cast<ov::op::v0::Constant>(vsplit_node->get_input_node_shared_ptr(1));
+                if (!split_axis_const) {
                     return false;
                 }
 
-                int64_t other_start = 0, other_stop = 0, other_step = 0;
-                if (!get_slice_axis_params(other_slice, other_slice_axis, other_start, other_stop, other_step)) {
+                int64_t split_axis = split_axis_const->cast_vector<int64_t>()[0];
+                split_axis = static_cast<int64_t>(
+                    ov::util::normalize_axis(split_axis, static_cast<int64_t>(vsplit_node->get_input_shape(0).size())));
+
+                // Get the sliced axis; also verifies vsplit_node has exactly one live consumer per output
+                int64_t slice_axis = get_propagation_axis(slice_node, vsplit_node);
+                if (slice_axis == -1) {
                     return false;
                 }
 
-                if (first_start != other_start || first_stop != other_stop || first_step != other_step) {
+                // Cannot propagate if slicing the split axis
+                if (slice_axis == split_axis) {
                     return false;
                 }
-            }
 
-            // Propagate: Slice(VariadicSplit(X)) -> VariadicSplit(Slice(X))
-            auto new_slice = create_slice_with_params(vsplit_node->input_value(0),
-                                                      first_slice_axis,
-                                                      first_start,
-                                                      first_stop,
-                                                      first_step);
+                std::vector<std::shared_ptr<ov::op::v8::Slice>> slice_consumers;
+                for (size_t out_idx = 0; out_idx < vsplit_node->get_output_size(); ++out_idx) {
+                    auto consumer =
+                        vsplit_node->output(out_idx).get_target_inputs().begin()->get_node()->shared_from_this();
+                    auto consumer_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(consumer);
+                    if (!consumer_slice) {
+                        return false;
+                    }
+                    slice_consumers.push_back(consumer_slice);
+                }
 
-            auto new_vsplit = vsplit_node->clone_with_new_inputs({
-                new_slice,
-                vsplit_node->input_value(1),  // axis
-                vsplit_node->input_value(2)   // split_lengths
-            });
-            new_vsplit->set_friendly_name(vsplit_node->get_friendly_name());
-            new_vsplit->validate_and_infer_types();
+                if (slice_consumers.empty()) {
+                    return false;
+                }
 
-            // Replace each old Slice with the corresponding output of new VariadicSplit
-            for (size_t i = 0; i < slice_consumers.size(); ++i) {
-                slice_consumers[i]->output(0).replace(new_vsplit->output(i));
-            }
+                // Check if all Slice nodes have the same parameters (on the non-split axis).
+                // Extract the first Slice's axis/params once - they are invariant across the loop below.
+                auto first_slice = slice_consumers[0];
+                int64_t first_slice_axis = get_single_sliced_axis(first_slice);
+                int64_t first_start = 0, first_stop = 0, first_step = 0;
+                if (first_slice_axis == -1 ||
+                    !get_slice_axis_params(first_slice, first_slice_axis, first_start, first_stop, first_step)) {
+                    return false;
+                }
 
-            return true;
-        });
+                for (size_t i = 1; i < slice_consumers.size(); ++i) {
+                    auto other_slice = slice_consumers[i];
+                    int64_t other_slice_axis = get_single_sliced_axis(other_slice);
+
+                    if (other_slice_axis == -1 || first_slice_axis != other_slice_axis) {
+                        return false;
+                    }
+
+                    int64_t other_start = 0, other_stop = 0, other_step = 0;
+                    if (!get_slice_axis_params(other_slice, other_slice_axis, other_start, other_stop, other_step)) {
+                        return false;
+                    }
+
+                    if (first_start != other_start || first_stop != other_stop || first_step != other_step) {
+                        return false;
+                    }
+                }
+
+                // Propagate: Slice(VariadicSplit(X)) -> VariadicSplit(Slice(X))
+                auto new_slice = create_slice_with_params(vsplit_node->input_value(0),
+                                                          first_slice_axis,
+                                                          first_start,
+                                                          first_stop,
+                                                          first_step);
+
+                auto new_vsplit = vsplit_node->clone_with_new_inputs({
+                    new_slice,
+                    vsplit_node->input_value(1),  // axis
+                    vsplit_node->input_value(2)   // split_lengths
+                });
+                new_vsplit->set_friendly_name(vsplit_node->get_friendly_name());
+                new_vsplit->validate_and_infer_types();
+
+                // Replace each old Slice with the corresponding output of new VariadicSplit
+                for (size_t i = 0; i < slice_consumers.size(); ++i) {
+                    slice_consumers[i]->output(0).replace(new_vsplit->output(i));
+                }
+
+                return true;
+            }));
     }
 };
 
@@ -1094,107 +1130,111 @@ public:
         // Match any Slice node
         auto slice_pattern = wrap_type<ov::op::v8::Slice>();
 
-        register_matcher(std::make_shared<Matcher>(slice_pattern, "MergeDuplicateSlices"), [](Matcher& m) {
-            auto slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(m.get_match_root());
-            if (!slice)
-                return false;
+        register_matcher(
+            std::make_shared<Matcher>(slice_pattern, "MergeDuplicateSlices"),
+            with_debug_trace("MergeDuplicateSlices", [](Matcher& m) {
+                auto slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(m.get_match_root());
+                if (!slice)
+                    return false;
 
-            // Get the data input (includes both node and output port)
-            auto data_input = slice->input_value(0);
-            auto parent_node = data_input.get_node_shared_ptr();
-            size_t parent_output_port = data_input.get_index();
+                // Get the data input (includes both node and output port)
+                auto data_input = slice->input_value(0);
+                auto parent_node = data_input.get_node_shared_ptr();
+                size_t parent_output_port = data_input.get_index();
 
-            // Collect all Slice consumers of the SAME output port
-            // This prevents merging slices from different TopK outputs (values vs indices)
-            std::vector<std::shared_ptr<ov::op::v8::Slice>> slice_consumers;
-            for (const auto& consumer_input : parent_node->get_output_target_inputs(parent_output_port)) {
-                auto consumer = consumer_input.get_node()->shared_from_this();
-                auto other_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(consumer);
-                if (other_slice) {
-                    slice_consumers.push_back(other_slice);
-                }
-            }
-
-            if (slice_consumers.size() <= 1) {
-                return false;  // Only one or zero Slice consumers, nothing to merge
-            }
-
-            // Helper to get constant values as vector
-            auto get_const_values = [](const std::shared_ptr<ov::Node>& node) -> std::vector<int64_t> {
-                auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
-                if (!const_node)
-                    return {};
-                return const_node->cast_vector<int64_t>();
-            };
-
-            const auto& input_shape = slice->get_input_shape(0);
-            size_t rank = input_shape.size();
-
-            // Normalize axes to positive indices and create a map: axis -> (start, stop, step)
-            auto build_slice_map =
-                [&](const std::vector<int64_t>& axes,
-                    const std::vector<int64_t>& starts,
-                    const std::vector<int64_t>& stops,
-                    const std::vector<int64_t>& steps,
-                    const ov::Shape& in_shape,
-                    const ov::Shape& out_shape) -> std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> {
-                std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> result;
-                for (size_t i = 0; i < axes.size(); ++i) {
-                    int64_t axis = static_cast<int64_t>(ov::util::normalize_axis(axes[i], static_cast<int64_t>(rank)));
-                    // Only include axes that actually reduce the dimension
-                    if (out_shape[axis] < in_shape[axis]) {
-                        result[axis] = {starts[i], stops[i], steps[i]};
+                // Collect all Slice consumers of the SAME output port
+                // This prevents merging slices from different TopK outputs (values vs indices)
+                std::vector<std::shared_ptr<ov::op::v8::Slice>> slice_consumers;
+                for (const auto& consumer_input : parent_node->get_output_target_inputs(parent_output_port)) {
+                    auto consumer = consumer_input.get_node()->shared_from_this();
+                    auto other_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(consumer);
+                    if (other_slice) {
+                        slice_consumers.push_back(other_slice);
                     }
                 }
-                return result;
-            };
 
-            // Extract this Slice's own parameters once - they are invariant across the
-            // comparison loop below (only `other_slice`'s parameters change per iteration).
-            auto start1 = get_const_values(slice->get_input_node_shared_ptr(1));
-            auto stop1 = get_const_values(slice->get_input_node_shared_ptr(2));
-            auto step1 = get_const_values(slice->get_input_node_shared_ptr(3));
-            auto axes1 = get_const_values(slice->get_input_node_shared_ptr(4));
-
-            if (start1.empty() || stop1.empty() || step1.empty() || axes1.empty()) {
-                return false;
-            }
-
-            auto map1 = build_slice_map(axes1, start1, stop1, step1, input_shape, slice->get_output_shape(0));
-
-            // Check all consumers of the same output port for duplicate Slices
-            for (const auto& other_slice : slice_consumers) {
-                if (other_slice == slice)
-                    continue;  // Skip self
-
-                // For semantic equivalence, we need:
-                // 1. Same output shape
-                // 2. Same slice parameters (start, stop, step, axes values)
-                // Note: element_type is implicitly same since they consume the same output port
-
-                if (slice->get_output_shape(0) != other_slice->get_output_shape(0)) {
-                    continue;
+                if (slice_consumers.size() <= 1) {
+                    return false;  // Only one or zero Slice consumers, nothing to merge
                 }
 
-                auto start2 = get_const_values(other_slice->get_input_node_shared_ptr(1));
-                auto stop2 = get_const_values(other_slice->get_input_node_shared_ptr(2));
-                auto step2 = get_const_values(other_slice->get_input_node_shared_ptr(3));
-                auto axes2 = get_const_values(other_slice->get_input_node_shared_ptr(4));
+                // Helper to get constant values as vector
+                auto get_const_values = [](const std::shared_ptr<ov::Node>& node) -> std::vector<int64_t> {
+                    auto const_node = std::dynamic_pointer_cast<ov::op::v0::Constant>(node);
+                    if (!const_node)
+                        return {};
+                    return const_node->cast_vector<int64_t>();
+                };
 
-                if (start2.empty() || stop2.empty() || step2.empty() || axes2.empty()) {
-                    continue;
+                const auto& input_shape = slice->get_input_shape(0);
+                size_t rank = input_shape.size();
+
+                // Normalize axes to positive indices and create a map: axis -> (start, stop, step)
+                auto build_slice_map =
+                    [&](const std::vector<int64_t>& axes,
+                        const std::vector<int64_t>& starts,
+                        const std::vector<int64_t>& stops,
+                        const std::vector<int64_t>& steps,
+                        const ov::Shape& in_shape,
+                        const ov::Shape& out_shape) -> std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> {
+                    std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> result;
+                    for (size_t i = 0; i < axes.size(); ++i) {
+                        int64_t axis =
+                            static_cast<int64_t>(ov::util::normalize_axis(axes[i], static_cast<int64_t>(rank)));
+                        // Only include axes that actually reduce the dimension
+                        if (out_shape[axis] < in_shape[axis]) {
+                            result[axis] = {starts[i], stops[i], steps[i]};
+                        }
+                    }
+                    return result;
+                };
+
+                // Extract this Slice's own parameters once - they are invariant across the
+                // comparison loop below (only `other_slice`'s parameters change per iteration).
+                auto start1 = get_const_values(slice->get_input_node_shared_ptr(1));
+                auto stop1 = get_const_values(slice->get_input_node_shared_ptr(2));
+                auto step1 = get_const_values(slice->get_input_node_shared_ptr(3));
+                auto axes1 = get_const_values(slice->get_input_node_shared_ptr(4));
+
+                if (start1.empty() || stop1.empty() || step1.empty() || axes1.empty()) {
+                    return false;
                 }
 
-                auto map2 = build_slice_map(axes2, start2, stop2, step2, input_shape, other_slice->get_output_shape(0));
+                auto map1 = build_slice_map(axes1, start1, stop1, step1, input_shape, slice->get_output_shape(0));
 
-                if (map1 == map2) {
-                    ov::replace_node(other_slice, slice);
-                    return true;  // Made a change, will re-run
+                // Check all consumers of the same output port for duplicate Slices
+                for (const auto& other_slice : slice_consumers) {
+                    if (other_slice == slice)
+                        continue;  // Skip self
+
+                    // For semantic equivalence, we need:
+                    // 1. Same output shape
+                    // 2. Same slice parameters (start, stop, step, axes values)
+                    // Note: element_type is implicitly same since they consume the same output port
+
+                    if (slice->get_output_shape(0) != other_slice->get_output_shape(0)) {
+                        continue;
+                    }
+
+                    auto start2 = get_const_values(other_slice->get_input_node_shared_ptr(1));
+                    auto stop2 = get_const_values(other_slice->get_input_node_shared_ptr(2));
+                    auto step2 = get_const_values(other_slice->get_input_node_shared_ptr(3));
+                    auto axes2 = get_const_values(other_slice->get_input_node_shared_ptr(4));
+
+                    if (start2.empty() || stop2.empty() || step2.empty() || axes2.empty()) {
+                        continue;
+                    }
+
+                    auto map2 =
+                        build_slice_map(axes2, start2, stop2, step2, input_shape, other_slice->get_output_shape(0));
+
+                    if (map1 == map2) {
+                        ov::replace_node(other_slice, slice);
+                        return true;  // Made a change, will re-run
+                    }
                 }
-            }
 
-            return false;  // No duplicate found
-        });
+                return false;  // No duplicate found
+            }));
     }
 };
 
@@ -1254,125 +1294,129 @@ public:
         auto reshape = wrap_type<ov::op::v1::Reshape>({tile, pattern});
         auto slice = wrap_type<ov::op::v8::Slice>({reshape, any_input(), any_input(), any_input(), any_input()});
 
-        register_matcher(std::make_shared<Matcher>(slice, "PropagateSliceThroughTileReshape"), [=](Matcher& m) {
-            auto& map = m.get_pattern_value_map();
-            auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice).get_node_shared_ptr());
-            auto reshape_node = std::dynamic_pointer_cast<ov::op::v1::Reshape>(map.at(reshape).get_node_shared_ptr());
-            auto tile_node = std::dynamic_pointer_cast<ov::op::v0::Tile>(map.at(tile).get_node_shared_ptr());
+        register_matcher(
+            std::make_shared<Matcher>(slice, "PropagateSliceThroughTileReshape"),
+            with_debug_trace("PropagateSliceThroughTileReshape", [=](Matcher& m) {
+                auto& map = m.get_pattern_value_map();
+                auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice).get_node_shared_ptr());
+                auto reshape_node =
+                    std::dynamic_pointer_cast<ov::op::v1::Reshape>(map.at(reshape).get_node_shared_ptr());
+                auto tile_node = std::dynamic_pointer_cast<ov::op::v0::Tile>(map.at(tile).get_node_shared_ptr());
 
-            if (!slice_node || !reshape_node || !tile_node) {
-                return false;
-            }
+                if (!slice_node || !reshape_node || !tile_node) {
+                    return false;
+                }
 
-            // Basic checks (reshape_node's single-consumer status is verified by get_propagation_axis below)
-            if (!single_consumer(tile_node)) {
-                return false;
-            }
+                // Basic checks (reshape_node's single-consumer status is verified by get_propagation_axis below)
+                if (!single_consumer(tile_node)) {
+                    return false;
+                }
 
-            // Get shapes
-            const auto& tile_input_shape = tile_node->get_input_shape(0);
-            const auto& tile_output_shape = tile_node->get_output_shape(0);
-            const auto& reshape_output_shape = reshape_node->get_output_shape(0);
-            const auto& slice_output_shape = slice_node->get_output_shape(0);
-            int64_t output_slice_axis = get_propagation_axis(slice_node, reshape_node);
-            if (output_slice_axis == -1) {
-                return false;
-            }
+                // Get shapes
+                const auto& tile_input_shape = tile_node->get_input_shape(0);
+                const auto& tile_output_shape = tile_node->get_output_shape(0);
+                const auto& reshape_output_shape = reshape_node->get_output_shape(0);
+                const auto& slice_output_shape = slice_node->get_output_shape(0);
+                int64_t output_slice_axis = get_propagation_axis(slice_node, reshape_node);
+                if (output_slice_axis == -1) {
+                    return false;
+                }
 
-            // Get Tile repeats (must be constant)
-            auto repeats_const =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(tile_node->get_input_node_shared_ptr(1));
-            if (!repeats_const) {
-                return false;
-            }
-            auto repeats_vec = repeats_const->cast_vector<int64_t>();
-            // Get Reshape pattern (must be constant)
-            auto pattern_const =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(reshape_node->get_input_node_shared_ptr(1));
-            if (!pattern_const) {
-                return false;
-            }
+                // Get Tile repeats (must be constant)
+                auto repeats_const =
+                    std::dynamic_pointer_cast<ov::op::v0::Constant>(tile_node->get_input_node_shared_ptr(1));
+                if (!repeats_const) {
+                    return false;
+                }
+                auto repeats_vec = repeats_const->cast_vector<int64_t>();
+                // Get Reshape pattern (must be constant)
+                auto pattern_const =
+                    std::dynamic_pointer_cast<ov::op::v0::Constant>(reshape_node->get_input_node_shared_ptr(1));
+                if (!pattern_const) {
+                    return false;
+                }
 
-            // Check if this is the expected pattern:
-            // Tile expands dimension 0: [A, B] with repeats [R, 1] -> [A*R, B]
-            // Reshape splits dimension 0: [A*R, B] -> [R, A, B]
-            // Slice operates on dimension 1 (the A dimension)
+                // Check if this is the expected pattern:
+                // Tile expands dimension 0: [A, B] with repeats [R, 1] -> [A*R, B]
+                // Reshape splits dimension 0: [A*R, B] -> [R, A, B]
+                // Slice operates on dimension 1 (the A dimension)
 
-            if (tile_input_shape.size() != 2 || tile_output_shape.size() != 2) {
-                return false;
-            }
+                if (tile_input_shape.size() != 2 || tile_output_shape.size() != 2) {
+                    return false;
+                }
 
-            if (reshape_output_shape.size() != 3) {
-                return false;
-            }
+                if (reshape_output_shape.size() != 3) {
+                    return false;
+                }
 
-            if (output_slice_axis != 1) {
-                return false;
-            }
+                if (output_slice_axis != 1) {
+                    return false;
+                }
 
-            // Verify the relationship:
-            // tile_input[0] * repeats[0] = tile_output[0] = reshape_output[0] * reshape_output[1]
-            // tile_input[1] * repeats[1] = tile_output[1] = reshape_output[2]
+                // Verify the relationship:
+                // tile_input[0] * repeats[0] = tile_output[0] = reshape_output[0] * reshape_output[1]
+                // tile_input[1] * repeats[1] = tile_output[1] = reshape_output[2]
 
-            const size_t tile_repeat_factor = static_cast<size_t>(repeats_vec[0]);
-            const size_t expected_tile_output_dim0 = tile_input_shape[0] * tile_repeat_factor;
+                const size_t tile_repeat_factor = static_cast<size_t>(repeats_vec[0]);
+                const size_t expected_tile_output_dim0 = tile_input_shape[0] * tile_repeat_factor;
 
-            if (tile_output_shape[0] != expected_tile_output_dim0) {
-                return false;
-            }
+                if (tile_output_shape[0] != expected_tile_output_dim0) {
+                    return false;
+                }
 
-            // reshape_output[0] and reshape_output[1] must independently match the repeat factor R
-            // and the original (pre-tile) dimension A respectively - checking only that their
-            // product equals tile_output[0] is not sufficient, since the split could land on the
-            // wrong axis order (e.g. [8,3] instead of [6,4] when A*R == 3*8 == 24), which would
-            // silently propagate the Slice onto the wrong logical dimension.
-            if (reshape_output_shape[0] != tile_repeat_factor || reshape_output_shape[1] != tile_input_shape[0]) {
-                return false;
-            }
+                // reshape_output[0] and reshape_output[1] must independently match the repeat factor R
+                // and the original (pre-tile) dimension A respectively - checking only that their
+                // product equals tile_output[0] is not sufficient, since the split could land on the
+                // wrong axis order (e.g. [8,3] instead of [6,4] when A*R == 3*8 == 24), which would
+                // silently propagate the Slice onto the wrong logical dimension.
+                if (reshape_output_shape[0] != tile_repeat_factor || reshape_output_shape[1] != tile_input_shape[0]) {
+                    return false;
+                }
 
-            if (tile_output_shape[1] != reshape_output_shape[2]) {
-                return false;
-            }
+                if (tile_output_shape[1] != reshape_output_shape[2]) {
+                    return false;
+                }
 
-            // Now we know the pattern is correct. Transform:
-            // Original: Tile([A,B], [R,1]) -> [A*R,B] -> Reshape -> [R,A,B] -> Slice(axis=1) -> [R,1,B]
-            // New: Slice([A,B], axis=0) -> [1,B] -> Tile([1,B], [R,1]) -> [R,B] -> Reshape -> [R,1,B]
+                // Now we know the pattern is correct. Transform:
+                // Original: Tile([A,B], [R,1]) -> [A*R,B] -> Reshape -> [R,A,B] -> Slice(axis=1) -> [R,1,B]
+                // New: Slice([A,B], axis=0) -> [1,B] -> Tile([1,B], [R,1]) -> [R,B] -> Reshape -> [R,1,B]
 
-            // Extract slice parameters
-            int64_t start = 0, stop = 0, step = 0;
-            if (!get_slice_axis_params(slice_node, output_slice_axis, start, stop, step)) {
-                return false;
-            }
+                // Extract slice parameters
+                int64_t start = 0, stop = 0, step = 0;
+                if (!get_slice_axis_params(slice_node, output_slice_axis, start, stop, step)) {
+                    return false;
+                }
 
-            // Create new slice on Tile input, axis 0
-            auto new_slice = create_slice_with_params(tile_node->input_value(0), /*axis=*/0, start, stop, step);
-            new_slice->set_friendly_name(slice_node->get_friendly_name() + "_propagated_to_tile_input");
+                // Create new slice on Tile input, axis 0
+                auto new_slice = create_slice_with_params(tile_node->input_value(0), /*axis=*/0, start, stop, step);
+                new_slice->set_friendly_name(slice_node->get_friendly_name() + "_propagated_to_tile_input");
 
-            // New Tile with same repeats
-            auto new_tile = std::make_shared<ov::op::v0::Tile>(new_slice, tile_node->input_value(1));
-            new_tile->set_friendly_name(tile_node->get_friendly_name());
-            new_tile->validate_and_infer_types();
+                // New Tile with same repeats
+                auto new_tile = std::make_shared<ov::op::v0::Tile>(new_slice, tile_node->input_value(1));
+                new_tile->set_friendly_name(tile_node->get_friendly_name());
+                new_tile->validate_and_infer_types();
 
-            // New Reshape pattern: [R, B] -> [R, 1, B]
-            auto new_shape = reshape_output_shape;
-            new_shape[1] = slice_output_shape[output_slice_axis];  // Update the sliced dimension
-            auto new_pattern = ov::op::v0::Constant::create(ov::element::i64,
-                                                            ov::Shape{new_shape.size()},
-                                                            std::vector<int64_t>(new_shape.begin(), new_shape.end()));
+                // New Reshape pattern: [R, B] -> [R, 1, B]
+                auto new_shape = reshape_output_shape;
+                new_shape[1] = slice_output_shape[output_slice_axis];  // Update the sliced dimension
+                auto new_pattern =
+                    ov::op::v0::Constant::create(ov::element::i64,
+                                                 ov::Shape{new_shape.size()},
+                                                 std::vector<int64_t>(new_shape.begin(), new_shape.end()));
 
-            auto new_reshape = std::make_shared<ov::op::v1::Reshape>(new_tile, new_pattern, false);
-            new_reshape->set_friendly_name(reshape_node->get_friendly_name());
-            new_reshape->validate_and_infer_types();
+                auto new_reshape = std::make_shared<ov::op::v1::Reshape>(new_tile, new_pattern, false);
+                new_reshape->set_friendly_name(reshape_node->get_friendly_name());
+                new_reshape->validate_and_infer_types();
 
-            // Verify the output shape matches
-            if (new_reshape->get_output_shape(0) != slice_output_shape) {
-                return false;
-            }
+                // Verify the output shape matches
+                if (new_reshape->get_output_shape(0) != slice_output_shape) {
+                    return false;
+                }
 
-            // Replace the original Slice with the new Reshape
-            ov::replace_node(slice_node, new_reshape);
-            return true;
-        });
+                // Replace the original Slice with the new Reshape
+                ov::replace_node(slice_node, new_reshape);
+                return true;
+            }));
     }
 };
 
@@ -1390,90 +1434,92 @@ public:
         auto unsqueeze = wrap_type<ov::op::v0::Unsqueeze>({data, axes});
         auto slice = wrap_type<ov::op::v8::Slice>({unsqueeze, any_input(), any_input(), any_input(), any_input()});
 
-        register_matcher(std::make_shared<Matcher>(slice, "PropagateSliceThroughUnsqueeze"), [=](Matcher& m) {
-            auto& map = m.get_pattern_value_map();
-            auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice).get_node_shared_ptr());
-            auto unsqueeze_node =
-                std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(map.at(unsqueeze).get_node_shared_ptr());
+        register_matcher(
+            std::make_shared<Matcher>(slice, "PropagateSliceThroughUnsqueeze"),
+            with_debug_trace("PropagateSliceThroughUnsqueeze", [=](Matcher& m) {
+                auto& map = m.get_pattern_value_map();
+                auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice).get_node_shared_ptr());
+                auto unsqueeze_node =
+                    std::dynamic_pointer_cast<ov::op::v0::Unsqueeze>(map.at(unsqueeze).get_node_shared_ptr());
 
-            if (!slice_node || !unsqueeze_node) {
-                return false;
-            }
-
-            int64_t output_slice_axis = get_propagation_axis(slice_node, unsqueeze_node);
-            if (output_slice_axis == -1) {
-                return false;
-            }
-
-            const auto& input_shape = unsqueeze_node->get_input_shape(0);
-            const auto& output_shape = unsqueeze_node->get_output_shape(0);
-
-            // Get Unsqueeze axes (must be constant)
-            auto unsqueeze_axes_const =
-                std::dynamic_pointer_cast<ov::op::v0::Constant>(unsqueeze_node->get_input_node_shared_ptr(1));
-            if (!unsqueeze_axes_const) {
-                return false;
-            }
-
-            auto unsqueeze_axes = unsqueeze_axes_const->cast_vector<int64_t>();
-            // Normalize unsqueeze axes to positive indices
-            std::vector<int64_t> normalized_unsqueeze_axes;
-            for (auto ax : unsqueeze_axes) {
-                normalized_unsqueeze_axes.push_back(
-                    static_cast<int64_t>(ov::util::normalize_axis(ax, static_cast<int64_t>(output_shape.size()))));
-            }
-            std::sort(normalized_unsqueeze_axes.begin(), normalized_unsqueeze_axes.end());
-
-            // Check if the slice axis is on an unsqueezed dimension (size=1 in output)
-            if (output_shape[output_slice_axis] == 1) {
-                // Check if this dimension was inserted by Unsqueeze
-                bool is_unsqueezed_dim =
-                    std::find(normalized_unsqueeze_axes.begin(), normalized_unsqueeze_axes.end(), output_slice_axis) !=
-                    normalized_unsqueeze_axes.end();
-                if (is_unsqueezed_dim) {
+                if (!slice_node || !unsqueeze_node) {
                     return false;
                 }
-            }
 
-            // Map output_slice_axis to input_slice_axis
-            // Input axis = output axis - count(unsqueeze_axes < output_slice_axis)
-            int64_t axes_before = 0;
-            for (auto ax : normalized_unsqueeze_axes) {
-                if (ax < output_slice_axis) {
-                    axes_before++;
+                int64_t output_slice_axis = get_propagation_axis(slice_node, unsqueeze_node);
+                if (output_slice_axis == -1) {
+                    return false;
                 }
-            }
-            int64_t input_slice_axis = output_slice_axis - axes_before;
 
-            if (input_slice_axis < 0 || input_slice_axis >= static_cast<int64_t>(input_shape.size())) {
-                return false;
-            }
+                const auto& input_shape = unsqueeze_node->get_input_shape(0);
+                const auto& output_shape = unsqueeze_node->get_output_shape(0);
 
-            // Extract slice parameters
-            int64_t start = 0, stop = 0, step = 0;
-            if (!get_slice_axis_params(slice_node, output_slice_axis, start, stop, step)) {
-                return false;
-            }
+                // Get Unsqueeze axes (must be constant)
+                auto unsqueeze_axes_const =
+                    std::dynamic_pointer_cast<ov::op::v0::Constant>(unsqueeze_node->get_input_node_shared_ptr(1));
+                if (!unsqueeze_axes_const) {
+                    return false;
+                }
 
-            // Create new slice on Unsqueeze input with mapped axis
-            auto new_slice =
-                create_slice_with_params(unsqueeze_node->input_value(0), input_slice_axis, start, stop, step);
-            new_slice->set_friendly_name(slice_node->get_friendly_name() + "_propagated");
+                auto unsqueeze_axes = unsqueeze_axes_const->cast_vector<int64_t>();
+                // Normalize unsqueeze axes to positive indices
+                std::vector<int64_t> normalized_unsqueeze_axes;
+                for (auto ax : unsqueeze_axes) {
+                    normalized_unsqueeze_axes.push_back(
+                        static_cast<int64_t>(ov::util::normalize_axis(ax, static_cast<int64_t>(output_shape.size()))));
+                }
+                std::sort(normalized_unsqueeze_axes.begin(), normalized_unsqueeze_axes.end());
 
-            // Create new Unsqueeze with same axes
-            auto new_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(new_slice, unsqueeze_node->input_value(1));
-            new_unsqueeze->set_friendly_name(unsqueeze_node->get_friendly_name());
-            new_unsqueeze->validate_and_infer_types();
+                // Check if the slice axis is on an unsqueezed dimension (size=1 in output)
+                if (output_shape[output_slice_axis] == 1) {
+                    // Check if this dimension was inserted by Unsqueeze
+                    bool is_unsqueezed_dim = std::find(normalized_unsqueeze_axes.begin(),
+                                                       normalized_unsqueeze_axes.end(),
+                                                       output_slice_axis) != normalized_unsqueeze_axes.end();
+                    if (is_unsqueezed_dim) {
+                        return false;
+                    }
+                }
 
-            // Verify the output shape matches
-            if (new_unsqueeze->get_output_shape(0) != slice_node->get_output_shape(0)) {
-                return false;
-            }
+                // Map output_slice_axis to input_slice_axis
+                // Input axis = output axis - count(unsqueeze_axes < output_slice_axis)
+                int64_t axes_before = 0;
+                for (auto ax : normalized_unsqueeze_axes) {
+                    if (ax < output_slice_axis) {
+                        axes_before++;
+                    }
+                }
+                int64_t input_slice_axis = output_slice_axis - axes_before;
 
-            // Replace the original Slice with the new Unsqueeze
-            ov::replace_node(slice_node, new_unsqueeze);
-            return true;
-        });
+                if (input_slice_axis < 0 || input_slice_axis >= static_cast<int64_t>(input_shape.size())) {
+                    return false;
+                }
+
+                // Extract slice parameters
+                int64_t start = 0, stop = 0, step = 0;
+                if (!get_slice_axis_params(slice_node, output_slice_axis, start, stop, step)) {
+                    return false;
+                }
+
+                // Create new slice on Unsqueeze input with mapped axis
+                auto new_slice =
+                    create_slice_with_params(unsqueeze_node->input_value(0), input_slice_axis, start, stop, step);
+                new_slice->set_friendly_name(slice_node->get_friendly_name() + "_propagated");
+
+                // Create new Unsqueeze with same axes
+                auto new_unsqueeze = std::make_shared<ov::op::v0::Unsqueeze>(new_slice, unsqueeze_node->input_value(1));
+                new_unsqueeze->set_friendly_name(unsqueeze_node->get_friendly_name());
+                new_unsqueeze->validate_and_infer_types();
+
+                // Verify the output shape matches
+                if (new_unsqueeze->get_output_shape(0) != slice_node->get_output_shape(0)) {
+                    return false;
+                }
+
+                // Replace the original Slice with the new Unsqueeze
+                ov::replace_node(slice_node, new_unsqueeze);
+                return true;
+            }));
     }
 };
 
@@ -1496,7 +1542,7 @@ public:
 
         register_matcher(
             std::make_shared<Matcher>(slice, "PropagateSliceThroughScatterElementsUpdate"),
-            [=](Matcher& m) {
+            with_debug_trace("PropagateSliceThroughScatterElementsUpdate", [=](Matcher& m) {
                 auto& map = m.get_pattern_value_map();
                 auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice).get_node_shared_ptr());
                 auto scatter_node = std::dynamic_pointer_cast<ov::op::v12::ScatterElementsUpdate>(
@@ -1574,7 +1620,7 @@ public:
                 // Replace the original Slice with the new ScatterElementsUpdate
                 ov::replace_node(slice_node, new_scatter);
                 return true;
-            });
+            }));
     }
 };
 
@@ -1592,56 +1638,58 @@ public:
         auto broadcast = wrap_type<ov::op::v3::Broadcast>({data, target_shape, any_input()});
         auto slice = wrap_type<ov::op::v8::Slice>({broadcast, any_input(), any_input(), any_input(), any_input()});
 
-        register_matcher(std::make_shared<Matcher>(slice, "PropagateSliceThroughBroadcast"), [=](Matcher& m) {
-            auto& map = m.get_pattern_value_map();
-            auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice).get_node_shared_ptr());
-            auto broadcast_node =
-                std::dynamic_pointer_cast<ov::op::v3::Broadcast>(map.at(broadcast).get_node_shared_ptr());
+        register_matcher(
+            std::make_shared<Matcher>(slice, "PropagateSliceThroughBroadcast"),
+            with_debug_trace("PropagateSliceThroughBroadcast", [=](Matcher& m) {
+                auto& map = m.get_pattern_value_map();
+                auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice).get_node_shared_ptr());
+                auto broadcast_node =
+                    std::dynamic_pointer_cast<ov::op::v3::Broadcast>(map.at(broadcast).get_node_shared_ptr());
 
-            if (!slice_node || !broadcast_node) {
-                return false;
-            }
-
-            int64_t slice_axis = get_propagation_axis(slice_node, broadcast_node);
-            if (slice_axis == -1) {
-                return false;
-            }
-
-            const auto& input_shape = broadcast_node->get_input_shape(0);
-            const auto& slice_shape = slice_node->get_output_shape(0);
-
-            // Check if input already matches the slice output shape on the slice axis
-            // Broadcast may have expanded a scalar or added dimensions
-            if (input_shape.size() != slice_shape.size() || input_shape[slice_axis] != slice_shape[slice_axis]) {
-                return false;
-            }
-
-            // Check if all other dimensions also match
-            for (size_t i = 0; i < input_shape.size(); ++i) {
-                if (input_shape[i] != slice_shape[i] && input_shape[i] != 1) {
+                if (!slice_node || !broadcast_node) {
                     return false;
                 }
-            }
 
-            // Create new broadcast with slice output shape as target
-            auto new_target_shape =
-                ov::op::v0::Constant::create(ov::element::i64,
-                                             ov::Shape{slice_shape.size()},
-                                             std::vector<int64_t>(slice_shape.begin(), slice_shape.end()));
+                int64_t slice_axis = get_propagation_axis(slice_node, broadcast_node);
+                if (slice_axis == -1) {
+                    return false;
+                }
 
-            auto new_broadcast = std::make_shared<ov::op::v3::Broadcast>(broadcast_node->input_value(0),
-                                                                         new_target_shape,
-                                                                         broadcast_node->input_value(2));
-            new_broadcast->set_friendly_name(broadcast_node->get_friendly_name());
-            new_broadcast->validate_and_infer_types();
+                const auto& input_shape = broadcast_node->get_input_shape(0);
+                const auto& slice_shape = slice_node->get_output_shape(0);
 
-            if (new_broadcast->get_output_shape(0) != slice_shape) {
-                return false;
-            }
+                // Check if input already matches the slice output shape on the slice axis
+                // Broadcast may have expanded a scalar or added dimensions
+                if (input_shape.size() != slice_shape.size() || input_shape[slice_axis] != slice_shape[slice_axis]) {
+                    return false;
+                }
 
-            ov::replace_node(slice_node, new_broadcast);
-            return true;
-        });
+                // Check if all other dimensions also match
+                for (size_t i = 0; i < input_shape.size(); ++i) {
+                    if (input_shape[i] != slice_shape[i] && input_shape[i] != 1) {
+                        return false;
+                    }
+                }
+
+                // Create new broadcast with slice output shape as target
+                auto new_target_shape =
+                    ov::op::v0::Constant::create(ov::element::i64,
+                                                 ov::Shape{slice_shape.size()},
+                                                 std::vector<int64_t>(slice_shape.begin(), slice_shape.end()));
+
+                auto new_broadcast = std::make_shared<ov::op::v3::Broadcast>(broadcast_node->input_value(0),
+                                                                             new_target_shape,
+                                                                             broadcast_node->input_value(2));
+                new_broadcast->set_friendly_name(broadcast_node->get_friendly_name());
+                new_broadcast->validate_and_infer_types();
+
+                if (new_broadcast->get_output_shape(0) != slice_shape) {
+                    return false;
+                }
+
+                ov::replace_node(slice_node, new_broadcast);
+                return true;
+            }));
     }
 };
 
@@ -1656,38 +1704,40 @@ public:
         auto data = any_input();
         auto slice = wrap_type<ov::op::v8::Slice>({data, any_input(), any_input(), any_input(), any_input()});
 
-        register_matcher(std::make_shared<Matcher>(slice, "RemoveNoOpSlice"), [=](Matcher& m) {
-            auto& map = m.get_pattern_value_map();
-            auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice).get_node_shared_ptr());
+        register_matcher(std::make_shared<Matcher>(slice, "RemoveNoOpSlice"),
+                         with_debug_trace("RemoveNoOpSlice", [=](Matcher& m) {
+                             auto& map = m.get_pattern_value_map();
+                             auto slice_node =
+                                 std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice).get_node_shared_ptr());
 
-            if (!slice_node) {
-                return false;
-            }
+                             if (!slice_node) {
+                                 return false;
+                             }
 
-            // A Slice is only a no-op when every named axis is an identity range - matching
-            // input/output shape is not sufficient, e.g. a full-range step=-1 Slice reverses
-            // data while preserving shape.
-            if (slice_node->get_input_shape(0) != slice_node->get_output_shape(0)) {
-                return false;
-            }
+                             // A Slice is only a no-op when every named axis is an identity range - matching
+                             // input/output shape is not sufficient, e.g. a full-range step=-1 Slice reverses
+                             // data while preserving shape.
+                             if (slice_node->get_input_shape(0) != slice_node->get_output_shape(0)) {
+                                 return false;
+                             }
 
-            std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> all_params;
-            if (!get_slice_all_axis_params(slice_node, all_params)) {
-                return false;  // can't verify identity -> don't remove
-            }
+                             std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> all_params;
+                             if (!get_slice_all_axis_params(slice_node, all_params)) {
+                                 return false;  // can't verify identity -> don't remove
+                             }
 
-            const auto& in_shape = slice_node->get_input_shape(0);
-            for (const auto& [axis, params] : all_params) {
-                auto [start, stop, step] = params;
-                if (!is_identity_range(start, stop, step, static_cast<int64_t>(in_shape[axis]))) {
-                    return false;
-                }
-            }
+                             const auto& in_shape = slice_node->get_input_shape(0);
+                             for (const auto& [axis, params] : all_params) {
+                                 auto [start, stop, step] = params;
+                                 if (!is_identity_range(start, stop, step, static_cast<int64_t>(in_shape[axis]))) {
+                                     return false;
+                                 }
+                             }
 
-            // Replace the no-op Slice with its input
-            ov::replace_node(slice_node, slice_node->input_value(0).get_node_shared_ptr());
-            return true;
-        });
+                             // Replace the no-op Slice with its input
+                             ov::replace_node(slice_node, slice_node->input_value(0).get_node_shared_ptr());
+                             return true;
+                         }));
     }
 };
 
@@ -1736,98 +1786,100 @@ public:
         auto k = any_input();
         auto topk = wrap_type<ov::op::v1::TopK, ov::op::v3::TopK, ov::op::v11::TopK>({data, k});
 
-        register_matcher(std::make_shared<Matcher>(topk, "PropagateSliceThroughTopK"), [=](Matcher& m) {
-            auto& map = m.get_pattern_value_map();
-            auto topk_node = map.at(topk).get_node_shared_ptr();
+        register_matcher(
+            std::make_shared<Matcher>(topk, "PropagateSliceThroughTopK"),
+            with_debug_trace("PropagateSliceThroughTopK", [=](Matcher& m) {
+                auto& map = m.get_pattern_value_map();
+                auto topk_node = map.at(topk).get_node_shared_ptr();
 
-            if (!topk_node) {
-                return false;
-            }
+                if (!topk_node) {
+                    return false;
+                }
 
-            // TopK has two outputs: values (output 0) and indices (output 1)
-            if (topk_node->get_output_size() != 2) {
-                return false;
-            }
+                // TopK has two outputs: values (output 0) and indices (output 1)
+                if (topk_node->get_output_size() != 2) {
+                    return false;
+                }
 
-            // Check if both outputs are consumed by exactly one live consumer each
-            auto values_live = get_live_consumers(topk_node, 0);
-            auto indices_live = get_live_consumers(topk_node, 1);
-            if (values_live.size() != 1 || indices_live.size() != 1) {
-                return false;
-            }
+                // Check if both outputs are consumed by exactly one live consumer each
+                auto values_live = get_live_consumers(topk_node, 0);
+                auto indices_live = get_live_consumers(topk_node, 1);
+                if (values_live.size() != 1 || indices_live.size() != 1) {
+                    return false;
+                }
 
-            auto values_consumer = values_live[0].get_node()->shared_from_this();
-            auto indices_consumer = indices_live[0].get_node()->shared_from_this();
+                auto values_consumer = values_live[0].get_node()->shared_from_this();
+                auto indices_consumer = indices_live[0].get_node()->shared_from_this();
 
-            auto values_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(values_consumer);
-            auto indices_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(indices_consumer);
+                auto values_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(values_consumer);
+                auto indices_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(indices_consumer);
 
-            if (!values_slice || !indices_slice) {
-                return false;
-            }
+                if (!values_slice || !indices_slice) {
+                    return false;
+                }
 
-            // Get slice axes
-            int64_t values_slice_axis = get_single_sliced_axis(values_slice);
-            int64_t indices_slice_axis = get_single_sliced_axis(indices_slice);
-            if (values_slice_axis == -1 || indices_slice_axis == -1) {
-                return false;
-            }
+                // Get slice axes
+                int64_t values_slice_axis = get_single_sliced_axis(values_slice);
+                int64_t indices_slice_axis = get_single_sliced_axis(indices_slice);
+                if (values_slice_axis == -1 || indices_slice_axis == -1) {
+                    return false;
+                }
 
-            // Check if both slices are on the same axis
-            if (values_slice_axis != indices_slice_axis) {
-                return false;
-            }
+                // Check if both slices are on the same axis
+                if (values_slice_axis != indices_slice_axis) {
+                    return false;
+                }
 
-            // Check semantic equivalence of slice parameters
-            int64_t v_start = 0, v_stop = 0, v_step = 0;
-            int64_t i_start = 0, i_stop = 0, i_step = 0;
-            bool v_found = get_slice_axis_params(values_slice, values_slice_axis, v_start, v_stop, v_step);
-            bool i_found = get_slice_axis_params(indices_slice, indices_slice_axis, i_start, i_stop, i_step);
+                // Check semantic equivalence of slice parameters
+                int64_t v_start = 0, v_stop = 0, v_step = 0;
+                int64_t i_start = 0, i_stop = 0, i_step = 0;
+                bool v_found = get_slice_axis_params(values_slice, values_slice_axis, v_start, v_stop, v_step);
+                bool i_found = get_slice_axis_params(indices_slice, indices_slice_axis, i_start, i_stop, i_step);
 
-            if (!v_found || !i_found) {
-                return false;
-            }
+                if (!v_found || !i_found) {
+                    return false;
+                }
 
-            if (v_start != i_start || v_stop != i_stop || v_step != i_step) {
-                return false;
-            }
+                if (v_start != i_start || v_stop != i_stop || v_step != i_step) {
+                    return false;
+                }
 
-            // Get TopK axis parameter. All TopK versions (v1/v3/v11) derive from TopKBase,
-            // which already exposes the resolved axis regardless of opset version.
-            auto topk_base = std::dynamic_pointer_cast<ov::op::util::TopKBase>(topk_node);
-            if (!topk_base) {
-                return false;
-            }
-            int64_t topk_axis = static_cast<int64_t>(topk_base->get_axis());
+                // Get TopK axis parameter. All TopK versions (v1/v3/v11) derive from TopKBase,
+                // which already exposes the resolved axis regardless of opset version.
+                auto topk_base = std::dynamic_pointer_cast<ov::op::util::TopKBase>(topk_node);
+                if (!topk_base) {
+                    return false;
+                }
+                int64_t topk_axis = static_cast<int64_t>(topk_base->get_axis());
 
-            // Normalize TopK axis
-            topk_axis = static_cast<int64_t>(
-                ov::util::normalize_axis(topk_axis, static_cast<int64_t>(topk_node->get_input_shape(0).size())));
+                // Normalize TopK axis
+                topk_axis = static_cast<int64_t>(
+                    ov::util::normalize_axis(topk_axis, static_cast<int64_t>(topk_node->get_input_shape(0).size())));
 
-            // Check if slice axis == topk axis (would change TopK result, not safe)
-            if (values_slice_axis == topk_axis) {
-                return false;
-            }
+                // Check if slice axis == topk axis (would change TopK result, not safe)
+                if (values_slice_axis == topk_axis) {
+                    return false;
+                }
 
-            // Safe to propagate: insert Slice before TopK
+                // Safe to propagate: insert Slice before TopK
 
-            // Create new Slice on TopK input
-            auto new_slice =
-                create_slice_with_params(topk_node->input_value(0), values_slice_axis, v_start, v_stop, v_step);
-            new_slice->set_friendly_name(topk_node->get_friendly_name() + "/slice_input");
+                // Create new Slice on TopK input
+                auto new_slice =
+                    create_slice_with_params(topk_node->input_value(0), values_slice_axis, v_start, v_stop, v_step);
+                new_slice->set_friendly_name(topk_node->get_friendly_name() + "/slice_input");
 
-            // Create new TopK with sliced input, preserving all other attributes
-            auto new_topk = topk_node->clone_with_new_inputs({new_slice->output(0), topk_node->input_value(1)});
-            new_topk->set_friendly_name(topk_node->get_friendly_name());
-            new_topk->validate_and_infer_types();
+                // Create new TopK with sliced input, preserving all other attributes
+                auto new_topk = topk_node->clone_with_new_inputs({new_slice->output(0), topk_node->input_value(1)});
+                new_topk->set_friendly_name(topk_node->get_friendly_name());
+                new_topk->validate_and_infer_types();
 
-            // Replace original Slices' outputs with new TopK outputs
-            // Note: Cannot use replace_node because TopK has 2 outputs while Slice has 1
-            values_slice->output(0).replace(new_topk->output(0));
-            indices_slice->output(0).replace(new_topk->output(1));
+                // Replace original Slices' outputs with new TopK outputs
+                // Note: Cannot use replace_node because TopK has 2 outputs while Slice has 1
+                values_slice->output(0).replace(new_topk->output(0));
+                indices_slice->output(0).replace(new_topk->output(1));
 
-            return true;
-        });
+                return true;
+            }));
     }
 };
 
@@ -1845,50 +1897,53 @@ public:
         auto softmax = wrap_type<ov::op::v1::Softmax, ov::op::v8::Softmax>({data});
         auto slice = wrap_type<ov::op::v8::Slice>({softmax, any_input(), any_input(), any_input(), any_input()});
 
-        register_matcher(std::make_shared<Matcher>(slice, "PropagateSliceThroughSoftmax"), [=](Matcher& m) {
-            auto& map = m.get_pattern_value_map();
-            auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice).get_node_shared_ptr());
-            auto softmax_node = map.at(softmax).get_node_shared_ptr();
+        register_matcher(
+            std::make_shared<Matcher>(slice, "PropagateSliceThroughSoftmax"),
+            with_debug_trace("PropagateSliceThroughSoftmax", [=](Matcher& m) {
+                auto& map = m.get_pattern_value_map();
+                auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice).get_node_shared_ptr());
+                auto softmax_node = map.at(softmax).get_node_shared_ptr();
 
-            if (!slice_node || !softmax_node) {
-                return false;
-            }
+                if (!slice_node || !softmax_node) {
+                    return false;
+                }
 
-            int64_t slice_axis = get_propagation_axis(slice_node, softmax_node);
-            if (slice_axis == -1) {
-                return false;
-            }
+                int64_t slice_axis = get_propagation_axis(slice_node, softmax_node);
+                if (slice_axis == -1) {
+                    return false;
+                }
 
-            // Get Softmax axis
-            int64_t softmax_axis = -1;
-            if (auto v1_softmax = std::dynamic_pointer_cast<ov::op::v1::Softmax>(softmax_node)) {
-                softmax_axis = v1_softmax->get_axis();
-            } else if (auto v8_softmax = std::dynamic_pointer_cast<ov::op::v8::Softmax>(softmax_node)) {
-                softmax_axis = v8_softmax->get_axis();
-            }
+                // Get Softmax axis
+                int64_t softmax_axis = -1;
+                if (auto v1_softmax = std::dynamic_pointer_cast<ov::op::v1::Softmax>(softmax_node)) {
+                    softmax_axis = v1_softmax->get_axis();
+                } else if (auto v8_softmax = std::dynamic_pointer_cast<ov::op::v8::Softmax>(softmax_node)) {
+                    softmax_axis = v8_softmax->get_axis();
+                }
 
-            // Normalize Softmax axis
-            softmax_axis = static_cast<int64_t>(
-                ov::util::normalize_axis(softmax_axis, static_cast<int64_t>(softmax_node->get_input_shape(0).size())));
+                // Normalize Softmax axis
+                softmax_axis = static_cast<int64_t>(
+                    ov::util::normalize_axis(softmax_axis,
+                                             static_cast<int64_t>(softmax_node->get_input_shape(0).size())));
 
-            // Check if slice axis == softmax axis (would change Softmax result)
-            if (slice_axis == softmax_axis) {
-                return false;
-            }
+                // Check if slice axis == softmax axis (would change Softmax result)
+                if (slice_axis == softmax_axis) {
+                    return false;
+                }
 
-            // Safe to propagate: insert Slice before Softmax
+                // Safe to propagate: insert Slice before Softmax
 
-            auto new_slice = clone_slice(slice_node, softmax_node->input_value(0));
-            new_slice->set_friendly_name(softmax_node->get_friendly_name() + "/slice_input");
+                auto new_slice = clone_slice(slice_node, softmax_node->input_value(0));
+                new_slice->set_friendly_name(softmax_node->get_friendly_name() + "/slice_input");
 
-            // Create new Softmax with sliced input, preserving the axis attribute
-            auto new_softmax = softmax_node->clone_with_new_inputs({new_slice->output(0)});
-            new_softmax->set_friendly_name(softmax_node->get_friendly_name());
-            new_softmax->validate_and_infer_types();
+                // Create new Softmax with sliced input, preserving the axis attribute
+                auto new_softmax = softmax_node->clone_with_new_inputs({new_slice->output(0)});
+                new_softmax->set_friendly_name(softmax_node->get_friendly_name());
+                new_softmax->validate_and_infer_types();
 
-            ov::replace_node(slice_node, new_softmax);
-            return true;
-        });
+                ov::replace_node(slice_node, new_softmax);
+                return true;
+            }));
     }
 };
 
@@ -1905,49 +1960,53 @@ public:
         auto concat = wrap_type<ov::op::v0::Concat>();
         auto slice = wrap_type<ov::op::v8::Slice>({concat, any_input(), any_input(), any_input(), any_input()});
 
-        register_matcher(std::make_shared<Matcher>(slice, "PropagateSliceThroughConcat"), [=](Matcher& m) {
-            auto& map = m.get_pattern_value_map();
-            auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice).get_node_shared_ptr());
-            auto concat_node = std::dynamic_pointer_cast<ov::op::v0::Concat>(map.at(concat).get_node_shared_ptr());
+        register_matcher(
+            std::make_shared<Matcher>(slice, "PropagateSliceThroughConcat"),
+            with_debug_trace("PropagateSliceThroughConcat", [=](Matcher& m) {
+                auto& map = m.get_pattern_value_map();
+                auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice).get_node_shared_ptr());
+                auto concat_node = std::dynamic_pointer_cast<ov::op::v0::Concat>(map.at(concat).get_node_shared_ptr());
 
-            if (!slice_node || !concat_node) {
-                return false;
-            }
+                if (!slice_node || !concat_node) {
+                    return false;
+                }
 
-            int64_t slice_axis = get_propagation_axis(slice_node, concat_node);
-            if (slice_axis == -1) {
-                return false;
-            }
+                int64_t slice_axis = get_propagation_axis(slice_node, concat_node);
+                if (slice_axis == -1) {
+                    return false;
+                }
 
-            int64_t concat_axis = concat_node->get_axis();
+                int64_t concat_axis = concat_node->get_axis();
 
-            // Normalize concat axis
-            concat_axis = static_cast<int64_t>(
-                ov::util::normalize_axis(concat_axis, static_cast<int64_t>(concat_node->get_input_shape(0).size())));
+                // Normalize concat axis
+                concat_axis = static_cast<int64_t>(
+                    ov::util::normalize_axis(concat_axis,
+                                             static_cast<int64_t>(concat_node->get_input_shape(0).size())));
 
-            // Check if slice axis == concat axis (would change Concat result)
-            if (slice_axis == concat_axis) {
-                return false;
-            }
+                // Check if slice axis == concat axis (would change Concat result)
+                if (slice_axis == concat_axis) {
+                    return false;
+                }
 
-            // Safe to propagate: insert Slice before each Concat input
+                // Safe to propagate: insert Slice before each Concat input
 
-            ov::OutputVector new_concat_inputs;
-            for (size_t i = 0; i < concat_node->get_input_size(); ++i) {
-                auto input = concat_node->input_value(i);
-                auto new_slice = clone_slice(slice_node, input);
-                new_slice->set_friendly_name(concat_node->get_friendly_name() + "/slice_input_" + std::to_string(i));
-                new_concat_inputs.push_back(new_slice->output(0));
-            }
+                ov::OutputVector new_concat_inputs;
+                for (size_t i = 0; i < concat_node->get_input_size(); ++i) {
+                    auto input = concat_node->input_value(i);
+                    auto new_slice = clone_slice(slice_node, input);
+                    new_slice->set_friendly_name(concat_node->get_friendly_name() + "/slice_input_" +
+                                                 std::to_string(i));
+                    new_concat_inputs.push_back(new_slice->output(0));
+                }
 
-            // Create new Concat with sliced inputs
-            auto new_concat = std::make_shared<ov::op::v0::Concat>(new_concat_inputs, concat_node->get_axis());
-            new_concat->set_friendly_name(concat_node->get_friendly_name());
-            new_concat->validate_and_infer_types();
+                // Create new Concat with sliced inputs
+                auto new_concat = std::make_shared<ov::op::v0::Concat>(new_concat_inputs, concat_node->get_axis());
+                new_concat->set_friendly_name(concat_node->get_friendly_name());
+                new_concat->validate_and_infer_types();
 
-            ov::replace_node(slice_node, new_concat);
-            return true;
-        });
+                ov::replace_node(slice_node, new_concat);
+                return true;
+            }));
     }
 };
 
@@ -1992,51 +2051,82 @@ public:
             wrap_type<ov::op::v1::Gather, ov::op::v7::Gather, ov::op::v8::Gather>({data, indices, any_input()});
         auto slice = wrap_type<ov::op::v8::Slice>({gather, any_input(), any_input(), any_input(), any_input()});
 
-        register_matcher(std::make_shared<Matcher>(slice, "PropagateSliceThroughGather"), [=](Matcher& m) {
-            auto& map = m.get_pattern_value_map();
-            auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
-            auto gather_node = map[gather].get_node_shared_ptr();
+        register_matcher(
+            std::make_shared<Matcher>(slice, "PropagateSliceThroughGather"),
+            with_debug_trace("PropagateSliceThroughGather", [=](Matcher& m) {
+                auto& map = m.get_pattern_value_map();
+                auto slice_node = std::dynamic_pointer_cast<ov::op::v8::Slice>(map[slice].get_node_shared_ptr());
+                auto gather_node = map[gather].get_node_shared_ptr();
 
-            int64_t slice_axis = get_propagation_axis(slice_node, gather_node);
-            if (slice_axis == -1) {
-                return false;
-            }
+                int64_t slice_axis = get_propagation_axis(slice_node, gather_node);
+                if (slice_axis == -1) {
+                    return false;
+                }
 
-            // Get Gather axis. All Gather versions (v1/v7/v8) derive from GatherBase, which
-            // already exposes the resolved axis regardless of opset version.
-            auto gather_base = std::dynamic_pointer_cast<ov::op::util::GatherBase>(gather_node);
-            if (!gather_base) {
-                return false;
-            }
-            int64_t gather_axis = gather_base->get_axis();
+                // Get Gather axis. All Gather versions (v1/v7/v8) derive from GatherBase, which
+                // already exposes the resolved axis regardless of opset version.
+                auto gather_base = std::dynamic_pointer_cast<ov::op::util::GatherBase>(gather_node);
+                if (!gather_base) {
+                    return false;
+                }
+                int64_t gather_axis = gather_base->get_axis();
 
-            // Normalize axes
-            const auto& gather_input_shape = gather_node->get_input_shape(0);
-            gather_axis = static_cast<int64_t>(
-                ov::util::normalize_axis(gather_axis, static_cast<int64_t>(gather_input_shape.size())));
-            slice_axis = static_cast<int64_t>(
-                ov::util::normalize_axis(slice_axis, static_cast<int64_t>(slice_node->get_input_shape(0).size())));
+                // Gather with rank-1 indices preserves rank, so an axis index on the output maps
+                // 1:1 to the same axis on the input. Gather with scalar (rank-0) indices - e.g. what
+                // aten::select lowers to - instead removes the gathered axis entirely, shifting every
+                // later input axis by one relative to the output. Other indices ranks change the
+                // output rank in ways this rule doesn't reason about; bail out for those.
+                const auto& indices_rank = gather_node->get_input_partial_shape(1).rank();
+                if (indices_rank.is_dynamic() || (indices_rank.get_length() != 0 && indices_rank.get_length() != 1)) {
+                    return false;
+                }
+                // With batch_dims > 0, the leading batch_dims axes of indices don't contribute
+                // extra output axes (they're shared with data), so rank-1 indices with
+                // batch_dims == indices_rank behave like scalar indices for this rule's purposes.
+                // Unreachable today since indices_rank is already restricted to {0,1} above (so
+                // batch_dims can only be 0 or == indices_rank); kept as a guard against future changes.
+                const int64_t batch_dims = gather_base->get_batch_dims();
+                if (batch_dims != 0 && batch_dims != indices_rank.get_length()) {
+                    return false;
+                }
+                const bool gather_removes_axis = (indices_rank.get_length() - batch_dims == 0);
 
-            // Check if Slice and Gather operate on different axes. The Gather output has the
-            // same rank as its input, so slice_axis on the Gather output maps to the same axis
-            // on the Gather input.
-            if (slice_axis == gather_axis) {
-                return false;  // Cannot safely propagate - axes conflict
-            }
+                // Normalize axes
+                const auto& gather_input_shape = gather_node->get_input_shape(0);
+                gather_axis = static_cast<int64_t>(
+                    ov::util::normalize_axis(gather_axis, static_cast<int64_t>(gather_input_shape.size())));
+                slice_axis = static_cast<int64_t>(
+                    ov::util::normalize_axis(slice_axis, static_cast<int64_t>(slice_node->get_input_shape(0).size())));
 
-            // Slice(Gather(X)) -> Gather(Slice(X))
-            // Create new Slice on the Gather input
-            auto new_slice = clone_slice(slice_node, gather_node->input_value(0));
+                // Map the sliced axis (expressed on the Gather's output) to the corresponding axis
+                // on the Gather's input. When indices is scalar, output axes at or after gather_axis
+                // sit one position further right on the (higher-rank) input.
+                int64_t input_slice_axis =
+                    (gather_removes_axis && slice_axis >= gather_axis) ? slice_axis + 1 : slice_axis;
 
-            // Create new Gather with sliced input
-            auto new_gather = gather_node->clone_with_new_inputs(
-                {new_slice, gather_node->input_value(1), gather_node->input_value(2)});
-            new_gather->set_friendly_name(gather_node->get_friendly_name());
-            new_gather->validate_and_infer_types();
+                // Check if Slice and Gather operate on different axes.
+                if (input_slice_axis == gather_axis) {
+                    return false;  // Cannot safely propagate - axes conflict
+                }
 
-            ov::replace_node(slice_node, new_gather);
-            return true;
-        });
+                // Slice(Gather(X)) -> Gather(Slice(X))
+                // Create new Slice on the Gather input, using the axis-mapped position.
+                int64_t start = 0, stop = 0, step = 0;
+                if (!get_slice_axis_params(slice_node, slice_axis, start, stop, step)) {
+                    return false;
+                }
+                auto new_slice =
+                    create_slice_with_params(gather_node->input_value(0), input_slice_axis, start, stop, step);
+
+                // Create new Gather with sliced input
+                auto new_gather = gather_node->clone_with_new_inputs(
+                    {new_slice, gather_node->input_value(1), gather_node->input_value(2)});
+                new_gather->set_friendly_name(gather_node->get_friendly_name());
+                new_gather->validate_and_infer_types();
+
+                ov::replace_node(slice_node, new_gather);
+                return true;
+            }));
     }
 };
 
@@ -2054,62 +2144,64 @@ public:
         auto slice1 = wrap_type<ov::op::v8::Slice>({data, any_input(), any_input(), any_input(), any_input()});
         auto slice2 = wrap_type<ov::op::v8::Slice>({slice1, any_input(), any_input(), any_input(), any_input()});
 
-        register_matcher(std::make_shared<Matcher>(slice2, "MergeConsecutiveSlices"), [=](Matcher& m) {
-            auto& map = m.get_pattern_value_map();
-            auto child_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice2).get_node_shared_ptr());
-            auto parent_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice1).get_node_shared_ptr());
+        register_matcher(
+            std::make_shared<Matcher>(slice2, "MergeConsecutiveSlices"),
+            with_debug_trace("MergeConsecutiveSlices", [=](Matcher& m) {
+                auto& map = m.get_pattern_value_map();
+                auto child_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice2).get_node_shared_ptr());
+                auto parent_slice = std::dynamic_pointer_cast<ov::op::v8::Slice>(map.at(slice1).get_node_shared_ptr());
 
-            if (!child_slice || !parent_slice) {
-                return false;
-            }
-
-            // Check single consumer for parent slice
-            if (!single_consumer(parent_slice)) {
-                return false;
-            }
-
-            // Get parameters from both slices (axes already normalized to their own input rank)
-            std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> parent_params, child_params;
-            if (!get_slice_all_axis_params(parent_slice, parent_params) ||
-                !get_slice_all_axis_params(child_slice, child_params)) {
-                return false;
-            }
-
-            // Build merged parameters: start with parent slice params, then merge in child's
-            std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> merged_params = parent_params;
-            for (const auto& [axis, params] : child_params) {
-                if (merged_params.count(axis)) {
-                    // Same axis - need to compose the slicing operations
-                    // This is complex, for now just skip this case
+                if (!child_slice || !parent_slice) {
                     return false;
                 }
-                merged_params[axis] = params;
-            }
 
-            // Build merged constant vectors
-            std::vector<int64_t> merged_axes;
-            std::vector<int64_t> merged_start;
-            std::vector<int64_t> merged_stop;
-            std::vector<int64_t> merged_step;
+                // Check single consumer for parent slice
+                if (!single_consumer(parent_slice)) {
+                    return false;
+                }
 
-            for (const auto& [axis, params] : merged_params) {
-                merged_axes.push_back(axis);
-                merged_start.push_back(std::get<0>(params));
-                merged_stop.push_back(std::get<1>(params));
-                merged_step.push_back(std::get<2>(params));
-            }
+                // Get parameters from both slices (axes already normalized to their own input rank)
+                std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> parent_params, child_params;
+                if (!get_slice_all_axis_params(parent_slice, parent_params) ||
+                    !get_slice_all_axis_params(child_slice, child_params)) {
+                    return false;
+                }
 
-            // Create merged slice
-            auto merged_slice = create_slice_with_params(parent_slice->input_value(0),
-                                                         merged_axes,
-                                                         merged_start,
-                                                         merged_stop,
-                                                         merged_step);
-            merged_slice->set_friendly_name(child_slice->get_friendly_name());
+                // Build merged parameters: start with parent slice params, then merge in child's
+                std::map<int64_t, std::tuple<int64_t, int64_t, int64_t>> merged_params = parent_params;
+                for (const auto& [axis, params] : child_params) {
+                    if (merged_params.count(axis)) {
+                        // Same axis - need to compose the slicing operations
+                        // This is complex, for now just skip this case
+                        return false;
+                    }
+                    merged_params[axis] = params;
+                }
 
-            ov::replace_node(child_slice, merged_slice);
-            return true;
-        });
+                // Build merged constant vectors
+                std::vector<int64_t> merged_axes;
+                std::vector<int64_t> merged_start;
+                std::vector<int64_t> merged_stop;
+                std::vector<int64_t> merged_step;
+
+                for (const auto& [axis, params] : merged_params) {
+                    merged_axes.push_back(axis);
+                    merged_start.push_back(std::get<0>(params));
+                    merged_stop.push_back(std::get<1>(params));
+                    merged_step.push_back(std::get<2>(params));
+                }
+
+                // Create merged slice
+                auto merged_slice = create_slice_with_params(parent_slice->input_value(0),
+                                                             merged_axes,
+                                                             merged_start,
+                                                             merged_stop,
+                                                             merged_step);
+                merged_slice->set_friendly_name(child_slice->get_friendly_name());
+
+                ov::replace_node(child_slice, merged_slice);
+                return true;
+            }));
     }
 };
 
@@ -2260,19 +2352,20 @@ static bool extract_common_slice_before_fanout(const std::shared_ptr<ov::Node>& 
 //      |     |      |
 //   [1,1,8,512] [1,1,8,256] [1,1,8,256]
 //
-// Pattern: <Transpose|Multiply> -> [Slice1, Slice2, ...] with some common slice axes
-// Result: <Transpose|Multiply> -> Slice(common axes) -> [new_Slice1, new_Slice2, ...] (residual axes)
+// Pattern: <Transpose|Multiply|Slice> -> [Slice1, Slice2, ...] with some common slice axes
+// Result: <Transpose|Multiply|Slice> -> Slice(common axes) -> [new_Slice1, new_Slice2, ...] (residual axes)
 // ---------------------------------------------------------------------------
 class ExtractCommonSliceBeforeFanout : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ExtractCommonSliceBeforeFanout");
 
     ExtractCommonSliceBeforeFanout() {
-        auto fanout = wrap_type<ov::op::v1::Transpose, ov::op::v1::Multiply>();
+        auto fanout = wrap_type<ov::op::v1::Transpose, ov::op::v1::Multiply, ov::op::v8::Slice>();
 
-        register_matcher(std::make_shared<Matcher>(fanout, "ExtractCommonSliceBeforeFanout"), [=](Matcher& m) {
-            return extract_common_slice_before_fanout(m.get_match_root());
-        });
+        register_matcher(std::make_shared<Matcher>(fanout, "ExtractCommonSliceBeforeFanout"),
+                         with_debug_trace("ExtractCommonSliceBeforeFanout", [=](Matcher& m) {
+                             return extract_common_slice_before_fanout(m.get_match_root());
+                         }));
     }
 };
 
@@ -2324,6 +2417,13 @@ bool PropagateSliceUp::run_on_model(const std::shared_ptr<ov::Model>& model) {
     if (iteration >= max_iterations) {
         LOG_WARN("PropagateSliceUp: reached maximum iterations (" << max_iterations
                                                                   << "), stopping to prevent infinite loop");
+    }
+
+    try {
+        model->validate_nodes_and_infer_types();
+    } catch (const std::exception& e) {
+        LOG_ERROR("PropagateSliceUp: model became invalid: " << e.what());
+        throw;
     }
 
     return overall_changed;
