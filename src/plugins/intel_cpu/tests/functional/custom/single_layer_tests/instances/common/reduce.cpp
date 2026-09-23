@@ -97,6 +97,19 @@ const auto params_MultiAxis_4D_dynamic = testing::Combine(
     testing::Values(emptyFusingSpec),
     testing::ValuesIn(additionalConfig()));
 
+// an empty axes list reduces nothing, so the output keeps the rank of the input
+const auto params_EmptyAxes = testing::Combine(testing::Combine(testing::Values(std::vector<int>{}),
+                                                                testing::Values(ov::test::utils::OpType::VECTOR),
+                                                                testing::Values(false),
+                                                                testing::ValuesIn(reductionTypes()),
+                                                                testing::ValuesIn(inpOutPrc()),
+                                                                testing::Values(ElementType::dynamic),
+                                                                testing::Values(ElementType::dynamic),
+                                                                testing::ValuesIn(inputShapes)),
+                                               testing::Values(emptyCPUSpec),
+                                               testing::Values(emptyFusingSpec),
+                                               testing::ValuesIn(additionalConfig()));
+
 const auto params_Int32 = testing::Combine(testing::Combine(testing::ValuesIn(axes()),
                                                             testing::Values(ov::test::utils::OpType::VECTOR),
                                                             testing::ValuesIn(keepDims()),
@@ -134,6 +147,13 @@ INSTANTIATE_TEST_SUITE_P(
         smoke_Reduce_MultiAxis_4D_dynamic_CPU,
         ReduceCPULayerTest,
         params_MultiAxis_4D_dynamic,
+        ReduceCPULayerTest::getTestCaseName
+);
+
+INSTANTIATE_TEST_SUITE_P(
+        smoke_Reduce_EmptyAxes_CPU,
+        ReduceCPULayerTest,
+        params_EmptyAxes,
         ReduceCPULayerTest::getTestCaseName
 );
 
