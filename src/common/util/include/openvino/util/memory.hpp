@@ -69,9 +69,8 @@ constexpr AlignedRegion align_region(uintptr_t base, size_t raw_len, size_t alig
  *
  *
  * @param size       Number of bytes to allocate. Must be greater than zero.
- * @param alignment  Desired alignment in bytes. Must be a power of two.
- *                   Values below `alignof(std::max_align_t)`, including `0`, are raised to it,
- *                   so the returned pointer can be more strictly aligned than requested.
+ * @param alignment  Desired alignment in bytes. Must be `0` or a power of two.
+ *                   If it is less than `alignof(std::max_align_t)`, `alignof(std::max_align_t)` is used.
  * @return Pointer to the allocated memory, or `nullptr` on failure.
  */
 void* aligned_alloc(size_t size, size_t alignment) noexcept;

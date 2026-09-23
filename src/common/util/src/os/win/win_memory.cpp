@@ -20,7 +20,7 @@
 namespace ov::util {
 
 void* aligned_alloc(size_t size, size_t alignment) noexcept {
-    if (alignment == 0) {
+    if (alignment < alignof(std::max_align_t)) {
         alignment = alignof(std::max_align_t);
     }
     return _aligned_malloc(size, alignment);

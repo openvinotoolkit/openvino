@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <limits>
 #include <system_error>
 #include <vector>
 
@@ -149,6 +150,22 @@ TEST_F(AlignedAllocTest, zero_alignment_uses_default_alignment) {
     ASSERT_NE(nullptr, ptr);
     EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(ptr) % alignof(std::max_align_t));
     util::aligned_free(ptr);
+}
+
+TEST_F(AlignedAllocTest, small_alignment_uses_max_align_t) {
+    for (size_t align = 1; align < alignof(std::max_align_t); align <<= 1) {
+        void* ptr = util::aligned_alloc(3, align);
+        ASSERT_NE(nullptr, ptr) << "align=" << align;
+        EXPECT_EQ(0u, reinterpret_cast<uintptr_t>(ptr) % alignof(std::max_align_t)) << "align=" << align;
+        util::aligned_free(ptr);
+    }
+}
+
+TEST_F(AlignedAllocTest, size_too_big_for_alignment_returns_null) {
+    constexpr auto max_size = std::numeric_limits<size_t>::max();
+    for (auto align : {size_t{0}, size_t{1}, alignof(std::max_align_t), size_t{64}}) {
+        EXPECT_EQ(nullptr, util::aligned_alloc(max_size - 1, align)) << "align=" << align;
+    }
 }
 
 TEST_F(AlignedAllocTest, free_nullptr_is_noop) {

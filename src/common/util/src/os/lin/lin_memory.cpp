@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <limits>
 #include <tuple>
 
 #include "memory_prefetch.hpp"
@@ -27,12 +28,14 @@ void madvise_hint(void* ptr, size_t size) noexcept {
 }  // namespace
 
 void* aligned_alloc(size_t size, size_t alignment) noexcept {
-    // std::aligned_alloc only has to honour alignments that the implementation supports.
-    // glibc accepts alignments smaller than sizeof(void*), but macOS rejects them and
-    // returns nullptr. Raise the request to the largest fundamental alignment so that every
-    // platform behaves the same. A stronger alignment also satisfies any weaker request.
+    // Some std::aligned_alloc implementations (for example on macOS) return nullptr for
+    // alignments smaller than sizeof(void*), so small alignments are raised as documented.
     if (alignment < alignof(std::max_align_t)) {
         alignment = alignof(std::max_align_t);
+    }
+    // std::aligned_alloc requires the size to be a multiple of the alignment. Rounding up must not wrap.
+    if (size > std::numeric_limits<size_t>::max() - (alignment - 1)) {
+        return nullptr;
     }
     return std::aligned_alloc(alignment, align_size_up(size, alignment));
 }
