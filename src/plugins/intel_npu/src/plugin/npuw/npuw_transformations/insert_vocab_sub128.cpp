@@ -147,7 +147,8 @@ std::optional<Vocab> get_vocab(const ov::Output<ov::Node>& output) {
     if (auto weight = ov::as_type_ptr<ov::op::v0::Constant>(node)) {
         const auto element_type = weight->get_element_type();
         if ((element_type == ov::element::f16 || element_type == ov::element::f32 ||
-             element_type == ov::element::bf16) && weight->get_shape().size() == 2) {
+             element_type == ov::element::bf16) &&
+            weight->get_shape().size() == 2) {
             return Vocab{weight, std::nullopt, std::nullopt};
         }
         return std::nullopt;
