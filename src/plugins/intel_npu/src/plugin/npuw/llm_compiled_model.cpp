@@ -183,19 +183,6 @@ bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
     return false;
 }
 
-bool is_int8_compressed(const std::shared_ptr<ov::Model>& model) {
-    std::vector<std::string> rt_info_path = {"nncf", "weight_compression", "mode"};
-    if (!model->has_rt_info(rt_info_path)) {
-        // NB: Model isn't compressed by NNCF - skip
-        return false;
-    }
-    auto mode = model->get_rt_info<std::string>(rt_info_path);
-    if (mode.find("int8") != std::string::npos) {
-        return true;
-    }
-    return false;
-}
-
 struct NPUDesc {
     std::string arch;
     int64_t max_tiles = 0;
@@ -481,13 +468,6 @@ void refine_dynamic_props(ov::AnyMap& llm_properties, const std::optional<NPUDes
 
 void update_config_for_whisper(ov::AnyMap& config) {
     config.erase("NPUW_SLICE_OUT");
-}
-
-void disable_ws_for_whisper(ov::AnyMap& config) {
-    config.erase("NPUW_FUNCALL_FOR_ALL");
-    config.erase("NPUW_FOLD");
-    config.erase("NPUW_FOLD_ONLY");
-    config.erase("NPUW_CWAI");
 }
 
 void update_config_for_text_embed(ov::AnyMap& config) {
@@ -813,7 +793,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
         m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
         m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
-        m_cfg.update({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "NO"}});
 
         m_eos_token_id = m_cfg.get<::intel_npu::NPUW_WHISPER_EOS_TOKEN>();
     }
@@ -1148,7 +1127,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             // Apply optimization to all variants and track results
             size_t optimized_count = 0;
             for (auto& model_variant : generate_model_variants) {
-                if (ov::npuw::util::OptimizeValueTensors(false).run_on_model(model_variant)) {
+                if (ov::npuw::util::OptimizeValueTensors(false, m_is_whisper).run_on_model(model_variant)) {
                     ++optimized_count;
                 }
             }
@@ -1170,7 +1149,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                 " variants were optimized, which is not allowed.");
             }
         }
-        if (!prefill_attn_dyn && ov::npuw::util::OptimizeValueTensors(true).run_on_model(prefill_model)) {
+        if (!prefill_attn_dyn && ov::npuw::util::OptimizeValueTensors(true, m_is_whisper).run_on_model(prefill_model)) {
             LOG_DEBUG("V-tensors tranposed in prefill model");
             m_kvcache_desc.v_tensors_transposed_pre = true;
         }
@@ -1303,11 +1282,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     if (m_is_whisper) {
         update_config_for_whisper(prefill_config);
-        if (is_int8_compressed(model)) {
-            disable_ws_for_whisper(prefill_config);
-            disable_ws_for_whisper(generate_config);
-            LOG_INFO(" WS is disabled for Whisper int8 model!");
-        }
     }
 
     if (m_is_embedding) {
