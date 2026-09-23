@@ -10,6 +10,7 @@ alone never counts as a passing scenario. This is a bounded correctness check,
 not model-quality or exhaustive generation coverage.
 """
 import argparse
+import hashlib
 import json
 from pathlib import Path
 
@@ -22,6 +23,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("model", type=Path)
     parser.add_argument("--reference", type=Path, required=True)
+    parser.add_argument("--reference-kind", choices=["quantized", "represented-f32"], default="quantized")
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--backend", choices=["SDPA", "PA"], required=True)
     parser.add_argument("--mmproj", type=Path)
@@ -40,6 +42,8 @@ def main():
         config.enable_prefix_caching = args.prefix_caching
         properties["scheduler_config"] = config
     report = dict(model=str(args.model.resolve()), backend=args.backend,
+                  reference=str(args.reference.resolve()), reference_kind=args.reference_kind,
+                  reference_sha256=hashlib.sha256(args.reference.read_bytes()).hexdigest(),
                   openvino_version=ov.get_version(), genai_version=genai.__version__,
                   fresh_accuracy=args.fresh_accuracy,
                   prefix_caching=(args.backend == "PA" if args.prefix_caching is None else args.prefix_caching),
