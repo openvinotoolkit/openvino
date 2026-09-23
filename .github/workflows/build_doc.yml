@@ -85,7 +85,7 @@ jobs:
           BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
         run: |
           git fetch --no-tags --depth=1 origin "$BASE_SHA"
-          changed_files=$(git diff --name-only "$BASE_SHA" HEAD -- .github/skills/)
+          changed_files=$(git diff --name-only "$BASE_SHA" HEAD -- .claude/skills/ .agents/skills)
           if [[ -n "$changed_files" ]]; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi

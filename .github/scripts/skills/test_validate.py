@@ -15,8 +15,10 @@ class ValidateSkillsTests(unittest.TestCase):
         temporary = tempfile.TemporaryDirectory()
         self.addCleanup(temporary.cleanup)
         self.repository = Path(temporary.name)
-        self.skill = self.repository / ".github/skills/example"
+        self.skill = self.repository / ".claude/skills/example"
         self.skill.mkdir(parents=True)
+        (self.repository / ".agents").mkdir()
+        (self.repository / ".agents/skills").symlink_to("../.claude/skills", target_is_directory=True)
         self.write_skill()
 
     def write_skill(self, metadata=None, body="Review the proposed change."):

@@ -23,10 +23,11 @@ This document explains how to create new workflows and add tests.
 
 The [Documentation workflow](../../../../.github/workflows/build_doc.yml) validates
 skill metadata in its existing `Check_Doc_Links` job. The validation step runs only
-when the pull request or merge-group diff changes `.github/skills/**`, and checks
-all skills in that directory. It follows the documentation workflow's existing
-Smart CI and draft-PR conditions. The `.claude/skills` and
-`.github/agents-prototype/skills` collections are outside this metadata check's scope.
+when the pull request or merge-group diff changes `.claude/skills/**` or the
+`.agents/skills` symlink, and checks all skills in `.claude/skills/`. Agents access
+the same collection through `.agents/skills/`. Validation follows the documentation
+workflow's existing Smart CI and draft-PR conditions. The `.github/agents-prototype/skills`
+collection is outside this metadata check's scope.
 
 The validator checks [Agent Skills metadata](https://agentskills.io/specification),
 directory/name agreement, duplicate YAML keys, and non-empty instructions.

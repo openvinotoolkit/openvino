@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Validate .github/skills metadata and structure without executing skills."""
+"""Validate .claude/skills metadata and structure without executing skills."""
 
 import argparse
 from pathlib import Path
@@ -75,14 +75,14 @@ def metadata_errors(metadata, directory_name):
 
 def validate(repository):
     repository = repository.resolve()
-    root = repository / ".github/skills"
+    root = repository / ".claude/skills"
     errors = []
     count = 0
     # Removing the last skill is a valid change.
     if not root.exists():
         return count, errors
     if (root / "SKILL.md").exists():
-        errors.append(".github/skills/SKILL.md: each skill must have its own directory")
+        errors.append(".claude/skills/SKILL.md: each skill must have its own directory")
 
     for directory in sorted(path for path in root.iterdir() if path.is_dir()):
         skill = directory / "SKILL.md"

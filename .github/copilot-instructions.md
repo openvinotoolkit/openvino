@@ -4,10 +4,10 @@
 
 These instructions apply to changes in this repository. Follow more specific
 instructions and skills when they are available for the files being changed.
-Skills live under `.github/skills/` and should be loaded when their
-description matches the task. Component-specific documentation and local
-README files take precedence over general assumptions.
-For code reviews, start with `.github/skills/code-review/SKILL.md` and then
+Skills are available through `.agents/skills/` (a symlink to `.claude/skills/`)
+and should be loaded when their description matches the task. Component-specific
+documentation and local README files take precedence over general assumptions.
+For code reviews, start with `.agents/skills/code-review/SKILL.md` and then
 load the component references selected by its path-routing table. Ownership
 and automatic maintainer review requests are defined separately in
 `.github/CODEOWNERS`.
