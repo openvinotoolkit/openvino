@@ -22,9 +22,7 @@
 #include "openvino/frontend/manager.hpp"
 #include "translate_session.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 // This frontend has two ingest paths, both converging on the same GgufDecoder + op translators:
 //   1. a live GgufDecoder passed in by a direct linker (the llama.cpp ggml-openvino cgraph path);
@@ -169,9 +167,7 @@ InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& variants) const 
                             "or a path to a .gguf file.");
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf
 
 // Plugin registration. Exports the standard entry points so FrontEndManager can load the library;
 // selection is covered by the discoverability note at the top of this file.
