@@ -2179,7 +2179,7 @@ public:
         config.set_property(ov::intel_gpu::could_use_flashattn_v2(p.force_flashattn_v2 ? true : p.disable_flashattn_v2));
         config.set_property(ov::internal::key_cache_quant_mode(p.key_cache_quant_mode));
         if (p.use_cm_kernel) {
-            config.set_property(ov::hint::attn_kernel_mode(ov::hint::AttnMode::PA_CM));
+            config.set_property(ov::hint::attn_mode({ov::hint::AttnMode::PA_CM}));
         }
         if (kv_cache_precision != ov::element::dynamic) {
             config.set_property(ov::hint::kv_cache_precision(kv_cache_precision));

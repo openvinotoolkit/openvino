@@ -6,18 +6,15 @@ import typing
 """
 openvino.properties.hint submodule that simulates ov::hint
 """
-__all__: list[str] = ['AttnMode', 'ExecutionMode', 'ModelDistributionPolicy', 'PerformanceMode', 'Priority', 'SchedulingCoreType', 'activations_scale_factor', 'allow_auto_batching', 'attn_kernel_mode', 'compiled_blob', 'dynamic_quantization_group_size', 'enable_cpu_pinning', 'enable_cpu_reservation', 'enable_hyper_threading', 'execution_mode', 'inference_precision', 'kv_cache_precision', 'model', 'model_distribution_policy', 'model_priority', 'num_requests', 'performance_mode', 'scheduling_core_type']
+__all__: list[str] = ['AttnMode', 'ExecutionMode', 'ModelDistributionPolicy', 'PerformanceMode', 'Priority', 'SchedulingCoreType', 'activations_scale_factor', 'allow_auto_batching', 'attn_mode', 'compiled_blob', 'dynamic_quantization_group_size', 'enable_cpu_pinning', 'enable_cpu_reservation', 'enable_hyper_threading', 'execution_mode', 'inference_precision', 'kv_cache_precision', 'model', 'model_distribution_policy', 'model_priority', 'num_requests', 'performance_mode', 'scheduling_core_type']
 class AttnMode:
     """
     Members:
 
-      AUTO
-
       PA_CM
     """
-    AUTO: typing.ClassVar[AttnMode]  # value = <AttnMode.AUTO: 0>
-    PA_CM: typing.ClassVar[AttnMode]  # value = <AttnMode.PA_CM: 1>
-    __members__: typing.ClassVar[dict[str, AttnMode]]  # value = {'AUTO': <AttnMode.AUTO: 0>, 'PA_CM': <AttnMode.PA_CM: 1>}
+        PA_CM: typing.ClassVar[AttnMode]  # value = <AttnMode.PA_CM: 0>
+        __members__: typing.ClassVar[dict[str, AttnMode]]  # value = {'PA_CM': <AttnMode.PA_CM: 0>}
     def __eq__(self, other: typing.Any) -> bool:
         ...
     def __ge__(self, other: typing.Any) -> bool:
@@ -380,10 +377,10 @@ def performance_mode() -> str:
 def performance_mode(arg0: PerformanceMode) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
 @typing.overload
-def attn_kernel_mode() -> str:
+def attn_mode() -> str:
     ...
 @typing.overload
-def attn_kernel_mode(arg0: AttnMode) -> tuple[str, openvino._pyopenvino.OVAny]:
+def attn_mode(arg0: collections.abc.Sequence[AttnMode]) -> tuple[str, openvino._pyopenvino.OVAny]:
     ...
 @typing.overload
 def scheduling_core_type() -> str:

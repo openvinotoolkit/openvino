@@ -45,7 +45,7 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
                                 data_type_traits::is_i4_u4(key_cache_dt);
     auto expected_block_size = desc->has_xattention ? paged_attention::block_size_xattn : paged_attention::block_size;
     // Both INT4 and INT8 BY_CHANNEL use dim order {0,1,3,2} with block_size at
-    // dim[3] on the OCL/micro path. Since 2026-07 attn_kernel_mode=PA_CM unifies
+    // dim[3] on the OCL/micro path. attn_mode=PA_CM unifies
     // the CM legacy layout with the CM xattn one ({0,1,2,3}, block_size at dim[2])
     // — see transformations_pipeline.cpp's keyCacheDimOrder selection.
     const bool is_int4 = data_type_traits::is_i4_u4(key_cache_dt);
@@ -69,7 +69,7 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
                      desc->is_key_by_channel, " but exec_config : ", impl_param.get_program().get_config().get_key_cache_quant_mode());
 
     // Both INT4 and INT8 BY_CHANNEL use {0,1,3,2} dim order (block_size at dim[3]) for OCL PA.
-    // Under attn_kernel_mode=PA_CM the CM path allocates {0,1,2,3} (block_size at dim[2]),
+    // Under attn_mode=PA_CM the CM path allocates {0,1,2,3} (block_size at dim[2]),
     // matching the CM xattn branch. See plugin/ops/paged_attention.cpp's k_head_size_idx
     // derivation for the mirror-image logic on the head_size axis.
     const bool key_cache_token_major = desc->has_xattention || desc->use_cm_kernel;

@@ -124,7 +124,7 @@ float get_xattn_thresh(const kernel_impl_params& params, const size_t seq_idx) {
 bool bypass_xattn(const kernel_impl_params& params) {
     bool bypass = false;
     const auto desc = params.typed_desc<paged_attention>();
-    // PA_CM coupling: when the user explicitly requests ov::hint::attn_kernel_mode=PA_CM,
+    // PA_CM coupling: when the user explicitly requests ov::hint::attn_mode=PA_CM,
     // disable the xattn-bypass heuristic and always run the full xattn path. Rationale:
     //   - PA_CM is a hard "use the CM kernel" requirement (see properties.hpp), so users
     //     opting in expect the CM xattn path to be exercised end-to-end regardless of

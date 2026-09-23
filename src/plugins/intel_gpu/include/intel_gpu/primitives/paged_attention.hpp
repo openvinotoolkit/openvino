@@ -184,6 +184,6 @@ struct paged_attention : public primitive_base<paged_attention> {
     bool is_key_by_channel = false;
     bool has_qq_bias = false;
     bool write_kv_cache = true;
-    bool use_cm_kernel = false;  // set when attn_kernel_mode == PA_CM
+    bool use_cm_kernel = false;  // set when attn_mode contains PA_CM
 };
 }  // namespace cldnn
