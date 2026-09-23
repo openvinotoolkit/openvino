@@ -181,7 +181,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_clang_tidy
-    needs: [Smart_CI, Build-x86_64, Build-aarch64, Build-riscv64, Build-gpu]
+    needs: [Smart_CI, Docker, Docker_Arm, Build-aarch64, Build-gpu, Build-riscv64, Build-x86_64]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

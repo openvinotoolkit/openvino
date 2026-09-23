@@ -112,8 +112,8 @@ jobs:
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       OPENVINO_BUILD_DIR: /__w/openvino/openvino/openvino_build
       INSTALL_DIR: /__w/openvino/openvino/openvino_install
-      CONAN_USER_HOME: /mount/caches/ccache/ubuntu22_riscv64_master_release/.conan
-      CCACHE_REMOTE_DIR: /mount/caches/ccache/ubuntu22_riscv64/${{ needs.Smart_CI.outputs.target_branch }}
+      CONAN_USER_HOME: /mount/caches/ccache/ababushk/ubuntu22_riscv64_master_release/.conan
+      CCACHE_REMOTE_DIR: /mount/caches/ccache/ababushk/ubuntu22_riscv64/${{ needs.Smart_CI.outputs.target_branch }}
       CCACHE_DIR: /__w/openvino/openvino/ccache
       CCACHE_TEMPDIR: /__w/openvino/openvino/ccache_temp
       CCACHE_MAXSIZE: 2G
@@ -140,8 +140,8 @@ jobs:
         id: ccache_restore
         uses: ./openvino/.github/actions/cache
         with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          save-always: 'true'
+          cleanup-always: 'true'
           cache-size: 10
           max-cache-size: 50
           cache-path: ${{ env.CCACHE_REMOTE_DIR }}
@@ -273,7 +273,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_linux_riscv_conan
-    needs: [Smart_CI, Build]
+    needs: [Smart_CI, Docker, Build]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

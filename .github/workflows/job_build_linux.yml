@@ -139,7 +139,7 @@ jobs:
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/openvino/install/wheels
       DEVELOPER_PACKAGE_DIR: ${{ github.workspace }}/openvino/developer_package_install
       BUILD_DIR: ${{ github.workspace }}/openvino/openvino_build
-      SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}_Release
+      SCCACHE_AZURE_KEY_PREFIX: ababushk/${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}_Release
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
       PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}_release
@@ -259,7 +259,12 @@ jobs:
         run: cmake --build ${BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
       - name: Show sccache stats
+        if: always()
         run: ${SCCACHE_PATH} --show-stats
+
+      - name: Stop sccache server
+        if: always()
+        run: ${SCCACHE_PATH} --stop-server || true
 
       - name: Cmake install - OpenVINO
         run: |
@@ -532,30 +537,3 @@ jobs:
           path: ${{ env.COVERAGE_NOTES_DIR }}
           if-no-files-found: 'error'
 
-      - name: Prepare debian packages for storage on share
-        continue-on-error: true
-        run: |
-          pushd ${{ env.BUILD_DIR }}
-          mkdir deb && mv *.deb deb/
-          popd
-
-      - name: Store artifacts to a shared drive
-        id: store_artifacts
-        if: ${{ inputs.store_artifacts && inputs.event-name != 'schedule' && inputs.event-name != 'merge_group' && steps.pack_openvino_package.outcome == 'success' && steps.pack_openvino_developer_package.outcome == 'success' && steps.pack_openvino_tests.outcome == 'success' }}
-        uses: ./openvino/.github/actions/store_artifacts
-        with:
-          artifacts: |
-            ${{ env.BUILD_DIR }}/openvino_package.tar.gz
-            ${{ env.BUILD_DIR }}/developer_package.tar.gz
-            ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
-            ${{ env.BUILD_DIR }}/deb
-            ${{ env.MANIFEST_PATH }}
-            ${{ env.STORE_JS == 'true' && format('{0}/openvino_js_package.tar.gz', env.BUILD_DIR) || '' }}
-            ${{ env.STORE_JS == 'true' && format('{0}/openvino_node_npm_package.tar.gz', env.BUILD_DIR) || '' }}
-            ${{ env.STORE_WHEELS == 'true' && format('{0}/wheels', env.INSTALL_WHEELS_DIR) || '' }}
-          storage_dir: ${{ env.PRODUCT_TYPE }}
-          storage_root: ${{ env.ARTIFACTS_SHARE }}
-          branch_name: ${{ inputs.target-branch }}
-        env:
-          STORE_WHEELS: ${{ inputs.arch != 'arm' }}
-          STORE_JS: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}

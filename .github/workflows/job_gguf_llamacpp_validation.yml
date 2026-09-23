@@ -30,7 +30,7 @@ env:
   LLAMA_CPP_REPO: mvafin/llama.cpp
   LLAMA_CPP_REF: 16fb7d9d326a3fe69a331ce5fbe7a679a1a281bb
   INSTALL_DIR: ${{ github.workspace }}/install
-  SCCACHE_DIR: ${{ github.workspace }}/.sccache
+  SCCACHE_DIR: ${{ github.workspace }}/ababushk/.sccache
 
 jobs:
   GGUF_LlamaCpp_Validation:
@@ -64,10 +64,11 @@ jobs:
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ${{ env.SCCACHE_DIR }}
-          key: gguf-llamacpp-sccache-${{ runner.os }}-${{ github.base_ref || github.ref_name }}-${{ github.sha }}
+          key: ababushk/gguf-llamacpp-sccache-${{ runner.os }}-${{ github.base_ref || github.ref_name }}-${{ github.sha }}
           restore-keys: |
-            gguf-llamacpp-sccache-${{ runner.os }}-${{ github.base_ref || github.ref_name }}-
-            gguf-llamacpp-sccache-${{ runner.os }}-
+            ababushk/gguf-llamacpp-sccache-${{ runner.os }}-${{ github.base_ref || github.ref_name }}-
+            ababushk/gguf-llamacpp-sccache-${{ runner.os }}-
+          save-always: true
 
       - name: Checkout llama.cpp
         uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
@@ -90,7 +91,12 @@ jobs:
         run: cmake --build llama.cpp/build --parallel ${CMAKE_BUILD_PARALLEL_LEVEL}
 
       - name: Show sccache stats
+        if: always()
         run: sccache --show-stats
+
+      - name: Stop sccache server
+        if: always()
+        run: sccache --stop-server || true
 
       - name: Run llama.cpp tests against the ggml-openvino backend
         env:
