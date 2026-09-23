@@ -882,9 +882,6 @@ void PluginPropertyManager::registerProperties() {
         OPENVINO_THROW("Property is read-only");
     };
 
-    register_property(ov::execution_devices.name(), true, ov::PropertyMutability::RO, alwaysSupported, [](const ov::AnyMap&) {
-        return std::vector<std::string>{"NPU"};
-    }, readOnlySetter);
     register_property(ov::device::capabilities.name(), true, ov::PropertyMutability::RO, alwaysSupported, [](const ov::AnyMap&) {
         return std::vector<std::string>{ov::device::capability::FP16, ov::device::capability::INT8, ov::device::capability::EXPORT_IMPORT};
     }, readOnlySetter);
