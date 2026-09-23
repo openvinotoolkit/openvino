@@ -583,4 +583,38 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_input_4d,
                                             ::testing::Values(0),
                                             ::testing::Values(1.0f)),
                          MatmulWeightsDecompression::get_test_case_name);
+
+// Compressed FC (Qwen3-8B q_proj prefill shape) followed by a Transpose, which runs as a separate OCL kernel
+// reading the oneDNN gemm output on the same in-order queue without a host wait. With gemm C stored as L1WB_L3WB
+// on Xe2 (oneDNN 9d4b74c62d) a tail of the output channels is still in the non-coherent L1 and the Transpose reads
+// stale data. Needs a static shape and a non-oneDNN consumer: a oneDNN consumer or host read-back does not expose it.
+class MatmulWeightsDecompressionWithConsumer : public MatmulWeightsDecompression {
+protected:
+    void SetUp() override {
+        MatmulWeightsDecompression::SetUp();
+        const auto mat_mul = function->get_results()[0]->input_value(0);
+        const auto transpose_order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1});
+        const auto transpose = std::make_shared<ov::op::v1::Transpose>(mat_mul, transpose_order);
+        function = std::make_shared<ov::Model>(ov::OutputVector{transpose}, function->get_parameters(), "MatmulWeightsDecompressionWithConsumer");
+    }
+};
+
+TEST_P(MatmulWeightsDecompressionWithConsumer, Inference) {
+    run();
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_gemm_output_coherency,
+                         MatmulWeightsDecompressionWithConsumer,
+                         ::testing::Combine(::testing::Values(ShapeParams{{{}, {{1, 15, 4096}}}, {4096, 6144}, 128}),
+                                            ::testing::ValuesIn({ov::element::u4, ov::element::u3}),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(ov::element::f16),
+                                            ::testing::Values(true),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(true),
+                                            ::testing::Values(false),
+                                            ::testing::Values(false),
+                                            ::testing::Values(0),
+                                            ::testing::Values(1.0f)),
+                         MatmulWeightsDecompression::get_test_case_name);
 } // namespace
