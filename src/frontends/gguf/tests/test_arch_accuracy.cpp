@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 
@@ -25,7 +26,62 @@
 namespace {
 class GGUFArchitectureAccuracy : public ::testing::TestWithParam<const char*> {};
 
-TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaConvertToPagedAttention) {
+// Check batching and beam reordering against independent stateful requests. The
+// same synthetic checkpoints are qualified against llama.cpp below.
+void check_batched_decode(const std::shared_ptr<ov::Model>& model) {
+    ov::Core core;
+    auto compiled = core.compile_model(model,
+                                       "CPU",
+                                       ov::hint::inference_precision(ov::element::f32),
+                                       ov::num_streams(1),
+                                       ov::inference_num_threads(4),
+                                       ov::hint::dynamic_quantization_group_size(0),
+                                       ov::hint::kv_cache_precision(ov::element::f16));
+    auto first = compiled.create_infer_request();
+    auto second = compiled.create_infer_request();
+    auto batch = compiled.create_infer_request();
+    const auto infer = [](ov::InferRequest& request,
+                          size_t batch_size,
+                          const std::vector<int64_t>& ids,
+                          const std::vector<int64_t>& mask,
+                          const std::vector<int64_t>& positions,
+                          const std::vector<int32_t>& beams) {
+        const auto set_tensor =
+            [&](const char* name, const ov::element::Type& type, const ov::Shape& shape, const auto& values) {
+                ov::Tensor tensor(type, shape);
+                std::memcpy(tensor.data(), values.data(), tensor.get_byte_size());
+                request.set_tensor(name, tensor);
+            };
+        set_tensor("input_ids", ov::element::i64, {batch_size, ids.size() / batch_size}, ids);
+        set_tensor("attention_mask", ov::element::i64, {batch_size, mask.size() / batch_size}, mask);
+        set_tensor("position_ids", ov::element::i64, {batch_size, positions.size() / batch_size}, positions);
+        set_tensor("beam_idx", ov::element::i32, {batch_size}, beams);
+        request.infer();
+        auto output = request.get_tensor("logits");
+        return std::vector<float>(output.data<const float>(), output.data<const float>() + output.get_size());
+    };
+    const auto compare =
+        [](const std::vector<float>& actual, const std::vector<float>& first, const std::vector<float>& second) {
+            auto expected = first;
+            expected.insert(expected.end(), second.begin(), second.end());
+            ASSERT_EQ(actual.size(), expected.size());
+            double error = 0, norm = 0;
+            for (size_t i = 0; i < actual.size(); ++i) {
+                ASSERT_TRUE(std::isfinite(actual[i]));
+                error += std::pow(actual[i] - expected[i], 2);
+                norm += std::pow(expected[i], 2);
+            }
+            EXPECT_LT(error / std::max(norm, 1e-12), 1e-5);
+        };
+    auto a = infer(first, 1, {1, 2, 3}, {1, 1, 1}, {0, 1, 2}, {0});
+    auto b = infer(second, 1, {2, 3}, {1, 1}, {0, 1}, {0});
+    compare(infer(batch, 2, {1, 2, 3, 0, 2, 3}, {1, 1, 1, 0, 1, 1}, {0, 1, 2, 0, 0, 1}, {0, 0}), a, b);
+    a = infer(first, 1, {4}, {1, 1, 1, 1}, {3}, {0});
+    b = infer(second, 1, {5}, {1, 1, 1}, {2}, {0});
+    compare(infer(batch, 2, {5, 4}, {0, 1, 1, 1, 1, 1, 1, 1}, {2, 3}, {1, 0}), b, a);
+}
+
+TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttention) {
     for (const auto* family : {"qwen35", "qwen35moe", "qwen35moe-fused", "gemma4-mqa", "gemma4-moe"}) {
         SCOPED_TRACE(family);
         auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
@@ -48,6 +104,7 @@ TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaConvertToPagedAttention) {
         frontend.add_extension(
             std::make_shared<ov::frontend::DecoderTransformationExtension>(ov::frontend::gguf::pass::AdaptToGenAI()));
         auto model = frontend.convert(frontend.load(temporary.path.string()));
+        check_batched_decode(model);
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::SDPAToPagedAttention>();
         ASSERT_NO_THROW(manager.run_passes(model));

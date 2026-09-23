@@ -449,8 +449,8 @@ GGUFLoad get_gguf_data(const std::string& file) {
     }
 
     const auto architecture = metadata.find("general.architecture");
-    const auto* architecture_name = architecture == metadata.end() ? nullptr :
-        std::get_if<std::string>(&architecture->second);
+    const auto* architecture_name =
+        architecture == metadata.end() ? nullptr : std::get_if<std::string>(&architecture->second);
     const bool mmproj = architecture_name && *architecture_name == "clip";
     const auto zero_point_type = [mmproj](const std::string& name, GgufTensorType type) {
         // Encoder accuracy is sensitive to a second Q4_K quantization. Preserve its

@@ -19,6 +19,7 @@
 #include "openvino/op/assign.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/multiply.hpp"
@@ -108,6 +109,21 @@ PagedCausalConv1DFusion::PagedCausalConv1DFusion(ov::pass::paged_attention::PaPa
         var_ids_to_remove.insert(cache_rv->get_variable_id());
 
         auto token_input = pm.at(p_token_input).get_node_shared_ptr();
+        // Packed PA sequences contain no padding. Drop a mask of the current
+        // attention-mask slice before flattening the convolution input.
+        if (const auto multiply = ov::as_type_ptr<v1::Multiply>(token_input)) {
+            const auto unsqueeze = ov::as_type_ptr<v0::Unsqueeze>(multiply->get_input_node_shared_ptr(1));
+            const auto convert =
+                unsqueeze ? ov::as_type_ptr<v0::Convert>(unsqueeze->get_input_node_shared_ptr(0)) : nullptr;
+            const auto slice = convert ? ov::as_type_ptr<v8::Slice>(convert->get_input_node_shared_ptr(0)) : nullptr;
+            const auto mask = slice ? ov::as_type_ptr<v0::Parameter>(slice->get_input_node_shared_ptr(0)) : nullptr;
+            const auto axis =
+                unsqueeze ? ov::as_type_ptr<v0::Constant>(unsqueeze->get_input_node_shared_ptr(1)) : nullptr;
+            if (mask && mask->output(0).get_names().count("attention_mask") && axis &&
+                axis->cast_vector<int64_t>() == std::vector<int64_t>{1}) {
+                token_input = multiply->get_input_node_shared_ptr(0);
+            }
+        }
         const auto past_state = pm.count(p_past_via_gather) ? pm.at(p_past_via_gather).get_node_shared_ptr() : cache_rv;
 
         const auto& weight_shape = weight_node->get_output_shape(0);
