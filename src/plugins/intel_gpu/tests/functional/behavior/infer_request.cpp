@@ -306,7 +306,11 @@ static bool matches_relu_of_test_input(const ov::Tensor& tensor) {
 }
 
 // Tracked-memory growth of a non-aliased (zero-copy) run of the f32 MatMul model: the baseline for alias tests.
-static int64_t zero_copy_matmul_growth(size_t k, const ov::Shape& shape, bool remote_input, int iterations) {
+static int64_t zero_copy_matmul_growth(size_t k,
+                                       const ov::Shape& shape,
+                                       bool remote_input,
+                                       int iterations,
+                                       bool remote_output = false) {
     auto core = ov::Core();
     std::vector<float> weights_data;
     auto compiled_model = core.compile_model(makeDynamicMatMulModel(k, weights_data),
@@ -323,7 +327,11 @@ static int64_t zero_copy_matmul_growth(size_t k, const ov::Shape& shape, bool re
     } else {
         request.set_input_tensor(ov::Tensor(ov::element::f32, shape, input_allocation.get()));
     }
-    request.set_output_tensor(ov::Tensor(ov::element::f32, shape, output_allocation.get()));
+    if (remote_output) {
+        request.set_output_tensor(output_allocation);
+    } else {
+        request.set_output_tensor(ov::Tensor(ov::element::f32, shape, output_allocation.get()));
+    }
 
     const int64_t before = gpu_mem_in_use(core);
     for (int iter = 0; iter < iterations; ++iter) {
@@ -702,7 +710,7 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRemoteOutputAliasIsSafe) {
         }
     }
     expect_extra_output_buffer(gpu_mem_in_use(core) - before,
-                               zero_copy_matmul_growth(K, shape, true, kIterations),
+                               zero_copy_matmul_growth(K, shape, true, kIterations, true),
                                f32_bytes(shape));
 }
 
