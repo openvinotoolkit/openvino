@@ -51,8 +51,9 @@ public:
     static bool supports_head_sizes(gpu_arch arch, size_t k_head_size, size_t v_head_size);
 
     // Whether sdpa_ocl.cl can be compiled for these layouts. Q/output are f16 or bf16 (16-bit DPAS);
-    // uncompressed K/V match Q, or K/V are i8/u4 compressed cache. An added stage is COMPILED even
-    // when it is never dispatched, so other types must be rejected here.
+    // uncompressed K/V match Q, or K/V are i8/u4 compressed cache. Xe2 or later only, because the
+    // kernel is built on the Xe 2D block IO intrinsics (mirrors sdpa_ocl_decode's gate). An added
+    // stage is COMPILED even when it is never dispatched, so other types must be rejected here.
     static bool supported(const kernel_impl_params& params);
 
 private:
