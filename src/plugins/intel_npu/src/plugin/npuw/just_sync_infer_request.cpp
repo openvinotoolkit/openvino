@@ -629,10 +629,33 @@ void ov::npuw::JustInferRequest::connect_subrequests() {
         } else if (subm[subm_idx_from].replaced_by && !subm[subm_idx_to].replaced_by) {
             // A function call to normal subgraph connection:
             // - Take a tensor from the storage & assign it to the reader
+            // - If the tensor is not found in the storage, allocate it here & then assign it to the reader
             const auto& iport = m_subrequests[subm_idx_to]->get_compiled_model()->inputs()[port_idx_to];
-            const auto& tensor = m_funcall_result.at(LinkFrom{subm_idx_from, port_idx_from});
+            const auto from = LinkFrom{subm_idx_from, port_idx_from};
+            TensorPtr tensor;
+
+            if (m_funcall_result.count(from)) {
+                tensor = m_funcall_result.at(from);
+            } else {
+                LOG_DEBUG("Tensor for Subgraph[" << subm_idx_from << "]/" << port_idx_from << " not found in the storage, allocating now ...");
+                for (std::size_t out_idx = 0; out_idx < m_npuw_model->outputs().size(); ++out_idx) {
+                    if (m_npuw_model->m_outputs_to_submodels_outputs.at(out_idx) == from) {
+                        tensor = get_tensor(m_npuw_model->outputs()[out_idx]);
+                        break;
+                    }
+                }
+                
+                if (tensor) {
+                    m_funcall_result.emplace(from, tensor);
+                } else {
+                    // FIXME: Throw exception?
+                    LOG_ERROR("Failed to allocate tensor for Subgraph[" << subm_idx_from << "]/" << port_idx_from);
+                }
+            }
+
             subreqs[subm_idx_to]->set_tensor(iport, tensor);
             LOG_DEBUG("Set Subgraph[" << subm_idx_to << "]/" << iport << " to internal tensor");
+            continue;
         } else if (!subm[subm_idx_from].replaced_by && subm[subm_idx_to].replaced_by) {
             LOG_DEBUG("Skip: reader is a function call");
             continue;
