@@ -21,6 +21,7 @@ import pathlib
 import pytest
 from common.samples_common_test_class import get_devices, get_cmd_output, prepend
 from openvino import opset8 as opset
+from openvino.tools.benchmark.utils.utils import parse_devices
 import openvino as ov
 
 def get_executable(sample_language):
@@ -518,3 +519,6 @@ def test_benchmark_app_sub_ms_console_output_only(sample_language, json_stats, c
         report = read_csv_report(report_folder / 'benchmark_report.csv')
 
     assert get_avg_latency_from_report(report) < 1.0
+
+def test_parse_devices_with_empty_entry():
+    assert parse_devices("MULTI:CPU,,GPU") == ["MULTI", "CPU", "GPU"]
