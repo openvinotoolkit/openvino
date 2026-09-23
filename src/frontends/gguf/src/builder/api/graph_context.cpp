@@ -12,10 +12,9 @@
 #include "builder/api/graph_context_impl.hpp"
 #include "builder/blocks/ffn.hpp"
 #include "builder/blocks/gated_delta_net.hpp"
+#include "openvino/op/constant.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 using ov::element::f32;
 using ov::element::i32;
@@ -119,6 +118,17 @@ GgufValue GgufGraphContext::add_input(const std::string& name, ov::element::Type
     return GgufValue(name, e.value(name));
 }
 
+GgufValue GgufGraphContext::add_constant(const std::string& name, const ov::Tensor& value) {
+    m_impl->check_open();
+    auto& emitter = m_impl->emitter;
+    OPENVINO_ASSERT(
+        !emitter.graph()->values->count(name) && !emitter.has_weight(name) && !emitter.has_model_input(name),
+        "[GGUF] constant name is already used: ",
+        name);
+    emitter.add_extra_input_node(name, std::make_shared<ov::op::v0::Constant>(value));
+    return GgufValue(name, emitter.value(name));
+}
+
 GgufValue GgufGraphContext::build_inp_embd(const GgufValue& tok_embd) {
     OPENVINO_ASSERT(tok_embd, "[GGUF] build_inp_embd: the token embedding weight is missing");
     auto tokens = add_input("inp_tokens", i32, ov::PartialShape({1, 1, 1, D}));
@@ -188,6 +198,12 @@ void GgufGraphContext::set_output(const GgufValue& logits) {
     m_impl->emitter.graph()->model_output_names.push_back(m_impl->value_name(logits));
 }
 
+void GgufGraphContext::set_primary_output(const GgufValue& value) {
+    m_impl->check_open();
+    auto& outputs = m_impl->emitter.graph()->model_output_names;
+    outputs.insert(outputs.begin(), m_impl->value_name(value));
+}
+
 void GgufGraphContext::set_sliding_window(int64_t tokens) {
     m_impl->check_open();
     OPENVINO_ASSERT(tokens > 0 && tokens <= std::numeric_limits<int>::max(),
@@ -238,6 +254,4 @@ std::shared_ptr<GgufGraph> GgufGraphContext::finish() {
     return graph;
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

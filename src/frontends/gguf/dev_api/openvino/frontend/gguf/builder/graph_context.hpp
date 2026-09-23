@@ -17,9 +17,7 @@
 #include "openvino/frontend/gguf/decoder.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 // Graph operations and shared decoder blocks. Operands use GGML order; shapes use OpenVINO order.
 class GGUF_FRONTEND_API GgufGraphContext {
@@ -52,6 +50,7 @@ public:
     // The SWA mask is included when requested here or by configure_decoder.
     void build_attn_inp_kv(bool swa = false);
     GgufValue add_input(const std::string& name, ov::element::Type type, const ov::PartialShape& shape);
+    GgufValue add_constant(const std::string& name, const ov::Tensor& value);
 
     // Invoke a registered converter; its OpenVINO outputs supply shape/type inference.
     GgufValue node(const std::string& op_type,
@@ -71,6 +70,8 @@ public:
 
     // Outputs and state
     void set_output(const GgufValue& logits);
+    // Put the data output before auxiliary cache outputs registered by decoder blocks.
+    void set_primary_output(const GgufValue& value);
     // Record the sliding window for normalization passes.
     void set_sliding_window(int64_t tokens);
     // Registers an overwritten state, automatically marking the update as a model output.
@@ -84,6 +85,4 @@ private:
     std::unique_ptr<Impl> m_impl;
 };
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

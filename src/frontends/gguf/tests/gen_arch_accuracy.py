@@ -19,6 +19,8 @@ import gguf
 import numpy as np
 
 CASES = {
+    "nemotron_h": {},
+    "mamba2": {}, "mamba2-tied": {"architecture": "mamba2", "tied": True},
     "llama": {}, "qwen2": {"bias": True}, "qwen3": {"qk": True},
     "phi3": {"fused": True, "fused_ffn": True}, "minicpm": {},
     "olmoe": {"moe": True, "full_qk": True},
@@ -42,8 +44,70 @@ CASES = {
 }
 
 
+def write_mamba2_model(path, opts, arch="mamba2"):
+    w = gguf.GGUFWriter(path, arch)
+    hybrid = arch == "nemotron_h"
+    d, inner, heads, groups, state, kernel, vocab = 32, 64, 4, 2, 8, 4, 32
+    w.add_context_length(128)
+    w.add_embedding_length(d)
+    w.add_block_count(4 if hybrid else 2)
+    w.add_head_count(4 if hybrid else 0)
+    if hybrid:
+        w.add_head_count_kv([0, 2, 0, 0])
+        w.add_feed_forward_length([0, 0, 48, 0])
+        w.add_key_length(8)
+        w.add_value_length(8)
+    w.add_layer_norm_rms_eps(1e-5)
+    w.add_vocab_size(vocab)
+    w.add_tokenizer_model("none")
+    for key, value in {"inner_size": inner, "time_step_rank": heads, "group_count": groups,
+                       "state_size": state, "conv_kernel": kernel}.items():
+        w.add_uint32(arch + ".ssm." + key, value)
+    rng = np.random.default_rng(20260915)
+
+    def tensor(name, shape, norm=False):
+        values = rng.uniform(-1, 1, shape).astype(np.float32)
+        w.add_tensor(name, 1 + values * .3 if norm else values * .2)
+
+    tensor("token_embd.weight", (vocab, d))
+    tensor("output_norm.weight", (d,), True)
+    if not opts.get("tied"):
+        tensor("output.weight", (vocab, d))
+    conv_dim = inner + 2 * groups * state
+    for layer in range(4 if hybrid else 2):
+        p = f"blk.{layer}."
+        tensor(p + "attn_norm.weight", (d,), True)
+        if hybrid and layer == 1:
+            for name, width in (("q", 32), ("k", 16), ("v", 16)):
+                tensor(p + f"attn_{name}.weight", (width, d))
+                tensor(p + f"attn_{name}.bias", (width,))
+            tensor(p + "attn_output.weight", (d, 32))
+            tensor(p + "attn_output.bias", (d,))
+            continue
+        if hybrid and layer == 2:
+            tensor(p + "ffn_up.weight", (48, d))
+            tensor(p + "ffn_up.bias", (48,))
+            tensor(p + "ffn_down.weight", (d, 48))
+            tensor(p + "ffn_down.bias", (d,))
+            continue
+        tensor(p + "ssm_in.weight", (inner + conv_dim + heads, d))
+        tensor(p + "ssm_conv1d.weight", (conv_dim, kernel))
+        tensor(p + "ssm_conv1d.bias", (conv_dim,))
+        tensor(p + "ssm_dt.bias", (heads,))
+        w.add_tensor(p + "ssm_a", -rng.uniform(.1, 1, (heads, 1)).astype(np.float32))
+        tensor(p + "ssm_d", (heads, 1))
+        tensor(p + "ssm_norm.weight", (groups, inner // groups), True)
+        tensor(p + "ssm_out.weight", (d, inner))
+    w.write_header_to_file()
+    w.write_kv_data_to_file()
+    w.write_tensors_to_file()
+    w.close()
+
+
 def write_model(path, arch, opts):
     arch = opts.get("architecture", arch)
+    if arch in ("mamba2", "nemotron_h"):
+        return write_mamba2_model(path, opts, arch)
     w = gguf.GGUFWriter(path, arch)
     d, heads, head, ff, vocab = opts.get("embedding", 32), 4, 8, 48, 32
     kv = 1 if opts.get("mqa") else heads if opts.get("full_qk") or arch == "deepseek2-ocr" else 2

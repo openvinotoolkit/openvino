@@ -13,10 +13,7 @@
 #include "openvino/op/multiply.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 // GGML_OP_TRI zeroes out elements outside a triangular region of a square matrix. The region is
 // selected by the decoder-provided "tri_type" attribute (ggml_tri_type, mapped to a plain int):
@@ -73,7 +70,4 @@ OutputVector translate_tri(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op
