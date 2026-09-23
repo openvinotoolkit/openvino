@@ -1471,8 +1471,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         // asserts on one, so the rank is established before the shape is indexed. A mask whose
         // rank is not known here takes the general path, as it did before this kernel existed.
         const auto& msk_shape = params.input_layouts[3].get_partial_shape();
-        const bool per_key = msk_shape.rank().is_static() && msk_shape.size() == 4 && msk_shape[2].is_static() &&
-                             msk_shape[2].get_length() == 1 && msk_shape[3].is_static() && msk_shape[3].get_length() > 1;
+        const bool per_key = msk_shape.rank().is_static() && msk_shape.size() == 4 && msk_shape[2].is_static() && msk_shape[2].get_length() == 1 &&
+                             msk_shape[3].is_static() && msk_shape[3].get_length() > 1;
         jit.make("MASK_PER_KEY", per_key ? 1 : 0);
     }
 
