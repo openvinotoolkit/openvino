@@ -20,8 +20,12 @@ of unrelated legacy code.
    from the table below.
 3. Check for functional regressions first, then input safety, performance,
    compatibility, test coverage, and maintainability.
-4. Verify findings against repository behavior and existing tests. Do not infer
-   undocumented API semantics.
+4. Before reporting a finding, confirm that the claimed problem exists in the
+   source code. Distinguish source content from diff markers, line numbers,
+   and other review annotations. Verify the failure against the configured
+   behavior or documented requirements; do not assume additional triggers,
+   unsupported usage, or stricter rules. If the available evidence does not
+   establish a defect, omit the finding.
 
 ## Conditional review modes
 
