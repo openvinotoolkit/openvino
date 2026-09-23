@@ -109,7 +109,7 @@ jobs:
       # Every test step below redirects pytest stdout/stderr into a per-suite log
       # so that parse_npu_compiler_log.py can extract per-model compilation memory
       # usage and compile time into the shared per-platform JSON file, keyed as
-      # platform -> framework -> model -> metrics.
+      # platform -> framework -> test_type -> model -> metrics.
       # NOTE (cmd.exe): the pytest exit code must be captured on its own line
       # immediately after pytest - both `type` and `python3` reset %ERRORLEVEL%.
       # `type` prints the captured log back to the Actions console (the redirect
@@ -133,6 +133,7 @@ jobs:
           python3 openvino\.github\scripts\parse_npu_compiler_log.py ^
             --platform %NPU_PLATFORM% ^
             --framework tensorflow ^
+            --test-type convert_model ^
             --input ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_tf_convert_model_%NPU_PLATFORM%.log ^
             --output ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_%NPU_PLATFORM%.json
           exit /b %PYTEST_EXIT_CODE%
@@ -150,6 +151,7 @@ jobs:
           python3 openvino\.github\scripts\parse_npu_compiler_log.py ^
             --platform %NPU_PLATFORM% ^
             --framework tensorflow ^
+            --test-type read_model ^
             --input ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_tf_read_model_%NPU_PLATFORM%.log ^
             --output ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_%NPU_PLATFORM%.json
           exit /b %PYTEST_EXIT_CODE%
@@ -172,6 +174,7 @@ jobs:
           python3 openvino\.github\scripts\parse_npu_compiler_log.py ^
             --platform %NPU_PLATFORM% ^
             --framework jax ^
+            --test-type jax ^
             --input ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_jax_%NPU_PLATFORM%.log ^
             --output ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_%NPU_PLATFORM%.json
           exit /b %PYTEST_EXIT_CODE%
@@ -207,6 +210,7 @@ jobs:
           python3 openvino\.github\scripts\parse_npu_compiler_log.py ^
             --platform %NPU_PLATFORM% ^
             --framework pytorch ^
+            --test-type pt_groupA ^
             --input ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_groupA_%NPU_PLATFORM%.log ^
             --output ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_%NPU_PLATFORM%.json
           exit /b %PYTEST_EXIT_CODE%
@@ -240,6 +244,7 @@ jobs:
           python3 openvino\.github\scripts\parse_npu_compiler_log.py ^
             --platform %NPU_PLATFORM% ^
             --framework pytorch ^
+            --test-type pt_groupB ^
             --input ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_groupB_%NPU_PLATFORM%.log ^
             --output ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_%NPU_PLATFORM%.json
           exit /b %PYTEST_EXIT_CODE%
@@ -267,6 +272,7 @@ jobs:
           python3 openvino\.github\scripts\parse_npu_compiler_log.py ^
             --platform %NPU_PLATFORM% ^
             --framework pytorch ^
+            --test-type pt_groupC ^
             --input ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_groupC_%NPU_PLATFORM%.log ^
             --output ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_%NPU_PLATFORM%.json
           exit /b %PYTEST_EXIT_CODE%
@@ -295,6 +301,7 @@ jobs:
           python3 openvino\.github\scripts\parse_npu_compiler_log.py ^
             --platform %NPU_PLATFORM% ^
             --framework pytorch ^
+            --test-type pt_groupD ^
             --input ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_pt_groupD_%NPU_PLATFORM%.log ^
             --output ${{ env.INSTALL_TEST_DIR }}\TEST-npu_compiler_%NPU_PLATFORM%.json
           exit /b %PYTEST_EXIT_CODE%
