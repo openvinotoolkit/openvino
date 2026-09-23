@@ -118,13 +118,34 @@ const char* brgemm_kernel_ir::unsupported_reason(const brgemm_desc_t& brg) {
     // Tails last: a full-width N keeps the first kernel to unmasked
     // stores. The ld tail then reuses the active-length machinery the DSL
     // already has, which is the cheapest of the widenings.
-    if (brg.ldb_tail != 0 || brg.bdb_tail != 0 || brg.rdb_tail != 0) {
-        return "tails are not supported";
+    // Named separately: they are three different pieces of work, and the
+    // census under OV_JIT_IR_BRGEMM=2 is what decides which to do first.
+    if (brg.bdb_tail != 0) {
+        return "bd (M) tail is not supported";
+    }
+    if (brg.ldb_tail != 0) {
+        return "ld (N) tail is not supported";
+    }
+    if (brg.rdb_tail != 0) {
+        return "rd (K) tail is not supported";
     }
 
     // The generator assumes one accumulator register per 16 columns.
     if (brg.ld_block != 16) {
         return "only a 16-column ld_block";
+    }
+
+    // N is covered by a single group of ld_block2 column blocks. oneDNN
+    // instead loops (ldb_loop) over ldb2 groups plus an ldb2_tail group,
+    // so a descriptor with ldb > ld_block2 — N=80 gives ldb=5 against
+    // ld_block2=4 with no ldb_tail — would have this generator compute
+    // the first ld_block2 groups and silently leave the rest of C
+    // untouched.
+    //
+    // @todo claude: loop over the N groups, which is also what the ld
+    // tail will need.
+    if (brg.ldb != brg.ld_block2) {
+        return "N spans several ld_block2 groups";
     }
 
     if (brg.bdb > max_unrolled_m_blocks) {
