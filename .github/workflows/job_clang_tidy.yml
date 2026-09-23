@@ -78,7 +78,7 @@ jobs:
       GITHUB_WORKSPACE: '/__w/openvino/openvino'
       OPENVINO_REPO: /__w/openvino/openvino/openvino
       BUILD_DIR: /__w/openvino/openvino/openvino_build
-      SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.sccache-prefix }}
+      SCCACHE_AZURE_KEY_PREFIX: ababushk/${{ inputs.sccache-prefix }}
       # Hard-coded at workflow call site; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
       # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
       CMAKE_BUILD_PARALLEL_LEVEL: ${{ inputs.cmake-build-parallel-level }}
@@ -140,5 +140,9 @@ jobs:
           if-no-files-found: 'ignore'
 
       - name: Show sccache stats
-        if: ${{ inputs.show-sccache-stats }}
+        if: always()
         run: ${SCCACHE_PATH} --show-stats
+
+      - name: Stop sccache server
+        if: always()
+        run: ${SCCACHE_PATH} --stop-server || true

@@ -187,7 +187,7 @@ jobs:
       OPENVINO_CONTRIB_REPO: /__w/openvino/openvino/openvino_contrib
       NVIDIA_BUILD_DIR: /__w/openvino/openvino/nvidia_plugin_build
       DEBIAN_FRONTEND: 'noninteractive'
-      SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_Release
+      SCCACHE_AZURE_KEY_PREFIX: ababushk/ubuntu22_x86_64_Release
       # Hard-coded manually; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
       # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
       CMAKE_BUILD_PARALLEL_LEVEL: '15'
@@ -244,7 +244,12 @@ jobs:
           cmake --build ${NVIDIA_BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet ov_nvidia_func_tests ov_nvidia_unit_tests
 
       - name: Show ccache stats
+        if: always()
         run: ${SCCACHE_PATH} --show-stats
+
+      - name: Stop sccache server
+        if: always()
+        run: ${SCCACHE_PATH} --stop-server || true
 
   Overall_Status:
     name: ci/gha_overall_status

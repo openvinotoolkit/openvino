@@ -134,7 +134,7 @@ jobs:
       TBB_BUILD: "/__w/openvino/openvino/build/onetbb-build"
       TBB_INSTALL: "/__w/openvino/openvino/build/onetbb-install"
       TBB_CMAKE_DIR: "/__w/openvino/openvino/build/onetbb-install/lib/cmake/TBB"
-      SCCACHE_AZURE_KEY_PREFIX: android_${{ matrix.arch }}
+      SCCACHE_AZURE_KEY_PREFIX: ababushk/android_${{ matrix.arch }}
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
       PRODUCT_TYPE: public_android_${{ matrix.arch }}_release
@@ -263,7 +263,12 @@ jobs:
         run: cmake --build ${BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} -- --quiet
 
       - name: Show ccache stats
+        if: always()
         run: ${SCCACHE_PATH} --show-stats
+
+      - name: Stop sccache server
+        if: always()
+        run: ${SCCACHE_PATH} --stop-server || true
 
       #
       # Upload build logs and artifacts

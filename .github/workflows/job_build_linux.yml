@@ -139,7 +139,7 @@ jobs:
       INSTALL_WHEELS_DIR: ${{ github.workspace }}/openvino/install/wheels
       DEVELOPER_PACKAGE_DIR: ${{ github.workspace }}/openvino/developer_package_install
       BUILD_DIR: ${{ github.workspace }}/openvino/openvino_build
-      SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}_Release
+      SCCACHE_AZURE_KEY_PREFIX: ababushk/${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}_Release
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
       PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}_release
@@ -259,7 +259,12 @@ jobs:
         run: cmake --build ${BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
       - name: Show sccache stats
+        if: always()
         run: ${SCCACHE_PATH} --show-stats
+
+      - name: Stop sccache server
+        if: always()
+        run: ${SCCACHE_PATH} --stop-server || true
 
       - name: Cmake install - OpenVINO
         run: |

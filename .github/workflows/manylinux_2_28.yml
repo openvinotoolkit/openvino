@@ -121,7 +121,7 @@ jobs:
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
       SCCACHE_CACHE_SIZE: 50G
-      SCCACHE_AZURE_KEY_PREFIX: manylinux_2_28
+      SCCACHE_AZURE_KEY_PREFIX: ababushk/manylinux_2_28
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: ${{ github.workspace }}/manifest.yml
       PRODUCT_TYPE: public_manylinux_2_28_x86_64_release
@@ -281,6 +281,14 @@ jobs:
           name: compile_commands_manylinux_2_28
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
+
+      - name: Show sccache stats
+        if: always()
+        run: ${SCCACHE_PATH} --show-stats
+
+      - name: Stop sccache server
+        if: always()
+        run: ${SCCACHE_PATH} --stop-server || true
 
   Overall_Status:
     name: ci/gha_overall_status_manylinux_2_28

@@ -126,7 +126,7 @@ jobs:
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SELECTIVE_BUILD_STAT_DIR: /__w/openvino/openvino/selective_build_stat
       MODELS_PATH: /__w/openvino/openvino/testdata
-      SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_itt_clang_Release_faster_build
+      SCCACHE_AZURE_KEY_PREFIX: ababushk/ubuntu22_x86_64_itt_clang_Release_faster_build
       # Hard-coded manually; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
       # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
       CMAKE_BUILD_PARALLEL_LEVEL: '15'
@@ -194,7 +194,12 @@ jobs:
           cmake --build ${BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
 
       - name: Show sccache stats
+        if: always()
         run: ${SCCACHE_PATH} --show-stats
+
+      - name: Stop sccache server
+        if: always()
+        run: ${SCCACHE_PATH} --stop-server || true
 
       - name: Cmake install - OpenVINO
         run: |
@@ -285,7 +290,7 @@ jobs:
       BUILD_DIR: /__w/openvino/openvino/openvino_build
       SELECTIVE_BUILD_STAT_DIR: /__w/openvino/openvino/selective_build_stat
       MODELS_PATH: /__w/openvino/openvino/testdata
-      SCCACHE_AZURE_KEY_PREFIX: ubuntu22_x86_64_cc_Release
+      SCCACHE_AZURE_KEY_PREFIX: ababushk/ubuntu22_x86_64_cc_Release
       # Hard-coded manually; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
       # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
       CMAKE_BUILD_PARALLEL_LEVEL: '7'
@@ -356,7 +361,12 @@ jobs:
         run: cmake --build ${BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} --target benchmark_app -- --quiet
 
       - name: Show ccache stats
+        if: always()
         run: ${SCCACHE_PATH} --show-stats
+
+      - name: Stop sccache server
+        if: always()
+        run: ${SCCACHE_PATH} --stop-server || true
 
       - name: Upload compile_commands
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
