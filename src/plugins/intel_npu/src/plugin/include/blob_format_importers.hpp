@@ -8,9 +8,9 @@
 #include <string>
 
 #include "blob_source.hpp"
-#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/common/npu.hpp"
+#include "intel_npu/config/config.hpp"
 #include "metadata.hpp"
 #include "openvino/runtime/tensor.hpp"
 
@@ -35,7 +35,7 @@ public:
      * @param logger A logger that should already use the name of the subclass.
      */
     IBlobFormatImporter(const std::shared_ptr<const ov::Model>& original_model,
-                        const FilteredConfig& config,
+                        const Config& config,
                         const Logger& logger);
 
     /**
@@ -67,12 +67,12 @@ public:
      */
     std::shared_ptr<ov::Model> create_dummy_model() const;
 
-    FilteredConfig get_config() const;
+    Config get_config() const;
 
     virtual ~IBlobFormatImporter() = default;
 
 protected:
-    FilteredConfig m_config;
+    Config m_config;
     Logger m_logger;
 
 private:
@@ -134,7 +134,7 @@ namespace blob_format_importer_factory {
 std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
                                             const bool is_raw_blob,
                                             const std::shared_ptr<const ov::Model>& original_model,
-                                            const FilteredConfig& config);
+                                            const Config& config);
 
 }  // namespace blob_format_importer_factory
 
