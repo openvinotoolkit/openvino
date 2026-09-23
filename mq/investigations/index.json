@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 264,
+  "total": 265,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2589,6 +2589,15 @@
       "category": "Flaky Test",
       "signature_hash": "eb0b94c864ee1a85",
       "pr_number": "38052"
+    },
+    {
+      "investigation_id": "2026-09-23-09-21-50-000-35832740280",
+      "run_id": "35832740280",
+      "timestamp": "2026-09-23T09:21:50Z",
+      "title": "LLM accuracy tests fail importing openvino_genai - libopenvino.so.2640 not found",
+      "category": "Dependencies",
+      "signature_hash": "a87e95431b0e8175",
+      "pr_number": "38337"
     }
   ]
 }

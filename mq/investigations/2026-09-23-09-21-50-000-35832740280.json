@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-23-09-21-50-000-35832740280",
+  "timestamp": "2026-09-23T09:21:50Z",
+  "run_id": "35832740280",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35832740280",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "38337",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38337",
+  "author": "asukhobo",
+  "category": "Dependencies",
+  "title": "LLM accuracy tests fail importing openvino_genai - libopenvino.so.2640 not found",
+  "signature": "importerror libopenvino so 2640 cannot open shared object file no such file or directory|Dependencies",
+  "signature_hash": "a87e95431b0e8175",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "LLM accuracy CPU tests / LLM accuracy CPU tests",
+      "conclusion": "failure",
+      "symptom": "pytest collection of tests/llm/accuracy_conformance.py fails importing openvino_genai: libopenvino.so.2640 missing"
+    },
+    {
+      "name": "LLM accuracy iGPU tests / LLM accuracy GPU tests",
+      "conclusion": "failure",
+      "symptom": "Same collection-time ImportError as CPU job, on the GPU test runner"
+    }
+  ],
+  "key_errors": [
+    "tests/llm/accuracy_conformance.py:15: in <module>\n    import whowhatbench as wwb\n/venv/lib/python3.12/site-packages/whowhatbench/__init__.py:7: in <module>\n    from .text2image_evaluator import Text2ImageEvaluator\n/venv/lib/python3.12/site-packages/whowhatbench/text2image_evaluator.py:11: in <module>\n    import openvino_genai\n/venv/lib/python3.12/site-packages/openvino_genai/__init__.py:13: in <module>\n    from .py_openvino_genai import (\nE   ImportError: libopenvino.so.2640: cannot open shared object file: No such file or directory",
+    "!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!\n========================= 1 warning, 1 error in 5.45s =========================="
+  ],
+  "root_cause": "Both LLM accuracy jobs (CPU and iGPU) fail at pytest collection time before any test runs: importing the pip-installed openvino_genai wheel triggers import of its compiled py_openvino_genai extension, which dynamically links against libopenvino.so.2640 (the OpenVINO runtime shared object versioned by build number 2640). That shared object is absent from LD_LIBRARY_PATH/site-packages in this job's environment, so the dynamic loader fails before any LLM/whowhatbench code executes. This is identical in every respect (message, stack, both jobs) to the previously recorded pattern a87e95431b0e8175, now at its 7th occurrence over the last ~2 days across unrelated PRs (build/tooling, layer tests, NPU dependency bumps). The PR under test here (#38337) only touches src/plugins/intel_npu/cmake/download_compiler_libs.cmake (NPU compiler prebuilt-lib version bump) and has no relationship to the openvino_genai/libopenvino packaging path, confirming this is a pre-existing environment/packaging defect (likely a mismatched or missing libopenvino runtime library version pinned in the LLM accuracy test venv/wheel, unrelated to the merged PR) rather than a regression introduced by this PR.",
+  "reproduction_steps": "Not reproducible from a local source checkout alone. In CI: use the same LLM-accuracy job image, pip install the pinned openvino_genai wheel, then run `python3 -m pytest tests/llm/accuracy_conformance.py --collect-only` and observe the ImportError for libopenvino.so.2640. Locally, this typically means the OpenVINO C++ runtime .so installed alongside is a different/older build than the one openvino_genai's binding was built against — check that the LLM accuracy job's install/build step actually produces and exposes libopenvino.so.2640 on LD_LIBRARY_PATH before pip-installing openvino_genai.",
+  "recommended_actions": [
+    "Fix the LLM accuracy CPU/iGPU test job setup so the runtime OpenVINO shared libraries (build 2640) are built/installed and exported on LD_LIBRARY_PATH/RPATH before the openvino_genai wheel is imported (job_llm_accuracy_tests.yml).",
+    "Verify version alignment between the openvino_genai wheel being installed and the OpenVINO runtime package produced by the same CI run; pin or rebuild consistently.",
+    "Given this is the 7th occurrence in ~2 days affecting merge-queue merges of unrelated PRs, escalate to the CI/build-infra owners as a blocking infrastructure defect rather than continuing to investigate per-PR."
+  ],
+  "prevention_strategies": "Add a smoke check step right after installing openvino_genai in the LLM accuracy jobs that runs `python3 -c \"import openvino_genai\"` and fails fast with a clear diagnostic (missing library path) instead of surfacing as an opaque pytest collection error; add a CI health check that verifies the runtime .so version matches the wheel's expected version before running the full test suite.",
+  "historical_context": "Identical normalized signature previously recorded 6 times between 2026-09-21T15:45:59Z and 2026-09-22T18:05:30Z (runs 35611485728, 35717727822, 35719650364, 35742977292, 35751991888, 35755893592; PRs #38190, #38329, #38200, #38341), all unrelated to NPU/compiler changes, confirming a persistent shared packaging/environment defect in the LLM accuracy job rather than a per-PR regression."
+}
