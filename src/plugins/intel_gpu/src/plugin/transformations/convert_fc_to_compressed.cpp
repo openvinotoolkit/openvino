@@ -185,14 +185,19 @@ ConvertFullyConnectedToFullyConnectedCompressed::ConvertFullyConnectedToFullyCon
             fc_input_b = transpose->clone_with_new_inputs({fc_input_b->output(0), transpose_const});
             result_nodes.push_back(fc_input_b);
 
+            // A scale can already be laid out as [N, 1] when the transpose is
+            // before the decompression reshape.  For the regular
+            // transpose-after-decompression form, the scale follows the
+            // decompressed [K, N] tensor and must be transposed together with
+            // the weights, even when its shape is [1, N].
             if (ov::shape_size(scale->output(0).get_shape()) > 1 &&
-                !has_output_features_in_inner_dimension(scale)) {
+                (!has_transpose_before_reshape || !has_output_features_in_inner_dimension(scale))) {
                 fc_input_scale = transpose->clone_with_new_inputs({scale->output(0), transpose_const});
                 result_nodes.push_back(fc_input_scale);
             }
 
             if (with_zero_point && ov::shape_size(optional_zero_point->output(0).get_shape()) > 1 &&
-                !has_output_features_in_inner_dimension(optional_zero_point)) {
+                (!has_transpose_before_reshape || !has_output_features_in_inner_dimension(optional_zero_point))) {
                 fc_input_zp = transpose->clone_with_new_inputs({optional_zero_point->output(0), transpose_const});
                 result_nodes.push_back(fc_input_zp);
             }
