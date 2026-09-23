@@ -2144,7 +2144,8 @@ void Partitioner::attention(const std::string& func_name) {
         f._host_flash_attention = ov::npuw::function::HostFlashAttention::from(
             f._model,
             cfg.get<::intel_npu::NPUW_ATTN_HFA_FUSED>(),
-            mask_kind_consistent && cfg.get<::intel_npu::NPUW_ATTN_HFA_MASK_SKIPPING>());
+            mask_kind_consistent && cfg.get<::intel_npu::NPUW_ATTN_HFA_MASK_SKIPPING>(),
+            cfg.get<::intel_npu::NPUW_ATTN_HFA_ADDITIONAL_TILES>());
         if (f._host_flash_attention) {
             LOG_VERB("Done - HFA (Host Flash Attention)");
             return;

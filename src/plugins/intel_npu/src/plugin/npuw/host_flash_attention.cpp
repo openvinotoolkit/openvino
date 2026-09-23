@@ -9,6 +9,8 @@
 
 #include "host_flash_attention.hpp"
 
+#include <charconv>
+
 #include "intel_npu/ops/flash_attention_tile.hpp"
 #include "logging.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
@@ -24,8 +26,136 @@ namespace function {
 
 namespace opp = ov::pass::pattern;
 
+namespace {
+// Parse a comma-separated list of positive tile sizes.  `option` is only used for
+// diagnostics.
+std::vector<int64_t> parse_tile_size_list(const std::string& value, const char* option) {
+    std::vector<int64_t> sizes;
+    std::size_t begin = 0;
+    while (begin < value.size()) {
+        const auto end = value.find(',', begin);
+        const auto token_end = end == std::string::npos ? value.size() : end;
+        const auto first = value.find_first_not_of(" \t\n\r", begin);
+        const auto last = value.find_last_not_of(" \t\n\r", token_end - 1);
+        OPENVINO_ASSERT(first != std::string::npos && first < token_end && last >= first,
+                        option,
+                        " contains an empty tile size");
+
+        int64_t tile_size = 0;
+        const char* token_begin = value.data() + first;
+        const char* token_finish = value.data() + last + 1;
+        const auto parse_result = std::from_chars(token_begin, token_finish, tile_size);
+        OPENVINO_ASSERT(parse_result.ec == std::errc{} && parse_result.ptr == token_finish && tile_size > 0,
+                        "Invalid HFA tile size in ",
+                        option,
+                        ": '",
+                        std::string(token_begin, token_finish),
+                        "'");
+        sizes.push_back(tile_size);
+        begin = token_end + 1;
+    }
+    OPENVINO_ASSERT(value.empty() || value.back() != ',', option, " contains an empty tile size");
+    return sizes;
+}
+}  // namespace
+
+std::vector<int64_t> make_hfa_tile_sizes(int64_t final_tile_size,
+                                         int64_t context_size,
+                                         const std::string& additional_tiles) {
+    OPENVINO_ASSERT(final_tile_size > 0, "HFA final tile size must be positive");
+    OPENVINO_ASSERT(context_size >= final_tile_size, "HFA context size must fit the final tile");
+
+    std::vector<int64_t> tile_sizes{final_tile_size};
+    for (const auto tile_size : parse_tile_size_list(additional_tiles, "NPUW_ATTN_HFA_ADDITIONAL_TILES")) {
+        OPENVINO_ASSERT(tile_size % final_tile_size == 0,
+                        "HFA additional tile size ",
+                        tile_size,
+                        " must be a multiple of the final tile size ",
+                        final_tile_size);
+
+        if (tile_size <= context_size - final_tile_size) {
+            tile_sizes.push_back(tile_size);
+        }
+    }
+
+    std::sort(tile_sizes.begin(), tile_sizes.end());
+    tile_sizes.erase(std::unique(tile_sizes.begin(), tile_sizes.end()), tile_sizes.end());
+    return tile_sizes;
+}
+
+std::vector<int64_t> make_hfa_final_tile_sizes(int64_t present_size,
+                                               int64_t context_size,
+                                               const std::string& final_tiles) {
+    OPENVINO_ASSERT(present_size > 0, "HFA present tile size must be positive");
+    OPENVINO_ASSERT(context_size >= present_size, "HFA context size must fit the present tile");
+
+    std::vector<int64_t> tile_sizes{present_size};
+    for (const auto tile_size : parse_tile_size_list(final_tiles, "NPUW_ATTN_HFA_FINAL_TILES")) {
+        OPENVINO_ASSERT(tile_size % present_size == 0,
+                        "HFA final tile size ",
+                        tile_size,
+                        " must be a multiple of the present KV size ",
+                        present_size);
+        if (tile_size <= context_size) {
+            tile_sizes.push_back(tile_size);
+        }
+    }
+
+    std::sort(tile_sizes.begin(), tile_sizes.end());
+    tile_sizes.erase(std::unique(tile_sizes.begin(), tile_sizes.end()), tile_sizes.end());
+    return tile_sizes;
+}
+
+int64_t pick_hfa_final_tile_size(int64_t total_kv_length,
+                                 const std::vector<int64_t>& final_tile_sizes,
+                                 const std::vector<int64_t>& regular_tile_sizes) {
+    OPENVINO_ASSERT(!final_tile_sizes.empty() && !regular_tile_sizes.empty(), "HFA tile sizes must not be empty");
+    OPENVINO_ASSERT(std::is_sorted(final_tile_sizes.begin(), final_tile_sizes.end()) &&
+                        std::is_sorted(regular_tile_sizes.begin(), regular_tile_sizes.end()),
+                    "HFA tile sizes must be sorted");
+
+    const int64_t largest_regular = regular_tile_sizes.back();
+    // Prefer the largest final tile that leaves whole largest-regular tiles behind: that is
+    // what removes the short remainder tiles entirely.
+    for (auto it = final_tile_sizes.rbegin(); it != final_tile_sizes.rend(); ++it) {
+        const int64_t rest = total_kv_length - *it;
+        if (rest >= 0 && rest % largest_regular == 0) {
+            return *it;
+        }
+    }
+    // Otherwise fall back to the largest one the greedy regular planner can complete.
+    const int64_t smallest_regular = regular_tile_sizes.front();
+    for (auto it = final_tile_sizes.rbegin(); it != final_tile_sizes.rend(); ++it) {
+        const int64_t rest = total_kv_length - *it;
+        if (rest >= 0 && rest % smallest_regular == 0) {
+            return *it;
+        }
+    }
+    return final_tile_sizes.front();
+}
+
+std::vector<int64_t> plan_hfa_regular_tiles(int64_t past_length, const std::vector<int64_t>& tile_sizes) {
+    OPENVINO_ASSERT(past_length >= 0, "HFA past length must not be negative");
+    OPENVINO_ASSERT(!tile_sizes.empty(), "HFA requires at least the final-sized regular tile");
+    OPENVINO_ASSERT(std::is_sorted(tile_sizes.begin(), tile_sizes.end()), "HFA tile sizes must be sorted");
+    OPENVINO_ASSERT(tile_sizes.front() > 0 && past_length % tile_sizes.front() == 0,
+                    "HFA past length must be divisible by the smallest tile size");
+
+    std::vector<int64_t> plan;
+    while (past_length > 0) {
+        auto tile_it = std::upper_bound(tile_sizes.begin(), tile_sizes.end(), past_length);
+        OPENVINO_ASSERT(tile_it != tile_sizes.begin(), "No HFA tile fits the remaining past length");
+        --tile_it;
+        plan.push_back(*tile_it);
+        past_length -= *tile_it;
+    }
+    return plan;
+}
+
 // Helper struct: Holds all input parameter nodes for HFA tile model creation
 // Contains 7 parameters: past_acc, past_max, past_d, k_tile, v_tile, q, mask_tile
+// A merged final tile adds k_past_tile, v_past_tile and mask_past_tile; k_source/v_source/
+// mask_source then point at the Concat that splices them with the present ones.
 struct HFATileInputs {
     std::shared_ptr<ov::op::v0::Parameter> past_acc;
     std::shared_ptr<ov::op::v0::Parameter> past_max;
@@ -34,6 +164,14 @@ struct HFATileInputs {
     std::shared_ptr<ov::op::v0::Parameter> v_tile;
     std::shared_ptr<ov::op::v0::Parameter> q;
     std::shared_ptr<ov::op::v0::Parameter> mask_tile;
+
+    std::shared_ptr<ov::op::v0::Parameter> k_past_tile;
+    std::shared_ptr<ov::op::v0::Parameter> v_past_tile;
+    std::shared_ptr<ov::op::v0::Parameter> mask_past_tile;
+
+    std::shared_ptr<ov::Node> k_source;
+    std::shared_ptr<ov::Node> v_source;
+    std::shared_ptr<ov::Node> mask_source;
 };
 
 // Helper struct: Holds f32-converted nodes from input parameters for computation
@@ -75,7 +213,9 @@ static HFATileInputs create_hfa_tile_inputs(const ov::Shape& q_shape,
                                             size_t kv_num_heads,
                                             size_t mask_num_heads,
                                             size_t k_seq_dim,
-                                            bool v_transposed = true) {
+                                            bool v_transposed = true,
+                                            int64_t past_tile_size = 0,
+                                            ov::npuw::util::KVOrder kv_order = ov::npuw::util::KVOrder::PastFirst) {
     auto batch = q_shape[0];
     auto num_heads = q_shape[1];
     auto seq_len = q_shape[2];
@@ -108,28 +248,34 @@ static HFATileInputs create_hfa_tile_inputs(const ov::Shape& q_shape,
     // k_tile follows the model's own K cache layout: [batch, kv_num_heads, tile_size, head_dim]
     // in the usual case, [batch, tile_size, kv_num_heads, head_dim] when the sequence is at
     // dim 1 (the tile graph transposes it back before the QK MatMul).
-    if (k_seq_dim == 1) {
-        inputs.k_tile = std::make_shared<ov::op::v0::Parameter>(
+    const size_t k_concat_axis = (k_seq_dim == 1) ? 1u : 2u;
+    auto make_k = [&](int64_t extent) {
+        if (k_seq_dim == 1) {
+            return std::make_shared<ov::op::v0::Parameter>(
+                kv_tile_dtype,
+                ov::Shape{batch, static_cast<size_t>(extent), kv_num_heads, head_dim});
+        }
+        return std::make_shared<ov::op::v0::Parameter>(
             kv_tile_dtype,
-            ov::Shape{batch, static_cast<size_t>(tile_size), kv_num_heads, head_dim});
-    } else {
-        inputs.k_tile = std::make_shared<ov::op::v0::Parameter>(
-            kv_tile_dtype,
-            ov::Shape{batch, kv_num_heads, static_cast<size_t>(tile_size), head_dim});
-    }
+            ov::Shape{batch, kv_num_heads, static_cast<size_t>(extent), head_dim});
+    };
+    inputs.k_tile = make_k(tile_size);
     set_param_name(inputs.k_tile, HFATileInputId::K_TILE);
 
     // v_tile: [batch, kv_num_heads, head_dim, tile_size] when V is pre-transposed by OptimizeValueTensors,
     //          [batch, kv_num_heads, tile_size, head_dim] when V is in normal (non-transposed) layout.
-    if (v_transposed) {
-        inputs.v_tile = std::make_shared<ov::op::v0::Parameter>(
+    const size_t v_concat_axis = v_transposed ? 3u : 2u;
+    auto make_v = [&](int64_t extent) {
+        if (v_transposed) {
+            return std::make_shared<ov::op::v0::Parameter>(
+                kv_tile_dtype,
+                ov::Shape{batch, kv_num_heads, head_dim, static_cast<size_t>(extent)});
+        }
+        return std::make_shared<ov::op::v0::Parameter>(
             kv_tile_dtype,
-            ov::Shape{batch, kv_num_heads, head_dim, static_cast<size_t>(tile_size)});
-    } else {
-        inputs.v_tile = std::make_shared<ov::op::v0::Parameter>(
-            kv_tile_dtype,
-            ov::Shape{batch, kv_num_heads, static_cast<size_t>(tile_size), head_dim});
-    }
+            ov::Shape{batch, kv_num_heads, static_cast<size_t>(extent), head_dim});
+    };
+    inputs.v_tile = make_v(tile_size);
     set_param_name(inputs.v_tile, HFATileInputId::V_TILE);
 
     // q: [batch, num_heads, seq_len, head_dim]
@@ -139,10 +285,47 @@ static HFATileInputs create_hfa_tile_inputs(const ov::Shape& q_shape,
 
     // mask_tile: [batch, mask_num_heads, seq_len, tile_size] - use mask's original dtype.
     // mask_num_heads follows the model's own mask layout (1 when broadcast over heads).
-    inputs.mask_tile = std::make_shared<ov::op::v0::Parameter>(
-        mask_dtype,
-        ov::Shape{batch, mask_num_heads, seq_len, static_cast<size_t>(tile_size)});
+    auto make_mask = [&](int64_t extent) {
+        return std::make_shared<ov::op::v0::Parameter>(
+            mask_dtype,
+            ov::Shape{batch, mask_num_heads, seq_len, static_cast<size_t>(extent)});
+    };
+    inputs.mask_tile = make_mask(tile_size);
     set_param_name(inputs.mask_tile, HFATileInputId::MASK_TILE);
+
+    inputs.k_source = inputs.k_tile;
+    inputs.v_source = inputs.v_tile;
+    inputs.mask_source = inputs.mask_tile;
+
+    if (past_tile_size > 0) {
+        inputs.k_past_tile = make_k(past_tile_size);
+        set_param_name(inputs.k_past_tile, HFATileInputId::K_PAST_TILE);
+        inputs.v_past_tile = make_v(past_tile_size);
+        set_param_name(inputs.v_past_tile, HFATileInputId::V_PAST_TILE);
+        inputs.mask_past_tile = make_mask(past_tile_size);
+        set_param_name(inputs.mask_past_tile, HFATileInputId::MASK_PAST_TILE);
+
+        // Splice the two slices in the order the original graph's KV Concat uses, so the
+        // merged tile's KV rows line up with the merged mask columns.
+        const bool present_first = kv_order == ov::npuw::util::KVOrder::PresentFirst;
+        auto splice = [&](const std::shared_ptr<ov::Node>& present,
+                          const std::shared_ptr<ov::Node>& past,
+                          size_t axis,
+                          const char* name) {
+            ov::OutputVector parts;
+            if (present_first) {
+                parts = {present->output(0), past->output(0)};
+            } else {
+                parts = {past->output(0), present->output(0)};
+            }
+            auto concat = std::make_shared<ov::op::v0::Concat>(parts, static_cast<int64_t>(axis));
+            concat->set_friendly_name(name);
+            return concat;
+        };
+        inputs.k_source = splice(inputs.k_tile, inputs.k_past_tile, k_concat_axis, "k_tile_merged");
+        inputs.v_source = splice(inputs.v_tile, inputs.v_past_tile, v_concat_axis, "v_tile_merged");
+        inputs.mask_source = splice(inputs.mask_tile, inputs.mask_past_tile, 3u, "mask_tile_merged");
+    }
 
     return inputs;
 }
@@ -165,10 +348,10 @@ static HFATileF32Nodes convert_inputs_to_f32(const HFATileInputs& inputs,
     f32_nodes.past_d_f32 = std::make_shared<ov::op::v0::Convert>(inputs.past_d, compute_dtype);
     f32_nodes.past_d_f32->set_friendly_name("past_d_f32");
 
-    f32_nodes.k_tile_f32 = std::make_shared<ov::op::v0::Convert>(inputs.k_tile, compute_dtype);
+    f32_nodes.k_tile_f32 = std::make_shared<ov::op::v0::Convert>(inputs.k_source, compute_dtype);
     f32_nodes.k_tile_f32->set_friendly_name("k_tile_f32");
 
-    f32_nodes.v_tile_f32 = std::make_shared<ov::op::v0::Convert>(inputs.v_tile, compute_dtype);
+    f32_nodes.v_tile_f32 = std::make_shared<ov::op::v0::Convert>(inputs.v_source, compute_dtype);
     f32_nodes.v_tile_f32->set_friendly_name("v_tile_f32");
 
     f32_nodes.q_f32 = std::make_shared<ov::op::v0::Convert>(inputs.q, compute_dtype);
@@ -177,9 +360,9 @@ static HFATileF32Nodes convert_inputs_to_f32(const HFATileInputs& inputs,
     if (use_mask) {
         // Convert mask to f32 if needed
         if (mask_dtype == compute_dtype) {
-            f32_nodes.mask_tile_f32 = inputs.mask_tile;
+            f32_nodes.mask_tile_f32 = inputs.mask_source;
         } else {
-            f32_nodes.mask_tile_f32 = std::make_shared<ov::op::v0::Convert>(inputs.mask_tile, compute_dtype);
+            f32_nodes.mask_tile_f32 = std::make_shared<ov::op::v0::Convert>(inputs.mask_source, compute_dtype);
             f32_nodes.mask_tile_f32->set_friendly_name("mask_tile_f32");
         }
     }
@@ -684,10 +867,14 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                                         bool enable_mask_skipping = false,
                                                         bool v_transposed = true,
                                                         const std::shared_ptr<ov::Model>& src_model = nullptr,
-                                                        const std::shared_ptr<ov::Node>& src_matmul2 = nullptr) {
+                                                        const std::shared_ptr<ov::Node>& src_matmul2 = nullptr,
+                                                        int64_t past_tile_size = 0,
+                                                        ov::npuw::util::KVOrder kv_order =
+                                                            ov::npuw::util::KVOrder::PastFirst) {
     LOG_DEBUG("Creating HFA " << (is_final_tile ? "FINAL " : "") << "tile model with tile_size=" << tile_size
-                              << ", kv_num_heads=" << kv_num_heads << ", state_dtype=" << state_dtype
-                              << ", kv_tile_dtype=" << kv_tile_dtype << ", mask_dtype=" << mask_dtype
+                              << ", past_tile_size=" << past_tile_size << ", kv_num_heads=" << kv_num_heads
+                              << ", state_dtype=" << state_dtype << ", kv_tile_dtype=" << kv_tile_dtype
+                              << ", mask_dtype=" << mask_dtype
                               << ", fused_flash_attention=" << fused_flash_attention);
 
     // Extract dimensions
@@ -696,6 +883,11 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
     auto num_heads = q_shape[1];
     auto seq_len = q_shape[2];
     auto head_dim = q_shape[3];
+
+    NPUW_ASSERT(past_tile_size >= 0);
+    NPUW_ASSERT(past_tile_size == 0 || is_final_tile);
+    // Everything past the input parameters operates on the spliced tile.
+    const int64_t merged_tile_size = tile_size + past_tile_size;
 
     NPUW_ASSERT(num_heads % kv_num_heads == 0 && "Q heads must be divisible by KV heads");
 
@@ -712,7 +904,9 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                          kv_num_heads,
                                          mask_num_heads,
                                          k_seq_dim,
-                                         v_transposed);
+                                         v_transposed,
+                                         past_tile_size,
+                                         kv_order);
 
     // Convert all inputs to f32.
     // Only the final tile always uses a mask; regular tiles skip it when mask skipping is
@@ -764,7 +958,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                            num_heads,
                                            kv_num_heads,
                                            seq_len,
-                                           tile_size,
+                                           merged_tile_size,
                                            head_dim,
                                            true);  // use_grouped = true
 #else
@@ -789,7 +983,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                                              batch,
                                                              num_heads,
                                                              kv_num_heads,
-                                                             tile_size,
+                                                             merged_tile_size,
                                                              head_dim);
 
         // Execute flash attention algorithm with broadcasted K/V
@@ -801,7 +995,7 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
                                                num_heads,
                                                kv_num_heads,
                                                seq_len,
-                                               tile_size,
+                                               merged_tile_size,
                                                head_dim,
                                                false);  // use_grouped = false
     }
@@ -846,6 +1040,11 @@ static std::shared_ptr<ov::Model> create_hfa_tile_model(const ov::Shape& q_shape
         {inputs.past_acc, inputs.past_max, inputs.past_d, inputs.k_tile, inputs.v_tile, inputs.q};
     if (use_mask) {
         model_params.push_back(inputs.mask_tile);
+    }
+    if (past_tile_size > 0) {
+        model_params.push_back(inputs.k_past_tile);
+        model_params.push_back(inputs.v_past_tile);
+        model_params.push_back(inputs.mask_past_tile);
     }
 
     // Create and return model
@@ -1028,6 +1227,12 @@ static void build_tile_param_mapping(HostFlashAttention& hfa, const std::shared_
             hfa._tile_param_index_map[HFATileInputId::Q] = i;
         } else if (name == hfa_tile_input_id_to_string(HFATileInputId::MASK_TILE)) {
             hfa._tile_param_index_map[HFATileInputId::MASK_TILE] = i;
+        } else if (name == hfa_tile_input_id_to_string(HFATileInputId::K_PAST_TILE)) {
+            hfa._tile_param_index_map[HFATileInputId::K_PAST_TILE] = i;
+        } else if (name == hfa_tile_input_id_to_string(HFATileInputId::V_PAST_TILE)) {
+            hfa._tile_param_index_map[HFATileInputId::V_PAST_TILE] = i;
+        } else if (name == hfa_tile_input_id_to_string(HFATileInputId::MASK_PAST_TILE)) {
+            hfa._tile_param_index_map[HFATileInputId::MASK_PAST_TILE] = i;
         } else {
             LOG_WARN("Unknown tile model input name: " << name);
         }
@@ -1107,7 +1312,9 @@ static std::optional<std::size_t> extract_sequence_dim_from_concat(const std::sh
 
 std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr<ov::Model>& model,
                                                            bool fused_flash_attention,
-                                                           bool enable_mask_skipping) {
+                                                           bool enable_mask_skipping,
+                                                           const std::string& additional_tiles,
+                                                           const std::string& final_tiles) {
     LOG_INFO("Attempting to create HostFlashAttention"
              << (fused_flash_attention ? " with fused flash attention node" : ""));
     LOG_BLOCK();
@@ -1329,7 +1536,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // This replaces the enable_mask_skipping flag passed in from the caller: that flag
     // is now just a master kill switch (NPUW_ATTN_HFA_MASK_SKIPPING=NO disables the
     // optimization outright, regardless of mask kind).
-    bool local_enable_mask_skipping = false;
+    bool local_enable_mask_skipping = true;
     if (enable_mask_skipping && pattern_nodes.add_node) {
         const auto& rt_info = pattern_nodes.add_node->get_rt_info();
         const auto it = rt_info.find(ov::npuw::NPUW_SDPA_MASK_RT_KEY);
@@ -1352,46 +1559,110 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
             LOG_DEBUG("No per-SDPA mask annotation (Unknown) → mask skipping DISABLED for this ATTN subgraph");
         }
     }
-    auto tile_model = create_hfa_tile_model(q_shape_static,
-                                            state_dtype,
-                                            block_kv_dtype,  // kv_tile_dtype (past blocks)
-                                            q_dtype,
-                                            mask_dtype,
-                                            tile_size,
-                                            kv_num_heads,
-                                            mask_num_heads,
-                                            k_seq_dim,
-                                            k_dequant_scale,
-                                            v_dequant_scale,
-                                            false,
-                                            fused_flash_attention,
-                                            local_enable_mask_skipping,
-                                            v_transposed);
+    const bool block_kv = pattern_nodes.past_key_concat_node->get_input_size() > 2 ||
+                          pattern_nodes.past_value_concat_node->get_input_size() > 2;
+    if (block_kv && !additional_tiles.empty()) {
+        LOG_INFO("HFA additional tiles are currently supported only with continuous KV cache; "
+                 "using the base tile for this block-KV attention graph");
+    }
+    const auto tile_sizes = make_hfa_tile_sizes(static_cast<int64_t>(tile_size),
+                                                static_cast<int64_t>(context_size),
+                                                block_kv ? std::string{} : additional_tiles);
+    auto create_regular_tile_model = [&](int64_t regular_tile_size) {
+        return create_hfa_tile_model(q_shape_static,
+                                     state_dtype,
+                                     block_kv_dtype,
+                                     q_dtype,
+                                     mask_dtype,
+                                     regular_tile_size,
+                                     kv_num_heads,
+                                     mask_num_heads,
+                                     k_seq_dim,
+                                     k_dequant_scale,
+                                     v_dequant_scale,
+                                     false,
+                                     fused_flash_attention,
+                                     local_enable_mask_skipping,
+                                     v_transposed);
+    };
+
+    auto tile_model = create_regular_tile_model(static_cast<int64_t>(tile_size));
     if (!tile_model) {
         LOG_WARN("Failed to create HFA tile model");
         return std::nullopt;
     }
 
-    auto final_tile_model = create_hfa_tile_model(q_shape_static,
-                                                  state_dtype,       // consistent with the regular tile
-                                                  present_kv_dtype,  // kv_tile_dtype (present-KV, f32)
-                                                  q_dtype,
-                                                  mask_dtype,
-                                                  tile_size,
-                                                  kv_num_heads,
-                                                  mask_num_heads,
-                                                  k_seq_dim,
-                                                  k_dequant_scale,
-                                                  v_dequant_scale,
-                                                  true,
-                                                  fused_flash_attention,
-                                                  local_enable_mask_skipping,
-                                                  v_transposed,
-                                                  model,
-                                                  pattern_nodes.matmul2_node);
+    std::map<int64_t, std::shared_ptr<ov::Model>> additional_tile_models;
+    for (const auto regular_tile_size : tile_sizes) {
+        if (regular_tile_size == static_cast<int64_t>(tile_size)) {
+            continue;
+        }
+        auto additional_tile_model = create_regular_tile_model(regular_tile_size);
+        if (!additional_tile_model) {
+            LOG_WARN("Failed to create HFA tile model with tile size " << regular_tile_size);
+            return std::nullopt;
+        }
+        additional_tile_models.emplace(regular_tile_size, std::move(additional_tile_model));
+    }
+
+    auto create_final_tile_model = [&](int64_t past_part) {
+        return create_hfa_tile_model(q_shape_static,
+                                     state_dtype,       // consistent with the regular tile
+                                     present_kv_dtype,  // kv_tile_dtype (present-KV, f32)
+                                     q_dtype,
+                                     mask_dtype,
+                                     tile_size,
+                                     kv_num_heads,
+                                     mask_num_heads,
+                                     k_seq_dim,
+                                     k_dequant_scale,
+                                     v_dequant_scale,
+                                     true,
+                                     fused_flash_attention,
+                                     local_enable_mask_skipping,
+                                     v_transposed,
+                                     model,
+                                     pattern_nodes.matmul2_node,
+                                     past_part,
+                                     kv_order);
+    };
+
+    auto final_tile_model = create_final_tile_model(0);
     if (!final_tile_model) {
         LOG_WARN("Failed to create HFA final tile model");
         return std::nullopt;
+    }
+
+    // A merged final tile splices the present KV with a past-cache slice inside the tile
+    // graph, so both sides must share one element type and one dequantization scale.
+    std::string effective_final_tiles = final_tiles;
+    if (!final_tiles.empty()) {
+        if (block_kv) {
+            LOG_INFO("HFA final tiles are currently supported only with continuous KV cache; "
+                     "using the present-sized final tile for this block-KV attention graph");
+            effective_final_tiles.clear();
+        } else if (present_kv_dtype != block_kv_dtype) {
+            LOG_WARN("HFA final tiles need matching present ("
+                     << present_kv_dtype << ") and past (" << block_kv_dtype
+                     << ") KV element types; using the present-sized final tile");
+            effective_final_tiles.clear();
+        }
+    }
+    const auto final_tile_sizes = make_hfa_final_tile_sizes(static_cast<int64_t>(tile_size),
+                                                            static_cast<int64_t>(context_size),
+                                                            effective_final_tiles);
+
+    std::map<int64_t, std::shared_ptr<ov::Model>> merged_final_tile_models;
+    for (const auto final_tile_size : final_tile_sizes) {
+        if (final_tile_size == static_cast<int64_t>(tile_size)) {
+            continue;
+        }
+        auto merged_model = create_final_tile_model(final_tile_size - static_cast<int64_t>(tile_size));
+        if (!merged_model) {
+            LOG_WARN("Failed to create HFA final tile model with size " << final_tile_size);
+            return std::nullopt;
+        }
+        merged_final_tile_models.emplace(final_tile_size, std::move(merged_model));
     }
 
     // ========================================================================
@@ -1399,7 +1670,10 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // ========================================================================
     HostFlashAttention hfa;
     hfa._tile_model = tile_model;
+    hfa._additional_tile_models = std::move(additional_tile_models);
+    hfa._tile_sizes = tile_sizes;
     hfa._final_tile_model = final_tile_model;
+    hfa._final_tile_sizes = final_tile_sizes;
     hfa._query_size = query_size;
     hfa._context_size = context_size;
     hfa._tile_size = static_cast<int64_t>(tile_size);
@@ -1418,6 +1692,11 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // final_tile_model has mask_tile (index 6)
     // ========================================================================
     build_tile_param_mapping(hfa, final_tile_model);
+    if (!merged_final_tile_models.empty()) {
+        // Merged models share the base ordering and only append the past-slice inputs.
+        build_tile_param_mapping(hfa, merged_final_tile_models.begin()->second);
+    }
+    hfa._merged_final_tile_models = std::move(merged_final_tile_models);
 
     // ========================================================================
     // Step 9: Build tile model output index mapping
@@ -1435,6 +1714,41 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
 
 namespace compiled {
 
+void HostFlashAttention::collect_strided_io_names(const ov::Model& model, std::string& out) {
+    std::set<std::string> names;
+    std::size_t begin = 0;
+    while (begin < out.size()) {
+        const auto end = out.find(',', begin);
+        const auto token_end = end == std::string::npos ? out.size() : end;
+        if (token_end > begin) {
+            names.insert(out.substr(begin, token_end - begin));
+        }
+        begin = token_end + 1;
+    }
+
+    auto collect_port_names = [&](const ov::Output<const ov::Node>& port) {
+        const auto& friendly_name = port.get_node()->get_friendly_name();
+        if (!friendly_name.empty()) {
+            names.insert(friendly_name);
+        }
+        names.insert(port.get_names().begin(), port.get_names().end());
+    };
+    for (const auto& input : model.inputs()) {
+        collect_port_names(input);
+    }
+    for (const auto& output : model.outputs()) {
+        collect_port_names(output);
+    }
+
+    out.clear();
+    for (const auto& name : names) {
+        if (!out.empty()) {
+            out += ',';
+        }
+        out += name;
+    }
+}
+
 // Constructor implementation - extracts metadata
 HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_hfa) {
     LOG_INFO("Constructing compiled::HostFlashAttention");
@@ -1442,10 +1756,14 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
 
     // Extract tile configuration from function HFA
     _tile_size = func_hfa._tile_size;
+    _tile_sizes = func_hfa._tile_sizes;
+    _final_tile_sizes = func_hfa._final_tile_sizes;
 
     // Store the tile models for later compilation
     _tile_model_to_compile = func_hfa._tile_model;
+    _additional_tile_models_to_compile = func_hfa._additional_tile_models;
     _final_tile_model_to_compile = func_hfa._final_tile_model;
+    _merged_final_tile_models_to_compile = func_hfa._merged_final_tile_models;
 
     // Copy query size, context size, and K/V sequence dimensions from function HFA
     _sdpa_attention_info._query_size = func_hfa._query_size;
@@ -1493,6 +1811,12 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     _sdpa_attention_info._tile_input_indices.acc = get_tile_input_idx(HFATileInputId::PAST_ACC);
     _sdpa_attention_info._tile_input_indices.max = get_tile_input_idx(HFATileInputId::PAST_MAX);
     _sdpa_attention_info._tile_input_indices.d = get_tile_input_idx(HFATileInputId::PAST_D);
+
+    if (!func_hfa._merged_final_tile_models.empty()) {
+        _sdpa_attention_info._tile_input_indices.k_past = get_tile_input_idx(HFATileInputId::K_PAST_TILE);
+        _sdpa_attention_info._tile_input_indices.v_past = get_tile_input_idx(HFATileInputId::V_PAST_TILE);
+        _sdpa_attention_info._tile_input_indices.mask_past = get_tile_input_idx(HFATileInputId::MASK_PAST_TILE);
+    }
 
     // Cache all tile output indices
     _sdpa_attention_info._tile_output_indices.acc = get_tile_output_idx(HFATileOutputId::ACC);

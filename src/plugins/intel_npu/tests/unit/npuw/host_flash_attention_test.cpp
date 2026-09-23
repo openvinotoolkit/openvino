@@ -17,6 +17,7 @@
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/softmax.hpp"
+#include "openvino/runtime/make_tensor.hpp"
 
 namespace {
 
@@ -74,8 +75,6 @@ std::shared_ptr<ov::Model> build_sdpa_model(size_t query_size = QUERY_SIZE,
         results.push_back(std::make_shared<op::v0::Result>(out));
         results.back()->set_friendly_name(name);
     };
-    make_result(key_concat->output(0), "present.0.key");
-    make_result(val_concat->output(0), "present.0.value");
     make_result(matmul2->output(0), "attn_out.0");
 
     auto model = std::make_shared<Model>(results, params, "sdpa_model");
@@ -140,8 +139,6 @@ std::shared_ptr<ov::Model> build_sdpa_model_mixed_dtype(size_t query_size = QUER
         results.push_back(std::make_shared<op::v0::Result>(out));
         results.back()->set_friendly_name(name);
     };
-    make_result(key_concat->output(0), "present.0.key");
-    make_result(val_concat->output(0), "present.0.value");
     make_result(matmul2->output(0), "attn_out.0");
 
     auto model = std::make_shared<Model>(results, params, "sdpa_model_mixed_dtype");
@@ -431,6 +428,80 @@ TEST(HostFlashAttentionFromTest, Fused_ContextSizeIsCorrect) {
     EXPECT_EQ(result->_context_size, QUERY_SIZE + PAST_LEN);
 }
 
+TEST(HostFlashAttentionTilePlanTest, UsesBaseTilesWhenLargerTileDoesNotFit) {
+    const auto tile_sizes = ov::npuw::function::make_hfa_tile_sizes(256, 8192, "1024,4096");
+    EXPECT_EQ(ov::npuw::function::plan_hfa_regular_tiles(1024 - 256, tile_sizes),
+              (std::vector<int64_t>{256, 256, 256}));
+}
+
+TEST(HostFlashAttentionTilePlanTest, UsesLargestSuitableTile) {
+    const auto tile_sizes = ov::npuw::function::make_hfa_tile_sizes(256, 8192, "1024,4096");
+    EXPECT_EQ(ov::npuw::function::plan_hfa_regular_tiles(1280 - 256, tile_sizes), (std::vector<int64_t>{1024}));
+    EXPECT_EQ(ov::npuw::function::plan_hfa_regular_tiles(4352 - 256, tile_sizes), (std::vector<int64_t>{4096}));
+}
+
+TEST(HostFlashAttentionTilePlanTest, NormalizesAndValidatesAdditionalTiles) {
+    EXPECT_EQ(ov::npuw::function::make_hfa_tile_sizes(256, 8192, "4096, 1024,256,1024"),
+              (std::vector<int64_t>{256, 1024, 4096}));
+    EXPECT_EQ(ov::npuw::function::make_hfa_tile_sizes(256, 4096, "1024,4096"), (std::vector<int64_t>{256, 1024}));
+    EXPECT_THROW(ov::npuw::function::make_hfa_tile_sizes(256, 8192, "1000"), ov::Exception);
+}
+
+TEST(HostFlashAttentionTilePlanTest, NanoTileViewsAliasSourceStorageAndPreserveStrides) {
+    auto check_view = [](const ov::Shape& shape, size_t sequence_dim) {
+        ov::Tensor source(ov::element::i8, shape);
+        auto source_impl = ov::get_tensor_impl(source);
+        const auto offset = 256u;
+        auto tile = ov::npuw::util::view(source_impl, sequence_dim, offset, 1024u);
+
+        EXPECT_EQ(tile->data(),
+                  static_cast<uint8_t*>(source_impl->data()) + source_impl->get_strides()[sequence_dim] * offset);
+        EXPECT_EQ(tile->get_strides(), source_impl->get_strides());
+        EXPECT_EQ(tile->get_shape()[sequence_dim], 1024u);
+    };
+
+    check_view({1, 3840, 2, 256}, 1);   // Nano K: [B, S, H, D]
+    check_view({1, 2, 256, 3840}, 3);   // Nano V: [B, H, D, S]
+    check_view({1, 2, 1024, 4096}, 3);  // Nano attention mask
+}
+
+TEST(HostFlashAttentionFromTest, CreatesConfiguredRegularTileModels) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(16, 112, NUM_HEADS, HEAD_DIM),
+                                                               false,
+                                                               false,
+                                                               "32,64");
+    ASSERT_TRUE(result.has_value());
+    ASSERT_EQ(result->_additional_tile_models.size(), 2u);
+    EXPECT_EQ(result->_tile_sizes, (std::vector<int64_t>{16, 32, 64}));
+
+    for (const auto tile_size : {32, 64}) {
+        const auto& model = result->_additional_tile_models.at(tile_size);
+        EXPECT_EQ(model->input("K_TILE").get_shape()[2], static_cast<size_t>(tile_size));
+        EXPECT_EQ(model->input("V_TILE").get_shape()[2], static_cast<size_t>(tile_size));
+    }
+    EXPECT_EQ(result->_final_tile_model->input("K_TILE").get_shape()[2], 16u);
+    EXPECT_EQ(result->_final_tile_model->input("MASK_TILE").get_shape()[3], 16u);
+}
+
+TEST(HostFlashAttentionFromTest, EnablesStridesForEveryReboundTilePort) {
+    auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), false, false);
+    ASSERT_TRUE(result.has_value());
+
+    std::string regular_names = "existing_port";
+    ov::npuw::compiled::HostFlashAttention::collect_strided_io_names(*result->_tile_model, regular_names);
+    for (const auto* name :
+         {"PAST_ACC", "PAST_MAX", "PAST_D", "K_TILE", "V_TILE", "Q", "out_acc", "out_maxx", "out_d"}) {
+        EXPECT_NE(regular_names.find(name), std::string::npos) << name;
+    }
+    EXPECT_NE(regular_names.find("existing_port"), std::string::npos);
+
+    std::string final_names;
+    ov::npuw::compiled::HostFlashAttention::collect_strided_io_names(*result->_final_tile_model, final_names);
+    for (const auto* name : {"PAST_ACC", "PAST_MAX", "PAST_D", "K_TILE", "V_TILE", "Q", "MASK_TILE", "attn_out.0"}) {
+        EXPECT_NE(final_names.find(name), std::string::npos) << name;
+    }
+}
+
 namespace {
 // ============================================================================
 // Build a model where V is pre-transposed (axis=3), simulating a model that
@@ -486,8 +557,6 @@ std::shared_ptr<ov::Model> build_sdpa_model_transposed_v(size_t query_size = QUE
         results.push_back(std::make_shared<op::v0::Result>(out));
         results.back()->set_friendly_name(name);
     };
-    make_result(key_concat->output(0), "present.0.key");
-    make_result(val_concat->output(0), "present.0.value");
     make_result(matmul2->output(0), "attn_out.0");
 
     auto model = std::make_shared<Model>(results, params, "sdpa_model_transposed_v");
@@ -580,17 +649,18 @@ TEST(HostFlashAttentionFromTest, NonFused_RegularTileOutputShapes) {
     check_output_shapes(result->_tile_model, expected, "non-fused regular tile");
 }
 
-// Final tile output: [B, QUERY_SIZE, NUM_HEADS * HEAD_DIM] after transpose + reshape
+// These fixtures have no post-attention layout tail, so the final tile preserves
+// the source model's [B, H, Q, D] output shape.
 TEST(HostFlashAttentionFromTest, Fused_FinalTileOutputShape) {
     auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), true);
     ASSERT_TRUE(result.has_value());
-    check_output_shapes(result->_final_tile_model, {{BATCH, QUERY_SIZE, NUM_HEADS * HEAD_DIM}}, "fused final tile");
+    check_output_shapes(result->_final_tile_model, {{BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM}}, "fused final tile");
 }
 
 TEST(HostFlashAttentionFromTest, NonFused_FinalTileOutputShape) {
     auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model(), false);
     ASSERT_TRUE(result.has_value());
-    check_output_shapes(result->_final_tile_model, {{BATCH, QUERY_SIZE, NUM_HEADS * HEAD_DIM}}, "non-fused final tile");
+    check_output_shapes(result->_final_tile_model, {{BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM}}, "non-fused final tile");
 }
 
 // ============================================================================
@@ -655,7 +725,7 @@ TEST(HostFlashAttentionTransposedVTest, Fused_FinalTileOutputShape) {
     auto result = ov::npuw::function::HostFlashAttention::from(build_sdpa_model_transposed_v(), true);
     ASSERT_TRUE(result.has_value());
     check_output_shapes(result->_final_tile_model,
-                        {{BATCH, QUERY_SIZE, NUM_HEADS * HEAD_DIM}},
+                        {{BATCH, NUM_HEADS, QUERY_SIZE, HEAD_DIM}},
                         "transposed-V fused final tile");
 }
 

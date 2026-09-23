@@ -1952,6 +1952,50 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
         return main_cm;
     };
 
+    auto* hfa = ov::npuw::attn::get_compiled_hfa(desc.pipeline.context);
+    std::vector<std::pair<std::string, std::string>> hfa_saved_strides;
+    auto set_hfa_strided_inputs = [&](const std::shared_ptr<ov::Model>& model) {
+        for (const auto& [device, saved_strides] : hfa_saved_strides) {
+            std::string strided_inputs = saved_strides;
+            ov::npuw::compiled::HostFlashAttention::collect_strided_io_names(*model, strided_inputs);
+            m_meta_devices[device][ov::intel_npu::enable_strides_for.name()] = strided_inputs;
+            LOG_INFO("Enabled HFA tensor views for device " << device << " I/O: " << strided_inputs);
+        }
+    };
+    if (hfa != nullptr) {
+        std::vector<std::string> npu_devices;
+        bool all_npu_devices_support_strides = true;
+        for (const auto& device : devices) {
+            if (!ov::npuw::util::starts_with(device, "NPU")) {
+                continue;
+            }
+            npu_devices.push_back(device);
+            const auto supported_properties =
+                get_npuw_plugin()->get_core()->get_property(device, ov::supported_properties);
+            all_npu_devices_support_strides &=
+                std::find(supported_properties.begin(),
+                          supported_properties.end(),
+                          ov::intel_npu::enable_strides_for.name()) != supported_properties.end();
+        }
+
+        hfa->_can_use_tensor_view = npu_devices.empty() || all_npu_devices_support_strides;
+        if (!hfa->_additional_tile_models_to_compile.empty()) {
+            OPENVINO_ASSERT(hfa->_can_use_tensor_view,
+                            "NPUW_ATTN_HFA_ADDITIONAL_TILES requires NPU_ENABLE_STRIDES_FOR support; "
+                            "copying K/V tiles is intentionally disabled");
+        }
+
+        if (all_npu_devices_support_strides) {
+            for (const auto& device : npu_devices) {
+                const auto& strides_key = ov::intel_npu::enable_strides_for.name();
+                const ov::Any existing_any =
+                    ov::npuw::util::at::_(m_meta_devices[device]).at_or(strides_key, std::string{});
+                hfa_saved_strides.emplace_back(device, existing_any.as<std::string>());
+            }
+            set_hfa_strided_inputs(desc.model);
+        }
+    }
+
     if (desc.pipeline.compile_executor) {
         ov::npuw::v1::subgraphs::CompileContext compile_context{desc.model, desc.compiled_model, devices, make_wrapped};
         desc.pipeline.compile_executor(compile_context);
@@ -2030,59 +2074,33 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
         }
     }  // if (pyramid_attn)
 
-    if (auto* hfa = ov::npuw::attn::get_compiled_hfa(desc.pipeline.context)) {
+    if (hfa != nullptr) {
         LOG_INFO("Compiling host flash attention tile models for Subgraph[" << id << "]...");
         LOG_BLOCK();
 
         if (!hfa->_tile_model_to_compile) {
             LOG_WARN("Host flash attention tile model is null, skipping compilation");
         } else {
-            bool supports_strides_for = false;
-            std::string npu_device_str;
-            std::string saved_strides;
-            for (const auto& device : devices) {
-                if (!ov::npuw::util::starts_with(device, "NPU")) {
-                    continue;
-                }
-
-                const auto supported_properties =
-                    get_npuw_plugin()->get_core()->get_property(device, ov::supported_properties);
-                const bool support_strides_for =
-                    std::find(supported_properties.begin(),
-                              supported_properties.end(),
-                              ov::intel_npu::enable_strides_for.name()) != supported_properties.end();
-                if (!support_strides_for) {
-                    break;
-                }
-
-                hfa->_can_use_tensor_view = true;
-                npu_device_str = device;
-                const auto& strides_key = ov::intel_npu::enable_strides_for.name();
-                const ov::Any existing_any =
-                    ov::npuw::util::at::_(m_meta_devices[device]).at_or(strides_key, std::string{});
-                saved_strides = existing_any.as<std::string>();
-                std::string strided_inputs = saved_strides;
-                if (!strided_inputs.empty()) {
-                    strided_inputs += ",";
-                }
-                strided_inputs += std::string(hfa_tile_input_id_to_string(HFATileInputId::K_TILE)) + "," +
-                                  std::string(hfa_tile_input_id_to_string(HFATileInputId::V_TILE));
-                m_meta_devices[device][strides_key] = strided_inputs;
-                supports_strides_for = true;
-                LOG_INFO("Enabled using tensor view for device: " << device << " for inputs: " << strided_inputs);
-            }
-
+            set_hfa_strided_inputs(hfa->_tile_model_to_compile);
             hfa->set_compiled_tile_model(make_wrapped(hfa->_tile_model_to_compile, "/hfa_tile", devices));
+            std::map<int64_t, ov::SoPtr<ov::ICompiledModel>> compiled_additional_tile_models;
+            for (const auto& [tile_size, tile_model] : hfa->_additional_tile_models_to_compile) {
+                set_hfa_strided_inputs(tile_model);
+                compiled_additional_tile_models.emplace(
+                    tile_size,
+                    make_wrapped(tile_model, "/hfa_tile_" + std::to_string(tile_size), devices));
+            }
+            hfa->set_compiled_additional_tile_models(std::move(compiled_additional_tile_models));
             hfa->set_compiled_final_tile_model(desc.compiled_model);
             LOG_INFO("Host flash attention compilation complete for Subgraph[" << id << "]");
+        }
 
-            if (supports_strides_for && !npu_device_str.empty()) {
-                const auto& strides_key = ov::intel_npu::enable_strides_for.name();
-                if (saved_strides.empty()) {
-                    m_meta_devices[npu_device_str].erase(strides_key);
-                } else {
-                    m_meta_devices[npu_device_str][strides_key] = saved_strides;
-                }
+        for (const auto& [device, saved_strides] : hfa_saved_strides) {
+            const auto& strides_key = ov::intel_npu::enable_strides_for.name();
+            if (saved_strides.empty()) {
+                m_meta_devices[device].erase(strides_key);
+            } else {
+                m_meta_devices[device][strides_key] = saved_strides;
             }
         }
     }  //  if (hfa)
@@ -2230,6 +2248,15 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
         ov::save_model(hfa_tile_model, hfa_tile_model_dump_path);
         LOG_INFO("Wrote " << hfa_tile_model_dump_path);
 
+        for (const auto& [tile_size, tile_model] : hfa->_additional_tile_models_to_compile) {
+            std::string additional_tile_model_name =
+                format_subgraph_name(id, funcall) + "_hfa_tile_" + std::to_string(tile_size) + ".xml";
+            std::string additional_tile_model_path =
+                ov::util::path_join({dump_dir, additional_tile_model_name}).string();
+            ov::save_model(tile_model, additional_tile_model_path);
+            LOG_INFO("Wrote " << additional_tile_model_path);
+        }
+
         const auto& hfa_final_tile_model = hfa->_final_tile_model_to_compile;
         std::string hfa_final_tile_model_name = format_subgraph_name(id, funcall) + "_hfa_final_tile.xml";
         std::string hfa_final_tile_model_dump_path =
@@ -2290,8 +2317,12 @@ void ov::npuw::CompiledModel::dump_subgraph_composition(const std::vector<ov::np
                                              ".xml");
                 }
             }
-            if (ov::npuw::attn::get_compiled_hfa(m_compiled_submodels[real_id].pipeline.context) != nullptr) {
+            if (const auto* hfa = ov::npuw::attn::get_compiled_hfa(m_compiled_submodels[real_id].pipeline.context)) {
                 attn_subgraphs.push_back(base_name + "_hfa_tile.xml");
+                for (const auto& [tile_size, tile_model] : hfa->_additional_tile_models_to_compile) {
+                    (void)tile_model;
+                    attn_subgraphs.push_back(base_name + "_hfa_tile_" + std::to_string(tile_size) + ".xml");
+                }
                 attn_subgraphs.push_back(base_name + "_hfa_final_tile.xml");
             }
         }
@@ -2672,6 +2703,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::partitioning::dcoff_type, NPUW_DCOFF_TYPE),
                           BIND(npuw::partitioning::dcoff_with_scale, NPUW_DCOFF_SCALE),
                           BIND(npuw::partitioning::attn_hfa_fused, NPUW_ATTN_HFA_FUSED),
+                          BIND(npuw::partitioning::attn_hfa_additional_tiles, NPUW_ATTN_HFA_ADDITIONAL_TILES),
                           BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
                           BIND(npuw::ensure_compatibility, NPUW_ENSURE_COMPATIBILITY),
                           BIND(npuw::funcall_async, NPUW_FUNCALL_ASYNC),

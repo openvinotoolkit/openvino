@@ -21,6 +21,9 @@ namespace npuw {
 // HFA Tile Model input tensor identifiers
 // Represents the input layout for Host Flash Attention tile models
 // Input names: [past_acc, past_max, past_d, k_tile, v_tile, q, mask_tile]
+// A "merged" final tile (one that covers the present KV *and* a slice of the past cache)
+// carries three extra inputs appended after mask_tile; the tile graph concatenates them
+// with the present ones in KV-Concat order.
 enum class HFATileInputId : uint8_t {
     PAST_ACC = 0,   // Accumulated attention output from previous tiles
     PAST_MAX = 1,   // Maximum values from previous tiles (for numerical stability)
@@ -29,6 +32,10 @@ enum class HFATileInputId : uint8_t {
     V_TILE = 4,     // Current V (value) tile slice
     Q = 5,          // Query tensor (full, not tiled)
     MASK_TILE = 6,  // Current attention mask tile slice
+
+    K_PAST_TILE = 7,     // Merged final tile only: past-cache K slice
+    V_PAST_TILE = 8,     // Merged final tile only: past-cache V slice
+    MASK_PAST_TILE = 9,  // Merged final tile only: mask slice of the past part
 
     // Sentinel value for enum range
     COUNT
@@ -63,6 +70,12 @@ inline const char* hfa_tile_input_id_to_string(HFATileInputId id) {
         return "Q";
     case HFATileInputId::MASK_TILE:
         return "MASK_TILE";
+    case HFATileInputId::K_PAST_TILE:
+        return "K_PAST_TILE";
+    case HFATileInputId::V_PAST_TILE:
+        return "V_PAST_TILE";
+    case HFATileInputId::MASK_PAST_TILE:
+        return "MASK_PAST_TILE";
     default:
         return "UNKNOWN";
     }
@@ -83,13 +96,44 @@ inline const char* hfa_tile_output_id_to_string(HFATileOutputId id) {
 
 namespace function {
 
+std::vector<int64_t> make_hfa_tile_sizes(int64_t final_tile_size,
+                                         int64_t context_size,
+                                         const std::string& additional_tiles);
+
+// Allowed sizes for the tile that carries the present KV.  Always contains the present
+// size itself; larger entries additionally absorb a slice of the past cache so that what
+// is left over for the regular tiles is a whole number of the largest regular tile.
+std::vector<int64_t> make_hfa_final_tile_sizes(int64_t present_size,
+                                               int64_t context_size,
+                                               const std::string& final_tiles);
+
+std::vector<int64_t> plan_hfa_regular_tiles(int64_t past_length, const std::vector<int64_t>& tile_sizes);
+
+// Largest final tile that leaves a remainder the regular tiles cover without a short one.
+int64_t pick_hfa_final_tile_size(int64_t total_kv_length,
+                                 const std::vector<int64_t>& final_tile_sizes,
+                                 const std::vector<int64_t>& regular_tile_sizes);
+
 // HostFlashAttention structure definition
 struct HostFlashAttention {
     // Tiled model for flash attention execution (regular tiles)
     std::shared_ptr<ov::Model> _tile_model;
 
+    // Optional larger regular-tile models, keyed by their KV sequence length.
+    std::map<int64_t, std::shared_ptr<ov::Model>> _additional_tile_models;
+
+    // All regular tile sizes in ascending order, including _tile_size.
+    std::vector<int64_t> _tile_sizes;
+
     // Final tiled model for flash attention execution (with division and transpose)
     std::shared_ptr<ov::Model> _final_tile_model;
+
+    // Optional merged final-tile models, keyed by their total KV sequence length.
+    // Each covers the present KV plus (key - _tile_size) slots of the past cache.
+    std::map<int64_t, std::shared_ptr<ov::Model>> _merged_final_tile_models;
+
+    // All final tile sizes in ascending order, including _tile_size.
+    std::vector<int64_t> _final_tile_sizes;
 
     // Tile configuration
     int64_t _tile_size = 0;  // K/V tile size for flash attention chunking
@@ -149,7 +193,9 @@ struct HostFlashAttention {
     // if enable_mask_skipping is true, enables mask skipping optimization for regular tile
     static std::optional<HostFlashAttention> from(const std::shared_ptr<ov::Model>& model,
                                                   bool fused_flash_attention = true,
-                                                  bool enable_mask_skipping = false);
+                                                  bool enable_mask_skipping = false,
+                                                  const std::string& additional_tiles = {},
+                                                  const std::string& final_tiles = {});
 };
 
 }  // namespace function
@@ -194,6 +240,10 @@ struct HostFlashAttentionInfo {
         std::size_t acc = 0u;
         std::size_t max = 0u;
         std::size_t d = 0u;
+        // Merged final tile models only; 0 when no merged model was built.
+        std::size_t k_past = 0u;
+        std::size_t v_past = 0u;
+        std::size_t mask_past = 0u;
     } _tile_input_indices;
 
     // Pre-cached tile output indices
@@ -208,13 +258,23 @@ struct HostFlashAttentionInfo {
 struct HostFlashAttention {
     // Models to compile (will be cleared after compilation)
     std::shared_ptr<ov::Model> _tile_model_to_compile;
+    std::map<int64_t, std::shared_ptr<ov::Model>> _additional_tile_models_to_compile;
     std::shared_ptr<ov::Model> _final_tile_model_to_compile;
+    std::map<int64_t, std::shared_ptr<ov::Model>> _merged_final_tile_models_to_compile;
 
     // Compiled tile model for NPU execution (regular tiles)
     ov::SoPtr<ov::ICompiledModel> _compiled_tile_model;
+    std::map<int64_t, ov::SoPtr<ov::ICompiledModel>> _compiled_additional_tile_models;
+
+    // All regular tile sizes in ascending order, including _tile_size.
+    std::vector<int64_t> _tile_sizes;
 
     // Compiled FINAL tile model for NPU execution (with division and transpose)
     ov::SoPtr<ov::ICompiledModel> _compiled_final_tile_model;
+    std::map<int64_t, ov::SoPtr<ov::ICompiledModel>> _compiled_merged_final_tile_models;
+
+    // All final tile sizes in ascending order, including _tile_size.
+    std::vector<int64_t> _final_tile_sizes;
 
     // Attention parameter info from original SDPA model (not from tile models)
     HostFlashAttentionInfo _sdpa_attention_info;
@@ -236,14 +296,46 @@ struct HostFlashAttention {
         _tile_model_to_compile.reset();  // Free memory after compilation
     }
 
+    void set_compiled_additional_tile_models(std::map<int64_t, ov::SoPtr<ov::ICompiledModel>> compiled_models) {
+        _compiled_additional_tile_models = std::move(compiled_models);
+        _additional_tile_models_to_compile.clear();
+    }
+
     // Set the compiled FINAL tile model and clear the model to compile
     void set_compiled_final_tile_model(ov::SoPtr<ov::ICompiledModel> compiled_model) {
         _compiled_final_tile_model = std::move(compiled_model);
         _final_tile_model_to_compile.reset();  // Free memory after compilation
     }
 
+    void set_compiled_merged_final_tile_models(std::map<int64_t, ov::SoPtr<ov::ICompiledModel>> compiled_models) {
+        _compiled_merged_final_tile_models = std::move(compiled_models);
+        _merged_final_tile_models_to_compile.clear();
+    }
+
+    const ov::SoPtr<ov::ICompiledModel>& compiled_final_tile_model(int64_t final_tile_size) const {
+        if (final_tile_size == _tile_size) {
+            return _compiled_final_tile_model;
+        }
+        return _compiled_merged_final_tile_models.at(final_tile_size);
+    }
+
+    const ov::SoPtr<ov::ICompiledModel>& compiled_tile_model(int64_t tile_size) const {
+        if (tile_size == _tile_size) {
+            return _compiled_tile_model;
+        }
+        return _compiled_additional_tile_models.at(tile_size);
+    }
+
+    // Every HFA model port is rebound at runtime. On NPU, even state tensors
+    // allocated by another tile request may carry compiler-defined strides.
+    static void collect_strided_io_names(const ov::Model& model, std::string& out);
+
     bool is_valid() const {
-        return _compiled_tile_model != nullptr && _compiled_final_tile_model != nullptr && _tile_size > 0;
+        return _compiled_tile_model != nullptr && _compiled_final_tile_model != nullptr && _tile_size > 0 &&
+               _compiled_additional_tile_models.size() + 1 == _tile_sizes.size() &&
+               _compiled_merged_final_tile_models.size() + 1 == _final_tile_sizes.size() &&
+               (_tile_sizes.size() == 1 || _can_use_tensor_view) &&
+               (_final_tile_sizes.size() == 1 || _can_use_tensor_view);
     }
 };
 
