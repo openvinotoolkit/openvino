@@ -13,9 +13,7 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/parameter.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
+namespace ov::frontend::pytorch {
 
 /// For one call of convert and decode method of Frontend, it creates one TranslateSession object to save data for the
 /// translation session: telemetry statistics, operation translators (including extensions) registered for this
@@ -85,6 +83,4 @@ private:
     bool m_is_fx = false;
 };
 
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch

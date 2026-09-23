@@ -50,7 +50,6 @@
 #include "unconverted_ops_report.hpp"
 #include "utils/common.hpp"
 #include "utils/onnx_internal.hpp"
-
 using namespace ov;
 using namespace ov::frontend::onnx;
 using namespace ov::frontend::onnx::common;

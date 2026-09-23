@@ -84,6 +84,10 @@ safe-outputs:
   add-comment:
     max: 1              # at most one remediation comment per investigation
     target: "*"         # workflow_run trigger has no PR context; agent supplies the PR number
+  report-failure-as-issue:   # defeat the silent "produced no safe outputs" no-op
+    - agent_failure
+    - missing_safe_outputs
+    - timed_out
 
 timeout-minutes: 20
 

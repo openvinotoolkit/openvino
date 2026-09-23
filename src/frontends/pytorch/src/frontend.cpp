@@ -47,9 +47,7 @@
 #include "translate_session.hpp"
 #include "unconverted_ops_report.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
+namespace ov::frontend::pytorch {
 
 namespace {
 
@@ -388,6 +386,4 @@ std::unordered_map<std::string, CreatorFunction> FrontEnd::get_supported_ops(
     return supported_ops;
 }
 
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch
