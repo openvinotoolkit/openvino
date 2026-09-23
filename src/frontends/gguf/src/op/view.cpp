@@ -17,10 +17,7 @@
 #include "openvino/op/slice.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 namespace {
 // Put the reshape target's single -1 on the axis carrying the runtime token count, recovered by
@@ -455,7 +452,4 @@ OutputVector translate_view(const NodeContext& context) {
     return {context.get_input(0)};
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op
