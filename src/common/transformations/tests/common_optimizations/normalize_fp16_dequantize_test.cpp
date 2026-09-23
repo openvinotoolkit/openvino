@@ -31,14 +31,14 @@ using namespace ov;
 //     -> [Subtract(zp_f16)]  -> Multiply(scale_f16)
 // ---------------------------------------------------------------------------
 static std::shared_ptr<Model> build_fp16_dq_model(const Shape& data_shape,
-                                                   float il,
-                                                   float ih,
-                                                   float ol,
-                                                   float oh,
-                                                   size_t levels,
-                                                   element::Type int_type,
-                                                   float scale_f16_val,
-                                                   std::optional<float> zp_f16_val = std::nullopt) {
+                                                  float il,
+                                                  float ih,
+                                                  float ol,
+                                                  float oh,
+                                                  size_t levels,
+                                                  element::Type int_type,
+                                                  float scale_f16_val,
+                                                  std::optional<float> zp_f16_val = std::nullopt) {
     auto data = std::make_shared<opset1::Parameter>(element::f32, data_shape);
     auto fq_il = opset1::Constant::create(element::f32, Shape{}, {il});
     auto fq_ih = opset1::Constant::create(element::f32, Shape{}, {ih});
@@ -66,14 +66,14 @@ static std::shared_ptr<Model> build_fp16_dq_model(const Shape& data_shape,
 // The FQ node is left unchanged -- il/ih/ol/oh are the same as the input model.
 // ---------------------------------------------------------------------------
 static std::shared_ptr<Model> build_fp32_dq_ref_model(const Shape& data_shape,
-                                                       float il,
-                                                       float ih,
-                                                       float ol,
-                                                       float oh,
-                                                       size_t levels,
-                                                       element::Type int_type,
-                                                       float scale_f32,
-                                                       std::optional<float> zp_f32 = std::nullopt) {
+                                                      float il,
+                                                      float ih,
+                                                      float ol,
+                                                      float oh,
+                                                      size_t levels,
+                                                      element::Type int_type,
+                                                      float scale_f32,
+                                                      std::optional<float> zp_f32 = std::nullopt) {
     auto data = std::make_shared<opset1::Parameter>(element::f32, data_shape);
 
     auto fq_il = opset1::Constant::create(element::f32, Shape{}, {il});
@@ -136,8 +136,7 @@ TEST_F(TransformationTestsF, NormalizeDequantizeFP16_U16_WithZeroPoint) {
     const float scale_f16_as_f32 = float(ov::float16(0.25f));  // exactly 0.25
     const float zp_f16_as_f32 = float(ov::float16(8.0f));      // exactly 8.0
 
-    model =
-        build_fp16_dq_model({1, 3, 32, 32}, -1.0f, 1.0f, 0.0f, 65535.0f, 65536, element::u16, 0.25f, zp_f16_as_f32);
+    model = build_fp16_dq_model({1, 3, 32, 32}, -1.0f, 1.0f, 0.0f, 65535.0f, 65536, element::u16, 0.25f, zp_f16_as_f32);
     manager.register_pass<ov::pass::NormalizeDequantizeFP16>();
 
     model_ref = build_fp32_dq_ref_model({1, 3, 32, 32},
