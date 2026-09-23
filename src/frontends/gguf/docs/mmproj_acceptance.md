@@ -1,6 +1,6 @@
 # GGUF frontend and GenAI acceptance — September 2026
 
-**Validation is ongoing; full support is not yet qualified.** The requested
+**Validation is paused; full support is not yet qualified.** The requested
 Qwen3.5 0.8B/2B/4B/9B, Qwen3.6 35B-A3B, Qwen3.8 27B, Gemma4
 E2B/E4B/12B/26B-A4B/31B and Muse Glimmer 30B checkpoints are available locally
 in both Q4_0 and Q4_K_M: 24 language files and 12 associated projectors.
@@ -34,7 +34,7 @@ for build reuse; it does not indicate a separate acceptance branch.
   E2B Q4_K_M reset reproducer now returns identical tokens for independent image
   requests and fresh chats, including after audio requests.
 
-The frontend suite passed **406 tests**. The selected GenAI GGUF, scheduler,
+The frontend suite passed **407 tests**, plus the external architecture-library test. The selected GenAI GGUF, scheduler,
 model-runner, hybrid-cache and SDPA suites passed **121 tests** after the chat
 tokenization fix. Final checkpoint qualification retains its own source manifests
 and test records.
@@ -44,7 +44,7 @@ and test records.
 | Configuration | Evidence | Remaining qualification |
 |---|---|---|
 | Qwen3.5 0.8B/2B/4B, both precisions and backends | Language, image/video, legacy/modern chat, beam and reset checks pass on v7 | Broader media/context coverage |
-| Qwen3.5 9B Q4_0 PA/SDPA | Language and full bounded multimodal/API checks pass on v7 | Q4_K_M runs in progress |
+| Qwen3.5 9B, both precisions and backends | Language and bounded multimodal/API checks pass on v7/v9 | Broader media/context coverage |
 | Gemma4 E2B Q4_0 PA/SDPA | Language, image/audio/mixed, chat, beam and reset checks pass on v7 | PA chat rerun after the tokenization fix |
 | Gemma4 E2B Q4_K_M | Language passes; v9 PA has 100% represented-F32 agreement for all 11 media/chat cases, with beam, cancellation and reset passing; SDPA represented-F32 run also passes | Original quantized-reference audio first-token failure retained |
 | Gemma4 E4B, both precisions and backends | Language and bounded multimodal/API checks pass on v7 | PA chat rerun after the tokenization fix |
@@ -73,6 +73,15 @@ Gemma4 26B/31B projectors contain vision only. Missing source modalities cannot
 be enabled by conversion. GPU/NPU, long contexts, arbitrary concurrent requests,
 all media shapes/chunk boundaries and exhaustive API combinations remain
 unqualified. Performance is outside this task's acceptance target.
+
+The Gemma4 unified-vision patch normalization now recenters pixels before the
+F32 mean reduction. A low-contrast CPU-oracle fixture improves from normalized
+MSE `0.00112` to `5.25e-7`; both raw and adapted dynamic-grid tests pass.
+A targeted Gemma4 12B Q4_0 SDPA image comparison improves from 90% to 100%
+matching choices against represented-F32 language/projector references. Video
+and full API validation of this fix were interrupted at the user's request;
+the earlier 85% video failure remains unresolved pending completion. The
+Gemma4 12B Q4_K_M PA/SDPA language checks also passed before the pause.
 
 ## Method and reproduction
 

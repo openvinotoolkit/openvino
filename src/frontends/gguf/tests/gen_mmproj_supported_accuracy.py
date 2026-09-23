@@ -17,12 +17,13 @@ import numpy as np
 
 from mmproj_fixtures import finish, save_npz, split_variants
 
-VARIANTS = ("_resize", "_overview", "_one_sided")
+VARIANTS = ("_resize", "_overview", "_one_sided", "_low_contrast")
 
 
 def write_model(path, family):
     family, variants = split_variants(family, *VARIANTS)
     one_sided = "_one_sided" in variants
+    low_contrast = "_low_contrast" in variants
     audio = family in {"gemma4ua", "gemma4a"}
     width, heads, hidden, output = 16, 2, 24, 12
     prefix, modality = ("a.", "audio") if audio else ("v.", "vision")
@@ -80,7 +81,7 @@ def write_model(path, family):
         linear("mm.a.input_projection", 640, output, False)
     else:
         w.add_uint32(key + "image_size", 8)
-        w.add_uint32(key + "patch_size", 2)
+        w.add_uint32(key + "patch_size", 24 if low_contrast else 2)
         w.add_uint32(key + "projector.scale_factor", 4 if family == "minicpmv4_6" else 2)
         w.add_uint32(key + "image_min_pixels", 16)
         w.add_uint32(key + "image_max_pixels", 4096)
@@ -121,8 +122,19 @@ def write_model(path, family):
             tensor("v.sam.net_3.weight", (width, 8, 3, 3))
             linear("mm.model.fc", width if family == "deepseekocr2" else width * 2, output)
         if family == "gemma4uv":
-            linear("v.patch_embd", 3 * 4 * 4, width)
-            norm("v.patch_norm.1", 48)
+            patch_width = 3 * (48 if low_contrast else 4) ** 2
+            if low_contrast:
+                # Large, nearly constant patch-projection rows amplify errors in
+                # the mean of normalized low-contrast patches.
+                weights = np.broadcast_to(np.linspace(-30, 30, width)[:, None] / patch_width,
+                                          (width, patch_width)).copy()
+                w.add_tensor("v.patch_embd.weight", weights.astype(np.float32))
+                tensor("v.patch_embd.bias", (width,))
+                w.add_tensor("v.patch_norm.1.weight", np.ones(patch_width, np.float32))
+                w.add_tensor("v.patch_norm.1.bias", np.zeros(patch_width, np.float32))
+            else:
+                linear("v.patch_embd", patch_width, width)
+                norm("v.patch_norm.1", patch_width)
             norm("v.patch_norm.2", width)
             norm("v.patch_norm.3", width)
         else:
@@ -192,6 +204,8 @@ def inputs(family, width, height):
     family, variants = split_variants(family, *VARIANTS)
     overview = "_overview" in variants
     raw = np.random.default_rng(42).normal(.1, .4, (height, width) if family in {"gemma4ua", "gemma4a"} else (height, width, 3)).astype(np.float32)
+    if "_low_contrast" in variants:
+        raw[:] = np.array([27, 29, 32], np.float32) / 255
     if family == "gemma4ua":
         return raw, {"waveform_frames": raw.T.reshape(1, 1, width, height)}
     if family == "gemma4a":
@@ -232,7 +246,7 @@ def inputs(family, width, height):
             result["output_indices"] = np.array(order + ([total + 1] if overview else []), np.int32).reshape(1, 1, 1, -1)
         return raw, result
     result = {"pixel_values": raw.transpose(2, 0, 1)[None]}
-    patch = 4 if family == "gemma4uv" else 2
+    patch = (48 if "_low_contrast" in variants else 4) if family == "gemma4uv" else 2
     h, w = height // patch, width // patch
     rows, cols = np.indices((h, w))
     if family.startswith(("pixtral", "gemma4")):
@@ -259,7 +273,7 @@ def main():
     parser.add_argument("--geometry-oracle", type=Path, help="Optional mmproj_ops_oracle executable")
     parser.add_argument("--output", type=Path, default=Path(__file__).parent / "test_data/mmproj_accuracy")
     parser.add_argument("--families", nargs="+", default=[
-        "pixtral", "pixtral_merge", "phi4", "gemma4v", "gemma4uv", "gemma4ua",
+        "pixtral", "pixtral_merge", "phi4", "gemma4v", "gemma4uv", "gemma4uv_low_contrast", "gemma4ua",
         "gemma4v_one_sided", "minicpmv4_6", "gemma4a", "deepseekocr", "deepseekocr2", "deepseekocr_resize",
         "deepseekocr_overview", "deepseekocr2_overview",
     ])
@@ -285,6 +299,7 @@ def main():
                 "deepseekocr": [(256, 256), (256, 512)],
                 "gemma4a": [(49, 8), (101, 8)],
                 "gemma4ua": [(3, 640), (5, 640)],
+                "gemma4uv_low_contrast": [(96, 48), (48, 144)],
             }.get(family, [(16, 8), (8, 24)])
             modality = "audio" if family in {"gemma4ua", "gemma4a"} else "vision"
             environment = dict(os.environ)
