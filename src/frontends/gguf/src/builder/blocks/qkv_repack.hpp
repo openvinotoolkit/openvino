@@ -3,16 +3,12 @@
 //
 
 #pragma once
-
 #include <string>
 
 #include "builder/decoder_config.hpp"
 #include "builder/graph_emitter.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace blocks {
+namespace ov::frontend::gguf::blocks {
 
 // Weight-level repacking that happens before any op is emitted for a layer, so the rest of the
 // attention path only ever sees the plain blk.<il>.attn_{q,k,v}.weight / attn_gate.weight nodes and
@@ -29,7 +25,4 @@ void register_fused_qkv(GraphEmitter& e, const DecoderConfig& cfg, int il);
 // (src/models/qwen35.cpp build_layer_attn).
 void register_qwen35_q_gate(GraphEmitter& e, const DecoderConfig& cfg, int il);
 
-}  // namespace blocks
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::blocks

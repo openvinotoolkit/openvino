@@ -7,10 +7,7 @@
 #include "openvino/frontend/gguf/visibility.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace pass {
+namespace ov::frontend::gguf::pass {
 
 /// \brief Rewrite a GGUF-frontend model's llama.cpp-style IO into the OpenVINO GenAI
 ///        LLMPipeline IO contract, so the model can be driven by genai's stateful pipeline.
@@ -60,7 +57,4 @@ private:
     InputMode m_mode;
 };
 
-}  // namespace pass
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::pass

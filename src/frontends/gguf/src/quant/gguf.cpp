@@ -28,9 +28,7 @@
 #include "openvino/util/mmap_object.hpp"
 #include "weights.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 namespace {
 
@@ -890,6 +888,4 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     return config;
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf
