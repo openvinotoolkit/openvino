@@ -6,9 +6,7 @@
 
 #include <variant>
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 namespace {
 
@@ -63,6 +61,4 @@ const char* model_kind_name(ModelKind kind) {
     }
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

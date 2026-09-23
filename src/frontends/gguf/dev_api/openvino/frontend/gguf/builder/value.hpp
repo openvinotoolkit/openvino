@@ -12,9 +12,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 // Named OpenVINO output; shape and type come from OpenVINO inference.
 // Default construction yields an empty handle, also used for absent optional weights.
@@ -57,6 +55,4 @@ private:
     ov::Output<ov::Node> m_value;
 };
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf
