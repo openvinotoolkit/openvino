@@ -16,7 +16,9 @@ class allocation_order_key {
 public:
     allocation_order_key(layout output_layout, size_t unique_id, size_t processing_number) : _unique_id(unique_id), _processing_number(processing_number) {
         if (output_layout.is_dynamic() && output_layout.has_upper_bound()) {
-            output_layout.set_tensor(output_layout.get_tensor());
+            // Normalize this local copy to upper-bound dimensions, preserving the tensor/format conversion for allocation ordering.
+            const auto upper_bound_tensor = output_layout.get_tensor();
+            output_layout.set_tensor(upper_bound_tensor);
         }
         _is_dynamic = output_layout.is_dynamic();
         if (!_is_dynamic) {
