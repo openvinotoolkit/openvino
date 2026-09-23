@@ -473,21 +473,3 @@ jobs:
           path: ${{ env.BUILD_DIR }}/openvino_node_npm_package.zip
           if-no-files-found: 'error'
 
-      - name: Store artifacts to a shared drive
-        id: store_artifacts
-        if: ${{ inputs.event-name != 'schedule' && inputs.event-name != 'merge_group' }}
-        uses: ./openvino/.github/actions/store_artifacts
-        with:
-          artifacts: |
-            ${{ env.BUILD_DIR }}/openvino_package.zip
-            ${{ env.BUILD_DIR }}/developer_package.zip
-            ${{ env.BUILD_DIR }}/openvino_tests.zip
-            ${{ env.MANIFEST_PATH }}
-            ${{ fromJSON(inputs.affected-components).JS_API && format('{0}/openvino_js_package.zip', env.BUILD_DIR) || '' }}
-            ${{ fromJSON(inputs.affected-components).JS_API && format('{0}/openvino_node_npm_package.zip', env.BUILD_DIR) || '' }}
-            ${{ env.STORE_WHEELS == 'true' && format('{0}/wheels', env.INSTALL_WHEELS_DIR) || '' }}
-          storage_dir: ${{ env.PRODUCT_TYPE }}
-          storage_root: ${{ env.ARTIFACTS_SHARE }}
-          branch_name: ${{ inputs.target-branch }}
-        env:
-          STORE_WHEELS: ${{ inputs.build-type != 'Debug' }}

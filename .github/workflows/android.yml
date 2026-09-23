@@ -360,19 +360,6 @@ jobs:
           path: ${{ env.INSTALL_DIR }}/
           if-no-files-found: 'error'
 
-      - name: Store artifacts to a shared drive
-        id: store_artifacts
-        if: ${{ github.event_name != 'merge_group' }}
-        uses: ./openvino/.github/actions/store_artifacts
-        with:
-          artifacts: |
-            ${{ env.BUILD_DIR }}/openvino_package.tar.gz
-            ${{ env.BUILD_DIR }}/openvino_tests.tar.gz
-            ${{ env.MANIFEST_PATH }}
-          storage_dir: ${{ env.PRODUCT_TYPE }}
-          storage_root: ${{ env.ARTIFACTS_SHARE }}
-          branch_name: ${{ inputs.target-branch }}
-
   Overall_Status:
     name: ci/gha_overall_status_android
     needs: [Smart_CI, Docker, Build]
