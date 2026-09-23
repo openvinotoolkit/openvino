@@ -4,13 +4,13 @@
 
 #pragma once
 
-#include <mutex>
-
 #include "../utils/kernel_generator.hpp"
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
 #include "intel_gpu/primitives/scaled_dot_product_attention.hpp"
+// Nothing here uses it, but the files that include this header first rely on it for the oneDNN
+// headers to precede intel_gpu/runtime/utils.hpp (see the note at the top of paged_attention_opt.cpp).
 #include "micro_utils.hpp"
 #include "ocl_v2/utils/jitter.hpp"
 #include "scaled_dot_product_attention_inst.h"
@@ -30,9 +30,6 @@ public:
     }
 
     [[nodiscard]] std::string get_build_options(const kernel_impl_params& params) const override;
-
-    static void update_pa_sdpa_configuration(const sdpa_configuration& sdpa_config);
-    size_t get_tile_qsize(const KernelData& kernel_data);
 
     // Number of queries a single workgroup of this kernel consumes (the KQ workgroup query tile).
     // Paged attention must use exactly this value as the stride of
@@ -62,29 +59,9 @@ private:
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
 
-    static void init_microkernels(const kernel_impl_params& params,
-                                  const sdpa_configuration& sdpa_config,
-                                  micro::Package& gemm_kq,
-                                  micro::Package& gemm_vs,
-                                  micro::Package& gemm_kcq,
-                                  micro::Package& gemm_vcs,
-                                  bool is_prefill);
     static void init_sdpa_configuration(const kernel_impl_params& params, sdpa_configuration& config);
 
     bool m_is_prefill;
-    static std::mutex m;
-
-    static constexpr size_t kq_id = 0;
-    static constexpr size_t vs_id = 1;
-    static constexpr size_t kcq_id = 2;  // kc - key from current input
-    static constexpr size_t vcs_id = 3;  // vc - value from current input
-    static constexpr size_t prefill_id = 0;
-    static constexpr size_t generate_id = 1;
-
-    static constexpr bool kq_common_scales = false;
-    static constexpr bool kq_common_zp = false;
-    static constexpr bool vs_common_scales = false;
-    static constexpr bool vs_common_zp = false;
 };
 #endif
 }  // namespace ov::intel_gpu::ocl
