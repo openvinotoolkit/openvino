@@ -62,7 +62,8 @@ public:
                   const std::string& model_precision = "FP32",
                   unsigned int priority = 0,
                   const DeviceSelectionPolicy& selection_policy = {},
-                  const std::string& low_power_device = {});
+                  const std::string& low_power_device = {},
+                  bool is_low_power_mode_active = false);
     MOCKTESTMACRO std::list<DeviceInformation> sort_device_by_perf_curve(
         const std::unordered_map<std::string, float>& device_utilizations,
         const std::list<DeviceInformation>& valid_devices,
@@ -87,11 +88,7 @@ public:
         const std::list<DeviceInformation>& devices);
 
     // Whether the platform is currently in low power mode; see device_monitor::TelemetryClient.
-    MOCKTESTMACRO std::optional<bool> get_low_power_mode();
-
-    // Whether device_name refers to the user-configured low_power_device while the platform is
-    // currently in low power mode; used to fail fast on compile failure instead of falling back.
-    bool is_low_power_device(const std::string& device_name, const std::string& low_power_device);
+    MOCKTESTMACRO std::optional<bool> get_low_power_mode() const;
 
     std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor& model,
                                                              const ov::AnyMap& properties) const override;
@@ -124,8 +121,8 @@ private:
     static std::shared_ptr<std::mutex> m_mtx;
     static std::shared_ptr<std::map<unsigned int, std::list<std::string>>> m_priority_map;
     PluginConfig m_plugin_config;
-    std::once_flag m_telemetry_client_init_once;
-    std::unique_ptr<device_monitor::TelemetryClient> m_telemetry_client;
+    mutable std::once_flag m_telemetry_client_init_once;
+    mutable std::unique_ptr<device_monitor::TelemetryClient> m_telemetry_client;
 };
 
 }  // namespace auto_plugin

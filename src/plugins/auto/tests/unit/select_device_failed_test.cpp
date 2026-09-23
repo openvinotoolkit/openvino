@@ -125,7 +125,7 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
         // set the return value of SelectDevice
         // for example if there are three device, if will return GPU on the first call, and then NPU
         // at last CPU
-        ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(selDevsSize)), _, _, _, _))
+        ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(selDevsSize)), _, _, _, _, _))
             .WillByDefault(Return(metaDevices[deviceConfigs.size() - selDevsSize]));
         devicesStr += deviceName;
         devicesStr += ((++iter) == deviceConfigs.end()) ? "" : ",";
@@ -142,16 +142,16 @@ TEST_P(AutoLoadFailedTest, LoadCNNetWork) {
     if (thrExcWheSelect) {
         selDevsSize = deviceConfigs.size();
         if (selDevsSize > 1) {
-            ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(selDevsSize - 1)), _, _, _, _))
+            ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(selDevsSize - 1)), _, _, _, _, _))
                 .WillByDefault(ov::Throw(""));
         } else {
-            ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(1)), _, _, _, _))
+            ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(1)), _, _, _, _, _))
                 .WillByDefault(ov::Throw(""));
         }
     }
 
     EXPECT_CALL(*plugin, parse_meta_devices(_, _)).Times(AtLeast(1));
-    EXPECT_CALL(*plugin, select_device(_, _, _, _, _)).Times(selectCount);
+    EXPECT_CALL(*plugin, select_device(_, _, _, _, _, _)).Times(selectCount);
     EXPECT_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(_),
@@ -372,7 +372,8 @@ public:
 TEST_F(AutoLowPowerDeviceFailedTest, NoFallbackWhenLowPowerDeviceCompileFails) {
     DeviceInformation gpuDevice = {ov::test::utils::DEVICE_GPU, {}, 2, ""};
     DeviceInformation otherDevice = {"OTHER", {}, 2, ""};
-    metaDevices = {gpuDevice, otherDevice};
+    DeviceInformation cpuDevice = {ov::test::utils::DEVICE_CPU, {}, 2, ""};
+    metaDevices = {gpuDevice, otherDevice, cpuDevice};
 
     ON_CALL(*core,
             compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
@@ -387,20 +388,26 @@ TEST_F(AutoLowPowerDeviceFailedTest, NoFallbackWhenLowPowerDeviceCompileFails) {
             return devices;
         });
     ON_CALL(*plugin, get_low_power_mode()).WillByDefault(Return(true));
-    ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(2)), _, _, _, _))
+    ON_CALL(*plugin, select_device(Property(&std::vector<DeviceInformation>::size, Eq(3)), _, _, _, _, _))
         .WillByDefault(Return(gpuDevice));
 
-    config.insert(ov::device::priorities(std::string(ov::test::utils::DEVICE_GPU) + ",OTHER"));
+    config.insert(ov::device::priorities(std::string(ov::test::utils::DEVICE_GPU) + ",OTHER," +
+                                         ov::test::utils::DEVICE_CPU));
     config.insert(ov::intel_auto::low_power_device(std::string(ov::test::utils::DEVICE_GPU)));
 
     // Only the initial selection should happen; on failure of the pinned low power device, AUTO
     // must not select (or compile) another candidate device.
-    EXPECT_CALL(*plugin, select_device(_, _, _, _, _)).Times(1);
+    EXPECT_CALL(*plugin, select_device(_, _, _, _, _, _)).Times(1);
     EXPECT_CALL(*core,
                 compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
                               ::testing::Matcher<const std::string&>(_),
                               ::testing::Matcher<const ov::AnyMap&>(_)))
         .Times(1);
+    EXPECT_CALL(*core,
+                compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                              ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
+                              ::testing::Matcher<const ov::AnyMap&>(_)))
+        .Times(0);
 
     ASSERT_THROW(plugin->compile_model(model, config), ov::Exception);
 }
