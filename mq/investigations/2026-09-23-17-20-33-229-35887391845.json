@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-23-17-20-33-229-35887391845",
+  "timestamp": "2026-09-23T17:20:33Z",
+  "run_id": "35887391845",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35887391845",
+  "workflow_name": "Linux (Ubuntu 24.04, Python 3.12)",
+  "pr_number": "38342",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38342",
+  "author": "mvafin",
+  "category": "Infrastructure",
+  "title": "Merge-queue jobs fail downloading OpenVINO wheels - blob storage 403 authentication failure",
+  "signature": "unexpected http response from blob storage server failed to authenticate the request make sure the value of authorization header is formed correctly including the signature|Infrastructure",
+  "signature_hash": "8c601606d23367b1",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "LLM accuracy iGPU tests / LLM accuracy GPU tests",
+      "conclusion": "failure",
+      "symptom": "Download OpenVINO artifacts (wheels) step failed: blob storage returned HTTP 403 authentication error on every retry, then chunk timeout, causing artifact download to fail after 5 retries"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_24",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check failed because the LLM accuracy iGPU tests job failed"
+    }
+  ],
+  "key_errors": [
+    "2026-09-23T16:59:17.6343031Z ##[warning]Failed to download artifact after 2 retries due to undefined. Retrying in 5 seconds...",
+    "2026-09-23T16:59:23.5780395Z ##[error]Unexpected HTTP response from blob storage: 403 Server failed to authenticate the request. Make sure the value of Authorization header is formed correctly including the signature.",
+    "2026-09-23T16:59:40.5935156Z ##[error]Artifact download failed after 5 retries.",
+    "2026-09-23T16:59:40.5962587Z ##[error]Action failed with error: Unable to download and extract artifact: Artifact download failed after 5 retries."
+  ],
+  "root_cause": "The 'Download OpenVINO artifacts (wheels)' step in the LLM accuracy iGPU tests job (self-hosted igpu runner, akashchi/download-artifact action) repeatedly received HTTP 403 responses from Azure blob storage stating the request's Authorization header/signature could not be authenticated, alongside an earlier chunk timeout. This is a transient Azure Blob Storage SAS-token/signature validation failure on GitHub Actions' artifact backend, not caused by anything in the PR (which only touches docs/skills/CI files unrelated to build or artifact upload). All prior download attempts (5 retries) failed identically, then the step failed and downstream steps were skipped, failing the job and the aggregate status check.",
+  "reproduction_steps": "N/A - not reproducible locally; requires the GitHub Actions artifact storage backend to reject the signed URL. Re-running the failed job typically succeeds once a fresh, valid SAS token/signature is issued.",
+  "recommended_actions": [
+    "Re-run only the failed 'LLM accuracy iGPU tests / LLM accuracy GPU tests' job (a plain restart is expected to succeed since the failure is external to the PR's code).",
+    "If retries continue to fail, check GitHub Actions status page for Azure Blob Storage / artifacts service incidents.",
+    "Consider adding a short backoff+retry loop around the artifact-download action in job_gpu_tests.yml if this signature recurs frequently."
+  ],
+  "prevention_strategies": "No code-level prevention is possible for this external Azure Blob Storage authentication glitch; mitigation relies on the existing retry logic in the download-artifact action and, if this pattern recurs often, adding an outer retry/backoff wrapper around the artifact-download step in the GPU test job workflow.",
+  "historical_context": "Related but distinct 403 artifact patterns have been seen before: 'Failed to FinalizeArtifact ... 403 Forbidden' (upload path, RISC-V builds, seen 3 times), 'Failed to ListArtifacts ... 403 Forbidden' (download path, Linux ARM64, seen once), and a blob storage chunk-timeout pattern (seen twice). This is the first recorded occurrence of the specific 'Server failed to authenticate the request' / Authorization-header-signature 403 variant on the download path for the igpu LLM accuracy job."
+}

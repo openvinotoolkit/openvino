@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "unexpected http response from blob storage server failed to authenticate the request make sure the value of authorization header is formed correctly including the signature|Infrastructure",
+  "signature_hash": "8c601606d23367b1",
+  "title": "Merge-queue jobs fail downloading OpenVINO wheels - blob storage 403 authentication failure",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-09-23T17:20:33Z",
+  "last_seen": "2026-09-23T17:20:33Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/35887391845"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38342"
+  ],
+  "recent_timestamps": [
+    "2026-09-23T17:20:33Z"
+  ],
+  "rerun_search_string": "Unexpected HTTP response from blob storage: 403 Server failed to authenticate the request"
+}
