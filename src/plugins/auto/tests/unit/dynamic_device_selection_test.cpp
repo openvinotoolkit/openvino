@@ -226,14 +226,18 @@ TEST_F(AutoDynamicDeviceSelectionTest, fallback_device_priority_is_released_afte
     // GPU.0 (the initial ACTUALDEVICE) looks fine while the model is compiled; it is only
     // pushed over its threshold once inferences start, forcing the per inference target off it.
     std::atomic<bool> gpu0_over_threshold{false};
-    ON_CALL(*plugin, get_device_utilization)
-        .WillByDefault(
-            [&gpu0_over_threshold](const std::string& device_name, const std::string&) -> std::optional<float> {
-                if (device_name == "GPU.0" && gpu0_over_threshold) {
-                    return 95.0f;
+    ON_CALL(*plugin, get_device_utilizations)
+        .WillByDefault([&gpu0_over_threshold](const std::list<DeviceInformation>& devices) {
+            std::unordered_map<std::string, float> result;
+            if (gpu0_over_threshold) {
+                for (const auto& device : devices) {
+                    if (device.device_name == "GPU.0") {
+                        result[device.device_name] = 95.0f;
+                    }
                 }
-                return std::nullopt;
-            });
+            }
+            return result;
+        });
 
     std::shared_ptr<ov::ICompiledModel> compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
@@ -281,14 +285,18 @@ TEST_F(AutoDynamicDeviceSelectionTest, fallback_device_priority_is_released_afte
     // GPU.0 (the initial ACTUALDEVICE) looks fine while the model is compiled; it is only
     // pushed over its threshold once inferences start, forcing the per inference target off it.
     std::atomic<bool> gpu0_over_threshold{false};
-    ON_CALL(*plugin, get_device_utilization)
-        .WillByDefault(
-            [&gpu0_over_threshold](const std::string& device_name, const std::string&) -> std::optional<float> {
-                if (device_name == "GPU.0" && gpu0_over_threshold) {
-                    return 95.0f;
+    ON_CALL(*plugin, get_device_utilizations)
+        .WillByDefault([&gpu0_over_threshold](const std::list<DeviceInformation>& devices) {
+            std::unordered_map<std::string, float> result;
+            if (gpu0_over_threshold) {
+                for (const auto& device : devices) {
+                    if (device.device_name == "GPU.0") {
+                        result[device.device_name] = 95.0f;
+                    }
                 }
-                return std::nullopt;
-            });
+            }
+            return result;
+        });
 
     std::shared_ptr<ov::ICompiledModel> compiled_model;
     OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
