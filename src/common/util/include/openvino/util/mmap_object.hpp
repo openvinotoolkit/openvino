@@ -44,11 +44,6 @@ enum class MmapMode {
 };
 
 /**
- * @brief Id reported by mappings whose content is mutable, so they must never be substituted for one another.
- */
-inline constexpr uint64_t no_mapping_id = 0;
-
-/**
  * @brief This class represents a mapped memory.
  * Instead of reading files, we can map the memory via mmap for Linux or MapViewOfFile for Windows.
  * The MappedMemory class is a abstraction to handle such memory with os-dependent details.
