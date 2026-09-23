@@ -238,7 +238,7 @@ public:
                     auto new_add = std::make_shared<ov::op::v1::Add>(qk_score_node->output(0), unsq2->output(0));
                     new_add->set_friendly_name(qk_score_node->get_friendly_name() + "/with_mask");
                     auto names = qk_score_node->output(0).get_names();
-                    // Synthetic name instead of leaving this dead node nameless.
+                    // Still feeds new_add - give it a synthetic name instead of leaving it nameless.
                     qk_score_node->output(0).set_names({qk_score_node->get_friendly_name() + "/orig"});
                     new_add->output(0).add_names(names);
                     for (const auto& reader : readers) {
@@ -566,7 +566,7 @@ std::optional<EncoderKvRole> classify_encoder_kv_reader(const ov::Input<ov::Node
 // state is "key" or "value" from among the latter.
 struct EncoderKvState {
     std::shared_ptr<ov::op::v6::Assign> assign_node;
-    std::vector<ov::Input<ov::Node>> value_readers;
+    std::vector<ov::Input<ov::Node>> read_values;
     EncoderKvRole role;
 };
 
@@ -580,13 +580,13 @@ EncoderKvState analyze_encoder_kv_read_value(const std::shared_ptr<ov::Node>& rv
             state.assign_node = ov::as_type_ptr<ov::op::v6::Assign>(reader.get_node()->shared_from_this());
             continue;
         }
-        state.value_readers.push_back(reader);
+        state.read_values.push_back(reader);
         if (!role) {
             role = classify_encoder_kv_reader(reader);
         }
     }
     OPENVINO_ASSERT(state.assign_node, "encoder-attn KV-cache state has no Assign");
-    OPENVINO_ASSERT(!state.value_readers.empty(), "encoder-attn KV-cache state is never read");
+    OPENVINO_ASSERT(!state.read_values.empty(), "encoder-attn KV-cache state is never read");
     OPENVINO_ASSERT(role, "Could not classify encoder-attn KV-cache state as key or value");
     state.role = *role;
     return state;
@@ -597,7 +597,7 @@ auto remove_encoder_attn_read_value(const std::shared_ptr<ov::Node>& rv_node, co
     // Redirect every consumer of the state directly to its initial value - covers both
     // the single fused-SDPA reader and the several decomposed-key readers (Transpose +
     // ShapeOf) alike.
-    for (const auto& reader : state.value_readers) {
+    for (const auto& reader : state.read_values) {
         reader.replace_source_output(kv_out);
     }
     return std::make_pair(std::make_shared<ov::op::v0::Result>(kv_out), state.assign_node);
@@ -721,7 +721,7 @@ void expose_runtime_states_as_inputs(const std::shared_ptr<ov::Model>& model) {
         set_name(new_param, normalized_name);
         params.push_back(new_param);
 
-        for (const auto& reader : state.value_readers) {
+        for (const auto& reader : state.read_values) {
             reader.replace_source_output(new_param->output(0));
         }
         assigns.push_back(state.assign_node);
@@ -737,8 +737,7 @@ void expose_runtime_states_as_inputs(const std::shared_ptr<ov::Model>& model) {
 void normalize_input_key_value_names(const std::shared_ptr<ov::Model>& model) {
     ov::ResultVector new_results, old_results;
     for (const auto& in : model->inputs()) {
-        // Cross-attention decomposition can leave ports nameless (qk-score names get
-        // moved onto a new Add) - get_any_name() throws on those, get_names() doesn't.
+        // Defensive: get_any_name() throws on a nameless port.
         if (in.get_names().empty() || in.get_any_name().find("decoder") == std::string::npos) {
             continue;
         }
@@ -755,7 +754,7 @@ void normalize_input_key_value_names(const std::shared_ptr<ov::Model>& model) {
 void normalize_output_key_value_names(const std::shared_ptr<ov::Model>& model) {
     ov::ResultVector new_results, old_results;
     for (const auto& out : model->outputs()) {
-        // See normalize_input_key_value_names: decomposition can leave outputs nameless.
+        // See normalize_input_key_value_names.
         if (out.get_names().empty() || out.get_any_name().find("decoder") == std::string::npos) {
             continue;
         }
