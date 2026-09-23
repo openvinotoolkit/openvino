@@ -195,12 +195,24 @@ TEST_F(HsmFormatLayoutCompatibilityTest, core_tags_have_fixed_mode) {
 TEST_F(HsmFormatLayoutCompatibilityTest, device_tags_cannot_collide_with_core_tags) {
     // A device tag built from local id 0 must never land in the Core-owned range, no matter how small the
     // local id is - this is the whole point of make_device_tag() vs. picking a raw absolute id by hand.
+    static_assert(runtime::device_local_id(runtime::make_device_tag(0, true)) == 0,
+                  "make_device_tag()/device_local_id() must round-trip the local id");
     static_assert(runtime::make_device_tag(0, true).id() == runtime::core_tag_id_range_end,
                   "make_device_tag(0, ...) must land exactly at the range boundary");
     static_assert(runtime::make_device_tag(0, true).id() >= runtime::core_tag_id_range_end,
                   "device tag ids must never fall below core_tag_id_range_end");
     static_assert(runtime::model_id < runtime::core_tag_id_range_end, "model_id must stay below core_tag_id_range_end");
     static_assert(runtime::model < runtime::core_tag_id_range_end, "model must stay below core_tag_id_range_end");
+
+    SUCCEED();
+}
+
+TEST_F(HsmFormatLayoutCompatibilityTest, core_tag_values_are_pinned) {
+    static_assert(static_cast<uint32_t>(runtime::HSMTags::invalid) == 0, "HSMTags::invalid value changed");
+    static_assert(static_cast<uint32_t>(runtime::HSMTags::model_id) == 1, "HSMTags::model_id value changed");
+    static_assert(static_cast<uint32_t>(runtime::HSMTags::model) == 2, "HSMTags::model value changed");
+    static_assert(static_cast<uint32_t>(runtime::HSMTags::runtime_requirements) == 3,
+                  "HSMTags::runtime_requirements value changed");
 
     SUCCEED();
 }
@@ -329,6 +341,12 @@ TEST(HsmContainerViewValidateTest, accepts_well_formed_container) {
     EXPECT_TRUE(view.validate());
 }
 
+TEST(HsmContainerViewValidateTest, accepts_well_formed_multi_container) {
+    const auto blob = make_multi_container({}, {});
+    const runtime::HSMContainerView view(blob.data(), blob.size());
+    EXPECT_TRUE(view.validate());
+}
+
 TEST(HsmContainerViewValidateTest, rejects_bad_magic) {
     auto blob = make_sample_container_with_entries();
     blob[0] = 'X';  // corrupt HSMHeader::magic
@@ -367,6 +385,16 @@ TEST(HsmContainerViewValidateTest, rejects_manifest_offset_inside_header) {
     auto blob = make_sample_container_with_entries();
     auto header = runtime::HSMHeader::view(blob.data());
     header.manifest_offset = sizeof(runtime::HSMHeader) - 1;  // would start reading manifest inside the header
+    std::memcpy(blob.data(), &header, sizeof(header));
+
+    const runtime::HSMContainerView view(blob.data(), blob.size());
+    EXPECT_FALSE(view.validate());
+}
+
+TEST(HsmContainerViewValidateTest, rejects_manifest_size_not_multiple_of_entry_size) {
+    auto blob = make_sample_container_with_entries();
+    auto header = runtime::HSMHeader::view(blob.data());
+    header.manifest_size -= 1;  // no longer a multiple of sizeof(ManifestEntry)
     std::memcpy(blob.data(), &header, sizeof(header));
 
     const runtime::HSMContainerView view(blob.data(), blob.size());

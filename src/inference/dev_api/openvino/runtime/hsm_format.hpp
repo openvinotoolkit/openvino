@@ -17,13 +17,13 @@
 
 #pragma once
 
-#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
 
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/common.hpp"
 #include "openvino/util/container_util.hpp"
 #include "openvino/util/memory.hpp"
 
@@ -180,15 +180,16 @@ inline constexpr uint32_t core_tag_id_range_end = 0x1000;
 inline constexpr uint32_t max_tag_id = 0x7FFFFF;
 
 /**
- * @brief Core-owned HSM tag identifiers. These are automatically assigned in declaration order and should not collide
- * with device-specific tags.
+ * @brief Core-owned HSM tag identifiers - explicit wire values so reordering is safe; never change or reuse a
+ * value once shipped. #sentinel_count auto-tracks the count and must stay last.
  */
 enum class HSMTags : uint32_t {
-    invalid = 0,           //!< Reserved: never a real tag id.
-    model_id,              //!< See #model_id.
-    model,                 //!< See #model.
-    runtime_requirements,  //!< See #runtime_requirements_tag().
-    // Add new Core tags above this line only - values are assigned automatically, in declaration order.
+    invalid = 0,                //!< Reserved: never a real tag id.
+    model_id = 1,               //!< See #model_id.
+    model = 2,                  //!< See #model.
+    runtime_requirements = 3,   //!< See #runtime_requirements_tag().
+    // Add new Core tags above this line only, each with the next explicit value - never change or reuse an
+    // existing tag's value.
     sentinel_count,  // Not a real tag id - always exactly one past the last real entry above.
 };
 static_assert(static_cast<uint32_t>(HSMTags::sentinel_count) <= core_tag_id_range_end,
@@ -228,6 +229,11 @@ constexpr SectionTag runtime_requirements_tag() noexcept {
 constexpr SectionTag make_device_tag(uint32_t local_id, bool is_inline) noexcept {
     OPENVINO_DEBUG_ASSERT(local_id <= max_tag_id - core_tag_id_range_end);
     return SectionTag::make(core_tag_id_range_end + local_id, is_inline);
+}
+
+/// Inverse of #make_device_tag(): recovers the local id (`tag.id() - core_tag_id_range_end`).
+constexpr uint32_t device_local_id(SectionTag tag) noexcept {
+    return tag.id() - core_tag_id_range_end;
 }
 
 /**
@@ -309,8 +315,8 @@ constexpr bool is_valid_header_fields(const HSMHeader& header) noexcept {
  * @return true if the section bounds are valid, false otherwise.
  */
 constexpr bool is_valid_section_bounds(const ManifestEntry& entry, const HSMHeader& header) noexcept {
-    return !entry.tag.is_pointer() || (entry.offset >= sizeof(HSMHeader) && entry.offset <= header.manifest_offset &&
-                                       header.manifest_offset - entry.offset >= entry.size);
+    return entry.tag.is_inline() || (entry.offset >= sizeof(HSMHeader) && entry.offset <= header.manifest_offset &&
+                                     header.manifest_offset - entry.offset >= entry.size);
 }
 
 /**
@@ -337,7 +343,7 @@ public:
 /**
  * @brief Read-only, zero-copy view of an entire in-memory HSM container: header, manifest and pointer-mode
  */
-class HSMContainerView {
+class OPENVINO_RUNTIME_API HSMContainerView {
 public:
     /// Empty (zero-size, null-data) view - #validate() is false for it.
     constexpr HSMContainerView() noexcept = default;
@@ -353,17 +359,13 @@ public:
      * @brief Returns the header at the start of the buffer.
      * @return Reference to the header at the start of the buffer.
      */
-    const HSMHeader& header() const noexcept {
-        return HSMHeader::view(reinterpret_cast<const uint8_t*>(begin()));
-    }
+    const HSMHeader& header() const noexcept;
 
     /**
      * @brief Returns the first manifest entry at `header().manifest_offset`.
      * @return The first manifest entry at `header().manifest_offset`.
      */
-    const ManifestEntry& manifest() const noexcept {
-        return *reinterpret_cast<const ManifestEntry*>(begin() + header().manifest_offset);
-    }
+    const ManifestEntry& manifest() const noexcept;
 
     /// Number of entries at #manifest().
     size_t manifest_count() const noexcept {
@@ -374,7 +376,7 @@ public:
      * @brief Bounds-checked payload bytes of a pointer-mode manifest entry; empty view for an invalid or inline entry.
      */
     constexpr ov::util::MemoryView section(const ManifestEntry& entry) const noexcept {
-        if (!entry.tag.is_pointer() || entry.offset > size() || entry.size > size() - entry.offset) {
+        if (entry.tag.is_inline() || entry.offset > size() || entry.size > size() - entry.offset) {
             return {};
         } else {
             return {begin() + static_cast<size_t>(entry.offset), static_cast<size_t>(entry.size)};
@@ -385,24 +387,7 @@ public:
      * @brief Basic structural integrity check: magic, and that the header/manifest/pointer-mode section
      * bounds all stay within #size() with no overflow. Doesn't interpret tag-specific (device, tag) content.
      */
-    bool validate() const noexcept {
-        if (static_cast<size_t>(end() - begin()) < sizeof(HSMHeader)) {
-            return false;
-        }
-        const auto& hdr = header();
-        if (!is_valid_header_fields(hdr) || hdr.container_size > size()) {
-            return false;
-        }
-
-        if (hdr.manifest_size == 0) {
-            return true;
-        }
-
-        const auto* entries = &manifest();
-        return std::all_of(entries, entries + manifest_count(), [&hdr](const ManifestEntry& entry) {
-            return is_valid_section_bounds(entry, hdr);
-        });
-    }
+    bool validate() const noexcept;
 
 private:
     constexpr const std::byte* begin() const noexcept {
@@ -421,7 +406,7 @@ private:
  * This class allows iterating over and accessing the #BlobMagic::single containers within a multi-blob HSM file,
  * skipping over shared-context containers.
  */
-class HSMMultiBlobView {
+class OPENVINO_RUNTIME_API HSMMultiBlobView {
 public:
     explicit constexpr HSMMultiBlobView(const std::byte* data, size_t size) noexcept : m_view{data, size} {}
     explicit HSMMultiBlobView(const uint8_t* data, size_t size) noexcept
@@ -435,41 +420,13 @@ public:
      * @brief Returns the number of #BlobMagic::single containers in the multi-blob HSM file.
      * @return The number of #BlobMagic::single containers in the multi-blob HSM file.
      */
-    size_t blob_count() const noexcept {
-        auto view = m_view;
-        size_t count = 0;
-        while (view.size() >= sizeof(HSMHeader)) {
-            const auto next = advance_container(view);
-            if (!next) {
-                break;
-            }
-            count += next->is_blob ? 1 : 0;
-            view = next->remaining;
-        }
-        return count;
-    }
+    size_t blob_count() const noexcept;
 
     /**
      * @brief The `index`-th #BlobMagic::single container (shared-context containers don't count towards `index`).
      * @return An empty (zero-size) view if `index >= blob_count()`.
      */
-    HSMContainerView blob_at(size_t index) const noexcept {
-        auto view = m_view;
-        while (view.size() >= sizeof(HSMHeader)) {
-            const auto next = advance_container(view);
-            if (!next) {
-                break;
-            }
-            if (next->is_blob) {
-                if (index == 0) {
-                    return HSMContainerView{view.data(), next->container_size};
-                }
-                --index;
-            }
-            view = next->remaining;
-        }
-        return {};
-    }
+    HSMContainerView blob_at(size_t index) const noexcept;
 
 private:
     /**
@@ -479,9 +436,25 @@ private:
      * blob.
      */
     struct NextContainer {
-        ov::util::MemoryView remaining;  //!< The remaining view after the container.
-        size_t container_size;           //!< Size of the container just advanced past.
-        bool is_blob;                    //!< True if the container was a blob.
+        NextContainer(ov::util::MemoryView remaining, size_t container_size, bool is_blob) noexcept
+            : m_remaining(remaining),
+              m_container_size(container_size),
+              m_is_blob(is_blob) {}
+
+        const ov::util::MemoryView& remaining() const noexcept {
+            return m_remaining;
+        }
+        size_t container_size() const noexcept {
+            return m_container_size;
+        }
+        bool is_blob() const noexcept {
+            return m_is_blob;
+        }
+
+    private:
+        ov::util::MemoryView m_remaining;  //!< The remaining view after the container.
+        size_t m_container_size;           //!< Size of the container just advanced past.
+        bool m_is_blob;                    //!< True if the container was a blob.
     };
 
     /**
@@ -490,17 +463,7 @@ private:
      * @return A NextContainer describing the remaining view and whether it was a blob, or `std::nullopt` if the header
      * is invalid.
      */
-    static std::optional<NextContainer> advance_container(const ov::util::MemoryView& view) noexcept {
-        const auto& hdr = HSMHeader::view(reinterpret_cast<const uint8_t*>(view.data()));
-        if (!is_recognized_header(hdr) || hdr.container_size > view.size()) {
-            return std::nullopt;
-        } else {
-            const auto container_size = static_cast<size_t>(hdr.container_size);
-            return std::make_optional(NextContainer{{view.data() + container_size, view.size() - container_size},
-                                                    container_size,
-                                                    hdr.magic == BlobMagic::single});
-        }
-    }
+    static std::optional<NextContainer> advance_container(const ov::util::MemoryView& view) noexcept;
 
     ov::util::MemoryView m_view;
 };
