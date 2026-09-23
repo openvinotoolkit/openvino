@@ -2,14 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <algorithm>
 #include "openvino/runtime/properties.hpp"
+
+#include <algorithm>
+#include <sstream>
+
+#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
+#include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
-#include "openvino/runtime/core.hpp"
-#include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
-
-
 namespace {
 
 class TestPropertiesGPU : public ::testing::Test {
@@ -115,6 +116,24 @@ TEST(KVCachePrecisionAutoDetection, I4NormalizedToU4) {
                                                            ov::hint::kv_cache_precision(ov::element::i4)));
 
     auto kv_prec = compiled_model.get_property(ov::hint::kv_cache_precision);
+    ASSERT_EQ(kv_prec, ov::element::u4);
+}
+
+TEST(KVCachePrecisionAutoDetection, ResolvedPrecisionPreservedOnImport) {
+    auto model = ov::test::utils::make_conv_pool_relu();
+
+    ov::Core core;
+    ov::CompiledModel compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU, ov::hint::kv_cache_precision(ov::element::i4)));
+    auto kv_prec = compiled_model.get_property(ov::hint::kv_cache_precision);
+    ASSERT_EQ(kv_prec, ov::element::u4);
+
+    std::stringstream blob;
+    OV_ASSERT_NO_THROW(compiled_model.export_model(blob));
+
+    ov::CompiledModel imported_model;
+    OV_ASSERT_NO_THROW(imported_model = core.import_model(blob, ov::test::utils::DEVICE_GPU));
+    kv_prec = imported_model.get_property(ov::hint::kv_cache_precision);
     ASSERT_EQ(kv_prec, ov::element::u4);
 }
 

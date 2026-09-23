@@ -105,23 +105,6 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     }
     ib >> m_runtime_requirements;
 
-    // Restore the KV cache precision resolved during the original (cold) compile. On import the
-    // config is never finalized against an ov::Model, so kv_cache_precision-dependent auto-detection
-    // (4-bit weights => u4) can't run and get_kv_cache_precision() would report the default. Persisting
-    // it keeps the imported compiled model's ov::hint::kv_cache_precision property consistent with the
-    // cold compile, which downstream pipelines (e.g. GenAI EAGLE3 reorder) rely on to build the
-    // auxiliary KV-update graph against the same physically-allocated cache layout.
-    {
-        std::string kv_cache_precision_str;
-        ib >> kv_cache_precision_str;
-        std::stringstream ss(kv_cache_precision_str);
-        ov::element::Type kv_cache_precision;
-        ss >> kv_cache_precision;
-        if (kv_cache_precision != ov::element::dynamic) {
-            m_config.set_user_property({ov::hint::kv_cache_precision(kv_cache_precision)}, OptionVisibility::RELEASE);
-        }
-    }
-
     // Descriptor content mismatch => blob built for a different runtime (OpenVINO version/driver).
     const auto& device_info = m_context->get_engine().get_device_info();
     if (!is_runtime_requirements_compatible(m_runtime_requirements, device_info)) {
@@ -206,6 +189,13 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     }
 
     auto graph_base = std::make_shared<Graph>(ib, context, m_config, 0);
+    // Graph serialization already preserves its finalized ExecutionConfig. Propagate the resolved
+    // precision to the compiled-model config so get_property() exposes the cache layout encoded in
+    // the imported graph instead of the unresolved import-time hint.
+    const auto kv_cache_precision = graph_base->get_config().get_kv_cache_precision();
+    if (kv_cache_precision != ov::element::dynamic) {
+        m_config.set_user_property({ov::hint::kv_cache_precision(kv_cache_precision)}, OptionVisibility::RELEASE);
+    }
     for (uint16_t n = 0; n < m_config.get_num_streams(); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);
@@ -250,14 +240,6 @@ void CompiledModel::export_model(std::ostream& model) const {
     const uint32_t requirements_version = runtime_requirements_version;
     ob << requirements_version;
     ob << m_runtime_requirements;
-
-    // Persist the resolved KV cache precision so import can restore the ov::hint::kv_cache_precision
-    // property (see the matching read in the import constructor for the rationale).
-    {
-        std::stringstream ss;
-        ss << m_config.get_kv_cache_precision();
-        ob << ss.str();
-    }
 
     // Inputs
     {
