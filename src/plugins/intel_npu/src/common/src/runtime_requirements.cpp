@@ -157,6 +157,7 @@ void RuntimeRequirementsSection::write(BlobWriterInterface& writer) {
         m_runtime_requirements.get_section_id_to_type_mapping();
 
     for (const auto& [section_id, section_requirements] : sections_requirements) {
+        OPENVINO_ASSERT(section_id_to_type.count(section_id));
         const SectionType section_type = section_id_to_type.at(section_id);
         std::string key = section_type_and_id_to_string(section_type, section_id);
         string_to_lower(key);
@@ -172,8 +173,8 @@ std::shared_ptr<ISection> RuntimeRequirementsSection::read(BlobReaderInterface& 
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "RuntimeRequirementsSection::read");
     Logger logger("RuntimeRequirementsSection", blob_reader.get_log_level());
 
+    // TODO make sure the inclusion of a runtime requirements section is optional
     const size_t section_length = blob_reader.get_total_section_size();
-    // TODO test this
     // TODO check manifest section lengths are not greater than the size of the NPU region
     OPENVINO_ASSERT(section_length >= MINIMUM_RUNTIME_REQUIREMENTS_SIZE,
                     "The runtime requirements section is too small");
@@ -189,6 +190,9 @@ std::shared_ptr<ISection> RuntimeRequirementsSection::read(BlobReaderInterface& 
     } catch (const std::exception& ex) {
         OPENVINO_THROW("The content of the runtime requirements section is malformed: ", ex.what());
     }
+
+    OPENVINO_ASSERT(parsed_content.count(VERSION_KEY.data()), "Missing runtime requirements version");
+    OPENVINO_ASSERT(parsed_content.count(CRE_KEY.data()), "No CRE found within the runtime requirements");
 
     // Check the format version
     const MajorMinorVersion parsed_version = MajorMinorVersion::from_string(parsed_content.at(VERSION_KEY.data()));

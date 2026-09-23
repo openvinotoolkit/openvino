@@ -18,6 +18,7 @@ using namespace intel_npu;
 constexpr std::string_view INVALID_STATE_MESSAGE = "Invalid state";
 constexpr std::string_view NEW_PAGE_ALIGNED_BUFFER_MESSAGE =
     "A new, page aligned buffer of size %zu has been allocated to host a compiled model";
+constexpr std::string_view NULL_GRAPH_MESSAGE = "The section's code cannot operate on a null \"graph\" object";
 constexpr size_t SIZE_OF_INIT_SCHEDULE_SIZE = sizeof(uint64_t);
 constexpr char LIST_START_DELIMITER = '[';
 constexpr char LIST_END_DELIMITER = ']';
@@ -43,7 +44,9 @@ ELFMainScheduleSection::ELFMainScheduleSection(const std::shared_ptr<Graph>& gra
     : ISection(SectionTypeCode::ELF_MAIN_SCHEDULE),
       m_graph_or_schedule(graph),
       m_encryption_callbacks(encryption_callbacks),
-      m_logger("ELFMainScheduleSection", log_level) {}
+      m_logger("ELFMainScheduleSection", log_level) {
+    OPENVINO_ASSERT(graph, NULL_GRAPH_MESSAGE);
+}
 
 ELFMainScheduleSection::ELFMainScheduleSection(ov::Tensor&& main_schedule,
                                                const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
@@ -98,6 +101,7 @@ void ELFMainScheduleSection::write(BlobWriterInterface& writer) {
 }
 
 void ELFMainScheduleSection::set_graph(const std::shared_ptr<Graph>& graph) {
+    OPENVINO_ASSERT(graph, NULL_GRAPH_MESSAGE);
     OPENVINO_ASSERT(std::holds_alternative<ov::Tensor>(m_graph_or_schedule), INVALID_STATE_MESSAGE);
     m_graph_or_schedule = graph;
 }
@@ -163,7 +167,9 @@ ELFInitSchedulesSection::ELFInitSchedulesSection(const std::shared_ptr<Weightles
     : ISection(SectionTypeCode::ELF_INIT_SCHEDULES),
       m_graph_or_schedules(weightless_graph),
       m_encryption_callbacks(encryption_callbacks),
-      m_logger("ELFInitSchedulesSection", log_level) {}
+      m_logger("ELFInitSchedulesSection", log_level) {
+    OPENVINO_ASSERT(weightless_graph, NULL_GRAPH_MESSAGE);
+}
 
 ELFInitSchedulesSection::ELFInitSchedulesSection(std::vector<ov::Tensor>&& init_schedules,
                                                  const std::optional<ov::EncryptionCallbacks>& encryption_callbacks,
@@ -231,6 +237,7 @@ void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
 }
 
 void ELFInitSchedulesSection::set_graph(const std::shared_ptr<WeightlessGraph>& weightless_graph) {
+    OPENVINO_ASSERT(weightless_graph, NULL_GRAPH_MESSAGE);
     OPENVINO_ASSERT(std::holds_alternative<std::vector<ov::Tensor>>(m_graph_or_schedules), INVALID_STATE_MESSAGE);
     m_graph_or_schedules = weightless_graph;
 }

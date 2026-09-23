@@ -41,7 +41,7 @@ std::shared_ptr<ISection> CompilerVersionSection::read(BlobReaderInterface& blob
     int32_t compiler_version;
     blob_reader.read_into_buffer(&compiler_version, sizeof(compiler_version));
 
-    Logger("CompilerVersionSection", blob_reader.get_log_level()).debug("Read batch size %lu", compiler_version);
+    Logger("CompilerVersionSection", blob_reader.get_log_level()).debug("Read compiler version %lu", compiler_version);
 
     return std::make_shared<CompilerVersionSection>(compiler_version, blob_reader.get_log_level());
 }

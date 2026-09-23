@@ -52,6 +52,8 @@ CompilerScheduleInstanceEvaluator::CompilerScheduleInstanceEvaluator(
       m_option_support_helper(option_support_helper) {
     OPENVINO_ASSERT(backend && backend->getDevice(),
                     "A device object is required to validate the compiler requirements");
+    OPENVINO_ASSERT(option_support_helper,
+                    "A compiler option support helper object is required to validate the compiler requirements");
 }
 
 ov::CompatibilityCheck CompilerScheduleInstanceEvaluator::evaluate(std::string_view runtime_requirements) const {

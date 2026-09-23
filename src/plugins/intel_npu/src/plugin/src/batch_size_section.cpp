@@ -26,7 +26,7 @@ std::vector<std::shared_ptr<CREToken>> BatchSizeSection::get_compatibility_requi
 
 void BatchSizeSection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "BatchSizeSection::write");
-    m_logger.debug("Writting batch size %lu", m_batch_size);
+    m_logger.debug("Writting batch size %ld", m_batch_size);
 
     writer.write_from(&m_batch_size, sizeof(m_batch_size));
 }

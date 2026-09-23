@@ -21,13 +21,14 @@ EncryptedSchedulesFlagSection::EncryptedSchedulesFlagSection(const bool applied_
 std::vector<std::shared_ptr<CREToken>> EncryptedSchedulesFlagSection::get_compatibility_requirements_subexpression(
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
+    // Blob encryption should be supported within the plugin
     m_logger.debug("Added the ENCRYPTED_SCHEDULES_FLAG section type to the CRE");
     return {std::make_shared<SectionType>(get_type())};
 }
 
 void EncryptedSchedulesFlagSection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "EncryptedSchedulesFlagSection::write");
-    m_logger.debug("Writting the encryption flag %lu", m_flag);
+    m_logger.debug("Writing the encryption flag %lu", m_flag);
 
     writer.write_from(&m_flag, sizeof(m_flag));
 }
@@ -49,7 +50,7 @@ std::shared_ptr<ISection> EncryptedSchedulesFlagSection::read(BlobReaderInterfac
     bool flag;
     blob_reader.read_into_buffer(&flag, sizeof(flag));
 
-    Logger("EncryptedSchedulesFlagSection", blob_reader.get_log_level()).debug("Read the encryption flag %lu", flag);
+    Logger("EncryptedSchedulesFlagSection", blob_reader.get_log_level()).debug("Read the encryption flag %d", flag);
 
     return std::make_shared<EncryptedSchedulesFlagSection>(flag, blob_reader.get_log_level());
 }
