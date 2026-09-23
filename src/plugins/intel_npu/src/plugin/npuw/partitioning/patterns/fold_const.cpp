@@ -4,7 +4,10 @@
 
 #include "fold_const.hpp"
 
+#include <vector>
+
 #include "../../logging.hpp"
+#include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/op/add.hpp"
@@ -13,6 +16,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -26,6 +30,113 @@ namespace ov {
 namespace npuw {
 namespace patterns {
 namespace util {
+
+namespace {
+bool gatherReadsConcatAxis(const ov::Node* gather, const ov::op::v0::Concat& concat) {
+    const auto rank = concat.get_output_partial_shape(0).rank();
+    const auto indices = ov::as_type_ptr<ov::op::v0::Constant>(gather->input_value(1).get_node_shared_ptr());
+    const auto gatherAxis = ov::as_type_ptr<ov::op::v0::Constant>(gather->input_value(2).get_node_shared_ptr());
+    if (!rank.is_static() || !indices || !gatherAxis) {
+        return true;  // Unknown indices or rank: keep the runtime value.
+    }
+
+    const auto axisValues = gatherAxis->cast_vector<int64_t>();
+    if (axisValues.size() != 1 || (axisValues.front() != 0 && axisValues.front() != -1)) {
+        return true;
+    }
+
+    const auto rankLength = rank.get_length();
+    const auto concatAxis = concat.get_axis() < 0 ? concat.get_axis() + rankLength : concat.get_axis();
+    for (auto index : indices->cast_vector<int64_t>()) {
+        if (index < 0) {
+            index += rankLength;
+        }
+        if (index == concatAxis) {
+            return true;
+        }
+    }
+    return false;
+}
+}  // namespace
+
+bool isShapeOfConcatUsedAsReshapeShape(ov::Output<ov::Node> shapeOfOutput) {
+    const auto shapeOf = ov::as_type_ptr<ov::op::v3::ShapeOf>(shapeOfOutput.get_node_shared_ptr());
+    if (!shapeOf) {
+        return false;
+    }
+    const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(shapeOf->input_value(0).get_node_shared_ptr());
+    if (!concat) {
+        return false;
+    }
+
+    for (const auto& shapeOfUser : shapeOfOutput.get_target_inputs()) {
+        auto gather = shapeOfUser.get_node();
+        if (!ov::is_type<ov::op::v8::Gather>(gather) || shapeOfUser.get_index() != 0) {
+            continue;
+        }
+
+        // Only the dimension along the KV Concat axis can change with a shorter
+        // chunk. A Gather of the batch/head dimensions may still be folded.
+        if (!gatherReadsConcatAxis(gather, *concat)) {
+            continue;
+        }
+
+        for (const auto& gatherUser : gather->output(0).get_target_inputs()) {
+            auto shapeConcat = gatherUser.get_node();
+            if (!ov::is_type<ov::op::v0::Concat>(shapeConcat)) {
+                continue;
+            }
+            for (const auto& shapeConcatUser : shapeConcat->output(0).get_target_inputs()) {
+                if (ov::is_type<ov::op::v1::Reshape>(shapeConcatUser.get_node()) && shapeConcatUser.get_index() == 1) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+bool foldNonConcatAxisGathers(ov::Output<ov::Node> shapeOfOutput) {
+    const auto shapeOf = ov::as_type_ptr<ov::op::v3::ShapeOf>(shapeOfOutput.get_node_shared_ptr());
+    if (!shapeOf) {
+        return false;
+    }
+    const auto concat = ov::as_type_ptr<ov::op::v0::Concat>(shapeOf->input_value(0).get_node_shared_ptr());
+    if (!concat) {
+        return false;
+    }
+
+    // A shared ShapeOf may feed both the runtime sequence length and a static
+    // batch/head dimension. Fold only Gathers proven independent of the Concat
+    // axis; other consumers (including Broadcast shapes) may also need it.
+    std::vector<ov::Output<ov::Node>> safeGathers;
+    for (const auto& user : shapeOfOutput.get_target_inputs()) {
+        auto gather = user.get_node();
+        if (user.get_index() == 0 && ov::is_type<ov::op::v8::Gather>(gather) &&
+            !gatherReadsConcatAxis(gather, *concat)) {
+            safeGathers.emplace_back(gather->output(0));
+        }
+    }
+
+    bool changed = false;
+    for (const auto& gatherOutput : safeGathers) {
+        if (gatherOutput.get_target_inputs().empty()) {
+            continue;
+        }
+        ov::util::evaluate_both_bounds(gatherOutput);
+        auto& tensor = gatherOutput.get_tensor();
+        if (!tensor.has_and_set_bound()) {
+            continue;
+        }
+        auto constant = std::make_shared<ov::op::v0::Constant>(tensor.get_upper_value());
+        constant->set_friendly_name("NPUW/Folded/" + gatherOutput.get_node_shared_ptr()->get_friendly_name());
+        for (auto& input : gatherOutput.get_target_inputs()) {
+            input.replace_source_output(constant);
+        }
+        changed = true;
+    }
+    return changed;
+}
 
 namespace {
 // Guard used ONLY by FoldEltwiseOfConsts. Shape-compute arithmetic (e.g. a split
@@ -74,21 +185,29 @@ bool fold_if_all_const(const std::shared_ptr<ov::Node>& node, ov::OutputVector& 
 }
 }  // namespace
 
-FoldShapeOf::FoldShapeOf() {
+FoldShapeOf::FoldShapeOf(bool preserve_shape_of_concat_for_reshape) {
     auto shape_of = opp::wrap_type<ov::op::v3::ShapeOf>({opp::any_input()});
 
-    register_matcher(std::make_shared<opp::Matcher>(shape_of, "FoldShapeOf"), [](opp::Matcher& m) {
-        auto matched_out = m.get_match_root()->output(0);
-        auto& tensor = matched_out.get_tensor();
-        if (!tensor.has_and_set_bound())
-            return false;
-        auto new_c = std::make_shared<ov::op::v0::Constant>(tensor.get_upper_value());
-        new_c->set_friendly_name("NPUW/Folded/" + m.get_match_root()->get_friendly_name());
-        for (auto& input : matched_out.get_target_inputs()) {
-            input.replace_source_output(new_c);
-        }
-        return false;  // root itself not replaced, only consumers redirected
-    });
+    register_matcher(std::make_shared<opp::Matcher>(shape_of, "FoldShapeOf"),
+                     [preserve_shape_of_concat_for_reshape](opp::Matcher& m) {
+                         auto shapeOf = m.get_match_root();
+                         if (preserve_shape_of_concat_for_reshape &&
+                             ov::is_type<ov::op::v0::Concat>(shapeOf->input_value(0).get_node_shared_ptr()) &&
+                             isShapeOfConcatUsedAsReshapeShape(shapeOf->output(0))) {
+                             return foldNonConcatAxisGathers(shapeOf->output(0));
+                         }
+                         auto matched_out = shapeOf->output(0);
+                         auto& tensor = matched_out.get_tensor();
+                         if (!tensor.has_and_set_bound()) {
+                             return false;
+                         }
+                         auto new_c = std::make_shared<ov::op::v0::Constant>(tensor.get_upper_value());
+                         new_c->set_friendly_name("NPUW/Folded/" + m.get_match_root()->get_friendly_name());
+                         for (auto& input : matched_out.get_target_inputs()) {
+                             input.replace_source_output(new_c);
+                         }
+                         return false;  // root itself not replaced, only consumers redirected
+                     });
 }
 
 FoldGatherOfConst::FoldGatherOfConst() {
@@ -154,7 +273,7 @@ FoldEltwiseOfConsts::FoldEltwiseOfConsts() {
 
 bool FoldShapeComputeChain::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<FoldShapeOf>();
+    rewr.add_matcher<FoldShapeOf>(m_preserve_shape_of_concat_for_reshape);
     rewr.add_matcher<FoldGatherOfConst>();
     rewr.add_matcher<FoldUnsqueezeOfConst>();
     rewr.add_matcher<FoldConcatOfConsts>();

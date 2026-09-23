@@ -32,6 +32,7 @@
 #include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
@@ -45,9 +46,11 @@
 #include "openvino/op/softmax.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "partitioning/online/group.hpp"
 #include "partitioning/online/snapshot.hpp"
+#include "partitioning/patterns/fold_const.hpp"
 #include "partitioning/patterns/sdpa.hpp"
 
 namespace {
@@ -65,6 +68,14 @@ static std::size_t count_ops(const std::shared_ptr<Model>& model) {
     return std::count_if(ops.begin(), ops.end(), [](const auto& n) {
         return ov::is_type<Op>(n);
     });
+}
+
+static void evaluate_shape_bounds(const std::shared_ptr<Model>& model) {
+    for (const auto& node : model->get_ops()) {
+        if (ov::is_type<op::v3::ShapeOf>(node)) {
+            ov::util::evaluate_both_bounds(node->output(0));
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -183,7 +194,7 @@ TEST(AttentionBroadcast4Test, DoesNotFoldWhenShapeIsDynamic) {
 // ---------------------------------------------------------------------------
 
 // Builds: past → Concat(past, cur) → ShapeOf, both Concat inputs statically shaped so the
-// Concat's output shape (and hence the ShapeOf output) is fully bound.
+// Concat's output shape (and hence the ShapeOf output) is fully static.
 static std::shared_ptr<Model> build_shape_of_concat_static_model() {
     auto past = ov::test::utils::make_param(element::f32, Shape{1, 2, 4, 8}, "past");
     auto cur = ov::test::utils::make_param(element::f32, Shape{1, 2, 1, 8}, "cur");
@@ -200,7 +211,7 @@ static std::shared_ptr<Model> build_shape_of_concat_static_model() {
     return model;
 }
 
-// Same shape, but the Concat's sequence axis is dynamic so the output bound can't be evaluated.
+// Same shape, but the Concat's sequence axis is unbounded dynamic.
 static std::shared_ptr<Model> build_shape_of_concat_dynamic_model() {
     auto past = ov::test::utils::make_param(element::f32, PartialShape{1, 2, Dimension::dynamic(), 8}, "past");
     auto cur = ov::test::utils::make_param(element::f32, Shape{1, 2, 1, 8}, "cur");
@@ -214,7 +225,113 @@ static std::shared_ptr<Model> build_shape_of_concat_dynamic_model() {
     return model;
 }
 
-TEST(ShapeOfConcatTest, FoldsShapeOfIntoConstantWhenBound) {
+// The Concat output has a finite upper bound but its sequence length remains
+// dynamic. ShapeOfConcat folds only static Concat outputs.
+static std::shared_ptr<Model> build_shape_of_concat_bounded_dynamic_model() {
+    const auto sequence = Dimension(0, 128);
+    auto past = ov::test::utils::make_param(element::f32, PartialShape{1, 2, sequence, 256}, "past");
+    auto cur = ov::test::utils::make_param(element::f32, PartialShape{1, 2, sequence, 256}, "cur");
+
+    auto concat = std::make_shared<op::v0::Concat>(OutputVector{past, cur}, /*axis=*/2);
+    auto shape_of = std::make_shared<op::v3::ShapeOf>(concat, element::i64);
+
+    auto result = std::make_shared<op::v0::Result>(shape_of);
+    auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{past, cur});
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+static std::shared_ptr<Model> build_shape_of_parameter_static_model() {
+    auto data = ov::test::utils::make_param(element::f32, Shape{1, 2, 4, 8}, "data");
+    auto shapeOf = std::make_shared<op::v3::ShapeOf>(data, element::i64);
+    auto result = std::make_shared<op::v0::Result>(shapeOf);
+    auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{data});
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+// Mirrors Concat_11682 -> two ShapeOf/Gather paths -> Broadcast_11696 and
+// Reshape_11701 in Qwen3-Omni. Simulate a staticized 256-token KV variant;
+// chunk-prefill must also permit it to be reshaped to an extent of 128.
+static std::shared_ptr<Model> build_chunk_prefill_reshape_model(bool share_shape_of = false) {
+    auto past = ov::test::utils::make_param(element::f32, Shape{1, 2, 64, 256}, "past_kv");
+    auto current = ov::test::utils::make_param(element::f32, Shape{1, 2, 192, 256}, "current_kv");
+    auto kv_concat = std::make_shared<op::v0::Concat>(OutputVector{past, current}, /*axis=*/2);
+    kv_concat->set_friendly_name("Concat_11682");
+
+    auto gather_axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+    auto batch_shape_of = std::make_shared<op::v3::ShapeOf>(kv_concat, element::i64);
+    batch_shape_of->set_friendly_name("ShapeOf_11687");
+    auto batch_index = op::v0::Constant::create(element::i64, Shape{1}, {0});
+    auto batch = std::make_shared<op::v8::Gather>(batch_shape_of, batch_index, gather_axis);
+    auto sequence_shape_of =
+        share_shape_of ? batch_shape_of : std::make_shared<op::v3::ShapeOf>(kv_concat, element::i64);
+    if (!share_shape_of) {
+        sequence_shape_of->set_friendly_name("ShapeOf_11691");
+    }
+    auto sequence_index = op::v0::Constant::create(element::i64, Shape{1}, {2});
+    auto sequence = std::make_shared<op::v8::Gather>(sequence_shape_of, sequence_index, gather_axis);
+
+    auto heads = op::v0::Constant::create(element::i64, Shape{1}, {2});
+    auto broadcast_heads = op::v0::Constant::create(element::i64, Shape{1}, {4});
+    auto merged_heads = op::v0::Constant::create(element::i64, Shape{1}, {8});
+    auto head_dim = op::v0::Constant::create(element::i64, Shape{1}, {256});
+    auto broadcast_shape =
+        std::make_shared<op::v0::Concat>(OutputVector{batch, heads, broadcast_heads, sequence, head_dim}, /*axis=*/0);
+    broadcast_shape->set_friendly_name("Concat_11695");
+    auto unsqueeze_axis = op::v0::Constant::create(element::i64, Shape{1}, {2});
+    auto unsqueezed = std::make_shared<op::v0::Unsqueeze>(kv_concat, unsqueeze_axis);
+    auto broadcast = std::make_shared<op::v3::Broadcast>(unsqueezed, broadcast_shape, op::BroadcastType::BIDIRECTIONAL);
+    broadcast->set_friendly_name("Broadcast_11696");
+    auto target_shape = std::make_shared<op::v0::Concat>(OutputVector{batch, merged_heads, sequence, head_dim},
+                                                         /*axis=*/0);
+    target_shape->set_friendly_name("Concat_11700");
+    auto reshape = std::make_shared<op::v1::Reshape>(broadcast, target_shape, false);
+    reshape->set_friendly_name("Reshape_11701");
+
+    auto result = std::make_shared<op::v0::Result>(reshape);
+    auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{past, current});
+    model->validate_nodes_and_infer_types();
+    return model;
+}
+
+// The earlier AttentionBroadcast matchers can fold this graph before ShapeOfConcat
+// sees it. The broadcast shape has either three or four inputs; its Gather may
+// also feed a separate Reshape shape Concat.
+static std::shared_ptr<Model> build_early_broadcast_reshape_model(bool three_input_shape, bool shared_gather) {
+    auto past = ov::test::utils::make_param(element::f32, Shape{64, 2, 8}, "past_kv");
+    auto current = ov::test::utils::make_param(element::f32, Shape{192, 2, 8}, "current_kv");
+    auto kv_concat = std::make_shared<op::v0::Concat>(OutputVector{past, current}, /*axis=*/0);
+    auto shape_of = std::make_shared<op::v3::ShapeOf>(kv_concat, element::i64);
+    auto sequence_index = op::v0::Constant::create(element::i64, Shape{1}, {0});
+    auto gather_axis = op::v0::Constant::create(element::i64, Shape{}, {0});
+    auto sequence = std::make_shared<op::v8::Gather>(shape_of, sequence_index, gather_axis);
+
+    auto two = op::v0::Constant::create(element::i64, Shape{1}, {2});
+    auto four = op::v0::Constant::create(element::i64, Shape{1}, {4});
+    auto eight = op::v0::Constant::create(element::i64, Shape{1}, {8});
+    auto two_four = op::v0::Constant::create(element::i64, Shape{2}, {2, 4});
+    auto broadcast_shape = std::make_shared<op::v0::Concat>(
+        three_input_shape ? OutputVector{sequence, two_four, eight} : OutputVector{sequence, two, four, eight},
+        /*axis=*/0);
+    broadcast_shape->set_friendly_name("broadcast_shape");
+    auto unsqueeze_axis = op::v0::Constant::create(element::i64, Shape{1}, {2});
+    auto unsqueezed = std::make_shared<op::v0::Unsqueeze>(kv_concat, unsqueeze_axis);
+    auto broadcast = std::make_shared<op::v3::Broadcast>(unsqueezed, broadcast_shape, op::BroadcastType::BIDIRECTIONAL);
+
+    auto reshape_shape = shared_gather
+                             ? std::make_shared<op::v0::Concat>(OutputVector{sequence, eight, eight}, /*axis=*/0)
+                             : broadcast_shape;
+    auto reshape = std::make_shared<op::v1::Reshape>(broadcast, reshape_shape, false);
+    auto model = std::make_shared<Model>(ResultVector{std::make_shared<op::v0::Result>(reshape)},
+                                         ParameterVector{past, current});
+    model->validate_nodes_and_infer_types();
+    ov::util::evaluate_both_bounds(broadcast_shape->output(0));
+    ov::util::evaluate_both_bounds(sequence->output(0));
+    return model;
+}
+
+TEST(ShapeOfConcatTest, FoldsShapeOfIntoConstantWhenConcatShapeIsStatic) {
     auto model = build_shape_of_concat_static_model();
     ASSERT_EQ(count_ops<op::v3::ShapeOf>(model), 1u) << "expect one ShapeOf before the pass";
 
@@ -223,7 +340,18 @@ TEST(ShapeOfConcatTest, FoldsShapeOfIntoConstantWhenBound) {
     rewr.run_on_model(model);
 
     EXPECT_EQ(count_ops<op::v3::ShapeOf>(model), 0u)
-        << "ShapeOf must be eliminated once the Concat's output shape is fully bound";
+        << "ShapeOf must be eliminated once the Concat's output shape is fully static";
+}
+
+TEST(ShapeOfConcatTest, FoldShapeComputeChainFoldsUnrelatedShapeOfConcat) {
+    auto model = build_shape_of_concat_static_model();
+    ASSERT_EQ(count_ops<op::v3::ShapeOf>(model), 1u);
+    evaluate_shape_bounds(model);
+
+    ov::npuw::patterns::util::FoldShapeComputeChain(/*preserve_shape_of_concat_for_reshape=*/true).run_on_model(model);
+
+    EXPECT_EQ(count_ops<op::v3::ShapeOf>(model), 0u)
+        << "Only ShapeOf(Concat) paths used as Reshape shapes may be preserved";
 }
 
 TEST(ShapeOfConcatTest, DoesNotFoldWhenConcatShapeIsDynamic) {
@@ -236,6 +364,154 @@ TEST(ShapeOfConcatTest, DoesNotFoldWhenConcatShapeIsDynamic) {
 
     EXPECT_EQ(count_ops<op::v3::ShapeOf>(model), 1u)
         << "ShapeOf must be preserved when the Concat's output shape cannot be bound";
+}
+
+TEST(ShapeOfConcatTest, DoesNotFoldWhenConcatShapeIsBoundedDynamic) {
+    auto model = build_shape_of_concat_bounded_dynamic_model();
+    ASSERT_EQ(count_ops<op::v3::ShapeOf>(model), 1u);
+
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::regularize::ShapeOfConcat>();
+    rewr.run_on_model(model);
+
+    EXPECT_EQ(count_ops<op::v3::ShapeOf>(model), 1u)
+        << "ShapeOf must be preserved when the Concat shape has only an upper bound";
+}
+
+TEST(ShapeOfConcatTest, PreservesChunkPrefillReshapeSequenceDimension) {
+    auto model = build_chunk_prefill_reshape_model();
+    ASSERT_EQ(count_ops<op::v3::ShapeOf>(model), 2u);
+    evaluate_shape_bounds(model);
+
+    ov::npuw::patterns::util::FoldShapeComputeChain(/*preserve_shape_of_concat_for_reshape=*/true).run_on_model(model);
+
+    ov::pass::GraphRewrite rewr;
+    rewr.add_matcher<ov::npuw::patterns::regularize::ShapeOfConcat>(
+        /*preserve_shape_of_concat_for_reshape=*/true);
+    rewr.run_on_model(model);
+
+    EXPECT_EQ(count_ops<op::v3::ShapeOf>(model), 1u)
+        << "Only the sequence-length ShapeOf must survive; the batch-size path may still fold";
+    ASSERT_NO_THROW(
+        model->reshape({{"past_kv", PartialShape{1, 2, 64, 256}}, {"current_kv", PartialShape{1, 2, 64, 256}}}));
+    EXPECT_EQ(model->output(0).get_partial_shape(), (PartialShape{1, 8, 128, 256}));
+
+    Tensor past(element::f32, Shape{1, 2, 64, 256});
+    Tensor current(element::f32, Shape{1, 2, 64, 256});
+    std::fill_n(past.data<float>(), past.get_size(), 1.0f);
+    std::fill_n(current.data<float>(), current.get_size(), 2.0f);
+    TensorVector outputs{Tensor(element::f32, Shape{1, 8, 128, 256})};
+    ASSERT_TRUE(model->evaluate(outputs, TensorVector{past, current}));
+    EXPECT_EQ(outputs[0].get_shape(), (Shape{1, 8, 128, 256}));
+    EXPECT_FLOAT_EQ(outputs[0].data<float>()[0], 1.0f);
+    EXPECT_FLOAT_EQ(outputs[0].data<float>()[64 * 256], 2.0f);
+}
+
+TEST(ShapeOfConcatTest, PreservesChunkPrefillReshapePathDuringSDPARegularization) {
+    auto model = build_chunk_prefill_reshape_model();
+    ASSERT_EQ(count_ops<op::v3::ShapeOf>(model), 2u);
+
+    ov::npuw::patterns::regularize::RegularizeSDPA(/*run_broadcast_pattern=*/false,
+                                                   /*preserve_shape_of_concat_for_reshape=*/true)
+        .run_on_model(model);
+
+    EXPECT_EQ(count_ops<op::v3::ShapeOf>(model), 1u) << "Chunk-prefill must preserve the sequence-length path";
+    ASSERT_NO_THROW(
+        model->reshape({{"past_kv", PartialShape{1, 2, 64, 256}}, {"current_kv", PartialShape{1, 2, 64, 256}}}));
+    EXPECT_EQ(model->output(0).get_partial_shape(), (PartialShape{1, 8, 128, 256}));
+}
+
+TEST(ShapeOfConcatTest, FoldingChunkPrefillSequenceShapeWouldCauseMismatch) {
+    auto model = build_chunk_prefill_reshape_model();
+    evaluate_shape_bounds(model);
+
+    ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(model);
+    ov::npuw::patterns::regularize::RegularizeSDPA(/*run_broadcast_pattern=*/false).run_on_model(model);
+
+    EXPECT_EQ(count_ops<op::v3::ShapeOf>(model), 0u);
+    EXPECT_ANY_THROW(
+        model->reshape({{"past_kv", PartialShape{1, 2, 64, 256}}, {"current_kv", PartialShape{1, 2, 64, 256}}}));
+}
+
+TEST(ShapeOfConcatTest, SharedShapeOfFoldsOnlyBatchGather) {
+    auto model = build_chunk_prefill_reshape_model(/*share_shape_of=*/true);
+    ASSERT_EQ(count_ops<op::v3::ShapeOf>(model), 1u);
+    evaluate_shape_bounds(model);
+
+    ov::npuw::patterns::util::FoldShapeComputeChain(/*preserve_shape_of_concat_for_reshape=*/true).run_on_model(model);
+    ov::npuw::patterns::regularize::RegularizeSDPA(/*run_broadcast_pattern=*/false,
+                                                   /*preserve_shape_of_concat_for_reshape=*/true)
+        .run_on_model(model);
+
+    const auto reshape = model->get_result()->input_value(0).get_node_shared_ptr();
+    const auto target_shape = reshape->input_value(1).get_node_shared_ptr();
+    EXPECT_TRUE(ov::is_type<op::v0::Constant>(target_shape->input_value(0).get_node_shared_ptr()));
+    EXPECT_TRUE(ov::is_type<op::v8::Gather>(target_shape->input_value(2).get_node_shared_ptr()));
+    ASSERT_NO_THROW(
+        model->reshape({{"past_kv", PartialShape{1, 2, 64, 256}}, {"current_kv", PartialShape{1, 2, 64, 256}}}));
+    EXPECT_EQ(model->output(0).get_partial_shape(), (PartialShape{1, 8, 128, 256}));
+}
+
+TEST(ShapeOfConcatTest, SDPARegularizationFoldsBatchGatherFromSharedShapeOf) {
+    auto model = build_chunk_prefill_reshape_model(/*share_shape_of=*/true);
+    ov::npuw::patterns::regularize::RegularizeSDPA(/*run_broadcast_pattern=*/false,
+                                                   /*preserve_shape_of_concat_for_reshape=*/true)
+        .run_on_model(model);
+
+    const auto reshape = model->get_result()->input_value(0).get_node_shared_ptr();
+    const auto target_shape = reshape->input_value(1).get_node_shared_ptr();
+    EXPECT_TRUE(ov::is_type<op::v0::Constant>(target_shape->input_value(0).get_node_shared_ptr()));
+    EXPECT_TRUE(ov::is_type<op::v8::Gather>(target_shape->input_value(2).get_node_shared_ptr()));
+}
+
+TEST(ShapeOfConcatTest, EarlierAttentionBroadcastStillFoldsWithoutChunkPreservation) {
+    auto model = build_early_broadcast_reshape_model(/*three_input_shape=*/false, /*shared_gather=*/false);
+    ov::npuw::patterns::regularize::RegularizeSDPA(/*run_broadcast_pattern=*/true).run_on_model(model);
+
+    const auto reshape = model->get_result()->input_value(0).get_node_shared_ptr();
+    const auto broadcast = reshape->input_value(0).get_node_shared_ptr();
+    EXPECT_TRUE(ov::is_type<op::v0::Constant>(broadcast->input_value(1).get_node_shared_ptr()));
+}
+
+TEST(ShapeOfConcatTest, EarlierAttentionBroadcastPreservesSharedReshapeShape) {
+    auto model = build_early_broadcast_reshape_model(/*three_input_shape=*/false, /*shared_gather=*/false);
+    ov::npuw::patterns::regularize::RegularizeSDPA(/*run_broadcast_pattern=*/true,
+                                                   /*preserve_shape_of_concat_for_reshape=*/true)
+        .run_on_model(model);
+    ASSERT_NO_THROW(model->reshape({{"past_kv", PartialShape{64, 2, 8}}, {"current_kv", PartialShape{64, 2, 8}}}));
+    EXPECT_EQ(model->output(0).get_partial_shape(), (PartialShape{128, 2, 4, 8}));
+}
+
+TEST(ShapeOfConcatTest, EarlierAttentionBroadcast2PreservesSharedReshapeShape) {
+    auto model = build_early_broadcast_reshape_model(/*three_input_shape=*/true, /*shared_gather=*/false);
+    ov::npuw::patterns::regularize::RegularizeSDPA(/*run_broadcast_pattern=*/true,
+                                                   /*preserve_shape_of_concat_for_reshape=*/true)
+        .run_on_model(model);
+    ASSERT_NO_THROW(model->reshape({{"past_kv", PartialShape{64, 2, 8}}, {"current_kv", PartialShape{64, 2, 8}}}));
+    EXPECT_EQ(model->output(0).get_partial_shape(), (PartialShape{128, 2, 4, 8}));
+}
+
+TEST(ShapeOfConcatTest, EarlierAttentionBroadcast3PreservesSharedGather) {
+    auto model = build_early_broadcast_reshape_model(/*three_input_shape=*/false, /*shared_gather=*/true);
+    ov::npuw::patterns::regularize::RegularizeSDPA(/*run_broadcast_pattern=*/true,
+                                                   /*preserve_shape_of_concat_for_reshape=*/true)
+        .run_on_model(model);
+    ASSERT_NO_THROW(model->reshape({{"past_kv", PartialShape{64, 2, 8}}, {"current_kv", PartialShape{64, 2, 8}}}));
+    EXPECT_EQ(model->output(0).get_partial_shape(), (PartialShape{128, 8, 8}));
+}
+
+TEST(ShapeOfParameterTest, FoldsShapeOfParameterWhenChunkPrefillPreservationIsEnabled) {
+    auto model = build_shape_of_parameter_static_model();
+    ASSERT_EQ(count_ops<op::v3::ShapeOf>(model), 1u);
+    evaluate_shape_bounds(model);
+
+    ov::npuw::patterns::regularize::RegularizeSDPA(/*run_broadcast_pattern=*/false,
+                                                   /*preserve_shape_of_concat_for_reshape=*/true,
+                                                   /*fold_shape_of_parameter=*/true)
+        .run_on_model(model);
+
+    EXPECT_EQ(count_ops<op::v3::ShapeOf>(model), 0u)
+        << "Chunk-prefill preservation must not disable ShapeOf(Parameter) folding";
 }
 
 // ---------------------------------------------------------------------------

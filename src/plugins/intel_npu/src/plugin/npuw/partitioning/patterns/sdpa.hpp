@@ -93,22 +93,24 @@ public:
 
 namespace regularize {
 
+inline constexpr const char* PRESERVE_SHAPEOF_CONCAT_FOR_RESHAPE_RT_KEY = "npuw_preserve_shapeof_concat_for_reshape";
+
 class AttentionBroadcast : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::AttentionBroadcast");
-    AttentionBroadcast();
+    explicit AttentionBroadcast(bool preserve_shape_of_concat_for_reshape = false);
 };
 
 class AttentionBroadcast2 : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::AttentionBroadcast2");
-    AttentionBroadcast2();
+    explicit AttentionBroadcast2(bool preserve_shape_of_concat_for_reshape = false);
 };
 
 class AttentionBroadcast3 : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::AttentionBroadcast3");
-    AttentionBroadcast3();
+    explicit AttentionBroadcast3(bool preserve_shape_of_concat_for_reshape = false);
 };
 
 class AttentionBroadcast4 : public ov::pass::MatcherPass {
@@ -131,21 +133,28 @@ public:
 
 // Folds a ShapeOf that directly consumes a Concat (e.g. a KV-cache Concat also feeding a
 // ShapeOf computing the current total KV length for some other graph-level use) into a
-// constant, once the Concat's output shape is fully static/bound. Without this, that extra
+// constant, once the Concat's output shape is fully static. Without this, that extra
 // ShapeOf consumer can prevent a Concat from being cleanly isolated into its own private
 // SDPA subgraph downstream (e.g. by DuplicateSharedKVConcat / HFA decomposition).
 class ShapeOfConcat : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::ShapeOfConcat");
-    ShapeOfConcat();
+    explicit ShapeOfConcat(bool preserve_shape_of_concat_for_reshape = false);
 };
 
 class RegularizeSDPA : public ov::pass::ModelPass {
     bool m_run_broadcast_pattern = false;
+    bool m_preserve_shape_of_concat_for_reshape = false;
+    bool m_fold_shape_of_parameter = true;
 
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::RegularizeSDPA");
-    explicit RegularizeSDPA(bool run_broadcast_pattern) : m_run_broadcast_pattern(run_broadcast_pattern) {};
+    explicit RegularizeSDPA(bool run_broadcast_pattern,
+                            bool preserve_shape_of_concat_for_reshape = false,
+                            bool fold_shape_of_parameter = true)
+        : m_run_broadcast_pattern(run_broadcast_pattern),
+          m_preserve_shape_of_concat_for_reshape(preserve_shape_of_concat_for_reshape),
+          m_fold_shape_of_parameter(fold_shape_of_parameter){};
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };

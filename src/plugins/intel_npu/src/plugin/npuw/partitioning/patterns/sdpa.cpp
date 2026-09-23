@@ -9,6 +9,7 @@
 #include "../../logging.hpp"
 #include "../online/group.hpp"     // online::Group
 #include "../online/snapshot.hpp"  // online::Snapshot
+#include "fold_const.hpp"
 #include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
@@ -485,7 +486,7 @@ namespace regularize {
 
 namespace opp = ov::pass::pattern;
 
-AttentionBroadcast::AttentionBroadcast() {
+AttentionBroadcast::AttentionBroadcast(bool preserve_shape_of_concat_for_reshape) {
     // NB(dm): We've seen cases where this dynamic subgraph is placed on the K-path,
     // but I'd expect it could be on the V-path as well - so _kv in the name
     auto past_kv_in = opp::wrap_type<ov::op::v0::Parameter>();
@@ -506,6 +507,10 @@ AttentionBroadcast::AttentionBroadcast() {
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
+        if (preserve_shape_of_concat_for_reshape &&
+            ov::npuw::patterns::util::isShapeOfConcatUsedAsReshapeShape(node_to_output.at(shape_of))) {
+            return false;
+        }
         auto matched_gather_out = node_to_output.at(gather);
         if (matched_gather_out.get_target_inputs().size() > 1) {
             // This pattern is for the Gather that feeds a single Concat.
@@ -529,7 +534,7 @@ AttentionBroadcast::AttentionBroadcast() {
 }
 
 // FIXME: Same as above but Concat has three inputs instead of four
-AttentionBroadcast2::AttentionBroadcast2() {
+AttentionBroadcast2::AttentionBroadcast2(bool preserve_shape_of_concat_for_reshape) {
     auto past_kv_in = opp::wrap_type<ov::op::v0::Parameter>();
     auto past_kv_cvt = opp::optional<ov::op::v0::Convert>({past_kv_in->output(0)});
     auto past_kv_cat = opp::wrap_type<ov::op::v0::Concat>({past_kv_cvt, opp::any_input()});
@@ -547,6 +552,10 @@ AttentionBroadcast2::AttentionBroadcast2() {
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
+        if (preserve_shape_of_concat_for_reshape &&
+            ov::npuw::patterns::util::isShapeOfConcatUsedAsReshapeShape(node_to_output.at(shape_of))) {
+            return false;
+        }
         auto matched_concat_out = node_to_output.at(concat);
         auto& matched_concat_tensor = matched_concat_out.get_tensor();
         if (matched_concat_tensor.has_and_set_bound()) {
@@ -563,7 +572,7 @@ AttentionBroadcast2::AttentionBroadcast2() {
 }
 
 // FIXME: Same as AttentionBroadcast but Gather connects to multiple Concats
-AttentionBroadcast3::AttentionBroadcast3() {
+AttentionBroadcast3::AttentionBroadcast3(bool preserve_shape_of_concat_for_reshape) {
     // NB(dm): We've seen cases where this dynamic subgraph is placed on the K-path,
     // but I'd expect it could be on the V-path as well - so _kv in the name
     auto past_kv_in = opp::wrap_type<ov::op::v0::Parameter>();
@@ -583,6 +592,10 @@ AttentionBroadcast3::AttentionBroadcast3() {
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
+        if (preserve_shape_of_concat_for_reshape &&
+            ov::npuw::patterns::util::isShapeOfConcatUsedAsReshapeShape(node_to_output.at(shape_of))) {
+            return false;
+        }
         auto matched_gather_out = node_to_output.at(gather);
         if (matched_gather_out.get_target_inputs().size() == 1) {
             // This pattern only for the Gather feeding multiple Concats.
@@ -630,7 +643,7 @@ ShapeOfParameter::ShapeOfParameter() {
     register_matcher(std::make_shared<opp::Matcher>(param_shp, "ShapeOfParameter"), std::move(callback));
 }
 
-ShapeOfConcat::ShapeOfConcat() {
+ShapeOfConcat::ShapeOfConcat(bool preserve_shape_of_concat_for_reshape) {
     auto concat_in = opp::wrap_type<ov::op::v0::Concat>();
     auto concat_shp = opp::wrap_type<ov::op::v3::ShapeOf>({concat_in});
 
@@ -638,6 +651,12 @@ ShapeOfConcat::ShapeOfConcat() {
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
         auto matched_shape_out = node_to_output.at(concat_shp);
+
+        if (preserve_shape_of_concat_for_reshape &&
+            ov::npuw::patterns::util::isShapeOfConcatUsedAsReshapeShape(matched_shape_out)) {
+            return ov::npuw::patterns::util::foldNonConcatAxisGathers(matched_shape_out);
+        }
+
         ov::util::evaluate_both_bounds(matched_shape_out);
         auto& matched_shape_tensor = matched_shape_out.get_tensor();
         if (matched_shape_tensor.has_and_set_bound()) {
@@ -823,9 +842,9 @@ bool RegularizeSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     bool model_changed = false;
     if (m_run_broadcast_pattern) {
         ov::pass::GraphRewrite rewr;
-        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast>();
-        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast2>();
-        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast3>();
+        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast>(m_preserve_shape_of_concat_for_reshape);
+        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast2>(m_preserve_shape_of_concat_for_reshape);
+        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast3>(m_preserve_shape_of_concat_for_reshape);
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast4>();
         rewr.add_matcher<ov::npuw::patterns::regularize::SeparateKVCache>();
 
@@ -836,8 +855,10 @@ bool RegularizeSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // the performance. However, ShapeOfParameter seems to be working fine for all known case,
     // while AttentionBroadcast patterns might break the partitioning (related to F16IC).
     ov::pass::GraphRewrite rewr2;
-    rewr2.add_matcher<ov::npuw::patterns::regularize::ShapeOfParameter>();
-    rewr2.add_matcher<ov::npuw::patterns::regularize::ShapeOfConcat>();
+    if (m_fold_shape_of_parameter) {
+        rewr2.add_matcher<ov::npuw::patterns::regularize::ShapeOfParameter>();
+    }
+    rewr2.add_matcher<ov::npuw::patterns::regularize::ShapeOfConcat>(m_preserve_shape_of_concat_for_reshape);
     model_changed |= rewr2.run_on_model(model);
 
     return model_changed;
