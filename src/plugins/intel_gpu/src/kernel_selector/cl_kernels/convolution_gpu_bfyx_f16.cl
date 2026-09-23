@@ -86,11 +86,9 @@ KERNEL(convolution_bfyx_f16)(
 
     const int input_x = x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int input_y = y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
-#if CONV_FSV16_SKIP_X_CLAMP
+#if CONV_FSV16_SKIP_X_CLAMP || CONV_FSV16_USE_BLOCKED_X_PADDING
 #   define NEEDS_X_CLAMP false
 #else
-    // Loop-invariant boundary state is computed once per work-item, outside the
-    // icb/kh hot loops. The common in-bounds path only tests this single flag.
     const int right_unreachable_count_x = min(max(0, input_x + INPUT_LINE_SIZE - INPUT0_SIZE_X), INPUT_LINE_SIZE);
     const int left_unreachable_count_x = min(max(0, -input_x), INPUT_LINE_SIZE);
     const bool needs_x_clamp = (left_unreachable_count_x != 0) || (right_unreachable_count_x != 0);
@@ -185,12 +183,20 @@ KERNEL(convolution_bfyx_f16)(
 #if INPUT_LEFTOVERS
                 if ((icb + 1) * FEATURE_SLICE_SIZE >= FILTER_IFM_NUM) {
                     for (int xb = 0; xb < INPUT_LINE_SIZE; xb++) {
+#if CONV_FSV16_USE_BLOCKED_X_PADDING
+                        if (icb * FEATURE_SLICE_SIZE + sglid >= FILTER_IFM_NUM)
+                            line_cache[xb] = 0;
+                        else
+                            line_cache[xb] = input[grouped_input_offset + icb * input_fs_pitch +
+                                                   kh * DILATION_SIZE_Y * input_y_pitch + xb * input_x_pitch + sglid];
+#else
                         const int in_x = input_x + xb;
                         if (icb * FEATURE_SLICE_SIZE + sglid >= FILTER_IFM_NUM || in_x < 0 || in_x >= INPUT0_SIZE_X)
                             line_cache[xb] = 0;
                         else
                             line_cache[xb] = input[grouped_input_offset + icb * input_fs_pitch +
                                                    kh * DILATION_SIZE_Y * input_y_pitch + xb * input_x_pitch + sglid];
+#endif
                     }
                 } else
 #endif
@@ -214,7 +220,7 @@ KERNEL(convolution_bfyx_f16)(
                         line_cache[xb] = DT_INPUT_BLOCK_READ(input, grouped_input_offset + icb * input_fs_pitch +
                                                                  kh * DILATION_SIZE_Y * input_y_pitch + xb * input_x_pitch);
                 }
-#if !CONV_FSV16_SKIP_X_CLAMP
+#if !CONV_FSV16_SKIP_X_CLAMP && !CONV_FSV16_USE_BLOCKED_X_PADDING
                 else {
                     for (int i = 0; i < left_unreachable_count_x; i++)
                         line_cache[i] = 0;
@@ -429,6 +435,7 @@ KERNEL(convolution_bfyx_f16)(
 
 #undef NEEDS_X_CLAMP
 #undef CONV_FSV16_SKIP_X_CLAMP
+#undef CONV_FSV16_USE_BLOCKED_X_PADDING
 #undef AS_INPUT_SRC
 #undef AS_US_SRC
 #undef GET_SRC
