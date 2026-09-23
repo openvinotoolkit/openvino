@@ -13,5 +13,5 @@ vllm-cpu==0.28.0
 
 # Test tooling, matching tests/requirements_pytorch so results and reports
 # stay comparable with the other Python test jobs.
-pytest==7.2.0
+pytest==7.2.2
 pytest-html==4.2.0
