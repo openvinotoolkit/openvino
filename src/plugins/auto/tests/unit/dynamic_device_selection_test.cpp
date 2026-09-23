@@ -6,6 +6,9 @@
 #include "openvino/opsets/opset11.hpp"
 #include "openvino/runtime/auto/properties.hpp"
 
+#include <condition_variable>
+#include <mutex>
+
 using namespace ov::mock_auto_plugin;
 
 namespace {
@@ -248,4 +251,133 @@ TEST_F(AutoDynamicDeviceSelectionTest, fallback_device_priority_is_released_afte
         result = plugin->Plugin::select_device(verification_devices, "FP32", 2, empty_policy, ""));
     EXPECT_EQ(result.device_name, ov::test::utils::DEVICE_CPU);
     plugin->unregister_priority(2, result.unique_name);
+}
+
+// Regression for ensure_device_ready(): unlike the successful retry case above, the fallback
+// device's compile can itself fail. try_to_compile_model() bails out immediately without
+// unregistering once the device it just attempted is CPU (it is already the last resort, so
+// there is nothing left to cascade to), regardless of whether that attempt actually succeeded.
+// ensure_device_ready() must still release CPU's process-wide priority registration in that
+// case, otherwise CPU stays reserved under our model's priority forever even though nothing
+// ever successfully compiled or ran on it.
+TEST_F(AutoDynamicDeviceSelectionTest, fallback_device_priority_is_released_after_a_failed_retry) {
+    // overwrite the GPU.0,CPU priorities inserted by SetUp(): ov::AnyMap::insert() keeps the first entry
+    config.erase(ov::device::priorities.name());
+    config.insert(ov::device::priorities("GPU.0,GPU.1,CPU"));
+    config.insert(ov::hint::model_priority(ov::hint::Priority::HIGH));
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq("GPU.1")),
+                          _))
+        .WillByDefault(ov::Throw("mock compile failure on GPU.1"));
+    ON_CALL(*core,
+            compile_model(::testing::Matcher<const std::shared_ptr<const ov::Model>&>(_),
+                          ::testing::Matcher<const std::string&>(StrEq(ov::test::utils::DEVICE_CPU)),
+                          _))
+        .WillByDefault(ov::Throw("mock compile failure on CPU"));
+
+    // GPU.0 (the initial ACTUALDEVICE) looks fine while the model is compiled; it is only
+    // pushed over its threshold once inferences start, forcing the per inference target off it.
+    std::atomic<bool> gpu0_over_threshold{false};
+    ON_CALL(*plugin, get_device_utilization)
+        .WillByDefault(
+            [&gpu0_over_threshold](const std::string& device_name, const std::string&) -> std::optional<float> {
+                if (device_name == "GPU.0" && gpu0_over_threshold) {
+                    return 95.0f;
+                }
+                return std::nullopt;
+            });
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+
+    gpu0_over_threshold = true;
+    std::shared_ptr<ov::IAsyncInferRequest> infer_request;
+    OV_ASSERT_NO_THROW(infer_request = compiled_model->create_infer_request());
+    EXPECT_THROW(infer_request->infer(), ov::Exception);
+
+    // A lower priority AUTO instance querying CPU must still be able to select it: with the
+    // leak, CPU would still be reserved under our HIGH priority model even though nothing
+    // actually compiled or is running on it.
+    auto verification_devices = plugin->Plugin::parse_meta_devices("CPU", config);
+    ov::auto_plugin::DeviceSelectionPolicy empty_policy;
+    DeviceInformation result;
+    OV_ASSERT_NO_THROW(
+        result = plugin->Plugin::select_device(verification_devices, "FP32", 2, empty_policy, ""));
+    EXPECT_EQ(result.device_name, ov::test::utils::DEVICE_CPU);
+    plugin->unregister_priority(2, result.unique_name);
+}
+
+// Reproduces schedule_dynamic_task()'s queueing path: while one dynamic inference is still
+// being dispatched (the execution gate is busy), a second inference started concurrently must
+// be queued in m_gate_pending_tasks and only dispatched once release_execution_slot() picks it
+// up, instead of being dropped or racing the in-flight one. None of the other tests in this
+// file exercise this because they all issue requests through the synchronous infer() one at a
+// time via run_inferences().
+TEST_F(AutoDynamicDeviceSelectionTest, concurrent_requests_are_queued_and_dispatched_in_turn) {
+    config.insert(ov::intel_auto::devices_utilization_threshold(std::map<std::string, unsigned>{{"GPU.0", 80}}));
+
+    std::mutex mtx;
+    std::condition_variable cv;
+    bool first_inference_is_blocked = false;
+    bool release_first_inference = false;
+
+    ON_CALL(*plugin, select_device)
+        .WillByDefault([this, &mtx, &cv, &first_inference_is_blocked, &release_first_inference](
+                           const std::vector<DeviceInformation>& meta_devices,
+                           const std::string&,
+                           unsigned int,
+                           const ov::auto_plugin::DeviceSelectionPolicy&,
+                           const std::string&) {
+            // call #0 happens during compile_model(); block only the first per inference
+            // reselection (call #1) so the second start_async() below is guaranteed to observe
+            // the execution gate as busy and go through the queueing path.
+            if (m_select_device_count++ == 1) {
+                std::unique_lock<std::mutex> lock(mtx);
+                first_inference_is_blocked = true;
+                cv.notify_all();
+                cv.wait(lock, [&release_first_inference] {
+                    return release_first_inference;
+                });
+            }
+            for (const auto& device : meta_devices) {
+                if (device.device_name == "GPU.0") {
+                    return device;
+                }
+            }
+            return meta_devices.front();
+        });
+
+    std::shared_ptr<ov::ICompiledModel> compiled_model;
+    OV_ASSERT_NO_THROW(compiled_model = plugin->compile_model(model, config));
+
+    std::shared_ptr<ov::IAsyncInferRequest> first_request;
+    std::shared_ptr<ov::IAsyncInferRequest> second_request;
+    OV_ASSERT_NO_THROW(first_request = compiled_model->create_infer_request());
+    OV_ASSERT_NO_THROW(second_request = compiled_model->create_infer_request());
+
+    OV_ASSERT_NO_THROW(first_request->start_async());
+    {
+        std::unique_lock<std::mutex> lock(mtx);
+        cv.wait(lock, [&first_inference_is_blocked] {
+            return first_inference_is_blocked;
+        });
+    }
+
+    // the execution gate is held by the still-dispatching first request, so this must be
+    // queued in m_gate_pending_tasks rather than dispatched (or dropped) right away.
+    OV_ASSERT_NO_THROW(second_request->start_async());
+    EXPECT_EQ(m_select_device_count, 2u);
+
+    {
+        std::lock_guard<std::mutex> lock(mtx);
+        release_first_inference = true;
+    }
+    cv.notify_all();
+
+    OV_ASSERT_NO_THROW(first_request->wait());
+    OV_ASSERT_NO_THROW(second_request->wait());
+    EXPECT_EQ(m_select_device_count, 3u);
 }

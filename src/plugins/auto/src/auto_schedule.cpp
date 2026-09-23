@@ -671,18 +671,20 @@ bool AutoSchedule::ensure_device_ready(DeviceInformation& device) {
                             requested_device_name.c_str());
         }
     }
+    if (fell_back_to_other_device) {
+        // try_to_compile_model() internally reselected and registered a fallback device on compile
+        // failure; drop that registration right away, same as the primary per inference selection above,
+        // regardless of whether that fallback device itself ended up compiling successfully. Doing this
+        // before the early return below matters: some fallback paths (e.g. reusing an already loaded CPU
+        // context) leave m_is_load_success false without ever retrying, and skipping the cleanup would
+        // leak the registration and keep the device reserved for this schedule indefinitely.
+        m_plugin->unregister_priority(m_context->m_model_priority, context.m_device_info.unique_name);
+    }
     if (!context.m_is_load_success) {
         LOG_WARNING_TAG("[dynamic] compiling the model on device:%s failed, %s",
                         device.device_name.c_str(),
                         context.m_err_message.c_str());
         return false;
-    }
-    if (fell_back_to_other_device) {
-        // try_to_compile_model() internally reselected and registered a fallback device on compile
-        // failure; drop that registration right away, same as the primary per inference selection above.
-        // when the requested device compiles successfully on the first try, no extra registration was
-        // made, so unregistering here would wrongly drop another schedule's reservation for that device.
-        m_plugin->unregister_priority(m_context->m_model_priority, context.m_device_info.unique_name);
     }
     device = context.m_device_info;
     if (m_dynamic_compiled_models.find(device.device_name) == m_dynamic_compiled_models.end()) {
