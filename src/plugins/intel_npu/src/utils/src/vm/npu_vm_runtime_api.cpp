@@ -5,6 +5,7 @@
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 
 #include <algorithm>
+#include <mutex>
 
 #include "openvino/util/file_util.hpp"
 #include "openvino/util/shared_object.hpp"
@@ -17,6 +18,7 @@ constexpr std::string_view VM_RUNTIME_NAME = "openvino_intel_npu_vm_runtime";
 
 std::string g_libName{MLIR_RUNTIME_NAME};
 bool g_instanceCreated{false};
+std::mutex g_instanceMutex;
 }  // namespace
 
 NPUVMRuntimeApi::NPUVMRuntimeApi(std::string_view libName) {
@@ -58,6 +60,7 @@ void NPUVMRuntimeApi::initializeFromBlob(const void* data, size_t size) {
 
 void NPUVMRuntimeApi::initialize(std::string_view libName) {
     const std::string resolvedName{libName.empty() ? MLIR_RUNTIME_NAME : libName};
+    std::lock_guard<std::mutex> lock(g_instanceMutex);
     if (g_instanceCreated) {
         if (g_libName != resolvedName) {
             OPENVINO_THROW("NPUVMRuntimeApi is already initialized with '",
@@ -73,8 +76,12 @@ void NPUVMRuntimeApi::initialize(std::string_view libName) {
 }
 
 const std::shared_ptr<NPUVMRuntimeApi>& NPUVMRuntimeApi::getInstance() {
-    static std::shared_ptr<NPUVMRuntimeApi> instance = std::make_shared<NPUVMRuntimeApi>(g_libName);
-    g_instanceCreated = true;
+    static std::shared_ptr<NPUVMRuntimeApi> instance = []() {
+        std::lock_guard<std::mutex> lock(g_instanceMutex);
+        auto runtimeApi = std::make_shared<NPUVMRuntimeApi>(g_libName);
+        g_instanceCreated = true;
+        return runtimeApi;
+    }();
     return instance;
 }
 

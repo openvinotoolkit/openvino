@@ -273,21 +273,15 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileCreateInfer) {
 
     for (bool sharedQueue : {true, false}) {
         const auto cfg = makeConfig(sharedQueue);
-        // Keep VM runtime setup deterministic; requests still start concurrently after the barrier below.
-        std::mutex runtimeSetupMutex;
         std::vector<std::shared_ptr<ov::InferRequest>> requests(kThreadCount);
         std::vector<std::shared_ptr<ov::InferRequest>> referenceRequests(kThreadCount);
         std::vector<ov::Tensor> inputs(kThreadCount);
         runConcurrentlyAsync(
             kThreadCount,
-            [this, &cfg, &shape, &referenceCompiledModel, &runtimeSetupMutex, &requests, &referenceRequests, &inputs](
-                size_t threadIdx) {
+            [this, &cfg, &shape, &referenceCompiledModel, &requests, &referenceRequests, &inputs](size_t threadIdx) {
                 auto model = createModelByName(selectedModelName);
-                {
-                    std::lock_guard<std::mutex> lock(runtimeSetupMutex);
-                    auto compiledModel = core->compile_model(model, target_device, cfg);
-                    requests[threadIdx] = std::make_shared<ov::InferRequest>(compiledModel.create_infer_request());
-                }
+                auto compiledModel = core->compile_model(model, target_device, cfg);
+                requests[threadIdx] = std::make_shared<ov::InferRequest>(compiledModel.create_infer_request());
                 referenceRequests[threadIdx] =
                     std::make_shared<ov::InferRequest>(referenceCompiledModel.create_infer_request());
                 inputs[threadIdx] = makeInputTensor(model, shape, static_cast<int>(100 + threadIdx));
