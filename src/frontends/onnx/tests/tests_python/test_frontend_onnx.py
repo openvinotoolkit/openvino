@@ -882,7 +882,8 @@ def test_load_bytesio_model():
     model_from_fe = fe.load(model_stream)
     assert model_from_fe
     converted_model = fe.convert(model_from_fe)
-    assert converted_model.friendly_name == "graph"
+    expected_name = "onnx_Frontend_IR" if _is_graph_iterator_enabled() else "graph"
+    assert converted_model.friendly_name == expected_name
 
     core = Core()
     model = core.read_model(model_stream)
