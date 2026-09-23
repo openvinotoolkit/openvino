@@ -1,13 +1,11 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Validate .github/skills metadata and Markdown links without executing skills."""
+"""Validate .github/skills metadata and structure without executing skills."""
 
 import argparse
 from pathlib import Path
-from urllib.parse import unquote, urlsplit
 
-from markdown_it import MarkdownIt
 import yaml
 
 
@@ -75,31 +73,6 @@ def metadata_errors(metadata, directory_name):
     return errors
 
 
-def link_errors(text, source, repository):
-    """Check Markdown links/images, including reference-style links; skip code and URLs."""
-    errors = []
-    pending = list(MarkdownIt("commonmark").parse(text))
-    while pending:
-        token = pending.pop()
-        pending.extend(token.children or [])
-        destination = token.attrGet("href") if token.type == "link_open" else token.attrGet("src")
-        if not destination:
-            continue
-        try:
-            url = urlsplit(destination)
-            if url.scheme or url.netloc or not url.path:
-                continue
-            path = unquote(url.path)
-            target = (repository / path.lstrip("/") if path.startswith("/") else source.parent / path).resolve()
-            if not target.is_relative_to(repository):
-                errors.append(f"local link leaves repository: {destination}")
-            elif not target.exists():
-                errors.append(f"broken local link: {destination}")
-        except (ValueError, OSError, RuntimeError) as error:
-            errors.append(f"invalid local link {destination}: {error}")
-    return errors
-
-
 def validate(repository):
     repository = repository.resolve()
     root = repository / ".github/skills"
@@ -118,16 +91,14 @@ def validate(repository):
         else:
             count += 1
 
-        for source in sorted(directory.rglob("*.md")):
+        for source in sorted(directory.rglob("SKILL.md")):
             relative = source.relative_to(repository)
             try:
                 text = source.read_text(encoding="utf-8")
-                if source.name == "SKILL.md":
-                    metadata, text = split_frontmatter(text)
-                    errors.extend(f"{relative}: {error}" for error in metadata_errors(metadata, source.parent.name))
-                    if not text.strip():
-                        errors.append(f"{relative}: missing skill instructions")
-                errors.extend(f"{relative}: {error}" for error in link_errors(text, source, repository))
+                metadata, text = split_frontmatter(text)
+                errors.extend(f"{relative}: {error}" for error in metadata_errors(metadata, source.parent.name))
+                if not text.strip():
+                    errors.append(f"{relative}: missing skill instructions")
             except (OSError, UnicodeError, ValueError, yaml.YAMLError) as error:
                 errors.append(f"{relative}: {error}")
     return count, errors

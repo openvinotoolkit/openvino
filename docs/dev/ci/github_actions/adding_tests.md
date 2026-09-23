@@ -21,30 +21,27 @@ This document explains how to create new workflows and add tests.
 
 ## Skill Validation
 
-The [Skills Check workflow](../../../../.github/workflows/skills_check.yml) runs only
-for changes under `.github/skills/**`: on pull requests, and on pushes to `master`
-or `releases/**`. It validates all skills in that directory so that removed or
-renamed shared references are checked too. The existing `.claude/skills` and
-`.github/agents-prototype/skills` collections are outside this check's scope.
+The [Documentation workflow](../../../../.github/workflows/build_doc.yml) validates
+skill metadata in its existing `Check_Doc_Links` job. The validation step runs only
+when the pull request or merge-group diff changes `.github/skills/**`, and checks
+all skills in that directory. It follows the documentation workflow's existing
+Smart CI and draft-PR conditions. The `.claude/skills` and
+`.github/agents-prototype/skills` collections are outside this metadata check's scope.
 
 The validator checks [Agent Skills metadata](https://agentskills.io/specification),
-directory/name agreement, duplicate YAML keys, non-empty instructions, and local
-Markdown link/image targets in skill documents and their supporting Markdown files.
-External URLs and heading fragments are not checked. Skill scripts are not executed;
-instruction quality and agent behavior still need review.
+directory/name agreement, duplicate YAML keys, and non-empty instructions.
+The existing Lychee step checks Markdown links, including skill references.
+Skill scripts are not executed; instruction quality and agent behavior still need
+review.
 
-Run from the repository root (also when changing the validator or workflow itself,
-which do not independently trigger this workflow):
+Run from the repository root (also when changing the validator or workflow itself
+without skill changes, since metadata validation will be skipped in CI):
 
 ```sh
 python -m pip install -r .github/scripts/skills/requirements.txt
 python -m unittest discover -s .github/scripts/skills -p 'test_*.py'
 python .github/scripts/skills/validate.py
 ```
-
-This path-filtered workflow is not a required merge check: unrelated changes do not
-produce a status. Use an always-triggered workflow with a conditional job if it
-needs to become required.
 
 ## Adding Tests to an Existing Workflow
 
