@@ -6,8 +6,10 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <numeric>
 
+#include "openvino/core/shape_util.hpp"
 #include "openvino/reference/utils/coordinate_transform.hpp"
 #include "utils/span.hpp"
 
@@ -93,8 +95,8 @@ void gather_nd(const T* const params,
             size_t input_slice_offset = input_batch_offset;
             for (size_t c = 0; c != coordinates_size; ++c) {
                 const auto i_c = slice_coordinates[c];
-                const auto index = i_c < 0 ? k_1_params[c] + i_c : i_c;
-                input_slice_offset += index * indices_offsets[c];
+                const auto index = ov::util::normalize_shape_index(static_cast<std::ptrdiff_t>(i_c), k_1_params[c]);
+                input_slice_offset += static_cast<size_t>(index) * indices_offsets[c];
             }
             const auto output_slice_offset = output_batch_offset + slice * slice_size;
             std::copy(next(params, input_slice_offset),
