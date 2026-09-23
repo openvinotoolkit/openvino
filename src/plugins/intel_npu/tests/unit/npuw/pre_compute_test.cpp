@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -393,6 +394,33 @@ TEST(PreComputeTest, RebuildTablesRejectsRotaryNdimsInconsistentWithLongFactors)
     tables.inv_freq_long = {0.1f, 0.05f, 0.2f};  // inconsistent: 2 * 3 != 4
 
     EXPECT_THROW(tables.rebuild_tables(), ov::AssertFailure);
+}
+
+// The equality check must not rely on computing `2 * factor_size` directly: a factor_size
+// above SIZE_MAX/2 would wrap that multiplication, letting a forged rotary_ndims spoof a
+// match. A real std::vector this large cannot be constructed, so the boundary is tested
+// against the extracted helper with plain integers instead of an actual factor vector.
+TEST(PreComputeTest, RotaryNdimsMatchesFactorSizeRejectsFactorSizeThatWouldOverflowWhenDoubled) {
+    using ov::npuw::patterns::pre_compute::LongRopeCosSin;
+    constexpr size_t max = std::numeric_limits<size_t>::max();
+
+    const size_t oversized_factor_size = max / 2 + 1;         // 2 * this wraps to 0
+    const size_t spoofed_rotary_ndims = oversized_factor_size * 2;  // == 0, wrapped
+
+    EXPECT_FALSE(LongRopeCosSin::rotary_ndims_matches_factor_size(spoofed_rotary_ndims, oversized_factor_size));
+    // Unconditionally rejected regardless of what rotary_ndims claims to be.
+    EXPECT_FALSE(LongRopeCosSin::rotary_ndims_matches_factor_size(1234u, oversized_factor_size));
+}
+
+TEST(PreComputeTest, RotaryNdimsMatchesFactorSizeAcceptsLargestNonOverflowingFactorSize) {
+    using ov::npuw::patterns::pre_compute::LongRopeCosSin;
+    constexpr size_t max = std::numeric_limits<size_t>::max();
+
+    const size_t largest_safe_factor_size = max / 2;  // 2 * this is exactly representable
+
+    EXPECT_TRUE(
+        LongRopeCosSin::rotary_ndims_matches_factor_size(largest_safe_factor_size * 2, largest_safe_factor_size));
+    EXPECT_FALSE(LongRopeCosSin::rotary_ndims_matches_factor_size(1u, largest_safe_factor_size));
 }
 
 // Negative control mirroring the report: one short-factor element correctly produces a
