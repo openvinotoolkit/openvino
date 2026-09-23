@@ -7,6 +7,7 @@
 #include "data_inst.h"
 #include "pooling_inst.h"
 #include <algorithm>
+#include <cstdlib>
 #include <utility>
 #include <vector>
 #include <sstream>
@@ -194,6 +195,9 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
 
 bool onednn_add_fusing_helpers::can_use_mul_inplace(
     const program_node& p_node, const fused_primitive_desc& desc) {
+    if (std::getenv("OV_GPU_FORCE_BINARY_MUL") != nullptr) {
+        return false;
+    }
     if (!desc.is_type<eltwise>()) {
         return false;
     }
