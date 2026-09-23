@@ -171,8 +171,9 @@ PagedAttention and GPU qualification are not implemented/qualified by this route
 
 ## Reproduction and evidence
 
-Recorded checkpoint results, including failed configurations, are in
-[validation.json](../tests/test_data/mmproj_accuracy/validation.json).
+Checkpoint validation commands write reports to the path supplied with `--report`.
+Keep these generated artifacts outside the source tree, including failed runs.
+Only reusable inputs and CPU-oracle expectations belong in `tests/test_data`.
 
 Build `ov_gguf_frontend_tests` and `ov_gguf_architecture_library_tests`. Run both
 without filters to include decoder architecture, quantization, extension and op
@@ -221,21 +222,19 @@ choices (95%), including the first token, initial chat cache reset, and reset af
 finishing chat. These are limited checkpoint/prompt results, not exhaustive media
 or conversation qualification.
 
-Further checkpoint evidence is recorded in
-[supported_backbones_validation.json](../tests/test_data/mmproj_accuracy/supported_backbones_validation.json).
 Gemma4 E2B vision/audio and Ministral 3 vision **pass with the published Q8_0 files
 on OpenVINO against a llama.cpp F32 reference** (NMSE `2.95e-7`, `2.71e-8`,
 `4.72e-7`, respectively). The reference copies are dequantized from those same
 Q8_0 files, preserving their represented weights. Acceptance requires finite
-normalized MSE strictly below `1e-5`; the report records the threshold and both
-checkpoint hashes. These are encoder comparisons on synthetic media/features,
+normalized MSE strictly below `1e-5`; generated reports record the threshold and
+both checkpoint hashes. These are encoder comparisons on synthetic media/features,
 not GenAI generation or qualification against original publisher-F32 weights.
 
 Use this F32 reference for quantized encoder conversion acceptance. Comparisons
 against llama.cpp's quantized execution are separate diagnostics: its Q8 CPU
 matmuls quantize activations, whereas this OpenVINO validation disables dynamic
-activation quantization. Those comparisons exceed `1e-5` and are retained under
-`quantized_execution_diagnostics`, without determining frontend acceptance.
+activation quantization. Those comparisons exceed `1e-5`; record them separately
+from frontend acceptance against the represented-weight F32 reference.
 OpenVINO Q8 versus OpenVINO dequantized F32 output NMSE is zero for Pixtral and
 below `7e-13` for both Gemma4 branches in the isolation runs. To measure error
 introduced when originally quantizing a checkpoint, use the publisher's matching

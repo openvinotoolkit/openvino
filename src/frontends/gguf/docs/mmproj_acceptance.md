@@ -111,12 +111,10 @@ not establish the source of all later error or satisfy the first-token criterion
 The raw cgraph weight-conversion path retains its separate quantization policy;
 these native-loading results do not qualify that path.
 
-[Machine-readable evidence](../tests/test_data/mmproj_accuracy/acceptance_2026_09.json)
-contains current targeted runs and the complete historical baseline with
-checkpoint revisions, hashes, metrics and errors. Historical descriptions of
-missing mmproj loading or batch support apply only to the revisions recorded
-there. Per-run frozen runtime source hashes identify dirty development builds
-more accurately than embedded version strings.
+Detailed checkpoint reports are generated validation artifacts and are kept
+outside the source tree. Record checkpoint revisions, hashes, runtime provenance,
+metrics and failures alongside each run. The checked-in `.npz` fixtures are inputs
+and CPU-oracle expectations consumed by automated regression tests.
 
 ```sh
 cmake --build build-mmproj --target openvino_gguf_frontend ov_gguf_frontend_tests pyopenvino -j 8
