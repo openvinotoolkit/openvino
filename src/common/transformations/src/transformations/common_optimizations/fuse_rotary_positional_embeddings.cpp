@@ -1460,6 +1460,20 @@ RoPEFusionSliceAssign::RoPEFusionSliceAssign() {
         const auto scatter = ov::as_type_ptr<v15::ScatterNDUpdate>(output.get_node_shared_ptr());
         return !scatter || scatter->get_reduction() == v15::ScatterNDUpdate::Reduction::NONE;
     };
+    const auto target_has_no_zero = [](const Output<Node>& output) {
+        const auto reshape = ov::as_type_ptr<v1::Reshape>(output.get_node_shared_ptr());
+        if (!reshape->get_special_zero())
+            return true;
+        const auto target = ov::as_type_ptr<v0::Constant>(reshape->input_value(1).get_node_shared_ptr());
+        if (!target)
+            return false;
+        for (const auto& dim : target->cast_vector<int64_t>()) {
+            if (dim == 0)
+                return false;
+        }
+        return true;
+    };
+
     auto data1 = any_input();
     auto updates1 = wrap_type<v1::Reshape>({out1, any_input()});
     auto idx1 = wrap_type<v0::Constant>();
@@ -1468,7 +1482,7 @@ RoPEFusionSliceAssign::RoPEFusionSliceAssign() {
     auto updates2 = wrap_type<v1::Reshape>({out2, any_input()});
     auto idx2 = wrap_type<v0::Constant>();
     auto scatter2 = wrap_type<op_util::ScatterNDBase>({scatter1, idx2, updates2}, scatter_overwrites);
-    auto result = wrap_type<v1::Reshape>({scatter2, any_input()});
+    auto result = wrap_type<v1::Reshape>({scatter2, any_input()}, target_has_no_zero);
 
     matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](pattern::Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
