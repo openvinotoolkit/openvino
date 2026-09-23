@@ -68,7 +68,7 @@ def is_metrics_dict(value: object) -> bool:
     return isinstance(value, dict) and set(value).issubset(METRIC_KEYS) and bool(value)
 
 
-def get_models_bucket(result: dict, platform_name: str, framework_name: str, test_type: str) -> dict[str, dict[str, object]]:
+def get_framework_bucket(result: dict, platform_name: str, framework_name: str) -> dict[str, dict[str, object]]:
     platform = result.setdefault(platform_name, {})
     if not isinstance(platform, dict):
         raise SystemExit(f"Existing platform bucket for '{platform_name}' is not a JSON object")
@@ -77,16 +77,23 @@ def get_models_bucket(result: dict, platform_name: str, framework_name: str, tes
     if not isinstance(framework, dict):
         raise SystemExit(f"Existing framework bucket for '{framework_name}' is not a JSON object")
 
-    if any(is_metrics_dict(value) for value in framework.values()):
-        raise SystemExit(
-            f"Existing output uses the legacy non-namespaced schema for framework '{framework_name}'. "
-            "Delete the output file and rerun all parser steps to regenerate it."
-        )
+    for bucket_name, models in framework.items():
+        if not isinstance(models, dict):
+            raise SystemExit(f"Existing test-type bucket for '{framework_name}/{bucket_name}' is not a JSON object")
+        if any(key in METRIC_KEYS for key in models):
+            raise SystemExit(
+                f"Existing output uses the legacy non-namespaced schema for framework '{framework_name}'. "
+                "Delete the output file and rerun all parser steps to regenerate it."
+            )
+        if not models:
+            raise SystemExit(
+                f"Existing output has an empty bucket for '{framework_name}/{bucket_name}', which is ambiguous with the legacy schema. "
+                "Delete the output file and rerun all parser steps to regenerate it."
+            )
+        if any(not is_metrics_dict(metrics) for metrics in models.values()):
+            raise SystemExit(f"Existing test-type bucket for '{framework_name}/{bucket_name}' has an invalid model-metrics shape")
 
-    models = framework.setdefault(test_type, {})
-    if not isinstance(models, dict):
-        raise SystemExit(f"Existing test-type bucket for '{framework_name}/{test_type}' is not a JSON object")
-    return models
+    return framework
 
 
 def load_existing(path: Path) -> dict:
@@ -124,8 +131,9 @@ def main() -> None:
     args = parser.parse_args()
 
     result = load_existing(args.output)
-    models = get_models_bucket(result, str(args.platform), args.framework, args.test_type)
+    framework = get_framework_bucket(result, str(args.platform), args.framework)
 
+    models: dict[str, dict[str, object]] | None = None
     current_model: str | None = None
 
     for raw_line in args.input.read_text(encoding="utf-8", errors="replace").splitlines():
@@ -133,11 +141,14 @@ def main() -> None:
 
         case = PYTEST_CASE.match(line)
         if case:
+            models = framework.setdefault(args.test_type, {})
+            if not isinstance(models, dict):
+                raise SystemExit(f"Existing test-type bucket for '{args.framework}/{args.test_type}' is not a JSON object")
             current_model = case.group("model")
             models.setdefault(current_model, default_metrics())
             continue
 
-        if current_model is None:
+        if current_model is None or models is None:
             continue
 
         memory_kb = find_value(MEMORY_PATTERNS, line)
