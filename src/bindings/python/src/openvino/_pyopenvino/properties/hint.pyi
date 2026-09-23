@@ -13,8 +13,8 @@ class AttnMode:
 
       PA_CM
     """
-        PA_CM: typing.ClassVar[AttnMode]  # value = <AttnMode.PA_CM: 0>
-        __members__: typing.ClassVar[dict[str, AttnMode]]  # value = {'PA_CM': <AttnMode.PA_CM: 0>}
+    PA_CM: typing.ClassVar[AttnMode]  # value = <AttnMode.PA_CM: 0>
+    __members__: typing.ClassVar[dict[str, AttnMode]]  # value = {'PA_CM': <AttnMode.PA_CM: 0>}
     def __eq__(self, other: typing.Any) -> bool:
         ...
     def __ge__(self, other: typing.Any) -> bool:

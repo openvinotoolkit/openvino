@@ -54,6 +54,8 @@ PY_TYPE check_container_element_type(const T& container) {
             check_type(PY_TYPE::PARTIAL_SHAPE);
         } else if (py::isinstance<ov::hint::ModelDistributionPolicy>(it)) {
             check_type(PY_TYPE::MODEL_DISTRIBUTION_POLICY);
+        } else if (py::isinstance<ov::hint::AttnMode>(it)) {
+            check_type(PY_TYPE::ATTN_MODE);
         }
     }
 
@@ -163,6 +165,10 @@ py::object from_ov_any(const ov::Any& any) {
     // Check for std::vector<double>
     else if (any.is<std::vector<double>>()) {
         return py::cast(any.as<std::vector<double>>());
+    }
+    // Check for std::vector<ov::hint::AttnMode>
+    else if (any.is<std::vector<ov::hint::AttnMode>>()) {
+        return py::cast(any.as<std::vector<ov::hint::AttnMode>>());
     }
     // Check for std::vector<ov::Any>
     else if (any.is<std::vector<ov::Any>>()) {
@@ -521,6 +527,8 @@ ov::Any py_object_to_any(const py::object& py_obj) {
             return _list.cast<std::vector<bool>>();
         case PY_TYPE::PARTIAL_SHAPE:
             return _list.cast<std::vector<ov::PartialShape>>();
+        case PY_TYPE::ATTN_MODE:
+            return _list.cast<std::vector<ov::hint::AttnMode>>();
         default:
             OPENVINO_ASSERT(false, "Unsupported attribute type.");
         }
