@@ -373,6 +373,68 @@ TEST_P(MoEExecutorRuntimeTest, RejectsNonfiniteScoresInsteadOfReturningZeroAndRe
     }
 }
 
+TEST_P(MoEExecutorRuntimeTest, RejectsExcessExpertsPerTokenAndRemainsReusable) {
+    const auto [half_scores, tokens, pool] = GetParam();
+    ExecutorHarness harness(tokens, half_scores ? ov::element::f16 : ov::element::f32, pool);
+    std::vector<size_t> invalid_tokens{0};
+    if (tokens > 1)
+        invalid_tokens.push_back(tokens - 1);
+
+    // Expert 2 exercises parse-ahead; leaving its row empty and using expert 3
+    // exercises the full scan. Both must reject before dispatching that expert.
+    for (const size_t extra_expert : {size_t{2}, size_t{3}}) {
+        SCOPED_TRACE(extra_expert);
+        for (const float extra_score : {0.25f, 0x1p-24f, -0x1p-24f}) {
+            SCOPED_TRACE(extra_score);
+            for (const size_t invalid_token : invalid_tokens) {
+                SCOPED_TRACE(invalid_token);
+                std::memset(harness.scores.data(), 0, harness.scores.get_byte_size());
+                for (size_t token = 0; token < tokens; ++token) {
+                    harness.set_score(0, token, 0.5f);
+                    harness.set_score(1, token, 0.25f);
+                }
+                // Only one token violates K, including with an f16-representable
+                // tiny coefficient that must not be hidden by a threshold.
+                harness.set_score(extra_expert, invalid_token, extra_score);
+                harness.bind(0.5f);
+                const auto before = harness.log->calls.size();
+                try {
+                    harness.executor->run(0, 0);
+                    FAIL() << "A token with more than K nonzero scores must be rejected";
+                } catch (const ov::Exception& error) {
+                    EXPECT_NE(std::string(error.what()).find("nonzero scores exceed the configured top-k"),
+                              std::string::npos);
+                }
+                EXPECT_EQ(harness.log->pending.load(), 0u);
+                if (tokens == 1) {
+                    EXPECT_EQ(harness.log->calls.size(), before);
+                } else {
+                    // Both valid experts dispatched all chunks; cleanup waits for
+                    // the final pending chunk, but no excess expert was launched.
+                    const auto chunks = (tokens + ExecutorHarness::chunk - 1) / ExecutorHarness::chunk;
+                    EXPECT_EQ(harness.log->calls.size(), before + ExecutorHarness::selected * chunks);
+                }
+
+                const auto after_failure = harness.log->calls.size();
+                std::memset(harness.scores.data(), 0, harness.scores.get_byte_size());
+                harness.bind(0.25f);
+                harness.check();
+                EXPECT_EQ(harness.log->calls.size(), after_failure);
+
+                // Reuse with new bindings and exactly K experts per token. Across
+                // the prefill batch, the union may legally contain all E experts.
+                for (size_t token = 0; token < tokens; ++token) {
+                    harness.set_score(token % ExecutorHarness::experts, token, 0.25f);
+                    harness.set_score((token + 2) % ExecutorHarness::experts, token, -0.5f);
+                }
+                harness.bind(0.75f);
+                harness.check();
+                EXPECT_GT(harness.log->calls.size(), after_failure);
+            }
+        }
+    }
+}
+
 INSTANTIATE_TEST_SUITE_P(ScoreTypesAndModes,
                          MoEExecutorRuntimeTest,
                          ::testing::Combine(::testing::Bool(),

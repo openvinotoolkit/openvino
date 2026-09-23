@@ -501,6 +501,11 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
             const auto* row = data + expert_id * num_tokens;
             // Shared by both the parse-ahead fast path and the full threshold scan below.
             auto fill_token = [&](size_t token_id) {
+                // The accumulator has only K output slots per token.
+                if (token_slot_count[token_id] >= m_config.num_active_experts) {
+                    OPENVINO_THROW("MoE Iterative experts: nonzero scores exceed the configured top-k for token ",
+                                   token_id);
+                }
                 cur.tokens.push_back(token_id);
                 cur.slots.push_back(token_slot_count[token_id]++);
             };
