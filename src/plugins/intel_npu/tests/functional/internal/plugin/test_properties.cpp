@@ -744,9 +744,9 @@ TEST_P(WSCompileCallNumberPropertyTests, IsNotExposedToTheUser) {
     ASSERT_FALSE(propertiesManager->isPropertySupported(ov::intel_npu::ws_compile_call_number.name()));
 
     std::vector<ov::PropertyName> supportedProperties;
-    OV_ASSERT_NO_THROW(supportedProperties =
-                           propertiesManager->getProperty(ov::supported_properties.name())
-                               .as<std::vector<ov::PropertyName>>());
+    OV_ASSERT_NO_THROW(
+        supportedProperties =
+            propertiesManager->getProperty(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>());
     ASSERT_EQ(std::find(supportedProperties.cbegin(),
                         supportedProperties.cend(),
                         ov::intel_npu::ws_compile_call_number.name()),
@@ -771,9 +771,9 @@ TEST_P(WSCompileCallNumberPropertyTests, CannotBeWrittenThroughSetProperty) {
 }
 
 TEST_P(WSCompileCallNumberPropertyTests, IsRejectedByGetMergedConfigAndUnknownProperties) {
-    for (const auto mergeMode :
-         {::intel_npu::ConfigMergeMode::Compile, ::intel_npu::ConfigMergeMode::Import,
-          ::intel_npu::ConfigMergeMode::Query}) {
+    for (const auto mergeMode : {::intel_npu::ConfigMergeMode::Compile,
+                                 ::intel_npu::ConfigMergeMode::Import,
+                                 ::intel_npu::ConfigMergeMode::Query}) {
         OV_EXPECT_THROW(propertiesManager->getMergedConfigAndUnknownProperties(
                             {{ov::intel_npu::ws_compile_call_number(1),
                               ov::intel_npu::compiler_type(ov::intel_npu::CompilerType::PLUGIN)}},
@@ -878,6 +878,124 @@ TEST_P(SharedCommonQueueCompatibilityTests, DisablingOnePropertyWhileTheOtherIsE
     OV_ASSERT_NO_THROW(propertiesManager->setProperty({{ov::intel_npu::shared_common_queue(false)}}));
 }
 
+// NPU_DISABLE_IDLE_MEMORY_PRUNING flips a driver-wide context option, so every test which enables it must disable it
+// again before returning. TearDown does that unconditionally to keep the state of the driver context clean for the
+// tests running afterwards.
+class DisableIdleMemoryPruningPropertyTests : public PropertiesManagerTests {
+protected:
+    bool isSupportedByDriver() const {
+        return backend && backend->isContextExtSupported();
+    }
+
+    void TearDown() override {
+        if (propertiesManager != nullptr && isSupportedByDriver()) {
+            propertiesManager->setProperty({{ov::intel_npu::disable_idle_memory_prunning(false)}});
+        }
+        PropertiesManagerTests::TearDown();
+    }
+};
+
+TEST_P(DisableIdleMemoryPruningPropertyTests, SupportMatchesContextExtensionAvailability) {
+    ASSERT_EQ(propertiesManager->isPropertySupported(ov::intel_npu::disable_idle_memory_prunning.name()),
+              isSupportedByDriver());
+}
+
+TEST_P(DisableIdleMemoryPruningPropertyTests, DefaultValueMatchesTheOptionDefault) {
+    if (!isSupportedByDriver()) {
+        OV_EXPECT_THROW(propertiesManager->getProperty(ov::intel_npu::disable_idle_memory_prunning.name()),
+                        ov::Exception,
+                        HasSubstr("Unsupported configuration key"));
+        return;
+    }
+
+    ov::Any value;
+    OV_ASSERT_NO_THROW(value = propertiesManager->getProperty(ov::intel_npu::disable_idle_memory_prunning.name()));
+    ASSERT_EQ(value.as<bool>(), ::intel_npu::DISABLE_IDLE_MEMORY_PRUNING::defaultValue());
+}
+
+TEST_P(DisableIdleMemoryPruningPropertyTests, CanBeEnabledAndDisabledAgain) {
+    if (!isSupportedByDriver()) {
+        OV_EXPECT_THROW(propertiesManager->setProperty({{ov::intel_npu::disable_idle_memory_prunning(true)}}),
+                        ov::Exception,
+                        HasSubstr("Unsupported configuration key"));
+        return;
+    }
+
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty({{ov::intel_npu::disable_idle_memory_prunning(true)}}));
+    ASSERT_TRUE(propertiesManager->getProperty(ov::intel_npu::disable_idle_memory_prunning.name()).as<bool>());
+
+    // Turn it back off right away, the driver context must not stay with the idle optimizations disabled.
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty({{ov::intel_npu::disable_idle_memory_prunning(false)}}));
+    ASSERT_FALSE(propertiesManager->getProperty(ov::intel_npu::disable_idle_memory_prunning.name()).as<bool>());
+}
+
+TEST_P(DisableIdleMemoryPruningPropertyTests, AcceptsStringValues) {
+    if (!isSupportedByDriver()) {
+        GTEST_SKIP() << "The driver does not expose the context extension.";
+    }
+
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty({{ov::intel_npu::disable_idle_memory_prunning.name(), "YES"}}));
+    ASSERT_TRUE(propertiesManager->getProperty(ov::intel_npu::disable_idle_memory_prunning.name()).as<bool>());
+
+    OV_ASSERT_NO_THROW(propertiesManager->setProperty({{ov::intel_npu::disable_idle_memory_prunning.name(), "NO"}}));
+    ASSERT_FALSE(propertiesManager->getProperty(ov::intel_npu::disable_idle_memory_prunning.name()).as<bool>());
+}
+
+TEST_P(DisableIdleMemoryPruningPropertyTests, IsARunTimeOption) {
+    // An empty property map is enough to get hold of the option descriptors and it keeps the compiler adapters out of
+    // this test.
+    auto [config, unknownProperties] =
+        propertiesManager->getMergedConfigAndUnknownProperties({}, ::intel_npu::ConfigMergeMode::Compile);
+
+    ASSERT_TRUE(config.hasOpt(ov::intel_npu::disable_idle_memory_prunning.name()));
+    ASSERT_EQ(config.getOpt(ov::intel_npu::disable_idle_memory_prunning.name()).mode(),
+              ::intel_npu::OptionMode::RunTime);
+    ASSERT_TRUE(unknownProperties.empty());
+}
+
+// The property is a runtime option, so it is kept by the merged configuration on the compile, import and query paths
+// alike.
+TEST_P(DisableIdleMemoryPruningPropertyTests, IsKeptByTheMergedConfigurationOnEveryPath) {
+    for (const auto mergeMode : {::intel_npu::ConfigMergeMode::Compile,
+                                 ::intel_npu::ConfigMergeMode::Import,
+                                 ::intel_npu::ConfigMergeMode::Query}) {
+        if (!isSupportedByDriver()) {
+            OV_EXPECT_THROW(propertiesManager->getMergedConfigAndUnknownProperties(
+                                {{ov::intel_npu::disable_idle_memory_prunning(true)}},
+                                mergeMode),
+                            ov::Exception,
+                            HasSubstr("is not supported for current configuration"));
+            continue;
+        }
+
+        for (const bool requestedValue : {true, false}) {
+            auto [config, unknownProperties] = propertiesManager->getMergedConfigAndUnknownProperties(
+                {{ov::intel_npu::disable_idle_memory_prunning(requestedValue)}},
+                mergeMode);
+
+            ASSERT_TRUE(config.has<::intel_npu::DISABLE_IDLE_MEMORY_PRUNING>());
+            ASSERT_EQ(config.get<::intel_npu::DISABLE_IDLE_MEMORY_PRUNING>(), requestedValue);
+            ASSERT_TRUE(unknownProperties.empty());
+        }
+    }
+}
+
+// Building a local configuration for a compile/import call must not change the value stored in the plugin: only
+// set_property (and the global property update performed on those calls) touches the driver context.
+TEST_P(DisableIdleMemoryPruningPropertyTests, MergedConfigurationDoesNotChangeThePluginValue) {
+    if (!isSupportedByDriver()) {
+        GTEST_SKIP() << "The driver does not expose the context extension.";
+    }
+
+    auto [config, unknownProperties] =
+        propertiesManager->getMergedConfigAndUnknownProperties({{ov::intel_npu::disable_idle_memory_prunning(true)}},
+                                                               ::intel_npu::ConfigMergeMode::Compile);
+
+    ASSERT_TRUE(config.get<::intel_npu::DISABLE_IDLE_MEMORY_PRUNING>());
+    ASSERT_TRUE(unknownProperties.empty());
+    ASSERT_FALSE(propertiesManager->getProperty(ov::intel_npu::disable_idle_memory_prunning.name()).as<bool>());
+}
+
 }  // namespace behavior
 }  // namespace test
 }  // namespace ov
@@ -921,6 +1039,12 @@ INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTest,
                          CompileLogLevelPropertyTests,
+                         ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
+                                            ::testing::Values(std::string{})),
+                         PropertiesManagerTests::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(compatibility_smoke_BehaviorTest,
+                         DisableIdleMemoryPruningPropertyTests,
                          ::testing::Combine(::testing::Values(ov::test::utils::DEVICE_NPU),
                                             ::testing::Values(std::string{})),
                          PropertiesManagerTests::getTestCaseName);
