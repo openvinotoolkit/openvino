@@ -67,10 +67,15 @@ Compare greedy on **`llama-simple`** (raw completion, no chat template — see t
 
 ### 2. Graph bug or quantization?
 
-Run the **same quantized weights** through the CPU reference and OV, both greedy, and compare
-the first token. Reference right + OV wrong on identical weights ⇒ quantization is ruled out,
-it's a graph/conversion bug. Don't download a higher-precision model to "check quantization" —
-this already answered it for free (and big models often OOM in the frontend; see Gotchas).
+Run the **same checkpoint** through the CPU reference and OV, both greedy, and compare
+choices on identical token histories. A difference does not by itself distinguish graph errors
+from quantized execution: kernels can quantize activations differently, and a converter can
+introduce additional weight requantization. To separate these effects, also run a CPU reference
+with the checkpoint's represented weights expanded to F32. This preserves the quantization
+error already in the checkpoint; it does not recover the publisher's original F32 weights.
+Keep quantized-reference and represented-F32-reference measurements separate, including first
+token agreement, matching-choice fraction and logit errors. Apply the agreed acceptance limits
+without hiding failed runs. Large F32 copies can exhaust memory or disk (see Gotchas).
 
 ### 3. Prefill or decode?
 
@@ -139,6 +144,10 @@ the curve *is* the diagnosis:
   downstream of a rope layer") to point at the op.
 - **A gentle monotone slope** from ~1.0 = genuine accumulating precision drift — a verdict you
   earn only when cosine *also* shows a smooth slope.
+- **A jump at an MoE layer** can also come from a near tie at the expert-selection cutoff.
+  Compare router logits, selected expert IDs and the cutoff margin before blaming expert
+  projection layout. A small router error can change the selected expert and amplify later
+  differences. Localizing this sensitivity does not automatically satisfy accuracy acceptance.
 
 To place both backends at every layer despite OV crashing early under the eval-callback, match
 the complete ggml-CPU eval-callback `sum` per layer (÷ element count) against the OV
