@@ -266,10 +266,8 @@ bool ResampleKernelOpt::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants ResampleKernelOpt::GetJitConstants(const resample_params &params) const {
-    auto jit = Parent::GetJitConstants(params);
-    jit.RemoveConstant("SCALES");
-    jit.AddConstant(MakeJitConstant("SCALES", get_legacy_scales(params)));
+JitConstants ResampleKernelOpt::get_jit_constants(const resample_params &params, bool legacy_scale) const {
+    auto jit = Parent::get_jit_constants(params, true);
 
     auto opt_x_block_size = GetOptimalBlockSize(params);
     if (params.outputs[0].X().v > 32 && opt_x_block_size == 1) {
