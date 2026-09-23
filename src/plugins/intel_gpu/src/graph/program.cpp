@@ -794,8 +794,8 @@ const std::vector<primitive_id>& program::get_allocating_order(bool forced_updat
         return lhs.first < rhs.first;
     });
 
-    for (const auto& node : nodes_to_allocate) {
-        allocating_order.emplace_back(node.second->id());
+    for (const auto& [key, node] : nodes_to_allocate) {
+        allocating_order.emplace_back(node->id());
     }
 
     return allocating_order;
