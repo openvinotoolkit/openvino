@@ -1,7 +1,7 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Create an F32 copy for encoder topology validation against llama.cpp CPU.
+"""Create an F32 copy of represented GGUF weights for llama.cpp CPU validation.
 
 Use gguf-py from the pinned llama.cpp checkout. This preserves the quantized
 checkpoint's represented weights; it does not recover the publisher's weights.
@@ -24,7 +24,7 @@ def main():
     if args.source.resolve() == args.destination.resolve():
         parser.error("Source and destination must differ")
     reader = gguf.GGUFReader(args.source)
-    writer = gguf.GGUFWriter(args.destination, "clip", use_temp_file=True)
+    writer = gguf.GGUFWriter(args.destination, reader.fields["general.architecture"].contents(), use_temp_file=True)
     for name, field in reader.fields.items():
         if name.startswith("GGUF.") or name == "general.architecture":
             continue
