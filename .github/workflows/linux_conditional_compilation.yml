@@ -371,7 +371,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_linux_cc
-    needs: [Smart_CI, Build_And_Run_Collect_Mode, Build_And_Run_On_Mode]
+    needs: [Smart_CI, Docker, Build_And_Run_Collect_Mode, Build_And_Run_On_Mode]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:
