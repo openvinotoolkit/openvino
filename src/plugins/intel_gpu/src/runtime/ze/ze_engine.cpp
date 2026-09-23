@@ -233,8 +233,9 @@ memory_ptr ze_engine::create_hostbuffer_impl(void* cpu_address,
         OV_ZE_EXPECT(ze::zeMemAllocHost(usm_handle.context, &host_desc, data_size, 0, &usm_handle.ptr));
         OPENVINO_ASSERT(usm_handle.ptr == cpu_address,
                         "[GPU] zeMemAllocHost with external system memory mapping returned a different pointer than requested");
-        ze_usm_resource imported_buffer(usm_handle);
-        return std::make_shared<ze::gpu_usm>(this, output_layout, imported_buffer, allocation, nullptr);
+        auto mem_tracker = std::make_shared<MemoryTracker>(nullptr, usm_handle.ptr, data_size, allocation);
+        auto memory = std::make_shared<ze::gpu_usm_from_external_sysmem>(this, output_layout, usm_handle, allocation, mem_tracker);
+        return memory;
     }
 
     OPENVINO_ASSERT(get_device_info().supports_leo,
@@ -261,7 +262,12 @@ memory_ptr ze_engine::create_hostbuffer_impl(void* cpu_address,
 #endif
 
     auto imported_buffer = ze_import_usm(ocl_buffer, ctx, false);
-    return std::make_shared<ze::gpu_usm>(this, output_layout, imported_buffer, allocation, nullptr);
+#ifdef CL_MEM_FORCE_HOST_MEMORY_INTEL
+    auto mem_tracker = std::make_shared<MemoryTracker>(nullptr, imported_buffer.handle().ptr, data_size, allocation);
+#else
+    auto mem_tracker = std::make_shared<MemoryTracker>(this, imported_buffer.handle().ptr, data_size, allocation);
+#endif
+    return std::make_shared<ze::gpu_usm>(this, output_layout, imported_buffer, allocation, mem_tracker);
 }
 
 bool ze_engine::is_the_same_buffer(const memory& mem1, const memory& mem2) {
