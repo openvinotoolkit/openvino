@@ -128,10 +128,9 @@ void normalize_causal_conv_state(const std::shared_ptr<ov::op::v0::Parameter>& s
     // Restore token-major order before collapsing axes, then expose [B, C, T].
     const auto token_major = std::make_shared<v1::Transpose>(window->input_value(1),
                                                              v0::Constant::create(ov::element::i64, {4}, {0, 1, 3, 2}));
-    const auto pattern = v0::Constant::create(ov::element::i64,
-                                              {3},
-                                              std::vector<int64_t>{shape[1].get_length(), -1, shape[2].get_length()});
-    const auto token_rows = std::make_shared<v1::Reshape>(token_major, pattern, false);
+    const auto pattern =
+        v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{0, -1, shape[2].get_length()});
+    const auto token_rows = std::make_shared<v1::Reshape>(token_major, pattern, true);
     const auto tokens =
         std::make_shared<v1::Transpose>(token_rows, v0::Constant::create(ov::element::i64, {3}, {0, 2, 1}));
     state->set_partial_shape(ov::PartialShape{shape[1], shape[2], kernel});
@@ -337,6 +336,7 @@ bool GGUFMakeStateful::run_on_model(const std::shared_ptr<ov::Model>& model) {
         // Variable and its initial extent is 0 (no past on the first inference). Every other axis
         // keeps the Parameter's declared dimension and so must be static to build the init constant.
         ov::PartialShape var_shape = ps;
+        var_shape[0] = ov::Dimension::dynamic();
         var_shape[axis] = ov::Dimension::dynamic();
         auto var = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{var_shape, et, cache_name});
 

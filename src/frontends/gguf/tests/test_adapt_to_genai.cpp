@@ -237,6 +237,14 @@ TEST(GGUFAdaptToGenAI, EmbeddingModeExtractsLookupAndAcceptsInjectedValues) {
         for (size_t i = 0; i < length; ++i)
             EXPECT_EQ(outputs[0].data<float>()[i], float(4 * i + 1));
     }
+    ov::Tensor batch_ids(ov::element::i64, {2, 1});
+    batch_ids.data<int64_t>()[0] = 1;
+    batch_ids.data<int64_t>()[1] = 3;
+    ov::TensorVector batch_embeddings{ov::Tensor(ov::element::f32, {2, 1, 2})};
+    ASSERT_TRUE(pass.get_embedding_model()->evaluate(batch_embeddings, {batch_ids}));
+    EXPECT_EQ(batch_embeddings[0].get_shape(), (ov::Shape{2, 1, 2}));
+    EXPECT_EQ(batch_embeddings[0].data<float>()[0], 2.f);
+    EXPECT_EQ(batch_embeddings[0].data<float>()[2], 6.f);
     EXPECT_FALSE(pass.run_on_model(m.model));
 }
 
@@ -269,6 +277,51 @@ TEST(GGUFAdaptToGenAI, EmbeddingModeRetainsScalingOnce) {
     ASSERT_EQ(actual.get_shape(), expected.get_shape());
     for (size_t i = 0; i < actual.get_size(); ++i)
         EXPECT_FLOAT_EQ(actual.data<float>()[i], expected.data<float>()[i]);
+}
+
+TEST(GGUFAdaptToGenAI, BatchedMaskKeepsSequencesSeparateAndExcludesPadding) {
+    auto m = build_minimal_gguf_model();
+    auto mask = find_parameter(m.model, "self_kq_mask");
+    m.model->add_results({std::make_shared<v0::Result>(mask)});
+    ASSERT_TRUE(AdaptToGenAI().run_on_model(m.model));
+    ov::Core core;
+    auto request = core.compile_model(m.model, "CPU").create_infer_request();
+    // The second sequence has two left-padding columns and one current token.
+    for (size_t past : {0, 2}) {
+        ov::Tensor ids(ov::element::i64, {2, 3}), positions(ov::element::i64, {2, 3});
+        ov::Tensor attention(ov::element::i64, {2, past + 3}), beams(ov::element::i32, {2});
+        std::fill_n(ids.data<int64_t>(), ids.get_size(), 1);
+        std::fill_n(attention.data<int64_t>(), attention.get_size(), 1);
+        attention.data<int64_t>()[past + 3] = attention.data<int64_t>()[past + 4] = 0;
+        for (size_t i = 0; i < 3; ++i) {
+            positions.data<int64_t>()[i] = past + i;
+            positions.data<int64_t>()[3 + i] = std::max<int64_t>(0, int64_t(past + i) - 2);
+        }
+        beams.data<int32_t>()[0] = 0;
+        beams.data<int32_t>()[1] = 1;
+        request.set_tensor("input_ids", ids);
+        request.set_tensor("attention_mask", attention);
+        request.set_tensor("position_ids", positions);
+        request.set_tensor("beam_idx", beams);
+        request.infer();
+        const auto actual = request.get_output_tensor(0);
+        ASSERT_EQ(actual.get_shape(), (ov::Shape{2, 1, 3, past + 3}));
+        for (size_t b = 0; b < 2; ++b) {
+            for (size_t q = 0; q < 3; ++q) {
+                for (size_t k = 0; k < past + 3; ++k) {
+                    const bool allowed = k <= past + q && (b == 0 || k >= 2);
+                    const float value = actual.data<const float>()[(b * 3 + q) * (past + 3) + k];
+                    // Padded query rows are ignored by generation.
+                    if (b == 1 && past + q < 2)
+                        continue;
+                    if (allowed)
+                        EXPECT_EQ(value, 0.f);
+                    else
+                        EXPECT_LT(value, -1e4f);
+                }
+            }
+        }
+    }
 }
 
 TEST(GGUFAdaptToGenAI, Gemma3ImageMaskRespectsImageGroupsAndCachedPrefix) {
@@ -701,10 +754,8 @@ TEST(GGUFAdaptToGenAI, PagedAttentionFlattensEmbeddingsAndAuxiliaryTokens) {
     ASSERT_TRUE(ov::pass::SDPAToPagedAttention().run_on_model(model));
     EXPECT_EQ(model->input("input_ids").get_partial_shape(), ov::PartialShape{-1});
     EXPECT_EQ(model->input("inputs_embeds").get_partial_shape(), (ov::PartialShape{-1, -1}));
-    EXPECT_NO_THROW(model->reshape({{"input_ids", {5}},
-                                   {"inputs_embeds", {5, 4}},
-                                   {"token_type_ids", {5, 1}},
-                                   {"position_ids", {5}}}));
+    EXPECT_NO_THROW(model->reshape(
+        {{"input_ids", {5}}, {"inputs_embeds", {5, 4}}, {"token_type_ids", {5, 1}}, {"position_ids", {5}}}));
     EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
 }
 

@@ -102,7 +102,8 @@ TEST_F(GGUFParser, MMProjQ4KPreservesRepresentedWeights) {
     const auto& zp = arrays.at("v.blk.0.attn_q.zp");
     ASSERT_EQ(zp.get_element_type(), ov::element::f16);
     const auto node = make_weight_node({arrays.at("v.blk.0.attn_q.weight"), arrays.at("v.blk.0.attn_q.scales"), zp},
-                                      GGUF_TYPE_Q4_K, "v.blk.0.attn_q.weight");
+                                       GGUF_TYPE_Q4_K,
+                                       "v.blk.0.attn_q.weight");
     const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
     const auto output = run_on_cpu(model, {});
     ASSERT_EQ(output.get_size(), reference.size());

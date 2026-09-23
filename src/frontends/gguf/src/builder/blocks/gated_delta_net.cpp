@@ -45,7 +45,7 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
                     p + "beta_4d",
                     {beta},
                     6,
-                    {{"reshape_target", std::vector<int64_t>{1, -1, H_v, 1}}, {"special_zero", true}});
+                    {{"reshape_target", std::vector<int64_t>{0, -1, H_v, 1}}, {"special_zero", true}});
 
     // g = softplus(ssm_alpha @ x + ssm_dt.bias) * ssm_a   (ggml: -A_log.exp() * softplus)
     e.add_weight(p + "ssm_alpha.weight");
@@ -59,7 +59,7 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
                  p + "gate_4d",
                  {g},
                  6,
-                 {{"reshape_target", std::vector<int64_t>{1, -1, H_v, 1}}, {"special_zero", true}});
+                 {{"reshape_target", std::vector<int64_t>{0, -1, H_v, 1}}, {"special_zero", true}});
 
     // ---- causal depthwise conv over [conv state | this step's tokens] ----
     // conv_state holds the trailing d_conv-1 columns of the previous step's conv input.
@@ -79,7 +79,8 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     graph.recurrent_states.emplace_back(cs, cs_out);
 
     e.add_named_weight(p + "ssm_conv1d.weight");
-    auto conv = e.add_op("GGML_OP_SSM_CONV", p + "conv_out", {conv_in, p + "ssm_conv1d.weight"});
+    auto conv =
+        e.add_op("GGML_OP_SSM_CONV", p + "conv_out", {conv_in, p + "ssm_conv1d.weight"}, 0, {{"batch_major", true}});
     conv = e.add_op("GGML_UNARY_OP_SILU", p + "conv_silu", {conv});
 
     // ---- split the conv output into q | k | v and normalize q/k ----
@@ -112,16 +113,8 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     // Split the packed attention rows and recurrent state; only the token axis is inferred.
     const std::vector<int64_t> attn_view{0, head_v};
     const std::vector<int64_t> state_view{1, head_v};
-    auto attn = e.add_op("GGML_OP_VIEW",
-                         p + "gdn_attn",
-                         {gdn},
-                         4,
-                         {{"gdn_view", attn_view}, {"view_reshape", std::vector<int64_t>{1, -1, H_v, head_v}}});
-    auto new_state = e.add_op("GGML_OP_VIEW",
-                              ss + "_out",
-                              {gdn},
-                              4,
-                              {{"gdn_view", state_view}, {"view_reshape", std::vector<int64_t>{1, H_v, head_v, S}}});
+    auto attn = e.add_op("GGML_OP_VIEW", p + "gdn_attn", {gdn}, 4, {{"gdn_view", attn_view}});
+    auto new_state = e.add_op("GGML_OP_VIEW", ss + "_out", {gdn}, 4, {{"gdn_view", state_view}});
     graph.model_output_names.push_back(new_state);
     graph.recurrent_states.emplace_back(ss, new_state);
 
@@ -132,7 +125,7 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
                          p + "z_4d",
                          {z},
                          6,
-                         {{"reshape_target", std::vector<int64_t>{1, -1, H_v, head_v}}, {"special_zero", true}});
+                         {{"reshape_target", std::vector<int64_t>{0, -1, H_v, head_v}}, {"special_zero", true}});
     auto z_silu = e.add_op("GGML_UNARY_OP_SILU", p + "z_silu", {z_4d});
     out = e.add_op("GGML_OP_MUL", p + "gdn_gated", {out, z_silu});
     out = e.add_op("GGML_OP_RESHAPE",
