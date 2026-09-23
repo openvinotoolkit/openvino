@@ -22,6 +22,7 @@
 #include "openvino/op/split.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/rnn_cell_base.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "ov_ops/augru_cell.hpp"
 #include "ov_ops/augru_sequence.hpp"
@@ -97,7 +98,7 @@ bool is_equal_cells(const shared_ptr<op_util::RNNCellBase>& cell_1, const shared
                cell_1->get_activations() == cell_2->get_activations() &&
                cell_1->get_activations_alpha() == cell_2->get_activations_alpha() &&
                cell_1->get_activations_beta() == cell_2->get_activations_beta() &&
-               cell_1->get_clip() == cell_2->get_clip() && check_WRB(cell_1, cell_2);
+               op_util::are_clips_equal(cell_1->get_clip(), cell_2->get_clip()) && check_WRB(cell_1, cell_2);
     return is_equal;
 }
 

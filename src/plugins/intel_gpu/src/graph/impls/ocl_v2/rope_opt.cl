@@ -3,6 +3,7 @@
 //
 
 #include "include/fetch_utils.cl"
+#include "include/batch_headers/bf16_utils.cl"
 
 #define INPUT_VEC_TYPE  MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_SIZE)
 #define OUTPUT_VEC_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_SIZE)
@@ -119,6 +120,39 @@
                        input1[15],                 \
                        input2[15]);
 
+// BF16 (ushort) vector unpack: decode one ushort16 -> float16 (CONVERT_AS_BFLOAT16_FLOAT),
+// then take even (pair real) / odd (pair imag) lanes as float8.
+#define UNPACK_BF16_VEC_1(outputv, input1) \
+    do { float16 _bf16u1 = CONVERT_AS_BFLOAT16_FLOAT(input1, 16); \
+         outputv = (float8)(_bf16u1[0], _bf16u1[2], _bf16u1[4], _bf16u1[6], _bf16u1[8], _bf16u1[10], _bf16u1[12], _bf16u1[14]); } while (0)
+#define UNPACK_BF16_VEC_2(outputv, input1) \
+    do { float16 _bf16u2 = CONVERT_AS_BFLOAT16_FLOAT(input1, 16); \
+         outputv = (float8)(_bf16u2[1], _bf16u2[3], _bf16u2[5], _bf16u2[7], _bf16u2[9], _bf16u2[11], _bf16u2[13], _bf16u2[15]); } while (0)
+
+// BF16 two-vector unpack for 16 complex pairs (32 elements): even/odd lanes across both vectors.
+#define UNPACK_BF1616_VEC_1(outputv, input1, input2) \
+    do { float16 _bf16a1 = CONVERT_AS_BFLOAT16_FLOAT(input1, 16); \
+         float16 _bf16b1 = CONVERT_AS_BFLOAT16_FLOAT(input2, 16); \
+         outputv = (float16)(_bf16a1[0], _bf16a1[2], _bf16a1[4], _bf16a1[6], _bf16a1[8], _bf16a1[10], _bf16a1[12], _bf16a1[14], \
+                             _bf16b1[0], _bf16b1[2], _bf16b1[4], _bf16b1[6], _bf16b1[8], _bf16b1[10], _bf16b1[12], _bf16b1[14]); } while (0)
+#define UNPACK_BF1616_VEC_2(outputv, input1, input2) \
+    do { float16 _bf16a2 = CONVERT_AS_BFLOAT16_FLOAT(input1, 16); \
+         float16 _bf16b2 = CONVERT_AS_BFLOAT16_FLOAT(input2, 16); \
+         outputv = (float16)(_bf16a2[1], _bf16a2[3], _bf16a2[5], _bf16a2[7], _bf16a2[9], _bf16a2[11], _bf16a2[13], _bf16a2[15], \
+                             _bf16b2[1], _bf16b2[3], _bf16b2[5], _bf16b2[7], _bf16b2[9], _bf16b2[11], _bf16b2[13], _bf16b2[15]); } while (0)
+
+// BF16 pack: interleave 8 real/imag pairs and encode float16 -> ushort16.
+#define PACK_BF1616_VEC_1(outputv, input1, input2) \
+    do { float16 _bf16p1 = (float16)(input1[0], input2[0], input1[1], input2[1], input1[2], input2[2], \
+                                     input1[3], input2[3], input1[4], input2[4], input1[5], input2[5], \
+                                     input1[6], input2[6], input1[7], input2[7]); \
+         outputv = CONVERT_BFLOAT16_AS_USHORT(_bf16p1, 16); } while (0)
+#define PACK_BF1616_VEC_2(outputv, input1, input2) \
+    do { float16 _bf16p2 = (float16)(input1[8], input2[8], input1[9], input2[9], input1[10], input2[10], \
+                                     input1[11], input2[11], input1[12], input2[12], input1[13], input2[13], \
+                                     input1[14], input2[14], input1[15], input2[15]); \
+         outputv = CONVERT_BFLOAT16_AS_USHORT(_bf16p2, 16); } while (0)
+
 #ifdef CHATGLM
 KERNEL(rope_opt)(
     OPTIONAL_SHAPE_INFO_ARG const __global INPUT0_TYPE* input,
@@ -164,15 +198,15 @@ KERNEL(rope_opt)(
 
 #if VEC_SIZE == 1
     #ifdef USE_ROPE_CACHE
-    float cosv = convert_float(cos_sin[cos_sin_idx + r]);
-    float sinv = convert_float(cos_sin[cos_sin_idx + r + 1]);
+    float cosv = DECODE_INPUT1_COMPUTE_TYPE(cos_sin[cos_sin_idx + r]);
+    float sinv = DECODE_INPUT1_COMPUTE_TYPE(cos_sin[cos_sin_idx + r + 1]);
     #else
-    float cosv = convert_float(cos[cos_sin_idx + cos_sin_r]);
-    float sinv = convert_float(sin[cos_sin_idx + cos_sin_r]);
+    float cosv = DECODE_INPUT1_COMPUTE_TYPE(cos[cos_sin_idx + cos_sin_r]);
+    float sinv = DECODE_INPUT2_COMPUTE_TYPE(sin[cos_sin_idx + cos_sin_r]);
     #endif
 
-    float in1 = convert_float(input[input_idx + r]);
-    float in2 = convert_float(input[input_idx + r + 1]);
+    float in1 = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx + r]);
+    float in2 = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx + r + 1]);
 
     output[output_idx + r] = TO_OUTPUT_TYPE(cosv * in1 - sinv * in2);
     output[output_idx + r + 1] = TO_OUTPUT_TYPE(sinv * in1 + cosv * in2);
@@ -217,18 +251,33 @@ KERNEL(rope_opt)(
     unroll_for(int i = 0; i < 2; i += 1) {
         INPUT_VEC_TYPE inv = *(INPUT_VEC_TYPE*)(input + input_idx + r + i * VEC_SIZE);
         float8 in1, in2;
+        #if INPUT0_IS_BF16
+        UNPACK_BF16_VEC_1(in1, inv);
+        UNPACK_BF16_VEC_2(in2, inv);
+        #else
         UNPACK_HALF_VEC_1(in1, inv);
         UNPACK_HALF_VEC_2(in2, inv);
+        #endif
     #ifdef USE_ROPE_CACHE
         INPUT_VEC_TYPE cossinv = *(INPUT_VEC_TYPE*)(cos_sin + cos_sin_idx + r + i * VEC_SIZE);
         float8 cosv, sinv;
+        #if INPUT0_IS_BF16
+        UNPACK_BF16_VEC_1(cosv, cossinv);
+        UNPACK_BF16_VEC_2(sinv, cossinv);
+        #else
         UNPACK_HALF_VEC_1(cosv, cossinv);
         UNPACK_HALF_VEC_2(sinv, cossinv);
+        #endif
     #else
         MAKE_VECTOR_TYPE(INPUT0_TYPE, 8) cosvv = *(MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)*)(cos + cos_sin_idx + cos_sin_r + i * 8);
         MAKE_VECTOR_TYPE(INPUT0_TYPE, 8) sinvv = *(MAKE_VECTOR_TYPE(INPUT0_TYPE, 8)*)(sin + cos_sin_idx + cos_sin_r + i * 8);
+        #if INPUT0_IS_BF16
+        float8 cosv = CONVERT_AS_BFLOAT16_FLOAT(cosvv, 8);
+        float8 sinv = CONVERT_AS_BFLOAT16_FLOAT(sinvv, 8);
+        #else
         float8 cosv = convert_float8(cosvv);
         float8 sinv = convert_float8(sinvv);
+        #endif
     #endif
         float8 out1 = cosv * in1 - sinv * in2;
         float8 out2 = sinv * in1 + cosv * in2;
@@ -298,13 +347,13 @@ KERNEL(rope_opt)(
     uint output_idx = OUTPUT_GET_INDEX(b, p, h, 0);
 
 #if VEC_SIZE == 1
-    INPUT0_TYPE in1 = input[input_idx + r];
-    INPUT0_TYPE in2 = input[input_idx + HALF_ROTARY_NDIMS + r];
+    float in1 = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx + r]);
+    float in2 = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx + HALF_ROTARY_NDIMS + r]);
 
-    output[output_idx + r] = cos[cos_idx + r] * in1 - sin[sin_idx + r] * in2;
+    output[output_idx + r] = TO_OUTPUT_TYPE(DECODE_INPUT1_COMPUTE_TYPE(cos[cos_idx + r]) * in1 - DECODE_INPUT2_COMPUTE_TYPE(sin[sin_idx + r]) * in2);
 
     output[output_idx + HALF_ROTARY_NDIMS + r] =
-        cos[cos_idx + HALF_ROTARY_NDIMS + r] * in2 + sin[sin_idx + HALF_ROTARY_NDIMS + r] * in1;
+        TO_OUTPUT_TYPE(DECODE_INPUT1_COMPUTE_TYPE(cos[cos_idx + HALF_ROTARY_NDIMS + r]) * in2 + DECODE_INPUT2_COMPUTE_TYPE(sin[sin_idx + HALF_ROTARY_NDIMS + r]) * in1);
 #else
     INPUT_VEC_TYPE in1 = *(INPUT_VEC_TYPE*)(input + input_idx + r);
     INPUT_VEC_TYPE in2 = *(INPUT_VEC_TYPE*)(input + input_idx + HALF_ROTARY_NDIMS + r);
@@ -313,11 +362,26 @@ KERNEL(rope_opt)(
     INPUT_VEC_TYPE sin1 = *(INPUT_VEC_TYPE*)(sin + sin_idx + r);
     INPUT_VEC_TYPE sin2 = *(INPUT_VEC_TYPE*)(sin + sin_idx + HALF_ROTARY_NDIMS + r);
 
+    #if INPUT0_IS_BF16
+    MAKE_VECTOR_TYPE(float, VEC_SIZE) din1 = CONVERT_AS_BFLOAT16_FLOAT(in1, VEC_SIZE);
+    MAKE_VECTOR_TYPE(float, VEC_SIZE) din2 = CONVERT_AS_BFLOAT16_FLOAT(in2, VEC_SIZE);
+    MAKE_VECTOR_TYPE(float, VEC_SIZE) dcos1 = CONVERT_AS_BFLOAT16_FLOAT(cos1, VEC_SIZE);
+    MAKE_VECTOR_TYPE(float, VEC_SIZE) dcos2 = CONVERT_AS_BFLOAT16_FLOAT(cos2, VEC_SIZE);
+    MAKE_VECTOR_TYPE(float, VEC_SIZE) dsin1 = CONVERT_AS_BFLOAT16_FLOAT(sin1, VEC_SIZE);
+    MAKE_VECTOR_TYPE(float, VEC_SIZE) dsin2 = CONVERT_AS_BFLOAT16_FLOAT(sin2, VEC_SIZE);
+
+    MAKE_VECTOR_TYPE(float, VEC_SIZE) out1 = dcos1 * din1 - dsin1 * din2;
+    MAKE_VECTOR_TYPE(float, VEC_SIZE) out2 = dcos2 * din2 + dsin2 * din1;
+
+    *(INPUT_VEC_TYPE*)(output + output_idx + r) = CONVERT_BFLOAT16_AS_USHORT(out1, VEC_SIZE);
+    *(INPUT_VEC_TYPE*)(output + output_idx + HALF_ROTARY_NDIMS + r) = CONVERT_BFLOAT16_AS_USHORT(out2, VEC_SIZE);
+    #else
     OUTPUT_VEC_TYPE out1 = cos1 * in1 - sin1 * in2;
     OUTPUT_VEC_TYPE out2 = cos2 * in2 + sin2 * in1;
 
     *(OUTPUT_VEC_TYPE*)(output + output_idx + r) = out1;
     *(OUTPUT_VEC_TYPE*)(output + output_idx + HALF_ROTARY_NDIMS + r) = out2;
+    #endif
 #endif
 }
 #endif
@@ -412,13 +476,17 @@ uint cos_sin_p = p;
     uint output_idx = OUTPUT_GET_INDEX(b, h, p, 0);
 
 #if VEC_SIZE == 1
-    ACCUMULATOR_TYPE in1 = TO_ACCUMULATOR_TYPE(input[input_idx + r]);
-    ACCUMULATOR_TYPE in2 = TO_ACCUMULATOR_TYPE(input[input_idx + HALF_ROTARY_NDIMS + r]);
+    ACCUMULATOR_TYPE in1 = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx + r]);
+    ACCUMULATOR_TYPE in2 = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx + HALF_ROTARY_NDIMS + r]);
 
-    ACCUMULATOR_TYPE res = cos[cos_idx + r] * in1 - sin[sin_idx + r] * in2;
+    ACCUMULATOR_TYPE cosv = DECODE_INPUT1_COMPUTE_TYPE(cos[cos_idx + r]);
+    ACCUMULATOR_TYPE sinv = DECODE_INPUT2_COMPUTE_TYPE(sin[sin_idx + r]);
+    ACCUMULATOR_TYPE res = cosv * in1 - sinv * in2;
     output[output_idx + r] = TO_OUTPUT_TYPE(res);
 
-    res = cos[cos_idx + COS_SIN_TABLE_OFFSET + r] * in2 + sin[sin_idx + COS_SIN_TABLE_OFFSET + r] * in1;
+    cosv = DECODE_INPUT1_COMPUTE_TYPE(cos[cos_idx + COS_SIN_TABLE_OFFSET + r]);
+    sinv = DECODE_INPUT2_COMPUTE_TYPE(sin[sin_idx + COS_SIN_TABLE_OFFSET + r]);
+    res = cosv * in2 + sinv * in1;
     output[output_idx + HALF_ROTARY_NDIMS + r] = TO_OUTPUT_TYPE(res);
 #else
     INPUT_VEC_TYPE in1 = *(INPUT_VEC_TYPE*)(input + input_idx + r);
@@ -428,11 +496,26 @@ uint cos_sin_p = p;
     INPUT_VEC_TYPE sin1 = *(INPUT_VEC_TYPE*)(sin + sin_idx + r);
     INPUT_VEC_TYPE sin2 = *(INPUT_VEC_TYPE*)(sin + sin_idx + COS_SIN_TABLE_OFFSET + r);
 
+    #if INPUT0_IS_BF16
+    MAKE_VECTOR_TYPE(float, VEC_SIZE) din1 = CONVERT_AS_BFLOAT16_FLOAT(in1, VEC_SIZE);
+    MAKE_VECTOR_TYPE(float, VEC_SIZE) din2 = CONVERT_AS_BFLOAT16_FLOAT(in2, VEC_SIZE);
+    MAKE_VECTOR_TYPE(float, VEC_SIZE) dcos1 = CONVERT_AS_BFLOAT16_FLOAT(cos1, VEC_SIZE);
+    MAKE_VECTOR_TYPE(float, VEC_SIZE) dcos2 = CONVERT_AS_BFLOAT16_FLOAT(cos2, VEC_SIZE);
+    MAKE_VECTOR_TYPE(float, VEC_SIZE) dsin1 = CONVERT_AS_BFLOAT16_FLOAT(sin1, VEC_SIZE);
+    MAKE_VECTOR_TYPE(float, VEC_SIZE) dsin2 = CONVERT_AS_BFLOAT16_FLOAT(sin2, VEC_SIZE);
+
+    MAKE_VECTOR_TYPE(float, VEC_SIZE) out1 = dcos1 * din1 - dsin1 * din2;
+    MAKE_VECTOR_TYPE(float, VEC_SIZE) out2 = dcos2 * din2 + dsin2 * din1;
+
+    *(INPUT_VEC_TYPE*)(output + output_idx + r) = CONVERT_BFLOAT16_AS_USHORT(out1, VEC_SIZE);
+    *(INPUT_VEC_TYPE*)(output + output_idx + HALF_ROTARY_NDIMS + r) = CONVERT_BFLOAT16_AS_USHORT(out2, VEC_SIZE);
+    #else
     OUTPUT_VEC_TYPE out1 = cos1 * in1 - sin1 * in2;
     OUTPUT_VEC_TYPE out2 = cos2 * in2 + sin2 * in1;
 
     *(OUTPUT_VEC_TYPE*)(output + output_idx + r) = out1;
     *(OUTPUT_VEC_TYPE*)(output + output_idx + HALF_ROTARY_NDIMS + r) = out2;
+    #endif
 #endif
 
 }
@@ -475,11 +558,11 @@ KERNEL(rope_opt)(
     uint output_idx = OUTPUT_GET_INDEX(b, h, p, 0);
 
 #if VEC_SIZE == 1
-    INPUT0_TYPE in1 = input[input_idx + r];
-    INPUT0_TYPE in2 = input[input_idx + r + 1];
+    float in1 = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx + r]);
+    float in2 = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx + r + 1]);
 
-    output[output_idx + r] = cos[cos_idx + r] * in1 - sin[sin_idx + r] * in2;
-    output[output_idx + r + 1] = cos[cos_idx + r + 1] * in2 + sin[sin_idx + r + 1] * in1;
+    output[output_idx + r] = TO_OUTPUT_TYPE(DECODE_INPUT1_COMPUTE_TYPE(cos[cos_idx + r]) * in1 - DECODE_INPUT2_COMPUTE_TYPE(sin[sin_idx + r]) * in2);
+    output[output_idx + r + 1] = TO_OUTPUT_TYPE(DECODE_INPUT1_COMPUTE_TYPE(cos[cos_idx + r + 1]) * in2 + DECODE_INPUT2_COMPUTE_TYPE(sin[sin_idx + r + 1]) * in1);
 #elif VEC_SIZE == 8
     INPUT_VEC_TYPE inv1 = *(INPUT_VEC_TYPE*)(input + input_idx + r);
     INPUT_VEC_TYPE inv2 = *(INPUT_VEC_TYPE*)(input + input_idx + r + VEC_SIZE);
@@ -511,6 +594,25 @@ KERNEL(rope_opt)(
     INPUT_VEC_TYPE cosv2 = *(INPUT_VEC_TYPE*)(cos + cos_idx + r + VEC_SIZE);
     INPUT_VEC_TYPE sinv2 = *(INPUT_VEC_TYPE*)(sin + sin_idx + r + VEC_SIZE);
 
+    #if INPUT0_IS_BF16
+    float16 in1, in2, cos1, sin1, cos2, sin2;
+    UNPACK_BF1616_VEC_1(in1, inv1, inv2);
+    UNPACK_BF1616_VEC_2(in2, inv1, inv2);
+    UNPACK_BF1616_VEC_1(cos1, cosv1, cosv2);
+    UNPACK_BF1616_VEC_2(cos2, cosv1, cosv2);
+    UNPACK_BF1616_VEC_1(sin1, sinv1, sinv2);
+    UNPACK_BF1616_VEC_2(sin2, sinv1, sinv2);
+
+    float16 out1 = cos1 * in1 - sin1 * in2;
+    float16 out2 = sin2 * in1 + cos2 * in2;
+
+    INPUT_VEC_TYPE outputv1, outputv2;
+    PACK_BF1616_VEC_1(outputv1, out1, out2);
+    PACK_BF1616_VEC_2(outputv2, out1, out2);
+
+    *(INPUT_VEC_TYPE*)(output + output_idx + r) = outputv1;
+    *(INPUT_VEC_TYPE*)(output + output_idx + r + VEC_SIZE) = outputv2;
+    #else
     INPUT_VEC_TYPE in1, in2, cos1, sin1, cos2, sin2;
     UNPACK_HALF16_VEC_1(in1, inv1, inv2);
     UNPACK_HALF16_VEC_2(in2, inv1, inv2);
@@ -528,6 +630,7 @@ KERNEL(rope_opt)(
 
     *(half16*)(output + output_idx + r) = outputv1;
     *(half16*)(output + output_idx + r + VEC_SIZE) = outputv2;
+    #endif
 #endif
 }
 #endif
@@ -566,11 +669,11 @@ KERNEL(rope_opt)(
 
 #if VEC_SIZE == 1
     // Scalar processing: process one complex pair at a time
-    INPUT0_TYPE in_real = input[input_idx + r];      // real part
-    INPUT0_TYPE in_imag = input[input_idx + r + 1];  // imaginary part
+    float in_real = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx + r]);      // real part
+    float in_imag = DECODE_INPUT0_COMPUTE_TYPE(input[input_idx + r + 1]);  // imaginary part
 
-    INPUT1_TYPE cos_val = cos[cos_idx + r];
-    INPUT2_TYPE sin_val = sin[sin_idx + r];
+    float cos_val = DECODE_INPUT1_COMPUTE_TYPE(cos[cos_idx + r]);
+    float sin_val = DECODE_INPUT2_COMPUTE_TYPE(sin[sin_idx + r]);
 
     // Complex rotation: (real + i*imag) * (cos + i*sin)
     // out_real = real * cos - imag * sin
@@ -615,6 +718,25 @@ KERNEL(rope_opt)(
     INPUT_VEC_TYPE cosv2 = *(INPUT_VEC_TYPE*)(cos + cos_idx + r + VEC_SIZE);
     INPUT_VEC_TYPE sinv2 = *(INPUT_VEC_TYPE*)(sin + sin_idx + r + VEC_SIZE);
 
+    #if INPUT0_IS_BF16
+    float16 in_real, in_imag, cos_val, sin_val, cos_val2, sin_val2;
+    UNPACK_BF1616_VEC_1(in_real, inv1, inv2);
+    UNPACK_BF1616_VEC_2(in_imag, inv1, inv2);
+    UNPACK_BF1616_VEC_1(cos_val, cosv1, cosv2);
+    UNPACK_BF1616_VEC_2(cos_val2, cosv1, cosv2);
+    UNPACK_BF1616_VEC_1(sin_val, sinv1, sinv2);
+    UNPACK_BF1616_VEC_2(sin_val2, sinv1, sinv2);
+
+    float16 out_real = cos_val * in_real - sin_val * in_imag;
+    float16 out_imag = sin_val2 * in_real + cos_val2 * in_imag;
+
+    INPUT_VEC_TYPE outputv1, outputv2;
+    PACK_BF1616_VEC_1(outputv1, out_real, out_imag);
+    PACK_BF1616_VEC_2(outputv2, out_real, out_imag);
+
+    *(INPUT_VEC_TYPE*)(output + output_idx + r) = outputv1;
+    *(INPUT_VEC_TYPE*)(output + output_idx + r + VEC_SIZE) = outputv2;
+    #else
     INPUT_VEC_TYPE in_real, in_imag, cos_val, sin_val, cos_val2, sin_val2;
     UNPACK_HALF16_VEC_1(in_real, inv1, inv2);
     UNPACK_HALF16_VEC_2(in_imag, inv1, inv2);
@@ -632,6 +754,7 @@ KERNEL(rope_opt)(
 
     *(half16*)(output + output_idx + r) = outputv1;
     *(half16*)(output + output_idx + r + VEC_SIZE) = outputv2;
+    #endif
 #endif
 }
 #endif

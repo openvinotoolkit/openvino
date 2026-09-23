@@ -26,11 +26,7 @@ protected:
         options = std::make_shared<OptionsDesc>();
         options->add<LOG_LEVEL>();
         options->add<COMPILE_LOG_LEVEL>();
-
         config = std::make_unique<FilteredConfig>(options);
-
-        config->enable(ov::log::level.name(), true);
-        config->enableRuntimeOptions();
     }
 
     static ze_graph_compiler_version_info_t modernCompilerVersion() {
@@ -49,7 +45,7 @@ protected:
 };
 
 TEST_F(CompileLogLevelSerializeConfigTests, BackwardCompatibleCompilerLogUnsetPluginLogSet) {
-    config->update({{ov::log::level.name(), "LOG_DEBUG"}});
+    config->update(ov::log::level.name(), "LOG_DEBUG");
 
     const std::string flags = serialize();
 
@@ -59,7 +55,8 @@ TEST_F(CompileLogLevelSerializeConfigTests, BackwardCompatibleCompilerLogUnsetPl
 }
 
 TEST_F(CompileLogLevelSerializeConfigTests, CompileLogLevelSetPrioritizedOverUnchangedPluginLogLevel) {
-    config->update({{ov::log::level.name(), "LOG_DEBUG"}, {ov::intel_npu::compile_log_level.name(), "LOG_ERROR"}});
+    config->update(ov::log::level.name(), "LOG_DEBUG");
+    config->update(ov::intel_npu::compile_log_level.name(), "LOG_ERROR");
 
     const std::string flags = serialize();
 
@@ -70,7 +67,7 @@ TEST_F(CompileLogLevelSerializeConfigTests, CompileLogLevelSetPrioritizedOverUnc
 }
 
 TEST_F(CompileLogLevelSerializeConfigTests, CompileLogLevelSetPrioritizedOverChangedPluginLogLevel) {
-    config->update({{ov::intel_npu::compile_log_level.name(), "LOG_TRACE"}});
+    config->update(ov::intel_npu::compile_log_level.name(), "LOG_TRACE");
 
     const std::string flags = serialize();
 

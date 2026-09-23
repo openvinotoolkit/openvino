@@ -90,8 +90,9 @@ KernelsPriority DeconvolutionKernelRef::GetKernelsPriority(const Params& /*param
 JitConstants DeconvolutionKernelRef::GetJitConstants(const deconvolution_params& params) const {
     auto jit = DeconvolutionKernelBase::GetJitConstants(params);
 
-    if (params.outputs[0].Feature().v * params.outputs[0].Batch().v <= 16)
+    if (params.outputs[0].Feature().v * params.outputs[0].Batch().v <= 16) {
         jit.AddConstant(MakeJitConstant("DIM_ORDER_XYBF", 1));
+    }
 
     if (!params.fused_ops.empty()) {
         auto fused_dt = GetActivationType(params);

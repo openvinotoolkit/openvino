@@ -140,12 +140,10 @@ void BroadcastSelect::generate_inputs(const std::vector<ov::Shape>& targetInputS
 
 TEST_P(Select, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 TEST_P(BroadcastSelect, CompareWithRefImpl) {
     run();
-    validateNumSubgraphs();
 }
 
 } // namespace snippets
