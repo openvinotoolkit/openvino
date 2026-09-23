@@ -91,9 +91,12 @@ struct fused_primitive_desc {
     std::vector<std::pair<primitive_id, size_t>> deps;
     std::map<primitive_id, size_t> fused_deps;
     // TODO:
-    // Currently, it assumes very simple case where dep 0 is the fused node and no input sharing b/w fused node and peer node
-    // To cover such cases where some of the peer node uses input of fused node, we need to maintain actual indexes of the dependencies
-    // not only the "starting index".
+    // Only the start of the block is stored. If the peer node and the fused node share a dependency, it is
+    // appended a second time instead of being marked as an alias of the existing index. The second entry
+    // adds one to the shared node's user count. Passes that require a single user then skip the node.
+    // Do not just drop the duplicate because it is the only record of the sharing in the graph. Without an
+    // alias flag the node reports one user. One user is taken as permission to reuse its buffer in place,
+    // for example by get_add_fusing_type.
     int32_t outer_dep_start_idx = -1; // if -1, no external dep after fusing
     size_t total_num_deps = 0;
 };
