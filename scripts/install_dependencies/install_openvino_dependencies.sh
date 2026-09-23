@@ -144,7 +144,7 @@ elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbi
      [ "$os" == "ubuntu22.10" ] || [ "$os" == "ubuntu23.04" ] || [ "$os" == "ubuntu24.04" ] || [ "$os" == "debian12" ] || [ "$os" == "raspbian12" ] ||
      [ "$os" == "debian13" ] || [ "$os" == "ubuntu26.04" ]; then
 
-    pkgs_gpu=(ocl-icd-libopencl1)
+    pkgs_gpu=(ocl-icd-libopencl1 libze1)
     pkgs_python=(python3 python3-venv python3-pip)
     pkgs_dev=(cmake pkgconf g++ gcc libc6-dev make sudo)
 
