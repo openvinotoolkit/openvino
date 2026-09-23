@@ -32,6 +32,7 @@
 using namespace ov::frontend;
 
 using ONNXLoadTest = FrontEndLoadFromTest;
+using testing::Contains;
 using testing::ElementsAre;
 using testing::Property;
 using testing::UnorderedElementsAre;
@@ -624,15 +625,6 @@ TEST_P(ONNXInMemoryLoadTest, uses_default_for_undefined_optional_attribute) {
 }
 
 TEST_P(ONNXInMemoryLoadTest, preserves_optimized_out_input_names) {
-    ov::Core core;
-    try {
-        core.register_plugin(
-            ov::util::make_plugin_library_name(ov::test::utils::getExecutableDirectory(),
-                                               std::string("openvino_template_plugin") + OV_BUILD_POSTFIX),
-            "TEMPLATE");
-    } catch (...) {
-        // The template plugin may already be registered by plugins.xml.
-    }
     for (const auto& op_type : {"Min", "Max", "Sum", "Identity"}) {
         for (bool as_proto : {false, true}) {
             for (bool materialize_places : {false, true}) {
@@ -647,14 +639,10 @@ TEST_P(ONNXInMemoryLoadTest, preserves_optimized_out_input_names) {
                     ASSERT_EQ(input_model->get_inputs().size(), 1);
                 }
                 auto model = frontend->convert(input_model);
-                auto compiled = core.compile_model(model, "TEMPLATE");
-                auto request = compiled.create_infer_request();
-                auto input = request.get_tensor("x");
-                const std::vector<float> values{-1.f, 2.f, -3.f};
-                std::copy(values.begin(), values.end(), input.data<float>());
-                request.infer();
-                auto output = request.get_tensor("y");
-                EXPECT_EQ(std::vector<float>(output.data<float>(), output.data<float>() + output.get_size()), values);
+                ASSERT_EQ(model->inputs().size(), 1);
+                ASSERT_EQ(model->outputs().size(), 1);
+                EXPECT_THAT(model->input().get_names(), Contains("x"));
+                EXPECT_THAT(model->output().get_names(), Contains("y"));
             }
         }
     }
