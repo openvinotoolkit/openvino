@@ -650,6 +650,9 @@ private:
             }
             spatial = pool(pixels, c.patch, c.patch);
             x = reshape(unfold(pixels, 3, c.patch), {1, 1, -1, 3 * c.patch * c.patch});
+            // LayerNorm is invariant to a uniform shift. Recenter low-contrast pixel patches
+            // before the mean reduction, whose F32 accumulation otherwise loses precision.
+            x = g.node("GGML_OP_SUB", {x, slice(x, 3, 0, 1)});
             x = norm(x, "v.patch_norm.1", 1e-5f);
             x = norm(linear(x, "v.patch_embd"), "v.patch_norm.2", 1e-5f);
         } else {
