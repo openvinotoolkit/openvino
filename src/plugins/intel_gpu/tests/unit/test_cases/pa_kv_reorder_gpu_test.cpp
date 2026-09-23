@@ -1267,7 +1267,7 @@ void cm_run_by_channel_reorder(const std::vector<uint8_t>& key_ref,
 
     auto config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-    config.set_property(ov::hint::attn_mode({ov::hint::AttnMode::PA_CM}));
+    config.set_property(ov::hint::attn_mode(std::vector<ov::hint::AttnMode>{ov::hint::AttnMode::PA_CM}));
     auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
 
     network->set_input_data("block_indices", block_indices_mem);

@@ -169,7 +169,7 @@ TEST(execution_config, kv_cache_u4_weights_with_pa_cm_uses_i8) {
     auto model = make_pa_matmul_model(ov::element::u4);
 
     ExecutionConfig config;
-    config.set_user_property(ov::hint::attn_mode({ov::hint::AttnMode::PA_CM}));
+    config.set_user_property(ov::hint::attn_mode(std::vector<ov::hint::AttnMode>{ov::hint::AttnMode::PA_CM}));
     config.finalize(ctx.get(), model.get());
 
     ASSERT_EQ(config.get_kv_cache_precision(), ov::element::i8);
@@ -263,7 +263,7 @@ TEST(execution_config, kv_cache_4bit_with_pa_cm_throws) {
     auto model = make_pa_matmul_model(ov::element::u4);
 
     ExecutionConfig config;
-    config.set_user_property(ov::hint::attn_mode({ov::hint::AttnMode::PA_CM}));
+    config.set_user_property(ov::hint::attn_mode(std::vector<ov::hint::AttnMode>{ov::hint::AttnMode::PA_CM}));
     config.set_user_property(ov::hint::kv_cache_precision(ov::element::u4));
 
     ASSERT_ANY_THROW(config.finalize(ctx.get(), model.get()));
