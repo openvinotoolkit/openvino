@@ -350,10 +350,11 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
                         dep_layout.set_partial_shape(*folded);
                         dep_layout.format = format::adjust_to_rank(dep_layout.format, out_pshape.size());
                     } else {
-                        // Falling back when there is no fold is safe: prepare_primitive_fusing rejects rank-inconsistent pairs.
-                        GPU_DEBUG_TRACE_DETAIL << "canonicalize_fused_shapes: unfoldable higher-rank fused peer kept as-is,"
-                                               << " host=" << out_layout.to_short_string()
-                                               << " peer=" << dep_layout.to_short_string() << std::endl;
+                        OPENVINO_ASSERT(broadcastable(extend_shape_to_rank_from_end(dep_shape),
+                                                    extend_shape_to_rank_from_end(out_pshape),
+                                                    use_new_shape_infer, /*first_to_second_only=*/true),
+                                        "Fused eltwise peer ", dep_layout.to_short_string(),
+                                        " cannot broadcast into host ", out_layout.to_short_string());
                     }
                 } else if (!broadcastable(dep_shape, out_pshape, use_new_shape_infer)) {
                     dep_layout.set_partial_shape(extend_shape_to_rank_from_begin(dep_shape, out_pshape.size()));
