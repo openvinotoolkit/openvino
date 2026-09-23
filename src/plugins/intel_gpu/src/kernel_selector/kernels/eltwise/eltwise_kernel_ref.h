@@ -27,6 +27,7 @@ public:
     JitConstants GetJitConstants(const eltwise_params& params) const override;
 
 protected:
+    explicit EltwiseKernelRef(const std::string& name) : EltwiseKernelBase(name) {}
     bool Validate(const Params& p) const override;
     bool SupportsFeaturePadReset() const override { return true; }
 };

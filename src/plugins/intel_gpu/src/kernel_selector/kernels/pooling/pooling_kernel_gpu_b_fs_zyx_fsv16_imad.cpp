@@ -58,7 +58,7 @@ PoolingKernelBase::DispatchData PoolingKernelGPU_b_fs_zyx_fsv16_imad::SetDefault
         y = params.inputs[0].Y().v;
         z = params.inputs[0].Z().v;
         dispatchData.gws[0] = b;
-        dispatchData.gws[1] = Align(std::min(y * z, params.engineInfo.maxWorkGroupSize), FEATURE_SLICE_SIZE);
+        dispatchData.gws[1] = Align(std::min<size_t>(y * z, params.engineInfo.maxWorkGroupSize), FEATURE_SLICE_SIZE);
         // we got b_fs_yx_fsv16 format, we process 16 features per workitem
         dispatchData.gws[2] = CeilDiv(f, FEATURE_SLICE_SIZE);
 
@@ -89,7 +89,7 @@ JitConstants PoolingKernelGPU_b_fs_zyx_fsv16_imad::GetJitConstants(const pooling
     const size_t in_size_y = params.inputs[0].Y().v;
     const size_t in_size_z = params.inputs[0].Z().v;
     const auto y_load = CeilDiv(in_size_y, params.engineInfo.maxWorkGroupSize);
-    const auto z_load = CeilDiv(in_size_z, std::max(params.engineInfo.maxWorkGroupSize / in_size_y, (size_t)1));
+    const auto z_load = CeilDiv(in_size_z, std::max<size_t>(params.engineInfo.maxWorkGroupSize / in_size_y, 1));
     jit.AddConstants({
         MakeJitConstant("LWS", dispatchData.lws[1]),
         MakeJitConstant("LWS_SIZE", std::min(in_size_z * in_size_y, dispatchData.lws[1])),
