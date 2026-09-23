@@ -13,9 +13,7 @@
 #include "openvino/runtime/tensor.hpp"
 #include "quant/gguf.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 // Internal configuration resolved from metadata, tensor shapes and architecture semantics.
 // Extensions override ambiguous semantics through DecoderOptions before dependent plans are built.
@@ -148,6 +146,4 @@ struct DecoderConfig {
     bool is_recurrent_layer(int il) const;
 };
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf
