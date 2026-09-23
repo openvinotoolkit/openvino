@@ -482,7 +482,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         const bool shouldDisablePerfCountForInferProfiling =
             localConfig.get<PROFILING_TYPE>() == ov::intel_npu::ProfilingType::INFER && localConfig.get<PERF_COUNT>();
 
-        FilteredConfig compilerConfig = localConfig;
+        Config compilerConfig = localConfig;
 
         if (shouldDisablePerfCountForInferProfiling) {
             _logger.info(
