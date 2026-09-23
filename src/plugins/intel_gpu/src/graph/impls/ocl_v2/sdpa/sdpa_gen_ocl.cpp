@@ -809,6 +809,15 @@ bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
         return dt == ov::element::f16 || dt == ov::element::bf16 || data_type_traits::is_i8_u8(dt) || data_type_traits::is_i4_u4(dt);
     };
 
+    // The kernel is built on the Xe 2D block IO intrinsics and the tuning around them, which only
+    // exist on Xe2 and later. This mirrors sdpa_ocl_decode's gate: pre-Xe2 parts (which still have
+    // DPAS via supports_micro_sdpa) fall back to sdpa_micro / the opt kernels instead. Keep this as
+    // a plain arch check rather than also testing supports_immad, because every caller already
+    // requires XMX.
+    if (params.get_device_info().arch < gpu_arch::xe2) {
+        return false;
+    }
+
     if (!is_f16(params.input_layouts[0].data_type) || !is_f16(params.output_layouts[0].data_type)) {
         return false;
     }
