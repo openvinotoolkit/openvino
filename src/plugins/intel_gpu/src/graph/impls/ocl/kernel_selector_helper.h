@@ -350,7 +350,6 @@ inline kernel_impl_params canonicalize_fused_shapes(const kernel_impl_params& im
                         dep_layout.set_partial_shape(*folded);
                         dep_layout.format = format::adjust_to_rank(dep_layout.format, out_pshape.size());
                     } else {
-                        // Kernels index the peer by axis name (b, f, z, y, x), as layout::get_tensor() does.
                         OPENVINO_ASSERT(dep_layout.is_static() && out_layout.is_static() &&
                                             broadcastable(ov::PartialShape(dep_layout.get_tensor().sizes()),
                                                           ov::PartialShape(out_layout.get_tensor().sizes()),
