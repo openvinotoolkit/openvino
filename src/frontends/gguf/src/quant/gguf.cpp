@@ -448,14 +448,10 @@ GGUFLoad get_gguf_data(const std::string& file) {
         read_metadata_value(cur, vtype, slot);
     }
 
-    const auto architecture = metadata.find("general.architecture");
-    const auto* architecture_name =
-        architecture == metadata.end() ? nullptr : std::get_if<std::string>(&architecture->second);
-    const bool mmproj = architecture_name && *architecture_name == "clip";
-    const auto zero_point_type = [mmproj](const std::string& name, GgufTensorType type) {
-        // Encoder accuracy is sensitive to a second Q4_K quantization. Preserve its
-        // fractional zero point instead of moving represented weights onto a new u4 grid.
-        return mmproj && type == GGUF_TYPE_Q4_K ? ov::element::f16 : gguf_zero_point_type(name, type);
+    const auto zero_point_type = [](const std::string& name, GgufTensorType type) {
+        // Preserve Q4_K's fractional zero point. Requantizing onto an integer-zp
+        // u4 grid introduces substantial logit error in real language models.
+        return type == GGUF_TYPE_Q4_K ? ov::element::f16 : gguf_zero_point_type(name, type);
     };
 
     uint64_t alignment = GGUF_DEFAULT_ALIGNMENT;

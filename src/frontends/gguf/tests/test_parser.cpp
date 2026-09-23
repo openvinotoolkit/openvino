@@ -93,22 +93,25 @@ TEST_F(GGUFParser, Q2_0KeepsIntegerZeroPointsForAllWeightNames) {
     }
 }
 
-TEST_F(GGUFParser, MMProjQ4KPreservesRepresentedWeights) {
+TEST_F(GGUFParser, Q4KPreservesRepresentedWeightsForLanguageAndProjectorModels) {
     const auto bytes = load_npy<uint8_t>("q4_k_qbytes");
     const auto reference = load_npy<float>("q4_k_deq");
-    ASSERT_NO_FATAL_FAILURE(write_tensor("v.blk.0.attn_q.weight", GGUF_TYPE_Q4_K, 256, 4, bytes, "clip"));
-    const auto loaded = get_gguf_data(m_path);
-    const auto& arrays = std::get<1>(loaded);
-    const auto& zp = arrays.at("v.blk.0.attn_q.zp");
-    ASSERT_EQ(zp.get_element_type(), ov::element::f16);
-    const auto node = make_weight_node({arrays.at("v.blk.0.attn_q.weight"), arrays.at("v.blk.0.attn_q.scales"), zp},
-                                       GGUF_TYPE_Q4_K,
-                                       "v.blk.0.attn_q.weight");
-    const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
-    const auto output = run_on_cpu(model, {});
-    ASSERT_EQ(output.get_size(), reference.size());
-    for (size_t i = 0; i < reference.size(); ++i)
-        EXPECT_NEAR(output.data<float>()[i], reference[i], 3e-3f);
+    for (const std::string architecture : {"clip", "qwen35", "qwen35moe", "gemma4", "muse-glimmer", ""}) {
+        SCOPED_TRACE(architecture);
+        ASSERT_NO_FATAL_FAILURE(write_tensor("v.blk.0.attn_q.weight", GGUF_TYPE_Q4_K, 256, 4, bytes, architecture));
+        const auto loaded = get_gguf_data(m_path);
+        const auto& arrays = std::get<1>(loaded);
+        const auto& zp = arrays.at("v.blk.0.attn_q.zp");
+        ASSERT_EQ(zp.get_element_type(), ov::element::f16);
+        const auto node = make_weight_node({arrays.at("v.blk.0.attn_q.weight"), arrays.at("v.blk.0.attn_q.scales"), zp},
+                                           GGUF_TYPE_Q4_K,
+                                           "v.blk.0.attn_q.weight");
+        const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+        const auto output = run_on_cpu(model, {});
+        ASSERT_EQ(output.get_size(), reference.size());
+        for (size_t i = 0; i < reference.size(); ++i)
+            EXPECT_NEAR(output.data<float>()[i], reference[i], 3e-3f);
+    }
 }
 
 TEST_F(GGUFParser, AcceptsEmptyQuantizedTensors) {
