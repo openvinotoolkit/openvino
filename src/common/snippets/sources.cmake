@@ -32,8 +32,6 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/insert_buffers.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/insert_load_store.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/insert_loops.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/insert_perf_count.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/insert_perf_count_verbose.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/insert_reg_spills.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/insert_specific_iterations.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/iter_handler.cpp
@@ -86,7 +84,6 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/online_softmax.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/online_softmax_update_max.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/online_softmax_update_sum.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/op/perf_count.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/rank_normalization.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/reduce.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/op/reg_spill.cpp
@@ -135,7 +132,6 @@ set(LIBRARY_SRC
     ${CMAKE_CURRENT_SOURCE_DIR}/src/runtime_configurator.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/shape_inference/shape_inference.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/shape_inference/shape_infer_instances.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/debug_caps_config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/loop_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/tokenization_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/utils.cpp
@@ -172,8 +168,6 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/lowered/pass/insert_buffers.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/lowered/pass/insert_load_store.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/lowered/pass/insert_loops.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/lowered/pass/insert_perf_count.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/lowered/pass/insert_perf_count_verbose.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/lowered/pass/insert_reg_spills.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/lowered/pass/insert_specific_iterations.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/lowered/pass/iter_handler.hpp
@@ -228,7 +222,6 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/op/online_softmax.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/op/online_softmax_update_max.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/op/online_softmax_update_sum.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/op/perf_count.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/op/powerstatic.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/op/rank_normalization.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/op/reduce.hpp
@@ -285,10 +278,25 @@ set(PUBLIC_HEADERS
     ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/shape_types.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/snippets_isa_tbl.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/target_machine.hpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/utils/debug_caps_config.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/utils/linear_ir_pass_dumper.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/utils/loop_utils.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/utils/reg_utils.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/utils/tokenization_utils.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/utils/utils.hpp
 )
+
+if(ENABLE_SNIPPETS_DEBUG_CAPS)
+    list(APPEND LIBRARY_SRC
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/insert_perf_count.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/lowered/pass/insert_perf_count_verbose.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/op/perf_count.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/utils/debug_caps_config.cpp
+    )
+
+    list(APPEND PUBLIC_HEADERS
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/lowered/pass/insert_perf_count.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/lowered/pass/insert_perf_count_verbose.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/op/perf_count.hpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/include/snippets/utils/debug_caps_config.hpp
+    )
+endif()
