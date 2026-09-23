@@ -48,7 +48,7 @@ bool record_replay_session::replay(const std::vector<std::shared_ptr<event>>& de
         inst->reset_out_event();
     }
     _cmd_list->enqueue();
-    GPU_DEBUG_TRACE_DETAIL << "[REC] Replayed command list" << std::endl;
+    GPU_DEBUG_TRACE_DETAIL << "[REC] Enqueued recorded command list" << std::endl;
 
     return true;
 }

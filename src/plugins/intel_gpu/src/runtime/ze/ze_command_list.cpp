@@ -48,6 +48,7 @@ dnnl::stream& ze_command_list::get_onednn_stream() {
     OPENVINO_ASSERT(engine.get_device_info().vendor_id == INTEL_VENDOR_ID,
                     "[GPU] Can't create onednn stream handle as for non-Intel devices");
     if (!_onednn_stream) {
+        // Pass command list to OneDNN so that OneDNN can append their kernels.
         _onednn_stream =
             std::make_shared<dnnl::stream>(dnnl::ze_interop::make_stream(engine.get_onednn_engine(),
                                                                          _cmd_list.handle(),

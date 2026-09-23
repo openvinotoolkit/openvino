@@ -877,11 +877,9 @@ void network::register_output_memory_block(const primitive_id& id, ov::intel_gpu
         if (it->second == block) {
             return;  // Same block already registered — nothing to do
         }
-        invalidate_recording();
         it->second = block;
-    } else {
-        invalidate_recording();
     }
+    invalidate_recording();
 }
 
 void network::unregister_output_memory_block(const primitive_id& id) {
