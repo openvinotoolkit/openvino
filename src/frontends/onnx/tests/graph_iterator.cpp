@@ -31,6 +31,7 @@
 class SimpleIterator : public ov::frontend::onnx::GraphIterator {
 public:
     mutable size_t get_model_dir_call_count = 0;
+    size_t reset_call_count = 0;
     mutable std::filesystem::path last_returned_dir;
     std::filesystem::path model_dir;
 
@@ -40,7 +41,9 @@ public:
     size_t size() const override {
         return 0;
     }
-    void reset() override {};
+    void reset() override {
+        ++reset_call_count;
+    };
     void next() override {};
     bool is_end() const override {
         return true;
@@ -101,6 +104,18 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingSimpleGraphIterator) {
     ASSERT_NE(model, nullptr);
 
     ASSERT_EQ(model->get_ordered_ops().size(), 0);
+    EXPECT_EQ(iter->reset_call_count, 0);
+    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
+    EXPECT_EQ(iter->reset_call_count, 1);
+    EXPECT_TRUE(m_inputModel->get_inputs().empty());
+    EXPECT_EQ(iter->reset_call_count, 2);
+
+    auto first_access_iterator = std::make_shared<SimpleIterator>();
+    auto first_access_model =
+        m_frontEnd->load(std::static_pointer_cast<ov::frontend::onnx::GraphIterator>(first_access_iterator));
+    ASSERT_NE(first_access_model, nullptr);
+    EXPECT_TRUE(first_access_model->get_inputs().empty());
+    EXPECT_EQ(first_access_iterator->reset_call_count, 0);
 }
 
 TEST_P(FrontEndLoadFromTest, testLoadUsingGraphIteratorExternalStreams) {
