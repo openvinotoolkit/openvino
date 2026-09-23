@@ -17,9 +17,7 @@
 #include "openvino/frontend/gguf/decoder.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 // Graph operations and shared decoder blocks. Operands use GGML order; shapes use OpenVINO order.
 class GGUF_FRONTEND_API GgufGraphContext {
@@ -87,6 +85,4 @@ private:
     std::unique_ptr<Impl> m_impl;
 };
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf
