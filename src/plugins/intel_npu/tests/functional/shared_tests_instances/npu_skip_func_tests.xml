@@ -442,6 +442,7 @@ Example:
         </enable_rules>
         <filters>
             <filter>.*InferWithHostCompileMultithreadTests.MT_ConcurrentInferThenSetPriorityAndInfer.*</filter>
+        </filters>
     </skip_config>
 
     <!-- C#195015 -->
@@ -453,6 +454,6 @@ Example:
         <filters>
             <filter>.*samePlatformProduceTheSameBlobCacheEnabled.*</filter>
         </filters>
-    </skip_config>|
+    </skip_config>
 
 </skip_configs>
