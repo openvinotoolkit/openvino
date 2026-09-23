@@ -90,7 +90,7 @@ ParamConfig getParamConfig(const program_node& node, const RuntimeParams& params
     } else if (deps.size() <= kStart) {
         config.compile_time_start.resize(config.input_rank, 0);
     } else {
-        config.start_data_type = deps[kStart].first->get_output_layout(0).data_type;
+        config.start_data_type = deps[kStart].first->get_output_layout(false).data_type;
     }
 
     // Step
@@ -99,21 +99,22 @@ ParamConfig getParamConfig(const program_node& node, const RuntimeParams& params
     } else if (deps.size() <= kStep) {
         config.compile_time_step.resize(config.input_rank, 1);
     } else {
-        config.step_data_type = deps[kStep].first->get_output_layout(0).data_type;
+        config.step_data_type = deps[kStep].first->get_output_layout(false).data_type;
     }
 
     // Axes
     if (deps.size() > kAxes && deps[kAxes].first->is_constant()) {
         config.compile_time_axes = extractIntegerData(deps[kAxes].first->as<data>(), strm);
         for (auto& axis : config.compile_time_axes) {
-            if (axis < 0)
+            if (axis < 0) {
                 axis += static_cast<int64_t>(config.input_rank);
+            }
         }
     } else if (deps.size() <= kAxes) {
         config.compile_time_axes.resize(config.input_rank);
         std::iota(config.compile_time_axes.begin(), config.compile_time_axes.end(), 0);
     } else {
-        config.axes_data_type = deps[kAxes].first->get_output_layout(0).data_type;
+        config.axes_data_type = deps[kAxes].first->get_output_layout(false).data_type;
     }
 
     return config;
@@ -334,11 +335,13 @@ public:
 private:
     bool canCompileOpt() const {
         // Opt kernel requires all steps to be compile-time 1
-        if (m_config.compile_time_step.empty())
+        if (m_config.compile_time_step.empty()) {
             return false;
+        }
         for (auto s : m_config.compile_time_step) {
-            if (s != 1)
+            if (s != 1) {
                 return false;
+            }
         }
         return true;
     }

@@ -60,10 +60,14 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
         return ov::element::dynamic;
     case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
         return ov::element::bf16;
+    case TensorProto_DataType::TensorProto_DataType_FLOAT4E2M1:
+        return ov::element::f4e2m1;
     case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
         return ov::element::f8e4m3;
     case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
         return ov::element::f8e5m2;
+    case TensorProto_DataType::TensorProto_DataType_FLOAT8E8M0:
+        return ov::element::f8e8m0;
     case TensorProto_DataType::TensorProto_DataType_STRING:
         return ov::element::string;
     }
@@ -314,9 +318,7 @@ void topological_sort_graph(GraphProto* graph) {
 }
 }  // namespace
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 
 namespace {
 bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_meta_info,
@@ -467,8 +469,10 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
             case TensorProto_DataType::TensorProto_DataType_BOOL:
             case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
             case TensorProto_DataType::TensorProto_DataType_FLOAT16:
+            case TensorProto_DataType::TensorProto_DataType_FLOAT4E2M1:
             case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
             case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
+            case TensorProto_DataType::TensorProto_DataType_FLOAT8E8M0:
                 assign_numeric_data(tensor_info->int32_data());
                 break;
             case TensorProto_DataType::TensorProto_DataType_INT64:
@@ -924,6 +928,4 @@ bool is_valid_model(std::istream& model) {
     }
 }
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

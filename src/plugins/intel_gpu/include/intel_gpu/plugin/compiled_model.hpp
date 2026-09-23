@@ -32,7 +32,7 @@ public:
                   RemoteContextImpl::Ptr context,
                   const ExecutionConfig& config,
                   const bool loaded_from_cache);
-    ~CompiledModel() {
+    ~CompiledModel() override {
         auto streams_executor = std::dynamic_pointer_cast<ov::threading::IStreamsExecutor>(get_task_executor());
         streams_executor->cpu_reset();
     }
@@ -50,10 +50,16 @@ public:
     // Format: meta=<ver>;ov=<ov>;desc=[<driver/hw features>]
     static std::string build_runtime_requirements(const cldnn::device_info& info);
 
+    // Single source of truth for the GPU compatibility policy: returns true if the persisted
+    // descriptor 'requirements' can run on the device described by 'info'. Shared by import_model()
+    // and the ov::compatibility_check property so the two never diverge if the policy changes.
+    static bool is_runtime_requirements_compatible(const std::string& requirements, const cldnn::device_info& info);
+
     // Version of the runtime requirements descriptor persisted in the blob. Bump this whenever
     // build_runtime_requirements() changes (its format or the fields it emits) so the importer
     // can detect and reject descriptors produced by a different build.
-    static constexpr uint32_t runtime_requirements_version = 1;
+    // v2: added the compile-time runtime tag (rt=) to partition OCL/ZE blobs.
+    static constexpr uint32_t runtime_requirements_version = 2;
 
     // Magic marker that prefixes the compatibility-descriptor block in the exported blob, letting
     // the importer reject blobs that lack it (e.g. produced by an OpenVINO build predating this

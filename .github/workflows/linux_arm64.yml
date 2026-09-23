@@ -26,7 +26,7 @@ concurrency:
 permissions: read-all
 
 env:
-  PIP_CACHE_PATH: /mount/caches/pip/linux
+
   TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
 
 jobs:
@@ -55,7 +55,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs,GPU,NPU'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,.github/workflows/ci-doctor.lock.yml'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,.github/workflows/ci-doctor.lock.yml,.github/workflows/ci-doctor-mq.lock.yml'
 
       - name: Show affected components
         run: |
@@ -64,7 +64,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-8gb-arm-docker-build
+    runs-on: aks-lin-arm64-docker-4c8gb
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -98,7 +98,8 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow"
     uses: ./.github/workflows/job_build_linux.yml
     with:
-      runner: 'aks-linux-16-cores-32gb-arm'
+      runner: 'aks-lin-arm64-build-16c32gb'
+      cmake-build-parallel-level: '15'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_arm64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
@@ -109,11 +110,13 @@ jobs:
       build-debian-packages: false
       build-rpm-packages: false
       build-additional-python-packages: true
+      build-samples: true
       target-branch: ${{ inputs.target-branch }}
       cmake-options: >-
             -G 'Ninja Multi-Config'
             -DENABLE_NCC_STYLE=OFF
             -DENABLE_TESTS=ON
+            -DENABLE_OV_GGUF_FRONTEND=ON
             -DENABLE_STRICT_DEPENDENCIES=OFF
             -DENABLE_SYSTEM_OPENCL=ON
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
@@ -144,9 +147,14 @@ jobs:
     needs: [ Build, Docker, Smart_CI ]
     if: fromJSON(needs.smart_ci.outputs.affected_components).JS_API
     uses: ./.github/workflows/job_openvino_js.yml
+    strategy:
+      fail-fast: false
+      matrix:
+        nodejs-version: [22, 24, 26]
     with:
       runner: 'aks-linux-4-cores-8gb-arm'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_arm64 }}
+      nodejs-version: ${{ matrix.nodejs-version }}
 
   ONNX_Runtime:
     name: ONNX Runtime Integration
@@ -157,6 +165,7 @@ jobs:
     uses: ./.github/workflows/job_onnx_runtime.yml
     with:
       runner: 'aks-linux-16-cores-32gb-arm'
+      cmake-build-parallel-level: '15'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_arm64 }}
       sccache-azure-key-prefix: 'ubuntu22_aarch64_onnxruntime'
 

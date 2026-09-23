@@ -11,6 +11,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <type_traits>
 
 #include "openvino/core/any.hpp"
 #include "openvino/core/core_visibility.hpp"

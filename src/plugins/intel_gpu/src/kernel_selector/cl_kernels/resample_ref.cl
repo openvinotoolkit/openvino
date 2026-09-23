@@ -5,7 +5,7 @@
 #include "include/fetch_utils.cl"
 
 #ifdef RTE_OUTPUT
-    #define TO_OUTPUT_TYPE(x)   CAT(CAT(convert_, OUTPUT_TYPE), _rte)(x)
+    #define TO_OUTPUT_COMPUTE_TYPE(x)   CAT(CAT(convert_, OUTPUT_TYPE), _rte)(x)
 #endif
 
 inline int FUNC(get_nearest_val)(float num, bool is_downsample)
@@ -100,7 +100,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         INPUT0_TYPE interp_val = interp_val_pack[pi];
 #if PADDING_USED == 1
         if (isOutOfBounds)
-            interp_val = INPUT0_VAL_ZERO;
+            interp_val = TO_INPUT0_TYPE(INPUT0_VAL_ZERO);
 #endif
     #if HAS_FUSED_OPS
         #define batch (out_coords[0])
@@ -116,7 +116,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         #undef oy
         #undef ox
     #else // HAS_FUSED_OPS
-        res[pi] = ACTIVATION(interp_val, ACTIVATION_PARAMS);
+        res[pi] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(interp_val), ACTIVATION_PARAMS));
     #endif // HAS_FUSED_OPS
     }
     ((__global out_pack_t*)(output + output_idx))[0] = res;
@@ -147,7 +147,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     INPUT0_TYPE interp_val = input[FUNC_CALL(get_input_index)(in_coords[0], in_coords[1], 0, in_coords[2], in_coords[3], in_coords[4])];
 #if PADDING_USED == 1
     if (isOutOfBounds)
-        interp_val = INPUT0_VAL_ZERO;
+        interp_val = TO_INPUT0_TYPE(INPUT0_VAL_ZERO);
 #endif
 #if HAS_FUSED_OPS
     #define batch (out_coords[0])
@@ -163,7 +163,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     #undef oy
     #undef ox
 #else // HAS_FUSED_OPS
-    OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
+    OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(TO_OUTPUT_COMPUTE_TYPE(DECODE_INPUT0_COMPUTE_TYPE(interp_val)), ACTIVATION_PARAMS));
 #endif // HAS_FUSED_OPS
     output[FUNC_CALL(get_output_index)(out_coords[0], out_coords[1], 0, out_coords[2], out_coords[3], out_coords[4])] = res;
 #elif defined(SAMPLE_TYPE_CUBIC) // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
@@ -187,7 +187,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         FUNC_CALL(get_cubic_coeff)(cubic_coeff[i], orig_coord, CUBE_COEFF);
     }
 
-    INPUT0_TYPE interp_val = INPUT0_VAL_ZERO;
+    INPUT0_COMPUTE_TYPE interp_val = INPUT0_VAL_ZERO;
     int index[5];
     unroll_for (index[0] = 0; index[0] <= 3; ++index[0]) {
         unroll_for (index[1] = 0; index[1] <= 3; ++index[1]) {
@@ -208,7 +208,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
 #if PADDING_USED == 1
                         if (!isOutOfBounds)
 #endif
-                            interp_val += coeff_prod * input[FUNC_CALL(get_input_index)(coords_sum[0], coords_sum[1], 0, coords_sum[2], coords_sum[3], coords_sum[4])];
+                            interp_val += coeff_prod * DECODE_INPUT0_COMPUTE_TYPE(input[FUNC_CALL(get_input_index)(coords_sum[0], coords_sum[1], 0, coords_sum[2], coords_sum[3], coords_sum[4])]);
                     }
                 }
             }
@@ -229,7 +229,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     #undef oy
     #undef ox
 #else // HAS_FUSED_OPS
-    OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
+    OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(TO_OUTPUT_COMPUTE_TYPE(interp_val), ACTIVATION_PARAMS));
 #endif // HAS_FUSED_OPS
     output[FUNC_CALL(get_output_index)(out_coords[0], out_coords[1], 0, out_coords[2], out_coords[3], out_coords[4])] = res;
 #elif defined(SAMPLE_TYPE_LINEAR_ONNX) // defined(SAMPLE_TYPE_NEAREST) && FEATURE_PACKED_MODE
@@ -272,17 +272,17 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     bool brOutOfBounds = in_y2 < 0 || in_y2 >= in_size[3] || in_x2 < 0 || in_x2 >= in_size[4];
 
     unroll_for(int in_f = 0; in_f < OUTPUT_FEATURE_NUM; in_f++) {
-        INPUT0_TYPE top_left = tlOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, in_f, in_y1, in_x1)];
-        INPUT0_TYPE top_right = trOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, in_f, in_y1, in_x2)];
-        INPUT0_TYPE bottom_left = blOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, in_f, in_y2, in_x1)];
-        INPUT0_TYPE bottom_right = brOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, in_f, in_y2, in_x2)];
+        INPUT0_COMPUTE_TYPE top_left = tlOutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, in_y1, in_x1)]);
+        INPUT0_COMPUTE_TYPE top_right = trOutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, in_y1, in_x2)]);
+        INPUT0_COMPUTE_TYPE bottom_left = blOutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, in_y2, in_x1)]);
+        INPUT0_COMPUTE_TYPE bottom_right = brOutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, in_y2, in_x2)]);
 
 #else
     unroll_for(int in_f = 0; in_f < OUTPUT_FEATURE_NUM; in_f++) {
-        INPUT0_TYPE top_left = input[INPUT0_GET_INDEX(batch, in_f, in_y1, in_x1)];
-        INPUT0_TYPE top_right = input[INPUT0_GET_INDEX(batch, in_f, in_y1, in_x2)];
-        INPUT0_TYPE bottom_left = input[INPUT0_GET_INDEX(batch, in_f, in_y2, in_x1)];
-        INPUT0_TYPE bottom_right = input[INPUT0_GET_INDEX(batch, in_f, in_y2, in_x2)];
+        INPUT0_COMPUTE_TYPE top_left = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, in_y1, in_x1)]);
+        INPUT0_COMPUTE_TYPE top_right = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, in_y1, in_x2)]);
+        INPUT0_COMPUTE_TYPE bottom_left = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, in_y2, in_x1)]);
+        INPUT0_COMPUTE_TYPE bottom_right = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, in_y2, in_x2)]);
 #endif
 
         ACCUMULATOR_TYPE interp_val = TO_ACCUMULATOR_TYPE(dx2 * dy2 * top_left) +
@@ -296,7 +296,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
         #undef OF_ID
 #else
-        OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
+        OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(TO_OUTPUT_COMPUTE_TYPE(interp_val), ACTIVATION_PARAMS));
 #endif
         output[OUTPUT_GET_INDEX(batch, in_f, oy, ox)] = res;
     }
@@ -353,23 +353,23 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     bool FrontBottomLOutOfBounds = in_z2 < 0 || in_z2 >= in_size[2] || in_y2 < 0 || in_y2 >= in_size[3] || in_x1 < 0 || in_x1 >= in_size[4];
     bool FrontBottomROutOfBounds = in_z2 < 0 || in_z2 >= in_size[2] || in_y2 < 0 || in_y2 >= in_size[3] || in_x2 < 0 || in_x2 >= in_size[4];
 
-    OUTPUT_TYPE x111 = BackTopLOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y1, in_x1)];
-    OUTPUT_TYPE x211 = BackTopROutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y1, in_x2)];
-    OUTPUT_TYPE x121 = BackBottomLOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y2, in_x1)];
-    OUTPUT_TYPE x221 = BackBottomROutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y2, in_x2)];
-    OUTPUT_TYPE x112 = FrontTopLOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y1, in_x1)];
-    OUTPUT_TYPE x212 = FrontTopROutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y1, in_x2)];
-    OUTPUT_TYPE x122 = FrontBottomLOutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y2, in_x1)];
-    OUTPUT_TYPE x222 = FrontBottomROutOfBounds ? INPUT0_VAL_ZERO : input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y2, in_x2)];
+    OUTPUT_COMPUTE_TYPE x111 = BackTopLOutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y1, in_x1)]);
+    OUTPUT_COMPUTE_TYPE x211 = BackTopROutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y1, in_x2)]);
+    OUTPUT_COMPUTE_TYPE x121 = BackBottomLOutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y2, in_x1)]);
+    OUTPUT_COMPUTE_TYPE x221 = BackBottomROutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y2, in_x2)]);
+    OUTPUT_COMPUTE_TYPE x112 = FrontTopLOutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y1, in_x1)]);
+    OUTPUT_COMPUTE_TYPE x212 = FrontTopROutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y1, in_x2)]);
+    OUTPUT_COMPUTE_TYPE x122 = FrontBottomLOutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y2, in_x1)]);
+    OUTPUT_COMPUTE_TYPE x222 = FrontBottomROutOfBounds ? INPUT0_VAL_ZERO : DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y2, in_x2)]);
 #else
-    OUTPUT_TYPE x111 = input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y1, in_x1)];
-    OUTPUT_TYPE x211 = input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y1, in_x2)];
-    OUTPUT_TYPE x121 = input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y2, in_x1)];
-    OUTPUT_TYPE x221 = input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y2, in_x2)];
-    OUTPUT_TYPE x112 = input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y1, in_x1)];
-    OUTPUT_TYPE x212 = input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y1, in_x2)];
-    OUTPUT_TYPE x122 = input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y2, in_x1)];
-    OUTPUT_TYPE x222 = input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y2, in_x2)];
+    OUTPUT_COMPUTE_TYPE x111 = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y1, in_x1)]);
+    OUTPUT_COMPUTE_TYPE x211 = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y1, in_x2)]);
+    OUTPUT_COMPUTE_TYPE x121 = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y2, in_x1)]);
+    OUTPUT_COMPUTE_TYPE x221 = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z1, in_y2, in_x2)]);
+    OUTPUT_COMPUTE_TYPE x112 = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y1, in_x1)]);
+    OUTPUT_COMPUTE_TYPE x212 = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y1, in_x2)]);
+    OUTPUT_COMPUTE_TYPE x122 = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y2, in_x1)]);
+    OUTPUT_COMPUTE_TYPE x222 = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, feature, in_z2, in_y2, in_x2)]);
 #endif
 
     ACCUMULATOR_TYPE interp_val = dx2 * dy2 * dz2 * x111 + dx1 * dy2 * dz2 * x211;
@@ -383,7 +383,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
         #undef OF_ID
 #else
-        OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
+        OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(TO_OUTPUT_COMPUTE_TYPE(interp_val), ACTIVATION_PARAMS));
 #endif
     output[OUTPUT_GET_INDEX(batch, feature, oz, oy, ox)] = res;
 #endif // #if OUTPUT_DIMS == 5
@@ -410,10 +410,10 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     const ACCUMULATOR_TYPE dy = TO_ACCUMULATOR_TYPE(iy - top_y_index);
 
     unroll_for(int in_f = 0; in_f < OUTPUT_FEATURE_NUM; in_f++) {
-        INPUT0_TYPE top_left = input[INPUT0_GET_INDEX(batch, in_f, top_y_index, left_x_index)];
-        INPUT0_TYPE top_right = input[INPUT0_GET_INDEX(batch, in_f, top_y_index, right_x_index)];
-        INPUT0_TYPE bottom_left = input[INPUT0_GET_INDEX(batch, in_f, bottom_y_index, left_x_index)];
-        INPUT0_TYPE bottom_right = input[INPUT0_GET_INDEX(batch, in_f, bottom_y_index, right_x_index)];
+        INPUT0_COMPUTE_TYPE top_left = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, top_y_index, left_x_index)]);
+        INPUT0_COMPUTE_TYPE top_right = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, top_y_index, right_x_index)]);
+        INPUT0_COMPUTE_TYPE bottom_left = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, bottom_y_index, left_x_index)]);
+        INPUT0_COMPUTE_TYPE bottom_right = DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(batch, in_f, bottom_y_index, right_x_index)]);
 
         ACCUMULATOR_TYPE top = TO_ACCUMULATOR_TYPE(top_left) + (TO_ACCUMULATOR_TYPE(top_right) - TO_ACCUMULATOR_TYPE(top_left)) * dx;
         ACCUMULATOR_TYPE bottom = TO_ACCUMULATOR_TYPE(bottom_left) + (TO_ACCUMULATOR_TYPE(bottom_right) - TO_ACCUMULATOR_TYPE(bottom_left)) * dx;
@@ -426,7 +426,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
         #undef OF_ID
 #else
-        OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
+        OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(TO_OUTPUT_COMPUTE_TYPE(interp_val), ACTIVATION_PARAMS));
 #endif
         output[OUTPUT_GET_INDEX(batch, in_f, oy, ox)] = res;
     }
@@ -534,7 +534,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
 #if PADDING_USED == 1
                                 if (!isOutOfBounds)
 #endif
-                                    sum[fp] += w * TO_ACCUMULATOR_TYPE(input[FUNC_CALL(get_input_index)(b, f + fp, 0, z, y, x)]);
+                                    sum[fp] += w * TO_ACCUMULATOR_TYPE(DECODE_INPUT0_COMPUTE_TYPE(input[FUNC_CALL(get_input_index)(b, f + fp, 0, z, y, x)]));
                             }
                         }
                     }
@@ -550,7 +550,7 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
         OUTPUT_TYPE res = FUSED_OPS_RESULT;
         #undef OF_ID
 #else
-        OUTPUT_TYPE res = ACTIVATION(TO_OUTPUT_TYPE(interp_val), ACTIVATION_PARAMS);
+        OUTPUT_TYPE res = TO_OUTPUT_TYPE(ACTIVATION(TO_OUTPUT_COMPUTE_TYPE(interp_val), ACTIVATION_PARAMS));
 #endif
         output[FUNC_CALL(get_output_index)(batch, feature + f, 0, oz, oy, ox)] = res;
     }

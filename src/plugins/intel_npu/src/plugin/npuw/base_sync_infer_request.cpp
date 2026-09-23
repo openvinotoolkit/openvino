@@ -94,8 +94,12 @@ ov::SoPtr<ov::ITensor> ov::npuw::IBaseInferRequest::get_tensor(const ov::Output<
         }
     }
 
-    NPUW_ASSERT(false);
-    return {};
+    std::string requested_port_name{"<unnamed>"};
+    const auto& port_names = port.get_names();
+    if (!port_names.empty()) {
+        requested_port_name = *port_names.begin();
+    }
+    OPENVINO_THROW("NPUW get_tensor(): requested port is not a top-level input/output: ", requested_port_name);
 }
 
 void ov::npuw::IBaseInferRequest::set_tensor(const ov::Output<const ov::Node>& port,
@@ -175,6 +179,14 @@ void ov::npuw::IBaseInferRequest::handle_set_remote_input(const ov::Output<const
                     }
                 }
             }
+        }
+    }
+}
+
+void ov::npuw::IBaseInferRequest::propagate_params_to_subrequests() {
+    for (std::size_t idx = 0; idx < m_subrequests.size(); ++idx) {
+        if (m_subrequests[idx]) {
+            bind_global_params(idx, m_subrequests[idx]);
         }
     }
 }
@@ -552,10 +564,11 @@ void ov::npuw::IBaseInferRequest::handle_quant_host_gather(std::size_t idx, RqPt
         const auto& lport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.idx_idx];
         const auto& lookup = request->get_tensor(lport);
 
+        const auto src_w_idx = static_cast<std::size_t>(quant_unpack_gather.src_w_idx);
         const auto& gport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.dst_idx];
         const auto& gather = request->get_tensor(gport);
 
-        const auto& wport = comp_model_desc.compiled_model->inputs()[quant_unpack_gather.src_w_idx];
+        const auto& wport = comp_model_desc.compiled_model->inputs()[src_w_idx];
         const auto& vocabw = request->get_tensor(wport);
 
         // Gather weight

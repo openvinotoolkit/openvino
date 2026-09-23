@@ -52,6 +52,22 @@ public:
     SDPADecomposed(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag);
 };
 
+class QuantizedSDPAWithGlobalMask : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::QuantizedSDPAWithGlobalMask");
+    static constexpr const char* pattern_name() {
+        return "QuantizedSDPAWithGlobalMask";
+    }
+    static constexpr const char* isolation_tag() {
+        return "attn";
+    }
+    static constexpr const char* group_name() {
+        return "attn";
+    }
+    QuantizedSDPAWithGlobalMask(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
+                                const std::string& isol_tag);
+};
+
 // Matches decomposed SDPA pattern where past KV cache inputs have been converted
 // to integer precision (i8/u8) with dynamic dequantization nodes inserted by
 // ConvertKVCacheToPrecision. The dequantization chain is:
@@ -95,10 +111,33 @@ public:
     AttentionBroadcast3();
 };
 
+class AttentionBroadcast4 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::regularize::AttentionBroadcast4");
+    AttentionBroadcast4();
+};
+
+class SeparateKVCache : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::regularize::SeparateKVCache");
+    SeparateKVCache();
+};
+
 class ShapeOfParameter : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::ShapeOfParameter");
     ShapeOfParameter();
+};
+
+// Folds a ShapeOf that directly consumes a Concat (e.g. a KV-cache Concat also feeding a
+// ShapeOf computing the current total KV length for some other graph-level use) into a
+// constant, once the Concat's output shape is fully static/bound. Without this, that extra
+// ShapeOf consumer can prevent a Concat from being cleanly isolated into its own private
+// SDPA subgraph downstream (e.g. by DuplicateSharedKVConcat / HFA decomposition).
+class ShapeOfConcat : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::attn::ShapeOfConcat");
+    ShapeOfConcat();
 };
 
 class RegularizeSDPA : public ov::pass::ModelPass {

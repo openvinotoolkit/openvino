@@ -3,9 +3,13 @@
 #
 
 set(TARGET_NAME ov_hetero_func_tests)
+
+include(sources.cmake)
+
 ov_add_test_target(
         NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        SOURCES
+            ${OV_HETERO_FUNC_TESTS_SRC}
         DEPENDENCIES
             mock_engine
             openvino_hetero_plugin
@@ -19,8 +23,13 @@ ov_add_test_target(
             PUBLIC
                 $<TARGET_PROPERTY:openvino_hetero_plugin,SOURCE_DIR>/src
         ADD_CLANG_FORMAT
+        CHECK_SOURCES_LISTED
         LABELS
             OV HETERO
+)
+
+target_sources(${TARGET_NAME} PRIVATE
+    $<TARGET_PROPERTY:openvino_hetero_plugin,SOURCE_DIR>/src/blob_serialization.cpp
 )
 
 if(ENABLE_INTEL_CPU)

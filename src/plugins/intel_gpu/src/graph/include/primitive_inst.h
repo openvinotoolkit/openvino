@@ -81,6 +81,13 @@ struct primitive_impl {
     // class typed_primitive_gpu_impl override this with return false;
     virtual bool is_cpu() const { return true; }
     virtual bool is_onednn() const { return false; }
+
+    // Whether this impl needs its inputs to be in host-accessible (lockable) memory.
+    // Defaults to is_cpu(), because CPU impls typically read/write tensor data from the host.
+    // Impls whose execute path only performs GPU-side USM operations (e.g. an enqueue_memcpy
+    // between USM buffers) or that never touch tensor data (e.g. shape_of) should override
+    // this to return false so their input producers are not forced to allocate lockable memory.
+    virtual bool requires_lockable_input() const { return is_cpu(); }
     virtual void init_kernels(const kernels_cache& kernels_cache, const kernel_impl_params& params) = 0;
     virtual void init_by_cached_kernels(const kernels_cache&, std::vector<std::string>& cached_kernel_ids) {}
     virtual std::vector<std::string> get_cached_kernel_ids(const kernels_cache&) { return {}; }
@@ -254,7 +261,7 @@ public:
     const std::vector<primitive_inst*>& get_user_insts() const { return _users; }
     void init_users() {
         std::vector<primitive_id> users;
-        for (auto u : get_users()) {
+        for (const auto* u : get_users()) {
             users.push_back(u->id());
         }
         _users = get_network().get_primitives(users);
@@ -269,14 +276,16 @@ public:
     void set_impl(std::unique_ptr<primitive_impl> impl) { _impl = std::move(impl); }
 
     memory& input_memory(size_t index = 0) const {
-        if (index >= inputs_memory_count())
+        if (index >= inputs_memory_count()) {
             throw std::range_error("input offset too big");
+        }
         return dep_memory(index);
     }
 
     memory::ptr input_memory_ptr(size_t index = 0) const {
-        if (index >= inputs_memory_count())
+        if (index >= inputs_memory_count()) {
             throw std::range_error("input offset too big");
+        }
         return dep_memory_ptr(index);
     }
 
@@ -291,6 +300,8 @@ public:
     void unset_flag(size_t flag);
     bool get_flag(size_t flag) const;
     void reset_flags();
+    // Defers output memory invalidation until prepare_primitive(), after runtime shapes are known.
+    void request_output_reallocation() { _output_reallocation_requested = true; }
 
     void reset_events();
 
@@ -377,6 +388,8 @@ public:
     bool all_dependencies_cpu_impl() const;
 
 protected:
+    friend class PrimitiveInstTestHelper;
+
     primitive_inst(network& network, program_node const& node, bool allocate_memory);
 
     network& _network;
@@ -385,6 +398,7 @@ protected:
 
     bool _update_shape_done_by_other = false;
     bool _allocation_done_by_other = false;
+    bool _output_reallocation_requested = false;
     bool _use_shared_kernels = false;
     std::unique_ptr<kernel_impl_params> _impl_params;
     std::shared_ptr<primitive_impl> _impl;
@@ -419,6 +433,8 @@ protected:
     // buffer or attach input as output
     // depending on reshape_node.is_in_place())
     std::vector<memory::ptr> _outputs;
+    // Borrowed view of a remote output tensor while a runtime-skippable permute stays optimized out.
+    memory::ptr _remote_permute_output_alias;
 
     std::vector<memory::ptr> _intermediates_memory;
 
@@ -468,6 +484,7 @@ protected:
     bool use_async_compilation();
     // if primitive_inst doesn't replace impl to new impl(static impl with opt kerenl or dynamic impl), return false
     void update_impl(bool use_async_compilation);
+    bool try_bind_remote_permute_output(const layout& actual_layout);
     void realloc_if_needed(bool prev_execution_skipped = false);
     void realloc_outputs(bool prev_execution_skipped = false);
     void realloc_intermediates();
@@ -544,11 +561,13 @@ struct typed_primitive_impl : public primitive_impl {
     using primitive_impl::primitive_impl;
 
     event::ptr execute(const std::vector<event::ptr>& event, primitive_inst& instance) override {
-        if (instance.type() != PType::type_id())
+        if (instance.type() != PType::type_id()) {
             throw std::invalid_argument("Implementation type does not match primitive type");
-        if (instance.get_impl() != this)
+        }
+        if (instance.get_impl() != this) {
             throw std::invalid_argument(
                 "Trying to execute primitive implementation with mismatching primitive instance");
+        }
 
         return execute_impl(event, reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
@@ -558,11 +577,13 @@ struct typed_primitive_impl : public primitive_impl {
     }
 
     void set_arguments(primitive_inst& instance) override {
-        if (instance.type() != PType::type_id())
+        if (instance.type() != PType::type_id()) {
             throw std::invalid_argument("Implementation type does not match primitive type");
-        if (instance.get_impl() != this)
+        }
+        if (instance.get_impl() != this) {
             throw std::invalid_argument(
                 "Trying to set_arguments for primitive implementation with mismatching primitive instance");
+        }
 
         return set_arguments_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance));
     }
@@ -570,9 +591,10 @@ struct typed_primitive_impl : public primitive_impl {
     void set_arguments(primitive_inst& instance, kernel_arguments_data& args) override {
         OPENVINO_ASSERT(instance.type() == PType::type_id(), "[GPU] Implementation type ", instance.type(),
                                                              " does not match primitive type ", PType::type_id());
-        if (instance.get_impl() != this)
+        if (instance.get_impl() != this) {
             throw std::invalid_argument(
                 "Trying to set_arguments for primitive implementation with mismatching primitive instance");
+        }
 
         return set_arguments_impl(reinterpret_cast<typed_primitive_inst<PType>&>(instance), args);
     }
@@ -618,11 +640,9 @@ private:
                 return false;
         }
 
-        if (typ_node.template have_user_with_type<concatenation>() && typ_node.get_users().size() == 1 &&
-            typ_node.get_users().front()->can_be_optimized()) {  // check if the only user is concat
-            return false;
-        }
-        return true;
+        // check if the only user is concat
+        return !(typ_node.template have_user_with_type<concatenation>() && typ_node.get_users().size() == 1 &&
+                 typ_node.get_users().front()->can_be_optimized());
     }
 };
 

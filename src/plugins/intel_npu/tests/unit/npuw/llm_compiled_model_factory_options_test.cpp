@@ -12,7 +12,14 @@
 #include <utility>
 #include <vector>
 
+#include "llm_compiled_model_utils.hpp"
 #include "llm_test_helpers.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/subtract.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icore.hpp"
@@ -293,6 +300,94 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, VisibleLlmPropertiesRoundTripThroughC
     EXPECT_EQ(compiled->get_property("NPUW_LLM_GENERATE_ATTENTION_HINT").as<std::string>(), "HFA");
     EXPECT_FALSE(compiled->get_property("NPUW_LLM_SHARED_HEAD").as<bool>());
     EXPECT_EQ(compiled->get_property("NPUW_LLM_PREFILL_CHUNK_SIZE").as<uint64_t>(), 0u);
+}
+
+// The rerank tag only gates the batched wrapper at the entry point and must stay
+// out of the submodel configs.
+TEST_F(LLMCompiledModelFactoryOptionsTest, TextRerankTagKeptOutOfStageConfigs) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(), {{"NPUW_TEXT_RERANK", "YES"}}, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    expect_missing_prop(prefill.props, "NPUW_TEXT_RERANK");
+    expect_missing_prop(generate.props, "NPUW_TEXT_RERANK");
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelAutoEnablesSwaShrinkAndPropagateSliceUp) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled =
+                        create_compiled_model(ov::test::npuw::build_per_layer_inputs_probe_model(), {}, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_TRUE(compiled->get_property("NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK").as<bool>());
+    EXPECT_TRUE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelKeepsExplicitUserOverrides) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        ov::test::npuw::build_per_layer_inputs_probe_model(),
+                        {{"NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK", "NO"}, {"NPUW_LLM_PROPAGATE_SLICE_UP", "NO"}},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK").as<bool>());
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelDoesNotOverridePrefixCaching) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    // Shrink must not be auto-enabled here: it is mutually exclusive with prefix caching
+    // (see the assert in the ShrinkSlidingWindowKVCache application site), so silently
+    // defaulting it to YES would turn this valid config into a compilation failure.
+    ASSERT_NO_THROW(compiled = create_compiled_model(ov::test::npuw::build_per_layer_inputs_probe_model(),
+                                                     {{"NPUW_LLM_ENABLE_PREFIX_CACHING", "YES"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK").as<bool>());
+    EXPECT_TRUE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelDoesNotOverrideMultiTokenGeneration) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    // Generating more than 1 token per inference (e.g. speculative decoding) doesn't work
+    // with a shrunk/sliding KV cache, so shrink must stay off here even though the model
+    // has consumed per_layer_inputs.
+    ASSERT_NO_THROW(compiled = create_compiled_model(ov::test::npuw::build_per_layer_inputs_probe_model(),
+                                                     {{"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "8"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK").as<bool>());
+    EXPECT_TRUE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelDoesNotOverrideContinuousPrefill) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    // Continuous prefill doesn't work with a shrunk/sliding KV cache either (see
+    // compute_continuous_prefill_supported()), so shrink must stay off here too.
+    ASSERT_NO_THROW(compiled = create_compiled_model(ov::test::npuw::build_per_layer_inputs_probe_model(),
+                                                     {{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK").as<bool>());
+    EXPECT_TRUE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, DefaultStageConfigsCarryBaselineNpuwOptions) {
@@ -854,6 +949,145 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedOptionCompilesEmbeddingDecod
     ASSERT_NE(compiled, nullptr);
     EXPECT_GE(recorder.calls().size(), 1u);
     EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, Gemma4MoEModelWithInputsEmbedsAndTokenTypeIdsCompilesWithChunkPrefill) {
+    RecordingFactory recorder;
+    auto model = ov::test::npuw::build_gemma4_moe_llm_test_model();
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(
+        compiled = create_compiled_model(model,
+                                         {{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"}, {"NPUW_LLM_PREFILL_CHUNK_SIZE", "128"}},
+                                         recorder));
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
+}
+
+// is_encoder_embedding_model: a bidirectional encoder (BERT) embedding model has SDPA but no
+// autoregressive KV-cache concat pattern, so it must be classified as an encoder. The
+// autoregressive embedding decoder must NOT be classified as an encoder.
+TEST_F(LLMCompiledModelFactoryOptionsTest, IsEncoderEmbeddingModelDistinguishesBertFromDecoder) {
+    EXPECT_TRUE(ov::npuw::util::is_encoder_embedding_model(build_embedding_model()));
+    EXPECT_FALSE(ov::npuw::util::is_encoder_embedding_model(build_embedding_decoder_model()));
+}
+
+// get_max_position_embeddings: the BERT test config uses a learned absolute position table of
+// size 512; the helper must read it back from the position_embeddings Gather weight.
+TEST_F(LLMCompiledModelFactoryOptionsTest, GetMaxPositionEmbeddingsReadsBertTableSize) {
+    const auto max_pos = ov::npuw::util::get_max_position_embeddings(build_embedding_model());
+    ASSERT_TRUE(max_pos.has_value());
+    EXPECT_EQ(*max_pos, 512u);
+}
+
+// A bare embedding lookup: Gather(table[rows, hidden], indices, axis=0). `behind_convert` adds
+// the Convert that a compressed weight leaves between the table and the Gather.
+std::shared_ptr<ov::Model> build_embedding_lookup_model(const std::string& name, size_t rows, bool behind_convert) {
+    constexpr size_t hidden = 4u;
+    const std::vector<float> values(rows * hidden, 0.1f);
+
+    auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
+    indices->set_friendly_name("input_ids");
+
+    const auto weight_type = behind_convert ? ov::element::f16 : ov::element::f32;
+    auto weight = ov::op::v0::Constant::create(weight_type, ov::Shape{rows, hidden}, values);
+    weight->set_friendly_name(name + ".weight");
+
+    std::shared_ptr<ov::Node> table = weight;
+    if (behind_convert) {
+        table = std::make_shared<ov::op::v0::Convert>(weight, ov::element::f32);
+    }
+
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto gather = std::make_shared<ov::op::v8::Gather>(table, indices, axis);
+    gather->set_friendly_name(name);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{gather->output(0)}, ov::ParameterVector{indices});
+}
+
+// A compressed position table sits behind the Convert that decompression leaves in place, so the
+// table size has to be read through it rather than off the Gather's immediate input.
+TEST_F(LLMCompiledModelFactoryOptionsTest, GetMaxPositionEmbeddingsReadsTableBehindConvert) {
+    const auto model = build_embedding_lookup_model("embeddings.position_embeddings", 256u, true);
+    const auto max_pos = ov::npuw::util::get_max_position_embeddings(model);
+    ASSERT_TRUE(max_pos.has_value());
+    EXPECT_EQ(*max_pos, 256u);
+}
+
+// What optimum leaves above the Gather for an int4 or nf4 table: the weight is dequantized in the
+// compressed type and only then converted up, so there is a Convert on both sides of the
+// Subtract/Multiply. Missing this leaves the prompt length unclamped and the model fails to
+// compile on NPU with a position/token embedding broadcast mismatch.
+TEST_F(LLMCompiledModelFactoryOptionsTest, GetMaxPositionEmbeddingsReadsCompressedTable) {
+    constexpr size_t rows = 256u;
+    constexpr size_t hidden = 4u;
+
+    auto indices = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
+    auto weight =
+        ov::op::v0::Constant::create(ov::element::u4, ov::Shape{rows, hidden}, std::vector<int32_t>(rows * hidden, 1));
+    weight->set_friendly_name("embeddings.position_embeddings.weight");
+    auto zero_point =
+        ov::op::v0::Constant::create(ov::element::u4, ov::Shape{rows, hidden}, std::vector<int32_t>(rows * hidden, 0));
+    auto scale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{rows, 1u}, std::vector<float>(rows, 0.1f));
+
+    std::shared_ptr<ov::Node> table = std::make_shared<ov::op::v0::Convert>(weight, ov::element::f16);
+    table = std::make_shared<ov::op::v1::Subtract>(table,
+                                                   std::make_shared<ov::op::v0::Convert>(zero_point, ov::element::f16));
+    table = std::make_shared<ov::op::v1::Multiply>(table, scale);
+    table = std::make_shared<ov::op::v0::Convert>(table, ov::element::f32);
+
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    auto gather = std::make_shared<ov::op::v8::Gather>(table, indices, axis);
+    gather->set_friendly_name("embeddings.position_embeddings");
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{gather->output(0)}, ov::ParameterVector{indices});
+
+    const auto max_pos = ov::npuw::util::get_max_position_embeddings(model);
+    ASSERT_TRUE(max_pos.has_value());
+    EXPECT_EQ(*max_pos, rows);
+}
+
+// The word and token-type tables are the same shape of lookup as the position table. Reading one
+// of those by mistake would be worse than reading nothing: the token-type table has two rows and
+// would clamp the sequence length to nothing at all.
+TEST_F(LLMCompiledModelFactoryOptionsTest, GetMaxPositionEmbeddingsIgnoresOtherEmbeddingTables) {
+    const auto words = build_embedding_lookup_model("embeddings.word_embeddings", 30522u, false);
+    EXPECT_FALSE(ov::npuw::util::get_max_position_embeddings(words).has_value());
+
+    const auto types = build_embedding_lookup_model("embeddings.token_type_embeddings", 2u, false);
+    EXPECT_FALSE(ov::npuw::util::get_max_position_embeddings(types).has_value());
+}
+
+// A bidirectional encoder embedding model has no autoregressive generate step. It must compile
+// the prefill (whole-sequence) model only and skip the generate/KV-cache variants entirely.
+TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedEncoderCompilesPrefillOnly) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_embedding_model(), {{"NPUW_TEXT_EMBED", "YES"}}, recorder));
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
+    // No generate variant should be produced for an encoder embedding model.
+    EXPECT_EQ(recorder.count_suffix("_generate"), 0u);
+}
+
+// The default NPUW_LLM_MAX_PROMPT_LEN is sized for LLMs and can exceed a BERT encoder's
+// max_position_embeddings (512). The encoder path must clamp the static sequence length to the
+// position table size so the model compiles out of the box instead of failing with a
+// position/token embedding shape mismatch.
+TEST_F(LLMCompiledModelFactoryOptionsTest, TextEmbedEncoderClampsPromptLenToMaxPositionEmbeddings) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    // 1024 > BERT max_position_embeddings (512): must not throw, must clamp.
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_embedding_model(),
+                                                     {{"NPUW_TEXT_EMBED", "YES"}, {"NPUW_LLM_MAX_PROMPT_LEN", "1024"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+    EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
+
+    // The clamped length is what got compiled, so it has to be what the property reports. GenAI
+    // reads this back to decide how long a prompt it may submit.
+    EXPECT_EQ(compiled->get_property("NPUW_LLM_MAX_PROMPT_LEN").as<uint32_t>(), 512u);
 }
 
 }  // namespace

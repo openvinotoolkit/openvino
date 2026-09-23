@@ -29,8 +29,9 @@ void pre_replace_deconv::run(program& p) {
         auto& node = (*node_itr).second;
         // find deconvolution primitives with stride 1 and change them to convolution with transposed weights
         if (node->is_type<deconvolution>()) {
-            if (node->is_dynamic())
+            if (node->is_dynamic()) {
                 continue;
+            }
 
             auto& deconv_node = node->as<deconvolution>();
             auto& weights_node = deconv_node.weights();
@@ -54,13 +55,14 @@ void pre_replace_deconv::run(program& p) {
                 // fp16 and fp32 bfyx implementation supports transposed convolution
                 perform_opt |= cldnn::format::dimension(input_layout.format) == 4 &&
                                (input_layout.data_type == data_types::f32 || input_layout.data_type == data_types::f16) &&
-                               !((lo.get_optimization_attributes().b_fs_yx_fsv16_network || input_layout.format == format::b_fs_yx_fsv16) &&
-                                lo.is_format_optimized(deconv_node, format::b_fs_yx_fsv16));
+                               ((lo.get_optimization_attributes().b_fs_yx_fsv16_network == 0 && input_layout.format != format::b_fs_yx_fsv16) ||
+                                !lo.is_format_optimized(deconv_node, format::b_fs_yx_fsv16));
                 // int8/uint8 input
                 perform_opt |= (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8);
 
-                if (!perform_opt)
+                if (!perform_opt) {
                     continue;
+                }
 
                 // setting convolution parameters based on deconvolution params
                 auto output_layout = deconv_node.get_output_layout();
@@ -98,8 +100,9 @@ void pre_replace_deconv::run(program& p) {
                 std::vector<std::shared_ptr<program_node>> bias_connections;
                 if (biases_nodes_id.is_valid()) {
                     auto bias_iter = p.nodes_map.find(biases_nodes_id.pid);
-                    if (bias_iter == p.nodes_map.end())
+                    if (bias_iter == p.nodes_map.end()) {
                         continue;
+                    }
 
                     auto bias_id_node_ptr = bias_iter->second;
                     bias_connections.push_back(bias_id_node_ptr);
@@ -162,7 +165,7 @@ void pre_replace_deconv::run(program& p) {
 
                 update_processing_order = true;
             // current optimization only available for specific deconvolution parameters
-            } else if (deconv_node.is_output() == false &&
+            } else if (!deconv_node.is_output() &&
                deconv_node.get_output_layout().feature() == 1 &&
                deconv_prim->stride[deconv_prim->stride.size() - 1] == 2 && deconv_prim->stride[deconv_prim->stride.size() - 2] == 2 &&
                filter_layout.spatial(0) == 9 && filter_layout.spatial(1) == 9 &&
@@ -184,8 +187,9 @@ void pre_replace_deconv::run(program& p) {
                 if (weights_data_type != data_types::f16 &&
                     weights_data_type != data_types::f32 &&
                     bias_data_type != data_types::f16 &&
-                    bias_data_type != data_types::f32)
+                    bias_data_type != data_types::f32) {
                     continue;
+                }
 
                 // setting convolution parameters based on deconvolution params
                 ov::Strides stride(spatial_rank, 1);
@@ -218,12 +222,14 @@ void pre_replace_deconv::run(program& p) {
 
                      if (weights_data_type == data_types::f16) {
                          mem_lock<ov::float16, mem_lock_type::read> src{ weights_node_ptr->as<data>().get_attached_memory_ptr(), stream };
-                         for (uint32_t i = 0; i < weights_layout.count(); i++)
+                         for (uint32_t i = 0; i < weights_layout.count(); i++) {
                              weights_vec_float.push_back(static_cast<float>(src.data()[i]));
+                         }
                      } else {
                          mem_lock<float, mem_lock_type::read> src{ weights_node_ptr->as<data>().get_attached_memory_ptr(), stream };
-                         for (uint32_t i = 0; i < weights_layout.count(); i++)
+                         for (uint32_t i = 0; i < weights_layout.count(); i++) {
                              weights_vec_float.push_back(src.data()[i]);
+                         }
                      }
 
                      std::vector<std::vector<std::vector<float> > > subpixel_weights(pixel_shuffle_size);

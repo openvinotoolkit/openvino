@@ -7,7 +7,6 @@ import argparse
 import glob
 import os
 import re
-import itertools
 import subprocess
 import json
 import time
@@ -16,6 +15,7 @@ import sys
 from typing import Any
 from pathlib import Path
 from dataclasses import dataclass, asdict
+from collections import defaultdict
 
 try:
     import requests
@@ -137,6 +137,32 @@ def attempt(func, *args, **kwargs):
     print("No more attempts will be made")
 
 
+def aggregate_results(results: list[dict]):
+    if len(results) == 0:
+        raise ValueError("Aggregation of 0 values")
+    check_keys = set(results[0].keys()) - {"samples"}
+    check_values = {k: results[0][k] for k in check_keys}
+    sample_names = results[0]["samples"].keys()
+    samples = defaultdict(list)
+    for result in results:
+        assert check_values == {k: result[k] for k in check_keys}
+        for sname in sample_names:
+            samples[sname].append(result["samples"][sname])
+    check_values.update({
+        "samples": {
+            sname: MemSample.aggregate(svalues)
+            for sname, svalues in samples.items()
+        }
+    })
+    return check_values
+
+
+def aggregate_numbers(numbers: list):
+    if len(numbers) == 0:
+        raise ValueError("Aggregation of 0 values")
+    return sum(numbers) / len(numbers)
+
+
 @dataclass
 class MemSample:
     system_size: int
@@ -161,12 +187,24 @@ class MemSample:
 
     @classmethod
     def from_dict(cls, values: dict):
-        class_fields = MemSample.__dataclass_fields__.keys()
+        class_fields = cls.__dataclass_fields__.keys()
         selected_values = {
             k: int(values[k])
             for k in class_fields
         }
-        return MemSample(**selected_values)
+        return cls(**selected_values)
+
+    @classmethod
+    def aggregate(cls, items: list["MemSample"]):
+        class_fields = cls.__dataclass_fields__.keys()
+        result = {}
+        for field_name in class_fields:
+            numbers = [
+                getattr(item, field_name, None)
+                for item in items
+            ]
+            result[field_name] = int(aggregate_numbers(numbers))
+        return cls.from_dict(result)
 
     def __repr__(self):
         return "; ".join(f"{k} {v:>10}" for k, v in self.as_dict().items())
@@ -211,10 +249,25 @@ def modelid_assume_info(modelid):
     return modelname, framework, precision
 
 
+@dataclass
+class TestCase:
+    model_id: str
+    model_path: Path
+    device: str
+
+    # metadata
+    description: dict[str, str]
+    weights_size: int
+
+    @property
+    def original_model(self) -> str | None:
+        return self.description.get("src_model_path")
+
+
 class TestSession:
-    def __init__(self, executable, ir_cache_dirs, devices, api=None, report_reference=False):
+    def __init__(self, executable: Path, ir_cache_dirs: list[Path], devices: list[str], api=None, report_reference=False):
         self.executable = executable
-        self.test_name = executable.rsplit("/", 1)[-1].removesuffix(".exe").removeprefix("test_")
+        self.test_name = executable.stem.removeprefix("test_")
         self.ir_cache_dirs = ir_cache_dirs
         self.devices = devices
         self.report_api = api
@@ -226,7 +279,7 @@ class TestSession:
             self.detect_report_metadata()
 
     def get_test_info(self):
-        result = run_test_executable_extract_result([self.executable, "--info"])
+        result = run_test_executable_extract_result([str(self.executable), "--info"])
         if "error" in result:
             raise Exception(f"Test executable does not behave correctly: {result}")
         if "samples" not in result:
@@ -246,12 +299,12 @@ class TestSession:
             print(f"API Error: {response.text}")
         return response.json()
 
-    def api_push_test_result(self, model_path, modelid, weights_size, device, result):
+    def api_push_test_result(self, test: TestCase, result):
         if not self.report_metadata:
             print("No job metadata found, no report will be made.")
             return
-        model_assumptions = modelid_assume_info(modelid)
-        modelname, framework, precision = model_assumptions or (modelid, "unknown", "unknown")
+        model_assumptions = modelid_assume_info(test.model_id)
+        modelname, framework, precision = model_assumptions or (test.model_id, "unknown", "unknown")
         test_report = []
         sample_names = result.get("samples", {}).keys() or self.test_info["samples"]
         for sname in sample_names:
@@ -260,16 +313,17 @@ class TestSession:
             sample_report.update({
                 "test_name": f"{result.get('test', self.test_name)}:{sname}",
                 "status": "failed" if "error" in result else "passed",
-                "source": model_path,
+                "source": str(test.model_path),
                 "log": result.get("stderr", ""),
                 "model_name": modelname,
-                "model": modelid,
-                "device": result.get("device") or device,
+                "model": test.model_id,
+                "device": result.get("device") or test.device,
                 "framework": framework,
                 "precision": precision,
                 "metrics": sample.as_dict(),
                 "cpu_family": CPU_FAMILY,
-                "model_size": weights_size
+                "model_size": test.weights_size,
+                "ext": {"originalSource": test.original_model}
             })
             test_report.append(sample_report)
         response = attempt(self.api, "v2/memory/push-2-db-facade", {"data": test_report})
@@ -279,8 +333,6 @@ class TestSession:
     def detect_report_metadata(self):
         try:
             build_number = os.environ["TT_PRODUCT_BUILD_NUMBER"]
-            if self.report_reference:
-                build_number = f"reference-{build_number}"
             self.report_metadata = {
                 "build_url": os.environ["BUILD_URL"],
                 "os": os.environ.get("os", "unknown"),
@@ -315,33 +367,67 @@ class TestSession:
                 return
             found_models.update(new_files)
             new_files = sorted(new_files)
-            yield from ((path.removeprefix(cache_dir).replace("\\", "/"), path) for path in new_files)
-
-    def generate_test_cases(self):
-        def _with_filesize(paths):
-            for (modelid, path) in paths:
-                weights_path, _ = os.path.splitext(path)
-                weights_path = f"{weights_path}.bin"
-                if os.path.isfile(weights_path):
-                    weights_size = os.path.getsize(weights_path)
-                else:
-                    # weights file does not exist -> invalid test case
-                    continue
-                yield modelid, path, weights_size
-        for ir_cache_dir in self.ir_cache_dirs:
-            yield from itertools.product(
-                _with_filesize(self.scan_directory(ir_cache_dir)),
-                self.devices
+            yield from (
+                (path.removeprefix(cache_dir).replace("\\", "/"), Path(path))
+                for path in new_files
             )
 
-    def run_test_case(self, model_path, device):
+    def get_description(self, model_path: Path) -> dict[str, str] | None:
+        description_path = model_path.parent / "description.txt"
+        description_text = None
         try:
-            return run_test_executable_extract_result([self.executable, model_path, device])
+            description_text = description_path.read_text()
+        except OSError:
+            pass
+        if not description_text:
+            description_path = model_path.parent.parent / "description.txt"
+            try:
+                description_text = description_path.read_text()
+            except OSError:
+                return None
+        return dict([
+            line.split(":", 1)
+            for line in description_text.splitlines()
+            if ":" in line
+        ])
+
+    def generate_test_cases(self):
+        for ir_cache_dir in self.ir_cache_dirs:
+            for (model_id, model_path) in self.scan_directory(ir_cache_dir):
+                weights_path = model_path.with_suffix(".bin")
+                if not weights_path.is_file():
+                    print(f"Warning: Test case {model_id} invalid: can't find weights file at {weights_path}")
+                    continue
+                weights_size = weights_path.stat().st_size
+                for device in self.devices:
+                    yield TestCase(
+                        model_id=model_id,
+                        model_path=model_path,
+                        device=device,
+                        description=self.get_description(model_path) or {},
+                        weights_size=weights_size,
+                    )
+
+    def run_test_case(self, test_case: TestCase):
+        try:
+            run_num = 3 if self.report_reference else 1
+            results = [
+                run_test_executable_extract_result([
+                    str(self.executable), test_case.model_path, test_case.device])
+                for _ in range(run_num)
+            ]
+            errors = ["error" in r for r in results]
+            if run_num > 1 and all(errors):
+                print("All attempts failed")
+                return results[0]
+            if run_num > 1 and any(errors):
+                print("Some attempts failed:", repr([r for r in results if "error" in r]))
+            return aggregate_results([r for r in results if "error" not in r])
         except Exception as ex:
             print(f"  When running test an unexpected error happened: {ex}")
             return {"error": "unexpected error", "exception": ex}
 
-    def handle_test_result(self, modelid, weights_size, device, result):
+    def handle_test_result(self, test: TestCase, result):
         base2_suffixes = ["bytes", "KiB", "MiB", "GiB", "TiB", "PiB"]
 
         def _base2_human_readable(number):
@@ -354,8 +440,8 @@ class TestSession:
             return f"{number} {suffix}"
 
         status = "error" if "error" in result else "ok"
-        weights_size_human_read = _base2_human_readable(weights_size)
-        print(f"TEST {modelid} ({weights_size_human_read}) x {device}: {status}")
+        weights_size_human_read = _base2_human_readable(test.weights_size)
+        print(f"TEST {test.model_id} ({weights_size_human_read}) x {test.device}: {status}")
         if status == "error":
             error = result.get("error")
             stdout = result.get("stdout")
@@ -375,16 +461,15 @@ class TestSession:
         sys.stderr.flush()
 
     def run(self):
-        for (modelid, model_path, weights_size), device in self.generate_test_cases():
-            result = self.run_test_case(model_path, device)
-            test_name = result.get("test", self.test_name)
-            self.api_push_test_result(model_path, modelid, weights_size, device, result)
-            self.handle_test_result(modelid, weights_size, device, result)
+        for test in self.generate_test_cases():
+            result = self.run_test_case(test)
+            self.api_push_test_result(test, result)
+            self.handle_test_result(test, result)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("test_executable")
+    parser.add_argument("test_executable", type=Path)
     parser.add_argument("--ir-cache", "--ir_cache", type=Path, nargs='*', required=True,
                         help='Path to directory with *.xml model files; '
                         'can be a wildcard expression, among all directories '
@@ -395,14 +480,10 @@ if __name__ == "__main__":
     parser.add_argument("--devices", default="CPU")
 
     parser.add_argument("--api", help="API endpoint for results to upload")
-    parser.add_argument("--upload-reference", "--upload_reference",
-                        "--upload-references", "--upload_references", action="store_true",
+    parser.add_argument("--upload-reference", "--reference", action="store_true",
                         help="This run will make new reference values")
 
     args = parser.parse_args()
-
-    if args.upload_reference and args.api is None:
-        raise Exception("To upload reference values --api must be specified")
 
     TestSession(
         args.test_executable,

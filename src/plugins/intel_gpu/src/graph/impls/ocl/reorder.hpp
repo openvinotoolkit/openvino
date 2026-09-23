@@ -22,10 +22,7 @@ struct ReorderImplementationManager : public ImplementationManager {
 
         const auto& output_layout = node.get_output_layout(0);
         auto output_fmt = output_layout.format;
-        if (output_fmt == format::custom)
-            return false;
-
-        return true;
+        return output_fmt != format::custom;
     }
 };
 

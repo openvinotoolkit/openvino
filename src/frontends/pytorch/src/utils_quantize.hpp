@@ -7,9 +7,7 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "pt_framework_node.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
+namespace ov::frontend::pytorch {
 
 class QuantizedDecoder : public DummyDecoder {
 public:
@@ -193,6 +191,31 @@ OutputVector quantizable_op(const NodeContext& context) {
  */
 std::shared_ptr<Node> u4_compression_stack(const OutputVector& list_elems, int64_t axis);
 
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+/**
+ * Build a low-precision dequantization subgraph: dequantize `weights` (i4/u4/u2) with `zero_points`
+ * and `scales`, reshape to `out_shape`, and cast to the element type of `x`. Used by the AWQ / GPTQ /
+ * BitNet / compressed-tensors weight-only quantized translators.
+ */
+Output<Node> low_precision_subgraph(const NodeContext& context,
+                                    const Output<Node>& x,
+                                    const Output<Node>& weights,
+                                    const Output<Node>& zero_points,
+                                    const Output<Node>& scales,
+                                    const Output<Node>& out_shape);
+
+/**
+ * Dequantize compressed-tensors pack-quantized weights to a dense [inner, rows] tensor
+ * (converted to the element type of `like`). Shared by ct_gemm (linear) and ct_embedding.
+ *   weight_packed:     [rows, inner//8]     int32
+ *   scales:            [rows, n_groups]     float32
+ *   zero_point_packed: [rows//8, n_groups]  int32  (asymmetric only; empty for symmetric)
+ */
+Output<Node> dequantize_ct_weight(const NodeContext& context,
+                                  const Output<Node>& weight_packed,
+                                  const Output<Node>& scales,
+                                  bool sym,
+                                  int64_t group_size,
+                                  const Output<Node>& like,
+                                  const Output<Node>& zero_point_packed);
+
+}  // namespace ov::frontend::pytorch

@@ -18,17 +18,24 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/gather_nd.hpp"
+#include "openvino/op/logical_not.hpp"
 #include "openvino/op/loop.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/max_pool.hpp"
 #include "openvino/op/mod.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/non_zero.hpp"
 #include "openvino/op/range.hpp"
+#include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/softmax.hpp"
 #include "openvino/op/split.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
@@ -37,9 +44,7 @@
 #include "pt_framework_node.hpp"
 #include "translate_session.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
+namespace ov::frontend::pytorch {
 
 using namespace ov::op;
 
@@ -160,6 +165,73 @@ Output<Node> reshape_kernel_for_group(const NodeContext& context, const Output<N
     return res;
 }
 
+Output<Node> ensure_trailing_square(const NodeContext& context,
+                                    const Output<Node>& x,
+                                    int64_t n,
+                                    const std::string& op_label) {
+    const auto& pshape = x.get_partial_shape();
+    const auto rank = pshape.rank();
+    if (rank.is_static()) {
+        // A matrix op needs >= 2 axes; reject a lower static rank rather than letting the runtime
+        // guard reinterpret e.g. a 1-D n*n tensor as n x n.
+        PYTORCH_OP_CONVERSION_CHECK(rank.get_length() >= 2,
+                                    op_label,
+                                    " requires a batch of ",
+                                    n,
+                                    "x",
+                                    n,
+                                    " matrices (rank >= 2), got rank ",
+                                    rank.get_length(),
+                                    ".");
+        const auto& m_dim = pshape[rank.get_length() - 2];
+        const auto& n_dim = pshape[rank.get_length() - 1];
+        // Fail at conversion on any statically-known trailing dim != n, giving the clean op-labeled
+        // message instead of a bare runtime reshape error.
+        PYTORCH_OP_CONVERSION_CHECK(
+            (!m_dim.is_static() || m_dim.get_length() == n) && (!n_dim.is_static() || n_dim.get_length() == n),
+            op_label,
+            " is only supported for ",
+            n,
+            "x",
+            n,
+            " matrices, got trailing dimensions ",
+            m_dim,
+            "x",
+            n_dim,
+            ".");
+        if (m_dim.is_static() && n_dim.is_static()) {
+            return x;  // genuine static n x n: no runtime guard needed
+        }
+    }
+    // Dynamic trailing dims: pin each trailing axis to n with its own Reshape so the element-count
+    // check runs per axis (one [..,n,n] reshape checks only n*n total, so [1,9] would pass as 3x3).
+    // A genuine n x n is an identity through both; anything else fails loudly at runtime. The
+    // op-labeled name surfaces the op and size in the CPU error, matching the static branch.
+    const auto guard_name = op_label + "/requires_" + std::to_string(n) + "x" + std::to_string(n);
+    auto step = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}));
+    auto axis = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
+    auto zero = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
+    auto n_1d = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {n}));
+    auto nn = context.mark_node(v0::Constant::create(element::i64, Shape{2}, {n, n}));
+
+    // Pin the last axis to n (fails iff the last extent != n).
+    auto shape = context.mark_node(std::make_shared<v3::ShapeOf>(x, element::i64));
+    auto neg_one = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-1}));
+    auto head = context.mark_node(std::make_shared<v8::Slice>(shape, zero, neg_one, step, axis));
+    auto shape_last = context.mark_node(std::make_shared<v0::Concat>(OutputVector{head, n_1d}, 0));
+    auto g1 = context.mark_node(std::make_shared<v1::Reshape>(x, shape_last, /*special_zero=*/false));
+    g1->set_friendly_name(guard_name);
+
+    // Pin the second-to-last axis to n (fails iff the -2 extent != n), keeping the validated last = n.
+    auto shape1 = context.mark_node(std::make_shared<v3::ShapeOf>(g1, element::i64));
+    auto neg_two = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-2}));
+    auto batch_shape = context.mark_node(std::make_shared<v8::Slice>(shape1, zero, neg_two, step, axis));
+    auto new_shape = context.mark_node(std::make_shared<v0::Concat>(OutputVector{batch_shape, nn}, 0));
+    auto g2 = context.mark_node(std::make_shared<v1::Reshape>(g1, new_shape, /*special_zero=*/false));
+    g2->set_friendly_name(guard_name);
+    return g2;
+}
+
 std::shared_ptr<Node> get_axes_range(const NodeContext& context, int input_id) {
     auto x = context.get_input(input_id);
     return get_node_axes_range(context, x);
@@ -252,6 +324,18 @@ Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Ou
         return context.mark_node(std::make_shared<v1::ConvertLike>(input_tensor, out_tensor));
     } else {
         FRONT_END_OP_CONVERSION_CHECK(false, "Couldn't get dtype input");
+    }
+    return input_tensor;
+};
+
+Output<Node> apply_optional_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor) {
+    if (!context.input_is_none(dtype_port)) {
+        return apply_dtype(context, dtype_port, input_tensor);
+    }
+    if (context.has_attribute("dtype")) {
+        // Export passes the keyword-only dtype as an attribute already resolved to an OpenVINO type.
+        return context.mark_node(
+            std::make_shared<v0::Convert>(input_tensor, context.get_attribute<element::Type>("dtype")));
     }
     return input_tensor;
 };
@@ -496,6 +580,18 @@ Any simplified_type_interpret(Any type) {
 
 bool is_python_scalar_input(const NodeContext& context, size_t index) {
     return context.get_input_type(index).is<type::PyScalar>();
+}
+
+std::string normalize_op_type(const std::string& op_type) {
+    constexpr std::string_view fx_prefix = "aten.";
+    if (op_type.compare(0, fx_prefix.size(), fx_prefix) != 0) {
+        return op_type;
+    }
+    const auto overload = op_type.find('.', fx_prefix.size());
+    if (overload == std::string::npos) {
+        return op_type;
+    }
+    return "aten::" + op_type.substr(fx_prefix.size(), overload - fx_prefix.size());
 }
 
 void align_eltwise_input_types(const NodeContext& context,
@@ -753,6 +849,190 @@ Output<Node> masked_select(const NodeContext& context, const Output<Node>& data,
     return context.mark_node(std::make_shared<v8::GatherND>(data, masked_id));
 }
 
+std::pair<Output<Node>, Output<Node>> build_multi_head_attention(const NodeContext& context,
+                                                                 const Output<Node>& query,
+                                                                 const Output<Node>& key,
+                                                                 const Output<Node>& value,
+                                                                 const Output<Node>& embed_dim,
+                                                                 const Output<Node>& num_heads,
+                                                                 const Output<Node>& qkv_weight,
+                                                                 const Output<Node>& qkv_bias,
+                                                                 const Output<Node>& proj_weight,
+                                                                 const Output<Node>& proj_bias,
+                                                                 const Output<Node>& attn_mask,
+                                                                 int64_t mask_type,
+                                                                 bool need_weights,
+                                                                 bool average_weights) {
+    const auto neg_one_1d = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {-1}));
+    const auto zero_1d = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {0}));
+    const auto one_1d = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {1}));
+    const auto two_1d = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {2}));
+    const auto three_1d = context.mark_node(v0::Constant::create(element::i64, Shape{1}, {3}));
+
+    const auto embed_dim_i64 = context.mark_node(std::make_shared<v0::Convert>(embed_dim, element::i64));
+    const auto num_heads_i64 = context.mark_node(std::make_shared<v0::Convert>(num_heads, element::i64));
+    const auto embed_dim_1d = context.mark_node(std::make_shared<v0::Unsqueeze>(embed_dim_i64, zero_1d));
+    const auto heads_1d = context.mark_node(std::make_shared<v0::Unsqueeze>(num_heads_i64, zero_1d));
+    const auto embed_dim_2x = context.mark_node(std::make_shared<v1::Multiply>(embed_dim_1d, two_1d));
+    const auto embed_dim_3x = context.mark_node(std::make_shared<v1::Multiply>(embed_dim_1d, three_1d));
+
+    // Zeros keep the batch and the sequence dimensions of the input, so no ShapeOf is needed.
+    const auto to_heads_shape =
+        context.mark_node(std::make_shared<v0::Concat>(OutputVector{zero_1d, zero_1d, heads_1d, neg_one_1d}, 0));
+    const auto from_heads_shape =
+        context.mark_node(std::make_shared<v0::Constant>(element::i64, Shape{3}, std::vector<int64_t>{0, 0, -1}));
+    const auto heads_perm =
+        context.mark_node(std::make_shared<v0::Constant>(element::i64, Shape{4}, std::vector<int64_t>{0, 2, 1, 3}));
+
+    // Slices the packed projection, applies it and splits the result into heads:
+    // [batch, sequence, embed_dim] -> [batch, heads, sequence, embed_dim / heads]
+    const auto project = [&](const Output<Node>& x, const Output<Node>& begin, const Output<Node>& end) {
+        const auto weight = context.mark_node(std::make_shared<v8::Slice>(qkv_weight, begin, end, one_1d, zero_1d));
+        const auto bias = context.mark_node(std::make_shared<v8::Slice>(qkv_bias, begin, end, one_1d, zero_1d));
+        Output<Node> res = context.mark_node(std::make_shared<v0::MatMul>(x, weight, false, true));
+        res = context.mark_node(std::make_shared<v1::Add>(res, bias));
+        res = context.mark_node(std::make_shared<v1::Reshape>(res, to_heads_shape, true));
+        return context.mark_node(std::make_shared<v1::Transpose>(res, heads_perm));
+    };
+
+    const auto q = project(query, zero_1d, embed_dim_1d);
+    const auto k = project(key, embed_dim_1d, embed_dim_2x);
+    const auto v = project(value, embed_dim_2x, embed_dim_3x);
+
+    Output<Node> mask = attn_mask;
+    if (mask.get_node_shared_ptr() && mask_type == 1) {
+        // Key padding mask of shape [batch, sequence] has to be made broadcastable to the attention
+        // weights shape [batch, heads, sequence, sequence].
+        const auto axes = context.mark_node(v0::Constant::create(element::i64, Shape{2}, {1, 2}));
+        mask = context.mark_node(std::make_shared<v0::Unsqueeze>(mask, axes));
+    }
+    const bool mask_is_boolean = mask.get_node_shared_ptr() && mask.get_element_type() == element::boolean;
+    if (mask.get_node_shared_ptr() && !mask_is_boolean) {
+        // Any non-boolean mask is additive and has to share the element type with the attention weights.
+        mask = context.mark_node(std::make_shared<v1::ConvertLike>(mask, q));
+    }
+
+    Output<Node> attention;
+    Output<Node> weights;
+    if (need_weights) {
+        // ScaledDotProductAttention does not expose the attention weights, so it is decomposed here.
+        const auto head_dim = context.mark_node(std::make_shared<v1::Divide>(embed_dim_i64, num_heads_i64, true));
+        const auto scale_one = context.mark_node(std::make_shared<v1::ConvertLike>(one_1d, q));
+        const auto scale_dim = context.mark_node(std::make_shared<v1::ConvertLike>(head_dim, q));
+        const auto scale_dim_sqrt = context.mark_node(std::make_shared<v0::Sqrt>(scale_dim));
+        const auto scale = context.mark_node(std::make_shared<v1::Divide>(scale_one, scale_dim_sqrt));
+
+        const auto qk = context.mark_node(std::make_shared<v0::MatMul>(q, k, false, true));
+        weights = context.mark_node(std::make_shared<v1::Multiply>(qk, scale));
+        if (mask_is_boolean) {
+            const auto minus_inf = context.mark_node(
+                v0::Constant::create(element::f32, Shape{}, {-std::numeric_limits<float>::infinity()}));
+            const auto minus_inf_conv = context.mark_node(std::make_shared<v1::ConvertLike>(minus_inf, weights));
+            weights = context.mark_node(std::make_shared<v1::Select>(mask, minus_inf_conv, weights));
+        } else if (mask.get_node_shared_ptr()) {
+            weights = context.mark_node(std::make_shared<v1::Add>(weights, mask));
+        }
+        weights = context.mark_node(std::make_shared<v8::Softmax>(weights, -1));
+        attention = context.mark_node(std::make_shared<v0::MatMul>(weights, v));
+        if (average_weights) {
+            weights = context.mark_node(std::make_shared<v1::ReduceMean>(weights, one_1d, false));
+        }
+    } else {
+        OutputVector sdpa_inputs{q, k, v};
+        if (mask.get_node_shared_ptr()) {
+            // A boolean mask marks the positions to exclude in PyTorch and the positions to keep in
+            // ScaledDotProductAttention.
+            sdpa_inputs.push_back(mask_is_boolean ? context.mark_node(std::make_shared<v1::LogicalNot>(mask)) : mask);
+        }
+        // The default ScaledDotProductAttention scale is 1 / sqrt(embed_dim / heads), same as PyTorch uses.
+        attention = context.mark_node(std::make_shared<v13::ScaledDotProductAttention>(sdpa_inputs, false));
+    }
+
+    // [batch, heads, sequence, embed_dim / heads] -> [batch, sequence, embed_dim]
+    Output<Node> res = context.mark_node(std::make_shared<v1::Transpose>(attention, heads_perm));
+    res = context.mark_node(std::make_shared<v1::Reshape>(res, from_heads_shape, true));
+    res = context.mark_node(std::make_shared<v0::MatMul>(res, proj_weight, false, true));
+    res = context.mark_node(std::make_shared<v1::Add>(res, proj_bias));
+    return {res, weights};
+}
+
+OutputVector build_static_max_pool(ov::pass::NodeRegistry& rg,
+                                   Output<Node> input,
+                                   int dims,
+                                   bool return_indices,
+                                   const Shape& kernel,
+                                   const Strides& strides,
+                                   const Shape& pads,
+                                   const Strides& dilations,
+                                   RoundingType rounding_type) {
+    auto input_shape = rg.make<v3::ShapeOf>(input);
+
+    auto const_0 = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{0});
+    auto const_1 = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{1});
+    bool is_static = input.get_partial_shape().rank().is_static();
+    bool no_batch_dim = is_static && input.get_partial_shape().rank().get_length() == dims + 1;
+
+    if (is_static) {
+        if (no_batch_dim) {
+            input = rg.make<v0::Unsqueeze>(input, const_0);
+        }
+    } else {
+        input = rg.make<v0::Unsqueeze>(input, const_0);
+        auto unsqueeze_shape = rg.make<v3::ShapeOf>(input);
+        auto rank = rg.make<v0::ShapeOf>(unsqueeze_shape);
+        auto end_index = rg.make<v1::Add>(rank, const_1);
+        auto start_index = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{-dims - 2});
+        auto reshape_pattern = rg.make<v8::Slice>(unsqueeze_shape, start_index, end_index, const_1, const_0);
+        input = rg.make<v1::Reshape>(input, reshape_pattern, true);
+    }
+
+    auto res = rg.make<
+        v14::MaxPool>(input, strides, dilations, pads, pads, kernel, rounding_type, PadType::EXPLICIT, element::i64, 2);
+    if (is_static) {
+        if (no_batch_dim) {
+            if (return_indices) {
+                auto out1 = res->output(0);
+                auto out2 = res->output(1);
+                out1 = rg.make<v0::Squeeze>(out1, const_0);
+                out2 = rg.make<v0::Squeeze>(out2, const_0);
+                return {out1, out2};
+            } else {
+                auto squeezed = rg.make<v0::Squeeze>(res, const_0);
+                return {squeezed};
+            }
+        } else {
+            if (return_indices) {
+                return {res->output(0), res->output(1)};
+            } else {
+                return {res};
+            }
+        }
+
+    } else {
+        auto pooled_output_shape = rg.make<v3::ShapeOf>(res);
+
+        auto start_index_input = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{-dims});
+        auto slice_input_shape = rg.make<v8::Slice>(input_shape, const_0, start_index_input, const_1, const_0);
+
+        auto start_index_pooled = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{-dims});
+        auto end_index_pooled = rg.make<v0::Constant>(element::i64, Shape{1}, std::vector<int64_t>{2 + dims});
+        auto slice_pooled_output_shape =
+            rg.make<v8::Slice>(pooled_output_shape, start_index_pooled, end_index_pooled, const_1, const_0);
+
+        auto concat_shape = rg.make<v0::Concat>(OutputVector{slice_input_shape, slice_pooled_output_shape}, 0);
+        if (return_indices) {
+            auto out1 = res->output(0);
+            auto out2 = res->output(1);
+            out1 = rg.make<v1::Reshape>(out1, concat_shape, true);
+            out2 = rg.make<v1::Reshape>(out2, concat_shape, true);
+            return {out1, out2};
+        } else {
+            auto reshaped = rg.make<v1::Reshape>(res, concat_shape, true);
+            return {reshaped};
+        }
+    }
+}
+
 Output<Node> flatten(ov::pass::NodeRegistry& rg, const Output<Node>& value, size_t axis) {
     // First dimension of output tensor is the product of [d_0, ... d_{axis-1}] dimensions of
     // input tensor. The last dimension is the product of the rest of input tensor dimensions:
@@ -992,6 +1272,4 @@ OutputVector wrap_complex(const NodeContext& context,
     return results;
 }
 
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch

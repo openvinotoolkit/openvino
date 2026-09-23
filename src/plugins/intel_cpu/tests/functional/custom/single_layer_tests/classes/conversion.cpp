@@ -113,6 +113,15 @@ void ConvertCPULayerTest::SetUp() {
         primitive = "acl";
     }
 #endif
+#if defined(OPENVINO_ARCH_RISCV64)
+    auto is_riscv_jit_precision = [](ov::element::Type prc) {
+        return prc == ov::element::f32 || prc == ov::element::u8 || prc == ov::element::i8;
+    };
+    if (selectedType.empty() && shapes.first.is_static() && is_riscv_jit_precision(inPrc) &&
+        is_riscv_jit_precision(outPrc)) {
+        primitive = "jit";
+    }
+#endif
     if (primitive != "jit" && !isInOutPrecisionSupported(inPrc, outPrc))
         primitive = "ref";
 

@@ -12,9 +12,7 @@
 #include "core/node.hpp"
 #include "version_range.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 
 /// \brief      Function which transforms single ONNX operator to OV sub-graph.
 using Operator = std::function<OutputVector(const Node&)>;
@@ -30,6 +28,9 @@ extern const char* MICROSOFT_DOMAIN;
 extern const char* PYTORCH_ATEN_DOMAIN;
 extern const char* MMDEPLOY_DOMAIN;
 extern const char* AIONNX_ML_DOMAIN;
+extern const char* AIONNX_CONTRIB_DOMAIN;
+// The default ONNX opset ("ai.onnx") is registered/looked up under an empty domain string.
+extern const char* AIONNX_DOMAIN;
 
 /// \brief Registering a versions range of translator in global map of translators (preferred to use)
 extern bool register_translator(const std::string name,
@@ -46,6 +47,4 @@ extern bool register_translator(const std::string name,
 #define ONNX_OP_M(name, range, ...) register_translator(name, range, __VA_ARGS__)
 #define ONNX_OP(name, range, ...)   static bool onnx_op_reg = ONNX_OP_M(name, range, __VA_ARGS__)
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

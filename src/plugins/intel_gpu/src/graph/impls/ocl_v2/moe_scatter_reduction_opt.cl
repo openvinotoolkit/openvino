@@ -9,7 +9,7 @@
 #define INPUT_VEC_TYPE  MAKE_VECTOR_TYPE(INPUT0_TYPE, VEC_BLK_SIZE)
 #define OUTPUT_VEC_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, VEC_BLK_SIZE)
 
-KERNEL(moe_scatter_reduction_ref)(
+KERNEL(moe_scatter_reduction_opt)(
     OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input,
     const __global INPUT1_TYPE* experts_per_token,

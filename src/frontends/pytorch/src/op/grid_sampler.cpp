@@ -6,10 +6,7 @@
 #include "openvino/op/grid_sample.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 
@@ -44,7 +41,4 @@ OutputVector translate_grid_sampler(const NodeContext& context) {
     return {context.mark_node(std::make_shared<v9::GridSample>(x, grid, attrs))};
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

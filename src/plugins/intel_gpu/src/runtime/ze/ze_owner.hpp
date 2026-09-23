@@ -30,9 +30,7 @@ enum class ze_resource_type : uint8_t {
 
 /// @brief Provides information about specific Level Zero resource
 template <ze_resource_type resource_type>
-struct ze_resource_info {
-    static_assert(false, "Specialization for given resource type is not implemented");
-};
+struct ze_resource_info {};
 
 template <>
 struct ze_resource_info<ze_resource_type::driver> {

@@ -49,16 +49,15 @@ const std::vector<std::shared_ptr<cldnn::ImplementationManager>>& Registry<detec
                 auto prim = detection_output_node.get_primitive();
                 if (confidence_layout.is_dynamic()) {
                     return false;
-                } else {
-                    auto batch_size_limitations = (device_info.supports_immad && device_info.execution_units_count >= 256) ?
-                                                    true : confidence_layout.batch() >= 4;
-                    auto can_use_ocl_impl = confidence_layout.batch() <= lws_max &&
-                                            batch_size_limitations &&
-                                            prim->confidence_threshold >= 0.1 &&
-                                            prim->top_k <= 400 && prim->num_classes >= 16 &&
-                                            confidence_layout.feature() > 10000;
-                    return can_use_ocl_impl;
                 }
+                auto batch_size_limitations = (device_info.supports_immad && device_info.execution_units_count >= 256) ?
+                                                true : confidence_layout.batch() >= 4;
+                auto can_use_ocl_impl = confidence_layout.batch() <= lws_max &&
+                                        batch_size_limitations &&
+                                        prim->confidence_threshold >= 0.1 &&
+                                        prim->top_k <= 400 && prim->num_classes >= 16 &&
+                                        confidence_layout.feature() > 10000;
+                return can_use_ocl_impl;
         })
         OV_GPU_GET_INSTANCE_CPU(detection_output, shape_types::static_shape)
         OV_GPU_GET_INSTANCE_CPU(detection_output, shape_types::dynamic_shape)

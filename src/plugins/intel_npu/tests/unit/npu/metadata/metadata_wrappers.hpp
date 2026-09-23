@@ -19,7 +19,8 @@ struct MetadataTest : Metadata<CURRENT_METADATA_VERSION> {
                  const std::optional<std::vector<ov::Layout>>& outputLayouts = std::nullopt,
                  const std::optional<uint32_t>& compilerVersion = std::nullopt,
                  const std::optional<uint64_t>& blobSizeAfterEncryption = std::nullopt,
-                 const std::optional<std::string>& compatibilityDescriptor = std::nullopt)
+                 const std::optional<std::string>& compatibilityDescriptor = std::nullopt,
+                 BlobType blobType = BlobType::ELF)
         : Metadata<CURRENT_METADATA_VERSION>(blobSize,
                                              ovVersion,
                                              initSizes,
@@ -28,7 +29,8 @@ struct MetadataTest : Metadata<CURRENT_METADATA_VERSION> {
                                              outputLayouts,
                                              compilerVersion,
                                              blobSizeAfterEncryption,
-                                             compatibilityDescriptor) {}
+                                             compatibilityDescriptor,
+                                             blobType) {}
 
     void set_version(uint32_t newVersion) {
         _version = newVersion;

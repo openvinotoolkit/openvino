@@ -13,9 +13,7 @@
 #include "openvino/util/mmap_object.hpp"
 #include "ov_tensorflow/saved_model.pb.h"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
+namespace ov::frontend::tensorflow {
 
 using HashTableKeysValuesMap = std::unordered_map<std::string, std::shared_ptr<ov::op::v0::Constant>>;
 
@@ -42,7 +40,7 @@ class VariablesIndex {
     bool m_mmap_enabled = false;
 
 public:
-    VariablesIndex(bool mmap_enabled = false) : m_mmap_enabled(mmap_enabled) {}
+    explicit VariablesIndex(bool mmap_enabled = false) : m_mmap_enabled(mmap_enabled) {}
     /// \brief Returns mmap_enabled state.
     /// \returns True if mmap is enabled, false otherwise
     bool is_mmap_enabled(void) const {
@@ -54,6 +52,12 @@ public:
     /// \param is_saved_model Flag shows variables index is a part of Saved Model format
     /// \returns Returns true in case of everything loads successfully, false otherwise
     bool read_variables(std::ifstream& vi_stream, const std::filesystem::path& path, const bool is_saved_model = true);
+
+    /// \brief Tells whether no *.index file was provided or present (no variables were read).
+    /// \returns True if the variables index holds no entries, false otherwise
+    bool empty() const {
+        return m_variables_index.empty();
+    }
 
     /// \brief Returns data and size of data of stored variable
     /// \param name Name of variable
@@ -173,6 +177,4 @@ private:
     void read_checkpointable_object_graph();
 };
 
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow

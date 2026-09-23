@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <vector>
 
 #include "config.h"
 #include "executor_config.hpp"
@@ -20,6 +21,8 @@ struct FCAttrs {
     bool constantWeights = true;
 
     ov::intel_cpu::Config::ModelType modelType = ov::intel_cpu::Config::ModelType::Unknown;
+
+    std::vector<float> dqScales;
 
     PostOps postOps;
 };

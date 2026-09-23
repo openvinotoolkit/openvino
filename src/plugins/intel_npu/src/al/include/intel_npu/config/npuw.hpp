@@ -84,10 +84,6 @@ void registerNPUWKokoroOptions(OptionsDesc& desc);
         static OptionMode mode() {                                   \
             return OptionMode::RunTime;                              \
         }                                                            \
-                                                                     \
-        static bool isPublic() {                                     \
-            return false;                                            \
-        }                                                            \
     };
 
 namespace npuw {
@@ -312,10 +308,6 @@ struct NPUWStringEnumOptionBase : OptionBase<ActualOpt, typename Traits::ValueTy
 
     static OptionMode mode() {
         return OptionMode::RunTime;
-    }
-
-    static bool isPublic() {
-        return false;
     }
 };
 

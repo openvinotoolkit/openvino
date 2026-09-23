@@ -4,8 +4,8 @@
 
 #include "utils.hpp"
 
-#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_adr.h>
-#include <xbyak_aarch64/xbyak_aarch64/xbyak_aarch64_reg.h>
+#include <xbyak_aarch64/xbyak_aarch64_adr.h>
+#include <xbyak_aarch64/xbyak_aarch64_reg.h>
 
 #include <algorithm>
 #include <cpu/aarch64/jit_generator.hpp>

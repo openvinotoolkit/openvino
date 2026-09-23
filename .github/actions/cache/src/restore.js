@@ -1,6 +1,6 @@
 /**
  * The entrypoint for the action.
  */
-const { restore } = require('./restoreImpl');
+import { restore } from './restoreImpl.js';
 
 restore();

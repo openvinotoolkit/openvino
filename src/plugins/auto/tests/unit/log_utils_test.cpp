@@ -43,7 +43,7 @@ public:
 
 #if 0
     void SetTestEnv(std::string key, std::string value) {
-#    ifdef WIN32
+#    ifdef _WIN32
         SetEnvironmentVariable(key.c_str(), value.c_str());
 #    elif defined(__linux__)
         ::setenv(key.c_str(), value.c_str(), true);
