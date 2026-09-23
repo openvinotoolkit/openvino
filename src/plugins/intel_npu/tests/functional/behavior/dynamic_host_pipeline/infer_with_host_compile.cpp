@@ -570,8 +570,7 @@ TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
                             "DynamicBatchUsesOneVMExecution_full_batch");
     ASSERT_EQ(reqDynamic1.get_tensor(model->output()).get_shape(), makeOutputShape(selectedModelName, batchShape));
 
-    const auto countVMExecutions = [](const std::string& log) {
-        constexpr std::string_view marker = "Start to execute graph with runtime engine";
+    const auto countMarker = [](const std::string& log, std::string_view marker) {
         size_t count = 0;
         size_t position = 0;
         while ((position = log.find(marker, position)) != std::string::npos) {
@@ -579,6 +578,10 @@ TEST_P(InferWithHostCompileTests, DynamicBatchUsesOneVMExecution) {
             position += marker.size();
         }
         return count;
+    };
+    const auto countVMExecutions = [&countMarker](const std::string& log) {
+        return countMarker(log, "Start to execute graph with runtime engine") +
+               countMarker(log, "execute_vm_runtime_v2 - started");
     };
     ASSERT_EQ(countVMExecutions(logCapture.str()), 1u) << logCapture.str();
 
