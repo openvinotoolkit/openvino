@@ -6,9 +6,10 @@ description: |
   (Merge Queue and Post-Commit) over the past week from their dedicated repo-memory
   branches, analyses the recurring issues, and proposes a concrete, per-issue
   remediation. Issues that can be fixed in code become draft pull requests (at most 3
-  per run); every identified issue — code-fixable or not — is also written to a Markdown
-  report uploaded as a run artifact. This workflow only reads the knowledge base; it
-  never writes to the memory branches and never re-runs or re-queues any pipeline.
+  per run); every identified issue — code-fixable or not — is also recorded in a single
+  persistent weekly tracking issue to which each run appends its
+  report. This workflow only reads the knowledge base; it never writes to the memory
+  branches and never re-runs or re-queues any pipeline.
 
 on:
   schedule:
@@ -47,8 +48,16 @@ safe-outputs:
     reviewers: [akashchi]
     assignees: [akashchi]
     protected-files: allowed                 # remediation frequently touches .github/ CI infrastructure
-  upload-artifact:
-    max-uploads: 1                           # the Markdown remediation report
+  # Weekly remediation report lives in ONE persistent tracking issue, appended each week.
+  create-issue:                              # bootstraps the tracking issue on the first run only
+    title-prefix: "[ci-doctor] "
+    labels: [github_actions]
+    assignees: [akashchi]
+    deduplicate-by-title: true               # never open a second tracking issue
+    max: 1
+  add-comment:                               # subsequent runs append the week's report as a comment
+    target: "*"                              # scheduled run has no triggering issue; agent supplies the tracking issue number
+    max: 1
   report-failure-as-issue:                   # defeat the silent "produced no safe outputs" no-op
     - agent_failure
     - missing_safe_outputs
@@ -119,17 +128,56 @@ Select the **highest-impact code-fixable issues, at most 3**, and create one pul
 
 Source-inspection budget: read at most ~15 repository files and run at most ~8 searches while preparing all fixes. If you cannot craft a confident, minimal fix within that budget, leave the issue for the report instead of forcing a PR.
 
-### Phase 4 — Write the remediation report
+### Phase 4 — Publish the weekly remediation report (persistent GitHub issue)
 
-Write a single Markdown report to `/tmp/gh-aw/ci-doctor-remediation-report.md` covering **all** issues you identified (both code-fixable and not), and upload it by calling the `upload_artifact` safe-output tool with that path. For each issue include: title, category, in-window occurrence count (`window_count`) and lifetime `count`, first/last seen, affected doctor(s), the root cause, the suggested remediation, and — for code-fixable issues you acted on — a note that a PR was opened (with its title). This report is the durable record of the week's analysis.
+Publish the week's findings to a **single, persistent tracking issue** — effective title `[ci-doctor] Weekly CI Remediation Report` — so every weekly report accumulates in one place, newest at the bottom.
+
+**Find-or-create, then append:**
+
+1. **Locate the tracking issue.** Using the GitHub tools, search for an **open** issue in `${{ github.repository }}` titled `[ci-doctor] Weekly CI Remediation Report` (equivalently, the open issue carrying this workflow's hidden `gh-aw-workflow-id` marker, which gh-aw stamps into every issue it creates). If several match, use the lowest-numbered one.
+2. **If it exists →** append this week's report by calling `add_comment` with that issue's number and the report body (template below). Do **not** create a new issue.
+3. **If it does not exist (first run ever) →** create it by calling `create_issue` with the exact title `Weekly CI Remediation Report` (the `[ci-doctor] ` prefix, `ci-health` label and akashchi assignee are applied automatically) and the report body (template below) as the issue body.
+
+Never call both `create_issue` and `add_comment` in the same run — create only when no tracking issue exists yet, otherwise comment.
+
+**Report body template** — keep it concise and skimmable; fill every `<…>` placeholder and drop any section that has no content:
+
+~~~markdown
+## Weekly CI Remediation — <YYYY-Www> (<window-start> → <window-end> UTC)
+
+**Look-back:** <N> days · **Recurring issues:** <total> (<code-fixable> code-fixable) · **PRs opened:** <k>/3
+
+### Top recurring failures
+| # | Failure | Category | This week | Lifetime | Doctor(s) | Remediation | Outcome |
+|--:|---------|----------|----------:|---------:|-----------|-------------|---------|
+| 1 | <short title> | <category> | <window_count> | <count> | MQ / PC | <one-line fix> | ✅ PR opened / 📋 report-only / 🔁 infra |
+
+### PRs opened this week
+- ✅ <PR title> — addresses failure #<n>
+
+### Not code-fixable (tracked for follow-up)
+- **<short title>** (<category>) — <suggested action: infra / upstream / human triage / more data>
+
+<details><summary>Details &amp; evidence</summary>
+
+For each issue in the table above:
+- **<short title>** — signature `<signature_hash>`, first seen `<first_seen>`, last seen `<last_seen>`.
+  - Root cause: <1–2 sentences>.
+  - Key error: `<trimmed key_error>`.
+  - Recent runs: <run-url>, <run-url>.
+
+</details>
+~~~
+
+If there is nothing to remediate, do not post an empty report — follow the safe-output rules below.
 
 ## Mandatory Output Requirement
 
 You MUST end the run by emitting safe outputs — a prose summary is **not** a substitute for calling the tools. If you wrote analysis but did not call the tools below, call them now.
 
-- Call `upload_artifact` **once** with the remediation report whenever there is at least one issue in the collected data.
+- Publish the report **exactly once** whenever there is at least one issue in the collected data: call `add_comment` on the existing tracking issue, or `create_issue` if no tracking issue exists yet (Phase 4). Never call both in one run.
 - Call `create_pull_request` **once per code-fixable issue you fixed**, up to 3 times total. Skip it entirely when no confident code fix is warranted.
 - If the collected knowledge base is empty (no patterns for either doctor), call `noop` with a short message explaining there was nothing to remediate.
 - If the analysis is blocked by missing or unreadable data, call `missing_data` describing what is missing.
 
-Valid combinations: `upload_artifact` alone (issues found but none code-fixable); `upload_artifact` + up to 3 × `create_pull_request` (issues found and fixed); `noop` alone (nothing to remediate); `missing_data` alone (blocked).
+Valid combinations: `add_comment` (or `create_issue` on the first run) alone (issues found but none code-fixable); `add_comment`/`create_issue` + up to 3 × `create_pull_request` (issues found and fixed); `noop` alone (nothing to remediate); `missing_data` alone (blocked).
