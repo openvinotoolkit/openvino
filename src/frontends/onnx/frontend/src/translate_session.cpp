@@ -289,6 +289,7 @@ void TranslateSession::translate_graph(const ov::frontend::InputModel::Ptr& inpu
         const auto graph_iterator =
             std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(model_onnx->get_graph_iterator());
         FRONT_END_GENERAL_CHECK(graph_iterator != nullptr, "Invalid graph iterator for single-pass conversion");
+        graph_iterator->reset();
 
         // Preserve zero-copy constant wrapping when the iterator's owner allows it.
         const bool reuse_const_data = model_onnx->is_const_data_reusable();

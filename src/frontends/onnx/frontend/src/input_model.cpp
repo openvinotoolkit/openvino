@@ -697,6 +697,14 @@ std::shared_ptr<ov::frontend::onnx::TensorONNXPlace> decode_tensor_place(
 }  // namespace
 
 void InputModel::InputModelONNXImpl::load_model() {
+    // A previous walk may have stopped partway through after an exception.
+    m_op_places.clear();
+    m_op_places_map.clear();
+    m_tensor_places.clear();
+    m_inputs.clear();
+    m_outputs.clear();
+    m_metadata.clear();
+    m_graph_iterator->reset();
     std::map<std::string, uint64_t> op_statistics;  // for telemetry
 
     // Track output indices separately from TensorPlace (handles duplicate output names correctly)

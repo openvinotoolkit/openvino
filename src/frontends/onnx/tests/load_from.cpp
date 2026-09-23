@@ -12,6 +12,7 @@
 #include <fstream>
 #include <optional>
 #include <sstream>
+#include <stdexcept>
 #include <tuple>
 #include <typeinfo>
 #include <vector>
@@ -456,6 +457,55 @@ TEST_P(ONNXInMemoryLoadTest, selects_iterator_or_legacy_and_copies_model_proto) 
     const auto& reference_model = *file_model;
     EXPECT_TRUE(typeid(loaded_model) == typeid(reference_model));
     check_initializer_model(frontend->convert(input_model));
+}
+
+TEST_P(ONNXInMemoryLoadTest, reuses_input_model_after_conversion) {
+    for (bool as_proto : {false, true}) {
+        SCOPED_TRACE(testing::Message() << "as_proto=" << as_proto);
+        ModelProto model_proto;
+        ASSERT_TRUE(model_proto.ParseFromString(model_bytes("add_abc_initializers.onnx")));
+        auto frontend = FrontEndManager().load_by_framework("onnx");
+        auto input_model = load_in_memory(frontend, model_proto, as_proto);
+        ASSERT_NE(input_model, nullptr);
+
+        check_initializer_model(frontend->convert(input_model));
+        check_initializer_model(frontend->convert(input_model));
+
+        const auto inputs = input_model->get_inputs();
+        const auto outputs = input_model->get_outputs();
+        ASSERT_EQ(inputs.size(), 1);
+        ASSERT_EQ(outputs.size(), 1);
+        EXPECT_THAT(inputs.front()->get_names(), ElementsAre("C"));
+        EXPECT_THAT(outputs.front()->get_names(), ElementsAre("Y"));
+        check_initializer_model(frontend->convert(input_model));
+    }
+}
+
+TEST_P(ONNXInMemoryLoadTest, retries_lazy_conversion_after_error) {
+    for (bool as_proto : {false, true}) {
+        SCOPED_TRACE(testing::Message() << "as_proto=" << as_proto);
+        ModelProto model_proto;
+        ASSERT_TRUE(model_proto.ParseFromString(model_bytes("abs.onnx")));
+        auto frontend = FrontEndManager().load_by_framework("onnx");
+        bool fail_once = true;
+        frontend->add_extension(std::make_shared<ov::frontend::onnx::ConversionExtension>(
+            "Abs",
+            [&fail_once](const ov::frontend::NodeContext& node) -> ov::OutputVector {
+                if (fail_once) {
+                    fail_once = false;
+                    throw std::runtime_error("conversion failed once");
+                }
+                return {node.get_input(0)};
+            }));
+        auto input_model = load_in_memory(frontend, model_proto, as_proto);
+        ASSERT_NE(input_model, nullptr);
+
+        EXPECT_THROW(frontend->convert(input_model), std::runtime_error);
+        const auto model = frontend->convert(input_model);
+        ASSERT_NE(model, nullptr);
+        EXPECT_EQ(model->inputs().size(), 1);
+        EXPECT_THAT(model->output().get_names(), UnorderedElementsAre("y"));
+    }
 }
 
 TEST_P(ONNXInMemoryLoadTest, rejects_invalid_model_proto) {
