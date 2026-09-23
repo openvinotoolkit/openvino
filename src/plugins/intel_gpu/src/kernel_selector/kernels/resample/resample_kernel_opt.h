@@ -20,7 +20,7 @@ public:
 
 protected:
     bool Validate(const Params& p) const override;
-    JitConstants GetJitConstants(const resample_params& params) const override;
+    JitConstants get_jit_constants(const resample_params& params, bool legacy_scale = false) const override;
     DispatchData SetDefault(const resample_params& arg) const override;
     Datatype GetUnitType(const base_params& params) const override;
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
