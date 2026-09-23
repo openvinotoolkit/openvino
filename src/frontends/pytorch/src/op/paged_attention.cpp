@@ -99,10 +99,8 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
         layer_name = "unknown_layer";
     }
     if (std::getenv("OV_DBG_PA_TRANS")) {
-        std::cerr << "[PA_TRANS_IN] layer='" << layer_name
-                  << "' q_ps=" << query.get_partial_shape()
-                  << " k_ps=" << key.get_partial_shape()
-                  << " v_ps=" << value.get_partial_shape() << std::endl;
+        std::cerr << "[PA_TRANS_IN] layer='" << layer_name << "' q_ps=" << query.get_partial_shape()
+                  << " k_ps=" << key.get_partial_shape() << " v_ps=" << value.get_partial_shape() << std::endl;
     }
 
     const std::string prefix = "__pa__" + layer_name + "__";
@@ -128,8 +126,7 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
     // plugin reads it via rt_info to size each layer's cache independently.
     auto capture_kv_geom = [](const Output<Node>& t, size_t& num_heads_out, size_t& head_size_out) {
         const auto& ps = t.get_partial_shape();
-        if (ps.rank().is_static() && ps.rank().get_length() >= 3 &&
-            ps[ps.rank().get_length() - 1].is_static() &&
+        if (ps.rank().is_static() && ps.rank().get_length() >= 3 && ps[ps.rank().get_length() - 1].is_static() &&
             ps[ps.rank().get_length() - 2].is_static()) {
             head_size_out = static_cast<size_t>(ps[ps.rank().get_length() - 1].get_length());
             num_heads_out = static_cast<size_t>(ps[ps.rank().get_length() - 2].get_length());
@@ -163,14 +160,12 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
             if (trailing_static) {
                 // If this input is a single-consumer Reshape, retarget it
                 // to [-1, trailing] instead of adding a second Reshape.
-                static const bool _pa_fuse_upstream =
-                    std::getenv("OV_PA_FUSE_UPSTREAM_RESHAPE") == nullptr ||
-                    std::string(std::getenv("OV_PA_FUSE_UPSTREAM_RESHAPE")) != "0";
+                static const bool _pa_fuse_upstream = std::getenv("OV_PA_FUSE_UPSTREAM_RESHAPE") == nullptr ||
+                                                      std::string(std::getenv("OV_PA_FUSE_UPSTREAM_RESHAPE")) != "0";
                 if (_pa_fuse_upstream && safe_to_fuse_upstream) {
                     auto up = std::dynamic_pointer_cast<v1::Reshape>(t.get_node_shared_ptr());
                     if (up && up->get_output_target_inputs(0).size() <= 1) {
-                        auto target = v0::Constant::create(element::i64, Shape{2},
-                                                            std::vector<int64_t>{-1, trailing});
+                        auto target = v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{-1, trailing});
                         up->input(1).replace_source_output(target->output(0));
                         up->validate_and_infer_types();
                         // t already points at up's output; refresh partial shape
@@ -178,8 +173,7 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
                         return;
                     }
                 }
-                auto target = v0::Constant::create(element::i64, Shape{2},
-                                                   std::vector<int64_t>{-1, trailing});
+                auto target = v0::Constant::create(element::i64, Shape{2}, std::vector<int64_t>{-1, trailing});
                 t = std::make_shared<v1::Reshape>(t, target, false);
                 return;
             }
@@ -207,29 +201,30 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
     // Side-channel Parameters bound at infer time from ForwardContext, one
     // key_cache/value_cache pair per layer (rank 2-5 per the PA validator).
     auto kv_et = pa_dtype;
-    auto key_cache = make_tagged_parameter(context, prefix + "key_cache", kv_et,
-                                           PartialShape{-1, -1, -1, -1});
-    auto value_cache = make_tagged_parameter(context, prefix + "value_cache", kv_et,
-                                             PartialShape{-1, -1, -1, -1});
+    auto key_cache = make_tagged_parameter(context, prefix + "key_cache", kv_et, PartialShape{-1, -1, -1, -1});
+    auto value_cache = make_tagged_parameter(context, prefix + "value_cache", kv_et, PartialShape{-1, -1, -1, -1});
     // Per-sequence metadata is identical across layers, so share one
     // Parameter set, tagged "__pa__shared__*", across all PA ops.
     const std::string sprefix = "__pa__shared__";
     auto seq_lens = get_or_make_shared_pa_param(context, sprefix + "seq_lens", element::i32, PartialShape{-1});
-    auto query_start_loc = get_or_make_shared_pa_param(context, sprefix + "query_start_loc", element::i32, PartialShape{-1});
+    auto query_start_loc =
+        get_or_make_shared_pa_param(context, sprefix + "query_start_loc", element::i32, PartialShape{-1});
     // block_indices/block_indices_begins are per-layer, not shared: models
     // with multiple KV-cache groups have a distinct block_table per group.
     auto block_indices = make_tagged_parameter(context, prefix + "block_indices", element::i32, PartialShape{-1});
-    auto block_indices_begins = make_tagged_parameter(context, prefix + "block_indices_begins", element::i32, PartialShape{-1});
+    auto block_indices_begins =
+        make_tagged_parameter(context, prefix + "block_indices_begins", element::i32, PartialShape{-1});
 
     auto* session = context.get_session();
-    auto derive_or_cache = [&](const std::string& key,
-                               std::function<Output<Node>()> mk) -> Output<Node> {
+    auto derive_or_cache = [&](const std::string& key, std::function<Output<Node>()> mk) -> Output<Node> {
         if (session) {
             auto it = session->m_shared_pa_outputs.find(key);
-            if (it != session->m_shared_pa_outputs.end()) return it->second;
+            if (it != session->m_shared_pa_outputs.end())
+                return it->second;
         }
         auto out = mk();
-        if (session) session->m_shared_pa_outputs[key] = out;
+        if (session)
+            session->m_shared_pa_outputs[key] = out;
         return out;
     };
 
@@ -261,14 +256,12 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
     auto scale_et = (pa_dtype == element::bf16) ? element::f32 : pa_dtype;
     // scale is attention 1/sqrt(head_dim); extracted from q's pre-flatten shape
     // above. Falls back to 0.125 (head_dim=64) if q's rank/last-dim was dynamic.
-    Output<Node> scale = scale_from_q.get_node_shared_ptr()
-        ? scale_from_q
-        : v0::Constant::create(scale_et, Shape{}, {0.125f});
+    Output<Node> scale =
+        scale_from_q.get_node_shared_ptr() ? scale_from_q : v0::Constant::create(scale_et, Shape{}, {0.125f});
 
     // sliding_window is per-layer (hybrid models mix sliding/full attention);
     // emit as a side-channel Parameter bound to each layer's real value.
-    auto sliding_window = make_tagged_parameter(context, prefix + "sliding_window",
-                                                element::i32, PartialShape{});
+    auto sliding_window = make_tagged_parameter(context, prefix + "sliding_window", element::i32, PartialShape{});
     auto alibi_slopes = v0::Constant::create(scale_et, Shape{0}, std::vector<float>{});
     auto score_aggr_window = v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{});
     auto rotated_block_indices = v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{});
@@ -280,41 +273,43 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
     auto sinks = v0::Constant::create(scale_et, Shape{0}, std::vector<float>{});
     auto adaptive_rkv_start_size = v0::Constant::create(element::i32, Shape{}, {0});
     auto adaptive_rkv_evictable_sizes = v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{});
-    auto adaptive_rkv_diversity_block_set_indices = v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{});
-    auto adaptive_rkv_diversity_block_set_indices_begins = v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{});
+    auto adaptive_rkv_diversity_block_set_indices =
+        v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{});
+    auto adaptive_rkv_diversity_block_set_indices_begins =
+        v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{});
     auto token_type_ids = v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{});
     auto qq_bias = v0::Constant::create(element::u8, Shape{0}, std::vector<uint8_t>{});
     auto qq_bias_begins = v0::Constant::create(element::i32, Shape{0}, std::vector<int32_t>{});
 
     OutputVector pa_inputs = {
-        query,                                                  // 0
-        key,                                                    // 1
-        value,                                                  // 2
-        key_cache,                                              // 3
-        value_cache,                                            // 4
-        past_lens,                                              // 5
-        subsequence_begins,                                     // 6
-        block_indices,                                          // 7
-        block_indices_begins,                                   // 8
-        scale,                                                  // 9
-        sliding_window,                                         // 10
-        alibi_slopes,                                           // 11
-        max_context_len,                                        // 12
-        score_aggr_window,                                      // 13
-        rotated_block_indices,                                  // 14
-        rotation_deltas,                                        // 15
-        rotation_trig_lut,                                      // 16
-        xattention_threshold,                                   // 17
-        xattention_block_size,                                  // 18
-        xattention_stride,                                      // 19
-        sinks,                                                  // 20
-        adaptive_rkv_start_size,                                // 21
-        adaptive_rkv_evictable_sizes,                           // 22
-        adaptive_rkv_diversity_block_set_indices,               // 23
-        adaptive_rkv_diversity_block_set_indices_begins,        // 24
-        token_type_ids,                                         // 25
-        qq_bias,                                                // 26
-        qq_bias_begins,                                         // 27
+        query,                                            // 0
+        key,                                              // 1
+        value,                                            // 2
+        key_cache,                                        // 3
+        value_cache,                                      // 4
+        past_lens,                                        // 5
+        subsequence_begins,                               // 6
+        block_indices,                                    // 7
+        block_indices_begins,                             // 8
+        scale,                                            // 9
+        sliding_window,                                   // 10
+        alibi_slopes,                                     // 11
+        max_context_len,                                  // 12
+        score_aggr_window,                                // 13
+        rotated_block_indices,                            // 14
+        rotation_deltas,                                  // 15
+        rotation_trig_lut,                                // 16
+        xattention_threshold,                             // 17
+        xattention_block_size,                            // 18
+        xattention_stride,                                // 19
+        sinks,                                            // 20
+        adaptive_rkv_start_size,                          // 21
+        adaptive_rkv_evictable_sizes,                     // 22
+        adaptive_rkv_diversity_block_set_indices,         // 23
+        adaptive_rkv_diversity_block_set_indices_begins,  // 24
+        token_type_ids,                                   // 25
+        qq_bias,                                          // 26
+        qq_bias_begins,                                   // 27
     };
 
     auto pa = context.mark_node(std::make_shared<PagedAttentionExtension>(pa_inputs));
@@ -328,8 +323,8 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
     }
     if (std::getenv("OV_DBG_PA_TRANS")) {
         std::cerr << "[PA_TRANS] emitted PagedAttentionExtension for layer " << layer_name
-                  << ", output ps=" << pa->output(0).get_partial_shape()
-                  << ", k=(" << k_num_heads << "," << k_head_size << ")"
+                  << ", output ps=" << pa->output(0).get_partial_shape() << ", k=(" << k_num_heads << "," << k_head_size
+                  << ")"
                   << ", v=(" << v_num_heads << "," << v_head_size << ")" << std::endl;
     }
     // The FX op returns only output 0; convert back to query's original
