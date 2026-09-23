@@ -3,15 +3,16 @@
 //
 
 #include "fully_connected_kernel_base.h"
-#include "kernel_selector_utils.h"
-#include "common_tools.h"
+
+#include <algorithm>
 #include <string>
 #include <vector>
-#include <algorithm>
+
+#include "common_tools.h"
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
-JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_params& params,
-                                                       const FullyConnectedKernelBase::DispatchData&) const {
+JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_params& params, const FullyConnectedKernelBase::DispatchData&) const {
     JitConstants jit = WeightBiasKernelBase::GetJitConstants(params);
     const auto& input = params.inputs[0];
     if (input.is_dynamic()) {
@@ -56,12 +57,11 @@ JitConstants FullyConnectedKernelBase::GetJitConstants(const fully_connected_par
     return jit;
 }
 
-FullyConnectedKernelBase::DispatchData FullyConnectedKernelBase::SetDefault(const fully_connected_params& params,
-                                                                            int, int /*kernel_number*/) const {
+FullyConnectedKernelBase::DispatchData FullyConnectedKernelBase::SetDefault(const fully_connected_params& params, int, int /*kernel_number*/) const {
     DispatchData dispatchData;
 
     // Determine global work sizes.
-    dispatchData.gws = { params.outputs[0].LogicalSize(), 1, 1 };
+    dispatchData.gws = {params.outputs[0].LogicalSize(), 1, 1};
 
     // Find largest positive local work size that is divider for global work size.
     dispatchData.lws[0] = std::min(std::max(dispatchData.gws[0], static_cast<size_t>(1)), static_cast<size_t>(32));
@@ -84,7 +84,7 @@ void FullyConnectedKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {
     };
 }
 
-KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
+KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params& params,
                                                            DataLayout dl,
                                                            WeightsLayout wl,
                                                            const std::string exeMode,
@@ -111,10 +111,7 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
         kd.reorderInput = true;
     }
 
-    bool succeed = UpdateWeightsParams(newParams,
-                                       wl,
-                                       kd.weightsReorderParams,
-                                       GetSupportedKey());
+    bool succeed = UpdateWeightsParams(newParams, wl, kd.weightsReorderParams, GetSupportedKey());
 
     if (!succeed) {
         return {};
@@ -131,8 +128,9 @@ KernelsData FullyConnectedKernelBase::GetCommonKernelsData(const Params &params,
     int inputs_count = 1;
     if (newParams.compressed) {
         inputs_count++;
-        if (newParams.has_decompression_zp && !newParams.scalar_zp)
+        if (newParams.has_decompression_zp && !newParams.scalar_zp) {
             inputs_count++;
+        }
     }
 
     auto& kernel = kd.kernels[0];
@@ -163,17 +161,9 @@ std::string FullyConnectedKernelBase::GetAutoTuneOptions(int autoTuneIndex) cons
     return EXE_MODE_DEFAULT;
 }
 
-KernelsData FullyConnectedKernelBase::GetTunedKernelsDataByIndex(const Params &params,
-                                                                 DataLayout dl,
-                                                                 WeightsLayout wl,
-                                                                 const int autoTuneIndex) const {
-    return GetCommonKernelsData(params,
-                                dl,
-                                wl,
-                                GetAutoTuneOptions(autoTuneIndex),
-                                autoTuneIndex);
+KernelsData FullyConnectedKernelBase::GetTunedKernelsDataByIndex(const Params& params, DataLayout dl, WeightsLayout wl, const int autoTuneIndex) const {
+    return GetCommonKernelsData(params, dl, wl, GetAutoTuneOptions(autoTuneIndex), autoTuneIndex);
 }
-
 
 JitConstants FullyConnectedKernelBase::GetFusedPrimitivesJitConstants(const fully_connected_params&, const DispatchData&) const {
     return {};
@@ -187,16 +177,18 @@ bool FullyConnectedKernelBase::Validate(const Params& p) const {
     }
 
     for (const auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op))
+        if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
     return true;
 }
 
 Datatype FullyConnectedKernelBase::GetAccumulatorType(const fully_connected_params& params) const {
-    if (params.quantization != QuantizationType::NONE)
+    if (params.quantization != QuantizationType::NONE) {
         return Datatype::INT32;
+    }
 
     auto in_dt = params.inputs[0].GetDType();
     auto wei_dt = params.weights.GetDType();
@@ -205,12 +197,14 @@ Datatype FullyConnectedKernelBase::GetAccumulatorType(const fully_connected_para
     auto quantized_weights = wei_dt == WeightsType::UINT8 || wei_dt == WeightsType::INT8;
 
     // This case should be always false, because quantization type is not NONE
-    if (quantized_inputs && quantized_weights)
+    if (quantized_inputs && quantized_weights) {
         return Datatype::INT32;
+    }
 
     // If we either weights or input is quantized, then we use fp32 accumulator to avoid fp16 overflow
-    if ((quantized_inputs || quantized_weights) && !params.compressed)
+    if ((quantized_inputs || quantized_weights) && !params.compressed) {
         return Datatype::F32;
+    }
 
     return in_dt;
 }
@@ -223,14 +217,16 @@ Datatype FullyConnectedKernelBase::GetActivationType(const fully_connected_param
     auto quantized_inputs = in_dt == Datatype::UINT8 || in_dt == Datatype::INT8;
     auto quantized_weights = wei_dt == WeightsType::UINT8 || wei_dt == WeightsType::INT8;
 
-    if (params.quantization != QuantizationType::NONE || quantized_inputs || quantized_weights)
+    if (params.quantization != QuantizationType::NONE || quantized_inputs || quantized_weights) {
         return Datatype::F32;
+    }
 
     auto output_is_int8 = out_dt == Datatype::UINT8 || out_dt == Datatype::INT8;
     auto input_is_fp = in_dt == Datatype::F32 || in_dt == Datatype::F16;
 
-    if (output_is_int8 && input_is_fp)
+    if (output_is_int8 && input_is_fp) {
         return in_dt;
+    }
 
     return GetUnitType(params);
 }

@@ -100,11 +100,13 @@ bool ConvolutionKernel_imad_b_fs_yx_fsv4_dw::Validate(const Params& params) cons
     KernelData kd = KernelData::Default<convolution_params>(params);
     convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
 
-    if (newParams.inputs[0].Feature().v != newParams.groups || newParams.outputs[0].Feature().v != newParams.groups)
+    if (newParams.inputs[0].Feature().v != newParams.groups || newParams.outputs[0].Feature().v != newParams.groups) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
-    if (newParams.outputs[0].Feature().pad.before % fsv != 0)
+    if (newParams.outputs[0].Feature().pad.before % fsv != 0) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     return true;
 }
@@ -115,36 +117,44 @@ bool ConvolutionKernel_imad_b_fs_yx_fsv4_dw::ValidateAutoTuneParams(const convol
 
     if (tune_params.tiled) {
         bool tiled_x_once = tune_params.tiled_simd >= (weights.X().v - 1) * params.dilation.x + 1;
-        if (!tiled_x_once)
+        if (!tiled_x_once) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
 
         auto max_tile_x = (tune_params.tiled_simd - 1 - (weights.X().v - 1) * params.dilation.x) / params.stride.x + 1;
-        if (tune_params.block_x > max_tile_x)
+        if (tune_params.block_x > max_tile_x) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
 
-        if (tune_params.block_y != 1 && params.stride.y != params.dilation.y)
+        if (tune_params.block_y != 1 && params.stride.y != params.dilation.y) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
 
-        if (tune_params.block_y > params.outputs[0].Y().v)
+        if (tune_params.block_y > params.outputs[0].Y().v) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     } else if (tune_params.preload_input) {
         auto line_size = (tune_params.block_x - 1) * params.stride.x + (weights.X().v - 1) * params.dilation.x + 1;
 
         size_t reg_usage = tune_params.block_x * 4
                          + line_size * weights.Y().v
                          + Align(weights.X().v * weights.Y().v, 4) * static_cast<typename std::enable_if<std::is_integral<unsigned long>::value, unsigned long>::type>(tune_params.preload_weights);
-        if (reg_usage > max_reg_usage)
+        if (reg_usage > max_reg_usage) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
 
-        if (tune_params.block_y != 1 && params.stride.y != params.dilation.y)
+        if (tune_params.block_y != 1 && params.stride.y != params.dilation.y) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
 
-        if (tune_params.block_y > params.outputs[0].Y().v)
+        if (tune_params.block_y > params.outputs[0].Y().v) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     } else {
         size_t block_size = tune_params.block_x * 4 + Align(weights.X().v * weights.Y().v, 4) * static_cast<typename std::enable_if<std::is_integral<unsigned long>::value, unsigned long>::type>(tune_params.preload_weights);
-        if (block_size > max_reg_usage)
+        if (block_size > max_reg_usage) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     }
 
     return true;
@@ -188,10 +198,12 @@ ConvolutionKernel_imad_b_fs_yx_fsv4_dw::AutoTuneParams ConvolutionKernel_imad_b_
             size_t reg_usage = x * 4
                              + line_size * weights.Y().v
                              + Align(weights.X().v * weights.Y().v, 4);
-            if (x > output.X().v)
+            if (x > output.X().v) {
                 break;
-            if (reg_usage > max_reg_usage)
+            }
+            if (reg_usage > max_reg_usage) {
                 break;
+            }
             size_t blocks_x = CeilDiv(output.X().v, x);
             size_t overhang = blocks_x * x - output.X().v;
 
@@ -231,8 +243,9 @@ ConvolutionKernel_imad_b_fs_yx_fsv4_dw::AutoTuneParams ConvolutionKernel_imad_b_
         size_t best_overhang_x_1 = 0;
         size_t best_overhang_x_8 = 0;
         for (size_t x = 1; x < 17; ++x) {
-            if (x > output.X().v)
+            if (x > output.X().v) {
                 break;
+            }
             size_t blocks_x = CeilDiv(output.X().v, x);
             size_t overhang = blocks_x * x - output.X().v;
 
@@ -399,8 +412,9 @@ KernelsData ConvolutionKernel_imad_b_fs_yx_fsv4_dw::GetKernelsDataForAutoTune(co
 
     for (size_t i = 0; i < all_tune_params.size(); i++) {
         auto tune_params = GetAutoTuneParams(conv_params, static_cast<int>(i));
-        if (!ValidateAutoTuneParams(conv_params, tune_params))
+        if (!ValidateAutoTuneParams(conv_params, tune_params)) {
             continue;
+        }
         KernelsData kd = GetTunedKernelsDataByIndex(params, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);

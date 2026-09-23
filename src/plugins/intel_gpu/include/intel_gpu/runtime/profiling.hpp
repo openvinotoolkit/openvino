@@ -212,15 +212,18 @@ public:
         : _stage_name(stage_name)
         , _lifetime_logging_mode(lifetime_logging_mode)
         , _print_mem_usage(print_mem_usage) {
-        if (_lifetime_logging_mode)
+        if (_lifetime_logging_mode) {
             start_logging();
+        }
     }
 
     ~mem_usage_logger() {
-        if (_lifetime_logging_mode)
+        if (_lifetime_logging_mode) {
             stop_logging();
-        if (_print_mem_usage && _is_active)
+        }
+        if (_print_mem_usage && _is_active) {
             print_mem_usage_info();
+        }
     }
 
     void start_logging() {
@@ -369,17 +372,19 @@ private:
         footprint.peak_rss = (int64_t)(pmc.PeakWorkingSetSize/1024);
 #elif !defined(__APPLE__)
         std::ifstream status("/proc/self/status");
-        if (!status.is_open())
+        if (!status.is_open()) {
             return footprint;
+        }
 
         std::string line, title;
         while (std::getline(status, line)) {
             std::istringstream iss(line);
             iss >> title;
-            if (title == "VmHWM:")
+            if (title == "VmHWM:") {
                 iss >> footprint.peak_rss;
-            else if (title == "VmRSS:")
+            } else if (title == "VmRSS:") {
                 iss >> footprint.rss;
+            }
         }
 #endif
         return footprint;
