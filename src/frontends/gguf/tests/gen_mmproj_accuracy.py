@@ -5,6 +5,8 @@
 
 PYTHONPATH=<llama.cpp>/gguf-py python gen_mmproj_accuracy.py --oracle /path/to/mmproj_oracle
 Reference revision: 16fb7d9d326a3fe69a331ce5fbe7a679a1a281bb.
+Qwen3 uses 03fa73cb27f5c251b9528489b18d303b1366aca4 (align-corners position interpolation).
+Pass that build separately with --qwen3-oracle.
 """
 import argparse
 import subprocess
@@ -188,6 +190,7 @@ def write_model(path, projector, projection_width=6):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--oracle", required=True, type=Path)
+    parser.add_argument("--qwen3-oracle", required=True, type=Path)
     parser.add_argument("--output", type=Path, default=Path(__file__).parent / "test_data/mmproj_accuracy")
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
@@ -214,7 +217,8 @@ def main():
                 raw_second = np.random.default_rng(43).normal(0, 0.4, shape).astype(np.float32)
                 raw_second.tofile(directory / "second.bin")
                 second = [str(directory / "second.bin")]
-            subprocess.run([str(args.oracle.resolve()), str(path), "audio" if audio else "vision",
+            oracle = args.qwen3_oracle if projector == "qwen3vl_merger" else args.oracle
+            subprocess.run([str(oracle.resolve()), str(path), "audio" if audio else "vision",
                             str(width), str(height), str(directory / "input.bin"),
                             str(directory / "output.bin"), *second], check=True)
             output_width = 256 if projector.startswith("resampler") else 12 if projector == "qwen3vl_merger" else 6

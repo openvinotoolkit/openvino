@@ -840,7 +840,7 @@ private:
             auto resized = g.node("GGML_OP_UPSCALE",
                                   {grid, patches},
                                   0,
-                                  {{"resize_like", true}, {"interpolation_mode", 1 | 0x200}});
+                                  {{"resize_like", true}, {"interpolation_mode", 1 | 0x100}});
             learned_positions = group(resized);
         }
         auto positions = g.add_input("vision.position_ids", ov::element::i32, {1, 1, 1, -1});

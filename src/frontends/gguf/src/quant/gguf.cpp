@@ -448,6 +448,16 @@ GGUFLoad get_gguf_data(const std::string& file) {
         read_metadata_value(cur, vtype, slot);
     }
 
+    const auto architecture = metadata.find("general.architecture");
+    const auto* architecture_name = architecture == metadata.end() ? nullptr :
+        std::get_if<std::string>(&architecture->second);
+    const bool mmproj = architecture_name && *architecture_name == "clip";
+    const auto zero_point_type = [mmproj](const std::string& name, GgufTensorType type) {
+        // Encoder accuracy is sensitive to a second Q4_K quantization. Preserve its
+        // fractional zero point instead of moving represented weights onto a new u4 grid.
+        return mmproj && type == GGUF_TYPE_Q4_K ? ov::element::f16 : gguf_zero_point_type(name, type);
+    };
+
     uint64_t alignment = GGUF_DEFAULT_ALIGNMENT;
     if (auto it = metadata.find("general.alignment"); it != metadata.end()) {
         if (auto* t = std::get_if<ov::Tensor>(&it->second)) {
@@ -499,7 +509,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
     // Every dim comes straight from the file, so the element and byte counts go through the
     // overflow-checked ov::util helpers: a wrapped product could otherwise under-size quant_buf
     // while the fill functions still write the real, attacker-controlled shape into it.
-    auto quant_sizes = [](const TensorInfo& ti, const QuantLayout& ql) -> std::array<size_t, 3> {
+    auto quant_sizes = [&zero_point_type](const TensorInfo& ti, const QuantLayout& ql) -> std::array<size_t, 3> {
         const ov::Shape shape = [&ti]() {
             ov::Shape s;
             for (int i = static_cast<int>(ti.ndim) - 1; i >= 0; --i)
@@ -522,7 +532,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
         ov::Shape scale_shape = shape;
         scale_shape.back() /= ql.group_size;
         const size_t z_bytes =
-            ql.asymmetric ? bytes(gguf_zero_point_type(ti.name, static_cast<GgufTensorType>(ti.type)), scale_shape) : 0;
+            ql.asymmetric ? bytes(zero_point_type(ti.name, static_cast<GgufTensorType>(ti.type)), scale_shape) : 0;
         return {bytes(ql.weight_type, weight_shape), bytes(ql.scale_type, scale_shape), z_bytes};
     };
 
@@ -623,7 +633,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
         ov::Tensor zp;
         if (layout->asymmetric) {
             // Preserve the native zero-point representation, including u8 for Q2_0.
-            zp = carve(gguf_zero_point_type(name, static_cast<GgufTensorType>(ti.type)), scale_shape);
+            zp = carve(zero_point_type(name, static_cast<GgufTensorType>(ti.type)), scale_shape);
         }
 
         if (ti.type == GGUF_TYPE_MXFP4) {

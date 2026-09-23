@@ -48,7 +48,7 @@ public:
     /// EMBEDS_TO_LOGITS: raw inputs_embeds -> logits, with scaling retained in the decoder.
     /// Token-dependent auxiliary branches retain input_ids when required.
     /// Embedding mode is batch-one SDPA. M-RoPE models receive position_ids [4,1,T],
-    /// containing independent temporal/spatial/extra sections; callers supply all sections.
+    /// containing GenAI's sequence/time/height/width sections; callers supply all sections.
     enum class InputMode { IDS_TO_LOGITS, EMBEDS_TO_LOGITS };
 
     explicit AdaptToGenAI(InputMode mode = InputMode::IDS_TO_LOGITS) : m_mode(mode) {}

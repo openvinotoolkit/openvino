@@ -16,6 +16,7 @@
 #include "op_test_utils.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
@@ -308,7 +309,7 @@ TEST(GGUFAdaptToGenAI, Gemma3ImageMaskRespectsImageGroupsAndCachedPrefix) {
     }
 }
 
-TEST(GGUFAdaptToGenAI, EmbeddingModePreservesIndependentMultimodalPositions) {
+TEST(GGUFAdaptToGenAI, EmbeddingModeMapsGenAIMultimodalPositionsToGGML) {
     auto m = build_minimal_gguf_model();
     m.embd->get_rt_info()["gguf.token_embedding"] = true;
     m.model->get_rt_info()[ov::frontend::gguf::pass::gguf_imrope_key()] = true;
@@ -325,7 +326,7 @@ TEST(GGUFAdaptToGenAI, EmbeddingModePreservesIndependentMultimodalPositions) {
     auto actual = run_on_cpu(m.model, inputs);
     ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 1, 1, 8}));
     for (size_t i = 0; i < data.size(); ++i)
-        EXPECT_EQ(actual.data<int32_t>()[i], data[i]);
+        EXPECT_EQ(actual.data<int32_t>()[i], data[(i + 2) % data.size()]);
 }
 
 // translate_get_rows's embedding lookup restores ggml's rank-4 form with Unsqueeze(axis=0),
@@ -555,7 +556,7 @@ TEST(GGUFAdaptToGenAI, InpOutIdsRowSelectionCorrectUnderBothLayouts) {
 // per token, without needing real RoPE weights or a llama.cpp oracle to compute an expected value.
 namespace {
 
-std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab, int64_t hidden) {
+std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab, int64_t hidden, bool auxiliary_tokens = false) {
     auto inp_tokens = ov::test::utils::make_param(ov::element::i32, ov::PartialShape{1, 1, 1, -1}, "inp_tokens");
     auto inp_pos = ov::test::utils::make_param(ov::element::i32, ov::PartialShape{1, 1, 1, -1}, "inp_pos");
     auto self_kq_mask = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask");
@@ -580,12 +581,20 @@ std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab, int64_t hid
     auto gather = std::make_shared<v8::Gather>(vocab_table, indices, axis0);
     auto embd = std::make_shared<v0::Unsqueeze>(gather, axis0);
     embd->set_friendly_name("embd");
+    embd->get_rt_info()["gguf.token_embedding"] = true;
 
     // Flatten to [1, tokens, hidden] regardless of which axis (0 pre-fix, 1 post-fix) carries the
     // real token count -- Reshape never reorders memory, so this is correct either way (same trick
     // FixInpOutIdsRowSelect itself uses).
     auto embd_3d_shape = v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{1, -1, hidden});
-    auto embd_3d = std::make_shared<v1::Reshape>(embd, embd_3d_shape, false);
+    ov::Output<ov::Node> combined = embd;
+    if (auxiliary_tokens) {
+        auto auxiliary = std::make_shared<v8::Gather>(vocab_table, indices, axis0);
+        auto lifted = std::make_shared<v0::Unsqueeze>(auxiliary, axis0);
+        lifted->set_friendly_name("per_layer_tokens");
+        combined = std::make_shared<v1::Add>(embd, lifted);
+    }
+    auto embd_3d = std::make_shared<v1::Reshape>(combined, embd_3d_shape, false);
 
     std::vector<float> zero_w(hidden * hidden, 0.0f);
     auto w_zero = v0::Constant::create(ov::element::f32, {(size_t)hidden, (size_t)hidden}, zero_w);
@@ -681,6 +690,22 @@ TEST(GGUFAdaptToGenAI, SurvivesSDPAToPagedAttentionWithRealAttentionBlock) {
     if (q_shape[1].is_static()) {
         EXPECT_EQ(q_shape[1].get_length(), hidden);
     }
+}
+
+TEST(GGUFAdaptToGenAI, PagedAttentionFlattensEmbeddingsAndAuxiliaryTokens) {
+    auto model = build_attention_gguf_model(8, 4, true);
+    model->get_rt_info()["gguf_architecture"] = std::string("gemma4");
+    ASSERT_TRUE(AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(model));
+    ASSERT_EQ(model->input("input_ids").get_partial_shape().rank().get_length(), 2);
+    ASSERT_EQ(model->input("inputs_embeds").get_partial_shape().rank().get_length(), 3);
+    ASSERT_TRUE(ov::pass::SDPAToPagedAttention().run_on_model(model));
+    EXPECT_EQ(model->input("input_ids").get_partial_shape(), ov::PartialShape{-1});
+    EXPECT_EQ(model->input("inputs_embeds").get_partial_shape(), (ov::PartialShape{-1, -1}));
+    EXPECT_NO_THROW(model->reshape({{"input_ids", {5}},
+                                   {"inputs_embeds", {5, 4}},
+                                   {"token_type_ids", {5, 1}},
+                                   {"position_ids", {5}}}));
+    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
 }
 
 TEST(GGUFAdaptToGenAI, EmbeddingModeMatchesTokenModeAcrossCachedDecodeAndReset) {

@@ -94,26 +94,26 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     }
 
     std::shared_ptr<v0::Parameter> input_ids_node;
-    for (const auto& name : {"input_ids", "inputs_embeds"}) {
-        if ((input_ids_node = get_parameter(model, name))) {
-            break;
+    std::shared_ptr<v0::Unsqueeze> processed_input_ids;
+    // Embedding models may also retain token IDs for auxiliary per-layer lookups.
+    // Flatten both inputs so they follow the same scheduled token axis.
+    for (const auto& name : {"inputs_embeds", "input_ids"}) {
+        const auto input = get_parameter(model, name);
+        if (!input) {
+            continue;
+        }
+        input->set_partial_shape(std::string(name) == "input_ids" ? PartialShape{-1} : PartialShape{-1, -1});
+        const auto consumers = input->get_output_target_inputs(0);
+        auto restored = std::make_shared<v0::Unsqueeze>(input, v0::Constant::create(element::i32, Shape{}, {1}));
+        for (const auto& target : consumers) {
+            target.replace_source_output(restored);
+        }
+        if (!input_ids_node) {
+            input_ids_node = input;
+            processed_input_ids = restored;
         }
     }
-
-    OPENVINO_ASSERT(input_ids_node, "The model doesn't contain input_ids or input_embeds input. Aborting.");
-
-    if (input_ids_node->get_friendly_name() == "input_ids") {
-        input_ids_node->set_partial_shape(PartialShape{-1});
-    } else if (input_ids_node->get_friendly_name() == "inputs_embeds") {
-        input_ids_node->set_partial_shape(PartialShape{-1, -1});
-    }
-
-    auto input_ids_target_inputs = input_ids_node->get_output_target_inputs(0);
-    auto processed_input_ids =
-        std::make_shared<v0::Unsqueeze>(input_ids_node, v0::Constant::create(element::i32, Shape{}, {1}));
-    for (const auto& target : input_ids_target_inputs) {
-        target.replace_source_output(processed_input_ids);
-    }
+    OPENVINO_ASSERT(input_ids_node, "The model doesn't contain input_ids or inputs_embeds input. Aborting.");
 
     std::unordered_set<std::string> var_ids_to_remove;
 

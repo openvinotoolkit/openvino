@@ -34,6 +34,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tile.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/matcher_pass.hpp"
@@ -266,8 +267,11 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     name_output(position_ids, "position_ids");
     std::shared_ptr<v0::Parameter> token_type_ids;
     const auto arch_it = model->get_rt_info().find("gguf_architecture");
-    if (inputs_embeds && arch_it != model->get_rt_info().end() && arch_it->second.as<std::string>() == "gemma3") {
-        token_type_ids = make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{1, -1});
+    if (inputs_embeds && arch_it != model->get_rt_info().end() &&
+        (arch_it->second.as<std::string>() == "gemma3" ||
+         (arch_it->second.as<std::string>() == "gemma4" &&
+          inputs_embeds->get_partial_shape()[2] != 1536 && inputs_embeds->get_partial_shape()[2] != 2560))) {
+        token_type_ids = make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
         name_output(token_type_ids, "token_type_ids");
     }
 
@@ -325,6 +329,13 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     inp_tokens->output(0).replace(tokens_4d->output(0));
 
     ov::Output<ov::Node> pos_i32 = make_shared<v0::Convert>(position_ids, ov::element::i32);
+    if (multimodal_positions) {
+        // GenAI Qwen3.5 supplies [sequence, time, height, width]. ggml's rotary
+        // sections are [time, height, width, extra]; the fourth is unused by Qwen.
+        pos_i32 = make_shared<v8::Gather>(pos_i32,
+                                         v0::Constant::create(ov::element::i64, {4}, {1, 2, 3, 0}),
+                                         v0::Constant::create(ov::element::i64, {}, {0}));
+    }
     // M-RoPE (qwen35): inp_pos carries FOUR position sections per token, laid out section-major --
     // make_sin_cos reshapes it to {..,4,tokens} and transposes. GenAI supplies one position per
     // token, so tile it 4x along the token axis. All four sections hold the same value here: the
@@ -334,9 +345,15 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         auto tile_repeats = v0::Constant::create(ov::element::i64, {2}, {1, 4});
         pos_i32 = make_shared<v0::Tile>(pos_i32, tile_repeats);
     }
-    auto pos_shape =
-        multimodal_positions ? v0::Constant::create(ov::element::i64, {4}, {1, 1, 1, -1}) : shape_keep0_1_1_rest;
-    auto pos_4d = make_shared<v1::Reshape>(pos_i32, pos_shape, !multimodal_positions);
+    if (multimodal_positions) {
+        // Preserve section-major positions within each sequence. PA moves tokens to
+        // the leading activation axis, so each token then carries its four sections.
+        auto section_shape = make_shared<v0::Concat>(
+            ov::OutputVector{v0::Constant::create(ov::element::i64, {1}, {4}), ids_shape}, 0);
+        pos_i32 = make_shared<v1::Transpose>(make_shared<v1::Reshape>(pos_i32, section_shape, false),
+                                             v0::Constant::create(ov::element::i64, {3}, {1, 0, 2}));
+    }
+    auto pos_4d = make_shared<v1::Reshape>(pos_i32, shape_keep0_1_1_rest, true);
     if (inp_pos)
         inp_pos->output(0).replace(pos_4d->output(0));
 
