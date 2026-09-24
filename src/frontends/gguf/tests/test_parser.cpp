@@ -38,7 +38,7 @@ protected:
         };
         put(uint32_t{0x46554747});
         put(uint32_t{3});
-        put(uint64_t{1});  // tensor count
+        put(uint64_t{1});                               // tensor count
         put(uint64_t{architecture.empty() ? 0u : 1u});  // metadata count
         if (!architecture.empty()) {
             const std::string key = "general.architecture";
@@ -93,16 +93,21 @@ TEST_F(GGUFParser, Q2_0KeepsIntegerZeroPointsForAllWeightNames) {
     }
 }
 
-TEST_F(GGUFParser, Q4KPreservesRepresentedWeightsForLanguageAndProjectorModels) {
+// Q4_K uses an integer zero-point by default and the faithful f16 one under OV_GGUF_Q4_K_ZP_F16,
+// for language and projector models alike.
+TEST_F(GGUFParser, Q4KZeroPointModeAppliesToLanguageAndProjectorModels) {
     const auto bytes = load_npy<uint8_t>("q4_k_qbytes");
     const auto reference = load_npy<float>("q4_k_deq");
+    const auto expected_zp = gguf_zero_point_type("v.blk.0.attn_q.weight", GGUF_TYPE_Q4_K);
+    // The integer zero-point requantizes each group onto a u4 grid: up to half a step of error (~0.04 here).
+    const float tolerance = expected_zp == ov::element::f16 ? 3e-3f : 5e-2f;
     for (const std::string architecture : {"clip", "qwen35", "qwen35moe", "gemma4", "muse-glimmer", ""}) {
         SCOPED_TRACE(architecture);
         ASSERT_NO_FATAL_FAILURE(write_tensor("v.blk.0.attn_q.weight", GGUF_TYPE_Q4_K, 256, 4, bytes, architecture));
         const auto loaded = get_gguf_data(m_path);
         const auto& arrays = std::get<1>(loaded);
         const auto& zp = arrays.at("v.blk.0.attn_q.zp");
-        ASSERT_EQ(zp.get_element_type(), ov::element::f16);
+        ASSERT_EQ(zp.get_element_type(), expected_zp);
         const auto node = make_weight_node({arrays.at("v.blk.0.attn_q.weight"), arrays.at("v.blk.0.attn_q.scales"), zp},
                                            GGUF_TYPE_Q4_K,
                                            "v.blk.0.attn_q.weight");
@@ -110,7 +115,7 @@ TEST_F(GGUFParser, Q4KPreservesRepresentedWeightsForLanguageAndProjectorModels) 
         const auto output = run_on_cpu(model, {});
         ASSERT_EQ(output.get_size(), reference.size());
         for (size_t i = 0; i < reference.size(); ++i)
-            EXPECT_NEAR(output.data<float>()[i], reference[i], 3e-3f);
+            EXPECT_NEAR(output.data<float>()[i], reference[i], tolerance);
     }
 }
 
