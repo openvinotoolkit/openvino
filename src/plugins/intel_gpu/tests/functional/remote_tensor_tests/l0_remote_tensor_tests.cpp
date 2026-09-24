@@ -59,6 +59,10 @@ TEST(GpuRemoteTensorL0, smoke_allocAlignedCPUMemory) {
             context.create_tensor(ov::element::f32,
                                   shape,
                                   ov::intel_gpu::VirtualAddressMemory(output_ptr, static_cast<int64_t>(byte_size)));
+        ASSERT_TRUE(remote_input_tensor.is<ov::intel_gpu::ze::ZeRemoteTensor>());
+        ASSERT_TRUE(remote_output_tensor.is<ov::intel_gpu::ze::ZeRemoteTensor>());
+        ASSERT_NE(remote_input_tensor.get(), nullptr);
+        ASSERT_NE(remote_output_tensor.get(), nullptr);
 
         auto model = make_l0_copy_model(shape);
         auto compiled = core.compile_model(model, context);
