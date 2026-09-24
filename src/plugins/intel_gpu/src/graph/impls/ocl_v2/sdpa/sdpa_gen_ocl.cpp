@@ -1052,7 +1052,7 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
         const bool fixup_ok = block2d_layout_fixup_ok(K_cur, ldk_cur) && block2d_layout_fixup_ok(V_cur, ldv_cur);
         pa_cur_kv_f16 = f16_in && (pa_cur_aligned || fixup_ok);
         // NOTE u4's extra precondition is deliberately NOT checked here. Its K read addresses Kc as a
-        // DWORD surface (see the PA_K_U4 branch at the K load in sdpa_ocl.cl), which needs this head's
+        // DWORD surface (see kc_tile_u4_dword in sdpa_ocl_qk_load.cl), which needs this head's
         // first channel to be an EVEN number of halves from the surface origin -- and that parity comes
         // out of subsequence_begin * ldk + b0_kv * head_size + the feature padding, which is a runtime
         // value whenever the padding is dynamic. Gating it here would mean rejecting every dynamically
@@ -1339,7 +1339,7 @@ JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& param
                     // This is an inference, not a proof: a DYNAMIC per-key mask [B,H,1,K] at
                     // prefill is also compiled as kind 2. The kernel therefore re-checks the
                     // runtime dims (MSK_D2/MSK_D3) when it loads the full-2D tile and clamps
-                    // to row/column 0 -- see the mask_full block in sdpa_ocl.cl -- so a
+                    // to row/column 0 -- see mask_tile_2d in sdpa_ocl_mask.cl -- so a
                     // 1-row/1-col mask stays in bounds and correct without disabling the
                     // specialization for the common full-2D case.
                     mask_kind = m_is_prefill ? 2 : 1;
