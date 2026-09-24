@@ -575,6 +575,32 @@ not observe the feature.
 
 ## Known issues
 
+Found in the 2026-09 review of these files and deliberately left out of the refactor, because each
+fix changes behaviour or lies outside them. Everything here comes from code reading unless a test
+result is quoted.
+
+### Correctness
+
+- The i8/u4 BY_CHANNEL K cache is relaid token-major without checking that a reader for that page
+  will run. `transformations_pipeline.cpp` only requires the staging switch (on by default) and no
+  scores output or adaptive R-KV, but only the cache writer, rotate, `sdpa_ocl` MIXED and
+  `sdpa_ocl_decode` understand the page. `pa_kv_reorder` and the `pa_sdpa_opt` / `pa_multi_token`
+  fallbacks (`paged_attention_opt.cl`) address it d-major. Paged-attention models default to an i8
+  (u4 with 4-bit weights) BY_CHANNEL K cache, so wherever the `sdpa_ocl` gates turn a MIXED or
+  GENERATE step down, the fallback reads K at the wrong offsets: pre-Xe2 and non-XMX devices,
+  alibi, and GENERATE at a head size `sdpa_ocl_decode` rejects. k != v head sizes were the same
+  hole for MIXED until `supports_head_sizes()` ("Tiling").
+- Pre-Xe2 XMX devices lose `sdpa_micro`. `TEST_USE_SDPA_OCL` alone picks the generator type, so
+  `SDPAOclGenerator` is the default, and its `supported()` refuses anything below Xe2. On
+  xe_hpg/xe_hpc neither `sdpa_opt.cpp` nor `paged_attention_opt.cpp` (`supports_micro_sdpa()`)
+  adds a micro stage, and both fall back to the opt kernels.
+- Static SDPA with one query and an unaligned head size: with `use_ocl` and no indirect axis the
+  constructor adds only single-token stages. When the `sdpa_ocl` single-token stage is not among
+  them (its gate refuses, as on every pre-Xe2 device), `execute()` dispatches
+  `regular_multi_tokens`, which was never added (`sdpa_opt.cpp`).
+- A build without oneDNN does not compile: `sdpa_opt.cpp` declares `use_ocl` inside `#ifdef
+  ENABLE_ONEDNN_FOR_GPU` and uses it outside, in the constructor's single-token choice and in
+  `execute()`'s unaligned-head test.
 - `block2d_layout_ok()` does not check padding: the check has been commented out since it was
   written. It is reachable for rank-2 paged-attention inputs with feature padding (the minicpm4 V
   crop view is benign by luck). Adding it narrows a gate, so it needs its own change and a
@@ -582,3 +608,83 @@ not observe the feature.
 - `SCALE_DATA_T` is hard-coded to `half` in `sdpa_gen_ocl.cpp`, so a bf16 or f32 runtime scale
   input would be misread (`sdpa_ocl_decode` types the scale from its layout). The paged-attention
   runtime scale has no test.
+- `SDPA_OCL_KQ_TILE_KEYS=32` gives wrong results when `kq_sg_per_wg_keys >= 4` and a subgroup has
+  two query blocks (`kq_sg_tile_queries = 32`): deterministically, the first query block is right
+  and the second is not. It survives every memory-path switch and `SDPA_OCL_256GRF=1`, so the fault
+  is in the indexing rather than the loads, and it has not been found. The tuned tables always use
+  16 keys, so only the override reaches it (last reproduced 2026-09-10 on
+  `paged_attention_test.basic/31`).
+
+### Latent
+
+- `SDPAOclGenerator::supported()` admits bf16 for paged attention, but every compressed-cache path
+  assumes f16 (`as_half8(pA)` in `pa_v_comp_fold()` and the like). Only
+  `PagedAttentionOpt::validate_impl()`, which takes f32/f16 queries, keeps bf16 away.
+- The plain-SDPA i8 bias trick ("Dequantisation") is exact only for an integer zero point. Today it
+  is one: KV compression stores an i8 zp on XMX devices (`kv_cache_compression.cpp`), and
+  `sdpa_ocl` needs XMX. The int4 configuration keeps its zp in the query type, though, so
+  dispatching plain int4 would round the zp to the 1.0 ulp at 1152, and the 0.1 tolerance of the
+  kv_cache_sdpa tests would not notice.
+- Plain-SDPA int4 KV compiles an `sdpa_ocl` stage that `execute()` never dispatches.
+- `TEST_USE_SDPA_OCL=0` gives wrong MIXED results with the default cache: the K-page layout check
+  in `can_use_micro_sdpa_for()` is gated on `use_ocl`, so `sdpa_micro` MIXED is dispatched on the
+  token-major BY_CHANNEL page, which it reads d-major.
+- The duplicate-macro asserts in `common_utils/jitter.hpp` (`register_macro()` /
+  `unregister_macro()`) are commented out on this branch. Restored, they let a Debug build catch a
+  jit constant emitted twice.
+
+### Test failures that predate the refactor
+
+Measured on an Arc Pro B70 (Xe2), identical before and after the refactor:
+
+- `SDPAWithKVCacheTest.MultipleIterationStateful`, f16 with compressed KV at head 512
+  (`..._et=f16_num_iter=5_num_groups=4_..._compressed=1k_head=512v_head=512`): 4724 of 8192
+  elements wrong, max difference 0.99. The kernel compiled for it is the plain i8 KV-compressed
+  `sdpa_ocl` at head 512 with K/V block IO, which makes it the prime suspect. Not investigated.
+- The 14 bf16 compressed cases of the same test fail in `add_required_reorders` (no i8 layout for
+  `dynamicquantize`) before an SDPA implementation is chosen, so plain bf16 with compressed KV is
+  unreachable. `SDPAFusion.Inference/0` does not find the fused SDPA node.
+- Under `OV_GPU_PA_K_TOKEN_MAJOR=1`, `paged_attention_test.basic/149` and
+  `paged_attention_swa_partition_finalization_test.ignores_inactive_partition/0` miss the 0.002
+  tolerance by about 0.01.
+
+### Test coverage gaps
+
+No test reaches paged-attention bf16, a paged-attention runtime scale, qq_bias with an f16, u4 or
+BY_TOKEN cache, a compressed cache with token_type_ids, or the u4 scalar page arms (head 48, 96,
+112). `sdpa_ocl_decode` reaches `Q_PER_WG = 8` only under `SDPA_OCL_DECODE_M=8` (the GRF cap limits
+the test shapes to M <= 4), and even then no GENERATE test uses u4, so the u4 M = 8 kernel is only
+compiled. Lower-right causal masking is checked only by `sdpa_gpu_causal_mask` (cosine >= 0.99),
+and several suites check only finiteness, cache contents or cosine >= 0.95.
+
+### Performance opportunities
+
+Each needs its own measured change.
+
+- `sdpa_ocl_decode` checks pages with the strict `% 64` rule. The relaxed `% 16` page rule of the
+  MIXED kernel would give block reads to i8 heads 80, 96, 112 and f16 heads 48, 80.
+- MIXED looks each V page up twice per S*V key block (`pa_v_page_base()` for the comp and again
+  for the data), the K block reads use only the even entries of `k_page[]`, and the per-k0 K hoists
+  sit in up to three separate `if (from_cache)` blocks.
+- The single-element runtime mask is re-read for every logit, plain SDPA takes `d` as a runtime
+  argument although `K_HEAD_SIZE` is jitted, and the u4 V gather selects the nibble with `?:`
+  where a shift would do.
+- The S*V block trim past `k_chunk` and the Vc prefetch are u4 only (`IS_PA_K_U4 &&
+  PA_CUR_KV_F16`) and were never measured on i8 BY_CHANNEL MIXED.
+
+### Stale comments outside these files
+
+- `paged_attention.hpp`, `k_by_channel_token_major()`: `sdpa_ocl` MIXED "needs
+  `TEST_USE_SDPA_OCL=1`" (it is the default), rotate reads the page d-major (it reads the
+  token-major page), and the gate rejects head sizes above 256 (the limit is 512).
+- `paged_attention_opt.cpp`: `get_k_token_major()` says BY_CHANNEL stays d-major, and the MIXED
+  note in `can_use_micro_sdpa_for()` still expects `sdpa_ocl` to become the MIXED default.
+- `transformations_pipeline.cpp`: `sdpa_ocl_decode` "still rejects" qq_bias and token_type_ids (it
+  accepts both; only alibi is rejected), and scores / adaptive R-KV are named as the only consumers
+  that need the d-major page (see the first item under "Correctness").
+- `ocl_v2/pa_kv_reorder.cpp`: says BY_CHANNEL is always d-major.
+- `paged_attention_gpu_test.cpp`, `paged_attention_kv_head_size_uses_sdpa_ocl_test`: k != v MIXED
+  on pre-Xe2 "falls back to `sdpa_micro` / `pa_multi_token`"; the default selection leaves only
+  `pa_multi_token`.
+- `subgraph_tests/sdpa.cpp`, `SDPASplitHeadsPaddedView`: puts `block2d_layout_fixup_ok()` in
+  `sdpa_gen_ocl.cpp`; it lives in `sdpa_ocl_utils.hpp`.
