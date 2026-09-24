@@ -16,7 +16,7 @@
 namespace intel_npu {
 
 void enable_host_compile_if_needed(const std::shared_ptr<const ov::Model>& model,
-                                   FilteredConfig& config,
+                                   Config& config,
                                    const Logger& logger) {
     if (config.get<COMPILER_TYPE>() != ov::intel_npu::CompilerType::PLUGIN || config.has<COMPILATION_MODE>() ||
         config.get<DYNAMIC_SHAPE_TO_STATIC>()) {
@@ -54,8 +54,8 @@ void enable_host_compile_if_needed(const std::shared_ptr<const ov::Model>& model
         std::all_of(modelOutputs.begin(), modelOutputs.end(), hasFiniteUpperBounds);
 
     if (inputsDynamic && outputsDynamic && allPortsHaveFiniteUpperBounds) {
-        logger.info("NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' for fully-dynamic model (inputs "
-                    "and outputs both dynamic, static batch, other dimensions dynamic)");
+        logger.info("NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' for bounded dynamic 4D I/O "
+                    "model (inputs and outputs both dynamic, static batch, other dimensions dynamic)");
         config.update(ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter");
     }
 }

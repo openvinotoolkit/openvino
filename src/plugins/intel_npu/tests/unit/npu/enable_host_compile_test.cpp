@@ -2,20 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations.hpp"
-
 #include <gtest/gtest.h>
 
 #include <memory>
 
-#include "intel_npu/common/filtered_config.hpp"
+#include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
+#include "transformations.hpp"
 
 using namespace intel_npu;
 
@@ -35,8 +36,7 @@ std::shared_ptr<ov::Model> make_dynamic_input_static_output_model(const ov::Part
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param}, "shape_of_model");
 }
 
-std::shared_ptr<ov::Model> make_two_input_relu_model(const ov::PartialShape& shape0,
-                                                     const ov::PartialShape& shape1) {
+std::shared_ptr<ov::Model> make_two_input_relu_model(const ov::PartialShape& shape0, const ov::PartialShape& shape1) {
     auto param0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape0);
     auto relu0 = std::make_shared<ov::op::v0::Relu>(param0);
     auto result0 = std::make_shared<ov::op::v0::Result>(relu0);
@@ -50,24 +50,40 @@ std::shared_ptr<ov::Model> make_two_input_relu_model(const ov::PartialShape& sha
                                        "two_input_relu_model");
 }
 
+// Slice with a runtime (Parameter) stop keeps the static input while producing a bounded dynamic 4D output.
+std::shared_ptr<ov::Model> make_static_input_dynamic_output_model(const ov::PartialShape& shape) {
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+    auto start = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {0, 0, 0, 0});
+    auto step = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{4}, {1, 1, 1, 1});
+    auto stop = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{4});
+    auto slice = std::make_shared<ov::op::v8::Slice>(data, start, stop, step);
+    auto result = std::make_shared<ov::op::v0::Result>(slice);
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{data, stop}, "slice_model");
+}
+
+std::shared_ptr<ov::Model> make_no_input_model() {
+    auto constant = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 3, 16, 32}, {0.0f});
+    auto result = std::make_shared<ov::op::v0::Result>(constant);
+    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{}, "no_input_model");
+}
+
 class EnableHostCompileTest : public ::testing::Test {
 protected:
     EnableHostCompileTest() {
-        auto options = std::make_shared<OptionsDesc>();
-        options->add<COMPILER_TYPE>();
-        options->add<COMPILATION_MODE>();
-        options->add<DYNAMIC_SHAPE_TO_STATIC>();
-        config = std::make_unique<FilteredConfig>(options);
+        auto desc = std::make_shared<OptionsDesc>();
+        desc->add<COMPILER_TYPE>();
+        desc->add<COMPILATION_MODE>();
+        desc->add<DYNAMIC_SHAPE_TO_STATIC>();
+        config = std::make_unique<Config>(desc);
         config->update({{ov::intel_npu::compiler_type.name(), "PLUGIN"}});
     }
 
     bool run(const std::shared_ptr<const ov::Model>& model) {
         intel_npu::enable_host_compile_if_needed(model, *config, Logger("EnableHostCompileTest", ov::log::Level::NO));
-        return config->has<COMPILATION_MODE>() &&
-               config->get<COMPILATION_MODE>() == "HostCompile_Interpreter";
+        return config->has<COMPILATION_MODE>() && config->get<COMPILATION_MODE>() == "HostCompile_Interpreter";
     }
 
-    std::unique_ptr<FilteredConfig> config;
+    std::unique_ptr<Config> config;
 };
 
 constexpr int64_t UPPER_BOUND = 224;
@@ -82,6 +98,10 @@ ov::Dimension unbounded() {
 
 TEST_F(EnableHostCompileTest, BoundedDynamicFourDimensionalInputAndOutputEnableHostCompile) {
     EXPECT_TRUE(run(make_relu_model({1, bounded(), 16, 32})));
+}
+
+TEST_F(EnableHostCompileTest, DynamicSpatialDimensionsEnableHostCompile) {
+    EXPECT_TRUE(run(make_relu_model({1, 3, bounded(), bounded()})));
 }
 
 TEST_F(EnableHostCompileTest, NonPluginCompilerDoesNotEnableHostCompile) {
@@ -119,6 +139,10 @@ TEST_F(EnableHostCompileTest, DynamicBatchDoesNotEnableHostCompile) {
     EXPECT_FALSE(run(make_relu_model({bounded(), 3, 16, 32})));
 }
 
+TEST_F(EnableHostCompileTest, DynamicBatchWithDynamicSpatialDoesNotEnableHostCompile) {
+    EXPECT_FALSE(run(make_relu_model({bounded(), 3, bounded(), 32})));
+}
+
 TEST_F(EnableHostCompileTest, UnboundedDimensionDoesNotEnableHostCompile) {
     EXPECT_FALSE(run(make_relu_model({1, unbounded(), 16, 32})));
 }
@@ -127,10 +151,22 @@ TEST_F(EnableHostCompileTest, StaticOutputDoesNotEnableHostCompile) {
     EXPECT_FALSE(run(make_dynamic_input_static_output_model({1, bounded(), 16, 32})));
 }
 
+TEST_F(EnableHostCompileTest, StaticInputDynamicOutputDoesNotEnableHostCompile) {
+    EXPECT_FALSE(run(make_static_input_dynamic_output_model({1, 3, 16, 32})));
+}
+
 TEST_F(EnableHostCompileTest, UnboundedAdditionalPortDoesNotEnableHostCompile) {
     const auto model = make_two_input_relu_model({1, bounded(), 16, 32}, {1, unbounded(), 16, 32});
 
     EXPECT_FALSE(run(model));
+}
+
+TEST_F(EnableHostCompileTest, MultipleDynamicOutputsEnableHostCompile) {
+    EXPECT_TRUE(run(make_two_input_relu_model({1, bounded(), 16, 32}, {1, 3, bounded(), bounded()})));
+}
+
+TEST_F(EnableHostCompileTest, NoInputModelDoesNotEnableHostCompile) {
+    EXPECT_FALSE(run(make_no_input_model()));
 }
 
 }  // namespace
