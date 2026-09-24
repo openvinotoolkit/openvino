@@ -398,7 +398,6 @@ struct EngineInfo {
     bool bOptHintsSupport = false;
     bool supports_microkernels = false;
     bool supports_work_group_collective_functions = false;
-    bool supports_non_uniform_work_group = false;
     bool supports_register_file_size_option = false;
     uint32_t vendor_id = 0x0;
     dev_type deviceType = dev_type::integrated_gpu;
@@ -644,8 +643,9 @@ struct fused_operation_desc {
     template<typename T>
     std::shared_ptr<T> GetOpParams() const {
         auto p = std::dynamic_pointer_cast<T>(op_params);
-        if (!p)
+        if (!p) {
             throw std::runtime_error("Invalid dynamic cast of fused operation parameters");
+        }
 
         return p;
     }
@@ -693,8 +693,9 @@ struct base_params : public Params {
             if (tensor.is_dynamic()) {
                 offset += DataTensor::max_rank();
                 for (auto dim : tensor.GetDims()) {
-                    if (dim.pad.is_dynamic)
+                    if (dim.pad.is_dynamic) {
                         offset += Tensor::Pad::NumPadOffsetsPerDim();
+                    }
                 }
             }
         };
@@ -702,8 +703,9 @@ struct base_params : public Params {
             update_offset(in);
         }
         for (auto& fd : fused_ops) {
-            if (!fd.has_outer_dep())
+            if (!fd.has_outer_dep()) {
                 continue;
+            }
             auto& fused_op_inputs = fd.tensors;
             for (auto& fused_input : fused_op_inputs) {
                 update_offset(fused_input);

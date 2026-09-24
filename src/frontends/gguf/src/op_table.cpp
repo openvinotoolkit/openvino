@@ -22,9 +22,7 @@
 #include "openvino/op/tanh.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 std::unordered_map<std::string, CreatorFunction> get_supported_ops() {
     using namespace ov::op;
@@ -70,6 +68,7 @@ std::unordered_map<std::string, CreatorFunction> get_supported_ops() {
         {"GGML_OP_SQR", op::translate_sqr},
         {"GGML_OP_SQRT", op::translate_sqrt},
         {"GGML_OP_SSM_CONV", op::translate_ssm_conv},
+        {"GGML_OP_SSM_SCAN", op::translate_ssm_scan},
         {"GGML_OP_SUB", op::translate_1to1_match_2_inputs<v1::Subtract>},
         {"GGML_OP_SUM_ROWS", op::translate_sum_rows},
         {"GGML_OP_TOP_K", op::translate_top_k},
@@ -89,6 +88,4 @@ std::unordered_map<std::string, CreatorFunction> get_supported_ops() {
     };
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

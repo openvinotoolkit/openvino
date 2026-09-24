@@ -699,15 +699,17 @@ void reorder_inputs::run(program& p, reorder_factory& rf) {
                         auto expected_format = format::any;
 
                         if (data_type_traits::is_i8_u8(d_layout.data_type)) {
-                            if (d_format == format::b_fs_yx_fsv16)
+                            if (d_format == format::b_fs_yx_fsv16) {
                                 expected_format = format::b_fs_yx_fsv32;
-                            else if (d_format == format::bs_fs_yx_bsv32_fsv16)
+                            } else if (d_format == format::bs_fs_yx_bsv32_fsv16) {
                                 expected_format = format::bs_fs_yx_bsv32_fsv32;
+                            }
                         } else if (data_type_traits::is_floating_point(d_layout.data_type)) {
-                            if (d_format == format::b_fs_yx_fsv32)
+                            if (d_format == format::b_fs_yx_fsv32) {
                                 expected_format = format::b_fs_yx_fsv16;
-                            else if (d_format == format::bs_fs_yx_bsv32_fsv32)
+                            } else if (d_format == format::bs_fs_yx_bsv32_fsv32) {
                                 expected_format = format::bs_fs_yx_bsv32_fsv16;
+                            }
                         }
 
                         if (expected_format != format::any && d_layout.format != expected_format) {

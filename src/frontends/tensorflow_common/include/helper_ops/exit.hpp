@@ -9,9 +9,7 @@
 #include "internal_operation.hpp"
 #include "tf_utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
+namespace ov::frontend::tensorflow {
 
 // Internal operation for Exit that marks exit point for data going from Loop in the graph
 // It is used along with Enter operation
@@ -40,6 +38,4 @@ public:
     }
 };
 
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow

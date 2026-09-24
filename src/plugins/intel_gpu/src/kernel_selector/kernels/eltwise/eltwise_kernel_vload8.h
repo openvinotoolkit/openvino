@@ -24,5 +24,6 @@ public:
 protected:
     bool Validate(const Params& p) const override;
     JitConstants GetJitConstants(const eltwise_params& params) const override;
+    std::string GetVload8InputIndex(const eltwise_params& params, size_t input_idx) const override;
 };
 }  // namespace kernel_selector

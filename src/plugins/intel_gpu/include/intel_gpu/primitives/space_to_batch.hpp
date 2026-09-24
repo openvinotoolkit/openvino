@@ -81,8 +81,9 @@ struct space_to_batch : public primitive_base<space_to_batch> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const space_to_batch>(rhs);
 
