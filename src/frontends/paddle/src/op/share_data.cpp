@@ -4,10 +4,7 @@
 
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs share_data(const NodeContext& node) {
     auto x = node.get_input("X");
     PADDLE_OP_CHECK(node,
@@ -18,7 +15,4 @@ NamedOutputs share_data(const NodeContext& node) {
     return named_outputs;
 }
 
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

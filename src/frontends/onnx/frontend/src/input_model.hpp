@@ -17,9 +17,7 @@
 
 using ::ONNX_NAMESPACE::ModelProto;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 
 class InputModel : public ov::frontend::InputModel {
 public:
@@ -162,6 +160,4 @@ public:
 };
 }  // namespace unify
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

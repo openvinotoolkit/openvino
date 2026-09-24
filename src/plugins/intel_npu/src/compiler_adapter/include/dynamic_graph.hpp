@@ -20,7 +20,7 @@ class DynamicGraph final : public IGraph {
 public:
     DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                  ov::Tensor blob,
-                 const FilteredConfig& config,
+                 const Config& config,
                  BlobType blobType = BlobType::LLVM);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
@@ -57,11 +57,10 @@ public:
     BlobType get_blob_type() const override;
 
 private:
-    void initialize_impl(const FilteredConfig& config) override;
-
-    bool release_blob(const FilteredConfig& config);
-    void initialize_engine(const FilteredConfig& config);
-    void create_execution_engine(const FilteredConfig& config);
+    void initialize_impl(const Config& config) override;
+    bool release_blob(const Config& config);
+    void initialize_engine(const Config& config);
+    void create_execution_engine(const Config& config);
     void prepare_metadata();
 
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
