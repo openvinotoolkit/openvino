@@ -17,8 +17,9 @@ class Node;
 
 namespace ov::frontend::gguf {
 
-// Element type of the zero-point constant for an asymmetric quantized weight. Both ingest
-// paths must agree on this: it decides whether the CPU folds the dequant into the MatMul.
+// Element type of the zero-point constant for an asymmetric quantized weight.
+// Q2_0 always uses u8. The raw-byte Q8_0_C requantization path separately uses temporary f16
+// zero-points for its host dequantizer, including Q2_0 embedding/output tensors.
 // Q4_K matmul weights are faithfully decoded and requantized to u4 with an integer zero-point,
 // which keeps the CPU compressed-FullyConnected path available. Q4_K tensors selected for the
 // channel-wise Q8_0_C path retain an f16 zero-point while feeding that separate requantization.
