@@ -407,8 +407,6 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         }
     }
 
-    std::cout << "before wa" << std::endl;
-
     // FIXME: E-177589
     // FIXME: "fixes"/workarounds caching import on CPU (also might be related to bf16 weights).
     // Unclear how it's related. Previously fill_tensor()
@@ -449,7 +447,6 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
 
     m_llm_profile.report_on_die = ov::npuw::profiling_enabled();
     m_llm_profile.area = "LLM/execution";
-    std::cout << "Initialized" << std::endl;
 }
 
 bool ov::npuw::LLMInferRequest::use_longrope_prefix_cache(const ov::SoPtr<ov::ITensor>& position_ids) const {
