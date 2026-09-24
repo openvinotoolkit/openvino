@@ -8,10 +8,7 @@
 #include "utils/pooling_factory.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 namespace opset_1 {
 ov::OutputVector max_pool(const ov::frontend::onnx::Node& node) {
     if (node.get_outputs_size() > 1) {
@@ -31,7 +28,4 @@ ov::OutputVector max_pool(const ov::frontend::onnx::Node& node) {
 }
 ONNX_OP("MaxPool", OPSET_SINCE(8), ai_onnx::opset_8::max_pool);
 }  // namespace opset_8
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

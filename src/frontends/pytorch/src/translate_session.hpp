@@ -8,9 +8,7 @@
 #include "openvino/frontend/extension/telemetry.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
+namespace ov::frontend::pytorch {
 
 /// For one call of convert and decode method of Frontend, it creates one TranslateSession object to save data for the
 /// translation session: telemetry statistics, operation translators (including extensions) registered for this
@@ -37,7 +35,8 @@ public:
     /// \brief Returns reverseprop operations for direct operation
     Output<Node> get_reverseprop_op(const std::shared_ptr<TorchDecoder>& node,
                                     const Output<Node>& direct_op_output,
-                                    const Output<Node>& value);
+                                    const Output<Node>& value,
+                                    const Output<Node>& base = {});
 
     /// \brief Writes pytorch tensor index into openvino tensor
     void encode_tensor_name(Output<Node> tensor_desc,
@@ -47,9 +46,16 @@ public:
     /// \brief Gets pytorch tensor index from openvino tensor
     size_t decode_tensor_name(const Output<Node>& tensor_desc);
 
-    // Maps tensor index to initial tensor index which it is alias to, and to decoder of the node produced this alias
-    // and to the output produced during conversion of this node
-    std::map<size_t, std::tuple<size_t, std::shared_ptr<TorchDecoder>, Output<Node>>> m_may_be_alias;
+    struct AliasInfo {
+        size_t base_id;
+        std::shared_ptr<TorchDecoder> decoder;
+        Output<Node> output;
+        // Base value used to convert and replay a view.
+        Output<Node> base_value;
+        // Constructed containers hold references to distinct tensors, not views of input 0.
+        std::vector<size_t> element_ids;
+    };
+    std::map<size_t, AliasInfo> m_may_be_alias;
 
     OutputVector convert_node(const NodeContext& context);
 
@@ -61,8 +67,8 @@ private:
 
     std::map<size_t, std::pair<size_t, Output<Node>>> m_counter_map;
     std::map<std::string, uint64_t> m_op_statistics;
+    // Set per converted graph in convert_pytorch_model; the decoder type never varies within one.
+    bool m_is_fx = false;
 };
 
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch

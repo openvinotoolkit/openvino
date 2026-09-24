@@ -109,8 +109,14 @@ function(ov_add_target)
     # adding files to target
     if(ARG_SOURCES)
         # Explicit list provided — skip glob entirely
-        set(includes)
+        set(includes ${ARG_SOURCES})
+        list(FILTER includes INCLUDE REGEX "\\.(h|hpp)$")
+
         set(sources ${ARG_SOURCES})
+        list(FILTER sources EXCLUDE REGEX "\\.(h|hpp)$")
+
+        source_group("include" FILES ${includes})
+        source_group("src" FILES ${sources})
     elseif(ARG_ROOT)
         set(includeSearch)
         set(sourceSearch)
@@ -201,6 +207,7 @@ function(ov_add_test_target_per_source)
 
     set(options
         GTEST_DISCOVER
+        ADD_CLANG_FORMAT
     )
     set(oneValueRequiredArgs
         NAME
@@ -212,6 +219,9 @@ function(ov_add_test_target_per_source)
         INCLUDES
         # accept but ignore
         DEPENDENCIES
+        DEFINES
+        LINK_LIBRARIES_WHOLE_ARCHIVE
+        LINK_FLAGS
     )
     cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs}" "${multiValueArgs}" ${ARGN})
 

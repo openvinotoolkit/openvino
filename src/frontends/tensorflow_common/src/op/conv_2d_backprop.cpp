@@ -12,10 +12,7 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 
 OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
     default_op_checks(node, 3, {"Conv2DBackpropInput", "TRANSPOSE_CONV"});
@@ -113,7 +110,4 @@ OutputVector translate_conv_2d_backprop_input_op(const NodeContext& node) {
     set_node_name(node.get_name(), conv_backprop_output.get_node_shared_ptr());
     return {conv_backprop_output};
 }
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

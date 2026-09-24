@@ -297,8 +297,9 @@ struct format {
     }
     /// @brief Checks if @p format is weights format
     static bool is_weights_format(const format& fmt) {
-        if (fmt == format::custom)
+        if (fmt == format::custom) {
             return true;
+        }
         const auto internal_order = fmt.traits().internal_order;
         const auto weights_chars = { "o", "i" };
         for (const auto& c : weights_chars) {
@@ -325,8 +326,9 @@ struct format {
             auto c = o_order[i];
             auto pos = i_order.find(c);
 
-            if (pos == std::string::npos)
+            if (pos == std::string::npos) {
                 OPENVINO_THROW("Unknown coord type: " + std::to_string(c));
+            }
 
             i_dims.push_back(pos);
         }
@@ -341,7 +343,7 @@ struct format {
 
     static const std::vector<std::pair<size_t, int>> per_axis_block_size(format fmt);
 
-    static format find_format(const std::vector<uint64_t>& order,
+    static format find_format(const std::vector<size_t>& order,
                               const std::vector<std::pair<size_t, int>>& block_sizes,
                               bool is_weights = false,
                               bool is_grouped = false,
@@ -371,7 +373,9 @@ struct format {
     /// @brief Returns number of group dimensions.
     size_t group_num() const { return traits().group_num; }
     /// @brief Returns an order of dimensions.
-    const std::vector<uint64_t>& dims_order() const { return traits()._order; }
+    const std::vector<size_t>& dims_order() const {
+        return traits()._order;
+    }
     /// @brief Returns an order of dimensions in form of string.
     const std::string& order() const { return traits().order; }
     /// @brief Returns an internal orders of dimensions form of string.
@@ -395,8 +399,9 @@ struct format {
     /// @brief Transforms dimension from internal order to external order
     size_t internal_to_external(size_t idx) const {
         auto index = order().find_first_of(internal_order()[idx]);
-        if (index == std::string::npos)
+        if (index == std::string::npos) {
             throw std::invalid_argument("Internal dimension index does not map to external index.");
+        }
         return index;
     }
 

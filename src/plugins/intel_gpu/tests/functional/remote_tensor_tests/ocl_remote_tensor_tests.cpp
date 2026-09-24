@@ -8,11 +8,19 @@
 #include <filesystem>
 #include <fstream>
 
+#if !defined(_WIN32)
+# include <fcntl.h>
+# include <sys/mman.h>
+# include <unistd.h>
+#endif
+
 #include "openvino/core/preprocess/pre_post_process.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/relu.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/runtime/intel_gpu/ocl/ocl.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
@@ -66,6 +74,124 @@ std::ostream& operator<<(std::ostream& stream, RemoteTensorSharingType sharing_t
     return stream;
 }
 }  // namespace
+
+class OVRemotePermuteOutput_Test : public ov::test::TestsCommon, public testing::WithParamInterface<bool> {
+protected:
+    void* memory_handle(ov::Tensor tensor) {
+        if (GetParam()) {
+            auto usm_tensor = tensor.as<ov::intel_gpu::ocl::USMTensor>();
+            return usm_tensor.get();
+        }
+        auto buffer_tensor = tensor.as<ov::intel_gpu::ocl::ClBufferTensor>();
+        return buffer_tensor.get();
+    }
+
+    ov::CompiledModel compile_model(ov::Core& core, const ov::RemoteContext& context) {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, -1});
+        auto producer = std::make_shared<ov::op::v0::Relu>(input);
+        auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 2, 1});
+        auto permute = std::make_shared<ov::op::v1::Transpose>(producer, order);
+        permute->set_friendly_name("permute");
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{permute}, ov::ParameterVector{input});
+        return core.compile_model(model, context, {ov::hint::inference_precision(ov::element::f32)});
+    }
+
+    void infer_and_check(ov::InferRequest& request,
+                         const ov::Shape& input_shape,
+                         const std::vector<float>& input_values,
+                         const std::vector<float>& expected) {
+        SCOPED_TRACE(testing::PrintToString(input_shape));
+        ov::Tensor input(ov::element::f32, input_shape);
+        ASSERT_EQ(input.get_size(), input_values.size());
+        std::copy(input_values.begin(), input_values.end(), input.data<float>());
+        request.set_input_tensor(input);
+        request.infer();
+        auto output = request.get_output_tensor();
+        EXPECT_EQ(output.get_shape(), (ov::Shape{input_shape[0], input_shape[2], input_shape[1]}));
+        expect_values(output, expected);
+        for (size_t index = 0; index < input_values.size(); ++index) {
+            EXPECT_FLOAT_EQ(input.data<float>()[index], input_values[index]) << "Input index " << index;
+        }
+    }
+
+    void expect_values(const ov::Tensor& tensor, const std::vector<float>& expected) {
+        ov::Tensor actual(ov::element::f32, tensor.get_shape());
+        tensor.copy_to(actual);
+        ASSERT_EQ(actual.get_size(), expected.size());
+        for (size_t index = 0; index < expected.size(); ++index) {
+            EXPECT_FLOAT_EQ(actual.data<float>()[index], expected[index]) << "Output index " << index;
+        }
+    }
+};
+
+TEST_P(OVRemotePermuteOutput_Test, plugin_owned_output_grows_while_bound) {
+    ov::Core core;
+    auto context = core.get_default_context(ov::test::utils::DEVICE_GPU).as<ov::intel_gpu::ocl::ClContext>();
+    OpenCL opencl(context);
+    if (GetParam() && !opencl.supports_usm()) {
+        GTEST_SKIP() << "USM is not supported";
+    }
+    auto compiled_model = compile_model(core, context);
+    auto request = compiled_model.create_infer_request();
+    auto output = GetParam() ? context.create_usm_host_tensor(ov::element::f32, {1, 3, 1})
+                             : context.create_tensor(ov::element::f32, {1, 3, 1});
+    request.set_output_tensor(output);
+    infer_and_check(request, {1, 1, 3}, {1, 2, 3}, {1, 2, 3});
+
+    const auto original_handle = memory_handle(output);
+    output.set_shape({1, 3, 2});
+    EXPECT_NE(memory_handle(output), original_handle);
+    infer_and_check(request, {1, 2, 3}, {4, 5, 6, 7, 8, 9}, {4, 7, 5, 8, 6, 9});
+    EXPECT_EQ(memory_handle(request.get_output_tensor()), memory_handle(output));
+
+    output.set_shape({1, 6, 1});
+    infer_and_check(request, {1, 1, 6}, {10, 11, 12, 13, 14, 15}, {10, 11, 12, 13, 14, 15});
+    EXPECT_EQ(memory_handle(request.get_output_tensor()), memory_handle(output));
+}
+
+TEST_P(OVRemotePermuteOutput_Test, imported_output_reshapes_without_reallocation) {
+    ov::Core core;
+    auto context = core.get_default_context(ov::test::utils::DEVICE_GPU).as<ov::intel_gpu::ocl::ClContext>();
+    OpenCL opencl(context);
+    if (GetParam() && !opencl.supports_usm()) {
+        GTEST_SKIP() << "USM is not supported";
+    }
+    const size_t bytes = 6 * sizeof(float);
+    auto free_usm = [&opencl](void* memory) { opencl.free_mem(memory); };
+    std::unique_ptr<void, decltype(free_usm)> usm(GetParam() ? opencl.allocate_usm_host_buffer(bytes) : nullptr, free_usm);
+    cl::Buffer buffer;
+    if (!GetParam()) {
+        buffer = cl::Buffer(opencl._context, CL_MEM_READ_WRITE, bytes);
+    }
+    auto compiled_model = compile_model(core, context);
+    auto request = compiled_model.create_infer_request();
+    ov::RemoteTensor output;
+    if (GetParam()) {
+        output = context.create_tensor(ov::element::f32, {1, 6, 1}, usm.get());
+    } else {
+        output = context.create_tensor(ov::element::f32, {1, 6, 1}, buffer);
+    }
+    const auto original_handle = memory_handle(output);
+    request.set_output_tensor(output);
+    infer_and_check(request, {1, 1, 6}, {1, 2, 3, 4, 5, 6}, {1, 2, 3, 4, 5, 6});
+
+    output.set_shape({1, 3, 2});
+    infer_and_check(request, {1, 2, 3}, {7, 8, 9, 10, 11, 12}, {7, 10, 8, 11, 9, 12});
+    EXPECT_EQ(memory_handle(output), original_handle);
+    EXPECT_EQ(memory_handle(request.get_output_tensor()), original_handle);
+
+    output.set_shape({1, 6, 1});
+    const std::vector<float> retained_values{13, 14, 15, 16, 17, 18};
+    infer_and_check(request, {1, 1, 6}, retained_values, retained_values);
+    EXPECT_EQ(memory_handle(output), original_handle);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         OVRemotePermuteOutput_Test,
+                         testing::Bool(),
+                         [](const testing::TestParamInfo<bool>& info) {
+                             return info.param ? "USMHost" : "OpenCLBuffer";
+                         });
 
 using RemoteTensorSharingTestOptionsParams = std::tuple<RemoteTensorSharingType, bool /*auto-batching*/, bool /*dynamic*/>;
 
@@ -3107,6 +3233,155 @@ TEST(GpuRemoteTensorFromCpu, smoke_allocAlignedCPUMemory) {
     ov::util::aligned_free(input_ptr);
     ov::util::aligned_free(output_ptr);
 }
+
+TEST(GpuRemoteTensorFromCpu, smoke_reuseImportOfSameCPUMemory) {
+    ov::Core core;
+    std::string target_device = ov::test::utils::DEVICE_GPU;
+    uint32_t cacheline_size = core.get_property(target_device, ov::intel_gpu::cacheline_size);
+    ASSERT_GT(cacheline_size, 0u);
+    const ov::Shape shape{cacheline_size / sizeof(float)};
+    const size_t byte_size = ov::shape_size(shape) * sizeof(float);
+    auto ctx = core.get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
+    void* input_ptr = ov::util::aligned_alloc(byte_size, cacheline_size);
+
+    {
+        auto first_tensor =
+            ctx.create_tensor(ov::element::f32,
+                              shape,
+                              ov::intel_gpu::VirtualAddressMemory(input_ptr, static_cast<int64_t>(byte_size)));
+        auto second_tensor =
+            ctx.create_tensor(ov::element::f32,
+                              shape,
+                              ov::intel_gpu::VirtualAddressMemory(input_ptr, static_cast<int64_t>(byte_size)));
+
+        // Both tensors are alive, so the second import is expected to be served from the context memory cache.
+        EXPECT_EQ(first_tensor.get(), second_tensor.get());
+    }
+
+    ov::util::aligned_free(input_ptr);
+}
+
+#if !defined(_WIN32)
+// Regression test for a cached host pointer import which outlived every tensor that wrapped it: once the
+// application maps another file over the same virtual address range, the cache key repeats
+// (pointer, size, access mode, shape and element type are all unchanged), so a context lifetime entry
+// would hand out the buffer imported for the previous file instead of importing the new one.
+class GpuRemoteTensorFromRecycledMapping : public ::testing::Test {
+protected:
+    // Page aligned pointer and a size which is a multiple of any device cacheline size, as host pointer import requires
+    static constexpr size_t buffer_size = 64 * 1024;
+
+    std::filesystem::path m_first_file;
+    std::filesystem::path m_second_file;
+    void* m_mapping = nullptr;
+    void* m_output_ptr = nullptr;
+
+    void SetUp() override {
+        const auto prefix = ov::test::utils::generateTestFilePrefix();
+        m_first_file = prefix + "_first.bin";
+        m_second_file = prefix + "_second.bin";
+    }
+
+    void TearDown() override {
+        if (m_mapping != nullptr)
+            munmap(m_mapping, buffer_size);
+        if (m_output_ptr != nullptr)
+            ov::util::aligned_free(m_output_ptr);
+        std::error_code ec;
+        std::filesystem::remove(m_first_file, ec);
+        std::filesystem::remove(m_second_file, ec);
+    }
+
+    static void write_file(const std::filesystem::path& path, const std::vector<float>& values) {
+        std::ofstream file(path, std::ios::binary);
+        file.write(reinterpret_cast<const char*>(values.data()), values.size() * sizeof(float));
+    }
+
+    // MAP_FIXED replaces the previously mapped file at the very same address atomically, so the pointer the import
+    // is keyed on is guaranteed to be reused and there is no unmapped gap in between.
+    void map_over_reservation(const std::filesystem::path& path) {
+        const int fd = open(path.c_str(), O_RDWR);
+        ASSERT_NE(fd, -1);
+        void* ptr = mmap(m_mapping, buffer_size, PROT_READ | PROT_WRITE, MAP_FIXED | MAP_PRIVATE, fd, 0);
+        close(fd);
+        ASSERT_NE(ptr, MAP_FAILED);
+        ASSERT_EQ(ptr, m_mapping);
+    }
+};
+
+TEST_F(GpuRemoteTensorFromRecycledMapping, smoke_remappedFileIsNotServedFromCache) {
+    ov::Core core;
+    std::string target_device = ov::test::utils::DEVICE_GPU;
+    const ov::Shape shape{buffer_size / sizeof(float)};
+    const size_t element_count = ov::shape_size(shape);
+
+    std::vector<float> first_values(element_count);
+    std::vector<float> second_values(element_count);
+    for (size_t i = 0; i < element_count; ++i) {
+        first_values[i] = static_cast<float>(i + 1);
+        second_values[i] = -static_cast<float>(i + 1);
+    }
+    write_file(m_first_file, first_values);
+    write_file(m_second_file, second_values);
+
+    // Reserve the range once, so both files can be mapped at exactly the same address
+    m_mapping = mmap(nullptr, buffer_size, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    ASSERT_NE(m_mapping, MAP_FAILED);
+
+    uint32_t cacheline_size = core.get_property(target_device, ov::intel_gpu::cacheline_size);
+    ASSERT_GT(cacheline_size, 0u);
+    ASSERT_EQ(buffer_size % cacheline_size, 0u);
+    auto ctx = core.get_default_context(target_device).as<ov::intel_gpu::ocl::ClContext>();
+    m_output_ptr = ov::util::aligned_alloc(buffer_size, cacheline_size);
+
+    // The mapping is imported with CL_MEM_USE_HOST_PTR, so a host side read may return the content of the currently
+    // mapped file even when the device still sees the pages of the previously mapped one.
+    auto copy_mapping_on_device = [&]() {
+        std::fill_n(static_cast<float*>(m_output_ptr), element_count, 0.0f);
+        auto input_tensor = ctx.create_tensor(
+            ov::element::f32,
+            shape,
+            ov::intel_gpu::VirtualAddressMemory(m_mapping,
+                                                static_cast<int64_t>(buffer_size),
+                                                ov::intel_gpu::AccessMode::READ));
+        auto output_tensor =
+            ctx.create_tensor(ov::element::f32,
+                              shape,
+                              ov::intel_gpu::VirtualAddressMemory(m_output_ptr, static_cast<int64_t>(buffer_size)));
+
+        auto model = make_copy_model(shape);
+        auto compiled = core.compile_model(model, ctx);
+        auto infer_req = compiled.create_infer_request();
+        infer_req.set_tensor(compiled.input(), input_tensor);
+        infer_req.set_tensor(compiled.output(), output_tensor);
+        infer_req.infer();
+
+        const auto* output_values = static_cast<const float*>(m_output_ptr);
+        return std::vector<float>(output_values, output_values + element_count);
+    };
+
+    ASSERT_NO_FATAL_FAILURE(map_over_reservation(m_first_file));
+    const auto first_result = copy_mapping_on_device();
+    for (size_t i = 0; i < element_count; ++i) {
+        ASSERT_FLOAT_EQ(first_result[i], first_values[i]) << "Mismatch at index " << i;
+    }
+
+    ASSERT_NO_FATAL_FAILURE(map_over_reservation(m_second_file));
+    const auto second_result = copy_mapping_on_device();
+    for (size_t i = 0; i < element_count; ++i) {
+        ASSERT_FLOAT_EQ(second_result[i], second_values[i]) << "Mismatch at index " << i;
+    }
+
+    // Finally drop the mapping the entries were keyed on while keeping the address reserved and inaccessible.
+    ASSERT_NE(mmap(m_mapping, buffer_size, PROT_NONE, MAP_FIXED | MAP_PRIVATE | MAP_ANONYMOUS, -1, 0), MAP_FAILED);
+    ASSERT_THROW(ctx.create_tensor(ov::element::f32,
+                                   shape,
+                                   ov::intel_gpu::VirtualAddressMemory(m_mapping,
+                                                                       static_cast<int64_t>(buffer_size),
+                                                                       ov::intel_gpu::AccessMode::READ)),
+                 ov::Exception);
+}
+#endif  // !defined(_WIN32)
 
 
 using MmapFileMemoryParams = std::tuple<std::size_t, std::size_t>;
