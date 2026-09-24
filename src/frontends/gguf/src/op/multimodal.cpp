@@ -197,8 +197,8 @@ OutputVector translate_win_part(const NodeContext& context) {
                                             std::make_shared<v0::Concat>(OutputVector{c({0}), padding, c({0})}, 0),
                                             PadMode::CONSTANT);
     auto size = std::make_shared<v1::Divide>(get_dimensions(padded, {1, 2}), c({window, window}), true);
-    auto split = std::make_shared<v8::Gather>(size, c({0}), c({0}));
-    auto split_w = std::make_shared<v8::Gather>(size, c({1}), c({0}));
+    auto split = gather_dims(size, {0});
+    auto split_w = gather_dims(size, {1});
     auto pattern = std::make_shared<v0::Concat>(
         OutputVector{gather_dims(x_shape, {0}), split, c({window}), split_w, c({window}), gather_dims(x_shape, {3})},
         0);
@@ -224,8 +224,8 @@ OutputVector translate_win_unpart(const NodeContext& context) {
     auto blocks = std::make_shared<v1::Divide>(std::make_shared<v1::Add>(spatial, c({window - 1, window - 1})),
                                                c({window, window}),
                                                true);
-    auto h = std::make_shared<v8::Gather>(blocks, c({0}), c({0}));
-    auto w = std::make_shared<v8::Gather>(blocks, c({1}), c({0}));
+    auto h = gather_dims(blocks, {0});
+    auto w = gather_dims(blocks, {1});
     auto pattern = std::make_shared<v0::Concat>(
         OutputVector{gather_dims(reference_shape, {0}), h, w, c({window, window}), gather_dims(x_shape, {3})},
         0);

@@ -25,6 +25,7 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/variable.hpp"
+#include "transformations/utils/utils.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::pass {
@@ -161,8 +162,8 @@ void normalize_gdn_state(const std::shared_ptr<ov::op::v0::Parameter>& state,
         ov::as_type_ptr<v1::Transpose>(state->output(0).get_target_inputs().begin()->get_node()->shared_from_this());
     if (!transpose || transpose->output(0).get_target_inputs().size() != 1)
         return;
-    const auto order = ov::as_type_ptr<v0::Constant>(transpose->get_input_node_shared_ptr(1));
-    if (!order || order->cast_vector<int64_t>() != std::vector<int64_t>{0, 1, 3, 2})
+    const std::vector<int64_t> order{0, 1, 3, 2};
+    if (!ov::op::util::has_constant_value(transpose->get_input_node_shared_ptr(1), order))
         return;
     const auto consumer = *transpose->output(0).get_target_inputs().begin();
     const auto gdn = ov::as_type_ptr<internal::GatedDeltaNet>(consumer.get_node()->shared_from_this());
@@ -172,10 +173,8 @@ void normalize_gdn_state(const std::shared_ptr<ov::op::v0::Parameter>& state,
     if (const auto reshape = ov::as_type_ptr<v1::Reshape>(update.get_node_shared_ptr()))
         update = reshape->input_value(0);
     const auto inverse = ov::as_type_ptr<v1::Transpose>(update.get_node_shared_ptr());
-    if (!inverse || inverse->input_value(0) != gdn->output(1))
-        return;
-    const auto inverse_order = ov::as_type_ptr<v0::Constant>(inverse->get_input_node_shared_ptr(1));
-    if (!inverse_order || inverse_order->cast_vector<int64_t>() != order->cast_vector<int64_t>())
+    if (!inverse || inverse->input_value(0) != gdn->output(1) ||
+        !ov::op::util::has_constant_value(inverse->get_input_node_shared_ptr(1), order))
         return;
     const auto shape = transpose->get_output_partial_shape(0);
     transpose->output(0).replace(state->output(0));

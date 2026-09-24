@@ -17,6 +17,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
+#include "transformations/utils/utils.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
@@ -162,12 +163,10 @@ OutputVector translate_view(const NodeContext& context) {
             const auto flat_state = ov::as_type_ptr<ov::op::v1::Reshape>(concat->get_input_node_shared_ptr(1));
             const auto transposed_state =
                 flat_state ? ov::as_type_ptr<ov::op::v1::Transpose>(flat_state->get_input_node_shared_ptr(0)) : nullptr;
-            const auto order =
-                transposed_state ? ov::as_type_ptr<ov::op::v0::Constant>(transposed_state->get_input_node_shared_ptr(1))
-                                 : nullptr;
             if (fused && flat->input_value(0) == fused->output(0) && transposed_state &&
-                transposed_state->input_value(0) == fused->output(1) && order &&
-                order->cast_vector<int64_t>() == std::vector<int64_t>{0, 1, 3, 2} &&
+                transposed_state->input_value(0) == fused->output(1) &&
+                ov::op::util::has_constant_value<int64_t>(transposed_state->get_input_node_shared_ptr(1),
+                                                          std::vector<int64_t>{0, 1, 3, 2}) &&
                 fused->get_output_partial_shape(0)[3] == s_v) {
                 ov::Output<ov::Node> value = fused->output(part);
                 if (part == 1)

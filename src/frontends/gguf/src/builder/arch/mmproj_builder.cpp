@@ -357,9 +357,11 @@ private:
                        lo ? lo : bound(default_clip_min, "mmproj.clip_min", -limit),
                        hi ? hi : bound(default_clip_max, "mmproj.clip_max", limit)});
     }
-    GgufValue linear(const GgufValue& x, const std::string& base, bool with_bias = true) {
-        auto y = g.node("GGML_OP_MUL_MAT",
-                        {g.tensors().require(base + ".weight"), clippable ? clip_linear(x, base, "input") : x});
+    // clip_input=false when the caller already clamped x to this projection's input bounds.
+    GgufValue linear(const GgufValue& x, const std::string& base, bool with_bias = true, bool clip_input = true) {
+        auto y = g.node(
+            "GGML_OP_MUL_MAT",
+            {g.tensors().require(base + ".weight"), clippable && clip_input ? clip_linear(x, base, "input") : x});
         if (clippable)
             y = clip_linear(y, base, "output");
         if (auto bias = with_bias ? g.tensors()(base + ".bias") : GgufValue{})
@@ -401,7 +403,7 @@ private:
                   bool with_bias = true) {
         // The pinned ggml CLAMP aliases its source; the following gate observes the clipped input.
         auto input = clippable ? clip_linear(x, up, "input") : x;
-        auto y = linear(input, up, with_bias);
+        auto y = linear(input, up, with_bias, false);
         if (!gate.empty() && g.tensors().has(gate + ".weight"))
             y = mul(y, g.node(activation, {linear(input, gate)}));
         else
@@ -449,11 +451,7 @@ private:
                 // ggml CLAMP is in-place: Q input clipping carries into K, then V.
                 if (clippable && !fused)
                     z = clip_linear(z, p + name, "input");
-                auto value = fused ? g.node("GGML_OP_VIEW",
-                                            {qkv},
-                                            3,
-                                            {{"view_slice", std::vector<int64_t>{3, offset * c.width, c.width}}})
-                                   : linear(z, p + name);
+                auto value = fused ? slice(qkv, 3, offset * c.width, c.width) : linear(z, p + name, true, false);
                 const auto weight = g.tensors()(p + name + "_norm.weight");
                 if (weight && !per_head)
                     value = encoder_norm(value, p + name + "_norm", c, false);
@@ -467,48 +465,9 @@ private:
             auto v = projection("attn_v", 2);
             // GQA head expansion is done by the FLASH_ATTN_EXT translator.
             OPENVINO_ASSERT(c.heads % c.kv_heads == 0, "[GGUF] encoder GQA head count mismatch");
-            if (c.topology == EncoderTopology::Ocr2 && rope_positions) {
-                RopeConfig r;
-                r.n_dims = int(c.width / c.heads);
-                r.freq_base = 1000000.f;
-                r.freq_scale = r.attn_factor = 1.f;
-                const auto rotate = [&](const GgufValue& value) {
-                    return g.node("GGML_OP_ROPE", {value, rope_positions}, ROPE_NEOX, {{"rope_config", r}});
-                };
-                q = rotate(q);
-                k = rotate(k);
-            } else if (rope_positions_b) {
-                const auto rotate = [&](const GgufValue& value) {
-                    RopeConfig r;
-                    r.n_dims = int(c.width / c.heads / 2);
-                    r.freq_base = c.topology == EncoderTopology::Gemma4 ? 100.f : 10000.f;
-                    r.freq_scale = r.attn_factor = 1.f;
-                    const int mode = c.topology == EncoderTopology::Gemma4 ? ROPE_NEOX : 0;
-                    auto a = g.node("GGML_OP_ROPE",
-                                    {slice(value, 3, 0, r.n_dims), rope_positions},
-                                    mode,
-                                    {{"rope_config", r}});
-                    if (c.topology == EncoderTopology::Pixtral)
-                        r.freq_scale = std::pow(r.freq_base, -2.f / float(c.width / c.heads));
-                    auto b = g.node("GGML_OP_ROPE",
-                                    {slice(value, 3, r.n_dims, r.n_dims), rope_positions_b},
-                                    mode,
-                                    {{"rope_config", r}});
-                    return concat(a, b);
-                };
-                q = rotate(q);
-                k = rotate(k);
-            } else if (rope_positions) {
-                RopeConfig r;
-                r.n_dims = int(c.width / c.heads / 2);
-                r.freq_base = 10000.f;
-                r.freq_scale = r.attn_factor = 1.f;
-                r.sections.fill(int32_t(c.width / c.heads / 4));
-                const auto rotate = [&](const GgufValue& value) {
-                    return g.node("GGML_OP_ROPE", {value, rope_positions}, ROPE_VISION, {{"rope_config", r}});
-                };
-                q = rotate(q);
-                k = rotate(k);
+            if (rope_positions) {
+                q = encoder_rope(q, c, rope_positions, rope_positions_b);
+                k = encoder_rope(k, c, rope_positions, rope_positions_b);
             }
             if (c.topology == EncoderTopology::Gemma4)
                 v = g.build_norm(v, {}, c.eps);
@@ -558,6 +517,56 @@ private:
         }
         return x;
     }
+    GgufValue encoder_rope(const GgufValue& x,
+                           const EncoderConfig& c,
+                           const GgufValue& positions,
+                           const GgufValue& positions_b) {
+        const auto head = int(c.width / c.heads);
+        RopeConfig r;
+        r.freq_scale = r.attn_factor = 1.f;
+        const auto rope = [&](const GgufValue& value, const GgufValue& pos, int mode) {
+            return g.node("GGML_OP_ROPE", {value, pos}, mode, {{"rope_config", r}});
+        };
+        if (c.topology == EncoderTopology::Ocr2) {
+            r.n_dims = head;
+            r.freq_base = 1000000.f;
+            return rope(x, positions, ROPE_NEOX);
+        }
+        r.n_dims = head / 2;
+        if (!positions_b) {
+            r.freq_base = 10000.f;
+            r.sections.fill(int32_t(head / 4));
+            return rope(x, positions, ROPE_VISION);
+        }
+        // Two position axes, each rotating one half of the head.
+        const bool gemma4 = c.topology == EncoderTopology::Gemma4;
+        const int mode = gemma4 ? ROPE_NEOX : 0;
+        r.freq_base = gemma4 ? 100.f : 10000.f;
+        auto a = rope(slice(x, 3, 0, r.n_dims), positions, mode);
+        if (c.topology == EncoderTopology::Pixtral)
+            r.freq_scale = std::pow(r.freq_base, -2.f / float(head));
+        auto b = rope(slice(x, 3, r.n_dims, r.n_dims), positions_b, mode);
+        return concat(a, b);
+    }
+    // Resizes a square [side*side, width] learned position table to the grid of `like`; NCHW result.
+    GgufValue resize_square_table(const GgufValue& table,
+                                  const GgufValue& like,
+                                  int64_t width,
+                                  int interpolation_mode,
+                                  const char* family) {
+        const int64_t side = int64_t(std::sqrt(double(table.ne(1))));
+        OPENVINO_ASSERT(side * side == table.ne(1), "[GGUF] ", family, " position table must be square");
+        return g.node("GGML_OP_UPSCALE",
+                      {transpose(reshape(table, {1, side, side, width}), {0, 3, 1, 2}), like},
+                      0,
+                      {{"resize_like", true}, {"interpolation_mode", interpolation_mode}});
+    }
+    GgufValue index_input(const std::string& name) {
+        return g.add_input("vision." + name, ov::element::i32, {1, 1, 1, -1});
+    }
+    GgufValue gather_rows(const GgufValue& x, const std::string& index_name) {
+        return g.node("GGML_OP_GET_ROWS", {x, index_input(index_name)});
+    }
     GgufValue vision(const EncoderConfig& c) {
         if (c.topology == EncoderTopology::Ocr || c.topology == EncoderTopology::Ocr2)
             return ocr_vision(c);
@@ -576,15 +585,12 @@ private:
         x = patch_embeddings(convolution(x, "v.patch_embd.weight", c.patch), c.width);
         if ((c.topology == EncoderTopology::Clip || c.topology == EncoderTopology::Internvl) &&
             g.tensors().has("v.class_embd"))
-            x = g.node("GGML_OP_CONCAT",
-                       {x, reshape(g.tensors().require("v.class_embd"), {1, 1, 1, c.width})},
-                       0,
-                       {{"concat_axis", 1}});
+            x = concat(x, reshape(g.tensors().require("v.class_embd"), {1, 1, 1, c.width}), 1);
         x = vit(x, c, g.tensors().require("v.position_embd.weight"));
         const auto side = c.image_size / c.patch;
         if (c.topology == EncoderTopology::Internvl) {
             OPENVINO_ASSERT(g.tensors().has("v.class_embd"), "[GGUF] InternVL requires a class embedding");
-            x = g.node("GGML_OP_VIEW", {x}, 3, {{"view_slice", std::vector<int64_t>{2, 0, side * side}}});
+            x = slice(x, 2, 0, side * side);
             x = reshape(x, {1, side, side / c.merge, c.width * c.merge});
             x = transpose(x, {0, 2, 1, 3});
             x = reshape(x, {1, side / c.merge, side / c.merge, c.width * c.merge * c.merge});
@@ -594,7 +600,7 @@ private:
         }
         if (c.topology == EncoderTopology::Clip) {
             const int64_t offset = g.tensors().has("v.class_embd") ? 1 : 0;
-            x = g.node("GGML_OP_VIEW", {x}, 3, {{"view_slice", std::vector<int64_t>{2, offset, side * side}}});
+            x = slice(x, 2, offset, side * side);
             x = linear(x, "mm.0");
             const bool normalized = g.tensors().has("mm.3.weight");
             if (normalized)
@@ -663,16 +669,12 @@ private:
         }
         GgufValue pos_a, pos_b, learned;
         if (c.topology == EncoderTopology::Phi4) {
-            auto table = g.tensors().require("v.position_embd.weight");
-            const int64_t side = int64_t(std::sqrt(double(table.ne(1))));
-            OPENVINO_ASSERT(side * side == table.ne(1), "[GGUF] phi4 position table must be square");
-            table = transpose(reshape(table, {1, side, side, c.width}), {0, 3, 1, 2});
-            table =
-                g.node("GGML_OP_UPSCALE", {table, spatial}, 0, {{"resize_like", true}, {"interpolation_mode", 0x201}});
+            auto table =
+                resize_square_table(g.tensors().require("v.position_embd.weight"), spatial, c.width, 0x201, "phi4");
             learned = reshape(transpose(table, {0, 2, 3, 1}), {1, 1, -1, c.width});
         } else {
-            pos_a = g.add_input("vision.position_x", ov::element::i32, {1, 1, 1, -1});
-            pos_b = g.add_input("vision.position_y", ov::element::i32, {1, 1, 1, -1});
+            pos_a = index_input("position_x");
+            pos_b = index_input("position_y");
             if (c.topology != EncoderTopology::Pixtral) {
                 auto table = g.tensors().require("v.position_embd.weight");
                 OPENVINO_ASSERT(table.ne(2) == 2, "[GGUF] Gemma4 position table requires x/y axes");
@@ -725,26 +727,22 @@ private:
     GgufValue minicpm46(const EncoderConfig& c) {
         auto pixels = g.add_input("vision.pixel_values", ov::element::f32, {1, 3, -1, -1});
         auto x = patch_embeddings(convolution(pixels, "v.patch_embd.weight", c.patch), c.width);
-        auto positions = g.add_input("vision.position_ids", ov::element::i32, {1, 1, 1, -1});
-        auto learned = g.node("GGML_OP_GET_ROWS", {g.tensors().require("v.position_embd.weight"), positions});
+        auto learned = gather_rows(g.tensors().require("v.position_embd.weight"), "position_ids");
         x = vit(x, c, learned, {}, {}, {}, 0, c.window_pattern + 1, false);
-        const auto rows = [&](const GgufValue& value, const std::string& name) {
-            return g.node("GGML_OP_GET_ROWS", {value, g.add_input("vision." + name, ov::element::i32, {1, 1, 1, -1})});
-        };
         const std::string p = "v.vit_merger.";
-        auto z = rows(norm(x, p + "ln1", c.eps), "window_indices");
+        auto z = gather_rows(norm(x, p + "ln1", c.eps), "window_indices");
         auto q = reshape(linear(z, p + "attn_q"), {1, -1, c.heads, c.width / c.heads});
         auto k = reshape(linear(z, p + "attn_k"), {1, -1, c.heads, c.width / c.heads});
         auto v = reshape(linear(z, p + "attn_v"), {1, -1, c.heads, c.width / c.heads});
         auto mask = g.add_input("vision.attention_mask", ov::element::f32, {1, 1, -1, -1});
         z = attention(q, k, v, 1.f / std::sqrt(float(c.width / c.heads)), mask);
         z = linear(reshape(z, {1, 1, -1, c.width}), p + "attn_out");
-        x = add(x, rows(z, "inverse_window_indices"));
+        x = add(x, gather_rows(z, "inverse_window_indices"));
         // Gather the four cells of each 2x2 merge window, in index order.
         const auto gather4 = [&](const GgufValue& value, const std::string& name) {
             std::array<GgufValue, 4> parts;
             for (int i = 0; i < 4; ++i)
-                parts[i] = rows(value, name + ".indices." + std::to_string(i));
+                parts[i] = gather_rows(value, name + ".indices." + std::to_string(i));
             return parts;
         };
         auto parts = gather4(x, "vit_merger");
@@ -759,9 +757,7 @@ private:
     GgufValue resampler_vision(const EncoderConfig& c) {
         auto pixels = g.add_input("vision.pixel_values", ov::element::f32, {1, 3, -1, -1});
         auto x = patch_embeddings(convolution(pixels, "v.patch_embd.weight", c.patch), c.width);
-        auto positions = g.add_input("vision.position_ids", ov::element::i32, {1, 1, 1, -1});
-        auto learned = g.node("GGML_OP_GET_ROWS", {g.tensors().require("v.position_embd.weight"), positions});
-        x = vit(x, c, learned);
+        x = vit(x, c, gather_rows(g.tensors().require("v.position_embd.weight"), "position_ids"));
 
         const auto query = g.tensors().require("resampler.query");
         const auto width = query.ne(0);
@@ -799,21 +795,15 @@ private:
         auto spatial = convolution(pixels, "v.patch_embd.weight", c.patch);
         auto x = patch_embeddings(spatial, c.width);
         auto table = g.tensors().require("v.position_embd.weight");
-        const int64_t side = int64_t(std::sqrt(double(table.ne(1))));
-        OPENVINO_ASSERT(side * side == table.ne(1), "[GGUF] Muse Glimmer position table must be square");
-        vision_window_size = side;
-        table = transpose(reshape(table, {1, side, side, c.width}), {0, 3, 1, 2});
-        table = g.node("GGML_OP_UPSCALE", {table, spatial}, 0, {{"resize_like", true}, {"interpolation_mode", 1}});
+        vision_window_size = int64_t(std::sqrt(double(table.ne(1))));
+        table = resize_square_table(table, spatial, c.width, 1, "Muse Glimmer");
         x = add(x, reshape(transpose(table, {0, 2, 3, 1}), {1, 1, -1, c.width}));
-        const auto indices = [&](const std::string& name) {
-            return g.add_input("vision." + name, ov::element::i32, {1, 1, 1, -1});
-        };
-        x = g.node("GGML_OP_GET_ROWS", {x, indices("patch_indices")});
-        auto pos_x = indices("position_x"), pos_y = indices("position_y");
+        x = gather_rows(x, "patch_indices");
+        auto pos_x = index_input("position_x"), pos_y = index_input("position_y");
         auto mask = g.add_input("vision.attention_mask", ov::element::f32, {1, 1, -1, -1});
         x = vit(x, c, {}, pos_x, mask, pos_y);
-        x = g.node("GGML_OP_GET_ROWS", {x, indices("output_indices")});
-        x = g.node("GGML_OP_GET_ROWS", {x, indices("merge_indices")});
+        x = gather_rows(x, "output_indices");
+        x = gather_rows(x, "merge_indices");
         // Channel-outer pixel shuffle: each channel's spatial neighbours stay together.
         x = reshape(x, {1, -1, c.merge * c.merge, c.width});
         x = reshape(transpose(x, {0, 1, 3, 2}), {1, 1, -1, c.width * c.merge * c.merge});
@@ -827,7 +817,7 @@ private:
         auto pixels = g.add_input("vision.pixel_values", ov::element::f32, {2, 3, -1, -1});
         auto patches = add(convolution(slice(pixels, 0, 0, 1), "v.patch_embd.weight", c.patch),
                            convolution(slice(pixels, 0, 1, 1), "v.patch_embd.weight.1", c.patch));
-        auto indices = g.add_input("vision.patch_indices", ov::element::i32, {1, 1, 1, -1});
+        auto indices = index_input("patch_indices");
         auto group = [&](const GgufValue& value) {
             return g.node("GGML_OP_GET_ROWS", {transpose(reshape(value, {1, 1, c.width, -1})), indices});
         };
@@ -836,17 +826,13 @@ private:
             x = add(x, bias);
         GgufValue learned_positions;
         if (c.projector == "qwen3vl_merger") {
-            auto table = g.tensors().require("v.position_embd.weight");
-            const int64_t side = int64_t(std::sqrt(double(table.ne(1))));
-            OPENVINO_ASSERT(side * side == table.ne(1), "[GGUF] Qwen position table must have a square grid");
-            auto grid = transpose(reshape(table, {1, side, side, c.width}), {0, 3, 1, 2});
-            auto resized = g.node("GGML_OP_UPSCALE",
-                                  {grid, patches},
-                                  0,
-                                  {{"resize_like", true}, {"interpolation_mode", 1 | 0x100}});
-            learned_positions = group(resized);
+            learned_positions = group(resize_square_table(g.tensors().require("v.position_embd.weight"),
+                                                          patches,
+                                                          c.width,
+                                                          1 | 0x100,
+                                                          "Qwen"));
         }
-        auto positions = g.add_input("vision.position_ids", ov::element::i32, {1, 1, 1, -1});
+        auto positions = index_input("position_ids");
         GgufValue window_mask;
         if (c.window_pattern)
             window_mask = g.add_input("vision.attention_mask", ov::element::f32, {1, 1, -1, -1});
@@ -854,10 +840,8 @@ private:
         x = ffn(reshape(x, {1, 1, -1, 4 * c.width}), "mm.0", "mm.2", "GGML_UNARY_OP_GELU");
         for (const auto& feature : auxiliary)
             x = concat(x, feature);
-        if (c.window_pattern) {
-            auto order = g.add_input("vision.output_indices", ov::element::i32, {1, 1, 1, -1});
-            x = g.node("GGML_OP_GET_ROWS", {x, order});
-        }
+        if (c.window_pattern)
+            x = gather_rows(x, "output_indices");
         return x;
     }
     GgufValue reshape_like(const GgufValue& x,
@@ -934,13 +918,11 @@ private:
             auto queries = concat(reshape(g.tensors().require("v.resample_query_768.weight"), {1, 1, 144, c.width}),
                                   reshape(g.tensors().require("v.resample_query_1024.weight"), {1, 1, 256, c.width}),
                                   1);
-            auto indices = g.add_input("vision.query_indices", ov::element::i32, {1, 1, 1, -1});
-            x = concat(x, g.node("GGML_OP_GET_ROWS", {queries, indices}), 1);
-            auto positions = g.add_input("vision.position_ids", ov::element::i32, {1, 1, 1, -1});
+            x = concat(x, gather_rows(queries, "query_indices"), 1);
+            auto positions = index_input("position_ids");
             auto mask = g.add_input("vision.attention_mask", ov::element::f32, {1, 1, -1, -1});
             x = vit(x, c, {}, positions, mask);
-            auto outputs = g.add_input("vision.query_output_indices", ov::element::i32, {1, 1, 1, -1});
-            x = g.node("GGML_OP_GET_ROWS", {x, outputs}, 4);
+            x = g.node("GGML_OP_GET_ROWS", {x, index_input("query_output_indices")}, 4);
         } else {
             auto cls = reshape(g.tensors().require("v.class_embd"), {1, 1, 1, c.width});
             // Repeat the class token once per independently encoded tile.
@@ -961,8 +943,7 @@ private:
             resized = reshape(resized, {1, 1, -1, c.width});
             auto cls_pos = slice(reshape(pos, {1, 1, 1, -1}), 3, side * side / int64_t(pos.type().size()), c.width);
             auto tables = concat(original, concat(resized, cls_pos, 1), 1);
-            pos = g.node("GGML_OP_GET_ROWS",
-                         {tables, g.add_input("vision.position_indices", ov::element::i32, {1, 1, 1, -1})});
+            pos = gather_rows(tables, "position_indices");
             EncoderConfig clip = c;
             clip.activation = "GGML_UNARY_OP_GELU_QUICK";
             x = vit(x, clip, pos);
@@ -977,7 +958,7 @@ private:
         if (c.topology == EncoderTopology::Ocr)
             x = concat(x, reshape(g.tensors().require("v.image_newline"), {1, 1, 1, width}), 1);
         x = concat(x, reshape(g.tensors().require("v.view_seperator"), {1, 1, 1, width}), 1);
-        return g.node("GGML_OP_GET_ROWS", {x, g.add_input("vision.output_indices", ov::element::i32, {1, 1, 1, -1})});
+        return gather_rows(x, "output_indices");
     }
     GgufValue gemma4_audio(const EncoderConfig& c) {
         const auto mel = positive(ctx.metadata, "clip.audio.num_mel_bins");
@@ -1021,10 +1002,11 @@ private:
             const auto p = "a.blk." + std::to_string(i) + ".";
             x = half_ffn(x, p, "");
             auto z = rms(x, p + (g.tensors().has(p + "attn_pre_norm.weight") ? "attn_pre_norm" : "ln1"));
-            auto q = linear(z, p + "attn_q", false);
+            // ggml CLAMP is in-place: Q input clipping carries into K, then V.
             z = clip_linear(z, p + "attn_q", "input");
-            auto k = linear(z, p + "attn_k", false);
+            auto q = linear(z, p + "attn_q", false, false);
             z = clip_linear(z, p + "attn_k", "input");
+            auto k = linear(z, p + "attn_k", false, false);
             auto v = linear(z, p + "attn_v", false);
             const auto head = c.width / c.heads;
             q = scale(reshape(q, {1, -1, c.heads, head}), 1.f / std::sqrt(float(head)) / std::log(2.f));
@@ -1117,14 +1099,8 @@ private:
         if (c.projector == "glma") {
             x = ffn(x, "mm.a.mlp.1", "mm.a.mlp.2", c.activation);
             const auto width = x.ne(0);
-            x = g.node("GGML_OP_CONCAT",
-                       {reshape(g.tensors().require("v.boi"), {1, 1, 1, width}), x},
-                       0,
-                       {{"concat_axis", 1}});
-            return g.node("GGML_OP_CONCAT",
-                          {x, reshape(g.tensors().require("v.eoi"), {1, 1, 1, width})},
-                          0,
-                          {{"concat_axis", 1}});
+            x = concat(reshape(g.tensors().require("v.boi"), {1, 1, 1, width}), x, 1);
+            return concat(x, reshape(g.tensors().require("v.eoi"), {1, 1, 1, width}), 1);
         }
         return ffn(x, "mm.a.mlp.1", "mm.a.mlp.2", "GGML_UNARY_OP_GELU_ERF");
     }

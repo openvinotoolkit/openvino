@@ -207,7 +207,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
     std::string embedding_name;
     if (m_mode == InputMode::EMBEDS_TO_LOGITS) {
-        for (const auto& node : model->get_ops()) {
+        for (const auto& node : operations) {
             if (node->get_rt_info().count("gguf.token_embedding")) {
                 OPENVINO_ASSERT(embedding_name.empty(), "[GGUF] ambiguous token embedding boundary");
                 embedding_name = node->get_friendly_name();
@@ -339,23 +339,20 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         pos_i32 = make_shared<v8::Gather>(pos_i32,
                                           v0::Constant::create(ov::element::i64, {4}, {1, 2, 3, 0}),
                                           v0::Constant::create(ov::element::i64, {}, {0}));
-    }
-    // M-RoPE (qwen35): inp_pos carries FOUR position sections per token, laid out section-major --
-    // make_sin_cos reshapes it to {..,4,tokens} and transposes. GenAI supplies one position per
-    // token, so tile it 4x along the token axis. All four sections hold the same value here: the
-    // per-section split only differs for image/video input, and a text-only prompt has no spatial
-    // axes to differ on (llama.cpp fills all sections with the text position likewise).
-    if (model->get_rt_info().count(gguf_imrope_key()) && !multimodal_positions) {
-        auto tile_repeats = v0::Constant::create(ov::element::i64, {2}, {1, 4});
-        pos_i32 = make_shared<v0::Tile>(pos_i32, tile_repeats);
-    }
-    if (multimodal_positions) {
         // Preserve section-major positions within each sequence. PA moves tokens to
         // the leading activation axis, so each token then carries its four sections.
         auto section_shape =
             make_shared<v0::Concat>(ov::OutputVector{v0::Constant::create(ov::element::i64, {1}, {4}), ids_shape}, 0);
         pos_i32 = make_shared<v1::Transpose>(make_shared<v1::Reshape>(pos_i32, section_shape, false),
                                              v0::Constant::create(ov::element::i64, {3}, {1, 0, 2}));
+    } else if (model->get_rt_info().count(gguf_imrope_key())) {
+        // M-RoPE (qwen35): inp_pos carries FOUR position sections per token, laid out section-major --
+        // make_sin_cos reshapes it to {..,4,tokens} and transposes. GenAI supplies one position per
+        // token, so tile it 4x along the token axis. All four sections hold the same value here: the
+        // per-section split only differs for image/video input, and a text-only prompt has no spatial
+        // axes to differ on (llama.cpp fills all sections with the text position likewise).
+        auto tile_repeats = v0::Constant::create(ov::element::i64, {2}, {1, 4});
+        pos_i32 = make_shared<v0::Tile>(pos_i32, tile_repeats);
     }
     auto pos_4d = make_shared<v1::Reshape>(pos_i32, shape_keep0_1_1_rest, true);
     if (inp_pos)
@@ -367,6 +364,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     auto kv_len = get_dimensions(am_shape, {1});
     auto batch_len = gather_dims(ids_shape, {0});
     auto query_len = gather_dims(ids_shape, {1});
+    // Cached tokens precede the current chunk in attention_mask.
+    auto past_len = make_shared<v1::Subtract>(kv_len, query_len);
     auto one_1 = v0::Constant::create(ov::element::i64, {1}, {1});
     auto squeeze_axis_0 = v0::Constant::create(ov::element::i64, {1}, {0});
     auto axis_1 = v0::Constant::create(ov::element::i64, {}, {1});
@@ -388,8 +387,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     ov::Output<ov::Node> q_pos = make_shared<v0::Convert>(position_ids, ov::element::i32);
     if (multimodal_positions) {
         // Spatial coordinates can repeat or decrease; causality follows token order.
-        q_pos =
-            make_shared<v8::Slice>(key_positions, make_shared<v1::Subtract>(kv_len, query_len), kv_len, one_1, one_1);
+        q_pos = make_shared<v8::Slice>(key_positions, past_len, kv_len, one_1, one_1);
     }
     auto q_pos_col = as_query_col(q_pos);
     auto k_row = as_key_row(key_positions);
@@ -398,15 +396,13 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     };
     ov::Output<ov::Node> allowed = make_shared<v1::LessEqual>(k_row, q_pos_col);
     if (token_type_ids) {
-        // Cached tokens precede the current chunk. Only patches within the same
-        // current image can attend bidirectionally.
-        auto past = make_shared<v1::Subtract>(kv_len, query_len);
+        // Only patches within the same current image can attend bidirectionally.
         auto zeros = make_shared<v3::Broadcast>(v0::Constant::create(ov::element::i64, {}, {0}),
-                                                make_shared<v0::Concat>(ov::OutputVector{batch_len, past}, 0));
+                                                make_shared<v0::Concat>(ov::OutputVector{batch_len, past_len}, 0));
         auto key_types = make_shared<v0::Concat>(ov::OutputVector{zeros, token_type_ids}, 1);
         auto non_image = make_shared<v1::Equal>(key_types, v0::Constant::create(ov::element::i64, {}, {0}));
         auto groups = make_shared<v0::CumSum>(make_shared<v0::Convert>(non_image, ov::element::i64), axis_1);
-        auto query_groups = make_shared<v8::Slice>(groups, past, kv_len, one_1, one_1);
+        auto query_groups = make_shared<v8::Slice>(groups, past_len, kv_len, one_1, one_1);
         auto same_group = make_shared<v1::Equal>(as_query_col(query_groups), as_key_row(groups));
         auto one = v0::Constant::create(ov::element::i64, {}, {1});
         auto images = make_shared<v1::LogicalAnd>(make_shared<v1::Equal>(as_query_col(token_type_ids), one),
@@ -464,11 +460,12 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
             for (auto consumer : consumers)
                 consumer.replace_source_output(reordered);
         }
-        // Left-padding must not seed the causal convolution with padding embeddings.
-        auto current_mask =
-            make_shared<v8::Slice>(attention_mask, make_shared<v1::Subtract>(kv_len, query_len), kv_len, one_1, one_1);
+        // Left-padding must not seed the causal convolution with padding embeddings. The
+        // Slice -> Unsqueeze -> Convert order matches the gate EliminateConvPaddingMaskGating
+        // removes for packed PagedAttention sequences.
+        auto current_mask = make_shared<v8::Slice>(attention_mask, past_len, kv_len, one_1, one_1);
         auto recurrent_mask =
-            make_shared<v0::Unsqueeze>(make_shared<v0::Convert>(current_mask, ov::element::f32), one_1);
+            make_shared<v0::Convert>(make_shared<v0::Unsqueeze>(current_mask, one_1), ov::element::f32);
         for (const auto& node : model->get_ops()) {
             auto convolution = ov::as_type_ptr<v1::GroupConvolution>(node);
             if (!convolution)
