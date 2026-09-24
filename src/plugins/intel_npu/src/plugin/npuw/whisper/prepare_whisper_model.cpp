@@ -151,9 +151,8 @@ public:
                 }
             }
         }
-        auto decomposed_cross_attn_nodes =
-            transform_cross_attn ? find_decomposed_cross_attn_score_nodes(model)
-                                 : std::vector<std::shared_ptr<ov::Node>>{};
+        auto decomposed_cross_attn_nodes = transform_cross_attn ? find_decomposed_cross_attn_score_nodes(model)
+                                                                : std::vector<std::shared_ptr<ov::Node>>{};
 
         // Self-attention
         OPENVINO_ASSERT(!self_attn_nodes.empty());
@@ -258,7 +257,7 @@ public:
         // Here the past length is folded into Range's start:
         //
         //   Gather ---------------+
-        //          \              +-> Range -> Unsqueeze -> Tile
+        //          \\              +-> Range -> Unsqueeze -> Tile
         //           -> Add -------+
         //
         auto gather = opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
@@ -448,8 +447,7 @@ public:
         auto keep_dim_last = register_new_node<v0::Squeeze>(k_next_dim, zero_i);
         auto k_dims_before_transpose = register_new_node<v4::Range>(zero_i, keep_dim_last, one_i, element::i32);
 
-        auto transpose_dims =
-            register_new_node<v0::Concat>(OutputVector{k_dims_before_transpose, k_last_dim, k_next_dim}, 0);
+        auto transpose_dims = register_new_node<v0::Concat>(OutputVector{k_dims_before_transpose, k_last_dim, k_next_dim}, 0);
         auto k_transposed = register_new_node<v1::Transpose>(key, transpose_dims);
 
         ov::Output<Node> scaled_atten;
