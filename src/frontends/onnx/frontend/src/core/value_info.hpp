@@ -13,9 +13,7 @@
 #include "openvino/op/parameter.hpp"
 #include "utils/common.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 
 using ::ONNX_NAMESPACE::ValueInfoProto;
 
@@ -82,6 +80,4 @@ inline std::ostream& operator<<(std::ostream& outs, const ValueInfo& info) {
     return (outs << "<ValueInfo: " << info.get_name() << ">");
 }
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

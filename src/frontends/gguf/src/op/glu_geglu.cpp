@@ -13,10 +13,7 @@
 #include "openvino/op/sigmoid.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 OutputVector translate_glu_geglu(const NodeContext& context) {
     auto inputs = get_glu_inputs(context);
@@ -41,7 +38,4 @@ OutputVector translate_glu_geglu_quick(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

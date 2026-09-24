@@ -13,14 +13,11 @@
 
 namespace ov {
 
-namespace op {
-namespace util {
+namespace op::util {
 class FrameworkNode;
-}  // namespace util
-}  // namespace op
+}  // namespace op::util
 
-namespace frontend {
-namespace pytorch {
+namespace frontend::pytorch {
 
 const std::string pytorch_prefix = "[PyTorch Frontend] ";
 
@@ -86,6 +83,10 @@ bool is_complex_dtype(int64_t pt_type);
 
 Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor);
 
+/// \brief Applies an optional `dtype` argument, which export may pass positionally or as an attribute.
+/// \return The converted tensor, or \p input_tensor unchanged when no dtype was given.
+Output<Node> apply_optional_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor);
+
 op::PadType convert_pad(const std::string& pt_pad);
 
 Output<Node> concat_list_construct(const Output<Node>& input);
@@ -116,6 +117,25 @@ Any simplified_type_interpret(Any type);
 void add_exception_to_fw_node(std::shared_ptr<Node> node, const std::string& msg);
 
 bool is_python_scalar_input(const NodeContext& context, size_t index);
+
+/// \brief Converts an operation name to its canonical TorchScript spelling.
+///
+/// FX names carry an overload suffix, e.g. `aten.add.Tensor`, while TorchScript uses `aten::add`. Translators and
+/// transformations match the TorchScript spelling, so both decoders are normalized to it. Names which are not in the
+/// `aten.name.overload` form are returned unchanged.
+std::string normalize_op_type(const std::string& op_type);
+
+/// \brief Reads an optional operator argument which export may pass either positionally or by keyword.
+///
+/// Export omits arguments equal to their default and passes keyword-only arguments as attributes, so an optional
+/// argument may arrive as input \p index, as attribute \p name, or not at all.
+template <typename T>
+T get_const_input_or_attribute(const NodeContext& context, size_t index, const std::string& name, T default_value) {
+    if (!context.input_is_none(index)) {
+        return context.const_input<T>(index);
+    }
+    return context.get_attribute<T>(name, default_value);
+}
 
 void align_eltwise_input_types(const NodeContext& context,
                                Output<Node>& lhs,
@@ -438,6 +458,5 @@ private:
     const std::string m_schema = "NONE";
 };
 
-}  // namespace pytorch
-}  // namespace frontend
+}  // namespace frontend::pytorch
 }  // namespace ov
