@@ -58,6 +58,13 @@ The following extension types are supported:
 * `ov::BaseOpExtension` - enable support for a custom operation.
 * `ov::detail::SOExtension` - allow support for `ov::BaseOpExtension` extensions loaded from an external library.
 
+### Gradient-mode scopes in exported models
+
+OpenVINO performs inference only. The FX decoder inlines `torch.export` grad-mode
+wrappers for `torch.no_grad()` and `torch.set_grad_enabled()` without changing
+the computations, outputs, or tensor mutations in their bodies. This does not
+require `ExportedProgram.run_decompositions()` or an additional trace.
+
 ## How to Implement Support for a New PyTorch Operation
 
 PyTorch conversion into the OpenVINO opset operations consists of two stages:

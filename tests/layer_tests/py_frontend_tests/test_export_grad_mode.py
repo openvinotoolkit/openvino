@@ -1,0 +1,140 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+from unittest.mock import patch
+
+import numpy as np
+import pytest
+import torch
+from packaging import version
+
+from openvino import Core, convert_model
+from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
+
+
+pytestmark = [
+    pytest.mark.precommit,
+    pytest.mark.skipif(version.parse(torch.__version__) < version.parse("2.9"),
+                       reason="Requires grad-mode wrappers in torch.export"),
+]
+
+
+def convert_without_decompositions(exported):
+    original_graphs = {
+        name: str(module.graph)
+        for name, module in exported.graph_module.named_modules()
+        if isinstance(module, torch.fx.GraphModule)
+    }
+    with patch.object(torch.export.ExportedProgram, "run_decompositions",
+                      side_effect=AssertionError("Conversion must not run decompositions")):
+        converted = convert_model(exported)
+    for name, graph in original_graphs.items():
+        assert str(exported.graph_module.get_submodule(name).graph) == graph
+    return Core().compile_model(converted, "CPU", {"INFERENCE_PRECISION_HINT": "f32"})
+
+
+@pytest.mark.parametrize("grad_enabled", [False, True])
+@pytest.mark.parametrize("multiple_outputs", [False, True])
+def test_export_grad_mode(grad_enabled, multiple_outputs):
+    class Model(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.register_buffer("inv_freq", torch.arange(1, 5, dtype=torch.float32))
+
+        @torch.set_grad_enabled(grad_enabled)
+        def rotary(self, x, positions):
+            frequencies = self.inv_freq[None, :, None] @ positions[:, None, :].float()
+            frequencies = frequencies.transpose(1, 2)
+            return frequencies.cos() + x, frequencies.sin() + x
+
+        def forward(self, data):
+            cosine, sine = self.rotary(data["x"], data["positions"])
+            return (cosine, sine) if multiple_outputs else sine
+
+    model = Model().eval()
+    data = {"x": torch.ones(2, 8, 4), "positions": torch.arange(8).expand(2, -1)}
+    batch, sequence = torch.export.Dim("batch"), torch.export.Dim("sequence")
+    dynamic = {"data": {key: {0: batch, 1: sequence} for key in data}}
+    with torch.set_grad_enabled(not grad_enabled):
+        exported = torch.export.export(model, (data,), dynamic_shapes=dynamic)
+    assert any(str(node.target) == "wrap_with_set_grad_enabled" for node in exported.graph.nodes)
+    decoder = TorchFXPythonDecoder.from_exported_program(exported)
+    assert decoder._input_signature == ["data"]
+    assert not any(str(node.target) == "wrap_with_set_grad_enabled" for node in decoder.pt_module.graph.nodes)
+    compiled = convert_without_decompositions(exported)
+    for batch_size, sequence_length in [(2, 8), (3, 5)]:
+        inputs = {
+            "x": torch.ones(batch_size, sequence_length, 4),
+            "positions": torch.arange(sequence_length).expand(batch_size, -1),
+        }
+        with torch.no_grad():
+            expected = model(inputs)
+        if not multiple_outputs:
+            expected = (expected,)
+        actual = compiled([value.numpy() for value in inputs.values()])
+        assert len(actual) == len(expected)
+        for index, value in enumerate(expected):
+            np.testing.assert_allclose(actual[index], value.numpy(), atol=1e-5, rtol=1e-5)
+
+
+def test_export_grad_mode_mutations():
+    class Model(torch.nn.Module):
+        @torch.no_grad()
+        def update(self, x):
+            view = x[:, 1:]
+            view.add_(2)
+            with torch.enable_grad():
+                before = view.sin()
+            return view, before
+
+        def forward(self, x):
+            x = x.clone()
+            view, before = self.update(x)
+            view.add_(1)
+            return x, view, before
+
+    model = Model().eval()
+    data = torch.arange(12, dtype=torch.float32).reshape(3, 4)
+    with torch.enable_grad():
+        exported = torch.export.export(model, (data,))
+    wrappers = [node for node in exported.graph.nodes
+                if str(node.target) == "wrap_with_set_grad_enabled"]
+    assert wrappers
+    compiled = convert_without_decompositions(exported)
+    expected = model(data)
+    actual = compiled([data.numpy()])
+    assert len(actual) == len(expected)
+    for index, value in enumerate(expected):
+        np.testing.assert_allclose(actual[index], value.numpy(), atol=1e-5, rtol=1e-5)
+
+
+def test_fx_nested_grad_mode():
+    from torch._higher_order_ops.wrap import wrap_with_set_grad_enabled
+
+    body_graph = torch.fx.Graph()
+    data = body_graph.placeholder("x")
+    offset = body_graph.get_attr("offset")
+    result = body_graph.call_function(torch.ops.aten.add.Tensor, (data, offset))
+    body_graph.output((result,))
+    body = torch.fx.GraphModule({"offset": torch.tensor([2.0, 3.0])}, body_graph)
+
+    def wrap(module, enabled):
+        graph = torch.fx.Graph()
+        data = graph.placeholder("x")
+        body_node = graph.get_attr("body")
+        result = graph.call_function(wrap_with_set_grad_enabled, (enabled, body_node, data))
+        graph.output(result)
+        return torch.fx.GraphModule({"body": module}, graph)
+
+    model = wrap(wrap(body, False), True)
+    original = str(model.graph)
+    data = torch.ones(2)
+    with patch.object(torch.export.ExportedProgram, "run_decompositions",
+                      side_effect=AssertionError("Conversion must not run decompositions")):
+        decoder = TorchFXPythonDecoder(model, input_shapes=[data.shape], input_types=[data.dtype])
+        decoder.pt_module.graph.lint()
+        converted = convert_model(decoder)
+    compiled = Core().compile_model(converted, "CPU")
+    actual = compiled([data.numpy()])
+    np.testing.assert_array_equal(actual[0], model(data)[0].numpy())
+    assert str(model.graph) == original
