@@ -15,12 +15,13 @@
 #include "scaled_dot_product_attention_inst.h"
 #include "paged_attention_inst.h"
 #include "sdpa_base.hpp"
+#include "sdpa_ocl_utils.hpp"
 #include "../utils/kernel_generator.hpp"
 // clang-format on
-#include <cstdlib>
-#include <iostream>
+#    include <iostream>
 namespace ov::intel_gpu::ocl {
 namespace {
+using namespace sdpa_ocl_utils;
 
 struct sdpa_ocl_config_t {
     int subgroup_size = 0;
@@ -46,22 +47,9 @@ struct sdpa_ocl_config_t {
     }
 };
 
-// Derive the S*V split (value/score tiles and their subgroup counts) for a KQ tiling that is already
-// fixed, so that it covers `vd_max` value channels. Returns false when no legal split exists.
-//
-// The invariants are the ones documented on choose_config() below:
-//   sv_sg_tile_values * sv_sg_per_wg_values == vd_max              (cover the V head dim)
-//   sv_sg_tile_scores * sv_sg_per_wg_scores == kq_wg_tile_queries  (cover the WG query tile)
-//   sv_sg_per_wg_values * sv_sg_per_wg_scores == sg_per_wg         (every subgroup owns a tile)
-//   sv_sg_tile_values % subgroup_size == 0, sv_sg_tile_scores % DPAS_ROWS == 0
-//   alpha[] nesting, per subgroup (see the rescale in sdpa_ocl.cl):
-//       0 <= sg_i0_sv - sg_j0_kq  and  (sg_i0_sv - sg_j0_kq) + sv_sg_tile_scores <= kq_sg_tile_queries
-// Preferring the largest sv_sg_per_wg_values (widest value split) is what makes this reproduce the
-// tuned tables below exactly for every k_head_size == v_head_size; it is asserted by
-// sdpa_ocl_config_test.
-//
-// Shared by the vd_max != d_max path and by the SDPA_OCL_KQ_* override, which perturbs the same KQ
-// knobs and so needs the same re-derivation.
+// The S*V split (value / score tiles and their subgroup counts) for an already fixed KQ tiling, covering
+// vd_max value channels; false when none exists. The invariants are listed under "Tiling" in the docs.
+// Preferring the widest value split reproduces the tuned tables below for every k_head_size == v_head_size.
 bool solve_sv_split(sdpa_ocl_config_t& config, size_t vd_max) {
     constexpr int dpas_rows = 8;
     const int sg_per_wg = config.sg_per_wg();
@@ -102,13 +90,8 @@ bool solve_sv_split(sdpa_ocl_config_t& config, size_t vd_max) {
     return false;
 }
 
-// Whether this kernel takes the token_type_ids input (bidirectional image-token attention). Shared
-// by get_jit_constants() and get_arguments_desc() so the declared parameter and the bound argument
-// can never disagree. Paged attention only -- and both of its multi-token stages: token_type_ids
-// covers just the new tokens while keys span [0, past_len + new), but the kernel handles that shift
-// itself (key = query_position_offset + local), so PREFILL is simply the past_len == 0 case.
-// GENERATE never reaches this generator, and needs nothing anyway: one new token per subsequence
-// means a query's image group is the query itself.
+// Whether the kernel takes token_type_ids: paged attention only, both multi-token stages (PREFILL is the
+// past_len == 0 case). Shared by the jit and the arguments so the parameter and the argument always agree.
 bool sdpa_ocl_has_token_type_ids(const kernel_impl_params& params) {
     if (!params.is_type<paged_attention>()) {
         return false;
@@ -116,22 +99,11 @@ bool sdpa_ocl_has_token_type_ids(const kernel_impl_params& params) {
     return params.typed_desc<paged_attention>()->has_token_type_ids;
 }
 
-// Runtime element count of the token_type_ids input, or 0 when the kernel must not read it at all.
-// sdpa_ocl_has_token_type_ids() above is a COMPILE-time answer derived from a possibly-DYNAMIC input
-// shape (plugin/ops/paged_attention.cpp sets has_token_type_ids for a dynamic Parameter), but the op
-// contract is "[B_token | 0]": an empty tensor is legal and means "no image tokens" -- which is also
-// what an infer request that never sets the input produces. intel_cpu gates on
-// getShape().hasZeroDims() and openvino/reference/paged_attention.hpp on count > 0; the GPU paged
-// attention impl is registered as shape_types::any, i.e. it is compiled ONCE from dynamic params and
-// afterwards only refreshes its dispatch data, so HAS_TOKEN_TYPE_IDS cannot be re-jitted per shape.
-// The count therefore travels to the kernel as a scalar and gates the logic there.
-//
-// A non-empty buffer shorter than [B_token] is a contract violation, not a "no image tokens" hint:
-// the kernel reads up to subsequence_end <= B_token, so silently ignoring it would return a wrong
-// mask with no signal. Refuse instead, the same way intel_cpu does with assert_dims({B_token}).
+// Runtime element count of token_type_ids, 0 = do not read it. HAS_TOKEN_TYPE_IDS is fixed at compile time
+// from a possibly dynamic shape while an empty [B_token | 0] tensor is legal, so the count gates the reads.
+// A non-empty buffer shorter than B_token is a contract violation and is refused, as intel_cpu does.
 int sdpa_ocl_token_type_ids_count(const kernel_impl_params& params) {
-    // layout::count() throws on a dynamic layout, so the is_dynamic() check has to come first. Inside
-    // it every input layout is static, which is exactly the state update_dispatch_data() runs in.
+    // layout::count() throws on a dynamic layout; update_dispatch_data() runs with static ones.
     if (!params.is_type<paged_attention>() || params.is_dynamic() ||
         params.input_layouts.size() <= static_cast<size_t>(PagedAttentionInputIdx::TOKEN_TYPE_IDS)) {
         return 0;
@@ -174,158 +146,13 @@ inline size_t get_d_max(size_t head_size) {
     return head_size;
 }
 
-inline size_t align_up(size_t value, size_t alignment) {
-    return ((value + alignment - 1) / alignment) * alignment;
-}
-
-// Whether a K/V/Q/A surface whose per-head row is `row_bytes` wide can be accessed with the Xe 2D
-// block IO builtins. The hardware requires, for the block read/write intrinsics used by
-// sdpa_ocl.cl:
-//   - surface width  >= 64 bytes and a multiple of 4,
-//   - surface pitch  >= 64 bytes and a multiple of 16,
-//   - base address 64-byte aligned.
-// `row_bytes` is head_size * element_size, i.e. the *width* of the tile the kernel accesses. The
-// pitch and the base offset differ between the two layouts the kernel supports:
-//   - plain SDPA, [batch, heads, seq_len, head_size]: pitch == row_bytes and the base is advanced
-//     by (b * num_heads + h) * seq_len * row_bytes, with seq_len dynamic;
-//   - paged attention, rank-2 [total_tokens, num_heads * head_size]: pitch is
-//     num_heads * row_bytes and the base is advanced by
-//     (subsequence_begin * num_heads + h) * row_bytes, both dynamic.
-// In both cases the pitch and the base offset are integer multiples of row_bytes, so requiring
-// row_bytes itself to be >= 64 and a multiple of 64 satisfies all three rules at JIT time.
-// For compressed (i8) K/V, row_bytes == head_size, so this means head_size % 64 == 0
-// (64/128/192/256/320/384/448/512); for f16 tensors it means head_size % 32 == 0.
-// NOTE: this assumes the tensor carries no padding -- feature padding is folded into both the
-// pitch and the base offset by the kernel and is invisible here, so callers must additionally
-// reject padded layouts (see block2d_layout_ok).
-inline bool block2d_surface_ok(size_t row_bytes) {
-    return row_bytes >= 64 && (row_bytes % 64) == 0;
-}
-
-// block2d_surface_ok() plus the no-padding precondition it relies on.
-inline bool block2d_layout_ok(const layout& l, size_t row_bytes) {
-    return block2d_surface_ok(row_bytes);// && !l.data_padding && !l.data_padding.is_dynamic();
-}
-
-// Relaxed tier: the same three hardware rules, minus the "base is ALREADY 64B-aligned" part, which
-// the kernel then repairs itself (BLOCK2D_KV_BASE_FIXUP in sdpa_ocl.cl).
-//
-// block2d_surface_ok() above folds all three rules into one % 64 test, which is much stricter than
-// the hardware. Reusing the premise its own comment states -- the pitch and the base offset are
-// integer multiples of row_bytes -- row_bytes >= 64 && row_bytes % 16 == 0 already gives:
-//   - width: >= 64 and a multiple of 4        (16 | row_bytes implies 4 | row_bytes),
-//   - pitch: = n * row_bytes, hence >= 64 and a multiple of 16,
-// leaving ONLY the base rule violated, and violated by a bounded amount: base = m * row_bytes, so
-// prem = base & 63 is a multiple of gcd(row_bytes, 64), itself a multiple of 16. The kernel's fixup
-// rounds the base down by prem and shifts the x coordinate by prem / element_size, which is
-// therefore exact for every element size the builtins use (1, 2 or 4 bytes).
-//
-// This is what sdpa_micro has always done -- its block2d_load helper carries the identical
-// round-down-and-compensate in three lines -- and it is why micro could use 2D block IO at head 72
-// while sdpa_ocl fell back to a per-lane scalar gather and ran 8.1x slower on the gemma-4 vision
-// tower (see test/sdpa_ocl_head72_analysis.md).
-//
-// The % 64 tier is kept as the "no fixup needed" fast path so every already-enabled config keeps
-// byte-identical codegen. For f16 this widens head_size % 32 == 0 to head_size % 8 == 0
-// (40/48/56/72/80/88/104/112/120/...); for i8 row_bytes == head_size, so % 64 widens to % 16.
-// The width+pitch half of the block2d rules, shared by the two tiers that do not require a
-// 64-byte-aligned base by construction. Kept as one primitive so the two callers below cannot drift
-// apart, but deliberately exposed under two names: they are the SAME test for DIFFERENT reasons, and
-// each name carries its own base-alignment argument.
-inline bool block2d_width_pitch_ok(size_t row_bytes) {
-    return row_bytes >= 64 && (row_bytes % 16) == 0;
-}
-
-inline bool block2d_surface_fixup_ok(size_t row_bytes) {
-    return block2d_width_pitch_ok(row_bytes);
-}
-
-// Whether `ch` carries no padding at all -- neither a static amount nor a dynamic (shape_info)
-// one. Indexed exactly the way ocl_v2/utils/jitter.cpp reads the same arrays when it emits
-// *_PAD_BEFORE_SIZE_* / the pitches, so the two cannot disagree about which array slot an axis
-// owns. An axis the format does not have cannot be padded, hence the `true`.
-inline bool axis_unpadded(const layout& l, ChannelName ch) {
-    const auto rank = l.get_partial_shape().size();
-    const int idx = get_channel_index(ch, rank, format::is_weights_format(l.format), format::is_grouped(l.format));
-    if (idx < 0 || idx >= static_cast<int>(rank))
-        return true;
-    const auto& pad = l.data_padding;
-    return pad._lower_size.at(idx) == 0 && pad._upper_size.at(idx) == 0 && !pad._dynamic_dims_mask[idx];
-}
-
-// block2d_surface_fixup_ok() plus the precondition that padding cannot invalidate it.
-//
-// The relaxation above rests on "the pitch is an integer multiple of row_bytes", and padding is
-// folded into the pitch and the base by the kernel, invisible in row_bytes. But only ONE axis can
-// actually break that premise: the innermost (X / head-dim) one, because for a simple data format
-// every OV pitch is a product of padded dims and therefore an integer multiple of
-// X_PITCH == padded_x. With X unpadded, X_PITCH == head_size, so the pitch stays n * row_bytes and
-// the rule holds for ANY padding on the batch / head / sequence axes -- which is what a Q/K/V that
-// is a crop view of one fused QKV tensor has (phi-4-multimodal's SigLIP tower: dynamic pad on the
-// heads axis, X_PITCH 1, Y_PITCH 72, so the pitch is always a multiple of 144 B). The base ends up
-// misaligned by a multiple of 16 and the in-kernel BLOCK2D_KV_BASE_FIXUP repairs it, exactly as
-// sdpa_micro's block2d_load always has -- which is why micro could use 2D block IO on this layout
-// while sdpa_ocl fell back to the per-lane scalar gather and ran 7.5x slower.
-//
-// Structured as "old predicate first, then the widened one" so this is a strict superset: every
-// configuration that already passed keeps byte-identical codegen.
-inline bool block2d_layout_fixup_ok(const layout& l, size_t row_bytes) {
-    if (!block2d_surface_fixup_ok(row_bytes))
-        return false;
-    if (!l.data_padding && !l.data_padding.is_dynamic())
-        return true;
-    return format::is_simple_data_format(l.format) && axis_unpadded(l, ChannelName::X);
-}
-
-// Paged-attention CACHE PAGE surfaces, where the base rule needs no fixup at all and the old % 64
-// test was pure over-restriction.
-//
-// A page is a self-contained [block_size, head_size] tile, so unlike the plain-SDPA tensors:
-//   - width == pitch == row_bytes (there is no outer head/seq stride to worry about), and
-//   - the base is always a WHOLE number of pages, so base alignment follows from the page STRIDE,
-//     which the pitch rule already pins down. Verified per layout -- in each case the pitch rule's
-//     divisibility is exactly what makes the stride a multiple of 64:
-//       f16 K/V page   stride 32*h        ; pitch rule => h % 8 == 0 => h even   => 32h  % 64 == 0
-//       i8 BY_TOKEN    stride 16*(h + 4)  ; pitch rule => h % 16 == 0            => 256n + 64
-//       i8 BY_CHANNEL K stride 20*h       ; pitch rule => h % 16 == 0            => 320n, 320 % 64 == 0
-//       u4 K           stride 12*h        ; pitch rule => h % 32 == 0            => 384n, 384 % 64 == 0
-//       u4 V           stride 16*(Align(h/2,16) + 4) ; Align is already % 16     => 256k + 64
-// (The u4 V pitch is Align(h/2, 16), which is a multiple of 16 by construction, so for that one
-// surface the rule degenerates to the >= 64 minimum.)
-//
-// Widening effect: f16 pages go from head_size % 32 == 0 to % 8 == 0 (adds 40/48/56/72/80/88/104/
-// 112/120) and i8 pages from % 64 to % 16 (adds 80/112/144/176/208/240). Each of those previously
-// fell back to a per-lane scalar gather.
-//
-// NOT used for u4, even though the alignment proof above covers it -- see the comment at
-// v_pa_2d_i8: the u4 1D whole-page read is gated on that flag being OFF, so relaxing it would
-// displace a measured-faster path on head sizes nobody can benchmark.
-inline bool block2d_page_ok(size_t row_bytes) {
-    return block2d_width_pitch_ok(row_bytes);
-}
-
-// Per-head-size tuned tiling for the sdpa_ocl kernel, mirroring sdpa_micro's
-// choose_config_* tables. The KQ workgroup tile is kept at 128 keys with sg_per_wg = 16
-// across all head sizes; only the S*V split (and, for d_max <= 64, the query tile) vary.
-// Every branch must satisfy:
-//   - sv_value_blocks >= 1 and sv_score_blocks >= 1 (non-empty DPAS tiles),
-//   - WG coverage (sv tile_values*per_wg == d_max, tile_scores*per_wg == wg_queries),
-//   - SLM budget and alpha-rescale (KQ/SV query-split) alignment.
-// arch is currently used only for the subgroup size; per-arch specialization can be
-// added here later the same way sdpa_micro splits choose_config_xehpc/xe2/xe3p.
-//
-// This is the k_head_size == v_head_size answer: the KQ tiling plus the S*V split that goes with it.
-// choose_config() below layers the k != v handling and the env overrides on top.
+// Per-head-size tuned tiling for k_head_size == v_head_size, mirroring sdpa_micro's choose_config_*
+// tables: a 128-key KQ workgroup tile with 16 subgroups, varying only the S*V split (and the query tile
+// for d_max <= 64). Every branch must satisfy solve_sv_split()'s invariants.
 sdpa_ocl_config_t choose_config_kq_only(gpu_arch arch, size_t d_max) {
-    // The branch chain below tops out at d_max == 512 (sv_sg_tile_values 64 * sv_sg_per_wg_values 8).
-    // get_d_max() will happily return 1024 for a larger head size, and the final else would then
-    // cover only half the head dimension -- silently producing wrong results rather than failing.
-    // Head sizes above 512 are rejected upstream by SDPAOpt::supports_micro_sdpa, so this only
-    // guards against that gate being relaxed later without extending the tiling table here.
-    OPENVINO_ASSERT(d_max <= 512,
-                    "[GPU] sdpa_ocl: unsupported head size (d_max=",
-                    d_max,
-                    "); the tiling table covers d_max <= 512 only");
+    // The table stops at 512. SDPAOpt::supports_micro_sdpa rejects larger heads; this guards against that
+    // gate being relaxed without extending the table (the last branch would cover half the head).
+    OPENVINO_ASSERT(d_max <= 512, "[GPU] sdpa_ocl: unsupported head size (d_max=", d_max, "); the tiling table covers d_max <= 512 only");
 
     sdpa_ocl_config_t config;
     config.subgroup_size = static_cast<int>(get_subgroup_size(arch));
@@ -340,17 +167,14 @@ sdpa_ocl_config_t choose_config_kq_only(gpu_arch arch, size_t d_max) {
     config.sv_sg_per_wg_scores = 2;
 
     if (d_max <= 32) {
-        // wg_queries is doubled to 64 so the 16 subgroups still get a valid S*V split
-        // (sv_sg_tile_values must be >= 16; a 32-wide head dim cannot be split 8 ways).
+        // A 32-wide head cannot be split 8 ways (tile_values >= 16), so the query tile doubles to 64.
         config.kq_sg_tile_queries = 32;
         config.sv_sg_tile_values = 16;
         config.sv_sg_tile_scores = 8;
         config.sv_sg_per_wg_values = 2;
         config.sv_sg_per_wg_scores = 8;
     } else if (d_max <= 64) {
-        // Q/K head sizes 33..64 round up to d_max == 64. Use the 128-key x 64-query WG tile
-        // evaluated as wide_math on MiniCPM4-0.5B, preserving the query-block stride and the
-        // 16-subgroup S*V split. MICRO_MATH arithmetic is enabled separately in get_jit_constants().
+        // The 128-key x 64-query tile evaluated as wide_math on MiniCPM4-0.5B.
         config.kq_sg_tile_queries = 32;
         config.kq_sg_per_wg_keys = 8;
         config.kq_sg_per_wg_queries = 2;
@@ -369,7 +193,6 @@ sdpa_ocl_config_t choose_config_kq_only(gpu_arch arch, size_t d_max) {
         config.sv_sg_per_wg_values = 8;
         config.sv_sg_per_wg_scores = 2;
     } else {
-        // d_max <= 512; larger head sizes are rejected upstream by supports_micro_sdpa.
         config.sv_sg_tile_values = 64;
         config.sv_sg_tile_scores = 16;
         config.sv_sg_per_wg_values = 8;
@@ -379,82 +202,52 @@ sdpa_ocl_config_t choose_config_kq_only(gpu_arch arch, size_t d_max) {
     return config;
 }
 
-// Full tiling for a (k_head_size, v_head_size) pair.
-//
-// d_max drives the KQ side (it is the Q/K contraction dim, so it sets DKS and the query tile) and
-// vd_max the S*V side (it is the V/output dim). They are equal for every k_head_size ==
-// v_head_size shape, in which case choose_config_kq_only()'s tuned tables are used verbatim
-// unless overridden by the environment.
-sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max, size_t vd_max) {
-    OPENVINO_ASSERT(vd_max <= 512,
-                    "[GPU] sdpa_ocl: unsupported value head size (vd_max=",
-                    vd_max,
-                    "); the tiling table covers vd_max <= 512 only");
-
-    auto config = choose_config_kq_only(arch, d_max);
-
-    // k_head_size != v_head_size: the tuned tables sized the S*V split for d_max, which is the K
-    // contraction dim, so re-derive just that split against the V dim. The KQ side (and therefore
-    // sg_per_wg, kq_wg_tile_queries and the paged-attention query-block stride) is untouched.
-    //
-    // Tier 2 exists because the tuned table alone leaves a hole: for d_max >= 128 the query tile is
-    // only 32, and a vd_max of 32 can be tiled at most 2 ways (tile_values must be a multiple of the
-    // subgroup size), which leaves >= 8 subgroups to split 32 queries -- a score tile of 4 or 2,
-    // below the DPAS 8-row minimum. Retrying with a 64-key x 64-query KQ WG tile doubles the query tile
-    // to 64 and every such pair then resolves to (16, 8, 2, 8). That hole is NOT benign: paged
-    // attention's MIXED fallback (pa_multi_token) reads a BY_CHANNEL K cache d-major while the
-    // writer relays it token-major, so a rejected shape produces NaN rather than a slower result.
-    //
-    // Tier 2 is unreachable for k_head_size == v_head_size (tier 1 always solves that case), so the
-    // tuned KQ tilings are preserved bit-for-bit wherever they are the tuned answer.
-    if (vd_max != d_max) {
-        if (!solve_sv_split(config, vd_max)) {
-            const auto tier1 = config;
-            config.kq_sg_tile_keys = 16;
-            config.kq_sg_tile_queries = 16;
-            config.kq_sg_per_wg_keys = 4;
-            config.kq_sg_per_wg_queries = 4;
-            OPENVINO_ASSERT(solve_sv_split(config, vd_max),
-                            "[GPU] sdpa_ocl: no valid S*V split for d_max=",
-                            d_max,
-                            " vd_max=",
-                            vd_max,
-                            " (tier-1 kq_wg_tile_queries=",
-                            tier1.kq_wg_tile_queries(),
-                            "); SDPAOclGenerator::supports_head_sizes() should have rejected this shape");
-        }
+// The tuned tiling for d_max, with the S*V split re-derived for vd_max when they differ. Tier 2 (a 64 x 64
+// KQ workgroup tile) covers the pairs the tuned query tile cannot split, e.g. k >= 72 with v <= 32; it is
+// unreachable for k_head_size == v_head_size, so the tuned tilings stay as they are. False: no tiling.
+bool solve_tiling(gpu_arch arch, size_t d_max, size_t vd_max, sdpa_ocl_config_t& config) {
+    config = choose_config_kq_only(arch, d_max);
+    if (vd_max == d_max || solve_sv_split(config, vd_max)) {
+        return true;
     }
+    config.kq_sg_tile_keys = 16;
+    config.kq_sg_tile_queries = 16;
+    config.kq_sg_per_wg_keys = 4;
+    config.kq_sg_per_wg_queries = 4;
+    return solve_sv_split(config, vd_max);
+}
 
-    // Perf-investigation toggles (default off = struct/branch values above). Lets one build sweep
-    // the KQ tiling without a rebuild per config.
-    //
-    // IMPORTANT: the four KQ knobs are NOT independent of the S*V split. sg_per_wg is derived from
-    // the KQ side (kq_sg_per_wg_keys * kq_sg_per_wg_queries) and is what reqd_work_group_size
-    // dispatches, but the kernel indexes the S*V stage with sv_sg_per_wg_values/_scores. If those
-    // stop multiplying to the same sg_per_wg, subgroups that no longer exist still own value
-    // columns / score rows and their part of the output is simply never computed. An earlier sweep
-    // that overrode kq_sg_per_wg_keys alone hit exactly this and produced wrong results.
-    //
-    // So overriding any KQ knob here re-derives the S*V split (via solve_sv_split(), the same helper
-    // the vd_max != d_max path uses) to stay consistent.
-    // Remove this block once the tiling investigation is done.
-    const bool kq_override = std::getenv("SDPA_OCL_KQ_TILE_KEYS") || std::getenv("SDPA_OCL_KQ_TILE_QUERIES") ||
-                             std::getenv("SDPA_OCL_KQ_PER_WG_KEYS") || std::getenv("SDPA_OCL_KQ_PER_WG_QUERIES");
-    const bool trace_config = std::getenv("SDPA_OCL_TRACE_CONFIG") != nullptr;
+// d_max drives the KQ side (the Q/K contraction depth, hence DKS and the query tile), vd_max the S*V side.
+sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max, size_t vd_max) {
+    OPENVINO_ASSERT(vd_max <= 512, "[GPU] sdpa_ocl: unsupported value head size (vd_max=", vd_max, "); the tiling table covers vd_max <= 512 only");
+
+    sdpa_ocl_config_t config;
+    const bool solved = solve_tiling(arch, d_max, vd_max, config);
+    OPENVINO_ASSERT(solved,
+                    "[GPU] sdpa_ocl: no valid S*V split for d_max=",
+                    d_max,
+                    " vd_max=",
+                    vd_max,
+                    " (tier-1 kq_wg_tile_queries=",
+                    choose_config_kq_only(arch, d_max).kq_wg_tile_queries(),
+                    "); SDPAOclGenerator::supports_head_sizes() should have rejected this shape");
+
+    // Tuning overrides of the KQ tiling. The S*V split is re-derived, because it must keep using exactly
+    // the sg_per_wg subgroups the KQ side dispatches ("Tiling" in the docs).
+    const bool kq_override =
+        env_set("SDPA_OCL_KQ_TILE_KEYS") || env_set("SDPA_OCL_KQ_TILE_QUERIES") || env_set("SDPA_OCL_KQ_PER_WG_KEYS") || env_set("SDPA_OCL_KQ_PER_WG_QUERIES");
+    const bool trace_config = env_set("SDPA_OCL_TRACE_CONFIG");
     if (trace_config) {
         std::cerr << "[sdpa_ocl] choose_config d_max=" << d_max << " kq_override=" << kq_override << std::endl;
     }
     if (kq_override) {
-        if (const char* env = std::getenv("SDPA_OCL_KQ_TILE_KEYS"))
-            config.kq_sg_tile_keys = std::atoi(env);
-        if (const char* env = std::getenv("SDPA_OCL_KQ_TILE_QUERIES"))
-            config.kq_sg_tile_queries = std::atoi(env);
-        if (const char* env = std::getenv("SDPA_OCL_KQ_PER_WG_KEYS"))
-            config.kq_sg_per_wg_keys = std::atoi(env);
-        if (const char* env = std::getenv("SDPA_OCL_KQ_PER_WG_QUERIES"))
-            config.kq_sg_per_wg_queries = std::atoi(env);
+        config.kq_sg_tile_keys = env_int("SDPA_OCL_KQ_TILE_KEYS", config.kq_sg_tile_keys);
+        config.kq_sg_tile_queries = env_int("SDPA_OCL_KQ_TILE_QUERIES", config.kq_sg_tile_queries);
+        config.kq_sg_per_wg_keys = env_int("SDPA_OCL_KQ_PER_WG_KEYS", config.kq_sg_per_wg_keys);
+        config.kq_sg_per_wg_queries = env_int("SDPA_OCL_KQ_PER_WG_QUERIES", config.kq_sg_per_wg_queries);
 
-        OPENVINO_ASSERT(solve_sv_split(config, vd_max),
+        const bool override_solved = solve_sv_split(config, vd_max);
+        OPENVINO_ASSERT(override_solved,
                         "[GPU] sdpa_ocl: the SDPA_OCL_KQ_* override (tile_keys=",
                         config.kq_sg_tile_keys,
                         " tile_queries=",
@@ -465,17 +258,13 @@ sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max, size_t vd_max) {
                         config.kq_sg_per_wg_queries,
                         ") admits no valid S*V split for vd_max=",
                         vd_max);
-        // This helper also runs during dispatch. Keep per-call output and flushing opt-in
-        // so a tiling override does not add logging overhead to every prefill.
+        // Opt-in: this also runs on every dispatch.
         if (trace_config) {
-            std::cout << "[new config] config.kq_sg_tile_keys=" << config.kq_sg_tile_keys
-                      << " config.kq_sg_tile_queries=" << config.kq_sg_tile_queries
-                      << " config.kq_sg_per_wg_keys=" << config.kq_sg_per_wg_keys
-                      << " config.kq_sg_per_wg_queries=" << config.kq_sg_per_wg_queries
-                      << " config.sv_sg_tile_values=" << config.sv_sg_tile_values
-                      << " config.sv_sg_tile_scores=" << config.sv_sg_tile_scores
-                      << " config.sv_sg_per_wg_values=" << config.sv_sg_per_wg_values
-                      << " config.sv_sg_per_wg_scores=" << config.sv_sg_per_wg_scores << std::endl;
+            std::cout << "[new config] config.kq_sg_tile_keys=" << config.kq_sg_tile_keys << " config.kq_sg_tile_queries=" << config.kq_sg_tile_queries
+                      << " config.kq_sg_per_wg_keys=" << config.kq_sg_per_wg_keys << " config.kq_sg_per_wg_queries=" << config.kq_sg_per_wg_queries
+                      << " config.sv_sg_tile_values=" << config.sv_sg_tile_values << " config.sv_sg_tile_scores=" << config.sv_sg_tile_scores
+                      << " config.sv_sg_per_wg_values=" << config.sv_sg_per_wg_values << " config.sv_sg_per_wg_scores=" << config.sv_sg_per_wg_scores
+                      << std::endl;
         }
     }
 
@@ -492,8 +281,8 @@ JitConstants unit_parameters(const std::string& prefix) {
     return definitions;
 }
 
-// target_S0..3 = the source's pitches in `order`; target_D0..3 (the sizes) only for with_sizes, since
-// the attention mask is the only tensor whose dims the kernel reads (MSK_D*).
+// target_S0..3 = the source's pitches in `order`; target_D0..3 (the sizes) only for with_sizes, since the
+// attention mask is the only tensor whose dims the kernel reads (MSK_D*).
 JitConstants convert_strides(std::string target_prefix, std::string source_prefix, const std::vector<int64_t> order, bool with_sizes = false) {
     JitConstants definitions({});
 
@@ -534,7 +323,9 @@ JitConstants convert_strides(std::string target_prefix, std::string source_prefi
     return definitions;
 }
 
-inline size_t micro_get_num_heads(const kernel_impl_params& params, size_t qkv_idx) {
+// Head counts, head sizes and sequence lengths of Q (0), K (1) and V (2): from the descriptor for paged
+// attention, from the (transposed) layouts for plain SDPA.
+inline size_t qkv_heads_num(const kernel_impl_params& params, size_t qkv_idx) {
     if (params.is_type<paged_attention>()) {
         const auto desc = params.typed_desc<paged_attention>();
         switch (qkv_idx) {
@@ -566,10 +357,10 @@ inline size_t micro_get_num_heads(const kernel_impl_params& params, size_t qkv_i
             OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
         }
     }
-    OPENVINO_THROW("[GPU] Invalid qkv index in micro_get_num_heads");
+    OPENVINO_THROW("[GPU] Invalid qkv index in qkv_heads_num");
 }
 
-inline size_t micro_get_head_size(const kernel_impl_params& params, size_t qkv_idx) {
+inline size_t qkv_head_size(const kernel_impl_params& params, size_t qkv_idx) {
     if (params.is_type<paged_attention>()) {
         const auto desc = params.typed_desc<paged_attention>();
         switch (qkv_idx) {
@@ -601,10 +392,11 @@ inline size_t micro_get_head_size(const kernel_impl_params& params, size_t qkv_i
             OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
         }
     }
-    OPENVINO_THROW("[GPU] Invalid qkv index in micro_get_head_size");
+    OPENVINO_THROW("[GPU] Invalid qkv index in qkv_head_size");
 }
 
-inline ov::Dimension micro_get_aligned_seq_length(const kernel_impl_params& params, int32_t qkv_idx, int64_t target_seq_len_block_size = 16) {
+// For paged attention: the sum of the subsequence lengths, each aligned to the block.
+inline ov::Dimension aligned_seq_length(const kernel_impl_params& params, int32_t qkv_idx, int64_t target_seq_len_block_size = 16) {
     if (qkv_idx < 0 || qkv_idx > 2) {
         OPENVINO_THROW("Invalid qkv index for scaled dot product attention");
     }
@@ -635,6 +427,469 @@ inline ov::Dimension micro_get_aligned_seq_length(const kernel_impl_params& para
     return ov::Dimension();
 }
 
+// For paged attention only the fields this generator reads. is_kv_compressed describes the plain-SDPA
+// scale / zero-point inputs and stays false: a compressed PA cache is described by the IS_PA_* jit.
+sdpa_configuration make_sdpa_configuration(const kernel_impl_params& params) {
+    sdpa_configuration config;
+    if (params.is_type<scaled_dot_product_attention>()) {
+        const auto& desc = params.typed_desc<scaled_dot_product_attention>();
+        auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
+        auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
+        auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
+
+        config = SDPABase::get_sdpa_configuration(params, extended_input_q_transpose_order, extended_input_k_transpose_order, extended_input_v_transpose_order);
+        return config;
+    }
+    const auto desc = params.typed_desc<paged_attention>();
+    config.heads_num = desc->heads_num;
+    config.kv_heads_num = desc->kv_heads_num;
+    config.is_causal = true;
+    config.is_paged_attention = true;
+    config.paged_attention_block_size = static_cast<int64_t>(paged_attention::block_size);
+    config.paged_attention_sliding_window = desc->sliding_window;
+    config.has_const_scale_val = desc->scale_val.has_value();
+    if (config.has_const_scale_val)
+        config.scale_val = desc->scale_val.value();
+    config.is_kv_compressed = false;
+    config.use_asymmetric_quantization = false;
+
+    const auto has_alibi = params.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
+    config.input_num = 7 + (config.has_const_scale_val ? 0 : 1) + (has_alibi ? 1 : 0);
+    return config;
+}
+
+// Head sizes and tiling. The jit, the dispatch and get_query_block_size() derive them the same way, because
+// the paged-attention query-block stride must be the jitted workgroup query tile.
+struct sdpa_ocl_problem {
+    size_t k_head_size = 0;
+    size_t v_head_size = 0;
+    size_t d_max = 0;   // k_head_size rounded up to a power of two
+    size_t vd_max = 0;  // v_head_size rounded up to a power of two
+    sdpa_ocl_config_t tiling;
+};
+
+sdpa_ocl_problem make_problem(const kernel_impl_params& params) {
+    sdpa_ocl_problem p;
+    p.k_head_size = qkv_head_size(params, 1);
+    p.v_head_size = qkv_head_size(params, 2);
+    p.d_max = get_d_max(p.k_head_size);
+    p.vd_max = get_d_max(p.v_head_size);
+    p.tiling = choose_config(params.get_device_info().arch, p.d_max, p.vd_max);
+    return p;
+}
+
+// How the stage reads a paged-attention KV cache; all false for plain SDPA and for PA PREFILL, whose K is
+// the f16 input. `compressed` is keyed on the data type so that MIXED always compiles; the dequant is only
+// correct where dequant_ok, and can_use_micro_sdpa_for() keeps the other layouts off dispatch.
+struct pa_cache_desc {
+    bool compressed = false;        // IS_PA_KV_COMPRESSED: an i8/u8 cache (u4 is stored as u8)
+    bool key_by_channel = false;    // the descriptor's K quantization
+    bool u4_by_channel_tm = false;  // IS_PA_K_U4
+    bool by_channel_tm = false;     // IS_PA_K_BY_CHANNEL: i8 or u4 BY_CHANNEL, relayed token-major
+    bool dequant_ok = false;        // i8 BY_TOKEN or token-major BY_CHANNEL
+    bool k_token_major = false;     // IS_PA_K_TOKEN_MAJOR
+    size_t k_row_elems = 0;         // page data-row pitch in cache elements (u4: bytes)
+    size_t v_row_elems = 0;
+};
+
+pa_cache_desc classify_pa_cache(const kernel_impl_params& params,
+                                bool is_prefill,
+                                const layout& k,
+                                const ov::element::Type& precision,
+                                const sdpa_ocl_problem& p) {
+    pa_cache_desc c;
+    c.k_row_elems = p.k_head_size;
+    c.v_row_elems = p.v_head_size;
+    if (!params.is_type<paged_attention>()) {
+        return c;
+    }
+    const bool mixed = !is_prefill;
+    const bool int4 = data_type_traits::is_i4_u4(precision);
+    c.compressed = data_type_traits::is_i8_u8(k.data_type);
+    c.key_by_channel = params.typed_desc<paged_attention>()->is_key_by_channel;
+    const bool i8 = c.compressed && !int4;
+    // Only MIXED reads the cache, so only MIXED has a page layout to recognise.
+    const bool tm_layout = mixed && c.compressed && c.key_by_channel &&
+                           pa_k_by_channel_tm_layout(params.input_layouts[PagedAttentionInputIdx::KEY_CACHE],
+                                                     int4,
+                                                     2 * ov::element::Type(params.input_layouts[PagedAttentionInputIdx::KEY].data_type).size());
+    // u4, not i4: the u4 quantizer's nibbles are unsigned, and a signed widen is not implemented.
+    c.u4_by_channel_tm = tm_layout && precision == ov::element::u4;
+    c.by_channel_tm = (i8 && tm_layout) || c.u4_by_channel_tm;
+    c.dequant_ok = (i8 && !c.key_by_channel) || c.by_channel_tm;
+    c.k_token_major = (mixed && paged_attention::k_token_major_for(int4 ? precision : ov::element::Type(k.data_type), c.key_by_channel)) || c.by_channel_tm;
+    if (c.u4_by_channel_tm) {
+        c.k_row_elems = pa_u4_k_row_bytes(p.k_head_size);
+        c.v_row_elems = pa_u4_v_row_bytes(p.v_head_size, static_cast<size_t>(p.tiling.subgroup_size));
+    }
+    return c;
+}
+
+// Everything get_jit_constants() reads, derived once. For the PA MIXED stage K/V are the caches (inputs
+// 3/4); PA PREFILL and plain SDPA read the K/V inputs.
+struct jit_inputs {
+    const kernel_impl_params& params;
+    bool is_prefill;
+    bool is_pa;
+    sdpa_configuration config;
+    sdpa_ocl_problem problem;
+    const layout& q;
+    const layout& k;
+    const layout& v;
+    const layout& out;
+    size_t ldq;  // per-head row bytes
+    size_t ldk;
+    size_t ldv;
+    size_t lda;
+    ov::element::Type kv_cache_precision;
+    pa_cache_desc cache;
+};
+
+jit_inputs make_jit_inputs(const kernel_impl_params& params, bool is_prefill) {
+    auto config = make_sdpa_configuration(params);
+    const bool is_pa = config.is_paged_attention;
+    const auto& q = params.input_layouts[0];
+    const auto& k = (is_pa && !is_prefill) ? params.input_layouts[3] : params.input_layouts[1];
+    const auto& v = (is_pa && !is_prefill) ? params.input_layouts[4] : params.input_layouts[2];
+    const auto& out = params.output_layouts[0];
+    const auto problem = make_problem(params);
+    const auto precision = pa_kv_cache_precision(params);
+    const auto cache = classify_pa_cache(params, is_prefill, k, precision, problem);
+    return {params,
+            is_prefill,
+            is_pa,
+            config,
+            problem,
+            q,
+            k,
+            v,
+            out,
+            problem.k_head_size * ov::element::Type(q.data_type).size(),
+            problem.k_head_size * ov::element::Type(k.data_type).size(),
+            problem.v_head_size * ov::element::Type(v.data_type).size(),
+            problem.v_head_size * ov::element::Type(out.data_type).size(),
+            precision,
+            cache};
+}
+
+// Sink, and qq_bias for MIXED only (PREFILL reads the contiguous K input, where the tree mask never
+// applies), in lockstep with get_arguments_desc().
+void add_sink_qq_bias_jit(JitConstants& jit, const jit_inputs& in) {
+    const auto& params = in.params;
+    if (!in.is_pa) {
+        if (params.typed_desc<scaled_dot_product_attention>()->has_sink_input)
+            add_sink_jit(jit, params.input_layouts[ScaledDotProductAttentionInputIdx::SINK]);
+        jit.make("HAS_QQ_BIAS", 0);
+        return;
+    }
+    const auto desc = params.typed_desc<paged_attention>();
+    if (desc->has_sink_input)
+        add_sink_jit(jit, params.input_layouts[PagedAttentionInputIdx::SINKS]);
+    if (desc->has_qq_bias && !in.is_prefill) {
+        jit.make("HAS_QQ_BIAS", 1);
+        jit.make("QQ_BIAS_DATA_T", to_ocl_type(params.input_layouts[PagedAttentionInputIdx::QQ_BIAS].data_type));
+        jit.make("QQ_BIAS_BEGINS_DATA_T", to_ocl_type(params.input_layouts[PagedAttentionInputIdx::QQ_BIAS_BEGINS].data_type));
+    } else {
+        jit.make("HAS_QQ_BIAS", 0);
+    }
+}
+
+// sdpa_micro's softmax rounding, on PA PREFILL f16 without sink / alibi / sliding window / token_type_ids.
+// On by default; SDPA_OCL_MICRO_MATH=0 turns it off.
+void add_micro_math_jit(JitConstants& jit, const jit_inputs& in) {
+    if (!in.is_pa || !in.is_prefill || in.q.data_type != data_types::f16 || in.k.data_type != data_types::f16 || in.v.data_type != data_types::f16 ||
+        in.out.data_type != data_types::f16) {
+        return;
+    }
+    const auto desc = in.params.typed_desc<paged_attention>();
+    if (desc->has_sink_input || desc->has_alibi || desc->sliding_window != 0 || desc->has_token_type_ids) {
+        return;
+    }
+    jit.make("MICRO_MATH", env_int("SDPA_OCL_MICRO_MATH", 1) == 0 ? 0 : 1);
+}
+
+void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
+    const auto& t = p.tiling;
+    jit.make("DPAS_K", 16);  // f16 and bf16 k16 DPAS both fix KSTEP at 16
+    jit.make("DPAS_ROWS", 8);
+    jit.make("kq_sg_tile_keys", t.kq_sg_tile_keys);
+    jit.make("kq_sg_tile_queries", t.kq_sg_tile_queries);
+    jit.make("kq_sg_per_wg_keys", t.kq_sg_per_wg_keys);
+    jit.make("kq_sg_per_wg_queries", t.kq_sg_per_wg_queries);
+    jit.make("sv_sg_tile_scores", t.sv_sg_tile_scores);
+    jit.make("sv_sg_tile_values", t.sv_sg_tile_values);
+    jit.make("sv_sg_per_wg_scores", t.sv_sg_per_wg_scores);
+    jit.make("sv_sg_per_wg_values", t.sv_sg_per_wg_values);
+    jit.make("D_MAX", p.d_max);
+    jit.make("DKS", "(D_MAX / DPAS_K)");
+    jit.make("Q_DWORDS", 8);  // 16 half values per Q KSTEP packed as 8 uint dwords
+    jit.make("SUBGROUP_SIZE", t.subgroup_size);
+}
+
+// 2D block IO for Q, the K/V inputs and the output ("Block2d rules" in the docs). MIXED emits the K/V flags
+// too but reads the caches. The SDPA_OCL_*_2D overrides can also force a path on; the base fixup is derived
+// after the override, so a forced path on an unaligned surface stays correct.
+void add_tensor_block_io_jit(JitConstants& jit, const jit_inputs& in) {
+    // The transpose read's 16-row geometry needs a subgroup of 16; the head tail is guarded in the kernel.
+    const bool q_2d = in.problem.tiling.subgroup_size == 16 && ov::element::Type(in.q.data_type).size() == 2 && block2d_layout_ok(in.q, in.ldq);
+    jit.make("USE_2D_BLOCK_IO_Q", env_int("SDPA_OCL_Q_2D", q_2d ? 1 : 0));
+
+    // f16 K/V only: the i8 cache takes the 8-bit paths below.
+    const bool kv_aligned = block2d_layout_ok(in.k, in.ldk) && block2d_layout_ok(in.v, in.ldv);
+    const bool kv_fixup_ok = block2d_layout_fixup_ok(in.k, in.ldk) && block2d_layout_fixup_ok(in.v, in.ldv);
+    const int kv_2d = env_int("SDPA_OCL_KV_2D", (!in.config.is_kv_compressed && (kv_aligned || kv_fixup_ok)) ? 1 : 0);
+    jit.make("USE_2D_BLOCK_IO_KV", kv_2d);
+    jit.make("BLOCK2D_KV_BASE_FIXUP", (kv_2d && !kv_aligned) ? 1 : 0);
+
+    // The output is f16 whatever the KV precision, so KV compression must not disable it.
+    jit.make("USE_2D_BLOCK_IO_A", env_int("SDPA_OCL_A_2D", block2d_layout_ok(in.out, in.lda) ? 1 : 0));
+}
+
+// Page geometry of the cache MIXED reads ("Paged-attention cache layouts" in the docs).
+void add_pa_cache_jit(JitConstants& jit, const jit_inputs& in) {
+    const auto& c = in.cache;
+    jit.make("IS_PA_KV_COMPRESSED", c.compressed ? 1 : 0);
+    jit.make("IS_PA_K_BY_CHANNEL", c.by_channel_tm ? 1 : 0);
+    jit.make("IS_PA_K_U4", c.u4_by_channel_tm ? 1 : 0);
+    if (c.u4_by_channel_tm) {  // the kernel defaults both to the head size
+        jit.make("PA_K_ROW_ELEMS", c.k_row_elems);
+        jit.make("PA_V_ROW_ELEMS", c.v_row_elems);
+    }
+    // Also addresses the gather fallbacks, so it is set even when no page block read is.
+    jit.make("IS_PA_K_TOKEN_MAJOR", c.k_token_major ? 1 : 0);
+    if (!in.is_pa) {
+        return;
+    }
+    jit.make("PAGED_ATTENTION_BLOCK_SIZE", in.config.paged_attention_block_size);
+    // An int4 K page is always per channel (4-bit BY_TOKEN keys are rejected by the execution config).
+    const bool int4 = c.compressed && data_type_traits::is_i4_u4(in.kv_cache_precision);
+    const size_t v_row = int4 ? pa_u4_v_row_bytes(in.problem.v_head_size, static_cast<size_t>(in.problem.tiling.subgroup_size)) : in.problem.v_head_size;
+    add_pa_adjusted_jit(jit, in.problem.k_head_size, v_row, int4, int4 || c.key_by_channel, c.compressed ? 4 : 0);
+}
+
+// Whole-page 1D read ("u4 1D page read" in the docs): a 16-byte column group per read component, a
+// power-of-two column count up to 16 so no read straddles a token, and one page token per subgroup lane.
+bool pa_1d_page_ok(size_t row_elems, size_t sg, size_t block_size) {
+    if (row_elems == 0 || sg == 0 || row_elems % sg != 0)
+        return false;
+    if (block_size != sg)
+        return false;
+    const size_t cols = row_elems / sg;
+    return cols <= 16 && (cols & (cols - 1)) == 0;
+}
+
+// MIXED page reads: f16 pages by the 16b block read, i8/u4 pages by the 8-bit VNNI-transform read, and the
+// u4 pages block2d cannot reach by the whole-page 1D read, only where the block2d path is off. u4 stays on
+// the strict rule so that the 1D read keeps its pages. The overrides are bisection toggles (0 = the scalar
+// gather with the same dequant); the 1D paths are derived after them.
+void add_pa_page_read_jit(JitConstants& jit, const jit_inputs& in) {
+    const auto& c = in.cache;
+    const auto& p = in.problem;
+
+    int v_pa_2d = 0;
+    if (in.is_pa && !in.is_prefill && !in.config.is_kv_compressed && !data_type_traits::is_i8_u8(in.v.data_type) &&
+        !data_type_traits::is_i4_u4(in.v.data_type)) {
+        v_pa_2d = block2d_page_ok(p.v_head_size * ov::element::Type(in.v.data_type).size());
+    }
+    jit.make("USE_2D_BLOCK_IO_V_PA", env_int("SDPA_OCL_V_PA_2D", v_pa_2d));
+
+    int v_pa_2d_i8 = 0;
+    if (c.dequant_ok && !in.is_prefill) {
+        v_pa_2d_i8 = c.u4_by_channel_tm ? block2d_surface_ok(c.v_row_elems) : block2d_page_ok(c.v_row_elems);
+    }
+    v_pa_2d_i8 = env_int("SDPA_OCL_V_PA_I8_2D", v_pa_2d_i8);
+    jit.make("USE_2D_BLOCK_IO_V_PA_I8", v_pa_2d_i8);
+
+    // A d-major K page's row is 32 B, below the block2d minimum, so K block reads need a token-major page.
+    int k_pa_2d = 0;
+    if (c.k_token_major && !in.config.is_kv_compressed && !data_type_traits::is_i8_u8(in.k.data_type) && !data_type_traits::is_i4_u4(in.k.data_type)) {
+        k_pa_2d = block2d_page_ok(p.k_head_size * ov::element::Type(in.k.data_type).size());
+    }
+    jit.make("USE_2D_BLOCK_IO_K_PA", env_int("SDPA_OCL_K_PA_2D", k_pa_2d));
+
+    int k_pa_2d_i8 = 0;
+    if (c.k_token_major && c.dequant_ok) {
+        k_pa_2d_i8 = c.u4_by_channel_tm ? block2d_surface_ok(c.k_row_elems) : block2d_page_ok(c.k_row_elems);
+    }
+    k_pa_2d_i8 = env_int("SDPA_OCL_K_PA_I8_2D", k_pa_2d_i8);
+    jit.make("USE_2D_BLOCK_IO_K_PA_I8", k_pa_2d_i8);
+
+    const auto sg = static_cast<size_t>(p.tiling.subgroup_size);
+    const auto block = static_cast<size_t>(in.config.paged_attention_block_size);
+    const int k_pa_1d = (c.u4_by_channel_tm && !k_pa_2d_i8 && pa_1d_page_ok(c.k_row_elems, sg, block)) ? 1 : 0;
+    jit.make("USE_1D_BLOCK_IO_K_PA_U4", env_int("SDPA_OCL_K_PA_1D", k_pa_1d));
+    const int v_pa_1d = (c.u4_by_channel_tm && !v_pa_2d_i8 && pa_1d_page_ok(c.v_row_elems, sg, block)) ? 1 : 0;
+    jit.make("USE_1D_BLOCK_IO_V_PA_U4", env_int("SDPA_OCL_V_PA_1D", v_pa_1d));
+}
+
+// MIXED reads the new keys [past_len, k) from the raw K/V inputs (Kc/Vc), not from the pages they were just
+// quantized into, so it is gated on inputs 1/2 rather than on the caches. The u4 Kc read tests its own
+// parity at runtime and forces the base fixup ("Paged-attention MIXED: current tokens from Kc/Vc" and
+// "Block2d rules" in the docs).
+void add_pa_current_token_jit(JitConstants& jit, const jit_inputs& in) {
+    int cur_f16 = 0;
+    bool cur_aligned = false;
+    if (in.is_pa && !in.is_prefill) {
+        const auto& kc = in.params.input_layouts[1];
+        const auto& vc = in.params.input_layouts[2];
+        const auto ldk = in.problem.k_head_size * ov::element::Type(kc.data_type).size();
+        const auto ldv = in.problem.v_head_size * ov::element::Type(vc.data_type).size();
+        // Kc/Vc are read as QRY_DATA_T.
+        const bool f16_in = kc.data_type == in.q.data_type && vc.data_type == in.q.data_type && ov::element::Type(in.q.data_type).size() == 2;
+        cur_aligned = block2d_layout_ok(kc, ldk) && block2d_layout_ok(vc, ldv);
+        const bool fixup_ok = block2d_layout_fixup_ok(kc, ldk) && block2d_layout_fixup_ok(vc, ldv);
+        // Here only: Kc/Vc exist only in the MIXED signature. 0 reads the current tokens from the cache.
+        cur_f16 = env_int("SDPA_OCL_PA_CUR_F16", (f16_in && (cur_aligned || fixup_ok)) ? 1 : 0);
+    }
+    jit.make("PA_CUR_KV_F16", cur_f16);
+    jit.make("BLOCK2D_KV_CUR_BASE_FIXUP", (cur_f16 && (!cur_aligned || in.cache.u4_by_channel_tm)) ? 1 : 0);
+}
+
+// Plain-SDPA i8 KV compression: the 8-bit VNNI-transform K and V reads (an override applied outside the gate
+// can force them on, for investigation), and the separate scale / zero-point tensors that follow the data
+// inputs. Always asymmetric: supported() rejects anything else.
+void add_plain_compressed_jit(JitConstants& jit, const jit_inputs& in) {
+    const auto& config = in.config;
+    int v_i8_2d = (config.is_kv_compressed && block2d_layout_ok(in.v, in.ldv)) ? 1 : 0;
+    if (config.is_kv_compressed)
+        v_i8_2d = env_int("SDPA_OCL_V_I8_2D", v_i8_2d);
+    jit.make("USE_2D_BLOCK_IO_V_I8", v_i8_2d);
+    int k_i8_2d = (config.is_kv_compressed && block2d_layout_ok(in.k, in.ldk)) ? 1 : 0;
+    if (config.is_kv_compressed)
+        k_i8_2d = env_int("SDPA_OCL_K_I8_2D", k_i8_2d);
+    jit.make("USE_2D_BLOCK_IO_K_I8", k_i8_2d);
+    if (in.is_pa || !config.is_kv_compressed) {
+        return;
+    }
+
+    const auto& params = in.params;
+    const auto n = config.input_num;
+    const auto& key_cache_comp_scale = params.input_layouts[n];
+    const auto& value_cache_comp_scale = params.input_layouts[n + 1];
+    jit.make("KV_COMPRESSED", 1);
+    jit.make("KEY_ATTR_SCALES_DATA_T", to_ocl_type(key_cache_comp_scale.data_type));
+    jit.make("VAL_ATTR_SCALES_DATA_T", to_ocl_type(value_cache_comp_scale.data_type));
+    jit.add(make_layout_jit_constants("KEY_SCALE", key_cache_comp_scale, params.in_port_to_shape_info_offset.at(n)));
+    jit.add(make_layout_jit_constants("VAL_SCALE", value_cache_comp_scale, params.in_port_to_shape_info_offset.at(n + 1)));
+
+    const std::vector<int64_t> default_order = {0, 1, 2, 3};
+    jit.add(convert_strides("KEY_COMP", "KEY_SCALE", default_order));
+    jit.add(convert_strides("VAL_COMP", "VAL_SCALE", default_order));
+    jit.add(unit_parameters("KEY_COMP"));
+    jit.add(unit_parameters("VAL_COMP"));
+
+    if (config.use_asymmetric_quantization) {
+        jit.make("KEY_ATTR_ZP_DATA_T", to_ocl_type(params.input_layouts[n + 2].data_type));
+        jit.make("VAL_ATTR_ZP_DATA_T", to_ocl_type(params.input_layouts[n + 3].data_type));
+        // Tested for presence only (sdpa_ocl_config.cl #errors without them).
+        jit.make("KEY_ZERO_POINTS", 1);
+        jit.make("VAL_ZERO_POINTS", 1);
+    }
+}
+
+void add_shape_jit(JitConstants& jit, const jit_inputs& in) {
+    // Split because Q.K contracts over k_head_size channels and the output has v_head_size of them.
+    jit.make("K_HEAD_SIZE", in.problem.k_head_size);
+    jit.make("V_HEAD_SIZE", in.problem.v_head_size);
+    jit.make("IS_PREFILL", in.is_prefill);
+    jit.make("IS_PAGED_ATTENTION", in.is_pa ? 1 : 0);
+    jit.make("KV_HEADS_NUM", in.config.kv_heads_num);
+    jit.make("HEADS_NUM", in.config.heads_num);
+    jit.make("KV_GROUP_SIZE", qkv_heads_num(in.params, 0) / qkv_heads_num(in.params, 1));
+    jit.make("QRY_DATA_T", to_ocl_type(in.q.data_type));
+    jit.make("KEY_DATA_T", to_ocl_type(in.k.data_type));
+    jit.make("VAL_DATA_T", to_ocl_type(in.v.data_type));
+}
+
+// Compile-time shape of a plain-SDPA tensor mask: 2 = full 2D, 1 = per key, 0 = broadcast, -1 = decide at
+// runtime from MSK_D2/MSK_D3. Dynamic trailing dims are inferred from the stage; the kernel clamps a
+// one-row / one-column mask, so the inference cannot read out of bounds ("Masks" in the docs).
+int plain_mask_kind(const kernel_impl_params& params, const sdpa_configuration& config, bool is_prefill) {
+    if (!sdpa_has_runtime_attn_mask_input(params) || config.has_const_attn_mask_val) {
+        return -1;
+    }
+    const auto& msk_ps = params.input_layouts[ScaledDotProductAttentionInputIdx::ATTN_MASK].get_partial_shape();
+    const auto r = msk_ps.size();
+    if (r < 2) {
+        return -1;
+    }
+    const auto& dq = msk_ps[r - 2];
+    const auto& dk = msk_ps[r - 1];
+    if (dq.is_static() && dk.is_static()) {
+        const bool q_gt1 = dq.get_length() > 1;
+        const bool k_gt1 = dk.get_length() > 1;
+        return (q_gt1 && k_gt1) ? 2 : (!q_gt1 && k_gt1) ? 1 : 0;
+    }
+    if (dq.is_static()) {
+        return dq.get_length() > 1 ? 2 : 1;
+    }
+    return is_prefill ? 2 : 1;
+}
+
+// Paged attention derives the lower-right causal shift from past_len in the kernel.
+void add_mask_jit(JitConstants& jit, const jit_inputs& in) {
+    const auto& config = in.config;
+    jit.make("IS_CAUSAL", config.is_causal);
+    jit.make("CAUSAL_MASK_LOWER_RIGHT", config.is_paged_attention ? false : config.causal_lower_right);
+    if (in.is_pa) {
+        jit.make("WITH_ATTN_MASK", 0);
+        jit.make("MASK_KIND", -1);
+        jit.make("SLIDING_WINDOW_SIZE", config.paged_attention_sliding_window);
+        if (sdpa_ocl_has_token_type_ids(in.params)) {
+            jit.make("HAS_TOKEN_TYPE_IDS", 1);
+            // Negative controls for the image-group mask and its empty-buffer gate; neither touches the
+            // parameter list.
+            jit.make("USE_BIDIR_MASK", env_int("SDPA_OCL_BIDIR", 1));
+            jit.make("USE_BIDIR_GATE", env_int("SDPA_OCL_BIDIR_GATE", 1));
+        }
+        return;
+    }
+    // A single-element runtime mask broadcasts like a const scalar one: bound as input 3, read as msk[0].
+    if (config.has_const_attn_mask_val) {
+        jit.make("WITH_ATTN_MASK", 0);
+        jit.make("STATIC_SCALAR_ATTN_MASK_VALUE", config.attn_mask_val);
+    } else if (has_scalar_runtime_attn_mask_input(in.params)) {
+        jit.make("WITH_ATTN_MASK", 0);
+        jit.make("HAS_SCALAR_ATTN_MASK", 1);
+    } else {
+        jit.make("WITH_ATTN_MASK", sdpa_has_runtime_attn_mask_input(in.params) ? 1 : 0);
+    }
+    jit.make("MASK_KIND", plain_mask_kind(in.params, config, in.is_prefill));
+}
+
+void add_scale_jit(JitConstants& jit, const jit_inputs& in) {
+    jit.make("INVERT_SCALE", false);
+    jit.make("SCALE_DATA_T", "half");  // see "Known issues" in the docs
+    if (in.config.has_const_scale_val) {
+        jit.make("STATIC_SCALE_VALUE", in.config.scale_val);
+        jit.make("STATIC_SCALE_VALUE_INV", 1.0f / in.config.scale_val);
+    } else {
+        jit.make("WITH_SCALE", in.config.input_num > static_cast<int64_t>(4));
+    }
+}
+
+// Plain SDPA addresses Q/K/V/output (and a tensor mask) through the permuted strides sdpa_utils.cl reads;
+// paged attention derives its 2D addressing in the kernel.
+void add_strides_jit(JitConstants& jit, const jit_inputs& in) {
+    if (in.is_pa) {
+        return;
+    }
+    const auto desc = in.params.typed_desc<scaled_dot_product_attention>();
+    jit.add(convert_strides("QRY", "INPUT0", extend_order_in_num_heads_dim(desc->input_q_transpose_order)));
+    jit.add(convert_strides("KEY", "INPUT1", extend_order_in_num_heads_dim(desc->input_k_transpose_order)));
+    jit.add(convert_strides("VAL", "INPUT2", extend_order_in_num_heads_dim(desc->input_v_transpose_order)));
+    jit.add(convert_strides("DST", "OUTPUT", extend_order_in_num_heads_dim(desc->output_transpose_order)));
+    jit.add(unit_parameters("QRY"));
+    jit.add(unit_parameters("KEY"));
+    jit.add(unit_parameters("VAL"));
+    jit.add(unit_parameters("DST"));
+
+    if (in.config.input_num > 3 && sdpa_has_runtime_attn_mask_input(in.params)) {
+        jit.add(convert_strides("MSK", "INPUT3", {0, 1, 2, 3}, true));
+        jit.add(unit_parameters("MSK"));
+    }
+}
+
 }  // namespace
 
 std::string SDPAOclGenerator::get_build_options(const kernel_impl_params& params) const {
@@ -643,65 +898,21 @@ std::string SDPAOclGenerator::get_build_options(const kernel_impl_params& params
     extra_options += " -Dcl_intel_global_float_atomic";
     extra_options += " -Dcl_intel_subgroup_matrix_multiply_accumulate";
     extra_options += " -Dcl_intel_subgroup_split_matrix_multiply_accumulate";
-    // 256-GRF mode. sdpa_micro runs at REG256 (its host sets -cl-intel-256-GRF-per-thread whenever
-    // the ukernel's grfMin exceeds 128) while sdpa_ocl has always been REG128. That matters for the
-    // larger KQ/SV tiles: the tiling sweep found every config with sv_sg_tile_scores >= 64 -- i.e.
-    // the ones that cut the k0 iteration count the most -- spills at 128 GRF (measured 3.8k-19k
-    // bytes of spill on device, which costs far more than the saved iterations). Doubling the GRF
-    // budget is the direct lever for those. It halves the number of threads per EU, so it is a
-    // trade: only worth it where the extra registers actually remove spill.
-    // Perf-investigation toggle; default off keeps the shipped behaviour byte-identical.
-    if (const char* env = std::getenv("SDPA_OCL_256GRF")) {
-        if (env[0] == '1')
-            extra_options += " -cl-intel-256-GRF-per-thread";
-    }
+    // Tuning toggle. 256 GRF halves the threads per EU, so it only pays where it removes spill ("Tiling" in
+    // the docs).
+    if (env_on("SDPA_OCL_256GRF"))
+        extra_options += " -cl-intel-256-GRF-per-thread";
 
     return base_options + extra_options;
 }
 
-void SDPAOclGenerator::init_sdpa_configuration(const kernel_impl_params& impl_param, sdpa_configuration& sdpa_config) {
-    if (impl_param.is_type<scaled_dot_product_attention>()) {
-        const auto& desc = impl_param.typed_desc<scaled_dot_product_attention>();
-        auto extended_input_q_transpose_order = extend_order_in_num_heads_dim(desc->input_q_transpose_order);
-        auto extended_input_k_transpose_order = extend_order_in_num_heads_dim(desc->input_k_transpose_order);
-        auto extended_input_v_transpose_order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
-
-        sdpa_config = get_sdpa_configuration(impl_param, extended_input_q_transpose_order, extended_input_k_transpose_order, extended_input_v_transpose_order);
-    } else {
-        // Only the fields this generator reads. is_kv_compressed describes the plain-SDPA scale/zp
-        // inputs and stays false here: a compressed PA cache is described by the IS_PA_* jit constants.
-        const auto desc = impl_param.typed_desc<paged_attention>();
-        sdpa_config.heads_num = desc->heads_num;
-        sdpa_config.kv_heads_num = desc->kv_heads_num;
-        sdpa_config.is_causal = true;
-        sdpa_config.is_paged_attention = true;
-        sdpa_config.paged_attention_block_size = static_cast<int64_t>(paged_attention::block_size);
-        sdpa_config.paged_attention_sliding_window = desc->sliding_window;
-        sdpa_config.has_const_scale_val = desc->scale_val.has_value();
-        if (sdpa_config.has_const_scale_val)
-            sdpa_config.scale_val = desc->scale_val.value();
-        sdpa_config.is_kv_compressed = false;
-        sdpa_config.use_asymmetric_quantization = false;
-
-        const auto has_alibi = impl_param.get_input_layout(PagedAttentionInputIdx::ALIBI).count() > 0;
-        sdpa_config.input_num = 7 + (sdpa_config.has_const_scale_val ? 0 : 1) + (has_alibi ? 1 : 0);
-    }
-}
-
 size_t SDPAOclGenerator::get_query_block_size(const kernel_impl_params& params) {
-    // Both head sizes, because a vd_max that the tuned KQ tiling cannot serve makes choose_config()
-    // fall back to a wider query tile -- and this value IS the paged-attention
-    // blocked_indexes_start_and_gws_mapping stride, so it must be derived from the same pair the jit
-    // constants and the dispatch use.
-    const auto d_max = get_d_max(micro_get_head_size(params, 1));
-    const auto vd_max = get_d_max(micro_get_head_size(params, 2));
-    return static_cast<size_t>(choose_config(params.get_device_info().arch, d_max, vd_max).kq_wg_tile_queries());
+    return static_cast<size_t>(make_problem(params).tiling.kq_wg_tile_queries());
 }
 
 bool SDPAOclGenerator::supports_head_sizes(gpu_arch arch, size_t k_head_size, size_t v_head_size) {
-    // Decidable from the descriptor alone, because an added stage is COMPILED even for parameters it
-    // is never dispatched with. choose_config() asserts rather than returns on an unsupported pair,
-    // so the bounds are checked here first and the tiling search is replayed non-fatally.
+    // choose_config() asserts on an unsupported pair, so the bounds come first and the search is replayed
+    // non-fatally.
     if (k_head_size == 0 || v_head_size == 0 || k_head_size > 512 || v_head_size > 512) {
         return false;
     }
@@ -710,18 +921,8 @@ bool SDPAOclGenerator::supports_head_sizes(gpu_arch arch, size_t k_head_size, si
     if (d_max > 512 || vd_max > 512) {
         return false;
     }
-    if (d_max == vd_max) {
-        return true;  // the tuned tables cover every head size they are defined for
-    }
-    auto config = choose_config_kq_only(arch, d_max);
-    if (solve_sv_split(config, vd_max)) {
-        return true;
-    }
-    config.kq_sg_tile_keys = 16;
-    config.kq_sg_tile_queries = 16;
-    config.kq_sg_per_wg_keys = 4;
-    config.kq_sg_per_wg_queries = 4;
-    return solve_sv_split(config, vd_max);
+    sdpa_ocl_config_t config;
+    return solve_tiling(arch, d_max, vd_max, config);
 }
 
 bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
@@ -732,11 +933,7 @@ bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
         return dt == ov::element::f16 || dt == ov::element::bf16 || data_type_traits::is_i8_u8(dt) || data_type_traits::is_i4_u4(dt);
     };
 
-    // The kernel is built on the Xe 2D block IO intrinsics and the tuning around them, which only
-    // exist on Xe2 and later. This mirrors sdpa_ocl_decode's gate: pre-Xe2 parts (which still have
-    // DPAS via supports_micro_sdpa) fall back to sdpa_micro / the opt kernels instead. Keep this as
-    // a plain arch check rather than also testing supports_immad, because every caller already
-    // requires XMX.
+    // Built on the Xe2 2D block IO intrinsics (as sdpa_ocl_decode); every caller already requires XMX.
     if (params.get_device_info().arch < gpu_arch::xe2) {
         return false;
     }
@@ -746,24 +943,21 @@ bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
     }
 
     if (params.is_type<paged_attention>()) {
-        // Prefill binds KEY_DATA_T to current-token K/V; mixed binds it to the cache. Both stages
-        // are add_stage'd together. Current tokens are typed as QRY_DATA_T for Kc/Vc and must be f16.
-        // The cache may be i8/u4 (dequant paths compile); uncompressed f32 does not.
-        if (!is_f16(params.input_layouts[PagedAttentionInputIdx::KEY].data_type) ||
-            !is_f16(params.input_layouts[PagedAttentionInputIdx::VALUE].data_type)) {
+        // Both stages are compiled: PREFILL reads the K/V inputs, MIXED the cache plus the inputs as
+        // Kc/Vc (typed QRY_DATA_T). The cache may be i8/u4; uncompressed f32 does not compile.
+        if (!is_f16(params.input_layouts[PagedAttentionInputIdx::KEY].data_type) || !is_f16(params.input_layouts[PagedAttentionInputIdx::VALUE].data_type)) {
             return false;
         }
         return is_compilable_kv(params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type) &&
                is_compilable_kv(params.input_layouts[PagedAttentionInputIdx::VALUE_CACHE].data_type);
     }
 
-    // The plain-SDPA dequant reads separate scale and zero-point tensors. KV-cache compression is always
-    // asymmetric with planar storage on the XMX parts this kernel runs on (kv_cache_compression.cpp),
-    // so any other combination is rejected rather than implemented; sdpa_ocl_config.cl #errors on it.
+    // KV-cache compression is always asymmetric with planar storage on the parts this kernel runs on
+    // (kv_cache_compression.cpp), so anything else is rejected rather than implemented; sdpa_ocl_config.cl
+    // #errors on it.
     const auto desc = params.typed_desc<scaled_dot_product_attention>();
-    if (desc->is_kv_compressed &&
-        (desc->quantization_attributes.quantization_type != ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric ||
-         desc->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar)) {
+    if (desc->is_kv_compressed && (desc->quantization_attributes.quantization_type != ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric ||
+                                   desc->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar)) {
         return false;
     }
 
@@ -771,723 +965,35 @@ bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
 }
 
 JitConstants SDPAOclGenerator::get_jit_constants(const kernel_impl_params& params) const {
+    const auto in = make_jit_inputs(params, m_is_prefill);
     auto jit = make_base_jit_constants(params);
-    sdpa_configuration config;
-    init_sdpa_configuration(params, config);
-
-    if (config.is_paged_attention) {
-        // Paged attention has a much longer input list than the kernel consumes, so INPUTn cannot be
-        // a plain 1:1 mapping of params.input_layouts: INPUT3 in particular must describe
-        // SUBSEQUENCE_BEGINS (the kernel declares subsequence_begins as INPUT3_TYPE*), not the key
-        // cache. This mirrors SDPAMicroGenerator.
-        // The scale input is read through SCALE_DATA_T and alibi is rejected upstream, so neither needs
-        // an INPUTn layout.
-        const auto desc = params.typed_desc<paged_attention>();
-
-        const auto& in_offsets_map = params.in_port_to_shape_info_offset;
-        const auto& out_offsets_map = params.out_port_to_shape_info_offset;
-        constexpr static std::array input_ids = {PagedAttentionInputIdx::QUERY,
-                                                 PagedAttentionInputIdx::KEY,
-                                                 PagedAttentionInputIdx::VALUE,
-                                                 PagedAttentionInputIdx::SUBSEQUENCE_BEGINS};
-        for (size_t i = 0; i < input_ids.size(); i++) {
-            const size_t tensor_id = input_ids[i];
-            jit.add(make_layout_jit_constants("INPUT" + to_code_string(i), params.input_layouts[tensor_id], in_offsets_map.at(tensor_id)));
-        }
-        jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
-
-        if (desc->has_sink_input) {
-            const auto& sink_layout = params.input_layouts[PagedAttentionInputIdx::SINKS];
-            jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
-            jit.make("HAS_SINK_INPUT", 1);
-        }
-
-        // QQ_BIAS is consumed only by the MIXED variant of this kernel (the same split sdpa_micro
-        // uses); the PREFILL variant reads the contiguous KEY input where the qq_bias mask never
-        // applies. Must stay in lockstep with get_arguments_desc(), which pushes the qq_bias inputs
-        // under the same predicate.
-        if (desc->has_qq_bias && !m_is_prefill) {
-            jit.make("HAS_QQ_BIAS", 1);
-            const auto& qq_bias_layout = params.input_layouts[PagedAttentionInputIdx::QQ_BIAS];
-            jit.make("QQ_BIAS_DATA_T", to_ocl_type(qq_bias_layout.data_type));
-            const auto& qq_bias_begins_layout = params.input_layouts[PagedAttentionInputIdx::QQ_BIAS_BEGINS];
-            jit.make("QQ_BIAS_BEGINS_DATA_T", to_ocl_type(qq_bias_begins_layout.data_type));
-        } else {
-            jit.make("HAS_QQ_BIAS", 0);
-        }
+    if (in.is_pa) {
+        // The kernel's own input order: INPUT3 is subsequence_begins. Scale and alibi need no layout.
+        add_io_layouts_jit(
+            jit,
+            params,
+            {PagedAttentionInputIdx::QUERY, PagedAttentionInputIdx::KEY, PagedAttentionInputIdx::VALUE, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});
     } else {
-        const auto desc = params.typed_desc<scaled_dot_product_attention>();
         jit.add(make_tensors_jit_constants(params));
-        if (desc->has_sink_input) {
-            const auto& sink_layout = params.input_layouts[ScaledDotProductAttentionInputIdx::SINK];
-            jit.make("SINK_DATA_T", to_ocl_type(sink_layout.data_type));
-            jit.make("HAS_SINK_INPUT", 1);
-        }
-
-        // QQ_BIAS is a paged-attention-only feature.
-        jit.make("HAS_QQ_BIAS", 0);
     }
-    const auto& device_info = params.get_device_info();
-
-    const auto& Q = params.input_layouts[0];
-    const auto& K = (config.is_paged_attention && !m_is_prefill) ? params.input_layouts[3] : params.input_layouts[1];
-    const auto& V = (config.is_paged_attention && !m_is_prefill) ? params.input_layouts[4] : params.input_layouts[2];
-    const auto& out = params.output_layouts[0];
-
-    const auto k_head_size = micro_get_head_size(params, 1);
-    const auto v_head_size = micro_get_head_size(params, 2);
-
-    const auto d_max = get_d_max(k_head_size);
-    const auto vd_max = get_d_max(v_head_size);
-    // Deliberately no `batch = out_ps[0] * out_ps[1]` here: sdpa_gen_micro.cpp needs that product to
-    // size the microkernel GEMM problem, this generator never used it, and the expression is wrong
-    // anyway once output_transpose_order is non-identity (see the dispatch function).
-
-    auto ldq = k_head_size * ov::element::Type(Q.data_type).size();
-    auto ldk = k_head_size * ov::element::Type(K.data_type).size();
-    auto ldv = v_head_size * ov::element::Type(V.data_type).size();
-    auto lda = v_head_size * ov::element::Type(out.data_type).size();
-
-    const auto ocl_config = choose_config(device_info.arch, d_max, vd_max);
-
-    // Diagnostic for the minicpm4-8b prefill comparison: reproduce sdpa_micro's softmax
-    // and per-key-tile PV accumulation order. Matching its tile boundaries still requires
-    // the SDPA_OCL_KQ_* overrides. Keep the arithmetic change opt-in and scoped to plain
-    // causal FP16 prefill; sink initialization, mixed and decode use other paths.
-    if (config.is_paged_attention && m_is_prefill &&
-        Q.data_type == data_types::f16 && K.data_type == data_types::f16 &&
-        V.data_type == data_types::f16 && out.data_type == data_types::f16) {
-        const auto desc = params.typed_desc<paged_attention>();
-        if (!desc->has_sink_input && !desc->has_alibi &&
-            desc->sliding_window == 0 && !desc->has_token_type_ids) {
-            const char* env = std::getenv("SDPA_OCL_MICRO_MATH");
-            if (env != nullptr && std::atoi(env) == 0) {
-                jit.make("MICRO_MATH", 0);
-            } else {
-                jit.make("MICRO_MATH", 1);
-            }
-        }
-    }
-
-    jit.make("DPAS_K", 16);          // f16 and bf16 k16 DPAS both fix KSTEP at 16
-    jit.make("DPAS_ROWS", 8);
-    jit.make("kq_sg_tile_keys", ocl_config.kq_sg_tile_keys);
-    jit.make("kq_sg_tile_queries", ocl_config.kq_sg_tile_queries);
-    jit.make("kq_sg_per_wg_keys", ocl_config.kq_sg_per_wg_keys);
-    jit.make("kq_sg_per_wg_queries", ocl_config.kq_sg_per_wg_queries);
-    jit.make("sv_sg_tile_scores", ocl_config.sv_sg_tile_scores);
-    jit.make("sv_sg_tile_values", ocl_config.sv_sg_tile_values);
-    jit.make("sv_sg_per_wg_scores", ocl_config.sv_sg_per_wg_scores);
-    jit.make("sv_sg_per_wg_values", ocl_config.sv_sg_per_wg_values);
-    jit.make("D_MAX", d_max);
-    jit.make("DKS", "(D_MAX / DPAS_K)");
-    jit.make("Q_DWORDS", 8);        // 16 half values per Q KSTEP packed as 8 uint dwords.
-    jit.make("SUBGROUP_SIZE", ocl_config.subgroup_size);
-    // Q is f16 and carries no dequant, so this is independent of the KV-cache precision. The only
-    // real constraints are the 2D block IO surface rules (block2d_surface_ok, which for an f16 Q
-    // means head_size % 32 == 0) plus a subgroup size of 16, which the transpose builtin's 16-row
-    // geometry assumes. Head sizes that are not a multiple of DPAS_K, and the D_MAX > d tail, are
-    // already handled inside the kernel by the (head_base + DPAS_K <= d) runtime guard, so no
-    // head-size whitelist is needed here.
-    const bool q_2d_compatible = ocl_config.subgroup_size == 16 &&
-                                 ov::element::Type(Q.data_type).size() == 2 &&
-                                 block2d_layout_ok(Q, ldq);
-    int q_2d = q_2d_compatible;
-    // Applied outside the gate, like SDPA_OCL_K_I8_2D / SDPA_OCL_V_I8_2D, so SDPA_OCL_Q_2D=1 can
-    // also *enable* the path on surfaces that do not satisfy the rules above; =0 forces scalar.
-    if (const char* env = std::getenv("SDPA_OCL_Q_2D"))
-        q_2d = std::atoi(env);
-    jit.make("USE_2D_BLOCK_IO_Q", q_2d);
-    // f16 K/V loads. 2D block IO uses 16-bit reads and half-sized byte pitches, which are invalid
-    // for an i8 compressed KV-cache -- those take the dedicated *_I8 paths below (or the scalar
-    // load/dequant fallback), so this flag is off whenever the cache is compressed.
-    // The gate is the full surface rule: a bare (ld % 16 == 0) check accepts row widths below the
-    // 64-byte minimum and bases that are not 64-byte aligned (e.g. f16 head_size 16 -> 32 bytes),
-    // which is undefined behaviour rather than a compile error.
-    // Two tiers: naturally 64B-aligned bases take the path as-is, everything else that still
-    // satisfies the width/pitch rules takes it with the in-kernel base fixup (see
-    // block2d_surface_fixup_ok). kv_aligned is evaluated separately from kv_2d because it is what
-    // decides the fixup flag, and the env override below must not be able to turn the fixup OFF on
-    // a surface that needs it.
-    const bool kv_aligned = block2d_layout_ok(K, ldk) && block2d_layout_ok(V, ldv);
-    const bool kv_fixup_ok = block2d_layout_fixup_ok(K, ldk) && block2d_layout_fixup_ok(V, ldv);
-    int kv_2d = !config.is_kv_compressed && (kv_aligned || kv_fixup_ok);
-    // Diagnostic toggle: forcing the f16 K/V loads onto the scalar per-lane path is the cheapest way
-    // to bisect a wrong-result config -- if accuracy comes back with =0, the fault is in the 2D
-    // block read (geometry/row count), not in the softmax/S*V indexing. Mirrors the existing
-    // SDPA_OCL_K_I8_2D / _V_I8_2D toggles for the compressed paths.
-    if (const char* env = std::getenv("SDPA_OCL_KV_2D"))
-        kv_2d = std::atoi(env);
-    jit.make("USE_2D_BLOCK_IO_KV", kv_2d);
-    // Derived from kv_aligned, NOT from kv_fixup_ok, and computed after the override: a surface that
-    // is not provably aligned gets the fixup whenever the block path is on at all. That is a no-op
-    // (prem == 0) when the base happens to be aligned, and it is what makes SDPA_OCL_KV_2D=1
-    // numerically correct on a surface the gate would otherwise have rejected -- before this, forcing
-    // the toggle on at head 72 gave right timings and wrong results for 12 of 16 heads.
-    jit.make("BLOCK2D_KV_BASE_FIXUP", (kv_2d && !kv_aligned) ? 1 : 0);
-    // Paged-attention mixed stage: read the V cache with the 16b VNNI-transform block read instead
-    // of the per-lane scalar gather. Each (block, kv_head) cache page is a
-    // [PAGED_ATTENTION_BLOCK_SIZE, v_head_size] row-major f16 tile, so the kernel points the
-    // surface at the page and uses a v_head_size row pitch -- NOT ldv, which for the cache layout
-    // spans a whole page. That means the block2d rule has to be checked against the page pitch:
-    //   width = pitch = v_head_size * 2 bytes  =>  needs (v_head_size * 2) % 16 == 0 and >= 64,
-    // and the page base is a multiple of PAGED_ATTENTION_BLOCK_SIZE * v_head_size * 2 == 32 *
-    // v_head_size, which the pitch rule already forces to be 64B-aligned (see block2d_page_ok) -- so
-    // this needs no kernel-side base fixup. This flag is the f16 one; the i8 cache has the same page
-    // geometry but needs a dequant, so it gets its own flag (USE_2D_BLOCK_IO_V_PA_I8) below.
-    int v_pa_2d = 0;
-    if (config.is_paged_attention && !m_is_prefill && !config.is_kv_compressed &&
-        !data_type_traits::is_i8_u8(V.data_type) && !data_type_traits::is_i4_u4(V.data_type)) {
-        const auto v_page_pitch = v_head_size * ov::element::Type(V.data_type).size();
-        v_pa_2d = block2d_page_ok(v_page_pitch);
-    }
-    // Bisection toggle, same role as SDPA_OCL_KV_2D: =0 restores the scalar gather so a wrong
-    // result can be attributed to the block read rather than to the S*V indexing.
-    if (const char* env = std::getenv("SDPA_OCL_V_PA_2D"))
-        v_pa_2d = std::atoi(env);
-    jit.make("USE_2D_BLOCK_IO_V_PA", v_pa_2d);
-    // Paged-attention mixed stage with an i8 (BY_TOKEN) compressed cache. The cache carries its
-    // scale/zp INSIDE the page rather than in separate tensors, so this is a different code path
-    // from the plain-SDPA KV_COMPRESSED one (which sdpa_gen_ocl never enables for PA -- see the
-    // is_kv_compressed = false in init_sdpa_configuration). Per (block, kv_head) page, with
-    // ADJUSTED_* = head_size + 4 sizing the allocation:
-    //   K: [k_head_size + 4, block_size] i8, data d-major at (head_dim * block_size + token),
-    //   V: [block_size, v_head_size + 4] i8, data token-major at (token * v_head_size),
-    //   scale/zp: two f16 arrays at (head_size * block_size), indexed [token] and
-    //             [block_size + token].
-    // NOTE the row pitch is head_size, NOT head_size + 4: the +4 is space for those two trailing
-    // scale/zp arrays, not an inline per-row field. (Per-row/per-column inline comp is the INT4 and
-    // BY_CHANNEL layout, which is why those get ADJUSTED_* as a real pitch and this does not.)
-    //
-    // The flag is driven purely by the cache DATA TYPE, not by the quantization mode, because both
-    // stages' kernels are compiled up front (PagedAttentionOptImpl's ctor add_stage()s prefill AND
-    // mixed), so a mixed kernel that fails to compile takes down a prefill-only case too. Before
-    // this flag existed, ANY compressed cache hit the f16 d-major branch below and failed to build on
-    // `as_ushort(K[...])` -- KEY_DATA_T is char for an i8 cache and as_ushort of a 1-byte type is an
-    // invalid reinterpret. So every i8/u8 cache takes this branch to keep the kernel compilable.
-    // The dequant math it contains is only CORRECT for BY_TOKEN; BY_CHANNEL and INT4 place their
-    // scale/zp differently (per column / inline per row) and are kept off sdpa_ocl by the execution
-    // gate in paged_attention_opt.cpp's can_use_micro_sdpa_for(), which routes them to
-    // pa_multi_token. For those the code below compiles but is never dispatched.
-    const bool pa_kv_compressed = config.is_paged_attention && data_type_traits::is_i8_u8(K.data_type);
-    jit.make("IS_PA_KV_COMPRESSED", pa_kv_compressed ? 1 : 0);
-    // Whether the dequant above is actually CORRECT for this cache. Two layouts qualify, and they share
-    // every K/V load because both keep the data region a plain [block_size, head_size] tile:
-    //   i8 BY_TOKEN    comp is two trailing per-token f16 arrays at head_size * block_size.
-    //   i8 BY_CHANNEL  ONLY behind paged_attention::k_by_channel_token_major_for()'s staging switch,
-    //                  which moves the per-column comp to a trailing per-channel array at the same
-    //                  offset. Upstream BY_CHANNEL is d-major with a (scale, zp) pair inline at the end
-    //                  of every column; nothing in the .cl can address that, so with the switch off it
-    //                  still COMPILES (IS_PA_KV_COMPRESSED is data-type keyed) and is kept off dispatch
-    //                  by can_use_micro_sdpa_for(), exactly as before.
-    // INT4 never qualifies: two head dims per byte plus inline per-row comp.
-    // !m_is_prefill on the by-channel one because prefill reads the contiguous KEY input rather than
-    // the cache, so there is no layout to switch -- and IS_PA_K_BY_CHANNEL asserts token-major in the
-    // .cl, which is itself prefill-gated.
-    const auto cfg_kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-    const bool pa_i8 = pa_kv_compressed && !data_type_traits::is_i4_u4(cfg_kv_cache_dt);
-    // typed_desc<paged_attention>() is an unchecked cast: only evaluate it for paged attention.
-    const bool pa_key_by_channel = config.is_paged_attention && params.typed_desc<paged_attention>()->is_key_by_channel;
-    const bool pa_i8_by_token = pa_i8 && !pa_key_by_channel;
-    // Token-major i8/u4 BY_CHANNEL is derived from the PHYSICAL cache shape (adjusted block size at
-    // dim[2]) -- the model-wide layout decision was made once in transformations_pipeline.cpp. Only
-    // the MIXED stage reads the cache (prefill reads the contiguous KEY input), hence !m_is_prefill.
-    const auto adjusted_block_size = [&]() -> size_t {
-        const size_t scales_zp_size = 2 * ov::element::Type(params.input_layouts[PagedAttentionInputIdx::KEY].data_type).size();
-        return data_type_traits::is_i4_u4(cfg_kv_cache_dt) ? paged_attention::block_size / 2 + scales_zp_size
-                                                           : paged_attention::block_size + scales_zp_size;
-    };
-    const bool pa_i8_by_channel_tm =
-        pa_i8 && !m_is_prefill && pa_key_by_channel &&
-        paged_attention::k_by_channel_token_major_layout(params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].get_partial_shape(),
-                                                         adjusted_block_size());
-    // u4 under the SAME staging switch. It has to be recognised from the CONFIG precision, not from
-    // K.data_type: an int4 cache is materialized as a u8 tensor, so the layout alone cannot tell it
-    // from a real u8 one. u4 ONLY, deliberately not is_i4_u4 -- the int4 quantizer clamps to [0, 15]
-    // with zp = -min*scale, so u4's nibbles are unsigned by construction, while i4 would need a signed
-    // widen that nothing below implements. This mirrors sdpa_ocl_decode's gate.
-    const bool pa_u4_by_channel_tm =
-        pa_kv_compressed && !m_is_prefill && cfg_kv_cache_dt == ov::element::u4 && pa_key_by_channel &&
-        paged_attention::k_by_channel_token_major_layout(params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].get_partial_shape(),
-                                                         adjusted_block_size());
-    const bool pa_by_channel_tm = pa_i8_by_channel_tm || pa_u4_by_channel_tm;
-    const bool pa_cache_dequant_ok = pa_i8_by_token || pa_by_channel_tm;
-    // Where BY_CHANNEL's per-channel scale/zp fold. In THIS kernel's KQ the A operand is K itself
-    // (S_tile = mad(as_short8(k_raw), qB, S_tile)), so the A lane index is the head dim -- precisely
-    // what BY_CHANNEL indexes its comp by. The pair is therefore a plain per-lane scalar and the
-    // dequant stays exactly where BY_TOKEN's is, minus every sub_group_broadcast: BY_TOKEN's sc/zp are
-    // per key, i.e. per ELEMENT within a lane, so each of a page's 16 keys needs one. Subtract/multiply
-    // count is unchanged. This is the MIRROR of sdpa_ocl_decode.cl, where Q is the A operand, so there
-    // the fold lands on Q and leaves a key-independent zp correction instead.
-    jit.make("IS_PA_K_BY_CHANNEL", pa_by_channel_tm ? 1 : 0);
-    // u4 rides the whole BY_CHANNEL dequant unchanged -- same per-lane scale/zp, same subtract and
-    // multiply -- and adds exactly two things: a nibble select, and a PERMUTED DPAS depth axis. The
-    // permutation is forced by the page: the K nibbles are packed ADJACENT (byte b holds channels 2b,
-    // 2b+1, which the writer needs so a byte is never split across two workgroups), while this
-    // kernel's A operand has lane == head dim, so a byte column is a channel PAIR and no lane-local
-    // rearrangement can produce the contiguous (base + lane) a DPAS tile wants. Depth is a contraction
-    // axis, so both operands adopt the permuted labelling instead and Q pays for it once, in the SLM
-    // staging. See the PA_K_U4_CHANNEL block in sdpa_ocl_config.cl.
-    jit.make("IS_PA_K_U4", pa_u4_by_channel_tm ? 1 : 0);
-    // Paged-attention MIXED: read the keys at/above past_len -- this iteration's NEW tokens -- from the
-    // raw f16 K/V inputs (the kernel's Kc/Vc) instead of from the cache pages they were just written
-    // to. For compressed caches this is required for exact current-token semantics and also avoids a
-    // page read, nibble/byte extraction, zero-point subtraction, and scale multiplication per element.
-    // sdpa_micro's MIXED kernel uses the same cache-prefix/raw-current split.
-    //
-    // Gated on the RAW K/V layouts (input_layouts 1/2), NOT on K/V above: those are the CACHE layouts
-    // for this variant (see the m_is_prefill ternary where they are bound), so they say nothing about
-    // the tensors Kc/Vc point at. Same two-tier alignment split and the same predicates as kv_2d.
-    int pa_cur_kv_f16 = 0;
-    bool pa_cur_aligned = false;
-    if (config.is_paged_attention && !m_is_prefill) {
-        const auto& K_cur = params.input_layouts[1];
-        const auto& V_cur = params.input_layouts[2];
-        const auto ldk_cur = k_head_size * ov::element::Type(K_cur.data_type).size();
-        const auto ldv_cur = v_head_size * ov::element::Type(V_cur.data_type).size();
-        // Kc/Vc are declared `const global QRY_DATA_T *` in the kernel, so the contract is not "f16" but
-        // "the same 2-byte float type Q is", which is what every load below reinterprets them as.
-        const bool f16_in = K_cur.data_type == Q.data_type && V_cur.data_type == Q.data_type && ov::element::Type(Q.data_type).size() == 2;
-        pa_cur_aligned = block2d_layout_ok(K_cur, ldk_cur) && block2d_layout_ok(V_cur, ldv_cur);
-        const bool fixup_ok = block2d_layout_fixup_ok(K_cur, ldk_cur) && block2d_layout_fixup_ok(V_cur, ldv_cur);
-        pa_cur_kv_f16 = f16_in && (pa_cur_aligned || fixup_ok);
-        // NOTE u4's extra precondition is deliberately NOT checked here. Its K read addresses Kc as a
-        // DWORD surface (see kc_tile_u4_dword in sdpa_ocl_qk_load.cl), which needs this head's
-        // first channel to be an EVEN number of halves from the surface origin -- and that parity comes
-        // out of subsequence_begin * ldk + b0_kv * head_size + the feature padding, which is a runtime
-        // value whenever the padding is dynamic. Gating it here would mean rejecting every dynamically
-        // padded K, i.e. every u4 MIXED case the unit suite has, so the kernel tests the parity itself
-        // and falls back to a scalar Kc gather when the dword read is not representable.
-        //
-        // The =0 override selects cache-only reads for same-build performance attribution.
-        // It is not an exact baseline for compressed current tokens.
-        // Deliberately inside this branch: Kc/Vc are only in the kernel signature for the PA non-prefill
-        // variant, so letting the env force the flag on elsewhere would be a compile error, not a sweep.
-        if (const char* env = std::getenv("SDPA_OCL_PA_CUR_F16"))
-            pa_cur_kv_f16 = std::atoi(env);
-    }
-    jit.make("PA_CUR_KV_F16", pa_cur_kv_f16);
-    // Same rule as BLOCK2D_KV_BASE_FIXUP: derived from the alignment, not from fixup_ok, and computed
-    // after the override so forcing the toggle on cannot turn the fixup off.
-    //
-    // Forced ON for u4 even on the "already aligned" tier, because that tier's premise -- base =
-    // m * row_bytes with row_bytes % 64 == 0 -- stops holding once the layout carries feature padding
-    // (block2d_layout_ok no longer rejects that). The fixup is a no-op when the base really is aligned
-    // (prem == 0), and it is what gives the kernel a 64B- and therefore 4B-aligned surface origin plus a
-    // meaningful KcD_x0 for the dword read's parity test.
-    jit.make("BLOCK2D_KV_CUR_BASE_FIXUP", (pa_cur_kv_f16 && (!pa_cur_aligned || pa_u4_by_channel_tm)) ? 1 : 0);
-    // Data-row pitch of a cache page, in elements of the cache dtype. Only jitted for u4 -- the .cl
-    // defaults both to HEAD_SIZE, so f16 and i8 preprocess to exactly what they did before.
-    //   K: exactly k_head_size/2, NOT aligned up. 16*(h/2) + 4*h == 12*h is what makes the token-major
-    //      page a byte-exact fit into the allocation the d-major INT4 page already has; aligning would
-    //      overflow it whenever h % 32 != 0.
-    //   V: Align(v_head_size/2, subgroup), which the trailing comp slack absorbs
-    //      (16*PV + 64 == 16*(PV+4)). Same values sdpa_gen_ocl_decode.cpp and the writer's
-    //      PACKED_{K,V}_HEAD_SIZE use.
-    const size_t pa_k_row_elems = pa_u4_by_channel_tm ? k_head_size / 2 : k_head_size;
-    const size_t pa_v_row_elems =
-        pa_u4_by_channel_tm ? align_up(v_head_size / 2, static_cast<size_t>(ocl_config.subgroup_size)) : v_head_size;
-    if (pa_u4_by_channel_tm) {
-        jit.make("PA_K_ROW_ELEMS", pa_k_row_elems);
-        jit.make("PA_V_ROW_ELEMS", pa_v_row_elems);
-    }
-    // i8 V cache via the 8-bit VNNI-transform block read. The V page is already token-major with a
-    // v_head_size row pitch (see above), so for an i8 cache that pitch is v_head_size BYTES and the
-    // block2d rule reduces to v_head_size % 16 == 0 and >= 64 -- 64/80/96/112/128/... The page base
-    // is 16 * (v_head_size + 4) == 256n + 64 under that rule, so it is 64B-aligned with no fixup.
-    // Same builtin and same
-    // dequant shape as the plain-SDPA USE_2D_BLOCK_IO_V_I8 path; only the surface origin (the page)
-    // and the scale/zp source (inside the page instead of separate tensors) differ.
-    // The builtin has a hard 32-row minimum on Xe2 (no _8b_16r variant exists -- probed), while a
-    // page holds only PAGED_ATTENTION_BLOCK_SIZE == 16 tokens, so the kernel clamps the surface
-    // height to the page and consumes uints 0..3. It cannot pair two key groups into one read the way
-    // the plain-SDPA i8 path does: that assumes the next 16 keys are the next 16 rows of the SAME
-    // surface, but here consecutive key groups live in different, non-adjacent pages via block_indices.
-    // BY_CHANNEL applies to the KEY cache only (valueCacheQuantBychannel is unconditionally false), and
-    // ADJUSTED_V_HEAD_SIZE is v_head_size + 4 in both quant modes, so the V page geometry, its comp
-    // offset and this gate are all identical for the two -- pa_cache_dequant_ok, not pa_i8_by_token.
-    // A compressed cache's layout dtype is one byte wide, so pa_v_row_elems IS the pitch in bytes --
-    // v_head_size for i8, Align(v_head_size/2, 16) for u4. For u4 that Align makes the pitch a
-    // multiple of 16 by construction, so the rule degenerates to the >= 64 minimum alone
-    // (Align(h/2,16) >= 64, i.e. v_head_size >= 98).
-    // u4 deliberately stays on the STRICT % 64 rule. Not caution about the alignment -- that proof
-    // holds for u4 too (16 * (Align(h/2,16) + 4) == 256k + 64) -- but because USE_1D_BLOCK_IO_V_PA_U4
-    // below is gated on `!v_pa_2d_i8`. Relaxing here would silently DISPLACE the u4 whole-page 1D
-    // read, which was a measured 3.92x win on gpt-oss-20b and was chosen precisely because block2d
-    // could not reach those pages. Head 64 is unaffected either way (row = 32 bytes, under the 64 B
-    // minimum), so relaxing u4 would only change head sizes with no model to measure -- trading a
-    // known-good path for an unmeasured one. Revisit only with a u4 model at head >= 128.
-    int v_pa_2d_i8 = 0;
-    if (pa_cache_dequant_ok && !m_is_prefill) {
-        v_pa_2d_i8 = pa_u4_by_channel_tm ? block2d_surface_ok(pa_v_row_elems) : block2d_page_ok(pa_v_row_elems);
-    }
-    // Bisection toggle, mirroring SDPA_OCL_V_PA_2D: =0 restores the scalar gather + dequant, which
-    // is what attributes a wrong result to the block read rather than to the dequant math.
-    if (const char* env = std::getenv("SDPA_OCL_V_PA_I8_2D"))
-        v_pa_2d_i8 = std::atoi(env);
-    jit.make("USE_2D_BLOCK_IO_V_PA_I8", v_pa_2d_i8);
-    // Same idea for the K cache, but ONLY once the K cache is stored token-major
-    // (paged_attention::k_token_major()): a d-major page's row is block_size keys = 32 B, below the
-    // 64 B block2d minimum, so no head size can satisfy the rule -- which is exactly why the K read
-    // was a per-key scalar gather. Token-major makes a page a [block_size, k_head_size] row-major
-    // tile, i.e. the same geometry as V above, so the pitch rule is checked the same way against the
-    // page pitch (k_head_size * 2), not ldk.
-    // Whether the K cache pages are [block_size, k_head_size] rather than [k_head_size, block_size].
-    // Drives PA_K_TOKEN_STRIDE / PA_K_HIDDEN_STRIDE in the .cl, which the scalar-gather fallbacks use,
-    // so it must be jitted even when neither block-read path below is enabled -- otherwise a head size
-    // that misses the pitch rule (48/80 for f16, 32/48/80/96 for i8) would gather d-major offsets out
-    // of a token-major cache. INT4 packs into u8, so the config precision is what rules it out.
-    // i8/u4 BY_CHANNEL is token-major only under its OWN staging switch -- k_token_major_for() keeps
-    // returning false for it so pa_sdpa_opt, rotate, reorder and micro stay on the upstream d-major
-    // page and need no change.
-    const bool pa_k_token_major =
-        (config.is_paged_attention && !m_is_prefill &&
-         paged_attention::k_token_major_for(data_type_traits::is_i4_u4(cfg_kv_cache_dt) ? cfg_kv_cache_dt : ov::element::Type(K.data_type),
-                                            pa_key_by_channel)) ||
-        pa_by_channel_tm;
-    jit.make("IS_PA_K_TOKEN_MAJOR", pa_k_token_major ? 1 : 0);
-    int k_pa_2d = 0;
-    if (pa_k_token_major && !config.is_kv_compressed && !data_type_traits::is_i8_u8(K.data_type) &&
-        !data_type_traits::is_i4_u4(K.data_type)) {
-        const auto k_page_pitch = k_head_size * ov::element::Type(K.data_type).size();
-        k_pa_2d = block2d_page_ok(k_page_pitch);
-    }
-    // Bisection toggle, mirroring SDPA_OCL_V_PA_2D: =0 restores the scalar gather.
-    if (const char* env = std::getenv("SDPA_OCL_K_PA_2D"))
-        k_pa_2d = std::atoi(env);
-    jit.make("USE_2D_BLOCK_IO_K_PA", k_pa_2d);
-    // Same, for an i8 cache in either quant mode: a token-major page's data region is a
-    // [block_size, k_head_size] i8 tile, so the pitch is k_head_size BYTES and the block2d rule
-    // reduces to k_head_size % 16 == 0 and >= 64 -- 64/80/96/112/128/...; only head 32/48 still fall
-    // back to the scalar gather (which PA_K_TOKEN_STRIDE addresses correctly). Uses the 8-bit
-    // VNNI-transform read, exactly as USE_2D_BLOCK_IO_V_PA_I8 does for V.
-    // The page BASE alignment also holds for BY_CHANNEL: the stride is k_head_size * (block_size + 4)
-    // = 20 * k_head_size bytes, a multiple of 64 whenever k_head_size % 16 == 0 -- which is now
-    // exactly the pitch rule, so it is still implied and needs no fixup. For u4 the stride is
-    // 12 * k_head_size and the pitch k_head_size / 2, so the rule is k_head_size % 32 == 0 and
-    // k_head_size >= 128 (head 128/160/192/224/256) and the base stays 64B-aligned: 12 * 32n = 384n
-    // and 384 % 64 == 0.
-    // As for V above, u4 stays on the strict % 64 rule so USE_1D_BLOCK_IO_K_PA_U4 (gated on
-    // `!k_pa_2d_i8`) keeps winning the pages it was written for.
-    int k_pa_2d_i8 = 0;
-    if (pa_k_token_major && pa_cache_dequant_ok) {
-        k_pa_2d_i8 = pa_u4_by_channel_tm ? block2d_surface_ok(pa_k_row_elems) : block2d_page_ok(pa_k_row_elems);
-    }
-    // Bisection toggle: =0 restores the scalar gather + dequant, which is what attributes a wrong
-    // result to the block read rather than to the dequant math or the page addressing.
-    if (const char* env = std::getenv("SDPA_OCL_K_PA_I8_2D"))
-        k_pa_2d_i8 = std::atoi(env);
-    jit.make("USE_2D_BLOCK_IO_K_PA_I8", k_pa_2d_i8);
-    // Whole-page 1D subgroup block read, for the u4 pages block2d cannot reach. A u4 row is
-    // k_head_size/2 (K) or Align(v_head_size/2, subgroup) (V) BYTES, so the >= 64 && % 64 pitch rule
-    // needs k_head_size % 128 == 0 -- head 64 misses it on both tensors and every K/V element is then
-    // fetched by a per-lane byte gather (ISA on the gpt-oss-20b mixed kernel: 64 K + 128 V scattered
-    // messages per k0 iteration against 16 dpas, plus 5952 B of spill from the address arithmetic).
-    // The page's data region is contiguous though, so intel_sub_group_block_read_uc16 can take the
-    // whole thing in PA_PAGE_COLS messages and land it in the DPAS operand layout with no shuffle --
-    // see the PA_PAGE_* derivation in sdpa_ocl_config.cl.
-    //
-    // Conditions, all structural rather than tuned:
-    //   row % subgroup_size == 0    a 16-byte column group is what a single read's component covers,
-    //   COLS is a power of two      so [t*COLS, t*COLS + COLS) never straddles a read boundary and
-    //                               the read index stays a compile-time constant (the .cl indexes a
-    //                               uchar16 with it; a runtime index would become indirect addressing),
-    //   COLS <= 16                  one read must cover at least one whole token,
-    //   block_size == subgroup_size the page's token index must equal the key's subgroup-local index.
-    // Only ever enabled where the corresponding block2d path is off, so the two never compete; in
-    // practice that leaves u4 head 32 and 64 (COLS 1 and 2), which also keeps the live page small.
-    const auto pa_1d_page_ok = [&](size_t row_elems) {
-        const auto sg = static_cast<size_t>(ocl_config.subgroup_size);
-        if (row_elems == 0 || sg == 0 || row_elems % sg != 0)
-            return false;
-        if (static_cast<size_t>(config.paged_attention_block_size) != sg)
-            return false;
-        const size_t cols = row_elems / sg;
-        return cols <= 16 && (cols & (cols - 1)) == 0;
-    };
-    int k_pa_1d = (pa_u4_by_channel_tm && !k_pa_2d_i8 && pa_1d_page_ok(pa_k_row_elems)) ? 1 : 0;
-    // Bisection toggle, same role as SDPA_OCL_K_PA_I8_2D: =0 restores the scalar gather. Same
-    // dequant arithmetic on both sides, so a result that changes under =0 points at the page read
-    // or its index mapping. NOT bit-identical though, and deliberately so: the new branch drops the
-    // per-key `key < k` guard (like the block2d branches do), which leaves a key at/past k holding
-    // finite garbage instead of 0. The mask adds -INFINITY to that key's score either way, so the
-    // OUTPUT matches -- but a debug dump of k_raw/vb will not.
-    if (const char* env = std::getenv("SDPA_OCL_K_PA_1D"))
-        k_pa_1d = std::atoi(env);
-    jit.make("USE_1D_BLOCK_IO_K_PA_U4", k_pa_1d);
-    int v_pa_1d = (pa_u4_by_channel_tm && !v_pa_2d_i8 && pa_1d_page_ok(pa_v_row_elems)) ? 1 : 0;
-    if (const char* env = std::getenv("SDPA_OCL_V_PA_1D"))
-        v_pa_1d = std::atoi(env);
-    jit.make("USE_1D_BLOCK_IO_V_PA_U4", v_pa_1d);
-    // f16 output store. A is f16 regardless of the KV-cache precision and lda is derived from the
-    // output layout only, so KV compression must NOT disable it -- it used to share one flag with
-    // the K/V loads, which silently demoted every compressed-KV store to the per-lane scalar path.
-    int a_2d = block2d_layout_ok(out, lda);
-    // Same bisection idea as SDPA_OCL_KV_2D, for the output store.
-    if (const char* env = std::getenv("SDPA_OCL_A_2D"))
-        a_2d = std::atoi(env);
-    jit.make("USE_2D_BLOCK_IO_A", a_2d);
-    // int8 compressed V uses an 8-bit VNNI-transform 2D block read
-    // (intel_sub_group_2d_block_read_transform_8b_32r16x1c) instead of the scalar gather+dequant:
-    // one coalesced read gives a 32-key x 16-value tile already in VNNI layout (lane=value, each
-    // uint packs 4 keys as bytes), which the kernel dequants (per-token scale cached per cp-block
-    // and broadcast) and repacks into the f16 VNNI operand — no subgroup shuffle needed. The
-    // builtin's 16-value geometry is fixed, so the .cl issues sv_value_blocks reads per cp-block
-    // (x stepped by SUBGROUP_SIZE) to cover the subgroup's sv_sg_tile_values columns; everything
-    // else in that path is expressed in terms of cd and d, with no head-size hardcoding.
-    // Measured on B580 (head=64 prefill): 26.3us scalar -> 21.7us (~18% faster), accuracy PASS.
-    // Gate is the 2D block IO surface rule -- for i8 V that is ldv == v_head_size and therefore
-    // v_head_size % 64 == 0. Enabled by default for compressed KV; SDPA_OCL_V_I8_2D=0 forces
-    // scalar.
-    int v_i8_2d = 0;
-    if (config.is_kv_compressed && block2d_layout_ok(V, ldv)) {
-        v_i8_2d = 1;
-    }
-    // Applied outside the gate so SDPA_OCL_V_I8_2D=1 can also *enable* the path on surfaces that
-    // do not satisfy block2d_surface_ok(), for investigation. Forcing it on for e.g. head 80/96
-    // can read misaligned surfaces (undefined behaviour), so use with care.
-    if (config.is_kv_compressed) {
-        if (const char* env = std::getenv("SDPA_OCL_V_I8_2D"))
-            v_i8_2d = std::atoi(env);
-    }
-    jit.make("USE_2D_BLOCK_IO_V_I8", v_i8_2d);
-    // int8 compressed K via the SAME 8-bit VNNI-transform read (intel_sub_group_2d_block_read_
-    // transform_8b_32r16x1c). Reading K memory (row-major [key, head]) at (x=head, y=key) yields
-    // lane=head, each uint packing 4 consecutive keys as bytes -- GPU-probed to match the DPAS-A
-    // operand layout (lane=head, elems=keys) with NO subgroup shuffle. This is why the transform
-    // read succeeds where the earlier non-transform _8b_16r16x4c K attempt failed (that one needed
-    // a shuffle and lost to scalar). Prerequisite: Step-1 scale/zp hoist (per-key scale/zp loaded
-    // once, broadcast in dequant) so the K dequant reduces to the same shuffle-free byte->half path
-    // as V.
-    // The .cl read loop is head-size generic (x = db * DPAS_K, trip count depends only on
-    // kq_sg_tile_keys), so the gate is purely the 2D block IO surface rule -- for i8 K that is
-    // ldk == k_head_size and therefore k_head_size % 64 == 0. Validated on head 256.
-    // SDPA_OCL_K_I8_2D=0 forces scalar (used for A/B measurement and regression guard).
-    int k_i8_2d = 0;
-    if (config.is_kv_compressed && block2d_layout_ok(K, ldk)) {
-        k_i8_2d = 1;
-    }
-    // Applied outside the gate so SDPA_OCL_K_I8_2D=1 can also *enable* the path on surfaces that
-    // do not satisfy block2d_surface_ok(), for investigation. Forcing it on for e.g. head 80/96
-    // can read misaligned surfaces (undefined behaviour), so use with care.
-    if (config.is_kv_compressed) {
-        if (const char* env = std::getenv("SDPA_OCL_K_I8_2D"))
-            k_i8_2d = std::atoi(env);
-    }
-    jit.make("USE_2D_BLOCK_IO_K_I8", k_i8_2d);
-    jit.make("INVERT_SCALE", false);
-    jit.make("SCALE_DATA_T", "half");
-    // Split rather than one HEAD_SIZE: the kernel contracts Q against K over k_head_size channels
-    // and emits v_head_size of them, and the two are independent for e.g. an MLA-style attention.
-    // Both fold to the same integer literal whenever they are equal, so the preprocessed kernel --
-    // and therefore the generated ISA -- is unchanged for every k_head_size == v_head_size shape.
-    jit.make("K_HEAD_SIZE", k_head_size);
-    jit.make("V_HEAD_SIZE", v_head_size);
-
-    auto data_inputs_num = config.input_num;
-
-    size_t scale_input_idx = 4;
-    jit.make("IS_CAUSAL", config.is_causal);
-    // Stateless decode (seq_q < seq_kv with a causal mask aligned to the bottom-right corner)
-    // shifts the causal diagonal by (k - q). Only the plain-SDPA kernel consumes this: paged
-    // attention derives the same shift from past_len in the .cl, so the macro stays off there.
-    jit.make("CAUSAL_MASK_LOWER_RIGHT", config.is_paged_attention ? false : config.causal_lower_right);
-    if (!config.is_paged_attention) {
-        const bool has_attn_mask_input = sdpa_has_runtime_attn_mask_input(params);
-        // A single-element runtime attention mask (rank-0 scalar / 1-element 1D) broadcasts: the one
-        // value is added to every logit, the same as a const scalar mask. It is bound as a regular
-        // input (input 3) and read through msk[0]; the tensor-mask paths (per-key / full-2D) never
-        // run for it, so WITH_ATTN_MASK stays 0 and a dedicated flag selects the scalar path.
-        const bool has_scalar_mask_input = has_scalar_runtime_attn_mask_input(params);
-        if (config.has_const_attn_mask_val) {
-            jit.make("WITH_ATTN_MASK", 0);
-            jit.make("STATIC_SCALAR_ATTN_MASK_VALUE", config.attn_mask_val);
-        } else if (has_scalar_mask_input) {
-            jit.make("WITH_ATTN_MASK", 0);
-            jit.make("HAS_SCALAR_ATTN_MASK", 1);
-        } else {
-            jit.make("WITH_ATTN_MASK", has_attn_mask_input ? 1 : 0);
-        }
-        // Compile-time mask-kind specialization to drop the per-element runtime branch
-        // over MSK_D2/MSK_D3 (which are shape_info-driven and thus runtime for dynamic
-        // shapes). The runtime branch blocks IGC optimization across the whole hot loop;
-        // pinning the kind at JIT time recovers a large amount of cmp/control-flow.
-        //   2 = full 2D (query>1 & key>1), 1 = per-key (query==1 & key>1),
-        //   0 = scalar/broadcast, -1 = unknown -> keep the runtime branch.
-        int mask_kind = -1;
-        if (has_attn_mask_input && !config.has_const_attn_mask_val) {
-            const auto& msk_ps = params.input_layouts[ScaledDotProductAttentionInputIdx::ATTN_MASK].get_partial_shape();
-            const auto r = msk_ps.size();
-            if (r >= 2) {
-                const auto& dq = msk_ps[r - 2];  // mask query dim
-                const auto& dk = msk_ps[r - 1];  // mask key dim
-                if (dq.is_static() && dk.is_static()) {
-                    // Exact classification when both trailing dims are known.
-                    const bool q_gt1 = dq.get_length() > 1;
-                    const bool k_gt1 = dk.get_length() > 1;
-                    mask_kind = (q_gt1 && k_gt1) ? 2 : (!q_gt1 && k_gt1) ? 1 : 0;
-                } else if (dq.is_static()) {
-                    const bool q_gt1 = dq.get_length() > 1;
-                    mask_kind = q_gt1 ? 2 : 1;
-                } else {
-                    // Dynamic trailing dims: infer from the SDPA stage. Prefill processes
-                    // many query tokens at once, so the mask is full 2D [.,.,q>1,k>1]
-                    // (kind 2). The generate/single-token stage always has query dim == 1
-                    // with a per-key mask [B,H,1,K] (kind 1). Both stages are compiled as
-                    // separate kernels (regular_micro_multi_tokens / _single_token), each
-                    // getting the right specialization here.
-                    // This is an inference, not a proof: a DYNAMIC per-key mask [B,H,1,K] at
-                    // prefill is also compiled as kind 2. The kernel therefore re-checks the
-                    // runtime dims (MSK_D2/MSK_D3) when it loads the full-2D tile and clamps
-                    // to row/column 0 -- see mask_tile_2d in sdpa_ocl_mask.cl -- so a
-                    // 1-row/1-col mask stays in bounds and correct without disabling the
-                    // specialization for the common full-2D case.
-                    mask_kind = m_is_prefill ? 2 : 1;
-                }
-            }
-        }
-        jit.make("MASK_KIND", mask_kind);
-    } else {
-        jit.make("WITH_ATTN_MASK", 0);
-        jit.make("MASK_KIND", -1);
-        jit.make("PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size);
-        jit.make("SLIDING_WINDOW_SIZE", config.paged_attention_sliding_window);
-        if (sdpa_ocl_has_token_type_ids(params)) {
-            // Declares the token_type_ids parameter; must stay in lockstep with
-            // get_arguments_desc(), hence the shared predicate.
-            jit.make("HAS_TOKEN_TYPE_IDS", 1);
-            // Bisection toggle for the bidirectional mask logic only -- it does NOT gate the
-            // parameter, so flipping it can never desync the argument list from the signature.
-            int use_bidir_mask = 1;
-            if (const char* env = std::getenv("SDPA_OCL_BIDIR"))
-                use_bidir_mask = std::atoi(env);
-            jit.make("USE_BIDIR_MASK", use_bidir_mask);
-            // Toggle for the RUNTIME emptiness gate alone (see sdpa_ocl_token_type_ids_count). With it
-            // off the kernel reads token_type_ids unconditionally, which is what a same-binary
-            // negative control for the [B_token | 0] contract needs: the empty-buffer unit test must
-            // fail here and pass with the gate on.
-            int use_bidir_gate = 1;
-            if (const char* env = std::getenv("SDPA_OCL_BIDIR_GATE"))
-                use_bidir_gate = std::atoi(env);
-            jit.make("USE_BIDIR_GATE", use_bidir_gate);
-        }
-    }
-
-    if (config.has_const_scale_val) {
-        jit.make("STATIC_SCALE_VALUE", config.scale_val);
-        jit.make("STATIC_SCALE_VALUE_INV", 1.0f / config.scale_val);
-    } else {
-        jit.make("WITH_SCALE", data_inputs_num > static_cast<int64_t>(scale_input_idx));
-    }
-
-    jit.make("IS_PREFILL", m_is_prefill);
-    jit.make("IS_PAGED_ATTENTION", config.is_paged_attention ? 1 : 0);
-    jit.make("KV_HEADS_NUM", config.kv_heads_num);
-    jit.make("HEADS_NUM", config.heads_num);
-
-    const auto q_heads_num = micro_get_num_heads(params, 0);
-    const auto k_heads_num = micro_get_num_heads(params, 1);
-    jit.make("KV_GROUP_SIZE", q_heads_num / k_heads_num);
-
-    jit.make("QRY_DATA_T", to_ocl_type(Q.data_type));
-    jit.make("KEY_DATA_T", to_ocl_type(K.data_type));
-    jit.make("VAL_DATA_T", to_ocl_type(V.data_type));
-
-    const bool use_asymmetric_quantization = config.use_asymmetric_quantization;
-    if (!config.is_paged_attention && config.is_kv_compressed) {
-        const auto& key_cache_comp_scale = params.input_layouts[data_inputs_num];
-        const auto& value_cache_comp_scale = params.input_layouts[data_inputs_num + 1];
-        jit.make("KV_COMPRESSED", 1);
-        jit.make("KEY_ATTR_SCALES_DATA_T", to_ocl_type(key_cache_comp_scale.data_type));
-        jit.make("VAL_ATTR_SCALES_DATA_T", to_ocl_type(value_cache_comp_scale.data_type));
-
-
-        jit.add(make_layout_jit_constants("KEY_SCALE", key_cache_comp_scale, params.in_port_to_shape_info_offset.at(data_inputs_num)));
-        jit.add(make_layout_jit_constants("VAL_SCALE", value_cache_comp_scale, params.in_port_to_shape_info_offset.at(data_inputs_num + 1)));
-
-        const std::vector<int64_t> default_order = {0, 1, 2, 3};
-        jit.add(convert_strides("KEY_COMP", "KEY_SCALE", default_order));
-        jit.add(convert_strides("VAL_COMP", "VAL_SCALE", default_order));
-
-        jit.add(unit_parameters("KEY_COMP"));
-        jit.add(unit_parameters("VAL_COMP"));
-
-        if (use_asymmetric_quantization) {
-            const auto& key_cache_comp_zp = params.input_layouts[data_inputs_num + 2];
-            const auto& value_cache_comp_zp = params.input_layouts[data_inputs_num + 3];
-            jit.make("KEY_ATTR_ZP_DATA_T", to_ocl_type(key_cache_comp_zp.data_type));
-            jit.make("VAL_ATTR_ZP_DATA_T", to_ocl_type(value_cache_comp_zp.data_type));
-            // Only tested for presence (sdpa_ocl_config.cl #errors without them): supported() admits asymmetric
-            // compression only, so the zero-point tensors always exist here.
-            jit.make("KEY_ZERO_POINTS", 1);
-            jit.make("VAL_ZERO_POINTS", 1);
-        }
-    }
-
-    if (config.is_paged_attention && data_type_traits::is_i8_u8(K.data_type)) {
-        auto pa_desc = params.typed_desc<paged_attention>();
-
-        const auto kv_precision = params.get_program().get_config().get_kv_cache_precision();
-        const bool is_int4_logical = data_type_traits::is_i4_u4(kv_precision);
-
-        auto scales_zp_size = 4;  // scale + zp
-        if (is_int4_logical) {
-            // INT4 KV cache with BY_CHANNEL K quantization:
-            // K: dim order {0,1,3,2} (col-major), packed block_size in innermost dim
-            //    physical: [blocks, heads, head_size, packed_block + scales] u8
-            //    packed_block = block_size/2 bytes, scales = 4 bytes
-            // V: dim order {0,1,2,3} (row-major), packed head_size in innermost dim
-            //    physical: [blocks, heads, block_size, packed_head + scales] u8
-            jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size);
-            // The V page's packed head size is ALIGNED to the subgroup size -- that is what
-            // paged_attention_opt.cpp's PACKED_ADJUSTED_V_HEAD_SIZE (and therefore the allocation and
-            // the writer) uses. A plain v_head_size/2 only happens to agree when v_head_size % 32 == 0,
-            // and would place every page base wrong for e.g. head 112.
-            jit.make("ADJUSTED_V_HEAD_SIZE",
-                     align_up(v_head_size / 2, static_cast<size_t>(ocl_config.subgroup_size)) + scales_zp_size);
-            jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size / 2 + scales_zp_size);
-        } else if (pa_desc->is_key_by_channel) {
-            jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size);
-            jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size + scales_zp_size);
-            jit.make("ADJUSTED_V_HEAD_SIZE", v_head_size + scales_zp_size);
-        } else {
-            jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size + scales_zp_size);
-            jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size);
-            jit.make("ADJUSTED_V_HEAD_SIZE", v_head_size + scales_zp_size);
-        }
-    } else if (config.is_paged_attention) {
-        jit.make("ADJUSTED_K_HEAD_SIZE", k_head_size);
-        jit.make("ADJUSTED_V_HEAD_SIZE", v_head_size);
-        jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", config.paged_attention_block_size);
-    }
-
-
-    if (!config.is_paged_attention) {
-        // Plain SDPA addresses Q/K/V/output through the permuted QRY_/KEY_/VAL_/DST_ strides
-        // (sdpa_utils.cl *_OFF); paged attention derives its 2D addressing in-kernel.
-        auto desc = params.typed_desc<scaled_dot_product_attention>();
-        jit.add(convert_strides("QRY", "INPUT0", extend_order_in_num_heads_dim(desc->input_q_transpose_order)));
-        jit.add(convert_strides("KEY", "INPUT1", extend_order_in_num_heads_dim(desc->input_k_transpose_order)));
-        jit.add(convert_strides("VAL", "INPUT2", extend_order_in_num_heads_dim(desc->input_v_transpose_order)));
-        jit.add(convert_strides("DST", "OUTPUT", extend_order_in_num_heads_dim(desc->output_transpose_order)));
-        jit.add(unit_parameters("QRY"));
-        jit.add(unit_parameters("KEY"));
-        jit.add(unit_parameters("VAL"));
-        jit.add(unit_parameters("DST"));
-
-        if (data_inputs_num > 3 && sdpa_has_runtime_attn_mask_input(params)) {
-            jit.add(convert_strides("MSK", "INPUT3", {0, 1, 2, 3}, true));
-            jit.add(unit_parameters("MSK"));
-        }
-    }
-
+    add_sink_qq_bias_jit(jit, in);
+    add_micro_math_jit(jit, in);
+    add_tiling_jit(jit, in.problem);
+    add_tensor_block_io_jit(jit, in);
+    add_pa_cache_jit(jit, in);
+    add_pa_page_read_jit(jit, in);
+    add_pa_current_token_jit(jit, in);
+    add_plain_compressed_jit(jit, in);
+    add_shape_jit(jit, in);
+    add_mask_jit(jit, in);
+    add_scale_jit(jit, in);
+    add_strides_jit(jit, in);
     return jit;
 }
 
 Arguments SDPAOclGenerator::get_arguments_desc(const kernel_impl_params& params) const {
     Arguments args;
-    sdpa_configuration config;
-    init_sdpa_configuration(params, config);
+    const auto config = make_sdpa_configuration(params);
     if (params.is_dynamic())
         args.push_back({ArgumentDescriptor::Types::SHAPE_INFO, 0});
 
@@ -1522,15 +1028,13 @@ Arguments SDPAOclGenerator::get_arguments_desc(const kernel_impl_params& params)
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SINKS});  // sink
 
         if (has_qq_bias && !m_is_prefill) {
-            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});  // qq_bias
-            args.push_back(
-                {ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});         // qq_bias
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins
         }
 
         if (sdpa_ocl_has_token_type_ids(params)) {
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});  // token_type_ids
-            // Runtime element count of the buffer above; 0 means "do not read it". Scalars 0..2 (d/k/q)
-            // belong to the non-paged-attention branch below, so 3 is the first free slot here.
+            // Its runtime count (0 = do not read it). Scalars 0..2 belong to plain SDPA, so 3 is the first free slot.
             args.push_back({ArgumentDescriptor::Types::SCALAR, 3});  // token_type_ids_count
         }
 
@@ -1572,88 +1076,63 @@ Arguments SDPAOclGenerator::get_arguments_desc(const kernel_impl_params& params)
 }
 
 DispatchDataFunc SDPAOclGenerator::get_dispatch_data_func() const {
-    return DispatchDataFunc{[](const RuntimeParams& impl_param, KernelData& kd, ImplRuntimeParams*) {
+    return DispatchDataFunc{[](const RuntimeParams& params, KernelData& kd, ImplRuntimeParams*) {
         auto& wgs = kd.params.workGroups;
         auto& scalars = kd.params.scalars;
         scalars.clear();
         scalars.reserve(4);
 
-        auto params = impl_param;
-        if (!params.is_dynamic()) {
-            const auto& out = params.output_layouts[0];
-            const auto& out_ps = out.get_partial_shape();
-
-            const auto& device_info = params.get_device_info();
-            const auto k_head_size = micro_get_head_size(params, 1);
-            const auto v_head_size = micro_get_head_size(params, 2);
-            const auto d_max = get_d_max(k_head_size);
-            const auto vd_max = get_d_max(v_head_size);
-            const auto ocl_config = choose_config(device_info.arch, d_max, vd_max);
-
-            const bool is_pa = params.is_type<paged_attention>();
-            const ov::Dimension n_queries = micro_get_aligned_seq_length(params, 0, ocl_config.kq_wg_tile_queries());
-            // Scalars 0..2 (d, k, q) are bound only by the plain-SDPA signature; paged attention derives
-            // them in-kernel, so it skips the key count (another subsequence_begins lock).
-            const int64_t n_keys = is_pa ? 0 : micro_get_aligned_seq_length(params, 1, ocl_config.kq_wg_tile_keys()).get_length();
-
-            size_t q = n_queries.get_length();
-
-            wgs.local = {static_cast<size_t>(ocl_config.subgroup_size), static_cast<size_t>(ocl_config.sg_per_wg()), 1};
-            wgs.global = wgs.local;
-            wgs.global[0] = wgs.global[0] * ((q + ocl_config.kq_wg_tile_queries() - 1) / ocl_config.kq_wg_tile_queries());
-            if (is_pa) {
-                // Paged attention Q/K/V/output are 2D [total_tokens, num_heads * head_size], so the
-                // output partial shape carries neither a head nor a batch dimension: dim 1 must be
-                // driven by the head count and dim 2 collapses to a single group (subsequences are
-                // resolved in-kernel through blocked_indexes_start_and_gws_mapping). GENERATE never
-                // reaches this generator -- sdpa_ocl_decode serves it.
-                wgs.global[1] *= micro_get_num_heads(params, 0);
-            } else {
-                // gws dim 1 is the HEAD index -- the kernel reads b0 = get_group_id(1) and offsets
-                // Q/K/V/A by QRY_OFF(b1, b0, 0, 0) & co. -- so it must come from micro_get_num_heads(),
-                // NOT from out_ps[1]. The output is only [batch, heads, seq_len, head_size] when
-                // output_transpose_order is the identity; a model that folds the output Transpose into
-                // the SDPA has [batch, seq_len, heads, head_size], and out_ps[1] is then the sequence
-                // length. Using it there over-dispatches dim 1 by seq_len/heads, and every group with
-                // b0 >= heads walks Q off the end of its allocation -- a page fault reported as
-                // CL_OUT_OF_RESOURCES. The single-token stage has the mirror-image failure: out_ps[1]
-                // is 1, so only head 0 is computed and the rest of the output is left stale.
-                // The .cl needs no change -- it addresses every tensor through the permuted
-                // QRY_S*/DST_S* strides. Same expression sdpa_gen_micro.cpp uses.
-                wgs.global[1] *= micro_get_num_heads(params, 0);
-                wgs.global[2] *= out_ps[0].get_length();
-            }
-
-            auto to_int32 = [](size_t value) {
-                if (value > static_cast<size_t>(std::numeric_limits<int32_t>::max())) {
-                    return static_cast<int32_t>(-1);
-                }
-                return static_cast<int32_t>(value);
-            };
-
-            // `d` is the Q/K contraction dim, so it must be the KEY head size. The V/output dim
-            // reaches the kernel as the V_HEAD_SIZE jit constant instead. This only ever mattered
-            // once the two could differ; plain SDPA still gates on k_head_size == v_head_size, so
-            // this is the same value it always passed there.
-            ScalarDescriptor s_d{ScalarDescriptor::Types::INT32};
-            s_d.v.s32 = to_int32(k_head_size);
-            scalars.push_back(s_d);
-
-            ScalarDescriptor s_k{ScalarDescriptor::Types::INT32};
-            s_k.v.s32 = to_int32(static_cast<size_t>(n_keys));
-            scalars.push_back(s_k);
-
-            ScalarDescriptor s_q{ScalarDescriptor::Types::INT32};
-            s_q.v.s32 = to_int32(n_queries.get_length());
-            scalars.push_back(s_q);
-
-            // Slot 3, bound only by the paged-attention branch of get_arguments_desc() when
-            // token_type_ids is declared. Pushed unconditionally so the slot index is the same for
-            // every configuration; the helper returns 0 for everything that does not use it.
-            ScalarDescriptor s_token_type_ids_count{ScalarDescriptor::Types::INT32};
-            s_token_type_ids_count.v.s32 = sdpa_ocl_token_type_ids_count(params);
-            scalars.push_back(s_token_type_ids_count);
+        if (params.is_dynamic()) {
+            return;
         }
+        const auto& out_ps = params.output_layouts[0].get_partial_shape();
+        const auto p = make_problem(params);
+        const auto& t = p.tiling;
+
+        const bool is_pa = params.is_type<paged_attention>();
+        const ov::Dimension n_queries = aligned_seq_length(params, 0, t.kq_wg_tile_queries());
+        // Scalars 0..2 (d, k, q) are bound only by the plain-SDPA signature, so PA skips the key count.
+        const int64_t n_keys = is_pa ? 0 : aligned_seq_length(params, 1, t.kq_wg_tile_keys()).get_length();
+
+        size_t q = n_queries.get_length();
+
+        wgs.local = {static_cast<size_t>(t.subgroup_size), static_cast<size_t>(t.sg_per_wg()), 1};
+        wgs.global = wgs.local;
+        wgs.global[0] = wgs.global[0] * ((q + t.kq_wg_tile_queries() - 1) / t.kq_wg_tile_queries());
+        // Dim 1 is the head index (the kernel reads b0 = get_group_id(1)), so it comes from the head count,
+        // not from the output shape: PA outputs are 2D, and a plain-SDPA output with a folded transpose is
+        // [batch, seq, heads, head_size]. Plain SDPA adds the batch as dim 2; PA resolves its subsequences
+        // in the kernel through blocked_indexes_start_and_gws_mapping.
+        wgs.global[1] *= qkv_heads_num(params, 0);
+        if (!is_pa) {
+            wgs.global[2] *= out_ps[0].get_length();
+        }
+
+        auto to_int32 = [](size_t value) {
+            if (value > static_cast<size_t>(std::numeric_limits<int32_t>::max())) {
+                return static_cast<int32_t>(-1);
+            }
+            return static_cast<int32_t>(value);
+        };
+
+        // d is the Q/K contraction depth, the KEY head size; the V/output width is jitted as V_HEAD_SIZE.
+        ScalarDescriptor s_d{ScalarDescriptor::Types::INT32};
+        s_d.v.s32 = to_int32(p.k_head_size);
+        scalars.push_back(s_d);
+
+        ScalarDescriptor s_k{ScalarDescriptor::Types::INT32};
+        s_k.v.s32 = to_int32(static_cast<size_t>(n_keys));
+        scalars.push_back(s_k);
+
+        ScalarDescriptor s_q{ScalarDescriptor::Types::INT32};
+        s_q.v.s32 = to_int32(n_queries.get_length());
+        scalars.push_back(s_q);
+
+        // Slot 3, bound only when paged attention declares token_type_ids. Always pushed so the slot index
+        // is the same for every configuration; the count is 0 wherever it is unused.
+        ScalarDescriptor s_token_type_ids_count{ScalarDescriptor::Types::INT32};
+        s_token_type_ids_count.v.s32 = sdpa_ocl_token_type_ids_count(params);
+        scalars.push_back(s_token_type_ids_count);
     }};
 }
 
