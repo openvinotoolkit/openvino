@@ -12,6 +12,7 @@ not model-quality or exhaustive generation coverage.
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 
 import numpy as np
@@ -23,7 +24,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("model", type=Path)
     parser.add_argument("--reference", type=Path, required=True)
-    parser.add_argument("--reference-kind", choices=["quantized", "represented-f32"], default="quantized")
+    parser.add_argument("--reference-kind", choices=["quantized", "represented-f32", "publisher-high-precision"],
+                        default="quantized")
+    parser.add_argument("--reference-manifest", type=Path, help="Pinned source and precision metadata for the reference")
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--backend", choices=["SDPA", "PA"], required=True)
     parser.add_argument("--mmproj", type=Path)
@@ -44,10 +47,14 @@ def main():
     report = dict(model=str(args.model.resolve()), backend=args.backend,
                   reference=str(args.reference.resolve()), reference_kind=args.reference_kind,
                   reference_sha256=hashlib.sha256(args.reference.read_bytes()).hexdigest(),
+                  reference_schedule_sha256=hashlib.sha256(Path(str(args.reference) + ".tokens").read_bytes()).hexdigest(),
+                  q4_k_zp_f16=os.environ.get("OV_GGUF_Q4_K_ZP_F16"),
                   openvino_version=ov.get_version(), genai_version=genai.__version__,
                   fresh_accuracy=args.fresh_accuracy,
                   prefix_caching=(args.backend == "PA" if args.prefix_caching is None else args.prefix_caching),
                   scenarios={})
+    if args.reference_manifest:
+        report["reference_sources"] = json.loads(args.reference_manifest.read_text())
 
     def save():
         args.report.parent.mkdir(parents=True, exist_ok=True)

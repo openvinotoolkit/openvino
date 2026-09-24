@@ -342,12 +342,19 @@ TEST(GGUFAdaptToGenAI, BatchedMaskKeepsSequencesSeparateAndExcludesPadding) {
     }
 }
 
-TEST(GGUFAdaptToGenAI, Gemma3ImageMaskRespectsImageGroupsAndCachedPrefix) {
+class GGUFAdaptToGenAIImageMask : public testing::TestWithParam<std::string> {};
+
+TEST_P(GGUFAdaptToGenAIImageMask, RespectsLayerTypeImageGroupsAndCachedPrefix) {
     auto m = build_minimal_gguf_model();
     m.embd->get_rt_info()["gguf.token_embedding"] = true;
-    m.model->get_rt_info()["gguf_architecture"] = std::string("gemma3");
+    m.model->get_rt_info()["gguf_architecture"] = GetParam();
+    m.model->get_rt_info()[ov::frontend::gguf::pass::gguf_swa_window_key()] = int64_t{3};
     auto mask = find_parameter(m.model, "self_kq_mask");
-    m.model->add_results({std::make_shared<v0::Result>(mask)});
+    auto swa_mask = ov::test::utils::make_param(ov::element::f32,
+                                               ov::PartialShape{1, 1, -1, -1},
+                                               "self_kq_mask_swa");
+    m.model->add_parameters({swa_mask});
+    m.model->add_results({std::make_shared<v0::Result>(mask), std::make_shared<v0::Result>(swa_mask)});
     AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(m.model);
     // Adaptation replaces the original first result with logits; the retained mask is now first.
     ov::Core core;
@@ -363,22 +370,31 @@ TEST(GGUFAdaptToGenAI, Gemma3ImageMaskRespectsImageGroupsAndCachedPrefix) {
         for (auto& entry : inputs)
             request.set_tensor(entry.first, entry.second);
         request.infer();
-        auto actual = request.get_output_tensor(0);
-        ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 1, types.size(), past + types.size()}));
-        for (size_t q = 0; q < types.size(); ++q) {
-            for (size_t k = 0; k < past + types.size(); ++k) {
-                const bool same_image = k >= past && types[q] == 1 && types[k - past] == 1 &&
-                                        ((q <= 2 && k - past <= 2) || (q >= 4 && k - past >= 4));
-                const bool allowed = k <= past + q || same_image;
-                const float value = actual.data<float>()[q * (past + types.size()) + k];
-                if (allowed)
-                    EXPECT_EQ(value, 0.f);
-                else
-                    EXPECT_LT(value, -1e4f);
+        for (size_t layer = 0; layer < 2; ++layer) {
+            auto actual = request.get_output_tensor(layer);
+            ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 1, types.size(), past + types.size()}));
+            const bool bidirectional = layer == 1 || GetParam() == "gemma3";
+            for (size_t q = 0; q < types.size(); ++q) {
+                for (size_t k = 0; k < past + types.size(); ++k) {
+                    const bool same_image = k >= past && types[q] == 1 && types[k - past] == 1 &&
+                                            ((q <= 2 && k - past <= 2) || (q >= 4 && k - past >= 4));
+                    const bool allowed = (k <= past + q || (bidirectional && same_image)) &&
+                                         (layer == 0 || k + 3 > past + q);
+                    const float value = actual.data<float>()[q * (past + types.size()) + k];
+                    if (allowed)
+                        EXPECT_EQ(value, 0.f) << "layer=" << layer << " past=" << past << " q=" << q << " k=" << k;
+                    else
+                        EXPECT_LT(value, -1e4f) << "layer=" << layer << " past=" << past << " q=" << q << " k=" << k;
+                }
             }
         }
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(Gemma,
+                         GGUFAdaptToGenAIImageMask,
+                         testing::Values(std::string("gemma3"), std::string("gemma4")),
+                         [](const testing::TestParamInfo<std::string>& info) { return info.param; });
 
 TEST(GGUFAdaptToGenAI, EmbeddingModeMapsGenAIMultimodalPositionsToGGML) {
     auto m = build_minimal_gguf_model();
