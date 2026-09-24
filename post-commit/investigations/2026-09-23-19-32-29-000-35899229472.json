@@ -1,0 +1,44 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-09-23-19-32-29-000-35899229472",
+    "timestamp": "2026-09-23T19:32:29Z",
+    "run_id": "35899229472",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35899229472",
+    "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+    "commit_sha": "31f1a4055a99ac3bd279b1930b28f6e2b6f43056",
+    "pr_number": "38342",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38342",
+    "author": null,
+    "category": "Network",
+    "title": "Upload Test Results fails with ENOTFOUND artifact upload error on Windows runner",
+    "signature": "Failed to CreateArtifact: Unable to make request: ENOTFOUND|Network",
+    "signature_hash": "4e9cf236bf92d555",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+            "conclusion": "failure",
+            "symptom": "All 2114 tests passed, but the post-test 'Upload Test Results' artifact-upload step failed with a DNS resolution error (ENOTFOUND) contacting the GitHub Actions artifact service."
+        },
+        {
+            "name": "ci/gha_overall_status_windows",
+            "conclusion": "failure",
+            "symptom": "Aggregate status check failed because it depends on the TensorFlow Layer Tests job, which failed due to the downstream artifact-upload error above (not a test failure)."
+        }
+    ],
+    "key_errors": [
+        "= 2114 passed, 111 skipped, 6 xfailed, 27 xpassed, 261 warnings in 603.76s (0:10:03) =",
+        "[VERBOSE] Calling artifact.uploadArtifact with name 'test-results-python-tf-layers', 2 file(s)...",
+        "##[error]Failed to CreateArtifact: Unable to make request: ENOTFOUND\nIf you are using self-hosted runners, please make sure your runner has access to all GitHub endpoints: https://docs.github.com/en/actions/hosting-your-own-runners/managing-self-hosted-runners/about-self-hosted-runners#communication-between-self-hosted-runners-and-github"
+    ],
+    "root_cause": "The TensorFlow layer test suite itself completed successfully (2114 passed, 0 failed). The job was marked failed solely because the subsequent 'ababushk/upload-artifact' step could not resolve/reach the GitHub Actions artifact-service endpoint from the Windows self-hosted runner, raising a DNS 'ENOTFOUND' error. This is a transient network/runner-connectivity issue external to the test code and unrelated to the PR's actual changes (documentation/skills-only PR #38342).",
+    "reproduction_steps": "N/A - this is an infrastructure/network connectivity failure on the self-hosted Windows runner reaching the GitHub Actions artifact backend; it cannot be reproduced by re-running test code locally. Re-running the workflow job would likely succeed if runner network connectivity is restored.",
+    "recommended_actions": [
+        "Re-run the failed 'TensorFlow Layer Tests' job; the underlying tests already passed and the failure is isolated to artifact upload.",
+        "Investigate self-hosted Windows runner network/DNS health and connectivity to GitHub's artifact service endpoints (see the linked self-hosted runner networking docs in the error message).",
+        "Consider adding 'continue-on-error: true' or a retry wrapper specifically to the 'Upload Test Results' artifact-upload step so transient upload failures do not fail an otherwise-passing test job.",
+        "Monitor whether this ENOTFOUND pattern recurs across other jobs/runners to distinguish a one-off blip from a systemic runner-pool networking issue."
+    ],
+    "prevention_strategies": "Wrap non-critical post-test steps (artifact uploads, result publishing) with retry logic or 'continue-on-error' so transient network hiccups on self-hosted runners do not fail jobs whose actual test payload succeeded. Add runner-level network health checks/alerts for DNS resolution failures to GitHub endpoints.",
+    "historical_context": "No prior investigations recorded in the CI Doctor Post-Commit database; this is the first entry for this failure signature."
+}

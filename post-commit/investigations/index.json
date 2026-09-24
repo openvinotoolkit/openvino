@@ -1,0 +1,17 @@
+{
+    "schema_version": "1.0",
+    "total": 1,
+    "entries": [
+        {
+            "investigation_id": "2026-09-23-19-32-29-000-35899229472",
+            "run_id": "35899229472",
+            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35899229472",
+            "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+            "timestamp": "2026-09-23T19:32:29Z",
+            "title": "Upload Test Results fails with ENOTFOUND artifact upload error on Windows runner",
+            "category": "Network",
+            "signature_hash": "4e9cf236bf92d555",
+            "commit_sha": "31f1a4055a99ac3bd279b1930b28f6e2b6f43056"
+        }
+    ]
+}
