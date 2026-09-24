@@ -302,6 +302,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_binary_conv_to_conv_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_convolution_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_fc_to_compressed_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_moe_3gemm_zp_to_u8_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_matmul_to_fc_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_pooling_to_reduce_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/convert_stridedslices_to_variadicsplit_test.cpp
@@ -361,6 +362,8 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_fc_to_compressed.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_matmul_to_fc.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_matmul_to_fc.hpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_moe_3gemm_zp_to_u8.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_moe_3gemm_zp_to_u8.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_pooling_to_reduce.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_pooling_to_reduce.hpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/transformations/convert_shapeof.cpp
