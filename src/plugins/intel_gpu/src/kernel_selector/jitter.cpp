@@ -410,6 +410,35 @@ JitDefinitions DataTensorJitConstant::GetDefinitions() const {
                                                       dims_padded.u(),
                                                       dims_padded.v(),
                                                       dims_padded.f()})});
+        } else if (_tensor.GetLayout() == DataLayout::byxf) {
+            definitions.push_back({_name + "_FEATURE_PITCH", "1"});
+            definitions.push_back({_name + "_X_PITCH", dims_padded.f()});
+            definitions.push_back({_name + "_Y_PITCH", toVectorMulString({dims_padded.f(), dims_padded.x()})});
+            definitions.push_back(
+                {_name + "_Z_PITCH", toVectorMulString({dims_padded.f(), dims_padded.x(), dims_padded.y()})});
+            definitions.push_back(
+                {_name + "_W_PITCH",
+                 toVectorMulString({dims_padded.f(), dims_padded.x(), dims_padded.y(), dims_padded.z()})});
+            definitions.push_back(
+                {_name + "_U_PITCH",
+                 toVectorMulString(
+                     {dims_padded.f(), dims_padded.x(), dims_padded.y(), dims_padded.z(), dims_padded.w()})});
+            definitions.push_back(
+                {_name + "_V_PITCH",
+                 toVectorMulString({dims_padded.f(),
+                                    dims_padded.x(),
+                                    dims_padded.y(),
+                                    dims_padded.z(),
+                                    dims_padded.w(),
+                                    dims_padded.u()})});
+            definitions.push_back({_name + "_BATCH_PITCH",
+                                   toVectorMulString({dims_padded.f(),
+                                                      dims_padded.x(),
+                                                      dims_padded.y(),
+                                                      dims_padded.z(),
+                                                      dims_padded.w(),
+                                                      dims_padded.u(),
+                                                      dims_padded.v()})});
         } else {
             OPENVINO_ASSERT(false, "[GPU] Jitter couldn't generate dynamic pitches for given layout");
         }
