@@ -501,6 +501,12 @@ void regclass_graph_Model(py::module m) {
         R"(
                 Reshape model input.
 
+                Before modifying the graph, reject affected Reshape targets containing literal
+                positive dimensions or unsupported shape expressions. No axis is assumed to be
+                batch. Valid but unverifiable layouts may raise RuntimeError. Supported targets
+                use live ShapeOf expressions, special-zero copies, or an inferred -1 dimension.
+                Passing this check does not guarantee numerical equivalence to the source model.
+
                 The allowed types of keys in the `variables_shapes` dictionary is `str`.
                 The allowed types of values in the `variables_shapes` are:
 
@@ -542,6 +548,12 @@ void regclass_graph_Model(py::module m) {
         py::arg("variables_shapes") = py::dict(),
         R"(
                 Reshape model input.
+
+                Before modifying the graph, reject affected Reshape targets containing literal
+                positive dimensions or unsupported shape expressions. No axis is assumed to be
+                batch. Valid but unverifiable layouts may raise RuntimeError. Supported targets
+                use live ShapeOf expressions, special-zero copies, or an inferred -1 dimension.
+                Passing this check does not guarantee numerical equivalence to the source model.
 
                 The allowed types of keys in the `variables_shapes` dictionary is `str`.
                 The allowed types of values in the `variables_shapes` are:
@@ -585,6 +597,12 @@ void regclass_graph_Model(py::module m) {
         R"(
                 Reshape model input.
 
+                Before modifying the graph, reject affected Reshape targets containing literal
+                positive dimensions or unsupported shape expressions. No axis is assumed to be
+                batch. Valid but unverifiable layouts may raise RuntimeError. Supported targets
+                use live ShapeOf expressions, special-zero copies, or an inferred -1 dimension.
+                Passing this check does not guarantee numerical equivalence to the source model.
+
                 The allowed types of keys in the `variables_shapes` dictionary is `str`.
                 The allowed types of values in the `variables_shapes` are:
 
@@ -625,6 +643,12 @@ void regclass_graph_Model(py::module m) {
         py::arg("variables_shapes") = py::dict(),
         R"(
                 Reshape model input.
+
+                Before modifying the graph, reject affected Reshape targets containing literal
+                positive dimensions or unsupported shape expressions. No axis is assumed to be
+                batch. Valid but unverifiable layouts may raise RuntimeError. Supported targets
+                use live ShapeOf expressions, special-zero copies, or an inferred -1 dimension.
+                Passing this check does not guarantee numerical equivalence to the source model.
 
                 The allowed types of keys in the `variables_shapes` dictionary is `str`.
                 The allowed types of values in the `variables_shapes` are:
@@ -672,6 +696,12 @@ void regclass_graph_Model(py::module m) {
         py::arg("partial_shapes"),
         py::arg("variables_shapes") = py::dict(),
         R"( Reshape model inputs.
+
+            Before modifying the graph, reject affected Reshape targets containing literal
+            positive dimensions or unsupported shape expressions. No axis is assumed to be
+            batch. Valid but unverifiable layouts may raise RuntimeError. Supported targets
+            use live ShapeOf expressions, special-zero copies, or an inferred -1 dimension.
+            Passing this check does not guarantee numerical equivalence to the source model.
 
             The allowed types of keys in the `partial_shapes` dictionary are:
 
@@ -1316,6 +1346,17 @@ void regclass_graph_Model(py::module m) {
               &ov::Model::clone,
               R"(
             Return a copy of self.
+
+            To reshape without modifying the source graph::
+
+                candidate = model.clone()
+                candidate.reshape(new_shapes)
+
+            Keep the candidate only if reshape and any application-specific validation succeed.
+            Use input indices, tensor names, or ports belonging to the clone for new_shapes.
+            Successful shape inference does not establish equivalence to a source model whose
+            shape dependencies were lost during conversion or tracing.
+
             :return: A copy of self.
             :rtype: openvino.Model
         )");
