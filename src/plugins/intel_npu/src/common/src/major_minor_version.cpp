@@ -97,6 +97,13 @@ std::vector<uint16_t> parse_dotted_version(std::string_view version_string, cons
         remaining = remaining.substr(dot_location + 1);
         OPENVINO_ASSERT(!remaining.empty(), "Trailing dot found while parsing the version \"", version_string, "\"");
     }
+    OPENVINO_ASSERT(parts.size() == number_of_parts,
+                    "Expected ",
+                    number_of_parts,
+                    " values while parsing the ",
+                    version_string,
+                    " string, but the algorithm parsed ",
+                    parts.size());
     return parts;
 }
 
