@@ -1,23 +1,22 @@
 name: NPU CiP Bump Notification
 
-# Notifies a fixed set of people whenever the prebuilt NPU compiler-in-package (CiP)
-# binaries are bumped on master or a release branch. A bump is detected by a value-level
-# change of the version / commit sha / SHA256 checksum variables in:
+# Notifies whenever the prebuilt NPU compiler-in-package (CiP) binaries are bumped on
+# master or a release branch. A bump is detected by a value-level change of the version /
+# commit sha / SHA256 checksum variables in:
 #     src/plugins/intel_npu/cmake/download_compiler_libs.cmake
 #
-# Delivery is GitHub-native (Option B): the workflow adds a comment to a long-lived
-# tracking issue and @mentions the recipients, so GitHub emails them from
-# notifications@github.com. No SMTP relay, no third-party actions, no extra secrets.
-# Optionally it also posts an Adaptive Card to a Microsoft Teams channel.
+# Delivery:
+#   - GitHub: comment on the bump PR with @mentions (NPU_CIP_NOTIFY_LOGINS) so GitHub emails
+#     recipients from notifications@github.com.
+#   - Teams: Adaptive Card to a Power Automate webhook (optional).
+# If notify logins / webhook are unset, the workflow still logs the bump in the run summary.
 #
 # Configuration (repository -> Settings -> Secrets and variables -> Actions):
 #   Variables:
-#     NPU_CIP_TRACKING_ISSUE  - number of the tracking issue to comment on (e.g. 12345)
-#     NPU_CIP_NOTIFY_LOGINS   - space/comma separated GitHub logins to @mention
+#     NPU_CIP_NOTIFY_LOGINS     - space/comma separated GitHub logins to @mention on the PR
+#     NPU_CIP_TEAMS_MENTION_UPNS - optional comma/space separated UPNs (emails) for Teams @mentions
 #   Secrets:
 #     NPU_CIP_TEAMS_WEBHOOK_URL - Teams incoming webhook URL of the destination channel
-# All are optional: if unset, the workflow logs the detected change to the run summary
-# and no-ops on delivery, so it is safe to merge before the issue/recipients exist.
 
 on:
   push:
@@ -27,8 +26,8 @@ on:
     paths:
       - 'src/plugins/intel_npu/cmake/download_compiler_libs.cmake'
   # TEMPORARY (fork testing only): remove this whole pull_request block before
-  # opening the PR to openvinotoolkit. Lets you exercise the workflow by opening a
-  # PR in your fork that edits the cmake file; it then comments on the PR itself.
+  # opening the PR to openvinotoolkit. Lets you exercise the workflow on a PR that edits
+  # the cmake file without merging to master.
   pull_request:
     paths:
       - 'src/plugins/intel_npu/cmake/download_compiler_libs.cmake'
@@ -53,8 +52,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      issues: write
-      pull-requests: write  # TEMPORARY (fork testing): needed to comment on the PR
+      pull-requests: write
     env:
       FILE_PATH: src/plugins/intel_npu/cmake/download_compiler_libs.cmake
       # Variables tracked for a value-level bump comparison.
@@ -144,6 +142,8 @@ jobs:
           AUTHOR="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${AFTER}" --jq '.commit.author.name' 2>/dev/null || true)"
           PR_INFO="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${AFTER}/pulls" \
             --jq '.[0] | "#\(.number) \(.title)"' 2>/dev/null || true)"
+          PR_NUMBER="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${AFTER}/pulls" \
+            --jq '.[0].number' 2>/dev/null || true)"
 
           MENTIONS=""
           for l in $(echo "${NPU_CIP_NOTIFY_LOGINS:-}" | tr ',' ' '); do
@@ -173,18 +173,15 @@ jobs:
               echo "| --- | --- | --- |"
               printf '%s' "${ROWS}"
             fi
-          } > body.md
+          } | tee -a "${GITHUB_STEP_SUMMARY}" > body.md
 
-          echo "Detected change body:"
-          cat body.md >> "${GITHUB_STEP_SUMMARY}"
-
-          # Expose fields for downstream notification steps (Teams).
           {
             echo "date=${NOW}"
             echo "branch=${BRANCH}"
             echo "commit_url=${COMMIT_URL}"
             echo "author=${AUTHOR}"
             echo "pr_info=${PR_INFO}"
+            echo "pr_number=${PR_NUMBER}"
             echo "changes<<CHANGES_EOF"
             printf '%s' "${CHANGES_TEXT:-<variables could not be parsed>}"
             echo ""
@@ -193,26 +190,30 @@ jobs:
         env:
           NPU_CIP_NOTIFY_LOGINS: ${{ vars.NPU_CIP_NOTIFY_LOGINS }}
 
-      - name: Post notification to tracking issue
+      - name: Post GitHub notification on pull request
         if: steps.detect.outputs.changed == 'true'
         env:
-          TRACKING_ISSUE: ${{ vars.NPU_CIP_TRACKING_ISSUE }}
-          PR_NUMBER: ${{ github.event.pull_request.number }}
+          NOTIFY_LOGINS: ${{ vars.NPU_CIP_NOTIFY_LOGINS }}
         run: |
           set -euo pipefail
-          # TEMPORARY (fork testing): on a pull_request, comment on the PR itself
-          # so testing needs no tracking issue and no configured variables.
+          if [[ -z "${NOTIFY_LOGINS// /}" ]]; then
+            echo "NPU_CIP_NOTIFY_LOGINS not set; skipping GitHub @mention comment."
+            exit 0
+          fi
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            gh pr comment "${PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --body-file body.md
-            echo "Posted NPU CiP bump notification to PR #${PR_NUMBER}."
+            PR="${{ github.event.pull_request.number }}"
+          elif [[ "${{ github.event_name }}" == "push" ]]; then
+            PR="${{ steps.detect.outputs.pr_number }}"
+          else
+            echo "Not a pull_request or push event; skipping GitHub comment."
             exit 0
           fi
-          if [[ -z "${TRACKING_ISSUE}" ]]; then
-            echo "::warning::NPU_CIP_TRACKING_ISSUE variable is not set; change detected but no comment posted."
+          if [[ -z "${PR}" ]]; then
+            echo "::warning::No pull request linked to this bump; cannot post @mention comment."
             exit 0
           fi
-          gh issue comment "${TRACKING_ISSUE}" --repo "${GITHUB_REPOSITORY}" --body-file body.md
-          echo "Posted NPU CiP bump notification to issue #${TRACKING_ISSUE}."
+          gh pr comment "${PR}" --repo "${GITHUB_REPOSITORY}" --body-file body.md
+          echo "Posted NPU CiP bump notification to PR #${PR}."
 
       # Sparse checkout of just the scripts directory; the repository is far too large
       # to check out in full for a notification job.
@@ -224,10 +225,6 @@ jobs:
           sparse-checkout-cone-mode: false
           fetch-depth: 1
 
-      # Posts an Adaptive Card to a Microsoft Teams channel, mirroring the existing
-      # notify_teams.py pattern (urllib POST of an Adaptive Card to an incoming webhook).
-      # The destination channel is whichever channel owns the webhook stored in the
-      # NPU_CIP_TEAMS_WEBHOOK_URL secret. Skips cleanly when the secret is unset.
       - name: Send Teams notification
         if: steps.detect.outputs.changed == 'true'
         env:
@@ -247,4 +244,3 @@ jobs:
             exit 0
           fi
           python3 .github/scripts/npu_cip_notify_teams.py
-
