@@ -4,10 +4,13 @@
 
 #include "single_op_tests/grouped_matmul.hpp"
 
+#include <algorithm>
+#include <iostream>
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
+#include "openvino/runtime/properties.hpp"
 
 namespace {
 using ov::test::GroupedMatMulCompressedLayerTest;
@@ -29,8 +32,8 @@ protected:
         const bool has_zero_point = (subtract_type != DecompressionType::empty);
 
         auto runtime_model = compiledModel.get_runtime_model();
-        auto nodes = ov::test::GetNodesWithTypes(runtime_model, {"FullyConnected", "grouped_matmul"});
-        ASSERT_FALSE(nodes.empty()) << "No FullyConnected or grouped_matmul node found in the runtime model";
+        auto nodes = ov::test::GetNodesWithTypes(runtime_model, {"FullyConnected", "grouped_matmul", "Gemm"});
+        ASSERT_FALSE(nodes.empty()) << "No FullyConnected, grouped_matmul, or Gemm node found in the runtime model";
 
         for (const auto& n : nodes) {
             const auto& rt = n->get_rt_info();

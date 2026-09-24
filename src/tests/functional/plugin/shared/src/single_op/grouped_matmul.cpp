@@ -80,6 +80,15 @@ void GroupedMatMulTestBase::validate() {
     if (expected_primitive_.empty()) {
         return;
     }
+
+    // On non-immad GPU the op is decomposed to plain MatMul - skip node check.
+    if (targetDevice.find("GPU") != std::string::npos) {
+        const auto caps = core->get_property(targetDevice, ov::device::capabilities);
+        if (std::find(caps.begin(), caps.end(), "GPU_HW_MATMUL") == caps.end()) {
+            return;
+        }
+        std::cout << "[GMM test] immad GPU detected, performing node check." << std::endl;
+    }
     const auto profiling = inferRequest.get_profiling_info();
     auto it = std::find_if(profiling.begin(), profiling.end(), [this](const ov::ProfilingInfo& pi) {
         return pi.node_type == expected_primitive_;
