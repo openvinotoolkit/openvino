@@ -147,6 +147,7 @@ std::string toString(DataLayout l) {
 std::string toString(Datatype dType) {
     switch (dType) {
         case Datatype::UINT2:  return "UINT2";
+        case Datatype::UINT3:  return "UINT3";
         case Datatype::UINT4:  return "UINT4";
         case Datatype::INT4:   return "INT4";
         case Datatype::INT8:   return "INT8";
@@ -171,6 +172,7 @@ std::string toString(WeightsType wType) {
         case WeightsType::F16:    return "F16";
         case WeightsType::F32:    return "F32";
         case WeightsType::UINT2:  return "UINT2";
+        case WeightsType::UINT3:  return "UINT3";
         case WeightsType::UINT4:  return "UINT4";
         case WeightsType::INT4:   return "INT4";
         case WeightsType::INT8:   return "INT8";
@@ -362,6 +364,7 @@ std::string toString(WeightsLayout layout) {
         case WeightsLayout::os_is_yx_osv32_isv4:                         return "OS_IS_YX_OSV32_ISV4";
         case WeightsLayout::os_is_yx_osv32_isv2:                         return "OS_IS_YX_OSV32_ISV2";
         case WeightsLayout::os_is_yx_osv64_isv2:                         return "OS_IS_YX_OSV64_ISV2";
+        case WeightsLayout::os_is_yx_osv16_isv32:                        return "OS_IS_YX_OSV16_ISV32";
         case WeightsLayout::os_is_zyx_osv32_isv4:                        return "OS_IS_ZYX_OSV32_ISV4";
         case WeightsLayout::oizyx:                                       return "OIZYX";
         case WeightsLayout::iozyx:                                       return "IOZYX";
