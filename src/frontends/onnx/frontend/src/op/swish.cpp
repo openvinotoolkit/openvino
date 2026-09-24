@@ -11,11 +11,7 @@
 
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_24 {
+namespace ov::frontend::onnx::ai_onnx::opset_24 {
 
 ov::OutputVector swish(const ov::frontend::onnx::Node& node) {
     // Operator definition: https://onnx.ai/onnx/operators/onnx__Swish.html
@@ -45,8 +41,4 @@ ov::OutputVector swish(const ov::frontend::onnx::Node& node) {
 // because OperatorsBridge requires a translator for every version imported by a model.
 ONNX_OP("Swish", OPSET_SINCE(1), ai_onnx::opset_24::swish);
 
-}  // namespace opset_24
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_24
