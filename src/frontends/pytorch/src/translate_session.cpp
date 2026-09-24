@@ -35,15 +35,19 @@ class AliasScope {
 public:
     explicit AliasScope(TranslateSession& session) : m_session(session) {
         m_aliases.swap(m_session.m_may_be_alias);
+        m_tuple_element_aliases.swap(m_session.m_tuple_element_aliases);
     }
 
     ~AliasScope() {
         m_aliases.swap(m_session.m_may_be_alias);
+        m_tuple_element_aliases.swap(m_session.m_tuple_element_aliases);
     }
 
 private:
     TranslateSession& m_session;
     decltype(TranslateSession::m_may_be_alias) m_aliases;
+    // Tensor ids are local to a graph, so tuple element aliases are scoped like other aliases.
+    decltype(TranslateSession::m_tuple_element_aliases) m_tuple_element_aliases;
 };
 
 // Helper to extract complex part element type from raw type
@@ -331,9 +335,12 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
 #endif
                 if (op_type == "<built-in function getitem>" && has_inputs && !m_may_be_alias.count(fw_tensor_id)) {
                     // Elements of a tuple returned by an inlined subgraph may be views of its operands.
-                    if (const auto index = ov::util::get_constant_from_source(context.get_input(1))) {
-                        const auto element_alias = m_tuple_element_aliases.find(
-                            {first_input_id, static_cast<size_t>(index->cast_vector<int64_t>().at(0))});
+                    if (const auto index_node = ov::util::get_constant_from_source(context.get_input(1))) {
+                        auto index = index_node->cast_vector<int64_t>().at(0);
+                        if (index < 0) {
+                            index += static_cast<int64_t>(get_list_as_outputs(context.get_input(0)).size());
+                        }
+                        const auto element_alias = m_tuple_element_aliases.find({first_input_id, index});
                         if (element_alias != m_tuple_element_aliases.end()) {
                             m_may_be_alias[fw_tensor_id] = element_alias->second;
                         }

@@ -245,3 +245,55 @@ def test_fx_grad_mode_returns_operand():
     decoder = TorchFXPythonDecoder(model, input_shapes=[data.shape], input_types=[data.dtype])
     compiled = Core().compile_model(convert_model(decoder), "CPU")
     np.testing.assert_array_equal(compiled([data.numpy()])[0], model(data)[0].numpy())
+
+
+def _fx_wrap(graph, body_name, data):
+    from torch._higher_order_ops.wrap import wrap_with_set_grad_enabled
+
+    return graph.call_function(wrap_with_set_grad_enabled, (False, graph.get_attr(body_name), data))
+
+
+def _convert_fx(model, data):
+    decoder = TorchFXPythonDecoder(model, input_shapes=[data.shape], input_types=[data.dtype])
+    return Core().compile_model(convert_model(decoder), "CPU")
+
+
+def test_fx_grad_mode_negative_index():
+    body_graph = torch.fx.Graph()
+    body_data = body_graph.placeholder("x")
+    body_graph.output((body_graph.call_function(torch.ops.aten.slice.Tensor, (body_data, 0, 1)),))
+    body = torch.fx.GraphModule({}, body_graph)
+
+    graph = torch.fx.Graph()
+    data = graph.call_function(torch.ops.aten.clone.default, (graph.placeholder("x"),))
+    view = graph.call_function(operator.getitem, (_fx_wrap(graph, "body", data), -1))
+    graph.call_function(torch.ops.aten.add_.Tensor, (view, 1))
+    graph.output((data,))
+    model = torch.fx.GraphModule({"body": body}, graph)
+
+    data = torch.zeros(3)
+    np.testing.assert_array_equal(_convert_fx(model, data)([data.numpy()])[0], model(data)[0].numpy())
+
+
+def test_fx_grad_mode_nested_alias_scope():
+    view_graph = torch.fx.Graph()
+    view_data = view_graph.placeholder("x")
+    view_graph.output((view_graph.call_function(torch.ops.aten.slice.Tensor, (view_data, 0, 1)),))
+    view_body = torch.fx.GraphModule({}, view_graph)
+
+    # The nested wrapper has the same graph-local position as the outer one, but the outer element is a copy.
+    body_graph = torch.fx.Graph()
+    body_data = body_graph.placeholder("x")
+    body_graph.call_function(operator.getitem, (_fx_wrap(body_graph, "view_body", body_data), 0))
+    body_graph.output((body_graph.call_function(torch.ops.aten.clone.default, (body_data,)),))
+    body = torch.fx.GraphModule({"view_body": view_body}, body_graph)
+
+    graph = torch.fx.Graph()
+    data = graph.placeholder("x")
+    copy = graph.call_function(operator.getitem, (_fx_wrap(graph, "body", data), 0))
+    graph.call_function(torch.ops.aten.add_.Tensor, (copy, 1))
+    graph.output((data,))
+    model = torch.fx.GraphModule({"body": body}, graph)
+
+    data = torch.zeros(3)
+    np.testing.assert_array_equal(_convert_fx(model, data)([data.numpy()])[0], model(data.clone())[0].numpy())

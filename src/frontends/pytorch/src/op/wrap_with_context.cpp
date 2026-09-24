@@ -92,7 +92,7 @@ OutputVector translate_wrap_with_context_fx(const NodeContext& context) {
     for (const auto& [output_index, root_id] : aliases) {
         const auto operand = get_operand(root_id);
         const auto& output = outputs.at(output_index);
-        session->m_tuple_element_aliases[{decoder->output(0), output_index}] = {
+        session->m_tuple_element_aliases[{decoder->output(0), static_cast<int64_t>(output_index)}] = {
             operand_ids.at(operand),
             decoder,
             output,
