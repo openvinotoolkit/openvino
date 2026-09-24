@@ -17,10 +17,7 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 
 void normalize_block_shape_pads_crops(const NodeContext& node,
                                       Output<Node>& block_shape,
@@ -84,7 +81,4 @@ OutputVector translate_batch_to_space_nd_op(const NodeContext& node) {
     return {batch_to_space};
 }
 
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

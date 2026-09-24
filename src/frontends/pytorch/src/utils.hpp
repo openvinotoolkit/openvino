@@ -13,14 +13,11 @@
 
 namespace ov {
 
-namespace op {
-namespace util {
+namespace op::util {
 class FrameworkNode;
-}  // namespace util
-}  // namespace op
+}  // namespace op::util
 
-namespace frontend {
-namespace pytorch {
+namespace frontend::pytorch {
 
 const std::string pytorch_prefix = "[PyTorch Frontend] ";
 
@@ -461,6 +458,5 @@ private:
     const std::string m_schema = "NONE";
 };
 
-}  // namespace pytorch
-}  // namespace frontend
+}  // namespace frontend::pytorch
 }  // namespace ov

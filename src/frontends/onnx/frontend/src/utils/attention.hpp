@@ -10,10 +10,7 @@
 #include "openvino/core/node.hpp"
 #include "openvino/op/shape_of.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace attention {
+namespace ov::frontend::onnx::attention {
 
 /// \brief Extracts specific dimensions from a ShapeOf node using Gather.
 ///
@@ -102,7 +99,4 @@ ov::OutputVector build_manual_attention(const ov::Output<ov::Node>& Q,
                                         int64_t qk_matmul_output_mode,
                                         bool include_safe_softmax = true);
 
-}  // namespace attention
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::attention

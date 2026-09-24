@@ -5,10 +5,7 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs unstack(const NodeContext& node) {
     auto data = node.get_input("X");
     auto input_shape = data.get_partial_shape();
@@ -30,7 +27,4 @@ NamedOutputs unstack(const NodeContext& node) {
     }
     return named_outputs;
 }
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op
