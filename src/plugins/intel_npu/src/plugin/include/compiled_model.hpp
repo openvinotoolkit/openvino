@@ -34,7 +34,7 @@ public:
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const std::shared_ptr<IDevice>& device,
                   const std::shared_ptr<IGraph>& graph,
-                  const FilteredConfig& config,
+                  const Config& config,
                   const ov::AnyMap& properties,
                   const std::optional<int64_t>& batchSize);
 

@@ -21,10 +21,7 @@
 #include "openvino/op/slice.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 OutputVector translate_cpy(const NodeContext& context) {
     const int op_case = context.get_op_case();
@@ -220,7 +217,4 @@ OutputVector translate_cpy(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

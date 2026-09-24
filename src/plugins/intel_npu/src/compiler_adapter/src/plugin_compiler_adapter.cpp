@@ -37,7 +37,6 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
                                              const std::shared_ptr<OptionSupportCache>& optionSupportCache,
                                              const std::optional<IDevice::DeviceProperties>& deviceProperties)
     : _zeroInitStruct(zeroInitStruct),
-      _optionSupportCache(optionSupportCache),
       _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.info("initialize PluginCompilerAdapter start");
 
@@ -46,7 +45,10 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
         auto ovLibPath = ov::util::path_to_string(ov::util::get_ov_lib_path());
         auto vclLoader = VCLLoader::getInstance(ovLibPath);
         OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
-        auto vclCompilerPtr = std::make_shared<VCLCompilerImpl>(vclLoader->sharedFunctions(), deviceProperties);
+        auto vclCompilerPtr =
+            std::make_shared<VCLCompilerImpl>(vclLoader->sharedFunctions(),
+                                              deviceProperties,
+                                              ScopedOptionSupportCache{optionSupportCache, pluginOptionSupportKey});
         OPENVINO_ASSERT(vclCompilerPtr != nullptr, "VCL compiler is nullptr");
         // Pair the compiler with the library so the .so cannot be unloaded while the compiler
         // dispatches into it. The compiler itself no longer knows a library is involved.
@@ -74,7 +76,7 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
-                                                       const FilteredConfig& config) const {
+                                                       const Config& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
     _logger.debug("compile start");
@@ -127,11 +129,11 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
-                                                         const FilteredConfig& config) const {
+                                                         const Config& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compileWS");
     _logger.debug("compile start");
 
-    FilteredConfig localConfig = config;
+    Config localConfig = config;
     if (!localConfig.has<SEPARATE_WEIGHTS_VERSION>()) {
         localConfig.update(ov::intel_npu::separate_weights_version.name(), "ONE_SHOT");
     }
@@ -219,6 +221,11 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         std::shared_ptr<ov::Model> targetModel = model;
         size_t i = 0;
 
+        OPENVINO_ASSERT(is_option_supported(ov::intel_npu::ws_compile_call_number.name()),
+                        "WS_COMPILE_CALL_NUMBER is a compiler option and must be supported by the compiler.");
+        OPENVINO_ASSERT(!localConfig.has(ov::intel_npu::ws_compile_call_number.name()),
+                        "WS_COMPILE_CALL_NUMBER is an internal option owned by the weights separation compilation "
+                        "loop and must not be set by the user.");
         while (true) {
             auto iterativeResult = _compiler->compileWsIterative(targetModel, localConfig, i++);
             auto tensor = std::move(iterativeResult.first);
@@ -279,7 +286,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
 }
 
 ov::SupportedOpsMap PluginCompilerAdapter::query(const std::shared_ptr<const ov::Model>& model,
-                                                 const FilteredConfig& config) const {
+                                                 const Config& config) const {
     OV_ITT_TASK_CHAIN(QUERY_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "query");
 
     return _compiler->query(model, config);
@@ -291,31 +298,12 @@ uint32_t PluginCompilerAdapter::get_version() const {
 }
 
 std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
-    const std::vector<std::string> compilerOpts = _compiler->get_supported_options();
-
-    if (_optionSupportCache) {
-        _optionSupportCache->setSupportedOptions(pluginOptionSupportKey, compilerOpts);
-    }
-    return compilerOpts;
+    return _compiler->get_supported_options();
 }
 
 bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
                                                 const std::optional<std::string>& optValue) const {
-    bool optionSupportCache = _optionSupportCache && !optValue.has_value();
-    if (optionSupportCache) {
-        const auto cachedSupport = _optionSupportCache->isOptionSupported(pluginOptionSupportKey, optname);
-        if (cachedSupport.has_value()) {
-            _logger.debug("Option %s %s by PluginCompilerAdapter",
-                          optname.c_str(),
-                          cachedSupport.value() ? "is supported" : "is not supported");
-            return cachedSupport.value();
-        }
-    }
-
     const bool supported = _compiler->is_option_supported(optname, optValue);
-    if (optionSupportCache) {
-        _optionSupportCache->addSupportedOption(pluginOptionSupportKey, optname, supported);
-    }
 
     _logger.debug("Option %s with value '%s' %s by PluginCompilerAdapter",
                   optname.c_str(),

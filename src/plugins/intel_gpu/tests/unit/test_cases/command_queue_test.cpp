@@ -34,9 +34,15 @@ void exexute_network(cldnn::engine& engine, const ExecutionConfig& cfg, bool is_
         /*b1f2*/0.2f, 0.2f,  -10.f, 5.2f,
         /*b1f3*/4.f,  0.5f,  8.f,   8.2f
     };
-    set_values(input, input_vec);
+    auto stream = engine.create_stream(cfg);
+    {
+        cldnn::mem_lock<float, mem_lock_type::write> input_ptr(input, *stream);
+        auto it = input_ptr.begin();
+        for (auto value : input_vec)
+            *it++ = value;
+    }
 
-    cldnn::network::ptr network = get_network(engine, topology, cfg, get_test_stream_ptr(), is_caching_test);
+    cldnn::network::ptr network = get_network(engine, topology, cfg, stream, is_caching_test);
 
     network->set_input_data("input", input);
     auto outputs = network->execute();
@@ -45,7 +51,7 @@ void exexute_network(cldnn::engine& engine, const ExecutionConfig& cfg, bool is_
     ASSERT_EQ(outputs.begin()->first, "arg_max");
     const int out_size = y_size * feature_num * x_size * top_k;
     auto output = outputs.at("arg_max").get_memory();
-    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, *stream);
     float out_buffer[out_size];
     for (uint32_t i = 0; i < out_size; i++) {
         out_buffer[i] = get_value<float>(output_ptr.data(), i);
