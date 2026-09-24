@@ -17,20 +17,11 @@
 #include "openvino/core/partial_shape.hpp"
 
 namespace intel_npu {
-/**
- * @brief Extracts the I/O metadata from Level Zero specific structures and converts them into OpenVINO specific
- * ones.
- *
- * @param arg The main Level Zero structure from which most metadata will be extracted.
- * @param metadata The secondary Level Zero structure from which metadata will be extracted. More specifically, the
- * argument is used for populating "shapeFromIRModel". Not providing this argument will lead to an empty value for
- * the referenced attribute.
- * @returns A descriptor object containing the metadata converted in OpenVINO specific structures.
- */
+
 IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
                                              const ze_graph_argument_properties_3_t& arg,
                                              const std::optional<ze_graph_argument_metadata_t>& metadata) {
-    auto logger = Logger::global().clone("getIODescriptor");
+    auto logger = Logger::global().clone("createIODescriptorFromLevelZero");
     ov::element::Type_t precision = zeroUtils::toOVElementType(arg.devicePrecision);
     ov::Shape shapeFromCompiler;
     ov::PartialShape shapeFromIRModel;

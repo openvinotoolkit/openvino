@@ -10,6 +10,7 @@
 #include <cstring>
 #include <limits>
 #include <optional>
+#include <string>
 
 #include "common_test_utils/test_assertions.hpp"
 
@@ -51,30 +52,37 @@ ze_graph_argument_metadata_t makeMetadata(uint32_t shapeSize) {
 }  // namespace
 
 TEST(ZeGraphExtWrappersTest, RejectsMetadataRankGreaterThanArgumentRank) {
-    auto arg = makeArgument(1);
-    auto metadata = makeMetadata(2);
+    constexpr uint32_t argRank = 1;
+    constexpr uint32_t metadataRank = 2;
+    auto arg = makeArgument(argRank);
+    auto metadata = makeMetadata(metadataRank);
     metadata.shape[1] = std::numeric_limits<uint64_t>::max();
 
     OV_EXPECT_THROW_HAS_SUBSTRING(intel_npu::createIODescriptorFromLevelZero(kArgumentIndex, arg, metadata),
                                   ov::Exception,
-                                  "metadata shape_size 2 does not match dims_count 1");
+                                  "metadata shape_size " + std::to_string(metadataRank) +
+                                      " does not match dims_count " + std::to_string(argRank));
 }
 
 TEST(ZeGraphExtWrappersTest, RejectsArgumentRankAboveAbiLimit) {
-    auto arg = makeArgument(ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE + 1);
+    const uint32_t aboveAbiLimit = ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE + 1;
+    auto arg = makeArgument(aboveAbiLimit);
 
     OV_EXPECT_THROW_HAS_SUBSTRING(intel_npu::createIODescriptorFromLevelZero(kArgumentIndex, arg, std::nullopt),
                                   ov::Exception,
-                                  "dims_count 6 exceeds ABI limit 5");
+                                  "dims_count " + std::to_string(aboveAbiLimit) +
+                                      " exceeds ABI limit " + std::to_string(ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE));
 }
 
 TEST(ZeGraphExtWrappersTest, RejectsMetadataRankAboveAbiLimit) {
+    const uint32_t aboveAbiLimit = ZE_MAX_GRAPH_TENSOR_REF_DIMS + 1;
     auto arg = makeArgument(1);
-    auto metadata = makeMetadata(ZE_MAX_GRAPH_TENSOR_REF_DIMS + 1);
+    auto metadata = makeMetadata(aboveAbiLimit);
 
     OV_EXPECT_THROW_HAS_SUBSTRING(intel_npu::createIODescriptorFromLevelZero(kArgumentIndex, arg, metadata),
                                   ov::Exception,
-                                  "metadata shape_size 9 exceeds ABI limit 8");
+                                  "metadata shape_size " + std::to_string(aboveAbiLimit) +
+                                      " exceeds ABI limit " + std::to_string(ZE_MAX_GRAPH_TENSOR_REF_DIMS));
 }
 
 TEST(ZeGraphExtWrappersTest, AcceptsMatchingDynamicMetadataRank) {
