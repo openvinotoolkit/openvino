@@ -10,7 +10,6 @@
 #include <set>
 #include <string>
 
-#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
@@ -20,7 +19,7 @@
 namespace intel_npu {
 
 void enable_host_compile_if_needed(const std::shared_ptr<const ov::Model>& model,
-                                   FilteredConfig& config,
+                                   Config& config,
                                    const Logger& logger);
 
 namespace batch_helpers {
