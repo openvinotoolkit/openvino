@@ -27,7 +27,7 @@ Parser::Parser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
 
 std::shared_ptr<IGraph> Parser::parse(
     const ov::Tensor& mainBlob,
-    const FilteredConfig& config,
+    const Config& config,
     std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::pair<std::string, std::shared_ptr<ov::ICore>>>&&
         weightsSource,
     const std::optional<std::vector<ov::Tensor>>& initBlobs,

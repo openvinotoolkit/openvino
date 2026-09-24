@@ -8,9 +8,7 @@
 #include "openvino/frontend/paddle/exception.hpp"
 #include "openvino/frontend/paddle/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
+namespace ov::frontend::paddle {
 using InPortName = std::string;
 using OutPortName = std::string;
 using TensorName = std::string;
@@ -129,6 +127,4 @@ inline NamedOutputs NodeContext::default_single_output_mapping(
 
 using CreatorFunction = std::function<NamedOutputs(const NodeContext&)>;
 using TranslatorDictionaryType = std::map<std::string, CreatorFunction>;
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle

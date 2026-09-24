@@ -10,9 +10,7 @@
 #include "utils.hpp"
 #include "utils_quantize.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
+namespace ov::frontend::pytorch {
 namespace op {
 
 #define OP_CONVERTER(op) OutputVector op(const NodeContext& node)
@@ -988,6 +986,4 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
     };
 };
 
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch
