@@ -11,10 +11,7 @@
 #include "openvino/op/util/op_types.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 namespace {
 ov::OutputVector build_dropout(const ov::frontend::onnx::Node& node, bool training_mode) {
     CHECK_VALID_NODE(node, !training_mode, "Training mode is not supported for Dropout op");
@@ -71,7 +68,4 @@ ov::OutputVector dropout(const ov::frontend::onnx::Node& node) {
 }
 ONNX_OP("Dropout", OPSET_RANGE(1, 6), ai_onnx::opset_1::dropout);
 }  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

@@ -7,10 +7,7 @@
 #include "openvino/op/util/attr_types.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 
@@ -75,7 +72,4 @@ OutputVector translate_max_pool3d(const NodeContext& context) {
     return translate_max_pool_base(context, 3);
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op
