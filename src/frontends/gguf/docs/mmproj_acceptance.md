@@ -26,7 +26,9 @@ for build reuse; it does not indicate a separate acceptance branch.
   Qwen3.5 2B Q4_0 now matches 13/13 reference language choices with prefix
   caching, compared with 6/13 in the historical run.
 - GGUF chat-template compatibility and encoder precision fixes. Native Q4_K language and projector weights
-  preserve fractional zero points, avoiding an additional lossy requantization.
+  use an integer zero point by default, which keeps the compressed FullyConnected path;
+  `OV_GGUF_Q4_K_ZP_F16=1` preserves fractional zero points and avoids the additional lossy
+  requantization, as used for the accuracy checks.
 - GenAI modern audio-history ownership, follow-ups, edits and cancellation
   rollback, covered by a synthetic feature-placement regression.
 - PA multimodal chat tokenization now recognizes templates applied by the caller,

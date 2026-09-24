@@ -448,12 +448,6 @@ GGUFLoad get_gguf_data(const std::string& file) {
         read_metadata_value(cur, vtype, slot);
     }
 
-    const auto zero_point_type = [](const std::string& name, GgufTensorType type) {
-        // Preserve Q4_K's fractional zero point. Requantizing onto an integer-zp
-        // u4 grid introduces substantial logit error in real language models.
-        return type == GGUF_TYPE_Q4_K ? ov::element::f16 : gguf_zero_point_type(name, type);
-    };
-
     uint64_t alignment = GGUF_DEFAULT_ALIGNMENT;
     if (auto it = metadata.find("general.alignment"); it != metadata.end()) {
         if (auto* t = std::get_if<ov::Tensor>(&it->second)) {
@@ -505,7 +499,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
     // Every dim comes straight from the file, so the element and byte counts go through the
     // overflow-checked ov::util helpers: a wrapped product could otherwise under-size quant_buf
     // while the fill functions still write the real, attacker-controlled shape into it.
-    auto quant_sizes = [&zero_point_type](const TensorInfo& ti, const QuantLayout& ql) -> std::array<size_t, 3> {
+    auto quant_sizes = [](const TensorInfo& ti, const QuantLayout& ql) -> std::array<size_t, 3> {
         const ov::Shape shape = [&ti]() {
             ov::Shape s;
             for (int i = static_cast<int>(ti.ndim) - 1; i >= 0; --i)
@@ -528,7 +522,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
         ov::Shape scale_shape = shape;
         scale_shape.back() /= ql.group_size;
         const size_t z_bytes =
-            ql.asymmetric ? bytes(zero_point_type(ti.name, static_cast<GgufTensorType>(ti.type)), scale_shape) : 0;
+            ql.asymmetric ? bytes(gguf_zero_point_type(ti.name, static_cast<GgufTensorType>(ti.type)), scale_shape) : 0;
         return {bytes(ql.weight_type, weight_shape), bytes(ql.scale_type, scale_shape), z_bytes};
     };
 
@@ -629,7 +623,7 @@ GGUFLoad get_gguf_data(const std::string& file) {
         ov::Tensor zp;
         if (layout->asymmetric) {
             // Preserve the native zero-point representation, including u8 for Q2_0.
-            zp = carve(zero_point_type(name, static_cast<GgufTensorType>(ti.type)), scale_shape);
+            zp = carve(gguf_zero_point_type(name, static_cast<GgufTensorType>(ti.type)), scale_shape);
         }
 
         if (ti.type == GGUF_TYPE_MXFP4) {
