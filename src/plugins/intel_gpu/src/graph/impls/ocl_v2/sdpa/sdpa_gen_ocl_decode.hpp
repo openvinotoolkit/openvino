@@ -14,31 +14,24 @@ using namespace cldnn;  // TODO: Remove once namespaces are aligned
 
 namespace ov::intel_gpu::ocl {
 
-// Stage-0 kernel of the PagedAttention GENERATE (decode) path, on DPAS + 2D block IO.
-// Replaces pa_single_token / pa_gqa_single_token; the finalization stage
-// (PagedAttentionGeneratorSingleTokenFinalization) is reused unchanged, so this generator must
-// produce the same per-partition intermediates -- see sdpa_ocl_decode.cl for that contract.
+// Stage 0 of the PagedAttention GENERATE path, on DPAS and 2D block IO. It replaces pa_single_token /
+// pa_gqa_single_token and feeds the unchanged finalization stage, so it must write the same per-partition
+// intermediates (the contract is at the top of sdpa_ocl_decode.cl).
 class SDPAOclDecodeGenerator : public KernelGenerator {
 public:
     SDPAOclDecodeGenerator() : KernelGenerator("sdpa_ocl_decode") {}
 
-    // Everything this kernel cannot do. Evaluated from the descriptor / config / environment only,
-    // never from runtime shapes, because the caller has to decide whether to add_stage() this
-    // kernel at construction time: an added stage is COMPILED even for parameters it will never be
-    // dispatched with, so a case it cannot handle must be rejected here rather than in the .cl.
+    // Everything the kernel cannot do, decided from the descriptor, config and environment only: the stage
+    // is added at construction time and compiled even for parameters it is never dispatched with.
     [[nodiscard]] static bool supported(const RuntimeParams& params);
 
-    // Subgroups per workgroup; each one owns SEQ_LEN_PARTITION_SIZE / SG_PER_WG keys of the
-    // partition, and one subgroup is one thread -- so this is the kernel's thread-level parallelism
-    // per Xe core, which is what it was short of. Depends on the V head size; see the definition.
-    // Env-overridable (SDPA_OCL_DECODE_SG_PER_WG) for tuning.
+    // Subgroups (threads) per workgroup, each owning SEQ_LEN_PARTITION_SIZE / SG_PER_WG keys of a partition.
+    // Tuning override: SDPA_OCL_DECODE_SG_PER_WG.
     [[nodiscard]] static size_t get_sg_per_wg(size_t v_head_size);
 
-    // q-heads per workgroup (the DPAS M). All heads of a kv group share the same K/V pages, so this
-    // is how many times a page read is amortized. Power of two <= 8 (DPAS repeat count),
-    // <= kv_group_size, capped so the live register set does not spill, and capped again so the
-    // slm_out reduction fits the local memory arena. Env-overridable (SDPA_OCL_DECODE_M) for tuning.
-    // Both the jit constants and the dispatch need it, hence static and pure.
+    // q-heads per workgroup (the DPAS M), which share every K/V page read: a power of two <= 8 and <= the kv
+    // group, capped so the live registers do not spill and so the local memory fits. Used by the jit and the
+    // dispatch. Tuning override: SDPA_OCL_DECODE_M.
     [[nodiscard]] static size_t get_q_per_wg(const RuntimeParams& params);
 
 protected:
