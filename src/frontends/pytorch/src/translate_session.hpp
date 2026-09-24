@@ -56,8 +56,9 @@ public:
         std::vector<size_t> element_ids;
     };
     std::map<size_t, AliasInfo> m_may_be_alias;
-    // Aliases of tuple elements returned by inlined subgraphs, registered when an element is selected.
-    std::map<Output<Node>, AliasInfo> m_tuple_element_aliases;
+    // Aliases of tuple elements returned by inlined subgraphs, keyed by tuple tensor id and element index and
+    // registered when an element is selected.
+    std::map<std::pair<size_t, size_t>, AliasInfo> m_tuple_element_aliases;
     // Declared outputs of the last converted internal body which are views of its inputs: output index to input id.
     std::map<size_t, size_t> m_body_output_aliases;
 

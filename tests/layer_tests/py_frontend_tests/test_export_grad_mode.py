@@ -155,6 +155,28 @@ def test_export_enabled_autocast_output_types():
     np.testing.assert_allclose(actual[1], expected[1].numpy(), atol=0.05, rtol=0.02)
 
 
+def test_export_grad_mode_returns_view_and_clone():
+    class Model(torch.nn.Module):
+        def forward(self, x):
+            x = x.clone()
+            with torch.no_grad():
+                view = x[1:]
+                copy = view.clone()
+            # The clone is converted to the same value as the view, but must not alias the operand.
+            copy.add_(1)
+            return x, view, copy
+
+    model = Model().eval()
+    data = torch.arange(4, dtype=torch.float32)
+    exported = torch.export.export(model, (data,))
+    assert any(str(node.target) == "wrap_with_set_grad_enabled" for node in exported.graph.nodes)
+    compiled = convert_without_decompositions(exported)
+    expected = model(data)
+    actual = compiled([data.numpy()])
+    for index, value in enumerate(expected):
+        np.testing.assert_array_equal(actual[index], value.numpy())
+
+
 def test_export_grad_mode_unsupported_view_mutation():
     class Model(torch.nn.Module):
         def forward(self, x):

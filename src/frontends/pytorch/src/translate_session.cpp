@@ -329,11 +329,14 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     }
                 }
 #endif
-                if (op_type == "<built-in function getitem>" && !m_may_be_alias.count(fw_tensor_id)) {
+                if (op_type == "<built-in function getitem>" && has_inputs && !m_may_be_alias.count(fw_tensor_id)) {
                     // Elements of a tuple returned by an inlined subgraph may be views of its operands.
-                    const auto element_alias = m_tuple_element_aliases.find(converted_outputs[i]);
-                    if (element_alias != m_tuple_element_aliases.end()) {
-                        m_may_be_alias[fw_tensor_id] = element_alias->second;
+                    if (const auto index = ov::util::get_constant_from_source(context.get_input(1))) {
+                        const auto element_alias = m_tuple_element_aliases.find(
+                            {first_input_id, static_cast<size_t>(index->cast_vector<int64_t>().at(0))});
+                        if (element_alias != m_tuple_element_aliases.end()) {
+                            m_may_be_alias[fw_tensor_id] = element_alias->second;
+                        }
                     }
                 }
                 (*tensor_map)[fw_tensor_id] = converted_outputs[i];
