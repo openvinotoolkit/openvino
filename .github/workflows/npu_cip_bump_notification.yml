@@ -25,13 +25,6 @@ on:
       - 'releases/**'
     paths:
       - 'src/plugins/intel_npu/cmake/download_compiler_libs.cmake'
-  # TEMPORARY (fork testing only): remove this whole pull_request block before
-  # opening the PR to openvinotoolkit. Lets you exercise the workflow on a PR that edits
-  # the cmake file without merging to master.
-  pull_request:
-    paths:
-      - 'src/plugins/intel_npu/cmake/download_compiler_libs.cmake'
-      - '.github/workflows/npu_cip_bump_notification.yml'
   workflow_dispatch:
     inputs:
       before_sha:
@@ -75,10 +68,6 @@ jobs:
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             BEFORE="${{ github.event.inputs.before_sha }}"
             AFTER="${{ github.event.inputs.after_sha }}"
-          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            # TEMPORARY (fork testing): compare the PR's base and head.
-            BEFORE="${{ github.event.pull_request.base.sha }}"
-            AFTER="${{ github.event.pull_request.head.sha }}"
           else
             BEFORE="${{ github.event.before }}"
             AFTER="${{ github.sha }}"
@@ -205,14 +194,11 @@ jobs:
             echo "NPU_CIP_NOTIFY_LOGINS not set; skipping GitHub @mention comment."
             exit 0
           fi
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            PR="${{ github.event.pull_request.number }}"
-          elif [[ "${{ github.event_name }}" == "push" ]]; then
-            PR="${{ steps.detect.outputs.pr_number }}"
-          else
-            echo "Not a pull_request or push event; skipping GitHub comment."
+          if [[ "${{ github.event_name }}" != "push" ]]; then
+            echo "Not a push event; skipping GitHub comment."
             exit 0
           fi
+          PR="${{ steps.detect.outputs.pr_number }}"
           if [[ -z "${PR}" ]]; then
             echo "::warning::No pull request linked to this bump; cannot post @mention comment."
             exit 0
