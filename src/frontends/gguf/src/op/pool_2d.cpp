@@ -21,6 +21,9 @@ OutputVector translate_pool_2d(const NodeContext& context) {
 
     const auto params = context.get_attribute<std::vector<int32_t>>("pool_params");
     FRONT_END_OP_CONVERSION_CHECK(params.size() == 6, "POOL_2D requires 6 params");
+    FRONT_END_OP_CONVERSION_CHECK(params[0] > 0 && params[1] > 0, "POOL_2D kernel dimensions must be positive");
+    FRONT_END_OP_CONVERSION_CHECK(params[2] > 0 && params[3] > 0, "POOL_2D strides must be positive");
+    FRONT_END_OP_CONVERSION_CHECK(params[4] >= 0 && params[5] >= 0, "POOL_2D padding must be nonnegative");
 
     const auto kernel_width = static_cast<size_t>(params[0]);
     const auto kernel_height = static_cast<size_t>(params[1]);

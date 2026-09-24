@@ -79,22 +79,16 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
     auto v = context.get_input(2);
     const int op_case = context.get_op_case();
     const bool flat_kv = op_case == 1 || op_case == 2;
-    if (context.get_input_size() == 4) {
-        const auto candidate = context.get_input(3);
-        const auto shape = candidate.get_partial_shape();
-        const auto q_shape = context.get_input_shape(0);
-        const size_t head_axis = op_case == 100 ? 2 : 1;
-        const bool matches_heads = q_shape.rank().is_static() && q_shape.rank().get_length() == 4 &&
-                                   q_shape[head_axis].is_static() && shape.rank().is_static() &&
-                                   ((shape.rank().get_length() == 1 && shape[0] == q_shape[head_axis]) ||
-                                    (shape.rank().get_length() == 4 && shape[0] == 1 && shape[1] == 1 &&
-                                     shape[2] == 1 && shape[3] == q_shape[head_axis]));
-        FRONT_END_OP_CONVERSION_CHECK(!(matches_heads && candidate.get_element_type() == ov::element::f32),
-                                      "FLASH_ATTN_EXT sinks require an attention mask");
-    }
-    const bool has_mask = context.get_input_size() >= 4;
+    const std::string fourth_name = context.get_input_size() == 4 ? context.get_input_names()[3] : std::string{};
+    const std::string sink_suffix = ".attn_sinks.weight";
+    const bool named_sink =
+        fourth_name.size() >= sink_suffix.size() &&
+        fourth_name.compare(fourth_name.size() - sink_suffix.size(), sink_suffix.size(), sink_suffix) == 0;
+    const bool sink_without_mask =
+        context.get_input_size() == 4 && context.get_attribute<bool>("sink_without_mask", named_sink);
+    const bool has_mask = context.get_input_size() >= 4 && !sink_without_mask;
     // gpt-oss: optional 5th input is the per-head attention sink logit [n_head].
-    const bool has_sinks = context.get_input_size() == 5;
+    const bool has_sinks = context.get_input_size() == 5 || sink_without_mask;
     FRONT_END_OP_CONVERSION_CHECK(!has_sinks || has_mask, "FLASH_ATTN_EXT sinks require an attention mask");
 
     if (flat_kv) {

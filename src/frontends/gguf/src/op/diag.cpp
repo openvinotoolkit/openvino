@@ -20,7 +20,7 @@ OutputVector translate_diag(const NodeContext& context) {
 
     auto x = context.get_input(0);  // OV shape: [ne3, ne2, 1, ne0]
 
-    auto n = get_dimensions(x.get_node_shared_ptr(), {-1});
+    auto n = get_dimensions(x, {-1});
     auto zero = ov::op::v0::Constant::create(ov::element::i64, {}, {0});
     auto eye = std::make_shared<ov::op::v9::Eye>(n, n, zero, x.get_element_type());
 

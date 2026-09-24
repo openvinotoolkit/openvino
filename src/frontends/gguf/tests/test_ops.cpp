@@ -14,6 +14,8 @@
 
 #include "op_table.hpp"
 #include "op_test_utils.hpp"
+#include "openvino/op/eye.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/selective_ssm.hpp"
 #include "openvino/op/topk.hpp"
 #include "utils.hpp"
@@ -2056,19 +2058,39 @@ TEST(GGUFOps, FlashAttnExtRejectsMasklessSinks) {
                          .input("sinks", ov::element::f32, sink_shape)
                          .output("out", ov::element::f32, {1, 1, 2, 2})
                          .attr<float>("scale", 1.0f)
+                         .attr<bool>("sink_without_mask", true)
                          .build(),
                      ov::Exception);
     }
 
-    EXPECT_NO_THROW(SingleOpBuilder()
-                        .op("GGML_OP_FLASH_ATTN_EXT")
-                        .input("q", ov::element::f32, {1, 2, 1, 2})
-                        .input("k", ov::element::f32, {1, 1, 2, 2})
-                        .input("v", ov::element::f32, {1, 1, 2, 2})
-                        .input("mask", ov::element::f16, {1, 1, 1, 2})
-                        .output("out", ov::element::f32, {1, 1, 2, 2})
-                        .attr<float>("scale", 1.0f)
-                        .build());
+    EXPECT_THROW(SingleOpBuilder()
+                     .op("GGML_OP_FLASH_ATTN_EXT")
+                     .input("q", ov::element::f32, {1, 2, 1, 2})
+                     .input("k", ov::element::f32, {1, 1, 2, 2})
+                     .input("v", ov::element::f32, {1, 1, 2, 2})
+                     .input("blk.0.attn_sinks.weight", ov::element::f32, {1, 1, 1, 2})
+                     .output("out", ov::element::f32, {1, 1, 2, 2})
+                     .attr<float>("scale", 1.0f)
+                     .build(),
+                 ov::Exception);
+}
+
+TEST(GGUFOps, FlashAttnExtAcceptsF32MaskMatchingHeadCount) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_FLASH_ATTN_EXT")
+                     .input("q", ov::element::f32, {1, 2, 1, 2})
+                     .input("k", ov::element::f32, {1, 1, 2, 2})
+                     .input("v", ov::element::f32, {1, 1, 2, 2})
+                     .input("mask", ov::element::f32, {1, 1, 1, 2})
+                     .output("out", ov::element::f32, {1, 1, 2, 2})
+                     .attr<float>("scale", 1.0f)
+                     .build();
+    auto out = run_on_cpu(model,
+                          {{"q", make_f32_tensor({1, 2, 1, 2}, {1, 0, 0, 1})},
+                           {"k", make_f32_tensor({1, 1, 2, 2}, {1, 0, 0, 1})},
+                           {"v", make_f32_tensor({1, 1, 2, 2}, {1, 2, 3, 4})},
+                           {"mask", make_f32_tensor({1, 1, 1, 2}, {0, -100})}});
+    expect_near(out, {1, 2, 1, 2}, 2e-2f);
 }
 
 TEST(GGUFOps, FlashAttnExtRejectsMasklessSoftCap) {
@@ -2868,6 +2890,27 @@ TEST(GGUFOps, Pool2DF16InputProducesF32) {
     expect_near(out, {5.0f, 6.0f});
 }
 
+TEST(GGUFOps, Pool2DRejectsInvalidParams) {
+    const std::vector<std::vector<int32_t>> invalid_params{
+        {-1, 2, 1, 1, 0, 0},
+        {2, 0, 1, 1, 0, 0},
+        {2, 2, -1, 1, 0, 0},
+        {2, 2, 1, 0, 0, 0},
+        {2, 2, 1, 1, -1, 0},
+        {2, 2, 1, 1, 0, -1},
+    };
+    for (const auto& params : invalid_params) {
+        EXPECT_THROW(SingleOpBuilder()
+                         .op("GGML_OP_POOL_2D")
+                         .input("x", ov::element::f32, {1, 1, 2, 2})
+                         .output("out", ov::element::f32, {1, 1, 1, 1})
+                         .op_case(2)
+                         .attr<std::vector<int32_t>>("pool_params", params)
+                         .build(),
+                     ov::Exception);
+    }
+}
+
 TEST(GGUFOps, RollFourAxes) {
     auto model = SingleOpBuilder()
                      .op("GGML_OP_ROLL")
@@ -3004,6 +3047,35 @@ TEST(GGUFOps, Diag) {
     for (int64_t i = 0; i < n; ++i)
         expected[i * n + i] = x[i];
     expect_near(out, expected);
+}
+
+TEST(GGUFOps, DiagKeepsInputPort) {
+    using namespace ov::frontend::gguf;
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 1, 4});
+    auto k = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {2});
+    auto topk = std::make_shared<ov::op::v11::TopK>(data,
+                                                    k,
+                                                    -1,
+                                                    ov::op::v11::TopK::Mode::MAX,
+                                                    ov::op::v11::TopK::SortType::SORT_VALUES,
+                                                    ov::element::i32);
+    auto decoder = SingleOpBuilder()
+                       .op("GGML_OP_DIAG")
+                       .input("x", ov::element::i32, {1, 1, 1, 2})
+                       .output("out", ov::element::i32, {1, 1, 2, 2})
+                       .decoder();
+    auto tensors = std::make_shared<TensorMap>();
+    (*tensors)["x"] = topk->output(1);
+    NodeContext context(decoder, tensors);
+    auto diag = op::translate_diag(context)[0];
+    auto multiply = ov::as_type_ptr<ov::op::v1::Multiply>(diag.get_node_shared_ptr());
+    ASSERT_NE(multiply, nullptr);
+    auto eye = ov::as_type_ptr<ov::op::v9::Eye>(multiply->input_value(1).get_node_shared_ptr());
+    ASSERT_NE(eye, nullptr);
+    auto shape_of = eye->input_value(0).get_node_shared_ptr()->input_value(0).get_node_shared_ptr();
+    ASSERT_NE(shape_of, nullptr);
+    EXPECT_EQ(shape_of->input_value(0).get_node_shared_ptr(), topk);
+    EXPECT_EQ(shape_of->input_value(0).get_index(), 1u);
 }
 
 // Unary Sigmoid: 1 / (1 + exp(-x)) via the 1to1 template.
