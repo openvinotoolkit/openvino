@@ -1102,9 +1102,6 @@ TEST(arg_max_min_test, check_second_output_data_type) {
 // Conditions: f16/f32 input, SORT_VALUES, N >= 2, N <= 65535, SLM fits
 // =============================================================================
 
-// Helper: create ExecutionConfig that forces the radix TopK kernel.
-// `fmt` is also forced as the preferred layout of the arg_max node, so passing
-// format::byxf makes the graph reorder the arg_max input/output to byxf.
 inline ExecutionConfig get_radix_topk_config(const cldnn::engine& engine, format::type fmt = format::bfyx) {
     auto config = get_test_default_config(engine);
     ov::intel_gpu::ImplementationDesc radix_impl = {fmt, "arg_max_min_topk_radix", impl_types::ocl};
@@ -1505,18 +1502,8 @@ TYPED_TEST(arg_max_gpu_topk_radix, max_n100k_k256_axis_feature) {
     }
 }
 
-// =============================================================================
-// byxf layout coverage for the arg_max_min_topk_radix kernel.
-//
-// byxf keeps the feature dimension innermost, so as soon as the spatial dims are
-// larger than 1 the memory order differs from bfyx. These cases only pass if the
-// kernel resolves addresses through INPUT0_GET_INDEX / OUTPUT_GET_INDEX
-// (fetch_utils.cl) instead of assuming bfyx pitches.
-// =============================================================================
 
 namespace {
-// Build a simple pattern for TopK on feature axis: the first top_k features are
-// 100 and the rest are 0.
 inline std::vector<float> make_radix_topk_input(int batch_num,
                                                 int feature_num,
                                                 int y_size,

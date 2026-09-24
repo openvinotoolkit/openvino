@@ -2773,7 +2773,7 @@ TEST(select_gpu_f32, dynamic) {
 
     ov::PartialShape in1_shape  = { 2, 2, 2, 2 };
     ov::PartialShape in2_shape  = { 2, 2, 2, 2 };
-    ov::PartialShape mask_shape = { 1, 2, 2, 2 };
+    ov::PartialShape mask_shape = { 2, 2, 2, 1 };
 
     layout input1_layout { ov::PartialShape::dynamic(in1_shape.size()),  data_types::f32, format::bfyx };
     layout input2_layout { ov::PartialShape::dynamic(in2_shape.size()),  data_types::f32, format::bfyx };
@@ -2812,13 +2812,17 @@ TEST(select_gpu_f32, dynamic) {
     });
 
     set_values(mask, {
-        0.f, 0.f,
+        0.f,
+        0.f,
 
-        1.f, 1.f,
+        1.f,
+        1.f,
+        
+        0.f,
+        1.f,
 
-        0.f, 1.f,
-
-        1.f, 0.f,
+        1.f,
+        0.f,
     });
 
     topology topology;
