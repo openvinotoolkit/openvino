@@ -52,23 +52,6 @@ std::shared_ptr<ov::Model> make_gather_model(float shift_value) {
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{ids});
 }
 
-std::shared_ptr<ov::Model> make_embedding_vocab_dq_model() {
-    auto ids = std::make_shared<ov::opset10::Parameter>(ov::element::i32, ov::Shape{1, 1});
-    auto weights = ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 2}, std::vector<uint8_t>(8, 200));
-    auto zero_point = ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 1}, std::vector<uint8_t>(4, 128));
-    auto scale = ov::opset10::Constant::create(ov::element::f16, ov::Shape{4, 1}, std::vector<float>(4, 1.0f));
-    auto axis = ov::opset10::Constant::create(ov::element::i32, ov::Shape{}, {0});
-
-    auto weight_convert = std::make_shared<ov::opset10::Convert>(weights, ov::element::f16);
-    auto zero_point_convert = std::make_shared<ov::opset10::Convert>(zero_point, ov::element::f16);
-    auto dequantized = std::make_shared<ov::opset10::Subtract>(weight_convert, zero_point_convert);
-    auto scaled = std::make_shared<ov::opset10::Multiply>(dequantized, scale);
-    auto converted = std::make_shared<ov::opset10::Convert>(scaled, ov::element::f32);
-    auto gathered = std::make_shared<ov::opset10::Gather>(converted, ids, axis);
-    auto result = std::make_shared<ov::opset10::Result>(gathered);
-    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{ids});
-}
-
 std::shared_ptr<ov::Model> make_vocab_sharing_model(bool shared, bool symmetric = false) {
     auto ids = std::make_shared<ov::opset10::Parameter>(ov::element::i32, ov::Shape{1, 1});
     auto hidden = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1, 1, 2});
