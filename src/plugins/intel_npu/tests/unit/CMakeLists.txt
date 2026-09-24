@@ -48,6 +48,7 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metadata.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/batch_size_section.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/io_layouts_section.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/compiler_version_section.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/compiler_adapter/src/compiler_schedules_sections.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/blob_format_importers.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/compiler_option_support_helper.cpp
@@ -161,8 +162,9 @@ install(TARGETS ${TARGET_NAME}
 )
 
 target_sources(${TARGET_NAME} PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/batch_size.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/encrypted_schedules_flag.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/batch_size_section.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/encrypted_schedules_flag_section.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/compiler_version_section.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/executor_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/compiler_option_support_helper_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/option_support_cache_test.cpp
