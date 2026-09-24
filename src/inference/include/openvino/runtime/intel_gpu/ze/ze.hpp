@@ -52,7 +52,8 @@ public:
         RemoteContext::type_check(remote_context,
                                   {{std::string(ov::intel_gpu::ocl_context.name()), {}},
                                    {std::string(ov::intel_gpu::context_type.name()),
-                                    {ov::Any(ov::intel_gpu::ContextType::ZE).as<std::string>()}}});
+                                    {ov::Any(ov::intel_gpu::ContextType::ZE).as<std::string>(),
+                                     ov::Any(ov::intel_gpu::ContextType::OCL).as<std::string>()}}});
     }
 
     /**
