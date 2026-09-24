@@ -139,6 +139,9 @@ void DecoderBuilder::build_per_layer_embeddings(const std::string& embd) {
     auto pe_flat = m_emit.add_op("GGML_OP_GET_ROWS", "pe_tok_flat", {"per_layer_token_embd.weight", "inp_tokens"});
     const float pe_scale = std::sqrt(static_cast<float>(pe));
     pe_flat = blocks::scale(m_emit, pe_flat, pe_scale, "pe_tok_flat_scaled");
+    // Moved to the embedding model as per_layer_inputs in AdaptToGenAI's embedding mode.
+    m_emit.value(pe_flat).get_node_shared_ptr()->get_rt_info()["gguf.per_layer_token_embedding"] =
+        static_cast<int64_t>(n_layer);
     auto pe_tok = reshape_to_layer_major(pe_flat, "pe_tok");
 
     // Model projection: MUL_MAT(per_layer_model_proj, embd) -> [1,1,T, pe_total]
