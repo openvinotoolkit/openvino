@@ -26,6 +26,8 @@ static constexpr size_t MAX_AUTO_OFFLOAD_RATIO = 75;
 enum class MoEConstantRole { NotMoE, RoutedExpert, SharedExpert };
 
 /// Determines the role of a Constant feeding into MOECompressed.
+/// Checks all target consumers: a Constant is only classified as RoutedExpert if all of its
+/// consumers are routed expert inputs and none require the full tensor.
 MoEConstantRole get_moe_constant_role(const std::shared_ptr<ov::op::v0::Constant>& op);
 
 struct PartialUploadDesc {
