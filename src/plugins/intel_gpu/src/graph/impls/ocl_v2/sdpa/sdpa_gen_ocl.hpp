@@ -22,35 +22,22 @@ namespace ov::intel_gpu::ocl {
 #ifdef ENABLE_ONEDNN_FOR_GPU
 class SDPAOclGenerator : public SDPABase {
 public:
-    explicit SDPAOclGenerator(bool prefill)
-        : SDPABase("sdpa_ocl",
-                   prefill ? "prefill" : "mixed",
-                   false),
-          m_is_prefill(prefill) {
-    }
+    explicit SDPAOclGenerator(bool prefill) : SDPABase("sdpa_ocl", prefill ? "prefill" : "mixed", false), m_is_prefill(prefill) {}
 
     [[nodiscard]] std::string get_build_options(const kernel_impl_params& params) const override;
 
-    // Number of queries a single workgroup of this kernel consumes (the KQ workgroup query tile).
-    // Paged attention must use exactly this value as the stride of
-    // blocked_indexes_start_and_gws_mapping, otherwise the dispatched workgroup count and the
-    // per-workgroup query offsets disagree and part of every subsequence is left uncomputed.
+    // Queries per workgroup (the KQ workgroup query tile). Paged attention must use exactly this as the
+    // blocked_indexes_start_and_gws_mapping stride, or part of every subsequence is left uncomputed.
     static size_t get_query_block_size(const kernel_impl_params& params);
 
-    // Whether a tiling exists for this (k_head_size, v_head_size) pair. Unlike sdpa_micro -- which
-    // builds both of its ugemm packages from a single d_max and therefore needs the two to be equal
-    // -- this kernel takes the KQ contraction depth from k_head_size and the S*V value split from
-    // v_head_size, so the only real requirement is that the two can be tiled together.
-    //
-    // Decidable from the descriptor and the arch alone, because PagedAttentionOptImpl adds its
-    // stages in the constructor and an added stage is COMPILED even for parameters it is never
-    // dispatched with.
+    // Whether a tiling exists for this (k_head_size, v_head_size) pair: KQ is tiled by k_head_size and the
+    // S*V split by v_head_size, so the two need not be equal. Decidable from the descriptor and the arch,
+    // because an added stage is compiled even for parameters it is never dispatched with.
     static bool supports_head_sizes(gpu_arch arch, size_t k_head_size, size_t v_head_size);
 
-    // Whether sdpa_ocl.cl can be compiled for these layouts. Q/output are f16 or bf16 (16-bit DPAS);
-    // uncompressed K/V match Q, or K/V are i8/u4 compressed cache. Xe2 or later only, because the
-    // kernel is built on the Xe 2D block IO intrinsics (mirrors sdpa_ocl_decode's gate). An added
-    // stage is COMPILED even when it is never dispatched, so other types must be rejected here.
+    // Whether sdpa_ocl.cl compiles for these layouts: Xe2 or later, f16/bf16 Q and output, K/V matching Q
+    // or an i8/u4 cache. An added stage is compiled even when it is never dispatched, so everything else
+    // must be rejected here.
     static bool supported(const kernel_impl_params& params);
 
 private:
@@ -58,8 +45,6 @@ private:
 
     [[nodiscard]] Arguments get_arguments_desc(const kernel_impl_params& params) const override;
     [[nodiscard]] DispatchDataFunc get_dispatch_data_func() const override;
-
-    static void init_sdpa_configuration(const kernel_impl_params& params, sdpa_configuration& config);
 
     bool m_is_prefill;
 };
