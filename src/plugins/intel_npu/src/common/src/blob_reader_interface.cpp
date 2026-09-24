@@ -25,7 +25,8 @@ BlobReaderInterface::BlobReaderInterface(BlobSource& source,
       m_section_start(section_start),
       m_section_end(section_start + section_length),
       m_config(config),
-      m_logger("BlobReaderInterface", config->get<LOG_LEVEL>()) {
+      m_logger("BlobReaderInterface", config.has_value() ? config->get<LOG_LEVEL>() : ov::log::Level::WARNING) {
+    // TODO the default log level should be the global one?
     OPENVINO_ASSERT(section_start <= m_section_end, "Integer overflow while computing the end boundary of a section");
     OPENVINO_ASSERT(npu_region_start <= npu_region_start + npu_region_size,
                     "Integer overflow while computing the end boundary of the NPU blob region");
