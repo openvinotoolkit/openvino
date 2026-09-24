@@ -79,6 +79,19 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
     auto v = context.get_input(2);
     const int op_case = context.get_op_case();
     const bool flat_kv = op_case == 1 || op_case == 2;
+    if (context.get_input_size() == 4) {
+        const auto candidate = context.get_input(3);
+        const auto shape = candidate.get_partial_shape();
+        const auto q_shape = context.get_input_shape(0);
+        const size_t head_axis = op_case == 100 ? 2 : 1;
+        const bool matches_heads = q_shape.rank().is_static() && q_shape.rank().get_length() == 4 &&
+                                   q_shape[head_axis].is_static() && shape.rank().is_static() &&
+                                   ((shape.rank().get_length() == 1 && shape[0] == q_shape[head_axis]) ||
+                                    (shape.rank().get_length() == 4 && shape[0] == 1 && shape[1] == 1 &&
+                                     shape[2] == 1 && shape[3] == q_shape[head_axis]));
+        FRONT_END_OP_CONVERSION_CHECK(!(matches_heads && candidate.get_element_type() == ov::element::f32),
+                                      "FLASH_ATTN_EXT sinks require an attention mask");
+    }
     const bool has_mask = context.get_input_size() >= 4;
     // gpt-oss: optional 5th input is the per-head attention sink logit [n_head].
     const bool has_sinks = context.get_input_size() == 5;
@@ -159,9 +172,12 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
     };
 
     auto q_shape = context.get_input_shape(0);
-    auto k_shape = context.get_input_shape(1);
-    k = tile_kv(q_shape[head_axis].get_length(), k_shape[head_axis].get_length(), q_shape[3].get_length(), k);
-    v = tile_kv(q_shape[head_axis].get_length(), k_shape[head_axis].get_length(), q_shape[3].get_length(), v);
+    const auto k_heads = flat_kv ? context.get_attribute<std::vector<int64_t>>("flat_kv_shape_k")[1]
+                                 : context.get_input_shape(1)[head_axis].get_length();
+    const auto v_heads = flat_kv ? context.get_attribute<std::vector<int64_t>>("flat_kv_shape_v")[1]
+                                 : context.get_input_shape(2)[head_axis].get_length();
+    k = tile_kv(q_shape[head_axis].get_length(), k_heads, q_shape[3].get_length(), k);
+    v = tile_kv(q_shape[head_axis].get_length(), v_heads, q_shape[3].get_length(), v);
 
     // SDPA requires q/k/v to share an element type; match k/v to q (ConvertConvertLike lowers these).
     k = std::make_shared<ov::op::v1::ConvertLike>(k, q);

@@ -5,8 +5,8 @@
 //
 // Each test builds a one-op model through SingleOpBuilder (which drives
 // ov::frontend::gguf::FrontEnd::convert via an in-memory SingleOpDecoder), runs it on
-// CPU and checks the result against a reference computed in plain C++.  No .gguf file,
-// ggml or llama.cpp is involved.
+// CPU and checks the result against a reference. No .gguf file or llama.cpp is involved
+// at test time; layout-sensitive expected values are generated separately with ggml CPU.
 
 #include <algorithm>
 #include <cmath>
@@ -2002,39 +2002,73 @@ TEST(GGUFOps, FlashAttnExtFlatKvWithoutMask) {
 TEST(GGUFOps, FlashAttnExtFlatKvGqaWithoutMask) {
     auto model = SingleOpBuilder()
                      .op("GGML_OP_FLASH_ATTN_EXT")
-                     .input("q", ov::element::f32, {1, 2, 2, 2})
-                     .input("k_flat", ov::element::f32, {1, 1, 1, 6})
-                     .input("v_flat", ov::element::f32, {1, 1, 1, 6})
+                     .input("q", ov::element::f32, {1, 4, 2, 2})
+                     .input("k_flat", ov::element::f32, {1, 1, 1, 10})
+                     .input("v_flat", ov::element::f32, {1, 1, 1, 10})
                      .extra_input("attention_size_static", ov::element::i64, {1})
-                     .output("out", ov::element::f32, {1, 2, 2, 2})
+                     .output("out", ov::element::f32, {1, 2, 4, 2})
                      .op_case(2)
                      .attr<float>("scale", 1.0f)
-                     .attr<std::vector<int64_t>>("flat_kv_shape_k", {1, 1, 2, 2})
-                     .attr<std::vector<int64_t>>("flat_kv_shape_v", {1, 1, 2, 2})
+                     .attr<std::vector<int64_t>>("flat_kv_shape_k", {1, 2, 2, 2})
+                     .attr<std::vector<int64_t>>("flat_kv_shape_v", {1, 2, 2, 2})
                      .attr<int64_t>("flat_kv_offset_k", 1)
                      .attr<int64_t>("flat_kv_offset_v", 1)
                      .build();
 
-    const std::vector<float> q{1, 0, 0, 1, -1, 0, 0, -1};
-    const std::vector<float> k_flat{9, 1, 0, 0, 1, 9};
-    const std::vector<float> v_flat{9, 1, 2, 3, 4, 9};
+    const std::vector<float> q{1, 0, 0, 1, 0.5f, 1, 1, -0.5f, -1, 1, 1, 0, 0, -1, 0.5f, 0.5f};
+    // ggml's [Hkv,T,D] K/V data is stored in the flat cache as [T,Hkv,D].
+    const std::vector<float> k_flat{9, 1, 0, 0.5f, 0.5f, 0, 1, -0.5f, 1, 9};
+    const std::vector<float> v_flat{9, 1, 2, 5, 6, 3, 4, 7, 8, 9};
     auto out = run_on_cpu(model,
-                          {{"q", make_f32_tensor({1, 2, 2, 2}, q)},
-                           {"k_flat", make_f32_tensor({1, 1, 1, 6}, k_flat)},
-                           {"v_flat", make_f32_tensor({1, 1, 1, 6}, v_flat)},
+                          {{"q", make_f32_tensor({1, 4, 2, 2}, q)},
+                           {"k_flat", make_f32_tensor({1, 1, 1, 10}, k_flat)},
+                           {"v_flat", make_f32_tensor({1, 1, 1, 10}, v_flat)},
                            {"attention_size_static", make_i64_tensor({1}, {2})}});
 
-    const float p = std::exp(1.0f) / (std::exp(1.0f) + 1.0f);
+    // GGML_OP_FLASH_ATTN_EXT on ggml CPU, flash_attn_gqa_oracle.c (Hq=4, Hkv=2).
     expect_near(out,
-                {3.0f - 2.0f * p,
-                 4.0f - 2.0f * p,
-                 1.0f + 2.0f * p,
-                 2.0f + 2.0f * p,
-                 1.0f + 2.0f * p,
-                 2.0f + 2.0f * p,
-                 3.0f - 2.0f * p,
-                 4.0f - 2.0f * p},
+                {1.537883f,
+                 2.537883f,
+                 2.244919f,
+                 3.244919f,
+                 6.635149f,
+                 7.635149f,
+                 5.755081f,
+                 6.755082f,
+                 2.462117f,
+                 3.462117f,
+                 1.364851f,
+                 2.364851f,
+                 5.537883f,
+                 6.537883f,
+                 5.875648f,
+                 6.875647f},
                 2e-2f);
+}
+
+TEST(GGUFOps, FlashAttnExtRejectsMasklessSinks) {
+    for (const auto& sink_shape : {ov::Shape{2}, ov::Shape{1, 1, 1, 2}}) {
+        EXPECT_THROW(SingleOpBuilder()
+                         .op("GGML_OP_FLASH_ATTN_EXT")
+                         .input("q", ov::element::f32, {1, 2, 1, 2})
+                         .input("k", ov::element::f32, {1, 1, 2, 2})
+                         .input("v", ov::element::f32, {1, 1, 2, 2})
+                         .input("sinks", ov::element::f32, sink_shape)
+                         .output("out", ov::element::f32, {1, 1, 2, 2})
+                         .attr<float>("scale", 1.0f)
+                         .build(),
+                     ov::Exception);
+    }
+
+    EXPECT_NO_THROW(SingleOpBuilder()
+                        .op("GGML_OP_FLASH_ATTN_EXT")
+                        .input("q", ov::element::f32, {1, 2, 1, 2})
+                        .input("k", ov::element::f32, {1, 1, 2, 2})
+                        .input("v", ov::element::f32, {1, 1, 2, 2})
+                        .input("mask", ov::element::f16, {1, 1, 1, 2})
+                        .output("out", ov::element::f32, {1, 1, 2, 2})
+                        .attr<float>("scale", 1.0f)
+                        .build());
 }
 
 TEST(GGUFOps, FlashAttnExtRejectsMasklessSoftCap) {
