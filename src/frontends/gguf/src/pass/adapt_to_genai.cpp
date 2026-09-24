@@ -432,7 +432,8 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     auto to_mask_4d = [&](const ov::Output<ov::Node>& predicate) {
         return make_shared<v0::Unsqueeze>(make_shared<v1::Select>(predicate, zero_f, neg_f), one_1);
     };
-    ov::Output<ov::Node> allowed = make_shared<v1::LessEqual>(k_row, q_pos_col);
+    const auto causal = make_shared<v1::LessEqual>(k_row, q_pos_col);
+    ov::Output<ov::Node> allowed = causal;
     if (token_type_ids) {
         // Only patches within the same current image can attend bidirectionally.
         auto zeros = make_shared<v3::Broadcast>(v0::Constant::create(ov::element::i64, {}, {0}),
@@ -451,8 +452,12 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         make_shared<v1::NotEqual>(as_key_row(attention_mask), v0::Constant::create(ov::element::i64, {}, {0}));
     allowed = make_shared<v1::LogicalAnd>(allowed, valid_keys);
     auto mask_4d = to_mask_4d(allowed);
-    if (self_kq_mask)
-        self_kq_mask->output(0).replace(mask_4d->output(0));
+    if (self_kq_mask) {
+        // Gemma4 permits bidirectional image attention only in sliding-window layers.
+        const bool causal_global = token_type_ids && arch_it->second.as<std::string>() == "gemma4";
+        auto global_mask = causal_global ? to_mask_4d(make_shared<v1::LogicalAnd>(causal, valid_keys)) : mask_4d;
+        self_kq_mask->output(0).replace(global_mask->output(0));
+    }
 
     // Sliding-window mask: for prompts within the window this equals the full causal mask, but
     // once the context (prompt + generated tokens) exceeds it, reusing the causal mask would

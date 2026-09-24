@@ -1,6 +1,6 @@
 # GGUF frontend and GenAI acceptance — September 2026
 
-**Validation is paused; full support is not yet qualified.** The requested
+**Validation paused on September 24; full support is not yet qualified.** The requested
 Qwen3.5 0.8B/2B/4B/9B, Qwen3.6 35B-A3B, Qwen3.8 27B, Gemma4
 E2B/E4B/12B/26B-A4B/31B and Muse Glimmer 30B checkpoints are available locally
 in both Q4_0 and Q4_K_M: 24 language files and 12 associated projectors.
@@ -8,9 +8,10 @@ All convert through the native frontend. The extra Qwen3.8 UD-Q4_K_M file
 contains unsupported IQ4_XS tensors and is separate from the requested plain
 Q4_K_M checkpoint.
 
-OpenVINO branch `mvafin/gguf/mmproj-support` is rebased onto `upstream/master`
-`ff92c0dbcc` and pushed through `12ba63a17d`. The companion GenAI branch is
-**`gguf-frontend-mmproj`**, pushed through `ce37b94e`. The local worktree directory retains its earlier name
+The resumed run uses OpenVINO branch `mvafin/gguf/mmproj-support` at
+`3639ee5276` and companion GenAI branch **`gguf-frontend-mmproj`** at
+`70e88dd2`, with validator provenance improvements recorded separately.
+The local worktree directory retains its earlier name
 for build reuse; it does not indicate a separate acceptance branch.
 
 ## Implemented and tested
@@ -36,12 +37,36 @@ for build reuse; it does not indicate a separate acceptance branch.
   E2B Q4_K_M reset reproducer now returns identical tokens for independent image
   requests and fresh chats, including after audio requests.
 
-The frontend suite passed **407 tests**, plus the external architecture-library test. The selected GenAI GGUF, scheduler,
-model-runner, hybrid-cache and SDPA suites passed **121 tests** after the chat
-tokenization fix. Final checkpoint qualification retains its own source manifests
+The current frontend suite passed **410 tests**, plus the external architecture-library test. The selected GenAI GGUF, scheduler,
+model-runner, hybrid-cache and SDPA suites passed **121 tests**. This selected run
+reports missing cache-type/backend-routing coverage because `CACHE_TYPES_CSV` is unset.
+Final checkpoint qualification retains its own source manifests
 and test records.
 
+The resumed original-publisher language matrix completed all 48 configurations:
+36 passed and 12 failed. Each variant below failed on both PA and SDPA; all
+other variants passed the language criteria.
+
+| Variant | Matching choices | First choice agrees |
+|---|---:|---|
+| Qwen3.5 0.8B Q4_K_M | 12/13 | No |
+| Qwen3.6 35B Q4_0 | 11/13 | Yes |
+| Gemma4 E2B Q4_0 | 11/13 | Yes |
+| Gemma4 12B Q4_0 | 10/13 | No |
+| Gemma4 26B Q4_0 | 7/13 | No |
+| Gemma4 26B Q4_K_M | 8/13 | No |
+
+Gemma4 26B Q4_K_M PA additionally failed the exact batch-versus-individual
+generation comparison for one prompt. A bounded prefix-cache diagnostic is
+pending; this failure is retained separately from publisher-reference accuracy.
+
 ## Real-checkpoint evidence and remaining gaps
+
+The table below records historical checks, including comparisons against quantized
+and represented-F32 references. It does not establish acceptance against the
+original publisher weights. The resumed matrix uses pinned original BF16/F16
+language and projector weights, with the actual tensor types and file hashes
+recorded in each reference manifest.
 
 | Configuration | Evidence | Remaining qualification |
 |---|---|---|
@@ -74,7 +99,10 @@ Gemma4 E2B/E4B/12B projectors contain audio and vision branches. The downloaded
 Gemma4 26B/31B projectors contain vision only. Missing source modalities cannot
 be enabled by conversion. GPU/NPU, long contexts, arbitrary concurrent requests,
 all media shapes/chunk boundaries and exhaustive API combinations remain
-unqualified. Performance is outside this task's acceptance target.
+unqualified. The resumed run also measures CPU load time, peak process RSS,
+first-token latency and generation throughput for each model's Q4_K_M checkpoint
+with PA and `OV_GGUF_Q4_K_ZP_F16` unset.
+Performance optimization is restricted to frontend changes.
 
 The Gemma4 unified-vision patch normalization now recenters pixels before the
 F32 mean reduction. A low-contrast CPU-oracle fixture improves from normalized
@@ -84,6 +112,32 @@ matching choices against represented-F32 language/projector references. Video
 and full API validation of this fix were interrupted at the user's request;
 the earlier 85% video failure remains unresolved pending completion. The
 Gemma4 12B Q4_K_M PA/SDPA language checks also passed before the pause.
+
+The resumed Gemma4 12B Q4_0 represented-F32 diagnostic initially matched all text,
+image, audio and mixed choices, but video matched 17/20. Investigation found that
+`AdaptToGenAI` incorrectly made global layers bidirectional for image/video
+tokens. Gemma4 permits this only in sliding-window layers. The frontend now
+keeps global masks causal while retaining image-group bidirectionality in sliding
+layers. A regression covering both Gemma3 and Gemma4, separate image groups and
+cached prefixes fails on the unfixed Gemma4 graph and passes after the correction.
+The fixed PA diagnostic matches 9/9 text choices and 20/20 choices for image,
+video, audio and mixed input, with first-token and reset checks passing. This
+resolves the represented-F32 video discrepancy. Original-publisher accuracy
+remains a separate qualification requirement.
+
+The fixed Gemma4 12B original-publisher matrix still fails all four configurations,
+with identical PA/SDPA results. Q4_0 matches text 9/9, image 18/20, video 17/20,
+audio 19/20 and mixed input 17/20. Q4_K_M matches text 9/9, image 19/20,
+video 18/20, audio 18/20 and mixed input 15/20. Both quantizations miss the first
+mixed-input token; all request/chat reset checks pass. These failures remain
+recorded independently of the corrected mask behavior.
+
+Original-publisher comparisons also expose differences present in quantized
+checkpoints. Qwen3.5 0.8B with native original BF16 language/projector weights
+matches every text, image and video choice in the bounded PA diagnostic. Its
+Q4_K_M language checkpoint produces identical choices in quantized llama.cpp and
+GenAI, including their first-choice disagreement with the original reference.
+This explains that checkpoint's language failure, not every media discrepancy.
 
 ## Method and reproduction
 
@@ -101,8 +155,8 @@ weights; they do not recover the publisher's original weights. Gemma4 12B Q4_0 m
 F32 reference (maximum logit NMSE `1.76e-4`); its quantized-reference failure is
 retained separately. Gemma4 E4B Q4_K_M also matches 13/13 choices, but the
 older native Q4_K requantization produced maximum logit NMSE `0.194847`.
-Preserving fractional zero points reduces that to `9e-6`. Native GGUF loading
-now uses this faithful Q4_K conversion for language models and projectors.
+Preserving fractional zero points reduces that to `9e-6`. These accuracy results
+require `OV_GGUF_Q4_K_ZP_F16=1`; the current default uses integer zero points.
 Gemma4 26B Q4_0 still fails first-token agreement against represented F32
 (maximum logit NMSE `0.012255`). Layer outputs agree closely through layer 7.
 At layer 8, router-logit NMSE is `1.8e-8`, but experts 56 and 35 exchange places
