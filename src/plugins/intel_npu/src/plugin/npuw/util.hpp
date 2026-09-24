@@ -95,6 +95,8 @@ void unpack(const ov::SoPtr<ov::ITensor>& from,
             const ov::SoPtr<ov::ITensor>& to,
             const UnpackOptions& unpack_options = UnpackOptions{true, 16, false});
 
+void subtract_128(const ov::SoPtr<ov::ITensor>& from, const ov::SoPtr<ov::ITensor>& to);
+
 void gather(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& idx, const ov::SoPtr<ov::ITensor>& dst);
 void gather_cb4(const ov::SoPtr<ov::ITensor>& src,
                 const ov::SoPtr<ov::ITensor>& idx,
@@ -231,6 +233,10 @@ bool matchLoRAMatMulAlphaString(const std::string& input);
 bool matchLinCacheString(const std::string& input, const std::string& past_or_present = "past");
 
 bool starts_with_past_lincache(const std::string& input_name);
+
+// Matches past_key_values.N.key/value Parameter (and present.N.key/value output) names of
+// layers managed by sliding window attention.
+bool is_swa_kv_cache_name(const std::string& input_name);
 
 // Matches the paged KV cache inputs of the PagedAttention model deployed by
 // the GenAI continuous-batching pipeline (key_cache.N / value_cache.N, named

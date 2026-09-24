@@ -10,9 +10,7 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/frontend/pytorch/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
+namespace ov::frontend::pytorch {
 
 class PYTORCH_FRONTEND_API FrontEnd : public ov::frontend::FrontEnd {
 public:
@@ -69,6 +67,4 @@ protected:
     TelemetryExtension::Ptr m_telemetry;
 };
 
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch

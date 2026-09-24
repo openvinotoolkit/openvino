@@ -13,9 +13,7 @@
 #include "openvino/util/mmap_object.hpp"
 #include "ov_tensorflow/saved_model.pb.h"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
+namespace ov::frontend::tensorflow {
 
 using HashTableKeysValuesMap = std::unordered_map<std::string, std::shared_ptr<ov::op::v0::Constant>>;
 
@@ -179,6 +177,4 @@ private:
     void read_checkpointable_object_graph();
 };
 
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow

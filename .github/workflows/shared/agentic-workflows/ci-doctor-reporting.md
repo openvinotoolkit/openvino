@@ -129,15 +129,7 @@ Provide all required fields and include the optional PR-related fields whenever 
 - **`db_entries`** (required) — Current total number of unique entries in the CI Doctor ${{ github.aw.import-inputs.name }} investigation database. Compute it during Phase 5 by counting distinct files under `/tmp/gh-aw/repo-memory/default/${{ github.aw.import-inputs.slug }}/investigations/` (including the one this run just wrote, excluding `index.json`) and pass the resulting non-negative integer as a string (e.g., `"42"`). If the directory does not yet exist, report `"0"` (or `"1"` if you just created the first entry). Note: counting files under any path other than `/tmp/gh-aw/repo-memory/default/${{ github.aw.import-inputs.slug }}/investigations/` will give a wrong result.
 
 - **`occurrence_count`** (required) — How many times **this same issue** has been recorded in the CI Doctor ${{ github.aw.import-inputs.name }} database, including the current investigation. This value MUST be read directly from the `count` field of the pattern file at `/tmp/gh-aw/repo-memory/default/${{ github.aw.import-inputs.slug }}/patterns/<signature-hash>.json` AFTER you have completed the Phase 5 step 2 write and verification. Do NOT compute this independently — read it from the file. Pass as a positive integer encoded as a string (e.g., `"1"`, `"4"`).
-
-- **`statistics`** (required) — Markdown snapshot of the pattern database, rendered inline in the Teams card. Build it from the per-pattern files maintained in Phase 5. Show the top **20** patterns sorted by reproduction count descending (ties broken by most recent `last_seen`). Use a Markdown table with columns: `Pattern`, `Category`, `Count`, `First seen (UTC)`, `Last seen (UTC)`. Highlight the current failure's row with a leading `▶` marker in the `Pattern` column. Apply the same Teams rendering rules as `description` (no raw HTML, use tilde fences if you need code blocks). Keep total length under ~3 KB so the Adaptive Card renders cleanly. Example:
-
-  ~~~markdown
-  | Pattern | Category | Count | First seen (UTC) | Last seen (UTC) |
-  | --- | --- | ---: | --- | --- |
-  | ▶ smoke_Bucketize tests fail on comparison | Code Issue | 7 | 2026-01-04T09:11:02Z | 2026-04-30T14:22:51Z |
-  | iGPU tests fail with incorrect input argument | Infrastructure | 4 | 2026-02-19T03:45:10Z | 2026-04-28T19:07:33Z |
-  ~~~
+- **`statistics`** (required) — Markdown snapshot of the pattern database, saved to the `ci-doctor-${{ github.aw.import-inputs.slug }}-statistics` workflow artifact.
 
 - **`statistics_json`** (required) — Full pattern database serialized as a compact JSON string (single line, no surrounding code fence). Must include **every** pattern currently tracked, not just the top 20. Schema is documented on the input field. This payload is uploaded as the `ci-doctor-${{ github.aw.import-inputs.slug }}-statistics` workflow artifact (alongside the rendered Markdown) and is intended for offline analysis or dashboarding. Keep `recent_run_urls` capped at 10 entries per pattern.
 

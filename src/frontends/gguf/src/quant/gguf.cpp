@@ -9,27 +9,32 @@
 
 #include "gguf.hpp"
 
+#include <array>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <optional>
+#include <string_view>
 
 #include "openvino/core/except.hpp"
+#include "openvino/core/memory_util.hpp"
+#include "openvino/core/shape_util.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
+#include "openvino/util/common_util.hpp"
 #include "openvino/util/math_util.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "weights.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 namespace {
 
 constexpr uint32_t GGUF_MAGIC = 0x46554747;  // "GGUF" little-endian
 constexpr uint64_t GGUF_DEFAULT_ALIGNMENT = 32;
+constexpr std::string_view WEIGHT_SUFFIX = ".weight";
 
 // (items_per_block, bytes_per_block) per GgufTensorType, indexed by the type id.
 struct TypeTraits {
@@ -85,6 +90,51 @@ TypeTraits type_traits(uint32_t type) {
         return {32, 17};  // 1-byte E8M0 scale + 16 bytes (32x 4-bit)
     default:
         return {0, 0};
+    }
+}
+
+// Layout of the REPACKED tensors a quantized GGUF type is unpacked into: the element types and
+// shapes the gguf_fill_* functions write into quant_buf. Single source of truth for both the
+// pass-1 size reservation and the pass-2 view carving below, so the two cannot disagree about a
+// divisor. Returns nullopt for the non-quantized types, which are mmap views instead.
+struct QuantLayout {
+    ov::element::Type weight_type;  // element type of the repacked weight blob
+    size_t weight_div;              // innermost-dim divisor of the weight shape (8 = u32-packed u4)
+    ov::element::Type scale_type;
+    size_t group_size;  // weights per scale
+    bool asymmetric;    // carries a per-group zero-point
+};
+
+std::optional<QuantLayout> quant_layout(uint32_t type) {
+    constexpr bool asymmetric = true;
+    constexpr bool symmetric = false;
+    switch (type) {
+    case GGUF_TYPE_Q4_0:
+        return QuantLayout{ov::element::i4, 1, ov::element::f16, 32, symmetric};
+    case GGUF_TYPE_Q3_K:
+        return QuantLayout{ov::element::i4, 1, ov::element::f16, 16, symmetric};
+    case GGUF_TYPE_Q5_0:
+    case GGUF_TYPE_Q8_0:
+        return QuantLayout{ov::element::i8, 1, ov::element::f16, 32, symmetric};
+    case GGUF_TYPE_Q6_K:
+        return QuantLayout{ov::element::i8, 1, ov::element::f16, 16, symmetric};
+    case GGUF_TYPE_Q8_K:
+        // 256 i8 weights + an f32 (not f16) scale + 16 i16 bsums, which the dequant ignores.
+        return QuantLayout{ov::element::i8, 1, ov::element::f32, 256, symmetric};
+    case GGUF_TYPE_Q2_K:
+        return QuantLayout{ov::element::u2, 1, ov::element::f16, 16, asymmetric};
+    case GGUF_TYPE_Q2_0:
+        return QuantLayout{ov::element::u2, 1, ov::element::f16, 64, asymmetric};
+    case GGUF_TYPE_Q4_1:
+    case GGUF_TYPE_Q4_K:
+        return QuantLayout{ov::element::u32, 8, ov::element::f16, 32, asymmetric};
+    case GGUF_TYPE_Q5_1:
+    case GGUF_TYPE_Q5_K:
+        return QuantLayout{ov::element::i8, 1, ov::element::f16, 32, asymmetric};
+    case GGUF_TYPE_MXFP4:
+        return QuantLayout{ov::element::f4e2m1, 1, ov::element::f8e8m0, 32, symmetric};
+    default:
+        return std::nullopt;
     }
 }
 
@@ -160,28 +210,6 @@ private:
     uint64_t m_off = 0;
 };
 
-size_t value_type_size(uint32_t type) {
-    switch (type) {
-    case GGUF_VALUE_TYPE_UINT8:
-    case GGUF_VALUE_TYPE_INT8:
-    case GGUF_VALUE_TYPE_BOOL:
-        return 1;
-    case GGUF_VALUE_TYPE_UINT16:
-    case GGUF_VALUE_TYPE_INT16:
-        return 2;
-    case GGUF_VALUE_TYPE_UINT32:
-    case GGUF_VALUE_TYPE_INT32:
-    case GGUF_VALUE_TYPE_FLOAT32:
-        return 4;
-    case GGUF_VALUE_TYPE_UINT64:
-    case GGUF_VALUE_TYPE_INT64:
-    case GGUF_VALUE_TYPE_FLOAT64:
-        return 8;
-    default:
-        return 0;  // string / array handled separately
-    }
-}
-
 ov::element::Type value_type_to_dtype(uint32_t type) {
     switch (type) {
     case GGUF_VALUE_TYPE_UINT8:
@@ -236,7 +264,7 @@ void read_metadata_value(Cursor& cur, uint32_t type, GGUFMetaData& out) {
             return;
         }
         auto dtype = value_type_to_dtype(elem_type);
-        const size_t elem_size = value_type_size(elem_type);
+        const size_t elem_size = dtype.size();
         // `len` and `elem_size` are both attacker-controlled (elem_size indirectly, via
         // elem_type) and size a Tensor allocation and a memcpy below; validate `len` against the
         // cursor's remaining bytes -- via a division, not `len * elem_size`, which could itself
@@ -256,7 +284,7 @@ void read_metadata_value(Cursor& cur, uint32_t type, GGUFMetaData& out) {
     // Scalar: store as a shape-{} ov::Tensor of the right element type.
     auto dtype = value_type_to_dtype(type);
     ov::Tensor t(dtype, ov::Shape(0));
-    const size_t nbytes = value_type_size(type);
+    const size_t nbytes = dtype.size();
     OPENVINO_ASSERT(nbytes <= cur.remaining(), "[load_gguf] scalar metadata value runs past end of file");
     std::memcpy(t.data(), cur.ptr(), nbytes);
     cur.skip(nbytes);
@@ -337,6 +365,48 @@ bool metadata_to_bool_or(const std::unordered_map<std::string, GGUFMetaData>& me
     }
     const auto& tensor = metadata_scalar_tensor(metadata, key, ov::element::boolean);
     return *(tensor.data<ov::element_type_traits<ov::element::boolean>::value_type>()) != 0;
+}
+
+// Read a metadata array of integer elements as a vector<int32_t>, empty when the key is absent.
+// GGUF writers disagree on the element type for the same key (llama.cpp emits
+// rope.dimension_sections as INT32 and attention.recurrent_layers as UINT32, and boolean arrays
+// carry the sliding-window pattern), so accept any 1- or 4-byte integer encoding.
+// `max_n` caps how many entries are taken (rope.dimension_sections reads at most 4).
+std::vector<int32_t> metadata_to_i32_vector(const std::unordered_map<std::string, GGUFMetaData>& metadata,
+                                            const std::string& key,
+                                            size_t max_n = std::numeric_limits<size_t>::max()) {
+    std::vector<int32_t> out;
+    auto it = metadata.find(key);
+    if (it == metadata.end()) {
+        return out;
+    }
+    const auto* t = std::get_if<ov::Tensor>(&it->second);
+    OPENVINO_ASSERT(t && t->data(), "[GGUF] metadata key '", key, "' is not an array as expected");
+    const auto& et = t->get_element_type();
+    OPENVINO_ASSERT(et.is_integral() && (et.size() == 1 || et.size() == 4),
+                    "[GGUF] metadata key '",
+                    key,
+                    "' is not an integer array as expected, got ",
+                    et);
+    const auto* bytes = static_cast<const uint8_t*>(t->data());
+    const size_t n = std::min(t->get_size(), max_n);
+    out.reserve(n);
+    for (size_t i = 0; i < n; ++i) {
+        if (et == ov::element::boolean) {
+            // Only a boolean array normalizes to 0/1. A byte-sized INTEGER array keeps its
+            // value: these keys carry counts and widths (a rope section of 32 must not
+            // become 1), not just flags.
+            out.push_back(bytes[i] ? 1 : 0);
+        } else if (et.size() == 1) {
+            out.push_back(et.is_signed() ? static_cast<int32_t>(static_cast<int8_t>(bytes[i]))
+                                         : static_cast<int32_t>(bytes[i]));
+        } else {
+            int32_t v = 0;
+            std::memcpy(&v, bytes + i * 4, sizeof(v));
+            out.push_back(v);
+        }
+    }
+    return out;
 }
 
 }  // namespace
@@ -420,136 +490,55 @@ GGUFLoad get_gguf_data(const std::string& file) {
     }
 
     // Tensor data starts at the next `alignment`-aligned offset after the info section.
-    uint64_t data_off = cur.offset();
-    if (uint64_t rem = data_off % alignment) {
-        data_off += alignment - rem;
-    }
+    uint64_t data_off = cur.offset() + ov::util::align_padding_size(alignment, cur.offset());
 
-    // Helper: for a quantized tensor, compute (weights_bytes, scale_bytes, zp_bytes).
-    // Symmetric types (Q4_0, Q8_0, Q5_0, Q6_K): zp_bytes = 0.
-    // Asymmetric types: zero-points use the element type selected by gguf_zero_point_type.
+    // Bytes the repacked (weight, scale, zero-point) tensors of a quantized tensor occupy in
+    // quant_buf, derived from its QuantLayout. Symmetric types have no zero-point; asymmetric
+    // ones use the element type selected by gguf_zero_point_type.
     //
-    // Every dim comes straight from the file, so shape products (and the total below) use
-    // ov::util::mul_overflow/add_overflow instead of raw `*=`/`+=`: wrapped products could
-    // otherwise under-size quant_buf while the fill functions still write the real,
-    // attacker-controlled shape into it.
-    auto size_prod = [](const ov::Shape& s) -> size_t {
-        size_t result = 1;
-        for (auto d : s) {
-            size_t next = 0;
-            OPENVINO_ASSERT(!ov::util::mul_overflow(result, static_cast<size_t>(d), next),
-                            "[load_gguf] tensor element count overflows size_t");
-            result = next;
-        }
-        return result;
-    };
-    auto quant_sizes = [&size_prod](const TensorInfo& ti) -> std::tuple<size_t, size_t, size_t> {
-        auto shape = [&]() {
+    // Every dim comes straight from the file, so the element and byte counts go through the
+    // overflow-checked ov::util helpers: a wrapped product could otherwise under-size quant_buf
+    // while the fill functions still write the real, attacker-controlled shape into it.
+    auto quant_sizes = [](const TensorInfo& ti, const QuantLayout& ql) -> std::array<size_t, 3> {
+        const ov::Shape shape = [&ti]() {
             ov::Shape s;
             for (int i = static_cast<int>(ti.ndim) - 1; i >= 0; --i)
                 s.push_back(ti.dim[i]);
             return s;
         }();
         OPENVINO_ASSERT(!shape.empty(), "[load_gguf] tensor '", ti.name, "' is quantized but has rank 0");
-
-        if (ti.type == GGUF_TYPE_Q8_K) {
-            // Q8_K: 256 i8 weights + f32 scale + 16 i16 bsums (ignored) per block.
-            const size_t nelems = size_prod(shape);
-            const size_t n_blocks = nelems / 256;
-            return {nelems, n_blocks * sizeof(float), 0};  // w_bytes, s_bytes(f32), no zp
-        }
-
         if (ti.type == GGUF_TYPE_MXFP4) {
-            const size_t nelems = size_prod(shape);
-            const size_t cols = shape.back();
-            OPENVINO_ASSERT(cols != 0, "[load_gguf] tensor '", ti.name, "' has a zero-sized dimension");
-            const size_t groups = cols / 32;
-            size_t rows = nelems / cols;
-            const size_t w_bytes = (nelems + 1) / 2;  // f4e2m1: 4-bit
-            const size_t s_bytes = rows * groups;     // f8e8m0: 1 byte/group
-            return {w_bytes, s_bytes, 0};
+            OPENVINO_ASSERT(shape.back() != 0, "[load_gguf] tensor '", ti.name, "' has a zero-sized dimension");
         }
 
-        const size_t w_nelems = size_prod(shape);
+        const auto bytes = [&ti](const ov::element::Type& et, const ov::Shape& s) {
+            const auto n = ov::util::get_memory_size_safe(et, s);
+            OPENVINO_ASSERT(n.has_value(), "[load_gguf] tensor '", ti.name, "' byte count overflows size_t");
+            return *n;
+        };
 
-        // Q2_K: u2 (4 per byte), 16 sub-blocks of 16 per super-block.
-        if (ti.type == GGUF_TYPE_Q2_K) {
-            const size_t w_bytes = (w_nelems + 3) / 4;  // u2: 4 values per byte
-            auto scale_shape = shape;
-            scale_shape.back() /= 16;
-            const size_t s_nelems = size_prod(scale_shape);
-            return {w_bytes, s_nelems * sizeof(uint16_t), s_nelems};  // zp: u8 per sub-block
-        }
-
-        // Q2_0: u2 (4 per byte), one f16 scale per 64 weights, constant zero-point of 1.
-        if (ti.type == GGUF_TYPE_Q2_0) {
-            const size_t w_bytes = (w_nelems + 3) / 4;  // u2: 4 values per byte
-            auto scale_shape = shape;
-            scale_shape.back() /= 64;
-            const size_t s_nelems = size_prod(scale_shape);
-            return {w_bytes, s_nelems * sizeof(uint16_t), s_nelems};  // zp: u8 per block
-        }
-
-        // Q3_K: i4 packed (2 per byte), 16 sub-blocks of 16 per super-block.
-        if (ti.type == GGUF_TYPE_Q3_K) {
-            const size_t w_bytes = (w_nelems + 1) / 2;  // i4: 2 values per byte
-            auto scale_shape = shape;
-            scale_shape.back() /= 16;
-            const size_t s_nelems = size_prod(scale_shape);
-            return {w_bytes, s_nelems * sizeof(uint16_t), 0};  // symmetric: no zp
-        }
-
-        // Weights: i8 or u8 stored in byte arrays (u32 only for asymmetric 4-bit).
-        // 4-bit types: Q4_0(i4), Q4_1(u4 in u32), Q4_K(u4 in u32).
-        // 8-bit types: Q8_0(i8), Q5_0(i8), Q5_1(i8), Q5_K(i8), Q6_K(i8).
-        const bool is_4bit = (ti.type == GGUF_TYPE_Q4_0 || ti.type == GGUF_TYPE_Q4_1 || ti.type == GGUF_TYPE_Q4_K);
-        uint64_t weights_per_byte = is_4bit ? 2 : 1;
-        // Q6_K: 16 weights per sub-block (16 sub-blocks × 16 = 256 per super-block).
-        uint64_t weights_per_block = (ti.type == GGUF_TYPE_Q6_K) ? 16 : 32;
-
-        size_t w_bytes;
-        if (is_4bit) {
-            // u32-packed nibbles: floor((n+7)/8)*4 bytes
-            w_bytes = ((w_nelems / weights_per_byte) / 4) * sizeof(uint32_t);
-        } else {
-            // i8 byte per element
-            w_bytes = w_nelems;
-        }
-
-        auto scale_shape = shape;
-        scale_shape.back() /= weights_per_block;
-        const size_t s_nelems = size_prod(scale_shape);
-        const size_t s_bytes = s_nelems * sizeof(uint16_t);
-
-        // Zero-point bytes. Symmetric formats have none; asymmetric formats use the same
-        // element count as scales and the representation selected by gguf_zero_point_type.
-        size_t z_bytes = 0;
-        if (ti.type == GGUF_TYPE_Q4_1 || ti.type == GGUF_TYPE_Q4_K || ti.type == GGUF_TYPE_Q5_K ||
-            ti.type == GGUF_TYPE_Q5_1) {
-            OPENVINO_ASSERT(
-                !ov::util::mul_overflow(s_nelems,
-                                        gguf_zero_point_type(ti.name, static_cast<GgufTensorType>(ti.type)).size(),
-                                        z_bytes),
-                "[load_gguf] zero-point byte count overflows size_t");
-        }
-        return {w_bytes, s_bytes, z_bytes};
+        ov::Shape weight_shape = shape;
+        weight_shape.back() /= ql.weight_div;
+        ov::Shape scale_shape = shape;
+        scale_shape.back() /= ql.group_size;
+        const size_t z_bytes =
+            ql.asymmetric ? bytes(gguf_zero_point_type(ti.name, static_cast<GgufTensorType>(ti.type)), scale_shape) : 0;
+        return {bytes(ql.weight_type, weight_shape), bytes(ql.scale_type, scale_shape), z_bytes};
     };
 
-    // ---- Pass 1: total bytes needed for all repacked quantized data ----
+    // ---- Pass 1: size, and record, every tensor's slice of the repacked quantized data ----
+    std::vector<std::array<size_t, 3>> quant_bytes(infos.size(), {0, 0, 0});
     size_t total_quant_bytes = 0;
-    for (const auto& ti : infos) {
-        const bool is_quant = ti.type == GGUF_TYPE_Q4_0 || ti.type == GGUF_TYPE_Q4_1 || ti.type == GGUF_TYPE_Q5_0 ||
-                              ti.type == GGUF_TYPE_Q5_1 || ti.type == GGUF_TYPE_Q8_0 || ti.type == GGUF_TYPE_Q2_K ||
-                              ti.type == GGUF_TYPE_Q3_K || ti.type == GGUF_TYPE_Q4_K || ti.type == GGUF_TYPE_Q5_K ||
-                              ti.type == GGUF_TYPE_Q6_K || ti.type == GGUF_TYPE_Q8_K || ti.type == GGUF_TYPE_MXFP4 ||
-                              ti.type == GGUF_TYPE_Q2_0;
-        if (!is_quant)
+    for (size_t i = 0; i < infos.size(); ++i) {
+        const auto layout = quant_layout(infos[i].type);
+        if (!layout) {
             continue;
-        auto [wb, sb, bb] = quant_sizes(ti);
-        size_t sum = 0;
-        OPENVINO_ASSERT(!ov::util::add_overflow(wb, sb, sum) && !ov::util::add_overflow(sum, bb, sum) &&
-                            !ov::util::add_overflow(total_quant_bytes, sum, total_quant_bytes),
-                        "[load_gguf] total quantized buffer size overflows size_t");
+        }
+        quant_bytes[i] = quant_sizes(infos[i], *layout);
+        for (const size_t part : quant_bytes[i]) {
+            const bool overflow = ov::util::add_overflow(total_quant_bytes, part, total_quant_bytes);
+            OPENVINO_ASSERT(!overflow, "[load_gguf] total quantized buffer size overflows size_t");
+        }
     }
 
     // Single allocation for all repacked quantized data (IR-frontend AlignedBuffer pattern).
@@ -557,7 +546,8 @@ GGUFLoad get_gguf_data(const std::string& file) {
 
     // ---- Pass 2: materialize tensors, slicing into quant_buf for quantized ones ----
     size_t quant_offset = 0;
-    for (const auto& ti : infos) {
+    for (size_t idx = 0; idx < infos.size(); ++idx) {
+        const TensorInfo& ti = infos[idx];
         GgufTensor tensor;
         tensor.name = ti.name.data();
         tensor.namelen = ti.name.size();
@@ -596,251 +586,66 @@ GGUFLoad get_gguf_data(const std::string& file) {
         tensor.weights_data = base + abs_off;
 
         const std::string& name = ti.name;
-        constexpr std::string_view weight_suffix = ".weight";
-        const bool has_weight_suffix =
-            name.size() >= weight_suffix.size() &&
-            name.compare(name.size() - weight_suffix.size(), weight_suffix.size(), weight_suffix) == 0;
         // For tensors ending in ".weight" strip the suffix so make_weight_node keys are
         // "blk.N.attn_q" (not "blk.N.attn_q.weight").  For quantized non-weight tensors
         // (e.g. gpt-oss "blk.N.attn_k.bias") keep the full name as the prefix; the builder
         // looks up scales/qtype as name + ".scales" / name + ".qtype".
         const std::string name_prefix =
-            has_weight_suffix ? name.substr(0, name.length() - weight_suffix.length()) : name;
-        if (ti.type == GGUF_TYPE_Q4_0) {
-            // Symmetric: i4 weights (XORed u4) + f16 scales, no bias tensor.
-            auto [wb, sb, bb] = quant_sizes(ti);
-            char* buf_ptr = quant_buf->get_ptr<char>();
-            auto shape = get_shape(tensor);
-            auto scale_shape = shape;
-            scale_shape.back() /= 32;
+            ov::util::ends_with(name, WEIGHT_SUFFIX) ? name.substr(0, name.length() - WEIGHT_SUFFIX.length()) : name;
 
-            std::shared_ptr<void> so_buf(quant_buf);
-            ov::Tensor w_view(ov::element::i4, shape, static_cast<void*>(buf_ptr + quant_offset));
-            ov::Tensor weights(w_view, so_buf);
-            quant_offset += wb;
-            ov::Tensor s_view(ov::element::f16, scale_shape, static_cast<void*>(buf_ptr + quant_offset));
-            ov::Tensor scales(s_view, so_buf);
-            quant_offset += sb;
-
-            gguf_fill_sym(tensor, weights, scales);
-            mapped->hint_evict(abs_off, tensor.bsize);
-
-            arrays.emplace(name, std::move(weights));
-            arrays.emplace(name_prefix + ".scales", std::move(scales));
-            qtype.emplace(name_prefix + ".qtype", GGUF_TYPE_Q4_0);
-        } else if (ti.type == GGUF_TYPE_Q3_K) {
-            // Symmetric: i4 weights (2 per byte) + f16 scales. No zero-point.
-            auto [wb, sb, zb] = quant_sizes(ti);
-            (void)zb;
-            char* buf_ptr = quant_buf->get_ptr<char>();
-
-            auto shape = get_shape(tensor);
-            auto scale_shape = shape;
-            scale_shape.back() /= 16;  // 16 sub-blocks per super-block
-
-            std::shared_ptr<void> so_buf(quant_buf);
-            ov::Tensor w_view(ov::element::i4, shape, static_cast<void*>(buf_ptr + quant_offset));
-            ov::Tensor weights(w_view, so_buf);
-            quant_offset += wb;
-            ov::Tensor s_view(ov::element::f16, scale_shape, static_cast<void*>(buf_ptr + quant_offset));
-            ov::Tensor scales(s_view, so_buf);
-            quant_offset += sb;
-
-            gguf_fill_sym(tensor, weights, scales);
-            mapped->hint_evict(abs_off, tensor.bsize);
-
-            arrays.emplace(name, std::move(weights));
-            arrays.emplace(name_prefix + ".scales", std::move(scales));
-            qtype.emplace(name_prefix + ".qtype", GGUF_TYPE_Q3_K);
-        } else if (ti.type == GGUF_TYPE_Q2_K) {
-            // Asymmetric: u2 weights (4 per byte) + f16 scales + u8 zp per sub-block.
-            auto [wb, sb, zb] = quant_sizes(ti);
-            char* buf_ptr = quant_buf->get_ptr<char>();
-
-            auto shape = get_shape(tensor);
-            auto scale_shape = shape;
-            scale_shape.back() /= 16;  // 16 sub-blocks per super-block
-
-            std::shared_ptr<void> so_buf(quant_buf);
-            ov::Tensor w_view(ov::element::u2, shape, static_cast<void*>(buf_ptr + quant_offset));
-            ov::Tensor weights(w_view, so_buf);
-            quant_offset += wb;
-            ov::Tensor s_view(ov::element::f16, scale_shape, static_cast<void*>(buf_ptr + quant_offset));
-            ov::Tensor scales(s_view, so_buf);
-            quant_offset += sb;
-            // Fractional zp (= min/scale) in the scale's element type -- see the Q4_K/Q5_K branch.
-            ov::Tensor zp(scales.get_element_type(), scale_shape);
-            quant_offset += zb;
-
-            gguf_fill_asym(tensor, weights, scales, zp);
-            mapped->hint_evict(abs_off, tensor.bsize);
-
-            arrays.emplace(name, std::move(weights));
-            arrays.emplace(name_prefix + ".scales", std::move(scales));
-            arrays.emplace(name_prefix + ".zp", std::move(zp));
-            qtype.emplace(name_prefix + ".qtype", GGUF_TYPE_Q2_K);
-        } else if (ti.type == GGUF_TYPE_Q2_0) {
-            // Ternary: u2 weights (4 per byte) + one f16 scale per 64 + integer zp of exactly 1.
-            // ggml packs Q2_0 codes LSB-first, 4 per byte -- the same order OpenVINO's u2 Constant
-            // expects -- so the code bytes are copied verbatim, no repacking.
-            auto [wb, sb, zb] = quant_sizes(ti);
-            char* buf_ptr = quant_buf->get_ptr<char>();
-
-            auto shape = get_shape(tensor);
-            auto scale_shape = shape;
-            scale_shape.back() /= 64;  // one scale per 64-weight block
-
-            std::shared_ptr<void> so_buf(quant_buf);
-            ov::Tensor w_view(ov::element::u2, shape, static_cast<void*>(buf_ptr + quant_offset));
-            ov::Tensor weights(w_view, so_buf);
-            quant_offset += wb;
-            ov::Tensor s_view(ov::element::f16, scale_shape, static_cast<void*>(buf_ptr + quant_offset));
-            ov::Tensor scales(s_view, so_buf);
-            quant_offset += sb;
-            // Integer zero-point: (code - 1) * scale, so zp is the constant 1 for every block.
-            ov::Tensor zp(ov::element::u8, scale_shape);
-            quant_offset += zb;
-
-            gguf_fill_q2_0(tensor, weights, scales, zp);
-            mapped->hint_evict(abs_off, tensor.bsize);
-
-            arrays.emplace(name, std::move(weights));
-            arrays.emplace(name_prefix + ".scales", std::move(scales));
-            arrays.emplace(name_prefix + ".zp", std::move(zp));
-            qtype.emplace(name_prefix + ".qtype", GGUF_TYPE_Q2_0);
-        } else if (ti.type == GGUF_TYPE_Q8_K) {
-            // Q8_K: 256 weights/block, f32 scale (NOT f16), 16 i16 bsums (ignored).
-            // block_q8_K: [f32 d][i8 qs[256]][i16 bsums[16]] = 4+256+32 = 292 bytes.
-            auto [wb, sb, zb] = quant_sizes(ti);
-            (void)zb;
-            char* buf_ptr = quant_buf->get_ptr<char>();
-
-            auto shape = get_shape(tensor);
-            auto scale_shape = shape;
-            scale_shape.back() /= 256;  // one f32 scale per 256-weight block
-
-            std::shared_ptr<void> so_buf(quant_buf);
-            ov::Tensor w_view(ov::element::i8, shape, static_cast<void*>(buf_ptr + quant_offset));
-            ov::Tensor weights_t(w_view, so_buf);
-            quant_offset += wb;
-            ov::Tensor s_view(ov::element::f32, scale_shape, static_cast<void*>(buf_ptr + quant_offset));
-            ov::Tensor scales_t(s_view, so_buf);
-            quant_offset += sb;
-
-            gguf_fill_sym(tensor, weights_t, scales_t);
-            mapped->hint_evict(abs_off, tensor.bsize);
-
-            arrays.emplace(name, std::move(weights_t));
-            arrays.emplace(name_prefix + ".scales", std::move(scales_t));
-            qtype.emplace(name_prefix + ".qtype", GGUF_TYPE_Q8_K);
-        } else if (ti.type == GGUF_TYPE_Q8_0 || ti.type == GGUF_TYPE_Q5_0 || ti.type == GGUF_TYPE_Q6_K) {
-            // Symmetric: i8 weights (no u32 packing) + f16 scales. No zero-point.
-            auto [wb, sb, zb] = quant_sizes(ti);
-            (void)zb;
-            char* buf_ptr = quant_buf->get_ptr<char>();
-
-            auto shape = get_shape(tensor);
-            const uint64_t weights_per_block = (ti.type == GGUF_TYPE_Q6_K) ? 16 : 32;
-            auto scale_shape = shape;
-            scale_shape.back() /= weights_per_block;
-
-            std::shared_ptr<void> so_buf(quant_buf);
-            ov::Tensor w_view(ov::element::i8, shape, static_cast<void*>(buf_ptr + quant_offset));
-            ov::Tensor weights(w_view, so_buf);
-            quant_offset += wb;
-            ov::Tensor s_view(ov::element::f16, scale_shape, static_cast<void*>(buf_ptr + quant_offset));
-            ov::Tensor scales(s_view, so_buf);
-            quant_offset += sb;
-
-            gguf_fill_sym(tensor, weights, scales);
-            mapped->hint_evict(abs_off, tensor.bsize);
-
-            arrays.emplace(name, std::move(weights));
-            arrays.emplace(name_prefix + ".scales", std::move(scales));
-            qtype.emplace(name_prefix + ".qtype", static_cast<GgufTensorType>(ti.type));
-        } else if (ti.type == GGUF_TYPE_Q4_1 || ti.type == GGUF_TYPE_Q4_K || ti.type == GGUF_TYPE_Q5_K ||
-                   ti.type == GGUF_TYPE_Q5_1) {
-            // Asymmetric: weights + f16 scales + zero-point. Q4_K matmul weights are decoded and
-            // requantized group-wise to u4 with an integer zero-point; Q8_0_C sources keep f16.
-            auto [wb, sb, zb] = quant_sizes(ti);
-            char* buf_ptr = quant_buf->get_ptr<char>();
-
-            auto shape = get_shape(tensor);
-            const bool is_4bit = (ti.type == GGUF_TYPE_Q4_1 || ti.type == GGUF_TYPE_Q4_K);
-            const uint64_t weights_per_block = 32;
-
-            auto weights_shape = shape;
-            if (is_4bit)
-                weights_shape.back() /= 8;  // u32 packs 8 u4
-            auto scale_shape = shape;
-            scale_shape.back() /= weights_per_block;
-
-            std::shared_ptr<void> so_buf(quant_buf);
-            ov::element::Type w_elem = is_4bit ? ov::element::u32 : ov::element::i8;
-            ov::Tensor w_view(w_elem, is_4bit ? weights_shape : shape, static_cast<void*>(buf_ptr + quant_offset));
-            ov::Tensor weights(w_view, so_buf);
-            quant_offset += wb;
-            ov::Tensor s_view(ov::element::f16, scale_shape, static_cast<void*>(buf_ptr + quant_offset));
-            ov::Tensor scales(s_view, so_buf);
-            quant_offset += sb;
-            // Both ingest paths must agree on the zero-point representation; see
-            // gguf_zero_point_type in quant/weights.hpp for why it matters.
-            const auto zp_elem = gguf_zero_point_type(name, static_cast<GgufTensorType>(ti.type));
-            // Q4_K performs a real group-wise requantization; Q2_0's integer zero-point is exact.
-            if (zp_elem == ov::element::u8 && ti.type == GGUF_TYPE_Q4_K) {
-                notify_lossy_weight_approximation(LossyWeightApproximation::Q4_K_REQUANT);
-            }
-            ov::Tensor zp(zp_elem, scale_shape);
-            quant_offset += zb;
-
-            gguf_fill_asym(tensor, weights, scales, zp);
-            mapped->hint_evict(abs_off, tensor.bsize);
-
-            arrays.emplace(name, std::move(weights));
-            arrays.emplace(name_prefix + ".scales", std::move(scales));
-            arrays.emplace(name_prefix + ".zp", std::move(zp));
-            qtype.emplace(name_prefix + ".qtype", static_cast<GgufTensorType>(ti.type));
-        } else if (ti.type == GGUF_TYPE_MXFP4) {
-            // MXFP4: slice weight (f4e2m1) + scale (f8e8m0) out of quant_buf.
-            auto [wb, sb, dummy_bb] = quant_sizes(ti);
-            (void)dummy_bb;
-            char* buf_ptr = quant_buf->get_ptr<char>();
-
-            auto shape = get_shape(tensor);
-            const size_t cols = shape.back();
-            const size_t groups = cols / 32;
-            ov::Shape scale_shape = shape;
-            scale_shape.back() = groups;
-
-            std::shared_ptr<void> so_buf(quant_buf);
-            ov::Tensor w_view(ov::element::f4e2m1, shape, static_cast<void*>(buf_ptr + quant_offset));
-            ov::Tensor weights(w_view, so_buf);
-            quant_offset += wb;
-
-            ov::Tensor s_view(ov::element::f8e8m0, scale_shape, static_cast<void*>(buf_ptr + quant_offset));
-            ov::Tensor scales(s_view, so_buf);
-            quant_offset += sb;
-
-            gguf_fill_mxfp4(tensor, weights, scales);
-            mapped->hint_evict(abs_off, tensor.bsize);
-
-            constexpr std::string_view weight_suffix = ".weight";
-            const std::string prefix = name.substr(0, name.length() - weight_suffix.length());
-            arrays.emplace(name, std::move(weights));
-            arrays.emplace(prefix + ".scales", std::move(scales));
-            qtype.emplace(prefix + ".qtype", GGUF_TYPE_MXFP4);
-        } else {
+        const auto layout = quant_layout(ti.type);
+        if (!layout) {
             ov::Tensor loaded = extract_tensor_data(tensor, mapped);  // zero-copy mmap view
-            OPENVINO_ASSERT(arrays.emplace(name, loaded).second, "[load_gguf] duplicate tensor name '", name, "'");
-            constexpr std::string_view weight_suffix = ".weight";
-            if (name.size() >= weight_suffix.size()) {
-                const std::string name_prefix = name.substr(0, name.length() - weight_suffix.length());
-                qtype.emplace(name_prefix + ".qtype", static_cast<GgufTensorType>(ti.type));
-            }
+            const bool inserted = arrays.emplace(name, std::move(loaded)).second;
+            OPENVINO_ASSERT(inserted, "[load_gguf] duplicate tensor name '", name, "'");
+            qtype.emplace(name_prefix + ".qtype", static_cast<GgufTensorType>(ti.type));
+            continue;
         }
+
+        const auto shape = get_shape(tensor);
+        ov::Shape weight_shape = shape;
+        weight_shape.back() /= layout->weight_div;
+        ov::Shape scale_shape = shape;
+        scale_shape.back() /= layout->group_size;
+
+        // Carve each repacked tensor out of the single quant_buf allocation, in the same order
+        // and with the same sizes pass 1 reserved for it.
+        char* buf_ptr = quant_buf->get_ptr<char>();
+        std::shared_ptr<void> so_buf(quant_buf);
+        size_t part = 0;
+        const auto carve = [&](const ov::element::Type& et, const ov::Shape& s) {
+            ov::Tensor view(et, s, static_cast<void*>(buf_ptr + quant_offset));
+            quant_offset += quant_bytes[idx][part++];
+            return ov::Tensor(view, so_buf);
+        };
+        ov::Tensor weights = carve(layout->weight_type, weight_shape);
+        ov::Tensor scales = carve(layout->scale_type, scale_shape);
+        ov::Tensor zp;
+        if (layout->asymmetric) {
+            // Preserve the native zero-point representation, including u8 for Q2_0.
+            zp = carve(gguf_zero_point_type(name, static_cast<GgufTensorType>(ti.type)), scale_shape);
+        }
+
+        if (ti.type == GGUF_TYPE_MXFP4) {
+            gguf_fill_mxfp4(tensor, weights, scales);
+        } else if (ti.type == GGUF_TYPE_Q2_0) {
+            gguf_fill_q2_0(tensor, weights, scales, zp);
+        } else if (layout->asymmetric) {
+            gguf_fill_asym(tensor, weights, scales, zp);
+        } else {
+            gguf_fill_sym(tensor, weights, scales);
+        }
+        mapped->hint_evict(abs_off, tensor.bsize);
+
+        arrays.emplace(name, std::move(weights));
+        arrays.emplace(name_prefix + ".scales", std::move(scales));
+        if (zp) {
+            arrays.emplace(name_prefix + ".zp", std::move(zp));
+        }
+        qtype.emplace(name_prefix + ".qtype", static_cast<GgufTensorType>(ti.type));
     }
 
-    return {metadata, arrays, qtype, mapped, quant_buf};
+    return {std::move(metadata), std::move(arrays), std::move(qtype), std::move(mapped), std::move(quant_buf)};
 }
 
 std::map<std::string, GGUFMetaData> decoder_config_from_meta(
@@ -984,30 +789,10 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     config["nextn_predict_layers"] = ssm_key("nextn_predict_layers");
     // Explicit per-layer recurrent flags. llama.cpp consults this FIRST and only falls back to
     // full_attention_interval when it is absent (src/models/qwen35.cpp load_arch_hparams).
-    {
-        std::vector<int32_t> recr;
-        const std::string key = arch + ".attention.recurrent_layers";
-        if (metadata.count(key)) {
-            const auto& t = std::get<ov::Tensor>(metadata.at(key));
-            const auto* p = t.data<uint32_t>();
-            for (size_t i = 0; i < t.get_size(); ++i)
-                recr.push_back(static_cast<int32_t>(p[i]));
-        }
-        config["recurrent_layer_flags"] = recr;
-    }
+    config["recurrent_layer_flags"] = metadata_to_i32_vector(metadata, arch + ".attention.recurrent_layers");
 
     // M-RoPE section widths (qwen35 / qwen3vl): 4 per-axis rotary section sizes.
-    {
-        std::vector<int32_t> sections;
-        const std::string key = arch + ".rope.dimension_sections";
-        if (metadata.count(key)) {
-            const auto& t = std::get<ov::Tensor>(metadata.at(key));
-            const auto* p = t.data<uint32_t>();
-            for (size_t i = 0; i < t.get_size() && i < 4; ++i)
-                sections.push_back(static_cast<int32_t>(p[i]));
-        }
-        config["rope_sections"] = sections;
-    }
+    config["rope_sections"] = metadata_to_i32_vector(metadata, arch + ".rope.dimension_sections", 4);
 
     // Optional explicit attention (softmax) scale; 0 -> use 1/sqrt(head_size).
     // Gemma4 uses scale=1.0 (no pre-attn scaling), per llama.cpp hparams.f_attention_scale=1.0.
@@ -1064,12 +849,8 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
             const auto& t = std::get<ov::Tensor>(v);
             if (t.get_element_type() == ov::element::boolean) {
                 // Boolean array: convert to vector<int32_t> (1=SWA, 0=global) for the builder.
-                const size_t n = t.get_size();
-                std::vector<int32_t> swa_flags(n);
-                const auto* bdata = t.data<uint8_t>();
-                for (size_t i = 0; i < n; ++i)
-                    swa_flags[i] = bdata[i] ? 1 : 0;
-                config["swa_layer_flags"] = swa_flags;
+                config["swa_layer_flags"] =
+                    metadata_to_i32_vector(metadata, arch + ".attention.sliding_window_pattern");
                 config["swa_layer_pattern"] = 0;  // 0 = use per-layer flags, not period
             } else {
                 config["swa_layer_pattern"] = metadata_to_int(metadata, arch + ".attention.sliding_window_pattern");
@@ -1107,6 +888,4 @@ std::map<std::string, GGUFMetaData> decoder_config_from_meta(
     return config;
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf
