@@ -2462,6 +2462,19 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_3x32_zp) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_zp_size_mismatch) {
+    // An undersized packed uint8 zero_points (1 byte where 6 are needed) must be rejected before the
+    // Constant copy reads past it.
+    try {
+        convert_model("com.microsoft/matmulnbits_zp_size_mismatch.onnx");
+        FAIL() << "ONNX Importer did not reject an undersized packed zero_points";
+    } catch (const std::exception& e) {
+        EXPECT_THAT(e.what(), testing::HasSubstr("packed uint8 zero_points is too small"));
+    } catch (...) {
+        FAIL() << "Unexpected exception type thrown";
+    }
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_com_microsoft_matmulnbits_no_zp_block_size) {
     const auto model = convert_model("com.microsoft/matmulnbits_no_zp_block_size.onnx");
     auto test_case = ov::test::TestCase(model, s_device);

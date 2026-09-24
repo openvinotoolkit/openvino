@@ -16,10 +16,7 @@ using namespace ov::frontend;
 // For compatibility purposes, need to remove when will be unused
 const std::string ONNX_FE = "onnx";
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace tests {
+namespace ov::frontend::onnx::tests {
 
 const std::string ONNX_FE = ::ONNX_FE;
 
@@ -137,7 +134,4 @@ std::string onnx_backend_manifest(const std::string& manifest) {
     return ov::util::path_join({ov::test::utils::getExecutableDirectory(), manifest}).string();
 }
 
-}  // namespace tests
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::tests

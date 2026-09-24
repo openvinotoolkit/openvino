@@ -54,6 +54,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/fusions/space_to_depth_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/fusions/strided_slice_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gtest_main_gpu.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/allocation_order_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/canonicalize_fused_shapes_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/convert_and_copy_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/dispatch_data_func_test.cpp
