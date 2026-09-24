@@ -322,8 +322,6 @@ To add your own robot, start with the `plugin quick start <https://github.com/op
 Reliability improvements
 ------------------------
 
-* Automated tests now check model loading, text tokenization, and prediction on OpenVINO using published ACT, pi05, and SmolVLA exports.
-* Fuzz testing led to stricter validation of model file paths, normalization statistics, image inputs, and duplicate input names.
 * WidowX now reports the same joint-position fields that Studio records, fixing inference failures caused by an unexpected number of state values.
 * Updated OpenVINO dependencies fix model compatibility issues and a slowdown in pi05 inference.
 
