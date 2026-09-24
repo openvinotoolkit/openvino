@@ -48,6 +48,7 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/builder/blocks/ffn.cpp"
     "${FE_SRC_DIR}/builder/blocks/gated_delta_net.cpp"
     "${FE_SRC_DIR}/builder/blocks/qkv_repack.cpp"
+    "${FE_SRC_DIR}/op/add.cpp"
     "${FE_SRC_DIR}/op/add_id.cpp"
     "${FE_SRC_DIR}/op/argsort.cpp"
     "${FE_SRC_DIR}/op/clamp.cpp"

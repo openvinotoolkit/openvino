@@ -10,7 +10,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gelu.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/sigmoid.hpp"
+#include "openvino/op/swish.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
@@ -30,9 +30,7 @@ OutputVector translate_glu_geglu(const NodeContext& context) {
 OutputVector translate_glu_geglu_quick(const NodeContext& context) {
     auto inputs = get_glu_inputs(context);
     auto coefficient = ov::op::v0::Constant::create(inputs.first.get_element_type(), {}, {1.702f});
-    auto scaled = std::make_shared<ov::op::v1::Multiply>(inputs.first, coefficient);
-    auto sigmoid = std::make_shared<ov::op::v0::Sigmoid>(scaled);
-    auto gate = std::make_shared<ov::op::v1::Multiply>(inputs.first, sigmoid);
+    auto gate = std::make_shared<ov::op::v4::Swish>(inputs.first, coefficient);
     auto res = std::make_shared<ov::op::v1::Multiply>(gate, inputs.second);
 
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());

@@ -15,6 +15,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sigmoid.hpp"
+#include "openvino/op/swish.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "utils.hpp"
@@ -23,13 +24,11 @@ namespace ov::frontend::gguf::op {
 
 namespace {
 
-// Detect silu(x) / x, which simplifies to sigmoid(x). ggml emits this in qwen2moe's shared-expert
-// gate; computing it as a literal divide is a 0/0 NaN at x == 0. Rather than probe ggml op_params
-// for a SILU tag (which would pull ggml.h into the frontend), we match the numerator's graph shape:
-// our silu translator emits Multiply(x, Sigmoid(x)), so numerator == silu(denominator) exactly when
-// the Multiply's two inputs are the denominator and Sigmoid(denominator). A structural match here is
-// semantically silu(x)/x regardless of how ggml labeled the source op.
+// Fold silu(x) / x to sigmoid(x), including at x == 0.
 bool is_silu_div_pattern(const ov::Output<ov::Node>& numerator, const ov::Output<ov::Node>& denominator) {
+    if (auto swish = ov::as_type_ptr<ov::op::v4::Swish>(numerator.get_node_shared_ptr())) {
+        return swish->get_input_size() == 1 && swish->input_value(0) == denominator;
+    }
     auto mul = std::dynamic_pointer_cast<ov::op::v1::Multiply>(numerator.get_node_shared_ptr());
     if (!mul) {
         return false;

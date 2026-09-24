@@ -31,6 +31,9 @@ OutputVector translate_permute(const NodeContext& context) {
     ov::Output<Node> res;
     auto src = context.get_input(0);
     auto perm_order = context.get_attribute<std::vector<int64_t>>("perm", {0, 2, 1, 3});
+    if (op_case == 1 && src.get_partial_shape().rank() == 3 && perm_order.size() == 4 && perm_order[0] == 0) {
+        perm_order = {perm_order[1] - 1, perm_order[2] - 1, perm_order[3] - 1};
+    }
     auto perm = ov::op::v0::Constant::create(ov::element::i64, {perm_order.size()}, perm_order);
 
     if (op_case == 1) {

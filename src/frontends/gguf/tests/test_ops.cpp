@@ -12,6 +12,7 @@
 #include <cmath>
 #include <functional>
 
+#include "op_table.hpp"
 #include "op_test_utils.hpp"
 #include "openvino/op/selective_ssm.hpp"
 #include "openvino/op/topk.hpp"
@@ -3083,8 +3084,6 @@ TEST(GGUFOps, Fill) {
 }
 
 // Div: plain element-wise divide when both inputs already share a shape.
-// (The silu(x)/x -> sigmoid(x) fold requires input 0 to be a Multiply(x,Sigmoid(x)) node, which a
-// single-op decoder cannot express -- that path is exercised by the qwen2moe E2E test instead.)
 TEST(GGUFOps, Div) {
     auto model = SingleOpBuilder()
                      .op("GGML_OP_DIV")
@@ -3153,6 +3152,156 @@ TEST(GGUFOps, Set) {
 
     // Flattened dst with src written at [2,3], reshaped back to [2,4].
     expect_near(out, {1, 1, 10, 20, 1, 1, 1, 1});
+}
+
+TEST(GGUFOps, AddMixedPrecisionPreservesLeftType) {
+    for (auto type : {ov::element::f32, ov::element::f16}) {
+        const auto rhs_type = type == ov::element::f32 ? ov::element::f16 : ov::element::f32;
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_ADD")
+                         .input("a", type, {1, 3})
+                         .input("b", rhs_type, {1, 3})
+                         .output("out", type, {1, 3})
+                         .build();
+        auto a = type == ov::element::f32 ? make_f32_tensor({1, 3}, {1, 2, 3}) : make_f16_tensor({1, 3}, {1, 2, 3});
+        auto b = rhs_type == ov::element::f32 ? make_f32_tensor({1, 3}, {0.5f, -1, 2})
+                                              : make_f16_tensor({1, 3}, {0.5f, -1, 2});
+        auto out = run_on_cpu(model, {{"a", a}, {"b", b}});
+        ASSERT_EQ(out.get_element_type(), type);
+        const std::vector<float> expected{1.5f, 1, 5};
+        for (size_t i = 0; i < expected.size(); ++i) {
+            const float value = type == ov::element::f32 ? out.data<float>()[i] : float(out.data<ov::float16>()[i]);
+            EXPECT_EQ(value, expected[i]);
+        }
+    }
+}
+
+TEST(GGUFOps, SwigluClampF16RoundsOnce) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_GLU_OP_SWIGLU_CLAMP")
+                     .input("gate", ov::element::f16, {1, 6})
+                     .input("up", ov::element::f16, {1, 6})
+                     .output("out", ov::element::f16, {1, 6})
+                     .attr<bool>("swapped", false)
+                     .attr<float>("glu_limit", 3.0f)
+                     .build();
+    auto gate = make_f16_tensor({1, 6}, {-2.3f, -0.7f, 0.3f, 1.7f, 3.7f, -5.1f});
+    auto up = make_f16_tensor({1, 6}, {2.7f, -1.3f, 0.7f, -4.1f, 1.3f, 3.4f});
+    ov::TensorVector outputs{ov::Tensor(ov::element::f16, {1, 6})};
+    ASSERT_TRUE(model->evaluate(outputs, {gate, up}));
+    for (size_t i = 0; i < 6; ++i) {
+        const float g = std::min(float(gate.data<ov::float16>()[i]), 3.0f);
+        const float u = std::clamp(float(up.data<ov::float16>()[i]), -3.0f, 3.0f);
+        const ov::float16 expected(g / (1.0f + std::exp(-g)) * u);
+        EXPECT_EQ(outputs[0].data<ov::float16>()[i], expected);
+    }
+}
+
+TEST(GGUFOps, PermuteCase1RankThree) {
+    for (const auto& perm : {std::vector<int64_t>{0, 2, 1, 3}, std::vector<int64_t>{1, 0, 2}}) {
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_PERMUTE")
+                         .input("x", ov::element::f32, {-1, 3, 2})
+                         .output("out", ov::element::f32, {3, -1, 2})
+                         .op_case(1)
+                         .attr<std::vector<int64_t>>("perm", perm)
+                         .build();
+        auto out = run_on_cpu(model, {{"x", make_f32_tensor({2, 3, 2}, {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11})}});
+        ASSERT_EQ(out.get_shape(), (ov::Shape{3, 2, 2}));
+        expect_near(out, {0, 1, 6, 7, 2, 3, 8, 9, 4, 5, 10, 11});
+    }
+}
+
+TEST(GGUFOps, DiagDynamicWidth) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_DIAG")
+                     .input("x", ov::element::f32, {1, 2, 1, -1})
+                     .output("out", ov::element::f32, {1, 2, -1, -1})
+                     .build();
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 2, 1, 2}, {2, 3, 5, 7})}});
+    ASSERT_EQ(out.get_shape(), (ov::Shape{1, 2, 2, 2}));
+    expect_near(out, {2, 0, 0, 3, 5, 0, 0, 7});
+}
+
+TEST(GGUFOps, DivSiluAtZero) {
+    using namespace ov::frontend::gguf;
+    auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3});
+    x->output(0).set_names({"x"});
+    auto silu_decoder = SingleOpBuilder()
+                            .op("GGML_UNARY_OP_SILU")
+                            .input("x", ov::element::f32, {1, 3})
+                            .output("silu", ov::element::f32, {1, 3})
+                            .decoder();
+    auto tensors = std::make_shared<TensorMap>();
+    (*tensors)["x"] = x;
+    NodeContext silu_context(silu_decoder, tensors);
+    (*tensors)["silu"] = op::translate_unary_silu(silu_context)[0];
+    auto decoder = SingleOpBuilder()
+                       .op("GGML_OP_DIV")
+                       .input("silu", ov::element::f32, {1, 3})
+                       .input("x", ov::element::f32, {1, 3})
+                       .output("out", ov::element::f32, {1, 3})
+                       .decoder();
+    NodeContext context(decoder, tensors);
+    auto model = std::make_shared<ov::Model>(op::translate_div(context), ov::ParameterVector{x});
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 3}, {0, -1, 1})}});
+    expect_near(out, {0.5f, 1.0f / (1.0f + std::exp(1.0f)), 1.0f / (1.0f + std::exp(-1.0f))});
+}
+
+TEST(GGUFOps, RopeOffsetPreservesPrefixAndTail) {
+    // ggml CPU oracle: rope_ext [8,2,2,1], dims=4, offset=2, positions={2,5}; normal and NEOX.
+    const std::vector<std::vector<float>> expected{
+        {-2, -1.75f, 1.76084197f,   -0.843762517f, -0.984801054f, -0.769848704f, -0.5f, -0.25f,
+         0,  0.25f,  -0.890046477f, 0.142538577f,  0.974801719f,  1.26974869f,   1.5f,  1.75f,
+         2,  2.25f,  3.34619737f,   -1.61723971f,  2.83381844f,   3.39587569f,   3.5f,  3.75f,
+         4,  4.25f,  5.83137035f,   -2.9677639f,   4.73136091f,   5.49333477f,   5.5f,  5.75f},
+        {-2, -1.75f, 1.53351772f,  -1.23475099f, -0.947799265f, -0.774848342f, -0.5f, -0.25f,
+         0,  0.25f,  -1.11737084f, 0.724851668f, 0.0385018587f, 1.26474905f,   1.5f,  1.75f,
+         2,  2.25f,  3.58592844f,  2.584131f,    -1.54632413f,  3.38338089f,   3.5f,  3.75f,
+         4,  4.25f,  6.07110119f,  4.48167324f,  -2.8968482f,   5.48083973f,   5.5f,  5.75f}};
+    for (int mode = 0; mode < 2; ++mode) {
+        RopeConfig cfg;
+        cfg.n_dims = 4;
+        cfg.n_ctx_orig = 4096;
+        cfg.freq_base = 10000;
+        cfg.freq_scale = 1;
+        cfg.attn_factor = 1;
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_ROPE")
+                         .input("data", ov::element::f32, {1, 2, 2, 8})
+                         .input("pos", ov::element::i32, {1, 1, 1, 2})
+                         .output("out", ov::element::f32, {1, 2, 2, 8})
+                         .op_case(mode << 16)
+                         .attr<RopeConfig>("rope_config", cfg)
+                         .attr<int64_t>("rope_offset", 2)
+                         .build();
+        std::vector<float> data(32);
+        for (size_t i = 0; i < data.size(); ++i)
+            data[i] = (float(i) - 8) * 0.25f;
+        ov::Tensor pos(ov::element::i32, {1, 1, 1, 2});
+        pos.data<int32_t>()[0] = 2;
+        pos.data<int32_t>()[1] = 5;
+        auto out = run_on_cpu(model, {{"data", make_f32_tensor({1, 2, 2, 8}, data)}, {"pos", pos}});
+        expect_near(out, expected[mode]);
+    }
+}
+
+TEST(GGUFOps, RopeInvalidOffsetThrows) {
+    for (int64_t offset : {-2, 1, 6}) {
+        RopeConfig cfg;
+        cfg.n_dims = 4;
+        cfg.freq_base = 10000;
+        cfg.freq_scale = 1;
+        cfg.attn_factor = 1;
+        EXPECT_ANY_THROW(SingleOpBuilder()
+                             .op("GGML_OP_ROPE")
+                             .input("data", ov::element::f32, {1, 2, 2, 8})
+                             .input("pos", ov::element::i32, {1, 1, 1, 2})
+                             .output("out", ov::element::f32, {1, 2, 2, 8})
+                             .attr<RopeConfig>("rope_config", cfg)
+                             .attr<int64_t>("rope_offset", offset)
+                             .build());
+    }
 }
 
 }  // namespace

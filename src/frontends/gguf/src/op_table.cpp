@@ -32,7 +32,7 @@ std::unordered_map<std::string, CreatorFunction> get_supported_ops() {
         {"GGML_GLU_OP_SWIGLU", op::translate_glu_swiglu},
         {"GGML_GLU_OP_SWIGLU_CLAMP", op::translate_glu_swiglu_clamp},
         {"GGML_GLU_OP_SWIGLU_OAI", op::translate_glu_swiglu_oai},
-        {"GGML_OP_ADD", op::translate_1to1_match_2_inputs<v1::Add>},
+        {"GGML_OP_ADD", op::translate_add},
         {"GGML_OP_ADD1", op::translate_1to1_match_2_inputs<v1::Add>},
         {"GGML_OP_ADD_ID", op::translate_add_id},
         {"GGML_OP_ARGSORT", op::translate_argsort},

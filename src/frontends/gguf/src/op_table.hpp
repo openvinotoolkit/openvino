@@ -12,6 +12,8 @@ namespace op {
 
 #define GGUF_OP_CONVERTER(op) OutputVector op(const NodeContext& context)
 
+GGUF_OP_CONVERTER(translate_add);
+
 // Structural / memory ops.
 GGUF_OP_CONVERTER(translate_concat);
 GGUF_OP_CONVERTER(translate_cont);
