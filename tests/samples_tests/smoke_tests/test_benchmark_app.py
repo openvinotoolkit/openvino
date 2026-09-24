@@ -117,6 +117,10 @@ def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape
 def test_benchmark_app_help(sample_language):
     get_cmd_output(get_executable(sample_language), '-h')
 
+def test_parse_devices_with_empty_entries():
+    assert parse_devices('MULTI:CPU,,GPU') == ['MULTI', 'CPU', 'GPU']
+    assert parse_devices('MULTI:CPU, ,GPU') == ['MULTI', 'CPU', 'GPU']
+
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 @pytest.mark.parametrize('api', ['sync', 'async'])
@@ -519,6 +523,3 @@ def test_benchmark_app_sub_ms_console_output_only(sample_language, json_stats, c
         report = read_csv_report(report_folder / 'benchmark_report.csv')
 
     assert get_avg_latency_from_report(report) < 1.0
-
-def test_parse_devices_with_empty_entry():
-    assert parse_devices("MULTI:CPU,,GPU") == ["MULTI", "CPU", "GPU"]
