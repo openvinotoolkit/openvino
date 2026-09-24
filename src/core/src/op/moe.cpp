@@ -54,8 +54,9 @@ void MOE::validate_and_infer_types() {
     for (size_t i = 4; i < base_inputs_count; i++) {
         const auto& ps = get_input_partial_shape(i);
         NODE_VALIDATION_CHECK(this, ps.is_static(), "Weights must have static shape.");
-        // Note: dynamic element type means empty zero point input
-        if (get_input_element_type(i) != ov::element::dynamic) {
+        // Note: dynamic element type means empty zero point input,
+        // a single-element input is a zero point shared by all experts (e.g. symmetric u3 zp)
+        if (get_input_element_type(i) != ov::element::dynamic && ov::shape_size(ps.to_shape()) != 1) {
             NODE_VALIDATION_CHECK(this,
                                   num_experts == get_input_shape(i)[0],
                                   "All weight inputs must have the same first dimension (num_experts).");
