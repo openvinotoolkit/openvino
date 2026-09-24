@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <cstddef>
 #include <type_traits>
 
 #include "openvino/runtime/aligned_buffer.hpp"
@@ -140,6 +141,16 @@ public:
 
     SharedBuffer(char* data, size_t size, const T& shared_object)
         : SharedBuffer(data, size, shared_object, get_or_make_descriptor(shared_object)) {}
+
+    // std::byte* overloads so callers holding an IBuffer::data()-style pointer don't need to cast.
+    SharedBuffer(std::byte* data,
+                 size_t size,
+                 const T& shared_object,
+                 const std::shared_ptr<IBufferDescriptor>& descriptor)
+        : SharedBuffer(reinterpret_cast<char*>(data), size, shared_object, descriptor) {}
+
+    SharedBuffer(std::byte* data, size_t size, const T& shared_object)
+        : SharedBuffer(reinterpret_cast<char*>(data), size, shared_object) {}
 };
 
 /// \brief SharedStreamBuffer class to store pointer to pre-allocated buffer and provide streambuf interface.
