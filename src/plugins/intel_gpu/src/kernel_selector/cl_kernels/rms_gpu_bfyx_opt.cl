@@ -13,12 +13,9 @@
 #if HAS_DYNAMIC_QUANTIZE
 #include "include/batch_headers/common.cl"
 #include "include/f8_utils.cl"
+#include "include/dynamic_quantize_utils.cl"
 #define NORMALIZED_TYPE float
 #define TO_NORMALIZED_TYPE(x) convert_float(x)
-#define TO_TYPE_SAT_(type, x) _convert_##type##_sat(x)
-#define TO_TYPE_SAT(type, x) TO_TYPE_SAT_(type, x)
-#define TO_TYPE_N_SAT_(type, n, x) _convert_##type##n##_sat(x)
-#define TO_TYPE_N_SAT(type, n, x) TO_TYPE_N_SAT_(type, n, x)
 #else
 #define NORMALIZED_TYPE OUTPUT_TYPE
 #define TO_NORMALIZED_TYPE(x) TO_OUTPUT_TYPE(x)
@@ -237,23 +234,21 @@ KERNEL(rms_gpu_bfyx_opt)(
 #if HAS_DYNAMIC_QUANTIZE
             unroll_for (int j = 0; j < NUM_SCALES_PER_SUBGROUP; ++j) {
                 max_values[j] = sub_group_reduce_max(max_values[j]);
-                tmp_scales[j] = exp2(floor(log2(_convert_float(OUTPUT_VAL_MAX) / max_values[j])));
+                tmp_scales[j] = DQ_COMPUTE_MXFP_SCALE(max_values[j]);
             }
             if (get_sub_group_local_id() < NUM_SCALES_PER_SUBGROUP) {
                 int scale_output_idx = (output_data_offset + subgroup_offset + i * get_sub_group_size()) / 32 + get_sub_group_local_id();
-                scale[scale_output_idx] = TO_OUTPUT1_TYPE(1.0f / tmp_scales[get_sub_group_local_id()]);
+                scale[scale_output_idx] = DQ_COMPUTE_OUTPUT_SCALE(tmp_scales[get_sub_group_local_id()]);
             }
             unroll_for (int j = 0; j < SUBGROUP_BLOCK_SIZE; j++) {
                 vec_tmp[j] *= tmp_scales[j / 2];
             }
+            BLOCK_WRITE(output, output_data_offset + subgroup_offset + i * get_sub_group_size(), DQ_CAST_TO_OUTPUT_TYPE_N(SUBGROUP_BLOCK_SIZE, vec_tmp));
 #endif // HAS_DYNAMIC_QUANTIZE
 #endif // SUBGROUP_BLOCK_SIZE == 1
-            #if HAS_DYNAMIC_QUANTIZE
-                MAKE_VECTOR_TYPE(OUTPUT_TYPE, SUBGROUP_BLOCK_SIZE) vec_tmp_quantized = TO_TYPE_N_SAT(OUTPUT_TYPE, SUBGROUP_BLOCK_SIZE, vec_tmp);
-                BLOCK_WRITE(output, output_data_offset + subgroup_offset + i * get_sub_group_size(), vec_tmp_quantized);
-            #else
+            #if !(HAS_DYNAMIC_QUANTIZE)
                 BLOCK_WRITE(output, output_data_offset + subgroup_offset + i * get_sub_group_size(), vec_tmp);
-            #endif // HAS_DYNAMIC_QUANTIZE
+            #endif // !(HAS_DYNAMIC_QUANTIZE)
         }
     }
 
@@ -288,15 +283,15 @@ KERNEL(rms_gpu_bfyx_opt)(
             max_value = fmax(max_value, fabs(normalized));
             if (cache_idx == iters_per_scale - 1) {
                 max_value = sub_group_reduce_max(max_value);
-                float scale_value = exp2(floor(log2(_convert_float(OUTPUT_VAL_MAX) / max_value)));
+                float scale_value = DQ_COMPUTE_MXFP_SCALE(max_value);
                 int i_ = i - iters_per_scale + 1;
                 for (int j = 0; j < iters_per_scale; ++j) {
                     output[output_data_offset + subgroup_offset + get_sub_group_local_id() + (i_ + j) * get_sub_group_size()]
-                        = TO_TYPE_SAT(OUTPUT_TYPE, cache[j] * scale_value);
+                        = DQ_COMPUTE_OUTPUT_VALUE(cache[j], scale_value);
                 }
                 if (get_sub_group_local_id() == 0) {
                     int scale_output_idx = (output_data_offset + subgroup_offset + i_ * get_sub_group_size()) / 32;
-                    scale[scale_output_idx] = TO_OUTPUT1_TYPE(1.0f / scale_value);
+                    scale[scale_output_idx] = DQ_COMPUTE_OUTPUT_SCALE(scale_value);
                 }
                 max_value = DQ_MAX_SEARCH_INIT_VAL;
             }
