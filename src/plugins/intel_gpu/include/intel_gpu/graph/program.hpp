@@ -74,7 +74,7 @@ public:
         }
         void calculate_BFS_processing_order();
         size_t size() { return _processing_order.size(); }
-        bool is_correct(program_node* node);
+        bool is_correct() const;
 
         node_iterator get_processing_iterator(program_node& node) const { return processing_order_iterators.at(&node); }
         void clear() {
