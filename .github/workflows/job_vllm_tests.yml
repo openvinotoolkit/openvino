@@ -34,6 +34,10 @@ jobs:
     runs-on: ${{ inputs.runner }}
     container:
       image: ${{ inputs.image }}
+      # vLLM's CPU platform forces the multiproc executor (it rewrites
+      # distributed_executor_backend="uni" to "mp"), whose ShmRingBuffer
+      # needs 160 MiB of /dev/shm -- more than Docker's 64 MiB default.
+      options: --shm-size=2g
       volumes:
         - /mount:/mount
         - /home/runner/secrets/:/secrets:ro
