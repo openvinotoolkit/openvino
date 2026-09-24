@@ -3304,4 +3304,81 @@ TEST(GGUFOps, RopeInvalidOffsetThrows) {
     }
 }
 
+TEST(GGUFOps, ContDynamicLayoutRequiresReshape) {
+    for (int op_case : {1, 2, 3}) {
+        auto builder = SingleOpBuilder()
+                           .op("GGML_OP_CONT")
+                           .input("x", ov::element::f32, {1, -1, 3, 2})
+                           .output("out", ov::element::f32, {1, 3, -1, 2})
+                           .op_case(op_case);
+        EXPECT_THROW(builder.build(), ov::Exception);
+        auto model = builder.attr<std::vector<int64_t>>("cont_reshape", {1, 3, -1, 2}).build();
+        std::vector<float> values{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
+        auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 2, 3, 2}, values)}});
+        EXPECT_EQ(out.get_shape(), (ov::Shape{1, 3, 2, 2}));
+        expect_near(out, values);
+
+        auto without_metadata = builder.output("out", ov::element::f32, ov::PartialShape::dynamic()).build();
+        auto reshaped = run_on_cpu(without_metadata, {{"x", make_f32_tensor({1, 2, 3, 2}, values)}});
+        EXPECT_EQ(reshaped.get_shape(), (ov::Shape{1, 3, 2, 2}));
+        expect_near(reshaped, values);
+    }
+}
+
+TEST(GGUFOps, ContDynamicPassThroughPreservesProducer) {
+    for (int op_case : {1, 2, 3}) {
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_CONT")
+                         .input("x", ov::element::f32, {1, -1, 3, 2})
+                         .output("out", ov::element::f32, {1, -1, 3, 2})
+                         .op_case(op_case)
+                         .build();
+        EXPECT_EQ(model->get_results()[0]->input_value(0).get_node_shared_ptr(), model->get_parameters()[0]);
+        EXPECT_EQ(model->get_parameters()[0]->get_friendly_name(), "x");
+        auto without_metadata = SingleOpBuilder()
+                                    .op("GGML_OP_CONT")
+                                    .input("x", ov::element::f32, {1, -1, 3, 2})
+                                    .output("out", ov::element::f32, ov::PartialShape::dynamic())
+                                    .op_case(op_case)
+                                    .build();
+        EXPECT_EQ(without_metadata->get_results()[0]->input_value(0).get_node_shared_ptr(),
+                  without_metadata->get_parameters()[0]);
+    }
+}
+
+TEST(GGUFOps, Pool2DF16AverageWithoutOutputType) {
+    std::shared_ptr<ov::frontend::gguf::GgufDecoder> decoder = std::make_shared<SingleOpDecoder>(
+        "GGML_OP_POOL_2D",
+        std::vector<TensorDesc>{{"x", ov::element::f16, {1, 1, 2, 2}}},
+        std::vector<TensorDesc>{},
+        TensorDesc{"out", ov::element::f32, {1, 1, 1, 1}},
+        std::map<std::string, ov::Any>{{"op_case", 2}, {"pool_params", std::vector<int32_t>{2, 2, 1, 1, 0, 0}}});
+    ov::frontend::gguf::FrontEnd frontend;
+    auto model = frontend.convert(frontend.load(decoder));
+    auto input = make_f16_tensor({1, 1, 2, 2}, {2048, 1, 0, 0});
+    // ggml CPU oracle: F16 2x2 AVG pool of {2048,1,0,0}; F16 accumulation/output loses 0.25.
+    auto out = run_on_cpu(model, {{"x", input}});
+    ASSERT_EQ(out.get_element_type(), ov::element::f32);
+    EXPECT_FLOAT_EQ(out.data<float>()[0], 512.25f);
+}
+
+TEST(GGUFOps, SolveTriDynamicBatchDimensions) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_SOLVE_TRI")
+                     .input("a", ov::element::f32, {-1, -1, 3, 3})
+                     .input("b", ov::element::f32, {-1, -1, 3, 2})
+                     .output("out", ov::element::f32, {-1, -1, 3, 2})
+                     .attr<std::vector<int32_t>>("solve_tri_params", {1, 1, 0})
+                     .build();
+    const std::vector<float> a{2, 0, 0, 3, 1, 0, 1, -1, 2, 1, 0, 0, 2, 2, 0, -1, 1, 1};
+    const std::vector<float> b{2, 4, 5, 7, 3, 1, 1, 3, 4, 8, 2, 5};
+    for (size_t batch : {1, 2}) {
+        auto out = run_on_cpu(
+            model,
+            {{"a", make_f32_tensor({batch, 2 / batch, 3, 3}, a)}, {"b", make_f32_tensor({batch, 2 / batch, 3, 2}, b)}});
+        EXPECT_EQ(out.get_shape(), (ov::Shape{batch, 2 / batch, 3, 2}));
+        expect_near(out, {1, 2, 2, 1, 2, 0, 1, 3, 1, 1, 2, 7});
+    }
+}
+
 }  // namespace

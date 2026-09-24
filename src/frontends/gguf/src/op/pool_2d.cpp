@@ -34,22 +34,21 @@ OutputVector translate_pool_2d(const NodeContext& context) {
     const ov::Shape pads_begin{padding_y, padding_x};
     const ov::Shape pads_end = pads_begin;
 
+    auto input = context.get_input(0);
+    if (input.get_element_type() != ov::element::f32) {
+        input = std::make_shared<ov::op::v0::Convert>(input, ov::element::f32);
+    }
+
     ov::Output<Node> result;
     switch (context.get_op_case()) {
     case 1:
-        result = std::make_shared<ov::op::v1::MaxPool>(context.get_input(0), strides, pads_begin, pads_end, kernel);
+        result = std::make_shared<ov::op::v1::MaxPool>(input, strides, pads_begin, pads_end, kernel);
         break;
     case 2:
-        result =
-            std::make_shared<ov::op::v1::AvgPool>(context.get_input(0), strides, pads_begin, pads_end, kernel, false);
+        result = std::make_shared<ov::op::v1::AvgPool>(input, strides, pads_begin, pads_end, kernel, false);
         break;
     default:
         FRONT_END_OP_CONVERSION_CHECK(false, "Unsupported POOL_2D mode");
-    }
-
-    const auto output_type = context.get_attribute<ov::element::Type>("output_type");
-    if (result.get_element_type() != output_type) {
-        result = std::make_shared<ov::op::v0::Convert>(result, output_type);
     }
 
     return rename_outputs_with_suffix({std::move(result)}, context.get_name());

@@ -32,10 +32,11 @@ OutputVector translate_solve_tri(const NodeContext& context) {
 
     auto a = context.get_input(0);
     auto b = context.get_input(1);
-    const auto a_shape = context.get_input_shape(0).to_shape();
-    FRONT_END_OP_CONVERSION_CHECK(a_shape.size() == 4 && a_shape[2] == a_shape[3],
-                                  "SOLVE_TRI requires square matrices");
-    const int64_t n = static_cast<int64_t>(a_shape[2]);
+    const auto a_shape = context.get_input_shape(0);
+    FRONT_END_OP_CONVERSION_CHECK(
+        a_shape.rank() == 4 && a_shape[2].is_static() && a_shape[3].is_static() && a_shape[2] == a_shape[3],
+        "SOLVE_TRI requires rank 4 with static, square matrix dimensions");
+    const int64_t n = a_shape[2].get_length();
 
     auto b_shape = std::make_shared<ov::op::v3::ShapeOf>(b, ov::element::i64);
     auto zero = ov::op::v0::Constant::create(ov::element::f32, {}, {0.0f});

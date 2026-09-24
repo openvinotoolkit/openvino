@@ -28,10 +28,13 @@ OutputVector translate_cont(const NodeContext& context) {
         // projection). Preserve that logical output shape instead of returning the transposed
         // tensor with an extra head axis.
         auto input = context.get_input(0);
-        if (input.get_partial_shape().compatible(context.get_output_shape())) {
+        auto tgt = context.get_attribute<std::vector<int64_t>>("cont_reshape", {});
+        const auto output_shape = context.get_output_shape();
+        // Without output metadata or a target, CONT preserves the input shape.
+        if ((output_shape.rank().is_static() && input.get_partial_shape().same_scheme(output_shape)) ||
+            (output_shape.rank().is_dynamic() && tgt.empty())) {
             return {input};
         }
-        auto tgt = context.get_attribute<std::vector<int64_t>>("cont_reshape", {});
         FRONT_END_OP_CONVERSION_CHECK(!tgt.empty(),
                                       "CONT from a transpose requires a \"cont_reshape\" target: input ",
                                       input.get_partial_shape(),
@@ -53,7 +56,8 @@ OutputVector translate_cont(const NodeContext& context) {
         auto input = context.get_input(0);
         auto tgt = context.get_attribute<std::vector<int64_t>>("cont_reshape", {});
         // No target means pass-through, which is only valid if the shape is already the CONT's own.
-        FRONT_END_OP_CONVERSION_CHECK(!tgt.empty() || input.get_partial_shape().compatible(context.get_output_shape()),
+        FRONT_END_OP_CONVERSION_CHECK(!tgt.empty() || context.get_output_shape().rank().is_dynamic() ||
+                                          input.get_partial_shape().same_scheme(context.get_output_shape()),
                                       "CONT from a VIEW requires a \"cont_reshape\" target: input ",
                                       input.get_partial_shape(),
                                       " != output ",
