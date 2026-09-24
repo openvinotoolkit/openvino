@@ -5,6 +5,7 @@
 #include "openvino/op/loop.hpp"
 
 #include <limits>
+#include <optional>
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
@@ -16,6 +17,165 @@
 #include "utils.hpp"
 
 namespace ov::frontend::pytorch::op {
+
+namespace {
+using AliasPositions = TranslateSession::AliasPositions;
+
+// Registers Loop outputs that are views of a tensor from the outer graph. Positions of each carried value are
+// tracked by an additional carried state, created lazily when an alias needs them.
+void register_loop_output_aliases(const NodeContext& context,
+                                  const std::shared_ptr<ov::op::v5::Loop>& loop,
+                                  const OutputVector& loop_input_values,
+                                  size_t num_carried) {
+    const auto session = context.get_session();
+    const auto body = loop->get_function();
+    std::map<size_t, TranslateSession::SubgraphOutputAlias> aliases;
+    for (auto& alias : session->take_subgraph_output_aliases(body)) {
+        // Body output 0 is the loop condition.
+        if (alias.output_index > 0 && alias.output_index <= num_carried) {
+            aliases.emplace(alias.output_index - 1, alias);
+        }
+    }
+    if (aliases.empty()) {
+        return;
+    }
+    const auto body_parameters = body->get_parameters();
+    const auto body_results = body->get_results();
+    // Carried value k is body parameter k + 1, loop input k + 2 and loop output k.
+    std::map<size_t, int64_t> carried_by_id;
+    for (size_t k = 0; k < num_carried; ++k) {
+        carried_by_id[session->decode_tensor_name(body_parameters[k + 1]->output(0))] = static_cast<int64_t>(k);
+    }
+    const auto carried_index = [carried_by_id](size_t tensor_id) -> int64_t {
+        const auto found = carried_by_id.find(tensor_id);
+        return found == carried_by_id.end() ? -1 : found->second;
+    };
+    const auto& loop_inputs = context.get_decoder()->inputs();
+    std::map<size_t, size_t> base_of;
+    for (const auto& [k, alias] : aliases) {
+        const auto carried = carried_index(alias.root_id);
+        if (carried < 0) {
+            if (session->decode_tensor_name(body_parameters[0]->output(0)) != alias.root_id) {
+                base_of[k] = alias.root_id;
+            }
+        } else {
+            base_of[k] = session->get_alias_root(loop_inputs.at(carried + 2));
+        }
+    }
+
+    std::set<size_t> bases;
+    for (const auto& [k, base] : base_of) {
+        bases.insert(base);
+    }
+    for (const auto base_id : bases) {
+        // Positions of initial values in the base are taken from the outer graph at the time of the loop.
+        std::vector<std::vector<TranslateSession::AliasInfo>> init_chains(num_carried);
+        std::vector<TranslateSession::AliasRelation> init_relations(num_carried);
+        OutputVector init_values(num_carried);
+        for (size_t k = 0; k < num_carried; ++k) {
+            init_values[k] = loop_input_values.at(k + 2);
+            init_relations[k] =
+                session->get_alias_chain(loop_inputs.at(k + 2), base_id, init_values[k], init_chains[k]);
+        }
+        auto materialized = std::make_shared<std::optional<OutputVector>>();
+        const auto materialize_all = [=]() -> OutputVector {
+            std::vector<bool> needed(num_carried, false);
+            std::vector<size_t> stack;
+            for (const auto& [k, base] : base_of) {
+                if (base == base_id) {
+                    stack.push_back(k);
+                }
+            }
+            while (!stack.empty()) {
+                const auto k = stack.back();
+                stack.pop_back();
+                if (needed[k]) {
+                    continue;
+                }
+                needed[k] = true;
+                const auto alias = aliases.find(k);
+                if (alias != aliases.end()) {
+                    const auto carried = carried_index(alias->second.root_id);
+                    if (carried >= 0) {
+                        stack.push_back(static_cast<size_t>(carried));
+                    }
+                }
+            }
+            OutputVector initial(num_carried);
+            std::vector<std::shared_ptr<ov::op::v0::Parameter>> parameters(num_carried);
+            for (size_t k = 0; k < num_carried; ++k) {
+                if (!needed[k]) {
+                    continue;
+                }
+                if (init_relations[k] == TranslateSession::AliasRelation::UNSUPPORTED) {
+                    return {};
+                }
+                initial[k] = init_relations[k] == TranslateSession::AliasRelation::ALIAS
+                                 ? TranslateSession::compute_alias_positions(init_chains[k], init_values[k])
+                                 : make_non_alias_positions(init_values[k]);
+                if (!initial[k].get_node()) {
+                    return {};
+                }
+                parameters[k] = std::make_shared<ov::op::v0::Parameter>(element::i64, PartialShape::dynamic());
+            }
+            OutputVector updated(num_carried);
+            for (size_t k = 0; k < num_carried; ++k) {
+                if (!needed[k]) {
+                    continue;
+                }
+                const auto alias = aliases.find(k);
+                if (alias == aliases.end()) {
+                    updated[k] = make_non_alias_positions(body_results[k + 1]->input_value(0));
+                    continue;
+                }
+                const auto positions = alias->second.positions->get();
+                if (!positions.get_node()) {
+                    return {};
+                }
+                const auto carried = carried_index(alias->second.root_id);
+                if (carried >= 0) {
+                    updated[k] = compose_alias_positions(parameters[carried], positions);
+                } else if (alias->second.root_id == base_id) {
+                    updated[k] = positions;
+                } else {
+                    // The value is a view of a different tensor in the body.
+                    return {};
+                }
+            }
+            OutputVector outputs(num_carried);
+            for (size_t k = 0; k < num_carried; ++k) {
+                if (!needed[k]) {
+                    continue;
+                }
+                const auto result = std::make_shared<ov::op::v0::Result>(updated[k]);
+                body->add_parameters({parameters[k]});
+                body->add_results({result});
+                loop->set_merged_input(parameters[k], initial[k], result);
+                outputs[k] = loop->get_iter_value(result, -1);
+            }
+            loop->validate_and_infer_types();
+            return outputs;
+        };
+        for (const auto& [k, base] : base_of) {
+            if (base != base_id) {
+                continue;
+            }
+            const auto positions = std::make_shared<AliasPositions>([materialized, materialize_all, k]() {
+                if (!materialized->has_value()) {
+                    *materialized = materialize_all();
+                }
+                const auto& outputs = materialized->value();
+                return k < outputs.size() ? outputs[k] : Output<Node>{};
+            });
+            session->register_output_alias(loop->output(k),
+                                           base_id,
+                                           context.get_tensor_from_model_or_create_input(base_id),
+                                           context.get_decoder(),
+                                           positions);
+        }
+    }
+}
+}  // namespace
 
 OutputVector translate_loop(const NodeContext& context) {
     const auto& inputs = context.inputs();
@@ -76,6 +236,8 @@ OutputVector translate_loop(const NodeContext& context) {
         context.add_tensor_to_context(out_idx, loop->get_iter_value(result, -1));
     }
     loop->validate_and_infer_types();
+    const auto num_carried = std::min(inputs.size() - 2, subgraph_decoder->num_of_outputs() - 1);
+    register_loop_output_aliases(context, loop, inputs, num_carried);
     return {context.mark_node(loop)->outputs()};
 };
 

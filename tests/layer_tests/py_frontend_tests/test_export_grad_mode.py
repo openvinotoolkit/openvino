@@ -58,9 +58,6 @@ def test_export_grad_mode(grad_enabled, multiple_outputs):
     with torch.set_grad_enabled(not grad_enabled):
         exported = torch.export.export(model, (data,), dynamic_shapes=dynamic)
     assert any(str(node.target) == "wrap_with_set_grad_enabled" for node in exported.graph.nodes)
-    decoder = TorchFXPythonDecoder.from_exported_program(exported)
-    assert decoder._input_signature == ["data"]
-    assert not any(str(node.target) == "wrap_with_set_grad_enabled" for node in decoder.pt_module.graph.nodes)
     compiled = convert_without_decompositions(exported)
     for batch_size, sequence_length in [(2, 8), (3, 5)]:
         inputs = {
@@ -108,6 +105,33 @@ def test_export_grad_mode_mutations():
         np.testing.assert_allclose(actual[index], value.numpy(), atol=1e-5, rtol=1e-5)
 
 
+@pytest.mark.parametrize("mutate_base", [False, True])
+def test_export_autocast_returns_view(mutate_base):
+    class Model(torch.nn.Module):
+        def forward(self, x):
+            x = x.clone()
+            with torch.autocast("cpu", enabled=False):
+                view = x.transpose(0, 1)[1:]
+                view.add_(2)
+                before = view * 2
+            if mutate_base:
+                x.mul_(3)
+            else:
+                view.add_(1)
+            return x, view, before
+
+    model = Model().eval()
+    data = torch.arange(12, dtype=torch.float32).reshape(3, 4)
+    exported = torch.export.export(model, (data,))
+    assert any(str(node.target) == "wrap_with_autocast" for node in exported.graph.nodes)
+    compiled = convert_without_decompositions(exported)
+    expected = model(data)
+    actual = compiled([data.numpy()])
+    assert len(actual) == len(expected)
+    for index, value in enumerate(expected):
+        np.testing.assert_allclose(actual[index], value.numpy(), atol=1e-5, rtol=1e-5)
+
+
 def test_fx_nested_grad_mode():
     from torch._higher_order_ops.wrap import wrap_with_set_grad_enabled
 
@@ -132,7 +156,6 @@ def test_fx_nested_grad_mode():
     with patch.object(torch.export.ExportedProgram, "run_decompositions",
                       side_effect=AssertionError("Conversion must not run decompositions")):
         decoder = TorchFXPythonDecoder(model, input_shapes=[data.shape], input_types=[data.dtype])
-        decoder.pt_module.graph.lint()
         converted = convert_model(decoder)
     compiled = Core().compile_model(converted, "CPU")
     actual = compiled([data.numpy()])

@@ -7,7 +7,6 @@
 import logging
 import inspect
 import operator
-from copy import deepcopy
 from functools import lru_cache
 import torch
 
@@ -28,61 +27,6 @@ from openvino.frontend.pytorch.utils import (
     torch_tensor_to_ov_const)
 
 logger = logging.getLogger(__name__)
-
-
-def _inline_grad_mode(graph_module):
-    """Inline grad-mode scopes without retracing or modifying the caller's graph."""
-    def is_grad_mode(node):
-        return (node.op == "call_function"
-                and str(node.target) == "wrap_with_set_grad_enabled")
-
-    if not any(is_grad_mode(node) for node in graph_module.graph.nodes):
-        return graph_module
-
-    graph = torch.fx.Graph()
-    graph.set_codegen(deepcopy(graph_module.graph._codegen))
-
-    def copy_graph(module, inputs=None, prefix=""):
-        values = {}
-        placeholders = [node for node in module.graph.nodes if node.op == "placeholder"]
-        if inputs is not None:
-            if len(placeholders) != len(inputs):
-                raise RuntimeError("Grad-mode body input count does not match its operands")
-            values.update(zip(placeholders, inputs))
-        for node in module.graph.nodes:
-            if node in values:
-                continue
-            args = torch.fx.map_arg(node.args, lambda arg: values[arg])
-            if node.op == "output":
-                return args[0]
-            if is_grad_mode(node):
-                if len(node.args) < 2 or node.kwargs:
-                    raise RuntimeError("Unsupported grad-mode wrapper arguments")
-                body_node = node.args[1]
-                if not isinstance(body_node, torch.fx.Node) or body_node.op != "get_attr":
-                    raise RuntimeError("Grad-mode body must be a GraphModule attribute")
-                body = fetch_attr(module, body_node.target)
-                if not isinstance(body, torch.fx.GraphModule):
-                    raise RuntimeError("Grad-mode body must be a GraphModule")
-                values[node] = copy_graph(body, args[2:], prefix + body_node.target + ".")
-            elif (node.op == "call_function" and node.target is operator.getitem
-                  and isinstance(args[0], (tuple, list))):
-                values[node] = args[0][args[1]]
-            else:
-                copied = graph.node_copy(node, lambda arg: values[arg])
-                if node.op in ("get_attr", "call_module"):
-                    copied.target = prefix + node.target
-                values[node] = copied
-        raise RuntimeError("Grad-mode graph has no output")
-
-    graph.output(copy_graph(graph_module))
-    # Unused body attributes must not be decoded as tensor constants.
-    for node in list(graph.nodes):
-        if node.op == "get_attr" and not node.users:
-            graph.erase_node(node)
-    inlined = torch.fx.GraphModule(graph_module, graph)
-    inlined.meta = graph_module.meta.copy()
-    return inlined
 
 
 class IndexedNodes:
@@ -279,8 +223,6 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                  input_types=None, dynamic_shapes=False,
                  op_type_mapping=None):
         super().__init__(mark_node_callback)
-        if isinstance(pt_module, torch.fx.GraphModule):
-            pt_module = _inline_grad_mode(pt_module)
         self.pt_module = pt_module
         self.fx_gm = fx_gm if fx_gm is not None else pt_module
         self._module_extension_target_ops = op_type_mapping or {}
