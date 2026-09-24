@@ -21,7 +21,9 @@ class memory_dependency_set {
 
 public:
     memory_dependency_set() = default;
-    explicit memory_dependency_set(std::vector<uint32_t> values) : _values(std::move(values)) {}
+    explicit memory_dependency_set(std::vector<uint32_t> values) : _values(std::move(values)) {
+        OPENVINO_ASSERT(std::is_sorted(_values.begin(), _values.end()), "[GPU] Memory dependency values must be sorted");
+    }
 
     bool contains(uint32_t id) const {
         if (_bits.empty())
