@@ -3,7 +3,9 @@
 //
 
 #include <algorithm>
+#include <functional>
 #include <map>
+#include <unordered_set>
 #include <vector>
 
 #include "intel_gpu/graph/program.hpp"
@@ -32,6 +34,43 @@ void program::nodes_ordering::calc_processing_order(program& p) {
     }
     for (auto& node : _processing_order) {
         node->unmark();
+    }
+}
+
+void program::nodes_ordering::calculate_in_order_processing_order(program& p) {
+    const auto previous_order = _processing_order;
+    std::map<program_node*, int32_t> distances;
+    for (auto* node : previous_order) {
+        int32_t distance = 0;
+        for (const auto& dep : node->get_dependencies()) {
+            distance = std::max(distance, distances[dep.first] + 1);
+        }
+        distances[node] = distance;
+    }
+
+    clear();
+    std::unordered_set<program_node*> visited;
+    std::function<void(program_node*)> visit = [&](program_node* node) {
+        if (!visited.insert(node).second)
+            return;
+
+        auto dependencies = node->get_dependencies();
+        std::stable_sort(dependencies.begin(), dependencies.end(), [&](const auto& lhs, const auto& rhs) {
+            return distances[lhs.first] > distances[rhs.first];
+        });
+        for (const auto& dep : dependencies) {
+            visit(dep.first);
+        }
+
+        _processing_order.push_back(node);
+        processing_order_iterators[node] = std::prev(_processing_order.end());
+    };
+
+    for (auto* output : p.get_outputs()) {
+        visit(output);
+    }
+    for (auto* node : previous_order) {
+        visit(node);
     }
 }
 
