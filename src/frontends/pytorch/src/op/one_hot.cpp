@@ -13,10 +13,7 @@
 #include "openvino/op/select.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 
@@ -43,7 +40,4 @@ OutputVector translate_one_hot(const NodeContext& context) {
     return {context.mark_node(std::make_shared<v1::OneHot>(x, num_classes, on_value, zero_value, -1))};
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

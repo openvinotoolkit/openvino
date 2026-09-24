@@ -14,10 +14,7 @@
 #include "openvino/op/sqrt.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 // L2 normalization over the last dimension: x / max(sqrt(sum(x^2)), eps).
 OutputVector translate_l2_norm(const NodeContext& context) {
@@ -39,7 +36,4 @@ OutputVector translate_l2_norm(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

@@ -10,10 +10,7 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 using namespace ov::op;
 
 OutputVector translate_kthvalue(const NodeContext& context) {
@@ -51,7 +48,4 @@ OutputVector translate_kthvalue(const NodeContext& context) {
     return {kth_value, kth_index};
 }
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

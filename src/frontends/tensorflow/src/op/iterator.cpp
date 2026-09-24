@@ -13,10 +13,7 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 
 OutputVector translate_iterator_op(const ov::frontend::tensorflow::NodeContext& node) {
     default_op_checks(node, 0, {"Iterator", "IteratorV2", "OneShotIterator"});
@@ -64,7 +61,4 @@ OutputVector translate_iterator_get_next_op(const NodeContext& node) {
     return iterator_get_next_outputs;
 }
 
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

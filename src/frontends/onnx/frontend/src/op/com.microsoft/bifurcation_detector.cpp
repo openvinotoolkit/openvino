@@ -34,11 +34,7 @@
 
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace com_microsoft {
-namespace opset_1 {
+namespace ov::frontend::onnx::com_microsoft::opset_1 {
 
 // Translator for com.microsoft.BifurcationDetector.
 //
@@ -287,8 +283,4 @@ ov::OutputVector bifurcation_detector(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("BifurcationDetector", OPSET_SINCE(1), com_microsoft::opset_1::bifurcation_detector, MICROSOFT_DOMAIN);
 
-}  // namespace opset_1
-}  // namespace com_microsoft
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::com_microsoft::opset_1
