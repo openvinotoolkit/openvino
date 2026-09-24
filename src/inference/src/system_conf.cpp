@@ -5,6 +5,7 @@
 #include "openvino/runtime/system_conf.hpp"
 
 #include <cctype>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <fstream>
@@ -62,33 +63,54 @@ static Xbyak::util::Cpu& get_cpu_info() {
     return cpu;
 }
 
-// OV_CPU_MAX_ISA caps runtime ISA dispatch for OV kernels. Debug-caps only:
-// release builds get `isa_allowed() == true` which the compiler inlines away,
-// keeping the ISA getters branch-free. Useful to force lower-ISA path on
-// higher-ISA hardware (e.g., cap AVX-512 machine to AVX2 to reproduce
-// non-AVX-512 behavior).
+// OV_CPU_MAX_ISA caps runtime ISA dispatch for OV kernels.
+// Useful to force lower-ISA path on higher-ISA hardware (e.g., cap AVX-512 machine
+// to AVX2 to reproduce non-AVX-512 behavior).
 //
 // Only OV kernels are affected. oneDNN has its own independent ONEDNN_MAX_CPU_ISA,
 // which has to be set separately (oneDNN caches it on first mayiuse() call, and
 // static init order across TUs is undefined, so it cannot be reliably propagated
 // from here). Keeping the two knobs independent is intentional: it allows capping
 // one side only. Setting them to different values is the user's responsibility.
-enum class CpuIsaCap : int {
-    SSE41 = 10,
-    AVX = 20,
-    AVX2 = 30,
-    AVX2_VNNI = 31,
-    AVX2_VNNI_2 = 32,
-    AVX512_CORE = 40,
-    AVX512_CORE_VNNI = 41,
-    AVX512_CORE_BF16 = 42,
-    AVX512_CORE_FP16 = 43,
-    AVX512_CORE_AMX = 44,
-    AVX512_CORE_AMX_FP16 = 45,
-    ALL = 1000,
+constexpr uint32_t f_sse41 = 1U << 0;
+constexpr uint32_t f_avx = 1U << 1;
+constexpr uint32_t f_avx2 = 1U << 2;
+constexpr uint32_t f_vex_vnni = 1U << 3;
+constexpr uint32_t f_vex_vnni_2 = 1U << 4;
+constexpr uint32_t f_evex = 1U << 5;
+constexpr uint32_t f_evex_vnni = 1U << 6;
+constexpr uint32_t f_evex_bf16 = 1U << 7;
+constexpr uint32_t f_evex_fp16 = 1U << 8;
+constexpr uint32_t f_amx = 1U << 9;
+constexpr uint32_t f_amx_fp16 = 1U << 10;
+
+constexpr uint32_t m_sse41 = f_sse41;
+constexpr uint32_t m_avx = m_sse41 | f_avx;
+constexpr uint32_t m_avx2 = m_avx | f_avx2;
+constexpr uint32_t m_avx2_vnni = m_avx2 | f_vex_vnni;
+constexpr uint32_t m_avx2_vnni_2 = m_avx2_vnni | f_vex_vnni_2;
+constexpr uint32_t m_avx512_core = m_avx2 | f_evex;
+constexpr uint32_t m_avx512_core_vnni = m_avx512_core | f_evex_vnni;
+constexpr uint32_t m_avx512_core_bf16 = m_avx512_core_vnni | f_evex_bf16;
+constexpr uint32_t m_avx512_core_fp16 = m_avx512_core_bf16 | f_evex_fp16;
+constexpr uint32_t m_avx512_core_amx = m_avx512_core_fp16 | f_amx;
+constexpr uint32_t m_avx512_core_amx_fp16 = m_avx512_core_amx | f_amx_fp16;
+
+enum class CpuIsaCap : uint32_t {
+    SSE41 = m_sse41,
+    AVX = m_avx,
+    AVX2 = m_avx2,
+    AVX2_VNNI = m_avx2_vnni,
+    AVX2_VNNI_2 = m_avx2_vnni_2,
+    AVX512_CORE = m_avx512_core,
+    AVX512_CORE_VNNI = m_avx512_core_vnni,
+    AVX512_CORE_BF16 = m_avx512_core_bf16,
+    AVX512_CORE_FP16 = m_avx512_core_fp16,
+    AVX512_CORE_AMX = m_avx512_core_amx,
+    AVX512_CORE_AMX_FP16 = m_avx512_core_amx_fp16,
+    ALL = ~0U,
 };
 
-#    ifdef ENABLE_DEBUG_CAPS
 static CpuIsaCap parse_isa_cap(const std::string& v) {
     if (v == "SSE41" || v == "SSE42")
         return CpuIsaCap::SSE41;
@@ -131,13 +153,9 @@ static CpuIsaCap resolve_isa_cap() {
 
 static bool isa_allowed(CpuIsaCap level) {
     static const CpuIsaCap cap = resolve_isa_cap();
-    return static_cast<int>(level) <= static_cast<int>(cap);
+    const auto lvl = static_cast<uint32_t>(level);
+    return (lvl & static_cast<uint32_t>(cap)) == lvl;
 }
-#    else
-static constexpr bool isa_allowed(CpuIsaCap /*level*/) {
-    return true;
-}
-#    endif
 
 bool with_cpu_x86_sse42() {
     return isa_allowed(CpuIsaCap::SSE41) && get_cpu_info().has(Xbyak::util::Cpu::tSSE42);
