@@ -83,11 +83,11 @@ KERNEL(convolution_bfyx_f16)(
     const int input_x = x * STRIDE_SIZE_X - PADDING_SIZE_X;
     const int input_y = y * STRIDE_SIZE_Y - PADDING_SIZE_Y;
 
-#if POST_Xe2
+#if ENABLE_OOB_GUARD
     const int right_unreachable_count_x = min(max(0, input_x + INPUT_LINE_SIZE - INPUT0_SIZE_X), 
                                                 INPUT_LINE_SIZE);
     const int left_unreachable_count_x = min(max(0, -input_x), INPUT_LINE_SIZE);
-#endif // POST_Xe2
+#endif // ENABLE_OOB_GUARD
 
     // Input offset calculations:
     const uint input_x_pitch = FEATURE_SLICE_SIZE;
@@ -209,15 +209,15 @@ KERNEL(convolution_bfyx_f16)(
 #endif // INPUT_LEFTOVERS
                 {
                     int xb = 0;
-#if POST_Xe2
+#if ENABLE_OOB_GUARD
                     for (; xb < left_unreachable_count_x; xb++){
                         line_cache[xb] = 0;
                     }
                     const int reachable_size = INPUT_LINE_SIZE - right_unreachable_count_x;
                     for (; xb + 8 <= reachable_size; xb += 8) {
-#else // POST_Xe2
+#else // ENABLE_OOB_GUARD
                     for (; xb + 8 <= INPUT_LINE_SIZE; xb += 8) {
-#endif // POST_Xe2
+#endif // ENABLE_OOB_GUARD
                         INPUT_TYPE8 vv = DT_INPUT_BLOCK_READ8(input, grouped_input_offset +
                                                                   icb * input_fs_pitch +
                                                                   kh * DILATION_SIZE_Y * input_y_pitch +
@@ -232,9 +232,9 @@ KERNEL(convolution_bfyx_f16)(
                         line_cache[xb + 6] = vv[6];
                         line_cache[xb + 7] = vv[7];
                     }
-#if POST_Xe2
+#if ENABLE_OOB_GUARD
                     for (; xb + 4 <= reachable_size; xb += 4) {
-#else // POST_Xe2
+#else // ENABLE_OOB_GUARD
                     for (; xb + 4 <= INPUT_LINE_SIZE; xb += 4) {
 #endif
                         INPUT_TYPE4 vv = DT_INPUT_BLOCK_READ4(input, grouped_input_offset +
@@ -247,9 +247,9 @@ KERNEL(convolution_bfyx_f16)(
                         line_cache[xb + 2] = vv[2];
                         line_cache[xb + 3] = vv[3];
                     }
-#if POST_Xe2
+#if ENABLE_OOB_GUARD
                     for (; xb < reachable_size; xb ++) {
-#else // POST_Xe2
+#else // ENABLE_OOB_GUARD
                     for (; xb < INPUT_LINE_SIZE; xb++) {
 #endif
                         line_cache[xb] = DT_INPUT_BLOCK_READ(input, grouped_input_offset +
@@ -257,7 +257,7 @@ KERNEL(convolution_bfyx_f16)(
                                                                  kh * DILATION_SIZE_Y * input_y_pitch +
                                                                  xb * input_x_pitch);
                     }
-#if POST_Xe2
+#if ENABLE_OOB_GUARD
                     for (int i = 0; i < right_unreachable_count_x; i++){
                         line_cache[xb + i] = 0;
                     }
