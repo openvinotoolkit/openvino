@@ -124,6 +124,11 @@ struct Config {
     // default inference precision
     ov::element::Type inferencePrecision = ov::element::f32;
     bool inferencePrecisionSetExplicitly = false;
+    // Raw ov::hint::inference_precision request, before any hardware-support fallback is applied
+    // to `inferencePrecision` above. Stays `dynamic` when the hint was never set. Needed by
+    // passes that must tell "f16 was requested but downgraded due to lack of HW support" apart
+    // from "f32/bf16 was explicitly requested" - both collapse to the same `inferencePrecision`.
+    ov::element::Type requestedInferencePrecision = ov::element::dynamic;
     ov::hint::ExecutionMode executionMode = ov::hint::ExecutionMode::PERFORMANCE;
 
     DenormalsOptMode denormalsOptMode = DenormalsOptMode::DO_Keep;

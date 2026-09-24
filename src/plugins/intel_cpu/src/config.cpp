@@ -249,6 +249,7 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
             try {
                 const auto prec = val.as<ov::element::Type>();
                 inferencePrecisionSetExplicitly = true;
+                requestedInferencePrecision = prec;
                 if (prec == ov::element::bf16) {
                     if (hasHardwareSupport(ov::element::bf16)) {
                         inferencePrecision = ov::element::bf16;

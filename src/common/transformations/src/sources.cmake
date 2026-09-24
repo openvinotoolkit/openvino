@@ -64,6 +64,7 @@ set(COMMON_OPTIMIZATIONS_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/lin_op_sequence_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/lora_subgraph_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/lstm_cell_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mark_math_before_floor_to_keep_f16_rounding.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mark_rope_input_to_keep_in_mixed_precision.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/matmul_const_transposes_extraction.cpp

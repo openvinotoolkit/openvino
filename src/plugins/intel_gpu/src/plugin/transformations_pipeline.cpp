@@ -163,6 +163,7 @@
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/lora_subgraph_fusion.hpp"
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
+#include "transformations/common_optimizations/mark_math_before_floor_to_keep_f16_rounding.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
 #include "transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp"
@@ -784,23 +785,22 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         // Preserve f16 precision at the output of Math-type operations during f16->f32 conversion.
         // Without this, the f16 rounding between operations is lost, causing incorrect results
-        // for downstream ops
+        // for downstream ops.
+        //
+        // ov::pass::MarkMathBeforeFloorToKeepF16Rounding marks only the Math nodes that are actually
+        // followed by a Floor with disable_conversion(f16, f32); the callback below only acts on nodes
+        // carrying that marker, so unrelated occurrences of these ops keep the normal f32 fast path.
         auto wrap_math_to_preserve_f16 = [](const std::shared_ptr<ov::Node>& node,
-                                            const precisions_map& precisions) -> bool {
-            auto it = precisions.find(node->get_output_element_type(0));
-            if (it == precisions.end()) {
+                                            const precisions_map& /* precisions */) -> bool {
+            if (!ov::is_conversion_disabled(node, ov::element::f16, ov::element::f32)) {
                 return false;
             }
-            if (it->first != ov::element::f16) {
+            if (node->get_output_element_type(0) != ov::element::f16) {
                 return false;
             }
 
-            const auto& [original_type, target_type] = *it;
-
-            // Nothing to preserve when f16 is not actually converted away
-            if (original_type == target_type) {
-                return false;
-            }
+            constexpr auto original_type = ov::element::f16;
+            constexpr auto target_type = ov::element::f32;
 
             for (size_t i = 0; i < node->get_input_size(); i++) {
                 auto convert = std::make_shared<ov::op::v0::Convert>(node->input_value(i), original_type);
@@ -839,6 +839,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         type_to_fuse_map fp_type_to_fuse = {};
         if (preserve_math_f16_rounding) {
+            manager.register_pass<ov::pass::MarkMathBeforeFloorToKeepF16Rounding>();
             for (const auto& type_info : {ov::op::v0::Cos::get_type_info_static(),
                                           ov::op::v0::Cosh::get_type_info_static(),
                                           ov::op::v0::Sin::get_type_info_static(),
