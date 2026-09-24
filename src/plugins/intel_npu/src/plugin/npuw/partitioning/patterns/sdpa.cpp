@@ -513,27 +513,11 @@ bool gatherReadsConcatAxis(const ov::Node* gather, const ov::op::v0::Concat& con
     return false;
 }
 
-bool isShapeOfConcatUsedAsReshapeShape(ov::Output<ov::Node> shapeOfOutput, const ov::op::v0::Concat& concat) {
-    for (const auto& shapeOfUser : shapeOfOutput.get_target_inputs()) {
-        auto gather = shapeOfUser.get_node();
-        if (!ov::is_type<ov::op::v8::Gather>(gather) || shapeOfUser.get_index() != 0) {
-            continue;
-        }
-
-        if (!gatherReadsConcatAxis(gather, concat)) {
-            continue;
-        }
-
-        for (const auto& gatherUser : gather->output(0).get_target_inputs()) {
-            auto shapeConcat = gatherUser.get_node();
-            if (!ov::is_type<ov::op::v0::Concat>(shapeConcat)) {
-                continue;
-            }
-            for (const auto& shapeConcatUser : shapeConcat->output(0).get_target_inputs()) {
-                if (ov::is_type<ov::op::v1::Reshape>(shapeConcatUser.get_node()) && shapeConcatUser.get_index() == 1) {
-                    return true;
-                }
-            }
+bool hasConcatAxisGather(ov::Output<ov::Node> shapeOfOutput, const ov::op::v0::Concat& concat) {
+    for (const auto& user : shapeOfOutput.get_target_inputs()) {
+        auto gather = user.get_node();
+        if (user.get_index() == 0 && ov::is_type<ov::op::v8::Gather>(gather) && gatherReadsConcatAxis(gather, concat)) {
+            return true;
         }
     }
     return false;
@@ -570,7 +554,7 @@ bool foldNonConcatAxisGathers(ov::Output<ov::Node> shapeOfOutput, const ov::op::
 }
 }  // namespace
 
-AttentionBroadcast::AttentionBroadcast(bool preserve_shape_of_concat_for_reshape) {
+AttentionBroadcast::AttentionBroadcast(bool preserve_concat_axis_gathers) {
     // NB(dm): We've seen cases where this dynamic subgraph is placed on the K-path,
     // but I'd expect it could be on the V-path as well - so _kv in the name
     auto past_kv_in = opp::wrap_type<ov::op::v0::Parameter>();
@@ -593,8 +577,7 @@ AttentionBroadcast::AttentionBroadcast(bool preserve_shape_of_concat_for_reshape
         auto& node_to_output = m.get_pattern_value_map();
         auto matched_kv_concat =
             ov::as_type_ptr<ov::op::v0::Concat>(node_to_output.at(past_kv_cat).get_node_shared_ptr());
-        if (preserve_shape_of_concat_for_reshape &&
-            isShapeOfConcatUsedAsReshapeShape(node_to_output.at(shape_of), *matched_kv_concat)) {
+        if (preserve_concat_axis_gathers && hasConcatAxisGather(node_to_output.at(shape_of), *matched_kv_concat)) {
             return false;
         }
         auto matched_gather_out = node_to_output.at(gather);
@@ -620,7 +603,7 @@ AttentionBroadcast::AttentionBroadcast(bool preserve_shape_of_concat_for_reshape
 }
 
 // FIXME: Same as above but Concat has three inputs instead of four
-AttentionBroadcast2::AttentionBroadcast2(bool preserve_shape_of_concat_for_reshape) {
+AttentionBroadcast2::AttentionBroadcast2(bool preserve_concat_axis_gathers) {
     auto past_kv_in = opp::wrap_type<ov::op::v0::Parameter>();
     auto past_kv_cvt = opp::optional<ov::op::v0::Convert>({past_kv_in->output(0)});
     auto past_kv_cat = opp::wrap_type<ov::op::v0::Concat>({past_kv_cvt, opp::any_input()});
@@ -640,8 +623,7 @@ AttentionBroadcast2::AttentionBroadcast2(bool preserve_shape_of_concat_for_resha
         auto& node_to_output = m.get_pattern_value_map();
         auto matched_kv_concat =
             ov::as_type_ptr<ov::op::v0::Concat>(node_to_output.at(past_kv_cat).get_node_shared_ptr());
-        if (preserve_shape_of_concat_for_reshape &&
-            isShapeOfConcatUsedAsReshapeShape(node_to_output.at(shape_of), *matched_kv_concat)) {
+        if (preserve_concat_axis_gathers && hasConcatAxisGather(node_to_output.at(shape_of), *matched_kv_concat)) {
             return false;
         }
         auto matched_concat_out = node_to_output.at(concat);
@@ -660,7 +642,7 @@ AttentionBroadcast2::AttentionBroadcast2(bool preserve_shape_of_concat_for_resha
 }
 
 // FIXME: Same as AttentionBroadcast but Gather connects to multiple Concats
-AttentionBroadcast3::AttentionBroadcast3(bool preserve_shape_of_concat_for_reshape) {
+AttentionBroadcast3::AttentionBroadcast3(bool preserve_concat_axis_gathers) {
     // NB(dm): We've seen cases where this dynamic subgraph is placed on the K-path,
     // but I'd expect it could be on the V-path as well - so _kv in the name
     auto past_kv_in = opp::wrap_type<ov::op::v0::Parameter>();
@@ -682,11 +664,10 @@ AttentionBroadcast3::AttentionBroadcast3(bool preserve_shape_of_concat_for_resha
         auto& node_to_output = m.get_pattern_value_map();
         auto matched_kv_concat =
             ov::as_type_ptr<ov::op::v0::Concat>(node_to_output.at(past_kv_cat).get_node_shared_ptr());
-        if (preserve_shape_of_concat_for_reshape &&
-            isShapeOfConcatUsedAsReshapeShape(node_to_output.at(shape_of), *matched_kv_concat)) {
+        auto matched_gather_out = node_to_output.at(gather);
+        if (preserve_concat_axis_gathers && gatherReadsConcatAxis(matched_gather_out.get_node(), *matched_kv_concat)) {
             return false;
         }
-        auto matched_gather_out = node_to_output.at(gather);
         if (matched_gather_out.get_target_inputs().size() == 1) {
             // This pattern only for the Gather feeding multiple Concats.
             return false;
@@ -733,7 +714,7 @@ ShapeOfParameter::ShapeOfParameter() {
     register_matcher(std::make_shared<opp::Matcher>(param_shp, "ShapeOfParameter"), std::move(callback));
 }
 
-ShapeOfConcat::ShapeOfConcat(bool preserve_shape_of_concat_for_reshape) {
+ShapeOfConcat::ShapeOfConcat(bool preserve_concat_axis_gathers) {
     auto concat_in = opp::wrap_type<ov::op::v0::Concat>();
     auto concat_shp = opp::wrap_type<ov::op::v3::ShapeOf>({concat_in});
 
@@ -743,8 +724,7 @@ ShapeOfConcat::ShapeOfConcat(bool preserve_shape_of_concat_for_reshape) {
         auto matched_shape_out = node_to_output.at(concat_shp);
         auto matched_concat = ov::as_type_ptr<ov::op::v0::Concat>(node_to_output.at(concat_in).get_node_shared_ptr());
 
-        if (preserve_shape_of_concat_for_reshape &&
-            isShapeOfConcatUsedAsReshapeShape(matched_shape_out, *matched_concat)) {
+        if (preserve_concat_axis_gathers && hasConcatAxisGather(matched_shape_out, *matched_concat)) {
             return foldNonConcatAxisGathers(matched_shape_out, *matched_concat);
         }
 
@@ -933,9 +913,9 @@ bool RegularizeSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     bool model_changed = false;
     if (m_run_broadcast_pattern) {
         ov::pass::GraphRewrite rewr;
-        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast>(m_preserve_shape_of_concat_for_reshape);
-        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast2>(m_preserve_shape_of_concat_for_reshape);
-        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast3>(m_preserve_shape_of_concat_for_reshape);
+        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast>(m_preserve_concat_axis_gathers);
+        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast2>(m_preserve_concat_axis_gathers);
+        rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast3>(m_preserve_concat_axis_gathers);
         rewr.add_matcher<ov::npuw::patterns::regularize::AttentionBroadcast4>();
         rewr.add_matcher<ov::npuw::patterns::regularize::SeparateKVCache>();
 
@@ -947,7 +927,7 @@ bool RegularizeSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // while AttentionBroadcast patterns might break the partitioning (related to F16IC).
     ov::pass::GraphRewrite rewr2;
     rewr2.add_matcher<ov::npuw::patterns::regularize::ShapeOfParameter>();
-    rewr2.add_matcher<ov::npuw::patterns::regularize::ShapeOfConcat>(m_preserve_shape_of_concat_for_reshape);
+    rewr2.add_matcher<ov::npuw::patterns::regularize::ShapeOfConcat>(m_preserve_concat_axis_gathers);
     model_changed |= rewr2.run_on_model(model);
 
     return model_changed;

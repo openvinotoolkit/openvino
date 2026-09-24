@@ -1457,7 +1457,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     compile_generate_model_variants(generate_model_variants, plugin, generate_config);
 
     if (m_use_chunk_prefill && (prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_hfa)) {
-        prefill_model->get_rt_info()[ov::npuw::patterns::regularize::PRESERVE_SHAPEOF_CONCAT_FOR_RESHAPE_RT_KEY] = true;
+        prefill_model->get_rt_info()[ov::npuw::patterns::regularize::PRESERVE_CONCAT_AXIS_GATHERS_RT_KEY] = true;
     }
     m_prefill_compiled = m_compiled_model_factory(prefill_model, plugin, prefill_config);
     NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "

@@ -463,12 +463,12 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
     if (attn_isolation(properties)) {
         // Keep attention isolation when bypassing LLMCompiledModel, preserving marked chunk-prefill shapes.
         auto& rtInfo = model->get_rt_info();
-        const auto marker = rtInfo.find(ov::npuw::patterns::regularize::PRESERVE_SHAPEOF_CONCAT_FOR_RESHAPE_RT_KEY);
-        const auto preserveShapeOfConcatForReshape = marker != rtInfo.end() && marker->second.as<bool>();
+        const auto marker = rtInfo.find(ov::npuw::patterns::regularize::PRESERVE_CONCAT_AXIS_GATHERS_RT_KEY);
+        const auto preserveConcatAxisGathers = marker != rtInfo.end() && marker->second.as<bool>();
         if (marker != rtInfo.end()) {
             rtInfo.erase(marker);
         }
-        ov::npuw::patterns::regularize::RegularizeSDPA(true, preserveShapeOfConcatForReshape).run_on_model(model);
+        ov::npuw::patterns::regularize::RegularizeSDPA(true, preserveConcatAxisGathers).run_on_model(model);
     }
 
     ::intel_npu::registerNPUWOptions(*m_options_desc);

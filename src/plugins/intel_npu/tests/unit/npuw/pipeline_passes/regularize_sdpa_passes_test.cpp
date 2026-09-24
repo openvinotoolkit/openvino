@@ -216,17 +216,24 @@ static std::shared_ptr<Model> build_shape_of_concat_dynamic_model() {
     return model;
 }
 
-static std::shared_ptr<Model> build_chunk_prefill_reshape_model() {
+static std::shared_ptr<Model> build_chunk_prefill_model(bool sequence_only = false) {
     auto past = ov::test::utils::make_param(element::f32, Shape{1, 2, 64, 256}, "past_kv");
     auto current = ov::test::utils::make_param(element::f32, Shape{1, 2, 192, 256}, "current_kv");
     auto kv_concat = std::make_shared<op::v0::Concat>(OutputVector{past, current}, /*axis=*/2);
 
     auto gather_axis = op::v0::Constant::create(element::i64, Shape{}, {0});
     auto shape_of = std::make_shared<op::v3::ShapeOf>(kv_concat, element::i64);
-    auto batch_index = op::v0::Constant::create(element::i64, Shape{1}, {0});
-    auto batch = std::make_shared<op::v8::Gather>(shape_of, batch_index, gather_axis);
     auto sequence_index = op::v0::Constant::create(element::i64, Shape{1}, {2});
     auto sequence = std::make_shared<op::v8::Gather>(shape_of, sequence_index, gather_axis);
+    if (sequence_only) {
+        auto model = std::make_shared<Model>(ResultVector{std::make_shared<op::v0::Result>(sequence)},
+                                             ParameterVector{past, current});
+        model->validate_nodes_and_infer_types();
+        return model;
+    }
+
+    auto batch_index = op::v0::Constant::create(element::i64, Shape{1}, {0});
+    auto batch = std::make_shared<op::v8::Gather>(shape_of, batch_index, gather_axis);
 
     auto heads = op::v0::Constant::create(element::i64, Shape{1}, {2});
     auto broadcast_heads = op::v0::Constant::create(element::i64, Shape{1}, {4});
@@ -304,8 +311,15 @@ TEST(ShapeOfConcatTest, DoesNotFoldWhenConcatShapeIsDynamic) {
         << "ShapeOf must be preserved when the Concat's output shape cannot be bound";
 }
 
+TEST(ShapeOfConcatTest, ChunkPrefillPreservesConcatAxisGatherWithoutReshapeUse) {
+    auto model = build_chunk_prefill_model(/*sequence_only=*/true);
+    ov::npuw::patterns::regularize::RegularizeSDPA(false, true).run_on_model(model);
+
+    EXPECT_TRUE(ov::is_type<op::v8::Gather>(model->get_result()->input_value(0).get_node_shared_ptr()));
+}
+
 TEST(ShapeOfConcatTest, ChunkPrefillKeepsSequenceAndFoldsBatch) {
-    auto model = build_chunk_prefill_reshape_model();
+    auto model = build_chunk_prefill_model();
     ov::npuw::patterns::regularize::RegularizeSDPA(false, true).run_on_model(model);
 
     const auto reshape = model->get_result()->input_value(0).get_node_shared_ptr();
@@ -335,7 +349,7 @@ TEST(ShapeOfConcatTest, EarlierAttentionBroadcastStillFoldsWithoutChunkPreservat
     EXPECT_TRUE(ov::is_type<op::v0::Constant>(broadcast->input_value(1).get_node_shared_ptr()));
 }
 
-TEST(ShapeOfConcatTest, EarlierBroadcastMatchersPreserveRuntimeSequence) {
+TEST(ShapeOfConcatTest, EarlierBroadcastMatchersPreserveConcatAxisGather) {
     auto check = [](bool three_input_shape, bool shared_gather, const PartialShape& expected) {
         SCOPED_TRACE(three_input_shape ? "three inputs" : shared_gather ? "shared Gather" : "four inputs");
         auto model = build_early_broadcast_reshape_model(three_input_shape, shared_gather);
