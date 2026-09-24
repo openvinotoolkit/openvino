@@ -7,6 +7,8 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <tuple>
+#include <vector>
 
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
@@ -143,3 +145,79 @@ TEST_F(TransformationTestsF, ConvertGroupedMatMulToMatMul_2Dx3D_DynamicGroupsNoC
     manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>();
     // No model_ref: transformation must be a no-op.
 }
+
+// -----------------------------------------------------------------------------
+// Accuracy coverage for the exact shapes that fail on the GPU plugin's native
+// GroupedMatMul lowering (batched fully_connected collapses the group dim,
+// producing [G, M, G*N]). The decomposition below is verified numerically on
+// the template plugin (ACCURACY mode), proving the transformation itself is
+// correct for these shapes. Shapes use the op layout mat_b:[G, N, K].
+// -----------------------------------------------------------------------------
+
+// {G, M, K, N}
+using GmmShape3D = std::tuple<size_t, size_t, size_t, size_t>;
+
+class ConvertGroupedMatMulToMatMul3Dx3DAccuracy : public TransformationTestsF,
+                                                  public testing::WithParamInterface<GmmShape3D> {};
+
+TEST_P(ConvertGroupedMatMulToMatMul3Dx3DAccuracy, MatchesReference) {
+    const auto [G, M, K, N] = GetParam();
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+
+    {
+        auto mat_a = std::make_shared<v0::Parameter>(f32, ov::Shape{G, M, K});
+        auto mat_b = std::make_shared<v0::Parameter>(f32, ov::Shape{G, N, K});
+        auto gmm = std::make_shared<v17::GroupedMatMul>(mat_a, mat_b);
+        model = std::make_shared<ov::Model>(ov::OutputVector{gmm}, ov::ParameterVector{mat_a, mat_b});
+
+        manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>();
+    }
+    {
+        auto mat_a = std::make_shared<v0::Parameter>(f32, ov::Shape{G, M, K});
+        auto mat_b = std::make_shared<v0::Parameter>(f32, ov::Shape{G, N, K});
+        auto mm = std::make_shared<v0::MatMul>(mat_a, mat_b, /*transpose_a=*/false, /*transpose_b=*/true);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{mm}, ov::ParameterVector{mat_a, mat_b});
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(GpuFailingShapes,
+                         ConvertGroupedMatMulToMatMul3Dx3DAccuracy,
+                         testing::Values(GmmShape3D{1, 8, 16, 8},   // passes on GPU (G==1)
+                                         GmmShape3D{2, 3, 8, 16},   // GPU: ov=[2,3,32]
+                                         GmmShape3D{4, 1, 8, 8},    // GPU: ov=[4,1,32]
+                                         GmmShape3D{3, 7, 16, 8}));  // GPU: ov=[3,7,24]
+
+// {T, K, N, cumulative offsets}
+using GmmShape2D = std::tuple<size_t, size_t, size_t, std::vector<int32_t>>;
+
+class ConvertGroupedMatMulToMatMul2Dx3DAccuracy : public TransformationTestsF,
+                                                  public testing::WithParamInterface<GmmShape2D> {};
+
+TEST_P(ConvertGroupedMatMulToMatMul2Dx3DAccuracy, MatchesReference) {
+    const auto [T, K, N, offsets_vec] = GetParam();
+    const auto G = static_cast<int64_t>(offsets_vec.size());
+    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
+
+    {
+        auto mat_a = std::make_shared<v0::Parameter>(f32, ov::Shape{T, K});
+        auto mat_b = std::make_shared<v0::Parameter>(f32, ov::Shape{offsets_vec.size(), N, K});
+        auto offsets = v0::Constant::create(i32, ov::Shape{offsets_vec.size()}, offsets_vec);
+        auto gmm = std::make_shared<v17::GroupedMatMul>(mat_a, mat_b, offsets);
+        model = std::make_shared<ov::Model>(ov::OutputVector{gmm}, ov::ParameterVector{mat_a, mat_b});
+
+        manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>();
+    }
+    {
+        auto mat_a = std::make_shared<v0::Parameter>(f32, ov::Shape{T, K});
+        auto mat_b = std::make_shared<v0::Parameter>(f32, ov::Shape{offsets_vec.size(), N, K});
+        auto offsets = v0::Constant::create(i32, ov::Shape{offsets_vec.size()}, offsets_vec);
+        auto out = ref_2dx3d_decomposition(mat_a, mat_b, offsets, G);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{out}, ov::ParameterVector{mat_a, mat_b});
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(GpuFailingShapes,
+                         ConvertGroupedMatMulToMatMul2Dx3DAccuracy,
+                         testing::Values(GmmShape2D{8, 8, 16, {8}},
+                                         GmmShape2D{16, 16, 8, {8, 16}},
+                                         GmmShape2D{24, 8, 8, {8, 16, 24}}));
