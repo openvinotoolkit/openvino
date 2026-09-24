@@ -291,7 +291,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     localConfig.update(ov::intel_npu::compiler_version.name(), compiler->get_version());
 
     // Resolve HostCompile before batching so the selected mode controls subsequent model and batch handling.
-    enable_host_compile_if_needed(model, localConfig, _logger);
+    if (should_use_host_compile_interpreter(model,
+                                            compilerType,
+                                            localConfig.has<COMPILATION_MODE>(),
+                                            localConfig.get<DYNAMIC_SHAPE_TO_STATIC>())) {
+        _logger.info("NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' for bounded dynamic 4D I/O "
+                     "model (inputs and outputs both dynamic, static batch, other dimensions dynamic)");
+        localConfig.update(ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter");
+    }
 
     // Read the default or explicit compilation mode so automatic and user-selected HostCompile take the same path.
     // HostCompile dynamic models retain their dynamic dimensions for the VM runtime instead of plugin debatching.

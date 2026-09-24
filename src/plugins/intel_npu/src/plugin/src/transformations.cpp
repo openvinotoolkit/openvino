@@ -15,12 +15,12 @@
 
 namespace intel_npu {
 
-void enable_host_compile_if_needed(const std::shared_ptr<const ov::Model>& model,
-                                   Config& config,
-                                   const Logger& logger) {
-    if (config.get<COMPILER_TYPE>() != ov::intel_npu::CompilerType::PLUGIN || config.has<COMPILATION_MODE>() ||
-        config.get<DYNAMIC_SHAPE_TO_STATIC>()) {
-        return;
+bool should_use_host_compile_interpreter(const std::shared_ptr<const ov::Model>& model,
+                                         ov::intel_npu::CompilerType compilerType,
+                                         bool compilationModeSet,
+                                         bool dynamicShapeToStatic) {
+    if (compilerType != ov::intel_npu::CompilerType::PLUGIN || compilationModeSet || dynamicShapeToStatic) {
+        return false;
     }
 
     // HostCompile allocates dynamic buffers from I/O upper bounds, so every dynamic dimension must be bounded.
@@ -53,11 +53,7 @@ void enable_host_compile_if_needed(const std::shared_ptr<const ov::Model>& model
         std::all_of(modelInputs.begin(), modelInputs.end(), hasFiniteUpperBounds) &&
         std::all_of(modelOutputs.begin(), modelOutputs.end(), hasFiniteUpperBounds);
 
-    if (inputsDynamic && outputsDynamic && allPortsHaveFiniteUpperBounds) {
-        logger.info("NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' for bounded dynamic 4D I/O "
-                    "model (inputs and outputs both dynamic, static batch, other dimensions dynamic)");
-        config.update(ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter");
-    }
+    return inputsDynamic && outputsDynamic && allPortsHaveFiniteUpperBounds;
 }
 
 namespace batch_helpers {

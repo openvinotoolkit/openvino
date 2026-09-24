@@ -8,7 +8,6 @@
 
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
-#include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
@@ -67,9 +66,9 @@ std::shared_ptr<ov::Model> make_no_input_model() {
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{}, "no_input_model");
 }
 
-class EnableHostCompileTest : public ::testing::Test {
+class ShouldUseHostCompileInterpreterTest : public ::testing::Test {
 protected:
-    EnableHostCompileTest() {
+    ShouldUseHostCompileInterpreterTest() {
         auto desc = std::make_shared<OptionsDesc>();
         desc->add<COMPILER_TYPE>();
         desc->add<COMPILATION_MODE>();
@@ -79,8 +78,10 @@ protected:
     }
 
     bool run(const std::shared_ptr<const ov::Model>& model) {
-        intel_npu::enable_host_compile_if_needed(model, *config, Logger("EnableHostCompileTest", ov::log::Level::NO));
-        return config->has<COMPILATION_MODE>() && config->get<COMPILATION_MODE>() == "HostCompile_Interpreter";
+        return intel_npu::should_use_host_compile_interpreter(model,
+                                                              config->get<COMPILER_TYPE>(),
+                                                              config->has<COMPILATION_MODE>(),
+                                                              config->get<DYNAMIC_SHAPE_TO_STATIC>());
     }
 
     std::unique_ptr<Config> config;
@@ -96,76 +97,76 @@ ov::Dimension unbounded() {
     return ov::Dimension::dynamic();
 }
 
-TEST_F(EnableHostCompileTest, BoundedDynamicFourDimensionalInputAndOutputEnableHostCompile) {
+TEST_F(ShouldUseHostCompileInterpreterTest, BoundedDynamicFourDimensionalInputAndOutputEnableHostCompile) {
     EXPECT_TRUE(run(make_relu_model({1, bounded(), 16, 32})));
 }
 
-TEST_F(EnableHostCompileTest, DynamicSpatialDimensionsEnableHostCompile) {
+TEST_F(ShouldUseHostCompileInterpreterTest, DynamicSpatialDimensionsEnableHostCompile) {
     EXPECT_TRUE(run(make_relu_model({1, 3, bounded(), bounded()})));
 }
 
-TEST_F(EnableHostCompileTest, NonPluginCompilerDoesNotEnableHostCompile) {
+TEST_F(ShouldUseHostCompileInterpreterTest, NonPluginCompilerDoesNotEnableHostCompile) {
     config->update({{ov::intel_npu::compiler_type.name(), "DRIVER"}});
 
     EXPECT_FALSE(run(make_relu_model({1, bounded(), 16, 32})));
 }
 
-TEST_F(EnableHostCompileTest, ExplicitCompilationModeIsNotOverridden) {
+TEST_F(ShouldUseHostCompileInterpreterTest, ExplicitCompilationModeIsNotOverridden) {
     config->update({{ov::intel_npu::compilation_mode.name(), "ReferenceSW"}});
 
     EXPECT_FALSE(run(make_relu_model({1, bounded(), 16, 32})));
     EXPECT_EQ(config->get<COMPILATION_MODE>(), "ReferenceSW");
 }
 
-TEST_F(EnableHostCompileTest, DynamicShapeToStaticDoesNotEnableHostCompile) {
+TEST_F(ShouldUseHostCompileInterpreterTest, DynamicShapeToStaticDoesNotEnableHostCompile) {
     config->update({{ov::intel_npu::dynamic_shape_to_static.name(), "YES"}});
 
     EXPECT_FALSE(run(make_relu_model({1, bounded(), 16, 32})));
 }
 
-TEST_F(EnableHostCompileTest, StaticModelDoesNotEnableHostCompile) {
+TEST_F(ShouldUseHostCompileInterpreterTest, StaticModelDoesNotEnableHostCompile) {
     EXPECT_FALSE(run(make_relu_model({1, 3, 16, 32})));
 }
 
-TEST_F(EnableHostCompileTest, DynamicRankDoesNotEnableHostCompile) {
+TEST_F(ShouldUseHostCompileInterpreterTest, DynamicRankDoesNotEnableHostCompile) {
     EXPECT_FALSE(run(make_relu_model(ov::PartialShape::dynamic())));
 }
 
-TEST_F(EnableHostCompileTest, NonFourDimensionalModelDoesNotEnableHostCompile) {
+TEST_F(ShouldUseHostCompileInterpreterTest, NonFourDimensionalModelDoesNotEnableHostCompile) {
     EXPECT_FALSE(run(make_relu_model({1, bounded(), 16})));
 }
 
-TEST_F(EnableHostCompileTest, DynamicBatchDoesNotEnableHostCompile) {
+TEST_F(ShouldUseHostCompileInterpreterTest, DynamicBatchDoesNotEnableHostCompile) {
     EXPECT_FALSE(run(make_relu_model({bounded(), 3, 16, 32})));
 }
 
-TEST_F(EnableHostCompileTest, DynamicBatchWithDynamicSpatialDoesNotEnableHostCompile) {
+TEST_F(ShouldUseHostCompileInterpreterTest, DynamicBatchWithDynamicSpatialDoesNotEnableHostCompile) {
     EXPECT_FALSE(run(make_relu_model({bounded(), 3, bounded(), 32})));
 }
 
-TEST_F(EnableHostCompileTest, UnboundedDimensionDoesNotEnableHostCompile) {
+TEST_F(ShouldUseHostCompileInterpreterTest, UnboundedDimensionDoesNotEnableHostCompile) {
     EXPECT_FALSE(run(make_relu_model({1, unbounded(), 16, 32})));
 }
 
-TEST_F(EnableHostCompileTest, StaticOutputDoesNotEnableHostCompile) {
+TEST_F(ShouldUseHostCompileInterpreterTest, StaticOutputDoesNotEnableHostCompile) {
     EXPECT_FALSE(run(make_dynamic_input_static_output_model({1, bounded(), 16, 32})));
 }
 
-TEST_F(EnableHostCompileTest, StaticInputDynamicOutputDoesNotEnableHostCompile) {
+TEST_F(ShouldUseHostCompileInterpreterTest, StaticInputDynamicOutputDoesNotEnableHostCompile) {
     EXPECT_FALSE(run(make_static_input_dynamic_output_model({1, 3, 16, 32})));
 }
 
-TEST_F(EnableHostCompileTest, UnboundedAdditionalPortDoesNotEnableHostCompile) {
+TEST_F(ShouldUseHostCompileInterpreterTest, UnboundedAdditionalPortDoesNotEnableHostCompile) {
     const auto model = make_two_input_relu_model({1, bounded(), 16, 32}, {1, unbounded(), 16, 32});
 
     EXPECT_FALSE(run(model));
 }
 
-TEST_F(EnableHostCompileTest, MultipleDynamicOutputsEnableHostCompile) {
+TEST_F(ShouldUseHostCompileInterpreterTest, MultipleDynamicOutputsEnableHostCompile) {
     EXPECT_TRUE(run(make_two_input_relu_model({1, bounded(), 16, 32}, {1, 3, bounded(), bounded()})));
 }
 
-TEST_F(EnableHostCompileTest, NoInputModelDoesNotEnableHostCompile) {
+TEST_F(ShouldUseHostCompileInterpreterTest, NoInputModelDoesNotEnableHostCompile) {
     EXPECT_FALSE(run(make_no_input_model()));
 }
 

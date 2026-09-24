@@ -7,8 +7,6 @@
 #include <functional>
 #include <memory>
 #include <optional>
-#include <set>
-#include <string>
 
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
@@ -18,7 +16,20 @@
 
 namespace intel_npu {
 
-void enable_host_compile_if_needed(const std::shared_ptr<const ov::Model>& model, Config& config, const Logger& logger);
+/**
+ * @brief Decides whether the bounded dynamic 4D I/O model should be compiled with the
+ * 'HostCompile_Interpreter' compilation mode. This is a pure predicate: it does not read from or
+ * mutate any Config. The caller is responsible for updating the config when this returns true.
+ * @param model The OpenVINO model to inspect
+ * @param compilerType The resolved compiler type
+ * @param compilationModeSet Whether NPU_COMPILATION_MODE was already provided
+ * @param dynamicShapeToStatic Whether the dynamic-shape-to-static conversion is requested
+ * @return true if 'HostCompile_Interpreter' should be selected, false otherwise
+ */
+bool should_use_host_compile_interpreter(const std::shared_ptr<const ov::Model>& model,
+                                         ov::intel_npu::CompilerType compilerType,
+                                         bool compilationModeSet,
+                                         bool dynamicShapeToStatic);
 
 namespace batch_helpers {
 
