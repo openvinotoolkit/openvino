@@ -198,6 +198,14 @@
 // Offset of the (depth tile db, query block qb) Q tile in Q_slm.
 #define Q_SLM_OFF(db, qb) (((db) * q_blocks + (qb)) * Q_DWORDS * SUBGROUP_SIZE)
 
+// Linkage of every helper in the sdpa_ocl_*.cl headers. With a plain `inline` helper IGC still
+// inlines it, but optimizes the whole kernel differently (the ISA moves far from the call site);
+// with always_inline the ISA is the same as with the code written in place. Helpers also take the
+// lane id twice where needed, `size_t lane` for size_t arithmetic and `int lane_i` for int: a
+// `(int)lane` inside a helper folds against the kernel's widened lane when it is inlined and moves
+// register allocation, so the caller does that conversion. Rationale: docs/sdpa_ocl.md.
+#define SDPA_OCL_INLINE __attribute__((always_inline)) inline
+
 // u4 (INT4) token-major BY_CHANNEL K cache: the DPAS depth axis is PERMUTED. The KQ A operand is K
 // with lane == head dim, but a K page byte holds channels (2b, 2b+1) -- the writer's adjacent
 // nibble order, which keeps a byte inside one writer workgroup -- so a byte-column read hands lane
