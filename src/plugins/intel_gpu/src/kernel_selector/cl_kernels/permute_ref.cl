@@ -84,7 +84,7 @@ KERNEL (permute_ref)(
 
 #if HAS_FUSED_OPS
     FUSED_OPS;
-    OUTPUT_TYPE output_value = TO_OUTPUT_TYPE(FUSED_OPS_RESULT);
+    OUTPUT_TYPE output_value = FUSED_OPS_RESULT;
 #else
     OUTPUT_TYPE output_value = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(input_var), ACTIVATION_PARAMS));
 #endif

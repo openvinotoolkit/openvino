@@ -7,7 +7,6 @@
 #include "random_generator.hpp"
 
 #include <intel_gpu/primitives/input_layout.hpp>
-#include <intel_gpu/primitives/implementation_desc.hpp>
 #include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/data.hpp>
@@ -2762,4 +2761,53 @@ TEST(permute_gpu_f32, tile_8x8_4x4_fy_swap) {
                 << "Mismatch at " << i;
         }
     }
+}
+
+namespace {
+
+void run_permute_gpu_u2_bf_swap(const tensor& input_size) {
+    auto& engine = get_test_engine();
+    const auto u2_input_layout = layout{data_types::u2, format::bfyx, input_size};
+    auto input = engine.allocate_memory(u2_input_layout);
+
+    const size_t element_count = input_size.count();
+    std::vector<uint8_t> input_data((element_count + 3) / 4, 0);
+    for (size_t i = 0; i < element_count; ++i) {
+        const auto value = static_cast<uint8_t>((i * 3 + 1) % 4);
+        input_data[i / 4] |= static_cast<uint8_t>(value << ((i % 4) * 2));
+    }
+    set_values(input, input_data);
+
+    const std::vector<uint16_t> order{1, 0, 2, 3};
+    const topology topology(input_layout("input", u2_input_layout), permute("output", input_info("input"), order));
+
+    auto execute_with_kernel = [&](const std::string& kernel_name) {
+        auto config = get_test_default_config(engine);
+        const ov::intel_gpu::ImplementationDesc implementation{format::bfyx, kernel_name};
+        config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"output", implementation}}));
+        network test_network(engine, topology, config);
+        test_network.set_input_data("input", input);
+        return test_network.execute().at("output").get_memory();
+    };
+
+    const auto reference_output = execute_with_kernel("permute_ref");
+    const auto optimized_output = execute_with_kernel("permute_bf_swap");
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> reference_data(reference_output, get_test_stream());
+    cldnn::mem_lock<uint8_t, mem_lock_type::read> optimized_data(optimized_output, get_test_stream());
+
+    ASSERT_EQ(reference_data.size(), optimized_data.size());
+    for (size_t i = 0; i < reference_data.size(); ++i) {
+        ASSERT_EQ(reference_data[i], optimized_data[i]) << "Mismatch at packed byte " << i;
+    }
+}
+
+}  // namespace
+
+TEST(permute_gpu_u2, bf_swap) {
+    run_permute_gpu_u2_bf_swap({2, 3, 8, 8});
+}
+
+TEST(permute_gpu_u2, bf_swap_different_batch_and_feature_sizes) {
+    run_permute_gpu_u2_bf_swap({3, 5, 16, 4});
 }
