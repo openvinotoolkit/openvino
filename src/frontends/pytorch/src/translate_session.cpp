@@ -4,6 +4,8 @@
 
 #include "translate_session.hpp"
 
+#include <optional>
+
 #include "helper_ops/gather_assign.hpp"
 #include "helper_ops/slice_assign.hpp"
 #include "input_model.hpp"
@@ -15,9 +17,7 @@
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/greater_eq.hpp"
 #include "openvino/op/less.hpp"
-#include "openvino/op/parameter.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/reshape.hpp"
@@ -47,24 +47,19 @@ class AliasScope {
 public:
     explicit AliasScope(TranslateSession& session) : m_session(session) {
         m_aliases.swap(m_session.m_may_be_alias);
-        m_pending_aliases.swap(m_session.m_pending_aliases);
     }
 
     ~AliasScope() {
         m_aliases.swap(m_session.m_may_be_alias);
-        m_pending_aliases.swap(m_session.m_pending_aliases);
     }
 
 private:
     TranslateSession& m_session;
     decltype(TranslateSession::m_may_be_alias) m_aliases;
-    decltype(TranslateSession::m_pending_aliases) m_pending_aliases;
 };
 
 bool is_structured_value(const Output<Node>& value) {
-    const auto node = value.get_node_shared_ptr();
-    return ov::is_type<SequenceMark>(node) || ov::is_type<ComplexTypeMark>(node) ||
-           ov::is_type<ov::op::util::FrameworkNode>(node);
+    return ov::is_type_any_of<SequenceMark, ComplexTypeMark, ov::op::util::FrameworkNode>(value.get_node_shared_ptr());
 }
 
 Output<Node> get_numel(const Output<Node>& value) {
@@ -72,26 +67,19 @@ Output<Node> get_numel(const Output<Node>& value) {
     return std::make_shared<v1::ReduceProd>(shape, v0::Constant::create(element::i64, Shape{1}, {0}), false);
 }
 
-// Flat base indices of every element of `value`.
-Output<Node> make_identity_positions(const Output<Node>& value) {
-    const auto shape = std::make_shared<v3::ShapeOf>(value, element::i64);
-    const auto range = std::make_shared<v4::Range>(v0::Constant::create(element::i64, Shape{}, {0}),
-                                                   get_numel(value),
-                                                   v0::Constant::create(element::i64, Shape{}, {1}),
-                                                   element::i64);
-    return std::make_shared<v1::Reshape>(range, shape, false);
+Output<Node> flatten(const Output<Node>& value) {
+    return std::make_shared<v1::Reshape>(value, v0::Constant::create(element::i64, Shape{1}, {-1}), false);
 }
 
-// Maps -1 positions to the index of one padding element appended to the flattened base.
-Output<Node> to_padded_index(const Output<Node>& positions, const Output<Node>& numel) {
-    const auto is_missing = std::make_shared<v1::Less>(positions, v0::Constant::create(element::i64, Shape{}, {0}));
-    return std::make_shared<v1::Select>(is_missing, numel, positions);
+Output<Node> is_not_aliased(const Output<Node>& positions) {
+    return std::make_shared<v1::Less>(positions, v0::Constant::create(element::i64, Shape{}, {0}));
 }
 
-Output<Node> flatten_with_padding(const Output<Node>& value) {
-    const auto flat = std::make_shared<v1::Reshape>(value, v0::Constant::create(element::i64, Shape{1}, {-1}), false);
-    const auto pad = std::make_shared<v1::ConvertLike>(v0::Constant::create(element::i32, Shape{1}, {0}), value);
-    return std::make_shared<v0::Concat>(OutputVector{flat, pad}, 0);
+// Gathers `data` elements at `positions`; elements at -1 positions are zero and must be replaced by the caller.
+Output<Node> gather_positions(const Output<Node>& data, const Output<Node>& positions) {
+    // Gather v8 fills out of range indices with zeros, so -1 is mapped past the end of the flat data.
+    const auto index = std::make_shared<v1::Select>(is_not_aliased(positions), get_numel(data), positions);
+    return std::make_shared<v8::Gather>(flatten(data), index, v0::Constant::create(element::i64, Shape{}, {0}));
 }
 
 // Keeps an unsupported alias update in the graph, so conversion reports it instead of silently dropping it.
@@ -106,102 +94,59 @@ Output<Node> make_unsupported_alias_node(const std::shared_ptr<TorchDecoder>& de
 }
 
 bool is_view_op(const std::shared_ptr<Node>& node) {
-    return ov::is_type<v1::Reshape>(node) || ov::is_type<v0::Squeeze>(node) || ov::is_type<v0::Unsqueeze>(node) ||
-           ov::is_type<v1::Transpose>(node) || ov::is_type<v8::Slice>(node) || ov::is_type<v1::StridedSlice>(node) ||
-           ov::is_type<v8::Gather>(node) || ov::is_type<v1::Split>(node) || ov::is_type<v1::VariadicSplit>(node) ||
-           ov::is_type<v3::Broadcast>(node) || ov::is_type<v1::Broadcast>(node);
+    return ov::is_type_any_of<v1::Reshape,
+                              v0::Squeeze,
+                              v0::Unsqueeze,
+                              v1::Transpose,
+                              v8::Slice,
+                              v1::StridedSlice,
+                              v8::Gather,
+                              v1::Split,
+                              v1::VariadicSplit,
+                              v1::Broadcast,
+                              v3::Broadcast>(node);
 }
 
-bool is_identity_convert(const std::shared_ptr<Node>& node) {
-    if (!ov::is_type<v0::Convert>(node) && !ov::is_type<v1::ConvertLike>(node)) {
-        return false;
+// Replays the operations between a base and its view on positions of the base. Only data movement operations may
+// consume the base data; values derived from the base shape are replayed unchanged.
+class PositionsReplay {
+public:
+    PositionsReplay(const Output<Node>& base, const Output<Node>& base_positions) {
+        m_cache[base] = {base_positions, true};
     }
-    const auto& in_type = node->get_input_element_type(0);
-    const auto& out_type = node->get_output_element_type(0);
-    return in_type.is_dynamic() || out_type.is_dynamic() || in_type == out_type;
-}
 
-// Replays the operations between a base and its view on positions of the base. Only data movement operations are
-// allowed on the data path; values derived from the base shape are replayed unchanged.
-struct PositionsReplay {
-    std::map<Output<Node>, Output<Node>> data;
-    std::map<Output<Node>, Output<Node>> shape_derived;
-
-    bool replay(const Output<Node>& value, Output<Node>& replayed, bool& is_data) {
-        if (const auto found = data.find(value); found != data.end()) {
-            replayed = found->second;
-            is_data = true;
-            return true;
-        }
-        if (const auto found = shape_derived.find(value); found != shape_derived.end()) {
-            replayed = found->second;
-            is_data = false;
-            return true;
+    // Returns the replayed value and whether it depends on the base data, or nullopt for unsupported operations.
+    std::optional<std::pair<Output<Node>, bool>> replay(const Output<Node>& value) {
+        if (const auto found = m_cache.find(value); found != m_cache.end()) {
+            return found->second;
         }
         const auto node = value.get_node_shared_ptr();
-        if (ov::is_type<v0::Parameter>(node) || ov::is_type<v0::Constant>(node)) {
-            replayed = value;
-            is_data = false;
-            return true;
-        }
-        OutputVector new_inputs;
-        std::vector<size_t> data_ports;
-        bool changed = false;
+        OutputVector inputs;
+        bool is_data = false;
         for (size_t i = 0; i < node->get_input_size(); ++i) {
-            Output<Node> input;
-            bool input_is_data = false;
-            if (!replay(node->input_value(i), input, input_is_data)) {
-                return false;
+            const auto input = replay(node->input_value(i));
+            if (!input || (input->second && i != 0)) {
+                return std::nullopt;
             }
-            changed = changed || input != node->input_value(i);
-            if (input_is_data) {
-                data_ports.push_back(i);
-            }
-            new_inputs.push_back(input);
+            is_data = is_data || input->second;
+            inputs.push_back(input->first);
         }
-        is_data = !data_ports.empty();
-        if (is_data) {
-            if (data_ports != std::vector<size_t>{0}) {
-                return false;
-            }
-            if (ov::is_type<v3::ShapeOf>(node) || ov::is_type<v0::ShapeOf>(node)) {
-                is_data = false;
-            } else if (is_identity_convert(node)) {
-                data[value] = new_inputs[0];
-                replayed = new_inputs[0];
-                return true;
-            } else if (!is_view_op(node)) {
-                return false;
-            }
+        std::pair<Output<Node>, bool> result{value, false};
+        if (is_data && ov::is_type_any_of<v0::Convert, v1::ConvertLike>(node) &&
+            node->get_input_element_type(0).compatible(node->get_output_element_type(0))) {
+            result = {inputs[0], true};
+        } else if (is_data && !is_view_op(node) && !ov::is_type_any_of<v0::ShapeOf, v3::ShapeOf>(node)) {
+            return std::nullopt;
+        } else if (is_data) {
+            result = {node->clone_with_new_inputs(inputs)->output(value.get_index()), is_view_op(node)};
         }
-        if (!changed) {
-            replayed = value;
-            (is_data ? data : shape_derived)[value] = value;
-            return true;
-        }
-        const auto updated = node->clone_with_new_inputs(new_inputs);
-        for (size_t i = 0; i < node->get_output_size(); ++i) {
-            (is_data ? data : shape_derived)[node->output(i)] = updated->output(i);
-        }
-        replayed = updated->output(value.get_index());
-        return true;
+        m_cache[value] = result;
+        return result;
     }
-};
 
-// Returns positions of `view` in `base`, or an empty output if the view cannot be expressed as positions.
-Output<Node> replay_positions(const Output<Node>& view, const Output<Node>& base, const Output<Node>& base_positions) {
-    if (is_structured_value(view) || is_structured_value(base)) {
-        return {};
-    }
-    PositionsReplay replay;
-    replay.data[base] = base_positions;
-    Output<Node> positions;
-    bool is_data = false;
-    if (!replay.replay(view, positions, is_data) || !is_data) {
-        return {};
-    }
-    return positions;
-}
+private:
+    std::map<Output<Node>, std::pair<Output<Node>, bool>> m_cache;
+};
 
 // Helper to extract complex part element type from raw type
 element::Type get_complex_part_type(const Any& raw_type) {
@@ -486,30 +431,11 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     }
                 }
 #endif
-                if (!m_may_be_alias.count(fw_tensor_id)) {
-                    const auto pending = m_pending_aliases.find(converted_outputs[i]);
-                    // Only outputs of the subgraph operation and elements selected from them are the view. Other
-                    // operations, like clone, may return the same OpenVINO value for a new tensor.
-                    const auto is_subgraph_output = [&](const PendingAlias& alias) {
-                        if (alias.decoder == node) {
-                            return true;
-                        }
-                        if (!has_inputs ||
-                            (op_type != "aten::__getitem__" && op_type != "<built-in function getitem>" &&
-                             op_type != "prim::TupleUnpack" && op_type != "prim::ListUnpack")) {
-                            return false;
-                        }
-                        const auto outputs = alias.decoder->outputs();
-                        return std::find(outputs.begin(), outputs.end(), raw_inputs.at(0)) != outputs.end();
-                    };
-                    if (pending != m_pending_aliases.end() && is_subgraph_output(pending->second)) {
-                        const auto& alias = pending->second;
-                        m_may_be_alias[fw_tensor_id] =
-                            {alias.base_id, alias.decoder, converted_outputs[i], alias.base_value, {}, alias.positions};
-                        OPENVINO_DEBUG("Registered subgraph output alias: ",
-                                       fw_tensor_id,
-                                       " of tensor: ",
-                                       alias.base_id);
+                if (op_type == "<built-in function getitem>" && !m_may_be_alias.count(fw_tensor_id)) {
+                    // Elements of a tuple returned by an inlined subgraph may be views of its operands.
+                    const auto element_alias = m_tuple_element_aliases.find(converted_outputs[i]);
+                    if (element_alias != m_tuple_element_aliases.end()) {
+                        m_may_be_alias[fw_tensor_id] = element_alias->second;
                     }
                 }
                 (*tensor_map)[fw_tensor_id] = converted_outputs[i];
@@ -588,12 +514,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 if (!param_names.count(root) || is_structured_value(value)) {
                     continue;
                 }
-                std::vector<AliasInfo> chain;
-                const auto relation = get_alias_chain(id, root, value, chain);
-                auto positions = std::make_shared<AliasPositions>([relation, chain, value]() -> Output<Node> {
-                    return relation == AliasRelation::ALIAS ? compute_alias_positions(chain, value) : Output<Node>{};
-                });
-                output_aliases.push_back({i, root, positions});
+                output_aliases.push_back({i, root, get_alias_positions(id, root, value)});
             }
         }
         if (!external_tensor_map.empty()) {
@@ -611,7 +532,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
         }
         resulting_model = std::make_shared<Model>(results, *parameters);
         if (!output_aliases.empty()) {
-            m_subgraph_output_aliases[resulting_model.get()] = {resulting_model, std::move(output_aliases)};
+            m_subgraph_output_aliases[resulting_model] = std::move(output_aliases);
         }
         // Did a conversion in a nested scope to automatically remove any holders of nodes except those in the graph
     }
@@ -872,25 +793,33 @@ Output<Node> make_non_alias_positions(const Output<Node>& value) {
 }
 
 Output<Node> make_alias_identity_positions(const Output<Node>& value) {
-    return make_identity_positions(value);
+    const auto range = std::make_shared<v4::Range>(v0::Constant::create(element::i64, Shape{}, {0}),
+                                                   get_numel(value),
+                                                   v0::Constant::create(element::i64, Shape{}, {1}),
+                                                   element::i64);
+    return std::make_shared<v1::Reshape>(range, std::make_shared<v3::ShapeOf>(value, element::i64), false);
 }
 
 Output<Node> replay_alias_positions(const Output<Node>& view,
                                     const Output<Node>& base,
                                     const Output<Node>& base_positions) {
-    return replay_positions(view, base, base_positions);
+    if (is_structured_value(view) || is_structured_value(base)) {
+        return {};
+    }
+    const auto replayed = PositionsReplay(base, base_positions).replay(view);
+    return replayed && replayed->second ? replayed->first : Output<Node>{};
 }
 
 Output<Node> compose_alias_positions(const Output<Node>& outer, const Output<Node>& inner) {
-    return std::make_shared<v8::Gather>(flatten_with_padding(outer),
-                                        to_padded_index(inner, get_numel(outer)),
-                                        v0::Constant::create(element::i64, Shape{}, {0}));
+    // Elements at -1 inner positions gather zero, so they are restored explicitly.
+    return std::make_shared<v1::Select>(is_not_aliased(inner),
+                                        v0::Constant::create(element::i64, Shape{}, {-1}),
+                                        gather_positions(outer, inner));
 }
 
 Output<Node> TranslateSession::AliasPositions::get() {
-    if (!m_materialized) {
+    if (m_materializer) {
         m_positions = m_materializer();
-        m_materialized = true;
         m_materializer = nullptr;
     }
     return m_positions;
@@ -898,24 +827,13 @@ Output<Node> TranslateSession::AliasPositions::get() {
 
 std::vector<TranslateSession::SubgraphOutputAlias> TranslateSession::take_subgraph_output_aliases(
     const std::shared_ptr<Model>& body) {
-    const auto found = m_subgraph_output_aliases.find(body.get());
+    const auto found = m_subgraph_output_aliases.find(body);
     if (found == m_subgraph_output_aliases.end()) {
         return {};
     }
-    std::vector<SubgraphOutputAlias> aliases;
-    if (found->second.first.lock() == body) {
-        aliases = std::move(found->second.second);
-    }
+    auto aliases = std::move(found->second);
     m_subgraph_output_aliases.erase(found);
     return aliases;
-}
-
-void TranslateSession::register_output_alias(const Output<Node>& output,
-                                             size_t base_id,
-                                             const Output<Node>& base_value,
-                                             const std::shared_ptr<TorchDecoder>& decoder,
-                                             const std::shared_ptr<AliasPositions>& positions) {
-    m_pending_aliases[output] = {base_id, base_value, decoder, positions};
 }
 
 size_t TranslateSession::get_alias_root(size_t tensor_id) const {
@@ -928,45 +846,54 @@ size_t TranslateSession::get_alias_root(size_t tensor_id) const {
     return tensor_id;
 }
 
-TranslateSession::AliasRelation TranslateSession::get_alias_chain(size_t tensor_id,
-                                                                  size_t root_id,
-                                                                  const Output<Node>& value,
-                                                                  std::vector<AliasInfo>& chain) const {
-    chain.clear();
-    const auto root = get_alias_root(tensor_id);
-    if (root != root_id) {
-        return tensor_id == root && !is_structured_value(value) ? AliasRelation::NONE : AliasRelation::UNSUPPORTED;
+std::shared_ptr<TranslateSession::AliasPositions> TranslateSession::get_alias_positions(size_t tensor_id,
+                                                                                        size_t root_id,
+                                                                                        const Output<Node>& value) {
+    const auto unsupported = std::make_shared<AliasPositions>([] {
+        return Output<Node>{};
+    });
+    if (is_structured_value(value)) {
+        return unsupported;
     }
+    const auto tensor_root = get_alias_root(tensor_id);
+    if (tensor_root != root_id) {
+        if (tensor_root != tensor_id) {
+            return unsupported;
+        }
+        return std::make_shared<AliasPositions>([value] {
+            return make_non_alias_positions(value);
+        });
+    }
+    // The chain is copied, because aliases may change before positions are needed.
+    std::vector<AliasInfo> chain;
     for (auto id = tensor_id; id != root_id; id = m_may_be_alias.at(id).base_id) {
         chain.push_back(m_may_be_alias.at(id));
     }
-    const auto& root_value = chain.empty() ? value : chain.back().base_value;
-    return is_structured_value(root_value) ? AliasRelation::UNSUPPORTED : AliasRelation::ALIAS;
-}
-
-Output<Node> TranslateSession::compute_alias_positions(const std::vector<AliasInfo>& chain, const Output<Node>& value) {
-    if (chain.empty()) {
-        return make_identity_positions(value);
-    }
-    // An empty output stands for identity positions of the root until a link needs them.
-    Output<Node> positions;
-    for (auto link = chain.rbegin(); link != chain.rend(); ++link) {
-        if (link->positions) {
-            // Positions of the link are relative to its base, which is the previous tensor in the chain.
-            const auto relative = link->positions->get();
-            if (!relative.get_node()) {
+    return std::make_shared<AliasPositions>([chain, value]() -> Output<Node> {
+        // An empty output stands for identity positions of the root until a link needs them.
+        Output<Node> positions;
+        for (auto link = chain.rbegin(); link != chain.rend(); ++link) {
+            if (is_structured_value(link->base_value)) {
                 return {};
             }
-            positions = positions.get_node() ? compose_alias_positions(positions, relative) : relative;
-        } else {
-            const auto base_positions = positions.get_node() ? positions : make_identity_positions(link->base_value);
-            positions = replay_positions(link->output, link->base_value, base_positions);
-            if (!positions.get_node()) {
-                return {};
+            if (link->positions) {
+                const auto relative = link->positions->get();
+                if (!relative.get_node()) {
+                    return {};
+                }
+                positions = positions.get_node() ? compose_alias_positions(positions, relative) : relative;
+            } else {
+                positions = replay_alias_positions(
+                    link->output,
+                    link->base_value,
+                    positions.get_node() ? positions : make_alias_identity_positions(link->base_value));
+                if (!positions.get_node()) {
+                    return {};
+                }
             }
         }
-    }
-    return positions;
+        return positions.get_node() ? positions : make_alias_identity_positions(value);
+    });
 }
 
 Output<Node> TranslateSession::reverseprop_alias(const AliasInfo& alias_info, const Output<Node>& value) {
@@ -974,44 +901,38 @@ Output<Node> TranslateSession::reverseprop_alias(const AliasInfo& alias_info, co
         return get_reverseprop_op(alias_info.decoder, alias_info.output, value, alias_info.base_value);
     }
     const auto positions = alias_info.positions->get();
-    if (!positions.get_node() || is_structured_value(alias_info.base_value) || is_structured_value(value)) {
+    const auto& base = alias_info.base_value;
+    if (!positions.get_node() || is_structured_value(base) || is_structured_value(value)) {
         return make_unsupported_alias_node(alias_info.decoder,
                                            value,
                                            "Cannot propagate a mutation of a view returned from " +
                                                alias_info.decoder->get_op_type() + " to its base tensor.");
     }
-    // Index of the written element for each base element, -1 where the base is not written. Only indices are
-    // padded, so base and value data are never copied into a larger buffer.
-    const auto& base = alias_info.base_value;
-    const auto shape = std::make_shared<v3::ShapeOf>(base, element::i64);
-    const auto numel = get_numel(base);
-    const auto flat_shape = v0::Constant::create(element::i64, Shape{1}, {-1});
-    const auto minus_one = v0::Constant::create(element::i64, Shape{}, {-1});
+    // For each base element find the index of the written view element, or -1 if it is not written. Base and value
+    // data are never copied into a padded buffer, only the indices are.
     const auto zero = v0::Constant::create(element::i64, Shape{}, {0});
     const auto one = v0::Constant::create(element::i64, Shape{}, {1});
-    const auto indices = std::make_shared<v0::Unsqueeze>(
-        std::make_shared<v1::Reshape>(to_padded_index(positions, numel), flat_shape, false),
-        minus_one);
-    const auto source = std::make_shared<v4::Range>(zero, get_numel(positions), one, element::i64);
-    const auto padded_size = std::make_shared<v1::Add>(numel, one);
+    const auto numel = get_numel(base);
+    const auto flat_positions = flatten(positions);
     const auto no_source =
-        std::make_shared<v3::Broadcast>(minus_one, std::make_shared<v0::Unsqueeze>(padded_size, zero));
-    const auto padded_sources = std::make_shared<v3::ScatterNDUpdate>(no_source, indices, source);
+        std::make_shared<v3::Broadcast>(v0::Constant::create(element::i64, Shape{}, {-1}),
+                                        std::make_shared<v0::Unsqueeze>(std::make_shared<v1::Add>(numel, one), zero));
+    const auto padded_index = std::make_shared<v1::Select>(is_not_aliased(flat_positions), numel, flat_positions);
+    const auto view_index = std::make_shared<v4::Range>(zero, get_numel(positions), one, element::i64);
+    const auto padded_sources =
+        std::make_shared<v3::ScatterNDUpdate>(no_source,
+                                              std::make_shared<v0::Unsqueeze>(padded_index, one),
+                                              view_index);
     const auto sources = std::make_shared<v8::Slice>(padded_sources,
                                                      v0::Constant::create(element::i64, Shape{1}, {0}),
                                                      std::make_shared<v0::Unsqueeze>(numel, zero),
                                                      v0::Constant::create(element::i64, Shape{1}, {1}));
-    const auto is_written = std::make_shared<v1::GreaterEqual>(sources, zero);
-    const auto flat_value = std::make_shared<v1::Reshape>(
-        std::make_shared<v3::Broadcast>(std::make_shared<v1::ConvertLike>(value, base),
-                                        std::make_shared<v3::ShapeOf>(positions, element::i64)),
-        flat_shape,
-        false);
-    // Gather zero-fills out of range indices, which are discarded by Select.
-    const auto written = std::make_shared<v8::Gather>(flat_value, sources, zero);
-    const auto updated =
-        std::make_shared<v1::Select>(is_written, written, std::make_shared<v1::Reshape>(base, flat_shape, false));
-    return std::make_shared<v1::Reshape>(updated, shape, false);
+    const auto written =
+        gather_positions(std::make_shared<v3::Broadcast>(std::make_shared<v1::ConvertLike>(value, base),
+                                                         std::make_shared<v3::ShapeOf>(positions, element::i64)),
+                         sources);
+    const auto updated = std::make_shared<v1::Select>(is_not_aliased(sources), flatten(base), written);
+    return std::make_shared<v1::Reshape>(updated, std::make_shared<v3::ShapeOf>(base, element::i64), false);
 }
 
 Output<Node> TranslateSession::rebase_alias(const AliasInfo& alias_info, const Output<Node>& new_base) {
@@ -1022,15 +943,10 @@ Output<Node> TranslateSession::rebase_alias(const AliasInfo& alias_info, const O
                                            "Cannot update a view returned from " + alias_info.decoder->get_op_type() +
                                                " after its base tensor was mutated.");
     }
-    // Gather zero-fills out of range indices, so -1 positions are safe and replaced by Select.
-    const auto gathered = std::make_shared<v8::Gather>(
-        std::make_shared<v1::Reshape>(new_base, v0::Constant::create(element::i64, Shape{1}, {-1}), false),
-        to_padded_index(positions, get_numel(new_base)),
-        v0::Constant::create(element::i64, Shape{}, {0}));
-    const auto is_missing = std::make_shared<v1::Less>(positions, v0::Constant::create(element::i64, Shape{}, {0}));
-    return std::make_shared<v1::Select>(is_missing,
-                                        std::make_shared<v1::ConvertLike>(alias_info.output, gathered),
-                                        gathered);
+    // Elements which do not alias the base keep their current value.
+    return std::make_shared<v1::Select>(is_not_aliased(positions),
+                                        std::make_shared<v1::ConvertLike>(alias_info.output, new_base),
+                                        gather_positions(new_base, positions));
 }
 
 }  // namespace ov::frontend::pytorch

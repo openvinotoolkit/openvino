@@ -68,13 +68,11 @@ public:
     class AliasPositions {
     public:
         explicit AliasPositions(std::function<Output<Node>()> materializer) : m_materializer(std::move(materializer)) {}
-        explicit AliasPositions(const Output<Node>& positions) : m_positions(positions), m_materialized(true) {}
         Output<Node> get();
 
     private:
         std::function<Output<Node>()> m_materializer;
         Output<Node> m_positions;
-        bool m_materialized = false;
     };
 
     struct AliasInfo {
@@ -90,49 +88,27 @@ public:
     };
     std::map<size_t, AliasInfo> m_may_be_alias;
 
-    struct PendingAlias {
-        size_t base_id;
-        Output<Node> base_value;
-        std::shared_ptr<TorchDecoder> decoder;
-        std::shared_ptr<AliasPositions> positions;
-    };
-    // Outputs of subgraph operations that are views of a tensor, registered when stored for a tensor id.
-    std::map<Output<Node>, PendingAlias> m_pending_aliases;
+    // Aliases of tuple elements returned by inlined subgraphs, registered when an element is selected.
+    std::map<Output<Node>, AliasInfo> m_tuple_element_aliases;
 
     /// \brief Alias between a declared output of a converted internal body and one of its parameters
     struct SubgraphOutputAlias {
         size_t output_index;
         // Tensor id of the body parameter that is the alias root.
         size_t root_id;
-        // Positions relative to the root parameter, created in the body; empty if not representable.
+        // Positions relative to the root parameter.
         std::shared_ptr<AliasPositions> positions;
     };
 
     /// \brief Returns and forgets aliases recorded for outputs of the internal body converted to `body`
     std::vector<SubgraphOutputAlias> take_subgraph_output_aliases(const std::shared_ptr<Model>& body);
 
-    /// \brief Registers a converted output as a view of tensor `base_id`; used by subgraph translators
-    void register_output_alias(const Output<Node>& output,
-                               size_t base_id,
-                               const Output<Node>& base_value,
-                               const std::shared_ptr<TorchDecoder>& decoder,
-                               const std::shared_ptr<AliasPositions>& positions);
-
-    enum class AliasRelation { NONE, ALIAS, UNSUPPORTED };
-    /// \brief Collects aliases between tensor `tensor_id` and tensor `root_id` in the currently converted graph
-    /// \param value Current value of `tensor_id`
-    /// \return NONE if the tensor is not a view of any tensor, UNSUPPORTED if it is a view of a different tensor
-    AliasRelation get_alias_chain(size_t tensor_id,
-                                  size_t root_id,
-                                  const Output<Node>& value,
-                                  std::vector<AliasInfo>& chain) const;
-
-    /// \brief Computes positions of a view in the root of `chain`; empty output if not representable
-    /// \param value Value of the view, used when the view is the root itself
-    static Output<Node> compute_alias_positions(const std::vector<AliasInfo>& chain, const Output<Node>& value);
-
     /// \brief Returns the root tensor id of the alias chain of `tensor_id`
     size_t get_alias_root(size_t tensor_id) const;
+
+    /// \brief Positions of tensor `tensor_id` with current value `value` in tensor `root_id`. Elements of a tensor
+    /// which is not a view are marked as not aliased; a view of a different tensor is not representable.
+    std::shared_ptr<AliasPositions> get_alias_positions(size_t tensor_id, size_t root_id, const Output<Node>& value);
 
     /// \brief Returns value of the base after writing `value` to the alias described by `alias_info`
     Output<Node> reverseprop_alias(const AliasInfo& alias_info, const Output<Node>& value);
@@ -150,7 +126,7 @@ private:
 
     std::map<size_t, std::pair<size_t, Output<Node>>> m_counter_map;
     std::map<std::string, uint64_t> m_op_statistics;
-    std::map<const Model*, std::pair<std::weak_ptr<Model>, std::vector<SubgraphOutputAlias>>> m_subgraph_output_aliases;
+    std::map<std::shared_ptr<Model>, std::vector<SubgraphOutputAlias>> m_subgraph_output_aliases;
     // Set per converted graph in convert_pytorch_model; the decoder type never varies within one.
     bool m_is_fx = false;
 };

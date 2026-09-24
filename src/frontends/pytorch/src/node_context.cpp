@@ -153,30 +153,27 @@ void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const s
         // Existing views retain their shape when the base tensor's metadata changes.
         const auto old_shape_view =
             m_translate_session->get_reverseprop_op(m_decoder, ov_output, ov_output, previous_value);
-        std::shared_ptr<Output<Node>> old_layout;
         for (auto& [alias_id, info] : m_translate_session->m_may_be_alias) {
             if (info.element_ids.empty() && info.base_id == input_id) {
-                if (info.positions) {
-                    info.output = m_translate_session->rebase_alias(info, old_shape_view);
-                    if (!old_layout) {
-                        // New flat indices of the base elements, arranged in the old layout of the base.
-                        old_layout = std::make_shared<Output<Node>>(
-                            m_translate_session->get_reverseprop_op(m_decoder,
-                                                                    ov_output,
-                                                                    make_alias_identity_positions(ov_output),
-                                                                    previous_value));
-                    }
-                    const auto positions = info.positions;
-                    info.positions =
-                        std::make_shared<TranslateSession::AliasPositions>([positions, old_layout]() -> Output<Node> {
-                            const auto old_positions = positions->get();
-                            if (!old_positions.get_node() || ov::is_type<PtFrameworkNode>(old_layout->get_node())) {
-                                return {};
-                            }
-                            return compose_alias_positions(*old_layout, old_positions);
-                        });
-                } else {
+                if (!info.positions) {
                     info.output = rebase_view(info.output, info.base_value, old_shape_view);
+                } else {
+                    if (info.base_value != previous_value) {
+                        info.output = m_translate_session->rebase_alias(info, old_shape_view);
+                    }
+                    // Storage is unchanged: positions in the old layout are mapped to flat indices of the new one.
+                    const auto new_indices =
+                        m_translate_session->get_reverseprop_op(m_decoder,
+                                                                ov_output,
+                                                                make_alias_identity_positions(ov_output),
+                                                                previous_value);
+                    info.positions = std::make_shared<TranslateSession::AliasPositions>(
+                        [positions = info.positions, new_indices]() -> Output<Node> {
+                            const auto old_positions = positions->get();
+                            return old_positions.get_node() && !ov::is_type<PtFrameworkNode>(new_indices.get_node())
+                                       ? compose_alias_positions(new_indices, old_positions)
+                                       : Output<Node>{};
+                        });
                 }
                 info.base_value = ov_output;
                 (*m_tensor_map)[alias_id] = info.output;
@@ -184,10 +181,10 @@ void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const s
         }
         const auto alias = m_translate_session->m_may_be_alias.find(input_id);
         if (alias != m_translate_session->m_may_be_alias.end()) {
-            if (const auto positions = alias->second.positions) {
+            if (alias->second.positions) {
                 // The view itself changed its layout, so its positions follow the metadata operation.
                 alias->second.positions = std::make_shared<TranslateSession::AliasPositions>(
-                    [positions, ov_output, previous_value]() -> Output<Node> {
+                    [positions = alias->second.positions, ov_output, previous_value]() -> Output<Node> {
                         const auto old_positions = positions->get();
                         return old_positions.get_node()
                                    ? replay_alias_positions(ov_output, previous_value, old_positions)
