@@ -8,7 +8,7 @@
 
 #include <memory>
 
-#include "intel_npu/common/filtered_config.hpp"
+#include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "openvino/core/layout.hpp"
@@ -78,7 +78,7 @@ protected:
         desc->add<COMPILER_TYPE>();
         desc->add<COMPILATION_MODE>();
         desc->add<DYNAMIC_SHAPE_TO_STATIC>();
-        config = std::make_unique<FilteredConfig>(desc);
+        config = std::make_unique<Config>(desc);
         config->update({{ov::intel_npu::compiler_type.name(), "PLUGIN"}});
     }
 
@@ -88,7 +88,7 @@ protected:
                config->get<COMPILATION_MODE>() == "HostCompile_Interpreter";
     }
 
-    std::unique_ptr<FilteredConfig> config;
+    std::unique_ptr<Config> config;
 };
 
 constexpr int64_t UPPER = 224;

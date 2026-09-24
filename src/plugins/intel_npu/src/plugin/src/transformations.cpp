@@ -16,7 +16,7 @@
 namespace intel_npu {
 
 void enable_host_compile_if_needed(const std::shared_ptr<const ov::Model>& model,
-                                   FilteredConfig& config,
+                                   Config& config,
                                    const Logger& logger) {
     if (model == nullptr || config.get<COMPILER_TYPE>() != ov::intel_npu::CompilerType::PLUGIN ||
         config.has<COMPILATION_MODE>() || config.get<DYNAMIC_SHAPE_TO_STATIC>()) {
