@@ -249,15 +249,9 @@ Physical AI
 
 Physical AI Runtime v0.2.0 introduces a single runtime for both policy inference and teleoperation, lets applications share a robot across processes and machines, and adds plugins for more robot hardware.
 
-This release also adds runtime support for compatible RLDX-1, MolmoAct2, and XR0 exports, and lets applications start a new policy run without reconnecting hardware.
+It also adds runtime support for compatible RLDX-1, MolmoAct2, and XR0 exports, and lets applications start a new policy run without reconnecting hardware.
 
-.. code-block:: sh
-
-   pip install --upgrade physicalai
-
-.. important::
-
-   This release changes how you create a runtime. If you are upgrading from 0.1.x, see `Upgrading from 0.1.x`_.
+Install: ``pip install --upgrade physicalai``.
 
 One runtime for policy inference and teleoperation
 --------------------------------------------------
@@ -267,15 +261,11 @@ The new ``RobotRuntime`` can run a learned policy or have a follower robot mirro
 Applications can now stop a run and start another while hardware stays connected:
 
 * ``PolicySource.reset()`` clears pending actions so predictions from the previous task are not carried into the next one.
-* Recording and logging callbacks keep working across repeated runs, in `Physical AI Studio <https://github.com/open-edge-platform/physical-ai-studio>`__ and in your own applications.
+* Recording and logging callbacks keep working across repeated runs, in `Physical AI Studio <https://github.com/open-edge-platform/physical-ai-studio>`__ and in custom applications.
 
 Call ``PolicySource.warmup(observation)`` after connecting to prepare the first prediction before the control loop starts.
 
-The shared ``Config`` API saves and loads settings for robots, cameras, policies, and callbacks. The same runtime configuration works from Python or the command line:
-
-.. code-block:: sh
-
-   physicalai run --config runtime.yaml
+The shared ``Config`` API saves and loads settings for robots, cameras, policies, and callbacks. The same runtime configuration works from Python or the command line: ``physicalai run --config runtime.yaml``.
 
 See `Run a policy on a robot <https://github.com/openvinotoolkit/physicalai/blob/v0.2.0/docs/how-to/runtime/run-policy-on-robot.md>`__ and `Write a runtime configuration <https://github.com/openvinotoolkit/physicalai/blob/v0.2.0/docs/how-to/config/write-runtime-config.md>`__.
 
@@ -286,9 +276,7 @@ Share hardware across processes and machines
 
 Use ``physicalai robot serve`` to make a robot available and ``physicalai robot discover`` to find robots that are being served. Both commands are limited to the same computer by default. Pass ``--allow_remote`` to serve or discover robots across the network.
 
-.. warning::
-
-   Remote mode does not configure authentication or encryption. Any client that can reach the robot's command channel can send commands. Use an isolated robot-cell network or configure Zenoh access controls and TLS.
+Remote mode does not configure authentication or encryption. Any client that can reach the robot's command channel can send commands. Use an isolated robot-cell network or configure Zenoh access controls and TLS.
 
 See `Share a robot <https://github.com/openvinotoolkit/physicalai/blob/v0.2.0/docs/how-to/runtime/share-a-robot.md>`__.
 
@@ -313,14 +301,14 @@ Runtime now reads callback settings from model manifests, including settings tha
 
 ``InferenceModel.from_pretrained()`` downloads and loads compatible policy exports directly from the Hugging Face Hub, so you no longer need a separate download step.
 
-This release also fixes SmolVLA camera ordering and its handling of missing cameras, corrects inputs for single-camera setups, and speeds up resizing of ``uint8`` camera images.
+It also fixes SmolVLA camera ordering and its handling of missing cameras, corrects inputs for single-camera setups, and speeds up resizing of ``uint8`` camera images.
 
 See `Load an exported policy <https://github.com/openvinotoolkit/physicalai/blob/v0.2.0/docs/how-to/inference/load-exported-policy.md>`__.
 
 Robot plugins
 -------------
 
-Robot plugins let you add hardware support without changing Runtime or Studio code. First-party plugins and the plugin development package now live in the Runtime repository, and each plugin is installed and versioned separately.
+Robot plugins add hardware support without changing Runtime or Studio code. First-party plugins and the plugin development package now live in the Runtime repository, and each plugin is installed and versioned separately.
 
 Available plugins:
 
@@ -344,25 +332,7 @@ The repository also includes `agent skills <https://github.com/openvinotoolkit/p
 Upgrading from 0.1.x
 --------------------
 
-``PolicyRuntime`` and ``InferenceModel.load()`` have been removed. Update code that uses them and adjust YAML configurations using the replacements below.
-
-.. list-table::
-   :header-rows: 1
-
-   * - 0.1.x
-     - 0.2.0
-   * - ``PolicyRuntime``
-     - ``RobotRuntime`` with an explicit ``PolicySource``
-   * - Policy model and execution settings directly on the runtime
-     - Settings on ``PolicySource`` (under ``action_source.init_args`` in YAML)
-   * - ``InferenceModel.load(...)``
-     - ``InferenceModel(export_dir=...)`` for local exports, or ``InferenceModel.from_pretrained(...)`` for the Hub
-   * - Older OpenVINO releases
-     - OpenVINO >= 2026.4.0 and OpenVINO Tokenizers >= 2026.4.0.0
-
-The older configuration helpers ``FromConfig`` and ``instantiate_obj`` still work but emit deprecation warnings and will be removed in a future release. Use ``Config`` or jsonargparse in new code.
-
-The `runtime configuration example <https://github.com/openvinotoolkit/physicalai/blob/v0.2.0/examples/runtime/runtime.yaml>`__ is a good starting point for migrating a 0.1.x configuration.
+``PolicyRuntime`` and ``InferenceModel.load()`` have been removed. See :doc:`Upgrade from 0.1.x <../physical-ai/how-to/runtime/upgrade-from-0-1-x>` for the replacements and migration steps.
 
 Other Changes and Known Issues
 ++++++++++++++++++++++++++++++
