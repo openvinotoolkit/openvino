@@ -199,6 +199,8 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
                                                                                       tensor->get_shape());
             auto backend_tensor_impl = ov::get_tensor_impl(m_backend_input_tensors[i]);
             OPENVINO_ASSERT(backend_tensor_impl, "Failed to create backend tensor");
+            // `OPENVINO_ASSERT' above guarantees `backend_tensor_impl._ptr' is non-null
+            // coverity[null_field:FALSE]
             tensor->copy_to(backend_tensor_impl._ptr);
         }
     }

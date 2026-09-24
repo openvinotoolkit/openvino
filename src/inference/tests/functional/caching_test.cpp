@@ -3178,7 +3178,8 @@ TEST_P(CachingTest, import_from_cache_model_and_weights_path_properties_are_supp
     });
 }
 
-TEST_P(CachingTest, import_from_compiled_blob_weights_path_property_is_supported) {
+TEST_P(CachingTest, import_from_compiled_blob_preserves_import_properties) {
+    deviceToLoad = deviceName + ".1";  // To check device id retention on import.
     ON_CALL(*mockPlugin, get_property(ov::supported_properties.name(), _))
         .WillByDefault(Invoke([&](const std::string&, const ov::AnyMap&) {
             return std::vector<ov::PropertyName>{ov::supported_properties.name(),
@@ -3195,6 +3196,10 @@ TEST_P(CachingTest, import_from_compiled_blob_weights_path_property_is_supported
             EXPECT_EQ(config.count(ov::hint::compiled_blob.name()), 1);
             EXPECT_EQ(config.count(ov::hint::model.name()), m_type != TestLoadType::EModelName ? 1 : 0);
             EXPECT_EQ(config.count(ov::weights_path.name()), m_type == TestLoadType::EModelName ? 1 : 0);
+            EXPECT_EQ(config.count(ov::device::id.name()), 1);
+            if (config.count(ov::device::id.name())) {
+                EXPECT_EQ(config.at(ov::device::id.name()).as<std::string>(), "1");
+            }
             return nullptr;
         }));
     EXPECT_CALL(*mockPlugin, get_property(_, _)).Times(AnyNumber());

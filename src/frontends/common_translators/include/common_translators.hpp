@@ -7,9 +7,7 @@
 #include "openvino/core/node_vector.hpp"
 #include "openvino/frontend/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace common_translators {
+namespace ov::frontend::common_translators {
 #define COMMON_OP_CONVERTER(op) OutputVector op(const ov::frontend::NodeContext& node)
 
 COMMON_OP_CONVERTER(translate_complex);
@@ -32,6 +30,4 @@ OutputVector translate_bincount_common(const NodeContext& context,
                                        const Output<Node>& size,
                                        const Output<Node>& weights = Output<Node>());
 
-}  // namespace common_translators
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::common_translators

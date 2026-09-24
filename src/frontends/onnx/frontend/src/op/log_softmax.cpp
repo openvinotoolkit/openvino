@@ -16,9 +16,7 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 namespace {
 std::shared_ptr<ov::Node> onnx_logsoftmax(const ov::Output<ov::Node> data, const int64_t axis) {
     const auto coerced_data = ov::op::util::flatten(data, static_cast<int>(axis));
@@ -64,23 +62,19 @@ ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node, const int64_t
     return {result};
 }
 }  // namespace
+}  // namespace ov::frontend::onnx
 
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node) {
     return ov::frontend::onnx::log_softmax(node, 1);
 }
 ONNX_OP("LogSoftmax", OPSET_RANGE(1, 12), ai_onnx::opset_1::log_softmax);
-}  // namespace opset_1
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1
 
-namespace opset_13 {
+namespace ov::frontend::onnx::ai_onnx::opset_13 {
 ov::OutputVector log_softmax(const ov::frontend::onnx::Node& node) {
     const auto axis = node.get_attribute_value<int64_t>("axis", -1);
     return {std::make_shared<v5::LogSoftmax>(node.get_ov_inputs()[0], axis)};
 }
 ONNX_OP("LogSoftmax", OPSET_SINCE(13), ai_onnx::opset_13::log_softmax);
-}  // namespace opset_13
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_13

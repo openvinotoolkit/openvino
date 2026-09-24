@@ -86,8 +86,9 @@ std::pair<int64_t, int64_t> SDPABase::get_gqa_params(const kernel_impl_params& p
     if (params.is_type<scaled_dot_product_attention>()) {
         auto desc = params.typed_desc<scaled_dot_product_attention>();
         auto transpose_pshape = [](const ov::PartialShape& pshape, const std::vector<int64_t>& order) {
-            if (order.empty())
+            if (order.empty()) {
                 return pshape;
+            }
 
             auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
             for (size_t i = 0; i < order.size(); i++) {
@@ -136,8 +137,9 @@ sdpa_configuration SDPABase::get_sdpa_configuration(const kernel_impl_params& im
     sdpa_configuration config;
 
     auto transpose_pshape = [](const ov::PartialShape& pshape, const std::vector<int64_t>& order) {
-        if (order.empty())
+        if (order.empty()) {
             return pshape;
+        }
 
         auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
         for (size_t i = 0; i < order.size(); i++) {
@@ -159,11 +161,13 @@ sdpa_configuration SDPABase::get_sdpa_configuration(const kernel_impl_params& im
         }
     }
 
-    if (query_shape[query_shape.size() - 1].is_static())
+    if (query_shape[query_shape.size() - 1].is_static()) {
         config.k_head_size = query_shape[query_shape.size() - 1].get_length();
+    }
 
-    if (value_shape[value_shape.size() - 1].is_static())
+    if (value_shape[value_shape.size() - 1].is_static()) {
         config.v_head_size = value_shape[value_shape.size() - 1].get_length();
+    }
 
     // 4-bit KV-cache: physical V layout has head_size/2 due to u4 packing.
     // Use logical head size from query to get the correct un-halved value.

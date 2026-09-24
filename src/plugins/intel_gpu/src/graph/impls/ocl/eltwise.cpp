@@ -78,8 +78,9 @@ public:
                     std::vector<ov::Dimension::value_type> output_size = impl_param.get_output_layout().get_tensor().raw.vector();
                     bool broadcast = false;
                     for (size_t d = 0; d < output_size.size(); d++) {
-                        if (output_size[d] != 1 && input_size[d] == 1)
+                        if (output_size[d] != 1 && input_size[d] == 1) {
                             broadcast = true;
+                        }
                     }
                     if (broadcast) {
                         params.broadcast = true;
@@ -106,8 +107,9 @@ public:
         if (!params.stride.empty()) {
             const auto& stride = params.stride[0];
             for (size_t i = 1; i < params.stride.size(); i++) {
-                if (stride.x != params.stride[i].x || stride.y != params.stride[i].y)
+                if (stride.x != params.stride[i].x || stride.y != params.stride[i].y) {
                     params.layoutBased = true;
+                }
             }
         } else if (params.inputs.size() > 1 && (!params.inputs[0].SameDimsSizes(params.inputs[1]))) {
             params.broadcast = true;
