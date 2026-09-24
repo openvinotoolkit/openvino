@@ -1092,28 +1092,29 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
             // NOTE: Granite-4.0-h-micro uses no Positional Encoding, it doesn't need it because
             //       Mamba inherently does preserve information about the order of tokens.
             if (m_prefill_in_ports.find(layer_names::position_ids) != m_prefill_in_ports.end()) {
-                // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni, Qwen3.5 VL use 3D position_ids
-                // [3, BATCH, SEQ_LEN]
-                // Copy postion ids with considering the 3D position_ids
-                // The caller tensor is delta-relative during a continued prefill.
-                auto pos_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
+                // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni, Qwen3.5 VL use 3D
+                // position_ids [3, BATCH, SEQ_LEN] Copy postion ids with considering the 3D position_ids The caller
+                // tensor is delta-relative during a continued prefill.
+                auto pos_ids_in_tensor =
+                    m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
                 auto last_dim = position_ids->get_shape().size() - 1;
                 const uint32_t pos_src_offset = kvcache_desc.num_stored_tokens - m_continued_prefill_base;
                 auto actual_position_ids_slice =
                     ov::npuw::util::make_tensor_slice(position_ids,
-                                                    static_cast<uint32_t>(last_dim),
-                                                    pos_src_offset,
-                                                    pos_src_offset + static_cast<uint32_t>(current_prompts_len));
+                                                      static_cast<uint32_t>(last_dim),
+                                                      pos_src_offset,
+                                                      pos_src_offset + static_cast<uint32_t>(current_prompts_len));
 
                 auto pos_ids_slice =
                     ov::npuw::util::make_tensor_slice(pos_ids_in_tensor,
-                                                    static_cast<uint32_t>(last_dim),
-                                                    static_cast<uint32_t>(chunk_prompt_len - current_prompts_len),
-                                                    static_cast<uint32_t>(chunk_prompt_len));
+                                                      static_cast<uint32_t>(last_dim),
+                                                      static_cast<uint32_t>(chunk_prompt_len - current_prompts_len),
+                                                      static_cast<uint32_t>(chunk_prompt_len));
 
                 // Copy with proper stride handling
-                NPUW_ASSERT(pos_ids_slice._ptr &&
-                            "null slice of position IDs tensor — source tensor may be uninitialized or have wrong shape");
+                NPUW_ASSERT(
+                    pos_ids_slice._ptr &&
+                    "null slice of position IDs tensor — source tensor may be uninitialized or have wrong shape");
                 actual_position_ids_slice->copy_to(pos_ids_slice._ptr);
             }
 
@@ -1537,8 +1538,9 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             // NOTE: Granite-4.0-h-micro uses no Positional Encoding, it doesn't need it because
             //       Mamba inherently does preserve information about the order of tokens.
             if (m_kvcache_in_ports.find(layer_names::position_ids) != m_kvcache_in_ports.end()) {
-                uu::fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids)),
-                                        0);
+                uu::fill_tensor<int64_t>(
+                    m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids)),
+                    0);
             }
 
             m_generate_initialized = true;
