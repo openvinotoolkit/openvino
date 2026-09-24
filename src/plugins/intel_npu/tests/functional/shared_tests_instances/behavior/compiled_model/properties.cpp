@@ -114,7 +114,7 @@ const auto& combineParamsExecDevices = []() -> std::vector<std::pair<ov::AnyMap,
     std::vector<std::pair<ov::AnyMap, std::string>> execParams(compiledModelConfigs.size());
     for (auto it = compiledModelConfigs.cbegin(); it != compiledModelConfigs.cend(); ++it) {
         auto&& distance = it - compiledModelConfigs.cbegin();
-        execParams.at(distance) = std::make_pair(*it, ov::test::utils::DEVICE_NPU);
+        execParams.at(distance) = std::make_pair(*it, std::string(ov::test::utils::DEVICE_NPU) + ".0");
     }
     return execParams;
 }();
