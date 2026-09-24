@@ -110,7 +110,8 @@ void start_broadcast_test_dynamic(format input_format,
                                   ov::AxisSet broadcast_axes,
                                   bool is_output_static = false,
                                   impl_types impl_type = impl_types::any,
-                                  bool optimize = false) {
+                                  bool optimize = false,
+                                  bool expect_dynamic_impl = true) {
     size_t input_data_size = accumulate(input_data_shape.rbegin(), input_data_shape.rend(), (size_t)1, std::multiplies<size_t>());
     ASSERT_GE(input_data_size, (size_t)1);
     std::vector<inT> input_data = {};
@@ -204,12 +205,14 @@ void start_broadcast_test_dynamic(format input_format,
     // In case of impl forcing optimize_data property will set to true and additional
     // reorders optimization pass will be tiggered, so change expected primitive id
     const auto prim_id = (force_impl || optimize) ? "output" : "broadcast";
+    auto outputs = network.execute();
+
     auto inst = network.get_primitive(prim_id);
     auto impl = inst->get_impl();
     ASSERT_TRUE(impl != nullptr);
-    ASSERT_TRUE(impl->is_dynamic());
-
-    auto outputs = network.execute();
+    if (expect_dynamic_impl) {
+        ASSERT_TRUE(impl->is_dynamic());
+    }
 
     auto output = outputs.at("output").get_memory();
     cldnn::mem_lock<outT, mem_lock_type::read> output_ptr(output, get_test_stream());
@@ -323,6 +326,10 @@ TEST(broadcast_gpu_int64_t, bfyx_1_to_4x5_w_b_axes_0x1) {
 
 TEST(broadcast_gpu_float, byxf_1_to_4x5_w_b_axes_0x1) {
     start_broadcast_test<float>(format::byxf, data_types::f32, {4, 5}, {1}, {0, 1});
+}
+
+TEST(broadcast_gpu_float, byxf_1_to_4x5_w_b_axes_0x1_dynamic) {
+    start_broadcast_test_dynamic<float, ov::float16>(format::byxf, data_types::f32, data_types::f16, {4, 5}, {1, 1}, {0, 1}, false, impl_types::any, true, false);
 }
 
 // dynamic kernel
