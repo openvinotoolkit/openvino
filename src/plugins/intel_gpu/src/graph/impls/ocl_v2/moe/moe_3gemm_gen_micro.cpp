@@ -487,7 +487,7 @@ KernelData MoE3GemmMicroGenerator::get_kernel_data(const kernel_impl_params& par
     shim_options.useTileOps = true;
     shim_options.decorator = "moe";
 
-    kd.code->jit += generateShim(moe_gemm, micro::HostLanguage::OpenCL_C, shim_options);
+    kd.code->jit += micro::generate_shim(moe_gemm, micro::HostLanguage::OpenCL_C, shim_options);
     if (moe_gemm.grfMin > 128) {
         kd.code->options += " -cl-intel-256-GRF-per-thread";
     }
