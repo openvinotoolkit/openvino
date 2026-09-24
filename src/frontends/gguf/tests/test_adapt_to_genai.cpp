@@ -248,7 +248,25 @@ TEST(GGUFAdaptToGenAI, EmbeddingModeExtractsLookupAndAcceptsInjectedValues) {
     EXPECT_FALSE(pass.run_on_model(m.model));
 }
 
-TEST(GGUFAdaptToGenAI, EmbeddingModePreservesAuxiliaryTokenLookup) {
+TEST(GGUFAdaptToGenAI, EmbeddingModeMovesPerLayerTokenLookupToEmbeddingModel) {
+    auto m = build_minimal_gguf_model(4, 2, false, true);
+    m.embd->get_rt_info()["gguf.token_embedding"] = true;
+    m.pe_tok->get_rt_info()["gguf.per_layer_token_embedding"] = int64_t{2};
+    AdaptToGenAI pass(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+    ASSERT_TRUE(pass.run_on_model(m.model));
+    EXPECT_EQ(find_parameter(m.model, "input_ids"), nullptr);
+    EXPECT_NE(find_parameter(m.model, "inputs_embeds"), nullptr);
+    EXPECT_EQ(m.model->input("per_layer_inputs").get_partial_shape(), (ov::PartialShape{-1, -1, 2, 1}));
+    const auto& lookup = pass.get_embedding_model();
+    EXPECT_EQ(lookup->get_parameters().size(), 1);
+    ASSERT_EQ(lookup->outputs().size(), 2);
+    EXPECT_EQ(lookup->output(0).get_any_name(), "inputs_embeds");
+    EXPECT_EQ(lookup->output(1).get_any_name(), "per_layer_inputs");
+    EXPECT_EQ(lookup->output(1).get_partial_shape(), (ov::PartialShape{-1, -1, 2, 1}));
+}
+
+// An untagged token lookup cannot be moved, so the language model keeps input_ids for it.
+TEST(GGUFAdaptToGenAI, EmbeddingModePreservesUntaggedAuxiliaryTokenLookup) {
     auto m = build_minimal_gguf_model(4, 2, false, true);
     m.embd->get_rt_info()["gguf.token_embedding"] = true;
     AdaptToGenAI pass(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
@@ -645,6 +663,8 @@ std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab, int64_t hid
         auto auxiliary = std::make_shared<v8::Gather>(vocab_table, indices, axis0);
         auto lifted = std::make_shared<v0::Unsqueeze>(auxiliary, axis0);
         lifted->set_friendly_name("per_layer_tokens");
+        // Two layers of hidden / 2 values each, as Gemma4's per-layer token embedding.
+        lifted->get_rt_info()["gguf.per_layer_token_embedding"] = int64_t{2};
         combined = std::make_shared<v1::Add>(embd, lifted);
     }
     auto embd_3d = std::make_shared<v1::Reshape>(combined, embd_3d_shape, false);
@@ -745,25 +765,30 @@ TEST(GGUFAdaptToGenAI, SurvivesSDPAToPagedAttentionWithRealAttentionBlock) {
     }
 }
 
-TEST(GGUFAdaptToGenAI, PagedAttentionFlattensEmbeddingsAndAuxiliaryTokens) {
+// The per-layer token lookup becomes a per_layer_inputs input, so the language model takes
+// embeddings only, and the unmodified PagedAttention conversion applies as for optimum-intel.
+TEST(GGUFAdaptToGenAI, PagedAttentionFlattensEmbeddingsWithPerLayerInputs) {
     auto model = build_attention_gguf_model(8, 4, true);
     model->get_rt_info()["gguf_architecture"] = std::string("gemma4");
     ASSERT_TRUE(AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(model));
-    ASSERT_EQ(model->input("input_ids").get_partial_shape().rank().get_length(), 2);
+    ASSERT_EQ(find_parameter(model, "input_ids"), nullptr);
     ASSERT_EQ(model->input("inputs_embeds").get_partial_shape().rank().get_length(), 3);
+    ASSERT_EQ(model->input("per_layer_inputs").get_partial_shape(), (ov::PartialShape{-1, -1, 2, 2}));
     ASSERT_TRUE(ov::pass::SDPAToPagedAttention().run_on_model(model));
-    EXPECT_EQ(model->input("input_ids").get_partial_shape(), ov::PartialShape{-1});
     EXPECT_EQ(model->input("inputs_embeds").get_partial_shape(), (ov::PartialShape{-1, -1}));
-    EXPECT_NO_THROW(model->reshape(
-        {{"input_ids", {5}}, {"inputs_embeds", {5, 4}}, {"token_type_ids", {5, 1}}, {"position_ids", {5}}}));
+    // GenAI's continuous batching supplies per_layer_inputs as [tokens, 1, layers, width].
+    EXPECT_NO_THROW(model->reshape({{"inputs_embeds", {5, 4}},
+                                    {"per_layer_inputs", {5, 1, 2, 2}},
+                                    {"token_type_ids", {5, 1}},
+                                    {"position_ids", {5}}}));
     EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
 }
 
-TEST(GGUFAdaptToGenAI, EmbeddingModeMatchesTokenModeAcrossCachedDecodeAndReset) {
-    auto original = build_attention_gguf_model(8, 4);
-    for (const auto& node : original->get_ordered_ops())
-        if (node->get_friendly_name() == "embd")
-            node->get_rt_info()["gguf.token_embedding"] = true;
+class GGUFAdaptToGenAIEmbeddingMode : public ::testing::TestWithParam<bool> {};
+
+TEST_P(GGUFAdaptToGenAIEmbeddingMode, MatchesTokenModeAcrossCachedDecodeAndReset) {
+    const bool per_layer = GetParam();
+    auto original = build_attention_gguf_model(8, 4, per_layer);
     auto embedded = original->clone();
     AdaptToGenAI().run_on_model(original);
     AdaptToGenAI adapter(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
@@ -785,7 +810,9 @@ TEST(GGUFAdaptToGenAI, EmbeddingModeMatchesTokenModeAcrossCachedDecodeAndReset) 
                 if (entry.first != "input_ids")
                     values.set_tensor(entry.first, entry.second);
             }
-            values.set_tensor("inputs_embeds", lookup.get_output_tensor());
+            values.set_tensor("inputs_embeds", lookup.get_tensor("inputs_embeds"));
+            if (per_layer)
+                values.set_tensor("per_layer_inputs", lookup.get_tensor("per_layer_inputs"));
             tokens.infer();
             values.infer();
             auto expected = tokens.get_output_tensor(), actual = values.get_output_tensor();
@@ -798,3 +825,5 @@ TEST(GGUFAdaptToGenAI, EmbeddingModeMatchesTokenModeAcrossCachedDecodeAndReset) 
         values.reset_state();
     }
 }
+
+INSTANTIATE_TEST_SUITE_P(PerLayerInputs, GGUFAdaptToGenAIEmbeddingMode, ::testing::Bool());

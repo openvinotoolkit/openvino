@@ -163,8 +163,9 @@ With `enable_save_ov_model=True`, adapted models are saved as
 
 Embedding-mode adaptation is batch-one SDPA. M-RoPE input positions are independent
 sections `[4,1,T]`; the caller must supply actual spatial/temporal positions. Existing
-text-mode conversion retains its previous interface. Auxiliary token lookups retain
-`input_ids` when required by the language graph.
+text-mode conversion retains its previous interface. Gemma4's per-layer token lookup
+becomes a second embedding-model output, `per_layer_inputs`, which the language model
+takes as an input, as in optimum-intel's export.
 
 Audio generation, other GenAI family adapters, video preprocessing, beam search,
 PagedAttention and GPU qualification are not implemented/qualified by this route.

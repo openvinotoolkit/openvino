@@ -205,12 +205,20 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         return false;
     }
 
-    std::string embedding_name;
+    // Token-only lookups move to the embedding model. FixEmbdAxis replaces them, keeping names.
+    std::string embedding_name, per_layer_name;
+    int64_t per_layer_count = 0;
     if (m_mode == InputMode::EMBEDS_TO_LOGITS) {
         for (const auto& node : operations) {
-            if (node->get_rt_info().count("gguf.token_embedding")) {
+            const auto& rt_info = node->get_rt_info();
+            if (rt_info.count("gguf.token_embedding")) {
                 OPENVINO_ASSERT(embedding_name.empty(), "[GGUF] ambiguous token embedding boundary");
                 embedding_name = node->get_friendly_name();
+            }
+            if (const auto it = rt_info.find("gguf.per_layer_token_embedding"); it != rt_info.end()) {
+                OPENVINO_ASSERT(per_layer_name.empty(), "[GGUF] ambiguous per-layer token embedding boundary");
+                per_layer_name = node->get_friendly_name();
+                per_layer_count = it->second.as<int64_t>();
             }
         }
         OPENVINO_ASSERT(!embedding_name.empty(), "[GGUF] missing native token embedding boundary");
@@ -223,22 +231,40 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     self_correcting_axis_manager.register_pass<FixEmbdAxis>();
     self_correcting_axis_manager.run_passes(model);
 
-    std::shared_ptr<v0::Parameter> inputs_embeds;
+    std::shared_ptr<v0::Parameter> inputs_embeds, per_layer_inputs;
     if (m_mode == InputMode::EMBEDS_TO_LOGITS) {
-        // FixEmbdAxis replaces the embedding Unsqueeze, preserving its friendly name.
-        // Runtime metadata can also propagate to helper nodes, so rediscover it by name.
-        std::shared_ptr<ov::Node> embedding;
-        for (const auto& node : model->get_ops()) {
-            if (node->get_friendly_name() == embedding_name) {
-                OPENVINO_ASSERT(!embedding, "[GGUF] ambiguous token embedding boundary");
-                embedding = node;
+        // rt_info can propagate to helper nodes, so rediscover the lookups by name.
+        const auto find_boundary = [&](const std::string& name) {
+            std::shared_ptr<ov::Node> found;
+            for (const auto& node : model->get_ops()) {
+                if (node->get_friendly_name() == name) {
+                    OPENVINO_ASSERT(!found, "[GGUF] ambiguous embedding boundary ", name);
+                    found = node;
+                }
             }
-        }
-        OPENVINO_ASSERT(embedding, "[GGUF] missing native token embedding boundary");
+            OPENVINO_ASSERT(found, "[GGUF] missing embedding boundary ", name);
+            return found;
+        };
+        // Both lookups are [batch, 1, tokens, width].
+        auto axis_1 = v0::Constant::create(ov::element::i64, {1}, {1});
+        auto embedding = find_boundary(embedding_name);
         const auto width = embedding->get_output_partial_shape(0)[3].get_length();
+        ov::OutputVector lookups{make_shared<v0::Squeeze>(embedding, axis_1)};
+        auto per_layer = per_layer_name.empty() ? nullptr : find_boundary(per_layer_name);
+        int64_t per_layer_width = 0;
+        if (per_layer) {
+            const auto total = per_layer->get_output_partial_shape(0)[3].get_length();
+            OPENVINO_ASSERT(per_layer_count > 0 && total % per_layer_count == 0,
+                            "[GGUF] per-layer token embedding width does not match its layer count");
+            per_layer_width = total / per_layer_count;
+            // [batch, tokens, layers, width], as in optimum-intel.
+            lookups.push_back(make_shared<v1::Reshape>(
+                make_shared<v0::Squeeze>(per_layer, axis_1),
+                v0::Constant::create(ov::element::i64, {4}, {int64_t{0}, int64_t{0}, per_layer_count, per_layer_width}),
+                true));
+        }
         // Clone the lookup graph before rewiring the language model. Constants retain shared buffers.
-        auto raw = make_shared<v0::Squeeze>(embedding, v0::Constant::create(ov::element::i64, {1}, {1}));
-        m_embedding_model = make_shared<ov::Model>(ov::OutputVector{raw}, ov::ParameterVector{inp_tokens})->clone();
+        m_embedding_model = make_shared<ov::Model>(lookups, ov::ParameterVector{inp_tokens})->clone();
         m_embedding_model->get_rt_info() = model->get_rt_info();
         auto ids = make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
         name_output(ids, "input_ids");
@@ -249,11 +275,23 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         m_embedding_model->remove_parameter(old_ids);
         m_embedding_model->add_parameters({ids});
         m_embedding_model->output(0).get_tensor().set_names({"inputs_embeds"});
+        if (per_layer)
+            m_embedding_model->output(1).get_tensor().set_names({"per_layer_inputs"});
         m_embedding_model->validate_nodes_and_infer_types();
         inputs_embeds = make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, width});
         name_output(inputs_embeds, "inputs_embeds");
         auto lifted = make_shared<v0::Unsqueeze>(inputs_embeds, v0::Constant::create(ov::element::i64, {1}, {1}));
         embedding->output(0).replace(lifted->output(0));
+        if (per_layer) {
+            per_layer_inputs = make_shared<v0::Parameter>(per_layer->get_output_element_type(0),
+                                                          ov::PartialShape{-1, -1, per_layer_count, per_layer_width});
+            name_output(per_layer_inputs, "per_layer_inputs");
+            // Lift like inputs_embeds; PA feeds [tokens, 1, layers, width].
+            auto flat = make_shared<v1::Reshape>(per_layer_inputs,
+                                                 v0::Constant::create(ov::element::i64, {3}, {0, 0, -1}),
+                                                 true);
+            per_layer->output(0).replace(make_shared<v0::Unsqueeze>(flat, axis_1)->output(0));
+        }
     }
 
     // ---- new genai inputs: input_ids / attention_mask / position_ids [b, seq] i64 ----
@@ -541,12 +579,14 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     model->add_parameters({input_ids, attention_mask, position_ids});
     if (inputs_embeds)
         model->add_parameters({inputs_embeds});
+    if (per_layer_inputs)
+        model->add_parameters({per_layer_inputs});
     if (token_type_ids)
         model->add_parameters({token_type_ids});
     const auto params_snapshot = model->get_parameters();  // copy: remove_parameter mutates the list
     for (const auto& p : params_snapshot) {
         if (p == input_ids || p == attention_mask || p == position_ids || p == beam_idx || p == inputs_embeds ||
-            p == token_type_ids) {
+            p == per_layer_inputs || p == token_type_ids) {
             continue;
         }
         model->remove_parameter(p);
