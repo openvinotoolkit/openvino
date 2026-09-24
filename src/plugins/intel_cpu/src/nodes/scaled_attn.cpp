@@ -2317,11 +2317,7 @@ void ScaledDotProductAttention::resetBeamTablePastkv(const MemoryPtr& mem_cur_k,
     auto&& v_dims = getParentEdgeAt(inputNumber - 1)->getMemory().getStaticDims();
     size_t L0 = v_dims.at(order[2]);
     auto B_state = v_dims.at(order[0]);
-    // On the first inference the empty cache has no beam table yet. A batch
-    // larger than the initializer's batch still needs the resize path below.
-    if (L0 > 0) {
-        old_beam_table_k.reset(old_hidden_state_k);
-    }
+    old_beam_table_k.reset(old_hidden_state_k);
 
     PlainTensor cur_k;
     PlainTensor cur_v;
