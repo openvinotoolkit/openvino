@@ -1367,10 +1367,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         // Fold shape-compute chains (ShapeOf→Gather→Concat etc.) in the prefill model before
         // online partitioning runs pattern matching (e.g. GPTOSSRouter).  Must run after
         // ReshapeToStatic has made all shapes static so that ShapeOf bounds are resolvable.
-        // Chunk-prefill changes the effective KV length after staticization, so keep
-        // ShapeOf(Concat) paths that build a Reshape shape dynamic until they cross
-        // the partition boundary.
-        ov::npuw::patterns::util::FoldShapeComputeChain(m_use_chunk_prefill).run_on_model(prefill_model);
+        ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(prefill_model);
         for (auto&& model_variant : generate_model_variants) {
             ov::npuw::patterns::util::FoldShapeComputeChain().run_on_model(model_variant);
         }
@@ -1387,16 +1384,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Regularize models for the better partitioning assuming it is a transformer
     // Apply these transformations to all variant models
     {
-        // Chunk-prefill keeps only Reshape shape paths derived from Concat dynamic.
         ov::npuw::patterns::regularize::RegularizeSDPA(prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_hfa,
-                                                       /*preserve_shape_of_concat_for_reshape=*/m_use_chunk_prefill,
-                                                       /*fold_shape_of_parameter=*/true)
+                                                       m_use_chunk_prefill)
             .run_on_model(prefill_model);
         for (auto& model_variant : generate_model_variants) {
-            ov::npuw::patterns::regularize::RegularizeSDPA(
-                generate_attn_dyn || generate_attn_pyramid || generate_attn_hfa,
-                /*preserve_shape_of_concat_for_reshape=*/false,
-                /*fold_shape_of_parameter=*/true)
+            ov::npuw::patterns::regularize::RegularizeSDPA(generate_attn_dyn || generate_attn_pyramid ||
+                                                           generate_attn_hfa)
                 .run_on_model(model_variant);
         }
     }

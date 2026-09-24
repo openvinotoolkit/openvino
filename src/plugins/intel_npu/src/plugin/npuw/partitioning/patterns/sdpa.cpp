@@ -5,11 +5,11 @@
 #include "sdpa.hpp"
 
 #include <regex>
+#include <vector>
 
 #include "../../logging.hpp"
 #include "../online/group.hpp"     // online::Group
 #include "../online/snapshot.hpp"  // online::Snapshot
-#include "fold_const.hpp"
 #include "openvino/core/bound_evaluation_util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/pattern/op/label.hpp"  // any_input
@@ -486,6 +486,90 @@ namespace regularize {
 
 namespace opp = ov::pass::pattern;
 
+namespace {
+bool gatherReadsConcatAxis(const ov::Node* gather, const ov::op::v0::Concat& concat) {
+    const auto rank = concat.get_output_partial_shape(0).rank();
+    const auto indices = ov::as_type_ptr<ov::op::v0::Constant>(gather->input_value(1).get_node_shared_ptr());
+    const auto gatherAxis = ov::as_type_ptr<ov::op::v0::Constant>(gather->input_value(2).get_node_shared_ptr());
+    if (!rank.is_static() || !indices || !gatherAxis) {
+        return true;
+    }
+
+    const auto axisValues = gatherAxis->cast_vector<int64_t>();
+    if (axisValues.size() != 1 || (axisValues.front() != 0 && axisValues.front() != -1)) {
+        return true;
+    }
+
+    const auto rankLength = rank.get_length();
+    const auto concatAxis = concat.get_axis() < 0 ? concat.get_axis() + rankLength : concat.get_axis();
+    for (auto index : indices->cast_vector<int64_t>()) {
+        if (index < 0) {
+            index += rankLength;
+        }
+        if (index == concatAxis) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool isShapeOfConcatUsedAsReshapeShape(ov::Output<ov::Node> shapeOfOutput, const ov::op::v0::Concat& concat) {
+    for (const auto& shapeOfUser : shapeOfOutput.get_target_inputs()) {
+        auto gather = shapeOfUser.get_node();
+        if (!ov::is_type<ov::op::v8::Gather>(gather) || shapeOfUser.get_index() != 0) {
+            continue;
+        }
+
+        if (!gatherReadsConcatAxis(gather, concat)) {
+            continue;
+        }
+
+        for (const auto& gatherUser : gather->output(0).get_target_inputs()) {
+            auto shapeConcat = gatherUser.get_node();
+            if (!ov::is_type<ov::op::v0::Concat>(shapeConcat)) {
+                continue;
+            }
+            for (const auto& shapeConcatUser : shapeConcat->output(0).get_target_inputs()) {
+                if (ov::is_type<ov::op::v1::Reshape>(shapeConcatUser.get_node()) && shapeConcatUser.get_index() == 1) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+bool foldNonConcatAxisGathers(ov::Output<ov::Node> shapeOfOutput, const ov::op::v0::Concat& concat) {
+    std::vector<ov::Output<ov::Node>> safeGathers;
+    for (const auto& user : shapeOfOutput.get_target_inputs()) {
+        auto gather = user.get_node();
+        if (user.get_index() == 0 && ov::is_type<ov::op::v8::Gather>(gather) &&
+            !gatherReadsConcatAxis(gather, concat)) {
+            safeGathers.emplace_back(gather->output(0));
+        }
+    }
+
+    bool changed = false;
+    for (const auto& gatherOutput : safeGathers) {
+        if (gatherOutput.get_target_inputs().empty()) {
+            continue;
+        }
+        ov::util::evaluate_both_bounds(gatherOutput);
+        auto& tensor = gatherOutput.get_tensor();
+        if (!tensor.has_and_set_bound()) {
+            continue;
+        }
+        auto constant = std::make_shared<ov::op::v0::Constant>(tensor.get_upper_value());
+        constant->set_friendly_name("NPUW/Folded/" + gatherOutput.get_node_shared_ptr()->get_friendly_name());
+        for (auto& input : gatherOutput.get_target_inputs()) {
+            input.replace_source_output(constant);
+        }
+        changed = true;
+    }
+    return changed;
+}
+}  // namespace
+
 AttentionBroadcast::AttentionBroadcast(bool preserve_shape_of_concat_for_reshape) {
     // NB(dm): We've seen cases where this dynamic subgraph is placed on the K-path,
     // but I'd expect it could be on the V-path as well - so _kv in the name
@@ -507,8 +591,10 @@ AttentionBroadcast::AttentionBroadcast(bool preserve_shape_of_concat_for_reshape
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
+        auto matched_kv_concat =
+            ov::as_type_ptr<ov::op::v0::Concat>(node_to_output.at(past_kv_cat).get_node_shared_ptr());
         if (preserve_shape_of_concat_for_reshape &&
-            ov::npuw::patterns::util::isShapeOfConcatUsedAsReshapeShape(node_to_output.at(shape_of))) {
+            isShapeOfConcatUsedAsReshapeShape(node_to_output.at(shape_of), *matched_kv_concat)) {
             return false;
         }
         auto matched_gather_out = node_to_output.at(gather);
@@ -552,8 +638,10 @@ AttentionBroadcast2::AttentionBroadcast2(bool preserve_shape_of_concat_for_resha
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
+        auto matched_kv_concat =
+            ov::as_type_ptr<ov::op::v0::Concat>(node_to_output.at(past_kv_cat).get_node_shared_ptr());
         if (preserve_shape_of_concat_for_reshape &&
-            ov::npuw::patterns::util::isShapeOfConcatUsedAsReshapeShape(node_to_output.at(shape_of))) {
+            isShapeOfConcatUsedAsReshapeShape(node_to_output.at(shape_of), *matched_kv_concat)) {
             return false;
         }
         auto matched_concat_out = node_to_output.at(concat);
@@ -592,8 +680,10 @@ AttentionBroadcast3::AttentionBroadcast3(bool preserve_shape_of_concat_for_resha
     // Note: Use [=] to make sure the above objects stay alive in the callback
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
+        auto matched_kv_concat =
+            ov::as_type_ptr<ov::op::v0::Concat>(node_to_output.at(past_kv_cat).get_node_shared_ptr());
         if (preserve_shape_of_concat_for_reshape &&
-            ov::npuw::patterns::util::isShapeOfConcatUsedAsReshapeShape(node_to_output.at(shape_of))) {
+            isShapeOfConcatUsedAsReshapeShape(node_to_output.at(shape_of), *matched_kv_concat)) {
             return false;
         }
         auto matched_gather_out = node_to_output.at(gather);
@@ -651,10 +741,11 @@ ShapeOfConcat::ShapeOfConcat(bool preserve_shape_of_concat_for_reshape) {
     auto callback = [=](ov::pass::pattern::Matcher& m) {
         auto& node_to_output = m.get_pattern_value_map();
         auto matched_shape_out = node_to_output.at(concat_shp);
+        auto matched_concat = ov::as_type_ptr<ov::op::v0::Concat>(node_to_output.at(concat_in).get_node_shared_ptr());
 
         if (preserve_shape_of_concat_for_reshape &&
-            ov::npuw::patterns::util::isShapeOfConcatUsedAsReshapeShape(matched_shape_out)) {
-            return ov::npuw::patterns::util::foldNonConcatAxisGathers(matched_shape_out);
+            isShapeOfConcatUsedAsReshapeShape(matched_shape_out, *matched_concat)) {
+            return foldNonConcatAxisGathers(matched_shape_out, *matched_concat);
         }
 
         ov::util::evaluate_both_bounds(matched_shape_out);
@@ -855,9 +946,7 @@ bool RegularizeSDPA::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // the performance. However, ShapeOfParameter seems to be working fine for all known case,
     // while AttentionBroadcast patterns might break the partitioning (related to F16IC).
     ov::pass::GraphRewrite rewr2;
-    if (m_fold_shape_of_parameter) {
-        rewr2.add_matcher<ov::npuw::patterns::regularize::ShapeOfParameter>();
-    }
+    rewr2.add_matcher<ov::npuw::patterns::regularize::ShapeOfParameter>();
     rewr2.add_matcher<ov::npuw::patterns::regularize::ShapeOfConcat>(m_preserve_shape_of_concat_for_reshape);
     model_changed |= rewr2.run_on_model(model);
 

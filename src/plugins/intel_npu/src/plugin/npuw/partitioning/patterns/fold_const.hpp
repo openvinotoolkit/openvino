@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "openvino/core/node.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
@@ -28,21 +27,12 @@ namespace npuw {
 namespace patterns {
 namespace util {
 
-// Returns true when ShapeOf(Concat)'s concatenation-axis dimension contributes
-// to a Reshape shape input through a Gather and shape-building Concat. This
-// dimension must remain dynamic for chunk-prefill, while other dimensions can fold.
-bool isShapeOfConcatUsedAsReshapeShape(ov::Output<ov::Node> shapeOfOutput);
-
-// When the concatenation-axis dimension must stay dynamic, fold only Gather
-// consumers that select other, statically known dimensions.
-bool foldNonConcatAxisGathers(ov::Output<ov::Node> shapeOfOutput);
-
 // Fold ShapeOf(any) → Constant when the output tensor has a known upper bound.
 // More general than RegularizeSDPA::ShapeOfParameter: no constraint on input type.
 class FoldShapeOf : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::patterns::util::FoldShapeOf");
-    explicit FoldShapeOf(bool preserve_shape_of_concat_for_reshape = false);
+    FoldShapeOf();
 };
 
 // Fold Gather(Constant, Constant, Constant) → Constant.
@@ -83,12 +73,8 @@ public:
 // Runs the full shape-compute-chain folding pipeline in a single pass:
 // FoldShapeOf → FoldGatherOfConst → FoldUnsqueezeOfConst → FoldConcatOfConsts.
 class FoldShapeComputeChain : public ov::pass::ModelPass {
-    bool m_preserve_shape_of_concat_for_reshape = false;
-
 public:
     OPENVINO_RTTI("npuw::patterns::util::FoldShapeComputeChain");
-    explicit FoldShapeComputeChain(bool preserve_shape_of_concat_for_reshape = false)
-        : m_preserve_shape_of_concat_for_reshape(preserve_shape_of_concat_for_reshape) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
 

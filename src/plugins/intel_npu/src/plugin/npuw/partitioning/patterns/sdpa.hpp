@@ -145,16 +145,12 @@ public:
 class RegularizeSDPA : public ov::pass::ModelPass {
     bool m_run_broadcast_pattern = false;
     bool m_preserve_shape_of_concat_for_reshape = false;
-    bool m_fold_shape_of_parameter = true;
 
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::RegularizeSDPA");
-    explicit RegularizeSDPA(bool run_broadcast_pattern,
-                            bool preserve_shape_of_concat_for_reshape = false,
-                            bool fold_shape_of_parameter = true)
+    explicit RegularizeSDPA(bool run_broadcast_pattern, bool preserve_shape_of_concat_for_reshape = false)
         : m_run_broadcast_pattern(run_broadcast_pattern),
-          m_preserve_shape_of_concat_for_reshape(preserve_shape_of_concat_for_reshape),
-          m_fold_shape_of_parameter(fold_shape_of_parameter){};
+          m_preserve_shape_of_concat_for_reshape(preserve_shape_of_concat_for_reshape) {};
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 };
