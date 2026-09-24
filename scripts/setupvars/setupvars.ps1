@@ -15,6 +15,15 @@ if (Test-Path -Path "$Env:OpenVINO_DIR/OpenVINOGenAIConfig.cmake")
     $Env:OpenVINOGenAI_DIR = $Env:OpenVINO_DIR
 }
 $Env:OPENVINO_LIB_PATHS = "$Env:INTEL_OPENVINO_DIR/runtime/bin/intel64/Release;$Env:INTEL_OPENVINO_DIR/runtime/bin/intel64/Debug;$Env:OPENVINO_LIB_PATHS"
+# Multi-config generator dirs (RelWithDebInfo, MinSizeRel) are only present in local builds
+foreach ($config in @("RelWithDebInfo", "MinSizeRel"))
+{
+    $config_path = "$Env:INTEL_OPENVINO_DIR/runtime/bin/intel64/$config"
+    if (Test-Path -Path $config_path)
+    {
+        $Env:OPENVINO_LIB_PATHS = "$config_path;$Env:OPENVINO_LIB_PATHS"
+    }
+}
 
 # TBB
 if (Test-Path -Path "$Env:INTEL_OPENVINO_DIR/runtime/3rdparty/tbb")
@@ -62,28 +71,9 @@ $Env:PATH = "$Env:OPENVINO_LIB_PATHS;$Env:PATH"
 Write-Host "[setupvars] OpenVINO environment initialized"
 
 # Check if Python is installed
-
-function Get-AvailablePythonVersions
-{
-    $ov_python_dir = Join-Path $Env:INTEL_OPENVINO_DIR "python/openvino"
-    $versions = @()
-    if (Test-Path -Path $ov_python_dir)
-    {
-        foreach ($lib in Get-ChildItem -Path $ov_python_dir -Filter "_pyopenvino.*" -ErrorAction SilentlyContinue)
-        {
-            if ($lib.Name -match '_pyopenvino\.(?:cpython-|cp)(\d+)')
-            {
-                $tag = $matches[1]
-                $version = "$($tag.Substring(0, 1)).$($tag.Substring(1))"
-                if ($versions -notcontains $version)
-                {
-                    $versions += $version
-                }
-            }
-        }
-    }
-    return $versions
-}
+$PYTHON_VERSION_MAJOR = 3
+$MIN_REQUIRED_PYTHON_VERSION_MINOR = 10
+$MAX_SUPPORTED_PYTHON_VERSION_MINOR = 15
 
 try
 {
@@ -92,15 +82,7 @@ try
 }
 catch
 {
-    $available_python_versions = @(Get-AvailablePythonVersions)
-    if ($available_python_versions.Count -gt 0)
-    {
-        Write-Host "Warning: Python is not installed. Please install one of Python $($available_python_versions -join ', ') (64-bit) from https://www.python.org/downloads/"
-    }
-    else
-    {
-        Write-Host "Warning: Python is not installed. Please install Python (64-bit) from https://www.python.org/downloads/"
-    }
+    Write-Host "Warning: Python is not installed. Please install one of Python $PYTHON_VERSION_MAJOR.$MIN_REQUIRED_PYTHON_VERSION_MINOR - $PYTHON_VERSION_MAJOR.$MAX_SUPPORTED_PYTHON_VERSION_MINOR (64-bit) from https://www.python.org/downloads/"
     # Python is not mandatory so we can safely exit with 0
     Exit 0
 }
@@ -120,16 +102,9 @@ else
     $installed_python_version_minor = [int]$minor_version_string
 }
 
-$current_python_version = "$installed_python_version_major.$installed_python_version_minor"
-$available_python_versions = @(Get-AvailablePythonVersions)
-
-if ($available_python_versions.Count -eq 0)
+if (-not ($PYTHON_VERSION_MAJOR -eq $installed_python_version_major -and $installed_python_version_minor -ge $MIN_REQUIRED_PYTHON_VERSION_MINOR -and $installed_python_version_minor -le $MAX_SUPPORTED_PYTHON_VERSION_MINOR))
 {
-    Write-Host "Warning: Could not detect which Python versions the OpenVINO Python API in this package was built for. The installed Python version will not be verified."
-}
-elseif ($available_python_versions -notcontains $current_python_version)
-{
-    Write-Host "Warning: Unsupported Python version $current_python_version. The OpenVINO Python API in this package is built for Python: $($available_python_versions -join ', '). Please activate a Python environment with a matching version."
+    Write-Host "Warning: Unsupported Python version $installed_python_version_major.$installed_python_version_minor. Please install one of Python $PYTHON_VERSION_MAJOR.$MIN_REQUIRED_PYTHON_VERSION_MINOR - $PYTHON_VERSION_MAJOR.$MAX_SUPPORTED_PYTHON_VERSION_MINOR (64-bit) from https://www.python.org/downloads/"
     # Python is not mandatory so we can safely exit with 0
     Exit 0
 }
@@ -149,7 +124,7 @@ catch
 
 if ($python_bitness -ne "64")
 {
-    Write-Host "Warning: Unsupported Python bitness. Please install a 64-bit Python interpreter from https://www.python.org/downloads/"
+    Write-Host "Warning: Unsupported Python bitness. Please install one of Python $PYTHON_VERSION_MAJOR.$MIN_REQUIRED_PYTHON_VERSION_MINOR - $PYTHON_VERSION_MAJOR.$MAX_SUPPORTED_PYTHON_VERSION_MINOR (64-bit) from https://www.python.org/downloads/"
     # Python is not mandatory so we can safely exit with 0
     Exit 0
 }

@@ -3,6 +3,9 @@
 //
 
 #include <memory>
+
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/op/add.hpp"
@@ -11,15 +14,9 @@
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
-
-#include "node_context.hpp"
-#include "op_table.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 namespace {
 // Collapse a 4D [1, 1, a, b] input to 2D [a, b] when it isn't already 2D. Bias/id constants may
@@ -27,7 +24,7 @@ namespace {
 ov::Output<ov::Node> reshape_add_id_input_to_2d(const ov::Output<ov::Node>& input,
                                                 const ov::PartialShape& input_shape,
                                                 const std::vector<int>& dims) {
-    const auto actual_shape = input.get_partial_shape();
+    const auto& actual_shape = input.get_partial_shape();
     if (actual_shape.rank().is_static() && actual_shape.rank().get_length() == 2) {
         return input;
     }
@@ -60,23 +57,18 @@ OutputVector translate_add_id(const NodeContext& context) {
 
     auto gather_axis = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
     ov::Output<ov::Node> selected_bias = std::make_shared<ov::op::v8::Gather>(bias, ids, gather_axis);
-    selected_bias = std::make_shared<ov::op::v1::Reshape>(
-        selected_bias, std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64), false);
+    selected_bias =
+        std::make_shared<ov::op::v1::Reshape>(selected_bias,
+                                              std::make_shared<ov::op::v3::ShapeOf>(input, ov::element::i64),
+                                              false);
 
     if (selected_bias.get_element_type() != input.get_element_type()) {
         selected_bias = std::make_shared<ov::op::v0::Convert>(selected_bias, input.get_element_type());
     }
 
     ov::Output<ov::Node> res = std::make_shared<ov::op::v1::Add>(input, selected_bias);
-    const auto output_type = context.get_attribute<ov::element::Type>("output_type");
-    if (res.get_element_type() != output_type) {
-        res = std::make_shared<ov::op::v0::Convert>(res, output_type);
-    }
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

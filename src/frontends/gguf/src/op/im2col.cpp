@@ -5,6 +5,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <vector>
+
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/strides.hpp"
 #include "openvino/op/constant.hpp"
@@ -14,16 +18,9 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
-#include <vector>
-
-#include "node_context.hpp"
-#include "op_table.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 // GGML_OP_IM2COL: unfold a 1D/2D convolution input into column patches (conv / vision models).
 // The decoder exposes the conv params (strides/pads/dilations + is_2D) as a typed int vector.
@@ -60,7 +57,8 @@ OutputVector translate_im2col(const NodeContext& context) {
         const size_t N = image_shape[1];
         const size_t IW = image_shape[3];
         auto image_reshape_shape = ov::op::v0::Constant::create(
-            ov::element::i64, ov::Shape{4},
+            ov::element::i64,
+            ov::Shape{4},
             std::vector<int64_t>{static_cast<int64_t>(N), static_cast<int64_t>(IC), 1, static_cast<int64_t>(IW)});
         image = std::make_shared<ov::op::v1::Reshape>(image, image_reshape_shape, false);
     }
@@ -85,37 +83,44 @@ OutputVector translate_im2col(const NodeContext& context) {
     const size_t N = out_shape[0];
     const size_t OH = out_shape[1];
     const size_t OW = out_shape[2];
-    auto reshape1_shape = ov::op::v0::Constant::create(
-        ov::element::i64, ov::Shape{5},
-        std::vector<int64_t>{static_cast<int64_t>(N), static_cast<int64_t>(OH), static_cast<int64_t>(OW),
-                             static_cast<int64_t>(KH * KW), static_cast<int64_t>(IC)});
+    auto reshape1_shape = ov::op::v0::Constant::create(ov::element::i64,
+                                                       ov::Shape{5},
+                                                       std::vector<int64_t>{static_cast<int64_t>(N),
+                                                                            static_cast<int64_t>(OH),
+                                                                            static_cast<int64_t>(OW),
+                                                                            static_cast<int64_t>(KH * KW),
+                                                                            static_cast<int64_t>(IC)});
     auto r1 = std::make_shared<ov::op::v1::Reshape>(t1, reshape1_shape, false);
 
     auto perm2 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, std::vector<int64_t>{0, 1, 2, 4, 3});
     auto t2 = std::make_shared<ov::op::v1::Transpose>(r1, perm2);
 
-    auto r2_shape = ov::op::v0::Constant::create(
-        ov::element::i64, ov::Shape{4},
-        std::vector<int64_t>{static_cast<int64_t>(N), static_cast<int64_t>(OH), static_cast<int64_t>(OW),
-                             static_cast<int64_t>(IC * KH * KW)});
+    auto r2_shape = ov::op::v0::Constant::create(ov::element::i64,
+                                                 ov::Shape{4},
+                                                 std::vector<int64_t>{static_cast<int64_t>(N),
+                                                                      static_cast<int64_t>(OH),
+                                                                      static_cast<int64_t>(OW),
+                                                                      static_cast<int64_t>(IC * KH * KW)});
     res = std::make_shared<ov::op::v1::Reshape>(t2, r2_shape, false);
 
     if (!is_2D) {
         auto final_reshape_shape = ov::op::v0::Constant::create(
-            ov::element::i64, ov::Shape{4},
+            ov::element::i64,
+            ov::Shape{4},
             std::vector<int64_t>{1, static_cast<int64_t>(N), static_cast<int64_t>(OW), static_cast<int64_t>(IC * KW)});
         res = std::make_shared<ov::op::v1::Reshape>(res, final_reshape_shape, false);
     }
 
-    auto output_type = context.get_attribute<ov::element::Type>("output_type");
+    // Older cgraph decoders expose ggml_im2col's dst_type as output_type.
+    const auto output_type = context.get_attribute<ov::element::Type>(
+        "dst_type",
+        context.get_attribute<ov::element::Type>("output_type", ov::element::dynamic));
+    FRONT_END_OP_CONVERSION_CHECK(output_type.is_static(), "IM2COL requires 'dst_type'");
     if (res.get_element_type() != output_type) {
         res = std::make_shared<ov::op::v0::Convert>(res, output_type);
     }
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

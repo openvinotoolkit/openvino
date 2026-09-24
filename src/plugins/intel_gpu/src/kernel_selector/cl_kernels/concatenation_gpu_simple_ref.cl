@@ -59,7 +59,7 @@ KERNEL (concatenation_gpu_ref)(
     uint input_offset  = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, v, u, w, z, y, x);
     uint output_offset = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR out_b, out_f, out_v, out_u, out_w, out_z, out_y, out_x);
 
-    INPUT0_TYPE result = input[input_offset];
+    INPUT0_COMPUTE_TYPE result = DECODE_INPUT0_COMPUTE_TYPE(input[input_offset]);
 
 #if HAS_FUSED_OPS
     FUSED_OPS;

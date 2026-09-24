@@ -4,15 +4,15 @@
 
 #pragma once
 
-#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/igraph.hpp"
+#include "intel_npu/config/config.hpp"
 
 namespace intel_npu {
 
 class ICompilerAdapter {
 public:
     virtual std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
-                                            const FilteredConfig& config) const = 0;
+                                            const Config& config) const = 0;
 
     /**
      * @brief Compiles the model, weights separation enabled.
@@ -28,11 +28,9 @@ public:
      * "icompiler.hpp".
      * @return A "WeightlessGraph" type of object.
      */
-    virtual std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model,
-                                              const FilteredConfig& config) const = 0;
+    virtual std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model, const Config& config) const = 0;
 
-    virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
-                                      const FilteredConfig& config) const = 0;
+    virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
     virtual uint32_t get_version() const = 0;
     virtual std::vector<std::string> get_supported_options() const = 0;
     virtual bool is_option_supported(const std::string& optName,

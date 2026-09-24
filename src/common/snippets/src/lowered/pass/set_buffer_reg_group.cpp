@@ -73,8 +73,8 @@ void SetBufferRegGroup::update_adj_matrix(const BufferMap::value_type& lhs,
                                           const BufferIndices& buffer_indices,
                                           size_t buffer_count,
                                           std::vector<bool>& adj) {
-    const auto lhs_idx = buffer_indices.at(lhs.first);
-    const auto rhs_idx = buffer_indices.at(rhs.first);
+    const auto lhs_idx = buffer_indices.at(lhs.first.get());
+    const auto rhs_idx = buffer_indices.at(rhs.first.get());
     // Already adjacent - skip
     if (adj[index(buffer_count, rhs_idx, lhs_idx)]) {
         return;
@@ -246,7 +246,7 @@ bool SetBufferRegGroup::run(LinearIR& linear_ir,
     BufferIndices buffer_indices;
     buffer_indices.reserve(buffer_pool.size());
     for (size_t i = 0; i < buffer_pool.size(); ++i) {
-        buffer_indices.emplace(buffer_pool[i], i);
+        buffer_indices.emplace(buffer_pool[i].get(), i);
     }
 
     // Creation of Adj matrix

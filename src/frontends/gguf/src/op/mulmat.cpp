@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "node_context.hpp"
-#include "op_table.hpp"
-#include "utils.hpp"
-
 #include <climits>
 #include <cstdint>
 #include <memory>
+#include <vector>
+
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/node_output.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -21,14 +21,11 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/op_types.hpp"
-#include <vector>
+#include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
-OutputVector translate_mulmat(const NodeContext & context) {
+OutputVector translate_mulmat(const NodeContext& context) {
     num_inputs_check(context, 2, 2);
 
     int op_case = context.get_attribute<int>("op_case", 0);
@@ -45,18 +42,18 @@ OutputVector translate_mulmat(const NodeContext & context) {
         B = process_view_input(context, 0);
         A = process_view_input(context, 1);
     }
-    if (A.get_element_type() != B.get_element_type()) {
-        // Convert the reprocessed B, not input(0), to preserve the op_case 2/3 rebinding.
-        B = std::make_shared<ov::op::v0::Convert>(B, A.get_element_type());
+    // GGML MUL_MAT produces F32, including when both operands are F16.
+    if (A.get_element_type() != ov::element::f32) {
+        A = std::make_shared<ov::op::v0::Convert>(A, ov::element::f32);
+    }
+    if (B.get_element_type() != ov::element::f32) {
+        B = std::make_shared<ov::op::v0::Convert>(B, ov::element::f32);
     }
 
-    // Use the static ggml input shapes (get_input_shape), not the live OV node shapes: on the
-    // stateful KV-cache path the OV node's batch/seq dims are dynamic, but the batch/head/feature
-    // dims MUL_MAT needs are static ggml facts the decoder knows by construction.
-    auto B_shape = context.get_input_shape(0).to_shape();
-    auto A_shape = context.get_input_shape(1).to_shape();
-    int64_t A_batch = A_shape[1];
-    int64_t B_batch = B_shape[1];
+    auto B_shape = context.get_input_shape(0);
+    auto A_shape = context.get_input_shape(1);
+    int64_t A_batch = A_shape[1].get_length();
+    int64_t B_batch = B_shape[1].get_length();
 
     auto A_batch_larger = A_batch > B_batch;
     auto batch_large = A_batch_larger ? A_batch : B_batch;
@@ -72,12 +69,16 @@ OutputVector translate_mulmat(const NodeContext & context) {
         auto unsqueeze_axes = ov::op::v0::Constant::create(ov::element::i64, Shape{}, {2});
         auto Z_unsqueezed = std::make_shared<ov::op::v0::Unsqueeze>(Z, unsqueeze_axes);
 
-        auto broadcast_shape = ov::op::v0::Constant::create(
-            ov::element::i64, {5}, {(int64_t) 1, (int64_t) 1, factor, (int64_t) 1, (int64_t) 1});
-        auto new_Z_shape = ov::op::v0::Constant::create(ov::element::i64, {4},
-                                                        {(int64_t) 0, batch_large, (int64_t) -1, (int64_t) A_shape[3]});
+        auto broadcast_shape = ov::op::v0::Constant::create(ov::element::i64,
+                                                            {5},
+                                                            {(int64_t)1, (int64_t)1, factor, (int64_t)1, (int64_t)1});
+        auto new_Z_shape =
+            ov::op::v0::Constant::create(ov::element::i64,
+                                         {4},
+                                         {(int64_t)0, batch_large, (int64_t)-1, (int64_t)A_shape[3].get_length()});
 
-        auto Z_broadcasted = std::make_shared<ov::op::v3::Broadcast>(Z_unsqueezed, broadcast_shape,
+        auto Z_broadcasted = std::make_shared<ov::op::v3::Broadcast>(Z_unsqueezed,
+                                                                     broadcast_shape,
                                                                      ov::op::BroadcastType::BIDIRECTIONAL);
         Z = std::make_shared<ov::op::v1::Reshape>(Z_broadcasted, new_Z_shape, true);
     }
@@ -89,10 +90,7 @@ OutputVector translate_mulmat(const NodeContext & context) {
 
     res = std::make_shared<ov::op::v0::MatMul>(A, B, false, transpose_b);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

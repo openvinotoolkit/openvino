@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "decoder_proto.hpp"
+#include "onnx_common/parser.hpp"
 #include "openvino/frontend/graph_iterator.hpp"
 #include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "openvino/util/file_util.hpp"
@@ -60,10 +61,14 @@ const ov::element::Type& get_ov_element_type(int64_t onnx_type) {
         return ov::element::dynamic;
     case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
         return ov::element::bf16;
+    case TensorProto_DataType::TensorProto_DataType_FLOAT4E2M1:
+        return ov::element::f4e2m1;
     case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
         return ov::element::f8e4m3;
     case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
         return ov::element::f8e5m2;
+    case TensorProto_DataType::TensorProto_DataType_FLOAT8E8M0:
+        return ov::element::f8e8m0;
     case TensorProto_DataType::TensorProto_DataType_STRING:
         return ov::element::string;
     }
@@ -314,9 +319,7 @@ void topological_sort_graph(GraphProto* graph) {
 }
 }  // namespace
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 
 namespace {
 bool extract_tensor_external_data(ov::frontend::onnx::TensorMetaInfo& tensor_meta_info,
@@ -467,8 +470,10 @@ ov::frontend::onnx::TensorMetaInfo extract_tensor_meta_info(const TensorProto* t
             case TensorProto_DataType::TensorProto_DataType_BOOL:
             case TensorProto_DataType::TensorProto_DataType_BFLOAT16:
             case TensorProto_DataType::TensorProto_DataType_FLOAT16:
+            case TensorProto_DataType::TensorProto_DataType_FLOAT4E2M1:
             case TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN:
             case TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2:
+            case TensorProto_DataType::TensorProto_DataType_FLOAT8E8M0:
                 assign_numeric_data(tensor_info->int32_data());
                 break;
             case TensorProto_DataType::TensorProto_DataType_INT64:
@@ -574,6 +579,11 @@ void GraphIteratorProto::initialize(const std::filesystem::path& path) {
     }
 }
 
+void GraphIteratorProto::initialize(std::istream& stream, const std::filesystem::path& path) {
+    m_model_dir = ov::util::get_directory(path);
+    initialize(std::make_shared<ModelProto>(common::parse_from_istream(stream)));
+}
+
 void GraphIteratorProto::initialize(std::shared_ptr<ModelProto> model) {
     m_model = std::move(model);
     if (m_model && m_model->has_graph()) {
@@ -604,16 +614,19 @@ std::shared_ptr<DecoderProtoTensor> GraphIteratorProto::get_tensor(const std::st
 }
 
 void GraphIteratorProto::reset() {
-    // In case we have any stored external data - free it before beginning
-    if (m_data_holder != nullptr) {
-        m_data_holder->clear();
-    }
-    if (m_stream_cache != nullptr) {
-        m_stream_cache->clear();
-    }
     node_index = 0;
-    if (m_decoders.size() > 0 || m_model == nullptr || m_graph == nullptr)
+    if (!m_decoders.empty() || !m_tensors.empty() || m_model == nullptr || m_graph == nullptr)
         return;
+    // Decoders keep raw pointers into external data. Only clear storage before the top-level
+    // decoder cache is first built; nested iterators share the parent's storage.
+    if (m_parent == nullptr) {
+        if (m_data_holder != nullptr) {
+            m_data_holder->clear();
+        }
+        if (m_stream_cache != nullptr) {
+            m_stream_cache->clear();
+        }
+    }
     const auto& graph = *m_graph;
     m_decoders.reserve(graph.initializer_size() + graph.input_size() + graph.output_size() + graph.node_size());
 
@@ -924,6 +937,4 @@ bool is_valid_model(std::istream& model) {
     }
 }
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

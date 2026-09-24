@@ -36,7 +36,6 @@ torch.manual_seed(0)
 
 # Precommit models out of the NPU scope, per platform ("*" = all platforms).
 NPU_PRECOMMIT_SKIP = {
-    "bert-base-uncased": "*",
     "google/flan-t5-base": "*",
     "google/tapas-large-finetuned-wtq": "*",
     "allenai/led-base-16384": "*",

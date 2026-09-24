@@ -14,8 +14,10 @@ namespace kernel_selector {
 ParamsKey EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableInputLayout(DataLayout::fs_b_yx_fsv32);
     k.EnableInputLayout(DataLayout::byxf);
@@ -49,8 +51,9 @@ bool EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::Validate(const Params& params) 
     }
 
     for (auto in : inputs) {
-        if (in.GetLayout() != DataLayout::fs_b_yx_fsv32 && in.GetLayout() != DataLayout::byxf)
+        if (in.GetLayout() != DataLayout::fs_b_yx_fsv32 && in.GetLayout() != DataLayout::byxf) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     }
 
     const auto& input1 = inputs[0];

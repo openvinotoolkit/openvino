@@ -20,10 +20,12 @@ MoEConstantRole get_moe_constant_role(const std::shared_ptr<ov::op::v0::Constant
         const auto* node = input.get_node();
         if (ov::is_type<ov::op::internal::MOECompressed>(node)) {
             auto idx = input.get_index();
-            if (idx >= ROUTED_INPUT_START && idx <= ROUTED_INPUT_END)
+            if (idx >= ROUTED_INPUT_START && idx <= ROUTED_INPUT_END) {
                 return MoEConstantRole::RoutedExpert;
-            if (idx >= SHARED_INPUT_START && idx <= SHARED_INPUT_END)
+            }
+            if (idx >= SHARED_INPUT_START && idx <= SHARED_INPUT_END) {
                 return MoEConstantRole::SharedExpert;
+            }
         }
     }
     return MoEConstantRole::NotMoE;

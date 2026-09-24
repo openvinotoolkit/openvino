@@ -151,8 +151,9 @@ protected:
         std::vector<BufferDescriptor> internal_buffers;
         if (_kernel_data.params != nullptr) {
             const auto& prim_params = static_cast<const kernel_selector::border_params&>(*_kernel_data.params);
-            if (prim_params.inputs[0].LogicalSize() == 0)
+            if (prim_params.inputs[0].LogicalSize() == 0) {
                 internal_buffers.emplace_back(1, ov::element::u8);
+            }
         }
 
         return internal_buffers;
@@ -162,7 +163,7 @@ protected:
 namespace detail {
 
 attach_border_impl::attach_border_impl() {
-    auto types = {data_types::f32, data_types::f16, data_types::i32, data_types::i8, data_types::u8};
+    auto types = {data_types::f32, data_types::f16, data_types::bf16, data_types::i32, data_types::i8, data_types::u8};
 
     auto formats = {
         format::yxfb,

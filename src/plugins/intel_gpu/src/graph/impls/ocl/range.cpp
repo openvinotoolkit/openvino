@@ -34,8 +34,9 @@ struct range_impl : typed_primitive_impl_ocl<range> {
 
     static kernel_params_t get_kernel_params(const kernel_impl_params& impl_param, bool is_shape_agnostic = false) {
         auto params = get_default_params<kernel_selector::range_params>(impl_param, is_shape_agnostic);
-        for (int i : {1, 2})
+        for (int i : {1, 2}) {
             params.inputs.push_back(convert_data_tensor(impl_param.get_input_layout(i)));
+        }
 
         return params;
     }

@@ -48,13 +48,15 @@ struct shape_of_impl : public typed_primitive_impl<shape_of> {
         if (output_dt == data_types::i32) {
             cldnn::mem_lock<int32_t, mem_lock_type::write> output_lock(output_mem_ptr, stream);
             auto shape = instance.get_input_layout().get_shape();
-            for (size_t i = 0; i < shape.size(); i++)
+            for (size_t i = 0; i < shape.size(); i++) {
                 output_lock[i] = static_cast<int32_t>(shape[i]);
+            }
         } else if (output_dt == data_types::i64) {
             cldnn::mem_lock<int64_t, mem_lock_type::write> output_lock(output_mem_ptr, stream);
             auto shape = instance.get_input_layout().get_shape();
-            for (size_t i = 0; i < shape.size(); i++)
+            for (size_t i = 0; i < shape.size(); i++) {
                 output_lock[i] = static_cast<int64_t>(shape[i]);
+            }
         } else {
             OPENVINO_THROW("[GPU] Couldn't execute shape_of operation: unsupported output data type (", output_dt , ")");
         }
@@ -91,6 +93,7 @@ attach_shape_of_impl::attach_shape_of_impl() {
     auto types = {
         data_types::f32,
         data_types::f16,
+        data_types::bf16,
         data_types::u8,
         data_types::i8,
         data_types::i32,

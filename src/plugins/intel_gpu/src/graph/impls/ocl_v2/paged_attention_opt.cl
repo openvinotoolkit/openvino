@@ -659,7 +659,7 @@ KERNEL(pa_sdpa_opt)(
 #endif
 
 #if SWA_BLOCK_SKIP_ENABLED && !MULTI_TOKENS_PROCESSING
-        const uint effective_seq_len = min(effective_blocks_num * PAGED_ATTENTION_BLOCK_SIZE, seq_len);
+        const uint effective_seq_len = seq_len - swa_start_token;
 #else
         const uint effective_seq_len = seq_len;
 #endif
@@ -919,7 +919,7 @@ KERNEL(pa_sdpa_opt)(
 #endif
 
 #ifdef USE_DUAL_NIBBLE_V_OPT
-        if (seq_len > SEQ_LEN_PARTITION_SIZE && total_partitions_num > 1) {
+        if (effective_seq_len > SEQ_LEN_PARTITION_SIZE && total_partitions_num > 1) {
             unroll_for (uint q_idx = 0; q_idx < HEADS_PER_WI; q_idx++) {
 #if HEADS_LEFTOVERS_NUM > 0
                 if (q_idx >= iter_heads_num)
@@ -946,7 +946,7 @@ KERNEL(pa_sdpa_opt)(
             }
         }
 #else  // !USE_DUAL_NIBBLE_V_OPT
-        if (seq_len > SEQ_LEN_PARTITION_SIZE && total_partitions_num > 1) {
+        if (effective_seq_len > SEQ_LEN_PARTITION_SIZE && total_partitions_num > 1) {
             unroll_for (uint q_idx = 0; q_idx < HEADS_PER_WI; q_idx++) {
 #if HEADS_LEFTOVERS_NUM > 0
                 if (q_idx >= iter_heads_num)
@@ -1028,7 +1028,13 @@ KERNEL(pa_sdpa_finalization_stage)(
     const uint seq_len = past_lens[seq_idx] + 1;
 #endif
 
-    const uint num_of_partitions = min((uint)CEIL_DIV(seq_len, SEQ_LEN_PARTITION_SIZE), total_partitions_num);
+#if SWA_BLOCK_SKIP_ENABLED && !MULTI_TOKENS_PROCESSING
+    const uint swa_start_block = (seq_len > SLIDING_WINDOW_SIZE) ? ((seq_len - SLIDING_WINDOW_SIZE) / PAGED_ATTENTION_BLOCK_SIZE) : 0;
+    const uint effective_seq_len = seq_len - swa_start_block * PAGED_ATTENTION_BLOCK_SIZE;
+#else
+    const uint effective_seq_len = seq_len;
+#endif
+    const uint num_of_partitions = min((uint)CEIL_DIV(effective_seq_len, SEQ_LEN_PARTITION_SIZE), total_partitions_num);
 
     if (num_of_partitions <= 1) {
         /* Short path, no need any actions for currently processing sequence */

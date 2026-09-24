@@ -2,15 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/gated_delta_net.hpp"
+
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <vector>
+
+#include "node_context.hpp"
+#include "op_table.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/exp.hpp"
-#include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/matmul.hpp"
@@ -22,16 +27,9 @@
 #include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include <vector>
-
-#include "node_context.hpp"
-#include "op_table.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 static OutputVector translate_gated_delta_net_ref(const NodeContext& context);
 
@@ -42,14 +40,14 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context);
 OutputVector translate_gated_delta_net(const NodeContext& context) {
     num_inputs_check(context, 6, 6);
 
-    auto v_shape = context.get_input_shape(2).to_shape();  // [B, T, H_v, S_v]
-    auto q_shape = context.get_input_shape(0).to_shape();  // [B, T, H_k, S_k]
-    auto g_shape = context.get_input_shape(3).to_shape();  // [B, T, H_v, 1 or S_v]
+    auto v_shape = context.get_input_shape(2);  // [B, T, H_v, S_v]
+    auto q_shape = context.get_input_shape(0);  // [B, T, H_k, S_k]
+    auto g_shape = context.get_input_shape(3);  // [B, T, H_v, 1 or S_v]
 
-    const int64_t H_v = v_shape[2];
-    const int64_t S_v = v_shape[3];
-    const int64_t H_k = q_shape[2];
-    const bool kda = (g_shape[3] == (size_t)S_v);
+    const int64_t H_v = v_shape[2].get_length();
+    const int64_t S_v = v_shape[3].get_length();
+    const int64_t H_k = q_shape[2].get_length();
+    const bool kda = (g_shape[3].get_length() == S_v);
 
     // ggml reserves K * S_v * n_seqs state rows for K per-token snapshots (K = 1 + n_rs_seq, > 1 only
     // for speculative-decode rollback), while both paths here pack exactly one S_v-row block. Reject
@@ -103,11 +101,10 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     auto new_state = std::make_shared<ov::op::v1::Reshape>(state_transposed, flat_shape_1d, false);
     auto packed = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{attn, new_state}, 0);
     // [1, 1, T*B + S_v*B, S_v*H_v] with the row axis dynamic via -1.
-    auto out_shape =
-        ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, -1, S_v * H_v});
+    auto out_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, -1, S_v * H_v});
     auto res = std::make_shared<ov::op::v1::Reshape>(packed, out_shape, false);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 // Serializable reference path: a recurrent OV Loop scan over the sequence built from core ops,
@@ -122,23 +119,18 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
     auto beta = context.get_input(4);
     auto state = context.get_input(5);
 
-    auto v_shape = context.get_input_shape(2).to_shape();  // [B, T, H_v, S_v]
-    auto q_shape = context.get_input_shape(0).to_shape();  // [B, T, H_k, S_k]
-    auto g_shape = context.get_input_shape(3).to_shape();  // [B, T, H_v, 1 or S_v]
+    auto v_shape = context.get_input_shape(2);  // [B, T, H_v, S_v]
+    auto q_shape = context.get_input_shape(0);  // [B, T, H_k, S_k]
+    auto g_shape = context.get_input_shape(3);  // [B, T, H_v, 1 or S_v]
 
-    const int64_t B = v_shape[0];
-    const int64_t T = v_shape[1];
-    const int64_t H_v = v_shape[2];
-    const int64_t S_v = v_shape[3];
-    const int64_t H_k = q_shape[2];
-    const bool kda = (g_shape[3] == (size_t)S_v);
+    const int64_t B = v_shape[0].get_length();
+    const int64_t H_v = v_shape[2].get_length();
+    const int64_t S_v = v_shape[3].get_length();
+    const int64_t H_k = q_shape[2].get_length();
+    const bool kda = (g_shape[3].get_length() == S_v);
 
     const int64_t rq1 = H_v / H_k;  // GQA head repeat factor
     const float scale = 1.0f / std::sqrt((float)S_v);
-
-    // T is dynamic at runtime: T-dependent reshapes use -1 and the Loop trip count is read at
-    // runtime, so the convert-time T is only used for the static dims (B/H_v/S_v/H_k).
-    (void) T;
 
     auto axis_0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
     auto axis_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
@@ -159,8 +151,10 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
         auto q_unsq = std::make_shared<ov::op::v0::Unsqueeze>(q_t, axis_2);
         auto k_unsq = std::make_shared<ov::op::v0::Unsqueeze>(k_t, axis_2);
         auto bcast_shape = ov::op::v0::Constant::create(ov::element::i64, {5}, std::vector<int64_t>{1, 1, rq1, 1, 1});
-        auto q_bcast = std::make_shared<ov::op::v3::Broadcast>(q_unsq, bcast_shape, ov::op::BroadcastType::BIDIRECTIONAL);
-        auto k_bcast = std::make_shared<ov::op::v3::Broadcast>(k_unsq, bcast_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+        auto q_bcast =
+            std::make_shared<ov::op::v3::Broadcast>(q_unsq, bcast_shape, ov::op::BroadcastType::BIDIRECTIONAL);
+        auto k_bcast =
+            std::make_shared<ov::op::v3::Broadcast>(k_unsq, bcast_shape, ov::op::BroadcastType::BIDIRECTIONAL);
         auto perm_5d = ov::op::v0::Constant::create(ov::element::i64, {5}, std::vector<int64_t>{0, 2, 1, 3, 4});
         auto q_transposed = std::make_shared<ov::op::v1::Transpose>(q_bcast, perm_5d);
         auto k_transposed = std::make_shared<ov::op::v1::Transpose>(k_bcast, perm_5d);
@@ -267,14 +261,10 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
 
     auto packed = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{attn_1d, state_1d}, 0);
     // [1, 1, -1, S_v*H_v]: the row axis (T*B + S_v*B) is dynamic via -1.
-    auto out_shape =
-        ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, -1, S_v * H_v});
+    auto out_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, -1, S_v * H_v});
     auto res = std::make_shared<ov::op::v1::Reshape>(packed, out_shape, false);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

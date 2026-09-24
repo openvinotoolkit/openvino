@@ -13,14 +13,11 @@
 
 namespace ov {
 
-namespace op {
-namespace util {
+namespace op::util {
 class FrameworkNode;
-}  // namespace util
-}  // namespace op
+}  // namespace op::util
 
-namespace frontend {
-namespace pytorch {
+namespace frontend::pytorch {
 
 const std::string pytorch_prefix = "[PyTorch Frontend] ";
 
@@ -86,6 +83,10 @@ bool is_complex_dtype(int64_t pt_type);
 
 Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor);
 
+/// \brief Applies an optional `dtype` argument, which export may pass positionally or as an attribute.
+/// \return The converted tensor, or \p input_tensor unchanged when no dtype was given.
+Output<Node> apply_optional_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor);
+
 op::PadType convert_pad(const std::string& pt_pad);
 
 Output<Node> concat_list_construct(const Output<Node>& input);
@@ -116,6 +117,25 @@ Any simplified_type_interpret(Any type);
 void add_exception_to_fw_node(std::shared_ptr<Node> node, const std::string& msg);
 
 bool is_python_scalar_input(const NodeContext& context, size_t index);
+
+/// \brief Converts an operation name to its canonical TorchScript spelling.
+///
+/// FX names carry an overload suffix, e.g. `aten.add.Tensor`, while TorchScript uses `aten::add`. Translators and
+/// transformations match the TorchScript spelling, so both decoders are normalized to it. Names which are not in the
+/// `aten.name.overload` form are returned unchanged.
+std::string normalize_op_type(const std::string& op_type);
+
+/// \brief Reads an optional operator argument which export may pass either positionally or by keyword.
+///
+/// Export omits arguments equal to their default and passes keyword-only arguments as attributes, so an optional
+/// argument may arrive as input \p index, as attribute \p name, or not at all.
+template <typename T>
+T get_const_input_or_attribute(const NodeContext& context, size_t index, const std::string& name, T default_value) {
+    if (!context.input_is_none(index)) {
+        return context.const_input<T>(index);
+    }
+    return context.get_attribute<T>(name, default_value);
+}
 
 void align_eltwise_input_types(const NodeContext& context,
                                Output<Node>& lhs,
@@ -163,6 +183,46 @@ OutputVector build_static_max_pool(ov::pass::NodeRegistry& rg,
                                    ov::op::RoundingType rounding_type);
 
 Output<Node> masked_select(const NodeContext& context, const Output<Node>& data, const Output<Node>& mask);
+
+/// \brief Builds a multi-head attention subgraph with packed query/key/value projection weights.
+///
+/// Shared by `aten::_native_multi_head_attention` and `aten::_transformer_encoder_layer_fwd`.
+/// When the attention weights are not requested, the attention itself is expressed with a single
+/// `v13::ScaledDotProductAttention`, otherwise it is decomposed so that the weights can be returned.
+///
+/// \param context Node context used to mark the created nodes.
+/// \param query Query tensor of shape [batch, sequence, embed_dim].
+/// \param key Key tensor of shape [batch, sequence, embed_dim].
+/// \param value Value tensor of shape [batch, sequence, embed_dim].
+/// \param embed_dim Scalar embedding dimension.
+/// \param num_heads Scalar number of attention heads.
+/// \param qkv_weight Packed query/key/value projection weight of shape [3 * embed_dim, embed_dim].
+/// \param qkv_bias Packed query/key/value projection bias of shape [3 * embed_dim].
+/// \param proj_weight Output projection weight.
+/// \param proj_bias Output projection bias.
+/// \param attn_mask Optional attention mask. A boolean mask excludes the positions marked with
+///        `true`, any other mask is additive. Pass an empty output to skip masking.
+/// \param mask_type PyTorch mask type: 0 - source mask of shape [sequence, sequence], 1 - key
+///        padding mask of shape [batch, sequence], 2 - mask already broadcast to the attention
+///        weights shape. Ignored when `attn_mask` is empty.
+/// \param need_weights When true, the attention weights are computed and returned as the second
+///        element of the result, otherwise the second element is empty.
+/// \param average_weights When true, the returned attention weights are averaged over the heads.
+/// \return Pair of the attention output and the attention weights.
+std::pair<Output<Node>, Output<Node>> build_multi_head_attention(const NodeContext& context,
+                                                                 const Output<Node>& query,
+                                                                 const Output<Node>& key,
+                                                                 const Output<Node>& value,
+                                                                 const Output<Node>& embed_dim,
+                                                                 const Output<Node>& num_heads,
+                                                                 const Output<Node>& qkv_weight,
+                                                                 const Output<Node>& qkv_bias,
+                                                                 const Output<Node>& proj_weight,
+                                                                 const Output<Node>& proj_bias,
+                                                                 const Output<Node>& attn_mask,
+                                                                 int64_t mask_type,
+                                                                 bool need_weights,
+                                                                 bool average_weights);
 
 Output<Node> flatten(ov::pass::NodeRegistry& rg, const Output<Node>& value, size_t axis);
 
@@ -398,6 +458,5 @@ private:
     const std::string m_schema = "NONE";
 };
 
-}  // namespace pytorch
-}  // namespace frontend
+}  // namespace frontend::pytorch
 }  // namespace ov

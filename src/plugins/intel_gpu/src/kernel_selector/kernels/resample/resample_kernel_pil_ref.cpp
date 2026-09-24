@@ -138,8 +138,10 @@ DataTensor GetIntermediateBufferSize(const resample_params& params) {
 ParamsKey ResampleKernelPilRef::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
@@ -425,11 +427,13 @@ KernelsData ResampleKernelPilRef::GetKernelsData(const Params &params) const {
     int i = 0;
     for (ResampleKernelPilRef::KernelId id = eCalcHorizontalCoefficients; id < eEnd; ++id) {
         if (!NeedHorizontalPass(resample_parameters) &&
-            (id == eCalcHorizontalCoefficients || id == eResampleHorizontal))
+            (id == eCalcHorizontalCoefficients || id == eResampleHorizontal)) {
             continue;
+        }
         if (!NeedVerticalPass(resample_parameters) &&
-            (id == eCalcVerticalCoefficients || id == eResampleVertical))
+            (id == eCalcVerticalCoefficients || id == eResampleVertical)) {
             continue;
+        }
         auto& kernel = kd.kernels[i++];
         const auto entryPoint = GetEntryPoint(kernelName, resample_parameters.layerID, params, i);
         auto jitConstants = GetJitConstantsForKernel(id, resample_parameters);

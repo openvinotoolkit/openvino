@@ -4,28 +4,63 @@
 
 #include "dynamic_graph.hpp"
 
-#include <array>
-#include <iostream>
 #include <iterator>
+#include <ostream>
 
-#include "compiler_impl.hpp"
 #include "intel_npu/common/compiler_adapter_factory.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/vm/npu_vm_runtime_utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
-#include "openvino/runtime/make_tensor.hpp"
 
 namespace intel_npu {
 
-void DynamicGraph::create_execution_engine() {
+namespace {
+void populateRuntimeConfigChain(NpuVMRuntimeConfigChain& configChain, const Config& config) {
+    configChain.append(
+        NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_PRIORITY,
+        static_cast<npu_vm_runtime_config_value_t>(zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>())));
+    if (config.has<WORKLOAD_TYPE>()) {
+        const auto workloadType = zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>());
+        if (workloadType.has_value()) {
+            configChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_WORKLOAD_TYPE,
+                               static_cast<npu_vm_runtime_config_value_t>(workloadType.value()));
+        }
+    }
+    uint32_t commandQueueOptions = 0;
+    if (config.has<TURBO>() && config.get<TURBO>()) {
+        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
+    }
+    if (config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
+    }
+    configChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_OPTIONS, commandQueueOptions);
+}
+
+}  // namespace
+
+void DynamicGraph::create_execution_engine(const Config& config) {
     npu_vm_runtime_blob_desc_t blobDesc;
     blobDesc.pInput = reinterpret_cast<const uint8_t*>(_blob.value().data());
     blobDesc.inputSize = _blob.value().get_byte_size();
 
-    if (npuVMRuntimeCreate(&blobDesc, &_engine, &_engineProperties) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+    if (npuVMRuntimeGetAPIVersion(&_apiVersion) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to get VM runtime API version");
+    }
+
+    const auto result = [&]() {
+        if (use_npu_vm_runtime_v2_api(_apiVersion)) {
+            NpuVMRuntimeConfigChain runtimeConfig;
+            populateRuntimeConfigChain(runtimeConfig, config);
+            return npuVMRuntimeCreate2(&blobDesc, runtimeConfig.head(), &_engine, &_engineProperties);
+        }
+        return npuVMRuntimeCreate(&blobDesc, &_engine, &_engineProperties);
+    }();
+
+    if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to create VM runtime engine");
     }
 }
@@ -67,7 +102,7 @@ static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
                 if (id == utils::BATCH_AXIS && shapeFromCompiler[id] == utils::DEFAULT_BATCH_SIZE) {
                     logger.info("Ignore dynamic batch size upper limit, but keep the dimension dynamic as a metadata "
                                 "from compiler has been lost.");
-                    // We need to kepp batch dimension dynamic
+                    // We need to keep batch dimension dynamic
                     shapeFromIRModel.push_back(ov::Dimension(1, dynamicDim));
                 } else {
                     shapeFromIRModel.push_back(ov::Dimension(1, shapeFromCompiler[id]));
@@ -151,9 +186,9 @@ void DynamicGraph::prepare_metadata() {
     _metadata.bindRelatedDescriptors();
 }
 
-void DynamicGraph::initialize_engine() {
+void DynamicGraph::initialize_engine(const Config& config) {
     if (!_engineInitialized) {
-        create_execution_engine();
+        create_execution_engine(config);
         prepare_metadata();
         _engineInitialized = true;
         _metadata.numberOfSubgraphs = _engineProperties.numOfSubGraphs;
@@ -187,24 +222,17 @@ void DynamicGraph::initialize_engine() {
 
 DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                            ov::Tensor blob,
-                           const FilteredConfig& config,
+                           const Config& config,
                            BlobType blobType)
     : _zeroInitStruct(zeroInitStruct),
       _blob(std::move(blob)),
       _blobType(blobType),
       _logger("DynamicGraph", config.get<LOG_LEVEL>()) {
     _logger.info("Create DynamicGraph");
-    if (!config.get<CREATE_EXECUTOR>() || config.get<DEFER_WEIGHTS_LOAD>()) {
-        _logger.info("Graph initialize is deferred from the \"Graph\" constructor");
-        return;
-    }
-
-    // TODO: metadata needs to be parsed even when CREATE_EXECUTOR is 0 or DEFER_WEIGHTS_LOAD is YES, keep here to
-    // support pure compilation without vm runtime initialize VM execution engine, metadata, input&output
-    // descriptors
-    initialize_engine();
-
-    initialize(config);
+    // Metadata comes from the VM runtime parsing the blob; unlike a regular Graph, it is not prefetched by the
+    // compiler/parser and must be available before plugin builds a dummy ov::Model for the CompiledModel.
+    // This is CPU-side parsing only - no L0/device setup.
+    initialize_engine(config);
 }
 
 std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_blob(std::ostream& stream) const {
@@ -324,12 +352,12 @@ void* DynamicGraph::get_handle() const {
     return _engine;
 }
 
-void DynamicGraph::initialize_impl(const FilteredConfig& config) {
+void DynamicGraph::initialize_impl(const Config& config) {
     _logger.debug("Graph initialize start");
 
     if (!_engineInitialized) {
         // initialize VM execution engine, metadata, input&output descriptors
-        initialize_engine();
+        initialize_engine(config);
     }
 
     if (!_zeroInitStruct) {
@@ -340,19 +368,20 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
     _logger.debug("Graph initialize without graph handle");
 
     uint32_t commandQueueOptions = 0;
-    if (config.has<TURBO>() && config.get<TURBO>()) {
+    if (config.get<TURBO>()) {
         OPENVINO_ASSERT(_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 0),
                         "Turbo is not supported by the current driver");
         _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_TURBO in command queue options");
         commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
     }
-    if (config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+    if (config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
         OPENVINO_ASSERT(_zeroInitStruct->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1),
                         "Running inferences sequentially is not supported by the current driver");
         _logger.debug("Set ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC in command queue options");
         commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
     }
 
+    bool sharedCommonQueue = config.get<SHARED_COMMON_QUEUE>();
     {
         std::lock_guard<std::mutex> lock(_commandQueueDescMutex);
         _commandQueueDesc = CommandQueueDesc{
@@ -360,9 +389,9 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
             config.has<WORKLOAD_TYPE>() ? zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>()) : std::nullopt,
             commandQueueOptions,
             this,
-            config.get<SHARED_COMMON_QUEUE>()};
+            sharedCommonQueue};
 
-        if (config.get<SHARED_COMMON_QUEUE>() == false) {
+        if (!use_npu_vm_runtime_v2_api(_apiVersion) && sharedCommonQueue == false) {
             // Keep it alive per compiled model when the shared common queue feature is disabled.
             _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
         }
@@ -370,19 +399,13 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
 
     _logger.debug("Graph initialize finish");
 
-    _batchSize = determine_batch_size();
-
     // To ensure that the initialization of the graph does not exit prematurely due to nullptrs
     _init_completed.store(true, std::memory_order_release);
 }
 
-bool DynamicGraph::release_blob(const FilteredConfig& config) {
+bool DynamicGraph::release_blob(const Config& config) {
     _logger.warning("Release blob is skipped, no handle for DynamicGraph");
     return false;
-};
-
-void DynamicGraph::set_batch_size(std::size_t batch) {
-    _batchSize = batch;
 }
 
 uint32_t DynamicGraph::get_unique_id() {
@@ -395,62 +418,6 @@ void DynamicGraph::set_last_submitted_id(uint32_t id_index) {
 
 uint32_t DynamicGraph::get_last_submitted_id() const {
     return _lastSubmittedId;
-}
-
-std::optional<size_t> DynamicGraph::determine_batch_size() {
-    if (!_metadata.outputs.at(0).shapeFromIRModel.has_value()) {
-        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
-        return std::nullopt;
-    }
-
-    const ov::PartialShape& firstShape = *_metadata.outputs.at(0).shapeFromIRModel;
-    if (firstShape.is_dynamic() || firstShape.rank().get_length() == 0) {
-        return std::nullopt;
-    }
-
-    const size_t candidateBatchSize = firstShape[utils::BATCH_AXIS].get_max_length();
-    if (candidateBatchSize == 0 || candidateBatchSize == utils::DEFAULT_BATCH_SIZE) {
-        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
-        return std::nullopt;
-    }
-
-    auto checkDescriptorsUseCandidateBatchSize = [candidateBatchSize](const std::vector<IODescriptor>& descriptors) {
-        for (const IODescriptor& descriptor : descriptors) {
-            OPENVINO_ASSERT(descriptor.shapeFromIRModel.has_value(),
-                            "Missing value for the \"shapeFromIRModel\" attribute, I/O descriptor");
-
-            const ov::PartialShape& shapeFromCompiler = descriptor.shapeFromCompiler;
-            const ov::PartialShape& shapeFromIRModel = *descriptor.shapeFromIRModel;
-
-            if (shapeFromCompiler.is_dynamic() || shapeFromCompiler.rank().get_length() == 0 ||
-                *shapeFromCompiler.begin() != utils::DEFAULT_BATCH_SIZE) {
-                return false;
-            }
-
-            if (!descriptor.isStateInput && !descriptor.isStateOutput && !descriptor.isShapeTensor) {
-                if (shapeFromIRModel.is_dynamic() || shapeFromIRModel.rank().get_length() == 0 ||
-                    *shapeFromIRModel.begin() != candidateBatchSize) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    };
-
-    if (!checkDescriptorsUseCandidateBatchSize(_metadata.inputs) ||
-        !checkDescriptorsUseCandidateBatchSize(_metadata.outputs)) {
-        _logger.debug("Batching on the plugin is not used, batching is handled by the compiler");
-        return std::nullopt;
-    }
-
-    _logger.debug("Batching is handled by the plugin");
-
-    return candidateBatchSize;
-}
-
-const std::optional<std::size_t> DynamicGraph::get_batch_size() const {
-    return _batchSize;
 }
 
 DynamicGraph::~DynamicGraph() {
