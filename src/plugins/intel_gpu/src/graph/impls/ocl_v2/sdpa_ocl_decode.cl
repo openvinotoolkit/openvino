@@ -282,6 +282,27 @@
 #    error "sdpa_ocl_decode.cl: SG_PER_WG must not exceed SUBGROUP_SIZE"
 #endif
 
+// Stores one normalised output element (head, value) of this partition: into tmp_out for the
+// finalization when the sequence spans several partitions, straight into output otherwise.
+// always_inline for the reason given at SDPA_OCL_INLINE in sdpa_ocl_config.cl (a plain inline
+// helper changes the whole kernel's ISA).
+__attribute__((always_inline)) inline void FUNC(store_out)(__global OUTPUT_TYPE* output, __global OUTPUT_TYPE* tmp_out,
+                                                           const uint seq_len, const uint total_partitions_num,
+                                                           const uint seq_idx, const uint head,
+                                                           const uint partition_idx, const uint value,
+                                                           const SOFTMAX_ACCUMULATOR_TYPE o) {
+    if (seq_len > SEQ_LEN_PARTITION_SIZE && total_partitions_num > 1) {
+        const size_t tmp_out_offset = (size_t)seq_idx * HEADS_NUM * V_HEAD_SIZE * total_partitions_num +
+                                      (size_t)head * V_HEAD_SIZE * total_partitions_num +
+                                      (size_t)partition_idx * V_HEAD_SIZE + value;
+        tmp_out[tmp_out_offset] = TO_OUTPUT_TYPE(o);
+    } else {
+        const size_t output_offset =
+            (size_t)seq_idx * HEADS_NUM * V_HEAD_SIZE + (size_t)head * V_HEAD_SIZE + value;
+        output[output_offset] = TO_OUTPUT_TYPE(o);
+    }
+}
+
 __attribute__((intel_reqd_sub_group_size(SUBGROUP_SIZE)))
 __attribute__((reqd_work_group_size(SUBGROUP_SIZE, SG_PER_WG, 1)))
 KERNEL(sdpa_ocl_decode)(
@@ -864,16 +885,7 @@ KERNEL(sdpa_ocl_decode)(
 #    endif
             const uint head = head_base + m;
             const SOFTMAX_ACCUMULATOR_TYPE o = QV(acc, m) * QV(inv_l, m);
-            if (seq_len > SEQ_LEN_PARTITION_SIZE && total_partitions_num > 1) {
-                const size_t tmp_out_offset = (size_t)seq_idx * HEADS_NUM * V_HEAD_SIZE * total_partitions_num +
-                                              (size_t)head * V_HEAD_SIZE * total_partitions_num +
-                                              (size_t)partition_idx * V_HEAD_SIZE + value;
-                tmp_out[tmp_out_offset] = TO_OUTPUT_TYPE(o);
-            } else {
-                const size_t output_offset =
-                    (size_t)seq_idx * HEADS_NUM * V_HEAD_SIZE + (size_t)head * V_HEAD_SIZE + value;
-                output[output_offset] = TO_OUTPUT_TYPE(o);
-            }
+            FUNC_CALL(store_out)(output, tmp_out, seq_len, total_partitions_num, seq_idx, head, partition_idx, value, o);
         }
 #endif
     }
@@ -897,16 +909,7 @@ KERNEL(sdpa_ocl_decode)(
             }
             o *= QV(inv_l, m);
             const uint head = head_base + m;
-            if (seq_len > SEQ_LEN_PARTITION_SIZE && total_partitions_num > 1) {
-                const size_t tmp_out_offset = (size_t)seq_idx * HEADS_NUM * V_HEAD_SIZE * total_partitions_num +
-                                              (size_t)head * V_HEAD_SIZE * total_partitions_num +
-                                              (size_t)partition_idx * V_HEAD_SIZE + value;
-                tmp_out[tmp_out_offset] = TO_OUTPUT_TYPE(o);
-            } else {
-                const size_t output_offset =
-                    (size_t)seq_idx * HEADS_NUM * V_HEAD_SIZE + (size_t)head * V_HEAD_SIZE + value;
-                output[output_offset] = TO_OUTPUT_TYPE(o);
-            }
+            FUNC_CALL(store_out)(output, tmp_out, seq_len, total_partitions_num, seq_idx, head, partition_idx, value, o);
         }
     }
 #endif
