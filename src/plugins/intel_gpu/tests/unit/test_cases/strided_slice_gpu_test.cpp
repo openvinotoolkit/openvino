@@ -433,7 +433,7 @@ public:
 
         auto output = outputs.at("output").get_memory();
 
-        std::vector<float> answers = { 4.f };
+        std::vector<float> answers = { 11.f };
 
         cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 

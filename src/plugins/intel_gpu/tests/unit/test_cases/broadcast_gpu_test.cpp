@@ -321,6 +321,10 @@ TEST(broadcast_gpu_int64_t, bfyx_1_to_4x5_w_b_axes_0x1) {
     start_broadcast_test<int64_t>(format::bfyx, data_types::i64, {4, 5}, {1}, {0, 1});
 }
 
+TEST(broadcast_gpu_float, byxf_1_to_4x5_w_b_axes_0x1) {
+    start_broadcast_test<float>(format::byxf, data_types::f32, {4, 5}, {1}, {0, 1});
+}
+
 // dynamic kernel
 TEST(broadcast_gpu_float, bfyx_1_to_4x5_w_b_axes_0x1_dynamic) {
     start_broadcast_test_dynamic<float, ov::float16>(format::bfyx, data_types::f32, data_types::f16, {4, 5}, {1, 1}, {0, 1}, false, impl_types::any, true);
