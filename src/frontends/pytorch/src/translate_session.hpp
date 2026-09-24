@@ -58,10 +58,8 @@ public:
     std::map<size_t, AliasInfo> m_may_be_alias;
     // Aliases of tuple elements returned by inlined subgraphs, registered when an element is selected.
     std::map<Output<Node>, AliasInfo> m_tuple_element_aliases;
-
-    /// \brief Returns and forgets declared outputs of the internal body converted to `body` which are views of body
-    /// inputs, as a map from output index to tensor id of the input
-    std::map<size_t, size_t> take_subgraph_output_aliases(const std::shared_ptr<Model>& body);
+    // Declared outputs of the last converted internal body which are views of its inputs: output index to input id.
+    std::map<size_t, size_t> m_body_output_aliases;
 
     OutputVector convert_node(const NodeContext& context);
 
@@ -73,7 +71,6 @@ private:
 
     std::map<size_t, std::pair<size_t, Output<Node>>> m_counter_map;
     std::map<std::string, uint64_t> m_op_statistics;
-    std::map<std::shared_ptr<Model>, std::map<size_t, size_t>> m_subgraph_output_aliases;
     // Set per converted graph in convert_pytorch_model; the decoder type never varies within one.
     bool m_is_fx = false;
 };

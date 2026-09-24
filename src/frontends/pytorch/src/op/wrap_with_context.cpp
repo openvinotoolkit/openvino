@@ -34,6 +34,7 @@ OutputVector translate_wrap_with_context_fx(const NodeContext& context) {
 
     const auto body = context.convert_subgraph(0);
     const auto session = context.get_session();
+    const auto aliases = session->m_body_output_aliases;
     const auto get_operand = [&](size_t body_tensor) {
         const auto operand = std::find(body_inputs.begin(), body_inputs.end(), body_tensor);
         PYTORCH_OP_CONVERSION_CHECK(operand != body_inputs.end(),
@@ -58,7 +59,6 @@ OutputVector translate_wrap_with_context_fx(const NodeContext& context) {
         parameters.emplace_back(parameter, get_operand(session->decode_tensor_name(parameter->output(0))));
     }
 
-    const auto aliases = session->take_subgraph_output_aliases(body);
     const auto body_nodes = body->get_ordered_ops();
     // Body tensor names index the body graph and must not be decoded as parent tensors.
     for (const auto& node : body_nodes) {
@@ -68,9 +68,6 @@ OutputVector translate_wrap_with_context_fx(const NodeContext& context) {
     }
     for (const auto& [parameter, operand] : parameters) {
         parameter->output(0).replace(context.get_input(static_cast<int>(operand)));
-    }
-    for (const auto& node : body_nodes) {
-        node->revalidate_and_infer_types();
     }
 
     OutputVector outputs;
@@ -86,9 +83,6 @@ OutputVector translate_wrap_with_context_fx(const NodeContext& context) {
     const auto& operand_ids = decoder->inputs();
     for (const auto& [output_index, root_id] : aliases) {
         const auto operand = get_operand(root_id);
-        if (operand_ids.at(operand) == 0 && decoder->is_input_inlined(operand)) {
-            continue;
-        }
         const auto& output = outputs.at(output_index);
         session->m_tuple_element_aliases[output] = {operand_ids.at(operand),
                                                     decoder,

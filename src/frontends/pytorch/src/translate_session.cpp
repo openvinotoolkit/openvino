@@ -402,9 +402,9 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                 OPENVINO_DEBUG("Mutated tensor with id ", tensor_id, " doesn't exist in inputs, skipping.");
             }
         }
-        std::map<size_t, size_t> output_aliases;
-        if (m_is_fx && !external_tensor_map.empty() && !input_model) {
+        if (!external_tensor_map.empty() && !input_model) {
             // Record declared outputs which are views of body inputs, so a parent inlining the body keeps the alias.
+            m_body_output_aliases.clear();
             for (size_t i = 0; i < pytorch_model->num_of_outputs(); ++i) {
                 auto root = pytorch_model->output(i);
                 for (auto alias = m_may_be_alias.find(root);
@@ -414,7 +414,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                     root = alias->second.base_id;
                 }
                 if (root != pytorch_model->output(i) && param_names.count(root)) {
-                    output_aliases[i] = root;
+                    m_body_output_aliases[i] = root;
                 }
             }
         }
@@ -432,23 +432,10 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                               parameters->end());
         }
         resulting_model = std::make_shared<Model>(results, *parameters);
-        if (!output_aliases.empty()) {
-            m_subgraph_output_aliases[resulting_model] = std::move(output_aliases);
-        }
         // Did a conversion in a nested scope to automatically remove any holders of nodes except those in the graph
     }
 
     return resulting_model;
-}
-
-std::map<size_t, size_t> TranslateSession::take_subgraph_output_aliases(const std::shared_ptr<Model>& body) {
-    const auto found = m_subgraph_output_aliases.find(body);
-    if (found == m_subgraph_output_aliases.end()) {
-        return {};
-    }
-    auto aliases = std::move(found->second);
-    m_subgraph_output_aliases.erase(found);
-    return aliases;
 }
 
 OutputVector TranslateSession::convert_node(const NodeContext& context) {
