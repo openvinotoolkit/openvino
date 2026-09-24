@@ -65,13 +65,10 @@ void check_batched_decode(const std::shared_ptr<ov::Model>& model) {
             auto expected = first;
             expected.insert(expected.end(), second.begin(), second.end());
             ASSERT_EQ(actual.size(), expected.size());
-            double error = 0, norm = 0;
-            for (size_t i = 0; i < actual.size(); ++i) {
-                ASSERT_TRUE(std::isfinite(actual[i]));
-                error += std::pow(actual[i] - expected[i], 2);
-                norm += std::pow(expected[i], 2);
-            }
-            EXPECT_LT(error / std::max(norm, 1e-12), 1e-5);
+            const auto error = ov_gguf_test::nmse(actual.data(), expected.data(), actual.size());
+            ASSERT_TRUE(error.all_finite());
+            ASSERT_GT(error.reference_norm(), 1e-12);
+            EXPECT_LT(error.value(), 1e-5);
         };
     auto a = infer(first, 1, {1, 2, 3}, {1, 1, 1}, {0, 1, 2}, {0});
     auto b = infer(second, 1, {2, 3}, {1, 1}, {0, 1}, {0});

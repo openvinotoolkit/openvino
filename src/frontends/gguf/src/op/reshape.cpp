@@ -31,13 +31,19 @@ OutputVector translate_reshape(const NodeContext& context) {
         const auto target = context.get_attribute<std::vector<int64_t>>("reshape_target");
         const auto axes = context.get_attribute<std::vector<int64_t>>("shape_axes");
         FRONT_END_OP_CONVERSION_CHECK(target.size() == axes.size(), "Invalid reference reshape pattern");
-        // One ShapeOf for the whole pattern.
+        // One ShapeOf for the whole pattern, and one Gather per run of copied axes.
         const auto reference_shape = std::make_shared<ov::op::v3::ShapeOf>(context.get_input(1), ov::element::i64);
         ov::OutputVector dimensions;
-        for (size_t i = 0; i < target.size(); ++i) {
-            dimensions.push_back(axes[i] < 0
-                                     ? ov::op::v0::Constant::create(ov::element::i64, {1}, {target[i]})->output(0)
-                                     : gather_dims(reference_shape, {static_cast<int>(axes[i])})->output(0));
+        for (size_t i = 0; i < target.size();) {
+            if (axes[i] < 0) {
+                dimensions.push_back(ov::op::v0::Constant::create(ov::element::i64, {1}, {target[i]}));
+                ++i;
+                continue;
+            }
+            std::vector<int> copied;
+            for (; i < target.size() && axes[i] >= 0; ++i)
+                copied.push_back(static_cast<int>(axes[i]));
+            dimensions.push_back(gather_dims(reference_shape, copied));
         }
         return rename_outputs_with_suffix(
             {std::make_shared<ov::op::v1::Reshape>(context.get_input(0),
