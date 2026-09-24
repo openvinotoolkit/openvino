@@ -374,6 +374,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RO(m_intel_npu, ov::intel_npu::max_tiles, "max_tiles");
 
     wrap_property_RW(m_intel_npu, ov::intel_npu::compilation_mode_params, "compilation_mode_params");
+    wrap_property_RW(m_intel_npu, ov::intel_npu::optimization_level, "optimization_level");
     wrap_property_RW(m_intel_npu, ov::intel_npu::turbo, "turbo");
     wrap_property_RW(m_intel_npu, ov::intel_npu::platform, "platform");
     wrap_property_RW(m_intel_npu, ov::intel_npu::tiles, "tiles");
