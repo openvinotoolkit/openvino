@@ -301,6 +301,12 @@ JitConstants make_type_jit_constants(const std::string& name, const ov::element:
         type_size = "0.5f";
         is_fp = false;
         break;
+    case ov::element::u3:
+        // tightly packed, 3 bits per element
+        type = "uchar";
+        type_size = "0.375f";
+        is_fp = false;
+        break;
     case ov::element::bf16:
         type = "ushort";
         max_val = "FLT_MAX";

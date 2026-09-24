@@ -109,6 +109,7 @@
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/keep_gqa_kv_scale_precision.hpp"
 #include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
+#include "plugin/transformations/convert_moe_3gemm_zp_to_u8.hpp"
 #include "plugin/transformations/keep_xattention_threshold_precision.hpp"
 #include "plugin/transformations/preserve_single_selective_ssm_output.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
@@ -702,7 +703,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             const std::vector<ov::element::Type> supported_compressed_weights_types{ov::element::u4,
                                                                                     ov::element::i4,
                                                                                     ov::element::i8,
-                                                                                    ov::element::u8};
+                                                                                    ov::element::u8,
+                                                                                    ov::element::u3};
             manager.register_pass<ov::pass::ConvertGroupedMatMulToGroupedMatMulCompressed>(
                 supported_compressed_weights_types);
             manager.register_pass<ov::pass::ConvertTiledMoeBlockToGatherMatmuls>(supported_compressed_weights_types);
@@ -724,6 +726,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 manager.register_pass<ov::pass::MoeOpFusion>(has_batch_dim);
                 manager.register_pass<ov::intel_gpu::FuseMoERouterScale>();
                 manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
+                manager.register_pass<ov::intel_gpu::ConvertMOE3GemmZpToU8>();
             }
         }
         manager.register_pass<ov::pass::GatedDeltaNetFusion>();
