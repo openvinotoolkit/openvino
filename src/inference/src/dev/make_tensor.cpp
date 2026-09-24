@@ -42,6 +42,41 @@ Shape make_roi_shape(const Shape& tensor_shape, const Coordinate& begin, const C
     return roi_shape;
 }
 
+// Computes the byte offset of a ROI inside its owner tensor.
+size_t compute_roi_offset(const std::shared_ptr<ITensor>& owner, const Coordinate& begin, const Coordinate& end) {
+    const auto& element_type = owner->get_element_type();
+    const auto bitwidth = element_type.bitwidth();
+    if (bitwidth >= 8) {
+        const auto& strides = owner->get_strides();
+        return std::inner_product(begin.begin(), begin.end(), strides.begin(), static_cast<size_t>(0));
+    }
+
+    const auto& shape = owner->get_shape();
+    OPENVINO_ASSERT((8 % bitwidth) == 0, "ROI not supported: element may span a byte boundary");
+    OPENVINO_ASSERT(!shape.empty() && (shape.back() * bitwidth) % 8 == 0,
+                    "ROI requires a byte-aligned innermost dimension");
+
+    // find the first (innermost-to-outermost) dimension that is not fully spanned; every dimension
+    // beyond it must then be reduced to a single index, or the ROI would span disjoint memory runs
+    bool full_suffix = true;
+    for (size_t i = shape.size(); i-- > 0;) {
+        const auto len = end[i] - begin[i];
+        if (full_suffix) {
+            if (len != shape[i]) {
+                OPENVINO_ASSERT(i != shape.size() - 1, "ROI cannot slice the innermost dimension");
+                full_suffix = false;
+            }
+        } else {
+            OPENVINO_ASSERT(len == 1, "ROI is not a single contiguous byte-aligned region");
+        }
+    }
+
+    const auto element_strides = row_major_strides(shape);
+    const auto offset = std::inner_product(begin.begin(), begin.end(), element_strides.begin(), static_cast<size_t>(0));
+    return (offset * bitwidth) / 8;
+}
+}  // namespace
+
 // Hints for the [offset, offset + size) range of a file mapping.
 class MappedRangeHints final : public util::IMemoryHints {
 public:
@@ -63,7 +98,6 @@ private:
     size_t m_offset;
     size_t m_size;
 };
-}  // namespace
 
 /**
  * @brief View tensor to external memory
@@ -470,12 +504,7 @@ public:
         : m_owner{owner},
           m_shape{make_roi_shape(owner->get_shape(), begin, end)},
           m_capacity{m_shape},
-          m_offset{
-              std::inner_product(begin.begin(), begin.end(), m_owner->get_strides().begin(), static_cast<size_t>(0))} {
-        OPENVINO_ASSERT(m_owner->get_element_type().bitwidth() >= 8,
-                        "ROI Tensor for types with bitwidths less than 8 bit is not implemented. Tensor type: ",
-                        m_owner->get_element_type());
-    }
+          m_offset{compute_roi_offset(owner, begin, end)} {}
 
     void set_shape(ov::Shape new_shape) {
         OPENVINO_ASSERT(new_shape.size() >= m_shape.size());

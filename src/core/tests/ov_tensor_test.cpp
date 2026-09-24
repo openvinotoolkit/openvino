@@ -730,6 +730,60 @@ TEST_F(OVTensorTest, tensorInt4DataAccess) {
     OV_ASSERT_NO_THROW(t.data());
 }
 
+TEST_F(OVTensorTest, roiLpCropOuterDim) {
+    ov::Tensor t{ov::element::i4, {4, 512}};
+    auto* raw = reinterpret_cast<uint8_t*>(t.data());
+    std::iota(raw, raw + t.get_byte_size(), uint8_t{0});
+
+    ov::Tensor roi;
+    OV_ASSERT_NO_THROW(roi = ov::Tensor(t, {1, 0}, {3, 512}));
+
+    EXPECT_EQ(roi.get_shape(), ov::Shape({2, 512}));
+    EXPECT_EQ(roi.get_element_type(), t.get_element_type());
+    const auto expected_offset_bytes = 512 * 4 / 8;
+    EXPECT_EQ(reinterpret_cast<const uint8_t*>(roi.data()) - reinterpret_cast<const uint8_t*>(t.data()),
+              expected_offset_bytes);
+    EXPECT_EQ(0, std::memcmp(roi.data(), raw + expected_offset_bytes, roi.get_byte_size()));
+}
+
+TEST_F(OVTensorTest, roiLpWindowFromStart) {
+    ov::Tensor t{ov::element::i4, {1, 1, 4095, 512}};
+    ov::Tensor roi;
+    OV_ASSERT_NO_THROW(roi = ov::Tensor(t, {0, 0, 0, 0}, {1, 1, 10, 512}));
+
+    EXPECT_EQ(roi.get_shape(), ov::Shape({1, 1, 10, 512}));
+    EXPECT_EQ(roi.data(), t.data());
+}
+
+TEST_F(OVTensorTest, roiLpNonContiguousThrows) {
+    ov::Tensor t{ov::element::i4, {1, 2, 4095, 512}};
+    OV_EXPECT_THROW_HAS_SUBSTRING((ov::Tensor{t, {0, 0, 0, 0}, {1, 2, 10, 512}}),
+                                  ov::Exception,
+                                  "not a single contiguous byte-aligned region");
+}
+
+TEST_F(OVTensorTest, roiLpInnerDimSliceThrows) {
+    ov::Tensor t{ov::element::i4, {2, 8}};
+    OV_EXPECT_THROW_HAS_SUBSTRING((ov::Tensor{t, {0, 0}, {2, 4}}),
+                                  ov::Exception,
+                                  "cannot slice the innermost dimension");
+}
+
+TEST_F(OVTensorTest, roiLpUnsupportedBitwidthThrows) {
+    ov::Tensor t3{ov::element::u3, {2, 8}};
+    OV_EXPECT_THROW_HAS_SUBSTRING((ov::Tensor{t3, {0, 0}, {1, 8}}), ov::Exception, "span a byte boundary");
+
+    ov::Tensor t6{ov::element::u6, {2, 8}};
+    OV_EXPECT_THROW_HAS_SUBSTRING((ov::Tensor{t6, {0, 0}, {1, 8}}), ov::Exception, "span a byte boundary");
+}
+
+TEST_F(OVTensorTest, roiLpUnalignedInnerDimThrows) {
+    ov::Tensor t{ov::element::i4, {1, 6, 5, 3}};
+    OV_EXPECT_THROW_HAS_SUBSTRING((ov::Tensor{t, {0, 1, 2, 0}, {1, 5, 4, 3}}),
+                                  ov::Exception,
+                                  "byte-aligned innermost dimension");
+}
+
 TEST_F(OVTensorTest, makeRangeRoiBlobWrongSize) {
     ov::Tensor t{ov::element::f32, {1, 3, 4, 4}};
     ASSERT_THROW((ov::Tensor{t, {0, 0, 1, 1}, {1, 3, 5, 5}}), ov::Exception);

@@ -374,21 +374,39 @@ def test_can_set_shape_other_dims():
 
 
 @pytest.mark.parametrize(
-    "ov_type",
+    ("ov_type", "expected_msg"),
     [
-        (ov.Type.u1),
-        (ov.Type.u2),
-        (ov.Type.u3),
-        (ov.Type.u4),
-        (ov.Type.u6),
-        (ov.Type.i4),
+        (ov.Type.u1, "cannot slice the innermost dimension"),
+        (ov.Type.u2, "cannot slice the innermost dimension"),
+        (ov.Type.u3, "span a byte boundary"),
+        (ov.Type.u4, "cannot slice the innermost dimension"),
+        (ov.Type.u6, "span a byte boundary"),
+        (ov.Type.i4, "cannot slice the innermost dimension"),
     ],
 )
-def test_cannot_create_roi_from_packed_tensor(ov_type):
+def test_cannot_create_roi_from_packed_tensor(ov_type, expected_msg):
     ov_tensor = ov.Tensor(ov_type, [1, 3, 48, 48])
     with pytest.raises(RuntimeError) as e:
         ov.Tensor(ov_tensor, [0, 0, 24, 24], [1, 3, 48, 48])
-    assert "for types with bitwidths less then 8 bit" in str(e.value)
+    assert expected_msg in str(e.value)
+
+
+def test_cannot_create_roi_from_packed_tensor_when_not_contiguous():
+    ov_tensor = ov.Tensor(ov.Type.i4, [1, 2, 4095, 512])
+    with pytest.raises(RuntimeError) as e:
+        ov.Tensor(ov_tensor, [0, 0, 0, 0], [1, 2, 10, 512])
+    assert "not a single contiguous byte-aligned region" in str(e.value)
+
+
+def test_roi_from_packed_tensor_when_contiguous():
+    ov_tensor = ov.Tensor(ov.Type.i4, [1, 1, 4095, 512])
+    ov_tensor.data[:] = np.arange(ov_tensor.data.size, dtype=ov_tensor.data.dtype)
+
+    roi_tensor = ov.Tensor(ov_tensor, [0, 0, 0, 0], [1, 1, 10, 512])
+
+    assert list(roi_tensor.shape) == [1, 1, 10, 512]
+    assert np.shares_memory(ov_tensor.data, roi_tensor.data)
+    assert np.array_equal(roi_tensor.data, ov_tensor.data[: roi_tensor.byte_size])
 
 
 @pytest.mark.parametrize(
