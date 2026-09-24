@@ -51,7 +51,7 @@ const std::vector<size_t> CONSTANT_NODE_DUMMY_SHAPE{1};
 /**
  * @brief Special case for PERF_COUNT as it requires compiler_type detection in case it is still set to PREFER_PLUGIN
  */
-void update_compiler_type_if_perf_count(FilteredConfig& config,
+void update_compiler_type_if_perf_count(Config& config,
                                         const ov::SoPtr<IEngineBackend>& backend,
                                         const std::string_view device_name) {
     if (config.has<PERF_COUNT>() && config.get<PERF_COUNT>() &&
@@ -60,7 +60,7 @@ void update_compiler_type_if_perf_count(FilteredConfig& config,
         CompilerAdapterFactory factory;
         (void)factory.getCompiler(backend, compilerType, device_name);
 
-        config.update({{ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType)}});
+        config.update(ov::intel_npu::compiler_type.name(), COMPILER_TYPE::toString(compilerType));
     }
 }
 
@@ -180,7 +180,7 @@ class RawBlobImporter : public IBlobFormatImporter {
 public:
     explicit RawBlobImporter(BlobSource& compiler_main_schedule,
                              const std::shared_ptr<const ov::Model>& original_model,
-                             const FilteredConfig& config)
+                             const Config& config)
         : IBlobFormatImporter(original_model,
                               config,
                               Logger(RAW_BLOB_HANDLER_LOGGER_NAME.data(), config.get<LOG_LEVEL>())) {
@@ -271,7 +271,7 @@ class BlobFormatV1Importer : public IBlobFormatImporter {
 public:
     explicit BlobFormatV1Importer(BlobSource& npu_formatted_blob,
                                   const std::shared_ptr<const ov::Model>& original_model,
-                                  const FilteredConfig& config)
+                                  const Config& config)
         : IBlobFormatImporter(original_model,
                               config,
                               Logger(BLOB_V1_HANDLER_LOGGER_NAME.data(), config.get<LOG_LEVEL>())) {
@@ -391,7 +391,7 @@ private:
     void register_compiler_version() {
         std::optional<uint32_t> compiler_version = m_metadata->get_compiler_version();
         if (compiler_version.has_value()) {
-            m_config.update({{ov::intel_npu::compiler_version.name(), std::to_string(compiler_version.value())}});
+            m_config.update(ov::intel_npu::compiler_version.name(), std::to_string(compiler_version.value()));
             m_logger.debug("Imported model was compiled with compiler version: %u.%u",
                            ONEAPI_VERSION_MAJOR(compiler_version.value()),
                            ONEAPI_VERSION_MINOR(compiler_version.value()));
@@ -410,7 +410,7 @@ private:
 namespace intel_npu {
 
 IBlobFormatImporter::IBlobFormatImporter(const std::shared_ptr<const ov::Model>& original_model,
-                                         const FilteredConfig& config,
+                                         const Config& config,
                                          const Logger& logger)
     : m_config(config),
       m_logger(logger),
@@ -484,7 +484,7 @@ std::shared_ptr<ov::Model> IBlobFormatImporter::create_dummy_model() const {
                                 layouts.has_value() ? std::make_optional<>(layouts->second) : std::nullopt);
 }
 
-FilteredConfig IBlobFormatImporter::get_config() const {
+Config IBlobFormatImporter::get_config() const {
     return m_config;
 }
 
@@ -493,7 +493,7 @@ namespace blob_format_importer_factory {
 std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
                                             const bool is_raw_blob,
                                             const std::shared_ptr<const ov::Model>& original_model,
-                                            const FilteredConfig& config) {
+                                            const Config& config) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "blob_format_importer_factory::create");
     const size_t input_size = npu_formatted_blob.get_remaining_size();
     OPENVINO_ASSERT(input_size > 0, EMPTY_BLOB_MESSAGE);

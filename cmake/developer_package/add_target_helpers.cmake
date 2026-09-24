@@ -109,8 +109,14 @@ function(ov_add_target)
     # adding files to target
     if(ARG_SOURCES)
         # Explicit list provided — skip glob entirely
-        set(includes)
+        set(includes ${ARG_SOURCES})
+        list(FILTER includes INCLUDE REGEX "\\.(h|hpp)$")
+
         set(sources ${ARG_SOURCES})
+        list(FILTER sources EXCLUDE REGEX "\\.(h|hpp)$")
+
+        source_group("include" FILES ${includes})
+        source_group("src" FILES ${sources})
     elseif(ARG_ROOT)
         set(includeSearch)
         set(sourceSearch)
@@ -201,6 +207,7 @@ function(ov_add_test_target_per_source)
 
     set(options
         GTEST_DISCOVER
+        ADD_CLANG_FORMAT
     )
     set(oneValueRequiredArgs
         NAME
@@ -212,6 +219,9 @@ function(ov_add_test_target_per_source)
         INCLUDES
         # accept but ignore
         DEPENDENCIES
+        DEFINES
+        LINK_LIBRARIES_WHOLE_ARCHIVE
+        LINK_FLAGS
     )
     cmake_parse_arguments(ARG "${options}" "${oneValueRequiredArgs}" "${multiValueArgs}" ${ARGN})
 
@@ -267,8 +277,10 @@ function(ov_add_test_target_per_source)
         endif()
 
         if(_has_gtest)
+            # PRE_TEST keeps enumeration out of the build: it runs under ctest
             gtest_discover_tests(${_target}
-                DISCOVERY_MODE POST_BUILD
+                DISCOVERY_MODE PRE_TEST
+                DISCOVERY_TIMEOUT 300
                 PROPERTIES LABELS "${ARG_LABELS}"
             )
         endif()
@@ -317,7 +329,7 @@ without it has no effect and triggers a warning):
   CHECK_SOURCES_EXTENSIONS         <ext1> [<ext2>]     Extensions to scan (default: cpp)
   CHECK_SOURCES_EXCLUDE_FILES      <file1> [<file2>]   Files never matching the target's raw SOURCES property
                                                         (e.g. listed behind a generator expression). Must be
-                                                        plain, unconditional paths (see example below) 
+                                                        plain, unconditional paths (see example below)
                                                         instead of wrapping the path in a genex.
   CHECK_SOURCES_EXCLUDE_DIRECTORIES <dir1> [<dir2>]    Directories skipped entirely by the scan
   CHECK_SOURCES_EXCLUDE_TARGETS    <tgt1> [<tgt2>]     Other targets whose SOURCES should count as "listed" too
@@ -517,8 +529,10 @@ function(ov_add_test_target)
         include(GoogleTest OPTIONAL RESULT_VARIABLE has_gtest)
 
         if(has_gtest)
+            # PRE_TEST keeps enumeration out of the build: it runs under ctest
             gtest_discover_tests(${ARG_NAME}
-                DISCOVERY_MODE POST_BUILD
+                DISCOVERY_MODE PRE_TEST
+                DISCOVERY_TIMEOUT 300
                 PROPERTIES LABELS "${ARG_LABELS}"
             )
         endif()
