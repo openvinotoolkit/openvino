@@ -63,9 +63,11 @@ The following extension types are supported:
 OpenVINO performs inference only. `torch.export` represents `torch.no_grad()`,
 `torch.set_grad_enabled()` and `torch.autocast()` regions as
 `wrap_with_set_grad_enabled` and `wrap_with_autocast` operations. Their bodies
-are inlined into the converted graph as is: gradient mode is ignored, and
-autocast does not change precision, which is selected by the OpenVINO device.
-Outputs of such a region that are views of its operands keep the alias relation,
+are inlined into the converted graph: gradient mode is ignored, and region
+outputs are converted to the element types recorded by `torch.export`, so an
+enabled autocast region returns the same types as in PyTorch. Precision of
+operations inside the region is selected by the OpenVINO device.
+Outputs of such a region that are its operands or their views keep the alias relation,
 so later in-place operations on them update the operands. This does not require
 `ExportedProgram.run_decompositions()` or an additional trace.
 

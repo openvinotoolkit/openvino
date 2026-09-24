@@ -403,7 +403,8 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
             }
         }
         if (!external_tensor_map.empty() && !input_model) {
-            // Record declared outputs which are views of body inputs, so a parent inlining the body keeps the alias.
+            // Record declared outputs which are body inputs or their views, so a parent inlining the body keeps the
+            // alias.
             m_body_output_aliases.clear();
             for (size_t i = 0; i < pytorch_model->num_of_outputs(); ++i) {
                 auto root = pytorch_model->output(i);
@@ -413,7 +414,7 @@ std::shared_ptr<Model> TranslateSession::convert_pytorch_model(
                      alias = m_may_be_alias.find(root)) {
                     root = alias->second.base_id;
                 }
-                if (root != pytorch_model->output(i) && param_names.count(root)) {
+                if (param_names.count(root)) {
                     m_body_output_aliases[i] = root;
                 }
             }

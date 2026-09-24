@@ -3,6 +3,7 @@
 //
 
 #include "openvino/frontend/pytorch/node_context.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "translate_session.hpp"
@@ -15,7 +16,8 @@ using namespace ov::op;
 OutputVector translate_wrap_with_context_fx(const NodeContext& context) {
     // wrap_with_set_grad_enabled(enabled, body, *operands) and
     // wrap_with_autocast(device_type, dtype, enabled, cache_enabled, body, *operands) run the body under a
-    // context manager. Gradient mode and autocast do not change inference semantics, so the body is inlined.
+    // context manager. Gradient mode does not change inference semantics, so the body is inlined. Autocast changes
+    // only the precision of operations; outputs are converted to the element types recorded by export.
     // Decoder inputs are the inlined context arguments followed by the operands.
     const auto decoder = context.get_decoder();
     PYTORCH_OP_CONVERSION_CHECK(decoder->get_subgraph_size() == 1,
@@ -72,7 +74,13 @@ OutputVector translate_wrap_with_context_fx(const NodeContext& context) {
 
     OutputVector outputs;
     for (size_t i = 0; i < num_outputs; ++i) {
-        outputs.push_back(results[i]->input_value(0));
+        auto output = results[i]->input_value(0);
+        const auto type = simplified_type_interpret(body_decoder->get_output_type(i));
+        if (type.is<element::Type>() && type.as<element::Type>().is_static() &&
+            output.get_element_type() != type.as<element::Type>()) {
+            output = context.mark_node(std::make_shared<v0::Convert>(output, type.as<element::Type>()));
+        }
+        outputs.push_back(output);
     }
     for (const auto& [operand, value] : mutations) {
         context.mutate_input(operand, value);

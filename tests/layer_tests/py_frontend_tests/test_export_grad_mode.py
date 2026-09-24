@@ -1,6 +1,7 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
+import operator
 from unittest.mock import patch
 
 import numpy as np
@@ -8,7 +9,7 @@ import pytest
 import torch
 from packaging import version
 
-from openvino import Core, convert_model
+from openvino import Core, Type, convert_model
 from openvino.frontend.pytorch.fx_decoder import TorchFXPythonDecoder
 
 
@@ -132,6 +133,28 @@ def test_export_autocast_returns_view(mutate_base):
         np.testing.assert_allclose(actual[index], value.numpy(), atol=1e-5, rtol=1e-5)
 
 
+def test_export_enabled_autocast_output_types():
+    class Model(torch.nn.Module):
+        def forward(self, x, w):
+            with torch.autocast("cpu", dtype=torch.bfloat16):
+                y = x @ w
+                z = y + x
+            return y, z
+
+    model = Model().eval()
+    data = (torch.randn(4, 4), torch.randn(4, 4))
+    exported = torch.export.export(model, data)
+    assert any(str(node.target) == "wrap_with_autocast" for node in exported.graph.nodes)
+    ov_model = convert_model(exported)
+    expected = model(*data)
+    assert [output.get_element_type() for output in ov_model.outputs] == [Type.bf16, Type.f32]
+    actual = Core().compile_model(ov_model, "CPU")([value.numpy() for value in data])
+    # bf16 results are returned as raw 16-bit data.
+    y = (actual[0].view(np.uint16).astype(np.uint32) << 16).view(np.float32)
+    np.testing.assert_allclose(y, expected[0].float().numpy(), atol=0.05, rtol=0.02)
+    np.testing.assert_allclose(actual[1], expected[1].numpy(), atol=0.05, rtol=0.02)
+
+
 def test_export_grad_mode_unsupported_view_mutation():
     class Model(torch.nn.Module):
         def forward(self, x):
@@ -177,3 +200,26 @@ def test_fx_nested_grad_mode():
     actual = compiled([data.numpy()])
     np.testing.assert_array_equal(actual[0], model(data)[0].numpy())
     assert str(model.graph) == original
+
+
+def test_fx_grad_mode_returns_operand():
+    from torch._higher_order_ops.wrap import wrap_with_set_grad_enabled
+
+    body_graph = torch.fx.Graph()
+    body_graph.output((body_graph.placeholder("x"),))
+    body = torch.fx.GraphModule({}, body_graph)
+
+    # torch.export does not return operands from the body, but FX graphs may.
+    graph = torch.fx.Graph()
+    data = graph.placeholder("x")
+    data = graph.call_function(torch.ops.aten.clone.default, (data,))
+    wrapped = graph.call_function(wrap_with_set_grad_enabled, (False, graph.get_attr("body"), data))
+    returned = graph.call_function(operator.getitem, (wrapped, 0))
+    graph.call_function(torch.ops.aten.add_.Tensor, (returned, 1))
+    graph.output((data,))
+    model = torch.fx.GraphModule({"body": body}, graph)
+
+    data = torch.zeros(2)
+    decoder = TorchFXPythonDecoder(model, input_shapes=[data.shape], input_types=[data.dtype])
+    compiled = Core().compile_model(convert_model(decoder), "CPU")
+    np.testing.assert_array_equal(compiled([data.numpy()])[0], model(data)[0].numpy())
