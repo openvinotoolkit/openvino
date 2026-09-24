@@ -12,10 +12,7 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 OutputVector translate_queue_dequeue_base(const ov::frontend::tensorflow::NodeContext& node,
                                           const Output<Node>& handle,
                                           const Dimension& batch_dim) {
@@ -94,7 +91,4 @@ OutputVector translate_queue_dequeue_many_op(const ov::frontend::tensorflow::Nod
     return translate_queue_dequeue_base(node, handle, batch_dim);
 }
 
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

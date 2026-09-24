@@ -94,7 +94,7 @@ protected:
     bool withResetInferRequest;
     uint32_t zeGraphNpuExtVersion;
     uint32_t zeMutableCommandListExtVersion;
-    std::unique_ptr<::intel_npu::FilteredConfig> npu_config;
+    std::unique_ptr<::intel_npu::Config> npu_config;
     std::shared_ptr<::intel_npu::ZeroInitStructsHolder> zeroInitStruct;
     std::shared_ptr<ov::Model> ov_model;
 
@@ -158,7 +158,7 @@ public:
         options->add<::intel_npu::COMPILER_TYPE>();
         options->add<::intel_npu::BATCH_MODE>();
         options->add<::intel_npu::MODEL_SERIALIZER_VERSION>();
-        npu_config = std::make_unique<::intel_npu::FilteredConfig>(options);
+        npu_config = std::make_unique<::intel_npu::Config>(options);
         for (const auto& [propertyName, propertyValue] : configuration) {
             npu_config->update(propertyName, propertyValue.as<std::string>());
         }

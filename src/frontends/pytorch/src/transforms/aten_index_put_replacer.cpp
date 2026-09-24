@@ -29,10 +29,7 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace pass {
+namespace ov::frontend::pytorch::pass {
 
 using namespace ov::op;
 
@@ -264,7 +261,4 @@ AtenIndexPutReplacer::AtenIndexPutReplacer() {
     this->register_matcher(m, callback);
 }
 
-}  // namespace pass
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::pass

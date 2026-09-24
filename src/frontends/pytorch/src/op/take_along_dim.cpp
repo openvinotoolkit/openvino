@@ -12,10 +12,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 OutputVector translate_take_along_dim(const NodeContext& context) {
     // aten::take_along_dim(Tensor self, Tensor indices, int? dim=None) -> Tensor
@@ -50,7 +47,4 @@ OutputVector translate_take_along_dim(const NodeContext& context) {
     return {gather_elements};
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

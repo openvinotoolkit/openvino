@@ -8,10 +8,7 @@
 
 using namespace ::ONNX_NAMESPACE;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace common {
+namespace ov::frontend::onnx::common {
 size_t get_onnx_data_size(int32_t onnx_type) {
     switch (onnx_type) {
     case TensorProto_DataType_BOOL:
@@ -119,7 +116,4 @@ PartialShape onnx_to_ov_shape(const TensorShapeProto& onnx_shape) {
     return PartialShape{dims};
 }
 
-}  // namespace common
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::common
