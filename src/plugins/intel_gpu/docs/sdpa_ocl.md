@@ -43,9 +43,9 @@ Reachable configurations on Xe2 with XMX and no environment overrides:
 |---|---|
 | `impls/ocl_v2/sdpa_ocl.cl` | The kernel: extension pragmas, batch-header includes, the helper-header includes and the kernel body |
 | `impls/ocl_v2/sdpa_ocl_config.cl` | Every compile-time macro: dtype and DPAS selection, derived tiling, DKS, mask/bidir predicates, PA page geometry, u4 labelling, 1D page mapping, expression macros, and all host/kernel invariants as `#error` |
-| `impls/ocl_v2/sdpa_ocl_mask.cl` | Attention-mask helpers |
-| `impls/ocl_v2/sdpa_ocl_qk_load.cl` | Q staging and K tile loaders |
-| `impls/ocl_v2/sdpa_ocl_v_load.cl` | V tile loaders |
+| `impls/ocl_v2/sdpa_ocl_mask.cl` | Attention-mask helpers: the bidirectional image-group boundary scans and the full 2D mask tile |
+| `impls/ocl_v2/sdpa_ocl_qk_load.cl` | Q staging, the per-k0 K hoists (plain comp, PA pages, PA comp, u4 1D page) and the K tiles (block reads, Kc, gathers) |
+| `impls/ocl_v2/sdpa_ocl_v_load.cl` | V page base, Vc prefetch and the V tiles (block reads, comp fold and dequant, Vc, gathers) |
 | `impls/ocl_v2/sdpa_ocl_decode.cl` | The decode kernel (self-contained) |
 | `impls/ocl_v2/sdpa/sdpa_gen_ocl.{hpp,cpp}` | `SDPAOclGenerator`: gate, tiling (`choose_config()`), jit constants, arguments, dispatch |
 | `impls/ocl_v2/sdpa/sdpa_gen_ocl_decode.{hpp,cpp}` | `SDPAOclDecodeGenerator` |
@@ -65,6 +65,57 @@ shape the header split:
 - The `.cl` list is globbed at configure time: a new `.cl` file needs a CMake re-run.
 - Comments never reach the runtime (the minimizer strips them), so a comment-only change is
   provably a no-op on the embedded text.
+
+### Kernel helpers
+
+The K/V/Q load variants live in the headers as `FUNC()` helpers; the kernel body keeps the
+skeleton: setup, pointer bumps and surface fixups, SLM declarations, key-range arithmetic, the k0
+loop control, the qB/pA SLM reads, both DPAS nests, masking and the running max, every barrier, the
+softmax, the alpha select chain and the epilogue. Each call site picks its variant with a one-level
+`#if` chain, and each helper is guarded by the same condition, so a configuration that does not
+use a helper does not even see its tokens.
+
+The helpers were extracted with the requirement that every configuration compiles to the same ISA
+as the inline code (verified per step on the corpus, ocloc metrics identical). IGC and the LLVM
+inliner make that stricter than "it inlines":
+
+- **always_inline** (`SDPA_OCL_INLINE`). A plain `inline` helper is inlined too, but the module then
+  goes through a different optimization pipeline: the first one-line helper changed the ISA of 121
+  of 122 MIXED configurations, and an unrelated identity helper reproduced the same deltas on
+  configurations that never called it. The IR after unification was identical modulo value names;
+  only the later stages differed (the kernel arguments gained inferred `nocapture readonly`).
+  `__attribute__((always_inline))` gives the inline ISA; the call still reaches IGC, it is just
+  treated differently.
+- **The inliner simplifies the helper body with the actual arguments while cloning it**, earlier
+  than the inline code gets simplified, so anything that folds against an argument can move the
+  result:
+  - A cast of a widened parameter. The kernel's `lane` is `size_t` (the zero-extended
+    `get_sub_group_local_id()`); `(int)lane` inside a helper folds `trunc(zext(x))` to the
+    entry-block lane id, while the inline code later gets a fresh zero-extension at each use (2-4
+    more movs hoisted to the entry). Helpers therefore take `size_t lane` for size_t arithmetic and
+    `int lane_i`, converted by the caller, for int arithmetic. A `uint lane` instead made the size_t
+    uses worse (more spills).
+  - A branch on a parameter that is a compile-time constant in some configuration: under
+    `SDPA_OCL_BIDIR_GATE=0` `bidir_active` is `true`, the branch was pruned at clone time and the
+    CFG came out different (+16 `sync`). Such tests stay at the call site; the per-query bidir group
+    loop stayed inline for this reason.
+- **Coordinates are computed from their leaves inside the helper.** Passing `VcD_x0 + sg_j0_sv` as
+  one argument hoisted it out of the unrolled loop and changed instruction order on the MIXED Vc
+  read (+23 `sync`); passing `VcD_x0` and `sg_j0_sv` does not.
+- **No arrays inside helpers.** The inliner brackets a helper's own arrays with lifetime markers the
+  inline code never had; on the spill-bound u4 head-512 MIXED kernel that moved scratch allocation
+  (7680 -> 7552 bytes). Scratch arrays (`kt`, `kw`, `vt_pa`, `vzp4`, `zpb4`, `v_pg`) are declared by
+  the caller and passed as `__private` pointers.
+- **Loop-carried outputs belong to the caller.** `q_pack` is written element-wise by the u4 staging;
+  as the caller's loop variable SROA keeps its previous value as a phi, which a helper-local vector
+  dropped (register allocation moved on u4 head 512). It is an out-parameter.
+- From the start: arguments keep the caller's types, unrolled trip counts are macros (a runtime or
+  select-based bound, or an early `return` in a helper, lost the unroll in
+  `pa_kv_cache_update_ref.cl`), private arrays are indexed only by unrolled constants, pointer
+  parameters carry an explicit `__private` / `__global`, and there are no structs or globals.
+- Helpers that use a prelude macro which reads `shape_info` in dynamic-shape builds (`MSK_*`,
+  `KEY_COMP_OFF`, `VAL_COMP_OFF`) take `OPTIONAL_SHAPE_INFO_ARG` and are called with
+  `OPTIONAL_SHAPE_INFO_TENSOR`.
 
 ## sdpa_ocl
 

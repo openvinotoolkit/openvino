@@ -230,14 +230,16 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
     const int QD_w = d * (int)sizeof(QRY_DATA_T), QD_h = q, QD_p = (int)ldq * (int)sizeof(QRY_DATA_T);
+#if !IS_PA_MIXED
+    // Input K/V surfaces. MIXED has none: its K/V are the cache pages (plus Kc/Vc).
     const int KD_w = d * (int)sizeof(KEY_DATA_T), KD_h = k, KD_p = (int)ldk * (int)sizeof(KEY_DATA_T);
     const int VD_w = dv * (int)sizeof(VAL_DATA_T), VD_h = k, VD_p = (int)ldv * (int)sizeof(VAL_DATA_T);
+#endif
     const int AD_w = dv * (int)sizeof(OUTPUT_TYPE), AD_h = q, AD_p = (int)lda * (int)sizeof(OUTPUT_TYPE);
 
 #if PA_CUR_KV_F16
-    // Surfaces for the NEW-token part of the key range. Not KD_*/VD_*, which describe the cache
-    // here: Kc/Vc are f16 and q rows tall, and rows past q read as zero (those keys are masked
-    // anyway).
+    // Surfaces for the NEW-token part of the key range: Kc/Vc are f16 and q rows tall, and rows
+    // past q read as zero (those keys are masked anyway).
     const int KcD_w = d * (int)sizeof(half), KcD_h = q, KcD_p = (int)ldk * (int)sizeof(half);
     const int VcD_w = dv * (int)sizeof(half), VcD_h = q, VcD_p = (int)ldv * (int)sizeof(half);
     const global half *Kc_b2d = (const global half *)Kc;
@@ -270,7 +272,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     #endif
 #endif
 
-#if USE_2D_BLOCK_IO_KV
+#if USE_2D_BLOCK_IO_KV && !IS_PA_MIXED
     // 2D block IO surface origin for the f16 K/V loads. The builtins need a 64B-aligned base, but
     // the per-head offset is a multiple of the row width (head_size * element size), not of 64 --
     // e.g. 144 B rows at head 72. BLOCK2D_KV_BASE_FIXUP repairs it the way sdpa_micro's
@@ -320,77 +322,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         const int query_base = wg_j0 + q_block * SUBGROUP_SIZE;
         uint8 q_pack;
 #if IS_PA_K_U4
-        // u4: Q adopts the K page's permuted depth labelling (see PA_K_U4_CHANNEL), paid here once
-        // per workgroup instead of per k0 tile. A chunk spans its 32-channel window, read as two
-        // halves w0/w1, and q_pack dword j takes half `par` of dwords 2j and 2j+1, i.e. channels
-        // (win+4j+par, win+4j+2+par).
-        const int u4_win = PA_K_U4_WIN(db);
-        const int u4_par = PA_K_U4_PAR(db);
-        uint8 w0, w1;
-    #if USE_2D_BLOCK_IO_Q
-        if (query_base + SUBGROUP_SIZE <= q && u4_win + 2 * DPAS_K <= d) {
-            intel_sub_group_2d_block_read_transpose_32b_16r8x1c(
-                (global void *)Q, QD_w, QD_h, QD_p,
-                (int2)(u4_win / 2, query_base), (private uint *)&w0);
-            intel_sub_group_2d_block_read_transpose_32b_16r8x1c(
-                (global void *)Q, QD_w, QD_h, QD_p,
-                (int2)(u4_win / 2 + DPAS_K / 2, query_base), (private uint *)&w1);
-        } else
-    #endif
-        {
-            const int query = query_base + lane;
-            ushort16 qv0 = (ushort16)0;
-            ushort16 qv1 = (ushort16)0;
-            if (query < q) {
-                const global ushort *q_row = (const global ushort *)(Q + (size_t)query * ldq + u4_win);
-                if (u4_win + 2 * DPAS_K <= d) {
-                    qv0 = vload16(0, q_row);
-                    qv1 = vload16(1, q_row);
-                } else {
-                    #pragma unroll
-                    for (int head_offset = 0; head_offset < DPAS_K; ++head_offset) {
-                        if (u4_win + head_offset < d)
-                            qv0[head_offset] = q_row[head_offset];
-                        if (u4_win + DPAS_K + head_offset < d)
-                            qv1[head_offset] = q_row[DPAS_K + head_offset];
-                    }
-                }
-            }
-            w0 = as_uint8(as_short16(qv0));
-            w1 = as_uint8(as_short16(qv1));
-        }
-        #pragma unroll
-        for (int j = 0; j < 8; ++j) {
-            const uint a = (j < 4) ? w0[2 * j] : w1[2 * (j - 4)];
-            const uint b = (j < 4) ? w0[2 * j + 1] : w1[2 * (j - 4) + 1];
-            q_pack[j] = u4_par ? ((a >> 16) | (b & 0xFFFF0000u)) : ((a & 0x0000FFFFu) | (b << 16));
-        }
+        FUNC_CALL(q_chunk_u4)(&q_pack, Q, QD_w, QD_h, QD_p, ldq, q, d, query_base, db, lane);
 #else
-        const int head_base = db * DPAS_K;
-#if USE_2D_BLOCK_IO_Q
-        if (query_base + SUBGROUP_SIZE <= q && head_base + DPAS_K <= d) {
-            intel_sub_group_2d_block_read_transpose_32b_16r8x1c(
-                (global void *)Q, QD_w, QD_h, QD_p,
-                (int2)(head_base / 2, query_base), (private uint *)&q_pack);
-        } else
-#endif
-        {
-            const int query = query_base + lane;
-            ushort16 qv = (ushort16)0;
-            if (query < q) {
-                if (head_base + DPAS_K <= d) {
-                    qv = vload16(0, (global ushort *)(Q + (size_t)query * ldq + head_base));
-                } else {
-                    #pragma unroll
-                    for (int head_offset = 0; head_offset < DPAS_K; ++head_offset) {
-                        if (head_base + head_offset < d) {
-                            qv[head_offset] = as_ushort(Q[(size_t)query * ldq + head_base + head_offset]);
-                        }
-                    }
-                }
-            }
-            q_pack = as_uint8(as_short16(qv));
-        }
+        FUNC_CALL(q_chunk)(&q_pack, Q, QD_w, QD_h, QD_p, ldq, q, d, query_base, db, lane);
 #endif
         intel_sub_group_block_write8(
             (local uint *)&Q_slm[Q_SLM_OFF(db, q_block)], q_pack);
@@ -450,27 +384,14 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #if IS_CAUSAL && BIDIR_MASK
     // An image group is bidirectional, so a query inside one also needs its group's FUTURE keys,
     // which the causal bound cuts away: extend it to the end of the group holding the workgroup's
-    // last query (groups are contiguous, so that query suffices). The scan is subgroup-cooperative
-    // and uniform, so the break and sub_group_reduce_min() are reached by every lane. It runs in
-    // LOCAL space bounded by q (groups never leave the new-token region) and relies on
-    // pa_kv_cache_update having written the new tokens before this stage, as the reference does.
+    // last query (groups are contiguous, so that query suffices). The scan runs in LOCAL space
+    // bounded by q (groups never leave the new-token region) and relies on pa_kv_cache_update having
+    // written the new tokens before this stage, as the reference does.
     {
         const int wg_q_end = min((int)wg_j0 + kq_wg_tile_queries, q) - 1;
         if (bidir_active && wg_q_end >= 0 && token_type_ids[wg_q_end] == 1) {
-            int group_end = wg_q_end + 1;
-            while (group_end < q) {
-                const int chunk_end = min(q, group_end + SUBGROUP_SIZE);  // exclusive
-                const int idx = group_end + (int)lane;
-                const bool ends_group = (idx < chunk_end) && (token_type_ids[idx] != 1);
-                const int first = sub_group_reduce_min(ends_group ? idx : INT_MAX);
-                if (first != INT_MAX) {
-                    group_end = first;
-                    break;
-                }
-                group_end = chunk_end;
-            }
-            // group_end <= q: the loop only ever assigns an index below q or the clamped chunk end,
-            // so the KEY-space result stays <= query_position_offset + q == k.
+            const int group_end = FUNC_CALL(bidir_scan_end)(token_type_ids, wg_q_end, q, (int)lane);
+            // group_end <= q, so the KEY-space result stays <= query_position_offset + q == k.
             causal_k = max(causal_k, query_position_offset + group_end);
         }
     }
@@ -490,18 +411,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     // the index in range.
     const int window_begin_local = window_k_begin - query_position_offset;
     if (bidir_active && window_begin_local > 0 && token_type_ids[window_begin_local] == 1) {
-        int group_begin = window_begin_local;
-        while (group_begin > 0) {
-            const int chunk_begin = max(0, group_begin - SUBGROUP_SIZE);
-            const int idx = chunk_begin + (int)lane;
-            const bool ends_group = (idx < group_begin) && (token_type_ids[idx] != 1);
-            const int last = sub_group_reduce_max(ends_group ? idx : -1);
-            if (last >= 0) {
-                group_begin = last + 1;
-                break;
-            }
-            group_begin = chunk_begin;
-        }
+        const int group_begin = FUNC_CALL(bidir_scan_begin)(token_type_ids, window_begin_local, (int)lane);
         window_k_begin = query_position_offset + group_begin;
     }
     #endif
@@ -578,140 +488,35 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 S_tile[mb][qb] = (float8)0.0f;
 
 #ifdef KV_COMPRESSED
-        // Per-token K scale/zp depend only on the key, so load them once per k0 tile with one
-        // 16-wide load (lane L -> key key_base + L) instead of per-key SIMD-1 loads inside the
-        // dequant loop. Kept in half for the bias-trick dequant below: zp absorbs the widen bias
-        // (+1152.0h), so a byte dequants as (as_half(0x6480 ^ byte) - (zp + 1152)) * scale.
         half k_scale_lane[kq_sg_tile_keys / SUBGROUP_SIZE];
         half k_zpb_lane[kq_sg_tile_keys / SUBGROUP_SIZE];   // zp + 1152.0h (bias-trick bias folded in)
-        #pragma unroll
-        for (int ii = 0; ii < kq_sg_tile_keys / SUBGROUP_SIZE; ++ii) {
-            const int sc_key = key_base + ii * SUBGROUP_SIZE + lane;
-            const uint sc_off = k_comp_base + KEY_COMP_OFF(0, 0, sc_key, 0);
-            k_scale_lane[ii] = (sc_key < k) ? convert_half(K_scales[sc_off]) : (half)0.0f;
-            #if INPUT0_IS_BF16
-            k_zpb_lane[ii] = (sc_key < k) ? convert_half(K_zp[sc_off]) : (half)0.0f;
-            #else
-            k_zpb_lane[ii] = (sc_key < k) ? (convert_half(K_zp[sc_off]) + (half)1152.0h) : (half)1152.0h;
-            #endif
-        }
+        FUNC_CALL(k_comp_per_key)(OPTIONAL_SHAPE_INFO_TENSOR k_scale_lane, k_zpb_lane, K_scales, K_zp, k_comp_base,
+                                  key_base, k, lane);
 #endif
 
 #if IS_PA_MIXED
-        // The block_indices[] page lookup depends only on the key, so it is hoisted out of the db /
-        // key loops to one per DPAS row-block (an 8-aligned row-block never straddles a 16-key
-        // page). The mb_key0 < k guard keeps it inside this subsequence's blocks (key_base can run
-        // past k on the last k0 tile). Everything from here to the end of this block feeds only the
-        // CACHE read, hence `if (from_cache)`: on a PA_CUR_KV_F16 tile it is all dead work, and the
-        // branch is uniform.
+        // Everything in this block feeds only the CACHE read, hence `if (from_cache)`: on a
+        // PA_CUR_KV_F16 tile it is all dead work, and the branch is uniform.
         uint k_page[kq_key_blocks];
-        if (from_cache) {
-            #pragma unroll
-            for (int mb = 0; mb < kq_key_blocks; ++mb) {
-                const int mb_key0 = key_base + mb * DPAS_ROWS;
-                k_page[mb] = (mb_key0 < k) ? block_indices[base_block_index + mb_key0 / PAGED_ATTENTION_BLOCK_SIZE]
-                                           : 0u;
-            }
-        }
-
+        if (from_cache)
+            FUNC_CALL(pa_k_pages)(k_page, block_indices, base_block_index, key_base, k);
     #if IS_PA_K_BY_CHANNEL
-        // BY_CHANNEL comp is indexed by CHANNEL, and the KQ A operand is K with lane == head dim,
-        // so a channel's (scale, zp) is a plain per-lane scalar: no sub_group_broadcast in the
-        // dequant, unlike BY_TOKEN's per-key comp. The pairs are interleaved, so one uint block
-        // read at dword db * SUBGROUP_SIZE gives lane L channel db * DPAS_K + L. Two guards, both
-        // mandatory:
-        //  - a tile reaching past K_HEAD_SIZE (a partial last tile, or u4's even-rounded
-        //    DKS_ACTIVE) must not read past the comp region, which is exactly K_HEAD_SIZE dwords;
-        //  - a key group at/past k had its page clamped to 0, whose comp bytes are arbitrary: sc =
-        //    zp = 0 keeps the dequant finite, and a NaN would survive the -INFINITY mask (NaN +
-        //    -INFINITY is NaN).
         half k_pa_sc_ch[kq_sg_tile_keys / SUBGROUP_SIZE][DKS_ACTIVE];
         half k_pa_zp_ch[kq_sg_tile_keys / SUBGROUP_SIZE][DKS_ACTIVE];
-        if (from_cache) {
-        #pragma unroll
-        for (int kg = 0; kg < kq_sg_tile_keys / SUBGROUP_SIZE; ++kg) {
-            const global uint *k_comp_ch = (const global uint *)(
-                K + PA_K_PAGE_OFF(k_page[kg * (SUBGROUP_SIZE / DPAS_ROWS)], b0_kv) +
-                PA_K_COMP_OFF);
-            const bool sc_valid = (key_base + kg * SUBGROUP_SIZE) < k;
-        #if IS_PA_K_U4
-            // u4: tiles 2g and 2g+1 want the comp of channels (win + 2L) and (win + 2L + 1), which
-            // are adjacent, so one uint2 per lane covers the pair -- one coalesced 128-byte span.
-            // Same two guards as i8.
-            #pragma unroll
-            for (int g = 0; g < DKS_ACTIVE / 2; ++g) {
-                const int u4_win = g * (2 * DPAS_K);
-                uint2 pair2 = (uint2)(0u, 0u);
-                if (u4_win + 2 * DPAS_K <= K_HEAD_SIZE) {
-                    if (sc_valid)
-                        pair2 = vload2(lane, k_comp_ch + u4_win);
-                } else {
-                    const int c0 = u4_win + 2 * (int)lane;
-                    pair2.s0 = (sc_valid && c0 < K_HEAD_SIZE) ? k_comp_ch[c0] : 0u;
-                    pair2.s1 = (sc_valid && c0 + 1 < K_HEAD_SIZE) ? k_comp_ch[c0 + 1] : 0u;
-                }
-                const half2 sc_zp0 = as_half2(pair2.s0);
-                const half2 sc_zp1 = as_half2(pair2.s1);
-                k_pa_sc_ch[kg][2 * g + 0] = sc_zp0.s0;
-                k_pa_zp_ch[kg][2 * g + 0] = sc_zp0.s1;
-                k_pa_sc_ch[kg][2 * g + 1] = sc_zp1.s0;
-                k_pa_zp_ch[kg][2 * g + 1] = sc_zp1.s1;
-            }
-        #else
-            #pragma unroll
-            for (int db = 0; db < DKS_ACTIVE; ++db) {
-                uint pair = 0u;
-                if (db < K_HEAD_SIZE / DPAS_K) {
-                    pair = sc_valid ? intel_sub_group_block_read(k_comp_ch + db * SUBGROUP_SIZE) : 0u;
-                } else if (db * DPAS_K + (int)lane < K_HEAD_SIZE) {
-                    pair = sc_valid ? k_comp_ch[db * SUBGROUP_SIZE + lane] : 0u;
-                }
-                const half2 sc_zp = as_half2(pair);
-                k_pa_sc_ch[kg][db] = sc_zp.s0;
-                k_pa_zp_ch[kg][db] = sc_zp.s1;
-            }
-        #endif
-        }
-        }
+        if (from_cache)
+            FUNC_CALL(pa_k_comp_by_channel)(k_pa_sc_ch, k_pa_zp_ch, K, k_page, b0_kv, key_base, k, lane,
+                                            (int)lane);
     #elif IS_PA_KV_COMPRESSED
-        // BY_TOKEN comp: per-key scale/zp, indexed by token only, loaded once per page with one
-        // 16-wide load each (lane L = token L; a 16-key group is exactly one page). The dequant
-        // takes each key's value with a sub_group_broadcast at a constant lane, which folds into
-        // the consumer. Keys at/past k get sc = zp = 0: their comp bytes were never written and
-        // could be NaN, and the block read below has no per-key guard to discard them.
         half k_pa_sc_lane[kq_sg_tile_keys / SUBGROUP_SIZE];
         half k_pa_zp_lane[kq_sg_tile_keys / SUBGROUP_SIZE];
-        if (from_cache) {
-        #pragma unroll
-        for (int kg = 0; kg < kq_sg_tile_keys / SUBGROUP_SIZE; ++kg) {
-            const global half *k_comp = (const global half *)(
-                K + PA_K_PAGE_OFF(k_page[kg * (SUBGROUP_SIZE / DPAS_ROWS)], b0_kv) +
-                PA_K_COMP_OFF);
-            const bool sc_valid = (key_base + kg * SUBGROUP_SIZE + (int)lane) < k;
-            k_pa_sc_lane[kg] = sc_valid ? k_comp[lane] : (half)0.0h;
-            k_pa_zp_lane[kg] = sc_valid ? k_comp[PAGED_ATTENTION_BLOCK_SIZE + lane] : (half)0.0h;
-        }
-        }
+        if (from_cache)
+            FUNC_CALL(pa_k_comp_by_token)(k_pa_sc_lane, k_pa_zp_lane, K, k_page, b0_kv, key_base, k, lane,
+                                          (int)lane);
     #endif
-
     #if USE_1D_BLOCK_IO_K_PA_U4
-        // Whole-page read, hoisted out of the db loop: the page bytes do not depend on db (a byte
-        // is a channel pair), so PA_PAGE_READS uc16 reads replace the per-(db, mb, key) gather. The
-        // host only enables it where block2d cannot reach (u4 rows of 16 or 32 bytes), which keeps
-        // the live page small.
         uchar16 k_pg[kq_sg_tile_keys / SUBGROUP_SIZE][PA_PAGE_READS(PA_K_ROW_ELEMS)];
-        if (from_cache) {
-        #pragma unroll
-        for (int kg = 0; kg < kq_sg_tile_keys / SUBGROUP_SIZE; ++kg) {
-            // Page-aligned like the comp loop above; a group at/past k reads page 0, which is
-            // always allocated.
-            const global uchar *k_pg_base = (const global uchar *)(
-                K + PA_K_PAGE_OFF(k_page[kg * (SUBGROUP_SIZE / DPAS_ROWS)], b0_kv));
-            #pragma unroll
-            for (int r = 0; r < PA_PAGE_READS(PA_K_ROW_ELEMS); ++r)
-                k_pg[kg][r] = intel_sub_group_block_read_uc16(k_pg_base + r * PA_PAGE_RD_BYTES);
-        }
-        }
+        if (from_cache)
+            FUNC_CALL(pa_k_page_read_1d)(k_pg, K, k_page, b0_kv);
     #endif
 #endif
 
@@ -729,350 +534,57 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #if IS_PA_MIXED
             if (from_cache) {
     #if USE_2D_BLOCK_IO_K_PA
-            // Token-major f16 K cache: a page is a [PAGED_ATTENTION_BLOCK_SIZE keys, K_HEAD_SIZE]
-            // row-major tile, the [key, head] geometry of the input read below with the page as the
-            // surface and K_HEAD_SIZE as the pitch, so the same 16b builtin lands the A operand
-            // (lane = head, element = key). One read covers one 16-key page, so loop per key group
-            // and take its page from k_page[] (indexed per row-block).
-            #pragma unroll
-            for (int kg = 0; kg < kq_sg_tile_keys / SUBGROUP_SIZE; ++kg) {
-                const int kg_key0 = key_base + kg * SUBGROUP_SIZE;
-                const int kg_mb = kg * (SUBGROUP_SIZE / DPAS_ROWS);
-                // Height clamped to the keys the page holds: slots at/past k were never written,
-                // and a NaN from one would survive the masked-out score. A group entirely at/past k
-                // (height <= 0 is not a legal read) is zero-filled; reachable because key_base can
-                // run past k on the last k0 tile.
-                const int kp_rows = PA_PAGE_ROWS(k, kg_key0);
-                if (kp_rows > 0) {
-                    // PA_K_PAGE_STRIDE by value (the config #if proves the ADJUSTED_* collapse
-                    // here), but spelled out: IGC strength-reduces (x * 16) * K_HEAD_SIZE and x *
-                    // (16 * K_HEAD_SIZE) differently at non-power-of-two heads (48/96), and this is
-                    // the measured form.
-                    const global half *Kp =
-                        (const global half *)(K + (((size_t)k_page[kg_mb] * KV_HEADS_NUM + b0_kv) *
-                                                   PAGED_ATTENTION_BLOCK_SIZE * K_HEAD_SIZE));
-                    const int KP_w = d * (int)sizeof(half);
-                    const int KP_p = K_HEAD_SIZE * (int)sizeof(half);
-                    intel_sub_group_2d_block_read_16b_16r16x1c(
-                        (global void *)Kp, KP_w, kp_rows, KP_p,
-                        (int2)(db * DPAS_K, 0), (private ushort *)&k_raw[kg_mb]);
-                } else {
-                    #pragma unroll
-                    for (int mb = 0; mb < SUBGROUP_SIZE / DPAS_ROWS; ++mb)
-                        k_raw[kg_mb + mb] = (ushort8)0;
-                }
-            }
+            FUNC_CALL(pa_k_tile_b2d16)(k_raw, K, k_page, b0_kv, key_base, k, d, db);
     #elif USE_2D_BLOCK_IO_K_PA_I8
-            // Token-major i8 K cache, either quant mode (BY_CHANNEL's data region has BY_TOKEN's
-            // geometry; only the comp and the dequant index differ): the data is a
-            // [PAGED_ATTENTION_BLOCK_SIZE, K_HEAD_SIZE] i8 tile, so the 8-bit VNNI-transform read
-            // lands lane = head with 4 keys per uint. The builtin is 32-row only on Xe2 while a
-            // page has 16 tokens, so the height is clamped and uints 0..3 are used; two key groups
-            // cannot share a read (their pages are not adjacent). The dequant is an explicit (q -
-            // zp) * scale in half, identical to the scalar branch, so SDPA_OCL_K_PA_I8_2D=0 is a
-            // clean bisection toggle (and the bias trick would round the writer's non-integer zp).
-            #pragma unroll
-            for (int kg = 0; kg < kq_sg_tile_keys / SUBGROUP_SIZE; ++kg) {
-                const int kg_key0 = key_base + kg * SUBGROUP_SIZE;
-                const int kg_mb = kg * (SUBGROUP_SIZE / DPAS_ROWS);
-                #pragma unroll
-                for (int mb = 0; mb < SUBGROUP_SIZE / DPAS_ROWS; ++mb)
-                    k_raw[kg_mb + mb] = (ushort8)0;
-                const int kp_rows = PA_PAGE_ROWS(k, kg_key0);
-                if (kp_rows > 0) {
-                    uint kt[8];
-                    #if IS_PA_K_U4
-                    // u4: the row is PA_K_ROW_ELEMS bytes and a byte column is a channel pair, so
-                    // one read at byte column PA_K_U4_WIN(db)/2 covers the tile pair (db, db^1).
-                    // The partner tile re-issues the same read (an L1 hit); sharing it would hoist
-                    // k_raw out of the db loop (128 more live ushorts at head 128). x is in bytes
-                    // and a multiple of SUBGROUP_SIZE, which meets the 8-bit "multiple of four"
-                    // rule.
-                    intel_sub_group_2d_block_read_transform_8b_32r16x1c(
-                        (global void *)(K + PA_K_PAGE_OFF(k_page[kg_mb], b0_kv)),
-                        PA_K_ROW_ELEMS, kp_rows, PA_K_ROW_ELEMS, (int2)(PA_K_U4_WIN(db) / 2, 0),
-                        (private uint *)&kt[0]);
-                    #else
-                    intel_sub_group_2d_block_read_transform_8b_32r16x1c(
-                        (global void *)(K + PA_K_PAGE_OFF(k_page[kg_mb], b0_kv)),
-                        d, kp_rows, K_HEAD_SIZE, (int2)(db * DPAS_K, 0), (private uint *)&kt[0]);
-                    #endif
-                    #if IS_PA_K_BY_CHANNEL
-                    // Per-channel scale/zp are per LANE, so they leave the key loop entirely: one pair
-                    // for the whole (page, head-dim tile) instead of BY_TOKEN's broadcast per key.
-                    const half k_sc = k_pa_sc_ch[kg][db];
-                    const half k_zp = k_pa_zp_ch[kg][db];
-                    #endif
-                    #pragma unroll
-                    for (int u = 0; u < SUBGROUP_SIZE / 4; ++u) {
-                        const uint w = kt[u];
-                        #pragma unroll
-                        for (int bb = 0; bb < 4; ++bb) {
-                            const int krel = kg * SUBGROUP_SIZE + u * 4 + bb;
-                            #if !IS_PA_K_BY_CHANNEL
-                            const half k_sc = sub_group_broadcast(k_pa_sc_lane[kg], u * 4 + bb);
-                            const half k_zp = sub_group_broadcast(k_pa_zp_lane[kg], u * 4 + bb);
-                            #endif
-                            #if IS_PA_K_U4
-                            // The nibble select is lane-UNIFORM (the parity is the tile's, not the
-                            // lane's), so it folds into the shift amount rather than a per-lane sel.
-                            // Unsigned by construction: the int4 quantizer clamps to [0, 15] with
-                            // zp = -min*scale, so there is no CHAR_MIN and no sign extension.
-                            const uint kb_ = (w >> (bb * 8)) & 0xFFu;
-                            const half deq_k =
-                                PA_DEQ((half)U4_NIBBLE_SEL(kb_, PA_K_U4_PAR(db)), k_zp, k_sc);
-                            #else
-                            const half deq_k = PA_DEQ((half)(char)((w >> (bb * 8)) & 0xFFu), k_zp, k_sc);
-                            #endif
-                            k_raw[krel / DPAS_ROWS][krel % DPAS_ROWS] = as_ushort(deq_k);
-                        }
-                    }
-                }
-            }
+            uint kt[8];
+        #if IS_PA_K_BY_CHANNEL
+            FUNC_CALL(pa_k_tile_q_b2d)(k_raw, kt, K, k_page, k_pa_sc_ch, k_pa_zp_ch, b0_kv, key_base, k, d, db);
+        #else
+            FUNC_CALL(pa_k_tile_q_b2d)(k_raw, kt, K, k_page, k_pa_sc_lane, k_pa_zp_lane, b0_kv, key_base, k, d, db);
+        #endif
     #elif USE_1D_BLOCK_IO_K_PA_U4
-            // Same dequant and k_raw writes as the scalar branch below, only the load differs (a
-            // register subscript into the hoisted page), so SDPA_OCL_K_PA_1D=0 bisects the read
-            // alone. The column group is db >> 1, a constant, so PA_PAGE_R/I fold. The scalar
-            // branch's per-key `head < d && key < k` guard is dropped, as in the block2d branches:
-            // keys at/past k only need to be FINITE (the mask adds -INFINITY; a nibble is bounded
-            // and sc/zp were zeroed), and `head < d` folds into the scale ((n - zp) * 0 == 0).
-            const int head = PA_K_U4_CHANNEL(db, lane);
-            const int k_pg_col = (PA_K_U4_WIN(db) / 2) / SUBGROUP_SIZE;
-            const bool head_ok = (head < d);
-            #pragma unroll
-            for (int mb = 0; mb < kq_key_blocks; ++mb) {
-                const int kg = mb / (SUBGROUP_SIZE / DPAS_ROWS);
-                // Per-channel comp is this lane's own and constant across the row-block's keys,
-                // exactly as in the scalar branch.
-                const half k_sc = head_ok ? k_pa_sc_ch[kg][db] : (half)0.0h;
-                const half k_zp = k_pa_zp_ch[kg][db];
-                #pragma unroll
-                for (int key_offset = 0; key_offset < DPAS_ROWS; ++key_offset) {
-                    const int krel = mb * DPAS_ROWS + key_offset;   // key's subgroup-local index
-                    const int tok = krel % PAGED_ATTENTION_BLOCK_SIZE;
-                    const uint kb_ = (uint)k_pg[kg][PA_PAGE_R(PA_K_ROW_ELEMS, tok, k_pg_col)]
-                                                  [PA_PAGE_I(PA_K_ROW_ELEMS, tok, k_pg_col)];
-                    const half deq_k =
-                        PA_DEQ((half)U4_NIBBLE_SEL(kb_, PA_K_U4_PAR(db)), k_zp, k_sc);
-                    k_raw[mb][key_offset] = as_ushort(deq_k);
-                }
-            }
+            FUNC_CALL(pa_k_tile_u4_1d)(k_raw, k_pg, k_pa_sc_ch, k_pa_zp_ch, d, db, (int)lane);
     #elif IS_PA_KV_COMPRESSED
-            // i8/u4 K page, per-key scalar gather: the d-major page (its 16-byte row is under the
-            // block2d minimum) and token-major pages whose pitch misses the host's block2d rule.
-            // PA_K_TOKEN_STRIDE / PA_K_HIDDEN_STRIDE select the addressing. The dequant is (q - zp)
-            // * scale in half, matching the reference; the plain-SDPA bias trick only pays off over
-            // a wide transform read.
-            #if IS_PA_K_U4
-            // Permuted depth: head is still the channel (so the `head < d` guard is unchanged), but
-            // two channels share a byte, so the address is head >> 1 -- lane-contiguous bytes.
-            const int head = PA_K_U4_CHANNEL(db, lane);
-            const int head_addr = head >> 1;
-            #else
-            const int head = db * DPAS_K + lane;
-            const int head_addr = head;
-            #endif
-            #pragma unroll
-            for (int mb = 0; mb < kq_key_blocks; ++mb) {
-                k_raw[mb] = (ushort8)0;
-                // Page base for this row-block, hoisted above; only the intra-page key offset and
-                // the head vary here.
-                const size_t mb_page_base =
-                    PA_K_PAGE_OFF(k_page[mb], b0_kv) +
-                    (size_t)head_addr * PA_K_HIDDEN_STRIDE;
-                #if IS_PA_K_BY_CHANNEL
-                // head == db * DPAS_K + lane here too, so the per-channel pair is this lane's own and
-                // is constant across the row-block's keys: no broadcast, and it lifts out of the key
-                // loop. A row-block maps to key group mb / (SUBGROUP_SIZE / DPAS_ROWS).
-                const half k_sc = k_pa_sc_ch[mb / (SUBGROUP_SIZE / DPAS_ROWS)][db];
-                const half k_zp = k_pa_zp_ch[mb / (SUBGROUP_SIZE / DPAS_ROWS)][db];
-                #endif
-                #pragma unroll
-                for (int key_offset = 0; key_offset < DPAS_ROWS; ++key_offset) {
-                    const int krel = mb * DPAS_ROWS + key_offset;   // key's subgroup-local index
-                    const int key = key_base + krel;
-                    #if !IS_PA_K_BY_CHANNEL
-                    // sub_group_broadcast is a subgroup COLLECTIVE, so it must run on every lane --
-                    // keep it outside the per-lane-divergent (head < d) guard below. krel is a
-                    // compile-time constant in this fully unrolled loop, so the broadcast folds into
-                    // the consuming add/mul source region rather than emitting a shuffle.
-                    const half k_sc = sub_group_broadcast(k_pa_sc_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE);
-                    const half k_zp = sub_group_broadcast(k_pa_zp_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE);
-                    #endif
-                    if (head < d && key < k) {
-                        // key_base is a multiple of PAGED_ATTENTION_BLOCK_SIZE, so the key's token
-                        // within its page is just its subgroup-local index.
-                        const int tok = krel % PAGED_ATTENTION_BLOCK_SIZE;
-                        #if IS_PA_K_U4
-                        const uint kb_ = (uint)(uchar)K[mb_page_base + (size_t)tok * PA_K_TOKEN_STRIDE];
-                        const half deq_k =
-                            PA_DEQ((half)U4_NIBBLE_SEL(kb_, PA_K_U4_PAR(db)), k_zp, k_sc);
-                        #else
-                        const half deq_k = PA_DEQ((half)K[mb_page_base + (size_t)tok * PA_K_TOKEN_STRIDE], k_zp, k_sc);
-                        #endif
-                        k_raw[mb][key_offset] = as_ushort(deq_k);
-                    }
-                }
-            }
+        #if IS_PA_K_BY_CHANNEL
+            FUNC_CALL(pa_k_tile_q_gather)(k_raw, K, k_page, k_pa_sc_ch, k_pa_zp_ch, b0_kv, key_base, k, d, db, lane,
+                                          (int)lane);
+        #else
+            FUNC_CALL(pa_k_tile_q_gather)(k_raw, K, k_page, k_pa_sc_lane, k_pa_zp_lane, b0_kv, key_base, k, d, db, lane,
+                                          (int)lane);
+        #endif
     #else
-            const int head = db * DPAS_K + lane;
-            #pragma unroll
-            for (int mb = 0; mb < kq_key_blocks; ++mb) {
-                k_raw[mb] = (ushort8)0;
-                // Page base for this row-block, hoisted above; only the intra-page key offset and
-                // the head vary here.
-                const size_t mb_page_base =
-                    PA_K_PAGE_OFF(k_page[mb], b0_kv) +
-                    (size_t)head * PA_K_HIDDEN_STRIDE;
-                #pragma unroll
-                for (int key_offset = 0; key_offset < DPAS_ROWS; ++key_offset) {
-                    const int key = key_base + mb * DPAS_ROWS + key_offset;
-                    if (head < d && key < k) {
-                        const int tok = key % PAGED_ATTENTION_BLOCK_SIZE;
-                        k_raw[mb][key_offset] = as_ushort(K[mb_page_base + (size_t)tok * PA_K_TOKEN_STRIDE]);
-                    }
-                }
-            }
+            FUNC_CALL(pa_k_tile_gather)(k_raw, K, k_page, b0_kv, key_base, k, d, db, lane);
     #endif
             }
     #if PA_CUR_KV_F16
             else {
         #if IS_PA_K_U4
-                // u4 Kc: tile db needs lane L = channel PA_K_U4_WIN(db) + 2L + PA_K_U4_PAR(db) (the
-                // permuted depth axis Q_slm is staged in), a stride-2 gather no 16b block read can
-                // do. Channels (win + 2L, win + 2L + 1) are adjacent halves, i.e. one dword at
-                // dword column win/2 + L, so a 32b read over Kc as a DWORD surface lands the pair
-                // in lane L and the parity is a half-select. Each window is read twice (once per
-                // parity), still far cheaper than the page dequant. Width/pitch stay in bytes, x is
-                // in dwords.
                 if (kc_dword_ok) {
-                #pragma unroll
-                for (int mb = 0; mb < kq_key_blocks; ++mb) {
                     uint kw[DPAS_ROWS];
-                    intel_sub_group_2d_block_read_32b_8r16x1c(
-                        (global void *)Kc_b2d, KcD_w_b2d, KcD_h, KcD_p,
-                        (int2)(KcD_x0_dw + PA_K_U4_WIN(db) / 2,
-                               key_base + mb * DPAS_ROWS - past_len),
-                        (private uint *)&kw[0]);
-                    #pragma unroll
-                    for (int key_offset = 0; key_offset < DPAS_ROWS; ++key_offset)
-                        k_raw[mb][key_offset] = PA_K_U4_PAR(db) ? (ushort)(kw[key_offset] >> 16)
-                                                               : (ushort)kw[key_offset];
-                }
+                    FUNC_CALL(kc_tile_u4_dword)(k_raw, kw, Kc_b2d, KcD_w_b2d, KcD_h, KcD_p, KcD_x0_dw, key_base,
+                                                past_len, db);
                 } else {
-                    // A dword block read cannot represent an odd half offset from the aligned surface
-                    // origin. Stay on the exact Kc source and gather the permuted channels directly;
-                    // falling back to the cache here would reintroduce quantization error and would use
-                    // page addressing with a potentially non-page-aligned k0.
-                    const int current_head = PA_K_U4_CHANNEL(db, lane);
-                    #pragma unroll
-                    for (int mb = 0; mb < kq_key_blocks; ++mb) {
-                        k_raw[mb] = (ushort8)0;
-                        #pragma unroll
-                        for (int key_offset = 0; key_offset < DPAS_ROWS; ++key_offset) {
-                            const int key = key_base + mb * DPAS_ROWS + key_offset;
-                            if (current_head < d && key < k0 + k_chunk) {
-                                k_raw[mb][key_offset] =
-                                    as_ushort(Kc[(size_t)(key - past_len) * ldk + current_head]);
-                            }
-                        }
-                    }
+                    FUNC_CALL(kc_tile_u4_gather)(k_raw, Kc, ldk, key_base, past_len, k0, k_chunk, d, db, (int)lane);
                 }
         #else
                 // f16 / i8 cache: no depth permutation, so this is the plain-SDPA [key, head] read
-                // verbatim, just pointed at Kc with a (key - past_len) row origin. Rows past q read as
-                // zero, which is what the `key < k` masking already assumes.
-                #pragma unroll
-                for (int kg = 0; kg < kq_sg_tile_keys / SUBGROUP_SIZE; ++kg) {
-                    intel_sub_group_2d_block_read_16b_16r16x1c(
-                        (global void *)Kc_b2d, KcD_w_b2d, KcD_h, KcD_p,
-                        (int2)(KcD_x0 + db * DPAS_K, key_base + kg * SUBGROUP_SIZE - past_len),
-                        (private ushort *)&k_raw[kg * (SUBGROUP_SIZE / DPAS_ROWS)]);
-                }
+                // pointed at Kc with a (key - past_len) row origin. Rows past q read as zero, which is
+                // what the `key < k` masking already assumes.
+                FUNC_CALL(k_tile_b2d16)(k_raw, Kc_b2d, KcD_w_b2d, KcD_h, KcD_p, KcD_x0, db, key_base, past_len);
         #endif
             }
     #endif
 #elif USE_2D_BLOCK_IO_K_I8
-            // int8 K via the 8-bit VNNI-transform read: row-major [key, head] read at (x = db *
-            // DPAS_K, y = key_base) gives lane = head with 4 consecutive keys per uint, no shuffle.
-            // One read spans 32 keys, of which this subgroup uses kq_sg_tile_keys (kq_sg_tile_keys
-            // / 4 uints).
-            {
-                uint kt[8];
-                intel_sub_group_2d_block_read_transform_8b_32r16x1c(
-                    (global void *)K, KD_w, KD_h, KD_p,
-                    (int2)(db * DPAS_K, key_base), (private uint *)&kt[0]);
-                #pragma unroll
-                for (int mb = 0; mb < kq_key_blocks; ++mb)
-                    k_raw[mb] = (ushort8)0;
-                // Bias-trick dequant, all in half: extract each key byte with shift+mask (as_char4
-                // would cost a :b deinterleave), widen as as_half(0x6480 ^ byte) == byte + 1152,
-                // then subtract the folded (zp + 1152) and multiply by the scale.
-                #pragma unroll
-                for (int u = 0; u < kq_sg_tile_keys / 4; ++u) {
-                    const uint w = kt[u];
-                    #pragma unroll
-                    for (int bb = 0; bb < 4; ++bb) {
-                        const int krel = u * 4 + bb;           // key's subgroup-local index 0..kq_sg_tile_keys-1
-#if INPUT0_IS_BF16
-                        const float wide = convert_float(as_char((uchar)((w >> (bb * 8)) & 0xFFu)));
-                        const float k_sc = convert_float(sub_group_broadcast(k_scale_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE));
-                            const float k_zpb = convert_float(sub_group_broadcast(k_zpb_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE));
-                            const float deq_k = (wide - k_zpb) * k_sc;
-                        k_raw[krel / 8][krel % 8] = _convert_bfloat16_as_ushort(deq_k);
-#else
-                        const ushort wbits = (ushort)0x6480 ^ (ushort)((w >> (bb * 8)) & 0xFFu);
-                        const half wide = as_half(wbits);
-                        const half k_sc = sub_group_broadcast(k_scale_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE);
-                            const half k_zpb = sub_group_broadcast(k_zpb_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE);
-                            const half deq_k = (wide - k_zpb) * k_sc;
-                        k_raw[krel / 8][krel % 8] = as_ushort(deq_k);
-#endif
-                    }
-                }
-            }
+            uint kt[8];
+            FUNC_CALL(k_tile_i8_b2d)(k_raw, kt, K, KD_w, KD_h, KD_p, k_scale_lane, k_zpb_lane, key_base, db);
 #elif USE_2D_BLOCK_IO_KV
-            // The _16r builtin returns 16 key rows (2 row-blocks), so issue one read per 16-key
-            // group: with kq_sg_tile_keys == 32 a single read would leave k_raw[2..3]
-            // uninitialised.
-            #pragma unroll
-            for (int kg = 0; kg < kq_sg_tile_keys / SUBGROUP_SIZE; ++kg) {
-                intel_sub_group_2d_block_read_16b_16r16x1c(
-                    (global void *)K_b2d, KD_w_b2d, KD_h, KD_p,
-                    (int2)(KD_x0 + db * DPAS_K, key_base + kg * SUBGROUP_SIZE),
-                    (private ushort *)&k_raw[kg * (SUBGROUP_SIZE / DPAS_ROWS)]);
-            }
+            FUNC_CALL(k_tile_b2d16)(k_raw, K_b2d, KD_w_b2d, KD_h, KD_p, KD_x0, db, key_base, 0);
 #else
-            const int head = db * DPAS_K + lane;
-            #pragma unroll
-            for (int mb = 0; mb < kq_key_blocks; ++mb) {
-                k_raw[mb] = (ushort8)0;
-                #pragma unroll
-                for (int key_offset = 0; key_offset < 8; ++key_offset) {
-                    const int key = key_base + mb * 8 + key_offset;
-                    #ifdef KV_COMPRESSED
-                        // i8 compressed K, per-token asymmetric dequant from the hoisted scale/zp.
-                        // sub_group_broadcast is a collective, so it must stay outside the per-lane
-                        // (head < d) guard; krel is a constant, so it folds.
-                        const int krel = mb * 8 + key_offset;
-                        const float k_sc = convert_float(sub_group_broadcast(k_scale_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE));
-                            #if INPUT0_IS_BF16
-                            const float k_zp = convert_float(sub_group_broadcast(k_zpb_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE));
-                            #else
-                            // k_zpb_lane holds zp+1152.0h; recover the raw zp for this scalar path.
-                            const float k_zp = convert_float(sub_group_broadcast(k_zpb_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE)) - 1152.0f;
-                            #endif
-                    #endif
-                    if (head < d && key < k) {
-                        #ifdef KV_COMPRESSED
-                            const float deq_k = (convert_float(K[(size_t)key * ldk + head]) - k_zp) * k_sc;
-                            k_raw[mb][key_offset] = DT_BITS_FROM_F32(deq_k);
-                        #else
-                            k_raw[mb][key_offset] = as_ushort(K[(size_t)key * ldk + head]);
-                        #endif
-                    }
-                }
-            }
+    #ifdef KV_COMPRESSED
+            FUNC_CALL(k_tile_gather)(k_raw, K, ldk, k_scale_lane, k_zpb_lane, key_base, k, d, db, lane);
+    #else
+            FUNC_CALL(k_tile_gather)(k_raw, K, ldk, key_base, k, d, db, lane);
+    #endif
 #endif
 
             #pragma unroll
@@ -1111,41 +623,10 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             mask_tile_float[ii] = mask_tile_float[ii] * iscale;
 
         #if WITH_ATTN_MASK
-            // Full 2D mask [query x key]: each lane loads its own query row, pre-scaled by iscale,
-            // so the max loop only adds (sdpa_micro's tile_load_t + unscale). MASK_IS_FULL_2D is a
-            // compile-time kind, but for a dynamic mask the host infers kind 2 from the stage, so a
-            // [B, H, 1, K] per-key mask can arrive here: clamp its query row to 0 (every query row
-            // IS row 0), or the read walks past the single row (OOB -> CL_OUT_OF_RESOURCES or a NaN
-            // mask). The selects fold when MSK_D2/MSK_D3 are literals.
             float16 mask_full[kq_query_blocks][kq_sg_tile_keys / SUBGROUP_SIZE];
-            if (MASK_IS_FULL_2D) {
-                #pragma unroll
-                for (int qb = 0; qb < kq_query_blocks; ++qb) {
-                    const int mask_query = (MSK_D2 == 1) ? 0
-                                                         : (wg_j0 + sg_j0_kq + qb * SUBGROUP_SIZE + lane);
-                    #pragma unroll
-                    for (int ii = 0; ii < kq_sg_tile_keys / SUBGROUP_SIZE; ++ii) {
-                        const int mask_key = key_base + ii * SUBGROUP_SIZE;
-                        half16 mv = (half16)0.0f;
-                        if (mask_query < MSK_D2) {
-                            // Same 1-row guard for the KEY side: a [B, H, q, 1] broadcast mask
-                            // compiled as kind 2 would read key columns past its single column.
-                            if (MSK_D3 == 1) {
-                                mv = (half16)msk[MSK_OFF(0, 0, mask_query, 0)];
-                            } else if (mask_key + SUBGROUP_SIZE <= MSK_D3) {
-                                mv = vload16(0, msk + MSK_OFF(0, 0, mask_query, mask_key));
-                            } else {
-                                #pragma unroll
-                                for (int kk = 0; kk < SUBGROUP_SIZE; ++kk) {
-                                    if (mask_key + kk < MSK_D3)
-                                        mv[kk] = msk[MSK_OFF(0, 0, mask_query, mask_key + kk)];
-                                }
-                            }
-                        }
-                        mask_full[qb][ii] = MASK_TO_FLOAT16(mv) * iscale;
-                    }
-                }
-            }
+            if (MASK_IS_FULL_2D)
+                FUNC_CALL(mask_tile_2d)(OPTIONAL_SHAPE_INFO_TENSOR mask_full, msk, iscale, wg_j0, sg_j0_kq, lane,
+                                        key_base);
         #endif
 
         float alpha[kq_query_blocks];
@@ -1250,24 +731,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
         barrier(CLK_LOCAL_MEM_FENCE);
 
 #if IS_PA_K_U4 && PA_CUR_KV_F16
-        // Start Vc fetches before softmax without retaining a private payload. One query
-        // partition covers all value columns, so it is enough to prefetch each tile once.
-        if (!from_cache && sg_i_sv == 0) {
-            #pragma unroll
-            for (int cp = 0; cp < sv_key_blocks; ++cp) {
-                if (cp * SUBGROUP_SIZE < k_chunk) {
-                    #pragma unroll
-                    for (int cd = 0; cd < sv_value_blocks; ++cd) {
-                        if (sg_j0_sv + cd * SUBGROUP_SIZE < dv) {
-                            intel_sub_group_2d_block_prefetch_16b_16r16x1c(
-                                (const global void *)Vc_b2d, VcD_w_b2d, VcD_h, VcD_p,
-                                (int2)(VcD_x0 + sg_j0_sv + cd * SUBGROUP_SIZE,
-                                       k0 + cp * SUBGROUP_SIZE - past_len));
-                        }
-                    }
-                }
-            }
-        }
+        if (!from_cache && sg_i_sv == 0)
+            FUNC_CALL(vc_prefetch)(Vc_b2d, VcD_w_b2d, VcD_h, VcD_p, VcD_x0, sg_j0_sv, dv, k0, k_chunk, past_len);
 #endif
 
         #pragma unroll
@@ -1384,47 +849,14 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             if (cp * SUBGROUP_SIZE >= k_chunk)
                 continue;
 #endif
-#if IS_PA_MIXED
-    #if PA_CUR_KV_F16
-            // The split at past_len makes the V source workgroup-uniform as well as subgroup-uniform.
-            const bool v_from_cache = (k0 < past_len);
-    #else
-            const bool v_from_cache = true;
-    #endif
-#endif
             #if USE_2D_BLOCK_IO_V_I8
-                // One _8b_32r16x1c read covers 16 value columns and 32 key rows, i.e. two cp
-                // blocks, so it is issued on even cp only and serves both (uints 0..3 for cp, 4..7
-                // for cp + 1); cp is an unroll constant, so the selection folds. Issued ahead of
-                // the pA (S_slm) reads so the global latency overlaps the SLM traffic. Columns past
-                // dv read as 0 and the store drops them.
+                // Issued ahead of the pA (S_slm) reads so the global latency overlaps the SLM
+                // traffic; one read serves two cp blocks, and cp is an unroll constant, so the
+                // selection folds.
                     const bool vt_do_read = ((cp & 1) == 0);
                     const int vt_half = (cp & 1) * 4;
-                if (vt_do_read) {
-                    // The x2c / x4c variants fetch the subgroup's 32 / 64 value columns in one
-                    // message, into the same block-major layout the x1c loop writes into &vt[cd *
-                    // 8], so the dequant indexing is shared. coord.x must be a multiple of 4 for
-                    // 8-bit data, which sg_j0_sv is.
-                    #if sv_value_blocks == 2
-                        intel_sub_group_2d_block_read_transform_8b_32r16x2c(
-                            (global void *)V, VD_w, VD_h, VD_p,
-                            (int2)(sg_j0_sv, k0 + cp * SUBGROUP_SIZE),
-                            (private uint *)&vt[0]);
-                    #elif sv_value_blocks == 4
-                        intel_sub_group_2d_block_read_transform_8b_32r16x4c(
-                            (global void *)V, VD_w, VD_h, VD_p,
-                            (int2)(sg_j0_sv, k0 + cp * SUBGROUP_SIZE),
-                            (private uint *)&vt[0]);
-                    #else
-                        #pragma unroll
-                        for (int cd = 0; cd < sv_value_blocks; ++cd) {
-                            intel_sub_group_2d_block_read_transform_8b_32r16x1c(
-                                (global void *)V, VD_w, VD_h, VD_p,
-                                (int2)(sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE),
-                                (private uint *)&vt[cd * 8]);
-                        }
-                    #endif
-                }
+                if (vt_do_read)
+                    FUNC_CALL(v_i8_read)(vt, V, VD_w, VD_h, VD_p, sg_j0_sv, k0, cp);
             #endif
 
             short8 pA[sv_score_blocks];
@@ -1436,398 +868,63 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             }
 
             #if USE_2D_BLOCK_IO_V_I8
-                // Per-token V scale depends only on the key, and pA is already lane = key, so the
-                // scale folds into pA with a per-lane multiply instead of being broadcast across
-                // V's head-dim lanes. zp is a subtraction, so it stays on the V side (broadcast per
-                // key there).
-                const int vs_key = k0 + cp * SUBGROUP_SIZE + lane;
-                const uint vs_co = v_comp_base + VAL_COMP_OFF(0, 0, vs_key, 0);
-                // Keep scale/zp in half: V_scales/V_zp are already half, and the dequant is
-                // stored as half — half arithmetic is bit-identical to the float path over the
-                // int8 range (verified), so this avoids the half->float->half round trips.
-                const half vs_c = (vs_key < k) ? V_scales[vs_co] : (half)0.0f;
-                    #if INPUT0_IS_BF16
-                    const half vzb_c = (vs_key < k) ? convert_half(V_zp[vs_co]) : (half)0.0f;
-                    #else
-                    // Fold the bias-trick widen bias (+1152.0h) into zp: the V dequant below widens
-                    // via as_half(0x6480 ^ byte) (== signed_byte + 1152), so subtracting (zp+1152)
-                    // gives (signed_byte - zp) with no convert_half widen. OOB keys -> vzb_c=1152
-                    // (zp=0), and the score-side scale (vs_c=0 for OOB) still zeroes the product.
-                    const half vzb_c = (vs_key < k) ? (convert_half(V_zp[vs_co]) + (half)1152.0h) : (half)1152.0h;
-                    #endif
-
-                #pragma unroll
-                for (int r = 0; r < sv_score_blocks; ++r)
-#if INPUT0_IS_BF16
-                    pA[r] = as_short8(_convert_bfloat168_as_ushort8(
-                        _convert_as_bfloat168_float8(as_ushort8(pA[r])) * convert_float(vs_c)));
-#else
-                    pA[r] = as_short8(as_half8(pA[r]) * vs_c);
-#endif
+                const half vzb_c = FUNC_CALL(v_i8_comp_fold)(OPTIONAL_SHAPE_INFO_TENSOR pA, V_scales, V_zp, v_comp_base,
+                                                             k0, cp, k, lane);
             #elif IS_PA_KV_COMPRESSED && IS_PA_MIXED
-                // Same scale/zp split as the plain-SDPA i8 path, with the per-key scale/zp read
-                // from the page's comp region (PA_V_COMP_OFF: [token], [block_size + token]); a cp
-                // block is one page, so lane == token. OOB keys get scale 0. Cache tiles only: a
-                // PA_CUR_KV_F16 tile reads plain f16 Vc, so v_zp_c stays 0.
+                // Cache tiles only: a PA_CUR_KV_F16 tile reads plain f16 Vc, so v_zp_c stays 0.
                 half v_zp_c = (half)0.0f;
-                if (v_from_cache) {
-                    const int vs_key_pa = k0 + cp * SUBGROUP_SIZE + lane;
-                    const size_t vs_page_pa =
-                        PA_V_PAGE_OFF((vs_key_pa < k) ? block_indices[base_block_index + vs_key_pa / PAGED_ATTENTION_BLOCK_SIZE] : 0u, b0_kv);
-                    const global half *v_comp_pa =
-                        (const global half *)(V + vs_page_pa + PA_V_COMP_OFF);
-                    const int vs_tok_pa = vs_key_pa % PAGED_ATTENTION_BLOCK_SIZE;
-                    const half vs_c_pa = (vs_key_pa < k) ? v_comp_pa[vs_tok_pa] : (half)0.0f;
-                    v_zp_c = (vs_key_pa < k) ? v_comp_pa[PAGED_ATTENTION_BLOCK_SIZE + vs_tok_pa]
-                                             : (half)0.0f;
-
-                    #pragma unroll
-                    for (int r = 0; r < sv_score_blocks; ++r)
-                        pA[r] = as_short8(as_half8(pA[r]) * vs_c_pa);
-                }
+                if (from_cache)
+                    v_zp_c = FUNC_CALL(pa_v_comp_fold)(pA, V, block_indices, base_block_index, k0, cp, k, b0_kv, lane);
             #endif
 
             int8 vb[sv_value_blocks];
             #if IS_PA_MIXED
-            if (v_from_cache) {
+            if (from_cache) {
                 // A cp block is SUBGROUP_SIZE (== DPAS_K == PAGED_ATTENTION_BLOCK_SIZE) keys
                 // starting at a multiple of kq_wg_tile_keys, i.e. exactly one cache page, so the
                 // page lookup is hoisted out of the cd and key_pair loops.
                 const int cp_key0 = k0 + cp * SUBGROUP_SIZE;
-                // Page stride is PAGED_ATTENTION_BLOCK_SIZE * ADJUSTED_V_HEAD_SIZE: the comp arrays
-                // follow the data rows, so the data row pitch stays PA_V_ROW_ELEMS (V_HEAD_SIZE
-                // except for u4).
                 const size_t v_page_base =
-                    PA_V_PAGE_OFF((cp_key0 < k) ? block_indices[base_block_index + cp_key0 / PAGED_ATTENTION_BLOCK_SIZE] : 0u, b0_kv);
+                    FUNC_CALL(pa_v_page_base)(block_indices, base_block_index, cp_key0, k, b0_kv);
                 #if IS_PA_KV_COMPRESSED
                     // Compressed V page: lane == token for the per-key comp and key_rel for the
                     // dequant. The scale is already folded into pA, so only the zp subtraction
                     // happens here (broadcast per key).
                     #if USE_2D_BLOCK_IO_V_PA_I8
-                    {
-                        // The data region is a [PAGED_ATTENTION_BLOCK_SIZE tokens, PA_V_ROW_ELEMS]
-                        // byte tile whose pitch passes the host's block2d rule. The 8b transform is
-                        // 32-row only on Xe2 while a page has 16 tokens, so the height is clamped
-                        // and uints 0..3 are used; two cp blocks cannot share a read (pages not
-                        // adjacent).
-                        const int vp_rows = PA_PAGE_ROWS(k, cp_key0);
-                        uint vt_pa[8 * sv_value_blocks];
-                        if (vp_rows > 0) {
-                            #if IS_PA_K_U4
-                            // One byte per value PAIR, so the row is PA_V_ROW_ELEMS bytes wide.
-                            const int VP_w = PA_V_ROW_ELEMS;
-                            const int VP_p = PA_V_ROW_ELEMS;
-                            #else
-                            const int VP_w = dv;                  // bytes: i8, one byte per value
-                            const int VP_p = V_HEAD_SIZE;          // bytes: data row pitch, NOT ADJUSTED
-                            #endif
-                            #pragma unroll
-                            for (int cd = 0; cd < sv_value_blocks; ++cd) {
-                                const int vcol = sg_j0_sv + cd * SUBGROUP_SIZE;
-                                intel_sub_group_2d_block_read_transform_8b_32r16x1c(
-                                    (global void *)(V + v_page_base), VP_w, vp_rows, VP_p,
-                                    // u4 folds the upper half of the head dim back onto its low twin;
-                                    // the nibble select below picks which one this tile wants. Both
-                                    // the base and PA_V_ROW_ELEMS are multiples of SUBGROUP_SIZE, so a
-                                    // 16-lane tile never straddles the split. Identity for i8.
-                                    (int2)(PA_V_U4_COL(vcol), 0),
-                                    (private uint *)&vt_pa[cd * 8]);
-                            }
-                        } else {
-                            #pragma unroll
-                            for (int u = 0; u < 8 * sv_value_blocks; ++u)
-                                vt_pa[u] = 0u;
-                        }
-                        // zp broadcasts are per-key and independent of the value index, so hoist them
-                        // out of the cd loop (once per cp block instead of once per (cd, u) pair).
-                        half4 vzp4[4];
-                        #pragma unroll
-                        for (int u = 0; u < 4; ++u) {
-                            const int k0r = u * 4;
-                            vzp4[u] = (half4)(sub_group_broadcast(v_zp_c, k0r + 0),
-                                              sub_group_broadcast(v_zp_c, k0r + 1),
-                                              sub_group_broadcast(v_zp_c, k0r + 2),
-                                              sub_group_broadcast(v_zp_c, k0r + 3));
-                        }
-                        #pragma unroll
-                        for (int cd = 0; cd < sv_value_blocks; ++cd) {
-                            #if IS_PA_K_U4
-                            // Which nibble this tile's head dims live in. Uniform across the subgroup
-                            // (the split point is a multiple of SUBGROUP_SIZE), so it folds into the
-                            // shift amount rather than a per-lane select.
-                            const int v_hi = PA_V_U4_HI(sg_j0_sv + cd * SUBGROUP_SIZE);
-                            #endif
-                            #pragma unroll
-                            for (int u = 0; u < 4; ++u) {
-                                const uint w = vt_pa[cd * 8 + u];
-                                // Each uint packs 4 consecutive tokens as signed bytes, token u*4+b
-                                // in byte b -- the same packing the plain-SDPA i8 V path decodes.
-                                #if IS_PA_K_U4
-                                const half4 q4 = (half4)((half)((w >> (v_hi ?  4 :  0)) & 0x0Fu),
-                                                         (half)((w >> (v_hi ? 12 :  8)) & 0x0Fu),
-                                                         (half)((w >> (v_hi ? 20 : 16)) & 0x0Fu),
-                                                         (half)((w >> (v_hi ? 28 : 24)) & 0x0Fu));
-                                #else
-                                const half4 q4 = (half4)((half)(char)((w >>  0) & 0xFFu),
-                                                         (half)(char)((w >>  8) & 0xFFu),
-                                                         (half)(char)((w >> 16) & 0xFFu),
-                                                         (half)(char)((w >> 24) & 0xFFu));
-                                #endif
-                                const half4 deq4 = q4 - vzp4[u];
-                                // f16 VNNI operand: vb[cd][key_pair] packs keys (2*kp, 2*kp+1), and
-                                // deq4 already holds keys u*4..u*4+3 in order, so .lo/.hi are exactly
-                                // key_pairs (u*2, u*2+1).
-                                vb[cd][u * 2 + 0] = as_int(deq4.lo);
-                                vb[cd][u * 2 + 1] = as_int(deq4.hi);
-                            }
-                        }
-                    }
+                    uint vt_pa[8 * sv_value_blocks];
+                    half4 vzp4[4];
+                    FUNC_CALL(pa_v_tile_q_b2d)(vb, vt_pa, vzp4, V, v_page_base, cp_key0, k, dv, sg_j0_sv, v_zp_c);
                     #elif USE_1D_BLOCK_IO_V_PA_U4
-                    {
-                        // Same dequant and vb writes as the scalar branch below, only the load
-                        // differs, so SDPA_OCL_V_PA_1D=0 bisects the read alone. The column group
-                        // comes from sg_j0_sv (not a constant), so the base is biased by it and the
-                        // index taken at c = 0 (see PA_PAGE_*); that makes the read per cd, which
-                        // costs nothing because sv_value_blocks is 1 for the head sizes this path
-                        // fires on.
-                        #pragma unroll
-                        for (int cd = 0; cd < sv_value_blocks; ++cd) {
-                            vb[cd] = (int8)0;
-                            const int value = sg_j0_sv + cd * SUBGROUP_SIZE + lane;
-                            const int v_base = sg_j0_sv + cd * SUBGROUP_SIZE;
-                            // Nibble select as a uniform shift amount: v_hi is subgroup-uniform but
-                            // not a compile-time constant, and the `?:` form would cost a select on
-                            // every element.
-                            const uint v_sh = PA_V_U4_HI(v_base) ? 4u : 0u;
-                            uchar16 v_pg[PA_PAGE_READS(PA_V_ROW_ELEMS)];
-                            const global uchar *v_pg_base =
-                                (const global uchar *)(V + v_page_base) + PA_V_U4_COL(v_base);
-                            #pragma unroll
-                            for (int r = 0; r < PA_PAGE_READS(PA_V_ROW_ELEMS); ++r)
-                                v_pg[r] = intel_sub_group_block_read_uc16(v_pg_base + r * PA_PAGE_RD_BYTES);
-                            // No per-key `key < k` guard (as in the block2d branch): a key at/past
-                            // k has a probability of exactly 0, so its V value only has to be
-                            // finite -- a nibble is, and v_zp_c is 0 there.
-                            if (value < dv) {
-                                #pragma unroll
-                                for (int key_pair = 0; key_pair < DPAS_ROWS; ++key_pair) {
-                                    // The token index IS the key's block-local index (the cp block
-                                    // is one page), spelled as the loop constant because
-                                    // PA_PAGE_R/I need it at compile time.
-                                    const int t0 = key_pair * 2;
-                                    const int t1 = t0 + 1;
-                                    const uint vb0 = (uint)v_pg[PA_PAGE_R(PA_V_ROW_ELEMS, t0, 0)]
-                                                               [PA_PAGE_I(PA_V_ROW_ELEMS, t0, 0)];
-                                    const uint vb1 = (uint)v_pg[PA_PAGE_R(PA_V_ROW_ELEMS, t1, 0)]
-                                                               [PA_PAGE_I(PA_V_ROW_ELEMS, t1, 0)];
-                                    half2 vv;
-                                    vv[0] = (half)((vb0 >> v_sh) & 0x0Fu) -
-                                            sub_group_broadcast(v_zp_c, key_pair * 2 + 0);
-                                    vv[1] = (half)((vb1 >> v_sh) & 0x0Fu) -
-                                            sub_group_broadcast(v_zp_c, key_pair * 2 + 1);
-                                    vb[cd][key_pair] = as_int(vv);
-                                }
-                            }
-                        }
-                    }
+                    uchar16 v_pg[PA_PAGE_READS(PA_V_ROW_ELEMS)];
+                    FUNC_CALL(pa_v_tile_u4_1d)(vb, v_pg, V, v_page_base, dv, sg_j0_sv, lane, v_zp_c);
                     #else
-                    // Scalar-gather fallback for the compressed V page (SDPA_OCL_V_PA_I8_2D=0, or a
-                    // pitch that fails the block2d rule): same dequant, one message per value per
-                    // key pair.
-                    #pragma unroll
-                    for (int cd = 0; cd < sv_value_blocks; ++cd) {
-                        vb[cd] = (int8)0;
-                        const int value = sg_j0_sv + cd * SUBGROUP_SIZE + lane;
-                        #if IS_PA_K_U4
-                        // Two head dims share a byte, so the address is the folded byte column plus
-                        // the lane; the nibble is the TILE's, hence uniform across the subgroup.
-                        const int v_base = sg_j0_sv + cd * SUBGROUP_SIZE;
-                        const int v_hi = PA_V_U4_HI(v_base);
-                        const int v_addr = PA_V_U4_COL(v_base) + (int)lane;
-                        #endif
-                        if (value < dv) {
-                            #pragma unroll
-                            for (int key_pair = 0; key_pair < DPAS_ROWS; ++key_pair) {
-                                const int key0 = cp_key0 + key_pair * 2;
-                                const int key1 = key0 + 1;
-                                half2 vv = (half2)0.0h;
-                                if (key0 < k) {
-                                    const int t0 = key0 % PAGED_ATTENTION_BLOCK_SIZE;
-                                    #if IS_PA_K_U4
-                                    const uint vb0 = (uint)(uchar)V[v_page_base + (size_t)t0 * PA_V_ROW_ELEMS + v_addr];
-                                    vv[0] = (half)U4_NIBBLE_SEL(vb0, v_hi) -
-                                            sub_group_broadcast(v_zp_c, key_pair * 2 + 0);
-                                    #else
-                                    vv[0] = (half)(char)V[v_page_base + (size_t)t0 * V_HEAD_SIZE + value] -
-                                            sub_group_broadcast(v_zp_c, key_pair * 2 + 0);
-                                    #endif
-                                }
-                                if (key1 < k) {
-                                    const int t1 = key1 % PAGED_ATTENTION_BLOCK_SIZE;
-                                    #if IS_PA_K_U4
-                                    const uint vb1 = (uint)(uchar)V[v_page_base + (size_t)t1 * PA_V_ROW_ELEMS + v_addr];
-                                    vv[1] = (half)U4_NIBBLE_SEL(vb1, v_hi) -
-                                            sub_group_broadcast(v_zp_c, key_pair * 2 + 1);
-                                    #else
-                                    vv[1] = (half)(char)V[v_page_base + (size_t)t1 * V_HEAD_SIZE + value] -
-                                            sub_group_broadcast(v_zp_c, key_pair * 2 + 1);
-                                    #endif
-                                }
-                                vb[cd][key_pair] = as_int(vv);
-                            }
-                        }
-                    }
+                    FUNC_CALL(pa_v_tile_q_gather)(vb, V, v_page_base, cp_key0, k, dv, sg_j0_sv, lane, (int)lane, v_zp_c);
                     #endif
                 #elif USE_2D_BLOCK_IO_V_PA
-                    // f16 V page: a [PAGED_ATTENTION_BLOCK_SIZE tokens, V_HEAD_SIZE] row-major
-                    // tile, so the 16b VNNI-transform read applies with the page as the surface and
-                    // V_HEAD_SIZE as the pitch. The height is clamped to the tokens the page holds
-                    // (unwritten slots could be NaN, which would survive the zero score); a block
-                    // entirely at/past k (height <= 0 is not a legal read) is zero-filled --
-                    // reachable on the last k0 tile, and cp_key0 is constant only in cp, so this
-                    // stays a real (uniform) branch.
-                    const int vp_rows = PA_PAGE_ROWS(k, cp_key0);
-                    if (vp_rows > 0) {
-                        const global half *Vp = (const global half *)(V + v_page_base);
-                        const int VP_w = dv * (int)sizeof(half);
-                        const int VP_p = V_HEAD_SIZE * (int)sizeof(half);
-                        #pragma unroll
-                        for (int cd = 0; cd < sv_value_blocks; ++cd) {
-                            intel_sub_group_2d_block_read_transform_16b_16r16x1c(
-                                (global void *)Vp, VP_w, vp_rows, VP_p,
-                                (int2)(sg_j0_sv + cd * SUBGROUP_SIZE, 0), (private uint *)&vb[cd]);
-                        }
-                    } else {
-                        #pragma unroll
-                        for (int cd = 0; cd < sv_value_blocks; ++cd)
-                            vb[cd] = (int8)0;
-                    }
+                    FUNC_CALL(pa_v_tile_b2d16)(vb, V, v_page_base, cp_key0, k, dv, sg_j0_sv);
                 #else
-                #pragma unroll
-                for (int cd = 0; cd < sv_value_blocks; ++cd) {
-                    vb[cd] = (int8)0;
-                    const int value = sg_j0_sv + cd * SUBGROUP_SIZE + lane;
-                    if (value < dv) {
-                        #pragma unroll
-                        for (int key_pair = 0; key_pair < DPAS_ROWS; ++key_pair) {
-                            const int key0 = cp_key0 + key_pair * 2;
-                            const int key1 = key0 + 1;
-                            half2 vv = (half2)0.0h;
-                            if (key0 < k) {
-                                vv[0] = V[v_page_base +
-                                          (size_t)(key0 % PAGED_ATTENTION_BLOCK_SIZE) * V_HEAD_SIZE + value];
-                            }
-                            if (key1 < k) {
-                                vv[1] = V[v_page_base +
-                                          (size_t)(key1 % PAGED_ATTENTION_BLOCK_SIZE) * V_HEAD_SIZE + value];
-                            }
-                            vb[cd][key_pair] = as_int(vv);
-                        }
-                    }
-                }
+                    FUNC_CALL(pa_v_tile_gather)(vb, V, v_page_base, cp_key0, k, dv, sg_j0_sv, lane);
                 #endif
             }
             #if PA_CUR_KV_F16
             else {
-                #pragma unroll
-                for (int cd = 0; cd < sv_value_blocks; ++cd) {
-                    intel_sub_group_2d_block_read_transform_16b_16r16x1c(
-                        (global void *)Vc_b2d, VcD_w_b2d, VcD_h, VcD_p,
-                        (int2)(VcD_x0 + sg_j0_sv + cd * SUBGROUP_SIZE,
-                               k0 + cp * SUBGROUP_SIZE - past_len),
-                        (private uint *)&vb[cd]);
-                }
+                FUNC_CALL(v_tile_b2d16)(vb, Vc_b2d, VcD_w_b2d, VcD_h, VcD_p, VcD_x0, sg_j0_sv, k0, cp, past_len);
             }
             #endif
             #elif USE_2D_BLOCK_IO_V_I8
-                // int8 V: the paired read above gives a 32-key x 16-value tile (lane = value, 4
-                // keys per uint); this cp block uses the 4 uints at vt_half. Dequant each byte and
-                // repack into the f16 VNNI operand (two keys per int), with no subgroup shuffle.
-                {
-                    // Bias-trick dequant (as on the K side): shift+mask byte extract, widen as
-                    // as_half(0x6480 ^ byte) == byte + 1152, subtract the folded zp + 1152 (the
-                    // scale is already in pA). The zp broadcasts depend on the key only, so they
-                    // are hoisted out of the cd loop.
-                        half4 zpb4[4];
-                        #pragma unroll
-                        for (int u = 0; u < 4; ++u) {
-                            const int k0r = u * 4;
-                            zpb4[u] = (half4)(sub_group_broadcast(vzb_c, k0r + 0),
-                                              sub_group_broadcast(vzb_c, k0r + 1),
-                                              sub_group_broadcast(vzb_c, k0r + 2),
-                                              sub_group_broadcast(vzb_c, k0r + 3));
-                        }
-                    #pragma unroll
-                    for (int cd = 0; cd < sv_value_blocks; ++cd) {
-                        #pragma unroll
-                        for (int u = 0; u < 4; ++u) {
-                            const uint w = vt[cd * 8 + vt_half + u];
-#if INPUT0_IS_BF16
-                            const float4 wide4 = (float4)(convert_float(as_char((uchar)((w >>  0) & 0xFFu))),
-                                                          convert_float(as_char((uchar)((w >>  8) & 0xFFu))),
-                                                          convert_float(as_char((uchar)((w >> 16) & 0xFFu))),
-                                                          convert_float(as_char((uchar)((w >> 24) & 0xFFu))));
-                                const float4 deq4 = wide4 - convert_float4(zpb4[u]);
-                            const ushort4 enc4 = _convert_bfloat164_as_ushort4(deq4);
-                            vb[cd][u * 2 + 0] = as_int(enc4.lo);
-                            vb[cd][u * 2 + 1] = as_int(enc4.hi);
-#else
-                            const half4 wide4 = (half4)(as_half((ushort)(0x6480 ^ ((w >>  0) & 0xFFu))),
-                                                        as_half((ushort)(0x6480 ^ ((w >>  8) & 0xFFu))),
-                                                        as_half((ushort)(0x6480 ^ ((w >> 16) & 0xFFu))),
-                                                        as_half((ushort)(0x6480 ^ ((w >> 24) & 0xFFu))));
-                                const half4 deq4 = wide4 - zpb4[u];
-                            // f16 VNNI operand: vb[cd][key_pair] packs keys (2*key_pair,
-                            // 2*key_pair+1), which are exactly deq4.lo / .hi for key_pairs (u*2,
-                            // u*2+1).
-                            vb[cd][u * 2 + 0] = as_int(deq4.lo);
-                            vb[cd][u * 2 + 1] = as_int(deq4.hi);
-#endif
-                        }
-                    }
-                }
+                // The paired read above gives a 32-key x 16-value tile (lane = value, 4 keys per
+                // uint); this cp block uses the 4 uints at vt_half.
+                half4 zpb4[4];
+                FUNC_CALL(v_i8_dequant)(vb, zpb4, vt, vt_half, vzb_c);
             #elif USE_2D_BLOCK_IO_KV
-                #pragma unroll
-                for (int cd = 0; cd < sv_value_blocks; ++cd) {
-                    intel_sub_group_2d_block_read_transform_16b_16r16x1c(
-                        (global void *)V_b2d, VD_w_b2d, VD_h, VD_p,
-                        (int2)(VD_x0 + sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE),
-                        (private uint *)&vb[cd]);
-                }
+                FUNC_CALL(v_tile_b2d16)(vb, V_b2d, VD_w_b2d, VD_h, VD_p, VD_x0, sg_j0_sv, k0, cp, 0);
             #else
-                #pragma unroll
-                for (int cd = 0; cd < sv_value_blocks; ++cd) {
-                    vb[cd] = (int8)0;
-                    const int value = sg_j0_sv + cd * SUBGROUP_SIZE + lane;
-                    if (value < dv) {
-                        #pragma unroll
-                        for (int key_pair = 0; key_pair < 8; ++key_pair) {
-                            const int key0 = k0 + cp * SUBGROUP_SIZE + key_pair * 2;
-                            const int key1 = key0 + 1;
-                            DT_ELEM2_T vv = DT_ELEM2_ZERO;
-                            if (key0 < k) {
-                                #ifdef KV_COMPRESSED
-                                    // i8 compressed V: per-token (per-kv-head) asymmetric dequant.
-                                    // Scale/zp vary per key (token), so they must be indexed by
-                                    // key0/key1 here, not by the value (head-dim) index.
-                                    const uint v_comp_off0 = VAL_COMP_OFF(b1, b0_kv, key0, 0);
-                                    vv[0] = DT_FROM_F32((convert_float(V[(size_t)key0 * ldv + value]) - convert_float(V_zp[v_comp_off0])) * convert_float(V_scales[v_comp_off0]));
-                                #else
-                                    vv[0] = DT_FROM_RAW(V[(size_t)key0 * ldv + value]);
-                                #endif
-                            }
-                            if (key1 < k) {
-                                #ifdef KV_COMPRESSED
-                                    const uint v_comp_off1 = VAL_COMP_OFF(b1, b0_kv, key1, 0);
-                                    vv[1] = DT_FROM_F32((convert_float(V[(size_t)key1 * ldv + value]) - convert_float(V_zp[v_comp_off1])) * convert_float(V_scales[v_comp_off1]));
-                                #else
-                                    vv[1] = DT_FROM_RAW(V[(size_t)key1 * ldv + value]);
-                                #endif
-                            }
-                            vb[cd][key_pair] = as_int(vv);
-                        }
-                    }
-                }
+        #ifdef KV_COMPRESSED
+                FUNC_CALL(v_tile_gather)(OPTIONAL_SHAPE_INFO_TENSOR vb, V, ldv, V_scales, V_zp, b1, b0_kv, k0, cp, k, dv,
+                                         sg_j0_sv, lane);
+        #else
+                FUNC_CALL(v_tile_gather)(OPTIONAL_SHAPE_INFO_TENSOR vb, V, ldv, k0, cp, k, dv, sg_j0_sv, lane);
+        #endif
             #endif
 
             #pragma unroll
