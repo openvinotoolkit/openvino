@@ -45,6 +45,8 @@ ov_add_test_target(
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/metadata.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/compiler_option_support_helper.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/plugin_property_manager.cpp"
+  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/runtime_requirements_validation.cpp"
+  "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/compiler_schedule_instance_evaluator.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/remote_context.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/transformations.cpp"
   "${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/io_layouts_section.cpp"

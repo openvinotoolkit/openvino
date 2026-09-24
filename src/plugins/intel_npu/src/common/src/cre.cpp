@@ -525,7 +525,7 @@ ov::CompatibilityCheck CRE::evaluate(
         advance_iterator(expression_iterator, expression_end);
     }
 
-    CRE_ASSERT(at_least_one_iteration, "Cannot evaluate empty subexpressions");
+    CRE_ASSERT(at_least_one_iteration, "Empty subexpressions should not go through this function");
     CRE_ASSERT(expect_binary_operator,
                "The CRE did not end with an operand. This means the final operator is missing its operand");
 
