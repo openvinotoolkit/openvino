@@ -302,6 +302,11 @@ jobs:
           cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component core_dev
           cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component core_c_dev
 
+          # Install frontends referenced by the exported OpenVINO cmake targets
+          for frontend in ir onnx paddle pytorch tensorflow tensorflow_lite jax; do
+            cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component ${frontend} || echo "Frontend component ${frontend} not available"
+          done
+
           # mv (not cp) so CPU test binaries are not duplicated into both tests/ and bin/ in the artifact
           if [ -d "${INSTALL_TEST_DIR}/tests" ]; then
             echo "Moving tests from ${INSTALL_TEST_DIR}/tests/ to ${INSTALL_TEST_DIR}/bin/intel64/Release/"
