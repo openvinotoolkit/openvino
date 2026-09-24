@@ -12,9 +12,15 @@
 #include "ov_ops/moe_compressed.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/device_info.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
 
 namespace ov::intel_gpu {
+
+/// Maximum offload ratio that AUTO mode can select (e.g. 8-expert models with top_k=2 require
+/// at least 2 resident slots, so max offload is 1 - 2/8 = 75%).
+static constexpr size_t MAX_AUTO_OFFLOAD_RATIO = 75;
 
 /// Classifies a Constant's role relative to the MoE fused op.
 enum class MoEConstantRole { NotMoE, RoutedExpert, SharedExpert };
@@ -81,5 +87,19 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
                                              cldnn::data_types out_dtype,
                                              const cldnn::format& const_format,
                                              const cldnn::layout& const_layout);
+
+/// Resolves an "auto" OFFLOAD_RATIO into a concrete percentage in [0, MAX_AUTO_OFFLOAD_RATIO].
+/// Computes offloadable MoE routed-expert and fixed weight sizes from @p model,
+/// estimates available memory budget (device memory for dGPU, OS/tracked-memory
+/// budget for iGPU), and returns the percentage of routed-expert weights
+/// that should be streamed from disk. Returns 0 when everything fits or the
+/// model has no MoE.
+/// @param model    Transformed model containing MOECompressed op(s).
+/// @param engine   Target GPU engine used to query device info and tracked allocations.
+size_t resolve_auto_offload_ratio(const ov::Model& model, cldnn::engine& engine);
+
+/// Resolves AUTO OFFLOAD_RATIO with an explicitly supplied memory budget.
+/// Intended for deterministic testing of the model weight accounting and ratio calculation.
+size_t resolve_auto_offload_ratio_for_budget(const ov::Model& model, uint64_t memory_budget);
 
 }  // namespace ov::intel_gpu
