@@ -6,7 +6,6 @@
 
 #include <memory>
 #include <optional>
-#include <unordered_set>
 #include <vector>
 
 #include "../logging.hpp"
@@ -83,6 +82,7 @@ public:
                                                                                    matmul_add->output(0),
                                                                                    matmul_transpose->output(0),
                                                                                    matmul_convert->output(0),
+                                                                                   div->output(0),
                                                                                    matmul_multiply->output(0)});
         const auto result = opp::wrap_type<ov::op::v0::Result>({lm_head_output->output(0)});
 
@@ -138,67 +138,6 @@ struct Vocab {
     std::optional<std::shared_ptr<ov::op::v0::Constant>> scale;
 };
 
-std::optional<Vocab> get_vocab(const ov::Output<ov::Node>& output) {
-    auto node = output.get_node_shared_ptr();
-    while (ov::is_type<ov::op::v0::Convert>(node)) {
-        node = node->input_value(0).get_node_shared_ptr();
-    }
-
-    if (auto weight = ov::as_type_ptr<ov::op::v0::Constant>(node)) {
-        const auto element_type = weight->get_element_type();
-        if ((element_type == ov::element::f16 || element_type == ov::element::f32 ||
-             element_type == ov::element::bf16) &&
-            weight->get_shape().size() == 2) {
-            return Vocab{weight, std::nullopt, std::nullopt};
-        }
-        return std::nullopt;
-    }
-
-    auto multiply = ov::as_type_ptr<ov::op::v1::Multiply>(node);
-    if (!multiply) {
-        return std::nullopt;
-    }
-
-    auto dequantized = multiply->input_value(0).get_node_shared_ptr();
-    auto scale = ov::as_type_ptr<ov::op::v0::Constant>(multiply->input_value(1).get_node_shared_ptr());
-    if (!scale) {
-        return std::nullopt;
-    }
-
-    if (scale->get_shape().size() != 2 || scale->get_shape()[1] != 1) {
-        return std::nullopt;
-    }
-
-    if (auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(dequantized)) {
-        auto weight_convert = ov::as_type_ptr<ov::op::v0::Convert>(subtract->input_value(0).get_node_shared_ptr());
-        auto zerop_convert = ov::as_type_ptr<ov::op::v0::Convert>(subtract->input_value(1).get_node_shared_ptr());
-        if (!weight_convert || !zerop_convert) {
-            return std::nullopt;
-        }
-
-        auto weight = ov::as_type_ptr<ov::op::v0::Constant>(weight_convert->input_value(0).get_node_shared_ptr());
-        auto zerop = ov::as_type_ptr<ov::op::v0::Constant>(zerop_convert->input_value(0).get_node_shared_ptr());
-        if (!weight || !zerop || weight->get_element_type() != ov::element::u8 ||
-            zerop->get_element_type() != ov::element::u8 || weight->get_shape().size() != 2 ||
-            zerop->get_shape().size() != 2 || zerop->get_shape()[0] != weight->get_shape()[0] ||
-            scale->get_shape()[0] != weight->get_shape()[0]) {
-            return std::nullopt;
-        }
-        return Vocab{weight, zerop, scale};
-    }
-
-    auto weight_convert = ov::as_type_ptr<ov::op::v0::Convert>(dequantized);
-    if (!weight_convert) {
-        return std::nullopt;
-    }
-    auto weight = ov::as_type_ptr<ov::op::v0::Constant>(weight_convert->input_value(0).get_node_shared_ptr());
-    if (!weight || (weight->get_element_type() != ov::element::i8 && weight->get_element_type() != ov::element::i4) ||
-        weight->get_shape().size() != 2 || scale->get_shape()[0] != weight->get_shape()[0]) {
-        return std::nullopt;
-    }
-    return Vocab{weight, std::nullopt, scale};
-}
-
 bool same_storage(const std::shared_ptr<ov::op::v0::Constant>& lhs, const std::shared_ptr<ov::op::v0::Constant>& rhs) {
     return lhs->get_element_type() == rhs->get_element_type() && lhs->get_shape() == rhs->get_shape() &&
            lhs->get_data_ptr() == rhs->get_data_ptr();
@@ -212,34 +151,79 @@ bool same_storage(const std::optional<std::shared_ptr<ov::op::v0::Constant>>& lh
     return !lhs.has_value() || same_storage(*lhs, *rhs);
 }
 
-bool is_lm_head_matmul(const std::shared_ptr<ov::op::v0::MatMul>& matmul) {
-    const auto terminal_types = [](const std::shared_ptr<ov::Node>& node) {
-        return ov::is_type<ov::op::v1::Add>(node) || ov::is_type<ov::op::v1::Transpose>(node) ||
-               ov::is_type<ov::op::v0::Convert>(node) || ov::is_type<ov::op::v1::Multiply>(node) ||
-               ov::is_type<ov::op::v1::Divide>(node) || ov::is_type<ov::op::v0::Tanh>(node);
-    };
-    std::unordered_set<const ov::Node*> visited;
-    const auto reaches_result = [&](const auto& self, const std::shared_ptr<ov::Node>& current) -> bool {
-        if (!visited.insert(current.get()).second) {
-            return false;
+class CollectVocabCandidates final : public ov::pass::MatcherPass {
+public:
+    CollectVocabCandidates(std::vector<Vocab>& vocabs, bool lm_head) {
+        const auto asymmetric_weight = opp::wrap_type<ov::op::v0::Constant>([](const ov::Output<ov::Node>& output) {
+            return output.get_element_type() == ov::element::u8 && output.get_shape().size() == 2;
+        });
+        const auto symmetric_weight = opp::wrap_type<ov::op::v0::Constant>([](const ov::Output<ov::Node>& output) {
+            return (output.get_element_type() == ov::element::i8 || output.get_element_type() == ov::element::i4) &&
+                   output.get_shape().size() == 2;
+        });
+        const auto full_precision_weight = opp::wrap_type<ov::op::v0::Constant>([](const ov::Output<ov::Node>& output) {
+            const auto type = output.get_element_type();
+            return (type == ov::element::f16 || type == ov::element::f32 || type == ov::element::bf16) &&
+                   output.get_shape().size() == 2;
+        });
+        const auto zerop = opp::wrap_type<ov::op::v0::Constant>([](const ov::Output<ov::Node>& output) {
+            return output.get_element_type() == ov::element::u8 && output.get_shape().size() == 2;
+        });
+        const auto scale = opp::wrap_type<ov::op::v0::Constant>();
+        const auto asymmetric_convert = opp::wrap_type<ov::op::v0::Convert>({asymmetric_weight});
+        const auto zerop_convert = opp::wrap_type<ov::op::v0::Convert>({zerop});
+        const auto subtract = opp::wrap_type<ov::op::v1::Subtract>({asymmetric_convert, zerop_convert});
+        const auto symmetric_convert = opp::wrap_type<ov::op::v0::Convert>({symmetric_weight});
+        const auto dequantized = std::make_shared<opp::op::Or>(ov::OutputVector{subtract, symmetric_convert});
+        const auto scaled = opp::wrap_type<ov::op::v1::Multiply>({dequantized, scale});
+        const auto weight = std::make_shared<opp::op::Or>(ov::OutputVector{scaled, full_precision_weight});
+        const auto converted = opp::optional<ov::op::v0::Convert>({weight});
+
+        std::shared_ptr<ov::Node> root;
+        if (lm_head) {
+            const auto matmul = opp::wrap_type<ov::op::v0::MatMul>(
+                {opp::any_input(), converted},
+                [](const ov::Output<ov::Node>& output) {
+                    const auto node = ov::as_type_ptr<ov::op::v0::MatMul>(output.get_node_shared_ptr());
+                    return !node->get_transpose_a() && node->get_transpose_b();
+                });
+            const auto add = opp::wrap_type<ov::op::v1::Add>({matmul, opp::any_input()});
+            const auto transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
+            const auto convert = opp::wrap_type<ov::op::v0::Convert>({matmul});
+            const auto div = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({matmul, opp::any_input()});
+            const auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
+            const auto gated = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
+            const auto terminal =
+                std::make_shared<opp::op::Or>(ov::OutputVector{matmul, add, transpose, convert, div, gated});
+            root = opp::wrap_type<ov::op::v0::Result>({terminal}, [](const ov::Output<ov::Node>& output) {
+                return output.get_node_shared_ptr()->get_rt_info().count("manually_added_output") == 0;
+            });
+        } else {
+            root = opp::wrap_type<ov::op::v8::Gather>({converted, opp::any_input(), opp::any_input()});
         }
-        const auto targets = current->output(0).get_target_inputs();
-        if (targets.empty()) {
-            return false;
-        }
-        for (const auto& target : targets) {
-            const auto consumer = target.get_node()->shared_from_this();
-            if (ov::is_type<ov::op::v0::Result>(consumer)) {
-                continue;
-            }
-            if (!terminal_types(consumer) || !self(self, consumer)) {
-                return false;
-            }
-        }
-        return true;
-    };
-    return reaches_result(reaches_result, matmul);
-}
+
+        register_matcher(std::make_shared<opp::Matcher>(root, lm_head ? "CollectLmHeadVocab" : "CollectEmbeddingVocab"),
+                         [=, &vocabs](opp::Matcher& matcher) {
+                             const auto& values = matcher.get_pattern_value_map();
+                             const auto constant = [&values](const std::shared_ptr<ov::Node>& pattern) {
+                                 return ov::as_type_ptr<ov::op::v0::Constant>(values.at(pattern).get_node_shared_ptr());
+                             };
+                             if (values.count(full_precision_weight)) {
+                                 vocabs.push_back({constant(full_precision_weight), std::nullopt, std::nullopt});
+                             } else if (values.count(asymmetric_weight)) {
+                                 const auto matched_weight = constant(asymmetric_weight);
+                                 const auto matched_zerop = constant(zerop);
+                                 if (matched_zerop->get_shape()[0] != matched_weight->get_shape()[0]) {
+                                     return false;
+                                 }
+                                 vocabs.push_back({matched_weight, matched_zerop, constant(scale)});
+                             } else {
+                                 vocabs.push_back({constant(symmetric_weight), std::nullopt, constant(scale)});
+                             }
+                             return false;
+                         });
+    }
+};
 
 void log_vocab_names(const char* label, const Vocab& vocab) {
     LOG_WARN(label << " weight='" << vocab.weight->get_friendly_name() << "', zero_point='"
@@ -256,20 +240,10 @@ bool ov::npuw::DetectVocabSharing::run_on_model(const std::shared_ptr<ov::Model>
 
     std::vector<Vocab> embedding_vocabs;
     std::vector<Vocab> lm_head_vocabs;
-    for (const auto& node : model->get_ordered_ops()) {
-        if (ov::is_type<ov::op::v8::Gather>(node)) {
-            if (auto vocab = get_vocab(node->input_value(0))) {
-                embedding_vocabs.push_back(std::move(*vocab));
-            }
-        } else if (auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(node)) {
-            if (!matmul->get_transpose_b() || !is_lm_head_matmul(matmul)) {
-                continue;
-            }
-            if (auto vocab = get_vocab(matmul->input_value(1))) {
-                lm_head_vocabs.push_back(std::move(*vocab));
-            }
-        }
-    }
+    ov::pass::GraphRewrite rewrite;
+    rewrite.add_matcher<CollectVocabCandidates>(embedding_vocabs, false);
+    rewrite.add_matcher<CollectVocabCandidates>(lm_head_vocabs, true);
+    rewrite.run_on_model(model);
 
     for (const auto& embedding : embedding_vocabs) {
         for (const auto& lm_head : lm_head_vocabs) {
