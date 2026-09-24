@@ -144,6 +144,10 @@ jobs:
             --jq '.[0] | "#\(.number) \(.title)"' 2>/dev/null || true)"
           PR_NUMBER="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${AFTER}/pulls" \
             --jq '.[0].number' 2>/dev/null || true)"
+          PR_URL=""
+          if [[ -n "${PR_NUMBER}" ]]; then
+            PR_URL="${{ github.server_url }}/${{ github.repository }}/pull/${PR_NUMBER}"
+          fi
 
           MENTIONS=""
           for l in $(echo "${NPU_CIP_NOTIFY_LOGINS:-}" | tr ',' ' '); do
@@ -182,6 +186,7 @@ jobs:
             echo "author=${AUTHOR}"
             echo "pr_info=${PR_INFO}"
             echo "pr_number=${PR_NUMBER}"
+            echo "pr_url=${PR_URL}"
             echo "changes<<CHANGES_EOF"
             printf '%s' "${CHANGES_TEXT:-<variables could not be parsed>}"
             echo ""
@@ -234,6 +239,7 @@ jobs:
           CARD_COMMIT_URL: ${{ steps.detect.outputs.commit_url }}
           CARD_AUTHOR: ${{ steps.detect.outputs.author }}
           CARD_PR_INFO: ${{ steps.detect.outputs.pr_info }}
+          CARD_PR_URL: ${{ steps.detect.outputs.pr_url }}
           CARD_CHANGES: ${{ steps.detect.outputs.changes }}
           CARD_REPO: ${{ github.repository }}
           CARD_MENTION_UPNS: ${{ vars.NPU_CIP_TEAMS_MENTION_UPNS }}

@@ -33,8 +33,11 @@ def main() -> None:
     ]
     if os.environ.get("CARD_AUTHOR"):
         facts.append({"title": "Author", "value": os.environ["CARD_AUTHOR"]})
-    if os.environ.get("CARD_PR_INFO"):
-        facts.append({"title": "PR", "value": os.environ["CARD_PR_INFO"]})
+    pr_info = os.environ.get("CARD_PR_INFO", "")
+    pr_url = os.environ.get("CARD_PR_URL", "")
+    if pr_info:
+        pr_value = f"[{pr_info}]({pr_url})" if pr_url else pr_info
+        facts.append({"title": "PR", "value": pr_value})
 
     body = [
         {"type": "TextBlock", "text": "\U0001f514 NPU CiP bump detected",
@@ -55,8 +58,12 @@ def main() -> None:
         body.append({"type": "TextBlock", "spacing": "Medium", "wrap": True,
                      "text": " ".join(entity["text"] for entity in entities)})
 
+    actions: list[dict[str, str]] = []
+    if pr_url:
+        actions.append({"type": "Action.OpenUrl", "title": "View pull request", "url": pr_url})
     commit_url = os.environ.get("CARD_COMMIT_URL", "")
-    actions = [{"type": "Action.OpenUrl", "title": "View commit", "url": commit_url}] if commit_url else []
+    if commit_url:
+        actions.append({"type": "Action.OpenUrl", "title": "View commit", "url": commit_url})
 
     # Power Automate ("Send webhook alerts to a channel") posts the request body directly
     # as an Adaptive Card, so send the bare card rather than the classic connector's
