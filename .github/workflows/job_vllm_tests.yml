@@ -92,7 +92,7 @@ jobs:
         uses: ./.github/actions/install_ov_wheels
         with:
           wheels-dir-path: ${{ env.INSTALL_DIR }}
-          wheels-to-install: 'openvino openvino_tokenizers'
+          wheels-to-install: 'openvino'
 
       - name: Install vLLM tests requirements
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test }}
