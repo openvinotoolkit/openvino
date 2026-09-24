@@ -272,8 +272,7 @@ JitConstants ConvolutionKernel_b_fs_yx_fsv16::GetJitConstants(const convolution_
     }
 
     // enable out-of-bounds guards for >=Xe2 architectures
-    const auto ip_version = static_cast<uint32_t>(params.engineInfo.ip_version >> 16);
-    const bool is_post_xe2 = params.engineInfo.arch >= gpu_arch::xe2 || ip_version >= 20;
+    const bool is_post_xe2 = params.engineInfo.arch >= gpu_arch::xe2;
     jit.AddConstant(MakeJitConstant("ENABLE_OOB_GUARD", is_post_xe2));
 
     jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", blockWidth));
