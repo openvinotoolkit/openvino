@@ -20,6 +20,7 @@ set(OV_RUNTIME_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/src/dev/core_impl.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/dev/device_id_parser.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/dev/exec_model_info.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/hsm_format.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/dev/iasync_infer_request.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/dev/icompiled_model.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/dev/iplugin.cpp

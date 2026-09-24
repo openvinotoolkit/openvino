@@ -116,4 +116,28 @@ void vm_decommit(void* ptr, size_t size) noexcept;
  * @pre  ptr != nullptr && size > 0; violated preconditions are a programming error (assert fires in debug).
  */
 void vm_release(void* ptr, size_t size) noexcept;
+
+/// @brief Read-only, non-owning view (pointer + size) of a buffer's contents.
+class MemoryView {
+public:
+    constexpr MemoryView() noexcept = default;
+    constexpr MemoryView(const std::byte* data, size_t size) noexcept : m_data{data}, m_size{size} {}
+
+    constexpr const std::byte* data() const noexcept {
+        return m_data;
+    }
+    constexpr size_t size() const noexcept {
+        return m_size;
+    }
+    constexpr const std::byte* begin() const noexcept {
+        return data();
+    }
+    constexpr const std::byte* end() const noexcept {
+        return data() + size();
+    }
+
+private:
+    const std::byte* m_data = nullptr;
+    size_t m_size = 0;
+};
 }  // namespace ov::util
