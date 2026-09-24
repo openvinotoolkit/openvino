@@ -45,12 +45,10 @@ void KernelBase::CheckDispatchData(const std::string& kernelName, const kernel_s
                                      toString(dispatchData));
         }
 
-        if (!engineInfo.supports_non_uniform_work_group) {
-            if (dispatchData.gws[i] % dispatchData.lws[i] != 0) {
-                throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
-                                        ": GWS must be divisible by corresponding LWS. Actual: " +
-                                        toString(dispatchData));
-            }
+        if (dispatchData.gws[i] % dispatchData.lws[i] != 0) {
+            throw std::runtime_error("ERROR: Invalid dispatch data for kernel: " + kernelName +
+                                    ": GWS must be divisible by corresponding LWS. Actual: " +
+                                    toString(dispatchData));
         }
     }
 }
@@ -65,7 +63,8 @@ static bool IsTypeUsedIn(Datatype type, const base_params& params) {
 
 Datatype KernelBase::GetUnitType(const base_params& params) const {
     Datatype types_prioritized[] =
-        {Datatype::INT8, Datatype::F16, Datatype::BF16, Datatype::INT32, Datatype::INT64, Datatype::UINT8, Datatype::UINT32};
+        {Datatype::INT8, Datatype::F16, Datatype::BF16, Datatype::INT32, Datatype::INT64, Datatype::UINT8, Datatype::UINT32,
+         Datatype::INT16, Datatype::UINT16};
 
     for (Datatype type : types_prioritized) {
         if (IsTypeUsedIn(type, params)) {

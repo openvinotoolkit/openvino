@@ -45,6 +45,47 @@
 using namespace cldnn;
 using namespace ::tests;
 
+static void test_shape_infer_dependency(bool with_squeeze) {
+    auto& engine = get_test_engine();
+    auto shape_input_layout = layout{{1, 1}, data_types::i64, format::bfyx};
+    auto source_input_layout = layout{{1, 1}, data_types::i64, format::bfyx};
+
+    auto one_memory = engine.allocate_memory(shape_input_layout);
+    set_values<int64_t>(one_memory, {1});
+
+    topology topology;
+    topology.add(input_layout("shape_input", shape_input_layout));
+    topology.add(data("one", one_memory));
+    topology.add(eltwise("shape_add", {input_info("shape_input"), input_info("one")}, eltwise_mode::sum));
+    if (with_squeeze) {
+        topology.add(reshape("squeeze", input_info("shape_add"), false, std::vector<int64_t>{1}, ov::PartialShape{1}, reshape::reshape_mode::squeeze));
+    }
+    topology.add(input_layout("source_input", source_input_layout));
+    topology.add(eltwise("source_add", {input_info("source_input"), input_info("one")}, eltwise_mode::sum));
+    topology.add(reshape("reshape", input_info("source_add"), input_info(with_squeeze ? "squeeze" : "shape_add"), false, ov::PartialShape{1}));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(prog, nullptr);
+
+    program_wrapper::apply_opt_pass<prepare_buffer_fusing>(*prog);
+
+    if (with_squeeze) {
+        ASSERT_TRUE(prog->get_node("squeeze").can_be_optimized());
+    }
+    ASSERT_TRUE(prog->get_node("shape_add").is_shape_infer_dep());
+    ASSERT_FALSE(prog->get_node("source_add").is_shape_infer_dep());
+}
+
+TEST(prepare_buffer_fusing, shape_infer_dependency_through_optimized_squeeze) {
+    test_shape_infer_dependency(true);
+}
+
+TEST(prepare_buffer_fusing, shape_infer_dependency_without_squeeze) {
+    test_shape_infer_dependency(false);
+}
+
 TEST(prepare_buffer_fusing, optimize_reshape) {
     auto& engine = get_test_engine();
     auto in_layout = layout{ ov::PartialShape::dynamic(4), data_types::f32, format::bfyx };
@@ -1740,6 +1781,71 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_static) {
 }
 #endif  // ENABLE_ONEDNN_FOR_GPU
 
+TEST(prepare_buffer_fusing, in_place_concat_dynamic_bfyx_to_fsv16_reorder_feature_padding) {
+    // Runtime in-place concat gives the second producer a lower feature padding, which the static
+    // path rejects, so only the shape agnostic kernel sees it. With batch > 1 it must span padded
+    // feature slices instead of overwriting batch 0.
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    const size_t batch = 2, feature = 16, y_size = 4, x_size = 8;
+    auto dyn_layout = layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
+    auto in_layout = layout{ov::PartialShape{2, 16, 4, 8}, data_types::f32, format::bfyx};
+
+    topology topology;
+    topology.add(input_layout("input1", dyn_layout));
+    topology.add(input_layout("input2", dyn_layout));
+    topology.add(reorder("input1_fsv16", input_info("input1"), format::b_fs_yx_fsv16, data_types::f32));
+    topology.add(reorder("input2_fsv16", input_info("input2"), format::b_fs_yx_fsv16, data_types::f32));
+    topology.add(concatenation("concat", {input_info("input1_fsv16"), input_info("input2_fsv16")}, 1));
+    topology.add(reorder("output", input_info("concat"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    // In-place concat rejects batch > 1 when the producers prefer onednn, so pin them to the ocl
+    // path. The kernel itself is still chosen by the selector and asserted on below.
+    ov::intel_gpu::ImplementationDesc ocl_reorder = {format::b_fs_yx_fsv16, "", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"input1_fsv16", ocl_reorder}, {"input2_fsv16", ocl_reorder}}));
+
+    network net(engine, topology, config);
+
+    auto input_memory1 = engine.allocate_memory(in_layout);
+    auto input_memory2 = engine.allocate_memory(in_layout);
+    auto input1_vals = rg.generate_random_1d<float>(in_layout.count(), -10, 10);
+    auto input2_vals = rg.generate_random_1d<float>(in_layout.count(), -10, 10);
+    set_values(input_memory1, input1_vals);
+    set_values(input_memory2, input2_vals);
+
+    net.set_input_data("input1", input_memory1);
+    net.set_input_data("input2", input_memory2);
+
+    std::map<cldnn::primitive_id, cldnn::network_output> output;
+    EXPECT_NO_THROW(output = net.execute());
+    ASSERT_TRUE(net.get_primitive("concat")->can_be_optimized());
+
+    // The padded producer must really run the tiled kernel, otherwise this is not a regression.
+    auto* padded_impl = net.get_primitive("input2_fsv16")->get_impl();
+    ASSERT_TRUE(padded_impl != nullptr);
+    ASSERT_NE(padded_impl->get_kernel_name().find("reorder_data_bfyx_to_blocked_format"), std::string::npos);
+
+    auto out_mem = output.at("output").get_memory();
+    cldnn::mem_lock<float> output_ptr(out_mem, get_test_stream());
+    ASSERT_EQ(out_mem->count(), input1_vals.size() + input2_vals.size());
+
+    const size_t per_batch_in = feature * y_size * x_size;
+    const size_t per_batch_out = 2 * per_batch_in;
+    for (size_t b = 0; b < batch; ++b) {
+        for (size_t i = 0; i < per_batch_in; ++i) {
+            ASSERT_EQ(output_ptr[b * per_batch_out + i], input1_vals[b * per_batch_in + i])
+                << "input1 b=" << b << " i=" << i;
+            ASSERT_EQ(output_ptr[b * per_batch_out + per_batch_in + i], input2_vals[b * per_batch_in + i])
+                << "input2 b=" << b << " i=" << i;
+        }
+    }
+}
+
 TEST(prepare_buffer_fusing, in_place_concat_with_fsv32_to_fsv16_reorder_regression) {
     // Regression test for fsv32->fsv16 reorder + in-place concat path.
     // Keep in-place enabled, then verify buffer sharing and output channel order.
@@ -3216,6 +3322,114 @@ TEST(prepare_buffer_fusing, in_place_crop_split_axis1_three_crops_sdpa_consumer)
         << "crop1 (K->generic sdpa) must NOT be in-place";
     ASSERT_FALSE(net.get_primitive("crop2")->can_be_optimized())
         << "crop2 (V->generic sdpa) must NOT be in-place";
+}
+
+// Same packed-QKV pattern feeding the Gemm+SoftMax+Gemm that a non-f16 precision decomposes
+// sdpa into. f32 is required: f16 picks a oneDNN gemm, which reshape_inst already blocks.
+TEST(prepare_buffer_fusing, in_place_crop_split_axis1_three_crops_gemm_consumer) {
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    const int64_t H = 4, S = 8;
+    const int64_t L = 16;  // batch (sequence length)
+
+    auto in_layout_dyn  = layout{ov::PartialShape{-1, 3, H, S}, data_types::f32, format::bfyx};
+    auto input_mem      = engine.allocate_memory({{L, 3, H, S}, data_types::f32, format::bfyx});
+    auto axis_mem       = engine.allocate_memory({{}, data_types::i64, format::bfyx});
+    auto splits_len_mem = engine.allocate_memory({{3}, data_types::i64, format::bfyx});
+
+    auto input_data = rg.generate_random_1d<float>(L * 3 * H * S, -1.f, 1.f);
+    set_values(input_mem, input_data);
+    set_values<int64_t>(axis_mem, {1});
+    set_values<int64_t>(splits_len_mem, {1, 1, 1});
+
+    auto op_mode = cldnn::crop_ngraph_op_mode::variadic_split;
+    const int64_t axis = 1;
+
+    const std::vector<int64_t> rs_pattern{-1, H, S};
+    auto rs_shape_dyn = ov::PartialShape{-1, H, S};
+    const std::vector<int64_t> identity_order{0, 1, 2};
+    // Q x K^T: transpose the second matrix so the contraction is over S.
+    const std::vector<int64_t> transposed_order{0, 2, 1};
+
+    topology topo_dyn(
+        input_layout("input", in_layout_dyn),
+        data("axis",       axis_mem),
+        data("splits_len", splits_len_mem),
+        crop("crop0", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 0, axis),
+        reshape("reshape0", input_info("crop0"), false, rs_pattern, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        crop("crop1", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 1, axis),
+        reshape("reshape1", input_info("crop1"), false, rs_pattern, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        crop("crop2", {input_info("input"), input_info("axis"), input_info("splits_len")},
+             cldnn::tensor(1), cldnn::tensor(0), op_mode, 2, axis),
+        reshape("reshape2", input_info("crop2"), false, rs_pattern, rs_shape_dyn, cldnn::reshape::reshape_mode::base),
+        gemm("qk",
+            {input_info("reshape0"), input_info("reshape1")},
+            data_types::f32, identity_order, transposed_order, identity_order),
+        gemm("av",
+            {input_info("qk"), input_info("reshape2")},
+            data_types::f32, identity_order, identity_order, identity_order),
+        reorder("output", input_info("av"), format::bfyx, data_types::f32)
+    );
+    ExecutionConfig config_dyn = get_test_default_config(engine);
+    config_dyn.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config_dyn.set_property(ov::intel_gpu::optimize_data(true));
+
+    network net(engine, topo_dyn, config_dyn);
+    net.set_input_data("input", input_mem);
+    auto outputs = net.execute();
+
+    ASSERT_FALSE(net.get_primitive("crop0")->can_be_optimized())
+        << "crop0 (Q->gemm) must NOT be in-place: gemm_tiled_opt doesn't honor propagated padding";
+    ASSERT_FALSE(net.get_primitive("crop1")->can_be_optimized())
+        << "crop1 (K->gemm) must NOT be in-place";
+    ASSERT_FALSE(net.get_primitive("crop2")->can_be_optimized())
+        << "crop2 (V->gemm) must NOT be in-place";
+
+    // Reference: the same gemms fed by three plain inputs holding the already-split slices,
+    // so a padded view reaching gemm shows up as wrong values, not just a graph change.
+    auto q_mem = engine.allocate_memory({{L, H, S}, data_types::f32, format::bfyx});
+    auto k_mem = engine.allocate_memory({{L, H, S}, data_types::f32, format::bfyx});
+    auto v_mem = engine.allocate_memory({{L, H, S}, data_types::f32, format::bfyx});
+    std::vector<float> q_data(L * H * S), k_data(L * H * S), v_data(L * H * S);
+    for (int64_t l = 0; l < L; l++) {
+        for (int64_t i = 0; i < H * S; i++) {
+            const auto dst = l * H * S + i;
+            q_data[dst] = input_data[l * 3 * H * S + 0 * H * S + i];
+            k_data[dst] = input_data[l * 3 * H * S + 1 * H * S + i];
+            v_data[dst] = input_data[l * 3 * H * S + 2 * H * S + i];
+        }
+    }
+    set_values(q_mem, q_data);
+    set_values(k_mem, k_data);
+    set_values(v_mem, v_data);
+
+    auto slice_layout_dyn = layout{ov::PartialShape{-1, H, S}, data_types::f32, format::bfyx};
+    topology topo_ref(
+        input_layout("q", slice_layout_dyn),
+        input_layout("k", slice_layout_dyn),
+        input_layout("v", slice_layout_dyn),
+        gemm("qk", {input_info("q"), input_info("k")},
+             data_types::f32, identity_order, transposed_order, identity_order),
+        gemm("av", {input_info("qk"), input_info("v")},
+             data_types::f32, identity_order, identity_order, identity_order),
+        reorder("output", input_info("av"), format::bfyx, data_types::f32)
+    );
+    network net_ref(engine, topo_ref, config_dyn);
+    net_ref.set_input_data("q", q_mem);
+    net_ref.set_input_data("k", k_mem);
+    net_ref.set_input_data("v", v_mem);
+    auto outputs_ref = net_ref.execute();
+
+    cldnn::mem_lock<float, mem_lock_type::read> got(outputs.at("output").get_memory(), get_test_stream());
+    cldnn::mem_lock<float, mem_lock_type::read> expected(outputs_ref.at("output").get_memory(), get_test_stream());
+    ASSERT_EQ(got.size(), expected.size());
+    for (size_t i = 0; i < expected.size(); i++) {
+        ASSERT_NEAR(got[i], expected[i], 1e-3f) << "output mismatch at " << i
+            << ": crop+reshape fed a padded view into gemm";
+    }
 }
 
 // =============================================================================

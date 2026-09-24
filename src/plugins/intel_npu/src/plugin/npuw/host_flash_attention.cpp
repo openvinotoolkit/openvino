@@ -12,6 +12,7 @@
 #include "intel_npu/ops/flash_attention_tile.hpp"
 #include "logging.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
+#include "npuw_transformations/propagate_slice.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
@@ -127,7 +128,9 @@ static HFATileInputs create_hfa_tile_inputs(const ov::Shape& q_shape,
     inputs.q = std::make_shared<ov::op::v0::Parameter>(q_dtype, ov::Shape{batch, num_heads, seq_len, head_dim});
     set_param_name(inputs.q, HFATileInputId::Q);
 
-    // mask_tile: [batch, 1, seq_len, tile_size] - use mask's original dtype
+    // mask_tile: [batch, 1, seq_len, tile_size]
+    // - seq_len (dim 2): Q sequence length (actual, may be 1 after PropagateSliceUp)
+    // - tile_size (dim 3): KV tile length (original query_length, e.g., 1024)
     inputs.mask_tile =
         std::make_shared<ov::op::v0::Parameter>(mask_dtype,
                                                 ov::Shape{batch, 1, seq_len, static_cast<size_t>(tile_size)});
@@ -973,6 +976,51 @@ static std::optional<std::size_t> extract_sequence_dim_from_concat(const std::sh
     return ov::util::try_normalize_axis(concat_op->get_axis(), concat_out_shape.rank(), *concat_op);
 }
 
+// ============================================================================
+// Helper function: Analyze past-KV tiling
+// ============================================================================
+// Determines past_tile_size: the REGULAR tile's K/V chunk size, derived from the past KV
+// Concat inputs (all inputs except the last, present-KV, one).
+//   - No past inputs (first PREFILL chunk): unused, defaults to query_size.
+//   - A single past input shorter than query_size (SWA layer with shrunk past capacity):
+//     past_tile_size = its own length.
+//   - Otherwise: past_tile_size = query_size. The runtime slices each past
+//     input into query_size-sized tiles independently, so inputs need not share a length --
+//     each just needs to be an exact multiple of query_size (guaranteed for PREFILL).
+static int64_t analyze_past_tiling(const std::shared_ptr<ov::Node>& concat_node,
+                                   std::size_t seq_dim,
+                                   std::size_t query_size) {
+    const std::size_t n_concat_inputs = concat_node->get_input_size();
+    NPUW_ASSERT(n_concat_inputs >= 1 && "KV Concat must have at least the present-KV input");
+    const std::size_t n_past_inputs = n_concat_inputs - 1;  // exclude present (always last)
+
+    auto get_len = [&](std::size_t idx) -> int64_t {
+        auto node = skip_convert_nodes(concat_node->get_input_node_shared_ptr(idx));
+        return static_cast<int64_t>(node->get_output_partial_shape(0).to_shape()[seq_dim]);
+    };
+
+    if (n_past_inputs == 0) {
+        // No past at all (e.g. first PREFILL chunk). Return value is unused; default it to
+        // query_size so the (unused) regular tile model still compiles with a valid, non-zero shape.
+        return static_cast<int64_t>(query_size);
+    }
+
+    const int64_t query_len = static_cast<int64_t>(query_size);
+    if (n_past_inputs == 1) {
+        const int64_t len = get_len(0);
+        if (len < query_len) {
+            return len;
+        }
+    }
+    // Every past input must be an exact multiple of query_size -- the runtime slices each one
+    // independently into query_size-sized regular tiles regardless of block boundaries.
+    for (std::size_t i = 0; i < n_past_inputs; ++i) {
+        NPUW_ASSERT(get_len(i) % query_len == 0 &&
+                    "HFA: every past KV input's length must be a multiple of query_size (PREFILL-only)");
+    }
+    return query_len;
+}
+
 std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr<ov::Model>& model,
                                                            bool fused_flash_attention,
                                                            bool enable_mask_skipping) {
@@ -1032,8 +1080,12 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
         LOG_WARN("Q shape must be 4D, got " << q_shape_static.size() << "D shape");
         return std::nullopt;
     }
-    std::size_t query_size = q_shape_static[2];  // seq_len at index 2
-    LOG_DEBUG("Extracted query_size (seq_len) from Q shape: " << query_size);
+
+    // query_size: original (pre-slice) query length used for tile_size/PREFILL-GENERATE/context_length
+    // logic. Defaults to the actual Q shape value, but PropagateSliceUp may have sliced Q's seq_len
+    // down to 1, in which case actual_query_size below no longer reflects the original chunk size.
+    std::size_t actual_query_size = q_shape_static[2];  // Actual Q seq_len (may be sliced to 1)
+    std::size_t query_size = ov::npuw::resolve_original_query_length(actual_query_size, pattern_nodes.matmul2_node);
 
     auto mask_param = ov::npuw::util::find_mask_parameter(pattern_nodes.add_node);
     if (!mask_param) {
@@ -1093,8 +1145,15 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
         return std::nullopt;
     }
 
+    // past_tile_size: chunk size for REGULAR tiles. final_tile_size: K/V length processed
+    // by the single FINAL tile call -- always equal to query_size (HFA only supports PREFILL,
+    // where the KV cache is filled in exact past_tile_size increments, so there is never a
+    // leftover KV "tail" to merge into the final tile).
+    const std::size_t past_tile_size = static_cast<std::size_t>(analyze_past_tiling(k_concat, k_seq_dim, query_size));
+    const std::size_t final_tile_size = query_size;
+
     // ========================================================================
-    // Step 5: Create tile models using query_size as tile_size
+    // Step 5: Create tile models
     // ========================================================================
     // V tensors are pre-transposed (stored as [B,H,head_dim,seq]) only when OptimizeValueTensors
     // succeeded, which is reflected by the V-concat axis being 3 instead of the default 2.
@@ -1104,9 +1163,9 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     // Final tile: state still uses block_kv_dtype (f16) for zero-copy with regular
     //   tile outputs; KV-tile uses present_kv_dtype (f32) matching the upstream graph.
     //   past_acc/max/d: f16   k_tile/v_tile: f32  (present-KV from upstream)
-    LOG_INFO("Creating HFA tile models: tile_size=" << query_size << ", v_transposed=" << v_transposed
-                                                    << ", block_kv=" << block_kv_dtype
-                                                    << ", present_kv=" << present_kv_dtype << ", q=" << q_dtype);
+    LOG_INFO("Creating HFA tile models: past_tile_size="
+             << past_tile_size << ", final_tile_size=" << final_tile_size << ", v_transposed=" << v_transposed
+             << ", block_kv=" << block_kv_dtype << ", present_kv=" << present_kv_dtype << ", q=" << q_dtype);
 
     // Per-SDPA mask-skipping decision
     // DetectAttentionMask (run earlier on the original SDPA node) may have annotated
@@ -1156,7 +1215,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
                                             block_kv_dtype,  // kv_tile_dtype (past blocks)
                                             q_dtype,
                                             mask_dtype,
-                                            query_size,
+                                            past_tile_size,
                                             kv_num_heads,
                                             false,
                                             fused_flash_attention,
@@ -1172,7 +1231,7 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
                                                   present_kv_dtype,  // kv_tile_dtype (present-KV, f32)
                                                   q_dtype,
                                                   mask_dtype,
-                                                  query_size,
+                                                  final_tile_size,
                                                   kv_num_heads,
                                                   true,
                                                   fused_flash_attention,
@@ -1190,9 +1249,10 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     HostFlashAttention hfa;
     hfa._tile_model = tile_model;
     hfa._final_tile_model = final_tile_model;
-    hfa._query_size = query_size;
+    hfa._query_size = query_size;  // Query length for PREFILL/GENERATE logic and context_length
     hfa._context_size = context_size;
-    hfa._tile_size = query_size;
+    hfa._past_tile_size = static_cast<int64_t>(past_tile_size);    // Regular tile chunk size
+    hfa._final_tile_size = static_cast<int64_t>(final_tile_size);  // Final tile K/V length (== query_size)
     hfa._k_seq_dim = k_seq_dim;
     hfa._v_seq_dim = v_seq_dim;
 
@@ -1214,7 +1274,8 @@ std::optional<HostFlashAttention> HostFlashAttention::from(const std::shared_ptr
     build_tile_output_mapping(hfa, tile_model);
 
     LOG_INFO("Successfully created HostFlashAttention with query_size="
-             << query_size << ", context_size=" << context_size << ", tile_size=" << query_size);
+             << query_size << ", context_size=" << context_size << ", past_tile_size=" << past_tile_size
+             << ", final_tile_size=" << final_tile_size);
 
     return hfa;
 }
@@ -1229,7 +1290,8 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     LOG_BLOCK();
 
     // Extract tile configuration from function HFA
-    _tile_size = func_hfa._tile_size;
+    _past_tile_size = func_hfa._past_tile_size;
+    _final_tile_size = func_hfa._final_tile_size;
 
     // Store the tile models for later compilation
     _tile_model_to_compile = func_hfa._tile_model;
@@ -1310,33 +1372,79 @@ HostFlashAttention::HostFlashAttention(const function::HostFlashAttention& func_
     // Note: _compiled_tile_model and _compiled_final_tile_model will be set later by
     // compile_host_flash_attention_model()
 }
+
+bool HostFlashAttention::is_valid() const {
+    if (_compiled_tile_model == nullptr || _compiled_final_tile_model == nullptr || _past_tile_size <= 0 ||
+        _final_tile_size <= 0 || _sdpa_attention_info._query_size == 0 ||
+        static_cast<std::size_t>(_final_tile_size) != _sdpa_attention_info._query_size) {
+        return false;
+    }
+
+    // _context_size drives the mask tile buffer allocation loop in
+    // HFARuntimeContext::initialize_mask_cache (ceil(context_size / past_tile_size) iterations, one device
+    // allocation each), so a corrupted blob must not be able to turn it into an unbounded loop.
+    const std::size_t context_size = _sdpa_attention_info._context_size;
+    const std::size_t past_tile_size = static_cast<std::size_t>(_past_tile_size);
+    const std::size_t num_tiles = context_size / past_tile_size + (context_size % past_tile_size != 0);
+    if (context_size == 0 || num_tiles > kMaxTiles) {
+        return false;
+    }
+
+    const auto& tile_inputs = _compiled_tile_model->inputs();
+    const auto& final_inputs = _compiled_final_tile_model->inputs();
+    const auto& tile_outputs = _compiled_tile_model->outputs();
+    const auto& final_outputs = _compiled_final_tile_model->outputs();
+    const auto& tin = _sdpa_attention_info._tile_input_indices;
+    const auto& tout = _sdpa_attention_info._tile_output_indices;
+
+    auto in_range = [](std::size_t idx, std::size_t size) {
+        return idx < size;
+    };
+
+    auto seq_dim_in_range = [](std::size_t seq_dim, const ov::Output<const ov::Node>& port) {
+        const auto rank = port.get_partial_shape().rank();
+        return rank.is_static() && seq_dim < static_cast<std::size_t>(rank.get_length());
+    };
+
+    // q/k/v/acc/max/d are always present on both the regular and the final tile model.
+    // mask may legitimately be absent from the regular tile model (mask-skipping optimization);
+    // the runtime detects that case by comparing tin.mask against inputs().size(), so it is only
+    // required to be in range for the final tile model, which always consumes a mask.
+    return in_range(tin.q, tile_inputs.size()) && in_range(tin.q, final_inputs.size()) &&
+           in_range(tin.k, tile_inputs.size()) && in_range(tin.k, final_inputs.size()) &&
+           in_range(tin.v, tile_inputs.size()) && in_range(tin.v, final_inputs.size()) &&
+           seq_dim_in_range(_sdpa_attention_info._k_seq_dim, tile_inputs[tin.k]) &&
+           seq_dim_in_range(_sdpa_attention_info._k_seq_dim, final_inputs[tin.k]) &&
+           seq_dim_in_range(_sdpa_attention_info._v_seq_dim, tile_inputs[tin.v]) &&
+           seq_dim_in_range(_sdpa_attention_info._v_seq_dim, final_inputs[tin.v]) &&
+           in_range(tin.mask, final_inputs.size()) && in_range(tin.acc, tile_inputs.size()) &&
+           in_range(tin.acc, final_inputs.size()) && in_range(tin.max, tile_inputs.size()) &&
+           in_range(tin.max, final_inputs.size()) && in_range(tin.d, tile_inputs.size()) &&
+           in_range(tin.d, final_inputs.size()) && in_range(tout.acc, tile_outputs.size()) &&
+           in_range(tout.max, tile_outputs.size()) && in_range(tout.d, tile_outputs.size()) && !final_outputs.empty();
+}
+
 }  // namespace compiled
 
 namespace runtime {
 namespace host_flash_attention {
 
 // PositionIDs constructor
-PositionIDs::PositionIDs(std::size_t param_idx, std::size_t query_size, const ov::ISyncInferRequest& rq)
+PositionIDs::PositionIDs(std::size_t param_idx, std::size_t original_query_length, const ov::ISyncInferRequest& rq)
     : _position_ids_idx(param_idx),
-      _query_size(query_size),
+      _original_query_length(original_query_length),
       _rq(rq) {
-    // FIXME: speculative decode is indistinguishable at this point!
-    _case = _query_size == 1 ? Case::GENERATE : Case::PREFILL;
+    // Use original_query_length to determine PREFILL vs GENERATE
+    // (query_size may be 1 after PropagateSliceUp, but that doesn't mean it's GENERATE)
+    _case = _original_query_length == 1 ? Case::GENERATE : Case::PREFILL;
 }
 
-Selector::Ptr PositionIDs::find(std::size_t query_size, const ov::ISyncInferRequest& rq) {
-    auto is_position_ids = [](const ov::Output<const ov::Node>& p) {
-        const auto& shape = p.get_shape();
-        // FIXME: 2D/3D position IDs are not supported here YET
-        return p.get_node()->get_friendly_name() == "position_ids" &&
-               (shape.size() == 1 || (shape.size() == 2 && shape[0] == 1));
-    };
-
+Selector::Ptr PositionIDs::find(std::size_t original_query_length, const ov::ISyncInferRequest& rq) {
     const auto& inputs = rq.get_inputs();
-    auto pos_ids_iter = std::find_if(inputs.begin(), inputs.end(), is_position_ids);
+    auto pos_ids_iter = std::find_if(inputs.begin(), inputs.end(), ov::npuw::util::is_supported_position_ids_input);
     if (pos_ids_iter != inputs.end()) {
         const auto param_idx = std::distance(inputs.begin(), pos_ids_iter);
-        return Selector::Ptr{new PositionIDs(param_idx, query_size, rq)};
+        return Selector::Ptr{new PositionIDs(param_idx, original_query_length, rq)};
     }
     return Selector::Ptr{};
 }
@@ -1360,7 +1468,8 @@ void PositionIDs::prepare(int64_t past_len) {
             case Case::PREFILL:
                 // chunked prefill case. calculate the past_length in full chunks
                 // FIXME: We know too much about chunking here
-                _past_length = ((past_len + _query_size - 1) / _query_size) * _query_size;
+                _past_length =
+                    ((past_len + _original_query_length - 1) / _original_query_length) * _original_query_length;
                 break;
             default:
                 NPUW_ASSERT(false && "Reached the unreachable code");
@@ -1373,7 +1482,8 @@ void PositionIDs::prepare(int64_t past_len) {
 }
 
 int64_t PositionIDs::context_length() const {
-    return _query_size + _past_length;
+    // Use original_query_length for context calculation (not query_size which may be sliced to 1)
+    return _original_query_length + _past_length;
 }
 
 // ============================================================================
@@ -1383,6 +1493,7 @@ int64_t PositionIDs::context_length() const {
 void HFARuntimeContext::reset() {
     m_mask_tile_cache.clear();
     m_mask_tile_buffers.clear();
+    m_final_mask_tile_buffer = {};
     m_state_buffers.reset();
     m_current_buffer_idx = 0;
 }

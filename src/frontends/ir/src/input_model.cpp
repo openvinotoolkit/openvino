@@ -21,7 +21,7 @@
 
 namespace {
 void parse_pre_process(pugi::xml_node& root,
-                       std::shared_ptr<ov::util::WeightsProvider> weights_provider,
+                       const std::shared_ptr<ov::util::WeightsProvider>& weights_provider,
                        std::shared_ptr<ov::Model> model) {
     /* Preprocessing block can have two preprocessing types:
      *
@@ -199,9 +199,7 @@ void parse_pre_process(pugi::xml_node& root,
 }
 }  // namespace
 
-namespace ov {
-namespace frontend {
-namespace ir {
+namespace ov::frontend::ir {
 
 class InputModel::InputModelIRImpl {
     std::shared_ptr<ov::util::WeightsProvider> m_weights_provider;
@@ -279,6 +277,4 @@ std::shared_ptr<ov::Model> InputModel::InputModelIRImpl::convert() {
     return model;
 }
 
-}  // namespace ir
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::ir

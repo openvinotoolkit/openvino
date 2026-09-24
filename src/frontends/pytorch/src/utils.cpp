@@ -44,9 +44,7 @@
 #include "pt_framework_node.hpp"
 #include "translate_session.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
+namespace ov::frontend::pytorch {
 
 using namespace ov::op;
 
@@ -330,6 +328,18 @@ Output<Node> apply_dtype(const NodeContext& context, size_t dtype_port, const Ou
     return input_tensor;
 };
 
+Output<Node> apply_optional_dtype(const NodeContext& context, size_t dtype_port, const Output<Node>& input_tensor) {
+    if (!context.input_is_none(dtype_port)) {
+        return apply_dtype(context, dtype_port, input_tensor);
+    }
+    if (context.has_attribute("dtype")) {
+        // Export passes the keyword-only dtype as an attribute already resolved to an OpenVINO type.
+        return context.mark_node(
+            std::make_shared<v0::Convert>(input_tensor, context.get_attribute<element::Type>("dtype")));
+    }
+    return input_tensor;
+};
+
 PadType convert_pad(const std::string& pt_pad) {
     FRONT_END_OP_CONVERSION_CHECK(TORCH_AUTO_PAD_TO_OV.count(pt_pad), "Unknown pad: ", pt_pad);
     return TORCH_AUTO_PAD_TO_OV.at(pt_pad);
@@ -570,6 +580,18 @@ Any simplified_type_interpret(Any type) {
 
 bool is_python_scalar_input(const NodeContext& context, size_t index) {
     return context.get_input_type(index).is<type::PyScalar>();
+}
+
+std::string normalize_op_type(const std::string& op_type) {
+    constexpr std::string_view fx_prefix = "aten.";
+    if (op_type.compare(0, fx_prefix.size(), fx_prefix) != 0) {
+        return op_type;
+    }
+    const auto overload = op_type.find('.', fx_prefix.size());
+    if (overload == std::string::npos) {
+        return op_type;
+    }
+    return "aten::" + op_type.substr(fx_prefix.size(), overload - fx_prefix.size());
 }
 
 void align_eltwise_input_types(const NodeContext& context,
@@ -1250,6 +1272,4 @@ OutputVector wrap_complex(const NodeContext& context,
     return results;
 }
 
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch

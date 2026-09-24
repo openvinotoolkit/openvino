@@ -398,7 +398,6 @@ struct EngineInfo {
     bool bOptHintsSupport = false;
     bool supports_microkernels = false;
     bool supports_work_group_collective_functions = false;
-    bool supports_non_uniform_work_group = false;
     bool supports_register_file_size_option = false;
     uint32_t vendor_id = 0x0;
     dev_type deviceType = dev_type::integrated_gpu;
@@ -407,8 +406,8 @@ struct EngineInfo {
     gpu_arch arch = gpu_arch::unknown;
     uint32_t maxThreadsPerExecutionUnit = 0;
     uint32_t maxThreadsPerDevice = 0;
-    uint64_t maxWorkGroupSize = 0;
-    uint64_t maxLocalMemSize = 0;
+    size_t maxWorkGroupSize = 0;
+    size_t maxLocalMemSize = 0;
     uint64_t maxImage2dWidth = 0;
     uint64_t maxImage2dHeight = 0;
     std::string deviceId;
