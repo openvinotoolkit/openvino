@@ -83,6 +83,25 @@ def _shape_agnostic_compile(gm, args, options):
         return False
 
 
+def _use_structural_cache(options):
+    """Return True if this compile may reuse a model across dynamo re-traces.
+
+    Opt-in: a hit asserts two graphs are equivalent, so anything
+    _structural_key omits (a Constant's dtype, a node's kwargs) serves the
+    wrong model. On by default only under the vllm preset, where a miss
+    costs a ~14 s recompile every decode step. OV_STRUCTURAL_CACHE=1/0
+    forces it on or off.
+    """
+    env = os.environ.get("OV_STRUCTURAL_CACHE")
+    if env is not None:
+        return env != "0"
+    try:
+        from openvino.frontend.pytorch.torchdynamo.vllm.preset import bool_opt
+    except Exception:
+        return False
+    return bool_opt(options, "vllm", False)
+
+
 def _structural_key(gm, args, options=None):
     """Structural hash of the FX graph that's stable across re-traces.
 
@@ -245,15 +264,17 @@ def openvino_execute(
         compiled = compiled_cache[cache_key]
         req = req_cache[cache_key]
     else:
-        # A shape-agnostic model keyed by size would recompile per prefill
-        # length even though it accepts every one -- options decides this.
-        struct_key = _structural_key(gm, args, options)
-        if use_cache and struct_key in structural_cache:
+        # Hashed on the graph, not partition_id, so it survives dynamo
+        # re-traces -- hence opt-in, see _use_structural_cache.
+        if _use_structural_cache(options):
+            struct_key = _structural_key(gm, args, options)
+        if struct_key is not None and use_cache and struct_key in structural_cache:
             compiled, req = structural_cache[struct_key]
         else:
             compiled = openvino_compile(gm, *args, model_hash_str=model_hash_str, options=options)
             req = compiled.create_infer_request()
-            structural_cache[struct_key] = (compiled, req)
+            if struct_key is not None:
+                structural_cache[struct_key] = (compiled, req)
             _fresh_compile = True
         compiled_cache[cache_key] = compiled
         req_cache[cache_key] = req
