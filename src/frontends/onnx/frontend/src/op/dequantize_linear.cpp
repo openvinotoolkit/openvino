@@ -20,7 +20,6 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/util/log.hpp"
 #include "utils/common.hpp"
 #include "utils/reshape.hpp"
 using namespace ov::op;
@@ -274,50 +273,6 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     // Normalize axis to handle negative values
     axis = common::normalize_axis(node.get_description(), axis, src_x.get_partial_shape().rank());
 
-    const auto& input_shape = src_x.get_partial_shape();
-    const auto is_scale_compatible_with_axis = [&](int64_t candidate_axis) {
-        if (!scale_shape.is_static() || scale_shape.rank().get_length() != input_shape.rank().get_length() ||
-            input_shape[candidate_axis].get_length() % block_size != 0) {
-            return false;
-        }
-
-        for (int64_t i = 0; i < input_shape.rank().get_length(); ++i) {
-            const int64_t expected_dim = i == candidate_axis
-                                             ? static_cast<int64_t>(input_shape[i].get_length() / block_size)
-                                             : static_cast<int64_t>(input_shape[i].get_length());
-            if (static_cast<int64_t>(scale_shape[i].get_length()) != expected_dim) {
-                return false;
-            }
-        }
-        return true;
-    };
-
-    const auto declared_axis = axis;
-    if (!is_scale_compatible_with_axis(axis)) {
-        int64_t compatible_axis = -1;
-        for (int64_t candidate_axis = 0; candidate_axis < input_shape.rank().get_length(); ++candidate_axis) {
-            if (is_scale_compatible_with_axis(candidate_axis)) {
-                FRONT_END_GENERAL_CHECK(compatible_axis == -1,
-                                        "DequantizeLinear scale shape is compatible with multiple blocked axes");
-                compatible_axis = candidate_axis;
-            }
-        }
-        if (compatible_axis != -1) {
-            FRONT_END_GENERAL_CHECK(declared_axis == 0 && compatible_axis == input_shape.rank().get_length() - 1,
-                                    "DequantizeLinear scale shape is incompatible with the declared axis");
-            OPENVINO_WARN("DequantizeLinear '",
-                          node.get_name(),
-                          "': declared axis ",
-                          declared_axis,
-                          " is inconsistent with the x_scale shape ",
-                          scale_shape,
-                          "; the model is not ONNX-conformant. Falling back to axis ",
-                          compatible_axis,
-                          ". Please re-export the model (CVS-191631).");
-            axis = compatible_axis;
-        }
-    }
-
     // Check that dimension at axis is divisible by block_size
     FRONT_END_GENERAL_CHECK(src_x.get_shape()[axis] % block_size == 0,
                             "DequantizeLinear doesn't support case when dimension of X at axis ",
@@ -327,6 +282,27 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
                             ") cannot be divided by block_size (",
                             block_size,
                             ")");
+
+    // Validate that the x_scale shape matches the declared axis: same rank as X, with the
+    // axis dimension divided by block_size and all other dimensions unchanged.
+    const auto& input_shape = src_x.get_partial_shape();
+    FRONT_END_GENERAL_CHECK(
+        scale_shape.is_static() && scale_shape.rank().get_length() == input_shape.rank().get_length(),
+        "DequantizeLinear x_scale shape ",
+        scale_shape,
+        " is incompatible with the rank of X ",
+        input_shape);
+    for (int64_t i = 0; i < input_shape.rank().get_length(); ++i) {
+        const int64_t expected_dim = i == axis ? static_cast<int64_t>(input_shape[i].get_length() / block_size)
+                                               : static_cast<int64_t>(input_shape[i].get_length());
+        FRONT_END_GENERAL_CHECK(static_cast<int64_t>(scale_shape[i].get_length()) == expected_dim,
+                                "DequantizeLinear x_scale shape ",
+                                scale_shape,
+                                " is incompatible with the declared axis ",
+                                axis,
+                                " for X shape ",
+                                input_shape);
+    }
 
     // Check if this is channel-wise quantization (block_size equals dimension size at axis)
     bool is_cw_quantize = (src_x.get_shape()[axis] == block_size);
