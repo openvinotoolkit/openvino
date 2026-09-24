@@ -12,9 +12,7 @@ namespace ocl {
 command_queues_builder::command_queues_builder()
     : _profiling(false),
       _out_of_order(false),
-      _supports_queue_families(false),
-      _priority_mode(),
-      _throttle_mode() {}
+      _supports_queue_families(false) {}
 
 #if CL_TARGET_OPENCL_VERSION >= 200
 std::vector<cl_queue_properties> command_queues_builder::get_properties(const cl::Device& device, uint16_t stream_id) {
@@ -64,9 +62,10 @@ std::vector<cl_queue_properties> command_queues_builder::get_properties(const cl
             }
         }
 
-        if (num_queues)
+        if (num_queues) {
             properties.insert(properties.end(), {CL_QUEUE_FAMILY_INTEL, family,
                                                  CL_QUEUE_INDEX_INTEL, stream_id % num_queues});
+        }
     }
 
     bool out_of_order = _out_of_order;
@@ -87,9 +86,18 @@ std::vector<cl_queue_properties> command_queues_builder::get_properties(const cl
     return properties;
 }
 #else
-cl_command_queue_properties command_queues_builder::get_properties(const cl::Device& device, uint16_t stream_id) {
+cl_command_queue_properties command_queues_builder::get_properties(const cl::Device& device, uint16_t /*stream_id*/) {
+    bool out_of_order = _out_of_order;
+    if (_out_of_order) {
+        auto queue_properties = device.getInfo<CL_DEVICE_QUEUE_PROPERTIES>();
+        if (!(queue_properties & CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE)) {
+            out_of_order = false;
+            GPU_DEBUG_INFO << "Requested out-of-order queue is not supported by current device. Use in-order instead\n";
+        }
+    }
+
     cl_command_queue_properties cl_queue_properties =
-        ((_profiling ? CL_QUEUE_PROFILING_ENABLE : 0) | (_out_of_order ? CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE : 0));
+        ((_profiling ? CL_QUEUE_PROFILING_ENABLE : 0) | (out_of_order ? CL_QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE : 0));
 
     return cl_queue_properties;
 }

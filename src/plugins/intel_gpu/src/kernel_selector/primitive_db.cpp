@@ -3,7 +3,7 @@
 //
 
 #include "primitive_db.h"
-#include <assert.h>
+#include <cassert>
 #include <algorithm>
 #include <vector>
 #include <utility>

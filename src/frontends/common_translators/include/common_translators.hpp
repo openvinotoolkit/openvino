@@ -7,9 +7,7 @@
 #include "openvino/core/node_vector.hpp"
 #include "openvino/frontend/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace common_translators {
+namespace ov::frontend::common_translators {
 #define COMMON_OP_CONVERTER(op) OutputVector op(const ov::frontend::NodeContext& node)
 
 COMMON_OP_CONVERTER(translate_complex);
@@ -27,6 +25,9 @@ COMMON_OP_CONVERTER(translate_unsqueeze);
 OutputVector translate_atan2_util(const NodeContext& context, const Output<Node>& lhs, const Output<Node>& rhs);
 OutputVector translate_erfc_util(const NodeContext& context, const Output<Node>& data);
 
-}  // namespace common_translators
-}  // namespace frontend
-}  // namespace ov
+OutputVector translate_bincount_common(const NodeContext& context,
+                                       const Output<Node>& arr,
+                                       const Output<Node>& size,
+                                       const Output<Node>& weights = Output<Node>());
+
+}  // namespace ov::frontend::common_translators

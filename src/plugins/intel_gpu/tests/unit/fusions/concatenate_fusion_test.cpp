@@ -62,7 +62,7 @@ public:
         ASSERT_FALSE(network_fused_onednn.get_primitives_info().empty());
 
         auto find_and_check = [&](primitive_info& p) -> bool {
-            if (p.original_id == "concat" || p.original_id == "reorder_bfyx")
+            if (p.original_id == "concat" || p.original_id == "reorder_planar")
                 return true;
             return false;
         };
@@ -105,7 +105,7 @@ TEST_P(concat_onednn_activation, along_f) {
                       1,
                       data_types::f16),
         activation("act", input_info("concat"), activation_func::relu),
-        reorder("reorder_bfyx", input_info("act"), cldnn::format::bfyx, p.default_type)
+        reorder("reorder_planar", input_info("act"), p.default_format, p.default_type)
     );
 
     tolerance = 1.f;
@@ -126,7 +126,7 @@ TEST_P(concat_onednn_eltwise, along_f) {
                       1,
                       data_types::f16),
         eltwise("scale", { input_info("concat"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
-        reorder("reorder_bfyx", input_info("scale"), cldnn::format::bfyx, p.default_type)
+        reorder("reorder_planar", input_info("scale"), cldnn::format::bfyx, p.default_type)
     );
 
     tolerance = 1.f;
@@ -163,7 +163,7 @@ public:
         ASSERT_FALSE(network_fused.get_primitives_info().empty());
 
         auto find_and_check = [&](primitive_info& p) -> bool {
-            return p.original_id == "concat" || p.original_id == "reorder_bfyx";
+            return p.original_id == "concat" || p.original_id == "reorder_planar";
         };
 
         auto pi_fused = network_fused.get_primitives_info();
@@ -194,6 +194,8 @@ public:
 /* ----------------------------------------------------------------------------------------------------- */
 #define CASE_CONCAT_F32_1 { 1, 8, 4, 4 }, data_types::f32, format::bfyx, data_types::f32, format::bfyx
 #define CASE_CONCAT_F16_1 { 1, 8, 4, 4 }, data_types::f16, format::bfyx, data_types::f16, format::bfyx
+#define CASE_CONCAT_F16_7D { 1, 8, 2, 2, 2, 2, 2 }, data_types::f16, format::bfuwzyx, data_types::f16, format::bfuwzyx
+#define CASE_CONCAT_F16_8D { 1, 8, 2, 2, 2, 2, 2, 2 }, data_types::f16, format::bfvuwzyx, data_types::f16, format::bfvuwzyx
 
 class concat_activation : public ConcatFusingTest {};
 TEST_P(concat_activation, along_f) {
@@ -208,7 +210,7 @@ TEST_P(concat_activation, along_f) {
         concatenation("concat", { input_info("input0"), input_info("input1") }, 1, p.data_type),
         activation("act1", input_info("concat"), activation_func::round_half_to_even),
         activation("act2", input_info("act1"), activation_func::clamp, { -0.5f, 0.5f }),
-        reorder("reorder_bfyx", input_info("act2"), cldnn::format::bfyx, p.default_type)
+        reorder("reorder_planar", input_info("act2"), p.default_format, p.default_type)
     );
 
     tolerance = default_tolerance(p.data_type);
@@ -225,7 +227,7 @@ TEST_P(concat_eltwise_with_broadcast, along_f) {
         data("scale_data", get_mem(data_layout, 1.0f / tensor{ 1, 1, 4, 4 }.count())),
         concatenation("concat", { input_info("input0"), input_info("input1") }, 1, p.data_type),
         eltwise("scale", { input_info("concat"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
-        reorder("reorder_bfyx", input_info("scale"), cldnn::format::bfyx, p.default_type)
+        reorder("reorder_planar", input_info("scale"), p.default_format, p.default_type)
     );
 
     tolerance = default_tolerance(p.data_type);
@@ -244,7 +246,7 @@ TEST_P(concat_eltwise_wo_broadcast, along_f) {
         data("scale_data", get_mem(data_layout, 1.0f / tensor{ 1, 1, 4, 4 }.count())),
         concatenation("concat", { input_info("input0"), input_info("input1") }, 1, p.data_type),
         eltwise("scale", { input_info("concat"), input_info("scale_data") }, eltwise_mode::prod, p.default_type),
-        reorder("reorder_bfyx", input_info("scale"), cldnn::format::bfyx, p.default_type)
+        reorder("reorder_planar", input_info("scale"), p.default_format, p.default_type)
     );
 
     tolerance = default_tolerance(p.data_type);
@@ -264,7 +266,7 @@ TEST_P(concat_quantize, along_f) {
         concatenation("concat", { input_info("input0"), input_info("input1") }, 1, p.data_type),
         quantize("quantize", input_info("concat"), input_info("in_lo"), input_info("in_hi"),
                  input_info("out_lo"), input_info("out_hi"), 256, data_types::u8),
-        reorder("reorder_bfyx", input_info("quantize"), cldnn::format::bfyx, p.default_type)
+        reorder("reorder_planar", input_info("quantize"), p.default_format, p.default_type)
     );
 
     tolerance = 1.f;
@@ -274,19 +276,27 @@ TEST_P(concat_quantize, along_f) {
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, concat_activation, ::testing::ValuesIn(std::vector<concat_test_params>{
     concat_test_params{ CASE_CONCAT_F32_1, 3, 5, "" },
     concat_test_params{ CASE_CONCAT_F16_1, 3, 5, "" },
+    concat_test_params{ CASE_CONCAT_F16_7D, 3, 5, "" },
+    concat_test_params{ CASE_CONCAT_F16_8D, 3, 5, "" },
 }));
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, concat_eltwise_with_broadcast, ::testing::ValuesIn(std::vector<concat_test_params>{
     concat_test_params{ CASE_CONCAT_F32_1, 4, 4, "" },
     concat_test_params{ CASE_CONCAT_F16_1, 4, 4, "" },
+    concat_test_params{ CASE_CONCAT_F16_7D, 4, 4, "" },
+    concat_test_params{ CASE_CONCAT_F16_8D, 4, 4, "" },
 }));
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, concat_eltwise_wo_broadcast, ::testing::ValuesIn(std::vector<concat_test_params>{
     concat_test_params{ CASE_CONCAT_F32_1, 4, 4, "" },
     concat_test_params{ CASE_CONCAT_F16_1, 4, 4, "" },
+    concat_test_params{ CASE_CONCAT_F16_7D, 4, 4, "" },
+    concat_test_params{ CASE_CONCAT_F16_8D, 4, 4, "" },
 }));
 
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, concat_quantize, ::testing::ValuesIn(std::vector<concat_test_params>{
     concat_test_params{ CASE_CONCAT_F32_1, 4, 4, "" },
     concat_test_params{ CASE_CONCAT_F16_1, 4, 4, "" },
+    concat_test_params{ CASE_CONCAT_F16_7D, 4, 4, "" },
+    concat_test_params{ CASE_CONCAT_F16_8D, 4, 4, "" },
 }));

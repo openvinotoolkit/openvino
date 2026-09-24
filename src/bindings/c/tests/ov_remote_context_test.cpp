@@ -636,3 +636,61 @@ TEST_P(ov_remote_context_ocl, remote_tensor_nv12_inference) {
     ov_shape_free(&shape_y);
     ov_shape_free(&shape_uv);
 }
+
+TEST_P(ov_remote_context_ocl, compile_model_with_context_props) {
+    const char* context_type = "OCL";
+    OV_EXPECT_OK(ov_core_create_context(core,
+                                        "GPU",
+                                        6,
+                                        &context,
+                                        ov_property_key_intel_gpu_context_type,
+                                        context_type,
+                                        ov_property_key_intel_gpu_ocl_context,
+                                        cl_context.get(),
+                                        ov_property_key_intel_gpu_ocl_queue,
+                                        cl_queue.get()));
+    EXPECT_NE(nullptr, context);
+
+    const ov_property_t props[] = {{ov_property_key_hint_performance_mode, "LATENCY"}};
+    OV_EXPECT_OK(ov_core_compile_model_with_context_props(core, model, context, 1, props, &compiled_model));
+    EXPECT_NE(nullptr, compiled_model);
+
+    char* result = nullptr;
+    OV_EXPECT_OK(ov_compiled_model_get_property(compiled_model, ov_property_key_hint_performance_mode, &result));
+    EXPECT_STREQ("LATENCY", result);
+    ov_free(result);
+}
+
+TEST_P(ov_remote_context_ocl, compile_model_with_context_props_same_as_variadic) {
+    const char* context_type = "OCL";
+    OV_EXPECT_OK(ov_core_create_context(core,
+                                        "GPU",
+                                        6,
+                                        &context,
+                                        ov_property_key_intel_gpu_context_type,
+                                        context_type,
+                                        ov_property_key_intel_gpu_ocl_context,
+                                        cl_context.get(),
+                                        ov_property_key_intel_gpu_ocl_queue,
+                                        cl_queue.get()));
+    EXPECT_NE(nullptr, context);
+
+    // variadic path (0 properties)
+    ov_compiled_model_t* cm_variadic = nullptr;
+    OV_EXPECT_OK(ov_core_compile_model_with_context(core, model, context, 0, &cm_variadic));
+    EXPECT_NE(nullptr, cm_variadic);
+
+    // struct-array path (0 properties — must be equivalent)
+    OV_EXPECT_OK(ov_core_compile_model_with_context_props(core, model, context, 0, nullptr, &compiled_model));
+    EXPECT_NE(nullptr, compiled_model);
+
+    ov_compiled_model_free(cm_variadic);
+}
+
+TEST_P(ov_remote_context_ocl, compile_model_with_context_props_null_args) {
+    OV_EXPECT_NOT_OK(ov_core_compile_model_with_context_props(nullptr, model, context, 0, nullptr, &compiled_model));
+    OV_EXPECT_NOT_OK(ov_core_compile_model_with_context_props(core, nullptr, context, 0, nullptr, &compiled_model));
+    OV_EXPECT_NOT_OK(ov_core_compile_model_with_context_props(core, model, nullptr, 0, nullptr, &compiled_model));
+    OV_EXPECT_NOT_OK(ov_core_compile_model_with_context_props(core, model, context, 0, nullptr, nullptr));
+    OV_EXPECT_NOT_OK(ov_core_compile_model_with_context_props(core, model, context, 1, nullptr, &compiled_model));
+}

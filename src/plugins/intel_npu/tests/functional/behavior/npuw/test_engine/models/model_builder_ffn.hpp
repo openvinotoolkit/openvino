@@ -20,12 +20,14 @@ struct SwiGLU {
     size_t intermediate_size;
     ov::element::Type precision;
     WeightFn weight_fn;
+    const LoRAInjector* lora = nullptr;
 
-    SwiGLU(size_t hs, size_t is, ov::element::Type prec, WeightFn wf)
+    SwiGLU(size_t hs, size_t is, ov::element::Type prec, WeightFn wf, const LoRAInjector* l = nullptr)
         : hidden_size(hs),
           intermediate_size(is),
           precision(prec),
-          weight_fn(std::move(wf)) {}
+          weight_fn(std::move(wf)),
+          lora(l) {}
 
     ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
 };
@@ -36,13 +38,15 @@ struct GELU {
     ov::element::Type precision;
     WeightFn weight_fn;
     WeightFn bias_fn;
+    const LoRAInjector* lora = nullptr;
 
-    GELU(size_t hs, size_t is, ov::element::Type prec, WeightFn wf, WeightFn bf = {})
+    GELU(size_t hs, size_t is, ov::element::Type prec, WeightFn wf, WeightFn bf = {}, const LoRAInjector* l = nullptr)
         : hidden_size(hs),
           intermediate_size(is),
           precision(prec),
           weight_fn(std::move(wf)),
-          bias_fn(std::move(bf)) {}
+          bias_fn(std::move(bf)),
+          lora(l) {}
 
     ov::Output<ov::Node> operator()(const ov::Output<ov::Node>& input, const std::string& name) const;
 };

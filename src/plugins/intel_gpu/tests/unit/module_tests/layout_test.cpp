@@ -182,7 +182,7 @@ TEST_P(weights_layout_test, size_check) {
         ASSERT_EQ(ordered_dims[i], p.size[p.expected_order[i]]);
     }
 
-    if (p.expected_pitches.size() > 0)
+    if (!p.expected_pitches.empty())
         ASSERT_EQ(l.get_pitches(), p.expected_pitches);
     else {
         l.get_pitches();
@@ -208,6 +208,14 @@ struct layouts_cmp_test_params {
 };
 
 class layout_cmp_test : public testing::TestWithParam<layouts_cmp_test_params> { };
+
+TEST(layout_test, to_short_string_contains_padding_details) {
+    const auto l = layout{ov::PartialShape{1, 2, 3, 4}, data_types::f32, format::bfyx, padding{{1, 2, 3, 4}, {5, 6, 7, 8}}};
+    const auto str = l.to_short_string();
+
+    EXPECT_NE(str.find(":pad_l[1,2,3,4]"), std::string::npos);
+    EXPECT_NE(str.find(":pad_u[5,6,7,8]"), std::string::npos);
+}
 
 TEST_P(layout_cmp_test, basic) {
     auto p = GetParam();

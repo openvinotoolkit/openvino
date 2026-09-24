@@ -1,0 +1,37 @@
+ir_version: 12
+producer_name: "OpenVINO ONNX Frontend"
+graph {
+  name: "test"
+  initializer {
+    dims: 6
+    data_type: 24
+    int32_data: 127
+    int32_data: 128
+    int32_data: 126
+    int32_data: 129
+    int32_data: 125
+    int32_data: 255
+    name: "W"
+  }
+  node {
+    input: "W"
+    output: "V"
+    op_type: "Identity"
+  }
+  output {
+    name: "V"
+    type {
+      tensor_type {
+        elem_type: 24
+        shape {
+          dim {
+            dim_value: 6
+          }
+        }
+      }
+    }
+  }
+}
+opset_import {
+  version: 24
+}

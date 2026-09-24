@@ -186,7 +186,7 @@ std::string GroupedMatMulCompressedLayerTest::getTestCaseName(
     const testing::TestParamInfo<GroupedMatMulCompressedParams>& obj) {
     const auto& [shape_params, act_type, weights_prec, decomp_prec, scale_prec,
                  multiply_type, subtract_type, reshape_on_decomp, group_size,
-                 target_device, expected_primitive] = obj.param;
+                 target_device, expected_primitive, additional_config] = obj.param;
     const auto& [a_input_shape, b_shape, tokens_per_expert] = shape_params;
 
     OPENVINO_ASSERT(a_input_shape.first.rank().is_static());
@@ -202,13 +202,18 @@ std::string GroupedMatMulCompressedLayerTest::getTestCaseName(
     result << "Reshape=" << reshape_on_decomp << "_";
     result << "GrpSz=" << group_size << "_";
     result << "targetDevice=" << target_device;
+    result << "config=(";
+    for (const auto& configEntry : additional_config) {
+        result << configEntry.first << "=" << configEntry.second.as<std::string>() << "_";
+    }
+    result << ")";
     return result.str();
 }
 
 void GroupedMatMulCompressedLayerTest::SetUp() {
     const auto& [shape_params, act_type, weights_prec, decomp_prec, scale_prec,
                  multiply_type, subtract_type, reshape_on_decomp, group_size,
-                 _targetDevice, expected_primitive] = GetParam();
+                 _targetDevice, expected_primitive, additional_config] = GetParam();
     shape_params_ = shape_params;
     act_type_ = act_type;
     model_name_ = "GroupedMatMulCompressed";
@@ -221,6 +226,7 @@ void GroupedMatMulCompressedLayerTest::SetUp() {
     reshape_on_decomp_ = reshape_on_decomp;
     group_size_ = group_size;
     targetDevice = _targetDevice;
+    configuration.insert(additional_config.begin(), additional_config.end());
     GroupedMatMulTestBase::SetUp();
 
     // Loosen tolerance for low-bit weight-compressed variants; dequantization

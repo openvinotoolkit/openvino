@@ -200,6 +200,12 @@ public:
     OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::CachePositionInput");
 
     CachePositionInput(std::shared_ptr<ov::Model> model) {
+        // Here the past length is folded into Range's start:
+        //
+        //   Gather ---------------+
+        //          \              +-> Range -> Unsqueeze -> Tile
+        //           -> Add -------+
+        //
         auto gather = opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
         auto add = opp::wrap_type<ov::op::v1::Add>({gather, opp::any_input()});
         auto range = opp::wrap_type<ov::op::v4::Range>({gather, add, opp::any_input()});
@@ -224,6 +230,54 @@ public:
                     cache_pos_unsqueeze_arg = cache_position;
                 }
 
+                matched_unsqueeze->input(0).replace_source_output(cache_pos_unsqueeze_arg->output(0));
+                return false;
+            });
+    }
+};
+
+class CachePositionInput_2 : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("npuw::LLMCompiledModel::CachePositionInput_2");
+
+    CachePositionInput_2(std::shared_ptr<ov::Model> model) {
+        // transformers>=5.4 aranges from zero and adds the past length on top of it instead of
+        // folding it into Range's start as CachePositionInput above expects:
+        //
+        //   Range -> Add -> Unsqueeze -> Tile
+        //
+        auto range = opp::wrap_type<ov::op::v4::Range>();
+        auto add = opp::wrap_type<ov::op::v1::Add>({range, opp::any_input()});
+        auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({add, opp::any_input()});
+        auto tile = opp::wrap_type<ov::op::v0::Tile>({unsqueeze, opp::any_input()});
+
+        register_matcher(
+            std::make_shared<opp::Matcher>(tile, this->get_type_info().name),
+            [model, unsqueeze](opp::Matcher& m) {
+                // Both patterns are rooted at Tile and neither claims the node it matched, so
+                // GraphRewrite offers every Tile to both. Exactly one matches per model, but a
+                // second match would add a second parameter named cache_position, of which only
+                // the first would ever be found again.
+                OPENVINO_ASSERT(!ov::npuw::util::has_input(model, "cache_position"),
+                                "More than one subgraph matched a cache position pattern");
+
+                auto& node_to_output = m.get_pattern_value_map();
+                auto unsqueeze_node = node_to_output.at(unsqueeze).get_node_shared_ptr();
+                auto matched_unsqueeze = std::static_pointer_cast<ov::op::v0::Unsqueeze>(unsqueeze_node);
+
+                auto cache_position = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1});
+                cache_position->get_output_tensor(0).set_names({"cache_position"});
+                cache_position->set_friendly_name("cache_position");
+                model->add_parameters({cache_position});
+                std::shared_ptr<ov::Node> cache_pos_unsqueeze_arg;
+                if (matched_unsqueeze->input(0).get_element_type() == ov::element::f32) {
+                    cache_pos_unsqueeze_arg = std::make_shared<ov::op::v0::Convert>(cache_position, ov::element::f32);
+                } else {
+                    cache_pos_unsqueeze_arg = cache_position;
+                }
+
+                // cache_position is already absolute, so the matched Add is dropped with the
+                // rest of the replaced subgraph.
                 matched_unsqueeze->input(0).replace_source_output(cache_pos_unsqueeze_arg->output(0));
                 return false;
             });
@@ -655,6 +709,7 @@ void add_attention_mask_input(const std::shared_ptr<ov::Model>& model,
 void add_cache_position_input(const std::shared_ptr<ov::Model>& model) {
     ov::pass::GraphRewrite rewr;
     rewr.add_matcher<CachePositionInput>(model);
+    rewr.add_matcher<CachePositionInput_2>(model);  // transformers>=5.4
     rewr.run_on_model(model);
 
     ov::pass::Validate().run_on_model(model);

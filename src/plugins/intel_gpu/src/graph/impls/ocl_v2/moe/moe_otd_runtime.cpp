@@ -32,8 +32,9 @@ void OtdPerfCounters::dump() const {
 
 OtdPerfCounters* get_perf_counters() {
     static bool enabled = std::getenv("MOE_OTD_PERF_LOG") != nullptr;
-    if (!enabled)
+    if (!enabled) {
         return nullptr;
+    }
 
     static OtdPerfCounters counters;
     static bool registered = [] {
@@ -103,6 +104,34 @@ void maybe_transpose_scale_zp(const cldnn::MOECompressed::Config& config,
         return;
     }
 
+    // ZP handling: u4 (packed 4-bit) requires unpack/transpose/repack;
+    // u8 (INT8) is 1 byte per element, transposed like scales.
+    const auto zp_et = ov::element::Type(layout.data_type);
+    const size_t zp_bitwidth = zp_et.bitwidth();
+    if (zp_bitwidth >= 8) {
+        // u8 or larger: transpose like scale (1+ bytes per element)
+        const size_t byte_per_elem = zp_bitwidth / 8;
+        OPENVINO_ASSERT(elem_count * byte_per_elem == per_expert_size,
+                        "Unexpected zp payload size for offset_pos=",
+                        offset_pos,
+                        ", expected=",
+                        elem_count * byte_per_elem,
+                        ", got=",
+                        per_expert_size);
+
+        std::vector<uint8_t> transposed(per_expert_size, 0);
+        for (size_t o = 0; o < oc; o++) {
+            for (size_t g = 0; g < group_count; g++) {
+                const size_t src_idx = o * group_count + g;
+                const size_t dst_idx = g * oc + o;
+                std::memcpy(transposed.data() + dst_idx * byte_per_elem, payload.data() + src_idx * byte_per_elem, byte_per_elem);
+            }
+        }
+        payload.swap(transposed);
+        return;
+    }
+
+    // u4 packed: 2 elements per byte
     OPENVINO_ASSERT(elem_count % 2 == 0, "Unexpected odd element count for packed zp offset_pos=", offset_pos, ", elem_count=", elem_count);
     OPENVINO_ASSERT(elem_count / 2 == per_expert_size,
                     "Unexpected zp payload size for offset_pos=",
@@ -165,8 +194,9 @@ void fill_weights_memory(cldnn::stream& exec_stream,
     for (uint32_t expert : experts_list) {
         auto make_tensor_fill_plan = [&](size_t base_offset, cldnn::memory_ptr mem, size_t expert_no, size_t lru_expert_no, const char* tensor_name) {
             tensor_fill_plan plan;
-            if (!mem)
+            if (!mem) {
                 return plan;
+            }
             const auto total_bytes = mem->get_layout().bytes_count();
             OPENVINO_ASSERT(num_expert > 0, "Invalid expert count");
             plan.per_expert_size = total_bytes / num_expert;

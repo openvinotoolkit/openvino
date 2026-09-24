@@ -11,10 +11,7 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 
 OutputVector translate_gather_tree_op(const NodeContext& node) {
     default_op_checks(node, 4, {"GatherTree", "Addons>GatherTree"});
@@ -33,7 +30,4 @@ OutputVector translate_gather_tree_op(const NodeContext& node) {
     return {gather_tree};
 }
 
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

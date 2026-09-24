@@ -9,9 +9,7 @@
 
 #include "internal_operation.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
+namespace ov::frontend::tensorflow {
 
 class UnsupportedConstant : public InternalOperation {
 public:
@@ -33,6 +31,4 @@ public:
     }
 };
 
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow

@@ -20,6 +20,7 @@ RUN apt-get update && \
     apt-get install \
         curl \
         git \
+        git-lfs \
         ca-certificates \
         gpg-agent \
         tzdata \

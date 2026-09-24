@@ -7,6 +7,7 @@
 #include <oneapi/dnnl/dnnl_common_types.h>
 #include <oneapi/dnnl/dnnl_types.h>
 
+#include <common/primitive_hashing.hpp>
 #include <common/primitive_hashing_utils.hpp>
 #include <common/utils.hpp>
 #include <cstddef>
@@ -519,7 +520,7 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
             auto* input_ptr = m_tmpInpBuffer->getDataAs<uint8_t>();
             auto* output_ptr = input_ptr + rnd_up(m_tmpInputDesc->getCurrentMemSize(), 64);
 
-            Memory tmpInput(m_context->getEngine(), m_tmpInputDesc, input_ptr);
+            Memory tmpInput(m_context->getEngine(), m_tmpInputDesc, m_tmpInpBuffer->getMemoryBlock());
             Memory tmpOutput(m_context->getEngine(), m_tmpOutputDesc, output_ptr);
 
             auto tmp_input_offset = OffsetHelper::createOffsetHelper(tmpInput);

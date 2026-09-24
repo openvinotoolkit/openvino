@@ -32,10 +32,11 @@ JitConstants ExtractImagePatchesKernelBase::GetJitConstants(const extract_image_
         MakeJitConstant("RATES_ROWS", params.rates[0]),
         MakeJitConstant("RATES_COLS", params.rates[1]),
     });
-    if (params.auto_pad == "same_upper")
+    if (params.auto_pad == "same_upper") {
         jit.AddConstant(MakeJitConstant("AUTO_PAD", 1));
-    else if (params.auto_pad == "same_lower")
+    } else if (params.auto_pad == "same_lower") {
         jit.AddConstant(MakeJitConstant("AUTO_PAD", 2));
+    }
 
     return jit;
 }

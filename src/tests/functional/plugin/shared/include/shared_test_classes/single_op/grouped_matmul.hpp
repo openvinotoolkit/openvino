@@ -76,7 +76,8 @@ using GroupedMatMulCompressedParams = std::tuple<
     bool,                                    // reshape_on_decompression
     int,                                     // decompression_group_size (-1 = per-OC)
     std::string,                             // target device
-    std::string                              // expected ov op type in the executed network (empty = skip check)
+    std::string,                             // expected ov op type in the executed network (empty = skip check)
+    ov::AnyMap                               // additional plugin configuration (e.g. dynamic_quantization_group_size)
 >;
 
 class GroupedMatMulCompressedLayerTest

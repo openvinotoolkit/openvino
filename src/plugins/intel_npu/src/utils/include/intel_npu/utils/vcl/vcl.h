@@ -22,7 +22,7 @@ extern "C" {
 #endif
 
 #define VCL_COMPILER_VERSION_MAJOR 7
-#define VCL_COMPILER_VERSION_MINOR 8
+#define VCL_COMPILER_VERSION_MINOR 10
 #define VCL_PROFILING_VERSION_MAJOR 2
 #define VCL_PROFILING_VERSION_MINOR 0
 
@@ -246,35 +246,16 @@ VCL_APIEXPORT vcl_result_t VCL_APICALL vclQueryNetworkDestroy(vcl_query_handle_t
 VCL_APIEXPORT vcl_result_t VCL_APICALL vclExecutableCreate(vcl_compiler_handle_t compiler, vcl_executable_desc_t desc,
                                                            vcl_executable_handle_t* executable);
 
-DEPRECATED typedef struct __vcl_allocator_t {
-    uint8_t* (*allocate)(uint64_t);
-    void (*deallocate)(uint8_t*);
-} vcl_allocator_t;
-
 typedef struct __vcl_allocator2_t {
     uint8_t* (*allocate)(struct __vcl_allocator2_t*, uint64_t);
     void (*deallocate)(struct __vcl_allocator2_t*, uint8_t*);
 } vcl_allocator2_t;
-
-DEPRECATED VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreate(vcl_compiler_handle_t compiler,
-                                                                               vcl_executable_desc_t desc,
-                                                                               vcl_allocator_t const* allocator,
-                                                                               uint8_t** blobBuffer,
-                                                                               uint64_t* blobSize);
 
 VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreate2(vcl_compiler_handle_t compiler,
                                                                      vcl_executable_desc_t desc,
                                                                      vcl_allocator2_t* allocator,
                                                                      uint8_t** blobBuffer,
                                                                      uint64_t* blobSize);
-
-DEPRECATED VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreate3(vcl_compiler_handle_t compiler,
-                                                                                vcl_executable_desc_t desc,
-                                                                                vcl_allocator2_t* allocator,
-                                                                                uint8_t** blobBuffer,
-                                                                                uint64_t* blobSize,
-                                                                                uint8_t** compatibilityStringBuffer,
-                                                                                uint64_t* compatibilityStringSize);
 
 VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreate4(vcl_compiler_handle_t compiler,
                                                                      vcl_executable_desc_t desc,
@@ -296,6 +277,13 @@ VCL_APIEXPORT vcl_result_t VCL_APICALL vclExecutableGetCompatibilityString(vcl_e
 VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreateWSOneShot(vcl_compiler_handle_t compiler,
                                                                              vcl_executable_desc_t desc,
                                                                              vcl_allocator2_t* allocator);
+
+/// @brief Creates weight-separated blobs and returns an executable handle for compatibility-string queries.
+/// @details The returned handle must be released with \b vclExecutableDestroy.
+VCL_APIEXPORT vcl_result_t VCL_APICALL vclAllocatedExecutableCreateWSOneShot2(vcl_compiler_handle_t compiler,
+                                                                              vcl_executable_desc_t desc,
+                                                                              vcl_allocator2_t* allocator,
+                                                                              vcl_executable_handle_t* executable);
 
 ///////////////////////////////////////////////////////////////////////////////
 /// @brief Destroys the executable and releases the cached blob.

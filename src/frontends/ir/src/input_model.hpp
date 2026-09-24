@@ -13,9 +13,11 @@
 #include "openvino/frontend/visibility.hpp"
 #include "openvino/runtime/aligned_buffer.hpp"
 
-namespace ov {
-namespace frontend {
-namespace ir {
+namespace ov::util {
+class WeightsProvider;
+}
+
+namespace ov::frontend::ir {
 
 class InputModel : public ov::frontend::InputModel {
     class InputModelIRImpl;
@@ -23,18 +25,16 @@ class InputModel : public ov::frontend::InputModel {
 
 public:
     InputModel(std::istream& stream,
-               const std::shared_ptr<ov::AlignedBuffer>& weights,
+               std::shared_ptr<ov::util::WeightsProvider> weights_provider,
                const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
                std::filesystem::path weights_path = {});
 
     InputModel(const std::shared_ptr<ov::AlignedBuffer>& model_buf,
-               const std::shared_ptr<ov::AlignedBuffer>& weights,
+               std::shared_ptr<ov::util::WeightsProvider> weights_provider,
                const std::unordered_map<ov::DiscreteTypeInfo, ov::BaseOpExtension::Ptr>& extensions,
                std::filesystem::path weights_path = {});
 
     std::shared_ptr<Model> convert();
 };
 
-}  // namespace ir
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::ir

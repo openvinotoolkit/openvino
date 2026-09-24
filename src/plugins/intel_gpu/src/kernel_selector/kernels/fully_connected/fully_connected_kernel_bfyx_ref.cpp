@@ -24,6 +24,7 @@ ParamsKey FullyConnected_bfyx_Ref::GetSupportedKey() const {
     k.EnableInputWeightsType(WeightsType::F32);
     k.EnableInputWeightsType(WeightsType::UINT8);
     k.EnableInputWeightsType(WeightsType::INT8);
+    k.EnableInputWeightsType(WeightsType::UINT2);
     k.EnableInputWeightsType(WeightsType::UINT4);
     k.EnableInputWeightsType(WeightsType::INT4);
     k.EnableAllInputLayout();
@@ -74,21 +75,25 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
                                   ? Datatype::F32
                                   : GetAccumulatorType(params);
     Datatype activation_dt = GetActivationType(params);
-    if (params.outputs[0].GetLayout() == DataLayout::bfyx)
+    if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
         jit.AddConstant(MakeJitConstant("OUTPUT_3D", true));
+    }
     jit.Merge(MakeTypeJitConstants(activation_dt, "ACTIVATION"));
     jit.Merge(MakeTypeJitConstants(accumulator_dt, "ACCUMULATOR"));
     jit.Merge(MakeActivationJitConstants(params.activations, activation_dt, "_TYPED"));
 
     auto wt = params.weights.GetDType();
     if (wt == WeightsType::UINT4 || wt == WeightsType::INT4) {
-        jit.Merge(make_int4_packed_type_jit_constant("INT4_PACKED_TYPE", wt, 2));
+        jit.Merge(make_sub_byte_packed_type_jit_constant("INT4_PACKED_TYPE", wt, 2));
+    } else if (wt == WeightsType::UINT2) {
+        jit.Merge(make_sub_byte_packed_type_jit_constant("UINT2_PACKED_TYPE", wt, 4));
     }
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order = { "b", "ofm", "0", "0" };
-        if (params.outputs[0].GetLayout() == DataLayout::bfyx)
+        if (params.outputs[0].GetLayout() == DataLayout::bfyx) {
             idx_order = { "b", "ofm", "oym", "0" };
+        }
         FusedOpsConfiguration conf = { "", idx_order, "dequantized", activation_dt, 1 };
         jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
     }
@@ -96,7 +101,7 @@ JitConstants FullyConnected_bfyx_Ref::GetJitConstants(const fully_connected_para
 }
 
 KernelsData FullyConnected_bfyx_Ref::GetKernelsData(const Params& params) const {
-    auto& fc_params = static_cast<const fully_connected_params&>(params);
+    const auto& fc_params = static_cast<const fully_connected_params&>(params);
     KernelsData res = {};
     for (size_t i = 0; i < autoTuneOptions.size(); i++) {
         KernelsData kd = GetTunedKernelsDataByIndex(
@@ -113,15 +118,17 @@ KernelsData FullyConnected_bfyx_Ref::GetKernelsData(const Params& params) const 
 }
 
 bool FullyConnected_bfyx_Ref::Validate(const Params& params) const {
-    if (!Parent::Validate(params))
+    if (!Parent::Validate(params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     // int8 validation
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
 
     // We don't support 4d output
-    if (fc_params.outputs[0].GetLayout() == DataLayout::bfyx && fc_params.outputs[0].X().v > 1)
+    if (fc_params.outputs[0].GetLayout() == DataLayout::bfyx && fc_params.outputs[0].X().v > 1) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     return true;
 }

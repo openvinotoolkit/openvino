@@ -30,17 +30,18 @@ enum StreamCreateType {
  * @param[in]  streams_info_table streams information table
  * @param[out]  stream_type stream create type
  * @param[out]  concurrency the number of threads created at the same time
- * @param[out]  core_type core type
+ * @param[out]  core_types core types used for thread binding
  * @param[out]  numa_node_id numa node id
+ * @param[out]  socket_id socket id
  * @param[out]  max_threads_per_core the max number of threads per cpu core
  */
 void get_cur_stream_info(const int stream_id,
                          const bool cpu_pinning,
-                         const std::vector<std::vector<int>> org_proc_type_table,
-                         const std::vector<std::vector<int>> streams_info_table,
+                         const std::vector<std::vector<int>>& org_proc_type_table,
+                         const std::vector<std::vector<int>>& streams_info_table,
                          StreamCreateType& stream_type,
                          int& concurrency,
-                         int& core_type,
+                         std::vector<int>& core_types,
                          int& numa_node_id,
                          int& socket_id,
                          int& max_threads_per_core);
@@ -72,6 +73,28 @@ void reserve_cpu_by_streams_info(const std::vector<std::vector<int>> _streams_in
 void update_proc_type_table(const std::vector<std::vector<int>> _cpu_mapping_table,
                             const int _numa_nodes,
                             std::vector<std::vector<int>>& _proc_type_table);
+
+/**
+ * @brief      Select the processor group a stream's worker thread is soft-bound to when spreading
+ *             work across Windows processor groups (machines with more than 64 logical processors).
+ *
+ * Distribution is per worker thread, not per stream: a single stream whose concurrency exceeds one
+ * group's core count is spread across several groups so all cores are used. Streams are offset by
+ * stream_id so that many single-thread streams still fan out across groups.
+ *
+ * @param[in]  stream_id the stream index, used as the per-stream group offset
+ * @param[in]  thread_index the worker thread's slot index within the stream's arena
+ * @param[in]  group_count the number of active processor groups
+ * @return     the target processor group id in [0, group_count), or -1 when group_count <= 1
+ *             (single group / no distribution needed)
+ */
+int get_thread_processor_group(int stream_id, int thread_index, int group_count);
+
+/**
+ * @brief      Get the number of active processor groups on the system.
+ * @return     the number of Windows processor groups, or 1 on platforms without processor groups
+ */
+int get_num_processor_groups();
 
 }  // namespace threading
 }  // namespace ov

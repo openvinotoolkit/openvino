@@ -42,9 +42,11 @@ static unsigned int GetOfmPerSimd(const lrn_params& params) {
 
     if ((output.Feature().v % 8 == 0) && local_size > 4) {
         return 8;
-    } else if ((output.Feature().v % 4 == 0) && local_size > 2) {
+    }
+    if ((output.Feature().v % 4 == 0) && local_size > 2) {
         return 4;
-    } else if ((output.Feature().v % 2 == 0) && local_size > 1) {
+    }
+    if ((output.Feature().v % 2 == 0) && local_size > 1) {
         return 2;
     }
 

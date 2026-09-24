@@ -85,6 +85,20 @@ on:
         type: boolean
         required: false
         default: true
+      build-samples:
+        description: 'Whether to build OpenVINO C++/C samples and include them in the OpenVINO package'
+        type: boolean
+        required: false
+        default: false
+      generate-gguf-fixtures:
+        description: 'Whether to generate the GGUF per-architecture test fixtures from llama.cpp into the tests artifact. Off by default: only useful where this build feeds job_cxx_unit_tests.yml'
+        type: boolean
+        required: false
+        default: false
+      cmake-build-parallel-level:
+        description: 'Number of threads for parallel build (hard-coded; nproc and NUMBER_OF_PROCESSORS do not respect container CPU limits)'
+        type: string
+        required: true
 
 permissions: read-all
 
@@ -132,11 +146,15 @@ jobs:
       COVERAGE_NOTES_DIR: ${{ github.workspace }}/coverage_build_notes
       PIP_INDEX_URL: ${{ contains(inputs.runner, 'aks') && 'http://pip-proxy.pip-proxy.svc.cluster.local/simple/' || '' }}
       PIP_TRUSTED_HOST: ${{ contains(inputs.runner, 'aks') && 'pip-proxy.pip-proxy.svc.cluster.local' || '' }}
+      # Hard-coded at workflow call site; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
+      # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
+      CMAKE_BUILD_PARALLEL_LEVEL: ${{ inputs.cmake-build-parallel-level }}
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
         shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
+          # nosemgrep: yaml.github-actions.security.audit.unsafe-add-mask-workflow-command.unsafe-add-mask-workflow-command
           echo "::add-mask::${SCCACHE_AZURE_CONNECTION_STRING}"
           echo "SCCACHE_AZURE_CONNECTION_STRING=${SCCACHE_AZURE_CONNECTION_STRING}" >> $GITHUB_ENV
           echo "✓ Connection string loaded and masked"
@@ -151,7 +169,7 @@ jobs:
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
-          submodules: 'true'
+          submodules: 'recursive'
 
       - name: Clone OpenVINO
         if: ${{ inputs.os != 'fedora_29' }}
@@ -159,7 +177,7 @@ jobs:
         timeout-minutes: 15
         with:
           path: ${{ env.OPENVINO_REPO }}
-          submodules: 'true'
+          submodules: 'recursive'
 
       # Ticket: 139627
       - name: Checkout the latest OneDNN for GPU in nightly
@@ -229,15 +247,16 @@ jobs:
       #
 
       - name: CMake configure - OpenVINO
-        run: eval cmake ${{ env.CMAKE_OPTIONS }} -S ${{ env.OPENVINO_REPO }} -B ${{ env. BUILD_DIR }}
+        run: eval cmake ${{ env.CMAKE_OPTIONS }} -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}
         env:
-          CMAKE_OPTIONS: ${{ inputs.cmake-options }}
+          CMAKE_OPTIONS: ${{ inputs.cmake-options }} -DENABLE_SAMPLES=${{ inputs.build-samples && 'ON' || 'OFF' }}
 
       - name: Clean sccache stats
         run: ${SCCACHE_PATH} --zero-stats
 
       - name: Cmake build - OpenVINO
-        run: cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+        id: cmake_build_openvino
+        run: cmake --build ${BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
       - name: Show sccache stats
         run: ${SCCACHE_PATH} --show-stats
@@ -248,11 +267,37 @@ jobs:
           cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_TEST_DIR} --component tests
           cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${DEVELOPER_PACKAGE_DIR} --component developer_package
 
+      # Samples are built by the main build (ENABLE_SAMPLES=ON); install their binaries into the package
+      - name: Install OpenVINO samples
+        if: ${{ inputs.build-samples }}
+        run: cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_DIR} --component samples_bin
+
+      # The GGUF per-architecture fixtures are GGUF headers emitted by llama.cpp's test-llama-archs.
+      # They are generated here rather than committed, and land in the tests artifact so the test job
+      # (which has neither a source checkout nor cmake) can consume them like any other test data.
+      # Where they are absent the arch test suite skips itself, so this is test data, not a build
+      # dependency -- which is what keeps llama.cpp out of OpenVINO's dependency graph.
+      #
+      # llama.cpp is pinned inside gen_arch_fixtures.py and only moves when the fixtures are
+      # deliberately refreshed: the generator writes whatever KVs llama.cpp currently defines, so
+      # following upstream would change every fixture's bytes -- and break the pinned graph
+      # fingerprints -- on an unrelated llama.cpp commit.
+      - name: Generate GGUF arch fixtures
+        if: ${{ inputs.generate-gguf-fixtures && fromJSON(inputs.affected-components).GGUF_FE.test }}
+        run: |
+          python3 -m pip install --no-cache-dir gguf
+          python3 ${OPENVINO_REPO}/src/frontends/gguf/tests/gen_arch_fixtures.py \
+            --fetch \
+            --out-dir ${INSTALL_TEST_DIR}/tests/test_data/arch_fixtures \
+            -j ${CMAKE_BUILD_PARALLEL_LEVEL}
+
       - name: Install Python wheels for the main Python
+        id: install_python_wheels
         if: ${{ ! inputs.build-additional-python-packages }}
         run: cmake --install ${BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_WHEELS_DIR} --component python_wheels
 
       - name: Build Python API and wheels
+        id: build_python_wheels
         if: ${{ inputs.build-additional-python-packages }}
         run: |
           for py_version in "3.10" "3.11" "3.12" "3.13" "3.14" "3.14t"
@@ -267,7 +312,7 @@ jobs:
             $python_exec_path -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
 
             CMAKE_OPTIONS="-DPython3_EXECUTABLE=$python_exec_path -DENABLE_PYTHON=ON -DENABLE_WHEEL=ON -DOpenVINODeveloperPackage_DIR=${BUILD_DIR}"
-            if [[ "${OS}" == 'debian_10' ]]; then
+            if [[ "${ARCH}" == 'arm' ]]; then
               echo "Adding ARM specific CMake options"
               CMAKE_OPTIONS+=" -DCMAKE_TOOLCHAIN_FILE=${{ env.OPENVINO_REPO }}/cmake/arm.toolchain.cmake -DPYTHON_MODULE_EXTENSION=$(/opt/python${py_version}_arm/bin/python${py_version}-config --extension-suffix) -DPython3_INCLUDE_DIR=/opt/python${py_version}_arm/include/python${py_version}"
             fi
@@ -277,26 +322,30 @@ jobs:
             fi
 
             cmake ${CMAKE_OPTIONS} -S ${OPENVINO_REPO}/src/bindings/python -B ${PY_BUILD_DIR}
-            cmake --build ${PY_BUILD_DIR} --parallel $(nproc) -- --quiet
+            cmake --build ${PY_BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} -- --quiet
             cmake --install ${PY_BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_DIR} --component pyopenvino_python$py_version
             cmake --install ${PY_BUILD_DIR} --config ${{ env.CMAKE_BUILD_TYPE }} --prefix ${INSTALL_WHEELS_DIR} --component python_wheels
           done
         env:
-          OS: ${{ inputs.os }}
+          ARCH: ${{ inputs.arch }}
 
       - name: Pack openvino_package
+        id: pack_openvino_package
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_package.tar.gz
         working-directory: ${{ env.INSTALL_DIR }}
 
       - name: Pack openvino_developer_package
+        id: pack_openvino_developer_package
         run: tar -cvf - * | pigz > ${BUILD_DIR}/developer_package.tar.gz
         working-directory: ${{ env.DEVELOPER_PACKAGE_DIR }}/developer_package
 
       - name: Pack openvino_tests
+        id: pack_openvino_tests
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_tests.tar.gz
         working-directory: ${{ env.INSTALL_TEST_DIR }}
 
       - name: Capture coverage notes for main build
+        id: capture_coverage_main
         if: ${{ inputs.upload-coverage-notes }}
         run: |
           rm -rf "${COVERAGE_NOTES_DIR}/main-build"
@@ -307,6 +356,7 @@ jobs:
           )
 
       - name: Build Debian packages
+        id: build_debian_packages
         if: ${{ inputs.build-debian-packages }}
         env:
           OS: ${{ inputs.os }}
@@ -316,16 +366,18 @@ jobs:
           [[ "${OS}" == "ubuntu_24_04" || "${OS}" == "ubuntu_26_04" ]] && python_exec=/venv/bin/python3 || python_exec=/usr/bin/python3
           $python_exec -m pip install -U pip
           $python_exec -m pip install -r ${OPENVINO_REPO}/src/bindings/python/wheel/requirements-dev.txt
+          # Debian packages always ship the openvino-samples package, so enable samples regardless of build-samples
           cmake -UPython* -U_Python* -UPYTHON* \
                 -UTBB* \
                 -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_PYTHON_PACKAGING=ON \
                 -DENABLE_WHEEL=OFF \
                 -DENABLE_TESTS=OFF \
+                -DENABLE_SAMPLES=ON \
                 -DPython3_EXECUTABLE=$python_exec \
                 -DCPACK_GENERATOR=DEB \
                 ${BUILD_DIR}
-          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} --target package -- --quiet
+          cmake --build ${BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} --config ${{ env.CMAKE_BUILD_TYPE }} --target package -- --quiet
 
       - name: Cmake & Build - OpenVINO Contrib
         if: ${{ inputs.build-contrib }}
@@ -336,24 +388,27 @@ jobs:
             -DENABLE_WHEEL=OFF \
             -S ${OPENVINO_REPO} \
             -B ${BUILD_DIR}
-          cmake --build ${BUILD_DIR} --parallel $(nproc) --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
+          cmake --build ${BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
       - name: CMake configure, build and install - OpenVINO JS API
+        id: build_openvino_js
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
         run: |
           cmake -UTBB* -S ${OPENVINO_REPO} -B ${BUILD_DIR} \
                 -DCPACK_GENERATOR=NPM \
                 -DENABLE_SYSTEM_TBB=OFF \
                 -DENABLE_WHEEL=OFF
-          cmake --build ${BUILD_DIR} --parallel $(nproc) -- --quiet
+          cmake --build ${BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} -- --quiet
           cmake --install ${BUILD_DIR} --prefix ${INSTALL_DIR_JS}
 
       - name: Pack openvino_js_package
+        id: pack_openvino_js_package
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
         run: tar -cvf - * | pigz > ${BUILD_DIR}/openvino_js_package.tar.gz
         working-directory: ${{ env.INSTALL_DIR_JS }}
 
       - name: Pack openvino_node_npm_package
+        id: pack_openvino_node_npm_package
         if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
         run: |
           npm i
@@ -362,6 +417,7 @@ jobs:
         working-directory: ${{ env.OPENVINO_REPO }}/src/bindings/js/node
 
       - name: Capture coverage notes for JS build
+        id: capture_coverage_js
         if: ${{ inputs.upload-coverage-notes && fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
         run: |
           mkdir -p "${COVERAGE_NOTES_DIR}/js-build"
@@ -371,16 +427,19 @@ jobs:
           )
 
       - name: Build RPM packages
+        id: build_rpm_packages
         if: ${{ inputs.build-rpm-packages }}
         run: |
+          # RPM packages always ship the openvino-samples package, so enable samples regardless of build-samples
           cmake -UTBB* \
                 -DCPACK_GENERATOR=RPM \
                 -DENABLE_SYSTEM_TBB=ON \
                 -DENABLE_PYTHON_PACKAGING=ON \
                 -DENABLE_WHEEL=OFF \
                 -DENABLE_TESTS=OFF \
+                -DENABLE_SAMPLES=ON \
                 ${BUILD_DIR}
-          cmake --build ${BUILD_DIR} --parallel $(nproc) --target package -- --quiet
+          cmake --build ${BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} --target package -- --quiet
 
       #
       # Upload build artifacts and logs
@@ -395,14 +454,14 @@ jobs:
 
       - name: Upload compile_commands
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
-        if: always()
+        if: steps.cmake_build_openvino.outcome == 'success'
         with:
           name: compile_commands_${{ inputs.os }}_${{ inputs.arch }}
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
       - name: Upload OpenVINO package
-        if: ${{ always() }}
+        if: steps.pack_openvino_package.outcome == 'success'
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: openvino_package
@@ -410,7 +469,7 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO wheels
-        if: ${{ inputs.os != 'debian_10' && inputs.arch != 'arm' }}
+        if: ${{ inputs.arch != 'arm' && (steps.install_python_wheels.outcome == 'success' || steps.build_python_wheels.outcome == 'success') }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: openvino_wheels
@@ -418,7 +477,7 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO js package
-        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
+        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js && steps.pack_openvino_js_package.outcome == 'success' }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: openvino_js_package
@@ -426,7 +485,7 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload openvino-node NPM package
-        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}
+        if: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js && steps.pack_openvino_node_npm_package.outcome == 'success' }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: openvino_node_npm_package
@@ -434,7 +493,7 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO developer package
-        if: ${{ always() }}
+        if: steps.pack_openvino_developer_package.outcome == 'success'
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: openvino_developer_package
@@ -442,7 +501,7 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO RPM packages
-        if: ${{ inputs.build-rpm-packages }}
+        if: ${{ inputs.build-rpm-packages && steps.build_rpm_packages.outcome == 'success' }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: openvino_rpm_packages
@@ -450,7 +509,7 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO debian packages
-        if: ${{ inputs.build-debian-packages }}
+        if: ${{ inputs.build-debian-packages && steps.build_debian_packages.outcome == 'success' }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: openvino_debian_packages
@@ -458,7 +517,7 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload OpenVINO tests package
-        if: ${{ always() }}
+        if: steps.pack_openvino_tests.outcome == 'success'
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: openvino_tests
@@ -466,7 +525,7 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Upload coverage build notes
-        if: ${{ inputs.upload-coverage-notes }}
+        if: ${{ inputs.upload-coverage-notes && steps.capture_coverage_main.outcome == 'success' }}
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
         with:
           name: coverage_build_notes
@@ -474,7 +533,6 @@ jobs:
           if-no-files-found: 'error'
 
       - name: Prepare debian packages for storage on share
-        if: ${{ always() }}
         continue-on-error: true
         run: |
           pushd ${{ env.BUILD_DIR }}
@@ -483,7 +541,7 @@ jobs:
 
       - name: Store artifacts to a shared drive
         id: store_artifacts
-        if: ${{ inputs.store_artifacts && inputs.event-name != 'schedule' && inputs.event-name != 'merge_group' }}
+        if: ${{ inputs.store_artifacts && inputs.event-name != 'schedule' && inputs.event-name != 'merge_group' && steps.pack_openvino_package.outcome == 'success' && steps.pack_openvino_developer_package.outcome == 'success' && steps.pack_openvino_tests.outcome == 'success' }}
         uses: ./openvino/.github/actions/store_artifacts
         with:
           artifacts: |
@@ -499,5 +557,5 @@ jobs:
           storage_root: ${{ env.ARTIFACTS_SHARE }}
           branch_name: ${{ inputs.target-branch }}
         env:
-          STORE_WHEELS: ${{ inputs.os != 'debian_10' && inputs.arch != 'arm' }}
+          STORE_WHEELS: ${{ inputs.arch != 'arm' }}
           STORE_JS: ${{ fromJSON(inputs.affected-components).JS_API && inputs.build-js }}

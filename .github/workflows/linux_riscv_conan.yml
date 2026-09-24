@@ -64,7 +64,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-linux-4-cores-16gb-docker-build
+    runs-on: aks-lin-x64-docker-4c16gb
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -99,7 +99,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-linux-16-cores-32gb
+    runs-on: aks-lin-x64-build-16c32gb
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv }}
       volumes:
@@ -119,6 +119,9 @@ jobs:
       CCACHE_MAXSIZE: 2G
       PIP_INDEX_URL: "http://pip-proxy.pip-proxy.svc.cluster.local/simple/"
       PIP_TRUSTED_HOST: "pip-proxy.pip-proxy.svc.cluster.local"
+      # Hard-coded manually; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
+      # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
+      CMAKE_BUILD_PARALLEL_LEVEL: '15'
     steps:
       - name: Clone OpenVINO
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -132,7 +135,7 @@ jobs:
 
       - name: System info
         uses: ./openvino/.github/actions/system_info
-        
+
       - name: Setup ccache
         id: ccache_restore
         uses: ./openvino/.github/actions/cache
@@ -155,8 +158,12 @@ jobs:
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gtest
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/gflags
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/telemetry
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/liburing/liburing
             git submodule update --init -- ${OPENVINO_REPO}/src/plugins/intel_cpu
             git submodule update --init -- ${OPENVINO_REPO}/thirdparty/flatbuffers/flatbuffers
+            # ONNX is no longer consumed from Conan (Conan Center Index lacks onnx 1.22),
+            # so the bundled submodule is built instead and must be checked out here.
+            git submodule update --init -- ${OPENVINO_REPO}/thirdparty/onnx/onnx
           popd
 
       #
@@ -185,6 +192,11 @@ jobs:
           echo "[buildenv]" >> ${CONAN_LINUX_RISCV64_PROFILE}
           echo "CC=riscv64-linux-gnu-gcc" >> ${CONAN_LINUX_RISCV64_PROFILE}
           echo "CXX=riscv64-linux-gnu-g++" >> ${CONAN_LINUX_RISCV64_PROFILE}
+          echo "LDFLAGS=-latomic" >> ${CONAN_LINUX_RISCV64_PROFILE}
+          echo "[conf]" >> ${CONAN_LINUX_RISCV64_PROFILE}
+          echo "tools.build:exelinkflags=[\"-latomic\"]" >> ${CONAN_LINUX_RISCV64_PROFILE}
+          echo "tools.build:sharedlinkflags=[\"-latomic\"]" >> ${CONAN_LINUX_RISCV64_PROFILE}
+          echo 'tools.cmake.cmaketoolchain:extra_variables={"CMAKE_CXX_STANDARD_LIBRARIES": "-latomic", "CMAKE_C_STANDARD_LIBRARIES": "-latomic"}' >> ${CONAN_LINUX_RISCV64_PROFILE}
           # install OpenVINO dependencies
           conan install ${OPENVINO_REPO}/conanfile.txt \
             -pr:h ${CONAN_LINUX_RISCV64_PROFILE} \
@@ -232,13 +244,13 @@ jobs:
           source ${OPENVINO_BUILD_DIR}/dependencies/deactivate_conanbuild.sh
 
       - name: Cmake - Build
-        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc) -- --quiet
+        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} -- --quiet
 
       - name: Show ccache stats
         run: ccache --show-stats
 
       - name: Cmake - Install
-        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel $(nproc) --target install -- --quiet
+        run: cmake --build ${OPENVINO_BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} --target install -- --quiet
 
       - name: Build OpenVINO C++ samples
         run: |

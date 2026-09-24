@@ -12,7 +12,9 @@
 #include "openvino/op/parameter.hpp"
 
 #include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/linear_ir_builder.hpp"
 #include "snippets/lowered/port_descriptor.hpp"
+#include "snippets/op/broadcastmove.hpp"
 
 #include "lir_test_utils.hpp"
 
@@ -58,6 +60,19 @@ TEST(LinearIRReplaceWithNode, PreservesPerOutputDescriptors) {
     EXPECT_EQ(new_desc_1->get_subtensor(), expected_desc_1->get_subtensor());
     EXPECT_EQ(new_desc_0->get_layout(), expected_desc_0->get_layout());
     EXPECT_EQ(new_desc_1->get_layout(), expected_desc_1->get_layout());
+    auto cloned_ir = ov::snippets::lowered::LinearIRBuilder().clone(linear_ir);
+    const auto& cloned_param = cloned_ir.front();
+    const auto broadcast = std::make_shared<ov::snippets::op::BroadcastMove>(cloned_param->get_node()->output(0), 16);
+    const auto broadcast_expr = *cloned_ir.insert_node(broadcast,
+                                                        std::vector<ov::snippets::lowered::PortConnectorPtr>{
+                                                            cloned_param->get_output_port_connector(0)},
+                                                        {},
+                                                        false,
+                                                        cloned_ir.end());
+
+    broadcast_expr->updateShapes();
+
+    EXPECT_EQ(broadcast_expr->get_output_port_descriptor(0)->get_shape(), (VectorDims{1, 16}));
 }
 
 }  // namespace snippets

@@ -16,7 +16,7 @@ public:
 
     reorder_kernel_selector();
 
-    virtual ~reorder_kernel_selector() {}
+    ~reorder_kernel_selector() override = default;
 
     KernelsData GetBestKernels(const Params& params) const override;
 };
