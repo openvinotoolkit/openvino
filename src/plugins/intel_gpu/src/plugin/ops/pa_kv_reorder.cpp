@@ -50,10 +50,9 @@ static void CreatePA_KV_ReorderOp(ProgramBuilder& p, const std::shared_ptr<ov::o
     auto prim = cldnn::pa_kv_reorder(cldnn::primitive_id(layer_type_name_ID(op)), std::vector<cldnn::input_info>(inputs.begin(), inputs.end()));
 
     const auto& config = p.get_config();
-    // KV cache precision (e.g. u4) resolved during finalize. For the auxiliary EAGLE3 reorder model
-    // it is picked up from the "auxiliary_kv_cache_precision" rt_info in apply_model_specific_options,
-    // and on cache import the main compile's precision is restored from the blob, so config already
-    // reflects the physically-allocated compressed cache layout the reorder strides must match.
+    // Use configured kv_cache_precision (e.g. u4) — NOT the parameter's element type, which
+    // ConvertPagedAttnInputs rewrites to i8/u8 for RemoteTensor compatibility even when the
+    // underlying cache layout is packed u4.
     const auto cache_type = config.get_kv_cache_precision();
     const auto infer_precision = config.get_inference_precision();
     const auto key_cache_quant_mode = config.get_key_cache_quant_mode();

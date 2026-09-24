@@ -189,13 +189,14 @@ CompiledModel::CompiledModel(cldnn::BinaryInputBuffer& ib,
     }
 
     auto graph_base = std::make_shared<Graph>(ib, context, m_config, 0);
-    // Graph serialization already preserves its finalized ExecutionConfig. Propagate the resolved
-    // precision to the compiled-model config so get_property() exposes the cache layout encoded in
-    // the imported graph instead of the unresolved import-time hint.
+    // Graph serialization already preserves its finalized ExecutionConfig. Propagate resolved
+    // compilation options to the compiled-model config so get_property() reflects the imported graph.
     const auto kv_cache_precision = graph_base->get_config().get_kv_cache_precision();
     if (kv_cache_precision != ov::element::dynamic) {
         m_config.set_user_property({ov::hint::kv_cache_precision(kv_cache_precision)}, OptionVisibility::RELEASE);
     }
+    const auto group_size = graph_base->get_config().get_dynamic_quantization_group_size();
+    m_config.set_user_property({ov::hint::dynamic_quantization_group_size(group_size)}, OptionVisibility::RELEASE);
     for (uint16_t n = 0; n < m_config.get_num_streams(); n++) {
         auto graph = n == 0 ? graph_base : std::make_shared<Graph>(graph_base, n);
         m_graphs.push_back(graph);

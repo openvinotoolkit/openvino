@@ -36,6 +36,18 @@ TEST_F(TestPropertiesGPU, NoRTInfo) {
     OV_ASSERT_NO_THROW(scale = compiled_model.get_property(ov::hint::activations_scale_factor));
 }
 
+TEST_F(TestPropertiesGPU, AutoDynamicQuantizationGroupSizePreservedOnImport) {
+    ov::Core core;
+    auto compiled_model = core.compile_model(model, ov::test::utils::DEVICE_GPU);
+    const auto group_size = compiled_model.get_property(ov::hint::dynamic_quantization_group_size);
+    ASSERT_NE(group_size, 0);
+
+    std::stringstream blob;
+    compiled_model.export_model(blob);
+    auto imported_model = core.import_model(blob, ov::test::utils::DEVICE_GPU);
+    ASSERT_EQ(imported_model.get_property(ov::hint::dynamic_quantization_group_size), group_size);
+}
+
 TEST_F(TestPropertiesGPU, RTInfoPropertiesWithDefault) {
     ov::Core core;
     ov::Any type;
