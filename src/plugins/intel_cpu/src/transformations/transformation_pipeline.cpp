@@ -521,8 +521,7 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             // 1. Normalize FP16 dequantize chains to FP32 so CQD can match them
             qdq_stripping_manager.register_pass<ov::pass::NormalizeDequantizeFP16>();
             // 2. Fuse FQ->Convert->DQ to a single FQ
-            qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16},
-                                                                                     TypeVector{f32});
+            qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16});
             // 3. Strip FQ layers with unsupported levels
             qdq_stripping_manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, false);
             qdq_stripping_manager.run_passes(model);

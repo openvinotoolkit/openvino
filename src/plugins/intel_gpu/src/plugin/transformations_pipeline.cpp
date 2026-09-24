@@ -624,7 +624,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // 1. Normalize FP16 dequantize chains to FP32 so CQD can match them
             qdq_stripping_manager.register_pass<ov::pass::NormalizeDequantizeFP16>();
             // 2. Fuse FQ->Convert->DQ to a single FQ
-            qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16}, TypeVector{f32});
+            qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16});
             // 3. Strip FQ layers with unsupported levels
             const bool need_weights_adjustment = infer_precision == ov::element::f16;
             qdq_stripping_manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, need_weights_adjustment);
