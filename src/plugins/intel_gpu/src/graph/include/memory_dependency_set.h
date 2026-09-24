@@ -28,7 +28,7 @@ public:
             return std::binary_search(_values.begin(), _values.end(), id);
         const size_t word = id / bits_per_block;
         // The shift form avoids a slower variable-mask sequence with GCC 13.
-        return word >= _first_word && word - _first_word < _bits.size() && (_bits[word - _first_word] >> (id % bits_per_block)).test(0);
+        return word >= _first_word && word - _first_word < _bits.size() && _bits[word - _first_word][id % bits_per_block];
     }
 
     void insert(uint32_t id) {
