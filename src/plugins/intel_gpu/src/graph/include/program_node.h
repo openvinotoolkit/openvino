@@ -615,6 +615,7 @@ public:
 
     bool can_use(impl_types impl_type) const;
     void select_preferred_formats(impl_types impl_type);
+    void set_num_outputs(size_t new_num_outputs);
 
 protected:
     size_t unique_id = 0;

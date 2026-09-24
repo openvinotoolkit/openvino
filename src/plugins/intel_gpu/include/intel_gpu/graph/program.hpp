@@ -394,7 +394,6 @@ private:
     void swap_names(program_node& node1, program_node& node2);
     void replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling = true);
     void replace_all_usages(program_node& old_node, std::pair<program_node*, int32_t> new_node, bool remove_if_dangling = true);
-    program_node* maybe_update_fused_node(program_node& fused_node, program_node& peer_node);
 
     // old_node - node which will be replaced
     // new_node - node which will replace the old one
