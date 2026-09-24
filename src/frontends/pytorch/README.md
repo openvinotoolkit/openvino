@@ -71,6 +71,16 @@ Outputs of such a region that are its operands or their views keep the alias rel
 so later in-place operations on them update the operands. This does not require
 `ExportedProgram.run_decompositions()` or an additional trace.
 
+### Views returned from subgraphs
+
+When `prim::If` or `prim::Loop` returns a view of a tensor from the outer graph,
+the frontend keeps the alias relation. In-place operations on the returned view
+update its base, and mutations of the base are visible through the view. The
+positions of the view elements in the base are added to the graph only when such
+an update is needed. If the relation cannot be represented, for example when the
+branches of `prim::If` return views of different tensors, conversion fails
+instead of producing a wrong result.
+
 ## How to Implement Support for a New PyTorch Operation
 
 PyTorch conversion into the OpenVINO opset operations consists of two stages:

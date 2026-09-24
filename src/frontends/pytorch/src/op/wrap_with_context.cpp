@@ -36,7 +36,7 @@ OutputVector translate_wrap_with_context_fx(const NodeContext& context) {
 
     const auto body = context.convert_subgraph(0);
     const auto session = context.get_session();
-    const auto aliases = session->m_body_output_aliases;
+    const auto aliases = session->take_subgraph_output_aliases(body);
     const auto get_operand = [&](size_t body_tensor) {
         const auto operand = std::find(body_inputs.begin(), body_inputs.end(), body_tensor);
         PYTORCH_OP_CONVERSION_CHECK(operand != body_inputs.end(),
@@ -89,10 +89,10 @@ OutputVector translate_wrap_with_context_fx(const NodeContext& context) {
     // the operand, so in-place updates are propagated like for any other view. The current operand value already
     // includes mutations made by the body.
     const auto& operand_ids = decoder->inputs();
-    for (const auto& [output_index, root_id] : aliases) {
-        const auto operand = get_operand(root_id);
-        const auto& output = outputs.at(output_index);
-        session->m_tuple_element_aliases[{decoder->output(0), static_cast<int64_t>(output_index)}] = {
+    for (const auto& alias : aliases) {
+        const auto operand = get_operand(alias.root_id);
+        const auto& output = outputs.at(alias.output_index);
+        session->m_tuple_element_aliases[{decoder->output(0), static_cast<int64_t>(alias.output_index)}] = {
             operand_ids.at(operand),
             decoder,
             output,
