@@ -58,12 +58,7 @@ OutputVector translate_wrap_with_context_fx(const NodeContext& context) {
         parameters.emplace_back(parameter, get_operand(session->decode_tensor_name(parameter->output(0))));
     }
 
-    // Positions of outputs which are views of operands are computed from body parameters, so they must be created
-    // before the parameters are replaced.
     const auto aliases = session->take_subgraph_output_aliases(body);
-    for (const auto& alias : aliases) {
-        alias.positions->get();
-    }
     const auto body_nodes = body->get_ordered_ops();
     // Body tensor names index the body graph and must not be decoded as parent tensors.
     for (const auto& node : body_nodes) {
@@ -85,19 +80,20 @@ OutputVector translate_wrap_with_context_fx(const NodeContext& context) {
     for (const auto& [operand, value] : mutations) {
         context.mutate_input(operand, value);
     }
+    // Outputs which are views of operands are registered as aliases. The inlined view operations connect them to
+    // the operand, so in-place updates are propagated like for any other view. The current operand value already
+    // includes mutations made by the body.
     const auto& operand_ids = decoder->inputs();
-    for (const auto& alias : aliases) {
-        const auto operand = get_operand(alias.root_id);
+    for (const auto& [output_index, root_id] : aliases) {
+        const auto operand = get_operand(root_id);
         if (operand_ids.at(operand) == 0 && decoder->is_input_inlined(operand)) {
             continue;
         }
-        session->m_tuple_element_aliases[outputs.at(alias.output_index)] = {
-            operand_ids.at(operand),
-            decoder,
-            outputs.at(alias.output_index),
-            context.get_input(static_cast<int>(operand)),
-            {},
-            alias.positions};
+        const auto& output = outputs.at(output_index);
+        session->m_tuple_element_aliases[output] = {operand_ids.at(operand),
+                                                    decoder,
+                                                    output,
+                                                    context.get_input(static_cast<int>(operand))};
     }
     // The wrapper returns a tuple even for a single value; parent getitem nodes select its elements.
     return {make_list_construct(outputs)};

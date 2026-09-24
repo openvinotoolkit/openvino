@@ -65,19 +65,9 @@ OpenVINO performs inference only. `torch.export` represents `torch.no_grad()`,
 `wrap_with_set_grad_enabled` and `wrap_with_autocast` operations. Their bodies
 are inlined into the converted graph as is: gradient mode is ignored, and
 autocast does not change precision, which is selected by the OpenVINO device.
-This does not require `ExportedProgram.run_decompositions()` or an additional
-trace.
-
-### Views returned from subgraphs
-
-When a subgraph operation (`prim::If`, `prim::Loop` or an inlined context-manager
-region) returns a view of a tensor from the outer graph, the frontend keeps the
-alias relation. In-place operations on the returned view update its base, and
-mutations of the base are visible through the view. The positions of the view
-elements in the base are added to the graph only when such an update is needed.
-If the relation cannot be represented, for example when the branches of
-`prim::If` return views of different tensors, conversion fails instead of
-producing a wrong result.
+Outputs of such a region that are views of its operands keep the alias relation,
+so later in-place operations on them update the operands. This does not require
+`ExportedProgram.run_decompositions()` or an additional trace.
 
 ## How to Implement Support for a New PyTorch Operation
 

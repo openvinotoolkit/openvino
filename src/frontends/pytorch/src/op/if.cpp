@@ -4,8 +4,6 @@
 
 #include "openvino/op/if.hpp"
 
-#include <optional>
-
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/result.hpp"
@@ -45,65 +43,6 @@ void align_result_types(const NodeContext& context, std::shared_ptr<v0::Result> 
             auto convert = std::make_shared<v0::Convert>(r1_tensor, r2_type);
             r1->set_argument(0, convert);
         }
-    }
-}
-
-// Registers If outputs that are views of a tensor captured by a branch. Positions are added to the If lazily, so an
-// alias which is never mutated does not change the converted graph.
-void register_if_output_aliases(const NodeContext& context,
-                                const std::shared_ptr<v8::If>& if_node,
-                                const OutputVector& outputs) {
-    const auto session = context.get_session();
-    std::map<size_t, TranslateSession::SubgraphOutputAlias> branch_aliases[2];
-    const std::shared_ptr<Model> bodies[2] = {if_node->get_then_body(), if_node->get_else_body()};
-    for (size_t branch = 0; branch < 2; ++branch) {
-        for (auto& alias : session->take_subgraph_output_aliases(bodies[branch])) {
-            branch_aliases[branch].emplace(alias.output_index, alias);
-        }
-    }
-    const auto& output_ids = context.get_decoder()->outputs();
-    for (size_t i = 0; i < std::min(outputs.size(), output_ids.size()); ++i) {
-        std::shared_ptr<TranslateSession::AliasPositions> positions[2];
-        std::optional<size_t> root_id;
-        bool same_root = true;
-        for (size_t branch = 0; branch < 2; ++branch) {
-            const auto alias = branch_aliases[branch].find(i);
-            if (alias != branch_aliases[branch].end()) {
-                same_root = same_root && (!root_id || *root_id == alias->second.root_id);
-                root_id = alias->second.root_id;
-                positions[branch] = alias->second.positions;
-            }
-        }
-        if (!root_id) {
-            continue;
-        }
-        const auto materialize = [if_node, bodies, i, same_root, positions]() -> Output<Node> {
-            if (!same_root) {
-                return {};
-            }
-            std::shared_ptr<v0::Result> results[2];
-            for (size_t branch = 0; branch < 2; ++branch) {
-                // A branch which does not return a view marks every element as not aliased.
-                const auto value = positions[branch]
-                                       ? positions[branch]->get()
-                                       : make_non_alias_positions(bodies[branch]->get_results()[i]->input_value(0));
-                if (!value.get_node()) {
-                    return {};
-                }
-                results[branch] = std::make_shared<v0::Result>(value);
-            }
-            bodies[0]->add_results({results[0]});
-            bodies[1]->add_results({results[1]});
-            const auto output = if_node->set_output(results[0], results[1]);
-            if_node->validate_and_infer_types();
-            return output;
-        };
-        session->m_may_be_alias[output_ids[i]] = {*root_id,
-                                                  context.get_decoder(),
-                                                  outputs[i],
-                                                  context.get_tensor_from_model_or_create_input(*root_id),
-                                                  {},
-                                                  std::make_shared<TranslateSession::AliasPositions>(materialize)};
     }
 }
 }  // namespace
@@ -253,7 +192,6 @@ OutputVector translate_if(const NodeContext& context) {
             if_node->set_output(extra_then_body_results.at(output_idx), extra_else_body_results.at(output_idx)));
     }
     if_node->validate_and_infer_types();
-    register_if_output_aliases(context, if_node, res);
     return res;
 };
 

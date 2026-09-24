@@ -155,42 +155,13 @@ void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const s
             m_translate_session->get_reverseprop_op(m_decoder, ov_output, ov_output, previous_value);
         for (auto& [alias_id, info] : m_translate_session->m_may_be_alias) {
             if (info.element_ids.empty() && info.base_id == input_id) {
-                if (!info.positions) {
-                    info.output = rebase_view(info.output, info.base_value, old_shape_view);
-                } else {
-                    if (info.base_value != previous_value) {
-                        info.output = m_translate_session->rebase_alias(info, old_shape_view);
-                    }
-                    // Storage is unchanged: positions in the old layout are mapped to flat indices of the new one.
-                    const auto new_indices =
-                        m_translate_session->get_reverseprop_op(m_decoder,
-                                                                ov_output,
-                                                                make_alias_identity_positions(ov_output),
-                                                                previous_value);
-                    info.positions = std::make_shared<TranslateSession::AliasPositions>(
-                        [positions = info.positions, new_indices]() -> Output<Node> {
-                            const auto old_positions = positions->get();
-                            return old_positions.get_node() && !ov::is_type<PtFrameworkNode>(new_indices.get_node())
-                                       ? compose_alias_positions(new_indices, old_positions)
-                                       : Output<Node>{};
-                        });
-                }
+                info.output = rebase_view(info.output, info.base_value, old_shape_view);
                 info.base_value = ov_output;
                 (*m_tensor_map)[alias_id] = info.output;
             }
         }
         const auto alias = m_translate_session->m_may_be_alias.find(input_id);
         if (alias != m_translate_session->m_may_be_alias.end()) {
-            if (alias->second.positions) {
-                // The view itself changed its layout, so its positions follow the metadata operation.
-                alias->second.positions = std::make_shared<TranslateSession::AliasPositions>(
-                    [positions = alias->second.positions, ov_output, previous_value]() -> Output<Node> {
-                        const auto old_positions = positions->get();
-                        return old_positions.get_node()
-                                   ? replay_alias_positions(ov_output, previous_value, old_positions)
-                                   : Output<Node>{};
-                    });
-            }
             alias->second.output = ov_output;
         }
         return;
@@ -204,12 +175,10 @@ void NodeContext::mutate_tensor(size_t input_id, Output<Node> ov_output, const s
         // alias to tensor. In that case we need to create a chain of reverseprop ops
         auto& alias_info = m_translate_session->m_may_be_alias.at(back_input_id);
         const auto in_tensor = alias_info.base_id;
-        auto reverseprop_node = m_translate_session->reverseprop_alias(alias_info, back_node_input);
-        if (alias_info.positions) {
-            // Elements which do not alias the base keep the written value when the view is rebased later.
-            alias_info.output = back_node_input;
-            alias_info.base_value = reverseprop_node;
-        }
+        auto reverseprop_node = m_translate_session->get_reverseprop_op(alias_info.decoder,
+                                                                        alias_info.output,
+                                                                        back_node_input,
+                                                                        alias_info.base_value);
         m_translate_session->encode_tensor_name(reverseprop_node, in_tensor);
         (*m_tensor_map)[in_tensor] = reverseprop_node;
         m_mutated_tensors->insert(in_tensor);
@@ -353,8 +322,7 @@ Output<Node> NodeContext::resolve_tensor(size_t index) const {
         // Replaying a view against the current base updates sibling views and
         // views created before an in-place write. Previously consumed values
         // remain connected to their original OpenVINO nodes.
-        info.output = info.positions ? m_translate_session->rebase_alias(info, base)
-                                     : rebase_view(info.output, info.base_value, base);
+        info.output = rebase_view(info.output, info.base_value, base);
         info.base_value = base;
         (*m_tensor_map)[index] = info.output;
         m_translate_session->encode_tensor_name(info.output, index);

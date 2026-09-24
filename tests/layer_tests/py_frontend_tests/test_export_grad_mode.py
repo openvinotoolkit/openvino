@@ -132,6 +132,22 @@ def test_export_autocast_returns_view(mutate_base):
         np.testing.assert_allclose(actual[index], value.numpy(), atol=1e-5, rtol=1e-5)
 
 
+def test_export_grad_mode_unsupported_view_mutation():
+    class Model(torch.nn.Module):
+        def forward(self, x):
+            x = x.clone()
+            with torch.no_grad():
+                view = x.diagonal()
+            view.add_(1)
+            return x
+
+    data = torch.arange(9, dtype=torch.float32).reshape(3, 3)
+    exported = torch.export.export(Model().eval(), (data,))
+    # The mutation cannot be propagated to the operand, so conversion must fail instead of dropping it.
+    with pytest.raises(Exception, match="wrap_with_set_grad_enabled_reverseprop"):
+        convert_model(exported)
+
+
 def test_fx_nested_grad_mode():
     from torch._higher_order_ops.wrap import wrap_with_set_grad_enabled
 

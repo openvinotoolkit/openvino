@@ -5,7 +5,6 @@
 #include "openvino/op/loop.hpp"
 
 #include <limits>
-#include <optional>
 
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
@@ -17,100 +16,6 @@
 #include "utils.hpp"
 
 namespace ov::frontend::pytorch::op {
-
-namespace {
-// Registers Loop outputs that are views of a tensor from the outer graph. Positions of carried values are tracked by
-// additional carried states, created lazily when a mutation needs them.
-void register_loop_output_aliases(const NodeContext& context,
-                                  const std::shared_ptr<ov::op::v5::Loop>& loop,
-                                  const OutputVector& loop_inputs,
-                                  size_t num_carried) {
-    const auto session = context.get_session();
-    const auto body = loop->get_function();
-    // Carried value k is body parameter and result k + 1, loop input k + 2 and loop output k.
-    std::map<size_t, TranslateSession::SubgraphOutputAlias> aliases;
-    for (auto& alias : session->take_subgraph_output_aliases(body)) {
-        if (alias.output_index > 0 && alias.output_index <= num_carried) {
-            aliases.emplace(alias.output_index - 1, alias);
-        }
-    }
-    std::map<size_t, size_t> carried_by_id;
-    for (size_t k = 0; k < num_carried; ++k) {
-        carried_by_id[session->decode_tensor_name(body->get_parameters()[k + 1]->output(0))] = k;
-    }
-    const auto iteration_id = session->decode_tensor_name(body->get_parameters()[0]->output(0));
-    const auto& input_ids = context.get_decoder()->inputs();
-    const auto& output_ids = context.get_decoder()->outputs();
-    for (const auto& [k, alias] : aliases) {
-        if (alias.root_id == iteration_id || k >= output_ids.size()) {
-            continue;
-        }
-        const auto carried_root = carried_by_id.find(alias.root_id);
-        const auto base_id = carried_root == carried_by_id.end()
-                                 ? alias.root_id
-                                 : session->get_alias_root(input_ids.at(carried_root->second + 2));
-        // Carried values whose positions are needed: this one and, transitively, carried roots of their aliases.
-        std::vector<size_t> needed;
-        std::map<size_t, std::shared_ptr<TranslateSession::AliasPositions>> initial;
-        for (std::optional<size_t> next = k; next && !initial.count(*next);) {
-            const auto j = *next;
-            needed.push_back(j);
-            initial[j] = session->get_alias_positions(input_ids.at(j + 2), base_id, loop_inputs.at(j + 2));
-            const auto next_alias = aliases.find(j);
-            next.reset();
-            if (next_alias != aliases.end()) {
-                if (const auto root = carried_by_id.find(next_alias->second.root_id); root != carried_by_id.end()) {
-                    next = root->second;
-                }
-            }
-        }
-        const auto materialize = [=]() -> Output<Node> {
-            std::map<size_t, std::shared_ptr<ov::op::v0::Parameter>> parameters;
-            std::map<size_t, Output<Node>> initial_positions;
-            for (const auto j : needed) {
-                initial_positions[j] = initial.at(j)->get();
-                if (!initial_positions[j].get_node()) {
-                    return {};
-                }
-                parameters[j] = std::make_shared<ov::op::v0::Parameter>(element::i64, PartialShape::dynamic());
-            }
-            std::map<size_t, Output<Node>> updated;
-            for (const auto j : needed) {
-                const auto body_alias = aliases.find(j);
-                if (body_alias == aliases.end()) {
-                    updated[j] = make_non_alias_positions(body->get_results()[j + 1]->input_value(0));
-                    continue;
-                }
-                const auto positions = body_alias->second.positions->get();
-                const auto root = carried_by_id.find(body_alias->second.root_id);
-                if (!positions.get_node() || (root == carried_by_id.end() && body_alias->second.root_id != base_id)) {
-                    return {};
-                }
-                updated[j] = root == carried_by_id.end() ? positions
-                                                         : compose_alias_positions(parameters[root->second], positions);
-            }
-            Output<Node> output;
-            for (const auto j : needed) {
-                const auto result = std::make_shared<ov::op::v0::Result>(updated[j]);
-                body->add_parameters({parameters[j]});
-                body->add_results({result});
-                loop->set_merged_input(parameters[j], initial_positions[j], result);
-                if (j == k) {
-                    output = loop->get_iter_value(result, -1);
-                }
-            }
-            loop->validate_and_infer_types();
-            return output;
-        };
-        session->m_may_be_alias[output_ids[k]] = {base_id,
-                                                  context.get_decoder(),
-                                                  loop->output(k),
-                                                  context.get_tensor_from_model_or_create_input(base_id),
-                                                  {},
-                                                  std::make_shared<TranslateSession::AliasPositions>(materialize)};
-    }
-}
-}  // namespace
 
 OutputVector translate_loop(const NodeContext& context) {
     const auto& inputs = context.inputs();
@@ -171,8 +76,6 @@ OutputVector translate_loop(const NodeContext& context) {
         context.add_tensor_to_context(out_idx, loop->get_iter_value(result, -1));
     }
     loop->validate_and_infer_types();
-    const auto num_carried = std::min(inputs.size() - 2, subgraph_decoder->num_of_outputs() - 1);
-    register_loop_output_aliases(context, loop, inputs, num_carried);
     return {context.mark_node(loop)->outputs()};
 };
 
