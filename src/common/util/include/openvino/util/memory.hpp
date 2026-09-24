@@ -7,6 +7,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <limits>
+#include <optional>
 #include <string>
 #include <system_error>
 
@@ -27,6 +29,19 @@ inline constexpr size_t min_page_alignment = 4096;
  */
 constexpr size_t align_size_up(size_t size, size_t alignment) noexcept {
     return (size + alignment - 1) & ~(alignment - 1);
+}
+
+/**
+ * @brief Rounds @p size up to the nearest multiple of @p alignment, detecting overflow.
+ *
+ * @param size       Value to round up.
+ * @param alignment  Alignment boundary. Must be a power of two and greater than zero.
+ * @return Smallest value >= @p size that is a multiple of @p alignment, or `std::nullopt` if it does not fit in size_t.
+ */
+constexpr std::optional<size_t> align_size_up_overflow(size_t size, size_t alignment) noexcept {
+    return (size > std::numeric_limits<size_t>::max() - (alignment - 1))
+               ? std::nullopt
+               : std::optional<size_t>{align_size_up(size, alignment)};
 }
 
 /**

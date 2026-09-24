@@ -31,6 +31,15 @@ static_assert(ov::util::align_size_up(8, 8) == 8);
 static_assert(ov::util::align_size_up(9, 8) == 16);
 static_assert(ov::util::align_size_up(9, alignof(std::max_align_t)) == 16);
 
+static_assert(ov::util::align_size_up_overflow(0, 64) == 0);
+static_assert(ov::util::align_size_up_overflow(65, 64) == 128);
+static_assert(ov::util::align_size_up_overflow(std::numeric_limits<size_t>::max(), 1) ==
+              std::numeric_limits<size_t>::max());
+static_assert(!ov::util::align_size_up_overflow(std::numeric_limits<size_t>::max() - 1, 8).has_value());
+static_assert(!ov::util::align_size_up_overflow(std::numeric_limits<size_t>::max() - 62, 64).has_value());
+static_assert(ov::util::align_size_up_overflow(std::numeric_limits<size_t>::max() - 63, 64) ==
+              std::numeric_limits<size_t>::max() - 63);
+
 static_assert(ov::util::align_size_down(0, 64) == 0);
 static_assert(ov::util::align_size_down(63, 64) == 0);
 static_assert(ov::util::align_size_down(64, 64) == 64);

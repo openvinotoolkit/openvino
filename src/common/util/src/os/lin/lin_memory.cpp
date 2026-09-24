@@ -9,7 +9,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
-#include <limits>
 #include <tuple>
 
 #include "memory_prefetch.hpp"
@@ -33,11 +32,8 @@ void* aligned_alloc(size_t size, size_t alignment) noexcept {
     if (alignment < alignof(std::max_align_t)) {
         alignment = alignof(std::max_align_t);
     }
-    // std::aligned_alloc requires the size to be a multiple of the alignment. Rounding up must not wrap.
-    if (size > std::numeric_limits<size_t>::max() - (alignment - 1)) {
-        return nullptr;
-    }
-    return std::aligned_alloc(alignment, align_size_up(size, alignment));
+    const auto aligned_size = align_size_up_overflow(size, alignment);
+    return aligned_size ? std::aligned_alloc(alignment, *aligned_size) : nullptr;
 }
 
 void aligned_free(void* ptr) noexcept {
