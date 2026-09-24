@@ -398,6 +398,52 @@ public:
         }
     }
 
+    void test_2x2x2x2_single_byxf(bool is_caching_test) {
+        auto& engine = get_test_engine();
+        auto input = engine.allocate_memory({ ov::element::from<T>(), format::bfyx, { 2, 2, 2, 2 } });
+
+        set_values<T>(input, {
+                0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f,
+                9.0f, 10.0f, 11.0f, 12.0f, 13.0f, 14.0f, 15.0f
+        });
+        std::vector<int64_t> begin_data = { 1, 0, 1, 1 };
+        std::vector<int64_t> end_data = { 2, 1, 2, 2 };
+        std::vector<int64_t> strides_data = { 1, 1, 1, 1 };
+
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(reorder("input_byxf", input_info("input"), format::byxf, ov::element::from<T>()));
+        topology.add(strided_slice("strided_slice", input_info("input_byxf"), begin_data, end_data, strides_data, {}, {}, {}, {}, {}, {1, 1, 1, 1}));
+        topology.add(reorder("output", input_info("strided_slice"), format::bfyx, ov::element::from<T>()));
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"strided_slice", {format::byxf, "", impl_types::ocl}}}));
+
+        cldnn::network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+
+        network->set_input_data("input", input);
+
+        auto outputs = network->execute();
+
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "output");
+
+        auto output = outputs.at("output").get_memory();
+
+        std::vector<float> answers = { 4.f };
+
+        cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
+
+        ASSERT_EQ(output_ptr.size(), answers.size());
+        for (size_t i = 0; i < answers.size(); ++i)
+        {
+            ASSERT_TRUE(are_equal(answers[i], output_ptr[i]));
+        }
+    }
+
     void test_2x2x4x3_stride(bool is_caching_test) {
         // Input (BFYX): 2x2x4x3
         // Begin (BFYX): 0x0x0x0
@@ -2644,6 +2690,10 @@ TYPED_TEST(strided_slice_gpu, test_2x2x2x2_single) {
 
 TYPED_TEST(strided_slice_gpu_constants, test_2x2x2x2_single) {
     this->test_2x2x2x2_single(false);
+}
+
+TYPED_TEST(strided_slice_gpu, test_2x2x2x2_single_byxf) {
+    this->test_2x2x2x2_single_byxf(false);
 }
 
 TYPED_TEST(strided_slice_gpu, test_2x2x4x3_stride) {
