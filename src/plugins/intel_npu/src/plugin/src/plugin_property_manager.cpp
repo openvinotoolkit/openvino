@@ -438,12 +438,9 @@ std::optional<ov::intel_npu::CompilerType> PluginPropertyManager::resolveCompile
     }
 
     try {
-        std::cout << "Resolving compiler type for deviceId: " << deviceId << " and platform: " << platform << std::endl;
         auto device = utils::getDeviceById(_backend, deviceId);
         auto compilationPlatform =
             utils::getCompilationPlatform(_backend, platform, device == nullptr ? deviceId : device->getName());
-
-        std::cout << "Compilation platform resolved to: " << compilationPlatform << std::endl;
 
         CompilerAdapterFactory factory;
         factory.decideCompilerType(compilerType, device, compilationPlatform);
