@@ -237,7 +237,7 @@ GEMMA4_MODEL_ID = "optimum-intel-internal-testing/tiny-random-gemma4"
 @retry(3, exceptions=(OSError,), delay=1)
 def get_gemma4_language_model(model_id):
     model_cached = snapshot_download(model_id)  # required to avoid HF rate limits
-    # gemma4 needs a newer optimum-intel (see requirements_gemma4.txt) whose VLM API
+    # gemma4 needs a newer optimum-intel (see envs/paged_attention.txt) whose VLM API
     # exposes the language model graph via .language_model.model rather than .lm_model.
     model = OVModelForVisualCausalLM.from_pretrained(model_cached, export=True, trust_remote_code=True)
     return model.language_model.model
