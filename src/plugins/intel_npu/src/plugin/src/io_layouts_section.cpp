@@ -118,6 +118,7 @@ std::shared_ptr<ISection> IOLayoutsSection::read(BlobReaderInterface& blob_reade
 
     const std::vector<ov::Layout> input_layouts = read_n_layouts(number_of_input_layouts, "Input");
     const std::vector<ov::Layout> output_layouts = read_n_layouts(number_of_output_layouts, "Output");
+    OPENVINO_ASSERT(blob_reader.get_remaining_section_size() == 0, "Failed to read the whole content of the section");
     return std::make_shared<IOLayoutsSection>(input_layouts, output_layouts, blob_reader.get_log_level());
 }
 

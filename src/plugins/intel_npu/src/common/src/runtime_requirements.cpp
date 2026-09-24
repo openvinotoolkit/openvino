@@ -226,6 +226,8 @@ std::shared_ptr<ISection> RuntimeRequirementsSection::read(BlobReaderInterface& 
         section_id_to_type.emplace(section_id.value(), section_type);
     }
 
+    OPENVINO_ASSERT(blob_reader.get_remaining_section_size() == 0, "Failed to read the whole content of the section");
+
     // TODO check all classes got their log levels right
     return std::make_shared<RuntimeRequirementsSection>(
         RuntimeRequirements(sections_requirements, cre, section_id_to_type, logger.level()),

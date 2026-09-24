@@ -163,6 +163,7 @@ install(TARGETS ${TARGET_NAME}
 
 target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/batch_size_section.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/io_layouts_section.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/encrypted_schedules_flag_section.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/compiler_version_section.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/executor_test.cpp

@@ -154,6 +154,8 @@ std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob
                                                         logger.level());
     }
 
+    OPENVINO_ASSERT(blob_reader.get_remaining_section_size() == 0, "Failed to read the whole content of the section");
+
     return std::make_shared<ELFMainScheduleSection>(blob_reader.create_roi_tensor(main_schedule_size),
                                                     get_encryption_callback_from_config(blob_reader.get_config()),
                                                     logger.level());
@@ -315,6 +317,8 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
 
         init_schedules.push_back(std::move(init_schedule));
     }
+
+    OPENVINO_ASSERT(blob_reader.get_remaining_section_size() == 0, "Failed to read the whole content of the section");
 
     return std::make_shared<ELFInitSchedulesSection>(std::move(init_schedules),
                                                      get_encryption_callback_from_config(blob_reader.get_config()),
