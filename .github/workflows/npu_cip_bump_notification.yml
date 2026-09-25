@@ -9,7 +9,8 @@ name: NPU CiP Bump Notification
 #   - GitHub: comment on the bump PR with @mentions (NPU_CIP_NOTIFY_LOGINS) so GitHub emails
 #     recipients from notifications@github.com.
 #   - Teams: Adaptive Card to a Power Automate webhook (optional).
-# If notify logins / webhook are unset, the workflow still logs the bump in the run summary.
+# workflow_dispatch is a dry-run: detect writes the run summary only (no Teams / PR comment).
+# If notify logins / webhook are unset on push, delivery steps no-op but the summary still logs the bump.
 #
 # Configuration (repository -> Settings -> Secrets and variables -> Actions):
 #   Variables:
@@ -43,12 +44,12 @@ concurrency:
 jobs:
   notify-npu-cip-bump:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     permissions:
       contents: read
       pull-requests: write
     env:
       FILE_PATH: src/plugins/intel_npu/cmake/download_compiler_libs.cmake
-      # Variables tracked for a value-level bump comparison.
       TRACKED_VARS: >-
         PLUGIN_COMPILER_WINDOWS_2022_CHECKSUM
         PLUGIN_COMPILER_UBUNTU_22_04_CHECKSUM
@@ -56,6 +57,14 @@ jobs:
         PLUGIN_COMPILER_UBUNTU_26_04_CHECKSUM
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
+      # Sparse checkout only; the repository is far too large to check out in full.
+      - name: Check out notification scripts
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: false
+          fetch-depth: 1
+
       - name: Detect CiP value-level change
         id: detect
         env:
@@ -67,131 +76,12 @@ jobs:
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
           NPU_CIP_NOTIFY_LOGINS: ${{ vars.NPU_CIP_NOTIFY_LOGINS }}
-        run: |
-          set -euo pipefail
-
-          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
-            BEFORE="$INPUT_BEFORE_SHA"
-            AFTER="$INPUT_AFTER_SHA"
-          else
-            BEFORE="$PUSH_BEFORE_SHA"
-            AFTER="$PUSH_AFTER_SHA"
-          fi
-          echo "Comparing ${FILE_PATH} between ${BEFORE} and ${AFTER}"
-
-          ZERO_SHA="0000000000000000000000000000000000000000"
-          if [[ -z "${BEFORE}" || "${BEFORE}" == "${ZERO_SHA}" ]]; then
-            echo "No usable base revision (branch creation or force-push); skipping." | tee -a "${GITHUB_STEP_SUMMARY}"
-            echo "changed=false" >> "${GITHUB_OUTPUT}"
-            exit 0
-          fi
-
-          fetch_file() {
-            # Fetch the raw file at a given ref without checking out the (huge) repo.
-            gh api "repos/${GITHUB_REPOSITORY}/contents/${FILE_PATH}?ref=$1" --jq '.content' | base64 -d
-          }
-          get_val() {
-            # $1 = file, $2 = variable name -> prints the value inside set(NAME value)
-            grep -oE "set\\($2[[:space:]]+[^)]*\\)" "$1" | head -n1 \
-              | sed -E "s/^set\\($2[[:space:]]+//; s/\\)$//" | tr -d '[:space:]'
-          }
-
-          fetch_file "${BEFORE}" > before.cmake
-          fetch_file "${AFTER}" > after.cmake
-
-          CHANGED=false
-          ANOMALY=false
-          PARSED_ANY_AFTER=false
-          ROWS=""
-          CHANGES_TEXT=""
-          for v in ${TRACKED_VARS}; do
-            old="$(get_val before.cmake "${v}")"
-            new="$(get_val after.cmake "${v}")"
-            [[ -n "${new}" ]] && PARSED_ANY_AFTER=true
-            if [[ "${old}" != "${new}" ]]; then
-              CHANGED=true
-              ROWS+="| \`${v}\` | \`${old:-<none>}\` | \`${new:-<none>}\` |"$'\n'
-              CHANGES_TEXT+="- ${v}: ${old:-<none>} -> ${new:-<none>}"$'\n'
-            fi
-          done
-
-          # If the file changed but none of the tracked variables can be parsed in the
-          # new revision, the variables were likely renamed. Notify anyway rather than
-          # staying silent (fail-loud on schema drift).
-          if [[ "${PARSED_ANY_AFTER}" == "false" ]]; then
-            ANOMALY=true
-            CHANGED=true
-          fi
-
-          echo "changed=${CHANGED}" >> "${GITHUB_OUTPUT}"
-          if [[ "${CHANGED}" != "true" ]]; then
-            echo "No value-level change in tracked NPU CiP variables; skipping notification." \
-              | tee -a "${GITHUB_STEP_SUMMARY}"
-            exit 0
-          fi
-
-          NOW="$(TZ='Europe/Warsaw' date +'%H:%M %d/%m/%Y %Z')"
-          COMMIT_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${AFTER}"
-          BRANCH="${GITHUB_REF_NAME}"
-          AUTHOR="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${AFTER}" --jq '.commit.author.name' 2>/dev/null || true)"
-          PR_INFO="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${AFTER}/pulls" \
-            --jq '.[0] | "#\(.number) \(.title)"' 2>/dev/null || true)"
-          PR_NUMBER="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${AFTER}/pulls" \
-            --jq '.[0].number' 2>/dev/null || true)"
-          PR_URL=""
-          if [[ -n "${PR_NUMBER}" ]]; then
-            PR_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/pull/${PR_NUMBER}"
-          fi
-
-          MENTIONS=""
-          for l in $(echo "${NPU_CIP_NOTIFY_LOGINS:-}" | tr ',' ' '); do
-            [[ -n "${l}" ]] && MENTIONS+="@${l} "
-          done
-
-          {
-            echo "### 🔔 NPU CiP bump detected"
-            echo ""
-            [[ -n "${MENTIONS}" ]] && echo "${MENTIONS}"
-            echo ""
-            echo "| Field | Value |"
-            echo "| --- | --- |"
-            echo "| Date | ${NOW} |"
-            echo "| Branch | \`${BRANCH}\` |"
-            echo "| Commit | ${COMMIT_URL} |"
-            [[ -n "${AUTHOR}" ]] && echo "| Author | ${AUTHOR} |"
-            [[ -n "${PR_INFO}" ]] && echo "| Pull request | ${PR_INFO} |"
-            echo ""
-            if [[ "${ANOMALY}" == "true" ]]; then
-              echo "> ⚠️ The tracked \`PLUGIN_COMPILER_*\` variables could not be parsed in the new"
-              echo "> revision. They may have been renamed — please verify this notification manually."
-              echo ""
-            fi
-            if [[ -n "${ROWS}" ]]; then
-              echo "| Variable | Old | New |"
-              echo "| --- | --- | --- |"
-              printf '%s' "${ROWS}"
-            fi
-          } | tee -a "${GITHUB_STEP_SUMMARY}" > body.md
-
-          {
-            echo "date=${NOW}"
-            echo "branch=${BRANCH}"
-            echo "commit_url=${COMMIT_URL}"
-            echo "author=${AUTHOR}"
-            echo "pr_info=${PR_INFO}"
-            echo "pr_number=${PR_NUMBER}"
-            echo "pr_url=${PR_URL}"
-            echo "changes<<CHANGES_EOF"
-            printf '%s' "${CHANGES_TEXT:-<variables could not be parsed>}"
-            echo ""
-            echo "CHANGES_EOF"
-          } >> "${GITHUB_OUTPUT}"
+        run: python3 .github/scripts/npu_cip_detect_bump.py
 
       - name: Post GitHub notification on pull request
-        if: steps.detect.outputs.changed == 'true'
+        if: steps.detect.outputs.changed == 'true' && github.event_name == 'push'
         env:
           NOTIFY_LOGINS: ${{ vars.NPU_CIP_NOTIFY_LOGINS }}
-          EVENT_NAME: ${{ github.event_name }}
           PR_NUMBER: ${{ steps.detect.outputs.pr_number }}
         run: |
           set -euo pipefail
@@ -199,30 +89,15 @@ jobs:
             echo "NPU_CIP_NOTIFY_LOGINS not set; skipping GitHub @mention comment."
             exit 0
           fi
-          if [[ "$EVENT_NAME" != "push" ]]; then
-            echo "Not a push event; skipping GitHub comment."
-            exit 0
-          fi
-          PR="${PR_NUMBER}"
-          if [[ -z "${PR}" ]]; then
+          if [[ -z "${PR_NUMBER}" ]]; then
             echo "::warning::No pull request linked to this bump; cannot post @mention comment."
             exit 0
           fi
-          gh pr comment "${PR}" --repo "${GITHUB_REPOSITORY}" --body-file body.md
-          echo "Posted NPU CiP bump notification to PR #${PR}."
-
-      # Sparse checkout of just the scripts directory; the repository is far too large
-      # to check out in full for a notification job.
-      - name: Check out notification script
-        if: steps.detect.outputs.changed == 'true'
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          sparse-checkout: .github/scripts
-          sparse-checkout-cone-mode: false
-          fetch-depth: 1
+          gh pr comment "${PR_NUMBER}" --repo "${GITHUB_REPOSITORY}" --body-file body.md
+          echo "Posted NPU CiP bump notification to PR #${PR_NUMBER}."
 
       - name: Send Teams notification
-        if: steps.detect.outputs.changed == 'true'
+        if: steps.detect.outputs.changed == 'true' && github.event_name == 'push'
         env:
           TEAMS_WEBHOOK_URL: ${{ secrets.NPU_CIP_TEAMS_WEBHOOK_URL }}
           CARD_DATE: ${{ steps.detect.outputs.date }}
@@ -234,10 +109,4 @@ jobs:
           CARD_CHANGES: ${{ steps.detect.outputs.changes }}
           CARD_REPO: ${{ github.repository }}
           CARD_MENTION_UPNS: ${{ vars.NPU_CIP_TEAMS_MENTION_UPNS }}
-        run: |
-          set -euo pipefail
-          if [[ -z "${TEAMS_WEBHOOK_URL}" ]]; then
-            echo "::warning::NPU_CIP_TEAMS_WEBHOOK_URL not set; skipping Teams notification."
-            exit 0
-          fi
-          python3 .github/scripts/npu_cip_notify_teams.py
+        run: python3 .github/scripts/npu_cip_notify_teams.py
