@@ -97,7 +97,10 @@ IODescriptor createIODescriptorFromLevelZero(const uint32_t indexUsedByDriver,
             if (metadata->shape[id] != dynamicDim) {
                 // static metadata dimension must match the driver's true argument span; otherwise the
                 // tensor could be undersized relative to what Level Zero actually reads/writes
-                if (metadata->shape[id] != shapeFromCompiler[id]) {
+                const bool isPluginBatchingDimension =
+                    id == utils::BATCH_AXIS && shapeFromCompiler[id] == utils::DEFAULT_BATCH_SIZE;
+                if ((metadata->shape[id] != shapeFromCompiler[id] && !isPluginBatchingDimension) ||
+                    (isPluginBatchingDimension && metadata->shape[id] < shapeFromCompiler[id])) {
                     OPENVINO_THROW("Invalid Level Zero graph argument metadata for argument index ",
                                    indexUsedByDriver,
                                    ": static metadata dimension ",

@@ -98,6 +98,30 @@ TEST(ZeGraphExtWrappersTest, AcceptsMatchingDynamicMetadataRank) {
     EXPECT_EQ(*descriptor.shapeFromIRModel, ov::PartialShape({4, ov::Dimension(1, 32)}));
 }
 
+TEST(ZeGraphExtWrappersTest, AcceptsPluginBatchingMetadata) {
+    auto arg = makeArgument(2);
+    arg.dims[0] = 1;
+    auto metadata = makeMetadata(2);
+    metadata.shape[0] = 4;
+
+    const auto descriptor = intel_npu::createIODescriptorFromLevelZero(kArgumentIndex, arg, metadata);
+
+    EXPECT_EQ(descriptor.shapeFromCompiler, ov::PartialShape({1, 32}));
+    ASSERT_TRUE(descriptor.shapeFromIRModel.has_value());
+    EXPECT_EQ(*descriptor.shapeFromIRModel, ov::PartialShape({4, 32}));
+}
+
+TEST(ZeGraphExtWrappersTest, RejectsUndersizedPluginBatchingMetadata) {
+    auto arg = makeArgument(2);
+    arg.dims[0] = 1;
+    auto metadata = makeMetadata(2);
+    metadata.shape[0] = 0;
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(intel_npu::createIODescriptorFromLevelZero(kArgumentIndex, arg, metadata),
+                                  ov::Exception,
+                                  "static metadata dimension 0 value 0 does not match driver argument dimension 1");
+}
+
 TEST(ZeGraphExtWrappersTest, RejectsStaticMetadataDriverSpanMismatch) {
     // Same rank on both sides, but the static metadata shape ([1]) undersizes the real
     // driver argument span ([1024]); a naive tensor sized from metadata alone would let the
