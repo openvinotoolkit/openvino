@@ -482,8 +482,7 @@ bool is_hybrid_linear_attention_model(const ov::Model& model) {
 
 // Whether f16 rounding must be preserved at Math op boundaries
 bool should_preserve_math_f16_rounding(const ov::element::Type& requested_infer_precision, bool model_has_f16) {
-    return requested_infer_precision == ov::element::f16 ||
-           (requested_infer_precision == ov::element::dynamic && model_has_f16);
+    return requested_infer_precision == ov::element::f16 || (requested_infer_precision == ov::element::dynamic && model_has_f16);
 }
 
 // LPT's Split/VariadicSplitTransformation moves the dequantization from above the split to
@@ -790,8 +789,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // ov::pass::MarkMathBeforeFloorToKeepF16Rounding marks only the Math nodes that are actually
         // followed by a Floor with disable_conversion(f16, f32); the callback below only acts on nodes
         // carrying that marker, so unrelated occurrences of these ops keep the normal f32 fast path.
-        auto wrap_math_to_preserve_f16 = [](const std::shared_ptr<ov::Node>& node,
-                                            const precisions_map& /* precisions */) -> bool {
+        auto wrap_math_to_preserve_f16 = [](const std::shared_ptr<ov::Node>& node, const precisions_map& /* precisions */) -> bool {
             if (!ov::is_conversion_disabled(node, ov::element::f16, ov::element::f32)) {
                 return false;
             }
@@ -811,8 +809,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 auto consumers = node->output(0).get_target_inputs();
                 auto convert = std::make_shared<ov::op::v0::Convert>(node, target_type);
                 for (const auto& input : consumers) {
-                    if (ov::is_type<ov::op::v0::Result>(input.get_node()) ||
-                        ov::is_type<ov::op::v0::Convert>(input.get_node())) {
+                    if (ov::is_type<ov::op::v0::Result>(input.get_node()) || ov::is_type<ov::op::v0::Convert>(input.get_node())) {
                         continue;
                     }
                     input.replace_source_output(convert);
@@ -834,8 +831,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return false;
         };
 
-        const bool preserve_math_f16_rounding =
-            should_preserve_math_f16_rounding(requested_infer_precision, model_has_f16());
+        const bool preserve_math_f16_rounding = should_preserve_math_f16_rounding(requested_infer_precision, model_has_f16());
 
         type_to_fuse_map fp_type_to_fuse = {};
         if (preserve_math_f16_rounding) {
