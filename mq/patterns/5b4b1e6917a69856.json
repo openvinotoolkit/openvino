@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "cc1plus error cmake_pch hxx gch not a pch file werror invalid pch|Infrastructure",
+  "signature_hash": "5b4b1e6917a69856",
+  "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_shape_inference",
+  "category": "Infrastructure",
+  "count": 1,
+  "first_seen": "2026-09-24T23:04:41Z",
+  "last_seen": "2026-09-24T23:04:41Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/36069429763"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/37942"
+  ],
+  "recent_timestamps": [
+    "2026-09-24T23:04:41Z"
+  ],
+  "rerun_search_string": "not a PCH file [-Werror=invalid-pch]"
+}
