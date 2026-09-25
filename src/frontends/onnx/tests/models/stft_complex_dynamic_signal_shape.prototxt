@@ -16,6 +16,21 @@ graph {
     }
   }
   node {
+    output: "frame_length"
+    name: "frame_length_const"
+    op_type: "Constant"
+    attribute {
+      name: "value"
+      t {
+        dims: 1
+        data_type: 7
+        int64_data: 16
+        name: "frame_length_tensor"
+      }
+      type: TENSOR
+    }
+  }
+  node {
     input: "signal"
     input: "frame_step"
     input: "window"
@@ -24,7 +39,7 @@ graph {
     op_type: "STFT"
     attribute {
       name: "onesided"
-      i: 1
+      i: 0
       type: INT
     }
   }
@@ -35,13 +50,11 @@ graph {
         elem_type: 1
         shape {
           dim {
+          }
+          dim {
+          }
+          dim {
             dim_value: 2
-          }
-          dim {
-            dim_value: 32
-          }
-          dim {
-            dim_value: 1
           }
         }
       }
@@ -52,19 +65,6 @@ graph {
     type {
       tensor_type {
         elem_type: 1
-        shape {
-          dim {
-            dim_value: 16
-          }
-        }
-      }
-    }
-  }
-  input {
-    name: "frame_length"
-    type {
-      tensor_type {
-        elem_type: 7
         shape {
           dim {
             dim_value: 16

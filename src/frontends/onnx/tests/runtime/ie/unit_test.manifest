@@ -406,3 +406,6 @@ IE_CPU.onnx_model_instance_normalization
 IE_CPU.quant_dequant_pattern_axis
 IE_CPU/GRUSequenceOp.onnx_model_gru_reverse_mixed_seq_len_const
 IE_CPU/RNNSequenceOp.onnx_model_rnn_fwd_bias_initial_h_const
+
+# CPU IRDFT does not zero-pad input with fewer bins than signal_size / 2 + 1 (reads uninitialized memory)
+IE_CPU.onnx_model_dft_inverse_length_provided_onesided
