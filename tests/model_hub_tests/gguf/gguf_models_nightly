@@ -21,6 +21,8 @@ qwen35-bonsai,prism-ml/Ternary-Bonsai-27B-gguf,Ternary-Bonsai-27B-Q2_g64.gguf
 ernie4_5-moe,bartowski/baidu_ERNIE-4.5-21B-A3B-PT-GGUF,baidu_ERNIE-4.5-21B-A3B-PT-Q4_K_M.gguf
 bailingmoe2,bartowski/inclusionAI_Ling-mini-2.0-GGUF,inclusionAI_Ling-mini-2.0-Q4_K_M.gguf
 mellum,bartowski/Mellum2-12B-A2.5B-Instruct-GGUF,Mellum2-12B-A2.5B-Instruct-Q4_K_M.gguf
+devstral-small,bartowski/mistralai_Devstral-Small-2507-GGUF,mistralai_Devstral-Small-2507-Q4_K_M.gguf
+devstral-small2,bartowski/mistralai_Devstral-Small-2-24B-Instruct-2512-GGUF,mistralai_Devstral-Small-2-24B-Instruct-2512-Q4_K_M.gguf
 deepseek2-ocr,aditya00196/DeepSeek-OCR-2-Q4_K_M.gguf,DeepSeek-OCR-2-Q4_K_M.gguf
 gpt-oss,unsloth/gpt-oss-20b-GGUF,gpt-oss-20b-Q4_K_M.gguf,skip,"Needs ~120 GiB peak anon RAM to convert+compile (see the memory table in supported_models.md); the largest CI runner is 64 GiB"
 hunyuan-moe,,,skip,"No small checkpoint publicly available (see supported_models.md)"
@@ -28,3 +30,5 @@ glm4moe,,,skip,"Smallest checkpoint (GLM-4.5-Air) is ~40 GiB, impractical even f
 exaone-moe,,,skip,"Smallest checkpoint is ~9 GiB / 32B, not currently validated (see supported_models.md)"
 minimax-m2,,,skip,"Smallest checkpoint is ~78 GiB, impractical even for nightly"
 jais2,,,skip,"No small checkpoint publicly available (see supported_models.md)"
+nemotron_h,bartowski/nvidia_Nemotron-H-8B-Reasoning-128K-GGUF,nvidia_Nemotron-H-8B-Reasoning-128K-Q4_K_M.gguf
+mamba2-2.7b,Nicholas55555/mamba2-2.7b-Q8_0-GGUF,mamba2-2.7b-q8_0.gguf

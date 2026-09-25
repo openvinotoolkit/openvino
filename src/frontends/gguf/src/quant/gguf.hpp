@@ -112,6 +112,11 @@ void gguf_fill_mxfp4(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& 
 // The zero-point is the constant 1 for every block: value = (code - 1) * scale.
 void gguf_fill_q2_0(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales, ov::Tensor& zp);
 
+// Quantize one row to Q8_0_C: a single channel-wise f16 scale (amax/127) plus signed int8
+// weights. Shared by every channel-wise requant source so the rounding and the zero-row rule
+// live in one place.
+void quantize_row_q8_0_c(const float* x, size_t cols, int8_t* out_weights, ov::float16& out_scale);
+
 // Fused bit-exact ggml dequant + channel-wise Q8_0_C requant for the token_embd/output/Q6_K/Q5_K
 // requant path. Streams one row at a time (never materializes the full f32 weight). Fills i8
 // weights [rows,cols] + f16 scales [rows,1]; matches upstream's to_float->quantize_q8_0 exactly so

@@ -46,6 +46,7 @@ class TestAminMax(PytorchLayerTest):
                                              (0, False),     # Test with dim provided and keepdim=False
                                              (0, True),      # Test with dim provided and keepdim=True
                                              (None, True)])  # Test with keepdim=True and dim not provided
+    @pytest.mark.precommit_torch_export
     def test_aminmax(self, dtype, inputs, ie_device,
                      precision, ir_version, dim, keepdim):
         self._test(

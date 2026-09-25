@@ -19,6 +19,7 @@
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/primitives/paged_attention.hpp"
+#include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/op/indirect_sdpa.hpp"
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/op/read_value.hpp"
@@ -1862,8 +1863,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     return true;
                 }
 
-                auto weight_shape = root->get_input_partial_shape(1);
-                const size_t innermost_size = weight_shape[weight_shape.size() - 1].get_length();
+                auto fc = ov::as_type_ptr<const ov::intel_gpu::op::FullyConnectedCompressed>(root);
+                auto weight_shape = fc->get_input_partial_shape(1);
+                const size_t k_axis = weight_shape.size() - (fc->get_transpose_b() ? 1 : 2);
+                const size_t n_axis = weight_shape.size() - (fc->get_transpose_b() ? 2 : 1);
+                const size_t innermost_size = weight_shape[k_axis].get_length();
                 const size_t simd = 16;
                 if (innermost_size < 32 || (innermost_size % (simd * 2) != 0)) {
                     GPU_DEBUG_TRACE << root->get_friendly_name()
@@ -1884,6 +1888,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 if (has_wzp && !cldnn::one_of(root->get_input_element_type(4), {ov::element::i8, ov::element::u8, ov::element::i4, ov::element::u4})) {
                     GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
                                                                     " unsupported weight zp type: " << root->get_input_element_type(4) << std::endl;
+                    return true;
+                }
+
+                // A single output feature (N == 1) FC has a matmul too small to amortize
+                // the cost of dynamically quantizing its activation
+                const auto& n_dim = weight_shape[n_axis];
+                if (n_dim.is_static() && n_dim.get_length() == 1) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off:"
+                                                                    " compressed weight with N==1 (activation quantization is unprofitable;"
+                                                                    " keep weight-only quantization with f16 activation)" << std::endl;
                     return true;
                 }
 

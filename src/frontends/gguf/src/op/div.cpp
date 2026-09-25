@@ -19,10 +19,7 @@
 #include "openvino/op/util/precision_sensitive_attribute.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 namespace {
 
@@ -119,7 +116,7 @@ OutputVector translate_div(const NodeContext& context) {
     auto input_0 = context.get_input(0);
     auto input_1 = context.get_input(1);
 
-    const auto output_type = context.get_attribute<ov::element::Type>("output_type");
+    const auto output_type = input_0.get_element_type();
 
     if (is_silu_div_pattern(input_0, input_1)) {
         ov::Output<ov::Node> res = std::make_shared<ov::op::v0::Sigmoid>(input_1);
@@ -152,7 +149,4 @@ OutputVector translate_div(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

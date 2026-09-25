@@ -159,6 +159,22 @@ TEST(GGUFAdaptToGenAI, RewritesIOContract) {
     EXPECT_EQ(m.model->get_results()[0]->get_output_partial_shape(0).rank().get_length(), 3);
 }
 
+TEST(GGUFAdaptToGenAI, AcceptsPrunedTokenCountInput) {
+    auto m = build_minimal_gguf_model();
+    auto count = find_parameter(m.model, "token_len_per_seq");
+    ASSERT_NE(count, nullptr);
+    ASSERT_TRUE(count->output(0).get_target_inputs().empty());
+    m.model->remove_parameter(count);
+
+    ASSERT_TRUE(AdaptToGenAI().run_on_model(m.model));
+    EXPECT_NE(find_parameter(m.model, "input_ids"), nullptr);
+    EXPECT_NE(find_parameter(m.model, "attention_mask"), nullptr);
+    EXPECT_NE(find_parameter(m.model, "position_ids"), nullptr);
+    EXPECT_EQ(m.model->get_results().size(), 1);
+    EXPECT_EQ(m.model->output().get_partial_shape().rank().get_length(), 3);
+    EXPECT_FALSE(AdaptToGenAI().run_on_model(m.model));
+}
+
 // Without the required gguf inputs present, the pass is a no-op (e.g. a model already adapted, or
 // not a gguf-IO model at all).
 TEST(GGUFAdaptToGenAI, NoOpWithoutGgufInputs) {

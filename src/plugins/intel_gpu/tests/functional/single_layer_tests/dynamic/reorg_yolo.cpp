@@ -65,22 +65,20 @@ const std::vector<ov::test::InputShape> inShapesDynamic2 = {
     {{{1, 2}, -1, -1, -1}, {{1, 9, 3, 3}}}
 };
 
-const auto testCase_stride1_Dynamic = ::testing::Combine(::testing::ValuesIn(inShapesDynamic1),
-                                                         ::testing::Values(strides[0]),
-                                                         ::testing::Values(ov::element::f32),
-                                                         ::testing::Values(ov::test::utils::DEVICE_GPU));
-
-const auto testCase_stride2_Dynamic = ::testing::Combine(::testing::ValuesIn(inShapesDynamic2),
-                                                         ::testing::Values(strides[1]),
-                                                         ::testing::Values(ov::element::f32),
-                                                         ::testing::Values(ov::test::utils::DEVICE_GPU));
-
-INSTANTIATE_TEST_SUITE_P(smoke_TestsReorgYolo_stride1_DynamicShape, ReorgYoloLayerGPUTest,
-                         testCase_stride1_Dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_TestsReorgYolo_stride1_DynamicShape,
+                         ReorgYoloLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(inShapesDynamic1),
+                                            ::testing::Values(strides[0]),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReorgYoloLayerGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_TestsReorgYolo_stride2_DynamicShape, ReorgYoloLayerGPUTest,
-                         testCase_stride2_Dynamic,
+INSTANTIATE_TEST_SUITE_P(smoke_TestsReorgYolo_stride2_DynamicShape,
+                         ReorgYoloLayerGPUTest,
+                         ::testing::Combine(::testing::ValuesIn(inShapesDynamic2),
+                                            ::testing::Values(strides[1]),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          ReorgYoloLayerGPUTest::getTestCaseName);
 
 } // namespace

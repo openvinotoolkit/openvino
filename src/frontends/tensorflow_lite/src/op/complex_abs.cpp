@@ -8,10 +8,7 @@
 
 using namespace std;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow_lite {
-namespace op {
+namespace ov::frontend::tensorflow_lite::op {
 
 OutputVector complex_abs(const ov::frontend::tensorflow_lite::NodeContext& node) {
     auto decoder = node.get_decoder();
@@ -20,7 +17,4 @@ OutputVector complex_abs(const ov::frontend::tensorflow_lite::NodeContext& node)
     return abs->outputs();
 }
 
-}  // namespace op
-}  // namespace tensorflow_lite
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow_lite::op

@@ -25,13 +25,16 @@
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/util/common_util.hpp"
+#include "orc/schema_npuw.hpp"
 #include "pa_compiled_model.hpp"
 #include "partitioning/patterns/opt.hpp"
 #include "pipelines/kokoro/kokoro_compiled_model.hpp"
 #include "plugin.hpp"
+#include "serialization.hpp"
 #include "unfold_sync_infer_request.hpp"
 #include "util.hpp"
 #include "v1/elements/accuracy_checked.hpp"
+#include "v1/elements/batched.hpp"
 #include "v1/elements/failsafe.hpp"
 
 // required for get_properties_per_device()
@@ -328,7 +331,19 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
         compiled_model = std::make_shared<ov::npuw::GQACompiledModel>(model, plugin, config);
     } else if (properties.count(use_llm_key) && properties.at(use_llm_key).as<bool>() == true) {
         LOG_INFO("ov::npuw::LLMCompiledModel will be created.");
-        compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, config);
+        auto llm_compiled_model = std::make_shared<ov::npuw::LLMCompiledModel>(model, plugin, config);
+        const auto scoring_tags = ov::npuw::batched::scoring_tags(config);
+        if (scoring_tags.text_rerank || scoring_tags.text_embed) {
+            // Single-shot scoring pipelines (text rerank / embedding) may submit
+            // batched [N, ...] inputs, while the LLM pipeline pins everything to a
+            // static batch of 1. The batched element unrolls such an infer row by
+            // row over the unchanged batch-1 inner request.
+            LOG_INFO("Wrapping with ov::npuw::batched::CompiledModel.");
+            compiled_model =
+                std::make_shared<ov::npuw::batched::CompiledModel>(llm_compiled_model, plugin, scoring_tags);
+        } else {
+            compiled_model = llm_compiled_model;
+        }
     } else if (properties.count(use_pa_key) && properties.at(use_pa_key).as<bool>() == true) {
         LOG_INFO("ov::npuw::PACompiledModel will be created.");
         compiled_model = std::make_shared<ov::npuw::PACompiledModel>(model, plugin, config);
@@ -341,6 +356,71 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::create(
     }
     LOG_INFO("Done");
     return compiled_model;
+}
+
+namespace {
+bool is_partitioned_orc(std::istream& stream) {
+    const auto header = ov::npuw::orc::is_orc(stream);
+    return header.has_value() && header->schema_uuid == ov::npuw::orc::schema_npuw::NPUW_ORC_PARTITIONED_SCHEMA;
+}
+
+bool has_npuw_indicator(std::istream& stream) {
+    const auto start = stream.tellg();
+    ov::npuw::s11n::IndicatorType indicator;
+    const bool found = ov::npuw::orc::try_read_bytes(stream, indicator.data(), indicator.size()) &&
+                       indicator == NPUW_SERIALIZATION_INDICATOR;
+    stream.clear();
+    stream.seekg(start);
+    return found;
+}
+}  // anonymous namespace
+
+bool ov::npuw::ICompiledModel::is_npuw_blob(std::istream& stream) {
+    return is_partitioned_orc(stream) || has_npuw_indicator(stream);
+}
+
+std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::ICompiledModel::import_model(
+    std::istream& stream,
+    const std::shared_ptr<const ov::IPlugin>& plugin,
+    const ov::AnyMap& properties) {
+    LOG_INFO("Choosing which NPUW CompiledModel to import");
+    LOG_BLOCK();
+
+    // The partitioned CompiledModel is a plain ORC container with no indicator
+    // header of its own.
+    if (is_partitioned_orc(stream)) {
+        return ov::npuw::CompiledModel::import_model(stream, plugin, properties);
+    }
+
+    const auto stream_start_pos = stream.tellg();
+    ov::npuw::s11n::IndicatorType serialization_indicator;
+    OPENVINO_ASSERT(
+        ov::npuw::orc::try_read_bytes(stream, serialization_indicator.data(), serialization_indicator.size()) &&
+            serialization_indicator == NPUW_SERIALIZATION_INDICATOR,
+        "Couldn't deserialize NPUW blob - no NPUW serialization indicator found!");
+    ov::npuw::s11n::IndicatorType compiled_model_indicator;
+    OPENVINO_ASSERT(
+        ov::npuw::orc::try_read_bytes(stream, compiled_model_indicator.data(), compiled_model_indicator.size()),
+        "Couldn't deserialize NPUW blob - no compiled model indicator found!");
+    stream.clear();
+    stream.seekg(stream_start_pos);
+
+    if (compiled_model_indicator == NPUW_FLUX2_COMPILED_MODEL_INDICATOR) {
+        return ov::npuw::Flux2CompiledModel::import_model(stream, plugin, properties);
+    } else if (compiled_model_indicator == NPUW_GQA_COMPILED_MODEL_INDICATOR) {
+        return ov::npuw::GQACompiledModel::import_model(stream, plugin, properties);
+    } else if (compiled_model_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR) {
+        // Properties are required for ov::weights_path
+        return ov::npuw::LLMCompiledModel::import_model(stream, plugin, properties);
+    } else if (compiled_model_indicator == NPUW_BATCHED_COMPILED_MODEL_INDICATOR) {
+        return ov::npuw::batched::CompiledModel::import_model(stream, plugin, properties);
+    } else if (compiled_model_indicator == NPUW_COMPILED_MODEL_INDICATOR) {
+        // The flat CompiledModel moved to the ORC container above; its old
+        // indicator-headed layout has no reader anymore.
+        OPENVINO_THROW("Legacy flat NPUW CompiledModel blobs are no longer supported. Re-export the model with "
+                       "the current ORC serializer.");
+    }
+    OPENVINO_THROW("Couldn't deserialize NPUW blob - fatal error!");
 }
 
 ov::npuw::ICompiledModel::ICompiledModel(const std::shared_ptr<ov::Model>& model,
@@ -1835,7 +1915,7 @@ void ov::npuw::CompiledModel::set_weights_bank(std::shared_ptr<ov::npuw::weights
 
 void ov::npuw::CompiledModel::finalize_weights_bank() {
     LOG_INFO("Finalizing weights bank...");
-    std::shared_future<void> weights_bank_evaluation = std::async(std::launch::async, [&]() {
+    auto finalize_weights = [&]() {
         // Register lazy tensors
         for (std::size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
             auto& comp_model_desc = m_compiled_submodels[idx];
@@ -1891,9 +1971,9 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
         }
 
         m_import_weights_ctx.reset();
-    });
+    };
 
-    m_eval_future = weights_bank_evaluation;
+    m_eval_future = std::async(std::launch::async, finalize_weights);
 
     for (size_t idx = 0; idx < m_compiled_submodels.size(); ++idx) {
         auto& comp_model_desc = m_compiled_submodels[idx];
@@ -1903,7 +1983,7 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             continue;
         }
 
-        comp_model_desc.closure.set_future(weights_bank_evaluation);
+        comp_model_desc.closure.set_future(m_eval_future);
     }
 
     LOG_INFO("Done.");
