@@ -53,6 +53,7 @@ class TestLinalgCross(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("x_shape,y_shape,dim", [
         ((4, 3), (4, 3), None),
         ((1, 3), (4, 3), -1),
@@ -113,6 +114,7 @@ class TestCross(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     @pytest.mark.parametrize("x_shape,y_shape,dim", [
         ((1, 3), (4, 3), -1),
         ((4, 3), (1, 3), 1),

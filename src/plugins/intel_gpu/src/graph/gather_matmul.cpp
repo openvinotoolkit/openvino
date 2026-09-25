@@ -40,10 +40,11 @@ std::vector<layout> gather_matmul_inst::calc_output_layouts(const gather_matmul_
     // SwiGLU fusion halves output features (weights pack gate + value).
     for (const auto& fd : impl_param.fused_desc) {
         if (fd.is_type<swiglu>()) {
-            if (out_features.is_static())
+            if (out_features.is_static()) {
                 out_features = out_features.get_length() / 2;
-            else
+            } else {
                 out_features = ov::Dimension::dynamic();
+            }
             break;
         }
     }
@@ -65,8 +66,9 @@ std::string gather_matmul_inst::to_string(const gather_matmul_node& node) {
     bgm_info.add("has_bias", desc->has_bias);
     bgm_info.add("has_zp", desc->has_zp);
     bgm_info.add("n_activated_experts", desc->n_activated_experts);
-    if (desc->output_data_types[0].has_value())
+    if (desc->output_data_types[0].has_value()) {
         bgm_info.add("out dt: ", dt_to_str(*desc->output_data_types[0]));
+    }
     node_info->add("gather_matmul_info", bgm_info);
     node_info->dump(primitive_description);
 

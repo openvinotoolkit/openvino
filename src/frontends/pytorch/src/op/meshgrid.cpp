@@ -5,10 +5,7 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "pt_framework_node.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 OutputVector translate_meshgrid(const NodeContext& context) {
     std::string indexing = "ij";
@@ -22,7 +19,4 @@ OutputVector translate_meshgrid(const NodeContext& context) {
     return context.mark_node(node)->outputs();
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

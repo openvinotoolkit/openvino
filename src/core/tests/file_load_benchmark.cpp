@@ -39,13 +39,6 @@
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/file_utils.hpp"
 
-// These benchmarks measure wall-clock timing and are meaningless (and extremely slow for
-// multi-GB files) in a Debug (-O0) build.
-#ifndef NDEBUG
-#    error \
-        "file_load_benchmark.cpp must be built in Release mode: rebuild with -DCMAKE_BUILD_TYPE=Release, or delete this #error to build in Debug anyway."
-#endif
-
 namespace ov::test {
 
 namespace {
@@ -213,7 +206,7 @@ void sync_vm_prefetch_mem_lock(const std::filesystem::path& path, size_t /*file_
 void loop_touch_mem_lock(const std::filesystem::path& path, size_t /*file_size*/) {
     auto mapped = load_mmap_object(path);
     volatile uint8_t sink = 0;
-    for (auto first = mapped->data(), last = first + mapped->size(); first < last; first += page_size) {
+    for (auto *first = mapped->data_as<uint8_t>(), *last = first + mapped->size(); first < last; first += page_size) {
         sink += *first;
     }
     ensure_memory_resident(mapped);  // should be near no-op and just lock/unlock resident pages
@@ -287,9 +280,19 @@ void native_stream_read(const std::filesystem::path& path, size_t file_size) {
 
 }  // namespace
 
-// See developer_benchmarks.md for build/run instructions.
+// See file_load_benchmark_guide.md for build/run instructions.
 
-class FileLoadBenchmark : public ::testing::Test {};
+class FileLoadBenchmark : public ::testing::Test {
+protected:
+    void SetUp() override {
+#ifndef NDEBUG
+        // These benchmarks measure wall-clock timing and are meaningless (and extremely slow for
+        // multi-GB files) in a Debug (-O0) build. Build in Release for meaningful results.
+        GTEST_SKIP() << "FileLoadBenchmark is a Release-only benchmark; rebuild with -DCMAKE_BUILD_TYPE=Release, or "
+                        "remove the skip to run it in Debug.";
+#endif
+    }
+};
 
 TEST_F(FileLoadBenchmark, native_stream_vs_parallel_stream) {
     const std::vector<size_t> sizes_bytes = {2 * util::one_mib,
