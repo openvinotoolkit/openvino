@@ -1227,7 +1227,9 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     if (!is_dynamic) {
         bool need_lockable_mem = network->does_node_need_lockable_output(internal_name);
         bool has_device_buffer = m_plugin_outputs.count(output_idx) > 0;
-        bool update_device_tensor = !has_device_buffer || is_generic_remote;
+        bool update_device_tensor =
+            !has_device_buffer || is_generic_remote ||
+            (m_plugin_outputs[output_idx].owner == TensorOwner::USER && !is_remote_tensor_impl);
         if (update_device_tensor) {
             if (!is_remote_tensor_impl) {
                 m_plugin_outputs[output_idx] =
@@ -1246,6 +1248,8 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
         network->unregister_output_memory_block(internal_name);
 
         if (!is_remote_tensor_impl && !is_generic_remote) {
+            const bool had_caller_owned_output_buffer =
+                m_plugin_outputs.count(output_idx) > 0 && m_plugin_outputs[output_idx].owner == TensorOwner::USER;
             auto& engine = m_graph->get_engine();
             const bool overlap_unsupported = !can_use_caller_output_memory(user_tensor, user_tensor_wrapper.actual_size);
             // Import a caller USM-host pointer as a shared remote tensor so the graph writes into it directly.
@@ -1282,6 +1286,13 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
                 // in-place contract): allocate plugin-owned memory to avoid overwriting the input data
                 // before it is read. The result is copied out in wait().
                 m_plugin_outputs[output_idx] = create_plugin_output();
+            } else if (had_caller_owned_output_buffer) {
+                // The new host tensor is ineligible for direct binding, so replace the stale caller allocation.
+                m_plugin_outputs[output_idx] = create_or_share_device_tensor(user_tensor_wrapper,
+                                                                             internal_name,
+                                                                             pshape,
+                                                                             device_tensor_et,
+                                                                             need_lockable_mem || convert_needed);
             }
         }
     }
