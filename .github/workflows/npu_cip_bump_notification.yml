@@ -58,15 +58,24 @@ jobs:
     steps:
       - name: Detect CiP value-level change
         id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_BEFORE_SHA: ${{ github.event.inputs.before_sha }}
+          INPUT_AFTER_SHA: ${{ github.event.inputs.after_sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          PUSH_AFTER_SHA: ${{ github.sha }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          NPU_CIP_NOTIFY_LOGINS: ${{ vars.NPU_CIP_NOTIFY_LOGINS }}
         run: |
           set -euo pipefail
 
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            BEFORE="${{ github.event.inputs.before_sha }}"
-            AFTER="${{ github.event.inputs.after_sha }}"
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            BEFORE="$INPUT_BEFORE_SHA"
+            AFTER="$INPUT_AFTER_SHA"
           else
-            BEFORE="${{ github.event.before }}"
-            AFTER="${{ github.sha }}"
+            BEFORE="$PUSH_BEFORE_SHA"
+            AFTER="$PUSH_AFTER_SHA"
           fi
           echo "Comparing ${FILE_PATH} between ${BEFORE} and ${AFTER}"
 
@@ -122,8 +131,8 @@ jobs:
           fi
 
           NOW="$(TZ='Europe/Warsaw' date +'%H:%M %d/%m/%Y %Z')"
-          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${AFTER}"
-          BRANCH="${{ github.ref_name }}"
+          COMMIT_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${AFTER}"
+          BRANCH="${GITHUB_REF_NAME}"
           AUTHOR="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${AFTER}" --jq '.commit.author.name' 2>/dev/null || true)"
           PR_INFO="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${AFTER}/pulls" \
             --jq '.[0] | "#\(.number) \(.title)"' 2>/dev/null || true)"
@@ -131,7 +140,7 @@ jobs:
             --jq '.[0].number' 2>/dev/null || true)"
           PR_URL=""
           if [[ -n "${PR_NUMBER}" ]]; then
-            PR_URL="${{ github.server_url }}/${{ github.repository }}/pull/${PR_NUMBER}"
+            PR_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/pull/${PR_NUMBER}"
           fi
 
           MENTIONS=""
@@ -177,24 +186,24 @@ jobs:
             echo ""
             echo "CHANGES_EOF"
           } >> "${GITHUB_OUTPUT}"
-        env:
-          NPU_CIP_NOTIFY_LOGINS: ${{ vars.NPU_CIP_NOTIFY_LOGINS }}
 
       - name: Post GitHub notification on pull request
         if: steps.detect.outputs.changed == 'true'
         env:
           NOTIFY_LOGINS: ${{ vars.NPU_CIP_NOTIFY_LOGINS }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ steps.detect.outputs.pr_number }}
         run: |
           set -euo pipefail
           if [[ -z "${NOTIFY_LOGINS// /}" ]]; then
             echo "NPU_CIP_NOTIFY_LOGINS not set; skipping GitHub @mention comment."
             exit 0
           fi
-          if [[ "${{ github.event_name }}" != "push" ]]; then
+          if [[ "$EVENT_NAME" != "push" ]]; then
             echo "Not a push event; skipping GitHub comment."
             exit 0
           fi
-          PR="${{ steps.detect.outputs.pr_number }}"
+          PR="${PR_NUMBER}"
           if [[ -z "${PR}" ]]; then
             echo "::warning::No pull request linked to this bump; cannot post @mention comment."
             exit 0
