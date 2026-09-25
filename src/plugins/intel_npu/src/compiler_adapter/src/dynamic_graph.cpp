@@ -19,7 +19,7 @@
 namespace intel_npu {
 
 namespace {
-void populateRuntimeConfigChain(NpuVMRuntimeConfigChain& configChain, const FilteredConfig& config) {
+void populateRuntimeConfigChain(NpuVMRuntimeConfigChain& configChain, const Config& config) {
     configChain.append(
         NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_PRIORITY,
         static_cast<npu_vm_runtime_config_value_t>(zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>())));
@@ -42,7 +42,7 @@ void populateRuntimeConfigChain(NpuVMRuntimeConfigChain& configChain, const Filt
 
 }  // namespace
 
-void DynamicGraph::create_execution_engine(const FilteredConfig& config) {
+void DynamicGraph::create_execution_engine(const Config& config) {
     npu_vm_runtime_blob_desc_t blobDesc;
     blobDesc.pInput = reinterpret_cast<const uint8_t*>(_blob.value().data());
     blobDesc.inputSize = _blob.value().get_byte_size();
@@ -186,7 +186,7 @@ void DynamicGraph::prepare_metadata() {
     _metadata.bindRelatedDescriptors();
 }
 
-void DynamicGraph::initialize_engine(const FilteredConfig& config) {
+void DynamicGraph::initialize_engine(const Config& config) {
     if (!_engineInitialized) {
         create_execution_engine(config);
         prepare_metadata();
@@ -222,7 +222,7 @@ void DynamicGraph::initialize_engine(const FilteredConfig& config) {
 
 DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                            ov::Tensor blob,
-                           const FilteredConfig& config,
+                           const Config& config,
                            BlobType blobType)
     : _zeroInitStruct(zeroInitStruct),
       _blob(std::move(blob)),
@@ -352,7 +352,7 @@ void* DynamicGraph::get_handle() const {
     return _engine;
 }
 
-void DynamicGraph::initialize_impl(const FilteredConfig& config) {
+void DynamicGraph::initialize_impl(const Config& config) {
     _logger.debug("Graph initialize start");
 
     if (!_engineInitialized) {
@@ -403,10 +403,10 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
     _init_completed.store(true, std::memory_order_release);
 }
 
-bool DynamicGraph::release_blob(const FilteredConfig& config) {
+bool DynamicGraph::release_blob(const Config& config) {
     _logger.warning("Release blob is skipped, no handle for DynamicGraph");
     return false;
-};
+}
 
 uint32_t DynamicGraph::get_unique_id() {
     return _uniqueId++;

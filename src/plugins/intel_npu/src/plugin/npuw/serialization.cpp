@@ -12,6 +12,7 @@
 #include "logging.hpp"
 #include "moe_transformations/moe_transformation.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/core/version.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/reference/convert.hpp"
@@ -419,5 +420,54 @@ void ov::npuw::orc::serialize_weightless(Stream& stream,
             serialize(stream, t);
             var.push_back(t);
         }
+    }
+}
+
+void ov::npuw::s11n::write_header(std::ostream& stream, const IndicatorType& model_indicator) {
+    write(stream, NPUW_SERIALIZATION_INDICATOR);
+    write(stream, model_indicator);
+    write(stream, OPENVINO_VERSION_MAJOR);
+    write(stream, OPENVINO_VERSION_MINOR);
+    write(stream, OPENVINO_VERSION_PATCH);
+    write(stream, std::string(NPUW_SERIALIZATION_VERSION));
+}
+
+void ov::npuw::s11n::read_and_check_header(std::istream& stream,
+                                           const IndicatorType& expected,
+                                           const std::string& what) {
+    IndicatorType serialization_indicator;
+    read(stream, serialization_indicator);
+    OPENVINO_ASSERT(serialization_indicator == NPUW_SERIALIZATION_INDICATOR, "This blob wasn't serialized via NPUW!");
+
+    IndicatorType model_indicator;
+    read(stream, model_indicator);
+    OPENVINO_ASSERT(model_indicator == expected, "This blob wasn't serialized via ", what, "!");
+
+    int vmajor = 0, vminor = 0, vpatch = 0;
+    std::string s11n_version;
+    read(stream, vmajor);
+    read(stream, vminor);
+    read(stream, vpatch);
+    read(stream, s11n_version);
+
+    if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
+        s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {
+        OPENVINO_THROW("This blob was serialized with a different OV version!",
+                       "\nSerialized by OV ",
+                       vmajor,
+                       '.',
+                       vminor,
+                       '.',
+                       vpatch,
+                       "\nCurrent OV version ",
+                       OPENVINO_VERSION_MAJOR,
+                       '.',
+                       OPENVINO_VERSION_MINOR,
+                       '.',
+                       OPENVINO_VERSION_PATCH,
+                       "\nNPUW serialized by version ",
+                       s11n_version,
+                       "\nNPUW current serialization version ",
+                       NPUW_SERIALIZATION_VERSION);
     }
 }
