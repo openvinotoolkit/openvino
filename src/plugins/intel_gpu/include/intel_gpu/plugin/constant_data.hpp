@@ -6,9 +6,9 @@
 
 #include <algorithm>
 #include <cstring>
-#include <vector>
 
 #include "openvino/runtime/threading/itask_executor.hpp"
+#include "openvino/runtime/threading/parallel_memcpy.hpp"
 
 namespace ov::intel_gpu {
 
@@ -22,19 +22,7 @@ inline void copy_constant_data(void* destination, const void* source, size_t siz
         return;
     }
 
-    auto* dst = static_cast<char*>(destination);
-    const auto* src = static_cast<const char*>(source);
-    const size_t chunk_size = size / num_chunks;
-    std::vector<ov::threading::Task> tasks;
-    tasks.reserve(num_chunks);
-    for (size_t i = 0; i < num_chunks; ++i) {
-        const size_t offset = i * chunk_size;
-        const size_t count = i + 1 == num_chunks ? size - offset : chunk_size;
-        tasks.emplace_back([=] {
-            std::memcpy(dst + offset, src + offset, count);
-        });
-    }
-    executor->run_and_wait(tasks);
+    ov::threading::parallel_memcpy(destination, source, size, *executor, num_chunks);
 }
 
 }  // namespace ov::intel_gpu
