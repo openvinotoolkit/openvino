@@ -156,5 +156,18 @@ INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate1DFastPathOutOfRangeIndices,
                                             ::testing::Values(ElementType::i32),
                                             ::testing::Values(ElementType::i32)),
                          ScatterUpdateLayerCPUTest::getTestCaseName);
+
+const std::vector<ScatterUpdateLayerParams> scatterUpdateGeneralPathOutOfRangeParams = {
+    ScatterUpdateLayerParams{ScatterUpdateShapes{{{8, 4}, {{8, 4}}}, {{2, 4}, {{2, 4}}}},
+                             IndicesDescription{{2}, {0, 100000}},
+                             Axis{0}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdateGeneralPathOutOfRangeIndices,
+                         ScatterUpdateLayerCPUTestNegative,
+                         ::testing::Combine(::testing::ValuesIn(scatterUpdateGeneralPathOutOfRangeParams),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::ValuesIn(constantPrecisions)),
+                         ScatterUpdateLayerCPUTest::getTestCaseName);
 }  // namespace test
 }  // namespace ov
