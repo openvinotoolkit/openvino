@@ -69,6 +69,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/kernel_impl_params_relevance_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/layout_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/mem_reset_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/memory_dependency_set_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/nodes_ordering_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/primitive_comparison_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/shape_predictor_test.cpp
@@ -85,6 +86,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/passes/kernels_cache_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/mark_shape_of_subgraphs_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/mark_state_init_subgraphs_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/passes/memory_dependency_construction_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/oooq_memory_dependencies_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/post_optimize_weights.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/prepare_buffer_fusing_test.cpp
