@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
+#include <utility>
 
 #include "builder/graph_emitter.hpp"
 
@@ -30,5 +32,28 @@ std::string scale(GraphEmitter& e, const std::string& x, float factor, const std
 
 // Elementwise add of a (broadcast) bias weight: GGML_OP_ADD(x, bias_weight).
 std::string add_bias(GraphEmitter& e, const std::string& x, const std::string& bias_weight, const std::string& name);
+
+// The extracted weight/scales/zero-point tensors of weight `base` ("<base>.weight" etc.).
+WeightTensors weight_parts(GraphEmitter& e, const std::string& base);
+
+// Quant type of weight `base`; F16 when unknown.
+GgufTensorType weight_qtype(GraphEmitter& e, const std::string& base);
+
+// Register the tensors of a derived weight `base` with quant type `qtype`.
+void store_parts(GraphEmitter& e, const std::string& base, const WeightTensors& t, GgufTensorType qtype);
+
+// Concatenate the rows of two weights with the same quantization layout into one; empty on mismatch.
+std::optional<WeightTensors> concat_rows(const WeightTensors& a,
+                                         const WeightTensors& b,
+                                         GgufTensorType qa,
+                                         GgufTensorType qb);
+
+// Like concat_rows, but when the layouts differ, first re-express both 32-group 4/8-bit weights
+// exactly in a common 8-bit layout (Q8_0: i8 symmetric, or Q5_K: u8 + u8 zero-point). Returns the
+// merged tensors and the quant type describing their layout; empty when not representable.
+std::optional<std::pair<WeightTensors, GgufTensorType>> concat_rows_widened(const WeightTensors& a,
+                                                                            const WeightTensors& b,
+                                                                            GgufTensorType qa,
+                                                                            GgufTensorType qb);
 
 }  // namespace ov::frontend::gguf::blocks

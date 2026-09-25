@@ -29,6 +29,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 namespace ov::frontend::gguf {
 
@@ -55,14 +56,22 @@ std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> get_glu_inputs(const NodeC
         const auto half_dim = last_dim / 2;
 
         auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
-        auto step = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
-        auto start0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
-        auto stop0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {half_dim});
-        auto start1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {half_dim});
-        auto stop1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {2 * half_dim});
+        if (last_dim % 2 == 0) {
+            // VariadicSplit is the form GLUFusion matches.
+            auto lengths = ov::op::v0::Constant::create(ov::element::i64, {2}, {half_dim, half_dim});
+            auto split = std::make_shared<ov::op::v1::VariadicSplit>(combined, axis, lengths);
+            src0 = split->output(0);
+            src1 = split->output(1);
+        } else {
+            auto step = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+            auto start0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+            auto stop0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {half_dim});
+            auto start1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {half_dim});
+            auto stop1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {2 * half_dim});
 
-        src0 = std::make_shared<ov::op::v8::Slice>(combined, start0, stop0, step, axis);
-        src1 = std::make_shared<ov::op::v8::Slice>(combined, start1, stop1, step, axis);
+            src0 = std::make_shared<ov::op::v8::Slice>(combined, start0, stop0, step, axis);
+            src1 = std::make_shared<ov::op::v8::Slice>(combined, start1, stop1, step, axis);
+        }
     }
 
     if (context.get_attribute<bool>("swapped")) {
