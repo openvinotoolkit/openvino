@@ -46,7 +46,8 @@ std::shared_ptr<ov::op::v0::FakeQuantize> create_fq_with_natural_precision(
 
 std::shared_ptr<ov::Model> create_model(ov::element::Type conv_input_precision,
                                         ov::element::Type output_fq_natural_precision,
-                                        const std::vector<ov::element::Type>& output_fq_precisions_attr) {
+                                        const std::vector<ov::element::Type>& output_fq_precisions_attr,
+                                        const std::vector<ov::element::Type>& conv_input_precisions_attr = {}) {
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3, 16, 16});
     auto input_fq = create_fq_with_natural_precision(input, conv_input_precision, {conv_input_precision});
 
@@ -55,10 +56,12 @@ std::shared_ptr<ov::Model> create_model(ov::element::Type conv_input_precision,
     ov::CoordinateDiff pads(2, 0);
     auto conv = std::make_shared<ov::op::v1::Convolution>(input_fq, weights, strides, pads, pads, strides);
 
-    // Simulate post-MarkupOptimizations state: conv input(0) has a resolved single precision
-    // attribute propagated from the input FQ. The pass reads this via getAttribute<PrecisionsAttribute>.
+    // Simulate the precision attribute propagated to the convolution input.
+    const auto conv_input_precisions = conv_input_precisions_attr.empty()
+                                           ? std::vector<ov::element::Type>{conv_input_precision}
+                                           : conv_input_precisions_attr;
     conv->input(0).get_rt_info()[ov::PrecisionsAttribute::get_type_info_static()] =
-        ov::PrecisionsAttribute({conv_input_precision});
+        ov::PrecisionsAttribute(conv_input_precisions);
 
     auto bias = ov::op::v0::Constant::create(ov::element::f32, {1, 16, 1, 1}, {1.5f});
     auto add = std::make_shared<ov::op::v1::Add>(conv, bias);
@@ -104,5 +107,12 @@ TEST_F(TransformationTestsF, ConvAndFQ_BothI8_NotApplied) {
 TEST_F(TransformationTestsF, ConvAndFQ_PrecisionNotInFQSet_NotApplied) {
     const std::vector<ov::element::Type> fq_precisions = {ov::element::i16};
     model = create_model(ov::element::u8, ov::element::i8, fq_precisions);
+    manager.register_pass<AlignUnsupportedLPConvFQPrecision>();
+}
+
+// Multiple candidate convolution precisions cannot be aligned to one FQ precision
+TEST_F(TransformationTestsF, ConvAndFQ_MultipleConvInputPrecisions_NotApplied) {
+    const std::vector<ov::element::Type> precisions = {ov::element::u8, ov::element::i8};
+    model = create_model(ov::element::u8, ov::element::i8, precisions, precisions);
     manager.register_pass<AlignUnsupportedLPConvFQPrecision>();
 }
