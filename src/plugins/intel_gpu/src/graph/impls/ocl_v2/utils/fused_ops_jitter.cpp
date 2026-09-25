@@ -968,7 +968,7 @@ JitConstants make_activation_jit_constants(const std::string& suffix,
         break;
     }
     case activation_func::softplus: {
-        jit.add(make_jit_constant(macro_def, log(exp(input) + one)));
+        jit.add(make_jit_constant(macro_def, max(input, zero) + log(one + exp(neg(abs(input))))));
         break;
     }
     case activation_func::softsign: {
