@@ -186,6 +186,14 @@ else()
         ov_add_compiler_flags(-Wno-tautological-constant-compare)
     endif()
 
+    # A precompiled header restored from a build/sccache cache under an incompatible
+    # compiler/flags/toolchain state can be rejected by cc1plus as "not a PCH file".
+    # Keep the diagnostic as a warning (the compiler falls back to recompiling
+    # without the PCH) instead of promoting it to a hard build failure via -Werror.
+    if(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG)
+        ov_add_compiler_flags(-Wno-error=invalid-pch)
+    endif()
+
     #
     # Linker flags
     #
