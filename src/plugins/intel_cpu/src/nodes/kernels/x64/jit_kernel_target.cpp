@@ -41,6 +41,21 @@ std::optional<vector_target::tail_folding> tail_folding_override() {
     return value;
 }
 
+// OV_JIT_IR_LOOP_ALIGN overrides the loop alignment in bytes, 0 to
+// disable. For measuring whether alignment is worth its padding on a
+// given kernel, which LLVM decides with block frequencies this DSL does
+// not have.
+std::optional<std::size_t> loop_alignment_override() {
+    static const std::optional<std::size_t> value = [] {
+        const char* env = std::getenv("OV_JIT_IR_LOOP_ALIGN");
+        if (env == nullptr) {
+            return std::optional<std::size_t>{};
+        }
+        return std::optional<std::size_t>{std::strtoul(env, nullptr, 10)};
+    }();
+    return value;
+}
+
 // AVX-512: every memory form the DSL emits has a masked encoding —
 // vmovups{k}{z} for f32, vpmovzxbd/vpmovusdb for u8, vcvtph2ps/vcvtps2ph
 // for f16, vpmovzxwd/vpmovdw for bf16.
@@ -75,6 +90,10 @@ struct avx512_target final : vector_target {
         return bytes <= std::numeric_limits<std::int32_t>::max();
     }
 
+    [[nodiscard]] std::size_t preferred_loop_alignment() const override {
+        return loop_alignment_override().value_or(16);
+    }
+
     // k1..k7: k0 exists but cannot be used as a write-mask.
     [[nodiscard]] const std::vector<std::uint32_t>& predicate_pool() const override {
         static const std::vector<std::uint32_t> pool{1, 2, 3, 4, 5, 6, 7};
@@ -99,6 +118,10 @@ struct legacy_x86_target final : vector_target {
                                               std::size_t /*vectors*/,
                                               std::size_t bytes) const override {
         return bytes <= std::numeric_limits<std::int32_t>::max();
+    }
+
+    [[nodiscard]] std::size_t preferred_loop_alignment() const override {
+        return loop_alignment_override().value_or(16);
     }
 
     [[nodiscard]] const std::vector<std::uint32_t>& predicate_pool() const override {

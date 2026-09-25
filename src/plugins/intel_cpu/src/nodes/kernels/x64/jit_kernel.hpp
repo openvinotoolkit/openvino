@@ -1134,6 +1134,8 @@ public:
     [[nodiscard]] jit_kernel_ir::EmitFn clamped_len(std::size_t lanes) const override;
     [[nodiscard]] jit_kernel_ir::EmitFn lane_mask_bits(std::size_t lanes) const override;
     [[nodiscard]] jit_kernel_ir::EmitFn mask_from_bits(std::size_t lanes) const override;
+    [[nodiscard]] jit_kernel_ir::EmitFn align_to(std::size_t bytes,
+                                                 std::size_t max_padding) const override;
     [[nodiscard]] label_ref make_label() const override;
     [[nodiscard]] jit_kernel_ir::EmitFn place_label(const label_ref& at) const override;
     [[nodiscard]] jit_kernel_ir::EmitFn branch(cond on, const label_ref& to) const override;
@@ -1829,6 +1831,17 @@ void jit_kernel::foreach (const B& begin,
     auto step_val = static_cast<size_t>(step);
     auto idx_var = variable<size_t>(*this, idx_vid);
 
+    // Align the loop head. LLVM decides this in MachineBlockPlacement,
+    // after layout, because its back edges can be synthetic; here control
+    // flow is structural, so a loop region is known to be a loop at the
+    // moment it is recorded and a pass would have nothing to discover.
+    //
+    // What we do lose by not having that pass: LLVM skips cold blocks and
+    // optsize functions using block frequencies this DSL does not have,
+    // so every loop gets aligned. The padding cap is the one heuristic
+    // cheap enough to keep.
+    const size_t loop_align = target().preferred_loop_alignment();
+
     _ir->loop(
         std::move(header_reads),
         // Header: place(loop); cmp(idx, end); branch(>=, exit)
@@ -1853,6 +1866,15 @@ void jit_kernel::foreach (const B& begin,
                      },
                      "loop_footer");
         });
+
+    if (loop_align > 1) {
+        auto& loop_op = _ir->last();
+        loop_op.align = static_cast<std::uint32_t>(loop_align);
+        // Half the alignment: past that the nops cost more than the
+        // misalignment they remove. LLVM caps this too
+        // (setAlignment(Align, MaxBytes) / MaxBytesForAlignment).
+        loop_op.align_max_padding = static_cast<std::uint32_t>(loop_align / 2);
+    }
 }
 
 template <typename T>

@@ -705,6 +705,21 @@ jit_kernel_ir::EmitFn jit_kernel::mask_from_bits(std::size_t lanes) const {
     };
 }
 
+jit_kernel_ir::EmitFn jit_kernel::align_to(std::size_t bytes, std::size_t max_padding) const {
+    return [this, bytes, max_padding](const jit_kernel_ir::EmitContext&) {
+        auto* self = const_cast<jit_kernel*>(this);
+        if (bytes < 2) {
+            return;
+        }
+        const size_t pad = (bytes - (self->getSize() % bytes)) % bytes;
+        if (pad == 0 || (max_padding != 0 && pad > max_padding)) {
+            return;
+        }
+        // Xbyak's align() emits multi-byte nops rather than a run of 0x90.
+        self->align(bytes);
+    };
+}
+
 label_ref jit_kernel::make_label() const {
     return std::make_shared<x64_label>();
 }
@@ -835,6 +850,14 @@ void jit_kernel::end_ir() {
         std::function<void(const std::list<jit_kernel_ir::Op>&)> lower;
         lower = [&](const std::list<jit_kernel_ir::Op>& ops) {
             for (const auto& op : ops) {
+                // Code alignment is a property of the op, materialized
+                // here rather than inside its emit closure — the same
+                // split LLVM keeps between MachineBasicBlock::Alignment
+                // and the AsmPrinter that emits the .p2align.
+                if (op.align != 0) {
+                    const jit_kernel_ir::EmitContext pad_ctx{std::nullopt, {}, std::nullopt};
+                    align_to(op.align, op.align_max_padding)(pad_ctx);
+                }
                 if (op.body) {
                     ir_trace(std::string("lower ") + (op.is_loop ? "loop" : "region") + " enter");
                     // Resolve reads for region ops (loop header idx/end etc.)

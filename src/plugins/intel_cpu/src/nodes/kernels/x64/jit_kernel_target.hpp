@@ -89,6 +89,14 @@ struct vector_target {
                                                       std::size_t vectors,
                                                       std::size_t bytes) const = 0;
 
+    // Preferred code alignment for a loop header, in bytes; 0 to leave
+    // loops unaligned. LLVM: TargetLowering::getPrefLoopAlignment, which
+    // X86 sets to 16 (X86ISelLowering.cpp: setPrefLoopAlignment(Align(16))).
+    // oneDNN's BRGEMM kernels align their loops to 64, so the right value
+    // is a question for measurement rather than for doctrine — hence the
+    // OV_JIT_IR_LOOP_ALIGN override.
+    [[nodiscard]] virtual std::size_t preferred_loop_alignment() const = 0;
+
     // Allocation order for the predicate register file: the physical
     // registers the allocator may use for Mask values, in preference
     // order. Empty when the ISA has no predicates (SSE, AVX2, NEON).

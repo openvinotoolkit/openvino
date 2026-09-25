@@ -117,6 +117,13 @@ struct arch_emitter {
 
     // ── Control flow ──────────────────────────────────────────────────
 
+    // Pad to a `bytes` boundary, spending at most `max_padding` bytes.
+    // The counterpart of LLVM's AsmPrinter emitting .p2align for a block
+    // whose MachineBasicBlock::Alignment is set: lowering reads the
+    // property off the op and asks the arch to realize it.
+    [[nodiscard]] virtual jit_kernel_ir::EmitFn align_to(std::size_t bytes,
+                                                         std::size_t max_padding) const = 0;
+
     [[nodiscard]] virtual label_ref make_label() const = 0;
     [[nodiscard]] virtual jit_kernel_ir::EmitFn place_label(const label_ref& at) const = 0;
     [[nodiscard]] virtual jit_kernel_ir::EmitFn branch(cond on, const label_ref& to) const = 0;

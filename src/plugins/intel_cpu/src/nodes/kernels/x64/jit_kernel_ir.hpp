@@ -157,6 +157,19 @@ struct Op {
                                          // makes it interfere with its own reads.
     std::unique_ptr<IR> body;            // non-null = region op (loop, branch)
     bool is_loop = false;                // true = extend intervals across body (repeats)
+
+    // Code alignment for the start of this op, in bytes; 0 = whatever
+    // falls out. Only meaningful on a region op, which is this IR's
+    // equivalent of a basic block header — LLVM keeps the same thing as
+    // MachineBasicBlock::Alignment and has the AsmPrinter materialize it,
+    // which is why this is a field read by lowering rather than something
+    // the emit closure does.
+    //
+    // `align_max_padding` caps what the alignment may cost, as LLVM's
+    // setAlignment(Align, MaxBytes) does: padding a loop that runs three
+    // times with 60 bytes of nop is a losing trade.
+    std::uint32_t align = 0;
+    std::uint32_t align_max_padding = 0;
     const char* name = "";               // debug tag for dump (not used by allocator)
 };
 

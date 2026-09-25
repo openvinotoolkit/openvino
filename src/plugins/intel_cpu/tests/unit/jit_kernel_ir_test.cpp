@@ -2479,6 +2479,7 @@ struct no_offset_target final : vector_target {
                                               std::size_t /*bytes*/) const override {
         return false;
     }
+    [[nodiscard]] std::size_t preferred_loop_alignment() const override { return 16; }
     [[nodiscard]] const std::vector<std::uint32_t>& predicate_pool() const override {
         static const std::vector<std::uint32_t> pool{1, 2, 3, 4, 5, 6, 7};
         return pool;
@@ -2581,6 +2582,7 @@ struct interleave_target final : vector_target {
                                               std::size_t bytes) const override {
         return bytes <= 0x7fffffff;
     }
+    [[nodiscard]] std::size_t preferred_loop_alignment() const override { return 16; }
     [[nodiscard]] const std::vector<std::uint32_t>& predicate_pool() const override {
         static const std::vector<std::uint32_t> pool{1, 2, 3, 4, 5, 6, 7};
         return pool;
