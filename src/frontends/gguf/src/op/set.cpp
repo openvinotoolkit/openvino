@@ -17,10 +17,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 // GGML_OP_SET writes src[1] into a contiguous region of src[0] and returns the updated tensor.
 // ggml stores the destination byte offset in op_params[3]; the decoder converts it to an element
@@ -33,12 +30,9 @@ OutputVector translate_set(const NodeContext& context) {
     ov::Output<ov::Node> dst = context.get_input(0);
     ov::Output<ov::Node> src = context.get_input(1);
 
-    // ScatterUpdate requires data and updates to share an element type, so cast both.
-    const auto output_type = context.get_attribute<ov::element::Type>("output_type");
+    // ScatterUpdate requires updates to have the destination type.
+    const auto output_type = dst.get_element_type();
     src = std::make_shared<ov::op::v0::Convert>(src, output_type);
-    if (dst.get_element_type() != output_type) {
-        dst = std::make_shared<ov::op::v0::Convert>(dst, output_type);
-    }
 
     const int64_t offset_elems = context.get_attribute<int64_t>("set_offset_elems");
 
@@ -66,7 +60,4 @@ OutputVector translate_set(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

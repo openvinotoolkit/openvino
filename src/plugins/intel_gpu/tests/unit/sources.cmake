@@ -10,6 +10,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/memory_realloc_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/optimized_out_execution_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/priorbox_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/remote_output_lifecycle.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/skip_gather_at_runtime.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/skip_permutes_at_runtime.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/skip_redundant_reorder_at_runtime.cpp
@@ -53,9 +54,11 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/fusions/space_to_depth_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/fusions/strided_slice_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gtest_main_gpu.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/allocation_order_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/canonicalize_fused_shapes_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/convert_and_copy_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/dispatch_data_func_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/dispatch_probe_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/execution_config_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/force_implementations_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/format_test.cpp
@@ -66,6 +69,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/kernel_impl_params_relevance_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/layout_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/mem_reset_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/nodes_ordering_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/primitive_comparison_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/shape_predictor_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/sycl/sycl_test_context.hpp
@@ -497,7 +501,7 @@ set(GPU_UNIT_TESTS_OCL_RT_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/cl_mem_input_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/test_cases/mem_perf_test.cpp
 )
-if(GPU_RT_TYPE STREQUAL "OCL")
+if(OV_GPU_TESTS_RT STREQUAL "OCL")
     list(APPEND GPU_UNIT_TESTS_SRCS ${GPU_UNIT_TESTS_OCL_RT_SRCS})
 endif()
 
@@ -510,7 +514,7 @@ set(GPU_UNIT_TESTS_ZE_RT_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/ze/ze_resource_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/ze/ze_usm_memory_test.cpp
 )
-if(GPU_RT_TYPE STREQUAL "ZE")
+if(OV_GPU_TESTS_RT STREQUAL "ZE")
     list(APPEND GPU_UNIT_TESTS_SRCS ${GPU_UNIT_TESTS_ZE_RT_SRCS})
 endif()
 
@@ -522,6 +526,6 @@ set(GPU_UNIT_TESTS_SYCL_RT_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/sycl/sycl_kernel_builder_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/sycl/sycl_usm_memory_test.cpp
 )
-if(GPU_RT_TYPE STREQUAL "SYCL")
+if(OV_GPU_TESTS_RT STREQUAL "SYCL")
     list(APPEND GPU_UNIT_TESTS_SRCS ${GPU_UNIT_TESTS_SYCL_RT_SRCS})
 endif()

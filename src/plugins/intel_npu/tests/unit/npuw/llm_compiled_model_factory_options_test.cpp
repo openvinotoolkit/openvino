@@ -17,6 +17,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/subtract.hpp"
@@ -29,6 +30,17 @@ namespace {
 using ov::test::npuw::CompileCall;
 using ov::test::npuw::NullPlugin;
 using ov::test::npuw::RecordingFactory;
+
+bool has_transposed_value_matmul(const std::shared_ptr<ov::Model>& model, std::string_view attention_kind) {
+    for (const auto& op : model->get_ops()) {
+        const auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(op);
+        if (matmul != nullptr && matmul->get_transpose_b() &&
+            matmul->get_friendly_name().find(attention_kind) != std::string::npos) {
+            return true;
+        }
+    }
+    return false;
+}
 
 class ArchAwarePlugin final : public NullPlugin {
 public:
@@ -300,6 +312,94 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, VisibleLlmPropertiesRoundTripThroughC
     EXPECT_EQ(compiled->get_property("NPUW_LLM_GENERATE_ATTENTION_HINT").as<std::string>(), "HFA");
     EXPECT_FALSE(compiled->get_property("NPUW_LLM_SHARED_HEAD").as<bool>());
     EXPECT_EQ(compiled->get_property("NPUW_LLM_PREFILL_CHUNK_SIZE").as<uint64_t>(), 0u);
+}
+
+// The rerank tag only gates the batched wrapper at the entry point and must stay
+// out of the submodel configs.
+TEST_F(LLMCompiledModelFactoryOptionsTest, TextRerankTagKeptOutOfStageConfigs) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_llm_model(), {{"NPUW_TEXT_RERANK", "YES"}}, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    expect_missing_prop(prefill.props, "NPUW_TEXT_RERANK");
+    expect_missing_prop(generate.props, "NPUW_TEXT_RERANK");
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelAutoEnablesSwaShrinkAndPropagateSliceUp) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled =
+                        create_compiled_model(ov::test::npuw::build_per_layer_inputs_probe_model(), {}, recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_TRUE(compiled->get_property("NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK").as<bool>());
+    EXPECT_TRUE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelKeepsExplicitUserOverrides) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(
+                        ov::test::npuw::build_per_layer_inputs_probe_model(),
+                        {{"NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK", "NO"}, {"NPUW_LLM_PROPAGATE_SLICE_UP", "NO"}},
+                        recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK").as<bool>());
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelDoesNotOverridePrefixCaching) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    // Shrink must not be auto-enabled here: it is mutually exclusive with prefix caching
+    // (see the assert in the ShrinkSlidingWindowKVCache application site), so silently
+    // defaulting it to YES would turn this valid config into a compilation failure.
+    ASSERT_NO_THROW(compiled = create_compiled_model(ov::test::npuw::build_per_layer_inputs_probe_model(),
+                                                     {{"NPUW_LLM_ENABLE_PREFIX_CACHING", "YES"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK").as<bool>());
+    EXPECT_TRUE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelDoesNotOverrideMultiTokenGeneration) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    // Generating more than 1 token per inference (e.g. speculative decoding) doesn't work
+    // with a shrunk/sliding KV cache, so shrink must stay off here even though the model
+    // has consumed per_layer_inputs.
+    ASSERT_NO_THROW(compiled = create_compiled_model(ov::test::npuw::build_per_layer_inputs_probe_model(),
+                                                     {{"NPUW_LLM_MAX_GENERATION_TOKEN_LEN", "8"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK").as<bool>());
+    EXPECT_TRUE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, PerLayerInputsModelDoesNotOverrideContinuousPrefill) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    // Continuous prefill doesn't work with a shrunk/sliding KV cache either (see
+    // compute_continuous_prefill_supported()), so shrink must stay off here too.
+    ASSERT_NO_THROW(compiled = create_compiled_model(ov::test::npuw::build_per_layer_inputs_probe_model(),
+                                                     {{"NPUW_LLM_ENABLE_CONTINUOUS_PREFILL", "YES"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_FALSE(compiled->get_property("NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK").as<bool>());
+    EXPECT_TRUE(compiled->get_property("NPUW_LLM_PROPAGATE_SLICE_UP").as<bool>());
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, DefaultStageConfigsCarryBaselineNpuwOptions) {
@@ -812,6 +912,60 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperOptionCompilesSyntheticDecoder
     EXPECT_GE(recorder.calls().size(), 2u);
     EXPECT_NE(recorder.find_suffix("_prefill"), nullptr);
     EXPECT_EQ(recorder.count_contains("_kv"), 1u);
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperOptionOptimizesSelfAndCrossAttentionValueTensors) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_whisper_decoder_model(),
+                                                     {{"NPUW_WHISPER", "YES"}, {"NPUW_WHISPER_EOS_TOKEN", "42"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto* prefill = recorder.find_suffix("_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    ASSERT_NE(prefill, nullptr);
+
+    EXPECT_TRUE(has_transposed_value_matmul(prefill->model, "self_attn"));
+    EXPECT_TRUE(has_transposed_value_matmul(prefill->model, "encoder_attn"));
+    EXPECT_TRUE(has_transposed_value_matmul(generate.model, "self_attn"));
+    EXPECT_TRUE(has_transposed_value_matmul(generate.model, "encoder_attn"));
+
+    const auto whisper_config = ov::test::npuw::make_test_model_config<ov::test::npuw::WhisperConfig>();
+    const auto& decoder_value = generate.model->input("past_key_values.0.decoder.value");
+    const auto& decoder_value_shape = decoder_value.get_shape();
+    ASSERT_EQ(decoder_value_shape.size(), 4u);
+    EXPECT_EQ(decoder_value_shape[2], whisper_config.head_dim);
+
+    const auto& encoder_value = generate.model->input("past_key_values.0.encoder.value");
+    const auto& encoder_value_shape = encoder_value.get_shape();
+    ASSERT_EQ(encoder_value_shape.size(), 4u);
+    EXPECT_EQ(encoder_value_shape[2], whisper_config.head_dim);
+    EXPECT_EQ(encoder_value_shape[3], whisper_config.get_encoder_seq_len());
+}
+
+TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperDisablesFoldAndFuncallStageOptions) {
+    RecordingFactory recorder;
+    std::unique_ptr<ov::npuw::LLMCompiledModel> compiled;
+
+    ASSERT_NO_THROW(compiled = create_compiled_model(build_whisper_decoder_model(),
+                                                     {{"NPUW_WHISPER", "YES"},
+                                                      {"NPUW_WHISPER_EOS_TOKEN", "42"},
+                                                      {"NPUW_FOLD", "YES"},
+                                                      {"NPUW_FUNCALL_FOR_ALL", "YES"},
+                                                      {"NPUW_WEIGHTS_BANK", "whisper-shared"}},
+                                                     recorder));
+    ASSERT_NE(compiled, nullptr);
+
+    const auto& prefill = require_call(recorder, "_prefill");
+    const auto& generate = require_call_containing(recorder, "_kv");
+    expect_missing_prop(prefill.props, "NPUW_FOLD");
+    expect_missing_prop(prefill.props, "NPUW_FUNCALL_FOR_ALL");
+    expect_prop(prefill.props, "NPUW_WEIGHTS_BANK", "whisper-shared");
+    expect_missing_prop(generate.props, "NPUW_FOLD");
+    expect_missing_prop(generate.props, "NPUW_FUNCALL_FOR_ALL");
+    expect_prop(generate.props, "NPUW_WEIGHTS_BANK", "whisper-shared");
 }
 
 TEST_F(LLMCompiledModelFactoryOptionsTest, WhisperPreparationAddsKvCacheInputsAndPresentOutputs) {
