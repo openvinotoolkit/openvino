@@ -178,7 +178,7 @@ struct DEVICE_ID final : OptionBase<DEVICE_ID, std::string> {
     }
 
     static std::string defaultValue() {
-        return {};
+        return "0";
     }
 
     static OptionMode mode() {

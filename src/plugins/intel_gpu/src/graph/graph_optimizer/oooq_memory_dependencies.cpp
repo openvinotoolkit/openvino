@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "pass_manager.h"
-#include "program_node.h"
+#include <algorithm>
+#include <list>
+#include <vector>
+
 #include "intel_gpu/graph/program.hpp"
 #include "intel_gpu/runtime/itt.hpp"
-#include <vector>
-#include <list>
-#include <algorithm>
+#include "pass_manager.h"
+#include "program_node.h"
 
 using namespace cldnn;
 
@@ -67,7 +68,6 @@ void oooq_memory_dependencies::run(program& p) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "pass::OooqMemoryDependencies");
     // For oooq memory dependencies nodes A and B can't share memory if
     // processing_num(A) < processing_num(B) and there is no path from A to B.
-    // Assuming precalculation of reachability this function has complexity O(N^2 log N).
 
     // First create transitive closure of the graph,
     // giving us mapping of node to set of all users that can be reached from this node.
@@ -93,10 +93,13 @@ void oooq_memory_dependencies::run(program& p) {
     std::vector<bits_64> user_bitmap(num_nodes, bits_64(num_nodes));
     bits_64 suspect_nodes(num_nodes);
 
-    // init bitmaps from direct node users
+    // Check the topological order while initializing direct edges.
+    bool is_topological = true;
     for (const auto& node : user_map) {
         for (const auto& user : node.first->get_users()) {
-            user_bitmap[node.second].set(user_map.at(user));
+            const auto user_id = user_map.at(user);
+            user_bitmap[node.second].set(user_id);
+            is_topological = is_topological && node.second < user_id;
         }
 
         size_t num_dep_nodes = 0;
@@ -110,16 +113,27 @@ void oooq_memory_dependencies::run(program& p) {
         }
     }
 
-    // Iteratively extend the users set by adding closure over existing users until no change occurs.
-    bool changed = true;
-    while (changed) {
-        changed = false;
-        for (unsigned int n = 0; n < num_nodes; n++) {
-            auto& users = user_bitmap[n];
+    if (is_topological) {
+        // Successors are complete in reverse processing order, so only direct edges need a bitmap union.
+        unsigned int node_id = num_nodes;
+        for (auto it = processing_order_except_const.rbegin(); it != processing_order_except_const.rend(); ++it) {
+            auto& users = user_bitmap[--node_id];
+            for (auto* user : (*it)->get_users()) {
+                users._or(user_bitmap[user_map.at(user)]);
+            }
+        }
+    } else {
+        // Preserve the existing behavior for graphs with backward edges or cycles.
+        bool changed = true;
+        while (changed) {
+            changed = false;
+            for (unsigned int n = 0; n < num_nodes; n++) {
+                auto& users = user_bitmap[n];
 
-            for (unsigned int user_id = n + 1; user_id < num_nodes; user_id++) {
-                if (users.is_set(user_id)) {
-                    changed |= users._or(user_bitmap[user_id]);
+                for (unsigned int user_id = n + 1; user_id < num_nodes; user_id++) {
+                    if (users.is_set(user_id)) {
+                        changed |= users._or(user_bitmap[user_id]);
+                    }
                 }
             }
         }
@@ -142,10 +156,11 @@ void oooq_memory_dependencies::run(program& p) {
                 }
             }
 
-            std::sort(deps.begin(), deps.end(),
-                    [](const std::pair<cldnn::program_node*, unsigned int>& a, const std::pair<cldnn::program_node*, unsigned int>& b) {
-                        return a.second < b.second;
-                    });
+            std::sort(deps.begin(),
+                      deps.end(),
+                      [](const std::pair<cldnn::program_node*, unsigned int>& a, const std::pair<cldnn::program_node*, unsigned int>& b) {
+                          return a.second < b.second;
+                      });
 
             for (size_t i = 0; i < deps.size(); ++i) {
                 for (size_t j = i + 1; j < deps.size(); ++j) {
