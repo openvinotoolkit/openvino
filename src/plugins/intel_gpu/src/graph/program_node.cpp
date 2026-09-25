@@ -732,6 +732,31 @@ void program_node::add_dependant_shape_of_node(const program_node* node) {
     dependant_shape_of_nodes.insert(node);
 }
 
+void program_node::set_num_outputs(size_t new_num_outputs) {
+    if (new_num_outputs < num_outputs) {
+        throw std::runtime_error("Decreasing number of outputs not supported.");
+    }
+
+    num_outputs = new_num_outputs;
+    if (valid_output_layouts.size() < new_num_outputs) {
+        valid_output_layouts.insert(valid_output_layouts.end(), new_num_outputs - valid_output_layouts.size(), false);
+    }
+    if (output_layouts.size() < new_num_outputs) {
+        output_layouts.insert(output_layouts.end(), new_num_outputs - output_layouts.size(), {});
+    }
+    if (preferred_output_fmts.size() < new_num_outputs) {
+        preferred_output_fmts.insert(preferred_output_fmts.end(), new_num_outputs - preferred_output_fmts.size(), {});
+    }
+
+    desc->num_outputs = new_num_outputs;
+    if (desc->output_paddings.size() < new_num_outputs) {
+        desc->output_paddings.insert(desc->output_paddings.end(), new_num_outputs - desc->output_paddings.size(), padding());
+    }
+    if (desc->output_data_types.size() < num_outputs) {
+        desc->output_data_types.insert(desc->output_data_types.end(), num_outputs - desc->output_data_types.size(), optional_data_type());
+    }
+}
+
 void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
     ob << unique_id;
     ob << valid_output_layouts;
@@ -2080,31 +2105,6 @@ void program_node::init_onednn_primitive_attributes() {
 
     add_onednn_fused_primitives(fused_ops);
     add_onednn_attrs(attrs);
-}
-
-void program_node::set_num_outputs(size_t new_num_outputs) {
-    if (new_num_outputs < num_outputs) {
-        throw std::runtime_error("Decreasing number of outputs not supported.");
-    }
-
-    num_outputs = new_num_outputs;
-    if (valid_output_layouts.size() < new_num_outputs) {
-        valid_output_layouts.insert(valid_output_layouts.end(), new_num_outputs - valid_output_layouts.size(), false);
-    }
-    if (output_layouts.size() < new_num_outputs) {
-        output_layouts.insert(output_layouts.end(), new_num_outputs - output_layouts.size(), {});
-    }
-    if (preferred_output_fmts.size() < new_num_outputs) {
-        preferred_output_fmts.insert(preferred_output_fmts.end(), new_num_outputs - preferred_output_fmts.size(), {});
-    }
-
-    desc->num_outputs = new_num_outputs;
-    if (desc->output_paddings.size() < new_num_outputs) {
-        desc->output_paddings.insert(desc->output_paddings.end(), new_num_outputs - desc->output_paddings.size(), padding());
-    }
-    if (desc->output_data_types.size() < num_outputs) {
-        desc->output_data_types.insert(desc->output_data_types.end(), num_outputs - desc->output_data_types.size(), optional_data_type());
-    }
 }
 
 #endif  // ENABLE_ONEDNN_FOR_GPU
