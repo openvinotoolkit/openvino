@@ -4,9 +4,9 @@
 
 #include "infer_request.hpp"
 
+#include <algorithm>
 #include <chrono>
 #include <cstring>
-#include <future>
 #include <iostream>
 #include <numeric>
 #include <unordered_map>
@@ -27,15 +27,14 @@ namespace tp_gpu {
 namespace {
 
 // Fan-out wrapper that broadcasts reset()/set_state() to every per-rank state
-// sharing the same variable_id.  Without this, calling state.reset() only
-// affects rank 0 — rank 1's KV cache silently keeps accumulating across
-// inference calls, producing massive iter-to-iter slowdowns and wrong
-// numerics on the second+ infer.
+// sharing the same variable_id. Without it, state.reset() reaches rank 0
+// alone and the other ranks keep accumulating their KV cache across calls --
+// wrong numerics from the second inference on.
 //
 // For variables the graph rewriter sharded by kv head, get_state()/set_state()
-// additionally gather and scatter along that axis, so a caller that reads a
-// whole state tensor, edits it and writes it back sees the unsharded model's
-// state rather than rank 0's slice.
+// also gather and scatter along that axis, so a caller that reads a whole
+// state tensor, edits it and writes it back sees the unsharded model's state
+// rather than rank 0's slice.
 class FanOutVariableState : public ov::IVariableState {
 public:
     FanOutVariableState(const std::string& name,
@@ -47,14 +46,13 @@ public:
           m_per_rank(std::move(per_rank)),
           m_sharded(sharded),
           m_profiling(profiling),
-          m_dump_period(std::max<std::size_t>(1, dump_period)) {}
+          m_period(dump_period) {}
 
     void reset() override {
         if (TP_VERBOSE_AT_LEAST(ov::log::Level::DEBUG)) {
-            // Verify the per-rank wrappers are distinct objects (paired by
-            // name, not aliased to a single rank).  If two pointers ever
-            // matched, reset() would only affect one rank -- a critical bug,
-            // which is why this reports at error level rather than as a note.
+            // Two ranks sharing a pointer would mean the states were aliased
+            // rather than paired by name, and reset() would reach one rank --
+            // which is why this reports at error level.
             for (size_t r = 1; r < m_per_rank.size(); ++r) {
                 if (m_per_rank[r]._ptr == m_per_rank[0]._ptr) {
                     TP_LOG_ERR << "[TP][STATE][BUG] FanOut '" << get_name() << "' rank " << r
@@ -62,23 +60,16 @@ public:
                 }
             }
         }
-        using clk = std::chrono::steady_clock;
-        // Aggregate reset timings across all variables, dump once per period
-        // (state.reset() is typically called for ~num_layers states
-        // back-to-back; reporting per-variable would be too noisy).  Members,
-        // not statics: one accumulator per state object rather than one
-        // shared by every state of every model in the process.
-        const auto t0 = m_profiling ? clk::now() : clk::time_point{};
-        for (auto& s : m_per_rank)
-            s->reset();
-        if (m_profiling) {
-            m_reset_ms += std::chrono::duration<double, std::milli>(clk::now() - t0).count();
-            ++m_reset_calls;
-            if (m_reset_calls - m_reset_last_dump >= m_dump_period) {
-                m_reset_last_dump = m_reset_calls;
-                TP_REPORT << "[TP][STATE] reset agg over " << m_reset_calls
-                          << " calls: total_ms=" << m_reset_ms << std::endl;
-            }
+        {
+            ScopedTime timer(m_profiling, m_reset);
+            for (auto& s : m_per_rank)
+                s->reset();
+        }
+        // reset() runs for every layer's state back to back, so the timings
+        // are aggregated and printed once a period.
+        if (m_profiling && m_period.due()) {
+            TP_REPORT << "[TP][STATE] reset agg over " << m_period.calls()
+                      << " calls: total_ms=" << m_reset.ms() << std::endl;
         }
     }
 
@@ -90,9 +81,8 @@ public:
         }
 
         // The caller handed us a whole-model KV cache; hand each rank back the
-        // slice of kv heads it owns.  Only the kv-head axis has to line up:
-        // callers legitimately change the sequence length, which is how GenAI
-        // drops the tail of the cache between chat turns.
+        // slice of kv heads it owns. Only the kv-head axis has to line up:
+        // callers legitimately change the sequence length.
         const auto& heads_per_rank = rank_head_counts();
         const auto full_shape = state->get_shape();
         OPENVINO_ASSERT(full_shape.size() == 4,
@@ -131,10 +121,9 @@ public:
             return m_per_rank.front()->get_state();
         }
 
-        // Every rank holds a slice of the kv heads.  Stitch them back into the
+        // Every rank holds a slice of the kv heads. Stitch them back into the
         // tensor the unsharded model would have produced, so that generic
-        // consumers -- GenAI's KV cache trimming, for one -- see the state they
-        // expect instead of rank 0's slice.
+        // consumers see the state they expect instead of rank 0's slice.
         const auto shards = collect_shards();
         const auto full_shape = concat_shape(shards);
         const auto type = shards.front()->get_element_type();
@@ -163,9 +152,9 @@ private:
     /// rewriter splits dimension 1 across ranks.
     static constexpr size_t kHeadAxis = 1;
 
-    /// How many kv heads each rank owns.  Fixed for the life of the request --
+    /// How many kv heads each rank owns. Fixed for the life of the request --
     /// the rewriter baked the split into every rank's variable -- so it is read
-    /// once and remembered.  Reading it costs a state round-trip, which is why
+    /// once and remembered. Reading it costs a state round-trip, which is why
     /// it is not repeated on every scatter.
     const std::vector<size_t>& rank_head_counts() const {
         if (m_rank_heads.empty()) {
@@ -225,10 +214,8 @@ private:
     std::vector<ov::SoPtr<ov::IVariableState>> m_per_rank;
     bool m_sharded;
     bool m_profiling;
-    std::size_t m_dump_period;
-    double m_reset_ms{0.0};
-    uint64_t m_reset_calls{0};
-    uint64_t m_reset_last_dump{0};
+    NS m_reset;
+    DumpPeriod m_period;
     mutable std::vector<size_t> m_rank_heads;
 };
 
@@ -236,20 +223,20 @@ private:
 
 InferRequest::InferRequest(const std::shared_ptr<const CompiledModel>& compiled_model)
     : ov::ISyncInferRequest(compiled_model),
-      m_compiled_model(compiled_model) {
+      m_compiled_model(compiled_model),
+      m_stage_limit(compiled_model->config().get_input_stage_max_bytes()),
+      m_profiling(compiled_model->config().profiling_host()),
+      m_dump_period(compiled_model->config().dump_period()) {
     const auto& rank_compiled = m_compiled_model->get_rank_compiled();
 
-    // Create one infer request per rank.
     m_rank_requests.reserve(rank_compiled.size());
     for (const auto& rank_model : rank_compiled) {
         m_rank_requests.push_back(rank_model->create_infer_request());
     }
 
-    // Pre-allocate tensors for every port.  Callers are allowed to read a
-    // tensor back before they have ever set one -- GenAI's stateful LLM
-    // pipeline does exactly that with `get_tensor("attention_mask").set_shape()`
-    // at the start of every generate() -- and the base class hands out a null
-    // SoPtr until something is stored.  Dynamic dimensions start at 0, so the
+    // Pre-allocate tensors for every port. Callers are allowed to read a
+    // tensor back before they have ever set one and the base class hands out a null
+    // SoPtr until something is stored. Dynamic dimensions start at 0, so the
     // tensor is empty until the caller reshapes or replaces it.
     auto allocate_port = [this](const ov::Output<const ov::Node>& port) {
         // A port can leave its element type open -- PagedAttention's
@@ -285,33 +272,36 @@ InferRequest::InferRequest(const std::shared_ptr<const CompiledModel>& compiled_
     }
 
     // Remember which user inputs the cache owns, so infer() leaves them alone.
+    const size_t num_inputs = compiled_model->inputs().size();
+    m_cache_input.assign(num_inputs, 0);
     if (const auto& controller = m_compiled_model->get_cache_controller()) {
         std::unordered_set<std::string> cache_names;
         for (const auto& port : controller->ports(0)) {
             cache_names.insert(port.get_names().begin(), port.get_names().end());
         }
         const auto& inputs = compiled_model->inputs();
-        for (size_t i = 0; i < inputs.size(); ++i) {
+        for (size_t i = 0; i < num_inputs; ++i) {
             for (const auto& name : inputs[i].get_names()) {
                 if (cache_names.count(name) != 0) {
-                    m_cache_input_indices.insert(i);
+                    m_cache_input[i] = 1;
                     break;
                 }
             }
         }
     }
 
-    const size_t num_inputs = compiled_model->inputs().size();
     m_input_stage.assign(m_rank_requests.size(), std::vector<ov::SoPtr<ov::ITensor>>(num_inputs));
     m_input_stage_capacity.assign(m_rank_requests.size(), std::vector<size_t>(num_inputs, 0));
     m_input_stage_refused.assign(m_rank_requests.size(), std::vector<uint8_t>(num_inputs, 0));
+
+    m_rank_time.resize(m_rank_requests.size());
+    m_rank_start.resize(m_rank_requests.size() > 1 ? m_rank_requests.size() : 0);
 }
 
 ov::SoPtr<ov::ITensor> InferRequest::stage_input(size_t rank,
                                                  size_t input_idx,
                                                  const ov::SoPtr<ov::ITensor>& user_tensor) {
-    const size_t limit = m_compiled_model->config().get_input_stage_max_bytes();
-    if (limit == 0 || !user_tensor) {
+    if (m_stage_limit == 0 || !user_tensor || m_input_stage_refused[rank][input_idx] != 0) {
         return {};
     }
     // Device-side memory the caller owns already skips the plugin's staging
@@ -320,10 +310,7 @@ ov::SoPtr<ov::ITensor> InferRequest::stage_input(size_t rank,
         return {};
     }
     const size_t bytes = user_tensor->get_byte_size();
-    if (bytes == 0 || bytes > limit) {
-        return {};
-    }
-    if (m_input_stage_refused[rank][input_idx] != 0) {
+    if (bytes == 0 || bytes > m_stage_limit) {
         return {};
     }
 
@@ -400,7 +387,7 @@ void InferRequest::check_tensors() const {
     for (size_t i = 0; i < inputs.size(); ++i) {
         // Cache ports stay empty on purpose: the plugin owns that memory and
         // binds its per-rank slices straight to the rank requests.
-        if (m_cache_input_indices.count(i) != 0) {
+        if (m_cache_input[i] != 0) {
             continue;
         }
         check_tensor(inputs[i], get_tensor(inputs[i]));
@@ -410,134 +397,112 @@ void InferRequest::check_tensors() const {
     }
 }
 
-void InferRequest::infer() {
-    // Serialize complete outer inferences so two requests cannot mix ranks
-    // in the same rendezvous epoch or overwrite shared L0 command lists.
-    [[maybe_unused]] auto inference_guard = m_compiled_model->lock_inference();
-
-    const auto& rank_compiled = m_compiled_model->get_rank_compiled();
-    const size_t num_ranks = rank_compiled.size();
-    const bool profiling_enabled = m_compiled_model->config().profiling_host();
-    if (profiling_enabled) {
-        ++m_infer_calls;
-    }
-
-    using clock = std::chrono::steady_clock;
-    // Same rule as in the coordinator: with profiling off these are not cheap
-    // reads, they are no reads at all, and in a build without TP debug caps
-    // the whole block folds away.
-    auto stamp = [profiling_enabled]() -> clock::time_point {
-        return profiling_enabled ? clock::now() : clock::time_point{};
-    };
-    const auto t0 = stamp();
-
-    // 1. Set user inputs on all rank requests.
+void InferRequest::set_rank_inputs() {
     const auto& user_inputs = m_compiled_model->inputs();
-    const auto& rank0_inputs = m_rank_requests[0]->get_compiled_model()->inputs();
+    const auto& rank_ports = m_rank_requests[0]->get_compiled_model()->inputs();
 
     for (size_t i = 0; i < user_inputs.size(); ++i) {
         // Cache ports are not the caller's to fill: the cache belongs to the
-        // plugin, sliced by kv head, and each rank gets its own slice below.
-        if (m_cache_input_indices.count(i) != 0) {
+        // plugin, sliced by kv head, and each rank gets its own slice.
+        if (m_cache_input[i] != 0) {
             continue;
         }
         auto tensor = get_tensor(user_inputs[i]);
         for (size_t rank = 0; rank < m_rank_requests.size(); ++rank) {
             auto staged = stage_input(rank, i, tensor);
-            m_rank_requests[rank]->set_tensor(rank0_inputs[i], staged ? staged : tensor);
+            m_rank_requests[rank]->set_tensor(rank_ports[i], staged ? staged : tensor);
         }
     }
+}
 
-    bind_cache();
-
-    const auto t1 = stamp();
-
-    // 2. Launch all ranks in parallel.
-    std::vector<double> per_rank_ms(profiling_enabled ? num_ranks : 0, 0.0);
-    if (num_ranks == 1) {
-        const auto r0 = stamp();
+void InferRequest::run_ranks() {
+    if (m_rank_requests.size() == 1) {
+        ScopedTime timer(m_profiling, m_rank_time[0]);
         m_rank_requests[0]->infer();
-        if (profiling_enabled) {
-            per_rank_ms[0] = std::chrono::duration<double, std::milli>(clock::now() - r0).count();
-        }
-    } else {
-        // Persistent threads, not one per inference.  How long a rank takes to
-        // actually start matters far more than it looks: the ranks meet at
-        // every AllReduce point, so the group moves at the speed of whichever
-        // rank started last, 65 times per token.  start_us records that
-        // spread.
-        const bool skew_enabled = profiling_enabled;
-        std::vector<double> start_us(skew_enabled ? num_ranks : 0, 0.0);
-        const auto t_launch = stamp();
-
-        m_compiled_model->rank_workers().run([&](std::size_t rank) {
-            if (!start_us.empty()) {
-                start_us[rank] =
-                    std::chrono::duration<double, std::micro>(clock::now() - t_launch).count();
-            }
-            const auto r0 = stamp();
-            m_rank_requests[rank]->infer();
-            if (!per_rank_ms.empty()) {
-                per_rank_ms[rank] =
-                    std::chrono::duration<double, std::milli>(clock::now() - r0).count();
-            }
-        });
-
-        if (skew_enabled) {
-            const double lo = *std::min_element(start_us.begin(), start_us.end());
-            const double hi = *std::max_element(start_us.begin(), start_us.end());
-            m_dispatch_spread_us += hi - lo;
-            m_dispatch_first_us += lo;
-            ++m_dispatch_calls;
-            // One report per dump period, counted in inferences rather than
-            // collectives -- the period is expressed in rank-0 collective
-            // calls, and one inference issues one per slot.
-            const auto period = std::max<std::size_t>(
-                1, m_compiled_model->config().dump_period());
-            if (m_dispatch_calls - m_dispatch_last_dump >= period) {
-                m_dispatch_last_dump = m_dispatch_calls;
-                const auto n = static_cast<double>(m_dispatch_calls);
-                TP_REPORT << "[TP][RANK|host] rank dispatch over " << m_dispatch_calls
-                          << " inferences: first rank starts after "
-                          << (m_dispatch_first_us / n) << "us"
-                          << ", spread between ranks "
-                          << (m_dispatch_spread_us / n) << "us"
-                          << std::endl;
-            }
-        }
+        return;
     }
 
-    const auto t2 = stamp();
+    const Stopwatch launch(m_profiling);
+    m_compiled_model->rank_workers().run([&](std::size_t rank) {
+        if (m_profiling) {
+            m_rank_start[rank] = launch.elapsed();
+        }
+        ScopedTime timer(m_profiling, m_rank_time[rank]);
+        m_rank_requests[rank]->infer();
+    });
+}
 
-    // 3. Collect outputs from rank 0.
+void InferRequest::collect_outputs() {
     const auto& outputs = m_compiled_model->outputs();
-    const auto& rank0_outputs = m_rank_requests[0]->get_compiled_model()->outputs();
+    const auto& rank_ports = m_rank_requests[0]->get_compiled_model()->outputs();
 
     for (size_t i = 0; i < outputs.size(); ++i) {
-        auto tensor = m_rank_requests[0]->get_tensor(rank0_outputs[i]);
-        set_tensor(outputs[i], tensor);
+        set_tensor(outputs[i], m_rank_requests[0]->get_tensor(rank_ports[i]));
+    }
+}
+
+void InferRequest::accumulate_dispatch_spread() {
+    const auto [lo, hi] = std::minmax_element(m_rank_start.begin(), m_rank_start.end(),
+                                              [](const NS& a, const NS& b) { return a.ns() < b.ns(); });
+    m_dispatch_spread.add(hi->ns() - lo->ns());
+    m_dispatch_first.add(lo->ns());
+}
+
+void InferRequest::report_dispatch_spread() {
+    const auto n = static_cast<double>(m_dump_period.calls());
+    TP_REPORT << "[TP][RANK|host] rank dispatch over " << m_dump_period.calls()
+              << " inferences: first rank starts after " << (m_dispatch_first.us() / n) << "us"
+              << ", spread between ranks " << (m_dispatch_spread.us() / n) << "us" << std::endl;
+}
+
+void InferRequest::report_breakdown(const Stages& stages) {
+    const double total_ms = stages.set_inputs.ms() + stages.infer.ms() + stages.collect.ms();
+    TP_REPORT << "[TP] Infer breakdown: set_inputs=" << stages.set_inputs.ms()
+              << "ms  infer=" << stages.infer.ms()
+              << "ms  collect=" << stages.collect.ms()
+              << "ms  total=" << total_ms << "ms";
+    for (size_t r = 0; r < m_rank_time.size(); ++r) {
+        TP_REPORT << "  r" << r << "=" << m_rank_time[r].ms() << "ms";
+    }
+    TP_REPORT << std::endl;
+}
+
+void InferRequest::infer() {
+    // Serialize complete outer inferences so two requests cannot mix ranks
+    // in the same rendezvous epoch or overwrite shared L0 command lists.
+    [[maybe_unused]] auto inference_guard = m_compiled_model->lock_inference();
+
+    Stages stages;
+    if (m_profiling) {
+        std::fill(m_rank_time.begin(), m_rank_time.end(), NS{});
     }
 
-    const auto t3 = stamp();
+    {
+        ScopedTime timer(m_profiling, stages.set_inputs);
+        set_rank_inputs();
+        bind_cache();
+    }
+    {
+        ScopedTime timer(m_profiling, stages.infer);
+        run_ranks();
+    }
+    {
+        ScopedTime timer(m_profiling, stages.collect);
+        collect_outputs();
+    }
 
-    // Every profiling print obeys the dump period, this one included.  Unset
-    // means 1, so by default nothing is suppressed.
-    if (profiling_enabled && m_infer_calls - m_infer_last_dump >=
-                                 std::max<std::size_t>(
-                                     1, m_compiled_model->config().dump_period())) {
-        m_infer_last_dump = m_infer_calls;
-        double ms_set = std::chrono::duration<double, std::milli>(t1 - t0).count();
-        double ms_infer = std::chrono::duration<double, std::milli>(t2 - t1).count();
-        double ms_collect = std::chrono::duration<double, std::milli>(t3 - t2).count();
-
-        TP_REPORT << "[TP] Infer breakdown: set_inputs=" << ms_set
-                  << "ms  infer=" << ms_infer
-                  << "ms  collect=" << ms_collect
-                  << "ms  total=" << (ms_set + ms_infer + ms_collect) << "ms";
-        for (size_t r = 0; r < per_rank_ms.size(); ++r) {
-            TP_REPORT << "  r" << r << "=" << per_rank_ms[r] << "ms";
+    if (!m_profiling) {
+        return;
+    }
+    // The spread is summed every inference and printed once a period.
+    if (!m_rank_start.empty()) {
+        accumulate_dispatch_spread();
+    }
+    if (m_dump_period.due()) {
+        if (!m_rank_start.empty()) {
+            report_dispatch_spread();
         }
-        TP_REPORT << std::endl;
+        report_breakdown(stages);
     }
 }
 
@@ -549,19 +514,18 @@ std::vector<ov::SoPtr<ov::IVariableState>> InferRequest::query_state() const {
     if (!m_fanout_states.empty())
         return m_fanout_states;
 
-    // Build a name -> per-rank-list map.  std::unordered_map iteration order
-    // is implementation-defined and not guaranteed to match across two
-    // independent map instances even when they hold identical keys; the GPU
-    // plugin's query_state() returns states by iterating its own
-    // std::unordered_map<std::string, ...>, so pairing rank-r and rank-0
-    // states by VECTOR INDEX is unsafe.  We pair by NAME instead.
-    std::unordered_map<std::string, std::vector<ov::SoPtr<ov::IVariableState>>>
-        grouped;
-    size_t expected = m_rank_requests[0]->query_state().size();
-    grouped.reserve(expected);
+    // Pair the per-rank states by NAME, never by vector index: the GPU plugin
+    // returns them by iterating its own unordered_map, whose order is not
+    // guaranteed to match between two instances holding identical keys.
+    std::unordered_map<std::string, std::vector<ov::SoPtr<ov::IVariableState>>> grouped;
 
+    size_t expected = 0;
     for (size_t r = 0; r < m_rank_requests.size(); ++r) {
         auto rs = m_rank_requests[r]->query_state();
+        if (r == 0) {
+            expected = rs.size();
+            grouped.reserve(expected);
+        }
         OPENVINO_ASSERT(rs.size() == expected,
                         "[TP] per-rank state count mismatch: rank ", r,
                         " has ", rs.size(), " states, expected ", expected);
@@ -581,8 +545,7 @@ std::vector<ov::SoPtr<ov::IVariableState>> InferRequest::query_state() const {
                         " of ", m_rank_requests.size(), " ranks");
         m_fanout_states.emplace_back(std::make_shared<FanOutVariableState>(
             kv.first, std::move(kv.second), sharded.count(kv.first) != 0,
-            m_compiled_model->config().profiling_host(),
-            m_compiled_model->config().dump_period()));
+            m_profiling, m_dump_period.period()));
     }
     return m_fanout_states;
 }

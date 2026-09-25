@@ -101,8 +101,8 @@ void CompiledModel::set_property(const ov::AnyMap&) {
 }
 
 void CompiledModel::release_memory() {
-    // Whatever caches the rank models hold live in their own plugins; the TP
-    // wrapper owns nothing releasable of its own.
+    // Whatever caches the rank models hold live in their own plugins;
+    // TP wrapper owns nothing releasable of its own.
     for (const auto& rank : m_rank_compiled) {
         rank->release_memory();
     }
