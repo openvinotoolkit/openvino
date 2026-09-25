@@ -481,6 +481,46 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostRebindsAllocation) {
     }
 }
 
+// Switching from an imported caller USM-host output to ordinary host memory must stop using the
+// previous USM allocation and fall back to a plugin-owned output followed by a host copy.
+TEST(TensorTest, smoke_dynamicOutputSwitchesFromUsmHostToCopyFallback) {
+    auto core = ov::Core();
+    if (!gpu_supports_usm_host_output_sharing(core)) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing requires an iGPU with USM support";
+    }
+
+    auto compiled_model = core.compile_model(makeDynamicReluModel(), core.get_default_context(ov::test::utils::DEVICE_GPU));
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto request = compiled_model.create_infer_request();
+    // Large enough that the plugin-owned fallback allocation stands out in memory statistics.
+    const ov::Shape shape{262144, 4};
+
+    auto usm_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
+    ov::Tensor input_tensor(ov::element::f32, shape);
+    std::fill_n(input_tensor.data<float>(), input_tensor.get_size(), 1.0f);
+    request.set_input_tensor(input_tensor);
+    request.set_output_tensor(ov::Tensor(ov::element::f32, shape, usm_allocation.get()));
+    OV_ASSERT_NO_THROW(request.infer());
+
+    constexpr float sentinel = -31.0f;
+    std::fill_n(static_cast<float*>(usm_allocation.get()), ov::shape_size(shape), sentinel);
+    std::vector<float> host_output(ov::shape_size(shape), sentinel);
+    std::fill_n(input_tensor.data<float>(), input_tensor.get_size(), 3.0f);
+    request.set_output_tensor(ov::Tensor(ov::element::f32, shape, host_output.data()));
+
+    const int64_t before_switch = gpu_mem_in_use(core);
+    OV_ASSERT_NO_THROW(request.infer());
+    expect_extra_output_buffer(gpu_mem_in_use(core) - before_switch, 0, f32_bytes(shape));
+
+    auto actual = request.get_output_tensor();
+    ASSERT_EQ(actual.data(), host_output.data());
+    const auto* usm_data = static_cast<const float*>(usm_allocation.get());
+    for (size_t i = 0; i < ov::shape_size(shape); ++i) {
+        ASSERT_FLOAT_EQ(usm_data[i], sentinel);
+        ASSERT_FLOAT_EQ(host_output[i], 3.0f);
+    }
+}
+
 // When the same caller USM-host buffer is supplied as both a dynamic output and an input,
 // the zero-copy binding must be rejected: a tiled MatMul would otherwise overwrite the input
 // buffer before it is fully read, silently corrupting results. The plugin must fall back to an
