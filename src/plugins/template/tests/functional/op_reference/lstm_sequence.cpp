@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
+
 #include "base_reference_test.hpp"
 
 using namespace reference_tests;
@@ -176,8 +178,11 @@ struct LSTMSequenceV1Params {
 class ReferenceLSTMSequenceTest : public testing::TestWithParam<LSTMSequenceParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        legacy_compare = true;
         auto params = GetParam();
+        if (params.iType == element::Type_t::f64) {
+            // Refs were generated in f32; saturated gates make the near-zero outputs relatively sensitive.
+            abs_threshold = std::numeric_limits<float>::epsilon();
+        }
         function = CreateFunction(params);
         inputData = {params.X.data,
                      params.H_t.data,
