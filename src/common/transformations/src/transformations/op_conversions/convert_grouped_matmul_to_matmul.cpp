@@ -101,7 +101,7 @@ ConvertGroupedMatMulToMatMul::ConvertGroupedMatMulToMatMul() {
                 auto a_g = rg.make<v8::Slice>(mat_a, start, end, step, slice_axis);  // [Mg, K]
                 auto b_index = rg.make<v0::Constant>(i32, ov::Shape{}, g);
                 auto b_g = rg.make<v8::Gather>(mat_b, b_index, gather_axis);  // [N, K]
-                auto mm = rg.make<v0::MatMul>(a_g, b_g, false, true);  // [Mg, N]
+                auto mm = rg.make<v0::MatMul>(a_g, b_g, false, true);         // [Mg, N]
                 group_outputs.push_back(mm);
 
                 start = end;

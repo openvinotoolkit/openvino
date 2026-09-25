@@ -182,9 +182,9 @@ TEST_P(ConvertGroupedMatMulToMatMul3Dx3DAccuracy, MatchesReference) {
 
 INSTANTIATE_TEST_SUITE_P(GpuFailingShapes,
                          ConvertGroupedMatMulToMatMul3Dx3DAccuracy,
-                         testing::Values(GmmShape3D{1, 8, 16, 8},   // passes on GPU (G==1)
-                                         GmmShape3D{2, 3, 8, 16},   // GPU: ov=[2,3,32]
-                                         GmmShape3D{4, 1, 8, 8},    // GPU: ov=[4,1,32]
+                         testing::Values(GmmShape3D{1, 8, 16, 8},    // passes on GPU (G==1)
+                                         GmmShape3D{2, 3, 8, 16},    // GPU: ov=[2,3,32]
+                                         GmmShape3D{4, 1, 8, 8},     // GPU: ov=[4,1,32]
                                          GmmShape3D{3, 7, 16, 8}));  // GPU: ov=[3,7,24]
 
 // {T, K, N, cumulative offsets}
