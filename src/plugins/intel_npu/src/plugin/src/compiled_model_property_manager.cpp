@@ -305,8 +305,8 @@ void CompiledModelPropertyManager::registerProperties() {
         [](const ov::AnyMap&) {
             return true;
         },
-        [](const ov::AnyMap&) {
-            return ov::Any(std::vector<std::string>{"NPU"});
+        [this](const ov::AnyMap&) {
+            return _device != nullptr ? decltype(ov::execution_devices)::value_type{"NPU.0"} : decltype(ov::execution_devices)::value_type{};
         },
         readOnlySetter
     );

@@ -810,6 +810,10 @@ void program::prepare_memory_dependencies() {
     apply_opt_pass<basic_memory_dependencies>();
     apply_opt_pass<skipped_branch_memory_dependencies>();
     apply_opt_pass<oooq_memory_dependencies>();
+    // Publish sorted restriction vectors before runtime consumers can access them.
+    for (const auto& node : get_processing_order()) {
+        node->get_memory_dependencies();
+    }
 }
 
 std::string program::get_memory_dependencies_string() const {

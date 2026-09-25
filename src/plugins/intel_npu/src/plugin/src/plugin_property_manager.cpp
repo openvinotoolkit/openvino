@@ -439,10 +439,8 @@ std::optional<ov::intel_npu::CompilerType> PluginPropertyManager::resolveCompile
 
     try {
         auto device = utils::getDeviceById(_backend, deviceId);
-        auto compilationPlatform = utils::getCompilationPlatform(
-            platform,
-            device == nullptr ? deviceId : device->getName(),
-            _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+        auto compilationPlatform =
+            utils::getCompilationPlatform(_backend, platform, device == nullptr ? deviceId : device->getName());
 
         CompilerAdapterFactory factory;
         factory.decideCompilerType(compilerType, device, compilationPlatform);
@@ -882,9 +880,6 @@ void PluginPropertyManager::registerProperties() {
         OPENVINO_THROW("Property is read-only");
     };
 
-    register_property(ov::execution_devices.name(), true, ov::PropertyMutability::RO, alwaysSupported, [](const ov::AnyMap&) {
-        return std::vector<std::string>{"NPU"};
-    }, readOnlySetter);
     register_property(ov::device::capabilities.name(), true, ov::PropertyMutability::RO, alwaysSupported, [](const ov::AnyMap&) {
         return std::vector<std::string>{ov::device::capability::FP16, ov::device::capability::INT8, ov::device::capability::EXPORT_IMPORT};
     }, readOnlySetter);
@@ -1043,9 +1038,10 @@ void PluginPropertyManager::registerProperties() {
                 auto deviceId = getDeviceId(arguments);
                 auto device = utils::getDeviceById(_backend, deviceId);
                 compilationPlatform = utils::getCompilationPlatform(
+                    _backend,
                     platform,
-                    device == nullptr ? deviceId : device->getName(),
-                    _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+                    device == nullptr ? deviceId : device->getName()
+                    );
             }
 
             try {
@@ -1065,9 +1061,9 @@ void PluginPropertyManager::registerProperties() {
                 auto deviceId = getDeviceId(arguments);
                 auto device = utils::getDeviceById(_backend, deviceId);
                 compilationPlatform = utils::getCompilationPlatform(
+                    _backend,
                     platform,
-                    device == nullptr ? deviceId : device->getName(),
-                    _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+                    device == nullptr ? deviceId : device->getName());
             }
 
             CompilerAdapterFactory factory;
