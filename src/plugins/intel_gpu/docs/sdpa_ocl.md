@@ -645,9 +645,6 @@ Measured on an Arc Pro B70 (Xe2), identical before and after the refactor:
 - The 14 bf16 compressed cases of the same test fail in `add_required_reorders` (no i8 layout for
   `dynamicquantize`) before an SDPA implementation is chosen, so plain bf16 with compressed KV is
   unreachable. `SDPAFusion.Inference/0` does not find the fused SDPA node.
-- Under `OV_GPU_PA_K_TOKEN_MAJOR=1`, `paged_attention_test.basic/149` and
-  `paged_attention_swa_partition_finalization_test.ignores_inactive_partition/0` miss the 0.002
-  tolerance by about 0.01.
 
 ### Test coverage gaps
 
@@ -657,6 +654,12 @@ BY_TOKEN cache, a compressed cache with token_type_ids, or the u4 scalar page ar
 the test shapes to M <= 4), and even then no GENERATE test uses u4, so the u4 M = 8 kernel is only
 compiled. Lower-right causal masking is checked only by `sdpa_gpu_causal_mask` (cosine >= 0.99),
 and several suites check only finiteness, cache contents or cosine >= 0.95.
+
+The paged-attention harness data (`generate_realistic_data`, N(0, 0.1)) makes a GENERATE output
+about 0.08 / sqrt(keys) in size, so the compressed-cache tolerances (0.025 i8, 0.075 u4) accept an
+all-zero output from about 150 keys on (u4 from about 20). A missing output write is seen only
+by the f16 tolerance (0.002) and by `paged_attention_swa_one_partition_test`, which poisons the
+output with NaN before a second run.
 
 ### Performance opportunities
 
