@@ -1,8 +1,8 @@
 name: NPU CiP Bump Notification
 
 # Notifies whenever the prebuilt NPU compiler-in-package (CiP) binaries are bumped on
-# master or a release branch. A bump is detected by a value-level change of the version /
-# commit sha / SHA256 checksum variables in:
+# master or a release branch. A bump is detected by a value-level change of any
+# PLUGIN_COMPILER_* platform SHA256 checksum in:
 #     src/plugins/intel_npu/cmake/download_compiler_libs.cmake
 #
 # Delivery:
