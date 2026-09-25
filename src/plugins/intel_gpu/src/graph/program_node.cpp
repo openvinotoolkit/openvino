@@ -213,26 +213,23 @@ void program_node::remove_dependency(size_t idx) {
 }
 
 const std::vector<uint32_t>& program_node::get_memory_dependencies() const {
-    return memory_dependencies;
+    return memory_dependencies.values();
+}
+
+bool program_node::has_memory_dependency(uint32_t id) const {
+    return memory_dependencies.contains(id);
 }
 
 void program_node::add_memory_dependency(std::vector<size_t> prim_list) {
     for (size_t val : prim_list) {
         OPENVINO_ASSERT(val <= std::numeric_limits<uint32_t>::max(), "[GPU] Memory dependency id is out of uint32_t range: ", std::to_string(val));
-        const auto v32 = static_cast<uint32_t>(val);
-        auto it = std::lower_bound(memory_dependencies.begin(), memory_dependencies.end(), v32);
-        if (it == memory_dependencies.end() || *it != v32) {
-            memory_dependencies.insert(it, v32);
-        }
+        memory_dependencies.insert(static_cast<uint32_t>(val));
     }
 }
 
 void program_node::add_memory_dependency(const program_node& dep) {
     if (dep.may_use_mempool() && may_use_mempool()) {
-        auto it = std::lower_bound(memory_dependencies.begin(), memory_dependencies.end(), static_cast<uint32_t>(dep.get_unique_id()));
-        if (it == memory_dependencies.end() || *it != static_cast<uint32_t>(dep.get_unique_id())) {
-            memory_dependencies.insert(it, static_cast<uint32_t>(dep.get_unique_id()));
-        }
+        memory_dependencies.insert(static_cast<uint32_t>(dep.get_unique_id()));
     }
 }
 
@@ -757,7 +754,7 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
         ob << user_node->id();
     }
 
-    ob << memory_dependencies;
+    ob << get_memory_dependencies();
 
     ob << make_data(&impl_type, sizeof(impl_type));
     ob << constant;
@@ -939,7 +936,9 @@ void program_node::load(cldnn::BinaryInputBuffer& ib) {
         }
     }
 
-    ib >> memory_dependencies;
+    std::vector<uint32_t> loaded_memory_dependencies;
+    ib >> loaded_memory_dependencies;
+    memory_dependencies = memory_dependency_set(std::move(loaded_memory_dependencies));
 
     ib >> make_data(&impl_type, sizeof(impl_type));
     ib >> constant;
