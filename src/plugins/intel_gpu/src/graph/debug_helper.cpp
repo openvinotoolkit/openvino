@@ -322,7 +322,7 @@ void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std
         if (size.count() == 0) { file_stream << "Empty buffer" << std::endl; }
         else {
             mem_lock<uint8_t, mem_lock_type::read> lock(actual_mem, stream);
-            auto mem_ptr = lock.data();
+            auto* mem_ptr = lock.data();
             std::stringstream buffer;
             for (size_t i = 0; i < lock.size(); ++i) {
                 uint8_t byte = mem_ptr[i];
