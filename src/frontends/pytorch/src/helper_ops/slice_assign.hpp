@@ -9,9 +9,7 @@
 #include "openvino/op/op.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
+namespace ov::frontend::pytorch {
 
 class SliceAssign : public InternalReverseOperation {
 public:
@@ -59,6 +57,4 @@ public:
         }
     }
 };
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch

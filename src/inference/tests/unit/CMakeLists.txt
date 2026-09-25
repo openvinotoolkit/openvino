@@ -11,6 +11,7 @@ endif()
 ov_add_test_target(
         NAME ${TARGET_NAME}
         SOURCES
+            ${CMAKE_CURRENT_SOURCE_DIR}/cache_guard_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/cache_manager.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/compilation_context_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/compiled_model_test.cpp
