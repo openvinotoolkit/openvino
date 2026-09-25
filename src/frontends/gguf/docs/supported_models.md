@@ -42,6 +42,12 @@ that loads but emits garbage is **not** counted as supported.
 
 ## Native GGUF path
 
+Experimental vision/audio encoder-projector conversion is described separately in
+[native multimodal conversion](mmproj.md), including its coverage and validation gaps.
+The [September 2026 checkpoint matrix](mmproj_acceptance.md) records Qwen3.5/3.6/3.8,
+Gemma4 and Muse Glimmer Q4_0/Q4_K_M results. Native decoding, GenAI SDPA/PA,
+encoder accuracy and multimodal generation have separate acceptance outcomes.
+
 The native architecture catalog is defined in
 [`src/builder/arch_registry.cpp`](../src/builder/arch_registry.cpp):
 
@@ -80,7 +86,7 @@ time. External definitions and custom-family catalog entries extend the same reg
 | `phi3` | fused QKV |
 | `qwen2` | qwen2 / qwen2.5 |
 | `qwen3` | QK-norm before RoPE |
-| `qwen35` | hybrid GatedDeltaNet + full attention, interleaved M-RoPE; greedy / batch 1 only |
+| `qwen35`, `qwen35moe` | hybrid GatedDeltaNet + full attention, interleaved M-RoPE; SDPA batch 1; PA conversion with checkpoint-dependent acceptance gaps |
 | `qwen3moe` | NEOX RoPE, per-head QK-norm and normalized expert weights |
 | `smollm3` | NORMAL RoPE, skipped on every fourth layer |
 
@@ -98,10 +104,11 @@ time. External definitions and custom-family catalog entries extend the same reg
 
 ### Numerical regression coverage
 
-[`GGUFArchitectureAccuracy`](../tests/test_arch_accuracy.cpp) contains 26 small, nonzero F32
-fixtures covering 21 verified architecture identifiers and experimental `hunyuan-moe`.
+[`GGUFArchitectureAccuracy`](../tests/test_arch_accuracy.cpp) contains 29 small, nonzero F32
+fixtures, including the experimental `hunyuan-moe` and `qwen35moe` families.
 Additional model variants exercise YaRN and position-dependent attention scaling under
-`llama` and `mistral3`. The suite does not cover `gemma3`, `gemma4`, `gpt-oss` or `qwen35`.
+`llama` and `mistral3`. Gemma3 covers distinct global/local RoPE scaling. The suite
+does not cover `gemma4` or `gpt-oss`. Qwen dense and MoE hybrid fixtures also exercise PA conversion with multiple tokens.
 
 Each fixture compares complete last-token logits with llama.cpp CPU through multi-token
 prefill, one-token decode and a two-token cache append. The normalized MSE limit is `1e-5`.
@@ -180,10 +187,12 @@ additional checkpoint/quantization combinations in precommit/nightly jobs.
 
 ### Runtime limitations
 
-- **`qwen35`: greedy decoding, batch size 1.** Recurrent states have no batch axis and are
-  not reordered by `beam_idx`. Beam search, larger batches, prefix caching and PagedAttention
-  are unsupported. Verified checkpoints include Qwen3.5-0.8B Q8_0 and
-  Ternary-Bonsai-27B Q2_g64.
+- **`qwen35` / `qwen35moe`: SDPA batch size 1.** Recurrent states have a fixed
+  batch dimension and are not reordered by `beam_idx`, so SDPA batching and beam
+  expansion remain unsupported. PA conversion supports the recurrent operators,
+  but real-checkpoint acceptance is tracked separately; successful conversion is
+  not sufficient to establish accuracy or request-state isolation. GenAI must
+  recognize `gguf_recurrent_states` metadata to reset, rather than trim, SDPA state.
 - **Multimodal models:** a verified language backbone does not establish support for its
   vision or audio components, preprocessing or full application pipeline.
 - **Ternary Bonsai packaging:** `Ternary-Bonsai-27B-Q2_0.gguf` uses g128 packing that does

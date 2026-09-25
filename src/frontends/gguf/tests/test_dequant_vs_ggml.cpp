@@ -224,3 +224,48 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                          [](const ::testing::TestParamInfo<DeqCase>& i) {
                              return std::string(i.param.stem);
                          });
+
+// Gemma4 global attention can reuse one quantized tensor for both K and V.
+// Constructing its first decompression graph must not reshape the shared scales.
+TEST(GGUFDequant, SharedExtractedWeightsKeepGroupLayout) {
+    constexpr size_t rows = 4, cols = 256, groups = cols / 32;
+    for (const auto type : {GGUF_TYPE_Q4_0, GGUF_TYPE_Q4_K}) {
+        const bool asymmetric = type == GGUF_TYPE_Q4_K;
+        const std::string stem = asymmetric ? "q4_k" : "q4_0";
+        SCOPED_TRACE(stem);
+        const auto bytes = load_npy<uint8_t>(stem + "_qbytes");
+        const auto reference = load_npy<float>(stem + "_deq");
+        GgufTensor source{};
+        source.type = type;
+        source.ndim = 2;
+        source.dim[0] = cols;
+        source.dim[1] = rows;
+        source.num_weights = rows * cols;
+        source.bsize = bytes.size();
+        source.weights_data = bytes.data();
+        WeightTensors tensors;
+        tensors.weight =
+            ov::Tensor(asymmetric ? ov::element::u32 : ov::element::i4, {rows, asymmetric ? cols / 8 : cols});
+        tensors.scales = ov::Tensor(ov::element::f16, {rows, groups});
+        if (asymmetric) {
+            tensors.zero_point = ov::Tensor(ov::element::f16, {rows, groups});
+            gguf_fill_asym(source, tensors.weight, tensors.scales, tensors.zero_point);
+        } else {
+            gguf_fill_sym(source, tensors.weight, tensors.scales);
+        }
+        const auto first = make_weight_node(tensors, type, "key");
+        EXPECT_EQ(tensors.scales.get_shape(), (ov::Shape{rows, groups}));
+        if (asymmetric) {
+            EXPECT_EQ(tensors.zero_point.get_shape(), (ov::Shape{rows, groups}));
+        }
+        const auto second = make_weight_node(tensors, type, "value");
+        const auto a = eval_as_f32(first);
+        const auto b = eval_as_f32(second);
+        ASSERT_EQ(a.size(), reference.size());
+        ASSERT_EQ(b.size(), reference.size());
+        for (size_t i = 0; i < reference.size(); ++i) {
+            EXPECT_EQ(a[i], b[i]);
+            EXPECT_NEAR(a[i], reference[i], 3e-3f);
+        }
+    }
+}

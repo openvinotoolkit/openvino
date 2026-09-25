@@ -11,11 +11,13 @@
 #include "op_table.hpp"
 #include "openvino/core/shape.hpp"
 #include "openvino/core/strides.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/extractimagepatches.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/shape_of.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "utils.hpp"
@@ -53,13 +55,13 @@ OutputVector translate_im2col(const NodeContext& context) {
     int32_t dil_h = is_2D ? d1 : 1;
 
     if (!is_2D) {
-        const ov::Shape image_shape = image.get_shape();
-        const size_t N = image_shape[1];
-        const size_t IW = image_shape[3];
-        auto image_reshape_shape = ov::op::v0::Constant::create(
-            ov::element::i64,
-            ov::Shape{4},
-            std::vector<int64_t>{static_cast<int64_t>(N), static_cast<int64_t>(IC), 1, static_cast<int64_t>(IW)});
+        const auto image_shape = std::make_shared<ov::op::v3::ShapeOf>(image, ov::element::i64);
+        auto image_reshape_shape = std::make_shared<ov::op::v0::Concat>(
+            ov::OutputVector{
+                gather_dims(image_shape, {1}),
+                ov::op::v0::Constant::create(ov::element::i64, {2}, std::vector<int64_t>{static_cast<int64_t>(IC), 1}),
+                gather_dims(image_shape, {3})},
+            0);
         image = std::make_shared<ov::op::v1::Reshape>(image, image_reshape_shape, false);
     }
 
@@ -69,45 +71,35 @@ OutputVector translate_im2col(const NodeContext& context) {
 
     auto pads_begin =
         ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, pad_h, pad_w});
-    auto pads_end =
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, pad_h, pad_w});
-
-    auto pad = std::make_shared<ov::op::v1::Pad>(image, pads_begin, pads_end, ov::op::PadMode::CONSTANT);
+    auto pad = std::make_shared<ov::op::v1::Pad>(image, pads_begin, pads_begin, ov::op::PadMode::CONSTANT);
     auto patches =
         std::make_shared<ov::op::v3::ExtractImagePatches>(pad, patch_sizes, strides, rates, ov::op::PadType::VALID);
 
     auto perm1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 3, 1});
     auto t1 = std::make_shared<ov::op::v1::Transpose>(patches, perm1);
 
-    const ov::Shape out_shape = t1->get_output_shape(0);
-    const size_t N = out_shape[0];
-    const size_t OH = out_shape[1];
-    const size_t OW = out_shape[2];
-    auto reshape1_shape = ov::op::v0::Constant::create(ov::element::i64,
-                                                       ov::Shape{5},
-                                                       std::vector<int64_t>{static_cast<int64_t>(N),
-                                                                            static_cast<int64_t>(OH),
-                                                                            static_cast<int64_t>(OW),
-                                                                            static_cast<int64_t>(KH * KW),
-                                                                            static_cast<int64_t>(IC)});
-    auto r1 = std::make_shared<ov::op::v1::Reshape>(t1, reshape1_shape, false);
+    auto reshape1_shape = ov::op::v0::Constant::create(
+        ov::element::i64,
+        {5},
+        std::vector<int64_t>{0, 0, 0, static_cast<int64_t>(KH * KW), static_cast<int64_t>(IC)});
+    auto r1 = std::make_shared<ov::op::v1::Reshape>(t1, reshape1_shape, true);
 
     auto perm2 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, std::vector<int64_t>{0, 1, 2, 4, 3});
     auto t2 = std::make_shared<ov::op::v1::Transpose>(r1, perm2);
 
     auto r2_shape = ov::op::v0::Constant::create(ov::element::i64,
-                                                 ov::Shape{4},
-                                                 std::vector<int64_t>{static_cast<int64_t>(N),
-                                                                      static_cast<int64_t>(OH),
-                                                                      static_cast<int64_t>(OW),
-                                                                      static_cast<int64_t>(IC * KH * KW)});
-    res = std::make_shared<ov::op::v1::Reshape>(t2, r2_shape, false);
+                                                 {4},
+                                                 std::vector<int64_t>{0, 0, 0, static_cast<int64_t>(IC * KH * KW)});
+    res = std::make_shared<ov::op::v1::Reshape>(t2, r2_shape, true);
 
     if (!is_2D) {
-        auto final_reshape_shape = ov::op::v0::Constant::create(
-            ov::element::i64,
-            ov::Shape{4},
-            std::vector<int64_t>{1, static_cast<int64_t>(N), static_cast<int64_t>(OW), static_cast<int64_t>(IC * KW)});
+        auto final_reshape_shape = std::make_shared<ov::op::v0::Concat>(
+            ov::OutputVector{ov::op::v0::Constant::create(ov::element::i64, {1}, {1}),
+                             get_dimensions(t1, {0, 2}),
+                             ov::op::v0::Constant::create(ov::element::i64,
+                                                          {1},
+                                                          std::vector<int64_t>{static_cast<int64_t>(IC * KW)})},
+            0);
         res = std::make_shared<ov::op::v1::Reshape>(res, final_reshape_shape, false);
     }
 

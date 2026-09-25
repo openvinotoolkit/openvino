@@ -209,7 +209,7 @@ TEST(GGUFExtensions, GGUFMakeStatefulExtensionYieldsStatefulCache) {
     const auto& info = model->get_variables()[0]->get_info();
     EXPECT_EQ(info.variable_id, "cache");
     EXPECT_EQ(info.data_type, ov::element::f16);
-    EXPECT_EQ(info.data_shape, ov::PartialShape({1, -1, 2, 4}));
+    EXPECT_EQ(info.data_shape, ov::PartialShape({-1, -1, 2, 4}));
 }
 
 // skip_caches leaves a named cache stateless while other caches are converted. A sliding-window

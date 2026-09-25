@@ -17,6 +17,9 @@ GGUF_OP_CONVERTER(translate_concat);
 GGUF_OP_CONVERTER(translate_cont);
 GGUF_OP_CONVERTER(translate_cpy);
 GGUF_OP_CONVERTER(translate_get_rows);
+GGUF_OP_CONVERTER(translate_get_rel_pos);
+GGUF_OP_CONVERTER(translate_win_part);
+GGUF_OP_CONVERTER(translate_win_unpart);
 GGUF_OP_CONVERTER(translate_permute);
 GGUF_OP_CONVERTER(translate_repeat);
 GGUF_OP_CONVERTER(translate_reshape);
@@ -77,6 +80,10 @@ GGUF_OP_CONVERTER(translate_fill);
 
 // Convolution-family / sequence ops.
 GGUF_OP_CONVERTER(translate_im2col);
+GGUF_OP_CONVERTER(translate_pool_2d);
+GGUF_OP_CONVERTER(translate_conv_2d);
+GGUF_OP_CONVERTER(translate_upscale);
+GGUF_OP_CONVERTER(translate_unary_gelu_erf);
 GGUF_OP_CONVERTER(translate_pad);
 GGUF_OP_CONVERTER(translate_ssm_conv);
 GGUF_OP_CONVERTER(translate_ssm_scan);

@@ -15,12 +15,16 @@
 #include "gtest/gtest.h"
 #include "op_test_utils.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
+#include "openvino/frontend/gguf/make_stateful.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/read_value.hpp"
@@ -64,6 +68,18 @@ struct MinimalGgufModel {
     // NOT end in "_embd" -- FixEmbdAxis must find it structurally (rooted at inp_tokens), not by name.
     std::shared_ptr<ov::Node> pe_tok;
 };
+
+std::map<std::string, ov::Tensor> make_genai_inputs(size_t length, size_t past = 0) {
+    ov::Tensor ids(ov::element::i64, {1, length}), mask(ov::element::i64, {1, past + length});
+    ov::Tensor positions(ov::element::i64, {1, length}), beam(ov::element::i32, {1});
+    for (size_t i = 0; i < length; ++i) {
+        ids.data<int64_t>()[i] = int64_t(i);
+        positions.data<int64_t>()[i] = int64_t(past + i);
+    }
+    std::fill_n(mask.data<int64_t>(), mask.get_size(), 1);
+    beam.data<int32_t>()[0] = 0;
+    return {{"input_ids", ids}, {"attention_mask", mask}, {"position_ids", positions}, {"beam_idx", beam}};
+}
 
 MinimalGgufModel build_minimal_gguf_model(int64_t vocab = 4,
                                           int64_t hidden = 2,
@@ -183,6 +199,221 @@ TEST(GGUFAdaptToGenAI, NoOpWithoutGgufInputs) {
     auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input_ids});
 
     EXPECT_FALSE(AdaptToGenAI().run_on_model(model));
+}
+
+TEST(GGUFAdaptToGenAI, EmbeddingModeExtractsLookupAndAcceptsInjectedValues) {
+    auto m = build_minimal_gguf_model();
+    m.embd->get_rt_info()["gguf.token_embedding"] = true;
+    // Keep an unreachable consumer alive across adaptation. Rewiring inp_tokens also
+    // updates this node, but it must not keep input_ids in the decoder's input contract.
+    auto detached = std::make_shared<v0::Convert>(m.inp_tokens, ov::element::i64);
+    AdaptToGenAI pass(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+    ASSERT_TRUE(pass.run_on_model(m.model));
+    ASSERT_NE(pass.get_embedding_model(), nullptr);
+    EXPECT_EQ(find_parameter(m.model, "input_ids"), nullptr);
+    ASSERT_NE(find_parameter(m.model, "inputs_embeds"), nullptr);
+    EXPECT_NE(detached->input_value(0).get_node(), m.inp_tokens.get());
+    for (size_t length : {1, 3}) {
+        ov::Tensor ids(ov::element::i64, {1, length});
+        for (size_t i = 0; i < length; ++i)
+            ids.data<int64_t>()[i] = int64_t(i);
+        ov::TensorVector lookup{ov::Tensor(ov::element::f32, {1, length, 2})};
+        ASSERT_TRUE(pass.get_embedding_model()->evaluate(lookup, {ids}));
+        for (size_t i = 0; i < 2 * length; ++i)
+            EXPECT_EQ(lookup[0].data<float>()[i], float(i));
+        ov::TensorVector inputs;
+        for (const auto& p : m.model->get_parameters()) {
+            if (p->get_friendly_name() == "inputs_embeds") {
+                inputs.push_back(lookup[0]);
+            } else {
+                const auto shape = p->get_friendly_name() == "beam_idx" ? ov::Shape{1} : ov::Shape{1, length};
+                inputs.emplace_back(p->get_element_type(), shape);
+                std::memset(inputs.back().data(), 0, inputs.back().get_byte_size());
+            }
+        }
+        ov::TensorVector outputs{ov::Tensor(ov::element::f32, {1, length, 1})};
+        ASSERT_TRUE(m.model->evaluate(outputs, inputs));
+        ASSERT_EQ(outputs[0].get_shape(), (ov::Shape{1, length, 1}));
+        for (size_t i = 0; i < length; ++i)
+            EXPECT_EQ(outputs[0].data<float>()[i], float(4 * i + 1));
+    }
+    ov::Tensor batch_ids(ov::element::i64, {2, 1});
+    batch_ids.data<int64_t>()[0] = 1;
+    batch_ids.data<int64_t>()[1] = 3;
+    ov::TensorVector batch_embeddings{ov::Tensor(ov::element::f32, {2, 1, 2})};
+    ASSERT_TRUE(pass.get_embedding_model()->evaluate(batch_embeddings, {batch_ids}));
+    EXPECT_EQ(batch_embeddings[0].get_shape(), (ov::Shape{2, 1, 2}));
+    EXPECT_EQ(batch_embeddings[0].data<float>()[0], 2.f);
+    EXPECT_EQ(batch_embeddings[0].data<float>()[2], 6.f);
+    EXPECT_FALSE(pass.run_on_model(m.model));
+}
+
+TEST(GGUFAdaptToGenAI, EmbeddingModeMovesPerLayerTokenLookupToEmbeddingModel) {
+    auto m = build_minimal_gguf_model(4, 2, false, true);
+    m.embd->get_rt_info()["gguf.token_embedding"] = true;
+    m.pe_tok->get_rt_info()["gguf.per_layer_token_embedding"] = int64_t{2};
+    AdaptToGenAI pass(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+    ASSERT_TRUE(pass.run_on_model(m.model));
+    EXPECT_EQ(find_parameter(m.model, "input_ids"), nullptr);
+    EXPECT_NE(find_parameter(m.model, "inputs_embeds"), nullptr);
+    EXPECT_EQ(m.model->input("per_layer_inputs").get_partial_shape(), (ov::PartialShape{-1, -1, 2, 1}));
+    const auto& lookup = pass.get_embedding_model();
+    EXPECT_EQ(lookup->get_parameters().size(), 1);
+    ASSERT_EQ(lookup->outputs().size(), 2);
+    EXPECT_EQ(lookup->output(0).get_any_name(), "inputs_embeds");
+    EXPECT_EQ(lookup->output(1).get_any_name(), "per_layer_inputs");
+    EXPECT_EQ(lookup->output(1).get_partial_shape(), (ov::PartialShape{-1, -1, 2, 1}));
+}
+
+// An untagged token lookup cannot be moved, so the language model keeps input_ids for it.
+TEST(GGUFAdaptToGenAI, EmbeddingModePreservesUntaggedAuxiliaryTokenLookup) {
+    auto m = build_minimal_gguf_model(4, 2, false, true);
+    m.embd->get_rt_info()["gguf.token_embedding"] = true;
+    AdaptToGenAI pass(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+    ASSERT_TRUE(pass.run_on_model(m.model));
+    EXPECT_NE(find_parameter(m.model, "input_ids"), nullptr);
+    EXPECT_NE(find_parameter(m.model, "inputs_embeds"), nullptr);
+    EXPECT_EQ(pass.get_embedding_model()->get_parameters().size(), 1);
+}
+
+TEST(GGUFAdaptToGenAI, EmbeddingModeRetainsScalingOnce) {
+    auto m = build_minimal_gguf_model();
+    m.embd->get_rt_info()["gguf.token_embedding"] = true;
+    auto reduction = m.model->get_results().front()->input_value(0).get_node_shared_ptr();
+    reduction->input(0).replace_source_output(
+        std::make_shared<v1::Multiply>(m.embd, v0::Constant::create(ov::element::f32, {}, {7.f})));
+    auto reference = m.model->clone();
+    AdaptToGenAI().run_on_model(reference);
+    AdaptToGenAI pass(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+    pass.run_on_model(m.model);
+    auto inputs = make_genai_inputs(3);
+    auto expected = run_on_cpu(reference, inputs);
+    auto lookup = run_on_cpu(pass.get_embedding_model(), {{"input_ids", inputs.at("input_ids")}});
+    inputs.erase("input_ids");
+    inputs.emplace("inputs_embeds", lookup);
+    auto actual = run_on_cpu(m.model, inputs);
+    ASSERT_EQ(actual.get_shape(), expected.get_shape());
+    for (size_t i = 0; i < actual.get_size(); ++i)
+        EXPECT_FLOAT_EQ(actual.data<float>()[i], expected.data<float>()[i]);
+}
+
+TEST(GGUFAdaptToGenAI, BatchedMaskKeepsSequencesSeparateAndExcludesPadding) {
+    auto m = build_minimal_gguf_model();
+    auto mask = find_parameter(m.model, "self_kq_mask");
+    m.model->add_results({std::make_shared<v0::Result>(mask)});
+    ASSERT_TRUE(AdaptToGenAI().run_on_model(m.model));
+    ov::Core core;
+    auto request = core.compile_model(m.model, "CPU").create_infer_request();
+    // The second sequence has two left-padding columns and one current token.
+    for (size_t past : {0, 2}) {
+        ov::Tensor ids(ov::element::i64, {2, 3}), positions(ov::element::i64, {2, 3});
+        ov::Tensor attention(ov::element::i64, {2, past + 3}), beams(ov::element::i32, {2});
+        std::fill_n(ids.data<int64_t>(), ids.get_size(), 1);
+        std::fill_n(attention.data<int64_t>(), attention.get_size(), 1);
+        attention.data<int64_t>()[past + 3] = attention.data<int64_t>()[past + 4] = 0;
+        for (size_t i = 0; i < 3; ++i) {
+            positions.data<int64_t>()[i] = past + i;
+            positions.data<int64_t>()[3 + i] = std::max<int64_t>(0, int64_t(past + i) - 2);
+        }
+        beams.data<int32_t>()[0] = 0;
+        beams.data<int32_t>()[1] = 1;
+        request.set_tensor("input_ids", ids);
+        request.set_tensor("attention_mask", attention);
+        request.set_tensor("position_ids", positions);
+        request.set_tensor("beam_idx", beams);
+        request.infer();
+        const auto actual = request.get_output_tensor(0);
+        ASSERT_EQ(actual.get_shape(), (ov::Shape{2, 1, 3, past + 3}));
+        for (size_t b = 0; b < 2; ++b) {
+            for (size_t q = 0; q < 3; ++q) {
+                for (size_t k = 0; k < past + 3; ++k) {
+                    const bool allowed = k <= past + q && (b == 0 || k >= 2);
+                    const float value = actual.data<const float>()[(b * 3 + q) * (past + 3) + k];
+                    // Padded query rows are ignored by generation.
+                    if (b == 1 && past + q < 2)
+                        continue;
+                    if (allowed)
+                        EXPECT_EQ(value, 0.f);
+                    else
+                        EXPECT_LT(value, -1e4f);
+                }
+            }
+        }
+    }
+}
+
+class GGUFAdaptToGenAIImageMask : public testing::TestWithParam<std::string> {};
+
+TEST_P(GGUFAdaptToGenAIImageMask, RespectsLayerTypeImageGroupsAndCachedPrefix) {
+    auto m = build_minimal_gguf_model();
+    m.embd->get_rt_info()["gguf.token_embedding"] = true;
+    m.model->get_rt_info()["gguf_architecture"] = GetParam();
+    m.model->get_rt_info()[ov::frontend::gguf::pass::gguf_swa_window_key()] = int64_t{3};
+    auto mask = find_parameter(m.model, "self_kq_mask");
+    auto swa_mask = ov::test::utils::make_param(ov::element::f32,
+                                               ov::PartialShape{1, 1, -1, -1},
+                                               "self_kq_mask_swa");
+    m.model->add_parameters({swa_mask});
+    m.model->add_results({std::make_shared<v0::Result>(mask), std::make_shared<v0::Result>(swa_mask)});
+    AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(m.model);
+    // Adaptation replaces the original first result with logits; the retained mask is now first.
+    ov::Core core;
+    auto request = core.compile_model(m.model, "CPU").create_infer_request();
+    const std::vector<int64_t> types{0, 1, 1, 0, 1, 1, 0};
+    for (size_t past : {0, 3}) {
+        auto inputs = make_genai_inputs(types.size(), past);
+        inputs.erase("input_ids");
+        inputs.emplace("inputs_embeds", ov::Tensor(ov::element::f32, {1, types.size(), 2}));
+        ov::Tensor token_types(ov::element::i64, {1, types.size()});
+        std::copy(types.begin(), types.end(), token_types.data<int64_t>());
+        inputs.emplace("token_type_ids", token_types);
+        for (auto& entry : inputs)
+            request.set_tensor(entry.first, entry.second);
+        request.infer();
+        for (size_t layer = 0; layer < 2; ++layer) {
+            auto actual = request.get_output_tensor(layer);
+            ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 1, types.size(), past + types.size()}));
+            const bool bidirectional = layer == 1 || GetParam() == "gemma3";
+            for (size_t q = 0; q < types.size(); ++q) {
+                for (size_t k = 0; k < past + types.size(); ++k) {
+                    const bool same_image = k >= past && types[q] == 1 && types[k - past] == 1 &&
+                                            ((q <= 2 && k - past <= 2) || (q >= 4 && k - past >= 4));
+                    const bool allowed = (k <= past + q || (bidirectional && same_image)) &&
+                                         (layer == 0 || k + 3 > past + q);
+                    const float value = actual.data<float>()[q * (past + types.size()) + k];
+                    if (allowed)
+                        EXPECT_EQ(value, 0.f) << "layer=" << layer << " past=" << past << " q=" << q << " k=" << k;
+                    else
+                        EXPECT_LT(value, -1e4f) << "layer=" << layer << " past=" << past << " q=" << q << " k=" << k;
+                }
+            }
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(Gemma,
+                         GGUFAdaptToGenAIImageMask,
+                         testing::Values(std::string("gemma3"), std::string("gemma4")),
+                         [](const testing::TestParamInfo<std::string>& info) { return info.param; });
+
+TEST(GGUFAdaptToGenAI, EmbeddingModeMapsGenAIMultimodalPositionsToGGML) {
+    auto m = build_minimal_gguf_model();
+    m.embd->get_rt_info()["gguf.token_embedding"] = true;
+    m.model->get_rt_info()[ov::frontend::gguf::pass::gguf_imrope_key()] = true;
+    auto positions = find_parameter(m.model, "inp_pos");
+    m.model->add_results({std::make_shared<v0::Result>(positions)});
+    AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(m.model);
+    auto inputs = make_genai_inputs(2, 7);
+    inputs.erase("input_ids");
+    inputs.emplace("inputs_embeds", make_f32_tensor({1, 2, 2}, {1, 2, 3, 4}));
+    ov::Tensor coordinates(ov::element::i64, {4, 1, 2});
+    const std::vector<int64_t> data{3, 7, 11, 2, 5, 13, 17, 19};
+    std::copy(data.begin(), data.end(), coordinates.data<int64_t>());
+    inputs["position_ids"] = coordinates;
+    auto actual = run_on_cpu(m.model, inputs);
+    ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 1, 1, 8}));
+    for (size_t i = 0; i < data.size(); ++i)
+        EXPECT_EQ(actual.data<int32_t>()[i], data[(i + 2) % data.size()]);
 }
 
 // translate_get_rows's embedding lookup restores ggml's rank-4 form with Unsqueeze(axis=0),
@@ -412,7 +643,7 @@ TEST(GGUFAdaptToGenAI, InpOutIdsRowSelectionCorrectUnderBothLayouts) {
 // per token, without needing real RoPE weights or a llama.cpp oracle to compute an expected value.
 namespace {
 
-std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab, int64_t hidden) {
+std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab, int64_t hidden, bool auxiliary_tokens = false) {
     auto inp_tokens = ov::test::utils::make_param(ov::element::i32, ov::PartialShape{1, 1, 1, -1}, "inp_tokens");
     auto inp_pos = ov::test::utils::make_param(ov::element::i32, ov::PartialShape{1, 1, 1, -1}, "inp_pos");
     auto self_kq_mask = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask");
@@ -437,12 +668,22 @@ std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab, int64_t hid
     auto gather = std::make_shared<v8::Gather>(vocab_table, indices, axis0);
     auto embd = std::make_shared<v0::Unsqueeze>(gather, axis0);
     embd->set_friendly_name("embd");
+    embd->get_rt_info()["gguf.token_embedding"] = true;
 
     // Flatten to [1, tokens, hidden] regardless of which axis (0 pre-fix, 1 post-fix) carries the
     // real token count -- Reshape never reorders memory, so this is correct either way (same trick
     // FixInpOutIdsRowSelect itself uses).
     auto embd_3d_shape = v0::Constant::create(ov::element::i64, {3}, std::vector<int64_t>{1, -1, hidden});
-    auto embd_3d = std::make_shared<v1::Reshape>(embd, embd_3d_shape, false);
+    ov::Output<ov::Node> combined = embd;
+    if (auxiliary_tokens) {
+        auto auxiliary = std::make_shared<v8::Gather>(vocab_table, indices, axis0);
+        auto lifted = std::make_shared<v0::Unsqueeze>(auxiliary, axis0);
+        lifted->set_friendly_name("per_layer_tokens");
+        // Two layers of hidden / 2 values each, as Gemma4's per-layer token embedding.
+        lifted->get_rt_info()["gguf.per_layer_token_embedding"] = int64_t{2};
+        combined = std::make_shared<v1::Add>(embd, lifted);
+    }
+    auto embd_3d = std::make_shared<v1::Reshape>(combined, embd_3d_shape, false);
 
     std::vector<float> zero_w(hidden * hidden, 0.0f);
     auto w_zero = v0::Constant::create(ov::element::f32, {(size_t)hidden, (size_t)hidden}, zero_w);
@@ -539,3 +780,66 @@ TEST(GGUFAdaptToGenAI, SurvivesSDPAToPagedAttentionWithRealAttentionBlock) {
         EXPECT_EQ(q_shape[1].get_length(), hidden);
     }
 }
+
+// The per-layer token lookup becomes a per_layer_inputs input, so the language model takes
+// embeddings only, and the unmodified PagedAttention conversion applies as for optimum-intel.
+TEST(GGUFAdaptToGenAI, PagedAttentionFlattensEmbeddingsWithPerLayerInputs) {
+    auto model = build_attention_gguf_model(8, 4, true);
+    model->get_rt_info()["gguf_architecture"] = std::string("gemma4");
+    ASSERT_TRUE(AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(model));
+    ASSERT_EQ(find_parameter(model, "input_ids"), nullptr);
+    ASSERT_EQ(model->input("inputs_embeds").get_partial_shape().rank().get_length(), 3);
+    ASSERT_EQ(model->input("per_layer_inputs").get_partial_shape(), (ov::PartialShape{-1, -1, 2, 2}));
+    ASSERT_TRUE(ov::pass::SDPAToPagedAttention().run_on_model(model));
+    EXPECT_EQ(model->input("inputs_embeds").get_partial_shape(), (ov::PartialShape{-1, -1}));
+    // GenAI's continuous batching supplies per_layer_inputs as [tokens, 1, layers, width].
+    EXPECT_NO_THROW(model->reshape({{"inputs_embeds", {5, 4}},
+                                    {"per_layer_inputs", {5, 1, 2, 2}},
+                                    {"token_type_ids", {5, 1}},
+                                    {"position_ids", {5}}}));
+    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
+}
+
+class GGUFAdaptToGenAIEmbeddingMode : public ::testing::TestWithParam<bool> {};
+
+TEST_P(GGUFAdaptToGenAIEmbeddingMode, MatchesTokenModeAcrossCachedDecodeAndReset) {
+    const bool per_layer = GetParam();
+    auto original = build_attention_gguf_model(8, 4, per_layer);
+    auto embedded = original->clone();
+    AdaptToGenAI().run_on_model(original);
+    AdaptToGenAI adapter(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+    adapter.run_on_model(embedded);
+    ov::Core core;
+    auto tokens =
+        core.compile_model(original, "CPU", ov::hint::inference_precision(ov::element::f32)).create_infer_request();
+    auto values =
+        core.compile_model(embedded, "CPU", ov::hint::inference_precision(ov::element::f32)).create_infer_request();
+    auto lookup = core.compile_model(adapter.get_embedding_model(), "CPU").create_infer_request();
+    for (int chat = 0; chat < 2; ++chat) {
+        size_t past = 0;
+        for (size_t length : {3, 1, 2}) {
+            auto inputs = make_genai_inputs(length, past);
+            lookup.set_tensor("input_ids", inputs.at("input_ids"));
+            lookup.infer();
+            for (const auto& entry : inputs) {
+                tokens.set_tensor(entry.first, entry.second);
+                if (entry.first != "input_ids")
+                    values.set_tensor(entry.first, entry.second);
+            }
+            values.set_tensor("inputs_embeds", lookup.get_tensor("inputs_embeds"));
+            if (per_layer)
+                values.set_tensor("per_layer_inputs", lookup.get_tensor("per_layer_inputs"));
+            tokens.infer();
+            values.infer();
+            auto expected = tokens.get_output_tensor(), actual = values.get_output_tensor();
+            ASSERT_EQ(actual.get_shape(), expected.get_shape());
+            for (size_t i = 0; i < actual.get_size(); ++i)
+                EXPECT_NEAR(actual.data<float>()[i], expected.data<float>()[i], 1e-5f);
+            past += length;
+        }
+        tokens.reset_state();
+        values.reset_state();
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(PerLayerInputs, GGUFAdaptToGenAIEmbeddingMode, ::testing::Bool());

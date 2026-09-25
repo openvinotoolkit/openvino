@@ -78,13 +78,7 @@ std::string write_decoder_gguf(const std::string& dir, const std::string& arch =
     writer.kv_f32(arch + ".attn_logit_softcapping", 2.f);
     writer.kv_u32(arch + ".attention.sliding_window", 2);
     const auto weight = [&](const std::string& name, const std::vector<uint64_t>& shape, bool norm = false) {
-        size_t count = 1;
-        for (auto d : shape)
-            count *= d;
-        std::vector<float> values(count);
-        for (size_t i = 0; i < count; ++i)
-            values[i] = norm ? 1.f : 0.1f * std::sin(float(i + 1));
-        writer.tensor(name, shape, values);
+        writer.filled_tensor(name, shape, norm);
     };
     weight("token_embd.weight", {8, 16});
     weight("output_norm.weight", {8}, true);

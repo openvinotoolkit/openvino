@@ -79,7 +79,8 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     graph.recurrent_states.emplace_back(cs, cs_out);
 
     e.add_named_weight(p + "ssm_conv1d.weight");
-    auto conv = e.add_op("GGML_OP_SSM_CONV", p + "conv_out", {conv_in, p + "ssm_conv1d.weight"});
+    auto conv =
+        e.add_op("GGML_OP_SSM_CONV", p + "conv_out", {conv_in, p + "ssm_conv1d.weight"}, 0, {{"batch_major", true}});
     conv = e.add_op("GGML_UNARY_OP_SILU", p + "conv_silu", {conv});
 
     // ---- split the conv output into q | k | v and normalize q/k ----
@@ -112,16 +113,8 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     // Split the packed attention rows and recurrent state; only the token axis is inferred.
     const std::vector<int64_t> attn_view{0, head_v};
     const std::vector<int64_t> state_view{1, head_v};
-    auto attn = e.add_op("GGML_OP_VIEW",
-                         p + "gdn_attn",
-                         {gdn},
-                         4,
-                         {{"gdn_view", attn_view}, {"view_reshape", std::vector<int64_t>{1, -1, H_v, head_v}}});
-    auto new_state = e.add_op("GGML_OP_VIEW",
-                              ss + "_out",
-                              {gdn},
-                              4,
-                              {{"gdn_view", state_view}, {"view_reshape", std::vector<int64_t>{1, H_v, head_v, S}}});
+    auto attn = e.add_op("GGML_OP_VIEW", p + "gdn_attn", {gdn}, 4, {{"gdn_view", attn_view}});
+    auto new_state = e.add_op("GGML_OP_VIEW", ss + "_out", {gdn}, 4, {{"gdn_view", state_view}});
     graph.model_output_names.push_back(new_state);
     graph.recurrent_states.emplace_back(ss, new_state);
 
@@ -137,9 +130,10 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     out = e.add_op("GGML_OP_MUL", p + "gdn_gated", {out, z_silu});
     out = e.add_op("GGML_OP_RESHAPE",
                    p + "gdn_merged",
-                   {out},
-                   6,
-                   {{"reshape_target", std::vector<int64_t>{0, 1, -1, value_dim}}, {"special_zero", true}});
+                   {out, attn_norm},
+                   0,
+                   {{"reshape_target", std::vector<int64_t>{1, 1, -1, value_dim}},
+                    {"shape_axes", std::vector<int64_t>{0, 1, 2, -1}}});
 
     e.add_weight(p + "ssm_out.weight");
     return e.add_op("GGML_OP_MUL_MAT", p + "linear_attn_out", {p + "ssm_out.weight", out});

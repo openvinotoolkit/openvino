@@ -44,17 +44,26 @@ public:
     OPENVINO_MODEL_PASS_RTTI("ov::frontend::gguf::pass::AdaptToGenAI");
 
     /// \brief Which genai input contract to expose.
-    /// IDS_TO_LOGITS  : input_ids -> logits (text LLMPipeline). The only mode implemented today.
-    /// EMBEDS_TO_LOGITS: inputs_embeds -> logits (reserved for the VLM language model, where
-    ///                 image+text embeddings are merged outside the graph). Not yet implemented.
+    /// IDS_TO_LOGITS  : input_ids -> logits (text LLMPipeline).
+    /// EMBEDS_TO_LOGITS: raw inputs_embeds -> logits, with scaling retained in the decoder.
+    /// Token-dependent auxiliary branches retain input_ids when required.
+    /// Embedding mode is batch-one SDPA. M-RoPE models receive position_ids [4,1,T],
+    /// containing GenAI's sequence/time/height/width sections; callers supply all sections.
     enum class InputMode { IDS_TO_LOGITS, EMBEDS_TO_LOGITS };
 
     explicit AdaptToGenAI(InputMode mode = InputMode::IDS_TO_LOGITS) : m_mode(mode) {}
 
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
+    /// Raw token lookup extracted by EMBEDS_TO_LOGITS, sharing the original weight buffers.
+    /// Available after a successful run; inputs input_ids [B,T], output inputs_embeds [B,T,D].
+    const std::shared_ptr<ov::Model>& get_embedding_model() const {
+        return m_embedding_model;
+    }
+
 private:
     InputMode m_mode;
+    std::shared_ptr<ov::Model> m_embedding_model;
 };
 
 }  // namespace ov::frontend::gguf::pass

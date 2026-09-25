@@ -204,6 +204,17 @@ void GgufGraphContext::set_primary_output(const GgufValue& value) {
     outputs.insert(outputs.begin(), m_impl->value_name(value));
 }
 
+void GgufGraphContext::set_output(const GgufValue& value, const std::string& name) {
+    m_impl->check_open();
+    auto& emitter = m_impl->emitter;
+    OPENVINO_ASSERT(!name.empty() && !emitter.graph()->values->count(name) && !emitter.has_weight(name),
+                    "[GGUF] output name is already used: ",
+                    name);
+    emitter.add_op("GGML_OP_CONT", name, {m_impl->value_name(value)}, 1, {{"op_case", 1}});
+    emitter.value(name).get_tensor().set_names({name});
+    emitter.graph()->model_output_names.push_back(name);
+}
+
 void GgufGraphContext::set_sliding_window(int64_t tokens) {
     m_impl->check_open();
     OPENVINO_ASSERT(tokens > 0 && tokens <= std::numeric_limits<int>::max(),

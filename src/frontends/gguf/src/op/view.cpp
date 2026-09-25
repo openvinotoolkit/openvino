@@ -11,10 +11,13 @@
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/transpose.hpp"
+#include "transformations/utils/utils.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
@@ -147,6 +150,38 @@ OutputVector translate_view(const NodeContext& context) {
         FRONT_END_OP_CONVERSION_CHECK(gdn.size() == 2, "GDN view expects {part, s_v}");
         const int64_t part = gdn[0];  // 0 = attn (first T rows), 1 = state (last S_v rows)
         const int64_t s_v = gdn[1];
+        FRONT_END_OP_CONVERSION_CHECK(part == 0 || part == 1, "Invalid GDN output part");
+
+        // Keep the fused op's independent outputs visible to paged-state transformations.
+        const auto packed = ov::as_type_ptr<ov::op::v1::Reshape>(input.get_node_shared_ptr());
+        const auto concat =
+            packed ? ov::as_type_ptr<ov::op::v0::Concat>(packed->get_input_node_shared_ptr(0)) : nullptr;
+        if (concat && concat->get_axis() == 0 && concat->get_input_size() == 2) {
+            const auto flat = ov::as_type_ptr<ov::op::v1::Reshape>(concat->get_input_node_shared_ptr(0));
+            const auto fused =
+                flat ? ov::as_type_ptr<ov::op::internal::GatedDeltaNet>(flat->get_input_node_shared_ptr(0)) : nullptr;
+            const auto flat_state = ov::as_type_ptr<ov::op::v1::Reshape>(concat->get_input_node_shared_ptr(1));
+            const auto transposed_state =
+                flat_state ? ov::as_type_ptr<ov::op::v1::Transpose>(flat_state->get_input_node_shared_ptr(0)) : nullptr;
+            if (fused && flat->input_value(0) == fused->output(0) && transposed_state &&
+                transposed_state->input_value(0) == fused->output(1) &&
+                ov::op::util::has_constant_value<int64_t>(transposed_state->get_input_node_shared_ptr(1),
+                                                          std::vector<int64_t>{0, 1, 3, 2}) &&
+                fused->get_output_partial_shape(0)[3] == s_v) {
+                ov::Output<ov::Node> value = fused->output(part);
+                if (part == 1)
+                    value = std::make_shared<ov::op::v1::Transpose>(
+                        value,
+                        ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 1, 3, 2}));
+                const auto target = context.get_attribute<std::vector<int64_t>>("view_reshape", {});
+                if (!target.empty())
+                    value = std::make_shared<ov::op::v1::Reshape>(
+                        value,
+                        ov::op::v0::Constant::create(ov::element::i64, {target.size()}, target),
+                        false);
+                return rename_outputs_with_suffix({value}, context.get_name());
+            }
+        }
 
         auto axis2 = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
         auto step = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});

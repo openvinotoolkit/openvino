@@ -5,6 +5,7 @@
 #include "arch_registry.hpp"
 
 #include "builder/arch/mamba_builder.hpp"
+#include "builder/arch/mmproj_builder.hpp"
 #include "openvino/core/except.hpp"
 
 namespace ov::frontend::gguf {
@@ -16,21 +17,37 @@ struct DecoderEntry {
     Maturity maturity;
 };
 const DecoderEntry decoders[] = {
-    {"bailingmoe2", RopeMode::Neox, Maturity::Verified},     {"deepseek2-ocr", RopeMode::Neox, Maturity::Verified},
-    {"ernie4_5-moe", RopeMode::Normal, Maturity::Verified},  {"exaone-moe", RopeMode::Neox, Maturity::Experimental},
-    {"exaone4", RopeMode::Neox, Maturity::Verified},         {"gemma", RopeMode::Neox, Maturity::Verified},
-    {"gemma2", RopeMode::Neox, Maturity::Verified},          {"gemma3", RopeMode::Neox, Maturity::Verified},
-    {"gemma4", RopeMode::Neox, Maturity::Verified},          {"glm4moe", RopeMode::Neox, Maturity::Experimental},
-    {"gpt-oss", RopeMode::Neox, Maturity::Verified},         {"hunyuan-dense", RopeMode::Neox, Maturity::Verified},
-    {"hunyuan-moe", RopeMode::Neox, Maturity::Experimental}, {"jais2", RopeMode::Neox, Maturity::Experimental},
-    {"llama", RopeMode::Normal, Maturity::Verified},         {"llama-embed", RopeMode::Normal, Maturity::Experimental},
-    {"maincoder", RopeMode::Normal, Maturity::Verified},     {"mellum", RopeMode::Neox, Maturity::Verified},
-    {"minicpm", RopeMode::Normal, Maturity::Verified},       {"minimax-m2", RopeMode::Neox, Maturity::Experimental},
-    {"mistral3", RopeMode::Normal, Maturity::Verified},      {"muse-glimmer", RopeMode::Normal, Maturity::Verified},
-    {"olmoe", RopeMode::Neox, Maturity::Verified},           {"phi3", RopeMode::Neox, Maturity::Verified},
-    {"plamo3", RopeMode::Neox, Maturity::Experimental},      {"qwen2", RopeMode::Neox, Maturity::Verified},
-    {"qwen3", RopeMode::Neox, Maturity::Verified},           {"qwen35", RopeMode::Interleaved, Maturity::Verified},
-    {"qwen3moe", RopeMode::Neox, Maturity::Verified},        {"smollm3", RopeMode::Normal, Maturity::Verified},
+    {"bailingmoe2", RopeMode::Neox, Maturity::Verified},
+    {"deepseek2-ocr", RopeMode::Neox, Maturity::Verified},
+    {"ernie4_5-moe", RopeMode::Normal, Maturity::Verified},
+    {"exaone-moe", RopeMode::Neox, Maturity::Experimental},
+    {"exaone4", RopeMode::Neox, Maturity::Verified},
+    {"gemma", RopeMode::Neox, Maturity::Verified},
+    {"gemma2", RopeMode::Neox, Maturity::Verified},
+    {"gemma3", RopeMode::Neox, Maturity::Verified},
+    {"gemma4", RopeMode::Neox, Maturity::Verified},
+    {"glm4moe", RopeMode::Neox, Maturity::Experimental},
+    {"gpt-oss", RopeMode::Neox, Maturity::Verified},
+    {"hunyuan-dense", RopeMode::Neox, Maturity::Verified},
+    {"hunyuan-moe", RopeMode::Neox, Maturity::Experimental},
+    {"jais2", RopeMode::Neox, Maturity::Experimental},
+    {"llama", RopeMode::Normal, Maturity::Verified},
+    {"llama-embed", RopeMode::Normal, Maturity::Experimental},
+    {"maincoder", RopeMode::Normal, Maturity::Verified},
+    {"mellum", RopeMode::Neox, Maturity::Verified},
+    {"minicpm", RopeMode::Normal, Maturity::Verified},
+    {"minimax-m2", RopeMode::Neox, Maturity::Experimental},
+    {"mistral3", RopeMode::Normal, Maturity::Verified},
+    {"muse-glimmer", RopeMode::Normal, Maturity::Verified},
+    {"olmoe", RopeMode::Neox, Maturity::Verified},
+    {"phi3", RopeMode::Neox, Maturity::Verified},
+    {"plamo3", RopeMode::Neox, Maturity::Experimental},
+    {"qwen2", RopeMode::Neox, Maturity::Verified},
+    {"qwen3", RopeMode::Neox, Maturity::Verified},
+    {"qwen35", RopeMode::Interleaved, Maturity::Verified},
+    {"qwen35moe", RopeMode::Interleaved, Maturity::Experimental},
+    {"qwen3moe", RopeMode::Neox, Maturity::Verified},
+    {"smollm3", RopeMode::Normal, Maturity::Verified},
 };
 }  // namespace
 
@@ -41,6 +58,7 @@ std::vector<ArchitectureDefinition> builtin_architectures() {
     }
     definitions.push_back(mamba2_architecture("mamba2"));
     definitions.push_back(mamba2_architecture("nemotron_h"));
+    definitions.push_back(mmproj_architecture());
     return definitions;
 }
 

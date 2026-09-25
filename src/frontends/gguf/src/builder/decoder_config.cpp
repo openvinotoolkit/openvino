@@ -84,7 +84,7 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     {
         const int probe = (std::max(0, n_dense_lead) / moe_layer_step + 1) * moe_layer_step - 1;
         const std::string pp = "blk." + std::to_string(probe) + ".";
-        is_moe = has(pp + "ffn_gate_exps.weight");
+        is_moe = has(pp + "ffn_gate_exps.weight") || has(pp + "ffn_gate_up_exps.weight");
     }
     // Gemma/Gemma2 use GeGLU (GELU-gated FFN). Detected by arch name since other archs
     // in the supported set (llama, qwen2, qwen3, phi3) all use SwiGLU.
@@ -141,7 +141,7 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     // ---- qwen35 (Qwen3.5/3.6): hybrid Gated-DeltaNet + full attention ----
     // Layers alternate: every full_attention_interval-th layer is full attention, the rest
     // run a linear-attention (GDN) block. llama.cpp src/models/qwen35.cpp.
-    is_qwen35 = arch == "qwen35";
+    is_qwen35 = arch == "qwen35" || arch == "qwen35moe";
     ssm_conv_kernel = cfg_i("ssm_conv_kernel");
     ssm_state_size = cfg_i("ssm_state_size");
     ssm_group_count = cfg_i("ssm_group_count");
@@ -193,8 +193,9 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     attention_scale = cfg_f("attention_scale");            // 0 -> 1/sqrt(head_size)
     expert_weights_scale = cfg_f("expert_weights_scale");  // 0 -> 1.0 no-op
     // These llama.cpp builders require normalization independently of optional GGUF metadata.
-    expert_weights_norm = options.normalize_expert_weights.value_or(
-        arch == "qwen3moe" || arch == "ernie4_5-moe" || arch == "mellum" || cfg_i("expert_weights_norm") != 0);
+    expert_weights_norm =
+        options.normalize_expert_weights.value_or(arch == "qwen3moe" || arch == "qwen35moe" || arch == "ernie4_5-moe" ||
+                                                  arch == "mellum" || cfg_i("expert_weights_norm") != 0);
     rope_freq_base_swa = cfg_f("rope_freq_base_swa");
     swa_layer_pattern = cfg_i("swa_layer_pattern");
     // Gemma4: per-layer SWA boolean flags (non-empty when swa_layer_pattern==0).
@@ -236,6 +237,10 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     rope_config_swa = rope_config;
     rope_config_swa.freq_base = cfg_f("rope_freq_base_swa");
     rope_config_swa.n_dims = cfg_i("rope_dimension_count_swa");
+    // Gemma local attention uses the training default, independently of global
+    // linear RoPE scaling (for example 1/8 in Gemma3 4B).
+    if (arch == "gemma3" || arch == "gemma4")
+        rope_config_swa.freq_scale = 1.0f;
     if (options.geglu)
         is_geglu = *options.geglu;
     if (options.value_norm)
@@ -276,7 +281,8 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     // share the global table and SWA layers would be roped wrong.
     const bool swa_dims_differ = rope_dim_swa > 0 && rope_dim_swa != rope_config.n_dims;
     const bool swa_freq_differs = rope_config_swa.freq_base != rope_config.freq_base;
-    if (has_swa && (swa_dims_differ || swa_freq_differs)) {
+    const bool swa_scale_differs = rope_config_swa.freq_scale != rope_config.freq_scale;
+    if (has_swa && (swa_dims_differ || swa_freq_differs || swa_scale_differs)) {
         use_per_op_rope = true;
     }
     // M-RoPE: inp_pos carries 4 sections per token and only the first n_dims of each head
@@ -285,6 +291,8 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
     // case (see RopeConfig::is_imrope / use_per_op_rope).
     if (rope_op_case == ROPE_OP_CASE_IMROPE) {
         rope_config.is_imrope = true;
+        OPENVINO_ASSERT(rope_sections.size() <= rope_config.sections.size(), "[GGUF] too many M-RoPE sections");
+        std::copy(rope_sections.begin(), rope_sections.end(), rope_config.sections.begin());
         use_per_op_rope = true;
     }
 }

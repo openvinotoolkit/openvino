@@ -4,9 +4,11 @@
 
 #include "utils.hpp"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <memory>
+#include <numeric>
 #include <string>
 
 #include "openvino/core/model.hpp"
@@ -58,16 +60,25 @@ int non_cont_dim(std::vector<size_t> ne, std::vector<size_t> nb) {
     return 0;
 }
 
-std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::op::v3::ShapeOf>& shape,
-                                         const std::vector<int>& dims) {
+void name_output(const ov::Output<ov::Node>& out, const std::string& name) {
+    out.get_node_shared_ptr()->set_friendly_name(name);
+    out.get_node_shared_ptr()->output(0).set_names({name});
+}
+
+std::shared_ptr<ov::Node> gather_dims(const ov::Output<ov::Node>& shape, const std::vector<int>& dims) {
     using namespace ov::op;
     const auto zero = v0::Constant::create(ov::element::i32, ov::Shape{}, {0});
     const auto dims_const = v0::Constant::create(ov::element::i32, ov::Shape{dims.size()}, dims);
     return std::make_shared<v8::Gather>(shape, dims_const, zero);
 }
 
+std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::op::v3::ShapeOf>& shape,
+                                         const std::vector<int>& dims) {
+    return gather_dims(shape, dims);
+}
+
 std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, const std::vector<int>& dims) {
-    return get_dimensions(std::make_shared<ov::op::v3::ShapeOf>(output), dims);
+    return gather_dims(std::make_shared<ov::op::v3::ShapeOf>(output), dims);
 }
 
 OutputVector rename_outputs_with_suffix(OutputVector outputs, const std::string& suffix) {
@@ -188,8 +199,21 @@ std::pair<ov::Output<Node>, ov::Output<Node>> make_sin_cos(const RopeConfig& rop
     float mscale = attn_factor;
     if (imrope) {
         std::vector<int64_t> gather_indices(n_dims_half);
+        const auto& sections = rope_config.sections;
+        const int total = std::accumulate(sections.begin(), sections.end(), 0);
+        FRONT_END_GENERAL_CHECK(std::all_of(sections.begin(),
+                                            sections.end(),
+                                            [](int32_t s) {
+                                                return s >= 0;
+                                            }),
+                                "M-RoPE sections must be nonnegative");
         for (size_t j = 0; j < n_dims_half; j++) {
-            gather_indices[j] = j % 3;
+            const size_t sector = total ? j % total : j;
+            gather_indices[j] = !total                                                             ? j % 3
+                                : sector % 3 == 1 && sector < 3 * static_cast<size_t>(sections[1]) ? 1
+                                : sector % 3 == 2 && sector < 3 * static_cast<size_t>(sections[2]) ? 2
+                                : sector % 3 == 0 && sector < 3 * static_cast<size_t>(sections[0]) ? 0
+                                                                                                   : 3;
             factor[j] = static_cast<float>(std::pow(theta_scale, j));
         }
         auto gather_indices_const =

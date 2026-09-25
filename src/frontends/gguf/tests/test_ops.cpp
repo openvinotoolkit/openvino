@@ -2481,6 +2481,37 @@ TEST(GGUFOps, Im2col1D) {
     expect_near(out, expected, 1e-4f);
 }
 
+TEST(GGUFOps, MultimodalPoolingAndConvolution) {
+    auto pool = SingleOpBuilder()
+                    .op("GGML_OP_POOL_2D")
+                    .input("x", ov::element::f32, {1, 1, 2, 4})
+                    .output("out", ov::element::f32, {1, 1, 1, 2})
+                    .attr<std::vector<int64_t>>("pool_params", {1, 2, 2, 2, 2, 0, 0})
+                    .build();
+    const auto x = make_f32_tensor({1, 1, 2, 4}, {1, 2, 3, 4, 5, 6, 7, 8});
+    expect_near(run_on_cpu(pool, {{"x", x}}), {3.5f, 5.5f}, 1e-6f);
+    auto conv = SingleOpBuilder()
+                    .op("GGML_OP_CONV_2D")
+                    .input("w", ov::element::f32, {1, 1, 2, 2})
+                    .input("x", ov::element::f32, {1, 1, 2, 4})
+                    .output("out", ov::element::f32, {1, 1, 1, 2})
+                    .attr<std::vector<int64_t>>("conv_params", {2, 2, 0, 0, 1, 1})
+                    .build();
+    expect_near(run_on_cpu(conv, {{"x", x}, {"w", make_f32_tensor({1, 1, 2, 2}, {1, 2, 3, 4})}}), {44, 64}, 1e-6f);
+}
+
+TEST(GGUFOps, GeluErf) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_UNARY_OP_GELU_ERF")
+                     .input("x", ov::element::f32, {1, 1, 1, 5})
+                     .output("out", ov::element::f32, {1, 1, 1, 5})
+                     .build();
+    std::vector<float> values{-2, -1, 0, 1, 2}, expected;
+    for (auto x : values)
+        expected.push_back(0.5f * x * (1.f + std::erf(x / std::sqrt(2.f))));
+    expect_near(run_on_cpu(model, {{"x", make_f32_tensor({1, 1, 1, 5}, values)}}), expected, 1e-6f);
+}
+
 // Cpy: a ggml copy is a dtype convert to the destination type. i32 -> f32 upcast round-trips
 // the integer values exactly.
 TEST(GGUFOps, Cpy) {
@@ -2819,3 +2850,145 @@ TEST(GGUFOps, Set) {
 }
 
 }  // namespace
+
+TEST(GGUFOps, MultimodalRopeMatchesIndependentSections) {
+    // Reference: multimodal_rope_oracle.cpp, pinned ggml CPU. Three heads, differing
+    // coordinates on all four axes, and unequal IMROPE sections exercise layout and routing.
+    for (bool vision : {false, true}) {
+        RopeConfig config;
+        config.n_dims = vision ? 32 : 64;
+        config.n_ctx_orig = 32768;
+        config.freq_base = 10000.f;
+        config.freq_scale = config.attn_factor = 1.f;
+        config.beta_fast = 32.f;
+        config.beta_slow = 1.f;
+        config.sections = vision ? std::array<int32_t, 4>{16, 16, 16, 16} : std::array<int32_t, 4>{8, 7, 9, 8};
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_ROPE")
+                         .input("data", ov::element::f32, {1, -1, 3, 64})
+                         .input("pos", ov::element::i32, {1, 1, 1, -1})
+                         .output("out", ov::element::f32, {1, -1, 3, 64})
+                         .op_case((vision ? 3 : 2) << 16)
+                         .attr<RopeConfig>("rope_config", config)
+                         .build();
+        std::vector<float> data(384);
+        for (size_t i = 0; i < data.size(); ++i)
+            data[i] = std::sin(float(i) * 0.13f);
+        ov::Tensor positions(ov::element::i32, {1, 1, 1, 8});
+        const std::vector<int32_t> values{3, 7, 11, 2, 5, 13, 17, 19};
+        std::copy(values.begin(), values.end(), positions.data<int32_t>());
+        auto actual = run_on_cpu(model, {{"data", make_f32_tensor({1, 2, 3, 64}, data)}, {"pos", positions}});
+        expect_near(actual, load_npy<float>(vision ? "vision_rope_expected" : "multimodal_imrope_expected"));
+    }
+}
+
+TEST(GGUFOps, InterpolateBilinearAntialiasDynamicSize) {
+    for (bool corners : {false, true}) {
+        // Reference: multimodal_rope_oracle.cpp resize, ggml CPU.
+        auto model = SingleOpBuilder()
+                         .op("GGML_OP_UPSCALE")
+                         .input("data", ov::element::f32, {1, 2, -1, -1})
+                         .input("sizes", ov::element::i64, {2})
+                         .output("out", ov::element::f32, {1, 2, -1, -1})
+                         .attr<int>("interpolation_mode", 1 | 0x200 | (corners ? 0x100 : 0))
+                         .build();
+        std::vector<float> data(12);
+        for (size_t i = 0; i < data.size(); ++i)
+            data[i] = std::sin(float(i) * 0.13f);
+        ov::Tensor sizes(ov::element::i64, {2});
+        sizes.data<int64_t>()[0] = 4;
+        sizes.data<int64_t>()[1] = 5;
+        auto actual = run_on_cpu(model, {{"data", make_f32_tensor({1, 2, 2, 3}, data)}, {"sizes", sizes}});
+        expect_near(actual,
+                    load_npy<float>(corners ? "mmproj_interpolate_corners_expected" : "mmproj_interpolate_expected"));
+        // Downsampling exercises clipped filter support at the border of a learned position grid.
+        data.resize(2 * 8 * 12);
+        for (size_t i = 0; i < data.size(); ++i)
+            data[i] = std::sin(float(i) * 0.13f);
+        actual = run_on_cpu(model, {{"data", make_f32_tensor({1, 2, 8, 12}, data)}, {"sizes", sizes}});
+        expect_near(
+            actual,
+            load_npy<float>(corners ? "mmproj_interpolate_down_corners_expected" : "mmproj_interpolate_down_expected"));
+    }
+}
+
+TEST(GGUFOps, Im2colDynamicRectangularGridsMatchCPU) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_IM2COL")
+                     .input("kernel", ov::element::f32, {1, 2, 2, 3})
+                     .input("image", ov::element::f32, {1, 2, -1, -1})
+                     .output("out", ov::element::f32, {1, -1, -1, 12})
+                     .attr<std::vector<int32_t>>("im2col_params", {2, 1, 1, 0, 1, 1, 1})
+                     .build();
+    ov::Core core;
+    auto request =
+        core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32)).create_infer_request();
+    for (size_t width : {7, 9}) {
+        const size_t height = width == 7 ? 5 : 4;
+        std::vector<float> values(2 * height * width);
+        for (size_t i = 0; i < values.size(); ++i)
+            values[i] = std::sin(float(i) * 0.13f);
+        request.set_tensor("image", make_f32_tensor({1, 2, height, width}, values));
+        request.infer();
+        EXPECT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{1, height - 1, (width + 1) / 2, 12}));
+        expect_near(request.get_output_tensor(), load_npy<float>("mmproj_im2col" + std::to_string(width)));
+    }
+}
+
+// Geometry expectations generated by mmproj_ops_oracle.cpp against pinned ggml CPU.
+TEST(GGUFOps, WindowPartitionPadsRectangularGrid) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_WIN_PART")
+                     .input("x", ov::element::f32, {1, -1, -1, 3})
+                     .output("out", ov::element::f32, {-1, 2, 2, 3})
+                     .attr<int64_t>("window", 2)
+                     .build();
+    auto result = run_on_cpu(model, {{"x", make_f32_tensor({1, 3, 5, 3}, load_npy<float>("mmproj_window_input"))}});
+    EXPECT_EQ(result.get_shape(), (ov::Shape{6, 2, 2, 3}));
+    expect_near(result, load_npy<float>("mmproj_windows"));
+}
+
+TEST(GGUFOps, WindowUnpartitionRemovesPadding) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_WIN_UNPART")
+                     .input("x", ov::element::f32, {-1, 2, 2, 3})
+                     .input("reference", ov::element::f32, {1, -1, -1, 3})
+                     .output("out", ov::element::f32, {1, -1, -1, 3})
+                     .attr<int64_t>("window", 2)
+                     .build();
+    auto result = run_on_cpu(model,
+                             {{"x", make_f32_tensor({6, 2, 2, 3}, load_npy<float>("mmproj_windows"))},
+                              {"reference", make_f32_tensor({1, 3, 5, 3}, load_npy<float>("mmproj_window_input"))}});
+    expect_near(result, load_npy<float>("mmproj_restored"));
+}
+
+TEST(GGUFOps, RelativePositionsMatchCPU) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_GET_REL_POS")
+                     .input("table", ov::element::f32, {5, 4})
+                     .output("out", ov::element::f16, {1, 3, 3, 4})
+                     .attr<int64_t>("q_size", 3)
+                     .build();
+    auto result = run_on_cpu(model, {{"table", make_f32_tensor({5, 4}, load_npy<float>("mmproj_relative_input"))}});
+    const auto expected = load_npy<float>("mmproj_relative");
+    ASSERT_EQ(result.get_size(), expected.size());
+    for (size_t i = 0; i < expected.size(); ++i)
+        EXPECT_FLOAT_EQ(float(result.data<ov::float16>()[i]), expected[i]);
+}
+
+TEST(GGUFOps, ReferenceReshapeTracksSpatialDimensions) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_RESHAPE")
+                     .input("x", ov::element::f32, {1, 1, 3, -1})
+                     .input("reference", ov::element::f32, {1, 3, -1, -1})
+                     .output("out", ov::element::f32, {1, 3, -1, -1})
+                     .attr<std::vector<int64_t>>("reshape_target", {1, 3, 0, 0})
+                     .attr<std::vector<int64_t>>("shape_axes", {-1, -1, 2, 3})
+                     .build();
+    const auto values = load_npy<float>("mmproj_window_input");
+    auto result = run_on_cpu(
+        model,
+        {{"x", make_f32_tensor({1, 1, 3, 15}, values)}, {"reference", make_f32_tensor({1, 3, 3, 5}, values)}});
+    EXPECT_EQ(result.get_shape(), (ov::Shape{1, 3, 3, 5}));
+    expect_near(result, values);
+}
