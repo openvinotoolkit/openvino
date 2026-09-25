@@ -338,10 +338,8 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
                                        order_v,
                                        order_output,
                                        output_type,
-                                       causal_mask_alignment);
-        if (gpu_sdpa) {
-            sdpa_new->set_sliding_window_size(gpu_sdpa->get_sliding_window_size());
-        }
+                                       causal_mask_alignment,
+                                       gpu_sdpa ? gpu_sdpa->get_sliding_window_size() : 0);
 
         sdpa_new->set_friendly_name(sdpa->get_friendly_name());
         ov::copy_runtime_info(m.get_matched_nodes(), sdpa_new);

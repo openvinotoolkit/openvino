@@ -14,7 +14,8 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_sdpa(const ov::
                                                                       const ov::Output<ov::Node>& mask,
                                                                       const ov::Output<ov::Node>& scale,
                                                                       const ov::Output<ov::Node>& sink,
-                                                                      bool is_causal) {
+                                                                      bool is_causal,
+                                                                      int64_t local_window_size) {
     ov::OutputVector inputs{query, key, value};
     if (mask.get_node()) {
         inputs.push_back(mask);
@@ -27,18 +28,17 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_sdpa(const ov::
     }
 
     const auto order = op::SDPA::default_order(query.get_partial_shape().rank().get_length());
-    auto sdpa = register_new_node<op::SDPA>(inputs,
+    // GQA's -1 sentinel for "no window" maps to SDPA's 0 = disabled.
+    const int64_t sdpa_window = (local_window_size >= 1) ? local_window_size : 0;
+    return register_new_node<op::SDPA>(inputs,
                                        is_causal,
                                        order,
                                        order,
                                        order,
                                        order,
                                        ov::element::dynamic,
-                                       is_causal ? op::SDPA::CausalMaskAlignment::LOWER_RIGHT : op::SDPA::CausalMaskAlignment::UPPER_LEFT);
-    if (m_local_window_size >= 1) {
-        sdpa->set_sliding_window_size(m_local_window_size);
-    }
-    return sdpa;
+                                       is_causal ? op::SDPA::CausalMaskAlignment::LOWER_RIGHT : op::SDPA::CausalMaskAlignment::UPPER_LEFT,
+                                       sdpa_window);
 }
 
 std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_attention_mask(const ov::Output<ov::Node>& curr_seqlen_scalar,
@@ -53,8 +53,6 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_attention_mask(
                                                                                 bool sliding_window_cache,
                                                                                 float scale,
                                                                                 bool has_sink) {
-    m_local_window_size = local_window_size;
-
     // The kernel applies the window natively via is_causal + sliding_window_size (see make_sdpa),
     // so the explicit mask subgraph is unneeded whenever that path is reachable.
     if (causal && !external_bias.get_node() && scale == 0.0f && !has_sink &&
