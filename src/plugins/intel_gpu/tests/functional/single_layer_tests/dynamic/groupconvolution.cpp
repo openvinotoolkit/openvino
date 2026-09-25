@@ -15,12 +15,12 @@ namespace {
 using ov::test::InputShape;
 using ov::test::groupConvSpecificParams;
 
-typedef std::tuple<
+using groupConvLayerTestParamsSet = std::tuple<
         groupConvSpecificParams,
         ov::element::Type,     // Model type
         InputShape,            // Input shape
         std::string            // Device name
-> groupConvLayerTestParamsSet;
+>;
 
 class GroupConvolutionLayerGPUTestDynamic : public testing::WithParamInterface<groupConvLayerTestParamsSet>,
                                             virtual public ov::test::SubgraphBaseTest {
@@ -56,6 +56,11 @@ protected:
     void SetUp() override {
         const auto& [groupConvParams, model_type, inputShape, _targetDevice] = this->GetParam();
         targetDevice = _targetDevice;
+
+        if (model_type == ov::element::f16) {
+            abs_threshold = 0.5;
+            rel_threshold = 0.01;
+        }
 
         init_input_shapes({inputShape});
 

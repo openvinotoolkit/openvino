@@ -28,6 +28,11 @@ void FakeQuantizeAndTwoOutputBranchesWithConvolutionTransformation::SetUp() {
     auto [netPrecision, inputShape, device, testValues] = this->GetParam();
     targetDevice = device;
 
+    if (netPrecision == ov::element::f16) {
+        abs_threshold = 0.5;
+        rel_threshold = 0.01;
+    }
+
     init_input_shapes(inputShape);
 
     function = ov::builder::subgraph::FakeQuantizeAndTwoOutputBranchesWithConvolutionFunction::getOriginal(

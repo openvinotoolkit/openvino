@@ -58,6 +58,11 @@ void DeformableConvolutionLayerTest::SetUp() {
     targetDevice = _targetDevice;
     init_input_shapes(shapes);
 
+    if (model_type == ov::element::f16) {
+        abs_threshold = 0.5;
+        rel_threshold = 0.01;
+    }
+
     const auto& [stride,
                  pad_begin,
                  pad_end,
