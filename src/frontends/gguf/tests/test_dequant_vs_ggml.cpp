@@ -75,6 +75,8 @@ const char* type_name(uint32_t type) {
         return "Q6_K";
     case GGUF_TYPE_Q2_0:
         return "Q2_0";
+    case GGUF_TYPE_Q1_0:
+        return "Q1_0";
     default:
         return "";
     }
@@ -220,7 +222,10 @@ INSTANTIATE_TEST_SUITE_P(AllQuantTypes,
                                            // Q2_0 is bit-exact: both sides compute (code - 1) * d
                                            // from the same f16 scale, and the u8 zero-point of 1 is
                                            // represented exactly, so no dequant noise is introduced.
-                                           DeqCase{"q2_0", GGUF_TYPE_Q2_0, kTolExact}),
+                                           DeqCase{"q2_0", GGUF_TYPE_Q2_0, kTolExact},
+                                           // Q1_0 is bit-exact: both sides compute bit ? +d : -d from
+                                           // the same f16 scale, with no zero-point rounding at all.
+                                           DeqCase{"q1_0", GGUF_TYPE_Q1_0, kTolExact}),
                          [](const ::testing::TestParamInfo<DeqCase>& i) {
                              return std::string(i.param.stem);
                          });
