@@ -1219,110 +1219,70 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     auto device_tensor_et = convert_to_supported_device_type(element_type);
     bool convert_needed = is_convert_required(device_tensor_et, element_type);
 
-    // A dynamic remote output also fed back as an input must not be bound as the network output unless
-    // its producer explicitly supports the in-place contract; a tiled kernel could overwrite unread input.
-    const bool remote_output_overlap_unsupported =
-        is_remote_tensor_impl && is_dynamic &&
-        (!can_use_caller_output_memory(user_tensor, user_tensor_wrapper.actual_size) ||
-         !remote_tensor_impl_ptr->get_memory() ||
-         !network->can_bind_user_output_memory(internal_name, *remote_tensor_impl_ptr->get_memory()));
-
-    if (remote_output_overlap_unsupported) {
-        // Give this output its own plugin buffer instead of the caller's tensor. The result is copied
-        // back to the caller in wait(). This also drops any earlier binding from a non-aliased run.
-        const bool need_lockable_mem = network->does_node_need_lockable_output(internal_name);
-        auto tensor_shape = user_tensor->get_shape();
-        auto actual_memory_shape = predict_shape(internal_name,
-                                                 cldnn::layout(tensor_shape,
-                                                               device_tensor_et,
-                                                               cldnn::format::get_default_format(tensor_shape.size())),
-                                                 *m_shape_predictor);
-        m_plugin_outputs[output_idx] = { create_device_tensor(actual_memory_shape, device_tensor_et, need_lockable_mem || convert_needed),
-                                         TensorOwner::PLUGIN };
-        // An earlier non-aliased run may have pointed the compute node straight at the caller buffer.
-        // set_output_memory() doesn't reach that node, so clear it and let it re-pick the plugin buffer.
-        network->invalidate_ext_block_compute_nodes(internal_name);
-    } else if (is_remote_tensor_impl && !convert_needed) {
+    if (is_remote_tensor_impl && !convert_needed) {
         // Even if the network is dynamic, if user tensor's shape is static, remote tensor can be set as plugin's output tensor
         m_plugin_outputs[output_idx] = user_tensor_wrapper;
     }
 
-    // Snapshot whether the previous binding was caller-owned before the map is mutated below.
-    const bool had_user_device_buffer = m_plugin_outputs.count(output_idx) > 0 && m_plugin_outputs[output_idx].owner == TensorOwner::USER;
-    {
+    if (!is_dynamic) {
         bool need_lockable_mem = network->does_node_need_lockable_output(internal_name);
         bool has_device_buffer = m_plugin_outputs.count(output_idx) > 0;
-        bool update_device_tensor =
-            !has_device_buffer || is_generic_remote || (had_user_device_buffer && !is_remote_tensor_impl);
+        bool update_device_tensor = !has_device_buffer || is_generic_remote;
         if (update_device_tensor) {
-            if (!is_dynamic) {
-                if (!is_remote_tensor_impl) {
-                    m_plugin_outputs[output_idx] =
-                        create_or_share_device_tensor(user_tensor_wrapper, internal_name, pshape, device_tensor_et, need_lockable_mem || convert_needed);
-                } else {
-                    m_plugin_outputs[output_idx] = {create_device_tensor(pshape, device_tensor_et, need_lockable_mem || convert_needed), TensorOwner::PLUGIN};
-                }
-            } else if (!is_remote_tensor_impl) {
-                // Drop any stale dynamic binding so an imported caller USM pointer isn't reused after set_output_tensor().
-                m_plugin_outputs.erase(output_idx);
+            if (!is_remote_tensor_impl) {
+                m_plugin_outputs[output_idx] =
+                    create_or_share_device_tensor(user_tensor_wrapper, internal_name, pshape, device_tensor_et, need_lockable_mem || convert_needed);
+            } else {
+                m_plugin_outputs[output_idx] = {create_device_tensor(pshape, device_tensor_et, need_lockable_mem || convert_needed), TensorOwner::PLUGIN};
             }
         }
+    } else if (is_generic_remote) {
+        // A generic remote output cannot reuse a previous dynamic binding.
+        m_plugin_outputs.erase(output_idx);
     }
 
     if (is_dynamic && user_tensor_wrapper.owner == TensorOwner::USER) {
         // Caller-owned memory and the plugin-owned OutputMemoryBlock are mutually exclusive.
         network->unregister_output_memory_block(internal_name);
 
-        auto& engine = m_graph->get_engine();
-        const bool overlap_unsupported =
-            !is_remote_tensor_impl && !is_generic_remote &&
-            !can_use_caller_output_memory(user_tensor, user_tensor_wrapper.actual_size);
-        // Import a caller USM-host pointer as a shared remote tensor so the graph writes into it directly.
-        const bool can_share_user_usm_host =
-            !is_remote_tensor_impl && !is_generic_remote && !convert_needed && !overlap_unsupported &&
-            engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu &&
-            engine.detect_usm_allocation_type(user_tensor->data()) == cldnn::allocation_type::usm_host &&
-            can_use_usm_host(engine, total_output_bytes);
-        const bool need_lockable_mem = network->does_node_need_lockable_output(internal_name);
-        if (can_share_user_usm_host) {
-            auto candidate = create_or_share_device_tensor(user_tensor_wrapper,
-                                                           internal_name,
-                                                           pshape,
-                                                           device_tensor_et,
-                                                           need_lockable_mem || convert_needed);
-            auto candidate_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(candidate.ptr);
-            if (candidate_tensor && candidate_tensor->get_memory() &&
-                network->can_bind_user_output_memory(internal_name, *candidate_tensor->get_memory())) {
-                m_plugin_outputs[output_idx] = std::move(candidate);
-            } else {
+        if (!is_remote_tensor_impl && !is_generic_remote) {
+            auto& engine = m_graph->get_engine();
+            const bool overlap_unsupported = !can_use_caller_output_memory(user_tensor, user_tensor_wrapper.actual_size);
+            // Import a caller USM-host pointer as a shared remote tensor so the graph writes into it directly.
+            const bool can_share_user_usm_host =
+                !convert_needed && !overlap_unsupported &&
+                engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu &&
+                engine.detect_usm_allocation_type(user_tensor->data()) == cldnn::allocation_type::usm_host &&
+                can_use_usm_host(engine, total_output_bytes);
+            const bool need_lockable_mem = network->does_node_need_lockable_output(internal_name);
+            auto create_plugin_output = [&]() -> TensorWrapper {
                 auto tensor_shape = user_tensor->get_shape();
                 auto actual_memory_shape = predict_shape(internal_name,
                                                          cldnn::layout(tensor_shape,
                                                                        device_tensor_et,
                                                                        cldnn::format::get_default_format(tensor_shape.size())),
                                                          *m_shape_predictor);
-                m_plugin_outputs[output_idx] = { create_device_tensor(actual_memory_shape,
-                                                                       device_tensor_et,
-                                                                       need_lockable_mem || convert_needed),
-                                                 TensorOwner::PLUGIN };
+                return {create_device_tensor(actual_memory_shape, device_tensor_et, need_lockable_mem || convert_needed), TensorOwner::PLUGIN};
+            };
+            if (can_share_user_usm_host) {
+                auto candidate = create_or_share_device_tensor(user_tensor_wrapper,
+                                                               internal_name,
+                                                               pshape,
+                                                               device_tensor_et,
+                                                               need_lockable_mem || convert_needed);
+                auto candidate_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(candidate.ptr);
+                if (candidate_tensor && candidate_tensor->get_memory() &&
+                    network->can_bind_user_output_memory(internal_name, *candidate_tensor->get_memory())) {
+                    m_plugin_outputs[output_idx] = std::move(candidate);
+                } else {
+                    m_plugin_outputs[output_idx] = create_plugin_output();
+                }
+            } else if (overlap_unsupported) {
+                // The output buffer is also used as an input (and the producer doesn't support the exact
+                // in-place contract): allocate plugin-owned memory to avoid overwriting the input data
+                // before it is read. The result is copied out in wait().
+                m_plugin_outputs[output_idx] = create_plugin_output();
             }
-        } else if (overlap_unsupported) {
-            // The output buffer is also used as an input (and the producer doesn't support the exact
-            // in-place contract): allocate plugin-owned memory to avoid overwriting the input data
-            // before it is read. The result is copied out in wait().
-            auto tensor_shape = user_tensor->get_shape();
-            auto actual_memory_shape = predict_shape(internal_name,
-                                                     cldnn::layout(tensor_shape,
-                                                                   device_tensor_et,
-                                                                   cldnn::format::get_default_format(tensor_shape.size())),
-                                                     *m_shape_predictor);
-            m_plugin_outputs[output_idx] = { create_device_tensor(actual_memory_shape, device_tensor_et, need_lockable_mem || convert_needed),
-                                             TensorOwner::PLUGIN };
-        } else if (had_user_device_buffer && !is_remote_tensor_impl && !is_generic_remote) {
-            // Prev binding shared caller memory but the new host tensor is ineligible: recreate
-            // plugin-owned memory so set_output_memory() rebinds the Result off the stale allocation.
-            m_plugin_outputs[output_idx] =
-                create_or_share_device_tensor(user_tensor_wrapper, internal_name, pshape, device_tensor_et, need_lockable_mem || convert_needed);
         }
     }
 
