@@ -121,7 +121,7 @@ bool Concat::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
         return true;
     case concat_kind::packed:
         reference::concat(get_data_ptrs<int8_t>(inputs),
-                          outputs[0].data<int8_t>(),
+                          static_cast<int8_t*>(outputs[0].data()),
                           arg_shapes,
                           out_shape,
                           axis,
