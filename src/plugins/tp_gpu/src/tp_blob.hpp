@@ -50,6 +50,12 @@ inline constexpr uint32_t max_device_name_length = 256;
 /// bounded -- a multi-kilobyte id means the stream is not what we think it is.
 inline constexpr uint32_t max_variable_id_length = 4096;
 
+/// Bounds on the header counts. Not hardware limits, just the point past
+/// which the stream is certainly not a TP_GPU blob any more.
+inline constexpr uint32_t max_world_size = 64;
+inline constexpr uint32_t max_collectives = 1u << 16;
+inline constexpr uint32_t max_sharded_states = 1u << 16;
+
 template <class T>
 void write_trivial(std::ostream& s, const T& v) {
     static_assert(std::is_trivially_copyable<T>::value,

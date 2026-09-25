@@ -12,8 +12,9 @@ file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
 list(APPEND SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/../../src/graph_rewriter.cpp)
 
 # The coordinator tests talk to Level Zero and OpenCL directly; without them
-# they cannot be built, and the rest of the suite still can.
-find_package(OpenCL)
+# they cannot be built, and the rest of the suite still can. OpenCL_FOUND and
+# Threads come from the plugin's own find_package, which runs before this
+# directory is added.
 set(ENABLE_COORDINATOR_TESTS OFF)
 if(OpenCL_FOUND AND TARGET LevelZero::LevelZero)
     set(ENABLE_COORDINATOR_TESTS ON)
@@ -31,10 +32,8 @@ target_include_directories(${TARGET_NAME} PRIVATE
 
 target_link_libraries(${TARGET_NAME} PRIVATE
     openvino::tp_gpu_ops
-    openvino::runtime
     openvino::runtime::dev
     common_test_utils
-    gtest
     gtest_main)
 
 if(ENABLE_COORDINATOR_TESTS)
