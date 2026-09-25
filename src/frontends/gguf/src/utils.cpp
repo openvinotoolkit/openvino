@@ -308,14 +308,15 @@ ov::Output<ov::Node> process_view_input(const NodeContext& context, int input_in
     // dynamic Reshape. Reapplying the consumer-side legacy view handling would slice the resolved
     // tensor a second time. Falcon K/V projection views expose this at zero cache length: the
     // second slice starts beyond the resolved head-width and produces [1,0,H,S]. Treat a shape
-    // compatible with the ggml view itself as authoritative and pass it through unchanged.
+    // matching the ggml view itself as authoritative and pass it through unchanged.
     const auto& expected_shape = context.get_input_shape(input_index);
     const auto actual_shape = input.get_partial_shape();
     if (actual_shape.rank().is_static() && expected_shape.rank().is_static() &&
         actual_shape.rank() == expected_shape.rank()) {
         bool view_is_materialized = true;
         for (int64_t i = 0; i < actual_shape.rank().get_length(); ++i) {
-            if (!actual_shape[i].compatible(expected_shape[i])) {
+            if (expected_shape[i].is_static() &&
+                (actual_shape[i].is_dynamic() || actual_shape[i] != expected_shape[i])) {
                 view_is_materialized = false;
                 break;
             }

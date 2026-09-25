@@ -107,7 +107,8 @@ public:
 
     // ── per-node metadata ───────────────────────────────────────────────────────
     int64_t get_input_view_element_offset(const std::string&) const override {
-        return 0;
+        auto it = m_attributes.find("view_offset");
+        return it == m_attributes.end() ? 0 : it->second.as<int64_t>();
     }
     ov::PartialShape get_input_shape(const std::string& name) const override {
         return find_input(name).shape;

@@ -16,7 +16,9 @@
 #include "op_test_utils.hpp"
 #include "openvino/op/eye.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/selective_ssm.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/topk.hpp"
 #include "utils.hpp"
 
@@ -780,6 +782,43 @@ TEST(GGUFOps, ViewCase3RestoresGgmlShapeBeforeSlicing) {
     ASSERT_EQ(out.get_shape(), (ov::Shape{1, 1, 2, 2}));
     std::vector<float> expected{2, 3, 6, 7};
     expect_near(out, expected, 0.0f);
+}
+
+TEST(GGUFOps, ViewInputRequiresDirectionalShapeMatch) {
+    using namespace ov::frontend::gguf;
+    auto process = [](const ov::PartialShape& expected, const ov::PartialShape& actual) {
+        auto decoder = SingleOpBuilder()
+                           .op("GGML_OP_VIEW")
+                           .input("x", ov::element::f32, expected)
+                           .output("out", ov::element::f32, expected)
+                           .attr<int64_t>("view_offset", 1)
+                           .decoder();
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, actual);
+        input->set_friendly_name("x");
+        input->output(0).set_names({"x"});
+        auto tensors = std::make_shared<TensorMap>();
+        (*tensors)["x"] = input;
+        NodeContext context(decoder, tensors);
+        return std::make_pair(input, process_view_input(context, 0, 2));
+    };
+
+    const auto [unresolved_input, unresolved] = process(ov::PartialShape{1, 3, 2, 4}, ov::PartialShape{1, -1, 2, 4});
+    auto slice = ov::as_type_ptr<ov::op::v8::Slice>(unresolved.get_node_shared_ptr());
+    ASSERT_NE(slice, nullptr);
+    ASSERT_EQ(unresolved.get_partial_shape(), (ov::PartialShape{1, -1, 2, 2}));
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(unresolved)},
+                                             ov::ParameterVector{unresolved_input});
+    std::vector<float> data(24);
+    for (size_t i = 0; i < data.size(); ++i) {
+        data[i] = static_cast<float>(i);
+    }
+    auto out = run_on_cpu(model, {{"x", make_f32_tensor({1, 3, 2, 4}, data)}});
+    expect_near(out, {1, 2, 5, 6, 9, 10, 13, 14, 17, 18, 21, 22}, 0.0f);
+
+    for (const auto& actual : {ov::PartialShape{1, -1, 2, 4}, ov::PartialShape{1, 3, 2, 4}}) {
+        const auto [input, materialized] = process(ov::PartialShape{1, -1, 2, 4}, actual);
+        EXPECT_EQ(materialized, input);
+    }
 }
 
 // TopK: indices of the k largest values per row, k taken from the output's last dim.
