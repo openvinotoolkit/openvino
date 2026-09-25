@@ -70,7 +70,6 @@ struct CumSumParams {
 class ReferenceCumSumLayerTest : public testing::TestWithParam<CumSumParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        legacy_compare = true;
         auto params = GetParam();
         if (params.testDefaults) {
             function = CreateFunction(params.inShape, params.inType);

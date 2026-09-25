@@ -41,7 +41,6 @@ struct MatrixNmsParams {
 class ReferenceMatrixNmsTest : public testing::TestWithParam<MatrixNmsParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        legacy_compare = true;
         auto params = GetParam();
         function = CreateFunction(params);
         inputData = {params.boxes.data, params.scores.data};
