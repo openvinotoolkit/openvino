@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-25-09-41-57-000-36118153521",
+  "timestamp": "2026-09-25T09:41:57Z",
+  "run_id": "36118153521",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36118153521",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "38380",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38380",
+  "author": "pereanub",
+  "category": "Infrastructure",
+  "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_shape_inference",
+  "signature": "cc1plus error cmake_pch hxx gch not a pch file werror invalid pch|Infrastructure",
+  "signature_hash": "5b4b1e6917a69856",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "Cmake build - OpenVINO step fails: cc1plus errors 'cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]' on several openvino_shape_inference translation units"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Check status of all jobs fails because the upstream Build job failed"
+    }
+  ],
+  "key_errors": [
+    "cc1plus: error: /home/runner/_work/openvino/openvino/openvino/openvino_build/src/core/shape_inference/CMakeFiles/openvino_shape_inference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]",
+    "cc1plus: all warnings being treated as errors",
+    "FAILED: [code=1] src/core/shape_inference/CMakeFiles/openvino_shape_inference.dir/src/tensor_data_accessor.cpp.o",
+    "ninja: build stopped: subcommand failed."
+  ],
+  "root_cause": "The ARM64 cross-compilation build compiles with -Werror -Winvalid-pch and includes a precompiled header (cmake_pch.hxx) for the openvino_shape_inference target. sccache served a stale/corrupted or incompatible cached .gch artifact for cmake_pch.hxx (likely from a cache-key or toolchain mismatch between the sccache remote cache and the current compiler/PCH generation), causing GCC's cc1plus to reject it as 'not a PCH file'. Because invalid-pch is promoted to an error, this aborts the whole ninja build. This is the third occurrence of this exact signature (previously seen on PR #38393 and #37942), all on the same ubuntu_22_04_arm64_cross_compilation build job, strongly indicating a systemic sccache/PCH caching issue for this specific build configuration rather than a code defect in this PR.",
+  "reproduction_steps": "Not reliably reproducible locally without the same sccache remote cache state. To reproduce in CI: re-run the 'Build / Build' job for ubuntu_22_04_arm64_cross_compilation; if the stale sccache PCH object is still served, the same cc1plus 'not a PCH file' error recurs. Locally, one can approximate by: rm -rf <build_dir> && cmake --build <build_dir> --target openvino_shape_inference with CMAKE_CXX_COMPILER_LAUNCHER=sccache pointed at the same remote cache, then forcibly corrupting/replacing the cached cmake_pch.hxx.gch object.",
+  "recommended_actions": [
+    "Re-run the failed 'Build / Build' job (Infrastructure/transient category) \u2014 a clean sccache cache entry for cmake_pch.hxx.gch should regenerate correctly.",
+    "If recurrence continues, invalidate/bump the sccache cache key (e.g., SCCACHE_AZURE_KEY_PREFIX ubuntu_22_04_arm64_cross_compile_Release) or purge the stale PCH object from the Azure blob cache.",
+    "Consider disabling PCH caching in sccache for this specific arm64 cross-compilation configuration, or add a cache-busting salt when the compiler/toolchain image (ov_build/ubuntu_22_04_arm64_cross_compilation) is updated.",
+    "Track recurrence count in repo-memory; escalate to build infra owners if it exceeds 3 occurrences within 12 hours."
+  ],
+  "prevention_strategies": "Ensure sccache cache keys are invalidated whenever the compiler toolchain image, CMake PCH configuration, or -Werror=invalid-pch-relevant flags change, so stale precompiled headers cannot be served across incompatible builds. Consider adding a CI health-check step that validates a sample .gch artifact's PCH magic header immediately after cache restore, failing fast with a clearer diagnostic before the full ninja build runs.",
+  "historical_context": "Identical failure signature recorded twice before this run: run 36114020917 (PR #38393, 2026-09-25T09:14:40Z) and run 36069429763 (PR #37942, 2026-09-24T23:04:41Z). All three occurrences are on the ubuntu_22_04_arm64_cross_compilation Build job with the same cc1plus invalid-pch error on openvino_shape_inference sources, confirming a recurring Infrastructure-category sccache caching problem unrelated to the specific PR content."
+}
