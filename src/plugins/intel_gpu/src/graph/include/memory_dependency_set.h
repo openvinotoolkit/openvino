@@ -11,6 +11,8 @@
 #include <utility>
 #include <vector>
 
+#include "openvino/core/except.hpp"
+
 namespace cldnn {
 
 // Build dense restriction sets without shifting a sorted vector for every insertion.
