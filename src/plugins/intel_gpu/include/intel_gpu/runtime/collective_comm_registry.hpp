@@ -6,7 +6,6 @@
 
 #include <cstdint>
 #include <memory>
-#include <unordered_map>
 
 #include "openvino/core/except.hpp"
 
@@ -17,12 +16,11 @@ class TPDeviceCoordinator;
 
 namespace intel_gpu {
 
-/// \brief Maps a collective group to the coordinator that runs it.
+/// \brief Holds the coordinator that runs this graph's collectives.
 ///
 /// One registry per worker graph-set; every rank of that set shares the same
 /// registry. The tensor-parallel plugin fills it during `compile_model` and
-/// hands it over as a property, so the graph itself carries no runtime state --
-/// only the group id each collective op belongs to.
+/// hands it over as a property, so the graph itself carries no runtime state.
 ///
 /// The coordinator stays an incomplete type here: this header is compiled into
 /// every GPU target, including builds without the tensor-parallel plugin, and
@@ -32,18 +30,17 @@ namespace intel_gpu {
 /// request exists and is read-only afterwards.
 class CollectiveCommRegistry {
 public:
-    void set_group(uint32_t group_id, std::shared_ptr<ov::tp_gpu::TPDeviceCoordinator> coordinator) {
-        m_groups[group_id] = std::move(coordinator);
+    void set_coordinator(std::shared_ptr<ov::tp_gpu::TPDeviceCoordinator> coordinator) {
+        m_coordinator = std::move(coordinator);
     }
 
-    const std::shared_ptr<ov::tp_gpu::TPDeviceCoordinator>& get_group(uint32_t group_id) const {
-        auto it = m_groups.find(group_id);
-        OPENVINO_ASSERT(it != m_groups.end(), "No collective group registered with id ", group_id);
-        return it->second;
+    const std::shared_ptr<ov::tp_gpu::TPDeviceCoordinator>& coordinator() const {
+        OPENVINO_ASSERT(m_coordinator != nullptr, "No collective coordinator registered");
+        return m_coordinator;
     }
 
 private:
-    std::unordered_map<uint32_t, std::shared_ptr<ov::tp_gpu::TPDeviceCoordinator>> m_groups;
+    std::shared_ptr<ov::tp_gpu::TPDeviceCoordinator> m_coordinator;
 };
 
 using CollectiveCommRegistryPtr = std::shared_ptr<CollectiveCommRegistry>;

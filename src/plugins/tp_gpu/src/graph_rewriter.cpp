@@ -6,8 +6,10 @@
 
 #include <algorithm>
 #include <cstring>
+#include <iomanip>
 #include <iostream>
 #include <numeric>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -35,24 +37,18 @@ namespace tp_gpu {
 namespace {
 
 /// Ops a projection's result may pass through on its way to attention or to
-/// the next projection: layout changes, elementwise math and activations.
-///
-/// Traversal stops at everything else, which is what keeps a search local to
-/// one transformer block.  Normalizations stay opaque because they reduce
-/// (`ReduceMean` derives from `ArithmeticReductionKeepDims`), and so do
-/// attention and `ReadValue`.
-///
-/// Base classes are used wherever one exists, so the list does not have to be
-/// revisited every time an opset adds a version of the same operation.
+/// the next projection.
+/// The traversal stops at everything else, which is what keeps a search local
+/// to one transformer block.
 bool is_transparent(const ov::Node* node) {
     return ov::is_type_any_of<
         // layout / shape
-        ov::op::v1::Reshape, ov::op::v1::Transpose, ov::op::v0::Convert, ov::op::v0::Concat,
-        ov::op::v8::Slice, ov::op::v1::StridedSlice, ov::op::v0::Unsqueeze, ov::op::v1::Split,
-        ov::op::v1::VariadicSplit,
-        ov::op::util::BroadcastBase,  // Broadcast v1, v3
-        ov::op::util::SqueezeBase,    // Squeeze v0, v15
-        ov::op::util::GatherBase,     // Gather v1, v7, v8
+        ov::op::v1::Reshape, ov::op::v0::Unsqueeze, ov::op::util::SqueezeBase,
+        ov::op::v1::Transpose, ov::op::v0::Convert, ov::op::v0::Concat,
+        ov::op::v8::Slice, ov::op::v1::StridedSlice,
+        ov::op::v1::Split, ov::op::v1::VariadicSplit,
+        ov::op::util::BroadcastBase,
+        ov::op::util::GatherBase,
         // elementwise math and every activation derived from it
         ov::op::util::BinaryElementwiseArithmetic,
         ov::op::util::UnaryElementwiseArithmetic,
@@ -63,26 +59,18 @@ bool is_transparent(const ov::Node* node) {
 /// True for a MatMul that is an actual linear layer, i.e. one whose second
 /// input is a weight rather than another activation.
 ///
-/// Not every MatMul in a transformer is a projection: rotary embeddings compute
-/// their position frequencies with `inv_freq @ position_ids`, which hangs off
-/// the very same elementwise ops the traversal walks through.  Its second
-/// operand descends from the `position_ids` parameter, so requiring a fully
-/// constant-derived weight is enough to tell the two apart -- and unlike a rank
-/// check it stays correct for weights of any shape and decompression chain.
-///
-/// A projection whose weight is not constant (a live LoRA adapter, say) cannot
-/// be sharded at compile time anyway; the callers report it as "no projection
-/// found" rather than silently mis-sharding it.
+/// Rotary embeddings compute their frequencies with `inv_freq @ position_ids`,
+/// hanging off the very elementwise ops the traversal walks through; requiring
+/// a fully constant-derived weight tells the two apart for any weight shape
+/// and decompression chain. A projection whose weight is not constant (a live
+/// LoRA adapter) cannot be sharded at compile time anyway, and the callers
+/// report it as "no projection found" rather than mis-sharding it.
 bool is_linear_layer(const ov::Node* node) {
     return ov::is_type<ov::op::v0::MatMul>(node) &&
            ov::op::util::is_on_path<ov::op::v0::Constant>(node->input_value(1));
 }
 
 /// Walks backwards from `output` and reports the linear layers it runs into.
-///
-/// The walk stops at every MatMul, so only the nearest producers are returned --
-/// that is what keeps the result layer-local.  Recording happens in the stop
-/// predicate because `visit_path` does not invoke `func` for nodes it stops at.
 std::vector<std::shared_ptr<ov::Node>> nearest_producer_matmuls(const ov::Output<ov::Node>& output) {
     std::vector<std::shared_ptr<ov::Node>> found;
     std::unordered_set<ov::Node*> visited;
@@ -128,12 +116,10 @@ std::shared_ptr<ov::Node> nearest_consumer_matmul(const std::shared_ptr<ov::Node
 
 /// Slice of `dim` owned by `rank`.
 ///
-/// The remainder is spread over the first ranks, one extra unit each, so the
-/// load stays as even as possible instead of piling up on the last rank.
-///
-/// `granularity` is the indivisible unit the split works in -- a quantization
-/// group, typically.  Splitting below it would cut a group in half, which the
-/// stored weight cannot express.
+/// The remainder is spread over the first ranks, one extra unit each, rather
+/// than piling up on the last. `granularity` is the indivisible unit of the
+/// split -- a quantization group, typically -- which the stored weight cannot
+/// express being cut through.
 struct Shard {
     int64_t offset;
     int64_t size;
@@ -154,14 +140,8 @@ Shard shard_of(int64_t dim, uint32_t rank, uint32_t world_size, int64_t granular
 
 /// Slice of a projection's sharded dimension that belongs to `rank`.
 ///
-/// Attention projections are split by KV head, never by raw feature count.
-/// Under grouped-query attention one KV head serves `num_heads / num_kv_heads`
-/// query heads, and a rank has to own whole groups: splitting query and key
-/// heads independently would hand a rank query heads whose key heads live
-/// somewhere else, which is wrong without ever failing a shape check.
-///
-/// MLP projections carry no such pairing and are split directly, in whole
-/// quantization groups.
+/// Attention projections are split by KV head.
+/// MLP projections are split directly.
 Shard projection_shard(const ShardingPlan& plan,
                        const ShardingPlan::LinearDesc& desc,
                        int64_t full,
@@ -224,7 +204,7 @@ ov::Output<ov::Node> projection_output(const std::shared_ptr<ov::Node>& matmul) 
     return bias.node ? bias.node->output(0) : matmul->output(0);
 }
 
-/// Records a projection in the plan.  Returns false when the MatMul was already
+/// Records a projection in the plan. Returns false when the MatMul was already
 /// classified, which callers use to detect overlapping matches.
 bool add_linear(ShardingPlan& plan,
                 std::unordered_set<const ov::Node*>& classified,
@@ -246,7 +226,7 @@ bool add_linear(ShardingPlan& plan,
 }
 
 /// Reads the head layout off the Reshape that splits a projection output into
-/// [.., heads, head_dim].  Returns false when no such Reshape is found.
+/// [.., heads, head_dim]. Returns false when no such Reshape is found.
 bool read_head_layout(const std::shared_ptr<ov::Node>& proj, int& heads, int& head_dim) {
     for (const auto& target : projection_output(proj).get_target_inputs()) {
         auto consumer = target.get_node()->shared_from_this();
@@ -267,17 +247,6 @@ bool read_head_layout(const std::shared_ptr<ov::Node>& proj, int& heads, int& he
 }
 
 /// Which weight axis carries the output features, and which the input ones.
-///
-/// PyTorch exports linear layers with `transpose_b`, giving a [N, K] weight,
-/// but that is an attribute of the op rather than a guarantee: with
-/// `transpose_b` off the weight is [K, N] and the two axes swap.  Reading it
-/// wrong would shard along the opposite dimension and quietly corrupt results,
-/// so the layout is derived here once and everything else goes through it.
-///
-/// Anything this function cannot describe -- batched (rank > 2) weights as used
-/// by MoE experts, or a transposed activation input -- raises instead of being
-/// skipped, because a projection that is found but left unsharded desynchronizes
-/// the shapes the later steps patch.
 struct WeightAxes {
     int64_t out_features;
     int64_t in_features;
@@ -305,8 +274,6 @@ int weight_out_features(const std::shared_ptr<ov::Node>& matmul) {
     return dim.is_static() ? static_cast<int>(dim.get_length()) : 0;
 }
 
-/// Pattern for an MLP block, kept together so the callback can read the
-/// individual projections back out of the match map.
 struct MlpPattern {
     std::shared_ptr<ov::Node> root;   ///< the down projection
     std::shared_ptr<ov::Node> gate;   ///< nullptr for a single-branch MLP
@@ -316,12 +283,12 @@ struct MlpPattern {
 /// down( act(gate(x)) * up(x) ) -- LLaMA/Mistral/Qwen2 style.
 ///
 /// Each projection may carry a bias, so the pattern accepts either the bare
-/// MatMul or the MatMul followed by an Add.  `wrap_type` matches by
+/// MatMul or the MatMul followed by an Add. `wrap_type` matches by
 /// `is_castable`, so naming the elementwise base class covers every activation
 /// derived from it.
 MlpPattern make_gated_mlp_pattern() {
-    using namespace ov::pass;           // operator| for pattern alternatives
-    using namespace ov::pass::pattern;  // any_input / wrap_type
+    using namespace ov::pass;
+    using namespace ov::pass::pattern;
     auto src = any_input();
     auto gate = wrap_type<ov::op::v0::MatMul>({src, any_input()});
     auto up = wrap_type<ov::op::v0::MatMul>({src, any_input()});
@@ -334,8 +301,8 @@ MlpPattern make_gated_mlp_pattern() {
 
 /// down( act(up(x)) ) -- older single-branch style.
 MlpPattern make_simple_mlp_pattern() {
-    using namespace ov::pass;           // operator| for pattern alternatives
-    using namespace ov::pass::pattern;  // any_input / wrap_type
+    using namespace ov::pass;
+    using namespace ov::pass::pattern;
     auto up = wrap_type<ov::op::v0::MatMul>({any_input(), any_input()});
     auto up_out = up | wrap_type<ov::op::v1::Add>({up, any_input()});
     auto act = wrap_type<ov::op::util::UnaryElementwiseArithmetic, ov::op::v4::Swish>({up_out});
@@ -352,10 +319,6 @@ ShardingPlan GraphRewriter::analyze(const std::shared_ptr<const ov::Model>& mode
     ShardingPlan plan;
 
     // ---- 1) Attention anchors, in topological order -> one per layer ----
-    //
-    // Matching is structural on purpose: friendly names survive neither model
-    // re-export nor most graph optimizations, so anchoring on them silently
-    // shards nothing on anything but a stock HuggingFace export.
     std::vector<std::shared_ptr<ov::Node>> attentions;
     for (const auto& op : model->get_ordered_ops()) {
         if (ov::is_type<ov::op::PagedAttentionExtension>(op)) {
@@ -428,7 +391,7 @@ ShardingPlan GraphRewriter::analyze(const std::shared_ptr<const ov::Model>& mode
     //
     // Matched by shape rather than walked, because the gate/up/down topology is
     // rigid: both projections must grow from the same source, which the shared
-    // `src` label in the pattern encodes directly.  Walking in topological order
+    // `src` label in the pattern encodes directly. Walking in topological order
     // lets us attribute each block to the attention that precedes it.
     const auto gated_mlp = make_gated_mlp_pattern();
     const auto simple_mlp = make_simple_mlp_pattern();
@@ -518,11 +481,9 @@ ShardingPlan GraphRewriter::analyze(const std::shared_ptr<const ov::Model>& mode
 
     // ---- 5) The vocabulary projection ----
     //
-    // It is not part of any layer, so the walk above never classified it, but
-    // it is the single most expensive MatMul of a decode step: one row of
-    // logits costs a full pass over the vocabulary weight.  Accept it only in
-    // its plain form -- straight into a Result, nothing else reading it -- so
-    // that a bias or a second consumer leaves the graph alone.
+    // It is not part of any layer, so the walk above never classified it.
+    // Accept it only inits plain form: straight into a Result, nothing else reading it,
+    // so that a bias or a second consumer leaves the graph alone.
     for (const auto& result : model->get_results()) {
         auto producer = result->input_value(0).get_node_shared_ptr();
         if (ov::is_type<ov::op::v0::Convert>(producer)) {
@@ -549,7 +510,7 @@ ShardingPlan GraphRewriter::analyze(const std::shared_ptr<const ov::Model>& mode
 }
 
 // ---------------------------------------------------------------------------
-// rewrite()  — helpers
+// rewrite() — helpers
 // ---------------------------------------------------------------------------
 
 namespace {
@@ -563,11 +524,10 @@ namespace {
 ///
 /// When the slice is non-contiguous (outer > 1), the data is copied into a
 /// new buffer.
-std::shared_ptr<ov::op::v0::Constant> pre_slice_constant(
-    const std::shared_ptr<ov::op::v0::Constant>& c,
-    int64_t axis,
-    int64_t start,
-    int64_t end) {
+std::shared_ptr<ov::op::v0::Constant> pre_slice_constant(const std::shared_ptr<ov::op::v0::Constant>& c,
+                                                         int64_t axis,
+                                                         int64_t start,
+                                                         int64_t end) {
     auto shape = c->get_shape();
     auto et = c->get_element_type();
     auto ndim = static_cast<int64_t>(shape.size());
@@ -640,7 +600,7 @@ std::shared_ptr<ov::op::v0::Constant> pre_slice_constant(
 ///
 /// When the output dimension spans several consecutive input dimensions
 /// (e.g. Reshape [N, G, D] -> [N, G*D]) the outermost of them is reported,
-/// together with how many output elements one step along it covers.  That step
+/// together with how many output elements one step along it covers. That step
 /// -- `trailing` -- is the granularity any slice has to respect.
 struct ReshapeAxisSpan {
     int64_t axis = -1;      // axis in the input tensor, or -1 when unmappable
@@ -701,10 +661,10 @@ struct ReshapeAxisMapping {
 };
 
 ReshapeAxisMapping map_reshape_axis(const std::shared_ptr<ov::Node>& reshape,
-                                     int64_t output_axis,
-                                     int64_t full_size,
-                                     int64_t out_start,
-                                     int64_t out_end) {
+                                    int64_t output_axis,
+                                    int64_t full_size,
+                                    int64_t out_start,
+                                    int64_t out_end) {
     const auto span = map_reshape_axis_span(reshape, output_axis, full_size);
     if (span.axis < 0)
         return {-1, 0, 0, 0};
@@ -716,16 +676,16 @@ ReshapeAxisMapping map_reshape_axis(const std::shared_ptr<ov::Node>& reshape,
 /// Coarsest step a slice along `axis` has to respect for the decompression
 /// chain to be pre-sliceable, or 0 when the chain cannot be pre-sliced at all.
 ///
-/// Two things constrain it.  Quantized weights are stored grouped -- a
+/// Two things constrain it. Quantized weights are stored grouped -- a
 /// [N, groups, group_size] constant reshaped to [N, K] -- so a slice may not cut
-/// a group in half.  And sub-byte constants pack several elements per byte, so a
+/// a group in half. And sub-byte constants pack several elements per byte, so a
 /// slice may not stop mid-byte either; that bites hardest on the per-group
 /// zero-points, whose innermost dimension is 1, meaning an odd number of u4
 /// groups is unrepresentable.
 ///
 /// Violating either is not an error, it just forces the fallback: a runtime
 /// Slice over the *decompressed* weight, which the GPU plugin then has to
-/// constant-fold.  On a multi-billion parameter model that costs tens of
+/// constant-fold. On a multi-billion parameter model that costs tens of
 /// seconds of compilation, so it is well worth aligning the shards instead.
 int64_t chain_granularity(const ov::Output<ov::Node>& output, int64_t axis, int64_t full_size) {
     auto node = output.get_node_shared_ptr();
@@ -779,10 +739,10 @@ int64_t chain_granularity(const ov::Output<ov::Node>& output, int64_t axis, int6
 /// Read-only check: can the decompression chain be pre-sliced?
 /// Returns true if every Reshape in the chain can map the axis cleanly.
 bool can_pre_slice_chain(ov::Output<ov::Node> output,
-                          int64_t axis,
-                          int64_t full_size,
-                          int64_t start,
-                          int64_t end) {
+                         int64_t axis,
+                         int64_t full_size,
+                         int64_t start,
+                         int64_t end) {
     auto node = output.get_node_shared_ptr();
 
     if (ov::is_type<ov::op::v0::Constant>(node))
@@ -802,7 +762,6 @@ bool can_pre_slice_chain(ov::Output<ov::Node> output,
 }
 
 /// Pre-slice all Constants in the decompression chain.
-/// PRECONDITION: can_pre_slice_chain() returned true.
 void pre_slice_chain(ov::Input<ov::Node> input,
                      int64_t axis,
                      int64_t full_size,
@@ -859,9 +818,9 @@ void pre_slice_chain(ov::Input<ov::Node> input,
 
 /// Fallback: insert a runtime Slice node on the given output.
 ov::Output<ov::Node> insert_weight_slice(const ov::Output<ov::Node>& weight_output,
-                                          int64_t axis,
-                                          int64_t start,
-                                          int64_t end) {
+                                         int64_t axis,
+                                         int64_t start,
+                                         int64_t end) {
     auto begin_c = ov::op::v0::Constant::create(ov::element::i64, {1}, std::vector<int64_t>{start});
     auto end_c = ov::op::v0::Constant::create(ov::element::i64, {1}, std::vector<int64_t>{end});
     auto step_c = ov::op::v0::Constant::create(ov::element::i64, {1}, std::vector<int64_t>{1});
@@ -875,7 +834,7 @@ ov::Output<ov::Node> insert_weight_slice(const ov::Output<ov::Node>& weight_outp
 ///
 /// Row-parallel projections deliberately keep the full bias on every rank: the
 /// AllReduce is inserted on the MatMul output, so the Add runs *after* it and
-/// has to see the complete bias for the ranks to stay in agreement.  Adding a
+/// has to see the complete bias for the ranks to stay in agreement. Adding a
 /// sharded bias there, or adding it on rank 0 only, would make the ranks
 /// diverge right after the projection.
 void shard_column_parallel_bias(const std::shared_ptr<ov::Node>& matmul,
@@ -891,7 +850,7 @@ void shard_column_parallel_bias(const std::shared_ptr<ov::Node>& matmul,
         return;
 
     // The bias broadcasts against [.., out_features], so the feature count is
-    // its last dimension.  A bias that is 1 there applies to every output alike
+    // its last dimension. A bias that is 1 there applies to every output alike
     // and stays correct without splitting.
     const int64_t axis = bias_shape.rank().get_length() - 1;
     if (!bias_shape[axis].is_static() || bias_shape[axis].get_length() != out_features)
@@ -922,8 +881,8 @@ void patch_reshape_constant(const std::shared_ptr<ov::Node>& reshape,
 
     data[shape_idx] = new_value;
     auto new_const = ov::op::v0::Constant::create(shape_const->get_element_type(),
-                                                   shape_const->get_shape(),
-                                                   data);
+                                                  shape_const->get_shape(),
+                                                  data);
     reshape->input(1).replace_source_output(new_const->output(0));
 }
 
@@ -935,11 +894,11 @@ void patch_reshape_constant(const std::shared_ptr<ov::Node>& reshape,
 /// stays replicated across ranks -- the runtime relies on this same predicate
 /// to decide how to gather and scatter state, so the two must not drift apart.
 std::vector<std::shared_ptr<ov::op::util::Variable>> collect_kv_cache_variables(const ov::Model& model,
-                                                                               int num_kv_heads) {
+                                                                                int num_kv_heads) {
     std::vector<std::shared_ptr<ov::op::util::Variable>> result;
     std::unordered_set<std::string> seen;
 
-    for (const auto& op : model.get_ordered_ops()) {
+    for (const auto& op : model.get_ops()) {
         std::shared_ptr<ov::op::util::Variable> variable;
         if (auto rv = ov::as_type_ptr<ov::op::v6::ReadValue>(op)) {
             variable = rv->get_variable();
@@ -969,6 +928,499 @@ std::vector<std::shared_ptr<ov::op::util::Variable>> collect_kv_cache_variables(
     return result;
 }
 
+// ---------------------------------------------------------------------------
+// rewrite() — steps
+// ---------------------------------------------------------------------------
+
+using NameMap = std::unordered_map<std::string, std::shared_ptr<ov::Node>>;
+
+/// What the steps need besides the model.
+struct RewriteContext {
+    const ShardingPlan& plan;
+    const NameMap& name_map;
+    uint32_t rank;
+    uint32_t tp_degree;
+    int64_t local_q_heads;
+    int64_t local_kv_heads;
+};
+
+void log_step(const char* step, const std::string& outcome) {
+    TP_LOG_INFO << "[TP][rewrite]   " << std::left << std::setw(22) << step << outcome << std::endl;
+}
+
+/// Coarsest slice step the MLP projections can all respect.
+///
+/// They share one intermediate dimension -- gate/up produce it, down consumes
+/// it -- so all three have to be split at the same offsets. Their storage
+/// layouts differ, so the step has to be the coarsest of the three; each
+/// projection's own would leave gate/up and down disagreeing.
+int64_t mlp_shard_granularity(const ShardingPlan& plan, const NameMap& name_map) {
+    int64_t granularity = 1;
+    for (const auto& desc : plan.linears) {
+        if (desc.role != ShardingPlan::LinearDesc::GATE_PROJ &&
+            desc.role != ShardingPlan::LinearDesc::UP_PROJ &&
+            desc.role != ShardingPlan::LinearDesc::DOWN_PROJ)
+            continue;
+        auto it = name_map.find(desc.matmul_name);
+        if (it == name_map.end())
+            continue;
+
+        const auto axes = weight_axes(it->second);
+        const int64_t axis = desc.is_column_parallel ? axes.out_features : axes.in_features;
+        const auto& dim = it->second->input(1).get_partial_shape()[axis];
+        if (!dim.is_static())
+            continue;
+        const int64_t step =
+            chain_granularity(it->second->input(1).get_source_output(), axis, dim.get_length());
+        if (step > 0 && dim.get_length() % step == 0)
+            granularity = std::lcm(granularity, step);
+    }
+    return granularity;
+}
+
+/// Step 1: give every projection this rank's band of its weight.
+void shard_projection_weights(const RewriteContext& ctx) {
+    const int64_t mlp_granularity = mlp_shard_granularity(ctx.plan, ctx.name_map);
+
+    size_t pre_sliced = 0;
+    size_t runtime_sliced = 0;
+    size_t missing = 0;
+    size_t biases = 0;
+
+    for (const auto& desc : ctx.plan.linears) {
+        auto it = ctx.name_map.find(desc.matmul_name);
+        if (it == ctx.name_map.end()) {
+            ++missing;
+            continue;
+        }
+        auto matmul = it->second;
+
+        auto weight_output = matmul->input(1).get_source_output();
+        const auto axes = weight_axes(matmul);
+        const int64_t axis = desc.is_column_parallel ? axes.out_features : axes.in_features;
+        const auto& full_dim = weight_output.get_partial_shape()[axis];
+        OPENVINO_ASSERT(full_dim.is_static(),
+                        "[TP_GPU] Projection '", desc.matmul_name,
+                        "' has a dynamic weight dimension and cannot be sharded");
+        const int64_t full = full_dim.get_length();
+
+        // Attention projections are split by head and ignore this; a dimension
+        // that does not divide by the shared step falls back below.
+        const int64_t granularity = (full % mlp_granularity == 0) ? mlp_granularity : 1;
+
+        const auto slice = projection_shard(ctx.plan, desc, full, ctx.rank, ctx.tp_degree, granularity);
+        const int64_t start = slice.offset;
+        const int64_t end = slice.offset + slice.size;
+
+        if (can_pre_slice_chain(weight_output, axis, full, start, end)) {
+            pre_slice_chain(matmul->input(1), axis, full, start, end);
+            ++pre_sliced;
+        } else {
+            // A runtime Slice leaves the GPU plugin to constant-fold the weight,
+            // which dominates compile time.
+            ++runtime_sliced;
+            matmul->input(1).replace_source_output(
+                insert_weight_slice(weight_output, axis, start, end));
+            TP_LOG_DEBUG << "[TP][rewrite]     '" << desc.matmul_name
+                         << "' falls back to a runtime Slice on axis " << axis << " [" << start
+                         << ":" << end << ") of " << full << std::endl;
+        }
+
+        if (desc.is_column_parallel) {
+            shard_column_parallel_bias(matmul, full, slice);
+            if (desc.has_bias)
+                ++biases;
+        }
+    }
+
+    std::ostringstream outcome;
+    outcome << "sharded " << (pre_sliced + runtime_sliced) << "/" << ctx.plan.linears.size()
+            << " (pre-sliced " << pre_sliced << ", runtime slice " << runtime_sliced
+            << ", biases " << biases << ")";
+    if (missing != 0)
+        outcome << " -- " << missing << " NOT FOUND in the cloned graph";
+    log_step("projection weights", outcome.str());
+
+    if (runtime_sliced != 0) {
+        // Not gated by the verbosity: this is a compile-time cliff, and whoever
+        // hits it needs to know without having been told to look.
+        TP_WARN_ALWAYS << "[TP_GPU] Warning: rank " << ctx.rank << ": " << runtime_sliced << " of "
+                       << ctx.plan.linears.size()
+                       << " weights could not be pre-sliced and fall back to a runtime Slice"
+                       << " (this dominates compile time)";
+    }
+}
+
+/// Step 2: localize the head count in the Reshape after each q/k/v projection,
+/// which turns [B, S, features] into [B, S, heads, head_dim].
+void localize_qkv_head_counts(const RewriteContext& ctx) {
+    size_t patched = 0;
+    size_t without_reshape = 0;
+
+    for (const auto& desc : ctx.plan.linears) {
+        if (desc.role != ShardingPlan::LinearDesc::Q_PROJ &&
+            desc.role != ShardingPlan::LinearDesc::K_PROJ &&
+            desc.role != ShardingPlan::LinearDesc::V_PROJ)
+            continue;
+
+        auto it = ctx.name_map.find(desc.matmul_name);
+        if (it == ctx.name_map.end())
+            continue;
+
+        const int64_t new_heads = (desc.role == ShardingPlan::LinearDesc::Q_PROJ)
+                                      ? ctx.local_q_heads
+                                      : ctx.local_kv_heads;
+
+        bool found = false;
+        for (const auto& target : projection_output(it->second).get_target_inputs()) {
+            auto consumer = target.get_node()->shared_from_this();
+            if (ov::is_type<ov::op::v1::Reshape>(consumer)) {
+                patch_reshape_constant(consumer, /*shape_idx=*/2, new_heads);
+                found = true;
+                ++patched;
+            }
+        }
+        if (!found)
+            ++without_reshape;
+    }
+
+    std::ostringstream outcome;
+    outcome << "patched " << patched << " reshapes (q=" << ctx.local_q_heads
+            << " kv=" << ctx.local_kv_heads << ")";
+    if (without_reshape != 0)
+        outcome << " -- " << without_reshape << " projections had none";
+    log_step("qkv head counts", outcome.str());
+}
+
+/// Step 3 (SDPA only): localize the broadcast that expands KV heads up to the
+/// query head count.
+///
+/// It appears both as a multiply by a ones tensor and as a bidirectional
+/// Broadcast; the shared matcher covers both, rooted at the Reshape that
+/// merges the expanded heads back into [B, num_heads, S, head_dim].
+void localize_gqa_broadcast(const ov::Model& model, const RewriteContext& ctx) {
+    if (ctx.plan.attention_backend != ShardingPlan::AttentionBackend::SDPA) {
+        log_step("gqa broadcast", "skipped -- attention is PagedAttention");
+        return;
+    }
+    if (ctx.plan.num_kv_heads == ctx.plan.num_heads) {
+        log_step("gqa broadcast", "not needed -- no grouped-query attention");
+        return;
+    }
+
+    auto kv_bcst = ov::op::util::match_multi_query_bcst(ov::pass::pattern::any_input());
+    ov::pass::pattern::Matcher matcher(std::get<0>(kv_bcst), "TPMultiQueryBcst");
+
+    size_t patched = 0;
+    for (const auto& op : model.get_ops()) {
+        if (!ov::is_type<ov::op::v1::Reshape>(op) || !matcher.match(op->output(0)))
+            continue;
+        auto shape_const =
+            ov::as_type_ptr<ov::op::v0::Constant>(op->input(1).get_source_output().get_node_shared_ptr());
+        if (!shape_const)
+            continue;
+        auto shape_data = shape_const->cast_vector<int64_t>();
+        if (shape_data.size() == 4 && shape_data[1] == static_cast<int64_t>(ctx.plan.num_heads)) {
+            patch_reshape_constant(op, /*shape_idx=*/1, ctx.local_q_heads);
+            ++patched;
+        }
+    }
+
+    OPENVINO_ASSERT(patched > 0,
+                    "[TP_GPU] The model uses grouped-query attention (", ctx.plan.num_kv_heads,
+                    " KV heads for ", ctx.plan.num_heads,
+                    " Q heads) but no KV broadcast was found to re-shape");
+
+    log_step("gqa broadcast",
+             "patched " + std::to_string(patched) + " reshapes to " +
+                 std::to_string(ctx.local_q_heads) + " heads");
+}
+
+/// Step 3 (PagedAttention only): localize the kv head count kept in rt_info.
+///
+/// The reshapes around PagedAttention are relative, so sharding the
+/// projections already localizes them. The kv head count is not in the graph
+/// at all: the conversion records it in rt_info, and both the pass that sizes
+/// the cache and the GPU plugin read it from there while deriving the query
+/// head count from the already-sharded operand.
+void localize_paged_attention_heads(const ov::Model& model, const RewriteContext& ctx) {
+    if (ctx.plan.attention_backend != ShardingPlan::AttentionBackend::PA) {
+        log_step("paged attention", "skipped -- attention is SDPA");
+        return;
+    }
+
+    static constexpr const char* kv_head_keys[] = {"num_k_heads", "num_v_heads"};
+
+    size_t localized = 0;
+    for (const auto& op : model.get_ops()) {
+        if (!ov::is_type<ov::op::PagedAttentionExtension>(op))
+            continue;
+        auto& rt_info = op->get_rt_info();
+        for (const auto* key : kv_head_keys) {
+            auto entry = rt_info.find(key);
+            if (entry == rt_info.end())
+                continue;
+            OPENVINO_ASSERT(entry->second.as<int64_t>() == static_cast<int64_t>(ctx.plan.num_kv_heads),
+                            "[TP_GPU] '", op->get_friendly_name(), "' declares ",
+                            entry->second.as<int64_t>(), " for '", key, "' where the model has ",
+                            ctx.plan.num_kv_heads, " kv heads");
+            entry->second = static_cast<size_t>(ctx.local_kv_heads);
+            ++localized;
+        }
+    }
+
+    // Absent on models whose conversion did not record the geometry; the
+    // plugin then reads it off the cache tensor, which is already local.
+    const size_t expected = std::size(kv_head_keys) * static_cast<size_t>(ctx.plan.num_layers);
+    OPENVINO_ASSERT(localized == 0 || localized == expected,
+                    "[TP_GPU] Localized ", localized, " kv head counts over ", ctx.plan.num_layers,
+                    " PagedAttention layers; expected ", expected, ". Model may not be supported.");
+
+    std::ostringstream outcome;
+    if (localized == 0)
+        outcome << "no rt_info head counts -- the plugin reads them off the cache";
+    else
+        outcome << "localized " << localized << " rt_info entries to " << ctx.local_kv_heads
+                << " kv heads";
+    log_step("paged attention", outcome.str());
+}
+
+/// Step 4: localize the Reshape that flattens [B, S, heads, head_dim] back
+/// into hidden_size before the out projection.
+///
+/// Exports that build this shape with ShapeOf+Concat are already relative and
+/// need no patching; only a baked constant does.
+void localize_attention_output_reshape(const RewriteContext& ctx) {
+    const int64_t hidden = static_cast<int64_t>(ctx.plan.hidden_size);
+    const int64_t local_hidden = ctx.local_q_heads * static_cast<int64_t>(ctx.plan.head_dim);
+
+    size_t patched = 0;
+    size_t relative = 0;
+
+    for (const auto& desc : ctx.plan.linears) {
+        if (desc.role != ShardingPlan::LinearDesc::O_PROJ)
+            continue;
+
+        auto it = ctx.name_map.find(desc.matmul_name);
+        if (it == ctx.name_map.end())
+            continue;
+
+        // Scoped to the out projection's own producer chain, so an unrelated
+        // Reshape carrying the same value is never touched.
+        std::shared_ptr<ov::Node> src = it->second->input(0).get_source_output().get_node_shared_ptr();
+        for (int hops = 0; hops < 4 && src && !ov::is_type<ov::op::v1::Reshape>(src); ++hops) {
+            if (ov::is_type<ov::op::v0::Convert>(src)) {
+                src = src->input(0).get_source_output().get_node_shared_ptr();
+            } else {
+                src.reset();
+                break;
+            }
+        }
+        if (!src || !ov::is_type<ov::op::v1::Reshape>(src))
+            continue;
+
+        auto shape_const = ov::as_type_ptr<ov::op::v0::Constant>(
+            src->input(1).get_source_output().get_node_shared_ptr());
+        if (!shape_const) {
+            ++relative;
+            continue;
+        }
+
+        auto data = shape_const->cast_vector<int64_t>();
+        bool changed = false;
+        for (auto& v : data) {
+            if (v == hidden) {
+                v = local_hidden;
+                changed = true;
+            }
+        }
+        if (!changed)
+            continue;
+
+        src->input(1).replace_source_output(
+            ov::op::v0::Constant::create(shape_const->get_element_type(), shape_const->get_shape(), data)
+                ->output(0));
+        ++patched;
+    }
+
+    std::ostringstream outcome;
+    outcome << "patched " << patched << " reshapes " << hidden << " -> " << local_hidden;
+    if (relative != 0)
+        outcome << ", " << relative << " already relative";
+    log_step("attn out reshape", outcome.str());
+}
+
+/// Step 5: shrink the kv-head axis of every KV cache variable.
+void localize_kv_cache_variables(const ov::Model& model, const RewriteContext& ctx) {
+    size_t updated = 0;
+    for (const auto& variable : collect_kv_cache_variables(model, ctx.plan.num_kv_heads)) {
+        auto info = variable->get_info();
+        info.data_shape[1] = ctx.local_kv_heads;
+        variable->update(info);
+        ++updated;
+    }
+
+    std::ostringstream outcome;
+    outcome << "resized " << updated << " variables to " << ctx.local_kv_heads << " kv heads";
+    log_step("kv cache variables", outcome.str());
+}
+
+/// Step 6: localize the kv-head constant in each KV cache init subgraph.
+///
+/// Every ReadValue has an init chain with a constant of its own, even when
+/// they share a binary offset in the IR, so stopping at the first leaves the
+/// rest holding the full head count.
+void localize_kv_cache_init(const ov::Model& model, const RewriteContext& ctx) {
+    std::vector<std::shared_ptr<ov::op::v0::Constant>> kv_init_consts;
+
+    for (const auto& op : model.get_ops()) {
+        auto c = ov::as_type_ptr<ov::op::v0::Constant>(op);
+        if (!c || c->get_shape() != ov::Shape{1})
+            continue;
+        auto data = c->cast_vector<int64_t>();
+        if (data.size() != 1 || data[0] != static_cast<int64_t>(ctx.plan.num_kv_heads))
+            continue;
+
+        // Confirm the chain Constant -> Concat -> Broadcast -> ReadValue, so a
+        // constant that merely carries the same number is left alone.
+        bool feeds_kv_init = false;
+        for (const auto& target : c->output(0).get_target_inputs()) {
+            auto concat = target.get_node()->shared_from_this();
+            if (!ov::is_type<ov::op::v0::Concat>(concat))
+                continue;
+            for (const auto& ct : concat->output(0).get_target_inputs()) {
+                auto broadcast = ct.get_node()->shared_from_this();
+                if (!ov::is_type_any_of<ov::op::v1::Broadcast, ov::op::v3::Broadcast>(broadcast))
+                    continue;
+                for (const auto& bt : broadcast->output(0).get_target_inputs()) {
+                    if (ov::is_type<ov::op::v6::ReadValue>(bt.get_node())) {
+                        feeds_kv_init = true;
+                        break;
+                    }
+                }
+                if (feeds_kv_init) break;
+            }
+            if (feeds_kv_init) break;
+        }
+        if (feeds_kv_init)
+            kv_init_consts.push_back(c);
+    }
+
+    for (auto& c : kv_init_consts) {
+        c->output(0).replace(ov::op::v0::Constant::create(c->get_element_type(), c->get_shape(),
+                                                          std::vector<int64_t>{ctx.local_kv_heads})
+                                 ->output(0));
+    }
+
+    std::ostringstream outcome;
+    outcome << "patched " << kv_init_consts.size() << " init constants";
+    log_step("kv cache init", outcome.str());
+}
+
+uint32_t row_parallel_count(const ShardingPlan& plan) {
+    return static_cast<uint32_t>(
+        std::count_if(plan.linears.begin(), plan.linears.end(), [](const auto& desc) {
+            return !desc.is_column_parallel;
+        }));
+}
+
+/// Step 7: put a TPAllReduce on every row-parallel projection, whose output is
+/// a partial sum across ranks.
+void insert_all_reduce(const RewriteContext& ctx) {
+    uint32_t collective_id = 0;
+    size_t missing = 0;
+
+    for (const auto& desc : ctx.plan.linears) {
+        if (desc.is_column_parallel)
+            continue;
+
+        auto it = ctx.name_map.find(desc.matmul_name);
+        if (it == ctx.name_map.end()) {
+            ++missing;
+            continue;
+        }
+        auto matmul = it->second;
+
+        auto ar = std::make_shared<ov::tp_gpu::op::TPAllReduce>(matmul->output(0),
+                                                                collective_id++,
+                                                                ctx.rank,
+                                                                ctx.tp_degree);
+        ar->set_friendly_name("tp_allreduce/" + desc.matmul_name);
+
+        auto targets = matmul->output(0).get_target_inputs();
+        for (const auto& target : targets) {
+            if (target.get_node() == ar.get())
+                continue;
+            target.replace_source_output(ar->output(0));
+        }
+    }
+
+    std::ostringstream outcome;
+    outcome << "inserted " << collective_id << " collectives";
+    if (missing != 0)
+        outcome << " -- " << missing << " row-parallel projections NOT FOUND";
+    log_step("all-reduce", outcome.str());
+}
+
+/// Step 8: split the vocabulary projection and gather the slices into rank 0.
+void shard_vocabulary_projection(const RewriteContext& ctx, const TPConfig& config) {
+    if (!GraphRewriter::shards_lm_head(ctx.plan, static_cast<int>(ctx.tp_degree), config)) {
+        std::ostringstream why;
+        if (ctx.plan.lm_head_name.empty())
+            why << "skipped -- no vocabulary projection found";
+        else if (config.disable_lm_head_sharding())
+            why << "skipped -- disabled by configuration";
+        else
+            why << "skipped -- vocabulary " << ctx.plan.lm_head_vocab << " does not divide by "
+                << ctx.tp_degree;
+        log_step("vocabulary split", why.str());
+        return;
+    }
+
+    auto it = ctx.name_map.find(ctx.plan.lm_head_name);
+    OPENVINO_ASSERT(it != ctx.name_map.end(),
+                    "[TP_GPU] The vocabulary projection '", ctx.plan.lm_head_name,
+                    "' disappeared from the cloned model");
+    auto matmul = it->second;
+
+    const auto axes = weight_axes(matmul);
+    const int64_t vocab = ctx.plan.lm_head_vocab;
+    const int64_t band = vocab / ctx.tp_degree;
+    const int64_t start = band * ctx.rank;
+    const int64_t end = start + band;
+
+    auto weight_output = matmul->input(1).get_source_output();
+    const bool pre_sliced = can_pre_slice_chain(weight_output, axes.out_features, vocab, start, end);
+    if (pre_sliced) {
+        pre_slice_chain(matmul->input(1), axes.out_features, vocab, start, end);
+    } else {
+        matmul->input(1).replace_source_output(
+            insert_weight_slice(weight_output, axes.out_features, start, end));
+    }
+    matmul->validate_and_infer_types();
+
+    const uint32_t gather_id = row_parallel_count(ctx.plan);
+    auto gather = std::make_shared<ov::tp_gpu::op::TPGather>(matmul->output(0),
+                                                             gather_id,
+                                                             ctx.rank,
+                                                             ctx.tp_degree,
+                                                             /*axis=*/-1);
+    gather->set_friendly_name(matmul->get_friendly_name() + "/tp_gather");
+
+    auto targets = matmul->output(0).get_target_inputs();
+    for (const auto& target : targets) {
+        if (target.get_node() == gather.get())
+            continue;
+        target.replace_source_output(gather->output(0));
+    }
+
+    std::ostringstream outcome;
+    outcome << "split " << vocab << " -> " << band << " rows ("
+            << (pre_sliced ? "pre-sliced" : "runtime slice") << "), gathered by collective "
+            << gather_id;
+    log_step("vocabulary split", outcome.str());
+}
+
 }  // namespace
 
 // ---------------------------------------------------------------------------
@@ -991,513 +1443,55 @@ std::shared_ptr<ov::Model> GraphRewriter::rewrite(const std::shared_ptr<const ov
 
     auto cloned = model->clone();
 
-    // Query heads follow their KV head: each rank owns whole grouped-query
-    // groups, which keeps every query head paired with the key head it attends
-    // through.  Deriving the two independently would silently break that
-    // pairing whenever num_kv_heads is not a multiple of tp_degree.
+    // Query heads follow their KV head, so that each rank owns whole
+    // grouped-query groups and every query head keeps the key head it attends
+    // through. Deriving the two independently would break that pairing
+    // whenever num_kv_heads is not a multiple of tp_degree.
     const auto kv_shard = shard_of(plan.num_kv_heads, rank, tp_degree);
-    const int64_t local_kv_heads = kv_shard.size;
-    const int64_t local_q_heads = kv_shard.size * (plan.num_heads / plan.num_kv_heads);
 
-    // Build name → node map for the cloned graph.
-    std::unordered_map<std::string, std::shared_ptr<ov::Node>> name_map;
-    for (const auto& op : cloned->get_ordered_ops()) {
+    NameMap name_map;
+    for (const auto& op : cloned->get_ops()) {
         name_map[op->get_friendly_name()] = op;
     }
 
-    // ------------------------------------------------------------------
-    // 1) Shard weights — pre-slice Constants in each decompression chain.
-    //
-    //    Instead of inserting a runtime Slice op, we trace the weight
-    //    decompression chain (Constant → Convert → Subtract → Multiply →
-    //    Reshape → Convert) and replace each Constant with a pre-sliced
-    //    version containing only this rank's shard.
-    //
-    //    The last rank extends to the end of the full dimension to handle
-    //    cases where the size is not evenly divisible by tp_degree.
-    // ------------------------------------------------------------------
-    size_t runtime_sliced = 0;
+    const RewriteContext ctx{plan,
+                             name_map,
+                             rank,
+                             tp_degree,
+                             kv_shard.size * (plan.num_heads / plan.num_kv_heads),
+                             kv_shard.size};
 
-    // Which weight axis a projection is split along, and how long it is.
-    auto sharded_axis = [](const std::shared_ptr<ov::Node>& matmul, bool is_column_parallel) {
-        const auto axes = weight_axes(matmul);
-        const int64_t axis = is_column_parallel ? axes.out_features : axes.in_features;
-        return std::make_pair(axis, matmul->input(1).get_partial_shape()[axis]);
-    };
+    TP_LOG_INFO << "[TP][rewrite] rank " << rank << " of " << tp_degree << ": " << plan.num_layers
+                << " layers, " << plan.linears.size() << " projections, " << plan.num_heads << "/"
+                << plan.num_kv_heads << " q/kv heads -> " << ctx.local_q_heads << "/"
+                << ctx.local_kv_heads << std::endl;
 
-    // The MLP projections share one intermediate dimension -- gate/up produce
-    // it, down consumes it -- so all three have to be split at exactly the same
-    // offsets.  Their storage layouts differ (down is split along the axis whose
-    // per-group zero-points sit one element apart, the others are not), so the
-    // step has to be the coarsest of them; using each projection's own step
-    // would leave gate/up and down disagreeing on the dimension they share.
-    int64_t mlp_granularity = 1;
-    for (const auto& desc : plan.linears) {
-        if (desc.role != ShardingPlan::LinearDesc::GATE_PROJ &&
-            desc.role != ShardingPlan::LinearDesc::UP_PROJ &&
-            desc.role != ShardingPlan::LinearDesc::DOWN_PROJ)
-            continue;
-        auto it = name_map.find(desc.matmul_name);
-        if (it == name_map.end())
-            continue;
+    // The steps are independent; the order only keeps the shapes consistent
+    // for the validation below.
+    shard_projection_weights(ctx);
+    localize_qkv_head_counts(ctx);
+    localize_gqa_broadcast(*cloned, ctx);
+    localize_paged_attention_heads(*cloned, ctx);
+    localize_attention_output_reshape(ctx);
+    localize_kv_cache_variables(*cloned, ctx);
+    localize_kv_cache_init(*cloned, ctx);
+    insert_all_reduce(ctx);
+    shard_vocabulary_projection(ctx, config);
 
-        const auto [axis, dim] = sharded_axis(it->second, desc.is_column_parallel);
-        if (!dim.is_static())
-            continue;
-        const int64_t step =
-            chain_granularity(it->second->input(1).get_source_output(), axis, dim.get_length());
-        if (step > 0 && dim.get_length() % step == 0)
-            mlp_granularity = std::lcm(mlp_granularity, step);
-    }
-
-    for (const auto& desc : plan.linears) {
-        auto it = name_map.find(desc.matmul_name);
-        if (it == name_map.end())
-            continue;
-        auto matmul = it->second;
-
-        auto weight_output = matmul->input(1).get_source_output();
-        const auto axes = weight_axes(matmul);
-
-        // Column-parallel splits the output features, row-parallel the input ones.
-        const int64_t axis = desc.is_column_parallel ? axes.out_features : axes.in_features;
-        const auto& full_dim = weight_output.get_partial_shape()[axis];
-        OPENVINO_ASSERT(full_dim.is_static(),
-                        "[TP_GPU] Projection '", desc.matmul_name,
-                        "' has a dynamic weight dimension and cannot be sharded");
-        const int64_t full = full_dim.get_length();
-
-        // Attention projections are split by head and ignore this; MLP ones use
-        // the shared step computed above.  When the dimension does not divide by
-        // it we cannot align, and the fallback (counted below) takes over.
-        const int64_t granularity = (full % mlp_granularity == 0) ? mlp_granularity : 1;
-
-        const auto slice = projection_shard(plan, desc, full, rank, tp_degree, granularity);
-        const int64_t start_idx = slice.offset;
-        const int64_t end_idx = slice.offset + slice.size;
-
-        if (can_pre_slice_chain(weight_output, axis, full, start_idx, end_idx)) {
-            pre_slice_chain(matmul->input(1), axis, full, start_idx, end_idx);
-        } else {
-            // Falling back here means the weight gets sliced at runtime and the
-            // GPU plugin has to constant-fold it, which dominates compile time.
-            ++runtime_sliced;
-            auto sliced = insert_weight_slice(weight_output, axis, start_idx, end_idx);
-            matmul->input(1).replace_source_output(sliced);
-        }
-
-        // Column-parallel splits the output features, so a bias on this
-        // projection has to be split identically.  Row-parallel keeps its bias
-        // whole -- see shard_column_parallel_bias().
-        if (desc.is_column_parallel) {
-            shard_column_parallel_bias(matmul, full, slice);
-        }
-    }
-
-    if (runtime_sliced != 0) {
-        // Not gated behind a verbosity level: a runtime Slice per weight is a
-        // compile-time cliff, and whoever hits it needs to know without having
-        // been told to look.
-        TP_WARN_ALWAYS << "[TP_GPU] Warning: rank " << rank << ": " << runtime_sliced << " of "
-                       << plan.linears.size()
-                       << " weights could not be pre-sliced and fall back to a runtime Slice"
-                       << " (this dominates compile time)";
-    }
-
-    // ------------------------------------------------------------------
-    // 2) Patch Reshape constants after q/k/v projections.
-    //
-    //    The Reshape converts [B,S,features] → [B,S,heads,head_dim].
-    //    The shape constant is [0, 0, num_heads, head_dim] with special_zero.
-    //    We update index 2 (the head count).
-    // ------------------------------------------------------------------
-    for (const auto& desc : plan.linears) {
-        if (desc.role != ShardingPlan::LinearDesc::Q_PROJ &&
-            desc.role != ShardingPlan::LinearDesc::K_PROJ &&
-            desc.role != ShardingPlan::LinearDesc::V_PROJ)
-            continue;
-
-        auto it = name_map.find(desc.matmul_name);
-        if (it == name_map.end())
-            continue;
-        auto matmul = it->second;
-
-        int64_t new_heads = (desc.role == ShardingPlan::LinearDesc::Q_PROJ)
-                                ? local_q_heads
-                                : local_kv_heads;
-
-        // Find the direct Reshape consumer of the projection output (the bias
-        // Add, when the projection has one).
-        for (const auto& target : projection_output(matmul).get_target_inputs()) {
-            auto consumer = target.get_node()->shared_from_this();
-            if (ov::is_type<ov::op::v1::Reshape>(consumer)) {
-                patch_reshape_constant(consumer, /*shape_idx=*/2, new_heads);
-            }
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // 2b) Patch the grouped-query broadcast that expands KV heads up to the Q
-    //     head count.
-    //
-    //     The broadcast has two shapes in the wild (multiply by a ones tensor,
-    //     or a bidirectional Broadcast), both of which the shared matcher
-    //     covers.  Its root is the Reshape that merges the expanded heads back
-    //     into [B, num_heads, S, head_dim]; index 1 of its shape constant is
-    //     the head count we have to localize.
-    //
-    //     PagedAttention has no such broadcast: it reads the kv head count off
-    //     the cache and groups internally, so there is nothing to patch and
-    //     nothing to demand.
-    // ------------------------------------------------------------------
-    if (plan.attention_backend == ShardingPlan::AttentionBackend::SDPA) {
-        auto kv_bcst = ov::op::util::match_multi_query_bcst(ov::pass::pattern::any_input());
-        ov::pass::pattern::Matcher matcher(std::get<0>(kv_bcst), "TPMultiQueryBcst");
-
-        size_t patched = 0;
-        for (const auto& op : cloned->get_ordered_ops()) {
-            if (!ov::is_type<ov::op::v1::Reshape>(op) || !matcher.match(op->output(0)))
-                continue;
-            auto shape_const =
-                ov::as_type_ptr<ov::op::v0::Constant>(op->input(1).get_source_output().get_node_shared_ptr());
-            if (!shape_const)
-                continue;
-            auto shape_data = shape_const->cast_vector<int64_t>();
-            if (shape_data.size() == 4 && shape_data[1] == static_cast<int64_t>(plan.num_heads)) {
-                patch_reshape_constant(op, /*shape_idx=*/1, local_q_heads);
-                ++patched;
-            }
-        }
-
-        OPENVINO_ASSERT(plan.num_kv_heads == plan.num_heads || patched > 0,
-                        "[TP_GPU] The model uses grouped-query attention (", plan.num_kv_heads,
-                        " KV heads for ", plan.num_heads,
-                        " Q heads) but no KV broadcast was found to re-shape");
-    }
-
-    // PagedAttention needs no head patching of its own.  The conversion wraps
-    // it in reshapes that are entirely relative -- `[0, -1]` flattening the
-    // operands, and `Concat([0], [1], [-1], ShapeOf(key)[-1])` restoring the
-    // heads afterwards -- so once the projections are sharded those reshapes
-    // already carry the local head count.
-    //
-    // What the graph does not carry is the kv head count: the conversion
-    // records it in the op's rt_info, and both the pass that sizes the cache
-    // and the GPU plugin read it from there while deriving the query head
-    // count from the (already sharded) operand. Leaving it whole makes the two
-    // disagree -- and leaving only the value entry whole sizes the value cache
-    // for heads this rank does not own.
-    if (plan.attention_backend == ShardingPlan::AttentionBackend::PA) {
-        static constexpr const char* kv_head_keys[] = {"num_k_heads", "num_v_heads"};
-
-        size_t localized = 0;
-        for (const auto& op : cloned->get_ordered_ops()) {
-            if (!ov::is_type<ov::op::PagedAttentionExtension>(op))
-                continue;
-            auto& rt_info = op->get_rt_info();
-            for (const auto* key : kv_head_keys) {
-                auto entry = rt_info.find(key);
-                if (entry == rt_info.end())
-                    continue;
-                OPENVINO_ASSERT(entry->second.as<int64_t>() == static_cast<int64_t>(plan.num_kv_heads),
-                                "[TP_GPU] '", op->get_friendly_name(), "' declares ",
-                                entry->second.as<int64_t>(), " for '", key, "' where the model has ",
-                                plan.num_kv_heads, " kv heads");
-                entry->second = static_cast<size_t>(local_kv_heads);
-                ++localized;
-            }
-        }
-
-        // Absent on models whose conversion did not record the geometry; the
-        // plugin then reads it off the cache tensor, which is already local.
-        OPENVINO_ASSERT(localized == 0 ||
-                            localized == std::size(kv_head_keys) * static_cast<size_t>(plan.num_layers),
-                        "[TP_GPU] Localized ", localized, " kv head counts over ", plan.num_layers,
-                        " PagedAttention layers; expected ",
-                        std::size(kv_head_keys) * static_cast<size_t>(plan.num_layers),
-                        ". Model may not be supported.");
-    }
-
-    // ------------------------------------------------------------------
-    // 2c) Patch the post-SDPA Reshape that flattens [B,S,heads,head_dim] back
-    //     into hidden_size before o_proj.
-    //
-    //     Topology in Llama-style models:
-    //         SDPA → Transpose → Reshape([0,0,hidden_size]) → o_proj
-    //     (sometimes with a Convert in the chain).
-    //
-    //     After column-parallel sharding of q/k/v, the heads dim is local;
-    //     the flattened output must be local_q_heads * head_dim, otherwise
-    //     o_proj's MatMul shape inference fails (input dim != weight K).
-    //
-    //     Some exports build this Reshape's shape via ShapeOf+Concat
-    //     (fully dynamic) — in that case input(1) is not a Constant and we
-    //     simply skip; nothing to patch. Other exports (e.g. Llama-3.x-8B)
-    //     bake a static Constant [0,0,hidden_size] which we patch in place.
-    //
-    //     We walk back from o_proj.input(0) through transparent ops only —
-    //     scoping the scan to the o_proj producer chain — to avoid touching
-    //     unrelated Reshapes that happen to contain the same value.
-    // ------------------------------------------------------------------
-    {
-        const int64_t hidden = static_cast<int64_t>(plan.hidden_size);
-        const int64_t local_hidden =
-            local_q_heads * static_cast<int64_t>(plan.head_dim);
-
-        for (const auto& desc : plan.linears) {
-            if (desc.role != ShardingPlan::LinearDesc::O_PROJ)
-                continue;
-
-            auto it = name_map.find(desc.matmul_name);
-            if (it == name_map.end())
-                continue;
-            auto matmul = it->second;
-
-            // Walk back through transparent passthroughs (Convert) until we
-            // reach the Reshape, or give up after a small bounded hop count.
-            std::shared_ptr<ov::Node> src =
-                matmul->input(0).get_source_output().get_node_shared_ptr();
-            for (int hops = 0; hops < 4 && src && !ov::is_type<ov::op::v1::Reshape>(src); ++hops) {
-                if (ov::is_type<ov::op::v0::Convert>(src)) {
-                    src = src->input(0).get_source_output().get_node_shared_ptr();
-                } else {
-                    src.reset();
-                    break;
-                }
-            }
-            if (!src || !ov::is_type<ov::op::v1::Reshape>(src))
-                continue;
-
-            auto shape_const = ov::as_type_ptr<ov::op::v0::Constant>(
-                src->input(1).get_source_output().get_node_shared_ptr());
-            if (!shape_const)
-                continue;  // dynamic shape (ShapeOf+Concat) — nothing to do
-
-            auto data = shape_const->cast_vector<int64_t>();
-            bool patched = false;
-            for (auto& v : data) {
-                if (v == hidden) {
-                    v = local_hidden;
-                    patched = true;
-                }
-            }
-            if (!patched)
-                continue;
-
-            auto new_const = ov::op::v0::Constant::create(
-                shape_const->get_element_type(), shape_const->get_shape(), data);
-            src->input(1).replace_source_output(new_const->output(0));
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // 3) Adjust KV cache Variable shapes.
-    //
-    //    ReadValue / Assign variables for KV cache have shape
-    //    [batch, kv_heads, seq, head_dim].  Update dim[1] to local_kv_heads.
-    // ------------------------------------------------------------------
-    for (const auto& variable : collect_kv_cache_variables(*cloned, plan.num_kv_heads)) {
-        auto info = variable->get_info();
-        info.data_shape[1] = local_kv_heads;
-        variable->update(info);
-    }
-
-    // ------------------------------------------------------------------
-    // 3b) Patch the KV cache initialization subgraph.
-    //
-    //     ReadValue init input comes from:
-    //       Constant(0.0) + Concat([batch, kv_heads, 0, head_dim])
-    //         → Broadcast → ReadValue
-    //
-    //     Find Constants with value [num_kv_heads] that feed into a Concat
-    //     whose output feeds a Broadcast that feeds a ReadValue.
-    //     Replace the kv_heads constant with [local_kv_heads].
-    //
-    //     Note: every ReadValue in the model has its OWN init chain with its
-    //     own kv_heads Constant node, even if all of them share the same
-    //     binary offset in the IR.  We must patch every match — a single
-    //     `goto` after the first hit leaves 63 of 64 init constants holding
-    //     the original num_kv_heads on Llama-3.x-8B and fails Variable
-    //     shape validation downstream.
-    // ------------------------------------------------------------------
-    {
-        std::vector<std::shared_ptr<ov::op::v0::Constant>> kv_init_consts;
-        for (const auto& op : cloned->get_ordered_ops()) {
-            auto c = ov::as_type_ptr<ov::op::v0::Constant>(op);
-            if (!c)
-                continue;
-            // Look for scalar-in-vector constant with value == num_kv_heads
-            if (c->get_shape() != ov::Shape{1})
-                continue;
-            auto data = c->cast_vector<int64_t>();
-            if (data.size() != 1 || data[0] != static_cast<int64_t>(plan.num_kv_heads))
-                continue;
-
-            // Confirm chain: Constant -> Concat -> Broadcast -> ReadValue.
-            bool feeds_kv_init = false;
-            for (const auto& target : c->output(0).get_target_inputs()) {
-                auto concat = target.get_node()->shared_from_this();
-                if (!ov::is_type<ov::op::v0::Concat>(concat))
-                    continue;
-                for (const auto& ct : concat->output(0).get_target_inputs()) {
-                    auto broadcast = ct.get_node()->shared_from_this();
-                    if (!ov::is_type_any_of<ov::op::v1::Broadcast, ov::op::v3::Broadcast>(broadcast))
-                        continue;
-                    for (const auto& bt : broadcast->output(0).get_target_inputs()) {
-                        if (ov::is_type<ov::op::v6::ReadValue>(bt.get_node())) {
-                            feeds_kv_init = true;
-                            break;
-                        }
-                    }
-                    if (feeds_kv_init) break;
-                }
-                if (feeds_kv_init) break;
-            }
-            if (feeds_kv_init)
-                kv_init_consts.push_back(c);
-        }
-
-        for (auto& c : kv_init_consts) {
-            auto new_c = ov::op::v0::Constant::create(
-                c->get_element_type(), c->get_shape(),
-                std::vector<int64_t>{local_kv_heads});
-            c->output(0).replace(new_c->output(0));
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // 3c) Insert TPAllReduce after each row-parallel MatMul.
-    //
-    //     Row-parallel outputs (o_proj, down_proj) are partial sums across
-    //     ranks and need AllReduce.  We insert an explicit TPAllReduce op
-    //     between the MatMul output and its consumers, making the
-    //     collective visible in the graph.  The GPU plugin executes
-    //     TPAllReduce as an in-graph CPU primitive via the shared
-    //     TPDeviceCoordinator object.
-    // ------------------------------------------------------------------
-    {
-        uint32_t collective_id = 0;
-        for (const auto& desc : plan.linears) {
-            if (desc.is_column_parallel)
-                continue;  // only row-parallel needs AllReduce
-
-            auto it = name_map.find(desc.matmul_name);
-            if (it == name_map.end())
-                continue;
-            auto matmul = it->second;
-
-            auto ar = std::make_shared<ov::tp_gpu::op::TPAllReduce>(
-                matmul->output(0),
-                /*group_id=*/0,
-                /*collective_id=*/collective_id++,
-                /*rank=*/rank,
-                /*world_size=*/tp_degree,
-                /*reduce_kind=*/"sum");
-            ar->set_friendly_name("tp_allreduce/" + desc.matmul_name);
-
-            // Redirect all consumers of the MatMul to use the AllReduce output.
-            auto targets = matmul->output(0).get_target_inputs();
-            for (const auto& target : targets) {
-                if (target.get_node() == ar.get())
-                    continue;
-                target.replace_source_output(ar->output(0));
-            }
-        }
-    }
-
-    // ------------------------------------------------------------------
-    // 3d) Split the vocabulary projection across the ranks.
-    //
-    //     It sits after the last collective and feeds nothing but the model's
-    //     Result, yet every rank computed all of it: one row of logits costs a
-    //     full pass over the vocabulary weight, 1.05 GB on an 8B model, and
-    //     the step is only over when the slowest rank is done.  Giving each
-    //     rank one band of output features turns that into 1/world_size of the
-    //     reads, and the slices are collected into rank 0 -- the only rank
-    //     whose outputs the infer request reads.
-    //
-    //     Whether this happens at all is decided by shards_lm_head(), which
-    //     the collective count consults too; the two must agree, because the
-    //     gather occupies the id right after the last AllReduce.
-    // ------------------------------------------------------------------
-    if (GraphRewriter::shards_lm_head(plan, tp_degree, config)) {
-        auto it = name_map.find(plan.lm_head_name);
-        OPENVINO_ASSERT(it != name_map.end(),
-                        "[TP_GPU] The vocabulary projection '", plan.lm_head_name,
-                        "' disappeared from the cloned model");
-        auto matmul = it->second;
-
-        const auto axes = weight_axes(matmul);
-        const int64_t vocab = plan.lm_head_vocab;
-        const int64_t band = vocab / tp_degree;
-        const int64_t start_idx = band * rank;
-        const int64_t end_idx = start_idx + band;
-
-        auto weight_output = matmul->input(1).get_source_output();
-        if (can_pre_slice_chain(weight_output, axes.out_features, vocab, start_idx, end_idx)) {
-            pre_slice_chain(matmul->input(1), axes.out_features, vocab, start_idx, end_idx);
-        } else {
-            auto sliced = insert_weight_slice(weight_output, axes.out_features, start_idx, end_idx);
-            matmul->input(1).replace_source_output(sliced);
-        }
-        matmul->validate_and_infer_types();
-
-        // The gather takes the id after the last AllReduce, which is exactly
-        // how many of them the plan produced.
-        uint32_t gather_id = 0;
-        for (const auto& desc : plan.linears) {
-            if (!desc.is_column_parallel)
-                ++gather_id;
-        }
-
-        auto gather = std::make_shared<ov::tp_gpu::op::TPGather>(matmul->output(0),
-                                                                 /*group_id=*/0,
-                                                                 gather_id,
-                                                                 static_cast<uint32_t>(rank),
-                                                                 static_cast<uint32_t>(tp_degree),
-                                                                 /*axis=*/-1);
-        gather->set_friendly_name(matmul->get_friendly_name() + "/tp_gather");
-
-        auto targets = matmul->output(0).get_target_inputs();
-        for (const auto& target : targets) {
-            if (target.get_node() == gather.get())
-                continue;
-            target.replace_source_output(gather->output(0));
-        }
-
-        TP_LOG_INFO << "[TP] Rank " << rank << ": vocabulary projection '" << plan.lm_head_name
-                    << "' split " << vocab << " -> " << band << " rows, gathered by collective "
-                    << gather_id << std::endl;
-    }
-
-    // ------------------------------------------------------------------
-    // 4) Validate — propagate shapes through the modified graph.
-    // ------------------------------------------------------------------
     cloned->validate_nodes_and_infer_types();
 
     return cloned;
 }
 
 bool GraphRewriter::shards_lm_head(const ShardingPlan& plan, int tp_degree, const TPConfig& config) {
-    if (plan.lm_head_name.empty() || tp_degree <= 1) {
-        return false;
-    }
-    if (config.disable_lm_head_sharding()) {
+    if (plan.lm_head_name.empty() || tp_degree <= 1 || config.disable_lm_head_sharding()) {
         return false;
     }
     return plan.lm_head_vocab % static_cast<int64_t>(tp_degree) == 0;
 }
 
 int GraphRewriter::count_collectives(const ShardingPlan& plan, int tp_degree, const TPConfig& config) {
-    int count = 0;
-    for (const auto& desc : plan.linears) {
-        if (!desc.is_column_parallel)
-            ++count;
-    }
-    if (shards_lm_head(plan, tp_degree, config)) {
-        ++count;
-    }
-    return count;
+    return static_cast<int>(row_parallel_count(plan)) + (shards_lm_head(plan, tp_degree, config) ? 1 : 0);
 }
 
 std::vector<std::string> GraphRewriter::sharded_state_ids(const std::shared_ptr<const ov::Model>& model,

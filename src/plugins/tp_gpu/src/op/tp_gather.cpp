@@ -9,13 +9,11 @@ namespace tp_gpu {
 namespace op {
 
 TPGather::TPGather(const Output<Node>& data,
-                   uint32_t group_id,
                    uint32_t collective_id,
                    uint32_t rank,
                    uint32_t world_size,
                    int64_t axis)
     : Op({data}),
-      m_group_id(group_id),
       m_collective_id(collective_id),
       m_rank(rank),
       m_world_size(world_size),
@@ -24,7 +22,6 @@ TPGather::TPGather(const Output<Node>& data,
 }
 
 bool TPGather::visit_attributes(AttributeVisitor& visitor) {
-    visitor.on_attribute("group_id", m_group_id);
     visitor.on_attribute("collective_id", m_collective_id);
     visitor.on_attribute("rank", m_rank);
     visitor.on_attribute("world_size", m_world_size);
@@ -56,7 +53,6 @@ void TPGather::validate_and_infer_types() {
 std::shared_ptr<Node> TPGather::clone_with_new_inputs(const OutputVector& new_args) const {
     check_new_args_count(this, new_args);
     return std::make_shared<TPGather>(new_args.at(0),
-                                      m_group_id,
                                       m_collective_id,
                                       m_rank,
                                       m_world_size,

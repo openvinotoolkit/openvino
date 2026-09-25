@@ -23,19 +23,16 @@ struct tp_gather : public primitive_base<tp_gather> {
 
     tp_gather(const primitive_id& id,
               const input_info& input,
-              uint32_t group_id,
               uint32_t collective_id,
               uint32_t rank,
               uint32_t world_size,
               int64_t axis)
         : primitive_base(id, {input}),
-          group_id(group_id),
           collective_id(collective_id),
           rank(rank),
           world_size(world_size),
           axis(axis) {}
 
-    uint32_t group_id = 0;
     uint32_t collective_id = 0;
     uint32_t rank = 0;
     uint32_t world_size = 1;
@@ -43,7 +40,6 @@ struct tp_gather : public primitive_base<tp_gather> {
 
     size_t hash() const override {
         size_t seed = primitive::hash();
-        seed = hash_combine(seed, group_id);
         seed = hash_combine(seed, collective_id);
         seed = hash_combine(seed, rank);
         seed = hash_combine(seed, world_size);
@@ -56,8 +52,7 @@ struct tp_gather : public primitive_base<tp_gather> {
             return false;
 
         auto rhs_casted = downcast<const tp_gather>(rhs);
-        return group_id == rhs_casted.group_id &&
-               collective_id == rhs_casted.collective_id &&
+        return collective_id == rhs_casted.collective_id &&
                rank == rhs_casted.rank &&
                world_size == rhs_casted.world_size &&
                axis == rhs_casted.axis;
@@ -65,7 +60,6 @@ struct tp_gather : public primitive_base<tp_gather> {
 
     void save(BinaryOutputBuffer& ob) const override {
         primitive_base<tp_gather>::save(ob);
-        ob << group_id;
         ob << collective_id;
         ob << rank;
         ob << world_size;
@@ -74,7 +68,6 @@ struct tp_gather : public primitive_base<tp_gather> {
 
     void load(BinaryInputBuffer& ib) override {
         primitive_base<tp_gather>::load(ib);
-        ib >> group_id;
         ib >> collective_id;
         ib >> rank;
         ib >> world_size;

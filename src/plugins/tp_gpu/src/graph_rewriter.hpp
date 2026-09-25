@@ -18,27 +18,24 @@ namespace tp_gpu {
 class TPDeviceCoordinator;
 
 /// \brief Sharding plan produced by model analysis.
-///
-/// Describes which linear layers to shard and their parallelism strategy.
 struct ShardingPlan {
     struct LinearDesc {
         std::string matmul_name;
         int layer_idx;
         enum Role { Q_PROJ, K_PROJ, V_PROJ, O_PROJ, GATE_PROJ, UP_PROJ, DOWN_PROJ } role;
-        /// Column-parallel: shard output dim (weight axis 0).
-        /// Row-parallel:    shard input dim  (weight axis 1).
+        /// Column-parallel splits the weight's output dim, row-parallel its
+        /// input dim -- and only row-parallel needs an AllReduce afterwards.
         bool is_column_parallel;
-        /// Whether the projection carries a bias.  Column-parallel biases are
-        /// sharded along with the weight; row-parallel ones stay whole and are
-        /// applied after the AllReduce.
+        /// Column-parallel biases are sharded with the weight; row-parallel
+        /// ones stay whole, because their Add runs after the AllReduce.
         bool has_bias = false;
     };
 
     std::vector<LinearDesc> linears;
 
-    /// Which attention op anchors the layers.  The two formulations differ in
-    /// how heads reach the attention: SDPA broadcasts KV heads up to the query
-    /// head count in the graph, PagedAttention takes flattened
+    /// Which attention op anchors the layers. The two differ in how heads
+    /// reach the attention: SDPA broadcasts KV heads up to the query head
+    /// count in the graph, PagedAttention takes flattened
     /// [tokens, heads * head_dim] operands and does the grouping itself.
     enum class AttentionBackend { NONE, SDPA, PA } attention_backend = AttentionBackend::NONE;
 
@@ -50,75 +47,36 @@ struct ShardingPlan {
     int intermediate_size = 0;
 
     /// The vocabulary projection, when it can be split across ranks.
-    ///
-    /// It sits outside every layer and after the last collective, so the layer
-    /// walk never reaches it -- but it is the single most expensive MatMul in
-    /// a decode step, reading the whole vocabulary weight to produce one row of
-    /// logits.  Splitting it by output feature turns that into 1/world_size of
-    /// the reads per rank, at the price of one gather to collect the slices.
-    ///
-    /// Empty when the model has no such projection, when its vocabulary is not
-    /// divisible by the world size (the gather assumes equal slices), or when
-    /// its shape is not known statically.  In those cases every rank keeps the
-    /// whole projection, as before.
+    /// Empty when the model has no such projection, when its vocabulary does
+    /// not divide by the world size (the gather assumes equal slices), or when
+    /// its shape is not static. Every rank then keeps the whole projection.
     std::string lm_head_name;
     int64_t lm_head_vocab = 0;
 };
 
 /// \brief Analyzes a transformer model and rewrites it for tensor parallelism.
-///
-/// Supports LLaMA-family models with the naming convention:
-///   layers.{N}.self_attn.{q,k,v,o}_proj
-///   layers.{N}.mlp.{gate,up,down}_proj
-///
-/// Weight sharding strategy (with transpose_b=true, weight shape is [out, in]):
-///   - Column-parallel (q/k/v/gate/up_proj): slice weight axis 0 (output dim)
-///   - Row-parallel (o/down_proj): slice weight axis 1 (input dim)
-///
-/// Additional modifications per rank:
-///   - Reshape constants after q/k/v_proj: head count adjusted
-///   - KV cache Variable shapes: kv_heads dimension adjusted
 class GraphRewriter {
 public:
     /// Analyze the model and produce a sharding plan.
     static ShardingPlan analyze(const std::shared_ptr<const ov::Model>& model);
 
-    /// Clone the model and apply weight sharding for the given rank.
-    /// Returns a new model with sharded weights and adjusted shapes.
-    ///
-    /// The result carries no runtime state: which coordinator runs a collective
-    /// is a property of the compiled model, not of the graph.
-    ///
-    /// Takes the whole configuration rather than the individual options it
-    /// happens to consult, so that adding one does not ripple through three
-    /// signatures and every call site again.
+    /// Clone the model and shard it for `rank`.
     static std::shared_ptr<ov::Model> rewrite(const std::shared_ptr<const ov::Model>& model,
                                               const ShardingPlan& plan,
                                               uint32_t rank,
                                               uint32_t tp_degree,
                                               const TPConfig& config = TPConfig{});
 
-    /// Count how many AllReduce collectives will be created (= number of row-parallel linears).
+    /// How many collectives `rewrite` will insert.
     static int count_collectives(const ShardingPlan& plan, int tp_degree, const TPConfig& config = TPConfig{});
 
     /// Whether the vocabulary projection is split across `tp_degree` ranks.
-    /// The gather that collects the slices moves an equal band from each rank,
-    /// so an indivisible vocabulary is left replicated rather than special
-    /// cased.  Both the collective count and the rewrite ask this, so they
-    /// cannot disagree about whether the gather exists.
-    ///
-    /// That is also why the `disable_lm_head_sharding` policy is applied here
-    /// rather than by the callers: the gather takes the collective id right
-    /// after the last AllReduce, so a caller that remembered the option while
-    /// the other forgot would size the coordinator for one count and index it
-    /// with another.
     static bool shards_lm_head(const ShardingPlan& plan, int tp_degree, const TPConfig& config = TPConfig{});
 
     /// Ids of the variables `rewrite` shards along the kv-head axis.
-    ///
     /// Their per-rank states each hold a slice of the KV cache, so a caller
     /// that reads or writes whole state tensors has to see them gathered and
-    /// scattered.  Every other variable is replicated on all ranks.
+    /// scattered. Every other variable is replicated on all ranks.
     static std::vector<std::string> sharded_state_ids(const std::shared_ptr<const ov::Model>& model,
                                                       const ShardingPlan& plan);
 };

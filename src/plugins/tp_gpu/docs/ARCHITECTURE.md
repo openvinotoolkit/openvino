@@ -59,8 +59,8 @@ device memory through a shared Level Zero context.
 │    2. Launch each rank in its own std::async thread.         │
 │    3. Each rank's graph executes locally; whenever it hits a │
 │       TPAllReduce node, the OCL impl in intel_gpu resolves   │
-│       the coordinator from the network's registry by         │
-│       group_id and performs a synchronous, in-place          │
+│       the coordinator from the network's registry and        │
+│       performs a synchronous, in-place                       │
 │       cross-device sum on USM-device memory.                 │
 │    4. Both ranks return; rank 0's outputs are exposed to     │
 │       the user.                                              │
@@ -269,9 +269,9 @@ The TP plugin contributes a single OCL primitive
 implements the in-graph `TPAllReduce` op. This impl:
 - Has `is_cpu() == false`, which forces intel_gpu to allocate inputs and
   outputs in `usm_device`. This is required for cross-PCIe peer copies.
-- During `execute()`, reads the immutable `group_id` / `collective_id` /
-  `rank` carried by the primitive, resolves the coordinator from the
-  owning network's `CollectiveCommRegistry` by `group_id`, and calls
+- During `execute()`, reads the immutable `collective_id` / `rank` carried by
+  the primitive, resolves the coordinator from the owning network's
+  `CollectiveCommRegistry`, and calls
   `dc->allreduce(collective_id, rank, in, out, n, dtype)` synchronously.
   Because the primitive stores only PODs, it serializes cleanly and the
   registry can be re-injected after `import_model`.
@@ -282,10 +282,9 @@ L0 context spanning every rank's device, and without one the plugin
 fails at `compile_model` rather than silently degrading.
 
 Both the primitive and its impl are registered with
-`BIND_BINARY_BUFFER_WITH_TYPE`, and both persist `group_id` /
-`collective_id` / `rank`. The impl needs its own `save`/`load` because a
-blob-restored impl is not rebuilt from its node: without them every rank
-would come back as rank 0.
+`BIND_BINARY_BUFFER_WITH_TYPE`, and both persist `collective_id` / `rank`.
+The impl needs its own `save`/`load` because a blob-restored impl is not
+rebuilt from its node: without them every rank would come back as rank 0.
 
 ## Compiled Blob
 

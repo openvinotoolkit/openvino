@@ -84,5 +84,3 @@ set_target_properties(${TARGET_NAME} PROPERTIES INTERPROCEDURAL_OPTIMIZATION_REL
 if(ENABLE_TESTS)
     add_subdirectory(tests)
 endif()
-
-add_subdirectory(samples)
