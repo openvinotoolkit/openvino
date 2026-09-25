@@ -951,6 +951,27 @@ const std::vector<std::vector<InputShape>> static_shapes{
             {ov::Shape{77, 77}}}
         },
     },
+    {
+        // one query, unaligned k head != v head: no sdpa_ocl/sdpa_micro stage, so the static
+        // single-token SDPA must fall back to the sdpa_opt multi-tokens kernel, whose S*V tail
+        // (100 keys) must keep all V dims when only K is unaligned
+        // q shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 1, 72},
+            {ov::Shape{1, 8, 1, 72}}}
+        },
+        // k shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 100, 72},
+            {ov::Shape{1, 8, 100, 72}}}
+        },
+        // v shape
+        {ov::test::InputShape{ov::PartialShape{1, 8, 100, 64},
+            {ov::Shape{1, 8, 100, 64}}}
+        },
+        // attn shape: [B, 1, -1, L0+L1]
+        {ov::test::InputShape{ov::PartialShape{1, 1, 1, 100},
+            {ov::Shape{1, 1, 1, 100}}}
+        },
+    },
 };
 
 const auto static_shape_params = testing::Combine(testing::Values(ov::element::f16, ov::element::bf16),
