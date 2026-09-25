@@ -60,22 +60,20 @@ private:
         std::vector<ov::SoPtr<ov::IRemoteContext>> rank_ctx;
     };
 
-    /// Builds the shared context. Used by both compile and import: an
-    /// imported model needs exactly the same cross-device context to run
-    /// collectives on, and there is nothing in the blob that could replace it.
+    /// Builds the shared context. Used by both compile and import:
+    /// an imported model needs the same cross-device context to run collectives on.
     SharedL0Setup create_shared_l0(const std::vector<std::string>& device_names) const;
 
-    /// Restores a compiled model from a TP blob. Shared by all four
-    /// `import_model` overloads; the tensor ones only wrap the memory in a
-    /// stream first.
+    /// Restores a compiled model from a TP blob, shared by all four
+    /// `import_model` overloads.
     std::shared_ptr<ov::ICompiledModel> import_blob(std::istream& blob, const ov::AnyMap& properties) const;
 
     /// Best-effort rank device list for property queries, which arrive without
     /// a compile config. Falls back to the GPU plugin's own default device.
     std::vector<std::string> query_devices(const ov::AnyMap& arguments) const;
 
-    /// The GPU plugin's cache-defining properties, which are also ours: a TP
-    /// blob is a container of intel_gpu blobs.
+    /// The GPU plugin's cache-defining properties, which are also supported:
+    /// a TP blob is a container of intel_gpu blobs.
     std::vector<ov::PropertyName> gpu_caching_properties(const ov::AnyMap& arguments) const;
 
     /// Answers a GPU-owned property on behalf of the whole rank set.
@@ -83,16 +81,16 @@ private:
 
     /// Builds the configuration of one call: what the plugin was configured
     /// with, overridden by what the call passed, finalized so the environment
-    /// and the config file get their say.  Everything that is not ours lands
-    /// in `forwarded`, ready to be handed to the per-rank GPU compilations.
+    /// and the config file get their say. Everything that is not supported by TP lands
+    /// in `forwarded`, ready for the per-rank GPU compilations.
     void build_call_config(const ov::AnyMap& properties, TPConfig& config, ov::AnyMap& forwarded) const;
 
-    /// Options this plugin owns.  Only ever holds what was explicitly set --
-    /// defaults, environment and config file are resolved per call.
+    /// Only ever holds what was explicitly set -- defaults, environment and
+    /// config file are resolved per call.
     TPConfig m_config;
 
-    /// Everything else that was set on the plugin, forwarded verbatim to the
-    /// per-rank GPU compilations.
+    /// Everything else set on the plugin, forwarded verbatim to the per-rank
+    /// GPU compilations.
     ov::AnyMap m_gpu_config;
 };
 
