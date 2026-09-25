@@ -103,8 +103,7 @@ public:
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
 private:
-    void setup_profiling();
-    void enable_profiling();
+    void configure_profiling();
 
     std::unique_ptr<zeroProfiling::ProfilingQuery> _profiling_query;
     std::shared_ptr<zeroProfiling::NpuInferProfiling> _npu_profiling;

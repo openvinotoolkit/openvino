@@ -75,7 +75,19 @@ IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
     _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, _graph->get_command_queue_desc());
 }
 
-void Pipeline::setup_profiling() {
+void Pipeline::configure_profiling() {
+    const auto enable_profiling = [this]() {
+        auto profiling_pool =
+            std::make_shared<zeroProfiling::ProfilingPool>(_init_structs, _graph, zeroProfiling::POOL_SIZE);
+        _profiling_query = std::make_unique<zeroProfiling::ProfilingQuery>(_init_structs, 0);
+
+        if (profiling_pool->create()) {
+            _profiling_query->create(profiling_pool);
+        } else {
+            _logger.warning("enable_profiling - failed to create profiling pool, profiling will not be available");
+        }
+    };
+
     bool perf_count_enabled = _config.has<PERF_COUNT>() && _config.get<PERF_COUNT>();
     std::optional<bool> compiled_with_profiling = _graph->is_profiling_blob();
 
@@ -142,18 +154,6 @@ std::vector<ov::ProfilingInfo> Pipeline::get_profiling_info() const {
     }
 }
 
-void Pipeline::enable_profiling() {
-    auto profiling_pool =
-        std::make_shared<zeroProfiling::ProfilingPool>(_init_structs, _graph, zeroProfiling::POOL_SIZE);
-    _profiling_query = std::make_unique<zeroProfiling::ProfilingQuery>(_init_structs, 0);
-
-    if (profiling_pool->create()) {
-        _profiling_query->create(profiling_pool);
-    } else {
-        _logger.warning("enable_profiling - failed to create profiling pool, profiling will not be available");
-    }
-}
-
 Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                    const std::shared_ptr<IGraph>& graph,
                    const Config& config,
@@ -166,7 +166,7 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
     _logger.debug("Pipeline - initialization started, batch size: %i", _batch_size);
 
     // must run before the command lists are built below: populates _npu_profiling/_profiling_query
-    setup_profiling();
+    configure_profiling();
 
     if (_run_inferences_sequentially) {
         _graph->resize_last_submitted_event(_batch_size);
