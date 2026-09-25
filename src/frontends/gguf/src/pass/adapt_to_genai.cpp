@@ -5,7 +5,9 @@
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
 
 #include <memory>
+#include <vector>
 
+#include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
 #include "openvino/op/add.hpp"
@@ -14,6 +16,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/cum_sum.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/equal.hpp"
 #include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
@@ -22,6 +25,7 @@
 #include "openvino/op/less_eq.hpp"
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/logical_or.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/not_equal.hpp"
 #include "openvino/op/parameter.hpp"
@@ -36,6 +40,7 @@
 #include "openvino/op/slice.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/tanh.hpp"
 #include "openvino/op/tile.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
@@ -562,17 +567,74 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // Keep ownership while add_results() may reallocate the model's ResultVector below.
     const std::shared_ptr<ov::op::v0::Result> old_result = model->get_results()[0];
     auto logits_src = old_result->input_value(0);
-    const auto vocab_dim = logits_src.get_partial_shape()[logits_src.get_partial_shape().rank().get_length() - 1];
-    ov::Output<ov::Node> vocab = vocab_dim.is_static()
-                                     ? v0::Constant::create(ov::element::i64, {1}, {vocab_dim.get_length()})->output(0)
-                                     : get_dimensions(logits_src, {-1});
-    auto batch_seq_flat =
-        make_shared<v0::Concat>(ov::OutputVector{batch_len, v0::Constant::create(ov::element::i64, {1}, {-1})}, 0);
-    auto logits_3d = make_shared<v1::Reshape>(logits_src,
-                                              make_shared<v0::Concat>(ov::OutputVector{batch_seq_flat, vocab}, 0),
-                                              false);  // [batch, seq, vocab]
-    name_output(logits_3d, "logits");
-    auto new_result = make_shared<v0::Result>(logits_3d);
+
+    // genai's gather/slice-before-matmul only finds the LM head as Result <- MatMul (optionally
+    // behind Add / Transpose / Divide -> Tanh -> Multiply) with a rank-3 input. Without it, PA
+    // prefill projects every prompt token to vocab, which exhausts GPU memory at long context.
+    std::shared_ptr<v0::MatMul> lm_head;
+    std::vector<std::shared_ptr<ov::Node>> head_chain;  // ops between the head and the Result
+    for (auto out = logits_src; head_chain.size() < 4;) {
+        const auto node = out.get_node_shared_ptr();
+        if ((lm_head = ov::as_type_ptr<v0::MatMul>(node))) {
+            break;
+        }
+        if (!ov::is_type<v1::Multiply>(node) && !ov::is_type<v0::Tanh>(node)) {
+            break;
+        }
+        head_chain.push_back(node);
+        out = node->input_value(0);
+    }
+    const auto& hidden_ps = lm_head ? lm_head->get_input_partial_shape(0) : ov::PartialShape::dynamic();
+    if (lm_head && hidden_ps.rank().is_static() && hidden_ps.size() == 4 && hidden_ps[3].is_static() &&
+        lm_head->get_input_partial_shape(1).size() == 2) {
+        auto hidden_3d = make_shared<v1::Reshape>(
+            lm_head->input_value(0),
+            make_shared<v0::Concat>(
+                ov::OutputVector{batch_len,
+                                 v0::Constant::create(ov::element::i64, {2}, {int64_t{-1}, hidden_ps[3].get_length()})},
+                0),
+            false);  // [batch, seq, hidden]
+        lm_head->input(0).replace_source_output(hidden_3d);
+        lm_head->revalidate_and_infer_types();
+        // Softcap (x * (1/cap) -> tanh -> * cap): scalar constants keep the chain rank-3, and the
+        // first scale becomes x / cap, the form genai matches (MatMul -> Divide -> Tanh).
+        for (auto it = head_chain.rbegin(); it != head_chain.rend(); ++it) {
+            auto node = *it;
+            if (ov::is_type<v1::Multiply>(node)) {
+                const auto c = ov::as_type_ptr<v0::Constant>(node->get_input_node_shared_ptr(1));
+                if (c && ov::shape_size(c->get_shape()) == 1) {
+                    const float value = c->cast_vector<float>()[0];
+                    const bool first_scale = it == head_chain.rbegin() && head_chain.size() == 3;
+                    const auto scalar =
+                        v0::Constant::create(c->get_element_type(), {}, {first_scale ? 1.0f / value : value});
+                    if (first_scale) {
+                        auto div = make_shared<v1::Divide>(node->input_value(0), scalar);
+                        ov::copy_runtime_info(node, div);
+                        ov::replace_node(node, div);
+                        continue;
+                    }
+                    node->input(1).replace_source_output(scalar);
+                }
+            }
+            node->revalidate_and_infer_types();
+        }
+        logits_src = old_result->input_value(0);
+    }
+
+    ov::Output<ov::Node> logits = logits_src;
+    if (logits_src.get_partial_shape().rank() != 3) {
+        const auto vocab_dim = logits_src.get_partial_shape()[logits_src.get_partial_shape().rank().get_length() - 1];
+        ov::Output<ov::Node> vocab =
+            vocab_dim.is_static() ? v0::Constant::create(ov::element::i64, {1}, {vocab_dim.get_length()})->output(0)
+                                  : get_dimensions(logits_src, {-1});
+        auto batch_seq_flat =
+            make_shared<v0::Concat>(ov::OutputVector{batch_len, v0::Constant::create(ov::element::i64, {1}, {-1})}, 0);
+        logits = make_shared<v1::Reshape>(logits_src,
+                                          make_shared<v0::Concat>(ov::OutputVector{batch_seq_flat, vocab}, 0),
+                                          false);  // [batch, seq, vocab]
+    }
+    name_output(logits, "logits");
+    auto new_result = make_shared<v0::Result>(logits);
     new_result->set_friendly_name("logits");
 
     model->add_results({new_result});
