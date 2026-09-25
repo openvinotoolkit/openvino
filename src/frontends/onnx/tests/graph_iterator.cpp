@@ -10,6 +10,7 @@
 #include <cstring>
 #include <filesystem>
 #include <map>
+#include <memory>
 #include <openvino/frontend/exception.hpp>
 #include <openvino/frontend/graph_iterator.hpp>
 #include <openvino/frontend/input_model.hpp>
@@ -30,6 +31,7 @@
 class SimpleIterator : public ov::frontend::onnx::GraphIterator {
 public:
     mutable size_t get_model_dir_call_count = 0;
+    size_t reset_call_count = 0;
     mutable std::filesystem::path last_returned_dir;
     std::filesystem::path model_dir;
 
@@ -39,7 +41,9 @@ public:
     size_t size() const override {
         return 0;
     }
-    void reset() override {};
+    void reset() override {
+        ++reset_call_count;
+    };
     void next() override {};
     bool is_end() const override {
         return true;
@@ -100,6 +104,18 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingSimpleGraphIterator) {
     ASSERT_NE(model, nullptr);
 
     ASSERT_EQ(model->get_ordered_ops().size(), 0);
+    EXPECT_EQ(iter->reset_call_count, 0);
+    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
+    EXPECT_EQ(iter->reset_call_count, 1);
+    EXPECT_TRUE(m_inputModel->get_inputs().empty());
+    EXPECT_EQ(iter->reset_call_count, 2);
+
+    auto first_access_iterator = std::make_shared<SimpleIterator>();
+    auto first_access_model =
+        m_frontEnd->load(std::static_pointer_cast<ov::frontend::onnx::GraphIterator>(first_access_iterator));
+    ASSERT_NE(first_access_model, nullptr);
+    EXPECT_TRUE(first_access_model->get_inputs().empty());
+    EXPECT_EQ(first_access_iterator->reset_call_count, 0);
 }
 
 TEST_P(FrontEndLoadFromTest, testLoadUsingGraphIteratorExternalStreams) {
@@ -114,6 +130,10 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingGraphIteratorExternalStreams) {
     iter->initialize(path);
     iter->reset();
 
+    auto owned_data = iter->allocate_data(1);
+    std::weak_ptr<uint8_t> data_lifetime = owned_data;
+    owned_data.reset();
+
     auto graph_iter = std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(iter);
     ASSERT_NO_THROW(m_frontEnd = m_fem.load_by_framework("onnx"))
         << "Could not create the ONNX FE using a pointer GraphIterator";
@@ -127,6 +147,21 @@ TEST_P(FrontEndLoadFromTest, testLoadUsingGraphIteratorExternalStreams) {
     std::shared_ptr<ov::Model> model;
     ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel)) << "Could not convert the model to OV representation";
     ASSERT_NE(model, nullptr);
+    ASSERT_FALSE(data_lifetime.expired());
+    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
+    ASSERT_NE(model, nullptr);
+    ASSERT_FALSE(data_lifetime.expired());
+
+    ASSERT_EQ(m_inputModel->get_inputs().size(), 1);
+    ASSERT_EQ(m_inputModel->get_outputs().size(), 1);
+    ASSERT_FALSE(data_lifetime.expired());
+    ASSERT_NO_THROW(model = m_frontEnd->convert(m_inputModel));
+    ASSERT_NE(model, nullptr);
+    ASSERT_FALSE(data_lifetime.expired());
+    ov::test::TestCase test_case(model);
+    test_case.add_input<float>({1.f, 2.f, 3.f, 4.f});
+    test_case.add_expected_output<float>(ov::Shape{2, 2}, {3.f, 6.f, 9.f, 12.f});
+    test_case.run();
 
     ASSERT_EQ(iter->get_mmap_cache(), nullptr);
     ASSERT_NE(iter->get_stream_cache(), nullptr);
@@ -744,3 +779,45 @@ INSTANTIATE_TEST_SUITE_P(OnnxConvertEquivalence,
                              }
                              return n;
                          });
+
+TEST(FrontEndGraphIteratorTest, rejects_empty_dropout_training_mode) {
+    auto model = std::make_shared<ONNX_NAMESPACE::ModelProto>();
+    model->set_ir_version(13);
+    auto* opset = model->add_opset_import();
+    opset->set_version(12);
+    auto* graph = model->mutable_graph();
+    auto* node = graph->add_node();
+    node->set_op_type("Dropout");
+    node->add_input("X");
+    node->add_input("");
+    node->add_input("training_mode");
+    node->add_output("Y");
+    auto* init = graph->add_initializer();
+    init->set_name("training_mode");
+    init->set_data_type(ONNX_NAMESPACE::TensorProto_DataType_BOOL);
+    init->add_dims(0);
+    auto* input = graph->add_input();
+    input->set_name("X");
+    input->mutable_type()->mutable_tensor_type()->set_elem_type(ONNX_NAMESPACE::TensorProto_DataType_FLOAT);
+    input->mutable_type()->mutable_tensor_type()->mutable_shape()->add_dim()->set_dim_value(1);
+    auto* output = graph->add_output();
+    output->set_name("Y");
+    output->mutable_type()->mutable_tensor_type()->set_elem_type(ONNX_NAMESPACE::TensorProto_DataType_FLOAT);
+    output->mutable_type()->mutable_tensor_type()->mutable_shape()->add_dim()->set_dim_value(1);
+    auto iterator = std::make_shared<ov::frontend::onnx::GraphIteratorProto>(
+        ov::frontend::onnx::GraphIteratorProtoMemoryManagementMode::External_Stream);
+    iterator->initialize(model);
+    iterator->reset();
+    auto frontend = ov::frontend::FrontEndManager().load_by_framework("onnx");
+    ASSERT_NE(frontend, nullptr);
+    auto input_model = frontend->load(std::dynamic_pointer_cast<ov::frontend::onnx::GraphIterator>(iterator));
+    ASSERT_NE(input_model, nullptr);
+    try {
+        frontend->convert(input_model);
+        FAIL() << "Expected empty training_mode to be rejected";
+    } catch (const ov::Exception& e) {
+        const std::string error_msg = e.what();
+        EXPECT_NE(error_msg.find("training_mode input must contain one element."), std::string::npos)
+            << "Unexpected error message: " << error_msg;
+    }
+}

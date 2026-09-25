@@ -11,10 +11,7 @@
 #include "openvino/op/util/op_types.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 namespace {
 ov::OutputVector build_dropout(const ov::frontend::onnx::Node& node, bool training_mode) {
     CHECK_VALID_NODE(node, !training_mode, "Training mode is not supported for Dropout op");
@@ -43,7 +40,10 @@ ov::OutputVector dropout(const ov::frontend::onnx::Node& node) {
         CHECK_VALID_NODE(node,
                          ov::op::util::is_constant(ng_inputs.at(2).get_node_shared_ptr()),
                          "Non-constant training_mode input is not supported.");
-        training_mode = ov::as_type_ptr<v0::Constant>(ng_inputs.at(2).get_node_shared_ptr())->cast_vector<bool>()[0];
+        const auto training_mode_values =
+            ov::as_type_ptr<v0::Constant>(ng_inputs.at(2).get_node_shared_ptr())->cast_vector<bool>();
+        CHECK_VALID_NODE(node, training_mode_values.size() == 1, "training_mode input must contain one element.");
+        training_mode = training_mode_values[0];
     }
     return build_dropout(node, training_mode);
 }
@@ -71,7 +71,4 @@ ov::OutputVector dropout(const ov::frontend::onnx::Node& node) {
 }
 ONNX_OP("Dropout", OPSET_RANGE(1, 6), ai_onnx::opset_1::dropout);
 }  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx
