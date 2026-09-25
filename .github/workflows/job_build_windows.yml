@@ -56,12 +56,13 @@ jobs:
     runs-on: ${{ inputs.runner }}
     env:
       CMAKE_BUILD_TYPE: ${{ inputs.build-type }}
-      CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
-      CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
-      CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows${{ inputs.build-variant }}_x86_64_${{ inputs.build-type }}\\${{ inputs.target-branch }}"
-      CCACHE_DIR: ${{ github.workspace }}\\ccache
-      CCACHE_MAXSIZE: 3G
-      CCACHE_SLOPPINESS: pch_defines,time_macros
+      CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'sccache' || '' }}
+      CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'sccache' || '' }}
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
+      SCCACHE_ERROR_LOG: "${{ github.workspace }}\\sccache_log.txt"
+      SCCACHE_LOG: warn
+      SCCACHE_AZURE_KEY_PREFIX: windows_${{ inputs.build-variant }}_x86_64_${{ inputs.build-type }}
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
@@ -155,17 +156,11 @@ jobs:
       # Build
       #
 
-      - name: Setup ccache
-        uses: ./openvino/.github/actions/cache
+      - name: Install sccache
         if: ${{ inputs.build-type != 'Debug' }}
+        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
         with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
-          path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-ccache
+          version: v0.18.0
 
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
@@ -191,16 +186,16 @@ jobs:
           $cmakeCommand = "cmake $splitCmakeOptions -S ${{ env.OPENVINO_REPO }} -B ${{ env.BUILD_DIR }}"
           Invoke-Expression $cmakeCommand
 
-      - name: Clean ccache stats
+      - name: Clean sccache stats
         if: ${{ inputs.build-type != 'Debug' }}
-        run: '& ccache --zero-stats'
+        run: sccache --zero-stats
 
       - name: Cmake build - OpenVINO
         run: cmake --build ${{ env.BUILD_DIR }} --config ${{ env.CMAKE_BUILD_TYPE }} --parallel $env:CMAKE_BUILD_PARALLEL_LEVEL -- --quiet
 
-      - name: Show ccache stats
+      - name: Show sccache stats
         if: ${{ inputs.build-type != 'Debug' }}
-        run: '& ccache --show-stats'
+        run: sccache --show-stats
 
       - name: Cmake install - OpenVINO
         run: |
@@ -284,7 +279,7 @@ jobs:
             }
           }
         env:
-          CMAKE_GENERATOR: 'Ninja' # Ninja is the only Windows native generator supported by ccache
+          CMAKE_GENERATOR: 'Ninja'
 
       # Setup additional Python versions for wheels building
       - name: Setup Python 3.14t
@@ -321,7 +316,7 @@ jobs:
             exit 1
           }
         env:
-          CMAKE_GENERATOR: 'Ninja' # Ninja is the only Windows native generator supported by ccache
+          CMAKE_GENERATOR: 'Ninja'
 
       - name: Pack Artifacts
         run: |
@@ -419,6 +414,14 @@ jobs:
         with:
           name: compile_commands_windows_${{ inputs.build-type }}
           path: ${{ env.BUILD_DIR }}/compile_commands.json
+          if-no-files-found: 'ignore'
+
+      - name: Upload build logs
+        if: always()
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: build_logs_windows_${{ inputs.build-type }}
+          path: ${{ env.SCCACHE_ERROR_LOG }}
           if-no-files-found: 'ignore'
 
       - name: Upload OpenVINO package
