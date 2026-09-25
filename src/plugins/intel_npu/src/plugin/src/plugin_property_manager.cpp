@@ -153,11 +153,10 @@ void PluginPropertyManager::setProperty(const ov::AnyMap& properties) {
                                                      _config.get<COMPILER_TYPE>(),
                                                      _config.get<DEVICE_ID>(),
                                                      _config.get<PLATFORM>());
-    ov::AnyMap supportCheckArguments = {
-        {ov::intel_npu::compiler_type.name(), normalizedArguments.compilerType},
-        {ov::device::id.name(), normalizedArguments.deviceId},
-        {ov::intel_npu::platform.name(), normalizedArguments.platform},
-    };
+    ov::AnyMap supportCheckArguments = properties;
+    supportCheckArguments[ov::intel_npu::compiler_type.name()] = normalizedArguments.compilerType;
+    supportCheckArguments[ov::device::id.name()] = normalizedArguments.deviceId;
+    supportCheckArguments[ov::intel_npu::platform.name()] = normalizedArguments.platform;
 
     for (auto&& value : properties) {
         const auto propertyDescriptorIt = _properties.find(value.first);
@@ -266,9 +265,8 @@ bool PluginPropertyManager::isPropertySupported(const std::string& name, const o
     return propertyDescriptorIt->second.isPublic && propertyDescriptorIt->second.isSupported(propertyArguments);
 }
 
-std::pair<FilteredConfig, ov::AnyMap> PluginPropertyManager::getMergedConfigAndUnknownProperties(
-    const ov::AnyMap& properties,
-    ConfigMergeMode mergeMode) {
+std::pair<Config, ov::AnyMap> PluginPropertyManager::getMergedConfigAndUnknownProperties(const ov::AnyMap& properties,
+                                                                                         ConfigMergeMode mergeMode) {
     bool loadedFromCache = false;
     if (mergeMode == ConfigMergeMode::Import) {
         // In case of importing a model, the loaded_from_cache property is used to determine whether the model was
@@ -387,11 +385,9 @@ std::pair<FilteredConfig, ov::AnyMap> PluginPropertyManager::getMergedConfigAndU
             const auto model = value.second.is<std::shared_ptr<const ov::Model>>()
                                    ? value.second.as<std::shared_ptr<const ov::Model>>()
                                    : std::shared_ptr<const ov::Model>(value.second.as<std::shared_ptr<ov::Model>>());
-            updatedConfig.updateAny(key, std::weak_ptr<const ov::Model>(model));
-        } else if (key == ov::cache_encryption_callbacks.name()) {
-            updatedConfig.updateAny(key, value.second);
+            updatedConfig.update(key, std::weak_ptr<const ov::Model>(model));
         } else {
-            updatedConfig.update(key, value.second.as<std::string>());
+            updatedConfig.update(key, value.second);
         }
     }
 
@@ -443,10 +439,8 @@ std::optional<ov::intel_npu::CompilerType> PluginPropertyManager::resolveCompile
 
     try {
         auto device = utils::getDeviceById(_backend, deviceId);
-        auto compilationPlatform = utils::getCompilationPlatform(
-            platform,
-            device == nullptr ? deviceId : device->getName(),
-            _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+        auto compilationPlatform =
+            utils::getCompilationPlatform(_backend, platform, device == nullptr ? deviceId : device->getName());
 
         CompilerAdapterFactory factory;
         factory.decideCompilerType(compilerType, device, compilationPlatform);
@@ -563,7 +557,7 @@ void PluginPropertyManager::registerProperties() {
                 return _config.get<OptionType>();
             },
             [this, propertyName](const ov::Any& value) {
-                _config.update(propertyName, value.as<std::string>());
+                _config.update(propertyName, value);
             });
     };
 
@@ -583,19 +577,8 @@ void PluginPropertyManager::registerProperties() {
     registerConfigProperty(DISABLE_VERSION_CHECK{}, false);
     registerConfigProperty(EXPORT_RAW_BLOB{}, false);
     registerConfigProperty(IMPORT_RAW_BLOB{}, false);
+    registerConfigProperty(ALLOW_BYTECODE{}, false);
     registerConfigProperty(PROFILING_TYPE{}, false);
-    registerConfigProperty(SHARED_COMMON_QUEUE{}, false);
-
-    // Special case: this property is always registered because it's supported by the implementation,
-    // but it's not visible in supported_properties if the driver doesn't support it.
-    registerConfigProperty(RUN_INFERENCES_SEQUENTIALLY{}, [this] {
-        if (_backend && _backend->getInitStructs()) {
-            if (_backend->getInitStructs()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1)) {
-                return true;
-            }
-        }
-        return false;
-    }());
 
     OPENVINO_SUPPRESS_DEPRECATED_START
     registerConfigProperty(ENABLE_CPU_PINNING{}, false);
@@ -615,7 +598,7 @@ void PluginPropertyManager::registerProperties() {
                 return _config.get<OptionType>();
             },
             [this, propertyName](const ov::Any& value) {
-                _config.update(propertyName, value.as<std::string>());
+                _config.update(propertyName, value);
             });
     };
 
@@ -653,7 +636,7 @@ void PluginPropertyManager::registerProperties() {
             if (_backend != nullptr) {
                 _backend->updateInfo( {{ov::log::level.name(), value}} );
             }
-            _config.updateAny(ov::log::level.name(), value);
+            _config.update(ov::log::level.name(), value);
         }
     );
     register_property(ov::intel_npu::disable_idle_memory_prunning.name(), true, ov::PropertyMutability::RW,
@@ -669,7 +652,7 @@ void PluginPropertyManager::registerProperties() {
                 _backend->updateInfo( {{ov::intel_npu::disable_idle_memory_prunning.name(), value}} );
             }
             // Do not throw in case it is not supported since some users may not check all the time supported properties
-            _config.updateAny(ov::intel_npu::disable_idle_memory_prunning.name(), value);
+            _config.update(ov::intel_npu::disable_idle_memory_prunning.name(), value);
         }
     );
     register_property(ov::device::id.name(), true, ov::PropertyMutability::RW,
@@ -681,7 +664,7 @@ void PluginPropertyManager::registerProperties() {
             return deviceId.empty() ? ov::Any(_config.get<DEVICE_ID>()) : ov::Any(deviceId);
         },
         [this](const ov::Any& value) {
-            _config.update(ov::device::id.name(), value.as<std::string>());
+            _config.update(ov::device::id.name(), value);
         }
     );
     register_property(ov::intel_npu::compiler_type.name(), true, ov::PropertyMutability::RW,
@@ -693,7 +676,7 @@ void PluginPropertyManager::registerProperties() {
             return compilerType.has_value() ? ov::Any(compilerType.value()) : ov::Any(_config.get<COMPILER_TYPE>());
         },
         [this](const ov::Any& value) {
-            _config.update(ov::intel_npu::compiler_type.name(), value.as<std::string>());
+            _config.update(ov::intel_npu::compiler_type.name(), value);
         }
     );
     register_property(ov::intel_npu::max_tiles.name(), true, ov::PropertyMutability::RO, 
@@ -722,7 +705,7 @@ void PluginPropertyManager::registerProperties() {
             return platformIt != arguments.end() ? platformIt->second : ov::Any(_config.get<PLATFORM>());
         },
         [this](const ov::Any& value) {
-            _config.update(ov::intel_npu::platform.name(), value.as<std::string>());
+            _config.update(ov::intel_npu::platform.name(), value);
         }
     );
     register_property(ov::intel_npu::turbo.name(), true, ov::PropertyMutability::RW,
@@ -735,7 +718,7 @@ void PluginPropertyManager::registerProperties() {
             return _config.get<TURBO>();
         },
         [this](const ov::Any& value) {
-            _config.update(ov::intel_npu::turbo.name(), value.as<std::string>());
+            _config.update(ov::intel_npu::turbo.name(), value);
         }
     );
     register_property(ov::intel_npu::enable_strides_for.name(), true, ov::PropertyMutability::RW,
@@ -754,7 +737,7 @@ void PluginPropertyManager::registerProperties() {
             return _config.get<ENABLE_STRIDES_FOR>();
         },
         [this](const ov::Any& value) {
-            _config.update(ov::intel_npu::enable_strides_for.name(), value.as<std::string>());
+            _config.update(ov::intel_npu::enable_strides_for.name(), value);
         }
     );
     register_property(ov::cache_encryption_callbacks.name(), true, ov::PropertyMutability::WO,
@@ -765,10 +748,90 @@ void PluginPropertyManager::registerProperties() {
             return ov::EncryptionCallbacks{nullptr, nullptr};
         },
         [this](const ov::Any& value) {
-            _config.updateAny(ov::cache_encryption_callbacks.name(), value);
+            _config.update(ov::cache_encryption_callbacks.name(), value);
         }
     );
 
+    const auto hasRequiredCommandQueueVersion = [this] {
+        return _backend && _backend->getInitStructs() &&
+               _backend->getInitStructs()->getCommandQueueDdiTable().version() >= ZE_MAKE_VERSION(1, 1);
+    };
+    // Returns the value a property would have once the request is applied: the requested value when the caller
+    // supplied one, otherwise the value currently stored in the config.
+    const auto resolveRequestedBool = [](const ov::AnyMap& arguments,
+                                         const std::string& propertyName,
+                                         bool currentValue) {
+        const auto argumentIt = arguments.find(propertyName);
+        return argumentIt != arguments.end() ? argumentIt->second.as<bool>() : currentValue;
+    };
+    // Special case: this property is always registered because it's supported by the implementation, but it's not visible in supported_properties if the driver doesn't support it.
+    register_property(ov::intel_npu::run_inferences_sequentially.name(), hasRequiredCommandQueueVersion(), ov::PropertyMutability::RW,
+        [this, hasRequiredCommandQueueVersion, resolveRequestedBool](const ov::AnyMap& arguments) {
+            if (!_config.hasOpt(ov::intel_npu::run_inferences_sequentially.name())) {
+                return false;
+            }
+            // If SHARED_COMMON_QUEUE is not registered, RUN_INFERENCES_SEQUENTIALLY is considered supported.
+            if (!_config.hasOpt(ov::intel_npu::shared_common_queue.name())) {
+                return true;
+            }
+
+            // Disabling RUN_INFERENCES_SEQUENTIALLY is always allowed, whatever the SHARED_COMMON_QUEUE value is.
+            if (!resolveRequestedBool(arguments,
+                                      ov::intel_npu::run_inferences_sequentially.name(),
+                                      _config.get<RUN_INFERENCES_SEQUENTIALLY>())) {
+                return true;
+            }
+
+            const bool sharedCommonQueue = resolveRequestedBool(arguments,
+                                                                ov::intel_npu::shared_common_queue.name(),
+                                                                _config.get<SHARED_COMMON_QUEUE>());
+
+            // Only the combination of both properties enabled needs the required command queue version.
+            if (!sharedCommonQueue || hasRequiredCommandQueueVersion()) {
+                return true;
+            }
+            return false;
+        },
+        [this](const ov::AnyMap&) {
+            return _config.get<RUN_INFERENCES_SEQUENTIALLY>();
+        },
+        [this](const ov::Any& value) {
+            _config.update(ov::intel_npu::run_inferences_sequentially.name(), value);
+        }
+    );
+
+    register_property(ov::intel_npu::shared_common_queue.name(), false, ov::PropertyMutability::RW,
+        [this, resolveRequestedBool](const ov::AnyMap& arguments) {
+            if (!_config.hasOpt(ov::intel_npu::shared_common_queue.name())) {
+                return false;
+            }
+            // If RUN_INFERENCES_SEQUENTIALLY is not registered, SHARED_COMMON_QUEUE is considered supported.
+            if (!_config.hasOpt(ov::intel_npu::run_inferences_sequentially.name())) {
+                return true;
+            }
+
+            // Disabling SHARED_COMMON_QUEUE is always allowed, whatever the RUN_INFERENCES_SEQUENTIALLY value is.
+            if (!resolveRequestedBool(arguments,
+                                      ov::intel_npu::shared_common_queue.name(),
+                                      _config.get<SHARED_COMMON_QUEUE>())) {
+                return true;
+            }
+
+            const bool runInferencesSequentially = resolveRequestedBool(arguments,
+                                                                        ov::intel_npu::run_inferences_sequentially.name(),
+                                                                        _config.get<RUN_INFERENCES_SEQUENTIALLY>());
+
+            // SHARED_COMMON_QUEUE is unsupported only when RUN_INFERENCES_SEQUENTIALLY is also enabled and that property is not public.
+            return !runInferencesSequentially ||
+                   _properties.at(ov::intel_npu::run_inferences_sequentially.name()).isPublic;
+        },
+        [this](const ov::AnyMap&) {
+            return _config.get<SHARED_COMMON_QUEUE>();
+        },
+        [this](const ov::Any& value) {
+            _config.update(ov::intel_npu::shared_common_queue.name(), value);
+        }
+    );
     register_property(ov::intel_npu::stepping.name(), false, ov::PropertyMutability::RW, 
         [this](const ov::AnyMap&) {
             return _config.hasOpt(ov::intel_npu::stepping.name());
@@ -798,6 +861,17 @@ void PluginPropertyManager::registerProperties() {
             _config.update(ov::intel_npu::compile_log_level.name(), value.as<std::string>());
         }
     );
+    register_property(ov::intel_npu::ws_compile_call_number.name(), false, ov::PropertyMutability::RO, //The RO isn't true here, it will throw even if trying to read it
+        [this](const ov::AnyMap&) {
+            return _config.hasOpt(ov::intel_npu::ws_compile_call_number.name());
+        },
+        [](const ov::AnyMap&) -> ov::Any {
+            OPENVINO_THROW("Property '", ov::intel_npu::ws_compile_call_number.name(), "' cannot be accessed.");
+        },
+        [](const ov::Any&) {
+            OPENVINO_THROW("Property '", ov::intel_npu::ws_compile_call_number.name(), "' cannot be accessed.");
+        }
+    );
 
     const auto alwaysSupported = [](const ov::AnyMap&) {
         return true;
@@ -806,9 +880,6 @@ void PluginPropertyManager::registerProperties() {
         OPENVINO_THROW("Property is read-only");
     };
 
-    register_property(ov::execution_devices.name(), true, ov::PropertyMutability::RO, alwaysSupported, [](const ov::AnyMap&) {
-        return std::vector<std::string>{"NPU"};
-    }, readOnlySetter);
     register_property(ov::device::capabilities.name(), true, ov::PropertyMutability::RO, alwaysSupported, [](const ov::AnyMap&) {
         return std::vector<std::string>{ov::device::capability::FP16, ov::device::capability::INT8, ov::device::capability::EXPORT_IMPORT};
     }, readOnlySetter);
@@ -826,9 +897,8 @@ void PluginPropertyManager::registerProperties() {
             return _config.hasOpt(ov::hint::model.name());
         },
         [this](const ov::AnyMap&) -> ov::Any {
-            // Retrieve the weak pointer to the model and lock it to get a shared pointer. Fix potential dangling pointer issue.
-            const auto model = _config.get<MODEL_PTR>();
-            return model.lock();
+            std::shared_ptr<const ov::Model> model = _config.get<MODEL_PTR>().lock();
+            return ov::Any(std::move(model));
         },
         [](const ov::Any&) {
             OPENVINO_THROW("Property '", ov::hint::model.name(),"' can only be provided when importing a compiled model, it cannot be set otherwise");
@@ -968,9 +1038,10 @@ void PluginPropertyManager::registerProperties() {
                 auto deviceId = getDeviceId(arguments);
                 auto device = utils::getDeviceById(_backend, deviceId);
                 compilationPlatform = utils::getCompilationPlatform(
+                    _backend,
                     platform,
-                    device == nullptr ? deviceId : device->getName(),
-                    _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+                    device == nullptr ? deviceId : device->getName()
+                    );
             }
 
             try {
@@ -990,9 +1061,9 @@ void PluginPropertyManager::registerProperties() {
                 auto deviceId = getDeviceId(arguments);
                 auto device = utils::getDeviceById(_backend, deviceId);
                 compilationPlatform = utils::getCompilationPlatform(
+                    _backend,
                     platform,
-                    device == nullptr ? deviceId : device->getName(),
-                    _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames());
+                    device == nullptr ? deviceId : device->getName());
             }
 
             CompilerAdapterFactory factory;

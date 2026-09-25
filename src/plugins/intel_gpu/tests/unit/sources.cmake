@@ -10,6 +10,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/memory_realloc_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/optimized_out_execution_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/priorbox_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/remote_output_lifecycle.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/skip_gather_at_runtime.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/skip_permutes_at_runtime.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/skip_redundant_reorder_at_runtime.cpp
@@ -53,6 +54,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/fusions/space_to_depth_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/fusions/strided_slice_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/gtest_main_gpu.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/allocation_order_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/canonicalize_fused_shapes_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/convert_and_copy_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/dispatch_data_func_test.cpp
@@ -67,6 +69,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/kernel_impl_params_relevance_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/layout_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/mem_reset_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/nodes_ordering_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/primitive_comparison_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/shape_predictor_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/sycl/sycl_test_context.hpp
@@ -82,6 +85,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/passes/kernels_cache_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/mark_shape_of_subgraphs_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/mark_state_init_subgraphs_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/passes/oooq_memory_dependencies_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/post_optimize_weights.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/prepare_buffer_fusing_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/prepare_padding_test.cpp

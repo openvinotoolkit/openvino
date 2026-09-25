@@ -16,6 +16,7 @@ namespace npuw {
 struct LLMVariantSwitchTestAccess;
 struct LLMTrimKVCacheTestAccess;
 struct LLMContinuedPrefillTestAccess;
+struct LLMSwaCacheTestAccess;
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
@@ -91,9 +92,11 @@ private:
     friend class EmbeddingInferRequest;
     friend class LLMBlockKVCacheStrategy;
     friend class LLMContinuousKVCacheStrategy;
+    friend class SwaKVCacheHelper;
     friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
     friend struct ov::test::npuw::LLMTrimKVCacheTestAccess;
     friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
+    friend struct ov::test::npuw::LLMSwaCacheTestAccess;
     friend class EncoderEmbeddingInferRequest;
 
     std::shared_ptr<ov::ISyncInferRequest> create_llm_infer_request();
@@ -167,6 +170,9 @@ private:
     // True when the embedding model is a non-autoregressive bidirectional encoder (e.g. BERT):
     // routed to the dedicated KV/RoPE-free encoder embedding path.
     bool m_is_encoder_embedding = false;
+
+    // SWA (sliding-window attention) window size, 0 if none.
+    uint32_t m_swa_window_size = 0;
 
     // Create generate model variants with different sizes
     std::vector<std::shared_ptr<ov::Model>> create_generate_model_variants(
