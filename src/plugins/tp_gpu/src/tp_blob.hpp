@@ -19,16 +19,16 @@ namespace tp_gpu {
 ///
 /// This is an internal cache artifact, not a portable model format: it embeds
 /// one intel_gpu blob per rank and only loads back onto a matching device
-/// topology.  The user always feeds a full, unsharded IR to `compile_model`.
+/// topology. The user always feeds a full, unsharded IR to `compile_model`.
 ///
 ///     char[8]   magic = "OVTPGPU"
 ///     uint32    version
 ///     uint32    world_size
 ///     uint32    num_collectives
 ///     uint32    num_sharded_states
-///     [world_size]        device name       : uint32 length + bytes
-///     [num_sharded_states] variable id      : uint32 length + bytes
-///     [world_size]        rank blob         : uint64 length + bytes
+///     [world_size]         device name       : uint32 length + bytes
+///     [num_sharded_states] variable id       : uint32 length + bytes
+///     [world_size]         rank blob         : uint64 length + bytes
 ///
 /// Everything read back is untrusted input -- a cache file can be stale,
 /// truncated or corrupted -- so every length is bounds-checked before it is
@@ -37,12 +37,10 @@ namespace tp_blob {
 
 inline constexpr char magic[8] = {'O', 'V', 'T', 'P', 'G', 'P', 'U', '\0'};
 
-/// Bump on any layout or semantic change.  The version is the only field a
+/// Bump on any layout or semantic change. The version is the only field a
 /// reader can act on before it has parsed anything else, so an older blob
 /// must never be handed to a newer runtime.
-///
-/// 2: added the list of kv-head-sharded variable ids.
-inline constexpr uint32_t version = 2;
+inline constexpr uint32_t version = 1;
 
 /// Device names are short identifiers such as "GPU.0"; anything longer means
 /// the stream is not what we think it is.
