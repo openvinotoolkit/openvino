@@ -192,14 +192,12 @@ function(ov_gpu_build_stack RT_TYPE SUFFIX MODULE_NAME)
         ov_apply_clang_tidy(TARGET ${mlir_lib})
 
         set(GPU_PLUGIN_OBJECT_LIBRARIES ${mlir_lib})
-        set(GPU_PLUGIN_OPTIONS LINKABLE)
     endif()
 
     ov_add_plugin(NAME ${MODULE_NAME}
                   DEVICE_NAME "GPU"
                   SOURCES ${PLUGIN_SOURCES}
                   OBJECT_LIBRARIES ${GPU_PLUGIN_OBJECT_LIBRARIES}
-                  ${GPU_PLUGIN_OPTIONS}
                   DEFAULT_CONFIG ${PLUGIN_DEFAULT_CONFIG}
                   VERSION_DEFINES_FOR src/plugin/plugin.cpp
                   # ADD_CLANG_TIDY makes ov_add_plugin apply clang-tidy to this target.
