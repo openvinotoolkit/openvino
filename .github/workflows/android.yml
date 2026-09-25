@@ -303,7 +303,7 @@ jobs:
           cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component core_c_dev
 
           # Install frontends referenced by the exported OpenVINO cmake targets
-          for frontend in ir onnx paddle pytorch tensorflow tensorflow_lite jax; do
+          for frontend in ir onnx paddle pytorch tensorflow tensorflow_lite jax gguf; do
             cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component ${frontend} || echo "Frontend component ${frontend} not available"
           done
 
