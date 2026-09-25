@@ -12,10 +12,7 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 OutputVector translate_scatter_nd_op(const NodeContext& node) {
     default_op_checks(node, 3, {"ScatterNd", "SCATTER_ND"}, true);
     auto input_indices = node.get_input(0);
@@ -47,7 +44,4 @@ OutputVector translate_scatter_nd_op(const NodeContext& node) {
     set_node_name(node.get_name(), scatter_nd);
     return {scatter_nd};
 }
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

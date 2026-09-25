@@ -9,10 +9,7 @@
 #include "builder/decoder_config.hpp"
 #include "builder/graph_emitter.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace blocks {
+namespace ov::frontend::gguf::blocks {
 
 // Feed-forward sublayers of the decoder block, mirroring llm_graph_context::build_ffn /
 // build_moe_ffn. `prefix` is the layer prefix ("blk.<il>."), `ffn_norm` the pre-FFN normed hidden,
@@ -39,7 +36,4 @@ std::string geglu_ffn(GraphEmitter& e,
 // always-active shared experts.
 std::string moe_ffn(GraphEmitter& e, const DecoderConfig& cfg, const std::string& prefix, const std::string& ffn_norm);
 
-}  // namespace blocks
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::blocks

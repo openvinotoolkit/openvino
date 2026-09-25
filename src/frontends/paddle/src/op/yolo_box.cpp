@@ -7,10 +7,7 @@
 #include "openvino/frontend/paddle/node_context.hpp"
 #include "openvino/opsets/opset6.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 using namespace opset6;
 using namespace element;
 
@@ -326,7 +323,4 @@ NamedOutputs yolo_box(const NodeContext& node_context) {
     return outputs;
 }
 
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

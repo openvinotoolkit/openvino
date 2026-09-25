@@ -51,7 +51,7 @@ class TestGroupedMMConstWeights(PytorchLayerTest):
                 pytest.skip("GPU gather_matmul kernel does not support FP32")
         self._test(*self.create_model(b_shape=b_shape, bf16=self.use_torch_export()), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"a_shape": a_shape},
-                   trace_model=True)
+                   trace_model=True, custom_eps=2e-2 if self.use_torch_export() else 1e-4)
 
 
 class TestGroupedMMOffsetsConstWeights(PytorchLayerTest):
@@ -96,7 +96,7 @@ class TestGroupedMMOffsetsConstWeights(PytorchLayerTest):
         self._test(*self.create_model(k=k, n=n, num_groups=len(offsets), bf16=self.use_torch_export()),
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"total_tokens": total_tokens, "offsets": offsets, "k": k},
-                   trace_model=True)
+                   trace_model=True, custom_eps=2e-2 if self.use_torch_export() else 1e-4)
 
 
 # ---------------------------------------------------------------------------
@@ -143,7 +143,7 @@ class TestFunctionalGroupedMMConstWeights(PytorchLayerTest):
                 pytest.skip("GPU gather_matmul kernel does not support FP32")
         self._test(*self.create_model(b_shape=b_shape, bf16=self.use_torch_export()), ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"a_shape": a_shape},
-                   trace_model=True)
+                   trace_model=True, custom_eps=2e-2 if self.use_torch_export() else 1e-4)
 
 
 class TestFunctionalGroupedMMOffsetsConstWeights(PytorchLayerTest):
@@ -188,4 +188,4 @@ class TestFunctionalGroupedMMOffsetsConstWeights(PytorchLayerTest):
         self._test(*self.create_model(k=k, n=n, num_groups=len(offsets), bf16=self.use_torch_export()),
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"total_tokens": total_tokens, "offsets": offsets, "k": k},
-                   trace_model=True)
+                   trace_model=True, custom_eps=2e-2 if self.use_torch_export() else 1e-4)

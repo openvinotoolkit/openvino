@@ -5,10 +5,7 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs assign(const NodeContext& node) {
     auto x = node.get_input("X");
     auto assign = std::make_shared<default_opset::Convert>(x, x.get_element_type());
@@ -16,7 +13,4 @@ NamedOutputs assign(const NodeContext& node) {
     return node.default_single_output_mapping({assign}, {"Out"});
 }
 
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

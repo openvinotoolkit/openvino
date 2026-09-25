@@ -120,6 +120,14 @@ if(ENABLE_INTEL_GPU)
     endif()
 
     if(TARGET OpenCL::OpenCL)
+        if(APPLE)
+            add_subdirectory(thirdparty/ocl/cl_headers
+                             thirdparty/ocl/cl_headers
+                             EXCLUDE_FROM_ALL)
+            list(APPEND opencl_cpp_include_dirs
+                "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/ocl/clhpp_headers/include")
+        endif()
+
         # try to find CL/opencl.hpp
         find_file(OpenCL_HPP
                   NAMES CL/opencl.hpp OpenCL/opencl.hpp
@@ -153,6 +161,12 @@ if(ENABLE_INTEL_GPU)
     get_target_property(opencl_target OpenCL::OpenCL ALIASED_TARGET)
     if(NOT TARGET ${opencl_target})
         set(opencl_target OpenCL::OpenCL)
+    endif()
+
+    if(APPLE)
+        target_include_directories(${opencl_target} INTERFACE
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/thirdparty/ocl/cl_headers>
+            $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/thirdparty/ocl/clhpp_headers/include>)
     endif()
 
     if(SUGGEST_OVERRIDE_SUPPORTED)
