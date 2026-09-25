@@ -20,6 +20,9 @@ static void CreateMLIROp(ProgramBuilder& p, const std::shared_ptr<ov::op::intern
     auto inputs = p.GetInputInfo(op);
     const std::string layer_name = layer_type_name_ID(op);
     const size_t num_outputs = op->get_output_size();
+    const auto& program = op->get_program();
+    OPENVINO_ASSERT(program, "[GPU] MLIROp '", layer_name, "' has no compiled program");
+    program->wait_compiled(); // The compilation is running in the background
 
     cldnn::mlir_primitive::shape_infer_function shape_infer_f = [op](const std::vector<ov::PartialShape>& input_shapes) {
         return op->shape_infer(input_shapes);
