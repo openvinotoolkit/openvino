@@ -1,0 +1,45 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-09-25-10-37-07-000-36123294303",
+    "timestamp": "2026-09-25T10:37:07Z",
+    "run_id": "36123294303",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36123294303",
+    "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+    "commit_sha": "a1bf0fb1ea427b651f8c65a74c22268b26dcf4a8",
+    "pr_number": "38393",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38393",
+    "author": "allnes",
+    "category": "Infrastructure",
+    "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+    "signature": "cc1plus: error: cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]|Infrastructure",
+    "signature_hash": "0ee6d7327812b344",
+    "confidence": "Medium",
+    "failed_jobs": [
+        {
+            "name": "Build / Build",
+            "conclusion": "failure",
+            "symptom": "Cmake build - OpenVINO step fails: cc1plus reports cmake_pch.hxx.gch is not a PCH file, treated as error via -Werror=invalid-pch"
+        },
+        {
+            "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+            "conclusion": "failure",
+            "symptom": "Aggregate status job exits 1 because the Build job failed"
+        }
+    ],
+    "key_errors": [
+        "FAILED: [code=1] src/core/shape_inference/CMakeFiles/openvino_shape_inference.dir/src/experimental_detectron_shape_infer_utils.cpp.o\ncc1plus: error: /home/runner/_work/openvino/openvino/openvino/openvino_build/src/core/shape_inference/CMakeFiles/openvino_shape_inference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]\ncc1plus: all warnings being treated as errors",
+        "FAILED: [code=1] src/core/shape_inference/CMakeFiles/openvino_shape_inference.dir/src/tensor_data_accessor.cpp.o\ncc1plus: error: .../cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]",
+        "FAILED: [code=1] src/core/shape_inference/CMakeFiles/openvino_shape_inference.dir/src/utils.cpp.o\ncc1plus: error: .../cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]",
+        "ninja: build stopped: subcommand failed."
+    ],
+    "root_cause": "During the ARM64 cross-compilation build, three translation units in the openvino_shape_inference target failed to compile because the precompiled header cmake_pch.hxx.gch used by that CMake target is not a valid PCH for the compiler invocation that consumed it (cc1plus: 'not a PCH file'). Because ENABLE_FASTER_BUILD and CMAKE_COMPILE_WARNING_AS_ERROR are ON, this diagnostic is escalated by -Werror=invalid-pch into a hard build failure. This class of error typically occurs when a stale or partially-written .gch artifact (e.g. left over from sccache/ccache reuse, a concurrent/parallel PCH generation race under -j15, or a toolchain/flags mismatch between the PCH-generating compile and the consuming compile) is picked up instead of being regenerated. The commit under investigation (#38393) only touches src/plugins/intel_gpu graph-optimizer code and its unit tests; it does not touch src/core/shape_inference or PCH/cmake configuration, so the failure is very unlikely to be caused by the PR's own diff and looks like an ARM64-cross-compile build-environment/toolchain issue (stale PCH artifact or a PCH-generation race under CMAKE_BUILD_PARALLEL_LEVEL=15) rather than a code regression.",
+    "reproduction_steps": "Not directly reproducible from a clean checkout without the exact runner image/cache state. To attempt reproduction: use the ARM64 cross-compilation Docker image (openvinogithubactions.azurecr.io/ov_build/ubuntu_22_04_arm64_cross_compilation:pr-38160), configure with the same cmake-options (-DCMAKE_TOOLCHAIN_FILE=cmake/arm64.toolchain.cmake -DENABLE_FASTER_BUILD=ON -DCMAKE_COMPILE_WARNING_AS_ERROR=ON), then run `cmake --build openvino_build --parallel 15` and check whether src/core/shape_inference/CMakeFiles/openvino_shape_inference.dir/cmake_pch.hxx.gch is regenerated cleanly before being consumed by the dependent .cpp.o compiles.",
+    "recommended_actions": [
+        "Re-run the failed 'Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)' workflow; if it passes on rerun, this confirms a transient/stale build-cache or PCH-generation race rather than a code regression.",
+        "If the failure recurs, inspect whether sccache is caching PCH compiler invocations (CMAKE_CXX_COMPILER_LAUNCHER=sccache with ENABLE_FASTER_BUILD/PCH) and whether a partially-written or previous-run .gch is being reused across build directories/containers.",
+        "Consider adding an explicit dependency/ordering safeguard so all dependent objects wait for a fully-written cmake_pch.hxx.gch before compiling, or temporarily disable ENABLE_FASTER_BUILD for the openvino_shape_inference target on this configuration if the race persists.",
+        "Verify sccache is not caching precompiled-header compiler invocations incorrectly for this compiler/arch combination (aarch64-linux-gnu-g++ with -Winvalid-pch)."
+    ],
+    "prevention_strategies": "Ensure PCH artifacts are always freshly generated per build (avoid caching .gch files across build directories or sccache keys), and consider not escalating -Werror=invalid-pch to a hard failure for PCH-consuming targets on cross-compilation configurations until the underlying cache/race is fixed, since a stale PCH should trigger a full regeneration rather than fail the whole build.",
+    "historical_context": "No prior post-commit investigation in this doctor's database references PCH, invalid-pch, or cmake_pch failures; this is a new failure pattern (first occurrence recorded)."
+}
