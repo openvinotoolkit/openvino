@@ -3,11 +3,8 @@
 //
 
 #include "stateless_kv_fusion.hpp"
-#include <cstdio>
-#include <cstdlib>
 #include <memory>
 #include <optional>
-#include <string_view>
 
 #include "intel_gpu/op/stateless_kv.hpp"
 #include "intel_gpu/op/sdpa.hpp"

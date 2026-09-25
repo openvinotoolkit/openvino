@@ -11,7 +11,7 @@
 namespace ov::intel_gpu::op {
 
 /// \brief Operator that implements Key-Values cache subgraph for large language models.
-/// seq_len can be present or past length, to avoid extra compututation or synchronization
+/// seq_len can be present or past length, to avoid extra computation or synchronization
 class StatelessKV : public ov::op::Op {
 public:
     OPENVINO_OP("StatelessKV", "gpu_opset");

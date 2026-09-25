@@ -15,20 +15,20 @@ StatelessKV::StatelessKV(const OutputVector& inputs, int64_t concat_axis, bool i
 
 StatelessKV::StatelessKV(const Output<Node>& past,
                          const Output<Node>& new_token_data,
-                         const Output<Node>& present_seq_len,
+                         const Output<Node>& seq_len,
                          int64_t concat_axis,
                          bool is_seq_len_present_len)
-    : StatelessKV({past, new_token_data, present_seq_len}, concat_axis, is_seq_len_present_len) {
+    : StatelessKV({past, new_token_data, seq_len}, concat_axis, is_seq_len_present_len) {
     validate_and_infer_types();
 }
 
 StatelessKV::StatelessKV(const Output<Node>& past,
                          const Output<Node>& new_token_data,
-                         const Output<Node>& present_seq_len,
+                         const Output<Node>& seq_len,
                          const Output<Node>& pos_idx,
                          int64_t concat_axis,
                          bool is_seq_len_present_len)
-    : StatelessKV({past, new_token_data, present_seq_len, pos_idx}, concat_axis, is_seq_len_present_len) {
+    : StatelessKV({past, new_token_data, seq_len, pos_idx}, concat_axis, is_seq_len_present_len) {
     validate_and_infer_types();
 }
 
@@ -42,9 +42,14 @@ void StatelessKV::validate_and_infer_types() {
     const auto input_type = get_input_element_type(0);
     const auto& input_shape = get_input_partial_shape(0);
     const auto& append_shape = get_input_partial_shape(1);
+    const auto& seq_len_shape = get_input_partial_shape(2);
+    const auto& seq_len_dtype = get_input_element_type(2);
 
     OPENVINO_ASSERT(input_shape.rank().is_static() && append_shape.rank().is_static(), "[GPU] stateless_kv requires static input rank");
     OPENVINO_ASSERT(input_shape.rank() == append_shape.rank(), "[GPU] stateless_kv requires input and new_token being the same rank");
+    OPENVINO_ASSERT(seq_len_dtype.is_integral_number() && seq_len_dtype != element::Type_t::u64, "[GPU] stateless_kv requires seq_len to be an integer number");
+    OPENVINO_ASSERT(seq_len_shape.is_static() && shape_size(seq_len_shape.get_shape()) == 1,
+                    "[GPU] stateless_kv requires seq_len to be static shape with single element");
     const auto concat_axis = ov::util::normalize(m_concat_axis, append_shape.rank().get_length());
     OPENVINO_ASSERT(concat_axis >= 0 && static_cast<size_t>(concat_axis) < static_cast<size_t>(input_shape.rank().get_length()),
                     "[GPU] stateless_kv concat_axis exceeds input rank");
