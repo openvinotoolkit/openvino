@@ -10,7 +10,6 @@
 #include "low_precision/network_helper.hpp"
 #include "low_precision/resolve_precision_attribute.hpp"
 #include "low_precision/rt_info/precisions_attribute.hpp"
-#include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convolution.hpp"
@@ -46,7 +45,9 @@ ov::intel_cpu::AlignUnsupportedLPConvFQPrecision::AlignUnsupportedLPConvFQPrecis
         if (conv_precisions.empty()) {
             return false;
         }
-        OPENVINO_ASSERT(conv_precisions.size() == 1, "Convolution input precision should be single");
+        if (conv_precisions.size() != 1) {
+            return false;
+        }
         const auto conv_precision = conv_precisions[0];
 
         auto fq_attr = low_precision::getAttributeFromOutput<ov::PrecisionsAttribute>(fq_node->output(0));

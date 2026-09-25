@@ -74,6 +74,7 @@
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/common_optimizations/normalize_fp16_dequantize.hpp"
 #include "transformations/common_optimizations/reshape_prelu.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
@@ -517,9 +518,11 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
             // QDQ stripping pipeline
             // 0. Deduplicate identical DQ subgraphs sharing a common Convert node
             qdq_stripping_manager.register_pass<ov::pass::SharedOpOptimization>();
-            // 1. Fuse FQ->Convert->DQ to a single FQ
+            // 1. Normalize FP16 dequantize chains to FP32 so CQD can match them
+            qdq_stripping_manager.register_pass<ov::pass::NormalizeDequantizeFP16>();
+            // 2. Fuse FQ->Convert->DQ to a single FQ
             qdq_stripping_manager.register_pass<ov::pass::ConvertQuantizeDequantize>(TypeVector{i16, u16});
-            // 2. Strip FQ layers with unsupported levels
+            // 3. Strip FQ layers with unsupported levels
             qdq_stripping_manager.register_pass<FQStrippingTransformation>(std::set<size_t>{levels::int16}, false);
             qdq_stripping_manager.run_passes(model);
         }

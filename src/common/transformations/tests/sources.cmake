@@ -98,6 +98,7 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/ngraph_fq_transpose_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/nonzero_horizontal_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/nop_elimination.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/normalize_fp16_dequantize_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/normalize_l2_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/optimize_strided_slice_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/pack_multi_head_attention_test.cpp
