@@ -50,6 +50,8 @@ TypeTraits type_traits(uint32_t type) {
         return {1, 2};
     case GGUF_TYPE_Q4_0:
         return {32, 18};
+    case GGUF_TYPE_Q1_0:
+        return {128, 18};
     case GGUF_TYPE_Q4_1:
         return {32, 20};
     case GGUF_TYPE_Q5_0:
@@ -111,6 +113,8 @@ std::optional<QuantLayout> quant_layout(uint32_t type) {
     switch (type) {
     case GGUF_TYPE_Q4_0:
         return QuantLayout{ov::element::i4, 1, ov::element::f16, 32, symmetric};
+    case GGUF_TYPE_Q1_0:
+        return QuantLayout{ov::element::i4, 1, ov::element::f16, 128, symmetric};
     case GGUF_TYPE_Q3_K:
         return QuantLayout{ov::element::i4, 1, ov::element::f16, 16, symmetric};
     case GGUF_TYPE_Q5_0:
