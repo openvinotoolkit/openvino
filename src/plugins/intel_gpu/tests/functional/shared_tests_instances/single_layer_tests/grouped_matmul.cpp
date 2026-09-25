@@ -5,7 +5,6 @@
 #include "single_op_tests/grouped_matmul.hpp"
 
 #include <algorithm>
-#include <iostream>
 #include <vector>
 
 #include "common_test_utils/test_constants.hpp"

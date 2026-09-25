@@ -724,8 +724,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 manager.register_pass<ov::intel_gpu::FuseMoERouterScale>();
                 manager.register_pass<ov::intel_gpu::FuseMOESharedExpert>();
             }
-        } 
-        else {
+        } else {
             manager.register_pass<ov::pass::ConvertGroupedMatMulToMatMul>();
         }
 
