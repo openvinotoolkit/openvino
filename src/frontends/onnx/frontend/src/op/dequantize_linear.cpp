@@ -254,8 +254,10 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     const auto& scale_shape = scale.get_partial_shape();
     ov::Output<ov::Node> zp;
 
+    const auto block_size = static_cast<size_t>(node.get_attribute_value<int64_t>("block_size", 0));
+
     // When no blocking dequantization is required - use regular DequantizeLinear
-    if (scale_shape.rank().is_static() && scale_shape.rank().get_length() <= 1) {
+    if (block_size == 0 && scale_shape.rank().is_static() && scale_shape.rank().get_length() <= 1) {
         return ai_onnx::opset_13::dequantize_linear(node);
     }
 
@@ -266,7 +268,6 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
                             "DequantizeLinear cannot operate with dynamic shapes of input X");
 
     auto axis = node.get_attribute_value<int64_t>("axis", 1);
-    const auto block_size = static_cast<size_t>(node.get_attribute_value<int64_t>("block_size", 0));
 
     FRONT_END_GENERAL_CHECK(block_size > 0, "block_size must be greater than zero");
 
@@ -283,11 +284,9 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
                             block_size,
                             ")");
 
-    // Validate that the x_scale shape matches the declared axis: same rank as X, with the
-    // axis dimension divided by block_size and all other dimensions unchanged.
     const auto& input_shape = src_x.get_partial_shape();
     FRONT_END_GENERAL_CHECK(
-        scale_shape.is_static() && scale_shape.rank().get_length() == input_shape.rank().get_length(),
+        scale_shape.rank().get_length() == input_shape.rank().get_length(),
         "DequantizeLinear x_scale shape ",
         scale_shape,
         " is incompatible with the rank of X ",
@@ -295,7 +294,7 @@ ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node) {
     for (int64_t i = 0; i < input_shape.rank().get_length(); ++i) {
         const int64_t expected_dim = i == axis ? static_cast<int64_t>(input_shape[i].get_length() / block_size)
                                                : static_cast<int64_t>(input_shape[i].get_length());
-        FRONT_END_GENERAL_CHECK(static_cast<int64_t>(scale_shape[i].get_length()) == expected_dim,
+        FRONT_END_GENERAL_CHECK(scale_shape[i].compatible(expected_dim),
                                 "DequantizeLinear x_scale shape ",
                                 scale_shape,
                                 " is incompatible with the declared axis ",
