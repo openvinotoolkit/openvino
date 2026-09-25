@@ -57,10 +57,6 @@ jobs:
       FILE_PATH: src/plugins/intel_npu/cmake/download_compiler_libs.cmake
       # Variables tracked for a value-level bump comparison.
       TRACKED_VARS: >-
-        PLUGIN_COMPILER_VERSION_MAJOR
-        PLUGIN_COMPILER_VERSION_MINOR
-        PLUGIN_COMPILER_VERSION_PATCH
-        PLUGIN_COMPILER_COMMIT_SHA
         PLUGIN_COMPILER_WINDOWS_2022_CHECKSUM
         PLUGIN_COMPILER_UBUNTU_22_04_CHECKSUM
         PLUGIN_COMPILER_UBUNTU_24_04_CHECKSUM
