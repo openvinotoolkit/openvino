@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_test_classes/base/ov_subgraph.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/op/gather_nd.hpp"
+#include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
 namespace test {
@@ -182,6 +183,7 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherND8DynamicBD_2,
 class GatherND8LayerCPUTestNegative : public GatherND8LayerCPUTest {};
 
 TEST_P(GatherND8LayerCPUTestNegative, ThrowsOnOutOfRangeIndices) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
     bool exception_caught = false;
     set_callback_exception([&exception_caught](const std::exception& ex) {
         exception_caught = true;
