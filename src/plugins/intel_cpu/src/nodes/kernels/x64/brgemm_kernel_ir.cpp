@@ -10,9 +10,12 @@
 
 #    include <cpu/x64/cpu_isa_traits.hpp>
 
+#    include <algorithm>
 #    include <cstdlib>
 #    include <iostream>
+#    include <optional>
 #    include <string>
+#    include <vector>
 
 #    include "openvino/core/except.hpp"
 
@@ -23,13 +26,11 @@ namespace ov::intel_cpu::kernel {
 
 namespace {
 
-// Emitting an M tile unrolls the whole accumulator block, so a shape with
-// many tiles would produce an enormous kernel. oneDNN loops over them; we
-// do not have a reason to yet, and a cap is honest about it.
-//
-// @todo claude: loop over bdb instead of unrolling, once a shape that
-// needs it is in the slice.
-constexpr dim_t max_unrolled_m_blocks = 4;
+// A tile is one M block by one column group, and every one of them is
+// unrolled at record time. oneDNN rolls both loops; until this generator
+// does, the product has to be capped or a large GEMM would emit an
+// enormous kernel.
+constexpr dim_t max_unrolled_tiles = 8;
 
 }  // namespace
 
@@ -123,9 +124,6 @@ const char* brgemm_kernel_ir::unsupported_reason(const brgemm_desc_t& brg) {
     if (brg.bdb_tail != 0) {
         return "bd (M) tail is not supported";
     }
-    if (brg.ldb_tail != 0) {
-        return "ld (N) tail is not supported";
-    }
     if (brg.rdb_tail != 0) {
         return "rd (K) tail is not supported";
     }
@@ -135,21 +133,15 @@ const char* brgemm_kernel_ir::unsupported_reason(const brgemm_desc_t& brg) {
         return "only a 16-column ld_block";
     }
 
-    // N is covered by a single group of ld_block2 column blocks. oneDNN
-    // instead loops (ldb_loop) over ldb2 groups plus an ldb2_tail group,
-    // so a descriptor with ldb > ld_block2 — N=80 gives ldb=5 against
-    // ld_block2=4 with no ldb_tail — would have this generator compute
-    // the first ld_block2 groups and silently leave the rest of C
-    // untouched.
+    // Every tile — one M block by one column group — is unrolled at
+    // record time, so the kernel grows with their product. oneDNN loops
+    // over both (bdb_loop, ldb_loop); until this one does, a cap keeps
+    // the code size honest.
     //
-    // @todo claude: loop over the N groups, which is also what the ld
-    // tail will need.
-    if (brg.ldb != brg.ld_block2) {
-        return "N spans several ld_block2 groups";
-    }
-
-    if (brg.bdb > max_unrolled_m_blocks) {
-        return "too many M blocks to unroll";
+    // @todo claude: roll the tile loops instead of capping.
+    const dim_t col_groups = utils::div_up(brg.ldb, brg.ld_block2) + (brg.ldb_tail ? 1 : 0);
+    if (brg.bdb * col_groups > max_unrolled_tiles) {
+        return "too many tiles to unroll";
     }
 
     // A degenerate descriptor would emit a kernel that stores nothing.
@@ -215,6 +207,8 @@ void brgemm_kernel_ir::generate() {
     // tiles down M, rdb steps of rd_block along K.
     const auto bd_block = static_cast<size_t>(m_brg.bd_block);
     const auto ld_block2 = static_cast<size_t>(m_brg.ld_block2);
+    const auto ldb_full = static_cast<size_t>(m_brg.ldb);
+    const auto ldb_tail = static_cast<size_t>(m_brg.ldb_tail);
     const auto bdb = static_cast<size_t>(m_brg.bdb);
     const auto rdb = static_cast<size_t>(m_brg.rdb);
     const auto rd_block = static_cast<size_t>(m_brg.rd_block);
@@ -231,22 +225,53 @@ void brgemm_kernel_ir::generate() {
     auto c_base = arg<float*>(&Params::ptr_C);
     auto bs_count = arg(&Params::BS);
 
-    // One M tile at a time, unrolled at record time because bdb is known
-    // here and small (capped in unsupported_reason). Each tile owns its
+    // How N is covered. oneDNN blocks it as `ldb` full 16-column blocks
+    // plus `ldb_tail` leftover columns, and emits `ld_block2` blocks per
+    // group (ldb2 and ldb2_tail are *not* usable here: when ld_block2 is
+    // shrunk to fit, brgemm_utils leaves them at their pre-shrink
+    // values). The leftover columns become one masked block.
+    struct col_group {
+        size_t first_block;
+        size_t blocks;
+        size_t lanes;  // active columns in the last block; N when full
+    };
+    std::vector<col_group> groups;
+    for (size_t b = 0; b < ldb_full; b += ld_block2) {
+        groups.push_back({b, std::min(ld_block2, ldb_full - b), N});
+    }
+    if (ldb_tail != 0) {
+        groups.push_back({ldb_full, 1, ldb_tail});
+    }
+
+    // One tile at a time — an M block by a column group. Each owns its
     // accumulators and stores them before the next begins, so peak
-    // pressure is one tile, not all of them.
+    // pressure is one tile rather than the whole of C.
     for (size_t m_blk = 0; m_blk < bdb; ++m_blk) {
         const size_t row0 = m_blk * bd_block;
+        for (const auto& group : groups) {
+            const size_t ld_count = group.blocks;
+
+            // A compile-time predicate for the partial block. Defined
+            // outside the loops it is used in, like the accumulators.
+            std::optional<jit_kernel_ir::value_id> tail_mask;
+            if (group.lanes != N) {
+                tail_mask = ir_const_lane_mask<N>(group.lanes);
+            }
+            // Only the last block of a group can be partial.
+            auto access = [&](size_t ld) {
+                return (tail_mask && ld + 1 == ld_count) ? vlen::predicated(*tail_mask)
+                                                         : vlen::all();
+            };
 
         // The accumulator tile. Defined before the batch loop: an
         // accumulator initialized inside a loop restarts every trip.
         std::vector<variable<float[N]>> acc;
-        acc.reserve(bd_block * ld_block2);
-        for (size_t i = 0; i < bd_block * ld_block2; ++i) {
+        acc.reserve(bd_block * ld_count);
+        for (size_t i = 0; i < bd_block * ld_count; ++i) {
             acc.push_back(ir_zero<N>());
         }
         auto at = [&](size_t bd, size_t ld) -> variable<float[N]>& {
-            return acc[bd * ld_block2 + ld];
+            return acc[bd * ld_count + ld];
         };
 
         // Walks the batch descriptor array; A and B come from it, one
@@ -269,13 +294,15 @@ void brgemm_kernel_ir::generate() {
                 // the two cursors with constant displacements.
                 for (size_t rd = 0; rd < rd_block; ++rd) {
                     std::vector<variable<float[N]>> b_col;
-                    b_col.reserve(ld_block2);
-                    for (size_t ld = 0; ld < ld_block2; ++ld) {
-                        b_col.push_back(ir_load<N>(b_ptr, (rd * ldb + ld * N) * ts));
+                    b_col.reserve(ld_count);
+                    for (size_t ld = 0; ld < ld_count; ++ld) {
+                        const size_t col = (group.first_block + ld) * N;
+                        b_col.push_back(
+                            ir_load<N>(b_ptr, (rd * ldb + col) * ts, access(ld)));
                     }
                     for (size_t bd = 0; bd < bd_block; ++bd) {
                         auto a_val = ir_broadcast<N>(a_ptr, (bd * lda + rd) * ts);
-                        for (size_t ld = 0; ld < ld_block2; ++ld) {
+                        for (size_t ld = 0; ld < ld_count; ++ld) {
                             ir_accumulate(at(bd, ld), Insn3::fmadd231ps, a_val, b_col[ld]);
                         }
                     }
@@ -288,9 +315,12 @@ void brgemm_kernel_ir::generate() {
         });
 
         for (size_t bd = 0; bd < bd_block; ++bd) {
-            for (size_t ld = 0; ld < ld_block2; ++ld) {
-                ir_store<N>(c_base, ((row0 + bd) * ldc + ld * N) * ts, at(bd, ld));
+            for (size_t ld = 0; ld < ld_count; ++ld) {
+                const size_t col = (group.first_block + ld) * N;
+                ir_store<N>(c_base, ((row0 + bd) * ldc + col) * ts, at(bd, ld),
+                            access(ld));
             }
+        }
         }
     }
 

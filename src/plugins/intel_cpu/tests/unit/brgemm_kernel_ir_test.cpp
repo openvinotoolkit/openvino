@@ -172,7 +172,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_BrgemmIr,
                                          gemm_shape {16, 32, 64, 1},
                                          gemm_shape {32, 64, 32, 2},
                                          gemm_shape {6, 16, 128, 4},
-                                         gemm_shape {64, 64, 64, 3}),
+                                         gemm_shape {64, 64, 64, 3},
+                                         // N tails: the last column block
+                                         // is partial and must be masked
+                                         // on both the B load and the C
+                                         // store.
+                                         gemm_shape {16, 20, 16, 1},
+                                         gemm_shape {8, 24, 32, 2},
+                                         gemm_shape {6, 1, 64, 1},
+                                         gemm_shape {16, 17, 16, 1},
+                                         // N wider than one column group,
+                                         // so the tile loop runs more than
+                                         // once across N.
+                                         gemm_shape {8, 80, 32, 1},
+                                         gemm_shape {6, 96, 16, 2}),
                          BrgemmKernelIrDifferential::getTestCaseName);
 
 // The factory has to decline cleanly, not throw or crash, for everything
