@@ -36,9 +36,9 @@ namespace v3 = ov::op::v3;
 namespace v8 = ov::op::v8;
 namespace internal = ov::op::internal;
 
-std::shared_ptr<ov::Model> build_fusable_model() {
-    auto query = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 8}, "query");
-    auto key = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 8}, "key");
+std::shared_ptr<ov::Model> build_fusable_model(size_t qk_heads = 4) {
+    auto query = ov::test::utils::make_param(element::f32, Shape{2, 3, qk_heads, 8}, "query");
+    auto key = ov::test::utils::make_param(element::f32, Shape{2, 3, qk_heads, 8}, "key");
     auto value = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 6}, "value");
 
     auto recurrent_state = ov::test::utils::make_param(element::f32, Shape{2, 4, 8, 6}, "past_recurrent_state");
@@ -166,8 +166,8 @@ ov::Output<ov::Node> build_paged_gdn_block(const std::shared_ptr<v0::Parameter>&
     const auto q_shape = std::make_shared<v3::ShapeOf>(query, element::i64);
     const auto v_shape = std::make_shared<v3::ShapeOf>(value, element::i64);
     const auto axis_0 = v0::Constant::create(element::i64, Shape{}, {0});
-    const auto idx_q = v0::Constant::create(element::i64, Shape{3}, {0, 1, 2});
-    const auto idx_v = v0::Constant::create(element::i64, Shape{1}, {3});
+    const auto idx_q = v0::Constant::create(element::i64, Shape{2}, {0, 1});
+    const auto idx_v = v0::Constant::create(element::i64, Shape{2}, {2, 3});
     const auto q_dims = std::make_shared<v8::Gather>(q_shape, idx_q, axis_0);
     const auto v_dim = std::make_shared<v8::Gather>(v_shape, idx_v, axis_0);
     const auto out_shape = std::make_shared<v0::Concat>(OutputVector{q_dims, v_dim}, 0);
@@ -178,9 +178,9 @@ ov::Output<ov::Node> build_paged_gdn_block(const std::shared_ptr<v0::Parameter>&
 
 // Reference graph for build_fusable_model() after PagedGatedDeltaNetFusion.
 // GDN is replaced by PagedGDN; state Result reconnected to ReadValue.
-std::shared_ptr<ov::Model> build_reference_fused_model() {
-    auto query = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 8}, "query");
-    auto key = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 8}, "key");
+std::shared_ptr<ov::Model> build_reference_fused_model(size_t qk_heads = 4) {
+    auto query = ov::test::utils::make_param(element::f32, Shape{2, 3, qk_heads, 8}, "query");
+    auto key = ov::test::utils::make_param(element::f32, Shape{2, 3, qk_heads, 8}, "key");
     auto value = ov::test::utils::make_param(element::f32, Shape{2, 3, 4, 6}, "value");
     auto recurrent_state = ov::test::utils::make_param(element::f32, Shape{2, 4, 8, 6}, "past_recurrent_state");
     recurrent_state->get_output_tensor(0).set_names({"cache_params.past.recurrent_state.0"});
@@ -388,4 +388,16 @@ TEST_F(PagedGatedDeltaNetFusionTest, FusesWhenStateInputIsGatherFromReadValue) {
     model = build_fusable_model_with_gathered_state();
     model_ref = build_reference_fused_model_with_gathered_state();
     run_paged_gated_delta_net_fusion(model);
+}
+
+// GQA: q/k have fewer heads than v; the fused output keeps the value head count.
+TEST_F(PagedGatedDeltaNetFusionTest, FusesWhenQueryHasFewerHeadsThanValue) {
+    model = build_fusable_model(2);
+    model_ref = build_reference_fused_model(2);
+    disable_rt_info_check();
+    comparator.disable(FunctionsComparator::PRECISIONS);
+    comparator.disable(FunctionsComparator::TENSOR_NAMES);
+
+    run_paged_gated_delta_net_fusion(model);
+    ASSERT_EQ(model->get_results()[0]->get_output_partial_shape(0), PartialShape({2, 3, 4, 6}));
 }
