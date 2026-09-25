@@ -9,6 +9,7 @@
 // several gguf inputs present together, which no single ggml op translation produces, and the two
 // fixes below specifically need the exact node shapes translate_get_rows itself builds.
 
+#include <cmath>
 #include <memory>
 
 #include "common_test_utils/node_builders/constant.hpp"
@@ -22,6 +23,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
@@ -34,6 +36,7 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/sink.hpp"
 #include "openvino/op/squeeze.hpp"
+#include "openvino/op/tanh.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/variable.hpp"
@@ -743,6 +746,72 @@ std::shared_ptr<ov::Model> build_attention_gguf_model(int64_t vocab, int64_t hid
         ov::ParameterVector{inp_tokens, inp_pos, self_kq_mask, token_len_per_seq, beam_idx});
 }
 
+constexpr float lm_head_soft_cap = 5.0f;
+
+float lm_head_weight(int64_t row, int64_t col) {
+    return 0.25f * static_cast<float>(row - col);
+}
+
+// Replaces the logits Result's input with the LM head as the frontend emits it: a rank-4
+// [1, 1, tokens, hidden] MatMul against [vocab, hidden], optionally followed by Gemma's final-logit
+// softcap (x * (1/cap) -> tanh -> * cap) with [1, 1, 1, 1] scale constants.
+void attach_lm_head(const std::shared_ptr<ov::Model>& model,
+                    const ov::Output<ov::Node>& hidden_states,
+                    int64_t vocab,
+                    int64_t hidden,
+                    bool softcap) {
+    ov::Output<ov::Node> hidden_4d = hidden_states;
+    if (hidden_states.get_partial_shape().size() == 3) {
+        hidden_4d = std::make_shared<v0::Unsqueeze>(hidden_states, v0::Constant::create(ov::element::i64, {1}, {0}));
+    }
+    std::vector<float> weight(vocab * hidden);
+    for (int64_t v = 0; v < vocab; ++v) {
+        for (int64_t h = 0; h < hidden; ++h) {
+            weight[v * hidden + h] = lm_head_weight(v, h);
+        }
+    }
+    ov::Output<ov::Node> logits =
+        std::make_shared<v0::MatMul>(hidden_4d,
+                                     v0::Constant::create(ov::element::f32, {(size_t)vocab, (size_t)hidden}, weight),
+                                     false,
+                                     true);
+    if (softcap) {
+        auto scale_down = v0::Constant::create(ov::element::f32, {1, 1, 1, 1}, {1.0f / lm_head_soft_cap});
+        auto scale_up = v0::Constant::create(ov::element::f32, {1, 1, 1, 1}, {lm_head_soft_cap});
+        logits = std::make_shared<v1::Multiply>(logits, scale_down);
+        logits = std::make_shared<v0::Tanh>(logits);
+        logits = std::make_shared<v1::Multiply>(logits, scale_up);
+    }
+    model->get_results()[0]->input(0).replace_source_output(logits);
+    model->validate_nodes_and_infer_types();
+}
+
+// GenAI's gather/slice-before-matmul only finds the LM head as Result <- MatMul, optionally behind
+// Divide -> Tanh -> Multiply, with a rank-3 MatMul input; returns the MatMul when that holds.
+std::shared_ptr<v0::MatMul> find_genai_lm_head(const std::shared_ptr<ov::Model>& model, bool softcap) {
+    auto node = model->get_results()[0]->get_input_node_shared_ptr(0);
+    if (softcap) {
+        const auto scale_up = ov::as_type_ptr<v1::Multiply>(node);
+        if (!scale_up) {
+            return nullptr;
+        }
+        const auto tanh = ov::as_type_ptr<v0::Tanh>(scale_up->get_input_node_shared_ptr(0));
+        if (!tanh) {
+            return nullptr;
+        }
+        const auto scale_down = ov::as_type_ptr<v1::Divide>(tanh->get_input_node_shared_ptr(0));
+        if (!scale_down) {
+            return nullptr;
+        }
+        node = scale_down->get_input_node_shared_ptr(0);
+    }
+    auto matmul = ov::as_type_ptr<v0::MatMul>(node);
+    if (!matmul || matmul->get_input_partial_shape(0).size() != 3) {
+        return nullptr;
+    }
+    return matmul;
+}
+
 }  // namespace
 
 TEST(GGUFAdaptToGenAI, SurvivesSDPAToPagedAttentionWithRealAttentionBlock) {
@@ -780,6 +849,66 @@ TEST(GGUFAdaptToGenAI, SurvivesSDPAToPagedAttentionWithRealAttentionBlock) {
         EXPECT_EQ(q_shape[1].get_length(), hidden);
     }
 }
+
+class GGUFAdaptToGenAILmHead : public ::testing::TestWithParam<bool> {};
+
+// Without the rank-3 Result <- MatMul form, GenAI can't select the sampled tokens before the LM
+// head, and PagedAttention prefill projects every prompt token to vocab.
+TEST_P(GGUFAdaptToGenAILmHead, ExposesHeadForGenAITokenSelection) {
+    const bool softcap = GetParam();
+    const int64_t vocab = 6, hidden = 3;
+    auto m = build_minimal_gguf_model(vocab, hidden);
+    attach_lm_head(m.model, m.embd, vocab, hidden, softcap);
+
+    ASSERT_TRUE(AdaptToGenAI().run_on_model(m.model));
+    ASSERT_NO_THROW(m.model->validate_nodes_and_infer_types());
+    ASSERT_EQ(m.model->get_results().size(), 1);
+    ASSERT_NE(find_genai_lm_head(m.model, softcap), nullptr);
+    if (softcap) {
+        const auto tanh = m.model->get_results()[0]->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0);
+        const auto divisor = ov::as_type_ptr<v0::Constant>(tanh->get_input_node_ptr(0)->get_input_node_shared_ptr(1));
+        ASSERT_NE(divisor, nullptr);
+        EXPECT_FLOAT_EQ(divisor->cast_vector<float>()[0], lm_head_soft_cap);
+    }
+
+    ov::Core core;
+    auto request =
+        core.compile_model(m.model, "CPU", ov::hint::inference_precision(ov::element::f32)).create_infer_request();
+    const size_t length = 3;
+    for (const auto& [name, tensor] : make_genai_inputs(length)) {
+        request.set_tensor(name, tensor);
+    }
+    request.infer();
+    const auto logits = request.get_tensor("logits");
+    ASSERT_EQ(logits.get_shape(), (ov::Shape{1, length, (size_t)vocab}));
+    for (size_t token = 0; token < length; ++token) {
+        for (int64_t v = 0; v < vocab; ++v) {
+            float expected = 0.0f;
+            for (int64_t h = 0; h < hidden; ++h) {
+                expected += lm_head_weight(v, h) * static_cast<float>(token * hidden + h);
+            }
+            if (softcap) {
+                expected = lm_head_soft_cap * std::tanh(expected / lm_head_soft_cap);
+            }
+            EXPECT_NEAR(logits.data<float>()[token * vocab + v], expected, 1e-4f);
+        }
+    }
+}
+
+// GenAI applies its token selection after SDPAToPagedAttention, so the head must keep its form there.
+TEST_P(GGUFAdaptToGenAILmHead, KeepsHeadFormThroughSDPAToPagedAttention) {
+    const bool softcap = GetParam();
+    const int64_t vocab = 8, hidden = 4;
+    auto model = build_attention_gguf_model(vocab, hidden);
+    attach_lm_head(model, model->get_results()[0]->input_value(0), vocab, hidden, softcap);
+
+    ASSERT_TRUE(AdaptToGenAI().run_on_model(model));
+    ASSERT_TRUE(ov::pass::SDPAToPagedAttention().run_on_model(model));
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+    EXPECT_NE(find_genai_lm_head(model, softcap), nullptr);
+}
+
+INSTANTIATE_TEST_SUITE_P(Softcap, GGUFAdaptToGenAILmHead, ::testing::Bool());
 
 // The per-layer token lookup becomes a per_layer_inputs input, so the language model takes
 // embeddings only, and the unmodified PagedAttention conversion applies as for optimum-intel.
