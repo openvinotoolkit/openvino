@@ -3,100 +3,113 @@
 //
 #include "transformations/common_optimizations/mark_math_before_floor_to_keep_f16_rounding.hpp"
 
+#include <functional>
+#include <string>
+
 #include "common_test_utils/ov_test_utils.hpp"
+#include "openvino/op/acos.hpp"
+#include "openvino/op/acosh.hpp"
+#include "openvino/op/asin.hpp"
+#include "openvino/op/asinh.hpp"
+#include "openvino/op/atan.hpp"
+#include "openvino/op/atanh.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/cos.hpp"
+#include "openvino/op/cosh.hpp"
 #include "openvino/op/floor.hpp"
+#include "openvino/op/hard_sigmoid.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/relu.hpp"
+#include "openvino/op/selu.hpp"
+#include "openvino/op/sign.hpp"
 #include "openvino/op/sin.hpp"
-#include "openvino/opsets/opset1_decl.hpp"
-#include "openvino/pass/manager.hpp"
+#include "openvino/op/sinh.hpp"
+#include "openvino/op/softplus.hpp"
+#include "openvino/op/softsign.hpp"
+#include "openvino/op/tan.hpp"
 #include "transformations/rt_info/disable_precision_conversion.hpp"
 
-TEST_F(TransformationTestsF, MarkMathBeforeFloorToKeepF16RoundingTest_CosFeedsFloor) {
-    /*
-    Cos directly feeding Floor is marked with disable_conversion(f16, f32)
+namespace {
 
-        Param
-          |
-         Cos
-          |
-        Floor
-    */
-    {
-        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1});
-        auto cos = std::make_shared<ov::op::v0::Cos>(input);
-        auto floor = std::make_shared<ov::op::v0::Floor>(cos);
-        model = std::make_shared<ov::Model>(floor, ov::ParameterVector{input}, "model");
-    }
+using MathBuilder = std::function<std::shared_ptr<ov::Node>(const ov::Output<ov::Node>&)>;
 
-    manager.register_pass<ov::pass::MarkMathBeforeFloorToKeepF16Rounding>();
-
-    {
-        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1});
-        auto cos = std::make_shared<ov::op::v0::Cos>(input);
-        auto floor = std::make_shared<ov::op::v0::Floor>(cos);
-        ov::disable_conversion(cos, ov::element::f16, ov::element::f32);
-        model_ref = std::make_shared<ov::Model>(floor, ov::ParameterVector{input}, "model_ref");
-    }
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+template <class Op>
+MathBuilder unary() {
+    return [](const ov::Output<ov::Node>& in) {
+        return std::make_shared<Op>(in);
+    };
 }
 
-TEST_F(TransformationTestsF, MarkMathBeforeFloorToKeepF16RoundingTest_CosWithoutFloorIsNotMarked) {
-    /*
-    Cos not directly feeding a Floor is left unmarked
-
-        Param
-          |
-         Cos
-          |
-        Relu
-    */
-    {
-        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1});
-        auto cos = std::make_shared<ov::op::v0::Cos>(input);
-        auto relu = std::make_shared<ov::op::v0::Relu>(cos);
-        model = std::make_shared<ov::Model>(relu, ov::ParameterVector{input}, "model");
-    }
-
-    manager.register_pass<ov::pass::MarkMathBeforeFloorToKeepF16Rounding>();
-
-    {
-        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1});
-        auto cos = std::make_shared<ov::op::v0::Cos>(input);
-        auto relu = std::make_shared<ov::op::v0::Relu>(cos);
-        model_ref = std::make_shared<ov::Model>(relu, ov::ParameterVector{input}, "model_ref");
-    }
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+template <class Op>
+MathBuilder with_two_constants(float first, float second) {
+    return [=](const ov::Output<ov::Node>& in) {
+        return std::make_shared<Op>(in,
+                                    ov::op::v0::Constant::create(ov::element::f16, {}, {first}),
+                                    ov::op::v0::Constant::create(ov::element::f16, {}, {second}));
+    };
 }
 
-TEST_F(TransformationTestsF, MarkMathBeforeFloorToKeepF16RoundingTest_SinFeedsFloor) {
-    /*
-    Sin directly feeding Floor is marked with disable_conversion(f16, f32) too
+const std::vector<MathBuilder> math_builders = {
+    unary<ov::op::v0::Cos>(),
+    unary<ov::op::v0::Cosh>(),
+    unary<ov::op::v0::Sin>(),
+    unary<ov::op::v0::Sinh>(),
+    unary<ov::op::v0::Acos>(),
+    unary<ov::op::v3::Acosh>(),
+    unary<ov::op::v0::Asin>(),
+    unary<ov::op::v3::Asinh>(),
+    unary<ov::op::v0::Atan>(),
+    unary<ov::op::v3::Atanh>(),
+    unary<ov::op::v0::Tan>(),
+    unary<ov::op::v0::Sign>(),
+    unary<ov::op::v4::SoftPlus>(),
+    unary<ov::op::v9::SoftSign>(),
+    with_two_constants<ov::op::v0::Selu>(1.67326f, 1.0507f),
+    with_two_constants<ov::op::v0::HardSigmoid>(0.2f, 0.5f),
+};
 
-        Param
-          |
-         Sin
-          |
-        Floor
-    */
-    {
-        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1});
-        auto sin = std::make_shared<ov::op::v0::Sin>(input);
-        auto floor = std::make_shared<ov::op::v0::Floor>(sin);
-        model = std::make_shared<ov::Model>(floor, ov::ParameterVector{input}, "model");
+// Builds Parameter -> Math -> Consumer; the Math node is marked when `mark_math` is set.
+template <class Consumer>
+std::shared_ptr<ov::Model> make_model(const MathBuilder& build_math, bool mark_math) {
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1});
+    auto math = build_math(input);
+    if (mark_math) {
+        ov::disable_conversion(math, ov::element::f16, ov::element::f32);
     }
-
-    manager.register_pass<ov::pass::MarkMathBeforeFloorToKeepF16Rounding>();
-
-    {
-        auto input = std::make_shared<ov::opset1::Parameter>(ov::element::f16, ov::Shape{1});
-        auto sin = std::make_shared<ov::op::v0::Sin>(input);
-        auto floor = std::make_shared<ov::op::v0::Floor>(sin);
-        ov::disable_conversion(sin, ov::element::f16, ov::element::f32);
-        model_ref = std::make_shared<ov::Model>(floor, ov::ParameterVector{input}, "model_ref");
-    }
-    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
-    comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+    auto consumer = std::make_shared<Consumer>(math);
+    return std::make_shared<ov::Model>(ov::OutputVector{consumer}, ov::ParameterVector{input});
 }
+
+class MarkMathBeforeFloorToKeepF16RoundingTest : public TransformationTestsF,
+                                                 public testing::WithParamInterface<MathBuilder> {
+public:
+    static std::string get_test_case_name(const testing::TestParamInfo<MathBuilder>& obj) {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1});
+        return obj.param(input)->get_type_name();
+    }
+
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+        comparator.enable(FunctionsComparator::CmpValues::RUNTIME_KEYS);
+        manager.register_pass<ov::pass::MarkMathBeforeFloorToKeepF16Rounding>();
+    }
+};
+
+TEST_P(MarkMathBeforeFloorToKeepF16RoundingTest, MathFeedingFloorIsMarked) {
+    model = make_model<ov::op::v0::Floor>(GetParam(), false);
+    model_ref = make_model<ov::op::v0::Floor>(GetParam(), true);
+}
+
+TEST_P(MarkMathBeforeFloorToKeepF16RoundingTest, MathNotFeedingFloorIsNotMarked) {
+    model = make_model<ov::op::v0::Relu>(GetParam(), false);
+    model_ref = make_model<ov::op::v0::Relu>(GetParam(), false);
+}
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         MarkMathBeforeFloorToKeepF16RoundingTest,
+                         testing::ValuesIn(math_builders),
+                         MarkMathBeforeFloorToKeepF16RoundingTest::get_test_case_name);
+
+}  // namespace
