@@ -35,10 +35,13 @@
 //   partition p covers keys swa_start_token + [p, p + 1) * SEQ_LEN_PARTITION_SIZE
 //     (with a sliding window the host drops the fully-masked prefix, so p = 0 need not start at 0)
 //   total_partitions_num == get_num_groups(2)
-//   seq_len > SEQ_LEN_PARTITION_SIZE && total_partitions_num > 1
-//        -> exp_sums / max_logits / tmp_out against the partition's OWN max (tmp_out divided by it)
-//   otherwise -> output directly: the host runs the finalization only for more than one partition,
-//        and a long sequence with a small window has seq_len > 256 yet ONE partition.
+//   effective_seq_len > SEQ_LEN_PARTITION_SIZE && total_partitions_num > 1,
+//   effective_seq_len = seq_len - swa_start_token (the length the finalization partitions)
+//        -> exp_sums / max_logits against the partition's OWN max, tmp_out divided by the
+//           partition's own sum
+//   otherwise -> output directly: the finalization skips a sequence with one partition, while
+//        the host sizes the dispatch for the worst-case window (ceil(SWA / 16) + 1 pages, so 2
+//        partitions for a 241..256 window) and a sequence's own window may fit one.
 
 #include "include/batch_headers/common.cl"
 #include "include/batch_headers/sub_group_block_read.cl"
@@ -283,15 +286,15 @@
 #endif
 
 // Stores one normalised output element (head, value) of this partition: into tmp_out for the
-// finalization when the sequence spans several partitions, straight into output otherwise.
+// finalization when the sequence's window spans several partitions, straight into output otherwise.
 // always_inline for the reason given at SDPA_OCL_INLINE in sdpa_ocl_config.cl (a plain inline
 // helper changes the whole kernel's ISA).
 __attribute__((always_inline)) inline void FUNC(store_out)(__global OUTPUT_TYPE* output, __global OUTPUT_TYPE* tmp_out,
-                                                           const uint seq_len, const uint total_partitions_num,
+                                                           const uint effective_seq_len, const uint total_partitions_num,
                                                            const uint seq_idx, const uint head,
                                                            const uint partition_idx, const uint value,
                                                            const SOFTMAX_ACCUMULATOR_TYPE o) {
-    if (seq_len > SEQ_LEN_PARTITION_SIZE && total_partitions_num > 1) {
+    if (effective_seq_len > SEQ_LEN_PARTITION_SIZE && total_partitions_num > 1) {
         const size_t tmp_out_offset = (size_t)seq_idx * HEADS_NUM * V_HEAD_SIZE * total_partitions_num +
                                       (size_t)head * V_HEAD_SIZE * total_partitions_num +
                                       (size_t)partition_idx * V_HEAD_SIZE + value;
@@ -347,9 +350,10 @@ KERNEL(sdpa_ocl_decode)(
     // ---- Sliding-window block skip: with a window the host drops the fully-masked prefix before
     // counting partitions (paged_attention_opt.cpp, effective_context_len), so partition 0 begins
     // at the first block the window can reach. Must match pa_sdpa_opt's swa_start_block /
-    // swa_start_token / effective_blocks_num exactly (same partition count, same finalization); a
-    // mismatch is silent -- an all-masked, well-formed result. swa_start_block rounds down, so the
-    // per-key mask is still needed.
+    // swa_start_token / effective_blocks_num / effective_seq_len exactly (same partition count, same
+    // finalization); a mismatch is silent -- an all-masked, well-formed result, or an output nobody
+    // writes. pa_sdpa_opt skips blocks only without scores output, which supported() rejects here.
+    // swa_start_block rounds down, so the per-key mask is still needed.
 #if SLIDING_WINDOW_SIZE != 0
     const uint swa_start_block =
         (seq_len > SLIDING_WINDOW_SIZE) ? ((seq_len - SLIDING_WINDOW_SIZE) / PAGED_ATTENTION_BLOCK_SIZE) : 0;
@@ -359,6 +363,10 @@ KERNEL(sdpa_ocl_decode)(
     const uint effective_blocks_num = total_blocks_num;
 #endif
     const uint swa_start_token = swa_start_block * PAGED_ATTENTION_BLOCK_SIZE;
+    // Picks tmp_out vs output and whether exp_sums / max_logits are written: the finalization
+    // partitions this length, not seq_len. (pa_sdpa_opt's seq_len predicate for exp_sums is broader;
+    // the extra entries it writes are never read.)
+    const uint effective_seq_len = seq_len - swa_start_token;
 
     // Workgroup-uniform, so the whole workgroup leaves together and the barrier below is safe.
     if (partition_idx * SEQ_LEN_PARTITION_SIZE >= effective_blocks_num * PAGED_ATTENTION_BLOCK_SIZE) {
@@ -885,7 +893,7 @@ KERNEL(sdpa_ocl_decode)(
 #    endif
             const uint head = head_base + m;
             const SOFTMAX_ACCUMULATOR_TYPE o = QV(acc, m) * QV(inv_l, m);
-            FUNC_CALL(store_out)(output, tmp_out, seq_len, total_partitions_num, seq_idx, head, partition_idx, value, o);
+            FUNC_CALL(store_out)(output, tmp_out, effective_seq_len, total_partitions_num, seq_idx, head, partition_idx, value, o);
         }
 #endif
     }
@@ -909,12 +917,12 @@ KERNEL(sdpa_ocl_decode)(
             }
             o *= QV(inv_l, m);
             const uint head = head_base + m;
-            FUNC_CALL(store_out)(output, tmp_out, seq_len, total_partitions_num, seq_idx, head, partition_idx, value, o);
+            FUNC_CALL(store_out)(output, tmp_out, effective_seq_len, total_partitions_num, seq_idx, head, partition_idx, value, o);
         }
     }
 #endif
 
-    if (seq_len > SEQ_LEN_PARTITION_SIZE && total_partitions_num > 1 && sgid == 0 && lane == 0) {
+    if (effective_seq_len > SEQ_LEN_PARTITION_SIZE && total_partitions_num > 1 && sgid == 0 && lane == 0) {
         unroll_for(uint m = 0; m < Q_PER_WG; ++m) {
 #ifdef HAS_HEAD_LEFTOVERS
             if (m >= heads_this_wg) {
