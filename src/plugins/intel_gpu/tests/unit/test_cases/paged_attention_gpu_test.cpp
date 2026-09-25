@@ -120,6 +120,48 @@ INSTANTIATE_TEST_SUITE_P(
     paged_attention_swa_partition_finalization_test,
     ::testing::Values(paged_attention_test_params{{{1, 511}, {1, 512}}, 8, 2, 128, 128, 16, 256, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false}));
 
+// A 241..256-token window makes the host dispatch 2 GENERATE partitions (it sizes for ceil(SWA/16) + 1 pages),
+// while a sequence whose own window fits one partition is skipped by the finalization, so the kernel has to write
+// that sequence's output directly. With the harness data the reference output stays below the compressed-cache
+// tolerances, so an unwritten output (zeros or stale memory) would pass the value check: poison the output with
+// NaN and run again, so that any element nothing writes fails.
+class paged_attention_swa_one_partition_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_swa_one_partition_test, writes_output_directly) {
+    auto p = GetParam();
+    ASSERT_TRUE(this->pam.has_value());
+    auto& pam = *this->pam;
+
+    auto result = run_gpu_inference(pam, p);
+    auto pa_inst = result.network->get_primitive("paged_attention");
+    ASSERT_NE(pa_inst, nullptr);
+    const auto pa_output = pa_inst->output_memory_ptr(0);
+    ASSERT_NE(pa_output, nullptr);
+    {
+        cldnn::mem_lock<ov::float16, cldnn::mem_lock_type::write> out(pa_output, tests::get_test_stream());
+        std::fill(out.begin(), out.end(), std::numeric_limits<ov::float16>::quiet_NaN());
+    }
+
+    result.outputs = result.network->execute();
+    // The poison only proves something if the second run kept the same output memory (true for GENERATE, which
+    // never reallocates at an unchanged shape; a MIXED case would need is_the_same_buffer() instead).
+    ASSERT_EQ(pa_inst->output_memory_ptr(0).get(), pa_output.get());
+
+    const auto reference = PagedAttentionReference(pam).get_reference(result.key_cache_mem);
+    compare(result.outputs.at("output_data").get_memory(), nullptr, nullptr, reference);
+}
+
+// Instantiated under smoke_paged_attention so that every gtest group selecting smoke_paged_attention/* runs it.
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention,
+    paged_attention_swa_one_partition_test,
+    ::testing::Values(
+        // seq 0 (1024 tokens) has an effective length of exactly 256; seq 1 (527) needs both partitions.
+        paged_attention_test_params{{{1, 1023}, {1, 526}}, 2, 2, 64, 64, 16, 256, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false},                           // i8, head 64 (reduction store)
+        paged_attention_test_params{{{1, 1023}, {1, 526}}, 2, 2, 64, 64, 16, 256, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4},   // u4, head 64 (reduction store)
+        paged_attention_test_params{{{1, 1023}, {1, 526}}, 8, 2, 128, 128, 16, 256, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4}, // u4 GQA, head 128 (direct store)
+        paged_attention_test_params{{{1, 1023}}, 8, 2, 128, 128, 16, 256, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false}));                                     // i8 GQA, one sequence is enough
+
 // k_head_size != v_head_size.
 //
 // The MIXED stage is the load-bearing case: with the BY_CHANNEL token-major staging switch on, the
