@@ -3,6 +3,7 @@
 //
 
 #include "custom/single_layer_tests/classes/matmul.hpp"
+#include "shared_test_classes/base/benchmark.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
 #include "utils/fusing_test_utils.hpp"
@@ -344,6 +345,59 @@ const auto testBrgemmParams_smoke = ::testing::Combine(matMulBrgemmParams_smoke,
                                                        ::testing::ValuesIn(filterSpecificParams_Brgemm()));
 
 INSTANTIATE_TEST_SUITE_P(smoke_MM_Brgemm_Static, MatMulLayerCPUTest, testBrgemmParams_smoke, MatMulLayerCPUTest::getTestCaseName);
+
+// ── BRGEMM kernel benchmark ────────────────────────────────────────────
+//
+// Times the MatMul node so the oneDNN BRGEMM generator and the jit_kernel
+// IR one can be compared on the same shapes. Disabled by default:
+//
+//   OV_JIT_IR_BRGEMM=0 ov_cpu_func_tests \
+//       --gtest_also_run_disabled_tests --gtest_filter='MatMulBrgemmBench*'
+//   OV_JIT_IR_BRGEMM=1 ...same...
+//
+// Shapes are the subset of IS_brgemm_smoke whose descriptors the IR
+// generator currently accepts — checked with OV_JIT_IR_BRGEMM=2, which
+// fails rather than falling back. Benchmarking a shape it declines would
+// compare oneDNN against itself and report a dead heat.
+//
+// No fusing: post-ops are outside the IR generator's slice, and a fused
+// MatMul would silently fall back for the same reason.
+//
+// These do not validate results — BenchmarkLayerTest replaces validate()
+// with its own reporting. Correctness is the CompareWithRefs instances
+// above, plus the bit-exact differential in the unit tests.
+const std::vector<ShapeRelatedParams> IS_brgemm_bench = {
+        {static_shapes_to_test_representation({{1, 2, 32, 120}, {120, 5}}), {false, false}},
+        {static_shapes_to_test_representation({{7, 32, 120}, {3, 7, 120, 50}}), {false, true}},
+};
+
+const auto matMulBrgemmParams_bench = ::testing::Combine(::testing::ValuesIn(IS_brgemm_bench),
+                                                         ::testing::Values(ElementType::f32),
+                                                         ::testing::Values(ElementType::dynamic),
+                                                         ::testing::Values(ElementType::dynamic),
+                                                         ::testing::Values(utils::InputLayerType::PARAMETER),
+                                                         ::testing::Values(ov::test::utils::DEVICE_CPU),
+                                                         ::testing::ValuesIn(filterAdditionalConfig_Brgemm()));
+
+const auto testBrgemmParams_bench = ::testing::Combine(matMulBrgemmParams_bench,
+                                                       ::testing::Values(MatMulNodeType::MatMul),
+                                                       ::testing::Values(emptyFusingSpec),
+                                                       ::testing::ValuesIn(filterSpecificParams_Brgemm()));
+
+using MatMulBrgemmBench = ov::test::BenchmarkLayerTest<MatMulLayerCPUTest>;
+
+TEST_P(MatMulBrgemmBench, DISABLED_benchmark) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    // One thread and one stream: this compares kernels, not thread scaling.
+    configuration.insert(ov::inference_num_threads(1));
+    configuration.insert(ov::num_streams(1));
+    run_benchmark("MatMul", std::chrono::milliseconds(2000), 200);
+}
+
+INSTANTIATE_TEST_SUITE_P(MatMulBrgemmBench,
+                         MatMulBrgemmBench,
+                         testBrgemmParams_bench,
+                         MatMulLayerCPUTest::getTestCaseName);
 
 const auto matMulBrgemmParams_FP16_smoke = ::testing::Combine(::testing::ValuesIn(IS_brgemm_smoke),
                                                               ::testing::Values(ElementType::f32),
