@@ -733,11 +733,10 @@ static void fill_q4_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Ten
     });
 }
 
-// Q1_0 binary: block = |f16 d|u1 qs[16]| (18 bytes / 128 weights), value = bit ? +d : -d.
-// ggml packs the 128 single-bit codes 8 per byte, LSB-first (dequantize_row_q1_0:
-// `(qs[j/8] >> (j%8)) & 1`). Codes are re-expressed as i4 nibbles (0 -> -1 -> 0xF, 1 -> +1 ->
-// 0x1) and packed two-per-byte low-nibble-first, matching OpenVINO's i4 Constant convention
-// (see unpack_32_4 above), so the same SYMMETRIC_I4 weight layout as Q4_0 can be reused as-is.
+// Q1_0 block: 18 bytes = f16 scale d + 128 packed 1-bit codes (bit ? +d : -d).
+// We re-expand each bit to an i4 nibble (0 -> 0xF, 1 -> 0x1), packed two-per-byte
+// low-nibble-first - same layout OpenVINO already uses for Q4_0.
+// So Q1_0 reuses the existing SYMMETRIC_I4 path unchanged.
 static void fill_q1_0(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr) {
     const uint64_t bytes_per_block = 18;
     const uint64_t out_bytes_per_block = 64;  // 128 elements as i4, 2 per byte
