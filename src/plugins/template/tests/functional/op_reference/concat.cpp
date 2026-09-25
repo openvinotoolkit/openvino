@@ -6,7 +6,10 @@
 
 #include <gtest/gtest.h>
 
+#include <type_traits>
+
 #include "base_reference_test.hpp"
+#include "openvino/core/type/float4_e2m1.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
@@ -148,7 +151,9 @@ std::vector<ConcatParams> generateParams() {
 
 template <element::Type_t ET>
 std::vector<ConcatParams> generateParamsNibblePacked() {
-    // 4-bit "nibble" types (u4, i4, nf4, f4e2m1)
+    // 4-bit "nibble" types with int8_t as their raw storage type (u4, i4, nf4).
+    static_assert(!std::is_same_v<typename element_type_traits<ET>::value_type, ov::float4_e2m1>,
+                  "f4e2m1's value_type encodes a numeric float, not a raw byte - use generateParamsBitPackedF4E2M1");
     using T = typename element_type_traits<ET>::value_type;
     std::vector<ConcatParams> params{
         ConcatParams({},
@@ -158,6 +163,21 @@ std::vector<ConcatParams> generateParamsNibblePacked() {
                      1,
                      reference_tests::Tensor(ET, {2, 4}, std::vector<T>{0x21, 0x65, 0x43, 0x17}),
                      "concat_nibble_packed_axis_1"),
+    };
+    return params;
+}
+
+std::vector<ConcatParams> generateParamsBitPackedF4E2M1() {
+    const auto ET = element::f4e2m1;
+    using T = int8_t;
+    std::vector<ConcatParams> params{
+        ConcatParams({},
+                     reference_tests::Tensor(ET, {2, 2}, std::vector<T>{0x21, 0x43}),  // rows [1,2],[3,4]
+                     reference_tests::Tensor(ET, {2, 2}, std::vector<T>{0x65, 0x17}),  // rows [5,6],[7,1]
+                     reference_tests::Tensor(ET, {2, 0}, std::vector<T>{}),
+                     1,
+                     reference_tests::Tensor(ET, {2, 4}, std::vector<T>{0x21, 0x65, 0x43, 0x17}),
+                     "concat_f4e2m1_packed_axis_1"),
     };
     return params;
 }
@@ -345,7 +365,7 @@ std::vector<ConcatParams> generateCombinedParams() {
         generateParamsNibblePacked<element::Type_t::u4>(),
         generateParamsNibblePacked<element::Type_t::i4>(),
         generateParamsNibblePacked<element::Type_t::nf4>(),
-        generateParamsNibblePacked<element::Type_t::f4e2m1>(),
+        generateParamsBitPackedF4E2M1(),
         generateParamsBitPackedU2(),
         generateParamsBitPackedU1(),
         generateParamsBitPackedU3(),
