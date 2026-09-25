@@ -29,7 +29,8 @@ public:
          const std::vector<int64_t>& order_v,
          const std::vector<int64_t>& order_out,
          const ov::element::Type output_type = ov::element::dynamic,
-         CausalMaskAlignment causal_mask_alignment = CausalMaskAlignment::UPPER_LEFT);
+         CausalMaskAlignment causal_mask_alignment = CausalMaskAlignment::UPPER_LEFT,
+         int64_t sliding_window_size = 0);
 
     SDPA(const OutputVector& inputs,
          const bool is_causal,
@@ -39,7 +40,8 @@ public:
          const std::vector<int64_t>& order_out,
          const QuantizationAttribute& quantization_attrs,
          const ov::element::Type output_type = ov::element::dynamic,
-         CausalMaskAlignment causal_mask_alignment = CausalMaskAlignment::UPPER_LEFT);
+         CausalMaskAlignment causal_mask_alignment = CausalMaskAlignment::UPPER_LEFT,
+         int64_t sliding_window_size = 0);
 
     bool visit_attributes(ov::AttributeVisitor &visitor) override;
 
@@ -59,6 +61,15 @@ public:
     bool get_kv_compressed() const { return m_compressed; }
     QuantizationAttribute get_quantization_attrs() const { return m_quantization_attrs; }
     size_t get_compression_inputs_num() const;
+
+    // Sliding-window attention (SWA) window size, in tokens.
+    //   0  -> disabled (default; matches kernel guards `SLIDING_WINDOW_SIZE != 0`)
+    //   >0 -> window size in tokens; takes effect only when is_causal == true, since the kernel
+    //         applies the window inside the causal-mask branch. Non-causal SDPA ignores it.
+    // Note: GQA uses -1 for "disabled" upstream; that's mapped to 0 at this SDPA boundary
+    // (the setter rejects negative values).
+    int64_t get_sliding_window_size() const { return m_sliding_window_size; }
+    void set_sliding_window_size(int64_t v);
 
     static std::vector<int64_t> default_order(size_t rank) {
         std::vector<int64_t> order(rank);
@@ -86,6 +97,7 @@ protected:
 
     bool m_compressed = false;
     QuantizationAttribute m_quantization_attrs = {};
+    int64_t m_sliding_window_size = 0;
 };
 
 std::vector<ov::PartialShape> shape_infer(const SDPA* op,

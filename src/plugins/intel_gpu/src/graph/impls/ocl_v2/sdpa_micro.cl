@@ -284,6 +284,12 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         window_k_begin = MAX(0, k - SLIDING_WINDOW_SIZE);
     #elif IS_PAGED_ATTENTION && !IS_PREFILL
         window_k_begin = MAX(0, past_len + (int)wg_j0 - SLIDING_WINDOW_SIZE + 1);
+    #elif !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
+        /* causal_offset (declared above, still in scope here since IS_CAUSAL implies it was
+           set) shifts wg_j0 to its true whole-sequence position -- without it wg_j0 alone
+           (bounded by this chunk's size) can never exceed SLIDING_WINDOW_SIZE and this always
+           clamps to 0, silently disabling the K-range skip for any chunked prefill call. */
+        window_k_begin = MAX(0, causal_offset + (int)wg_j0 - SLIDING_WINDOW_SIZE + 1);
     #else
         window_k_begin = MAX(0, (int)wg_j0 - SLIDING_WINDOW_SIZE + 1);
     #endif
@@ -623,7 +629,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             // to avoid exceeding bounds for single dimension.
             tile_load_t(&mask_tile, msk, MSK_D2, MSK_D3, 0, 0, k0 + sg_i0_kq);
         } else {
-            tile_load_t(&mask_tile, msk, q, k, sg_j0_kq + wg_j0, k0 + sg_i0_kq);
+            /* Must pass ldmsk explicitly: the 6-arg overload defaults ld to k (the K/V
+               sequence length), which is wrong whenever the mask's physical row stride
+               (MSK_S2) differs from k, e.g. when the mask is padded to max_seq_len. */
+            tile_load_t(&mask_tile, msk, q, k, ldmsk, sg_j0_kq + wg_j0, k0 + sg_i0_kq);
         }
 #endif
 

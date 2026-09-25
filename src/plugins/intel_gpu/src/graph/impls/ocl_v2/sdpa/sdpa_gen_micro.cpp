@@ -1154,6 +1154,8 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
 
         // QQ_BIAS is a paged-attention-only feature.
         jit.make("HAS_QQ_BIAS", 0);
+
+        jit.make("SLIDING_WINDOW_SIZE", config.sliding_window);
     }
     const auto& device_info = params.get_device_info();
 

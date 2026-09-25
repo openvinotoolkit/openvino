@@ -377,12 +377,12 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
             const auto neg_half = register_new_node(v0::Constant::create(T, Shape{}, {-0.5f}));
             scale_node = register_new_node<v0::Squeeze>(register_new_node<ov::op::v1::Power>(head_size_t, neg_half));
         }
-        qga_output = make_sdpa(Q, K, V, mask, scale_node, sink, false);
+        qga_output = make_sdpa(Q, K, V, mask, scale_node, sink, false, local_window_size);
     } else if (scale != 0.0f) {
         auto scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
-        qga_output = make_sdpa(Q, K, V, mask, scale_node, {}, false);
+        qga_output = make_sdpa(Q, K, V, mask, scale_node, {}, false, local_window_size);
     } else {
-        qga_output = make_sdpa(Q, K, V, mask, {}, {}, !mask);
+        qga_output = make_sdpa(Q, K, V, mask, {}, {}, !mask, local_window_size);
     }
 
     // transpose the result from (batch_size, num_heads, sequence_length, head_size)
@@ -401,7 +401,10 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_sdpa(
                                                                                 const ov::Output<ov::Node>& mask,
                                                                                 const ov::Output<ov::Node>& scale,
                                                                                 const ov::Output<ov::Node>& sink,
-                                                                                bool is_causal) {
+                                                                                bool is_causal,
+                                                                                [[maybe_unused]] int64_t local_window_size) {
+    // local_window_size is ignored by the reference v13::ScaledDotProductAttention op; plugin overrides may
+    // apply it when the underlying kernel supports SWA natively.
     if (sink.get_node()) {
         return register_new_node<v13::ScaledDotProductAttention>(query, key, value, mask, scale, sink, is_causal);
     }
