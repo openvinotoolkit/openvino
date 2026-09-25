@@ -54,7 +54,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft) {
         {10.0f, 0.0f, -2.5f, 3.440955f, -2.5f, 0.812299f, -2.5f, -0.812299f, -2.5f, -3.440955f,
          35.0f, 0.0f, -2.5f, 3.440955f, -2.5f, 0.812299f, -2.5f, -0.812299f, -2.5f, -3.440955f,
          60.0f, 0.0f, -2.5f, 3.440955f, -2.5f, 0.812299f, -2.5f, -0.812299f, -2.5f, -3.440955f});
-    test_case.run_with_tolerance_as_fp(1e-3f);
+    test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_only_real) {
@@ -68,7 +68,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_only_real) {
         {10.0f, 0.0f, -2.5f, 3.440955f, -2.5f, 0.812299f, -2.5f, -0.812299f, -2.5f, -3.440955f,
          35.0f, 0.0f, -2.5f, 3.440955f, -2.5f, 0.812299f, -2.5f, -0.812299f, -2.5f, -3.440955f,
          60.0f, 0.0f, -2.5f, 3.440955f, -2.5f, 0.812299f, -2.5f, -0.812299f, -2.5f, -3.440955f});
-    test_case.run_with_tolerance_as_fp(1e-3f);
+    test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_onesided) {
@@ -77,7 +77,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_onesided) {
     test_case.add_input<float>(Shape{2, 4}, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f});
     test_case.add_expected_output<float>(Shape{2, 3, 2},
                                          {6.0f, 0.0f, -2.0f, 2.0f, -2.0f, 0.0f, 22.0f, 0.0f, -2.0f, 2.0f, -2.0f, 0.0f});
-    test_case.run_with_tolerance_as_fp(1e-3f);
+    test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_onesided_skip_convert_to_complex) {
@@ -86,7 +86,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_onesided_skip_convert_to_complex) 
     test_case.add_input<float>(Shape{2, 4, 1}, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f});
     test_case.add_expected_output<float>(Shape{2, 3, 1, 2},
                                          {6.0f, 0.0f, -2.0f, 2.0f, -2.0f, 0.0f, 22.0f, 0.0f, -2.0f, 2.0f, -2.0f, 0.0f});
-    test_case.run_with_tolerance_as_fp(1e-3f);
+    test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_length_provided) {
@@ -96,7 +96,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_length_provided) {
                                                 5.0f,  0.0f, 6.0f,  0.0f, 7.0f,  0.0f, 8.0f,  0.0f, 9.0f,  0.0f,
                                                 10.0f, 0.0f, 11.0f, 0.0f, 12.0f, 0.0f, 13.0f, 0.0f, 14.0f, 0.0f});
     test_case.add_expected_output<float>(Shape{1, 5, 2}, {0.0f, 0.0f, 1.0f, 0.0f, 2.0f, 0.0f, 3.0f, 0.0f, 4.0f, 0.0f});
-    test_case.run_with_tolerance_as_fp(1e-3f);
+    test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_scalar_length_provided) {
@@ -106,7 +106,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_scalar_length_provided) {
                                                 5.0f,  0.0f, 6.0f,  0.0f, 7.0f,  0.0f, 8.0f,  0.0f, 9.0f,  0.0f,
                                                 10.0f, 0.0f, 11.0f, 0.0f, 12.0f, 0.0f, 13.0f, 0.0f, 14.0f, 0.0f});
     test_case.add_expected_output<float>(Shape{1, 5, 2}, {0.0f, 0.0f, 1.0f, 0.0f, 2.0f, 0.0f, 3.0f, 0.0f, 4.0f, 0.0f});
-    test_case.run_with_tolerance_as_fp(1e-3f);
+    test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_length_provided_onesided) {
@@ -114,7 +114,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_length_provided_onesided) {
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>(Shape{4, 3}, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f});
     test_case.add_expected_output<float>(Shape{1, 3, 2}, {0.0f, 0.0f, 1.0f, 0.0f, 2.0f, 0.0f});
-    test_case.run_with_tolerance_as_fp(1e-3f);
+    test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse) {
@@ -128,7 +128,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse) {
         {2.0f,  0.0f, -0.5f, -0.688191f, -0.5f, -0.16246f, -0.5f, 0.16246f, -0.5f, 0.688191f,
          7.0f,  0.0f, -0.5f, -0.688191f, -0.5f, -0.16246f, -0.5f, 0.16246f, -0.5f, 0.688191f,
          12.0f, 0.0f, -0.5f, -0.688191f, -0.5f, -0.16246f, -0.5f, 0.16246f, -0.5f, 0.688191f});
-    test_case.run_with_tolerance_as_fp(1e-3f);
+    test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_only_real) {
@@ -142,7 +142,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_only_real) {
         {2.0f,  0.0f, -0.5f, -0.688191f, -0.5f, -0.16246f, -0.5f, 0.16246f, -0.5f, 0.688191f,
          7.0f,  0.0f, -0.5f, -0.688191f, -0.5f, -0.16246f, -0.5f, 0.16246f, -0.5f, 0.688191f,
          12.0f, 0.0f, -0.5f, -0.688191f, -0.5f, -0.16246f, -0.5f, 0.16246f, -0.5f, 0.688191f});
-    test_case.run_with_tolerance_as_fp(1e-3f);
+    test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_onesided) {
@@ -151,7 +151,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_onesided) {
     test_case.add_input<float>(Shape{2, 3, 2},
                                {6.0f, 0.0f, -2.0f, 2.0f, -2.0f, 0.0f, 22.0f, 0.0f, -2.0f, 2.0f, -2.0f, 0.0f});
     test_case.add_expected_output<float>(Shape{2, 4}, {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f});
-    test_case.run_with_tolerance_as_fp(1e-3f);
+    test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_onesided_real_input) {
@@ -159,7 +159,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_onesided_real_input) {
     auto test_case = ov::test::TestCase(model, s_device);
     test_case.add_input<float>(Shape{2, 3, 1}, {1.0f, 0.0f, -1.0f, 0.5f, -0.5f, 0.0f});
     test_case.add_expected_output<float>(Shape{2, 3, 1}, {0.75f, -0.25f, -0.5f, 0.25f, 0.25f, -0.5f});
-    test_case.run_with_tolerance_as_fp(1e-3f);
+    test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_length_provided) {
@@ -169,7 +169,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_length_provided) {
                                                 5.0f,  0.0f, 6.0f,  0.0f, 7.0f,  0.0f, 8.0f,  0.0f, 9.0f,  0.0f,
                                                 10.0f, 0.0f, 11.0f, 0.0f, 12.0f, 0.0f, 13.0f, 0.0f, 14.0f, 0.0f});
     test_case.add_expected_output<float>(Shape{1, 5, 2}, {0.0f, 0.0f, 1.0f, 0.0f, 2.0f, 0.0f, 3.0f, 0.0f, 4.0f, 0.0f});
-    test_case.run_with_tolerance_as_fp(1e-3f);
+    test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_length_provided_onesided) {
@@ -178,7 +178,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft_inverse_length_provided_onesided) 
     test_case.add_input<float>(Shape{1, 3, 2}, {0.0f, 0.0f, 1.0f, 0.0f, 2.0f, 0.0f});
     test_case.add_expected_output<float>(Shape{4, 3},
                                          {0.0f, 0.25f, 0.5f, 0.0f, 0.25f, 0.5f, 0.0f, 0.25f, 0.5f, 0.0f, 0.25f, 0.5f});
-    test_case.run_with_tolerance_as_fp(1e-3f);
+    test_case.run_with_tolerance_as_fp(1e-4f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_onesided_real_input_no_window_default_length) {
@@ -203,7 +203,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_onesided_real_input_no_window_def
          -64.0f,  22.899567f, -64.0f, 21.142744f,  -64.0f, 19.414188f, -64.0f, 17.711185f, -64.0f, 16.031166f,
          -64.0f,  14.37168f,  -64.0f, 12.7303915f, -64.0f, 11.105054f, -64.0f, 9.493504f,  -64.0f, 7.893647f,
          -64.0f,  6.3034496f, -64.0f, 4.7209234f,  -64.0f, 3.1441183f, -64.0f, 1.5711118f, -64.0f, 0.0f});
-    test_case.run_with_tolerance_as_fp(5e-2f);
+    test_case.run_with_tolerance_as_fp(2e-2f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_real_input_no_window_default_length) {
@@ -241,7 +241,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_real_input_no_window_
          -64.0f,  -193.73076f, -64.0f, -210.97972f, -64.0f, -231.26628f,  -64.0f, -255.50232f, -64.0f, -285.00494f,
          -64.0f,  -321.74973f, -64.0f, -368.8411f,  -64.0f, -431.45294f,  -64.0f, -518.8983f,  -64.0f, -649.8029f,
          -64.0f,  -867.62683f, -64.0f, -1302.7499f, -64.0f, -2607.071f});
-    test_case.run_with_tolerance_as_fp(5e-2f);
+    test_case.run_with_tolerance_as_fp(2e-2f);
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_no_window_default_length) {
