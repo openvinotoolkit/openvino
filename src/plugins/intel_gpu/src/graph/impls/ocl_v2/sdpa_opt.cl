@@ -2520,8 +2520,8 @@ KERNEL(sdpa_opt)(
                         INPUT2_TYPE value_packed;
                         if (sgid < SUBGROUPS_PER_WG - 1)
                             value_packed = VALUE_BLOCK_READ(value_input, value_offset);
-                        else
-                            value_packed = (sglid < V_HEAD_SIZE_LEFTOVER) ? value_input[value_offset] : INPUT2_VAL_ZERO;
+                        else  // not sglid < V_HEAD_SIZE_LEFTOVER: that is 0 when only K is unaligned
+                            value_packed = (head_size_idx < V_HEAD_SIZE) ? value_input[value_offset] : INPUT2_VAL_ZERO;
                         #endif // BEAM_TABLE_TYPE
 
                     #else // !V_HEAD_SIZE_LEFTOVER
@@ -2664,7 +2664,7 @@ KERNEL(sdpa_opt)(
                     output[output_offset + sglid] = TO_OUTPUT_TYPE(output_acc[seq_idx]);
                     output_offset += output_pitch;
                 }
-            } else if (sglid < V_HEAD_SIZE_LEFTOVER) {
+            } else if (head_size_idx < V_HEAD_SIZE) {
                 for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
 #if IS_FLASHATTEN_V2
                     output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
@@ -2683,7 +2683,7 @@ KERNEL(sdpa_opt)(
                     output[output_offset + sglid] = TO_OUTPUT_TYPE(output_acc[seq_idx]);
                     output_offset += output_pitch;
                 }
-            } else if (sglid < V_HEAD_SIZE_LEFTOVER) {
+            } else if (head_size_idx < V_HEAD_SIZE) {
                 unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
 #if IS_FLASHATTEN_V2
                     output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
