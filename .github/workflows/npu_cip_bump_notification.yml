@@ -1,8 +1,8 @@
 name: NPU CiP Bump Notification
 
 # Notifies whenever the prebuilt NPU compiler-in-package (CiP) binaries are bumped on
-# master or a release branch. A bump is detected by a value-level change of the version /
-# commit sha / SHA256 checksum variables in:
+# master or a release branch. A bump is detected by a value-level change of any
+# PLUGIN_COMPILER_* platform SHA256 checksum in:
 #     src/plugins/intel_npu/cmake/download_compiler_libs.cmake
 #
 # Delivery:
@@ -25,9 +25,7 @@ on:
       - 'releases/**'
     paths:
       - 'src/plugins/intel_npu/cmake/download_compiler_libs.cmake'
-  # TEMPORARY (fork testing only): remove this whole pull_request block before
-  # opening the PR to openvinotoolkit. Lets you exercise the workflow on a PR that edits
-  # the cmake file without merging to master.
+  # TEMPORARY: remove before merging to openvinotoolkit — exercise the workflow on a PR.
   pull_request:
     paths:
       - 'src/plugins/intel_npu/cmake/download_compiler_libs.cmake'
@@ -65,19 +63,31 @@ jobs:
     steps:
       - name: Detect CiP value-level change
         id: detect
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_BEFORE_SHA: ${{ github.event.inputs.before_sha }}
+          INPUT_AFTER_SHA: ${{ github.event.inputs.after_sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          PUSH_AFTER_SHA: ${{ github.sha }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_EVENT_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+          GITHUB_HEAD_REF: ${{ github.head_ref }}
+          NPU_CIP_NOTIFY_LOGINS: ${{ vars.NPU_CIP_NOTIFY_LOGINS }}
         run: |
           set -euo pipefail
 
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            BEFORE="${{ github.event.inputs.before_sha }}"
-            AFTER="${{ github.event.inputs.after_sha }}"
-          elif [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            # TEMPORARY (fork testing): compare the PR's base and head.
-            BEFORE="${{ github.event.pull_request.base.sha }}"
-            AFTER="${{ github.event.pull_request.head.sha }}"
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            BEFORE="$INPUT_BEFORE_SHA"
+            AFTER="$INPUT_AFTER_SHA"
+          elif [[ "$EVENT_NAME" == "pull_request" ]]; then
+            BEFORE="$PR_BASE_SHA"
+            AFTER="$PR_HEAD_SHA"
           else
-            BEFORE="${{ github.event.before }}"
-            AFTER="${{ github.sha }}"
+            BEFORE="$PUSH_BEFORE_SHA"
+            AFTER="$PUSH_AFTER_SHA"
           fi
           echo "Comparing ${FILE_PATH} between ${BEFORE} and ${AFTER}"
 
@@ -133,16 +143,23 @@ jobs:
           fi
 
           NOW="$(TZ='Europe/Warsaw' date +'%H:%M %d/%m/%Y %Z')"
-          COMMIT_URL="${{ github.server_url }}/${{ github.repository }}/commit/${AFTER}"
-          BRANCH="${{ github.ref_name }}"
+          COMMIT_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/commit/${AFTER}"
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
+          else
+            BRANCH="${GITHUB_REF_NAME}"
+          fi
           AUTHOR="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${AFTER}" --jq '.commit.author.name' 2>/dev/null || true)"
           PR_INFO="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${AFTER}/pulls" \
             --jq '.[0] | "#\(.number) \(.title)"' 2>/dev/null || true)"
           PR_NUMBER="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${AFTER}/pulls" \
             --jq '.[0].number' 2>/dev/null || true)"
+          if [[ -z "${PR_NUMBER}" && "$EVENT_NAME" == "pull_request" ]]; then
+            PR_NUMBER="${PR_EVENT_NUMBER}"
+          fi
           PR_URL=""
           if [[ -n "${PR_NUMBER}" ]]; then
-            PR_URL="${{ github.server_url }}/${{ github.repository }}/pull/${PR_NUMBER}"
+            PR_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/pull/${PR_NUMBER}"
           fi
 
           MENTIONS=""
@@ -188,23 +205,24 @@ jobs:
             echo ""
             echo "CHANGES_EOF"
           } >> "${GITHUB_OUTPUT}"
-        env:
-          NPU_CIP_NOTIFY_LOGINS: ${{ vars.NPU_CIP_NOTIFY_LOGINS }}
 
       - name: Post GitHub notification on pull request
         if: steps.detect.outputs.changed == 'true'
         env:
           NOTIFY_LOGINS: ${{ vars.NPU_CIP_NOTIFY_LOGINS }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ steps.detect.outputs.pr_number }}
+          PR_EVENT_NUMBER: ${{ github.event.pull_request.number }}
         run: |
           set -euo pipefail
           if [[ -z "${NOTIFY_LOGINS// /}" ]]; then
             echo "NPU_CIP_NOTIFY_LOGINS not set; skipping GitHub @mention comment."
             exit 0
           fi
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            PR="${{ github.event.pull_request.number }}"
-          elif [[ "${{ github.event_name }}" == "push" ]]; then
-            PR="${{ steps.detect.outputs.pr_number }}"
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            PR="${PR_EVENT_NUMBER}"
+          elif [[ "$EVENT_NAME" == "push" ]]; then
+            PR="${PR_NUMBER}"
           else
             echo "Not a pull_request or push event; skipping GitHub comment."
             exit 0
