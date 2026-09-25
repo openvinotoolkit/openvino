@@ -71,13 +71,14 @@ jobs:
     env:
       CMAKE_BUILD_TYPE: 'Release'
       CMAKE_COMPILE_WARNING_AS_ERROR: 'ON'
-      CMAKE_GENERATOR: 'Ninja Multi-Config' # Visual Studio does not seem to work with `ccache`. Ninja is the generator supported by `ccache`
-      CMAKE_CXX_COMPILER_LAUNCHER: ccache
-      CMAKE_C_COMPILER_LAUNCHER: ccache
-      CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows2022_x86_64_itt\\${{ github.base_ref || github.ref_name }}"
-      CCACHE_DIR: ${{ github.workspace }}\\ccache
-      CCACHE_MAXSIZE: 3G
-      CCACHE_SLOPPINESS: pch_defines,time_macros
+      CMAKE_GENERATOR: 'Ninja Multi-Config'
+      CMAKE_CXX_COMPILER_LAUNCHER: sccache
+      CMAKE_C_COMPILER_LAUNCHER: sccache
+      SCCACHE_IGNORE_SERVER_IO_ERROR: 1
+      SCCACHE_SERVER_PORT: 35555
+      SCCACHE_ERROR_LOG: "${{ github.workspace }}\\sccache_log.txt"
+      SCCACHE_LOG: warn
+      SCCACHE_AZURE_KEY_PREFIX: windows2022_x86_64_itt_Release
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
       INSTALL_PDB_DIR: "${{ github.workspace }}\\install_pdb"
@@ -136,16 +137,10 @@ jobs:
       # Build
       #
 
-      - name: Setup ccache
-        uses: ./openvino/.github/actions/cache
+      - name: Install sccache
+        uses: mozilla-actions/sccache-action@fc920bf0ec8de6ee65d409111f7ec508035751ba # v0.0.11
         with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
-          path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-ccache
+          version: v0.18.0
 
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
@@ -174,16 +169,16 @@ jobs:
             -S ${{ env.OPENVINO_REPO }} `
             -B ${{ env.BUILD_DIR }}
 
-      - name: Clean ccache stats
-        run: '& ccache --zero-stats'
+      - name: Clean sccache stats
+        run: sccache --zero-stats
 
       - name: Cmake build - CC COLLECT
         run: |
           cmake --build ${{ env.BUILD_DIR }} --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet && `
           cmake --build ${{ env.BUILD_DIR }} --parallel ${{ env.CMAKE_BUILD_PARALLEL_LEVEL }} --config ${{ env.CMAKE_BUILD_TYPE }} --target sea_itt_lib -- --quiet
 
-      - name: Show ccache stats
-        run: '& ccache --show-stats'
+      - name: Show sccache stats
+        run: sccache --show-stats
 
       - name: Cmake install - OpenVINO
         run: |
