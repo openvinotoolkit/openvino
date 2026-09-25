@@ -4,12 +4,100 @@
 
 #include "builder/blocks/gated_delta_net.hpp"
 
+#include <algorithm>
+#include <cstring>
+#include <optional>
+#include <tuple>
 #include <vector>
 
 #include "builder/blocks/common.hpp"
 #include "openvino/core/except.hpp"
 
 namespace ov::frontend::gguf::blocks {
+
+namespace {
+
+// Copy of `t` viewed as `outer` rows of bytes, where the chunks [first, first + src.size())
+// of `chunk_bytes` in every row are reordered so that new chunk n holds old chunk src[n].
+// Returns an empty tensor when the byte layout does not split evenly.
+ov::Tensor permute_chunks(const ov::Tensor& t,
+                          size_t outer,
+                          size_t chunk_bytes,
+                          size_t first,
+                          const std::vector<int64_t>& src) {
+    const size_t bytes = t.get_byte_size();
+    if (outer == 0 || bytes % outer != 0 || chunk_bytes == 0 || (first + src.size()) * chunk_bytes > bytes / outer) {
+        return {};
+    }
+    const size_t row_bytes = bytes / outer;
+    ov::Tensor out(t.get_element_type(), t.get_shape());
+    const auto* in_data = static_cast<const uint8_t*>(t.data());
+    auto* out_data = static_cast<uint8_t*>(out.data());
+    std::memcpy(out_data, in_data, bytes);
+    for (size_t r = 0; r < outer; ++r) {
+        for (size_t n = 0; n < src.size(); ++n) {
+            std::memcpy(out_data + r * row_bytes + (first + n) * chunk_bytes,
+                        in_data + r * row_bytes + (first + static_cast<size_t>(src[n])) * chunk_bytes,
+                        chunk_bytes);
+        }
+    }
+    return out;
+}
+
+// Reorder `src.size()` blocks of `rows_per_block` rows (dim 0) starting at row `first_row`.
+ov::Tensor permute_row_blocks(const ov::Tensor& t,
+                              size_t first_row,
+                              size_t rows_per_block,
+                              const std::vector<int64_t>& src) {
+    const auto& shape = t.get_shape();
+    if (shape.empty() || t.get_byte_size() % shape[0] != 0) {
+        return {};
+    }
+    const size_t chunk = t.get_byte_size() / shape[0] * rows_per_block;
+    if (first_row % rows_per_block != 0) {
+        return {};
+    }
+    return permute_chunks(t, 1, chunk, first_row / rows_per_block, src);
+}
+
+// Reorder `src.size()` column blocks of `block_cols` of a [rows, logical_cols] weight part.
+// Per-row tensors with a single column (channel-wise scales) are left as they are.
+ov::Tensor permute_col_blocks(const ov::Tensor& t,
+                              size_t logical_cols,
+                              size_t block_cols,
+                              const std::vector<int64_t>& src) {
+    const auto& shape = t.get_shape();
+    if (shape.size() == 2 && shape[1] == 1) {
+        return t;
+    }
+    if (shape.size() != 2 || t.get_byte_size() % shape[0] != 0) {
+        return {};
+    }
+    const size_t row_bytes = t.get_byte_size() / shape[0];
+    if ((row_bytes * block_cols) % logical_cols != 0) {
+        return {};
+    }
+    return permute_chunks(t, shape[0], row_bytes * block_cols / logical_cols, 0, src);
+}
+
+// Apply `fn` to every present part; fails (returns false) if any present part cannot be transformed.
+template <typename Fn>
+bool transform_parts(const WeightTensors& in, WeightTensors& out, Fn&& fn) {
+    const std::vector<std::pair<const ov::Tensor*, ov::Tensor*>> parts{{&in.weight, &out.weight},
+                                                                       {&in.scales, &out.scales},
+                                                                       {&in.zero_point, &out.zero_point}};
+    for (const auto& [src, dst] : parts) {
+        if (*src) {
+            *dst = fn(*src);
+            if (!*dst) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+}  // namespace
 
 std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, const std::string& attn_norm) {
     using ov::element::f32;
@@ -31,9 +119,54 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     const int64_t value_dim = head_v * H_v;
     const int64_t conv_dim = 2 * key_dim + value_dim;
 
-    const std::string qkv_base = p + "attn_qkv", gate_base = p + "attn_gate", out_base = p + "ssm_out";
-    const std::string alpha_base = p + "ssm_alpha", beta_base = p + "ssm_beta";
-    const std::string conv_w = p + "ssm_conv1d.weight", a_w = p + "ssm_a", dt_w = p + "ssm_dt.bias";
+    // ggml pairs V head j with K head j % H_k (tiled order); the fused OV op pairs it with
+    // K head j / (H_v / H_k) (grouped order). Storing the V heads in grouped order in every
+    // per-V-head weight lets the op run without a runtime Tile of q and k.
+    std::string qkv_base = p + "attn_qkv", gate_base = p + "attn_gate", out_base = p + "ssm_out";
+    std::string alpha_base = p + "ssm_alpha", beta_base = p + "ssm_beta";
+    std::string conv_w = p + "ssm_conv1d.weight", a_w = p + "ssm_a", dt_w = p + "ssm_dt.bias";
+    bool gqa_grouped = false;
+    if (H_v != H_k && H_v % H_k == 0) {
+        const int64_t rep = H_v / H_k;
+        std::vector<int64_t> src(H_v);
+        for (int64_t n = 0; n < H_v; ++n) {
+            src[n] = (n % rep) * H_k + n / rep;
+        }
+        const auto rows = [&](size_t first, size_t per_block) {
+            return [&, first, per_block](const ov::Tensor& t) {
+                return permute_row_blocks(t, first, per_block, src);
+            };
+        };
+        WeightTensors qkv, gate, alpha, beta, out;
+        ov::Tensor conv, a, dt;
+        bool ok = transform_parts(weight_parts(e, qkv_base), qkv, rows(2 * key_dim, head_v)) &&
+                  transform_parts(weight_parts(e, gate_base), gate, rows(0, head_v)) &&
+                  transform_parts(weight_parts(e, alpha_base), alpha, rows(0, 1)) &&
+                  transform_parts(weight_parts(e, beta_base), beta, rows(0, 1)) &&
+                  transform_parts(weight_parts(e, out_base), out, [&](const ov::Tensor& t) {
+                      return permute_col_blocks(t, value_dim, head_v, src);
+                  });
+        if (ok) {
+            conv = permute_row_blocks(e.weight_tensor(conv_w), 2 * key_dim, head_v, src);
+            a = permute_row_blocks(e.weight_tensor(a_w), 0, 1, src);
+            dt = permute_row_blocks(e.weight_tensor(dt_w), 0, 1, src);
+            ok = conv && a && dt;
+        }
+        if (ok) {
+            const std::string g = "_grouped";
+            store_parts(e, qkv_base + g, qkv, weight_qtype(e, qkv_base));
+            store_parts(e, gate_base + g, gate, weight_qtype(e, gate_base));
+            store_parts(e, alpha_base + g, alpha, weight_qtype(e, alpha_base));
+            store_parts(e, beta_base + g, beta, weight_qtype(e, beta_base));
+            store_parts(e, out_base + g, out, weight_qtype(e, out_base));
+            qkv_base += g, gate_base += g, alpha_base += g, beta_base += g, out_base += g;
+            conv_w = p + "ssm_conv1d" + g + ".weight", a_w = p + "ssm_a" + g, dt_w = p + "ssm_dt" + g + ".bias";
+            e.weights()[conv_w] = conv;
+            e.weights()[a_w] = a;
+            e.weights()[dt_w] = dt;
+            gqa_grouped = true;
+        }
+    }
 
     // ---- input projections ----
     e.add_weight(qkv_base + ".weight");
@@ -151,7 +284,10 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
                         p + "gdn",
                         {q, k, v, g, beta, ss},
                         0,
-                        {{"gdn_state_slots", int64_t{1}}, {"fuse_qk_l2norm", true}, {"qk_l2_norm_eps", cfg.rms_eps}});
+                        {{"gdn_state_slots", int64_t{1}},
+                         {"fuse_qk_l2norm", true},
+                         {"qk_l2_norm_eps", cfg.rms_eps},
+                         {"gqa_grouped", gqa_grouped}});
 
     // Split the packed attention rows and recurrent state; only the token axis is inferred.
     const std::vector<int64_t> attn_view{0, head_v};
