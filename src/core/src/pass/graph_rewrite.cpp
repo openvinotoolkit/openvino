@@ -213,6 +213,9 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
                 node_type_info = node_type_info->parent;
             }
             std::sort(matcher_passes_to_run.begin(), matcher_passes_to_run.end());
+            // Several root types can select the same registered matcher.
+            matcher_passes_to_run.erase(std::unique(matcher_passes_to_run.begin(), matcher_passes_to_run.end()),
+                                        matcher_passes_to_run.end());
             if (all_roots_has_type) {
                 // Typed-only groups have always captured enabled passes at the start of the run.
                 matcher_passes_to_run.erase(std::remove_if(matcher_passes_to_run.begin(),
@@ -220,10 +223,6 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
                                                            [&](size_t index) {
                                                                return !enabled_matchers[index];
                                                            }),
-                                            matcher_passes_to_run.end());
-            } else {
-                // The former fallback ran each registered matcher once, even if several root types match.
-                matcher_passes_to_run.erase(std::unique(matcher_passes_to_run.begin(), matcher_passes_to_run.end()),
                                             matcher_passes_to_run.end());
             }
         }

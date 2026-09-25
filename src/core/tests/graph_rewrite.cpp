@@ -498,6 +498,16 @@ TEST(GraphRewriteDispatchTest, mixed_overlapping_root_types_run_once) {
     EXPECT_EQ(calls, (std::vector<int>{1, 2}));
 }
 
+TEST(GraphRewriteDispatchTest, typed_overlapping_root_types_run_once) {
+    auto model = get_derived_model();
+    std::vector<int> calls;
+    GraphRewrite pass;
+    pass.add_matcher(record_dispatch(pattern::wrap_type<op::v1::Divide, PrivateDivide>(), 1, calls));
+    pass.add_matcher(record_dispatch(pattern::wrap_type<PrivateDivide>(), 2, calls));
+    pass.run_on_model(model);
+    EXPECT_EQ(calls, (std::vector<int>{1, 2}));
+}
+
 TEST(GraphRewriteDispatchTest, handler_without_pattern_remains_generic) {
     auto model = get_model();
     std::vector<int> calls;
