@@ -16,20 +16,7 @@
 namespace ov {
 namespace tp_gpu {
 
-/// Runs one function per rank, on threads that live as long as the compiled
-/// model.
-///
-/// The obvious implementation is std::async(std::launch::async), and that is
-/// what this replaces.  It created one operating-system thread per rank per
-/// inference -- at four ranks and forty tokens a second, over a hundred and
-/// sixty thread creations every second.  Measured on an 8B model, the first
-/// rank's body did not start until 40 us after the launch loop began, and the
-/// gap between the first and last rank starting was 47 us at two ranks and
-/// 98 us at four.  That spread is the collective's problem, not the thread
-/// pool's: every rank has to meet its peers at each of the 64 AllReduce points
-/// in a model step, so the group only moves as fast as the rank that started
-/// last, and it pays that 64 times per token.
-///
+/// Runs one function per rank on threads that live as long as the compiled model.
 /// Rank 0 runs on the calling thread: it needs no handoff, and the caller has
 /// nothing else to do while the others work.
 class RankWorkers {
@@ -64,7 +51,7 @@ public:
     }
 
     /// Calls `body(rank)` for every rank and returns once all of them have
-    /// finished.  If several ranks throw, the first failure encountered is
+    /// finished. If several ranks throw, the first failure encountered is
     /// rethrown and the rest are dropped -- the group is torn down either way,
     /// and the first failure is the one that explains the others.
     void run(const std::function<void(std::size_t)>& body) {

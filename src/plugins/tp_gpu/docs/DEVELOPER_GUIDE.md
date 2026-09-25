@@ -302,9 +302,9 @@ both are emitted by the rewriter. To add a third:
    are good templates.
 4. Add an OCL primitive in
    `src/plugins/intel_gpu/src/graph/impls/ocl/`. Keep the primitive POD:
-   carry `group_id` / `collective_id` / `rank` as attributes and resolve
+   carry `collective_id` / `rank` as attributes and resolve
    the coordinator at execution time via
-   `instance.get_network().get_collective_comm_registry()->get_group(group_id)`.
+   `instance.get_network().get_collective_comm_registry()->coordinator()`.
 5. Register in `tp_*_impls.cpp` (priority OCL_static, OCL_dynamic, then
    any CPU fallback).
 

@@ -28,7 +28,6 @@ static void CreateTPGatherOp(ProgramBuilder& p,
 
     auto prim = cldnn::tp_gather(layerName,
                                  inputs[0],
-                                 op->get_group_id(),
                                  op->get_collective_id(),
                                  op->get_rank(),
                                  op->get_world_size(),

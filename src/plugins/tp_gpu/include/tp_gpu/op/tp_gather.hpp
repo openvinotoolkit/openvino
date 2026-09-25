@@ -17,14 +17,14 @@ public:
 
     TPGather() = default;
 
-    /// \param data          this rank's slice.
-    /// \param group_id      collective group the ranks belong to.
-    /// \param collective_id slot identifying this gather within the group.
-    /// \param rank          this rank's index.
-    /// \param world_size    number of ranks in the group.
-    /// \param axis          axis the slices are concatenated along; negative counts from the end.
+    /// \param data          This rank's slice.
+    /// \param collective_id Which exchange this is.
+    ///                      The ranks meet by it, so it has to be the same one on every rank.
+    /// \param rank          This rank's index.
+    ///                      Only rank 0's output grows to hold every slice, the others keep their own.
+    /// \param world_size    How many slices there are.
+    /// \param axis          Axis the slices are concatenated along; negative counts from the end.
     TPGather(const Output<Node>& data,
-             uint32_t group_id,
              uint32_t collective_id,
              uint32_t rank,
              uint32_t world_size,
@@ -34,14 +34,12 @@ public:
     void validate_and_infer_types() override;
     std::shared_ptr<Node> clone_with_new_inputs(const OutputVector& new_args) const override;
 
-    uint32_t get_group_id() const { return m_group_id; }
     uint32_t get_collective_id() const { return m_collective_id; }
     uint32_t get_rank() const { return m_rank; }
     uint32_t get_world_size() const { return m_world_size; }
     int64_t get_axis() const { return m_axis; }
 
 private:
-    uint32_t m_group_id = 0;
     uint32_t m_collective_id = 0;
     uint32_t m_rank = 0;
     uint32_t m_world_size = 1;

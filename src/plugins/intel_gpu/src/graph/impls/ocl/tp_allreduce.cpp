@@ -42,7 +42,6 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
     using parent = typed_primitive_impl<tp_allreduce>;
     using parent::parent;
 
-    uint32_t group_id = 0;
     uint32_t collective_id = 0;
     uint32_t rank = 0;
 
@@ -63,21 +62,18 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
     void set_node_params(const program_node& arg) override {
         OPENVINO_ASSERT(arg.is_type<tp_allreduce>(), "[GPU] Incorrect program_node type");
         const auto& prim = arg.as<tp_allreduce>().get_primitive();
-        group_id = prim->group_id;
         collective_id = prim->collective_id;
         rank = prim->rank;
     }
 
     void save(BinaryOutputBuffer& ob) const override {
         parent::save(ob);
-        ob << group_id;
         ob << collective_id;
         ob << rank;
     }
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        ib >> group_id;
         ib >> collective_id;
         ib >> rank;
     }
@@ -128,7 +124,7 @@ struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
             "[GPU] tp_allreduce requires a collective registry; the TP plugin must inject "
             "one into the compiled model before inference");
 
-        const auto& coordinator = registry->get_group(group_id);
+        const auto& coordinator = registry->coordinator();
         OPENVINO_ASSERT(coordinator != nullptr,
             "[GPU] tp_allreduce ocl impl requires TPDeviceCoordinator (shared L0 context)");
         return coordinator;

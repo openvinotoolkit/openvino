@@ -40,7 +40,6 @@ struct tp_gather_impl : public typed_primitive_impl<tp_gather> {
     using parent = typed_primitive_impl<tp_gather>;
     using parent::parent;
 
-    uint32_t group_id = 0;
     uint32_t collective_id = 0;
     uint32_t rank = 0;
     uint32_t world_size = 1;
@@ -56,7 +55,6 @@ struct tp_gather_impl : public typed_primitive_impl<tp_gather> {
 
     explicit tp_gather_impl(const tp_gather_node& node) {
         auto desc = node.get_primitive();
-        group_id = desc->group_id;
         collective_id = desc->collective_id;
         rank = desc->rank;
         world_size = desc->world_size;
@@ -65,7 +63,6 @@ struct tp_gather_impl : public typed_primitive_impl<tp_gather> {
 
     void save(BinaryOutputBuffer& ob) const override {
         parent::save(ob);
-        ob << group_id;
         ob << collective_id;
         ob << rank;
         ob << world_size;
@@ -74,7 +71,6 @@ struct tp_gather_impl : public typed_primitive_impl<tp_gather> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        ib >> group_id;
         ib >> collective_id;
         ib >> rank;
         ib >> world_size;
@@ -108,7 +104,7 @@ struct tp_gather_impl : public typed_primitive_impl<tp_gather> {
         OPENVINO_ASSERT(registry != nullptr,
             "[GPU] tp_gather requires a collective registry; the tensor-parallel plugin must inject "
             "one into the compiled model before inference");
-        const auto& coordinator = registry->get_group(group_id);
+        const auto& coordinator = registry->coordinator();
         OPENVINO_ASSERT(coordinator != nullptr,
             "[GPU] tp_gather ocl impl requires TPDeviceCoordinator (shared L0 context)");
 

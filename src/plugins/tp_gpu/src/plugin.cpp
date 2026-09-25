@@ -238,7 +238,7 @@ Plugin::SharedL0Setup Plugin::create_shared_l0(const std::vector<std::string>& d
 static void attach_collective_registry(const std::vector<ov::SoPtr<ov::ICompiledModel>>& rank_compiled,
                                        const TPDeviceCoordinatorPtr& coordinator) {
     auto registry = std::make_shared<ov::intel_gpu::CollectiveCommRegistry>();
-    registry->set_group(0, coordinator);
+    registry->set_coordinator(coordinator);
     std::vector<ov::intel_gpu::CollectiveCommRegistryPtr> registry_set{registry};
 
     for (const auto& compiled : rank_compiled) {
