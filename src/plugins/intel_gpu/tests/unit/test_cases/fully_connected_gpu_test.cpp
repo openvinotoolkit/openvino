@@ -3180,6 +3180,74 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         }
     }
 
+    void test_compressed_int8_transpose_scale_zp(bool is_caching_test) {
+        auto& engine = get_test_engine();
+
+        constexpr size_t num_groups = 2;
+        constexpr size_t output_features = 3;
+        constexpr size_t group_size = 16;
+
+        auto input_mem = engine.allocate_memory({ {1, 2, num_groups * group_size}, data_types::f16, format::bfyx });
+        auto weights_mem = engine.allocate_memory({ {output_features, num_groups * group_size}, data_types::u8, format::bfyx });
+        auto scale_mem = engine.allocate_memory({ {num_groups, output_features}, data_types::f16, format::bfyx });
+        auto zp_mem = engine.allocate_memory({ {num_groups, output_features}, data_types::u8, format::bfyx });
+
+        set_values<ov::float16>(input_mem,
+                                std::vector<ov::float16>(num_groups * num_groups * group_size, ov::float16(1.0f)));
+        set_values<ov::float16>(scale_mem, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f});
+        set_values<uint8_t>(zp_mem, {1, 2, 3, 4, 5, 6});
+
+        std::vector<uint8_t> weights_data;
+        weights_data.reserve(num_groups * output_features * group_size);
+        for (size_t output = 0; output < output_features; ++output) {
+            for (size_t group = 0; group < num_groups; ++group) {
+                const auto zp = static_cast<uint8_t>(group * output_features + output + 1);
+                weights_data.insert(weights_data.end(), group_size, static_cast<uint8_t>(zp + 1));
+            }
+        }
+        set_values<uint8_t>(weights_mem, weights_data);
+
+        auto fc_prim = fully_connected("fc_prim",
+                                       input_info("input"),
+                                       "weights",
+                                       "",
+                                       "scale",
+                                       "zp",
+                                       data_types::f16,
+                                       3,
+                                       2,
+                                       true);
+
+        topology topology(
+            input_layout("input", input_mem->get_layout()),
+            data("weights", weights_mem),
+            data("scale", scale_mem),
+            data("zp", zp_mem),
+            fc_prim);
+
+        auto config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::optimize_data(true));
+
+        network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        network->set_input_data("input", input_mem);
+
+        auto outputs = network->execute();
+        ASSERT_EQ(outputs.size(), size_t(1));
+        ASSERT_EQ(outputs.begin()->first, "fc_prim");
+
+        auto output_mem = outputs.begin()->second.get_memory();
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+
+        ASSERT_EQ((ov::PartialShape{1, num_groups, output_features}), output_mem->get_layout().get_partial_shape());
+
+        const std::vector<ov::float16> expected_result = {80.0f, 112.0f, 144.0f, 80.0f, 112.0f, 144.0f};
+        ASSERT_EQ(expected_result.size(), output_ptr.size());
+        for (size_t i = 0; i < expected_result.size(); ++i) {
+            ASSERT_EQ(expected_result[i], output_ptr[i]) << "i = " << i;
+        }
+    }
+
     void test_dynamic(bool is_caching_test) {
         auto& engine = get_test_engine();
 
@@ -5673,6 +5741,10 @@ TEST_F(fully_connected_gpu_tests, compressed_scale_fp16_cached) {
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_zp_scalar) {
     // Testing support for decompression zero points with group size that is not a power of two
     this->test_compressed_int8_scale_zp_scalar(false);
+}
+
+TEST_F(fully_connected_gpu_tests, compressed_int8_transpose_scale_zp) {
+    this->test_compressed_int8_transpose_scale_zp(false);
 }
 
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_b1) {

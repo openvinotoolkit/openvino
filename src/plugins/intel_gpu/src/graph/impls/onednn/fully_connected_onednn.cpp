@@ -17,10 +17,24 @@
 namespace cldnn {
 namespace onednn {
 
-static ov::Dimension::value_type get_decompression_groups(const layout& param_layout, size_t ifm_dim_idx) {
-    if (param_layout.get_partial_shape().size() == 2 && param_layout.format == format::bfyx &&
-        !param_layout.data_padding)
-        return param_layout.get_dim(1 - ifm_dim_idx);
+static ov::Dimension::value_type get_decompression_groups(const layout& weight_layout,
+                                                          const layout& param_layout,
+                                                          size_t ifm_dim_idx,
+                                                          bool weights_transposed) {
+    if (param_layout.get_partial_shape().size() == 2 && weight_layout.get_partial_shape().size() >= 2 &&
+        param_layout.format == format::bfyx && weight_layout.format == format::bfyx &&
+        !param_layout.data_padding && !weight_layout.data_padding) {
+        const auto weight_rank = weight_layout.get_partial_shape().size();
+        const auto output_features_idx = weights_transposed ? weight_rank - 2 : weight_rank - 1;
+        const auto output_features = weight_layout.get_dim(output_features_idx);
+        const auto param_dim0 = param_layout.get_dim(0);
+        const auto param_dim1 = param_layout.get_dim(1);
+
+        if (param_dim0 == output_features && param_dim1 != output_features)
+            return param_dim1;
+        if (param_dim1 == output_features && param_dim0 != output_features)
+            return param_dim0;
+    }
 
     return param_layout.get_dim(ifm_dim_idx);
 }
@@ -285,7 +299,7 @@ public:
 
             auto decompression_scale_idx = ++idx;
             auto scale_layout = arg.get_dependency(decompression_scale_idx).get_output_layout();
-            const auto ngroups = get_decompression_groups(scale_layout, ifm_dim_idx);
+            const auto ngroups = get_decompression_groups(weights_layout, scale_layout, ifm_dim_idx, prim->weights_transposed);
             if (scale_layout.count() == 1) {
                 _attrs->set_scales(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _ds_data_type);
             } else if (ngroups == 1) {
@@ -305,7 +319,7 @@ public:
                 if (dzp_layout.count() == 1) {
                     _attrs->set_zero_points(DNNL_ARG_WEIGHTS, COMMON, dnnl::memory::dims{}, _dzp_data_type);
                 } else {
-                    auto ngroups = get_decompression_groups(dzp_layout, ifm_dim_idx);
+                    auto ngroups = get_decompression_groups(weights_layout, dzp_layout, ifm_dim_idx, prim->weights_transposed);
                     if (ngroups == 1) {
                         _attrs->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, _dzp_data_type);
                     } else {
@@ -389,7 +403,7 @@ public:
                 // IFM (K) dimension position depends on weight layout orientation.
                 const auto ifm_dim_idx = prim->weights_transposed ? (weight_rank - 1) : (weight_rank - 2);
                 const auto ifm = arg.get_dependency(1).get_output_layout().get_dim(ifm_dim_idx);
-                const auto ngroups = get_decompression_groups(scale_layout, ifm_dim_idx);
+                const auto ngroups = get_decompression_groups(weights_layout, scale_layout, ifm_dim_idx, prim->weights_transposed);
                 group_size = static_cast<int>(ifm / ngroups);
                 OPENVINO_ASSERT((group_size == 1 || ngroups == 1 || group_size % 16 == 0),
                     "[GPU] group_size should be aligned to 16 if it is not a single scale group or the group_size is not one.");
@@ -419,7 +433,7 @@ public:
                     dzp_rank = std::max(static_cast<int64_t>(2), dzp_rank);
 
                     auto dzp_ifm_dim_idx = prim->weights_transposed ? (dzp_rank - 1) : (dzp_rank - 2);
-                    auto ngroups = get_decompression_groups(dzp_layout, dzp_ifm_dim_idx);
+                    auto ngroups = get_decompression_groups(weights_layout, dzp_layout, dzp_ifm_dim_idx, prim->weights_transposed);
                     if (ngroups == 1 && dzp_rank <= 2) {
                         attr->set_zero_points(DNNL_ARG_WEIGHTS, per_oc, dnnl::memory::dims{}, dzp_data_type);
                     } else {
