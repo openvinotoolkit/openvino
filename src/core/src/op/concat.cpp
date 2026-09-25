@@ -110,9 +110,9 @@ bool Concat::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
     const auto& out_shape = shape_infer(this, input_shapes).front().to_shape();
     const auto axis = ov::util::normalize(get_axis(), out_shape.size());
 
+    outputs.front().set_shape(out_shape);
     switch (get_concat_kind(elem_type, arg_shapes, out_shape, axis)) {
     case concat_kind::string:
-        outputs.front().set_shape(out_shape);
         reference::concat(get_data_ptrs<std::string>(inputs),
                           outputs[0].data<std::string>(),
                           arg_shapes,
@@ -120,16 +120,14 @@ bool Concat::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
                           axis);
         return true;
     case concat_kind::packed:
-        outputs.front().set_shape(out_shape);
         reference::concat(get_data_ptrs<int8_t>(inputs),
-                          static_cast<int8_t*>(outputs[0].data()),
+                          outputs[0].data<int8_t>(),
                           arg_shapes,
                           out_shape,
                           axis,
                           elem_type.bitwidth());
         return true;
     case concat_kind::regular:
-        outputs.front().set_shape(out_shape);
         reference::concat(get_data_ptrs<char>(inputs),
                           static_cast<char*>(outputs[0].data()),
                           arg_shapes,
@@ -138,6 +136,7 @@ bool Concat::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
                           elem_type.size());
         return true;
     case concat_kind::unsupported:
+        [[fallthrough]];
     default:
         return false;
     }

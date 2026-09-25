@@ -367,26 +367,6 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_With_Hardcoded_Refs,
                          testing::ValuesIn(generateCombinedParams()),
                          ReferenceConcatTest::getTestCaseName);
 
-TEST(concat_evaluate, misaligned_bit_packed_segment_is_not_supported) {
-    // u3/u6 align to a 3-byte group (8/4 elements respectively), unlike the other packed types below.
-    for (const auto& et : {element::u1, element::u2, element::u3, element::u4, element::u6}) {
-        for (const auto& shape : {Shape{2, 3}, Shape{3}}) {
-            const auto axis = shape.size() - 1;
-            auto arg1 = std::make_shared<op::v0::Parameter>(et, shape);
-            auto arg2 = std::make_shared<op::v0::Parameter>(et, shape);
-            auto concat = std::make_shared<op::v0::Concat>(NodeVector{arg1, arg2}, axis);
-
-            EXPECT_TRUE(concat->has_evaluate()) << et << " " << shape;
-
-            ov::Tensor a_tensor(et, shape);
-            ov::Tensor b_tensor(et, shape);
-            ov::TensorVector outputs{ov::Tensor(et, Shape{})};
-            ov::TensorVector inputs{a_tensor, b_tensor};
-            EXPECT_FALSE(concat->evaluate(outputs, inputs)) << et << " " << shape;
-        }
-    }
-}
-
 struct ConcatSupportParams {
     ConcatSupportParams(const element::Type& et,
                         const Shape& shape,
@@ -428,6 +408,18 @@ TEST_P(ReferenceConcatSupportTest, evaluate) {
 
 std::vector<ConcatSupportParams> generateConcatSupportParams() {
     std::vector<ConcatSupportParams> params;
+
+    // u3/u6 align to a 3-byte group (8/4 elements respectively), unlike the other packed types below.
+    for (const auto& et : {element::u1, element::u2, element::u3, element::u4, element::u6}) {
+        for (const auto& shape : {Shape{2, 3}, Shape{3}}) {
+            const auto axis = static_cast<int64_t>(shape.size()) - 1;
+            params.emplace_back(et,
+                                shape,
+                                axis,
+                                false,
+                                "misaligned_" + et.get_type_name() + "_shape" + std::to_string(shape.size()) + "d");
+        }
+    }
 
     // 4 elements/row byte-aligns u2/u4/u6 (need a multiple of 4, 2 and 4 respectively), but u1/u3 both
     // need a multiple of 8, so the same shape must be rejected for them.
