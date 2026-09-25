@@ -13,6 +13,7 @@ using ov::test::MathFloorF16Test;
 INSTANTIATE_TEST_SUITE_P(smoke_MathFloorF16,
                          MathFloorF16Test,
                          ::testing::Combine(::testing::ValuesIn(MathFloorF16Test::all_cases()),
+                                            ::testing::Values(ov::element::f16, ov::element::dynamic),
                                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
                          MathFloorF16Test::getTestCaseName);
 

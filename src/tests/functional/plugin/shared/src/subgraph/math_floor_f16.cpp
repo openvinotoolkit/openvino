@@ -19,42 +19,43 @@ namespace test {
 
 const std::vector<MathFloorF16Case>& MathFloorF16Test::all_cases() {
     using ov::test::utils::ActivationTypes;
-    // expected = Floor with f16 rounding kept; the value in the comment is what a pure f32 path computes.
+    // Value computed in f32 -> Floor with f16 rounding kept / Floor of the pure f32 path.
     static const std::vector<MathFloorF16Case> cases = {
-        {ActivationTypes::Cos, 0.0130767822265625f, 1.0f, 0.0f},     // cos = 0.99991   -> 0
-        {ActivationTypes::Cosh, 3.63671875f, 19.0f, 0.0f},           // cosh = 18.9967  -> 18
-        {ActivationTypes::Sin, 1.5546875f, 1.0f, 0.0f},              // sin = 0.99987   -> 0
-        {ActivationTypes::Sinh, 2.998046875f, 10.0f, 0.0f},          // sinh = 9.99823  -> 9
-        {ActivationTypes::Acos, -0.416015625f, 2.0f, 0.0f},          // acos = 1.99986  -> 1
-        {ActivationTypes::Acosh, 1.54296875f, 1.0f, 0.0f},           // acosh = 0.99990 -> 0
-        {ActivationTypes::Asin, 1.54296875f, 0.0f, 0.54541015625f},  // asin(0.8415508) = 1.00016 -> 1
-        {ActivationTypes::Asinh, -3.62890625f, -2.0f, 0.0f},         // asinh = -2.00054 -> -3
-        {ActivationTypes::Atan, -1.55859375f, -1.0f, 0.0f},          // atan = -1.00035 -> -2
-        {ActivationTypes::Atanh, -0.76171875f, -1.0f, 0.0f},         // atanh = -1.00030 -> -2
-        {ActivationTypes::Tan, 1.2490234375f, 3.0f, 0.0f},           // tan = 2.99978   -> 2
-        {ActivationTypes::Sign, 0.0001f, 0.0f, 0.0001f},             // sign(1.0e-8) = 1 -> 1
-        {ActivationTypes::SoftPlus, 4.9921875f, 5.0f, 0.0f},         // softplus = 4.99896 -> 4
-        {ActivationTypes::SoftSign, 6304.0f, 1.0f, 0.0f},            // softsign = 0.99984 -> 0
-        {ActivationTypes::Selu, -0.841796875f, -1.0f, 0.0f},         // selu = -1.00030 -> -2
-        {ActivationTypes::HardSigmoid, 2.5f, 1.0f, 0.0f},            // hardsigmoid = 0.99988 -> 0
+        {ActivationTypes::Cos, 0.0130767822265625f, 0.0f},     // 0.99991  -> 1 / 0
+        {ActivationTypes::Cosh, 3.63671875f, 0.0f},            // 18.9967  -> 19 / 18
+        {ActivationTypes::Sin, 1.5546875f, 0.0f},              // 0.99987  -> 1 / 0
+        {ActivationTypes::Sinh, 2.998046875f, 0.0f},           // 9.99823  -> 10 / 9
+        {ActivationTypes::Acos, -0.416015625f, 0.0f},          // 1.99986  -> 2 / 1
+        {ActivationTypes::Acosh, 1.54296875f, 0.0f},           // 0.99990  -> 1 / 0
+        {ActivationTypes::Asin, 1.54296875f, 0.54541015625f},  // asin(0.8415508) = 1.00016 -> 0 / 1
+        {ActivationTypes::Asinh, -3.62890625f, 0.0f},          // -2.00054 -> -2 / -3
+        {ActivationTypes::Atan, -1.55859375f, 0.0f},           // -1.00035 -> -1 / -2
+        {ActivationTypes::Atanh, -0.76171875f, 0.0f},          // -1.00030 -> -1 / -2
+        {ActivationTypes::Tan, 1.2490234375f, 0.0f},           // 2.99978  -> 3 / 2
+        {ActivationTypes::Sign, 0.0001f, 0.0001f},             // sign(1.0e-8) = 1 -> 0 / 1
+        {ActivationTypes::SoftPlus, 4.9921875f, 0.0f},         // 4.99896  -> 5 / 4
+        {ActivationTypes::SoftSign, 6304.0f, 0.0f},            // 0.99984  -> 1 / 0
+        {ActivationTypes::Selu, -0.841796875f, 0.0f},          // -1.00030 -> -1 / -2
+        {ActivationTypes::HardSigmoid, 2.5f, 0.0f},            // 0.99988  -> 1 / 0
     };
     return cases;
 }
 
 std::string MathFloorF16Test::getTestCaseName(const testing::TestParamInfo<MathFloorF16Params>& obj) {
-    const auto& [test_case, device] = obj.param;
+    const auto& [test_case, inference_precision, device] = obj.param;
     std::ostringstream result;
     result << "MathOp=" << activationNames[test_case.math_type] << "_input=" << test_case.input;
     if (test_case.pre_multiplier != 0.0f) {
         result << "_preMultiplier=" << test_case.pre_multiplier;
     }
-    result << "_targetDevice=" << device;
+    result << "_inferencePrecision=" << inference_precision << "_targetDevice=" << device;
     return result.str();
 }
 
 void MathFloorF16Test::SetUp() {
-    std::tie(test_case, targetDevice) = GetParam();
-    configuration[ov::hint::inference_precision.name()] = ov::element::f16;
+    ov::element::Type inference_precision_hint;
+    std::tie(test_case, inference_precision_hint, targetDevice) = GetParam();
+    configuration[ov::hint::inference_precision.name()] = inference_precision_hint;
 
     const ov::Shape shape{1};
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, shape);
@@ -83,14 +84,10 @@ void MathFloorF16Test::generate_inputs(const std::vector<ov::Shape>& targetInput
     inputs.insert({function->get_parameters()[0], tensor});
 }
 
-void MathFloorF16Test::check_floor_result() {
-    compile_model();
-    generate_inputs({ov::Shape{1}});
-    infer();
-
-    const auto output_tensor = inferRequest.get_output_tensor();
-    ASSERT_EQ(output_tensor.get_element_type(), ov::element::f16);
-    EXPECT_EQ(static_cast<float>(output_tensor.data<ov::float16>()[0]), test_case.expected);
+void MathFloorF16Test::compile_model() {
+    SubgraphBaseStaticTest::compile_model();
+    // Plugin test configs may lower the reference model to f32, which would drop the f16 rounding under test.
+    convert_precisions.clear();
 }
 
 }  // namespace test

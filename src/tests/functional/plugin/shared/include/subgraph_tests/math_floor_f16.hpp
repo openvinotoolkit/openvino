@@ -10,7 +10,7 @@ namespace ov {
 namespace test {
 
 TEST_P(MathFloorF16Test, Inference) {
-    check_floor_result();
+    run();
 }
 
 }  // namespace test

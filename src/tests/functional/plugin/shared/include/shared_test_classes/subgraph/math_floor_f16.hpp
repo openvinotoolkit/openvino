@@ -23,12 +23,13 @@ namespace test {
 struct MathFloorF16Case {
     ov::test::utils::ActivationTypes math_type;
     float input;
-    float expected;
     // Non-zero: Multiply the input by this constant first; used by ops whose f16 effect is on the input side.
     float pre_multiplier;
 };
 
-using MathFloorF16Params = std::tuple<MathFloorF16Case, std::string>;  // case, device
+using MathFloorF16Params = std::tuple<MathFloorF16Case,
+                                      ov::element::Type,  // inference precision hint
+                                      std::string>;       // device
 
 class MathFloorF16Test : public testing::WithParamInterface<MathFloorF16Params>,
                          virtual public ov::test::SubgraphBaseStaticTest {
@@ -39,7 +40,7 @@ public:
 protected:
     void SetUp() override;
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override;
-    void check_floor_result();
+    void compile_model() override;
 
     MathFloorF16Case test_case{};
 };
