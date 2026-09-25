@@ -129,8 +129,9 @@ std::optional<QuantLayout> quant_layout(uint32_t type) {
     case GGUF_TYPE_Q4_K:
         return QuantLayout{ov::element::u32, 8, ov::element::f16, 32, asymmetric};
     case GGUF_TYPE_Q5_1:
-    case GGUF_TYPE_Q5_K:
         return QuantLayout{ov::element::i8, 1, ov::element::f16, 32, asymmetric};
+    case GGUF_TYPE_Q5_K:
+        return QuantLayout{ov::element::u8, 1, ov::element::f16, 32, asymmetric};
     case GGUF_TYPE_MXFP4:
         return QuantLayout{ov::element::f4e2m1, 1, ov::element::f8e8m0, 32, symmetric};
     default:

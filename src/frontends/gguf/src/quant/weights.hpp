@@ -20,9 +20,9 @@ namespace ov::frontend::gguf {
 // Element type of the zero-point constant for an asymmetric quantized weight.
 // Q2_0 always uses u8. The raw-byte Q8_0_C requantization path separately uses temporary f16
 // zero-points for its host dequantizer, including Q2_0 embedding/output tensors.
-// Q4_K matmul weights are faithfully decoded and requantized to u4 with an integer zero-point,
-// which keeps the CPU compressed-FullyConnected path available. Q4_K tensors selected for the
-// channel-wise Q8_0_C path retain an f16 zero-point while feeding that separate requantization.
+// Q4_K and Q4_1 matmul weights are faithfully decoded and requantized to u4 with an integer
+// zero-point, which keeps the compressed-FullyConnected path available on CPU and GPU. Q5_K matmul
+// weights are requantized the same way to an 8-bit u8 grid. token_embd/output keep an f16 zero-point.
 ov::element::Type gguf_zero_point_type(const std::string& name, GgufTensorType qtype);
 
 // A lossy weight approximation the frontend deliberately makes, reported to the user once so a
@@ -30,8 +30,10 @@ ov::element::Type gguf_zero_point_type(const std::string& name, GgufTensorType q
 enum class LossyWeightApproximation {
     // token_embd / output / Q6_K / Q5_K tensors requantized channel-wise to Q8_0_C.
     Q8_0_C_REQUANT,
-    // Q4_K asymmetric weights faithfully decoded and requantized group-wise to OpenVINO u4.
+    // Q4_K / Q4_1 asymmetric weights faithfully decoded and requantized group-wise to OpenVINO u4.
     Q4_K_REQUANT,
+    // Q5_K asymmetric weights faithfully decoded and requantized group-wise to OpenVINO u8.
+    Q5_K_REQUANT,
 };
 
 // Warn -- ONCE per process and per approximation kind -- that weights are being converted with a

@@ -84,8 +84,9 @@ WeightFormat get_weight_format(GgufTensorType qtype) {
     case GGUF_TYPE_Q4_K:
         return {FillKind::ASYMMETRIC, 32, ov::element::u32};
     case GGUF_TYPE_Q5_1:
-    case GGUF_TYPE_Q5_K:
         return {FillKind::ASYMMETRIC, 32, ov::element::i8};
+    case GGUF_TYPE_Q5_K:
+        return {FillKind::ASYMMETRIC, 32, ov::element::u8};
     case GGUF_TYPE_F16:
     case GGUF_TYPE_F32:
     case GGUF_TYPE_BF16:
@@ -282,6 +283,11 @@ void dequant_extracted_row_to_f32(const WeightTensors& tensors, size_t r, size_t
             for (size_t k = 0; k < group; ++k) {
                 dst[k] = (static_cast<float>(q[k]) - zpf) * scale;
             }
+        } else if (et == ov::element::u8) {
+            const auto* q = weight.data<uint8_t>() + r * cols + g * group;
+            for (size_t k = 0; k < group; ++k) {
+                dst[k] = (static_cast<float>(q[k]) - zpf) * scale;
+            }
         } else if (et == ov::element::u2) {
             // Q2_K / Q2_0: u2 weights, 4 per byte LSB-first, raw [0..3] with a zero-point.
             const auto* bytes = static_cast<const uint8_t*>(weight.data()) + r * (cols / 4) + (g * group) / 4;
@@ -324,16 +330,19 @@ std::shared_ptr<ov::Node> requantize_extracted_q8_0_channelwise(const WeightTens
     return build_q8_0_c_node(weights, scales, rows, cols);
 }
 
+// token_embd/output weights: requantized to Q8_0_C on the raw-byte path, and kept on a faithful
+// f16 zero-point on the extracted-tensor path.
+bool is_embedding_or_output(const std::string& name) {
+    return name.rfind("token_embd.weight", 0) == 0 || name.rfind("output.weight", 0) == 0;
+}
+
 // Decide whether a weight is requantized to Q8_0_C, mirroring llama.cpp's
 // ggml_openvino_get_requant_type for the CPU/GPU (non-NPU) path.
 bool needs_q8_0_c_requant(const std::string& name, GgufTensorType qtype) {
-    if (name.rfind("token_embd.weight", 0) == 0 || name.rfind("output.weight", 0) == 0) {
-        return true;
-    }
-    return qtype == GGUF_TYPE_Q5_K;
+    return is_embedding_or_output(name) || qtype == GGUF_TYPE_Q5_K;
 }
 
-// Keep an exact-decode escape hatch for strict validation against ggml's original Q4_K values.
+// Keep an exact-decode escape hatch for strict validation against ggml's original Q4_K / Q4_1 values.
 // Production leaves this unset and uses the compressed-FC-friendly u4 requantization.
 bool q4_k_f16_zero_point_enabled() {
     // Read once: this sits on a per-tensor path (gguf_zero_point_type is consulted for every
@@ -357,6 +366,7 @@ void notify_lossy_weight_approximation(LossyWeightApproximation kind) {
     // once, however many thousands of weights are affected.
     static std::once_flag requant_once;
     static std::once_flag zero_point_once;
+    static std::once_flag q5_k_zero_point_once;
 
     switch (kind) {
     case LossyWeightApproximation::Q8_0_C_REQUANT:
@@ -370,8 +380,17 @@ void notify_lossy_weight_approximation(LossyWeightApproximation kind) {
         break;
     case LossyWeightApproximation::Q4_K_REQUANT:
         std::call_once(zero_point_once, [] {
-            std::cerr << "[GGUF] accuracy notice: Q4_K weights are faithfully decoded and requantized group-wise "
-                         "to OpenVINO u4. This adds a small quantization error, so results may differ slightly "
+            std::cerr << "[GGUF] accuracy notice: Q4_K / Q4_1 weights are faithfully decoded and requantized "
+                         "group-wise to OpenVINO u4. This adds a small quantization error, so results may differ "
+                         "slightly from the original GGUF weights. The integer zero-point keeps decompression "
+                         "foldable into a compressed FullyConnected operation. Reported once per process."
+                      << std::endl;
+        });
+        break;
+    case LossyWeightApproximation::Q5_K_REQUANT:
+        std::call_once(q5_k_zero_point_once, [] {
+            std::cerr << "[GGUF] accuracy notice: Q5_K weights are faithfully decoded and requantized group-wise "
+                         "to OpenVINO u8. This adds a small quantization error, so results may differ slightly "
                          "from the original GGUF weights. The integer zero-point keeps decompression foldable "
                          "into a compressed FullyConnected operation. Reported once per process."
                       << std::endl;
@@ -382,15 +401,18 @@ void notify_lossy_weight_approximation(LossyWeightApproximation kind) {
 
 ov::element::Type gguf_zero_point_type(const std::string& name, GgufTensorType qtype) {
     // The CPU compressed-FullyConnected fast path only folds the dequant when the zero-point is an
-    // INTEGER constant; a fractional f16 one leaves a ~2x slower kernel. Q4_K matmul weights are
-    // decoded and requantized to an OpenVINO u4 grid with an integer zero-point. Strict oracle
-    // validation can request Q4_K's faithful f16 zero-point via OV_GGUF_Q4_K_ZP_F16. Q2_0's
-    // zero-point is exactly 1, so u8 is faithful there. Other asymmetric formats keep f16 because
-    // their zero-point can exceed u8 range. Q4_K tensors selected for Q8_0_C retain a faithful
-    // f16 zero-point for that separate requantization path.
-    const bool integer_zp = qtype == GGUF_TYPE_Q2_0 || (qtype == GGUF_TYPE_Q4_K && !q4_k_f16_zero_point_enabled() &&
-                                                        !needs_q8_0_c_requant(name, qtype));
-    return integer_zp ? ov::element::u8 : ov::element::f16;
+    // INTEGER constant; a fractional f16 one leaves a ~2x slower kernel, and the GPU oneDNN FC
+    // rejects it. Q4_K and Q4_1 matmul weights are decoded and requantized to an OpenVINO u4 grid
+    // and Q5_K ones to a u8 grid, all with an integer zero-point. Strict oracle validation can
+    // request the faithful f16 zero-point of both u4 formats via OV_GGUF_Q4_K_ZP_F16. Q2_0's zero-point is exactly
+    // 1, so u8 is faithful there. Other asymmetric formats keep f16 because their zero-point can
+    // exceed u8 range. token_embd/output keep a faithful f16 zero-point.
+    if (qtype == GGUF_TYPE_Q2_0) {
+        return ov::element::u8;
+    }
+    const bool requantized = qtype == GGUF_TYPE_Q5_K ||
+                             ((qtype == GGUF_TYPE_Q4_K || qtype == GGUF_TYPE_Q4_1) && !q4_k_f16_zero_point_enabled());
+    return requantized && !is_embedding_or_output(name) ? ov::element::u8 : ov::element::f16;
 }
 
 std::shared_ptr<ov::Node> make_weight_node(const WeightTensors& tensors,

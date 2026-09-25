@@ -15,13 +15,17 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/matmul.hpp"
+#include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tile.hpp"
@@ -71,8 +75,9 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     auto state = context.get_input(5);
 
     // ggml maps GQA heads in tiled order, while the OV op maps repeated heads in grouped order:
-    // tile Q/K along the head axis so their head count matches V.
-    if (H_v != H_k) {
+    // tile Q/K along the head axis so their head count matches V. A builder that already stored
+    // the V heads in grouped order sets "gqa_grouped" and needs no Tile.
+    if (H_v != H_k && !context.get_attribute<bool>("gqa_grouped", false)) {
         const int64_t repeat = H_v / H_k;
         auto repeats = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, repeat, 1});
         q = std::make_shared<ov::op::v0::Tile>(q, repeats);
@@ -89,7 +94,15 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     g = std::make_shared<ov::op::v0::Squeeze>(g, sq_axis_3);
     beta = std::make_shared<ov::op::v0::Squeeze>(beta, sq_axis_3);
 
-    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q, k, v, state, g, beta);
+    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q,
+                                                                 k,
+                                                                 v,
+                                                                 state,
+                                                                 g,
+                                                                 beta,
+                                                                 context.get_attribute<bool>("fuse_qk_l2norm", false),
+                                                                 context.get_attribute<float>("qk_l2_norm_eps", 1e-6f),
+                                                                 context.get_attribute<float>("qk_l2_norm_eps", 1e-6f));
     auto attn_4d = gdn->output(0);
     auto state_4d = gdn->output(1);  // [B, H_v, key_dim, value_dim]
 
@@ -131,6 +144,23 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
 
     const int64_t rq1 = H_v / H_k;  // GQA head repeat factor
     const float scale = 1.0f / std::sqrt((float)S_v);
+    const bool gqa_grouped = context.get_attribute<bool>("gqa_grouped", false);
+
+    // ggml's l2_norm (x / max(||x||, eps)) when the builder asked the fused op to normalize q/k.
+    if (context.get_attribute<bool>("fuse_qk_l2norm", false)) {
+        const auto eps = ov::op::v0::Constant::create(ov::element::f32,
+                                                      {1},
+                                                      {context.get_attribute<float>("qk_l2_norm_eps", 1e-6f)});
+        const auto last = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+        const auto l2_norm = [&](const ov::Output<ov::Node>& x) {
+            auto sum =
+                std::make_shared<ov::op::v1::ReduceSum>(std::make_shared<ov::op::v1::Multiply>(x, x), last, true);
+            auto norm = std::make_shared<ov::op::v1::Maximum>(std::make_shared<ov::op::v0::Sqrt>(sum), eps);
+            return std::make_shared<ov::op::v1::Divide>(x, norm)->output(0);
+        };
+        q = l2_norm(q);
+        k = l2_norm(k);
+    }
 
     auto axis_0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
     auto axis_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
@@ -155,7 +185,10 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
             std::make_shared<ov::op::v3::Broadcast>(q_unsq, bcast_shape, ov::op::BroadcastType::BIDIRECTIONAL);
         auto k_bcast =
             std::make_shared<ov::op::v3::Broadcast>(k_unsq, bcast_shape, ov::op::BroadcastType::BIDIRECTIONAL);
-        auto perm_5d = ov::op::v0::Constant::create(ov::element::i64, {5}, std::vector<int64_t>{0, 2, 1, 3, 4});
+        auto perm_5d = ov::op::v0::Constant::create(
+            ov::element::i64,
+            {5},
+            gqa_grouped ? std::vector<int64_t>{0, 1, 2, 3, 4} : std::vector<int64_t>{0, 2, 1, 3, 4});
         auto q_transposed = std::make_shared<ov::op::v1::Transpose>(q_bcast, perm_5d);
         auto k_transposed = std::make_shared<ov::op::v1::Transpose>(k_bcast, perm_5d);
         // [B, H_v, T, S_v] with T dynamic (-1).

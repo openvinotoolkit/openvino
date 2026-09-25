@@ -20,6 +20,25 @@ std::string bias_weight_name(const std::string& weight_name) {
     return weight_name.substr(0, weight_name.size() - suffix.size()) + ".bias";
 }
 
+// Stores [gate | up] rows as one weight named after `merged_name` and returns its weight name, or
+// an empty string when the two do not share a quantization layout. One FC instead of two on the
+// same input saves a kernel launch per layer and decode step.
+std::string merge_gate_up_weights(GraphEmitter& e,
+                                  const std::string& gate_w,
+                                  const std::string& up_w,
+                                  const std::string& merged_name) {
+    static const std::string suffix = ".weight";
+    const auto gate = gate_w.substr(0, gate_w.size() - suffix.size());
+    const auto up = up_w.substr(0, up_w.size() - suffix.size());
+    const auto merged =
+        concat_rows(weight_parts(e, gate), weight_parts(e, up), weight_qtype(e, gate), weight_qtype(e, up));
+    if (!merged) {
+        return {};
+    }
+    store_parts(e, merged_name, *merged, weight_qtype(e, gate));
+    return merged_name + suffix;
+}
+
 }  // namespace
 
 // GATE/UP projection -> SwiGLU, shared by dense_ffn's non-fused branch and moe_ffn's shared-expert
@@ -37,6 +56,14 @@ std::string swiglu_gate_up(GraphEmitter& e,
                            const std::string& up_name,
                            const std::string& glu_name,
                            bool has_bias) {
+    if (!has_bias) {
+        const auto merged = merge_gate_up_weights(e, gate_w, up_w, gate_name + "_up");
+        if (!merged.empty()) {
+            e.add_weight(merged);
+            auto gate_up = e.add_op("GGML_OP_MUL_MAT", gate_name + "_up", {merged, ffn_norm});
+            return e.add_op("GGML_GLU_OP_SWIGLU", glu_name, {gate_up}, 0, {{"swapped", false}});
+        }
+    }
     e.add_weight(gate_w);
     auto gate = e.add_op("GGML_OP_MUL_MAT", gate_name, {gate_w, ffn_norm});
     if (has_bias) {
@@ -51,12 +78,20 @@ std::string swiglu_gate_up(GraphEmitter& e,
 }
 
 std::string geglu_ffn(GraphEmitter& e, const DecoderConfig& cfg, const std::string& p, const std::string& ffn_norm) {
-    e.add_weight(p + "ffn_gate.weight");
-    e.add_weight(p + "ffn_up.weight");
     e.add_weight(p + "ffn_down.weight");
-    auto gate = e.add_op("GGML_OP_MUL_MAT", p + "ffn_gate", {p + "ffn_gate.weight", ffn_norm});
-    auto up = e.add_op("GGML_OP_MUL_MAT", p + "ffn_up", {p + "ffn_up.weight", ffn_norm});
-    auto glu = e.add_op("GGML_GLU_OP_GEGLU", p + "ffn_geglu", {gate, up}, 0, {{"swapped", false}});
+    std::string glu;
+    const auto merged = merge_gate_up_weights(e, p + "ffn_gate.weight", p + "ffn_up.weight", p + "ffn_gate_up");
+    if (!merged.empty()) {
+        e.add_weight(merged);
+        auto gate_up = e.add_op("GGML_OP_MUL_MAT", p + "ffn_gate_up", {merged, ffn_norm});
+        glu = e.add_op("GGML_GLU_OP_GEGLU", p + "ffn_geglu", {gate_up}, 0, {{"swapped", false}});
+    } else {
+        e.add_weight(p + "ffn_gate.weight");
+        e.add_weight(p + "ffn_up.weight");
+        auto gate = e.add_op("GGML_OP_MUL_MAT", p + "ffn_gate", {p + "ffn_gate.weight", ffn_norm});
+        auto up = e.add_op("GGML_OP_MUL_MAT", p + "ffn_up", {p + "ffn_up.weight", ffn_norm});
+        glu = e.add_op("GGML_GLU_OP_GEGLU", p + "ffn_geglu", {gate, up}, 0, {{"swapped", false}});
+    }
     return e.add_op("GGML_OP_MUL_MAT", p + "ffn_out", {p + "ffn_down.weight", glu});
 }
 
