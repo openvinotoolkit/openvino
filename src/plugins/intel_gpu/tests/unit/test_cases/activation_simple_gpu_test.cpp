@@ -918,7 +918,7 @@ TEST(activation_bf16_fw_gpu, pow_basic_yxfb) {
     }
 }
 
-TEST(activation_f16_fw_gpu, softplus_do_not_fuse_for_f16_prevent_overflow) {
+TEST(activation_f16_fw_gpu, softplus_f16_fusion_test) {
     auto& engine = get_test_engine();
 
     tensor input_shape{2, 4, 2, 3};

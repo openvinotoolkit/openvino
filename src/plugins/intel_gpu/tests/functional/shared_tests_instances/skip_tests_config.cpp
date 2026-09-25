@@ -48,8 +48,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
 
             // TODO: Issue: 47773
             std::regex(R"(.*(ProposalLayerTest).*)"),
-            // TODO: Issue: 54194
-            std::regex(R"(.*ActivationLayerTest.*SoftPlus.*)"),
             // TODO: Issue: 59586, NormalizeL2 output mismatch for empty axes case
             std::regex(R"(.*NormalizeL2LayerTest.*axes=\(\).*)"),
 
