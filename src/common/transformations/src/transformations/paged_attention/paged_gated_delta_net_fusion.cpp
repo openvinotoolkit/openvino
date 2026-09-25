@@ -143,9 +143,8 @@ PagedGatedDeltaNetFusion::PagedGatedDeltaNetFusion(ov::pass::paged_attention::Pa
         const auto query_shape = std::make_shared<ov::op::v3::ShapeOf>(pm.at(query), ov::element::i64);
         const auto value_shape = std::make_shared<ov::op::v3::ShapeOf>(pm.at(value), ov::element::i64);
         const auto axis_0 = v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
-        // Output is [B, L, v_H, v_S]: batch/length from query, heads from value (GQA has fewer q heads).
-        const auto idx_q = v0::Constant::create(ov::element::i64, ov::Shape{2}, {0, 1});
-        const auto idx_v = v0::Constant::create(ov::element::i64, ov::Shape{2}, {2, 3});
+        const auto idx_q = v0::Constant::create(ov::element::i64, ov::Shape{3}, {0, 1, 2});
+        const auto idx_v = v0::Constant::create(ov::element::i64, ov::Shape{1}, {3});
         const auto q_dims = std::make_shared<ov::op::v8::Gather>(query_shape, idx_q, axis_0);
         const auto v_dim = std::make_shared<ov::op::v8::Gather>(value_shape, idx_v, axis_0);
         const auto out0_shape = std::make_shared<v0::Concat>(ov::OutputVector{q_dims, v_dim}, 0);
