@@ -25,11 +25,22 @@ static std::string s_manifest = onnx_backend_manifest("${MANIFEST}");
 static std::string s_device = backend_name_to_device("${BACKEND_NAME}");
 
 namespace {
-// clang-format off
-const std::vector<float> stft_window_16{
-    1.0f, 0.96194196f, 0.8535616f, 0.6913578f, 0.5000232f, 0.308685f, 0.1464712f, 0.038075745f,
-    0.0f, 0.03804031f, 0.1464057f, 0.3085994f, 0.49993038f, 0.6912722f, 0.853496f, 0.96190655f};
-// clang-format on
+const std::vector<float> stft_window_16{1.0f,
+                                        0.96194196f,
+                                        0.8535616f,
+                                        0.6913578f,
+                                        0.5000232f,
+                                        0.308685f,
+                                        0.1464712f,
+                                        0.038075745f,
+                                        0.0f,
+                                        0.03804031f,
+                                        0.1464057f,
+                                        0.3085994f,
+                                        0.49993038f,
+                                        0.6912722f,
+                                        0.853496f,
+                                        0.96190655f};
 }  // namespace
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_dft) {
@@ -444,10 +455,17 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_no_onesided_complex_input_given_w
     std::vector<float> signal(ov::shape_size(signal_shape));
     std::iota(std::begin(signal), std::end(signal), 0.f);
     test_case.add_input<float>(signal_shape, signal);
-    // clang-format off
-    test_case.add_input<float>(Shape{10}, {1.0f, 0.90451396f, 0.6545261f, 0.345518f, 0.095513284f,
-                                          0.0f, 0.095458746f, 0.34542978f, 0.654438f, 0.9044596f});
-    // clang-format on
+    test_case.add_input<float>(Shape{10},
+                               {1.0f,
+                                0.90451396f,
+                                0.6545261f,
+                                0.345518f,
+                                0.095513284f,
+                                0.0f,
+                                0.095458746f,
+                                0.34542978f,
+                                0.654438f,
+                                0.9044596f});
     test_case.add_expected_output<float>(
         Shape{2, 4, 10, 2},
         {39.99715f,   44.997005f,  -3.826806f,  36.325737f,  -26.390974f, 6.393208f,   -17.885399f, -2.1136048f,
