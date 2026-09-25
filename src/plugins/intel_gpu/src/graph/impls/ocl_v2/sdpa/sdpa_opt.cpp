@@ -58,12 +58,15 @@ public:
     Stage::Ptr indirect_finalization = make_stage<SDPAOptGeneratorFinalization>(indirect);
     Stage::Ptr regular_finalization = make_stage<SDPAOptGeneratorFinalization>(!indirect);
 
-#ifdef ENABLE_ONEDNN_FOR_GPU
+    // Created only with oneDNN; has_stage() of a null stage is false.
     Stage::Ptr regular_micro_single_token;
     Stage::Ptr regular_micro_multi_tokens;
+#ifdef ENABLE_ONEDNN_FOR_GPU
     // TEST_USE_SDPA_OCL=0 selects SDPAMicroGenerator; unset or =1 selects SDPAOclGenerator.
     const char* env = std::getenv("TEST_USE_SDPA_OCL");
     const bool use_ocl = env == nullptr ? true : (env && env[0] == '1');
+#else
+    const bool use_ocl = false;
 #endif
 
     SDPAOptImpl() : SDPAImplBase(SDPAOpt::get_type_info_static()) {
@@ -101,16 +104,19 @@ public:
             GPU_DEBUG_TRACE_DETAIL << "add stage for non-dynamic, is_indirect = " << is_indirect << "\n";
             // The sdpa_ocl single-token kernel handles unaligned head sizes (head < d / value < dv /
             // DKS_ACTIVE guards), so on the ocl path we let an unaligned decode fall through to the
-            // single-token stages instead of forcing the multi-tokens kernel. sdpa_micro and the opt
-            // single-token kernel do not support unaligned head sizes, and indirect keeps its opt
-            // fallback, so both are excluded.
+            // single-token branch, which stages the multi-tokens kernel only if sdpa_ocl is not added.
+            // sdpa_micro and the opt single-token kernel do not support unaligned head sizes, and
+            // indirect keeps its opt fallback, so both are excluded.
+            const bool is_prefill = is_prefill_stage(params);
             const bool use_ocl_single_token_unaligned = use_ocl && !is_indirect;
-            if (is_prefill_stage(params) || (unaligned_head_size(params) && !use_ocl_single_token_unaligned)) {
+            if (is_prefill || (unaligned_head_size(params) && !use_ocl_single_token_unaligned)) {
                 if (is_indirect) {
                     GPU_DEBUG_TRACE_DETAIL << "add stage for indirect non-dynamic with prefill_stage \n";
                     add_stage(indirect_multi_tokens, params);
 #ifdef ENABLE_ONEDNN_FOR_GPU
-                } else if (SDPAOpt::supports_micro_sdpa(params, use_ocl) && (!use_ocl || SDPAOclGenerator::supported(params))) {
+                } else if (is_prefill && SDPAOpt::supports_micro_sdpa(params, use_ocl) && (!use_ocl || SDPAOclGenerator::supported(params))) {
+                    // Prefill only: execute() never dispatches regular_micro_multi_tokens for one query, so an
+                    // unaligned decode (sdpa_micro path) must stage regular_multi_tokens in the else branch.
                     GPU_DEBUG_TRACE_DETAIL << "add stage for micro_sdpa non-dynamic with prefill_stage \n";
                     add_stage(regular_micro_multi_tokens, params);
                     // Sometimes micro kernel will fail due to "Insufficient registers in requested bundle",
@@ -136,9 +142,16 @@ public:
                     add_stage(regular_micro_single_token, params);
                 }
 #endif
-                add_stage(is_indirect ? indirect_single_token : regular_single_token, params);
-                if (get_partitions_num(params, SDPAStage::SINGLE_TOKEN) > 1) {
-                    add_stage(is_indirect ? indirect_finalization : regular_finalization, params);
+                if (unaligned_head_size(params) && !has_stage(regular_micro_single_token)) {
+                    // Unaligned decode on the ocl path whose sdpa_ocl stage was refused or could not be added:
+                    // execute() runs regular_multi_tokens, the only opt kernel that handles unaligned heads.
+                    GPU_DEBUG_TRACE_DETAIL << "no sdpa_ocl single-token stage for unaligned head size, add regular_multi_tokens \n";
+                    add_stage(regular_multi_tokens, params);
+                } else {
+                    add_stage(is_indirect ? indirect_single_token : regular_single_token, params);
+                    if (get_partitions_num(params, SDPAStage::SINGLE_TOKEN) > 1) {
+                        add_stage(is_indirect ? indirect_finalization : regular_finalization, params);
+                    }
                 }
             }
         }
@@ -171,8 +184,8 @@ public:
         // If we need to optimize unaligned head size SDPA for 2nd+ token phase of LM model,
         // we'll need to fix single_token kernel to support unaligned head size.
         // The sdpa_ocl single-token kernel does support unaligned head sizes (head < d / value < dv /
-        // DKS_ACTIVE guards). When it is staged (ocl, non-indirect decode) it is used instead; the
-        // has_stage() check keeps this decision consistent with the stage registration in the ctor.
+        // DKS_ACTIVE guards). When it is staged (ocl, non-indirect decode) it is used instead; when it
+        // is not, the ctor stages regular_multi_tokens for a static non-indirect unaligned decode.
         if (is_prefill || (unaligned_head_size(new_params) &&
                            !(use_ocl && !is_indirect && has_stage(regular_micro_single_token)))) {
             GPU_DEBUG_TRACE_DETAIL << "execute multi_tokens for prefill with indirect = " << is_indirect << "\n";
