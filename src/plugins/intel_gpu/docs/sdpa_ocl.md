@@ -594,13 +594,6 @@ result is quoted.
   `SDPAOclGenerator` is the default, and its `supported()` refuses anything below Xe2. On
   xe_hpg/xe_hpc neither `sdpa_opt.cpp` nor `paged_attention_opt.cpp` (`supports_micro_sdpa()`)
   adds a micro stage, and both fall back to the opt kernels.
-- Static SDPA with one query and an unaligned head size: with `use_ocl` and no indirect axis the
-  constructor adds only single-token stages. When the `sdpa_ocl` single-token stage is not among
-  them (its gate refuses, as on every pre-Xe2 device), `execute()` dispatches
-  `regular_multi_tokens`, which was never added (`sdpa_opt.cpp`).
-- A build without oneDNN does not compile: `sdpa_opt.cpp` declares `use_ocl` inside `#ifdef
-  ENABLE_ONEDNN_FOR_GPU` and uses it outside, in the constructor's single-token choice and in
-  `execute()`'s unaligned-head test.
 - `block2d_layout_ok()` does not check padding: the check has been commented out since it was
   written. It is reachable for rank-2 paged-attention inputs with feature padding (the minicpm4 V
   crop view is benign by luck). Adding it narrows a gate, so it needs its own change and a
@@ -626,6 +619,14 @@ result is quoted.
   dispatching plain int4 would round the zp to the 1.0 ulp at 1152, and the 0.1 tolerance of the
   kv_cache_sdpa tests would not notice.
 - Plain-SDPA int4 KV compiles an `sdpa_ocl` stage that `execute()` never dispatches.
+- A plain-SDPA int4 KV decode with an unaligned head runs the opt single-token kernel, which does
+  not support it: `execute()` skips `regular_multi_tokens` whenever the `sdpa_ocl` single-token
+  stage is staged, then skips that stage for int4. Master sent every unaligned decode to the
+  multi-tokens kernel. `unaligned_head_size()` reads the packed K/V layouts, so logical heads 80
+  or 112 take the same route harmlessly; a logical head of 72 would be wrong.
+- `unaligned_head_size()` gives the rank-3 descriptor orders of a 3D SDPA to layouts canonicalized
+  to 4D, so it reads the sequence length instead of the head size. A 3D decode with an unaligned
+  head and a key length divisible by 16 runs the opt single-token kernel (as on master).
 - `TEST_USE_SDPA_OCL=0` gives wrong MIXED results with the default cache: the K-page layout check
   in `can_use_micro_sdpa_for()` is gated on `use_ocl`, so `sdpa_micro` MIXED is dispatched on the
   token-major BY_CHANNEL page, which it reads d-major.
