@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-25-09-14-40-000-36114020917",
+  "timestamp": "2026-09-25T09:14:40Z",
+  "run_id": "36114020917",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36114020917",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "38393",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38393",
+  "author": "allnes",
+  "category": "Infrastructure",
+  "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_shape_inference",
+  "signature": "cc1plus error cmake_pch hxx gch not a pch file werror invalid pch|Infrastructure",
+  "signature_hash": "5b4b1e6917a69856",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "Cmake build - OpenVINO step failed: cc1plus rejects a stale precompiled header (cmake_pch.hxx.gch) as 'not a PCH file' under -Werror=invalid-pch while compiling src/core/shape_inference sources."
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Aggregated overall-status check failed because the Build / Build job failed."
+    }
+  ],
+  "key_errors": [
+    "FAILED: [code=1] src/core/shape_inference/CMakeFiles/openvino_shape_inference.dir/src/tensor_data_accessor.cpp.o\ncc1plus: error: /home/runner/_work/openvino/openvino/openvino/openvino_build/src/core/shape_inference/CMakeFiles/openvino_shape_inference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]\ncc1plus: all warnings being treated as errors",
+    "FAILED: [code=1] src/core/shape_inference/CMakeFiles/openvino_shape_inference.dir/src/experimental_detectron_shape_infer_utils.cpp.o\ncc1plus: error: .../cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]",
+    "FAILED: [code=1] src/core/shape_inference/CMakeFiles/openvino_shape_inference.dir/src/utils.cpp.o\ncc1plus: error: .../cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]\nninja: build stopped: subcommand failed."
+  ],
+  "root_cause": "The ARM64 cross-compilation build's precompiled header for the openvino_shape_inference target (cmake_pch.hxx.gch) is rejected by cc1plus as 'not a PCH file', which becomes a hard failure under -Werror -Winvalid-pch. This is the same recurring signature previously recorded for PR #37942 (run 36069429763, 2026-09-24T23:04:41Z), now recurring on PR #38393 (a GPU-only memory-dependency change touching only src/plugins/intel_gpu/*), confirming the failure is unrelated to the specific PR's diff and is instead an infrastructure/caching artifact affecting the openvino_shape_inference PCH generation on the ARM64 cross-compilation runner (likely a stale/incompatible sccache- or build-dir-restored .gch reused across incompatible compiler/flag states).",
+  "reproduction_steps": "N/A (depends on a stale/corrupted cmake_pch.hxx.gch artifact reused between CI runs on the ARM64 cross-compilation runner's build cache; not reliably reproducible outside that CI container/cache state). Locally, one can approximate it by reusing a cmake_pch.hxx.gch produced by a different compiler/flags combination and rebuilding openvino_shape_inference with -Werror -Winvalid-pch.",
+  "recommended_actions": [
+    "Re-run the failed 'Build / Build' job — a clean CMake/ninja build regenerates cmake_pch.hxx.gch and should clear the stale/corrupted PCH.",
+    "Since this signature has now recurred across two unrelated PRs (#37942 and #38393), invalidate/clear the sccache and build-dir caches used by the ARM64 cross-compilation job to remove the incompatible cached PCH at the source.",
+    "Audit the PCH cache key for the openvino_shape_inference target to ensure it is tied to the exact compiler version, target flags (e.g. -std=c++17, visibility flags), and toolchain (aarch64-linux-gnu-g++) so a partially-restored/cross-job cache cannot supply an incompatible .gch.",
+    "No code change is required in PR #38393; the GPU-only diff (oooq_memory_dependencies.cpp and its unit test) does not touch src/core/shape_inference."
+  ],
+  "prevention_strategies": "Key PCH artifacts to the exact compiler version, flags, and toolchain used to generate them so a partially-restored or cross-job cache cannot mix an incompatible .gch. Consider a build step that removes stale *.gch files before a fresh CMake configure whenever the compiler/flags might have changed, or add automatic PCH regeneration instead of hard-failing on -Werror=invalid-pch.",
+  "historical_context": "This is the second recorded occurrence of this exact signature in the merge-queue knowledge base (pattern 5b4b1e6917a69856, count now 2). It was first seen 2026-09-24T23:04:41Z on run 36069429763 / PR #37942 with an identical root cause (GCC PCH validation failure for openvino_shape_inference under -Werror=invalid-pch), also unrelated to that PR's NPU-only diff. Recurrence across two unrelated PRs within ~10 hours strengthens the infrastructure/caching hypothesis over a code-level cause."
+}
