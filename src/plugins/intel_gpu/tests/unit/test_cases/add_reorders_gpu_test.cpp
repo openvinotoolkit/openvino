@@ -111,8 +111,8 @@ template <typename T>
 void test_add_reorders_gpu_basic_reshape_and_tile(bool is_caching_test) {
     auto& engine = get_test_engine();
 
-    auto input = engine.allocate_memory({ data_types::f32, format::byxf,{ 1, 2, 2, 1 } });
-    auto output_ref = engine.allocate_memory({ data_types::f32, format::byxf,{ 2, 1, 4, 2 } });
+    auto input = engine.allocate_memory({ data_types::f32, format::fbyx,{ 1, 2, 2, 1 } });
+    auto output_ref = engine.allocate_memory({ data_types::f32, format::bfyx,{ 2, 1, 4, 1 } });
 
     topology topology;
     topology.add(input_layout("input", input->get_layout()));
@@ -127,7 +127,7 @@ void test_add_reorders_gpu_basic_reshape_and_tile(bool is_caching_test) {
 
     network->set_input_data("input", input);
 
-    //reorder is required as tile accepts only bfyx format
+    // reorder is required as tile doesn't support fbyx format
     ASSERT_EQ(network->get_all_primitive_org_ids().size(), size_t(4));
     auto outputs = network->execute();
 
