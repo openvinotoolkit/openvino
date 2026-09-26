@@ -6,11 +6,13 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "llm_test_helpers.hpp"
 #include "openvino/core/version.hpp"
 #include "openvino/op/parameter.hpp"
@@ -85,6 +87,18 @@ std::string make_flux2_header(const ov::npuw::s11n::IndicatorType& serialization
     ov::npuw::s11n::write(stream, vminor);
     ov::npuw::s11n::write(stream, vpatch);
     ov::npuw::s11n::write(stream, s11n_version);
+    return stream.str();
+}
+
+std::string make_flux2_header(const std::size_t claimed_version_size, const std::string& version) {
+    std::ostringstream stream;
+    ov::npuw::s11n::write(stream, NPUW_SERIALIZATION_INDICATOR);
+    ov::npuw::s11n::write(stream, NPUW_FLUX2_COMPILED_MODEL_INDICATOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_MAJOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_MINOR);
+    ov::npuw::s11n::write(stream, OPENVINO_VERSION_PATCH);
+    ov::npuw::s11n::write(stream, claimed_version_size);
+    stream.write(version.data(), static_cast<std::streamsize>(version.size()));
     return stream.str();
 }
 
@@ -344,6 +358,24 @@ TEST_F(Flux2CompiledModelTest, ImportRejectsVersionMismatch) {
                                           std::string(NPUW_SERIALIZATION_VERSION));
     std::istringstream stream(header);
     EXPECT_THROW(ov::npuw::Flux2CompiledModel::import_model(stream, m_plugin, {}), ov::Exception);
+}
+
+TEST_F(Flux2CompiledModelTest, ImportRejectsExcessiveSerializationVersionLengthBeforeAllocation) {
+    const auto header = make_flux2_header(std::numeric_limits<std::size_t>::max(), NPUW_SERIALIZATION_VERSION);
+    std::istringstream stream(header);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::Flux2CompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "is outside bounds [4, 4]");
+}
+
+TEST_F(Flux2CompiledModelTest, ImportRejectsShortSerializationVersionLength) {
+    const auto header = make_flux2_header(3u, "0.3");
+    std::istringstream stream(header);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::Flux2CompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "is outside bounds [4, 4]");
 }
 
 }  // namespace

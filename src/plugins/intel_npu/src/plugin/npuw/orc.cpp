@@ -241,8 +241,24 @@ void ov::npuw::orc::serialize(Stream& stream, std::string& value) {
         return;
     }
 
+    read_bounded(stream, value, 0u, std::numeric_limits<std::size_t>::max());
+}
+
+void ov::npuw::orc::read_bounded(Stream& stream,
+                                 std::string& value,
+                                 const std::size_t min_size,
+                                 const std::size_t max_size) {
+    OPENVINO_ASSERT(stream.input(), "Bounded ORC string reads require an input stream");
+    OPENVINO_ASSERT(min_size <= max_size, "Invalid ORC string size bounds");
+
     std::size_t size = 0u;
     stream & size;
+    if (size < min_size || size > max_size) {
+        OPENVINO_THROW("ORC string size ", size, " is outside bounds [", min_size, ", ", max_size, ']');
+    }
+    if (stream.memory() && size > stream.remaining()) {
+        OPENVINO_THROW("ORC string size ", size, " exceeds remaining payload ", stream.remaining());
+    }
     value.resize(size);
     if (size != 0u) {
         stream.bytes(value.data(), value.size());

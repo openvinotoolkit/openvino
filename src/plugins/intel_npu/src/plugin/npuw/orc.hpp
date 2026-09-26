@@ -123,6 +123,7 @@ inline void serialize(Stream& stream, std::byte& value) {
 }
 
 void serialize(Stream& stream, std::string& value);
+void read_bounded(Stream& stream, std::string& value, std::size_t min_size, std::size_t max_size);
 
 template <typename T1, typename T2>
 void serialize(Stream& stream, std::pair<T1, T2>& value) {

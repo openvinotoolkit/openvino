@@ -236,6 +236,14 @@ void read(std::istream& stream, T& var) {
     stream_io & var;
 }
 
+inline void read_bounded(std::istream& stream,
+                         std::string& value,
+                         const std::size_t min_size,
+                         const std::size_t max_size) {
+    auto stream_io = Stream::reader(stream);
+    orc::read_bounded(stream_io, value, min_size, max_size);
+}
+
 inline void write_any(std::ostream& stream, const ov::Any& var) {
     write(stream, var);
 }
