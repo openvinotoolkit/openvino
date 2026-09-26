@@ -14,6 +14,7 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <cstring>
 #include <memory>
 #include <string>
@@ -27,6 +28,8 @@
 #include "llm_infer_request.hpp"
 #include "llm_lora_states.hpp"
 #include "llm_test_helpers.hpp"
+#include "openvino/op/matmul.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/openvino.hpp"
 #include "util.hpp"
 
@@ -76,6 +79,26 @@ class FakeSubCompiledModel;
 constexpr const char* kInjectedLoraName = "lora_state.injected.MatMul.A";
 // Generic alias suffix appended to every port so that get_names() returns >1 name.
 constexpr const char* kAliasSuffix = "__npuw_test_alias";
+constexpr const char* kHiddenStatesName = "hidden_states";
+
+std::shared_ptr<ov::Model> build_llm_test_model_with_hidden_states() {
+    auto model = build_llm_test_model();
+    const auto& results = model->get_results();
+    const auto logits_result = std::find_if(results.begin(), results.end(), [](const auto& result) {
+        return result->output(0).get_names().count("logits") != 0u;
+    });
+    OPENVINO_ASSERT(logits_result != results.end(), "Synthetic LLM must expose logits");
+
+    const auto lm_head = ov::as_type_ptr<ov::op::v0::MatMul>((*logits_result)->input_value(0).get_node_shared_ptr());
+    OPENVINO_ASSERT(lm_head, "Synthetic LLM logits must be produced by the LM-head MatMul");
+
+    auto hidden_states = std::make_shared<ov::op::v0::Result>(lm_head->input_value(0));
+    hidden_states->set_friendly_name(kHiddenStatesName);
+    hidden_states->output(0).set_names({kHiddenStatesName});
+    model->add_results({hidden_states});
+    model->validate_nodes_and_infer_types();
+    return model;
+}
 
 class FakeSubInferRequest final : public ov::ISyncInferRequest {
 public:
@@ -220,6 +243,15 @@ protected:
                                                             factory.make_factory());
     }
 
+    std::shared_ptr<ov::npuw::LLMCompiledModel> create_shared_head_compiled_model(AliasInjectingFactory& factory) const {
+        auto props = base_props();
+        props["NPUW_LLM_SHARED_HEAD"] = "YES";
+        return std::make_shared<ov::npuw::LLMCompiledModel>(build_llm_test_model_with_hidden_states(),
+                                                            m_plugin,
+                                                            std::move(props),
+                                                            factory.make_factory());
+    }
+
     // Asserts that every tensor name of every port is registered as a key in `map`
     // and that it maps back to that very port. Returns the maximum number of names
     // seen on any single port so the caller can confirm the multi-alias scenario
@@ -313,6 +345,37 @@ TEST_F(LLMInferRequestPortNamesTest, LoraStateUsesMatchingTensorNameNotAnyName) 
         }
     }
     EXPECT_TRUE(found) << "No VariableState was registered under the LoRA-matching alias '" << kInjectedLoraName << "'";
+}
+
+TEST_F(LLMInferRequestPortNamesTest, SharedHeadBindsAdditionalHiddenStateOutput) {
+    AliasInjectingFactory factory(/*inject_lora_alias=*/false);
+    auto compiled = create_shared_head_compiled_model(factory);
+    ASSERT_NE(compiled, nullptr);
+
+    ov::npuw::LLMInferRequest req(compiled);
+
+    const auto& prefill = LLMPortNameRegistrationTestAccess::prefill_request(req);
+    ASSERT_NE(prefill, nullptr);
+    const auto passthrough_output =
+        std::find_if(prefill->get_compiled_model()->outputs().begin(),
+                     prefill->get_compiled_model()->outputs().end(),
+                     [](const auto& output) {
+                         return output.get_names().count(ov::npuw::LLMCompiledModel::shared_head_passthrough_output) !=
+                                0u;
+                     });
+    ASSERT_NE(passthrough_output, prefill->get_compiled_model()->outputs().end());
+
+    const auto hidden_states_output =
+        std::find_if(compiled->outputs().begin(), compiled->outputs().end(), [](const auto& output) {
+            return output.get_names().count(kHiddenStatesName) != 0u;
+        });
+    ASSERT_NE(hidden_states_output, compiled->outputs().end());
+
+    // This tensor is bound in LLMInferRequest's shared-head setup. Without the passthrough
+    // alias scan and binding, the public hidden-states output remains an empty tensor.
+    const auto hidden_states = req.get_tensor(*hidden_states_output);
+    ASSERT_NE(hidden_states, nullptr);
+    EXPECT_EQ(hidden_states->get_shape(), (ov::Shape{1u, 1u, 64u}));
 }
 
 }  // namespace
