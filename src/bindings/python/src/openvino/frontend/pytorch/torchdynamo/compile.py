@@ -59,6 +59,7 @@ def openvino_compile_cached_model(cached_model_path, options, *example_inputs):
         torch.float32: Type.f32,
         torch.float64: Type.f64,
         torch.float16: Type.f16,
+        torch.bfloat16: Type.bf16,
         torch.int64: Type.i64,
         torch.int32: Type.i32,
         torch.uint8: Type.u8,
@@ -112,6 +113,14 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
 
         om = fe.convert(im)
 
+        # vLLM-specific compile hooks (PA Parameters, Concat ranks, weight
+        # decompression). No-op on graphs without the matching patterns.
+        try:
+            from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
+            _vh.apply_post_convert(om, options)
+        except Exception as _ee:
+            logger.debug("vllm.apply_post_convert skipped: %s", _ee)
+
         if file_name is not None:
             serialize(om, file_name + ".xml", file_name + ".bin")
 
@@ -119,6 +128,7 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         torch.float32: Type.f32,
         torch.float64: Type.f64,
         torch.float16: Type.f16,
+        torch.bfloat16: Type.bf16,
         torch.int64: Type.i64,
         torch.int32: Type.i32,
         torch.uint8: Type.u8,
@@ -126,13 +136,26 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
         torch.bool: Type.boolean
     }
 
-    for idx, input_data in enumerate(args):
-        if isinstance(input_data, int):
-            om.inputs[idx].get_node().set_element_type(dtype_mapping[torch.int64])
-            om.inputs[idx].get_node().set_partial_shape(PartialShape(list(torch.Size([1]))))
-        else:
-            om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
-            om.inputs[idx].get_node().set_partial_shape(PartialShape(list(decoder.input_shapes[idx])))
+    # vLLM path bakes/rebuilds int inputs itself; returns False for
+    # non-vLLM graphs to fall through to the upstream loop below.
+    # Only ImportError is recoverable: apply_input_shapes removes Parameters
+    # from `om`, so any other failure must surface rather than mis-shape.
+    _shaped = False
+    try:
+        from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
+    except ImportError as _ee:
+        logger.debug("vllm.apply_input_shapes skipped: %s", _ee)
+    else:
+        _shaped = _vh.apply_input_shapes(om, args, options, gm=gm)
+
+    if not _shaped:
+        for idx, input_data in enumerate(args):
+            if isinstance(input_data, int):
+                om.inputs[idx].get_node().set_element_type(dtype_mapping[torch.int64])
+                om.inputs[idx].get_node().set_partial_shape(PartialShape(list(torch.Size([1]))))
+            else:
+                om.inputs[idx].get_node().set_element_type(dtype_mapping[input_data.dtype])
+                om.inputs[idx].get_node().set_partial_shape(PartialShape(list(decoder.input_shapes[idx])))
 
     om.validate_nodes_and_infer_types()
 
@@ -141,6 +164,21 @@ def openvino_compile(gm: GraphModule, *args, model_hash_str: str = None, options
     if model_hash_str is not None:
         if not _is_cache_dir_in_config(options):
             config["CACHE_DIR"] = cache_root
+
+    # vLLM-specific OV-config defaults (KV cache precision, FC quantization,
+    # narrow-float hint). `om` lets precisions derive from the model's dtype.
+    try:
+        from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
+        _vh.apply_post_config(config, device, options, om=om)
+    except Exception as _ee:
+        logger.debug("vllm.apply_post_config skipped: %s", _ee)
+
+    if options and options.get("perf_count"):
+        config["PERF_COUNT"] = "YES"
+
+    _num_threads = os.environ.get("OV_INFERENCE_NUM_THREADS")
+    if device == "CPU" and _num_threads and "INFERENCE_NUM_THREADS" not in config:
+        config["INFERENCE_NUM_THREADS"] = int(_num_threads)
 
     compiled = core.compile_model(om, device, config)
     logger.debug(f"OpenVINO graph compile successful on device {device}")
