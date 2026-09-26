@@ -331,6 +331,7 @@ void ScaledAttnLayerGPUTest::generate_inputs(const std::vector<ov::Shape>& targe
 TEST_P(ScaledAttnLayerGPUTest, CompareWithRefs) {
     run();
 }
+
 const std::vector<std::vector<InputShape>> dynamic_shapes_3D {
     {
         // q shape

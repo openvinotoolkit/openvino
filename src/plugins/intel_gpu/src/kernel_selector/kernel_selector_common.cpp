@@ -146,6 +146,7 @@ std::string toString(DataLayout l) {
 
 std::string toString(Datatype dType) {
     switch (dType) {
+        case Datatype::BOOLEAN: return "BOOLEAN";
         case Datatype::UINT2:  return "UINT2";
         case Datatype::UINT4:  return "UINT4";
         case Datatype::INT4:   return "INT4";

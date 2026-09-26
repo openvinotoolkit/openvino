@@ -12,6 +12,7 @@ using ov::test::DepthToSpaceLayerTest;
 using ov::op::v0::DepthToSpace;
 
 const std::vector<ov::element::Type> inputPrecisions = {
+        ov::element::boolean,
         ov::element::f32,
         ov::element::u8,
         ov::element::f16,

@@ -105,18 +105,21 @@ namespace detail {
 
 attach_count_nonzero_impl::attach_count_nonzero_impl() {
     implementation_map<count_nonzero>::add(impl_types::ocl, shape_types::any, typed_primitive_impl_ocl<count_nonzero>::create<count_nonzero_impl>, {
+        std::make_tuple(data_types::boolean, format::bfyx),
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::i32, format::bfyx),
         std::make_tuple(data_types::i8, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),
 
+        std::make_tuple(data_types::boolean, format::bfzyx),
         std::make_tuple(data_types::f32, format::bfzyx),
         std::make_tuple(data_types::f16, format::bfzyx),
         std::make_tuple(data_types::i32, format::bfzyx),
         std::make_tuple(data_types::i8, format::bfzyx),
         std::make_tuple(data_types::u8, format::bfzyx),
 
+        std::make_tuple(data_types::boolean, format::bfwzyx),
         std::make_tuple(data_types::f32, format::bfwzyx),
         std::make_tuple(data_types::f16, format::bfwzyx),
         std::make_tuple(data_types::i32, format::bfwzyx),
@@ -127,18 +130,21 @@ attach_count_nonzero_impl::attach_count_nonzero_impl() {
 
 attach_gather_nonzero_impl::attach_gather_nonzero_impl() {
     implementation_map<gather_nonzero>::add(impl_types::ocl, shape_types::any, typed_primitive_impl_ocl<gather_nonzero>::create<gather_nonzero_impl>, {
+        std::make_tuple(data_types::boolean, format::bfyx),
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::i32, format::bfyx),
         std::make_tuple(data_types::i8, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),
 
+        std::make_tuple(data_types::boolean, format::bfzyx),
         std::make_tuple(data_types::f32, format::bfzyx),
         std::make_tuple(data_types::f16, format::bfzyx),
         std::make_tuple(data_types::i32, format::bfzyx),
         std::make_tuple(data_types::i8, format::bfzyx),
         std::make_tuple(data_types::u8, format::bfzyx),
 
+        std::make_tuple(data_types::boolean, format::bfwzyx),
         std::make_tuple(data_types::f32, format::bfwzyx),
         std::make_tuple(data_types::f16, format::bfwzyx),
         std::make_tuple(data_types::i32, format::bfwzyx),
