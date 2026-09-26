@@ -15,7 +15,7 @@ on:
   merge_group:
   push:
     branches:
-      # - master
+      - master
       - 'releases/**'
 
 concurrency:
@@ -298,6 +298,15 @@ jobs:
           cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component cpu
           cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component template
 
+          # Install developer files (cmake config + headers) so downstream projects can find_package(OpenVINO)
+          cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component core_dev
+          cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component core_c_dev
+
+          # Install frontends referenced by the exported OpenVINO cmake targets
+          for frontend in ir onnx paddle pytorch tensorflow tensorflow_lite jax gguf; do
+            cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component ${frontend} || echo "Frontend component ${frontend} not available"
+          done
+
           # mv (not cp) so CPU test binaries are not duplicated into both tests/ and bin/ in the artifact
           if [ -d "${INSTALL_TEST_DIR}/tests" ]; then
             echo "Moving tests from ${INSTALL_TEST_DIR}/tests/ to ${INSTALL_TEST_DIR}/bin/intel64/Release/"
@@ -309,6 +318,11 @@ jobs:
           # Add TBB and libc++ shared to runtime package
           find ${TBB_INSTALL}/lib -name "*.so*" -type f -exec cp {} ${INSTALL_DIR}/lib/ \; 2>/dev/null || echo "No .so files in TBB_INSTALL/lib"
           cp "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/${{ env.ANDROID_ABI_CONFIG }}-linux-android/libc++_shared.so" ${INSTALL_DIR}/lib/ || echo "libc++_shared.so not found"
+
+          # Stage TBB cmake config so OpenVINOConfig.cmake find_dependency(TBB) resolves in downstream builds
+          mkdir -p ${INSTALL_DIR}/runtime/3rdparty/tbb/lib
+          cp -r ${TBB_INSTALL}/lib/cmake ${INSTALL_DIR}/runtime/3rdparty/tbb/lib/cmake
+          find ${TBB_INSTALL}/lib -name "*.so*" -type f -exec cp {} ${INSTALL_DIR}/runtime/3rdparty/tbb/lib/ \; 2>/dev/null || echo "No .so files in TBB_INSTALL/lib"
 
       # Release build keeps -g (NDK default); strip unused debug symbols to shrink every download
       - name: Strip debug symbols from test binaries and runtime libraries
