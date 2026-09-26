@@ -619,6 +619,8 @@ protected:
                     event = stream.enqueue_marker({});
                 }
             }
+        } else if (instance.needs_completion_event()) {
+            event = stream.enqueue_marker({});
         }
 
         return event;
