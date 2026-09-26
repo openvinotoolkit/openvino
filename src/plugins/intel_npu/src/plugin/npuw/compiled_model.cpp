@@ -1727,15 +1727,23 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
         }
     };
 
+    // A function call carries no compiled model of its own: the ports a link addresses are
+    // those of the function body, which is also what its subrequest is created from. Resolving
+    // the replacement here is what makes the port checks below apply to function calls at all.
+    const auto real_model_of = [&](const auto& link) -> const ov::ICompiledModel* {
+        const auto& submodel_desc = compiled->m_compiled_submodels.at(link.first);
+        const auto real_idx = submodel_desc.replaced_by.value_or(link.first);
+        return compiled->m_compiled_submodels.at(real_idx).compiled_model._ptr.get();
+    };
+
     const auto ensure_input_port_index =
         [&](const char* table_name, std::size_t owner_idx, const auto& link, bool allow_no_link) {
             ensure_submodel_index(table_name, owner_idx, "input", link, allow_no_link);
             if (link == CompiledModel::NO_LINK) {
                 return;
             }
-            const auto& submodel_desc = compiled->m_compiled_submodels.at(link.first);
-            if (submodel_desc.compiled_model != nullptr &&
-                link.second >= submodel_desc.compiled_model->inputs().size()) {
+            const auto* real_model = real_model_of(link);
+            if (real_model != nullptr && link.second >= real_model->inputs().size()) {
                 OPENVINO_THROW("Invalid ",
                                table_name,
                                "[",
@@ -1745,7 +1753,7 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
                                " for submodel ",
                                link.first,
                                " (inputs: ",
-                               submodel_desc.compiled_model->inputs().size(),
+                               real_model->inputs().size(),
                                ")");
             }
         };
@@ -1756,9 +1764,8 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
             if (link == CompiledModel::NO_LINK) {
                 return;
             }
-            const auto& submodel_desc = compiled->m_compiled_submodels.at(link.first);
-            if (submodel_desc.compiled_model != nullptr &&
-                link.second >= submodel_desc.compiled_model->outputs().size()) {
+            const auto* real_model = real_model_of(link);
+            if (real_model != nullptr && link.second >= real_model->outputs().size()) {
                 OPENVINO_THROW("Invalid ",
                                table_name,
                                "[",
@@ -1768,7 +1775,7 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
                                " for submodel ",
                                link.first,
                                " (outputs: ",
-                               submodel_desc.compiled_model->outputs().size(),
+                               real_model->outputs().size(),
                                ")");
             }
         };

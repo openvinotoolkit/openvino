@@ -675,6 +675,28 @@ public:
         model.finalize_weights_bank();
         model.m_eval_future.get();
     }
+
+    // The routing tables are restored verbatim from a blob and are then range-checked by
+    // validate_import_routing_tables() - expose them so those checks can be exercised
+    // without a compile/export round trip.
+    using ToSubmodel = CompiledModel::ToSubmodel;
+    static constexpr auto NO_LINK = CompiledModel::NO_LINK;
+
+    static auto& submodels(CompiledModel& model) {
+        return model.m_compiled_submodels;
+    }
+    static auto& inputs_to_submodels(CompiledModel& model) {
+        return model.m_inputs_to_submodels_inputs;
+    }
+    static auto& outputs_to_submodels(CompiledModel& model) {
+        return model.m_outputs_to_submodels_outputs;
+    }
+    static auto& param_subscribers(CompiledModel& model) {
+        return model.m_param_subscribers;
+    }
+    static auto& interconnect(CompiledModel& model) {
+        return model.m_submodels_input_to_prev_output;
+    }
 };
 }  // namespace ov::npuw
 
@@ -2608,4 +2630,113 @@ TEST(SerializationTest, OVTypes_LazyTensor_weightless_mmap_file_shrunk_after_imp
     OV_EXPECT_THROW_HAS_SUBSTRING(res.eval(), ov::AssertFailure, "[NPU] ORC weight offset/size out of range");
 }
 
-// TODO: add tests on CompiledModel and LLMCompiledModel once tests have access to any model to test on
+// TODO: add tests on LLMCompiledModel once tests have access to any model to test on
+
+// The routing tables are restored verbatim from the blob and are then used as raw subscripts
+// into the model's and the subrequests' port vectors, so validate_import_routing_tables() has
+// to reject every out-of-range entry. Rather than going through a compile/export round trip,
+// the tables are populated directly here - that is exactly the state deserialization leaves
+// behind, and it keeps the malformed cases explicit.
+namespace {
+
+using RoutingAccess = ov::npuw::CompiledModelDescSerializationAccess;
+
+// Only the port counts of a submodel matter to the validation.
+ov::SoPtr<ov::ICompiledModel> make_routing_submodel(std::size_t num_inputs,
+                                                    std::size_t num_outputs,
+                                                    const std::shared_ptr<const ov::IPlugin>& plugin) {
+    ov::ParameterVector params;
+    for (std::size_t i = 0; i < num_inputs; ++i) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1}));
+    }
+    ov::ResultVector results;
+    for (std::size_t i = 0; i < num_outputs; ++i) {
+        results.push_back(std::make_shared<ov::op::v0::Result>(params.at(i)));
+    }
+    auto model = std::make_shared<ov::Model>(results, params);
+    return {std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+}
+
+// Two submodels: the model input is read by submodel 0, the model output is produced by
+// submodel 1, and submodel 0 feeds submodel 1. Every test below breaks one entry of that.
+class RoutingTablesTest : public ::testing::Test {
+protected:
+    void SetUp() override {
+        m_plugin = std::make_shared<NullPlugin>();
+        m_compiled = RoutingAccess::make_serialized_compiled_model();
+
+        RoutingAccess::append_submodel(*m_compiled).compiled_model = make_routing_submodel(2, 1, m_plugin);
+        RoutingAccess::append_submodel(*m_compiled).compiled_model = make_routing_submodel(1, 1, m_plugin);
+
+        RoutingAccess::inputs_to_submodels(*m_compiled) = {{0u, 0u}};
+        RoutingAccess::outputs_to_submodels(*m_compiled) = {{1u, 0u}};
+        RoutingAccess::interconnect(*m_compiled) = {{{1u, 0u}, {0u, 0u}}};
+    }
+
+    void validate() const {
+        ov::npuw::CompiledModel::validate_import_routing_tables(m_compiled);
+    }
+
+    // Turns submodel 1 into a call of submodel 0: a function call keeps no compiled model of
+    // its own, and the links addressing it are resolved against the function body's ports.
+    void make_submodel_1_a_call_of_0() {
+        auto& submodels = RoutingAccess::submodels(*m_compiled);
+        submodels[1].compiled_model = {};
+        submodels[1].replaced_by = 0u;
+    }
+
+    std::shared_ptr<ov::IPlugin> m_plugin;
+    std::shared_ptr<ov::npuw::CompiledModel> m_compiled;
+};
+
+}  // namespace
+
+TEST_F(RoutingTablesTest, AcceptsWellFormedTables) {
+    EXPECT_NO_THROW(validate());
+}
+
+TEST_F(RoutingTablesTest, AcceptsFunctionCallPorts) {
+    make_submodel_1_a_call_of_0();
+    // Input 1 exists in the function body (2 inputs), but not in the call's own former model
+    RoutingAccess::interconnect(*m_compiled) = {{{1u, 1u}, {0u, 0u}}};
+    EXPECT_NO_THROW(validate());
+}
+
+TEST_F(RoutingTablesTest, RejectsFunctionCallPortOutOfRange) {
+    make_submodel_1_a_call_of_0();
+    // The function body has 2 inputs
+    RoutingAccess::interconnect(*m_compiled) = {{{1u, 2u}, {0u, 0u}}};
+    OV_EXPECT_THROW_HAS_SUBSTRING(validate(), ov::Exception, "input port index 2 for submodel 1");
+}
+
+TEST_F(RoutingTablesTest, RejectsParamSubscriberKeyOutOfRange) {
+    RoutingAccess::param_subscribers(*m_compiled)[1u] = {{1u, 0u}};
+    OV_EXPECT_THROW_HAS_SUBSTRING(validate(), ov::Exception, "Invalid m_param_subscribers key 1");
+}
+
+TEST_F(RoutingTablesTest, RejectsParamSubscriberSubmodelOutOfRange) {
+    RoutingAccess::param_subscribers(*m_compiled)[0u] = {{7u, 0u}};
+    OV_EXPECT_THROW_HAS_SUBSTRING(validate(), ov::Exception, "input submodel index 7");
+}
+
+TEST_F(RoutingTablesTest, RejectsParamSubscriberPortOutOfRange) {
+    // Submodel 1 has a single input
+    RoutingAccess::param_subscribers(*m_compiled)[0u] = {{1u, 3u}};
+    OV_EXPECT_THROW_HAS_SUBSTRING(validate(), ov::Exception, "input port index 3 for submodel 1");
+}
+
+TEST_F(RoutingTablesTest, RejectsInterconnectConsumerPortOutOfRange) {
+    RoutingAccess::interconnect(*m_compiled) = {{{1u, 4u}, {0u, 0u}}};
+    OV_EXPECT_THROW_HAS_SUBSTRING(validate(), ov::Exception, "input port index 4 for submodel 1");
+}
+
+TEST_F(RoutingTablesTest, RejectsInterconnectProducerPortOutOfRange) {
+    // Submodel 0 has a single output
+    RoutingAccess::interconnect(*m_compiled) = {{{1u, 0u}, {0u, 5u}}};
+    OV_EXPECT_THROW_HAS_SUBSTRING(validate(), ov::Exception, "output port index 5 for submodel 0");
+}
+
+TEST_F(RoutingTablesTest, RejectsInterconnectNoLink) {
+    RoutingAccess::interconnect(*m_compiled) = {{RoutingAccess::NO_LINK, {0u, 0u}}};
+    OV_EXPECT_THROW_HAS_SUBSTRING(validate(), ov::Exception, "NO_LINK is not allowed");
+}
