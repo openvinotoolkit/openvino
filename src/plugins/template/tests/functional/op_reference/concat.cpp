@@ -6,7 +6,10 @@
 
 #include <gtest/gtest.h>
 
+#include <type_traits>
+
 #include "base_reference_test.hpp"
+#include "openvino/core/type/float4_e2m1.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
@@ -146,6 +149,125 @@ std::vector<ConcatParams> generateParams() {
     return params;
 }
 
+template <element::Type_t ET>
+std::vector<ConcatParams> generateParamsNibblePacked() {
+    // 4-bit "nibble" types with int8_t as their raw storage type (u4, i4, nf4).
+    static_assert(!std::is_same_v<typename element_type_traits<ET>::value_type, ov::float4_e2m1>,
+                  "f4e2m1's value_type encodes a numeric float, not a raw byte - use generateParamsBitPackedF4E2M1");
+    using T = typename element_type_traits<ET>::value_type;
+    std::vector<ConcatParams> params{
+        ConcatParams({},
+                     reference_tests::Tensor(ET, {2, 2}, std::vector<T>{0x21, 0x43}),  // rows [1,2],[3,4]
+                     reference_tests::Tensor(ET, {2, 2}, std::vector<T>{0x65, 0x17}),  // rows [5,6],[7,1]
+                     reference_tests::Tensor(ET, {2, 0}, std::vector<T>{}),
+                     1,
+                     reference_tests::Tensor(ET, {2, 4}, std::vector<T>{0x21, 0x65, 0x43, 0x17}),
+                     "concat_nibble_packed_axis_1"),
+    };
+    return params;
+}
+
+std::vector<ConcatParams> generateParamsBitPackedF4E2M1() {
+    const auto ET = element::f4e2m1;
+    using T = int8_t;
+    std::vector<ConcatParams> params{
+        ConcatParams({},
+                     reference_tests::Tensor(ET, {2, 2}, std::vector<T>{0x21, 0x43}),  // rows [1,2],[3,4]
+                     reference_tests::Tensor(ET, {2, 2}, std::vector<T>{0x65, 0x17}),  // rows [5,6],[7,1]
+                     reference_tests::Tensor(ET, {2, 0}, std::vector<T>{}),
+                     1,
+                     reference_tests::Tensor(ET, {2, 4}, std::vector<T>{0x21, 0x65, 0x43, 0x17}),
+                     "concat_f4e2m1_packed_axis_1"),
+    };
+    return params;
+}
+
+std::vector<ConcatParams> generateParamsBitPackedU2() {
+    const auto ET = element::u2;
+    using T = element_type_traits<element::Type_t::u2>::value_type;
+    std::vector<ConcatParams> params{
+        ConcatParams({},
+                     reference_tests::Tensor(ET, {2, 4}, std::vector<T>{0x39, 0x1B}),
+                     reference_tests::Tensor(ET, {2, 4}, std::vector<T>{0x14, 0x41}),
+                     reference_tests::Tensor(ET, {2, 0}, std::vector<T>{}),
+                     1,
+                     reference_tests::Tensor(ET, {2, 8}, std::vector<T>{0x39, 0x14, 0x1B, 0x41}),
+                     "concat_u2_packed_axis_1"),
+    };
+    return params;
+}
+
+std::vector<ConcatParams> generateParamsBitPackedU1() {
+    const auto ET = element::u1;
+    using T = element_type_traits<element::Type_t::u1>::value_type;
+    std::vector<ConcatParams> params{
+        ConcatParams({},
+                     reference_tests::Tensor(ET, {2, 8}, std::vector<T>{0x2A, 0x15}),
+                     reference_tests::Tensor(ET, {2, 8}, std::vector<T>{0x33, 0x0C}),
+                     reference_tests::Tensor(ET, {2, 0}, std::vector<T>{}),
+                     1,
+                     reference_tests::Tensor(ET, {2, 16}, std::vector<T>{0x2A, 0x33, 0x15, 0x0C}),
+                     "concat_u1_packed_axis_1"),
+    };
+    return params;
+}
+
+std::vector<ConcatParams> generateParamsBitPackedU3() {
+    const auto ET = element::u3;
+    using T = element_type_traits<element::Type_t::u3>::value_type;
+    std::vector<ConcatParams> params{
+        ConcatParams(
+            {},
+            reference_tests::Tensor(ET,
+                                    {2, 8},
+                                    std::vector<T>{0x1a, static_cast<T>(0xc2), static_cast<T>(0xfa), 0x77, 0x39, 0x05}),
+            reference_tests::Tensor(ET,
+                                    {2, 8},
+                                    std::vector<T>{static_cast<T>(0xd1),
+                                                   0x58,
+                                                   0x1f,
+                                                   static_cast<T>(0x88),
+                                                   static_cast<T>(0xc6),
+                                                   static_cast<T>(0xfa)}),
+            reference_tests::Tensor(ET, {2, 0}, std::vector<T>{}),
+            1,
+            reference_tests::Tensor(ET,
+                                    {2, 16},
+                                    std::vector<T>{0x1a,
+                                                   static_cast<T>(0xc2),
+                                                   static_cast<T>(0xfa),
+                                                   static_cast<T>(0xd1),
+                                                   0x58,
+                                                   0x1f,
+                                                   0x77,
+                                                   0x39,
+                                                   0x05,
+                                                   static_cast<T>(0x88),
+                                                   static_cast<T>(0xc6),
+                                                   static_cast<T>(0xfa)}),
+            "concat_u3_packed_axis_1"),
+    };
+    return params;
+}
+
+std::vector<ConcatParams> generateParamsBitPackedU6() {
+    const auto ET = element::u6;
+    using T = element_type_traits<element::Type_t::u6>::value_type;
+    std::vector<ConcatParams> params{
+        ConcatParams({},
+                     reference_tests::Tensor(ET, {2, 4}, std::vector<T>{0x42, 0x00, 0x0c, 0x52, 0x3c, 0x42}),
+                     reference_tests::Tensor(ET, {2, 4}, std::vector<T>{0x44, 0x61, 0x1c, 0x09, 0x45, 0x04}),
+                     reference_tests::Tensor(ET, {2, 0}, std::vector<T>{}),
+                     1,
+                     reference_tests::Tensor(
+                         ET,
+                         {2, 8},
+                         std::vector<T>{0x42, 0x00, 0x0c, 0x44, 0x61, 0x1c, 0x52, 0x3c, 0x42, 0x09, 0x45, 0x04}),
+                     "concat_u6_packed_axis_1"),
+    };
+    return params;
+}
+
 std::vector<ConcatParams> generateStringParams() {
     const auto ET = ov::element::string;
     using T = typename element_type_traits<ov::element::string>::value_type;
@@ -240,6 +362,14 @@ std::vector<ConcatParams> generateCombinedParams() {
         generateParams<element::Type_t::f16>(),
         generateParams<element::Type_t::f32>(),
         generateParams<element::Type_t::f64>(),
+        generateParamsNibblePacked<element::Type_t::u4>(),
+        generateParamsNibblePacked<element::Type_t::i4>(),
+        generateParamsNibblePacked<element::Type_t::nf4>(),
+        generateParamsBitPackedF4E2M1(),
+        generateParamsBitPackedU2(),
+        generateParamsBitPackedU1(),
+        generateParamsBitPackedU3(),
+        generateParamsBitPackedU6(),
         generateStringParams(),
         generateParams4Bit<element::Type_t::i4>(),
         generateParams4Bit<element::Type_t::u4>(),
@@ -256,6 +386,92 @@ INSTANTIATE_TEST_SUITE_P(smoke_Concat_With_Hardcoded_Refs,
                          ReferenceConcatTest,
                          testing::ValuesIn(generateCombinedParams()),
                          ReferenceConcatTest::getTestCaseName);
+
+struct ConcatSupportParams {
+    ConcatSupportParams(const element::Type& et,
+                        const Shape& shape,
+                        int64_t axis,
+                        bool supported,
+                        const std::string& testcaseName)
+        : et(et),
+          shape(shape),
+          axis(axis),
+          supported(supported),
+          testcaseName(testcaseName) {}
+
+    element::Type et;
+    Shape shape;
+    int64_t axis;
+    bool supported;
+    std::string testcaseName;
+};
+
+class ReferenceConcatSupportTest : public testing::TestWithParam<ConcatSupportParams> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<ConcatSupportParams>& obj) {
+        return obj.param.testcaseName;
+    }
+};
+
+TEST_P(ReferenceConcatSupportTest, evaluate) {
+    const auto& p = GetParam();
+    auto arg1 = std::make_shared<op::v0::Parameter>(p.et, p.shape);
+    auto arg2 = std::make_shared<op::v0::Parameter>(p.et, p.shape);
+    auto concat = std::make_shared<op::v0::Concat>(NodeVector{arg1, arg2}, p.axis);
+
+    ov::Tensor a_tensor(p.et, p.shape);
+    ov::Tensor b_tensor(p.et, p.shape);
+    ov::TensorVector outputs{ov::Tensor(p.et, Shape{})};
+    ov::TensorVector inputs{a_tensor, b_tensor};
+    EXPECT_EQ(concat->evaluate(outputs, inputs), p.supported);
+}
+
+std::vector<ConcatSupportParams> generateConcatSupportParams() {
+    std::vector<ConcatSupportParams> params;
+
+    // u3/u6 align to a 3-byte group (8/4 elements respectively), unlike the other packed types below.
+    for (const auto& et : {element::u1, element::u2, element::u3, element::u4, element::u6}) {
+        for (const auto& shape : {Shape{2, 3}, Shape{3}}) {
+            const auto axis = static_cast<int64_t>(shape.size()) - 1;
+            params.emplace_back(et,
+                                shape,
+                                axis,
+                                false,
+                                "misaligned_" + et.get_type_name() + "_shape" + std::to_string(shape.size()) + "d");
+        }
+    }
+
+    // 4 elements/row byte-aligns u2/u4/u6 (need a multiple of 4, 2 and 4 respectively), but u1/u3 both
+    // need a multiple of 8, so the same shape must be rejected for them.
+    for (const auto& et : {element::u1, element::u2, element::u3, element::u4, element::u6}) {
+        const bool supported = et != element::u1 && et != element::u3;
+        params.emplace_back(et, Shape{2, 4}, 1, supported, "tail4_" + et.get_type_name());
+    }
+
+    // u3 aligns every 8 elements (8*3=24 bits), u6 every 4 elements (4*6=24 bits) - both are multiples
+    // of the same 24-bit/3-byte group, so larger multiples (16/8, 24/12, ...) stay aligned too.
+    params.emplace_back(element::u3, Shape{2, 7}, 1, false, "boundary_u3_tail7");   // below boundary
+    params.emplace_back(element::u3, Shape{2, 8}, 1, true, "boundary_u3_tail8");    // exact boundary
+    params.emplace_back(element::u3, Shape{2, 9}, 1, false, "boundary_u3_tail9");   // above boundary
+    params.emplace_back(element::u3, Shape{2, 16}, 1, true, "boundary_u3_tail16");  // 2x boundary
+    params.emplace_back(element::u6, Shape{2, 3}, 1, false, "boundary_u6_tail3");   // below boundary
+    params.emplace_back(element::u6, Shape{2, 4}, 1, true, "boundary_u6_tail4");    // exact boundary
+    params.emplace_back(element::u6, Shape{2, 5}, 1, false, "boundary_u6_tail5");   // above boundary
+    params.emplace_back(element::u6, Shape{2, 8}, 1, true, "boundary_u6_tail8");    // 2x boundary
+
+    // A zero-sized dim before the concat axis means there are no rows to copy, so the per-row
+    // byte-alignment check is skipped even though the 3-element tail would otherwise be misaligned.
+    for (const auto& et : {element::u3, element::u6}) {
+        params.emplace_back(et, Shape{0, 3}, 1, true, "zero_leading_dim_" + et.get_type_name());
+    }
+
+    return params;
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke_Concat_Evaluate_Support,
+                         ReferenceConcatSupportTest,
+                         testing::ValuesIn(generateConcatSupportParams()),
+                         ReferenceConcatSupportTest::getTestCaseName);
 
 //// concat_vector_params, concat_vector_large
 
