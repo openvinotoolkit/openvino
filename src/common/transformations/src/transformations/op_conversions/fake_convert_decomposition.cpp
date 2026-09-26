@@ -4,6 +4,8 @@
 
 #include "transformations/op_conversions/fake_convert_decomposition.hpp"
 
+#include <array>
+
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
@@ -65,11 +67,11 @@ ov::pass::FakeConvertDecomposition::FakeConvertDecomposition() {
         const auto [lower_bound, upper_bound] = [&]() {
             switch (fake_convert->get_destination_element_type()) {
             case ov::element::f8e4m3:
-                return std::make_pair(static_cast<double>(std::numeric_limits<ov::float8_e4m3>::lowest()),
-                                      static_cast<double>(std::numeric_limits<ov::float8_e4m3>::max()));
+                return std::array<double, 2>{static_cast<double>(std::numeric_limits<ov::float8_e4m3>::lowest()),
+                                             static_cast<double>(std::numeric_limits<ov::float8_e4m3>::max())};
             case ov::element::f8e5m2:
-                return std::make_pair(static_cast<double>(std::numeric_limits<ov::float8_e5m2>::lowest()),
-                                      static_cast<double>(std::numeric_limits<ov::float8_e5m2>::max()));
+                return std::array<double, 2>{static_cast<double>(std::numeric_limits<ov::float8_e5m2>::lowest()),
+                                             static_cast<double>(std::numeric_limits<ov::float8_e5m2>::max())};
             default:
                 OPENVINO_THROW("Unsupported destination element type: ", fake_convert->get_destination_element_type());
             }
