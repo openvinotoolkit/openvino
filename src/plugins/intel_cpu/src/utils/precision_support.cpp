@@ -46,6 +46,30 @@ bool hasHardwareSupport(const ov::element::Type& precision) {
     }
 }
 
+bool hasFp8WeightsDecompressionSupport([[maybe_unused]] ov::element::Type activationPrecision) {
+#if defined(OPENVINO_ARCH_X86_64)
+    using namespace dnnl::impl::cpu::x64;
+    // Note that unlike in earlier oneDNN releases AVX10.2 is not opt-in anymore, so
+    // mayiuse() reflects what the dispatcher will really do and ONEDNN_MAX_CPU_ISA
+    // keeps both sides in sync automatically.
+    switch (activationPrecision) {
+    case ov::element::f16:
+        // is_f16_fp8: no native f16 compute on Sapphire Rapids, so it is excluded here
+        // (unlike the bf16 case below).
+        return mayiuse(avx512_core_amx_fp16) || mayiuse(avx10_2);
+    case ov::element::bf16:
+        // is_bf16_fp8: all three platforms support it.
+        return mayiuse(avx512_core_amx) || mayiuse(avx512_core_amx_fp16) || mayiuse(avx10_2);
+    default:
+        // f32, dynamic (ACCURACY execution mode - no forced bf16/f16 promotion) and
+        // everything else: oneDNN has no such fp8 configuration, keep folding.
+        return false;
+    }
+#else
+    return false;
+#endif
+}
+
 ov::element::Type defaultFloatPrecision() {
     if (hasHardwareSupport(ov::element::f16)) {
         return ov::element::f16;
