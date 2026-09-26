@@ -105,7 +105,8 @@ private:
                                                  const ov::AnyMap& properties) const;
     std::vector<DeviceInformation> filter_device_by_model(const std::vector<DeviceInformation>& meta_devices,
                                                           const std::shared_ptr<const ov::Model>& model,
-                                                          PluginConfig& load_config) const;
+                                                          PluginConfig& load_config,
+                                                          bool& is_stateful_model) const;
     std::string get_log_tag() const noexcept;
     // Base family name, perf_curve_table lookup key ("iGPU"/"dGPU" for GPUs via ov::device::type,
     // empty when it cannot be determined), and the ov::device::type string used to resolve a
