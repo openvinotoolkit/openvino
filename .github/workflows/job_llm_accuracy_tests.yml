@@ -80,7 +80,7 @@ jobs:
       - name: Download OpenVINO artifacts (wheels)
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
         with:
-          pattern: 'openvino_{wheels,tokenizers_wheel}'
+          pattern: 'openvino_{wheels,tokenizers_wheel,genai_wheel}'
           path: ${{ env.INSTALL_DIR }}
           merge-multiple: true
 
@@ -97,10 +97,10 @@ jobs:
         uses: ./.github/actions/install_ov_wheels
         with:
           wheels-dir-path: ${{ env.INSTALL_DIR }}
-          wheels-to-install: 'openvino openvino_tokenizers'
+          wheels-to-install: 'openvino openvino_tokenizers openvino_genai'
 
       - name: Install LLM accuracy test requirements
-        run: python3 -m pip install -r ${LLM_TEST_DIR}/requirements.txt
+        run: python3 -m pip install -r "${LLM_TEST_DIR}/requirements.txt"
 
       - name: LLM accuracy ${{ inputs.device }} tests
         env:
