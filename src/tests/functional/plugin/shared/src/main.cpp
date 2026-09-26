@@ -71,6 +71,7 @@ int main(int argc, char *argv[]) {
     }
 
     ::testing::InitGoogleTest(&argc, argv);
+    ov::test::utils::set_disabled_tests_filter_from_patterns();
     ::testing::AddGlobalTestEnvironment(new ov::test::utils::TestEnvironment);
     auto retcode = RUN_ALL_TESTS();
 
