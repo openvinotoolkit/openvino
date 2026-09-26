@@ -148,7 +148,22 @@ void serialize(Stream& stream, std::vector<T>& value) {
     value.clear();
     std::size_t size = 0u;
     stream & size;
-    value.reserve(size);
+    // The element count comes straight off the wire and must not be trusted for a
+    // single up-front allocation : a small blob could otherwise force a
+    // multi-gigabyte reserve() before any element is actually decoded. For a
+    // memory-backed stream we know the true remaining byte budget, so for fixed-width
+    // element types we can compute a hard upper bound on how many elements the data
+    // could possibly contain and reserve() only that much (reject counts exceeding it
+    // outright); non-memory streams or variable-width T get no upfront reserve and grow
+    // incrementally instead, bounding allocation by what is actually decoded.
+    if constexpr (std::is_integral<T>::value || std::is_floating_point<T>::value) {
+        if (stream.memory() && sizeof(T) != 0u) {
+            if (size > stream.remaining() / sizeof(T)) {
+                OPENVINO_THROW("ORC vector element count exceeds available stream data");
+            }
+            value.reserve(size);
+        }
+    }
     for (std::size_t idx = 0; idx < size; ++idx) {
         T element{};
         stream & element;
