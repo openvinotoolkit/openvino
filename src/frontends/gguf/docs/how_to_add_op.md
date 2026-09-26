@@ -85,6 +85,17 @@ and this parameter. For compatibility, decoders that omit `k` must supply a stat
 output dimension, where ggml stores `k`. An unknown `k` is rejected, never inferred from
 the input width.
 
+`ROPE` accepts an optional `int64_t` attribute `rope_offset` (default zero), matching
+`ggml_rope_set_offset`: rotate `n_dims` channels starting at that even offset and preserve
+the prefix and tail of each head.
+
+`FLASH_ATTN_EXT` accepts an optional boolean `sink_without_mask` attribute for a decoder
+that compacts null ggml sources: set it when `src[3]` is null and `src[4]` contains
+attention sinks, leaving four input tensors. The cgraph convention of naming that
+weight `*.attn_sinks.weight` is also recognized. Otherwise the fourth tensor is
+treated as an attention mask; its shape and element type cannot distinguish a
+mask from sinks (an F32 mask can have the same shape as a sink).
+
 Converters must infer intermediate shapes from their OpenVINO operands, reading only the axes
 needed for the operation. A dynamic token axis does not prevent reading a static head width.
 Use explicit attributes for operation parameters: `reshape_target` / `special_zero`, `view_slice`,
