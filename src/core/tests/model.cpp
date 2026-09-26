@@ -16,10 +16,15 @@
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/convolution.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/if.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/transpose.hpp"
 #include "shared_node_info.hpp"
 
 using ov::op::util::Variable, ov::op::util::VariableInfo;
@@ -644,6 +649,177 @@ TEST(model_reshape, ReshapeBatchReLU) {
 
     EXPECT_EQ(model->get_parameters()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
     EXPECT_EQ(model->get_results()[0]->get_shape(), ov::Shape({2, 3, 22, 22}));
+}
+
+TEST(model_reshape, RejectsUnverifiedSingletonDimensionWithoutMutation) {
+    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3});
+    const ov::OutputVector target_shape_inputs{ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}),
+                                               ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1})};
+    const auto target_shape = std::make_shared<ov::op::v0::Concat>(target_shape_inputs, 0);
+    const auto reshape = std::make_shared<ov::op::v1::Reshape>(param, target_shape, false);
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{param});
+
+    const auto original_ops = model->get_ordered_ops();
+    EXPECT_THROW(model->reshape(ov::PartialShape{2, 3}), ov::Exception);
+
+    EXPECT_EQ(model->get_ordered_ops(), original_ops);
+    EXPECT_EQ(model->input(0).get_partial_shape(), (ov::PartialShape{1, 3}));
+    EXPECT_EQ(model->output(0).get_partial_shape(), (ov::PartialShape{1, 3}));
+    EXPECT_EQ(target_shape->input_values(), target_shape_inputs);
+}
+
+TEST(model_reshape, AllowsDimensionMovementThroughTranspose) {
+    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 3});
+    const auto order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 0});
+    const auto transpose = std::make_shared<ov::op::v1::Transpose>(param, order);
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{transpose}, ov::ParameterVector{param});
+
+    model->reshape(ov::PartialShape{2, 3});
+
+    EXPECT_EQ(model->output(0).get_partial_shape(), (ov::PartialShape{3, 2}));
+}
+
+TEST(model_reshape, RejectsUnverifiedDimensionsForAnyInputAxisWithoutMutation) {
+    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3, 4});
+    const auto target = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {2, -1});
+    const auto reshape = std::make_shared<ov::op::v1::Reshape>(param, target, false);
+    reshape->set_friendly_name("unverified_layout");
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{param});
+    const auto original_ops = model->get_ordered_ops();
+    std::vector<ov::OutputVector> original_inputs;
+    std::vector<size_t> original_rt_info_sizes;
+    for (const auto& node : original_ops) {
+        original_inputs.push_back(node->input_values());
+        original_rt_info_sizes.push_back(node->get_rt_info().size());
+    }
+
+    for (size_t axis = 0; axis < 3; ++axis) {
+        for (const bool dynamic : {false, true}) {
+            ov::PartialShape requested{2, 3, 4};
+            requested[axis] = dynamic ? ov::Dimension::dynamic() : ov::Dimension(8);
+            try {
+                model->reshape(requested);
+                FAIL() << "Unverified target must be rejected for axis " << axis;
+            } catch (const ov::Exception& error) {
+                EXPECT_NE(std::string(error.what()).find("cannot establish shape-dependency safety"),
+                          std::string::npos);
+                EXPECT_NE(std::string(error.what()).find("unverified_layout"), std::string::npos);
+            }
+            EXPECT_EQ(model->get_ordered_ops(), original_ops);
+            for (size_t index = 0; index < original_ops.size(); ++index) {
+                EXPECT_EQ(original_ops[index]->input_values(), original_inputs[index]);
+                EXPECT_EQ(original_ops[index]->get_rt_info().size(), original_rt_info_sizes[index]);
+            }
+            EXPECT_EQ(model->input().get_partial_shape(), (ov::PartialShape{2, 3, 4}));
+            EXPECT_EQ(model->output().get_partial_shape(), (ov::PartialShape{2, 12}));
+        }
+    }
+    EXPECT_NO_THROW(model->reshape(ov::PartialShape{2, 3, 4}));
+}
+
+TEST(model_reshape, AllowsExplicitShapeOfTarget) {
+    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3, 4});
+    const auto shape = std::make_shared<ov::op::v3::ShapeOf>(param);
+    const auto indices = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+    const auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    const auto first_dimension = std::make_shared<ov::op::v8::Gather>(shape, indices, axis);
+    const auto inferred = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
+    const auto target = std::make_shared<ov::op::v0::Concat>(ov::OutputVector{first_dimension, inferred}, 0);
+    const auto reshape = std::make_shared<ov::op::v1::Reshape>(param, target, false);
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{param});
+
+    model->reshape(ov::PartialShape{5, 3, 4});
+    EXPECT_EQ(model->output().get_partial_shape(), (ov::PartialShape{5, 12}));
+    model->reshape(ov::PartialShape{5, 6, 4});
+    EXPECT_EQ(model->output().get_partial_shape(), (ov::PartialShape{5, 24}));
+}
+
+TEST(model_reshape, AllowsSpecialZeroAndInferredDimensionTargets) {
+    for (const std::vector<int64_t>& pattern : {std::vector<int64_t>{0, -1}, std::vector<int64_t>{-1}}) {
+        const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3, 4});
+        const auto target = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{pattern.size()}, pattern);
+        const auto reshape = std::make_shared<ov::op::v1::Reshape>(param, target, true);
+        const auto model = std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{param});
+
+        model->reshape(ov::PartialShape{5, 3, 4});
+        EXPECT_EQ(model->output().get_partial_shape(),
+                  pattern.size() == 2 ? ov::PartialShape({5, 12}) : ov::PartialShape({60}));
+    }
+}
+
+TEST(model_reshape, DoesNotRejectUnchangedIndependentBranch) {
+    const auto fixed = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3});
+    const auto changed = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{4, 5});
+    const auto target = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, -1});
+    const auto reshape = std::make_shared<ov::op::v1::Reshape>(fixed, target, false);
+    const auto relu = std::make_shared<ov::op::v0::Relu>(changed);
+    const auto model =
+        std::make_shared<ov::Model>(ov::OutputVector{reshape, relu}, ov::ParameterVector{fixed, changed});
+
+    model->reshape(std::map<size_t, ov::PartialShape>{{1, ov::PartialShape{7, 5}}});
+    EXPECT_EQ(model->output(0).get_partial_shape(), (ov::PartialShape{1, 6}));
+    EXPECT_EQ(model->output(1).get_partial_shape(), (ov::PartialShape{7, 5}));
+}
+
+TEST(model_reshape, RejectsUnverifiedTargetInsideIfWithoutMutation) {
+    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3});
+    const auto condition = ov::op::v0::Constant::create(ov::element::boolean, ov::Shape{}, {true});
+    const auto body_param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 3});
+    const auto target = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, -1});
+    const auto reshape = std::make_shared<ov::op::v1::Reshape>(body_param, target, false);
+    const auto then_body = std::make_shared<ov::Model>(ov::OutputVector{reshape}, ov::ParameterVector{body_param});
+    const auto else_body = then_body->clone();
+    const auto if_op = std::make_shared<ov::op::v8::If>(condition);
+    if_op->set_then_body(then_body);
+    if_op->set_else_body(else_body);
+    if_op->set_input(param, body_param, else_body->get_parameters().front());
+    const auto output = if_op->set_output(then_body->get_results().front(), else_body->get_results().front());
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{output}, ov::ParameterVector{param});
+    const auto original_ops = then_body->get_ordered_ops();
+    const auto original_inputs = reshape->input_values();
+
+    EXPECT_THROW(model->reshape(ov::PartialShape{4, 3}), ov::Exception);
+    EXPECT_EQ(then_body->get_ordered_ops(), original_ops);
+    EXPECT_EQ(reshape->input_values(), original_inputs);
+    EXPECT_EQ(body_param->get_partial_shape(), (ov::PartialShape{2, 3}));
+    EXPECT_EQ(param->get_partial_shape(), (ov::PartialShape{2, 3}));
+    EXPECT_EQ(model->output().get_partial_shape(), (ov::PartialShape{1, 6}));
+}
+
+TEST(model_reshape, ReshapeClonePreservesSourceOnSuccessAndFailure) {
+    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 3, 16, 16});
+    param->get_output_tensor(0).set_names({"tensor"});
+    const auto filters =
+        ov::op::v0::Constant::create(ov::element::f32, ov::Shape{4, 3, 3, 3}, std::vector<float>(4 * 3 * 3 * 3, 1.0f));
+    const auto conv = std::make_shared<ov::op::v1::Convolution>(param,
+                                                                filters,
+                                                                ov::Strides{1, 1},
+                                                                ov::CoordinateDiff{0, 0},
+                                                                ov::CoordinateDiff{0, 0},
+                                                                ov::Strides{1, 1});
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{conv}, ov::ParameterVector{param});
+    const auto original_ops = model->get_ordered_ops();
+    std::vector<ov::OutputVector> original_inputs;
+    for (const auto& node : original_ops) {
+        original_inputs.push_back(node->input_values());
+    }
+
+    for (const bool valid : {true, false}) {
+        const auto candidate = model->clone();
+        if (valid) {
+            EXPECT_NO_THROW(candidate->reshape(ov::PartialShape{2, 3, 16, 16}));
+            EXPECT_EQ(candidate->output(0).get_partial_shape(), (ov::PartialShape{2, 4, 14, 14}));
+        } else {
+            EXPECT_THROW(candidate->reshape(ov::PartialShape{2, 5, 16, 16}), ov::Exception);
+        }
+        EXPECT_EQ(model->get_ordered_ops(), original_ops);
+        for (size_t index = 0; index < original_ops.size(); ++index) {
+            EXPECT_EQ(original_ops[index]->input_values(), original_inputs[index]);
+        }
+        EXPECT_EQ(model->input(0).get_partial_shape(), (ov::PartialShape{1, 3, 16, 16}));
+        EXPECT_EQ(model->output(0).get_partial_shape(), (ov::PartialShape{1, 4, 14, 14}));
+        EXPECT_EQ(model->input(0).get_names(), ov::TensorNames({"tensor"}));
+    }
 }
 
 TEST(model_reshape, ReshapeSpatialReLU) {
