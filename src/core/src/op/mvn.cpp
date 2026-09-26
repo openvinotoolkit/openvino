@@ -7,6 +7,8 @@
 #include "compare.hpp"
 #include "itt.hpp"
 #include "openvino/core/type/element_type_traits.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/reference/mvn.hpp"
 
 // ------------------------------ V0 ------------------------------
@@ -106,6 +108,12 @@ void ov::op::v6::MVN::validate_and_infer_types() {
                               data_rank.is_dynamic() || cmp::ge(data_rank.get_length(), axes.get_shape()[0]),
                               "Expected rank for the 'data' input to be higher than axes shape. Got: ",
                               data);
+
+        if (data_rank.is_static()) {
+            if (const auto axes_constant = ov::util::get_constant_from_source(input_value(1))) {
+                ov::util::validate_axes(axes_constant->cast_vector<int64_t>(), data_rank, *this);
+            }
+        }
     }
 
     set_output_type(0, get_input_element_type(0), data);
@@ -133,19 +141,11 @@ namespace {
 template <ov::element::Type_t ET>
 bool evaluate(ov::TensorVector& outputs,
               const ov::TensorVector& inputs,
+              const ov::AxisSet& reduction_axes,
               bool normalize_variance,
               float eps,
               ov::op::MVNEpsMode eps_mode) {
     using T = typename ov::element_type_traits<ET>::value_type;
-    ov::AxisSet reduction_axes;
-    auto rank = inputs[0].get_shape().size();
-    if (inputs[1].get_element_type() == ov::element::i64) {
-        reduction_axes = ov::reference::mvn_6_reduction_axes<int64_t>(inputs[1], rank);
-    } else if (inputs[1].get_element_type() == ov::element::i32) {
-        reduction_axes = ov::reference::mvn_6_reduction_axes<int32_t>(inputs[1], rank);
-    } else {
-        OPENVINO_THROW("Unexpected indices type");
-    }
     ov::reference::mvn_6<T>(inputs[0].data<T>(),
                             outputs[0].data<T>(),
                             inputs[0].get_shape(),
@@ -160,10 +160,13 @@ bool evaluate_mvn(ov::TensorVector& outputs,
                   const ov::TensorVector& inputs,
                   bool normalize_variance,
                   float eps,
-                  ov::op::MVNEpsMode eps_mode) {
+                  ov::op::MVNEpsMode eps_mode,
+                  const ov::Node& node) {
+    // Computed once here, outside the per-type template, to avoid duplicating axis validation in every instantiation.
+    const auto reduction_axes = ov::util::try_get_normalized_axis_set(inputs[1], inputs[0].get_shape().size(), node);
     bool rc = true;
     switch (inputs[0].get_element_type()) {
-        OPENVINO_TYPE_CASE(evaluate_mvn, f32, outputs, inputs, normalize_variance, eps, eps_mode);
+        OPENVINO_TYPE_CASE(evaluate_mvn, f32, outputs, inputs, reduction_axes, normalize_variance, eps, eps_mode);
     default:
         rc = false;
         break;
@@ -175,7 +178,7 @@ bool evaluate_mvn(ov::TensorVector& outputs,
 
 bool ov::op::v6::MVN::evaluate(ov::TensorVector& outputs, const ov::TensorVector& inputs) const {
     OV_OP_SCOPE(v6_MVN_evaluate);
-    return mvn::evaluate_mvn(outputs, inputs, get_normalize_variance(), get_eps(), get_eps_mode());
+    return mvn::evaluate_mvn(outputs, inputs, get_normalize_variance(), get_eps(), get_eps_mode(), *this);
 }
 
 bool ov::op::v6::MVN::has_evaluate() const {
