@@ -118,3 +118,62 @@ class TestSliceAndSqueeze(PytorchLayerTest):
     def test_slice_and_squeeze(self, ie_device, precision, ir_version):
         self._test(*self.create_model(), ie_device, precision, ir_version,
                    dynamic_shapes=False, fx_kind="aten.unsqueeze.default")
+
+
+class TestSliceListNegativeStep(PytorchLayerTest):
+    """aten::slice.t with a negative step, where omitted bounds must default to the far ends.
+
+    Tensors reject negative steps in PyTorch, but TorchScript list slicing (e.g. `x.shape[::-1]`)
+    allows them, and an omitted start/end then means "last element" / "past the first element".
+    """
+
+    def _prepare_input(self):
+        return (self.random.randn(2, 3, 4).astype(np.float32), np.array(-1, dtype=np.int32))
+
+    def create_model(self, case):
+        class aten_slice_reverse(torch.nn.Module):
+            def forward(self, x, step):
+                return torch.ones(x.shape[::-1]) * x.sum()
+
+        class aten_slice_reverse_from_start(torch.nn.Module):
+            def forward(self, x, step):
+                return torch.ones(x.shape[1::-1]) * x.sum()
+
+        class aten_slice_reverse_to_end(torch.nn.Module):
+            def forward(self, x, step):
+                return torch.ones(x.shape[:0:-1]) * x.sum()
+
+        class aten_slice_reverse_step2(torch.nn.Module):
+            def forward(self, x, step):
+                return torch.ones(x.shape[::-2]) * x.sum()
+
+        class aten_slice_forward_step2(torch.nn.Module):
+            def forward(self, x, step):
+                return torch.ones(x.shape[::2]) * x.sum()
+
+        class aten_slice_reverse_dynamic_step(torch.nn.Module):
+            # The step is only known at runtime, so the bounds are selected in the graph. The sliced
+            # list then has a dynamic length, which torch.ones could not consume, so return it as is.
+            def forward(self, x, step):
+                return torch.tensor(x.shape[::int(step)]) + x.sum().to(torch.int64)
+
+        models = {
+            "reverse": aten_slice_reverse,
+            "reverse_from_start": aten_slice_reverse_from_start,
+            "reverse_to_end": aten_slice_reverse_to_end,
+            "reverse_step2": aten_slice_reverse_step2,
+            "forward_step2": aten_slice_forward_step2,
+            "reverse_dynamic_step": aten_slice_reverse_dynamic_step,
+        }
+        return models[case](), "aten::slice"
+
+    @pytest.mark.parametrize(
+        "case",
+        ["reverse", "reverse_from_start", "reverse_to_end", "reverse_step2", "forward_step2", "reverse_dynamic_step"],
+    )
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_slice_list_negative_step(self, ie_device, precision, ir_version, case):
+        if ie_device == "GPU" and case == "reverse_dynamic_step":
+            pytest.xfail(reason="GPU skips a runtime-strided slice as identity, see openvinotoolkit/openvino#38240")
+        self._test(*self.create_model(case), ie_device, precision, ir_version)
