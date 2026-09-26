@@ -6957,6 +6957,18 @@ OPENVINO_TEST(${BACKEND_NAME}, cast_float32_to_int4) {
     test_case.run();
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, cast_float32_to_int4_ties_to_even) {
+    // ONNX int4 casting rounds ties to the nearest even integer (docs/technical/int4.md#cast).
+    auto model = convert_model("cast_float32_to_int4_ties.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+
+    test_case.add_input<float>(Shape{4}, std::vector<float>{2.5f, 3.5f, -2.5f, -3.5f});
+    test_case.add_expected_output<uint8_t>({0x42, 0xCE});
+
+    test_case.run();
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, castlike_float16_to_uint32) {
     auto model = convert_model("castlike_float16_to_uint32.onnx");
 
