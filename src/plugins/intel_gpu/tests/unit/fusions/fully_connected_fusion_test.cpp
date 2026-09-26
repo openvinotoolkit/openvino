@@ -196,6 +196,13 @@ public:
 #define CASE_FC_U8S8_3D_3 { 2, 3, 1 }, { 2, 3, 15 }, { 15, 1 }, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_U8S8_3D_4 { 1, 512, 1024 }, { 1, 384, 1024 }, { 1024, 1024 }, data_types::u8, format::bfyx, data_types::i8, format::oiyx, data_types::f32, format::bfyx
 
+#define CASE_FC_S8U8_FP16_1 { 2, 32 }, { 2, 16 }, { 16, 32 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx
+#define CASE_FC_S8U8_FP16_2 { 2, 32, 3 }, { 2, 32, 16 }, { 16, 3 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx
+#define CASE_FC_S8U8_FP16_3GEMM_SMALL { 1086, 1, 1536 }, { 1086, 1, 3840 }, { 3840, 1536 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx
+#define CASE_FC_S8U8_FP16_3GEMM_MEDIUM { 1032, 1, 2560 }, { 1032, 1, 6912 }, { 6912, 2560 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx
+#define CASE_FC_S8U8_FP16_3GEMM_LLAMA { 1104, 1, 4096 }, { 1104, 1, 11008 }, { 11008, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx
+#define CASE_FC_S8U8_FP16_3GEMM_QWEN { 1024, 1, 3584 }, { 1024, 1, 18944 }, { 18944, 3584 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx
+
 #define CASE_FC_FP16_1 { 1, 3 }, { 1, 4 }, { 4, 3 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_FP16_2 { 2, 3 }, { 2, 4 }, { 4, 3 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
 #define CASE_FC_FP16_3 { 2, 32 }, { 2, 16 }, { 16, 32 }, data_types::f16, format::bfyx, data_types::f16, format::oiyx, data_types::f32, format::bfyx
@@ -1163,6 +1170,293 @@ TEST_P(fc_fp32_activation_relu, basic) {
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp32_activation_relu, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
     fully_connected_test_params{ CASE_FC_FP32_1, 2, 3 }
 }));
+
+class fc_fp16_eltwise_prod_mul_inplace_basic : public FullyConnectedFusingTestOneDNN {};
+TEST_P(fc_fp16_eltwise_prod_mul_inplace_basic, matches_unfused_reference) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        input_layout("extra_mul", get_output_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        fully_connected("fc_prim", input_info("input"), "weights", "", get_output_dim_size(p)),
+        eltwise("mul", {input_info("fc_prim"), input_info("extra_mul")}, eltwise_mode::prod),
+        reorder("reorder_bfyx", input_info("mul"), p.default_format, data_types::f16));
+
+    extra_inputs["extra_mul"] = get_output_layout(p);
+    tolerance = 1e-2f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_prod_mul_inplace_basic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_2, 3, 4 },
+    fully_connected_test_params{ CASE_FC_FP16_3, 3, 4 },
+    fully_connected_test_params{ CASE_FC_FP16_3D_1, 3, 4 },
+    // Keep this large case as a regression probe for CL_OUT_OF_RESOURCES.
+    fully_connected_test_params{ CASE_FC_FP16_4, 3, 4 },
+}));
+
+class fc_s8_u8_fp16_eltwise_prod_mul_inplace : public FullyConnectedFusingTestOneDNN {
+public:
+    layout get_output_layout(fully_connected_test_params& p) {
+        return layout{ p.out_shape, p.default_type, p.default_format };
+    }
+};
+
+TEST_P(fc_s8_u8_fp16_eltwise_prod_mul_inplace, matches_unfused_reference) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        input_layout("extra_mul", get_output_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        fully_connected("fc_prim", input_info("input"), "weights", "", data_types::f16, get_output_dim_size(p), get_input_weights_rank(p)),
+        eltwise("mul", {input_info("fc_prim"), input_info("extra_mul")}, eltwise_mode::prod),
+        reorder("reorder_bfyx", input_info("mul"), p.default_format, data_types::f16));
+    extra_inputs["extra_mul"] = get_output_layout(p);
+        // Large model shapes can produce up to 2.0 FP16 rounding difference between fused and unfused paths.
+    tolerance = 2.0f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_s8_u8_fp16_eltwise_prod_mul_inplace, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    // Original representative cases retained for comparison with the full log-derived matrix:
+    // fully_connected_test_params{ CASE_FC_S8U8_FP16_1, 3, 4 },
+    // fully_connected_test_params{ CASE_FC_S8U8_FP16_2, 3, 4 },
+    // fully_connected_test_params{ CASE_FC_S8U8_FP16_3GEMM_SMALL, 3, 4 },
+    // fully_connected_test_params{ CASE_FC_S8U8_FP16_3GEMM_MEDIUM, 3, 4 },
+    // fully_connected_test_params{ CASE_FC_S8U8_FP16_3GEMM_LLAMA, 3, 4 },
+    // fully_connected_test_params{ CASE_FC_S8U8_FP16_3GEMM_QWEN, 3, 4 },
+    fully_connected_test_params{ { 1002, 1, 3072 }, { 1002, 1, 3072 }, { 3072, 3072 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1002, 1, 8192 }, { 1002, 1, 3072 }, { 3072, 8192 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1008, 1, 3072 }, { 1008, 1, 5120 }, { 5120, 3072 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1008, 1, 3072 }, { 1008, 1, 16384 }, { 16384, 3072 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1023, 1, 5120 }, { 1023, 1, 5120 }, { 5120, 5120 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1023, 1, 17920 }, { 1023, 1, 5120 }, { 5120, 17920 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 1536 }, { 1024, 1, 256 }, { 256, 1536 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 1536 }, { 1024, 1, 1536 }, { 1536, 1536 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 1536 }, { 1024, 1, 2048 }, { 2048, 1536 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 1536 }, { 1024, 1, 8960 }, { 8960, 1536 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 2048 }, { 1024, 1, 2048 }, { 2048, 2048 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 2048 }, { 1024, 1, 2560 }, { 2560, 2048 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 2048 }, { 1024, 1, 3072 }, { 3072, 2048 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 2048 }, { 1024, 1, 8192 }, { 8192, 2048 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 2048 }, { 1024, 1, 11008 }, { 11008, 2048 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 2560 }, { 1024, 1, 6144 }, { 6144, 2560 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 2560 }, { 1024, 1, 9728 }, { 9728, 2560 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 3072 }, { 1024, 1, 3072 }, { 3072, 3072 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 3072 }, { 1024, 1, 5120 }, { 5120, 3072 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 3072 }, { 1024, 1, 8192 }, { 8192, 3072 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 3584 }, { 1024, 1, 3584 }, { 3584, 3584 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 3584 }, { 1024, 1, 4608 }, { 4608, 3584 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 3584 }, { 1024, 1, 18944 }, { 18944, 3584 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 4096 }, { 1024, 1, 1024 }, { 1024, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 4096 }, { 1024, 1, 2560 }, { 2560, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 4096 }, { 1024, 1, 4096 }, { 4096, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 4096 }, { 1024, 1, 6144 }, { 6144, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 4096 }, { 1024, 1, 12288 }, { 12288, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 4096 }, { 1024, 1, 14336 }, { 14336, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 5120 }, { 1024, 1, 5120 }, { 5120, 5120 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 5120 }, { 1024, 1, 7680 }, { 7680, 5120 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 5120 }, { 1024, 1, 13696 }, { 13696, 5120 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 5120 }, { 1024, 1, 15360 }, { 15360, 5120 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 5120 }, { 1024, 1, 35840 }, { 35840, 5120 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 8192 }, { 1024, 1, 2048 }, { 2048, 8192 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 8192 }, { 1024, 1, 3072 }, { 3072, 8192 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 8960 }, { 1024, 1, 1536 }, { 1536, 8960 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 9728 }, { 1024, 1, 2560 }, { 2560, 9728 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 11008 }, { 1024, 1, 2048 }, { 2048, 11008 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 12288 }, { 1024, 1, 4096 }, { 4096, 12288 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 13696 }, { 1024, 1, 5120 }, { 5120, 13696 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 14336 }, { 1024, 1, 4096 }, { 4096, 14336 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1024, 1, 18944 }, { 1024, 1, 3584 }, { 3584, 18944 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1025, 1, 1536 }, { 1025, 1, 1536 }, { 1536, 1536 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1025, 1, 1536 }, { 1025, 1, 8960 }, { 8960, 1536 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1025, 1, 3584 }, { 1025, 1, 3584 }, { 3584, 3584 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1025, 1, 3584 }, { 1025, 1, 18944 }, { 18944, 3584 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1025, 1, 4096 }, { 1025, 1, 4096 }, { 4096, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1025, 1, 5120 }, { 1025, 1, 5120 }, { 5120, 5120 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1025, 1, 5120 }, { 1025, 1, 13824 }, { 13824, 5120 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1025, 1, 8960 }, { 1025, 1, 1536 }, { 1536, 8960 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1025, 1, 13696 }, { 1025, 1, 4096 }, { 4096, 13696 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1025, 1, 13824 }, { 1025, 1, 5120 }, { 5120, 13824 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1025, 1, 18944 }, { 1025, 1, 3584 }, { 3584, 18944 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1032, 1, 1536 }, { 1032, 1, 256 }, { 256, 1536 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1032, 1, 1536 }, { 1032, 1, 1536 }, { 1536, 1536 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1032, 1, 1536 }, { 1032, 1, 2048 }, { 2048, 1536 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1032, 1, 1536 }, { 1032, 1, 8960 }, { 8960, 1536 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1032, 1, 2560 }, { 1032, 1, 2560 }, { 2560, 2560 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1032, 1, 2560 }, { 1032, 1, 6912 }, { 6912, 2560 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1032, 1, 2560 }, { 1032, 1, 7680 }, { 7680, 2560 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1032, 1, 3584 }, { 1032, 1, 4608 }, { 4608, 3584 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1032, 1, 3584 }, { 1032, 1, 18944 }, { 18944, 3584 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1032, 1, 4096 }, { 1032, 1, 4608 }, { 4608, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1032, 1, 4096 }, { 1032, 1, 27392 }, { 27392, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1032, 1, 5120 }, { 1032, 1, 7168 }, { 7168, 5120 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1032, 1, 5120 }, { 1032, 1, 13824 }, { 13824, 5120 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1032, 1, 6912 }, { 1032, 1, 2560 }, { 2560, 6912 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1037, 1, 5120 }, { 1037, 1, 84992 }, { 84992, 5120 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1062, 1, 4096 }, { 1062, 1, 4096 }, { 4096, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1062, 1, 4096 }, { 1062, 1, 11008 }, { 11008, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1062, 1, 11008 }, { 1062, 1, 4096 }, { 4096, 11008 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1064, 1, 4096 }, { 1064, 1, 11008 }, { 11008, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1064, 1, 4096 }, { 1064, 1, 12288 }, { 12288, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1086, 1, 1024 }, { 1086, 1, 1024 }, { 1024, 1024 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1086, 1, 1024 }, { 1086, 1, 4096 }, { 4096, 1024 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1086, 1, 1536 }, { 1086, 1, 1536 }, { 1536, 1536 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1086, 1, 1536 }, { 1086, 1, 3840 }, { 3840, 1536 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1086, 1, 2560 }, { 1086, 1, 288 }, { 288, 2560 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1086, 1, 2560 }, { 1086, 1, 768 }, { 768, 2560 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1086, 1, 2560 }, { 1086, 1, 2560 }, { 2560, 2560 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1086, 1, 2560 }, { 1086, 1, 6400 }, { 6400, 2560 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1086, 1, 3840 }, { 1086, 1, 1536 }, { 1536, 3840 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1086, 1, 4096 }, { 1086, 1, 1024 }, { 1024, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1086, 1, 4096 }, { 1086, 1, 4096 }, { 4096, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1086, 1, 4096 }, { 1086, 1, 14336 }, { 14336, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1086, 1, 4096 }, { 1086, 1, 16384 }, { 16384, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1086, 1, 6400 }, { 1086, 1, 2560 }, { 2560, 6400 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1086, 1, 14336 }, { 1086, 1, 4096 }, { 4096, 14336 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1086, 1, 16384 }, { 1086, 1, 4096 }, { 4096, 16384 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1088, 1, 256 }, { 1088, 1, 5120 }, { 5120, 256 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1088, 1, 768 }, { 1088, 1, 3840 }, { 3840, 768 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1088, 1, 1024 }, { 1088, 1, 1280 }, { 1280, 1024 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1088, 1, 1024 }, { 1088, 1, 4096 }, { 4096, 1024 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1088, 1, 1536 }, { 1088, 1, 2560 }, { 2560, 1536 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1088, 1, 1536 }, { 1088, 1, 3840 }, { 3840, 1536 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1088, 1, 2560 }, { 1088, 1, 6400 }, { 6400, 2560 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1088, 1, 4096 }, { 1088, 1, 1024 }, { 1024, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1088, 1, 4096 }, { 1088, 1, 4096 }, { 4096, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1088, 1, 4096 }, { 1088, 1, 4608 }, { 4608, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1088, 1, 4096 }, { 1088, 1, 6144 }, { 6144, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1088, 1, 4096 }, { 1088, 1, 14336 }, { 14336, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1088, 1, 4096 }, { 1088, 1, 16384 }, { 16384, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1103, 1, 3072 }, { 1103, 1, 3072 }, { 3072, 3072 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1103, 1, 8192 }, { 1103, 1, 3072 }, { 3072, 8192 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1104, 1, 2048 }, { 1104, 1, 2048 }, { 2048, 2048 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1104, 1, 2048 }, { 1104, 1, 2560 }, { 2560, 2048 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1104, 1, 2048 }, { 1104, 1, 5632 }, { 5632, 2048 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1104, 1, 3072 }, { 1104, 1, 9216 }, { 9216, 3072 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1104, 1, 3072 }, { 1104, 1, 16384 }, { 16384, 3072 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1104, 1, 4096 }, { 1104, 1, 4096 }, { 4096, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1104, 1, 4096 }, { 1104, 1, 11008 }, { 11008, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1104, 1, 4096 }, { 1104, 1, 12288 }, { 12288, 4096 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1104, 1, 5120 }, { 1104, 1, 5120 }, { 5120, 5120 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1104, 1, 5120 }, { 1104, 1, 13824 }, { 13824, 5120 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1104, 1, 5120 }, { 1104, 1, 15360 }, { 15360, 5120 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1104, 1, 5632 }, { 1104, 1, 2048 }, { 2048, 5632 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1104, 1, 11008 }, { 1104, 1, 4096 }, { 4096, 11008 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+    fully_connected_test_params{ { 1104, 1, 13824 }, { 1104, 1, 5120 }, { 5120, 13824 }, data_types::i8, format::bfyx, data_types::u8, format::oiyx, data_types::f16, format::bfyx, 3, 4 },
+}));
+
+class fc_fp16_eltwise_prod_binary_mul_large : public FullyConnectedFusingTestOneDNN {};
+TEST_P(fc_fp16_eltwise_prod_binary_mul_large, matches_unfused_reference) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        data("extra_mul", get_mem(get_output_layout(p))),
+        data("weights", get_mem(get_weights_layout(p))),
+        fully_connected("fc_prim", input_info("input"), "weights", "", get_output_dim_size(p)),
+        eltwise("mul", {input_info("fc_prim"), input_info("extra_mul")}, eltwise_mode::prod),
+        reorder("reorder_bfyx", input_info("mul"), p.default_format, data_types::f16));
+
+    tolerance = 1e-2f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_prod_binary_mul_large, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    // Constant RHS makes binary_mul_inplace ineligible and forces binary_mul.
+    fully_connected_test_params{ CASE_FC_FP16_4, 3, 4 },
+}));
+
+class fc_fp16_eltwise_prod_sum_mul_inplace : public FullyConnectedFusingTestOneDNN {};
+TEST_P(fc_fp16_eltwise_prod_sum_mul_inplace, matches_unfused_reference) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        input_layout("extra_sum", get_output_layout(p)),
+        input_layout("extra_mul", get_output_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        fully_connected("fc_prim", input_info("input"), "weights", "", get_output_dim_size(p)),
+        eltwise("sum", {input_info("fc_prim"), input_info("extra_sum")}, eltwise_mode::sum),
+        eltwise("mul", {input_info("sum"), input_info("extra_mul")}, eltwise_mode::prod),
+        reorder("reorder_bfyx", input_info("mul"), p.default_format, data_types::f16));
+
+    extra_inputs["extra_sum"] = get_output_layout(p);
+    extra_inputs["extra_mul"] = get_output_layout(p);
+    tolerance = 1e-2f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_prod_sum_mul_inplace, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_3, 4, 6 },
+}));
+
+class fc_fp16_eltwise_sum_binary_mul : public FullyConnectedFusingTestOneDNN {};
+TEST_P(fc_fp16_eltwise_sum_binary_mul, matches_unfused_reference) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        input_layout("extra_sum", get_output_layout(p)),
+        input_layout("extra_mul", get_output_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        fully_connected("fc_prim", input_info("input"), "weights", "", get_output_dim_size(p)),
+        eltwise("sum", {input_info("fc_prim"), input_info("extra_sum")}, eltwise_mode::sum),
+        eltwise("mul", {input_info("sum"), input_info("extra_mul")}, eltwise_mode::prod),
+        reorder("reorder_bfyx", input_info("mul"), p.default_format, data_types::f16));
+
+    extra_inputs["extra_sum"] = get_output_layout(p);
+    extra_inputs["extra_mul"] = get_output_layout(p);
+    tolerance = 1e-2f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_sum_binary_mul, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_3, 4, 6 },
+}));
+
+class fc_fp16_eltwise_prod_mul_inplace_sum : public FullyConnectedFusingTestOneDNN {};
+TEST_P(fc_fp16_eltwise_prod_mul_inplace_sum, matches_unfused_reference) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        input_layout("extra_mul", get_output_layout(p)),
+        input_layout("extra_sum", get_output_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        fully_connected("fc_prim", input_info("input"), "weights", "", get_output_dim_size(p)),
+        eltwise("mul", {input_info("fc_prim"), input_info("extra_mul")}, eltwise_mode::prod),
+        eltwise("sum", {input_info("mul"), input_info("extra_sum")}, eltwise_mode::sum),
+        reorder("reorder_bfyx", input_info("sum"), p.default_format, data_types::f16));
+
+    extra_inputs["extra_mul"] = get_output_layout(p);
+    extra_inputs["extra_sum"] = get_output_layout(p);
+    tolerance = 1e-2f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_prod_mul_inplace_sum, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_3, 4, 6 },
+}));
+
+class fc_fp16_eltwise_prod_mul_mul_inplace : public FullyConnectedFusingTestOneDNN {};
+TEST_P(fc_fp16_eltwise_prod_mul_mul_inplace, matches_unfused_reference) {
+    auto p = GetParam();
+    create_topologies(
+        input_layout("input", get_input_layout(p)),
+        input_layout("extra_mul1", get_output_layout(p)),
+        input_layout("extra_mul2", get_output_layout(p)),
+        data("weights", get_mem(get_weights_layout(p))),
+        fully_connected("fc_prim", input_info("input"), "weights", "", get_output_dim_size(p)),
+        eltwise("mul1", {input_info("fc_prim"), input_info("extra_mul1")}, eltwise_mode::prod),
+        eltwise("mul2", {input_info("mul1"), input_info("extra_mul2")}, eltwise_mode::prod),
+        reorder("reorder_bfyx", input_info("mul2"), p.default_format, data_types::f16));
+
+    extra_inputs["extra_mul1"] = get_output_layout(p);
+    extra_inputs["extra_mul2"] = get_output_layout(p);
+    tolerance = 1e-2f;
+    execute(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_prod_mul_mul_inplace, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ CASE_FC_FP16_3, 4, 6 },
+}));
 #endif
 
 class fc_fp16_eltwise_add_ocl_dynamic : public FullyConnectedFusingTest {
@@ -1368,3 +1662,4 @@ TEST_P(fc_fp16_fuse_bias_and_find_eltwise_4d, basic) {
 INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_fuse_bias_and_find_eltwise_4d, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
     fully_connected_test_params{ DYN_CASE_FC_FP16_4D_1, 2, 4 },
 }));
+

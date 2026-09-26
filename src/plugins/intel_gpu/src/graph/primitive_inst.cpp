@@ -2681,7 +2681,7 @@ primitive_inst::primitive_inst(network& network, const program_node& node, bool 
         }
 
         if (auto reused_eltwmem_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(node); reused_eltwmem_idx != -1) {
-            // sum post-op can use the input buffer as the output buffer
+            // sum / in-place binary_mul_inplace post-ops can use the residual's input buffer as the output buffer
             auto& eltw_node = node.get_dependency(reused_eltwmem_idx);
             const auto& eltw_inst = _network.get_primitive(eltw_node.id());
             if (eltw_node.is_type<input_layout>() && !eltw_inst->outputs_allocated()) {
