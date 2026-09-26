@@ -19,6 +19,7 @@
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "sub_memory_manager.hpp"
 #include "weights_cache.hpp"
+#include "weights_prefetch.hpp"
 
 namespace ov::intel_cpu {
 
@@ -27,9 +28,11 @@ GraphContext::GraphContext(Config config,
                            bool isGraphQuantized,
                            ov::threading::IStreamsExecutor::Ptr streamExecutor,
                            std::shared_ptr<CpuParallel> cpuParallel,
-                           std::shared_ptr<SubMemoryManager> sub_memory_manager)
+                           std::shared_ptr<SubMemoryManager> sub_memory_manager,
+                           WeightsPrefetch::Ptr weights_prefetch)
     : m_config(std::move(config)),
       m_weightsCache(std::move(w_cache)),
+      m_weightsPrefetch(std::move(weights_prefetch)),
       m_rtParamsCache(std::make_shared<MultiCache>(m_config.rtCacheCapacity)),
       m_snippetsParamsCache(std::make_shared<MultiCache>(m_config.snippetsCacheCapacity)),
       m_isGraphQuantizedFlag(isGraphQuantized),
