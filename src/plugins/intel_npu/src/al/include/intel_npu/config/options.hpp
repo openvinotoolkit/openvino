@@ -876,6 +876,20 @@ struct BATCH_COMPILER_MODE_SETTINGS final : OptionBase<BATCH_COMPILER_MODE_SETTI
     }
 };
 
+struct OPTIMIZATION_LEVEL final : OptionBase<OPTIMIZATION_LEVEL, uint32_t> {
+    static std::string_view key() {
+        return ov::intel_npu::optimization_level.name();
+    }
+
+    static uint32_t defaultValue() {
+        return 1;
+    }
+
+    static OptionMode mode() {
+        return OptionMode::CompileTime;
+    }
+};
+
 struct ENABLE_WEIGHTLESS final : OptionBase<ENABLE_WEIGHTLESS, bool> {
     static std::string_view key() {
         return ov::enable_weightless.name();

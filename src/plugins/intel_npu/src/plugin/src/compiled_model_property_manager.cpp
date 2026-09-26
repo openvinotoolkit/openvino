@@ -203,6 +203,8 @@ void CompiledModelPropertyManager::registerProperties() {
     registerConfigProperty(ENABLE_CPU_PINNING{}, false, false);
     OPENVINO_SUPPRESS_DEPRECATED_END
 
+    registerCompilerProperty(OPTIMIZATION_LEVEL{}, true);
+
     // clang-format off
     // INFERENCE_PRECISION_HINT and EXECUTION_MODE_HINT are used by the compiler, but their values aren't guaranteed to
     // be correct if the user doesn't set it explicitly when compiling a model. Even if it is set when compiling a

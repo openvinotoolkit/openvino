@@ -610,6 +610,7 @@ void PluginPropertyManager::registerProperties() {
     registerCompilerProperty(INFERENCE_PRECISION_HINT{}, true);
     registerCompilerProperty(QDQ_OPTIMIZATION{}, true);
     registerCompilerProperty(QDQ_OPTIMIZATION_AGGRESSIVE{}, true);
+    registerCompilerProperty(OPTIMIZATION_LEVEL{}, true);
     registerCompilerProperty(TILES{}, true);
 
     registerCompilerProperty(BACKEND_COMPILATION_PARAMS{}, false);
