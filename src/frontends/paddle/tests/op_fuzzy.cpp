@@ -16,6 +16,8 @@ using PaddleFuzzyOpTest = FrontEndFuzzyOpTest;
 static const std::vector<std::string> models{
     std::string("argmax/argmax.pdmodel"),
     std::string("argmax1/argmax1.pdmodel"),
+    std::string("argmax_keepdim/argmax_keepdim.pdmodel"),
+    std::string("argmin_keepdim/argmin_keepdim.pdmodel"),
     std::string("assign_none/assign_none.pdmodel"),
     std::string("assign_output/assign_output.pdmodel"),
     std::string("assign_value_boolean/assign_value_boolean.pdmodel"),
