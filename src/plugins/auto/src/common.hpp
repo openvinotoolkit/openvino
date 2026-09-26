@@ -10,6 +10,7 @@
 #include <string>
 
 #include "openvino/runtime/auto/properties.hpp"
+#include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/icore.hpp"
@@ -198,6 +199,11 @@ struct IdleGuard<NotBusyPriorityWorkerRequests> {
 
 class Plugin;
 
+// Matches by exact device name, falling back to the base name (e.g. "NPU.5010" -> "NPU").
+inline bool device_name_matches(const std::string& device_name, const std::string& target_device) {
+    return device_name == target_device || ov::DeviceIDParser(device_name).get_device_name() == target_device;
+}
+
 // Selection-policy inputs consumed by Plugin::select_device: a hard filter (utilization thresholds)
 // applied first, then a ranking (performance curves) applied to the survivors.
 struct DeviceSelectionPolicy {
@@ -232,6 +238,8 @@ public:
     std::string                                    m_model_precision;
     DeviceSelectionPolicy                          m_selection_policy;
     std::string                                    m_low_power_device;
+    // Cached once per compile_model() call to avoid repeated IPF telemetry queries.
+    bool                                            m_is_low_power_mode_active = false;
     // hold the resource of static variable to avoid the unexpected destruction.
     std::shared_ptr<std::mutex>                                          m_mtx;
     std::shared_ptr<std::map<unsigned int, std::list<std::string>>>      m_priority_map;
