@@ -6,6 +6,7 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
@@ -17,6 +18,7 @@
 
 using namespace std;
 using namespace ov;
+using testing::HasSubstr;
 
 TEST(type_prop, if_simple_test) {
     // That which we iterate over
@@ -446,4 +448,39 @@ TEST(type_prop, if_invalid_false_body) {
     if_op->validate_and_infer_types();
     EXPECT_EQ(then_op_res->get_element_type(), ov::element::dynamic);
     EXPECT_EQ(else_op_res->get_element_type(), ov::element::f16);
+}
+
+static shared_ptr<Node> make_nested_if(size_t depth) {
+    auto cond = make_shared<op::v0::Constant>(element::boolean, Shape{1}, true);
+    auto if_op = make_shared<op::v8::If>(cond);
+
+    // then/else bodies
+    auto then_p = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    shared_ptr<Node> then_out;
+    if (depth > 0) {
+        // nest another If inside the then-body
+        auto inner = make_nested_if(depth - 1);
+        then_out = inner;
+    } else {
+        then_out = then_p;
+    }
+    auto then_res = make_shared<op::v0::Result>(then_out);
+    auto then_body = make_shared<Model>(OutputVector{then_res}, ParameterVector{then_p});
+
+    auto else_p = make_shared<op::v0::Parameter>(element::f32, PartialShape::dynamic());
+    auto else_res = make_shared<op::v0::Result>(else_p);
+    auto else_body = make_shared<Model>(OutputVector{else_res}, ParameterVector{else_p});
+
+    if_op->set_then_body(then_body);
+    if_op->set_else_body(else_body);
+    if_op->set_input(if_op->input_value(0), then_p, else_p);
+    if_op->set_output(then_res, else_res);
+    return if_op;
+}
+
+TEST(type_prop, if_nested_constant_condition_exceeds_max_depth_throws) {
+    const size_t excessive_depth = 1024;
+    OV_EXPECT_THROW(std::ignore = make_nested_if(excessive_depth),
+        ov::NodeValidationFailure,
+        HasSubstr("nesting depth exceeds"));
 }
