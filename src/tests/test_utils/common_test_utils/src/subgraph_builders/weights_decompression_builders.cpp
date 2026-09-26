@@ -218,11 +218,12 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
     const std::optional<bool>& insert_transpose_node,
     const size_t seed) {
     // Validate that the precision is supported for real quantization
-    OPENVINO_ASSERT(weights_precision == ov::element::u2 || weights_precision == ov::element::u4 ||
-                        weights_precision == ov::element::i4 || weights_precision == ov::element::u8 ||
-                        weights_precision == ov::element::i8,
-                    "initMatMulDecompressionSubgraphQuantization only supports u2, u4, i4, u8, i8 precisions. Got: ",
-                    weights_precision);
+    OPENVINO_ASSERT(
+        weights_precision == ov::element::u2 || weights_precision == ov::element::u3 ||
+            weights_precision == ov::element::u4 || weights_precision == ov::element::i4 ||
+            weights_precision == ov::element::u8 || weights_precision == ov::element::i8,
+        "initMatMulDecompressionSubgraphQuantization only supports u2, u3, u4, i4, u8, i8 precisions. Got: ",
+        weights_precision);
 
     auto transpose_if_necessary = [&](const ov::Shape& shape) {
         auto result_shape = shape;
@@ -264,11 +265,13 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
 
     // Calculate quantization parameters
     const auto qmin = weights_precision == ov::element::u2   ? 0.0f
+                      : weights_precision == ov::element::u3 ? 0.0f
                       : weights_precision == ov::element::i4 ? -8.0f
                       : weights_precision == ov::element::u4 ? 0.0f
                       : weights_precision.is_signed()        ? -128.0f
                                                              : 0.0f;
     const auto qmax = weights_precision == ov::element::u2   ? 3.0f
+                      : weights_precision == ov::element::u3 ? 7.0f
                       : weights_precision == ov::element::i4 ? 7.0f
                       : weights_precision == ov::element::u4 ? 15.0f
                       : weights_precision.is_signed()        ? 127.0f
@@ -348,7 +351,8 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
     };
 
     // Quantize based on weights_precision type
-    if (weights_precision == ov::element::u2 || weights_precision == ov::element::u4) {
+    if (weights_precision == ov::element::u2 || weights_precision == ov::element::u3 ||
+        weights_precision == ov::element::u4) {
         // For sub-byte unsigned types, use element::iterator
         std::vector<uint8_t> quantized_buffer(total_size);
         for (size_t i = 0; i < total_size; ++i) {
@@ -358,6 +362,9 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
         }
         if (weights_precision == ov::element::u4) {
             auto iter = ov::element::iterator<ov::element::u4>(quantized_weights_tensor.data());
+            std::copy(quantized_buffer.begin(), quantized_buffer.end(), iter);
+        } else if (weights_precision == ov::element::u3) {
+            auto iter = ov::element::iterator<ov::element::u3>(quantized_weights_tensor.data());
             std::copy(quantized_buffer.begin(), quantized_buffer.end(), iter);
         } else {
             auto iter = ov::element::iterator<ov::element::u2>(quantized_weights_tensor.data());
@@ -414,6 +421,9 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
             } else if (weights_precision == ov::element::u2) {
                 auto iter = ov::element::iterator<ov::element::u2>(shift_tensor.data());
                 *iter = static_cast<uint8_t>(std::round(avg_zp));
+            } else if (weights_precision == ov::element::u3) {
+                auto iter = ov::element::iterator<ov::element::u3>(shift_tensor.data());
+                *iter = static_cast<uint8_t>(std::round(avg_zp));
             } else if (weights_precision == ov::element::i4) {
                 auto iter = ov::element::iterator<ov::element::i4>(shift_tensor.data());
                 *iter = static_cast<int8_t>(std::round(avg_zp));
@@ -437,6 +447,13 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
                     zp_buffer[i] = static_cast<uint8_t>(std::round(zero_points[i]));
                 }
                 auto iter = ov::element::iterator<ov::element::u2>(shift_tensor.data());
+                std::copy(zp_buffer.begin(), zp_buffer.end(), iter);
+            } else if (weights_precision == ov::element::u3) {
+                std::vector<uint8_t> zp_buffer(num_groups);
+                for (size_t i = 0; i < num_groups; ++i) {
+                    zp_buffer[i] = static_cast<uint8_t>(std::round(zero_points[i]));
+                }
+                auto iter = ov::element::iterator<ov::element::u3>(shift_tensor.data());
                 std::copy(zp_buffer.begin(), zp_buffer.end(), iter);
             } else if (weights_precision == ov::element::i4) {
                 std::vector<int8_t> zp_buffer(num_groups);

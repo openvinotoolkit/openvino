@@ -294,6 +294,45 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedFusion,
                                             ::testing::Values(true)),   // use_weight_decompression
                          MoECompressedFusionTest::getTestCaseName);
 
+// u3 has no batched GEMV kernel: decode (<= 32 tokens) and prefill both run OneDNN grouped GEMM.
+// Scalar zp is the NNCF int3 layout (symmetric u3 with zp = 4 for all experts).
+const std::vector<MoeTestShapeParams> moe_params_smoke_u3 = {
+    {
+        {{-1, -1, 256}, {{1, 40, 256}, {1, 1, 256}, {1, 3, 256}, {1, 40, 256}}},  // prefill > gemv threshold + decode
+        4,                                                                        // topk
+        8,                                                                        // number_of_experts
+        512                                                                       // intermediate_size
+    },
+    {
+        {{-1, -1, 2048}, {{1, 4, 2048}, {1, 1, 2048}}},  // prefill + decode
+        4,                                               // topk
+        8,                                               // number_of_experts
+        512                                              // intermediate_size
+    },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoE3GemmCompressedFusion_u3,
+                         MoECompressedFusionTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_smoke_u3),
+                                            ::testing::Values(MoePatternType::GEMM3),
+                                            ::testing::ValuesIn(routing_types),
+                                            ::testing::Values(ov::element::u3),
+                                            ::testing::Values(ov::element::f16),  // decompression_precision
+                                            ::testing::Values(ov::element::f16),  // scale_precision
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full,
+                                                              ov::test::utils::DecompressionType::scalar,
+                                                              ov::test::utils::DecompressionType::empty),
+                                            ::testing::Values(true),  // reshape_on_decompression
+                                            ::testing::Values(128),
+                                            ::testing::Values(size_t{0}),  // gate_idx unused for GEMM3
+                                            ::testing::Values(false),      // force_gather_matmul
+                                            ::testing::Values(MoEActivationType::SWISH),
+                                            ::testing::Values(false),  // use_per_expert_scale
+                                            ::testing::Values(false),  // use_layernorm_multiply
+                                            ::testing::Values(true)),  // use_weight_decompression
+                         MoECompressedFusionTest::getTestCaseName);
+
 // GPT-OSS 2-GEMM pattern (combined gate/up MatMul + Slice/Clamp/Add/Swish).
 // gate_idx=0 matches real gpt-oss IR; gate_idx=1 covers the inverted layout.
 INSTANTIATE_TEST_SUITE_P(smoke_MoE2GemmCompressedFusion,
