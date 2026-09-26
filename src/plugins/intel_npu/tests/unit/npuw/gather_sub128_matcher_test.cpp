@@ -52,6 +52,93 @@ std::shared_ptr<ov::Model> make_gather_model(float shift_value) {
     return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{ids});
 }
 
+std::shared_ptr<ov::Model> make_vocab_sharing_model(bool shared,
+                                                    bool symmetric = false,
+                                                    const ov::Shape& scale_shape = {4, 1}) {
+    auto ids = std::make_shared<ov::opset10::Parameter>(ov::element::i32, ov::Shape{1, 1});
+    auto hidden = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1, 1, 2});
+    auto axis = ov::opset10::Constant::create(ov::element::i32, ov::Shape{}, {0});
+
+    auto embedding_weights = symmetric
+                                 ? ov::opset10::Constant::create(ov::element::i4, ov::Shape{4, 2},
+                                                                 std::vector<int8_t>(8, 1))
+                                 : ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 2},
+                                                                 std::vector<uint8_t>(8, 200));
+    auto embedding_zero_point = ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 1},
+                                                              std::vector<uint8_t>(4, 128));
+    auto embedding_scale = ov::opset10::Constant::create(ov::element::f16, scale_shape,
+                                                         std::vector<float>(ov::shape_size(scale_shape), 1.0f));
+
+    auto lm_head_weights = shared
+                               ? embedding_weights
+                               : (symmetric ? ov::opset10::Constant::create(ov::element::i4, ov::Shape{4, 2},
+                                                                             std::vector<int8_t>(8, 1))
+                                            : ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 2},
+                                                                            std::vector<uint8_t>(8, 200)));
+    auto lm_head_zero_point = shared
+                                  ? embedding_zero_point
+                                  : ov::opset10::Constant::create(ov::element::u8, ov::Shape{4, 1},
+                                                                  std::vector<uint8_t>(4, 128));
+    auto lm_head_scale = shared ? embedding_scale : ov::opset10::Constant::create(ov::element::f16,
+                                                                                    scale_shape,
+                                                                                    std::vector<float>(ov::shape_size(scale_shape), 1.0f));
+
+    auto embedding_convert = std::make_shared<ov::opset10::Convert>(embedding_weights, ov::element::f16);
+    ov::Output<ov::Node> embedding_dequantized = embedding_convert;
+    if (!symmetric) {
+        auto embedding_zero_point_convert =
+            std::make_shared<ov::opset10::Convert>(embedding_zero_point, ov::element::f16);
+        embedding_dequantized =
+            std::make_shared<ov::opset10::Subtract>(embedding_convert, embedding_zero_point_convert);
+    }
+    auto embedding_scaled = std::make_shared<ov::opset10::Multiply>(embedding_dequantized, embedding_scale);
+    auto embedding_gather = std::make_shared<ov::opset10::Gather>(
+        std::make_shared<ov::opset10::Convert>(embedding_scaled, ov::element::f32), ids, axis);
+
+    auto lm_head_convert = std::make_shared<ov::opset10::Convert>(lm_head_weights, ov::element::f16);
+    ov::Output<ov::Node> lm_head_dequantized = lm_head_convert;
+    if (!symmetric) {
+        auto lm_head_zero_point_convert =
+            std::make_shared<ov::opset10::Convert>(lm_head_zero_point, ov::element::f16);
+        lm_head_dequantized = std::make_shared<ov::opset10::Subtract>(lm_head_convert, lm_head_zero_point_convert);
+    }
+    auto lm_head_scaled = std::make_shared<ov::opset10::Multiply>(lm_head_dequantized, lm_head_scale);
+    auto lm_head_matmul = std::make_shared<ov::opset10::MatMul>(
+        hidden,
+        std::make_shared<ov::opset10::Convert>(lm_head_scaled, ov::element::f32),
+        false,
+        true);
+
+    auto embedding_result = std::make_shared<ov::opset10::Result>(embedding_gather);
+    auto lm_head_result = std::make_shared<ov::opset10::Result>(lm_head_matmul);
+    return std::make_shared<ov::Model>(ov::ResultVector{embedding_result, lm_head_result},
+                                       ov::ParameterVector{ids, hidden});
+}
+
+std::shared_ptr<ov::Model> make_full_precision_vocab_sharing_model(bool shared) {
+    auto ids = std::make_shared<ov::opset10::Parameter>(ov::element::i32, ov::Shape{1, 1});
+    auto hidden = std::make_shared<ov::opset10::Parameter>(ov::element::f32, ov::Shape{1, 1, 2});
+    auto axis = ov::opset10::Constant::create(ov::element::i32, ov::Shape{}, {0});
+    auto embedding_weights = ov::opset10::Constant::create(ov::element::f16,
+                                                            ov::Shape{4, 2},
+                                                            std::vector<float>(8, 1.0f));
+    auto lm_head_weights = shared
+                               ? embedding_weights
+                               : ov::opset10::Constant::create(ov::element::f16,
+                                                               ov::Shape{4, 2},
+                                                               std::vector<float>(8, 1.0f));
+    auto embedding = std::make_shared<ov::opset10::Gather>(
+        std::make_shared<ov::opset10::Convert>(embedding_weights, ov::element::f32), ids, axis);
+    auto lm_head = std::make_shared<ov::opset10::MatMul>(
+        hidden,
+        std::make_shared<ov::opset10::Convert>(lm_head_weights, ov::element::f32),
+        false,
+        true);
+    return std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::opset10::Result>(embedding),
+                                                        std::make_shared<ov::opset10::Result>(lm_head)},
+                                       ov::ParameterVector{ids, hidden});
+}
+
 std::size_t count_gathers(const std::shared_ptr<ov::Model>& model) {
     std::size_t count = 0;
     for (const auto& node : model->get_ordered_ops()) {
@@ -139,7 +226,7 @@ bool run_host_gather(const std::shared_ptr<ov::Model>& model, ov::npuw::patterns
     return rewrite.run_on_model(model);
 }
 
-enum class VocabMatMulTerminal { Add, Transpose, Convert, Gated };
+enum class VocabMatMulTerminal { Add, Transpose, Convert, Divide, Gated };
 
 std::shared_ptr<ov::Model> make_vocab_matmul_model(bool convert_before_matmul,
                                                    std::optional<VocabMatMulTerminal> terminal = std::nullopt,
@@ -170,6 +257,9 @@ std::shared_ptr<ov::Model> make_vocab_matmul_model(bool convert_before_matmul,
         output = std::make_shared<ov::opset10::Transpose>(matmul, order);
     } else if (terminal == VocabMatMulTerminal::Convert) {
         output = std::make_shared<ov::opset10::Convert>(matmul, ov::element::f32);
+    } else if (terminal == VocabMatMulTerminal::Divide) {
+        auto divisor = ov::opset10::Constant::create(ov::element::f32, ov::Shape{}, {2.0f});
+        output = std::make_shared<ov::opset10::Divide>(matmul, divisor);
     } else if (terminal == VocabMatMulTerminal::Gated) {
         auto divisor = ov::opset10::Constant::create(ov::element::f32, ov::Shape{}, {2.0f});
         auto div = std::make_shared<ov::opset10::Divide>(matmul, divisor);
@@ -245,6 +335,159 @@ TEST(DQLiftGatherAsymCWTest, LiftsPairedSub128Shifts) {
     EXPECT_TRUE(run_lift(model));
     EXPECT_EQ(count_gathers(model), 3);
 }
+
+TEST(DetectVocabSharingTest, DetectsSharedQuantizedVocabulary) {
+    bool shared = false;
+    ov::npuw::DetectVocabSharing pass(shared);
+
+    EXPECT_FALSE(pass.run_on_model(make_vocab_sharing_model(true)));
+    EXPECT_TRUE(shared);
+}
+
+TEST(DetectVocabSharingTest, RejectsSeparateQuantizedVocabularies) {
+    bool shared = true;
+    ov::npuw::DetectVocabSharing pass(shared);
+
+    EXPECT_FALSE(pass.run_on_model(make_vocab_sharing_model(false)));
+    EXPECT_FALSE(shared);
+}
+
+TEST(DetectVocabSharingTest, DetectsSharedSymmetricI4Vocabulary) {
+    bool shared = false;
+    ov::npuw::DetectVocabSharing pass(shared);
+
+    EXPECT_FALSE(pass.run_on_model(make_vocab_sharing_model(true, true)));
+    EXPECT_TRUE(shared);
+}
+
+TEST(DetectVocabSharingTest, RejectsSeparateSymmetricI4Vocabularies) {
+    bool shared = true;
+    ov::npuw::DetectVocabSharing pass(shared);
+
+    EXPECT_FALSE(pass.run_on_model(make_vocab_sharing_model(false, true)));
+    EXPECT_FALSE(shared);
+}
+
+TEST(DetectVocabSharingTest, DetectsSharedFullPrecisionVocabulary) {
+    bool shared = false;
+    ov::npuw::DetectVocabSharing pass(shared);
+
+    EXPECT_FALSE(pass.run_on_model(make_full_precision_vocab_sharing_model(true)));
+    EXPECT_TRUE(shared);
+}
+
+TEST(DetectVocabSharingTest, RejectsSeparateFullPrecisionVocabularies) {
+    bool shared = true;
+    ov::npuw::DetectVocabSharing pass(shared);
+
+    EXPECT_FALSE(pass.run_on_model(make_full_precision_vocab_sharing_model(false)));
+    EXPECT_FALSE(shared);
+}
+
+using VocabScaleTestParams = std::tuple<bool, bool, ov::Shape>;
+
+class DetectVocabSharingScaleTest : public ::testing::TestWithParam<VocabScaleTestParams> {
+public:
+    static std::string getTestCaseName(const ::testing::TestParamInfo<VocabScaleTestParams>& info) {
+        const auto& [shared, symmetric, shape] = info.param;
+        std::string name = std::string(shared ? "Shared" : "Separate") + (symmetric ? "I4" : "U8") + "Scale";
+        if (shape.empty()) {
+            return name + "Scalar";
+        }
+        for (const auto dimension : shape) {
+            name += "_" + std::to_string(dimension);
+        }
+        return name;
+    }
+};
+
+TEST_P(DetectVocabSharingScaleTest, ComparesStorageWithoutRestrictingScaleShape) {
+    const auto& [expected_shared, symmetric, scale_shape] = GetParam();
+    const auto model = make_vocab_sharing_model(expected_shared, symmetric, scale_shape);
+    const auto original_nodes = model->get_ordered_ops();
+    bool shared = !expected_shared;
+    ov::npuw::DetectVocabSharing pass(shared);
+
+    EXPECT_FALSE(pass.run_on_model(model));
+    EXPECT_EQ(shared, expected_shared);
+    EXPECT_EQ(model->get_ordered_ops(), original_nodes);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ScaleLayouts,
+    DetectVocabSharingScaleTest,
+    ::testing::Combine(::testing::Bool(),
+                       ::testing::Bool(),
+                       ::testing::Values(ov::Shape{}, ov::Shape{1}, ov::Shape{2}, ov::Shape{1, 1},
+                                         ov::Shape{1, 2}, ov::Shape{4, 1}, ov::Shape{4, 2})),
+    DetectVocabSharingScaleTest::getTestCaseName);
+
+TEST(DetectVocabSharingTest, RejectsMissingVocabularyBranchAndResetsState) {
+    bool shared = false;
+    ov::npuw::DetectVocabSharing pass(shared);
+    const auto model = make_vocab_sharing_model(true);
+    EXPECT_FALSE(pass.run_on_model(model));
+    ASSERT_TRUE(shared);
+
+    model->remove_result(model->get_results().back());
+    EXPECT_FALSE(pass.run_on_model(model));
+    EXPECT_FALSE(shared);
+
+    const auto lm_head_only = make_vocab_sharing_model(true);
+    lm_head_only->remove_result(lm_head_only->get_results().front());
+    shared = true;
+    EXPECT_FALSE(pass.run_on_model(lm_head_only));
+    EXPECT_FALSE(shared);
+}
+
+TEST(DetectVocabSharingTest, RejectsNonTerminalMatMul) {
+    const auto model = make_vocab_sharing_model(true);
+    const auto result = model->get_results().back();
+    const auto projection = ov::opset10::Constant::create(ov::element::f32, ov::Shape{4, 2}, {1.0f});
+    const auto intermediate = std::make_shared<ov::opset10::MatMul>(result->input_value(0), projection, false, false);
+    result->input(0).replace_source_output(intermediate);
+    bool shared = true;
+
+    EXPECT_FALSE(ov::npuw::DetectVocabSharing(shared).run_on_model(model));
+    EXPECT_FALSE(shared);
+}
+
+TEST(DetectVocabSharingTest, RejectsManuallyAddedLmHeadOutput) {
+    const auto model = make_vocab_sharing_model(true);
+    model->get_results().back()->get_rt_info()["manually_added_output"] = true;
+    bool shared = true;
+
+    EXPECT_FALSE(ov::npuw::DetectVocabSharing(shared).run_on_model(model));
+    EXPECT_FALSE(shared);
+}
+
+class DetectVocabSharingTerminalTest : public ::testing::TestWithParam<VocabMatMulTerminal> {};
+
+TEST_P(DetectVocabSharingTerminalTest, DetectsSharedVocabularyThroughLmHeadTerminal) {
+    const auto model = make_vocab_matmul_model(false, GetParam());
+    const auto nodes = model->get_ordered_ops();
+    const auto matmul = std::find_if(nodes.begin(), nodes.end(), [](const auto& node) {
+        return ov::is_type<ov::opset10::MatMul>(node);
+    });
+    ASSERT_NE(matmul, nodes.end());
+    const auto ids = std::make_shared<ov::opset10::Parameter>(ov::element::i32, ov::Shape{1});
+    const auto axis = ov::opset10::Constant::create(ov::element::i32, ov::Shape{}, {0});
+    const auto embedding = std::make_shared<ov::opset10::Gather>((*matmul)->input_value(1), ids, axis);
+    model->add_parameters({ids});
+    model->add_results({std::make_shared<ov::opset10::Result>(embedding)});
+    bool shared = false;
+
+    EXPECT_FALSE(ov::npuw::DetectVocabSharing(shared).run_on_model(model));
+    EXPECT_TRUE(shared);
+}
+
+INSTANTIATE_TEST_SUITE_P(LmHeadTerminal,
+                       DetectVocabSharingTerminalTest,
+                       ::testing::Values(VocabMatMulTerminal::Add,
+                                         VocabMatMulTerminal::Transpose,
+                                         VocabMatMulTerminal::Convert,
+                                         VocabMatMulTerminal::Divide,
+                                         VocabMatMulTerminal::Gated));
 
 TEST(DQLiftGatherAsymCWTest, RejectsNon128Subtractions) {
     const auto model = make_gather_model(127.0f);
@@ -418,6 +661,8 @@ public:
             return "Transpose";
         case VocabMatMulTerminal::Convert:
             return "Convert";
+        case VocabMatMulTerminal::Divide:
+            return "Divide";
         case VocabMatMulTerminal::Gated:
             return "Gated";
         }
@@ -438,6 +683,7 @@ INSTANTIATE_TEST_SUITE_P(LmHeadTerminal,
                          ::testing::Values(VocabMatMulTerminal::Add,
                                            VocabMatMulTerminal::Transpose,
                                            VocabMatMulTerminal::Convert,
+                                           VocabMatMulTerminal::Divide,
                                            VocabMatMulTerminal::Gated),
                          InsertVocabSub128LmHeadTerminalTest::getTestCaseName);
 
