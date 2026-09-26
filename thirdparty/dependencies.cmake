@@ -387,27 +387,13 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         if(CMAKE_VERBOSE_MAKEFILE)
             set(Protobuf_DEBUG ON)
         endif()
-        # try to find newer version first (major is changed)
-        # see https://protobuf.dev/support/version-support/ and
-        # https://github.com/protocolbuffers/protobuf/commit/d61f75ff6db36b4f9c0765f131f8edc2f86310fa
-        find_package(Protobuf 5.26.0 QUIET CONFIG)
-        if(NOT Protobuf_FOUND)
-            find_package(Protobuf 5.26.0 QUIET CONFIG)
-        endif()
-        if(Protobuf_FOUND)
-            # protobuf was found via CONFIG mode, let's save it for later usage in OpenVINOConfig.cmake static build
-            set(protobuf_config CONFIG)
-        else()
-            if(OV_VCPKG_BUILD)
-                set(protobuf_config CONFIG)
-            endif()
-            # otherwise, fallback to existing default
-            find_package(Protobuf 5.26.0 REQUIRED ${protobuf_config})
-        endif()
+        # only protobuf's own CONFIG package propagates Abseil, which protobuf 22 and newer requires
+        find_package(Protobuf 5.26.0 REQUIRED CONFIG)
+        # exported into OpenVINOConfig.cmake for static build
+        set(protobuf_config CONFIG)
 
-        # with newer protobuf versions (4.22 and newer), we use CONFIG first
-        # so, the Protobuf_PROTOC_EXECUTABLE variable must be checked explicitly,
-        # because it's not used in this case (oppositely to MODULE case)
+        # CONFIG mode reports the release version and does not set Protobuf_PROTOC_EXECUTABLE,
+        # so an explicitly provided one (e.g. host protoc when cross-compiling) wins
         if(Protobuf_VERSION VERSION_GREATER_EQUAL 22 AND DEFINED Protobuf_PROTOC_EXECUTABLE)
             set(PROTOC_EXECUTABLE ${Protobuf_PROTOC_EXECUTABLE})
         else()
