@@ -4,6 +4,7 @@
 
 #include "openvino/pass/visualize_tree.hpp"
 
+#include <cctype>
 #include <cmath>
 #include <fstream>
 
@@ -167,15 +168,41 @@ static std::string get_attribute_values(const std::map<std::string, ov::Any>& at
     return ss.str();
 }
 
+static char hex_nibble(unsigned char v) {
+    return static_cast<char>(v < 10 ? '0' + v : 'a' + (v - 10));
+}
+
+// std::isalnum() is locale-dependent above 7-bit ASCII; this bound keeps is_safe() locale-independent.
+constexpr unsigned char ascii_limit = 0x80;
+
+// Allowlist, not a denylist of path-sensitive characters, since those are platform-dependent
+// (e.g. ':' only matters on NTFS).
+static bool is_safe(unsigned char c) {
+    return (c < ascii_limit && std::isalnum(c)) || c == '_' || c == '.' || c == '-';
+}
+
 static std::filesystem::path name_of_subgraph_file(const std::shared_ptr<ov::Node> op,
                                                    const std::filesystem::path& current_file_name,
                                                    const size_t i) {
     // friendly is never empty it is either friendly (set by user) or unique (auto-generated) name
-    auto node_name = op->get_friendly_name();
-    std::replace(node_name.begin(), node_name.end(), '/', '-');
+    const auto& node_name = op->get_friendly_name();
+
+    std::string sanitized_name;
+    sanitized_name.reserve(node_name.size());
+    for (unsigned char c : node_name) {
+        if (is_safe(c)) {
+            sanitized_name += static_cast<char>(c);
+        } else {
+            // '~' is not in is_safe()'s allowlist, so it only ever appears here as an escape's
+            // lead byte, keeping this "~xy" encoding unambiguous.
+            sanitized_name += '~';
+            sanitized_name += hex_nibble(c >> 4);
+            sanitized_name += hex_nibble(c & 0xF);
+        }
+    }
 
     auto file_name = current_file_name;
-    file_name.replace_extension("._node_" + node_name + "_subgraph_#" + std::to_string(i));
+    file_name.replace_extension("._node_" + sanitized_name + "_subgraph_#" + std::to_string(i));
     return file_name;
 }
 
@@ -683,6 +710,8 @@ void ov::pass::VisualizeTree::render() const {
         dot_file += dot_ext;
     }
 
+    // Keep the dump under its parent as sanitize_path() does (file_util.cpp:102).
+    dot_file = ov::util::sanitize_path(m_name.parent_path(), dot_file.filename());
     if (std::ofstream out(dot_file); out) {
         out << "digraph \n{\n";
         out << m_ss.str();

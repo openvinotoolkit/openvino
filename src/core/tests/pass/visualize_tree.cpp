@@ -9,6 +9,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/if.hpp"
 
 namespace ov::test {
 
@@ -16,6 +17,7 @@ using ov::op::v0::Constant;
 using ov::op::v0::Parameter;
 using ov::op::v0::Result;
 using ov::op::v1::Add;
+using ov::op::v8::If;
 
 class VisualizeTreeTest : public testing::Test {
 protected:
@@ -35,6 +37,66 @@ protected:
         const auto add = std::make_shared<Add>(c, input);
         const auto output = std::make_shared<Result>(add);
         return std::make_shared<Model>(ResultVector{output}, ParameterVector{input});
+    }
+
+    // Model with a MultiSubGraphOp (If), so its friendly name drives a subgraph dump file name.
+    static std::shared_ptr<Model> make_dummy_if_model(const std::string& if_friendly_name) {
+        const auto x = std::make_shared<Parameter>(element::f32, Shape{1});
+        const auto y = std::make_shared<Parameter>(element::f32, Shape{1});
+        const auto cond = std::make_shared<Constant>(element::boolean, Shape{}, true);
+
+        const auto xt = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+        const auto yt = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+        const auto then_res = std::make_shared<Result>(std::make_shared<Add>(xt, yt));
+        const auto then_body = std::make_shared<Model>(OutputVector{then_res}, ParameterVector{xt, yt});
+
+        const auto xe = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+        const auto ye = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+        const auto else_res = std::make_shared<Result>(std::make_shared<Add>(xe, ye));
+        const auto else_body = std::make_shared<Model>(OutputVector{else_res}, ParameterVector{xe, ye});
+
+        const auto if_op = std::make_shared<If>(cond);
+        if_op->set_friendly_name(if_friendly_name);
+        if_op->set_then_body(then_body);
+        if_op->set_else_body(else_body);
+        if_op->set_input(x, xt, xe);
+        if_op->set_input(y, yt, ye);
+        const auto out = if_op->set_output(then_res, else_res);
+        const auto output = std::make_shared<Result>(out);
+        return std::make_shared<Model>(ResultVector{output}, ParameterVector{x, y});
+    }
+
+    // Two independent If nodes (so two independent "subgraph_#0" dump paths under the same
+    // parent), used to prove distinct friendly names never collide onto the same file name.
+    static std::shared_ptr<Model> make_dummy_two_if_model(const std::string& first_if_name,
+                                                          const std::string& second_if_name) {
+        const auto x = std::make_shared<Parameter>(element::f32, Shape{1});
+        const auto y = std::make_shared<Parameter>(element::f32, Shape{1});
+        const auto cond = std::make_shared<Constant>(element::boolean, Shape{}, true);
+
+        auto make_if = [&](const std::string& name) {
+            const auto xt = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+            const auto yt = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+            const auto then_res = std::make_shared<Result>(std::make_shared<Add>(xt, yt));
+            const auto then_body = std::make_shared<Model>(OutputVector{then_res}, ParameterVector{xt, yt});
+
+            const auto xe = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+            const auto ye = std::make_shared<Parameter>(element::f32, PartialShape::dynamic());
+            const auto else_res = std::make_shared<Result>(std::make_shared<Add>(xe, ye));
+            const auto else_body = std::make_shared<Model>(OutputVector{else_res}, ParameterVector{xe, ye});
+
+            const auto if_op = std::make_shared<If>(cond);
+            if_op->set_friendly_name(name);
+            if_op->set_then_body(then_body);
+            if_op->set_else_body(else_body);
+            if_op->set_input(x, xt, xe);
+            if_op->set_input(y, yt, ye);
+            return if_op->set_output(then_res, else_res);
+        };
+
+        const auto output1 = std::make_shared<Result>(make_if(first_if_name));
+        const auto output2 = std::make_shared<Result>(make_if(second_if_name));
+        return std::make_shared<Model>(ResultVector{output1, output2}, ParameterVector{x, y});
     }
 
     const std::filesystem::path vt_svg_file_path =
@@ -60,5 +122,80 @@ TEST_F(VisualizeTreeTest, model_has_constant_with_no_inf) {
 
     OV_ASSERT_NO_THROW(vt.run_on_model(model));
     ASSERT_TRUE(util::file_exists(dot_file_path)) << dot_file_path;
+}
+
+struct VisualizeTreeSanitizeParam {
+    std::string friendly_name;
+    std::string sanitized_name;
+};
+
+class VisualizeTreeSanitizeTest : public VisualizeTreeTest,
+                                  public testing::WithParamInterface<VisualizeTreeSanitizeParam> {};
+
+TEST_P(VisualizeTreeSanitizeTest, subgraph_friendly_name_with_disallowed_characters_is_sanitized) {
+    const auto& param = GetParam();
+    const auto model = make_dummy_if_model(param.friendly_name);
+
+    pass::VisualizeTree vt(vt_svg_file_path);
+
+    OV_ASSERT_NO_THROW(vt.run_on_model(model));
+    ASSERT_TRUE(util::file_exists(dot_file_path)) << dot_file_path;
+
+    // If has both a then_body and an else_body, so it dumps subgraph #0 and #1.
+    for (const auto subgraph_index : {0, 1}) {
+        auto subgraph_file_path = vt_svg_file_path;
+        subgraph_file_path.replace_extension("._node_" + param.sanitized_name + "_subgraph_#" +
+                                             std::to_string(subgraph_index));
+        subgraph_file_path += ".dot";
+        ASSERT_TRUE(util::file_exists(subgraph_file_path)) << subgraph_file_path;
+        std::filesystem::remove(subgraph_file_path);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(DisallowedCharacters,
+                         VisualizeTreeSanitizeTest,
+                         testing::Values(VisualizeTreeSanitizeParam{"x\\y", "x~5cy"},
+                                         VisualizeTreeSanitizeParam{"evil:stream", "evil~3astream"}));
+
+TEST_F(VisualizeTreeTest, subgraph_friendly_names_with_different_disallowed_characters_do_not_collide) {
+    const auto model = make_dummy_two_if_model("a:b", "a?b");
+
+    pass::VisualizeTree vt(vt_svg_file_path);
+
+    OV_ASSERT_NO_THROW(vt.run_on_model(model));
+    ASSERT_TRUE(util::file_exists(dot_file_path)) << dot_file_path;
+
+    // Each If has both a then_body and an else_body, so each dumps subgraph #0 and #1.
+    for (const auto subgraph_index : {0, 1}) {
+        auto first_subgraph_file_path = vt_svg_file_path;
+        first_subgraph_file_path.replace_extension("._node_a~3ab_subgraph_#" + std::to_string(subgraph_index));
+        first_subgraph_file_path += ".dot";
+        auto second_subgraph_file_path = vt_svg_file_path;
+        second_subgraph_file_path.replace_extension("._node_a~3fb_subgraph_#" + std::to_string(subgraph_index));
+        second_subgraph_file_path += ".dot";
+
+        ASSERT_TRUE(util::file_exists(first_subgraph_file_path)) << first_subgraph_file_path;
+        ASSERT_TRUE(util::file_exists(second_subgraph_file_path)) << second_subgraph_file_path;
+        std::filesystem::remove(first_subgraph_file_path);
+        std::filesystem::remove(second_subgraph_file_path);
+    }
+}
+
+TEST_F(VisualizeTreeTest, subgraph_friendly_name_with_safe_characters_is_dumped) {
+    const auto model = make_dummy_if_model("safe_name-1.2");
+
+    pass::VisualizeTree vt(vt_svg_file_path);
+
+    OV_ASSERT_NO_THROW(vt.run_on_model(model));
+    ASSERT_TRUE(util::file_exists(dot_file_path)) << dot_file_path;
+
+    // If has both a then_body and an else_body, so it dumps subgraph #0 and #1.
+    for (const auto subgraph_index : {0, 1}) {
+        auto subgraph_file_path = vt_svg_file_path;
+        subgraph_file_path.replace_extension("._node_safe_name-1.2_subgraph_#" + std::to_string(subgraph_index));
+        subgraph_file_path += ".dot";
+        ASSERT_TRUE(util::file_exists(subgraph_file_path)) << subgraph_file_path;
+        std::filesystem::remove(subgraph_file_path);
+    }
 }
 }  // namespace ov::test
