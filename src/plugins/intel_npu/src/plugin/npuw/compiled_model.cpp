@@ -2422,6 +2422,20 @@ ov::SoPtr<ov::ICompiledModel> ov::npuw::CompiledModel::compile_submodel(const st
             device_config.insert(ov::internal::exclusive_async_requests(true));
         }
     }  // if(subgraphs > 1)
+
+    // As neither GPU nor NPU populates supported_properties with the internal::model_sharing_context property, we need
+    // to inject it manually, otherwise this property will be lost when the submodel is compiled and the model sharing
+    // context will not be propagated to the compiled model.
+    if (const auto it = m_non_npuw_props.find(ov::internal::model_sharing_context.name());
+        it != m_non_npuw_props.end()) {
+        static const std::string supported_device = "GPU";
+        LOG_INFO("Shared weights context property is set for " << submodel->get_friendly_name()
+                                                               << " submodel on the device: " << device
+                                                               << ". Supported devices: " << supported_device);
+        if (device.find(supported_device) != std::string::npos) {
+            device_config.insert_or_assign(it->first, it->second);
+        }
+    }
     return core->compile_model(submodel, device, device_config);
 }
 
