@@ -242,6 +242,44 @@ INSTANTIATE_TEST_SUITE_P(TransformationTests, StateConcatSDPAWithExtraNodeTests,
         InsertPoint::At_MQ_Multiply,
         InsertPoint::At_MQ_Reshape));
 
+// A quantized K/V cache has no operand carrying the mapping from codes to values, and
+// ScaledDotProductAttentionWithKVCache would read the codes at the query's precision. The guard in
+// StatefulSDPAFusion must leave the graph alone: the original v13 SDPA survives and no CPU node is
+// built. model_ref being the unmodified graph is the assertion.
+static std::shared_ptr<ov::Model> makeQuantizedKvSDPA(const ov::PartialShape& inputShape) {
+    auto q = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
+    auto k = std::make_shared<ov::op::v0::Parameter>(element::i8, inputShape);
+    auto v = std::make_shared<ov::op::v0::Parameter>(element::i8, inputShape);
+    auto beam_idx = std::make_shared<ov::op::v0::Parameter>(element::i32, ov::PartialShape{-1});
+    auto var_k = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{inputShape, element::i8, "pastk"});
+    auto var_v = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{inputShape, element::i8, "pastv"});
+    std::shared_ptr<ov::Node> pastk = std::make_shared<ov::op::v6::ReadValue>(k, var_k);
+    std::shared_ptr<ov::Node> pastv = std::make_shared<ov::op::v6::ReadValue>(v, var_v);
+    auto axis = op::v0::Constant::create(element::i32, {1}, {0});
+    auto gather_k = std::make_shared<ov::op::v8::Gather>(pastk, beam_idx, axis);
+    auto gather_v = std::make_shared<ov::op::v8::Gather>(pastv, beam_idx, axis);
+    auto concat_k = std::make_shared<ov::op::v0::Concat>(OutputVector{gather_k, k}, 2);
+    auto concat_v = std::make_shared<ov::op::v0::Concat>(OutputVector{gather_v, v}, 2);
+    auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, concat_k, concat_v, false);
+    auto add = std::make_shared<op::v1::Add>(sdpa, op::v0::Constant::create(element::f32, {1}, {1.0f}));
+    auto assign_k = std::make_shared<op::v6::Assign>(concat_k, var_k);
+    auto assign_v = std::make_shared<op::v6::Assign>(concat_v, var_v);
+    return std::make_shared<Model>(ResultVector{std::make_shared<ov::op::v0::Result>(add)},
+                                   SinkVector{assign_k, assign_v},
+                                   ParameterVector{q, k, v, beam_idx});
+}
+
+TEST_F(TransformationTestsF, StateConcatSDPAQuantizedKVShouldNotFuse) {
+#if defined(OPENVINO_ARCH_X86_64) && (defined(__ANDROID__) || defined(ANDROID))
+    test_skipped = true;
+    GTEST_SKIP() << "Skipping StateConcatSDPAQuantizedKVShouldNotFuse test on Android X64";
+#endif
+    const auto inputShape = ov::PartialShape{-1, 32, -1, 64};
+    model = makeQuantizedKvSDPA(inputShape);
+    model_ref = makeQuantizedKvSDPA(inputShape);
+    manager.register_pass<StatefulSDPAFusion>();
+}
+
 // Build a model with two SDPA blocks sharing the same KV-cache Variables.
 // One ReadValue per Variable fans out to two independent Gather -> Concat -> SDPA paths,
 // mirroring the shared-KV-cache pattern seen in Gemma3n/Gemma4 exports.
