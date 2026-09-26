@@ -1384,7 +1384,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Regularize models for the better partitioning assuming it is a transformer
     // Apply these transformations to all variant models
     {
-        ov::npuw::patterns::regularize::RegularizeSDPA(prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_hfa)
+        ov::npuw::patterns::regularize::RegularizeSDPA(prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_hfa,
+                                                       m_use_chunk_prefill)
             .run_on_model(prefill_model);
         for (auto& model_variant : generate_model_variants) {
             ov::npuw::patterns::regularize::RegularizeSDPA(generate_attn_dyn || generate_attn_pyramid ||
@@ -1393,8 +1394,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         }
     }
 
-    // Apply block-based KV cache transformation for chunk prefill after ShapeOfParameter
-    // This ensures ShapeOf nodes are already regularized before transformation
+    // Apply block-based KV cache transformation after SDPA regularization.
     if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE>()) {
         OPENVINO_ASSERT(!m_enable_prefix_caching,
                         "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE and NPUW_LLM_ENABLE_PREFIX_CACHING "
@@ -1456,6 +1456,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Compile multiple generate model variants with different sizes
     compile_generate_model_variants(generate_model_variants, plugin, generate_config);
 
+    if (m_use_chunk_prefill && (prefill_attn_dyn || prefill_attn_pyramid || prefill_attn_hfa)) {
+        prefill_model->get_rt_info()[ov::npuw::patterns::regularize::PRESERVE_CONCAT_AXIS_GATHERS_RT_KEY] = true;
+    }
     m_prefill_compiled = m_compiled_model_factory(prefill_model, plugin, prefill_config);
     NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
                                       "model and its config, please check passed config.");
