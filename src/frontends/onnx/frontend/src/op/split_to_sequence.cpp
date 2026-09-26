@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <memory>
@@ -11,7 +12,9 @@
 #include "exceptions.hpp"
 #include "openvino/core/node.hpp"
 #include "openvino/core/validation_util.hpp"
+#include "openvino/frontend/sequence_dynamic_unit_split.hpp"
 #include "openvino/frontend/sequence_mark.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/split.hpp"
@@ -84,6 +87,33 @@ ov::OutputVector split_with_scalar_split(const ov::frontend::onnx::Node& node, c
     return std::make_shared<ov::op::v1::VariadicSplit>(input, axis_const, split_lengths)->outputs();
 }
 
+/// @brief Detects the ONNX ConstantOfShape(value=1) idiom feeding a dynamic 'split'
+/// input. OV's ONNX frontend lowers ConstantOfShape to Broadcast(Constant(value),
+/// <shape>), so even when the resulting shape (and hence the number of chunks) is
+/// only known at runtime, the broadcast *value* is still a compile-time constant.
+/// When that value is 1, every chunk is statically known to have length 1 along the
+/// split axis, regardless of how many chunks there turn out to be at runtime.
+/// @param split The (dynamic) 1-D 'split' input
+/// @return true if every element of 'split' is provably 1
+bool is_unit_length_chunks(const ov::Output<ov::Node>& split) {
+    auto node = split.get_node_shared_ptr();
+    if (const auto convert = ov::as_type_ptr<ov::op::v0::Convert>(node)) {
+        node = convert->input_value(0).get_node_shared_ptr();
+    }
+    const auto broadcast = ov::as_type_ptr<ov::op::v3::Broadcast>(node);
+    if (!broadcast) {
+        return false;
+    }
+    const auto value_const = ov::util::get_constant_from_source(broadcast->input_value(0));
+    if (!value_const) {
+        return false;
+    }
+    const auto values = value_const->cast_vector<std::int64_t>();
+    return !values.empty() && std::all_of(values.begin(), values.end(), [](std::int64_t v) {
+               return v == 1;
+           });
+}
+
 /// @brief Implements the SplitToSequence operator with 1D 'split' input
 /// @param node Input ONNX node
 /// @param inputs Input tensors
@@ -91,8 +121,24 @@ ov::OutputVector split_with_scalar_split(const ov::frontend::onnx::Node& node, c
 ov::OutputVector split_with_1d_split(const ov::frontend::onnx::Node& node, const ov::OutputVector& inputs) {
     const auto& input = inputs[0];
     const auto& split = inputs[1];
-    const auto axis = node.get_attribute_as_constant<std::int64_t>("axis", 0);
 
+    if (!ov::util::get_constant_from_source(split)) {
+        // Dynamic split-count case: ov::op::v1::VariadicSplit fundamentally requires
+        // the number of output slots to be known at graph-construction time, which a
+        // genuinely runtime-determined split count can never provide. Narrow support:
+        // when every chunk is provably length 1 (see is_unit_length_chunks), defer
+        // resolution to SequenceArrayLowering, which recognizes the idiom of a
+        // SequenceAt indexed by the enclosing Loop's own iteration variable and lowers
+        // it directly to a Gather, without ever needing a statically-sized split.
+        OPENVINO_ASSERT(is_unit_length_chunks(split),
+                        "SplitToSequence: dynamic 'split' input is only supported when every chunk has "
+                        "statically-known length 1 (e.g. the ConstantOfShape(value=1) idiom); general "
+                        "dynamic-length splits are not supported");
+        const auto axis_value = node.get_attribute_value<std::int64_t>("axis", 0);
+        return {std::make_shared<ov::frontend::SequenceDynamicUnitSplit>(input, axis_value)};
+    }
+
+    const auto axis = node.get_attribute_as_constant<std::int64_t>("axis", 0);
     return std::make_shared<ov::op::v1::VariadicSplit>(input, axis, split)->outputs();
 }
 
