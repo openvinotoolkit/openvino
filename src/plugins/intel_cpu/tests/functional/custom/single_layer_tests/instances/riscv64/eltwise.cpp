@@ -3,10 +3,13 @@
 //
 
 #include "custom/single_layer_tests/classes/eltwise.hpp"
+#include "internal_properties.hpp"
 #include "utils/cpu_test_utils.hpp"
 #include "utils/fusing_test_utils.hpp"
 #include "utils/filter_cpu_info.hpp"
 #include "nodes/kernels/riscv64/cpu_isa_traits.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/power.hpp"
 
 using namespace CPUTestUtils;
 
@@ -64,6 +67,39 @@ const auto params_4D_jit = ::testing::Combine(
         ::testing::Values(false));
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_jit, EltwiseLayerCPUTest, params_4D_jit, EltwiseLayerCPUTest::getTestCaseName);
+
+class PowerStaticRvvLmulTest : virtual public SubgraphBaseTest, public CpuTestWithFusing {
+protected:
+    void SetUp() override {
+        if (!ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
+            GTEST_SKIP();
+        }
+
+        targetDevice = ov::test::utils::DEVICE_CPU;
+        const auto shape = ov::PartialShape{1, 1, 1, 35};
+        init_input_shapes({{shape, {shape.to_shape()}}});
+
+        auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
+        auto exponent = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{}, 1.5F);
+        auto power = std::make_shared<ov::op::v1::Power>(parameter, exponent);
+        ov::ParameterVector parameters{parameter};
+        function = create_ov_model(ov::element::f32, parameters, power, "PowerStaticRvvLmul");
+        configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::IGNORE_CALLBACK));
+    }
+
+    void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {
+        inputs.clear();
+        const auto& parameter = function->get_parameters().front();
+        const ov::test::utils::InputGenerateData input_data(1, 2, 1);
+        inputs.insert({parameter, ov::test::utils::create_and_fill_tensor(ov::element::f32,
+                                                                          targetInputStaticShapes.front(),
+                                                                          input_data)});
+    }
+};
+
+TEST_F(PowerStaticRvvLmulTest, CompareWithRefs) {
+    run();
+}
 
 }  // namespace
 }  // namespace Eltwise
