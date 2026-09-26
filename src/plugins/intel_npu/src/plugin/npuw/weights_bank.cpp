@@ -4,6 +4,8 @@
 
 #include "weights_bank.hpp"
 
+#include <cstring>
+
 #include "logging.hpp"
 #include "openvino/core/parallel.hpp"
 #include "serialization.hpp"
@@ -11,6 +13,21 @@
 
 using ov::npuw::weights::Bank;
 using ov::npuw::weights::LazyTensor;
+
+namespace {
+// Byte-exact comparison of two already-allocated tensors. Used to validate that a duplicate
+// uid seen during import (two blobs sharing one weights bank) really carries identical content.
+bool tensors_equal(const ov::Tensor& a, const ov::Tensor& b) {
+    if (!a || !b) {
+        return false;
+    }
+    if (a.get_element_type() != b.get_element_type() || a.get_shape() != b.get_shape() ||
+        a.get_byte_size() != b.get_byte_size()) {
+        return false;
+    }
+    return std::memcmp(a.data(), b.data(), a.get_byte_size()) == 0;
+}
+}  // namespace
 
 class BankManager {
 public:
@@ -234,8 +251,25 @@ void Bank::read_and_add_tensor(ov::npuw::orc::Stream& stream, int64_t uid, const
     auto iter_device = device_bank.storage.find(uid);
 
     if (iter_device != device_bank.storage.end()) {
-        // Shouldn't be possible
-        NPUW_ASSERT(false);
+        // Duplicate uid: expected when two self-contained blobs (e.g. prefill and decode)
+        // share one NPUW_WEIGHTS_BANK name. Both blobs embed the same in-process bank, so the
+        // second import re-sends identical (uid, tensor) pairs. Consume the incoming tensor
+        // (to keep the stream aligned), verify it is byte-identical to what we already hold,
+        // then reuse the existing entry instead of asserting.
+        ov::Tensor incoming;
+        if (device == "CPU") {
+            transfer_tensor(stream, incoming);
+        } else {
+            auto remote_ctx = m_core->get_default_context(device)._ptr;
+            transfer_tensor(stream,
+                            incoming,
+                            [&remote_ctx](const ov::element::Type& type, const ov::Shape& shape) {
+                                ov::SoPtr<ov::ITensor> remote_tensor = remote_ctx->create_host_tensor(type, shape);
+                                return ov::make_tensor(remote_tensor);
+                            });
+        }
+        NPUW_ASSERT(tensors_equal(iter_device->second.tensor, incoming) &&
+                    "NPUW shared weights bank: uid collision with mismatched tensor content");
         return;
     }
 
