@@ -21,6 +21,7 @@ import pathlib
 import pytest
 from common.samples_common_test_class import get_devices, get_cmd_output, prepend
 from openvino import opset8 as opset
+from openvino.tools.benchmark.utils.utils import parse_devices
 import openvino as ov
 
 def get_executable(sample_language):
@@ -115,6 +116,10 @@ def verify(sample_language, device, api=None, nireq=None, shape=None, data_shape
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
 def test_benchmark_app_help(sample_language):
     get_cmd_output(get_executable(sample_language), '-h')
+
+def test_parse_devices_with_empty_entries():
+    assert parse_devices('MULTI:CPU,,GPU') == ['MULTI', 'CPU', 'GPU']
+    assert parse_devices('MULTI:CPU, ,GPU') == ['MULTI', 'CPU', 'GPU']
 
 
 @pytest.mark.parametrize('sample_language', ['C++', 'Python'])
