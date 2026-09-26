@@ -2026,6 +2026,7 @@ void Graph::EnforceInferencePrecision() const {
                       Type::ScaledDotProductAttention,
                       Type::QKVProjection,
                       Type::GatherMatmul,
+                      Type::GroupedMatMul,
                       Type::LLMMLP,
                       Type::RoPE);
     };

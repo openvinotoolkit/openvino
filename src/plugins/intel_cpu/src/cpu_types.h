@@ -140,6 +140,7 @@ enum class Type : uint8_t {
     SegmentMax,
     LoRA,
     GatherMatmul,
+    GroupedMatMul,
     GatedDeltaNet,
     PagedGatedDeltaNet,
     SelectiveSSM,
@@ -234,6 +235,10 @@ enum class Algorithm : uint8_t {
     // GatherMatmul algorithms
     GatherMatmulDefault,
     GatherMatmulCompressed,
+
+    // GroupedMatMul algorithms
+    GroupedMatMulDefault,
+    GroupedMatMulCompressed,
 
     // FakeQuantize algorithms
     FQCommon,
