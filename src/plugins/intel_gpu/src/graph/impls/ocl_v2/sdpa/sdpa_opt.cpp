@@ -26,6 +26,21 @@ using namespace cldnn;
 
 namespace ov::intel_gpu::ocl {
 
+bool SDPAOpt::has_per_channel_compressed_kv(const kernel_impl_params& params) {
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    if (!desc->is_kv_compressed) {
+        return false;
+    }
+
+    const auto data_inputs_num = get_data_inputs_num(*desc);
+    const auto is_per_channel_scale = [&params](size_t scale_idx) {
+        const auto& shape = params.input_layouts[scale_idx].get_partial_shape();
+        return shape.rank().is_static() && shape.rank().get_length() == 4 && shape[2].is_static() &&
+               shape[2].get_length() == 1 && shape[3].is_static() && shape[3].get_length() > 1;
+    };
+    return is_per_channel_scale(data_inputs_num) || is_per_channel_scale(data_inputs_num + 1);
+}
+
 class SDPAOptImpl : public SDPAImplBase {
 public:
     DECLARE_OBJECT_TYPE_SERIALIZATION(ov::intel_gpu::ocl::SDPAOptImpl)
@@ -117,7 +132,13 @@ public:
         kernel_dump_info.clear_entries();
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        if (has_stage(regular_micro_multi_tokens) && is_prefill && !is_indirect) {
+        const auto k_dt = new_params.input_layouts[1].data_type;
+        const bool is_kv_compressed = data_type_traits::is_i8_u8(k_dt) || data_type_traits::is_i4_u4(k_dt);
+        const auto kv_cache_dt = new_params.get_program().get_config().get_kv_cache_precision();
+        const bool is_int4_kv = is_kv_compressed && ov::element::Type(kv_cache_dt).bitwidth() == 4;
+        const bool is_per_channel_kv = SDPAOpt::has_per_channel_compressed_kv(new_params);
+
+        if (has_stage(regular_micro_multi_tokens) && is_prefill && !is_indirect && (!is_int4_kv || is_per_channel_kv)) {
             GPU_DEBUG_TRACE_DETAIL << "execute regular_micro_multi_tokens for prefill \n";
             return execute_stage(events, instance, regular_micro_multi_tokens);
         }

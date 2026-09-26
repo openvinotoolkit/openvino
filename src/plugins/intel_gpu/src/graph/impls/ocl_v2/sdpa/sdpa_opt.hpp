@@ -28,6 +28,7 @@ struct SDPAOpt : public ImplementationManager {
     explicit SDPAOpt(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
     [[nodiscard]] static bool supports_micro_sdpa(const kernel_impl_params& params);
+    [[nodiscard]] static bool has_per_channel_compressed_kv(const kernel_impl_params& params);
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
         const auto desc = node.as<scaled_dot_product_attention>().get_primitive();
         static constexpr std::array supported_q_types = {

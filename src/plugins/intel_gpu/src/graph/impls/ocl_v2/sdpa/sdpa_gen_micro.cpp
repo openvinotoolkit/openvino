@@ -167,7 +167,8 @@ inline size_t micro_get_head_size(const kernel_impl_params& params, size_t qkv_i
     } else {
         const auto desc = params.typed_desc<scaled_dot_product_attention>();
         if (qkv_idx != 0 && desc->is_kv_compressed && data_type_traits::is_i4_u4(desc->quantization_attributes.quantization_dt)) {
-            return get_head_size(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));
+            const auto& order = qkv_idx == 1 ? desc->input_k_transpose_order : desc->input_v_transpose_order;
+            return get_head_size(params.input_layouts[qkv_idx], extend_order_in_num_heads_dim(order)) * 2;
         }
 
         switch (qkv_idx) {
