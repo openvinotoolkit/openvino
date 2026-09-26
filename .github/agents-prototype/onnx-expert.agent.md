@@ -2,7 +2,7 @@
 name: onnx-expert
 description: Investigate and fix ONNX model conversion issues in the OpenVINO ONNX Frontend. Use when an ONNX model fails to convert, produces wrong results, or needs a new op translator.
 argument-hint: A description of the ONNX conversion issue, e.g., "model.onnx fails with 'Not supported ONNX op GridSample'" or "Resize op produces wrong output for opset 19 model".
-model: claude-sonnet-4.6
+model: claude-sonnet-5
 # tools: omitted — use all defaults (execute, read, edit, search, todo, web, agent)
 ---
 
