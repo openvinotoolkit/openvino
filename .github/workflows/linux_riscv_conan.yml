@@ -64,7 +64,7 @@ jobs:
 
   Docker:
     needs: Smart_CI
-    runs-on: aks-lin-x64-docker-4c16gb
+    runs-on: aks-lin-x64-docker-4c16gb-ab
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -99,7 +99,7 @@ jobs:
     defaults:
       run:
         shell: bash
-    runs-on: aks-lin-x64-build-16c32gb
+    runs-on: aks-lin-x64-build-16c32gb-ab
     container:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_riscv }}
       volumes:
@@ -140,8 +140,8 @@ jobs:
         id: ccache_restore
         uses: ./openvino/.github/actions/cache
         with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
+          save-always: 'true'
+          cleanup-always: 'true'
           cache-size: 10
           max-cache-size: 50
           cache-path: ${{ env.CCACHE_REMOTE_DIR }}
@@ -273,7 +273,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_linux_riscv_conan
-    needs: [Smart_CI, Build]
+    needs: [Smart_CI, Docker, Build]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

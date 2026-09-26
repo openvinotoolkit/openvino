@@ -65,7 +65,7 @@ jobs:
     if: "!needs.smart_ci.outputs.skip_workflow && fromJSON(needs.smart_ci.outputs.affected_components).GPU"
     uses: ./.github/workflows/job_build_windows.yml
     with:
-      runner: 'aks-win-x64-build-16c32gb'
+      runner: 'aks-win-x64-build-16c32gb-ab'
       cmake-build-parallel-level: '15'
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       build-type: 'Release'
@@ -86,7 +86,7 @@ jobs:
 
   Overall_Status:
     name: ci/gha_overall_status_windows_l0_build
-    needs: [ Smart_CI, Build ]
+    needs: [Smart_CI, Build]
     if: ${{ always() }}
     runs-on: ubuntu-latest
     steps:

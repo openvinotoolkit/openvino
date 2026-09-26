@@ -31499,14 +31499,11 @@ async function cleanUp() {
 
 
 
-const saveAlways = getInput('save-always', { required: false });
 const cleanUpAlways = getInput('cleanup-always', { required: false });
 
-if (saveAlways === 'true') {
-  save();
-}
+await save();
 
 if (cleanUpAlways === 'true') {
-  cleanUp();
+  await cleanUp();
 }
 

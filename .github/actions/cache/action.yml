@@ -56,5 +56,4 @@ runs:
   main: 'dist/restore/index.js'
   post: 'dist/save/index.js'
   post-if:
-    'success() || github.event.inputs.save-always ||
-    github.event.inputs.cleanup-always'
+    success() || inputs.save-always == 'true' || inputs.cleanup-always == 'true'
