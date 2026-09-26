@@ -13,10 +13,11 @@
 #include <utility>
 #include <vector>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "executor.hpp"
 #include "llm_block_kvcache_strategy.hpp"
-#include "llm_infer_request.hpp"
 #include "llm_compiled_model.hpp"
+#include "llm_infer_request.hpp"
 #include "llm_test_helpers.hpp"
 #include "openvino/openvino.hpp"
 #include "util.hpp"
@@ -38,8 +39,19 @@ struct LLMVariantSwitchTestAccess {
         return compiled->m_is_block_kv_cache;
     }
 
-    static void set_num_stored_tokens(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled, uint32_t num_tokens) {
+    static void set_num_stored_tokens(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
+                                      uint32_t num_tokens) {
         compiled->m_kvcache_desc.num_stored_tokens = num_tokens;
+    }
+
+    static void set_kvcache_sizes(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
+                                  std::vector<uint32_t> kvcache_sizes) {
+        compiled->m_kvcache_sizes = std::move(kvcache_sizes);
+    }
+
+    static std::shared_ptr<ov::IAsyncInferRequest> select_generate_request(ov::npuw::LLMInferRequest& req,
+                                                                           int64_t prompt_length) {
+        return req.select_generate_request(prompt_length);
     }
 
     static uint32_t kv_dim_for_name(const ov::npuw::LLMInferRequest& req, const std::string& name) {
@@ -163,8 +175,9 @@ FakeSubInferRequest::FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledMo
                                           ov::get_tensor_impl(ov::Tensor(input.get_element_type(), input.get_shape())));
     }
     for (const auto& output : get_compiled_model()->outputs()) {
-        ov::ISyncInferRequest::set_tensor(output,
-                                          ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
+        ov::ISyncInferRequest::set_tensor(
+            output,
+            ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
     }
 }
 
@@ -252,8 +265,10 @@ TEST_F(LLMInferRequestVariantSwitchTest, ContinuousKvSwitchMigratesStoredTokensT
     for (const auto& name : LLMVariantSwitchTestAccess::kvcache_past_names(req)) {
         auto src = LLMVariantSwitchTestAccess::kvcache_request(req)->get_tensor(
             LLMVariantSwitchTestAccess::kvcache_in_ports(req).at(name));
-        auto src_slice = ov::npuw::util::make_tensor_slice(
-            src, LLMVariantSwitchTestAccess::kv_dim_for_name(req, name), 0u, stored_tokens);
+        auto src_slice = ov::npuw::util::make_tensor_slice(src,
+                                                           LLMVariantSwitchTestAccess::kv_dim_for_name(req, name),
+                                                           0u,
+                                                           stored_tokens);
         fill_tensor_pattern(src_slice, seed);
         expected_kv_bytes.emplace(name, materialize_bytes(src_slice));
         seed = static_cast<uint8_t>(seed + 37u);
@@ -265,8 +280,10 @@ TEST_F(LLMInferRequestVariantSwitchTest, ContinuousKvSwitchMigratesStoredTokensT
     for (const auto& name : LLMVariantSwitchTestAccess::kvcache_past_names(req)) {
         auto dst = LLMVariantSwitchTestAccess::kvcache_request(req)->get_tensor(
             LLMVariantSwitchTestAccess::kvcache_in_ports(req).at(name));
-        auto dst_slice = ov::npuw::util::make_tensor_slice(
-            dst, LLMVariantSwitchTestAccess::kv_dim_for_name(req, name), 0u, stored_tokens);
+        auto dst_slice = ov::npuw::util::make_tensor_slice(dst,
+                                                           LLMVariantSwitchTestAccess::kv_dim_for_name(req, name),
+                                                           0u,
+                                                           stored_tokens);
         EXPECT_EQ(materialize_bytes(dst_slice), expected_kv_bytes.at(name)) << name;
     }
 }
@@ -282,11 +299,11 @@ TEST_F(LLMInferRequestVariantSwitchTest, BlockKvVariantsExposeCompatibleBindings
     ASSERT_NE(compiled, nullptr);
     ASSERT_EQ(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 2u);
     ASSERT_TRUE(LLMVariantSwitchTestAccess::is_block_kv_cache(compiled));
-    auto small_variant = std::dynamic_pointer_cast<FakeSubCompiledModel>(
-        LLMVariantSwitchTestAccess::generate_variant(compiled, 0u));
-    auto large_variant = std::dynamic_pointer_cast<FakeSubCompiledModel>(
-        LLMVariantSwitchTestAccess::generate_variant(compiled,
-                                                     LLMVariantSwitchTestAccess::generate_variant_count(compiled) - 1u));
+    auto small_variant =
+        std::dynamic_pointer_cast<FakeSubCompiledModel>(LLMVariantSwitchTestAccess::generate_variant(compiled, 0u));
+    auto large_variant = std::dynamic_pointer_cast<FakeSubCompiledModel>(LLMVariantSwitchTestAccess::generate_variant(
+        compiled,
+        LLMVariantSwitchTestAccess::generate_variant_count(compiled) - 1u));
     ASSERT_NE(small_variant, nullptr);
     ASSERT_NE(large_variant, nullptr);
 
@@ -316,6 +333,24 @@ TEST_F(LLMInferRequestVariantSwitchTest, BlockKvVariantsExposeCompatibleBindings
     ASSERT_FALSE(small_value_block0.empty());
     EXPECT_EQ(small_key_block0, large_key_block0);
     EXPECT_EQ(small_value_block0, large_value_block0);
+}
+
+TEST_F(LLMInferRequestVariantSwitchTest, RejectsOutOfBoundsVariantSelection) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+    ASSERT_EQ(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 2u);
+
+    // 3 kvcache_sizes entries but only 2 real generate variants.
+    LLMVariantSwitchTestAccess::set_kvcache_sizes(compiled, {10u, 20u, 1000u});
+
+    ov::npuw::LLMInferRequest req(compiled);
+
+    // min_response_len=64 (base_props()) -> expected_total_tokens=65 for prompt_length=1,
+    // selecting index 2, out of range for m_generate_requests (size 2).
+    OV_EXPECT_THROW_HAS_SUBSTRING(LLMVariantSwitchTestAccess::select_generate_request(req, 1),
+                                  ov::Exception,
+                                  "kvcache_sizes/m_generate_requests size mismatch");
 }
 
 }  // namespace
