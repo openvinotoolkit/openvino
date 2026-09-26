@@ -1,0 +1,87 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+set(TENSORFLOW_GEN_SCRIPTS
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_2in_2out.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_control_dependency.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_conv_with_dynamic_input_channel.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_dynamic_type_model.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_empty_tensor_list.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_gather_with_string_table.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_metagraph_no_index.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_metagraph_variables.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_model_with_assert.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_nms_named_outputs.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_nonexistent_add.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_partitioned_call_with_conv.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_partitioned_call_with_unique.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_ragged_tensor_to_sparse.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_resource_gather_model.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_saved_model_broadcast_issue.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_saved_model_intermediate_output.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_saved_model_malicious_overflow.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_saved_model_multi-graph.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_saved_model_oob_index.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_saved_model_parameter_result.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_saved_model_program-only.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_saved_model_variables.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_saved_model_with_gather.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_saved_model_with_numerical_names.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_string_lower.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_tf1_if_with_nonexistent_op.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_unitialized_variablev2.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_unsupported_op_itergetnext.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/generate_unsupported_relu.py
+)
+set(TENSORFLOW_MODELS_PBTXT
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/concat_with_non_constant_axis.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/dilated_gconv_model.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/dynpart_negative_partitions.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/dynpart_overflow_partitions.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/dynpart_zero_partitions.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/forward_edge_model2.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/forward_edge_model.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/forward_edge_model_unsorted.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/gather_tree_model.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/injected_body_and_if.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/model_ngram.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/model_savev2.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/model_switch_merge_several_cond_flows.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/model_tf1_while.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/model_with_const_result.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/model_with_if.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/model_with_iterator_get_next.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/model_with_lookup_table.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/model_with_output_shapes_attr.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/model_with_queue_ops2.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/model_with_queue_ops.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/partitioned_call2.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/partitioned_call.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/shapeof_slice_abs.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/simple_wide_and_deep.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/split_conv_concat.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/split_in_function.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/string_tensors_model.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/swish_f32.pbtxt
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/undefined_input_shape.pbtxt
+)
+set(TENSORFLOW_ALL_SCRIPTS
+    ${TENSORFLOW_GEN_SCRIPTS}
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/__init__.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_scripts/split_in_function.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/gen_wrapper.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/concat_with_non_constant_axis.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/forward_edge_model2.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/forward_edge_model.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/__init__.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/injected_body_and_if.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/model_switch_merge_several_cond_flows.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/model_tf1_while.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/model_with_if.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/model_with_output_shapes_attr.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/partitioned_call2.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/partitioned_call.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/string_tensors_model.py
+    ${CMAKE_CURRENT_LIST_DIR}/test_models/models_pbtxt/undefined_input_shape.py
+)
