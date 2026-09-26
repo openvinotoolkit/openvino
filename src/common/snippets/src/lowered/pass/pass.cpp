@@ -90,7 +90,7 @@ PassPipeline PassPipeline::merge_pipelines(const PassPipeline& lhs, const PassPi
     OPENVINO_ASSERT(lhs_passes_map.size() == lhs_passes.size(),
                     "The pass pipeline must not contain several passes with equal type info");
 
-    PassPipeline merged_pipeline;
+    PassPipeline merged_pipeline(lhs.get_pass_config());
     for (const auto& rhs_pass : rhs.get_passes()) {
         const auto lhs_pass = rhs_pass->merge(lhs_passes_map[rhs_pass->get_type_info()]);
         OPENVINO_ASSERT(lhs_pass, "2 passes with type info ", rhs_pass->get_type_info(), " can't be merged.");
