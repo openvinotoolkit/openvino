@@ -4775,3 +4775,56 @@ TEST(scatter_nd_update_gpu, subgraph_input_changed) {
         ASSERT_EQ(expected_results[i], output_ptr[i]);
     }
 }
+
+// ---------------------------------------------------------------------------
+// Static-model, ov-level regression tests for a 1-D Constant feeding Scatter*Update.
+//
+// In a fully-static model the GPU plugin uses the legacy (non new-shape-infer)
+// constant-layout path in plugin/ops/constant.cpp, where a 1-D constant is laid
+// out on the feature axis ([1,N,1,1]) unless its consumer opts into batch
+// interpretation ([N,1,1,1]). Gather/GatherND already do; Scatter*Update must do
+// the same, otherwise the scatter is executed on the wrong axis and produces
+// garbage. The model below mirrors what ProgramBuilder sees after constant
+// folding in a static model (e.g. GroundingDINO's SliceAssign class-logits
+// padding): Constant data [64] + Constant indices [8,1] + Parameter updates [8].
+// ---------------------------------------------------------------------------
+
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
+#include "openvino/runtime/core.hpp"
+
+namespace {
+void run_static_1d_constant_scatter_nd(const std::shared_ptr<ov::Node>& scatter, const std::shared_ptr<ov::op::v0::Parameter>& updates) {
+    const std::vector<float> updates_data{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f};
+    const std::vector<int32_t> indices{0, 5, 10, 17, 33, 40, 50, 63};
+    std::vector<float> ref(64, -100.0f);
+    for (size_t i = 0; i < indices.size(); ++i)
+        ref[indices[i]] = updates_data[i];
+
+    ov::Core core;
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(scatter)}, ov::ParameterVector{updates});
+    auto compiled = core.compile_model(model, std::string("GPU"));
+    auto request = compiled.create_infer_request();
+    auto input = request.get_input_tensor(0);
+    std::copy(updates_data.begin(), updates_data.end(), input.data<float>());
+    request.infer();
+    auto output = request.get_output_tensor(0);
+    ASSERT_EQ(output.get_shape(), (ov::Shape{64}));
+    for (size_t i = 0; i < ref.size(); ++i)
+        ASSERT_NEAR(output.data<const float>()[i], ref[i], 1e-3f) << "i=" << i;
+}
+}  // namespace
+
+TEST(scatter_nd_update_gpu, static_model_1d_constant_data_v3) {
+    auto updates = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{8});
+    auto data = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{64}, std::vector<float>(64, -100.0f));
+    auto indices = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{8, 1}, std::vector<int32_t>{0, 5, 10, 17, 33, 40, 50, 63});
+    run_static_1d_constant_scatter_nd(std::make_shared<ov::op::v3::ScatterNDUpdate>(data, indices, updates), updates);
+}
+
+TEST(scatter_nd_update_gpu, static_model_1d_constant_data_v15) {
+    auto updates = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{8});
+    auto data = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{64}, std::vector<float>(64, -100.0f));
+    auto indices = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{8, 1}, std::vector<int32_t>{0, 5, 10, 17, 33, 40, 50, 63});
+    run_static_1d_constant_scatter_nd(std::make_shared<ov::op::v15::ScatterNDUpdate>(data, indices, updates), updates);
+}

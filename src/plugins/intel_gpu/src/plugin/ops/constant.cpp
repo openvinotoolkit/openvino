@@ -31,6 +31,9 @@
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/roi_align.hpp"
 #include "openvino/op/roi_align_rotated.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
+#include "openvino/op/scatter_update.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/tensor_iterator.hpp"
@@ -246,7 +249,9 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
             consts[op].needsBatchInterpretation = constDims.size() == 1;
         } else if (ov::is_type<ov::op::v1::Gather>(outOp) || ov::is_type<ov::op::v7::Gather>(outOp) || ov::is_type<ov::op::v8::Gather>(outOp) ||
                    ov::is_type<ov::op::v5::GatherND>(outOp) || ov::is_type<ov::op::v8::GatherND>(outOp) || ov::is_type<ov::op::v1::Split>(outOp) ||
-                   ov::is_type<ov::op::v1::VariadicSplit>(outOp)) {
+                   ov::is_type<ov::op::v1::VariadicSplit>(outOp) || ov::is_type<ov::op::v3::ScatterNDUpdate>(outOp) ||
+                   ov::is_type<ov::op::v15::ScatterNDUpdate>(outOp) || ov::is_type<ov::op::v3::ScatterUpdate>(outOp) ||
+                   ov::is_type<ov::op::v3::ScatterElementsUpdate>(outOp) || ov::is_type<ov::op::v12::ScatterElementsUpdate>(outOp)) {
             consts[op].needsBatchInterpretation = constDims.size() == 1;
         } else if (ov::is_type<ov::op::v0::PRelu>(outOp) && node.get_index() == 1) {
             // PReLU slope tensor reshape policy
