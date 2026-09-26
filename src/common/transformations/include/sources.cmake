@@ -75,6 +75,7 @@ set(COMMON_OPTIMIZATIONS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/disable_shapeof_constant_folding.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/divide_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/dropout_with_random_uniform_replacer.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/dynamic_same_padding_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/eliminate_duplicate_ti_inputs.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/eliminate_loop_inputs_outputs.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/eliminate_unsqueeze_gather.hpp
