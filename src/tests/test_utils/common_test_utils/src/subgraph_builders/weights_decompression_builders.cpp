@@ -5,10 +5,13 @@
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
 
 #include <algorithm>
+#include <array>
 #include <limits>
 
 #include "common_test_utils/node_builders/constant.hpp"
 #include "openvino/core/type/element_iterator.hpp"
+#include "openvino/core/validation_util.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
@@ -240,6 +243,9 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
     // G - group size
     auto transformed_weights_shape = transpose_if_necessary(weights_shape);
     const auto IC = *(weights_shape.rbegin() + 1);
+    const float fp32_min = -0.1f;
+    const float fp32_max = 0.1f;
+    std::shared_ptr<ov::op::v0::Constant> fp32_weights;
     if (group_decompression) {
         OPENVINO_ASSERT(IC % group_size == 0,
                         "Weights output channels count (",
@@ -249,18 +255,41 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
                         ").");
         auto in_channel_idx =
             transpose_weights ? transformed_weights_shape.size() - 1 : transformed_weights_shape.size() - 2;
-        transformed_weights_shape[in_channel_idx] = IC / group_size;
+        const size_t n_groups = IC / group_size;
+        transformed_weights_shape[in_channel_idx] = n_groups;
         transformed_weights_shape.insert(transformed_weights_shape.begin() + in_channel_idx + 1, group_size);
-    }
 
-    // mt19937 distribution: gtest's LCG repeats every k_range, collapsing per-group min/max diversity.
-    const float fp32_min = -0.1f;
-    const float fp32_max = 0.1f;
-    auto fp32_weights_tensor = ov::test::utils::create_and_fill_tensor_real_distribution(ov::element::f32,
-                                                                                         transformed_weights_shape,
-                                                                                         fp32_min,
-                                                                                         fp32_max,
-                                                                                         static_cast<int>(seed));
+        // With a single [fp32_min, fp32_max) distribution, all groups get nearly the same min/max, i.e. near-identical
+        // scales and zero points, so a plugin that reads the decompression constants
+        // in a wrong layout (e.g. misses a [N, K/gs] -> [K/gs, N] reorder) may still not cause the test failure.
+        // So every slice along the groups axis is generated from its own sub-range, and the slices are concatenated.
+        constexpr std::array<float, 3> width_ratios{1.0f, 0.5f, 0.25f};
+        constexpr std::array<float, 5> position_ratios{0.0f, 1.0f, 0.5f, 0.25f, 0.75f};
+        const float full_width = fp32_max - fp32_min;
+        auto slice_shape = transformed_weights_shape;
+        slice_shape[in_channel_idx] = 1;
+        ov::OutputVector slices;
+        for (size_t g = 0; g < n_groups; ++g) {
+            const float width = full_width * width_ratios[g % width_ratios.size()];
+            const float slice_min = fp32_min + position_ratios[g % position_ratios.size()] * (full_width - width);
+            auto slice_tensor = ov::test::utils::create_and_fill_tensor_real_distribution(ov::element::f32,
+                                                                                          slice_shape,
+                                                                                          slice_min,
+                                                                                          slice_min + width,
+                                                                                          static_cast<int>(seed + g));
+            slices.push_back(std::make_shared<ov::op::v0::Constant>(slice_tensor));
+        }
+        const auto concat = std::make_shared<ov::op::v0::Concat>(slices, static_cast<int64_t>(in_channel_idx));
+        fp32_weights = ov::util::get_constant_from_source(concat);
+        OPENVINO_ASSERT(fp32_weights, "Failed to constant-fold the concatenated FP32 weights");
+    } else {
+        fp32_weights = std::make_shared<ov::op::v0::Constant>(
+            ov::test::utils::create_and_fill_tensor_real_distribution(ov::element::f32,
+                                                                      transformed_weights_shape,
+                                                                      fp32_min,
+                                                                      fp32_max,
+                                                                      static_cast<int>(seed)));
+    }
 
     // Calculate quantization parameters
     const auto qmin = weights_precision == ov::element::u2   ? 0.0f
@@ -274,7 +303,7 @@ std::shared_ptr<ov::Node> initMatMulDecompressionSubgraphQuantization(
                       : weights_precision.is_signed()        ? 127.0f
                                                              : 255.0f;
 
-    auto* fp32_data = fp32_weights_tensor.data<float>();
+    const auto* fp32_data = fp32_weights->get_data_ptr<float>();
     const size_t total_size = ov::shape_size(transformed_weights_shape);
 
     const auto OC = weights_shape.back();
