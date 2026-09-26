@@ -571,11 +571,11 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
             }
 #endif
 
-            // Also mask columns beyond kv_pos_end for the last tile
+            // Also mask columns beyond kv_pos_end for the last tile.
             {
-                uint partition_kv_pos_end = KV_PARTITION_SIZE;  // = kv_pos_end for single block
+                uint partition_kv_pos_end = KV_PARTITION_SIZE;
                 if (leftover_size > 0) {
-                    partition_kv_pos_end = leftover_size % KV_BLOCK_SIZE;
+                    partition_kv_pos_end = leftover_size;
                     if (partition_kv_pos_end == 0) partition_kv_pos_end = KV_BLOCK_SIZE;
                 }
                 // Mask tile columns beyond the valid range

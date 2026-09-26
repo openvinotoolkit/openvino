@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <memory>
 #include <utility>
 
@@ -30,7 +31,9 @@ struct PaKVReorderImplementationManager : public cldnn::ImplementationManager {
             return false;
         }
 
-        return desc->has_xattention;
+        const auto& config = node.get_program().get_config();
+        const auto& attn_modes = config.get_attn_mode();
+        return desc->has_xattention || std::find(attn_modes.begin(), attn_modes.end(), ov::hint::AttnMode::PA_CM) != attn_modes.end();
     }
 };
 
