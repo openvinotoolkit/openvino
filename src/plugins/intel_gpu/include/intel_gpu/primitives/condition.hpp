@@ -24,6 +24,9 @@ struct condition : public primitive_base<condition> {
     struct branch {
         std::map<primitive_id, primitive_id> input_map;
         std::map<size_t, primitive_id> output_map;
+        // dep_to_internal[i] = body parameter id for the i-th condition dependency.
+        // Populated by gen_branch; stable across optimizations (internal ids never change).
+        std::vector<primitive_id> dep_to_internal;
         program::ptr inner_program;
 
         std::string str() {
@@ -53,6 +56,7 @@ struct condition : public primitive_base<condition> {
                 ob << output_pair.first;
                 ob << output_pair.second;
             }
+            ob << dep_to_internal;
             inner_program->save(ob);
         }
 
@@ -75,6 +79,7 @@ struct condition : public primitive_base<condition> {
                 ib >> output_second;
                 output_map.insert({output_index, output_second});
             }
+            ib >> dep_to_internal;
             inner_program = std::make_shared<cldnn::program>(ib.get_engine());
             inner_program->load(ib);
         }
