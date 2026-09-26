@@ -148,6 +148,7 @@ set(op_list
     ${CMAKE_CURRENT_LIST_DIR}/src/op/not.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/onehot.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/or.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/op/org.openvinotoolkit/bevpool_v2.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/org.openvinotoolkit/deformable_conv_2d.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/org.openvinotoolkit/detection_output.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/op/org.openvinotoolkit/experimental_detectron/detection_output.cpp
