@@ -84,12 +84,12 @@
                 },
                 {
                     "name": "protobuf",
-                    "version>=": "5.26.0"
+                    "version>=": "6.30.0"
                 },
                 {
                     "name": "protobuf",
                     "host": true,
-                    "version>=": "5.26.0"
+                    "version>=": "6.30.0"
                 }
             ]
         },
