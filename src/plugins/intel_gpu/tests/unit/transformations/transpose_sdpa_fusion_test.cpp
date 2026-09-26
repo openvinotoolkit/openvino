@@ -252,6 +252,79 @@ INSTANTIATE_TEST_SUITE_P(TransposeSDPAFusionInputPrecision,
                              return info.param.get_type_name();
                          });
 
+// A {0, 1, 3, 2} permute on V is folded as a stride relabelling rather than materialised: it
+// marks V as physically (batch, heads, head_size, tokens), which is the layout the V*S
+// microkernel contracts along its contiguous axis. The order has to reach the SDPA intact,
+// because the generator emits the value strides from it and decides TRANSPOSE_V by it.
+TEST_F(TransformationTestsF, TransposeSDPAFusionValueTransposed) {
+    const bool is_causal = false;
+    {
+        auto input_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 8, 32, 64});
+        auto input_b = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 8, 32, 64});
+        auto input_c = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 8, 64, 32});
+        auto transpose_c_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 3, 2});
+        auto transpose_c = std::make_shared<ov::op::v1::Transpose>(input_c, transpose_c_const);
+
+        auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(input_a, input_b, transpose_c, is_causal);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_a, input_b, input_c});
+        manager.register_pass<TransposeFusion>();
+    }
+    {
+        auto input_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 8, 32, 64});
+        auto input_b = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 8, 32, 64});
+        auto input_c = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 8, 64, 32});
+
+        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{input_a, input_b, input_c},
+                                                              is_causal,
+                                                              std::vector<int64_t>{0, 1, 2, 3},
+                                                              std::vector<int64_t>{0, 1, 2, 3},
+                                                              std::vector<int64_t>{0, 1, 3, 2},
+                                                              std::vector<int64_t>{0, 1, 2, 3});
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_a, input_b, input_c});
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+}
+
+// An i8 key is admitted alongside the float types so micro-SDPA can contract it on the systolic
+// pipe. The matcher folds q, k and v all-or-nothing, so this also pins that a narrowed operand
+// does not force the other two transposes to be materialised.
+TEST_F(TransformationTestsF, TransposeSDPAFusionI8Key) {
+    const bool is_causal = false;
+    {
+        auto input_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 32, 8, 64});
+        auto transpose_a_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
+        auto transpose_a = std::make_shared<ov::op::v1::Transpose>(input_a, transpose_a_const);
+        auto input_b = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, ov::PartialShape{1, 32, 8, 64});
+        auto transpose_b_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
+        auto transpose_b = std::make_shared<ov::op::v1::Transpose>(input_b, transpose_b_const);
+        auto input_c = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 32, 8, 64});
+        auto transpose_c_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 2, 1, 3});
+        auto transpose_c = std::make_shared<ov::op::v1::Transpose>(input_c, transpose_c_const);
+
+        auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(transpose_a, transpose_b, transpose_c, is_causal);
+
+        model = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_a, input_b, input_c});
+        manager.register_pass<TransposeFusion>();
+    }
+    {
+        auto input_a = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 32, 8, 64});
+        auto input_b = std::make_shared<ov::op::v0::Parameter>(ov::element::i8, ov::PartialShape{1, 32, 8, 64});
+        auto input_c = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{1, 32, 8, 64});
+
+        auto sdpa = std::make_shared<ov::intel_gpu::op::SDPA>(ov::OutputVector{input_a, input_b, input_c},
+                                                              is_causal,
+                                                              std::vector<int64_t>{0, 2, 1, 3},
+                                                              std::vector<int64_t>{0, 2, 1, 3},
+                                                              std::vector<int64_t>{0, 2, 1, 3},
+                                                              std::vector<int64_t>{0, 1, 2, 3});
+
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{input_a, input_b, input_c});
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+    }
+}
+
 }  // namespace intel_gpu
 }  // namespace test
 }  // namespace ov

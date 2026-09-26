@@ -40,17 +40,67 @@
 #define q_tile_sg_n DIV_UP(ugemm_kq_wg_tile_n, sg_per_wg)
 
 /* Instantiate tile types and operations */
+#if I8_KQ
+/* K^T*Q runs on the integer pipe, so ugemm_kq accumulates in s32. Everything downstream of
+   the gemm -- mask, softmax, VS -- stays float, so the s32 tile is converted and dequantized
+   the moment it comes back. */
+#define Q_SLM_ROWS (D_MAX / 4)
+#if Q_SLM_ROWS % SUBGROUP_SIZE
+#error "I8_KQ needs D_MAX / 4 to be a multiple of the subgroup size"
+#endif
+typedef ugemm_kq_c_type s_tile_type_int;
+DECLARE_2D_TILE(s_tile_type, float, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
+        ugemm_kq_c_type_block1, ugemm_kq_c_type_nblock0,
+        ugemm_kq_c_type_nblock1)
+#else
+#define Q_SLM_ROWS (D_MAX / 2)
 typedef ugemm_kq_c_type s_tile_type;
+#endif
+#if I8_VS
+/* V*S on the integer pipe. The softmax operand is exp(s - rowmax), i.e. in [0, 1] with at
+   least one 1 per query, and micro-SDPA defers the 1/rowsum past the accumulation -- so the
+   fixed [0, I8_VS_LEVELS] grid is fully used on every row and every key block. The s32 block
+   result is converted immediately because the flash-attention rescale between blocks is a
+   float multiply. */
+typedef ugemm_vs_c_type a_tile_type_int;
+DECLARE_2D_TILE(a_tile_type, float, SUBGROUP_SIZE, ugemm_vs_c_type_block0,
+        ugemm_vs_c_type_block1, ugemm_vs_c_type_nblock0,
+        ugemm_vs_c_type_nblock1)
+#define S_SLM_ELEM_SIZE 1
+#else
 typedef ugemm_vs_c_type a_tile_type;
+#define S_SLM_ELEM_SIZE sizeof(half)
+#endif
+/* Both integer paths take an externally quantized operand. The compressed KV cache is i8 too
+   but carries scales/zero-points and must keep its decompression path, so never combine. */
+#if I8_KQ && (IS_PAGED_ATTENTION || KEY_SCALES || KEY_ZERO_POINTS)
+#error "I8_KQ is incompatible with the compressed KV cache"
+#endif
+#if I8_VS && (IS_PAGED_ATTENTION || VAL_SCALES || VAL_ZERO_POINTS)
+#error "I8_VS is incompatible with the compressed KV cache"
+#endif
+#if I8_VS && !TRANSPOSE_V
+#error "I8_VS needs the transposed V: the integer V*S gemm contracts over the contiguous axis"
+#endif
 
-DECLARE_2D_TILE(q_tile_type, uint, SUBGROUP_SIZE, D_MAX / 2, 1, 1, q_tile_sg_n)
+/* I8_KQ requires Q to arrive holding exact integer codes, so that rounding it into SLM loses
+   nothing. Rotating Q first mixes two codes into each output element, which is neither integral
+   nor bounded by the original code range -- it saturates against the s8 grid. RoPESDPAFusion
+   declines to fuse onto an i8 key for this reason; this is the kernel-side statement of it. */
+#if I8_KQ && WITH_ROPE_Q
+#error "I8_KQ is incompatible with a fused Q rotation"
+#endif
 
+DECLARE_2D_TILE(q_tile_type, uint, SUBGROUP_SIZE, Q_SLM_ROWS, 1, 1, q_tile_sg_n)
+
+#if !I8_KQ
 #ifdef BLOCK_Q
 DECLARE_2D_TILE_BLOCK_OPS(
         q_tile_type, uint, SUBGROUP_SIZE, D_MAX / 2, 1, 1, q_tile_sg_n)
 #elif Q_ALIGN < 4
 DECLARE_2D_TILE_LOAD_PACKED_HALF(
         q_tile_type, SUBGROUP_SIZE, D_MAX / 2, 1, 1, q_tile_sg_n)
+#endif
 #endif
 
 #ifdef BLOCK_A
@@ -64,6 +114,28 @@ DECLARE_2D_TILE(a_tile_type_half, half, SUBGROUP_SIZE, ugemm_vs_sg_tile_m, 8, 1,
 DECLARE_2D_TILE(s_tile_type_half2, uint, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
         ugemm_kq_c_type_block1 / 2, ugemm_kq_c_type_nblock0,
         ugemm_kq_c_type_nblock1)
+
+#if I8_VS
+/* Same uint carrier as the VNNI half2 tile, so tile_store_t_sys_src2 lays out the identical
+   32-byte crosspack groups; only the k-per-group count changes, 16 halves -> 32 chars. */
+DECLARE_2D_TILE(s_tile_type_char4, uint, SUBGROUP_SIZE, ugemm_kq_c_type_block0,
+        ugemm_kq_c_type_block1 / 4, ugemm_kq_c_type_nblock0,
+        ugemm_kq_c_type_nblock1)
+
+#define tile_quantize_to_char4(t, t_new, sc) \
+    do { \
+        _Pragma("unroll") for (int i = 0; i < sizeof(t.x) / sizeof(t.x[0]); \
+                               i++) { \
+            _Pragma("unroll") for (int s = 0; \
+                                   s < sizeof(t.x[0]) / sizeof(t.x[0][0]) / 4; \
+                                   s++) { \
+                float4 v = {t.x[i][4 * s], t.x[i][4 * s + 1], \
+                        t.x[i][4 * s + 2], t.x[i][4 * s + 3]}; \
+                t_new.x[i][s] = as_uint(convert_char4_sat_rte(v * (sc))); \
+            } \
+        } \
+    } while (0)
+#endif
 
 DECLARE_2D_TILE(
         s_sum_tile_type, float, SUBGROUP_SIZE, ugemm_kq_sg_tile_n, 1, 1, 1)
@@ -146,6 +218,15 @@ DECLARE_2D_TILE_RSELECT(a_scale_tile_type, SUBGROUP_SIZE, ugemm_vs_sg_tile_n, 1,
 #define cooperative_prefetch_2d_k cooperative_prefetch_2d_maybe_rem
 #endif
 
+#if TRANSPOSE_V
+#define cooperative_prefetch_2d_v( \
+        ptr, r, c, rmax, cmax, ld, sg_id, n_sg, sg_size, caching) \
+    cooperative_prefetch_2d_maybe_rem( \
+            ptr, c, r, cmax, rmax, ld, sg_id, n_sg, sg_size, caching)
+#else
+#define cooperative_prefetch_2d_v cooperative_prefetch_2d_maybe_rem
+#endif
+
 #if REMAINDER_Q
 #define tile_load_block_rem_q tile_load_block
 #define tile_store_block_rem_q tile_store_block
@@ -191,6 +272,10 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 #if HAS_TOKEN_TYPE_IDS
         const __global int* token_type_ids,
+#endif
+#if WITH_ROPE_Q
+        const global half *rope_cos,
+        const global half *rope_sin,
 #endif
 #if IS_PAGED_ATTENTION
         const __global int* blocked_indexes_start_and_gws_mapping
@@ -354,6 +439,12 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     uint lda = DST_S2;
 #endif
 
+/* Leading dimension the V*S microkernel indexes A by. Under TRANSPOSE_V the value tensor is
+   physically (head_dim, tokens), so A is k-contiguous and the distance between two head_dim
+   rows is the token count -- that is VAL_S3. `ldv` stays the token stride in both layouts,
+   which is what every V pointer advance below is expressed in. */
+    const uint ldv_g = TRANSPOSE_V ? VAL_S3 : ldv;
+
 #if KEY_SCALES || KEY_ZERO_POINTS
     uint ldkq = DIV_UP(d, KEY_GROUP_SIZE);
     uint num_key_groups = d / KEY_GROUP_SIZE;
@@ -371,8 +462,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     uint sg_j_vs = sg_ij / ugemm_vs_sg_per_wg_m;
 
     /* SLM allocations -- place in one array to work around compiler bug */
-#define Q_slm_size (D_MAX * ugemm_kq_wg_tile_n * sizeof(half))
-#define S_slm_size (ugemm_kq_wg_tile_m * ugemm_kq_wg_tile_n * sizeof(half))
+#define Q_slm_size (Q_SLM_ROWS * 4 * ugemm_kq_wg_tile_n)
+#define S_slm_size (ugemm_kq_wg_tile_m * ugemm_kq_wg_tile_n * S_SLM_ELEM_SIZE)
 #define S_sum_slm_size \
     (ugemm_kq_wg_tile_n * ugemm_kq_sg_per_wg_m * sizeof(float))
 #define S_max_slm_size (ugemm_kq_wg_tile_n * sizeof(float))
@@ -476,7 +567,33 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     /* Load Q tile, destined for SLM */
     q_tile_type Q_tile;
     uint q0_copy = q_tile_sg_n * sg_ij;
-#ifdef BLOCK_Q
+#if I8_KQ
+    /* Quantize Q on the way in: four consecutive head-dim values per lane become one
+       VNNI-packed dword of s8, which is the crosspack-4 layout ugemm_kq wants for B. */
+    {
+        const uint lid = get_sub_group_local_id();
+#pragma unroll
+        for (int j = 0; j < q_tile_sg_n; j++) {
+            int q_col = wg_j0 + q0_copy + j;
+            bool in_range = (q_col < q);
+            const global QRY_DATA_T *qp = Q + (size_t)q_col * ldq;
+#pragma unroll
+            for (int i0 = 0; i0 < Q_SLM_ROWS; i0 += SUBGROUP_SIZE) {
+                int r = i0 + lid;
+                float4 v = (float4)(0.0f);
+                if (in_range && 4 * r < d) {
+                    v.s0 = convert_float(qp[4 * r + 0]);
+                    v.s1 = convert_float(qp[4 * r + 1]);
+                    v.s2 = convert_float(qp[4 * r + 2]);
+                    v.s3 = convert_float(qp[4 * r + 3]);
+                }
+                char4 c = convert_char4_sat_rte(v);
+                tile_access(Q_tile, i0, j, SUBGROUP_SIZE, Q_SLM_ROWS, 1, 1)
+                        = as_uint(c);
+            }
+        }
+    }
+#elif defined(BLOCK_Q)
     tile_load_block_rem_q(
             &Q_tile, (global uint *)Q, q, ldq >> 1, 0, wg_j0 + q0_copy);
 #elif Q_ALIGN >= 4
@@ -484,6 +601,37 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             wg_j0 + q0_copy);
 #else
     tile_load_packed_half(&Q_tile, Q, d, q, ldq, 0, wg_j0 + q0_copy);
+#endif
+
+#if WITH_ROPE_Q
+    /* Interleaved RoPE, fused into the Q staging above. Q_tile elements are uints holding two
+       consecutive head-dim halves, which is exactly one rotation pair (2i, 2i+1), so the whole
+       rotation is register-local. The cos/sin table is (batch, tokens, d) and shared by every
+       head, so it tile-loads with the same shape as Q at row stride d/2 uints. */
+    {
+        const uint ld_rope = (uint)(d >> 1);
+        const global uint *cos_u = (const global uint *)rope_cos + (size_t)b1 * q * ld_rope;
+        const global uint *sin_u = (const global uint *)rope_sin + (size_t)b1 * q * ld_rope;
+        q_tile_type C_tile, S_rope_tile;
+#if defined(BLOCK_Q)
+        tile_load_block_rem_q(&C_tile, cos_u, q, ld_rope, 0, wg_j0 + q0_copy);
+        tile_load_block_rem_q(&S_rope_tile, sin_u, q, ld_rope, 0, wg_j0 + q0_copy);
+#else
+        tile_load(&C_tile, cos_u, (d + 1) >> 1, q, ld_rope, 0, wg_j0 + q0_copy);
+        tile_load(&S_rope_tile, sin_u, (d + 1) >> 1, q, ld_rope, 0, wg_j0 + q0_copy);
+#endif
+#pragma unroll
+        for (int i = 0; i < sizeof(Q_tile.x) / sizeof(Q_tile.x[0]); i++) {
+#pragma unroll
+            for (int s = 0; s < sizeof(Q_tile.x[0]) / sizeof(Q_tile.x[0][0]); s++) {
+                half2 v = as_half2(Q_tile.x[i][s]);
+                half2 c = as_half2(C_tile.x[i][s]);
+                half2 sn = as_half2(S_rope_tile.x[i][s]);
+                Q_tile.x[i][s] = as_uint((half2)(c.s0 * v.s0 - sn.s0 * v.s1,
+                                                 c.s1 * v.s1 + sn.s1 * v.s0));
+            }
+        }
+    }
 #endif
 
 #if WITH_SCALE
@@ -590,7 +738,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
     /* Store Q tile to SLM */
     tile_store_t_sys_src1(
-            Q_tile, (local uint *)&Q_slm[0], D_MAX / 2, q0_copy, 0);
+            Q_tile, (local uint *)&Q_slm[0], Q_SLM_ROWS, q0_copy, 0);
 
     /* Clear S column sums/maxes */
     s_sum_tile_type S_sum_tile;
@@ -615,6 +763,30 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         uint sg_j0_kq = sg_j_kq * ugemm_kq_sg_tile_n;
 
 #if WITH_ATTN_MASK
+#if MASK_PER_KEY
+        /* Query-invariant mask ([b, h, 1, k]): one value per KEY, so load a sg_tile_m
+         * vector coalesced and broadcast it across the query direction at apply time.
+         * The general path below materialises a full S-shaped tile through a transposed
+         * load instead, which costs sg_tile_n times the traffic and registers for the
+         * same information. */
+        mask_tile_type_float mask_k;
+#ifdef LOG_2_E_MUL_SCALE
+        /* same as the general arm's unscale, applied per written lane instead of tile-wide */
+#define mask_k_prep(x) ((x) * iscale)
+#else
+#define mask_k_prep(x) (x)
+#endif
+#pragma unroll
+        for (int ii = 0; ii < ugemm_kq_sg_tile_m / SUBGROUP_SIZE; ii++) {
+            const int key_idx = k0 + sg_i0_kq + ii * SUBGROUP_SIZE + get_sub_group_local_id();
+#if INPUT0_IS_BF16
+            /* the mask buffer holds bf16 values read through a half*; reinterpret the bits */
+            mask_k.x[0][ii] = key_idx < MSK_D3 ? mask_k_prep(_convert_as_bfloat16_float(as_ushort(msk[key_idx]))) : 0.0f;
+#else
+            mask_k.x[0][ii] = key_idx < MSK_D3 ? mask_k_prep(convert_float(msk[key_idx])) : 0.0f;
+#endif
+        }
+#else
         /* Load mask. No remainder handling needed assuming k block size is a power of 2. */
         mask_tile_type mask_tile;
         if (MSK_D2 == 1 && MSK_D3 > 1) {
@@ -625,6 +797,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
         } else {
             tile_load_t(&mask_tile, msk, q, k, sg_j0_kq + wg_j0, k0 + sg_i0_kq);
         }
+#endif
 #endif
 
 #if REMAINDER_K
@@ -860,6 +1033,17 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
     #endif
     #endif
 #endif /* PA_INTEGRITY_CHECK */
+#elif I8_KQ
+        s_tile_type S_tile;
+        {
+            s_tile_type_int S_tile_i = ugemm_kq((const global char *)K, ldk,
+                    (const local char *)Q_slm, D_MAX, causal_k,
+                    ugemm_kq_wg_tile_n, d, k0, 0, 0, sg_i_kq, sg_j_kq,
+                    (local char *)ugemm_slm);
+            /* No dequantization here: the caller folds both quantization steps into the
+               scale input, which is applied to S a few lines below. */
+            tile_copy(S_tile_i, S_tile);
+        }
 #else
         s_tile_type S_tile
                 = ugemm_kq(K, ldk, Q_slm, D_MAX, causal_k, ugemm_kq_wg_tile_n, d, k0,
@@ -962,6 +1146,12 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #ifdef STATIC_SCALAR_ATTN_MASK_VALUE
 #define mask_scale_op(x) ((x) + masked_scale)
         tile_elementwise(S_tile, mask_scale_op);
+#elif WITH_ATTN_MASK && MASK_PER_KEY
+#ifndef LOG_2_E_MUL_SCALE
+#define scale(x) ((x)* scale)
+        tile_elementwise(S_tile, scale);
+#endif
+        tile_hbroadcast_add(&S_tile, mask_k);
 #elif WITH_ATTN_MASK
         mask_tile_type_float mask_tile_float;
 #if INPUT0_IS_BF16
@@ -1135,13 +1325,13 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #else
     const int window_v_pf_begin = 0;
 #endif
-        cooperative_prefetch_2d_maybe_rem(
+        cooperative_prefetch_2d_v(
                 /* ptr */ V + (size_t)ldv * window_v_pf_begin / VAL_ELEMENTS_PER_BYTE,
                 /* r */ d,
                 /* c */ causal_k - k0 - window_v_pf_begin,
                 /* rmax */ PREFETCH_D_MAX,
                 /* cmax */ ugemm_kq_wg_tile_m - window_v_pf_begin,
-                /* ld */ ldv,
+                /* ld */ ldv_g,
                 /* sg_id */ sg_ij,
                 /* n_sg */ sg_per_wg,
                 /* sg_size */ SUBGROUP_SIZE,
@@ -1246,12 +1436,19 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             }
         }
 #endif
+#if I8_VS
+        s_tile_type_char4 S_tile_char4;
+        tile_quantize_to_char4(S_tile, S_tile_char4, (float)I8_VS_LEVELS);
+        tile_store_t_sys_src2(S_tile_char4, (local uint *)S_slm,
+                ugemm_vs_sg_tile_n, ugemm_kq_wg_tile_m / 4, sg_i0_kq / 4,
+                sg_j0_kq);
+#else
         tile_copy_S_to_kv(S_tile, S_tile_half2);
-
         /* Store to SLM, in packed format */
         tile_store_t_sys_src2(S_tile_half2, (local uint *)S_slm,
                 ugemm_vs_sg_tile_n, ugemm_kq_wg_tile_m / 2, sg_i0_kq / 2,
                 sg_j0_kq);
+#endif
         intel_work_group_barrier_arrive(CLK_LOCAL_MEM_FENCE);
 
         /* Rescale existing accumulator and sums to match new maxima */
@@ -1471,9 +1668,19 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             tile_binary(A_tile, A_tile1, binary_add);
         }
     #endif
+#elif I8_VS
+        a_tile_type A_tile1;
+        {
+            a_tile_type_int A_tile1_i = ugemm_vs((const global char *)V, ldv_g,
+                    (const local char *)S_slm, ugemm_kq_wg_tile_m, d,
+                    ugemm_kq_wg_tile_n, k_chunk, 0, 0, 0, sg_i_vs, sg_j_vs,
+                    (local char *)ugemm_slm);
+            tile_copy(A_tile1_i, A_tile1);
+        }
+        V += ldv * ugemm_kq_wg_tile_m / VAL_ELEMENTS_PER_BYTE;
 #else
         a_tile_type A_tile1 = ugemm_vs(
-                V, ldv, S_slm, ugemm_kq_wg_tile_m, d, ugemm_kq_wg_tile_n,
+                V, ldv_g, S_slm, ugemm_kq_wg_tile_m, d, ugemm_kq_wg_tile_n,
                 k_chunk, 0, 0, 0, sg_i_vs, sg_j_vs, (local char *)ugemm_slm
 #if VAL_SCALES == QUANTIZE_2D
                 ,
@@ -1527,6 +1734,12 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
     /* Rescale by 1 / (column sums) */
     tile_elementwise(A_scale_tile, native_vrecip);
+#if I8_VS
+    /* S was stored as [0, I8_VS_LEVELS] codes, so fold that grid back out here. V's own
+       quantisation step is the graph's business and stays folded into the output's consumer. */
+#define i8_vs_deq(x) ((x) * (1.0f / (float)(I8_VS_LEVELS)))
+    tile_elementwise(A_scale_tile, i8_vs_deq);
+#endif
     tile_hbroadcast_mul(&A_tile, A_scale_tile);
 
     /* Convert and store */
