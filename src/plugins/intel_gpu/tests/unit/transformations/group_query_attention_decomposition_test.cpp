@@ -37,9 +37,12 @@ struct GQAConfig {
     int64_t kv_cache_bit_width = 0;
     QuantType kv_quant = QuantType::NONE;
     QuantType out_quant = QuantType::NONE;
+    ov::element::Type cache_type = ov::element::i8;
     int64_t local_window_size = -1;  // >= 1 enables sliding window attention
     bool sliding_window_cache = false;
     bool smooth_softmax = false;  // adds an extra logit -> sink branch
+    bool attention_bias = false;
+    bool head_sink = false;
     bool causal = true;
 };
 
@@ -50,9 +53,10 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
     auto query = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, num_heads, 1, head_size});
     auto key = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, kv_num_heads, 1, head_size});
     auto value = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, kv_num_heads, 1, head_size});
-    const auto cache_type = cfg.kv_cache_bit_width ? ov::element::i8 : f32;
-    auto past_key = std::make_shared<ov::op::v0::Parameter>(cache_type, ov::PartialShape{1, kv_num_heads, past_len, head_size});
-    auto past_value = std::make_shared<ov::op::v0::Parameter>(cache_type, ov::PartialShape{1, kv_num_heads, past_len, head_size});
+    const auto cache_type = cfg.kv_cache_bit_width ? cfg.cache_type : f32;
+    const auto cache_head_size = cfg.kv_cache_bit_width == 4 ? head_size / 2 : head_size;
+    auto past_key = std::make_shared<ov::op::v0::Parameter>(cache_type, ov::PartialShape{1, kv_num_heads, past_len, cache_head_size});
+    auto past_value = std::make_shared<ov::op::v0::Parameter>(cache_type, ov::PartialShape{1, kv_num_heads, past_len, cache_head_size});
     auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1});
     auto total_sequence_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{});
 
@@ -64,10 +68,21 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
     inputs[4] = past_value;
     inputs[5] = seqlens_k;
     inputs[6] = total_sequence_length;
-    for (size_t i = 7; i <= 11; ++i) {
-        inputs[i] = ov::op::v0::Constant::create(ov::element::dynamic, ov::Shape{0}, {});
+    for (size_t i = 7; i <= 13; ++i) {
+        inputs[i] = ov::op::v0::Constant::create(f32, ov::Shape{0}, {});
     }
     ov::ParameterVector parameters{query, key, value, past_key, past_value, seqlens_k, total_sequence_length};
+
+    if (cfg.attention_bias) {
+        auto attention_bias = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, 1, 1, past_len});
+        inputs[10] = attention_bias;
+        parameters.push_back(attention_bias);
+    }
+    if (cfg.head_sink) {
+        auto head_sink = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{num_heads});
+        inputs[11] = head_sink;
+        parameters.push_back(head_sink);
+    }
     if (cfg.kv_cache_bit_width) {
         auto key_scale = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1});
         auto value_scale = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1});
@@ -166,13 +181,65 @@ TEST(GroupQueryAttentionDecompositionTest, quantized_kv_uses_compressed_sdpa) {
 
     ASSERT_NE(sdpa, nullptr);
     EXPECT_TRUE(sdpa->get_kv_compressed());
-    EXPECT_EQ(sdpa->get_input_size(), 6u) << "Q, K, V, attention scale, K scale, V scale";
+    EXPECT_EQ(sdpa->get_input_size(), 5u) << "Q, K, V, K scale, V scale";
     EXPECT_EQ(sdpa->get_quantization_attrs().quantization_dt, ov::element::i8);
     EXPECT_EQ(sdpa->get_quantization_attrs().scale_dt, ov::element::f16);
     EXPECT_EQ(sdpa->input_value(1).get_element_type(), ov::element::i8);
     EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::i8);
     EXPECT_TRUE(ov::is_type<ov::op::v0::Concat>(sdpa->input_value(1).get_node_shared_ptr()));
     EXPECT_TRUE(ov::is_type<ov::op::v0::Concat>(sdpa->input_value(2).get_node_shared_ptr()));
+}
+
+TEST(GroupQueryAttentionDecompositionTest, quantized_kv_preserves_mask_scale_and_sink_inputs) {
+    GQAConfig cfg;
+    cfg.kv_cache_bit_width = 8;
+    cfg.kv_quant = QuantType::PER_TENSOR;
+    cfg.out_quant = QuantType::PER_TENSOR;
+    cfg.scale = 0.125f;
+    cfg.attention_bias = true;
+    cfg.head_sink = true;
+
+    const auto sdpa = decompose_and_get_sdpa(cfg);
+
+    ASSERT_NE(sdpa, nullptr);
+    ASSERT_TRUE(sdpa->get_kv_compressed());
+    ASSERT_EQ(sdpa->get_input_size(), 8u) << "Q, K, V, mask, scale, sink, K scale, V scale";
+    EXPECT_TRUE(slot_holds_a_mask(sdpa->input_value(3)));
+    EXPECT_EQ(sdpa->input_value(4).get_element_type(), ov::element::f32);
+    EXPECT_EQ(sdpa->input_value(5).get_element_type(), ov::element::f32);
+    EXPECT_EQ(sdpa->input_value(6).get_element_type(), ov::element::f16);
+    EXPECT_EQ(sdpa->input_value(7).get_element_type(), ov::element::f16);
+}
+
+TEST(GroupQueryAttentionDecompositionTest, int4_kv_uses_logical_i4_with_byte_backed_cache) {
+    GQAConfig cfg;
+    cfg.kv_cache_bit_width = 4;
+    cfg.kv_quant = QuantType::PER_TENSOR;
+    cfg.out_quant = QuantType::PER_TENSOR;
+
+    const auto sdpa = decompose_and_get_sdpa(cfg);
+
+    ASSERT_NE(sdpa, nullptr);
+    EXPECT_TRUE(sdpa->get_kv_compressed());
+    EXPECT_EQ(sdpa->get_quantization_attrs().quantization_dt, ov::element::i4);
+    EXPECT_EQ(sdpa->input_value(1).get_element_type(), ov::element::i8);
+    EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::i8);
+}
+
+TEST(GroupQueryAttentionDecompositionTest, int4_kv_uses_logical_u4_with_byte_backed_cache) {
+    GQAConfig cfg;
+    cfg.kv_cache_bit_width = 4;
+    cfg.kv_quant = QuantType::PER_TENSOR;
+    cfg.out_quant = QuantType::PER_TENSOR;
+    cfg.cache_type = ov::element::u8;
+
+    const auto sdpa = decompose_and_get_sdpa(cfg);
+
+    ASSERT_NE(sdpa, nullptr);
+    EXPECT_TRUE(sdpa->get_kv_compressed());
+    EXPECT_EQ(sdpa->get_quantization_attrs().quantization_dt, ov::element::u4);
+    EXPECT_EQ(sdpa->input_value(1).get_element_type(), ov::element::u8);
+    EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::u8);
 }
 
 // A sliding-window cache retains the explicit attention mask.

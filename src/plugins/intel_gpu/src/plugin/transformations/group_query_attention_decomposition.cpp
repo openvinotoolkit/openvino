@@ -46,7 +46,8 @@ void GroupQueryAttentionDecomposition::prepare_compressed_kv(
     const ov::Output<ov::Node>& key_scale,
     const ov::Output<ov::Node>& value_scale) {
     m_use_compressed_sdpa = false;
-    if (!node->is_kv_quantized() || node->get_kv_cache_bit_width() != 8 ||
+    const auto kv_cache_bit_width = node->get_kv_cache_bit_width();
+    if (!node->is_kv_quantized() || (kv_cache_bit_width != 8 && kv_cache_bit_width != 4) ||
         key.get_element_type() != value.get_element_type() || !is_supported_compressed_kv_type(key.get_element_type()))
         return;
 
@@ -61,7 +62,12 @@ void GroupQueryAttentionDecomposition::prepare_compressed_kv(
 
     m_quantization_attrs.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
     m_quantization_attrs.output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
-    m_quantization_attrs.quantization_dt = key.get_element_type();
+    // INT4 KV caches are physically byte-backed, while SDPA needs the logical
+    // 4-bit type to select the packed-cache kernel.
+    m_quantization_attrs.quantization_dt = kv_cache_bit_width == 4
+                                               ? (key.get_element_type() == ov::element::u8 ? ov::element::u4
+                                                                                             : ov::element::i4)
+                                               : key.get_element_type();
     m_quantization_attrs.scale_dt = ov::element::f16;
     m_quantization_attrs.group_sizes = compute_kv_group_sizes(key.get_partial_shape(), m_key_scale.get_partial_shape());
     m_quantization_attrs.scales_zp_output_order = {0, 1, 2, 3};
