@@ -3183,26 +3183,28 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
     void test_compressed_int8_transpose_scale_zp(bool is_caching_test) {
         auto& engine = get_test_engine();
 
-        constexpr size_t num_groups = 2;
-        constexpr size_t output_features = 3;
-        constexpr size_t group_size = 16;
+        constexpr size_t batch_num = 2;
+        constexpr size_t ifm_num = 32;
+        constexpr size_t ofm_num = 3;
+        constexpr size_t scales_group_size = 16;
+        constexpr size_t scale_num = ifm_num / scales_group_size;
 
-        auto input_mem = engine.allocate_memory({ {1, 2, num_groups * group_size}, data_types::f16, format::bfyx });
-        auto weights_mem = engine.allocate_memory({ {output_features, num_groups * group_size}, data_types::u8, format::bfyx });
-        auto scale_mem = engine.allocate_memory({ {num_groups, output_features}, data_types::f16, format::bfyx });
-        auto zp_mem = engine.allocate_memory({ {num_groups, output_features}, data_types::u8, format::bfyx });
+        auto input_mem = engine.allocate_memory({ {1, batch_num, ifm_num}, data_types::f16, format::bfyx });
+        auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u8, format::bfyx });
+        auto scale_mem = engine.allocate_memory({ {scale_num, ofm_num}, data_types::f16, format::bfyx });
+        auto dcomp_zp_mem = engine.allocate_memory({ {scale_num, ofm_num}, data_types::u8, format::bfyx });
 
         set_values<ov::float16>(input_mem,
-                                std::vector<ov::float16>(num_groups * num_groups * group_size, ov::float16(1.0f)));
+                                std::vector<ov::float16>(batch_num * ifm_num, ov::float16(1.0f)));
         set_values<ov::float16>(scale_mem, {1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f});
-        set_values<uint8_t>(zp_mem, {1, 2, 3, 4, 5, 6});
+        set_values<uint8_t>(dcomp_zp_mem, {1, 2, 3, 4, 5, 6});
 
         std::vector<uint8_t> weights_data;
-        weights_data.reserve(num_groups * output_features * group_size);
-        for (size_t output = 0; output < output_features; ++output) {
-            for (size_t group = 0; group < num_groups; ++group) {
-                const auto zp = static_cast<uint8_t>(group * output_features + output + 1);
-                weights_data.insert(weights_data.end(), group_size, static_cast<uint8_t>(zp + 1));
+        weights_data.reserve(ofm_num * ifm_num);
+        for (size_t ofm = 0; ofm < ofm_num; ++ofm) {
+            for (size_t group = 0; group < scale_num; ++group) {
+                const auto dcomp_zp = static_cast<uint8_t>(group * ofm_num + ofm + 1);
+                weights_data.insert(weights_data.end(), scales_group_size, static_cast<uint8_t>(dcomp_zp + 1));
             }
         }
         set_values<uint8_t>(weights_mem, weights_data);
@@ -3212,7 +3214,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
                                        "weights",
                                        "",
                                        "scale",
-                                       "zp",
+                                       "dcomp_zp",
                                        data_types::f16,
                                        3,
                                        2,
@@ -3222,7 +3224,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
             input_layout("input", input_mem->get_layout()),
             data("weights", weights_mem),
             data("scale", scale_mem),
-            data("zp", zp_mem),
+            data("dcomp_zp", dcomp_zp_mem),
             fc_prim);
 
         auto config = get_test_default_config(engine);
@@ -3230,6 +3232,12 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         config.set_property(ov::intel_gpu::optimize_data(true));
 
         network::ptr network = get_network(engine, topology, config, get_test_stream_ptr(), is_caching_test);
+        // Keep the node-level format as bfyx to avoid a reorder. At kernel level, the selector reinterprets
+        // the same physical memory as fbyx so the kernel's indexing matches the stored dimensions.
+        ASSERT_EQ(network->get_program()->get_node("scale").get_output_layout().format, format::bfyx);
+        ASSERT_EQ(network->get_program()->get_node("dcomp_zp").get_output_layout().format, format::bfyx);
+        ASSERT_EQ(network->get_program()->get_node("scale").get_output_layout().get_partial_shape(),
+                  (ov::PartialShape{scale_num, ofm_num}));
         network->set_input_data("input", input_mem);
 
         auto outputs = network->execute();
@@ -3239,7 +3247,7 @@ void test_compressed_int4_scale_dynamic_batch_gemv(bool is_caching_test,
         auto output_mem = outputs.begin()->second.get_memory();
         cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
 
-        ASSERT_EQ((ov::PartialShape{1, num_groups, output_features}), output_mem->get_layout().get_partial_shape());
+        ASSERT_EQ((ov::PartialShape{1, batch_num, ofm_num}), output_mem->get_layout().get_partial_shape());
 
         const std::vector<ov::float16> expected_result = {80.0f, 112.0f, 144.0f, 80.0f, 112.0f, 144.0f};
         ASSERT_EQ(expected_result.size(), output_ptr.size());
