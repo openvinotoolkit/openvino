@@ -1203,7 +1203,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             });
         }
 
-        auto isCellPrimitiveSupported = [](const_node_ptr &node) -> bool {
+        auto isCellPrimitiveSupported = [&](const_node_ptr &node) -> bool {
             if (ov::as_type_ptr<const ov::op::v0::RNNCell>(node)) {
                 return false;
             }
@@ -1596,6 +1596,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             [unroll_loop](const std::shared_ptr<const ov::Node> &node) -> bool {
                 auto sub_graph_op = ov::as_type_ptr<const ov::op::util::SubGraphOp>(node);
                 int64_t num_iter = sub_graph_op->get_num_iterations();
+                const auto& input_descriptions = sub_graph_op->get_input_descriptions();
+                const auto merged_inputs = std::count_if(input_descriptions.begin(),
+                                                         input_descriptions.end(),
+                                                         [](const std::shared_ptr<ov::op::util::MultiSubGraphOp::InputDescription>& desc) {
+                                                             return ov::as_type_ptr<ov::op::util::MultiSubGraphOp::MergedInputDescription>(desc) != nullptr;
+                                                         });
+                if (merged_inputs > 1)
+                    return true;
                 if (!unroll_loop)
                     return num_iter != 1;
                 return num_iter >= 16;

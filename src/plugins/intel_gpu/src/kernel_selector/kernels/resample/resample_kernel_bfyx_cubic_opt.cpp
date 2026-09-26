@@ -3,6 +3,7 @@
 //
 
 #include "resample_kernel_bfyx_cubic_opt.h"
+#include <algorithm>
 #include <vector>
 #include <kernel_selector_utils.h>
 
@@ -74,9 +75,15 @@ bool ResampleKernelBfyxCubicOpt::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    // Only spatial axes (Y, X) may be resized.
+    if (ResampleKernelBase::has_padding(params)) {
+        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
+
+    // Explicit axes may include B/F with unit scale. The optimized kernel is still valid
+    // as long as only spatial dimensions actually change.
     for (const auto& axis : params.axes) {
-        if (axis != InterpolateAxis::Y && axis != InterpolateAxis::X) {
+        if (axis != InterpolateAxis::BATCH && axis != InterpolateAxis::FEATURE &&
+            axis != InterpolateAxis::Y && axis != InterpolateAxis::X) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
@@ -91,8 +98,8 @@ bool ResampleKernelBfyxCubicOpt::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants ResampleKernelBfyxCubicOpt::GetJitConstants(const resample_params& params) const {
-    auto jit = Parent::GetJitConstants(params);
+JitConstants ResampleKernelBfyxCubicOpt::get_jit_constants(const resample_params& params, bool legacy_scale) const {
+    auto jit = Parent::get_jit_constants(params);
 
     auto opt_x_block_size = GetOptimalBlockSize(params);
     jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", opt_x_block_size));
