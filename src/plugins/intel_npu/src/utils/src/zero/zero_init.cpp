@@ -426,15 +426,15 @@ const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance(
     std::lock_guard<std::mutex> lock(mutex);
     auto instance = weak_instance.lock();
 
-    if (instance) {
-        // Check if device is still valid
-        auto res = zeDeviceGetStatus(instance->getDevice());
-        if (res == ZE_RESULT_ERROR_DEVICE_LOST) {
-            destroyContextForInstance(instance);
-            weak_instance.reset();
-            instance.reset();
-        }
-    }
+    // if (instance) {
+    //     // Check if device is still valid
+    //     auto res = zeDeviceGetStatus(instance->getDevice());
+    //     if (res == ZE_RESULT_ERROR_DEVICE_LOST) {
+    //         destroyContextForInstance(instance);
+    //         weak_instance.reset();
+    //         instance.reset();
+    //     }
+    // }
 
     if (!instance) {
         instance = std::make_shared<ZeroInitStructsHolder>();
@@ -444,14 +444,14 @@ const std::shared_ptr<ZeroInitStructsHolder> ZeroInitStructsHolder::getInstance(
     return instance;
 }
 
-void ZeroInitStructsHolder::destroyContextForInstance(std::shared_ptr<ZeroInitStructsHolder>& instance) {
-    if (!instance) {
-        return;
-    }
+// void ZeroInitStructsHolder::destroyContextForInstance(std::shared_ptr<ZeroInitStructsHolder>& instance) {
+//     if (!instance) {
+//         return;
+//     }
 
-    std::lock_guard<std::mutex> lock(instance->_mutex);
-    instance->destroyContextLocked();
-}
+//     std::lock_guard<std::mutex> lock(instance->_mutex);
+//     instance->destroyContextLocked();
+// }
 
 ze_device_graph_properties_t ZeroInitStructsHolder::getCompilerProperties() {
     std::lock_guard<std::mutex> lock(_mutex);
