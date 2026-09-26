@@ -301,6 +301,7 @@ static const std::vector<std::string> models{
     std::string("linspace_1/linspace_1.pdmodel"),
     std::string("linspace_2/linspace_2.pdmodel"),
     std::string("linspace_3/linspace_3.pdmodel"),
+    std::string("linspace_float64/linspace_float64.pdmodel"),
     std::string("log/log.pdmodel"),
     std::string("logical_and/logical_and.pdmodel"),
     std::string("logical_not/logical_not.pdmodel"),
