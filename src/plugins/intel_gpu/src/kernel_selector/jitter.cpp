@@ -1949,7 +1949,9 @@ JitConstants FusedOpsCodeGenerator::MakeFusedTensorJitConstants(const FusedOpsCo
         jit.AddConstant(MakeJitConstant(name, desc.tensors[op_input_id]));
     }
     // Use shape_ids from output tensor as won't support fused ops which changes out shape for now
-    jit.AddConstant(MakeJitConstant(GetOutputTensorName(), desc.output_tensor));
+    for (size_t i = 0; i < desc.output_tensors.size(); ++i) {
+        jit.AddConstant(MakeJitConstant(GetOutputTensorName(i), desc.output_tensors[i]));
+    }
     return jit;
 }
 
@@ -2028,21 +2030,11 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
 
     std::vector<std::string> input_vars;
 
-    out_var = GetOutputVarName(in_var, desc.op_id);
-    const auto& out_type = desc.output_tensor.GetDType();
+	out_var = GetOutputVarName(in_var, desc.op_id);
 
     if (conf.load_type == FusedOpsConfiguration::LoadType::FEATURE_SHUFFLE &&
         desc.GetType() == KernelType::QUANTIZE) {
         is_shuffled = true;
-    }
-
-    std::vector<std::string> in_vars_converted;
-    for (size_t i = 0; i < desc.tensors.size(); i++) {
-        auto in_name = GetInputVarName(i, is_shuffled, shuffle_var);
-        if (desc.tensors[0].GetDType() != desc.output_tensor.GetDType()) {
-            in_name = ConvertToOutputType(in_name, vec_size);
-        }
-        in_vars_converted.push_back(in_name);
     }
 
     if (desc.GetType() == KernelType::ELTWISE) {
@@ -2056,7 +2048,10 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
     }
 
     auto get_acc_t = [&]() -> Datatype {
-        std::vector<Datatype> input_types = {desc.output_tensor.GetDType()};
+        std::vector<Datatype> input_types;
+        for (const auto& output_tensor : desc.output_tensors) {
+            input_types.push_back(output_tensor.GetDType());
+        }
         for (const auto& dep : dep_data) {
             input_types.push_back(dep.data_type);
         }
@@ -2179,7 +2174,8 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                     op_decls += "\\\n\t" + tmp_var + " = " + tmp_var + " + " + pre_shift + ";";
 
                 // Round operation isn't needed if output type is int8/uint8 and scale coefficient in all output channels is equal to 1.0
-                bool output_type_is_int8 = desc.output_tensor.GetDType() == Datatype::UINT8 || desc.output_tensor.GetDType() == Datatype::INT8;
+                OPENVINO_ASSERT(desc.output_tensors.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
+                bool output_type_is_int8 = desc.output_tensors[0].GetDType() == Datatype::UINT8 || desc.output_tensors[0].GetDType() == Datatype::INT8;
                 if (((p->has_post_scale || p->has_post_shift) && output_type_is_int8) || !output_type_is_int8)
                     op_decls += "\\\n\t" + tmp_var + " = round(" + tmp_var + ");";
 
@@ -2236,7 +2232,8 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                     op_decls += "\\\n\t" + tmp_var + " = " + tmp_var + " + " + pre_shift + ";";
 
                 // Round operation isn't needed if output type is int8/uint8 and scale coefficient in all output channels is equal to 1.0
-                bool output_type_is_int8 = desc.output_tensor.GetDType() == Datatype::UINT8 || desc.output_tensor.GetDType() == Datatype::INT8;
+                OPENVINO_ASSERT(desc.output_tensors.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
+                bool output_type_is_int8 = desc.output_tensors[0].GetDType() == Datatype::UINT8 || desc.output_tensors[0].GetDType() == Datatype::INT8;
                 if (((p->has_post_scale || p->has_post_shift) && output_type_is_int8) || !output_type_is_int8)
                     op_decls += "\\\n\t" + tmp_var + " = round(" + tmp_var + ");";
 
@@ -2253,6 +2250,8 @@ JitConstants FusedOpsCodeGenerator::MakeOpJitConstants(const FusedOpsConfigurati
                 break;
         }
         case KernelType::ACTIVATION: {
+            OPENVINO_ASSERT(desc.output_tensors.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
+            const auto& out_type = desc.output_tensors[0].GetDType();
             auto p = desc.GetOpParams<activation_fuse_params>();
             base_activation_params activation_p = p->param;
             std::string new_in_var = (first_fused_ops_idx < 0) ? in_var : GetOutputVarName(in_var, dep_data[first_fused_ops_idx].op_id);
@@ -2313,8 +2312,8 @@ std::string GetTensorHasMultipleElementsCondition(const std::string& tensor_name
            tensor_name + "_FEATURE_NUM > 1 || " + tensor_name + "_BATCH_NUM > 1";
 }
 
-std::string FusedOpsCodeGenerator::GetOutputTensorName() const {
-    return "FUSED_OP_" + toCodeString(desc.op_id) + "_OUTPUT";
+std::string FusedOpsCodeGenerator::GetOutputTensorName(size_t idx) const {
+    return "FUSED_OP_" + toCodeString(desc.op_id) + "_OUTPUT" + toCodeString(idx);
 }
 
 std::string FusedOpsCodeGenerator::GetInputTypeName(size_t input_id, size_t vec_size) const {
@@ -2499,8 +2498,8 @@ std::string FusedOpsCodeGenerator::GetType(Datatype dt, size_t vec_size) const {
     return toCLType(dt);
 }
 
-std::string FusedOpsCodeGenerator::GetOutputType(size_t vec_size) const {
-    return GetType(desc.output_tensor.GetDType(), vec_size);
+std::string FusedOpsCodeGenerator::GetOutputType(size_t vec_size, size_t idx) const {
+    return GetType(desc.output_tensors[idx].GetDType(), vec_size);
 }
 
 std::string FusedOpsCodeGenerator::ConvertToType(std::string var, Datatype dt, size_t vec_size) const {
@@ -2513,8 +2512,8 @@ std::string FusedOpsCodeGenerator::CastToType(std::string var, Datatype dt, size
     return "as_" + GetType(dt, vec_size) + "(" + var + ")";
 }
 
-std::string FusedOpsCodeGenerator::ConvertToOutputType(std::string var, size_t vec_size) const {
-    return ConvertToType(var, desc.output_tensor.GetDType(), vec_size);
+std::string FusedOpsCodeGenerator::ConvertToOutputType(std::string var, size_t vec_size, size_t idx) const {
+    return ConvertToType(var, desc.output_tensors[idx].GetDType(), vec_size);
 }
 
 std::string FusedOpsCodeGenerator::DecodeComputeType(std::string var, Datatype dt, size_t vec_size) const {
@@ -2527,10 +2526,10 @@ std::string FusedOpsCodeGenerator::Broadcast(std::string var, Datatype dt, size_
     return "(" + GetType(dt, vec_size) + ")(" + var + ")";
 }
 
-std::string FusedOpsCodeGenerator::ConvertToOutputTypeSat(std::string var, size_t vec_size) const {
-    if (desc.output_tensor.GetDType() == Datatype::F32 || desc.output_tensor.GetDType() == Datatype::F16 || desc.output_tensor.GetDType() == Datatype::BF16)
-        return ConvertToOutputType(var, vec_size);
-    return "convert_" + GetOutputType(vec_size) + "_sat_rte(" + var + ")";
+std::string FusedOpsCodeGenerator::ConvertToOutputTypeSat(std::string var, size_t vec_size, size_t idx) const {
+    if (desc.output_tensors[idx].GetDType() == Datatype::F32 || desc.output_tensors[idx].GetDType() == Datatype::F16 || desc.output_tensors[idx].GetDType() == Datatype::BF16)
+        return ConvertToOutputType(var, vec_size, idx);
+    return "convert_" + GetOutputType(vec_size, idx) + "_sat_rte(" + var + ")";
 }
 
 std::vector<size_t> FusedOpsCodeGenerator::GetRequiredInputs() const {

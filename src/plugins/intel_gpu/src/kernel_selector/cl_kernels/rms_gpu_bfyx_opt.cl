@@ -8,20 +8,31 @@
 #include "include/batch_headers/bf16_utils.cl"
 
 // Check alignment restrictions for using block writes on output.
-#define USE_BLOCK_WRITE ((OUTPUT_TYPE_SIZE * OUTPUT_FEATURE_PITCH) & 0xF == 0)
+#define USE_BLOCK_WRITE (((OUTPUT_TYPE_SIZE * OUTPUT_FEATURE_PITCH) & 0xF) == 0)
+
+#if HAS_DYNAMIC_QUANTIZE
+#include "include/batch_headers/common.cl"
+#include "include/f8_utils.cl"
+#include "include/dynamic_quantize_utils.cl"
+#define NORMALIZED_TYPE float
+#define TO_NORMALIZED_TYPE(x) convert_float(x)
+#else
+#define NORMALIZED_TYPE OUTPUT_TYPE
+#define TO_NORMALIZED_TYPE(x) TO_OUTPUT_TYPE(x)
+#endif
 
 #if SUBGROUP_BLOCK_SIZE == 1
 #define BLOCK_READ(ptr, offset) DT_INPUT_BLOCK_READ(ptr, offset)
 #define BLOCK_WRITE(ptr, offset, val) DT_OUTPUT_BLOCK_WRITE(ptr, offset, val)
 #define ACC_TYPE ACCUMULATOR_TYPE
 #define TO_ACC_TYPE(x) TO_ACCUMULATOR_TYPE(x)
-#define OUTPUT_VEC_TYPE OUTPUT_TYPE
+#define NORMALIZED_VEC_TYPE NORMALIZED_TYPE
 #else
 #define BLOCK_READ(ptr, offset) CAT(DT_INPUT_BLOCK_READ, SUBGROUP_BLOCK_SIZE)(ptr, offset)
 #define BLOCK_WRITE(ptr, offset, val) CAT(DT_OUTPUT_BLOCK_WRITE, SUBGROUP_BLOCK_SIZE)(ptr, offset, val)
 #define ACC_TYPE MAKE_VECTOR_TYPE(ACCUMULATOR_TYPE, SUBGROUP_BLOCK_SIZE)
 #define TO_ACC_TYPE(x) TO_ACCUMULATOR_VECTOR_TYPE(x, SUBGROUP_BLOCK_SIZE)
-#define OUTPUT_VEC_TYPE MAKE_VECTOR_TYPE(OUTPUT_TYPE, SUBGROUP_BLOCK_SIZE)
+#define NORMALIZED_VEC_TYPE MAKE_VECTOR_TYPE(NORMALIZED_TYPE, SUBGROUP_BLOCK_SIZE)
 #endif
 
 REQD_SUB_GROUP_SIZE(SUB_GROUP_SIZE)
@@ -32,6 +43,9 @@ KERNEL(rms_gpu_bfyx_opt)(
     const __global INPUT1_TYPE* gamma,
 #endif
     __global OUTPUT_TYPE* output
+    #if HAS_DYNAMIC_QUANTIZE
+        , __global OUTPUT1_TYPE* scale
+    #endif
     #if HAS_FUSED_OPS_DECLS
         , FUSED_OPS_DECLS
     #endif
@@ -165,86 +179,147 @@ KERNEL(rms_gpu_bfyx_opt)(
             ACC_TYPE vec_gamma = TO_ACC_TYPE(BLOCK_READ(gamma, subgroup_offset + i * get_sub_group_size()));
 #endif
 #endif
-            OUTPUT_VEC_TYPE vec_tmp;
+            NORMALIZED_VEC_TYPE vec_tmp;
             #if HAS_FUSED_OPS
                 LAST_DIM = subgroup_offset + i * get_sub_group_size() + get_sub_group_local_id();
             #endif
 #if SUBGROUP_BLOCK_SIZE == 1
 #if ELEMENTWISE_AFFINE
 #if RMS_GAMMA_IS_SCALAR
-            OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i] * gamma_scalar);
+            NORMALIZED_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i] * gamma_scalar);
 #else
-            OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i] * vec_gamma);
+            NORMALIZED_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i] * vec_gamma);
 #endif
 #else
-            OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i]);
+            NORMALIZED_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i]);
 #endif
             #if HAS_FUSED_OPS
                 FUSED_OPS;
                 normalized = FUSED_OPS_RESULT;
             #endif
             vec_tmp = normalized;
-#else
+#else // SUBGROUP_BLOCK_SIZE == 1
+#if HAS_DYNAMIC_QUANTIZE
+#if SUBGROUP_BLOCK_SIZE == 2
+#define NUM_SCALES_PER_SUBGROUP 1
+#elif SUBGROUP_BLOCK_SIZE == 4
+#define NUM_SCALES_PER_SUBGROUP 2
+#elif SUBGROUP_BLOCK_SIZE == 8
+#define NUM_SCALES_PER_SUBGROUP 4
+#endif
+                // 32 consecutive elements in tmp[0] && tmp[1] etc, assuming SIMD16
+                MAKE_VECTOR_TYPE(NORMALIZED_TYPE, NUM_SCALES_PER_SUBGROUP) max_values = DQ_MAX_SEARCH_INIT_VAL;
+                MAKE_VECTOR_TYPE(float, NUM_SCALES_PER_SUBGROUP) tmp_scales;
+            #endif // HAS_DYNAMIC_QUANTIZE
             unroll_for (int j = 0; j < SUBGROUP_BLOCK_SIZE; j++) {
 #if ELEMENTWISE_AFFINE
 #if RMS_GAMMA_IS_SCALAR
-                OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i + j] * gamma_scalar);
+                NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[i + j] * gamma_scalar);
 #else
-                OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i + j] * vec_gamma[j]);
+                NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[i + j] * vec_gamma[j]);
 #endif
 #else
-                OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i + j]);
+                NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[i + j]);
 #endif
                 #if HAS_FUSED_OPS
                     LAST_DIM += j * get_sub_group_size();
                     FUSED_OPS;
                     normalized = FUSED_OPS_RESULT;
                 #endif
+                #if HAS_DYNAMIC_QUANTIZE
+                    max_values[j / 2] = fmax(max_values[j / 2], fabs(normalized));
+                #endif
                 vec_tmp[j] = normalized;
             }
-#endif
-            BLOCK_WRITE(output, output_data_offset + subgroup_offset + i * get_sub_group_size(), vec_tmp);
+#if HAS_DYNAMIC_QUANTIZE
+            unroll_for (int j = 0; j < NUM_SCALES_PER_SUBGROUP; ++j) {
+                max_values[j] = sub_group_reduce_max(max_values[j]);
+                tmp_scales[j] = DQ_COMPUTE_MXFP_SCALE(max_values[j]);
+            }
+            if (get_sub_group_local_id() < NUM_SCALES_PER_SUBGROUP) {
+                int scale_output_idx = (output_data_offset + subgroup_offset + i * get_sub_group_size()) / 32 + get_sub_group_local_id();
+                scale[scale_output_idx] = DQ_COMPUTE_OUTPUT_SCALE(tmp_scales[get_sub_group_local_id()]);
+            }
+            unroll_for (int j = 0; j < SUBGROUP_BLOCK_SIZE; j++) {
+                vec_tmp[j] *= tmp_scales[j / 2];
+            }
+            BLOCK_WRITE(output, output_data_offset + subgroup_offset + i * get_sub_group_size(), DQ_CAST_TO_OUTPUT_TYPE_N(SUBGROUP_BLOCK_SIZE, vec_tmp));
+#endif // HAS_DYNAMIC_QUANTIZE
+#endif // SUBGROUP_BLOCK_SIZE == 1
+            #if !(HAS_DYNAMIC_QUANTIZE)
+                BLOCK_WRITE(output, output_data_offset + subgroup_offset + i * get_sub_group_size(), vec_tmp);
+            #endif // !(HAS_DYNAMIC_QUANTIZE)
         }
     }
 
+#if HAS_DYNAMIC_QUANTIZE
+    int iters_per_scale = 2;
+    if (LWS == 8) { // LWS at least 8 with current assumptions
+        iters_per_scale = 4;
+    }
+    NORMALIZED_TYPE cache[4];
+    NORMALIZED_TYPE max_value = DQ_MAX_SEARCH_INIT_VAL;
+#endif
     for (; i < items_num; i++)
     {
 #if ELEMENTWISE_AFFINE
     #if RMS_GAMMA_IS_SCALAR
-        OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i] * gamma_scalar);
+        NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[i] * gamma_scalar);
     #else
         ACCUMULATOR_TYPE temp = TO_ACCUMULATOR_TYPE(gamma[subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()]);
-        OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i] * temp);
+        NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[i] * temp);
     #endif
 #else
-        OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i]);
+        NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[i]);
 #endif
         #if HAS_FUSED_OPS
             LAST_DIM = subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size();
             FUSED_OPS;
             normalized = FUSED_OPS_RESULT;
         #endif
-        output[output_data_offset + subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()] = normalized;
+        #if HAS_DYNAMIC_QUANTIZE
+            int cache_idx = i % iters_per_scale;
+            cache[cache_idx] = normalized;
+            max_value = fmax(max_value, fabs(normalized));
+            if (cache_idx == iters_per_scale - 1) {
+                max_value = sub_group_reduce_max(max_value);
+                float scale_value = DQ_COMPUTE_MXFP_SCALE(max_value);
+                int i_ = i - iters_per_scale + 1;
+                for (int j = 0; j < iters_per_scale; ++j) {
+                    output[output_data_offset + subgroup_offset + get_sub_group_local_id() + (i_ + j) * get_sub_group_size()]
+                        = DQ_COMPUTE_OUTPUT_VALUE(cache[j], scale_value);
+                }
+                if (get_sub_group_local_id() == 0) {
+                    int scale_output_idx = (output_data_offset + subgroup_offset + i_ * get_sub_group_size()) / 32;
+                    scale[scale_output_idx] = DQ_COMPUTE_OUTPUT_SCALE(scale_value);
+                }
+                max_value = DQ_MAX_SEARCH_INIT_VAL;
+            }
+        #else
+            output[output_data_offset + subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()] = normalized;
+        #endif
     }
 
     if (in_data_idx < leftovers)
     {
 #if ELEMENTWISE_AFFINE
     #if RMS_GAMMA_IS_SCALAR
-        OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[items_num] * gamma_scalar);
+        NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[items_num] * gamma_scalar);
     #else
         ACCUMULATOR_TYPE temp = TO_ACCUMULATOR_TYPE(gamma[workers_per_data * items_num + in_data_idx]);
-        OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[items_num] * temp);
+        NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[items_num] * temp);
     #endif
 #else
-        OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[items_num]);
+        NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[items_num]);
 #endif
         #if HAS_FUSED_OPS
             LAST_DIM = workers_per_data * items_num + in_data_idx;
             FUSED_OPS;
             normalized = FUSED_OPS_RESULT;
         #endif
-        output[output_data_offset + workers_per_data * items_num + in_data_idx] = normalized;
+        #if !(HAS_DYNAMIC_QUANTIZE) // DQ never enters this path and causes compilation error because of unsupported cast.
+            output[output_data_offset + workers_per_data * items_num + in_data_idx] = normalized;
+        #endif
     }
 }
 #undef USE_BLOCK_WRITE
@@ -252,4 +327,4 @@ KERNEL(rms_gpu_bfyx_opt)(
 #undef BLOCK_WRITE
 #undef ACC_TYPE
 #undef TO_ACC_TYPE
-#undef OUTPUT_VEC_TYPE
+#undef NORMALIZED_VEC_TYPE

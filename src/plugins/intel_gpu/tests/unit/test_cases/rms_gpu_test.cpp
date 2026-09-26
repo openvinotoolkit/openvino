@@ -5,6 +5,7 @@
 #include "test_utils.h"
 
 #include <intel_gpu/primitives/crop.hpp>
+#include <intel_gpu/primitives/dynamic_quantize.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <intel_gpu/primitives/rms.hpp>
@@ -12,6 +13,8 @@
 
 using namespace cldnn;
 using namespace ::tests;
+using QuantizationType = ov::op::internal::DynamicQuantize::QuantizationType;
+using OutputStorageType = ov::op::internal::DynamicQuantize::OutputStorageType;
 
 class rms_gpu_test : public ::testing::TestWithParam<cldnn::format> {};
 
@@ -923,3 +926,87 @@ TEST(rms_gpu_test, rms_test_bf16_bfyx_opt_near_zero) {
                  /*epsilon=*/1e-5f, /*in_min=*/0.001f, /*in_max=*/0.003f,
                  /*abs_floor=*/0.01f, /*rel_tol=*/0.05f);
 }
+
+class rms_mxfp8_dynamic_quantize_test : public ::testing::TestWithParam<std::tuple<size_t, data_types>> {};
+
+TEST_P(rms_mxfp8_dynamic_quantize_test, rms_test_bfyx_opt_mxfp8_dynamic_quantize) {
+    auto& engine = get_test_engine();
+    const auto [data_size, quantization_dt] = GetParam();
+    const ov::Shape input_shape{1, 1, data_size};
+    const auto epsilon = 1e-6f;
+
+    auto input = engine.allocate_memory({input_shape, data_types::f16, format::bfyx});
+    auto gamma = engine.allocate_memory({ov::Shape{1, 1, data_size}, data_types::f16, format::bfyx});
+
+    std::vector<ov::float16> input_data(ov::shape_size(input_shape));
+    std::vector<ov::float16> gamma_data(ov::shape_size(input_shape));
+    for (size_t i = 0; i < input_data.size(); ++i) {
+        input_data[i] = ov::float16(static_cast<float>(static_cast<int>(i % 127) - 63) / 16.0f);
+        gamma_data[i] = ov::float16(0.75f + static_cast<float>(i % 17) / 32.0f);
+    }
+    set_values(input, input_data);
+    set_values(gamma, gamma_data);
+
+    dynamic_quantize::Attributes dq_config;
+    dq_config.quantization_type = QuantizationType::Symmetric;
+    dq_config.quantization_dt = quantization_dt;
+    dq_config.scale_dt = data_types::f8e8m0;
+    dq_config.zp_dt = data_types::dynamic;
+    dq_config.group_sizes = {1, 1, 32};
+    dq_config.scales_zp_output_order = {0, 1, 2};
+    dq_config.output_storage_type = OutputStorageType::Planar;
+
+    ov::Shape scale_shape = input_shape;
+    scale_shape.back() = input_shape.back() / 32;
+
+    auto make_topology = [&]() {
+        topology topology;
+        topology.add(input_layout("input", input->get_layout()));
+        topology.add(data("gamma", gamma));
+        topology.add(rms("rms", input_info("input"), input_info("gamma"), epsilon));
+        topology.add(dynamic_quantize("dyn_quan", input_info("rms"), dq_config));
+        topology.add(reorder("output_data", input_info("dyn_quan", 0), layout{input_shape, data_types::f16, format::bfyx}));
+        topology.add(reorder("output_scale", input_info("dyn_quan", 1), layout{scale_shape, data_types::f16, format::bfyx}));
+        return topology;
+    };
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    config.set_property(ov::intel_gpu::optimize_data(true));
+
+    network fused_network(engine, make_topology(), config);
+    fused_network.set_input_data("input", input);
+    auto outputs = fused_network.execute();
+
+    auto ref_config = get_test_default_config(engine);
+    ref_config.set_property(ov::intel_gpu::optimize_data(false));
+    ref_config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network ref_network(engine, make_topology(), ref_config);
+    ref_network.set_input_data("input", input);
+    auto ref_outputs = ref_network.execute();
+
+    const auto ref_network_prims = ref_network.get_all_primitive_ids();
+    const auto fused_network_prims = fused_network.get_all_primitive_ids();
+    ASSERT_NE(std::find(ref_network_prims.begin(), ref_network_prims.end(), "dyn_quan"), ref_network_prims.end());
+    ASSERT_EQ(std::find(fused_network_prims.begin(), fused_network_prims.end(), "dyn_quan"), fused_network_prims.end());
+    ASSERT_EQ(fused_network.get_primitive("rms")->outputs_memory_count(), 2);
+
+    auto compare_output = [&](const primitive_id& output_id) {
+        auto output_mem = outputs.at(output_id).get_memory();
+        auto ref_output_mem = ref_outputs.at(output_id).get_memory();
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_mem, get_test_stream());
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> ref_output_ptr(ref_output_mem, get_test_stream());
+        ASSERT_EQ(output_ptr.size(), ref_output_ptr.size());
+        for (size_t i = 0; i < ref_output_ptr.size(); ++i) {
+            ASSERT_EQ(output_ptr[i], ref_output_ptr[i]) << "Mismatch in " << output_id << " at index=" << i;
+        }
+    };
+
+    compare_output("output_data");
+    compare_output("output_scale");
+}
+
+INSTANTIATE_TEST_SUITE_P(rms_mxfp8,
+                         rms_mxfp8_dynamic_quantize_test,
+                         ::testing::Combine(::testing::Values(size_t{32}, size_t{320}, size_t{4096}),
+                                            ::testing::Values(data_types::f8e4m3, data_types::f8e5m2)));

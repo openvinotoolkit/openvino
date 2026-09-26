@@ -10,6 +10,19 @@
 
 namespace cldnn {
 
+class DynamicQuantizeFuseParams : public NodeFuseParams {
+public:
+    DynamicQuantizeFuseParams(const std::vector<layout>& out_layouts, const dynamic_quantize::Attributes& attrs, size_t input_size)
+        : NodeFuseParams(dynamic_quantize::type_id()),
+          _out_layouts(out_layouts),
+          _attrs(attrs),
+          _input_size(input_size) {}
+
+    std::vector<layout> _out_layouts;
+    dynamic_quantize::Attributes _attrs;
+    size_t _input_size;
+};
+
 template <>
 struct typed_program_node<dynamic_quantize> : public typed_program_node_base<dynamic_quantize> {
     using parent = typed_program_node_base<dynamic_quantize>;
@@ -19,6 +32,9 @@ public:
 
     program_node& input(size_t index = 0) const { return get_dependency(index); }
     std::vector<size_t> get_shape_infer_dependencies() const override { return {}; }
+    std::shared_ptr<NodeFuseParams> get_fuse_params() const override {
+        return std::make_shared<DynamicQuantizeFuseParams>(get_output_layouts(), get_primitive()->attrs, get_primitive()->input_size);
+    }
 };
 
 using dynamic_quantize_node = typed_program_node<dynamic_quantize>;
