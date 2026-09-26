@@ -1180,56 +1180,32 @@ TEST_P(conv_prelu_nan, basic) {
 
     tolerance = default_tolerance(p.data_type);
 
-    // Fill the input so that the convolution output carries both NaN and finite
-    // values: the first input column is NaN, the remaining columns are finite,
-    // so a 3x3 convolution output mixes both.
-    // The fill is done by logical (b, f, y, x) coordinates via get_linear_offset,
-    // so it stays correct for blocked layouts such as b_fs_yx_fsv16 where a
-    // linear index does not correspond to the x coordinate. The loop bounds come
-    // from the layout's own tensor so they always match the range checked by
-    // get_linear_offset (its x/y are the format's spatial[0]/spatial[1]).
+    // Fill the input by physical linear index. Both cases use unblocked bfyx
+    // where x is the stride-1 innermost axis (5 elements per row for these
+    // shapes), so physical % x_size == 0 is exactly the x == 0 column: with a
+    // 3x3 kernel and no padding, the leftmost output column carries NaN while
+    // the others stay finite, so both NaN and finite values reach the fused
+    // activation. No get_linear_offset calls: the fill cannot address a slot
+    // outside the buffer range.
     auto in_layout = get_input_layout(p);
     auto input_prim = engine.allocate_memory(in_layout);
-    const auto in_dims = in_layout.get_tensor();
-    const int64_t batch = in_dims.batch[0];
-    const int64_t feature = in_dims.feature[0];
-    const int64_t x_size = in_dims.spatial[0];
-    const int64_t y_size = in_dims.spatial[1];
     const size_t phys_size = in_layout.get_linear_size();
-    auto logical_value = [&](int64_t b, int64_t f, int64_t y, int64_t x) -> float {
-        const int64_t logical_idx = ((b * feature + f) * y_size + y) * x_size + x;
-        // Only the first column carries NaN: with a 3x3 kernel and no padding the
-        // leftmost output column sees it while every other column stays finite,
-        // so both NaN and finite values reach the fused activation.
-        if (x == 0) {
-            return std::numeric_limits<float>::quiet_NaN();
-        }
-        return -1.0f - static_cast<float>(logical_idx % 7);
-    };
+    const int64_t x_size = in_layout.get_tensor().spatial[0];
     if (in_layout.data_type == data_types::f16) {
-        std::vector<ov::float16> input_vals(phys_size, ov::float16(0.0f));
-        for (int64_t b = 0; b < batch; ++b) {
-            for (int64_t f = 0; f < feature; ++f) {
-                for (int64_t y = 0; y < y_size; ++y) {
-                    for (int64_t x = 0; x < x_size; ++x) {
-                        const size_t offset = in_layout.get_linear_offset(tensor(b, f, x, y));
-                        input_vals[offset] = ov::float16(logical_value(b, f, y, x));
-                    }
-                }
-            }
+        std::vector<ov::float16> input_vals;
+        input_vals.reserve(phys_size);
+        for (size_t i = 0; i < phys_size; ++i) {
+            const float v = (static_cast<int64_t>(i % x_size) == 0) ? std::numeric_limits<float>::quiet_NaN()
+                                                                    : -1.0f - static_cast<float>(i % 7);
+            input_vals.push_back(ov::float16(v));
         }
         set_values(input_prim, input_vals);
     } else {
-        std::vector<float> input_vals(phys_size, 0.0f);
-        for (int64_t b = 0; b < batch; ++b) {
-            for (int64_t f = 0; f < feature; ++f) {
-                for (int64_t y = 0; y < y_size; ++y) {
-                    for (int64_t x = 0; x < x_size; ++x) {
-                        const size_t offset = in_layout.get_linear_offset(tensor(b, f, x, y));
-                        input_vals[offset] = logical_value(b, f, y, x);
-                    }
-                }
-            }
+        std::vector<float> input_vals;
+        input_vals.reserve(phys_size);
+        for (size_t i = 0; i < phys_size; ++i) {
+            input_vals.push_back((static_cast<int64_t>(i % x_size) == 0) ? std::numeric_limits<float>::quiet_NaN()
+                                                                         : -1.0f - static_cast<float>(i % 7));
         }
         set_values(input_prim, input_vals);
     }
