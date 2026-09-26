@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "intel_gpu/op/sdpa.hpp"
 #include "transformations/op_conversions/group_query_attention_decomposition.hpp"
 
 namespace ov::intel_gpu {
@@ -33,6 +34,22 @@ protected:
                                                   bool sliding_window_cache,
                                                   float scale,
                                                   bool has_sink) override;
+    void prepare_compressed_kv(const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
+                               const ov::Output<ov::Node>& key,
+                               const ov::Output<ov::Node>& value,
+                               const ov::Output<ov::Node>& key_scale,
+                               const ov::Output<ov::Node>& value_scale) override;
+
+    bool use_compressed_kv() const override {
+        return m_use_compressed_sdpa;
+    }
+
+    bool m_use_compressed_sdpa = false;
+    ov::Output<ov::Node> m_compressed_key;
+    ov::Output<ov::Node> m_compressed_value;
+    ov::Output<ov::Node> m_key_scale;
+    ov::Output<ov::Node> m_value_scale;
+    op::SDPA::QuantizationAttribute m_quantization_attrs;
 };
 
 }  // namespace ov::intel_gpu

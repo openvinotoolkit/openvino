@@ -31,6 +31,14 @@ protected:
                                                 const ov::Output<ov::Node>& scale,
                                                 const ov::Output<ov::Node>& sink,
                                                 bool is_causal);
+    virtual bool use_compressed_kv() const {
+        return false;
+    }
+    virtual void prepare_compressed_kv(const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
+                                       const ov::Output<ov::Node>& key,
+                                       const ov::Output<ov::Node>& value,
+                                       const ov::Output<ov::Node>& key_scale,
+                                       const ov::Output<ov::Node>& value_scale) {}
     std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<op::v3::ShapeOf>& shape,
                                              const std::vector<int>& dims);
     std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::Node>& node, const std::vector<int>& dims);

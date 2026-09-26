@@ -298,9 +298,11 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         present_v = V;
     }
 
+    prepare_compressed_kv(node, K, V, k_scale, v_scale);
+
     // Dequantize the assembled cache to the compute (float) type for the attention math. Everything downstream
     // (head broadcast, mask, SDPA) then operates in float exactly as in the non-quantized path.
-    if (kv_quantized) {
+    if (kv_quantized && !use_compressed_kv()) {
         K = dequantize_kv(K, k_scale, kv_num_heads, kv_cache_bit_width, k_quant_type, T);
         V = dequantize_kv(V, v_scale, kv_num_heads, kv_cache_bit_width, v_quant_type, T);
     }
@@ -310,7 +312,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
 
     // Broadcast KV if grouped query attention
     const size_t kv_num_heads_factor = num_heads / kv_num_heads;
-    if (kv_num_heads_factor > 1) {
+    if (kv_num_heads_factor > 1 && !use_compressed_kv()) {
         const auto kv_shape = register_new_node<v3::ShapeOf>(K);
         const auto kv_shape_prev_2 = get_dimensions(kv_shape, {0, 1});
         const auto kv_shape_last_2 = get_dimensions(kv_shape, {2, 3});

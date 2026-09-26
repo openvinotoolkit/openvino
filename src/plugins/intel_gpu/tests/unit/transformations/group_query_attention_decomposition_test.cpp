@@ -8,6 +8,7 @@
 
 #include "intel_gpu/op/sdpa.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/parameter.hpp"
@@ -33,7 +34,7 @@ struct GQAConfig {
     float scale = 0.0f;   // 0.0f == "use 1/sqrt(head_size)"
     bool flag_a = false;  // do_rotary
     bool flag_b = false;  // rotary_interleaved
-    int64_t softcap = 0;
+    int64_t kv_cache_bit_width = 0;
     QuantType kv_quant = QuantType::NONE;
     QuantType out_quant = QuantType::NONE;
     int64_t local_window_size = -1;  // >= 1 enables sliding window attention
@@ -49,12 +50,32 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
     auto query = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, num_heads, 1, head_size});
     auto key = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, kv_num_heads, 1, head_size});
     auto value = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, kv_num_heads, 1, head_size});
-    auto past_key = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, kv_num_heads, past_len, head_size});
-    auto past_value = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, kv_num_heads, past_len, head_size});
+    const auto cache_type = cfg.kv_cache_bit_width ? ov::element::i8 : f32;
+    auto past_key = std::make_shared<ov::op::v0::Parameter>(cache_type, ov::PartialShape{1, kv_num_heads, past_len, head_size});
+    auto past_value = std::make_shared<ov::op::v0::Parameter>(cache_type, ov::PartialShape{1, kv_num_heads, past_len, head_size});
     auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1});
     auto total_sequence_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{});
 
-    ov::OutputVector inputs{query, key, value, past_key, past_value, seqlens_k, total_sequence_length};
+    ov::OutputVector inputs(14);
+    inputs[0] = query;
+    inputs[1] = key;
+    inputs[2] = value;
+    inputs[3] = past_key;
+    inputs[4] = past_value;
+    inputs[5] = seqlens_k;
+    inputs[6] = total_sequence_length;
+    for (size_t i = 7; i <= 11; ++i) {
+        inputs[i] = ov::op::v0::Constant::create(ov::element::dynamic, ov::Shape{0}, {});
+    }
+    ov::ParameterVector parameters{query, key, value, past_key, past_value, seqlens_k, total_sequence_length};
+    if (cfg.kv_cache_bit_width) {
+        auto key_scale = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1});
+        auto value_scale = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1});
+        inputs[12] = key_scale;
+        inputs[13] = value_scale;
+        parameters.push_back(key_scale);
+        parameters.push_back(value_scale);
+    }
 
     auto gqa = std::make_shared<ov::op::internal::GroupQueryAttention>(inputs,
                                                                        num_heads,
@@ -62,7 +83,7 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
                                                                        cfg.scale,
                                                                        cfg.flag_a,
                                                                        cfg.flag_b,
-                                                                       cfg.softcap,
+                                                                       cfg.kv_cache_bit_width,
                                                                        cfg.kv_quant,
                                                                        cfg.out_quant,
                                                                        cfg.local_window_size,
@@ -74,7 +95,7 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
     for (const auto& output : gqa->outputs()) {
         results.push_back(std::make_shared<ov::op::v0::Result>(output));
     }
-    return std::make_shared<ov::Model>(results, ov::ParameterVector{query, key, value, past_key, past_value, seqlens_k, total_sequence_length});
+    return std::make_shared<ov::Model>(results, parameters);
 }
 
 std::shared_ptr<ov::intel_gpu::op::SDPA> decompose_and_get_sdpa(const GQAConfig& cfg) {
@@ -133,6 +154,25 @@ TEST(GroupQueryAttentionDecompositionTest, control_plain_causal_uses_lower_right
     EXPECT_EQ(sdpa->get_input_size(), 3u) << "Q, K, V only -- the mask is elided here by design";
     EXPECT_TRUE(sdpa->get_causal());
     EXPECT_EQ(sdpa->get_causal_mask_alignment(), ov::intel_gpu::op::SDPA::CausalMaskAlignment::LOWER_RIGHT);
+}
+
+TEST(GroupQueryAttentionDecompositionTest, quantized_kv_uses_compressed_sdpa) {
+    GQAConfig cfg;
+    cfg.kv_cache_bit_width = 8;
+    cfg.kv_quant = QuantType::PER_TENSOR;
+    cfg.out_quant = QuantType::PER_TENSOR;
+
+    const auto sdpa = decompose_and_get_sdpa(cfg);
+
+    ASSERT_NE(sdpa, nullptr);
+    EXPECT_TRUE(sdpa->get_kv_compressed());
+    EXPECT_EQ(sdpa->get_input_size(), 6u) << "Q, K, V, attention scale, K scale, V scale";
+    EXPECT_EQ(sdpa->get_quantization_attrs().quantization_dt, ov::element::i8);
+    EXPECT_EQ(sdpa->get_quantization_attrs().scale_dt, ov::element::f16);
+    EXPECT_EQ(sdpa->input_value(1).get_element_type(), ov::element::i8);
+    EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::i8);
+    EXPECT_TRUE(ov::is_type<ov::op::v0::Concat>(sdpa->input_value(1).get_node_shared_ptr()));
+    EXPECT_TRUE(ov::is_type<ov::op::v0::Concat>(sdpa->input_value(2).get_node_shared_ptr()));
 }
 
 // A sliding-window cache retains the explicit attention mask.
