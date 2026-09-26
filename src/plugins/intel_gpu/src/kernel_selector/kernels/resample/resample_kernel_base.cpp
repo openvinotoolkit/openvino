@@ -13,7 +13,7 @@
 #include "kernel_selector_utils.h"
 
 namespace {
-int getAxisIndex(kernel_selector::InterpolateAxis axis) {
+int get_axis_index(kernel_selector::InterpolateAxis axis) {
     switch (axis) {
     case kernel_selector::InterpolateAxis::BATCH:
         return 0;
@@ -32,6 +32,11 @@ int getAxisIndex(kernel_selector::InterpolateAxis axis) {
 }  // namespace
 
 namespace kernel_selector {
+
+bool ResampleKernelBase::has_padding(const resample_params& params) {
+    return std::any_of(params.pads_begin.begin(), params.pads_begin.end(), [](const auto pad) { return pad != 0; }) ||
+           std::any_of(params.pads_end.begin(), params.pads_end.end(), [](const auto pad) { return pad != 0; });
+}
 
 size_t ResampleKernelBase::GetFeatureBlockSize(const resample_params& params) const {
     const size_t max_size = 32;
@@ -120,7 +125,7 @@ bool ResampleKernelBase::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) const {
+JitConstants ResampleKernelBase::get_jit_constants(const resample_params& params, bool legacy_scale) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     const auto& input = params.inputs[0];
@@ -128,10 +133,10 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
     auto pads_begin = params.pads_begin;
     auto pads_end = params.pads_end;
     if (pads_begin.size() == 4) {
-        pads_begin.insert(std::next(pads_begin.begin(), 2), 0);
+        pads_begin.insert(pads_begin.begin() + 2, 0);
     }
     if (pads_end.size() == 4) {
-        pads_end.insert(std::next(pads_end.begin(), 2), 0);
+        pads_end.insert(pads_end.begin() + 2, 0);
     }
 
     const auto b_size_padded = pads_begin[0] + input.Batch().v + pads_end[0];
@@ -151,19 +156,35 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
         paddingUsed |= (pads_begin[i] != 0 || pads_end[i] != 0);
     }
 
-    scales[0] = static_cast<float>(b_size_padded) / static_cast<float>(out_b_size_padded);
-    scales[1] = static_cast<float>(f_size_padded) / static_cast<float>(out_f_size_padded);
-    scales[4] = static_cast<float>(x_size_padded) / static_cast<float>(out_x_size_padded);
-    scales[3] = static_cast<float>(y_size_padded) / static_cast<float>(out_y_size_padded);
-    scales[2] = static_cast<float>(z_size_padded) / static_cast<float>(out_z_size_padded);
+    if (legacy_scale) {
+        scales[0] = static_cast<float>(b_size_padded) / static_cast<float>(out_b_size_padded);
+        scales[1] = static_cast<float>(f_size_padded) / static_cast<float>(out_f_size_padded);
+        scales[4] = static_cast<float>(x_size_padded) / static_cast<float>(out_x_size_padded);
+        scales[3] = static_cast<float>(y_size_padded) / static_cast<float>(out_y_size_padded);
+        scales[2] = static_cast<float>(z_size_padded) / static_cast<float>(out_z_size_padded);
 
-    for (std::size_t i = 0; i < params.axes.size(); i++) {
-        int idx = getAxisIndex(params.axes[i]);
-        axesUsed[idx] = 1;
-        if (params.shapeCalculationMode == kernel_selector::ShapeCalculationMode::SCALES) {
-            scales[idx] = 1.f / params.scales[i];
+        for (std::size_t i = 0; i < params.axes.size(); i++) {
+            const int idx = get_axis_index(params.axes[i]);
+            if (params.shapeCalculationMode == kernel_selector::ShapeCalculationMode::SCALES) {
+                scales[idx] = 1.f / params.scales[i];
+            }
+        }
+    } else {
+        scales[0] = static_cast<float>(out_b_size_padded) / static_cast<float>(b_size_padded);
+        scales[1] = static_cast<float>(out_f_size_padded) / static_cast<float>(f_size_padded);
+        scales[4] = static_cast<float>(out_x_size_padded) / static_cast<float>(x_size_padded);
+        scales[3] = static_cast<float>(out_y_size_padded) / static_cast<float>(y_size_padded);
+        scales[2] = static_cast<float>(out_z_size_padded) / static_cast<float>(z_size_padded);
+
+        for (std::size_t i = 0; i < params.axes.size(); i++) {
+            int idx = get_axis_index(params.axes[i]);
+            axesUsed[idx] = 1;
+            if (params.shapeCalculationMode == kernel_selector::ShapeCalculationMode::SCALES) {
+                scales[idx] = params.scales[i];
+            }
         }
     }
+
     for (size_t i = 0; i < scales.size(); ++i) {
         if (scales[i] != 1.f) {
             axesUsed[i] = 1;
@@ -174,6 +195,7 @@ JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params) 
         MakeJitConstant(toString(params.resampleType), ""),
         MakeJitConstant(toString(params.nearestMode), ""),
         MakeJitConstant(toString(params.coordTransMode), ""),
+        MakeJitConstant("SHAPE_CALC_MODE_SIZES", params.shapeCalculationMode == ShapeCalculationMode::SIZES),
         MakeJitConstant("SCALES", scales),
         MakeJitConstant("PADS_BEGIN", pads_begin),
         MakeJitConstant("PADS_END", pads_end),
@@ -245,7 +267,7 @@ KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params) const
 
     auto dispatchData = SetDefault(newParams);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
-    auto cldnn_jit = GetJitConstants(newParams);
+    auto cldnn_jit = get_jit_constants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
@@ -260,6 +282,13 @@ KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params) const
                      false,
                      1,
                      GetFusedPrimitiveInputsCount(params));
+    if (newParams.resampleType == ResampleType::CUBIC && kernel.code.kernelString) {
+        auto& options = kernel.code.kernelString->options;
+        const std::string mad_option = " -cl-mad-enable";
+        const auto mad_pos = options.find(mad_option);
+        if (mad_pos != std::string::npos)
+            options.erase(mad_pos, mad_option.size());
+    }
 
     return {kd};
 }
