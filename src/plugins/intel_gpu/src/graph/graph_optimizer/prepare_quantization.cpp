@@ -549,6 +549,8 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
     if (!fc_prim->compressed_weights)
         return;
 
+    auto weights_shape = fc_node.get_input_layout(1).get_partial_shape();
+
     auto reorder_bfyx = [&](size_t dep_id, cldnn::format format) {
         auto& dep = fc_node.get_dependency(dep_id);
         auto target_layout = dep.get_output_layout();
@@ -567,6 +569,14 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
             return false;
         }
 
+        if (weight_rank == 2 && dep_rank == 2) {
+            const auto output_features_idx = fc_prim->weights_transposed ? 0 : 1;
+            const auto output_features = weights_shape[output_features_idx];
+            if (dep_pshape[1] == output_features && dep_pshape[0] != output_features) {
+                return false;
+            }
+        }
+
         auto groups_idx = dep_rank == 1 ? 0 : weight_rank - 1;
         auto groups_count = dep_pshape[groups_idx].get_length();
         return groups_count > 1;
@@ -574,7 +584,6 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
     // possible cases
     // legacy [K, N, 1, 1] => crop padded dims
     // new shape [1, K, N] => preserve
-    auto weights_shape = fc_node.get_input_layout(1).get_partial_shape();
     auto weight_rank = weights_shape.size();
     if (weight_rank >= 3 && weights_shape[0] != 1) {
         // legacy case
