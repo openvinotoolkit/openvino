@@ -326,10 +326,19 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                     // on half yields int, so f16 kernels fail to build with
                     // CL_BUILD_PROGRAM_FAILURE. A vector condition is valid in the
                     // ternary operator for the vectorized (block/vload) variants.
+                    // The isnan() guard on the first operand makes the expression
+                    // immune to compiler folding: the GPU compiler recognizes the
+                    // bare comparison form as the hardware fmin/fmax instruction
+                    // (which returns the non-NaN operand, the exact bug being
+                    // fixed) and rewrites the ternary back to it. With a
+                    // data-dependent isnan branch it cannot fold, and the guard is
+                    // semantically identical to the reference: for a NaN first
+                    // operand the reference already returns it unchanged, and for a
+                    // finite first operand fmax/fmin and the comparison agree.
                     const std::string cmp = (ew.mode == EltwiseMode::MIN)
                         ? ("(" + input1_str + " < " + input0_str + ")")
                         : ("(" + input0_str + " < " + input1_str + ")");
-                    op += cast_type + "(" + cmp + " ? " + input1_str + " : " + input0_str + ")";
+                    op += cast_type + "(isnan(" + input0_str + ") ? " + input0_str + " : (" + cmp + " ? " + input1_str + " : " + input0_str + "))";
                 }
             }
         } break;
