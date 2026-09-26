@@ -84,8 +84,11 @@ struct RNNSequenceParams {
 class ReferenceRNNSequenceTest : public testing::TestWithParam<RNNSequenceParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        legacy_compare = true;
         auto params = GetParam();
+        if (params.iType == element::Type_t::f16) {
+            // Refs hold f64-precision values rounded to f16, while the sequence accumulates f16 error over time steps.
+            abs_threshold = 0.01f;
+        }
         function = CreateFunction(params);
         inputData =
             {params.X.data, params.H_t.data, params.sequence_lengths.data, params.W.data, params.R.data, params.B.data};
