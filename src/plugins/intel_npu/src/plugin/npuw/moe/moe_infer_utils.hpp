@@ -4,7 +4,9 @@
 
 #pragma once
 
+#include <array>
 #include <cmath>
+#include <cstdint>
 #include <map>
 #include <vector>
 
@@ -18,6 +20,29 @@ namespace npuw {
 namespace moe {
 
 /**
+ * @brief Single source of truth for MoE profiling bucket names.
+ *
+ * Chunk-size-dependent tags (NPU Wait, Scatter Output) are NOT here: their
+ * names depend on runtime chunk size values, so they're precomputed into
+ * MoEResources::wait_tag / scatter_tag instead of being static literals.
+ */
+namespace tags {
+constexpr const char* kParseRouterOutput = "Parse Router Output";
+constexpr const char* kTotalExpertBatch = "Total Expert Batch";
+constexpr const char* kTotalExpertIterative = "Total Expert Iterative";
+constexpr const char* kUnpackClosure = "Unpack Closure";
+constexpr const char* kSetRouterInput = "Set Router Input";
+constexpr const char* kExpertInference = "Expert Inference";
+constexpr const char* kGetOutputTensor = "Get Output Tensor";
+constexpr const char* kParseRouterRow = "Parse Router Row";
+constexpr const char* kGetIOTensors = "Get I/O Tensors";
+constexpr const char* kGatherRouterScores = "Gather Router Scores";
+constexpr const char* kGatherExpertInput = "Gather Expert Input";
+constexpr const char* kNpuStart = "NPU Start";
+constexpr const char* kClearUnfilledSlots = "Clear Unfilled Slots";
+}  // namespace tags
+
+/**
  * @brief MoE performance profiling structure.
  *
  * Tracks performance metrics for MoE operations in different processing modes.
@@ -28,6 +53,58 @@ struct MoEProfile {
     ov::npuw::perf::Profile<ov::npuw::perf::metric<ov::npuw::perf::MSec>> batch;      // EXPERT_BATCH mode
 
     MoEProfile();
+};
+
+/**
+ * @brief Standalone stats for EXPERT_ITERATIVE token routing and chunk padding.
+ *
+ * Independent of MoEProfile (which only times named code blocks): this tracks
+ * *what* gets dispatched rather than *how long* it takes — per-expert token
+ * counts (routing skew) and per-chunk-size padding waste (real tokens vs the
+ * fixed chunk capacity actually paid for on the NPU).
+ */
+struct MoEChunkStats {
+    // Accumulated across all run_expert_iterative() calls for one expert_id.
+    struct PerExpert {
+        uint64_t selections = 0;  // number of calls where this expert got >=1 token
+        uint64_t tokens = 0;      // total tokens routed to this expert
+        uint64_t chunks = 0;      // total chunk dispatches used to process them
+    };
+
+    // Accumulated across all chunks dispatched at a given compiled chunk size.
+    struct PerChunkSize {
+        uint64_t chunks = 0;  // number of chunks dispatched at this size
+        uint64_t tokens = 0;  // real (non-padding) tokens carried by those chunks
+    };
+
+    // Upper-exclusive bucket edges for the "remaining tokens" histogram, sampled right
+    // before each select_chunk() call. Locates real gaps between compiled chunk sizes
+    // (e.g. a spike at 128-192 means a cs=192 model would help), independent of
+    // whatever chunk sizes happen to be compiled today.
+    static constexpr std::array<size_t, 9> remaining_hist_edges = {8, 16, 32, 64, 128, 192, 256, 384, 512};
+
+    bool enabled = false;
+    std::vector<PerExpert> per_expert;             // indexed by expert_id
+    std::map<size_t, PerChunkSize> per_chunk_size;  // keyed by chunk size
+    std::array<uint64_t, remaining_hist_edges.size() + 1> remaining_hist{};  // last bucket = ">= last edge"
+
+    // Must be called once num_experts is known (prepare()), before any record_*() call.
+    void init(size_t num_experts, bool active);
+
+    void record_expert(size_t expert_id, uint64_t tokens, uint64_t chunks);
+    void record_chunk(size_t chunk_size, uint64_t actual_tokens);
+    void record_remaining(size_t remaining);
+
+    void report() const;
+
+    ~MoEChunkStats() {
+        if (enabled) {
+            try {
+                report();
+            } catch (...) {
+            }
+        }
+    }
 };
 
 template <typename T>
@@ -141,6 +218,26 @@ void scatter_expert_outputs(const ov::SoPtr<ov::ITensor>& expert_output,
                             size_t embed_dim,
                             size_t input_token_count,
                             const std::vector<size_t>& expert_slots_for_tokens);
+
+/**
+ * @brief Zero out only the (token, expert_slot) cells that scatter_expert_outputs() never wrote.
+ *
+ * Cheaper than clearing the whole accumulator up front: with dense top-K routing every
+ * token normally fills all num_active_experts slots, so this is a near-free O(num_tokens)
+ * scan in the common case, touching memory only for the rare token whose is_nonzero()
+ * filtering left a slot unfilled.
+ *
+ * @param global_output_buffer Global output buffer [K, 1, num_tokens, embed_dim]
+ * @param token_slot_count Per-token count of slots actually filled during this call
+ * @param num_active_experts K, the number of expert slots expected per token
+ * @param embed_dim Embedding dimension size
+ * @param input_token_count Total number of input tokens
+ */
+void clear_unfilled_accumulator_slots(const ov::SoPtr<ov::ITensor>& global_output_buffer,
+                                      const std::vector<size_t>& token_slot_count,
+                                      size_t num_active_experts,
+                                      size_t embed_dim,
+                                      size_t input_token_count);
 
 /**
  * @brief MoE Request Cache - LRU cache for expert inference requests.

@@ -4,6 +4,8 @@
 
 #include "moe_infer_utils.hpp"
 
+#include <algorithm>
+#include <cstring>
 #include <iomanip>
 #include <iostream>
 
@@ -22,6 +24,88 @@ MoEProfile::MoEProfile() {
     batch.area = "MoE Expert Batch";          // EXPERT_BATCH mode profiling
     iterative.report_on_die = ov::npuw::profiling_enabled();
     batch.report_on_die = ov::npuw::profiling_enabled();
+}
+
+void MoEChunkStats::init(size_t num_experts, bool active) {
+    enabled = active;
+    if (enabled) {
+        per_expert.assign(num_experts, PerExpert{});
+        remaining_hist.fill(0);
+    }
+}
+
+void MoEChunkStats::record_expert(size_t expert_id, uint64_t tokens, uint64_t chunks) {
+    if (!enabled) {
+        return;
+    }
+    auto& e = per_expert.at(expert_id);
+    e.selections++;
+    e.tokens += tokens;
+    e.chunks += chunks;
+}
+
+void MoEChunkStats::record_chunk(size_t chunk_size, uint64_t actual_tokens) {
+    if (!enabled) {
+        return;
+    }
+    auto& c = per_chunk_size[chunk_size];
+    c.chunks++;
+    c.tokens += actual_tokens;
+}
+
+void MoEChunkStats::record_remaining(size_t remaining) {
+    if (!enabled) {
+        return;
+    }
+    const auto it = std::upper_bound(remaining_hist_edges.begin(), remaining_hist_edges.end(), remaining);
+    remaining_hist[static_cast<size_t>(it - remaining_hist_edges.begin())]++;
+}
+
+void MoEChunkStats::report() const {
+    if (per_chunk_size.empty()) {
+        return;
+    }
+
+    std::cout << "MoE Chunk Efficiency:" << std::endl;
+
+    std::cout << "  Remaining-tokens histogram (sampled before each select_chunk() call):" << std::endl;
+    for (size_t b = 0; b < remaining_hist.size(); ++b) {
+        if (remaining_hist[b] == 0) {
+            continue;
+        }
+        if (b == 0) {
+            std::cout << "    < " << remaining_hist_edges[0];
+        } else if (b == remaining_hist.size() - 1) {
+            std::cout << "    >= " << remaining_hist_edges.back();
+        } else {
+            std::cout << "    " << remaining_hist_edges[b - 1] << " - " << remaining_hist_edges[b];
+        }
+        std::cout << " : " << remaining_hist[b] << std::endl;
+    }
+
+    std::cout << "  Per chunk size (padding = capacity - real tokens):" << std::endl;
+    for (auto&& kv : per_chunk_size) {
+        const size_t cs = kv.first;
+        const auto& s = kv.second;
+        const uint64_t capacity = cs * s.chunks;
+        const uint64_t padding = capacity - s.tokens;
+        const double padding_pct = capacity ? (100.0 * static_cast<double>(padding) / static_cast<double>(capacity)) : 0.0;
+        std::cout << "    cs=" << cs << " [ chunks=" << s.chunks << ", tokens=" << s.tokens
+                   << ", capacity=" << capacity << ", padding=" << padding << " (" << padding_pct << "%) ]"
+                   << std::endl;
+    }
+
+    std::cout << "  Per expert (tokens/chunks routed across all calls):" << std::endl;
+    for (size_t expert_id = 0; expert_id < per_expert.size(); ++expert_id) {
+        const auto& e = per_expert[expert_id];
+        if (e.selections == 0) {
+            continue;  // never selected by the router — skip to keep the report compact
+        }
+        std::cout << "    expert[" << expert_id << "] [ selections=" << e.selections << ", tokens=" << e.tokens
+                   << ", chunks=" << e.chunks << ", avg tokens/selection=" << (static_cast<double>(e.tokens) /
+                                                                                static_cast<double>(e.selections))
+                   << " ]" << std::endl;
+    }
 }
 
 ov::Tensor slice_expert_weight(const ov::Tensor& batched_weight, size_t expert_id, size_t num_experts) {
@@ -242,6 +326,32 @@ void scatter_expert_outputs(const ov::SoPtr<ov::ITensor>& expert_output,
         scatter(expert_output->data<ov::float16>(), global_output_buffer->data<ov::float16>());
     } else {
         OPENVINO_THROW("MoE: Unsupported element type for chunk output relayout: ", elem_type);
+    }
+}
+
+void clear_unfilled_accumulator_slots(const ov::SoPtr<ov::ITensor>& global_output_buffer,
+                                      const std::vector<size_t>& token_slot_count,
+                                      size_t num_active_experts,
+                                      size_t embed_dim,
+                                      size_t input_token_count) {
+    const size_t slot_stride = input_token_count * embed_dim;
+
+    auto clear = [&](auto* base) {
+        const size_t elem_bytes = embed_dim * sizeof(*base);
+        for (size_t token_id = 0; token_id < token_slot_count.size(); ++token_id) {
+            for (size_t slot = token_slot_count[token_id]; slot < num_active_experts; ++slot) {
+                std::memset(base + slot * slot_stride + token_id * embed_dim, 0, elem_bytes);
+            }
+        }
+    };
+
+    const auto elem_type = global_output_buffer->get_element_type();
+    if (elem_type == ov::element::f32) {
+        clear(global_output_buffer->data<float>());
+    } else if (elem_type == ov::element::f16) {
+        clear(global_output_buffer->data<ov::float16>());
+    } else {
+        OPENVINO_THROW("MoE: Unsupported element type for accumulator clear: ", elem_type);
     }
 }
 
