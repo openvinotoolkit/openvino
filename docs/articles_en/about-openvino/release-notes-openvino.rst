@@ -244,6 +244,94 @@ OpenVINO GenAI
 
 * The GenAI Node.js API has been expanded to include ``ASRPipeline``, enabling a variety of models to be utilized for speech recognition tasks.
 
+Physical AI
++++++++++++
+
+Physical AI Runtime v0.2.0 introduces a single runtime for both policy inference and teleoperation, lets applications share a robot across processes and machines, and adds plugins for more robot hardware.
+
+It also adds runtime support for compatible RLDX-1, MolmoAct2, and XR0 exports, and lets applications start a new policy run without reconnecting hardware.
+
+Install: ``pip install --upgrade physicalai``.
+
+One runtime for policy inference and teleoperation
+--------------------------------------------------
+
+The new ``RobotRuntime`` can run a learned policy or have a follower robot mirror a leader robot. You choose the action source, ``PolicySource`` or ``TeleopSource``, and the runtime manages robot and camera connections, loop timing, and callbacks.
+
+Applications can now stop a run and start another while hardware stays connected:
+
+* ``PolicySource.reset()`` clears pending actions so predictions from the previous task are not carried into the next one.
+* Recording and logging callbacks keep working across repeated runs, in `Physical AI Studio <https://github.com/open-edge-platform/physical-ai-studio>`__ and in custom applications.
+
+Call ``PolicySource.warmup(observation)`` after connecting to prepare the first prediction before the control loop starts.
+
+The shared ``Config`` API saves and loads settings for robots, cameras, policies, and callbacks. The same runtime configuration works from Python or the command line: ``physicalai run --config runtime.yaml``.
+
+See `Run a policy on a robot <https://github.com/openvinotoolkit/physicalai/blob/v0.2.0/docs/how-to/runtime/run-policy-on-robot.md>`__ and `Write a runtime configuration <https://github.com/openvinotoolkit/physicalai/blob/v0.2.0/docs/how-to/config/write-runtime-config.md>`__.
+
+Share hardware across processes and machines
+--------------------------------------------
+
+``SharedRobot`` lets applications read robot state and send commands from another process, or from another computer on the local network. One process owns the hardware connection, and other applications connect to it through `Zenoh <https://zenoh.io/>`__.
+
+Use ``physicalai robot serve`` to make a robot available and ``physicalai robot discover`` to find robots that are being served. Both commands are limited to the same computer by default. Pass ``--allow_remote`` to serve or discover robots across the network.
+
+Remote mode does not configure authentication or encryption. Any client that can reach the robot's command channel can send commands. Use an isolated robot-cell network or configure Zenoh access controls and TLS.
+
+See `Share a robot <https://github.com/openvinotoolkit/physicalai/blob/v0.2.0/docs/how-to/runtime/share-a-robot.md>`__.
+
+Camera support also expands:
+
+* IP cameras with RTSP and HTTP streams now work through the camera API.
+* RealSense GMSL cameras now work through the existing RealSense camera API. An SDK update fixes the discovery timeouts that previously prevented their use.
+* USB camera discovery handles duplicate serial identifiers more reliably, so an ambiguous identifier no longer selects the wrong camera.
+
+New model support
+-----------------
+
+Runtime adds processing components for three more model families:
+
+* **RLDX-1:** prepares recent camera frames, task text, and model inputs for OpenVINO inference, with image resizing matched to the export.
+* **MolmoAct2:** resizes camera images, combines task text and robot state into model prompts, and converts predicted actions back to their original scale using the export's normalization settings.
+* **XR0:** prepares multiple camera views, task text, and robot state, then rescales predicted actions and converts relative actions to absolute targets when required by the export.
+
+Physical AI Studio adds training and export workflows for these models; Runtime adds the processing needed to run compatible exports. See the `Studio 0.2.0 release notes <https://github.com/open-edge-platform/physical-ai-studio/releases/tag/app%2Fv0.2.0>`__.
+
+Runtime now reads callback settings from model manifests, including settings that automatically enable RLDX-1's camera-frame history.
+
+``InferenceModel.from_pretrained()`` downloads and loads compatible policy exports directly from the Hugging Face Hub, so you no longer need a separate download step.
+
+It also fixes SmolVLA camera ordering and its handling of missing cameras, corrects inputs for single-camera setups, and speeds up resizing of ``uint8`` camera images.
+
+See `Load an exported policy <https://github.com/openvinotoolkit/physicalai/blob/v0.2.0/docs/how-to/inference/load-exported-policy.md>`__.
+
+Robot plugins
+-------------
+
+Robot plugins add hardware support without changing Runtime or Studio code. First-party plugins and the plugin development package now live in the Runtime repository, and each plugin is installed and versioned separately.
+
+Available plugins:
+
+* `Bimanual SO-101 <https://github.com/openvinotoolkit/physicalai/tree/v0.2.0/packages/physicalai-bimanual-so101-plugin>`__: paired follower and leader arms.
+* `Stararm <https://github.com/openvinotoolkit/physicalai/tree/v0.2.0/packages/physicalai-stararm-plugin>`__: the Stararm 102 family.
+* `ReBot B601 <https://github.com/openvinotoolkit/physicalai/tree/v0.2.0/packages/physicalai-rebot-b601-plugin>`__: ReBot B601 arm.
+* `LeRobot <https://github.com/openvinotoolkit/physicalai/tree/v0.2.0/packages/physicalai-lerobot-plugin>`__: use supported LeRobot robots and teleoperators with Runtime, and select them from Studio's hardware catalog.
+
+To add your own robot, start with the `plugin quick start <https://github.com/openvinotoolkit/physicalai/blob/v0.2.0/packages/physicalai-studio-plugin/README.md#quick-start>`__. It shows how to package a robot driver, define its configuration fields, and register it in Studio's hardware catalog. The `Studio plugin guide <https://github.com/open-edge-platform/physical-ai-studio/blob/1d5817f7e97aff78e3edeba7b31886df86f39386/application/docs/robot-plugins.md>`__ covers installing a plugin in Studio and submitting it to Studio's curated list.
+
+Reliability improvements
+------------------------
+
+* WidowX now reports the same joint-position fields that Studio records, fixing inference failures caused by an unexpected number of state values.
+* Updated OpenVINO dependencies fix model compatibility issues and a slowdown in pi05 inference.
+
+The repository also includes `agent skills <https://github.com/openvinotoolkit/physicalai/tree/v0.2.0/skills>`__ that help coding assistants work with policy loading, runtime configuration, model processing, and hardware integrations.
+
+Upgrading from 0.1.x
+--------------------
+
+``PolicyRuntime`` and ``InferenceModel.load()`` have been removed. See :doc:`Upgrade from 0.1.x <../physical-ai/how-to/runtime/upgrade-from-0-1-x>` for the replacements and migration steps.
+
 Other Changes and Known Issues
 ++++++++++++++++++++++++++++++
 

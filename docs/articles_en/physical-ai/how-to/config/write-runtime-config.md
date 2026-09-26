@@ -5,28 +5,28 @@ A runtime config describes a robot control workflow before execution starts.
 ```yaml
 # runtime.yaml
 runtime:
-  class_path: physicalai.runtime.PolicyRuntime
-  init_args:
-    fps: 30
-    robot:
-      class_path: physicalai.robot.so101.SO101
-      init_args:
-        port: /dev/ttyACM0
-    model:
-      class_path: physicalai.inference.InferenceModel
-      init_args:
-        export_dir: ./exports/act_policy
-    cameras:
-      wrist:
-        class_path: physicalai.capture.UVCCamera
+  robot:
+    class_path: physicalai.robot.SO101
+    init_args:
+      port: /dev/ttyACM0
+      calibration: ./calibration.json
+  action_source:
+    class_path: physicalai.runtime.PolicySource
+    init_args:
+      model:
+        class_path: physicalai.inference.InferenceModel
         init_args:
-          device: /dev/v4l/by-id/usb-Example_Wrist_Camera-video-index0
-          width: 640
-          height: 480
-    execution:
-      class_path: physicalai.runtime.SyncExecution
+          export_dir: ./exports/act_policy
+      execution:
+        class_path: physicalai.runtime.SyncExecution
+  cameras:
+    wrist:
+      class_path: physicalai.capture.UVCCamera
       init_args:
-        mode: chunk
+        device: /dev/v4l/by-id/usb-Example_Wrist_Camera-video-index0
+        width: 640
+        height: 480
+  fps: 30
 ```
 
 Run the same config from the CLI:
@@ -43,4 +43,4 @@ init_args:
   key: value
 ```
 
-The config file remains passive data. The workflow starts only when `PolicyRuntime.run()` is called.
+The config file remains passive data. The workflow starts only when `RobotRuntime.run()` is called.
