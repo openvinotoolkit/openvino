@@ -31,6 +31,7 @@ ov_add_test_target(
             ${CMAKE_CURRENT_SOURCE_DIR}/make_default_multi_threaded_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/memory_solver_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/native_stream_test.cpp
+            ${CMAKE_CURRENT_SOURCE_DIR}/parallel_memcpy_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/parallel_read_streambuf_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/property_test.cpp
             ${CMAKE_CURRENT_SOURCE_DIR}/query_model_test.cpp

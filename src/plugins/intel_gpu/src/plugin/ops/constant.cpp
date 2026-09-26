@@ -12,6 +12,7 @@
 
 #include "intel_gpu/op/convolution.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/constant_data.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -151,7 +152,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
             const auto src_et = op->get_output_element_type(0);
             const auto dst_et = ov::element::Type(out_dtype);
             if (src_et == dst_et) {
-                std::memcpy(&buf[0], &data[0], bufSize);
+                copy_constant_data(buf, data, bufSize, p.get_task_executor().get(), p.get_config().get_compilation_num_threads());
             } else {
                 convert_and_copy(data, src_et, buf, dst_et, upload_count, constLayout);
             }

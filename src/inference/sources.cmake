@@ -39,6 +39,7 @@ set(OV_RUNTIME_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/src/dev/threading/istreams_executor.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/dev/threading/itask_executor.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/dev/threading/parallel_custom_arena.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/threading/parallel_memcpy.cpp
     ${CMAKE_CURRENT_LIST_DIR}/src/dev/threading/thread_affinity.cpp
 )
 

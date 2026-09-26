@@ -9,6 +9,7 @@
 
 #include "onednn/dnnl.h"
 #include "openvino/core/parallel.hpp"
+#include "openvino/runtime/threading/parallel_memcpy.hpp"
 
 namespace ov::intel_cpu {
 
@@ -56,13 +57,7 @@ inline int cpu_memcpy_s(void* dst, size_t dst_size, const void* src, size_t coun
 inline void cpu_parallel_memcpy(void* dst, const void* src, size_t count) {
     const size_t l2_cache_size = dnnl::utils::get_cache_size(2, true);
     if (count >= l2_cache_size) {
-        const auto* src_int8 = static_cast<const uint8_t*>(src);
-        auto* dst_int8 = static_cast<uint8_t*>(dst);
-        parallel_nt(0, [&](const size_t ithr, const size_t nthr) {
-            size_t start = 0, end = 0;
-            splitter(count, nthr, ithr, start, end);
-            cpu_memcpy(dst_int8 + start, src_int8 + start, end - start);
-        });
+        ov::threading::parallel_memcpy(dst, src, count);
     } else {
         cpu_memcpy(dst, src, count);
     }
