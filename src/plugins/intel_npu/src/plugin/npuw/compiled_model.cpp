@@ -1663,6 +1663,9 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
                peek_child_header(decrypted_stream).type == CompiledModelDesc::kOrcType) {
             consume_submodel(decrypted_stream);
         }
+        // Validate before consuming the weights bank: closure reconstruction can dereference
+        // replaced_by and routing indices.
+        validate_import_routing_tables(compiled);
         if (require_weights_bank) {
             if (decrypted_stream.peek() == std::char_traits<char>::eof()) {
                 OPENVINO_THROW("Missing ORC weights bank container");
@@ -1673,6 +1676,9 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
         while (!root.done() && peek_child_header(stream).type == CompiledModelDesc::kOrcType) {
             consume_submodel(stream);
         }
+        // Validate before consuming the weights bank: closure reconstruction can dereference
+        // replaced_by and routing indices.
+        validate_import_routing_tables(compiled);
         if (require_weights_bank) {
             if (root.done()) {
                 OPENVINO_THROW("Missing ORC weights bank container");
@@ -1733,7 +1739,8 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
             if (link == CompiledModel::NO_LINK) {
                 return;
             }
-            const auto& submodel_desc = compiled->m_compiled_submodels.at(link.first);
+            const auto real_idx = compiled->m_compiled_submodels.at(link.first).replaced_by.value_or(link.first);
+            const auto& submodel_desc = compiled->m_compiled_submodels.at(real_idx);
             if (submodel_desc.compiled_model != nullptr &&
                 link.second >= submodel_desc.compiled_model->inputs().size()) {
                 OPENVINO_THROW("Invalid ",
@@ -1756,7 +1763,8 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
             if (link == CompiledModel::NO_LINK) {
                 return;
             }
-            const auto& submodel_desc = compiled->m_compiled_submodels.at(link.first);
+            const auto real_idx = compiled->m_compiled_submodels.at(link.first).replaced_by.value_or(link.first);
+            const auto& submodel_desc = compiled->m_compiled_submodels.at(real_idx);
             if (submodel_desc.compiled_model != nullptr &&
                 link.second >= submodel_desc.compiled_model->outputs().size()) {
                 OPENVINO_THROW("Invalid ",
@@ -1783,6 +1791,14 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
                            " (submodel count: ",
                            num_submodels,
                            ")");
+        }
+        if (submodel_desc.replaced_by.has_value() &&
+            compiled->m_compiled_submodels[submodel_desc.replaced_by.value()].compiled_model == nullptr) {
+            OPENVINO_THROW("Invalid m_compiled_submodels[",
+                           idx,
+                           "].replaced_by target ",
+                           submodel_desc.replaced_by.value(),
+                           " has no compiled model");
         }
     }
 
