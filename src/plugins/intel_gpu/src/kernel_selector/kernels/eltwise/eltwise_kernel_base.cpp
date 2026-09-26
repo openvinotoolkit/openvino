@@ -310,7 +310,36 @@ JitConstants EltwiseKernelBase::GetOperationsJitConstants(const eltwise_params& 
                 op += cast_type + "f" + mode + "(" + input0_str + ", convert_float(" + input1_str + "))";
             } else {
                 // input_0 != int && input_1 != int
-                op += cast_type + "f" + mode + "(" + input0_str + ", " + input1_str + ")";
+                if (ew.mode == EltwiseMode::MODULU) {
+                    op += cast_type + "fmod(" + input0_str + ", " + input1_str + ")";
+                } else {
+                    // Match the OpenVINO reference implementation (std::max/std::min)
+                    // instead of OpenCL fmax/fmin, which return the non-NaN operand
+                    // and therefore silently drop NaN:
+                    //   std::max(a, b) == ((a < b) ? b : a)
+                    //   std::min(a, b) == ((b < a) ? b : a)
+                    // A NaN first operand wins, a NaN second operand loses to the
+                    // finite first operand - exactly the reference behavior.
+                    // The ternary operator is used rather than select(): select()
+                    // requires the condition to be a signed integer of the same
+                    // width as the operands (short for half), while a comparison
+                    // on half yields int, so f16 kernels fail to build with
+                    // CL_BUILD_PROGRAM_FAILURE. A vector condition is valid in the
+                    // ternary operator for the vectorized (block/vload) variants.
+                    // The isnan() guard on the first operand makes the expression
+                    // immune to compiler folding: the GPU compiler recognizes the
+                    // bare comparison form as the hardware fmin/fmax instruction
+                    // (which returns the non-NaN operand, the exact bug being
+                    // fixed) and rewrites the ternary back to it. With a
+                    // data-dependent isnan branch it cannot fold, and the guard is
+                    // semantically identical to the reference: for a NaN first
+                    // operand the reference already returns it unchanged, and for a
+                    // finite first operand fmax/fmin and the comparison agree.
+                    const std::string cmp = (ew.mode == EltwiseMode::MIN)
+                        ? ("(" + input1_str + " < " + input0_str + ")")
+                        : ("(" + input0_str + " < " + input1_str + ")");
+                    op += cast_type + "(isnan(" + input0_str + ") ? " + input0_str + " : (" + cmp + " ? " + input1_str + " : " + input0_str + "))";
+                }
             }
         } break;
         case EltwiseMode::POW:
