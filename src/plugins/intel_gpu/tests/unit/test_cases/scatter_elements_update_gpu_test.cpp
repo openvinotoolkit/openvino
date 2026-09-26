@@ -886,3 +886,43 @@ TEST(scatter_elements_update_gpu_fp32, smoke_sum_large_values_overflow_guard_dyn
 
     ASSERT_NEAR(output_ptr[0], 3e7f, 1.0f);
 }
+
+// ---------------------------------------------------------------------------
+// Static-model, ov-level regression test for a 1-D Constant feeding
+// ScatterElementsUpdate: the plugin's legacy (static) constant layout selection
+// must give a 1-D constant consumed by ScatterElementsUpdate batch
+// interpretation ([N,1,1,1], like Gather/GatherND), otherwise the scatter runs
+// on the wrong axis. Constant data [64] + Constant indices [8] + Parameter
+// updates [8], axis = 0, unique indices (reduction-free semantics).
+// ---------------------------------------------------------------------------
+
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/runtime/core.hpp"
+
+TEST(scatter_elements_update_gpu, static_model_1d_constant_data_v12) {
+    const size_t N = 64, M = 8;
+    const std::vector<float> updates_data{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f};
+    const std::vector<int32_t> indices_data{0, 5, 10, 17, 33, 40, 50, 63};
+    std::vector<float> ref(N, -100.0f);
+    for (size_t i = 0; i < M; ++i)
+        ref[indices_data[i]] = updates_data[i];
+
+    auto updates = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{M});
+    auto data = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{N}, std::vector<float>(N, -100.0f));
+    auto indices = ov::op::v0::Constant::create(ov::element::i32, ov::Shape{M}, indices_data);
+    auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, std::vector<int64_t>{0});
+    auto scatter = std::make_shared<ov::op::v12::ScatterElementsUpdate>(data, indices, updates, axis);
+
+    ov::Core core;
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{std::make_shared<ov::op::v0::Result>(scatter)}, ov::ParameterVector{updates});
+    auto compiled = core.compile_model(model, std::string("GPU"));
+    auto request = compiled.create_infer_request();
+    auto input = request.get_input_tensor(0);
+    std::copy(updates_data.begin(), updates_data.end(), input.data<float>());
+    request.infer();
+    auto output = request.get_output_tensor(0);
+    ASSERT_EQ(output.get_shape(), (ov::Shape{N}));
+    for (size_t i = 0; i < ref.size(); ++i)
+        ASSERT_NEAR(output.data<const float>()[i], ref[i], 1e-3f) << "i=" << i;
+}
