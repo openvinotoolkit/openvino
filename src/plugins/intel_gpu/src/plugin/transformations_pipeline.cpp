@@ -46,9 +46,18 @@
 #include "openvino/core/validation_util.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/shape.hpp"
+#include "openvino/op/acos.hpp"
+#include "openvino/op/acosh.hpp"
+#include "openvino/op/asin.hpp"
+#include "openvino/op/asinh.hpp"
+#include "openvino/op/atan.hpp"
+#include "openvino/op/atanh.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
+#include "openvino/op/cos.hpp"
+#include "openvino/op/cosh.hpp"
 #include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/grouped_matmul.hpp"
@@ -59,6 +68,7 @@
 #include "openvino/op/lstm_sequence.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/mvn.hpp"
+#include "openvino/op/hard_sigmoid.hpp"
 #include "openvino/op/normalize_l2.hpp"
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/abs.hpp"
@@ -67,11 +77,19 @@
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/rnn_cell.hpp"
 #include "openvino/op/rnn_sequence.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/selu.hpp"
+#include "openvino/op/sign.hpp"
+#include "openvino/op/sin.hpp"
+#include "openvino/op/sinh.hpp"
+#include "openvino/op/softplus.hpp"
+#include "openvino/op/softsign.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/tan.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/read_value_base.hpp"
@@ -146,6 +164,7 @@
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/lora_subgraph_fusion.hpp"
 #include "transformations/common_optimizations/lstm_cell_fusion.hpp"
+#include "transformations/common_optimizations/mark_math_before_floor_to_keep_f16_rounding.hpp"
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mvn_fusion.hpp"
 #include "transformations/common_optimizations/convert_tiled_moe_block_to_gather_matmuls.hpp"
@@ -462,6 +481,11 @@ bool is_hybrid_linear_attention_model(const ov::Model& model) {
     return false;
 }
 
+// Whether f16 rounding must be preserved at Math op boundaries
+bool should_preserve_math_f16_rounding(const ov::element::Type& requested_infer_precision, bool model_has_f16) {
+    return requested_infer_precision == ov::element::f16 || (requested_infer_precision == ov::element::dynamic && model_has_f16);
+}
+
 // LPT's Split/VariadicSplitTransformation moves the dequantization from above the split to
 // below it, once per split output. That only pays off if the moved dequantization can be
 // absorbed by one of the consumers (a layer with quantized weights). If it cannot, the plugin
@@ -609,6 +633,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     };
     const auto fallback_precision = ov::element::f32;
     auto infer_precision = config.get_inference_precision();
+    const auto requested_infer_precision = infer_precision;
     if (infer_precision != ov::element::dynamic && !fp_precision_supported(infer_precision)) {
         infer_precision = fallback_precision;
     }
@@ -758,7 +783,79 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
         }
 
-        type_to_fuse_map empty_fuse_map = {};
+        // Preserve f16 precision at the output of Math-type operations during f16->f32 conversion.
+        // Without this, the f16 rounding between operations is lost, causing incorrect results
+        // for downstream ops.
+        //
+        // ov::pass::MarkMathBeforeFloorToKeepF16Rounding marks only the Math nodes that are actually
+        // followed by a Floor with disable_conversion(f16, f32); the callback below only acts on nodes
+        // carrying that marker, so unrelated occurrences of these ops keep the normal f32 fast path.
+        auto wrap_math_to_preserve_f16 = [](const std::shared_ptr<ov::Node>& node, const precisions_map& /* precisions */) -> bool {
+            if (!ov::is_conversion_disabled(node, ov::element::f16, ov::element::f32)) {
+                return false;
+            }
+            if (node->get_output_element_type(0) != ov::element::f16) {
+                return false;
+            }
+
+            constexpr auto original_type = ov::element::f16;
+            constexpr auto target_type = ov::element::f32;
+
+            for (size_t i = 0; i < node->get_input_size(); i++) {
+                auto convert = std::make_shared<ov::op::v0::Convert>(node->input_value(i), original_type);
+                node->input(i).replace_source_output(convert);
+            }
+
+            if (node->get_output_size() == 1) {
+                auto consumers = node->output(0).get_target_inputs();
+                auto convert = std::make_shared<ov::op::v0::Convert>(node, target_type);
+                for (const auto& input : consumers) {
+                    if (ov::is_type<ov::op::v0::Result>(input.get_node()) || ov::is_type<ov::op::v0::Convert>(input.get_node())) {
+                        continue;
+                    }
+                    input.replace_source_output(convert);
+                }
+            }
+            return true;
+        };
+
+        // Only preserve f16 rounding at Math op boundaries when f16 execution was requested (explicitly, or
+        // implicitly via a model that already contains f16)
+        auto model_has_f16 = [&]() {
+            for (const auto& op : func->get_ops()) {
+                for (const auto& output : op->outputs()) {
+                    if (output.get_element_type() == ov::element::f16) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        };
+
+        const bool preserve_math_f16_rounding = should_preserve_math_f16_rounding(requested_infer_precision, model_has_f16());
+
+        type_to_fuse_map fp_type_to_fuse = {};
+        if (preserve_math_f16_rounding) {
+            manager.register_pass<ov::pass::MarkMathBeforeFloorToKeepF16Rounding>();
+            for (const auto& type_info : {ov::op::v0::Cos::get_type_info_static(),
+                                          ov::op::v0::Cosh::get_type_info_static(),
+                                          ov::op::v0::Sin::get_type_info_static(),
+                                          ov::op::v0::Sinh::get_type_info_static(),
+                                          ov::op::v0::Acos::get_type_info_static(),
+                                          ov::op::v3::Acosh::get_type_info_static(),
+                                          ov::op::v0::Asin::get_type_info_static(),
+                                          ov::op::v3::Asinh::get_type_info_static(),
+                                          ov::op::v0::Atan::get_type_info_static(),
+                                          ov::op::v3::Atanh::get_type_info_static(),
+                                          ov::op::v0::Tan::get_type_info_static(),
+                                          ov::op::v0::Sign::get_type_info_static(),
+                                          ov::op::v4::SoftPlus::get_type_info_static(),
+                                          ov::op::v9::SoftSign::get_type_info_static(),
+                                          ov::op::v0::Selu::get_type_info_static(),
+                                          ov::op::v0::HardSigmoid::get_type_info_static()}) {
+                fp_type_to_fuse[type_info] = wrap_math_to_preserve_f16;
+            }
+        }
 
         // fuse softmax, MVN patterns, so that they will not be marked as precision sensitive in ConvertPrecision
         manager.register_pass<ov::pass::SoftmaxFusion>();
@@ -832,7 +929,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::intel_gpu::EliminateEmptySelectiveSSM>();
 
         manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
-                                                          empty_fuse_map,
+                                                          fp_type_to_fuse,
                                                           keep_precision_sensitive_in_fp32_1,
                                                           convert_input_output_precision,
                                                           store_original_precision_as_rt_attribute);

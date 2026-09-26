@@ -101,6 +101,7 @@ set(COMMON_OPTIMIZATIONS_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/lin_op_sequence_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/lora_subgraph_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/lstm_cell_fusion.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mark_math_before_floor_to_keep_f16_rounding.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mark_precision_sensitive_shapeof_subgraphs.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/mark_rope_input_to_keep_in_mixed_precision.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/common_optimizations/matmul_const_transposes_extraction.hpp

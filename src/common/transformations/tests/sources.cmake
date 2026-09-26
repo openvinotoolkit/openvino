@@ -83,6 +83,7 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/lora_subgraph_fusion.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/low_latency_v2_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/lstm_cell_fusion.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/mark_math_before_floor_to_keep_f16_rounding_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/mark_precision_sensitive_shapeof_subgraphs_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/mark_rope_input_to_keep_in_mixed_precision_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/mark_subgraph_to_keep_in_mixed_precision_test.cpp
