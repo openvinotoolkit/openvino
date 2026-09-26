@@ -131,5 +131,43 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs,
                                             ::testing::ValuesIn(inputPrecisions),
                                             ::testing::ValuesIn(constantPrecisions)),
                          ScatterUpdateLayerCPUTest::getTestCaseName);
+
+class ScatterUpdateLayerCPUTestNegative : public ScatterUpdateLayerCPUTest {};
+
+TEST_P(ScatterUpdateLayerCPUTestNegative, ThrowsOnOutOfRangeIndices) {
+    bool exception_caught = false;
+    set_callback_exception([&exception_caught](const std::exception& ex) {
+        exception_caught = true;
+        EXPECT_NE(dynamic_cast<const ov::Exception*>(&ex), nullptr) << "Expected ov::Exception but got: " << ex.what();
+    });
+    run();
+    EXPECT_TRUE(exception_caught) << "Expected an ov::Exception to be thrown for out-of-range indices";
+}
+
+const std::vector<ScatterUpdateLayerParams> scatterUpdateOutOfRangeParams = {
+    ScatterUpdateLayerParams{ScatterUpdateShapes{{{8}, {{8}}}, {{1}, {{1}}}},
+                             IndicesDescription{{1}, {100000}},
+                             Axis{0}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate1DFastPathOutOfRangeIndices,
+                         ScatterUpdateLayerCPUTestNegative,
+                         ::testing::Combine(::testing::ValuesIn(scatterUpdateOutOfRangeParams),
+                                            ::testing::Values(ElementType::i32),
+                                            ::testing::Values(ElementType::i32)),
+                         ScatterUpdateLayerCPUTest::getTestCaseName);
+
+const std::vector<ScatterUpdateLayerParams> scatterUpdateGeneralPathOutOfRangeParams = {
+    ScatterUpdateLayerParams{ScatterUpdateShapes{{{8, 4}, {{8, 4}}}, {{2, 4}, {{2, 4}}}},
+                             IndicesDescription{{2}, {0, 100000}},
+                             Axis{0}},
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdateGeneralPathOutOfRangeIndices,
+                         ScatterUpdateLayerCPUTestNegative,
+                         ::testing::Combine(::testing::ValuesIn(scatterUpdateGeneralPathOutOfRangeParams),
+                                            ::testing::ValuesIn(inputPrecisions),
+                                            ::testing::ValuesIn(constantPrecisions)),
+                         ScatterUpdateLayerCPUTest::getTestCaseName);
 }  // namespace test
 }  // namespace ov

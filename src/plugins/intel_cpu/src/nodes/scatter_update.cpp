@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "scatter_update.h"
+#include "openvino/op/scatter_update.hpp"
 
 #include <array>
+#include <atomic>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -35,7 +36,7 @@
 #include "openvino/core/type/float16.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/scatter_nd_update.hpp"
-#include "openvino/op/scatter_update.hpp"
+#include "scatter_update.h"
 #include "selective_build.h"
 #include "shape_inference/shape_inference_cpu.hpp"
 #include "utils/debug_capabilities.h"
@@ -880,6 +881,8 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
             auto* pindices = reinterpret_cast<int32_t*>(indicesPtr);
             auto* pupdate = reinterpret_cast<int32_t*>(updatePtr);
             for (size_t i = 0; i < updateCnt; i++) {
+                CPU_NODE_ASSERT(pindices[i] >= 0 && static_cast<size_t>(pindices[i]) < srcLength,
+                                "has indices value that points to non-existing output tensor element");
                 pdst[pindices[i]] = pupdate[i];
             }
             return;
@@ -904,17 +907,28 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
 
         size_t srcDimAxis = srcDataDim[axis];
         std::vector<size_t> indicesBlockND = getBlockND(indicesDim);
+        // fully validate (possibly negative) indices here so the per-element write loops stay branch-free.
+        // Violations are flagged, not thrown, inside the loop: an exception escaping a parallel_nt worker
+        // is not reliably propagated on the OpenMP threading backend.
+        const bool allowNegativeIndices = scatterUpdateMode == ScatterUpdateMode::ScatterElementsUpdate;
+        std::atomic<bool> out_of_range{false};
         parallel_nt(0, [&](const int ithr, const int nthr) {
             size_t start = 0;
             size_t end = 0;
             splitter(indicesBlockND[0], nthr, ithr, start, end);
+            bool local_out_of_range = false;
             for (size_t i = start; i < end; i++) {
                 int64_t idxValue = getIndicesValue(indicesPtr, i);
-                CPU_NODE_ASSERT(idxValue < static_cast<int64_t>(srcDimAxis) &&
-                                    (idxValue >= 0 || scatterUpdateMode == ScatterUpdateMode::ScatterElementsUpdate),
-                                "have indices value that points to non-existing output tensor element");
+                if (allowNegativeIndices && idxValue < 0) {
+                    idxValue += static_cast<int64_t>(srcDimAxis);
+                }
+                local_out_of_range = local_out_of_range || idxValue < 0 || idxValue >= static_cast<int64_t>(srcDimAxis);
+            }
+            if (local_out_of_range) {
+                out_of_range.store(true, std::memory_order_relaxed);
             }
         });
+        CPU_NODE_ASSERT(!out_of_range, "have indices value that points to non-existing output tensor element");
 
         if (scatterUpdateMode == ScatterUpdateMode::ScatterUpdate) {
             VectorDims indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();
