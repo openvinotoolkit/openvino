@@ -63,6 +63,18 @@ protected:
     ze_usm_resource _host_buffer;
 };
 
+struct gpu_usm_from_external_sysmem : public gpu_usm {
+    gpu_usm_from_external_sysmem(ze_engine* engine,
+                                 const layout& new_layout,
+                                 ov_ze_usm_handle usm_handle,
+                                 allocation_type type,
+                                 std::shared_ptr<MemoryTracker> mem_tracker);
+    ~gpu_usm_from_external_sysmem() override;
+
+private:
+    ov_ze_usm_handle _usm_handle;
+};
+
 struct gpu_image2d : public lockable_gpu_mem, public memory {
     gpu_image2d(ze_engine* engine, const layout& new_layout, ze_image_resource image, std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_image2d(ze_engine* engine, const layout& layout);
