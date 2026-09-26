@@ -265,6 +265,15 @@ inline size_t micro_get_value_cache_id(const kernel_impl_params& params) {
     return get_value_cache_id(*desc);
 }
 
+inline bool micro_is_v_transposed(const kernel_impl_params& params) {
+    if (params.is_type<paged_attention>())
+        return false;
+
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    const auto order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
+    return order[2] == 3 && order[3] == 2;
+}
+
 struct sdpa_config_t {
     int unroll_m_kq, unroll_n_kq;  // Subgroup tile sizes for K*Q GEMM
     int unroll_m_vs, unroll_n_vs;  // Subgroup tile sizes for V*S GEMM
@@ -1220,6 +1229,7 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     jit.make("IS_PREFILL", m_is_prefill);
     jit.make("IS_GQA_SINGLE_TOKEN", m_is_gqa_single_token);
     jit.make("TRANSPOSE_K", false);
+    jit.make("TRANSPOSE_V", micro_is_v_transposed(params));
     jit.make("IS_PAGED_ATTENTION", config.is_paged_attention ? 1 : 0);
     jit.make("KV_HEADS_NUM", config.kv_heads_num);
     jit.make("HEADS_NUM", m_is_gqa_single_token ? config.kv_heads_num : config.heads_num);
@@ -1885,7 +1895,8 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     if (is_int4_kv_cache && is_paged_attention && !is_prefill) {
         problem_vs.Ta_ext = convert_type(kv_cache_precision);
     }
-    problem_vs.A.layout = micro::MatrixLayout::N;
+    const bool transpose_v = micro_is_v_transposed(params);
+    problem_vs.A.layout = transpose_v ? micro::MatrixLayout::T : micro::MatrixLayout::N;
 
     if (is_paged_attention && !is_prefill && is_quantized) {
         auto scale_dt = convert_type(ov::element::f16);
@@ -1950,6 +1961,8 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     if (is_int4_kv_cache && is_paged_attention && !is_prefill) {
         // INT4 V: ldv = packed_head_bytes + scales = v_head_size * u4 + 4 = 68
         problem_vs.A.setAlignment(static_cast<int>(v_head_size * problem_vs.Ta_ext) + 4);
+    } else if (transpose_v) {
+        problem_vs.A.setAlignment(problem_vs.Ta_ext.size());
     } else {
         problem_vs.A.setAlignment(micro::alignment_for_ld(static_cast<int>(v_head_size * problem.Ta)));
     }

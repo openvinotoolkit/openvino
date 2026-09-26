@@ -1,4 +1,4 @@
-// Copyright (C) 2018-2026 Intel Corporation
+﻿// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
 
@@ -594,6 +594,94 @@ INSTANTIATE_TEST_SUITE_P(
     ),
     sdpa_micro_prefetch_k_test::PrintToStringParamName
 );
+
+
+TEST(sdpa_gpu_micro, transposed_v_matches_non_transposed_v) {
+    constexpr int batch = 1;
+    constexpr int heads = 4;
+    constexpr int seq_q = 17;
+    constexpr int seq_kv = 96;
+    constexpr int head_size = 64;
+
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "SDPA micro requires IMMAD support";
+
+    tests::random_generator rg;
+    rg.set_seed(GET_SUITE_NAME);
+    const auto q_data = rg.generate_random_1d<ov::float16>(batch * heads * seq_q * head_size, -1.0f, 1.0f);
+    const auto k_data = rg.generate_random_1d<ov::float16>(batch * heads * seq_kv * head_size, -1.0f, 1.0f);
+    const auto v_data = rg.generate_random_1d<ov::float16>(batch * heads * seq_kv * head_size, -1.0f, 1.0f);
+
+    std::vector<ov::float16> transposed_v_data(v_data.size());
+    for (int b = 0; b < batch; ++b) {
+        for (int h = 0; h < heads; ++h) {
+            for (int s = 0; s < seq_kv; ++s) {
+                for (int d = 0; d < head_size; ++d) {
+                    const size_t src_idx = ((static_cast<size_t>(b) * heads + h) * seq_kv + s) * head_size + d;
+                    const size_t dst_idx = ((static_cast<size_t>(b) * heads + h) * head_size + d) * seq_kv + s;
+                    transposed_v_data[dst_idx] = v_data[src_idx];
+                }
+            }
+        }
+    }
+
+    const layout q_layout({batch, heads, seq_q, head_size}, data_types::f16, format::bfyx);
+    const layout k_layout({batch, heads, seq_kv, head_size}, data_types::f16, format::bfyx);
+    const layout v_layout({batch, heads, seq_kv, head_size}, data_types::f16, format::bfyx);
+    const layout transposed_v_layout({batch, heads, head_size, seq_kv}, data_types::f16, format::bfyx);
+
+    auto q_mem = engine.allocate_memory(q_layout);
+    auto k_mem = engine.allocate_memory(k_layout);
+    auto v_mem = engine.allocate_memory(v_layout);
+    auto transposed_v_mem = engine.allocate_memory(transposed_v_layout);
+    set_values(q_mem, q_data);
+    set_values(k_mem, k_data);
+    set_values(v_mem, v_data);
+    set_values(transposed_v_mem, transposed_v_data);
+
+    auto execute = [&](const layout& input_v_layout,
+                       const memory::ptr& input_v,
+                       const std::vector<int64_t>& input_v_order) {
+        topology topo;
+        topo.add(input_layout("q", q_layout));
+        topo.add(input_layout("k", k_layout));
+        topo.add(input_layout("v", input_v_layout));
+        topo.add(scaled_dot_product_attention("sdpa",
+                                               {input_info("q"), input_info("k"), input_info("v")},
+                                               true,
+                                               -1,
+                                               {0, 1, 2, 3},
+                                               {0, 1, 2, 3},
+                                               input_v_order,
+                                               {0, 1, 2, 3},
+                                               {},
+                                               false));
+        topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::force_implementations(
+            ov::intel_gpu::ImplForcingMap{{"sdpa", {format::type::bfyx, "sdpa_micro"}}}));
+
+        auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
+        network->set_input_data("q", q_mem);
+        network->set_input_data("k", k_mem);
+        network->set_input_data("v", input_v);
+        return network->execute().at("result").get_memory();
+    };
+
+    auto reference_mem = execute(v_layout, v_mem, {0, 1, 2, 3});
+    auto transposed_mem = execute(transposed_v_layout, transposed_v_mem, {0, 1, 3, 2});
+
+    mem_lock<ov::float16, mem_lock_type::read> reference(reference_mem, get_test_stream());
+    mem_lock<ov::float16, mem_lock_type::read> transposed(transposed_mem, get_test_stream());
+    ASSERT_EQ(reference.size(), transposed.size());
+    ASSERT_GE(cosineSimilarity(reference, transposed), 0.999f);
+    for (size_t i = 0; i < reference.size(); ++i) {
+        ASSERT_NEAR(static_cast<float>(reference[i]), static_cast<float>(transposed[i]), 0.02f) << "Mismatch at index " << i;
+    }
+}
 
 #endif
 
