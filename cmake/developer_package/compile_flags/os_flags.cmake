@@ -39,7 +39,7 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN ON)
 if(CMAKE_CL_64)
     # Default char Type Is unsigned
     # ov_add_compiler_flags(/J)
-elseif(CMAKE_COMPILER_IS_GNUCXX OR OV_COMPILER_IS_CLANG OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
+elseif(CMAKE_COMPILER_IS_GNUCXX OR (OV_COMPILER_IS_CLANG AND NOT MSVC) OR (OV_COMPILER_IS_INTEL_LLVM AND UNIX))
     ov_add_compiler_flags(-fsigned-char)
 endif()
 
@@ -55,7 +55,7 @@ endif()
 
 file(RELATIVE_PATH OV_NATIVE_PARENT_PROJECT_ROOT_DIR "${CMAKE_SOURCE_DIR}/.." ${CMAKE_SOURCE_DIR})
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+if(MSVC AND NOT OV_COMPILER_IS_INTEL_LLVM)
     #
     # Common options / warnings enabled
     #
@@ -116,9 +116,14 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     # Enable __FILE__ trim, use path with forward and backward slash as directory separator
     # github actions use sccache which doesn't support /d1trimfile compile option
     if(NOT DEFINED ENV{GITHUB_ACTIONS})
-        add_compile_options(
-            "$<$<COMPILE_LANGUAGE:CXX>:/d1trimfile:${OV_NATIVE_PROJECT_ROOT_DIR}\\>"
-            "$<$<COMPILE_LANGUAGE:CXX>:/d1trimfile:${CMAKE_SOURCE_DIR}/>")
+        # Only add /d1trimfile for real MSVC (cl.exe). Exclude clang-cl which
+        # reports MSVC-compatible generator variables but does not accept this
+        # internal /d1 option and would emit unused-argument warnings.
+        if(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND NOT OV_COMPILER_IS_CLANG_CL)
+            add_compile_options(
+                "$<$<COMPILE_LANGUAGE:CXX>:/d1trimfile:${OV_NATIVE_PROJECT_ROOT_DIR}\\>"
+                "$<$<COMPILE_LANGUAGE:CXX>:/d1trimfile:${CMAKE_SOURCE_DIR}/>")
+        endif()
     endif()
 
     #
