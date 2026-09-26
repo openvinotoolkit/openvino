@@ -82,6 +82,14 @@ struct primitive_impl {
     virtual bool is_cpu() const { return true; }
     virtual bool is_onednn() const { return false; }
 
+    // Recording captures GPU API calls made during execute()
+    // Implementation supports replay only when captured calls remain valid and host side logic can be skipped.
+    // This function should return false when:
+    //  * Kernel dispatch logic depends on the tensor data instead of tensor shape
+    //  * Results are calculated on the CPU
+    // By default non-cpu implementations are considered to support replay.
+    virtual bool supports_replay() const { return !is_cpu(); }
+
     // Whether this impl needs its inputs to be in host-accessible (lockable) memory.
     // Defaults to is_cpu(), because CPU impls typically read/write tensor data from the host.
     // Impls whose execute path only performs GPU-side USM operations (e.g. an enqueue_memcpy
@@ -303,7 +311,8 @@ public:
     // Defers output memory invalidation until prepare_primitive(), after runtime shapes are known.
     void request_output_reallocation() { _output_reallocation_requested = true; }
 
-    void reset_events();
+    void clear_events();
+    void reset_out_event();
 
     void prepare_primitive();
     void execute();
