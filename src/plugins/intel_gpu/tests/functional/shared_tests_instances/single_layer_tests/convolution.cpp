@@ -10,7 +10,7 @@
 namespace ov {
 namespace test {
 
-class ConvolutionLayerGPUTest : public ConvolutionLayerTest {
+class ConvolutionLayerSharedGPUTest : public ConvolutionLayerTest {
 protected:
     void SetUp() override {
         ConvolutionLayerTest::SetUp();
@@ -22,7 +22,7 @@ protected:
     }
 };
 
-TEST_P(ConvolutionLayerGPUTest, Inference) {
+TEST_P(ConvolutionLayerSharedGPUTest, Inference) {
     run();
 }
 
@@ -30,7 +30,7 @@ TEST_P(ConvolutionLayerGPUTest, Inference) {
 }  // namespace ov
 
 namespace {
-using ov::test::ConvolutionLayerGPUTest;
+using ov::test::ConvolutionLayerSharedGPUTest;
 const std::vector<ov::element::Type> netPrecisions = {
         ov::element::f32,
         ov::element::f16
@@ -47,13 +47,13 @@ const auto conv1DParams = ::testing::Combine(
         ::testing::Values(ov::op::PadType::EXPLICIT)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Convolution1D, ConvolutionLayerGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution1D, ConvolutionLayerSharedGPUTest,
                          ::testing::Combine(
                                  conv1DParams,
                                  ::testing::Values(ov::element::f32),
                                  ::testing::Values(ov::test::static_partial_shapes_to_test_representation(std::vector<ov::PartialShape>({{1, 256, 1}}))),
                                  ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ConvolutionLayerGPUTest::getTestCaseName);
+                         ConvolutionLayerSharedGPUTest::getTestCaseName);
 
 const auto conv1DParams_mux = ::testing::Combine(
         ::testing::ValuesIn(std::vector<std::vector<size_t>>({{4}, {128}})),
@@ -65,14 +65,14 @@ const auto conv1DParams_mux = ::testing::Combine(
         ::testing::Values(ov::op::PadType::EXPLICIT)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Convolution1D_B32, ConvolutionLayerGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution1D_B32, ConvolutionLayerSharedGPUTest,
                          ::testing::Combine(
                                  conv1DParams_mux,
                                  ::testing::ValuesIn({ov::element::f32}),
                                  ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(std::vector<std::vector<ov::Shape>>(
                                         {{{32, 1, 4102}}, {{32, 16, 4102}}}))),
                                  ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ConvolutionLayerGPUTest::getTestCaseName);
+                         ConvolutionLayerSharedGPUTest::getTestCaseName);
 /* ============= 2D Convolution ============= */
 const std::vector<std::vector<size_t >> kernels = {{3, 3},
                                                    {3, 5}};
@@ -108,21 +108,21 @@ const auto conv2DParams_AutoPadValid = ::testing::Combine(
         ::testing::Values(ov::op::PadType::VALID)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_ExplicitPadding, ConvolutionLayerGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_ExplicitPadding, ConvolutionLayerSharedGPUTest,
                          ::testing::Combine(
                                  conv2DParams_ExplicitPadding,
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(ov::test::static_shapes_to_test_representation({{1, 3, 30, 30}})),
                                  ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ConvolutionLayerGPUTest::getTestCaseName);
+                         ConvolutionLayerSharedGPUTest::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid, ConvolutionLayerGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_AutoPadValid, ConvolutionLayerSharedGPUTest,
                          ::testing::Combine(
                                  conv2DParams_AutoPadValid,
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(ov::test::static_shapes_to_test_representation({{1, 3, 30, 30}})),
                                  ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ConvolutionLayerGPUTest::getTestCaseName);
+                         ConvolutionLayerSharedGPUTest::getTestCaseName);
 
 const auto conv2DParams_emb = ::testing::Combine(
         ::testing::Values(std::vector<size_t>({3, 3})),
@@ -134,13 +134,13 @@ const auto conv2DParams_emb = ::testing::Combine(
         ::testing::Values(ov::op::PadType::EXPLICIT)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_B32, ConvolutionLayerGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution2D_B32, ConvolutionLayerSharedGPUTest,
                          ::testing::Combine(
                                  conv2DParams_emb,
                                  ::testing::ValuesIn({ov::element::f32}),
                                  ::testing::Values(ov::test::static_shapes_to_test_representation({{32, 64, 128, 199}})),
                                  ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ConvolutionLayerGPUTest::getTestCaseName);
+                         ConvolutionLayerSharedGPUTest::getTestCaseName);
 /* ============= 3D Convolution ============= */
 const std::vector<std::vector<size_t >> kernels3d = {{3, 3, 3},
                                                      {3, 5, 3}};
@@ -165,11 +165,11 @@ const auto conv3DParams = ::testing::Combine(
         ::testing::Values(ov::op::PadType::EXPLICIT)
 );
 
-INSTANTIATE_TEST_SUITE_P(smoke_Convolution3D_Basic1, ConvolutionLayerGPUTest,
+INSTANTIATE_TEST_SUITE_P(smoke_Convolution3D_Basic1, ConvolutionLayerSharedGPUTest,
                          ::testing::Combine(
                                  conv3DParams,
                                  ::testing::ValuesIn(netPrecisions),
                                  ::testing::Values(ov::test::static_shapes_to_test_representation({{1, 3, 10, 10, 10}})),
                                  ::testing::Values(ov::test::utils::DEVICE_GPU)),
-                         ConvolutionLayerGPUTest::getTestCaseName);
+                         ConvolutionLayerSharedGPUTest::getTestCaseName);
 }  // namespace
