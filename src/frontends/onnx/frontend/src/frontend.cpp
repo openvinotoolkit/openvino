@@ -50,7 +50,6 @@
 #include "unconverted_ops_report.hpp"
 #include "utils/common.hpp"
 #include "utils/onnx_internal.hpp"
-
 using namespace ov;
 using namespace ov::frontend::onnx;
 using namespace ov::frontend::onnx::common;
@@ -207,11 +206,22 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
     }
     if (variants[0].is<std::istream*>()) {
         const auto stream = variants[0].as<std::istream*>();
-        if (variants.size() > 1)
+        std::filesystem::path model_path;
+        if (variants.size() > 1) {
             if (const auto path = get_path_from_any(variants[1])) {
-                return std::make_shared<InputModel>(*stream, path.value(), enable_mmap, m_extensions);
+                model_path = path.value();
+                if (variants.size() > 2 && variants[2].is<bool>()) {
+                    enable_mmap = variants[2].as<bool>();
+                }
             }
-        return std::make_shared<InputModel>(*stream, enable_mmap, m_extensions);
+        }
+        if (!gi_enabled) {
+            return std::make_shared<InputModel>(*stream, model_path, enable_mmap, m_extensions);
+        }
+        auto graph_iterator = std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
+        graph_iterator->initialize(*stream, model_path);
+        graph_iterator->reset();
+        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, m_extensions.telemetry);
     }
     // !!! Experimental feature, it may be changed or removed in the future !!!
     if (variants[0].is<uint64_t>()) {
@@ -221,7 +231,14 @@ ov::frontend::InputModel::Ptr FrontEnd::load_impl(const std::vector<ov::Any>& va
         FRONT_END_GENERAL_CHECK(
             model_proto_ptr->has_ir_version() && model_proto_ptr->ir_version() < Version::IR_VERSION,
             "A ModelProto object contains unsupported IR version");
-        return std::make_shared<InputModel>(std::make_shared<ModelProto>(*model_proto_ptr), m_extensions);
+        auto model_proto = std::make_shared<ModelProto>(*model_proto_ptr);
+        if (!gi_enabled) {
+            return std::make_shared<InputModel>(std::move(model_proto), m_extensions);
+        }
+        auto graph_iterator = std::make_shared<GraphIteratorProto>(enable_mmap ? Internal_MMAP : Internal_Stream);
+        graph_iterator->initialize(std::move(model_proto));
+        graph_iterator->reset();
+        return std::make_shared<unify::InputModel>(graph_iterator, enable_mmap, m_extensions.telemetry);
     }
     // !!! End of Experimental feature
 
@@ -509,7 +526,7 @@ void FrontEnd::translate_graph(const InputModel::Ptr& input_model,
     auto translators_map = std::make_shared<OperatorsBridge>();
     translators_map->register_extensions(m_extensions.conversions);
 
-    TranslateSession translate_session(input_model, translators_map, "MainGraph");
+    TranslateSession translate_session(input_model, translators_map, "MainGraph", m_extensions.progress_reporter);
     translate_session.set_fail_fast(fail_fast);
     try {
         ov_model = translate_session.get_converted_model();

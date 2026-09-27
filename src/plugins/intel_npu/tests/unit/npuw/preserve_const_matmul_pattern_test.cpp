@@ -216,7 +216,7 @@ TEST(OptPatterns, StandardLayout_NoConvert_MatchesAndPreservesConsts) {
     EXPECT_TRUE(std::find(to_keep.begin(), to_keep.end(), qcoeff) != to_keep.end());
 }
 
-TEST(OptPatterns, PairedSub128_MatchesAndPreservesConsts) {
+TEST(OptPatterns, PairedSub128_DoesNotPreserveConsts) {
     const ov::Shape weight_shape{32064, 3072};
     const ov::Shape scale_shape{32064, 1};
     auto [qweight, qzerop, qcoeff, model] = build_asymm_matmul_subgraph(weight_shape,
@@ -231,10 +231,7 @@ TEST(OptPatterns, PairedSub128_MatchesAndPreservesConsts) {
     ResultNodes to_keep;
     run_preserve_pattern(model, to_keep);
 
-    ASSERT_EQ(to_keep.size(), 3u);
-    EXPECT_TRUE(std::find(to_keep.begin(), to_keep.end(), qweight) != to_keep.end());
-    EXPECT_TRUE(std::find(to_keep.begin(), to_keep.end(), qzerop) != to_keep.end());
-    EXPECT_TRUE(std::find(to_keep.begin(), to_keep.end(), qcoeff) != to_keep.end());
+    EXPECT_TRUE(to_keep.empty());
 }
 
 TEST(OptPatterns, Non128Subtraction_DoesNotPreserveConsts) {

@@ -5,10 +5,7 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs softshrink(const NodeContext& node) {
     auto data = node.get_input("X");
     const float lambda = node.get_attribute<float>("lambda", 0.5f);
@@ -38,7 +35,4 @@ NamedOutputs softshrink(const NodeContext& node) {
 
     return node.default_single_output_mapping({output}, {"Out"});
 }
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

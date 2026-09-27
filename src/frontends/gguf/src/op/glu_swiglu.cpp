@@ -18,10 +18,7 @@
 #include "openvino/op/slice.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 namespace {
 // Resolve the two GLU halves: either two explicit inputs, or one combined tensor split along the
@@ -94,7 +91,4 @@ OutputVector translate_glu_swiglu_oai(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

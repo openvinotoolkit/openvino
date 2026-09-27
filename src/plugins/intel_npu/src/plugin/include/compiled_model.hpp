@@ -34,7 +34,7 @@ public:
                   const std::shared_ptr<const ov::IPlugin>& plugin,
                   const std::shared_ptr<IDevice>& device,
                   const std::shared_ptr<IGraph>& graph,
-                  const FilteredConfig& config,
+                  const Config& config,
                   const ov::AnyMap& properties,
                   const std::optional<int64_t>& batchSize);
 
@@ -62,7 +62,10 @@ public:
 
 private:
     // For special config, stream executors must be set accordingly to ensure correct behavior.
-    void configure_stream_executors(ov::streams::Num numStreams, bool runInferencesSequentially);
+    void configure_stream_executors(ov::streams::Num numStreams,
+                                    bool runInferencesSequentially,
+                                    bool useSharedExecutors,
+                                    uint64_t sharedExecutorsId);
 
     Logger _logger;
 

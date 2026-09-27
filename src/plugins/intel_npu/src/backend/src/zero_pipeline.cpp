@@ -87,11 +87,13 @@ IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
                                 "profiling type is 'INFER'");
                 enable_profiling();
             }
-        } else if (compiled_with_profiling.value_or(false)) {
-            _logger.warning("IPipeline - model was compiled with layer profiling enabled, PERF_COUNT is NOT set and "
-                            "timestamps will "
-                            "not be extracted");
-            enable_profiling();
+        } else {
+            _logger.warning("IPipeline - PROFILING_TYPE=INFER requires PERF_COUNT=ON; inference profiling is disabled");
+            if (compiled_with_profiling.value_or(false)) {
+                _logger.warning("IPipeline - model was compiled with layer profiling enabled, PERF_COUNT is NOT set "
+                                "and timestamps will not be extracted");
+                enable_profiling();
+            }
         }
     } else {
         if (compiled_with_profiling.has_value()) {
