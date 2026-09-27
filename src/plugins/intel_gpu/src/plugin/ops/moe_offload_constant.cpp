@@ -218,7 +218,6 @@ MoEOffloadWeightStats collect_moe_offload_weight_stats(const ov::Model& model) {
     accumulate_weight_bytes(model, visited, stats);
     return stats;
 }
-
 size_t calculate_auto_offload_ratio(const MoEOffloadWeightStats& stats, uint64_t memory_budget) {
     if (stats.routed == 0 || memory_budget == 0)
         return 0;
@@ -227,6 +226,8 @@ size_t calculate_auto_offload_ratio(const MoEOffloadWeightStats& stats, uint64_t
 
     const double budget_for_moe =
         static_cast<double>(memory_budget) * AUTO_OFFLOAD_RATIO_FIT_SAFETY - static_cast<double>(w_fixed);
+    if (budget_for_moe <= 0)
+        return 0; // no enough budget for any offload
 
     if (budget_for_moe >= static_cast<double>(stats.routed)) {
         return 0;  // everything fits, no offload needed
@@ -271,12 +272,16 @@ size_t resolve_auto_offload_ratio(const ov::Model& model, cldnn::engine& engine)
         }
     }
     if (m_budget == 0) {
-        GPU_DEBUG_INFO << "[MOE OTD auto] could not determine memory budget; resolved offload_ratio=0" << std::endl;
-        return 0;
+        GPU_DEBUG_INFO << "[MOE OTD auto] could not get memory budget; resolved offload_ratio=0" << std::endl;
+        return 0; // Failed to offload due to no available memory budget
     }
 
     const uint64_t w_fixed = stats.total - stats.routed;
     const double budget_for_moe = static_cast<double>(m_budget) * AUTO_OFFLOAD_RATIO_FIT_SAFETY - static_cast<double>(w_fixed);
+    if (budget_for_moe <= 0) {
+        GPU_DEBUG_INFO << "[MOE OTD auto] available memory is insufficient for fixed weights; resolved offload_ratio=0" << std::endl;
+        return 0;
+    }
     const size_t ratio = calculate_auto_offload_ratio(stats, m_budget);
 
     std::cout << "[MOE OTD auto] dev_type=" << (info.dev_type == cldnn::device_type::integrated_gpu ? "iGPU" : "dGPU")
@@ -287,6 +292,11 @@ size_t resolve_auto_offload_ratio(const ov::Model& model, cldnn::engine& engine)
                    << " w_fixed=" << w_fixed
                    << " budget_for_moe=" << static_cast<long long>(budget_for_moe)
                    << " -> resolved offload_ratio=" << ratio << std::endl;
+
+    if (ratio > AUTO_OFFLOAD_MAX_RATIO_THRESHOLD) {
+        GPU_DEBUG_INFO << "[MOE OTD auto] resolved offload_ratio to 0 due to calculated ratio " << ratio << " exceeds " << AUTO_OFFLOAD_MAX_RATIO_THRESHOLD << std::endl;
+        return 0; // reject to run with AUTO mode when the calculated offload ratio exceeds the threshold
+    }
     return ratio;
 }
 
