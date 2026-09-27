@@ -1119,7 +1119,9 @@ inline bool micro_fold_key_scales_into_q(const kernel_impl_params& params, bool 
     if (use_asymmetric_quantization && params.typed_desc<scaled_dot_product_attention>()->has_sink_input)
         return false;
     // Per-channel scales have seq == 1 and one entry per channel; per-token scales have seq > 1.
-    const auto& ps = params.input_layouts[micro_get_key_cache_id(params)].get_partial_shape();
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    const auto scale_idx = get_data_inputs_num(*desc);
+    const auto& ps = params.input_layouts[scale_idx].get_partial_shape();
     return ps[2].get_length() == 1 && ps[3].get_length() > 1;
 }
 
@@ -1137,7 +1139,9 @@ inline bool micro_fold_key_scales_into_q(const kernel_impl_params& params, bool 
 inline bool micro_fold_value_scales_into_output(const kernel_impl_params& params, bool is_kv_compressed) {
     if (params.is_type<paged_attention>() || !is_kv_compressed || vs_common_scales || vs_common_zp)
         return false;
-    const auto& ps = params.input_layouts[micro_get_value_cache_id(params)].get_partial_shape();
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    const auto scale_idx = get_data_inputs_num(*desc) + 1;
+    const auto& ps = params.input_layouts[scale_idx].get_partial_shape();
     return ps[2].get_length() == 1 && ps[3].get_length() > 1;
 }
 

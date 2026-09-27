@@ -95,6 +95,8 @@ public:
                     // Sometimes micro kernel will fail due to "Insufficient registers in requested bundle",
                     // In this case, fallback to opt kernel.
                     if (!has_stage(regular_micro_multi_tokens)) {
+                        OPENVINO_ASSERT(!SDPAOpt::has_per_channel_compressed_kv(params),
+                                        "Per-channel compressed KV requires the micro SDPA kernel");
                         GPU_DEBUG_TRACE_DETAIL << "fail to create micro kernel, fallback to regular_multi_tokens for prefill \n";
                         add_stage(regular_multi_tokens, params);
                     }
