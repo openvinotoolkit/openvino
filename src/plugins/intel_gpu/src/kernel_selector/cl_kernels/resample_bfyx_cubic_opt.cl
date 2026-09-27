@@ -42,51 +42,54 @@ inline float FUNC(get_original_coordinate)(float num, float scale, int length_re
 
 inline void FUNC(get_cubic_coeff)(float* cubic_coef, float coord, float coef)
 {
-    // NOTE: The multiply-then-add/sub sequences below (e.g. "t0 - 5.0f * coef")
-    // must be evaluated with separate rounding steps (as-if FP_CONTRACT were OFF)
+    // NOTE: The multiply-then-add/sub sequences below (e.g. "coef * x0 - 5.0f * coef")
+    // must be evaluated with separate rounding steps (as-if FP_CONTRACT/mad were OFF)
     // to match the reference implementation bit-for-bit. Instead of disabling
-    // FP_CONTRACT for the whole translation unit (which would also block FMA
-    // fusion for unrelated, perf-sensitive code), we locally block fusion only
-    // for these specific multiplications by routing them through a volatile
-    // temporary, forcing the multiply to be rounded/stored before it is used
-    // in the following add/sub.
+    // FP_CONTRACT/"-cl-mad-enable" for the whole translation unit (which would also
+    // block FMA/mad fusion for unrelated, perf-sensitive code), we locally block
+    // fusion only for these specific multiplications by routing *both* operands of
+    // every add/sub whose left- or right-hand side is itself a multiplication
+    // through a volatile temporary. This forces each multiplication to be
+    // rounded/stored (single rounding step) before it is combined with the
+    // following add/sub, regardless of which operand the compiler would have
+    // otherwise chosen to fuse.
     float abs_num = fabs(coord);
     float x0 = abs_num + 1.0f;
     float x1 = abs_num;
     float x2 = 1.0f - abs_num;
     float x3 = 2.0f - abs_num;
 
-    float t0 = coef * x0;
-    volatile float t0_mul_5c = 5.0f * coef;
-    t0 = t0 - t0_mul_5c;
-    t0 = t0 * x0;
-    volatile float t0_mul_8c = 8.0f * coef;
-    t0 = t0 + t0_mul_8c;
-    t0 = t0 * x0;
-    volatile float t0_mul_4c = 4.0f * coef;
-    cubic_coef[0] = t0 - t0_mul_4c;
+    volatile float t0_m1 = coef * x0;
+    volatile float t0_c1 = 5.0f * coef;
+    float t0 = t0_m1 - t0_c1;
+    volatile float t0_m2 = t0 * x0;
+    volatile float t0_c2 = 8.0f * coef;
+    t0 = t0_m2 + t0_c2;
+    volatile float t0_m3 = t0 * x0;
+    volatile float t0_c3 = 4.0f * coef;
+    cubic_coef[0] = t0_m3 - t0_c3;
 
-    float t1 = (coef + 2.0f) * x1;
-    t1 = t1 - (coef + 3.0f);
+    volatile float t1_m1 = (coef + 2.0f) * x1;
+    float t1 = t1_m1 - (coef + 3.0f);
     t1 = t1 * x1;
-    t1 = t1 * x1;
-    cubic_coef[1] = t1 + 1.0f;
+    volatile float t1_m2 = t1 * x1;
+    cubic_coef[1] = t1_m2 + 1.0f;
 
-    float t2 = (coef + 2.0f) * x2;
-    t2 = t2 - (coef + 3.0f);
+    volatile float t2_m1 = (coef + 2.0f) * x2;
+    float t2 = t2_m1 - (coef + 3.0f);
     t2 = t2 * x2;
-    t2 = t2 * x2;
-    cubic_coef[2] = t2 + 1.0f;
+    volatile float t2_m2 = t2 * x2;
+    cubic_coef[2] = t2_m2 + 1.0f;
 
-    float t3 = coef * x3;
-    volatile float t3_mul_5c = 5.0f * coef;
-    t3 = t3 - t3_mul_5c;
-    t3 = t3 * x3;
-    volatile float t3_mul_8c = 8.0f * coef;
-    t3 = t3 + t3_mul_8c;
-    t3 = t3 * x3;
-    volatile float t3_mul_4c = 4.0f * coef;
-    cubic_coef[3] = t3 - t3_mul_4c;
+    volatile float t3_m1 = coef * x3;
+    volatile float t3_c1 = 5.0f * coef;
+    float t3 = t3_m1 - t3_c1;
+    volatile float t3_m2 = t3 * x3;
+    volatile float t3_c2 = 8.0f * coef;
+    t3 = t3_m2 + t3_c2;
+    volatile float t3_m3 = t3 * x3;
+    volatile float t3_c3 = 4.0f * coef;
+    cubic_coef[3] = t3_m3 - t3_c3;
 }
 
 KERNEL (resample_bfyx_cubic_opt)(
@@ -149,7 +152,7 @@ KERNEL (resample_bfyx_cubic_opt)(
                     x_idx[dx] >= 0 && x_idx[dx] < INPUT0_SIZE_X)
 #endif
                 {
-                    const float term = cy[dy] * cx[dx] * (float)input[INPUT0_GET_INDEX(out_b, out_f, y_idx[dy], x_idx[dx])];
+                    const float term = cy[dy] * cx[dx] * (float)DECODE_INPUT0_COMPUTE_TYPE(input[INPUT0_GET_INDEX(out_b, out_f, y_idx[dy], x_idx[dx])]);
                     interp_val = interp_val + (ACCUMULATOR_TYPE)term;
                 }
             }

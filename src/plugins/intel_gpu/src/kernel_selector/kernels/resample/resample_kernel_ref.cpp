@@ -158,22 +158,18 @@ static bool is_fast_caffe_bilinear_interp_case(const resample_params& params) {
            input.Feature().v == output.Feature().v;
 }
 
-JitConstants ResampleKernelRef::get_jit_constants(const resample_params& params, bool legacy_scale) const {
+JitConstants ResampleKernelRef::GetJitConstants(const resample_params& params, bool legacy_scale) const {
     const auto fast_nearest_case = is_fast_nearest_case(params);
     const auto fast_linear_onnx_case = is_fast_linear_onnx_case(params);
     const auto fast_caffe_bilinear_interp_case = is_fast_caffe_bilinear_interp_case(params);
 
-    JitConstants jit = ResampleKernelBase::get_jit_constants(params, fast_nearest_case || fast_linear_onnx_case || fast_caffe_bilinear_interp_case);
+    JitConstants jit = ResampleKernelBase::GetJitConstants(params, fast_nearest_case || fast_linear_onnx_case || fast_caffe_bilinear_interp_case);
 
     if (fast_nearest_case) {
         jit.AddConstant(MakeJitConstant("RESAMPLE_FAST_NEAREST", 1));
     }
 
-    if (fast_linear_onnx_case) {
-        jit.AddConstant(MakeJitConstant("RESAMPLE_USE_LEGACY_SCALE", 1));
-    }
-
-    if (fast_caffe_bilinear_interp_case) {
+    if (fast_linear_onnx_case || fast_caffe_bilinear_interp_case) {
         jit.AddConstant(MakeJitConstant("RESAMPLE_USE_LEGACY_SCALE", 1));
     }
 

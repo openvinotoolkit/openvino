@@ -125,7 +125,7 @@ bool ResampleKernelBase::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants ResampleKernelBase::get_jit_constants(const resample_params& params, bool legacy_scale) const {
+JitConstants ResampleKernelBase::GetJitConstants(const resample_params& params, bool legacy_scale) const {
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     const auto& input = params.inputs[0];
@@ -267,7 +267,7 @@ KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params) const
 
     auto dispatchData = SetDefault(newParams);
     auto entry_point = GetEntryPoint(kernelName, newParams.layerID, params);
-    auto cldnn_jit = get_jit_constants(newParams);
+    auto cldnn_jit = GetJitConstants(newParams);
     auto jit = CreateJit(kernelName, cldnn_jit, entry_point);
 
     auto& kernel = kd.kernels[0];
@@ -282,13 +282,6 @@ KernelsData ResampleKernelBase::GetCommonKernelsData(const Params& params) const
                      false,
                      1,
                      GetFusedPrimitiveInputsCount(params));
-    if (newParams.resampleType == ResampleType::CUBIC && kernel.code.kernelString) {
-        auto& options = kernel.code.kernelString->options;
-        const std::string mad_option = " -cl-mad-enable";
-        const auto mad_pos = options.find(mad_option);
-        if (mad_pos != std::string::npos)
-            options.erase(mad_pos, mad_option.size());
-    }
 
     return {kd};
 }

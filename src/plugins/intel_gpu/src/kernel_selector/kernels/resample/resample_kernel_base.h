@@ -49,7 +49,7 @@ public:
 protected:
     bool Validate(const Params& p) const override;
     virtual DispatchData SetDefault(const resample_params& arg) const;
-    virtual JitConstants get_jit_constants(const resample_params& params, bool legacy_scale = false) const;
+    virtual JitConstants GetJitConstants(const resample_params& params, bool legacy_scale = false) const;
     KernelsData GetCommonKernelsData(const Params& params) const;
     size_t GetFeatureBlockSize(const resample_params& params) const;
     virtual Datatype GetAccumulatorType(const resample_params& params) const;

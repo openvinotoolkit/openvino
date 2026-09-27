@@ -98,8 +98,8 @@ bool ResampleKernelBfyxCubicOpt::Validate(const Params& p) const {
     return true;
 }
 
-JitConstants ResampleKernelBfyxCubicOpt::get_jit_constants(const resample_params& params, bool legacy_scale) const {
-    auto jit = Parent::get_jit_constants(params);
+JitConstants ResampleKernelBfyxCubicOpt::GetJitConstants(const resample_params& params, bool legacy_scale) const {
+    auto jit = Parent::GetJitConstants(params);
 
     auto opt_x_block_size = GetOptimalBlockSize(params);
     jit.AddConstant(MakeJitConstant("OUTPUT_X_BLOCK_SIZE", opt_x_block_size));
