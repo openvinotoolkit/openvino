@@ -1,0 +1,190 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+# Manifest for the whole `job_pytorch_models_tests.yml` job, describing:
+#   [envs.<name>]  a venv, built as an ORDERED list of pip install steps (some groups genuinely need
+#                  more than one pip call -- e.g. llm needs its build deps installed before
+#                  --no-build-isolation; requirements_pytorch is repeated in each step that needs its
+#                  --extra-index-url for a CPU torch wheel, since that flag only applies within the
+#                  pip invocation it's given to).
+#   [[runs]]       one pytest invocation: which test path(s), which scopes it runs in (mirrors
+#                  model_scope: precommit / nightly_scope1 / nightly_scope2), which env(s) it can run
+#                  in, which of those is the default owner of every untagged model (`default_env`,
+#                  passed through as OV_TEST_DEFAULT_ENV -- see models_hub_common/env_select.py), and
+#                  any extra pytest args.
+#
+# This file only *describes* the job; build_envs.py and run_multi_env.py are what actually build
+# venvs and invoke pytest from it. Paths are relative to this file's directory.
+
+[envs.timm_tv]
+# "PyTorch Models Tests Timm and Torchvision" install step.
+steps = [
+    ["../../requirements_pytorch", "../pytorch/envs/timm.txt", "../pytorch/envs/edsr.txt", "../pytorch/envs/torchvision.txt"],
+]
+
+[envs.hf_transformers]
+# "PyTorch Models Tests Not Timm or Torchvision" install step. transformers==4.55.4 (see envs/hf_transformers.txt).
+steps = [
+    ["../../requirements_pytorch", "../pytorch/envs/hf_transformers.txt", "../pytorch/envs/easyocr.txt", "../pytorch/envs/gfpgan.txt", "../pytorch/envs/tpsmm.txt", "../pytorch/envs/lightglue.txt"],
+]
+
+[envs.llm]
+# "Install deps for LLM model tests": 3 separate pip calls, in order -- llm_build_deps.txt must land
+# before --no-build-isolation is used for llm.txt (gptqmodel's sdist needs pypcre already importable).
+steps = [
+    ["../../requirements_pytorch"],
+    ["../pytorch/envs/llm_build_deps.txt"],
+    { files = ["../pytorch/envs/llm.txt"], pip_args = ["--no-build-isolation"] },
+]
+
+[envs.detectron2]
+# Detectron2/Torchbench install packages at runtime via subprocess (see test_detectron2.py /
+# test_torchbench.py) rather than through envs/*.txt, but test_detectron2.py's setup_class imports
+# `requests` directly, which is not part of requirements_pytorch -- a dedicated venv needs it listed
+# explicitly since it has no other group's install to inherit it from.
+steps = [
+    ["../../requirements_pytorch", "../pytorch/envs/detectron2.txt"],
+]
+
+[envs.optimum_intel]
+# "main" transformation-tests env: PA (non-legacy models), StatefulToStateless, MoE, RoPE
+# (non-legacy models). transformers==4.55.4 (see envs/optimum_intel.txt).
+steps = [
+    ["../../requirements_pytorch", "../pytorch/envs/optimum_intel.txt"],
+]
+
+[envs.optimum_intel_legacy]
+# The 8 PA/VLM/RoPE models optimum-intel permanently caps at transformers<=4.53.3 (see
+# envs/optimum_intel_legacy.txt and the `env:optimum_intel_legacy` tags in transformation_tests/models/*).
+steps = [
+    ["../../requirements_pytorch", "../pytorch/envs/optimum_intel_legacy.txt"],
+]
+
+[envs.optimum_intel_gptq]
+# Exactly one PA model (opt-125m-gptq-4bit) that can't share either optimum_intel env -- see
+# envs/optimum_intel_gptq.txt for why.
+steps = [
+    ["../../requirements_pytorch", "../pytorch/envs/optimum_intel_gptq.txt"],
+]
+
+[envs.compile_gptq]
+# TorchFX GPTQ Pattern Test: torch downgraded to 2.3.1, independent of every other env. Two ordered
+# steps, not one combined install: requirements_pytorch pins torch==2.14.0 and compile_gptq.txt pins
+# torch==2.3.1 -- passed to the same `pip install` call, pip has to satisfy both simultaneously and
+# reports ResolutionImpossible. A separate second call just downgrades torch on top of the first
+# install instead, never in the same pip invocation.
+steps = [
+    ["../../requirements_pytorch"],
+    ["../pytorch/envs/compile_gptq.txt"],
+]
+
+# --- runs: one pytest invocation each ---
+
+[[runs]]
+name = "timm_tv"
+scopes = ["precommit", "nightly_scope1"]
+# Explicit file list, not a directory + `-k` filter: each env is its own dedicated venv, so unlike a
+# single shared venv where every earlier group's deps stay importable for a later group's `-k` filter,
+# pytest still IMPORTS every .py file under a given directory to discover items before `-k` deselects
+# any -- collecting "../pytorch" as a whole would fail on test_hf_transformers.py/test_llm.py/etc,
+# none of whose deps this venv installs, and pytest aborts the whole session on the first collection
+# error. Listing exactly this run's files avoids importing anything timm_tv.txt/edsr.txt/torchvision.txt
+# didn't install.
+paths = ["../pytorch/test_timm.py", "../pytorch/test_torchvision_models.py", "../pytorch/test_edsr.py"]
+default_env = "timm_tv"
+envs = ["timm_tv"]
+xdist_n = 4
+html_name = "TEST-torch_model_timm_tv_{scope}_tests.html"
+extra_env = { OP_REPORT_FILE = "TEST-torch_unsupported_ops.log" }
+
+[[runs]]
+name = "hf_transformers"
+scopes = ["precommit", "nightly_scope2"]
+# See timm_tv's comment above -- same reasoning, inverted: these are every ../pytorch/test_*.py file
+# NOT covered by timm_tv/llm/detectron2/torchbench's own dedicated runs.
+paths = [
+    "../pytorch/test_hf_transformers.py",
+    "../pytorch/test_aliked.py",
+    "../pytorch/test_easyocr.py",
+    "../pytorch/test_gfpgan.py",
+    "../pytorch/test_lightglue.py",
+    "../pytorch/test_speech-transformer.py",
+    "../pytorch/test_tpsmm.py",
+]
+default_env = "hf_transformers"
+envs = ["hf_transformers"]
+html_name = "TEST-torch_model_{scope}_tests.html"
+extra_env = { OP_REPORT_FILE = "TEST-torch_unsupported_ops.log" }
+
+[[runs]]
+name = "llm"
+scopes = ["precommit", "nightly_scope2"]
+paths = ["../pytorch/test_llm.py"]
+default_env = "llm"
+envs = ["llm"]
+html_name = "TEST-torch_model_llm_{scope}_tests.html"
+extra_env = { OP_REPORT_FILE = "TEST-torch_unsupported_ops.log" }
+
+[[runs]]
+name = "detectron2"
+scopes = ["precommit", "nightly_scope2"]
+paths = ["../pytorch/test_detectron2.py"]
+default_env = "detectron2"
+envs = ["detectron2"]
+html_name = "TEST-torch_model_detectron2_{scope}_tests.html"
+extra_env = { OP_REPORT_FILE = "TEST-torch_unsupported_ops.log" }
+
+[[runs]]
+name = "torchbench"
+scopes = ["nightly_scope2"]
+paths = ["../pytorch/test_torchbench.py"]
+default_env = "detectron2"
+envs = ["detectron2"]
+pytest_args = ["-m", "nightly"]
+html_name = "TEST-torch_model_torchbench_nightly_tests.html"
+extra_env = { OP_REPORT_FILE = "TEST-torch_unsupported_ops.log" }
+
+[[runs]]
+name = "pa"
+scopes = ["precommit"]
+paths = ["../transformation_tests/test_pa_transformation.py"]
+default_env = "optimum_intel"
+envs = ["optimum_intel", "optimum_intel_legacy", "optimum_intel_gptq"]
+xdist_n = 2
+html_name = "TEST-torch_pagedattention_tests.html"
+
+[[runs]]
+name = "stateful_to_stateless"
+scopes = ["precommit"]
+paths = ["../transformation_tests/test_stateful_to_stateless_transformation.py"]
+default_env = "optimum_intel"
+envs = ["optimum_intel"]
+html_name = "TEST-torch_stateful_to_stateless_tests.html"
+
+[[runs]]
+name = "gptq_torchfx"
+scopes = ["precommit"]
+paths = ["../transformation_tests/test_gptq_torchfx_transformations.py"]
+default_env = "compile_gptq"
+envs = ["compile_gptq"]
+html_name = "TEST-torch_gptqpattern_tests.html"
+
+[[runs]]
+name = "moe"
+scopes = ["precommit"]
+paths = ["../transformation_tests/test_moe_transformation.py"]
+default_env = "optimum_intel"
+envs = ["optimum_intel"]
+xdist_n = 2
+html_name = "TEST-torch_moe_tests.html"
+
+[[runs]]
+name = "rope"
+scopes = ["precommit"]
+paths = ["../transformation_tests/test_transformations.py"]
+default_env = "optimum_intel"
+envs = ["optimum_intel", "optimum_intel_legacy"]
+xdist_n = 2
+html_name = "TEST-torch_rope_tests.html"
+# Reuses the "optimum_intel"/"optimum_intel_legacy" venvs built for the `pa` run (same stack) rather
+# than building separate rope venvs.

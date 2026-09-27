@@ -1,5 +1,5 @@
 optimum-intel-internal-testing/opt-125m,https://huggingface.co/optimum-intel-internal-testing/opt-125m
-optimum-intel-internal-testing/opt-125m-gptq-4bit,https://huggingface.co/optimum-intel-internal-testing/opt-125m-gptq-4bit
+optimum-intel-internal-testing/opt-125m-gptq-4bit,https://huggingface.co/optimum-intel-internal-testing/opt-125m-gptq-4bit,env:optimum_intel_gptq
 optimum-intel-internal-testing/really-tiny-falcon-testing,https://huggingface.co/optimum-intel-internal-testing/really-tiny-falcon-testing
 optimum-intel-internal-testing/tiny-dummy-qwen2,https://huggingface.co/optimum-intel-internal-testing/tiny-dummy-qwen2
 optimum-intel-internal-testing/tiny-marian-en-de,https://huggingface.co/optimum-intel-internal-testing/tiny-marian-en-de
@@ -31,7 +31,7 @@ optimum-intel-internal-testing/tiny-random-chatglm4,https://huggingface.co/optim
 optimum-intel-internal-testing/tiny-random-codegen2,https://huggingface.co/optimum-intel-internal-testing/tiny-random-codegen2
 optimum-intel-internal-testing/tiny-random-dbrx,https://huggingface.co/optimum-intel-internal-testing/tiny-random-dbrx
 optimum-intel-internal-testing/tiny-random-decilm,https://huggingface.co/optimum-intel-internal-testing/tiny-random-decilm
-optimum-intel-internal-testing/tiny-random-deepseek-v3,https://huggingface.co/optimum-intel-internal-testing/tiny-random-deepseek-v3
+optimum-intel-internal-testing/tiny-random-deepseek-v3,https://huggingface.co/optimum-intel-internal-testing/tiny-random-deepseek-v3,env:optimum_intel_legacy
 optimum-intel-internal-testing/tiny-random-exaone,https://huggingface.co/optimum-intel-internal-testing/tiny-random-exaone
 optimum-intel-internal-testing/tiny-random-falcon-40b,https://huggingface.co/optimum-intel-internal-testing/tiny-random-falcon-40b
 optimum-intel-internal-testing/tiny-random-gemma2,https://huggingface.co/optimum-intel-internal-testing/tiny-random-gemma2
@@ -42,13 +42,13 @@ optimum-intel-internal-testing/tiny-random-granite-moe,https://huggingface.co/op
 optimum-intel-internal-testing/tiny-random-internlm,https://huggingface.co/optimum-intel-internal-testing/tiny-random-internlm
 optimum-intel-internal-testing/tiny-random-internlm2,https://huggingface.co/optimum-intel-internal-testing/tiny-random-internlm2
 optimum-intel-internal-testing/tiny-random-jais,https://huggingface.co/optimum-intel-internal-testing/tiny-random-jais
-optimum-intel-internal-testing/tiny-random-minicpm,https://huggingface.co/optimum-intel-internal-testing/tiny-random-minicpm
-optimum-intel-internal-testing/tiny-random-minicpm3,https://huggingface.co/optimum-intel-internal-testing/tiny-random-minicpm3
+optimum-intel-internal-testing/tiny-random-minicpm,https://huggingface.co/optimum-intel-internal-testing/tiny-random-minicpm,env:optimum_intel_legacy
+optimum-intel-internal-testing/tiny-random-minicpm3,https://huggingface.co/optimum-intel-internal-testing/tiny-random-minicpm3,env:optimum_intel_legacy
 optimum-intel-internal-testing/tiny-random-mistral,https://huggingface.co/optimum-intel-internal-testing/tiny-random-mistral
 optimum-intel-internal-testing/tiny-random-mistral-nemo,https://huggingface.co/optimum-intel-internal-testing/tiny-random-mistral-nemo
 optimum-intel-internal-testing/tiny-random-olmo-hf,https://huggingface.co/optimum-intel-internal-testing/tiny-random-olmo-hf
 optimum-intel-internal-testing/tiny-random-pegasus,https://huggingface.co/optimum-intel-internal-testing/tiny-random-pegasus
 optimum-intel-internal-testing/tiny-random-qwen,https://huggingface.co/optimum-intel-internal-testing/tiny-random-qwen
 optimum-intel-internal-testing/tiny-random-qwen1.5-moe,https://huggingface.co/optimum-intel-internal-testing/tiny-random-qwen1.5-moe
-optimum-intel-internal-testing/tiny-random-snowflake,https://huggingface.co/optimum-intel-internal-testing/tiny-random-snowflake
+optimum-intel-internal-testing/tiny-random-snowflake,https://huggingface.co/optimum-intel-internal-testing/tiny-random-snowflake,env:optimum_intel_legacy
 optimum-intel-internal-testing/tiny-random-xverse,https://huggingface.co/optimum-intel-internal-testing/tiny-random-xverse

@@ -81,11 +81,14 @@ ref_diff_map = {
 		"ReadValue" : -4,
 		"ScaledDotProductAttention" : -2,
 	},
+	# transformers>=4.54.0 gives GPTBigCode's multi_query cache 2 tensors/layer (separate K/V)
+	# instead of 1 fused tensor/layer, doubling this model's ReadValue/Assign delta vs. the
+	# transformers version used by earlier envs.
 	"optimum-intel-internal-testing/tiny-random-GPTBigCodeModel" : {
-		"Assign" : -5,
+		"Assign" : -10,
 		"PagedAttentionExtension" : 5,
 		"Parameter" : 13,
-		"ReadValue" : -5,
+		"ReadValue" : -10,
 		"ScaledDotProductAttention" : -5,
 	},
 	"optimum-intel-internal-testing/tiny-random-GPTJModel" : {
@@ -539,11 +542,12 @@ ref_diff_map_optimizations = {
 		"ReadValue" : -4,
 		"ScaledDotProductAttention" : -2,
 	},
+	# see the matching comment in ref_diff_map above
 	"optimum-intel-internal-testing/tiny-random-GPTBigCodeModel" : {
-		"Assign" : -5,
+		"Assign" : -10,
 		"PagedAttentionExtension" : 5,
 		"Parameter" : 50,
-		"ReadValue" : -5,
+		"ReadValue" : -10,
 		"ScaledDotProductAttention" : -5,
 	},
 	"optimum-intel-internal-testing/tiny-random-GPTJModel" : {

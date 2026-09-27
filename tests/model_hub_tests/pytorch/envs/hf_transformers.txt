@@ -1,9 +1,14 @@
-# Extra dependencies for test_hf_transformers.py and test_llm.py
-# These are common model-hub deps not needed by layer tests
-# before updating transformers version, make sure no tests (esp. sdpa2pa) are failing
-transformers==4.47.1
+# "hf_transformers" env (OV_TEST_ENV=hf_transformers) for test_hf_transformers.py. llm.txt is
+# installed as its own separate env now, so this file no longer needs to account for llm.txt
+# overriding its transformers pin in a shared venv.
+#
+# transformers 4.55.4: same target as optimum_intel.txt's main env, for one consistent "new" version
+# across the whole job. Fixed the precommit failures this exposed (T5/CLIP torch.jit.trace breakage)
+# in test_hf_transformers.py's load_model rather than routing those two models to a legacy env.
+transformers==4.55.4
 datasets==3.0.1
-huggingface-hub==0.25.2
+# transformers>=4.55 requires huggingface-hub>=0.34.
+huggingface-hub>=0.34.0,<1.0
 hf_transfer==0.1.9
 sentencepiece==0.2.1
 sacremoses==0.1.1

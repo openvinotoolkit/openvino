@@ -50,29 +50,11 @@ from typing import Union
 nodes_to_compare = ("ScaledDotProductAttention", "PagedAttentionExtension", "Parameter", "ReadValue", "Assign")
 
 def get_models_list_type(file_name: str, cls: Union[type[OVModelForCausalLM], type[OVModelForVisualCausalLM], type[OVModelForSeq2SeqLM]]):
-    models = []
-    for line_items in utils.parse_list_file(file_name):
-        if len(line_items) == 2:
-            model_name, model_link = line_items
-            models.append((model_name, model_link, None, None, cls))
-        elif len(line_items) == 4:
-            model_name, model_link, mark, reason = line_items
-            models.append((model_name, model_link, mark, reason, cls))
-        elif len(line_items) > 4:
-            model_name, model_link, mark, reason, *other = line_items
-            if not mark:
-                mark = None
-            if not reason:
-                reason = None
-            other = line_items[4:]
-            transformations = [item[8:] for item in other if item.startswith('ts_name:')]
-            layers = [item[6:] for item in other if item.startswith('layer:')]
-            models.append((model_name, model_link, mark, reason, transformations, layers))
-        else:
-            items = ','.join(line_items)
-            assert False, \
-                f'Incorrect model info fields {items}. It must contain either 2 or 4 or more than 4 fields.'
-    return models
+    # Delegates to utils.get_models_list (rather than re-parsing the file by hand) so the `env:` tag
+    # stripping it does is applied here too. Note: for a >4-column line get_models_list returns a
+    # 7-item tuple, which combined with `cls` here would break main()'s 5-item unpack below; none of
+    # the list files this script reads currently have such lines.
+    return [(*model_info, cls) for model_info in utils.get_models_list(file_name)]
 
 def main():
     use_optimizations = False
@@ -103,7 +85,11 @@ def main():
             if cls is OVModelForCausalLM:
                 ov_model = model.model
             elif cls is OVModelForVisualCausalLM:
-                ov_model = model.lm_model
+                # see the matching comment in test_pa_transformation.py::run_pa
+                if hasattr(model, "language_model"):
+                    ov_model = model.language_model.model
+                else:
+                    ov_model = model.lm_model
             elif cls is OVModelForSeq2SeqLM:
                 ov_model = model.decoder_with_past_model
             else:

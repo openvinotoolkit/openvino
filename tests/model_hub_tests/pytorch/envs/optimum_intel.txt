@@ -1,8 +1,29 @@
-# optimum-intel required by transformation tests (PA, StatefulToStateless, etc.)
-# Pinned to a known-working commit for compatibility.
-# optimum-intel@8ba536cd requires transformers>=4.36,<4.52
-transformers==4.51.3
-optimum==1.25.0; python_version < "3.12"
-auto-gptq==0.7.1; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.12"
+# "optimum_intel" env (OV_TEST_ENV=optimum_intel) for transformation tests (PA, StatefulToStateless,
+# MoE) and the RoPE test (test_transformations.py). This is the "main"/default env: every model NOT
+# tagged `env:optimum_intel_legacy` or `env:optimum_intel_gptq` in a models/* list file (see
+# models_hub_common/env_select.py) belongs here.
+#
+# transformers 4.55.4: newest 4.55.x patch. Not 4.55.0 because 4.55.0 still fails gpt-oss (needs
+# >=4.55.1, see optimum-intel's GptOssOpenVINOConfig.MIN_TRANSFORMERS_VERSION).
+# Not newer than 4.55.4 because optimum-intel==1.27.0 caps chatglm/chatglm4/qwen at <=4.55.4
+# (ChatGLM2OpenVINOConfig / QwenOpenVINOConfig.MAX_TRANSFORMERS_VERSION).
+transformers==4.55.4
+# transformers>=4.55 requires huggingface-hub>=0.34.
+huggingface-hub>=0.34.0,<1.0
+optimum-intel==1.27.0
+optimum~=2.1.0; python_version < "3.12"
+
+# GPTQ (opt-125m-gptq-4bit) does NOT work in this env: optimum 2.x's GPTQQuantizer only supports the
+# gptqmodel backend, and gptqmodel's own dependency resolution silently upgrades transformers to 5.x
+# (which removed transformers.onnx, breaking optimum-intel's import entirely). opt-125m-gptq-4bit is
+# routed to the separate optimum_intel_gptq.txt env instead (env:optimum_intel_gptq tag).
+
+# Needed at export time by some PA/RoPE trust_remote_code models: qwen/internlm2 need
+# einops+transformers_stream_generator, internvl2 needs timm, tiny-random-baichuan2-13b needs
+# accelerate, tiny-mixtral-AWQ-4bit needs autoawq.
+einops==0.8.0
+transformers_stream_generator==0.0.5
+timm==1.0.24
+accelerate==1.15.0
 autoawq==0.2.7; platform_system == "Linux" and platform_machine == "x86_64"
-git+https://github.com/huggingface/optimum-intel.git@8ba536cd0a2bf93e9e88408b0048a7695db5be0b; python_version < "3.12"
+scipy
