@@ -240,6 +240,8 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         }
         jit.make("IS_KV_COMPRESSED", desc->is_kv_compressed);
         jit.make("IS_INT4_COMPRESSED", desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params));
+        jit.make("IS_INT4_SIGNED",
+                 desc->is_kv_compressed && desc->quantization_attributes.quantization_dt == ov::element::i4);
         GPU_DEBUG_TRACE_DETAIL << "desc->is_kv_compressed = " << desc->is_kv_compressed << std::endl;
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;
