@@ -26,7 +26,7 @@ permissions: read-all
 env:
   ENABLE_BRANCH_COVERAGE: 'false'
   LCOV_CAPTURE_TIMEOUT_SECONDS: '3600'
-  NODE_VERSION: '21'
+  NODE_VERSION: '22'
   NODE_EXTRA_CA_CERTS: /usr/local/share/ca-certificates/IntelProxyRootCA-Base64.crt
   IGPU_DRIVER_PACKAGES: |-
     https://github.com/intel/intel-graphics-compiler/releases/download/igc-1.0.15985.7/intel-igc-core_1.0.15985.7_amd64.deb
@@ -45,7 +45,7 @@ jobs:
   Docker:
     name: Coverage Docker Images
     if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
-    runs-on: aks-linux-4-cores-16gb-docker-build
+    runs-on: aks-lin-x64-docker-4c16gb
     container:
       image: openvinogithubactions.azurecr.io/docker_build:0.2
       volumes:
@@ -74,7 +74,8 @@ jobs:
     if: ${{ github.event_name == 'schedule' || github.event_name == 'pull_request' || github.event.inputs.run-cpu-tests == 'true' || github.event.inputs.run-gpu-tests == 'true' }}
     uses: ./.github/workflows/job_build_linux.yml
     with:
-      runner: 'aks-linux-16-cores-32gb'
+      runner: 'aks-lin-x64-build-16c32gb'
+      cmake-build-parallel-level: '15'
       image: ${{ fromJSON(needs.Docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
       affected-components: '{"JS_API":true}'
       event-name: ${{ github.event_name }}
@@ -800,7 +801,7 @@ jobs:
         working-directory: ${{ env.OPENVINO_JS_DIR }}
 
       - name: Setup Node ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm

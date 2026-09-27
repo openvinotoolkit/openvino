@@ -26,8 +26,12 @@
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "pyramid_attention.hpp"
@@ -534,7 +538,7 @@ void expect_attention_equal(const ov::npuw::compiled::Attention& expected,
 
 void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionContiguous& expected,
                                     const ov::npuw::compiled::PyramidAttentionContiguous& actual) {
-    EXPECT_EQ(expected.query_size, actual.query_size);
+    EXPECT_EQ(expected.original_query_length, actual.original_query_length);
     EXPECT_EQ(expected.full_context_size, actual.full_context_size);
     EXPECT_EQ(expected._context_lengths, actual._context_lengths);
     EXPECT_EQ(expected.global_mask_idx, actual.global_mask_idx);
@@ -544,7 +548,7 @@ void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionCo
         const auto& lhs = expected._attention_infos[i];
         const auto& rhs = actual._attention_infos[i];
         EXPECT_EQ(lhs.mask_idx_local, rhs.mask_idx_local);
-        EXPECT_EQ(lhs.query_size, rhs.query_size);
+        EXPECT_EQ(lhs.compiled_query_size, rhs.compiled_query_size);
         EXPECT_EQ(lhs.context_length, rhs.context_length);
         EXPECT_EQ(lhs.params.size(), rhs.params.size());
         for (std::size_t j = 0; j < lhs.params.size(); ++j) {
@@ -556,7 +560,7 @@ void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionCo
 
 void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionBlock& expected,
                                     const ov::npuw::compiled::PyramidAttentionBlock& actual) {
-    EXPECT_EQ(expected.query_size, actual.query_size);
+    EXPECT_EQ(expected.original_query_length, actual.original_query_length);
     EXPECT_EQ(expected.full_context_size, actual.full_context_size);
     EXPECT_EQ(expected._context_lengths, actual._context_lengths);
     EXPECT_EQ(expected.past_key_block_global_param_indices, actual.past_key_block_global_param_indices);
@@ -568,7 +572,7 @@ void expect_pyramid_attention_equal(const ov::npuw::compiled::PyramidAttentionBl
         const auto& lhs = expected._attention_infos[i];
         const auto& rhs = actual._attention_infos[i];
         EXPECT_EQ(lhs.mask_idx_local, rhs.mask_idx_local);
-        EXPECT_EQ(lhs.query_size, rhs.query_size);
+        EXPECT_EQ(lhs.compiled_query_size, rhs.compiled_query_size);
         EXPECT_EQ(lhs.context_length, rhs.context_length);
         EXPECT_EQ(lhs.param_port_map, rhs.param_port_map);
         EXPECT_EQ(lhs.past_key_block_port_set, rhs.past_key_block_port_set);
@@ -600,7 +604,8 @@ void expect_host_flash_attention_equal(const ov::npuw::compiled::HostFlashAttent
     EXPECT_EQ(lhs._tile_output_indices.acc, rhs._tile_output_indices.acc);
     EXPECT_EQ(lhs._tile_output_indices.max, rhs._tile_output_indices.max);
     EXPECT_EQ(lhs._tile_output_indices.d, rhs._tile_output_indices.d);
-    EXPECT_EQ(expected._tile_size, actual._tile_size);
+    EXPECT_EQ(expected._past_tile_size, actual._past_tile_size);
+    EXPECT_EQ(expected._final_tile_size, actual._final_tile_size);
     EXPECT_EQ(expected._can_use_tensor_view, actual._can_use_tensor_view);
 }
 
@@ -1031,7 +1036,7 @@ TEST(SerializationTest, OVTypes_PyramidAttention) {
     using namespace ov::npuw::s11n;
 
     ov::npuw::compiled::PyramidAttentionContiguous var;
-    var.query_size = 16;
+    var.original_query_length = 16;
     var.full_context_size = 128;
     var._context_lengths = {16, 32, 64, 128};
     var.global_mask_idx = 4;
@@ -1040,13 +1045,13 @@ TEST(SerializationTest, OVTypes_PyramidAttention) {
     ov::npuw::compiled::PyramidAttentionContiguousInfo info1;
     info1.params = {{0, 2}, {1, 3}};
     info1.mask_idx_local = 4;
-    info1.query_size = 16;
+    info1.compiled_query_size = 16;
     info1.context_length = 32;
 
     ov::npuw::compiled::PyramidAttentionContiguousInfo info2;
     info2.params = {{2, 1}};
     info2.mask_idx_local = 5;
-    info2.query_size = 16;
+    info2.compiled_query_size = 16;
     info2.context_length = 64;
 
     var._attention_infos = {info1, info2};
@@ -1065,7 +1070,7 @@ TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode) {
     using namespace ov::npuw::s11n;
 
     ov::npuw::compiled::PyramidAttentionBlock var;
-    var.query_size = 16;
+    var.original_query_length = 16;
     var.full_context_size = 128;
     var._context_lengths = {16, 32, 64, 128};
     var.past_key_block_global_param_indices = {10, 11, 12};
@@ -1075,14 +1080,14 @@ TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode) {
 
     ov::npuw::compiled::PyramidAttentionBlockInfo info1;
     info1.mask_idx_local = 4;
-    info1.query_size = 16;
+    info1.compiled_query_size = 16;
     info1.context_length = 32;
     // This variant dropped all KV blocks — no entries for global indices 10/11/12/20/21/22.
     info1.param_port_map = {{4, 4}};
 
     ov::npuw::compiled::PyramidAttentionBlockInfo info2;
     info2.mask_idx_local = 5;
-    info2.query_size = 16;
+    info2.compiled_query_size = 16;
     info2.context_length = 64;
     // This variant retained one K block (global 10 -> local 0) and one V block (global 20 -> local 1).
     info2.param_port_map = {{4, 5}, {10, 0}, {20, 1}};
@@ -1110,7 +1115,7 @@ TEST(SerializationTest, OVTypes_PyramidAttention_BlockMode_RebuildsGlobalBlockSe
     using namespace ov::npuw::s11n;
 
     ov::npuw::compiled::PyramidAttentionBlock var;
-    var.query_size = 16;
+    var.original_query_length = 16;
     var.full_context_size = 128;
     var._context_lengths = {16, 32, 64, 128};
     var.past_key_block_global_param_indices = {10, 11, 12};
@@ -1155,7 +1160,8 @@ TEST(SerializationTest, OVTypes_HostFlashAttention) {
     var._sdpa_attention_info._sdpa_indices = {3, {4}, {5}, 6, 7, 8};
     var._sdpa_attention_info._tile_input_indices = {9, 10, 11, 12, 13, 14, 15};
     var._sdpa_attention_info._tile_output_indices = {16, 17, 18};
-    var._tile_size = 64;
+    var._past_tile_size = 64;
+    var._final_tile_size = 8;
     var._can_use_tensor_view = true;
 
     ov::npuw::compiled::HostFlashAttention res;
@@ -1183,13 +1189,223 @@ TEST(SerializationTest, OVTypes_HostFlashAttention_OOBTileIndexRejected) {
     var._sdpa_attention_info._sdpa_indices = {3, {4}, {5}, 6, 7, 8};
     var._sdpa_attention_info._tile_input_indices = {9, 10, 11, 12, std::numeric_limits<std::size_t>::max(), 14, 15};
     var._sdpa_attention_info._tile_output_indices = {0, 1, 2};
-    var._tile_size = 64;
+    var._past_tile_size = 64;
+    var._final_tile_size = 8;
     var._can_use_tensor_view = true;
 
     ov::npuw::compiled::HostFlashAttention res;
     std::stringstream ss;
     write(ss, var);
     EXPECT_THROW(read(ss, res), ov::Exception);
+}
+
+namespace {
+
+class HFAFakePlugin final : public ov::IPlugin {
+public:
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
+                                                      const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected compile_model call");
+    }
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
+                                                      const ov::AnyMap&,
+                                                      const ov::SoPtr<ov::IRemoteContext>&) const override {
+        OPENVINO_THROW("Unexpected compile_model(context) call");
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream&, const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected import_model(stream) call");
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream&,
+                                                     const ov::SoPtr<ov::IRemoteContext>&,
+                                                     const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected import_model(stream, context) call");
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&, const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected import_model(blob) call");
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&,
+                                                     const ov::SoPtr<ov::IRemoteContext>&,
+                                                     const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected import_model(blob, context) call");
+    }
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>&, const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected query_model call");
+    }
+    void set_property(const ov::AnyMap&) override {}
+    ov::Any get_property(const std::string& name, const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unsupported property: ", name);
+    }
+    bool is_property_supported(const std::string&, const ov::AnyMap&) const override {
+        return false;
+    }
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected create_context call");
+    }
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap&) const override {
+        OPENVINO_THROW("Unexpected get_default_context call");
+    }
+};
+
+class HFAFakeCompiledModel final : public ov::ICompiledModel {
+public:
+    HFAFakeCompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
+        : ov::ICompiledModel(model, plugin, nullptr, nullptr) {}
+
+    void export_model(std::ostream&) const override {}
+    std::shared_ptr<const ov::Model> get_runtime_model() const override {
+        OPENVINO_THROW("Unexpected get_runtime_model call");
+    }
+    void set_property(const ov::AnyMap&) override {}
+    ov::Any get_property(const std::string& name) const override {
+        OPENVINO_THROW("Unsupported property: ", name);
+    }
+    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
+        OPENVINO_THROW("Unexpected create_sync_infer_request call");
+    }
+};
+
+// Model with a fixed number of Parameter inputs/Result outputs, used to stand in for the
+// compiled tile models that HostFlashAttention::is_valid() bound-checks against.
+std::shared_ptr<ov::Model> make_hfa_stub_model(std::size_t num_inputs, std::size_t num_outputs) {
+    ov::ParameterVector params;
+    ov::ResultVector results;
+    for (std::size_t i = 0; i < num_inputs; ++i) {
+        params.push_back(std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 1, 1}));
+    }
+    for (std::size_t i = 0; i < num_outputs; ++i) {
+        auto add = std::make_shared<ov::op::v1::Add>(params.at(0), params.at(0));
+        results.push_back(std::make_shared<ov::op::v0::Result>(add));
+    }
+    return std::make_shared<ov::Model>(results, params);
+}
+
+ov::SoPtr<ov::ICompiledModel> make_hfa_fake_compiled_model(const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                           std::size_t num_inputs,
+                                                           std::size_t num_outputs) {
+    auto model = make_hfa_stub_model(num_inputs, num_outputs);
+    return ov::SoPtr<ov::ICompiledModel>(std::make_shared<HFAFakeCompiledModel>(model, plugin));
+}
+
+ov::npuw::compiled::HostFlashAttention make_deserialized_hfa(std::size_t k_seq_dim,
+                                                             std::size_t v_seq_dim,
+                                                             std::size_t context_size = 32) {
+    using namespace ov::npuw::s11n;
+
+    ov::npuw::compiled::HostFlashAttention source;
+    source._sdpa_attention_info._query_size = 8;
+    source._sdpa_attention_info._context_size = context_size;
+    source._sdpa_attention_info._k_seq_dim = k_seq_dim;
+    source._sdpa_attention_info._v_seq_dim = v_seq_dim;
+    source._sdpa_attention_info._sdpa_indices = {0, {0}, {0}, 0, 0, 0};
+    source._sdpa_attention_info._tile_input_indices = {0, 1, 2, 3, 0, 1, 2};
+    source._sdpa_attention_info._tile_output_indices = {0, 1, 2};
+    source._past_tile_size = 8;
+    source._final_tile_size = 8;
+
+    ov::npuw::compiled::HostFlashAttention result;
+    std::stringstream stream;
+    write(stream, source);
+    read(stream, result);
+
+    auto plugin = std::make_shared<HFAFakePlugin>();
+    result._compiled_tile_model = make_hfa_fake_compiled_model(plugin, 3, 3);
+    result._compiled_final_tile_model = make_hfa_fake_compiled_model(plugin, 4, 3);
+    return result;
+}
+
+}  // namespace
+
+// Reproduces an attacker-controlled cache blob carrying an out-of-range tile input index:
+// the raw index round-trips through the s11n write()/read() path unchecked, and is_valid()
+// must reject it once attached to compiled models whose real input/output counts are known.
+TEST(SerializationTest, HostFlashAttention_OutOfRangeTileIndexRejectedAfterDeserialization) {
+    using namespace ov::npuw::s11n;
+
+    ov::npuw::compiled::HostFlashAttention var;
+    var._sdpa_attention_info._query_size = 8;
+    var._sdpa_attention_info._context_size = 32;
+    var._sdpa_attention_info._k_seq_dim = 1;
+    var._sdpa_attention_info._v_seq_dim = 2;
+    var._sdpa_attention_info._sdpa_indices = {0, {0}, {0}, 0, 0, 0};
+    // Only 3 inputs will exist on the compiled tile models below, so index 999 is out of range.
+    var._sdpa_attention_info._tile_input_indices = {999, 1, 2, 3, 0, 1, 2};
+    var._sdpa_attention_info._tile_output_indices = {0, 1, 2};
+    var._past_tile_size = 8;
+    var._final_tile_size = 8;
+    var._can_use_tensor_view = true;
+
+    ov::npuw::compiled::HostFlashAttention res;
+    std::stringstream ss;
+    write(ss, var);
+    read(ss, res);
+
+    // The out-of-range index survives deserialization unchanged - no validation happens in
+    // the s11n layer itself.
+    EXPECT_EQ(res._sdpa_attention_info._tile_input_indices.q, static_cast<std::size_t>(999));
+
+    auto plugin = std::make_shared<HFAFakePlugin>();
+    res._compiled_tile_model = make_hfa_fake_compiled_model(plugin, /*num_inputs=*/3, /*num_outputs=*/3);
+    res._compiled_final_tile_model = make_hfa_fake_compiled_model(plugin, /*num_inputs=*/4, /*num_outputs=*/3);
+
+    EXPECT_FALSE(res.is_valid());
+}
+
+TEST(SerializationTest, HostFlashAttention_OutOfRangeKSeqDimRejectedAfterDeserialization) {
+    auto hfa = make_deserialized_hfa(/*k_seq_dim=*/4, /*v_seq_dim=*/2);
+
+    EXPECT_FALSE(hfa.is_valid());
+}
+
+TEST(SerializationTest, HostFlashAttention_OutOfRangeVSeqDimRejectedAfterDeserialization) {
+    auto hfa = make_deserialized_hfa(/*k_seq_dim=*/1, /*v_seq_dim=*/4);
+
+    EXPECT_FALSE(hfa.is_valid());
+}
+
+// Positive control for the rejection tests above: the baseline configuration they are derived from
+// must be accepted. Without it, an over-strict is_valid() - which would break every HFA inference
+// at the OPENVINO_ASSERT in ensure_hfa_requests - would still leave those tests green.
+TEST(SerializationTest, HostFlashAttention_ValidConfigurationAcceptedAfterDeserialization) {
+    auto hfa = make_deserialized_hfa(/*k_seq_dim=*/1, /*v_seq_dim=*/2);
+
+    EXPECT_TRUE(hfa.is_valid());
+}
+
+// Mask-skipping optimization: the regular tile model is compiled without a mask input, so the
+// mask index deliberately points past its inputs while still addressing the final tile model's
+// mask port. is_valid() must accept that, and must still reject an index that is out of range
+// for the final tile model as well.
+TEST(SerializationTest, HostFlashAttention_MaskSkippingConfigurationAccepted) {
+    auto hfa = make_deserialized_hfa(/*k_seq_dim=*/1, /*v_seq_dim=*/2);
+    auto plugin = std::make_shared<HFAFakePlugin>();
+
+    // Regular tile model: [acc, max, d, k, v, q]; final tile model additionally has mask at index 6.
+    hfa._sdpa_attention_info._tile_input_indices = {/*q=*/5,
+                                                    /*k=*/3,
+                                                    /*v=*/4,
+                                                    /*mask=*/6,
+                                                    /*acc=*/0,
+                                                    /*max=*/1,
+                                                    /*d=*/2};
+    hfa._compiled_tile_model = make_hfa_fake_compiled_model(plugin, /*num_inputs=*/6, /*num_outputs=*/3);
+    hfa._compiled_final_tile_model = make_hfa_fake_compiled_model(plugin, /*num_inputs=*/7, /*num_outputs=*/3);
+    EXPECT_TRUE(hfa.is_valid());
+
+    hfa._compiled_final_tile_model = make_hfa_fake_compiled_model(plugin, /*num_inputs=*/6, /*num_outputs=*/3);
+    EXPECT_FALSE(hfa.is_valid());
+}
+
+// _context_size feeds the mask tile buffer allocation loop in
+// HFARuntimeContext::initialize_mask_cache (ceil(context_size / past_tile_size) device allocations),
+// so zero and absurdly large values must be rejected while a partial final interval remains valid.
+TEST(SerializationTest, HostFlashAttention_InvalidContextSizeRejectedAfterDeserialization) {
+    EXPECT_FALSE(make_deserialized_hfa(/*k_seq_dim=*/1, /*v_seq_dim=*/2, /*context_size=*/0).is_valid());
+    EXPECT_TRUE(make_deserialized_hfa(/*k_seq_dim=*/1, /*v_seq_dim=*/2, /*context_size=*/33).is_valid());
+    // Would request nearly 2^61 mask tile buffers.
+    EXPECT_FALSE(make_deserialized_hfa(/*k_seq_dim=*/1,
+                                       /*v_seq_dim=*/2,
+                                       /*context_size=*/std::numeric_limits<std::size_t>::max() - 7)
+                     .is_valid());
 }
 
 TEST(SerializationTest, OVTypes_MoEExperts) {
@@ -1552,6 +1768,42 @@ TEST(SerializationTest, OVTypes_LazyTensor_concat_permute_convert_roundtrip) {
     EXPECT_EQ(var.get_hash(), res.get_hash());
     EXPECT_EQ(var.eval_meta().shape, res.eval_meta().shape);
     EXPECT_EQ(var.eval_meta().type, res.eval_meta().type);
+}
+
+TEST(SerializationTest, OVTypes_LazyTensor_subtract128_roundtrip) {
+    using namespace ov::npuw::s11n;
+
+    auto constant = make_weightless_constant<uint8_t>(ov::element::u8, ov::Shape{2, 3},
+                                                       {0, 1, 127, 128, 254, 255}, 0);
+    auto var = ov::npuw::weights::LazyTensor(constant).subtract_128();
+    ov::npuw::weights::LazyTensor res;
+    const auto expected = var.eval();
+
+    std::stringstream ss;
+    write(ss, var);
+    var.detach();
+    read(ss, res);
+    res.read_weight(WeightsContext(nullptr, "", make_consts_cache({constant}), {}));
+
+    expect_lazy_tensor_transform_types_equal(var, res);
+    EXPECT_EQ(var.get_hash(), res.get_hash());
+    EXPECT_EQ(res.eval_meta().shape, (ov::Shape{2, 3}));
+    EXPECT_EQ(res.eval_meta().type, ov::element::i8);
+    expect_tensors_equal(expected, res.eval());
+}
+
+TEST(SerializationTest, OVTypes_LazyTensor_subtract128_embedded_roundtrip) {
+    using namespace ov::npuw::s11n;
+
+    auto constant = ov::op::v0::Constant::create(ov::element::u8, ov::Shape{4}, {0, 127, 128, 255});
+    auto var = ov::npuw::weights::LazyTensor(constant).subtract_128();
+    const auto expected = var.eval();
+    ov::npuw::weights::LazyTensor res;
+    std::stringstream ss;
+    write(ss, var);
+    read(ss, res);
+
+    expect_tensors_equal(expected, res.eval());
 }
 
 TEST(SerializationTest, OVTypes_LazyTensor_unpack_roundtrip) {
