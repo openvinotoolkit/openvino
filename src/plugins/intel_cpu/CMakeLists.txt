@@ -175,7 +175,7 @@ if(NOT X86_64)
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/tpp/x64/*)
 endif()
 
-if(X86_64 OR AARCH64)
+if(X86_64 OR AARCH64 OR RISCV64)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/common/shape_inference_fallback.cpp)
 endif()
 
@@ -199,7 +199,8 @@ if (NOT RISCV64)
     list(APPEND EXCLUDE_PATHS ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/plugin/riscv64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/kernels/riscv64/*
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/emitters/snippets/riscv64/*
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/riscv64/*)
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/nodes/executors/riscv64/*
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations/snippets/riscv64/*)
 endif()
 
 if (NOT ENABLE_MLAS_FOR_CPU)
@@ -270,8 +271,9 @@ endif()
 
 if(RISCV64)
     # Set `XBYAK_RISCV_V=1` to compile Xbyak-code for RVV-related instructions
+    target_compile_definitions(xbyak_riscv INTERFACE XBYAK_RISCV_V=1)
     # Set `XBYAK_RISCV_VSETV_DEFAULT_OLD=0` to use the new vsetvli API without default arguments
-    target_compile_definitions(xbyak_riscv INTERFACE XBYAK_RISCV_V=1 XBYAK_RISCV_VSETV_DEFAULT_OLD=0)
+    target_compile_definitions(${TARGET_NAME} PRIVATE XBYAK_RISCV_VSETV_DEFAULT_OLD=0)
     target_link_libraries(${TARGET_NAME} PRIVATE xbyak_riscv)
     target_include_directories(${TARGET_NAME} SYSTEM INTERFACE $<TARGET_PROPERTY:xbyak_riscv::xbyak_riscv,INTERFACE_INCLUDE_DIRECTORIES>)
 endif()
@@ -442,6 +444,7 @@ if(BUILD_SHARED_LIBS)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:kleidiai,INTERFACE_INCLUDE_DIRECTORIES>)
     endif()
     if(RISCV64)
+        target_compile_definitions(${TARGET_NAME}_obj PRIVATE XBYAK_RISCV_VSETV_DEFAULT_OLD=0)
         target_include_directories(${TARGET_NAME}_obj SYSTEM PUBLIC $<TARGET_PROPERTY:xbyak_riscv::xbyak_riscv,INTERFACE_INCLUDE_DIRECTORIES>)
     endif()
 

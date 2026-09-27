@@ -18,10 +18,7 @@
 
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace dft {
+namespace ov::frontend::onnx::dft {
 
 namespace {
 // For DFT, IDFT, IRDFT cases, if real signal are provided (with shape [D_0, D_1, ..., D_{N-1}, 1])
@@ -86,7 +83,4 @@ ov::Output<ov::Node> make_dft(const ov::Output<ov::Node>& signal,
     }
     return {result};
 }
-}  // namespace  dft
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::dft

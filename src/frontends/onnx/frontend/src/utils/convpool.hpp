@@ -8,10 +8,7 @@
 #include "openvino/core/shape.hpp"
 #include "openvino/core/strides.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace convpool {
+namespace ov::frontend::onnx::convpool {
 /// \brief Get shape of kernel (filter) in pixels.
 ///
 /// \param node The Node ptr representing Conv or Pool operation.
@@ -133,7 +130,4 @@ void calculate_transpose_auto_pads(const ov::Shape& data_shape,
 ///
 /// \return     Reshaped filters input.
 ov::Output<ov::Node> get_reshaped_filters(const ov::Output<ov::Node>& filters, int64_t groups);
-}  // namespace convpool
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::convpool
