@@ -52,6 +52,10 @@ bool is_otd_capable_moe(const ov::Node* node) {
 }
 
 MoEConstantRole get_moe_constant_role(const std::shared_ptr<ov::op::v0::Constant>& op) {
+    if (!op) {
+        return MoEConstantRole::NotMoE;
+    }
+
     const auto target_inputs = op->get_output_target_inputs(0);
     bool has_moe_consumer = false;
     bool has_non_otd_moe = false;
