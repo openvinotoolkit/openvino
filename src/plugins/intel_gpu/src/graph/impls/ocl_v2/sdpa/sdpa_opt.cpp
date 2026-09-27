@@ -35,8 +35,8 @@ bool SDPAOpt::has_per_channel_compressed_kv(const kernel_impl_params& params) {
     const auto data_inputs_num = get_data_inputs_num(*desc);
     const auto is_per_channel_scale = [&params](size_t scale_idx) {
         const auto& shape = params.input_layouts[scale_idx].get_partial_shape();
-        return shape.rank().is_static() && shape.rank().get_length() == 4 && shape[2].is_static() &&
-               shape[2].get_length() == 1 && shape[3].is_static() && shape[3].get_length() > 1;
+        return shape.rank().is_static() && shape.rank().get_length() == 4 && shape[2].is_static() && shape[2].get_length() == 1 && shape[3].is_static() &&
+               shape[3].get_length() > 1;
     };
     return is_per_channel_scale(data_inputs_num) || is_per_channel_scale(data_inputs_num + 1);
 }
@@ -95,8 +95,7 @@ public:
                     // Sometimes micro kernel will fail due to "Insufficient registers in requested bundle",
                     // In this case, fallback to opt kernel.
                     if (!has_stage(regular_micro_multi_tokens)) {
-                        OPENVINO_ASSERT(!SDPAOpt::has_per_channel_compressed_kv(params),
-                                        "Per-channel compressed KV requires the micro SDPA kernel");
+                        OPENVINO_ASSERT(!SDPAOpt::has_per_channel_compressed_kv(params), "Per-channel compressed KV requires the micro SDPA kernel");
                         GPU_DEBUG_TRACE_DETAIL << "fail to create micro kernel, fallback to regular_multi_tokens for prefill \n";
                         add_stage(regular_multi_tokens, params);
                     }
