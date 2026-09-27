@@ -123,8 +123,9 @@ protected:
             jit.make("ADJUSTED_V_HEAD_SIZE", adjusted_v_head_size);
         }
 
-        // Uncompressed and i8/u8 BY_TOKEN K may be stored token-major; BY_CHANNEL and INT4 are always
-        // d-major. key_cache_dt is desc->cache_dt, which still reads i4/u4 for a packed INT4 cache
+        // Uncompressed and i8/u8 BY_TOKEN K may be stored token-major; BY_CHANNEL and INT4 are read
+        // d-major only (a token-major BY_CHANNEL page is refused at dispatch, see get_dispatch_data_func()).
+        // key_cache_dt is desc->cache_dt, which still reads i4/u4 for a packed INT4 cache
         // (see is_int4_compressed above), so the predicate can tell it from a real u8 one.
         // OV_GPU_PA_K_TM_BREAK=reorder forces just this kernel back to d-major, to test whether
         // pa_kv_reorder_gpu actually observes it.
@@ -172,6 +173,19 @@ protected:
             const auto sequences_number = begins_len - 1;
 
             const bool is_kv_compressed = desc->is_kv_compressed;
+
+            // This kernel addresses a BY_CHANNEL K page d-major. The token-major page of the main model
+            // (paged_attention::by_channel_token_major_readable()) is never created for qq_bias models,
+            // i.e. EAGLE3, the only user of this reorder, but it would corrupt the cache here, so refuse
+            // it. Only the runtime shape tells: the kv-update model has no PagedAttention op.
+            if (is_kv_compressed && desc->is_key_by_channel && !desc->has_xattention) {
+                const size_t block = cldnn::paged_attention::block_size;
+                const size_t adjusted_block = (data_type_traits::is_i4_u4(desc->cache_dt) ? block / u4_elems_per_byte : block) + desc->scales_zp_size;
+                OPENVINO_ASSERT(!cldnn::paged_attention::k_by_channel_token_major_layout(
+                                    params.input_layouts[cldnn::pa_kv_reorder::PaKVReorderInputIdx::KEY_CACHE].get_partial_shape(),
+                                    adjusted_block),
+                                "[GPU] pa_kv_reorder: the i8/u4 BY_CHANNEL K cache is token-major, but this kernel reads it d-major");
+            }
 
             const auto max_wg_size = params.get_device_info().max_work_group_size;
             size_t max_heads_per_wg = static_cast<size_t>(max_wg_size / subgroup_size);

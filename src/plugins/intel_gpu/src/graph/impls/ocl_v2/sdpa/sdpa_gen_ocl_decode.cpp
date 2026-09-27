@@ -159,9 +159,10 @@ size_t SDPAOclDecodeGenerator::get_sg_per_wg(size_t v_head_size) {
     return value;
 }
 
+// paged_attention::by_channel_token_major_readable() replays the checks below that do not depend on the
+// K page; change the two together.
 bool SDPAOclDecodeGenerator::supported(const RuntimeParams& params) {
-    static const bool enabled = env_on("TEST_USE_SDPA_OCL_DECODE", true);
-    if (!enabled) {
+    if (!paged_attention::sdpa_ocl_decode_enabled()) {
         return false;
     }
 
@@ -178,7 +179,9 @@ bool SDPAOclDecodeGenerator::supported(const RuntimeParams& params) {
         return false;
     }
     // qq_bias is accepted: one new token per sequence makes its tree mask the 1 x 1 identity, which plain
-    // causal masking already gives (and keeps qq_bias models on the token-major BY_CHANNEL layout).
+    // causal masking already gives. A qq_bias model still gets the d-major BY_CHANNEL page
+    // (paged_attention::by_channel_token_major_readable(): EAGLE3's pa_kv_reorder reads it d-major), so
+    // here that page is only reached when a test forces it (smoke_qq_bias_token_major).
     if (desc->has_alibi || desc->has_xattention) {
         return false;
     }
