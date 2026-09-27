@@ -530,8 +530,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
             const int q_fold_d0 = 2 * q_fold_i0;
             if (q_fold_d0 >= d)
                 continue;
-            const half2 q_fold_s = (half2)(K_scales[q_fold_d0],
-                    (q_fold_d0 + 1 < d) ? K_scales[q_fold_d0 + 1] : (half)0.0h);
+            const half2 q_fold_s = (half2)(K_scales[q_fold_d0 / KEY_GROUP_SIZE],
+                    (q_fold_d0 + 1 < d) ? K_scales[(q_fold_d0 + 1) / KEY_GROUP_SIZE] : (half)0.0h);
 #pragma unroll
             for (int q_fold_j = 0; q_fold_j < q_tile_sg_n; q_fold_j++) {
                 Q_tile.x[q_fold_j][q_fold_t]
