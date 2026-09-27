@@ -41,17 +41,34 @@ static constexpr size_t SHARED_INPUT_END = 21;
 static constexpr double AUTO_OFFLOAD_RATIO_FIT_SAFETY = 0.85;
 
 MoEConstantRole get_moe_constant_role(const std::shared_ptr<ov::op::v0::Constant>& op) {
-    const auto users = op->get_output_target_inputs(0);
-    for (const auto& input : users) {
+    if (!op)
+        return MoEConstantRole::NotMoE;
+
+    bool has_routed = false;
+    bool has_shared = false;
+    bool has_other = false;
+
+    for (const auto& input : op->get_output_target_inputs(0)) {
         const auto* node = input.get_node();
         if (ov::is_type<ov::op::internal::MOECompressed>(node)) {
             auto idx = input.get_index();
-            if (idx >= ROUTED_INPUT_START && idx <= ROUTED_INPUT_END)
-                return MoEConstantRole::RoutedExpert;
-            if (idx >= SHARED_INPUT_START && idx <= SHARED_INPUT_END)
-                return MoEConstantRole::SharedExpert;
+            if (idx >= ROUTED_INPUT_START && idx <= ROUTED_INPUT_END) {
+                has_routed = true;
+            } else if (idx >= SHARED_INPUT_START && idx <= SHARED_INPUT_END) {
+                has_shared = true;
+            } else {
+                has_other = true;
+            }
+        } else {
+            has_other = true;
         }
     }
+
+    // Only classify as RoutedExpert if all consumers are routed expert inputs and none require the full tensor.
+    if (has_routed && !has_shared && !has_other)
+        return MoEConstantRole::RoutedExpert;
+    if (has_shared)
+        return MoEConstantRole::SharedExpert;
     return MoEConstantRole::NotMoE;
 }
 
