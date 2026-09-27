@@ -292,8 +292,7 @@ bool is_all_core_auto_case_low_tolerance_zero_adds_profile(const ov::MemBandwidt
 void determine_tbb_partitioner_and_threads(Config& config,
                                            const std::vector<std::vector<int>>& proc_type_table,
                                            const ov::MemBandwidthPressure& tolerance,
-                                           bool int8_intensive,
-                                           int num_streams) {
+                                           bool int8_intensive) {
     if (config.tbbPartitioner != TbbPartitioner::NONE) {
         return;
     }
@@ -314,8 +313,7 @@ void determine_tbb_partitioner_and_threads(Config& config,
         }
     }
 
-    if (num_streams == 1 &&
-        has_lp_ecores && (is_all_core_auto_case_high_lp_share_relaxed_profile(tolerance, lp_ecore_share) ||
+    if (has_lp_ecores && (is_all_core_auto_case_high_lp_share_relaxed_profile(tolerance, lp_ecore_share) ||
                           is_all_core_auto_case_high_lp_share_vision_profile(tolerance, lp_ecore_share) ||
                           is_all_core_auto_case_high_lp_share_residual_vision_profile(tolerance, lp_ecore_share) ||
                           is_all_core_auto_case_low_tolerance_dense_conv_profile(tolerance) ||
@@ -1223,8 +1221,7 @@ void configure_x86_hybrid_threads(Config& config,
                                   const std::vector<std::vector<int>>& proc_type_table,
                                   const ov::MemBandwidthPressure& tolerance,
                                   bool int8_intensive,
-                                  bool is_LLM,
-                                  int num_streams) {
+                                  bool is_LLM) {
     const int main_cores = proc_type_table[0][MAIN_CORE_PROC];
     const int efficient_cores = proc_type_table[0][EFFICIENT_CORE_PROC];
     const int lp_efficient_cores = proc_type_table[0][LP_EFFICIENT_CORE_PROC];
@@ -1238,7 +1235,7 @@ void configure_x86_hybrid_threads(Config& config,
             config.modelPreferThreadsLatency = main_cores;
         } else {
             config.modelPreferThreadsLatency = main_cores + efficient_cores;
-            determine_tbb_partitioner_and_threads(config, proc_type_table, tolerance, int8_intensive, num_streams);
+            determine_tbb_partitioner_and_threads(config, proc_type_table, tolerance, int8_intensive);
         }
     } else {
         // Fall back to default latency preference logic
@@ -1366,12 +1363,7 @@ int get_model_prefer_threads(const int num_streams,
         const int lp_efficient_cores = proc_type_table[0][LP_EFFICIENT_CORE_PROC];
 
         if (efficient_cores > 0 && main_cores > 0) {
-            configure_x86_hybrid_threads(config,
-                                         proc_type_table,
-                                         networkToleranceForLowCache,
-                                         int8_intensive,
-                                         is_LLM,
-                                         num_streams);
+            configure_x86_hybrid_threads(config, proc_type_table, networkToleranceForLowCache, int8_intensive, is_LLM);
         } else if (efficient_cores == 0 && main_cores * 2 <= lp_efficient_cores) {
             configure_x86_hybrid_lp_threads(config, proc_type_table, networkToleranceForLowCache);
         } else {
