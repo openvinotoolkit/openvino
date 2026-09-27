@@ -57,11 +57,6 @@ protected:
         const auto& [groupConvParams, model_type, inputShape, _targetDevice] = this->GetParam();
         targetDevice = _targetDevice;
 
-        if (model_type == ov::element::f16) {
-            abs_threshold = 0.5;
-            rel_threshold = 0.01;
-        }
-
         init_input_shapes({inputShape});
 
         const auto& [kernel, stride, padBegin, padEnd, dilation, convOutChannels, numGroups, padType] = groupConvParams;
