@@ -18,6 +18,10 @@
 
 namespace ov::intel_gpu {
 
+/// Maximum offload ratio that AUTO mode will select. If calculated ratio exceeds this threshold,
+/// AUTO mode is rejected (resolves to 0) to avoid severe latency degradation and expert slot thrashing.
+static constexpr size_t AUTO_OFFLOAD_MAX_RATIO_THRESHOLD = 75;
+
 /// Classifies a Constant's role relative to the MoE fused op.
 enum class MoEConstantRole { NotMoE, RoutedExpert, SharedExpert };
 

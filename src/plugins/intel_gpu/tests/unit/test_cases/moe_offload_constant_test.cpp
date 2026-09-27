@@ -174,6 +174,15 @@ TEST(moe_offload_constant, auto_ratio_no_moe_model_resolves_zero) {
     EXPECT_EQ(resolve_auto_offload_ratio_for_budget(*model, 1), 0U);
 }
 
+TEST(moe_offload_constant, auto_ratio_non_positive_budget_for_moe_resolves_zero) {
+    auto g = MoETestGraph::build();
+    const uint64_t fixed_bytes = sum_constant_bytes(g, MoEConstantRole::SharedExpert);
+    // Set budget such that budget * 0.85 <= fixed_bytes (i.e. budget_for_moe <= 0)
+    const uint64_t budget = fixed_bytes;
+
+    EXPECT_EQ(resolve_auto_offload_ratio_for_budget(*g.to_model(), budget), 0U);
+}
+
 TEST(moe_offload_constant, auto_ratio_all_moe_weights_fit_resolves_zero) {
     auto g = MoETestGraph::build();
 
