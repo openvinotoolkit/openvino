@@ -4,15 +4,13 @@
 
 #pragma once
 
-#include <mutex>
-
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/stream.hpp"
-#include "ze_base_event_factory.hpp"
 #include "ze_common.hpp"
+#include "ze_resource.hpp"
 #include "ze_engine.hpp"
 #include "ze_event.hpp"
-#include "ze_resource.hpp"
+#include "ze_base_event_factory.hpp"
 
 namespace cldnn {
 namespace ze {
@@ -20,29 +18,20 @@ namespace ze {
 class ze_stream : public stream {
 public:
     ze_command_list_handle_t get_queue() const { return m_cmd_list.handle(); }
-    std::unique_lock<std::mutex> lock_command_list() const {
-        return std::unique_lock<std::mutex>(m_command_list_mutex);
-    }
     const ze_engine& get_engine() const { return _engine; }
-    bool begin_replay();
 
     ze_stream(const ze_engine& engine, const ExecutionConfig& config);
     ze_stream(const ze_engine& engine, const ExecutionConfig& config, ze_command_list_resource cmd_list);
     ze_stream(ze_stream&& other)
-        : stream(other.m_queue_type, other.m_sync_method),
-          _engine(other._engine),
-          m_cmd_list(std::move(other.m_cmd_list)),
-          m_queue_counter(other.m_queue_counter.load()),
-          m_last_barrier(other.m_last_barrier.load()),
-          m_last_barrier_ev(other.m_last_barrier_ev),
-          m_ev_factory(std::move(other.m_ev_factory)),
-          m_user_ev_factory(std::move(other.m_user_ev_factory)),
-          m_regular_queue(std::move(other.m_regular_queue)),
-          m_regular_list(other.m_regular_list),
-          m_regular_list_submitted(other.m_regular_list_submitted),
-          m_replay_enabled(other.m_replay_enabled),
-          m_replaying(other.m_replaying),
-          m_regular_submission_count(other.m_regular_submission_count) {}
+        : stream(other.m_queue_type, other.m_sync_method)
+        , _engine(other._engine)
+        , m_cmd_list(std::move(other.m_cmd_list))
+        , m_queue_counter(other.m_queue_counter.load())
+        , m_last_barrier(other.m_last_barrier.load())
+        , m_last_barrier_ev(other.m_last_barrier_ev)
+        , m_ev_factory(std::move(other.m_ev_factory))
+        , m_user_ev_factory(std::move(other.m_user_ev_factory)) {
+        }
 
     ~ze_stream();
 
@@ -75,7 +64,6 @@ private:
 
     const ze_engine& _engine;
     ze_command_list_resource m_cmd_list;
-    mutable std::mutex m_command_list_mutex;
     mutable std::atomic<uint64_t> m_queue_counter{0};
     std::atomic<uint64_t> m_last_barrier{0};
     std::shared_ptr<ze_event> m_last_barrier_ev = nullptr;
@@ -85,13 +73,6 @@ private:
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::shared_ptr<dnnl::stream> _onednn_stream = nullptr;
 #endif
-
-    ze_command_queue_resource m_regular_queue;
-    bool m_regular_list = false;
-    mutable bool m_regular_list_submitted = false;
-    bool m_replay_enabled = false;
-    bool m_replaying = false;
-    mutable size_t m_regular_submission_count = 0;
 };
 
 }  // namespace ze

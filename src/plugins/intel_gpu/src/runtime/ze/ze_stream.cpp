@@ -3,28 +3,29 @@
 //
 
 #include "ze_stream.hpp"
-
-#include <cassert>
-#include <cstdlib>
-#include <memory>
-#include <string>
-#include <vector>
-
-#include "compute_runtime/ze_intel_gpu.h"
-#include "compute_runtime/ze_stypes.h"
 #include "intel_gpu/runtime/memory_caps.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "ze_common.hpp"
+
 #include "ze_counter_based_event_factory.hpp"
-#include "ze_empty_event.hpp"
-#include "ze_event.hpp"
 #include "ze_event_factory.hpp"
 #include "ze_events.hpp"
+#include "ze_empty_event.hpp"
+
+#include "ze_event.hpp"
 #include "ze_kernel.hpp"
 #include "ze_memory.hpp"
+#include "ze_common.hpp"
+
+#include "compute_runtime/ze_intel_gpu.h"
+#include "compute_runtime/ze_stypes.h"
+
+#include <cassert>
+#include <string>
+#include <vector>
+#include <memory>
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <oneapi/dnnl/dnnl_ze.hpp>
@@ -235,8 +236,6 @@ ze_stream::ze_stream(const ze_engine &engine, const ExecutionConfig& config)
     auto ctx_handle = engine.get_context().handle();
     auto device_handle = engine.get_device().handle();
     ze_command_list_handle_t cmd_list = nullptr;
-    m_regular_list = std::getenv("OV_ZE_REGULAR_LIST") != nullptr && info.supports_mutable_command_list;
-    m_replay_enabled = m_regular_list && std::getenv("OV_ZE_REPLAY_LIST") != nullptr;
     OV_ZE_EXPECT(ze::zeCommandListCreateImmediate(ctx_handle, device_handle, &command_queue_desc, &cmd_list));
     m_cmd_list = ze_command_list_resource(cmd_list);
 
@@ -289,49 +288,7 @@ ze_stream::~ze_stream() {
     m_cmd_list.drop();
 }
 
-bool ze_stream::begin_replay() {
-    if (!m_replay_enabled)
-        return false;
-
-    if (m_regular_list_submitted && m_regular_submission_count >= 2) {
-        m_replaying = true;
-        return true;
-    }
-
-    m_replaying = false;
-    if (m_regular_list_submitted) {
-        OV_ZE_EXPECT(ze::zeCommandListReset(m_cmd_list.handle()));
-        m_regular_list_submitted = false;
-    }
-    return false;
-}
-
 void ze_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args_desc, const kernel_arguments_data& args) {
-    if (m_regular_list) {
-        if (m_regular_queue.is_empty()) {
-            ze_command_queue_desc_t queue_desc = {};
-            queue_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_QUEUE_DESC;
-            queue_desc.ordinal = _engine.get_device_info().compute_queue_group_ordinal;
-            queue_desc.mode = ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS;
-            queue_desc.priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
-            ze_command_queue_handle_t queue = nullptr;
-            OV_ZE_EXPECT(ze::zeCommandQueueCreate(_engine.get_context().handle(), _engine.get_device().handle(), &queue_desc, &queue));
-            m_regular_queue = ze_command_queue_resource(queue);
-
-            ze_mutable_command_list_exp_desc_t mutable_desc = {};
-            mutable_desc.stype = ZE_STRUCTURE_TYPE_MUTABLE_COMMAND_LIST_EXP_DESC;
-            ze_command_list_desc_t list_desc = {};
-            list_desc.stype = ZE_STRUCTURE_TYPE_COMMAND_LIST_DESC;
-            list_desc.pNext = &mutable_desc;
-            list_desc.commandQueueGroupOrdinal = queue_desc.ordinal;
-            ze_command_list_handle_t list = nullptr;
-            OV_ZE_EXPECT(ze::zeCommandListCreate(_engine.get_context().handle(), _engine.get_device().handle(), &list_desc, &list));
-            m_cmd_list = ze_command_list_resource(list);
-        } else if (m_regular_list_submitted) {
-            OV_ZE_EXPECT(ze::zeCommandListReset(m_cmd_list.handle()));
-            m_regular_list_submitted = false;
-        }
-    }
     static std::mutex m;
     std::lock_guard<std::mutex> guard(m);
 
@@ -441,33 +398,10 @@ std::unique_ptr<surfaces_lock> ze_stream::create_surfaces_lock(const std::vector
 }
 
 void ze_stream::flush() const {
-    if (m_regular_list)
-        return;
     GPU_DEBUG_TRACE << "Immediate Command List submits commands immediately - no flush impl" << std::endl;
 }
 
 void ze_stream::finish() const {
-    if (m_regular_list) {
-        auto submit = [&] {
-            ze_fence_desc_t fence_desc = {};
-            fence_desc.stype = ZE_STRUCTURE_TYPE_FENCE_DESC;
-            ze_fence_handle_t fence = nullptr;
-            OV_ZE_EXPECT(ze::zeFenceCreate(m_regular_queue.handle(), &fence_desc, &fence));
-            auto list = m_cmd_list.handle();
-            OV_ZE_EXPECT(ze::zeCommandQueueExecuteCommandLists(m_regular_queue.handle(), 1, &list, fence));
-            OV_ZE_EXPECT(ze::zeFenceHostSynchronize(fence, endless_wait));
-            OV_ZE_EXPECT(ze::zeFenceDestroy(fence));
-        };
-        if (!m_regular_list_submitted) {
-            OV_ZE_EXPECT(ze::zeCommandListClose(m_cmd_list.handle()));
-            submit();
-            m_regular_list_submitted = true;
-            ++m_regular_submission_count;
-        } else if (m_replaying) {
-            submit();
-        }
-        return;
-    }
     OV_ZE_EXPECT(ze::zeCommandListHostSynchronize(m_cmd_list.handle(), endless_wait));
 }
 

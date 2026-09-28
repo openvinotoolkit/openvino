@@ -450,7 +450,6 @@ event::ptr gpu_usm::copy_from(stream& stream, const void* data_ptr, size_t src_o
     check_boundaries(SIZE_MAX, src_offset, _bytes_count, dst_offset, size, "gpu_usm::copy_from(void*)");
 
     auto _ze_stream = downcast<ze_stream>(&stream);
-    auto command_list_lock = _ze_stream->lock_command_list();
     auto _ze_event = downcast<ze_base_event>(result_event.get())->get_handle();
     auto src_ptr = reinterpret_cast<const char*>(data_ptr) + src_offset;
     auto dst_ptr = reinterpret_cast<char*>(_buffer.handle().ptr) + dst_offset;
@@ -477,7 +476,6 @@ event::ptr gpu_usm::copy_from(stream& stream, const memory& src_mem, size_t src_
     check_boundaries(src_mem.size(), src_offset, _bytes_count, dst_offset, size, "gpu_usm::copy_from(memory&)");
 
     auto _ze_stream = downcast<ze_stream>(&stream);
-    auto command_list_lock = _ze_stream->lock_command_list();
     auto _ze_event = downcast<ze_base_event>(result_event.get())->get_handle();
     auto alloc_type = src_mem.get_allocation_type();
     OPENVINO_ASSERT(memory_capabilities::is_usm_type(alloc_type) || alloc_type == allocation_type::cl_mem, "[GPU] Source memory for gpu_usm::copy_from(memory&) should be USM or OpenCL buffer");
@@ -507,7 +505,6 @@ event::ptr gpu_usm::copy_to(stream& stream, void* data_ptr, size_t src_offset, s
     check_boundaries(_bytes_count, src_offset, SIZE_MAX, dst_offset, size, "gpu_usm::copy_to(void*)");
 
     auto _ze_stream = downcast<ze_stream>(&stream);
-    auto command_list_lock = _ze_stream->lock_command_list();
     auto _ze_event = downcast<ze_base_event>(result_event.get())->get_handle();
     auto src_ptr = reinterpret_cast<const char*>(buffer_ptr()) + src_offset;
     auto dst_ptr = reinterpret_cast<char*>(data_ptr) + dst_offset;
