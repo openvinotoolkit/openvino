@@ -41,46 +41,27 @@ private:
     std::shared_ptr<const GQACompiledModel> m_compiled_model;
     mutable std::mutex m_mutex;
     mutable std::shared_ptr<ov::IAsyncInferRequest> m_inner_request;
-    // For dynamic KV-cache/attention-bias ports (see GQACompiledModel::m_dynamic_kv_cache_axes),
-    // the outer-facing tensor is user-owned and only its valid prefix is copied into the
-    // inner request's static buffer; get_tensor() must hand back this exact tensor
-    // rather than the inner (differently-shaped) one. Keyed by port friendly name.
+    // Outer-facing tensor for dynamic KV-cache/attention-bias ports (see
+    // GQACompiledModel::m_dynamic_kv_cache_axes); only its valid prefix is copied into
+    // the inner request's static buffer. Keyed by port friendly name.
     mutable std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_dynamic_kv_cache_tensors;
-    // Outer-facing tensors for dynamic present_key/present_value outputs (see
-    // GQACompiledModel::m_dynamic_kv_cache_output_axes): allocated lazily on first
-    // get_tensor() and refreshed (valid prefix copied out of the inner static buffer)
-    // at the end of every infer(). Keyed by port friendly name.
+    // Outer-facing tensors for dynamic present_key/present_value outputs; allocated
+    // lazily and refreshed from the inner static buffer after every infer().
     mutable std::unordered_map<std::string, ov::SoPtr<ov::ITensor>> m_dynamic_kv_cache_output_tensors;
-    // Names (subset of m_dynamic_kv_cache_output_tensors' keys) whose entry is currently
-    // an alias directly onto the inner request's own live tensor (valid_len == capacity,
-    // i.e. no trimming needed -- see refresh_present_tensors_locked()), not a private
-    // buffer we own. Must never call set_shape() on an aliased entry: that would resize
-    // the inner request's actual working KV-cache buffer, corrupting future inference.
-    // When trimming becomes necessary again, an aliased entry is discarded and a fresh,
-    // privately-owned tensor is allocated instead of being resized in place.
+    // Names currently aliased directly onto the inner request's own tensor (no
+    // trimming needed) rather than a private buffer; never set_shape() these.
     mutable std::unordered_set<std::string> m_dynamic_kv_cache_output_aliased;
 
-    ov::SoPtr<ov::ITensor> get_present_tensor_locked(const std::string& name, size_t axis) const;
+    ov::SoPtr<ov::ITensor> get_present_tensor_locked(const std::string& name) const;
     void refresh_present_tensors_locked() const;
-    // Copies the live contents of each dynamic-axis KV-cache/attention-bias input's
-    // user-owned tensor (captured by set_tensor(), see m_dynamic_kv_cache_tensors) into
-    // the inner request's static buffer. Must run right before infer() delegates to the
-    // inner request, not inside set_tensor() itself: a caller may keep writing into the
-    // same tensor object after set_tensor() and before infer() (e.g. set_tensor(t);
-    // write_into(t); infer();), and only data present at infer() time is guaranteed to
-    // be picked up. No-op for ports set_tensor() already aliased directly onto the inner
-    // request (exact-capacity tensors) -- those are the same object, so there's nothing
-    // to copy.
+    // Copies each dynamic-axis input's user-owned tensor into the inner request's
+    // static buffer, right before infer() (not inside set_tensor(), since the caller
+    // may keep writing into it afterwards). No-op for ports already aliased.
     void sync_dynamic_kv_cache_tensors_locked() const;
-    // Diagnostic-only: prints the current values of any sequence-length-style input
-    // this model exposes (seqlens_k / past_seq_len / total_seq_len), read fresh from
-    // the inner request right before infer() -- see gqa_compiled_model.cpp for why this
-    // needs to look at the tensor's live content rather than trust set_tensor() alone.
+    // Diagnostic-only: traces sequence-length-style inputs (seqlens_k / past_seq_len /
+    // total_seq_len) right before infer(); see gqa_compiled_model.cpp.
     void trace_sequence_length_inputs_locked() const;
-    // Diagnostic-only: prints min/max/non-zero-count for the attention bias/mask
-    // input(s), read fresh from the inner request right before infer() -- answers
-    // whether this model actually relies on external mask content (vs. leaving it
-    // permanently zero/inert and relying purely on GQA's internal causal masking).
+    // Diagnostic-only: traces attention bias/mask stats right before infer().
     void trace_attention_mask_stats_locked() const;
 };
 

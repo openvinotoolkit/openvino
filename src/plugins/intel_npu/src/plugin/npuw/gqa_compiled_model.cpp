@@ -22,6 +22,7 @@
 #include "npuw_transformations/collapse_unqdq.hpp"
 #include "npuw_transformations/conv_to_matmul.hpp"
 #include "npuw_transformations/drop_zp_subtract.hpp"
+#include "npuw_transformations/reshape_to_static_gqa.hpp"
 #include "npuw_transformations/untangle_dq_scale.hpp"
 #include "openvino/core/descriptor/tensor.hpp"
 #include "openvino/core/node_vector.hpp"
@@ -54,13 +55,19 @@ auto cfg_get(const ov::AnyMap& properties) -> typename T::ValueType {
 // file) is enabled via the OPENVINO_NPUW_GQA_LOG=1 environment variable. Checked once and
 // cached; intentionally a separate on/off knob from the general NPUW_LOG_LEVEL, since
 // this tracing is extremely verbose (dumps tensor stats on every infer()) and exists
-// purely to support this GQA accuracy investigation.
+// purely to support this GQA accuracy investigation. Like the rest of NPUW's env-based
+// debug knobs (see logging.cpp), this only does anything in NPU_PLUGIN_DEVELOPER_BUILD;
+// production builds never read the environment or pay for the std::once_flag check.
 bool gqa_trace_enabled() {
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
     static const bool enabled = [] {
         const char* value = std::getenv("OPENVINO_NPUW_GQA_LOG");
         return value != nullptr && std::string(value) == "1";
     }();
     return enabled;
+#else
+    return false;
+#endif
 }
 
 // Optional override for the GQA KV-cache static reshape target (see
@@ -82,66 +89,6 @@ std::optional<size_t> gqa_ctx_len_env_override() {
         }
     }();
     return value;
-}
-
-// Scans `model`'s past_key/past_value Parameters for a dynamic dimension and returns the
-// axis to pin to the configured static capacity (NPUW_LLM_MAX_CONTEXT_LEN), keyed by
-// Parameter friendly name. A KV-cache Parameter with more than one dynamic dimension is
-// ambiguous and not something we can safely resolve.
-std::unordered_map<std::string, size_t> find_dynamic_kv_cache_axes(const std::shared_ptr<const ov::Model>& model) {
-    std::unordered_map<std::string, size_t> result;
-
-    const auto resolve_dynamic_axis =
-        [](const std::shared_ptr<ov::op::v0::Parameter>& parameter) -> std::optional<size_t> {
-        const auto& partial_shape = parameter->get_partial_shape();
-        if (partial_shape.rank().is_dynamic()) {
-            return std::nullopt;
-        }
-        std::optional<size_t> dynamic_axis;
-        for (size_t i = 0; i < partial_shape.size(); ++i) {
-            if (partial_shape[i].is_dynamic()) {
-                OPENVINO_ASSERT(!dynamic_axis.has_value(),
-                                "GQA parameter '",
-                                parameter->get_friendly_name(),
-                                "' has more than one dynamic dimension; can't resolve its max_seq_len axis");
-                dynamic_axis = i;
-            }
-        }
-        return dynamic_axis;
-    };
-
-    for (const auto& parameter : model->get_parameters()) {
-        const auto& name = parameter->get_friendly_name();
-        if (!ov::npuw::util::contains_ignore_case(name, "past_key") &&
-            !ov::npuw::util::contains_ignore_case(name, "past_value")) {
-            continue;
-        }
-        if (auto axis = resolve_dynamic_axis(parameter)) {
-            result.emplace(name, *axis);
-        }
-    }
-
-    // The attention bias/mask shares the KV-cache's max_seq_len dimension but isn't named
-    // consistently across exporters, so it's located via the GQA op's ATTENTION_BIAS input
-    // instead of by Parameter name.
-    using ov::op::internal::GroupQueryAttention;
-    using ov::op::internal::GroupQueryAttentionInputs;
-    for (const auto& node : model->get_ordered_ops()) {
-        auto gqa = ov::as_type_ptr<GroupQueryAttention>(node);
-        if (!gqa || gqa->get_input_size() <= static_cast<size_t>(GroupQueryAttentionInputs::ATTENTION_BIAS)) {
-            continue;
-        }
-        auto bias_parameter = ov::as_type_ptr<ov::op::v0::Parameter>(
-            gqa->input_value(static_cast<size_t>(GroupQueryAttentionInputs::ATTENTION_BIAS)).get_node_shared_ptr());
-        if (!bias_parameter) {
-            continue;  // not fed directly by a Parameter; nothing we can reshape here
-        }
-        if (auto axis = resolve_dynamic_axis(bias_parameter)) {
-            result.emplace(bias_parameter->get_friendly_name(), *axis);
-        }
-    }
-
-    return result;
 }
 
 void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
@@ -302,12 +249,18 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
 // OPENVINO_NPUW_GQA_LOG=1 is set in the environment (see gqa_trace_enabled() above); a
 // no-op otherwise. Mirrors the LOG_INFO/LOG_DEBUG/LOG_VERB style in logging.hpp: `msg` is
 // a chain of `<<`-streamed expressions, e.g. GQA_TRACE("value=" << value << " shape=" << shape).
+// Only compiled in for NPU_PLUGIN_DEVELOPER_BUILD; a cheap (argument-discarding, no
+// runtime check) no-op everywhere else, same as NPUW's other debug-only log macros.
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
 #define GQA_TRACE(msg)                                       \
     do {                                                     \
         if (gqa_trace_enabled()) {                           \
             std::cout << "[GQA-TRACE] " << msg << std::endl; \
         }                                                    \
     } while (0)
+#else
+#define GQA_TRACE(msg)
+#endif
 
 ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(const std::shared_ptr<ov::Model>& model,
                                                                               const ov::AnyMap& properties) {
@@ -320,7 +273,6 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
                               : stage == GQAModelStage::GENERATE ? "generate"
                                                                  : "unknown") +
                              std::to_string(mcount++));
-    // ov::save_model(model, model->get_friendly_name() + ".xml");
 
     // Untangle shared scale constants so every DequantizeLinear Multiply
     // gets its own copy.  Some exporters reuse a single scale node across
@@ -351,35 +303,10 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
         // OPENVINO_NPUW_GQA_CTX_LEN environment variable, which takes priority over both.
         const size_t max_seq_len =
             gqa_ctx_len_env_override().value_or(cfg_get<::intel_npu::NPUW_LLM_MAX_CONTEXT_LEN>(properties));
-        dynamic_kv_cache_axes = find_dynamic_kv_cache_axes(model);
-        OPENVINO_ASSERT(!dynamic_kv_cache_axes.empty(),
-                        "GQA model has a dynamic max_seq_len but no resolvable KV-cache Parameter was found");
         compiled_model = model->clone();
-        std::map<ov::Output<ov::Node>, ov::PartialShape> new_shapes;
-        for (const auto& [name, axis] : dynamic_kv_cache_axes) {
-            const auto& params = compiled_model->get_parameters();
-            auto it = std::find_if(params.begin(), params.end(), [&](const auto& parameter) {
-                return parameter->get_friendly_name() == name;
-            });
-            OPENVINO_ASSERT(it != params.end(), "KV-cache parameter '", name, "' not found in the cloned model");
-            auto new_shape = (*it)->get_partial_shape();
-            new_shape[axis] = ov::Dimension(static_cast<int64_t>(max_seq_len));
-            new_shapes[(*it)->output(0)] = new_shape;
-        }
-        compiled_model->reshape(new_shapes);
-        for (const auto& [name, axis] : dynamic_kv_cache_axes) {
-            const auto& params = compiled_model->get_parameters();
-            auto it = std::find_if(params.begin(), params.end(), [&](const auto& parameter) {
-                return parameter->get_friendly_name() == name;
-            });
-            OPENVINO_ASSERT(it != params.end() && (*it)->get_partial_shape().is_static(),
-                            "Reshaping the GQA KV-cache parameter '",
-                            name,
-                            "' to a static capacity of ",
-                            max_seq_len,
-                            " did not make it fully static");
-        }
-        LOG_INFO("Reshaped dynamic GQA KV-cache to a static capacity of " << max_seq_len << " tokens");
+        ov::npuw::ReshapeToStaticGQA reshape_to_static_gqa(max_seq_len);
+        reshape_to_static_gqa.run_on_model(compiled_model);
+        dynamic_kv_cache_axes = reshape_to_static_gqa.dynamic_kv_cache_axes();
     }
 
     return {model, compiled_model, std::move(prepared_properties), std::move(dynamic_kv_cache_axes)};
@@ -840,38 +767,28 @@ ov::npuw::GQAInferRequest::GQAInferRequest(std::shared_ptr<const GQACompiledMode
       m_compiled_model(std::move(compiled_model)) {
     GQA_TRACE("GQAInferRequest::GQAInferRequest() ctor, dynamic-axis map has "
               << m_compiled_model->m_dynamic_kv_cache_axes.size() << " entries");
-    for (const auto& [name, axis] : m_compiled_model->m_dynamic_kv_cache_axes) {
-        GQA_TRACE("    dynamic entry: name='" << name << "' axis=" << axis);
-    }
 }
 
 void ov::npuw::GQAInferRequest::ensure_inner_request_locked() const {
     if (m_inner_request == nullptr) {
-        GQA_TRACE("ensure_inner_request_locked(): creating inner infer request...");
         m_inner_request = m_compiled_model->m_inner_compiled_model->create_infer_request();
         OPENVINO_ASSERT(m_inner_request != nullptr, "GQA infer request requires a valid inner request");
-        GQA_TRACE("ensure_inner_request_locked(): inner infer request created @ " << m_inner_request.get());
         const auto& inner_model = m_compiled_model->m_inner_compiled_model;
-        GQA_TRACE("    inner compiled model inputs (" << inner_model->inputs().size() << "):");
-        for (const auto& input : inner_model->inputs()) {
-            GQA_TRACE("        '" << input.get_node()->get_friendly_name() << "' shape=" << input.get_partial_shape());
-        }
-        GQA_TRACE("    inner compiled model outputs (" << inner_model->outputs().size() << "):");
-        for (const auto& output : inner_model->outputs()) {
-            GQA_TRACE("        '" << output.get_node()->get_friendly_name()
-                                  << "' shape=" << output.get_partial_shape());
-        }
+        GQA_TRACE("ensure_inner_request_locked(): created inner infer request @ "
+                  << m_inner_request.get() << ", inner model has " << inner_model->inputs().size() << " inputs, "
+                  << inner_model->outputs().size() << " outputs");
 
         // Zero-initialize the full physical capacity of every dynamic-axis KV-cache/bias
         // input (past_keys_N, past_values_N, attention_mask) right now, once.
+        size_t zeroed_count = 0;
         for (const auto& [name, axis] : m_compiled_model->m_dynamic_kv_cache_axes) {
+            (void)axis;
             auto input_it = std::find_if(inner_model->inputs().begin(),
                                          inner_model->inputs().end(),
                                          [&name](const ov::Output<const ov::Node>& input) {
                                              return input.get_node()->get_friendly_name() == name;
                                          });
             if (input_it == inner_model->inputs().end()) {
-                GQA_TRACE("    zero-init: '" << name << "' not found among inner inputs, skipping");
                 continue;
             }
             auto tensor = m_inner_request->get_tensor(*input_it);
@@ -879,9 +796,9 @@ void ov::npuw::GQAInferRequest::ensure_inner_request_locked() const {
                 continue;
             }
             std::memset(tensor->data(), 0, tensor->get_byte_size());
-            GQA_TRACE("    zero-init: '" << name << "' axis=" << axis << " shape=" << tensor->get_shape() << " ("
-                                         << tensor->get_byte_size() << " bytes) zeroed");
+            ++zeroed_count;
         }
+        GQA_TRACE("ensure_inner_request_locked(): zero-initialized " << zeroed_count << " dynamic-axis input(s)");
     }
 }
 
@@ -912,29 +829,11 @@ const ov::Output<const ov::Node>& ov::npuw::GQAInferRequest::map_port_locked(
     OPENVINO_THROW("Unknown GQA infer request port: ", port.get_any_name());
 }
 
-// Reads a scalar (or single-element) integer tensor's value, regardless of whether it
-// was stored as i32 or i64 -- this is how GQA's various length/position inputs
-// (seqlens_k, past_seq_len, total_seq_len, ...) can be typed by different producers.
-static std::optional<int64_t> read_scalar_int_tensor(const ov::SoPtr<ov::ITensor>& tensor) {
-    if (!tensor || ov::shape_size(tensor->get_shape()) == 0) {
-        return std::nullopt;
-    }
-    switch (tensor->get_element_type()) {
-    case ov::element::i32:
-        return static_cast<int64_t>(*tensor->data<int32_t>());
-    case ov::element::i64:
-        return *tensor->data<int64_t>();
-    default:
-        return std::nullopt;
-    }
-}
-
 // Diagnostic-only: dumps the current values of every known "sequence length" style
 // input this model happens to expose, read straight from the *inner* request's tensor
-// right before infer() -- i.e. after any writes the caller may have done directly into
-// a get_tensor()'d buffer (not just via set_tensor()), so this reflects exactly what
-// the NPU is about to compute against. Names are probed rather than assumed, since
-// different ONNX exporters/deployments name (or omit) these inputs differently.
+// right before infer(). Names are probed rather than assumed, since different
+// ONNX exporters/deployments name (or omit) these inputs differently. See
+// ov::npuw::read_scalar_int_tensor() (logging.hpp) for the actual read.
 void ov::npuw::GQAInferRequest::trace_sequence_length_inputs_locked() const {
     if (!gqa_trace_enabled()) {
         return;
@@ -949,81 +848,16 @@ void ov::npuw::GQAInferRequest::trace_sequence_length_inputs_locked() const {
             continue;
         }
         const auto& tensor = m_inner_request->get_tensor(map_port_locked(*it));
-        std::ostringstream value_str;
-        if (auto value = read_scalar_int_tensor(tensor)) {
-            value_str << *value;
-        } else {
-            value_str << "<unreadable: element_type=" << tensor->get_element_type()
-                      << ", size=" << ov::shape_size(tensor->get_shape()) << ">";
-        }
-        GQA_TRACE("pre-infer sequence-length input '" << candidate << "' shape=" << tensor->get_shape()
-                                                      << " value=" << value_str.str());
+        const auto value = ov::npuw::read_scalar_int_tensor(tensor);
+        GQA_TRACE("pre-infer sequence-length input '" << candidate << "' shape=" << tensor->get_shape() << " value="
+                                                      << (value ? std::to_string(*value) : std::string("<n/a>")));
     }
 }
 
-// Diagnostic-only: computes {min, max, count of non-zero elements, total element count}
-// over a tensor's numeric content, regardless of fp16/fp32/int dtype. Used to answer
-// "does this model's attention_mask/bias input actually carry real values, or is it
-// permanently zero/inert (as it is in a comparable reference deployment, which never
-// writes to it in its single-token decode fast path and relies entirely on GQA's own
-// internal past_seqlen-driven causal mask)?"
-namespace {
-struct TensorStats {
-    double min_value = 0.0;
-    double max_value = 0.0;
-    size_t non_zero_count = 0;
-    size_t total_count = 0;
-};
-
-template <typename T>
-TensorStats compute_stats_typed(const T* data, size_t count) {
-    TensorStats stats;
-    stats.total_count = count;
-    if (count == 0) {
-        return stats;
-    }
-    double min_value = static_cast<double>(data[0]);
-    double max_value = static_cast<double>(data[0]);
-    size_t non_zero_count = 0;
-    for (size_t i = 0; i < count; ++i) {
-        const double value = static_cast<double>(data[i]);
-        min_value = std::min(min_value, value);
-        max_value = std::max(max_value, value);
-        if (value != 0.0) {
-            ++non_zero_count;
-        }
-    }
-    stats.min_value = min_value;
-    stats.max_value = max_value;
-    stats.non_zero_count = non_zero_count;
-    return stats;
-}
-
-std::optional<TensorStats> compute_tensor_stats(const ov::SoPtr<ov::ITensor>& tensor) {
-    if (!tensor) {
-        return std::nullopt;
-    }
-    const auto count = ov::shape_size(tensor->get_shape());
-    switch (tensor->get_element_type()) {
-    case ov::element::f32:
-        return compute_stats_typed(tensor->data<float>(), count);
-    case ov::element::f16:
-        return compute_stats_typed(tensor->data<ov::float16>(), count);
-    case ov::element::i32:
-        return compute_stats_typed(tensor->data<int32_t>(), count);
-    case ov::element::i64:
-        return compute_stats_typed(tensor->data<int64_t>(), count);
-    default:
-        return std::nullopt;
-    }
-}
-}  // namespace
-
-// Diagnostic-only: dumps min/max/non-zero-count for every dynamic-axis input that isn't
+// Diagnostic-only: dumps a one-line min/max/non-zero-count summary (see
+// ov::npuw::tensor_stats_string(), logging.hpp) for every dynamic-axis input that isn't
 // a past_key/past_value KV-cache tensor -- i.e. the attention bias/mask input(s) located
-// via find_dynamic_kv_cache_axes()'s ATTENTION_BIAS lookup. Read straight from the inner
-// request's tensor right before infer(), after this call's set_tensor() has already
-// copied the caller's data into it.
+// via ReshapeToStaticGQA's ATTENTION_BIAS lookup (npuw_transformations/reshape_to_static_gqa.cpp).
 void ov::npuw::GQAInferRequest::trace_attention_mask_stats_locked() const {
     if (!gqa_trace_enabled()) {
         return;
@@ -1041,16 +875,9 @@ void ov::npuw::GQAInferRequest::trace_attention_mask_stats_locked() const {
             continue;
         }
         const auto& tensor = m_inner_request->get_tensor(map_port_locked(*it));
-        std::ostringstream stats_str;
-        if (auto stats = compute_tensor_stats(tensor)) {
-            stats_str << " min=" << stats->min_value << " max=" << stats->max_value
-                      << " non_zero=" << stats->non_zero_count << "/" << stats->total_count;
-        } else {
-            stats_str << " <stats unavailable for this element_type>";
-        }
-        GQA_TRACE("pre-infer attention-bias/mask input '"
-                  << name << "' axis=" << axis << " shape=" << tensor->get_shape()
-                  << " element_type=" << tensor->get_element_type() << stats_str.str());
+        GQA_TRACE("pre-infer attention-bias/mask input '" << name << "' axis=" << axis
+                                                          << " shape=" << tensor->get_shape() << " "
+                                                          << ov::npuw::tensor_stats_string(tensor));
     }
 }
 
@@ -1157,9 +984,7 @@ void ov::npuw::GQAInferRequest::refresh_present_tensors_locked() const {
     }
 }
 
-ov::SoPtr<ov::ITensor> ov::npuw::GQAInferRequest::get_present_tensor_locked(const std::string& name,
-                                                                            size_t axis) const {
-    (void)axis;
+ov::SoPtr<ov::ITensor> ov::npuw::GQAInferRequest::get_present_tensor_locked(const std::string& name) const {
     auto it = m_dynamic_kv_cache_output_tensors.find(name);
     if (it != m_dynamic_kv_cache_output_tensors.end()) {
         return it->second;
@@ -1199,7 +1024,7 @@ ov::SoPtr<ov::ITensor> ov::npuw::GQAInferRequest::get_tensor(const ov::Output<co
 
     if (auto out_it = m_compiled_model->m_dynamic_kv_cache_output_axes.find(name);
         out_it != m_compiled_model->m_dynamic_kv_cache_output_axes.end()) {
-        auto tensor = get_present_tensor_locked(name, out_it->second);
+        auto tensor = get_present_tensor_locked(name);
         GQA_TRACE("    -> returning present output tensor, shape=" << tensor->get_shape());
         return tensor;
     }
