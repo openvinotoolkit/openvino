@@ -1128,6 +1128,7 @@ public:
     [[nodiscard]] jit_kernel_ir::EmitFn gpr_imul_imm(std::uint64_t imm) const override;
     [[nodiscard]] jit_kernel_ir::EmitFn gpr_bump(std::int64_t delta) const override;
     [[nodiscard]] jit_kernel_ir::EmitFn gpr_offset(std::size_t imm) const override;
+    [[nodiscard]] jit_kernel_ir::EmitFn gpr_add_reg() const override;
     [[nodiscard]] jit_kernel_ir::EmitFn gpr_load(std::size_t imm) const override;
     [[nodiscard]] jit_kernel_ir::EmitFn gpr_cmp_imm(std::uint64_t imm) const override;
     [[nodiscard]] jit_kernel_ir::EmitFn gpr_cmp_reg() const override;
@@ -1340,6 +1341,9 @@ public:
     variable<size_t> ir_shr(const variable<size_t>& src, int shift);
     variable<size_t> ir_and(const variable<size_t>& src, size_t mask);
     variable<size_t> ir_add(const variable<size_t>& src, size_t val);
+
+    // src + addend, for a displacement only known at run time.
+    variable<size_t> ir_add(const variable<size_t>& src, const variable<size_t>& addend);
     variable<size_t> ir_imul(const variable<size_t>& src, size_t val);
 
     // Runtime-count partial load. Loads `count` elements from `src_ptr`

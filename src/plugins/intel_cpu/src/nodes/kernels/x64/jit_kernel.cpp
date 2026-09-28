@@ -646,6 +646,13 @@ jit_kernel_ir::EmitFn jit_kernel::gpr_load(std::size_t imm) const {
     };
 }
 
+jit_kernel_ir::EmitFn jit_kernel::gpr_add_reg() const {
+    return [this](const jit_kernel_ir::EmitContext& ctx) {
+        const_cast<jit_kernel*>(this)->add(Xbyak::Reg64(ctx.def->idx),
+                                           Xbyak::Reg64(ctx.reads[1].idx));
+    };
+}
+
 jit_kernel_ir::EmitFn jit_kernel::gpr_cmp_imm(std::uint64_t imm) const {
     return [this, imm](const jit_kernel_ir::EmitContext& ctx) {
         const_cast<jit_kernel*>(this)->cmp(Xbyak::Reg64(ctx.reads[0].idx), imm);
@@ -797,6 +804,12 @@ jit_kernel::variable<size_t> jit_kernel::ir_and(const variable<size_t>& src, siz
 jit_kernel::variable<size_t> jit_kernel::ir_add(const variable<size_t>& src, size_t val) {
     return variable<size_t>(*this, _ir->def_tied({src.vid()}, 0, gpr_add_imm(val),
                                                  "add", jit_kernel_ir::RegisterClass::GPR));
+}
+
+jit_kernel::variable<size_t> jit_kernel::ir_add(const variable<size_t>& src,
+                                                const variable<size_t>& addend) {
+    return variable<size_t>(*this, _ir->def_tied({src.vid(), addend.vid()}, 0, gpr_add_reg(),
+                                                 "add_reg", jit_kernel_ir::RegisterClass::GPR));
 }
 
 jit_kernel::variable<size_t> jit_kernel::ir_imul(const variable<size_t>& src, size_t val) {

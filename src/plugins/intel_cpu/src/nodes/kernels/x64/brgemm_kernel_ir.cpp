@@ -26,11 +26,13 @@ namespace ov::intel_cpu::kernel {
 
 namespace {
 
-// A tile is one M block by one column group, and every one of them is
-// unrolled at record time. oneDNN rolls both loops; until this generator
-// does, the product has to be capped or a large GEMM would emit an
-// enormous kernel.
-constexpr dim_t max_unrolled_tiles = 8;
+// The M blocks are a runtime loop, so only the column groups are
+// unrolled and only they need capping. oneDNN rolls this one too
+// (ldb_loop); until then a wide N would emit an enormous kernel.
+//
+// @todo claude: roll the full column groups as well, keeping the
+// narrower masked group as a recorded tail.
+constexpr dim_t max_unrolled_col_groups = 8;
 
 }  // namespace
 
@@ -133,15 +135,11 @@ const char* brgemm_kernel_ir::unsupported_reason(const brgemm_desc_t& brg) {
         return "only a 16-column ld_block";
     }
 
-    // Every tile — one M block by one column group — is unrolled at
-    // record time, so the kernel grows with their product. oneDNN loops
-    // over both (bdb_loop, ldb_loop); until this one does, a cap keeps
-    // the code size honest.
-    //
-    // @todo claude: roll the tile loops instead of capping.
+    // Only the column groups are unrolled; M is a runtime loop, so a
+    // tall GEMM costs no extra code.
     const dim_t col_groups = utils::div_up(brg.ldb, brg.ld_block2) + (brg.ldb_tail ? 1 : 0);
-    if (brg.bdb * col_groups > max_unrolled_tiles) {
-        return "too many tiles to unroll";
+    if (col_groups > max_unrolled_col_groups) {
+        return "too many column groups to unroll";
     }
 
     // A degenerate descriptor would emit a kernel that stores nothing.
@@ -248,11 +246,21 @@ void brgemm_kernel_ir::generate() {
         groups.push_back({ldb_full, 1, ldb_tail});
     }
 
-    // One tile at a time — an M block by a column group. Each owns its
-    // accumulators and stores them before the next begins, so peak
-    // pressure is one tile rather than the whole of C.
-    for (size_t m_blk = 0; m_blk < bdb; ++m_blk) {
-        const size_t row0 = m_blk * bd_block;
+    // The M blocks are a runtime loop rather than unrolled: every block
+    // emits the same body, so unrolling them only duplicates code that
+    // each runs once. What it costs is that the row offset into A and the
+    // row offset into C stop being displacements and become induction
+    // state.
+    //
+    // The column groups stay unrolled: they are not uniform — the last
+    // one can be narrower and masked — so a single loop body could not
+    // cover them. Rolled full iterations plus a recorded tail is the same
+    // shape foreach_with_epilogue uses.
+    auto row_off = ir_gpr_imm(0);      // bytes into A, advanced per M block
+    auto c_cursor_vid = ir_def_gpr({c_base.vid()}, gpr_copy(), "c_cursor");
+    auto c_cursor = variable<float*>(*this, c_cursor_vid);
+
+    foreach(size_t{0}, bdb, [&](const variable<size_t>&) {
         for (const auto& group : groups) {
             const size_t ld_count = group.blocks;
 
@@ -288,10 +296,12 @@ void brgemm_kernel_ir::generate() {
             auto a_ptr = ir_load_gpr<const float*>(cursor_var, offsetof(element, ptr.A));
             auto b_ptr = ir_load_gpr<const float*>(cursor_var, offsetof(element, ptr.B));
 
-            // This tile's rows start part-way down A.
-            if (row0 != 0) {
-                ir_advance(a_ptr, row0 * lda * ts);
-            }
+            // This tile's rows start part-way down A. The offset is a
+            // register now, so it has to be added rather than folded
+            // into a displacement — A is re-fetched from the batch array
+            // every iteration, so the offset cannot accumulate into it.
+            auto a_row = ir_add(variable<size_t>(*this, a_ptr.vid()), row_off);
+            auto a_base = variable<const float*>(*this, a_row.vid());
 
             foreach(size_t{0}, rdb, [&](const variable<size_t>&) {
                 // rd_block reduction steps unrolled inside the loop body,
@@ -306,7 +316,7 @@ void brgemm_kernel_ir::generate() {
                             ir_load<N>(b_ptr, (rd * ldb + col) * ts, access(ld)));
                     }
                     for (size_t bd = 0; bd < bd_block; ++bd) {
-                        auto a_val = ir_broadcast<N>(a_ptr, (bd * lda + rd) * ts);
+                        auto a_val = ir_broadcast<N>(a_base, (bd * lda + rd) * ts);
                         for (size_t ld = 0; ld < ld_count; ++ld) {
                             ir_accumulate(at(bd, ld), Insn3::fmadd231ps, a_val, b_col[ld]);
                         }
@@ -323,7 +333,7 @@ void brgemm_kernel_ir::generate() {
                         }
                     }
                 }
-                ir_advance(a_ptr, rd_block * ts);
+                ir_advance(a_base, rd_block * ts);
                 ir_advance(b_ptr, rd_block * ldb * ts);
             });
 
@@ -333,12 +343,15 @@ void brgemm_kernel_ir::generate() {
         for (size_t bd = 0; bd < bd_block; ++bd) {
             for (size_t ld = 0; ld < ld_count; ++ld) {
                 const size_t col = (group.first_block + ld) * N;
-                ir_store<N>(c_base, ((row0 + bd) * ldc + col) * ts, at(bd, ld),
-                            access(ld));
+                ir_store<N>(c_cursor, (bd * ldc + col) * ts, at(bd, ld), access(ld));
             }
         }
         }
-    }
+        // Next M block: bd_block rows further down A and C.
+        ir_use({row_off.vid()}, gpr_bump(static_cast<std::int64_t>(bd_block * lda * ts)),
+               "row_off_advance");
+        ir_advance(c_cursor, bd_block * ldc * ts);
+    });
 
     end_ir();
     postamble();

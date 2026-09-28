@@ -87,6 +87,12 @@ struct arch_emitter {
     // def = reads[0] + imm, leaving reads[0] alone.
     [[nodiscard]] virtual jit_kernel_ir::EmitFn gpr_offset(std::size_t imm) const = 0;
 
+    // def += reads[1]. Recorded with the def tied to reads[0], so the
+    // portable layer guarantees they share a register. The form a pointer
+    // needs when its displacement is only known at run time — every other
+    // pointer operation here takes an immediate.
+    [[nodiscard]] virtual jit_kernel_ir::EmitFn gpr_add_reg() const = 0;
+
     // def = *(reads[0] + imm), a pointer-sized load. Recorded with
     // may_load so no pass moves it across a store.
     [[nodiscard]] virtual jit_kernel_ir::EmitFn gpr_load(std::size_t imm) const = 0;

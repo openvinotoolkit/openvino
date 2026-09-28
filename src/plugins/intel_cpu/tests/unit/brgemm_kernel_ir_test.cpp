@@ -185,7 +185,13 @@ INSTANTIATE_TEST_SUITE_P(smoke_BrgemmIr,
                                          // so the tile loop runs more than
                                          // once across N.
                                          gemm_shape {8, 80, 32, 1},
-                                         gemm_shape {6, 96, 16, 2}),
+                                         gemm_shape {6, 96, 16, 2},
+                                         // Tall M: the M blocks are a
+                                         // runtime loop, so these cost no
+                                         // extra code and are not capped.
+                                         gemm_shape {64, 16, 32, 1},
+                                         gemm_shape {192, 16, 16, 2},
+                                         gemm_shape {96, 32, 32, 1}),
                          BrgemmKernelIrDifferential::getTestCaseName);
 
 // The factory has to decline cleanly, not throw or crash, for everything
