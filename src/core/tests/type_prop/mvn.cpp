@@ -82,3 +82,12 @@ TEST(type_prop, mvn_6_axes_out_of_range_negative) {
                     NodeValidationFailure,
                     HasSubstr("Axis"));
 }
+
+TEST(type_prop, mvn_6_axes_invalid_element_type) {
+    auto data = make_shared<ov::op::v0::Parameter>(element::f32, Shape{2, 2});
+    auto axes = ov::op::v0::Constant::create(element::f32, Shape{1}, {1.5f});
+
+    OV_EXPECT_THROW(std::ignore = make_shared<op::v6::MVN>(data, axes, true, 1e-6f, op::MVNEpsMode::INSIDE_SQRT),
+                    NodeValidationFailure,
+                    HasSubstr("Expected i32 or i64 element type for the 'axes' input"));
+}

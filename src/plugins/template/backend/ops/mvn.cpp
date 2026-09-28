@@ -23,6 +23,10 @@ bool evaluate(const std::shared_ptr<ov::op::v0::MVN>& op, ov::TensorVector& outp
 template <ov::element::Type_t ET>
 bool evaluate(const std::shared_ptr<ov::op::v6::MVN>& op, ov::TensorVector& outputs, const ov::TensorVector& inputs) {
     using T = typename ov::element_type_traits<ET>::value_type;
+    const auto& axes_type = inputs[1].get_element_type();
+    OPENVINO_ASSERT(axes_type == ov::element::i32 || axes_type == ov::element::i64,
+                    "Expected i32 or i64 element type for the 'axes' input. Got: ",
+                    axes_type);
     const auto reduction_axes = ov::util::try_get_normalized_axis_set(inputs[1], inputs[0].get_shape().size(), *op);
     ov::reference::mvn_6<T>(inputs[0].data<T>(),
                             outputs[0].data<T>(),

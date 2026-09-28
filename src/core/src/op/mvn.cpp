@@ -111,6 +111,11 @@ void ov::op::v6::MVN::validate_and_infer_types() {
 
         if (data_rank.is_static()) {
             if (const auto axes_constant = ov::util::get_constant_from_source(input_value(1))) {
+                const auto& axes_type = axes_constant->get_element_type();
+                NODE_VALIDATION_CHECK(this,
+                                      axes_type == element::i32 || axes_type == element::i64,
+                                      "Expected i32 or i64 element type for the 'axes' input. Got: ",
+                                      axes_type);
                 ov::util::validate_axes(axes_constant->cast_vector<int64_t>(), data_rank, *this);
             }
         }
@@ -162,6 +167,10 @@ bool evaluate_mvn(ov::TensorVector& outputs,
                   float eps,
                   ov::op::MVNEpsMode eps_mode,
                   const ov::Node& node) {
+    const auto& axes_type = inputs[1].get_element_type();
+    OPENVINO_ASSERT(axes_type == ov::element::i32 || axes_type == ov::element::i64,
+                    "Expected i32 or i64 element type for the 'axes' input. Got: ",
+                    axes_type);
     // Computed once here, outside the per-type template, to avoid duplicating axis validation in every instantiation.
     const auto reduction_axes = ov::util::try_get_normalized_axis_set(inputs[1], inputs[0].get_shape().size(), node);
     bool rc = true;
