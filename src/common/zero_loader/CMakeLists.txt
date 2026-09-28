@@ -19,14 +19,6 @@ target_link_libraries(${TARGET_NAME} PUBLIC LevelZero::Headers PRIVATE openvino:
 target_include_directories(${TARGET_NAME}
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
 )
-ov_developer_package_export_targets(TARGET level_zero_headers)
-ov_install_static_lib(level_zero_headers ${OV_CPACK_COMP_CORE})
-
 ov_developer_package_export_targets(TARGET ${TARGET_NAME}
-    INSTALL_INCLUDE_DIRECTORIES
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>)
+    INSTALL_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}/include)
 ov_install_static_lib(${TARGET_NAME} ${OV_CPACK_COMP_CORE})
-
-if(TARGET ze_loader)
-    add_dependencies(${TARGET_NAME} ze_loader)
-endif()

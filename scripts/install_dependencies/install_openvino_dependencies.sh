@@ -148,6 +148,12 @@ elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "debian10" ] || [ "$os" == "raspbi
     pkgs_python=(python3 python3-venv python3-pip)
     pkgs_dev=(cmake pkgconf g++ gcc libc6-dev make sudo)
 
+    # libze1 required for GPU and NPU runtime is available starting from Ubuntu 24.04 and Debian 12
+    if [ "$os" == "debian12" ] || [ "$os" == "debian13" ] ||
+       [ "$os" == "ubuntu24.04" ] || [ "$os" == "ubuntu26.04" ]; then
+       pkgs_gpu+=(libze1)
+    fi
+
     if [ "$os" == "debian10" ] || [ "$os" == "raspbian10" ] ; then
         pkgs_python+=(libpython3.7)
     elif [ "$os" == "ubuntu20.04" ] || [ "$os" == "ubuntu20.10" ] || [ "$os" == "ubuntu21.04" ] ; then
