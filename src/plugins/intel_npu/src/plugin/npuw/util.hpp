@@ -238,11 +238,8 @@ bool starts_with_past_lincache(const std::string& input_name);
 // by the SDPAToPagedAttention transformation).
 bool is_pa_kv_cache_name(const std::string& input_name);
 
-// A one-line digest of a tensor for log traces, written straight into the
-// stream: LOG_VERB("x: " << TensorBrief{tensor}). Element type and shape,
-// then the values of a small tensor or min / max / mean of a larger one.
-// Tensors past kMaxStats elements (a paged KV cache pool, say) print their
-// geometry only.
+// One-line tensor digest for log traces: LOG_VERB("x: " << TensorBrief{t}).
+// Tensors past kMaxStats elements, such as KV cache pools, print their shape only.
 struct TensorBrief {
     static constexpr std::size_t kMaxInline = 16u;
     static constexpr std::size_t kMaxStats = 1u << 20;

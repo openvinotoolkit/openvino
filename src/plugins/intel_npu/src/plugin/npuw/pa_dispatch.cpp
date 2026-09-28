@@ -18,9 +18,8 @@ void ov::npuw::pa::validate_dispatch(const Dispatch& d, std::size_t block_size, 
     const auto n_seqs = d.sequences();
     const auto n_tokens = d.tokens();
 
-    // input_ids is absent on embedding-input models (inputs_embeds), so it is
-    // only cross-checked when present; position_ids may be multi-dimensional
-    // (M-RoPE), so its token count is the last shape dim.
+    // Embedding models have no input_ids; M-RoPE position_ids carry the token
+    // count in the last dim.
     if (d.input_ids_size >= 0) {
         expect(d.input_ids_size == n_tokens, "input_ids size != subsequence_begins token count");
     }
@@ -30,9 +29,7 @@ void ov::npuw::pa::validate_dispatch(const Dispatch& d, std::size_t block_size, 
     expect(std::is_sorted(sub.begin(), sub.end()) && std::adjacent_find(sub.begin(), sub.end()) == sub.end(),
            "subsequence_begins is not strictly increasing");
 
-    // The shared block table. Cache-eviction models carry per-layer
-    // block_indices.<L> inputs instead; those dispatches run 1:1 and only the
-    // common controls above are validated.
+    // Eviction models carry per-layer block tables instead.
     if (d.has_block_table) {
         const auto& bib = d.block_indices_begins;
         expect(static_cast<int64_t>(bib.size()) == n_seqs + 1, "block_indices_begins size != past_lens size + 1");
@@ -41,8 +38,6 @@ void ov::npuw::pa::validate_dispatch(const Dispatch& d, std::size_t block_size, 
                "block_indices_begins is not a prefix-sum over block_indices");
     }
 
-    // Per-subsequence: the provided blocks must cover past + scheduled tokens,
-    // and max_context_len bounds every context.
     for (int64_t s = 0; s < n_seqs; ++s) {
         const auto ctx_after = past[s] + (sub[s + 1] - sub[s]);
         expect(past[s] >= 0, "negative past_lens entry");
@@ -54,8 +49,7 @@ void ov::npuw::pa::validate_dispatch(const Dispatch& d, std::size_t block_size, 
         }
     }
 
-    // Gather contract: sampled_tokens_indices picks which flat token rows get
-    // logits; an empty selection is legal (intermediate prefill chunks).
+    // An empty selection is legal (intermediate prefill chunks).
     if (d.has_sampled_tokens) {
         for (auto idx : d.sampled_tokens_indices) {
             expect(idx >= 0 && idx < n_tokens, "sampled_tokens_indices out of token range");
