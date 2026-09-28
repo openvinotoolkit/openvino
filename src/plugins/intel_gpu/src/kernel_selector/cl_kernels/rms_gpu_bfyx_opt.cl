@@ -186,12 +186,12 @@ KERNEL(rms_gpu_bfyx_opt)(
 #if SUBGROUP_BLOCK_SIZE == 1
 #if ELEMENTWISE_AFFINE
 #if RMS_GAMMA_IS_SCALAR
-            NORMALIZED_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i] * gamma_scalar);
+            NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[i] * gamma_scalar);
 #else
-            NORMALIZED_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i] * vec_gamma);
+            NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[i] * vec_gamma);
 #endif
 #else
-            NORMALIZED_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i]);
+            NORMALIZED_TYPE normalized = TO_NORMALIZED_TYPE(rms * data[i]);
 #endif
             #if HAS_FUSED_OPS
                 FUSED_OPS;

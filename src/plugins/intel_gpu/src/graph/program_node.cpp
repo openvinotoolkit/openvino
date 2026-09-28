@@ -733,9 +733,7 @@ void program_node::add_dependant_shape_of_node(const program_node* node) {
 }
 
 void program_node::set_num_outputs(size_t new_num_outputs) {
-    if (new_num_outputs < num_outputs) {
-        throw std::runtime_error("Decreasing number of outputs not supported.");
-    }
+    OPENVINO_ASSERT(new_num_outputs >= num_outputs, "Decreasing number of outputs not supported.");
 
     num_outputs = new_num_outputs;
     if (valid_output_layouts.size() < new_num_outputs) {
