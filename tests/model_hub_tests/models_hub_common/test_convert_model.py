@@ -68,6 +68,10 @@ class TestConvertModel:
             npu_platform = os.environ.get("NPU_PLATFORM")
             if npu_platform:
                 config["NPU_PLATFORM"] = npu_platform
+            # Opt-in only: exercises the weights-separation ("weightless") compile path
+            # (compiler->compileWS instead of compiler->compile) instead of the default one.
+            if os.environ.get("NPU_TEST_ENABLE_WEIGHTLESS") == "1":
+                config["ENABLE_WEIGHTLESS"] = "YES"
         return config
 
     def infer_ov_model(self, ov_model, inputs, ie_device):
