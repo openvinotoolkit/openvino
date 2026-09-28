@@ -333,6 +333,7 @@ OP_CONVERTER(translate_leaky_relu_fx);
 OP_CONVERTER(translate_log_sigmoid_fx);
 OP_CONVERTER(translate_log_softmax_fx);
 OP_CONVERTER(translate_mean_fx);
+OP_CONVERTER(translate_meshgrid_fx);
 OP_CONVERTER(translate_new_full_fx);
 OP_CONVERTER(translate_new_ones_fx);
 OP_CONVERTER(translate_new_zeros_fx);
@@ -923,6 +924,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.log_sigmoid_forward.default", op::translate_log_sigmoid_fx},
         {"aten.mean.default", op::translate_mean_fx},
         {"aten.mean.dim", op::translate_mean_fx},
+        {"aten.meshgrid.default", op::translate_meshgrid_fx},
+        {"aten.meshgrid.indexing", op::translate_meshgrid_fx},
         {"aten.native_batch_norm.default", op::translate_batch_norm_legit_fx},
         {"aten.native_dropout.default", op::skip_node},
         {"aten.native_group_norm.default", op::translate_group_norm_fx},

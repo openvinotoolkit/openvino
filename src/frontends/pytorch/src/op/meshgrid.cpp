@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "helper_ops/internal_op.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "pt_framework_node.hpp"
+#include "utils.hpp"
 
 namespace ov::frontend::pytorch::op {
 
@@ -17,6 +19,26 @@ OutputVector translate_meshgrid(const NodeContext& context) {
     attrs["indexing"] = indexing;
     node->set_attrs(attrs);
     return context.mark_node(node)->outputs();
+};
+
+OutputVector translate_meshgrid_fx(const NodeContext& context) {
+    // FX has no prim::ListUnpack, so build the TorchScript pattern resolved by PrimListUnpackReplacer.
+    num_inputs_check(context, 1, 1);
+    std::string indexing = "ij";
+    if (context.has_attribute("indexing")) {
+        indexing = context.get_attribute<std::string>("indexing");
+    }
+    auto meshgrid = std::make_shared<PtFrameworkNode>(std::make_shared<InternalOpDecoder>("aten::meshgrid", 1),
+                                                      OutputVector{context.get_input(0)});
+    auto attrs = meshgrid->get_attrs();
+    attrs["indexing"] = indexing;
+    meshgrid->set_attrs(attrs);
+    context.mark_node(meshgrid);
+    const auto count = context.get_decoder()->output_list_size();
+    auto unpack = context.mark_node(
+        std::make_shared<PtFrameworkNode>(std::make_shared<InternalOpDecoder>("prim::ListUnpack", count),
+                                          meshgrid->outputs()));
+    return {context.mark_node(make_list_construct(unpack->outputs()))};
 };
 
 }  // namespace ov::frontend::pytorch::op

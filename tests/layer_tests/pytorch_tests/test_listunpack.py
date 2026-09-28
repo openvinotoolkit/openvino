@@ -191,9 +191,10 @@ class TestMeshgridListUnpack(PytorchLayerTest):
     @pytest.mark.parametrize("inp", [1, 2, 3, 4])
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_meshgrid_listunpack(self, idx, inp, ie_device, precision, ir_version):
         func = getattr(self, f"create_model_meshgrid_listunpack_{inp}_in")
-        self._test(*func(idx), ie_device, precision, ir_version)
+        self._test(*func(idx), ie_device, precision, ir_version, fx_kind="aten.meshgrid")
 
 
 class TestMeshgridListUnpackStack(PytorchLayerTest):
@@ -215,8 +216,11 @@ class TestMeshgridListUnpackStack(PytorchLayerTest):
 
     @pytest.mark.nightly
     @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
     def test_meshgrid_subgraph(self, ie_device, precision, ir_version):
-        self._test(*self.create_model(), ie_device, precision, ir_version)
+        self._test(*self.create_model(), ie_device, precision, ir_version,
+                   fx_kind=["aten.meshgrid", "aten.stack"],
+                   dynamic_shapes_for_export={"x": (torch.export.Dim.DYNAMIC, torch.export.Dim.DYNAMIC)})
 
 
 class TestListUnpackParameterSingle(PytorchLayerTest):
