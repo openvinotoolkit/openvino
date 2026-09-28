@@ -2691,10 +2691,12 @@ void primitive_inst::update_weights() {
         auto expected_layout = reorder_kernel_params->get_output_layout().clone_with_other_shape(original_layout.get_partial_shape());
         _impl_params->weights_layout = optional_layout(expected_layout);
 
-        if (_reordered_weights_cache.has(expected_layout) &&
+        auto cached_weights_memory = _reordered_weights_cache.get(expected_layout);
+        if (cached_weights_memory &&
             // WA: for custom format, we need to check traits to know what it really represents
-            (expected_layout.format != cldnn::format::custom ||
-             expected_layout.format.traits() == _reordered_weights_cache.get(expected_layout)->get_layout().format.traits())) {
+            (expected_layout.format != cldnn::format::custom || expected_layout.format.traits() == cached_weights_memory->get_layout().format.traits()) &&
+            (!requires_imad_isv4_padding_initialization(expected_layout) ||
+             !engine.is_the_same_buffer(*cached_weights_memory, *original_weights_memory))) {
             GPU_DEBUG_PROFILED_STAGE_CACHE_HIT(true);
             GPU_DEBUG_TRACE_DETAIL << id() << ": reuse weights for " << expected_layout.to_short_string() << std::endl;
             return;
