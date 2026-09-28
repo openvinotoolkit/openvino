@@ -16,7 +16,7 @@ public:
 
     reorg_yolo_kernel_selector();
 
-    virtual ~reorg_yolo_kernel_selector() {}
+    ~reorg_yolo_kernel_selector() override = default;
 
     KernelsData GetBestKernels(const Params& params) const override;
 };

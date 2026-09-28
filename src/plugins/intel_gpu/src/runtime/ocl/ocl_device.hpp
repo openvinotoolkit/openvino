@@ -61,7 +61,7 @@ public:
     void initialize() override;
     bool is_initialized() const override { return _is_initialized; };
 
-    ~ocl_device() = default;
+    ~ocl_device() override = default;
 
 protected:
     void initialize_context(const cl::Context& ctx);

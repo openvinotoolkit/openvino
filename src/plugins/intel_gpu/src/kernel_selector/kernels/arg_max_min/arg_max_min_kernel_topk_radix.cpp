@@ -52,6 +52,7 @@ size_t GetSortSize(const arg_max_min_params& params) {
 ParamsKey ArgMaxMinKernelTopKRadix::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::F32);
     k.EnableAllOutputDataType();
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
@@ -70,35 +71,37 @@ ParamsKey ArgMaxMinKernelTopKRadix::GetSupportedKey() const {
 }
 
 bool ArgMaxMinKernelTopKRadix::Validate(const Params& p) const {
-    if (!ArgMaxMinKernelBase::Validate(p))
+    if (!ArgMaxMinKernelBase::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const auto& params = static_cast<const arg_max_min_params&>(p);
 
-    // Only f16 input for radix approach (bit manipulation)
-    if (params.inputs[0].GetDType() != Datatype::F16)
+    // Radix approach relies on bit manipulation of the IEEE-754 representation
+    if (params.inputs[0].GetDType() != Datatype::F16 && params.inputs[0].GetDType() != Datatype::F32) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
-    if (params.argMaxMinSortType != ArgMaxMinSortType::VALUE)
+    if (params.argMaxMinSortType != ArgMaxMinSortType::VALUE) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const size_t sort_size = GetSortSize(params);
 
-    if (sort_size < 2)
+    if (sort_size < 2) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
-
-    // Combined key uses (i & 0xFFFF) as tiebreaker, so N must fit in 16 bits
-    if (sort_size > 65535)
-        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     // PADDED_K (next power of 2 >= topK) must fit in SLM:
     // sort_keys[PADDED_K] + sort_idxs[PADDED_K] + histogram[256] + scalars
     size_t padded_k = 1;
-    while (padded_k < params.topK)
+    while (padded_k < params.topK) {
         padded_k <<= 1;
+    }
     const size_t slm_needed = padded_k * 2 * sizeof(uint32_t) + 256 * sizeof(uint32_t) + 24;
-    if (slm_needed > params.engineInfo.maxLocalMemSize)
+    if (slm_needed > params.engineInfo.maxLocalMemSize) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
@@ -138,6 +141,7 @@ JitConstants ArgMaxMinKernelTopKRadix::GetJitConstants(const arg_max_min_params&
     auto jit = ArgMaxMinKernelBase::GetJitConstants(params);
 
     jit.AddConstant(MakeJitConstant("WG_SIZE", kWgSize));
+    jit.AddConstant(MakeJitConstant("SORTABLE_BITS", params.inputs[0].GetDType() == Datatype::F16 ? 16 : 32));
 
     // PADDED_K: next power of 2 >= TOP_K (for bitonic sort)
     size_t padded_k = 1;
@@ -150,18 +154,21 @@ JitConstants ArgMaxMinKernelTopKRadix::GetJitConstants(const arg_max_min_params&
         jit.AddConstant(MakeJitConstant("OPERATION_NUM", GetOperationNumber(params)));
     }
 
-    if (params.argMaxMinSortType == ArgMaxMinSortType::VALUE)
+    if (params.argMaxMinSortType == ArgMaxMinSortType::VALUE) {
         jit.AddConstant(MakeJitConstant("SORT_BY_VALUE", 1));
+    }
 
-    if (params.values_first)
+    if (params.values_first) {
         jit.AddConstant(MakeJitConstant("TOP_K_ORDER", 1));
+    }
 
     return jit;
 }
 
 KernelsData ArgMaxMinKernelTopKRadix::GetKernelsData(const Params& params) const {
-    if (!Validate(params))
+    if (!Validate(params)) {
         return {};
+    }
 
     const auto& orgParams = static_cast<const arg_max_min_params&>(params);
     auto dispatchData = SetDefault(orgParams);
@@ -196,8 +203,9 @@ KernelsPriority ArgMaxMinKernelTopKRadix::GetKernelsPriority(const Params& p) co
     // For k=1 (pure argmax/argmin) or small sort sizes, the axis kernel's
     // simple reduction is more efficient — especially when there are many
     // independent operations that amplify per-WG overhead.
-    if (params.topK == 1 || sort_size < 256)
+    if (params.topK == 1 || sort_size < 256) {
         return FORCE_PRIORITY_5;
+    }
 
     return FORCE_PRIORITY_1;
 }

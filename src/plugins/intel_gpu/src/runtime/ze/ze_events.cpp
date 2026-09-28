@@ -104,31 +104,18 @@ bool ze_events::get_profiling_info_impl(std::list<instrumentation::profiling_int
         return total_time;
     };
 
-    // Submission time is calculated as difference between merged context and wallclock intervals
-    // May probably be more accurate if we sum all sub-intervals of wallclock timestamps not covered by execution intervals
     using intervals_t = std::vector<ze_kernel_timestamp_data_t>;
-    auto get_submission_time = [&device_info](const intervals_t& s_timestamps,
-                                              const intervals_t& e_timestamps) {
-        auto get_minmax = [](const intervals_t& timestamps) {
-            uint64_t min_val = std::min_element(timestamps.begin(), timestamps.end(),
-                [](const ze_kernel_timestamp_data_t& lhs, const ze_kernel_timestamp_data_t& rhs) {
-                    return bool(lhs.kernelStart < rhs.kernelStart);
-            })->kernelStart;
-            uint64_t max_val = std::max_element(timestamps.begin(), timestamps.end(),
-                [](const ze_kernel_timestamp_data_t& lhs, const ze_kernel_timestamp_data_t& rhs) {
-                    return lhs.kernelEnd < rhs.kernelEnd;
-            })->kernelEnd;
+    auto get_minmax = [](const intervals_t& timestamps) {
+        uint64_t min_val = std::min_element(timestamps.begin(), timestamps.end(),
+            [](const ze_kernel_timestamp_data_t& lhs, const ze_kernel_timestamp_data_t& rhs) {
+                return bool(lhs.kernelStart < rhs.kernelStart);
+        })->kernelStart;
+        uint64_t max_val = std::max_element(timestamps.begin(), timestamps.end(),
+            [](const ze_kernel_timestamp_data_t& lhs, const ze_kernel_timestamp_data_t& rhs) {
+                return lhs.kernelEnd < rhs.kernelEnd;
+        })->kernelEnd;
 
-            return ze_kernel_timestamp_data_t{min_val, max_val};
-        };
-
-        auto submission_interval = get_minmax(s_timestamps);
-        auto exec_interval = get_minmax(e_timestamps);
-
-        auto wallclock_time = timestamp_to_duration(device_info, submission_interval);
-        auto exec_time = timestamp_to_duration(device_info, exec_interval);
-
-        return wallclock_time - exec_time;
+        return ze_kernel_timestamp_data_t{min_val, max_val};
     };
 
     for (size_t i = 0; i < _events.size(); i++) {
@@ -143,14 +130,22 @@ bool ze_events::get_profiling_info_impl(std::list<instrumentation::profiling_int
         add_or_merge(all_context_timestamps, timestamp.context);
     }
     OPENVINO_ASSERT(!all_global_timestamps.empty() && !all_context_timestamps.empty(), "[GPU] Expected non-empty kernel timestamps");
-    auto submit_time = get_submission_time(all_global_timestamps, all_context_timestamps);
+
+    // Reuse get_minmax results to avoid redundant traversals.
+    // Submission time = wallclock span (global) minus execution span (context bounding box).
+    auto global_minmax = get_minmax(all_global_timestamps);
+    auto context_minmax = get_minmax(all_context_timestamps);
+    auto submit_time = timestamp_to_duration(device_info, global_minmax) - timestamp_to_duration(device_info, context_minmax);
     auto exec_time = get_total_exec_time(all_context_timestamps);
+
+    // Absolute device start = earliest global.kernelStart tick converted to nanoseconds.
+    auto abs_start = tick_to_nanoseconds(device_info, global_minmax.kernelStart);
 
     auto period_exec = std::make_shared<instrumentation::profiling_period_basic>(exec_time);
     auto period_submit = std::make_shared<instrumentation::profiling_period_basic>(submit_time);
 
-    info.push_back({ instrumentation::profiling_stage::executing, period_exec });
-    info.push_back({ instrumentation::profiling_stage::submission, period_submit });
+    info.push_back({instrumentation::profiling_stage::submission, period_submit, abs_start, true});
+    info.push_back({instrumentation::profiling_stage::executing, period_exec, abs_start + submit_time, true});
 
     return true;
 }

@@ -22,7 +22,8 @@ Exit codes:
 import argparse
 import json
 import pathlib
-import subprocess
+# Agent PR helper: git/gh invoked as argv lists; no shell string composition.
+import subprocess  # nosec B404
 import sys
 import textwrap
 

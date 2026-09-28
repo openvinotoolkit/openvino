@@ -76,8 +76,9 @@ bool MultinomialKernelRef::Validate(const Params &p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
     const multinomial_params &params = dynamic_cast<const multinomial_params&>(p);
-    if (params.inputs.empty())
+    if (params.inputs.empty()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
     return true;
 }
 

@@ -14,7 +14,7 @@ class ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32 : public ConvolutionKernelBas
 public:
     using Parent = ConvolutionKernelBase;
     ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32() : ConvolutionKernelBase("convolution_gpu_mmad_bfyx_to_b_fs_yx_fsv32") {}
-    virtual ~ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32() {}
+    ~ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv32() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsData GetKernelsDataForAutoTune(const Params& params) const override;
@@ -31,12 +31,10 @@ protected:
             p.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16 || p.outputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16) {
             if (p.outputs[0].Dimentions() == 5) {
                 return WeightsLayout::os_is_zyx_osv32_isv4;
-            } else {
-                return WeightsLayout::os_is_yx_osv32_isv4;
             }
-        } else {
-            return WeightsLayout::os_is_yx_osv32_isv4_swizzled_by_2;
+            return WeightsLayout::os_is_yx_osv32_isv4;
         }
+        return WeightsLayout::os_is_yx_osv32_isv4_swizzled_by_2;
     }
     std::vector<FusedOpType> GetSupportedFusedOps() const override {
         return { FusedOpType::ELTWISE,
@@ -53,6 +51,6 @@ private:
     };
 
     AutoTuneOption GetAutoTuneOptions(const Params& arg, int autoTuneIndex) const;
-    std::vector<AutoTuneOption> autoTuneOptions = {};
+    std::vector<AutoTuneOption> autoTuneOptions;
 };
 }  // namespace kernel_selector

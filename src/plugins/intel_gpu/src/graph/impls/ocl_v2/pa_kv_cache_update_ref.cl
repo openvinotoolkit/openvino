@@ -18,7 +18,7 @@ inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_dat
                                     const uint sglid,
                                     const uint num_groups,
                                     INPUT0_TYPE* input_data) {
-    INPUT0_TYPE grp_max = 0.001;
+    INPUT0_TYPE grp_max = 0.004;
     INPUT0_TYPE max_value = INPUT0_VAL_MIN;
     INPUT0_TYPE min_value = INPUT0_VAL_MAX;
 
@@ -31,7 +31,7 @@ inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_dat
     min_value = sub_group_reduce_min(min_value);
     max_value = sub_group_reduce_max(max_value);
 
-    // If the range of input data is zero, it is adjusted to the minimum value(0.001).
+    // If the range of input data is zero, it is adjusted to the minimum value(0.004).
     #define ACCUMULATOR_TYPE float
     ACCUMULATOR_TYPE diff_value = max_value == min_value ? (grp_max) : (max_value - min_value);
 
@@ -148,6 +148,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize)(__global co
             cache_data_vec_decompressed[token_pos_in_block + j] = new_token;
             max_value = fmax(max_value, new_token);
             min_value = fmin(min_value, new_token);
+
         }
         // Read a hidden dim of the previously quantized cache => decompress
         // TODO : current block size is 16 (same as PA block size),
@@ -167,7 +168,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize)(__global co
         // requantize and store
         {
             #define ACCUMULATOR_TYPE float
-            ACCUMULATOR_TYPE range = max_value - min_value;
+            ACCUMULATOR_TYPE range = (max_value == min_value) ? (0.004) : (max_value - min_value);
             const ACCUMULATOR_TYPE min_range = fabs(max_value * 0.1f);
             if (range <= min_range) {
                 // When the range is very small, expand the range to avoid zp overflow
@@ -245,7 +246,7 @@ inline void FUNC(quantize_and_save_by_channel_block_with_requantize_int4)(__glob
         // Requantize and store with token-axis packing
         {
             #define ACCUMULATOR_TYPE float
-            ACCUMULATOR_TYPE range = (max_value == min_value) ? (0.001) : (max_value - min_value);
+            ACCUMULATOR_TYPE range = (max_value == min_value) ? (0.004) : (max_value - min_value);
             const ACCUMULATOR_TYPE min_range = fabs(max_value * 0.1f);
             if (range <= min_range) {
                 range += fmax(1.0f, min_range);
@@ -292,12 +293,10 @@ inline void FUNC(quantize_and_save_by_channel_prefill)(__global const INPUT0_TYP
             key_in_offset_tmp += in_data_pitch;
         }
         #define ACCUMULATOR_TYPE float
-        ACCUMULATOR_TYPE range = (max_value == min_value) ? (0.001) : (max_value - min_value);
+        ACCUMULATOR_TYPE range = max_value == min_value ? 0.004 : max_value - min_value;
         const ACCUMULATOR_TYPE min_range = fabs(max_value * 0.1f);
-        if (range <= min_range) {
-            // When the range is very small, expand the range to avoid zp overflow
-            range += fmax(1.0f, min_range);
-        }
+        // When the range is very small, expand the range to avoid zp overflow
+        range += (range <= min_range ? fmax(1.0f, min_range) : 0.0f);
 
         #if IS_INT4_COMPRESSED
             ACCUMULATOR_TYPE scale_tmp = (ACCUMULATOR_TYPE)((UINT4_RANGE) / range);

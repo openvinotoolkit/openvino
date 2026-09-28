@@ -28,6 +28,7 @@ namespace low_precision {
 namespace precision_set {
     LP_TRANSFORMATIONS_API const std::vector<element::Type>& get_int8_support();
     LP_TRANSFORMATIONS_API const std::vector<element::Type>& get_fp8_support();
+    LP_TRANSFORMATIONS_API const std::vector<element::Type>& get_fp8_fp4_support();
     LP_TRANSFORMATIONS_API const std::vector<element::Type>& get_int8_int16_int32_support();
 } // namespace precision_set
 
@@ -59,7 +60,7 @@ public:
                 element::i8, element::u8,
                 element::i16, element::u16,
                 element::i32, element::u32,
-                element::f8e4m3, element::f8e5m2,
+                element::f8e4m3, element::f8e5m2, element::f4e2m1,
         };
         return lowPrecision.find(precision) != lowPrecision.end();
     }

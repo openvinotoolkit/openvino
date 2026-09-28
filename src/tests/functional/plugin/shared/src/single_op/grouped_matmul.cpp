@@ -13,6 +13,7 @@
 #include "openvino/op/grouped_matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/runtime/properties.hpp"
 
 namespace ov {
 namespace test {
@@ -63,13 +64,29 @@ void GroupedMatMulTestBase::SetUp() {
 
     abs_threshold = 0.05f;
     rel_threshold = 0.01f;
+
+    if (!expected_primitive_.empty()) {
+        // Populate ov::ProfilingInfo::node_type at inference time; this is what
+        // validate() inspects to confirm the expected op is what actually ran.
+        configuration[ov::enable_profiling.name()] = true;
+    }
 }
 
 void GroupedMatMulTestBase::validate() {
     SubgraphBaseTest::validate();
-    if (!expected_primitive_.empty()) {
-        CheckNumberOfNodesWithType(compiledModel, expected_primitive_, 1);
+
+    // Confirm that the executed network contains the expected ov op type.
+
+    if (expected_primitive_.empty()) {
+        return;
     }
+    const auto profiling = inferRequest.get_profiling_info();
+    auto it = std::find_if(profiling.begin(), profiling.end(), [this](const ov::ProfilingInfo& pi) {
+        return pi.node_type == expected_primitive_;
+    });
+    EXPECT_TRUE(it != profiling.end())
+        << "Executed network does not contain a '" << expected_primitive_
+        << "' node — the expected transformation did not fire on this test's model.";
 }
 
 void GroupedMatMulTestBase::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
@@ -169,7 +186,7 @@ std::string GroupedMatMulCompressedLayerTest::getTestCaseName(
     const testing::TestParamInfo<GroupedMatMulCompressedParams>& obj) {
     const auto& [shape_params, act_type, weights_prec, decomp_prec, scale_prec,
                  multiply_type, subtract_type, reshape_on_decomp, group_size,
-                 target_device, expected_primitive] = obj.param;
+                 target_device, expected_primitive, additional_config] = obj.param;
     const auto& [a_input_shape, b_shape, tokens_per_expert] = shape_params;
 
     OPENVINO_ASSERT(a_input_shape.first.rank().is_static());
@@ -185,13 +202,18 @@ std::string GroupedMatMulCompressedLayerTest::getTestCaseName(
     result << "Reshape=" << reshape_on_decomp << "_";
     result << "GrpSz=" << group_size << "_";
     result << "targetDevice=" << target_device;
+    result << "config=(";
+    for (const auto& configEntry : additional_config) {
+        result << configEntry.first << "=" << configEntry.second.as<std::string>() << "_";
+    }
+    result << ")";
     return result.str();
 }
 
 void GroupedMatMulCompressedLayerTest::SetUp() {
     const auto& [shape_params, act_type, weights_prec, decomp_prec, scale_prec,
                  multiply_type, subtract_type, reshape_on_decomp, group_size,
-                 _targetDevice, expected_primitive] = GetParam();
+                 _targetDevice, expected_primitive, additional_config] = GetParam();
     shape_params_ = shape_params;
     act_type_ = act_type;
     model_name_ = "GroupedMatMulCompressed";
@@ -204,7 +226,16 @@ void GroupedMatMulCompressedLayerTest::SetUp() {
     reshape_on_decomp_ = reshape_on_decomp;
     group_size_ = group_size;
     targetDevice = _targetDevice;
+    configuration.insert(additional_config.begin(), additional_config.end());
     GroupedMatMulTestBase::SetUp();
+
+    // Loosen tolerance for low-bit weight-compressed variants; dequantization
+    // introduces additional rounding error compared to the uncompressed path.
+    if (weights_prec_ == ov::element::u4 || weights_prec_ == ov::element::i4) {
+        abs_threshold = 0.2f;
+    } else if (weights_prec_ == ov::element::u8 || weights_prec_ == ov::element::i8) {
+        abs_threshold = 0.1f;
+    }
 }
 
 std::shared_ptr<ov::Node> GroupedMatMulCompressedLayerTest::build_weights() {

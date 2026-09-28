@@ -9,6 +9,7 @@
 #include "random_generator.hpp"
 #include "test_utils.h"
 
+#include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/assign.hpp>
 #include <intel_gpu/primitives/data.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
@@ -404,4 +405,108 @@ TEST(variable_test_common, different_output_data_type_cached) {
 #endif
 TEST(variable_test_common, variables_are_preserved_across_inferences_cached) {
     test_variables_are_preserved_across_inferences<int>(true);
+}
+
+// A GPU primitive feeding directly into `assign` must not be forced into
+// lockable (usm_host) memory. The input does not need to be host-accessible.
+TEST(variable_test_common, assign_producer_output_is_not_lockable) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_usm) {
+        GTEST_SKIP() << "USM not supported on this device";
+    }
+    if (!engine.supports_allocation(allocation_type::usm_device)) {
+        GTEST_SKIP() << "usm_device not supported on this device";
+    }
+
+    const layout var_layout{ov::PartialShape{1, 4}, data_types::f32, format::bfyx};
+    const auto input_data = engine.allocate_memory(var_layout);
+    set_values<float>(input_data, {1.0f, 2.0f, 3.0f, 4.0f});
+
+    topology t;
+    t.add(input_layout("input", var_layout));
+    t.add(read_value{"read_value", {input_info("input")}, "v0", {var_layout}});
+    // "producer" is a GPU eltwise. Its only user is `assign`, so we can observe
+    // whether the allocator forces its output into usm_host.
+    t.add(eltwise{"producer", {input_info("input"), input_info("read_value")},
+                  eltwise_mode::sum, {}, var_layout.data_type});
+    t.add(assign{"assign", {input_info("producer")}, "v0", var_layout});
+
+    cldnn::network::ptr net = get_network(engine, t, get_test_default_config(engine),
+                                          get_test_stream_ptr(), false);
+
+    auto context = std::make_shared<RemoteContextImpl>(
+        "GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto variable = std::make_shared<VariableState>(
+        VariableStateInfo{"v0", var_layout}, context, net->get_shape_predictor());
+    net->set_variable("v0", variable);
+    net->set_input_data("input", input_data);
+    net->execute();
+
+    // Impl-level contract: assign is handled by CPU impl
+    // but does not require a host-accessible input.
+    auto assign_inst = net->get_primitive("assign");
+    ASSERT_NE(assign_inst->get_impl(), nullptr);
+    EXPECT_TRUE(assign_inst->get_impl()->is_cpu());
+    EXPECT_FALSE(assign_inst->get_impl()->requires_lockable_input());
+
+    // Check proper memory allocation
+    auto producer_inst = net->get_primitive("producer");
+    ASSERT_NE(producer_inst->output_memory_ptr(), nullptr);
+    EXPECT_NE(producer_inst->output_memory_ptr()->get_allocation_type(),
+              allocation_type::usm_host)
+        << "Producer output was forced into usm_host by `assign` user. "
+           "assign_impl::requires_lockable_input() should be false so the producer "
+           "can stay in device memory.";
+}
+
+// ---------------------------------------------------------------------------
+// Negative control: when the downstream user is a *real* CPU impl that reads
+// tensor data on the host, the producer output must still be allocated in
+// lockable memory. This guards against over-widening the requires_lockable_input()
+// opt-out in the future.
+// ---------------------------------------------------------------------------
+TEST(variable_test_common, real_cpu_user_still_forces_lockable) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_usm) {
+        GTEST_SKIP() << "USM not supported on this device";
+    }
+    // On integrated devices the lockable and non-lockable USM types may
+    // coincide, making this control assertion meaningless.
+    if (engine.get_device_info().dev_type != device_type::discrete_gpu) {
+        GTEST_SKIP() << "Only meaningful on dGPU where lockable != device USM";
+    }
+
+    const layout in_layout{ov::PartialShape{1, 4}, data_types::f32, format::bfyx};
+    const auto input_data = engine.allocate_memory(in_layout);
+    set_values<float>(input_data, {1.0f, 2.0f, 3.0f, 4.0f});
+
+    topology t;
+    t.add(input_layout("input", in_layout));
+    t.add(eltwise{"producer", {input_info("input"), input_info("input")},
+                  eltwise_mode::sum, {}, in_layout.data_type});
+    // Force the activation user onto the CPU impl. CPU activation reads and
+    // writes tensor data on the host, so it truly requires lockable input.
+    t.add(activation{"consumer", input_info("producer"), activation_func::relu});
+
+    ExecutionConfig config = get_test_default_config(engine);
+    ov::intel_gpu::ImplementationDesc cpu_activation_impl = {format::bfyx, "", impl_types::cpu};
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"consumer", cpu_activation_impl}}));
+
+    cldnn::network::ptr net = get_network(engine, t, config, get_test_stream_ptr(), false);
+    net->set_input_data("input", input_data);
+    net->execute();
+
+    auto consumer_inst = net->get_primitive("consumer");
+    ASSERT_NE(consumer_inst->get_impl(), nullptr);
+    // Sanity: the forced CPU activation impl reports itself correctly.
+    EXPECT_TRUE(consumer_inst->get_impl()->is_cpu());
+    EXPECT_TRUE(consumer_inst->get_impl()->requires_lockable_input());
+
+    auto producer_inst = net->get_primitive("producer");
+    ASSERT_NE(producer_inst->output_memory_ptr(), nullptr);
+    EXPECT_EQ(producer_inst->output_memory_ptr()->get_allocation_type(),
+              allocation_type::usm_host)
+        << "Producer output should be lockable (usm_host on dGPU) when the "
+           "downstream user is a real CPU impl that reads tensor data on the host.";
 }

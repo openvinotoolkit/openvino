@@ -29,7 +29,7 @@ namespace {
 
     std::string GetInputLevelParams(size_t levels_num) {
         std::string result = "const __global INPUT1_TYPE* " + common_level_name + "1";
-        std::string idx = "";
+        std::string idx;
         for (size_t i = 1; i < levels_num; i++) {
             idx = std::to_string(i + 1);
             result += ", const __global INPUT" + idx + "_TYPE* " + common_level_name + idx;
@@ -57,7 +57,7 @@ namespace {
 
     std::string GetDefinedLevelSizes(size_t levels_num) {
         std::string result = "(__private size_t[]){INPUT1_SIZE_Y, INPUT1_SIZE_X, INPUT1_OFFSET";
-        std::string idx = "";
+        std::string idx;
         for (size_t i = 1; i < levels_num; i++) {
             idx = std::to_string(i + 1);
             result += " ,INPUT" + idx + "_SIZE_Y, INPUT" + idx + "_SIZE_X, INPUT" + idx + "_OFFSET";
@@ -68,7 +68,7 @@ namespace {
 
     std::string GetIndexCalculationFuncs(size_t levels_num) {
         std::string result = "if (level == 0) { idx = INPUT1_GET_INDEX(0, c, y, x); }";
-        std::string idx = "";
+        std::string idx;
         for (size_t i = 1; i < levels_num; i++) {
             idx = std::to_string(i + 1);
             result += " else if (level == " + std::to_string(i) + ") { idx = INPUT" + idx + "_GET_INDEX(0, c, y, x); }";

@@ -39,6 +39,11 @@ INSTANTIATE_TEST_SUITE_P(smoke_Auto_BehaviorTests,
 
 const std::vector<ov::element::Type> prcs = {
     ov::element::boolean,
+    ov::element::nf4,
+    ov::element::f4e2m1,
+    ov::element::f8e4m3,
+    ov::element::f8e5m2,
+    ov::element::f8e8m0,
     ov::element::bf16,
     ov::element::f16,
     ov::element::f32,

@@ -128,7 +128,11 @@ bool pin_thread_to_vacant_core(int thrIdx,
                                const std::vector<int>& cpu_ids) {
     auto proc_type_table = get_proc_type_table();
     if (proc_type_table.size() > 1) {
-        int cores_in_numa = proc_type_table[1][MAIN_CORE_PROC] + proc_type_table[1][HYPER_THREADING_PROC];
+        int cores_in_numa = proc_type_table[1][MAIN_CORE_PROC] + proc_type_table[1][HYPER_THREADING_PROC] +
+                            proc_type_table[1][EFFICIENT_CORE_PROC];
+        if (cores_in_numa <= 0) {
+            return false;
+        }
         GROUP_AFFINITY group;
         group.Group = get_numa_node_id(cpu_ids[thrIdx]);
         group.Mask = DWORD_PTR(1) << (cpu_ids[thrIdx] % cores_in_numa);

@@ -25,7 +25,7 @@ public:
     GenerateProposalsRef()
             : KernelBaseOpenCL("generate_proposals_ref") {}
 
-    ~GenerateProposalsRef() = default;
+    ~GenerateProposalsRef() override = default;
 
     using DispatchData = CommonDispatchData;
 

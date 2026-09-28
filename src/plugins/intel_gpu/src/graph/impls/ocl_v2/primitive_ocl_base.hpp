@@ -101,7 +101,7 @@ struct PrimitiveImplOCL : public cldnn::primitive_impl {
     PrimitiveImplOCL& operator=(const PrimitiveImplOCL&) = delete;
 
     explicit PrimitiveImplOCL(const std::string& impl_name) : primitive_impl(nullptr, impl_name) {}
-    ~PrimitiveImplOCL() = default;
+    ~PrimitiveImplOCL() override = default;
 
     [[nodiscard]] bool is_cpu() const override {
         return false;

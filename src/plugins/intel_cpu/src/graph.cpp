@@ -10,6 +10,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <chrono>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -1755,7 +1756,11 @@ void Graph::GetPerfData(std::vector<ov::ProfilingInfo>& perfMap) const {
             ov::ProfilingInfo pc;
             pc.node_name = node->getName();
             uint64_t avg_time = node->PerfCounter().avg();
+            const bool has_measurement = node->PerfCounter().count() > 0;
             pc.cpu_time = pc.real_time = std::chrono::microseconds(avg_time);
+            pc.start_time = has_measurement ? std::chrono::duration_cast<std::chrono::microseconds>(
+                                                  node->PerfCounter().start().time_since_epoch())
+                                            : std::chrono::microseconds::zero();
             pc.status = avg_time > 0 ? ov::ProfilingInfo::Status::EXECUTED : ov::ProfilingInfo::Status::NOT_RUN;
             pc.exec_type = node->getPrimitiveDescriptorType();
             pc.node_type = node->typeStr;
@@ -2087,6 +2092,19 @@ void Graph::EnforceInferencePrecision() const {
 
     // Pattern-based node skipping for BF16 precision enforcement
     if (inferPrec == ov::element::bf16) {
+        // Preserve a continuous f32 region around model-declared precision-sensitive operations.
+        for (const auto& node : graphNodes) {
+            if (!node->isBF16ConversionDisabled()) {
+                continue;
+            }
+            const auto inserted = nodesToSkip.insert(node);
+            if (!inserted.second) {
+                continue;
+            }
+            backwardSkipSearch(node, nodesToSkip);
+            forwardSkipSearch(node, nodesToSkip);
+        }
+
         for (const auto& node : graphNodes) {
             // Pattern 1: MatMul with Convert from integer to floating point on any input. This basically means that
             // converting such an integer input to bf16 leads to loosing accuracy, as bf16 can only exactly represent

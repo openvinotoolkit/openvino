@@ -71,7 +71,6 @@ struct program_helpers {
     // this is the termination case for parameter pack recurrence, see overload below for logic
     template <class... T>
     static void do_for_types(program_node&) {
-        return;
     }
 
     // helper function for selecting function basing on the type of the given primitive
@@ -93,10 +92,11 @@ struct program_helpers {
     template <class T, class... RestOfT, class Func, class... RestOfFuncs>
     static decltype(static_cast<void>(std::declval<Func>()(std::declval<typed_program_node<T>&>())))
     do_for_types(program_node& node, Func const& func, RestOfFuncs const&... rest) {
-        if (node.type() == T::type_id())
+        if (node.type() == T::type_id()) {
             func(node.as<T>());
-        else
+        } else {
             do_for_types<RestOfT...>(node, rest...);
+        }
     }
 
     // helper functions for deconvolution optimizations
@@ -170,8 +170,9 @@ struct pattern_match_optimization {
     }
     // Returns whether optimization invalidated the node and no futher optimizations should execute.
     bool match_and_optimize(program_node& node) {
-        if (!match(node))
+        if (!match(node)) {
             return false;
+        }
         return optimize(node);
     }
 
@@ -194,8 +195,9 @@ struct pattern_match_optimization_typed : pattern_match_optimization<pattern_mat
 
     // Returns whether optimization can be performed for specified node.
     bool match(program_node& node) {
-        if (!node.is_type<Prim>())
+        if (!node.is_type<Prim>()) {
             return false;
+        }
         return static_cast<Impl*>(this)->match(node.as<Prim>());
     }
     // Should be overloaded by implementation class to match specified primitive.
@@ -220,8 +222,9 @@ inline bool run_node_optimizations(program_node& /*node*/) {
 
 template <typename Opt, typename... Rest>
 bool run_node_optimizations(program_node& node, Opt&& opt, Rest&&... rest) {
-    if (opt.match_and_optimize(node))
+    if (opt.match_and_optimize(node)) {
         return true;
+    }
     return run_node_optimizations(node, std::forward<Rest>(rest)...);
 }
 
@@ -237,7 +240,7 @@ template <typename... Opts>
 void run_node_optimizations(program& p, Opts&&... opts) {
     auto it = p.get_processing_order().begin();
     while (it != p.get_processing_order().end()) {
-        auto node = *it++;
+        auto* node = *it++;
         run_node_optimizations(*node, opts...);
     }
 }

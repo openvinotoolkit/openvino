@@ -207,6 +207,16 @@ INSTANTIATE_TEST_SUITE_P(smoke, crop_si_test,
             -1,
             {{{128,100,4},data_types::f32,format::bfyx}},
             {{{128,100,3},data_types::f32,format::bfyx}}, 0
+        },
+        // Dynamic VariadicSplit input with static leading outputs and a dynamic remainder.
+        // [1, ?] -> [1, 2], [1, 1], [1, ?].
+        {
+            tensor({1,1,1,1,1,1,1}),
+            {tensor({0,0,0,0,1,1,1}), tensor({0,0,0,0,1,1,1}), tensor({0,0,0,0,1,1,1})},
+            {{1}, {2,1,-1}},
+            1,
+            {{ov::PartialShape{1, ov::Dimension::dynamic()},data_types::f32,format::bfyx}, {{},data_types::i64,format::bfyx}, {{3},data_types::i64,format::bfyx}},
+            {{{1,2},data_types::f32,format::bfyx}, {{1,1},data_types::f32,format::bfyx}, {ov::PartialShape{1, ov::Dimension::dynamic()},data_types::f32,format::bfyx}}, 0
         }
     }));
 

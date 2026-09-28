@@ -35,9 +35,9 @@ std::string utils::getPlatformByDeviceName(const std::string_view deviceName) {
     return std::string(platformName);
 }
 
-std::string utils::getCompilationPlatform(const std::string_view platform,
-                                          const std::string_view deviceId,
-                                          std::vector<std::string> availableDevicesNames) {
+std::string utils::getCompilationPlatform(const ov::SoPtr<IEngineBackend>& engineBackend,
+                                          const std::string_view platform,
+                                          const std::string_view deviceId) {
     // Platform parameter has a higher priority than deviceID
     if (platform != ov::intel_npu::Platform::AUTO_DETECT) {
         return ov::intel_npu::Platform::standardize(platform);
@@ -49,6 +49,11 @@ std::string utils::getCompilationPlatform(const std::string_view platform,
     }
 
     // Automatic detection of compilation platform
+    if (engineBackend == nullptr) {
+        return std::string();
+    }
+
+    const auto availableDevicesNames = engineBackend->getDeviceNames();
     if (availableDevicesNames.empty()) {
         return std::string();
     }
@@ -69,6 +74,135 @@ std::shared_ptr<IDevice> utils::getDeviceById(const ov::SoPtr<IEngineBackend>& e
             .warning("The specified device (\"%s\") was not found.", deviceId.c_str());
     }
     return nullptr;
+}
+
+std::string utils::getFullDeviceName(const ov::SoPtr<IEngineBackend>& engineBackend,
+                                     const std::string& specifiedDeviceName) {
+    const auto devName = getDeviceName(engineBackend, specifiedDeviceName);
+    auto device = getDeviceById(engineBackend, devName);
+    if (device) {
+        return device->getFullDeviceName();
+    }
+
+    OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
+}
+
+IDevice::Uuid utils::getDeviceUuid(const ov::SoPtr<IEngineBackend>& engineBackend,
+                                   const std::string& specifiedDeviceName) {
+    const auto devName = getDeviceName(engineBackend, specifiedDeviceName);
+    const auto& deviceToUse = getDeviceById(engineBackend, devName);
+    if (deviceToUse) {
+        return deviceToUse->getUuid();
+    }
+
+    return IDevice::Uuid{};
+}
+
+ov::device::LUID utils::getDeviceLUID(const ov::SoPtr<IEngineBackend>& engineBackend,
+                                      const std::string& specifiedDeviceName) {
+    const auto devName = getDeviceName(engineBackend, specifiedDeviceName);
+    auto device = getDeviceById(engineBackend, devName);
+    if (device) {
+        return device->getLUID();
+    }
+
+    return ov::device::LUID{{
+        0,
+    }};
+}
+
+uint32_t utils::getSteppingNumber(const ov::SoPtr<IEngineBackend>& engineBackend,
+                                  const std::string& specifiedDeviceName) {
+    const auto devName = getDeviceName(engineBackend, specifiedDeviceName);
+    auto device = getDeviceById(engineBackend, devName);
+    if (device) {
+        return device->getSubDevId();
+    }
+
+    OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
+}
+
+uint32_t utils::getMaxTiles(const ov::SoPtr<IEngineBackend>& engineBackend, const std::string& specifiedDeviceName) {
+    const auto devName = getDeviceName(engineBackend, specifiedDeviceName);
+    auto device = getDeviceById(engineBackend, devName);
+    if (device) {
+        return device->getMaxNumSlices();
+    }
+
+    OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
+}
+
+uint64_t utils::getDeviceAllocMemSize(const ov::SoPtr<IEngineBackend>& engineBackend,
+                                      const std::string& specifiedDeviceName) {
+    const auto devName = getDeviceName(engineBackend, specifiedDeviceName);
+    auto device = getDeviceById(engineBackend, devName);
+    if (device) {
+        return device->getAllocMemSize();
+    }
+
+    OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
+}
+
+uint64_t utils::getDeviceTotalMemSize(const ov::SoPtr<IEngineBackend>& engineBackend,
+                                      const std::string& specifiedDeviceName) {
+    const auto devName = getDeviceName(engineBackend, specifiedDeviceName);
+    auto device = getDeviceById(engineBackend, devName);
+    if (device) {
+        return device->getTotalMemSize();
+    }
+
+    OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
+}
+
+std::string utils::getDeviceName(const ov::SoPtr<IEngineBackend>& engineBackend,
+                                 const std::string& specifiedDeviceName) {
+    // In case of single device and empty input from user we should use the first element from the device list
+    if (specifiedDeviceName.empty()) {
+        std::vector<std::string> devNames;
+        if (engineBackend == nullptr || (devNames = engineBackend->getDeviceNames()).empty()) {
+            OPENVINO_THROW("No available devices");
+        }
+        if (devNames.size() >= 1) {
+            return devNames[0];
+        } else {
+            OPENVINO_THROW("The device name was not specified. Please specify device name by providing DEVICE_ID");
+        }
+    }
+
+    return specifiedDeviceName;
+}
+
+ov::device::PCIInfo utils::getPciInfo(const ov::SoPtr<IEngineBackend>& engineBackend,
+                                      const std::string& specifiedDeviceName) {
+    const auto devName = getDeviceName(engineBackend, specifiedDeviceName);
+    auto device = getDeviceById(engineBackend, devName);
+    if (device != nullptr) {
+        return device->getPciInfo();
+    }
+
+    OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
+}
+
+std::map<ov::element::Type, float> utils::getGops(const ov::SoPtr<IEngineBackend>& engineBackend,
+                                                  const std::string& specifiedDeviceName) {
+    const auto devName = getDeviceName(engineBackend, specifiedDeviceName);
+    auto device = getDeviceById(engineBackend, devName);
+    if (device != nullptr) {
+        return device->getGops();
+    }
+
+    OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
+}
+
+ov::device::Type utils::getDeviceType(const ov::SoPtr<IEngineBackend>& engineBackend,
+                                      const std::string& specifiedDeviceName) {
+    const auto devName = getDeviceName(engineBackend, specifiedDeviceName);
+    auto device = getDeviceById(engineBackend, devName);
+    if (device != nullptr) {
+        return device->getDeviceType();
+    }
+
+    OPENVINO_THROW("No device with name '", specifiedDeviceName, "' is available");
 }
 
 uint32_t utils::getOptimalNumberOfInferRequestsInParallel(std::string_view platform,

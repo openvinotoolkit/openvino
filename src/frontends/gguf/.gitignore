@@ -1,0 +1,4 @@
+# Re-include builder directories matched by the root [Bb]uild*/ rule.
+# Git requires the parent directory to be included before its files.
+!src/builder
+!dev_api/openvino/frontend/gguf/builder

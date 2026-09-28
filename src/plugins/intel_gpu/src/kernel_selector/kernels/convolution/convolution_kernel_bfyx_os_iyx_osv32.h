@@ -15,7 +15,7 @@ class ConvolutionKernel_bfyx_os_iyx_osv32 : public ConvolutionKernelBase {
 public:
     using Parent = ConvolutionKernelBase;
     ConvolutionKernel_bfyx_os_iyx_osv32();
-    virtual ~ConvolutionKernel_bfyx_os_iyx_osv32() {}
+    ~ConvolutionKernel_bfyx_os_iyx_osv32() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsData GetKernelsDataForAutoTune(const Params& params) const override;
@@ -48,6 +48,6 @@ private:
 
     AutoTuneOption GetAutoTuneOptions(const Params& arg, int autoTuneIndex) const;
 
-    std::vector<AutoTuneOption> autoTuneOptions = {};
+    std::vector<AutoTuneOption> autoTuneOptions;
 };
 }  // namespace kernel_selector

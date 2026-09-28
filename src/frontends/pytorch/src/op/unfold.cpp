@@ -21,14 +21,12 @@
 
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 OutputVector translate_unfold(const NodeContext& context) {
     num_inputs_check(context, 4, 4);
     // constants
+    auto scalar_shape = context.mark_node(v0::Constant::create(element::i32, Shape{0}, {}));
     auto const_0 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {0}));
     auto const_1 = context.mark_node(v0::Constant::create(element::i32, Shape{}, {1}));
     auto const_0_list = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
@@ -55,7 +53,7 @@ OutputVector translate_unfold(const NodeContext& context) {
     auto sizedim_minus_size = std::make_shared<v1::Subtract>(sizedim, size_list);
     auto fraction = std::make_shared<v1::Divide>(sizedim_minus_size, step);
     auto slices_count = std::make_shared<v1::Add>(fraction, const_1);
-    auto slices_count_scalar = context.mark_node(std::make_shared<v1::Reshape>(slices_count, const_1, false));
+    auto slices_count_scalar = context.mark_node(std::make_shared<v1::Reshape>(slices_count, scalar_shape, false));
 
     // generate indices for Gather, i.e.:
     // [0,1,...,size-1, 0+step, 1+step,..., size-1+step,..., (slices_count-1)*step,..., size-1+(slices_count-1)*step]
@@ -84,9 +82,11 @@ OutputVector translate_unfold(const NodeContext& context) {
     auto reshape = context.mark_node(std::make_shared<v1::Reshape>(gather, required_shape, false));
 
     // transpose tensor with gathered element
-    auto rank_scalar = context.mark_node(std::make_shared<v1::Reshape>(input_rank, const_1, false));
+    auto rank_scalar = context.mark_node(std::make_shared<v1::Reshape>(input_rank, scalar_shape, false));
     auto rank_plus_1_scalar = context.mark_node(std::make_shared<v1::Add>(rank_scalar, const_1));
-    auto dimension_plus_1_scalar = context.mark_node(std::make_shared<v1::Reshape>(dimension_plus_1, const_1, false));
+    auto dimension_plus_1_scalar =
+        context.mark_node(std::make_shared<v1::Reshape>(dimension_plus_1, scalar_shape, false));
+
     auto dimension_plus_2_scalar = std::make_shared<v1::Add>(dimension_plus_1_scalar, const_1);
     auto perm_begin =
         context.mark_node(std::make_shared<v4::Range>(const_0, dimension_plus_1_scalar, const_1, element::i32));
@@ -99,7 +99,4 @@ OutputVector translate_unfold(const NodeContext& context) {
     return {transpose};
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

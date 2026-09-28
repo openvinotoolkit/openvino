@@ -21,8 +21,10 @@ size_t ResampleKernelBfyxCubicOpt::GetOptimalBlockSize(const resample_params& pa
 ParamsKey ResampleKernelBfyxCubicOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
@@ -61,26 +63,30 @@ KernelsPriority ResampleKernelBfyxCubicOpt::GetKernelsPriority(const Params& /*p
 }
 
 bool ResampleKernelBfyxCubicOpt::Validate(const Params& p) const {
-    if (!Parent::Validate(p))
+    if (!Parent::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const resample_params& params = static_cast<const resample_params&>(p);
 
     // Only 4D tensors (no Z axis).
-    if (params.inputs[0].Dimentions() != 4)
+    if (params.inputs[0].Dimentions() != 4) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     // Only spatial axes (Y, X) may be resized.
     for (const auto& axis : params.axes) {
-        if (axis != InterpolateAxis::Y && axis != InterpolateAxis::X)
+        if (axis != InterpolateAxis::Y && axis != InterpolateAxis::X) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
     // Non-spatial dimensions (batch and feature) must not be resized.
     const auto& in = params.inputs[0];
     const auto& out = params.outputs[0];
-    if (in.Batch().v != out.Batch().v || in.Feature().v != out.Feature().v)
+    if (in.Batch().v != out.Batch().v || in.Feature().v != out.Feature().v) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }

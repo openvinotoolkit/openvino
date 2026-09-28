@@ -104,13 +104,42 @@ public:
     std::vector<uint32_t> get_allocated_blocks() const;
 
     /**
-     * @brief Reset all blocks to FREE state and clear token counts.
+     * @brief Release blocks to FREE state, selectively dropping device memory.
      *
-     * Note: tensor memory is retained in the pool for reuse; no device
-     * deallocation occurs. Individual block release is not supported —
-     * use this method to reset the entire pool between requests.
+     * The first `keep_warm_count` allocated blocks (by block ID, ascending) retain
+     * their device tensors so they can be reused in the next conversation without
+     * re-allocating device memory.  Blocks beyond that count have their tensors
+     * dropped to reduce RSS.
+     *
+     * @param keep_warm_count Number of blocks whose device tensors should be kept.
+     *                        Pass 0 (default) to release all device memory.
+     *
+     * Note: for NPU-backed tensors, re-allocation adds latency to the first prefill
+     * chunk of a new conversation.  Keeping `ceil(prompt_len / block_size)` blocks
+     * warm avoids that latency for the common case.
+     */
+    void release(uint32_t keep_warm_count = 0);
+
+    /**
+     * @brief Release all blocks and drop all device tensor memory.
+     *
+     * Equivalent to release(0).  Kept for compatibility.
      */
     void clear_all();
+
+    /**
+     * @brief Truncate the allocated block list to its first keep_count blocks.
+     *
+     * Used by continuous prefill to discard the suffix of a previous turn while
+     * retaining the shared prefix. Retained blocks keep their IDs, order, token
+     * counts and tensors. Suffix blocks are deallocated with token counts zeroed
+     * and their device tensors kept warm, and subsequent allocations return the
+     * freed IDs in ascending order so logical append order is preserved.
+     *
+     * @param keep_count Number of leading allocated blocks to retain. Must not
+     *                   exceed the current allocated count.
+     */
+    void truncate_allocated(uint32_t keep_count);
 
     /**
      * @brief Get block size (tokens per block)
@@ -152,6 +181,16 @@ private:
     ov::Shape block_shape_;                      ///< Shape for block tensors
     std::string device_;                         ///< Target device
     std::shared_ptr<const ov::IPlugin> plugin_;  ///< Plugin for memory allocation
+
+    /**
+     * @brief Rebuild the free block ID stack from the current allocation flags.
+     *
+     * Pushes in descending ID order so the smallest free ID is handed out first,
+     * keeping allocation order aligned with block ID order. Shared by every path
+     * that changes allocation state, since the ordering is what keeps a retained
+     * prefix contiguous once freed IDs are reacquired.
+     */
+    void rebuild_free_block_ids();
 
     /**
      * @brief Validate block ID

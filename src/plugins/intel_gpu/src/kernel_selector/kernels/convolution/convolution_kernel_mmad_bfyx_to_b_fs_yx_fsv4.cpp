@@ -55,8 +55,9 @@ bool ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::Validate(const Params &p) cons
 
     auto params = dynamic_cast<const convolution_params&>(p);
 
-    if (params.inputs[0].Feature().v != 3)
+    if (params.inputs[0].Feature().v != 3) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
@@ -69,8 +70,8 @@ ConvolutionKernel_mmad_bfyx_to_b_fs_yx_fsv4::AutoTuneOption ConvolutionKernel_mm
 
     AutoTuneOption option = {0, 0, 0, EXE_MODE_DEFAULT};
 
-    auto &params = dynamic_cast<const convolution_params &>(p);
-    auto &output = params.outputs[0];
+    const auto& params = dynamic_cast<const convolution_params&>(p);
+    const auto& output = params.outputs[0];
 
     // TODO: Check if other block size can improve performance
     option.blockHeight = 1;

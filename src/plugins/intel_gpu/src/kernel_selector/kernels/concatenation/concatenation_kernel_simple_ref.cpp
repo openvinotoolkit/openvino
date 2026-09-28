@@ -11,12 +11,14 @@ namespace kernel_selector {
 ParamsKey ConcatenationKernel_simple_Ref::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
@@ -34,6 +36,10 @@ ParamsKey ConcatenationKernel_simple_Ref::GetSupportedKey() const {
     k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableInputLayout(DataLayout::bfwzyx);
     k.EnableOutputLayout(DataLayout::bfwzyx);
+    k.EnableInputLayout(DataLayout::bfuwzyx);
+    k.EnableOutputLayout(DataLayout::bfuwzyx);
+    k.EnableInputLayout(DataLayout::bfvuwzyx);
+    k.EnableOutputLayout(DataLayout::bfvuwzyx);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
     k.EnableInputLayout(DataLayout::b_fs_zyx_fsv32);
@@ -51,6 +57,8 @@ ParamsKey ConcatenationKernel_simple_Ref::GetSupportedKey() const {
     k.EnableConcatAxis(ConcatAxis::Y);
     k.EnableConcatAxis(ConcatAxis::Z);
     k.EnableConcatAxis(ConcatAxis::W);
+    k.EnableConcatAxis(ConcatAxis::U);
+    k.EnableConcatAxis(ConcatAxis::V);
     k.EnableConcatAxis(ConcatAxis::FEATURE);
     k.EnableConcatAxis(ConcatAxis::BATCH);
     k.EnableConcatKernelPerInput();
@@ -76,7 +84,8 @@ bool ConcatenationKernel_simple_Ref::Validate(const Params& p) const {
              same_layout == DataLayout::b_fs_zyx_fsv32 || same_layout == DataLayout::bs_fs_zyx_bsv16_fsv16
             || same_layout == DataLayout::bs_fs_yx_bsv32_fsv32)) {
             continue;
-        } else if (cur_layout != same_layout) {
+        }
+        if (cur_layout != same_layout) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
         }
     }
@@ -89,13 +98,14 @@ ConcatenationKernelBase::DispatchData ConcatenationKernel_simple_Ref::SetDefault
     const auto& input = params.inputs[0];
 
     dispatchData.gws = { input.X().v * input.Y().v,
-                         input.Z().v * input.W().v,
+                         input.Z().v * input.W().v * input.U().v * input.V().v,
                          input.Feature().v * input.Batch().v };
 
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
     std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::X, Tensor::DataChannelName::Y },
-                                                                     { Tensor::DataChannelName::Z, Tensor::DataChannelName::W },
+                                                                     { Tensor::DataChannelName::Z, Tensor::DataChannelName::W,
+                                                                       Tensor::DataChannelName::U, Tensor::DataChannelName::V },
                                                                      { Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH }};
 
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
@@ -110,7 +120,11 @@ JitConstants ConcatenationKernel_simple_Ref::GetJitConstants(const concatenation
         const auto& output = params.outputs[0];
         std::vector<std::string> idx_order;
 
-        if (output.Dimentions() == 6) {
+        if (output.Dimentions() == 8) {
+            idx_order = { "out_b", "out_f", "out_v", "out_u", "out_w", "out_z", "out_y", "out_x" };
+        } else if (output.Dimentions() == 7) {
+            idx_order = { "out_b", "out_f", "out_u", "out_w", "out_z", "out_y", "out_x" };
+        } else if (output.Dimentions() == 6) {
             idx_order = { "out_b", "out_f", "out_w", "out_z", "out_y", "out_x" };
         } else if (output.Dimentions() == 5) {
             idx_order = { "out_b", "out_f", "out_z", "out_y", "out_x" };

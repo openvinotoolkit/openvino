@@ -8,10 +8,7 @@
 
 using namespace ::ONNX_NAMESPACE;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace common {
+namespace ov::frontend::onnx::common {
 size_t get_onnx_data_size(int32_t onnx_type) {
     switch (onnx_type) {
     case TensorProto_DataType_BOOL:
@@ -26,10 +23,14 @@ size_t get_onnx_data_size(int32_t onnx_type) {
         return 2;
     case TensorProto_DataType_FLOAT:
         return sizeof(float);
+    case TensorProto_DataType_FLOAT4E2M1:
+        return sizeof(uint8_t);
     case TensorProto_DataType_FLOAT8E4M3FN:
         return sizeof(ov::float8_e4m3);
     case TensorProto_DataType_FLOAT8E5M2:
         return sizeof(ov::float8_e5m2);
+    case TensorProto_DataType_FLOAT8E8M0:
+        return sizeof(ov::float8_e8m0);
     case TensorProto_DataType_INT4:
         return sizeof(int8_t);
     case TensorProto_DataType_INT8:
@@ -57,8 +58,10 @@ size_t get_onnx_data_size(int32_t onnx_type) {
 }
 const std::map<ov::element::Type_t, TensorProto_DataType> OV_2_ONNX_TYPES = {
     {ov::element::Type_t::bf16, TensorProto_DataType::TensorProto_DataType_BFLOAT16},
+    {ov::element::Type_t::f4e2m1, TensorProto_DataType::TensorProto_DataType_FLOAT4E2M1},
     {ov::element::Type_t::f8e4m3, TensorProto_DataType::TensorProto_DataType_FLOAT8E4M3FN},
     {ov::element::Type_t::f8e5m2, TensorProto_DataType::TensorProto_DataType_FLOAT8E5M2},
+    {ov::element::Type_t::f8e8m0, TensorProto_DataType::TensorProto_DataType_FLOAT8E8M0},
     {ov::element::Type_t::f16, TensorProto_DataType::TensorProto_DataType_FLOAT16},
     {ov::element::Type_t::f32, TensorProto_DataType::TensorProto_DataType_FLOAT},
     {ov::element::Type_t::f64, TensorProto_DataType::TensorProto_DataType_DOUBLE},
@@ -113,7 +116,4 @@ PartialShape onnx_to_ov_shape(const TensorShapeProto& onnx_shape) {
     return PartialShape{dims};
 }
 
-}  // namespace common
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::common

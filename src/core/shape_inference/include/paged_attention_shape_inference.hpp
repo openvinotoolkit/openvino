@@ -51,7 +51,7 @@ std::vector<TRShape> shape_infer(const PagedAttentionExtension* op,
             out_ps[1] = Dimension::dynamic();
         }
     }
-    output_shapes[0] = out_ps;
+    output_shapes[0] = std::move(out_ps);
 
     auto& scores_ps = output_shapes[1];
     // Compute for scores shape

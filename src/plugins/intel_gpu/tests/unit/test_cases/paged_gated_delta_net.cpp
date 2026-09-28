@@ -27,6 +27,7 @@ struct paged_gated_delta_net_test_params {
     int32_t v_heads;                          // Number of value heads
     int32_t head_size;                        // Per-head hidden size (K and V dims in this test)
     ov::element::Type precision;              // Data precision for query/key/value/state tensors
+    bool is_caching_test = false;
 };
 
 struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_gated_delta_net_test_params> {
@@ -295,7 +296,7 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
 
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
-        auto network = get_network(engine, topo, config, get_test_stream_ptr(), false);
+        auto network = get_network(engine, topo, config, get_test_stream_ptr(), p.is_caching_test);
 
         network->set_input_data("q", q_mem);
         network->set_input_data("k", k_mem);
@@ -396,6 +397,8 @@ struct paged_gated_delta_net_gpu_test : public ::testing::TestWithParam<paged_ga
         std::string result = "paged_gated_delta_net_gpu_test_" + info.param.precision.to_string() + "_" + subseq_tokens_str + "_" + past_lens_str + "_" +
                              cache_intervals_str + "_" + std::to_string(info.param.qk_heads) + "_" + std::to_string(info.param.v_heads) + "_" +
                              std::to_string(info.param.head_size);
+        if (info.param.is_caching_test)
+            result += "_cached";
         return result;
     }
 };
@@ -443,7 +446,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_gated_delta_net_gpu_test,
                              // fully occupied past blocks
                              paged_gated_delta_net_test_params{{16, 32, 48, 64}, {16, 32, 48, 64}, {16, 16, 16, 16}, 2, 2, 64, ov::element::f32},
                              // partially occupied past blocks
-                             paged_gated_delta_net_test_params{{16, 32, 48, 64}, {1, 17, 33, 49}, {16, 16, 16, 16}, 2, 2, 64, ov::element::f32}),
+                             paged_gated_delta_net_test_params{{16, 32, 48, 64}, {1, 17, 33, 49}, {16, 16, 16, 16}, 2, 2, 64, ov::element::f32},
+                             paged_gated_delta_net_test_params{{3, 3}, {2, 3}, {2, 3}, 2, 2, 16, ov::element::f16, true}),
                          paged_gated_delta_net_gpu_test::PrintToStringParamName);
 
 }  // namespace

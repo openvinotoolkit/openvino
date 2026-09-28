@@ -32,15 +32,19 @@ protected:
                                       const std::vector<ov::SoPtr<ov::ITensor>>& tensors,
                                       const std::optional<size_t>& batchSize = std::nullopt) override;
 
-    void predict_shapes(std::vector<IDynamicGraph::MemRefType>& outputProps);
-    void check_tensor_and_predicted_shapes(const std::vector<IDynamicGraph::MemRefType>& outputProps);
+    // Overrides the base allocation-only implementation to also resize Level Zero output buffers to the
+    // predicted shapes (merging the former update_tensor step) and refresh the graph arguments in one pass.
+    void prepare_outputs() override;
 
-    void update_tensor(const std::vector<IDynamicGraph::MemRefType>& outputProps);
+    void predict_output_shapes(std::vector<ov::Shape>& predictedShapes);
+    void check_tensor_and_predicted_shapes(const std::vector<ov::Shape>& predictedShapes);
 
     bool _isTensorChanged = false;
 
 private:
-    std::shared_ptr<IDynamicGraph::GraphArguments> _binding;
+    // Predicted output shapes for the current inference. Filled by predict_output_shapes(), consumed by
+    // check_tensor_and_predicted_shapes() and prepare_outputs().
+    std::vector<ov::Shape> _predictedShapes;
 };
 
 }  //  namespace intel_npu

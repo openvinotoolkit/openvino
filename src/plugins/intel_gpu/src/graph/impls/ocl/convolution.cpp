@@ -84,8 +84,9 @@ public:
         conv_params.grouped_weights_shape = primitive->grouped_weights_shape;
 
         auto deform_conv_dep_offset = primitive->deformable_mode ? 1 : 0;
-        if (primitive->input.size() == 3)
+        if (primitive->input.size() == 3) {
             deform_conv_dep_offset++;
+        }
 
         const size_t weights_input_idx = 1 + deform_conv_dep_offset;
         auto weights_layout = impl_param.input_layouts[weights_input_idx]
@@ -182,7 +183,7 @@ public:
                 && cp.outputs[0].GetLayout() == kernel_selector::Tensor::DataLayout::bfyx
                 && cp.outputs[0].X().v == 1 && cp.outputs[0].Y().v > 1
                 && cp.weights.X().v == 1 && cp.weights.Y().v > 1
-                && !(cp.groups == cp.inputs[0].Feature().v && cp.inputs[0].Feature().v == cp.outputs[0].Feature().v)) {
+                && (cp.groups != cp.inputs[0].Feature().v || cp.inputs[0].Feature().v != cp.outputs[0].Feature().v)) {
                 auto can_swap = [](const kernel_selector::Tensor::DataTensor& dt) -> bool {
                     auto x_channel_idx = kernel_selector::Tensor::DataTensor::Channelndex(dt.GetLayout(),
                                                                                         kernel_selector::Tensor::DataChannelName::X);
@@ -209,7 +210,7 @@ public:
         };
 
         // Swap XY axes
-        if (can_swap_xy(conv_params) && primitive->deformable_mode == false) {
+        if (can_swap_xy(conv_params) && !primitive->deformable_mode) {
             conv_params.inputs[0].SwapXY();
             conv_params.outputs[0].SwapXY();
             conv_params.weights.SwapXY();
@@ -239,8 +240,9 @@ public:
         if (format == format::b_fs_zyx_fsv16 ||
             format == format::bs_fs_zyx_bsv16_fsv16 ||
             format == format::bs_fs_yx_bsv16_fsv16 ||
-            format == format::b_fs_zyx_fsv32)
+            format == format::b_fs_zyx_fsv32) {
             conv_params.allowInputReordering = true;
+        }
 
         conv_params.set_dynamic_shape_offsets();
 

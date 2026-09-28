@@ -1,16 +1,35 @@
 /**
  * Unit tests for the action's main functionality, src/saveImpl.js
  */
-const core = require('@actions/core');
-const path = require('path');
-const os = require('os');
-const fs = require('fs');
-const saveImpl = require('../src/saveImpl');
+import {
+  jest,
+  describe,
+  it,
+  beforeEach,
+  afterEach,
+  expect
+} from '@jest/globals';
+import path from 'path';
+import os from 'os';
+import fs from 'fs';
 
 // Mock the GitHub Actions core library
-const getInputMock = jest.spyOn(core, 'getInput').mockImplementation();
-const setOutputMock = jest.spyOn(core, 'setOutput').mockImplementation();
-const setFailedMock = jest.spyOn(core, 'setFailed').mockImplementation();
+jest.unstable_mockModule('@actions/core', () => ({
+  getInput: jest.fn(),
+  setOutput: jest.fn(),
+  setFailed: jest.fn(),
+  debug: jest.fn(),
+  info: jest.fn(),
+  warning: jest.fn(),
+  error: jest.fn()
+}));
+
+const core = await import('@actions/core');
+const saveImpl = await import('../src/saveImpl.js');
+
+const getInputMock = core.getInput;
+const setOutputMock = core.setOutput;
+const setFailedMock = core.setFailed;
 
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'test-'));
 const cacheLocalPath = path.join(tempDir, 'cache_local');
@@ -20,9 +39,6 @@ const cacheRemotePath = path.join(tempDir, 'cache_remote');
 afterEach(() => {
   fs.rmSync(tempDir, { recursive: true });
 });
-
-// Mock the action's main function
-const runMock = jest.spyOn(saveImpl, 'save');
 
 describe('save', () => {
   beforeEach(() => {
@@ -60,8 +76,6 @@ describe('save', () => {
 
     await saveImpl.save();
 
-    expect(runMock).toHaveReturned();
-
     expect(setOutputMock).toHaveBeenNthCalledWith(
       1,
       'cache-file',
@@ -89,7 +103,6 @@ describe('save', () => {
     });
 
     await saveImpl.save();
-    expect(runMock).toHaveReturned();
     expect(fs.existsSync(`${cacheRemotePath}/cache.cache`)).toBe(false); // Check that the tar file was not created
   });
 
@@ -115,7 +128,6 @@ describe('save', () => {
 
     await saveImpl.save();
 
-    expect(runMock).toHaveReturned();
     expect(setOutputMock).toHaveBeenNthCalledWith(
       1,
       'cache-file',
@@ -140,7 +152,6 @@ describe('save', () => {
 
     await saveImpl.save();
 
-    expect(runMock).toHaveReturned();
     expect(setOutputMock).not.toHaveBeenCalled();
     expect(setFailedMock).not.toHaveBeenCalled();
   });
@@ -164,7 +175,6 @@ describe('save', () => {
 
     await saveImpl.save();
 
-    expect(runMock).toHaveReturned();
     expect(setOutputMock).not.toHaveBeenCalled();
     expect(setFailedMock).not.toHaveBeenCalled();
   });
@@ -187,7 +197,6 @@ describe('save', () => {
     });
 
     await saveImpl.save();
-    expect(runMock).toHaveReturned();
     expect(setOutputMock).not.toHaveBeenCalled();
     expect(setFailedMock).toHaveBeenCalled();
   });

@@ -139,14 +139,8 @@ protected:
                 bias_md,
                 output_md,
                 attr);
-        } else {
-            return std::make_shared<dnnl::matmul::primitive_desc>(
-                engine.get_onednn_engine(),
-                input_md,
-                weights_md,
-                output_md,
-                attr);
         }
+        return std::make_shared<dnnl::matmul::primitive_desc>(engine.get_onednn_engine(), input_md, weights_md, output_md, attr);
     }
 
 public:
@@ -160,12 +154,14 @@ public:
 
     static std::unique_ptr<primitive_impl> create(const moe_gemm_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
-        auto& config = impl_params.prog->get_config();
+        const auto& config = impl_params.prog->get_config();
         auto attr = impl_params.attrs_onednn;
         auto prim = impl_params.typed_desc<moe_gemm>();
         auto moe_cfg = MoEGemmImplementationManager::get_moe_cfg(impl_params);
 
         if (moe_cfg.is_weight_quantized) {
+            attr->set_fpmath_mode(dnnl::fpmath_mode::f16, true);
+
             if (moe_cfg.weight_group_size == -1) {
                 attr->set_scales(DNNL_ARG_WEIGHTS,
                                  (1 << 0) | (1 << 2),

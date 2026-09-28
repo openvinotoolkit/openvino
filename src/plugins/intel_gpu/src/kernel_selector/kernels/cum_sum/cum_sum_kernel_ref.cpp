@@ -53,7 +53,7 @@ JitConstants CumSumKernelRef::GetJitConstants(const cum_sum_params& params, Disp
             }
 
             size_t num_of_dynamic_inputs = 0;
-            for (auto& input : params.inputs) {
+            for (const auto& input : params.inputs) {
                 if (input.is_dynamic()) {
                     num_of_dynamic_inputs += 1;
                 }

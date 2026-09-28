@@ -19,6 +19,7 @@
 #include "openvino/runtime/shared_buffer.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/string_view_streambuf.hpp"
 #include "plugin.hpp"
 #include "remote_context.hpp"
 

@@ -4,27 +4,28 @@
 
 #pragma once
 
-#include "softmax_kernel_base.h"
 #include <vector>
+
+#include "softmax_kernel_base.h"
 
 namespace kernel_selector {
 class SoftmaxItemsClassKernelBase : public SoftmaxKernelBase {
 public:
     using SoftmaxKernelBase::SoftmaxKernelBase;
-    virtual ~SoftmaxItemsClassKernelBase() {}
+    ~SoftmaxItemsClassKernelBase() override = default;
 
 protected:
     JitConstants GetJitConstants(const softmax_params& params, DispatchData dispatchData) const override;
     static ParamsKey GetDefaultSupportedKey();
     static std::vector<size_t> GetSoftmaxDimGlobalSizes(SoftmaxDim dim, const DataTensor& output);
     Datatype GetAccumulatorType(const softmax_params& params) const {
-        if (params.inputs[0].GetDType() == Datatype::F16)
+        if (params.inputs[0].GetDType() == Datatype::F16) {
             return Datatype::F16;
-        else
-            return Datatype::F32;
+        }
+        return Datatype::F32;
     }
     std::vector<KernelBase::FusedOpType> GetSupportedFusedOps() const override {
-        return { FusedOpType::QUANTIZE };
+        return {FusedOpType::QUANTIZE};
     }
 };
 }  // namespace kernel_selector

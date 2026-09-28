@@ -2,27 +2,29 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "kernel_selector.h"
+
+#include <fstream>
+#include <iostream>
+#include <set>
+#include <sstream>
+#include <string>
+#include <tuple>
+#include <type_traits>
+#include <vector>
+
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "kernel_base.h"
 #include "kernel_selector_common.h"
-#include "kernel_selector.h"
 #include "kernel_selector_params.h"
-#include <type_traits>
-#include <sstream>
-#include <fstream>
-#include <string>
-#include <vector>
-#include <tuple>
-#include <set>
-#include <iostream>
-#include "intel_gpu/runtime/debug_configuration.hpp"
 
 // #define ENABLE_ENV
 // #define ENABLE_ENV_PRINT
 
 #ifdef ENABLE_ENV_PRINT
-#define ENV_PRINTF(...) printf(__VA_ARGS__)
+#    define ENV_PRINTF(...) printf(__VA_ARGS__)
 #else
-#define ENV_PRINTF(...)
+#    define ENV_PRINTF(...)
 #endif  // ENABLE_ENV_PRINT
 
 #define ENABLE_OFFLINE_TUNING_CACHE 1
@@ -71,7 +73,6 @@ KernelData kernel_selector_base::get_best_kernel(const Params& params) const {
     return kernels[0];
 }
 
-
 KernelsData kernel_selector_base::GetNaiveBestKernel(const KernelList& all_impls, const Params& params) const {
     KernelsData kernelsData;
     std::string kernelName;
@@ -83,20 +84,20 @@ KernelsData kernel_selector_base::GetNaiveBestKernel(const KernelList& all_impls
         try {
             KernelsData kds = implementation->GetKernelsData(params);
 
-            if (kds.size() && kds[0].kernels.size()) {
+            if (!kds.empty() && !kds[0].kernels.empty()) {
                 kernelsData = kds;
                 kernelName = implementation->GetName();
                 break;
             }
         } catch (std::runtime_error& ex) {
             // we have to handle it in order to avoid exception in KernelSelector as much we can
-            kernelName = (implementation != nullptr)? implementation->GetName() : "[impl is null]";
+            kernelName = (implementation != nullptr) ? implementation->GetName() : "[impl is null]";
             GPU_DEBUG_TRACE << "layerID: " << params.layerID << " kernel: " << kernelName << " - " << ex.what() << std::endl;
         }
     }
 
     // TODO: find a better place to located this assignment
-    if (kernelsData.size()) {
+    if (!kernelsData.empty()) {
         kernelsData[0].kernelName = kernelName;
         kernelsData[0].kernels[0].params.layerID = params.layerID;
     }
@@ -128,7 +129,7 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params, Ke
             // TODO: make sure kernel names are unique.
             if (implementation->GetName().compare(cachedkernelName) == 0) {
                 KernelsData kds = implementation->GetTunedKernelsDataByIndex(params, autoTuneIndex);
-                if (kds.size() && kds[0].kernels.size()) {
+                if (!kds.empty() && !kds[0].kernels.empty()) {
                     kernelsData = kds;
                     kernelsData[0].kernelName = cachedkernelName;
                     kernelsData[0].kernels[0].params.layerID = params.layerID;
@@ -146,9 +147,10 @@ KernelsData kernel_selector_base::GetAutoTuneBestKernel(const Params& params, Ke
 }
 
 std::shared_ptr<KernelBase> kernel_selector_base::GetImplementation(std::string& kernel_name) const {
-    for (auto& impl : implementations) {
-        if (impl->GetName().compare(kernel_name) == 0)
+    for (const auto& impl : implementations) {
+        if (impl->GetName().compare(kernel_name) == 0) {
             return impl;
+        }
     }
     return nullptr;
 }
@@ -167,27 +169,26 @@ KernelList kernel_selector_base::GetAllImplementations(const Params& params, Ker
     if (params.GetType() == kType) {
         ParamsKey requireKey = params.GetParamsKey();
         bool forceImplementation = !params.forceImplementation.empty();
-        for (auto& impl : implementations) {
+        for (const auto& impl : implementations) {
             const ParamsKey implKey = impl->GetSupportedKey();
-            if (!implKey.Support(requireKey))
+            if (!implKey.Support(requireKey)) {
                 continue;
+            }
 
             auto required_device_features_key = impl->get_required_device_features_key(params);
-            if (!device_features_key.supports(required_device_features_key))
+            if (!device_features_key.supports(required_device_features_key)) {
                 continue;
+            }
 
-            if (forceImplementation && params.forceImplementation != impl->GetName())
+            if (forceImplementation && params.forceImplementation != impl->GetName()) {
                 continue;
+            }
             sortedImpls.emplace(impl->GetKernelsPriority(params), impl);
         }
 
-        std::transform(
-            sortedImpls.begin(),
-            sortedImpls.end(),
-            std::back_inserter(result),
-            [](const PriorityPair& impl) {
-                return std::move(impl.second);
-            });
+        std::transform(sortedImpls.begin(), sortedImpls.end(), std::back_inserter(result), [](const PriorityPair& impl) {
+            return std::move(impl.second);
+        });
     } else {
         GPU_DEBUG_COUT << "No implementation for " << params.layerID << " because of kernel type mismatch" << std::endl;
     }

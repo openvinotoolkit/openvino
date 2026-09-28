@@ -169,7 +169,7 @@ struct reorder : public primitive_base<reorder> {
     /// @brief Input memory type.
     memory_type input_mem_type = memory_type::buffer;
     /// @brief Parameters required for reorder weights.
-    std::shared_ptr<WeightsReorderParams> weights_reorder_params = {};
+    std::shared_ptr<WeightsReorderParams> weights_reorder_params;
 
     inline bool has_surface_input() const {
         return input.size() == 1 &&
@@ -194,8 +194,9 @@ struct reorder : public primitive_base<reorder> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const reorder>(rhs);
 
@@ -271,8 +272,9 @@ protected:
         auto ret = std::map<size_t, const input_info*>{};
         auto idx = input.size();
 
-        if (mean.is_valid())
+        if (mean.is_valid()) {
             ret[idx++] = &mean;
+        }
 
         return ret;
     }

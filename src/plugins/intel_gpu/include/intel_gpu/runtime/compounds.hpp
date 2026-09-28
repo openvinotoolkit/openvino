@@ -205,7 +205,7 @@ _NODISCARD constexpr checked_array_iterator<_Ptr> make_checked_array_iterator(
 template <typename T>
 class mutable_array_ref {
 public:
-    typedef size_t size_type;
+    using size_type = size_t;
 
     mutable_array_ref() : _data(nullptr), _size(0) {}
     explicit mutable_array_ref(T& val) : _data(&val), _size(1) {}
@@ -217,8 +217,9 @@ public:
     mutable_array_ref(const mutable_array_ref& other) : _data(other._data), _size(other._size) {}
 
     mutable_array_ref& operator=(const mutable_array_ref& other) {
-        if (this == &other)
+        if (this == &other) {
             return *this;
+        }
         _data = other._data;
         _size = other._size;
         return *this;
@@ -236,8 +237,8 @@ public:
     const_iterator cbegin() const { return make_checked_array_iterator(_data, _size); }
     const_iterator cend() const { return make_checked_array_iterator(_data, _size, _size); }
 #else
-    typedef T* iterator;
-    typedef T* const_iterator;
+    using iterator = T *;
+    using const_iterator = T *;
     iterator begin() const { return _data; }
     iterator end() const { return _data + _size; }
     const_iterator cbegin() const { return _data; }

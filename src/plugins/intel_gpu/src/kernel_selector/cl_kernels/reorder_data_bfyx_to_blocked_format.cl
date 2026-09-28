@@ -7,11 +7,12 @@
 #define INPUT0_GET_TILED_INDEX(ORDER) INPUT0_GET_INDEX(ORDER)
 
 #define INPUTVTYPE CAT(INPUT0_TYPE, TILE_SIZE)
+#define INPUTVCOMPUTETYPE CAT(INPUT0_COMPUTE_TYPE, TILE_SIZE)
 #define OUTPUTVTYPE CAT(OUTPUT_TYPE, TILE_SIZE)
 #define VLOAD CAT(vload, TILE_SIZE)
 #define VSTORE CAT(vstore, TILE_SIZE)
 #define AS_INPUTVTYPE CAT(as_, INPUTVTYPE)
-#define TO_OUTPUTVTYPE CAT(convert_, OUTPUTVTYPE)
+#define TO_OUTPUTVTYPE(v) TO_OUTPUT_VECTOR_TYPE(v, TILE_SIZE)
 
 #define GET_GLOBAL_ID(IDX) ((uint)get_global_id(IDX))
 #define GET_LOCAL_ID(IDX) ((uint)get_local_id(IDX))
@@ -22,7 +23,7 @@
                                         INPUTVTYPE read_data = AS_INPUTVTYPE(VLOAD(0, input + input_idx)); \
                                         unroll_for (uint lw = 0; lw < inner; ++lw) { \
                                             const uint dst = local_buf_offset + lw; \
-                                            transpose_buf[dst][lh] = read_data[lw]; \
+                                            transpose_buf[dst][lh] = TO_OUTPUT_TYPE(DECODE_INPUT0_COMPUTE_TYPE(read_data[lw])); \
                                         } \
                                     }
 
@@ -34,19 +35,19 @@
                                         } \
                                         unroll_for (uint lw = 0; lw < inner; ++lw) { \
                                             const uint dst = local_buf_offset + lw; \
-                                            transpose_buf[dst][lh] = read_data[lw]; \
+                                            transpose_buf[dst][lh] = TO_OUTPUT_TYPE(DECODE_INPUT0_COMPUTE_TYPE(read_data[lw])); \
                                         } \
                                     }
 
 #define FUNC_VSTORE(loop)           unroll_for (uint lw = 0; lw < loop; ++lw) { \
                                         const uint output_idx = output_idx_tile + (lw * x_pitch); \
-                                        VSTORE(TO_OUTPUTVTYPE(transpose_buf[local_buf_offset + lw]), 0, output + output_idx); \
+                                        VSTORE(transpose_buf[local_buf_offset + lw], 0, output + output_idx); \
                                     }
 
 #define FUNC_WRITE(inner, outer)    unroll_for (uint lw = 0; lw < outer; ++lw) { \
                                         const uint output_idx = output_idx_tile + (lw * x_pitch); \
                                         unroll_for (uint i = 0; i < inner; ++i) { \
-                                            output[output_idx + i] = ACTIVATION(TO_OUTPUT_TYPE(transpose_buf[local_buf_offset + lw][i]), ACTIVATION_PARAMS); \
+                                            output[output_idx + i] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_OUTPUT_COMPUTE_TYPE(transpose_buf[local_buf_offset + lw][i]), ACTIVATION_PARAMS)); \
                                         } \
                                     }
 
@@ -74,43 +75,15 @@ KERNEL (reorder_data_bfyx_to_blocked_format)(
     const uint f = fsv + fs * FSV_ALIGNMENT;
 
 #if DOUBLE_BLOCKED_FORMAT
-    const uint bs = b / BSV_ALIGNMENT;
-    const uint bsv = b % BSV_ALIGNMENT;
     const uint x_pitch = BSV_ALIGNMENT * FSV_ALIGNMENT;
 #else
     const uint x_pitch = FSV_ALIGNMENT;
 #endif
-    const uint y_pitch = x_pitch * (OUTPUT_SIZE_X);
 
 #if INPUT0_DIMS == 4
-    #if DOUBLE_BLOCKED_FORMAT
-        const uint bsv_pitch = FSV_ALIGNMENT;
-        const uint fs_pitch = y_pitch * (OUTPUT_SIZE_Y);
-        const uint bs_pitch = fs_pitch * (INPUT0_FEATURE_SLICE_NUM);
-        const uint output_idx_tile = (bs * bs_pitch) + (fs * fs_pitch) + (y * y_pitch) + (x * x_pitch) + (bsv * bsv_pitch) + (fsv);
-    #else
-        #if FS_B_YX_FSV
-        const uint b_pitch = y_pitch * (OUTPUT_SIZE_Y);
-        const uint fs_pitch = b_pitch * (INPUT0_BATCH_NUM);
-        #else
-        const uint fs_pitch = y_pitch * (OUTPUT_SIZE_Y);
-        const uint b_pitch = fs_pitch * (INPUT0_FEATURE_SLICE_NUM);
-        #endif
-        const uint output_idx_tile = (b * b_pitch) + (fs * fs_pitch) + (y * y_pitch) + (x * x_pitch) + (fsv);
-    #endif
+    const uint output_idx_tile = OUTPUT_GET_INDEX(b, f, y, x);
 #elif INPUT0_DIMS == 5
-     #if DOUBLE_BLOCKED_FORMAT
-        const uint bsv_pitch = FSV_ALIGNMENT;
-        const uint z_pitch = y_pitch * (OUTPUT_SIZE_Y);
-        const uint fs_pitch = z_pitch * (OUTPUT_SIZE_Z);
-        const uint bs_pitch = fs_pitch * (INPUT0_FEATURE_SLICE_NUM);
-        const uint output_idx_tile = (bs * bs_pitch) + (fs * fs_pitch) + (z * z_pitch) + (y * y_pitch) + (x * x_pitch) + (bsv * bsv_pitch) + (fsv);
-    #else
-        const uint z_pitch = y_pitch * (OUTPUT_SIZE_Y);
-        const uint fs_pitch = z_pitch * (OUTPUT_SIZE_Z);
-        const uint b_pitch = fs_pitch * (INPUT0_FEATURE_SLICE_NUM);
-        const uint output_idx_tile = (b * b_pitch) + (fs * fs_pitch) + (z * z_pitch) + (y * y_pitch) + (x * x_pitch) + (fsv);
-    #endif
+    const uint output_idx_tile = OUTPUT_GET_INDEX(b, f, z, y, x);
 #endif
 
     // get local buf offset

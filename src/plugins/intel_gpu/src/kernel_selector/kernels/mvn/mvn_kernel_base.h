@@ -25,8 +25,9 @@ struct mvn_params : public base_params {
 
         k.EnableMVNMode(mvnMode);
 
-        if (mvnNormalizeVariance)
+        if (mvnNormalizeVariance) {
             k.EnableMVNNormalizeVariance();
+        }
 
         return k;
     }
@@ -38,7 +39,7 @@ struct mvn_params : public base_params {
 class MVNKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~MVNKernelBase() {}
+    ~MVNKernelBase() override = default;
 
     struct DispatchData : public CommonDispatchData {
         size_t itemsNum;

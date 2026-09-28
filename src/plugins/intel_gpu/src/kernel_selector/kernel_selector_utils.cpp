@@ -38,8 +38,9 @@ static WeightsFormatSupportType CheckWeights(const weight_bias_params& newParams
                                              bool rotate) {
     // validate if weights type is image and if device supports requested sizes
     if (Tensor::IsImageType(reqLayouts)) {
-        if (!CheckImageSize(newParams, reqLayouts))
+        if (!CheckImageSize(newParams, reqLayouts)) {
             return UNSUPPORTED;
+        }
     }
 
     const auto& tensor = newParams.weights;
@@ -54,8 +55,8 @@ static WeightsFormatSupportType CheckWeights(const weight_bias_params& newParams
     reorderNeeded |= rotate;
 
     if (reorderNeeded && !pitchesDifferFromLS && !rotate) {
-        reorderNeeded = !((reqLayouts == WeightsLayout::io && tensor.GetLayout() == WeightsLayout::iyxo) ||
-                          (reqLayouts == WeightsLayout::oi && tensor.GetLayout() == WeightsLayout::oiyx));
+        reorderNeeded = (reqLayouts != WeightsLayout::io || tensor.GetLayout() != WeightsLayout::iyxo) &&
+                          (reqLayouts != WeightsLayout::oi || tensor.GetLayout() != WeightsLayout::oiyx);
     }
 
     return reorderNeeded ? REORDER_NEEDED : SUPPORTED;
@@ -81,15 +82,13 @@ std::vector<size_t> GetImageSizes(const kernel_selector::WeightsTensor& dimensio
 }
 
 bool CheckImageSize(const weight_bias_params& newParams, const WeightsLayout layout) {
-    if (!newParams.engineInfo.supports_image)
+    if (!newParams.engineInfo.supports_image) {
         return false;
+    }
 
     auto image_sizes = GetImageSizes(newParams.weights, layout);
-    if (image_sizes[0] == 0 || image_sizes[1] == 0 || image_sizes[0] > newParams.engineInfo.maxImage2dWidth ||
-        image_sizes[1] > newParams.engineInfo.maxImage2dHeight)
-        return false;
-
-    return true;
+    return image_sizes[0] != 0 && image_sizes[1] != 0 && image_sizes[0] <= newParams.engineInfo.maxImage2dWidth &&
+        image_sizes[1] <= newParams.engineInfo.maxImage2dHeight;
 }
 
 bool UpdateWeightsParams(weight_bias_params& newParams,
@@ -133,20 +132,26 @@ JitConstants GetTensorFriendlyWorkGroupsJit(const DataTensor& t) {
 
     int idx = 0;
     for (size_t i = 0; i < t.GetDims().size(); i++) {
-        if (b == static_cast<int>(i))
+        if (b == static_cast<int>(i)) {
             gws_batch = idx++;
-        if (f == static_cast<int>(i))
+        }
+        if (f == static_cast<int>(i)) {
             gws_feature = idx++;
-        if (x == static_cast<int>(i))
+        }
+        if (x == static_cast<int>(i)) {
             gws_spatial = idx++;
+        }
     }
 
-    if (-1 == gws_batch)
+    if (-1 == gws_batch) {
         gws_batch = idx++;
-    if (-1 == gws_feature)
+    }
+    if (-1 == gws_feature) {
         gws_feature = idx++;
-    if (-1 == gws_spatial)
+    }
+    if (-1 == gws_spatial) {
         gws_spatial = idx++;
+    }
 
     JitConstants jit{
         MakeJitConstant("GWS_BATCH", gws_batch),
@@ -217,8 +222,9 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
     }
 
     auto calculate_optimized_priority_order = [&]() -> void {
-        while (axis_by_gws[layout_order[first_axis_idx]] == unused_axis)
+        while (axis_by_gws[layout_order[first_axis_idx]] == unused_axis) {
             first_axis_idx++;
+        }
 
         for (size_t gws_idx = 0; gws_idx < gws_dims_num; gws_idx++) {
             for (size_t axis_idx = first_axis_idx; axis_idx < axis_num; axis_idx++) {
@@ -354,8 +360,8 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
                                             16;
     // Reduces max local wgs for some cases on Gen12+ devices
     if (lws_max >= 512) {
-        auto two_dims_are_odd_and_equal = (gws[0] % 2 && gws[0] > 7 && (gws[0] == gws[1] || gws[0] == gws[2])) ||
-                                          (gws[1] % 2 && gws[1] > 7 && gws[1] == gws[2]);
+        auto two_dims_are_odd_and_equal = (((gws[0] % 2) != 0u) && gws[0] > 7 && (gws[0] == gws[1] || gws[0] == gws[2])) ||
+                                          (((gws[1] % 2) != 0u) && gws[1] > 7 && gws[1] == gws[2]);
 
         // Known cases when lws_max = 256 works better than lws_max > 256
         auto max_wgs_exception1 = gws[priority_order[0]] == 1278 && gws[priority_order[1]] == 718 && gws[priority_order[2]] % 10 == 0;
@@ -414,8 +420,9 @@ std::vector<size_t> GetOptimalLocalWorkGroupSizes(std::vector<size_t> gws, const
             lws[priority_order[i]] = lws_values[lws_idx];
         } else {
             lws[priority_order[i]] = i == 2 && gws[priority_order[0]] != 1 ? 1 : lws_values[lws_idx];
-            if (total_gws > 100 && total_lws < 8 && i == 2)
+            if (total_gws > 100 && total_lws < 8 && i == 2) {
                 lws[priority_order[i]] = lws_values[lws_idx];
+            }
         }
 
         total_lws *= lws_values[lws_idx];
@@ -470,27 +477,30 @@ bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
         {DataLayout::bs_fs_zyx_bsv32_fsv32,  {32, 32}}
     };
 
-    if (params.inputs.size()) {
+    if (!params.inputs.empty()) {
         no_pitch_same_dims = !params.inputs[0].PitchesDifferFromLogicalDims();
 
         auto block_layout = block_layouts.find(params.inputs[0].GetLayout());
         if (block_layout != block_layouts.end()) {
             auto block_size = block_layout->second;
-            if (params.inputs[0].Batch().v % block_size.first != 0 || params.inputs[0].Feature().v % block_size.second != 0)
+            if (params.inputs[0].Batch().v % block_size.first != 0 || params.inputs[0].Feature().v % block_size.second != 0) {
                     return false;
+            }
         }
 
-        if (params.fused_ops.size()) {
+        if (!params.fused_ops.empty()) {
             for (auto fused_op : params.fused_ops) {
                 for (size_t in = 0; in < fused_op.tensors.size(); in++) {
-                    if (fused_op.tensors[in].LogicalSize() == 1)
+                    if (fused_op.tensors[in].LogicalSize() == 1) {
                         continue;
+                    }
 
                     auto layout = block_layouts.find(fused_op.tensors[in].GetLayout());
                     if (layout != block_layouts.end()) {
                         auto block_size = layout->second;
-                        if (fused_op.tensors[in].Batch().v % block_size.first != 0 || fused_op.tensors[in].Feature().v % block_size.second != 0)
+                        if (fused_op.tensors[in].Batch().v % block_size.first != 0 || fused_op.tensors[in].Feature().v % block_size.second != 0) {
                             return false;
+                        }
                     }
 
                     no_pitch_same_dims = no_pitch_same_dims && (params.inputs[0] == fused_op.tensors[in]);
@@ -504,8 +514,9 @@ bool CheckInputsOutputNoPitchSameDims(const base_params& params) {
             auto layout = block_layouts.find(params.inputs[i].GetLayout());
             if (layout != block_layouts.end()) {
                 auto block_size = layout->second;
-                if (params.inputs[i].Batch().v % block_size.first != 0 || params.inputs[i].Feature().v % block_size.second != 0)
+                if (params.inputs[i].Batch().v % block_size.first != 0 || params.inputs[i].Feature().v % block_size.second != 0) {
                     return false;
+                }
             }
         }
         // TODO : check for multiple outputs

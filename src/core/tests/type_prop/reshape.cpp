@@ -628,7 +628,7 @@ TEST(type_prop, reshape_to_zero) {
 TEST(type_prop, reshape_to_scalar) {
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
     auto r = make_shared<op::v1::Reshape>(param,
-                                          ov::op::v0::Constant::create(element::i64, {}, std::vector<int64_t>{1}),
+                                          ov::op::v0::Constant::create(element::i64, {0}, std::vector<int64_t>{}),
                                           false);
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_EQ(r->get_output_shape(0), (Shape{}));
@@ -637,7 +637,7 @@ TEST(type_prop, reshape_to_scalar) {
 TEST(type_prop, reshape_to_scalar_2) {
     auto param = make_shared<ov::op::v0::Parameter>(element::f32, Shape{});
     auto r = make_shared<op::v1::Reshape>(param,
-                                          ov::op::v0::Constant::create(element::i64, {}, std::vector<int64_t>{1}),
+                                          ov::op::v0::Constant::create(element::i64, {0}, std::vector<int64_t>{}),
                                           false);
     ASSERT_EQ(r->get_element_type(), element::f32);
     ASSERT_EQ(r->get_output_shape(0), (Shape{}));
@@ -648,10 +648,10 @@ TEST(type_prop, reshape_to_scalar_3) {
 
     OV_EXPECT_THROW(
         ignore = make_shared<op::v1::Reshape>(param,
-                                              op::v0::Constant::create(element::i64, {}, std::vector<int64_t>{100}),
+                                              op::v0::Constant::create(element::i64, {0}, std::vector<int64_t>{}),
                                               false),
         NodeValidationFailure,
-        HasSubstr("The value of scalar shape pattern should be equal to 1"));
+        HasSubstr("Requested output shape [] is incompatible with input shape"));
 }
 
 TEST(type_prop, reshape_to_scalar_4) {
@@ -659,7 +659,7 @@ TEST(type_prop, reshape_to_scalar_4) {
 
     OV_EXPECT_THROW(
         ignore = make_shared<op::v1::Reshape>(param,
-                                              op::v0::Constant::create(element::i64, {}, std::vector<int64_t>{1}),
+                                              op::v0::Constant::create(element::i64, {0}, std::vector<int64_t>{}),
                                               false),
         NodeValidationFailure,
         HasSubstr("Requested output shape [] is incompatible with input shape"));
@@ -726,11 +726,11 @@ TEST(type_prop, reshape_when_pattern_has_interval_shape_only) {
 
 TEST(type_prop, reshape_when_pattern_has_scalar_shape_only) {
     auto param = make_shared<op::v0::Parameter>(element::f32, Shape{3, 4});
-    auto shape_pattern = make_shared<op::v0::Parameter>(element::u64, PartialShape{});
+    auto shape_pattern = make_shared<Constant>(element::u64, Shape{0});
 
     OV_EXPECT_THROW(ignore = make_shared<op::v1::Reshape>(param, shape_pattern, false),
                     NodeValidationFailure,
-                    HasSubstr("Input must be scalar as pattern is scalar!"));
+                    HasSubstr("Requested output shape [] is incompatible with input shape"));
 }
 
 TEST(type_prop, reshape_symbol_propagation) {
@@ -831,7 +831,7 @@ TEST(type_prop, reshape_pattern_shape_not_1d) {
         ignore =
             make_shared<op::v1::Reshape>(param, op::v0::Constant::create(element::u64, {3, 1}, Shape{3, 5, 4}), false),
         NodeValidationFailure,
-        HasSubstr("Pattern shape must have rank 1 or be empty"));
+        HasSubstr("Pattern shape must have rank 1"));
 }
 
 TEST(type_prop, reshape_multiple_minus_one_no_special_zero) {

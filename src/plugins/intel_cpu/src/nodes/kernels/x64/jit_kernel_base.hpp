@@ -4,11 +4,7 @@
 
 #pragma once
 
-#include <xbyak/xbyak.h>
-
 #include <cassert>
-#include <common/c_types_map.hpp>
-#include <cpu/x64/cpu_isa_traits.hpp>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
@@ -19,6 +15,11 @@
 #include "utils/cpu_utils.hpp"
 
 #if defined(OPENVINO_ARCH_X86_64)
+#    include <xbyak/xbyak.h>
+
+#    include <common/c_types_map.hpp>
+#    include <cpu/x64/cpu_isa_traits.hpp>
+
 #    include "cpu/x64/jit_generator.hpp"
 #    include "registers_pool.hpp"
 #endif  // OPENVINO_ARCH_X86_64

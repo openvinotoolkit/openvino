@@ -120,8 +120,21 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
     ON_CALL(*plugin, select_device)
         .WillByDefault([this](const std::vector<DeviceInformation>& metaDevices,
                               const std::string& netPrecision,
-                              unsigned int priority) {
-            return plugin->Plugin::select_device(metaDevices, netPrecision, priority);
+                              unsigned int priority,
+                              const ov::auto_plugin::DeviceSelectionPolicy& selection_policy,
+                              const std::string& low_power_device) {
+            return plugin->Plugin::select_device(metaDevices, netPrecision, priority, selection_policy, low_power_device);
+        });
+
+    ON_CALL(*plugin, sort_device_by_perf_curve)
+        .WillByDefault([this](const std::unordered_map<std::string, float>& deviceUtilizations,
+                              const std::list<DeviceInformation>& validDevices,
+                              const ov::intel_auto::PerfCurveTable& perfCurveTable,
+                              size_t* out_scored_count) {
+            return plugin->Plugin::sort_device_by_perf_curve(deviceUtilizations,
+                                                             validDevices,
+                                                             perfCurveTable,
+                                                             out_scored_count);
         });
 
     ON_CALL(*plugin, get_valid_device)
@@ -129,6 +142,13 @@ ov::mock_auto_plugin::tests::BaseTest::BaseTest(const MODELTYPE modelType) {
             std::list<DeviceInformation> devices(metaDevices.begin(), metaDevices.end());
             return devices;
         });
+
+    ON_CALL(*plugin, get_property).WillByDefault([this](const std::string& name, const ov::AnyMap& arguments) {
+        return plugin->Plugin::get_property(name, arguments);
+    });
+
+    ON_CALL(*plugin, get_device_utilizations)
+        .WillByDefault(Return(std::unordered_map<std::string, float>{}));
 }
 
 ov::mock_auto_plugin::tests::BaseTest::~BaseTest() {

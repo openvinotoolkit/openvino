@@ -4,6 +4,7 @@
 
 #include "test_utils.h"
 #include "fusion_test_common.hpp"
+#include "primitive_inst.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/quantize.hpp>
@@ -225,7 +226,7 @@ public:
 
 #define CASE_FC_FP16_INT4_SWIGLU_1 { 1, 64 }, { 1, 64 }, { 64, 64 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
 #define CASE_FC_FP16_INT4_SWIGLU_2 { 1, 64}, { 1, 128 }, { 128, 64 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
-#define CASE_FC_FP16_INT4_SWIGLU_3 { 1, 312 }, { 1, 128 }, { 128, 312 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
+#define CASE_FC_FP16_INT4_SWIGLU_3 { 1, 320 }, { 1, 128 }, { 128, 320 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
 #define CASE_FC_FP16_INT4_SWIGLU_4 { 8, 1, 64}, { 8, 1, 128 }, { 128, 64 }, data_types::f16, format::bfyx, data_types::u4, format::oiyx, data_types::f16, format::bfyx
 
 /* ----------------------------------------------------------------------------------------------------- */
@@ -862,6 +863,57 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_compressed_dyn_quan_and_quantized, ::te
     fully_connected_test_params{ CASE_FC_FP16_INT8_COMP_DYN_QUAN, 3, 3 },
 }));
 
+class fc_compressed_dyn_quan_aligned_outputs : public FullyConnectedFusingTestOneDNN {};
+TEST_P(fc_compressed_dyn_quan_aligned_outputs, precomputed_reduction) {
+    auto p = GetParam();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP();
+
+    auto input_mem = get_mem(get_input_layout(p), -1, 1);
+    auto weights = data("weights", get_mem(get_weights_layout(p)));
+    auto scale = data("scale", get_mem(get_scale_layout(p, 128), 0.05f));
+
+    dynamic_quantize::Attributes attrs;
+    attrs.group_sizes = {1, 128};
+    attrs.quantization_dt = data_types::i8;
+    attrs.scale_dt = data_types::f16;
+    attrs.precomputed_reduction = true;
+    attrs.precomputed_reduction_dt = data_types::i32;
+
+    auto fc = fully_connected("fc_prim", input_info("dyn_quan", 0), "weights", "", "scale", "",
+                              input_info("dyn_quan", 1), input_info(""), input_info(""),
+                              data_types::f16, 2, 2);
+    fc.decompression_zero_point_scalar = 8.0f;
+
+    topology topology(input_layout("input", layout{ov::PartialShape{-1, 128}, data_types::f16, format::bfyx}),
+                      weights, scale, dynamic_quantize("dyn_quan", input_info("input"), attrs, 2, 128), fc,
+                      reorder("reduction", input_info("dyn_quan", 2), layout{ov::PartialShape{97, 1}, data_types::i32, format::bfyx}));
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    ov::intel_gpu::ImplementationDesc fc_impl = {format::bfyx, "", impl_types::onednn};
+    config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{{"fc_prim", fc_impl}}));
+
+    auto network = get_network(engine, topology, config, get_test_stream_ptr(config), false);
+    network->set_input_data("input", input_mem);
+    network->execute();
+
+    auto fc_inst = network->get_primitive("fc_prim");
+    auto dq_inst = network->get_primitive("dyn_quan");
+    const auto aligned_input = fc_inst->get_node().type()->get_fake_aligned_params(*fc_inst->get_impl_params()).input_layouts[0];
+    const auto aligned_rows = aligned_input.get_shape()[0];
+    ASSERT_GT(aligned_rows, 97);
+    ASSERT_FALSE(dq_inst->can_be_optimized());
+    ASSERT_NE(dq_inst->output_memory_ptr(1), nullptr);
+    ASSERT_NE(dq_inst->output_memory_ptr(2), nullptr);
+    EXPECT_GE(dq_inst->output_memory_ptr(1)->size(), aligned_rows * sizeof(ov::float16));
+    EXPECT_GE(dq_inst->output_memory_ptr(2)->size(), aligned_rows * sizeof(int32_t));
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_compressed_dyn_quan_aligned_outputs, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+    fully_connected_test_params{ {97, 128}, {97, 128}, {128, 128}, data_types::f16, format::bfyx,
+                                 data_types::u8, format::oiyx, data_types::f16, format::bfyx, 0, 0 },
+}));
+
 class fc_compressed_int8_bias_dynamic_onednn : public FullyConnectedFusingTestOneDNN {};
 TEST_P(fc_compressed_int8_bias_dynamic_onednn, basic) {
     auto p = GetParam();
@@ -950,7 +1002,9 @@ TEST_P(fc_compressed_int8_bias_prod_unfused_dynamic_onednn, basic) {
         scale,
         dcomp_zp,
         mul_data,
-        dynamic_quantize("dyn_quan", input_info("input"), dq_config, 3),
+        // The input layout keeps every dimension dynamic, so the innermost length has to be passed
+        // explicitly, otherwise the opt kernel cannot tell how many elements a group spans
+        dynamic_quantize("dyn_quan", input_info("input"), dq_config, 3, feature_len),
         fc_prim_dyn_quan,
         eltwise("mul", { input_info("fc_prim"), input_info("mul_data") }, eltwise_mode::prod),
         reorder("reorder_bfyx", input_info("mul"), p.default_format, data_types::f32)
@@ -1204,14 +1258,13 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_eltwise_add_ocl_dynamic, ::testing
     fully_connected_test_params{ DYN_CASE_FC_FP16_3D_2, 2, 3 },
 }));
 
-class fc_fp16_swiglu_ocl_dynamic : public FullyConnectedFusingTest {
-public:
-    void run_test(bool is_per_channel_quan) {
+class fc_fp16_swiglu_ocl : public FullyConnectedFusingTest {
+protected:
+    void run_test(bool is_dynamic, bool is_per_channel_quan) {
         auto p = GetParam();
         auto test_input_layout = get_input_layout(p);
-        auto dynamic_input_layout = layout{ov::PartialShape::dynamic(test_input_layout.get_partial_shape().size()),
-                                           test_input_layout.data_type,
-                                           test_input_layout.format};
+        auto dynamic_input_layout =
+            layout{ov::PartialShape::dynamic(test_input_layout.get_partial_shape().size()), test_input_layout.data_type, test_input_layout.format};
         int64_t swiglu_length = p.weights_shape[0].get_length()/2;
         auto fc_prim = fully_connected("fc_prim",
                                        input_info("input"),
@@ -1227,7 +1280,7 @@ public:
         auto groups_num = p.in_shape.size() == 3 ? p.in_shape[2] / group_size : p.in_shape[1] / group_size;
         auto scale_shape = p.out_shape.size() == 3 ? ov::PartialShape{p.out_shape[2], groups_num} : ov::PartialShape{p.out_shape[1], groups_num};
 
-        create_topologies(input_layout("input", dynamic_input_layout),
+        create_topologies(input_layout("input", is_dynamic ? dynamic_input_layout : test_input_layout),
                           data("weights", get_mem(get_weights_layout(p))),
                           data("scale", get_mem(layout{scale_shape, p.default_type, p.default_format}, 0.1)),
                           fc_prim,
@@ -1241,34 +1294,53 @@ public:
                           reorder("reorder_bfyx", input_info("swiglu"), p.default_format, data_types::f32));
 
         tolerance = 1.0f;
-        execute(p, true);
+        execute(p, is_dynamic);
     }
 };
 
-TEST_P(fc_fp16_swiglu_ocl_dynamic, basic) {
+TEST_P(fc_fp16_swiglu_ocl, basic_static) {
     if (engine.get_device_info().supports_immad)
         return;
 
     if (engine.get_device_info().execution_units_count < 128)
         return;
-    run_test(false);
+    run_test(false, false);
 }
 
-TEST_P(fc_fp16_swiglu_ocl_dynamic, per_channel_quan) {
+TEST_P(fc_fp16_swiglu_ocl, per_channel_quan_static) {
     if (engine.get_device_info().supports_immad)
         return;
 
     if (engine.get_device_info().execution_units_count < 128)
         return;
-    run_test(true);
+    run_test(false, true);
 }
 
-INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_swiglu_ocl_dynamic, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
+TEST_P(fc_fp16_swiglu_ocl, basic_dynamic) {
+    if (engine.get_device_info().supports_immad)
+        return;
+
+    if (engine.get_device_info().execution_units_count < 128)
+        return;
+    run_test(true, false);
+}
+
+TEST_P(fc_fp16_swiglu_ocl, per_channel_quan_dynamic) {
+    if (engine.get_device_info().supports_immad)
+        return;
+
+    if (engine.get_device_info().execution_units_count < 128)
+        return;
+    run_test(true, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(fusings_gpu, fc_fp16_swiglu_ocl, ::testing::ValuesIn(std::vector<fully_connected_test_params>{
     fully_connected_test_params{ CASE_FC_FP16_INT4_SWIGLU_1, 2, 3 },
     fully_connected_test_params{ CASE_FC_FP16_INT4_SWIGLU_2, 2, 3 },
     fully_connected_test_params{ CASE_FC_FP16_INT4_SWIGLU_3, 2, 3 },
     fully_connected_test_params{ CASE_FC_FP16_INT4_SWIGLU_4, 2, 3 },
 }));
+
 
 class fc_imad_int8_eltwise_add_ocl_dynamic : public FullyConnectedFusingTest {
 public:

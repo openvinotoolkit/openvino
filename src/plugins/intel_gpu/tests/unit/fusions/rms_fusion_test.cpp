@@ -72,6 +72,11 @@ public:
 #define CASE_RMS_F16_2      { 2, 16, 8, 8 },    { 1, 1, 1, 8 },     { 2, 16, 8, 8 },    data_types::f16, data_types::f32, format::bfyx
 #define CASE_RMS_3D_F16_1   { 1, 16, 8, 8, 8 }, { 1, 1, 1, 1, 8 },  { 1, 16, 8, 8, 8 }, data_types::f16, data_types::f32, format::bfzyx
 #define CASE_RMS_3D_F16_2   { 2, 16, 8, 8, 8 }, { 1, 1, 1, 1, 8 },  { 2, 16, 8, 8, 8 }, data_types::f16, data_types::f32, format::bfzyx
+#define CASE_RMS_BF16_1     { 1, 16, 8, 8 },    { 1, 1, 1, 8 },     { 1, 16, 8, 8 },    data_types::bf16, data_types::f32, format::bfyx
+#define CASE_RMS_BF16_2     { 2, 16, 8, 8 },    { 1, 1, 1, 8 },     { 2, 16, 8, 8 },    data_types::bf16, data_types::f32, format::bfyx
+#define CASE_RMS_3D_BF16_1  { 1, 16, 8, 8, 8 }, { 1, 1, 1, 1, 8 },  { 1, 16, 8, 8, 8 }, data_types::bf16, data_types::f32, format::bfzyx
+#define CASE_RMS_3D_BF16_2  { 2, 16, 8, 8, 8 }, { 1, 1, 1, 1, 8 },  { 2, 16, 8, 8, 8 }, data_types::bf16, data_types::f32, format::bfzyx
+#define CASE_RMS_BF16_LARGE { 1, 4, 1, 2048 },  { 1, 1, 1, 2048 },  { 1, 4, 1, 2048 },  data_types::bf16, data_types::f32, format::bfyx
 
 class rms_activation : public RMSFusingTest {};
 TEST_P(rms_activation, basic) {
@@ -97,6 +102,11 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, rms_activation, ::testing::ValuesIn(std::v
     rms_test_params{ CASE_RMS_F16_2, 3, 3, 4 },
     rms_test_params{ CASE_RMS_3D_F16_1, 3, 3, 4 },
     rms_test_params{ CASE_RMS_3D_F16_2, 3, 3, 4 },
+    rms_test_params{ CASE_RMS_BF16_1, 3, 3, 4 },
+    rms_test_params{ CASE_RMS_BF16_2, 3, 3, 4 },
+    rms_test_params{ CASE_RMS_3D_BF16_1, 3, 3, 4 },
+    rms_test_params{ CASE_RMS_3D_BF16_2, 3, 3, 4 },
+    rms_test_params{ CASE_RMS_BF16_LARGE, 3, 3, 4 },
 }));
 
 class rms_eltwise : public RMSFusingTest {};
@@ -124,6 +134,11 @@ INSTANTIATE_TEST_SUITE_P(fusings_gpu, rms_eltwise, ::testing::ValuesIn(std::vect
     rms_test_params{ CASE_RMS_F16_2, 3, 3, 4 },
     rms_test_params{ CASE_RMS_3D_F16_1, 3, 3, 4 },
     rms_test_params{ CASE_RMS_3D_F16_2, 3, 3, 4 },
+    rms_test_params{ CASE_RMS_BF16_1, 3, 3, 4 },
+    rms_test_params{ CASE_RMS_BF16_2, 3, 3, 4 },
+    rms_test_params{ CASE_RMS_3D_BF16_1, 3, 3, 4 },
+    rms_test_params{ CASE_RMS_3D_BF16_2, 3, 3, 4 },
+    rms_test_params{ CASE_RMS_BF16_LARGE, 3, 3, 4 },
 }));
 
 class rms_reorder : public RMSFusingTest {};

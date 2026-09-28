@@ -48,11 +48,9 @@ public:
     bool support_allocation_type(allocation_type type) const { return find_in_caps(type); }
 
     static bool is_usm_type(allocation_type type) {
-        if (type == allocation_type::usm_host ||
+        return type == allocation_type::usm_host ||
             type == allocation_type::usm_shared ||
-            type == allocation_type::usm_device)
-            return true;
-        return false;
+            type == allocation_type::usm_device;
     }
 
     void remove_usm_caps() {

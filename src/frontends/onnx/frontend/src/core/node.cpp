@@ -8,6 +8,7 @@
 
 #include "core/attribute.hpp"
 #include "core/graph.hpp"
+#include "core/graph_iterator_proto.hpp"
 #include "core/null_node.hpp"
 #include "core/tensor.hpp"
 #include "input_model.hpp"
@@ -15,9 +16,7 @@
 #include "openvino/frontend/onnx/graph_iterator.hpp"
 #include "translate_session.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 class Node::Impl {
 public:
     Impl() = delete;
@@ -154,7 +153,7 @@ std::size_t Node::Impl::get_outputs_size() const {
 
 bool Node::Impl::has_attribute(const std::string& name) const {
     auto it = std::find_if(std::begin(m_attributes), std::end(m_attributes), [&](const Attribute& attribute) {
-        return attribute.get_name() == name;
+        return attribute.get_name() == name && attribute.get_type() != Attribute::Type::undefined;
     });
     return it != std::end(m_attributes);
 }
@@ -187,7 +186,7 @@ std::shared_ptr<ov::Model> Node::Impl::get_subgraph(const std::string name) cons
 template <typename T>
 T Node::Impl::get_attribute_value(const std::string& name, T default_value) const {
     auto it = std::find_if(std::begin(m_attributes), std::end(m_attributes), [&](const Attribute& attribute) {
-        return attribute.get_name() == name;
+        return attribute.get_name() == name && attribute.get_type() != Attribute::Type::undefined;
     });
     if (it == std::end(m_attributes)) {
         return std::forward<T>(default_value);
@@ -210,7 +209,7 @@ template <>
 std::shared_ptr<ov::Model> Node::Impl::get_attribute_value(const std::string& name,
                                                            std::shared_ptr<ov::Model> default_value) const {
     auto it = std::find_if(std::begin(m_attributes), std::end(m_attributes), [&](const Attribute& attribute) {
-        return attribute.get_name() == name;
+        return attribute.get_name() == name && attribute.get_type() != Attribute::Type::undefined;
     });
     if (it == std::end(m_attributes)) {
         return std::forward<std::shared_ptr<ov::Model>>(default_value);
@@ -990,7 +989,14 @@ std::shared_ptr<ov::Model> Node::get_attribute_value(const std::string& name) co
         auto graph_iterator = m_decoder->get_attribute(name).as<const ov::frontend::onnx::GraphIterator::Ptr>();
         FRONT_END_GENERAL_CHECK(graph_iterator != nullptr,
                                 "GraphIterator attribute is missing or of wrong type for attribute: " + name);
-        graph_iterator->reset();
+        // GraphIteratorProto builds its decoders lazily inside reset(): a freshly constructed
+        // subgraph proto iterator has an empty decoder list, so reset() is required there. Other
+        // GraphIterator implementations (e.g. the ORT EP delegate) construct already positioned at
+        // their first node and build decoders on demand, so reset() is unnecessary for them; skip
+        // it to mirror the top-level EP flow in FrontEnd::load_impl(), which likewise never resets.
+        if (std::dynamic_pointer_cast<ov::frontend::onnx::GraphIteratorProto>(graph_iterator)) {
+            graph_iterator->reset();
+        }
         auto parent_model = std::dynamic_pointer_cast<onnx::unify::InputModel>(m_translate_session->get_input_model());
         FRONT_END_GENERAL_CHECK(parent_model != nullptr, "Parent model is expected to be of onnx InputModel type.");
         auto input_model = std::make_shared<onnx::unify::InputModel>(graph_iterator, parent_model);
@@ -1232,6 +1238,4 @@ std::shared_ptr<ov::op::v0::Constant> Node::get_attribute_as_constant(const std:
     FRONT_END_NOT_IMPLEMENTED(get_attribute_as_constant);
 }
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

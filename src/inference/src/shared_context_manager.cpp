@@ -5,7 +5,7 @@
 #include "shared_context_manager.hpp"
 
 #include "openvino/runtime/icache_manager.hpp"
-#include "openvino/util/common_util.hpp"
+#include "openvino/util/container_util.hpp"
 
 namespace ov {
 

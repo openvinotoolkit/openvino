@@ -20,24 +20,27 @@ kernel_selector::cum_sum_axis convert_axis(int64_t axis, size_t rank) {
         case 0: return kernel_selector::cum_sum_axis::BATCH;
         case 1: return kernel_selector::cum_sum_axis::FEATURE;
         case 2:
-            if (rank == 6)
+            if (rank == 6) {
                 return kernel_selector::cum_sum_axis::W;
-            else if (rank == 5)
+            } else if (rank == 5) {
                 return kernel_selector::cum_sum_axis::Z;
-            else
+            } else {
                 return kernel_selector::cum_sum_axis::Y;
+            }
         case 3:
-            if (rank == 6)
+            if (rank == 6) {
                 return kernel_selector::cum_sum_axis::Z;
-            else if (rank == 5)
+            } else if (rank == 5) {
                 return kernel_selector::cum_sum_axis::Y;
-            else
+            } else {
                 return kernel_selector::cum_sum_axis::X;
+            }
         case 4:
-            if (rank == 6)
+            if (rank == 6) {
                 return kernel_selector::cum_sum_axis::Y;
-            else
+            } else {
                 return kernel_selector::cum_sum_axis::X;
+            }
         case 5: return kernel_selector::cum_sum_axis::X;
         default: return kernel_selector::cum_sum_axis::BATCH;
     }
@@ -58,7 +61,7 @@ struct cum_sum_impl : typed_primitive_impl_ocl<cum_sum> {
 
     void load(BinaryInputBuffer& ib) override {
         parent::load(ib);
-        if (is_dynamic() && _kernel_data.kernelName.length() != 0) {
+        if (is_dynamic() && !_kernel_data.kernelName.empty()) {
             auto& kernel_selector = kernel_selector_t::Instance();
             auto kernel_impl = kernel_selector.GetImplementation(_kernel_data.kernelName);
             kernel_impl->GetUpdateDispatchDataFunc(_kernel_data);

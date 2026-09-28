@@ -30,6 +30,61 @@ using ov::intel_cpu::configure_x86_throughput_threads;
 
 namespace {
 
+class MemBandwidthPressureBuilder {
+public:
+    MemBandwidthPressureBuilder& total_nodes(int value) {
+        _tolerance.total_nodes = value;
+        return *this;
+    }
+
+    MemBandwidthPressureBuilder& total_convs(int value) {
+        _tolerance.total_convs = value;
+        return *this;
+    }
+
+    MemBandwidthPressureBuilder& total_gemms(int value) {
+        _tolerance.total_gemms = value;
+        return *this;
+    }
+
+    MemBandwidthPressureBuilder& total_light_convs(int value) {
+        _tolerance.total_light_convs = value;
+        return *this;
+    }
+
+    MemBandwidthPressureBuilder& ratio_compute_convs(float value) {
+        _tolerance.ratio_compute_convs = value;
+        return *this;
+    }
+
+    MemBandwidthPressureBuilder& ratio_mem_limited_convs(float value) {
+        _tolerance.ratio_mem_limited_convs = value;
+        return *this;
+    }
+
+    MemBandwidthPressureBuilder& ratio_mem_limited_gemms(float value) {
+        _tolerance.ratio_mem_limited_gemms = value;
+        return *this;
+    }
+
+    MemBandwidthPressureBuilder& ratio_mem_limited_adds(float value) {
+        _tolerance.ratio_mem_limited_adds = value;
+        return *this;
+    }
+
+    MemBandwidthPressureBuilder& max_mem_tolerance(float value) {
+        _tolerance.max_mem_tolerance = value;
+        return *this;
+    }
+
+    ov::MemBandwidthPressure build() const {
+        return _tolerance;
+    }
+
+private:
+    ov::MemBandwidthPressure _tolerance;
+};
+
 static std::shared_ptr<ov::Model> make_dummy_model(bool with_fakequantize = false) {
     using namespace ov::opset8;
     auto input = std::make_shared<Parameter>(ov::element::f32, ov::Shape{1, 3, 16, 16});
@@ -226,12 +281,233 @@ TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_fallback_use_all) {
     EXPECT_EQ(config.modelPreferThreadsLatency, 12);
 }
 
+TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_high_lp_share_relaxes_all_core_auto_case) {
+    Config config;
+    std::vector<std::vector<int>> proc_type_table = {{16, 4, 8, 4, 0, 0, 0}};
+    const auto tolerance = MemBandwidthPressureBuilder{}
+                               .total_gemms(0)
+                               .total_convs(20)
+                               .ratio_compute_convs(0.29f)
+                               .ratio_mem_limited_convs(0.15f)
+                               .ratio_mem_limited_gemms(0.0f)
+                               .ratio_mem_limited_adds(0.4f)
+                               .max_mem_tolerance(0.2f)
+                               .build();
+
+    configure_x86_hybrid_threads(config, proc_type_table, tolerance, false, false);
+
+    EXPECT_EQ(config.modelPreferThreadsLatency, 16);
+    EXPECT_EQ(config.tbbPartitioner, TbbPartitioner::AUTO);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_low_lp_share_keeps_main_and_efficient_auto_case) {
+    Config config;
+    std::vector<std::vector<int>> proc_type_table = {{28, 8, 16, 4, 0, 0, 0}};
+    const auto tolerance = MemBandwidthPressureBuilder{}
+                               .total_gemms(0)
+                               .total_convs(20)
+                               .ratio_compute_convs(0.29f)
+                               .ratio_mem_limited_convs(0.15f)
+                               .ratio_mem_limited_gemms(0.0f)
+                               .ratio_mem_limited_adds(0.4f)
+                               .max_mem_tolerance(0.2f)
+                               .build();
+
+    configure_x86_hybrid_threads(config, proc_type_table, tolerance, false, false);
+
+    EXPECT_EQ(config.modelPreferThreadsLatency, 24);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_high_lp_share_generic_all_core_auto_case) {
+    Config config;
+    std::vector<std::vector<int>> proc_type_table = {{16, 4, 8, 4, 0, 0, 0}};
+    const auto tolerance = MemBandwidthPressureBuilder{}
+                               .total_nodes(258)
+                               .total_gemms(0)
+                               .total_convs(16)
+                               .ratio_compute_convs(1.0f)
+                               .ratio_mem_limited_convs(0.0f)
+                               .ratio_mem_limited_gemms(0.0f)
+                               .ratio_mem_limited_adds(0.97f)
+                               .max_mem_tolerance(ov::MemBandwidthPressure::UNKNOWN)
+                               .build();
+
+    configure_x86_hybrid_threads(config, proc_type_table, tolerance, false, false);
+
+    EXPECT_EQ(config.modelPreferThreadsLatency, 16);
+    EXPECT_EQ(config.tbbPartitioner, TbbPartitioner::AUTO);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_low_lp_share_generic_auto_keeps_main_and_efficient) {
+    Config config;
+    std::vector<std::vector<int>> proc_type_table = {{28, 8, 16, 4, 0, 0, 0}};
+    const auto tolerance = MemBandwidthPressureBuilder{}
+                               .total_nodes(258)
+                               .total_gemms(0)
+                               .total_convs(16)
+                               .ratio_compute_convs(1.0f)
+                               .ratio_mem_limited_convs(0.0f)
+                               .ratio_mem_limited_gemms(0.0f)
+                               .ratio_mem_limited_adds(0.97f)
+                               .max_mem_tolerance(ov::MemBandwidthPressure::UNKNOWN)
+                               .build();
+
+    configure_x86_hybrid_threads(config, proc_type_table, tolerance, false, false);
+
+    EXPECT_EQ(config.modelPreferThreadsLatency, 24);
+    EXPECT_EQ(config.tbbPartitioner, TbbPartitioner::AUTO);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, latency_single_socket_preserves_main_and_efficient_preference) {
+    const std::vector<std::vector<int>> proc_type_table = {{28, 8, 16, 4, 0, 0, 0}};
+
+    auto streams_info_table = get_streams_info_table(1,
+                                                     false,
+                                                     0,
+                                                     0,
+                                                     24,
+                                                     false,
+                                                     ov::util::to_string(ov::hint::PerformanceMode::LATENCY),
+                                                     {},
+                                                     proc_type_table);
+
+    ASSERT_EQ(streams_info_table.size(), 3);
+    EXPECT_EQ(streams_info_table[0][PROC_TYPE], ALL_PROC);
+    EXPECT_EQ(streams_info_table[0][THREADS_PER_STREAM], 24);
+    EXPECT_EQ(streams_info_table[1][PROC_TYPE], MAIN_CORE_PROC);
+    EXPECT_EQ(streams_info_table[1][THREADS_PER_STREAM], 8);
+    EXPECT_EQ(streams_info_table[2][PROC_TYPE], EFFICIENT_CORE_PROC);
+    EXPECT_EQ(streams_info_table[2][THREADS_PER_STREAM], 16);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, latency_single_socket_preserves_all_core_preference_with_lpecores) {
+    const std::vector<std::vector<int>> proc_type_table = {{28, 8, 16, 4, 0, 0, 0}};
+
+    auto streams_info_table = get_streams_info_table(1,
+                                                     false,
+                                                     0,
+                                                     0,
+                                                     28,
+                                                     false,
+                                                     ov::util::to_string(ov::hint::PerformanceMode::LATENCY),
+                                                     {},
+                                                     proc_type_table);
+
+    ASSERT_EQ(streams_info_table.size(), 4);
+    EXPECT_EQ(streams_info_table[0][PROC_TYPE], ALL_PROC);
+    EXPECT_EQ(streams_info_table[0][THREADS_PER_STREAM], 28);
+    EXPECT_EQ(streams_info_table[1][PROC_TYPE], MAIN_CORE_PROC);
+    EXPECT_EQ(streams_info_table[1][THREADS_PER_STREAM], 8);
+    EXPECT_EQ(streams_info_table[2][PROC_TYPE], EFFICIENT_CORE_PROC);
+    EXPECT_EQ(streams_info_table[2][THREADS_PER_STREAM], 16);
+    EXPECT_EQ(streams_info_table[3][PROC_TYPE], LP_EFFICIENT_CORE_PROC);
+    EXPECT_EQ(streams_info_table[3][THREADS_PER_STREAM], 4);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_high_lp_share_relaxed_auto_boundary_case) {
+    Config config;
+    std::vector<std::vector<int>> proc_type_table = {{16, 4, 8, 4, 0, 0, 0}};
+    const auto tolerance = MemBandwidthPressureBuilder{}
+                               .total_gemms(0)
+                               .total_convs(24)
+                               .ratio_compute_convs(0.31f)
+                               .ratio_mem_limited_convs(0.19f)
+                               .ratio_mem_limited_gemms(0.0f)
+                               .ratio_mem_limited_adds(0.39f)
+                               .max_mem_tolerance(0.12f)
+                               .build();
+
+    configure_x86_hybrid_threads(config, proc_type_table, tolerance, false, false);
+
+    EXPECT_EQ(config.modelPreferThreadsLatency, 16);
+    EXPECT_EQ(config.tbbPartitioner, TbbPartitioner::AUTO);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_high_lp_share_vision_auto_case) {
+    Config config;
+    std::vector<std::vector<int>> proc_type_table = {{16, 4, 8, 4, 0, 0, 0}};
+    const auto tolerance = MemBandwidthPressureBuilder{}
+                               .total_nodes(200)
+                               .total_gemms(1)
+                               .total_convs(24)
+                               .ratio_compute_convs(0.16f)
+                               .ratio_mem_limited_convs(0.28f)
+                               .ratio_mem_limited_gemms(0.0f)
+                               .ratio_mem_limited_adds(0.28f)
+                               .max_mem_tolerance(0.28f)
+                               .build();
+
+    configure_x86_hybrid_threads(config, proc_type_table, tolerance, false, false);
+
+    EXPECT_EQ(config.modelPreferThreadsLatency, 16);
+    EXPECT_EQ(config.tbbPartitioner, TbbPartitioner::AUTO);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_low_lp_share_vision_case_keeps_main_and_efficient) {
+    Config config;
+    std::vector<std::vector<int>> proc_type_table = {{28, 8, 16, 4, 0, 0, 0}};
+    const auto tolerance = MemBandwidthPressureBuilder{}
+                               .total_nodes(200)
+                               .total_gemms(1)
+                               .total_convs(24)
+                               .ratio_compute_convs(0.16f)
+                               .ratio_mem_limited_convs(0.28f)
+                               .ratio_mem_limited_gemms(0.0f)
+                               .ratio_mem_limited_adds(0.28f)
+                               .max_mem_tolerance(0.28f)
+                               .build();
+
+    configure_x86_hybrid_threads(config, proc_type_table, tolerance, false, false);
+
+    EXPECT_EQ(config.modelPreferThreadsLatency, 24);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_high_lp_share_residual_vision_auto_case) {
+    Config config;
+    std::vector<std::vector<int>> proc_type_table = {{16, 4, 8, 4, 0, 0, 0}};
+    const auto tolerance = MemBandwidthPressureBuilder{}
+                               .total_nodes(200)
+                               .total_gemms(0)
+                               .total_convs(24)
+                               .ratio_compute_convs(0.03f)
+                               .ratio_mem_limited_convs(0.32f)
+                               .ratio_mem_limited_gemms(0.0f)
+                               .ratio_mem_limited_adds(0.42f)
+                               .max_mem_tolerance(0.04f)
+                               .build();
+
+    configure_x86_hybrid_threads(config, proc_type_table, tolerance, false, false);
+
+    EXPECT_EQ(config.modelPreferThreadsLatency, 16);
+    EXPECT_EQ(config.tbbPartitioner, TbbPartitioner::AUTO);
+}
+
+TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_low_lp_share_residual_vision_keeps_main_and_efficient) {
+    Config config;
+    std::vector<std::vector<int>> proc_type_table = {{28, 8, 16, 4, 0, 0, 0}};
+    const auto tolerance = MemBandwidthPressureBuilder{}
+                               .total_nodes(200)
+                               .total_gemms(0)
+                               .total_convs(24)
+                               .ratio_compute_convs(0.03f)
+                               .ratio_mem_limited_convs(0.32f)
+                               .ratio_mem_limited_gemms(0.0f)
+                               .ratio_mem_limited_adds(0.42f)
+                               .max_mem_tolerance(0.04f)
+                               .build();
+
+    configure_x86_hybrid_threads(config, proc_type_table, tolerance, false, false);
+
+    EXPECT_EQ(config.modelPreferThreadsLatency, 24);
+}
+
 TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_throughput_ht_adjustment) {
     Config config;
     std::vector<std::vector<int>> proc_type_table = {{16, 8, 0, 0, 8, 0, 0}};
-    ov::MemBandwidthPressure tolerance;
-    tolerance.max_mem_tolerance = ov::MemBandwidthPressure::UNKNOWN;
-    tolerance.ratio_compute_convs = ov::MemBandwidthPressure::ALL;
+    const auto tolerance = MemBandwidthPressureBuilder{}
+                               .max_mem_tolerance(ov::MemBandwidthPressure::UNKNOWN)
+                               .ratio_compute_convs(ov::MemBandwidthPressure::ALL)
+                               .build();
 
     configure_x86_throughput_threads(config, proc_type_table, tolerance, 1.0f);
     EXPECT_GE(config.modelPreferThreadsThroughput, 1);
@@ -240,9 +516,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_throughput_ht_adjustment) {
 TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_lp_auto_case) {
     Config config;
     std::vector<std::vector<int>> proc_type_table = {{12, 4, 0, 8, 0, 0, 0}};
-    ov::MemBandwidthPressure tolerance;
-    tolerance.max_mem_tolerance = 0.08f;
-    tolerance.total_light_convs = 11;
+    const auto tolerance = MemBandwidthPressureBuilder{}.max_mem_tolerance(0.08f).total_light_convs(11).build();
 
     configure_x86_hybrid_lp_threads(config, proc_type_table, tolerance);
     EXPECT_EQ(config.modelPreferThreadsLatency, 12);

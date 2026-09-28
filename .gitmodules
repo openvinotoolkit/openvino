@@ -37,6 +37,7 @@
 [submodule "thirdparty/onnx"]
 	path = thirdparty/onnx/onnx
 	url = https://github.com/onnx/onnx.git
+	ignore = dirty
 [submodule "thirdparty/protobuf"]
 	path = thirdparty/protobuf/protobuf
 	url = https://github.com/protocolbuffers/protobuf.git
@@ -90,3 +91,10 @@
 [submodule "src/plugins/intel_cpu/thirdparty/xbyak_riscv"]
 	path = src/plugins/intel_cpu/thirdparty/xbyak_riscv
 	url = https://github.com/herumi/xbyak_riscv.git
+[submodule "src/plugins/auto/thirdparty/ipf"]
+	path = src/plugins/auto/thirdparty/ipf
+	url = https://github.com/intel/ipf.git
+[submodule "thirdparty/liburing/liburing"]
+	path = thirdparty/liburing/liburing
+	url = https://github.com/axboe/liburing.git
+	ignore = dirty

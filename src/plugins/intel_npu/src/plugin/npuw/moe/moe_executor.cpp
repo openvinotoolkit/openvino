@@ -4,6 +4,7 @@
 
 #include "moe_executor.hpp"
 
+#include <exception>
 #include <optional>
 
 #include "../compiled_model.hpp"  // For CompiledModel::CompiledModelDesc
@@ -227,9 +228,6 @@ void MoEExecutor::run(size_t real_idx, size_t idx) {
                                                                                  m_token_to_experts,
                                                                                  m_expert_to_tokens);
         });
-        if (selected_experts.empty()) {
-            OPENVINO_THROW("MoE: No experts selected by router");
-        }
         m_profile->batch["Total Expert Batch"].record([&]() {
             run_expert_batch(idx, real_idx, selected_experts);
         });
@@ -249,8 +247,30 @@ void MoEExecutor::run_expert_batch(size_t idx, size_t real_idx, const std::vecto
     const auto& io = m_moe_io[idx];
 
     // Validate expert count
-    if (selected_experts.size() != num_active_experts) {
-        OPENVINO_THROW("MoE Batch experts: number of selected experts does not match num_active_experts");
+    if (selected_experts.size() > num_active_experts) {
+        OPENVINO_THROW("MoE Batch experts: nonzero scores exceed the configured top-k");
+    }
+    // Router parsing has already rejected every non-finite score. An empty
+    // selection therefore means all mixing coefficients are finite and zero.
+    if (selected_experts.empty()) {
+        LOG_WARN("MoE decode: all router mixing scores are zero for subgraph["
+                 << idx << "]; returning zero expert contribution without inference. "
+                 << "Check router/backend behavior if this is unexpected.");
+        for (const auto& output : io.outputs) {
+            OPENVINO_ASSERT(output && output->is_continuous(), "MoE: expected a contiguous expert output");
+            std::memset(output->data(), 0, output->get_byte_size());
+        }
+        return;
+    }
+    // A selected score may be exactly zero. Fill unused compiled slots with an
+    // already selected expert, then bind a zero score for those slots. This
+    // retains the fixed-K executable without reading any unselected weights.
+    std::vector<size_t> padded_experts;
+    const auto* bound_experts = &selected_experts;
+    if (selected_experts.size() < num_active_experts) {
+        padded_experts = selected_experts;
+        padded_experts.resize(num_active_experts, selected_experts.front());
+        bound_experts = &padded_experts;
     }
 
     // Step 1: Try to find cached request (O(1) lookup) - if cache is enabled
@@ -261,7 +281,7 @@ void MoEExecutor::run_expert_batch(size_t idx, size_t real_idx, const std::vecto
     const bool cache_enabled = (m_resources.request_cache != nullptr);
 
     if (cache_enabled) {
-        request = m_resources.request_cache->find(idx, selected_experts);
+        request = m_resources.request_cache->find(idx, *bound_experts);
     }
 
     if (!request) {
@@ -277,12 +297,12 @@ void MoEExecutor::run_expert_batch(size_t idx, size_t real_idx, const std::vecto
 
         // Step 2: Configure expert weights
         m_profile->batch["Unpack Closure"].record([&]() {
-            unpack_multiple_experts_closure(idx, request, selected_experts);
+            unpack_multiple_experts_closure(idx, request, *bound_experts);
         });
 
         // Step 3: Register to cache for future hits (only if cache enabled)
         if (cache_enabled) {
-            m_resources.request_cache->register_request(idx, pool_idx, selected_experts);
+            m_resources.request_cache->register_request(idx, pool_idx, *bound_experts);
         }
     }
 
@@ -347,9 +367,17 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
 
     auto expert_input_source = io.expert_input;
 
-    // Output embedding dimension
-    const auto output_shape = m_config.compiled_models.begin()->second->outputs()[0].get_shape();
-    const size_t embed_dim = (output_shape.size() == 4) ? output_shape[3] : output_shape[1];
+    // Use the embed_dim already validated against the accumulator buffer during prepare().
+    // Defensively assert that the compiled model's output last-dim agrees, so any future
+    // layout change (2D/3D/4D) is caught immediately at runtime instead of producing
+    // silently wrong scatter results.
+    const size_t embed_dim = m_config.expert_hidden_dim;
+    {
+        const auto output_shape = m_config.compiled_models.begin()->second->outputs()[0].get_shape();
+        NPUW_ASSERT(!output_shape.empty() && output_shape.back() == embed_dim &&
+                    "Chunk model output last-dim does not match expert_hidden_dim — "
+                    "layout may have changed, update embed_dim derivation");
+    }
 
     // num_tokens and num_experts come from config, validated once during prepare().
     // The router tensor's token dimension is guaranteed to match input_token_count because
@@ -447,7 +475,7 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
     // inside the NPU overlap window instead of paying for it on the critical path
     // before item k+1's dispatch.
     //
-    // The buffer stores only token IDs that passed the threshold (v > 1e-6).
+    // The buffer stores only token IDs with nonzero finite mixing scores.
     // Slot assignment (O(selected) not O(num_tokens)) is still done at the
     // top of the next expert iteration.
     //
@@ -473,6 +501,11 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
             const auto* row = data + expert_id * num_tokens;
             // Shared by both the parse-ahead fast path and the full threshold scan below.
             auto fill_token = [&](size_t token_id) {
+                // The accumulator has only K output slots per token.
+                if (token_slot_count[token_id] >= m_config.num_active_experts) {
+                    OPENVINO_THROW("MoE Iterative experts: nonzero scores exceed the configured top-k for token ",
+                                   token_id);
+                }
                 cur.tokens.push_back(token_id);
                 cur.slots.push_back(token_slot_count[token_id]++);
             };
@@ -557,21 +590,40 @@ void MoEExecutor::run_expert_iterative(size_t idx) {
         }
     };
 
-    const auto elem_type = io.router_scores->get_element_type();
-    if (elem_type == ov::element::f32) {
-        stream_and_run(io.router_scores->data<float>());
-    } else if (elem_type == ov::element::f16) {
-        stream_and_run(io.router_scores->data<ov::float16>());
-    } else {
-        OPENVINO_THROW("MoE: Unsupported router element type for iterative inference");
+    try {
+        const auto elem_type = io.router_scores->get_element_type();
+        if (elem_type == ov::element::f32) {
+            stream_and_run(io.router_scores->data<float>());
+        } else if (elem_type == ov::element::f16) {
+            stream_and_run(io.router_scores->data<ov::float16>());
+        } else {
+            OPENVINO_THROW("MoE: Unsupported router element type for iterative inference");
+        }
+        if (inflight) {
+            do_drain();
+        } else {
+            // All mixing scores were finite and zero; the accumulator is clear.
+            LOG_WARN("MoE prefill: all router mixing scores are zero for subgraph["
+                     << idx << "]; returning zero expert contribution without inference. "
+                     << "Check router/backend behavior if this is unexpected.");
+        }
+    } catch (...) {
+        const auto original_error = std::current_exception();
+        // A later router row can fail validation while a previous chunk is
+        // running. A second request may also be in flight if draining the
+        // first throws. Finish both slots before buffers/requests can be reused;
+        // preserve the original error and never scatter partial results here.
+        for (auto& [chunk_size, requests] : m_resources.chunk_infer_requests) {
+            for (auto& request : requests) {
+                try {
+                    request->wait();
+                } catch (...) {
+                    // Do not replace the original inference/validation error.
+                }
+            }
+        }
+        std::rethrow_exception(original_error);
     }
-
-    if (!inflight) {
-        OPENVINO_THROW("MoE: No experts selected by router");
-    }
-
-    // Drain the last in-flight item
-    do_drain();
 }
 
 void MoEExecutor::set_router_scores(size_t idx,
@@ -616,7 +668,8 @@ void MoEExecutor::set_router_scores(size_t idx,
 
     // Set each unrolled router score parameter
     for (size_t k = 0; k < num_active_experts; ++k) {
-        size_t expert_id = selected_experts[k];
+        const bool active = k < selected_experts.size();
+        size_t expert_id = active ? selected_experts[k] : 0;
         size_t unrolled_param_idx = unrolled_router_indices[k];
 
         const auto& router_iport = desc.compiled_model->inputs()[unrolled_param_idx];
@@ -626,11 +679,11 @@ void MoEExecutor::set_router_scores(size_t idx,
         if (elem_type == ov::element::f16) {
             auto* src = router_scores_source->data<ov::float16>();
             auto* dst = router_tensor->data<ov::float16>();
-            dst[0] = src[expert_id];
+            dst[0] = active ? src[expert_id] : ov::float16{0.0f};
         } else if (elem_type == ov::element::f32) {
             auto* src = router_scores_source->data<float>();
             auto* dst = router_tensor->data<float>();
-            dst[0] = src[expert_id];
+            dst[0] = active ? src[expert_id] : 0.0f;
         } else {
             OPENVINO_THROW("Unsupported router scores element type: ", elem_type);
         }
@@ -676,32 +729,20 @@ void MoEExecutor::unpack_single_expert_closure(std::size_t idx, RqPtr request, s
             // Slice expert weight using view (no copy) - returns ov::Tensor object
             auto sliced_weight_tensor = ov::npuw::moe::slice_expert_weight(closure, expert_id, num_experts);
 
-            // Get impl pointer for use in unpacking/setting
+            // Get impl pointer for use in setting
             auto sliced_weight = ov::get_tensor_impl(sliced_weight_tensor);
 
-            // Handle unpacking if needed
-            if (m_accessor.unpack_required(idx, cidx)) {
-                auto clparam = request->get_tensor(iport);
+            // Unpack is not expected for MoE sliced weights — assert to catch if this changes.
+            NPUW_ASSERT(!m_accessor.unpack_required(idx, cidx) &&
+                        "EXPERT_ITERATIVE: unpack of sliced MoE weight is not supported");
 
-                if (!comp_model_desc.scales.empty() && comp_model_desc.scales[cidx] && comp_model_desc.zerops[cidx]) {
-                    ov::npuw::util::unpack(sliced_weight,
-                                           ov::get_tensor_impl(comp_model_desc.zerops[cidx]),
-                                           ov::get_tensor_impl(comp_model_desc.scales[cidx]),
-                                           clparam);
-                } else if (!comp_model_desc.scales.empty() && comp_model_desc.scales[cidx]) {
-                    ov::npuw::util::unpack(sliced_weight, ov::get_tensor_impl(comp_model_desc.scales[cidx]), clparam);
-                } else {
-                    ov::npuw::util::unpack(sliced_weight, clparam);
-                }
+            // Direct set (no unpacking needed)
+            // When cache is enabled: Use direct set_tensor to avoid polluting shared input tensors
+            // When cache is disabled: Use set_tensor_optimized for better performance (copies small tensors)
+            if (m_resources.request_cache) {
+                request->set_tensor(iport, sliced_weight);
             } else {
-                // Direct set (no unpacking needed)
-                // When cache is enabled: Use direct set_tensor to avoid polluting shared input tensors
-                // When cache is disabled: Use set_tensor_optimized for better performance (copies small tensors)
-                if (m_resources.request_cache) {
-                    request->set_tensor(iport, sliced_weight);
-                } else {
-                    ov::npuw::moe::set_tensor_optimized(request, iport, sliced_weight);
-                }
+                ov::npuw::moe::set_tensor_optimized(request, iport, sliced_weight);
             }
         } else {
             // This closure parameter doesn't need slicing, use original logic
@@ -767,17 +808,23 @@ void MoEExecutor::unpack_multiple_experts_closure(std::size_t idx,
         // Calculate original parameter index in the model
         const size_t original_param_idx = comp_model_desc.param_base + closure_idx;
 
+        auto& batched_closure = desc_closure[closure_idx];
+        const auto& closure_shape = batched_closure.get_shape();
+
         // Check if this parameter has unrolled variants (is in param_mapping)
         auto mapping_it = param_mapping.find(original_param_idx);
         if (mapping_it == param_mapping.end()) {
-            continue;  // Not unrolled
+            // If the closure is batched [num_experts,...] but has no param_mapping entry, the
+            // expert-dimension unrolling (UnrollMoEMatMul) failed to fire for this weight.
+            // This is a transformation bug — assert to surface it early.
+            const bool is_batched_nounroll = !closure_shape.empty() && closure_shape[0] == num_experts;
+            NPUW_ASSERT(!is_batched_nounroll &&
+                        "Batched closure has no param_mapping entry — UnrollMoEMatMul did not fire");
+            continue;  // Non-batched shared param not in mapping — skip silently
         }
 
         const auto& unrolled_indices = mapping_it->second;
         NPUW_ASSERT(unrolled_indices.size() == K);
-
-        auto& batched_closure = desc_closure[closure_idx];
-        const auto& closure_shape = batched_closure.get_shape();
 
         // Verify this is a batched parameter [num_experts, ...]
         const bool is_batched = !closure_shape.empty() && closure_shape[0] == num_experts;
@@ -789,7 +836,11 @@ void MoEExecutor::unpack_multiple_experts_closure(std::size_t idx,
             for (size_t position = 0; position < K; ++position) {
                 const auto& iport = compiled_inputs[unrolled_indices[position]];
                 if (do_copy) {
-                    batched_impl->copy_to(request->get_tensor(iport)._ptr);
+                    auto clparam = request->get_tensor(iport);
+                    NPUW_ASSERT(clparam._ptr &&
+                                "request returned null tensor for closure port — request may be uninitialized or port "
+                                "index is invalid");
+                    batched_impl->copy_to(clparam._ptr);
                 } else {
                     request->set_tensor(iport, batched_impl);
                 }
@@ -799,53 +850,27 @@ void MoEExecutor::unpack_multiple_experts_closure(std::size_t idx,
 
         // ========== Step 3: Process batched parameters (K experts) ==========
 
-        // Pre-determine unpack configuration (same for all K experts)
+        // Unpack is not expected for MoE unrolled weights — assert to catch if this changes.
         const auto batched_elem_type = batched_closure.get_element_type();
         const auto target_elem_type = request->get_tensor(compiled_inputs[unrolled_indices[0]])->get_element_type();
-        const bool needs_unpack = (batched_elem_type != target_elem_type);
+        NPUW_ASSERT(batched_elem_type == target_elem_type &&
+                    "EXPERT_BATCH: dtype mismatch in MoE closure, unpack path is not supported");
 
-        ov::SoPtr<ov::ITensor> scales_impl, zerops_impl;
-        if (needs_unpack) {
-            if (!comp_model_desc.scales.empty() && comp_model_desc.scales[closure_idx]) {
-                scales_impl = ov::get_tensor_impl(comp_model_desc.scales[closure_idx]);
-            }
-            if (!comp_model_desc.zerops.empty() && comp_model_desc.zerops[closure_idx]) {
-                zerops_impl = ov::get_tensor_impl(comp_model_desc.zerops[closure_idx]);
-            }
-        }
-
-        // Process K experts
+        // Process K experts (direct set, no unpacking)
         for (size_t position = 0; position < K; ++position) {
             const size_t expert_id = expert_ids[position];
             const auto& iport = compiled_inputs[unrolled_indices[position]];
 
-            // Slice expert weight (zero-copy view)
+            // Slice expert weight (zero-copy view) and bind directly to the request port.
             ov::Tensor sliced_expert = ov::npuw::moe::slice_expert_weight(batched_closure, expert_id, num_experts);
+            auto sliced_impl = ov::get_tensor_impl(sliced_expert);
 
-            if (needs_unpack) {
-                // Unpack path (dtype mismatch)
-                auto sliced_impl = ov::get_tensor_impl(sliced_expert);
-                auto clparam = request->get_tensor(iport);
-
-                if (scales_impl && zerops_impl) {
-                    ov::npuw::util::unpack(sliced_impl, zerops_impl, scales_impl, clparam);
-                } else if (scales_impl) {
-                    ov::npuw::util::unpack(sliced_impl, scales_impl, clparam);
-                } else if (zerops_impl) {
-                    ov::npuw::util::unpack(sliced_impl, zerops_impl, clparam);
-                } else {
-                    ov::npuw::util::unpack(sliced_impl, clparam);
-                }
+            // When cache is enabled: use set_tensor to avoid polluting shared input tensors.
+            // When cache is disabled: use set_tensor_optimized (copies small tensors, faster).
+            if (m_resources.request_cache) {
+                request->set_tensor(iport, sliced_impl);
             } else {
-                auto sliced_impl = ov::get_tensor_impl(sliced_expert);
-                // Direct set (no unpacking needed)
-                // When cache is enabled: Use direct set_tensor to avoid polluting shared input tensors
-                // When cache is disabled: Use set_tensor_optimized for better performance (copies small tensors)
-                if (m_resources.request_cache) {
-                    request->set_tensor(iport, sliced_impl);
-                } else {
-                    ov::npuw::moe::set_tensor_optimized(request, iport, sliced_impl);
-                }
+                ov::npuw::moe::set_tensor_optimized(request, iport, sliced_impl);
             }
         }  // for each expert
     }  // for each closure parameter

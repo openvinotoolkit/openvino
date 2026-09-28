@@ -184,6 +184,13 @@ LIB_INSTALL_CFG = {
         "install_dir": OV_RUNTIME_LIBS_DIR,
         "rpath": LIBS_RPATH,
         "binary_dir": OPENVINO_BINARY_DIR,
+    },
+    "gguf_libs": {
+        "name": "gguf",
+        "prefix": f"{BUILD_BASE}/libs.gguf",
+        "install_dir": OV_RUNTIME_LIBS_DIR,
+        "rpath": LIBS_RPATH,
+        "binary_dir": OPENVINO_BINARY_DIR,
     }
 }
 

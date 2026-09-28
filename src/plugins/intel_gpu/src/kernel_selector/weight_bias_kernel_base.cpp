@@ -12,7 +12,7 @@ JitConstants WeightBiasKernelBase::GetJitConstants(const weight_bias_params& par
         MakeJitConstant("BIAS_TERM", !params.bias.empty()),
     });
 
-    if (params.bias.empty() == false) {
+    if (!params.bias.empty()) {
         const bool sameDims = params.bias[0].SameDims(params.outputs[0]);
         jit.AddConstants({
             MakeJitConstant("BIAS", params.bias[0]),

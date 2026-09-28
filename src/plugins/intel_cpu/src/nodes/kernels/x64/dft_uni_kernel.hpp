@@ -4,14 +4,19 @@
 
 #pragma once
 
-#include <xbyak/xbyak.h>
-
 #include <cassert>
-#include <common/utils.hpp>
 #include <cstddef>
 
-#include "cpu/x64/cpu_isa_traits.hpp"
-#include "cpu/x64/jit_generator.hpp"
+#include "openvino/core/visibility.hpp"
+
+#if defined(OPENVINO_ARCH_X86_64)
+#    include <xbyak/xbyak.h>
+
+#    include <common/utils.hpp>
+
+#    include "cpu/x64/cpu_isa_traits.hpp"
+#    include "cpu/x64/jit_generator.hpp"
+#endif
 
 namespace ov::intel_cpu {
 
@@ -61,6 +66,8 @@ struct jit_uni_fft_kernel {
 
     virtual void create_ker() = 0;
 };
+
+#if defined(OPENVINO_ARCH_X86_64)
 
 template <dnnl::impl::cpu::x64::cpu_isa_t isa>
 struct jit_uni_dft_kernel_f32 : public jit_uni_dft_kernel, public dnnl::impl::cpu::x64::jit_generator_t {
@@ -141,5 +148,7 @@ private:
     void move_data(const Xbyak::Address& addr, const Xbyak::Xmm& x, int count);
     void move_data(const Xbyak::Xmm& x, const Xbyak::Address& addr, int count);
 };
+
+#endif  // OPENVINO_ARCH_X86_64
 
 }  // namespace ov::intel_cpu

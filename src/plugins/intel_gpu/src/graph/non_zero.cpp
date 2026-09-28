@@ -57,12 +57,11 @@ layout gather_nonzero_inst::calc_output_layout(gather_nonzero_node const& node, 
     assert(static_cast<bool>(node.get_primitive()->output_data_types[0]) == false &&
            "Output data type forcing is not supported for gather_nonzero_node!");
     auto rank = impl_param.get_input_layout(0).get_partial_shape().rank().get_length();
-    if (impl_param.memory_deps.count(1)) {
+    if (impl_param.memory_deps.count(1) != 0u) {
         auto out_size = read_vector<int64_t>(impl_param.memory_deps.at(1), impl_param.get_stream());
         return layout{{rank, out_size[0], 1, 1}, cldnn::data_types::i32, cldnn::format::bfyx};
-    } else {
-        return layout{ov::PartialShape({ov::Dimension(rank), ov::Dimension::dynamic(), 1, 1}), cldnn::data_types::i32, cldnn::format::bfyx};
     }
+    return layout{ov::PartialShape({ov::Dimension(rank), ov::Dimension::dynamic(), 1, 1}), cldnn::data_types::i32, cldnn::format::bfyx};
 }
 
 template<typename ShapeType>
@@ -77,9 +76,8 @@ std::vector<layout> gather_nonzero_inst::calc_output_layouts(gather_nonzero_node
         // output shape of nonzero is [input_rank, count_non_zero]
         auto out_layout = layout{{rank, out_size[0]}, cldnn::data_types::i32, cldnn::format::bfyx};
         return {out_layout};
-    } else {
-        return {layout{ov::PartialShape({ov::Dimension(rank), ov::Dimension::dynamic()}), cldnn::data_types::i32, cldnn::format::bfyx}};
     }
+    return {layout{ov::PartialShape({ov::Dimension(rank), ov::Dimension::dynamic()}), cldnn::data_types::i32, cldnn::format::bfyx}};
 }
 
 std::string gather_nonzero_inst::to_string(gather_nonzero_node const& node) {

@@ -20,8 +20,7 @@ Gemm::Gemm(const ov::Output<Node>& A,
            const std::vector<int64_t>& order_b,
            const std::vector<int64_t>& order_c,
            const ov::element::Type output_type)
-    : ov::op::v0::MatMul()
-    , m_order_a(order_a)
+    : m_order_a(order_a)
     , m_order_b(order_b)
     , m_order_c(order_c)
     , m_output_type(output_type) {
@@ -85,15 +84,19 @@ std::vector<ov::PartialShape> shape_infer(const Gemm* op,
 
     // broadcast all batch dimensions
     const auto is_broadcastable = shape_a_t.rank().is_static() &&
-                                  shape_a_t.rank().is_static() &&
+                                  shape_b_t.rank().is_static() &&
                                   shape_a_t.size() > 1 &&
-                                  shape_b_t.size() > 1 &&
-                                  (shape_a_t.size() == shape_b_t.size());
+                                  shape_b_t.size() > 1;
     if (is_broadcastable) {
-        size_t max_rank = shape_a_t.size();
+        const size_t max_rank = std::max(shape_a_t.size(), shape_b_t.size());
+        shape_a_t.insert(shape_a_t.begin(), max_rank - shape_a_t.size(), ov::Dimension(1));
+        shape_b_t.insert(shape_b_t.begin(), max_rank - shape_b_t.size(), ov::Dimension(1));
+
+        // max(), not numpy broadcast: UnsqueezeBroadcastReshapeMatmulFusion leaves the GQA head
+        // expansion (num_kv_heads -> num_heads) implicit, so neither dim is necessarily 1.
         for (size_t i = 0; i < max_rank - 2; ++i) {
             if (shape_a_t[i].is_static() && shape_b_t[i].is_static()) {
-                auto result = std::max(shape_a_t[i].get_length(), shape_b_t[i].get_length());
+                const auto result = std::max(shape_a_t[i].get_length(), shape_b_t[i].get_length());
                 shape_a_t[i] = result;
                 shape_b_t[i] = result;
             }
@@ -103,11 +106,10 @@ std::vector<ov::PartialShape> shape_infer(const Gemm* op,
     OPENVINO_ASSERT(op != nullptr, "op should not be nullptr for shape_infer.");
     auto out_shapes = ov::op::v0::shape_infer(ov::as_type<const ov::op::v0::MatMul>(op), std::vector<ov::PartialShape>{shape_a_t, shape_b_t});
 
-    if (order_c.size() > 0) {
+    if (!order_c.empty()) {
         return { transpose_pshape(out_shapes[0], order_c) };
-    } else {
-        return { out_shapes[0] };
     }
+    return {out_shapes[0]};
 }
 
 }  // namespace ov::intel_gpu::op

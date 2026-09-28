@@ -162,3 +162,127 @@ TEST(Comparator, different_prc_up) {
     auto tensor_ref = ov::Tensor(element_type_ref, shape, values_ref.data());
     OV_ASSERT_NO_THROW(ov::test::utils::compare(tensor_ref, tensor));
 }
+
+TEST(Comparator, u4) {
+    ov::element::Type element_type = ov::element::u4;
+    ov::Shape shape{4};
+    // two u4 values are packed per byte, low nibble holds the first (LSB-first) element.
+    uint8_t values_ref[] = {0x21, 0x43};  // elements: 1, 2, 3, 4
+    auto tensor_ref = ov::Tensor(element_type, shape, values_ref);
+    {
+        uint8_t values[] = {0x21, 0x43};  // elements: 1, 2, 3, 4 (identical to reference)
+        auto tensor = ov::Tensor(element_type, shape, values);
+        OV_ASSERT_NO_THROW(ov::test::utils::compare(tensor_ref, tensor));
+    }
+    {
+        uint8_t values[] = {0x21, 0x4F};  // element[2] changed from 3 to 15
+        auto tensor = ov::Tensor(element_type, shape, values);
+        ASSERT_ANY_THROW(ov::test::utils::compare(tensor_ref, tensor));
+    }
+}
+
+TEST(Comparator, i4) {
+    ov::element::Type element_type = ov::element::i4;
+    ov::Shape shape{4};
+    // signed nibble (two's complement), LSB-first: elements 1, -1, -8, 7
+    uint8_t values_ref[] = {0xF1, 0x78};
+    auto tensor_ref = ov::Tensor(element_type, shape, values_ref);
+    {
+        uint8_t values[] = {0xF1, 0x78};  // identical to reference
+        auto tensor = ov::Tensor(element_type, shape, values);
+        OV_ASSERT_NO_THROW(ov::test::utils::compare(tensor_ref, tensor));
+    }
+    {
+        uint8_t values[] = {0xF1, 0x18};  // element[3] changed from 7 to 1
+        auto tensor = ov::Tensor(element_type, shape, values);
+        ASSERT_ANY_THROW(ov::test::utils::compare(tensor_ref, tensor));
+    }
+}
+
+TEST(Comparator, u1) {
+    ov::element::Type element_type = ov::element::u1;
+    ov::Shape shape{8};
+    uint8_t values_ref[] = {0xAA};  // 0b10101010
+    auto tensor_ref = ov::Tensor(element_type, shape, values_ref);
+    {
+        uint8_t values[] = {0xAA};  // identical to reference
+        auto tensor = ov::Tensor(element_type, shape, values);
+        OV_ASSERT_NO_THROW(ov::test::utils::compare(tensor_ref, tensor));
+    }
+    {
+        uint8_t values[] = {0xAB};  // one bit flipped compared to reference
+        auto tensor = ov::Tensor(element_type, shape, values);
+        ASSERT_ANY_THROW(ov::test::utils::compare(tensor_ref, tensor));
+    }
+}
+
+TEST(Comparator, u2) {
+    ov::element::Type element_type = ov::element::u2;
+    ov::Shape shape{4};
+    uint8_t values_ref[] = {0x1B};  // 0b00011011
+    auto tensor_ref = ov::Tensor(element_type, shape, values_ref);
+    {
+        uint8_t values[] = {0x1B};  // identical to reference
+        auto tensor = ov::Tensor(element_type, shape, values);
+        OV_ASSERT_NO_THROW(ov::test::utils::compare(tensor_ref, tensor));
+    }
+    {
+        uint8_t values[] = {0x1F};  // one element differs
+        auto tensor = ov::Tensor(element_type, shape, values);
+        ASSERT_ANY_THROW(ov::test::utils::compare(tensor_ref, tensor));
+    }
+}
+
+TEST(Comparator, u3) {
+    ov::element::Type element_type = ov::element::u3;
+    ov::Shape shape{8};
+    // u3 is a split-bit type: 8 values are packed across 3 bytes.
+    uint8_t values_ref[] = {0x12, 0x34, 0x56};
+    auto tensor_ref = ov::Tensor(element_type, shape, values_ref);
+    {
+        uint8_t values[] = {0x12, 0x34, 0x56};  // identical to reference
+        auto tensor = ov::Tensor(element_type, shape, values);
+        OV_ASSERT_NO_THROW(ov::test::utils::compare(tensor_ref, tensor));
+    }
+    {
+        uint8_t values[] = {0x12, 0xff, 0x56};
+        auto tensor = ov::Tensor(element_type, shape, values);
+        ASSERT_ANY_THROW(ov::test::utils::compare(tensor_ref, tensor));
+    }
+}
+
+TEST(Comparator, u6) {
+    ov::element::Type element_type = ov::element::u6;
+    ov::Shape shape{4};
+    // u6 is a split-bit type: 4 values are packed across 3 bytes.
+    uint8_t values_ref[] = {0x12, 0x34, 0x56};
+    auto tensor_ref = ov::Tensor(element_type, shape, values_ref);
+    {
+        uint8_t values[] = {0x12, 0x34, 0x56};  // identical to reference
+        auto tensor = ov::Tensor(element_type, shape, values);
+        OV_ASSERT_NO_THROW(ov::test::utils::compare(tensor_ref, tensor));
+    }
+    {
+        uint8_t values[] = {0x12, 0xff, 0x56};
+        auto tensor = ov::Tensor(element_type, shape, values);
+        ASSERT_ANY_THROW(ov::test::utils::compare(tensor_ref, tensor));
+    }
+}
+
+TEST(Comparator, nf4) {
+    ov::element::Type element_type = ov::element::nf4;
+    ov::Shape shape{4};
+    // nf4 quantization codes, packed same as u4.
+    uint8_t values_ref[] = {0x21, 0x43};
+    auto tensor_ref = ov::Tensor(element_type, shape, values_ref);
+    {
+        uint8_t values[] = {0x21, 0x43};  // identical to reference
+        auto tensor = ov::Tensor(element_type, shape, values);
+        OV_ASSERT_NO_THROW(ov::test::utils::compare(tensor_ref, tensor));
+    }
+    {
+        uint8_t values[] = {0x21, 0x4F};  // element[2] code changed from 3 to 15 (very different NF4 level)
+        auto tensor = ov::Tensor(element_type, shape, values);
+        ASSERT_ANY_THROW(ov::test::utils::compare(tensor_ref, tensor));
+    }
+}

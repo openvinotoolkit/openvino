@@ -4,11 +4,14 @@
 
 #include "softmax_kernel_ref.h"
 #include "kernel_selector_utils.h"
+#include "common_tools.h"
 
 namespace kernel_selector {
 ParamsKey SoftmaxKernelRef::GetSupportedKey() const {
     auto k = GetDefaultSupportedKey();
 
+    k.EnableInputDataType(Datatype::BF16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
@@ -52,9 +55,10 @@ void SoftmaxKernelRef::GetUpdateDispatchDataFunc(KernelData& kd) const {
         kd.kernels[0].params.workGroups.global = dispatchData.gws;
         kd.kernels[0].params.workGroups.local = dispatchData.lws;
         kd.kernels[0].skip_execution = KernelData::SkipKernelExecution(prim_params);
+        auto acc_dt = GetAccumulatorType(prim_params);
         kd.internalBuffers.clear();
-        kd.internalBuffers.push_back(prim_params.inputs[0].PhysicalSizeInBytes());
-        kd.internalBufferDataType = prim_params.inputs[0].GetDType();
+        kd.internalBuffers.push_back(prim_params.inputs[0].PhysicalSize() * BytesPerElement(acc_dt));
+        kd.internalBufferDataType = acc_dt;
     };
 }
 
@@ -74,9 +78,10 @@ KernelsData SoftmaxKernelRef::GetKernelsData(const Params& params) const {
             args.push_back({ArgumentDescriptor::Types::INTERNAL_BUFFER, 0});
             args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
+            auto acc_dt = GetAccumulatorType(orgParams);
             kds[0].internalBuffers.clear();
-            kds[0].internalBuffers.push_back(orgParams.inputs[0].PhysicalSizeInBytes());
-            kds[0].internalBufferDataType = orgParams.inputs[0].GetDType();
+            kds[0].internalBuffers.push_back(orgParams.inputs[0].PhysicalSize() * BytesPerElement(acc_dt));
+            kds[0].internalBufferDataType = acc_dt;
         }
     }
     return kds;

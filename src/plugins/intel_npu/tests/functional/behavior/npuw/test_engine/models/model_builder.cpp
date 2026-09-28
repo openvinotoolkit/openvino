@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <memory>
 #include <unordered_map>
 
 #include "model_builder_internal.hpp"
@@ -35,6 +36,67 @@ void annotate_constants_with_weightless_cache(const std::shared_ptr<ov::Model>& 
         offset += c->get_byte_size();
     }
 }
+
+// Create one LoRA tensor as either a Parameter (stateless) or a
+// ReadValue/Assign state pair (stateful) per LoRAInjector::stateful.
+ov::Output<ov::Node> make_lora_value(const LoRAInjector& lora,
+                                     ov::element::Type type,
+                                     const ov::Shape& shape,
+                                     const std::string& name) {
+    if (!lora.stateful) {
+        auto param = std::make_shared<ov::op::v0::Parameter>(type, shape);
+        param->set_friendly_name(name);
+        param->output(0).set_names({name});
+        return param->output(0);
+    }
+
+    OPENVINO_ASSERT(lora.sinks, "Stateful LoRA requires a sink collection");
+    auto variable = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{shape, type, name});
+    auto read_value = std::make_shared<ov::op::v6::ReadValue>(variable);
+    read_value->set_friendly_name(name);
+    auto assign = std::make_shared<ov::op::v6::Assign>(read_value, variable);
+    assign->set_friendly_name(name + ".assign");
+    lora.sinks->push_back(assign);
+    return read_value->output(0);
+}
+
+// LoRA branch: input -> MatMul(A^T) -> Multiply(alpha) -> MatMul(B^T) -> Add(base).
+// State names match the NPUW lora_state_* convention.
+ov::Output<ov::Node> inject_lora(const ov::Output<ov::Node>& input,
+                                 const ov::Output<ov::Node>& base,
+                                 size_t in_features,
+                                 size_t out_features,
+                                 const std::string& name,
+                                 const LoRAInjector& lora) {
+    const size_t rank = lora.max_rank;
+    const std::string state_prefix = "lora_state_" + name;
+
+    auto lora_a = make_lora_value(lora, lora.precision, ov::Shape{rank, in_features}, state_prefix + ".MatMul.A");
+    auto lora_b = make_lora_value(lora, lora.precision, ov::Shape{out_features, rank}, state_prefix + ".MatMul.B");
+    auto lora_alpha = make_lora_value(lora, ov::element::f32, ov::Shape{1, rank}, state_prefix + ".MatMul.alpha");
+
+    // input @ A^T -> [batch, seq, rank]
+    auto mm_a = std::make_shared<ov::opset11::MatMul>(input, lora_a, false, true);
+    mm_a->set_friendly_name(name + "_lora_a");
+
+    // Multiply by alpha [1, rank], broadcast over batch/seq; alpha is always f32 (set from host)
+    ov::Output<ov::Node> alpha = lora_alpha;
+    if (alpha.get_element_type() != mm_a->get_output_element_type(0)) {
+        auto alpha_convert = std::make_shared<ov::opset11::Convert>(alpha, mm_a->get_output_element_type(0));
+        alpha_convert->set_friendly_name(name + "_lora_alpha_cvt");
+        alpha = alpha_convert->output(0);
+    }
+    auto scaled = std::make_shared<ov::opset11::Multiply>(mm_a, alpha);
+    scaled->set_friendly_name(name + "_lora_scale");
+
+    // scaled @ B^T -> [batch, seq, out_features]
+    auto mm_b = std::make_shared<ov::opset11::MatMul>(scaled, lora_b, false, true);
+    mm_b->set_friendly_name(name + "_lora_b");
+
+    auto lora_add = std::make_shared<ov::opset11::Add>(base, mm_b);
+    lora_add->set_friendly_name(name + "_lora_add");
+    return lora_add->output(0);
+}
 }  // namespace
 
 ov::Output<ov::Node> make_linear(const ov::Output<ov::Node>& input,
@@ -43,22 +105,29 @@ ov::Output<ov::Node> make_linear(const ov::Output<ov::Node>& input,
                                  const std::string& name,
                                  ov::element::Type precision,
                                  const WeightFn& weight_fn,
-                                 const WeightFn& bias_fn) {
+                                 const WeightFn& bias_fn,
+                                 const LoRAInjector* lora) {
     auto weight_output = weight_fn(name + ".weight", ov::Shape{out_features, in_features}, precision);
 
     auto matmul = std::make_shared<ov::opset11::MatMul>(input, weight_output, false, true);
-    matmul->set_friendly_name(name);
+    // optimum-style name so GenAI dynamic-LoRA state ids carry "MatMul" (NPUW pins rank static on it).
+    matmul->set_friendly_name(name + "/MatMul");
+
+    ov::Output<ov::Node> result = matmul->output(0);
 
     if (bias_fn) {
         auto bias = bias_fn(name + ".bias", ov::Shape{out_features}, precision);
-        auto add = std::make_shared<ov::opset11::Add>(matmul, bias);
+        auto add = std::make_shared<ov::opset11::Add>(result, bias);
         add->set_friendly_name(name + "_bias_add");
-        return add->output(0);
+        result = add->output(0);
     }
 
-    return matmul->output(0);
-}
+    if (lora && lora->should_adapt(name)) {
+        result = inject_lora(input, result, in_features, out_features, name, *lora);
+    }
 
+    return result;
+}
 
 ov::Output<ov::Node> make_embedding(const ov::Output<ov::Node>& input_ids,
                                     size_t vocab_size,
@@ -127,7 +196,6 @@ ov::Output<ov::Node> make_conv1d(const ov::Output<ov::Node>& input,
     return add->output(0);
 }
 
-
 ov::Output<ov::Node> make_transformer_layers(const ov::Output<ov::Node>& initial,
                                              size_t num_layers,
                                              const std::string& prefix_base,
@@ -139,8 +207,6 @@ ov::Output<ov::Node> make_transformer_layers(const ov::Output<ov::Node>& initial
     }
     return current;
 }
-
-
 
 std::shared_ptr<ov::Model> ModelBuilder::get_model_with_one_op() {
     auto param = std::make_shared<ov::opset11::Parameter>(ov::element::i64, ov::PartialShape{1, 3, 2, 2});
@@ -654,7 +720,12 @@ ov::Output<ov::Node> ModelBuilder::setup_position_ids(LLMConfig& config, const o
     }
     // config.rope set without position_ids means RoPE was pre-built with position_ids baked in
     if (position_ids_output.get_node() && !config.rope) {
-        config.rope = HalfRotationRoPE(config.head_dim, config.precision, position_ids_output);
+        if (config.rotary_dim > 0 && config.rotary_dim < config.head_dim) {
+            config.rope =
+                PartialRotationRoPE(config.head_dim, config.rotary_dim, config.precision, position_ids_output);
+        } else {
+            config.rope = HalfRotationRoPE(config.head_dim, config.precision, position_ids_output);
+        }
     }
 
     return position_ids_output;
@@ -674,10 +745,14 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     clear();
 
     LLMConfig config = config_in;
+    OPENVINO_ASSERT(!config.is_linear_layer || config.use_kv_cache,
+                    "Hybrid models require use_kv_cache — SSM/conv states are inherently stateful");
     if (!config.norm)
         config.norm = LayerNorm(config.hidden_size, config.precision);
+    const bool has_custom_ffn = static_cast<bool>(config.ffn);
     if (!config.ffn) {
         if (config.num_experts > 0) {
+            // Build the FFN from the config's MoE fields; moe_factory selects the topology (empty = GPT-OSS).
             size_t moe_inter = config.moe_intermediate_size > 0
                                    ? config.moe_intermediate_size
                                    : config.intermediate_size;
@@ -687,8 +762,10 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
             OPENVINO_ASSERT(moe_k >= 1 && moe_k <= config.num_experts,
                             "Invalid MoE config: num_experts_per_tok (",
                             moe_k, ") must be in [1, num_experts (", config.num_experts, ")]");
-            config.ffn = MoEFFN(config.hidden_size, moe_inter, config.num_experts,
-                                moe_k, config.precision);
+            if (!config.moe_factory) {
+                config.moe_factory = make_gptoss_moe_ffn;
+            }
+            config.ffn = config.moe_factory(config.hidden_size, moe_inter, config.num_experts, moe_k, config.precision);
         } else {
             config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, config.precision, config.weight);
         }
@@ -763,6 +840,23 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     const auto hs = config.hidden_size;
     const auto kv_heads = config.get_kv_heads();
 
+    LoRAInjector lora_injector;
+    const bool lora_enabled = config.lora_rank > 0;
+    if (lora_enabled) {
+        lora_injector.max_rank = config.lora_rank;
+        lora_injector.targets = config.lora_targets;
+        lora_injector.precision = prec;
+        lora_injector.stateful = config.lora_stateful;
+        lora_injector.sinks = &m_sinks;
+        // FFN is a functor (FFNFn); LoRA reaches it only through a struct that
+        // forwards the injector. Recreate the default dense FFN as a LoRA-aware
+        // SwiGLU; custom and MoE FFN graphs are left untouched.
+        if (!has_custom_ffn && config.num_experts == 0) {
+            config.ffn = SwiGLU(config.hidden_size, config.intermediate_size, prec, config.weight, &lora_injector);
+        }
+    }
+    const LoRAInjector* lora = lora_enabled ? &lora_injector : nullptr;
+
     Attention attn{};
     attn.hidden_size = hs;
     attn.num_heads = config.num_heads;
@@ -775,8 +869,12 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
     attn.rope_fn = config.rope;
     attn.sdpa_mask = default_mask;
     attn.shared_broadcast_shape = shared_broadcast;
+    attn.lora = lora;
+    attn.output_gate = config.attn_output_gate;
 
-    if (config.use_kv_cache) {
+    // Non-hybrid: standard past_key_values naming. Hybrid full-attention layers get
+    // per-attn-layer cache_params naming (set below inside build_full_attn_layer).
+    if (config.use_kv_cache && !config.is_linear_layer) {
         attn.kv_cache_fn = [&](const ov::Output<ov::Node>& k,
                                const ov::Output<ov::Node>& v,
                                size_t layer) -> std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> {
@@ -801,35 +899,68 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
         };
     }
 
+    // Wire linear-mixer runtime inputs once — all layers share the same graph plumbing.
+    if (config.is_linear_layer) {
+        OPENVINO_ASSERT(config.linear_mixer, "Hybrid models require config.linear_mixer to be set");
+        config.linear_mixer->seq_source = seq_source;
+        config.linear_mixer->beam_idx = beam_idx_output;
+    }
+
+    size_t linear_layer_count = 0;
+    size_t attn_layer_count = 0;
+
+    auto build_full_attn_layer = [&](const ov::Output<ov::Node>& input, const std::string& prefix, size_t layer) {
+        // Local copy so per-layer kv_cache_fn wiring never mutates the shared `attn`.
+        Attention layer_attn = attn;
+        if (config.use_kv_cache && config.is_linear_layer) {
+            // Hybrid attention layers use per-attn-layer cache_params naming (separate from conv/ssm).
+            auto attn_idx = attn_layer_count;
+            layer_attn.kv_cache_fn = [&, attn_idx](const ov::Output<ov::Node>& k_proj,
+                                                   const ov::Output<ov::Node>& v_proj,
+                                                   size_t /*layer*/) {
+                auto idx_str = std::to_string(attn_idx);
+                auto k_cache = make_kv_cache_concat(k_proj, seq_source, beam_idx_output, kv_heads, config.head_dim,
+                                                    make_cache_params_var_id("key", idx_str), prec);
+                auto v_cache = make_kv_cache_concat(v_proj, seq_source, beam_idx_output, kv_heads, config.head_dim,
+                                                    make_cache_params_var_id("value", idx_str), prec);
+                m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(k_cache.assign));
+                m_sinks.push_back(std::dynamic_pointer_cast<ov::op::Sink>(v_cache.assign));
+                return std::pair{k_cache.concatenated, v_cache.concatenated};
+            };
+        }
+        ++attn_layer_count;
+        auto fn = [&](const ov::Output<ov::Node>& normed, const std::string& pfx) {
+            return layer_attn(normed, {}, pfx, layer);
+        };
+        return config.pre_norm ? make_pre_norm_layer(input, config.norm, fn, config.ffn, prefix)
+                               : make_post_norm_layer(input, config.norm, fn, config.ffn, prefix);
+    };
+
+    auto build_linear_layer = [&](const ov::Output<ov::Node>& input, const std::string& prefix, size_t /*layer*/) {
+        auto lin_idx = linear_layer_count++;
+        auto fn = [&, lin_idx](const ov::Output<ov::Node>& normed, const std::string& pfx) {
+            MixerResult r = config.linear_mixer->build(normed, pfx, lin_idx);
+            m_sinks.insert(m_sinks.end(), r.sinks.begin(), r.sinks.end());
+            return r.output;
+        };
+        return config.pre_norm ? make_pre_norm_layer(input, config.norm, fn, config.ffn, prefix)
+                               : make_post_norm_layer(input, config.norm, fn, config.ffn, prefix);
+    };
+
     auto current =
         make_transformer_layers(hidden_states,
                                 config.num_layers,
                                 "model.layers.",
                                 [&](const ov::Output<ov::Node>& input, const std::string& prefix, size_t layer) {
+                                    if (config.is_linear_layer && config.is_linear_layer(layer)) {
+                                        return build_linear_layer(input, prefix, layer);
+                                    }
                                     // Per-layer mask: N sliding layers then 1 full, repeating.
                                     if (has_sliding && config.sliding_to_full_ratio > 0) {
                                         const size_t cycle = config.sliding_to_full_ratio + 1;
                                         attn.sdpa_mask = (layer % cycle == cycle - 1) ? full_mask : sliding_mask;
                                     }
-                                    if (config.pre_norm) {
-                                        return make_pre_norm_layer(
-                                            input,
-                                            config.norm,
-                                            [&](const ov::Output<ov::Node>& normed, const std::string& pfx) {
-                                                return attn(normed, {}, pfx, layer);
-                                            },
-                                            config.ffn,
-                                            prefix);
-                                    } else {
-                                        return make_post_norm_layer(
-                                            input,
-                                            config.norm,
-                                            [&](const ov::Output<ov::Node>& inp, const std::string& pfx) {
-                                                return attn(inp, {}, pfx, layer);
-                                            },
-                                            config.ffn,
-                                            prefix);
-                                    }
+                                    return build_full_attn_layer(input, prefix, layer);
                                 });
 
     auto final_norm = config.norm(current, "model.norm");
@@ -842,6 +973,36 @@ std::shared_ptr<ov::Model> ModelBuilder::build_llm(const LLMConfig& config_in) {
         return make_model(logits, "logits", model_name);
     }
     return make_model(final_norm, "last_hidden_state", model_name);
+}
+
+std::shared_ptr<ov::Model> ModelBuilder::build_lora_adapter(const LoRAConfig& config) {
+    clear();
+    const auto prec = config.precision;
+    const auto hs = config.hidden_size;
+
+    LoRAInjector lora;
+    lora.max_rank = config.lora_rank;
+    lora.targets = config.lora_targets;
+    lora.precision = prec;
+    lora.stateful = config.lora_stateful;
+    lora.sinks = &m_sinks;
+
+    const auto& targets = config.lora_targets.empty() ? LoRAInjector::default_targets() : config.lora_targets;
+
+    auto input_ids = parameter(ov::element::i64, ov::PartialShape{-1, -1}, "input_ids");
+    ov::Output<ov::Node> hidden =
+        make_embedding(input_ids->output(0), config.vocab_size, hs, "model.embed_tokens", prec);
+
+    for (size_t layer = 0; layer < config.num_layers; ++layer) {
+        const std::string prefix = "model.layers." + std::to_string(layer) + ".";
+        for (const auto& tgt : targets) {
+            const bool is_attn = tgt == "q_proj" || tgt == "k_proj" || tgt == "v_proj" || tgt == "o_proj";
+            const std::string name = prefix + (is_attn ? "self_attn." : "mlp.") + tgt;
+            hidden = make_linear(hidden, hs, hs, name, prec, config.weight, WeightFn{}, &lora);
+        }
+    }
+
+    return make_model(hidden, "output", "lora_adapter");
 }
 
 std::shared_ptr<ov::Model> ModelBuilder::build_whisper_encoder(const WhisperConfig& config_in) {
@@ -925,7 +1086,6 @@ std::shared_ptr<ov::Model> ModelBuilder::build_whisper_encoder(const WhisperConf
 
     return make_model(encoder_output, "last_hidden_state", "synthetic_whisper_encoder");
 }
-
 
 std::shared_ptr<ov::Model> ModelBuilder::build_whisper_decoder(const WhisperConfig& config_in) {
     clear();

@@ -19,7 +19,12 @@ class OPENVINO_API ConstantWriter {
 public:
     using FilePosition = int64_t;
     using HashValue = size_t;
-    using ConstWritePositions = std::multimap<HashValue, std::pair<FilePosition, const void*>>;
+    struct ConstWritePosition {
+        FilePosition offset;
+        const void* ptr;
+        size_t size;  // length in bytes of the buffer pointed to by 'ptr'
+    };
+    using ConstWritePositions = std::multimap<HashValue, ConstWritePosition>;
 
     ConstantWriter(std::ostream& bin_data, bool enable_compression = true);
     virtual ~ConstantWriter();
