@@ -574,6 +574,34 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_non_const_frame_step) {
     test_case.run_with_tolerance_as_fp(1e-3f);
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_runtime_frame_length) {
+    auto model = convert_model("stft_runtime_frame_length.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    const Shape signal_shape{1, 20, 1};
+    std::vector<float> signal(ov::shape_size(signal_shape));
+    std::iota(std::begin(signal), std::end(signal), 0.f);
+
+    test_case.add_input<float>(signal_shape, signal);
+    test_case.add_input<int64_t>(Shape{}, {6});
+    test_case.add_input<int64_t>(Shape{}, {8});
+    test_case.add_expected_output<float>(
+        Shape{1, 3, 8, 2},
+        {28.0f, 0.0f,  -4.0f, 9.656855f,   -4.0f, 4.0f,  -4.0f, 1.6568543f,  -4.0f,  0.0f,  -4.0f, -1.6568543f,
+         -4.0f, -4.0f, -4.0f, -9.656855f,  76.0f, 0.0f,  -4.0f, 9.656855f,   -4.0f,  4.0f,  -4.0f, 1.6568543f,
+         -4.0f, 0.0f,  -4.0f, -1.6568543f, -4.0f, -4.0f, -4.0f, -9.656855f,  124.0f, 0.0f,  -4.0f, 9.656855f,
+         -4.0f, 4.0f,  -4.0f, 1.6568543f,  -4.0f, 0.0f,  -4.0f, -1.6568543f, -4.0f,  -4.0f, -4.0f, -9.656855f});
+    test_case.run_with_tolerance_as_fp(1e-4f);
+
+    test_case.add_input<float>(signal_shape, signal);
+    test_case.add_input<int64_t>(Shape{}, {5});
+    test_case.add_input<int64_t>(Shape{}, {4});
+    test_case.add_expected_output<float>(
+        Shape{1, 4, 4, 2},
+        {6.0f,  0.0f, -2.0f, 2.0f, -2.0f, 0.0f, -2.0f, -2.0f, 26.0f, 0.0f, -2.0f, 2.0f, -2.0f, 0.0f, -2.0f, -2.0f,
+         46.0f, 0.0f, -2.0f, 2.0f, -2.0f, 0.0f, -2.0f, -2.0f, 66.0f, 0.0f, -2.0f, 2.0f, -2.0f, 0.0f, -2.0f, -2.0f});
+    test_case.run_with_tolerance_as_fp(1e-4f);
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_dynamic_signal_shape) {
     auto model = convert_model("stft_dynamic_signal_shape.onnx");
     auto test_case = ov::test::TestCase(model, s_device);
