@@ -1874,7 +1874,6 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     if (is_paged_attention && !is_prefill) {
         auto pa_desc = params.typed_desc<paged_attention>();
         const auto paged_attention_block_size = static_cast<int>(paged_attention::block_size);
-        const bool use_xe3p_quantized_kq_alignment = device_info.arch == gpu_arch::xe3p && (is_int4_kv_cache || (is_quantized && pa_desc->is_key_by_channel));
         if (is_int4_kv_cache) {
             // INT4 BY_CHANNEL Layout::N: lda = packed_block_bytes + scales
             // = block_size * u4 + 4 = 16 * 0.5 + 4 = 12 bytes
