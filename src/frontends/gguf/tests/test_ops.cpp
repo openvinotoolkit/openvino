@@ -2757,7 +2757,8 @@ TEST(GGUFOps, MultimodalPoolingAndConvolution) {
                     .op("GGML_OP_POOL_2D")
                     .input("x", ov::element::f32, {1, 1, 2, 4})
                     .output("out", ov::element::f32, {1, 1, 1, 2})
-                    .attr<std::vector<int64_t>>("pool_params", {1, 2, 2, 2, 2, 0, 0})
+                    .op_case(2)
+                    .attr<std::vector<int32_t>>("pool_params", {2, 2, 2, 2, 0, 0})
                     .build();
     const auto x = make_f32_tensor({1, 1, 2, 4}, {1, 2, 3, 4, 5, 6, 7, 8});
     expect_near(run_on_cpu(pool, {{"x", x}}), {3.5f, 5.5f}, 1e-6f);

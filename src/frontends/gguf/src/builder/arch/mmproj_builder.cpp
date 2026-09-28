@@ -414,7 +414,12 @@ private:
         return linear(y, down, with_bias);
     }
     GgufValue pool(const GgufValue& x, int64_t kx, int64_t ky) {
-        return g.node("GGML_OP_POOL_2D", {x}, 0, {{"pool_params", std::vector<int64_t>{1, kx, ky, kx, ky, 0, 0}}});
+        // op_case 2: average pooling; params are kx, ky, sx, sy, px, py.
+        return g.node(
+            "GGML_OP_POOL_2D",
+            {x},
+            2,
+            {{"pool_params", std::vector<int32_t>{int32_t(kx), int32_t(ky), int32_t(kx), int32_t(ky), 0, 0}}});
     }
     GgufValue vit(GgufValue x,
                   const EncoderConfig& c,

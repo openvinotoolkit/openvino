@@ -5,7 +5,6 @@
 #include "op_table.hpp"
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
-#include "openvino/op/avg_pool.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convolution.hpp"
@@ -18,7 +17,6 @@
 #include "openvino/op/less.hpp"
 #include "openvino/op/logical_and.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/op/max_pool.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/pad.hpp"
@@ -133,30 +131,6 @@ OutputVector translate_unary_gelu_erf(const NodeContext& context) {
     num_inputs_check(context, 1, 1);
     return rename_outputs_with_suffix(
         {std::make_shared<ov::op::v7::Gelu>(context.get_input(0), ov::op::GeluApproximationMode::ERF)},
-        context.get_name());
-}
-
-OutputVector translate_pool_2d(const NodeContext& context) {
-    num_inputs_check(context, 1, 1);
-    const auto p = context.get_attribute<std::vector<int64_t>>("pool_params");
-    FRONT_END_OP_CONVERSION_CHECK(p.size() == 7, "POOL_2D requires mode,kx,ky,sx,sy,px,py");
-    FRONT_END_OP_CONVERSION_CHECK(p[1] > 0 && p[2] > 0 && p[3] > 0 && p[4] > 0 && p[5] >= 0 && p[6] >= 0,
-                                  "Invalid POOL_2D parameters");
-    ov::Shape kernel{size_t(p[2]), size_t(p[1])}, pads{size_t(p[6]), size_t(p[5])};
-    ov::Strides strides{size_t(p[4]), size_t(p[3])};
-    if (p[0] == 1) {
-        return rename_outputs_with_suffix({std::make_shared<ov::op::v1::AvgPool>(context.get_input(0),
-                                                                                 strides,
-                                                                                 pads,
-                                                                                 pads,
-                                                                                 kernel,
-                                                                                 false,
-                                                                                 ov::op::RoundingType::FLOOR)},
-                                          context.get_name());
-    }
-    FRONT_END_OP_CONVERSION_CHECK(p[0] == 0, "Unknown POOL_2D mode");
-    return rename_outputs_with_suffix(
-        {std::make_shared<ov::op::v1::MaxPool>(context.get_input(0), strides, pads, pads, kernel)},
         context.get_name());
 }
 
