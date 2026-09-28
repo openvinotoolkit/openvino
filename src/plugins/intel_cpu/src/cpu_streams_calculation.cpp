@@ -81,6 +81,11 @@ namespace ThreadPreferenceConstants {
 [[maybe_unused]] constexpr float ADD_RATIO_AUTO_VISION = 0.25F;
 [[maybe_unused]] constexpr float CONV_MEM_LIMITED_RATIO_AUTO_RESIDUAL_VISION = 0.3F;
 [[maybe_unused]] constexpr float ADD_RATIO_AUTO_RESIDUAL_VISION = 0.4F;
+[[maybe_unused]] constexpr float CONV_DENSITY_STATIC_DENSE_PROFILE = 0.12F;
+[[maybe_unused]] constexpr float LIGHT_CONV_RATIO_STATIC_DENSE_PROFILE = 0.25F;
+[[maybe_unused]] constexpr float CONV_DENSITY_STATIC_INT8_PROFILE = 0.065F;
+[[maybe_unused]] constexpr float LIGHT_CONV_RATIO_STATIC_INT8_PROFILE = 0.05F;
+[[maybe_unused]] constexpr float HEAVY_CONV_RATIO_STATIC_INT8_PROFILE = 0.25F;
 
 [[maybe_unused]] constexpr float GEMM_RATIO_HIGH = 0.14F;
 [[maybe_unused]] constexpr float GEMM_RATIO_LOW = 0.05F;
@@ -289,6 +294,31 @@ bool is_all_core_auto_case_low_tolerance_zero_adds_profile(const ov::MemBandwidt
            tolerance.ratio_mem_limited_convs <= CONV_RATIO_ULTRA_LOW && tolerance.total_gemms == 0;
 }
 
+bool is_static_partitioner_dense_conv_profile(const ov::MemBandwidthPressure& tolerance) {
+    using namespace ThreadPreferenceConstants;
+    return tolerance.total_nodes > 0 && tolerance.total_convs > 0 &&
+           static_cast<float>(tolerance.total_convs) / static_cast<float>(tolerance.total_nodes) >=
+               CONV_DENSITY_STATIC_DENSE_PROFILE &&
+           static_cast<float>(tolerance.total_heavy_convs) / static_cast<float>(tolerance.total_convs) == 0.0F &&
+           static_cast<float>(tolerance.total_light_convs) / static_cast<float>(tolerance.total_convs) <=
+               LIGHT_CONV_RATIO_STATIC_DENSE_PROFILE &&
+           tolerance.ratio_compute_convs >= 0.4F && tolerance.ratio_mem_limited_convs <= 0.2F &&
+           tolerance.ratio_mem_limited_adds < 0.3F;
+}
+
+bool is_static_partitioner_int8_conv_profile(const ov::MemBandwidthPressure& tolerance, bool int8_intensive) {
+    using namespace ThreadPreferenceConstants;
+    return int8_intensive && tolerance.total_nodes > 0 && tolerance.total_convs > 0 &&
+           static_cast<float>(tolerance.total_convs) / static_cast<float>(tolerance.total_nodes) >=
+               CONV_DENSITY_STATIC_INT8_PROFILE &&
+           static_cast<float>(tolerance.total_light_convs) / static_cast<float>(tolerance.total_convs) <=
+               LIGHT_CONV_RATIO_STATIC_INT8_PROFILE &&
+           static_cast<float>(tolerance.total_heavy_convs) / static_cast<float>(tolerance.total_convs) <=
+               HEAVY_CONV_RATIO_STATIC_INT8_PROFILE &&
+           tolerance.ratio_compute_convs >= 0.3F &&
+           tolerance.ratio_mem_limited_convs <= 0.35F && tolerance.ratio_mem_limited_adds < 0.55F;
+}
+
 void determine_tbb_partitioner_and_threads(Config& config,
                                            const std::vector<std::vector<int>>& proc_type_table,
                                            const ov::MemBandwidthPressure& tolerance,
@@ -311,6 +341,12 @@ void determine_tbb_partitioner_and_threads(Config& config,
             config.tbbPartitioner = TbbPartitioner::STATIC;
             return;
         }
+    }
+
+    if (has_lp_ecores && (is_static_partitioner_dense_conv_profile(tolerance) ||
+                          is_static_partitioner_int8_conv_profile(tolerance, int8_intensive))) {
+        config.tbbPartitioner = TbbPartitioner::STATIC;
+        return;
     }
 
     if (has_lp_ecores && (is_all_core_auto_case_high_lp_share_relaxed_profile(tolerance, lp_ecore_share) ||
