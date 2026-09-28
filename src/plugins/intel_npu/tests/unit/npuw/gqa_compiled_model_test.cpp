@@ -445,26 +445,36 @@ TEST_F(GQACompiledModelTest, ImportRejectsExcessiveSerializationVersionLengthBef
 
     OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
                                   ov::Exception,
-                                  "is outside bounds [4, 4]");
+                                  "the maximum is 64");
 }
 
-TEST_F(GQACompiledModelTest, ImportRejectsShortSerializationVersionLength) {
+TEST_F(GQACompiledModelTest, ImportRejectsSerializationVersionLongerThanCap) {
+    const std::string version(65u, 'x');
+    const auto header = make_gqa_header(version.size(), version);
+    std::istringstream stream(header);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "serialization version string is 65 bytes, the maximum is 64");
+}
+
+TEST_F(GQACompiledModelTest, ImportReportsVersionMismatchForVersionAtCap) {
+    const std::string version(64u, 'x');
+    const auto header = make_gqa_header(version.size(), version);
+    std::istringstream stream(header);
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
+                                  ov::Exception,
+                                  "NPUW serialized by version " + version);
+}
+
+TEST_F(GQACompiledModelTest, ImportReportsVersionMismatchForDifferentVersionLength) {
     const auto header = make_gqa_header(3u, "0.3");
     std::istringstream stream(header);
 
     OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::GQACompiledModel::import_model(stream, m_plugin, {}),
                                   ov::Exception,
-                                  "is outside bounds [4, 4]");
-}
-
-TEST_F(GQACompiledModelTest, BoundedSerializationVersionReadAcceptsCurrentVersion) {
-    std::ostringstream encoded;
-    ov::npuw::s11n::write(encoded, std::string(NPUW_SERIALIZATION_VERSION));
-    std::istringstream stream(encoded.str());
-    std::string version;
-
-    EXPECT_NO_THROW(ov::npuw::s11n::read_bounded(stream, version, 4u, 4u));
-    EXPECT_EQ(version, NPUW_SERIALIZATION_VERSION);
+                                  "NPUW serialized by version 0.3");
 }
 
 }  // namespace

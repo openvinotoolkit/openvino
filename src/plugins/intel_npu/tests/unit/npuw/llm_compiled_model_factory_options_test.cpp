@@ -1179,16 +1179,16 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, ImportRejectsExcessiveSerializationVe
 
     OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::LLMCompiledModel::import_model(stream, m_plugin, {}),
                                   ov::Exception,
-                                  "is outside bounds [4, 4]");
+                                  "the maximum is 64");
 }
 
-TEST_F(LLMCompiledModelFactoryOptionsTest, ImportRejectsShortSerializationVersionLength) {
+TEST_F(LLMCompiledModelFactoryOptionsTest, ImportReportsVersionMismatchForDifferentVersionLength) {
     const auto header = make_llm_header(3u, "0.3");
     std::istringstream stream(header);
 
     OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::LLMCompiledModel::import_model(stream, m_plugin, {}),
                                   ov::Exception,
-                                  "is outside bounds [4, 4]");
+                                  "NPUW serialized by version 0.3");
 }
 
 }  // namespace

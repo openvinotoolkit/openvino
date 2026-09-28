@@ -38,9 +38,13 @@ std::streamsize checked_stream_size(const std::size_t size) {
     return static_cast<std::streamsize>(size);
 }
 
-std::size_t checked_size(const std::uint64_t size) {
+std::size_t checked_size(const std::uint64_t size,
+                         const std::size_t max_size = std::numeric_limits<std::size_t>::max()) {
     if (size > static_cast<std::uint64_t>(std::numeric_limits<std::size_t>::max())) {
         OPENVINO_THROW("ORC section size exceeds std::size_t range");
+    }
+    if (size > max_size) {
+        OPENVINO_THROW("ORC size ", size, " exceeds remaining payload ", max_size);
     }
     return static_cast<std::size_t>(size);
 }
@@ -199,10 +203,22 @@ bool ov::npuw::orc::Stream::memory() const {
 }
 
 std::size_t ov::npuw::orc::Stream::remaining() const {
-    if (!memory()) {
-        OPENVINO_THROW("ORC remaining() is only available for memory-backed input streams");
+    if (memory()) {
+        return m_memory_size - m_memory_offset;
     }
-    return m_memory_size - m_memory_offset;
+    if (m_input == nullptr) {
+        OPENVINO_THROW("ORC remaining() is only available for input streams");
+    }
+
+    const auto pos = checked_tellg(*m_input, "remaining payload");
+    m_input->seekg(0, std::ios::end);
+    const auto end = m_input->tellg();
+    m_input->clear();
+    m_input->seekg(pos);
+    if (end == std::streampos(-1) || end < pos || !m_input->good()) {
+        OPENVINO_THROW("Failed to determine the remaining ORC input stream size");
+    }
+    return ::checked_size(static_cast<std::uint64_t>(end - pos));
 }
 
 void ov::npuw::orc::Stream::bytes(void* data, const std::size_t size) {
@@ -241,25 +257,9 @@ void ov::npuw::orc::serialize(Stream& stream, std::string& value) {
         return;
     }
 
-    read_bounded(stream, value, 0u, std::numeric_limits<std::size_t>::max());
-}
-
-void ov::npuw::orc::read_bounded(Stream& stream,
-                                 std::string& value,
-                                 const std::size_t min_size,
-                                 const std::size_t max_size) {
-    OPENVINO_ASSERT(stream.input(), "Bounded ORC string reads require an input stream");
-    OPENVINO_ASSERT(min_size <= max_size, "Invalid ORC string size bounds");
-
     std::size_t size = 0u;
     stream & size;
-    if (size < min_size || size > max_size) {
-        OPENVINO_THROW("ORC string size ", size, " is outside bounds [", min_size, ", ", max_size, ']');
-    }
-    if (stream.memory() && size > stream.remaining()) {
-        OPENVINO_THROW("ORC string size ", size, " exceeds remaining payload ", stream.remaining());
-    }
-    value.resize(size);
+    value.resize(::checked_size(size, stream.remaining()));
     if (size != 0u) {
         stream.bytes(value.data(), value.size());
     }

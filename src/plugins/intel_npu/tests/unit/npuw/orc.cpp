@@ -135,7 +135,7 @@ TEST(OrcTest, RejectsTruncatedFile) {
     EXPECT_THROW(read_file(truncated), ov::Exception);
 }
 
-TEST(OrcTest, BoundedStringRejectsSizeExceedingRemainingMemoryPayloadBeforeAllocation) {
+TEST(OrcTest, StringRejectsSizeExceedingRemainingMemoryPayloadBeforeAllocation) {
     const auto claimed_size = std::numeric_limits<std::size_t>::max();
     std::vector<std::byte> payload(sizeof(claimed_size) + 1u);
     std::memcpy(payload.data(), &claimed_size, sizeof(claimed_size));
@@ -143,9 +143,36 @@ TEST(OrcTest, BoundedStringRejectsSizeExceedingRemainingMemoryPayloadBeforeAlloc
     auto stream = Stream::memory_reader(payload.data(), payload.size());
     std::string value;
 
-    OV_EXPECT_THROW_HAS_SUBSTRING(read_bounded(stream, value, 0u, claimed_size),
-                                  ov::Exception,
-                                  "exceeds remaining payload 1");
+    OV_EXPECT_THROW_HAS_SUBSTRING(stream & value, ov::Exception, "exceeds remaining payload 1");
+}
+
+TEST(OrcTest, StringRejectsSizeExceedingInputStreamPayloadBeforeAllocation) {
+    const auto claimed_size = std::numeric_limits<std::size_t>::max();
+    std::string payload(sizeof(claimed_size) + 1u, 'x');
+    std::memcpy(payload.data(), &claimed_size, sizeof(claimed_size));
+
+    std::istringstream input(payload, std::ios::in | std::ios::binary);
+    auto stream = Stream::reader(input);
+    std::string value;
+
+    OV_EXPECT_THROW_HAS_SUBSTRING(stream & value, ov::Exception, "exceeds remaining payload 1");
+}
+
+TEST(OrcTest, StringRoundTripsThroughInputStream) {
+    std::string original(200u * 1024u + 7u, '\0');
+    for (std::size_t idx = 0; idx < original.size(); ++idx) {
+        original[idx] = static_cast<char>(idx % 251u);
+    }
+
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    auto writer = Stream::writer(buffer);
+    writer & original;
+
+    auto reader = Stream::reader(buffer);
+    std::string restored;
+    reader & restored;
+
+    EXPECT_EQ(restored, original);
 }
 
 TEST(OrcTest, ScopedSectionsRoundTripMetadataBeforeChildren) {
