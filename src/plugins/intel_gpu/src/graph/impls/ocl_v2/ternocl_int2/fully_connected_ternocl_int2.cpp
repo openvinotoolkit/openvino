@@ -23,6 +23,7 @@
 #    include "fully_connected_inst.h"
 #    include "intel_gpu/runtime/kernel_args.hpp"
 #    include "intel_gpu/runtime/memory.hpp"
+#    include "openvino/util/env_util.hpp"
 #    include "primitive_inst.h"
 #    include "reorder_inst.h"
 #    include "runtime/ocl/ocl_engine.hpp"
@@ -220,10 +221,7 @@ MtTile mt_tile(size_t K, size_t N, size_t M, bool integrated) {
 // OV_TERNOCL_INT2_INT8_PREFILL=1: M > 8 runs the int2 x int8 DPAS GEMM on the same packed
 // weights, quantizing the activations to int8 per (row, 128-group) inside the GEMM.
 bool int8_prefill_enabled() {
-    static const bool on = [] {
-        const char* e = std::getenv("OV_TERNOCL_INT2_INT8_PREFILL");
-        return e != nullptr && std::string(e) == "1";
-    }();
+    static const bool on = ov::util::getenv_bool("OV_TERNOCL_INT2_INT8_PREFILL");
     return on;
 }
 
@@ -270,7 +268,7 @@ cl::Program get_program(const ocl_engine& engine, const char* src, const std::st
     } catch (const cl::Error&) {
         OPENVINO_THROW("[GPU] ternocl int2: kernel build failed (", opts, "):\n", prog.getBuildInfo<CL_PROGRAM_BUILD_LOG>(engine.get_cl_device()));
     }
-    if (std::getenv("OV_TERNOCL_INT2_CFG_DEBUG") != nullptr)
+    if (ov::util::getenv_bool("OV_TERNOCL_INT2_CFG_DEBUG"))
         std::cerr << "[ternocl-int2] built " << opts << std::endl;
     return cache->emplace(key, prog).first->second;
 }
@@ -404,7 +402,7 @@ protected:
                     " -DWG_N=" + std::to_string(l.t.wg_n) + " -cl-intel-256-GRF-per-thread";
             l.k = make_kernel(*_engine, get_program(*_engine, kTernoclUpcvtSource, opts + epi_opts()), "int2_fp16_upcvt_gemm_mt");
         }
-        if (std::getenv("OV_TERNOCL_INT2_CFG_DEBUG") != nullptr)
+        if (ov::util::getenv_bool("OV_TERNOCL_INT2_CFG_DEBUG"))
             std::cerr << "[ternocl-int2] K=" << _K << " N=" << _N << " M-class " << launch_class(M) << ": " << opts << epi_opts() << std::endl;
         return l;
     }
@@ -420,7 +418,7 @@ protected:
         const auto prog = get_program(*_engine, kTernoclInt8Source, opts);
         l.quant = make_kernel(*_engine, prog, "quant_a");
         l.gemm = make_kernel(*_engine, prog, "int2_int8_gemm_mt");
-        if (std::getenv("OV_TERNOCL_INT2_CFG_DEBUG") != nullptr)
+        if (ov::util::getenv_bool("OV_TERNOCL_INT2_CFG_DEBUG"))
             std::cerr << "[ternocl-int2] K=" << _K << " N=" << _N << " M-class " << launch_class(M) << " int8: " << opts << std::endl;
         return l;
     }
@@ -582,7 +580,7 @@ public:
         auto& prog = arg.get_program();
         auto& engine = prog.get_engine();
         auto& stream = prog.get_stream();
-        const bool dbg = std::getenv("OV_TERNOCL_INT2_DEBUG") != nullptr;
+        const bool dbg = ov::util::getenv_bool("OV_TERNOCL_INT2_DEBUG");
 
         const auto wei_shape = arg.weights().get_output_layout(false).get_shape();
         const size_t N = wei_shape[0];

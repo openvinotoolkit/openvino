@@ -1645,7 +1645,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         pass_config->disable<ov::pass::RoPEFusionIOSlicing>();
         pass_config->disable<ov::pass::RoPEShareCosSin>();
 
-        if (std::getenv("OV_GPU_FUSE_RMS_ROPE")) {
+        if (ov::util::getenv_bool("OV_GPU_FUSE_RMS_ROPE")) {
             manager.register_pass<ov::intel_gpu::FuseRMSRoPE>();
         }
 
@@ -1752,10 +1752,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         const bool disable_horizontal_fc_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_horizontal_fc_fusion(), false);
         const bool disable_fc_swiglu_fusion = GPU_DEBUG_VALUE_OR(config.get_disable_fc_swiglu_fusion(), false);
 
-        // The systolic FC epilogue does not natively consume a SwiGLU, but the
-        // TernOCL int2 path can benchmark the merged 2I projection followed
-        // by the existing SwiGLU primitive.
-        const bool int2_merge_mlp = std::getenv("OV_TERNOCL_INT2_MERGE_MLP") != nullptr;
+        // Ternary (u2) checkpoints on the TernOCL path run faster with gate/up merged into
+        // one FC followed by the SwiGLU primitive.
+        const bool ternocl_int2 = m_context->get_engine().runtime_type() == cldnn::runtime_types::ocl && !ov::util::getenv_bool("OV_TERNOCL_INT2_DISABLE");
+        bool has_u2_weights = false;
+        for (const auto& op : func->get_ops()) {
+            const auto c = ov::as_type_ptr<ov::op::v0::Constant>(op);
+            if (c && c->get_element_type() == ov::element::u2) {
+                has_u2_weights = true;
+                break;
+            }
+        }
+        const bool int2_merge_mlp = ternocl_int2 && has_u2_weights;
         // The 128-EU floor excludes the 64-EU integrated Xe2 part, where the
         // merged int2 projection is still the faster path.
         bool fuse_mlp_swiglu = (!config.get_use_onednn() || int2_merge_mlp) && (!device_info.supports_immad || int2_merge_mlp) &&
@@ -1773,8 +1781,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             }
         }
         // After the horizontal fusion so a merged gate/up FC absorbs the shared
-        // rotation once. OV_TERNOCL_INT2_FUSE_HADAMARD=0 keeps it in the graph.
-        if (const char* e = std::getenv("OV_TERNOCL_INT2_FUSE_HADAMARD"); e == nullptr || std::string(e) != "0") {
+        // rotation once. Only the TernOCL impl applies a fused rotation, so it stays in
+        // the graph without it; OV_TERNOCL_INT2_FUSE_HADAMARD=0 keeps it there too.
+        if (ternocl_int2 && ov::util::getenv_bool("OV_TERNOCL_INT2_FUSE_HADAMARD", true)) {
             manager.register_pass<ov::intel_gpu::FuseHadamardIntoFC>();
         }
 

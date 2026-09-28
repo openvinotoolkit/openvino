@@ -78,6 +78,14 @@ A node whose primitive carries a Hadamard input transform (section 7) is
 rejected with an error rather than falling through, because no other
 implementation applies the transform.
 
+For models with `u2` weights on the OpenCL runtime (and TernOCL not disabled),
+the pipeline always enables the existing gate/up horizontal FC fusion
+(`FullyConnectedHorizontalFusion` with the SwiGLU split), which it otherwise
+skips on some devices. The merged `[K, 2I]` int2 projection followed by the
+SwiGLU primitive is the faster path, and it is required for rotated-basis
+checkpoints: a separate `gate_proj` carries a fused chain none of the epilogues
+covers, and its Hadamard input cannot fall back to another implementation.
+
 ---
 
 ## 3. Compile-time preparation
@@ -231,5 +239,7 @@ activation and records `int2_hadamard_block` / `int2_hadamard_signs` in the
 rt_info; the FC translator moves them onto the cldnn `fully_connected`
 primitive (part of its hash and serialization). At execution the impl runs
 `hadamard_fwht_1024` into a per-node scratch and points the GEMM at it.
-`OV_TERNOCL_INT2_FUSE_HADAMARD=0` leaves the rotation in the graph;
+The pass is registered only on the OpenCL runtime with TernOCL enabled, since no
+other implementation applies a fused rotation; otherwise (and with
+`OV_TERNOCL_INT2_FUSE_HADAMARD=0`) the rotation stays in the graph.
 `OV_TERNOCL_HADAMARD_DEBUG=1` traces the match.

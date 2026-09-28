@@ -15,6 +15,7 @@
 #include "eltwise_inst.h"
 #include "fully_connected_inst.h"
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
+#include "openvino/util/env_util.hpp"
 #include "registry/implementation_manager.hpp"
 
 namespace cldnn {
@@ -80,8 +81,8 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
         assert(node.is_type<fully_connected>());
         const auto& fc_node = node.as<fully_connected>();
         const auto& fc_prim = fc_node.get_primitive();
-        const bool dbg = std::getenv("OV_TERNOCL_INT2_DEBUG") != nullptr;
-        if (std::getenv("OV_TERNOCL_INT2_DISABLE") != nullptr)
+        const bool dbg = ov::util::getenv_bool("OV_TERNOCL_INT2_DEBUG");
+        if (ov::util::getenv_bool("OV_TERNOCL_INT2_DISABLE"))
             return false;
 #define TERNOCL_REJECT(reason)                                                                           \
     do {                                                                                                 \

@@ -16,6 +16,7 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
+#include "openvino/util/env_util.hpp"
 
 namespace ov::intel_gpu {
 
@@ -57,7 +58,7 @@ bool is_hadamard_1024(const std::shared_ptr<ov::op::v0::Constant>& c) {
 }  // namespace
 
 bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    const bool trace = std::getenv("OV_TERNOCL_HADAMARD_DEBUG") != nullptr;
+    const bool trace = ov::util::getenv_bool("OV_TERNOCL_HADAMARD_DEBUG");
     size_t fused = 0;
     for (const auto& node : model->get_ordered_ops()) {
         auto fc = ov::as_type_ptr<op::FullyConnectedCompressed>(node);
@@ -143,7 +144,7 @@ bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
             std::cerr << "[hadamard-fc] fused into " << fc->get_friendly_name() << " K=" << K << " signs=" << (signs.empty() ? "folded" : "explicit")
                       << std::endl;
     }
-    if (trace || (fused && std::getenv("OV_TERNOCL_INT2_DEBUG")))
+    if (trace || (fused && ov::util::getenv_bool("OV_TERNOCL_INT2_DEBUG")))
         std::cerr << "[hadamard-fc] fused " << fused << " input rotations" << std::endl;
     return fused != 0;
 }

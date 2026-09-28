@@ -66,7 +66,7 @@ strings bin/intel64/Release/libopenvino_intel_gpu_plugin.so | grep -c int2_fp16_
 
 cd src/plugins/intel_gpu/tools/int2
 cmake -B build -G Ninja -DCMAKE_CXX_COMPILER=icpx -DOpenVINO_DIR=$OV_ROOT/build && cmake --build build
-ls build/   # bench_llm  paged_bench_llm  bench_llm_27b  paged_bench_llm_27b  paged_serve_llm_27b
+ls build/   # paged_bench_llm_27b  paged_serve_llm_27b
 ```
 
 The tools link with an RPATH to this build. To compare two OpenVINO builds
@@ -157,7 +157,7 @@ source env.sh
 TOOLS=$OV_ROOT/src/plugins/intel_gpu/tools/int2
 IDS=$(cat $TOOLS/prompt_photosynthesis_27b.txt)      # chat-templated "Tell me about photosynthesis in 200 words"
 
-BENCH_PRECISION=f16 BENCH_MAX_LEN=512 BENCH_NO_EOS=1 OV_TERNOCL_INT2_MERGE_MLP=1 \
+BENCH_PRECISION=f16 BENCH_MAX_LEN=512 BENCH_NO_EOS=1 \
   $TOOLS/build/paged_bench_llm_27b $WORK/bonsai2-27b-u2/openvino_model.xml \
   $WORK/bonsai2-27b-u2/openvino_text_embeddings_model.xml GPU 256 "$IDS"
 ```
@@ -179,7 +179,7 @@ informative paragraph..."* followed by the essay. Runs are deterministic.
 ```bash
 ./venv/bin/pip install "lm_eval>=0.4.13" transformers
 cd $WORK && mkdir -p eval && cd eval
-OV_TERNOCL_INT2_MERGE_MLP=1 $WORK/venv/bin/python $TOOLS/lm_eval_ov.py \
+$WORK/venv/bin/python $TOOLS/lm_eval_ov.py \
   --lm $WORK/bonsai2-27b-u2/openvino_model.xml --embed $WORK/bonsai2-27b-u2/openvino_text_embeddings_model.xml \
   --tokenizer $WORK/bonsai2-tok --serve $TOOLS/build/paged_serve_llm_27b \
   --tasks gsm8k_cot_llama --batch 16 --think medium --out .          # add --limit 100 for a quick check
@@ -192,15 +192,17 @@ Full test set (1319 examples, thinking, up to 4096 generated tokens):
 
 ## 6. Knobs that matter
 
+On/off variables take `1` or `0` (also `true`/`false`, `on`/`off`); any other
+value is rejected with an error.
+
 | Variable | Default | Effect |
 |---|---|---|
-| `OV_TERNOCL_INT2_MERGE_MLP=1` | off | merge gate/up into one FC (recommended) |
-| `OV_TERNOCL_INT2_FUSE_HADAMARD=0` | fused | leave the rotation as graph ops (slower) |
-| `OV_TERNOCL_INT2_DEBUG=1` | | which FCs the TernOCL impl accepted and why others were rejected |
-| `OV_TERNOCL_INT2_CFG_DEBUG=1` | | every OpenCL program built and the tile chosen per (shape, M class) |
-| `OV_TERNOCL_HADAMARD_DEBUG=1` | | trace the rotation fusion per FC (expect "fused 257 input rotations") |
-| `OV_TERNOCL_INT2_DISABLE=1` | | fall back to the stock OpenVINO FC kernels |
-| `OV_TERNOCL_INT2_INT8_PREFILL=1` | off | prompts and batches (M > 8) on the int2 x int8 DPAS kernel (activations quantized to int8 per 128-group); same weights, GSM8K within the standard error of the default |
+| `OV_TERNOCL_INT2_FUSE_HADAMARD` | 1 | fuse the Hadamard rotation into the FC; `0` leaves it as separate graph ops (debug fallback, slower) |
+| `OV_TERNOCL_INT2_INT8_PREFILL` | 0 | `1`: prompts and batches (M > 8) on the int2 x int8 DPAS kernel (activations quantized to int8 per 128-group); same weights, GSM8K within the standard error of the default |
+| `OV_TERNOCL_INT2_DISABLE` | 0 | `1`: use the stock OpenVINO FC kernels instead of TernOCL (the Hadamard rotation then runs as graph ops and the gate/up merge follows the stock heuristic) |
+| `OV_TERNOCL_INT2_DEBUG` | 0 | `1`: which FCs the TernOCL impl accepted and why others were rejected |
+| `OV_TERNOCL_INT2_CFG_DEBUG` | 0 | `1`: every OpenCL program built and the tile chosen per (shape, M class) |
+| `OV_TERNOCL_HADAMARD_DEBUG` | 0 | `1`: trace the rotation fusion per FC (expect "fused 257 input rotations") |
 | `BENCH_MAX_LEN` | 512 | context the bench reserves; prompt + new tokens must fit |
 
 ## 7. Troubleshooting
