@@ -271,19 +271,10 @@ namespace {
 void resolve_auto_offload_ratio_if_needed(ExecutionConfig& config,
                                           const std::shared_ptr<ov::Model>& transformed_model,
                                           const RemoteContextImpl::Ptr& context) {
-    const auto& user_props = config.get_user_properties();
-    auto it = user_props.find(ov::intel_gpu::offload_ratio.name());
-    if (it == user_props.end())
-        return;
-    int64_t requested = 0;
-    try {
-        requested = it->second.as<int64_t>();
-    } catch (const std::exception&) {
-        return;
-    }
-    if (requested != ov::intel_gpu::OFFLOAD_RATIO_AUTO)
+    if (config.get_offload_ratio() != ov::intel_gpu::OFFLOAD_RATIO_AUTO)
         return;
     const size_t resolved = resolve_auto_offload_ratio(*transformed_model, context->get_engine());
+    config.set_property({ov::intel_gpu::offload_ratio(static_cast<int64_t>(resolved))});
     config.set_user_property({ov::intel_gpu::offload_ratio(static_cast<int64_t>(resolved))}, OptionVisibility::RELEASE);
 }
 }  // namespace
