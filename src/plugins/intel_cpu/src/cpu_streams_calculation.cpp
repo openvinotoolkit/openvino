@@ -315,8 +315,8 @@ bool is_static_partitioner_int8_conv_profile(const ov::MemBandwidthPressure& tol
                LIGHT_CONV_RATIO_STATIC_INT8_PROFILE &&
            static_cast<float>(tolerance.total_heavy_convs) / static_cast<float>(tolerance.total_convs) <=
                HEAVY_CONV_RATIO_STATIC_INT8_PROFILE &&
-           tolerance.ratio_compute_convs >= 0.3F &&
-           tolerance.ratio_mem_limited_convs <= 0.35F && tolerance.ratio_mem_limited_adds < 0.55F;
+           tolerance.ratio_compute_convs >= 0.3F && tolerance.ratio_mem_limited_convs <= 0.35F &&
+           tolerance.ratio_mem_limited_adds < 0.55F;
 }
 
 void determine_tbb_partitioner_and_threads(Config& config,
