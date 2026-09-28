@@ -32,10 +32,7 @@
 #include "openvino/pass/node_registry.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 OutputVector translate_rope(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
@@ -291,7 +288,4 @@ OutputVector translate_rope(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

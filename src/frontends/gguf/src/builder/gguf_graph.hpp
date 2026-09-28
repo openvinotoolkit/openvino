@@ -16,9 +16,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/frontend/gguf/decoder.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 // One operation node in the GGUF-built graph, expressed in the GGML op vocabulary
 // ("GGML_OP_MUL_MAT", "GGML_OP_ROPE", ...). It mirrors exactly what the GgufDecoder
@@ -79,6 +77,4 @@ struct GgufGraph {
     ov::AnyMap tokenizer_config;
 };
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf
