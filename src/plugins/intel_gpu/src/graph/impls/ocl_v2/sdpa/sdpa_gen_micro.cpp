@@ -270,6 +270,8 @@ inline bool micro_is_v_transposed(const kernel_impl_params& params) {
         return false;
 
     const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    if (desc->input_v_transpose_order.empty())
+        return false;
     const auto order = extend_order_in_num_heads_dim(desc->input_v_transpose_order);
     return order[2] == 3 && order[3] == 2;
 }
