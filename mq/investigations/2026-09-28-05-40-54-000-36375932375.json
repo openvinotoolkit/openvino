@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-28-05-40-54-000-36375932375",
+  "timestamp": "2026-09-28T05:40:54Z",
+  "run_id": "36375932375",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36375932375",
+  "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+  "pr_number": "38400",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38400",
+  "author": "v-Golubev",
+  "category": "Network",
+  "title": "NPU Models Tests fail downloading external model artifacts due to network/DNS resolution failure",
+  "signature": "urlopen error errno 11001 getaddrinfo failed|Network",
+  "signature_hash": "688d70acdbdfc8ce",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "NPU Models Tests / 6010",
+      "conclusion": "failure",
+      "symptom": "test_convert_model_precommit[NPU-facebook/convnext-tiny-224] fails: LocalEntryNotFoundError locating Hugging Face Hub snapshot"
+    },
+    {
+      "name": "NPU Models Tests / 3720",
+      "conclusion": "failure",
+      "symptom": "test_convert_model_precommit[NPU-imagenet/resnet_v2_50/feature_vector] fails: URLError getaddrinfo failed (errno 11001)"
+    }
+  ],
+  "key_errors": [
+    "E           LocalEntryNotFoundError: An error happened while trying to locate the files on the Hub and we cannot find the appropriate snapshot folder for the specified revision on the local disk. Please check your internet connection and try again.\ninstall\\tests\\model_hub_tests\\models_hub_common\\multiprocessing_utils.py:73: ProcessError",
+    "E           URLError: <urlopen error [Errno 11001] getaddrinfo failed>\ninstall\\tests\\model_hub_tests\\models_hub_common\\multiprocessing_utils.py:73: ProcessError"
+  ],
+  "root_cause": "Both failed jobs are independent NPU platform shards (6010 and 3720) of the same 'NPU Models Tests' TensorFlow layer tests suite. Each failure occurs while downloading a different external model (facebook/convnext-tiny-224 from Hugging Face Hub, and the Kaggle-hosted resnet_v2_50/feature_vector TF-Hub model) during test setup, before any model-conversion or GPU-plugin logic is reached. The errors (LocalEntryNotFoundError for the HF Hub snapshot and getaddrinfo failed/errno 11001 DNS resolution error for the Kaggle-backed URL) both indicate the Windows runner could not reach the external model-hosting service over the network at that point in time. This is unrelated to the PR under test (#38400, a GPU decompression-layout fix touching only src/plugins/intel_gpu and a test builder) - the PR's changed files are never referenced in either failure. The failure is best classified as a transient outbound-network/DNS connectivity issue on the CI runner or an external-service (HF Hub/Kaggle) availability blip, not a code defect.",
+  "reproduction_steps": "N/A - not reproducible outside CI; requires the exact transient network/DNS conditions the Windows self-hosted runner experienced when reaching huggingface.co and the Kaggle-hosted TF-Hub model mirror during the precommit NPU Models Tests run.",
+  "recommended_actions": [
+    "Re-run the failed 'NPU Models Tests / 6010' and 'NPU Models Tests / 3720' jobs; both failures are network-transient and unrelated to PR #38400's code changes.",
+    "If failures recur consistently for these specific models, add retry/backoff logic around external model downloads in model_hub_tests/models_hub_common/multiprocessing_utils.py.",
+    "Consider mirroring frequently-used external test models (facebook/convnext-tiny-224, resnet_v2_50 TF-Hub variant) in an internal cache/proxy to reduce dependency on live Hugging Face Hub / Kaggle connectivity."
+  ],
+  "prevention_strategies": "Add resilient retry-with-backoff wrapping around external model downloads in the model hub test harness, and/or pre-cache commonly used external test models in an internal artifact store to reduce exposure to third-party service or DNS outages during merge-queue CI runs.",
+  "historical_context": "A similar prior pattern (dfd265b1c0ea3af5) recorded a DNS resolution failure (errno 11001, getaddrinfo failed) downloading an EasyOCR detector model in NPU Models Tests on run 35309912883 (PR #38219, 2026-09-18), and pattern b8b6bc5f75a07aea recorded a 'Could not resolve hostname' CMake download failure for oneapi-tbb on run 28425259819 (PR #36627, 2026-06-30). This confirms external model/dependency download network failures are a recurring, transient class of merge-queue failure independent of the PR content."
+}

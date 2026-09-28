@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "urlopen error errno 11001 getaddrinfo failed|Network",
+  "signature_hash": "688d70acdbdfc8ce",
+  "title": "NPU Models Tests fail downloading external model artifacts due to network/DNS resolution failure",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-09-28T05:40:54Z",
+  "last_seen": "2026-09-28T05:40:54Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/36375932375"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38400"
+  ],
+  "recent_timestamps": [
+    "2026-09-28T05:40:54Z"
+  ],
+  "rerun_search_string": "urlopen error errno 11001 getaddrinfo failed"
+}
