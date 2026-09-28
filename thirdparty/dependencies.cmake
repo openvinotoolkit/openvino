@@ -375,11 +375,8 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
         endif()
         # only protobuf's own CONFIG package propagates Abseil, which protobuf 22 and newer requires
         find_package(Protobuf REQUIRED CONFIG)
-        # since protobuf 22 the major is just a yearly ABI marker, while the minor is the release
-        # number and keeps growing across majors (4.22 -> 5.26 -> 6.33), so only the minor is compared;
-        # passing the version to find_package would not work, as protobuf's config version file
-        # rejects any major other than the requested one
-        # see https://protobuf.dev/support/version-support/
+        # protobuf release number is the minor component: release 26 is 5.26, release 33 is 6.33.
+        # it cannot be checked by find_package, whose version argument requires an exact major match
         if(Protobuf_VERSION_MINOR VERSION_LESS 26)
             message(FATAL_ERROR "Protobuf 26 (5.26) or newer is required, but ${Protobuf_VERSION} is found")
         endif()
