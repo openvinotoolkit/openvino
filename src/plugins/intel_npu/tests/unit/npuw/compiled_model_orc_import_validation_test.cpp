@@ -351,17 +351,20 @@ TEST(CompiledModelOrcImportValidationTest, RejectsNoLinkPrevOutputProducer) {
 
 // Builds a genuine ORC blob (via the real export path, not hand-written bytes) with a single
 // submodel assigned to `device`. Reused by every test below so that none of them call
-// validate_dev_list_against_allowlist() or make_submodel_import_config() directly - they all
+// validate_import_devices_against_allowlist() or make_submodel_import_config() directly - they all
 // exercise the real deserialize_orc_container() / CompiledModelDesc::serialize() call sites.
-// `embedded_allowlist`, when set, forges an NPUW_ALLOWED_IMPORT_DEVICES entry inside the
-// blob's own (untrusted) m_non_npuw_props, which is deserialized before the allowlist check
-// runs - it must never be able to widen the caller-supplied policy.
+// `embedded_devices` and `weights_bank_alloc`, when set, configure the blob's own untrusted
+// NPUW config and must never be able to widen the caller-supplied device policy.
 std::string build_single_submodel_orc_blob(const std::string& device,
                                            bool encrypted = false,
-                                           const std::optional<std::string>& embedded_allowlist = std::nullopt) {
+                                           const std::optional<std::string>& embedded_devices = std::nullopt,
+                                           const std::optional<std::string>& weights_bank_alloc = std::nullopt) {
     auto compiled = make_compiled_model_with_input_link(ov::npuw::CompiledModel::NO_LINK);
     compiled->m_dev_list = {device};
-    compiled->m_cfg.update({{"NPUW_DEVICES", device}});
+    compiled->m_cfg.update({{"NPUW_DEVICES", embedded_devices.value_or(device)}});
+    if (weights_bank_alloc) {
+        compiled->m_cfg.update({{"NPUW_WEIGHTS_BANK_ALLOC", *weights_bank_alloc}});
+    }
 
     auto sub_model = make_simple_model("fake_sub");
     auto sub_plugin = make_test_plugin();
@@ -369,10 +372,6 @@ std::string build_single_submodel_orc_blob(const std::string& device,
     desc.compiled_model =
         ov::SoPtr<ov::ICompiledModel>{std::make_shared<FakeSubCompiledModel>(sub_model, sub_plugin, device)};
     compiled->m_compiled_submodels.push_back(std::move(desc));
-
-    if (embedded_allowlist) {
-        compiled->m_non_npuw_props["NPUW_ALLOWED_IMPORT_DEVICES"] = *embedded_allowlist;
-    }
 
     if (encrypted) {
         compiled->m_non_npuw_props[ov::cache_encryption_callbacks.name()] =
@@ -395,13 +394,13 @@ void expect_rejected_before_nested_import(const std::string& blob, const std::st
         .Times(0);
 
     std::stringstream stream(blob, std::ios::in | std::ios::out | std::ios::binary);
-    const ov::AnyMap properties{{"NPU_USE_NPUW", "YES"}, {"NPUW_ALLOWED_IMPORT_DEVICES", allowed_devices}};
+    const ov::AnyMap properties{{"NPU_USE_NPUW", "YES"}, {"NPUW_DEVICES", allowed_devices}};
 
     try {
         ov::npuw::CompiledModel::import_model(stream, plugin, properties);
         FAIL() << "Expected ov::Exception for a blob device outside the caller allowlist";
     } catch (const ov::Exception& ex) {
-        EXPECT_NE(std::string(ex.what()).find("NPUW_ALLOWED_IMPORT_DEVICES"), std::string::npos) << ex.what();
+        EXPECT_NE(std::string(ex.what()).find("NPUW_DEVICES"), std::string::npos) << ex.what();
     }
 }
 
@@ -445,59 +444,72 @@ TEST(CompiledModelOrcImportValidationTest, RejectsDisallowedDeviceBeforeNestedIm
     expect_rejected_before_nested_import(build_single_submodel_orc_blob("GPU", /*encrypted=*/true), "NPU");
 }
 
-// m_non_npuw_props (which can embed NPUW_ALLOWED_IMPORT_DEVICES) is untrusted blob metadata
-// deserialized before the allowlist check runs. A blob that embeds its own conflicting
-// NPUW_ALLOWED_IMPORT_DEVICES=GPU must not be able to widen the caller's real policy of
-// NPUW_ALLOWED_IMPORT_DEVICES=NPU - only the caller-supplied `properties` may authorize a
-// device; a future change that merges blob metadata into validation properties would
-// silently regress this.
-TEST(CompiledModelOrcImportValidationTest, RejectsDisallowedDeviceEvenWhenBlobEmbedsConflictingAllowlist) {
-    const auto blob = build_single_submodel_orc_blob("GPU", /*encrypted=*/false, /*embedded_allowlist=*/"GPU");
-    const ov::AnyMap properties{{"NPUW_ALLOWED_IMPORT_DEVICES", "NPU"}};
+// The blob's serialized NPUW_DEVICES cannot authorize its own m_dev_list.
+TEST(CompiledModelOrcImportValidationTest, RejectsDisallowedDeviceEvenWhenBlobEmbedsConflictingDeviceList) {
+    const auto blob = build_single_submodel_orc_blob("GPU", /*encrypted=*/false, /*embedded_devices=*/"GPU");
+    const ov::AnyMap properties{{"NPUW_DEVICES", "NPU"}};
+
+    EXPECT_EQ(import_and_count_nested_calls_for_blob(blob, properties), 0);
+}
+
+TEST(CompiledModelOrcImportValidationTest, RejectsWeightsBankAllocationOutsideCallerDeviceList) {
+    const auto blob = build_single_submodel_orc_blob("NPU",
+                                                     /*encrypted=*/false,
+                                                     /*embedded_devices=*/"NPU",
+                                                     /*weights_bank_alloc=*/"GPU");
+    const ov::AnyMap properties{{"NPUW_DEVICES", "NPU"}};
 
     EXPECT_EQ(import_and_count_nested_calls_for_blob(blob, properties), 0);
 }
 
 // An ORC blob's own m_dev_list is untrusted (it comes from the deserialized blob metadata,
 // not from the caller), and directly picks which backend Core::import_model() invokes for
-// each nested submodel. If the trusted caller opts into NPUW_ALLOWED_IMPORT_DEVICES, any blob
+// each nested submodel. If the trusted caller supplies NPUW_DEVICES, any blob
 // device outside that allowlist must be rejected before any nested submodel/device is touched.
 TEST(CompiledModelOrcImportValidationTest, AcceptsDevListDeviceInsideCallerAllowlist) {
-    const ov::AnyMap properties{{"NPUW_ALLOWED_IMPORT_DEVICES", "NPU,CPU"}};
+    const ov::AnyMap properties{{"NPUW_DEVICES", "NPU,CPU"}};
     EXPECT_EQ(import_and_count_nested_calls("NPU", properties), 1);
 }
 
-TEST(CompiledModelOrcImportValidationTest, AcceptsAnyDevListWhenNoAllowlistConfigured) {
-    // No caller-provided policy: pre-existing behavior for legitimate heterogeneous NPUW
-    // caches (e.g. NPUW_DEVICES=NPU,CPU,GPU) must remain unaffected.
+TEST(CompiledModelOrcImportValidationTest, AcceptsAnyDevListWhenCallerOmitsDeviceList) {
     EXPECT_EQ(import_and_count_nested_calls("GPU", ov::AnyMap{}), 1);
+}
+
+TEST(CompiledModelOrcImportValidationTest, AcceptsWeightsBankAllocationInsideCallerDeviceList) {
+    const auto blob = build_single_submodel_orc_blob("NPU",
+                                                     /*encrypted=*/false,
+                                                     /*embedded_devices=*/"NPU,CPU",
+                                                     /*weights_bank_alloc=*/"CPU");
+    const ov::AnyMap properties{{"NPUW_DEVICES", "NPU,CPU"}};
+
+    EXPECT_EQ(import_and_count_nested_calls_for_blob(blob, properties), 1);
 }
 
 // An allowlist entry naming a specific device ID authorizes only that exact ID, not other
 // IDs of the same device.
 TEST(CompiledModelOrcImportValidationTest, AcceptsExactDeviceIdInAllowlist) {
-    const ov::AnyMap properties{{"NPUW_ALLOWED_IMPORT_DEVICES", "GPU.0"}};
+    const ov::AnyMap properties{{"NPUW_DEVICES", "GPU.0"}};
     EXPECT_EQ(import_and_count_nested_calls("GPU.0", properties), 1);
 }
 
 TEST(CompiledModelOrcImportValidationTest, RejectsOtherDeviceIdWhenAllowlistNamesExactId) {
-    const ov::AnyMap properties{{"NPUW_ALLOWED_IMPORT_DEVICES", "GPU.0"}};
+    const ov::AnyMap properties{{"NPUW_DEVICES", "GPU.0"}};
     EXPECT_EQ(import_and_count_nested_calls("GPU.1", properties), 0);
 }
 
 // An ID-less allowlist entry ("GPU") is a wildcard authorizing every ID of that device.
 TEST(CompiledModelOrcImportValidationTest, AcceptsDeviceIdWhenAllowlistNamesWildcardDevice) {
-    const ov::AnyMap properties{{"NPUW_ALLOWED_IMPORT_DEVICES", "GPU"}};
+    const ov::AnyMap properties{{"NPUW_DEVICES", "GPU"}};
     EXPECT_EQ(import_and_count_nested_calls("GPU.0", properties), 1);
 }
 
 // Captures the `import_config` AnyMap that reaches the real choke point (Core::import_model)
 // for a genuine single-submodel blob assigned to `device`, instead of calling
-// make_submodel_import_config() directly. `outer_allowlist`, when set, authorizes `device` at
+// make_submodel_import_config() directly. `outer_devices`, when set, authorizes `device` at
 // the outer deserialize_orc_container() gate so execution reaches the per-submodel import path
 // being observed here.
 ov::AnyMap capture_submodel_import_config(const std::string& device,
-                                          const std::optional<std::string>& outer_allowlist) {
+                                          const std::optional<std::string>& outer_devices) {
     const auto blob = build_single_submodel_orc_blob(device);
     auto [plugin, core] = make_test_plugin_with_core();
 
@@ -510,8 +522,8 @@ ov::AnyMap capture_submodel_import_config(const std::string& device,
             }));
 
     ov::AnyMap properties;
-    if (outer_allowlist) {
-        properties["NPUW_ALLOWED_IMPORT_DEVICES"] = *outer_allowlist;
+    if (outer_devices) {
+        properties["NPUW_DEVICES"] = *outer_devices;
     }
 
     std::stringstream stream(blob, std::ios::in | std::ios::out | std::ios::binary);
@@ -522,13 +534,13 @@ ov::AnyMap capture_submodel_import_config(const std::string& device,
 
 // CWE-862 follow-up: a submodel's own blob can be a nested NPUW ORC container (e.g.
 // attention/MoE submodels), which recurses back into deserialize_orc_container() using this
-// very config as its `properties`. The caller's allowlist must be forwarded so that recursive
+// very config as its `properties`. The caller's device list must be forwarded so that recursive
 // import stays governed by the same policy - but only for NPU-targeted submodels, since the
 // property is NPU/NPUW-specific and must not reach unrelated plugins.
 TEST(CompiledModelOrcImportValidationTest, ForwardsAllowlistToNestedNpuSubmodelImport) {
     const auto config = capture_submodel_import_config("NPU", "NPU");
 
-    const auto it = config.find("NPUW_ALLOWED_IMPORT_DEVICES");
+    const auto it = config.find("NPUW_DEVICES");
     ASSERT_NE(it, config.end());
     EXPECT_EQ(it->second.as<std::string>(), "NPU");
 }
@@ -536,13 +548,13 @@ TEST(CompiledModelOrcImportValidationTest, ForwardsAllowlistToNestedNpuSubmodelI
 TEST(CompiledModelOrcImportValidationTest, DoesNotForwardAllowlistToNonNpuSubmodelImport) {
     const auto config = capture_submodel_import_config("GPU", "GPU");
 
-    EXPECT_EQ(config.find("NPUW_ALLOWED_IMPORT_DEVICES"), config.end());
+    EXPECT_EQ(config.find("NPUW_DEVICES"), config.end());
 }
 
 TEST(CompiledModelOrcImportValidationTest, DoesNotForwardAllowlistWhenCallerDidNotSetOne) {
     const auto config = capture_submodel_import_config("NPU", std::nullopt);
 
-    EXPECT_EQ(config.find("NPUW_ALLOWED_IMPORT_DEVICES"), config.end());
+    EXPECT_EQ(config.find("NPUW_DEVICES"), config.end());
 }
 
 }  // namespace

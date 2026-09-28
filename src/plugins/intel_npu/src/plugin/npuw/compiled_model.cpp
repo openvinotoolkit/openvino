@@ -212,31 +212,41 @@ std::set<std::string> device_list_to_set(const std::string& device_list) {
 
 // The blob's own m_dev_list is untrusted (attacker-controlled ORC metadata) and directly
 // selects which OpenVINO backend/device importer is invoked for every nested submodel.
-// If the trusted caller supplied NPUW_ALLOWED_IMPORT_DEVICES in `properties` (never read
-// from the blob), reject any blob device not present in that allowlist before it can reach
-// Core::import_model() - this is the only choke point all ORC import paths share.
-void validate_dev_list_against_allowlist(const std::vector<std::string>& dev_list, const ov::AnyMap& properties) {
-    const auto it = properties.find(ov::intel_npu::npuw::allowed_import_devices.name());
+// The blob's m_dev_list and NPUW_WEIGHTS_BANK_ALLOC are untrusted and can select
+// backends used for nested import and memory allocation. Authorize them only against
+// the caller's NPUW_DEVICES value, never the value serialized in the blob's m_cfg.
+void validate_import_devices_against_allowlist(const std::vector<std::string>& dev_list,
+                                               const ::intel_npu::Config& blob_config,
+                                               const ov::AnyMap& properties) {
+    const auto it = properties.find(ov::intel_npu::npuw::devices.name());
     if (it == properties.end()) {
         return;  // No caller-provided policy: preserve behavior for legitimate heterogeneous caches
     }
     const auto allowed_devices = device_list_to_set(it->second.as<std::string>());
-    // An allowlist entry naming a specific device ID (e.g. "GPU.0") must authorize only that
-    // exact device, not other IDs of the same device; only an ID-less entry ("GPU") acts as a
-    // wildcard for all its IDs. Compare the exact blob entry first, then fall back to the
-    // blob entry's canonical (ID-stripped) name - an ID-specific allowlist entry can never
-    // equal a canonical name, so this only ever matches an ID-less (wildcard) entry.
-    for (const auto& device : dev_list) {
+    auto allowed_devices_check = [&](const std::string& device) {
+        // An allowlist entry naming a specific device ID (e.g. "GPU.0") must authorize only that
+        // exact device, not other IDs of the same device; only an ID-less entry ("GPU") acts as a
+        // wildcard for all its IDs. Compare the exact blob entry first, then fall back to the
+        // blob entry's canonical (ID-stripped) name - an ID-specific allowlist entry can never
+        // equal a canonical name, so this only ever matches an ID-less (wildcard) entry.
         if (allowed_devices.count(device) == 0 && allowed_devices.count(canonical_device_name(device)) == 0) {
-            OPENVINO_THROW("NPUW ORC import: device \"",
-                           device,
-                           "\" embedded in the imported blob is not authorized by the caller-provided "
-                           "NPUW_ALLOWED_IMPORT_DEVICES allowlist");
+            OPENVINO_THROW(
+                "NPUW ORC import: device \"",
+                device,
+                "\" embedded in the imported blob is not authorized by the caller-provided NPUW_DEVICES list");
         }
+    };
+
+    if (blob_config.has<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>()) {
+        allowed_devices_check(blob_config.get<::intel_npu::NPUW_WEIGHTS_BANK_ALLOC>());
+    }
+
+    for (const auto& device : dev_list) {
+        allowed_devices_check(device);
     }
 }
 
-// Config for importing one submodel's blob on `device`. Forwards NPUW_ALLOWED_IMPORT_DEVICES
+// Config for importing one submodel's blob on `device`. Forwards caller-provided NPUW_DEVICES
 // from `properties` for NPU-targeted submodels only, so a nested NPUW-in-NPUW blob's own
 // deserialize_orc_container() call stays governed by the same allowlist policy.
 ov::AnyMap make_submodel_import_config(const std::string& device,
@@ -249,12 +259,13 @@ ov::AnyMap make_submodel_import_config(const std::string& device,
         }
         // A submodel blob can itself be a nested NPUW ORC container (e.g. attention/MoE
         // submodels), which would recurse back into deserialize_orc_container() with this
-        // very config as its `properties`. Forward the caller's allowlist so that recursive
+        // very config as its `properties`. Forward the caller's device list so that recursive
         // import stays governed by the same policy instead of seeing no policy at all - only
         // for NPU-targeted submodels, so the property never reaches unrelated plugins.
-        const auto allowlist_it = properties.find(ov::intel_npu::npuw::allowed_import_devices.name());
-        if (allowlist_it != properties.end()) {
-            import_config[ov::intel_npu::npuw::allowed_import_devices.name()] = allowlist_it->second;
+        const std::string devices_key{ov::intel_npu::npuw::devices.name()};
+        const auto devices_it = properties.find(devices_key);
+        if (devices_it != properties.end()) {
+            import_config[devices_key] = devices_it->second;
         }
     }
     return import_config;
@@ -1639,7 +1650,7 @@ std::shared_ptr<ov::npuw::CompiledModel> ov::npuw::CompiledModel::deserialize_or
 
     // Must run before any submodel/device consumption below: m_dev_list is untrusted blob
     // metadata and directly selects the backend Core::import_model() will invoke per submodel.
-    validate_dev_list_against_allowlist(compiled->m_dev_list, properties);
+    validate_import_devices_against_allowlist(compiled->m_dev_list, compiled->m_cfg, properties);
 
     compiled->m_import_weights_ctx = make_import_weights_ctx(properties, is_weightless, compiled->m_bf16_consts);
     bool have_weights = false;
