@@ -17,6 +17,9 @@
 #include "openvino/runtime/intel_npu/properties.hpp"
 
 namespace intel_npu {
+
+void enable_host_compile_if_needed(const std::shared_ptr<const ov::Model>& model, Config& config, const Logger& logger);
+
 namespace batch_helpers {
 
 /**
