@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/mark_math_before_floor_to_keep_f16_rounding.hpp"
+#include "transformations/fp16_compression/mark_math_before_floor_to_keep_f16_rounding.hpp"
 
 #include "itt.hpp"
 #include "openvino/op/acos.hpp"
