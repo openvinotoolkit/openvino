@@ -52,7 +52,7 @@ public:
      */
     static void type_check(const Tensor& tensor) {
         RemoteTensor::type_check(tensor,
-                                 {{std::string(ov::intel_gpu::mem_handle.name()), {}},
+                                 {{std::string(ov::intel_gpu::ze_mem_handle.name()), {}},
                                   {std::string(ov::intel_gpu::shared_mem_type.name()),
                                    {ov::Any(ov::intel_gpu::SharedMemType::CPU_VA).as<std::string>(),
                                     ov::Any(ov::intel_gpu::SharedMemType::USM_USER_BUFFER).as<std::string>(),
@@ -61,11 +61,11 @@ public:
     }
 
     /**
-     * @brief Returns the underlying Level Zero memory pointer.
+     * @brief Returns the underlying Level Zero memory pointer from ZE_MEM_HANDLE.
      * @return underlying Level Zero memory pointer
      */
     void* get() {
-        return static_cast<void*>(get_params().at(ov::intel_gpu::mem_handle.name()).as<gpu_handle_param>());
+        return get_params().at(ov::intel_gpu::ze_mem_handle.name()).as<gpu_handle_param>();
     }
 };
 
