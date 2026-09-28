@@ -146,19 +146,10 @@ TEST_F(TransformationTestsF, ConvertGroupedMatMulToMatMul_2Dx3D_DynamicGroupsNoC
     // No model_ref: transformation must be a no-op.
 }
 
-// -----------------------------------------------------------------------------
-// Accuracy coverage for the exact shapes that fail on the GPU plugin's native
-// GroupedMatMul lowering (batched fully_connected collapses the group dim,
-// producing [G, M, G*N]). The decomposition below is verified numerically on
-// the template plugin (ACCURACY mode), proving the transformation itself is
-// correct for these shapes. Shapes use the op layout mat_b:[G, N, K].
-// -----------------------------------------------------------------------------
-
 // {G, M, K, N}
-using GmmShape3D = std::tuple<size_t, size_t, size_t, size_t>;
-
+using TestParams3Dx3D = std::tuple<size_t, size_t, size_t, size_t>;
 class ConvertGroupedMatMulToMatMul3Dx3DAccuracy : public TransformationTestsF,
-                                                  public testing::WithParamInterface<GmmShape3D> {};
+                                                  public testing::WithParamInterface<TestParams3Dx3D> {};
 
 TEST_P(ConvertGroupedMatMulToMatMul3Dx3DAccuracy, MatchesReference) {
     const auto [G, M, K, N] = GetParam();
@@ -180,18 +171,18 @@ TEST_P(ConvertGroupedMatMulToMatMul3Dx3DAccuracy, MatchesReference) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(GpuFailingShapes,
+INSTANTIATE_TEST_SUITE_P(Shapes3Dx3D,
                          ConvertGroupedMatMulToMatMul3Dx3DAccuracy,
-                         testing::Values(GmmShape3D{1, 8, 16, 8},    // passes on GPU (G==1)
-                                         GmmShape3D{2, 3, 8, 16},    // GPU: ov=[2,3,32]
-                                         GmmShape3D{4, 1, 8, 8},     // GPU: ov=[4,1,32]
-                                         GmmShape3D{3, 7, 16, 8}));  // GPU: ov=[3,7,24]
+                         testing::Values(TestParams3Dx3D{1, 8, 16, 8},
+                                         TestParams3Dx3D{2, 3, 8, 16},
+                                         TestParams3Dx3D{4, 1, 8, 8},
+                                         TestParams3Dx3D{3, 7, 16, 8}));
 
 // {T, K, N, cumulative offsets}
-using GmmShape2D = std::tuple<size_t, size_t, size_t, std::vector<int32_t>>;
+using TestParams2Dx3D = std::tuple<size_t, size_t, size_t, std::vector<int32_t>>;
 
 class ConvertGroupedMatMulToMatMul2Dx3DAccuracy : public TransformationTestsF,
-                                                  public testing::WithParamInterface<GmmShape2D> {};
+                                                  public testing::WithParamInterface<TestParams2Dx3D> {};
 
 TEST_P(ConvertGroupedMatMulToMatMul2Dx3DAccuracy, MatchesReference) {
     const auto [T, K, N, offsets_vec] = GetParam();
@@ -216,8 +207,8 @@ TEST_P(ConvertGroupedMatMulToMatMul2Dx3DAccuracy, MatchesReference) {
     }
 }
 
-INSTANTIATE_TEST_SUITE_P(GpuFailingShapes,
+INSTANTIATE_TEST_SUITE_P(Shapes2Dx3D,
                          ConvertGroupedMatMulToMatMul2Dx3DAccuracy,
-                         testing::Values(GmmShape2D{8, 8, 16, {8}},
-                                         GmmShape2D{16, 16, 8, {8, 16}},
-                                         GmmShape2D{24, 8, 8, {8, 16, 24}}));
+                         testing::Values(TestParams2Dx3D{8, 8, 16, {8}},
+                                         TestParams2Dx3D{16, 16, 8, {8, 16}},
+                                         TestParams2Dx3D{24, 8, 8, {8, 16, 24}}));
