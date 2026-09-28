@@ -11,6 +11,7 @@
 #include "openvino/op/result.hpp"
 #include "ov_ops/moe_compressed.hpp"
 #include "plugin/ops/moe_offload_constant.hpp"
+#include "test_utils.h"
 
 using namespace ov::intel_gpu;
 
@@ -296,4 +297,22 @@ TEST(moe_offload_constant, auto_ratio_mixed_consumer_constant_counted_as_fixed_w
         (static_cast<double>(effective_fixed_bytes) + 0.5 * static_cast<double>(effective_routed_bytes)) / 0.85);
 
     EXPECT_EQ(resolve_auto_offload_ratio_for_budget(*model, budget), 50U);
+}
+
+TEST(moe_offload_constant, estimate_available_tracked_device_memory_calculates_difference) {
+    auto& engine = tests::get_test_engine();
+    uint64_t used_bytes = 0;
+    for (const auto& stat : engine.get_memory_statistics()) {
+        used_bytes += stat.second;
+    }
+
+    // When upper_bound exceeds used_bytes, difference is returned
+    const uint64_t headroom = 1024 * 1024;
+    EXPECT_EQ(estimate_available_tracked_device_memory_bytes(engine, used_bytes + headroom), headroom);
+
+    // When upper_bound equals or is less than used_bytes, 0 is returned
+    EXPECT_EQ(estimate_available_tracked_device_memory_bytes(engine, used_bytes), 0U);
+    if (used_bytes > 0) {
+        EXPECT_EQ(estimate_available_tracked_device_memory_bytes(engine, used_bytes - 1), 0U);
+    }
 }
