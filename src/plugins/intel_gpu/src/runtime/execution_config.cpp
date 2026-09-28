@@ -249,7 +249,7 @@ void ExecutionConfig::apply_rt_info(const IRemoteContext* context, const ov::RTM
     // ov::util::is_weightless_enabled. Not setting WEIGHTS_PATH will result in not
     // using that mechanism. OTD (MoE offload) also requires the .bin path.
     apply_weightless_options();
-    if (get_enable_weightless() || get_offload_ratio() > 0) {
+    if (get_enable_weightless() || get_offload_ratio() != 0) {
         apply_rt_info_property(ov::weights_path, rt_info);
     }
 }

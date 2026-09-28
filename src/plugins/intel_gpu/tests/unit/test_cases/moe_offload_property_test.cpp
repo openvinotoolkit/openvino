@@ -62,4 +62,19 @@ TEST(moe_offload_property_test, set_back_to_zero_disables) {
     ASSERT_EQ(config.get_offload_ratio(), 0U);
 }
 
+TEST(moe_offload_property_test, auto_ratio_enables_weights_path_in_apply_rt_info) {
+    auto config = get_test_default_config(get_test_engine());
+    config.set_property(ov::intel_gpu::offload_ratio(ov::intel_gpu::OFFLOAD_RATIO_AUTO));
+    ASSERT_EQ(config.get_offload_ratio(), ov::intel_gpu::OFFLOAD_RATIO_AUTO);
+
+    ov::RTMap rt_info;
+    const std::string fake_weights_path = "/path/to/model.bin";
+    rt_info[ov::weights_path.name()] = fake_weights_path;
+
+    auto context = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{get_test_engine().get_device()});
+    config.apply_rt_info(context.get(), rt_info, false, false, false);
+
+    ASSERT_EQ(config.get_weights_path(), fake_weights_path);
+}
+
 }  // namespace ov::test
