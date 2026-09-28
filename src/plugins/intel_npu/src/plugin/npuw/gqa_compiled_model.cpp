@@ -75,8 +75,11 @@ bool gqa_trace_enabled() {
 // Lets a run be repointed to a different context length without plumbing the property
 // through the app; takes priority over both the NPUW_LLM_MAX_CONTEXT_LEN property and its
 // own default when set. Parsed once and cached; an unparsable value is ignored (falls
-// back to the property/default) rather than failing the whole run.
+// back to the property/default) rather than failing the whole run. Like the rest of
+// NPUW's env-based debug knobs (see logging.cpp), this only does anything in
+// NPU_PLUGIN_DEVELOPER_BUILD; production builds never read the environment.
 std::optional<size_t> gqa_ctx_len_env_override() {
+#ifdef NPU_PLUGIN_DEVELOPER_BUILD
     static const std::optional<size_t> value = [] {
         const char* raw = std::getenv("OPENVINO_NPUW_GQA_CTX_LEN");
         if (raw == nullptr) {
@@ -89,6 +92,9 @@ std::optional<size_t> gqa_ctx_len_env_override() {
         }
     }();
     return value;
+#else
+    return std::nullopt;
+#endif
 }
 
 void merge_config_with(ov::AnyMap& lhs, const ov::AnyMap& rhs) {
