@@ -160,11 +160,7 @@ PyTorch_FE:
     - Python_API
     - TOKENIZERS # PyTorch_FE tests depend on tokenizers build
 
-PyTorch_Models_Scope1:
-  revalidate: []
-  build: []
-
-PyTorch_Models_Scope2:
+PyTorch_Models_Nightly:
   revalidate: []
   build: []
 
