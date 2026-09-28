@@ -16,6 +16,10 @@ on:
         type: string
         required: false
         default: null
+      cmake-build-parallel-level:
+        description: 'Number of threads for parallel build (hard-coded; nproc and NUMBER_OF_PROCESSORS do not respect container CPU limits)'
+        type: string
+        required: true
 
 permissions: read-all
 
@@ -41,6 +45,10 @@ jobs:
     defaults:
       run:
         shell: bash
+    env:
+      # Hard-coded at workflow call site; nproc and NUMBER_OF_PROCESSORS do not respect Kubernetes pod CPU limits.
+      # Nested cmake --build (e.g. intel_gpu onednn_gpu ExternalProject) does not inherit --parallel from the top-level build.
+      CMAKE_BUILD_PARALLEL_LEVEL: ${{ inputs.cmake-build-parallel-level }}
     steps:
       - name: Download OpenVINO package
         uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
@@ -79,7 +87,7 @@ jobs:
             -DGGML_OPENVINO=ON
 
       - name: Build llama.cpp
-        run: cmake --build llama.cpp/build --parallel "$(nproc)"
+        run: cmake --build llama.cpp/build --parallel ${CMAKE_BUILD_PARALLEL_LEVEL}
 
       - name: Show sccache stats
         run: sccache --show-stats

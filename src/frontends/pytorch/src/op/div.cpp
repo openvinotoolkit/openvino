@@ -12,10 +12,7 @@
 
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 namespace {
 OutputVector translate_div_common(const NodeContext& context,
@@ -103,7 +100,4 @@ OutputVector translate_div_fx_(const NodeContext& context) {
     return translate_div_common(context, x, y, rounding_mode, true);
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

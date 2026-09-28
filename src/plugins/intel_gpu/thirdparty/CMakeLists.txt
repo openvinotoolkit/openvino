@@ -12,6 +12,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
     # Cached because the installed OpenVINOConfig.cmake resolves this name; the per-twin names
     # below derive from it, so it must stay outside the function to reach that scope.
     set(DNNL_GPU_LIBRARY_NAME "openvino_onednn_gpu" CACHE STRING "Name of oneDNN library for Intel GPU Plugin")
+    set(ONEDNN_GPU_BUILD_ALWAYS ON CACHE BOOL "Always run oneDNN GPU external build step. It allows incremental build of oneDNN when it is changed.")
 
     # SUFFIX (empty for single-RT) makes all names per-runtime so COMBINED can build oneDNN
     # twice (ZE and OCL differ, e.g. LTO is disabled for ZE) without colliding.
@@ -198,6 +199,7 @@ if(ENABLE_ONEDNN_FOR_GPU)
                 ${onednn_gpu_cache_args}
             # Build Step Options:
             BUILD_BYPRODUCTS ${onednn_lib_path}
+            BUILD_ALWAYS ${ONEDNN_GPU_BUILD_ALWAYS}
             # Target Options:
             EXCLUDE_FROM_ALL ON
         )
