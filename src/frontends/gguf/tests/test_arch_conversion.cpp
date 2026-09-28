@@ -180,6 +180,7 @@ struct Fingerprint {
 
 const std::map<std::string, Fingerprint>& fingerprints() {
     static const std::map<std::string, Fingerprint> fp{
+        {"mamba2-dense.gguf.hdr", {293, 6}},     {"nemotron_h-dense.gguf.hdr", {280, 8}},
         {"bailingmoe2-moe.gguf.hdr", {473, 10}}, {"ernie4_5-moe-moe.gguf.hdr", {455, 10}},
         {"exaone4-dense.gguf.hdr", {417, 11}},   {"gemma-dense.gguf.hdr", {365, 10}},
         {"gemma2-dense.gguf.hdr", {415, 11}},    {"glm4moe-moe.gguf.hdr", {485, 10}},

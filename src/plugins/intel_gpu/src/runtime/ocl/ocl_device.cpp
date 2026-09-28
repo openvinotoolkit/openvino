@@ -41,8 +41,11 @@
 #    include <cstring>
 #else
 #    include <dlfcn.h>
-#    include <link.h>
 #    include <unistd.h>
+
+#    ifdef __linux__
+#        include <link.h>
+#    endif
 
 #    include <climits>
 #endif

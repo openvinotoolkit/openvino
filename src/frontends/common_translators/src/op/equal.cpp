@@ -14,9 +14,7 @@
 using namespace std;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace common_translators {
+namespace ov::frontend::common_translators {
 
 OutputVector translate_equal(const NodeContext& node) {
     num_inputs_check(node, 2, 2, true);
@@ -48,6 +46,4 @@ OutputVector translate_equal(const NodeContext& node) {
     return {result};
 };
 
-}  // namespace common_translators
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::common_translators

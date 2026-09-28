@@ -40,7 +40,7 @@ public:
                     std::variant<std::monostate,
                                  std::shared_ptr<const ov::Model>,
                                  std::pair<std::string, std::shared_ptr<ov::ICore>>>&& weightsSource,
-                    const FilteredConfig& config,
+                    const Config& config,
                     const bool blobIsPersistent = false,
                     const std::optional<std::string>& compatibilityDescriptor = std::nullopt);
 
@@ -58,7 +58,7 @@ public:
      * In addition to this, the init schedules are run and the result of this is set as inputs to the main
      * compiled model.
      */
-    void initialize_impl(const FilteredConfig& config) override;
+    void initialize_impl(const Config& config) override;
 
     // TODO: public for multi-threaded execution
     struct InputData {
