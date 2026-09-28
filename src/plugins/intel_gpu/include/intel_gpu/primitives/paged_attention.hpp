@@ -132,9 +132,9 @@ struct paged_attention : public primitive_base<paged_attention> {
         return key_cache_precision == ov::element::i8 || key_cache_precision == ov::element::u4;
     }
 
-    // TEST_USE_SDPA_OCL: unset or '1' => sdpa_ocl serves PREFILL/MIXED; otherwise sdpa_micro.
+    // TEST_USE_SDPA_OCL: unset or '1' => sdpa_ocl where it runs (see sdpa_ocl_selected()); '0' => sdpa_micro everywhere.
     // TEST_USE_SDPA_OCL_DECODE: unset or '1' => sdpa_ocl_decode may serve GENERATE.
-    // Read once per process. The PA gates and by_channel_token_major_readable() all go through these,
+    // Read once per process. The SDPA / PA gates and by_channel_token_major_readable() all go through these,
     // so the K layout and the kernel choice never see different values.
     static bool sdpa_ocl_enabled() {
         static const bool enabled = []() {
@@ -151,6 +151,19 @@ struct paged_attention : public primitive_base<paged_attention> {
         return enabled;
     }
 
+    // Which DPAS SDPA kernel plain SDPA and PA PREFILL/MIXED use on this device: sdpa_ocl on Xe2+ XMX (unless
+    // TEST_USE_SDPA_OCL=0), sdpa_micro elsewhere, as upstream. One choice per device, never per op: where the chosen
+    // kernel refuses an op, the opt kernels run, not the other DPAS kernel.
+    static bool sdpa_ocl_selected(const device_info& info) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        return sdpa_ocl_enabled() && info.supports_immad && info.arch >= gpu_arch::xe2;
+#else
+        // Neither DPAS kernel is built without oneDNN.
+        (void)info;
+        return false;
+#endif
+    }
+
     // What the gates of the two token-major readers look at in one PagedAttention op.
     struct by_channel_tm_op_info {
         size_t k_head_size = 0;   // 0 = unknown
@@ -165,7 +178,7 @@ struct paged_attention : public primitive_base<paged_attention> {
 
     // Whether a model whose PagedAttention ops are `ops` may keep its i8/u4 BY_CHANNEL K cache
     // token-major on this device: true only if every op's MIXED dispatch will run sdpa_ocl
-    // (PagedAttentionOptImpl::can_use_micro_sdpa_for with use_ocl) AND every GENERATE dispatch
+    // (the sdpa_ocl branch of PagedAttentionOptImpl::choose_dpas_backend) AND every GENERATE dispatch
     // sdpa_ocl_decode (SDPAOclDecodeGenerator::supported). The layout is decided once per model but
     // the reader per dispatch, and a refused gate lands on a d-major reader that returns garbage, so
     // this must never say yes where a gate says no. Saying no where a gate would say yes only costs

@@ -4,6 +4,8 @@
 
 #include "paged_attention_gpu_test.h"
 
+#include "dpas_backend_test_helper.h"
+
 class paged_attention_test : public PagedAttentionTest<paged_attention_test_params> {};
 TEST_P(paged_attention_test, basic) {
     auto p = GetParam();
@@ -12,15 +14,17 @@ TEST_P(paged_attention_test, basic) {
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-// Keep the original suite name so existing PR #37377 repro filters remain valid. This branch selects
-// SDPA OCL by default; the assertion below prevents the test from silently exercising another kernel.
+// Keep the original suite name so existing PR #37377 repro filters remain valid. The assertion below pins the
+// DPAS MIXED kernel of the device's lane (sdpa_ocl on Xe2+ XMX, sdpa_micro on the other XMX parts), so the test
+// cannot silently exercise the pa_multi_token fallback instead.
 class paged_attention_u4_mixed_micro_test : public PagedAttentionTest<paged_attention_test_params> {};
 
 TEST_P(paged_attention_u4_mixed_micro_test, matches_cpu_reference) {
-    if (!tests::get_test_engine().get_device_info().supports_immad)
-        GTEST_SKIP() << "SDPA OCL requires DPAS/XMX support";
-
     auto p = GetParam();
+    const auto backend = tests::expected_dpas_backend(tests::get_test_engine(), true, p.k_head_size);
+    if (backend == tests::dpas_backend::none)
+        GTEST_SKIP() << "no DPAS SDPA kernel (sdpa_ocl / sdpa_micro) on this device";
+
     ASSERT_TRUE(this->pam.has_value());
     auto& pam = *this->pam;
 
@@ -52,8 +56,9 @@ TEST_P(paged_attention_u4_mixed_micro_test, matches_cpu_reference) {
     auto* impl = pa_inst->get_impl();
     ASSERT_NE(impl, nullptr);
     const auto dump_info = impl->get_kernels_dump_info(*pa_inst->get_impl_params());
-    ASSERT_NE(dump_info.get_entries().find("sdpa_ocl_mixed"), std::string::npos)
-        << "Regression must exercise SDPA OCL mixed: " << dump_info.get_entries();
+    const char* mixed_kernel = backend == tests::dpas_backend::ocl ? "sdpa_ocl_mixed" : "sdpa_micro";
+    ASSERT_NE(dump_info.get_entries().find(mixed_kernel), std::string::npos)
+        << "Regression must exercise " << mixed_kernel << ": " << dump_info.get_entries();
 
     this->tolerance = 1e-2f;
     const auto reference = PagedAttentionReference(pam).get_reference(result.key_cache_mem);
@@ -174,11 +179,8 @@ INSTANTIATE_TEST_SUITE_P(
 // input) and GENERATE asserts that sdpa_ocl_decode, which was already k/v-split, keeps working.
 //
 // sdpa_micro derives both of its ugemm packages from a single d_max and so cannot serve k != v at
-// all; with TEST_USE_SDPA_OCL=0 these cases run pa_multi_token instead, on the d-major page that
-// setting also selects.
-inline bool sdpa_ocl_selected() {
-    return cldnn::paged_attention::sdpa_ocl_enabled();
-}
+// all; where it is the DPAS kernel (pre-Xe2 XMX, or TEST_USE_SDPA_OCL=0) these cases run pa_multi_token
+// instead, on the d-major page that lane also selects.
 
 class paged_attention_kv_head_size_test : public PagedAttentionTest<paged_attention_test_params> {};
 
@@ -219,11 +221,11 @@ class paged_attention_kv_head_size_uses_sdpa_ocl_test : public PagedAttentionTes
 TEST_P(paged_attention_kv_head_size_uses_sdpa_ocl_test, dispatches_sdpa_ocl) {
     if (!tests::get_test_engine().get_device_info().supports_immad)
         GTEST_SKIP() << "sdpa_ocl requires DPAS/XMX support";
-    // sdpa_ocl is Xe2+ only; on pre-Xe2 DPAS parts (xe_hpg/xe_hpc) the k != v MIXED cases fall back
-    // to sdpa_micro / pa_multi_token, so there is no sdpa_ocl kernel to assert on.
+    // sdpa_ocl is Xe2+ only; on pre-Xe2 DPAS parts the k != v MIXED cases fall back to pa_multi_token
+    // (sdpa_micro needs k == v), so there is no sdpa_ocl kernel to assert on.
     if (tests::get_test_engine().get_device_info().arch < cldnn::gpu_arch::xe2)
         GTEST_SKIP() << "sdpa_ocl is only selected on Xe2 and later";
-    if (!sdpa_ocl_selected())
+    if (!cldnn::paged_attention::sdpa_ocl_enabled())
         GTEST_SKIP() << "TEST_USE_SDPA_OCL=0 selects sdpa_micro, so there is no sdpa_ocl kernel to assert on";
 
     auto p = GetParam();
@@ -1709,3 +1711,94 @@ INSTANTIATE_TEST_SUITE_P(smoke_kv_cache_rotation_content, kv_cache_rotation_cont
     paged_attention_test_params{ {{1, 34}}, 2, 2, 128, 128, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, PER_BLOCK_ROTATION, DISABLE_FA_V2, false, 0, {}, false, std::nullopt, std::nullopt, ov::element::u4 },
 }));
 
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+// Which DPAS kernel PREFILL and MIXED dispatch: sdpa_ocl on Xe2+ XMX, sdpa_micro on the other XMX parts (as
+// upstream), the opt kernels elsewhere -- one choice per device, with no fallback from one DPAS kernel to the
+// other. On top of that, in MIXED sdpa_ocl refuses a d-major i8/u4 BY_CHANNEL page, and the sdpa_micro lane refuses
+// k != v (one d_max for both ugemms), a token-major K page (it reads K d-major) and token_type_ids (no bidirectional
+// mask in its MIXED kernel). The second test runs the same case through program save/load, which rebuilds the impl
+// from its default ctor plus the saved stage order, so the dispatch must not depend on state only the params ctor
+// had. (Both sides run in one process, so this does not cover a TEST_USE_SDPA_OCL change between export and import.)
+class paged_attention_dpas_backend_test : public PagedAttentionTest<paged_attention_test_params> {
+public:
+    void check_dispatch(bool is_caching_test) {
+        auto p = GetParam();
+        ASSERT_TRUE(this->pam.has_value());
+        auto& pam = *this->pam;
+
+        const bool prefill = std::all_of(p.subsequences.begin(), p.subsequences.end(), [](const SubsequenceDescriptor& s) {
+            return s.past_len == 0;
+        });
+        auto backend = tests::expected_dpas_backend(engine, true, p.k_head_size);
+        const bool int4 = p.kv_cache_precision == ov::element::u4 || p.kv_cache_precision == ov::element::i4;
+        const bool by_channel_page = p.kv_cache_compression && (int4 || p.key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
+        if (backend == tests::dpas_backend::ocl && !prefill && by_channel_page && !pam.k_cache_token_major()) {
+            backend = tests::dpas_backend::none;
+        }
+        if (backend == tests::dpas_backend::micro &&
+            (p.k_head_size != p.v_head_size || (!prefill && (pam.k_cache_token_major() || p.token_type_ids.has_value())))) {
+            backend = tests::dpas_backend::none;
+        }
+        std::string expected;
+        switch (backend) {
+        case tests::dpas_backend::ocl:
+            expected = prefill ? "sdpa_ocl_prefill" : "sdpa_ocl_mixed";
+            break;
+        case tests::dpas_backend::micro:
+            expected = prefill ? "sdpa_micro__prefill" : "sdpa_micro__generate";
+            break;
+        case tests::dpas_backend::none:
+            expected = prefill ? "sdpa_opt__multi_tokens" : "paged_attention_opt__multi_tokens";
+            break;
+        }
+
+        pam.is_caching_test = is_caching_test;
+        auto result = run_gpu_inference(pam, p);
+        auto pa_inst = result.network->get_primitive("paged_attention");
+        ASSERT_NE(pa_inst, nullptr);
+        auto* impl = pa_inst->get_impl();
+        ASSERT_NE(impl, nullptr);
+        const auto entries = impl->get_kernels_dump_info(*pa_inst->get_impl_params()).get_entries();
+        EXPECT_NE(entries.find(expected), std::string::npos) << "expected " << expected << ", dispatched: " << entries;
+        if (backend != tests::dpas_backend::ocl) {
+            EXPECT_EQ(entries.find("sdpa_ocl"), std::string::npos) << "dispatched: " << entries;
+        }
+        if (backend != tests::dpas_backend::micro) {
+            EXPECT_EQ(entries.find("sdpa_micro"), std::string::npos) << "dispatched: " << entries;
+        }
+
+        const auto reference = PagedAttentionReference(pam).get_reference(result.key_cache_mem);
+        compare(result.outputs.at("output_data").get_memory(), nullptr, nullptr, reference);
+    }
+};
+
+TEST_P(paged_attention_dpas_backend_test, dispatches_lane_kernel) {
+    check_dispatch(false);
+}
+
+TEST_P(paged_attention_dpas_backend_test, dispatches_lane_kernel_after_load) {
+    check_dispatch(true);
+}
+
+// All-zero (text-only) token_type_ids: every kernel's result is plain causal, only the routing differs.
+static paged_attention_test_params with_text_token_type_ids(paged_attention_test_params p) {
+    int tokens = 0;
+    for (const auto& s : p.subsequences)
+        tokens += s.num_tokens;
+    p.token_type_ids = std::vector<int>(tokens, 0);
+    return p;
+}
+
+// Shapes of smoke_paged_attention basic/31, /37, /78, /80 and /132.
+INSTANTIATE_TEST_SUITE_P(
+    smoke_dpas_backend_selection,
+    paged_attention_dpas_backend_test,
+    ::testing::Values(
+        paged_attention_test_params{ {{1024, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },                                          // f16 PREFILL
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },                   // f16 MIXED
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },                   // i8 BY_CHANNEL MIXED
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 32, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false },                   // i8 BY_CHANNEL MIXED, k != v
+        paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4 },  // u4 BY_CHANNEL MIXED
+        with_text_token_type_ids(paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false })));  // f16 MIXED + token_type_ids
+#endif

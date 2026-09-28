@@ -123,8 +123,8 @@ INSTANTIATE_TEST_SUITE_P(
 // the padding multiply into the row pitch. phi-4 hits this with dynamic (shape_info) padding; a
 // static shape here takes the same host-gate branch.
 //
-// sdpa_ocl is the default backend (sdpa_opt.cpp: `env == nullptr ? true`), so this covers it as
-// written; TEST_USE_SDPA_OCL=0 runs the same case through sdpa_micro for an A/B.
+// sdpa_ocl is the default backend on Xe2+ XMX (paged_attention::sdpa_ocl_selected()), so this covers it
+// as written there; TEST_USE_SDPA_OCL=0, or a pre-Xe2 XMX device, runs the same case through sdpa_micro.
 class SDPASplitHeadsPaddedView : virtual public ov::test::SubgraphBaseStaticTest {
 protected:
     static constexpr size_t batch = 1;
