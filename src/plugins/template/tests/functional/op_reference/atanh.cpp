@@ -28,13 +28,13 @@ struct Builder : ParamsBuilder<AtanhParams> {
 class ReferenceAtanhLayerTest : public testing::TestWithParam<AtanhParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         function = CreateFunction(params.input.shape, params.input.type);
         inputData = {params.input.data};
         refOutData = {params.expected.data};
     }
     static std::string getTestCaseName(const testing::TestParamInfo<AtanhParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "shape=" << param.input.shape << "_";
         result << "type=" << param.input.type;

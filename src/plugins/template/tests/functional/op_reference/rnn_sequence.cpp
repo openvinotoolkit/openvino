@@ -84,7 +84,7 @@ struct RNNSequenceParams {
 class ReferenceRNNSequenceTest : public testing::TestWithParam<RNNSequenceParams>, public CommonReferenceTest {
 public:
     void SetUp() override {
-        auto params = GetParam();
+        const auto& params = GetParam();
         if (params.iType == element::Type_t::f16) {
             // Refs hold f64-precision values rounded to f16, while the sequence accumulates f16 error over time steps.
             abs_threshold = 0.01f;
@@ -96,7 +96,7 @@ public:
     }
 
     static std::string getTestCaseName(const testing::TestParamInfo<RNNSequenceParams>& obj) {
-        auto param = obj.param;
+        const auto& param = obj.param;
         std::ostringstream result;
         result << "iType=" << param.iType << "_";
         result << "xShape=" << param.X.shape << "_";
