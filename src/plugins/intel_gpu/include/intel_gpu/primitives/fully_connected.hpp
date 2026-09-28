@@ -214,19 +214,15 @@ struct fully_connected : public primitive_base<fully_connected> {
 
         auto rhs_casted = downcast<const fully_connected>(rhs);
 
-        return input_size == rhs_casted.input_size &&
-               weights_rank == rhs_casted.weights_rank &&
-               weights_transposed == rhs_casted.weights_transposed &&
-               bias.is_valid() == rhs_casted.bias.is_valid() &&
-               compressed_weights == rhs_casted.compressed_weights &&
+        return input_size == rhs_casted.input_size && weights_rank == rhs_casted.weights_rank && weights_transposed == rhs_casted.weights_transposed &&
+               bias.is_valid() == rhs_casted.bias.is_valid() && compressed_weights == rhs_casted.compressed_weights &&
                decompression_scale.is_valid() == rhs_casted.decompression_scale.is_valid() &&
                decompression_zero_point.is_valid() == rhs_casted.decompression_zero_point.is_valid() &&
                activation_scale.is_valid() == rhs_casted.activation_scale.is_valid() &&
                activation_zero_point.is_valid() == rhs_casted.activation_zero_point.is_valid() &&
                activation_precomputed_reduction.is_valid() == rhs_casted.activation_precomputed_reduction.is_valid() &&
                decompression_zero_point_scalar.value_or(0.0f) == rhs_casted.decompression_zero_point_scalar.value_or(0.0f) &&
-               hadamard_block == rhs_casted.hadamard_block &&
-               hadamard_signs == rhs_casted.hadamard_signs;
+               hadamard_block == rhs_casted.hadamard_block && hadamard_signs == rhs_casted.hadamard_signs;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

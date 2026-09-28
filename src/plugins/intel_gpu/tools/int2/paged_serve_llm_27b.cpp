@@ -15,16 +15,13 @@
 //      BENCH_EOS (comma list, default 248044,248046), BENCH_BLOCK_SIZE,
 //      BENCH_VERBOSE=1 (per-request progress on stderr).
 
-#include <openvino/openvino.hpp>
 #include <openvino/op/constant.hpp>
 #include <openvino/op/gather.hpp>
 #include <openvino/op/parameter.hpp>
+#include <openvino/openvino.hpp>
 #include <openvino/pass/manager.hpp>
 #include <openvino/pass/sdpa_to_paged_attention.hpp>
 // dev API: ROI copy into a remote tensor (zeroing one slot of a state table)
-#include <openvino/runtime/iremote_tensor.hpp>
-#include <openvino/runtime/make_tensor.hpp>
-
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
@@ -34,6 +31,8 @@
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <openvino/runtime/iremote_tensor.hpp>
+#include <openvino/runtime/make_tensor.hpp>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -75,9 +74,9 @@ struct Request {
 struct Slot {
     bool active = false;
     size_t req = 0;
-    int32_t past = 0;        // tokens already in the caches
-    int32_t read_slot = 0;   // linear-attention state slot to read this step
-    int64_t next = 0;        // token to feed this step
+    int32_t past = 0;       // tokens already in the caches
+    int32_t read_slot = 0;  // linear-attention state slot to read this step
+    int64_t next = 0;       // token to feed this step
     std::vector<int64_t> generated;
 };
 
@@ -170,8 +169,7 @@ int main(int argc, char** argv) {
             lm_model->validate_nodes_and_infer_types();
         }
         auto lm = core.compile_model(lm_model, device, config);
-        std::cerr << "compile " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - t_compile).count()
-                  << " s\n";
+        std::cerr << "compile " << std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - t_compile).count() << " s\n";
 
         auto embed_request = embed.create_infer_request();
         auto request = lm.create_infer_request();
@@ -307,7 +305,9 @@ int main(int argc, char** argv) {
             const float* r = logits.data<float>() + row * vocab;
             return static_cast<int64_t>(std::distance(r, std::max_element(r, r + vocab)));
         };
-        auto is_eos = [&](int64_t t) { return std::find(eos.begin(), eos.end(), t) != eos.end(); };
+        auto is_eos = [&](int64_t t) {
+            return std::find(eos.begin(), eos.end(), t) != eos.end();
+        };
 
         std::deque<size_t> pending;
         for (size_t i = 0; i < requests.size(); ++i)
@@ -319,8 +319,7 @@ int main(int argc, char** argv) {
             slots[s].active = false;
             ++done;
             if (verbose)
-                std::cerr << "  done " << done << "/" << requests.size() << " req " << slots[s].req << " gen "
-                          << slots[s].generated.size() << "\n";
+                std::cerr << "  done " << done << "/" << requests.size() << " req " << slots[s].req << " gen " << slots[s].generated.size() << "\n";
         };
 
         while (done < requests.size()) {
@@ -374,16 +373,15 @@ int main(int argc, char** argv) {
                 sl.generated.push_back(sl.next);
                 ++decoded_tokens;
                 const auto& req = requests[sl.req];
-                if (is_eos(sl.next) || static_cast<int>(sl.generated.size()) >= req.max_new ||
-                    sl.past + 1 >= max_context_len)
+                if (is_eos(sl.next) || static_cast<int>(sl.generated.size()) >= req.max_new || sl.past + 1 >= max_context_len)
                     finish(active[i]);
             }
             if (verbose && steps % 200 == 0)
                 std::cerr << "  step " << steps << " active " << active.size() << " done " << done << "\n";
         }
         const double secs = std::chrono::duration<double>(std::chrono::high_resolution_clock::now() - t0).count();
-        std::cerr << "served " << requests.size() << " requests, " << decoded_tokens << " decode tokens in " << steps
-                  << " steps, " << secs << " s (" << decoded_tokens / secs << " tok/s aggregate)\n";
+        std::cerr << "served " << requests.size() << " requests, " << decoded_tokens << " decode tokens in " << steps << " steps, " << secs << " s ("
+                  << decoded_tokens / secs << " tok/s aggregate)\n";
 
         std::ofstream out(out_path);
         for (const auto& ids : outputs) {

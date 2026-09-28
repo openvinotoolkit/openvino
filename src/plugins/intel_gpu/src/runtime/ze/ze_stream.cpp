@@ -3,30 +3,28 @@
 //
 
 #include "ze_stream.hpp"
+
+#include <cassert>
+#include <cstdlib>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "compute_runtime/ze_intel_gpu.h"
+#include "compute_runtime/ze_stypes.h"
 #include "intel_gpu/runtime/memory_caps.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/runtime/properties.hpp"
-
+#include "ze_common.hpp"
 #include "ze_counter_based_event_factory.hpp"
+#include "ze_empty_event.hpp"
+#include "ze_event.hpp"
 #include "ze_event_factory.hpp"
 #include "ze_events.hpp"
-#include "ze_empty_event.hpp"
-
-#include "ze_event.hpp"
 #include "ze_kernel.hpp"
 #include "ze_memory.hpp"
-#include "ze_common.hpp"
-
-#include "compute_runtime/ze_intel_gpu.h"
-#include "compute_runtime/ze_stypes.h"
-
-#include <cassert>
-#include <cstdlib>
-#include <string>
-#include <vector>
-#include <memory>
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <oneapi/dnnl/dnnl_ze.hpp>
@@ -317,8 +315,7 @@ void ze_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args_
             queue_desc.mode = ZE_COMMAND_QUEUE_MODE_ASYNCHRONOUS;
             queue_desc.priority = ZE_COMMAND_QUEUE_PRIORITY_NORMAL;
             ze_command_queue_handle_t queue = nullptr;
-            OV_ZE_EXPECT(ze::zeCommandQueueCreate(_engine.get_context().handle(), _engine.get_device().handle(),
-                                                   &queue_desc, &queue));
+            OV_ZE_EXPECT(ze::zeCommandQueueCreate(_engine.get_context().handle(), _engine.get_device().handle(), &queue_desc, &queue));
             m_regular_queue = ze_command_queue_resource(queue);
 
             ze_mutable_command_list_exp_desc_t mutable_desc = {};
@@ -328,8 +325,7 @@ void ze_stream::set_arguments(kernel& kernel, const kernel_arguments_desc& args_
             list_desc.pNext = &mutable_desc;
             list_desc.commandQueueGroupOrdinal = queue_desc.ordinal;
             ze_command_list_handle_t list = nullptr;
-            OV_ZE_EXPECT(ze::zeCommandListCreate(_engine.get_context().handle(), _engine.get_device().handle(),
-                                                  &list_desc, &list));
+            OV_ZE_EXPECT(ze::zeCommandListCreate(_engine.get_context().handle(), _engine.get_device().handle(), &list_desc, &list));
             m_cmd_list = ze_command_list_resource(list);
         } else if (m_regular_list_submitted) {
             OV_ZE_EXPECT(ze::zeCommandListReset(m_cmd_list.handle()));

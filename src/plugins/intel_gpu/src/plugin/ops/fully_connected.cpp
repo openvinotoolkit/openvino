@@ -2,16 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
 #include "intel_gpu/op/fully_connected.hpp"
-#include "intel_gpu/op/fully_connected_compressed.hpp"
-#include "openvino/op/constant.hpp"
 
+#include "intel_gpu/op/fully_connected_compressed.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
-#include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
+#include "openvino/op/constant.hpp"
 #include "plugin/transformations/fuse_hadamard_fc.hpp"
 
 namespace ov {

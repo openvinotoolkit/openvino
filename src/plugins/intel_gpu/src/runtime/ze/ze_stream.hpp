@@ -4,15 +4,15 @@
 
 #pragma once
 
+#include <mutex>
+
 #include "intel_gpu/runtime/event.hpp"
 #include "intel_gpu/runtime/stream.hpp"
+#include "ze_base_event_factory.hpp"
 #include "ze_common.hpp"
-#include "ze_resource.hpp"
 #include "ze_engine.hpp"
 #include "ze_event.hpp"
-#include "ze_base_event_factory.hpp"
-
-#include <mutex>
+#include "ze_resource.hpp"
 
 namespace cldnn {
 namespace ze {
@@ -20,28 +20,29 @@ namespace ze {
 class ze_stream : public stream {
 public:
     ze_command_list_handle_t get_queue() const { return m_cmd_list.handle(); }
-    std::unique_lock<std::mutex> lock_command_list() const { return std::unique_lock<std::mutex>(m_command_list_mutex); }
+    std::unique_lock<std::mutex> lock_command_list() const {
+        return std::unique_lock<std::mutex>(m_command_list_mutex);
+    }
     const ze_engine& get_engine() const { return _engine; }
     bool begin_replay();
 
     ze_stream(const ze_engine& engine, const ExecutionConfig& config);
     ze_stream(const ze_engine& engine, const ExecutionConfig& config, ze_command_list_resource cmd_list);
     ze_stream(ze_stream&& other)
-        : stream(other.m_queue_type, other.m_sync_method)
-        , _engine(other._engine)
-        , m_cmd_list(std::move(other.m_cmd_list))
-        , m_queue_counter(other.m_queue_counter.load())
-        , m_last_barrier(other.m_last_barrier.load())
-        , m_last_barrier_ev(other.m_last_barrier_ev)
-        , m_ev_factory(std::move(other.m_ev_factory))
-        , m_user_ev_factory(std::move(other.m_user_ev_factory))
-        , m_regular_queue(std::move(other.m_regular_queue))
-        , m_regular_list(other.m_regular_list)
-        , m_regular_list_submitted(other.m_regular_list_submitted)
-        , m_replay_enabled(other.m_replay_enabled)
-        , m_replaying(other.m_replaying)
-        , m_regular_submission_count(other.m_regular_submission_count) {
-        }
+        : stream(other.m_queue_type, other.m_sync_method),
+          _engine(other._engine),
+          m_cmd_list(std::move(other.m_cmd_list)),
+          m_queue_counter(other.m_queue_counter.load()),
+          m_last_barrier(other.m_last_barrier.load()),
+          m_last_barrier_ev(other.m_last_barrier_ev),
+          m_ev_factory(std::move(other.m_ev_factory)),
+          m_user_ev_factory(std::move(other.m_user_ev_factory)),
+          m_regular_queue(std::move(other.m_regular_queue)),
+          m_regular_list(other.m_regular_list),
+          m_regular_list_submitted(other.m_regular_list_submitted),
+          m_replay_enabled(other.m_replay_enabled),
+          m_replaying(other.m_replaying),
+          m_regular_submission_count(other.m_regular_submission_count) {}
 
     ~ze_stream();
 

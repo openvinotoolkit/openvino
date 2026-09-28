@@ -4,18 +4,18 @@
 
 #pragma once
 
+#include <cstdlib>
+#include <iostream>
+#include <memory>
+#include <string>
+#include <vector>
+
 #include "activation_inst.h"
 #include "data_inst.h"
 #include "eltwise_inst.h"
 #include "fully_connected_inst.h"
 #include "intel_gpu/graph/fused_primitive_desc.hpp"
 #include "registry/implementation_manager.hpp"
-
-#include <cstdlib>
-#include <iostream>
-#include <memory>
-#include <string>
-#include <vector>
 
 namespace cldnn {
 namespace ocl {
@@ -46,8 +46,7 @@ inline int ternocl_int2_fold_gates() {
 // Epilogue the kernel runs for a fused chain: 0 none, 1 silu(acc)*other,
 // 2 acc+other, 3 acc+bias, 4 sigmoid(acc); -1 when there is no single-pass
 // equivalent. `other_dep` receives the dependency index of the eltwise operand.
-inline int ternocl_int2_postop(const std::vector<fused_primitive_desc>& fused, bool has_bias,
-                               size_t* other_dep = nullptr) {
+inline int ternocl_int2_postop(const std::vector<fused_primitive_desc>& fused, bool has_bias, size_t* other_dep = nullptr) {
     const int fold_gates = ternocl_int2_fold_gates();
     if (fused.empty())
         return has_bias ? ((fold_gates & 1) ? 3 : -1) : 0;
@@ -57,8 +56,7 @@ inline int ternocl_int2_postop(const std::vector<fused_primitive_desc>& fused, b
     const auto elt_last = std::dynamic_pointer_cast<const eltwise>(fused.back().desc);
     if (elt_last && other_dep != nullptr)
         *other_dep = static_cast<size_t>(fused.back().outer_dep_start_idx);
-    if (fused.size() == 2 && act0 && act0->activation_function == activation_func::swish && elt_last &&
-        elt_last->mode == eltwise_mode::prod)
+    if (fused.size() == 2 && act0 && act0->activation_function == activation_func::swish && elt_last && elt_last->mode == eltwise_mode::prod)
         return 1;
     if (fused.size() == 1 && elt_last && elt_last->mode == eltwise_mode::sum)
         return 2;
@@ -74,8 +72,7 @@ inline int ternocl_int2_postop(const std::vector<fused_primitive_desc>& fused, b
 // the impl is created.
 struct TernoclInt2FCImplementationManager : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("TernoclInt2FCImplementationManager")
-    TernoclInt2FCImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr)
-        : ImplementationManager(impl_types::ocl, shape_type, vf) {}
+    TernoclInt2FCImplementationManager(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, vf) {}
 
     std::unique_ptr<primitive_impl> create_impl(const program_node& node, const kernel_impl_params& params) const override;
 
@@ -86,14 +83,17 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
         const bool dbg = std::getenv("OV_TERNOCL_INT2_DEBUG") != nullptr;
         if (std::getenv("OV_TERNOCL_INT2_DISABLE") != nullptr)
             return false;
-#define TERNOCL_REJECT(reason)                                                                              \
-    do {                                                                                                    \
-        if (dbg)                                                                                            \
-            std::cerr << "[ternocl-int2] reject: " << (reason) << " node=" << fc_node.id() << std::endl;    \
-        /* a fused Hadamard input exists only here; another impl would ignore it */                         \
-        OPENVINO_ASSERT(fc_prim->hadamard_block == 0, "[GPU] ternocl int2: ", fc_node.id(),                 \
-                        " carries a Hadamard input transform but the TernOCL impl rejected it: ", (reason)); \
-        return false;                                                                                       \
+#define TERNOCL_REJECT(reason)                                                                           \
+    do {                                                                                                 \
+        if (dbg)                                                                                         \
+            std::cerr << "[ternocl-int2] reject: " << (reason) << " node=" << fc_node.id() << std::endl; \
+        /* a fused Hadamard input exists only here; another impl would ignore it */                      \
+        OPENVINO_ASSERT(fc_prim->hadamard_block == 0,                                                    \
+                        "[GPU] ternocl int2: ",                                                          \
+                        fc_node.id(),                                                                    \
+                        " carries a Hadamard input transform but the TernOCL impl rejected it: ",        \
+                        (reason));                                                                       \
+        return false;                                                                                    \
     } while (0)
 
         if (!fc_prim->compressed_weights)
@@ -126,8 +126,7 @@ struct TernoclInt2FCImplementationManager : public ImplementationManager {
         if (postop < 0)
             TERNOCL_REJECT("fused chain has no folded epilogue");
         if ((postop == 1 || postop == 2) &&
-            (other_dep >= fc_node.get_dependencies().size() ||
-             fc_node.get_dependency(other_dep).get_output_layout(false).data_type != data_types::f16))
+            (other_dep >= fc_node.get_dependencies().size() || fc_node.get_dependency(other_dep).get_output_layout(false).data_type != data_types::f16))
             TERNOCL_REJECT("eltwise operand is not f16");
 
         // Weight layouts are canonicalized to 4D, so [N, K] arrives as [N, K, 1, 1].

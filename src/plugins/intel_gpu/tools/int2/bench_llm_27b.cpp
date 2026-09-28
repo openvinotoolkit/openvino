@@ -5,16 +5,15 @@
 // decoder is the VLM language model: it consumes inputs_embeds from a separate
 // embedding model and rank-3 mrope position_ids.
 
-#include <openvino/openvino.hpp>
-
 #include <algorithm>
-#include <map>
-#include <iomanip>
 #include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
+#include <iomanip>
 #include <iostream>
+#include <map>
+#include <openvino/openvino.hpp>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -139,13 +138,16 @@ int main(int argc, char** argv) {
             double lo = p[0], hi = p[0], sum = 0.0;
             size_t nonfinite = 0;
             for (size_t i = 0; i < n; ++i) {
-                if (!std::isfinite(p[i])) { ++nonfinite; continue; }
+                if (!std::isfinite(p[i])) {
+                    ++nonfinite;
+                    continue;
+                }
                 lo = std::min<double>(lo, p[i]);
                 hi = std::max<double>(hi, p[i]);
                 sum += p[i];
             }
-            std::cerr << "[dbg] " << label << " shape=" << t.get_shape() << " min=" << lo << " max=" << hi
-                      << " mean=" << sum / static_cast<double>(n) << " nonfinite=" << nonfinite << '\n';
+            std::cerr << "[dbg] " << label << " shape=" << t.get_shape() << " min=" << lo << " max=" << hi << " mean=" << sum / static_cast<double>(n)
+                      << " nonfinite=" << nonfinite << '\n';
         };
 
         const auto prefill_start = std::chrono::high_resolution_clock::now();
@@ -188,10 +190,8 @@ int main(int argc, char** argv) {
         const auto decode_end = std::chrono::high_resolution_clock::now();
         const double decode_seconds = std::chrono::duration<double>(decode_end - decode_start).count();
 
-        std::cout << "TTFT (prefill) : "
-                  << std::chrono::duration<double, std::milli>(prefill_end - prefill_start).count() << " ms\n";
-        std::cout << "decode         : " << decoded << " tokens in " << decode_seconds
-                  << " s = " << decoded / decode_seconds << " tok/s\n";
+        std::cout << "TTFT (prefill) : " << std::chrono::duration<double, std::milli>(prefill_end - prefill_start).count() << " ms\n";
+        std::cout << "decode         : " << decoded << " tokens in " << decode_seconds << " s = " << decoded / decode_seconds << " tok/s\n";
         std::cout << "generated_ids  =";
         for (const auto id : generated)
             std::cout << id << ',';
@@ -210,12 +210,13 @@ int main(int argc, char** argv) {
                 total += us;
             }
             std::vector<std::pair<std::string, std::pair<double, size_t>>> v(by_type.begin(), by_type.end());
-            std::sort(v.begin(), v.end(), [](const auto& a, const auto& b) { return a.second.first > b.second.first; });
+            std::sort(v.begin(), v.end(), [](const auto& a, const auto& b) {
+                return a.second.first > b.second.first;
+            });
             std::cout << "per-token profile (total " << total << " us):\n";
             for (size_t i = 0; i < v.size() && i < 16; ++i)
-                std::cout << "  " << std::setw(28) << std::left << v[i].first
-                          << std::setw(10) << std::right << v[i].second.first << " us  n="
-                          << v[i].second.second << "  (" << (100.0 * v[i].second.first / total) << "%)\n";
+                std::cout << "  " << std::setw(28) << std::left << v[i].first << std::setw(10) << std::right << v[i].second.first
+                          << " us  n=" << v[i].second.second << "  (" << (100.0 * v[i].second.first / total) << "%)\n";
         }
         return 0;
     } catch (const std::exception& error) {

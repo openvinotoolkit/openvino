@@ -4,6 +4,10 @@
 
 #include "fuse_hadamard_fc.hpp"
 
+#include <cmath>
+#include <cstdlib>
+#include <iostream>
+
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "openvino/op/constant.hpp"
@@ -12,10 +16,6 @@
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/transpose.hpp"
-
-#include <cmath>
-#include <cstdlib>
-#include <iostream>
 
 namespace ov::intel_gpu {
 
@@ -74,8 +74,7 @@ bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
         auto back = ov::as_type_ptr<ov::op::v1::Reshape>(fc->get_input_node_shared_ptr(0));
         if (!back) {
             if (trace)
-                std::cerr << "[hadamard-fc] " << fc->get_friendly_name() << ": input is "
-                          << fc->get_input_node_shared_ptr(0)->get_type_name() << std::endl;
+                std::cerr << "[hadamard-fc] " << fc->get_friendly_name() << ": input is " << fc->get_input_node_shared_ptr(0)->get_type_name() << std::endl;
             continue;
         }
         // MatMul / FullyConnected with the H constant
@@ -86,16 +85,15 @@ bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
         if (!is_hadamard_1024(h)) {
             if (trace) {
                 auto w = mm->get_input_node_shared_ptr(1);
-                std::cerr << "[hadamard-fc] " << fc->get_friendly_name() << ": no H behind "
-                          << mm->get_type_name() << " inputs=" << mm->get_input_size() << " w=" << w->get_type_name()
-                          << " " << w->get_output_element_type(0) << " " << w->get_output_partial_shape(0);
+                std::cerr << "[hadamard-fc] " << fc->get_friendly_name() << ": no H behind " << mm->get_type_name() << " inputs=" << mm->get_input_size()
+                          << " w=" << w->get_type_name() << " " << w->get_output_element_type(0) << " " << w->get_output_partial_shape(0);
                 if (w->get_input_size() > 0)
                     std::cerr << " <- " << w->get_input_node_shared_ptr(0)->get_type_name() << " "
                               << w->get_input_node_shared_ptr(0)->get_output_partial_shape(0);
                 if (h) {
                     const auto v = h->cast_vector<float>();
-                    std::cerr << " const[0,0..3]=" << v[0] << "," << v[1] << "," << v[2] << "," << v[3]
-                              << " [1,1]=" << v[kBlock + 1] << " [1,3]=" << v[kBlock + 3];
+                    std::cerr << " const[0,0..3]=" << v[0] << "," << v[1] << "," << v[2] << "," << v[3] << " [1,1]=" << v[kBlock + 1]
+                              << " [1,3]=" << v[kBlock + 3];
                 }
                 std::cerr << std::endl;
             }
@@ -131,12 +129,9 @@ bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
         // The Reshape to [..., K/1024, 1024] already pins the source's last dim
         // to K; it only needs to be checked when the graph states it.
         const auto& xs = x.get_partial_shape();
-        if (xs.rank().is_dynamic() ||
-            (xs[xs.rank().get_length() - 1].is_static() &&
-             static_cast<size_t>(xs[xs.rank().get_length() - 1].get_length()) != K)) {
+        if (xs.rank().is_dynamic() || (xs[xs.rank().get_length() - 1].is_static() && static_cast<size_t>(xs[xs.rank().get_length() - 1].get_length()) != K)) {
             if (trace)
-                std::cerr << "[hadamard-fc] " << fc->get_friendly_name() << ": source shape "
-                          << xs << " does not end in K=" << K << std::endl;
+                std::cerr << "[hadamard-fc] " << fc->get_friendly_name() << ": source shape " << xs << " does not end in K=" << K << std::endl;
             continue;
         }
         fc->input(0).replace_source_output(x);
@@ -145,8 +140,8 @@ bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
         rt[int2_hadamard_signs_key] = signs;
         ++fused;
         if (trace)
-            std::cerr << "[hadamard-fc] fused into " << fc->get_friendly_name() << " K=" << K
-                      << " signs=" << (signs.empty() ? "folded" : "explicit") << std::endl;
+            std::cerr << "[hadamard-fc] fused into " << fc->get_friendly_name() << " K=" << K << " signs=" << (signs.empty() ? "folded" : "explicit")
+                      << std::endl;
     }
     if (trace || (fused && std::getenv("OV_TERNOCL_INT2_DEBUG")))
         std::cerr << "[hadamard-fc] fused " << fused << " input rotations" << std::endl;

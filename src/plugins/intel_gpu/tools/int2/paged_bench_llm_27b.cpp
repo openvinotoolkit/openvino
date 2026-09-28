@@ -6,10 +6,6 @@
 // causal-conv1d chain with one PagedCausalConv1D per linear-attention layer and
 // the Loop-derived GatedDeltaNet with PagedGatedDeltaNet.
 
-#include <openvino/openvino.hpp>
-#include <openvino/pass/manager.hpp>
-#include <openvino/pass/sdpa_to_paged_attention.hpp>
-
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
@@ -18,6 +14,9 @@
 #include <iomanip>
 #include <iostream>
 #include <map>
+#include <openvino/openvino.hpp>
+#include <openvino/pass/manager.hpp>
+#include <openvino/pass/sdpa_to_paged_attention.hpp>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -109,8 +108,7 @@ int main(int argc, char** argv) {
     }
 
     const int32_t block_size = std::getenv("BENCH_BLOCK_SIZE") ? std::stoi(std::getenv("BENCH_BLOCK_SIZE")) : 16;
-    const int32_t max_context_len =
-        std::getenv("BENCH_MAX_LEN") ? std::stoi(std::getenv("BENCH_MAX_LEN")) : 512;
+    const int32_t max_context_len = std::getenv("BENCH_MAX_LEN") ? std::stoi(std::getenv("BENCH_MAX_LEN")) : 512;
     const int32_t num_blocks = (max_context_len + block_size - 1) / block_size;
     if (static_cast<int32_t>(prompt.size()) + max_new > max_context_len) {
         std::cerr << "prompt plus generated tokens must fit " << max_context_len << " tokens\n";
@@ -151,7 +149,9 @@ int main(int argc, char** argv) {
             for (const auto& e : by_type)
                 total += e.second;
             std::vector<std::pair<std::string, size_t>> v(by_type.begin(), by_type.end());
-            std::sort(v.begin(), v.end(), [](const auto& a, const auto& b) { return a.second > b.second; });
+            std::sort(v.begin(), v.end(), [](const auto& a, const auto& b) {
+                return a.second > b.second;
+            });
             std::cout << "runtime graph: " << total << " nodes\n";
             for (size_t i = 0; i < v.size() && i < 24; ++i)
                 std::cout << "   " << std::setw(30) << std::left << v[i].first << v[i].second << '\n';
@@ -198,8 +198,7 @@ int main(int argc, char** argv) {
             size_t bytes = 0;
             for (const auto& t : caches)
                 bytes += t.get_byte_size();
-            std::cout << "caches: " << caches.size() << " tensors, " << bytes / (1024 * 1024) << " MiB, "
-                      << (host_caches ? "host" : "device") << '\n';
+            std::cout << "caches: " << caches.size() << " tensors, " << bytes / (1024 * 1024) << " MiB, " << (host_caches ? "host" : "device") << '\n';
         }
 
         // inputs_embeds is [tokens, hidden] on the paged path, not [1, tokens, hidden].
@@ -226,13 +225,10 @@ int main(int argc, char** argv) {
         int32_t read_slot = 0;
         // A whole-prompt prefill needs an ESIMD scratch surface that does not
         // fit next to the weights on an integrated GPU; chunking bounds it.
-        const int32_t chunk = std::getenv("BENCH_PREFILL_CHUNK")
-                                  ? std::stoi(std::getenv("BENCH_PREFILL_CHUNK"))
-                                  : static_cast<int32_t>(prompt.size());
+        const int32_t chunk = std::getenv("BENCH_PREFILL_CHUNK") ? std::stoi(std::getenv("BENCH_PREFILL_CHUNK")) : static_cast<int32_t>(prompt.size());
         for (size_t start = 0; start < prompt.size(); start += static_cast<size_t>(chunk)) {
             const size_t len = std::min(static_cast<size_t>(chunk), prompt.size() - start);
-            const std::vector<int64_t> part(prompt.begin() + static_cast<long>(start),
-                                            prompt.begin() + static_cast<long>(start + len));
+            const std::vector<int64_t> part(prompt.begin() + static_cast<long>(start), prompt.begin() + static_cast<long>(start + len));
             feed_embeds(part);
             set_positions(static_cast<int64_t>(start), len);
             set_i32(request, "past_lens", {static_cast<int32_t>(start)});
@@ -269,10 +265,8 @@ int main(int argc, char** argv) {
         const auto decode_end = std::chrono::high_resolution_clock::now();
         const double decode_seconds = std::chrono::duration<double>(decode_end - decode_start).count();
 
-        std::cout << "TTFT (prefill) : "
-                  << std::chrono::duration<double, std::milli>(prefill_end - prefill_start).count() << " ms\n";
-        std::cout << "decode         : " << decoded << " tokens in " << decode_seconds
-                  << " s = " << decoded / decode_seconds << " tok/s\n";
+        std::cout << "TTFT (prefill) : " << std::chrono::duration<double, std::milli>(prefill_end - prefill_start).count() << " ms\n";
+        std::cout << "decode         : " << decoded << " tokens in " << decode_seconds << " s = " << decoded / decode_seconds << " tok/s\n";
         std::cout << "generated_ids  =";
         for (const auto id : generated)
             std::cout << id << ',';
@@ -291,12 +285,13 @@ int main(int argc, char** argv) {
                 total += us;
             }
             std::vector<std::pair<std::string, std::pair<double, size_t>>> v(by_type.begin(), by_type.end());
-            std::sort(v.begin(), v.end(), [](const auto& a, const auto& b) { return a.second.first > b.second.first; });
+            std::sort(v.begin(), v.end(), [](const auto& a, const auto& b) {
+                return a.second.first > b.second.first;
+            });
             std::cout << "per-token profile (total " << total << " us):\n";
             for (size_t i = 0; i < v.size() && i < 20; ++i)
-                std::cout << "  " << std::setw(28) << std::left << v[i].first << std::setw(10) << std::right
-                          << v[i].second.first << " us  n=" << v[i].second.second << "  ("
-                          << (100.0 * v[i].second.first / total) << "%)\n";
+                std::cout << "  " << std::setw(28) << std::left << v[i].first << std::setw(10) << std::right << v[i].second.first
+                          << " us  n=" << v[i].second.second << "  (" << (100.0 * v[i].second.first / total) << "%)\n";
         }
         return 0;
     } catch (const std::exception& error) {

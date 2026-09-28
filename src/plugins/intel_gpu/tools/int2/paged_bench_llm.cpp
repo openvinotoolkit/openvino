@@ -1,11 +1,10 @@
-#include <openvino/openvino.hpp>
-#include <openvino/pass/sdpa_to_paged_attention.hpp>
-
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
 #include <cstdlib>
 #include <iostream>
+#include <openvino/openvino.hpp>
+#include <openvino/pass/sdpa_to_paged_attention.hpp>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -115,8 +114,7 @@ int main(int argc, char** argv) {
             const auto partial = port.get_partial_shape();
             ov::Shape shape(partial.size());
             for (size_t i = 0; i < partial.size(); ++i)
-                shape[i] = partial[i].is_dynamic() ? static_cast<size_t>(num_blocks)
-                                                   : static_cast<size_t>(partial[i].get_length());
+                shape[i] = partial[i].is_dynamic() ? static_cast<size_t>(num_blocks) : static_cast<size_t>(partial[i].get_length());
             caches.emplace_back(context.create_tensor(port.get_element_type(), shape));
             request.set_tensor(name, caches.back());
         };
@@ -157,8 +155,8 @@ int main(int argc, char** argv) {
         if (const char* exec_graph_path = std::getenv("PAGED_EXEC_GRAPH_PATH"))
             ov::serialize(compiled.get_runtime_model(), exec_graph_path);
 
-        std::cout << "decode         : " << max_new_tokens - 1 << " tokens in " << decode_seconds
-                  << " s = " << (max_new_tokens - 1) / decode_seconds << " tok/s\n";
+        std::cout << "decode         : " << max_new_tokens - 1 << " tokens in " << decode_seconds << " s = " << (max_new_tokens - 1) / decode_seconds
+                  << " tok/s\n";
         std::cout << "generated_ids  =";
         for (const auto id : generated)
             std::cout << id << ',';

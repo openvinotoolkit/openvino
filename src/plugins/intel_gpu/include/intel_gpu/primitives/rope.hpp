@@ -31,10 +31,8 @@ struct rope : public primitive_base<rope> {
           gather_rank(gather_rank),
           fuse_rms_norm(fuse_rms_norm),
           rms_epsilon(rms_epsilon) {
-            OPENVINO_ASSERT((!config.support_2d_rope
-                || (config.support_2d_rope && config.is_chatglm)),
-                "2D RoPE is currently only supported in Chatglm!");
-        }
+        OPENVINO_ASSERT((!config.support_2d_rope || (config.support_2d_rope && config.is_chatglm)), "2D RoPE is currently only supported in Chatglm!");
+    }
 
     RoPE::Config config;
     size_t gather_rank = 0;
@@ -71,23 +69,14 @@ struct rope : public primitive_base<rope> {
 
         auto rhs_casted = downcast<const rope>(rhs);
 
-        return config.gather_position_arg_id == rhs_casted.config.gather_position_arg_id &&
-               config.head_cnt == rhs_casted.config.head_cnt &&
-               config.head_size == rhs_casted.config.head_size &&
-               config.input_trans0213 == rhs_casted.config.input_trans0213 &&
-               config.is_chatglm == rhs_casted.config.is_chatglm &&
-               config.support_2d_rope == rhs_casted.config.support_2d_rope &&
-               config.output_trans0213 == rhs_casted.config.output_trans0213 &&
-               config.is_interleaved == rhs_casted.config.is_interleaved &&
-               config.is_qwen == rhs_casted.config.is_qwen &&
-               config.use_rope_cache == rhs_casted.config.use_rope_cache &&
-               config.is_ltx_video == rhs_casted.config.is_ltx_video &&
-               config.rotary_ndims == rhs_casted.config.rotary_ndims &&
-               config.slice_start == rhs_casted.config.slice_start &&
-               config.slice_stop == rhs_casted.config.slice_stop &&
-               gather_rank == rhs_casted.gather_rank &&
-               fuse_rms_norm == rhs_casted.fuse_rms_norm &&
-               rms_epsilon == rhs_casted.rms_epsilon;
+        return config.gather_position_arg_id == rhs_casted.config.gather_position_arg_id && config.head_cnt == rhs_casted.config.head_cnt &&
+               config.head_size == rhs_casted.config.head_size && config.input_trans0213 == rhs_casted.config.input_trans0213 &&
+               config.is_chatglm == rhs_casted.config.is_chatglm && config.support_2d_rope == rhs_casted.config.support_2d_rope &&
+               config.output_trans0213 == rhs_casted.config.output_trans0213 && config.is_interleaved == rhs_casted.config.is_interleaved &&
+               config.is_qwen == rhs_casted.config.is_qwen && config.use_rope_cache == rhs_casted.config.use_rope_cache &&
+               config.is_ltx_video == rhs_casted.config.is_ltx_video && config.rotary_ndims == rhs_casted.config.rotary_ndims &&
+               config.slice_start == rhs_casted.config.slice_start && config.slice_stop == rhs_casted.config.slice_stop &&
+               gather_rank == rhs_casted.gather_rank && fuse_rms_norm == rhs_casted.fuse_rms_norm && rms_epsilon == rhs_casted.rms_epsilon;
     }
 
     void save(BinaryOutputBuffer& ob) const override {

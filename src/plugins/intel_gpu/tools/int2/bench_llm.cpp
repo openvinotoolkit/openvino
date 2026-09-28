@@ -4,14 +4,13 @@
 // Greedy decode benchmark for a stateful OpenVINO LLM, used to measure the
 // TernOCL int2 FullyConnected impl end to end.
 
-#include <openvino/openvino.hpp>
-
-#include <chrono>
 #include <algorithm>
-#include <map>
-#include <fstream>
+#include <chrono>
 #include <cstdint>
+#include <fstream>
 #include <iostream>
+#include <map>
+#include <openvino/openvino.hpp>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -153,12 +152,10 @@ int main(int argc, char** argv) {
         std::sort(v.rbegin(), v.rend());
         std::cout << "[prof] total reported " << total << " us over one decode step\n";
         for (size_t i = 0; i < v.size() && i < 15; ++i)
-            std::cout << "[prof] " << v[i].second << " " << v[i].first << " us over "
-                      << count_by_type[v[i].second] << " calls ("
+            std::cout << "[prof] " << v[i].second << " " << v[i].first << " us over " << count_by_type[v[i].second] << " calls ("
                       << v[i].first / count_by_type[v[i].second] << " us each)\n";
     }
-    std::cout << "decode         : " << decoded << " tokens in " << dec_s
-              << " s = " << decoded / dec_s << " tok/s\n";
+    std::cout << "decode         : " << decoded << " tokens in " << dec_s << " s = " << decoded / dec_s << " tok/s\n";
     std::cout << "generated_ids  =";
     for (auto t : generated)
         std::cout << t << ",";
