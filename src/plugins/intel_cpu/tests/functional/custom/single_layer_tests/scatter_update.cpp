@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/scatter_update.hpp"
+
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
-#include "openvino/op/scatter_update.hpp"
 
 using namespace CPUTestUtils;
 

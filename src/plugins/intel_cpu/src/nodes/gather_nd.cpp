@@ -5,7 +5,6 @@
 #include "gather_nd.h"
 
 #include <algorithm>
-#include <atomic>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -192,8 +191,9 @@ void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr,
     const auto* indices = idxMemPtr->getDataAs<const int32_t>();
     auto* dstData = dstMemPtr->getDataAs<uint8_t>();
 
-    std::atomic<bool> out_of_range{false};
-    parallel_nt(0, [&](const int ithr, const int nthr) {
+    const auto nthr = parallel_get_max_threads();
+    std::vector<uint8_t> out_of_range_flags(nthr, 0);
+    parallel_nt(nthr, [&](const int ithr, const int nthr) {
         size_t start(0LU);
         size_t end(0LU);
         splitter(workAmount, nthr, ithr, start, end);
@@ -208,20 +208,19 @@ void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr,
         const int32_t* shiftedIndices = indices + bStart * idxBatchStride + cStart * sliceRank;
         uint8_t* shiftedDstData = dstData + bStart * dstBatchStride + cStart * dataLength;
 
+        auto bad = false;
         for (size_t b = bStart; b < batchSize; b++) {
             for (size_t j = cStart; j < cycles; j++) {
                 size_t dataIdx = 0LU;
                 for (size_t i = 0; i < sliceRank; i++) {
-                    const int32_t index = HandleNegativeIndices(shiftedIndices, i, out_of_range);
-                    if (out_of_range.load(std::memory_order_relaxed)) {
-                        return;
-                    }
+                    const int32_t index = HandleNegativeIndices(shiftedIndices, i, bad);
                     dataIdx += srcShifts[i] * index;
                 }
                 cpu_memcpy(shiftedDstData, &(shiftedSrcData[dataIdx]), dataLength);
                 shiftedDstData += dataLength;
                 shiftedIndices += sliceRank;
                 if (++workCounter == end) {
+                    out_of_range_flags[ithr] |= static_cast<uint8_t>(bad);
                     return;
                 }
             }
@@ -229,7 +228,7 @@ void GatherND::GatherNDExecutor::gatherBlocks(const MemoryPtr& srcMemPtr,
             shiftedSrcData += srcBatchStride;
         }
     });
-    OPENVINO_ASSERT(!out_of_range, "GatherND indices value is out of bounds.");
+    OPENVINO_ASSERT(all_of_values(out_of_range_flags, uint8_t{0}), "GatherND indices value is out of bounds.");
 }
 
 template <typename dataType>
@@ -240,8 +239,9 @@ void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr,
     const auto* indices = idxMemPtr->getDataAs<const int32_t>();
     auto* dstData = dstMemPtr->getDataAs<dataType>();
 
-    std::atomic<bool> out_of_range{false};
-    parallel_nt(0, [&](const int ithr, const int nthr) {
+    const auto nthr = parallel_get_max_threads();
+    std::vector<uint8_t> out_of_range_flags(nthr, 0);
+    parallel_nt(nthr, [&](const int ithr, const int nthr) {
         size_t start(0LU);
         size_t end(0LU);
         splitter(workAmount, nthr, ithr, start, end);
@@ -256,20 +256,19 @@ void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr,
         const int32_t* shiftedIndices = indices + bStart * idxBatchStride + cStart * sliceRank;
         dataType* shiftedDstData = dstData + bStart * dstBatchStride + cStart * dataLength;
 
+        auto bad = false;
         for (size_t b = bStart; b < batchSize; b++) {
             for (size_t j = cStart; j < cycles; j++) {
                 size_t dataIdx = 0LU;
                 for (size_t i = 0LU; i < sliceRank; i++) {
-                    const int32_t index = HandleNegativeIndices(shiftedIndices, i, out_of_range);
-                    if (out_of_range.load(std::memory_order_relaxed)) {
-                        return;
-                    }
+                    const int32_t index = HandleNegativeIndices(shiftedIndices, i, bad);
                     dataIdx += srcShifts[i] * index;
                 }
                 shiftedDstData[0] = shiftedSrcData[dataIdx];
                 shiftedDstData++;
                 shiftedIndices += sliceRank;
                 if (++workCounter == end) {
+                    out_of_range_flags[ithr] |= static_cast<uint8_t>(bad);
                     return;
                 }
             }
@@ -277,21 +276,20 @@ void GatherND::GatherNDExecutor::gatherElementwise(const MemoryPtr& srcMemPtr,
             shiftedSrcData += srcBatchStride;
         }
     });
-    OPENVINO_ASSERT(!out_of_range, "GatherND indices value is out of bounds.");
+    OPENVINO_ASSERT(all_of_values(out_of_range_flags, uint8_t{0}), "GatherND indices value is out of bounds.");
 }
 
 int32_t GatherND::GatherNDExecutor::HandleNegativeIndices(const int32_t* indices,
                                                           size_t idx,
-                                                          std::atomic<bool>& out_of_range) const {
+                                                          bool& out_of_range) const {
     int32_t index = indices[idx];
     const auto dimSize = static_cast<int32_t>(srcDims[idx + batchDims]);
     if (index < 0) {
         index += dimSize;
     }
-    if (index < 0 || index >= dimSize) {
-        out_of_range.store(true, std::memory_order_relaxed);
-    }
-    return index;
+    const auto bad = static_cast<uint32_t>(index) >= static_cast<uint32_t>(dimSize);
+    out_of_range |= bad;
+    return bad ? 0 : index;
 }
 
 void GatherND::executeDynamicImpl(const dnnl::stream& strm) {

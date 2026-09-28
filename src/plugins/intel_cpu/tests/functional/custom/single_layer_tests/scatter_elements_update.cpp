@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "openvino/op/scatter_elements_update.hpp"
+
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
-#include "openvino/op/scatter_elements_update.hpp"
 
 using namespace CPUTestUtils;
 namespace ov {
@@ -77,10 +78,10 @@ protected:
                 }
             } else {
                 if (inputPrecision.is_real()) {
-                ov::test::utils::InputGenerateData in_data;
-                in_data.start_from = 0;
-                in_data.range = 10;
-                in_data.resolution = 1000;
+                    ov::test::utils::InputGenerateData in_data;
+                    in_data.start_from = 0;
+                    in_data.range = 10;
+                    in_data.resolution = 1000;
                     tensor = ov::test::utils::create_and_fill_tensor(inputPrecision, targetShape, in_data);
                 } else {
                     tensor = ov::test::utils::create_and_fill_tensor(inputPrecision, targetShape);

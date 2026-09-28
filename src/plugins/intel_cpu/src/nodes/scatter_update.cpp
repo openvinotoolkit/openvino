@@ -5,7 +5,6 @@
 #include "openvino/op/scatter_update.hpp"
 
 #include <array>
-#include <atomic>
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
@@ -911,8 +910,9 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
         // Violations are flagged, not thrown, inside the loop: an exception escaping a parallel_nt worker
         // is not reliably propagated on the OpenMP threading backend.
         const bool allowNegativeIndices = scatterUpdateMode == ScatterUpdateMode::ScatterElementsUpdate;
-        std::atomic<bool> out_of_range{false};
-        parallel_nt(0, [&](const int ithr, const int nthr) {
+        const auto nthr = parallel_get_max_threads();
+        std::vector<uint8_t> out_of_range_flags(nthr, 0);
+        parallel_nt(nthr, [&](const int ithr, const int nthr) {
             size_t start = 0;
             size_t end = 0;
             splitter(indicesBlockND[0], nthr, ithr, start, end);
@@ -922,13 +922,13 @@ void ScatterUpdate::execute([[maybe_unused]] const dnnl::stream& strm) {
                 if (allowNegativeIndices && idxValue < 0) {
                     idxValue += static_cast<int64_t>(srcDimAxis);
                 }
-                local_out_of_range = local_out_of_range || idxValue < 0 || idxValue >= static_cast<int64_t>(srcDimAxis);
+                local_out_of_range =
+                    local_out_of_range || static_cast<uint64_t>(idxValue) >= static_cast<uint64_t>(srcDimAxis);
             }
-            if (local_out_of_range) {
-                out_of_range.store(true, std::memory_order_relaxed);
-            }
+            out_of_range_flags[ithr] = static_cast<uint8_t>(local_out_of_range);
         });
-        CPU_NODE_ASSERT(!out_of_range, "have indices value that points to non-existing output tensor element");
+        CPU_NODE_ASSERT(all_of_values(out_of_range_flags, uint8_t{0}),
+                        "have indices value that points to non-existing output tensor element");
 
         if (scatterUpdateMode == ScatterUpdateMode::ScatterUpdate) {
             VectorDims indicesDim = getParentEdgeAt(INDICES_ID)->getMemory().getStaticDims();

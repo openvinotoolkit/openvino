@@ -4,11 +4,12 @@
 
 #pragma once
 
-#include <atomic>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
 #include <string>
+#include <vector>
 
 #include "cpu_memory.h"
 #include "cpu_types.h"
@@ -55,7 +56,7 @@ private:
         void gatherBlocks(const MemoryPtr& srcMemPtr, const MemoryPtr& idxMemPtr, const MemoryPtr& dstMemPtr);
         // Sets out_of_range instead of throwing: an exception escaping a parallel_nt worker is not
         // reliably propagated on the OpenMP threading backend.
-        int32_t HandleNegativeIndices(const int32_t* indices, size_t idx, std::atomic<bool>& out_of_range) const;
+        int32_t HandleNegativeIndices(const int32_t* indices, size_t idx, bool& out_of_range) const;
 
         size_t batchSize = 1LU;
         size_t dataSize = 1LU;

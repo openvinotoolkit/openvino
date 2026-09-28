@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/op/gather_nd.hpp"
+
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
