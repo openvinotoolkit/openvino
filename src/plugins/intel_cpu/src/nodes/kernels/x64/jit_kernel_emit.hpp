@@ -37,6 +37,7 @@ namespace ov::intel_cpu {
 enum class cond : std::uint8_t {
     equal,
     not_equal,
+    less,           // signed
     greater_equal,  // signed
 };
 

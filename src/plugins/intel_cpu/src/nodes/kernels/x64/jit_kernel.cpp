@@ -762,6 +762,9 @@ jit_kernel_ir::EmitFn jit_kernel::branch(cond on, const label_ref& to) const {
         case cond::not_equal:
             self->jne(target_label, Xbyak::CodeGenerator::T_NEAR);
             return;
+        case cond::less:
+            self->jl(target_label, Xbyak::CodeGenerator::T_NEAR);
+            return;
         case cond::greater_equal:
             self->jge(target_label, Xbyak::CodeGenerator::T_NEAR);
             return;

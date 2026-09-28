@@ -1847,6 +1847,13 @@ void jit_kernel::foreach (const B& begin,
     auto loop_label = make_label();
     auto exit_label = make_label();
     auto step_val = static_cast<size_t>(step);
+
+    // A loop whose bounds are both known here and non-empty always runs
+    // at least once, so the entry test is dead code.
+    bool needs_guard = true;
+    if constexpr (std::is_integral_v<std::decay_t<B>> && std::is_integral_v<std::decay_t<E>>) {
+        needs_guard = !(static_cast<size_t>(end) > static_cast<size_t>(begin));
+    }
     auto idx_var = variable<size_t>(*this, idx_vid);
 
     // Align the loop head. LLVM decides this in MachineBlockPlacement,
@@ -1860,25 +1867,56 @@ void jit_kernel::foreach (const B& begin,
     // cheap enough to keep.
     const size_t loop_align = target().preferred_loop_alignment();
 
+    // Rotated: the test lives at the bottom, so a trip costs one taken
+    // conditional branch instead of a conditional plus an unconditional
+    // jump back to the top. LLVM does this at IR level in LoopRotate and
+    // again during MachineBlockPlacement; it is the difference between
+    //
+    //     head: cmp; jge exit; <body>; add; jmp head
+    // and
+    //     cmp; jge exit; head: <body>; add; cmp; jl head
+    //
+    // The guard is a separate op rather than part of the region header
+    // for two reasons. Op::align pads *before* an op, so folding the
+    // guard into the header would align the compare and leave the loop
+    // head short by the length of cmp+jge. And a guard that is provably
+    // unnecessary can then simply not be recorded.
+    //
+    // Caveat worth naming: the guard branches past the loop, and the CFG
+    // built for liveness models regions rather than arbitrary branches,
+    // so that edge is invisible to it. Safe here because the branch only
+    // skips forward over the loop — liveness over-approximates, and
+    // nothing after a loop may legally read a value defined inside it.
+    if (needs_guard) {
+        _ir->use(header_reads,
+                 [cmp_fn, leave = branch(cond::greater_equal, exit_label)](
+                     const jit_kernel_ir::EmitContext& ctx) {
+                     cmp_fn(ctx);
+                     leave(ctx);
+                 },
+                 "loop_guard");
+    }
+
     _ir->loop(
-        std::move(header_reads),
-        // Header: place(loop); cmp(idx, end); branch(>=, exit)
-        [mark = place_label(loop_label), cmp_fn, leave = branch(cond::greater_equal, exit_label)](
-            const jit_kernel_ir::EmitContext& ctx) {
-            mark(ctx);
-            cmp_fn(ctx);
-            leave(ctx);
-        },
+        header_reads,
+        // Header: nothing but the label, so Op::align lands on the loop
+        // head itself.
+        place_label(loop_label),
         // Body builder
         [&]() {
             fn(idx_var);
 
-            // Footer: idx += step; branch(loop); place(exit)
-            _ir->use({idx_vid},
-                     [bump = gpr_bump(static_cast<std::int64_t>(step_val)),
-                      again = branch_always(loop_label), mark = place_label(exit_label)](
+            // Footer: idx += step; cmp(idx, end); branch(<, loop); place(exit)
+            //
+            // Reads the same operands as the guard, in the same order,
+            // so the compare closure works unchanged in both places.
+            _ir->use(header_reads,
+                     [bump = gpr_bump(static_cast<std::int64_t>(step_val)), cmp_fn,
+                      again = branch(cond::less, loop_label),
+                      mark = place_label(exit_label)](
                          const jit_kernel_ir::EmitContext& ctx) {
                          bump(ctx);
+                         cmp_fn(ctx);
                          again(ctx);
                          mark(ctx);
                      },
