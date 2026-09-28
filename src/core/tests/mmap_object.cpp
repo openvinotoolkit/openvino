@@ -637,6 +637,36 @@ TEST_F(HintPrefetchAsyncTest, partial_region_populated_and_correct) {
     EXPECT_EQ(read_mapped(*mapped), data);
 }
 
+TEST_F(HintPrefetchAsyncTest, wait_prefetch_completes_requested_region) {
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_explicit_wait.bin");
+    constexpr size_t file_size = 8 * 1024 * 1024;
+    constexpr size_t prefetch_offset = 1 * 1024 * 1024;
+    constexpr size_t prefetch_size = 5 * 1024 * 1024;
+    const auto data = make_pattern(file_size);
+    write_file(data);
+
+    auto mapped = load_mmap_object(m_file_path);
+    ASSERT_NE(mapped, nullptr);
+
+    mapped->hint_prefetch_async(prefetch_offset, prefetch_size);
+    EXPECT_NO_THROW(mapped->wait_prefetch(prefetch_offset, prefetch_size));
+    EXPECT_EQ(read_mapped(*mapped), data);
+}
+
+TEST_F(HintPrefetchAsyncTest, immediate_overlapping_eviction_waits_for_prefetch) {
+    m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_evict.bin");
+    constexpr size_t file_size = 8 * 1024 * 1024;
+    const auto data = make_pattern(file_size);
+    write_file(data);
+
+    auto mapped = load_mmap_object(m_file_path);
+    ASSERT_NE(mapped, nullptr);
+
+    mapped->hint_prefetch_async();
+    EXPECT_NO_THROW(mapped->hint_evict(0, auto_size));
+    EXPECT_EQ(read_mapped(*mapped), data);
+}
+
 TEST_F(HintPrefetchAsyncTest, below_threshold_is_safe_noop) {
     m_file_path = std::filesystem::path(utils::generateTestFilePrefix() + "_prefetch_async_small.bin");
     constexpr size_t file_size = 1024;  // 1 KiB - below the 4 MiB threshold

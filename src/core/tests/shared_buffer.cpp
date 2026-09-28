@@ -543,6 +543,8 @@ public:
 
     MOCK_METHOD(void, hint_prefetch_async, (size_t offset, size_t size), (override));
 
+    MOCK_METHOD(void, wait_prefetch, (size_t offset, size_t size), (noexcept, override));
+
 private:
     std::vector<char> m_data;
     uint64_t m_id;
@@ -594,6 +596,45 @@ TEST_F(SharedBufferTest, aligned_shared_buffer_propagates_to_mmap) {
     child->hint_evict();
 }
 
+TEST_F(SharedBufferTest, mmap_shared_buffer_forwards_async_prefetch_and_wait_for_own_region) {
+    constexpr size_t mmap_size = 2048;
+    constexpr size_t buffer_offset = 128;
+    constexpr size_t buffer_size = 512;
+    auto mock = std::make_shared<MockMappedMemory>(mmap_size);
+    auto buffer = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
+        mock->data() + buffer_offset,
+        buffer_size,
+        mock);
+
+    EXPECT_TRUE(buffer->supports_async_prefetch());
+    EXPECT_CALL(*mock, hint_prefetch_async(buffer_offset, buffer_size)).Times(1);
+    EXPECT_CALL(*mock, wait_prefetch(buffer_offset, buffer_size)).Times(1);
+    buffer->hint_prefetch_async();
+    buffer->wait_prefetch();
+}
+
+TEST_F(SharedBufferTest, nested_aligned_shared_buffer_forwards_root_relative_prefetch_region) {
+    constexpr size_t mmap_size = 4096;
+    constexpr size_t parent_offset = 256;
+    constexpr size_t child_offset = 64;
+    constexpr size_t child_size = 1024;
+    auto mock = std::make_shared<MockMappedMemory>(mmap_size);
+    auto parent = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(
+        mock->data() + parent_offset,
+        mmap_size - parent_offset,
+        mock);
+    auto child = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+        parent->get_ptr<char>() + child_offset,
+        child_size,
+        std::static_pointer_cast<ov::AlignedBuffer>(parent));
+
+    EXPECT_TRUE(child->supports_async_prefetch());
+    EXPECT_CALL(*mock, hint_prefetch_async(parent_offset + child_offset, child_size)).Times(1);
+    EXPECT_CALL(*mock, wait_prefetch(parent_offset + child_offset, child_size)).Times(1);
+    child->hint_prefetch_async();
+    child->wait_prefetch();
+}
+
 TEST_F(SharedBufferTest, no_call_when_mmap_object_is_null) {
     constexpr size_t buf_size = 64;
     std::vector<char> storage(buf_size);
@@ -603,5 +644,8 @@ TEST_F(SharedBufferTest, no_call_when_mmap_object_is_null) {
         buf_size,
         std::shared_ptr<ov::MappedMemory>{} /*null*/);
     EXPECT_NO_THROW(buffer->hint_evict());
+    EXPECT_NO_THROW(buffer->hint_prefetch_async());
+    EXPECT_NO_THROW(buffer->wait_prefetch());
+    EXPECT_FALSE(buffer->supports_async_prefetch());
 }
 }  // namespace ov::test

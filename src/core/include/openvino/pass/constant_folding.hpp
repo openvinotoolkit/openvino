@@ -18,6 +18,17 @@ namespace pass {
  */
 class OPENVINO_API ConstantFolding : public ModelPass {
 public:
+    class OPENVINO_API Observer {
+    public:
+        virtual ~Observer();
+        virtual void on_pass_begin(const std::shared_ptr<ov::Model>& model) noexcept = 0;
+        virtual bool defer_pre_calculated_values(const std::shared_ptr<ov::Model>& model,
+                                                 const std::shared_ptr<const ov::Node>& node) noexcept = 0;
+        virtual void before_ordered_node(const std::shared_ptr<ov::Model>& model,
+                                         const std::shared_ptr<const ov::Node>& node) noexcept = 0;
+        virtual void on_pass_end(const std::shared_ptr<ov::Model>& model) noexcept = 0;
+    };
+
     OPENVINO_MODEL_PASS_RTTI("ConstantFolding");
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 

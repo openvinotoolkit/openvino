@@ -78,6 +78,18 @@ public:
      *               mapping when set to auto_size.
      */
     virtual void hint_prefetch_async(size_t offset = 0, size_t size = auto_size) = 0;
+
+    /**
+     * @brief Waits for background prefetch work intersecting the given region.
+     *
+     * Only work submitted before this call acquires the mapping's prefetch lock is covered. The
+     * method is a no-op when no intersecting work is pending and never propagates task failures.
+     *
+     * @param offset Offset within the mapping where the region starts.
+     * @param size   Number of bytes in the region. Defaults to the rest of the mapping when set to
+     *               auto_size.
+     */
+    virtual void wait_prefetch(size_t offset = 0, size_t size = auto_size) noexcept = 0;
 };
 
 /**

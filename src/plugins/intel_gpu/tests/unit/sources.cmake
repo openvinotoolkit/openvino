@@ -73,6 +73,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/sycl/sycl_test_context.hpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/test_uqr_distribution.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/weights_reorder_factory_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/weights_prefetch_plan_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/ze/ze_test_context.hpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/add_onednn_optimization_attributes_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/passes/add_required_reorders_test.cpp
@@ -475,6 +476,7 @@ set(GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/usm_host_tensor.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/common_utils.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/simple_math.cpp
+    ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/weights_prefetch_plan.cpp
     ${CMAKE_HOME_DIRECTORY}/src/plugins/intel_gpu/src/plugin/ops/moe_offload_constant.cpp
 )
 list(APPEND GPU_UNIT_TESTS_SRCS ${GPU_UNIT_TESTS_TRANSFORMATIONS_SRCS})

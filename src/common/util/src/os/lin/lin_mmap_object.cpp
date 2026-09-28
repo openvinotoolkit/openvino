@@ -106,6 +106,26 @@ public:
 };
 
 class MapHolder final : public MappedMemory {
+    struct PendingPrefetch {
+        uintptr_t begin = 0;
+        uintptr_t end = 0;
+        std::vector<std::future<void>> tasks;
+
+        bool ready() {
+            return std::all_of(tasks.begin(), tasks.end(), [](std::future<void>& task) {
+                return !task.valid() || task.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
+            });
+        }
+
+        void wait() noexcept {
+            for (auto& task : tasks) {
+                if (task.valid()) {
+                    task.wait();
+                }
+            }
+        }
+    };
+
     void* m_mapped_view = MAP_FAILED;
     size_t m_mapped_view_size = 0;
     void* m_data = nullptr;
@@ -114,30 +134,35 @@ class MapHolder final : public MappedMemory {
     HandleHolder m_handle;
     // Tasks adopted from hint_prefetch_async()'s token; joined before unmapping (see ~MapHolder).
     std::mutex m_pending_prefetch_mutex;
-    std::vector<std::future<void>> m_pending_prefetch;
+    std::vector<PendingPrefetch> m_pending_prefetch;
 
-    void adopt_pending_prefetch(std::vector<std::future<void>>&& tasks) {
-        std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
+    void reap_pending_prefetch_locked() {
         // Reap already-finished futures so the vector doesn't grow without bound across repeated
         // hint_prefetch_async() calls over this mapping's lifetime.
         m_pending_prefetch.erase(std::remove_if(m_pending_prefetch.begin(),
                                                 m_pending_prefetch.end(),
-                                                [](std::future<void>& task) {
-                                                    return !task.valid() || task.wait_for(std::chrono::seconds(0)) ==
-                                                                                std::future_status::ready;
+                                                [](PendingPrefetch& task) {
+                                                    return task.ready();
                                                 }),
                                  m_pending_prefetch.end());
-        m_pending_prefetch.insert(m_pending_prefetch.end(),
-                                  std::make_move_iterator(tasks.begin()),
-                                  std::make_move_iterator(tasks.end()));
+    }
+
+    void wait_overlapping_prefetch_locked(uintptr_t begin, uintptr_t end) noexcept {
+        auto task = m_pending_prefetch.begin();
+        while (task != m_pending_prefetch.end()) {
+            if (task->begin < end && begin < task->end) {
+                task->wait();
+                task = m_pending_prefetch.erase(task);
+            } else {
+                ++task;
+            }
+        }
     }
 
     void wait_for_pending_prefetch() noexcept {
         std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
         for (auto& task : m_pending_prefetch) {
-            if (task.valid()) {
-                task.wait();
-            }
+            task.wait();
         }
         m_pending_prefetch.clear();
     }
@@ -210,6 +235,8 @@ public:
     void hint_evict(size_t offset, size_t size) noexcept override {
         if (m_mapped_view != MAP_FAILED) {
             if (const auto region = util::make_madvise_region(m_data, m_size, offset, size); region.m_length > 0) {
+                std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
+                wait_overlapping_prefetch_locked(region.m_address, region.m_address + region.m_length);
                 std::ignore = madvise(reinterpret_cast<void*>(region.m_address), region.m_length, MADV_DONTNEED);
             }
         }
@@ -228,10 +255,23 @@ public:
     void hint_prefetch_async(size_t offset, size_t size) override {
         if (const auto region = util::clamp_align_region(m_data, m_size, offset, size);
             region.m_length > util::default_parallel_io_threshold) {
+            std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
+            reap_pending_prefetch_locked();
             auto token = util::vm_prefetch_async(reinterpret_cast<void*>(region.m_address),
                                                  region.m_length,
                                                  util::prefetch_thread_count(region.m_length));
-            adopt_pending_prefetch(token.detach());
+            auto tasks = token.detach();
+            if (!tasks.empty()) {
+                m_pending_prefetch.push_back(
+                    PendingPrefetch{region.m_address, region.m_address + region.m_length, std::move(tasks)});
+            }
+        }
+    }
+
+    void wait_prefetch(size_t offset, size_t size) noexcept override {
+        if (const auto region = util::clamp_align_region(m_data, m_size, offset, size); region.m_length > 0) {
+            std::lock_guard<std::mutex> lock(m_pending_prefetch_mutex);
+            wait_overlapping_prefetch_locked(region.m_address, region.m_address + region.m_length);
         }
     }
 };

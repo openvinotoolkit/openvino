@@ -131,6 +131,18 @@ struct OPENVINO_API Extension {
      * @param constant Constant node to evict buffer for.
      */
     static void hint_evict(ov::op::v0::Constant& constant) noexcept;
+
+    /** @brief Hint to start loading the constant's buffer into physical memory in the background.
+     *
+     * @note Returns immediately. Failures are ignored because prefetching is an optimization hint.
+     */
+    static void hint_prefetch_async(const ov::op::v0::Constant& constant) noexcept;
+
+    /** @brief Wait for background prefetch work intersecting the constant's buffer. */
+    static void wait_prefetch(const ov::op::v0::Constant& constant) noexcept;
+
+    /** @brief Return true when the constant ultimately refers to mmap-backed storage. */
+    static bool supports_async_prefetch(const ov::op::v0::Constant& constant) noexcept;
 };
 
 /** @brief Get the source buffer for a given source id.

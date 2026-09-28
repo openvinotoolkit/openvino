@@ -3,6 +3,7 @@
 //
 
 #include "intel_gpu/plugin/transformations_pipeline.hpp"
+#include "intel_gpu/plugin/weights_prefetch_plan.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -634,6 +635,12 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         ov::pass::Manager manager("Plugin:GPU");
         auto pass_config = manager.get_pass_config();
         manager.set_per_pass_validation(false);
+        const auto prefetch_budget = get_mmap_weights_prefetch_budget(config.get_offload_ratio() == 0);
+        auto folding_prefetch = std::make_shared<ConstantFoldingPrefetchState>(prefetch_budget);
+        if (prefetch_budget > 0) {
+            pass_config->set_pass_extension<ov::pass::ConstantFolding, ov::pass::ConstantFolding::Observer>(
+                folding_prefetch);
+        }
 
         // Transformation of SDPA to VLSDPA for QWen2.x-VL,
         // Note: this should be applied before TransposeFusion.
@@ -1406,6 +1413,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
 
         manager.run_passes(func);
+        folding_prefetch->finish();
     }
 
     if (enableInt8) {
@@ -1764,6 +1772,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         // ZP should not be folded for FC. But still, ZP should be folded for Gather.
         // Therefore, run MarkDequantization again to fold ZP constant.
         manager.register_pass<ov::pass::MarkDequantization>(supported_woq_types, true);
+        const auto prefetch_budget = get_mmap_weights_prefetch_budget(config.get_offload_ratio() == 0);
         if (device_info.supports_immad) {
             if (disable_horizontal_fc_fusion)
                 manager.register_pass<ov::pass::ConstantFolding>();
@@ -1774,6 +1783,11 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         manager.register_pass<ov::pass::SDPAScaleFusion>();
         manager.register_pass<ov::pass::ConvertGatherToGatherCompressed>();
         auto pass_config = manager.get_pass_config();
+        auto folding_prefetch = std::make_shared<ConstantFoldingPrefetchState>(prefetch_budget);
+        if (prefetch_budget > 0) {
+            pass_config->set_pass_extension<ov::pass::ConstantFolding, ov::pass::ConstantFolding::Observer>(
+                folding_prefetch);
+        }
         pass_config->set_callback<ov::intel_gpu::KVCacheFusionMatcher>([](const_node_ptr& node) -> bool {
             const auto& rank = node->input(0).get_partial_shape().rank().get_length();
             return rank != 4;
@@ -1920,6 +1934,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
         }
         manager.register_pass<ov::pass::Validate>();
         manager.run_passes(func);
+        folding_prefetch->finish();
     }
 }
 }  // namespace ov::intel_gpu
