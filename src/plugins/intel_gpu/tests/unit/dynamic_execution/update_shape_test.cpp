@@ -4,6 +4,7 @@
 
 #include "test_utils.h"
 #include "random_generator.hpp"
+#include "dpas_backend_test_helper.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/data.hpp>
@@ -577,10 +578,10 @@ TEST(update_shape_test, paged_attention_mixed_stage_token_type_ids_buffer_layout
     const auto& intermediate_mems = pa_inst->get_intermediates_memories();
 
     // Allocation-time and execution-time micro/non-micro decisions must agree; a mismatch shows up
-    // as the wrong buffer count. token_type_ids no longer forces the non-micro path in MIXED.
-    // The micro path has one extra buffer for the token_type_ids group bounds.
-    const bool micro_layout = engine.get_device_info().supports_immad;
-    ASSERT_EQ(intermediate_mems.size(), micro_layout ? 5u : 7u);
+    // as the wrong buffer count. MIXED with token_type_ids stays on the DPAS kernel only where that is
+    // sdpa_ocl, which implements the bidirectional mask; sdpa_micro leaves it to pa_multi_token.
+    const bool micro_layout = tests::expected_dpas_backend(engine, true, 64) == tests::dpas_backend::ocl;
+    ASSERT_EQ(intermediate_mems.size(), micro_layout ? 4u : 7u);
 }
 TEST(update_shape_test, paged_attention_mixed_stage_h256_micro_qtile64_buffers) {
     tests::random_generator rg(GET_SUITE_NAME);
