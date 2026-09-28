@@ -12,10 +12,7 @@
 #include "openvino/op/multiply.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 // GGML_OP_DIAG turns a vector into a diagonal matrix: a ggml [ne0, 1, ne2, ne3] input becomes
 // [ne0, ne0, ne2, ne3] with output[..., i, j] = input[..., 0, j] when i == j, else 0.
@@ -47,7 +44,4 @@ OutputVector translate_diag(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

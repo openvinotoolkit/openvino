@@ -14,6 +14,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convolution.hpp"
+#include "openvino/op/gelu.hpp"
 #include "openvino/op/group_normalization.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
@@ -24,6 +25,7 @@
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/pass/manager.hpp"
 #include "ov_ops/moe_compressed.hpp"
+#include "ov_ops/type_relaxed.hpp"
 #include "transformations/common_optimizations/lin_op_sequence_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/utils/utils.hpp"
@@ -112,6 +114,38 @@ TEST_F(TransformationTestsF, ScaleDownSingleLayerTest_f32) {
 
         model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
     }
+}
+
+TEST(ScaleDownSingleLayerRegression, PreserveF32OutputOfTypeRelaxedBiasAdd) {
+    constexpr float scale_factor = 8.f;
+
+    auto input = std::make_shared<v0::Parameter>(element::f16, PartialShape{1, 4});
+    auto weights0 = v0::Constant::create(element::f16, Shape{8, 4}, {1.f});
+    auto matmul0 = std::make_shared<v0::MatMul>(input, weights0, false, true);
+    auto bias = v0::Constant::create(element::f32, Shape{8}, {1.f});
+    auto add =
+        std::make_shared<ov::op::TypeRelaxed<v1::Add>>(element::TypeVector{element::f32, element::f32},
+                                                       element::TypeVector{element::f32},
+                                                       ov::op::TemporaryReplaceOutputType(matmul0, element::f32).get(),
+                                                       bias);
+    auto gelu = std::make_shared<ov::op::v7::Gelu>(add);
+    auto weights1 = v0::Constant::create(element::f32, Shape{4, 8}, {1.f});
+    auto matmul1 = std::make_shared<v0::MatMul>(gelu, weights1, false, true);
+    auto model = std::make_shared<Model>(OutputVector{matmul1}, ParameterVector{input});
+
+    pass::Manager manager;
+    manager.set_per_pass_validation(false);
+    manager.register_pass<pass::activations_scaling::ScaleDownSingleLayer>(scale_factor, element::f16);
+    manager.get_pass_config()->set_callback<pass::activations_scaling::ScaleDownSingleLayer>(
+        [](const std::shared_ptr<const Node>& node) {
+            return node->input(0).get_element_type() != element::f16;
+        });
+    manager.register_pass<pass::Validate>();
+
+    EXPECT_NO_THROW(manager.run_passes(model));
+    EXPECT_EQ(gelu->get_output_element_type(0), element::f32);
+    EXPECT_EQ(matmul1->get_input_element_type(0), element::f32);
+    EXPECT_EQ(matmul1->get_input_element_type(1), element::f32);
 }
 
 namespace {

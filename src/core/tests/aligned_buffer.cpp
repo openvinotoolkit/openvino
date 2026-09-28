@@ -4,9 +4,20 @@
 
 #include "openvino/runtime/aligned_buffer.hpp"
 
+#include <limits>
+
+#include "common_test_utils/test_assertions.hpp"
 #include "gtest/gtest.h"
 
 namespace ov::test {
+
+TEST(aligned_buffer, alloc_failure_throws) {
+    constexpr size_t huge = std::numeric_limits<size_t>::max() / 2;
+    OV_EXPECT_THROW(
+        { ov::AlignedBuffer buffer(huge, 64); },
+        ov::AssertFailure,
+        testing::HasSubstr("Failed to allocate"));
+}
 
 TEST(aligned_buffer, alignment) {
     AlignedBuffer buffer(100, 64);
