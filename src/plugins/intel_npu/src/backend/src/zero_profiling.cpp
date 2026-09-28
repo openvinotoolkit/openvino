@@ -6,6 +6,8 @@
 
 #include <ze_graph_profiling_ext.h>
 
+#include <algorithm>
+
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/profiling.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -144,15 +146,17 @@ NpuInferStatistics NpuInferProfiling::getNpuInferStatistics() const {
     NpuInferStatistics npuPerfCounts;
 
     /// if the log isn't full/rolled over yet = skip reporting empty logs
-    uint32_t stat_cnt = (_npu_infer_stats_cnt < _npu_infer_log_maxsize) ? _npu_infer_stats_cnt : _npu_infer_log_maxsize;
+    const uint32_t stat_cnt = static_cast<uint32_t>(std::min<uint64_t>(_npu_infer_stats_cnt, _npu_infer_log_maxsize));
     if (stat_cnt != 0 && _loglevel >= ov::log::Level::WARNING) {
+        const uint32_t first_log_idx = (_npu_infer_stats_cnt > _npu_infer_log_maxsize) ? _npu_infer_logidx : 0;
         /// Populate npuinferstatistics vector
-        for (unsigned i = 0; i < stat_cnt; i++) {
+        for (uint32_t i = 0; i < stat_cnt; i++) {
             ov::ProfilingInfo info;
 
             info.status = ov::ProfilingInfo::Status::EXECUTED;
-            info.real_time = std::chrono::microseconds(convertCCtoUS(_npu_infer_duration_log[i]));
-            info.cpu_time = std::chrono::microseconds(convertCCtoUS(_npu_infer_duration_log[i]));
+            const uint32_t log_idx = (first_log_idx + i) % _npu_infer_log_maxsize;
+            info.real_time = std::chrono::microseconds(convertCCtoUS(_npu_infer_duration_log[log_idx]));
+            info.cpu_time = std::chrono::microseconds(convertCCtoUS(_npu_infer_duration_log[log_idx]));
             info.node_name = std::to_string(i);
             info.exec_type = "INFER_REQ";
             info.node_type = "INFER_REQ";
@@ -193,22 +197,15 @@ NpuInferStatistics NpuInferProfiling::getNpuInferStatistics() const {
                                   std::chrono::microseconds::zero()};
     npuPerfCounts.push_back(std::move(info_max));
 
-    std::vector<int64_t> steady_avg_inputs = _npu_steady_avg_chunks;
-    if (!_npu_current_steady_avg_chunk.empty()) {
-        steady_avg_inputs.push_back(computeTrimmedMean(_npu_current_steady_avg_chunk));
-    }
-    if (!steady_avg_inputs.empty()) {
-        const int64_t steady_avg_cc = std::accumulate(steady_avg_inputs.begin(),
-                                                     steady_avg_inputs.end(),
-                                                     int64_t{0}) /
-                                     static_cast<int64_t>(steady_avg_inputs.size());
+    if (_npu_infer_stats_cnt != 0) {
+        const int64_t steady_avg_cc = getSteadyAverageCC();
         ov::ProfilingInfo info_steady_avg = {ov::ProfilingInfo::Status::EXECUTED,
-                                            std::chrono::microseconds(convertCCtoUS(steady_avg_cc)),
-                                            std::chrono::microseconds(convertCCtoUS(steady_avg_cc)),
-                                            "STEADY_AVG",
-                                            "STEADY_AVG",
-                                            "STEADY_AVG",
-                                            std::chrono::microseconds::zero()};
+                                             std::chrono::microseconds(convertCCtoUS(steady_avg_cc)),
+                                             std::chrono::microseconds(convertCCtoUS(steady_avg_cc)),
+                                             "STEADY_AVG",
+                                             "STEADY_AVG",
+                                             "STEADY_AVG",
+                                             std::chrono::microseconds::zero()};
         npuPerfCounts.push_back(std::move(info_steady_avg));
     }
 
@@ -256,42 +253,32 @@ void NpuInferProfiling::sampleNpuTimestamps() {
     _npu_infer_stats_accu_cc += infer_duration_cc;
     _npu_infer_stats_cnt++;
 
-    _npu_current_steady_avg_chunk.push_back(infer_duration_cc);
-    if (_npu_current_steady_avg_chunk.size() >= _npu_steady_avg_chunk_size) {
-        _npu_steady_avg_chunks.push_back(computeTrimmedMean(_npu_current_steady_avg_chunk));
-        _npu_current_steady_avg_chunk.clear();
-    }
-
-    /// only log individual infer durations if requested
-    if (_loglevel >= ov::log::Level::WARNING) {
-        _npu_infer_duration_log[_npu_infer_logidx++] = infer_duration_cc;
-        if (_npu_infer_logidx >= _npu_infer_log_maxsize)
-            _npu_infer_logidx = 0;
-    }
+    _npu_infer_duration_log[_npu_infer_logidx++] = infer_duration_cc;
+    if (_npu_infer_logidx >= _npu_infer_log_maxsize)
+        _npu_infer_logidx = 0;
 }
 
-int64_t NpuInferProfiling::computeTrimmedMean(const std::vector<int64_t>& values) const {
-    if (values.empty()) {
-        return 0;
+int64_t NpuInferProfiling::getSteadyAverageCC() const {
+    const uint32_t sample_count =
+        static_cast<uint32_t>(std::min<uint64_t>(_npu_infer_stats_cnt, _npu_infer_log_maxsize));
+    const uint32_t first_log_idx = (_npu_infer_stats_cnt > _npu_infer_log_maxsize) ? _npu_infer_logidx : 0;
+    std::vector<int64_t> durations;
+    durations.reserve(sample_count);
+    for (uint32_t i = 0; i < sample_count; ++i) {
+        durations.push_back(_npu_infer_duration_log[(first_log_idx + i) % _npu_infer_log_maxsize]);
     }
 
-    const int64_t mean_cc = std::accumulate(values.begin(), values.end(), int64_t{0}) /
-                            static_cast<int64_t>(values.size());
-    const int64_t trim_delta_cc = mean_cc * 5 / 100;
-    std::vector<int64_t> trimmed_values;
-    trimmed_values.reserve(values.size());
-    for (const auto value_cc : values) {
-        if (value_cc >= mean_cc - trim_delta_cc && value_cc <= mean_cc + trim_delta_cc) {
-            trimmed_values.push_back(value_cc);
-        }
+    const uint32_t trimmed_sample_count = sample_count / 100;
+    const uint32_t included_sample_count = sample_count - trimmed_sample_count;
+    if (trimmed_sample_count != 0) {
+        std::nth_element(durations.begin(), durations.begin() + included_sample_count, durations.end());
     }
 
-    if (trimmed_values.empty()) {
-        return mean_cc;
+    long double included_duration_sum = 0;
+    for (uint32_t i = 0; i < included_sample_count; ++i) {
+        included_duration_sum += durations[i];
     }
-
-    return std::accumulate(trimmed_values.begin(), trimmed_values.end(), int64_t{0}) /
-           static_cast<int64_t>(trimmed_values.size());
+    return static_cast<int64_t>(included_duration_sum / included_sample_count);
 }
 
 int64_t NpuInferProfiling::convertCCtoUS(int64_t val_cc) const {
