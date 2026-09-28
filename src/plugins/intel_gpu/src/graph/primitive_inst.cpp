@@ -1084,6 +1084,9 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         // to prevent reading beyond the allocated memory bounds
         if (user->get_node().is_type<fully_connected>() && user->is_dynamic()) {
             if (user->_deps[0].first == this || (is_fused_prim_of_user(id()) && user->_update_shape_done_by_other)) {
+                if (get_node().is_type<dynamic_quantize>() && (user->_deps[0].first != this || user->_deps[0].second != 0)) {
+                    continue;
+                }
                 size_t dep_idx = 0;
                 for (const auto& dep : user->_deps) {
                     if (dep.first->id() == id()) {
@@ -1115,12 +1118,16 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                 // dynamic quantization is only applied to activation of FC
                 if (get_node().is_type<dynamic_quantize>()) {
                     const auto& desc = get_node().as<dynamic_quantize>().get_primitive();
-                    auto dyn_quan_scale_layout = dynamic_quantize_inst::__calc_output_layouts<ov::PartialShape>(get_node().as<dynamic_quantize>(),
-                                                                                                                updated_layouts[dep_idx],
-                                                                                                                desc->attrs);
-                    GPU_DEBUG_TRACE_DETAIL << "update layout of dynamic quantize scale parameter layout " << dyn_quan_scale_layout[1].to_short_string()
-                                           << std::endl;
-                    updated_params.output_layouts[1] = dyn_quan_scale_layout[1];
+                    auto dyn_quan_layouts = dynamic_quantize_inst::__calc_output_layouts<ov::PartialShape>(get_node().as<dynamic_quantize>(),
+                                                                                                            updated_layouts[dep_idx],
+                                                                                                            desc->attrs);
+                    // Scale, zero-point and precomputed-reduction outputs are read with the fake-aligned row count.
+                    for (size_t i = 1; i < dyn_quan_layouts.size() && i < updated_layouts.size(); ++i) {
+                        GPU_DEBUG_TRACE_DETAIL << "update layout of dynamic quantize output[" << i << "] "
+                                               << dyn_quan_layouts[i].to_short_string() << std::endl;
+                        updated_layouts[i] = dyn_quan_layouts[i];
+                        updated_params.output_layouts[i] = dyn_quan_layouts[i];
+                    }
                 }
             }
         }
