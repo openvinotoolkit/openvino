@@ -7,7 +7,10 @@
 #include <gtest/gtest.h>
 
 #include <array>
+#include <cstddef>
+#include <cstdint>
 #include <cstring>
+#include <limits>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -133,6 +136,33 @@ TEST(OrcTest, RejectsTruncatedFile) {
     EXPECT_THROW(read_file(truncated), ov::Exception);
 }
 
+TEST(OrcTest, RejectsLeafSizeExceedingAvailableDataBeforeAllocation) {
+    SectionHeader header{TYPE_TEST,
+                         1u,
+                         static_cast<SectionFlags>(SectionFlag::LEAF),
+                         std::numeric_limits<std::size_t>::max()};
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    auto writer = Stream::writer(buffer);
+    writer & header;
+
+    auto reader = Stream::reader(buffer);
+    Section section;
+    EXPECT_THROW(reader & section, ov::Exception);
+    EXPECT_EQ(section.payload.capacity(), 0u);
+}
+
+TEST(OrcTest, RejectsContainerSizeExceedingAvailableDataBeforeAllocation) {
+    SectionHeader header{TYPE_TEST, 1u, 0u, std::numeric_limits<std::size_t>::max()};
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    auto writer = Stream::writer(buffer);
+    writer & header;
+
+    auto reader = Stream::reader(buffer);
+    Section section;
+    EXPECT_THROW(reader & section, ov::Exception);
+    EXPECT_TRUE(section.children.empty());
+}
+
 // A forged element count must not drive an unbounded vector::reserve()
 // before any element has actually been decoded.
 TEST(OrcTest, RejectsOversizedVectorCountBeforeReserve) {
@@ -148,10 +178,8 @@ TEST(OrcTest, RejectsOversizedVectorCountBeforeReserve) {
 
 // Same forged count, but through an istream-backed Stream::reader — the actual path
 // used by CompiledModel/LLMCompiledModel to decode embedded ParameterVector/NodeVector
-// metadata. remaining() is unavailable for this stream kind, so the fix must rely on
-// incremental push_back (no upfront reserve()) rather than the memory-stream bound
-// check; this proves that guarantee still holds for the security-critical call sites.
-TEST(OrcTest, RejectsOversizedVectorCountViaIstreamReaderBeforeGrowth) {
+// metadata. The available-byte preflight must reject it before reserve().
+TEST(OrcTest, RejectsOversizedVectorCountViaIstreamReaderBeforeReserve) {
     const std::size_t forged_count = 0x10000000ULL;  // ~268M elements, no element data follows
     std::array<std::byte, sizeof(forged_count)> payload{};
     std::memcpy(payload.data(), &forged_count, sizeof(forged_count));
@@ -210,6 +238,18 @@ TEST(OrcTest, ScopedSectionsRoundTripMetadataBeforeChildren) {
     EXPECT_EQ(child_meta.value, 7u);
     child.expect_end();
     root.expect_end();
+}
+
+TEST(OrcTest, RejectsScopedSectionSizeExceedingAvailableDataBeforeAllocation) {
+    SectionHeader header{TYPE_TEST,
+                         1u,
+                         static_cast<SectionFlags>(SectionFlag::LEAF),
+                         std::numeric_limits<std::size_t>::max()};
+    std::stringstream buffer(std::ios::in | std::ios::out | std::ios::binary);
+    auto writer = Stream::writer(buffer);
+    writer & header;
+
+    EXPECT_THROW(ScopedReadSection section(buffer), ov::Exception);
 }
 
 TEST(OrcTest, IsOrcReturnsTrueForValidBlob) {
