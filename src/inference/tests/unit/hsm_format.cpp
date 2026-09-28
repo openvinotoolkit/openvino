@@ -32,8 +32,12 @@ std::vector<uint8_t> make_container(const runtime::BlobMagic& magic,
 
     std::vector<uint8_t> buffer(sizeof(header));
     std::memcpy(buffer.data(), &header, sizeof(header));
-    buffer.insert(buffer.end(), section_payload.begin(), section_payload.end());
-    buffer.insert(buffer.end(), manifest.begin(), manifest.end());
+    if (!section_payload.empty()) {
+        buffer.insert(buffer.end(), section_payload.begin(), section_payload.end());
+    }
+    if (!manifest.empty()) {
+        buffer.insert(buffer.end(), manifest.begin(), manifest.end());
+    }
     return buffer;
 }
 

@@ -51,7 +51,9 @@ std::vector<uint8_t> make_container(std::vector<EntrySpec> specs,
         if (spec.entry.tag.is_pointer()) {
             spec.entry.offset = sizeof(runtime::HSMHeader) + payloads.size();
             spec.entry.size = spec.payload.size();
-            payloads.insert(payloads.end(), spec.payload.begin(), spec.payload.end());
+            if (!spec.payload.empty()) {
+                payloads.insert(payloads.end(), spec.payload.begin(), spec.payload.end());
+            }
         }
     }
 
@@ -72,8 +74,12 @@ std::vector<uint8_t> make_container(std::vector<EntrySpec> specs,
 
     std::vector<uint8_t> buffer(sizeof(header));
     std::memcpy(buffer.data(), &header, sizeof(header));
-    buffer.insert(buffer.end(), payloads.begin(), payloads.end());
-    buffer.insert(buffer.end(), manifest.begin(), manifest.end());
+    if (!payloads.empty()) {
+        buffer.insert(buffer.end(), payloads.begin(), payloads.end());
+    }
+    if (!manifest.empty()) {
+        buffer.insert(buffer.end(), manifest.begin(), manifest.end());
+    }
     return buffer;
 }
 
