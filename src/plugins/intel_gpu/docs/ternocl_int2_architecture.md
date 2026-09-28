@@ -59,7 +59,8 @@ holds; anything else falls through to the existing paths unchanged:
 
 - weights are a constant `u2` `[N, K]` with `K % 128 == 0` and `N % 16 == 0`
   (one lane per output column; the kernels clip partial tiles, so N is not padded)
-- activations are `f16`, `bfyx`, unpadded; output is `f16` or `f32`, `bfyx`, unpadded
+- activations are `f16`, a plain row-major `[M, K]` matrix without padding
+  (`format::bfyx`); the output is `f16` or `f32`, row-major `[M, N]` without padding
 - the fused chain maps onto one epilogue (`ternocl_int2_postop()`):
 
 | Fused chain | Typical layer | `POSTOP` |
@@ -197,10 +198,16 @@ launch class and build its kernels on first use:
 | >= 64 | up-convert M-tiled | `mt_tile()`: exact (K, N) entries, per GPU class |
 | > 8, with `OV_TERNOCL_INT2_INT8_PREFILL=1` | `quant_a` + `int2_int8_gemm_mt` | `int8_tile()`: exact (K, N) entries per M band (<= 16, <= 32, < 64, >= 64), default tile per band |
 
-The up-convert tables are tuned per GPU class (discrete and integrated Xe2) with
-TernOCL's `bench.sh` / `sweep_midm.sh` for the Bonsai 8B and 27B shapes; the int8
-table for the Bonsai 27B shapes on discrete Xe2. Shapes without an entry use a
-default tile.
+The tiles are hard-coded tables in `fully_connected_ternocl_int2.cpp`, filled from
+TernOCL's benchmark sweeps (`bench.sh`, `sweep_midm.sh`):
+
+- **up-convert**: one set of tables for discrete Xe2 and one for integrated Xe2
+  (selected from the device type), with entries for the Bonsai 8B and 27B layer
+  shapes on discrete and the 27B shapes on integrated;
+- **int8 prefill**: one table, with entries for the Bonsai 27B layer shapes,
+  tuned on discrete Xe2;
+- any other shape uses a default tile per launch class: it runs correctly, but
+  is not tuned.
 
 Overrides for sweeps: `OV_TERNOCL_INT2_GEMV="wgn,ls,u"`,
 `OV_TERNOCL_INT2_MID="mt_m,mt_n,wg_m,wg_n"` (M < 64),
