@@ -42,25 +42,31 @@ file(WRITE "${ONECORE_API_VALIDATOR_OUTPUT}" "CMAKE COMMAND: ${command}\n\n\n${o
 
 get_filename_component(name "${ONECORE_API_VALIDATOR_TARGET}" NAME)
 
-if(CMAKE_TOOLCHAIN_FILE MATCHES "onecoreuap.toolchain.cmake$")
-    # empty since we compile with static MSVC runtime
-else()
-    set(exclusion_dlls "msvcp140.dll" "vcruntime140.dll" "vcruntime140_1.dll")
+if(NOT ONECORE_HAS_BINARY_EXCLUSION)
+    if(CMAKE_TOOLCHAIN_FILE MATCHES "onecoreuap.toolchain.cmake$")
+        # empty since we compile with static MSVC runtime
+    else()
+        set(exclusion_dlls "msvcp140.dll" "vcruntime140.dll")
+    endif()
+
+    # remove exclusions from error_message
+
+    foreach(dll IN LISTS exclusion_dlls)
+        string(REGEX REPLACE
+                "ApiValidation: Error: ${name} has unsupported API call to \"${dll}![^\"]+\"\n"
+                "" error_message "${error_message}")
+    endforeach()
+
+    # throw error if error_message still contains any errors
+
+    if(error_message)
+        message(FATAL_ERROR "${error_message}")
+    endif()
 endif()
 
-# remove exclusions from error_message
-# (the WDK BinaryExclusionlist.xml used via -BinaryExclusionListXmlFile does not know
-#  about vcruntime140_1.dll, so this filtering is required even when it is used)
+# write output
 
-foreach(dll IN LISTS exclusion_dlls)
-    string(REGEX REPLACE
-            "ApiValidation: Error: ${name} has unsupported API call to \"${dll}![^\"]+\"\n"
-            "" error_message "${error_message}")
-endforeach()
-
-# throw error if error_message still contains any errors
-
-if(error_message MATCHES "ApiValidation: Error:")
+if(ONECORE_HAS_BINARY_EXCLUSION AND NOT exit_code EQUAL 0)
     message(FATAL_ERROR "${error_message}")
 endif()
 
