@@ -189,6 +189,37 @@
         '!tests/model_hub_tests/jax/**/*',
         '!tests/model_hub_tests/gguf/**/*']
 
+# Nightly PyTorch model hub scopes, run in pre-commit only when these files change
+'category: PyTorch Models Scope1':
+- '.github/workflows/job_pytorch_models_tests.yml'
+- 'tests/requirements_pytorch'
+- 'tests/model_hub_tests/models_hub_common/**/*'
+- 'tests/model_hub_tests/pytorch/conftest.py'
+- 'tests/model_hub_tests/pytorch/torch_utils.py'
+- 'tests/model_hub_tests/pytorch/scripts/**/*'
+- 'tests/model_hub_tests/pytorch/test_timm.py'
+- 'tests/model_hub_tests/pytorch/timm_models'
+- 'tests/model_hub_tests/pytorch/envs/timm.txt'
+- 'tests/model_hub_tests/pytorch/test_torchvision_models.py'
+- 'tests/model_hub_tests/pytorch/torchvision_models'
+- 'tests/model_hub_tests/pytorch/envs/torchvision.txt'
+- 'tests/model_hub_tests/pytorch/test_edsr.py'
+- 'tests/model_hub_tests/pytorch/envs/edsr.txt'
+
+'category: PyTorch Models Scope2':
+- '.github/workflows/job_pytorch_models_tests.yml'
+- 'tests/requirements_pytorch'
+- 'tests/model_hub_tests/models_hub_common/**/*'
+- any: ['tests/model_hub_tests/pytorch/**/*',
+        '!tests/model_hub_tests/pytorch/test_timm.py',
+        '!tests/model_hub_tests/pytorch/timm_models',
+        '!tests/model_hub_tests/pytorch/envs/timm.txt',
+        '!tests/model_hub_tests/pytorch/test_torchvision_models.py',
+        '!tests/model_hub_tests/pytorch/torchvision_models',
+        '!tests/model_hub_tests/pytorch/envs/torchvision.txt',
+        '!tests/model_hub_tests/pytorch/test_edsr.py',
+        '!tests/model_hub_tests/pytorch/envs/edsr.txt']
+
 'category: JAX FE':
 - 'src/frontends/jax/**/*'
 - 'src/bindings/python/src/openvino/frontend/jax/**/*'

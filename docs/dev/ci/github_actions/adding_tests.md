@@ -192,6 +192,20 @@ instead of pre-commit.
 Refer to the [Overview of the OpenVINO GitHub Actions CI](./overview.md#workflows-triggers-and-schedule) to learn more about triggers and schedules.
 Additionally, [using a more powerful runner](./runners.md) can help shorten the execution time.
 
+A nightly job can also run in pre-commit only for pull requests that change its tests, and on
+manual dispatch. For example, `PyTorch_Models_Tests_Nightly_Scope1/2` in
+[ubuntu_22.yml](../../../../.github/workflows/ubuntu_22.yml):
+* a dedicated label in [labeler.yml](../../../../.github/labeler.yml)
+  (`category: PyTorch Models Scope1`) lists the files of the scope;
+* the component is added to [components.yml](../../../../.github/components.yml) with empty
+  `revalidate` and `build`, so it does not extend the scope of other jobs;
+* the job condition is
+  `github.event_name == 'pull_request' && fromJSON(needs.smart_ci.outputs.changed_components).<Component>`.
+  Use `changed_components`, not `affected_components`. `affected_components` enables every
+  component for full-scope runs, for example when `.github` files change;
+* a `workflow_dispatch` input selects the job for manual runs:
+  `gh workflow run ubuntu_22.yml --ref <branch> -f pytorch-models-nightly-scope=scope1`.
+
 ### Adding a Workflow
 
 When adding a new workflow, check the execution times of existing workflows. The new workflow
