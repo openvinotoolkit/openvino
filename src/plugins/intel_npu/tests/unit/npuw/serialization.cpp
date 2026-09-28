@@ -2044,6 +2044,24 @@ TEST(SerializationTest, NoCompiledModelNonSentinelQuantDstIdxFails) {
     EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, {0, -1, -1, -1, -1}, 0, 0, 0), ov::Exception);
 }
 
+TEST(SerializationTest, RuntimeBehaviorOwningFunctionPrologueAllowsSmallerCompiledModel) {
+    auto plugin = std::make_shared<NullPlugin>();
+    auto model = make_validation_model(7);
+    auto submodel = ov::npuw::CompiledModelDescTestAccessor::make();
+    ov::npuw::CompiledModelDescTestAccessor::compiled_model(submodel) =
+        ov::SoPtr<ov::ICompiledModel>{std::make_shared<MockSubCompiledModel>(model, plugin, ov::AnyMap{}), {}};
+    ov::npuw::CompiledModelDescTestAccessor::param_base(submodel) = 18;
+
+    ov::npuw::CompiledModelDescTestAccessor::SubmodelVec submodels;
+    submodels.push_back(std::move(submodel));
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
+
+    ov::npuw::v1::subgraphs::RuntimeBehaviorSpec behavior;
+    behavior.handles_function_prologue = true;
+    submodels[0].pipeline.runtime_behavior = std::move(behavior);
+    EXPECT_NO_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels));
+}
+
 TEST(SerializationTest, FuncallSubmodelValidHostGatherPasses) {
     auto plugin = std::make_shared<NullPlugin>();
     auto model = make_validation_model(8);
