@@ -14,12 +14,17 @@
 
 #include "op_table.hpp"
 #include "op_test_utils.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/divide.hpp"
+#include "openvino/op/extractimagepatches.hpp"
 #include "openvino/op/eye.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/selective_ssm.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/topk.hpp"
+#include "transformations/convert_precision.hpp"
+#include "transformations/rt_info/disable_precision_conversion.hpp"
 #include "utils.hpp"
 
 using namespace ov_gguf_test;
@@ -3294,6 +3299,33 @@ TEST(GGUFOps, DivBroadcast) {
     expect_near(out, {1, 1, 3, 2});
 }
 
+// Only the Divide stays in f32 under f16 inference: the MoE weight renormalization (Gemma 4 26B)
+// is multiplied by a constant per-expert scale, which must not end up in a different precision.
+TEST(GGUFOps, DivKeepsOnlyItselfInF32) {
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_DIV")
+                     .input("a", ov::element::f32, {2, 3})
+                     .input("b", ov::element::f32, {2, 3})
+                     .output("out", ov::element::f32, {2, 3})
+                     .build();
+    auto result = model->get_results()[0];
+    auto div = result->get_input_node_shared_ptr(0);
+    ASSERT_TRUE(ov::is_type<ov::op::v1::Divide>(div));
+    auto scale = ov::op::v0::Constant::create(ov::element::f32, {2, 3}, {1, 2, 3, 4, 5, 6});
+    result->input(0).replace_source_output(std::make_shared<ov::op::v1::Multiply>(div, scale));
+    model->validate_nodes_and_infer_types();
+
+    // The configuration the GPU plugin uses for f16 inference.
+    ov::pass::ConvertPrecision({{ov::element::f32, ov::element::f16}}, {}, true, false, true).run_on_model(model);
+
+    ASSERT_NO_THROW(model->validate_nodes_and_infer_types());
+    EXPECT_TRUE(ov::is_conversion_disabled(div, ov::element::f16));
+    EXPECT_EQ(div->get_output_element_type(0), ov::element::f32);
+    for (const auto& param : model->get_parameters()) {
+        EXPECT_FALSE(ov::is_conversion_disabled(param, ov::element::f16)) << param->get_friendly_name();
+    }
+}
+
 // Div over an empty token axis, as produced by a non-final chunked-prefill chunk (see
 // MulMatIdEmptyTokens). Both operands are empty, so the ggml-style repeat has nothing to repeat and
 // must be skipped rather than computing a 0/0 repeat count.
@@ -3640,6 +3672,42 @@ TEST(GGUFOps, Im2colDynamicRectangularGridsMatchCPU) {
         request.infer();
         EXPECT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{1, height - 1, (width + 1) / 2, 12}));
         expect_near(request.get_output_tensor(), load_npy<float>("mmproj_im2col" + std::to_string(width)));
+    }
+}
+
+// Non-overlapping patches (stride == kernel, Gemma 4 unified vision) avoid ExtractImagePatches,
+// which the GPU plugin can't compile for dynamic image sizes, and crop partial patches the same way.
+TEST(GGUFOps, Im2colNonOverlappingPatches) {
+    const size_t IC = 2, KH = 2, KW = 3;
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_IM2COL")
+                     .input("kernel", ov::element::f32, {1, IC, KH, KW})
+                     .input("image", ov::element::f32, {1, IC, -1, -1})
+                     .output("out", ov::element::f32, {1, -1, -1, IC * KH * KW})
+                     .attr<std::vector<int32_t>>("im2col_params", {KW, KH, 0, 0, 1, 1, 1})
+                     .build();
+    for (const auto& op : model->get_ops()) {
+        EXPECT_FALSE(ov::is_type<ov::op::v3::ExtractImagePatches>(op));
+    }
+    ov::Core core;
+    auto request =
+        core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32)).create_infer_request();
+    for (const auto& [height, width] : {std::pair<size_t, size_t>{4, 6}, {5, 7}}) {
+        std::vector<float> image(IC * height * width);
+        for (size_t i = 0; i < image.size(); ++i)
+            image[i] = static_cast<float>(i);
+        request.set_tensor("image", make_f32_tensor({1, IC, height, width}, image));
+        request.infer();
+        const size_t OH = height / KH, OW = width / KW;
+        std::vector<float> expected;
+        for (size_t oh = 0; oh < OH; ++oh)
+            for (size_t ow = 0; ow < OW; ++ow)
+                for (size_t c = 0; c < IC; ++c)
+                    for (size_t kh = 0; kh < KH; ++kh)
+                        for (size_t kw = 0; kw < KW; ++kw)
+                            expected.push_back(image[(c * height + oh * KH + kh) * width + ow * KW + kw]);
+        EXPECT_EQ(request.get_output_tensor().get_shape(), (ov::Shape{1, OH, OW, IC * KH * KW}));
+        expect_near(request.get_output_tensor(), expected);
     }
 }
 

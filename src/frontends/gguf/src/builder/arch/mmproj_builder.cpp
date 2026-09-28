@@ -17,6 +17,9 @@
 namespace ov::frontend::gguf {
 namespace {
 
+// Power-of-two shrink that keeps Gemma 4 unified-vision activations within F16.
+constexpr float kUnifiedShrink = 1.f / 16;
+
 enum class EncoderTopology {
     Siglip,
     Clip,
@@ -660,7 +663,11 @@ private:
             // before the mean reduction, whose F32 accumulation otherwise loses precision.
             x = g.node("GGML_OP_SUB", {x, slice(x, 3, 0, 1)});
             x = norm(x, "v.patch_norm.1", 1e-5f);
-            x = norm(linear(x, "v.patch_embd"), "v.patch_norm.2", 1e-5f);
+            // The patch projection reaches 1.5e5 on real images, beyond F16. LayerNorm is invariant
+            // to a uniform scale once its eps shrinks by the square, so compute it shrunk.
+            x = linear(scale(x, kUnifiedShrink), "v.patch_embd", /*with_bias=*/false);
+            x = add(x, scale(g.tensors().require("v.patch_embd.bias"), kUnifiedShrink));
+            x = norm(x, "v.patch_norm.2", 1e-5f * kUnifiedShrink * kUnifiedShrink);
         } else {
             spatial = convolution(c.topology == EncoderTopology::Gemma4 ? scale(pixels, 2.f, -1.f) : pixels,
                                   "v.patch_embd.weight",
@@ -683,9 +690,11 @@ private:
                               g.node("GGML_OP_GET_ROWS", {slice(table, 1, 1, 1), pos_b}));
             }
         }
-        if (c.topology == EncoderTopology::UnifiedVision)
-            return linear(g.build_norm(norm(add(x, learned), "v.patch_norm.3", 1e-5f), {}, c.eps),
-                          "mm.input_projection");
+        if (c.topology == EncoderTopology::UnifiedVision) {
+            // The RMSNorm input squared exceeds F16 (x up to ~800); RMSNorm is scale-invariant as well.
+            auto normed = scale(norm(add(x, learned), "v.patch_norm.3", 1e-5f), kUnifiedShrink);
+            return linear(g.build_norm(normed, {}, c.eps * kUnifiedShrink * kUnifiedShrink), "mm.input_projection");
+        }
         // Pixtral uses height then width, with alternating frequencies; Gemma4 uses x then y, NEOX halves.
         x = vit(x,
                 c,

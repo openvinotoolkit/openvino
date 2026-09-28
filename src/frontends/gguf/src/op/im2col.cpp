@@ -14,15 +14,53 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/extractimagepatches.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/pad.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/util/attr_types.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::gguf::op {
+
+namespace {
+
+// Non-overlapping patches (a ViT patch embedding) are a pure reshape: crop to whole patches like
+// ExtractImagePatches VALID, split H and W into (patches, patch), and move each patch's (C, KH, KW)
+// to the last axis. ExtractImagePatches has no dynamic-shape GPU implementation.
+ov::Output<Node> non_overlapping_patches(const ov::Output<Node>& image, size_t IC, size_t KH, size_t KW) {
+    using ov::op::v0::Constant;
+    const auto shape = std::make_shared<ov::op::v3::ShapeOf>(image, ov::element::i64);
+    const auto kernel = Constant::create(ov::element::i64,
+                                         {2},
+                                         std::vector<int64_t>{static_cast<int64_t>(KH), static_cast<int64_t>(KW)});
+    const auto patches = std::make_shared<ov::op::v1::Divide>(gather_dims(shape, {2, 3}), kernel);
+    const auto cropped = std::make_shared<ov::op::v8::Slice>(image,
+                                                             Constant::create(ov::element::i64, {2}, {0, 0}),
+                                                             std::make_shared<ov::op::v1::Multiply>(patches, kernel),
+                                                             Constant::create(ov::element::i64, {2}, {1, 1}),
+                                                             Constant::create(ov::element::i64, {2}, {2, 3}));
+    const auto split_shape = std::make_shared<ov::op::v0::Concat>(
+        ov::OutputVector{gather_dims(shape, {0, 1}),
+                         gather_dims(patches, {0}),
+                         Constant::create(ov::element::i64, {1}, {static_cast<int64_t>(KH)}),
+                         gather_dims(patches, {1}),
+                         Constant::create(ov::element::i64, {1}, {static_cast<int64_t>(KW)})},
+        0);
+    const auto split = std::make_shared<ov::op::v1::Reshape>(cropped, split_shape, false);
+    const auto grouped =
+        std::make_shared<ov::op::v1::Transpose>(split, Constant::create(ov::element::i64, {6}, {0, 2, 4, 1, 3, 5}));
+    return std::make_shared<ov::op::v1::Reshape>(
+        grouped,
+        Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 0, 0, static_cast<int64_t>(IC * KH * KW)}),
+        true);
+}
+
+}  // namespace
 
 // GGML_OP_IM2COL: unfold a 1D/2D convolution input into column patches (conv / vision models).
 // The decoder exposes the conv params (strides/pads/dilations + is_2D) as a typed int vector.
@@ -65,6 +103,21 @@ OutputVector translate_im2col(const NodeContext& context) {
         image = std::make_shared<ov::op::v1::Reshape>(image, image_reshape_shape, false);
     }
 
+    // Older cgraph decoders expose ggml_im2col's dst_type as output_type.
+    const auto output_type = context.get_attribute<ov::element::Type>(
+        "dst_type",
+        context.get_attribute<ov::element::Type>("output_type", ov::element::dynamic));
+    FRONT_END_OP_CONVERSION_CHECK(output_type.is_static(), "IM2COL requires 'dst_type'");
+
+    if (is_2D && stride_h == static_cast<int32_t>(KH) && stride_w == static_cast<int32_t>(KW) && pad_h == 0 &&
+        pad_w == 0 && dil_h == 1 && dil_w == 1) {
+        res = non_overlapping_patches(image, IC, KH, KW);
+        if (res.get_element_type() != output_type) {
+            res = std::make_shared<ov::op::v0::Convert>(res, output_type);
+        }
+        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
+    }
+
     const ov::Shape patch_sizes = {KH, KW};
     const ov::Strides strides = {static_cast<size_t>(stride_h), static_cast<size_t>(stride_w)};
     const ov::Shape rates = {static_cast<size_t>(dil_h), static_cast<size_t>(dil_w)};
@@ -103,11 +156,6 @@ OutputVector translate_im2col(const NodeContext& context) {
         res = std::make_shared<ov::op::v1::Reshape>(res, final_reshape_shape, false);
     }
 
-    // Older cgraph decoders expose ggml_im2col's dst_type as output_type.
-    const auto output_type = context.get_attribute<ov::element::Type>(
-        "dst_type",
-        context.get_attribute<ov::element::Type>("output_type", ov::element::dynamic));
-    FRONT_END_OP_CONVERSION_CHECK(output_type.is_static(), "IM2COL requires 'dst_type'");
     if (res.get_element_type() != output_type) {
         res = std::make_shared<ov::op::v0::Convert>(res, output_type);
     }
