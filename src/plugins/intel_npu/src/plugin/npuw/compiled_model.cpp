@@ -1159,8 +1159,8 @@ void ov::npuw::CompiledModel::validate_submodels(const std::vector<CompiledModel
         const std::size_t closure_size = closure_desc.closure.size();
         const bool has_compiled_model = static_cast<bool>(effective_compiled_model);
         const std::size_t n_model_inputs = has_compiled_model ? effective_compiled_model->inputs().size() : 0u;
-        const bool skip_param_base_bound_check = subm.pipeline.runtime_behavior.has_value() &&
-                                                 subm.pipeline.runtime_behavior->handles_function_prologue;
+        const bool skip_param_base_bound_check =
+            subm.pipeline.runtime_behavior.has_value() && subm.pipeline.runtime_behavior->handles_function_prologue;
 
         validate_submodel_indices(subm.host_gather,
                                   subm.quant_unpack_gather,
