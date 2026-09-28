@@ -9,7 +9,7 @@
  * @verbatim
    +---------------------------+---------------------------+---------------------------+
    |         HSMHeader         |      Section payloads     |          Manifest         |
-   |          32 bytes         |     variable size, 0+     | ManifestEntry[], 32B each |
+   |          32 bytes         |     variable size, 0+     | HSMManifestEntry[], 32B each |
    |          offset 0         |         offset 32         |  offset = manifest_offset |
    +---------------------------+---------------------------+---------------------------+
    @endverbatim
@@ -62,7 +62,7 @@ inline constexpr BlobMagic BlobMagic::multi{ov::util::make_array<uint8_t>('O', '
 
 /**
  * @brief The currently-active HSM v1.x format, as an `inline namespace`: `HSMHeader`, `HSMFormatVersion`,
- * `SectionTag`, `HSMTags`, `ManifestEntry` and friends all resolve here unqualified. A future major version
+ * `HSMSectionTag`, `HSMTags`, `HSMManifestEntry` and friends all resolve here unqualified. A future major version
  * is a plain `namespace v2` alongside this one, explicit until promoted by moving `inline` here. Only
  * #BlobMagic and the basic type aliases above stay shared across every version.
  */
@@ -106,8 +106,8 @@ struct HSMHeader {
     uint8_t version_minor;   //!< Format minor version this container was written with - see #HSMFormatVersion.
 
     HSMSizeType container_size;     //!< Whole container size, in bytes.
-    HSMOffsetType manifest_offset;  //!< Byte offset of the first ManifestEntry.
-    HSMSizeType manifest_size;      //!< Manifest size in bytes; entry count = manifest_size / sizeof(ManifestEntry).
+    HSMOffsetType manifest_offset;  //!< Byte offset of the first HSMManifestEntry.
+    HSMSizeType manifest_size;      //!< Manifest size in bytes; entry count = manifest_size / sizeof(HSMManifestEntry).
 
     /**
      * @brief Non-owning view of the header at the start of an HSM container buffer - reinterprets the bytes
@@ -124,33 +124,53 @@ static_assert(sizeof(HSMHeader) == 32,
               "this struct; readers and writers must be updated together.");
 
 /**
- * @brief Device/plugin that owns a ManifestEntry's section. Device catalog and collision rules follow later.
- * @note Paired with #SectionTag: a reader always compares `(device, tag)` together, never `tag` alone, so two
+ * @brief Device/plugin that owns an HSMManifestEntry's section. Device catalog and collision rules follow later.
+ * @note Paired with #HSMSectionTag: a reader always compares `(device, tag)` together, never `tag` alone, so two
  * devices may reuse the same tag id for unrelated content.
  */
-using DeviceId = uint8_t;
+using HSMDeviceId = uint8_t;
 
-/** @brief Reserved #DeviceId for sections not tied to one specific device. */
-inline constexpr DeviceId any_device_id = 0;
+/** @brief Reserved #HSMDeviceId for sections not tied to one specific device. */
+inline constexpr HSMDeviceId any_device_id = 0;
 
 /**
- * @brief Semantic content of a ManifestEntry section (or inline payload); a raw 3-byte value split into a
+ * @brief Boundary in the 23-bit #HSMSectionTag id space: Core ids are `< core_tag_id_range_end`;
+ * #HSMSectionTag::make_device_tag() only produces ids at/above it, so a device can never collide with a Core tag.
+ */
+inline constexpr uint32_t core_tag_id_range_end = 0x1000;
+
+/** @brief Maximum tag id representable by the 23-bit #HSMSectionTag id space. */
+inline constexpr uint32_t max_tag_id = 0x7FFFFF;
+
+/**
+ * @brief Semantic content of an HSMManifestEntry section (or inline payload); a raw 3-byte value split into a
  * 23-bit tag id (Core-owned range vs. device-specific range) plus a pointer/inline mode flag in bit 7 of
  * `value[0]` - see #is_inline().
  * @note Unknown-tag rule: a reader must skip any `(device, tag)` it doesn't recognize, never fail import.
  */
-struct SectionTag {
+struct HSMSectionTag {
     std::array<uint8_t, 3> value{};  //!< Raw bytes; bit 7 of `value[0]` is the pointer/inline flag.
 
     /**
-     * @brief Packs a 23-bit tag id and the pointer/inline mode flag into a wire SectionTag.
-     * @param id Tag id (Core-owned or device-specific range - see #SectionTag); only the low 23 bits are kept.
+     * @brief Packs a 23-bit tag id and the pointer/inline mode flag into a wire HSMSectionTag.
+     * @param id Tag id (Core-owned or device-specific range - see #HSMSectionTag); only the low 23 bits are kept.
      * @param is_inline true for inline-mode, false for pointer-mode.
      */
-    static constexpr SectionTag make(uint32_t id, bool is_inline) noexcept {
+    static constexpr HSMSectionTag make(uint32_t id, bool is_inline) noexcept {
         return {{static_cast<uint8_t>(((id >> 16) & 0x7F) | (is_inline ? 0x80 : 0x00)),
                  static_cast<uint8_t>((id >> 8) & 0xFF),
                  static_cast<uint8_t>(id & 0xFF)}};
+    }
+
+    /**
+     * @brief Builds a device-specific wire HSMSectionTag from a device-local id; always lands at/above
+     * #core_tag_id_range_end, so it can never collide with a Core tag.
+     * @param local_id Device-local id, starting at 0; must be `<= max_tag_id - core_tag_id_range_end`.
+     * @param is_inline true for inline-mode, false for pointer-mode.
+     */
+    static constexpr HSMSectionTag make_device_tag(uint32_t local_id, bool is_inline) noexcept {
+        OPENVINO_DEBUG_ASSERT(local_id <= max_tag_id - core_tag_id_range_end);
+        return make(core_tag_id_range_end + local_id, is_inline);
     }
 
     /// The 23-bit tag id (mode bit masked out).
@@ -168,16 +188,12 @@ struct SectionTag {
     constexpr bool is_pointer() const noexcept {
         return !is_inline();
     }
+
+    /// Inverse of #make_device_tag(): recovers the device-local id (`id() - core_tag_id_range_end`).
+    constexpr uint32_t device_local_id() const noexcept {
+        return id() - core_tag_id_range_end;
+    }
 };
-
-/**
- * @brief Boundary in the 23-bit #SectionTag id space: Core ids are `< core_tag_id_range_end`;
- * #make_device_tag() only produces ids at/above it, so a device can never collide with a Core tag.
- */
-inline constexpr uint32_t core_tag_id_range_end = 0x1000;
-
-/** @brief Maximum tag id representable by the 23-bit #SectionTag id space. */
-inline constexpr uint32_t max_tag_id = 0x7FFFFF;
 
 /**
  * @brief Core-owned HSM tag identifiers - explicit wire values so reordering is safe; never change or reuse a
@@ -185,9 +201,9 @@ inline constexpr uint32_t max_tag_id = 0x7FFFFF;
  */
 enum class HSMTags : uint32_t {
     invalid = 0,                //!< Reserved: never a real tag id.
-    model_id = 1,               //!< See #model_id.
-    model = 2,                  //!< See #model.
-    runtime_requirements = 3,   //!< See #runtime_requirements_tag().
+    model_id = 1,               //!< See #hsm_model_id.
+    model = 2,                  //!< See #hsm_model.
+    runtime_requirements = 3,   //!< See #hsm_runtime_requirements_tag().
     // Add new Core tags above this line only, each with the next explicit value - never change or reuse an
     // existing tag's value.
     sentinel_count,  // Not a real tag id - always exactly one past the last real entry above.
@@ -195,45 +211,30 @@ enum class HSMTags : uint32_t {
 static_assert(static_cast<uint32_t>(HSMTags::sentinel_count) <= core_tag_id_range_end,
               "Too many Core tags defined for core_tag_id_range_end - widen the boundary.");
 
-inline constexpr uint32_t model_id = static_cast<uint32_t>(HSMTags::model_id);  //!< Model identifier (e.g. a hash).
-inline constexpr uint32_t model = static_cast<uint32_t>(HSMTags::model);  //!< The serialized compiled model itself.
-inline constexpr uint32_t runtime_requirements = static_cast<uint32_t>(HSMTags::runtime_requirements);
+//!< `hsm_` prefix (not just #HSMTags) since these are used bare as `ov::runtime::hsm_model_id` etc.
+inline constexpr uint32_t hsm_model_id = static_cast<uint32_t>(HSMTags::model_id);  //!< Model identifier (e.g. a hash).
+inline constexpr uint32_t hsm_model = static_cast<uint32_t>(HSMTags::model);  //!< The serialized compiled model itself.
+inline constexpr uint32_t hsm_runtime_requirements = static_cast<uint32_t>(HSMTags::runtime_requirements);
 
-/// Wire tag for #model_id - always inline-mode.
-constexpr SectionTag model_id_tag() noexcept {
-    return SectionTag::make(model_id, /*is_inline=*/true);
+/// Wire tag for #hsm_model_id - always inline-mode.
+constexpr HSMSectionTag hsm_model_id_tag() noexcept {
+    return HSMSectionTag::make(hsm_model_id, /*is_inline=*/true);
 }
 
-/// Wire tag for #model - always pointer-mode.
-constexpr SectionTag model_tag() noexcept {
-    return SectionTag::make(model, /*is_inline=*/false);
+/// Wire tag for #hsm_model - always pointer-mode.
+constexpr HSMSectionTag hsm_model_tag() noexcept {
+    return HSMSectionTag::make(hsm_model, /*is_inline=*/false);
 }
 
 /**
- * @brief Wire tag for #runtime_requirements - always pointer-mode. Payload is opaque to the common
+ * @brief Wire tag for #hsm_runtime_requirements - always pointer-mode. Payload is opaque to the common
  * reader/format: this contract only reserves the tag and its bounds (like any pointer-mode section) -
  * interpreting and enforcing the encoded requirements is entirely the emitting device/plugin's
  * responsibility, typically via #IHsmSectionExtension. No expression scheme is defined at this layer
  * (out of scope here; a richer format, if any, belongs to the tag registry).
  */
-constexpr SectionTag runtime_requirements_tag() noexcept {
-    return SectionTag::make(runtime_requirements, /*is_inline=*/false);
-}
-
-/**
- * @brief Builds a device-specific wire #SectionTag from a device-local id; always lands at/above
- * #core_tag_id_range_end, so it can never collide with a Core tag.
- * @param local_id Device-local id, starting at 0; must be `<= max_tag_id - core_tag_id_range_end`
- * @param is_inline true for inline-mode, false for pointer-mode.
- */
-constexpr SectionTag make_device_tag(uint32_t local_id, bool is_inline) noexcept {
-    OPENVINO_DEBUG_ASSERT(local_id <= max_tag_id - core_tag_id_range_end);
-    return SectionTag::make(core_tag_id_range_end + local_id, is_inline);
-}
-
-/// Inverse of #make_device_tag(): recovers the local id (`tag.id() - core_tag_id_range_end`).
-constexpr uint32_t device_local_id(SectionTag tag) noexcept {
-    return tag.id() - core_tag_id_range_end;
+constexpr HSMSectionTag hsm_runtime_requirements_tag() noexcept {
+    return HSMSectionTag::make(hsm_runtime_requirements, /*is_inline=*/false);
 }
 
 /**
@@ -253,18 +254,18 @@ constexpr uint32_t device_local_id(SectionTag tag) noexcept {
    Pointer-mode: offset/size/pointer_reserved are three named 8-byte fields (pointer_reserved must be 0).
    Inline-mode: the whole 24-byte region (offset 8-31) is reinterpreted as `inline_bytes` - up to 24 bytes
    embedded directly in the entry, no separate section payload. Which mode applies is read from
-   #SectionTag::is_inline() - there is no separate mode byte.
+   #HSMSectionTag::is_inline() - there is no separate mode byte.
    @endverbatim
  *
- * @note `#pragma pack(1)` is required: without it, the 3-byte `SectionTag` followed by the 8-byte-aligned
+ * @note `#pragma pack(1)` is required: without it, the 3-byte `HSMSectionTag` followed by the 8-byte-aligned
  * `offset` field would force padding, cascading misalignment through the rest of the struct.
  * @note A specific `(device, tag)` pair may redefine what its own `tag_reserved`/`pointer_reserved` bytes
  * mean; they're zero otherwise. This struct doesn't interpret content.
  */
 #pragma pack(push, 1)
-struct ManifestEntry {
-    DeviceId device;                      //!< Owning device.
-    SectionTag tag;                       //!< Section content;
+struct HSMManifestEntry {
+    HSMDeviceId device;                      //!< Owning device.
+    HSMSectionTag tag;                       //!< Section content;
     std::array<uint8_t, 4> tag_reserved;  //!< Zero, unless the specific (#device, #tag) pair redefines this.
 
     union {
@@ -277,7 +278,7 @@ struct ManifestEntry {
     };
 };
 #pragma pack(pop)
-static_assert(sizeof(ManifestEntry) == 32, "ManifestEntry layout changed.");
+static_assert(sizeof(HSMManifestEntry) == 32, "HSMManifestEntry layout changed.");
 
 /**
  * @brief Checks if the HSM header has a recognized magic number and version.
@@ -300,7 +301,7 @@ constexpr bool is_recognized_header(const HSMHeader& header) noexcept {
  * @return true if the header fields satisfy the basic consistency rules, false otherwise.
  */
 constexpr bool is_valid_header_fields(const HSMHeader& header) noexcept {
-    return is_recognized_header(header) && header.manifest_size % sizeof(ManifestEntry) == 0 &&
+    return is_recognized_header(header) && header.manifest_size % sizeof(HSMManifestEntry) == 0 &&
            header.manifest_offset >= sizeof(HSMHeader) && header.manifest_offset <= header.container_size &&
            header.container_size - header.manifest_offset >= header.manifest_size;
 }
@@ -314,7 +315,7 @@ constexpr bool is_valid_header_fields(const HSMHeader& header) noexcept {
  * @param header The HSM header providing context for bounds checking.
  * @return true if the section bounds are valid, false otherwise.
  */
-constexpr bool is_valid_section_bounds(const ManifestEntry& entry, const HSMHeader& header) noexcept {
+constexpr bool is_valid_section_bounds(const HSMManifestEntry& entry, const HSMHeader& header) noexcept {
     return entry.tag.is_inline() || (entry.offset >= sizeof(HSMHeader) && entry.offset <= header.manifest_offset &&
                                      header.manifest_offset - entry.offset >= entry.size);
 }
@@ -322,7 +323,7 @@ constexpr bool is_valid_section_bounds(const ManifestEntry& entry, const HSMHead
 /**
  * @brief Reader-side plugin hook: interprets one manifest entry's section content. A concrete extension
  * self-dispatches by checking `(entry.device, entry.tag)` and returning whether it recognized it - per the
- * unknown-tag rule on #SectionTag, the reader must skip any entry no extension recognizes, never fail
+ * unknown-tag rule on #HSMSectionTag, the reader must skip any entry no extension recognizes, never fail
  * import.
  * @note Forward-looking contract only - not yet wired to a real reader.
  */
@@ -337,7 +338,7 @@ public:
      * entry, or `entry.inline_bytes` for an inline-mode one; never a raw, unchecked pointer.
      * @return true if `(entry.device, entry.tag)` was recognized and handled, false otherwise.
      */
-    virtual bool read_section(const ManifestEntry& entry, ov::util::MemoryView section) = 0;
+    virtual bool read_section(const HSMManifestEntry& entry, ov::util::MemoryView section) = 0;
 };
 
 /**
@@ -365,17 +366,17 @@ public:
      * @brief Returns the first manifest entry at `header().manifest_offset`.
      * @return The first manifest entry at `header().manifest_offset`.
      */
-    const ManifestEntry& manifest() const noexcept;
+    const HSMManifestEntry& manifest() const noexcept;
 
     /// Number of entries at #manifest().
     size_t manifest_count() const noexcept {
-        return static_cast<size_t>(header().manifest_size / sizeof(ManifestEntry));
+        return static_cast<size_t>(header().manifest_size / sizeof(HSMManifestEntry));
     }
 
     /**
      * @brief Bounds-checked payload bytes of a pointer-mode manifest entry; empty view for an invalid or inline entry.
      */
-    constexpr ov::util::MemoryView section(const ManifestEntry& entry) const noexcept {
+    constexpr ov::util::MemoryView section(const HSMManifestEntry& entry) const noexcept {
         if (entry.tag.is_inline() || entry.offset > size() || entry.size > size() - entry.offset) {
             return {};
         } else {

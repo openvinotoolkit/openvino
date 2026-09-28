@@ -12,8 +12,8 @@ const HSMHeader& HSMContainerView::header() const noexcept {
     return HSMHeader::view(reinterpret_cast<const uint8_t*>(begin()));
 }
 
-const ManifestEntry& HSMContainerView::manifest() const noexcept {
-    return *reinterpret_cast<const ManifestEntry*>(begin() + header().manifest_offset);
+const HSMManifestEntry& HSMContainerView::manifest() const noexcept {
+    return *reinterpret_cast<const HSMManifestEntry*>(begin() + header().manifest_offset);
 }
 
 bool HSMContainerView::validate() const noexcept {
@@ -30,7 +30,7 @@ bool HSMContainerView::validate() const noexcept {
     }
 
     const auto* entries = &manifest();
-    return std::all_of(entries, entries + manifest_count(), [&hdr](const ManifestEntry& entry) {
+    return std::all_of(entries, entries + manifest_count(), [&hdr](const auto& entry) {
         return is_valid_section_bounds(entry, hdr);
     });
 }

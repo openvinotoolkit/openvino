@@ -79,16 +79,16 @@ std::vector<uint8_t> make_sample_single_blob_container() {
 
 // Sample container with real entries: inline model_id tag + pointer-mode model tag ("OV" payload).
 std::vector<uint8_t> make_sample_container_with_entries() {
-    runtime::ManifestEntry id_entry{};
-    id_entry.tag = runtime::model_id_tag();
+    runtime::HSMManifestEntry id_entry{};
+    id_entry.tag = runtime::hsm_model_id_tag();
     id_entry.inline_bytes = {0xAA, 0xBB, 0xCC, 0xDD};
 
-    runtime::ManifestEntry model_entry{};
-    model_entry.tag = runtime::model_tag();
+    runtime::HSMManifestEntry model_entry{};
+    model_entry.tag = runtime::hsm_model_tag();
     model_entry.offset = sizeof(runtime::HSMHeader);
     model_entry.size = 2;
 
-    std::vector<uint8_t> manifest(2 * sizeof(runtime::ManifestEntry));
+    std::vector<uint8_t> manifest(2 * sizeof(runtime::HSMManifestEntry));
     std::memcpy(manifest.data(), &id_entry, sizeof(id_entry));
     std::memcpy(manifest.data() + sizeof(id_entry), &model_entry, sizeof(model_entry));
 
@@ -98,10 +98,10 @@ std::vector<uint8_t> make_sample_container_with_entries() {
 // Minimal IHsmSectionExtension: recognizes one (device, tag id) pair, records the section size it saw.
 class RecordingExtension : public runtime::IHsmSectionExtension {
 public:
-    static constexpr runtime::DeviceId owned_device = 7;
+    static constexpr runtime::HSMDeviceId owned_device = 7;
     static constexpr uint32_t owned_tag_id = 42;
 
-    bool read_section(const runtime::ManifestEntry& entry, ov::util::MemoryView section) override {
+    bool read_section(const runtime::HSMManifestEntry& entry, ov::util::MemoryView section) override {
         if (entry.device != owned_device || entry.tag.id() != owned_tag_id) {
             return false;
         }
@@ -138,19 +138,19 @@ TEST_F(HsmFormatLayoutCompatibilityTest, hsm_header_layout) {
 }
 
 TEST_F(HsmFormatLayoutCompatibilityTest, manifest_entry_layout) {
-    static_assert(sizeof(runtime::ManifestEntry) == 32, "ManifestEntry total size changed");
-    static_assert(offsetof(runtime::ManifestEntry, device) == 0, "ManifestEntry::device offset changed");
-    static_assert(offsetof(runtime::ManifestEntry, tag) == 1, "ManifestEntry::tag offset changed");
-    static_assert(sizeof(runtime::SectionTag) == 3, "SectionTag width changed");
-    static_assert(offsetof(runtime::ManifestEntry, tag_reserved) == 4, "ManifestEntry::tag_reserved offset changed");
-    static_assert(offsetof(runtime::ManifestEntry, offset) == 8, "ManifestEntry::offset offset changed");
-    static_assert(offsetof(runtime::ManifestEntry, size) == 16, "ManifestEntry::size offset changed");
-    static_assert(offsetof(runtime::ManifestEntry, pointer_reserved) == 24,
-                  "ManifestEntry::pointer_reserved offset changed");
-    static_assert(offsetof(runtime::ManifestEntry, inline_bytes) == 8, "ManifestEntry::inline_bytes offset changed");
-    static_assert(sizeof(runtime::ManifestEntry{}.inline_bytes) == 24, "ManifestEntry::inline_bytes width changed");
+    static_assert(sizeof(runtime::HSMManifestEntry) == 32, "HSMManifestEntry total size changed");
+    static_assert(offsetof(runtime::HSMManifestEntry, device) == 0, "HSMManifestEntry::device offset changed");
+    static_assert(offsetof(runtime::HSMManifestEntry, tag) == 1, "HSMManifestEntry::tag offset changed");
+    static_assert(sizeof(runtime::HSMSectionTag) == 3, "HSMSectionTag width changed");
+    static_assert(offsetof(runtime::HSMManifestEntry, tag_reserved) == 4, "HSMManifestEntry::tag_reserved offset changed");
+    static_assert(offsetof(runtime::HSMManifestEntry, offset) == 8, "HSMManifestEntry::offset offset changed");
+    static_assert(offsetof(runtime::HSMManifestEntry, size) == 16, "HSMManifestEntry::size offset changed");
+    static_assert(offsetof(runtime::HSMManifestEntry, pointer_reserved) == 24,
+                  "HSMManifestEntry::pointer_reserved offset changed");
+    static_assert(offsetof(runtime::HSMManifestEntry, inline_bytes) == 8, "HSMManifestEntry::inline_bytes offset changed");
+    static_assert(sizeof(runtime::HSMManifestEntry{}.inline_bytes) == 24, "HSMManifestEntry::inline_bytes width changed");
 
-    EXPECT_EQ(sizeof(runtime::ManifestEntry), 32u);
+    EXPECT_EQ(sizeof(runtime::HSMManifestEntry), 32u);
 }
 
 TEST_F(HsmFormatLayoutCompatibilityTest, blob_magic_is_compile_time_comparable) {
@@ -163,46 +163,47 @@ TEST_F(HsmFormatLayoutCompatibilityTest, blob_magic_is_compile_time_comparable) 
 }
 
 TEST_F(HsmFormatLayoutCompatibilityTest, section_tag_packs_id_and_mode_at_compile_time) {
-    static_assert(runtime::SectionTag::make(1, true).id() == 1u, "tag id round-trip (inline)");
-    static_assert(runtime::SectionTag::make(1, false).id() == 1u, "tag id round-trip (pointer)");
-    static_assert(runtime::SectionTag::make(0x7FFFFF, true).id() == 0x7FFFFFu, "tag id round-trip (max 23-bit id)");
+    static_assert(runtime::HSMSectionTag::make(1, true).id() == 1u, "tag id round-trip (inline)");
+    static_assert(runtime::HSMSectionTag::make(1, false).id() == 1u, "tag id round-trip (pointer)");
+    static_assert(runtime::HSMSectionTag::make(0x7FFFFF, true).id() == 0x7FFFFFu, "tag id round-trip (max 23-bit id)");
 
-    static_assert(runtime::SectionTag::make(1, true).is_inline(), "make(id, true) must produce an inline-mode tag");
-    static_assert(!runtime::SectionTag::make(1, true).is_pointer(),
+    static_assert(runtime::HSMSectionTag::make(1, true).is_inline(), "make(id, true) must produce an inline-mode tag");
+    static_assert(!runtime::HSMSectionTag::make(1, true).is_pointer(),
                   "inline-mode tag must not also read as pointer-mode");
-    static_assert(runtime::SectionTag::make(2, false).is_pointer(), "make(id, false) must produce a pointer-mode tag");
-    static_assert(!runtime::SectionTag::make(2, false).is_inline(),
+    static_assert(runtime::HSMSectionTag::make(2, false).is_pointer(), "make(id, false) must produce a pointer-mode tag");
+    static_assert(!runtime::HSMSectionTag::make(2, false).is_inline(),
                   "pointer-mode tag must not also read as inline-mode");
 
     SUCCEED();
 }
 
 TEST_F(HsmFormatLayoutCompatibilityTest, core_tags_have_fixed_mode) {
-    static_assert(runtime::model_id_tag().id() == runtime::model_id, "model_id_tag id");
-    static_assert(runtime::model_id_tag().is_inline(), "model_id_tag must always be inline-mode");
+    static_assert(runtime::hsm_model_id_tag().id() == runtime::hsm_model_id, "hsm_model_id_tag id");
+    static_assert(runtime::hsm_model_id_tag().is_inline(), "hsm_model_id_tag must always be inline-mode");
 
-    static_assert(runtime::model_tag().id() == runtime::model, "model_tag id");
-    static_assert(runtime::model_tag().is_pointer(), "model_tag must always be pointer-mode");
+    static_assert(runtime::hsm_model_tag().id() == runtime::hsm_model, "hsm_model_tag id");
+    static_assert(runtime::hsm_model_tag().is_pointer(), "hsm_model_tag must always be pointer-mode");
 
-    static_assert(runtime::runtime_requirements_tag().id() == runtime::runtime_requirements,
-                  "runtime_requirements_tag id");
-    static_assert(runtime::runtime_requirements_tag().is_pointer(),
-                  "runtime_requirements_tag must always be pointer-mode");
+    static_assert(runtime::hsm_runtime_requirements_tag().id() == runtime::hsm_runtime_requirements,
+                  "hsm_runtime_requirements_tag id");
+    static_assert(runtime::hsm_runtime_requirements_tag().is_pointer(),
+                  "hsm_runtime_requirements_tag must always be pointer-mode");
 
     SUCCEED();
 }
 
 TEST_F(HsmFormatLayoutCompatibilityTest, device_tags_cannot_collide_with_core_tags) {
     // A device tag built from local id 0 must never land in the Core-owned range, no matter how small the
-    // local id is - this is the whole point of make_device_tag() vs. picking a raw absolute id by hand.
-    static_assert(runtime::device_local_id(runtime::make_device_tag(0, true)) == 0,
+    // local id is - this is the whole point of HSMSectionTag::make_device_tag() vs. picking a raw absolute id by hand.
+    static_assert(runtime::HSMSectionTag::make_device_tag(0, true).device_local_id() == 0,
                   "make_device_tag()/device_local_id() must round-trip the local id");
-    static_assert(runtime::make_device_tag(0, true).id() == runtime::core_tag_id_range_end,
+    static_assert(runtime::HSMSectionTag::make_device_tag(0, true).id() == runtime::core_tag_id_range_end,
                   "make_device_tag(0, ...) must land exactly at the range boundary");
-    static_assert(runtime::make_device_tag(0, true).id() >= runtime::core_tag_id_range_end,
+    static_assert(runtime::HSMSectionTag::make_device_tag(0, true).id() >= runtime::core_tag_id_range_end,
                   "device tag ids must never fall below core_tag_id_range_end");
-    static_assert(runtime::model_id < runtime::core_tag_id_range_end, "model_id must stay below core_tag_id_range_end");
-    static_assert(runtime::model < runtime::core_tag_id_range_end, "model must stay below core_tag_id_range_end");
+    static_assert(runtime::hsm_model_id < runtime::core_tag_id_range_end,
+                  "hsm_model_id must stay below core_tag_id_range_end");
+    static_assert(runtime::hsm_model < runtime::core_tag_id_range_end, "hsm_model must stay below core_tag_id_range_end");
 
     SUCCEED();
 }
@@ -280,12 +281,12 @@ TEST(HsmContainerViewTest, reads_manifest_entries) {
     const auto* manifest = &view.manifest();
 
     const auto& id_entry = manifest[0];
-    EXPECT_EQ(id_entry.tag.id(), runtime::model_id);
+    EXPECT_EQ(id_entry.tag.id(), runtime::hsm_model_id);
     EXPECT_TRUE(id_entry.tag.is_inline());
     EXPECT_EQ(id_entry.inline_bytes[0], 0xAA);
 
     const auto& model_entry = manifest[1];
-    EXPECT_EQ(model_entry.tag.id(), runtime::model);
+    EXPECT_EQ(model_entry.tag.id(), runtime::hsm_model);
     EXPECT_TRUE(model_entry.tag.is_pointer());
     EXPECT_EQ(model_entry.size, 2u);
 }
@@ -303,8 +304,8 @@ TEST(HsmContainerViewTest, section_rejects_inline_mode_entry) {
     const auto blob = make_sample_container_with_entries();
     const runtime::HSMContainerView view(blob.data(), blob.size());
 
-    runtime::ManifestEntry entry{};
-    entry.tag = runtime::model_id_tag();  // inline-mode: offset/size below don't refer to a real section
+    runtime::HSMManifestEntry entry{};
+    entry.tag = runtime::hsm_model_id_tag();  // inline-mode: offset/size below don't refer to a real section
     entry.offset = sizeof(runtime::HSMHeader);
     entry.size = 2;
 
@@ -315,8 +316,8 @@ TEST(HsmContainerViewTest, section_rejects_out_of_bounds_offset) {
     const auto blob = make_sample_container_with_entries();
     const runtime::HSMContainerView view(blob.data(), blob.size());
 
-    runtime::ManifestEntry entry{};
-    entry.tag = runtime::model_tag();
+    runtime::HSMManifestEntry entry{};
+    entry.tag = runtime::hsm_model_tag();
     entry.offset = view.size() + 1;
     entry.size = 1;
 
@@ -327,8 +328,8 @@ TEST(HsmContainerViewTest, section_rejects_out_of_bounds_size) {
     const auto blob = make_sample_container_with_entries();
     const runtime::HSMContainerView view(blob.data(), blob.size());
 
-    runtime::ManifestEntry entry{};
-    entry.tag = runtime::model_tag();
+    runtime::HSMManifestEntry entry{};
+    entry.tag = runtime::hsm_model_tag();
     entry.offset = 0;
     entry.size = view.size() + 1;  // fits at offset 0 alone, but overruns the buffer
 
@@ -394,7 +395,7 @@ TEST(HsmContainerViewValidateTest, rejects_manifest_offset_inside_header) {
 TEST(HsmContainerViewValidateTest, rejects_manifest_size_not_multiple_of_entry_size) {
     auto blob = make_sample_container_with_entries();
     auto header = runtime::HSMHeader::view(blob.data());
-    header.manifest_size -= 1;  // no longer a multiple of sizeof(ManifestEntry)
+    header.manifest_size -= 1;  // no longer a multiple of sizeof(HSMManifestEntry)
     std::memcpy(blob.data(), &header, sizeof(header));
 
     const runtime::HSMContainerView view(blob.data(), blob.size());
@@ -413,8 +414,8 @@ TEST(HsmContainerViewValidateTest, rejects_out_of_bounds_section_offset) {
     const auto header = runtime::HSMHeader::view(blob.data());
 
     // Second manifest entry is the pointer-mode "model" tag.
-    const auto entry_offset = header.manifest_offset + sizeof(runtime::ManifestEntry);
-    runtime::ManifestEntry entry{};
+    const auto entry_offset = header.manifest_offset + sizeof(runtime::HSMManifestEntry);
+    runtime::HSMManifestEntry entry{};
     std::memcpy(&entry, blob.data() + entry_offset, sizeof(entry));
     entry.offset = std::numeric_limits<runtime::HSMOffsetType>::max();
     std::memcpy(blob.data() + entry_offset, &entry, sizeof(entry));
@@ -428,8 +429,8 @@ TEST(HsmContainerViewValidateTest, rejects_section_overlapping_header) {
     const auto header = runtime::HSMHeader::view(blob.data());
 
     // Second manifest entry is the pointer-mode "model" tag; point it at the header itself.
-    const auto entry_offset = header.manifest_offset + sizeof(runtime::ManifestEntry);
-    runtime::ManifestEntry entry{};
+    const auto entry_offset = header.manifest_offset + sizeof(runtime::HSMManifestEntry);
+    runtime::HSMManifestEntry entry{};
     std::memcpy(&entry, blob.data() + entry_offset, sizeof(entry));
     entry.offset = 0;
     entry.size = 4;
@@ -524,9 +525,9 @@ TEST(HsmMultiBlobViewTest, stops_on_mismatched_major_version) {
 }
 
 TEST(IHsmSectionExtensionTest, recognizes_own_device_and_tag) {
-    runtime::ManifestEntry entry{};
+    runtime::HSMManifestEntry entry{};
     entry.device = RecordingExtension::owned_device;
-    entry.tag = runtime::SectionTag::make(RecordingExtension::owned_tag_id, /*is_inline=*/false);
+    entry.tag = runtime::HSMSectionTag::make(RecordingExtension::owned_tag_id, /*is_inline=*/false);
 
     const std::byte payload[4] = {};
     RecordingExtension extension;
@@ -535,9 +536,9 @@ TEST(IHsmSectionExtensionTest, recognizes_own_device_and_tag) {
 }
 
 TEST(IHsmSectionExtensionTest, skips_entry_it_does_not_own) {
-    runtime::ManifestEntry entry{};
+    runtime::HSMManifestEntry entry{};
     entry.device = RecordingExtension::owned_device + 1;  // different device
-    entry.tag = runtime::SectionTag::make(RecordingExtension::owned_tag_id, /*is_inline=*/false);
+    entry.tag = runtime::HSMSectionTag::make(RecordingExtension::owned_tag_id, /*is_inline=*/false);
 
     RecordingExtension extension;
     EXPECT_FALSE(extension.read_section(entry, ov::util::MemoryView{}));
@@ -548,7 +549,7 @@ TEST(IHsmSectionExtensionTest, skips_entry_it_does_not_own) {
 #ifndef NDEBUG
 TEST(MakeDeviceTagTest, debug_asserts_on_id_overflow) {
     const auto out_of_range_id = runtime::max_tag_id - runtime::core_tag_id_range_end + 1;
-    EXPECT_DEATH(runtime::make_device_tag(out_of_range_id, false), "");
+    EXPECT_DEATH(runtime::HSMSectionTag::make_device_tag(out_of_range_id, false), "");
 }
 #endif
 
