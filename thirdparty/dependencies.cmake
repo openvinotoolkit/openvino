@@ -374,13 +374,21 @@ if(ENABLE_OV_PADDLE_FRONTEND OR ENABLE_OV_ONNX_FRONTEND OR ENABLE_OV_TF_FRONTEND
             set(Protobuf_DEBUG ON)
         endif()
         # only protobuf's own CONFIG package propagates Abseil, which protobuf 22 and newer requires
-        find_package(Protobuf 5.26.0 REQUIRED CONFIG)
+        find_package(Protobuf REQUIRED CONFIG)
+        # since protobuf 22 the major is just a yearly ABI marker, while the minor is the release
+        # number and keeps growing across majors (4.22 -> 5.26 -> 6.33), so only the minor is compared;
+        # passing the version to find_package would not work, as protobuf's config version file
+        # rejects any major other than the requested one
+        # see https://protobuf.dev/support/version-support/
+        if(Protobuf_VERSION_MINOR VERSION_LESS 26)
+            message(FATAL_ERROR "Protobuf 26 (5.26) or newer is required, but ${Protobuf_VERSION} is found")
+        endif()
         # exported into OpenVINOConfig.cmake for static build
         set(protobuf_config CONFIG)
 
-        # CONFIG mode reports the release version and does not set Protobuf_PROTOC_EXECUTABLE,
+        # CONFIG mode does not set Protobuf_PROTOC_EXECUTABLE,
         # so an explicitly provided one (e.g. host protoc when cross-compiling) wins
-        if(Protobuf_VERSION VERSION_GREATER_EQUAL 22 AND DEFINED Protobuf_PROTOC_EXECUTABLE)
+        if(DEFINED Protobuf_PROTOC_EXECUTABLE)
             set(PROTOC_EXECUTABLE ${Protobuf_PROTOC_EXECUTABLE})
         else()
             set(PROTOC_EXECUTABLE protobuf::protoc)
