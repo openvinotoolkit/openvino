@@ -15,13 +15,33 @@ The code comments only keep the short "why" at each site.
 | Primitive / stage | Generator | Kernel | Gate |
 |---|---|---|---|
 | SDPA prefill and single-token | `SDPAOclGenerator` | `sdpa_ocl.cl` | `sdpa_opt.cpp`: `SDPAOpt::supports_micro_sdpa()` and `SDPAOclGenerator::supported()` |
-| PA PREFILL / MIXED | `SDPAOclGenerator(prefill)` | `sdpa_ocl.cl` | `paged_attention_opt.cpp`: `supports_micro_sdpa()` at construction, `can_use_micro_sdpa_for()` per dispatch |
+| PA PREFILL / MIXED | `SDPAOclGenerator(prefill)` | `sdpa_ocl.cl` | `paged_attention_opt.cpp`: `choose_dpas_backend()` at construction, `can_use_micro_sdpa_for()` per dispatch |
 | PA GENERATE | `SDPAOclDecodeGenerator` | `sdpa_ocl_decode.cl` | `SDPAOclDecodeGenerator::supported()` |
 
-`TEST_USE_SDPA_OCL=0` selects `SDPAMicroGenerator` instead of `SDPAOclGenerator` (unset or `1`
-selects the OpenCL one); `TEST_USE_SDPA_OCL_DECODE=0` disables `SDPAOclDecodeGenerator`, so
-GENERATE falls back to the `paged_attention_opt` single-token kernels. Either one also keeps the
-i8/u4 BY_CHANNEL K cache d-major, the page those fallbacks read ("Paged-attention cache layouts").
+Which DPAS kernel plain SDPA and PA PREFILL/MIXED use is decided per device,
+`paged_attention::sdpa_ocl_selected()`: `sdpa_ocl` on Xe2+ XMX, `SDPAMicroGenerator` (`sdpa_micro`)
+on the other XMX parts (xe_hpg: DG2/Arc-A, ARL-H) as upstream, and everywhere with
+`TEST_USE_SDPA_OCL=0`. There is no fallback from one to the other: where the device's kernel
+refuses an op, the opt kernels run. On Xe2 that keeps, for example, f32 PA and EAGLE3's qq_bias MIXED
+on the opt kernels even where `sdpa_micro` could serve them; switching kernels per op would change
+Xe2 behaviour and needs its own measurement. Both generator types are created in every impl's
+default constructor, the params constructor adds one of them, and every later decision reads
+`has_stage()`: a loaded or cloned impl is default-constructed and only gets `_order` (indices into
+`_stages`) back, so it must not re-derive the kernel from the device or the environment.
+
+The `sdpa_micro` lane keeps upstream's limits: k == v, no single-element runtime mask, no unaligned
+single-token (a static unaligned decode runs the opt multi-tokens kernel), ARL-H static decode on
+the opt kernel, and the xe3p workarounds (plain SDPA head <= 64, PA always) -- in the kernel choice
+only, `SDPAOpt::validate_impl()` does not apply them. It also refuses an f32 query or output,
+because `sdpa_micro.cl` loads Q as packed halves and stores half; its codegen happens to fail on
+f32 too ("No matching kernel", swallowed by `add_stage()`). Two gaps are upstream's as well:
+`sdpa_micro` MIXED has no bidirectional token_type_ids mask, so that combination runs
+`pa_multi_token`, which ignores the mask too (upstream dispatched `sdpa_micro` there), and an empty
+token_type_ids tensor is honoured only by `sdpa_ocl`.
+
+`TEST_USE_SDPA_OCL_DECODE=0` disables `SDPAOclDecodeGenerator`, so GENERATE falls back to the
+`paged_attention_opt` single-token kernels. Either switch also keeps the i8/u4 BY_CHANNEL K cache
+d-major, the page those fallbacks read ("Paged-attention cache layouts").
 `SDPAOclGenerator::supported()` requires Xe2 or later and f16/bf16 Q and output. Plain SDPA
 additionally requires equal K and V head sizes (`SDPAOpt::supports_micro_sdpa()`), paged
 attention does not.
@@ -604,10 +624,6 @@ result is quoted.
   page row 24, u4 16; dynamic has size 0: 16 and 8), while `graph/paged_attention.cpp` and
   `ops/paged_attention.cpp` assume f16 comp (20 / 12), so the block-size assert should fire at run
   time on either layout. Master has the same code. From code reading only.
-- Pre-Xe2 XMX devices lose `sdpa_micro`. `TEST_USE_SDPA_OCL` alone picks the generator type, so
-  `SDPAOclGenerator` is the default, and its `supported()` refuses anything below Xe2. On
-  xe_hpg/xe_hpc neither `sdpa_opt.cpp` nor `paged_attention_opt.cpp` (`supports_micro_sdpa()`)
-  adds a micro stage, and both fall back to the opt kernels.
 - `block2d_layout_ok()` does not check padding: the check has been commented out since it was
   written. It is reachable for rank-2 paged-attention inputs with feature padding (the minicpm4 V
   crop view is benign by luck). Adding it narrows a gate, so it needs its own change and a
@@ -681,9 +697,9 @@ Each needs its own measured change.
 - A model that `by_channel_token_major_readable()` turns down on Xe2 (alibi, qq_bias, a head size
   either reader rejects) keeps the d-major BY_CHANNEL page, so MIXED runs `pa_multi_token` and
   GENERATE `pa_single_token`. `sdpa_micro` could read that page for MIXED in the qq_bias case (it
-  has the MIXED tree mask), but with `use_ocl` its stage is never built; alibi and k != v have no
-  `sdpa_micro` path either. Teaching `pa_kv_reorder` the token-major page (K, and the split u4 V
-  page) would lift the qq_bias case, i.e. EAGLE3.
+  has the MIXED tree mask), but on Xe2 its stage is never built (one DPAS kernel per device); alibi
+  and k != v have no `sdpa_micro` path either. Teaching `pa_kv_reorder` the token-major page (K, and
+  the split u4 V page) would lift the qq_bias case, i.e. EAGLE3.
 - MIXED looks each V page up twice per S*V key block (`pa_v_page_base()` for the comp and again
   for the data), the K block reads use only the even entries of `k_page[]`, and the per-k0 K hoists
   sit in up to three separate `if (from_cache)` blocks.
@@ -698,9 +714,5 @@ Each needs its own measured change.
 - `pa_kv_cache_update_ref.cl`, the BC_* layout comment: calls the token-major BY_CHANNEL page
   "(opt-in)" and says only `sdpa_ocl_decode` reads it (rotate and `sdpa_ocl` MIXED do too, and the
   page is created only where `paged_attention::by_channel_token_major_readable()` allows it).
-
-- `paged_attention_gpu_test.cpp`, `paged_attention_kv_head_size_uses_sdpa_ocl_test`: k != v MIXED
-  on pre-Xe2 "falls back to `sdpa_micro` / `pa_multi_token`"; the default selection leaves only
-  `pa_multi_token`.
 - `subgraph_tests/sdpa.cpp`, `SDPASplitHeadsPaddedView`: puts `block2d_layout_fixup_ok()` in
   `sdpa_gen_ocl.cpp`; it lives in `sdpa_ocl_utils.hpp`.
