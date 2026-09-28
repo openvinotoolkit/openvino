@@ -437,20 +437,12 @@ private:
      * blob.
      */
     struct NextContainer {
-        NextContainer(ov::util::MemoryView remaining, size_t container_size, bool is_blob) noexcept
-            : m_remaining(remaining),
-              m_container_size(container_size),
-              m_is_blob(is_blob) {}
+        // Definitions in hsm_format.cpp: only used there, so out-of-line costs no inlining (same TU).
+        NextContainer(ov::util::MemoryView remaining, size_t container_size, bool is_blob) noexcept;
 
-        const ov::util::MemoryView& remaining() const noexcept {
-            return m_remaining;
-        }
-        size_t container_size() const noexcept {
-            return m_container_size;
-        }
-        bool is_blob() const noexcept {
-            return m_is_blob;
-        }
+        const ov::util::MemoryView& remaining() const noexcept;
+        size_t container_size() const noexcept;
+        bool is_blob() const noexcept;
 
     private:
         ov::util::MemoryView m_remaining;  //!< The remaining view after the container.

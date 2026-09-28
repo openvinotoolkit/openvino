@@ -142,13 +142,16 @@ TEST_F(HsmFormatLayoutCompatibilityTest, manifest_entry_layout) {
     static_assert(offsetof(runtime::HSMManifestEntry, device) == 0, "HSMManifestEntry::device offset changed");
     static_assert(offsetof(runtime::HSMManifestEntry, tag) == 1, "HSMManifestEntry::tag offset changed");
     static_assert(sizeof(runtime::HSMSectionTag) == 3, "HSMSectionTag width changed");
-    static_assert(offsetof(runtime::HSMManifestEntry, tag_reserved) == 4, "HSMManifestEntry::tag_reserved offset changed");
+    static_assert(offsetof(runtime::HSMManifestEntry, tag_reserved) == 4,
+                  "HSMManifestEntry::tag_reserved offset changed");
     static_assert(offsetof(runtime::HSMManifestEntry, offset) == 8, "HSMManifestEntry::offset offset changed");
     static_assert(offsetof(runtime::HSMManifestEntry, size) == 16, "HSMManifestEntry::size offset changed");
     static_assert(offsetof(runtime::HSMManifestEntry, pointer_reserved) == 24,
                   "HSMManifestEntry::pointer_reserved offset changed");
-    static_assert(offsetof(runtime::HSMManifestEntry, inline_bytes) == 8, "HSMManifestEntry::inline_bytes offset changed");
-    static_assert(sizeof(runtime::HSMManifestEntry{}.inline_bytes) == 24, "HSMManifestEntry::inline_bytes width changed");
+    static_assert(offsetof(runtime::HSMManifestEntry, inline_bytes) == 8,
+                  "HSMManifestEntry::inline_bytes offset changed");
+    static_assert(sizeof(runtime::HSMManifestEntry{}.inline_bytes) == 24,
+                  "HSMManifestEntry::inline_bytes width changed");
 
     EXPECT_EQ(sizeof(runtime::HSMManifestEntry), 32u);
 }
@@ -170,7 +173,8 @@ TEST_F(HsmFormatLayoutCompatibilityTest, section_tag_packs_id_and_mode_at_compil
     static_assert(runtime::HSMSectionTag::make(1, true).is_inline(), "make(id, true) must produce an inline-mode tag");
     static_assert(!runtime::HSMSectionTag::make(1, true).is_pointer(),
                   "inline-mode tag must not also read as pointer-mode");
-    static_assert(runtime::HSMSectionTag::make(2, false).is_pointer(), "make(id, false) must produce a pointer-mode tag");
+    static_assert(runtime::HSMSectionTag::make(2, false).is_pointer(),
+                  "make(id, false) must produce a pointer-mode tag");
     static_assert(!runtime::HSMSectionTag::make(2, false).is_inline(),
                   "pointer-mode tag must not also read as inline-mode");
 
@@ -203,7 +207,8 @@ TEST_F(HsmFormatLayoutCompatibilityTest, device_tags_cannot_collide_with_core_ta
                   "device tag ids must never fall below core_tag_id_range_end");
     static_assert(runtime::hsm_model_id < runtime::core_tag_id_range_end,
                   "hsm_model_id must stay below core_tag_id_range_end");
-    static_assert(runtime::hsm_model < runtime::core_tag_id_range_end, "hsm_model must stay below core_tag_id_range_end");
+    static_assert(runtime::hsm_model < runtime::core_tag_id_range_end,
+                  "hsm_model must stay below core_tag_id_range_end");
 
     SUCCEED();
 }

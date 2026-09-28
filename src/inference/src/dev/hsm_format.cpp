@@ -8,6 +8,25 @@
 
 namespace ov::runtime {
 
+HSMMultiBlobView::NextContainer::NextContainer(ov::util::MemoryView remaining,
+                                               size_t container_size,
+                                               bool is_blob) noexcept
+    : m_remaining(remaining),
+      m_container_size(container_size),
+      m_is_blob(is_blob) {}
+
+const ov::util::MemoryView& HSMMultiBlobView::NextContainer::remaining() const noexcept {
+    return m_remaining;
+}
+
+size_t HSMMultiBlobView::NextContainer::container_size() const noexcept {
+    return m_container_size;
+}
+
+bool HSMMultiBlobView::NextContainer::is_blob() const noexcept {
+    return m_is_blob;
+}
+
 const HSMHeader& HSMContainerView::header() const noexcept {
     return HSMHeader::view(reinterpret_cast<const uint8_t*>(begin()));
 }
