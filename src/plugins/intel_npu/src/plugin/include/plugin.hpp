@@ -15,6 +15,8 @@
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "plugin_property_manager.hpp"
+#include "openvino/runtime/intel_npu/properties.hpp"
+#include "schedule_builder.hpp"
 
 namespace intel_npu {
 
@@ -60,6 +62,17 @@ public:
 
     ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>& model,
                                     const ov::AnyMap& properties) const override;
+
+    void schedule_builder_proceed(elf_binary& blob, BuilderOption option, const std::string& option_parameter) const;
+
+    void schedule_builder_get_io_mapping(elf_binary& blob,
+                                         io_map& inputs,
+                                         io_map& outputs,
+                                         parameter_map& parameters) const;
+
+    void schedule_builder_proceed(std::vector<elf_binary>& blobs,
+                                  std::vector<BuilderOption> options,
+                                  const std::vector<std::string>& option_parameter) const;
 
 private:
     void update_log_level(const ov::AnyMap& properties) const;

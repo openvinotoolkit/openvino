@@ -72,9 +72,6 @@
 [submodule "thirdparty/level_zero/level-zero"]
 	path = thirdparty/level_zero/level-zero
 	url = https://github.com/oneapi-src/level-zero.git
-[submodule "src/plugins/intel_npu/thirdparty/level-zero-ext"]
-	path = src/plugins/intel_npu/thirdparty/level-zero-ext
-	url = https://github.com/intel-sandbox/gbaugh.level-zero-npu-extensions.git
 [submodule "src/plugins/intel_npu/thirdparty/yaml-cpp"]
 	path = src/plugins/intel_npu/thirdparty/yaml-cpp
 	url = https://github.com/jbeder/yaml-cpp.git
@@ -90,3 +87,6 @@
 [submodule "src/plugins/intel_cpu/thirdparty/xbyak_riscv"]
 	path = src/plugins/intel_cpu/thirdparty/xbyak_riscv
 	url = https://github.com/herumi/xbyak_riscv.git
+[submodule "src/plugins/intel_npu/thirdparty/level-zero-ext"]
+	path = src/plugins/intel_npu/thirdparty/level-zero-ext
+	url = https://github.com/intelgaoxiong/level-zero-npu-extensions.git

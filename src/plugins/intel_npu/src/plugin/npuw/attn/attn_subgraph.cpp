@@ -1032,15 +1032,17 @@ ov::npuw::v1::subgraphs::RuntimeBehaviorFactory make_runtime_factory() {
                                                           "Mask");
                                 }
                             }
+                            
 
-                            if (async) {
+                           
+                            if (async) {                                
                                 request->start_async();
                                 if (state.hfa_runtime_ctx && state.hfa_runtime_ctx->has_state_buffers()) {
                                     state.hfa_runtime_ctx->prepare_next_state_buffers();
                                 }
-                                request->wait();
-                            } else {
-                                request->infer();
+                                request->wait();                                
+                            } else {                                
+                                request->infer();                                
                             }
                         };
 

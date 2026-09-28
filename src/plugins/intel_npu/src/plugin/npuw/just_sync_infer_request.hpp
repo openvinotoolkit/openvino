@@ -175,7 +175,7 @@ protected:
     std::unique_ptr<ov::npuw::moe::MoEExecutor> m_moe_executor;
 
     std::vector<ov::npuw::v1::subgraphs::ISubgraphBehavior::Ptr> m_subgraph_behaviors;
-    std::vector<ov::npuw::v1::subgraphs::Context> m_subgraph_runtime_states;
+    std::vector<ov::npuw::v1::subgraphs::Context> m_subgraph_runtime_states;    
 };
 
 }  // namespace npuw

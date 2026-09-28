@@ -224,6 +224,14 @@ public:
         throwWhenUnsupported("pfnEvict", ZE_GRAPH_EXT_VERSION_1_16);
         return _impl->pfnEvict(hGraph);
     }
+
+    // version 1.17 POC
+    ze_result_t ZE_APICALL pfnCreate4(ze_context_handle_t hContext,
+                                      ze_device_handle_t hDevice,
+                                      _ze_graph_desc_4_t* desc) {
+        throwWhenUnsupported("pfnCreate4", ZE_GRAPH_EXT_VERSION_1_12);
+        return _impl->pfnCreate4(hContext, hDevice, desc);
+    }
 };
 
 /**

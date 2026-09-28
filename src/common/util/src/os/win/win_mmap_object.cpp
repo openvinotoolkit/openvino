@@ -820,6 +820,8 @@ void MapHolder::evict_chunk(HANDLE proc,
 }
 
 void MapHolder::hint_evict(size_t offset, size_t size) noexcept {
+    // G.B.
+    return;
     const auto [range_begin, range_end] = compute_evict_range(offset, size);
     if (!range_begin)
         return;

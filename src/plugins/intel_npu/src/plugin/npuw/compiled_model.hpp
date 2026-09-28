@@ -66,6 +66,10 @@ public:
     // Serialization
     virtual void serialize(std::ostream& stream, const s11n::CompiledContext& ctx) const = 0;
 
+    // Pipeline model status
+    virtual bool is_using_pipeline_model() const = 0;
+    virtual bool is_using_hfa_pipeline_model() const = 0;
+    virtual size_t& get_prefill_iteration() const = 0;
     virtual ~ICompiledModel_v0() = default;
 };
 
@@ -132,7 +136,9 @@ public:
     void finalize_weights_bank() override;
     void reconstruct_closure() override;
     void serialize(std::ostream& stream, const s11n::CompiledContext& ctx) const override;
-
+    bool is_using_pipeline_model() const override;
+    bool is_using_hfa_pipeline_model() const override;
+    size_t& get_prefill_iteration() const override;
 private:
     // FIXME: This class has many friends..
     friend class IBaseInferRequest;
@@ -143,7 +149,7 @@ private:
     friend class LLMCompiledModel;
     friend class LLMInferRequest;
     friend class moe::MoEExecutor;
-
+    std::vector<uint8_t> nlp_host_flash_attention_pipeline(ov::npuw::compiled::HostFlashAttention* hfa);
     bool compile_for_success(std::size_t id, const std::vector<std::string>& devices);
     ov::SoPtr<ov::ICompiledModel> compile_submodel(const std::shared_ptr<ov::Model>& submodel,
                                                    const std::string& device);
@@ -225,12 +231,23 @@ private:
     // In the below vector, index == compiled model's input/output port idex.
     std::vector<ToSubmodel> m_inputs_to_submodels_inputs;
     std::vector<ToSubmodel> m_outputs_to_submodels_outputs;
-
+    std::map<uint32_t, uint32_t> m_pipeline_global_inputs;
+    std::map<uint32_t, uint32_t> m_pipeline_global_outputs;
+    std::map<std::string, std::vector<uint32_t>> m_pipeline_global_parameters;
+    std::map<std::string, size_t> m_pipeline_connected_inputs;
+    std::map<std::string, std::deque<ToSubmodel>> m_pipeline_shared_inputs;
+    std::map<size_t, size_t> m_hfa_behaviour_submodel;    
+    std::map<size_t, std::map<std::string, size_t>> m_pipeline_global_parameters_offset;
+    std::map<size_t, size_t> m_pipeline_submodel_base_indices;
     std::map<std::size_t, std::vector<ToSubmodel>> m_param_subscribers;
 
     std::map<std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>,  // input ("to")
              std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>>  // output ("from")
         m_submodels_input_to_prev_output;
+
+    std::map<std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>,  // input ("to")
+             std::pair<size_t /*submodel_idx*/, size_t /*node_idx*/>>  // output ("from")
+        m_submodels_input_to_prev_input;
 
     DeviceProperties m_meta_devices;
 
@@ -241,6 +258,12 @@ private:
         std::size_t ops{};
     };
 
+    struct hfa_port_names {
+        std::string K;
+        std::string V;
+        std::string Q;
+        std::string mask;
+    };
     // Shouldn't this be counter instead? There's nothing much to
     // average across compilation processes per model (it's a single
     // process).
@@ -294,7 +317,9 @@ private:
         std::vector<weights::LazyTensor> lazy_closure;
         std::vector<ov::Tensor> scales;
         std::vector<ov::Tensor> zerops;
-
+        std::vector<ov::element::Type> input_port_type;
+        std::vector<std::string> input_port_name;
+        std::vector<std::string> output_port_name;
         bool forced_to_fcall = false;
 
         // Metrics
@@ -306,7 +331,15 @@ private:
                        const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx = nullptr);
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
-
+    ov::SoPtr<ov::ICompiledModel> m_compiled_pipeline_model;
+    bool m_using_pipeline_model{false};
+    bool m_using_hfa_pipeline_model{false};    
+    size_t m_nlp_controlflow_branch_select_size{};
+    size_t m_nlp_branch_select_port_idx{};
+    mutable size_t m_current_prefill_iteration{};
+    std::string m_nlp_branch_select_port_name;
+    hfa_port_names m_hfa_port_names;
+    
     std::function<bool(const ov::SoPtr<ov::ITensor>&, const ov::SoPtr<ov::ITensor>&)> m_acc_check;
     std::string m_ref_device;
 

@@ -407,6 +407,7 @@ void ZeroInferRequest::set_tensor(const ov::Output<const ov::Node>& port, const 
     OV_ITT_TASK_CHAIN(ZERO_SET_TENSOR, itt::domains::LevelZeroBackend, "set_tensor", "set_tensor");
 
     auto foundPort = find_port(port);
+
     OPENVINO_ASSERT(foundPort.found(), "Cannot find tensor for port ", port);
     try {
         check_tensor(port,
@@ -1157,7 +1158,7 @@ void ZeroInferRequest::check_tensor(const ov::Output<const ov::Node>& port,
                         tensor_element_type,
                         " != ",
                         port_element_type);
-    } else {
+    } else {        
         OPENVINO_ASSERT(port_element_type == tensor_element_type,
                         "The tensor element type is not corresponding with output element type (",
                         tensor_element_type,

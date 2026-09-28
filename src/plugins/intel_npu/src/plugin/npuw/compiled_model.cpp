@@ -5,8 +5,10 @@
 
 #include <algorithm>
 #include <cstring>
+#include <deque>
 #include <memory>
 #include <set>
+#include <sstream>
 #include <string>
 
 #include "accuracy/comparator.hpp"
@@ -18,6 +20,9 @@
 #include "moe/moe_subgraph.hpp"
 #include "openvino/core/parallel.hpp"
 #include "openvino/op/util/op_types.hpp"
+#include "openvino/opsets/opset1.hpp"
+#include "openvino/opsets/opset11.hpp"
+#include "openvino/opsets/opset3.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
@@ -207,7 +212,6 @@ std::set<std::string> device_list_to_set(const std::string& device_list) {
 
 namespace ov {
 namespace npuw {
-
 namespace {
 ov::AnyMap make_submodel_import_config(const std::string& device, const ::intel_npu::Config& cfg) {
     ov::AnyMap import_config;
@@ -731,6 +735,675 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         ov::parallel_for(idx_subgraph_to_compile.size(), compile);
     } else {
         ov::npuw::util::non_parallel_for(idx_subgraph_to_compile.size(), compile);
+    }
+
+    const bool m_use_npu_local_pipelining{m_cfg.get<::intel_npu::NPUW_CONTROLFLOW_EN>()};
+
+    {
+        const auto submodel_count{m_compiled_submodels.size()};
+
+        for (std::size_t i = 0; i < submodel_count; i++) {
+            auto& comp_model_desc = m_compiled_submodels[i];
+
+            if (!comp_model_desc.compiled_model && (i != comp_model_desc.replaced_by)) {
+                continue;  // Optimized out
+            }
+
+            {
+                const auto& ports{comp_model_desc.compiled_model->inputs()};
+                comp_model_desc.input_port_type.reserve(ports.size());
+                comp_model_desc.input_port_name.reserve(ports.size());
+
+                for (auto& port : ports) {
+                    auto type{port.get_element_type()};
+                    auto port_name{port.get_node()->get_friendly_name()};
+                    comp_model_desc.input_port_type.push_back(type);
+                    comp_model_desc.input_port_name.push_back(port_name);
+                }
+            }
+            {
+                const auto& ports{comp_model_desc.compiled_model->outputs()};
+                comp_model_desc.output_port_name.reserve(ports.size());
+
+                for (auto& port : ports) {
+                    auto port_name{port.get_node()->get_friendly_name()};
+                    comp_model_desc.output_port_name.push_back(port_name);
+                }
+            }
+        }
+    }
+
+    if (m_use_npu_local_pipelining && idx_subgraph_to_compile.size() > 1ull) {
+        const auto submodel_count{m_compiled_submodels.size()};      
+        
+        // LOG_WARN("Using NPU local pipelines with ControlFlowOps.");
+        // std::cout << "Using NPU local pipelines with ControlFlowOps for inference.\n";
+        auto plugin = get_npuw_plugin();
+        auto core = plugin->get_core();
+        auto npuw_plugin = std::dynamic_pointer_cast<const ::intel_npu::Plugin>(plugin);
+
+        std::vector<::intel_npu::elf_binary> compiled_elf_blobs{};
+        std::vector<::intel_npu::elf_binary> elf_blobs{};
+        const auto m_num_submodels{idx_subgraph_to_compile.size()};
+        compiled_elf_blobs.reserve(m_num_submodels);
+        std::map<std::size_t, std::deque<std::size_t>> submodel_to_blob_mapping{};
+        std::map<std::size_t, std::size_t> duplicate_blob_indices_lut;
+
+        elf_blobs.reserve(submodel_count);
+
+        std::vector<std::size_t> submodel_elf_blob_index(submodel_count);
+        std::map<size_t, size_t> real_idx_blob_mapping{};
+        m_hfa_behaviour_submodel.clear();
+        std::map<size_t, size_t> hfa_input_port_pipeline_mapping;
+        std::map<size_t, size_t> hfa_pipeline_output_consumer;
+        std::map<size_t, std::string> hfa_shared_input_parameters;
+
+        for (std::size_t i = 0; i < submodel_count; i++) {
+            auto& comp_model_desc = m_compiled_submodels[i];
+            // Multiple submodels with the same replaced_by index share one compiled ELF body (funcall mechanism).
+            // submodel_to_blob_mapping groups them: key = body submodel index, value = all funcall indices.
+            // e.g., blob_index=0 -> {0,1,...,31} for 32 transformer layers sharing one compiled ELF.
+            const auto real_idx = comp_model_desc.replaced_by.value_or(i);
+            submodel_elf_blob_index[i] = real_idx;
+
+            if (!comp_model_desc.compiled_model && (i != comp_model_desc.replaced_by)) {
+                auto hfa_it{m_hfa_behaviour_submodel.find(real_idx)};
+
+                if (hfa_it != std::end(m_hfa_behaviour_submodel)) {
+                    m_hfa_behaviour_submodel[i] = real_idx;
+                }
+                continue;  // Optimized out
+            }
+
+            if (auto* hfa = ov::npuw::attn::get_compiled_hfa(comp_model_desc.pipeline.context)) {
+                auto hfa_pipeline_blob{nlp_host_flash_attention_pipeline(hfa)};
+                compiled_elf_blobs.push_back(hfa_pipeline_blob);
+                // m_submodels_input_to_prev_output
+                m_hfa_behaviour_submodel[i] = i;
+                hfa_input_port_pipeline_mapping = hfa->input_port_pipeline_mapping;
+                hfa_shared_input_parameters = hfa->shared_input_parameters;
+                m_using_hfa_pipeline_model = true;
+            } else {
+                std::stringstream model_stream;
+                comp_model_desc.compiled_model->export_model(model_stream);
+                std::string model_str{model_stream.str()};
+                std::vector<uint8_t> buffer(model_str.begin(), model_str.end());
+
+
+                {
+                    auto& inputs{comp_model_desc.compiled_model->inputs()};
+                    auto& outputs{comp_model_desc.compiled_model->outputs()};
+
+                    std::stringstream io_name_parameters{};
+
+                    auto add_port_names = [&](const std::vector<ov::Output<const ov::Node>>& ports) {
+                        for (auto& port : ports) {
+                            io_name_parameters << port.get_node()->get_friendly_name() << "\n";
+                        }
+                    };
+
+                    add_port_names(inputs);
+                    add_port_names(outputs);
+
+                    const auto io_name_parameters_str{io_name_parameters.str()};
+
+                    npuw_plugin->schedule_builder_proceed(buffer,
+                                                          ::intel_npu::BuilderOption::io_name,
+                                                          io_name_parameters_str);
+                }
+                compiled_elf_blobs.push_back(buffer);
+            }
+
+            real_idx_blob_mapping[real_idx] = compiled_elf_blobs.size() - 1ull;
+        }
+
+        {
+            size_t prev_sm{~0ull};
+
+            for (auto& hfa_sm : m_hfa_behaviour_submodel) {
+                const auto sm_idx{hfa_sm.first};
+
+                if (prev_sm != ~0ull) {
+                    for (auto& shared_port : hfa_shared_input_parameters) {
+                        std::pair<size_t, size_t> key{sm_idx, shared_port.first};
+                        m_submodels_input_to_prev_input[key] = {prev_sm, shared_port.first};
+                    }
+                }
+                // hfa_shared_input_parameters
+                std::map<std::pair<size_t, size_t>, std::pair<size_t, size_t>> new_input_to_prev_output;
+
+                for (auto& io_mapping : hfa_input_port_pipeline_mapping) {
+                    std::pair<size_t, size_t> key{sm_idx, io_mapping.first};
+
+                    auto it{m_submodels_input_to_prev_output.find(key)};
+
+                    if (it != std::end(m_submodels_input_to_prev_output)) {
+                        auto prev_input{it->second};
+                        m_submodels_input_to_prev_output.erase(it);
+                        std::pair<size_t, size_t> new_key{sm_idx, io_mapping.second};
+                        new_input_to_prev_output[new_key] = prev_input;
+                    }
+                }
+
+                for (auto& nm : new_input_to_prev_output) {
+                    m_submodels_input_to_prev_output[nm.first] = nm.second;
+                }
+
+                prev_sm = sm_idx;
+            }
+
+            size_t submodel_index{};
+            size_t submodel_index_base{};
+            size_t prev_elf_blob_index{~0ull};
+            size_t real_idx{};
+            size_t prev_real_idx{};
+
+            for (auto real_sm_idx : submodel_elf_blob_index) {
+                auto elf_blob_index{real_idx_blob_mapping[real_sm_idx]};
+
+                if (prev_elf_blob_index == elf_blob_index) {
+                    submodel_to_blob_mapping[prev_real_idx].push_back(submodel_index);
+                    duplicate_blob_indices_lut[prev_real_idx] = real_sm_idx;
+                    m_pipeline_submodel_base_indices[submodel_index] = submodel_index_base;
+                    submodel_index++;
+                    continue;
+                } else {
+                    submodel_to_blob_mapping[real_idx].push_back(submodel_index);
+                    duplicate_blob_indices_lut[real_idx] = real_sm_idx;
+                }
+
+                prev_real_idx = real_idx;
+                submodel_index_base = submodel_index;
+                m_pipeline_submodel_base_indices[submodel_index] = submodel_index_base;
+
+                auto buffer{compiled_elf_blobs[elf_blob_index]};
+                std::stringstream global_io_mapping_param{};
+                global_io_mapping_param << "[INLINE]";
+
+                // io_global: tells the JLP driver which local ports of this ELF correspond to the
+                // model's global I/O ports.  This mapping is STATIC - it uses the original pre-transform
+                // port numbers and does NOT change across iterations.  io_global is applied before
+                // io_reuse/io_iterate so all port references here are the raw ELF port indices.
+                // The driver preserves these associations in the fused blob; after fuse_elf the
+                // io_mapping pass embeds "#GI[N]" / "#GO[N]" markers in the port-name text so that
+                // schedule_builder_get_io_mapping() can later extract m_pipeline_global_inputs /
+                // m_pipeline_global_outputs.
+                auto create_global_io_mapping = [&](std::vector<ToSubmodel>& submodel_mapping, std::string io_marker) {
+                    uint32_t global_io_port{};
+
+                    for (auto& global_io : submodel_mapping) {
+                        const auto target_submodel_index{global_io.first};
+                        auto target_submodel_port{global_io.second};
+
+                        if (target_submodel_index == submodel_index) {
+                            auto hfa_it{m_hfa_behaviour_submodel.find(target_submodel_index)};
+
+                            if (hfa_it != std::end(m_hfa_behaviour_submodel)) {
+                                target_submodel_port = hfa_input_port_pipeline_mapping[target_submodel_port];
+                            } 
+                            
+                            global_io_mapping_param << "\n"
+                                                    << io_marker << global_io_port << ":" << target_submodel_port;
+                        }
+                        global_io_port++;
+                    }
+                };
+
+                create_global_io_mapping(m_inputs_to_submodels_inputs, "i");
+                create_global_io_mapping(m_outputs_to_submodels_outputs, "o");
+                auto global_io_mapping_parameters{global_io_mapping_param.str()};
+
+                npuw_plugin->schedule_builder_proceed(buffer,
+                                                      ::intel_npu::BuilderOption::io_global,
+                                                      global_io_mapping_parameters);
+
+                elf_blobs.push_back(buffer);
+
+                prev_elf_blob_index = elf_blob_index;
+                real_idx++;
+                submodel_index++;
+            }
+        }
+
+        size_t prev_submodel_index{~0ull};
+
+        uint32_t elf_index{};
+        using size_t_pair = std::map<size_t, size_t>;
+
+        size_t_pair submodel_to_elf_mapping{};
+        std::map<size_t, size_t_pair> submodel_io_reuse;
+        std::map<size_t, size_t_pair> submodel_io_reuse_new_output_ports;
+
+        std::stringstream io_consolidate_params{};
+        io_consolidate_params << "[INLINE]";
+        std::deque<size_t> iterate_submodel_indices;
+        std::map<size_t, std::deque<size_t>> submodel_reuse_lut;
+
+        for (auto& blob_mapping : submodel_to_blob_mapping) {
+            const auto duplicate_blob_index{blob_mapping.first};
+
+            const auto& blob_submodels{blob_mapping.second};
+            std::map<std::pair<size_t, size_t>, size_t> prev_submodel_io_mapping{};
+            std::map<std::pair<size_t, size_t>, size_t> prev_submodel_input_only_mapping{};
+
+            size_t current_submodel_index{};
+
+            if (blob_submodels.size()) {
+                current_submodel_index = blob_submodels.front();
+            }
+
+            size_t input_ports{};
+            size_t output_ports{};
+            const auto blob_index{duplicate_blob_indices_lut[duplicate_blob_index]};
+            submodel_reuse_lut[blob_index].push_back(current_submodel_index);
+            auto& comp_model_desc = m_compiled_submodels[blob_index];
+            input_ports = comp_model_desc.input_port_name.size();
+            output_ports = comp_model_desc.output_port_name.size();
+
+           
+
+            // Create IO reuse parameters
+            if (blob_submodels.size() > 1ull) {
+                const auto last_submodel_index{blob_submodels.back()};
+
+                // submodel_index_lut: maps submodel index -> position within this funcall group.
+                // Used to distinguish intra-group connections (same ELF, loop-back)
+                // from inter-group connections (cross-ELF, handled by io_consolidate).
+                size_t_pair submodel_index_lut{};
+
+                // connected_inputs / connected_outputs: ports that are internally consumed.
+                // Ports in these sets are excluded from io_iterate's per-iteration weight range ("i" declaration).
+                // connected_inputs collects TWO types:
+                //   (1) io_reuse loop-back ports: output[X] feeds back into input[Y] same buffer
+                //   (2) cross-ELF incoming ports: prev-ELF output connects to this ELF's input
+                // Both types must be excluded so that only true weight-bank ports appear in io_iterate.
+                size_t_pair connected_inputs{};
+                size_t_pair connected_outputs{};
+
+                {
+                    size_t position{};
+                    for (auto indx : blob_submodels) {
+                        submodel_index_lut[indx] = position++;
+                    }
+                }
+
+                const auto submodel_index_lut_it_end{std::end(submodel_index_lut)};
+                // blob_input_output_mapping: output_port -> input_port for intra-group (io_reuse) connections.
+                // Each entry represents: "output[X] and input[Y] share the same buffer" - the driver
+                // allocates a single buffer and binds it to both ports so no copy is needed between iterations.
+                size_t_pair blob_input_output_mapping{};
+
+                auto make_submodel_io_connection =
+                    [&](auto& m_submodels_io, auto& io_mapping, const bool track_io_reuse) {
+                        for (const auto& kvp : m_submodels_io) {
+                            const auto& subm_idx_to{kvp.first.first};
+                            const auto& port_idx_to{kvp.first.second};
+                            const auto& subm_idx_from{kvp.second.first};
+                            const auto& port_idx_from{kvp.second.second};
+
+                            auto to_submodel_it{submodel_index_lut.find(subm_idx_to)};
+                            auto from_submodel_it{submodel_index_lut.find(subm_idx_from)};
+
+                            if (to_submodel_it != submodel_index_lut_it_end &&
+                                from_submodel_it != submodel_index_lut_it_end) {
+                                if (track_io_reuse) {
+                                    blob_input_output_mapping[port_idx_from] = port_idx_to;
+                                    connected_outputs[port_idx_from] = port_idx_from;
+                                }
+
+                                connected_inputs[port_idx_to] = port_idx_to;
+                            }
+
+                            if (subm_idx_from <= prev_submodel_index && to_submodel_it != submodel_index_lut_it_end) {
+                                io_mapping[std::pair<size_t, size_t>{subm_idx_from, port_idx_from}] = port_idx_to;
+                                connected_inputs[port_idx_to] = port_idx_to;
+                            }
+                        }
+                    };
+
+                make_submodel_io_connection(m_submodels_input_to_prev_output, prev_submodel_io_mapping, true);
+                make_submodel_io_connection(m_submodels_input_to_prev_input, prev_submodel_input_only_mapping, false);
+
+                {
+                    std::stringstream io_reuse_params{};
+                    io_reuse_params << "[INLINE]";
+
+                    for (auto& io_port : blob_input_output_mapping) {
+                        io_reuse_params << "\n" << io_port.first << ":" << io_port.second;
+                    }
+
+                    submodel_io_reuse[last_submodel_index] = blob_input_output_mapping;
+
+                    // submodel_io_reuse stores the output->input reuse mapping for later use in
+                    // io_consolidate: when a cross-ELF source port has been declared in io_reuse,
+                    // the driver sees it as an input buffer (not an output), so io_consolidate must
+                    // reference it with the "i" prefix instead of "o".
+
+                    npuw_plugin->schedule_builder_proceed(elf_blobs[elf_index],
+                                                          ::intel_npu::BuilderOption::io_reuse,
+                                                          io_reuse_params.str());
+                }
+
+                {
+                    std::stringstream io_iterate_params{};
+                    io_iterate_params << "[INLINE]\nloop:" << blob_submodels.size();
+
+                    // get_duplicate_io_range: determines which contiguous port ranges to declare in io_iterate.
+                    // For INPUTS (is_output=false):
+                    //   port_index_mapping[i] = i (identity, no renumbering).
+                    //   Ports NOT in connected_inputs are per-iteration weight-bank slots; they form the "i<s>:<e>"
+                    //   ranges.  Both io_reuse loop-back ports and cross-ELF incoming ports are excluded.
+                    // For OUTPUTS (is_output=true):
+                    //   First builds a compact renumbering: io_reuse-consumed ports get ~0ull (REMOVED),
+                    //   remaining ports get sequential new indices 0, 1, 2, ...
+                    //   Then writes "o<new_start>:<new_end>" for contiguous non-removed ranges.
+                    //   This renumbering is critical: io_consolidate must use the NEW port numbers when
+                    //   referencing cross-ELF output connections from this ELF.
+                    auto get_duplicate_io_range = [&](const size_t& ports,
+                                                      size_t_pair& connected_ports,
+                                                      const std::string& direction,
+                                                      bool is_output) {
+                        size_t start_port{~0ull};
+                        size_t prev_port{};
+                        std::map<size_t, size_t> port_index_mapping;
+
+                        if (is_output) {
+                            size_t out_indx{};
+
+                            for (size_t indx{}; indx < ports; ++indx) {
+                                auto port_it{connected_ports.find(indx)};
+                                port_index_mapping[indx] = out_indx;
+
+                                if (port_it == std::end(connected_ports)) {
+                                    out_indx++;
+                                } else {
+                                    port_index_mapping[indx] = ~0ull;
+                                }
+                            }
+                        } else {
+                            for (size_t indx{}; indx < ports; ++indx) {
+                                port_index_mapping[indx] = indx;
+                            }
+                        }
+
+                        for (size_t indx{}; indx < ports; ++indx) {
+                            auto input_it{connected_ports.find(indx)};
+
+                            if (input_it == std::end(connected_ports)) {
+                                if (start_port == ~0ull) {
+                                    start_port = indx;
+                                    prev_port = indx;
+                                } else if (indx == (ports - 1ull)) {
+                                    io_iterate_params << "\n"
+                                                      << direction << port_index_mapping[start_port] << ":"
+                                                      << port_index_mapping[indx];
+                                    start_port = ~0ull;
+                                } else if ((prev_port + 1ull) == indx) {
+                                    prev_port = indx;
+                                }
+                            } else if (start_port != ~0ull) {
+                                io_iterate_params << "\n"
+                                                  << direction << port_index_mapping[start_port] << ":"
+                                                  << port_index_mapping[prev_port];
+                                start_port = ~0ull;
+                            }
+                        }
+
+                        if (start_port != ~0ull) {
+                            io_iterate_params << "\n"
+                                              << direction << port_index_mapping[start_port] << ":"
+                                              << port_index_mapping[prev_port];
+                            start_port = ~0ull;
+                        }
+
+                        return port_index_mapping;
+                    };
+
+                    get_duplicate_io_range(input_ports, connected_inputs, "i", false);
+                    auto output_port_index_mapping{get_duplicate_io_range(output_ports, connected_outputs, "o", true)};
+
+                    // submodel_io_reuse_new_output_ports stores the orig->new output port mapping
+                    // produced by io_iterate.  io_consolidate reads this map to translate
+                    // a source ELF's original output port number to the renumbered port that
+                    // io_iterate exposed to the outside world.
+                    submodel_io_reuse_new_output_ports[last_submodel_index] = output_port_index_mapping;
+
+                    npuw_plugin->schedule_builder_proceed(elf_blobs[elf_index],
+                                                          ::intel_npu::BuilderOption::io_iterate,
+                                                          io_iterate_params.str());
+                }
+            }
+
+            auto make_submodel_io_connection_no_reuse = [&](auto& m_submodels_io, auto& io_mapping) {
+                for (const auto& kvp : m_submodels_io) {
+                    const auto& subm_idx_to{kvp.first.first};
+                    const auto& port_idx_to{kvp.first.second};
+                    const auto& subm_idx_from{kvp.second.first};
+                    const auto& port_idx_from{kvp.second.second};
+
+                    if (current_submodel_index == subm_idx_to) {
+                        io_mapping[std::pair<size_t, size_t>{subm_idx_from, port_idx_from}] = port_idx_to;
+                    }
+                }
+            };
+
+            if (!prev_submodel_io_mapping.size() && prev_submodel_index != ~0ull) {
+                make_submodel_io_connection_no_reuse(m_submodels_input_to_prev_output, prev_submodel_io_mapping);
+            }
+
+            if (!prev_submodel_input_only_mapping.size() && prev_submodel_index != ~0ull) {
+                make_submodel_io_connection_no_reuse(m_submodels_input_to_prev_input, prev_submodel_input_only_mapping);
+            }
+
+            for (auto indx : blob_submodels) {
+                submodel_to_elf_mapping[indx] = elf_index;
+                prev_submodel_index = indx;
+            }
+
+            if (prev_submodel_io_mapping.size()) {
+                size_t prev_src_elf_index{~0ull};
+
+                for (auto io : prev_submodel_io_mapping) {
+                    const auto src_blob_index{io.first.first};
+                    const auto src_elf_index{submodel_to_elf_mapping[src_blob_index]};
+                    
+                    auto src_output_port{io.first.second};
+                    std::string src_port_str{"o"};
+
+                    const auto dst_input_port{io.second};
+
+                    auto hfa_subm_it{m_hfa_behaviour_submodel.find(current_submodel_index)};
+
+                    if (hfa_subm_it == std::end(m_hfa_behaviour_submodel))
+                    {
+                        auto& port_name{comp_model_desc.input_port_name[dst_input_port]};
+                        m_pipeline_connected_inputs[port_name]++;
+                        m_pipeline_shared_inputs[port_name].push_back(
+                            std::pair<size_t, size_t>{elf_index, dst_input_port});
+                    }
+                  
+                    auto hfa_prev_subm_it{m_hfa_behaviour_submodel.find(io.first.first)};
+
+                    if (hfa_prev_subm_it != std::end(m_hfa_behaviour_submodel)) {
+                        hfa_pipeline_output_consumer[elf_index] = dst_input_port;
+                    }
+
+                    auto src_reuse_it{submodel_io_reuse.find(src_blob_index)};
+                    auto src_reuse_out_port_it{submodel_io_reuse_new_output_ports.find(src_blob_index)};
+
+                    // Port-prefix selection for io_consolidate:
+                    //
+                    // Case 1 - source port was declared in io_reuse (output[X] == input[Y], shared buffer):
+                    //   io_iterate marked it as REMOVED from the output list.
+                    //   The driver knows this buffer only by its INPUT side address.
+                    //   -> Switch prefix from "o" to "i" and use the corresponding input port number.
+                    //
+                    // Case 2 - source ELF has io_iterate output renumbering (but this port was NOT reused):
+                    //   io_iterate assigned new sequential indices to surviving output ports.
+                    //   -> Keep "o" prefix but translate port number to the new (compact) index.
+                    if (src_reuse_it != std::end(submodel_io_reuse)) {
+                        auto output_it{src_reuse_it->second.find(src_output_port)};
+
+                        if (output_it != std::end(src_reuse_it->second)) {
+                            src_output_port = output_it->second;
+                            src_port_str = "i";
+                        }
+                    } else if (src_reuse_out_port_it != std::end(submodel_io_reuse_new_output_ports)) {
+                        auto output_it{src_reuse_out_port_it->second.find(src_output_port)};
+
+                        if (output_it != std::end(src_reuse_out_port_it->second)) {
+                            src_output_port = output_it->second;
+                        }
+                    }
+
+                    if (prev_src_elf_index != src_elf_index) {
+                        io_consolidate_params << "\ns" << src_elf_index << ":s" << elf_index;
+                    }
+
+                    io_consolidate_params << "\n" << src_port_str << src_output_port << ":i" << dst_input_port;
+                    prev_src_elf_index = src_elf_index;
+                }
+            }
+
+            if (prev_submodel_input_only_mapping.size()) {
+                size_t prev_src_elf_index{~0ull};
+
+                for (auto io : prev_submodel_input_only_mapping) {
+                    const auto src_blob_index{io.first.first};
+                    const auto src_elf_index{submodel_to_elf_mapping[src_blob_index]};
+
+                    auto src_output_port{io.first.second};
+                    const auto dst_input_port{io.second};
+
+                    if (prev_src_elf_index != src_elf_index) {
+                        io_consolidate_params << "\ns" << src_elf_index << ":s" << elf_index;
+                    }
+
+                    io_consolidate_params << "\ni" << src_output_port << ":i" << dst_input_port;
+                    prev_src_elf_index = src_elf_index;
+                }
+            }
+            elf_index++;
+        }
+
+        // connect shared input ports
+        for (auto& input_bundle: m_pipeline_shared_inputs) {
+            auto& bundle{input_bundle.second};
+
+            if (bundle.size() > 1ull) {
+                auto primary_input{bundle.front()};
+                const auto primary_elf_index{primary_input.first};
+                const auto primary_input_port{primary_input.second};
+
+                bundle.pop_front();
+
+                for (auto& secondary_input : bundle) {
+                    io_consolidate_params << "\ns" << primary_elf_index << ":s" << secondary_input.first;
+                    io_consolidate_params << "\ni" << primary_input_port << ":i" << secondary_input.second;
+                }
+            }
+        }
+
+        // HFA pipeline output shared connection
+        if (hfa_pipeline_output_consumer.size() > 1ull) {
+            auto stage_it{std::begin(hfa_pipeline_output_consumer)};
+
+            const auto primary_elf_stage{stage_it->first};
+            const auto primary_elf_stage_port{stage_it->second};
+            hfa_pipeline_output_consumer.erase(stage_it);
+
+            for (auto stage : hfa_pipeline_output_consumer) {
+                io_consolidate_params << "\ns" << primary_elf_stage << ":s" << stage.first;
+                io_consolidate_params << "\ni" << primary_elf_stage_port << ":i" << stage.second;
+            }
+        }
+        // Final ELF fusion pass:
+        // fuse_elf merges all individual ELF blobs into a single pipeline ELF.
+        // io_consolidate is passed as a co-option (same pfnCreate4 call via pNext chaining)
+        // so the driver knows the cross-ELF port wiring while performing the fusion.
+        // After this call elf_blobs[0] contains the complete pipeline ELF blob.
+        auto io_consolidate_parameter{io_consolidate_params.str()};
+
+        for (auto& blob_mapping : submodel_to_blob_mapping) {
+            const auto duplicate_blob_index{blob_mapping.first};
+            const auto& blob_submodels{blob_mapping.second};
+
+            size_t current_submodel_index{};
+
+            if (blob_submodels.size()) {
+                current_submodel_index = blob_submodels.front();
+            }
+
+            const auto blob_index{duplicate_blob_indices_lut[duplicate_blob_index]};
+
+            if (submodel_reuse_lut[blob_index].size() > 1ull) {
+                iterate_submodel_indices.push_back(current_submodel_index);
+            }
+        }
+
+        {
+            std::map<std::string, size_t> offsets;
+
+            for (auto sm_idx : iterate_submodel_indices) {
+                auto elf_idx{submodel_to_elf_mapping[sm_idx]};
+                auto& elf_blob{elf_blobs[elf_idx]};
+
+                std::map<uint32_t, uint32_t> pipeline_global_inputs;
+                std::map<uint32_t, uint32_t> pipeline_global_outputs;
+                std::map<std::string, std::vector<uint32_t>> pipeline_global_parameters;
+
+                npuw_plugin->schedule_builder_get_io_mapping(elf_blob,
+                                                             pipeline_global_inputs,
+                                                             pipeline_global_inputs,
+                                                             pipeline_global_parameters);
+
+                auto& submodel_offset{m_pipeline_global_parameters_offset[sm_idx]};
+
+                for (auto& params : pipeline_global_parameters) {
+                    submodel_offset[params.first] = offsets[params.first];
+
+                    offsets[params.first] += params.second.size();
+                }
+            }
+        }
+
+          
+        {
+            std::vector<::intel_npu::BuilderOption> options(2);
+            options[0] = ::intel_npu::BuilderOption::fuse_elf;
+            options[1] = ::intel_npu::BuilderOption::io_consolidate;
+            std::vector<std::string> option_parameters(2);
+            option_parameters[1] = io_consolidate_parameter;
+            npuw_plugin->schedule_builder_proceed(elf_blobs, options, option_parameters);
+        }
+        auto& pipeline_blob{elf_blobs[0]};
+        npuw_plugin->schedule_builder_proceed(pipeline_blob, ::intel_npu::BuilderOption::compress, "");
+        npuw_plugin->schedule_builder_proceed(pipeline_blob, ::intel_npu::BuilderOption::chunk_dma, "");
+        npuw_plugin->schedule_builder_proceed(pipeline_blob, ::intel_npu::BuilderOption::tiny_dma, "");
+        // schedule_builder_get_io_mapping runs the IO_MAPPING pass on the fused pipeline blob.
+        // The driver writes port-name text containing "#GI[N]" / "#GO[N]" markers for global ports
+        // and "iter<k>" suffixes for per-iteration weight ports.  The resulting maps are used at
+        // inference time by:
+        //   m_pipeline_global_inputs  -> bind_global_params() to route model inputs to pipeline ports
+        //   m_pipeline_global_outputs -> just_sync_infer_request::set_tensor() for model outputs
+        //   m_pipeline_global_parameters -> unpack_closure() to bind per-layer weights by iteration index
+        npuw_plugin->schedule_builder_get_io_mapping(pipeline_blob,
+                                                     m_pipeline_global_inputs,
+                                                     m_pipeline_global_outputs,
+                                                     m_pipeline_global_parameters);
+
+        if (m_using_hfa_pipeline_model) {
+            m_nlp_branch_select_port_idx = m_pipeline_global_parameters[m_nlp_branch_select_port_name].front();            
+        }
+        
+        std::string blob_str(std::begin(pipeline_blob), std::end(pipeline_blob));
+        std::istringstream model_stream(blob_str);
+
+        ov::AnyMap nlp_properties{};
+        nlp_properties["NPU_IMPORT_RAW_BLOB"] = true;
+        m_compiled_pipeline_model = core->import_model(model_stream, get_context(), nlp_properties);
+   
+        m_using_pipeline_model = true;
     }
 
     // Finalize memory in closures and weight banks
@@ -1397,12 +2070,490 @@ bool ov::npuw::CompiledModel::attention_no_copy() const {
     return m_cfg.get<::intel_npu::NPUW_ATTN_NO_COPY>();
 }
 
+bool ov::npuw::CompiledModel::is_using_pipeline_model() const {
+    return m_using_pipeline_model;
+}
+
+bool ov::npuw::CompiledModel::is_using_hfa_pipeline_model() const {
+    return m_using_hfa_pipeline_model;
+}
+
+size_t& ov::npuw::CompiledModel::get_prefill_iteration() const {
+    return m_current_prefill_iteration;
+}
+
 std::shared_ptr<ov::npuw::weights::Bank> ov::npuw::CompiledModel::get_weights_bank() const {
     return m_weights_bank;
 }
 
 void ov::npuw::CompiledModel::set_weights_bank(std::shared_ptr<ov::npuw::weights::Bank> bank) {
     m_weights_bank = std::move(bank);
+}
+
+::intel_npu::elf_binary ov::npuw::CompiledModel::nlp_host_flash_attention_pipeline(
+    ov::npuw::compiled::HostFlashAttention* hfa) {
+    auto create_accumulator_broadcast_model = [](const uint64_t& buffer_size) {
+        // -------------------------------------------------------------------
+        // 1. Prepare Source Data (Matching offsets: U32 scalar + I64 shape)
+        // -------------------------------------------------------------------
+        // -------------------------------------------------------------------
+        // 1. Prepare Source Data (Matching offsets: U32 scalar + I64 shape)
+        // -------------------------------------------------------------------
+        uint32_t raw_scalar_data{0u};                                          // Layer id="0" data
+        int64_t target_shape_data{static_cast<int64_t>(buffer_size >> 2ull)};  // Layer id="1" data
+
+        // -------------------------------------------------------------------
+        // 2. Build the Graph Nodes
+        // -------------------------------------------------------------------
+        // Layer id="0": raw_scalar_source
+        auto raw_scalar_source =
+            std::make_shared<ov::opset1::Constant>(ov::element::u32, ov::Shape{1}, &raw_scalar_data);
+        raw_scalar_source->set_friendly_name("raw_scalar_source");
+
+        // Layer id="1": target_shape_array
+        auto target_shape_array =
+            std::make_shared<ov::opset1::Constant>(ov::element::i64, ov::Shape{1}, &target_shape_data);
+        target_shape_array->set_friendly_name("target_shape_array");
+
+        // Layer id="2": past_acc (Broadcast operation)
+        auto past_acc = std::make_shared<ov::opset3::Broadcast>(raw_scalar_source,
+                                                                target_shape_array,
+                                                                ov::op::BroadcastType::NUMPY);
+        past_acc->set_friendly_name("past_acc");
+
+        // Layer id="3": Result
+        auto result = std::make_shared<ov::opset1::Result>(past_acc);
+        result->set_friendly_name("past_acc_result");
+
+        // -------------------------------------------------------------------
+        // 3. Assemble Model Container
+        // -------------------------------------------------------------------
+        ov::ResultVector results = {result};
+        ov::ParameterVector parameters = {};  // Complete constants graph
+
+        auto model{std::make_shared<ov::Model>(results, parameters, "past_acc_init")};
+        return model;
+    };
+
+    auto create_max_sum_initiation_model = [](const size_t& buffer_size, uint32_t max_raw_scalar_data) {
+        uint32_t sum_raw_scalar_data{0u};  // Maps to sum_raw_scalar_source
+        int64_t target_shape_data{static_cast<int64_t>(buffer_size >> 2ull)};
+        using namespace ov::opset11;
+        // -------------------------------------------------------------------
+        // 2. Define Subgraph A: Max Past Component
+        // -------------------------------------------------------------------
+        // Layer id="4": max_raw_scalar_source
+        auto max_raw_scalar_source = std::make_shared<Constant>(ov::element::u32, ov::Shape{1}, &max_raw_scalar_data);
+        max_raw_scalar_source->set_friendly_name("max_raw_scalar_source");
+
+        // Layer id="5": max_target_shape_array
+        auto max_target_shape_array = std::make_shared<Constant>(ov::element::i64, ov::Shape{1}, &target_shape_data);
+        max_target_shape_array->set_friendly_name("max_target_shape_array");
+
+        // Layer id="6": past_max (Broadcast numpy mode)
+        auto past_max =
+            std::make_shared<Broadcast>(max_raw_scalar_source, max_target_shape_array, ov::op::BroadcastType::NUMPY);
+        past_max->set_friendly_name("past_max");
+
+        // Layer id="7": Result
+        auto result_max = std::make_shared<Result>(past_max);
+        result_max->set_friendly_name("past_max_result");
+
+        // -------------------------------------------------------------------
+        // 3. Define Subgraph B: Sum / D Past Component
+        // -------------------------------------------------------------------
+        // Layer id="8": sum_raw_scalar_source
+        auto sum_raw_scalar_source = std::make_shared<Constant>(ov::element::u32, ov::Shape{1}, &sum_raw_scalar_data);
+        sum_raw_scalar_source->set_friendly_name("sum_raw_scalar_source");
+
+        // Layer id="9": sum_target_shape_array
+        auto sum_target_shape_array = std::make_shared<Constant>(ov::element::i64, ov::Shape{1}, &target_shape_data);
+        sum_target_shape_array->set_friendly_name("sum_target_shape_array");
+
+        // Layer id="10": past_d (Broadcast numpy mode)
+        auto past_d =
+            std::make_shared<Broadcast>(sum_raw_scalar_source, sum_target_shape_array, ov::op::BroadcastType::NUMPY);
+        past_d->set_friendly_name("past_d");
+
+        // Layer id="11": Result
+        auto result_d = std::make_shared<Result>(past_d);
+        result_d->set_friendly_name("past_d_result");
+
+        // -------------------------------------------------------------------
+        // 4. Construct and Return the Complete OpenVINO Model
+        // -------------------------------------------------------------------
+        ov::ResultVector results = {result_max, result_d};
+        ov::ParameterVector parameters = {};  // Model has no dynamic parameter inputs
+
+        auto model = std::make_shared<ov::Model>(results, parameters, "max_d_init");
+        return model;
+    };
+
+    auto get_compiled_elf = [](std::shared_ptr<ov::Model>& model, ::intel_npu::elf_binary& blob) {
+        ov::Core core;
+        auto compiled_model{core.compile_model(model, "NPU")};
+
+        std::stringstream model_stream;
+        compiled_model.export_model(model_stream);
+        std::string model_str{model_stream.str()};
+        std::vector<uint8_t> buffer(model_str.begin(), model_str.end());
+        blob = std::move(buffer);
+    };
+
+    if (hfa) {
+        auto plugin = get_npuw_plugin();
+        auto core = plugin->get_core();
+        auto npuw_plugin = std::dynamic_pointer_cast<const ::intel_npu::Plugin>(plugin);
+
+        ::intel_npu::elf_binary hfa_final_blob{};
+        std::vector<::intel_npu::elf_binary> hfa_intermediate_blob{};
+
+        const auto query_size{static_cast<uint32_t>(hfa->_sdpa_attention_info._query_size)};
+        const auto context_size{static_cast<uint32_t>(hfa->_sdpa_attention_info._context_size)};
+        const auto mask_port_idx{hfa->_sdpa_attention_info._tile_input_indices.mask};
+        const auto key_port_idx{hfa->_sdpa_attention_info._tile_input_indices.k};
+        const auto value_port_idx{hfa->_sdpa_attention_info._tile_input_indices.v};
+
+        const auto hfa_tile_stages{context_size / query_size};
+
+        if (hfa_tile_stages) {
+            m_nlp_controlflow_branch_select_size = hfa_tile_stages - 1ull;
+        }
+
+        ::intel_npu::elf_binary acc_init_elf{};
+        ::intel_npu::elf_binary max_d_init_elf{};
+
+
+        if (hfa->_compiled_final_tile_model) {
+            std::stringstream model_stream;
+            hfa->_compiled_final_tile_model->export_model(model_stream);
+            std::string model_str{model_stream.str()};
+            std::vector<uint8_t> hfa_buffer(model_str.begin(), model_str.end());
+            hfa_final_blob = hfa_buffer;            
+        }
+
+        if (hfa->_compiled_final_tile_model_strided) {
+            std::stringstream model_stream;
+            hfa->_compiled_final_tile_model_strided->export_model(model_stream);
+            std::string model_str{model_stream.str()};
+            std::vector<uint8_t> hfa_buffer(model_str.begin(), model_str.end());
+            hfa_final_blob = hfa_buffer;
+            
+            const size_t tile_offset{query_size * m_nlp_controlflow_branch_select_size};
+            std::stringstream stat_dma_ss;
+            stat_dma_ss << "i" << mask_port_idx << ":stride[" << context_size << "," << (context_size * query_size)
+                        << "] offset[" << tile_offset << "]";
+            
+            std::string stat_dma_option{stat_dma_ss.str()};
+
+            npuw_plugin->schedule_builder_proceed(hfa_final_blob,
+                                                  ::intel_npu::BuilderOption::static_dma,
+                                                  stat_dma_option);            
+        }
+
+        if (hfa->_compiled_tile_model) {
+            const auto acc_port_idx{hfa->_sdpa_attention_info._tile_input_indices.acc};            
+            const auto max_port_idx{hfa->_sdpa_attention_info._tile_input_indices.max};
+            const auto d_port_idx{hfa->_sdpa_attention_info._tile_input_indices.d};
+            const auto k_port_idx{hfa->_sdpa_attention_info._tile_input_indices.k};
+            const auto v_port_idx{hfa->_sdpa_attention_info._tile_input_indices.v};
+            const auto Q_idx{hfa->_sdpa_attention_info._tile_input_indices.q};
+            const auto mask_idx{hfa->_sdpa_attention_info._tile_input_indices.mask};
+
+            const auto acc_port_out_idx{hfa->_sdpa_attention_info._tile_output_indices.acc};
+            const auto max_port_out_idx{hfa->_sdpa_attention_info._tile_output_indices.max};
+            const auto d_port_out_idx{hfa->_sdpa_attention_info._tile_output_indices.d};
+
+            auto& inputs{hfa->_compiled_tile_model->inputs()};
+
+            auto get_port_size_in_bytes = [&](const size_t& idx, ov::element::Type& type) {
+                auto& port{inputs[idx]};
+
+                auto shape{port.get_shape()};
+                auto bytes{ov::shape_size(shape)};
+                type = port.get_element_type();
+                bytes *= (type.bitwidth() >> 3u);
+                return bytes;
+            };
+
+            ov::element::Type acc_type{};
+            ov::element::Type max_type{};
+            ov::element::Type d_type{};
+
+            auto acc_bytes{get_port_size_in_bytes(acc_port_idx, acc_type)};
+            auto max_bytes{get_port_size_in_bytes(max_port_idx, max_type)};
+            auto d_bytes{get_port_size_in_bytes(d_port_idx, d_type)};
+
+            get_compiled_elf(create_accumulator_broadcast_model(acc_bytes), acc_init_elf);
+
+            npuw_plugin->schedule_builder_proceed(acc_init_elf, ::intel_npu::BuilderOption::memset, "");
+            uint32_t max_raw_scalar_data{0xfbfffbffu};
+
+            if (max_type == ov::element::f32) {
+                auto neg_inf{-std::numeric_limits<float>::infinity()};
+                max_raw_scalar_data = *reinterpret_cast<uint32_t*>(&neg_inf);
+            }
+
+            get_compiled_elf(create_max_sum_initiation_model(max_bytes, max_raw_scalar_data), max_d_init_elf);
+
+            npuw_plugin->schedule_builder_proceed(max_d_init_elf, ::intel_npu::BuilderOption::memset, "");
+                        
+
+            std::stringstream model_stream;
+            hfa->_compiled_tile_model->export_model(model_stream);
+            std::string model_str{model_stream.str()};
+            std::vector<uint8_t> hfa_buffer(model_str.begin(), model_str.end());
+
+          
+            {
+                auto& blob_inputs{hfa->_compiled_tile_model->inputs()};
+                auto& blob_outputs{hfa->_compiled_tile_model->outputs()};
+
+                std::stringstream io_name_parameters{};
+
+                auto add_port_names = [&](const std::vector<ov::Output<const ov::Node>>& ports, bool is_input) {
+                    size_t idx{};
+
+                    for (auto& port : ports) {
+                        auto name{port.get_node()->get_friendly_name()};
+                        if (is_input && (idx == k_port_idx) || ((idx == v_port_idx))) {
+                            name = "PAST_" + name;
+                        }
+
+                        io_name_parameters << name << "\n";
+                        idx++;
+                    }
+                };
+
+                add_port_names(blob_inputs,true);
+                add_port_names(blob_outputs,false);
+
+                const auto io_name_parameters_str{io_name_parameters.str()};
+
+                npuw_plugin->schedule_builder_proceed(hfa_buffer,
+                                                      ::intel_npu::BuilderOption::io_name,
+                                                      io_name_parameters_str);
+            }            
+
+            hfa_intermediate_blob.resize(m_nlp_controlflow_branch_select_size);
+            size_t tile_offset{};
+
+            auto key_seq_dim{hfa->_sdpa_attention_info._k_seq_dim};
+            auto value_seq_dim{hfa->_sdpa_attention_info._v_seq_dim};
+
+            auto key_shape{inputs[key_port_idx].get_shape()};
+            auto value_shape{inputs[value_port_idx].get_shape()};
+
+            key_shape[key_seq_dim] = m_nlp_controlflow_branch_select_size * query_size;
+            value_shape[value_seq_dim] = key_shape[key_seq_dim];
+
+            auto get_kv_stride_string = [](auto& shape) {
+                std::stringstream ss;
+                uint32_t entries {};
+                size_t stride{1ull};
+                for (auto it{std::rbegin(shape)}; it != std::rend(shape); ++it, ++entries) {
+                    if (entries) {
+                        ss << ",";
+                    }
+                    stride *= (*it);
+                    ss << stride;
+                }
+
+                return ss.str();
+            };
+
+            const auto key_stride_str{get_kv_stride_string(key_shape)};
+            const auto value_stride_str{get_kv_stride_string(value_shape)};
+
+            for (size_t i{}; i < m_nlp_controlflow_branch_select_size; ++i) {
+                hfa_intermediate_blob[i] = hfa_buffer;
+
+                std::stringstream stat_dma_ss;
+                stat_dma_ss << "i" << mask_port_idx << ":stride[" << context_size << "," << (context_size * query_size)
+                            << "] offset[" << tile_offset << "]";
+
+                stat_dma_ss << "\ni" << key_port_idx << ":stride[" << key_stride_str << "] offset[0,"
+                            << tile_offset
+                            << "]";
+
+                stat_dma_ss << "\ni" << value_port_idx << ":stride[" << value_stride_str << "] offset["
+                            << tile_offset << "]";
+              
+                std::string stat_dma_option{stat_dma_ss.str()};
+
+                npuw_plugin->schedule_builder_proceed(hfa_intermediate_blob[i],
+                                                      ::intel_npu::BuilderOption::static_dma,
+                                                      stat_dma_option);
+
+                std::stringstream io_reuse_params{};
+                io_reuse_params << "[INLINE]";
+                io_reuse_params << "\n" << acc_port_out_idx << ":" << acc_port_idx;
+                io_reuse_params << "\n" << max_port_out_idx << ":" << max_port_idx;
+                io_reuse_params << "\n" << d_port_out_idx << ":" << d_port_idx;
+
+                npuw_plugin->schedule_builder_proceed(hfa_intermediate_blob[i],
+                                                      ::intel_npu::BuilderOption::io_reuse,
+                                                      io_reuse_params.str());
+                tile_offset += query_size;
+            }
+
+            // Build the HFA pipeline
+            std::vector<::intel_npu::elf_binary> hfa_pipeline_blobs;
+            hfa_pipeline_blobs.reserve((hfa_tile_stages << 1u) + 2u);
+            hfa_pipeline_blobs.push_back(acc_init_elf);
+            hfa_pipeline_blobs.push_back(max_d_init_elf);
+            std::stringstream io_consolidate_ss;
+
+            const uint32_t stage_offset{2u};
+            std::vector<uint32_t> hfa_branch;
+            io_consolidate_ss << "[INLINE]\ns0:s2\no0:i" << acc_port_idx << "\ns1:s2\no0:i" << max_port_idx << "\no1:i"
+                              << d_port_idx;
+
+            const auto stage_end{hfa_tile_stages - 1u};
+
+            for (uint32_t stage{}; stage < stage_end; ++stage) {
+                hfa_pipeline_blobs.push_back(hfa_intermediate_blob[stage]);
+                hfa_branch.push_back(stage);
+
+                auto a{stage + stage_offset};
+
+                if (stage) {
+                    const auto am1{a - 1u};
+                    
+                    io_consolidate_ss << "\ns" << am1 << ":s" << a << "\n";
+                    io_consolidate_ss << "i" << k_port_idx << ":i" << k_port_idx << "\n";
+                    io_consolidate_ss << "i" << v_port_idx << ":i" << v_port_idx << "\n";
+                    io_consolidate_ss << "i" << acc_port_idx << ":i" << acc_port_idx << "\n";
+                    io_consolidate_ss << "i" << max_port_idx << ":i" << max_port_idx << "\n";
+                    io_consolidate_ss << "i" << d_port_idx << ":i" << d_port_idx << "\n";
+                    io_consolidate_ss << "i" << Q_idx << ":i" << Q_idx << "\n";
+                    io_consolidate_ss << "i" << mask_port_idx << ":i" << mask_port_idx;                  
+                }
+            }
+
+            {
+                hfa_pipeline_blobs.push_back(hfa_final_blob);
+                hfa_branch.push_back(stage_end);
+
+                auto a{stage_end + stage_offset};
+
+                if (stage_end) {
+                    const auto am1{a - 1u};
+
+                    io_consolidate_ss << "\ns" << am1 << ":s" << a << "\n";                                
+                    io_consolidate_ss << "i" << acc_port_idx << ":i" << acc_port_idx << "\n";
+                    io_consolidate_ss << "i" << max_port_idx << ":i" << max_port_idx << "\n";
+                    io_consolidate_ss << "i" << d_port_idx << ":i" << d_port_idx << "\n";
+                    io_consolidate_ss << "i" << Q_idx << ":i" << Q_idx << "\n";
+                    io_consolidate_ss << "i" << mask_port_idx << ":i" << mask_port_idx;
+                }
+            }
+
+            const auto final_stage{hfa_branch.back() + stage_offset};
+            hfa_branch.pop_back();
+            std::stringstream branch_ss;
+            branch_ss << "[INLINE]";
+
+            for (auto& stage : hfa_branch) {
+                const auto stage_entry{stage + 1u};
+
+                branch_ss << "\ns" << stage_entry << ":s" << (stage_entry + 1u) << "\n";
+                branch_ss << "s" << stage_entry << ":s" << final_stage;
+            }
+
+            std::vector<::intel_npu::BuilderOption> options(3);
+            options[0] = ::intel_npu::BuilderOption::fuse_elf;
+            options[1] = ::intel_npu::BuilderOption::branch;
+            options[2] = ::intel_npu::BuilderOption::io_consolidate;
+            std::vector<std::string> option_parameters(3);
+            option_parameters[1] = branch_ss.str();
+            option_parameters[2] = io_consolidate_ss.str();
+            npuw_plugin->schedule_builder_proceed(hfa_pipeline_blobs, options, option_parameters);
+
+            auto& pipeline_blob{hfa_pipeline_blobs[0]};
+
+            npuw_plugin->schedule_builder_proceed(pipeline_blob, ::intel_npu::BuilderOption::compress, "");
+            
+            std::map<uint32_t, uint32_t> pipeline_global_inputs;
+            std::map<uint32_t, uint32_t> pipeline_global_outputs;
+
+            npuw_plugin->schedule_builder_get_io_mapping(pipeline_blob,
+                                                         pipeline_global_inputs,
+                                                         pipeline_global_outputs,
+                                                         hfa->pipeline_parameters);         
+
+            {
+                const auto Q_in_idx{hfa->_sdpa_attention_info._sdpa_indices.query};
+                const auto K_in_idx{hfa->_sdpa_attention_info._sdpa_indices.present_key};
+                const auto V_in_idx{hfa->_sdpa_attention_info._sdpa_indices.present_value};
+                const auto mask_in_idx{hfa->_sdpa_attention_info._sdpa_indices.attention_mask};
+                size_t past_K_in_idx{~0ull};
+                size_t past_V_in_idx{~0ull};
+
+                if (hfa->_sdpa_attention_info._sdpa_indices.past_key_blocks.size()) {
+                    past_K_in_idx = hfa->_sdpa_attention_info._sdpa_indices.past_key_blocks[0];
+                }
+
+                if (hfa->_sdpa_attention_info._sdpa_indices.past_value_blocks.size()) {
+                    past_V_in_idx = hfa->_sdpa_attention_info._sdpa_indices.past_value_blocks[0];
+                }
+
+                auto& final_inputs{hfa->_compiled_final_tile_model->inputs()};
+                size_t indx{};
+                std::map<size_t, std::string> name_lut;
+
+                for (auto& in : final_inputs) {
+                    auto name{in.get_node()->get_friendly_name()};
+                    name_lut[indx++] = name;
+                }
+
+                const auto Q_port_name{name_lut[hfa->_sdpa_attention_info._tile_input_indices.q]};
+                const auto K_port_name{name_lut[hfa->_sdpa_attention_info._tile_input_indices.k]};
+                const auto V_port_name{name_lut[hfa->_sdpa_attention_info._tile_input_indices.v]};
+                const auto ACC_port_name{name_lut[hfa->_sdpa_attention_info._tile_input_indices.acc]};
+                const auto MAX_port_name{name_lut[hfa->_sdpa_attention_info._tile_input_indices.max]};
+                const auto D_port_name{name_lut[hfa->_sdpa_attention_info._tile_input_indices.d]};
+                const auto Mask_port_name{name_lut[hfa->_sdpa_attention_info._tile_input_indices.mask]};
+                const auto past_K_port_name{"PAST_" + K_port_name};
+                const auto past_V_port_name{"PAST_" + V_port_name};
+
+                m_hfa_port_names.Q = Q_port_name;
+                m_hfa_port_names.K = K_port_name;
+                m_hfa_port_names.V = V_port_name;
+                m_hfa_port_names.mask = Mask_port_name;
+
+                
+                hfa->input_port_pipeline_mapping[past_K_in_idx] = hfa->pipeline_parameters[past_K_port_name].back();
+                hfa->input_port_pipeline_mapping[past_V_in_idx] = hfa->pipeline_parameters[past_V_port_name].back();
+
+                hfa->input_port_pipeline_mapping[Q_in_idx] = hfa->pipeline_parameters[Q_port_name].front();
+                hfa->input_port_pipeline_mapping[K_in_idx] = hfa->pipeline_parameters[K_port_name].back();
+                hfa->input_port_pipeline_mapping[V_in_idx] = hfa->pipeline_parameters[V_port_name].back();
+                hfa->input_port_pipeline_mapping[mask_in_idx] = hfa->pipeline_parameters[Mask_port_name].front();
+                const std::string controflow_section_port_name{"#[NLP]_controlflow_select"};
+                m_nlp_branch_select_port_name = controflow_section_port_name;
+                hfa->shared_input_parameters[hfa->pipeline_parameters[controflow_section_port_name].front()] =
+                    controflow_section_port_name;
+
+                hfa->shared_input_parameters[hfa->pipeline_parameters[Q_port_name].front()] = Q_port_name;
+                hfa->shared_input_parameters[hfa->pipeline_parameters[K_port_name].front()] = K_port_name;
+                hfa->shared_input_parameters[hfa->pipeline_parameters[V_port_name].front()] = V_port_name;
+                hfa->shared_input_parameters[hfa->pipeline_parameters[Mask_port_name].front()] = Mask_port_name;
+                hfa->shared_input_parameters[hfa->pipeline_parameters[ACC_port_name].front()] = ACC_port_name;
+                hfa->shared_input_parameters[hfa->pipeline_parameters[MAX_port_name].front()] = MAX_port_name;
+                hfa->shared_input_parameters[hfa->pipeline_parameters[D_port_name].front()] = D_port_name;
+                
+                m_pipeline_connected_inputs[ACC_port_name]++;
+                m_pipeline_connected_inputs[MAX_port_name]++;
+                m_pipeline_connected_inputs[D_port_name]++;
+                m_pipeline_connected_inputs[Mask_port_name]++;
+                m_pipeline_connected_inputs[Q_port_name]++;
+            }
+            return std::move(pipeline_blob);
+        }
+    }
+
+    return ::intel_npu::elf_binary{};
 }
 
 void ov::npuw::CompiledModel::finalize_weights_bank() {
@@ -1823,6 +2974,9 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
     if (auto* hfa = ov::npuw::attn::get_compiled_hfa(desc.pipeline.context)) {
         LOG_INFO("Compiling host flash attention tile models for Subgraph[" << id << "]...");
         LOG_BLOCK();
+        
+        std::string strided_inputs_intermediate{};
+        std::string npu_stride_key{};
 
         if (!hfa->_tile_model_to_compile) {
             LOG_WARN("Host flash attention tile model is null, skipping compilation");
@@ -1841,7 +2995,11 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                     std::find(supported_properties.begin(),
                               supported_properties.end(),
                               ov::intel_npu::enable_strides_for.name()) != supported_properties.end();
-                if (!support_strides_for) {
+
+                const bool m_use_npu_local_pipelining{m_cfg.get<::intel_npu::NPUW_CONTROLFLOW_EN>()};
+
+                if (!support_strides_for || !m_use_npu_local_pipelining) {
+                //if (!support_strides_for) {
                     break;
                 }
 
@@ -1855,14 +3013,37 @@ bool ov::npuw::CompiledModel::compile_for_success(std::size_t id, const std::vec
                 if (!strided_inputs.empty()) {
                     strided_inputs += ",";
                 }
-                strided_inputs += std::string(hfa_tile_input_id_to_string(HFATileInputId::K_TILE)) + "," +
-                                  std::string(hfa_tile_input_id_to_string(HFATileInputId::V_TILE));
+
+                
+
+                if (!m_use_npu_local_pipelining) {                    
+                    strided_inputs += std::string(hfa_tile_input_id_to_string(HFATileInputId::K_TILE)) + "," +
+                                      std::string(hfa_tile_input_id_to_string(HFATileInputId::V_TILE));
+                } else {
+                    strided_inputs += std::string(hfa_tile_input_id_to_string(HFATileInputId::MASK_TILE));
+                    strided_inputs_intermediate = strided_inputs;
+                    strided_inputs_intermediate += ("," +std::string(hfa_tile_input_id_to_string(HFATileInputId::K_TILE)) +
+                                                   "," +
+                                                   std::string(hfa_tile_input_id_to_string(HFATileInputId::V_TILE)));
+                }
+
+                npu_stride_key = strides_key;
                 m_meta_devices[device][strides_key] = strided_inputs;
                 supports_strides_for = true;
                 LOG_INFO("Enabled using tensor view for device: " << device << " for inputs: " << strided_inputs);
             }
 
+            hfa->set_compiled_final_tile_model_strided(
+                make_wrapped(hfa->_final_tile_model_to_compile, "/hfa_tile_strided", devices));                        
+
+            if (npu_stride_key.length()) {
+                for (const auto& device : devices) {
+                    m_meta_devices[device][npu_stride_key] = strided_inputs_intermediate;
+                }
+            }            
+            
             hfa->set_compiled_tile_model(make_wrapped(hfa->_tile_model_to_compile, "/hfa_tile", devices));
+
             hfa->set_compiled_final_tile_model(desc.compiled_model);
             LOG_INFO("Host flash attention compilation complete for Subgraph[" << id << "]");
 
@@ -1947,7 +3128,8 @@ void ov::npuw::CompiledModel::dump_subgraph_model(std::size_t id,
                                            << " as it is a function body for Subgraph[" << id << "]");
     }
 
-    const std::string dump_dir = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS_DIR>();
+    // const std::string dump_dir = m_cfg.get<::intel_npu::NPUW_DUMP_SUBS_DIR>();
+    const std::string dump_dir = "C:\\Work\\gbaugh\\models\\dump\\ir\\";
 
     // Dump MoE expert models if present
     if (const auto* moe_experts = ov::npuw::moe::get_compiled_experts(m_compiled_submodels[id].pipeline.context)) {
@@ -2174,6 +3356,7 @@ std::shared_ptr<ov::npuw::IBaseInferRequest> ov::npuw::CompiledModel::create_bas
                 return false;  // Unpack required
             }
         }
+
         return true;  // no spatial & subgraphs requiring unpack found
     };
 
@@ -2249,16 +3432,22 @@ ov::Any ov::npuw::CompiledModel::get_property(const std::string& name) const {
 }
 
 std::string ov::npuw::CompiledModel::submodel_device(const std::size_t idx) const {
-    std::size_t real_idx = m_compiled_submodels[idx].replaced_by.value_or(idx);
-    const auto& comp_subm_desc = m_compiled_submodels[real_idx];
+    if (!m_using_pipeline_model) {
+        std::size_t real_idx = m_compiled_submodels[idx].replaced_by.value_or(idx);
+        const auto& comp_subm_desc = m_compiled_submodels[real_idx];
 
-    if (!comp_subm_desc.compiled_model) {
-        return "";
+        if (!comp_subm_desc.compiled_model) {
+            return "";
+        }
+
+        const auto exec_devs =
+            comp_subm_desc.compiled_model->get_property(ov::execution_devices.name()).as<std::vector<std::string>>();
+        return exec_devs.empty() ? "" : exec_devs.front();
+    } else {
+        const auto exec_devs =
+            m_compiled_pipeline_model->get_property(ov::execution_devices.name()).as<std::vector<std::string>>();
+        return exec_devs.empty() ? "" : exec_devs.front();
     }
-
-    const auto exec_devs =
-        comp_subm_desc.compiled_model->get_property(ov::execution_devices.name()).as<std::vector<std::string>>();
-    return exec_devs.empty() ? "" : exec_devs.front();
 }
 
 bool ov::npuw::CompiledModel::unpack_required(const std::size_t idx) const {
@@ -2282,9 +3471,11 @@ bool ov::npuw::CompiledModel::unpack_required(const std::size_t idx, const std::
 
     auto& closure = comp_model_desc.closure.get().closure.at(cidx);
     const auto closure_param_id = comp_model_desc.param_base + cidx;
+    const auto port_type{func_desc.input_port_type[closure_param_id]};
 
-    auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
-    return (closure.get_element_type() != iport.get_element_type());
+    // auto& iport = func_desc.compiled_model->inputs()[closure_param_id];
+    // return (closure.get_element_type() != iport.get_element_type());
+    return (closure.get_element_type() != port_type);
 }
 
 bool ov::npuw::CompiledModel::is_gather_closure(const std::size_t idx, const std::size_t cidx) const {
@@ -2465,6 +3656,7 @@ void ov::npuw::CompiledModel::implement_properties() {
                           BIND(npuw::parallel_compilation, NPUW_PARALLEL_COMPILE),
                           BIND(npuw::ensure_compatibility, NPUW_ENSURE_COMPATIBILITY),
                           BIND(npuw::funcall_async, NPUW_FUNCALL_ASYNC),
+                          BIND(npuw::controlflow_enabled, NPUW_CONTROLFLOW_EN),
                           BIND(npuw::unfold_ireqs, NPUW_UNFOLD_IREQS),
                           BIND(npuw::weights_bank, NPUW_WEIGHTS_BANK),
                           BIND(npuw::weights_bank_alloc, NPUW_WEIGHTS_BANK_ALLOC),

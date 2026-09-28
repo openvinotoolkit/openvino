@@ -296,9 +296,9 @@ bool convert_function_precision(ov::pass::PassBase& pass,
     // to the freshly allocated replacement. Without the std::move the original
     // constants stay alive until the loop ends, doubling the peak memory of
     // the pass on constant-heavy models.
-
-    for (size_t i = 0; i < ops.size(); ++i) {
-        auto node = std::move(ops[i]);
+    for (auto& node : ops) {
+    //for (size_t i = 0; i < ops.size(); ++i) { // G.B. buggy
+        //auto node = std::move(ops[i]);
         auto node_precisions = filter_precisions_for_node(node, precisions);
 
         // Skip nodes where all requested conversions are disabled (e.g. sensitive ops kept in FP32)
@@ -1377,7 +1377,7 @@ bool fuse_type_to_constant(const std::shared_ptr<ov::Node>& node,
         new_const->set_friendly_name(constant->get_friendly_name());
         ov::copy_runtime_info(constant, new_const);
         ov::copy_weightless_cache_attr(constant, new_const);
-        ov::wsh::Extension::hint_evict(*constant);
+        //ov::wsh::Extension::hint_evict(*constant);
         return true;
     }
     return false;

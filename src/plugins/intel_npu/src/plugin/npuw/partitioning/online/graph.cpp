@@ -147,7 +147,7 @@ void own::ade::Graph::dfs(own::ade::NodeHandle& nh,
                           std::unordered_set<own::ade::NodeHandle>& visited,
                           std::stack<own::ade::NodeHandle>& stack) const {
     visited.insert(own::ade::NodeHandle(nh));
-    auto dst_nodes = nh->dstNodes();
+    auto &dst_nodes{nh->dstNodes()};
 
     // FIXME: this was introduced to make the graph
     // the same every run when created the same way.
@@ -155,7 +155,7 @@ void own::ade::Graph::dfs(own::ade::NodeHandle& nh,
         return this->meta(a).get<detail::CreateIdx>().m_idx < this->meta(b).get<detail::CreateIdx>().m_idx;
     });
 
-    for (auto dst_nh : dst_nodes) {
+    for (auto &dst_nh : dst_nodes) {
         auto it = visited.find(dst_nh);
         if (it == visited.end()) {
             dfs(dst_nh, visited, stack);
@@ -175,7 +175,7 @@ std::vector<own::ade::NodeHandle> own::ade::Graph::sorted() const {
         return this->meta(a).get<detail::CreateIdx>().m_idx < this->meta(b).get<detail::CreateIdx>().m_idx;
     });
 
-    for (auto nh : nodes) {
+    for (auto &nh : nodes) {
         auto it = visited.find(nh);
         if (it == visited.end()) {
             dfs(nh, visited, stack);

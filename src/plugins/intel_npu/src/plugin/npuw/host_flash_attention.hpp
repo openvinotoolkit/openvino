@@ -203,6 +203,7 @@ struct HostFlashAttention {
     // Compiled FINAL tile model for NPU execution (with division and transpose)
     ov::SoPtr<ov::ICompiledModel> _compiled_final_tile_model;
 
+    ov::SoPtr<ov::ICompiledModel> _compiled_final_tile_model_strided;
     // Attention parameter info from original SDPA model (not from tile models)
     HostFlashAttentionInfo _sdpa_attention_info;
 
@@ -211,6 +212,10 @@ struct HostFlashAttention {
 
     /// Whether tensor views can be used for tile extraction (depends on compiler and driver support)
     bool _can_use_tensor_view = false;
+
+    std::map<std::string, std::vector<uint32_t>> pipeline_parameters;
+    std::map<size_t, size_t> input_port_pipeline_mapping;
+    std::map<size_t, std::string> shared_input_parameters;
 
     HostFlashAttention() = default;
 
@@ -226,6 +231,12 @@ struct HostFlashAttention {
     // Set the compiled FINAL tile model and clear the model to compile
     void set_compiled_final_tile_model(ov::SoPtr<ov::ICompiledModel> compiled_model) {
         _compiled_final_tile_model = std::move(compiled_model);
+        _final_tile_model_to_compile.reset();  // Free memory after compilation
+    }
+
+    // Set the compiled FINAL tile model and clear the model to compile
+    void set_compiled_final_tile_model_strided(ov::SoPtr<ov::ICompiledModel> compiled_model) {
+        _compiled_final_tile_model_strided = std::move(compiled_model);
         _final_tile_model_to_compile.reset();  // Free memory after compilation
     }
 

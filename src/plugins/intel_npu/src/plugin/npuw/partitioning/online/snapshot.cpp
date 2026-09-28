@@ -309,8 +309,9 @@ void Snapshot::buildGraph() {
     }
 
     using namespace ov::npuw::util::at;
+    const auto& sorted_nh{m_graph->sorted()};
 
-    for (const auto& nh : m_graph->sorted()) {
+    for (const auto& nh : sorted_nh) {
         const auto& gptr = m_graph->meta(nh).get<Group::GPtr>();
         auto ov_node = gptr->getInitialNode();
 
@@ -828,8 +829,9 @@ void Snapshot::identifyUniques() {
     LOG_BLOCK();
 
     Uniques uniques;
+    const auto& nh_sorted{m_graph->sorted()};
 
-    for (const auto& nh : m_graph->sorted()) {
+    for (const auto& nh : nh_sorted) {
         const Group::GPtr& group = m_graph->meta(nh).get<Group::GPtr>();
         // This pass should only be called at the very beginning,
         // thus check and use only the single initial layer
