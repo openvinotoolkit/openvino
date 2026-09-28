@@ -1084,9 +1084,6 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         // to prevent reading beyond the allocated memory bounds
         if (user->get_node().is_type<fully_connected>() && user->is_dynamic()) {
             if (user->_deps[0].first == this || (is_fused_prim_of_user(id()) && user->_update_shape_done_by_other)) {
-                if (get_node().is_type<dynamic_quantize>() && (user->_deps[0].first != this || user->_deps[0].second != 0)) {
-                    continue;
-                }
                 size_t dep_idx = 0;
                 for (const auto& dep : user->_deps) {
                     if (dep.first->id() == id()) {
