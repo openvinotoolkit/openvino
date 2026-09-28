@@ -94,9 +94,7 @@ that compacts null ggml sources: set it when `src[3]` is null and `src[4]` conta
 attention sinks, leaving four input tensors. The cgraph convention of naming that
 weight `*.attn_sinks.weight` is also recognized. Otherwise the fourth tensor is
 treated as an attention mask; its shape and element type cannot distinguish a
-mask from sinks (an F32 mask can have the same shape as a sink). Maskless attention sinks
-are not supported yet: this detection only prevents sinks from being silently read as a
-mask, and conversion fails with "FLASH_ATTN_EXT sinks require an attention mask".
+mask from sinks (an F32 mask can have the same shape as a sink).
 
 Converters must infer intermediate shapes from their OpenVINO operands, reading only the axes
 needed for the operation. A dynamic token axis does not prevent reading a static head width.

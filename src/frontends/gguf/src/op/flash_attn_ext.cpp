@@ -89,6 +89,7 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
     const bool has_mask = context.get_input_size() >= 4 && !sink_without_mask;
     // gpt-oss: optional 5th input is the per-head attention sink logit [n_head].
     const bool has_sinks = context.get_input_size() == 5 || sink_without_mask;
+    // Maskless sinks are not supported yet; they are detected only to reject them instead of misreading them as a mask.
     FRONT_END_OP_CONVERSION_CHECK(!has_sinks || has_mask, "FLASH_ATTN_EXT sinks require an attention mask");
 
     if (flat_kv) {
