@@ -37,5 +37,5 @@ retrying
 tox
 types-setuptools
 wheel
-pybind11-stubgen<2.6
+pybind11-stubgen<3.1
 pyright<=1.1.411
