@@ -26,8 +26,23 @@ outputs:
 runs:
   using: 'composite'
   steps:
+    - name: Get action revision
+      id: get_action_revision
+      run: echo "action_ref=${{ env.ACTION_REF }}" >> $GITHUB_OUTPUT
+      shell: bash
+      env:
+        ACTION_REF: ${{ github.action_ref || github.base_ref || github.event.merge_group.base_ref || github.ref }}
+
     - name: Checkout head
       uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+
+    - name: Checkout action scripts
+      uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
+      with:
+        repository: 'openvinotoolkit/openvino'
+        ref: ${{ steps.get_action_revision.outputs.action_ref }}
+        sparse-checkout: .github/actions/handle_docker
+        path: handle_docker_action
 
     - name: Checkout base
       uses: ababushk/checkout@9bec46a94a83db82acd4303e7627d88db71402a5 # cherry_pick_retries
@@ -39,7 +54,7 @@ runs:
     - name: Install Python dependencies
       uses: py-actions/py-dependency-install@30aa0023464ed4b5b116bd9fbdab87acf01a484e # v4.1.0
       with:
-        path: "${{ github.action_path }}/requirements.txt"
+        path: "handle_docker_action/.github/actions/handle_docker/requirements.txt"
         update-setuptools: "false"
         update-wheel: "false"
       env:
@@ -60,7 +75,7 @@ runs:
         images=$(echo "${{ inputs.images }}" | tr '\n' ',' | sed 's/,*$//')
         pr="${{ github.event.pull_request.number }}"
 
-        python3 .github/actions/handle_docker/get_images_to_build.py \
+        python3 handle_docker_action/.github/actions/handle_docker/get_images_to_build.py \
         -d "${{ inputs.dockerfiles_root_dir }}" \
         -r "${{ inputs.registry }}" \
         --images "$images" \
