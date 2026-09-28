@@ -70,11 +70,8 @@ std::vector<uint8_t> make_container(std::vector<EntrySpec> specs,
     header.manifest_size = manifest.size();
     header.container_size = header.manifest_offset + header.manifest_size;
 
-    // insert(), not memcpy(data() + offset, ...) - see hsm_format.cpp for why (GCC -Wstringop-overflow).
-    std::vector<uint8_t> buffer;
-    buffer.reserve(header.container_size);
-    const auto* header_bytes = reinterpret_cast<const uint8_t*>(&header);
-    buffer.insert(buffer.end(), header_bytes, header_bytes + sizeof(header));
+    std::vector<uint8_t> buffer(sizeof(header));
+    std::memcpy(buffer.data(), &header, sizeof(header));
     buffer.insert(buffer.end(), payloads.begin(), payloads.end());
     buffer.insert(buffer.end(), manifest.begin(), manifest.end());
     return buffer;
