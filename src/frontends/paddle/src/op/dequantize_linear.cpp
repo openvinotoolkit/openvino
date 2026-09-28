@@ -6,10 +6,7 @@
 #include "openvino/decompositions/low_precision_dequantize.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs dequantize_linear(const NodeContext& node) {
     // extract the INPUTS
     const auto x = node.get_input("X");
@@ -67,7 +64,4 @@ NamedOutputs dequantize_linear(const NodeContext& node) {
     return node.default_single_output_mapping({out_node.get_node_shared_ptr()}, {"Y"});
 }
 
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

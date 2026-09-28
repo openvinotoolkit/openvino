@@ -342,6 +342,10 @@ void convert_and_copy(const ov::ITensor* src, ov::ITensor* dst, const cldnn::str
                               cldnn::layout({}, ov::element::dynamic, cldnn::format::bfyx, cldnn::padding()));
 }
 
+void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_ptr, ov::element::Type dst_et, size_t size, const cldnn::layout& layout) {
+    ::convert_and_copy(src_ptr, src_et, dst_ptr, dst_et, size, layout);
+}
+
 std::vector<cldnn::optional_data_type> get_output_data_types(const ov::Node* op, PrecisionMap precision_map) {
     std::vector<cldnn::optional_data_type> output_data_types;
     for (size_t i = 0; i < op->get_output_size(); i++) {

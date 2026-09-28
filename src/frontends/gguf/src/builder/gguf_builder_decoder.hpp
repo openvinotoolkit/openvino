@@ -9,9 +9,7 @@
 #include "gguf_graph.hpp"
 #include "openvino/frontend/gguf/decoder.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 // GgufDecoder implementation over a GgufGraph built natively from a .gguf file (no
 // llama.cpp / gguf dependency). It is the OpenVINO-side counterpart of llama.cpp's
@@ -23,7 +21,11 @@ namespace gguf {
 // the node it is bound to, so no node index is threaded through the interface.
 class GgufBuilderDecoder : public GgufDecoder {
 public:
-    explicit GgufBuilderDecoder(std::shared_ptr<GgufGraph> graph);
+    explicit GgufBuilderDecoder(std::shared_ptr<GgufGraph> graph, int node_index = -1);
+
+    const std::shared_ptr<TensorMap>& values() const {
+        return m_graph->values;
+    }
 
     // Per-node accessors (bound to the node this decoder instance was cloned for).
     ov::Any get_attribute(const std::string& name) const override;
@@ -54,6 +56,4 @@ private:
     const GgufOp& node() const;
 };
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf
