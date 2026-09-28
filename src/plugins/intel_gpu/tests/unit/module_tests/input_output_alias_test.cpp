@@ -34,7 +34,7 @@ protected:
     layout new_token_layout{ov::PartialShape{1, 2, 2, 4}, data_types::f32, format::bfyx};
     layout present_len_layout{ov::PartialShape{1}, data_types::i64, format::bfyx};
 
-    topology make_topology(size_t output_port = 0,
+    topology make_topology(int output_port = 0,
                            bool converting_output = false,
                            bool other_reader = false,
                            bool intermediate = false) {
