@@ -163,7 +163,8 @@ ov::element::Type optimize_kv_cache_storage(const std::shared_ptr<ov::Model>& mo
 namespace ov::npuw {
 
 ConvertKVCacheToPrecision::ConvertKVCacheToPrecision(const ov::element::Type lptype, bool v_tensors_transposed)
-    : m_lp_type(lptype), m_v_tensors_transposed(v_tensors_transposed) {}
+    : m_lp_type(lptype),
+      m_v_tensors_transposed(v_tensors_transposed) {}
 
 bool ConvertKVCacheToPrecision::run_on_model(const std::shared_ptr<ov::Model>& model) {
     auto ppp_result = cvt_kvcache_to_low_precision(model, m_lp_type, m_v_tensors_transposed);

@@ -533,7 +533,7 @@ void ov::npuw::run_kv_cache_dynamic_quantization_passes(const std::shared_ptr<ov
         if (is_asym) {
             //  Subtract zero-point - TODO: share this memory with DynamicQuantize/read/assign?
             auto zp = create_parameter_with_name(storage_types.zero_point_type,
-                                                   clear_embedding_index(start_node, isKey),
+                                                 clear_embedding_index(start_node, isKey),
                                                  make_dq_param_name("zp"));
 
             // this probably to be optimized by compiler - but for now we need it to avoid types mismatch
