@@ -104,7 +104,6 @@ TEST_P(MarkMathBeforeFloorToKeepF16RoundingTest, MathFeedingFloorIsMarked) {
 
 TEST_P(MarkMathBeforeFloorToKeepF16RoundingTest, MathNotFeedingFloorIsNotMarked) {
     model = make_model<ov::op::v0::Relu>(GetParam(), false);
-    model_ref = make_model<ov::op::v0::Relu>(GetParam(), false);
 }
 
 INSTANTIATE_TEST_SUITE_P(TransformationTests,
