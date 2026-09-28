@@ -170,7 +170,7 @@ TEST(PADispatchContract, ViolationNamesTheDispatch) {
 
 // A dispatch shaped as N subsequences of the given scheduled lengths; only the
 // fields variants_serve reads are populated.
-Dispatch make_dispatch_of(const std::vector<int64_t>& seq_lens) {
+Dispatch make_dispatch_of(const std::vector<int32_t>& seq_lens) {
     Dispatch d;
     d.subsequence_begins = {0};
     for (const auto len : seq_lens) {

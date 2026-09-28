@@ -50,11 +50,6 @@ private:
     // Pre-compiled semi-static token-size variants keyed by fixed token dim
     // (1024, 128, 1); the infer request dispatches token chunks onto these.
     std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> m_semi_static_models;
-
-    // KV cache block size as fixed by the device at compile time; 0 if the
-    // compiled cache shape is still dynamic in that dimension. Consumed by
-    // the per-dispatch block-table validation.
-    std::size_t m_block_size = 0u;
 };
 
 // The dispatching request. The ports are shared with the inner request (see
@@ -74,7 +69,6 @@ class PAInferRequest final : public ov::ISyncInferRequest {
 public:
     PAInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model,
                    ov::SoPtr<ov::IAsyncInferRequest> inner_request,
-                   std::size_t block_size,
                    const std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>>& variants);
 
     void infer() override;
@@ -111,7 +105,6 @@ private:
 
     // Input ports by tensor name, for reading the control tensors.
     std::unordered_map<std::string, ov::Output<const ov::Node>> m_inputs_by_name;
-    std::size_t m_block_size = 0u;
 
     // Semi-static chunk requests keyed by token size, largest first, plus a
     // dynamic request for residual chunks. These are separate from

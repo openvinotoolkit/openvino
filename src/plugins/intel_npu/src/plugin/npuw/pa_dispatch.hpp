@@ -11,13 +11,14 @@
 namespace ov::npuw::pa {
 
 // One dispatch's control tensors, parsed out of the infer request. The
-// vectors are plain copies of the (small, integer) PA control inputs, which
-// keeps the validation below a pure function over host data.
+// vectors are plain copies of the (small) PA control inputs in their own
+// element types, which keeps the validation below a pure function over host
+// data: the PA op takes its controls as i32, the lm_head gather index is i64.
 struct Dispatch {
-    std::vector<int64_t> past_lens;
-    std::vector<int64_t> subsequence_begins;
-    std::vector<int64_t> block_indices;           // meaningful when has_block_table
-    std::vector<int64_t> block_indices_begins;    // meaningful when has_block_table
+    std::vector<int32_t> past_lens;
+    std::vector<int32_t> subsequence_begins;
+    std::vector<int32_t> block_indices;           // meaningful when has_block_table
+    std::vector<int32_t> block_indices_begins;    // meaningful when has_block_table
     std::vector<int64_t> sampled_tokens_indices;  // meaningful when has_sampled_tokens
     int64_t max_context_len = 0;
     int64_t input_ids_size = -1;           // -1 when the model has no input_ids input
@@ -27,7 +28,7 @@ struct Dispatch {
 
     // subsequence_begins is the source of truth for the flat token dimension.
     int64_t tokens() const {
-        return subsequence_begins.empty() ? int64_t{0} : subsequence_begins.back();
+        return subsequence_begins.empty() ? int64_t{0} : int64_t{subsequence_begins.back()};
     }
     int64_t sequences() const {
         return static_cast<int64_t>(past_lens.size());

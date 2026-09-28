@@ -6,6 +6,7 @@
 
 #include <future>
 #include <optional>
+#include <ostream>
 #include <random>
 #include <string>
 
@@ -237,9 +238,17 @@ bool starts_with_past_lincache(const std::string& input_name);
 // by the SDPAToPagedAttention transformation).
 bool is_pa_kv_cache_name(const std::string& input_name);
 
-// Matches the key half only (key_cache.N) -- the key cache carries the block
-// geometry the device fixes at compile time.
-bool is_pa_key_cache_name(const std::string& input_name);
+// A one-line digest of a tensor for log traces, written straight into the
+// stream: LOG_VERB("x: " << TensorBrief{tensor}). Element type and shape,
+// then the values of a small tensor or min / max / mean of a larger one.
+// Tensors past kMaxStats elements (a paged KV cache pool, say) print their
+// geometry only.
+struct TensorBrief {
+    static constexpr std::size_t kMaxInline = 16u;
+    static constexpr std::size_t kMaxStats = 1u << 20;
+    ov::SoPtr<ov::ITensor> tensor;
+};
+std::ostream& operator<<(std::ostream& os, const TensorBrief& brief);
 
 // Structure to hold SDPA pattern nodes.
 // After SplitKVCacheIntoBlocks the single past_key / past_value parameter is

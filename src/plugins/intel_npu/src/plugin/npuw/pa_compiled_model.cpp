@@ -25,49 +25,68 @@
 
 namespace {
 
-// The PA control tensors are small i32/i64 vectors -- widen to i64 for checks.
-std::vector<int64_t> as_i64_vec(const ov::SoPtr<ov::ITensor>& tensor) {
-    const auto n = tensor->get_size();
-    std::vector<int64_t> out(n);
-    if (tensor->get_element_type() == ov::element::i32) {
-        const auto* data = tensor->data<int32_t>();
-        std::copy_n(data, n, out.begin());
-    } else if (tensor->get_element_type() == ov::element::i64) {
-        const auto* data = tensor->data<int64_t>();
-        std::copy_n(data, n, out.begin());
-    } else {
-        OPENVINO_THROW("PA: unexpected element type ", tensor->get_element_type(), " for a control tensor");
-    }
-    return out;
+// The KV cache block size on the PA device. The CPU PagedAttention executor
+// requires 32, and the CB pipeline assumes 32 for any device that is not a
+// GPU. The compiled cache ports may carry a larger dim (a u8 key cache keeps
+// its per-channel scales in the block), so the block size is not read off them.
+constexpr std::size_t kBlockSize = 32u;
+
+// The token sizes of the semi-static variants.
+constexpr std::array<std::size_t, 3> kVariantTokenDims = {1024u, 128u, 1u};
+
+// A PA control input copied to host memory for the dispatch checks. The PA op
+// takes its controls as i32; sampled_tokens_indices, the pipeline's lm_head
+// gather index, is i64. data<T>() rejects any other element type.
+template <typename T>
+std::vector<T> read_vec(const ov::SoPtr<ov::ITensor>& tensor) {
+    const auto* data = tensor->data<T>();
+    return {data, data + tensor->get_size()};
+}
+
+// A fresh 1-D tensor holding vals, in the PA control element type T.
+template <typename T>
+ov::SoPtr<ov::ITensor> make_vec_tensor(const std::vector<T>& vals) {
+    auto tensor = ov::get_tensor_impl(ov::Tensor(ov::element::from<T>(), ov::Shape{vals.size()}));
+    std::copy(vals.begin(), vals.end(), tensor->data<T>());
+    return tensor;
 }
 
 // True when the model matches the plain flat-token LLM contract the chunked
-// path implements: the known control inputs only (embedding inputs, M-RoPE
-// position_ids, per-layer block tables etc. all run 1:1 on the dynamic model),
-// 1-D token streams, and a single logits output with static per-row geometry
-// so the result tensor can be allocated upfront and filled row by row.
+// path implements: only the inputs below, which run_chunk knows how to rebase
+// per chunk, 1-D token streams, and a single logits output with static per-row
+// geometry so the result tensor can be allocated upfront and filled row by
+// row. Any other input (inputs_embeds, M-RoPE position_ids, per-layer block
+// tables, eviction inputs) makes the model not chunkable, and every dispatch
+// then runs 1:1 on the dynamic model.
 bool is_chunkable_pa_model(const std::shared_ptr<ov::Model>& model) {
-    static const std::unordered_set<std::string> known = {"input_ids",
-                                                          "position_ids",
-                                                          "past_lens",
-                                                          "subsequence_begins",
-                                                          "block_indices",
-                                                          "block_indices_begins",
-                                                          "max_context_len",
-                                                          "score_aggregation_window",
-                                                          "sampled_tokens_indices"};
+    static const std::unordered_set<std::string> supported = {"input_ids",
+                                                              "position_ids",
+                                                              "past_lens",
+                                                              "subsequence_begins",
+                                                              "block_indices",
+                                                              "block_indices_begins",
+                                                              "max_context_len",
+                                                              "score_aggregation_window",
+                                                              "sampled_tokens_indices"};
     std::unordered_set<std::string> seen;
     for (const auto& input : model->inputs()) {
         const auto& name = input.get_any_name();
         if (ov::npuw::util::is_pa_kv_cache_name(name)) {
             continue;
         }
-        if (known.count(name) == 0) {
+        if (supported.count(name) == 0) {
             return false;
         }
         seen.insert(name);
     }
-    for (const char* required : {"input_ids", "position_ids", "block_indices", "sampled_tokens_indices"}) {
+    for (const char* required : {"input_ids",
+                                 "position_ids",
+                                 "past_lens",
+                                 "subsequence_begins",
+                                 "block_indices",
+                                 "block_indices_begins",
+                                 "max_context_len",
+                                 "sampled_tokens_indices"}) {
         if (seen.count(required) == 0) {
             return false;
         }
@@ -87,85 +106,17 @@ bool is_chunkable_pa_model(const std::shared_ptr<ov::Model>& model) {
            lshape[2].is_static();
 }
 
-// Compact one-line digest of a tensor for the per-dispatch I/O trace:
-// element type, shape, then the values for small tensors or min/max/mean for
-// large ones. KV cache pools pass with_data=false -- the data is the whole
-// paged cache, so only the geometry is shown.
-std::string tensor_brief(const ov::SoPtr<ov::ITensor>& tensor, bool with_data = true) {
-    std::ostringstream os;
-    os << tensor->get_element_type() << " " << tensor->get_shape();
-    const auto type = tensor->get_element_type();
-    const auto n = tensor->get_size();
-    const bool readable =
-        type == ov::element::f32 || type == ov::element::f16 || type == ov::element::i32 || type == ov::element::i64;
-    if (!with_data || !readable || n == 0) {
-        return os.str();
-    }
-    const auto value_at = [&](std::size_t i) -> double {
-        if (type == ov::element::f32) {
-            return tensor->data<float>()[i];
-        }
-        if (type == ov::element::f16) {
-            return static_cast<float>(tensor->data<ov::float16>()[i]);
-        }
-        if (type == ov::element::i32) {
-            return tensor->data<int32_t>()[i];
-        }
-        return static_cast<double>(tensor->data<int64_t>()[i]);
-    };
-    constexpr std::size_t kMaxInline = 16u;
-    if (n <= kMaxInline) {
-        os << " {";
-        for (std::size_t i = 0; i < n; ++i) {
-            os << (i ? ", " : "") << value_at(i);
-        }
-        os << "}";
-    } else {
-        auto lo = value_at(0), hi = lo, sum = 0.0;
-        for (std::size_t i = 0; i < n; ++i) {
-            const auto v = value_at(i);
-            lo = std::min(lo, v);
-            hi = std::max(hi, v);
-            sum += v;
-        }
-        os << " min=" << lo << " max=" << hi << " mean=" << sum / static_cast<double>(n);
-    }
-    return os.str();
-}
-
-// A fresh vector tensor with the chunk port's (integer) element type.
-ov::SoPtr<ov::ITensor> make_ctrl_tensor(const ov::Output<const ov::Node>& port, const std::vector<int64_t>& vals) {
-    const auto type = port.get_element_type();
-    auto tensor = ov::get_tensor_impl(ov::Tensor(type, ov::Shape{vals.size()}));
-    if (type == ov::element::i32) {
-        std::transform(vals.begin(), vals.end(), tensor->data<int32_t>(), [](int64_t v) {
-            return static_cast<int32_t>(v);
-        });
-    } else if (type == ov::element::i64) {
-        std::copy(vals.begin(), vals.end(), tensor->data<int64_t>());
-    } else {
-        OPENVINO_THROW("PA: unexpected element type ", type, " for a control tensor");
-    }
-    return tensor;
-}
-
-// [start, start + n) of a 1-D tensor, copied into a fresh same-typed tensor.
-ov::SoPtr<ov::ITensor> slice_1d(const ov::SoPtr<ov::ITensor>& src, int64_t start, int64_t n) {
-    auto out = ov::get_tensor_impl(ov::Tensor(src->get_element_type(), ov::Shape{static_cast<std::size_t>(n)}));
-    const auto esize = src->get_element_type().size();
-    const auto* base = static_cast<const uint8_t*>(src->data());
-    std::memcpy(out->data(), base + static_cast<std::size_t>(start) * esize, static_cast<std::size_t>(n) * esize);
-    return out;
-}
-
 std::shared_ptr<ov::Model> derive_pa_semi_static_model(const std::shared_ptr<ov::Model>& base_model,
-                                                       std::size_t token_dim) {
-    // Only the token-driven inputs get a fixed size (both are 1-D, checked by
-    // is_chunkable_pa_model); the context stays dynamic.
+                                                       std::size_t chunk_size) {
+    // Only the token-driven inputs get a fixed size; the context stays dynamic.
+    for (const char* name : {"input_ids", "position_ids"}) {
+        const auto& rank = base_model->input(name).get_partial_shape().rank();
+        OPENVINO_ASSERT(rank.is_static() && rank.get_length() == 1, "PA: '", name, "' is not a 1-D token stream");
+    }
     auto derived = base_model->clone();
-    derived->reshape({{"input_ids", ov::PartialShape{static_cast<int64_t>(token_dim)}},
-                      {"position_ids", ov::PartialShape{static_cast<int64_t>(token_dim)}}});
-    derived->set_friendly_name(base_model->get_friendly_name() + "_pa_token_" + std::to_string(token_dim));
+    derived->reshape({{"input_ids", ov::PartialShape{static_cast<int64_t>(chunk_size)}},
+                      {"position_ids", ov::PartialShape{static_cast<int64_t>(chunk_size)}}});
+    derived->set_friendly_name(base_model->get_friendly_name() + "_pa_token_" + std::to_string(chunk_size));
     return derived;
 }
 
@@ -175,18 +126,16 @@ std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> compile_pa_semi_static_vari
     const std::string& device,
     const ov::AnyMap& inner_config) {
     std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> variants;
-    constexpr std::array<std::size_t, 3> kVariantTokenDims = {1024u, 128u, 1u};
-
-    for (const auto token_dim : kVariantTokenDims) {
-        auto derived = derive_pa_semi_static_model(base_model, token_dim);
+    for (const auto chunk_size : kVariantTokenDims) {
+        auto derived = derive_pa_semi_static_model(base_model, chunk_size);
         auto compiled = plugin->get_core()->compile_model(derived, device, inner_config);
         OPENVINO_ASSERT(compiled != nullptr,
-                        "PA semi-static derivation failed to compile token_dim=",
-                        token_dim,
+                        "PA semi-static derivation failed to compile chunk_size=",
+                        chunk_size,
                         " on ",
                         device);
-        LOG_INFO("PA: compiled semi-static variant token_dim=" << token_dim << " on " << device);
-        variants.emplace(token_dim, std::move(compiled));
+        LOG_INFO("PA: compiled semi-static variant chunk_size=" << chunk_size << " on " << device);
+        variants.emplace(chunk_size, std::move(compiled));
     }
 
     return variants;
@@ -239,20 +188,6 @@ ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& mod
     m_compiled_model = plugin->get_core()->compile_model(model, device, inner_config);
     OPENVINO_ASSERT(m_compiled_model != nullptr, "PACompiledModel requires a valid inner compiled model");
 
-    // The device fixes the KV cache geometry at compile time; remember the
-    // block size for validating block-table coverage per dispatch. Identical
-    // across layers by construction, so the first cache input answers it.
-    for (const auto& input : m_compiled_model->inputs()) {
-        if (ov::npuw::util::is_pa_key_cache_name(input.get_any_name())) {
-            const auto& shape = input.get_partial_shape();
-            // [num_blocks (dyn), kv_heads, block_size, head_size]
-            if (shape.rank().is_static() && shape.rank().get_length() == 4 && shape[2].is_static()) {
-                m_block_size = static_cast<std::size_t>(shape[2].get_length());
-            }
-            break;
-        }
-    }
-
     // The semi-static variants only make sense for the plain flat-token LLM
     // contract; anything else (VLM, M-RoPE, per-layer block tables, ...) runs
     // 1:1 on the dynamic model, so don't spend compile time on variants.
@@ -261,8 +196,7 @@ ov::npuw::PACompiledModel::PACompiledModel(const std::shared_ptr<ov::Model>& mod
     } else {
         LOG_INFO("PA: model is outside the chunkable flat-token contract; every dispatch runs 1:1");
     }
-    LOG_INFO("PA: KV block_size fixed by " << device << ": " << m_block_size << "; " << m_semi_static_models.size()
-                                           << " semi-static variant(s)");
+    LOG_INFO("PA: " << m_semi_static_models.size() << " semi-static variant(s) on " << device);
 }
 
 const std::vector<ov::Output<const ov::Node>>& ov::npuw::PACompiledModel::inputs() const {
@@ -313,16 +247,14 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::PACompiledModel::create_sync_in
     auto self = std::static_pointer_cast<const ov::ICompiledModel>(shared_from_this());
     auto inner_request = m_compiled_model->create_infer_request();
     OPENVINO_ASSERT(inner_request != nullptr, "PACompiledModel requires a valid inner infer request");
-    return std::make_shared<PAInferRequest>(self, std::move(inner_request), m_block_size, m_semi_static_models);
+    return std::make_shared<PAInferRequest>(self, std::move(inner_request), m_semi_static_models);
 }
 
 ov::npuw::PAInferRequest::PAInferRequest(const std::shared_ptr<const ov::ICompiledModel>& compiled_model,
                                          ov::SoPtr<ov::IAsyncInferRequest> inner_request,
-                                         std::size_t block_size,
                                          const std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>>& variants)
     : ov::ISyncInferRequest(compiled_model),
-      m_inner_request(std::move(inner_request)),
-      m_block_size(block_size) {
+      m_inner_request(std::move(inner_request)) {
     for (const auto& input : get_inputs()) {
         m_inputs_by_name.emplace(input.get_any_name(), input);
     }
@@ -341,9 +273,9 @@ ov::npuw::PAInferRequest::PAInferRequest(const std::shared_ptr<const ov::ICompil
         chunk.logits = compiled->outputs().front();
         return chunk;
     };
-    for (const auto& [token_dim, compiled] : variants) {
-        m_chunk_requests.emplace(token_dim, make_chunk_request(compiled));
-        m_variant_token_dims.push_back(token_dim);
+    for (const auto& [chunk_size, compiled] : variants) {
+        m_chunk_requests.emplace(chunk_size, make_chunk_request(compiled));
+        m_variant_token_dims.push_back(chunk_size);
     }
     if (!m_chunk_requests.empty()) {
         m_tail_request = make_chunk_request(m_inner_request->get_compiled_model());
@@ -359,9 +291,9 @@ ov::npuw::pa::Dispatch ov::npuw::PAInferRequest::parse_dispatch() const {
     };
 
     pa::Dispatch d;
-    d.past_lens = as_i64_vec(get("past_lens"));
-    d.subsequence_begins = as_i64_vec(get("subsequence_begins"));
-    const auto mcl_vec = as_i64_vec(get("max_context_len"));
+    d.past_lens = read_vec<int32_t>(get("past_lens"));
+    d.subsequence_begins = read_vec<int32_t>(get("subsequence_begins"));
+    const auto mcl_vec = read_vec<int32_t>(get("max_context_len"));
     OPENVINO_ASSERT(!mcl_vec.empty(), "PA dispatch: max_context_len is not set");
     d.max_context_len = mcl_vec.front();
 
@@ -380,12 +312,12 @@ ov::npuw::pa::Dispatch ov::npuw::PAInferRequest::parse_dispatch() const {
     // common controls are validated.
     if (m_inputs_by_name.count("block_indices") > 0) {
         d.has_block_table = true;
-        d.block_indices = as_i64_vec(get("block_indices"));
-        d.block_indices_begins = as_i64_vec(get("block_indices_begins"));
+        d.block_indices = read_vec<int32_t>(get("block_indices"));
+        d.block_indices_begins = read_vec<int32_t>(get("block_indices_begins"));
     }
     if (m_inputs_by_name.count("sampled_tokens_indices") > 0) {
         d.has_sampled_tokens = true;
-        d.sampled_tokens_indices = as_i64_vec(get("sampled_tokens_indices"));
+        d.sampled_tokens_indices = read_vec<int64_t>(get("sampled_tokens_indices"));
     }
     return d;
 }
@@ -405,21 +337,26 @@ void ov::npuw::PAInferRequest::run_chunk(ChunkRequest& chunk,
         return m_inner_request->get_tensor(m_inputs_by_name.at(name));
     };
 
+    // Views into the caller's 1-D tensors, which outlive this chunk's infer.
+    const auto slice = [&](const char* name, int64_t start, int64_t n) {
+        return ov::npuw::util::view(inner(name), 0, static_cast<std::size_t>(start), static_cast<std::size_t>(n));
+    };
+
     // Token-driven inputs: this chunk's slice of the caller's flat stream.
-    set("input_ids", slice_1d(inner("input_ids"), global_start, n_chunk_tokens));
-    set("position_ids", slice_1d(inner("position_ids"), global_start, n_chunk_tokens));
+    set("input_ids", slice("input_ids", global_start, n_chunk_tokens));
+    set("position_ids", slice("position_ids", global_start, n_chunk_tokens));
 
     // Per-subsequence controls, rebased to a single subsequence that has
     // already seen seq_offset of its scheduled tokens. The block table is the
     // subsequence's full table: context stays dynamic, positions address it.
-    set("past_lens", make_ctrl_tensor(chunk.inputs.at("past_lens"), {d.past_lens[seq] + seq_offset}));
-    set("subsequence_begins", make_ctrl_tensor(chunk.inputs.at("subsequence_begins"), {0, n_chunk_tokens}));
+    set("past_lens", make_vec_tensor<int32_t>({static_cast<int32_t>(d.past_lens[seq] + seq_offset)}));
+    set("subsequence_begins", make_vec_tensor<int32_t>({0, static_cast<int32_t>(n_chunk_tokens)}));
     const auto blocks_begin = d.block_indices_begins[seq];
     const auto n_seq_blocks = d.block_indices_begins[seq + 1] - blocks_begin;
-    set("block_indices", slice_1d(inner("block_indices"), blocks_begin, n_seq_blocks));
-    set("block_indices_begins", make_ctrl_tensor(chunk.inputs.at("block_indices_begins"), {0, n_seq_blocks}));
+    set("block_indices", slice("block_indices", blocks_begin, n_seq_blocks));
+    set("block_indices_begins", make_vec_tensor<int32_t>({0, n_seq_blocks}));
     if (m_inputs_by_name.count("score_aggregation_window") > 0) {
-        set("score_aggregation_window", slice_1d(inner("score_aggregation_window"), seq, 1));
+        set("score_aggregation_window", slice("score_aggregation_window", seq, 1));
     }
 
     // The whole-batch max_context_len still bounds this chunk's context, and
@@ -442,7 +379,7 @@ void ov::npuw::PAInferRequest::run_chunk(ChunkRequest& chunk,
             out_rows.push_back(i);
         }
     }
-    set("sampled_tokens_indices", make_ctrl_tensor(chunk.inputs.at("sampled_tokens_indices"), local_sti));
+    set("sampled_tokens_indices", make_vec_tensor<int64_t>(local_sti));
 
     // The logits row count is the number of sampled tokens, so the output port
     // stays dynamic and the executing request cannot allocate it on its own
@@ -491,9 +428,9 @@ void ov::npuw::PAInferRequest::infer_chunked(const pa::Dispatch& d) {
             // remains (the generation case). Everything else that no variant
             // fits goes through the dynamic model.
             std::size_t pick = 0u;
-            for (const auto& [token_dim, _] : m_chunk_requests) {
-                if (static_cast<int64_t>(token_dim) <= remaining && (token_dim > 1u || remaining == 1)) {
-                    pick = token_dim;
+            for (const auto& [chunk_size, _] : m_chunk_requests) {
+                if (static_cast<int64_t>(chunk_size) <= remaining && (chunk_size > 1u || remaining == 1)) {
+                    pick = chunk_size;
                     break;
                 }
             }
@@ -522,14 +459,14 @@ void ov::npuw::PAInferRequest::log_dispatch_io(bool outputs) const {
         // On the chunked path the inner request was not inferred; the result
         // lives in m_chunked_logits (the model's single output).
         const auto tensor = outputs && m_serve_chunked_logits ? m_chunked_logits : m_inner_request->get_tensor(port);
-        LOG_VERB(name << ": " << tensor_brief(tensor, !ov::npuw::util::is_pa_kv_cache_name(name)));
+        LOG_VERB(name << ": " << ov::npuw::util::TensorBrief{tensor});
     }
 }
 
 void ov::npuw::PAInferRequest::infer() {
     log_dispatch_io(/*outputs=*/false);
     const auto dispatch = parse_dispatch();
-    pa::validate_dispatch(dispatch, m_block_size, m_dispatch_idx);
+    pa::validate_dispatch(dispatch, kBlockSize, m_dispatch_idx);
     LOG_VERB("PA dispatch #" << m_dispatch_idx << ": " << dispatch.sequences() << " subsequence(s), "
                              << dispatch.tokens() << " token(s), " << dispatch.sampled_tokens_indices.size()
                              << " sampled");
