@@ -3300,6 +3300,9 @@ static void check_imad_isv4_weight_padding(format input_format,
     ASSERT_TRUE(engine.is_the_same_buffer(*output, *outputs.begin()->second.get_memory()));
     cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
 
+    ASSERT_NE(groups, size_t(0));
+    ASSERT_EQ(output_features % groups, size_t(0));
+    ASSERT_EQ(input_features % groups, size_t(0));
     const size_t output_features_per_group = output_features / groups;
     const size_t input_features_per_group = input_features / groups;
     const size_t filter_y = static_cast<size_t>(weights_size.spatial[1]);
