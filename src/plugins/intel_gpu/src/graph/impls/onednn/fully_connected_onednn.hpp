@@ -72,6 +72,12 @@ struct FullyConnectedImplementationManager : public ImplementationManager {
             LOG_AND_RETURN_FALSE(node);
         }
 
+        // u3 weights run on the OCL fully_connected_gpu_int3_dpas kernel. Grouped (MoE) weights
+        // [G, N, K] stay here; the weights reorder may already have flattened their layout to
+        // 2D, so the rank is taken from the primitive.
+        if (wei_dt == data_types::u3 && fc_prim->weights_transposed && fc_prim->weights_rank == 2)
+            LOG_AND_RETURN_FALSE(node);
+
         if (fc_prim->compressed_weights) {
             if (fc_prim->decompression_zero_point.is_valid()) {
                 const auto decompression_zp_idx = fc_prim->bias.is_valid() ? 4 : 3;
