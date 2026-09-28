@@ -24,6 +24,16 @@ ConstantWriter::ConstantWriter(std::ostream& bin_data, bool enable_compression)
 
 ConstantWriter::~ConstantWriter() = default;
 
+namespace {
+void pad_to_alignment(std::ostream& stream, size_t alignment) {
+    const ConstantWriter::FilePosition write_pos = stream.tellp();
+    if (write_pos >= 0) {
+        const auto pad = align_padding_size(alignment, static_cast<size_t>(write_pos));
+        std::fill_n(std::ostream_iterator<char>(stream), pad, 0);
+    }
+}
+}  // namespace
+
 ConstantWriter::FilePosition ConstantWriter::write(const char* ptr,
                                                    size_t size,
                                                    size_t& new_size,
@@ -52,17 +62,9 @@ ConstantWriter::FilePosition ConstantWriter::write(const char* ptr,
         }
     }
 
-    // Pad to this type's own alignment, measured from the absolute stream position
-    const auto written_type = compress_to_fp16 ? element::f16 : src_type;
-    const size_t alignment = written_type.size();
-    const FilePosition write_pos = m_binary_output.get().tellp();
-    if (write_pos >= 0) {  // negative: stream can't report its position (e.g. pass::Hash's sink)
-        const auto pad = ov::util::align_padding_size(alignment, static_cast<size_t>(write_pos));
-        if (pad > 0) {
-            std::fill_n(std::ostream_iterator<char>(m_binary_output.get()), pad, 0);
-        }
-    }
-    const FilePosition offset = m_binary_output.get().tellp() - m_blob_offset;
+    pad_to_alignment(m_binary_output.get(), compress_to_fp16 ? element::f16.size() : src_type.size());
+    const FilePosition aligned_pos = m_binary_output.get().tellp();
+    const FilePosition offset = aligned_pos - m_blob_offset;
 
     if (m_enable_compression) {
         if (!ptr_is_temporary) {
