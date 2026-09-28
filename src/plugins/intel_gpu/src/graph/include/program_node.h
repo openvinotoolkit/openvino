@@ -9,7 +9,6 @@
 #include <list>
 #include <map>
 #include <memory>
-#include <optional>
 #include <set>
 #include <thread>
 #include <utility>
@@ -478,12 +477,9 @@ public:
 
     virtual std::set<size_t> get_lockable_input_ids() const;
 
-    // {dependency index, output port} pairs this node's kernel stays correct for when both happen to be
-    // bound to the same buffer. It is a tolerance the caller may exploit, not an aliasing this node performs.
-    // "Same buffer" means the literal same base pointer, not merely an overlapping or offset-into allocation;
-    // callers enforcing this (see network::can_bind_user_output_memory) reject anything less.
-    using input_output_alias = std::pair<size_t, size_t>;
-    virtual std::optional<input_output_alias> get_supported_input_output_alias() const { return std::nullopt; }
+    // Can this node's kernel read input_idx and write output_idx using the same buffer?
+    // The caller verifies an exact buffer match; see network::can_bind_user_output_memory.
+    virtual bool can_support_input_output_alias(size_t /*input_idx*/, size_t /*output_idx*/) const { return false; }
 
     void add_dependant_shape_of_node(const program_node* node);
 
