@@ -149,6 +149,10 @@ struct PagedAttentionManager {
     // where the plugin would not create it. Set before the first k_cache_token_major() call.
     std::optional<bool> force_k_cache_token_major;
 
+    // Build the network through program save/load (tests::get_network's caching path), which rebuilds every
+    // impl from its default ctor plus the saved stage order.
+    bool is_caching_test = false;
+
     // optional token_type_ids; when empty, a default all-zero [B_token] buffer is used
     std::vector<int> token_type_ids;
     // Materialize token_type_ids as a genuinely EMPTY [0] tensor while the primitive still declares
@@ -2559,7 +2563,7 @@ public:
         if (kv_cache_precision != ov::element::dynamic) {
             config.set_property(ov::hint::kv_cache_precision(kv_cache_precision));
         }
-        cldnn::network::ptr network = tests::get_network(tests::get_test_engine(), topology, config, tests::get_test_stream_ptr(), false);
+        cldnn::network::ptr network = tests::get_network(tests::get_test_engine(), topology, config, tests::get_test_stream_ptr(), pam.is_caching_test);
         network->set_input_data("query", query_mem);
         network->set_input_data("key", key_mem);
         network->set_input_data("value", value_mem);
