@@ -29,7 +29,7 @@ namespace {
 // off the cache ports: a u8 key cache keeps its scales in the block (dim 40).
 constexpr std::size_t kBlockSize = 32u;
 
-constexpr std::array<std::size_t, 3> kVariantTokenDims = {1024u, 128u, 1u};
+constexpr std::array<std::size_t, 3> kChunkSizes = {1024u, 128u, 1u};
 
 // The PA op takes its controls as i32; the lm_head gather index is i64.
 template <typename T>
@@ -114,7 +114,7 @@ std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> compile_pa_semi_static_vari
     const std::string& device,
     const ov::AnyMap& inner_config) {
     std::map<std::size_t, ov::SoPtr<ov::ICompiledModel>> variants;
-    for (const auto chunk_size : kVariantTokenDims) {
+    for (const auto chunk_size : kChunkSizes) {
         auto derived = derive_pa_semi_static_model(base_model, chunk_size);
         auto compiled = plugin->get_core()->compile_model(derived, device, inner_config);
         OPENVINO_ASSERT(compiled != nullptr,
@@ -244,7 +244,7 @@ ov::npuw::PAInferRequest::PAInferRequest(const std::shared_ptr<const ov::ICompil
     };
     for (const auto& [chunk_size, compiled] : variants) {
         m_chunk_requests.emplace(chunk_size, make_chunk_request(compiled));
-        m_variant_token_dims.push_back(chunk_size);
+        m_chunk_sizes.push_back(chunk_size);
     }
     if (!m_chunk_requests.empty()) {
         m_tail_request = make_chunk_request(m_inner_request->get_compiled_model());
@@ -423,7 +423,7 @@ void ov::npuw::PAInferRequest::infer() {
     LOG_VERB("PA dispatch #" << m_dispatch_idx << ": " << dispatch.sequences() << " subsequence(s), "
                              << dispatch.tokens() << " token(s), " << dispatch.sampled_tokens_indices.size()
                              << " sampled");
-    if (pa::variants_serve(dispatch, m_variant_token_dims)) {
+    if (pa::variants_serve(dispatch, m_chunk_sizes)) {
         infer_chunked(dispatch);
         m_serve_chunked_logits = true;
     } else {

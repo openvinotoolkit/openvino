@@ -83,7 +83,7 @@ private:
 
     // Largest first. The caller's tensors stay in m_inner_request.
     std::map<std::size_t, ChunkRequest, std::greater<std::size_t>> m_chunk_requests;
-    std::vector<std::size_t> m_variant_token_dims;
+    std::vector<std::size_t> m_chunk_sizes;
     ChunkRequest m_tail_request;
 
     // The chunked path's result, served by get_tensor().

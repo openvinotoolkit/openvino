@@ -180,34 +180,34 @@ Dispatch make_dispatch_of(const std::vector<int32_t>& seq_lens) {
     return d;
 }
 
-const std::vector<std::size_t> kVariantDims = {1024u, 128u, 1u};
+const std::vector<std::size_t> kChunkSizes = {1024u, 128u, 1u};
 
 TEST(PADispatchRouting, SingleSequenceDecodeServedByTheOneTokenVariant) {
-    EXPECT_TRUE(variants_serve(make_dispatch_of({1}), kVariantDims));
+    EXPECT_TRUE(variants_serve(make_dispatch_of({1}), kChunkSizes));
     EXPECT_FALSE(variants_serve(make_dispatch_of({1}), {1024u, 128u}));
 }
 
 TEST(PADispatchRouting, DecodeBatchRunsOneToOne) {
-    EXPECT_FALSE(variants_serve(make_dispatch_of({1, 1, 1, 1}), kVariantDims));
+    EXPECT_FALSE(variants_serve(make_dispatch_of({1, 1, 1, 1}), kChunkSizes));
 }
 
 TEST(PADispatchRouting, ShortPrefillRunsOneToOne) {
-    EXPECT_FALSE(variants_serve(make_dispatch_of({32, 32, 32, 32}), kVariantDims));
-    EXPECT_FALSE(variants_serve(make_dispatch_of({127}), kVariantDims));
+    EXPECT_FALSE(variants_serve(make_dispatch_of({32, 32, 32, 32}), kChunkSizes));
+    EXPECT_FALSE(variants_serve(make_dispatch_of({127}), kChunkSizes));
 }
 
 TEST(PADispatchRouting, LongPrefillIsChunked) {
-    EXPECT_TRUE(variants_serve(make_dispatch_of({128}), kVariantDims));
-    EXPECT_TRUE(variants_serve(make_dispatch_of({7638}), kVariantDims));
+    EXPECT_TRUE(variants_serve(make_dispatch_of({128}), kChunkSizes));
+    EXPECT_TRUE(variants_serve(make_dispatch_of({7638}), kChunkSizes));
 }
 
 TEST(PADispatchRouting, MixedDispatchWithOneLongSubsequenceIsChunked) {
-    EXPECT_TRUE(variants_serve(make_dispatch_of({1, 1, 200, 1}), kVariantDims));
+    EXPECT_TRUE(variants_serve(make_dispatch_of({1, 1, 200, 1}), kChunkSizes));
 }
 
 TEST(PADispatchRouting, NoVariantsOrNoTokensRunOneToOne) {
     EXPECT_FALSE(variants_serve(make_dispatch_of({7638}), {}));
-    EXPECT_FALSE(variants_serve(make_dispatch_of({}), kVariantDims));
+    EXPECT_FALSE(variants_serve(make_dispatch_of({}), kChunkSizes));
 }
 
 }  // namespace
