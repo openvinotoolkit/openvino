@@ -97,6 +97,23 @@ struct vector_target {
     // OV_JIT_IR_LOOP_ALIGN override.
     [[nodiscard]] virtual std::size_t preferred_loop_alignment() const = 0;
 
+    // Cache line size in bytes, and how far ahead a streaming read
+    // should be prefetched, also in bytes; 0 for either means do not
+    // prefetch. LLVM: TargetTransformInfo::getCacheLineSize and
+    // getPrefetchDistance, which together gate its LoopDataPrefetch pass.
+    //
+    // X86TargetTransformInfo answers neither, so LLVM never
+    // software-prefetches on x86, trusting the hardware prefetcher for
+    // strided access. oneDNN's BRGEMM kernels prefetch B one reduction
+    // block ahead regardless, so the two disagree and the question was
+    // settled by measurement: on the MatMul BRGEMM benchmark, B
+    // prefetching one reduction block ahead is worth nothing (84/87/85 us
+    // against 85/85/88 without). The x86 target therefore answers 0 and
+    // follows LLVM. OV_JIT_IR_PREFETCH sets a distance to re-open the
+    // question on another kernel or machine.
+    [[nodiscard]] virtual std::size_t cache_line_size() const = 0;
+    [[nodiscard]] virtual std::size_t prefetch_distance() const = 0;
+
     // Allocation order for the predicate register file: the physical
     // registers the allocator may use for Mask values, in preference
     // order. Empty when the ISA has no predicates (SSE, AVX2, NEON).

@@ -2463,26 +2463,38 @@ TEST(JitKernelIR, PeelingEmitsOneBodyPerIteration) {
 
 namespace {
 
-// A target that refuses displacements outright — RVV's answer for vector
-// accesses. Everything else matches the AVX-512 host so the rest of the
-// kernel is unchanged.
-struct no_offset_target final : vector_target {
+// Test doubles differ from the host target in one answer each, so they
+// share the host's answers for everything else. Deliberately test-only:
+// a real target must still implement every query, so that adding one
+// forces each architecture to decide rather than inherit a default that
+// happens to suit x86.
+struct host_like_target : vector_target {
     [[nodiscard]] bool supports_masked_access(std::size_t elem_bytes) const override {
         return elem_bytes == 1 || elem_bytes == 2 || elem_bytes == 4;
     }
-    [[nodiscard]] bool supports_masked_interleaved_access() const override { return false; }
+    [[nodiscard]] bool supports_masked_interleaved_access() const override { return true; }
     [[nodiscard]] tail_folding preferred_tail_folding() const override {
         return tail_folding::mask;
     }
-    [[nodiscard]] bool is_legal_access_offset(std::size_t /*elem_bytes*/,
-                                              std::size_t /*vectors*/,
-                                              std::size_t /*bytes*/) const override {
-        return false;
+    [[nodiscard]] bool is_legal_access_offset(std::size_t, std::size_t,
+                                              std::size_t bytes) const override {
+        return bytes <= 0x7fffffff;
     }
     [[nodiscard]] std::size_t preferred_loop_alignment() const override { return 16; }
+    [[nodiscard]] std::size_t cache_line_size() const override { return 64; }
+    [[nodiscard]] std::size_t prefetch_distance() const override { return 64; }
     [[nodiscard]] const std::vector<std::uint32_t>& predicate_pool() const override {
         static const std::vector<std::uint32_t> pool{1, 2, 3, 4, 5, 6, 7};
         return pool;
+    }
+};
+
+// A target that refuses displacements outright — RVV's answer for vector
+// accesses.
+struct no_offset_target final : host_like_target {
+    [[nodiscard]] bool is_legal_access_offset(std::size_t, std::size_t,
+                                              std::size_t) const override {
+        return false;
     }
 };
 
@@ -2566,26 +2578,11 @@ struct InterleaveCountParams {
     size_t count;
 };
 
-// Mirrors the AVX-512 host except for the one answer under test.
+// Mirrors the host except for the one answer under test.
 template <bool MaskedInterleave>
-struct interleave_target final : vector_target {
-    [[nodiscard]] bool supports_masked_access(std::size_t elem_bytes) const override {
-        return elem_bytes == 1 || elem_bytes == 2 || elem_bytes == 4;
-    }
+struct interleave_target final : host_like_target {
     [[nodiscard]] bool supports_masked_interleaved_access() const override {
         return MaskedInterleave;
-    }
-    [[nodiscard]] tail_folding preferred_tail_folding() const override {
-        return tail_folding::mask;
-    }
-    [[nodiscard]] bool is_legal_access_offset(std::size_t, std::size_t,
-                                              std::size_t bytes) const override {
-        return bytes <= 0x7fffffff;
-    }
-    [[nodiscard]] std::size_t preferred_loop_alignment() const override { return 16; }
-    [[nodiscard]] const std::vector<std::uint32_t>& predicate_pool() const override {
-        static const std::vector<std::uint32_t> pool{1, 2, 3, 4, 5, 6, 7};
-        return pool;
     }
 };
 

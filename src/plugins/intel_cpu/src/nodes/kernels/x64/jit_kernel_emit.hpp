@@ -117,6 +117,17 @@ struct arch_emitter {
 
     // ── Control flow ──────────────────────────────────────────────────
 
+    // Bring *(reads[0] + imm) towards the core. `locality` is LLVM's
+    // llvm.prefetch operand, not an x86 mnemonic: 0 means the data is
+    // used once and should not displace anything (nta), 3 means keep it
+    // in every level (t0).
+    //
+    // No def and no memory effect: a prefetch cannot fault and cannot be
+    // observed, so it is kept only because def-less ops are never
+    // eliminated.
+    [[nodiscard]] virtual jit_kernel_ir::EmitFn prefetch(std::size_t imm,
+                                                          unsigned locality) const = 0;
+
     // Pad to a `bytes` boundary, spending at most `max_padding` bytes.
     // The counterpart of LLVM's AsmPrinter emitting .p2align for a block
     // whose MachineBasicBlock::Alignment is set: lowering reads the

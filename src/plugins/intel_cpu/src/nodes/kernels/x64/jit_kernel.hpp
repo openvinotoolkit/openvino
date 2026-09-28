@@ -1134,6 +1134,8 @@ public:
     [[nodiscard]] jit_kernel_ir::EmitFn clamped_len(std::size_t lanes) const override;
     [[nodiscard]] jit_kernel_ir::EmitFn lane_mask_bits(std::size_t lanes) const override;
     [[nodiscard]] jit_kernel_ir::EmitFn mask_from_bits(std::size_t lanes) const override;
+    [[nodiscard]] jit_kernel_ir::EmitFn prefetch(std::size_t imm,
+                                                 unsigned locality) const override;
     [[nodiscard]] jit_kernel_ir::EmitFn align_to(std::size_t bytes,
                                                  std::size_t max_padding) const override;
     [[nodiscard]] label_ref make_label() const override;
@@ -1305,6 +1307,18 @@ public:
 
     // A compile-time constant in a GPR IR value.
     variable<size_t> ir_gpr_imm(size_t value);
+
+    // Hint that `base + byte_offset` will be read soon. Records an op
+    // with no def, so nothing eliminates it and nothing depends on it;
+    // the only effect on other passes is that it reads the base pointer,
+    // which makes it a barrier for folding loads off that pointer.
+    //
+    // Placement is the caller's: there is no equivalent of LLVM's
+    // LoopDataPrefetch here, and LLVM does not run that pass on x86
+    // anyway (X86TargetTransformInfo answers neither getPrefetchDistance
+    // nor getCacheLineSize, so it returns early).
+    template <typename PtrT>
+    void ir_prefetch(const variable<PtrT>& base, size_t byte_offset, unsigned locality = 3);
 
     // Load a pointer-sized value from `base + byte_offset` into a GPR.
     // The form an array of pointers needs — BRGEMM's batch descriptor,
@@ -2278,6 +2292,15 @@ jit_kernel::variable<float[N]> jit_kernel::ir_load(const variable<PtrT>& src_ptr
         op.mem_offset = 0;
     }
     return variable<float[N]>(*this, vid);
+}
+
+template <typename PtrT>
+void jit_kernel::ir_prefetch(const variable<PtrT>& base, size_t byte_offset,
+                             unsigned locality) {
+    auto pvid = base.vid();
+    OPENVINO_ASSERT(pvid != jit_kernel_ir::invalid_value,
+                    "ir_prefetch: pointer is not an IR value");
+    ir_use({pvid}, prefetch(byte_offset, locality), "prefetch");
 }
 
 template <typename ResT, typename PtrT>

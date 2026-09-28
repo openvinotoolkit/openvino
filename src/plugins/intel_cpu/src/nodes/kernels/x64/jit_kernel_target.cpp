@@ -56,6 +56,21 @@ std::optional<std::size_t> loop_alignment_override() {
     return value;
 }
 
+// OV_JIT_IR_PREFETCH gives a prefetch distance in bytes, turning software
+// prefetching on for a measurement. Off by default, which is both LLVM's
+// answer for x86 and what measurement said here — see
+// prefetch_distance().
+std::optional<std::size_t> prefetch_distance_override() {
+    static const std::optional<std::size_t> value = [] {
+        const char* env = std::getenv("OV_JIT_IR_PREFETCH");
+        if (env == nullptr) {
+            return std::optional<std::size_t>{};
+        }
+        return std::optional<std::size_t>{std::strtoul(env, nullptr, 10)};
+    }();
+    return value;
+}
+
 // AVX-512: every memory form the DSL emits has a masked encoding —
 // vmovups{k}{z} for f32, vpmovzxbd/vpmovusdb for u8, vcvtph2ps/vcvtps2ph
 // for f16, vpmovzxwd/vpmovdw for bf16.
@@ -94,6 +109,11 @@ struct avx512_target final : vector_target {
         return loop_alignment_override().value_or(16);
     }
 
+    [[nodiscard]] std::size_t cache_line_size() const override { return 64; }
+    [[nodiscard]] std::size_t prefetch_distance() const override {
+        return prefetch_distance_override().value_or(0);
+    }
+
     // k1..k7: k0 exists but cannot be used as a write-mask.
     [[nodiscard]] const std::vector<std::uint32_t>& predicate_pool() const override {
         static const std::vector<std::uint32_t> pool{1, 2, 3, 4, 5, 6, 7};
@@ -122,6 +142,11 @@ struct legacy_x86_target final : vector_target {
 
     [[nodiscard]] std::size_t preferred_loop_alignment() const override {
         return loop_alignment_override().value_or(16);
+    }
+
+    [[nodiscard]] std::size_t cache_line_size() const override { return 64; }
+    [[nodiscard]] std::size_t prefetch_distance() const override {
+        return prefetch_distance_override().value_or(0);
     }
 
     [[nodiscard]] const std::vector<std::uint32_t>& predicate_pool() const override {

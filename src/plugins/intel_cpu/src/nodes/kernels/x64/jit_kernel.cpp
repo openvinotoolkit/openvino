@@ -705,6 +705,20 @@ jit_kernel_ir::EmitFn jit_kernel::mask_from_bits(std::size_t lanes) const {
     };
 }
 
+jit_kernel_ir::EmitFn jit_kernel::prefetch(std::size_t imm, unsigned locality) const {
+    return [this, imm, locality](const jit_kernel_ir::EmitContext& ctx) {
+        auto* self = const_cast<jit_kernel*>(this);
+        const auto addr =
+            self->address_frame(sizeof(size_t))[Xbyak::Reg64(ctx.reads[0].idx) + imm];
+        switch (locality) {
+        case 0: self->prefetchnta(addr); return;
+        case 1: self->prefetcht2(addr); return;
+        case 2: self->prefetcht1(addr); return;
+        default: self->prefetcht0(addr); return;
+        }
+    };
+}
+
 jit_kernel_ir::EmitFn jit_kernel::align_to(std::size_t bytes, std::size_t max_padding) const {
     return [this, bytes, max_padding](const jit_kernel_ir::EmitContext&) {
         auto* self = const_cast<jit_kernel*>(this);

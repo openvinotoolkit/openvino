@@ -217,6 +217,11 @@ void brgemm_kernel_ir::generate() {
     const auto ldc = static_cast<size_t>(m_brg.LDC);
     constexpr size_t ts = sizeof(float);
 
+    // How far ahead B is fetched: one reduction block, the distance
+    // oneDNN uses. Zero when the target does not want prefetching.
+    const size_t prefetch_ahead =
+        target().prefetch_distance() != 0 ? ldb * rd_block * ts : 0;
+
     preamble();
     set_vec_width(N * ts * 8);  // 512: the whole register file is allocable
     begin_ir();
@@ -304,6 +309,17 @@ void brgemm_kernel_ir::generate() {
                         auto a_val = ir_broadcast<N>(a_ptr, (bd * lda + rd) * ts);
                         for (size_t ld = 0; ld < ld_count; ++ld) {
                             ir_accumulate(at(bd, ld), Insn3::fmadd231ps, a_val, b_col[ld]);
+                        }
+                        // One B prefetch per row, for what the next
+                        // reduction block will load, spread through the
+                        // FMA sequence rather than issued in a burst.
+                        // A is broadcast from a small working set and C
+                        // is written once per tile, so only B streams.
+                        // The shape of this is oneDNN's; LLVM would not
+                        // prefetch on x86 at all.
+                        if (prefetch_ahead != 0 && bd < ld_count) {
+                            const size_t col = (group.first_block + bd) * N;
+                            ir_prefetch(b_ptr, (rd * ldb + col) * ts + prefetch_ahead);
                         }
                     }
                 }
