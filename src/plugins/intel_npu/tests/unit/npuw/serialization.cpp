@@ -13,6 +13,7 @@
 #include <system_error>
 
 #include "attention.hpp"
+#include "attn/attn_subgraph.hpp"
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
 #include "compiled_model.hpp"
@@ -2044,7 +2045,7 @@ TEST(SerializationTest, NoCompiledModelNonSentinelQuantDstIdxFails) {
     EXPECT_THROW(expect_serialize_throws({-1, -1, -1}, {0, -1, -1, -1, -1}, 0, 0, 0), ov::Exception);
 }
 
-TEST(SerializationTest, RuntimeBehaviorOwningFunctionPrologueAllowsSmallerCompiledModel) {
+TEST(SerializationTest, BlockKVHFAAllowsSmallerCompiledModel) {
     auto plugin = std::make_shared<NullPlugin>();
     auto model = make_validation_model(7);
     auto submodel = ov::npuw::CompiledModelDescTestAccessor::make();
@@ -2059,6 +2060,19 @@ TEST(SerializationTest, RuntimeBehaviorOwningFunctionPrologueAllowsSmallerCompil
     ov::npuw::v1::subgraphs::RuntimeBehaviorSpec behavior;
     behavior.handles_function_prologue = true;
     submodels[0].pipeline.runtime_behavior = std::move(behavior);
+    // Other prologue-owning behaviors (Dynamic/Pyramid attention, MoE) still get the check.
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
+
+    auto hfa = std::make_shared<ov::npuw::compiled::HostFlashAttention>();
+    auto& sdpa_indices = hfa->_sdpa_attention_info._sdpa_indices;
+    sdpa_indices.past_key_blocks = {0};
+    sdpa_indices.past_value_blocks = {1};
+    ov::npuw::attn::put_compiled_hfa(submodels[0].pipeline.context, hfa);
+    // Regular HFA has a single past K/V input each and still gets the check.
+    EXPECT_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels), ov::Exception);
+
+    sdpa_indices.past_key_blocks = {0, 2};
+    sdpa_indices.past_value_blocks = {1, 3};
     EXPECT_NO_THROW(ov::npuw::CompiledModelDescTestAccessor::validate_submodels(submodels));
 }
 
