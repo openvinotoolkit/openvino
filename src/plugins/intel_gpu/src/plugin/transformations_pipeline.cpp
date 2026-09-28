@@ -848,6 +848,8 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::CommonOptimizations>();
         pass_config->disable<ov::pass::GroupQueryAttentionDecomposition>();
+        // Keep the MOC registration from bypassing the int16 QDQ gate for GPU models.
+        pass_config->disable<ov::pass::NormalizeDequantizeFP16>();
         manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>();
 
         // In the case of "zp/scale -> reshape -> transpose -> MOE",

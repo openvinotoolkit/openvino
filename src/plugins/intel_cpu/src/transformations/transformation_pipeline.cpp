@@ -851,6 +851,8 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::DisableDecompressionConvertConstantFolding);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertCompressedOnlyToLegacy);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::EyeDecomposition);
+    // Keep the MOC registration from bypassing the int16 QDQ gate for CPU models.
+    CPU_DISABLE_PASS_COMMON(manager, ov::pass::NormalizeDequantizeFP16);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertGELU);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::Gelu7Downgrade);
     CPU_DISABLE_PASS_COMMON(manager, ov::pass::ConvertMod);
