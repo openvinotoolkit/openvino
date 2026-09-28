@@ -65,6 +65,8 @@ WeightFormat get_weight_format(GgufTensorType qtype) {
     switch (qtype) {
     case GGUF_TYPE_MXFP4:
         return {FillKind::MXFP4, 32, ov::element::f4e2m1};
+    case GGUF_TYPE_Q1_0:
+        return {FillKind::SYMMETRIC, 128, ov::element::i4};
     case GGUF_TYPE_Q4_0:
         return {FillKind::SYMMETRIC, 32, ov::element::i4};
     case GGUF_TYPE_Q3_K:
@@ -445,6 +447,7 @@ GgufTensorType gguf_type_from_name(const std::string& quant_type) {
                                                                           {"Q6_K", GGUF_TYPE_Q6_K},
                                                                           {"Q8_K", GGUF_TYPE_Q8_K},
                                                                           {"MXFP4", GGUF_TYPE_MXFP4},
+                                                                          {"Q1_0", GGUF_TYPE_Q1_0},
                                                                           {"Q2_0", GGUF_TYPE_Q2_0}};
     // Accept ggml's lowercase type names ("q4_0", "q6_K", "f16", ...) as well as the
     // canonical uppercase form.
