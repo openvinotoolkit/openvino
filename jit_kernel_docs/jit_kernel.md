@@ -56,7 +56,10 @@ RVV are length-agnostic. Measured coupling, the three real gaps and the
 A/B/C phasing are in `jit_kernel_journal.md`, "Multi-architecture plan".
 
 `jit_kernel_journal.md` holds the current status, the hazard list and the
-work queue. `jit_kernel_register_allocation.md` holds the allocator design
+work queue. `jit_kernel_brgemm.md` covers the BRGEMM generator and the
+oneDNN factory hook. `jit_kernel_validation.md` is the method: keep the
+old kernel, add an intrinsics baseline, switch by environment, measure
+through `benchmark.hpp`. `jit_kernel_register_allocation.md` holds the allocator design
 with per-section implementation status.
 
 ## What the current wrapper already does well

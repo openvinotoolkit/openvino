@@ -1,7 +1,8 @@
 # JIT kernel IR mode — implementation journal
 
-Status snapshot as of 2026-09-15, after the peeling change described
-below. Describes what the code on this branch actually does.
+Status snapshot as of 2026-09-29. Describes what the code on this branch
+actually does. BRGEMM is a strand of its own — see
+`jit_kernel_brgemm.md`; this file covers the IR and the DSL.
 
 Sources of truth:
 - `src/plugins/intel_cpu/src/nodes/kernels/x64/jit_kernel_ir.{hpp,cpp}` — IR, passes, allocator, verifier, DCE
@@ -10,7 +11,8 @@ Sources of truth:
 - `src/plugins/intel_cpu/src/nodes/color_convert.cpp` — NV12/I420 converters on IR mode
 - `src/plugins/intel_cpu/src/nodes/kernels/x64/jit_kernel_target.{hpp,cpp}` — target capability queries (TTI analogue)
 - `src/plugins/intel_cpu/src/nodes/kernels/x64/jit_kernel_emit.hpp` — the arch emission interface (TargetInstrInfo analogue)
-- `src/plugins/intel_cpu/tests/unit/jit_kernel_ir_test.cpp` — 56 tests
+- `src/plugins/intel_cpu/src/nodes/kernels/x64/brgemm_kernel_ir.{hpp,cpp}` — BRGEMM on IR mode
+- `src/plugins/intel_cpu/tests/unit/jit_kernel_ir_test.cpp` — 62 tests
 - `src/plugins/intel_cpu/tests/unit/jit_kernel_test.cpp` — 4 tests
 
 ## Where the implementation stands relative to the design docs
@@ -283,7 +285,7 @@ Measured on this host (AVX-512), same kernels, both strategies passing:
 
 The masked form is smaller because the body is recorded once instead of
 twice. (Both grew by ~6% when the interleaved store became predicated; see
-hazard 6.)
+hazard 7.)
 
 ### Interleaved access
 
@@ -299,6 +301,94 @@ The three masks are slices of one computation: interleaving `count`
 elements writes `3*count` consecutive outputs, so the low `3*count` lane
 bits shifted by `N` and `2N` give the mask for each store. Constraint:
 `3*N` must fit a GPR.
+
+### Loop-carried accumulators
+
+A running total across a loop could not be expressed. `vec_op` calls
+`def_tied`, which starts with `_next_value++` — always a fresh value —
+and a loop body is recorded once, so `acc = acc + x` inside a loop
+records a body that reads the initial value every trip and discards its
+own result. It compiles, allocates, runs, and computes the wrong thing.
+RoPE never noticed because all its vector values are loop-local; a BRGEMM
+inner loop is nothing but loop-carried accumulators.
+
+The representation already existed. `TwoAddressPass` builds exactly this
+shape for tied operands — it reuses the FMA's def for the inserted COPY
+and rewrites the tied read to that same id, producing one value with two
+defs that reads and writes one register. What a pass cannot do is place
+the *initializing* def outside the loop, because a pass that only sees
+the tie has no idea a loop is involved.
+
+`IR::def_into(existing, reads, ...)` records an op that redefines an
+existing value. No `tied_to`: the constraint holds by construction, since
+the op reads what it defines, so `TwoAddressPass` inserts no copy. LLVM
+writes this as a PHI at the loop header; PHIElimination and
+TwoAddressInstructionPass lower it to the same thing.
+
+Two record-time assertions stand in for checks the verifier cannot make —
+the value must exist, and it must appear among the reads. The second
+matters because there is no dominance check: an accumulator first defined
+*inside* the loop it updates is invalid IR that liveness
+over-approximates rather than rejects.
+
+`ir_accumulate(acc, Insn2, x)` and `ir_accumulate(acc, Insn3, a, b)` sit
+on top. The accumulator is excluded from `foldable_reads` — folding it
+would read the running total from memory, which is a different program.
+
+### Loop shape: rotation and alignment
+
+`foreach` emits a **bottom-tested** loop: a guard, then the body, then
+the increment and a single conditional branch back. LLVM produces the
+same shape in `LoopRotate` and again in `MachineBlockPlacement`. The
+guard is skipped when both bounds are known at record time and non-empty.
+
+The guard is a separate op rather than part of the region header for two
+reasons: `Op::align` pads *before* an op, so folding it in would align
+the compare and leave the loop head short by the length of `cmp`+`jge`;
+and a guard that is provably unnecessary can then simply not be recorded.
+
+Cost worth naming: the guard branches past the loop, and the CFG built
+for liveness models regions rather than arbitrary branches, so that edge
+is invisible to it. Safe because it only skips forward over a loop —
+liveness over-approximates in its usual direction, and nothing after a
+loop may legally read a value defined inside it — but it is an unmodelled
+edge in a system whose liveness is otherwise exact.
+
+**Alignment** follows LLVM's four-way split rather than emitting nops
+from a recording closure:
+
+| LLVM | here |
+|---|---|
+| `MachineBasicBlock::Alignment` | `Op::align` / `Op::align_max_padding` |
+| `TargetLowering::getPrefLoopAlignment` | `vector_target::preferred_loop_alignment()` |
+| AsmPrinter emitting `.p2align` | `arch_emitter::align_to()` |
+| `MachineBlockPlacement::alignBlocks` | set at record time by `foreach` |
+
+The pass is the part deliberately not copied: LLVM needs it because its
+layout is late and back edges can be synthetic from loop rotation, while
+here control flow is structural. What that costs is the heuristics —
+LLVM skips cold blocks and optsize functions using block frequencies this
+DSL does not have, so every loop gets aligned. The padding cap is kept,
+being the one heuristic available without profile data.
+
+x86 answers 16, LLVM's value. **oneDNN uses 64 and measured 15% worse
+here** — see `jit_kernel_brgemm.md`.
+
+### Prefetching, and why it is off
+
+`arch_emitter::prefetch` and `ir_prefetch` exist, with
+`vector_target::cache_line_size()` and `prefetch_distance()` as the
+`TargetTransformInfo` analogues. The x86 target answers 0, so nothing is
+emitted.
+
+Not a `LoopDataPrefetch` equivalent: that pass needs stride analysis to
+know what iteration *i+k* touches, which this IR has no SCEV for. More to
+the point, **LLVM does not run it on x86** —
+`X86TargetTransformInfo` answers neither `getPrefetchDistance` nor
+`getCacheLineSize`, so the pass returns early and the hardware prefetcher
+is left to handle strided access. Copying oneDNN's BRGEMM prefetch
+pattern exactly measured as nothing, so the x86 target follows LLVM.
+`OV_JIT_IR_PREFETCH=<bytes>` re-opens the question elsewhere.
 
 ### Arch emission interface
 
@@ -474,13 +564,25 @@ comparison against the peeled kernel. Findings:
 
 1. **No spiller.** Pool exhaustion is a hard failure. Needs frame sizing
    after allocation plus target hooks for store/load of a physical
-   register. Blocks RoPE's QwenVL shapes.
+   register. Less alarming than it was: BRGEMM allocates a 24-register
+   accumulator tile plus loads and a broadcast — 28 of 32 — with no spill
+   and no rematerialization, at the pressure oneDNN's hand-written index
+   arithmetic was designed for. Still a hard failure when it does hit.
 2. **No dominance check.** The verifier accepts IR whose reads are not
-   dominated by a def; liveness over-approximates instead.
-3. ~~**Mask registers are not allocated.**~~ **Fixed** — `Mask` is a
+   dominated by a def; liveness over-approximates instead. Now
+   load-bearing: `def_into` makes it possible to write an accumulator
+   first defined inside the loop it updates, which is invalid and
+   accepted. Guarded only by a record-time assertion that the updated
+   value appears among the reads.
+
+3. **The loop guard is an unmodelled CFG edge.** Rotation puts a
+   forward branch past the loop that the region-based CFG does not see.
+   Safe in the conservative direction, but the CFG is otherwise exact
+   and this is the one place it is not.
+4. ~~**Mask registers are not allocated.**~~ **Fixed** — `Mask` is a
    register class with a per-target allocation order, and predicates are
    ordinary IR values read by the ops that use them.
-4. **No IR-level unrolling.** The pass was removed: the trip count lives
+5. **No IR-level unrolling.** The pass was removed: the trip count lives
    inside the loop header's emit closure, so a pass over the IR cannot
    scale it to a cloned body. The old pass silently made kernels process
    `factor ×` the data — heap corruption on RoPE, wrong pixels on
@@ -488,14 +590,14 @@ comparison against the peeled kernel. Findings:
    (`foreach_predicated(..., unroll)`) still works. An IR pass becomes
    possible once the loop bound and step are IR operands of a real loop
    op instead of captured immediates. Recording-time peeling
-   (hazard 5) covers the constant-count case without needing any of this.
-5. ~~**Loops are always rolled.**~~ **Fixed for constant counts** —
+   (hazard 6) covers the constant-count case without needing any of this.
+6. ~~**Loops are always rolled.**~~ **Fixed for constant counts** —
    `foreach_vec(size_t, body)` peels (see "Peeling, 2026-09-15"). What is
    left of this hazard: the peeled bodies still bump pointers instead of
    addressing off a displacement, and the remainder is a predicated
    full-width step rather than a narrower unpredicated one. Both are
    measured to be worth ~2 µs on QwenVL.
-6. ~~**No predicated interleaved store on x86.**~~ **Fixed** —
+7. ~~**No predicated interleaved store on x86.**~~ **Fixed** —
    `supports_masked_interleaved_access()` answers true on AVX-512 and the
    three stores that write the interleave out carry write-masks. The masks
    are one computation, not three: interleaving `count` elements writes
@@ -511,31 +613,31 @@ comparison against the peeled kernel. Findings:
    two kernels already. The runtime effect is **unmeasured** — there is no
    ConvertColor benchmark instance, and on this branch's record
    instruction counts have repeatedly not translated into time.
-7. **No ConvertColor benchmark instance.** `color_convert` is the only
+8. **No ConvertColor benchmark instance.** `color_convert` is the only
    `store_interleaved3` user and the only kernel whose tail realization
    just changed, and there is nothing to measure it with. The RoPE
    `BenchmarkLayerTest` wrappers are the pattern to copy
    (`jit_kernel_validation.md` item 4).
-8. **The epilogue strategy records the body twice** — inherent to it, and
+9. **The epilogue strategy records the body twice** — inherent to it, and
    now only chosen on targets without predication (AVX2, SSE, NEON). The
    masked strategy records once and is 36% smaller on the NV12 converter.
-9. **`length` (RVV) tail folding is declared, not implemented.** Needs a
+10. **`length` (RVV) tail folding is declared, not implemented.** Needs a
    RISC-V generator and `vl` modelled as machine state with `vsetvli`
    insertion in the loop header. `foreach_vec` throws instead of
    approximating it.
-10. **Only an x86-64 generator exists.** The DSL now has an arch boundary
+11. **Only an x86-64 generator exists.** The DSL now has an arch boundary
    for the portable constructs (`arch_emitter`, 16 primitives) but not for
    the ~50 vector operations kernels call directly, and `variable<T>` still
    names an Xbyak register type through `reg_traits`. See
    "Multi-architecture plan" below.
-11. **`bf16` store truncates** instead of rounding to nearest even
+12. **`bf16` store truncates** instead of rounding to nearest even
    (`vcvtneps2bf16` where available).
-12. **GPR-hungry scalarized access.** `ir_load_partial` /
+13. **GPR-hungry scalarized access.** `ir_load_partial` /
     `ir_store_partial` / `ir_memcpy` cost ~20 GPR values, which is why
     they are now only reached on targets without predication — and, since
-    hazard 6 was fixed, no longer reached by interleaved stores at all on
+    hazard 7 was fixed, no longer reached by interleaved stores at all on
     AVX-512.
-13. **Repo hygiene.** `jit_kernel.hpp` is past 2700 lines; the worktree
+14. **Repo hygiene.** `jit_kernel.hpp` is past 2700 lines; the worktree
    carries `llvm-project/`, `dnnl_dump_*.bin` and `report_*.xml`
    untracked. The branch is not clang-format-clean
    and was not before this work either, so that belongs in its own commit.
@@ -558,7 +660,7 @@ the remainder.
 
 Recording-time rather than a pass, because the count is known where the
 body is recorded. That is also why the old IR-level unroll pass could not
-work (hazard 4): by pass time the count is captured inside the loop
+work (hazard 5): by pass time the count is captured inside the loop
 header's emit closure.
 
 ### Generated code — QwenVL (half=40, N=16, AVX-512)
@@ -688,6 +790,34 @@ Uses are counted once and decremented as ops die, with the walk running
 backwards, so a chain of dead defs collapses in one sweep — LLVM visits
 blocks in post-order and instructions bottom-up for the same reason.
 
+## What has actually moved the clock
+
+Every change below was measured rather than assumed. Recording the
+negatives matters more than the positives: they are the ones that would
+otherwise be repeated.
+
+| change | kernel | effect on time |
+|---|---|---|
+| memory-operand folding | RoPE | none |
+| peeling constant trip counts | RoPE | **40 -> 37 us on QwenVL** |
+| displacement instead of pointer bumps | RoPE | none |
+| predicated interleaved store | color_convert | unmeasured; taken for register pressure, costs 6% code |
+| loop alignment at 16 | BRGEMM | **89 -> 84 us**, half the gap |
+| loop alignment at 64 (oneDNN's value) | BRGEMM | **96-98 us — worse** |
+| software prefetch, oneDNN's pattern | BRGEMM | none |
+| rolling the M tile loop | BRGEMM | none (code 8617 -> 2240 bytes) |
+| loop rotation | BRGEMM | none |
+
+Two of nine moved the clock. Twice, copying oneDNN's choice directly was
+the wrong move — 64-byte alignment and prefetching both looked like
+obvious gaps in an instruction-mix diff and both were worthless or
+harmful here.
+
+The standing lesson: instruction counts have not once predicted time on
+this branch, in either direction. Our BRGEMM inner loop is now leaner
+than oneDNN's — 147 instructions against 157, 2228 bytes against 2912 —
+and still 5% slower.
+
 ## Multi-architecture plan
 
 Targets: x86-64 (AVX2, AVX-512), AArch64 (NEON, SVE), RISC-V (RVV 1.0).
@@ -769,7 +899,7 @@ out, and it inverts the assumed order.
 Second exit criterion: **met, by implementing the branch rather than
 mocking it.** Testing the predicated interleaved store with a mock turned
 out to be impossible — the branch did not exist, so the mock would have
-asserted on code that throws. It is now implemented on AVX-512 (hazard 6),
+asserted on code that throws. It is now implemented on AVX-512 (hazard 7),
 the query answers true natively, and the test builds the same kernel under
 both answers in one process and checks the two realizations agree. That
 arrangement is what keeps the *losing* path tested once a target stops
@@ -880,6 +1010,24 @@ done; done; done
 # folding. Leave it unset to enable.
 ```
 
+BRGEMM against oneDNN's own generator (see `jit_kernel_brgemm.md`):
+
+```bash
+# census: which descriptors are declined, and why
+OV_JIT_IR_BRGEMM=2 ./bin/intel64/RelWithDebInfo/ov_cpu_func_tests \
+  --gtest_filter='smoke_MM_Brgemm_Static/*' 2>&1 |
+  grep -oP 'not supported: \K[^(]+' | sort | uniq -c | sort -rn
+
+# A/B the two generators on the shapes ours accepts
+OV_JIT_IR_BRGEMM=0 ./bin/intel64/RelWithDebInfo/ov_cpu_func_tests \
+  --gtest_also_run_disabled_tests --gtest_filter='MatMulBrgemmBench*'
+OV_JIT_IR_BRGEMM=1 ...same...
+```
+
+Interleave the two rather than running three of each: the machine drifts
+several percent over minutes, which is the same size as the difference
+being measured.
+
 Benchmark (RoPE node time from `PERF_COUNT`, one thread, 200 attempts):
 
 ```bash
@@ -920,6 +1068,9 @@ and why the flag is mandatory are in the file's header comment.
 | `OV_JIT_TAIL_FOLDING` | `epilogue` / `mask` / `length` — override the target's tail-folding choice (LLVM's `-prefer-predicate-over-epilogue`) |
 | `OV_JIT_IR_NO_FOLD` | disable memory-operand folding (LLVM's `-disable-peephole`) |
 | `OV_JIT_IR_PEEL` | max full iterations `foreach_vec` emits straight-line for a constant count (default 4; `0` forces the rolled loop) |
+| `OV_JIT_IR_BRGEMM` | `1` offer the IR BRGEMM generator, `2` force it (error instead of falling back) — see `jit_kernel_brgemm.md` |
+| `OV_JIT_IR_LOOP_ALIGN` | loop-head alignment in bytes, `0` to disable (default 16, LLVM's x86 value) |
+| `OV_JIT_IR_PREFETCH` | prefetch distance in bytes, enabling software prefetch (default off, as on LLVM's x86) |
 
 ## Test status (2026-09-15, RelWithDebInfo, AVX-512 host)
 
@@ -928,8 +1079,14 @@ Every suite run in all **eight** combinations of `OV_JIT_IR_PEEL` ×
 strategies are env-selected, and `OV_JIT_TAIL_FOLDING=epilogue` is the
 only way to exercise the AVX2/NEON-shaped path on an AVX-512 machine:
 
-- `ov_cpu_unit_tests --gtest_filter='JitKernel*'`: **60/60 pass**
-  (56 `JitKernelIR.*`, 4 `JitKernel.*`).
+- `ov_cpu_unit_tests --gtest_filter='JitKernel*:Brgemm*'`: **83/83 pass**,
+  green in all three `OV_JIT_IR_BRGEMM` modes as well as the eight
+  peel/fold/tail-folding combinations.
+- `ov_cpu_func_tests --gtest_filter='smoke_MM_Brgemm_*'`: **36/36 pass**
+  under `OV_JIT_IR_BRGEMM=1`; 8 of 30 static cases pass under `=2`,
+  meaning they ran the IR generator rather than falling back.
+- `ov_cpu_func_tests --gtest_filter='smoke_MHA*'`: **68/68** under `=1`
+  (all by fallback — no MHA descriptor is in the slice).
 - `ov_cpu_func_tests --gtest_filter='smoke_TestsConvertColor*'`: **26/26
   pass**, including the `u8` accuracy case (144×16).
 - `OV_JIT_IR_ROPE=1 ov_cpu_func_tests --gtest_filter='smoke_RoPETest*'`:
@@ -970,10 +1127,10 @@ Applied in this order, each verified against the three suites above:
    shared that single root cause.
 4. **`linear_scan` renamed to `assign_registers`** and documented as what
    it is.
-5. **Remat env knobs and the legacy `rematerialize_for_pressure` pre-pass
+6. **Remat env knobs and the legacy `rematerialize_for_pressure` pre-pass
    removed** — the pre-pass had no production caller and its four
    `OV_JIT_IR_DISABLE_*` / `_SINGLE_USE` switches gated correctness.
-6. **Loop-unrolling pass removed** after it was shown to corrupt the heap
+7. **Loop-unrolling pass removed** after it was shown to corrupt the heap
    on RoPE and produce wrong pixels on color_convert when enabled.
 7. **Vector pool fixed**: it had been filled from the GPR index range
    (16 entries) and did not exclude eagerly reserved registers. Now an
