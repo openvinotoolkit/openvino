@@ -1858,6 +1858,18 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                         return true;
                     }
                 }
+                // u3 weights run on the OCL int3 GEMM, which quantizes the activations
+                // itself; a graph-level DynamicQuantize would hand it an activation scale it
+                // has no argument slot for. Keep this in step with the u3 bypass in
+                // fully_connected_onednn.hpp: a node that keeps its DynamicQuantize but is
+                // then handed to the int3 kernel, or vice versa, loses the int8 activation
+                // path and gets dramatically slower.
+                if (root->get_input_element_type(1) == ov::element::u3 && root->get_input_partial_shape(1).size() == 2) {
+                    GPU_DEBUG_TRACE << root->get_friendly_name() << "  dyn_quan is turned off: u3 weights are handled in-kernel"
+                                    << std::endl;
+                    return true;
+                }
+
                 uint64_t adj_group_size = dynamic_quantization_group_size;
                 const bool is_wei_i8u8 = cldnn::one_of(root->get_input_element_type(1), {ov::element::i8, ov::element::u8});
                 if (ov::intel_gpu::DynamicQuantizeFullyConnected::ShouldUseGs128(is_wei_i8u8, use_gs128_for_int8_per_token, adj_group_size, use_gs128_for_linear_attention)) {
