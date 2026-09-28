@@ -632,24 +632,27 @@ void ov::npuw::JustInferRequest::connect_subrequests() {
             // - If the tensor is not found in the storage, allocate it here & then assign it to the reader
             const auto& iport = m_subrequests[subm_idx_to]->get_compiled_model()->inputs()[port_idx_to];
             const auto from = LinkFrom{subm_idx_from, port_idx_from};
+            
+            const auto tensor_iter = m_funcall_result.find(from);
             TensorPtr tensor;
 
-            if (m_funcall_result.count(from)) {
-                tensor = m_funcall_result.at(from);
+            if (tensor_iter != m_funcall_result.end()) {
+                tensor = tensor_iter->second;
             } else {
-                LOG_DEBUG("Tensor for Subgraph[" << subm_idx_from << "]/" << port_idx_from << " not found in the storage, allocating now ...");
-                for (std::size_t out_idx = 0; out_idx < m_npuw_model->outputs().size(); ++out_idx) {
-                    if (m_npuw_model->m_outputs_to_submodels_outputs.at(out_idx) == from) {
-                        tensor = get_tensor(m_npuw_model->outputs()[out_idx]);
-                        break;
-                    }
-                }
+                // This should only happen when the funcall output is also a models' global output
+                const auto model_port_iter = std::find(
+                    m_npuw_model->m_outputs_to_submodels_outputs.begin(),
+                    m_npuw_model->m_outputs_to_submodels_outputs.end(),
+                    from);
+                NPUW_ASSERT(model_port_iter != m_npuw_model->m_outputs_to_submodels_outputs.end());
+                const auto model_port_idx = std::distance(m_npuw_model->m_outputs_to_submodels_outputs.begin(),
+                    model_port_iter);
+                tensor = get_tensor(m_npuw_model->outputs().at(model_port_idx));
                 
                 if (tensor) {
                     m_funcall_result.emplace(from, tensor);
                 } else {
-                    // FIXME: Throw exception?
-                    LOG_ERROR("Failed to allocate tensor for Subgraph[" << subm_idx_from << "]/" << port_idx_from);
+                    OPENVINO_THROW("Failed to allocate tensor for Subgraph[", subm_idx_from, "]/", port_idx_from);
                 }
             }
 
