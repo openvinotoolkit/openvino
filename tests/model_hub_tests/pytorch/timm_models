@@ -103,7 +103,6 @@ efficientnet_es_pruned.in1k,None
 efficientnet_h_b5.sw_r448_e450_in1k,None
 efficientnet_lite0.ra_in1k,None
 efficientnet_x_b5.sw_r448_e450_in1k,None
-efficientnetv2_rw_s.ra2_in1k,None
 efficientnetv2_rw_t.ra2_in1k,None
 efficientvim_m1.e300_in1k,None
 efficientvim_m1_dist.in1k,None
@@ -168,9 +167,7 @@ hiera_tiny_224.mae,None
 hrnet_w18_small.ms_in1k,None
 hrnet_w18_small_v2.ms_in1k,None
 hrnet_w18_ssld.paddle_in1k,None
-iformer_h.in1k,None,xfail,timm fails to load checkpoint with numpy<2 (numpy._core.multiarray)
 iformer_m_distilled.in1k,None,xfail,timm fails to load checkpoint with numpy<2 (numpy._core.multiarray)
-iformer_s.in1k,None,xfail,timm fails to load checkpoint with numpy<2 (numpy._core.multiarray)
 iformer_t.in1k,None,xfail,timm fails to load checkpoint with numpy<2 (numpy._core.multiarray)
 inception_next_atto.sail_in1k,None
 inception_resnet_v2.tf_in1k,None

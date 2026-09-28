@@ -17,11 +17,13 @@ def filter_timm(timm_list: list) -> list:
     # ordered from smallest to largest
     size_list = [
         "zepto", "atto", "femto", "pico", "nano", "micro", "xxtiny", "xxsmall",
-        "xxs", "xtiny", "xsmall", "xs", "tiny", "s", "mini", "small", "lite",
+        "xxs", "xtiny", "xsmall", "xs", "tiny", "t", "s", "mini", "small", "lite",
         "medium", "m", "base", "big", "large", "l", "xlarge", "xl", "xxlarge",
-        "huge", "gigantic", "giant", "enormous",
+        "huge", "h", "gigantic", "giant", "enormous",
     ]
     size_tokens = set(size_list)
+    # size only if the name has no other size token, e.g. "iformer_h" but not "regnetz_040_h"
+    contextual_size_tokens = {"t", "h"}
     size_order = {token: idx for idx, token in enumerate(size_list)}
     size_aliases = {
         "mediumd": "medium",
@@ -70,8 +72,10 @@ def filter_timm(timm_list: list) -> list:
         match = width_multiplier_pattern.match(token)
         return float(match.group(1)) * float(match.group(2)) if match else None
 
-    def is_size_like(token: str) -> bool:
+    def is_size_like(token: str, allow_contextual: bool = True) -> bool:
         token = size_aliases.get(token, token)
+        if token in contextual_size_tokens:
+            return allow_contextual
         if token in size_tokens or param_count_millions(token) is not None:
             return True
         if width_multiplier(token) is not None:
@@ -83,6 +87,9 @@ def filter_timm(timm_list: list) -> list:
             return not any(hint in token for hint in operation_hint_substrings)
         return False
 
+    def allows_contextual(tokens: list[str]) -> bool:
+        return not any(is_size_like(tok, allow_contextual=False) for tok in tokens)
+
     def architecture_signature(cfg, model_name: str) -> str:
         base_name = model_name.split(".")[0]
         arch_tokens = split_tokens(
@@ -91,15 +98,20 @@ def filter_timm(timm_list: list) -> list:
             (getattr(cfg, "meta", None) or {}).get("variant") if cfg else None,
         )
         fallback = arch_tokens or split_tokens(base_name)
-        filtered = [size_aliases.get(tok, tok) for tok in arch_tokens if not is_size_like(tok)]
+        allow_contextual = allows_contextual(arch_tokens)
+        filtered = [size_aliases.get(tok, tok) for tok in arch_tokens if not is_size_like(tok, allow_contextual)]
         canonical = filtered or fallback
         unique = list(dict.fromkeys(canonical))  # preserve order
         return "_".join(unique) if unique else base_name.lower()
 
     def size_rank_from_name(model_name: str) -> tuple[float, float]:
         rank = (2.0, float("inf"))
-        for token in split_tokens(model_name.split(".")[0]):
+        tokens = split_tokens(model_name.split(".")[0])
+        allow_contextual = allows_contextual(tokens)
+        for token in tokens:
             normalized = size_aliases.get(token, token)
+            if normalized in contextual_size_tokens and not allow_contextual:
+                continue
             if normalized in size_order:
                 rank = min(rank, (0.0, float(size_order[normalized])))
                 continue
