@@ -63,6 +63,27 @@ bool gqa_trace_enabled() {
     return enabled;
 }
 
+// Optional override for the GQA KV-cache static reshape target (see
+// NPUW_LLM_MAX_CONTEXT_LEN), set via the OPENVINO_NPUW_GQA_CTX_LEN environment variable.
+// Lets a run be repointed to a different context length without plumbing the property
+// through the app; takes priority over both the NPUW_LLM_MAX_CONTEXT_LEN property and its
+// own default when set. Parsed once and cached; an unparsable value is ignored (falls
+// back to the property/default) rather than failing the whole run.
+std::optional<size_t> gqa_ctx_len_env_override() {
+    static const std::optional<size_t> value = [] {
+        const char* raw = std::getenv("OPENVINO_NPUW_GQA_CTX_LEN");
+        if (raw == nullptr) {
+            return std::optional<size_t>{};
+        }
+        try {
+            return std::optional<size_t>{static_cast<size_t>(std::stoull(raw))};
+        } catch (...) {
+            return std::optional<size_t>{};
+        }
+    }();
+    return value;
+}
+
 // Scans `model`'s past_key/past_value Parameters for a dynamic dimension and returns the
 // axis to pin to the configured static capacity (NPUW_LLM_MAX_CONTEXT_LEN), keyed by
 // Parameter friendly name. A KV-cache Parameter with more than one dynamic dimension is
@@ -266,6 +287,12 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
         LOG_INFO("GQA model stage unknown; FOLD disabled");
     }
     merge_config_with(config, properties);
+    // NPUW_LLM_MAX_CONTEXT_LEN is consumed above (via cfg_get() in prepare()) purely to
+    // pick the static KV-cache reshape target; it's registered as an LLM-only option
+    // (see npuw_option_defs.inc) and the inner CompiledModel this config is ultimately
+    // handed to only registers the base/ROOT NPUW options, so leaving it in would make
+    // that inner model's Config::update() throw NOT_FOUND on an otherwise-valid property.
+    config.erase(std::string(::intel_npu::NPUW_LLM_MAX_CONTEXT_LEN::key()));
     return {config, stage};
 }
 
@@ -319,9 +346,11 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
     std::unordered_map<std::string, size_t> dynamic_kv_cache_axes;
     if (has_dynamic_max_seq_len(model)) {
         // Static capacity (in tokens) a dynamic KV-cache is reshaped to for NPU
-        // compilation. Configurable via NPUW_LLM_MAX_CONTEXT_LEN; falls back to that
-        // option's own default (8192) if it isn't present in `properties`.
-        const size_t max_seq_len = cfg_get<::intel_npu::NPUW_LLM_MAX_CONTEXT_LEN>(properties);
+        // compilation. Configurable via NPUW_LLM_MAX_CONTEXT_LEN (falls back to that
+        // option's own default, 8192, if it isn't present in `properties`), or via the
+        // OPENVINO_NPUW_GQA_CTX_LEN environment variable, which takes priority over both.
+        const size_t max_seq_len =
+            gqa_ctx_len_env_override().value_or(cfg_get<::intel_npu::NPUW_LLM_MAX_CONTEXT_LEN>(properties));
         dynamic_kv_cache_axes = find_dynamic_kv_cache_axes(model);
         OPENVINO_ASSERT(!dynamic_kv_cache_axes.empty(),
                         "GQA model has a dynamic max_seq_len but no resolvable KV-cache Parameter was found");
