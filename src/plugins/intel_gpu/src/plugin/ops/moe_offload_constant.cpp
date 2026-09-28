@@ -277,11 +277,8 @@ size_t resolve_auto_offload_ratio(const ov::Model& model, cldnn::engine& engine)
             m_budget = std::min<uint64_t>(m_budget, dxgi_budget);
             budget_source = "dxgi_budget";
         } else {
-            const uint64_t tracked_budget = estimate_available_tracked_device_memory_bytes(engine, m_budget);
-            if (tracked_budget > 0) {
-                m_budget = tracked_budget;
-                budget_source = "tracked_mem_stats";
-            }
+            m_budget = estimate_available_tracked_device_memory_bytes(engine, m_budget);
+            budget_source = "tracked_mem_stats";
         }
     }
     if (m_budget == 0) {

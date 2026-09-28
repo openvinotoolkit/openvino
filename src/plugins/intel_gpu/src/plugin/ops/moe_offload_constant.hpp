@@ -37,6 +37,10 @@ struct PartialUploadDesc {
 
 bool is_moe_related_constant(const std::shared_ptr<ov::op::v0::Constant>& op);
 
+/// Estimates available memory by subtracting engine tracked device memory statistics from upper_bound.
+/// Returns 0 if used memory exceeds or equals upper_bound.
+uint64_t estimate_available_tracked_device_memory_bytes(const cldnn::engine& engine, uint64_t upper_bound);
+
 class PartialUploadLogState {
 public:
     static constexpr size_t max_detailed_logs = 3;
