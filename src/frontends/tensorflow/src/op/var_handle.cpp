@@ -18,10 +18,7 @@ using namespace std;
 using namespace ov;
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 
 // Reading variable from shard file
 template <typename T>
@@ -218,7 +215,4 @@ OutputVector translate_mergev2checkpoint_op(const NodeContext& node) {
     return {const_node};
 }
 
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

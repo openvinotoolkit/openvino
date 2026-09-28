@@ -97,6 +97,10 @@ set(OV_CORE_TESTS_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/weight_sharing_util_test.cpp
 )
 
+if(ENABLE_TESTS_PER_SOURCE)
+    list(APPEND OV_CORE_TESTS_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/file_load_benchmark.cpp)
+endif()
+
 include(conditional_compilation/sources.cmake)
 include(frontend/sources.cmake)
 include(pass/sources.cmake)
@@ -141,9 +145,9 @@ ov_add_test_target(
     CHECK_SOURCES_LISTED
     CHECK_SOURCES_EXCLUDE_TARGETS
         openvino_mock1_frontend
-        ov_file_load_benchmark
     CHECK_SOURCES_EXCLUDE_FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/dnnl.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/file_load_benchmark.cpp
 )
 
 target_include_directories(${TARGET_NAME} PRIVATE $<TARGET_PROPERTY:openvino_core_obj,SOURCE_DIR>/src
@@ -187,12 +191,5 @@ endif()
 
 ov_build_target_faster(${TARGET_NAME} PCH)
 
-set(BENCHMARK_TARGET_NAME ov_file_load_benchmark)
-add_executable(${BENCHMARK_TARGET_NAME} EXCLUDE_FROM_ALL
-    ${CMAKE_CURRENT_SOURCE_DIR}/file_load_benchmark.cpp)
-target_link_libraries(${BENCHMARK_TARGET_NAME} PRIVATE
-    common_test_utils
-    openvino::util)
-target_include_directories(${BENCHMARK_TARGET_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 add_subdirectory(frontend)

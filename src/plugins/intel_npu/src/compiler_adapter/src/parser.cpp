@@ -27,7 +27,7 @@ Parser::Parser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
 
 std::shared_ptr<IGraph> Parser::parse(
     const ov::Tensor& mainBlob,
-    const FilteredConfig& config,
+    const Config& config,
     std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::pair<std::string, std::shared_ptr<ov::ICore>>>&&
         weightsSource,
     const std::optional<std::vector<ov::Tensor>>& initBlobs,
@@ -38,6 +38,10 @@ std::shared_ptr<IGraph> Parser::parse(
     const void* data = mainBlob.data();
     size_t size = mainBlob.get_byte_size();
     if (blobType.has_value() && (blobType.value() == BlobType::LLVM || blobType.value() == BlobType::BYTECODE)) {
+        OPENVINO_ASSERT(
+            config.get<ALLOW_BYTECODE>(),
+            "The blob declares a payload that runs in-process on the host VM runtime instead of being parsed by the "
+            "NPU driver, and NPU_ALLOW_BYTECODE is disabled, so only native NPU device blobs are accepted.");
         _logger.debug("Create graph for dynamic blob, use internal function to get metadata!");
         NPUVMRuntimeApi::initializeFromBlob(data, size);
         return std::make_shared<DynamicGraph>(_zeroInitStruct, mainBlob, config, blobType.value());

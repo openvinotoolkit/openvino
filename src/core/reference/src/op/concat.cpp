@@ -60,8 +60,8 @@ void concat(const std::vector<const char*>& args,
     for (size_t step = 0; step < steps; ++step) {
         for (size_t in_index = 0; in_index < args.size(); ++in_index) {
             size_t size = shape_sizes[in_index] / steps;
-            const size_t in_offset = (step * size) / per_byte;
             size /= per_byte;
+            const size_t in_offset = step * size;
             copy_func(args[in_index], out, in_offset, out_offset, size, elem_size);
 
             out_offset += size;

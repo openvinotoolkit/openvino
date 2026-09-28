@@ -1,0 +1,96 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+#
+
+set(OV_RUNTIME_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/src/cache_guard.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/check_network_batchable.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/exception.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/model_reader.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/shared_context_manager.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/single_file_storage.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/system_conf.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/cpp/compiled_model.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/cpp/core.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/cpp/infer_request.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/cpp/remote_context.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/cpp/remote_tensor.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/cpp/variable_state.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/compilation_context.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/core_impl.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/device_id_parser.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/exec_model_info.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/iasync_infer_request.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/icompiled_model.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/iplugin.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/iremote_context.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/iremote_tensor.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/isync_infer_request.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/ivariable_state.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/make_tensor.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/performance_heuristics.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/plugin.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/plugin_config.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/tlv_format.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/threading/cpu_message.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/threading/cpu_streams_executor.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/threading/cpu_streams_executor_internal.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/threading/executor_manager.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/threading/istreams_executor.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/threading/itask_executor.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/threading/parallel_custom_arena.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/threading/thread_affinity.cpp
+)
+
+set(OV_RUNTIME_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/src/cache_guard.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/cache_manager.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/check_network_batchable.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/itt.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/model_reader.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/precomp.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/shared_context_manager.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/core_impl.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/plugin.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/threading/itt.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/threading/parallel_custom_arena.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/dev/threading/thread_affinity.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/src/os/cpu_map_info.hpp
+)
+
+set(OV_RUNTIME_PUBLIC_HEADERS
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/openvino.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/auto/properties.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/common.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/compiled_model.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/core.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/exception.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/infer_request.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/intel_cpu/properties.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/intel_gpu/ocl/dx.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/intel_gpu/ocl/ocl.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/intel_gpu/ocl/ocl_wrapper.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/intel_gpu/ocl/va.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/intel_gpu/properties.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/intel_gpu/remote_properties.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/intel_npu/level_zero/level_zero.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/intel_npu/properties.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/intel_npu/remote_properties.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/profiling_info.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/properties.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/remote_context.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/remote_tensor.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/runtime.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/include/openvino/runtime/variable_state.hpp
+)
+
+# Platform-specific sources - only one of these is ever added, see CMakeLists.txt
+set(WIN32_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/src/os/win/win_system_conf.cpp
+)
+set(MACOS_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/src/os/mac/mac_system_conf.cpp
+)
+set(LINUX_SOURCES
+    ${CMAKE_CURRENT_LIST_DIR}/src/os/lin/lin_system_conf.cpp
+)

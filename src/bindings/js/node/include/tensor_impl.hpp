@@ -29,10 +29,10 @@ public:
     struct CleanupContext {
         explicit CleanupContext(Napi::Reference<Napi::TypedArray>* typed_array_ref) : ref(typed_array_ref) {}
 
-        void release_owner();
-        void release_tsfn();
-        void remove_cleanup_hook();
-        static void cleanup_hook(napi_async_cleanup_hook_handle handle, void* data);
+        void release_owner() noexcept;
+        void release_tsfn() noexcept;
+        void remove_cleanup_hook() noexcept;
+        static void cleanup_hook(napi_async_cleanup_hook_handle handle, void* data) noexcept;
 
         std::atomic<uint32_t> owners{2};
         std::atomic<bool> tsfn_released{false};

@@ -6,6 +6,7 @@
 
 #include <cmath>
 
+#include "openvino/op/util/rnn_cell_base.hpp"
 #include "openvino/reference/add.hpp"
 #include "openvino/reference/clamp.hpp"
 #include "openvino/reference/matmul.hpp"
@@ -78,7 +79,7 @@ void rnn_cell(const T* X,
                    op::AutoBroadcastType::NUMPY);
 
     // f(Xt*(Wi^T) + Ht-1*(Ri^T) + Wbi + Rbi)
-    if (clip != 0.f) {
+    if (op::util::classify_rnn_clip(clip) == op::util::RNNClipMode::CLAMP) {
         reference::clamp(i_t.data(), i_t.data(), static_cast<T>(-clip), static_cast<T>(clip), i_t.size());
     }
     if (activation_f == "relu") {

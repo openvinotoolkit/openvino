@@ -42,6 +42,7 @@ enum GgufTensorType {
     GGUF_TYPE_F64 = 28,
     GGUF_TYPE_BF16 = 30,
     GGUF_TYPE_MXFP4 = 39,  // 4-bit microscaling (gpt-oss): 1-byte E8M0 scale + 32x E2M1
+    GGUF_TYPE_Q1_0 = 41,   // binary: f16 scale + 128x 1-bit codes, value = bit ? +scale : -scale
     GGUF_TYPE_Q2_0 = 42,   // ternary: f16 scale + 64x 2-bit codes, value = (code - 1) * scale
     GGUF_TYPE_COUNT,
 };
@@ -95,12 +96,8 @@ using GGUFLoad = std::tuple<std::unordered_map<std::string, GGUFMetaData>,
                             std::shared_ptr<ov::MappedMemory>,
                             std::shared_ptr<ov::AlignedBuffer>>;
 
-// Fill pre-allocated i4 weights (u32-packed, XORed for i4 sign) and f16 scales from a
-// Q4_0 tensor. No bias: Q4_0 is symmetric (zp = -8*scale is implicit, not stored).
-void gguf_fill_q4_0(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales);
-
 // Fill pre-allocated weights and f16 scales from a symmetric GGUF tensor
-// (Q8_0/Q5_0/Q6_K: i8 weights; Q3_K: i4 weights packed as u8).
+// (Q8_0/Q5_0/Q6_K: i8 weights; Q4_0/Q3_K: i4 weights packed as u8).
 // No zero-point: the center value is subtracted during unpacking so weights are centered at 0.
 void gguf_fill_sym(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales);
 
@@ -115,6 +112,11 @@ void gguf_fill_mxfp4(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& 
 // Fill pre-allocated u2 weights, f16 scales and u8 zero-points from a Q2_0 (ternary) tensor.
 // The zero-point is the constant 1 for every block: value = (code - 1) * scale.
 void gguf_fill_q2_0(const GgufTensor& tensor, ov::Tensor& weights, ov::Tensor& scales, ov::Tensor& zp);
+
+// Quantize one row to Q8_0_C: a single channel-wise f16 scale (amax/127) plus signed int8
+// weights. Shared by every channel-wise requant source so the rounding and the zero-row rule
+// live in one place.
+void quantize_row_q8_0_c(const float* x, size_t cols, int8_t* out_weights, ov::float16& out_scale);
 
 // Fused bit-exact ggml dequant + channel-wise Q8_0_C requant for the token_embd/output/Q6_K/Q5_K
 // requant path. Streams one row at a time (never materializes the full f32 weight). Fills i8

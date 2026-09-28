@@ -6,9 +6,7 @@
 
 #include "node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 namespace op {
 
@@ -81,6 +79,7 @@ GGUF_OP_CONVERTER(translate_fill);
 GGUF_OP_CONVERTER(translate_im2col);
 GGUF_OP_CONVERTER(translate_pad);
 GGUF_OP_CONVERTER(translate_ssm_conv);
+GGUF_OP_CONVERTER(translate_ssm_scan);
 GGUF_OP_CONVERTER(translate_gated_delta_net);
 
 GGUF_OP_CONVERTER(translate_weight);
@@ -89,6 +88,4 @@ GGUF_OP_CONVERTER(translate_weight);
 
 std::unordered_map<std::string, CreatorFunction> get_supported_ops();
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

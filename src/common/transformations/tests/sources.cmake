@@ -236,6 +236,7 @@ set(OP_CONVERSIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/normalize_l2_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/reduce_l1_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/reduce_l2_decomposition_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/rnn_cell_decomposition_clip_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/scaled_dot_product_decomposition_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/sdpa_to_paged_attention_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/simplify_ctc_greedy_decoder_seq_len_test.cpp
