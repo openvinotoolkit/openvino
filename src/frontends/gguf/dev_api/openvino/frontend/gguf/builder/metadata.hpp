@@ -11,9 +11,7 @@
 
 #include "openvino/frontend/gguf/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 namespace detail {
 // Keep the parser metadata representation out of the developer API.
@@ -48,6 +46,4 @@ private:
     const detail::MetadataStore* m_store;
 };
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

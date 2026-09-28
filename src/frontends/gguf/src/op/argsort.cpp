@@ -12,10 +12,7 @@
 #include "openvino/op/topk.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 // GGML_OP_ARGSORT: return the indices that sort the last dimension. The decoder maps ggml's
 // GGML_SORT_ORDER_ASC/DESC enum to a plain int "sort_order" (0 = ascending, 1 = descending), so
@@ -48,7 +45,4 @@ OutputVector translate_argsort(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(indices)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

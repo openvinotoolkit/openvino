@@ -42,6 +42,7 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/builder/api/metadata.cpp"
     "${FE_SRC_DIR}/builder/api/tensor_table.cpp"
     "${FE_SRC_DIR}/builder/arch/decoder_builder.cpp"
+    "${FE_SRC_DIR}/builder/arch/mamba_builder.cpp"
     "${FE_SRC_DIR}/builder/blocks/attention.cpp"
     "${FE_SRC_DIR}/builder/blocks/common.cpp"
     "${FE_SRC_DIR}/builder/blocks/ffn.cpp"
@@ -79,6 +80,7 @@ set(FRONTEND_SRCS
     "${FE_SRC_DIR}/op/softmax.cpp"
     "${FE_SRC_DIR}/op/sqr.cpp"
     "${FE_SRC_DIR}/op/ssm_conv.cpp"
+    "${FE_SRC_DIR}/op/ssm_scan.cpp"
     "${FE_SRC_DIR}/op/top_k.cpp"
     "${FE_SRC_DIR}/op/tri.cpp"
     "${FE_SRC_DIR}/op/sum_rows.cpp"
@@ -100,6 +102,7 @@ set(TEST_SRCS
     "${CMAKE_CURRENT_SOURCE_DIR}/test_extensions.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_op_coverage.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_ops.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/test_parser.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/test_weights.cpp"
 )
 

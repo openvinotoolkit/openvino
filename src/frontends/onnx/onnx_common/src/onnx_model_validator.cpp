@@ -155,10 +155,7 @@ inline void skip_payload(std::istream& model, uint32_t payload_size) {
 }  // namespace onnx
 }  // namespace
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace common {
+namespace ov::frontend::onnx::common {
 bool is_valid_model(std::istream& model) {
     // the model usually starts with a 0x08 byte indicating the ir_version value
     // so this checker expects at least 3 valid ONNX keys to be found in the validated model
@@ -183,7 +180,4 @@ bool is_valid_model(std::istream& model) {
     }
 }
 
-}  // namespace common
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::common
