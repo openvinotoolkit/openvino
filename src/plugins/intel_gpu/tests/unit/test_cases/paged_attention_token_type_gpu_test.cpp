@@ -14,8 +14,8 @@ constexpr float token_type_tolerance = 1e-2f;
 // The kernel-name guard the MIXED suites share: the bidirectional mask for a non-PREFILL stage exists
 // in sdpa_ocl only (sdpa_micro.cl gates its block on IS_PREFILL, and pa_multi_token /
 // paged_attention_opt.cl has no token_type_ids support at all). Check what ACTUALLY ran instead of
-// re-deriving the generator choice -- that covers TEST_USE_SDPA_OCL=0, non-immad devices and builds
-// without micro kernels in one place. Free function so both fixture instantiations can call it.
+// re-deriving the generator choice -- that covers the sdpa_micro lane (pre-Xe2 XMX, TEST_USE_SDPA_OCL=0),
+// non-immad devices and builds without micro kernels in one place. Free function so both fixture instantiations can call it.
 static bool ran_sdpa_ocl(const cldnn::network::ptr& network, std::string& entries_out) {
     auto pa_inst = network->get_primitive("paged_attention");
     EXPECT_NE(pa_inst, nullptr);
@@ -277,8 +277,8 @@ TEST_P(paged_attention_token_type_micro_sdpa_prefill_test, prefill_only) {
     auto* impl = pa_inst->get_impl();
     ASSERT_NE(impl, nullptr);
     auto dump_info = impl->get_kernels_dump_info(*pa_inst->get_impl_params());
-    // Either DPAS prefill generator is acceptable: which one runs is picked by TEST_USE_SDPA_OCL
-    // (sdpa_ocl by default, sdpa_micro when it is 0) and both implement the bidirectional mask.
+    // Either DPAS prefill generator is acceptable: which one runs is the device's lane (sdpa_ocl on Xe2+ XMX
+    // unless TEST_USE_SDPA_OCL=0, sdpa_micro otherwise) and both implement the bidirectional mask.
     const auto entries = dump_info.get_entries();
     EXPECT_TRUE(entries.find("sdpa_ocl") != std::string::npos || entries.find("sdpa_micro") != std::string::npos)
         << "Expected a DPAS SDPA kernel for PREFILL with token_type_ids, got: " << entries;
@@ -311,9 +311,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_attention_token_type_micro_sdpa_prefill,
 // back to paged_attention_opt__multi_tokens. That fallback has no token_type_ids handling and used
 // to be selected solely because has_token_type_ids was present.
 //
-// Which DPAS generator runs is TEST_USE_SDPA_OCL (sdpa_ocl by default, sdpa_micro when it is 0).
-// MIXED bidirectional masking exists only in sdpa_ocl -- sdpa_micro.cl still gates its block on
-// IS_PREFILL -- so TEST_USE_SDPA_OCL=0 currently rejects MIXED+token_type_ids and this suite skips.
+// Which DPAS generator runs is the device's lane (sdpa_ocl on Xe2+ XMX unless TEST_USE_SDPA_OCL=0,
+// sdpa_micro on the other XMX parts). MIXED bidirectional masking exists only in sdpa_ocl -- sdpa_micro.cl
+// still gates its block on IS_PREFILL -- so the sdpa_micro lane rejects MIXED+token_type_ids and this suite
+// skips there.
 //
 // The PREFILL golden data is replayed as a chunked prefill:
 //
