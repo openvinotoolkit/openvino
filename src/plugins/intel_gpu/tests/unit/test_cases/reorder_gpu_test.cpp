@@ -3277,7 +3277,7 @@ static void check_imad_isv4_weight_padding(format input_format,
     auto input = engine.allocate_memory(input_weights_layout);
     set_values(input, input_values);
 
-    topology topology {
+    topology test_topology {
         input_layout("input", input_weights_layout),
         reorder("reorder", input_info("input"), weights_reorder_params)
     };
@@ -3286,7 +3286,7 @@ static void check_imad_isv4_weight_padding(format input_format,
     ov::intel_gpu::ImplementationDesc wr_impl_desc = { output_format, "reorder_weights", impl_types::ocl };
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{ {"reorder", wr_impl_desc} }));
 
-    network network(engine, topology, config);
+    network network(engine, test_topology, config);
     network.set_input_data("input", input);
 
     auto output = engine.allocate_memory(output_weights_layout);
