@@ -23,38 +23,37 @@ if(DEFINED ENABLE_CPU_SUBSET_TESTS_PATH)
 
   set(CPU_SUBSET_TEST_ABS_PATH "${CPU_SUBSET_TEST_ABS_PATH_LIST}")
 
-  # exclude every other test file
-  set(EXCLUDED_SOURCE_PATHS_FOR_SUBSET_TEST
-    ${CMAKE_CURRENT_SOURCE_DIR}/custom
-    ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances)
-
-  # list of object files required for each test
-  set(REQUIRED_OBJECT_FILES
+  # sources shared by every subset target, regardless of the selected test file(s)
+  set(CPU_SUBSET_TEST_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/core_config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/skip_tests_config.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/shared_tests_instances/set_device_name.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/cpu_test_utils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/cpu_test_utils.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/convolution_params.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/filter_cpu_info.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/fusing_test_utils.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/fusing_test_utils.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/properties_test.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/quantization_utils.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/transformations/insert_fake_quantize.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/transformations/insert_fake_quantize.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/utils/transformations/insert_requantize.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils/transformations/insert_requantize.hpp
     ${CPU_SUBSET_TEST_ABS_PATH})
 
-if(NOT (ARM OR AARCH64))
-  list(APPEND EXCLUDED_SOURCE_PATHS_FOR_SUBSET_TEST ${CMAKE_CURRENT_SOURCE_DIR}/utils/arm)
-endif()
-if(NOT RISCV64)
-  list(APPEND EXCLUDED_SOURCE_PATHS_FOR_SUBSET_TEST ${CMAKE_CURRENT_SOURCE_DIR}/utils/riscv64)
-endif()
-if(NOT X86_64)
-  list(APPEND EXCLUDED_SOURCE_PATHS_FOR_SUBSET_TEST ${CMAKE_CURRENT_SOURCE_DIR}/utils/x64)
-endif()
+  if(ARM OR AARCH64)
+    list(APPEND CPU_SUBSET_TEST_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/utils/arm/filter_cpu_info.cpp)
+  elseif(RISCV64)
+    list(APPEND CPU_SUBSET_TEST_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/utils/riscv64/filter_cpu_info.cpp)
+  elseif(X86_64)
+    list(APPEND CPU_SUBSET_TEST_SRCS ${CMAKE_CURRENT_SOURCE_DIR}/utils/x64/filter_cpu_info.cpp)
+  endif()
 
   ov_add_test_target(
     NAME ${SUBSET_TARGET_NAME}
-    ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+    SOURCES ${CPU_SUBSET_TEST_SRCS}
     INCLUDES ${INCLUDES}
-    EXCLUDED_SOURCE_PATHS ${EXCLUDED_SOURCE_PATHS_FOR_SUBSET_TEST} ${EXCLUDED_SOURCE_PATHS}
-    OBJECT_FILES ${REQUIRED_OBJECT_FILES}
     DEFINES ${DEFINES}
     DEPENDENCIES ${DEPENDENCIES}
     LINK_LIBRARIES ${LINK_LIBRARIES}

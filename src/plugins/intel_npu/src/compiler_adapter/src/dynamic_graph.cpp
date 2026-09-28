@@ -4,7 +4,6 @@
 
 #include "dynamic_graph.hpp"
 
-#include <array>
 #include <iterator>
 #include <ostream>
 
@@ -12,110 +11,59 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/prefix.hpp"
 #include "intel_npu/utils/utils.hpp"
+#include "intel_npu/utils/vm/npu_vm_runtime_utils.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_cmd_queue_pool.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
+#include "ze_graph_ext_wrappers.hpp"
 
 namespace intel_npu {
 
-void DynamicGraph::create_execution_engine() {
+namespace {
+void populateRuntimeConfigChain(NpuVMRuntimeConfigChain& configChain, const Config& config) {
+    configChain.append(
+        NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_PRIORITY,
+        static_cast<npu_vm_runtime_config_value_t>(zeroUtils::toZeQueuePriority(config.get<MODEL_PRIORITY>())));
+    if (config.has<WORKLOAD_TYPE>()) {
+        const auto workloadType = zeroUtils::toZeQueueWorkloadType(config.get<WORKLOAD_TYPE>());
+        if (workloadType.has_value()) {
+            configChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_WORKLOAD_TYPE,
+                               static_cast<npu_vm_runtime_config_value_t>(workloadType.value()));
+        }
+    }
+    uint32_t commandQueueOptions = 0;
+    if (config.has<TURBO>() && config.get<TURBO>()) {
+        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_TURBO;
+    }
+    if (config.has<RUN_INFERENCES_SEQUENTIALLY>() && config.get<RUN_INFERENCES_SEQUENTIALLY>()) {
+        commandQueueOptions = commandQueueOptions | ZE_NPU_COMMAND_QUEUE_OPTION_DEVICE_SYNC;
+    }
+    configChain.append(NPU_VM_RUNTIME_CONFIG_TYPE_QUEUE_OPTIONS, commandQueueOptions);
+}
+
+}  // namespace
+
+void DynamicGraph::create_execution_engine(const Config& config) {
     npu_vm_runtime_blob_desc_t blobDesc;
     blobDesc.pInput = reinterpret_cast<const uint8_t*>(_blob.value().data());
     blobDesc.inputSize = _blob.value().get_byte_size();
 
-    if (npuVMRuntimeCreate(&blobDesc, &_engine, &_engineProperties) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+    if (npuVMRuntimeGetAPIVersion(&_apiVersion) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
+        OPENVINO_THROW("Failed to get VM runtime API version");
+    }
+
+    const auto result = [&]() {
+        if (use_npu_vm_runtime_v2_api(_apiVersion)) {
+            NpuVMRuntimeConfigChain runtimeConfig;
+            populateRuntimeConfigChain(runtimeConfig, config);
+            return npuVMRuntimeCreate2(&blobDesc, runtimeConfig.head(), &_engine, &_engineProperties);
+        }
+        return npuVMRuntimeCreate(&blobDesc, &_engine, &_engineProperties);
+    }();
+
+    if (result != NPU_VM_RUNTIME_RESULT_SUCCESS) {
         OPENVINO_THROW("Failed to create VM runtime engine");
     }
-}
-
-/**
- * @brief Extracts the I/O metadata from Level Zero specific structures and converts them into OpenVINO specific
- * ones.
- *
- * @param arg The main Level Zero structure from which most metadata will be extracted.
- * @param metadata The secondary Level Zero structure from which metadata will be extracted. More specifically, the
- * argument is used for populating "shapeFromIRModel". Not providing this argument will lead to an empty value for
- * the referenced attribute.
- * @returns A descriptor object containing the metadata converted in OpenVINO specific structures.
- */
-static IODescriptor getIODescriptor(const ze_graph_argument_properties_3_t& arg,
-                                    const std::optional<ze_graph_argument_metadata_t>& metadata) {
-    auto logger = Logger::global().clone("getIODescriptor");
-    ov::element::Type_t precision = zeroUtils::toOVElementType(arg.devicePrecision);
-    ov::Shape shapeFromCompiler;
-    ov::PartialShape shapeFromIRModel;
-    std::unordered_set<std::string> outputTensorNames;
-
-    for (uint32_t id = 0; id < arg.associated_tensor_names_count; id++) {
-        outputTensorNames.insert(arg.associated_tensor_names[id]);
-    }
-    for (uint32_t id = 0; id < arg.dims_count; id++) {
-        shapeFromCompiler.push_back(arg.dims[id]);
-    }
-    if (metadata.has_value()) {
-        const auto dynamicDim = std::numeric_limits<uint64_t>::max();
-        shapeFromIRModel.reserve(metadata->shape_size);
-        for (uint32_t id = 0; id < metadata->shape_size; id++) {
-            if (metadata->shape[id] != dynamicDim) {
-                shapeFromIRModel.push_back(metadata->shape[id]);
-            } else {
-                // lower bound is ignored, so we set it to 1 just to satisfy the Dimension constructor,
-                // upper bound is set to the value from shapeFromCompiler as it is filled with upper bounds
-                // in case of dynamic dimensions
-                if (id == utils::BATCH_AXIS && shapeFromCompiler[id] == utils::DEFAULT_BATCH_SIZE) {
-                    logger.info("Ignore dynamic batch size upper limit, but keep the dimension dynamic as a metadata "
-                                "from compiler has been lost.");
-                    // We need to keep batch dimension dynamic
-                    shapeFromIRModel.push_back(ov::Dimension(1, dynamicDim));
-                } else {
-                    shapeFromIRModel.push_back(ov::Dimension(1, shapeFromCompiler[id]));
-                }
-            }
-        }
-    }
-
-    // Flags will be used instead of indices for informing the type of the current entry
-    std::string nameFromCompiler = arg.name;
-    const bool isInput = (arg.type == ZE_GRAPH_ARGUMENT_TYPE_INPUT);
-    bool isStateInput = false;
-    bool isStateOutput = false;
-    bool isShapeTensor = false;
-    bool isInitInputWeights = false;
-    bool isInitOutputWeights = false;
-    bool isMainInputWeights = false;
-    if (isInput && isStateInputName(nameFromCompiler)) {
-        nameFromCompiler = nameFromCompiler.substr(READVALUE_PREFIX.length());
-        isStateInput = true;
-    } else if (!isInput && isStateOutputName(nameFromCompiler)) {
-        nameFromCompiler = nameFromCompiler.substr(ASSIGN_PREFIX.length());
-        isStateOutput = true;
-    } else if (isShapeTensorName(nameFromCompiler)) {
-        nameFromCompiler = nameFromCompiler.substr(SHAPE_TENSOR_PREFIX.length());
-        isShapeTensor = true;
-    } else if (isInput && isInitInputWeightsName(nameFromCompiler)) {
-        nameFromCompiler = nameFromCompiler.substr(INIT_INPUT_WEIGHTS_PREFIX.length());
-        isInitInputWeights = true;
-    } else if (!isInput && isInitOutputWeightsName(nameFromCompiler)) {
-        nameFromCompiler = nameFromCompiler.substr(INIT_OUTPUT_WEIGHTS_PREFIX.length());
-        isInitOutputWeights = true;
-    } else if (isInput && isMainInputWeightsName(nameFromCompiler)) {
-        nameFromCompiler = nameFromCompiler.substr(MAIN_INPUT_WEIGHTS_PREFIX.length());
-        isMainInputWeights = true;
-    }
-
-    return {std::move(nameFromCompiler),
-            precision,
-            shapeFromCompiler,
-            isStateInput,
-            isStateOutput,
-            isShapeTensor,
-            isInitInputWeights,
-            isInitOutputWeights,
-            isMainInputWeights,
-            std::nullopt,
-            arg.debug_friendly_name,
-            std::move(outputTensorNames),
-            metadata.has_value() ? std::optional(shapeFromIRModel) : std::nullopt};
 }
 
 void DynamicGraph::prepare_metadata() {
@@ -129,9 +77,7 @@ void DynamicGraph::prepare_metadata() {
         if (npuVMRuntimeGetMetadata(_engine, i, &arg, &meta, upperBound.data()) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
             OPENVINO_THROW("Failed to get VM runtime metadata");
         }
-        IODescriptor ioDesc = getIODescriptor(arg, meta);
-        // TODO: Once runtime returns right value, can remove change on index and layout
-        ioDesc.indexUsedByDriver = i;
+        IODescriptor ioDesc = createIODescriptorFromLevelZero(i, arg, meta);
         ioDesc.supportsStridedLayout = true;
         switch (arg.type) {
         case ZE_GRAPH_ARGUMENT_TYPE_INPUT: {
@@ -149,9 +95,9 @@ void DynamicGraph::prepare_metadata() {
     _metadata.bindRelatedDescriptors();
 }
 
-void DynamicGraph::initialize_engine() {
+void DynamicGraph::initialize_engine(const Config& config) {
     if (!_engineInitialized) {
-        create_execution_engine();
+        create_execution_engine(config);
         prepare_metadata();
         _engineInitialized = true;
         _metadata.numberOfSubgraphs = _engineProperties.numOfSubGraphs;
@@ -185,7 +131,7 @@ void DynamicGraph::initialize_engine() {
 
 DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                            ov::Tensor blob,
-                           const FilteredConfig& config,
+                           const Config& config,
                            BlobType blobType)
     : _zeroInitStruct(zeroInitStruct),
       _blob(std::move(blob)),
@@ -195,7 +141,7 @@ DynamicGraph::DynamicGraph(const std::shared_ptr<ZeroInitStructsHolder>& zeroIni
     // Metadata comes from the VM runtime parsing the blob; unlike a regular Graph, it is not prefetched by the
     // compiler/parser and must be available before plugin builds a dummy ov::Model for the CompiledModel.
     // This is CPU-side parsing only - no L0/device setup.
-    initialize_engine();
+    initialize_engine(config);
 }
 
 std::pair<uint64_t, std::optional<std::vector<uint64_t>>> DynamicGraph::export_blob(std::ostream& stream) const {
@@ -315,12 +261,12 @@ void* DynamicGraph::get_handle() const {
     return _engine;
 }
 
-void DynamicGraph::initialize_impl(const FilteredConfig& config) {
+void DynamicGraph::initialize_impl(const Config& config) {
     _logger.debug("Graph initialize start");
 
     if (!_engineInitialized) {
         // initialize VM execution engine, metadata, input&output descriptors
-        initialize_engine();
+        initialize_engine(config);
     }
 
     if (!_zeroInitStruct) {
@@ -354,7 +300,7 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
             this,
             sharedCommonQueue};
 
-        if (sharedCommonQueue == false) {
+        if (!use_npu_vm_runtime_v2_api(_apiVersion) && sharedCommonQueue == false) {
             // Keep it alive per compiled model when the shared common queue feature is disabled.
             _commandQueue = ZeroCmdQueuePool::getInstance().getCommandQueue(_zeroInitStruct, _commandQueueDesc);
         }
@@ -366,10 +312,10 @@ void DynamicGraph::initialize_impl(const FilteredConfig& config) {
     _init_completed.store(true, std::memory_order_release);
 }
 
-bool DynamicGraph::release_blob(const FilteredConfig& config) {
+bool DynamicGraph::release_blob(const Config& config) {
     _logger.warning("Release blob is skipped, no handle for DynamicGraph");
     return false;
-};
+}
 
 uint32_t DynamicGraph::get_unique_id() {
     return _uniqueId++;

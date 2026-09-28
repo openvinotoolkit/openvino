@@ -13,6 +13,7 @@
 #include <functional>
 
 #include "op_test_utils.hpp"
+#include "openvino/op/selective_ssm.hpp"
 #include "openvino/op/topk.hpp"
 #include "utils.hpp"
 
@@ -1076,6 +1077,78 @@ TEST(GGUFOps, GetRowsMoeWeights) {
     // tok0: probs[3],probs[1] = 0.4,0.2 ; tok1: probs[0],probs[2] = 0.5,0.7
     std::vector<float> expected{0.4f, 0.2f, 0.5f, 0.7f};
     expect_near(out, expected, 1e-5f);
+}
+
+TEST(GGUFOps, SSMScanMamba2) {
+    // Compile once with dynamic batch/token axes. Oracle: ssm_scan_oracle.c, real ggml CPU,
+    // two groups, four heads, unequal head/state widths and state slot permutation {2,0}.
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_SSM_SCAN")
+                     .input("s", ov::element::f32, {-1, 4, 3, 8})
+                     .input("x", ov::element::f32, {-1, -1, 4, 3})
+                     .input("dt", ov::element::f32, {1, -1, -1, 4})
+                     .input("a", ov::element::f32, {1, 1, 4, 1})
+                     .input("b", ov::element::f32, {-1, -1, 2, 8})
+                     .input("c", ov::element::f32, {-1, -1, 2, 8})
+                     .input("ids", ov::element::i32, {1, 1, 1, -1})
+                     .output("out", ov::element::f32, {1, 1, 1, -1})
+                     .build();
+    size_t fused = 0;
+    for (const auto& node : model->get_ops())
+        fused += ov::is_type<ov::op::internal::SelectiveSSM>(node);
+    ASSERT_EQ(fused, 1);
+    ov::Core core;
+    auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
+    auto request = compiled.create_infer_request();
+    for (size_t tokens : {3, 1}) {
+        const std::vector<std::string> names{"s", "x", "dt", "a", "b", "c"};
+        const std::vector<ov::Shape> shapes{{3, 4, 3, 8},
+                                            {2, tokens, 4, 3},
+                                            {1, 2, tokens, 4},
+                                            {1, 1, 4, 1},
+                                            {2, tokens, 2, 8},
+                                            {2, tokens, 2, 8}};
+        for (int j = 0; j < 6; ++j) {
+            ov::Tensor input(ov::element::f32, shapes[j]);
+            for (size_t i = 0; i < input.get_size(); ++i)
+                input.data<float>()[i] =
+                    j == 3 ? -.1f * (i + 1) : (static_cast<int>((i * (j + 3) + j) % 29) - 14) * .07f;
+            if (j == 2) {
+                input.data<float>()[0] = -25.f;
+                input.data<float>()[1] = 25.f;
+            }
+            request.set_tensor(names[j], input);
+        }
+        ov::Tensor ids(ov::element::i32, {1, 1, 1, 2});
+        ids.data<int32_t>()[0] = 2;
+        ids.data<int32_t>()[1] = 0;
+        request.set_tensor("ids", ids);
+        request.infer();
+        const auto out = request.get_output_tensor();
+        const auto expected = load_npy<float>("ssm_scan_t" + std::to_string(tokens) + "_expected");
+#if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
+        // ARM's FP32 SoftPlus approximation produces up to 8e-4 absolute error through the scan.
+        // A relative tolerance alone cannot cover the resulting near-zero state values.
+        expect_near(out, expected, 1e-3f);
+#else
+        expect_near(out, expected);
+#endif
+    }
+}
+
+TEST(GGUFOps, SSMScanRejectsMamba1Decay) {
+    EXPECT_THROW(SingleOpBuilder()
+                     .op("GGML_OP_SSM_SCAN")
+                     .input("s", ov::element::f32, {1, 4, 1, 8})
+                     .input("x", ov::element::f32, {1, 2, 4, 1})
+                     .input("dt", ov::element::f32, {1, 1, 2, 4})
+                     .input("a", ov::element::f32, {1, 1, 4, 8})
+                     .input("b", ov::element::f32, {1, 2, 1, 8})
+                     .input("c", ov::element::f32, {1, 2, 1, 8})
+                     .input("ids", ov::element::i32, {1, 1, 1, 1})
+                     .output("out", ov::element::f32, {1, 1, 1, 40})
+                     .build(),
+                 ov::Exception);
 }
 
 // SsmConv: depthwise causal 1D conv. sx [1, n_s=1, d_inner=2, ncs=4], weight [1,1,2,d_conv=3]
