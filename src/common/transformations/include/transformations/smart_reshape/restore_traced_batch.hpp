@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/pass.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -20,11 +20,47 @@ class TRANSFORMATIONS_API RestoreTracedBatch;
  * @brief Restores a Reshape target leading dimension that model tracing froze to one.
  *
  * Tracing with batch one turns expressions like `int(x.shape[0])` into constants, so a Reshape keeps a leading one
- * while a `-1` absorbs the batch. When symbolic shape inference proves the batch is rebuilt later, the constant is
- * replaced with the `Gather(ShapeOf(parameter), 0)` expression the model already uses for other Reshape targets.
+ * while a `-1` absorbs the batch. When a Reshape taking the batch from the input shape follows such pins, separated
+ * only by Transpose and Roll keeping the leading axis, each constant is replaced with that `Gather(ShapeOf(parameter),
+ * 0)`.
+ *
+ * ## Before
+ *
+ *         Parameter [B, 4]
+ *                |
+ *               ...          Constant(1)   Constant(-1)
+ *                |                |             |
+ *                |                +---Concat----+
+ *                |                       |
+ *             Reshape <------------------+
+ *            [1, 4 * B]       (batch pinned by tracing)
+ *                |
+ *         Transpose / Roll    (optional, keeping axis 0)
+ *                |      Gather(ShapeOf(Parameter), 0)   Constant(-1)
+ *                |                    |                      |
+ *                |                    +--------Concat--------+
+ *                |                               |
+ *             Reshape <--------------------------+
+ *              [B, 4]         (batch rebuilt)
+ *
+ * ## After
+ *
+ *         Parameter [B, 4]
+ *                |
+ *               ...     Gather(ShapeOf(Parameter), 0)   Constant(-1)
+ *                |                    |                      |
+ *                |                    +--------Concat--------+
+ *                |                               |
+ *             Reshape <--------------------------+
+ *              [B, 4]
+ *                |
+ *         Transpose / Roll
+ *                |
+ *             Reshape
+ *              [B, 4]
  */
-class ov::pass::RestoreTracedBatch : public ov::pass::ModelPass {
+class ov::pass::RestoreTracedBatch : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MODEL_PASS_RTTI("RestoreTracedBatch");
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
+    OPENVINO_MATCHER_PASS_RTTI("RestoreTracedBatch");
+    RestoreTracedBatch();
 };
