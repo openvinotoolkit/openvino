@@ -10,7 +10,6 @@ TOOLS=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 PY=${PY:-python3}
 SERVE=${SERVE:-$TOOLS/build/paged_serve_llm_27b}
 mkdir -p "$OUT" && OUT=$(cd "$OUT" && pwd)
-export OV_TERNOCL_INT2_MERGE_MLP=${OV_TERNOCL_INT2_MERGE_MLP:-1}
 cd "$OUT" && "$PY" "$TOOLS/lm_eval_ov.py" --lm "$MD/openvino_model.xml" --embed "$MD/openvino_text_embeddings_model.xml" \
   --tokenizer "$TOK" --serve "$SERVE" --tasks "${TASKS:-gsm8k_cot_llama}" \
   ${LIMIT:+--limit $LIMIT} --batch "${BATCH:-8}" --think "${THINK:-medium}" --out "$OUT" "$@" 2>&1 | tee "$OUT/run.log"
