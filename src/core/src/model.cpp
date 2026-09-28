@@ -7,7 +7,6 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 
 #include "evaluator.hpp"
 #include "itt.hpp"
@@ -17,21 +16,13 @@
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/meta_data.hpp"
 #include "openvino/core/partial_shape.hpp"
-#include "openvino/op/concat.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/convert.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/reshape.hpp"
-#include "openvino/op/shape_of.hpp"
-#include "openvino/op/squeeze.hpp"
-#include "openvino/op/unsqueeze.hpp"
-#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/variable_context.hpp"
 #include "openvino/op/util/variable_extension.hpp"
 #include "openvino/pass/manager.hpp"
 #include "shared_node_info.hpp"
+#include "transformations/smart_reshape/rematerialized_batch.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 
 using namespace std;
@@ -39,93 +30,6 @@ using namespace std;
 atomic<size_t> ov::Model::m_next_instance_id(0);
 
 namespace {
-
-const ov::Node* unresolved_reshape_pattern(const std::shared_ptr<ov::Node>& node,
-                                           bool special_zero,
-                                           const std::unordered_set<const ov::Node*>& affected,
-                                           std::unordered_map<const ov::Node*, const ov::Node*>& cache) {
-    const auto cached = cache.find(node.get());
-    if (cached != cache.end()) {
-        return cached->second;
-    }
-
-    const ov::Node* unresolved = node.get();
-    if (const auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node)) {
-        const auto values = constant->cast_vector<int64_t>();
-        if (std::all_of(values.begin(), values.end(), [special_zero](int64_t value) {
-                return value == -1 || (special_zero && value == 0);
-            })) {
-            unresolved = nullptr;
-        }
-    } else if (ov::is_type<ov::op::v0::ShapeOf>(node) || ov::is_type<ov::op::v3::ShapeOf>(node)) {
-        if (affected.count(node->input_value(0).get_node())) {
-            unresolved = nullptr;
-        }
-    } else if (ov::is_type<ov::op::v0::Concat>(node)) {
-        unresolved = nullptr;
-        for (const auto& input : node->input_values()) {
-            unresolved = unresolved_reshape_pattern(input.get_node_shared_ptr(), special_zero, affected, cache);
-            if (unresolved) {
-                break;
-            }
-        }
-    } else if (ov::is_type<ov::op::v1::Gather>(node) || ov::is_type<ov::op::v7::Gather>(node) ||
-               ov::is_type<ov::op::v8::Gather>(node) || ov::is_type<ov::op::v0::Convert>(node) ||
-               ov::is_type<ov::op::v0::Squeeze>(node) || ov::is_type<ov::op::v0::Unsqueeze>(node)) {
-        unresolved =
-            unresolved_reshape_pattern(node->input_value(0).get_node_shared_ptr(), special_zero, affected, cache);
-        for (size_t index = 1; !unresolved && index < node->get_input_size(); ++index) {
-            if (!ov::is_type<ov::op::v0::Constant>(node->input_value(index).get_node_shared_ptr())) {
-                unresolved = node.get();
-            }
-        }
-    }
-
-    cache.emplace(node.get(), unresolved);
-    return unresolved;
-}
-
-void validate_reshape_dependencies(const ov::Model& model, std::unordered_set<const ov::Node*> affected) {
-    if (affected.empty()) {
-        return;
-    }
-
-    std::unordered_map<const ov::Node*, const ov::Node*> pattern_cache[2];
-    for (const auto& node : model.get_ordered_ops()) {
-        for (const auto& input : node->input_values()) {
-            if (affected.count(input.get_node())) {
-                affected.insert(node.get());
-                break;
-            }
-        }
-        if (!affected.count(node.get())) {
-            continue;
-        }
-        if (const auto subgraph = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
-            for (const auto& body : subgraph->get_functions()) {
-                std::unordered_set<const ov::Node*> affected_body_parameters;
-                for (const auto& parameter : body->get_parameters()) {
-                    affected_body_parameters.insert(parameter.get());
-                }
-                validate_reshape_dependencies(*body, std::move(affected_body_parameters));
-            }
-        }
-        if (const auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(node)) {
-            const auto unresolved = unresolved_reshape_pattern(reshape->input_value(1).get_node_shared_ptr(),
-                                                               reshape->get_special_zero(),
-                                                               affected,
-                                                               pattern_cache[reshape->get_special_zero()]);
-            OPENVINO_ASSERT(!unresolved,
-                            "Model::reshape cannot establish shape-dependency safety for Reshape '",
-                            reshape->get_friendly_name(),
-                            "': target-shape node '",
-                            unresolved ? unresolved->get_friendly_name() : std::string{},
-                            "' contains literal dimensions or an unsupported shape expression. "
-                            "The model has not been modified. Use explicit live shape dependencies or reconvert "
-                            "the source model for the requested input shapes.");
-        }
-    }
-}
 
 void check_all_variables_registered(const std::vector<shared_ptr<ov::Node>>& ordered_ops,
                                     const ov::op::util::VariableVector& variables) {
@@ -908,14 +812,6 @@ void ov::Model::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& 
     if (!need_reshape)
         return;
 
-    std::unordered_set<const ov::Node*> changed_parameters;
-    for (const auto& [parameter, shape] : new_param_shapes) {
-        if (parameter->get_partial_shape() != shape) {
-            changed_parameters.insert(parameter);
-        }
-    }
-    validate_reshape_dependencies(*this, std::move(changed_parameters));
-
     std::unordered_map<op::util::Variable*, PartialShape> new_vars_shapes;
     std::unordered_map<op::util::Variable*, PartialShape> original_vars_shapes;
     for (const auto& variable : get_variables()) {
@@ -959,6 +855,30 @@ void ov::Model::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& 
         ov::pass::Manager ssr_manager("SmartReshape");
         ssr_manager.register_pass<ov::pass::SmartReshape>();
         ssr_manager.run_passes(shared_from_this());
+
+        // SmartReshape restores what it can, so anything still pinned cannot be reshaped without wrong results.
+        for (size_t index = 0; index < params.size(); ++index) {
+            const auto new_shape_it = new_param_shapes.find(params[index].get());
+            if (new_shape_it == new_param_shapes.end()) {
+                continue;
+            }
+            const auto& new_shape = new_shape_it->second;
+            const auto& old_shape = params[index]->get_partial_shape();
+            if (new_shape.rank().is_dynamic() || new_shape.size() == 0 || !new_shape[0].is_static() ||
+                (old_shape.rank().is_static() && old_shape.size() > 0 && old_shape[0] == new_shape[0])) {
+                continue;
+            }
+            const auto pinned_batch = ov::find_rematerialized_batch(*this, index);
+            OPENVINO_ASSERT(!pinned_batch || *pinned_batch == new_shape[0].get_length(),
+                            "Model::reshape cannot set the leading dimension of input ",
+                            index,
+                            " to ",
+                            new_shape[0].get_length(),
+                            ": the model rebuilds it from a shape expression instead of from its data, so it stays ",
+                            *pinned_batch,
+                            " internally and every other value produces wrong results. Input shapes are unchanged. "
+                            "Reconvert the source model for the requested input shapes.");
+        }
 
         reshape_only(new_param_shapes, new_vars_shapes);
     } catch (...) {

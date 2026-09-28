@@ -106,16 +106,7 @@ public:
     /// Return the op that generates output i
     std::shared_ptr<ov::Node> get_output_op(size_t i) const;
 
-    /// \brief Clones the original model.
-    /// To reshape without modifying the source graph, call reshape() on the clone:
-    /// \code
-    /// auto candidate = model->clone();
-    /// candidate->reshape(new_shapes);
-    /// \endcode
-    /// Keep the candidate only if reshape and any application-specific validation succeed.
-    /// Use input indices, tensor names, or ports belonging to the clone for new_shapes.
-    /// Successful shape inference does not establish equivalence to a source model whose
-    /// shape dependencies were lost during conversion or tracing.
+    /// \brief Clones the original model
     std::shared_ptr<ov::Model> clone() const;
 
     /// Model outputs
@@ -141,17 +132,10 @@ public:
     ov::Output<ov::Node> add_output(const std::string& op_name, size_t output_idx);
     ov::Output<ov::Node> add_output(const ov::Output<ov::Node>& port);
 
-    /// \name Reshaping
-    /// Update input shapes after conservative validation of affected Reshape target dependencies.
-    /// Before graph transformations, reject literal positive target dimensions and unsupported
-    /// target expressions on paths from changed inputs, including affected control-flow bodies.
-    /// Supported targets use live ShapeOf expressions (optionally via Gather, Concat, Convert,
-    /// Squeeze or Unsqueeze), special-zero copies, or an inferred -1 dimension.
-    /// No input axis is assumed to represent batch. Valid but unverifiable layouts can be rejected.
-    /// A dependency-check failure throws ov::Exception before modifying the graph. This does not
-    /// guarantee rollback for later failures or numerical equivalence to a source model whose
-    /// shape dependencies were lost during tracing. Use clone() for isolation from later failures.
-    /// @{
+    /// \brief Updates input shapes and propagates them through the model.
+    /// Throws when the model rebuilds a leading dimension from a shape expression instead of from its data, because
+    /// only the value it was converted with produces correct results. ov::pass::RestoreTracedBatch repairs such a
+    /// model.
     void reshape(const ov::PartialShape& partial_shape,
                  const std::unordered_map<std::string, ov::PartialShape>& variable_shapes = {});
     void reshape(const std::map<size_t, ov::PartialShape>& partial_shapes,
@@ -160,7 +144,6 @@ public:
                  const std::unordered_map<std::string, ov::PartialShape>& variable_shapes = {});
     void reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& partial_shapes,
                  const std::unordered_map<std::string, ov::PartialShape>& variable_shapes = {});
-    /// @}
 
     /// Return the element type of output i
     const ov::element::Type& get_output_element_type(size_t i) const;

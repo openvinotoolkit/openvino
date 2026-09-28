@@ -286,8 +286,10 @@ set(SMART_RESHAPE_SOURCES
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/lstm_states_broadcast.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/matmul_sr.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/proposal_scales_stridedslice.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/rematerialized_batch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/reshape_sinking.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/reshape_to_1D.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/restore_traced_batch.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/shape_of_const_folding.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/smart_reshape.cpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/strided_slice_squeeze.cpp
