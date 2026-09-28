@@ -400,6 +400,7 @@ TEST(cache_serialization, otd_partial_allocation_uses_weightless_metadata) {
         membuf mem_buf;
         std::ostream out_mem(&mem_buf);
         BinaryOutputBuffer ob(out_mem);
+        ob.set_stream(get_test_stream_ptr().get());
         data_prim.save(ob);
         return static_cast<size_t>(std::distance(mem_buf.begin(), mem_buf.end()));
     };
