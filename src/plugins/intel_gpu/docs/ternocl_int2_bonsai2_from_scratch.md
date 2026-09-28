@@ -185,6 +185,8 @@ OV_TERNOCL_INT2_MERGE_MLP=1 $WORK/venv/bin/python $TOOLS/lm_eval_ov.py \
   --tasks gsm8k_cot_llama --batch 16 --think medium --out .          # add --limit 100 for a quick check
 ```
 
+`$TOOLS/run_lm_eval_ov.sh <model-dir> <tokenizer-dir> <out-dir>` wraps the same
+call (`PY`, `LIMIT`, `BATCH`, `THINK`, `TASKS`, `SERVE` from the environment).
 Full test set (1319 examples, thinking, up to 4096 generated tokens):
 `exact_match 0.968` (1277/1319). First 100: ~0.96-0.98 depending on the slice.
 
