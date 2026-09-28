@@ -231,21 +231,27 @@ Convert3GatherMatmulMoeBlockToMoeOp::Convert3GatherMatmulMoeBlockToMoeOp(bool ha
         const bool is_compressed = is_gate_compressed;
 
         if (is_compressed) {
-            // A layer that mixes dtypes across the three expert GEMMs is only decoded correctly by
-            // moe_3gemm for the {u2, u8} combinations its per-GEMM dispatch covers. Anything else
-            // keeps the per-GEMM-correct GatherMatmul form rather than being mis-decoded.
+            // A layer that mixes dtypes across the three expert GEMMs is decoded per GEMM by
+            // moe_3gemm (GATE/UP/DOWN_WEIGHT_DT) for u2, u4 and u8. One constraint is shared state
+            // rather than dispatch: gate and up read ONE SLM copy of the activations, and its layout
+            // is chosen from the gate dtype alone -- interleaved (even/odd halves) for u4, plain for
+            // u2/u8. So gate and up must agree on whether they are u4; down stages its own copy and
+            // is free. This is what admits the NNCF recipe that keeps gate/up at u2 and gives down
+            // u4. Signed types stay uniform-only: WEIGHT_IS_SIGNED is set once, from the gate.
+            // Anything else keeps the per-GEMM-correct GatherMatmul form rather than being mis-decoded.
             {
                 const auto gate_dt = pm.at(gate_w_m).get_element_type();
                 const auto up_dt = pm.at(up_w_m).get_element_type();
                 const auto down_dt = pm.at(down_w_m).get_element_type();
-                const auto is_u2_or_u8 = [](ov::element::Type t) {
-                    return t == ov::element::u2 || t == ov::element::u8;
+                const auto is_mixable = [](ov::element::Type t) {
+                    return t == ov::element::u2 || t == ov::element::u4 || t == ov::element::u8;
                 };
                 const bool uniform_ok = (up_dt == gate_dt && down_dt == gate_dt) &&
                                         (gate_dt == ov::element::u2 || gate_dt == ov::element::u4 ||
                                          gate_dt == ov::element::i4 || gate_dt == ov::element::u8 ||
                                          gate_dt == ov::element::i8);
-                const bool mixed_ok = is_u2_or_u8(gate_dt) && is_u2_or_u8(up_dt) && is_u2_or_u8(down_dt);
+                const bool mixed_ok = is_mixable(gate_dt) && is_mixable(up_dt) && is_mixable(down_dt) &&
+                                      ((gate_dt == ov::element::u4) == (up_dt == ov::element::u4));
                 if (!(uniform_ok || mixed_ok)) {
                     return false;
                 }
