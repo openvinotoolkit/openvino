@@ -38,15 +38,6 @@ PartialUploadLogState& get_partial_upload_log_state() {
     return state;
 }
 
-PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
-                                             const std::shared_ptr<ov::op::v0::Constant>& op,
-                                             const ov::Shape& const_shape,
-                                             cldnn::data_types out_dtype,
-                                             const cldnn::format& const_format,
-                                             const cldnn::layout& const_layout) {
-    return try_prepare_partial_upload(p.get_engine(), p.get_config(), op, const_shape, out_dtype, const_format, const_layout);
-}
-
 PartialUploadDesc try_prepare_partial_upload(cldnn::engine& engine,
                                              const ExecutionConfig& config,
                                              const std::shared_ptr<ov::op::v0::Constant>& op,

@@ -10,8 +10,10 @@
 #include <string>
 
 #include "ov_ops/moe_compressed.hpp"
-#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
+#include "intel_gpu/runtime/memory.hpp"
 #include "openvino/op/constant.hpp"
 
 namespace ov::intel_gpu {
@@ -74,13 +76,6 @@ private:
 };
 
 PartialUploadLogState& get_partial_upload_log_state();
-
-PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
-                                             const std::shared_ptr<ov::op::v0::Constant>& op,
-                                             const ov::Shape& const_shape,
-                                             cldnn::data_types out_dtype,
-                                             const cldnn::format& const_format,
-                                             const cldnn::layout& const_layout);
 
 PartialUploadDesc try_prepare_partial_upload(cldnn::engine& engine,
                                              const ExecutionConfig& config,
