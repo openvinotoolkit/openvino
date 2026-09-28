@@ -27,7 +27,7 @@ integer ops) and multiplied on the fp16 DPAS with fp32 accumulation, against
 native fp16 activations. They come from the TernOCL kernel collection
 (`int2_fp16_upcvt/int2_fp16_upcvt.cl`, `common/epilogue.clh`,
 `hadamard/hadamard_fwht.cl`), which carries its own standalone drivers,
-validation and benchmarks against XeTLA.
+validation and tuning scripts.
 
 | File | Role |
 |---|---|
@@ -40,8 +40,7 @@ validation and benchmarks against XeTLA.
 | `registry/fully_connected_impls.cpp` | Priority relative to oneDNN/OpenCL |
 | `primitive_inst.cpp` | Lets `ternocl_int2` keep its fused chain under dynamic shapes (section 4) |
 
-There is no SYCL or XeTLA dependency; the impl needs only the plugin's OpenCL
-runtime (`GPU_RT_TYPE=OCL`).
+The impl needs only the plugin's OpenCL runtime (`GPU_RT_TYPE=OCL`).
 
 ---
 
@@ -123,8 +122,7 @@ shape update.
 trusts fused eltwise ops on `impl_types::ocl` FCs whose kernel it knows and
 otherwise silently executes an *unfused subgraph* (the FC plus separate
 eltwise/activation primitives). `ternocl_int2` is whitelisted there; without it
-the model runs every epilogue as a separate pass (Bonsai 2 27B on a B70:
-34.6 instead of 42.8 tok/s, TTFT 620 instead of 86 ms).
+the model runs every epilogue as a separate pass.
 
 **Output type**: f32 logits are written directly (`-DOUT_F32`), the
 accumulator is fp32 already.
@@ -141,15 +139,13 @@ Both kernels live in one program source, `int2_fp16_upcvt.cl`, specialised with
 | `int2_fp16_upcvt_gemm` | GEMV, M <= 8 | `SGM` rows per sub-group (1/2/4/8), `NSG_N` sub-groups along N (work-group width `WGN = 16*NSG_N`), `LS` local k-slicing through SLM, `U` k-steps loaded ahead |
 | `int2_fp16_upcvt_gemm_mt` | M > 8 | sub-group tile `MT_M x MT_N`, work-group `WG_M x WG_N` sub-groups, 256 GRF; B dequantized once per 16 columns and reused for all `MT_M/8` DPAS row blocks; 2D block I/O clips at the matrix edge so any M works |
 
-Both take `POSTOP` (0..4) and `OUT_F32`, and the epilogue
-(`common/epilogue.clh`) is bit-identical to XeTLA's tile ops (`silu_op_t`,
-`elemwise_reduce_op_t`, `xetla_sigmoid` including its `x <= -10 -> 0` clamp);
-TernOCL's parity tool checks this against the XeTLA kernel on the same inputs.
+Both take `POSTOP` (0..4) and `OUT_F32`; the epilogue (`common/epilogue.clh`)
+computes SiLU-gate, residual add, bias and sigmoid (with an `x <= -10 -> 0`
+clamp) on the fp32 accumulator before the store.
 
 `hadamard_fwht_1024` (`hadamard/hadamard_fwht.cl`): one 128-item work-group per
 1024-block, the ten radix-2 stages as three radix-8 passes through SLM and a
-final radix-2 pass that scales and stores, fp32 butterflies. Same stage order
-as the SYCL kernel it replaces, so the rotated activation is bit-identical.
+final radix-2 pass that scales and stores, fp32 butterflies.
 
 ---
 
@@ -161,18 +157,11 @@ as the SYCL kernel it replaces, so the rotated activation is bit-identical.
 |---|---|---|
 | 1, 2, <= 4, <= 8 | GEMV, `SGM` = 1/2/4/8 | `gemv_tile(K, N)`: exact (K, N) entries, separate table for the integrated GPU |
 | 9..16, 17..32, 33..63 | M-tiled | `mt_tile()`: one tile per M band and output width class (N <= 8192, < 65536, >= 65536), per GPU class |
-| >= 64 | M-tiled | `mt_tile()`: exact (K, N) entries tuned at M = 1024 (B70) / 512 (Arc 140V) |
+| >= 64 | M-tiled | `mt_tile()`: exact (K, N) entries, per GPU class |
 
-Tuned on an Arc Pro B70 with TernOCL's `bench.sh` / `sweep_midm.sh` (>= 2 GiB of
-rotating distinct weights, median of 3, device-event time), for the Bonsai 8B
-and 27B shapes. Measured against XeTLA's own tuned configurations on the same
-harness (B70):
-
-| | TernOCL vs XeTLA |
-|---|---|
-| decode GEMV, 27B shapes | x1.01 - x1.06 |
-| prompt-length M 12..48, 27B shapes | x1.0 - x3.5 |
-| M = 1024 | x4.4 - x4.9 |
+The tables are tuned per GPU class (discrete and integrated Xe2) with TernOCL's
+`bench.sh` / `sweep_midm.sh` for the Bonsai 8B and 27B shapes; shapes without
+an entry use a default tile.
 
 Overrides for sweeps: `OV_TERNOCL_INT2_GEMV="wgn,ls,u"`,
 `OV_TERNOCL_INT2_MID="mt_m,mt_n,wg_m,wg_n"` (M < 64),
