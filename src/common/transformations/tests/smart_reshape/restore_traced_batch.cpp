@@ -109,3 +109,12 @@ TEST_F(RestoreTracedBatchTests, ModelWithoutLeadingDimensionExpressionIsLeftAlon
     model = std::make_shared<Model>(OutputVector{std::make_shared<op::v1::Reshape>(param, target, false)},
                                     ParameterVector{param});
 }
+
+TEST(SmartReshapeTests, ReshapeRestoresTracedBatch) {
+    const auto model = make_traced_model({1, -1}, true);
+
+    model->reshape(PartialShape{2, 4});
+
+    const auto pinned_reshape = model->get_results()[0]->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0);
+    EXPECT_EQ(pinned_reshape->get_output_partial_shape(0), (PartialShape{2, 4}));
+}

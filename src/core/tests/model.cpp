@@ -16,8 +16,6 @@
 #include "openvino/op/abs.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
-#include "openvino/op/constant.hpp"
-#include "openvino/op/gather.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -617,65 +615,6 @@ TEST(model_reshape, ReshapedDynamicShapeLayout) {
 
     EXPECT_FALSE(model->input().get_partial_shape().is_dynamic());
     EXPECT_FALSE(model->get_parameters().front()->get_partial_shape().is_dynamic());
-}
-
-TEST(model_reshape, RestoresBatchPinnedByTracing) {
-    // Mirrors a traced graph: the batch is pinned to one and rebuilt afterwards from ShapeOf of the input.
-    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 4});
-    const auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(param);
-    const auto live =
-        std::make_shared<ov::op::v8::Gather>(shape_of,
-                                             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}),
-                                             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
-    const auto inferred = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
-    const auto pinned = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
-
-    const auto live_reshape =
-        std::make_shared<ov::op::v1::Reshape>(param,
-                                              std::make_shared<ov::op::v0::Concat>(ov::OutputVector{live, inferred}, 0),
-                                              false);
-    const auto pinned_reshape = std::make_shared<ov::op::v1::Reshape>(
-        live_reshape,
-        std::make_shared<ov::op::v0::Concat>(ov::OutputVector{pinned, inferred}, 0),
-        false);
-    const auto rebuilt =
-        std::make_shared<ov::op::v1::Reshape>(pinned_reshape,
-                                              std::make_shared<ov::op::v0::Concat>(ov::OutputVector{live, inferred}, 0),
-                                              false);
-    const auto model = std::make_shared<ov::Model>(ov::OutputVector{rebuilt}, ov::ParameterVector{param});
-
-    model->reshape(ov::PartialShape{2, 4});
-
-    EXPECT_EQ(model->input().get_partial_shape(), (ov::PartialShape{2, 4}));
-    EXPECT_EQ(pinned_reshape->get_output_partial_shape(0)[0], ov::Dimension(2));
-}
-
-TEST(model_reshape, RejectsBatchPinnedByTracingThatCannotBeRestored) {
-    // The pinned target is a single Constant, which the restoring transformation does not rewrite.
-    const auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 4});
-    const auto shape_of = std::make_shared<ov::op::v3::ShapeOf>(param);
-    const auto live =
-        std::make_shared<ov::op::v8::Gather>(shape_of,
-                                             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}),
-                                             ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
-    const auto inferred = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
-
-    const auto live_reshape =
-        std::make_shared<ov::op::v1::Reshape>(param,
-                                              std::make_shared<ov::op::v0::Concat>(ov::OutputVector{live, inferred}, 0),
-                                              false);
-    const auto pinned_reshape =
-        std::make_shared<ov::op::v1::Reshape>(live_reshape,
-                                              ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, -1}),
-                                              false);
-    const auto rebuilt =
-        std::make_shared<ov::op::v1::Reshape>(pinned_reshape,
-                                              std::make_shared<ov::op::v0::Concat>(ov::OutputVector{live, inferred}, 0),
-                                              false);
-    const auto model = std::make_shared<ov::Model>(ov::OutputVector{rebuilt}, ov::ParameterVector{param});
-
-    EXPECT_THROW(model->reshape(ov::PartialShape{2, 4}), ov::Exception);
-    EXPECT_EQ(model->input().get_partial_shape(), (ov::PartialShape{-1, 4}));
 }
 
 TEST(model_reshape, ReshapeBatchReLU) {

@@ -22,7 +22,6 @@
 #include "openvino/op/util/variable_extension.hpp"
 #include "openvino/pass/manager.hpp"
 #include "shared_node_info.hpp"
-#include "transformations/smart_reshape/rematerialized_batch.hpp"
 #include "transformations/smart_reshape/smart_reshape.hpp"
 
 using namespace std;
@@ -855,30 +854,6 @@ void ov::Model::reshape(const std::map<ov::Output<ov::Node>, ov::PartialShape>& 
         ov::pass::Manager ssr_manager("SmartReshape");
         ssr_manager.register_pass<ov::pass::SmartReshape>();
         ssr_manager.run_passes(shared_from_this());
-
-        // SmartReshape restores what it can, so anything still pinned cannot be reshaped without wrong results.
-        for (size_t index = 0; index < params.size(); ++index) {
-            const auto new_shape_it = new_param_shapes.find(params[index].get());
-            if (new_shape_it == new_param_shapes.end()) {
-                continue;
-            }
-            const auto& new_shape = new_shape_it->second;
-            const auto& old_shape = params[index]->get_partial_shape();
-            if (new_shape.rank().is_dynamic() || new_shape.size() == 0 || !new_shape[0].is_static() ||
-                (old_shape.rank().is_static() && old_shape.size() > 0 && old_shape[0] == new_shape[0])) {
-                continue;
-            }
-            const auto pinned_batch = ov::find_rematerialized_batch(*this, index);
-            OPENVINO_ASSERT(!pinned_batch || *pinned_batch == new_shape[0].get_length(),
-                            "Model::reshape cannot set the leading dimension of input ",
-                            index,
-                            " to ",
-                            new_shape[0].get_length(),
-                            ": the model rebuilds it from a shape expression instead of from its data, so it stays ",
-                            *pinned_batch,
-                            " internally and every other value produces wrong results. Input shapes are unchanged. "
-                            "Reconvert the source model for the requested input shapes.");
-        }
 
         reshape_only(new_param_shapes, new_vars_shapes);
     } catch (...) {

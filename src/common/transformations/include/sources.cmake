@@ -323,7 +323,6 @@ set(SMART_RESHAPE_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/lstm_states_broadcast.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/matmul_sr.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/proposal_scales_stridedslice.hpp
-    ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/rematerialized_batch.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/reshape_sinking.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/reshape_to_1D.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/smart_reshape/restore_traced_batch.hpp

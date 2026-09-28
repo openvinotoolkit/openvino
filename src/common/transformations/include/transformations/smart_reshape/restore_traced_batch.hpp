@@ -17,17 +17,11 @@ class TRANSFORMATIONS_API RestoreTracedBatch;
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief Restores the leading Reshape target dimension that model conversion froze to one.
+ * @brief Restores a Reshape target leading dimension that model tracing froze to one.
  *
- * Tracing a model with batch one turns expressions like `int(x.shape[0])` into a constant, so the traced Reshape keeps
- * the batch at one and a sibling `-1` silently absorbs the batch instead. The transformation does not infer which
- * dimension is the batch. It first propagates a symbol seeded on the leading input dimension and only acts when some
- * Reshape rebuilds that symbol out of a leading dimension of one, which means the batch no longer comes from the data.
- * It then reuses the `Gather(ShapeOf(parameter), 0)` expression the model already applies to other Reshape targets,
- * rewriting a target only when the leading element is a constant one, another element is `-1`, and the reshaped tensor
- * has a dynamic leading dimension. Models without such an expression are left unchanged.
- *
- * The transformation is not part of the SmartReshape pipeline and has to be registered explicitly.
+ * Tracing with batch one turns expressions like `int(x.shape[0])` into constants, so a Reshape keeps a leading one
+ * while a `-1` absorbs the batch. When symbolic shape inference proves the batch is rebuilt later, the constant is
+ * replaced with the `Gather(ShapeOf(parameter), 0)` expression the model already uses for other Reshape targets.
  */
 class ov::pass::RestoreTracedBatch : public ov::pass::ModelPass {
 public:

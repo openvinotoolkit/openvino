@@ -132,10 +132,6 @@ public:
     ov::Output<ov::Node> add_output(const std::string& op_name, size_t output_idx);
     ov::Output<ov::Node> add_output(const ov::Output<ov::Node>& port);
 
-    /// \brief Updates input shapes and propagates them through the model.
-    /// Throws when the model rebuilds a leading dimension from a shape expression instead of from its data, because
-    /// only the value it was converted with produces correct results. ov::pass::RestoreTracedBatch repairs such a
-    /// model.
     void reshape(const ov::PartialShape& partial_shape,
                  const std::unordered_map<std::string, ov::PartialShape>& variable_shapes = {});
     void reshape(const std::map<size_t, ov::PartialShape>& partial_shapes,
