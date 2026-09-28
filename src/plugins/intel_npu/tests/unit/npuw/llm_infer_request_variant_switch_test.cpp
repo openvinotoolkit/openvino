@@ -140,6 +140,7 @@ struct LLMVariantSwitchTestAccess {
         s::write(os, compiled->m_is_embedding);
         s::write(os, compiled->m_is_block_kv_cache);
         s::write(os, compiled->m_is_encoder_embedding);
+        s::write(os, compiled->m_swa_window_size);
         s::write(os, compiled->m_longrope_tables);
         s::write(os, compiled->m_cfg);
         s::write(os, compiled->m_kvcache_sizes);
