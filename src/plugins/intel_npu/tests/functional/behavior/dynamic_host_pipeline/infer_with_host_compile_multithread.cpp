@@ -18,147 +18,15 @@
 #include <vector>
 
 #include "common/utils.hpp"
+#include "espcn_x2_model.hpp"
 #include "intel_npu/npu_private_properties.hpp"
 #include "openvino/openvino.hpp"
-#include "openvino/opsets/opset6.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 #include "shared_test_classes/base/ov_behavior_test_utils.hpp"
 
 namespace ov {
 namespace test {
 namespace behavior {
-
-inline std::shared_ptr<ov::Model> createMaxPoolModelMT(bool dynamicBatch = false, bool nhwcLayout = true) {
-    std::shared_ptr<ov::op::v0::Parameter> input;
-    if (dynamicBatch) {
-        input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16,
-                                                        ov::PartialShape{ov::Dimension(1, 10), 16, 1280, 1280});
-    } else {
-        input = std::make_shared<ov::op::v0::Parameter>(
-            ov::element::f16,
-            ov::PartialShape{1, 16, ov::Dimension(10, 1280), ov::Dimension(10, 1280)});
-    }
-
-    std::string inputName = "input1";
-    input->set_friendly_name(inputName);
-    input->get_output_tensor(0).set_names({inputName});
-    if (!nhwcLayout)
-        input->set_layout("NCHW");
-    auto maxpool = std::make_shared<ov::op::v1::MaxPool>(input,
-                                                         Strides{1, 1},
-                                                         Shape{0, 0},
-                                                         Shape{0, 0},
-                                                         Shape{1, 1},
-                                                         op::RoundingType::FLOOR,
-                                                         op::PadType::EXPLICIT);
-    maxpool->set_friendly_name("MaxPool_2");
-
-    auto result = std::make_shared<ov::op::v0::Result>(maxpool);
-    std::string outputName = "output";
-    if (!nhwcLayout)
-        result->set_layout("NCHW");
-    result->set_friendly_name(outputName);
-    result->get_output_tensor(0).set_names({outputName});
-
-    auto model = std::make_shared<Model>(ResultVector{result}, ParameterVector{input}, "MaxPool");
-
-    if (nhwcLayout) {
-        auto preProc = ov::preprocess::PrePostProcessor(model);
-        preProc.input(0).tensor().set_layout("NHWC");
-        preProc.input(0).model().set_layout("NCHW");
-        preProc.output(0).tensor().set_layout("NHWC");
-        preProc.output(0).model().set_layout("NCHW");
-        model = preProc.build();
-    }
-
-    return model;
-}
-
-inline std::shared_ptr<ov::Model> createCustomNetModelMT() {
-    auto input = std::make_shared<ov::op::v0::Parameter>(
-        ov::element::f16,
-        ov::PartialShape{1, 16, ov::Dimension(1, 1280), ov::Dimension(10, 1920)});
-    input->set_friendly_name("Parameter_59");
-
-    auto make_conv_add = [](const ov::Output<ov::Node>& data,
-                            const std::string& convName,
-                            const std::string& addName,
-                            float weightValue,
-                            float biasValue) -> ov::Output<ov::Node> {
-        const std::vector<float> weightValues(16 * 16, weightValue);
-        const std::vector<float> biasValues(16, biasValue);
-
-        auto weights = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{16, 16, 1, 1}, weightValues);
-        auto conv = std::make_shared<ov::op::v1::Convolution>(data,
-                                                              weights,
-                                                              ov::Strides{1, 1},
-                                                              ov::CoordinateDiff{0, 0},
-                                                              ov::CoordinateDiff{0, 0},
-                                                              ov::Strides{1, 1},
-                                                              ov::op::PadType::EXPLICIT);
-        conv->set_friendly_name(convName);
-
-        auto bias = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 16, 1, 1}, biasValues);
-        auto add = std::make_shared<ov::op::v1::Add>(conv, bias);
-        add->set_friendly_name(addName);
-        return add;
-    };
-
-    auto x = make_conv_add(input, "Convolution_61", "Add_63", 0.01f, 0.001f);
-    x = make_conv_add(x, "Convolution_65", "Add_67", 0.011f, 0.001f);
-
-    auto relu68 = std::make_shared<ov::op::v0::Relu>(x);
-    relu68->set_friendly_name("Relu_68");
-    x = relu68;
-
-    x = make_conv_add(x, "Convolution_70", "Add_72", 0.012f, 0.001f);
-    auto relu73 = std::make_shared<ov::op::v0::Relu>(x);
-    relu73->set_friendly_name("Relu_73");
-    x = relu73;
-
-    x = make_conv_add(x, "Convolution_75", "Add_77", 0.013f, 0.001f);
-    auto relu78 = std::make_shared<ov::op::v0::Relu>(x);
-    relu78->set_friendly_name("Relu_78");
-    x = relu78;
-
-    x = make_conv_add(x, "Convolution_82", "Add_84", 0.014f, 0.001f);
-    auto relu85 = std::make_shared<ov::op::v0::Relu>(x);
-    relu85->set_friendly_name("Relu_85");
-    x = relu85;
-
-    x = make_conv_add(x, "Convolution_87", "Add_89", 0.015f, 0.001f);
-    auto relu90 = std::make_shared<ov::op::v0::Relu>(x);
-    relu90->set_friendly_name("Relu_90");
-    x = relu90;
-
-    x = make_conv_add(x, "Convolution_92", "Add_94", 0.016f, 0.001f);
-    auto relu95 = std::make_shared<ov::op::v0::Relu>(x);
-    relu95->set_friendly_name("Relu_95");
-    x = relu95;
-
-    auto multiplyScale = ov::op::v0::Constant::create(ov::element::f16, ov::Shape{1, 16, 1, 1}, {0.5f});
-    auto multiply97 = std::make_shared<ov::op::v1::Multiply>(x, multiplyScale);
-    multiply97->set_friendly_name("Multiply_97");
-
-    auto add98 = std::make_shared<ov::op::v1::Add>(multiply97, multiply97);
-    add98->set_friendly_name("Add_98");
-
-    x = make_conv_add(add98, "Convolution_100", "Add_102", 0.017f, 0.001f);
-
-    auto result = std::make_shared<ov::op::v0::Result>(x);
-    result->set_friendly_name("Result_104");
-
-    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input}, "CustomNet");
-
-    auto preProc = ov::preprocess::PrePostProcessor(model);
-    preProc.input(0).tensor().set_layout("NHWC");
-    preProc.input(0).model().set_layout("NCHW");
-    preProc.output(0).tensor().set_layout("NHWC");
-    preProc.output(0).model().set_layout("NCHW");
-    model = preProc.build();
-
-    return model;
-}
 
 using InferWithHostCompileMTParams = std::tuple<std::string, ov::AnyMap, std::string>;
 
@@ -188,9 +56,6 @@ public:
         SKIP_IF_CURRENT_TEST_IS_DISABLED();
 
         std::tie(target_device, configuration, selectedModelName) = this->GetParam();
-        if (selectedModelName == "CustomNet") {
-            GTEST_SKIP() << "CustomNet is currently skipped for multithread host compile tests";
-        }
         configuration[ov::intel_npu::compile_log_level.name()] = ov::log::Level::ERR;
 
         std::vector<std::string> deviceNames =
@@ -206,16 +71,7 @@ public:
     }
 
     static std::shared_ptr<ov::Model> createModelByName(const std::string& modelName) {
-        if (modelName == "CustomNet") {
-            return createCustomNetModelMT();
-        }
-        if (modelName == "MaxPool") {
-            return createMaxPoolModelMT();
-        }
-        if (modelName == "MaxPool_NCHW") {
-            return createMaxPoolModelMT(false, false);
-        }
-        OPENVINO_THROW("Unknown model name for InferWithHostCompileMultithreadTests: ", modelName);
+        return createESPCNX2ModelByName(modelName);
     }
 
     static void runConcurrently(size_t threadCount,
@@ -406,14 +262,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileCreateInfer) {
     }
 
     constexpr size_t kThreadCount = 4;
-    ov::Shape shape;
-    if (selectedModelName == "MaxPool_NCHW") {
-        shape = {1, 16, 720, 1280};
-    } else {
-        shape = {1, 720, 1280, 16};
-    }
-
     auto referenceModel = createModelByName(selectedModelName);
+    const ov::Shape shape = makeInputShape(referenceModel, 1, false);
     ov::CompiledModel referenceCompiledModel;
     try {
         referenceCompiledModel = core->compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
@@ -454,14 +304,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelCreateReque
     }
 
     constexpr size_t kThreadCount = 8;
-    ov::Shape shape;
-    if (selectedModelName == "MaxPool_NCHW") {
-        shape = {1, 16, 720, 1280};
-    } else {
-        shape = {1, 720, 1280, 16};
-    }
-
     auto referenceModel = createModelByName(selectedModelName);
+    const ov::Shape shape = makeInputShape(referenceModel, 1, false);
     ov::CompiledModel referenceCompiledModel;
     try {
         referenceCompiledModel = core->compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
@@ -505,14 +349,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_ConcurrentInferThenSetPriorityAn
     }
 
     constexpr size_t kThreadCount = 8;
-    ov::Shape shape;
-    if (selectedModelName == "MaxPool_NCHW") {
-        shape = {1, 16, 720, 1280};
-    } else {
-        shape = {1, 720, 1280, 16};
-    }
-
     auto referenceModel = createModelByName(selectedModelName);
+    const ov::Shape shape = makeInputShape(referenceModel, 1, false);
     ov::CompiledModel referenceCompiledModel;
     try {
         referenceCompiledModel = core->compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
@@ -605,17 +443,9 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_MultiCompiledModelsMultiRequests
     constexpr size_t kModelCount = 3;
     constexpr size_t kRequestsPerModel = 2;
     constexpr size_t kInferLoops = 3;
-    ov::Shape shapeLarge;
-    ov::Shape shapeSmall;
-    if (selectedModelName == "MaxPool_NCHW") {
-        shapeLarge = {1, 16, 720, 1280};
-        shapeSmall = {1, 16, 360, 640};
-    } else {
-        shapeLarge = {1, 720, 1280, 16};
-        shapeSmall = {1, 360, 640, 16};
-    }
-
     auto referenceModel = createModelByName(selectedModelName);
+    const ov::Shape shapeLarge = makeInputShape(referenceModel, 1, true);
+    const ov::Shape shapeSmall = makeInputShape(referenceModel, 1, false);
     ov::CompiledModel referenceCompiledModel;
     try {
         referenceCompiledModel = core->compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
@@ -705,17 +535,9 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelZeroInputOu
 
     constexpr size_t kThreadCount = 4;
     constexpr size_t kInferLoops = 3;
-    ov::Shape shapeLarge;
-    ov::Shape shapeSmall;
-    if (selectedModelName == "MaxPool_NCHW") {
-        shapeLarge = {1, 16, 720, 1280};
-        shapeSmall = {1, 16, 360, 640};
-    } else {
-        shapeLarge = {1, 720, 1280, 16};
-        shapeSmall = {1, 360, 640, 16};
-    }
-
     auto referenceModel = createModelByName(selectedModelName);
+    const ov::Shape shapeLarge = makeInputShape(referenceModel, 1, true);
+    const ov::Shape shapeSmall = makeInputShape(referenceModel, 1, false);
     ov::CompiledModel referenceCompiledModel;
     try {
         referenceCompiledModel = core->compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
@@ -757,7 +579,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_SingleCompileParallelZeroInputOu
                     auto zeroContext = core->get_default_context(target_device);
                     const int startFrom = static_cast<int>(100 + threadIdx * 11 + inferIdx);
                     inputs[threadIdx] = makeZeroInputTensor(zeroContext, model, shape, startFrom);
-                    outputs[threadIdx] = zeroContext.create_host_tensor(model->output().get_element_type(), shape);
+                    outputs[threadIdx] = zeroContext.create_host_tensor(model->output().get_element_type(),
+                                                                        makeOutputShape(selectedModelName, shape));
                     requests[threadIdx]->set_tensor(model->input(), inputs[threadIdx]);
                     requests[threadIdx]->set_tensor(model->output(), outputs[threadIdx]);
                     referenceRequests[threadIdx]->set_input_tensor(0, inputs[threadIdx]);
@@ -784,17 +607,9 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileZeroInputOutputT
 
     constexpr size_t kThreadCount = 4;
     constexpr size_t kInferLoops = 3;
-    ov::Shape shapeLarge;
-    ov::Shape shapeSmall;
-    if (selectedModelName == "MaxPool_NCHW") {
-        shapeLarge = {1, 16, 720, 1280};
-        shapeSmall = {1, 16, 360, 640};
-    } else {
-        shapeLarge = {1, 720, 1280, 16};
-        shapeSmall = {1, 360, 640, 16};
-    }
-
     auto referenceModel = createModelByName(selectedModelName);
+    const ov::Shape shapeLarge = makeInputShape(referenceModel, 1, true);
+    const ov::Shape shapeSmall = makeInputShape(referenceModel, 1, false);
     ov::CompiledModel referenceCompiledModel;
     try {
         referenceCompiledModel = core->compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
@@ -839,8 +654,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_PerThreadCompileZeroInputOutputT
                     auto zeroContext = core->get_default_context(target_device);
                     const int startFrom = static_cast<int>(100 + threadIdx * 11 + inferIdx);
                     inputs[threadIdx] = makeZeroInputTensor(zeroContext, models[threadIdx], shape, startFrom);
-                    outputs[threadIdx] =
-                        zeroContext.create_host_tensor(models[threadIdx]->output().get_element_type(), shape);
+                    outputs[threadIdx] = zeroContext.create_host_tensor(models[threadIdx]->output().get_element_type(),
+                                                                        makeOutputShape(selectedModelName, shape));
                     requests[threadIdx]->set_tensor(models[threadIdx]->input(), inputs[threadIdx]);
                     requests[threadIdx]->set_tensor(models[threadIdx]->output(), outputs[threadIdx]);
                     referenceRequests[threadIdx]->set_input_tensor(0, inputs[threadIdx]);
@@ -867,14 +682,8 @@ TEST_P(InferWithHostCompileMultithreadTests, MT_CompileAndInferOverlap) {
 
     constexpr size_t kModelCount = 4;
     constexpr size_t kThreadCount = 4;
-    ov::Shape shape;
-    if (selectedModelName == "MaxPool_NCHW") {
-        shape = {1, 16, 720, 1280};
-    } else {
-        shape = {1, 720, 1280, 16};
-    }
-
     auto referenceModel = createModelByName(selectedModelName);
+    const ov::Shape shape = makeInputShape(referenceModel, 1, false);
     ov::CompiledModel referenceCompiledModel;
     try {
         referenceCompiledModel = core->compile_model(referenceModel, ov::test::utils::DEVICE_TEMPLATE);
@@ -1001,7 +810,7 @@ const std::vector<ov::AnyMap> mtConfigs = {
     },
 };
 
-const std::vector<std::string> mtModelNames = {"MaxPool_NCHW" /*, "CustomNet"*/};
+const std::vector<std::string> mtModelNames = {"ESPCN_x2_DynHW_HD"};
 
 INSTANTIATE_TEST_SUITE_P(smoke_BehaviorTests,
                          InferWithHostCompileMultithreadTests,
