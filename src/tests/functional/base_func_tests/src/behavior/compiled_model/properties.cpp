@@ -11,6 +11,7 @@
 #include "common_test_utils/subgraph_builders/conv_pool_relu.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/runtime/properties.hpp"
+#include "openvino/util/common_util.hpp"
 
 namespace ov {
 namespace test {

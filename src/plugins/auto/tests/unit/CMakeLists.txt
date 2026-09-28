@@ -7,12 +7,12 @@ set(TARGET_NAME ov_auto_unit_tests)
 set(CI_BUILD_NUMBER "unittest")
 add_definitions(-DMULTIUNITTEST)
 
+include(sources.cmake)
+
 ov_add_test_target(
         NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
-        ADDITIONAL_SOURCE_DIRS
-            ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src
-            ${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/utils
+        SOURCES
+            ${OV_AUTO_UNIT_TESTS_SRC}
         INCLUDES
             ${OpenVINO_SOURCE_DIR}/src/plugins/auto
             ${CMAKE_CURRENT_SOURCE_DIR}
@@ -22,10 +22,18 @@ ov_add_test_target(
         DEPENDENCIES
             openvino_template_extension
             mock_engine
+        CHECK_SOURCES_LISTED
         LABELS
             OV UNIT MULTI AUTO
 )
 
 ov_add_version_defines(${OpenVINO_SOURCE_DIR}/src/plugins/auto/src/plugin.cpp ${TARGET_NAME})
+
+if(TARGET openvino::ipf_client_api)
+    target_compile_definitions(${TARGET_NAME} PRIVATE OV_AUTO_ENABLE_IPF)
+    target_link_libraries(${TARGET_NAME} PRIVATE openvino::ipf_client_api)
+    target_include_directories(${TARGET_NAME} SYSTEM PRIVATE
+        $<TARGET_PROPERTY:nlohmann_json::nlohmann_json,INTERFACE_INCLUDE_DIRECTORIES>)
+endif()
 
 ov_set_threading_interface_for(${TARGET_NAME})

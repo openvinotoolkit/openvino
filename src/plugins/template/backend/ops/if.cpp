@@ -48,17 +48,15 @@ bool call(ov::TensorVector& func_outputs,
         std::vector<ov::Tensor> op_outputs;
         for (size_t i = 0; i < op->get_output_size(); ++i) {
             ov::descriptor::Tensor* tensor = &op->output(i).get_tensor();
-            ov::Tensor host_tensor;
             auto it = tensor_map.find(tensor);
             if (ov::op::util::is_output(op)) {
-                host_tensor = func_outputs[results_map[op]];
+                op_outputs.push_back(func_outputs[results_map[op]]);
             } else if (it == tensor_map.end()) {
-                host_tensor = ov::Tensor(op->output(i));
-                tensor_map.insert({tensor, host_tensor});
+                const auto& h_tensor = op_outputs.emplace_back(op->output(i));
+                tensor_map.insert({tensor, h_tensor});
             } else {
-                host_tensor = it->second;
+                op_outputs.push_back(it->second);
             }
-            op_outputs.push_back(host_tensor);
         }
         op->validate_and_infer_types();
         if (!op->evaluate(op_outputs, op_inputs)) {
@@ -137,7 +135,7 @@ void if_reference(const std::vector<std::shared_ptr<ov::Model>>& bodies,
         OPENVINO_ASSERT(output_size > out_descr->m_output_index,
                         "Incorrect associating! If has not output with id ",
                         out_descr->m_output_index);
-        auto res = outs_from_body[out_descr->m_body_value_index];
+        const auto& res = outs_from_body[out_descr->m_body_value_index];
 
         res.copy_to(out[out_descr->m_output_index]);
     }

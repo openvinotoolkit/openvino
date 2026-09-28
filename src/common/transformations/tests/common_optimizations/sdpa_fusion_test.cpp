@@ -28,6 +28,7 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/variadic_split.hpp"
 
 using namespace std;
 using namespace testing;
@@ -1558,4 +1559,155 @@ TEST(SDPAFusionTest, AlignedOutputFriendlyName) {
     const auto fused_sdpa = wrapping->get_input_node_shared_ptr(0);
     ASSERT_TRUE(ov::is_type<ov::op::v13::ScaledDotProductAttention>(fused_sdpa));
     EXPECT_EQ(fused_sdpa->get_friendly_name(), kMatchRootName);
+}
+
+namespace {
+namespace v8 = ov::op::v8;
+namespace v13 = ov::op::v13;
+
+// Builds the split-attention sub-graph matched by SDPASplitAttentionFusionMatcher.
+//
+//   K layout flag:  false  → K stored as [B,H,S,D]  (qk MatMul.transpose_b = true)
+//                   true   → K stored as [B,H,D,S]  (qk MatMul.transpose_b = false)
+//   V layout flag:  false  → V stored as [B,H,S,D]  (attn MatMul.transpose_b = false)
+//                   true   → V stored as [B,H,D,S]  (attn MatMul.transpose_b = true)
+//   softmax_axis : passed straight to v8::Softmax (use -1 for the well-formed pattern).
+struct SplitAttnDims {
+    int64_t B = 1;
+    int64_t H = 4;
+    int64_t D = 64;
+    int64_t S_q = 16;
+    int64_t S_cache = 128;
+    int64_t S_new = 16;
+};
+
+std::shared_ptr<ov::Model> build_split_attention_model(const SplitAttnDims& d,
+                                                       bool k_transposed,
+                                                       bool v_transposed,
+                                                       int64_t softmax_axis) {
+    const auto et = ov::element::f32;
+    const PartialShape q_shape{d.B, d.H, d.S_q, d.D};
+    const PartialShape k_cache_shape =
+        k_transposed ? PartialShape{d.B, d.H, d.D, d.S_cache} : PartialShape{d.B, d.H, d.S_cache, d.D};
+    const PartialShape k_new_shape =
+        k_transposed ? PartialShape{d.B, d.H, d.D, d.S_new} : PartialShape{d.B, d.H, d.S_new, d.D};
+    const PartialShape v_cache_shape =
+        v_transposed ? PartialShape{d.B, d.H, d.D, d.S_cache} : PartialShape{d.B, d.H, d.S_cache, d.D};
+    const PartialShape v_new_shape =
+        v_transposed ? PartialShape{d.B, d.H, d.D, d.S_new} : PartialShape{d.B, d.H, d.S_new, d.D};
+    const PartialShape mask_shape{d.B, 1, d.S_q, d.S_cache + d.S_new};
+
+    auto Q = std::make_shared<v0::Parameter>(et, q_shape);
+    auto Kc = std::make_shared<v0::Parameter>(et, k_cache_shape);
+    auto Kn = std::make_shared<v0::Parameter>(et, k_new_shape);
+    auto Vc = std::make_shared<v0::Parameter>(et, v_cache_shape);
+    auto Vn = std::make_shared<v0::Parameter>(et, v_new_shape);
+    auto M = std::make_shared<v0::Parameter>(et, mask_shape);
+
+    auto qk_cache = std::make_shared<v0::MatMul>(Q, Kc, /*transpose_a*/ false, /*transpose_b*/ !k_transposed);
+    auto qk_new = std::make_shared<v0::MatMul>(Q, Kn, /*transpose_a*/ false, /*transpose_b*/ !k_transposed);
+
+    auto scores = std::make_shared<v0::Concat>(ov::OutputVector{qk_cache, qk_new}, -1);
+    auto masked = std::make_shared<v1::Add>(scores, M);
+    auto probs = std::make_shared<v8::Softmax>(masked, softmax_axis);
+
+    auto split_axis = v0::Constant::create(ov::element::i64, ov::Shape{}, {-1});
+    auto split_sizes = v0::Constant::create(ov::element::i64, ov::Shape{2}, {d.S_cache, d.S_new});
+    auto split = std::make_shared<v1::VariadicSplit>(probs, split_axis, split_sizes);
+
+    auto attn_cache = std::make_shared<v0::MatMul>(split->output(0), Vc, false, v_transposed);
+    auto attn_new = std::make_shared<v0::MatMul>(split->output(1), Vn, false, v_transposed);
+    auto out = std::make_shared<v1::Add>(attn_cache, attn_new);
+
+    return std::make_shared<ov::Model>(ov::OutputVector{out}, ov::ParameterVector{Q, Kc, Kn, Vc, Vn, M});
+}
+
+// Builds the post-fusion reference: a single v13::ScaledDotProductAttention fed by
+// a Concat of (K_cache, K_new) along the sequence axis (with an optional Transpose
+// for pre-transposed inputs), same for V, mask, and scale = 1.0.
+std::shared_ptr<ov::Model> build_split_attention_reference(const SplitAttnDims& d,
+                                                           bool k_transposed,
+                                                           bool v_transposed) {
+    const auto et = ov::element::f32;
+    const PartialShape q_shape{d.B, d.H, d.S_q, d.D};
+    const PartialShape k_cache_shape =
+        k_transposed ? PartialShape{d.B, d.H, d.D, d.S_cache} : PartialShape{d.B, d.H, d.S_cache, d.D};
+    const PartialShape k_new_shape =
+        k_transposed ? PartialShape{d.B, d.H, d.D, d.S_new} : PartialShape{d.B, d.H, d.S_new, d.D};
+    const PartialShape v_cache_shape =
+        v_transposed ? PartialShape{d.B, d.H, d.D, d.S_cache} : PartialShape{d.B, d.H, d.S_cache, d.D};
+    const PartialShape v_new_shape =
+        v_transposed ? PartialShape{d.B, d.H, d.D, d.S_new} : PartialShape{d.B, d.H, d.S_new, d.D};
+    const PartialShape mask_shape{d.B, 1, d.S_q, d.S_cache + d.S_new};
+
+    auto Q = std::make_shared<v0::Parameter>(et, q_shape);
+    auto Kc = std::make_shared<v0::Parameter>(et, k_cache_shape);
+    auto Kn = std::make_shared<v0::Parameter>(et, k_new_shape);
+    auto Vc = std::make_shared<v0::Parameter>(et, v_cache_shape);
+    auto Vn = std::make_shared<v0::Parameter>(et, v_new_shape);
+    auto M = std::make_shared<v0::Parameter>(et, mask_shape);
+
+    const int64_t k_axis = k_transposed ? 3 : 2;
+    const int64_t v_axis = v_transposed ? 3 : 2;
+    std::shared_ptr<ov::Node> k_in = std::make_shared<v0::Concat>(ov::OutputVector{Kc, Kn}, k_axis);
+    std::shared_ptr<ov::Node> v_in = std::make_shared<v0::Concat>(ov::OutputVector{Vc, Vn}, v_axis);
+    if (k_transposed) {
+        auto perm = v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 3, 2});
+        k_in = std::make_shared<v1::Transpose>(k_in, perm);
+    }
+    if (v_transposed) {
+        auto perm = v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 3, 2});
+        v_in = std::make_shared<v1::Transpose>(v_in, perm);
+    }
+
+    auto scale = v0::Constant::create(et, ov::Shape{}, {1.0f});
+    auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(Q, k_in, v_in, M, scale, /*is_causal=*/false);
+    return std::make_shared<ov::Model>(ov::OutputVector{sdpa}, ov::ParameterVector{Q, Kc, Kn, Vc, Vn, M});
+}
+}  // namespace
+
+TEST_F(TransformationTestsF, SDPAFusionTest_SplitAttention_Standard) {
+    // K and V stored as [B,H,S,D]; no pre-transpose flags on either MatMul pair.
+    SplitAttnDims d;
+    model = build_split_attention_model(d, /*k_transposed=*/false, /*v_transposed=*/false, /*softmax_axis=*/-1);
+    manager.register_pass<ov::pass::SDPAFusion>();
+    model_ref = build_split_attention_reference(d, /*k_transposed=*/false, /*v_transposed=*/false);
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, SDPAFusionTest_SplitAttention_PreTransposedK) {
+    // K stored as [B,H,D,S]; qk MatMul.transpose_b=false. Fusion must insert
+    // a Transpose to bring the concatenated K back to [B,H,S,D] for v13::SDPA.
+    SplitAttnDims d;
+    model = build_split_attention_model(d, /*k_transposed=*/true, /*v_transposed=*/false, /*softmax_axis=*/-1);
+    manager.register_pass<ov::pass::SDPAFusion>();
+    model_ref = build_split_attention_reference(d, /*k_transposed=*/true, /*v_transposed=*/false);
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, SDPAFusionTest_SplitAttention_PreTransposedV) {
+    // V stored as [B,H,D,S]; attn MatMul.transpose_b=true. Fusion must insert
+    // a Transpose for V as well.
+    SplitAttnDims d;
+    model = build_split_attention_model(d, /*k_transposed=*/false, /*v_transposed=*/true, /*softmax_axis=*/-1);
+    manager.register_pass<ov::pass::SDPAFusion>();
+    model_ref = build_split_attention_reference(d, /*k_transposed=*/false, /*v_transposed=*/true);
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+}
+
+TEST_F(TransformationTestsF, SDPAFusionTest_SplitAttention_WrongSoftmaxAxisNoFusion) {
+    // Softmax on a non-trailing axis must prevent fusion: leave the graph untouched.
+    SplitAttnDims d;
+    model = build_split_attention_model(d, /*k_transposed=*/false, /*v_transposed=*/false, /*softmax_axis=*/0);
+    manager.register_pass<ov::pass::SDPAFusion>();
+    model_ref = build_split_attention_model(d, /*k_transposed=*/false, /*v_transposed=*/false, /*softmax_axis=*/0);
+
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
 }

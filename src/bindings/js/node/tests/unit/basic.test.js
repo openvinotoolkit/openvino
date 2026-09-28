@@ -104,6 +104,12 @@ describe("ov basic tests.", () => {
       assert.strictEqual(typeof deviceVersion.CPU.description, "string");
     });
 
+    it("getVersions() entry has a non-enumerable toString()", () => {
+      const cpuVersion = core.getVersions("CPU").CPU;
+      assert.ok(cpuVersion.toString().includes(cpuVersion.buildNumber));
+      assert.deepStrictEqual(Object.keys(cpuVersion), ["buildNumber", "description"]);
+    });
+
     it("getVersions() throws if no arguments are passed", () => {
       assert.throws(() => core.getVersions(), {
         message: "getVersions() method expects 1 argument of string type.",
@@ -112,6 +118,23 @@ describe("ov basic tests.", () => {
 
     it("getVersions() throws with non string coercable arg.", () => {
       assert.throws(() => core.getVersions({ deviceName: "CPU" }));
+    });
+  });
+
+  describe("ov.getOpenvinoVersion()", () => {
+    it("returns a Version object with string fields", () => {
+      const version = ov.getOpenvinoVersion();
+      assert.strictEqual(typeof version, "object");
+      assert.strictEqual(typeof version.buildNumber, "string");
+      assert.strictEqual(typeof version.description, "string");
+    });
+
+    it("toString() returns a formatted string with the build number", () => {
+      const version = ov.getOpenvinoVersion();
+      const formatted = version.toString();
+      assert.strictEqual(typeof formatted, "string");
+      assert.ok(formatted.includes(version.buildNumber));
+      assert.deepStrictEqual(Object.keys(version), ["buildNumber", "description"]);
     });
   });
 

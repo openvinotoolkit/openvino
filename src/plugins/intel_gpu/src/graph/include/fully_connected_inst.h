@@ -30,8 +30,9 @@ public:
     std::unique_ptr<kernel_impl_params> get_kernel_impl_params(const std::vector<layout>& in_layouts, const std::vector<layout>& out_layouts) const override {
         auto params = parent::get_kernel_impl_params(in_layouts, out_layouts);
         params->weights_layout = optional_layout(weights().get_output_layout());
-        if (bias_term())
+        if (bias_term()) {
             params->bias_layout = optional_layout(bias().get_output_layout());
+        }
         return params;
     }
 };
@@ -58,9 +59,8 @@ public:
             auto weights_mem = _reordered_weights_cache.get(*_impl_params->weights_layout);
             OPENVINO_ASSERT(weights_mem != nullptr, "[GPU] Can't find proper weights memory buffer in cache");
             return weights_mem;
-        } else {
-            return dep_memory_ptr(1);
         }
+        return dep_memory_ptr(1);
     }
     memory::ptr bias_memory() const { return dep_memory_ptr(2); }
 

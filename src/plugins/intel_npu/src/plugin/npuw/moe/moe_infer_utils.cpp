@@ -27,9 +27,8 @@ MoEProfile::MoEProfile() {
 ov::Tensor slice_expert_weight(const ov::Tensor& batched_weight, size_t expert_id, size_t num_experts) {
     // Slice weight tensor from batched (num_experts, ...) to single expert (1, ...)
     auto shape = batched_weight.get_shape();
-    if (shape.empty() || shape[0] != num_experts) {
-        NPUW_ASSERT(false && "Expected batched weight with first dimension equal to num_experts");
-    }
+    OPENVINO_ASSERT(num_experts > 0 && !shape.empty() && shape[0] == num_experts && expert_id < num_experts,
+                    "MoE: invalid expert weight shape or expert index");
 
     // Calculate new shape: replace first dimension with 1
     ov::Shape view_shape = shape;
@@ -40,6 +39,8 @@ ov::Tensor slice_expert_weight(const ov::Tensor& batched_weight, size_t expert_i
     // by wrapping the data pointer at the correct byte offset
     auto elem_type = batched_weight.get_element_type();
     if (elem_type == ov::element::nf4 || elem_type == ov::element::u4 || elem_type == ov::element::i4) {
+        OPENVINO_ASSERT(ov::shape_size(view_shape) % 2 == 0,
+                        "MoE: sub-byte expert weights must have byte-aligned expert boundaries");
         // Calculate byte-level offset for this expert
         size_t total_byte_size = batched_weight.get_byte_size();
         size_t expert_byte_size = total_byte_size / num_experts;
@@ -66,19 +67,20 @@ ov::Tensor slice_expert_weight(const ov::Tensor& batched_weight, size_t expert_i
 }
 
 namespace {
-// Returns the token-count dimension from a 4-D router output shape.
-// Two layout variants exist depending on the opset version used during model export:
-//   Layout A: [num_experts, 1, token_num, 1]  → returns shape[2]
-//   Layout B: [num_experts, token_num, 1, 1]  → returns shape[1]
-// ASSERTs if neither layout is recognised.
+// Returns the token-count dimension from a router output shape.
+// All supported layouts have a trailing singleton dim:
+//   [N, token, 1]     (3-D)          → token at dim 1
+//   [N, 1, token, 1]  (4-D, dim1=1)  → token at dim 2
+//   [N, token, 1, 1]  (4-D, dim1≠1)  → token at dim 1
+// ASSERTs if rank ∉ {3, 4} or trailing dim ≠ 1.
 static size_t get_router_token_count(const ov::Shape& router_shape) {
-    NPUW_ASSERT(router_shape.size() == 4);
-    if (router_shape[1] == 1 && router_shape[3] == 1)
-        return router_shape[2];  // Layout A
-    if (router_shape[2] == 1 && router_shape[3] == 1)
-        return router_shape[1];  // Layout B
-    NPUW_ASSERT(false && "Unexpected router output shape - cannot determine token dimension!");
-    return 0;  // unreachable, suppress warning
+    const auto rank = router_shape.size();
+    NPUW_ASSERT((rank == 3 || rank == 4) && router_shape.back() == 1 &&
+                "Router shape must be 3-D or 4-D with trailing singleton");
+    // [N, 1, token, 1] is the only layout where dim 1 is a singleton rather than the token dim.
+    if (rank == 4 && router_shape[1] == 1)
+        return router_shape[2];  // [N, 1, token, 1]
+    return router_shape[1];      // [N, token, 1, 1] or [N, token, 1]
 }
 }  // namespace
 
@@ -95,7 +97,7 @@ std::vector<size_t> parse_selected_experts_from_router(const ov::SoPtr<ov::ITens
     expert_to_tokens.clear();
 
     auto shape = router_output->get_shape();
-    if (shape.size() != 4 || shape[0] != num_experts) {
+    if ((shape.size() != 4 && shape.size() != 3) || shape[0] != num_experts) {
         NPUW_ASSERT(false && "Unexpected router output shape!");
     }
 
@@ -149,6 +151,8 @@ void set_tensor_optimized(ov::SoPtr<ov::IAsyncInferRequest> request,
         // Small tensor: direct copy to avoid set_tensor overhead (~0.65ms per call)
         // Copy is faster for small tensors due to avoiding NPU plugin overhead
         auto clparam = request->get_tensor(iport);
+        NPUW_ASSERT(clparam._ptr &&
+                    "request returned null tensor for input port — request may be uninitialized or port is invalid");
         tensor_impl->copy_to(clparam._ptr);
         LOG_DEBUG("Using copy for small tensor (" << tensor_bytes << " bytes)");
     } else {
@@ -164,16 +168,7 @@ void gather_router_scores(const ov::SoPtr<ov::ITensor>& router_source,
                           size_t chunk_start,
                           size_t chunk_size) {
     const auto router_source_shape = router_source->get_shape();
-
-    size_t expert_offset;
-    if (router_source_shape.size() == 4) {
-        expert_offset = expert_id * get_router_token_count(router_source_shape);
-    } else if (router_source_shape.size() == 2) {
-        expert_offset = expert_id * router_source_shape[1];  // [num_experts, token_num]
-    } else {
-        NPUW_ASSERT(false && "Unexpected router source shape");
-        expert_offset = 0;  // unreachable, suppress uninitialized warning
-    }
+    const size_t expert_offset = expert_id * get_router_token_count(router_source_shape);
 
     auto gather = [&](const auto* src_base, auto* dst_base) {
         const size_t* ids = token_ids.data() + chunk_start;

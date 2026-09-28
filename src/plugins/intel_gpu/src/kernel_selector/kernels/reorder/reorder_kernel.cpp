@@ -14,12 +14,14 @@ ParamsKey ReorderKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::UINT32);
     k.EnableInputDataType(Datatype::UINT4);
     k.EnableInputDataType(Datatype::INT4);
+    k.EnableInputDataType(Datatype::UINT2);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::INT16);
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::INT64);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::F32);
+    k.EnableInputDataType(Datatype::F4E2M1);
     k.EnableInputDataType(Datatype::F8E4M3);
     k.EnableInputDataType(Datatype::F8E5M2);
     k.EnableInputDataType(Datatype::F8E8M0);
@@ -34,7 +36,9 @@ ParamsKey ReorderKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT32);
     k.EnableOutputDataType(Datatype::UINT4);
     k.EnableOutputDataType(Datatype::INT4);
+    k.EnableOutputDataType(Datatype::UINT2);
     k.EnableOutputDataType(Datatype::BF16);
+    k.EnableOutputDataType(Datatype::F4E2M1);
     k.EnableOutputDataType(Datatype::F8E4M3);
     k.EnableOutputDataType(Datatype::F8E5M2);
     k.EnableOutputDataType(Datatype::F8E8M0);
@@ -56,8 +60,9 @@ JitConstants ReorderKernelRef::GetJitConstants(const reorder_params& params) con
     }
     jit.Merge(GetTensorFriendlyWorkGroupsJit(params.inputs[0]));
 
-    if (params.surface_input)
+    if (params.surface_input) {
         jit.AddConstant(MakeJitConstant("SURFACE_INPUT", true));
+    }
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order;
@@ -70,16 +75,16 @@ JitConstants ReorderKernelRef::GetJitConstants(const reorder_params& params) con
         jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
-    if ( params.inputs[0].GetDType() == Datatype::BF16 ) {
-         jit.AddConstant(MakeJitConstant("BF16_INPUT", true));
-    }
-
     if ( params.inputs[0].GetDType() == Datatype::INT4 ) {
          jit.AddConstant(MakeJitConstant("INT4_INPUT", true));
     }
 
     if ( params.inputs[0].GetDType() == Datatype::UINT4 ) {
          jit.AddConstant(MakeJitConstant("UINT4_INPUT", true));
+    }
+
+    if ( params.inputs[0].GetDType() == Datatype::UINT2 ) {
+         jit.AddConstant(MakeJitConstant("UINT2_INPUT", true));
     }
 
     if ( params.outputs[0].GetDType() == Datatype::UINT4 ) {
@@ -90,9 +95,15 @@ JitConstants ReorderKernelRef::GetJitConstants(const reorder_params& params) con
          jit.AddConstant(MakeJitConstant("INT4_OUTPUT", true));
     }
 
+    if ( params.outputs[0].GetDType() == Datatype::UINT2 ) {
+         jit.AddConstant(MakeJitConstant("UINT2_OUTPUT", true));
+    }
+    
+    jit.AddConstant(MakeJitConstant("F4E2M1_INPUT", params.inputs[0].GetDType() == Datatype::F4E2M1 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E5M2_INPUT", params.inputs[0].GetDType() == Datatype::F8E5M2 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E4M3_INPUT", params.inputs[0].GetDType() == Datatype::F8E4M3 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E8M0_INPUT", params.inputs[0].GetDType() == Datatype::F8E8M0 ? 1 : 0));
+    jit.AddConstant(MakeJitConstant("F4E2M1_OUTPUT", params.outputs[0].GetDType() == Datatype::F4E2M1 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E5M2_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E5M2 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E4M3_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E4M3 ? 1 : 0));
     jit.AddConstant(MakeJitConstant("F8E8M0_OUTPUT", params.outputs[0].GetDType() == Datatype::F8E8M0 ? 1 : 0));

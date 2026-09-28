@@ -62,9 +62,6 @@ struct space_to_batch : public primitive_base<space_to_batch> {
                    const std::vector<input_info>& inputs,
                    const tensor& out_size)
         : primitive_base(id, inputs),
-          block_shape(tensor()),
-          pads_begin(tensor()),
-          pads_end(tensor()),
           out_size(out_size),
           shape_constant(0) {}
 
@@ -84,8 +81,9 @@ struct space_to_batch : public primitive_base<space_to_batch> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const space_to_batch>(rhs);
 

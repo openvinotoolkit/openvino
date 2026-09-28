@@ -2,6 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <limits>
+
 #include "single_op_tests/lstm_sequence.hpp"
 #include "common_test_utils/test_constants.hpp"
 
@@ -9,6 +11,13 @@ namespace {
 using ov::test::LSTMSequenceTest;
 using ov::test::utils::SequenceTestsMode;
 using ov::test::utils::InputLayerType;
+
+class LSTMSequenceNoClipCPUTest : public LSTMSequenceTest {};
+
+TEST_P(LSTMSequenceNoClipCPUTest, InferenceKeepsSequencePrimitive) {
+        run();
+        ov::test::CheckNumberOfNodesWithType(compiledModel, "RNNSeq", 1);
+}
 
 std::vector<SequenceTestsMode> mode{
     SequenceTestsMode::CONVERT_TO_TI_MAX_SEQ_LEN_CONST,
@@ -79,6 +88,24 @@ INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceCommonClip, LSTMSequenceTest,
                                 ::testing::ValuesIn(direction),
                                 ::testing::Values(InputLayerType::CONSTANT),
                                 ::testing::ValuesIn(model_types),
+                                ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                        LSTMSequenceTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_LSTMSequenceNoClip, LSTMSequenceNoClipCPUTest,
+                        ::testing::Combine(
+                                ::testing::Values(SequenceTestsMode::PURE_SEQ),
+                                ::testing::Values(2),
+                                ::testing::Values(1),
+                                ::testing::Values(1),
+                                ::testing::Values(1),
+                                ::testing::Values(std::vector<std::string>{"sigmoid", "tanh", "tanh"}),
+                                ::testing::Values(std::numeric_limits<float>::infinity(),
+                                                  -1.f,
+                                                  -std::numeric_limits<float>::infinity(),
+                                                  std::numeric_limits<float>::quiet_NaN()),
+                                ::testing::Values(ov::op::RecurrentSequenceDirection::FORWARD),
+                                ::testing::Values(InputLayerType::CONSTANT),
+                                ::testing::Values(ov::element::f32),
                                 ::testing::Values(ov::test::utils::DEVICE_CPU)),
                         LSTMSequenceTest::getTestCaseName);
 

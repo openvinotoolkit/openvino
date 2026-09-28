@@ -6,11 +6,52 @@ set(TARGET_NAME openvino_c)
 
 add_definitions(-DIN_OV_COMPONENT)
 
-file(GLOB SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.h ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-file(GLOB_RECURSE HEADERS ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/*.h)
+set(SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/common.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_auto_property.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_common.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_compiled_model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_core.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_dimension.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_infer_request.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_layout.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_model.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_node.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_partial_shape.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_prepostprocess.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_property.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_rank.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_remote_context.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_shape.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_tensor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/ov_util.cpp
+)
+
+set(HEADERS
+    ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/c/auto/properties.h
+    ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/c/deprecated.h
+    ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/c/gpu/gpu_plugin_properties.h
+    ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/c/openvino.h
+    ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/c/ov_common.h
+    ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/c/ov_compiled_model.h
+    ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/c/ov_core.h
+    ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/c/ov_dimension.h
+    ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/c/ov_infer_request.h
+    ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/c/ov_layout.h
+    ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/c/ov_model.h
+    ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/c/ov_node.h
+    ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/c/ov_partial_shape.h
+    ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/c/ov_prepostprocess.h
+    ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/c/ov_property.h
+    ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/c/ov_rank.h
+    ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/c/ov_remote_context.h
+    ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/c/ov_shape.h
+    ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/c/ov_tensor.h
+    ${OpenVINO_C_API_SOURCE_DIR}/include/openvino/c/ov_util.h
+)
 
 # create library
-add_library(${TARGET_NAME} ${LEGACY_HEADERS} ${HEADERS} ${SOURCES})
+add_library(${TARGET_NAME} ${HEADERS} ${SOURCES})
 add_library(openvino::runtime::c ALIAS ${TARGET_NAME})
 
 target_link_libraries(${TARGET_NAME} PRIVATE openvino openvino::util)

@@ -41,8 +41,9 @@ void read_value_inst::on_execute() {
 void read_value_inst::release_variable() {
     // readvalue simply assign outputs from variablestate, 
     // does not need to keep reference in outputs after execution
-    if (!can_be_optimized() || !get_network().has_variable(variable_id()))
+    if (!can_be_optimized() || !get_network().has_variable(variable_id())) {
         return;
+    }
     for (size_t i = 0; i < _outputs.size(); ++i) {
         auto& output = _outputs[i];
         output.reset();
@@ -50,8 +51,9 @@ void read_value_inst::release_variable() {
 }
 
 void read_value_inst::update_output_memory() {
-    if (!can_be_optimized() || !get_network().has_variable(variable_id()))
+    if (!can_be_optimized() || !get_network().has_variable(variable_id())) {
         return;
+    }
 
     const auto& variable = get_network().get_variable(variable_id());
     GPU_DEBUG_TRACE_DETAIL << id() << " Update output memory with variable " << variable_id() << std::endl;
@@ -60,7 +62,7 @@ void read_value_inst::update_output_memory() {
     GPU_DEBUG_TRACE_DETAIL << " - actual_size " << variable.get_actual_mem_size() << " bytes" << std::endl;
     set_output_memory(variable.get_memory(), false, 0);
 
-    if (auto compressed_cache_variable = dynamic_cast<const ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
+    if (const auto* compressed_cache_variable = dynamic_cast<const ov::intel_gpu::VariableStateIndirectKVCacheCompressed*>(&variable)) {
         auto scales_state = compressed_cache_variable->get_compression_scale_state();
         set_output_memory(scales_state->get_memory(), false, 1);
 

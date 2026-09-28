@@ -48,11 +48,11 @@ layout pooling_inst::calc_output_layout(parent::typed_node const& node, kernel_i
 
     auto stride_z = stride.size() >= 3 ? stride[stride.size() - 3] : 1;
     auto stride_y = stride.size() >= 2 ? stride[stride.size() - 2] : 1;
-    auto stride_x = stride.size() >= 1 ? stride[stride.size() - 1] : 1;
+    auto stride_x = !stride.empty() ? stride[stride.size() - 1] : 1;
 
     auto kernel_z = window_size.size() >= 3 ? window_size[window_size.size() - 3] : 1;
     auto kernel_y = window_size.size() >= 2 ? window_size[window_size.size() - 2] : 1;
-    auto kernel_x = window_size.size() >= 1 ? window_size[window_size.size() - 1] : 1;
+    auto kernel_x = !window_size.empty() ? window_size[window_size.size() - 1] : 1;
 
     // TODO: Consider moving general parameter verification to arguments constructor.
     CLDNN_ERROR_LESS_OR_EQUAL_THAN(desc->id,
@@ -258,7 +258,7 @@ template std::vector<layout> pooling_inst::calc_output_layouts<ov::PartialShape>
 std::string pooling_inst::to_string(pooling_node const& node) {
     auto desc = node.get_primitive();
     auto strd = desc->stride;
-    auto mode = desc->mode == pooling_mode::max ? "max" : "average";
+    const auto* mode = desc->mode == pooling_mode::max ? "max" : "average";
     auto node_info = node.desc_to_json();
     auto kernel_size = desc->size;
 

@@ -64,7 +64,12 @@ void save_vregs(jit_generator_t& h,
                 const std::vector<size_t>& vreg_idxs) {
     const auto vlen = get_vlen_bytes();
     h.uni_li(vlen_gpr, vlen);
-    h.vsetvli(Xbyak_riscv::zero, vlen_gpr, Xbyak_riscv::SEW::e8, Xbyak_riscv::LMUL::m1);
+    h.vsetvli(Xbyak_riscv::zero,
+              vlen_gpr,
+              Xbyak_riscv::SEW::e8,
+              Xbyak_riscv::LMUL::m1,
+              Xbyak_riscv::VTA::tu,
+              Xbyak_riscv::VMA::mu);
 
     h.addi(ptr_gpr, Xbyak_riscv::sp, static_cast<int32_t>(stack_offset));
     for (const auto& idx : vreg_idxs) {
@@ -80,7 +85,12 @@ void restore_vregs(jit_generator_t& h,
                    const std::vector<size_t>& vreg_idxs) {
     const auto vlen = get_vlen_bytes();
     h.uni_li(vlen_gpr, vlen);
-    h.vsetvli(Xbyak_riscv::zero, vlen_gpr, Xbyak_riscv::SEW::e8, Xbyak_riscv::LMUL::m1);
+    h.vsetvli(Xbyak_riscv::zero,
+              vlen_gpr,
+              Xbyak_riscv::SEW::e8,
+              Xbyak_riscv::LMUL::m1,
+              Xbyak_riscv::VTA::tu,
+              Xbyak_riscv::VMA::mu);
 
     h.addi(ptr_gpr, Xbyak_riscv::sp, static_cast<int32_t>(stack_offset));
     for (const auto& idx : vreg_idxs) {

@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 
+#include "intel_gpu/primitives/pa_kv_reorder.hpp"
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
 
@@ -21,9 +22,12 @@ struct PA_KV_reorder : public ImplementationManager {
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
 
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
-        if (node.has_fused_primitives())
+        if (node.has_fused_primitives()) {
             return false;
-        return true;
+        }
+
+        const auto desc = node.as<cldnn::pa_kv_reorder>().get_primitive();
+        return !desc->has_xattention;
     }
 };
 

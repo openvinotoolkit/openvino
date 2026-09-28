@@ -1,4 +1,3 @@
-//
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
@@ -6,6 +5,8 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
+#include <string>
 #include <vector>
 
 #include <opencv2/gapi/gmat.hpp>
@@ -62,10 +63,13 @@ public:
     void pull(cv::Mat& mat) override;
     cv::GMatDesc desc() override;
     void reset() override {
+        std::lock_guard<std::mutex> lock(m_mutex);
         m_pos = 0;
     }
 
 private:
+    // NB: Accuracy mode pulls the same provider from the reference and target threads.
+    std::mutex m_mutex;
     std::vector<cv::Mat> m_buffer;
     uint64_t m_pos;
 };

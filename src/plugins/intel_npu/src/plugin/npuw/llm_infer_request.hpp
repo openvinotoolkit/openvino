@@ -8,14 +8,28 @@
 
 #include "base_sync_infer_request.hpp"
 #include "llm_compiled_model.hpp"
+#include "llm_continuation.hpp"
 #include "llm_eagle3_extension.hpp"
 #include "llm_infer_base_request.hpp"
 #include "llm_kvcache_strategy.hpp"
 #include "llm_lora_states.hpp"
 #include "llm_prefix_caching.hpp"
 #include "llm_stored_tokens_state.hpp"
+#include "llm_swa_cache.hpp"
 #include "openvino/core/descriptor/output.hpp"
 #include "perf.hpp"
+
+namespace ov {
+namespace test {
+namespace npuw {
+struct LLMVariantSwitchTestAccess;
+struct LLMTrimKVCacheTestAccess;
+struct LLMPortNameRegistrationTestAccess;
+struct LLMContinuedPrefillTestAccess;
+struct LLMSwaCacheTestAccess;
+}  // namespace npuw
+}  // namespace test
+}  // namespace ov
 
 namespace ov {
 namespace npuw {
@@ -44,6 +58,16 @@ protected:
                        std::shared_ptr<ov::IAsyncInferRequest> to_request,
                        const std::unordered_map<std::string, ov::Output<const ov::Node>>& from_ports,
                        const std::unordered_map<std::string, ov::Output<const ov::Node>>& to_ports);
+    // Share lincache tensors from the largest generate variant to all smaller variants so
+    // that a variant switch requires no explicit lincache migration. Called once after
+    // m_kvcache_strategy->on_initialize() and is strategy-independent.
+    void share_lincache_across_generate_variants();
+
+    // Classifies each generate model input into m_kvcache_past_names / m_lincache_past_names /
+    // m_swa_past_names.
+    void init_past_name_lists();
+    // Zeroes the prefill model's inputs named in `past_names` on a new conversation.
+    void zero_prefill_past_tensors(const std::vector<std::string>& past_names);
     // Select appropriate generate request variant based on prompt length
     // Internally calculates expected total tokens (prompt + min_response_len) to ensure
     // sufficient capacity for both input prompt and minimum response generation
@@ -51,28 +75,66 @@ protected:
 
     void trim_kvcache_for_speculative_decoding(ov::SoPtr<ov::ITensor> position_ids);
 
+    // Returns the KV cache capacity (max storable tokens) of the currently active variant.
+    uint32_t get_current_variant_capacity() const;
+
+    // Switches to the next larger generate variant mid-decode when the current variant's
+    // KV cache is full. Updates m_kvcache_request, ports, m_kvcache_variant_idx, and
+    // delegates KV rebinding to the strategy. Returns false if already at the largest variant.
+    bool try_switch_to_larger_variant();
+
     void infer_chunked_prefill(ov::SoPtr<ov::ITensor> input_ids,
                                ov::SoPtr<ov::ITensor> attention_mask,
                                ov::SoPtr<ov::ITensor> position_ids,
-                               ov::SoPtr<ov::ITensor> per_layer_inputs);
+                               ov::SoPtr<ov::ITensor> token_type_ids,
+                               ov::SoPtr<ov::ITensor> per_layer_inputs,
+                               ov::SoPtr<ov::ITensor> visual_pos_masks,
+                               ov::SoPtr<ov::ITensor> deepstack_visual_embeds);
+    PrefixCachingHelper* get_prefix_caching_helper(const ov::SoPtr<ov::ITensor>& position_ids);
+    bool use_longrope_prefix_cache(const ov::SoPtr<ov::ITensor>& position_ids) const;
 
     void infer_whole_prefill(ov::SoPtr<ov::ITensor> input_ids,
                              ov::SoPtr<ov::ITensor> attention_mask,
                              ov::SoPtr<ov::ITensor> position_ids,
                              ov::SoPtr<ov::ITensor> token_type_ids,
-                             ov::SoPtr<ov::ITensor> per_layer_inputs);
+                             ov::SoPtr<ov::ITensor> per_layer_inputs,
+                             ov::SoPtr<ov::ITensor> visual_pos_masks,
+                             ov::SoPtr<ov::ITensor> deepstack_visual_embeds);
 
     void infer_prefill(ov::SoPtr<ov::ITensor> input_ids,
                        ov::SoPtr<ov::ITensor> attention_mask,
                        ov::SoPtr<ov::ITensor> position_ids,
                        ov::SoPtr<ov::ITensor> token_type_ids,
-                       ov::SoPtr<ov::ITensor> per_layer_inputs);
+                       ov::SoPtr<ov::ITensor> per_layer_inputs,
+                       ov::SoPtr<ov::ITensor> visual_pos_masks,
+                       ov::SoPtr<ov::ITensor> deepstack_visual_embeds);
 
     void infer_generate(ov::SoPtr<ov::ITensor> input_ids,
                         ov::SoPtr<ov::ITensor> attention_mask,
                         ov::SoPtr<ov::ITensor> position_ids,
-                        ov::SoPtr<ov::ITensor> token_type_ids,
                         ov::SoPtr<ov::ITensor> per_layer_inputs);
+
+    // Continuation counterpart of prepare_for_new_conversation(), run by
+    // infer_prefill() when a granted keep is armed. Validates the delta inputs,
+    // repacks the preserved prefix through the strategy, restores the history
+    // attention mask and selects the generate variant. The KV state and the
+    // lincache are left alone.
+    void prepare_for_continued_prefill(uint32_t keep,
+                                       ov::SoPtr<ov::ITensor> input_ids,
+                                       ov::SoPtr<ov::ITensor> attention_mask,
+                                       ov::SoPtr<ov::ITensor> position_ids);
+    // Validates the delta position ids as a sequence against the latched baseline
+    // and the delta length.
+    void validate_continued_position_ids(const ov::SoPtr<ov::ITensor>& position_ids,
+                                         uint32_t keep,
+                                         uint32_t delta_len) const;
+
+    // Zeroes the prefill model's staging inputs (input ids, token type ids,
+    // attention mask, position ids, per-layer inputs), leaving KV state alone.
+    void zero_prefill_staging();
+    // Selects the generate variant for the given prompt length and rebinds the
+    // request, its port maps and the variant index together.
+    void bind_generate_variant(int64_t prompt_length);
 
     // Multiple generate inference request variants, each with a different KV cache size
     std::vector<std::shared_ptr<ov::IAsyncInferRequest>> m_generate_requests;
@@ -110,11 +172,16 @@ protected:
 
     std::vector<std::string> m_kvcache_past_names;
     std::vector<std::string> m_lincache_past_names;
+    std::vector<std::string> m_swa_past_names;
 
     // NB: It can be either input_ids(LLM) or inputs_embeds(VLM)
     std::string m_input_ids_name;
 
     bool m_generate_initialized = false;
+
+    // Index into m_generate_requests / m_kvcache_sizes for the currently active variant.
+    // Updated in prepare_for_new_conversation() and try_switch_to_larger_variant().
+    size_t m_kvcache_variant_idx = 0;
 
     bool m_first_run = true;
 
@@ -128,6 +195,14 @@ protected:
     // Support reset of stored tokens to 0 from external pipeline
     ov::SoPtr<ov::npuw::StoredTokensState> m_stored_tokens_state;
 
+    // Continuous prefill transaction coordinator, disabled unless the compiled model
+    // reports the capability.
+    ContinuationCoordinator m_continuation;
+    // Absolute KV position the current chunked prefill started at. Non-zero only while
+    // a continued prefill is running, where the caller tensors hold just the delta and
+    // must be indexed relative to this base.
+    uint32_t m_continued_prefill_base = 0u;
+
     // Support LoRA
     std::vector<ov::SoPtr<ov::IVariableState>> m_variableStates;
     void init_lora_states();
@@ -140,7 +215,10 @@ protected:
     std::string init_pre_alloc_device();
 
     // Support prefix caching
-    std::unique_ptr<PrefixCachingHelper> m_prefix_caching_helper;
+    std::vector<std::unique_ptr<PrefixCachingHelper>> m_prefix_caching_helpers;
+
+    // Support Sliding Window Attention
+    std::unique_ptr<SwaKVCacheHelper> m_swa_cache;
 
     // LLM-level profiling for 1st token generation analysis
     using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
@@ -149,10 +227,17 @@ protected:
     // KV cache management strategy (set once in the constructor, valid for the object's lifetime)
     std::unique_ptr<LLMKVCacheStrategy> m_kvcache_strategy;
 
-    // Friend declarations: strategies and PrefixCachingHelper need access to protected members
+    // Friend declarations: strategies, PrefixCachingHelper and SwaKVCacheHelper need access to
+    // protected members
     friend class LLMContinuousKVCacheStrategy;
     friend class LLMBlockKVCacheStrategy;
     friend class PrefixCachingHelper;
+    friend class SwaKVCacheHelper;
+    friend struct ov::test::npuw::LLMVariantSwitchTestAccess;
+    friend struct ov::test::npuw::LLMTrimKVCacheTestAccess;
+    friend struct ov::test::npuw::LLMPortNameRegistrationTestAccess;
+    friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
+    friend struct ov::test::npuw::LLMSwaCacheTestAccess;
 };
 
 }  // namespace npuw

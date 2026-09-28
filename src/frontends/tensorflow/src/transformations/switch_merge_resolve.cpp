@@ -24,9 +24,7 @@ using namespace ov::frontend;
 using namespace ov::op;
 using namespace std;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
+namespace ov::frontend::tensorflow {
 
 namespace {
 using ClusterType = pair<unordered_set<shared_ptr<Switch>>, unordered_set<shared_ptr<Merge>>>;
@@ -58,7 +56,7 @@ void generate_if_clusters(const shared_ptr<Model>& ov_model,
 
             // combine all Switch nodes for which conditional flow is resolved
             // by the current Merge node
-            SetOfSwitchNodes switch_nodes;
+            unordered_set<shared_ptr<Switch>> switch_nodes;
             for (const auto& eliminated_marker : eliminated_markers) {
                 auto curr_switch_nodes = merge_node->get_switch_nodes_set_by_cond_index(eliminated_marker);
                 switch_nodes.insert(curr_switch_nodes.begin(), curr_switch_nodes.end());
@@ -283,6 +281,4 @@ bool pass::SwitchMergeResolver::run_on_model(const shared_ptr<Model>& m) {
     return true;
 }
 
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow

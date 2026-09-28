@@ -215,11 +215,49 @@ class TestLinalgVectorNorm(PytorchLayerTest):
     @pytest.mark.parametrize("dtype", ["float32", None])
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.parametrize("prim_dtype", [True, False])
+    @pytest.mark.precommit_torch_export
     def test_linalg_vector_norm(self, p, dim, keepdim, dtype, out, prim_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(p, dim, keepdim, dtype, out, prim_dtype),
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"out": out or prim_dtype, "out_dtype": dtype if prim_dtype else None,
                                            "dim": dim, "keepdim": keepdim})
+
+
+class TestLinalgVectorNormZeroOrder(PytorchLayerTest):
+    def _prepare_input(self, input_shape):
+        # Include zeros and both signs, with different nonzero counts per slice.
+        data = np.array([0, -2, 0, 3, 4, 0, 0, 0, 0, -1, 2, 3], dtype=np.float32)
+        return (data.reshape(input_shape),)
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("input_shape,dim", [
+        ((3, 4), 1),
+        ((3, 4), -1),
+        ((2, 2, 3), 1),
+        ((2, 2, 3), (0, 2)),
+        ((2, 2, 3), None),
+    ])
+    @pytest.mark.parametrize("keepdim", [False, True])
+    @pytest.mark.parametrize("dynamic_shapes", [False, True])
+    def test_zero_order(self, input_shape, dim, keepdim, dynamic_shapes,
+                        ie_device, precision, ir_version):
+        """ord=0 counts nonzeros along the reduction axes for inputs of any rank."""
+        class ZeroOrderNorm(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.dim = dim
+                self.keepdim = keepdim
+
+            def forward(self, x):
+                return torch.linalg.vector_norm(x, ord=0, dim=self.dim, keepdim=self.keepdim)
+
+        self._test(ZeroOrderNorm(), "aten::linalg_vector_norm", ie_device, precision, ir_version,
+                   dynamic_shapes=dynamic_shapes,
+                   dynamic_shapes_for_export={"x": tuple(torch.export.Dim.DYNAMIC for _ in input_shape)}
+                   if dynamic_shapes else {},
+                   kwargs_to_prepare_input={"input_shape": input_shape})
 
 
 class TestLinalgMatrixNorm(PytorchLayerTest):
@@ -290,11 +328,25 @@ class TestLinalgMatrixNorm(PytorchLayerTest):
                                                                                                      'aarch64',
                                                                                                      'arm64', 'ARM64'),
                        reason='Ticket - 122715')
+    @pytest.mark.precommit_torch_export
     def test_linalg_matrix_norm(self, p, dim, keepdim, dtype, out, prim_dtype, ie_device, precision, ir_version):
         self._test(*self.create_model(p, dim, keepdim, dtype, out, prim_dtype),
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={"out": out or prim_dtype, "out_dtype": dtype if prim_dtype else None,
                                            "dim": dim, "keepdim": keepdim})
+
+
+# ord=None on rank>2 inputs (previously raised in the FE): torch maps ord=None to the vector
+# 2-norm over `dim` (Frobenius for a 2-axis dim), rank-agnostic. Shared by the dynamic-rank
+# test_linalg_norm cases and the forced-static-rank cases below.
+_ORD_NONE_RANK_GT2_CASES = [
+    (None, -1,       [2, 4, 3]),         # ord=None, scalar dim, rank-3
+    (None, 1,        [1, 5, 5, 3]),      # ord=None, scalar dim, rank-4
+    (None, (0, 1),   [1, 3, 3]),         # ord=None, 2-elem dim -> frobenius
+    (None, None,     [2, 3, 4]),         # ord=None, dim=None, rank-3 -> flat L2
+    (None, (-2, -1), [2, 4, 3, 3]),      # ord=None, 2-elem dim, rank-4 -> frobenius
+    (None, -1,       [1, 7, 7, 3, 3]),   # SAM-6D geo_embedding shape (rank-5)
+]
 
 
 class TestLinalgNorm(PytorchLayerTest):
@@ -367,17 +419,37 @@ class TestLinalgNorm(PytorchLayerTest):
         (float('inf'), 1,      [1, 3, 3]),   # numeric ord, scalar dim -> norm_vector(p=inf)
         ("fro",        (0, 1), [1, 3, 3]),   # string ord -> frobenius_norm
         (0,            1,      [1, 3, 3]),   # p==0 branch
-    ])
+    ] + _ORD_NONE_RANK_GT2_CASES)
     @pytest.mark.parametrize('keepdim', [True, False])
     @pytest.mark.parametrize("dtype", ["float32", None])
     @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.parametrize("prim_dtype", [True, False])
+    @pytest.mark.precommit_torch_export
     def test_linalg_norm(self, p, dim, keepdim, dtype, out, prim_dtype, input_shape, ie_device, precision, ir_version):
         self._test(*self.create_model(p, dim, keepdim, dtype, out, prim_dtype),
                    ie_device, precision, ir_version,
                    kwargs_to_prepare_input={
                        "out": out or prim_dtype,
                        "out_dtype": dtype if prim_dtype else None,
+                       "input_shape": input_shape,
+                       "dim": dim,
+                       "keepdim": keepdim
+        })
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    # ord=None with static rank > 2 used to raise in the frontend; pin the static-rank path
+    # (the harness default uses dynamic rank, a different branch).
+    @pytest.mark.parametrize('p,dim,input_shape', _ORD_NONE_RANK_GT2_CASES)
+    @pytest.mark.parametrize('keepdim', [True, False])
+    def test_linalg_norm_ordNone_rank_gt2_static(self, p, dim, keepdim, input_shape,
+                                                 ie_device, precision, ir_version):
+        self._test(*self.create_model(p, dim, keepdim, None, False, False),
+                   ie_device, precision, ir_version,
+                   dynamic_shapes=False,
+                   kwargs_to_prepare_input={
+                       "out": False,
+                       "out_dtype": None,
                        "input_shape": input_shape,
                        "dim": dim,
                        "keepdim": keepdim

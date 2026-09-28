@@ -51,9 +51,14 @@ class TestIndexAdd(PytorchLayerTest):
         ],
     )
     @pytest.mark.parametrize("src", [torch.tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9]])])
-    @pytest.mark.parametrize("dtype", ["int32", "int64", "float32", "float64"])
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("dtype,alpha", [
+        (dtype, alpha)
+        for dtype in ["int32", "int64", "float32", "float64"]
+        for alpha in [1, -1, 0.5, 0.25]
+        if dtype.startswith("float") or isinstance(alpha, int)
+    ])
     @pytest.mark.parametrize("mode", ["inplace", "out", "default"])
-    @pytest.mark.parametrize("alpha", [1, -1, 0.5, 0.25])
     def test_scatter_reduce(self, dim, index, src, dtype, mode, alpha, ie_device, precision, ir_version):
         if isinstance(src, torch.Tensor):
             src = src.to(getattr(torch, dtype))

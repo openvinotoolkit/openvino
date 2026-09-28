@@ -14,6 +14,7 @@ Optimize Inference
    optimize-inference/optimize-preprocessing
    optimize-inference/optimizing-low-level-implementation
    Optimizing memory usage <optimize-inference/optimizing-memory-usage>
+   GPU memory (iGPU) <optimize-inference/managing-igpu-memory-usage>
 
 
 .. meta::

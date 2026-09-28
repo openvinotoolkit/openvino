@@ -39,6 +39,9 @@ if exist "%OpenVINO_DIR%\OpenVINOGenAIConfig.cmake" (
    set "OpenVINOGenAI_DIR=%OpenVINO_DIR%"
 )
 set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Release;%INTEL_OPENVINO_DIR%\runtime\bin\intel64\Debug;%OPENVINO_LIB_PATHS%"
+:: Multi-config generator dirs (RelWithDebInfo, MinSizeRel) are only present in local builds
+if exist "%INTEL_OPENVINO_DIR%\runtime\bin\intel64\RelWithDebInfo" set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\RelWithDebInfo;%OPENVINO_LIB_PATHS%"
+if exist "%INTEL_OPENVINO_DIR%\runtime\bin\intel64\MinSizeRel" set "OPENVINO_LIB_PATHS=%INTEL_OPENVINO_DIR%\runtime\bin\intel64\MinSizeRel;%OPENVINO_LIB_PATHS%"
 
 :: TBB
 if exist %INTEL_OPENVINO_DIR%\runtime\3rdparty\tbb (
@@ -68,7 +71,7 @@ set "PATH=%OPENVINO_LIB_PATHS%;%PATH%"
 :: Check if Python is installed
 set PYTHON_VERSION_MAJOR=3
 set MIN_REQUIRED_PYTHON_VERSION_MINOR=10
-set MAX_SUPPORTED_PYTHON_VERSION_MINOR=14
+set MAX_SUPPORTED_PYTHON_VERSION_MINOR=15
 
 python --version 2>NUL
 if errorlevel 1 (call :python_not_installed) else (call :check_python_version)

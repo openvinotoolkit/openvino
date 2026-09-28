@@ -1,0 +1,26 @@
+diff --git a/onnx/defs/sequence/defs.cc b/onnx/defs/sequence/defs.cc
+index 60646079c..6b9be7ff2 100644
+--- a/onnx/defs/sequence/defs.cc
++++ b/onnx/defs/sequence/defs.cc
+@@ -74,7 +74,7 @@ ONNX_OPERATOR_SET_SCHEMA(
+             }
+             input_elem_types.emplace_back(input_type->tensor_type().elem_type());
+           }
+-          if (std::adjacent_find(input_elem_types.begin(), input_elem_types.end(), std::not_equal_to()) !=
++          if (std::adjacent_find(input_elem_types.begin(), input_elem_types.end(), std::not_equal_to<>()) !=
+               input_elem_types.end()) {
+             // not all input elem types are the same.
+             fail_type_inference("Element type of inputs are expected to be the same.");
+diff --git a/onnx/defs/sequence/utils.cc b/onnx/defs/sequence/utils.cc
+index 145131290..c89f41af3 100644
+--- a/onnx/defs/sequence/utils.cc
++++ b/onnx/defs/sequence/utils.cc
+@@ -146,7 +146,7 @@ std::function<void(OpSchema&)> SplitToSequenceOpGenerator(
+                       " sum of split values=",
+                       splitSizesSum);
+                 }
+-                if (std::adjacent_find(splitSizes.begin(), splitSizes.end(), std::not_equal_to()) == splitSizes.end()) {
++                if (std::adjacent_find(splitSizes.begin(), splitSizes.end(), std::not_equal_to<>()) == splitSizes.end()) {
+                   // all split sizes are the same.
+                   return splitSizes[0];
+                 }

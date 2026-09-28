@@ -13,6 +13,7 @@
 #include "snippets/lowered/linear_ir.hpp"
 #include "snippets/lowered/loop_info.hpp"
 #include "snippets/lowered/pass/pass.hpp"
+#include "snippets/op/loop.hpp"
 
 namespace ov {
 namespace test {
@@ -67,6 +68,41 @@ ov::snippets::VectorDims get_default_subtensor(size_t rank = 2);
 void init_expr_descriptors(const ov::snippets::lowered::ExpressionPtr& expr,
                            const std::vector<ov::snippets::VectorDims>& subtensors = {},
                            const std::vector<ov::snippets::VectorDims>& layouts = {});
+
+inline ov::snippets::lowered::LinearIR::constExprIt insert_loop_end(
+    const std::shared_ptr<ov::snippets::lowered::LinearIR>& lir,
+    const ov::snippets::lowered::LinearIR::constExprIt& loop_begin_expr,
+    size_t loop_id,
+    const ov::snippets::lowered::LinearIR::constExprIt& pos) {
+    using namespace ov::snippets::lowered;
+
+    const auto& loop_manager = lir->get_loop_manager();
+    const auto loop_info = loop_manager->get_loop_info(loop_id);
+    const auto unified_info = ov::as_type_ptr<UnifiedLoopInfo>(loop_info);
+    OPENVINO_ASSERT(unified_info, "insert_loop_end expects UnifiedLoopInfo");
+
+    std::vector<PortConnectorPtr> loop_end_inputs;
+    loop_end_inputs.reserve(loop_info->get_input_count() + loop_info->get_output_count());
+    loop_info->iterate_through_ports([&loop_end_inputs](const LoopPort& port) {
+        loop_end_inputs.emplace_back(port.get_expr_port()->get_port_connector_ptr());
+    });
+    loop_end_inputs.emplace_back((*loop_begin_expr)->get_output_port_connector(0));
+
+    const auto loop_begin_node = ov::as_type_ptr<ov::snippets::op::LoopBegin>((*loop_begin_expr)->get_node());
+    OPENVINO_ASSERT(loop_begin_node, "The expression is not LoopBegin");
+    const auto loop_end = std::make_shared<ov::snippets::op::LoopEnd>(loop_begin_node,
+                                                                      unified_info->get_work_amount(),
+                                                                      unified_info->get_increment(),
+                                                                      unified_info->get_is_incremented(),
+                                                                      unified_info->get_ptr_increments(),
+                                                                      unified_info->get_finalization_offsets(),
+                                                                      unified_info->get_data_sizes(),
+                                                                      unified_info->get_input_count(),
+                                                                      unified_info->get_output_count(),
+                                                                      loop_id,
+                                                                      unified_info->is_parallel());
+    return lir->insert_node(loop_end, loop_end_inputs, {}, false, pos);
+}
 
 using IOLoopPortDescs = std::pair<std::vector<ov::snippets::lowered::UnifiedLoopInfo::LoopPortDesc>,
                                   std::vector<ov::snippets::lowered::UnifiedLoopInfo::LoopPortDesc>>;

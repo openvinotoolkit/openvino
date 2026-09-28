@@ -17,9 +17,7 @@
 
 using ::ONNX_NAMESPACE::ModelProto;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 
 class InputModel : public ov::frontend::InputModel {
 public:
@@ -117,6 +115,16 @@ public:
     explicit InputModel(const ov::frontend::onnx::GraphIterator::Ptr& graph_iterator,
                         unify::InputModel::Ptr parent_model);
 
+    /// \brief Returns the GraphIterator positioned for the next walk without building the Place graph.
+    ov::frontend::onnx::GraphIterator::Ptr get_graph_iterator_for_walk();
+
+    /// \brief True when load_model() has run and the Place graph is available.
+    bool is_loaded() const;
+
+    /// \brief True when constant data may be wrapped zero-copy rather than deep-copied.
+    /// Used by the single-pass converter, which materializes Constants without the Place graph.
+    bool is_const_data_reusable() const;
+
     /////  Searching for places  /////
     std::vector<ov::frontend::Place::Ptr> get_inputs() const override;
     std::vector<ov::frontend::Place::Ptr> get_outputs() const override;
@@ -151,6 +159,4 @@ public:
 };
 }  // namespace unify
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

@@ -128,6 +128,20 @@ public:
     void clear_all();
 
     /**
+     * @brief Truncate the allocated block list to its first keep_count blocks.
+     *
+     * Used by continuous prefill to discard the suffix of a previous turn while
+     * retaining the shared prefix. Retained blocks keep their IDs, order, token
+     * counts and tensors. Suffix blocks are deallocated with token counts zeroed
+     * and their device tensors kept warm, and subsequent allocations return the
+     * freed IDs in ascending order so logical append order is preserved.
+     *
+     * @param keep_count Number of leading allocated blocks to retain. Must not
+     *                   exceed the current allocated count.
+     */
+    void truncate_allocated(uint32_t keep_count);
+
+    /**
      * @brief Get block size (tokens per block)
      */
     uint32_t get_block_size() const {
@@ -167,6 +181,16 @@ private:
     ov::Shape block_shape_;                      ///< Shape for block tensors
     std::string device_;                         ///< Target device
     std::shared_ptr<const ov::IPlugin> plugin_;  ///< Plugin for memory allocation
+
+    /**
+     * @brief Rebuild the free block ID stack from the current allocation flags.
+     *
+     * Pushes in descending ID order so the smallest free ID is handed out first,
+     * keeping allocation order aligned with block ID order. Shared by every path
+     * that changes allocation state, since the ordering is what keeps a retained
+     * prefix contiguous once freed IDs are reacquired.
+     */
+    void rebuild_free_block_ids();
 
     /**
      * @brief Validate block ID

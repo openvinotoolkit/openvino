@@ -25,8 +25,7 @@ struct range: public primitive_base<range> {
     range(const primitive_id& id,
           const std::vector<input_info>& inputs,
           const data_types data_type)
-        : primitive_base(id, inputs, 1, {optional_data_type(data_type)}),
-          output_layout({}) {}
+        : primitive_base(id, inputs, 1, {optional_data_type(data_type)}) {}
 
     /// @brief requested range output layout
     layout output_layout;

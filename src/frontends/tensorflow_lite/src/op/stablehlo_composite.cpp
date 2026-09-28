@@ -14,11 +14,9 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/pass/node_registry.hpp"
+#include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow_lite {
-namespace op {
+namespace ov::frontend::tensorflow_lite::op {
 
 /// \brief Translate odml.rms_norm composite op.
 /// Builds the canonical RMSNorm decomposition via ov::decomposition::rms_norm,
@@ -30,6 +28,8 @@ OutputVector translate_odml_rms_norm(const ov::frontend::tensorflow_lite::NodeCo
     FRONT_END_GENERAL_CHECK(inputs.size() == 2,
                             "STABLEHLO_COMPOSITE odml.rms_norm expects 2 inputs (data, gamma), got ",
                             inputs.size());
+
+    ov::frontend::tensorflow_lite::dequantize_inputs(inputs, node.get_decoder());
 
     const auto& data = inputs[0];
     const auto& gamma = inputs[1];
@@ -119,7 +119,4 @@ OutputVector stablehlo_composite(const ov::frontend::tensorflow_lite::NodeContex
     return translate_decomposition_fallback(node, composite_name);
 }
 
-}  // namespace op
-}  // namespace tensorflow_lite
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow_lite::op

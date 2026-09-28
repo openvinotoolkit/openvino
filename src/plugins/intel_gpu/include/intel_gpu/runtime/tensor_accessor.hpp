@@ -25,7 +25,7 @@ struct TensorsContainer final {
         , m_memories(deps_map.begin(), deps_map.end()) { }
 
     ~TensorsContainer() {
-        for (auto& port : m_locked_memories) {
+        for (const auto& port : m_locked_memories) {
             m_memories.at(port)->unlock(*m_stream);
         }
     }
@@ -51,13 +51,13 @@ struct TensorsContainer final {
         if (m_memories.count(port) > 0) {
             m_locked_memories.insert(port);
             auto mem = m_memories.at(port);
-            auto ptr = mem->lock(*m_stream, cldnn::mem_lock_type::read);
+            auto* ptr = mem->lock(*m_stream, cldnn::mem_lock_type::read);
             return make_tensor(mem->get_layout(), ptr);
-        } else if (m_tensors.count(port) > 0) {
-            return m_tensors.at(port);
-        } else {
-            return ov::Tensor{};
         }
+        if (m_tensors.count(port) > 0) {
+            return m_tensors.at(port);
+        }
+        return ov::Tensor{};
     }
 
 private:
@@ -65,7 +65,7 @@ private:
     MemoryMap m_memories;
     TensorsMap m_tensors;
 
-    mutable std::set<size_t> m_locked_memories = {};
+    mutable std::set<size_t> m_locked_memories;
 };
 
 class TensorAccessor final : public ov::ITensorAccessor {

@@ -22,7 +22,7 @@ struct space_to_depth_params : public base_params {
 class SpaceToDepthKernelRef : public KernelBaseOpenCL {
 public:
     SpaceToDepthKernelRef() : KernelBaseOpenCL("space_to_depth_ref") {}
-    virtual ~SpaceToDepthKernelRef() = default;
+    ~SpaceToDepthKernelRef() override = default;
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;
     ParamsKey GetSupportedKey() const override;

@@ -27,8 +27,10 @@ static std::pair<size_t, size_t> get_item_num_and_lws(const rms_params params, s
 ParamsKey RMSKernelBfyxOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::bfzyx);
@@ -54,6 +56,12 @@ DeviceFeaturesKey RMSKernelBfyxOpt::get_required_device_features_key(const Param
 JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, DispatchData dispatchData) const {
     auto jit = Parent::GetJitConstants(params, dispatchData);
 
+    bool gamma_is_scalar = false;
+    if (params.elementwise_affine && !params.inputs[1].is_dynamic()) {
+        gamma_is_scalar = params.inputs[1].LogicalSize() == 1;
+    }
+    jit.AddConstant(MakeJitConstant("RMS_GAMMA_IS_SCALAR", gamma_is_scalar));
+
     // Check for any padding (dynamic or static) on input dimensions.
     // The flat addressing path (data_idx * data_size) assumes contiguous memory,
     // which breaks when padding introduces gaps between slices (e.g., from in-place crop).
@@ -66,8 +74,9 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
         }
     }
 
-    if (has_padding)
+    if (has_padding) {
         jit.AddConstant(MakeJitConstant("HAS_PADDING", 1));
+    }
 
     if (params.has_dynamic_tensors()) {
         const auto& input = params.inputs[0];
@@ -90,7 +99,7 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
 
         const std::string lws_0 = "get_local_size(0)";
         // data_size string starts digit when it has static dim.
-        bool is_static_data_size = std::isdigit(data_size[0]);
+        bool is_static_data_size = std::isdigit(data_size[0]) != 0;
         size_t stack_size = 33;
         if (is_static_data_size) {
             auto item_num_and_lws = get_item_num_and_lws(params, stoi(data_size));
@@ -110,7 +119,6 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
             MakeJitConstant("STACK_SIZE", dispatchData.itemsNum + 1)
         });
     }
-    jit.AddConstant(MakeJitConstant("INPUT_RANK", params.ov_input_rank));
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
     jit.AddConstant(MakeJitConstant("SUBGROUP_BLOCK_SIZE", dispatchData.subgroupBlockSize));
     if (!params.fused_ops.empty()) {
@@ -186,14 +194,15 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
         dispatchData.gws[0] = dispatchData.lws[0];
         dispatchData.leftovers = dispatchData.dataSize % dispatchData.lws[0];
 
-        if (dispatchData.itemsNum >> 3)
+        if (dispatchData.itemsNum >> 3) {
             dispatchData.subgroupBlockSize = 8;
-        else if (dispatchData.itemsNum >> 2)
+        } else if (dispatchData.itemsNum >> 2) {
             dispatchData.subgroupBlockSize = 4;
-        else if (dispatchData.itemsNum >> 1)
+        } else if (dispatchData.itemsNum >> 1) {
             dispatchData.subgroupBlockSize = 2;
-        else
+        } else {
             dispatchData.subgroupBlockSize = 1;
+        }
     } else {
         dispatchData.subgroupBlockSize = 8;
     }
@@ -201,8 +210,9 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
 }
 
 bool RMSKernelBfyxOpt::Validate(const Params& p) const {
-    if (!Parent::Validate(p))
+    if (!Parent::Validate(p)) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const rms_params& params = static_cast<const rms_params&>(p);
     if (params.elementwise_affine) {
@@ -210,7 +220,7 @@ bool RMSKernelBfyxOpt::Validate(const Params& p) const {
 
         if (!gamma.is_dynamic()) {
             size_t data_size = gamma.LogicalSize();
-            if (data_size < subgroup_size) {
+            if (data_size != 1 && data_size < subgroup_size) {
                 DO_NOT_USE_THIS_KERNEL(p.layerID);
             }
         }

@@ -43,7 +43,6 @@ static void GetOrderVector(std::string s, std::vector<std::string>* res) {
     }
 
     res->push_back(s.substr(pos_start));
-    return;
 }
 
 static std::string GetReorderedOutputOrder(const permute_params& params, const std::vector<std::string>& permute_out_idx,
@@ -108,6 +107,7 @@ ParamsKey PermuteKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
@@ -152,14 +152,16 @@ CommonDispatchData PermuteKernelRef::SetDefault(const permute_params& params) co
 }
 
 bool PermuteKernelRef::Validate(const Params& p) const {
-    if (!Parent::Validate(p)) DO_NOT_USE_THIS_KERNEL(p.layerID);
+    if (!Parent::Validate(p)) { DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     const permute_params& params = static_cast<const permute_params&>(p);
 
     auto in_rank = params.inputs[0].GetDims().size();
     auto out_rank = params.outputs[0].GetDims().size();
-    if (in_rank != out_rank && (in_rank > 6 || out_rank > 6))
+    if (in_rank != out_rank && (in_rank > 6 || out_rank > 6)) {
        DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
@@ -187,7 +189,7 @@ JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params, con
     }
 
     assert(params.order.size() == in_idx.size());
-    for (auto& o : params.order) {
+    for (const auto& o : params.order) {
         permute_out_idx.push_back(in_idx[o]);
     }
 

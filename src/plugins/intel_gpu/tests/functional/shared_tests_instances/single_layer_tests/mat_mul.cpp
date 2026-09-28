@@ -150,6 +150,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMul_fc_fb_io_block_f16, GPUMatMulLayerTest,
                 ::testing::Values(additional_config)),
         MatMulLayerTest::getTestCaseName);
 
+std::vector<std::vector<ov::Shape>> fc_rank2_weights_shapeRelatedParams = {
+        { {1, 1}, {64, 1} },
+};
+
+INSTANTIATE_TEST_SUITE_P(smoke_MatMul_fc_rank2_weights, GPUMatMulLayerTest,
+        ::testing::Combine(
+                ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(fc_rank2_weights_shapeRelatedParams)),
+                ::testing::Values(std::make_pair(false, true)),
+                ::testing::ValuesIn(fc_f16_inputPrecisions),
+                ::testing::ValuesIn(fc_f16_secondaryInputTypes),
+                ::testing::Values(ov::test::utils::DEVICE_GPU),
+                ::testing::Values(additional_config)),
+        MatMulLayerTest::getTestCaseName);
+
 std::vector<std::vector<ov::Shape>> fc4d_shapeRelatedParams = {
         { {16, 16, 16, 576}, {576, 1728} },
 };

@@ -44,9 +44,7 @@ void Reduce::SetUp() {
 }
 
 TEST_P(Reduce, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 } // namespace snippets

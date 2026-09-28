@@ -86,8 +86,9 @@ struct paged_attention : public primitive_base<paged_attention> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const paged_attention>(rhs);
 
@@ -164,7 +165,7 @@ struct paged_attention : public primitive_base<paged_attention> {
         ib >> is_key_by_channel;
     }
 
-    std::optional<float> scale_val{};
+    std::optional<float> scale_val;
     size_t k_head_size = 0;
     size_t v_head_size = 0;
     size_t heads_num = 0;

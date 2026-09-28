@@ -5,18 +5,35 @@
 #pragma once
 
 #include <atomic>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <vector>
 
-#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/network_metadata.hpp"
+#include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 
 namespace intel_npu {
+
+enum class BlobType : uint8_t { ELF, LLVM, BYTECODE };
+
+enum class GraphKind : uint8_t { Weightful, Weightless, Dynamic };
+
+constexpr const char* to_string(GraphKind kind) noexcept {
+    switch (kind) {
+    case GraphKind::Weightful:
+        return "weightful";
+    case GraphKind::Weightless:
+        return "weightless";
+    case GraphKind::Dynamic:
+        return "dynamic";
+    }
+    return "unknown";
+}
 
 class IGraph : public std::enable_shared_from_this<IGraph> {
 public:
@@ -39,12 +56,21 @@ public:
                                                  const void* data,
                                                  const std::vector<size_t>& strides) const;
 
-    void initialize(const FilteredConfig& config);
+    void initialize(const Config& config);
 
     virtual ~IGraph() = default;
 
     virtual const NetworkMetadata& get_metadata() const;
-    virtual ze_graph_handle_t get_handle() const;
+    // Returns the underlying native handle. Concrete graphs return different handle types:
+    //   Graph        -> ze_graph_handle_t
+    //   DynamicGraph -> npu_vm_runtime_handle_t
+    // Callers must static_cast the result to the type matching the concrete graph implementation.
+    virtual void* get_handle() const;
+
+    // Returns the concrete kind of this graph. Derived classes override to identify themselves.
+    virtual GraphKind get_kind() const;
+
+    virtual BlobType get_blob_type() const;
 
     virtual void update_network_name(std::string_view name);
 
@@ -89,7 +115,7 @@ public:
     virtual std::optional<std::string_view> get_compatibility_descriptor() const;
 
 protected:
-    virtual void initialize_impl(const FilteredConfig& config);
+    virtual void initialize_impl(const Config& config);
 
     // Used to protect graph initialization (including zero pipeline creation) in the graph. Initialization should
     // happen only once per graph, typically when the graph is first used (e.g. when the first inference starts)

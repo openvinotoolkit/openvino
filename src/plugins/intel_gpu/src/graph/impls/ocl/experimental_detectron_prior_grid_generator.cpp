@@ -31,8 +31,8 @@ struct experimental_detectron_prior_grid_generator_impl
         params.flatten = primitive->flatten;
         params.layer_height = primitive->h ? primitive->h : primitive->featmap_height;
         params.layer_width = primitive->w ? primitive->w : primitive->featmap_width;
-        params.step_x = primitive->stride_x ? primitive->stride_x : static_cast<float>(primitive->image_width) / params.layer_width;
-        params.step_y = primitive->stride_y ? primitive->stride_y : static_cast<float>(primitive->image_height) / params.layer_height;
+        params.step_x = (primitive->stride_x != 0.0f) ? primitive->stride_x : static_cast<float>(primitive->image_width) / params.layer_width;
+        params.step_y = (primitive->stride_y != 0.0f) ? primitive->stride_y : static_cast<float>(primitive->image_height) / params.layer_height;
 
         return params;
     }

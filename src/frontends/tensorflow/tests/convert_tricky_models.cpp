@@ -2,6 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <functional>
+
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "conversion_with_reference.hpp"
 #include "gtest/gtest.h"
@@ -38,6 +41,8 @@
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unique.hpp"
 #include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/framework_node.hpp"
+#include "openvino/op/util/multi_subgraph_base.hpp"
 #include "tf_utils.hpp"
 #include "transformations/common_optimizations/moc_transformations.hpp"
 #include "utils.hpp"
@@ -578,6 +583,20 @@ TEST_F(FrontEndConversionWithReferenceTestsF, MetaGraphMMAPCompare) {
     { model_ref = convert_model("metagraph_variables/graph.meta", nullptr, {}, {}, {}, {}, {}, true); }
 }
 
+TEST(TensorFlowMetaGraphTest, MetaGraphWithoutVariablesIndex) {
+    // Regression test: loading a MetaGraph (*.meta) that contains RestoreV2 -> AssignVariableOp
+    // nodes but has no variables index (*.index) file next to it must not crash (previously the
+    // variables index was dereferenced while null during load).
+    FrontEndManager fem;
+    auto front_end = fem.load_by_framework(TF_FE);
+    ASSERT_NE(front_end, nullptr);
+    auto model_filename = FrontEndTestUtils::make_model_path(std::string(TEST_TENSORFLOW_MODELS_DIRNAME) +
+                                                             "metagraph_no_index/graph.meta");
+    ov::frontend::InputModel::Ptr input_model;
+    OV_ASSERT_NO_THROW(input_model = front_end->load(model_filename));
+    ASSERT_NE(input_model, nullptr);
+}
+
 TEST_F(FrontEndConversionWithReferenceTestsF, SplitInFunction) {
     {
         // create FAKE conversion extension for Split using named ports, this is not required for Split, but it tests
@@ -883,4 +902,45 @@ TEST(FrontEndConvertTrickyModels, dynpart_overflow_num_partitions) {
     } catch (...) {
         FAIL() << "DynamicPartition with overflowing num_partitions failed with unexpected exception type.";
     }
+}
+
+namespace {
+// Recursively walk all operations of a model and its sub-graphs (If/Loop bodies).
+void for_each_op_recursive(const std::shared_ptr<Model>& model,
+                           const std::function<void(const shared_ptr<Node>&)>& fn) {
+    for (const auto& op : model->get_ordered_ops()) {
+        fn(op);
+        if (auto multisubgraph_op = as_type_ptr<ov::op::util::MultiSubGraphOp>(op)) {
+            for (size_t i = 0; i < multisubgraph_op->get_internal_subgraphs_size(); ++i) {
+                for_each_op_recursive(multisubgraph_op->get_function(static_cast<int>(i)), fn);
+            }
+        }
+    }
+}
+}  // namespace
+
+// A TF1 While loop must fuse fully into a Loop, leaving no control-flow helper op (Switch/Merge/
+// Enter/Exit/NextIteration/LoopCond, all FrameworkNode subclasses); a surviving helper pins the TF
+// GraphDef alive (the memory leak). Checks helper-op absence, not marker absence - weak_ptr markers
+// may legitimately remain in rt_info without owning anything.
+TEST(FrontEndConvertTrickyModels, ModelTF1WhileNoLeftoverControlFlow) {
+    shared_ptr<Model> model = nullptr;
+    ASSERT_NO_THROW(model = convert_model("model_tf1_while/model_tf1_while.pbtxt"));
+    ASSERT_NE(model, nullptr);
+
+    for_each_op_recursive(model, [](const shared_ptr<Node>& op) {
+        EXPECT_FALSE(ov::as_type_ptr<ov::op::util::FrameworkNode>(op))
+            << "unconverted framework/helper node survived: '" << op->get_friendly_name()
+            << "' type=" << op->get_type_name();
+    });
+}
+
+// A Switch consumed only through control dependencies is pruned and freed before Switch/Merge
+// resolution, so its weak_ptr in a Merge conditional-flow marker legitimately expires. Conversion
+// must skip such expired entries, not fail. Guards against re-introducing a fail-fast that aborts.
+TEST(FrontEndConvertTrickyModels, ModelSwitchMergeSeveralCondFlows) {
+    shared_ptr<Model> model = nullptr;
+    ASSERT_NO_THROW(
+        model = convert_model("model_switch_merge_several_cond_flows/model_switch_merge_several_cond_flows.pbtxt"));
+    ASSERT_NE(model, nullptr);
 }

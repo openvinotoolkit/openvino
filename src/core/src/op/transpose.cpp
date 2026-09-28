@@ -55,7 +55,13 @@ bool Transpose::evaluate(TensorVector& outputs, const TensorVector& inputs) cons
         auto& out = outputs[ARG_T];
         out.set_shape(out_shape);
 
-        if (arg_type == ov::element::i4 || arg_type == ov::element::u4) {
+        if (arg_type == ov::element::u2) {
+            reference::transpose_2bit(static_cast<const uint8_t*>(arg.data()),
+                                      static_cast<uint8_t*>(out.data()),
+                                      arg.get_shape(),
+                                      axes_order,
+                                      out_shape);
+        } else if (arg_type == ov::element::i4 || arg_type == ov::element::u4) {
             reference::transpose_4bit(static_cast<const uint8_t*>(arg.data()),
                                       static_cast<uint8_t*>(out.data()),
                                       arg.get_shape(),

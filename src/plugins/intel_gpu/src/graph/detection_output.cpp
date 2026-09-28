@@ -86,12 +86,12 @@ template std::vector<layout> detection_output_inst::calc_output_layouts<ov::Part
 std::string detection_output_inst::to_string(detection_output_node const& node) {
     auto node_info = node.desc_to_json();
     auto desc = node.get_primitive();
-    auto share_location = desc->share_location ? "true" : "false";
-    auto variance_encoded = desc->variance_encoded_in_target ? "true" : "false";
-    auto prior_is_normalized = desc->prior_is_normalized ? "true" : "false";
-    auto decrease_label_id = desc->decrease_label_id ? "true" : "false";
-    auto clip_before_nms = desc->clip_before_nms ? "true" : "false";
-    auto clip_after_nms = desc->clip_after_nms ? "true" : "false";
+    const auto* share_location = desc->share_location ? "true" : "false";
+    const auto* variance_encoded = desc->variance_encoded_in_target ? "true" : "false";
+    const auto* prior_is_normalized = desc->prior_is_normalized ? "true" : "false";
+    const auto* decrease_label_id = desc->decrease_label_id ? "true" : "false";
+    const auto* clip_before_nms = desc->clip_before_nms ? "true" : "false";
+    const auto* clip_after_nms = desc->clip_after_nms ? "true" : "false";
     auto& input_location = node.location();
     auto& input_prior_box = node.prior_box();
     auto& input_confidence = node.confidence();
@@ -150,8 +150,9 @@ detection_output_inst::typed_primitive_inst(network& network, detection_output_n
     auto location_layout = node.location().get_output_layout();
     auto confidence_layout = node.confidence().get_output_layout();
     auto prior_box_layout = node.prior_box().get_output_layout();
-    if (location_layout.is_dynamic() || confidence_layout.is_dynamic() || prior_box_layout.is_dynamic())
+    if (location_layout.is_dynamic() || confidence_layout.is_dynamic() || prior_box_layout.is_dynamic()) {
         return;
+    }
 
     CLDNN_ERROR_NOT_PROPER_FORMAT(node.id(),
                                   "Location memory format",

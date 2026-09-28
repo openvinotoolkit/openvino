@@ -5,6 +5,7 @@
 #include "node/include/async_infer_queue.hpp"
 
 #include <condition_variable>
+#include <exception>
 #include <mutex>
 #include <queue>
 #include <string>

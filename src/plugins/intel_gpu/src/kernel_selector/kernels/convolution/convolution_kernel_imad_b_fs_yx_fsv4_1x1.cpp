@@ -100,19 +100,16 @@ bool ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::Validate(const Params& params) con
     KernelData kd = KernelData::Default<convolution_params>(params);
     convolution_params& newParams = *static_cast<convolution_params*>(kd.params.get());
 
-    if (newParams.filterSize.x != 1 || newParams.filterSize.y != 1)
+    if (newParams.filterSize.x != 1 || newParams.filterSize.y != 1) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     return true;
 }
 
 bool ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::ValidateAutoTuneParams(const convolution_params& params, const AutoTuneParams& tune_params) const {
     auto sel_lwg_d = tune_params.lwg_depth;
-    if (CeilDiv(params.weights.IFM().v, fsv) % sel_lwg_d != 0) {
-        return false;
-    }
-
-    return true;
+    return CeilDiv(params.weights.IFM().v, fsv) % sel_lwg_d == 0;
 }
 
 ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::AutoTuneParams ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetAutoTuneParams(const convolution_params& params,
@@ -173,7 +170,7 @@ JitConstants ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetJitConstants(const conv
 ConvolutionKernelBase::DispatchData ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::SetDefault(const convolution_params& params,
                                                                                         int autoTuneIndex) const {
     DispatchData dispatchData;
-    auto& out = params.outputs[0];
+    const auto& out = params.outputs[0];
 
     auto autoTuneParam = GetAutoTuneParams(params, autoTuneIndex);
     auto lwg_depth = autoTuneParam.lwg_depth;
@@ -211,14 +208,15 @@ KernelsData ConvolutionKernel_imad_b_fs_yx_fsv4_1x1::GetKernelsDataForAutoTune(c
     if (!Validate(params)) {
         return {};
     }
-    auto& conv_params = static_cast<const convolution_params&>(params);
+    const auto& conv_params = static_cast<const convolution_params&>(params);
 
     KernelsData res = {};
 
     for (size_t i = 0; i < all_tune_params.size(); i++) {
         auto tune_params = GetAutoTuneParams(conv_params, static_cast<int>(i));
-        if (!ValidateAutoTuneParams(conv_params, tune_params))
+        if (!ValidateAutoTuneParams(conv_params, tune_params)) {
             continue;
+        }
         KernelsData kd = GetTunedKernelsDataByIndex(params, static_cast<int>(i));
         if (!kd.empty()) {
             res.emplace_back(kd[0]);

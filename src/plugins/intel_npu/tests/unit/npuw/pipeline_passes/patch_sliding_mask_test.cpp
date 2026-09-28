@@ -12,6 +12,8 @@
 #include "openvino/pass/stateful_to_stateless.hpp"
 
 using ov::test::npuw::make_sliding_window_mask_gemma4;
+using ov::test::npuw::make_sliding_window_mask_gemma4_unified;
+using ov::test::npuw::make_sliding_window_mask_gemma4_unified_nonzero_select;
 using ov::test::npuw::make_sliding_window_mask_phi3;
 using ov::test::npuw::make_sliding_window_mask_phi3_legacy;
 using ov::test::npuw::ModelBuilder;
@@ -147,10 +149,12 @@ TEST(LLMMaskTest, TokenTypeIds_Phi3BooleanSlidingMask_Builds) {
     EXPECT_TRUE(has_sdpa_mask_of_type(model, ov::element::f32));
 }
 
-// NPUW's PatchSlidingWindowMask (sliding_window_mask.cpp) registers three
-// matchers: Gemma4SlidingMaskMatcher, Phi3SlidingMaskMatcher (Phi-3, Gemma-2,
-// Gemma-3) and OldPhi3SlidingMaskMatcher (transformers 4.51). Run the real
-// pass over the builder models and check each mask variant gets picked up.
+// NPUW's PatchSlidingWindowMask (sliding_window_mask.cpp) registers four
+// matchers: Gemma4SlidingMaskMatcher, Gemma4UnifiedSlidingMaskMatcher (the
+// same model after the transformers 5.5 lowering change), Phi3SlidingMaskMatcher
+// (Phi-3, Gemma-2, Gemma-3) and OldPhi3SlidingMaskMatcher (transformers 4.51).
+// Run the real pass over the builder models and check each mask variant gets
+// picked up.
 
 TEST(LLMMaskTest, NpuwSlidingPatch_FiresOn_Phi3Pattern) {
     auto model = ov::test::npuw::build_sliding_window_test_model(512, 0, make_sliding_window_mask_phi3);
@@ -162,6 +166,21 @@ TEST(LLMMaskTest, NpuwSlidingPatch_FiresOn_Gemma4Pattern) {
     auto model = ov::test::npuw::build_sliding_window_test_model(512, 0, make_sliding_window_mask_gemma4);
     EXPECT_TRUE(ov::npuw::PatchSlidingWindowMask().run_on_model(model));
     EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
+}
+
+TEST(LLMMaskTest, NpuwSlidingPatch_FiresOn_Gemma4UnifiedPattern) {
+    auto model = ov::test::npuw::build_sliding_window_test_model(512, 0, make_sliding_window_mask_gemma4_unified);
+    EXPECT_TRUE(ov::npuw::PatchSlidingWindowMask().run_on_model(model));
+    EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
+}
+
+// Only cache_position[0] equals past_kv_len. Selecting any other element gives a
+// different value, so the mask must be left as it is rather than rewritten
+// around the range start.
+TEST(LLMMaskTest, NpuwSlidingPatch_IgnoresGemma4UnifiedNonZeroSelect) {
+    auto model =
+        ov::test::npuw::build_sliding_window_test_model(512, 0, make_sliding_window_mask_gemma4_unified_nonzero_select);
+    EXPECT_FALSE(ov::npuw::PatchSlidingWindowMask().run_on_model(model));
 }
 
 TEST(LLMMaskTest, NpuwSlidingPatch_FiresOn_LegacyPhi3Pattern) {

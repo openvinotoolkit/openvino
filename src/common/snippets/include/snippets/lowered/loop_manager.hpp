@@ -309,7 +309,6 @@ private:
     //   loop_ids: [.., new_id, target_id, ..] |    loop_ids: [.., target_id, new_id, ..]
     // Default value of target ID - SIZE_MAX - for `after` the new Loop is the most inner Loop
     //                                         for `before` the new Loop is the most outer Loop
-    void insert_loop_id(const ExpressionPtr& expr, size_t new_id, bool before = true, size_t target_id = SIZE_MAX);
     void insert_loop_ids(const ExpressionPtr& expr,
                          const std::vector<size_t>& new_ids,
                          bool before = true,

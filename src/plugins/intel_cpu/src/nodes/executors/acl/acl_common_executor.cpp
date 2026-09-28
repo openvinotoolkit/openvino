@@ -16,6 +16,7 @@
 #include "acl_utils.hpp"
 #include "cpu_memory.h"
 #include "nodes/executors/memory_arguments.hpp"
+#include "openvino/core/except.hpp"
 #include "utils/debug_capabilities.h"
 
 namespace ov::intel_cpu {
@@ -52,9 +53,10 @@ static void initACLTensorParams(const MemoryPtr& memoryPtr,
 std::shared_ptr<arm_compute::TensorInfo> ACLCommonExecutor::initTensorInfo(const arm_compute::TensorShape& tensorShape,
                                                                            const arm_compute::DataType& dataType,
                                                                            const arm_compute::DataLayout& dataLayout) {
+    const auto quantizedDataType = convertToQuantizedType(dataType);
     std::shared_ptr<arm_compute::TensorInfo> aclMemoryInfo = nullptr;
-    if (dataType != arm_compute::DataType::UNKNOWN) {
-        aclMemoryInfo = std::make_shared<arm_compute::TensorInfo>(tensorShape, 1, dataType, dataLayout);
+    if (quantizedDataType != arm_compute::DataType::UNKNOWN) {
+        aclMemoryInfo = std::make_shared<arm_compute::TensorInfo>(tensorShape, 1, quantizedDataType, dataLayout);
     }
     return aclMemoryInfo;
 }
@@ -124,6 +126,7 @@ bool ACLCommonExecutor::update(const MemoryArgs& memory) {
 
 void ACLCommonExecutor::execute(const MemoryArgs& memory) {
     // TODO: Move import_memory() to update() function - CVS-145871
+    OPENVINO_ASSERT(iFunction, "ACLCommonExecutor: function is not configured");
     for (const auto& cpu_mem_ptr : memory) {
         const ACLArgs index = argConvert.at(cpu_mem_ptr.first);
         if (aclTensorAttrs.memoryUsageIndicator[index]) {

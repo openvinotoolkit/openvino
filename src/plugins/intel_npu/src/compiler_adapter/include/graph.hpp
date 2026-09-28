@@ -25,10 +25,9 @@ public:
           const GraphDescriptor& graphDesc,
           NetworkMetadata metadata,
           std::optional<ov::Tensor> blob,
-          const FilteredConfig& config,
+          const Config& config,
           const std::optional<std::string>& compatibilityDescriptor = std::nullopt,
-          const bool blobIsPersistent = false,
-          const bool calledFromWeightlessGraph = false);
+          const bool blobIsPersistent = false);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 
@@ -40,7 +39,7 @@ public:
                                          const std::vector<size_t>& strides) const override;
 
     const NetworkMetadata& get_metadata() const override;
-    ze_graph_handle_t get_handle() const override;
+    void* get_handle() const override;
 
     void update_network_name(std::string_view name) override;
 
@@ -68,9 +67,9 @@ public:
     ~Graph() override;
 
 protected:
-    void initialize_impl(const FilteredConfig& config) override;
+    void initialize_impl(const Config& config) override;
 
-    bool release_blob(const FilteredConfig& config);
+    bool release_blob(const Config& config);
     std::optional<size_t> determine_batch_size();
 
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;

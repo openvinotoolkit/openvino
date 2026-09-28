@@ -149,6 +149,20 @@ OPENVINO_C_API(ov_status_e)
 ov_compiled_model_set_property(const ov_compiled_model_t* compiled_model, ...);
 
 /**
+ * @brief Sets properties for a compiled model using an array of ov_property_t key/value pairs.
+ * Non-variadic alternative to ov_compiled_model_set_property(), compatible with all FFI callers.
+ * @ingroup ov_compiled_model_c_api
+ * @param compiled_model A pointer to the ov_compiled_model_t.
+ * @param properties     Array of ov_property_t key/value pairs.
+ * @param num_properties Number of entries in the properties array.
+ * @return Status code of the operation: OK(0) for success.
+ */
+OPENVINO_C_API(ov_status_e)
+ov_compiled_model_set_properties(const ov_compiled_model_t* compiled_model,
+                                 const size_t num_properties,
+                                 const ov_property_t* properties);
+
+/**
  * @brief Gets properties for current compiled model.
  * @ingroup ov_compiled_model_c_api
  * @param compiled_model A pointer to the ov_compiled_model_t.

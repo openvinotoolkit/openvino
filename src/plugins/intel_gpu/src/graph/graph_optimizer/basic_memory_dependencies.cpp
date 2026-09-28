@@ -17,12 +17,13 @@ void basic_memory_dependencies::run(program& p) {
     auto itr = p.get_processing_order().begin();
     std::vector<size_t> past_outputs;
     while (itr != p.get_processing_order().end()) {
-        auto& node = *itr;
+        const auto& node = *itr;
         itr++;
 
         // data primitive can't be reused
-        if (node->is_type<data>())
+        if (node->is_type<data>()) {
             continue;
+        }
 
         // add my dependencies to restriction list (can't share input.output buffers)
         for (const auto& it : node->get_dependencies()) {
@@ -45,10 +46,12 @@ void basic_memory_dependencies::run(program& p) {
                 if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
                     // If it is first sum, reuse the buffer
                     auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*node, fused_op);
-                    if (fusing_type != add_fusing_type::sum || eltw_dep != 0)
+                    if (fusing_type != add_fusing_type::sum || eltw_dep != 0) {
                         continue;
-                    if (!fused_op.has_outer_dep())
+                    }
+                    if (!fused_op.has_outer_dep()) {
                         continue;
+                    }
                     eltw_dep = fused_op.outer_dep_start_idx;
                     auto& eltw_node = node->get_dependency(eltw_dep);
                     node->can_share_buffer(false);
@@ -59,7 +62,7 @@ void basic_memory_dependencies::run(program& p) {
                     }
                     root->can_share_buffer(false);
 
-                    for (auto& user : node->get_users()) {
+                    for (const auto& user : node->get_users()) {
                         add_memory_dependency(user, &eltw_node);
                         add_memory_dependency(user, node);
                     }
@@ -75,7 +78,7 @@ void basic_memory_dependencies::run(program& p) {
             past_outputs.push_back(node->get_unique_id());
             if (node->is_type<mutable_data>()) {
                 // if output is mutable data, then propagate output flag to its dependencies
-                for (auto& dep : node->get_dependencies()) {
+                for (const auto& dep : node->get_dependencies()) {
                     dep.first->set_output(true);
                 }
             }

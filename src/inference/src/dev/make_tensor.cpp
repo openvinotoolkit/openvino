@@ -306,20 +306,26 @@ std::shared_ptr<ITensor> make_tensor(const element::Type element_type,
  * Tensor owns the memory
  */
 class AllocatedTensor : public ViewTensor {
+    using MemSpace = std::pair<void*, size_t>;
+
+    static MemSpace do_allocate(const element::Type& element_type, const Shape& shape, const Allocator& allocator) {
+        OPENVINO_ASSERT(allocator, "Allocator was not initialized");
+        const auto byte_size = util::get_memory_size_safe(element_type, shape);
+        OPENVINO_ASSERT(byte_size, bad_alloc_error_msg(element_type, shape));
+        auto data = const_cast<Allocator&>(allocator).allocate(*byte_size);
+        OPENVINO_ASSERT(*byte_size == 0 || data != nullptr, "Failed to allocate memory");
+        initialize_elements(data, element_type, shape);
+        return {data, *byte_size};
+    }
+
+    AllocatedTensor(const element::Type element_type, const Shape& shape, const Allocator& allocator, MemSpace alloc)
+        : ViewTensor{element_type, shape, alloc.first},
+          m_allocator{allocator},
+          m_bytes_capacity{alloc.second} {}
+
 public:
     AllocatedTensor(const element::Type element_type, const Shape& shape, const Allocator& allocator)
-        : ViewTensor{element_type,
-                     shape,
-                     [&shape, &element_type, &allocator] {
-                         OPENVINO_ASSERT(allocator, "Allocator was not initialized");
-                         const auto byte_size = util::get_memory_size_safe(element_type, shape);
-                         OPENVINO_ASSERT(byte_size, bad_alloc_error_msg(element_type, shape));
-                         auto data = const_cast<Allocator&>(allocator).allocate(*byte_size);
-                         OPENVINO_ASSERT(*byte_size == 0 || data != nullptr, "Failed to allocate memory");
-                         initialize_elements(data, element_type, shape);
-                         return data;
-                     }()},
-          m_allocator{allocator} {}
+        : AllocatedTensor{element_type, shape, allocator, do_allocate(element_type, shape, allocator)} {}
 
     ~AllocatedTensor() {
         destroy_memory();
@@ -338,6 +344,7 @@ public:
             // allocate buffer and initialize objects from scratch
             m_capacity = m_shape;
             m_ptr = m_allocator.allocate(*byte_size);
+            m_bytes_capacity = *byte_size;
             initialize_elements(m_ptr, m_element_type, m_shape);
         }
 
@@ -376,7 +383,7 @@ private:
     }
 
     size_t get_bytes_capacity() const {
-        return util::get_memory_size(get_element_type(), get_capacity());
+        return m_bytes_capacity;
     }
 
     static std::string bad_alloc_error_msg(const element::Type& element_type, const Shape& shape) {
@@ -384,6 +391,7 @@ private:
     }
 
     Allocator m_allocator;
+    size_t m_bytes_capacity;
 };
 
 /**

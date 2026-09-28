@@ -5,12 +5,9 @@
 #pragma once
 
 #include <cstddef>
-#include <type_traits>
 
-#include "openvino/core/dimension.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/lowered/expression.hpp"
-#include "snippets/utils/utils.hpp"
 
 namespace ov::intel_cpu::aarch64::gemm_utils::repacking {
 /**
@@ -20,18 +17,6 @@ namespace ov::intel_cpu::aarch64::gemm_utils::repacking {
  * @return The expression pointer for the GemmCopyB operation.
  */
 snippets::lowered::ExpressionPtr get_copy_b_expr(const snippets::lowered::ExpressionPtr& gemm_expr);
-
-/**
- * @brief Get inner n block that is required by KleidiAI
- * @return Inner n block size
- */
-size_t get_inner_n_block(const ov::element::Type& precision);
-
-/**
- * @brief Get k padding size that is required by KleidiAI
- * @return k padding size
- */
-size_t get_k_pad_size(const ov::element::Type& precision);
 
 /**
  * @brief Get the offset in bytes to the packed RHS data for the specified N index and K dimension.

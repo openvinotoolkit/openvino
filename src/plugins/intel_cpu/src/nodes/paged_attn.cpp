@@ -46,7 +46,6 @@ using namespace ov::Extensions::Cpu::XARCH;
 
 using namespace ov::Extensions::Cpu;
 using namespace dnnl::impl;
-using namespace dnnl::impl::cpu::x64;
 
 namespace ov::intel_cpu::node {
 

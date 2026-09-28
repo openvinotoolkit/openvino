@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <tuple>
+#include <vector>
+
+#include "convolution_inst.h"
+#include "data_inst.h"
+#include "fully_connected_inst.h"
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/runtime/memory.hpp"
 #include "pass_manager.h"
 #include "pooling_inst.h"
-#include "convolution_inst.h"
-#include "fully_connected_inst.h"
-#include "data_inst.h"
-#include "intel_gpu/runtime/memory.hpp"
-#include "intel_gpu/graph/program.hpp"
-
-#include <vector>
-#include <tuple>
 
 using namespace cldnn;
 
@@ -23,19 +23,20 @@ bool can_shuffle_features(program_node& node, program_node& concat_node, stream&
     if (node.is_type<convolution>()) {
         auto& conv_node = node.as<convolution>();
         auto& wei_node = conv_node.weights();
-        if (ov::element::Type(wei_node.get_output_layout().data_type).bitwidth() < 8)
+        if (ov::element::Type(wei_node.get_output_layout().data_type).bitwidth() < 8) {
             return false;
+        }
 
-        return conv_node.get_groups() == 1 && node.get_dependency_index(concat_node) == 0 &&
-            conv_node.get_deformable_groups() == 1 && !conv_node.get_transposed() &&
-            !conv_node.activations_zero_points_term() &&
-            wei_node.is_type<data>() && wei_node.is_constant() && !wei_node.is_output();
+        return conv_node.get_groups() == 1 && node.get_dependency_index(concat_node) == 0 && conv_node.get_deformable_groups() == 1 &&
+               !conv_node.get_transposed() && !conv_node.activations_zero_points_term() && wei_node.is_type<data>() && wei_node.is_constant() &&
+               !wei_node.is_output();
     }
     if (node.is_type<fully_connected>()) {
         auto& fc_node = node.as<fully_connected>();
         auto& wei_node = fc_node.weights();
-        if (ov::element::Type(wei_node.get_output_layout().data_type).bitwidth() < 8)
+        if (ov::element::Type(wei_node.get_output_layout().data_type).bitwidth() < 8) {
             return false;
+        }
 
         return node.get_dependency_index(concat_node) == 0 && wei_node.is_type<data>() && wei_node.is_constant() && !wei_node.is_output();
     }
@@ -47,9 +48,10 @@ bool can_shuffle_features(program_node& node, program_node& concat_node, stream&
     pass_through &= !node.is_output() && node.get_dependencies().size() == 1 && !node.has_fused_primitives();
     if (pass_through) {
         // Primitives that are feature order invariant, pass-through shuffled features to users
-        for (auto& user : node.get_users()) {
-            if (!can_shuffle_features(*user, node, stream))
+        for (const auto& user : node.get_users()) {
+            if (!can_shuffle_features(*user, node, stream)) {
                 return false;
+            }
         }
         return true;
     }
@@ -68,12 +70,12 @@ void shuffle_weights(data_node& node, const std::vector<shuffle_range>& ranges, 
     auto bytes_per_elem = data_type_traits::size_of(wei_layout.data_type);
     mem_lock<uint8_t, mem_lock_type::read> old_weights_memory_lock{old_weights_memory, stream};
     mem_lock<uint8_t, mem_lock_type::write> new_weights_memory_lock{new_weights_memory, stream};
-    auto old_ptr = old_weights_memory_lock.data();
-    auto new_ptr = new_weights_memory_lock.data();
+    auto* old_ptr = old_weights_memory_lock.data();
+    auto* new_ptr = new_weights_memory_lock.data();
 
     for (int32_t ofi = 0; ofi < wei_layout.batch(); ++ofi) {
         int32_t new_ifi = 0;
-        for (auto& range : ranges) {
+        for (const auto& range : ranges) {
             const int32_t range_begin = static_cast<int32_t>(range.first);
             const int32_t range_end = static_cast<int32_t>(range.second);
             for (int32_t ifi = range_begin; ifi < range_end; ++ifi, ++new_ifi) {
@@ -108,7 +110,7 @@ void shuffle_features(program_node& node, const std::vector<shuffle_range>& rang
         shuffle_weights(fc.weights().as<data>(), ranges, stream);
     } else {
         // General case for pass-through layers
-        for (auto& user : node.get_users()) {
+        for (const auto& user : node.get_users()) {
             shuffle_features(*user, ranges, stream);
         }
     }
@@ -117,7 +119,7 @@ void shuffle_features(program_node& node, const std::vector<shuffle_range>& rang
 }  // namespace
 
 void concat_input_order::run(program& p) {
-    for (auto node : p.get_processing_order()) {
+    for (auto* node : p.get_processing_order()) {
         // Check that optimization can be performed:
         // 1. Not an output
         // 2. Concatenation along features
@@ -125,8 +127,9 @@ void concat_input_order::run(program& p) {
         // 4. Not already aligned
         // 5. Users can accept shuffled features
         // 6. No fused primitives
-        if (!node->is_type<concatenation>() || node->is_output() || node->is_dynamic())
+        if (!node->is_type<concatenation>() || node->is_output() || node->is_dynamic()) {
             continue;
+        }
 
         auto& concat_node = node->as<concatenation>();
         auto prim = concat_node.get_primitive();
@@ -138,10 +141,11 @@ void concat_input_order::run(program& p) {
         auto out_format = concat_node.get_output_layout().format;
         bool correct_format = (out_format == format::b_fs_yx_fsv16) || (out_format == format::b_fs_yx_fsv32);
         tensor::value_type alignment = 1;
-        if (out_format == format::b_fs_yx_fsv16)
+        if (out_format == format::b_fs_yx_fsv16) {
             alignment = 16;
-        else if (out_format == format::b_fs_yx_fsv32)
+        } else if (out_format == format::b_fs_yx_fsv32) {
             alignment = 32;
+        }
 
         bool single_format = true;
         std::vector<tensor::value_type> feature_sizes;
@@ -162,24 +166,27 @@ void concat_input_order::run(program& p) {
         }
         // Check that we can fuse shuffling to users
         bool can_shuffle_users = true;
-        for (auto user : concat_node.get_users()) {
+        for (auto* user : concat_node.get_users()) {
             can_shuffle_users &= can_shuffle_features(*user, concat_node, p.get_stream());
         }
 
-        if (!along_f || !no_fusing || !correct_format || !single_format || already_aligned || !can_shuffle_users)
+        if (!along_f || !no_fusing || !correct_format || !single_format || already_aligned || !can_shuffle_users) {
             continue;
+        }
 
         // Perform the optimization
         // Calculate new input order - first inputs preserving alignment, then rest
         std::vector<size_t> new_order;
         new_order.reserve(inputs_count);
         for (size_t i = 0; i < feature_sizes.size(); ++i) {
-            if (feature_sizes[i] % alignment == 0)
+            if (feature_sizes[i] % alignment == 0) {
                 new_order.push_back(i);
+            }
         }
         for (size_t i = 0; i < feature_sizes.size(); ++i) {
-            if (feature_sizes[i] % alignment != 0)
+            if (feature_sizes[i] % alignment != 0) {
                 new_order.push_back(i);
+            }
         }
         // Calculate new ranges
         tensor::value_type current_offset = 0;
@@ -201,7 +208,7 @@ void concat_input_order::run(program& p) {
             new_dependencies.push_back({concat_node.get_dependency_with_port(ord).first, concat_node.get_dependency_with_port(ord).second});
         }
         // Update in place with const cast instead of replacing
-        auto& dependencies = concat_node.get_dependencies();
+        const auto& dependencies = concat_node.get_dependencies();
         auto& mutable_dependencies = const_cast<std::vector<std::pair<program_node*, int32_t>>&>(dependencies);
         for (size_t i = 0; i < new_dependencies.size(); ++i) {
             mutable_dependencies[i] = new_dependencies[i];
@@ -214,7 +221,7 @@ void concat_input_order::run(program& p) {
         auto mutable_prim = std::const_pointer_cast<concatenation>(prim);
         mutable_prim->input = new_input_info;
         // Correct users for shuffled features
-        for (auto& user : concat_node.get_users()) {
+        for (const auto& user : concat_node.get_users()) {
             shuffle_features(*user, shuffled_ranges, p.get_stream());
         }
     }

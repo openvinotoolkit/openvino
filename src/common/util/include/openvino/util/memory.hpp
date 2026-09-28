@@ -7,10 +7,15 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <memory>
+#include <optional>
 #include <string>
 #include <system_error>
 
 namespace ov::util {
+
+/** @brief One mebibyte (1024 * 1024 bytes). */
+inline constexpr size_t one_mib = 1024 * 1024;
 
 /** @brief Minimum guaranteed page alignment on all supported platforms (x86, ARM, RISC-V). */
 inline constexpr size_t min_page_alignment = 4096;
@@ -115,16 +120,89 @@ void vm_decommit(void* ptr, size_t size) noexcept;
 void vm_release(void* ptr, size_t size) noexcept;
 
 /**
- * @brief Pre-fetch a committed VM range into physical memory.
- *
- * Works with both anonymous (@ref vm_commit) and file-backed (mmap) regions.
- *
- * @param ptr         Base address of the range. Must be page-aligned.
- * @param size        Number of bytes to pre-fetch. Must be a multiple of the system page size.
- * @param num_threads Strategy selector:
- *                    - @c 0 (default) → OS advisory hint (async, low overhead).
- *                    - @c N >= 1      → parallel touch with N threads (synchronous).
+ * @brief Queryable facts about a memory buffer's allocation, set once at construction/mapping time.
  */
-void vm_prefetch(void* ptr, size_t size, size_t num_threads = 0) noexcept;
+struct MemoryProperties {
+    size_t offset = 0;  //!< Offset of this buffer within the allocation identified by IBuffer::get_id().
+};
+
+/** @brief Read-only, non-owning view (pointer + size) of a buffer's contents. */
+class MemoryView {
+public:
+    constexpr MemoryView(const std::byte* data, size_t size) noexcept : m_data{data}, m_size{size} {}
+
+    constexpr const std::byte* data() const noexcept {
+        return m_data;
+    }
+    constexpr size_t size() const noexcept {
+        return m_size;
+    }
+    constexpr const std::byte* begin() const noexcept {
+        return data();
+    }
+    constexpr const std::byte* end() const noexcept {
+        return data() + size();
+    }
+
+private:
+    const std::byte* m_data = nullptr;
+    size_t m_size = 0;
+};
+
+/**
+ * @brief Capability: hints for managing a buffer's physical-memory residency.
+ */
+class IMemoryHints {
+public:
+    virtual ~IMemoryHints() = default;
+
+    /** @brief Hint to release the underlying memory if possible (e.g. unmaps/decommits). */
+    virtual void hint_evict() noexcept = 0;
+    /** @brief Hint to fetch the data to memory. */
+    virtual void hint_prefetch() noexcept = 0;
+};
+
+/**
+ * @brief Common, read-only access to a contiguous block of memory plus its properties.
+ */
+class IBuffer : public IMemoryHints {
+public:
+    virtual ~IBuffer() = default;
+
+    virtual const std::byte* data() const noexcept = 0;
+    virtual size_t size() const noexcept = 0;
+    virtual const MemoryProperties& get_properties() const noexcept = 0;
+
+    /** @brief Typed reinterpretation of data(), e.g. data_as<char>() for APIs needing pointer arithmetic. */
+    template <typename T>
+    const T* data_as() const noexcept {
+        return reinterpret_cast<const T*>(data());
+    }
+
+    /** @brief Read-only view for bulk reads/copies (e.g. memcpy, std::copy); not virtual, built on data()/size(). */
+    MemoryView view() const noexcept {
+        return {data(), size()};
+    }
+
+    /** @brief Buffer ID, Default: no id. */
+    virtual std::optional<uint64_t> get_id() const noexcept {
+        return std::nullopt;
+    }
+};
+
+/**
+ * @brief Extends IBuffer with mutable access.
+ */
+class IMutableBuffer : public IBuffer {
+public:
+    using IBuffer::data;
+    using IBuffer::data_as;
+    virtual std::byte* data() noexcept = 0;
+
+    template <typename T>
+    T* data_as() noexcept {
+        return reinterpret_cast<T*>(data());
+    }
+};
 
 }  // namespace ov::util

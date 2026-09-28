@@ -23,7 +23,7 @@ struct rms_params : public base_params {
 class RMSKernelBase : public KernelBaseOpenCL {
 public:
     using KernelBaseOpenCL::KernelBaseOpenCL;
-    virtual ~RMSKernelBase() {}
+    ~RMSKernelBase() override = default;
 
     struct DispatchData : public CommonDispatchData {
         size_t dataSize;
@@ -40,6 +40,8 @@ protected:
     bool Validate(const Params&) const override;
     virtual JitConstants GetJitConstants(const rms_params& params, DispatchData dispatchData) const;
     virtual DispatchData SetDefault(const rms_params& params) const;
+    static Tensor::DataChannelName GetNormalizationAxis(const rms_params& params);
+    static const char* GetNormalizationAxisName(Tensor::DataChannelName axis);
     KernelsData GetCommonKernelsData(const Params& params) const;
     Datatype GetAccumulatorType(const rms_params& params) const;
     void GetUpdateDispatchDataFunc(KernelData& kd) const override;

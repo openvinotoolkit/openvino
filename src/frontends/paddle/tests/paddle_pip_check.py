@@ -1,7 +1,12 @@
-import pkg_resources
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
 import re
 import sys
 import os
+
+from importlib.metadata import PackageNotFoundError, version as _installed_version
+from packaging.requirements import Requirement
 
 req_file=sys.argv[1]
 
@@ -25,6 +30,10 @@ if constraints_path:
             if line.startswith("#") or line=="\n":
                 continue
             line = line.replace("\n", "")
+            # drop inline comments (e.g. "numpy>=1.16.6,<2.6.0  # frontends")
+            line = line.split("#", 1)[0].strip()
+            if not line:
+                continue
             package, delimiter, constraint = re.split("(~|=|<|>|;)", line, maxsplit=1)
             if constraints.get(package) is None:
                 constraints[package] = [delimiter + constraint]
@@ -46,19 +55,24 @@ if constraints_path:
 else:
     requirements = raw_requirements
 
-try:
-    pkg_resources.require(requirements)
-except Exception as inst:
-    pattern = re.compile(
-        r"protobuf .*, Requirement.parse\('protobuf<=3\.20\.0,>=3\.1\.0'\), {'paddlepaddle'}"
-    )
-    result = pattern.findall(str(inst))
-    if len(result) == 0:
-        raise inst
-    else:
-        env = pkg_resources.Environment()
-        env['protobuf'].clear()
-        env.add(pkg_resources.DistInfoDistribution(project_name="protobuf", version="3.20.0"))
-        ws = pkg_resources.working_set
-        reqs = pkg_resources.parse_requirements(open(req_file, mode='r'))
-        dists = ws.resolve(reqs, env, replace_conflicting=True)
+# Validate each requirement against the installed distributions. Uses
+# importlib.metadata + packaging instead of the removed pkg_resources API
+# (dropped in setuptools>=82), so the check keeps working with modern
+# setuptools. Only the directly-listed requirements are checked (transitive
+# dependencies are not walked), which sidesteps the paddlepaddle -> protobuf
+# transitive conflict the old pkg_resources.require() path had to special-case.
+for raw in requirements:
+    raw = raw.strip()
+    if not raw or raw.startswith(("#", "-")):
+        continue
+    req = Requirement(raw)
+    # Skip requirements whose environment markers don't apply here.
+    if req.marker is not None and not req.marker.evaluate():
+        continue
+    try:
+        installed = _installed_version(req.name)
+    except PackageNotFoundError:
+        raise RuntimeError(f"Required package '{req.name}' is not installed")
+    if req.specifier and installed not in req.specifier:
+        raise RuntimeError(
+            f"Installed '{req.name}=={installed}' does not satisfy requirement '{raw}'")

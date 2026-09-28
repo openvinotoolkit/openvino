@@ -68,6 +68,8 @@ set(SRC
     conversion.cpp
     convert_tests.cpp
     convert_partially_tests.cpp
+    float_types_tests.cpp
+    gather_block_quantized_tests.cpp
     graph_iterator.cpp
     library_extension.cpp
     load_from.cpp
@@ -149,6 +151,7 @@ target_link_libraries(ov_onnx_frontend_tests PRIVATE
     gtest_main_manifest
     frontend_shared_test_classes
     openvino::frontend::onnx
+    openvino_onnx_common
     func_test_utils
 )
 

@@ -55,6 +55,7 @@ class OVDict(collections.abc.Mapping):
         
     """
     __abstractmethods__: typing.ClassVar[frozenset]  # value = frozenset()
+    __slots__: typing.ClassVar[tuple] = ('_dict', '_names', '__weakref__')
     _abc_impl: typing.ClassVar[_abc._abc_data]  # value = <_abc._abc_data object>
     @staticmethod
     def _OVDict__getitem_impl(*args, **kwargs) -> numpy.ndarray:

@@ -8,38 +8,22 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <vector>
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "snippets/itt.hpp"
-#include "snippets/lowered/linear_ir.hpp"
+#include "snippets/lowered/expression.hpp"
 #include "snippets/lowered/loop_info.hpp"
-#include "snippets/lowered/loop_manager.hpp"
 #include "snippets/lowered/loop_port.hpp"
 #include "snippets/utils/utils.hpp"
 #include "transformations/snippets/aarch64/op/gemm_cpu.hpp"
 #include "transformations/snippets/aarch64/op/gemm_utils.hpp"
-#include "utils/general_utils.h"
 
 namespace ov::intel_cpu {
 
 namespace {
-void assign_new_ptr_increment(int64_t new_ptr_increment,
-                              ov::snippets::lowered::UnifiedLoopInfo::LoopPortDesc& loop_desc) {
-    const auto old_ptr_incr = loop_desc.ptr_increment;
-    const auto old_final_offset = loop_desc.finalization_offset;
-
-    if (none_of(old_ptr_incr, 0, new_ptr_increment)) {
-        loop_desc.ptr_increment = new_ptr_increment;
-        if (!ov::snippets::utils::is_dynamic_value(old_final_offset)) {
-            OPENVINO_ASSERT(old_final_offset % old_ptr_incr == 0, "Can't rescale finalization offsets");
-            loop_desc.finalization_offset =
-                ov::snippets::utils::dynamic_safe_mul(loop_desc.ptr_increment, (old_final_offset / old_ptr_incr));
-        }
-    }
-}
-
 int64_t get_rhs_packed_ptr_increment(const ov::element::Type& precision, size_t n_increment, size_t K) {
     if (snippets::utils::is_dynamic_value(n_increment) || snippets::utils::is_dynamic_value(K)) {
         return snippets::utils::get_dynamic_value<int64_t>();
@@ -96,33 +80,25 @@ bool pass::aarch64::AdjustGemmCopyBLoopPorts::update_loop_info(
     return modified;
 }
 
-bool pass::aarch64::AdjustGemmCopyBLoopPorts::run(const snippets::lowered::LinearIR& linear_ir) {
-    OV_ITT_SCOPED_TASK(ov::pass::itt::domains::SnippetsTransform, "Snippets::AdjustGemmCopyBLoopPorts")
+bool pass::aarch64::AdjustGemmCopyBLoopPorts::is_target_expr(const snippets::lowered::ExpressionPtr& expr) const {
+    return static_cast<bool>(ov::as_type_ptr<ov::intel_cpu::aarch64::GemmCPU>(expr->get_node()));
+}
 
-    bool modified = false;
+snippets::lowered::ExpressionPtr pass::aarch64::AdjustGemmCopyBLoopPorts::get_copy_b_expr(
+    const snippets::lowered::ExpressionPtr& gemm_expr) const {
+    return ov::intel_cpu::aarch64::gemm_utils::repacking::get_copy_b_expr(gemm_expr);
+}
 
-    for (const auto& expr : linear_ir) {
-        const auto gemm = ov::as_type_ptr<ov::intel_cpu::aarch64::GemmCPU>(expr->get_node());
-        if (!gemm) {
-            continue;
-        }
-        const auto& gemm_loop_ids = expr->get_loop_ids();
-        if (gemm_loop_ids.empty()) {
-            continue;
-        }
-        const auto& loop_manager = linear_ir.get_loop_manager();
-        // only adjust inner most loop(N loop)
-        const auto& loop = loop_manager->get_loop_info(gemm_loop_ids.back());
-        auto uni_loop = ov::as_type_ptr<snippets::lowered::UnifiedLoopInfo>(loop);
-        if (!uni_loop) {
-            uni_loop = ov::as_type_ptr<snippets::lowered::ExpandedLoopInfo>(loop)->get_unified_loop_info();
-        }
-        if (!m_affected_loops.count(uni_loop) && update_loop_info(uni_loop)) {
-            m_affected_loops.insert(uni_loop);
-            modified = true;
-        }
-    }
+bool pass::aarch64::AdjustGemmCopyBLoopPorts::update_loop_info_impl(
+    const snippets::lowered::UnifiedLoopInfoPtr& loop_info) const {
+    return update_loop_info(loop_info);
+}
 
-    return modified;
+const char* pass::aarch64::AdjustGemmCopyBLoopPorts::copy_b_not_found_message() const {
+    return "GemmCopyB expression is not found";
+}
+
+const char* pass::aarch64::AdjustGemmCopyBLoopPorts::invalid_loop_config_message() const {
+    return "Invalid GemmCopyB loop configuration";
 }
 }  // namespace ov::intel_cpu

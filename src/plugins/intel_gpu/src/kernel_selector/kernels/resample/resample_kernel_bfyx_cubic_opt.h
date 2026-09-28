@@ -11,7 +11,7 @@ class ResampleKernelBfyxCubicOpt : public ResampleKernelBase {
 public:
     using Parent = ResampleKernelBase;
     ResampleKernelBfyxCubicOpt() : ResampleKernelBase("resample_bfyx_cubic_opt") {}
-    virtual ~ResampleKernelBfyxCubicOpt() = default;
+    ~ResampleKernelBfyxCubicOpt() override = default;
 
     KernelsData GetKernelsData(const Params& params) const override;
     KernelsPriority GetKernelsPriority(const Params& params) const override;

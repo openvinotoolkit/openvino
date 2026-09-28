@@ -46,4 +46,9 @@ def onnx_make_model(graph_def, **args):
     from onnx import helper
     if not 'opset_imports' in args:
         args['opset_imports'] = [helper.make_opsetid("", 18)]   # Last released opset
+    if 'ir_version' not in args:
+        # Pin the IR version to the one matching the default opset (18 -> IR 8). Newer ONNX
+        # (>=1.22) defaults make_model to IR 13, which the onnxruntime used as the reference
+        # backend cannot load ("Unsupported model IR version: 13, max supported IR version: 11").
+        args['ir_version'] = 8
     return helper.make_model(graph_def, **args)

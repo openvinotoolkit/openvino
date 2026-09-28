@@ -54,11 +54,11 @@ struct program {
 public:
     struct nodes_ordering {
     public:
-        typedef std::list<program_node*> list_of_nodes;
-        typedef list_of_nodes::const_iterator const_iterator;
-        typedef list_of_nodes::const_reverse_iterator const_reverse_iterator;
-        typedef list_of_nodes::iterator node_iterator;
-        typedef list_of_nodes::reverse_iterator node_reverse_iterator;
+        using list_of_nodes = std::list<program_node *>;
+        using const_iterator = list_of_nodes::const_iterator;
+        using const_reverse_iterator = list_of_nodes::const_reverse_iterator;
+        using node_iterator = list_of_nodes::iterator;
+        using node_reverse_iterator = list_of_nodes::reverse_iterator;
         const_iterator begin() const { return _processing_order.begin(); }
         const_iterator end() const { return _processing_order.end(); }
         const_reverse_iterator rbegin() const { return _processing_order.rbegin(); }
@@ -74,7 +74,7 @@ public:
         }
         void calculate_BFS_processing_order();
         size_t size() { return _processing_order.size(); }
-        bool is_correct(program_node* node);
+        bool is_correct() const;
 
         node_iterator get_processing_iterator(program_node& node) const { return processing_order_iterators.at(&node); }
         void clear() {
@@ -126,9 +126,9 @@ public:
         T* elem;
     };
 
-    typedef std::vector<primitive_info> primitives_info;
-    typedef std::vector<std::pair<std::string, primitives_info>> graph_optimizer_info;
-    typedef std::pair<primitive_id, std::vector<primitive_id>> optimized_info;
+    using primitives_info = std::vector<primitive_info>;
+    using graph_optimizer_info = std::vector<std::pair<std::string, primitives_info>>;
+    using optimized_info = std::pair<primitive_id, std::vector<primitive_id>>;
 
     program(engine& engine_ref,
             topology const& topology,

@@ -46,7 +46,7 @@ ParamsKey ReorderKernel_bfyx_to_blocked_format::GetSupportedKey() const {
 }
 
 static inline std::string GetTiledInputOrder(size_t size) {
-    std::string order_str = "";
+    std::string order_str;
     switch (size) {
     case 4:
         order_str = "b, f + lh, y, x";
@@ -188,10 +188,6 @@ JitConstants ReorderKernel_bfyx_to_blocked_format::GetJitConstants(const reorder
     jit.AddConstant(MakeJitConstant("INPUT0_TILED_ORDER", GetTiledInputOrder(input_ndims)));
     jit.AddConstant(MakeJitConstant("TILE_SIZE", tile_size));
     jit.AddConstant(MakeJitConstant("FSV_ALIGNMENT", fsv_alignment));
-
-    if (params.outputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
-        jit.AddConstant(MakeJitConstant("FS_B_YX_FSV", 1));
-    }
 
     const bool is_double_blocked = params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv16 ||
         params.outputs[0].GetLayout() == DataLayout::bs_fs_yx_bsv16_fsv32 ||
