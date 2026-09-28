@@ -188,7 +188,7 @@ OV_TERNOCL_INT2_MERGE_MLP=1 $WORK/venv/bin/python $TOOLS/lm_eval_ov.py \
 `$TOOLS/run_lm_eval_ov.sh <model-dir> <tokenizer-dir> <out-dir>` wraps the same
 call (`PY`, `LIMIT`, `BATCH`, `THINK`, `TASKS`, `SERVE` from the environment).
 Full test set (1319 examples, thinking, up to 4096 generated tokens):
-`exact_match 0.968` (1277/1319). First 100: ~0.96-0.98 depending on the slice.
+`exact_match 0.970` (1279/1319). First 100: ~0.96-0.98 depending on the slice.
 
 ## 6. Knobs that matter
 
@@ -200,6 +200,7 @@ Full test set (1319 examples, thinking, up to 4096 generated tokens):
 | `OV_TERNOCL_INT2_CFG_DEBUG=1` | | every OpenCL program built and the tile chosen per (shape, M class) |
 | `OV_TERNOCL_HADAMARD_DEBUG=1` | | trace the rotation fusion per FC (expect "fused 257 input rotations") |
 | `OV_TERNOCL_INT2_DISABLE=1` | | fall back to the stock OpenVINO FC kernels |
+| `OV_TERNOCL_INT2_INT8_PREFILL=1` | off | prompts and batches (M > 8) on the int2 x int8 DPAS kernel (activations quantized to int8 per 128-group); same weights, GSM8K within the standard error of the default |
 | `BENCH_MAX_LEN` | 512 | context the bench reserves; prompt + new tokens must fit |
 
 ## 7. Troubleshooting

@@ -218,6 +218,41 @@ MtTile mt_tile(size_t K, size_t N, size_t M, bool integrated) {
     return MtTile{64, 32, 4, 4};
 }
 
+// OV_TERNOCL_INT2_INT8_PREFILL=1: M > 8 runs the int2 x int8 DPAS GEMM on the same packed
+// weights, quantizing the activations to int8 per (row, 128-group) inside the GEMM.
+bool int8_prefill_enabled() {
+    static const bool on = [] {
+        const char* e = std::getenv("OV_TERNOCL_INT2_INT8_PREFILL");
+        return e != nullptr && std::string(e) == "1";
+    }();
+    return on;
+}
+
+// Arc Pro B70 sweep of the 27B shapes, per M band (<= 16, <= 32, < 64, >= 64).
+MtTile int8_tile(size_t K, size_t N, size_t M) {
+    MtTile t{0, 0, 0, 0};
+    if (env_ints("OV_TERNOCL_INT2_INT8_MT", &t.mt_m, 4))  // "mt_m,mt_n,wg_m,wg_n" for sweeps
+        return t;
+    const int band = M <= 16 ? 0 : (M <= 32 ? 1 : (M < 64 ? 2 : 3));
+    struct Entry {
+        size_t k, n;
+        MtTile t[4];
+    };
+    static const Entry table[] = {
+        {5120, 34816, {{8, 128, 1, 4}, {8, 64, 4, 1}, {8, 128, 8, 2}, {8, 128, 8, 2}}},    // gate_up (merged)
+        {17408, 5120, {{8, 32, 2, 4}, {8, 32, 2, 4}, {8, 64, 8, 2}, {8, 128, 8, 2}}},      // down
+        {5120, 16384, {{8, 32, 2, 4}, {8, 64, 2, 2}, {8, 128, 2, 4}, {8, 128, 16, 1}}},    // in_proj_qkvz
+        {6144, 5120, {{8, 32, 2, 4}, {8, 32, 2, 4}, {8, 64, 8, 2}, {8, 128, 8, 2}}},       // out_proj / o_proj
+        {5120, 14336, {{8, 32, 2, 4}, {8, 64, 2, 2}, {8, 128, 8, 2}, {8, 128, 4, 2}}},     // qkv
+        {5120, 248320, {{8, 128, 2, 4}, {8, 128, 4, 4}, {8, 128, 8, 2}, {8, 128, 16, 1}}},  // lm_head
+    };
+    for (const auto& e : table)
+        if (e.k == K && e.n == N)
+            return e.t[band];
+    static const MtTile fallback[4] = {{8, 32, 2, 4}, {8, 64, 2, 2}, {8, 128, 8, 2}, {8, 128, 8, 2}};
+    return fallback[band];
+}
+
 // ---------------------------------------------------------------------------
 // Programs are built once per (context, source, options) and shared; every impl
 // creates its own cl_kernel from them so argument state is never shared.
@@ -261,6 +296,8 @@ struct TernoclInt2Packed {
     memory::ptr had_signs;  // i8 [K] +-1, or null
     memory::ptr had_input;  // f16 [rows, K] rotated activation
     size_t had_rows = 0;
+    memory::ptr int8_sa;  // f16 [K/128, pitch] activation scales of the int8 prefill
+    size_t int8_sa_pitch = 0;
 };
 
 static std::mutex& ternocl_packed_mutex() {
@@ -296,6 +333,12 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
         MtTile t{};
     };
     std::array<Launch, 8> _launch;
+    // int8 prefill, M-tiled classes 4..7: scale pre-kernel + GEMM from one program.
+    struct Int8Launch {
+        kernel::ptr quant, gemm;
+        MtTile t{};
+    };
+    std::array<Int8Launch, 4> _int8_launch;
     kernel::ptr _fwht;
 
     fully_connected_ternocl_int2() : parent("ternocl_int2") {}
@@ -366,6 +409,85 @@ protected:
         return l;
     }
 
+    Int8Launch& get_int8_launch(size_t M) {
+        auto& l = _int8_launch[launch_class(M) - 4];
+        if (l.gemm)
+            return l;
+        l.t = int8_tile(_K, _N, M);
+        const std::string opts = "-cl-std=CL3.0 -cl-fp32-correctly-rounded-divide-sqrt -DQMODE=1 -DMT_M=" +
+                                 std::to_string(l.t.mt_m) + " -DMT_N=" + std::to_string(l.t.mt_n) +
+                                 " -DWG_M=" + std::to_string(l.t.wg_m) + " -DWG_N=" + std::to_string(l.t.wg_n) +
+                                 " -cl-intel-256-GRF-per-thread" + epi_opts();
+        const auto prog = get_program(*_engine, kTernoclInt8Source, opts);
+        l.quant = make_kernel(*_engine, prog, "quant_a");
+        l.gemm = make_kernel(*_engine, prog, "int2_int8_gemm_mt");
+        if (std::getenv("OV_TERNOCL_INT2_CFG_DEBUG") != nullptr)
+            std::cerr << "[ternocl-int2] K=" << _K << " N=" << _N << " M-class " << launch_class(M) << " int8: "
+                      << opts << std::endl;
+        return l;
+    }
+
+    event::ptr execute_int8(typed_primitive_inst<fully_connected>& instance, TernoclInt2Packed& pk,
+                            memory::cptr in, std::vector<event::ptr> deps, size_t M) {
+        auto& network = instance.get_network();
+        auto& stream = network.get_stream();
+        auto& l = get_int8_launch(M);
+        const size_t groups = _K / kTernoclGroupSize;
+        const size_t pitch = (M + 31) & ~size_t{31};  // the kernels' LDSA(M)
+        if (!pk.int8_sa || pitch > pk.int8_sa_pitch) {
+            const auto sl = layout{ov::PartialShape{static_cast<int64_t>(groups), static_cast<int64_t>(pitch)},
+                                   data_types::f16, format::bfyx};
+            pk.int8_sa = network.get_engine().allocate_memory(sl, allocation_type::usm_device, false);
+            pk.int8_sa_pitch = pitch;
+        }
+
+        // quant_a(A, SA, Aq, M, K): SA[g, m] = 127 / absmax of row m over group g. Aq is not written in QMODE 1.
+        kernel_arguments_desc qd;
+        qd.workGroups.global = {groups * 16, M, 1};
+        qd.workGroups.local = {16, 1, 1};
+        qd.arguments = {{argument_desc::Types::INPUT, 0},
+                        {argument_desc::Types::OUTPUT, 0},
+                        {argument_desc::Types::INPUT, 0},
+                        {argument_desc::Types::SCALAR, 0},
+                        {argument_desc::Types::SCALAR, 1}};
+        scalars_desc qs(2);
+        qs[0].t = qs[1].t = scalar_desc::Types::INT32;
+        qs[0].v.s32 = static_cast<int32_t>(M);
+        qs[1].v.s32 = static_cast<int32_t>(_K);
+        kernel_arguments_data qa;
+        qa.inputs = {in};
+        qa.outputs = {pk.int8_sa};
+        qa.scalars = &qs;
+        stream.set_arguments(*l.quant, qd, qa);
+        deps = {stream.enqueue_kernel(*l.quant, qd, qa, deps, false)};
+
+        // A, Aq (unused), SA, B, SB, C, Other, Bias, M, N, K
+        kernel_arguments_desc d;
+        const size_t tn = static_cast<size_t>(l.t.mt_n * l.t.wg_n), tm = static_cast<size_t>(l.t.mt_m * l.t.wg_m);
+        d.workGroups.local = {16 * static_cast<size_t>(l.t.wg_n * l.t.wg_m), 1, 1};
+        d.workGroups.global = {ceil_div(_N, tn) * d.workGroups.local[0], ceil_div(M, tm), 1};
+        d.arguments = {{argument_desc::Types::INPUT, 0},  {argument_desc::Types::INPUT, 0},
+                       {argument_desc::Types::INPUT, 1},  {argument_desc::Types::INPUT, 2},
+                       {argument_desc::Types::INPUT, 3},  {argument_desc::Types::OUTPUT, 0},
+                       {argument_desc::Types::INPUT, 4},  {argument_desc::Types::INPUT, 5},
+                       {argument_desc::Types::SCALAR, 0}, {argument_desc::Types::SCALAR, 1},
+                       {argument_desc::Types::SCALAR, 2}};
+        scalars_desc sc(3);
+        for (auto& s : sc)
+            s.t = scalar_desc::Types::INT32;
+        sc[0].v.s32 = static_cast<int32_t>(M);
+        sc[1].v.s32 = static_cast<int32_t>(_N);
+        sc[2].v.s32 = static_cast<int32_t>(_K);
+        memory::cptr other = (_postop == 1 || _postop == 2) ? instance.dep_memory_ptr(_other_dep) : in;
+        memory::cptr bias = _postop == 3 ? instance.bias_memory() : in;
+        kernel_arguments_data a;
+        a.inputs = {in, pk.int8_sa, pk.weights, pk.scales, other, bias};
+        a.outputs = {instance.output_memory_ptr(0)};
+        a.scalars = &sc;
+        stream.set_arguments(*l.gemm, d, a);
+        return stream.enqueue_kernel(*l.gemm, d, a, deps, instance.is_output());
+    }
+
     event::ptr execute_impl(const std::vector<event::ptr>& events,
                             typed_primitive_inst<fully_connected>& instance) override {
         auto& network = instance.get_network();
@@ -414,6 +536,9 @@ protected:
             deps = {stream.enqueue_kernel(*_fwht, d, a, deps, false)};
             in = pk->had_input;
         }
+
+        if (M > 8 && int8_prefill_enabled())
+            return execute_int8(instance, *pk, in, deps, M);
 
         auto& l = get_launch(M);
         kernel_arguments_desc d;

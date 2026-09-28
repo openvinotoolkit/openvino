@@ -143,6 +143,22 @@ Both take `POSTOP` (0..4) and `OUT_F32`; the epilogue (`common/epilogue.clh`)
 computes SiLU-gate, residual add, bias and sigmoid (with an `x <= -10 -> 0`
 clamp) on the fp32 accumulator before the store.
 
+**Optional int8 prefill** (`OV_TERNOCL_INT2_INT8_PREFILL=1`, off by default):
+M > 8 runs the TernOCL int2 x int8 DPAS kernels
+(`int2_via_int2_x_int8_dpas/int2_int8_dpas.cl`) instead of `int2_fp16_upcvt_gemm_mt`.
+They read the same packed weights and scales, so no second weight copy is made,
+and share the epilogue:
+
+| Kernel | Role |
+|---|---|
+| `quant_a` | per (row, 128-group) activation scale `SA = 127 / absmax` into a per-node `f16 [K/128, (M+31) & ~31]` scratch |
+| `int2_int8_gemm_mt` | quantizes each A tile to int8 in registers (`QMODE=1`) and multiplies with the native s8 x s2 DPAS, int32 accumulation, rescaled by `SB / SA` per group; tile `MT_M x MT_N`, work-group `WG_M x WG_N` |
+
+The activation quantization changes the numerics slightly, so greedy outputs
+can differ from the default path at near-tie tokens; on Bonsai 2 27B the GSM8K
+score stays within the evaluation's standard error of the default path. Decode
+(M <= 8) is not affected by the flag.
+
 `hadamard_fwht_1024` (`hadamard/hadamard_fwht.cl`): one 128-item work-group per
 1024-block, the ten radix-2 stages as three radix-8 passes through SLM and a
 final radix-2 pass that scales and stores, fp32 butterflies.
@@ -161,12 +177,14 @@ final radix-2 pass that scales and stores, fp32 butterflies.
 
 The tables are tuned per GPU class (discrete and integrated Xe2) with TernOCL's
 `bench.sh` / `sweep_midm.sh` for the Bonsai 8B and 27B shapes; shapes without
-an entry use a default tile.
+an entry use a default tile. With `OV_TERNOCL_INT2_INT8_PREFILL=1`, M > 8 uses
+`int8_tile()` instead: exact (K, N) entries for the Bonsai 27B shapes per M band
+(<= 16, <= 32, < 64, >= 64), tuned on discrete Xe2, and a default tile per band.
 
 Overrides for sweeps: `OV_TERNOCL_INT2_GEMV="wgn,ls,u"`,
 `OV_TERNOCL_INT2_MID="mt_m,mt_n,wg_m,wg_n"` (M < 64),
-`OV_TERNOCL_INT2_MT="..."` (M >= 64); `OV_TERNOCL_INT2_CFG_DEBUG=1` prints every
-built program and chosen tile.
+`OV_TERNOCL_INT2_MT="..."` (M >= 64), `OV_TERNOCL_INT2_INT8_MT="..."` (int8
+prefill); `OV_TERNOCL_INT2_CFG_DEBUG=1` prints every built program and chosen tile.
 
 ---
 
