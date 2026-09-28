@@ -845,7 +845,7 @@ TEST(GQACompiledModelCopyKvCachePrefixTest, CopiesPrefixAlongAxis2LeftAligned) {
     auto src = make_kv_cache_tensor({1, 2, 2, 3}, 0.f);
     auto dst = make_kv_cache_tensor({1, 2, 4, 3}, 100.f);
 
-    ASSERT_NO_THROW(ov::npuw::GQACompiledModel::copy_kv_cache_prefix(src, dst, /*axis=*/2));
+    ASSERT_NO_THROW(ov::npuw::GQAInferRequest::copy_kv_cache_prefix(src, dst, /*axis=*/2));
 
     const auto dst_values = to_vec(dst);
     // Head 0: src rows [0..5] copied into dst's first 2 (of 4) rows; head 1 likewise.
@@ -860,7 +860,7 @@ TEST(GQACompiledModelCopyKvCachePrefixTest, CopiesPrefixAlongAxis3LeftAligned) {
     auto src = make_kv_cache_tensor({1, 1, 2, 2}, 0.f);
     auto dst = make_kv_cache_tensor({1, 1, 2, 4}, 100.f);
 
-    ASSERT_NO_THROW(ov::npuw::GQACompiledModel::copy_kv_cache_prefix(src, dst, /*axis=*/3));
+    ASSERT_NO_THROW(ov::npuw::GQAInferRequest::copy_kv_cache_prefix(src, dst, /*axis=*/3));
 
     const auto dst_values = to_vec(dst);
     // Row 0 (e=0): src[0,1] into dst's first 2 (of 4) slots; row 1 (e=1) likewise.
@@ -1034,15 +1034,15 @@ TEST(GQACompiledModelPresentAxisTest, MatchesSinkPortSuffixedFriendlyName) {
 }
 
 TEST(GQACompiledModelPresentToPastNameTest, StripsSinkPortSuffixAndSwapsPresentForPast) {
-    EXPECT_EQ(ov::npuw::GQACompiledModel::present_to_past_name("present_keys_0/sink_port_0"), "past_keys_0");
-    EXPECT_EQ(ov::npuw::GQACompiledModel::present_to_past_name("present_values_3"), "past_values_3");
+    EXPECT_EQ(ov::npuw::GQAInferRequest::present_to_past_name("present_keys_0/sink_port_0"), "past_keys_0");
+    EXPECT_EQ(ov::npuw::GQAInferRequest::present_to_past_name("present_values_3"), "past_values_3");
     // Matching is case-insensitive, but the replacement literal ("past") is not
     // case-adapted to the matched substring's original casing.
-    EXPECT_EQ(ov::npuw::GQACompiledModel::present_to_past_name("Present.3"), "past.3");
+    EXPECT_EQ(ov::npuw::GQAInferRequest::present_to_past_name("Present.3"), "past.3");
 }
 
 TEST(GQACompiledModelPresentToPastNameTest, ReturnsNulloptWhenNoPresentSubstring) {
-    EXPECT_FALSE(ov::npuw::GQACompiledModel::present_to_past_name("input_hidden_states").has_value());
+    EXPECT_FALSE(ov::npuw::GQAInferRequest::present_to_past_name("input_hidden_states").has_value());
 }
 
 }  // namespace

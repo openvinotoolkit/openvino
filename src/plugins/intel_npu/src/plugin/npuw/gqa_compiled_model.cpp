@@ -258,14 +258,14 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
 // Only compiled in for NPU_PLUGIN_DEVELOPER_BUILD; a cheap (argument-discarding, no
 // runtime check) no-op everywhere else, same as NPUW's other debug-only log macros.
 #ifdef NPU_PLUGIN_DEVELOPER_BUILD
-#define GQA_TRACE(msg)                                       \
-    do {                                                     \
-        if (gqa_trace_enabled()) {                           \
-            std::cout << "[GQA-TRACE] " << msg << std::endl; \
-        }                                                    \
-    } while (0)
+#    define GQA_TRACE(msg)                                       \
+        do {                                                     \
+            if (gqa_trace_enabled()) {                           \
+                std::cout << "[GQA-TRACE] " << msg << std::endl; \
+            }                                                    \
+        } while (0)
 #else
-#define GQA_TRACE(msg)
+#    define GQA_TRACE(msg)
 #endif
 
 ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(const std::shared_ptr<ov::Model>& model,
@@ -303,10 +303,6 @@ ov::npuw::GQACompiledModel::PreparedState ov::npuw::GQACompiledModel::prepare(co
     std::shared_ptr<ov::Model> compiled_model = model;
     std::unordered_map<std::string, size_t> dynamic_kv_cache_axes;
     if (has_dynamic_max_seq_len(model)) {
-        // Static capacity (in tokens) a dynamic KV-cache is reshaped to for NPU
-        // compilation. Configurable via NPUW_LLM_MAX_CONTEXT_LEN (falls back to that
-        // option's own default, 8192, if it isn't present in `properties`), or via the
-        // OPENVINO_NPUW_GQA_CTX_LEN environment variable, which takes priority over both.
         const size_t max_seq_len =
             gqa_ctx_len_env_override().value_or(cfg_get<::intel_npu::NPUW_LLM_MAX_CONTEXT_LEN>(properties));
         compiled_model = model->clone();
@@ -475,7 +471,7 @@ std::unordered_map<std::string, size_t> ov::npuw::GQACompiledModel::find_dynamic
     return result;
 }
 
-std::optional<std::string> ov::npuw::GQACompiledModel::present_to_past_name(const std::string& name) {
+std::optional<std::string> ov::npuw::GQAInferRequest::present_to_past_name(const std::string& name) {
     const auto slash_pos = name.find('/');
     const auto bare_name = slash_pos == std::string::npos ? name : name.substr(0, slash_pos);
     static const std::string kPresentToken = "present";
@@ -493,7 +489,7 @@ std::optional<std::string> ov::npuw::GQACompiledModel::present_to_past_name(cons
     return bare_name.substr(0, pos) + "past" + bare_name.substr(pos + kPresentToken.size());
 }
 
-void ov::npuw::GQACompiledModel::copy_kv_cache_prefix(const ov::SoPtr<ov::ITensor>& src,
+void ov::npuw::GQAInferRequest::copy_kv_cache_prefix(const ov::SoPtr<ov::ITensor>& src,
                                                       const ov::SoPtr<ov::ITensor>& dst,
                                                       size_t axis) {
     OPENVINO_ASSERT(src->get_element_type() == dst->get_element_type());
@@ -543,6 +539,7 @@ ov::npuw::GQACompiledModel::GQACompiledModel(PreparedState prepared,
                                              CompiledModelFactory factory)
     : ov::npuw::ICompiledModel(prepared.model, plugin),
       m_inner_compiled_model(factory(prepared.compiled_model, plugin, prepared.properties)),
+      m_outer_model(prepared.model),
       m_dynamic_kv_cache_axes(std::move(prepared.dynamic_kv_cache_axes)) {
     OPENVINO_ASSERT(m_inner_compiled_model != nullptr, "GQACompiledModel requires a valid inner compiled model");
     m_dynamic_kv_cache_output_axes = find_dynamic_kv_cache_output_axes(outputs());
@@ -558,6 +555,7 @@ ov::npuw::GQACompiledModel::GQACompiledModel(const std::shared_ptr<ov::Model>& o
                                              std::unordered_map<std::string, size_t> dynamic_kv_cache_axes)
     : ov::npuw::ICompiledModel(outer_model, plugin),
       m_inner_compiled_model(std::move(inner_compiled_model)),
+      m_outer_model(outer_model),
       m_dynamic_kv_cache_axes(std::move(dynamic_kv_cache_axes)) {
     OPENVINO_ASSERT(m_inner_compiled_model != nullptr, "GQACompiledModel requires a valid inner compiled model");
     m_dynamic_kv_cache_output_axes = find_dynamic_kv_cache_output_axes(outputs());
@@ -749,7 +747,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::GQACompiledModel::get_runtime_model() const {
-    return m_inner_compiled_model->get_runtime_model();
+    return m_outer_model;
 }
 
 void ov::npuw::GQACompiledModel::set_property(const ov::AnyMap& properties) {
@@ -944,7 +942,7 @@ void ov::npuw::GQAInferRequest::refresh_present_tensors_locked() const {
         // Resolve this output's shape length: mirror the corresponding past_key/value
         // input's own set length verbatim; otherwise fall back to the full buffer.
         size_t valid_len = capacity;
-        if (auto past_name = ov::npuw::GQACompiledModel::present_to_past_name(name)) {
+        if (auto past_name = ov::npuw::GQAInferRequest::present_to_past_name(name)) {
             auto past_it = m_dynamic_kv_cache_tensors.find(*past_name);
             if (past_it != m_dynamic_kv_cache_tensors.end()) {
                 valid_len = std::min<size_t>(capacity, past_it->second->get_shape().at(axis));
@@ -986,7 +984,7 @@ void ov::npuw::GQAInferRequest::refresh_present_tensors_locked() const {
         ov::Coordinate end(inner_tensor->get_shape());
         end.at(axis) = valid_len;
         auto inner_view = ov::SoPtr<ov::ITensor>(ov::make_tensor(inner_tensor._ptr, begin, end));
-        ov::npuw::GQACompiledModel::copy_kv_cache_prefix(inner_view, outer_tensor, axis);
+        ov::npuw::GQAInferRequest::copy_kv_cache_prefix(inner_view, outer_tensor, axis);
     }
 }
 
@@ -1117,7 +1115,7 @@ void ov::npuw::GQAInferRequest::sync_dynamic_kv_cache_tensors_locked() const {
         }
         GQA_TRACE("sync_dynamic_kv_cache_tensors_locked(): '"
                   << name << "' axis=" << axis << " copying live prefix, shape=" << tensor_it->second->get_shape());
-        ov::npuw::GQACompiledModel::copy_kv_cache_prefix(tensor_it->second, inner_tensor, axis);
+        ov::npuw::GQAInferRequest::copy_kv_cache_prefix(tensor_it->second, inner_tensor, axis);
     }
 }
 

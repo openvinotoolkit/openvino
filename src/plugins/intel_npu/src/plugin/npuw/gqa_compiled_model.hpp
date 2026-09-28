@@ -34,6 +34,19 @@ public:
     std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override;
     std::vector<ov::ProfilingInfo> get_profiling_info() const override;
 
+    // Best-effort match of a present_key/present_value output's friendly name back to
+    // its corresponding past_key/past_value input's friendly name, by swapping the
+    // "present" substring (case-insensitive) for "past". `name` may still carry a
+    // node-name suffix (e.g. the ONNX frontend's "/sink_port_0"); it is stripped
+    // before matching. Returns nullopt if "present" isn't found. Exposed for testing.
+    static std::optional<std::string> present_to_past_name(const std::string& name);
+
+    // Copies the valid prefix of a smaller, dynamically-sized rank-4 tensor (KV-cache or
+    // attention bias) into a larger statically-shaped one, left-aligned, along `axis` (2
+    // for [N,H,S,E], 3 for the transpose_v-applied [N,H,E,S]/[N,H,X,S] layout). Exposed
+    // for testing.
+    static void copy_kv_cache_prefix(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst, size_t axis);
+
 private:
     void ensure_inner_request_locked() const;
     const ov::Output<const ov::Node>& map_port_locked(const ov::Output<const ov::Node>& port) const;
@@ -105,18 +118,6 @@ public:
     static std::unordered_map<std::string, size_t> find_dynamic_kv_cache_output_axes(
         const std::vector<ov::Output<const ov::Node>>& outer_outputs);
 
-    // Best-effort match of a present_key/present_value output's friendly name back to
-    // its corresponding past_key/past_value input's friendly name, by swapping the
-    // "present" substring (case-insensitive) for "past". `name` may still carry a
-    // node-name suffix (e.g. the ONNX frontend's "/sink_port_0"); it is stripped
-    // before matching. Returns nullopt if "present" isn't found. Exposed for testing.
-    static std::optional<std::string> present_to_past_name(const std::string& name);
-
-    // Copies the valid prefix of a smaller, dynamically-sized rank-4 tensor (KV-cache or
-    // attention bias) into a larger statically-shaped one, left-aligned, along `axis` (2
-    // for [N,H,S,E], 3 for the transpose_v-applied [N,H,E,S]/[N,H,X,S] layout).
-    static void copy_kv_cache_prefix(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& dst, size_t axis);
-
     // Writes/reads outer-facing port metadata (friendly name + element type + partial
     // shape) for export_model()/import_model(). Deliberately keyed by friendly name (not
     // tensor names, which the generic NPUW serialize() overloads for ov::Output<const
@@ -170,6 +171,13 @@ private:
     friend class GQAInferRequest;
 
     std::shared_ptr<ov::npuw::ICompiledModel> m_inner_compiled_model;
+    // The outer-facing model (Parameters/Results as seen by the caller, dynamic
+    // KV-cache/attention-bias axes as originally presented -- i.e. before the
+    // reshape-to-static done in prepare()). Set on both the compile path (the
+    // pre-reshape PreparedState::model) and the import path (rebuilt from the
+    // exported port lists). Returned as-is from get_runtime_model(): callers care
+    // about the outer contract, not the inner (already-partitioned) implementation.
+    std::shared_ptr<const ov::Model> m_outer_model;
     std::unordered_map<std::string, size_t> m_dynamic_kv_cache_axes;
     // present_key/present_value outer output friendly name -> axis. Unlike
     // m_dynamic_kv_cache_axes this is *not* serialized: it's cheaply re-derivable from
