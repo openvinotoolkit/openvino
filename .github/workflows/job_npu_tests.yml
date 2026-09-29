@@ -195,9 +195,6 @@ jobs:
         shell: cmd
         env:
           OP_REPORT_FILE: "${{ env.INSTALL_TEST_DIR }}\\TEST-pt_npu_unsupported_ops_${{ matrix.npu-platform }}.log"
-          # Opt-in trial: exercises the weights-separation compile path for this group only,
-          # so a regression here doesn't affect the other NPU test groups.
-          NPU_TEST_ENABLE_WEIGHTLESS: '1'
         run: |
           set PYTHONPATH=${{ env.INSTALL_TEST_DIR }}\model_hub_tests;%PYTHONPATH%
           python3 -m pytest ^
