@@ -96,7 +96,7 @@ TEST_F(IOLayoutsSectionRead, LessLayoutsThanExpected) {
     // overwrite both numbers of layouts
     const uint32_t fake_count = 20;
     std::memcpy(buffer.data(), &fake_count, sizeof(fake_count));
-    std::memcpy(buffer.data() + sizeof(uint32_t), &fake_count, sizeof(fake_count));
+    std::memcpy(buffer.data() + LAYOUTS_COUNT_SIZE, &fake_count, sizeof(fake_count));
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
     BlobSource source(tensor);
@@ -114,7 +114,7 @@ TEST_F(IOLayoutsSectionRead, MoreLayoutsThanExpected) {
     // overwrite both numbers of layouts
     const uint32_t fake_count = 1;
     std::memcpy(buffer.data(), &fake_count, sizeof(fake_count));
-    std::memcpy(buffer.data() + sizeof(uint32_t), &fake_count, sizeof(fake_count));
+    std::memcpy(buffer.data() + LAYOUTS_COUNT_SIZE, &fake_count, sizeof(fake_count));
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
     BlobSource source(tensor);
@@ -130,7 +130,7 @@ TEST_F(IOLayoutsSectionRead, InvalidLayoutNoThrow) {
     std::string buffer = stream.str();
 
     // overwrite input layout '[N]' with '[%]'
-    const size_t layout_offset = 2 * sizeof(uint32_t) + sizeof(uint16_t);
+    const size_t layout_offset = 2 * LAYOUTS_COUNT_SIZE + sizeof(uint16_t);
     ASSERT_GE(buffer.size(), layout_offset + 3);
     buffer[layout_offset] = '[';
     buffer[layout_offset + 1] = '%';
@@ -159,7 +159,7 @@ TEST_F(IOLayoutsSectionRead, AlteredLayoutSizeTooBig) {
 
     // overwrite both numbers of layouts
     const uint16_t fake_layout_size = 5;
-    std::memcpy(buffer.data() + 2 * sizeof(uint32_t), &fake_layout_size, sizeof(fake_layout_size));
+    std::memcpy(buffer.data() + 2 * LAYOUTS_COUNT_SIZE, &fake_layout_size, sizeof(fake_layout_size));
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
     BlobSource source(tensor);
