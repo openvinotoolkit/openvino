@@ -148,6 +148,8 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"NV12toBGR", Type::ColorConvert},
         {"I420toRGB", Type::ColorConvert},
         {"I420toBGR", Type::ColorConvert},
+        {"RGBtoNV12", Type::ColorConvert},
+        {"BGRtoNV12", Type::ColorConvert},
         {"Col2Im", Type::Col2Im},
         {"MVN", Type::MVN},
         {"NormalizeL2", Type::NormalizeL2},
@@ -544,6 +546,8 @@ std::string algToString(const Algorithm alg) {
         CASE(ColorConvertNV12toBGR);
         CASE(ColorConvertI420toRGB);
         CASE(ColorConvertI420toBGR);
+        CASE(ColorConvertRGBtoNV12);
+        CASE(ColorConvertBGRtoNV12);
     }
 #undef CASE
     return "Undefined";
