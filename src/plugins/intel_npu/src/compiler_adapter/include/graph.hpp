@@ -25,7 +25,6 @@ public:
           const GraphDescriptor& graphDesc,
           NetworkMetadata metadata,
           std::optional<ov::Tensor> blob,
-          const Config& config,
           const std::optional<std::string>& compatibilityDescriptor = std::nullopt,
           const bool blobIsPersistent = false);
 
