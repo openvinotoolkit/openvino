@@ -15,7 +15,6 @@
 #include "openvino/op/result.hpp"
 #include "openvino/pass/manager.hpp"
 
-
 namespace ov::test::intel_gpu {
 namespace {
 
@@ -44,6 +43,8 @@ struct GQAConfig {
     bool attention_bias = false;
     bool head_sink = false;
     bool causal = true;
+    ov::PartialShape key_scale_shape{1};
+    ov::PartialShape value_scale_shape{1};
 };
 
 std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
@@ -84,8 +85,8 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
         parameters.push_back(head_sink);
     }
     if (cfg.kv_cache_bit_width) {
-        auto key_scale = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1});
-        auto value_scale = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1});
+        auto key_scale = std::make_shared<ov::op::v0::Parameter>(f32, cfg.key_scale_shape);
+        auto value_scale = std::make_shared<ov::op::v0::Parameter>(f32, cfg.value_scale_shape);
         inputs[12] = key_scale;
         inputs[13] = value_scale;
         parameters.push_back(key_scale);
@@ -171,7 +172,7 @@ TEST(GroupQueryAttentionDecompositionTest, control_plain_causal_uses_lower_right
     EXPECT_EQ(sdpa->get_causal_mask_alignment(), ov::intel_gpu::op::SDPA::CausalMaskAlignment::LOWER_RIGHT);
 }
 
-TEST(GroupQueryAttentionDecompositionTest, quantized_kv_uses_compressed_sdpa) {
+TEST(GroupQueryAttentionDecompositionTest, quantized_kv_per_tensor_uses_compressed_sdpa) {
     GQAConfig cfg;
     cfg.kv_cache_bit_width = 8;
     cfg.kv_quant = QuantType::PER_TENSOR;
@@ -180,14 +181,51 @@ TEST(GroupQueryAttentionDecompositionTest, quantized_kv_uses_compressed_sdpa) {
     const auto sdpa = decompose_and_get_sdpa(cfg);
 
     ASSERT_NE(sdpa, nullptr);
-    EXPECT_TRUE(sdpa->get_kv_compressed());
-    EXPECT_EQ(sdpa->get_input_size(), 5u) << "Q, K, V, K scale, V scale";
+    ASSERT_TRUE(sdpa->get_kv_compressed());
+    ASSERT_EQ(sdpa->get_input_size(), 5u) << "Q, K, V, K scale, V scale";
     EXPECT_EQ(sdpa->get_quantization_attrs().quantization_dt, ov::element::i8);
     EXPECT_EQ(sdpa->get_quantization_attrs().scale_dt, ov::element::f16);
+    EXPECT_EQ(sdpa->get_quantization_attrs().group_sizes,
+              (std::vector<uint64_t>{1,
+                                     1,
+                                     std::numeric_limits<uint64_t>::max(),
+                                     std::numeric_limits<uint64_t>::max()}));
     EXPECT_EQ(sdpa->input_value(1).get_element_type(), ov::element::i8);
     EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::i8);
     EXPECT_TRUE(ov::is_type<ov::op::v0::Concat>(sdpa->input_value(1).get_node_shared_ptr()));
     EXPECT_TRUE(ov::is_type<ov::op::v0::Concat>(sdpa->input_value(2).get_node_shared_ptr()));
+    EXPECT_EQ(sdpa->input_value(3).get_element_type(), ov::element::f16);
+    EXPECT_EQ(sdpa->input_value(4).get_element_type(), ov::element::f16);
+    EXPECT_EQ(sdpa->input_value(3).get_partial_shape(), ov::PartialShape({1, 1, 1, 1}));
+    EXPECT_EQ(sdpa->input_value(4).get_partial_shape(), ov::PartialShape({1, 1, 1, 1}));
+}
+
+TEST(GroupQueryAttentionDecompositionTest, quantized_kv_per_channel_uses_compressed_sdpa) {
+    GQAConfig cfg;
+    cfg.kv_cache_bit_width = 8;
+    cfg.kv_quant = QuantType::PER_CHANNEL;
+    cfg.out_quant = QuantType::PER_CHANNEL;
+    cfg.key_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+    cfg.value_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+
+    const auto sdpa = decompose_and_get_sdpa(cfg);
+
+    ASSERT_NE(sdpa, nullptr);
+    ASSERT_TRUE(sdpa->get_kv_compressed());
+    ASSERT_EQ(sdpa->get_input_size(), 5u) << "Q, K, V, K scale, V scale";
+    EXPECT_EQ(sdpa->get_quantization_attrs().quantization_dt, ov::element::i8);
+    EXPECT_EQ(sdpa->get_quantization_attrs().scale_dt, ov::element::f16);
+    EXPECT_EQ(sdpa->get_quantization_attrs().group_sizes,
+              (std::vector<uint64_t>{1, 1, std::numeric_limits<uint64_t>::max(), 1}));
+    EXPECT_EQ(sdpa->input_value(1).get_element_type(), ov::element::i8);
+    EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::i8);
+    EXPECT_TRUE(ov::is_type<ov::op::v0::Concat>(sdpa->input_value(1).get_node_shared_ptr()));
+    EXPECT_TRUE(ov::is_type<ov::op::v0::Concat>(sdpa->input_value(2).get_node_shared_ptr()));
+    const size_t num_data_inputs = sdpa->get_input_size() - sdpa->get_compression_inputs_num();
+    EXPECT_EQ(sdpa->input_value(num_data_inputs).get_element_type(), ov::element::f16);
+    EXPECT_EQ(sdpa->input_value(num_data_inputs + 1).get_element_type(), ov::element::f16);
+    EXPECT_EQ(sdpa->input_value(num_data_inputs).get_partial_shape(), ov::PartialShape({1, kv_num_heads, 1, head_size}));
+    EXPECT_EQ(sdpa->input_value(num_data_inputs + 1).get_partial_shape(), ov::PartialShape({1, kv_num_heads, 1, head_size}));
 }
 
 TEST(GroupQueryAttentionDecompositionTest, quantized_kv_preserves_mask_scale_and_sink_inputs) {
