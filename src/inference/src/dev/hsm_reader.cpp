@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <limits>
 
 #include "openvino/util/variant_visitor.hpp"
 
@@ -81,6 +82,15 @@ bool has_container_size_bytes(std::istream& stream, std::streampos start, const 
     stream.ignore(static_cast<std::streamsize>(header.container_size));
     return stream.good();
 }
+
+// 32-bit size_t can't represent every HSMSizeType value - reject oversized sections before they're constructed.
+constexpr bool section_size_fits_size_t(const ManifestEntry& entry) noexcept {
+    if constexpr (sizeof(size_t) < sizeof(HSMSizeType)) {
+        return !entry.tag.is_pointer() || entry.size <= static_cast<HSMSizeType>(std::numeric_limits<size_t>::max());
+    } else {
+        return true;
+    }
+}
 }  // namespace
 
 std::optional<HsmReader> HsmReader::open(std::istream& stream) {
@@ -92,7 +102,7 @@ std::optional<HsmReader> HsmReader::open(std::istream& stream) {
         !is_valid_header_fields(header) || !read_manifest(stream, start, header, manifest) ||
         !has_container_size_bytes(stream, start, header) ||
         !std::all_of(manifest.begin(), manifest.end(), [&header](const ManifestEntry& entry) {
-            return is_valid_section_bounds(entry, header);
+            return is_valid_section_bounds(entry, header) && section_size_fits_size_t(entry);
         })) {
         return std::nullopt;
     } else {
@@ -150,7 +160,7 @@ size_t HsmReader::count_by_id(DeviceId device, uint32_t tag_id) const noexcept {
     }));
 }
 
-size_t HsmReader::read_sections(const std::vector<IHsmSectionExtension*>& extensions) const {
+size_t HsmReader::read_sections(const std::vector<IHsmSectionHandler*>& handlers) const {
     size_t handled = 0;
     for (const auto& entry : m_manifest) {
         const auto section = make_section(entry);
@@ -165,8 +175,8 @@ size_t HsmReader::read_sections(const std::vector<IHsmSectionExtension*>& extens
             }
             view = {owned->data(), owned->size()};
         }
-        for (const auto& extension : extensions) {
-            if (extension != nullptr && extension->read_section(entry, view)) {
+        for (const auto& handler : handlers) {
+            if (handler != nullptr && handler->handle_section(entry, view)) {
                 ++handled;
                 break;
             }

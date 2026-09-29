@@ -105,6 +105,9 @@ private:
  * read - the reader itself never interprets content, so nothing here needs to change per source or per shape
  * of read.
  * @note Convention, not enforced: report malformed content via `std::nullopt`, never throw.
+ * @note Distinct from #IHsmSectionHandler: this is a stateless function for one already-known `(device, tag)`
+ * pair, invoked via #HsmReader::decode()/#HsmReader::decode_all(). #IHsmSectionHandler is for a set of
+ * stateful handlers dispatched across an entire manifest in one pass, without enumerating tags up front.
  */
 template <typename T>
 using HsmSectionDecoder = std::function<std::optional<T>(const HsmSection&)>;
@@ -286,13 +289,13 @@ public:
     }
 
     /**
-     * @brief Dispatches every manifest entry - Core-owned sections included - to @p extensions, in order,
-     * stopping at the first one that recognizes it. An entry no extension recognizes is silently skipped.
+     * @brief Dispatches every manifest entry - Core-owned sections included - to @p handlers, in order,
+     * stopping at the first one that recognizes it. An entry no handler recognizes is silently skipped.
      *
-     * @param extensions The list of extensions to dispatch the manifest entries to.
-     * @return The number of entries actually handled by some extension.
+     * @param handlers The list of handlers to dispatch the manifest entries to.
+     * @return The number of entries actually handled by some handler.
      */
-    size_t read_sections(const std::vector<IHsmSectionExtension*>& extensions) const;
+    size_t read_sections(const std::vector<IHsmSectionHandler*>& handlers) const;
 
 private:
     HsmReader(std::optional<ov::util::MemoryView> buffer,

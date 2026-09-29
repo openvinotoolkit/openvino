@@ -83,15 +83,6 @@ std::vector<uint8_t> make_container(std::vector<EntrySpec> specs,
     return buffer;
 }
 
-std::vector<uint8_t> make_sample_reader_container() {
-    return make_container({
-        {make_inline_entry(runtime::any_device_id, runtime::model_id_tag(), {0xAA, 0xBB, 0xCC, 0xDD}), {}},
-        {make_pointer_entry(runtime::any_device_id, runtime::model_tag()), "compiled-model-bytes"},
-        {make_pointer_entry(fake_device_id, runtime::make_device_tag(/*local_id=*/1, /*is_inline=*/false)),
-         "device-specific-payload"},
-    });
-}
-
 std::string to_string(const std::vector<std::byte>& section) {
     return {reinterpret_cast<const char*>(section.data()), section.size()};
 }
@@ -101,12 +92,21 @@ std::string to_string(const runtime::HsmSection& section) {
     return bytes ? to_string(*bytes) : std::string{};
 }
 
-// Minimal IHsmSectionExtension: recognizes one (device, tag id) pair, records what it was handed.
-class RecordingExtension : public runtime::IHsmSectionExtension {
-public:
-    RecordingExtension(runtime::DeviceId device, uint32_t tag_id) : m_device(device), m_tag_id(tag_id) {}
+std::vector<uint8_t> make_sample_reader_container() {
+    return make_container({
+        {make_inline_entry(runtime::any_device_id, runtime::model_id_tag(), {0xAA, 0xBB, 0xCC, 0xDD}), {}},
+        {make_pointer_entry(runtime::any_device_id, runtime::model_tag()), "compiled-model-bytes"},
+        {make_pointer_entry(fake_device_id, runtime::make_device_tag(/*local_id=*/1, /*is_inline=*/false)),
+         "device-specific-payload"},
+    });
+}
 
-    bool read_section(const runtime::ManifestEntry& entry, ov::util::MemoryView section) override {
+// Minimal IHsmSectionHandler: recognizes one (device, tag id) pair, records what it was handed.
+class RecordingHandler : public runtime::IHsmSectionHandler {
+public:
+    RecordingHandler(runtime::DeviceId device, uint32_t tag_id) : m_device(device), m_tag_id(tag_id) {}
+
+    bool handle_section(const runtime::ManifestEntry& entry, ov::util::MemoryView section) override {
         if (entry.device != m_device || entry.tag.id() != m_tag_id) {
             return false;
         }
@@ -335,13 +335,13 @@ TEST(HsmReaderTest, entries_gives_a_manifest_overview_without_reading_any_payloa
     EXPECT_EQ(reader->entries()[2].device, fake_device_id);
 }
 
-TEST(HsmReaderTest, read_sections_dispatches_to_matching_extension_and_skips_the_rest) {
+TEST(HsmReaderTest, read_sections_dispatches_to_matching_handler_and_skips_the_rest) {
     const auto blob = make_sample_reader_container();
     const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    RecordingExtension matching(fake_device_id, /*tag_id=*/runtime::core_tag_id_range_end + 1);
-    RecordingExtension unrelated(/*device=*/9, /*tag_id=*/999);
+    RecordingHandler matching(fake_device_id, /*tag_id=*/runtime::core_tag_id_range_end + 1);
+    RecordingHandler unrelated(/*device=*/9, /*tag_id=*/999);
 
     const auto handled = reader->read_sections({&unrelated, &matching});
     EXPECT_EQ(handled, 1u);
@@ -350,14 +350,14 @@ TEST(HsmReaderTest, read_sections_dispatches_to_matching_extension_and_skips_the
     EXPECT_EQ(unrelated.handled_count, 0u);
 }
 
-TEST(HsmReaderTest, read_sections_can_dispatch_core_owned_entries_when_an_extension_registers_for_them) {
+TEST(HsmReaderTest, read_sections_can_dispatch_core_owned_entries_when_a_handler_registers_for_them) {
     // Customization point: Core sections are ordinary entries here, not special-cased - a plugin extension
     // may register for (any_device_id, model_id) to override/extend how that common section is handled.
     const auto blob = make_sample_reader_container();
     const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    RecordingExtension model_id_override(runtime::any_device_id, runtime::model_id);
+    RecordingHandler model_id_override(runtime::any_device_id, runtime::model_id);
     EXPECT_EQ(reader->read_sections({&model_id_override}), 1u);
     EXPECT_EQ(model_id_override.handled_count, 1u);
 }
@@ -811,13 +811,13 @@ TEST(HsmReaderStreamTest, sections_returns_every_matching_entry) {
     EXPECT_EQ(to_string(sections[1]), "shard-1");
 }
 
-TEST(HsmReaderStreamTest, read_sections_dispatches_same_extension_type_as_memory_backed_reader) {
+TEST(HsmReaderStreamTest, read_sections_dispatches_same_handler_type_as_memory_backed_reader) {
     const auto blob = make_sample_reader_container();
     auto stream = make_stream(blob);
     const auto reader = runtime::HsmReader::open(stream);
     ASSERT_TRUE(reader.has_value());
 
-    RecordingExtension extension(fake_device_id, /*tag_id=*/runtime::core_tag_id_range_end + 1);
+    RecordingHandler extension(fake_device_id, /*tag_id=*/runtime::core_tag_id_range_end + 1);
     EXPECT_EQ(reader->read_sections({&extension}), 1u);
     EXPECT_EQ(extension.last_payload, "device-specific-payload");
 }
