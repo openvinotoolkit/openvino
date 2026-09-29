@@ -8,7 +8,7 @@ request file, served with continuous batching, and read back.
         --tokenizer <HF dir with tokenizer + chat template> \
         --serve <build>/paged_serve_llm_27b --tasks gsm8k_cot_llama \
         [--limit N] [--batch 8] [--think medium|xhigh|off] [--max-gen 4096] \
-        [--out <dir>]
+        [--metadata '{"max_seq_lengths": [8192]}'] [--out <dir>]
 
 Greedy, chat template applied (few-shot as multi-turn), thinking on by default
 with the answer taken after </think>, i.e. the same protocol as
@@ -127,6 +127,8 @@ def main():
     ap.add_argument("--max-gen", type=int, default=4096)
     ap.add_argument("--max-len", type=int, default=6144)
     ap.add_argument("--device", default="GPU")
+    ap.add_argument("--metadata", default="{}",
+                    help="JSON task metadata, e.g. RULER max_seq_lengths; the tokenizer is added")
     ap.add_argument("--out", default="lm_eval_ov_out")
     a = ap.parse_args()
     os.makedirs(a.out, exist_ok=True)
@@ -137,7 +139,8 @@ def main():
     results = simple_evaluate(model=lm, tasks=a.tasks.split(","), limit=a.limit,
                               apply_chat_template=True, fewshot_as_multiturn=True,
                               gen_kwargs={"temperature": 0, "max_gen_toks": a.max_gen},
-                              log_samples=True, confirm_run_unsafe_code=True)
+                              log_samples=True, confirm_run_unsafe_code=True,
+                              metadata={"tokenizer": a.tokenizer} | json.loads(a.metadata))
     wall = time.perf_counter() - t0
     print(make_table(results))
     print(f"wall {wall:.0f} s, serve {lm.serve_seconds:.0f} s, generated tokens {lm.total_gen_tokens}")

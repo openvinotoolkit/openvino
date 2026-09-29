@@ -13,7 +13,9 @@
 //             (including the EOS that stopped it, if any).
 // Env: BENCH_MAX_LEN (per-sequence context, default 6144), BENCH_PRECISION,
 //      BENCH_EOS (comma list, default 248044,248046), BENCH_BLOCK_SIZE,
-//      BENCH_VERBOSE=1 (per-request progress on stderr).
+//      BENCH_VERBOSE=1 (per-request progress on stderr),
+//      BENCH_TIMINGS=<csv> (per request: prompt and generated tokens, TTFT, decode time),
+//      BENCH_PROFILE=1 (device time per op type, summed over prefill and decode steps).
 
 #include <openvino/op/constant.hpp>
 #include <openvino/op/gather.hpp>
@@ -29,6 +31,7 @@
 #include <cstring>
 #include <deque>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <map>
 #include <openvino/runtime/iremote_tensor.hpp>
@@ -78,6 +81,11 @@ struct Slot {
     int32_t read_slot = 0;  // linear-attention state slot to read this step
     int64_t next = 0;       // token to feed this step
     std::vector<int64_t> generated;
+    std::chrono::high_resolution_clock::time_point t_start, t_first;
+};
+
+struct Timing {
+    double ttft_ms = 0, decode_ms = 0;
 };
 
 }  // namespace
@@ -116,12 +124,16 @@ int main(int argc, char** argv) {
         }
     }
     std::vector<std::vector<int64_t>> outputs(requests.size());
+    std::vector<Timing> timings(requests.size());
     std::cerr << requests.size() << " requests, batch " << batch << ", context " << max_context_len << "\n";
 
     try {
         ov::Core core;
         const char* precision = std::getenv("BENCH_PRECISION");
         ov::AnyMap config{{"INFERENCE_PRECISION_HINT", precision ? precision : "f16"}};
+        const bool profile = std::getenv("BENCH_PROFILE") != nullptr;
+        if (profile)
+            config[ov::enable_profiling.name()] = true;
         if (const char* cache = std::getenv("OV_CACHE_DIR"))
             core.set_property(ov::cache_dir(cache));
 
@@ -255,6 +267,13 @@ int main(int argc, char** argv) {
         // slot start at its `past`. Fills the paged-attention and linear-
         // attention metadata for every subsequence in the batch.
         std::vector<Slot> slots(batch);
+        // [0] prefill, [1] decode: op type -> (us, count)
+        std::map<std::string, std::pair<double, size_t>> prof[2];
+        size_t prof_steps[2] = {0, 0};
+        // The plugin reports each node's mean over all infers so far; mean times
+        // infer count is its running total, and the step's share is the change.
+        std::map<std::string, double> prof_total;
+        size_t infers = 0;
         auto run_step = [&](const std::vector<std::pair<int32_t, int32_t>>& parts) {
             size_t total = 0;
             for (const auto& p : parts)
@@ -294,6 +313,21 @@ int main(int argc, char** argv) {
                 rows.push_back(subseq[i] - 1);
             set_i32(request, "logit_rows", rows);
             request.infer();
+            if (profile) {
+                const int phase = total == parts.size() ? 1 : 0;
+                ++prof_steps[phase];
+                ++infers;
+                for (const auto& p : request.get_profiling_info()) {
+                    if (p.status == ov::ProfilingInfo::Status::NOT_RUN)
+                        continue;
+                    const double running = static_cast<double>(p.real_time.count()) * static_cast<double>(infers);
+                    auto& last = prof_total[p.node_name];
+                    auto& e = prof[phase][p.node_type];
+                    e.first += running - last;
+                    e.second += 1;
+                    last = running;
+                }
+            }
             for (const auto& [s, len] : parts) {
                 slots[s].past += len;
                 slots[s].read_slot = 1 - slots[s].read_slot;
@@ -315,7 +349,9 @@ int main(int argc, char** argv) {
         size_t done = 0, steps = 0, decoded_tokens = 0;
         const auto t0 = std::chrono::high_resolution_clock::now();
         auto finish = [&](int32_t s) {
+            using ms = std::chrono::duration<double, std::milli>;
             outputs[slots[s].req] = slots[s].generated;
+            timings[slots[s].req] = {ms(slots[s].t_first - slots[s].t_start).count(), ms(std::chrono::high_resolution_clock::now() - slots[s].t_first).count()};
             slots[s].active = false;
             ++done;
             if (verbose)
@@ -336,11 +372,13 @@ int main(int argc, char** argv) {
                 zero_slot_state(s);
                 slots[s].active = true;
                 slots[s].req = r;
+                slots[s].t_start = std::chrono::high_resolution_clock::now();
                 feed_embeds(requests[r].prompt);
                 run_step({{s, static_cast<int32_t>(requests[r].prompt.size())}});
                 const auto logits = request.get_output_tensor();
                 const size_t rows = logits.get_size() / logits.get_shape().back();
                 slots[s].next = argmax_row(logits, rows - 1);
+                slots[s].t_first = std::chrono::high_resolution_clock::now();
                 slots[s].generated.push_back(slots[s].next);
                 if (is_eos(slots[s].next) || requests[r].max_new <= 1)
                     finish(s);
@@ -357,7 +395,7 @@ int main(int argc, char** argv) {
                 parts.emplace_back(s, 1);
             }
             if (active.empty())
-                break;
+                continue;  // every refilled slot finished on its first token
             feed_embeds(tokens);
             run_step(parts);
             const auto logits = request.get_output_tensor();
@@ -388,6 +426,26 @@ int main(int argc, char** argv) {
             for (size_t i = 0; i < ids.size(); ++i)
                 out << (i ? "," : "") << ids[i];
             out << '\n';
+        }
+        if (const char* tpath = std::getenv("BENCH_TIMINGS")) {
+            // With batch > 1 the decode time also covers other slots' prefills and steps.
+            std::ofstream tout(tpath);
+            tout << "request,prompt_tokens,generated_tokens,ttft_ms,decode_ms\n";
+            for (size_t i = 0; i < requests.size(); ++i)
+                tout << i << ',' << requests[i].prompt.size() << ',' << outputs[i].size() << ',' << timings[i].ttft_ms << ',' << timings[i].decode_ms << '\n';
+        }
+        for (int phase = 0; profile && phase < 2; ++phase) {
+            std::vector<std::pair<std::string, std::pair<double, size_t>>> v(prof[phase].begin(), prof[phase].end());
+            std::sort(v.begin(), v.end(), [](const auto& a, const auto& b) {
+                return a.second.first > b.second.first;
+            });
+            double total = 0;
+            for (const auto& e : v)
+                total += e.second.first;
+            std::cerr << (phase ? "decode" : "prefill") << " profile: " << prof_steps[phase] << " steps, " << total / 1000.0 << " ms device time\n";
+            for (const auto& e : v)
+                std::cerr << "  " << std::setw(32) << std::left << e.first << std::setw(12) << std::right << e.second.first / 1000.0
+                          << " ms  n=" << e.second.second << "  (" << 100.0 * e.second.first / total << "%)\n";
         }
         return 0;
     } catch (const std::exception& error) {

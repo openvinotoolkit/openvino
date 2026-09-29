@@ -54,6 +54,7 @@ source env.sh && cd $OV_ROOT
 cmake -B build -G Ninja \
   -DCMAKE_BUILD_TYPE=Release \
   -DCMAKE_C_COMPILER=icx -DCMAKE_CXX_COMPILER=icpx \
+  -DCMAKE_C_FLAGS=-fp-model=precise -DCMAKE_CXX_FLAGS=-fp-model=precise \
   -DGPU_RT_TYPE=OCL \
   -DENABLE_INTEL_CPU=OFF -DENABLE_INTEL_NPU=OFF \
   -DENABLE_PYTHON=OFF -DENABLE_SAMPLES=OFF -DENABLE_TESTS=OFF \
@@ -61,7 +62,15 @@ cmake -B build -G Ninja \
   -DENABLE_SYSTEM_OPENCL=OFF \
   -DTHREADING=TBB_ADAPTIVE
 cmake --build build -j $(nproc)
+```
 
+`-fp-model=precise` is required with `icx`/`icpx`: their default fast floating-point
+model rewrites the `double` division in `ov::Dimension` shape arithmetic as a
+multiplication by the reciprocal, which rounds some exact quotients down (e.g.
+7450 / 3725 → 1). Reshapes with a `-1` then fail at run time for about one prompt
+length in five ("Non-'-1' output dimensions do not evenly divide the input dimensions").
+
+```bash
 strings bin/intel64/Release/libopenvino_intel_gpu_plugin.so | grep -c int2_fp16_upcvt_gemm_mt   # non-zero: kernels embedded
 
 cd src/plugins/intel_gpu/tools/int2
