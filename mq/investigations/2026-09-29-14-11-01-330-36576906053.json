@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-09-29-14-11-01-330-36576906053",
+  "timestamp": "2026-09-29T14:11:01Z",
+  "run_id": "36576906053",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36576906053",
+  "workflow_name": "Manylinux 2_28",
+  "pr_number": "38466",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38466",
+  "author": "e-ddykim",
+  "category": "Network",
+  "title": "Python API tests job fails - artifact upload ECONNREFUSED and git fetch connection failure",
+  "signature": "Failed to CreateArtifact: Unable to make request: ECONNREFUSED|Network",
+  "signature_hash": "b6957c2b9e09de1c",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Python API tests - Python 3.12 / Python API tests",
+      "conclusion": "failure",
+      "symptom": "All 7266 pytest cases and doc snippets passed; job failed post-test during artifact upload (ECONNREFUSED to GitHub artifact service) and a subsequent git submodule cleanup fetch failed (Couldn't connect to server on port 443)"
+    },
+    {
+      "name": "ci/gha_overall_status_manylinux_2_28",
+      "conclusion": "failure",
+      "symptom": "Aggregated overall-status job reported failure because the Python 3.12 API tests job above failed"
+    }
+  ],
+  "key_errors": [
+    "2026-09-29T14:04:41.5302339Z ##[error]Failed to CreateArtifact: Unable to make request: ECONNREFUSED\nIf you are using self-hosted runners, please make sure your runner has access to all GitHub endpoints",
+    "2026-09-29T14:04:41.7606826Z fatal: unable to access 'https://github.com/openvinotoolkit/openvino/': Failed to connect to github.com port 443 after 15 ms: Couldn't connect to server\n2026-09-29T14:04:41.8203959Z fatal: could not fetch 178d8e177686899c93be4a1649b7618476987e23 from promisor remote\n2026-09-29T14:04:41.8232307Z ##[warning]The process '/usr/bin/git' failed with exit code 128"
+  ],
+  "root_cause": "The Python 3.12 API tests job (test suite: 7266 passed, 61 skipped, all pytest and doc-snippet checks green) failed purely at the post-job/cleanup stage on the self-hosted runner: the upload-artifact action could not reach the GitHub Actions artifact service (ECONNREFUSED) and the subsequent git submodule cleanup step could not reach github.com on port 443 at all (Couldn't connect to server). Both symptoms point to a transient loss of outbound network connectivity from the self-hosted runner/container to github.com's endpoints during the post-job phase, not to any problem with the PR's actual code changes.",
+  "reproduction_steps": "N/A - not reproducible outside CI; requires the exact self-hosted runner network conditions at job cleanup time. Locally, run the same pytest suite (install/tests/pyopenvino) to confirm it passes.",
+  "recommended_actions": [
+    "Re-run the failed 'Python API tests - Python 3.12' job; the test suite itself passed and only the post-job artifact upload/git cleanup network calls failed.",
+    "If ECONNREFUSED/connection failures to github.com recur frequently on manylinux_2_28 self-hosted runners, escalate to the CI infra team to check outbound network/DNS health for that runner pool.",
+    "No code changes are required in the PR; the failure is unrelated to the GPU kernel changes under src/plugins/intel_gpu/."
+  ],
+  "prevention_strategies": "Consider adding retry/backoff to artifact upload and git fetch steps in the shared job templates for self-hosted runners, and monitor self-hosted runner network health metrics to catch outbound connectivity blips before they cause CI failures.",
+  "historical_context": "Similar ECONNREFUSED / ENOTFOUND artifact-service connectivity failures have been recorded multiple times in the merge-queue pattern database (e.g., FinalizeArtifact ECONNREFUSED on NPU Models Tests, ListArtifacts ECONNREFUSED on Windows/self-hosted runners, CreateArtifact ENOTFOUND on Windows runners) - all classified as Network/Infrastructure and typically resolved by a simple rerun. This is the first recorded occurrence combining a CreateArtifact ECONNREFUSED with a simultaneous git fetch connection failure, suggesting a broader transient network outage on the runner rather than an artifact-service-specific issue."
+}

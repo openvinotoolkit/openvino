@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "Failed to CreateArtifact: Unable to make request: ECONNREFUSED|Network",
+  "signature_hash": "b6957c2b9e09de1c",
+  "title": "Python API tests job fails - artifact upload ECONNREFUSED and git fetch connection failure",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-09-29T14:11:01Z",
+  "last_seen": "2026-09-29T14:11:01Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/36576906053"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/38466"
+  ],
+  "recent_timestamps": [
+    "2026-09-29T14:11:01Z"
+  ],
+  "rerun_search_string": "Failed to CreateArtifact: Unable to make request: ECONNREFUSED"
+}
