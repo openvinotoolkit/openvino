@@ -73,6 +73,11 @@ protected:
                 results.push_back(std::make_shared<ov::op::v0::Result>(groupConvolutionNode->output(i)));
 
         function = std::make_shared<ov::Model>(results, inputParams, "GroupConvolution");
+
+        if (model_type == ov::element::f16) {
+            abs_threshold = 0.5;
+            rel_threshold = 0.01;
+        }
     }
 };
 

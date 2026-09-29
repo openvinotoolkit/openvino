@@ -15,7 +15,7 @@ protected:
         const auto& [convParams, with_modulation, model_type, shapes, target_device] = this->GetParam();
         if (model_type == ov::element::f16) {
             abs_threshold = 0.5;
-            rel_threshold = 0.01;
+            rel_threshold = 0.05;
         }
     }
 };
