@@ -316,3 +316,9 @@ TEST(moe_offload_constant, estimate_available_tracked_device_memory_calculates_d
         EXPECT_EQ(estimate_available_tracked_device_memory_bytes(engine, used_bytes - 1), 0U);
     }
 }
+
+#if defined(__linux__)
+TEST(moe_offload_constant, query_available_ram_bytes_returns_positive) {
+    EXPECT_GT(query_available_ram_bytes(), 0U);
+}
+#endif
