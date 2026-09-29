@@ -129,18 +129,12 @@ struct onednn_eltwise_fusing_helpers {
         not_supported,
     };
 
-    // Common to both fused eltwise modes.
     static void for_eltwise(const program_node& conv_node, eltwise_mode mode,
                             std::function<void(const program_node&, const fused_primitive_desc&)> func);
-    // Index of the dependency whose buffer is reused as the node's output, or -1.
     static int32_t get_reused_eltwmem_idx(const program_node& node, const kernel_impl_params* params = nullptr);
 
-    // sum: residual add.
     static add_fusing_type get_add_fusing_type(const program_node& node, const fused_primitive_desc& desc);
 
-    // prod: oneDNN's in-place binary multiplication, supported on matmul-based primitives
-    // (gemm/fully_connected) with the same buffer-reuse conditions as sum.
-    // The node layouts of a dynamic node are unresolved, so pass the runtime params to decide on actual shapes.
     static bool can_use_mul_inplace(const program_node& node, const fused_primitive_desc& desc,
                                     const kernel_impl_params* params = nullptr);
 };

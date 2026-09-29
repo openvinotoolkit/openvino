@@ -149,7 +149,6 @@ static bool is_direct_ancestor(const program_node& child, const program_node& ta
 }
 
 // Checks whether the residual buffer can be reused as the output buffer.
-// Requires matching layouts and exclusive residual-buffer ownership.
 static bool can_reuse_residual_buffer(const program_node& p_node, const program_node& dep_node,
                                       const layout& p_layout, const layout& d_layout) {
     return data_type_traits::size_of(p_layout.data_type) == data_type_traits::size_of(d_layout.data_type)

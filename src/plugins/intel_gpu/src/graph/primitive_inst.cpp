@@ -1254,9 +1254,6 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
                 _outputs[0] = eltw_mem->get_engine()->reinterpret_buffer(*eltw_mem, updated_layouts[0]);
                 pool.add_user(eltw_mem.get(), get_node().get_unique_id(), id(), get_network_id());
                 _max_output_layout_count[0] = eltw_mem->get_mem_tracker()->size() / dt_sizes_in_B[0];
-                // GPU_DEBUG_TRACE_DETAIL << id() << ": reuse fused eltwise dep buffer for output (in-place) - "
-                //                        << eltw_inst->id() << " (registered=" << registered << ")" << std::endl;
-                // GPU_DEBUG_PROFILED_STAGE_MEMALLOC_INFO("reuse_fused_eltwise");
                 return;
             }
         }
