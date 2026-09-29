@@ -4,6 +4,7 @@
 
 #include "test_utils.h"
 #include "random_generator.hpp"
+#include "dpas_backend_test_helper.h"
 
 #include <intel_gpu/primitives/input_layout.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
@@ -565,8 +566,8 @@ TEST_P(sdpa_micro_prefetch_k_test, multi_tile_k_runs_micro_sdpa) {
     auto [network, output] = run_network();
     const auto sdpa_info = selected_sdpa_kernel(network);
     ASSERT_FALSE(sdpa_info.empty()) << "no scaled_dot_product_attention node in the built program";
-    ASSERT_NE(sdpa_info.find("sdpa_micro"), std::string::npos)
-        << "sdpa_micro was not selected; the multi-K-tile prefetch path was not exercised. Node "
+    ASSERT_TRUE(sdpa_info.find("sdpa_micro") != std::string::npos || sdpa_info.find("sdpa_ocl") != std::string::npos)
+        << "Neither sdpa_micro nor sdpa_ocl was selected; the multi-K-tile prefetch path was not exercised. Node "
            "description was:\n"
         << sdpa_info;
 
@@ -595,6 +596,94 @@ INSTANTIATE_TEST_SUITE_P(
     sdpa_micro_prefetch_k_test::PrintToStringParamName
 );
 
+// Which DPAS kernel plain SDPA dispatches: sdpa_ocl on Xe2+ XMX, sdpa_micro on the other XMX parts (as upstream),
+// the opt kernels elsewhere -- one choice per device, with no fallback from one DPAS kernel to the other. Dispatch
+// only: this harness's "sdpa_ref" network also runs SDPAOptImpl (force_implementations keeps only the impl type), so
+// accuracy is left to the functional ScaledAttn tests. Static shapes; the second test rebuilds the impl through
+// program save/load (default ctor plus the saved stage order), so the dispatch must not depend on state only the
+// params ctor had.
+class sdpa_dpas_backend_test : public sdpa_gpu_test {
+public:
+    void check_dispatch(bool is_caching_test) {
+        auto p = GetParam();
+        auto& engine = get_test_engine();
+        const auto& info = engine.get_device_info();
+        const bool prefill = p.sequence_length_q > 1;
+        const bool unaligned = p.head_size % 16 != 0;
+        const bool is_ARL_H = info.gfx_ver.major == 12 && info.gfx_ver.minor == 74;
+        const auto backend = tests::expected_dpas_backend(engine, false, static_cast<size_t>(p.head_size));
+        std::string expected;
+        switch (backend) {
+        case tests::dpas_backend::ocl:
+            // The sdpa_ocl single-token kernel also takes unaligned heads.
+            expected = prefill ? "sdpa_ocl_prefill" : "sdpa_ocl_mixed";
+            break;
+        case tests::dpas_backend::micro:
+            // sdpa_micro single-token does not take unaligned heads, and ARL-H keeps the opt one for static decode.
+            expected = prefill ? "sdpa_micro__prefill" : unaligned ? "sdpa_opt__multi_reg" : is_ARL_H ? "sdpa_opt__single_reg" : "sdpa_micro__generate";
+            break;
+        case tests::dpas_backend::none:
+            expected = (prefill || unaligned) ? "sdpa_opt__multi_reg" : "sdpa_opt__single_reg";
+            break;
+        }
+
+        const auto q_layout = cldnn::layout({p.batch, p.sequence_length_q, p.num_heads, p.head_size}, p.dt, format::bfyx);
+        const auto kv_layout = cldnn::layout({p.batch, p.sequence_length_kv, p.num_heads, p.head_size}, p.dt, format::bfyx);
+        const auto mask_layout = p.sequence_length_q == p.sequence_length_kv
+                                     ? cldnn::layout({p.sequence_length_q, p.sequence_length_kv}, p.dt, format::bfyx)
+                                     : cldnn::layout({p.batch, p.num_heads, 1, p.sequence_length_kv}, p.dt, format::bfyx);
+        auto q = engine.allocate_memory(q_layout);
+        auto k = engine.allocate_memory(kv_layout);
+        auto v = engine.allocate_memory(kv_layout);
+        auto mask = engine.allocate_memory(mask_layout);
+        load_input(q, 0, p.dt);
+        load_input(k, 1, p.dt);
+        load_input(v, 2, p.dt);
+        load_input(mask, 3, p.dt);
+
+        auto [output, net] = run_network(is_caching_test, true, q_layout, kv_layout, kv_layout, mask_layout, q, k, v, mask,
+                                         false, 1.0f, false, 0.0f, p.dt);
+        std::shared_ptr<cldnn::primitive_inst> sdpa_inst;
+        for (const auto& prim_info : net->get_primitives_info()) {
+            if (prim_info.type_id == "scaled_dot_product_attention")
+                sdpa_inst = net->get_primitive(prim_info.original_id);
+        }
+        ASSERT_NE(sdpa_inst, nullptr);
+        ASSERT_NE(sdpa_inst->get_impl(), nullptr);
+        const auto entries = sdpa_inst->get_impl()->get_kernels_dump_info(*sdpa_inst->get_impl_params()).get_entries();
+        EXPECT_NE(entries.find(expected), std::string::npos) << "expected " << expected << ", dispatched: " << entries;
+        if (backend != tests::dpas_backend::ocl) {
+            EXPECT_EQ(entries.find("sdpa_ocl"), std::string::npos) << "dispatched: " << entries;
+        }
+        if (backend != tests::dpas_backend::micro) {
+            EXPECT_EQ(entries.find("sdpa_micro"), std::string::npos) << "dispatched: " << entries;
+        }
+
+        cldnn::mem_lock<ov::float16, mem_lock_type::read> out_data(output, get_test_stream());
+        for (size_t idx = 0; idx < out_data.size(); idx++) {
+            ASSERT_FALSE(std::isnan(out_data[idx])) << "NaN found at index " << idx;
+        }
+    }
+};
+
+TEST_P(sdpa_dpas_backend_test, dispatches_lane_kernel) {
+    check_dispatch(false);
+}
+
+TEST_P(sdpa_dpas_backend_test, dispatches_lane_kernel_after_load) {
+    check_dispatch(true);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_dpas_backend_selection,
+    sdpa_dpas_backend_test,
+    ::testing::Values(
+        sdpa_test_params{64, 32, 128, 128, 2, false},  // static prefill
+        sdpa_test_params{64, 32, 1, 128, 2, false},    // static decode
+        sdpa_test_params{72, 8, 1, 128, 2, false}      // static decode, head size % 16 != 0
+    ),
+    sdpa_gpu_test::PrintToStringParamName
+);
 #endif
 
 TEST(sdpa_gpu_custom, dynamic_mismatched_v_head_size) {

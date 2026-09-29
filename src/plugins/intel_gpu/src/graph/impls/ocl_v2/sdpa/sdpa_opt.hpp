@@ -28,7 +28,10 @@ struct SDPAOpt : public ImplementationManager {
     OV_GPU_PRIMITIVE_IMPL("ocl::sdpa::opt")
     explicit SDPAOpt(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
-    [[nodiscard]] static bool supports_micro_sdpa(const kernel_impl_params& params);
+    // allow_scalar_mask enables a single-element runtime attention mask for the sdpa_ocl kernel
+    // (the ocl variant reads the one value and adds it to every logit). The sdpa_micro kernel does
+    // not support such a mask, so callers must pass true only when they intend to use sdpa_ocl.
+    [[nodiscard]] static bool supports_micro_sdpa(const kernel_impl_params& params, bool allow_scalar_mask = false);
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
         const auto desc = node.as<scaled_dot_product_attention>().get_primitive();
         const auto& supported_precisions = ov::intel_gpu::op::SDPA::get_supported_precisions();

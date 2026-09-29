@@ -72,6 +72,7 @@
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/paged_attention.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/util/read_value_base.hpp"
@@ -906,10 +907,65 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             // KVCache layout with default attention -
             // k: [num_blocks, num_kv_heads, head_size, block_size(16)]
+            //    (i8/u4 BY_CHANNEL may be token-major instead: [num_blocks, num_kv_heads, block_size, head_size])
             // v: [num_blocks, num_kv_heads, block_size(16), head_size]
             // KVCache layout with XAttention -
             // k: [num_blocks, num_kv_heads, block_size(256), head_size]
             // v: [num_blocks, num_kv_heads, block_size(256), head_size]
+            // The i8/u4 BY_CHANNEL K cache is materialized token-major only when every K-cache reader of
+            // the model understands that page. The layout is decided once for the whole model, while
+            // the reader is chosen per dispatch: only sdpa_ocl (MIXED) and sdpa_ocl_decode (GENERATE)
+            // read the page, and every fallback reads it d-major. So every PagedAttention op must pass
+            // both gates on this device, which paged_attention::by_channel_token_major_readable() checks.
+            // Rotation is not a concern: kv_cache_rotate reads the token-major page itself.
+            // This runs while passes are registered, i.e. on the model as it came in: the PA op's Q
+            // type is set by ConvertPrecision later (to infer_precision), and alibi may still be an
+            // unfolded subgraph, so it is judged by its shape.
+            bool allow_by_channel_token_major = false;
+            if (cldnn::paged_attention::k_by_channel_token_major()) {
+                std::vector<cldnn::paged_attention::by_channel_tm_op_info> pa_ops;
+                for (const auto& op : func->get_ops()) {
+                    const auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(op);
+                    if (!pa) {
+                        continue;
+                    }
+                    cldnn::paged_attention::by_channel_tm_op_info info;
+                    info.has_scores_output = pa->get_output_size() > 1 && !pa->get_output_target_inputs(1).empty();
+                    info.has_adaptive_rkv = pa->get_output_size() > 2 && !pa->get_output_target_inputs(2).empty();
+                    const auto& rt_info = pa->get_rt_info();
+                    const auto rt_size = [&rt_info](const char* name) -> size_t {
+                        const auto it = rt_info.find(name);
+                        return it == rt_info.end() ? 0 : static_cast<size_t>(it->second.as<int64_t>());
+                    };
+                    info.k_head_size = rt_size("k_head_size");
+                    info.v_head_size = rt_size("v_head_size");
+                    info.kv_heads_num = rt_size("num_k_heads");
+                    // Q is [tokens, heads * k_head_size], as in ops/paged_attention.cpp.
+                    const auto& query_ps = pa->get_input_partial_shape(cldnn::paged_attention::PagedAttentionInputIdx::QUERY);
+                    if (info.k_head_size != 0 && query_ps.rank().is_static() && query_ps.size() == 2 && query_ps[1].is_static()) {
+                        info.heads_num = static_cast<size_t>(query_ps[1].get_length()) / info.k_head_size;
+                    }
+                    // Absent alibi is an empty constant; anything not provably empty counts as alibi.
+                    const size_t alibi_idx = cldnn::paged_attention::PagedAttentionInputIdx::ALIBI;
+                    if (pa->get_input_size() > alibi_idx) {
+                        const auto& alibi_ps = pa->get_input_partial_shape(alibi_idx);
+                        info.has_alibi = !alibi_ps.is_static() || ov::shape_size(alibi_ps.to_shape()) > 0;
+                    }
+                    // Same test as ops/paged_attention.cpp.
+                    const size_t qq_bias_idx = cldnn::paged_attention::PagedAttentionInputIdx::QQ_BIAS;
+                    if (pa->get_input_size() > qq_bias_idx) {
+                        const auto qq_bias = ov::as_type_ptr<ov::op::v0::Parameter>(pa->get_input_node_shared_ptr(qq_bias_idx));
+                        info.has_qq_bias = qq_bias && qq_bias->get_output_partial_shape(0).is_dynamic();
+                    }
+                    pa_ops.push_back(info);
+                }
+                // The microkernel probe may build a kernel, so skip it where no reader can run anyway.
+                const bool microkernels_supported = device_info.supports_immad && device_info.arch >= cldnn::gpu_arch::xe2 &&
+                                                    cldnn::query_microkernels_supported(m_context->get_engine(), config);
+                allow_by_channel_token_major =
+                    cldnn::paged_attention::by_channel_token_major_readable(device_info, microkernels_supported, infer_precision, pa_ops);
+            }
+
             ov::pass::ConvertPagedAttnInputs::KVCacheConfig kv_cache_config;
             const auto key_cache_quant_mode = config.get_key_cache_quant_mode();
             auto kv_cache_precision = config.get_kv_cache_precision();
@@ -927,7 +983,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                 kv_cache_config.keyCacheDimOrder = {0, 1, 2, 3};  //  default dim order of [num_blocks, num_kv_heads, block_size, head_size]
             } else {
                 kv_cache_config.keyCacheBlockSize = cldnn::paged_attention::block_size;
-                kv_cache_config.keyCacheDimOrder = {0, 1, 3, 2};
+                // Token-major K (same dim order as V and as XAttention). Uncompressed and i8/u8
+                // BY_TOKEN qualify; i8/u4 BY_CHANNEL qualify only under the staging switch AND when
+                // every reader of the model can read that page (allow_by_channel_token_major above).
+                // See paged_attention::k_token_major_for() / k_by_channel_token_major_for().
+                const bool is_by_channel = key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL;
+                const bool k_token_major =
+                    cldnn::paged_attention::k_token_major_for(kv_cache_precision, is_by_channel) ||
+                    (allow_by_channel_token_major &&
+                     cldnn::paged_attention::k_by_channel_token_major_for(kv_cache_precision, is_by_channel));
+                kv_cache_config.keyCacheDimOrder = k_token_major ? std::vector<size_t>{0, 1, 2, 3} : std::vector<size_t>{0, 1, 3, 2};
             }
             kv_cache_config.keyCacheQuantBychannel = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL);
             kv_cache_config.keyCacheGroupSize = (key_cache_quant_mode == ov::internal::CacheQuantMode::BY_CHANNEL) ? 16 : 0;

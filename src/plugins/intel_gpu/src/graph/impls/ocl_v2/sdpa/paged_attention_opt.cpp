@@ -5,13 +5,19 @@
 // clang-format off
 // Put this file at first to avoid incorrect header files includes order.
 // For example, intel_gpu/runtime/utils.hpp will causes compiling error in hash<dnnl::impl::primitive_hashing::key_t>
+#include "sdpa_gen_ocl.hpp"
 #include "sdpa_gen_micro.hpp"
 // clang-format on
 #include "paged_attention_opt.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
+#include <cstdlib>
+#include <cstring>
+#include <iostream>
 #include <memory>
+#include <sstream>
 #include <utility>
 
 #include "../primitive_ocl_base.hpp"
@@ -23,20 +29,60 @@
 #include "paged_attention_inst.h"
 #include "primitive_inst.h"
 #include "sdpa_base.hpp"
+#include "sdpa_gen_ocl_decode.hpp"
 #include "sdpa_gen_opt.hpp"
 
 namespace ov::intel_gpu::ocl {
 namespace {
 
-constexpr ov::element::Type softmax_accumulator_type = ov::element::f32;
+constexpr ov::element::Type softmax_accumulator_type = pa_softmax_accumulator_type;
 constexpr size_t paged_attention_block_size = 16;
-constexpr size_t seq_len_partition_size = 256;
+constexpr size_t seq_len_partition_size = pa_seq_len_partition_size;
 constexpr size_t subgroup_size = 16;
 constexpr size_t u4_elems_per_byte = 2;
 
 inline bool get_kv_compressed(const RuntimeParams& params) {
     auto key_cache_layout = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
     return data_type_traits::is_i8_u8(key_cache_layout.data_type) || data_type_traits::is_i4_u4(key_cache_layout.data_type);
+}
+
+// Whether the K cache holds the token-major i8/u4 BY_CHANNEL page, read off its PHYSICAL shape (the
+// adjusted block size at dim[2]) -- transformations_pipeline.cpp decided the layout once per model.
+// Only the writer, rotate, sdpa_ocl (MIXED) and sdpa_ocl_decode read that page; see
+// paged_attention::by_channel_token_major_readable().
+inline bool is_by_channel_tm_page(const RuntimeParams& params) {
+    const auto desc = params.typed_desc<paged_attention>();
+    if (desc->has_xattention || !desc->is_key_by_channel || !get_kv_compressed(params))
+        return false;
+    const bool int4 = data_type_traits::is_i4_u4(params.get_program().get_config().get_kv_cache_precision());
+    const auto scales_zp_size = 2 * ov::element::Type(params.input_layouts[PagedAttentionInputIdx::KEY].data_type).size();
+    return cldnn::paged_attention::k_by_channel_token_major_layout(
+        params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].get_partial_shape(),
+        int4 ? paged_attention_block_size / u4_elems_per_byte + scales_zp_size : paged_attention_block_size + scales_zp_size);
+}
+
+// True when the K cache holds [block_size, k_head_size] pages (head_size innermost) rather than the
+// legacy [k_head_size, block_size]. Mirrors exactly the condition the cache shape was built with in
+// transformations_pipeline.cpp -- uncompressed and i8/u8 BY_TOKEN are token-major. It is always false
+// for BY_CHANNEL and INT4: their token-major page is a different layout, see is_by_channel_tm_page().
+//
+// `consumer` names the kernel this value is being jitted for. OV_GPU_PA_K_TM_BREAK=<consumer> forces
+// that ONE kernel back to the d-major read while the cache stays token-major, which is how we test
+// whether a suite actually OBSERVES that kernel's output: rung 3 found a rotate kernel that silently
+// corrupted the cache while 39 rotation cases still passed, so "the suite is green" is not evidence
+// that a consumer is layout-correct. Diagnostic only; delete with the k_token_major() staging switch.
+inline bool get_k_token_major(const RuntimeParams& params, const char* consumer = nullptr) {
+    const auto& key_cache_layout = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE];
+    const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+    // INT4 packs into u8, so the layout dt alone cannot rule it out -- consult the config precision.
+    const auto& precision = data_type_traits::is_i4_u4(kv_cache_dt) ? kv_cache_dt : ov::element::Type(key_cache_layout.data_type);
+    if (!cldnn::paged_attention::k_token_major_for(precision, params.typed_desc<paged_attention>()->is_key_by_channel))
+        return false;
+    if (consumer != nullptr) {
+        if (const char* brk = std::getenv("OV_GPU_PA_K_TM_BREAK"))
+            return std::strcmp(brk, consumer) != 0;
+    }
+    return true;
 }
 
 inline bool is_v_head_aligned_for_dual_nibble(size_t v_head_size) {
@@ -345,6 +391,8 @@ public:
             jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size);
             jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         }
+
+        jit.make("IS_KEY_TOKEN_MAJOR", get_k_token_major(params, "decode") ? 1 : 0);
 
         if (desc->scale_val.has_value()) {
             jit.make("SCALE_VAL", desc->scale_val.value());
@@ -879,6 +927,7 @@ protected:
             }
         }
         jit.make("KEY_CACHE_QUANT_MODE", key_cache_quant_mode);
+        jit.make("IS_KEY_TOKEN_MAJOR", get_k_token_major(params, "rkv") ? 1 : 0);
 
         jit.add(make_type_jit_constants("ACCUMULATOR", softmax_accumulator_type));
         return jit;
@@ -1024,6 +1073,44 @@ protected:
             jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size);
         }
 
+        jit.make("IS_KEY_TOKEN_MAJOR", get_k_token_major(params, "writer") ? 1 : 0);
+
+        // Token-major i8 BY_CHANNEL. Separate from IS_KEY_TOKEN_MAJOR (which stays 0 for BY_CHANNEL) so
+        // that the pa_sdpa_opt readers keep their d-major load; only this writer, rotate, sdpa_ocl
+        // (MIXED) and sdpa_ocl_decode read the relaid-out page. The page SIZE is identical either way,
+        // so none of the ADJUSTED_* values above change; only the in-page addressing does.
+        // i8 and u4. An INT4 BY_CHANNEL page packs two TOKENS per byte upstream, along the axis this
+        // flips; the token-major arm re-packs it two CHANNELS per byte, which is why the writer needs a
+        // branch rather than just new strides. XAttention is excluded: its cache is built and read by
+        // the CM path, which does not know this layout.
+        // The layout is read off the PHYSICAL cache shape -- dim[2] holding the adjusted block size
+        // is exactly what transformations_pipeline.cpp materialized for the token-major BY_CHANNEL
+        // page (only where paged_attention::by_channel_token_major_readable() allows it). XAttention
+        // never qualifies.
+        const auto k_scales_zp_size = is_kv_compressed ? get_element_size(params.input_layouts[PagedAttentionInputIdx::KEY].data_type) * 2 : 0;
+        const bool k_by_channel_token_major =
+            !desc->has_xattention && is_key_by_channel &&
+            cldnn::paged_attention::k_by_channel_token_major_layout(
+                params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].get_partial_shape(),
+                data_type_traits::is_i4_u4(kv_cache_dt) ? paged_attention_block_size / u4_elems_per_byte + k_scales_zp_size
+                                                        : paged_attention_block_size + k_scales_zp_size);
+        jit.make("IS_KEY_BY_CHANNEL_TOKEN_MAJOR", k_by_channel_token_major ? 1 : 0);
+
+        // Give the PREFILL stage one extra workgroup along gws[2] that only quantizes V. V is
+        // BY_TOKEN over all of its head dims (a sub_group reduction), so a single workgroup has to own
+        // it -- and in prefill that same workgroup also quantizes K for every channel, then loops over
+        // all 16 tokens of V serially. Splitting them makes the cost max(K, V) instead of K + V.
+        // Measured on a 2-block dispatch (head 128, 8 kv heads, B70): u4 19.1 us -> 14.3 us,
+        // i8 8.2 us -> 5.6 us.
+        //
+        // Only BY_CHANNEL K can do this -- otherwise K is itself per-token and shares the reduction
+        // structure, leaving nothing to overlap. And only PREFILL benefits: in generate, K is already
+        // split over NUM_K_HEAD_SIZE_PARTITIONS workgroups and V costs 315 ns standalone but only
+        // 22 ns when appended to a workgroup's K (2755 -> 2777 ns), because K is a long dependent
+        // chain whose idle issue slots absorb it. An extra workgroup there would be pure overhead.
+        const bool separate_v_wg_prefill = is_kv_compressed && is_key_by_channel;
+        jit.make("HAS_SEPARATE_V_WG_PREFILL", separate_v_wg_prefill ? 1 : 0);
+
         return jit;
     }
 
@@ -1070,7 +1157,11 @@ protected:
             if (is_prefill) {
                 const auto blocks_number = rtp->paged_attention_aligned_seq_len / paged_attention_block_size;
 
-                wgs.global = {blocks_number, heads_number, subgroup_size};
+                // One extra workgroup along gws[2] that does only V, when the kernel was compiled for
+                // it (HAS_SEPARATE_V_WG_PREFILL). Must agree with that jit constant exactly: too few
+                // workgroups and V is never written, too many and V is written twice.
+                const bool separate_v_wg = get_kv_compressed(params) && desc->is_key_by_channel;
+                wgs.global = {blocks_number, heads_number, subgroup_size * (separate_v_wg ? 2 : 1)};
                 wgs.local = {1, 1, subgroup_size};
             } else {
                 const auto& key_input = params.input_layouts[0];
@@ -1123,13 +1214,24 @@ protected:
         if (is_kv_compressed) {
             auto scales_zp_size = get_element_size(original_cache_dt) * 2;  // scale + zp;
             const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
+            // Token-major i8/u4 BY_CHANNEL is read off the PHYSICAL cache shape (adjusted block size
+            // at dim[2]), matching the single layout decision in transformations_pipeline.cpp. XAttention
+            // never qualifies.
+            const bool k_by_channel_token_major =
+                !desc->has_xattention && is_key_by_channel &&
+                cldnn::paged_attention::k_by_channel_token_major_layout(
+                    params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].get_partial_shape(),
+                    data_type_traits::is_i4_u4(kv_cache_dt) ? paged_attention_block_size / u4_elems_per_byte + scales_zp_size
+                                                            : paged_attention_block_size + scales_zp_size);
+            jit.make("IS_KEY_BY_CHANNEL_TOKEN_MAJOR", k_by_channel_token_major ? 1 : 0);
             if (data_type_traits::is_i4_u4(kv_cache_dt)) {
                 jit.add(make_uint4_kv_cache_jit_constants(params));
+                jit.make("U4_ELEMS_PER_BYTE", u4_elems_per_byte);
                 jit.make("SCALE_ZP_SIZE_PER_TOKEN", scales_zp_size);
-                // INT4 BY_CHANNEL: dim order {0,1,2,3}, scales embedded per-token in head dim
+                // INT4 BY_CHANNEL: packed data plus one f16 scale/zp pair per channel.
                 jit.make("IS_KEY_BY_CHANNEL", 1);
                 jit.make("ADJUSTED_HEAD_SIZE", desc->k_head_size);
-                jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
+                jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size / u4_elems_per_byte + scales_zp_size);
                 jit.make("NUM_K_HEAD_SIZE_PARTITIONS", get_num_k_head_size_partitions(desc->is_key_by_channel, desc->k_head_size));
                 jit.make("ADJUSTED_V_HEAD_SIZE", desc->v_head_size + scales_zp_size);
             } else if (is_key_by_channel) {
@@ -1140,9 +1242,12 @@ protected:
                 jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
             }
         } else {
+            jit.make("IS_KEY_BY_CHANNEL_TOKEN_MAJOR", 0);
             jit.make("ADJUSTED_HEAD_SIZE", desc->k_head_size);
             jit.make("ADJUSTED_PAGED_ATTENTION_BLOCK_SIZE", paged_attention_block_size);
         }
+
+        jit.make("IS_KEY_TOKEN_MAJOR", get_k_token_major(params, "rotate") ? 1 : 0);
 
         return jit;
     }
@@ -1333,7 +1438,16 @@ public:
     Stage::Ptr kv_cache_rotate = make_stage<KVCacheRotateGenerator>();
     Stage::Ptr pa_scores_calc = make_stage<PagedAttentionGeneratorScoresCalculation>();
     Stage::Ptr pa_diversity_calc = make_stage<AdaptiveRKVDiversityGenerator>();
+    // GENERATE stage alternative to pa_single_token / pa_gqa_single_token; feeds the same
+    // pa_single_token_finalization. Only added when SDPAOclDecodeGenerator::supported().
+    Stage::Ptr pa_sdpa_ocl_decode = make_stage<SDPAOclDecodeGenerator>();
 #ifdef ENABLE_ONEDNN_FOR_GPU
+    // The DPAS PREFILL/MIXED kernels. Both types exist in every impl, because a loaded or cloned impl is
+    // default-constructed and only gets _order (indices into _stages) back; the params ctor adds one pair
+    // (choose_dpas_backend) and everything after that reads has_stage() (dpas_backend), never the environment.
+    // The sdpa_ocl pair comes first so it keeps indices 11/12.
+    Stage::Ptr pa_sdpa_ocl = make_stage<SDPAOclGenerator>(true);
+    Stage::Ptr pa_sdpa_ocl_mixed = make_stage<SDPAOclGenerator>(false);
     Stage::Ptr pa_sdpa_micro = make_stage<SDPAMicroGenerator>(true);
     Stage::Ptr pa_sdpa_micro_mixed = make_stage<SDPAMicroGenerator>(false);
 #endif
@@ -1346,10 +1460,17 @@ public:
         const bool has_adaptive_rkv = desc->has_adaptive_rkv;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        const bool use_micro_sdpa = supports_micro_sdpa(params);
-        if (use_micro_sdpa) {
+        switch (choose_dpas_backend(params)) {
+        case DpasBackend::ocl:
+            add_stage(pa_sdpa_ocl, params);
+            add_stage(pa_sdpa_ocl_mixed, params);
+            break;
+        case DpasBackend::micro:
             add_stage(pa_sdpa_micro, params);
             add_stage(pa_sdpa_micro_mixed, params);
+            break;
+        case DpasBackend::none:
+            break;
         }
 #endif
 
@@ -1360,6 +1481,12 @@ public:
         add_stage(pa_gqa_single_token, params);
         add_stage(pa_single_token_finalization, params);
         add_stage(pa_sdpa_opt, params);
+
+        // supported() must be decidable from the descriptor / config / environment alone, because an
+        // added stage gets COMPILED regardless of whether it is ever dispatched.
+        if (SDPAOclDecodeGenerator::supported(params)) {
+            add_stage(pa_sdpa_ocl_decode, params);
+        }
 
         if (has_rotated_blocks) {
             add_stage(kv_cache_rotate, params);
@@ -1375,43 +1502,96 @@ public:
     }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    bool valid_micro_stage(const PagedAttentionStage& stage) const {
+    enum class DpasBackend { none, ocl, micro };
+
+    // The DPAS kernel staged for a PA stage. has_stage() rather than the gate, so a loaded or cloned impl (and one
+    // whose add_stage() swallowed a codegen failure) dispatches only what was actually built.
+    DpasBackend dpas_backend(const PagedAttentionStage& stage) const {
         if (stage == PagedAttentionStage::PREFILL)
-            return !pa_sdpa_micro->kd.micro_kernels.empty();
+            return has_stage(pa_sdpa_ocl) ? DpasBackend::ocl : has_stage(pa_sdpa_micro) ? DpasBackend::micro : DpasBackend::none;
         if (stage == PagedAttentionStage::MIXED)
-            return !pa_sdpa_micro_mixed->kd.micro_kernels.empty();
-        return false;
+            return has_stage(pa_sdpa_ocl_mixed) ? DpasBackend::ocl : has_stage(pa_sdpa_micro_mixed) ? DpasBackend::micro : DpasBackend::none;
+        return DpasBackend::none;
     }
 
-    // MIXED may use micro SDPA regardless of token_type_ids: bidirectional masking is implemented
-    // only in the PREFILL kernels, and in MIXED neither micro SDPA nor paged_attention_opt.cl consumes token_type_ids.
-    // TODO: implement bidirectional attention for MIXED with token_type_ids
+    // Upstream let sdpa_micro serve MIXED with token_type_ids (bidirectional masking is implemented only in its
+    // PREFILL kernel, and in MIXED neither sdpa_micro nor paged_attention_opt.cl consumes token_type_ids). Here
+    // sdpa_ocl implements the mask for MIXED too, and sdpa_micro is kept off that combination -- see below.
+    // TODO: implement bidirectional attention for MIXED with token_type_ids in sdpa_micro
     bool can_use_micro_sdpa_for(const kernel_impl_params& params, const PagedAttentionStage& stage) const {
-        const auto can_use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(stage);
-        GPU_DEBUG_TRACE_DETAIL << "can_use_micro_sdpa_for: stage = " << static_cast<size_t>(stage)
-                               << ", token_type_ids = " << params.get_input_layout(PagedAttentionInputIdx::TOKEN_TYPE_IDS).to_short_string()
-                               << ", can_use_micro_sdpa = " << can_use_micro_sdpa << std::endl;
-        return can_use_micro_sdpa;
+        const auto backend = dpas_backend(stage);
+        if (backend == DpasBackend::none)
+            return false;
+        const auto desc = params.typed_desc<paged_attention>();
+        // The bidirectional image-token mask exists for PREFILL and MIXED in sdpa_ocl, but for PREFILL
+        // only in sdpa_micro (sdpa_micro.cl still gates its bidir block on IS_PREFILL), so MIXED has to
+        // follow the backend. GENERATE never has a DPAS stage (dpas_backend() above) and needs nothing anyway:
+        // that stage is defined by one new token per subsequence, so a query's image group is the
+        // query itself and the rule degenerates to plain causal.
+        // The fallback this leaves -- pa_multi_token / paged_attention_opt.cl -- has NO token_type_ids
+        // support at all and silently applies a plain causal mask; update_rt_params() logs when that
+        // combination is actually dispatched.
+        if (desc->has_token_type_ids && stage != PagedAttentionStage::PREFILL && backend == DpasBackend::micro)
+            return false;
+        // sdpa_micro's MIXED variant reads the K cache d-major (problem_kq.A.layout = N, ldk =
+        // block_size, plus a K0 pointer pre-compensation for micro's Layout::N A-offset), so it
+        // cannot read a token-major cache. PREFILL is unaffected: it reads the contiguous KEY input,
+        // not the cache. Fall back to pa_multi_token for MIXED, which shares the (already
+        // token-major-aware) K load in paged_attention_opt.cl -- for the uncompressed / BY_TOKEN
+        // page of k_token_major() only. The token-major BY_CHANNEL page is rejected below.
+        if (stage == PagedAttentionStage::MIXED && backend == DpasBackend::micro && get_k_token_major(params))
+            return false;
+        // sdpa_ocl's MIXED cache dequant needs the data region to be a plain [block_size, row] tile
+        // with its comp appended AFTER it. Three layouts satisfy that:
+        //   i8 BY_TOKEN     comp is two trailing per-token f16 arrays.
+        //   i8 BY_CHANNEL   only under paged_attention::k_by_channel_token_major_for()'s staging switch
+        //                   and where by_channel_token_major_readable() allows the page; it relays the
+        //                   per-column comp to a trailing per-channel array. UPSTREAM
+        //                   BY_CHANNEL keeps a (scale, zp) pair inline at the end of every column and
+        //                   is d-major, so the reader would take both the data and the comp from the
+        //                   wrong offsets.
+        //   u4 BY_CHANNEL   the same switch, which additionally re-packs K two CHANNELS per byte and
+        //                   moves V's inline per-row comp to a trailing per-token array. Upstream INT4
+        //                   is d-major with two TOKENS per K byte and V's comp inside each row.
+        // i4 and INT4 BY_TOKEN never do -- the predicate rejects both -- and neither exists in practice
+        // (execution_config.cpp asserts against 4-bit BY_TOKEN keys and auto-selects u4). Anything left
+        // goes to pa_multi_token, which handles every layout. The mixed kernel still COMPILES for the
+        // rejected cases (IS_PA_KV_COMPRESSED is keyed on the cache data type, because
+        // PagedAttentionOptImpl's ctor add_stage()s prefill AND mixed) -- it just must not dispatch.
+        if (stage == PagedAttentionStage::MIXED && get_kv_compressed(params)) {
+            const bool by_channel_tm = is_by_channel_tm_page(params);
+            if (backend == DpasBackend::micro) {
+                // The check is about the page, not the kernel: sdpa_micro reads K d-major (see above),
+                // so it must not see the token-major BY_CHANNEL page either.
+                if (by_channel_tm)
+                    return false;
+            } else {
+                const bool int4 = data_type_traits::is_i4_u4(params.get_program().get_config().get_kv_cache_precision());
+                // int4 has no d-major reader here at all, so it needs the switch unconditionally; i8 only
+                // needs it in BY_CHANNEL, since BY_TOKEN is already the layout this kernel reads.
+                if (int4 ? !by_channel_tm : (desc->is_key_by_channel && !by_channel_tm))
+                    return false;
+            }
+        }
+        return true;
     }
 
-    bool supports_micro_sdpa(const kernel_impl_params& params) const {
+    // Which DPAS kernel serves PREFILL/MIXED of this op, decided once per impl from the descriptor, config,
+    // environment and device -- never per shape -- and remembered only as the staged pair (dpas_backend()).
+    // paged_attention::by_channel_token_major_readable() replays the shared checks and the sdpa_ocl branch that do
+    // not depend on the K page; change them together.
+    static DpasBackend choose_dpas_backend(const kernel_impl_params& params) {
         auto& engine = params.get_program().get_engine();
+        const auto& info = params.get_device_info();
         const auto desc = params.typed_desc<paged_attention>();
 
-        if (params.get_device_info().supports_immad) {
+        if (info.supports_immad) {
             const auto supports_microkernels = cldnn::query_microkernels_supported(engine, params.get_program().get_config());
-            if (params.get_device_info().arch < gpu_arch::xe_hpg || !supports_microkernels) {
-                return false;
-            }
-            // WA: Disable micro SDPA on xe3p due to oneDNN micro-kernel accuracy / determinism
-            // issues (inf/nan, run-to-run nondeterminism in the generated systolic ugemm). Falls back to
-            // the OCL paged_attention path for all stages where micro SDPA is selectable (PREFILL / MIXED)
-            // and for all KV dtypes.
-            if (params.get_device_info().arch == gpu_arch::xe3p) {
-                return false;
+            if (info.arch < gpu_arch::xe_hpg || !supports_microkernels) {
+                return DpasBackend::none;
             }
         } else {
-            return false;
+            return DpasBackend::none;
         }
 
         ov::Dimension head_num = desc->heads_num;
@@ -1419,28 +1599,62 @@ public:
 
         // supposed k_heads_num==v_heads_num?
         if (head_num.is_dynamic() || kv_heads_num.is_dynamic()) {
-            return false;
-        }
-
-        if (desc->k_head_size != desc->v_head_size) {
-            return false;
+            return DpasBackend::none;
         }
 
         if (desc->k_head_size > 512 || desc->v_head_size > 512) {
-            return false;
+            return DpasBackend::none;
         }
 
         if (desc->has_scores_output() || desc->has_score_aggregation) {
-            return false;
+            return DpasBackend::none;
         }
 
         if (desc->has_alibi) {
-            return false;
+            return DpasBackend::none;
         }
 
         // Disable micro SDPA for INT4 BY_TOKEN due to accuracy issues
         const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-        return !data_type_traits::is_i4_u4(kv_cache_dt) || desc->is_key_by_channel;
+        if (data_type_traits::is_i4_u4(kv_cache_dt) && !desc->is_key_by_channel) {
+            return DpasBackend::none;
+        }
+
+        if (cldnn::paged_attention::sdpa_ocl_selected(info)) {
+            if (!SDPAOclGenerator::supported(params)) {
+                return DpasBackend::none;
+            }
+            // sdpa_ocl takes the KQ contraction depth from k_head_size and the S*V value split from v_head_size
+            // independently, so it only needs a tiling to exist for the pair.
+            //
+            // This is not just an optimisation. The token-major BY_CHANNEL K page, which pa_multi_token (the
+            // MIXED fallback) reads d-major, is only created when paged_attention::by_channel_token_major_readable()
+            // replays this check, so a pair rejected here costs the model that page (and its speed) --
+            // mismatching the two gave NaN, the k_head_size != v_head_size bug this gate used to cause.
+            if (desc->k_head_size != desc->v_head_size &&
+                !SDPAOclGenerator::supports_head_sizes(info.arch, desc->k_head_size, desc->v_head_size)) {
+                return DpasBackend::none;
+            }
+            return DpasBackend::ocl;
+        }
+
+        // sdpa_micro derives both of its ugemm packages from one d_max, so it needs the two head sizes to be equal.
+        if (desc->k_head_size != desc->v_head_size) {
+            return DpasBackend::none;
+        }
+        // WA: Disable micro SDPA on xe3p due to oneDNN micro-kernel accuracy / determinism
+        // issues (inf/nan, run-to-run nondeterminism in the generated systolic ugemm).
+        if (info.arch == gpu_arch::xe3p) {
+            return DpasBackend::none;
+        }
+        // sdpa_micro.cl loads Q as packed halves and stores half output, so an f32 query (f32 inference precision)
+        // would be read wrong. Its codegen happens to reject f32 today ("No matching kernel", swallowed by
+        // add_stage), which is not a guarantee.
+        if (params.get_input_layout(PagedAttentionInputIdx::QUERY).data_type != ov::element::f16 ||
+            params.get_output_layout(0).data_type != ov::element::f16) {
+            return DpasBackend::none;
+        }
+        return DpasBackend::micro;
     }
 
     static size_t get_micro_tile_qsize(KernelData& kernel_data) {
@@ -1451,18 +1665,20 @@ public:
         return wg_tile_q;
     }
 
-    size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
+    size_t get_query_block_size(const kernel_impl_params& params, const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
         const auto default_block_size = 16;
         if (use_micro_sdpa) {
-            if (stage == PagedAttentionStage::PREFILL)
-                return get_micro_tile_qsize(pa_sdpa_micro->kd);
-            if (stage == PagedAttentionStage::MIXED)
-                return get_micro_tile_qsize(pa_sdpa_micro_mixed->kd);
+            // The sdpa_ocl value solves a tiling for the device, so it must not be asked for on the sdpa_micro lane.
+            const auto backend = dpas_backend(stage);
+            if (backend == DpasBackend::ocl)
+                return SDPAOclGenerator::get_query_block_size(params);
+            if (backend == DpasBackend::micro)
+                return get_micro_tile_qsize(stage == PagedAttentionStage::PREFILL ? pa_sdpa_micro->kd : pa_sdpa_micro_mixed->kd);
         }
         return default_block_size;
     }
 #else
-    size_t get_query_block_size(const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
+    size_t get_query_block_size(const kernel_impl_params& params, const PagedAttentionStage& stage, const bool use_micro_sdpa) const {
         const auto default_block_size = 16;
         return default_block_size;
     }
@@ -1480,6 +1696,43 @@ public:
         auto stage = get_paged_attention_stage(params);
         rt_params->max_context_len = get_max_context_len(params);
         rt_params->stage = stage;
+
+        // Diagnostic: what the stage classifier actually saw. Two things are worth reading out.
+        //
+        // (1) past_lens[0] against the query length, which is what decides how much of a MIXED
+        //     kernel's key range is CACHED context versus this iteration's NEW tokens -- i.e. how much
+        //     sdpa_ocl's PA_CUR_KV_F16 split can win (and how much sdpa_micro was already winning by
+        //     doing the same split).
+        // (2) past_lens_shape[0] against mem_lock::size(). get_paged_attention_stage() scans the
+        //     LATTER, which is _mem->size()/sizeof(T) -- the ALLOCATED element count, not the logical
+        //     sequence count -- so if they differ, a stale entry past the last real sequence can turn
+        //     a plain prefill (every real past_len == 0) into a MIXED dispatch.
+        // Delete once the MIXED-stage tuning is done.
+        if (std::getenv("SDPA_OCL_TRACE_STAGE") != nullptr && !params.is_dynamic()) {
+            static const char* const kStageName[] = {"GENERATE", "PREFILL", "MIXED", "UNKNOWN"};
+            const auto& q_ps = params.get_input_layout(PagedAttentionInputIdx::QUERY).get_partial_shape();
+            const auto& pl_ps = params.get_input_layout(PagedAttentionInputIdx::PAST_LENS).get_partial_shape();
+            std::ostringstream os;
+            os << "[pa_stage] " << kStageName[static_cast<size_t>(stage)] << " q_tokens=" << q_ps[0] << " max_context_len=" << rt_params->max_context_len
+               << " past_lens_shape=" << pl_ps[0];
+            const auto& mem_deps = params.memory_deps;
+            if (mem_deps.count(PagedAttentionInputIdx::PAST_LENS) != 0) {
+                mem_lock<int32_t, mem_lock_type::read> pl(mem_deps.at(PagedAttentionInputIdx::PAST_LENS), *params.strm);
+                os << " past_lens_alloc=" << pl.size() << " past_lens=[";
+                for (size_t i = 0; i < std::min<size_t>(pl.size(), 8); i++)
+                    os << (i ? "," : "") << pl[i];
+                os << (pl.size() > 8 ? ",...]" : "]");
+            }
+            if (mem_deps.count(PagedAttentionInputIdx::SUBSEQUENCE_BEGINS) != 0) {
+                mem_lock<int32_t, mem_lock_type::read> sb(mem_deps.at(PagedAttentionInputIdx::SUBSEQUENCE_BEGINS), *params.strm);
+                os << " subseq_len=[";
+                for (size_t i = 0; i + 1 < std::min<size_t>(sb.size(), 9); i++)
+                    os << (i ? "," : "") << (sb[i + 1] - sb[i]);
+                os << "]";
+            }
+            std::cerr << os.str() << std::endl;
+        }
+
         rt_params->partition_size = get_partitioning_size(params, desc->v_head_size, rt_params->stage);
 
         auto effective_context_len = rt_params->max_context_len;
@@ -1520,9 +1773,29 @@ public:
         rt_params->use_micro_sdpa = false;
 #endif
 
-        rt_params->query_block_size = get_query_block_size(rt_params->stage, rt_params->use_micro_sdpa);
+        // Only sdpa_ocl / sdpa_micro implement the bidirectional image-token mask; the MIXED fallback
+        // (pa_multi_token -> paged_attention_opt.cl) has no token_type_ids support at all and returns a
+        // plain causal result with no other signal. Reachable on a non-DPAS device, on the sdpa_micro lane
+        // (pre-Xe2 XMX or TEST_USE_SDPA_OCL=0), in a build without micro kernels, and for the KV-compression
+        // layouts can_use_micro_sdpa_for() rejects. The
+        // buffer count matters because has_token_type_ids is a COMPILE-time flag over a possibly
+        // dynamic shape while "[B_token | 0]" makes an empty tensor legal and harmless. layout::count()
+        // throws on a dynamic layout, hence the is_dynamic() guard first (same order as
+        // sdpa_ocl_token_type_ids_count()).
+        if (rt_params->stage == PagedAttentionStage::MIXED && desc->has_token_type_ids && !rt_params->use_micro_sdpa &&
+            !params.is_dynamic() && params.input_layouts.size() > static_cast<size_t>(PagedAttentionInputIdx::TOKEN_TYPE_IDS) &&
+            params.input_layouts[PagedAttentionInputIdx::TOKEN_TYPE_IDS].count() > 0) {
+            GPU_DEBUG_LOG << "paged_attention: MIXED with non-empty token_type_ids fell back to pa_multi_token, which "
+                             "ignores it -- the bidirectional image-token mask will NOT be applied to this step\n";
+        }
 
-        if (rt_params->stage == PagedAttentionStage::GENERATE) {
+        rt_params->query_block_size = get_query_block_size(params, rt_params->stage, rt_params->use_micro_sdpa);
+
+        // has_stage() rather than supported() alone: the stage is only compiled when the ctor saw
+        // the same predicate, and dispatching an unbuilt stage would crash.
+        rt_params->use_ocl_decode = rt_params->stage == PagedAttentionStage::GENERATE && has_stage(pa_sdpa_ocl_decode);
+
+        if (rt_params->stage == PagedAttentionStage::GENERATE && !rt_params->use_ocl_decode) {
             if (desc->has_sink_input) {
                 rt_params->use_gqa_kernel = false;
             } else {
@@ -1530,6 +1803,26 @@ public:
             }
         } else {
             rt_params->use_gqa_kernel = false;
+        }
+
+        // The token-major BY_CHANNEL K page has two readers here: sdpa_ocl for MIXED and sdpa_ocl_decode
+        // for GENERATE. transformations_pipeline.cpp only creates it when
+        // paged_attention::by_channel_token_major_readable() promises both get chosen; if a gate refused
+        // anyway (the two drifted apart, or add_stage() swallowed a decode codegen failure), the d-major
+        // fallback would silently return garbage, so stop here instead.
+        if (is_by_channel_tm_page(params)) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+            const bool mixed_reads_page = rt_params->use_micro_sdpa && dpas_backend(PagedAttentionStage::MIXED) == DpasBackend::ocl;
+#else
+            const bool mixed_reads_page = false;
+#endif
+            const bool generate_ok = rt_params->stage != PagedAttentionStage::GENERATE || rt_params->use_ocl_decode;
+            const bool mixed_ok = rt_params->stage != PagedAttentionStage::MIXED || mixed_reads_page;
+            OPENVINO_ASSERT(generate_ok && mixed_ok && !desc->has_adaptive_rkv,
+                            "[GPU] paged_attention ", desc->id, ": the i8/u4 BY_CHANNEL K cache is token-major, but the ",
+                            rt_params->stage == PagedAttentionStage::GENERATE ? "GENERATE" : "MIXED/R-KV",
+                            " reader chosen for it reads the page d-major. paged_attention::by_channel_token_major_readable() "
+                            "and the reader gates disagree.");
         }
     }
 
@@ -1565,7 +1858,8 @@ public:
         if (rt_params->stage == PagedAttentionStage::PREFILL) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
             if (rt_params->use_micro_sdpa) {
-                res_event = {execute_stage(res_event, instance, pa_sdpa_micro)};
+                auto& prefill_stage = dpas_backend(PagedAttentionStage::PREFILL) == DpasBackend::ocl ? pa_sdpa_ocl : pa_sdpa_micro;
+                res_event = {execute_stage(res_event, instance, prefill_stage)};
             } else
 #endif
             {
@@ -1574,12 +1868,17 @@ public:
         } else if (rt_params->stage == PagedAttentionStage::GENERATE || rt_params->stage == PagedAttentionStage::MIXED) {
             const auto multi_tokens_mode = rt_params->stage == PagedAttentionStage::MIXED;
             auto num_of_partitions = rt_params->num_of_partitions;
-            if (rt_params->use_gqa_kernel && !rt_params->use_micro_sdpa) {
+            if (rt_params->use_ocl_decode) {
+                // GENERATE only (set in update_rt_params); writes the same per-partition
+                // intermediates, so the finalization below still applies.
+                res_event = {execute_stage(res_event, instance, pa_sdpa_ocl_decode)};
+            } else if (rt_params->use_gqa_kernel && !rt_params->use_micro_sdpa) {
                 res_event = {execute_stage(res_event, instance, multi_tokens_mode ? pa_multi_token : pa_gqa_single_token)};
             } else {
 #ifdef ENABLE_ONEDNN_FOR_GPU
                 if (multi_tokens_mode && rt_params->use_micro_sdpa) {
-                    res_event = {execute_stage(res_event, instance, pa_sdpa_micro_mixed)};
+                    auto& mixed_stage = dpas_backend(PagedAttentionStage::MIXED) == DpasBackend::ocl ? pa_sdpa_ocl_mixed : pa_sdpa_micro_mixed;
+                    res_event = {execute_stage(res_event, instance, mixed_stage)};
                 } else
 #endif
                 {
@@ -1704,7 +2003,7 @@ public:
         GPU_DEBUG_TRACE_DETAIL << "get_internal_buffer_descs: stage = " << static_cast<size_t>(stage) << std::endl;
         int64_t paged_attention_aligned_seq_len = -1;
         if (!params.is_dynamic()) {
-            auto block_size = get_query_block_size(stage, can_use_micro_sdpa);
+            auto block_size = get_query_block_size(params, stage, can_use_micro_sdpa);
             paged_attention_aligned_seq_len = get_aligned_seq_len(params, stage, block_size);
         }
         const auto target_seq_len = std::max<int64_t>(paged_attention_aligned_seq_len, 1);
@@ -2039,6 +2338,57 @@ std::unique_ptr<primitive_impl> PagedAttentionOpt::create_impl(const program_nod
 }
 
 }  // namespace ov::intel_gpu::ocl
+
+namespace cldnn {
+
+// Replays, per op, the parts of PagedAttentionOptImpl::choose_dpas_backend() (its sdpa_ocl branch) /
+// can_use_micro_sdpa_for() (MIXED) and SDPAOclDecodeGenerator::supported() (GENERATE) that do not depend on the
+// page itself. Change it together with those gates.
+bool paged_attention::by_channel_token_major_readable(const device_info& info,
+                                                      bool microkernels_supported,
+                                                      const ov::element::Type& infer_precision,
+                                                      const std::vector<by_channel_tm_op_info>& ops) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    // Both readers need XMX on Xe2+ (the sdpa_ocl lane); MIXED also asks for microkernel support, and
+    // sdpa_ocl_decode for an f16 query and output.
+    if (!sdpa_ocl_selected(info) || !sdpa_ocl_decode_enabled() || !microkernels_supported || infer_precision != ov::element::f16) {
+        return false;
+    }
+    // sdpa_ocl_decode tiles K by the DPAS depth and V by the subgroup size, both 16.
+    constexpr size_t decode_head_size_align = 16;
+    for (const auto& op : ops) {
+        // Neither gate serves a scores output (adaptive R-KV has one too, and its diversity kernel reads
+        // the page d-major) or alibi. Both serve qq_bias, but its only user, EAGLE3, reorders the cache
+        // from a separate kv-update model through pa_kv_cache_reorder, which reads the page d-major (and
+        // has no PA op here to learn otherwise).
+        if (op.has_scores_output || op.has_adaptive_rkv || op.has_alibi || op.has_qq_bias) {
+            return false;
+        }
+        const size_t k = op.k_head_size;
+        const size_t v = op.v_head_size;
+        if (k == 0 || v == 0 || k > 512 || v > 512 || k % decode_head_size_align != 0 || v % decode_head_size_align != 0) {
+            return false;
+        }
+        if (k != v && !ov::intel_gpu::ocl::SDPAOclGenerator::supports_head_sizes(info.arch, k, v)) {
+            return false;
+        }
+        // An unknown query head count is fine: paged_attention_inst asserts heads % kv_heads anyway.
+        if (op.kv_heads_num == 0 || (op.heads_num != 0 && op.heads_num % op.kv_heads_num != 0)) {
+            return false;
+        }
+    }
+    return true;
+#else
+    // Without oneDNN there is no sdpa_ocl MIXED stage at all: MIXED always runs pa_multi_token.
+    (void)info;
+    (void)microkernels_supported;
+    (void)infer_precision;
+    (void)ops;
+    return false;
+#endif
+}
+
+}  // namespace cldnn
 
 BIND_BINARY_BUFFER_WITH_TYPE(cldnn::paged_attention)
 BIND_BINARY_BUFFER_WITH_TYPE(ov::intel_gpu::ocl::PagedAttentionOptImpl)

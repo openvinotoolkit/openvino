@@ -49,6 +49,31 @@ inline bool sdpa_has_runtime_attn_mask_input(const cldnn::kernel_impl_params& pa
     return !attn_mask_pshape.rank().is_static() || attn_mask_pshape.rank().get_length() > 1;
 }
 
+// A runtime (non-const) attention mask that is a single-element placeholder -- a rank-0 scalar or a
+// 1-element 1D tensor. Semantically it broadcasts: the one value is added to every logit, exactly
+// like a const scalar mask (STATIC_SCALAR_ATTN_MASK_VALUE). sdpa_has_runtime_attn_mask_input()
+// deliberately excludes such layouts from the tensor-mask path, so generators that want to consume
+// the placeholder (e.g. bind it as an input and read the single element) must detect it separately.
+inline bool has_scalar_runtime_attn_mask_input(const cldnn::kernel_impl_params& params) {
+    if (!params.is_type<cldnn::scaled_dot_product_attention>()) {
+        return false;
+    }
+
+    const auto& desc = *params.typed_desc<cldnn::scaled_dot_product_attention>();
+
+    if (desc.attn_mask_val.has_value()) {
+        return false;
+    }
+
+    if (get_data_inputs_num(desc) <= cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::ATTN_MASK) {
+        return false;
+    }
+
+    const auto& attn_mask_layout =
+        params.get_input_layout(cldnn::scaled_dot_product_attention::ScaledDotProductAttentionInputIdx::ATTN_MASK);
+    return !attn_mask_layout.is_dynamic() && attn_mask_layout.count() == 1;
+}
+
 inline size_t ensure_positive_dim(int64_t value,
                                   const char* dim_name,
                                   const char* error_prefix = "SDPA: invalid non-positive ",
