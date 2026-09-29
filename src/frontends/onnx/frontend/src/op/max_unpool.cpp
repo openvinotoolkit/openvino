@@ -3,7 +3,6 @@
 //
 
 #include <algorithm>
-#include <limits>
 
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
@@ -17,7 +16,8 @@
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/slice.hpp"
+#include "openvino/op/variadic_split.hpp"
+#include "openvino/util/common_util.hpp"
 #include "utils/common.hpp"
 
 using namespace ov::op;
@@ -40,19 +40,20 @@ ov::OutputVector max_unpool(const ov::frontend::onnx::Node& node) {
     };
     CHECK_VALID_NODE(node,
                      spatial_rank > 0 && std::all_of(kernel_shape.begin(), kernel_shape.end(), is_positive),
-                     "MaxUnpool 'kernel_shape' attribute must be non-empty and positive.");
+                     "MaxUnpool 'kernel_shape' attribute must be non-empty and positive. Got: ",
+                     ov::util::vector_to_string(kernel_shape));
     CHECK_VALID_NODE(node,
                      strides.size() == spatial_rank && std::all_of(strides.begin(), strides.end(), is_positive),
                      "MaxUnpool 'strides' attribute must have ",
                      spatial_rank,
                      " positive elements. Got: ",
-                     strides.size());
+                     ov::util::vector_to_string(strides));
     CHECK_VALID_NODE(node,
                      pads.size() == spatial_rank * 2,
                      "MaxUnpool 'pads' attribute must have ",
                      spatial_rank * 2,
                      " elements. Got: ",
-                     pads.size());
+                     ov::util::vector_to_string(pads));
     const auto data_rank = data.get_partial_shape().rank();
     CHECK_VALID_NODE(node,
                      data_rank.is_dynamic() || data_rank.get_length() == static_cast<int64_t>(spatial_rank + 2),
@@ -71,25 +72,19 @@ ov::OutputVector max_unpool(const ov::frontend::onnx::Node& node) {
             shift[i] = kernel_shape[i] - strides[i] - pads[i] - pads[i + spatial_rank];
         }
         const auto data_shape = std::make_shared<v3::ShapeOf>(data, ov::element::i64);
-        const auto step = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
-        const auto batch_channels = std::make_shared<v8::Slice>(data_shape,
-                                                                v0::Constant::create(ov::element::i64, {1}, {0}),
-                                                                v0::Constant::create(ov::element::i64, {1}, {2}),
-                                                                step);
-        const auto spatial_dims =
-            std::make_shared<v8::Slice>(data_shape,
-                                        v0::Constant::create(ov::element::i64, {1}, {2}),
-                                        v0::Constant::create(ov::element::i64, {1}, {std::numeric_limits<int64_t>::max()}),
-                                        step);
+        // [N, C] and spatial dims
+        const auto split = std::make_shared<v1::VariadicSplit>(data_shape,
+                                                               v0::Constant::create(ov::element::i64, {}, {0}),
+                                                               v0::Constant::create(ov::element::i64, {2}, {2, -1}));
         const auto scaled =
-            std::make_shared<v1::Multiply>(spatial_dims,
+            std::make_shared<v1::Multiply>(split->output(1),
                                            v0::Constant::create(ov::element::i64, {spatial_rank}, strides));
         const auto out_spatial =
             std::make_shared<v1::Add>(scaled, v0::Constant::create(ov::element::i64, {spatial_rank}, shift));
-        output_shape = std::make_shared<v0::Concat>(ov::OutputVector{batch_channels, out_spatial}, 0);
+        output_shape = std::make_shared<v0::Concat>(ov::OutputVector{split->output(0), out_spatial}, 0);
     }
 
-    // Indices address the whole flattened output (N x C x D1 x ... x Dn)
+    // Indices address flat(N x C x D1 x ... x Dn)
     const auto zero = std::make_shared<v1::ConvertLike>(v0::Constant::create(ov::element::f32, {}, {0}), data);
     const auto total_size =
         std::make_shared<v1::ReduceProd>(output_shape, v0::Constant::create(ov::element::i64, {1}, {0}), true);
