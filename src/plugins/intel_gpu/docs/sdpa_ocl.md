@@ -628,9 +628,12 @@ result is quoted.
   written. It is reachable for rank-2 paged-attention inputs with feature padding (the minicpm4 V
   crop view is benign by luck). Adding it narrows a gate, so it needs its own change and a
   regression sweep.
-- `SCALE_DATA_T` is hard-coded to `half` in `sdpa_gen_ocl.cpp`, so a bf16 or f32 runtime scale
-  input would be misread (`sdpa_ocl_decode` types the scale from its layout). The paged-attention
-  runtime scale has no test.
+- `sdpa_opt.cl` types a paged-attention runtime scale as `INPUT3_TYPE` (`SCALE_TYPE` follows
+  `HAS_ATTN_MASK_INPUT`, which the paged-attention generator never sets, and INPUT3 is a 32-bit index
+  input there), so `pa_sdpa_opt` PREFILL and MIXED read the 16-bit scale as an int32. Real models give a
+  constant scale and never reach it. `paged_attention_runtime_scale_test` is skipped below Xe2 because of it.
+- `sdpa_micro` still jits `SCALE_DATA_T` as `half` (`sdpa_gen_micro.cpp`, `sdpa_micro.cl`), so a bf16 or
+  f32 runtime scale input would be misread there. `sdpa_ocl` types the scale from its layout.
 - `SDPA_OCL_KQ_TILE_KEYS=32` gives wrong results when `kq_sg_per_wg_keys >= 4` and a subgroup has
   two query blocks (`kq_sg_tile_queries = 32`): deterministically, the first query block is right
   and the second is not. It survives every memory-path switch and `SDPA_OCL_256GRF=1`, so the fault
@@ -675,7 +678,7 @@ Measured on an Arc Pro B70 (Xe2), identical before and after the refactor:
 
 ### Test coverage gaps
 
-No test reaches paged-attention bf16, a paged-attention runtime scale, qq_bias with an f16, u4 or
+No test reaches paged-attention bf16, qq_bias with an f16, u4 or
 BY_TOKEN cache, a compressed cache with token_type_ids, or the u4 scalar page arms (head 48, 96,
 112). `sdpa_ocl_decode` reaches `Q_PER_WG = 8` only under `SDPA_OCL_DECODE_M=8` (the GRF cap limits
 the test shapes to M <= 4), and even then no GENERATE test uses u4, so the u4 M = 8 kernel is only
