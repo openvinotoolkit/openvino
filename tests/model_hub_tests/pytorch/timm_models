@@ -106,7 +106,7 @@ efficientnet_x_b5.sw_r448_e450_in1k,None
 efficientnetv2_rw_t.ra2_in1k,None
 efficientvim_m1.e300_in1k,None
 efficientvim_m1_dist.in1k,None
-efficientvit_b0.r224_in1k,None
+efficientvit_b0.r224_in1k,None,xfail_export,wrap_with_autocast is not supported (#38396)
 ese_vovnet19b_dw.ra_in1k,None
 ese_vovnet39b.ra_in1k,None
 ese_vovnet57b.ra4_e3600_r256_in1k,None
