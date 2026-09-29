@@ -3,7 +3,9 @@
 //
 
 #include "test_utils/test_utils.h"
+#include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/runtime/internal_properties.hpp"
+#include "openvino/op/parameter.hpp"
 
 namespace ov::test {
 
@@ -67,12 +69,13 @@ TEST(moe_offload_property_test, auto_ratio_enables_weights_path_in_apply_rt_info
     config.set_property(ov::intel_gpu::offload_ratio(ov::intel_gpu::OFFLOAD_RATIO_AUTO));
     ASSERT_EQ(config.get_offload_ratio(), ov::intel_gpu::OFFLOAD_RATIO_AUTO);
 
-    ov::RTMap rt_info;
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 16});
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{input}, ov::ParameterVector{input});
     const std::string fake_weights_path = "/path/to/model.bin";
-    rt_info[ov::weights_path.name()] = fake_weights_path;
+    model->get_rt_info()["__weights_path"] = fake_weights_path;
 
-    auto context = std::make_shared<RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{get_test_engine().get_device()});
-    config.apply_rt_info(context.get(), rt_info, false, false, false);
+    auto context = std::make_shared<ov::intel_gpu::RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{get_test_engine().get_device()});
+    config.finalize(context.get(), model.get());
 
     ASSERT_EQ(config.get_weights_path(), fake_weights_path);
 }
