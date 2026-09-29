@@ -857,14 +857,43 @@ void add_mask_jit(JitConstants& jit, const jit_inputs& in) {
     jit.make("MASK_KIND", plain_mask_kind(in.params, config, in.is_prefill));
 }
 
+// The runtime scale input (a Parameter or computed scale; a constant one is a jit literal), or nullptr when the
+// kernel has none. Same condition as WITH_SCALE and the kernel argument list.
+const layout* runtime_scale_layout(const kernel_impl_params& params) {
+    if (params.is_type<paged_attention>()) {
+        const auto desc = params.typed_desc<paged_attention>();
+        return desc->scale_val.has_value() ? nullptr : &params.input_layouts[PagedAttentionInputIdx::SCALE];
+    }
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    const bool has_scale_input = get_data_inputs_num(*desc) > static_cast<size_t>(ScaledDotProductAttentionInputIdx::SCALE);
+    return (desc->scale_val.has_value() || !has_scale_input) ? nullptr : &params.input_layouts[ScaledDotProductAttentionInputIdx::SCALE];
+}
+
+bool is_supported_scale_type(data_types dt) {
+    return dt == ov::element::f16 || dt == ov::element::bf16 || dt == ov::element::f32;
+}
+
 void add_scale_jit(JitConstants& jit, const jit_inputs& in) {
     jit.make("INVERT_SCALE", false);
-    jit.make("SCALE_DATA_T", "half");  // see "Known issues" in the docs
+    // The kernel reads a runtime scale through SCALE_DATA_T, so that must be the input's own type (f16 unless
+    // the model gives a bf16 or f32 scale). bf16 travels as ushort and is widened in sdpa_ocl_config.cl.
+    // A constant scale is a literal and never reads the type.
+    const bool with_scale = !in.config.has_const_scale_val && in.config.input_num > static_cast<int64_t>(4);
+    const auto* scale = with_scale ? runtime_scale_layout(in.params) : nullptr;
+    OPENVINO_ASSERT(!with_scale || scale != nullptr, "[GPU] sdpa_ocl: WITH_SCALE without a scale input");
+    const auto scale_type = scale ? scale->data_type : data_types(ov::element::f16);
+    OPENVINO_ASSERT(is_supported_scale_type(scale_type), "[GPU] sdpa_ocl: unsupported scale type ", scale_type);
+    if (scale_type == ov::element::bf16) {
+        jit.make("SCALE_DATA_T", "ushort");
+        jit.make("SCALE_IS_BF16", 1);
+    } else {
+        jit.make("SCALE_DATA_T", scale_type == ov::element::f32 ? "float" : "half");
+    }
     if (in.config.has_const_scale_val) {
         jit.make("STATIC_SCALE_VALUE", in.config.scale_val);
         jit.make("STATIC_SCALE_VALUE_INV", 1.0f / in.config.scale_val);
     } else {
-        jit.make("WITH_SCALE", in.config.input_num > static_cast<int64_t>(4));
+        jit.make("WITH_SCALE", with_scale);
     }
 }
 
@@ -939,6 +968,11 @@ bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
     }
 
     if (!is_f16(params.input_layouts[0].data_type) || !is_f16(params.output_layouts[0].data_type)) {
+        return false;
+    }
+
+    // The kernel reads a runtime scale in f16, bf16 or f32 (add_scale_jit).
+    if (const auto* scale = runtime_scale_layout(params); scale && !is_supported_scale_type(scale->data_type)) {
         return false;
     }
 
