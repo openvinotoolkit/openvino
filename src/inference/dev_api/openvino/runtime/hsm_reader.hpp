@@ -46,9 +46,6 @@ public:
         : m_entry(entry),
           m_source(StreamSource{&stream, payload_start}) {}
 
-    constexpr const ManifestEntry& entry() const noexcept {
-        return m_entry;
-    }
     constexpr DeviceId device() const noexcept {
         return m_entry.device;
     }
