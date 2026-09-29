@@ -221,7 +221,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
     def __init__(self, pt_module, fx_gm=None, nodes=None,
                  mark_node_callback=None, input_shapes=None,
                  input_types=None, dynamic_shapes=False,
-                 op_type_mapping=None):
+                 op_type_mapping=None, output_names=None):
         super().__init__(mark_node_callback)
         self.pt_module = pt_module
         self.fx_gm = fx_gm if fx_gm is not None else pt_module
@@ -258,6 +258,8 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 elif value.op == "output":
                     # Instead of putting output index, refer to its target
                     uargs = self.unpack_containers(value.args)
+                    if output_names is not None and len(output_names) == len(uargs):
+                        uargs = [(name or arg[0], arg[1]) for name, arg in zip(output_names, uargs)]
                     self._outputs = [(arg[0], self._nodes.index(arg[1]))
                                      for arg in uargs if arg[1] is not None]
 
@@ -339,7 +341,20 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         gm = exported_program.module()
         logger.debug(gm.code)
         return cls(gm, dynamic_shapes=dynamic_shapes,
-                   op_type_mapping=op_type_mapping)
+                   op_type_mapping=op_type_mapping,
+                   output_names=cls._output_names_from_spec(exported_program.call_spec.out_spec))
+
+    @staticmethod
+    def _output_names_from_spec(out_spec):
+        """Name flattened outputs by their dict keys, the graph output node has no containers."""
+        if out_spec is None:
+            return None
+        from torch.utils._pytree import MappingKey, tree_flatten_with_path, tree_unflatten
+        paths, _ = tree_flatten_with_path(tree_unflatten(list(range(out_spec.num_leaves)), out_spec))
+        names = [str(path[-1].key) if path and isinstance(path[-1], MappingKey) else ""
+                 for path, _ in paths]
+        # skip ambiguous names, e.g. the same key in several nested dicts
+        return [name if names.count(name) == 1 else "" for name in names]
 
     @classmethod
     def from_model(
@@ -585,6 +600,7 @@ class TorchFXPythonDecoder (BaseFXDecoder):
         raise RuntimeError("This input is not a Node")
 
     def visit_subgraph(self, node_visitor):
+        output_names = {idx: name for name, idx in self._outputs if name}
         # make sure topological order is satisfied
         for node in self._nodes:
             if node.op in {"placeholder", "output"}:
@@ -601,6 +617,10 @@ class TorchFXPythonDecoder (BaseFXDecoder):
                 node, self.fx_gm, self._nodes,
                 mark_node_callback=self.mark_node_callback,
                 op_type_mapping=self._module_extension_target_ops)
+            node_idx = decoder._outputs[0][1]
+            if node_idx in output_names:
+                # model output tensor gets its name, e.g. key of the returned dict
+                decoder._outputs = [(output_names[node_idx], node_idx)]
             self.m_decoders.append(decoder)
             node_visitor(decoder)
 
