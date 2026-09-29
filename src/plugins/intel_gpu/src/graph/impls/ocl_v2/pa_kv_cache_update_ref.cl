@@ -232,10 +232,12 @@ inline void FUNC(quantize_and_save_per_token)(__global const INPUT0_TYPE* in_dat
 //
 //   d-major (upstream)   [k_head_size columns][block_size + 4]: a column is contiguous, and its pair
 //                        sits inline at the end of it.
-//   token-major (opt-in) [block_size + 4 rows][k_head_size]: rows 0..block_size-1 are the tokens with
+//   token-major          [block_size + 4 rows][k_head_size]: rows 0..block_size-1 are the tokens with
 //                        a k_head_size pitch -- exactly the BY_TOKEN data geometry -- and the pairs
-//                        follow the data as one per-channel array. Only sdpa_ocl_decode reads this;
-//                        see paged_attention::k_by_channel_token_major_for() for why it is separate.
+//                        follow the data as one per-channel array. This kernel, kv_cache_rotate,
+//                        sdpa_ocl_decode and sdpa_ocl MIXED read it; every other reader takes the page
+//                        d-major, so the page is created only where
+//                        paged_attention::by_channel_token_major_readable() allows it.
 //
 // The page SIZE is k_head_size * (block_size + 4) either way, so page bases are untouched.
 #if IS_KEY_BY_CHANNEL_TOKEN_MAJOR
