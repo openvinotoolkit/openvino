@@ -717,6 +717,7 @@ std::string serializeConfig(const Config& originalConfig,
         levelStr << originalConfig.get<COMPILE_LOG_LEVEL>();
         configWithCompileLogLevel = originalConfig;
         configWithCompileLogLevel->update(ov::log::level.name(), levelStr.str());
+        configWithCompileLogLevel->remove(ov::intel_npu::compile_log_level.name());
     }
     const Config& config = configWithCompileLogLevel.has_value() ? *configWithCompileLogLevel : originalConfig;
 
