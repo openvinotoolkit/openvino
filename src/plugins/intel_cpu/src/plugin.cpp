@@ -300,7 +300,10 @@ void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& m
             if (it_model_prefer != hints_config.end()) {
                 try {
                     if (one_name == std::string("TBB_PARTITIONER")) {
-                        conf.tbbPartitioner = it_model_prefer->second.as<ov::intel_cpu::TbbPartitioner>();
+                        auto cached_partitioner = it_model_prefer->second.as<ov::intel_cpu::TbbPartitioner>();
+                        if (!conf.changedTbbPartitioner) {
+                            conf.tbbPartitioner = cached_partitioner;
+                        }
                     } else if (one_name == std::string("MODEL_PREFER_THREADS_LATENCY")) {
                         conf.modelPreferThreadsLatency = it_model_prefer->second.as<int>();
                     } else {
@@ -323,6 +326,12 @@ void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& m
         tbb_partitioner << conf.tbbPartitioner;
         hints_props.insert({model_prefer_name[2], tbb_partitioner.str()});
         model->set_rt_info(hints_props, "intel_cpu_hints_config");
+    }
+    // The cached partitioner is the model's latency preference. Only override an automatically chosen
+    // partitioner for throughput or multi-stream execution; an explicit user choice takes precedence.
+    if (!conf.changedTbbPartitioner &&
+        (conf.hintPerfMode == ov::hint::PerformanceMode::THROUGHPUT || conf.streamExecutorConfig.get_streams() > 1)) {
+        conf.tbbPartitioner = TbbPartitioner::STATIC;
     }
 }
 
