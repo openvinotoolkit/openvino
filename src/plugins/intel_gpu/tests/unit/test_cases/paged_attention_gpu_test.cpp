@@ -202,6 +202,178 @@ INSTANTIATE_TEST_SUITE_P(
         with_runtime_scale(paged_attention_test_params{ {{1, 34}, {1, 515}}, 8, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
     }));
 
+// Feature-axis padding of the rank-2 query / key / value inputs that is NOT a multiple of 64 B. sdpa_ocl may read
+// such an input with 2D block IO only where its gate can prove the base and the pitch (see "Block2d rules" in
+// docs/sdpa_ocl.md); DYNAMIC_INPUT_PAD only ever padded the query by whole heads, which is aligned by construction.
+//
+// All pads are in f16 elements: 32 = 64 B (aligned control), 8 = 16 B (the granularity the base fixup repairs),
+// 2 = 4 B (breaks the pitch % 16 rule as well). "After only" keeps the base of token 0 aligned; with a 16 B-multiple pitch it moves
+// the base of the later tokens (MIXED) but is harmless in a single-sequence PREFILL.
+// On the old gate only a token stride that is not a multiple of 16 B, and a base 2 B off, gave wrong values on Arc Pro B70.
+// Dynamic: the compile-time layout says only "padded", as for a crop view in a dynamic-shape model.
+class paged_attention_feature_pad_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+namespace {
+// The suite only means something where sdpa_ocl serves PREFILL / MIXED (Xe2 XMX with oneDNN, not switched off by TEST_USE_SDPA_OCL=0);
+// elsewhere the multi-token kernel is sdpa_micro or pa_sdpa_opt, which have their own padding handling.
+bool sdpa_ocl_serves_prefill_mixed() {
+    return cldnn::paged_attention::sdpa_ocl_selected(tests::get_test_engine().get_device_info());
+}
+}  // namespace
+
+TEST_P(paged_attention_feature_pad_test, matches_reference) {
+    if (!sdpa_ocl_serves_prefill_mixed())
+        GTEST_SKIP() << "the block2d gate belongs to sdpa_ocl, which serves PREFILL / MIXED on Xe2 only";
+    auto p = GetParam();
+    execute(p, true);
+}
+
+namespace {
+paged_attention_test_params with_input_pads(paged_attention_test_params p, input_feature_pads pads) {
+    p.input_pads = pads;
+    return p;
+}
+
+// {q, k, v} pads, one common value for the inputs that are padded.
+constexpr bool DYNAMIC_PAD = true;
+constexpr bool STATIC_PAD = false;
+input_feature_pads pads_qkv(int before, int after, bool dynamic) {
+    return input_feature_pads{{before, after}, {before, after}, {before, after}, dynamic};
+}
+input_feature_pads pads_q(int before, int after, bool dynamic) {
+    return input_feature_pads{{before, after}, {}, {}, dynamic};
+}
+input_feature_pads pads_kv(int before, int after, bool dynamic) {
+    return input_feature_pads{{}, {before, after}, {before, after}, dynamic};
+}
+input_feature_pads pads_qv(int before, int after, bool dynamic) {
+    return input_feature_pads{{before, after}, {}, {before, after}, dynamic};
+}
+}  // namespace
+
+namespace {
+// The harness data (N(0, 0.1)) makes q.k ~ 0.08, an almost uniform softmax, in which a misread Q or K row barely moves the
+// output: only V is observed. Every case therefore also runs with a gain that sharpens the softmax (constant scale).
+constexpr float SHARP_SOFTMAX_GAIN = 128.0f;
+
+paged_attention_test_params sharp_softmax(paged_attention_test_params p) {
+    p.logit_scale_gain = SHARP_SOFTMAX_GAIN;
+    return p;
+}
+
+std::vector<paged_attention_test_params> feature_pad_cases() {
+    // PREFILL: one sequence of 36 new tokens. MIXED: a 1-token step, a fresh prompt and a prompt continuation.
+    auto prefill = [](int heads, int kv_heads, int head) {
+        return paged_attention_test_params{ {{36, 0}}, heads, kv_heads, head, head, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false };
+    };
+    auto mixed = [](int heads, int kv_heads, int head) {
+        return paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, heads, kv_heads, head, head, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false };
+    };
+    auto mixed_i8 = [](int heads, int kv_heads, int head) {
+        return paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, heads, kv_heads, head, head, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false };
+    };
+
+    std::vector<paged_attention_test_params> cases = {
+        // 0-1: aligned control (64 B pads): must pass with and without the gate fix.
+        with_input_pads(prefill(2, 2, 64), pads_qkv(32, 32, DYNAMIC_PAD)),
+        with_input_pads(mixed(2, 2, 64), pads_qkv(32, 32, DYNAMIC_PAD)),
+        // 2-5: dynamic 16 B pads, PREFILL: Q only (Q and A have no base fixup), K/V only, all three, and after-only. Case 5 keeps a
+        // 64 B aligned base and a 16 B-multiple pitch at subsequence_begin 0, so it is a control; its MIXED twin (case 8) moves the base.
+        with_input_pads(prefill(2, 2, 64), pads_q(8, 8, DYNAMIC_PAD)),
+        with_input_pads(prefill(2, 2, 64), pads_kv(8, 8, DYNAMIC_PAD)),
+        with_input_pads(prefill(2, 2, 64), pads_qkv(8, 8, DYNAMIC_PAD)),
+        with_input_pads(prefill(2, 2, 64), pads_qkv(0, 8, DYNAMIC_PAD)),
+        // 6-8: dynamic 16 B pads, MIXED: K/V only reaches the current-token surfaces (Kc/Vc).
+        with_input_pads(mixed(2, 2, 64), pads_qkv(8, 8, DYNAMIC_PAD)),
+        with_input_pads(mixed(2, 2, 64), pads_kv(8, 8, DYNAMIC_PAD)),
+        with_input_pads(mixed(2, 2, 64), pads_qkv(0, 8, DYNAMIC_PAD)),
+        // 9-12: static pads: 16 B (the fixup tier can repair it) and 4 B (nothing can, so the gate must refuse block IO).
+        with_input_pads(prefill(2, 2, 64), pads_qkv(8, 8, STATIC_PAD)),
+        with_input_pads(prefill(2, 2, 64), pads_qkv(2, 2, STATIC_PAD)),
+        with_input_pads(mixed(2, 2, 64), pads_qkv(8, 8, STATIC_PAD)),
+        with_input_pads(mixed(2, 2, 64), pads_qkv(2, 2, STATIC_PAD)),
+        // 13-14: a dynamic 4 B pad on Q alone: Q takes the scalar path, whatever the pad.
+        with_input_pads(prefill(2, 2, 64), pads_q(2, 2, DYNAMIC_PAD)),
+        with_input_pads(mixed(2, 2, 64), pads_q(2, 2, DYNAMIC_PAD)),
+        // 15-16: GQA at head 128, and a compressed cache (MIXED still reads the raw f16 Kc/Vc for the new tokens). K is not padded
+        // there: the i8 BY_CHANNEL requantize path of pa_kv_cache_update_ref.cl ignores the pitch of the key input ("Known issues").
+        with_input_pads(prefill(8, 2, 128), pads_qkv(8, 8, DYNAMIC_PAD)),
+        with_input_pads(mixed_i8(2, 2, 64), pads_qv(8, 8, DYNAMIC_PAD)),
+    };
+
+    // 17-33: the same cases with a sharp softmax.
+    const size_t base_count = cases.size();
+    for (size_t i = 0; i < base_count; i++)
+        cases.push_back(sharp_softmax(cases[i]));
+
+    // 34-: pads that move the base by 32 B and 48 B while the pitch stays a multiple of 64 B (ld = 160 elements), so only
+    // the base is off; sharp softmax only.
+    cases.push_back(sharp_softmax(with_input_pads(prefill(2, 2, 64), pads_qkv(16, 16, DYNAMIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(mixed(2, 2, 64), pads_qkv(16, 16, DYNAMIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(prefill(2, 2, 64), pads_qkv(24, 8, DYNAMIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(mixed(2, 2, 64), pads_qkv(24, 8, DYNAMIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(prefill(2, 2, 64), pads_q(16, 16, DYNAMIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(prefill(2, 2, 64), pads_kv(16, 16, DYNAMIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(mixed(2, 2, 64), pads_kv(16, 16, DYNAMIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(prefill(2, 2, 64), pads_qkv(16, 16, STATIC_PAD))));
+
+    // 42-49: what the device enforces, on the old gate: a token stride that is not a multiple of 16 B gives wrong values, a base
+    // 4 B off does not ((2, 6) has a 272 B stride), a base 2 B off does. Q takes the scalar path with these pads; K/V take the
+    // fixup tier when the padding is dynamic and the scalar path when it is static and not a multiple of 16 B. Sharp softmax only.
+    cases.push_back(sharp_softmax(with_input_pads(prefill(2, 2, 64), pads_qkv(2, 6, DYNAMIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(mixed(2, 2, 64), pads_qkv(2, 6, DYNAMIC_PAD))));
+    for (const auto& pads : {pads_q(0, 2, DYNAMIC_PAD), pads_q(2, 6, DYNAMIC_PAD), pads_q(1, 7, DYNAMIC_PAD), pads_kv(2, 6, DYNAMIC_PAD)})
+        cases.push_back(sharp_softmax(with_input_pads(prefill(2, 2, 64), pads)));
+    for (const auto& pads : {pads_qkv(0, 2, STATIC_PAD), pads_qkv(2, 6, STATIC_PAD)})
+        cases.push_back(sharp_softmax(with_input_pads(prefill(2, 2, 64), pads)));
+
+    // 50-: static controls: 64 B pads (the strict tier holds), and a 64 B start with a 352 B stride (strict refuses on the stride, the
+    // fixup tier takes it). Then one KV head: the fixup widens the surface by up to 48 B, which can exceed the pitch (160 B here).
+    cases.push_back(sharp_softmax(with_input_pads(prefill(2, 2, 64), pads_qkv(32, 32, STATIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(mixed(2, 2, 64), pads_qkv(32, 32, STATIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(prefill(2, 2, 64), pads_qkv(32, 16, STATIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(prefill(4, 1, 64), pads_qkv(8, 8, DYNAMIC_PAD))));
+    cases.push_back(sharp_softmax(with_input_pads(mixed(4, 1, 64), pads_qkv(8, 8, DYNAMIC_PAD))));
+    return cases;
+}
+
+std::vector<paged_attention_test_params> feature_pad_residual_cases() {
+    auto prefill = [](int heads, int kv_heads, int head) {
+        return paged_attention_test_params{ {{36, 0}}, heads, kv_heads, head, head, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false };
+    };
+    auto mixed = [](int heads, int kv_heads, int head) {
+        return paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, heads, kv_heads, head, head, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false };
+    };
+    return {
+        sharp_softmax(with_input_pads(prefill(2, 2, 64), pads_qkv(0, 2, DYNAMIC_PAD))),  // stride 260 B
+        sharp_softmax(with_input_pads(mixed(2, 2, 64), pads_qkv(0, 2, DYNAMIC_PAD))),    // stride 260 B, Kc / Vc
+        sharp_softmax(with_input_pads(prefill(2, 2, 64), pads_kv(0, 2, DYNAMIC_PAD))),   // stride 260 B, K / V alone
+        sharp_softmax(with_input_pads(prefill(2, 2, 64), pads_qkv(1, 7, DYNAMIC_PAD))),  // start 2 B off
+    };
+}
+}  // namespace
+
+// Instantiated under smoke_paged_attention so that every gtest group selecting smoke_paged_attention/* runs it.
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention,
+    paged_attention_feature_pad_test,
+    ::testing::ValuesIn(feature_pad_cases()));
+
+// The dynamic K/V paddings the host cannot prove: the fixup tier takes a dynamic padding on trust ("Block2d rules" in
+// docs/sdpa_ocl.md), so a token stride that is not a multiple of 16 B, or a start of the first head that is not a multiple
+// of 4 B, still reads wrong values. Kept to reproduce that, not to pass: run with --gtest_also_run_disabled_tests.
+class paged_attention_feature_pad_residual_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_feature_pad_residual_test, DISABLED_matches_reference) {
+    auto p = GetParam();
+    execute(p, true);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention,
+    paged_attention_feature_pad_residual_test,
+    ::testing::ValuesIn(feature_pad_residual_cases()));
+
 // k_head_size != v_head_size.
 //
 // The MIXED stage is the load-bearing case: the token-major BY_CHANNEL K page is read by sdpa_ocl,

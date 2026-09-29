@@ -11,6 +11,7 @@
 #include <intel_gpu/primitives/eltwise.hpp>
 #include <intel_gpu/runtime/debug_configuration.hpp>
 
+#include "impls/ocl_v2/sdpa/sdpa_ocl_utils.hpp"
 #include "impls/ocl_v2/sdpa/sdpa_opt.hpp"
 #include "impls/ocl_v2/sdpa/sdpa_ref.hpp"
 #include "openvino/reference/scaled_dot_product_attention.hpp"
@@ -2428,3 +2429,99 @@ INSTANTIATE_TEST_SUITE_P(
         sdpa_broadcast_test_params(1, 2, 2, 16, 1, 1024, 64, false, 1)));
 
 } // namespace
+
+// The 2D block IO gates of sdpa_ocl, on padded layouts. Host-only: no device is involved.
+//
+// A paged-attention Q/K/V is rank 2 [tokens, heads * head], so feature padding moves the base and the pitch of
+// every head, which the rank-4 argument ("the pitch is a multiple of the row") does not cover. The strict tier
+// (block2d_layout_ok: no base repair) must prove a 64 B aligned base and pitch; the fixup tier
+// (block2d_layout_fixup_ok: the kernel rounds the base down at run time) needs both to be multiples of 16 B,
+// which it can only prove for static padding. A dynamic pad is taken on trust in the fixup tier (documented
+// precondition) and refused by the strict one.
+namespace {
+using ov::intel_gpu::ocl::sdpa_ocl_utils::block2d_layout_fixup_ok;
+using ov::intel_gpu::ocl::sdpa_ocl_utils::block2d_layout_ok;
+
+// [?, 128] elements (f16: 2 heads of 64, row_bytes 128), FEATURE padded by before / after elements (0 / 0 = unpadded).
+layout rank2_input(int before, int after, bool dynamic = false, data_types dt = data_types::f16, ov::Dimension feature = ov::Dimension(128)) {
+    layout l{ov::PartialShape{ov::Dimension(-1), feature}, dt, format::bfyx};
+    l.data_padding._lower_size[1] = before;
+    l.data_padding._upper_size[1] = after;
+    if (dynamic)
+        l.data_padding._dynamic_dims_mask[1] = 1;
+    return l;
+}
+
+// f16 [1, 8, 256, 64] (row_bytes 128) with one axis (index 2 = Y, 3 = X) padded.
+layout rank4_input(size_t axis, int before, int after, bool dynamic = false) {
+    layout l{ov::PartialShape{1, 8, 256, 64}, data_types::f16, format::bfyx};
+    l.data_padding._lower_size[axis] = before;
+    l.data_padding._upper_size[axis] = after;
+    if (dynamic)
+        l.data_padding._dynamic_dims_mask[axis] = 1;
+    return l;
+}
+
+struct block2d_gate_row {
+    const char* name;
+    layout l;
+    size_t row_bytes;
+    bool strict;
+    bool fixup;
+};
+}  // namespace
+
+TEST(sdpa_block2d_gate, padded_layouts) {
+    const std::vector<block2d_gate_row> rows = {
+        // Rank 2 (paged attention), static padding: ld = 128 + before + after elements.
+        {"unpadded", rank2_input(0, 0), 128, true, true},
+        {"static 64 B / 64 B", rank2_input(32, 32), 128, true, true},
+        {"static 0 / 64 B", rank2_input(0, 32), 128, true, true},
+        {"static 64 B / 0", rank2_input(32, 0), 128, true, true},
+        {"static 64 B / 32 B: pitch 352 B", rank2_input(32, 16), 128, false, true},
+        {"static 16 B / 16 B: base and pitch off", rank2_input(8, 8), 128, false, true},
+        // One condition at a time: only the start of the first head (32 B, stride 320 B), only the fixup start (4 B, stride 272 B), only the stride.
+        {"static 32 B / 32 B: only the start breaks strict", rank2_input(16, 16), 128, false, true},
+        {"static 4 B / 12 B: start 4 B, stride 272 B", rank2_input(2, 6), 128, false, false},
+        {"static 0 / 4 B: only the stride is off", rank2_input(0, 2), 128, false, false},
+        {"static 0 / 16 B: pitch 272 B", rank2_input(0, 8), 128, false, true},
+        {"static 16 B / 0: pitch 272 B", rank2_input(8, 0), 128, false, true},
+        {"static 4 B / 4 B: pitch 264 B", rank2_input(2, 2), 128, false, false},
+        // Rank 2, dynamic padding: unprovable, so never the strict tier.
+        {"dynamic", rank2_input(0, 0, true), 128, false, true},
+        // A dynamic mask wins over static sizes; a feature dimension that is not static cannot be proven either.
+        {"static 64 B / 64 B but dynamic", rank2_input(32, 32, true), 128, false, true},
+        {"static pad, dynamic feature dim", rank2_input(0, 8, false, data_types::f16, ov::Dimension(-1)), 128, false, false},
+        // The element size scales the byte arithmetic: f32 pads of 16 elements are 64 B, of 4 are 16 B, of 1 are 4 B; i8 of 16 are 16 B.
+        {"f32 64 B / 64 B", rank2_input(16, 16, false, data_types::f32), 256, true, true},
+        {"f32 16 B / 16 B", rank2_input(4, 4, false, data_types::f32), 256, false, true},
+        {"f32 4 B / 4 B", rank2_input(1, 1, false, data_types::f32), 256, false, false},
+        {"i8 16 B / 16 B", rank2_input(16, 16, false, data_types::i8), 128, false, true},
+        // Row sizes: 64 B is the smallest surface, 80 B is fixup-only.
+        {"unpadded, 64 B rows", rank2_input(0, 0), 64, true, true},
+        {"unpadded, 80 B rows", rank2_input(0, 0), 80, false, true},
+        // Ranks other than 2 and 4 have no innermost axis the test can look at: padded is refused, unpadded is fine.
+        {"rank 3 unpadded", layout{ov::PartialShape{8, 256, 64}, data_types::f16, format::bfyx}, 128, true, true},
+        // The width / pitch floor of the surface still applies.
+        {"unpadded, 32 B rows", rank2_input(0, 0), 32, false, false},
+        {"static 64 B / 64 B, 32 B rows", rank2_input(32, 32), 32, false, false},
+        // Rank 4 (plain SDPA): offsets are whole rows unless the innermost axis is padded.
+        {"rank 4 unpadded", rank4_input(2, 0, 0), 128, true, true},
+        {"rank 4 Y static", rank4_input(2, 3, 5), 128, true, true},
+        {"rank 4 Y dynamic", rank4_input(2, 0, 0, true), 128, true, true},
+        {"rank 4 X static", rank4_input(3, 8, 0), 128, false, false},
+        {"rank 4 X dynamic", rank4_input(3, 0, 0, true), 128, false, false},
+    };
+    for (const auto& r : rows) {
+        SCOPED_TRACE(r.name);
+        EXPECT_EQ(block2d_layout_ok(r.l, r.row_bytes), r.strict) << "strict tier";
+        EXPECT_EQ(block2d_layout_fixup_ok(r.l, r.row_bytes), r.fixup) << "fixup tier";
+    }
+
+    // A padded rank-3 layout: the innermost axis is Y, which the X test would skip (vacuously true).
+    layout rank3{ov::PartialShape{8, 256, 64}, data_types::f16, format::bfyx};
+    rank3.data_padding._lower_size[2] = 8;
+    SCOPED_TRACE("rank 3 padded");
+    EXPECT_FALSE(block2d_layout_ok(rank3, 128)) << "strict tier";
+    EXPECT_FALSE(block2d_layout_fixup_ok(rank3, 128)) << "fixup tier";
+}
