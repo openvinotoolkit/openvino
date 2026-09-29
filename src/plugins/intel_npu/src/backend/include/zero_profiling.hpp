@@ -109,7 +109,9 @@ private:
 
     /// Helper function to convert npu clockcycles to usec
     int64_t convertCCtoUS(int64_t val_cc) const;
-    int64_t getSteadyAverageCC() const;
+    std::vector<int64_t> getFastestPercentDurations(uint32_t percent_to_keep) const;
+    int64_t getAverageCC(uint32_t percent_to_keep) const;
+    int64_t getMedianCC(uint32_t percent_to_keep) const;
 };
 
 }  // namespace zeroProfiling
