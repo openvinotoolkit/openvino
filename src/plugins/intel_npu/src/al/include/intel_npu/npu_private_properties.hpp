@@ -45,7 +45,6 @@ inline std::string standardize(const std::string_view platform) {
 /**
  * @enum ColorFormat
  * @brief Extra information about input color format for preprocessing
- * @note Configuration API v 2.0
  */
 enum ColorFormat : uint32_t {
     RAW = 0u,  ///< Plain blob (default), no extra color processing required
@@ -57,10 +56,6 @@ enum ColorFormat : uint32_t {
 
 /**
  * @brief Prints a string representation of ov::intel_npu::ColorFormat to a stream
- * @param out An output stream to send to
- * @param fmt A color format value to print to a stream
- * @return A reference to the `out` stream
- * @note Configuration API v 2.0
  */
 inline std::ostream& operator<<(std::ostream& out, const ColorFormat& fmt) {
     switch (fmt) {
@@ -100,10 +95,6 @@ enum class BatchMode {
 
 /**
  * @brief Prints a string representation of ov::intel_npu::BatchMode to a stream
- * @param out An output stream to send to
- * @param fmt A value for batching on plugin to print to a stream
- * @return A reference to the `out` stream
- * @note Configuration API v 2.0
  */
 inline std::ostream& operator<<(std::ostream& out, const BatchMode& fmt) {
     switch (fmt) {
@@ -121,6 +112,24 @@ inline std::ostream& operator<<(std::ostream& out, const BatchMode& fmt) {
         break;
     }
     return out;
+}
+
+/**
+ * @brief Reads a string representation of ov::intel_npu::BatchMode from a stream
+ */
+inline std::istream& operator>>(std::istream& is, BatchMode& fmt) {
+    std::string str;
+    is >> str;
+    if (str == "AUTO") {
+        fmt = BatchMode::AUTO;
+    } else if (str == "COMPILER") {
+        fmt = BatchMode::COMPILER;
+    } else if (str == "PLUGIN") {
+        fmt = BatchMode::PLUGIN;
+    } else {
+        OPENVINO_THROW("Unsupported value for the batch mode: ", str);
+    }
+    return is;
 }
 
 /**
@@ -209,7 +218,6 @@ inline std::istream& operator>>(std::istream& is, ModelSerializerVersion& modelS
  * @brief [Only for NPU Plugin]
  * Type: string, default is MODEL.
  * Type of profiling to execute. Can be Model (default) or INFER (based on npu timestamps)
- * @note Configuration API v 2.0
  */
 enum class ProfilingType { MODEL, INFER };
 
@@ -218,7 +226,6 @@ enum class ProfilingType { MODEL, INFER };
  * @param out An output stream to send to
  * @param fmt A profiling type value to print to a stream
  * @return A reference to the `out` stream
- * @note Configuration API v 2.0
  */
 inline std::ostream& operator<<(std::ostream& out, const ProfilingType& fmt) {
     switch (fmt) {
@@ -233,6 +240,22 @@ inline std::ostream& operator<<(std::ostream& out, const ProfilingType& fmt) {
         break;
     }
     return out;
+}
+
+/**
+ * @brief Reads a string representation of ov::intel_npu::ProfilingType from a stream
+ */
+inline std::istream& operator>>(std::istream& is, ProfilingType& fmt) {
+    std::string str;
+    is >> str;
+    if (str == "MODEL") {
+        fmt = ProfilingType::MODEL;
+    } else if (str == "INFER") {
+        fmt = ProfilingType::INFER;
+    } else {
+        OPENVINO_THROW("Unsupported value for the profiling type: ", str);
+    }
+    return is;
 }
 
 /**
@@ -365,11 +388,14 @@ static constexpr ov::Property<WSVersion> separate_weights_version{"NPU_SEPARATE_
 static constexpr ov::Property<ModelSerializerVersion> model_serializer_version{"NPU_MODEL_SERIALIZER_VERSION"};
 
 /**
- * @brief [Experimental, only for NPU Plugin]
+ * @brief [Only for NPU Plugin]
  * Type: integer.
  *
  * Used for communicating a state to the compiler when compiling a model using the compiler-in-driver interfaces. This
  * takes effect only when weights separation is enabled and "NPU_SEPARATE_WEIGHTS_VERSION" is set to "ITERATIVE".
+ *
+ * Note: This property is internal, it is used strictly for plugin -> compiler synchronization and is not meant to be
+ * used by the application. Setting or getting it from user code will throw.
  */
 static constexpr ov::Property<uint32_t> ws_compile_call_number{"WS_COMPILE_CALL_NUMBER"};
 

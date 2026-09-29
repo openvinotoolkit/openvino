@@ -16,10 +16,7 @@
 #include "openvino/op/squeeze.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 // Always emit the internal SetRows placeholder op (never a device-specific ScatterUpdate). A
 // normalization-stage lowering replaces it: the built-in LowerSetRows rebuilds the stateless
@@ -58,7 +55,4 @@ OutputVector translate_set_rows(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(set_rows)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

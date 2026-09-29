@@ -3,14 +3,10 @@
 //
 
 #pragma once
-
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/pass.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace pass {
+namespace ov::frontend::pytorch::pass {
 
 // This transformation replaces pattern prim::ListConstruct->aten::index
 class AtenIndexToSelect : public ov::pass::MatcherPass {
@@ -19,7 +15,4 @@ public:
     AtenIndexToSelect();
 };
 
-}  // namespace pass
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::pass

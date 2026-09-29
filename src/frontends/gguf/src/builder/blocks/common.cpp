@@ -4,10 +4,7 @@
 
 #include "builder/blocks/common.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace blocks {
+namespace ov::frontend::gguf::blocks {
 
 std::string rms_norm(GraphEmitter& e,
                      const std::string& in,
@@ -28,7 +25,4 @@ std::string add_bias(GraphEmitter& e, const std::string& x, const std::string& b
     return e.add_op("GGML_OP_ADD", name, {x, bias_weight});
 }
 
-}  // namespace blocks
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::blocks

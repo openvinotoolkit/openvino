@@ -13,7 +13,11 @@
 #include "compiled_model.hpp"
 #include "llm_compiled_model.hpp"
 #include "model_builder.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/fake_convert.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/iplugin.hpp"
@@ -69,8 +73,7 @@ inline std::shared_ptr<ov::Model> build_dynamic_attention_llm_model() {
     for (const auto& input : model->inputs()) {
         const auto& name = input.get_any_name();
         const auto& pshape = input.get_partial_shape();
-        if (name.find("input_ids") != std::string::npos ||
-            name.find("token_type_ids") != std::string::npos) {
+        if (name.find("input_ids") != std::string::npos || name.find("token_type_ids") != std::string::npos) {
             new_shapes[name] = ov::PartialShape{1, kSeq};
         } else if (name.find("attention_mask") != std::string::npos) {
             new_shapes[name] = ov::PartialShape{1, kSeq + kPast};
@@ -100,6 +103,22 @@ inline std::shared_ptr<ov::Model> build_llm_gqa_test_model() {
     return mb.build_llm(make_test_model_config_gqa());
 }
 
+/// Minimal Qwen3-style reranker: a GQA causal decoder with RMSNorm and per-head
+/// Q/K normalization, stateful KV cache and an LM head (logits output). Matches the
+/// I/O signature of Qwen3-Reranker (input_ids/attention_mask/position_ids + beam_idx),
+/// which is what the batched scoring element fans out over.
+inline LLMConfig make_test_model_config_reranker() {
+    auto cfg = make_test_model_config_gqa();
+    cfg.norm = RMSNorm(cfg.hidden_size, cfg.precision);
+    cfg.qk_norm = RMSNorm(cfg.head_dim, cfg.precision);
+    return cfg;
+}
+
+inline std::shared_ptr<ov::Model> build_reranker_test_model() {
+    ModelBuilder mb;
+    return mb.build_llm(make_test_model_config_reranker());
+}
+
 inline std::shared_ptr<ov::Model> build_llm_test_model_with_kv_fake_convert(const ov::element::Type fake_convert_type) {
     auto model = build_llm_test_model();
     auto scale = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{}, {1.0f});
@@ -113,8 +132,7 @@ inline std::shared_ptr<ov::Model> build_llm_test_model_with_kv_fake_convert(cons
         auto inject_fake_convert = [&](size_t input_idx, const std::string& suffix) {
             auto fake_convert_1 =
                 std::make_shared<ov::op::v13::FakeConvert>(sdpa->input_value(input_idx), scale, fake_convert_type);
-            auto fake_convert_2 =
-                std::make_shared<ov::op::v13::FakeConvert>(fake_convert_1, scale, fake_convert_type);
+            auto fake_convert_2 = std::make_shared<ov::op::v13::FakeConvert>(fake_convert_1, scale, fake_convert_type);
             fake_convert_1->set_friendly_name(sdpa->get_friendly_name() + "/" + suffix + "_1");
             fake_convert_2->set_friendly_name(sdpa->get_friendly_name() + "/" + suffix + "_2");
             sdpa->input(input_idx).replace_source_output(fake_convert_2);
@@ -230,6 +248,30 @@ inline std::shared_ptr<ov::Model> build_gemma4_moe_llm_test_model() {
     auto ple = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, 0, 0});
     ple->output(0).set_names({"per_layer_inputs"});
     model->add_parameters({ple});
+    return model;
+}
+
+/// Real stateful LLM (like build_llm_test_model) plus a *consumed* per_layer_inputs
+/// parameter (non-zero, dynamic proj_dim), used to probe LLMCompiledModel's
+/// is_per_layer_inputs_model auto-enable path (Gemma-4 E2B/E4B cross-group KV sharing).
+/// A minimal standalone graph without beam_idx/KV-cache state fails
+/// StatefulToStateless (which LLMCompiledModel always runs), so this builds on the same
+/// base topology as the other test models and appends the probe input via a dedicated
+/// Add + Result, matching how build_gemma4_moe_llm_test_model appends its dangling PLE.
+inline std::shared_ptr<ov::Model> build_per_layer_inputs_probe_model() {
+    ModelBuilder mb;
+    auto model = mb.build_llm(make_test_model_config());
+
+    auto per_layer_inputs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, -1, -1});
+    per_layer_inputs->output(0).set_names({"per_layer_inputs"});
+    auto sibling = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {0.0f});
+    auto add = std::make_shared<ov::op::v1::Add>(per_layer_inputs, sibling);
+    add->output(0).set_names({"per_layer_inputs_probe_output"});
+    auto result = std::make_shared<ov::op::v0::Result>(add);
+    result->set_friendly_name("per_layer_inputs_probe_output");
+
+    model->add_parameters({per_layer_inputs});
+    model->add_results({result});
     return model;
 }
 
@@ -354,8 +396,8 @@ public:
 };
 
 struct CompileCall {
-    std::string                friendly_name;
-    ov::AnyMap                 props;
+    std::string friendly_name;
+    ov::AnyMap props;
     std::shared_ptr<ov::Model> model;
 };
 
