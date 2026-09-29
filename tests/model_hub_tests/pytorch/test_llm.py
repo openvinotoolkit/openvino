@@ -726,7 +726,7 @@ class TestLLMModel(TestTorchConvertModel):
         ("mbart_gptq", "Shivam098/opt-translation"),
         ("llama_awq", "TheBloke/open-llama-3b-v2-wizard-evol-instuct-v2-196k-AWQ"),
         ("qwen3_compressed_tensors",
-         "cyankiwi/Qwen3.5-4B-AWQ-4bit"),  # repo name is misleading; config has quant_method=compressed-tensors
+         "cyankiwi/Qwen3-4B-Instruct-2507-AWQ-4bit"),  # repo name is misleading; config has quant_method=compressed-tensors
     ])
     @pytest.mark.nightly
     def test_convert_model_nightly(self, name, type, ie_device):
