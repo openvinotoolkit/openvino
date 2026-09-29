@@ -70,6 +70,11 @@ void validate_model_resident_constant_memory(const ov::Model& model, size_t offl
 /// Returns 0 if used memory exceeds or equals upper_bound.
 uint64_t estimate_available_tracked_device_memory_bytes(const cldnn::engine& engine, uint64_t upper_bound);
 
+#if defined(__linux__)
+/// Queries available system RAM (MemAvailable from /proc/meminfo) for iGPU memory budget estimation on Linux.
+uint64_t query_available_ram_bytes();
+#endif
+
 class PartialUploadLogState {
 public:
     static constexpr size_t max_detailed_logs = 3;
