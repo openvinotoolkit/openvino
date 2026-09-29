@@ -71,8 +71,11 @@ void DynamicGraph::prepare_metadata() {
     _metadata.outputs.clear();
     for (uint32_t i = 0; i < _engineProperties.numOfGraphArgs; ++i) {
         // TODO: follow graph ext to support Optional metadata for weightless model
-        ze_graph_argument_properties_3_t arg;
-        ze_graph_argument_metadata_t meta;
+        ze_graph_argument_properties_3_t arg = {};
+        arg.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_PROPERTIES_3;
+        ze_graph_argument_metadata_t meta = {};
+        meta.stype = ZE_STRUCTURE_TYPE_GRAPH_ARGUMENT_METADATA;
+
         std::array<int64_t, ZE_MAX_GRAPH_ARGUMENT_DIMENSIONS_SIZE> upperBound = {};
         if (npuVMRuntimeGetMetadata(_engine, i, &arg, &meta, upperBound.data()) != NPU_VM_RUNTIME_RESULT_SUCCESS) {
             OPENVINO_THROW("Failed to get VM runtime metadata");
