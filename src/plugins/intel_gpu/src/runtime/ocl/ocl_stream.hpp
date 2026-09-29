@@ -32,7 +32,8 @@ public:
         , _queue_counter(other._queue_counter.load())
         , _last_barrier(other._last_barrier.load())
         , _last_barrier_ev(other._last_barrier_ev)
-        , _device_clock(other._device_clock) {}
+        , _device_clock(other._device_clock)
+        , m_finish_after_enqueue(other.m_finish_after_enqueue) {}
 
     ~ocl_stream() override = default;
 
@@ -76,6 +77,9 @@ private:
     // Non-null only when profiling is enabled; shared with user events, which may
     // outlive the stream.
     std::shared_ptr<device_clock_sync> _device_clock;
+
+    // Diagnostic: finish() after every enqueue to surface async errors at the failing kernel.
+    bool m_finish_after_enqueue = false;
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
     std::shared_ptr<dnnl::stream> _onednn_stream = nullptr;
