@@ -927,6 +927,9 @@ std::vector<std::string> Partitioner::initFunctionPipeline(FunctionPipelineType 
     }
 
     // Collect all groups of function call(s) and process them in groups
+    // Groups visited by this scan. The CWAI branch below returns only these, not the
+    // whole persisted all_functions map.
+    std::set<std::string> touched_fcids;
     std::map<std::string, int> idx;
     for (auto&& part_sg : P.subgraphs) {
         if (!part_sg._repeated_id.empty() &&
@@ -937,6 +940,7 @@ std::vector<std::string> Partitioner::initFunctionPipeline(FunctionPipelineType 
                                                                    // same group have the same id
                                    : part_sg._repeated_id + pfix;  // with CWAI (which is not checked here)
                                                                    // every function gets its own id
+            touched_fcids.insert(fcid);
             auto& u = all_functions[fcid];
             u.refs.push_back(std::ref(part_sg));
             u.mdls.push_back(
@@ -948,12 +952,13 @@ std::vector<std::string> Partitioner::initFunctionPipeline(FunctionPipelineType 
     }
 
     if (func_pipeline_type == FunctionPipelineType::CWAI) {
-        // Early return - don't do anything else here.
-        // Also update repeated_ids to uniques
+        // Only touched_fcids, not all of all_functions: that map can still hold Functions
+        // folded by an earlier FOLD call, and re-touching them here would corrupt their
+        // already parameter-rewritten models.
         std::vector<std::string> functions;
-        for (auto&& p : all_functions) {
-            functions.push_back(p.first);
-            p.second.refs.front().get()._repeated_id = p.first;
+        for (const auto& fcid : touched_fcids) {
+            functions.push_back(fcid);
+            all_functions.at(fcid).refs.front().get()._repeated_id = fcid;
         }
         return functions;
     }

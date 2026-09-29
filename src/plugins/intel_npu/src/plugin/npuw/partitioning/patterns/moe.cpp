@@ -11,6 +11,7 @@
 #include "../../logging.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/pass/pattern/op/optional.hpp"
+#include "openvino/pass/pattern/op/or.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/util/common_util.hpp"
 
@@ -109,17 +110,24 @@ bool tag_topk_k(const std::shared_ptr<ov::Node>& topk_node, std::optional<size_t
     return true;
 }
 
-// Shared callback factory for all Router MatcherPass implementations.
-// Validates the matched TopK node and tags it with RT_INFO_MOE_K for K-value propagation.
-// An optional guard predicate may reject the match by returning false.
-// The only difference between Router implementations is the pattern graph structure;
-// all use this helper for TopK validation and K-tagging logic.
+// Shared callback factory for all Router MatcherPass implementations: validates the matched
+// TopK, tags it with RT_INFO_MOE_K, and (if |nodes_to_isolate| is non-empty) isolates those
+// nodes under |isol_tag|.
 std::function<bool(ov::pass::pattern::Matcher&)> make_router_k_callback(
     const std::shared_ptr<ov::Node>& topk_pattern,
     const char* class_name,
-    std::function<bool(const std::shared_ptr<ov::Node>&)> guard = {}) {
+    std::function<bool(const std::shared_ptr<ov::Node>&)> guard = {},
+    const NodeToGroupMapPtr& node_to_gptr = nullptr,
+    const std::string& isol_tag = {},
+    std::vector<std::shared_ptr<ov::Node>> nodes_to_isolate = {}) {
     auto expected_k = std::make_shared<std::optional<size_t>>();
-    return [topk_pattern, class_name, guard, expected_k](ov::pass::pattern::Matcher& m) -> bool {
+    return [topk_pattern,
+            class_name,
+            guard,
+            expected_k,
+            node_to_gptr,
+            isol_tag,
+            nodes_to_isolate = std::move(nodes_to_isolate)](ov::pass::pattern::Matcher& m) -> bool {
         auto& node_to_output = m.get_pattern_value_map();
         auto matched_topk = node_to_output.at(topk_pattern).get_node_shared_ptr();
         auto topk_node = std::dynamic_pointer_cast<ov::op::v11::TopK>(matched_topk);
@@ -132,6 +140,13 @@ std::function<bool(ov::pass::pattern::Matcher&)> make_router_k_callback(
         if (!tag_topk_k(matched_topk, *expected_k)) {
             LOG_WARN(class_name << ": failed to extract K from TopK '" << matched_topk->get_friendly_name()
                                 << "'; MoE transformation will be skipped");
+        } else {
+            for (const auto& pattern_node : nodes_to_isolate) {
+                if (node_to_output.count(pattern_node) == 0) {
+                    continue;  // optional node that didn't match this instance
+                }
+                isolate_node(node_to_output.at(pattern_node).get_node_shared_ptr(), isol_tag, node_to_gptr);
+            }
         }
         return false;
     };
@@ -157,56 +172,107 @@ RouterScorePattern build_shared_router_score_pattern() {
     return {matmul, topk, reduce_sum, divide};
 }
 
-// Builds the shared router tail pattern (Scatter -> Transpose -> Reshape -> Unsqueeze).
-// Pattern root is Unsqueeze; this helper encapsulates the tail logic common to all Router implementations.
+// Result of build_dequant_weight()/build_gate_or_up_matmul(): the merged pattern output, plus
+// every node across all matched alternatives so the caller can isolate them (nodes from a
+// branch that didn't match are simply absent from the matcher's pattern-value map).
+struct MatchedAlt {
+    std::shared_ptr<ov::Node> output;
+    std::vector<std::shared_ptr<ov::Node>> to_isolate;
+};
+
+// Matches a dequant weight in either order: Multiply(raw,scale)->Convert, or
+// Convert(raw)->Multiply(_,scale). Different exporters emit different orders.
+MatchedAlt build_dequant_weight() {
+    auto inner_mul = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
+    auto mul_then_cvt = opp::wrap_type<ov::op::v0::Convert>({inner_mul});
+    auto inner_cvt = opp::wrap_type<ov::op::v0::Convert>({opp::any_input()});
+    auto cvt_then_mul = opp::wrap_type<ov::op::v1::Multiply>({inner_cvt, opp::any_input()});
+    auto combined = std::make_shared<opp::op::Or>(ov::OutputVector{mul_then_cvt, cvt_then_mul});
+    return {combined, {inner_mul, mul_then_cvt, inner_cvt, cvt_then_mul}};
+}
+
+// Matches gate/up projection as a dedicated MatMul, or a fused gate+up MatMul sliced
+// afterward (some exports fuse gate+up into one wider MatMul).
+MatchedAlt build_gate_or_up_matmul(const std::shared_ptr<ov::Node>& reshape1) {
+    auto direct_w_cvt = build_dequant_weight();
+    auto direct_matmul = opp::wrap_type<ov::op::v0::MatMul>({reshape1, direct_w_cvt.output});
+
+    auto combined_w_cvt = build_dequant_weight();
+    auto combined_matmul = opp::wrap_type<ov::op::v0::MatMul>({reshape1, combined_w_cvt.output});
+    auto sliced = opp::wrap_type<ov::op::v8::Slice>(
+        {combined_matmul, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
+
+    auto combined = std::make_shared<opp::op::Or>(ov::OutputVector{direct_matmul, sliced});
+    std::vector<std::shared_ptr<ov::Node>> to_isolate = {direct_matmul, combined_matmul, sliced};
+    to_isolate.insert(to_isolate.end(), direct_w_cvt.to_isolate.begin(), direct_w_cvt.to_isolate.end());
+    to_isolate.insert(to_isolate.end(), combined_w_cvt.to_isolate.begin(), combined_w_cvt.to_isolate.end());
+    return {combined, std::move(to_isolate)};
+}
+
+// Matches Gemma4's per-expert learned scale as a literal Gather, or the OneHot-expand form
+// some exporters use instead: OneHot->Reshape->Multiply->ReduceSum->Reshape.
+std::shared_ptr<ov::Node> build_gemma4_router_scale() {
+    // TopK output(1) (indices) feeds Gather/OneHot; wrap_type can only express output(0), so
+    // any_input() is used for that operand in both branches.
+    auto gather = opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
+
+    auto onehot =
+        opp::wrap_type<ov::op::v1::OneHot>({opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
+    auto onehot_reshape = opp::wrap_type<ov::op::v1::Reshape>({onehot, opp::any_input()});
+    auto scale_multiply = opp::wrap_type<ov::op::v1::Multiply>({onehot_reshape, opp::any_input()});
+    auto scale_reduce_sum = opp::wrap_type<ov::op::v1::ReduceSum>({scale_multiply, opp::any_input()});
+    auto scale_reshape = opp::wrap_type<ov::op::v1::Reshape>({scale_reduce_sum, opp::any_input()});
+
+    return std::make_shared<opp::op::Or>(ov::OutputVector{gather, scale_reshape});
+}
+
 std::shared_ptr<ov::Node> build_shared_router_tail(const std::shared_ptr<ov::Node>& scatter_input) {
     auto transpose = opp::wrap_type<ov::op::v1::Transpose>({scatter_input, opp::any_input()});
-    auto reshape = opp::wrap_type<ov::op::v1::Reshape>({transpose, opp::any_input()});
+    auto reshape = opp::optional<ov::op::v1::Reshape>({transpose, opp::any_input()});
     auto unsqueeze = opp::wrap_type<ov::op::v0::Unsqueeze>({reshape, opp::any_input()});
     return unsqueeze;
 }
 
-// Builds the pattern graph and callback for a SwiGLU-style expert layer with a
-// parameterised gate activation operator (template parameter ActivationOp).
-// Returns (Matcher, callback) so the caller can invoke its own register_matcher().
+// Builds the pattern+callback for a SwiGLU expert layer (ActivationOp parameterizes the gate
+// activation). Returns (Matcher, callback) for the caller's own register_matcher().
 //
-// Pattern structure (parameterised by activation operator):
-//   Tile -> Reshape1
-//   Reshape1 -> MatMul_gate (dequant: Multiply->Convert) -> ActivationOp
-//   Reshape1 -> MatMul_up   (dequant: Multiply->Convert)
-//   ActivationOp * MatMul_up -> MatMul_down (dequant: Multiply->Convert) -> Reshape2
-//   Reshape2 * router_score -> output_multiply   [pattern root]
+//   Tile -> [Reshape1] -> MatMul_gate (dequant, either order/fused) -> ActivationOp
+//                      \-> MatMul_up   (dequant, either order/fused)
+//   ActivationOp * MatMul_up -> MatMul_down (dequant) -> [Reshape2] * router_score
+//     -> output_multiply [pattern root]
 //
-// Isolation strategy (applied in callback):
-// - Prefill (token_count > 1): Isolate up to output_multiply; ReduceSum stays in downstream
-// - Decoding (token_count == 1): Isolate including ReduceSum (self-contained expert subgraph)
+// Isolation: prefill isolates up to output_multiply (plus the ReduceSum after it, under
+// |downstream_tag| if non-null); decode isolates through the ReduceSum too (self-contained).
 template <typename ActivationOp>
 std::pair<std::shared_ptr<opp::Matcher>, std::function<bool(opp::Matcher&)>> make_swiglu_expert_matcher(
     const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
     const std::string& isol_tag,
-    const char* expert_name) {
+    const char* expert_name,
+    const char* downstream_tag = nullptr) {
     auto tile = opp::wrap_type<ov::op::v0::Tile>({opp::any_input(), opp::any_input()});
-    auto reshape1 = opp::wrap_type<ov::op::v1::Reshape>({tile, opp::any_input()});
+    // Some exports feed the Tile output straight into the projection MatMuls with no
+    // intervening Reshape.
+    auto reshape1 = opp::optional<ov::op::v1::Reshape>({tile, opp::any_input()});
 
-    // Gate projection: dequantized weights -> MatMul -> activation
-    auto gate_w_mul = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
-    auto gate_w_cvt = opp::wrap_type<ov::op::v0::Convert>({gate_w_mul});
-    auto matmul_gate = opp::wrap_type<ov::op::v0::MatMul>({reshape1, gate_w_cvt});
+    // Gate projection: dequantized weights -> MatMul (or fused gate+up MatMul -> Slice) ->
+    // activation
+    auto gate_alt = build_gate_or_up_matmul(reshape1);
+    auto matmul_gate = gate_alt.output;
     auto activation = opp::wrap_type<ActivationOp>({matmul_gate});
 
-    // Up projection: dequantized weights -> MatMul
-    auto up_w_mul = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
-    auto up_w_cvt = opp::wrap_type<ov::op::v0::Convert>({up_w_mul});
-    auto matmul_up = opp::wrap_type<ov::op::v0::MatMul>({reshape1, up_w_cvt});
+    // Up projection: dequantized weights -> MatMul (or fused gate+up MatMul -> Slice)
+    auto up_alt = build_gate_or_up_matmul(reshape1);
+    auto matmul_up = up_alt.output;
 
     // SwiGLU merge: activation(gate) * up
     auto merge = opp::wrap_type<ov::op::v1::Multiply>({activation, matmul_up});
 
-    // Down projection: dequantized weights -> MatMul -> Reshape
-    auto down_w_mul = opp::wrap_type<ov::op::v1::Multiply>({opp::any_input(), opp::any_input()});
-    auto down_w_cvt = opp::wrap_type<ov::op::v0::Convert>({down_w_mul});
-    auto matmul_down = opp::wrap_type<ov::op::v0::MatMul>({merge, down_w_cvt});
-    auto reshape2 = opp::wrap_type<ov::op::v1::Reshape>({matmul_down, opp::any_input()});
+    // Down projection: dequantized weights -> MatMul -> [Reshape]
+    // Some exports feed the down-projection MatMul output straight into the output multiply
+    // with no trailing Reshape.
+    auto down_w_cvt = build_dequant_weight();
+    auto matmul_down = opp::wrap_type<ov::op::v0::MatMul>({merge, down_w_cvt.output});
+    auto reshape2 = opp::optional<ov::op::v1::Reshape>({matmul_down, opp::any_input()});
 
     // Pattern root: expert output * scattered router scores
     auto output_multiply = opp::wrap_type<ov::op::v1::Multiply>({reshape2, opp::any_input()});
@@ -220,27 +286,36 @@ std::pair<std::shared_ptr<opp::Matcher>, std::function<bool(opp::Matcher&)>> mak
         LOG_DEBUG(expert_name << " Expert pattern matched (" << (is_decoding ? "Decoding" : "Prefill") << " stage)");
 
         auto isolate = [&](const std::shared_ptr<ov::Node>& pattern_node) {
+            // A branch that didn't match has no entry in the map; skip rather than assert.
+            if (node_to_output.count(pattern_node) == 0) {
+                return;
+            }
             isolate_node(node_to_output.at(pattern_node).get_node_shared_ptr(), isol_tag, node_to_gptr);
         };
 
         isolate(tile);
         isolate(reshape1);
-        isolate(gate_w_mul);
-        isolate(gate_w_cvt);
+        for (const auto& n : gate_alt.to_isolate) {
+            isolate(n);
+        }
         isolate(matmul_gate);
         isolate(activation);
-        isolate(up_w_mul);
-        isolate(up_w_cvt);
+        for (const auto& n : up_alt.to_isolate) {
+            isolate(n);
+        }
         isolate(matmul_up);
         isolate(merge);
-        isolate(down_w_mul);
-        isolate(down_w_cvt);
+        for (const auto& n : down_w_cvt.to_isolate) {
+            isolate(n);
+        }
         isolate(matmul_down);
         isolate(reshape2);
         isolate_node(matched_output_multiply, isol_tag, node_to_gptr);
 
         if (is_decoding) {
             isolate_reduce_sum_after(matched_output_multiply, isol_tag, node_to_gptr);
+        } else if (downstream_tag != nullptr) {
+            isolate_reduce_sum_after(matched_output_multiply, downstream_tag, node_to_gptr);
         }
 
         return false;
@@ -537,7 +612,8 @@ Qwen3Router::Qwen3Router([[maybe_unused]] const std::shared_ptr<ov::npuw::online
     - Gate activation is Gelu (Qwen3Expert uses Swish)
 */
 Gemma4Expert::Gemma4Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
-    auto [matcher, callback] = make_swiglu_expert_matcher<ov::op::v7::Gelu>(snapshot, isol_tag, "Gemma4");
+    LOG_DEBUG("Gemma4Expert pattern matcher registered with tag: " << isol_tag);
+    auto [matcher, callback] = make_swiglu_expert_matcher<ov::op::v7::Gelu>(snapshot, isol_tag, "Gemma4", "downstream");
     register_matcher(std::move(matcher), std::move(callback));
 }
 
@@ -548,26 +624,27 @@ Gemma4Expert::Gemma4Expert(const std::shared_ptr<ov::npuw::online::Snapshot>& sn
         MatMul inputs may be quantized or non-quantized; pattern uses any_input() for flexibility
 
     Gemma4-specific scores path (per-expert learned scale):
-        Gather(per_expert_scale, topk_indices) -> Multiply(Divide, Gather) -> Slice
-        per-expert scale is combined with renormalized scores before scatter
+        Gather(per_expert_scale, topk_indices) -- or, equivalently, an OneHot-expand form some
+        exports use instead (see build_gemma4_router_scale()) -- combined with the renormalized
+        scores via Multiply(Divide, ^) before an optional Slice and scatter.
 
     Scatter to full expert dimension:
-        ScatterElementsUpdate -> Transpose -> Reshape -> Unsqueeze   <-- pattern root
+        ScatterElementsUpdate -> Transpose -> [Reshape] -> Unsqueeze   <-- pattern root
 
     Key difference from Qwen3Router:
-    - Per-expert learned scale applied via Gather+Multiply before scatter (mandatory in Gemma4)
+    - Per-expert learned scale applied via Gather (or an equivalent OneHot+Multiply+ReduceSum
+      expansion) before scatter (mandatory in Gemma4)
 */
-Gemma4Router::Gemma4Router([[maybe_unused]] const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot,
-                           [[maybe_unused]] const std::string& isol_tag) {
+Gemma4Router::Gemma4Router(const std::shared_ptr<ov::npuw::online::Snapshot>& snapshot, const std::string& isol_tag) {
+    LOG_DEBUG("Gemma4Router pattern matcher registered with tag: " << isol_tag);
     // Use shared score computation: MatMul -> Softmax -> TopK -> ReduceSum -> Divide
     auto score_nodes = build_shared_router_score_pattern();
 
-    // Gemma4-specific: Per-expert learned scale via Gather, then Multiply and Slice
-    // TopK output(1) (indices) goes through Convert before Gather port 1;
-    // wrap_type can only express output(0), so both use any_input().
-    auto gather = opp::wrap_type<ov::op::v8::Gather>({opp::any_input(), opp::any_input(), opp::any_input()});
-    auto scores_multiply = opp::wrap_type<ov::op::v1::Multiply>({score_nodes.divide, gather});
-    auto slice = opp::wrap_type<ov::op::v8::Slice>(
+    // Gemma4-specific: per-expert learned scale, either a literal Gather or the OneHot-expanded
+    // equivalent (see build_gemma4_router_scale()).
+    auto per_expert_scale = build_gemma4_router_scale();
+    auto scores_multiply = opp::wrap_type<ov::op::v1::Multiply>({score_nodes.divide, per_expert_scale});
+    auto slice = opp::optional<ov::op::v8::Slice>(
         {scores_multiply, opp::any_input(), opp::any_input(), opp::any_input(), opp::any_input()});
 
     // Scatter inputs: any_input() for indices and zero_broadcast, slice for scores
@@ -577,7 +654,12 @@ Gemma4Router::Gemma4Router([[maybe_unused]] const std::shared_ptr<ov::npuw::onli
 
     // Shared K-value extraction and validation callback.
     register_matcher(std::make_shared<opp::Matcher>(unsqueeze, "TagGemma4Router"),
-                     make_router_k_callback(score_nodes.topk, "Gemma4Router"));
+                     make_router_k_callback(score_nodes.topk,
+                                            "Gemma4Router",
+                                            /*guard=*/{},
+                                            snapshot->getNodeToGroupMap(),
+                                            isol_tag,
+                                            {score_nodes.topk}));
 }
 
 }  // namespace moe
