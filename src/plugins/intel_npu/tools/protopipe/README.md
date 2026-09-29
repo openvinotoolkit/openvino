@@ -486,6 +486,28 @@ $$D = \text{max}(0.001, \text{max}(A_{max}-A_{min}\text{, } B_{max}-B_{min}))$$
 Parameters:
     - `name: nrmse` - **Required**. Enables nrmse metric.
 	- `tolerance` - **Required**. If value of metric is greater than **tolerance** it will be treated as **FAIL**.
+4. mAP (mean Average Precision) - accuracy metric for object detection models. Raw model output is decoded into detections (boxes, scores, class ids), post-processed with per-class NMS and compared against the reference detections. AP is computed with all-point (COCO/VOC2010+) interpolation and averaged over the classes present in the reference.
+Parameters:
+    - `name: map` - **Required**. Enables the mean Average Precision metric.
+	- `map_threshold` - **Required**. If value of metric is lower than **map_threshold** it will be treated as **FAIL**.
+	- `overlap_threshold` - **Optional**. IoU threshold used to match a prediction against a reference box (mAP@0.5 by default). Use `"0.5:0.95"` to average the result over IoU thresholds 0.5-0.95 with step 0.05 (mAP@0.5:0.95). (**Default**: 0.5)
+	- `confidence_threshold` - **Optional**. Detections with a score lower than this value are discarded. (**Default**: 0.0)
+	- `nms_threshold` - **Optional**. IoU threshold for per-class non-maximum suppression. Set to `0` to disable NMS for models with NMS-free heads (e.g. YOLOv10). (**Default**: 0.45)
+	- `num_classes` - **Optional**. Number of classes. **Required** only to decode raw (not post-processed) detection outputs.
+
+	Supported detection output layouts (unit dimensions are ignored):
+    - `[N, 6]` - `[x1, y1, x2, y2, score, label]`, e.g. post-processed YOLOv8/YOLOv10 output of shape `[1, 300, 6]`.
+    - `[N, 7]` - `[image_id, label, score, x1, y1, x2, y2]`, e.g. SSD/`DetectionOutput` of shape `[1, 1, N, 7]`.
+    - `[N, num_classes + 4]` or `[num_classes + 4, N]` - raw YOLOv8-style head: `[cx, cy, w, h, class scores...]`.
+    - `[N, num_classes + 5]` or `[num_classes + 5, N]` - raw YOLOv5-style head: `[cx, cy, w, h, objectness, class scores...]`.
+
+	Examples:
+	```
+	# mAP@0.5 for a post-processed detection output
+	- { name: yolo.xml, ip: FP16, output_data: ref_output/, metric: { name: map, overlap_threshold: 0.5, map_threshold: 0.9 } }
+	# mAP@0.5:0.95 for a raw detection output
+	- { name: yolo.xml, ip: FP16, output_data: ref_output/, metric: { name: map, overlap_threshold: "0.5:0.95", map_threshold: 0.9, confidence_threshold: 0.25, nms_threshold: 0.45, num_classes: 80 } }
+	```
 
 ### Example
 Consider the following `config.yaml`:

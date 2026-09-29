@@ -42,6 +42,7 @@ enum GgufTensorType {
     GGUF_TYPE_F64 = 28,
     GGUF_TYPE_BF16 = 30,
     GGUF_TYPE_MXFP4 = 39,  // 4-bit microscaling (gpt-oss): 1-byte E8M0 scale + 32x E2M1
+    GGUF_TYPE_Q1_0 = 41,   // binary: f16 scale + 128x 1-bit codes, value = bit ? +scale : -scale
     GGUF_TYPE_Q2_0 = 42,   // ternary: f16 scale + 64x 2-bit codes, value = (code - 1) * scale
     GGUF_TYPE_COUNT,
 };
