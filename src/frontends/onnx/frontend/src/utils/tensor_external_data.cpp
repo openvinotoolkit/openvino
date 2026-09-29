@@ -92,9 +92,9 @@ Buffer<ov::AlignedBuffer> TensorExternalData::load_external_data(const std::file
 
         external_data_stream.seekg(m_offset, std::ios::beg);
         external_data_stream.read(read_data->get_ptr<char>(), read_data_length);
-        OPENVINO_ASSERT(external_data_stream && static_cast<size_t>(external_data_stream.gcount()) == read_data_length,
-                        "Failed to read external data from ",
-                        full_path);
+        const auto read_valid =
+            external_data_stream && static_cast<size_t>(external_data_stream.gcount()) == read_data_length;
+        OPENVINO_ASSERT(read_valid, "Failed to read external data from ", full_path);
     }
     return std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(read_data->get_ptr<char>(),
                                                                                   read_data->size(),
