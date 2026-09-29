@@ -27,6 +27,7 @@ namespace npuw {
 using namespace ov::npuw::util;
 
 class CompiledModel;
+class PipelinedInferRequest;
 
 using LinkFrom = std::pair<std::size_t /* Subrequest index */
                            ,
@@ -102,6 +103,7 @@ protected:
     // LLMBlockKVCacheStrategy calls propagate_params_to_subrequests() from on_reset() to drop
     // stale block tensor refs from sub-requests before block memory is freed.
     friend class LLMBlockKVCacheStrategy;
+    friend class PipelinedInferRequest;
 
     using RqPtr = ov::SoPtr<ov::IAsyncInferRequest>;
     using RqPtrs = std::vector<RqPtr>;
@@ -116,8 +118,6 @@ protected:
     std::shared_ptr<ov::npuw::CompiledModel> m_npuw_model;
     std::vector<IBaseInferRequest::Completed> m_completion_cbs;
     RqPtrs m_subrequests;
-    RqPtr m_pipeline_request;
-    std::string m_pipeline_request_device;
 
     struct TensorStorage {
         ov::SoPtr<ov::ITensor> tensor;
@@ -191,7 +191,7 @@ protected:
     std::string global_output_mem_device(std::size_t idx) const;
 
     virtual void init_gio();
-    void unpack_closure(std::size_t idx, RqPtr request);
+    virtual void unpack_closure(std::size_t idx, RqPtr request);
     virtual void bind_global_params(std::size_t idx, RqPtr request);
     virtual void bind_global_results(std::size_t idx, RqPtr request);
     virtual bool bind_behavior_input(std::size_t idx,
@@ -200,11 +200,10 @@ protected:
                                      const ov::SoPtr<ov::ITensor>& tensor,
                                      RqPtr request);
     void alloc_quant_gather_tensors(std::size_t idx, RqPtr request);
-    void handle_quant_host_gather(std::size_t idx, RqPtr request);
+    virtual void handle_quant_host_gather(std::size_t idx, RqPtr request);
 
     void dump_input_tensors(std::size_t idx);
     void dump_output_tensors(std::size_t idx);
-    void dump_pipeline_tensors(const std::string& output_dir, const bool dump_input);
 
     // Quick-and-dirty profiling
     using MS = ov::npuw::perf::metric<ov::npuw::perf::MSec>;
@@ -237,7 +236,6 @@ protected:
 
 private:
     now_t m_now_idx;
-    size_t get_parameter_base_offset(const std::string& port_name, const size_t& idx);
 };
 
 }  // namespace npuw

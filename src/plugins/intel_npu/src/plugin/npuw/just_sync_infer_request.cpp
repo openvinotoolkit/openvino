@@ -285,71 +285,7 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     bool has_spatial = false;
     bool has_moe = false;
 
-    if (m_npuw_model->m_using_pipeline_model) {
-        m_pipeline_request = m_npuw_model->m_compiled_pipeline_model->create_infer_request();
-        m_pipeline_request_device = "NPU";
-
-        auto& inputs{m_npuw_model->m_compiled_pipeline_model->inputs()};
-
-        auto bind_all_shared_ports = [&](const std::string& port_name) {
-            auto& kv_tiles{m_npuw_model->m_pipeline_global_parameters[port_name]};
-
-            if (kv_tiles.size()) {
-                auto& ref_port{inputs[kv_tiles.front()]};
-                //auto tensor{allocOut(ref_port, "NPU")};
-
-                for (auto& idx : kv_tiles) {
-                    auto& port{inputs[idx]};
-                    auto tensor{allocOut(port, "NPU")};
-                    m_pipeline_request->set_tensor(port, tensor);
-                }
-            }
-        };
-
-        auto& pipeline_connected_inputs{m_npuw_model->m_pipeline_connected_inputs};
-
-        for (auto& in : pipeline_connected_inputs) {
-            bind_all_shared_ports(in.first);
-        }
-
-        if (m_npuw_model->m_using_hfa_pipeline_model) {
-            const auto& controlflow_selection_size{m_npuw_model->m_nlp_controlflow_branch_select_size};
-
-            auto controlflow_section_port_idx{
-                m_npuw_model->m_pipeline_global_parameters[m_npuw_model->m_nlp_branch_select_port_name].front()};
-
-            auto& cfOp_select_port{inputs[controlflow_section_port_idx]};
-            auto tensor_select_p{allocOut(cfOp_select_port, "NPU")};
-            m_pipeline_request->set_tensor(cfOp_select_port, tensor_select_p);
-            auto& cfOp_select_tensor{m_pipeline_request->get_tensor(cfOp_select_port)};
-
-            uint64_t* p_branch_select{cfOp_select_tensor->data<uint64_t>()};
-
-            memset(reinterpret_cast<void*>(p_branch_select), 0ull, sizeof(uint64_t) * controlflow_selection_size);
-
-            bind_all_shared_ports(m_npuw_model->m_hfa_port_names.K);
-            bind_all_shared_ports(m_npuw_model->m_hfa_port_names.V);
-            bind_all_shared_ports(m_npuw_model->m_hfa_port_names.Q);
-        }
-        const auto& outputs{m_npuw_model->outputs()};
-        size_t out_idx{};
-
-        // Bind and allocate outputs early
-        for (auto& out : outputs) {
-            auto& tensor{get_tensor(out)};
-
-            auto subm_out_idx{out_idx};
-
-            auto pipeline_out_port_idx{m_npuw_model->m_pipeline_global_outputs.find(static_cast<uint32_t>(out_idx))};
-            if (pipeline_out_port_idx != std::end(m_npuw_model->m_pipeline_global_outputs)) {
-                subm_out_idx = pipeline_out_port_idx->second;
-            }
-
-            const auto& s_port = m_pipeline_request->get_outputs()[subm_out_idx];
-            m_pipeline_request->set_tensor(s_port, tensor);
-            out_idx++;
-        }
-    } else {
+    {
         m_func_mem_mgr.set_alloc(std::bind(&JustInferRequest::allocMem, this, _1, _2, _3));
         m_func_mem_mgr.assign_memory();
 
@@ -485,33 +421,28 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
     alloc_quant_gather();
     init_gio();
 
-    if (m_npuw_model->m_using_pipeline_model) {
-        for (size_t i = 0; i < m_num_submodels; i++) {
-            unpack_closure(i, m_pipeline_request);
+    for (size_t i = 0; i < m_num_submodels; i++) {
+        LOG_VERB("Trying to preemptively set tensors for Subgraph[" << i << "]...");
+        LOG_BLOCK();
+        auto& comp_model_desc = m_npuw_model->m_compiled_submodels[i];
+        // FIXME: figure out our cases and if this should be replaced with &&
+        // Note: replaced_by is utilized below unconditionally
+        if (!comp_model_desc.compiled_model || !comp_model_desc.replaced_by) {
+            continue;
         }
-    } else {
-        for (size_t i = 0; i < m_num_submodels; i++) {
-            LOG_VERB("Trying to preemptively set tensors for Subgraph[" << i << "]...");
-            LOG_BLOCK();
-            auto& comp_model_desc = m_npuw_model->m_compiled_submodels[i];
-            // FIXME: figure out our cases and if this should be replaced with &&
-            // Note: replaced_by is utilized below unconditionally
-            if (!comp_model_desc.compiled_model || !comp_model_desc.replaced_by) {
-                continue;
-            }
-            const auto real_idx = comp_model_desc.replaced_by.value();
-            auto& func_desc = m_npuw_model->m_compiled_submodels[real_idx];
+        const auto real_idx = comp_model_desc.replaced_by.value();
+        auto& func_desc = m_npuw_model->m_compiled_submodels[real_idx];
 
-            // So - closure update is NOT required, OR the function is SINGLE -
-            // just handle it's closure here and don't do it in runtime
-            if (!m_closure_update_required || func_desc.forced_to_fcall) {
-                unpack_closure(i, m_subrequests[real_idx]);
-            }
-            LOG_VERB("Done");
+        // So - closure update is NOT required, OR the function is SINGLE -
+        // just handle it's closure here and don't do it in runtime
+        if (!m_closure_update_required || func_desc.forced_to_fcall) {
+            unpack_closure(i, m_subrequests[real_idx]);
         }
+        LOG_VERB("Done");
 
         // Handle spatial dynamic submission
-        if (has_spatial) {
+    }
+    if (has_spatial) {
             if (m_npuw_model->m_cfg.get<::intel_npu::NPUW_SPATIAL_DYN>()) {
                 LOG_VERB("Finding spatial features...");
                 LOG_BLOCK();
@@ -528,10 +459,9 @@ ov::npuw::JustInferRequest::JustInferRequest(const std::shared_ptr<ov::npuw::Com
             LOG_VERB("Done");
         }
 
-        // Initialize MoE executor if MoE was detected
-        if (has_moe) {
-            initialize_moe_executor();
-        }
+    // Initialize MoE executor if MoE was detected
+    if (has_moe) {
+        initialize_moe_executor();
     }
 }
 
@@ -644,26 +574,17 @@ void ov::npuw::JustInferRequest::set_tensor(const ov::Output<const ov::Node>& po
     // Check if setting output tensor
     for (std::size_t i = 0; i < m_npuw_model->outputs().size(); ++i) {
         if (m_npuw_model->outputs()[i] == port) {
-            if (!m_npuw_model->m_using_pipeline_model) {
-                const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(i);
-                auto funcall_result_iter = m_funcall_result.find(from_submodel);
-                // This is a tricky case:
-                // 1) We already allocated an output tensor in m_funcall_result via FMM
-                // 2) We got an output tensor from outside
-                // m_funcall_result and m_port_to_tensor aren't connected, thus we will only write
-                // to m_funcall_result, but get_tensor() would return an empty tensor from m_port_to_tensor.
-                // Here we have to set the tensor to function's output, so the function will write to the correct
-                // tensor.
-                if (funcall_result_iter != m_funcall_result.end()) {
-                    funcall_result_iter->second = tensor;
-                }
-            } else {
-                const auto pipeline_output_port_indx{
-                    m_npuw_model->m_pipeline_global_outputs.find(static_cast<uint32_t>(i))};
-                if (pipeline_output_port_indx != std::end(m_npuw_model->m_pipeline_global_outputs)) {
-                    auto& oport = m_npuw_model->m_compiled_pipeline_model->outputs()[pipeline_output_port_indx->second];
-                    m_pipeline_request->set_tensor(oport, tensor);
-                }
+            const auto& from_submodel = m_npuw_model->m_outputs_to_submodels_outputs.at(i);
+            auto funcall_result_iter = m_funcall_result.find(from_submodel);
+            // This is a tricky case:
+            // 1) We already allocated an output tensor in m_funcall_result via FMM
+            // 2) We got an output tensor from outside
+            // m_funcall_result and m_port_to_tensor aren't connected, thus we will only write
+            // to m_funcall_result, but get_tensor() would return an empty tensor from m_port_to_tensor.
+            // Here we have to set the tensor to function's output, so the function will write to the correct
+            // tensor.
+            if (funcall_result_iter != m_funcall_result.end()) {
+                funcall_result_iter->second = tensor;
             }
         }
     }
@@ -756,45 +677,32 @@ void ov::npuw::JustInferRequest::prepare_for_infer() {
     }
 
     // Submit global parameters (if needed) for the first subgraph
-    if (m_npuw_model->m_using_pipeline_model) {
-        for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
-            bind_global_parameters(idx);
-        }       
-    } else {
-        for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
-            auto* behavior = get_subgraph_behavior(idx);
-            if (behavior == nullptr) {
-                continue;
-            }
-            auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-            const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-            auto ctx = make_behavior_context(real_idx, idx);
-            behavior->prepare(ctx);
+    for (std::size_t idx = 0; idx < m_num_submodels; idx++) {
+        auto* behavior = get_subgraph_behavior(idx);
+        if (behavior == nullptr) {
+            continue;
         }
-
-        bind_global_parameters(next(0));
+        auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+        const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+        auto ctx = make_behavior_context(real_idx, idx);
+        behavior->prepare(ctx);
     }
+
+    bind_global_parameters(next(0));
     // If funcall pipelining is enabled, prefill the function "heads"
     // with constant arguments. The list of heads is empty otherwise.
     for (auto&& id : m_funcall_heads) {
         LOG_DEBUG("Pre-initializing weights for subgraph[" << id << "]");
-        if (!m_npuw_model->m_using_pipeline_model) {
-            unpack_closure(id, m_subrequests[id]);
-        } else {
-            unpack_closure(id, m_pipeline_request);
-        }
+        unpack_closure(id, m_subrequests[id]);
     }
 
     LOG_DEBUG("Done");
 }
 
 ov::npuw::IBaseInferRequest::RqPtr ov::npuw::JustInferRequest::get_real_subrequest(std::size_t idx) {
-    if (!m_npuw_model->m_using_pipeline_model) {
-        auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-        const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-        return m_subrequests[real_idx];
-    }
-    return m_pipeline_request;
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+    const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+    return m_subrequests[real_idx];
 }
 
 bool ov::npuw::JustInferRequest::valid_subrequest(std::size_t idx) const {
@@ -823,20 +731,11 @@ void ov::npuw::JustInferRequest::bind_global_parameters(std::size_t idx) {
         // If it is a function call and we have function pipelining ON,
         // it is still the right subrequest we can use.
         LOG_DEBUG("Accessing the primary subrequest");
-        if (!m_npuw_model->m_using_pipeline_model) {
-            bind_global_params(idx, m_subrequests[real_idx]);
-        } else {
-            bind_global_params(idx, m_pipeline_request);
-        }
+        bind_global_params(idx, m_subrequests[real_idx]);
     }
 }
 
 void ov::npuw::JustInferRequest::bind_global_results(std::size_t idx) {
-    if (m_npuw_model->m_using_pipeline_model) {
-        IBaseInferRequest::bind_global_results(idx, m_pipeline_request);
-        return;
-    }
-
     auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
     if (comp_model_desc.replaced_by) {
         // Don't do here - function call will take the right tensor
@@ -977,61 +876,35 @@ void ov::npuw::JustInferRequest::initialize_moe_executor() {
 }
 
 void ov::npuw::JustInferRequest::run_subrequest_for_success(std::size_t idx) {
-    if (!m_npuw_model->m_using_pipeline_model) {
-        auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
-        const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
-        bool next_prepared = false;
-        auto* behavior = get_subgraph_behavior(idx);
+    auto& comp_model_desc = m_npuw_model->m_compiled_submodels[idx];
+    const auto real_idx = comp_model_desc.replaced_by.value_or(idx);
+    bool next_prepared = false;
+    auto* behavior = get_subgraph_behavior(idx);
 
-        bind_global_results(idx);
+    bind_global_results(idx);
 
-        if (comp_model_desc.replaced_by && !behavior_handles_function_prologue(idx)) {
-            function_prologue(idx);
-        }
-        if (behavior != nullptr) {
-            auto ctx = make_behavior_context(real_idx, idx);
-            behavior->prologue(ctx);
-        }
-        dump_input_tensors(idx);
+    if (comp_model_desc.replaced_by && !behavior_handles_function_prologue(idx)) {
+        function_prologue(idx);
+    }
+    if (behavior != nullptr) {
+        auto ctx = make_behavior_context(real_idx, idx);
+        behavior->prologue(ctx);
+    }
+    dump_input_tensors(idx);
 
-        LOG_DEBUG("Trying to run subrequest[" << idx << "]...");
-        LOG_BLOCK();
-        unsafe_run_this_prep_next(idx, next_prepared);
+    LOG_DEBUG("Trying to run subrequest[" << idx << "]...");
+    LOG_BLOCK();
+    unsafe_run_this_prep_next(idx, next_prepared);
 
-        LOG_DEBUG("Done: " << idx << "(exec subrequest)");
+    LOG_DEBUG("Done: " << idx << "(exec subrequest)");
 
-        dump_output_tensors(idx);  // FIXME: Called here unconditionally, need to refactor
-        if (behavior != nullptr) {
-            auto ctx = make_behavior_context(real_idx, idx);
-            behavior->epilogue(ctx);
-        }
-        if (is_pipelined(idx) && m_funcall_pipeline[idx].next) {
-            std::swap(m_subrequests[real_idx], m_funcall_pipeline[real_idx].subrequest);
-        }
-    } else {
-        for (size_t i{}; i < m_num_submodels; ++i) {
-            bind_global_results(i);
-        }
-
-        if (m_npuw_model->m_using_hfa_pipeline_model) {
-            // Update HFA tile early branching
-            const auto port_idx{m_npuw_model->m_nlp_branch_select_port_idx};
-            auto cfOp_branch_port{m_npuw_model->m_compiled_pipeline_model->inputs()[port_idx]};
-            auto& cfOp_branch_tensor{m_pipeline_request->get_tensor(cfOp_branch_port)};
-            auto p_controlflow_branch_selection{cfOp_branch_tensor->data<uint64_t>()};
-            
-            auto& prefill_iteration{m_npuw_model->get_prefill_iteration()};
-            
-            if (prefill_iteration < m_npuw_model->m_nlp_controlflow_branch_select_size) {
-                p_controlflow_branch_selection[prefill_iteration] = 1ull;
-            }            
-
-            for (size_t i{}; i < prefill_iteration; ++i) {
-                p_controlflow_branch_selection[i] = 0ull;
-            }            
-        }
-
-        m_pipeline_request->infer();       
+    dump_output_tensors(idx);  // FIXME: Called here unconditionally, need to refactor
+    if (behavior != nullptr) {
+        auto ctx = make_behavior_context(real_idx, idx);
+        behavior->epilogue(ctx);
+    }
+    if (is_pipelined(idx) && m_funcall_pipeline[idx].next) {
+        std::swap(m_subrequests[real_idx], m_funcall_pipeline[real_idx].subrequest);
     }
 }
 

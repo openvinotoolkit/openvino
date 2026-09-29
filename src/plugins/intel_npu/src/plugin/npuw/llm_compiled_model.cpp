@@ -1205,8 +1205,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     NPUW_ASSERT(m_prefill_compiled && "Can't create ov::npuw::CompiledModel for passed prefill "
                                       "model and its config, please check passed config.");
 
-    m_nlp_hfa_pipeline_enabled = m_prefill_compiled->is_using_hfa_pipeline_model();
-    m_using_nlp_pipeline = m_prefill_compiled->is_using_pipeline_model();
+    m_nlp_hfa_pipeline_enabled = m_prefill_compiled->has_hfa_pipeline_model();
+    m_using_nlp_pipeline = m_prefill_compiled->has_pipeline_model();
 
     if (lm_head_model) {
         auto lm_head_config = get_default_lm_head_config(npudesc);

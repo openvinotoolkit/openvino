@@ -67,8 +67,8 @@ public:
     virtual void serialize(std::ostream& stream, const s11n::CompiledContext& ctx) const = 0;
 
     // Pipeline model status
-    virtual bool is_using_pipeline_model() const = 0;
-    virtual bool is_using_hfa_pipeline_model() const = 0;
+    virtual bool has_pipeline_model() const = 0;
+    virtual bool has_hfa_pipeline_model() const = 0;
     virtual size_t& get_prefill_iteration() const = 0;
     virtual ~ICompiledModel_v0() = default;
 };
@@ -136,14 +136,15 @@ public:
     void finalize_weights_bank() override;
     void reconstruct_closure() override;
     void serialize(std::ostream& stream, const s11n::CompiledContext& ctx) const override;
-    bool is_using_pipeline_model() const override;
-    bool is_using_hfa_pipeline_model() const override;
+    bool has_pipeline_model() const override;
+    bool has_hfa_pipeline_model() const override;
     size_t& get_prefill_iteration() const override;
 private:
     // FIXME: This class has many friends..
     friend class IBaseInferRequest;
     friend class JustInferRequest;
     friend class UnfoldInferRequest;
+    friend class PipelinedInferRequest;
     friend class MemAccessSim;
     friend class FuncMemMgr;
     friend class LLMCompiledModel;
@@ -332,8 +333,7 @@ private:
     };
     std::vector<CompiledModelDesc> m_compiled_submodels;
     ov::SoPtr<ov::ICompiledModel> m_compiled_pipeline_model;
-    bool m_using_pipeline_model{false};
-    bool m_using_hfa_pipeline_model{false};    
+    bool m_pipeline_has_hfa{false};
     size_t m_nlp_controlflow_branch_select_size{};
     size_t m_nlp_branch_select_port_idx{};
     mutable size_t m_current_prefill_iteration{};

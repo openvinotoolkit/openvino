@@ -261,6 +261,18 @@ public:
     void finalize_weights_bank() override {}
     void reconstruct_closure() override {}
     void serialize(std::ostream&, const ov::npuw::s11n::CompiledContext&) const override {}
+    bool has_pipeline_model() const override {
+        return false;
+    }
+    bool has_hfa_pipeline_model() const override {
+        return false;
+    }
+    size_t& get_prefill_iteration() const override {
+        return m_prefill_iteration;
+    }
+
+private:
+    mutable size_t m_prefill_iteration{};
 };
 
 struct CompileCall {

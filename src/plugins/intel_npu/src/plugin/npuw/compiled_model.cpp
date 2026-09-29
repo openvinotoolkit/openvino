@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #include "compiled_model.hpp"
+#include "pipelined_infer_request.hpp"
 
 #include <algorithm>
 #include <cstring>
@@ -822,7 +823,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                 m_hfa_behaviour_submodel[i] = i;
                 hfa_input_port_pipeline_mapping = hfa->input_port_pipeline_mapping;
                 hfa_shared_input_parameters = hfa->shared_input_parameters;
-                m_using_hfa_pipeline_model = true;
+                m_pipeline_has_hfa = true;
             } else {
                 std::stringstream model_stream;
                 comp_model_desc.compiled_model->export_model(model_stream);
@@ -1392,7 +1393,7 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
                                                      m_pipeline_global_outputs,
                                                      m_pipeline_global_parameters);
 
-        if (m_using_hfa_pipeline_model) {
+        if (m_pipeline_has_hfa) {
             m_nlp_branch_select_port_idx = m_pipeline_global_parameters[m_nlp_branch_select_port_name].front();            
         }
         
@@ -1403,7 +1404,6 @@ ov::npuw::CompiledModel::CompiledModel(const std::shared_ptr<ov::Model>& model,
         nlp_properties["NPU_IMPORT_RAW_BLOB"] = true;
         m_compiled_pipeline_model = core->import_model(model_stream, get_context(), nlp_properties);
    
-        m_using_pipeline_model = true;
     }
 
     // Finalize memory in closures and weight banks
@@ -2070,12 +2070,12 @@ bool ov::npuw::CompiledModel::attention_no_copy() const {
     return m_cfg.get<::intel_npu::NPUW_ATTN_NO_COPY>();
 }
 
-bool ov::npuw::CompiledModel::is_using_pipeline_model() const {
-    return m_using_pipeline_model;
+bool ov::npuw::CompiledModel::has_pipeline_model() const {
+    return m_compiled_pipeline_model != nullptr;
 }
 
-bool ov::npuw::CompiledModel::is_using_hfa_pipeline_model() const {
-    return m_using_hfa_pipeline_model;
+bool ov::npuw::CompiledModel::has_hfa_pipeline_model() const {
+    return m_pipeline_has_hfa;
 }
 
 size_t& ov::npuw::CompiledModel::get_prefill_iteration() const {
@@ -3379,7 +3379,9 @@ std::shared_ptr<ov::npuw::IBaseInferRequest> ov::npuw::CompiledModel::create_bas
     };
 
     std::shared_ptr<ov::npuw::IBaseInferRequest> result;
-    if (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() && no_spatial_unpack() && no_failsafe_concern() &&
+    if (m_compiled_pipeline_model) {
+        result = std::make_shared<ov::npuw::PipelinedInferRequest>(non_const_this_sptr);
+    } else if (m_cfg.get<::intel_npu::NPUW_UNFOLD_IREQS>() && no_spatial_unpack() && no_failsafe_concern() &&
         no_subgraph_behavior_concern()) {
         result = std::make_shared<ov::npuw::UnfoldInferRequest>(non_const_this_sptr);
     } else {
@@ -3432,7 +3434,7 @@ ov::Any ov::npuw::CompiledModel::get_property(const std::string& name) const {
 }
 
 std::string ov::npuw::CompiledModel::submodel_device(const std::size_t idx) const {
-    if (!m_using_pipeline_model) {
+    if (!m_compiled_pipeline_model) {
         std::size_t real_idx = m_compiled_submodels[idx].replaced_by.value_or(idx);
         const auto& comp_subm_desc = m_compiled_submodels[real_idx];
 
