@@ -6,14 +6,19 @@
 
 #include "jitter.h"
 #include "kernel_selector_utils.h"
+#include "openvino/core/type/float16.hpp"
 #include "tensor_type.h"
+
 #include <string>
+#include <cmath>
+#include <limits>
 #include <memory>
 #include <utility>
 
 #include <quantize/quantize_kernel_params.h>
 #include <eltwise/eltwise_kernel_base.h>
 #include <activation/activation_kernel_base.h>
+
 
 namespace {
 class JitTerm {
@@ -1323,15 +1328,10 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             break;
         }
         case ActivationFunction::SOFTPLUS: {
-            // Numerically stable softplus: max(x, 0) + log(1 + exp(-|x|)).
-            // Mathematically equivalent to log(1 + exp(x)) for all x, but
-            // exp(-|x|) is in [0, 1] so it never overflows even at the
-            // float16 limit (~65504). Uses only type-dispatched helpers and
-            // vector-generic builtins, so it compiles for both the scalar ref
-            // kernel and the vectorised opt kernel without width-specific
-            // type conversions.
-            jitConstants.AddConstant(MakeJitConstant(macro_def,
-                    (max_func(input, zero) + log(one + exp(neg(abs_func(input))))).str()));
+            const auto threshold = (out_dt == Datatype::F32)
+                                       ? JitTerm{std::to_string(std::log(std::numeric_limits<float>::max())) + "f"}
+                                       : JitTerm{std::to_string(std::log(static_cast<float>(std::numeric_limits<ov::float16>::max()))) + "h"};
+            jitConstants.AddConstant(MakeJitConstant(macro_def, ternary(input.lt(threshold), log(exp(input) + one), input).str()));
             break;
         }
         case ActivationFunction::SOFTSIGN: {
