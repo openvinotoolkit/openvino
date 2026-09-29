@@ -531,6 +531,7 @@ def _rewrite_python_coverage_xml(
     if not xml_path.is_file():
         return
 
+    # Same-run pytest/coverage output under the job workspace; not arbitrary PR-supplied XML uploads.
     tree = ET.parse(xml_path)  # nosec B314
     root = tree.getroot()
 
