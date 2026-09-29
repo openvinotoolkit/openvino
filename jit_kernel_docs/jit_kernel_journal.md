@@ -131,6 +131,15 @@ Model:
 - `Op::foldable_reads` (bitmask) + `Op::fold_emit` — the rr/rm pair,
   expressed as two closures because the DSL, not the IR, knows the
   instruction. The IR stays opcode-free.
+- **`Op::load_form` and a second mask/closure pair.** A full vector read
+  from memory and one element read and splatted are different
+  instructions, not different addressing modes — `VFMADD231PSZrm` and
+  `VFMADD231PSZrmb` — and LLVM keeps them in separate memory-fold tables
+  (`X86InstrFoldTables`, the `TB_BCAST_*` entries). So a producer
+  declares which form it supplies and a consumer which forms it accepts,
+  per operand; a fold happens only where the two agree. Without that,
+  folding a splat into the full-width form would read 64 bytes where four
+  were meant.
 - **Operand commutation.** The memory operand must come last on x86, so
   folding operand 0 means swapping sources. Permitted for `vaddps`,
   `vmulps` and both FMA multiplicands; refused for `vsubps` and for
@@ -153,6 +162,31 @@ runtime change** — see the measurements section.
 It does not fire on two paths that matter: masked loads (so nothing under
 mask tail folding) and `color_convert`, whose loads feed `vsubps`
 operand 0 and custom shuffle ops that have no memory form.
+
+#### The embedded broadcast is where folding finally paid
+
+`ir_broadcast` is a load, and once it says so the pass turns
+`vbroadcastss` + register FMA into `vfmadd231ps m32{1to16}, zmm, zmm`.
+Worth 8.5% on a BRGEMM shape with a single column block, where the front
+end was delivering 3.00 uops per cycle against oneDNN's 1.74 for
+identical arithmetic — the first time this pass has moved a clock.
+
+Two things fall out of rules that were already there rather than being
+decided:
+
+- **The single-use rule picks the right form per shape.** With one
+  column block each splat feeds one FMA and folds; with three it feeds
+  three and stays in a register, because folding would turn one load into
+  three. oneDNN makes the same split by hand in two different code paths.
+  On the wide shape this fires on the masked tail group and not the full
+  one, which is exactly right and was not aimed at.
+- **The target gates it.** `supports_broadcast_memory_operand()` is the
+  one query LLVM does not need: its broadcast fold tables name EVEX
+  opcodes, so a subtarget without AVX-512 has no instruction those
+  entries apply to. Our fold closures are written once for all x86, so
+  availability has to be asked. Answering false makes no consumer accept
+  the form, and the pass then cannot fold one — no special case in the
+  pass itself.
 
 ### Register assignment (`assign_registers`)
 
@@ -828,6 +862,7 @@ otherwise be repeated.
 | change | kernel | effect on time |
 |---|---|---|
 | memory-operand folding | RoPE | none |
+| folding a single-use splat into the FMA | BRGEMM | **8.5% on skinny N**, 1% on the wide shape |
 | peeling constant trip counts | RoPE | **40 -> 37 us on QwenVL** |
 | displacement instead of pointer bumps | RoPE | none |
 | predicated interleaved store | color_convert | unmeasured; taken for register pressure, costs 6% code |
@@ -838,15 +873,23 @@ otherwise be repeated.
 | loop rotation | BRGEMM | none |
 | aligning the loops the padding cap had skipped | BRGEMM | none |
 
-Three of ten moved the clock. Copying oneDNN's choices directly was wrong
-once (64-byte alignment) and right once (prefetching) — and the
-prefetching answer was *recorded as wrong for a week* because the first
-measurement could not resolve it.
+Four of eleven moved the clock. Copying oneDNN's choices directly was
+wrong once (64-byte alignment) and right twice (prefetching, embedded
+broadcast) — and the prefetching answer was *recorded as wrong for a
+week* because the first measurement could not resolve it.
 
-The standing lesson: instruction counts have not once predicted time on
-this branch, in either direction. The BRGEMM inner loop is leaner than
-oneDNN's — 147 instructions against 157, 2228 bytes against 2912 — and
-that told us nothing about which of the two was faster.
+The lesson about instruction counts needs stating carefully, because it
+has been true in one direction and false in the other. A *smaller* count
+has never predicted a faster kernel: the BRGEMM inner loop reached 147
+instructions against oneDNN's 157, 2228 bytes against 2912, and was 4%
+slower. But a count nearly twice as large did predict a slower one — 141
+against 77 on the skinny shape, which turned out to be 5.8% front-end
+bound against 0.6%.
+
+So the usable rule is about the machine, not the listing: a count only
+predicts time when it changes how many uops per cycle the front end has
+to deliver for the same arithmetic. Trimming three `add`s does not.
+Doubling the uops per FMA does.
 
 ### Naming a few percent
 
@@ -1161,9 +1204,14 @@ Every suite run in all **eight** combinations of `OV_JIT_IR_PEEL` ×
 strategies are env-selected, and `OV_JIT_TAIL_FOLDING=epilogue` is the
 only way to exercise the AVX2/NEON-shaped path on an AVX-512 machine:
 
-- `ov_cpu_unit_tests --gtest_filter='JitKernel*:Brgemm*'`: **83/83 pass**,
-  green in all three `OV_JIT_IR_BRGEMM` modes as well as the eight
-  peel/fold/tail-folding combinations.
+- `ov_cpu_unit_tests --gtest_filter='JitKernel*:smoke_BrgemmIr*:*BrgemmFactory*'`:
+  **86 pass, 3 skip** (the `bdb_tail` differential shapes), green in all
+  three `OV_JIT_IR_BRGEMM` modes as well as the eight peel/fold/
+  tail-folding combinations and both `OV_JIT_IR_LOOP_ALIGN` and
+  `OV_JIT_IR_PREFETCH` settings. One test skips under
+  `OV_JIT_IR_NO_FOLD=1` by design — it is the only one asserting that a
+  fold happened through the real pipeline rather than by calling the
+  pass, so the A/B switch legitimately turns it off.
 - `ov_cpu_func_tests --gtest_filter='smoke_MM_Brgemm_*'`: **36/36 pass**
   under `OV_JIT_IR_BRGEMM=1`; 8 of 30 static cases pass under `=2`,
   meaning they ran the IR generator rather than falling back.

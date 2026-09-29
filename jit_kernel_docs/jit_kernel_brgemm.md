@@ -214,6 +214,7 @@ Wall clock agrees: oneDNN median 79 us, IR 77.
 | rolling the M loop | none (code 8617 -> 2240 bytes) |
 | loop rotation | none |
 | aligning the loops the padding cap had skipped | none |
+| folding the A splat into the FMA | **8.5% on skinny N**, 1% on the wide shape |
 
 ### Prefetching, measured twice
 
@@ -274,6 +275,42 @@ so the one instruction our loop was "missing" was the entire difference.
 Instruction counts have not once predicted time on this branch; here the
 count that mattered was the one that looked like overhead.
 
+## Skinny N: embedded broadcast
+
+`(1,2,32,120)x(120,5)` is a different kernel and was a different problem.
+N=5 gives no full column block at all: one masked block, `bd_block` 16,
+so each splatted A element feeds exactly one FMA. oneDNN folds the splat
+into the instruction —
+
+```
+vfmadd231ps 0x1e0(%r11){1to16},%zmm15,%zmm30
+```
+
+— and the first version of this generator emitted `vbroadcastss` into a
+register followed by a register FMA. Same 64 FMAs, same load-port
+traffic, 141 instructions against 77 and 1083 bytes against 689.
+
+The cost was entirely front end: **frontend bound 5.8% against oneDNN's
+0.6%**, uops issued 3.00 per cycle against 1.74. Measured gap 8.5%.
+
+Folding the broadcast (see the journal) closed it: frontend bound 0.25%,
+uops 1.87 per cycle, FMA port occupancy 82.7% against oneDNN's 79.3%,
+and `vbroadcastss` gone from the kernel entirely.
+
+```
+cyc/FMA   oneDNN  0.35574 0.33673 0.33451 0.34267   median 0.340
+          IR      0.34598 0.33813 0.35017 0.32998   median 0.342
+```
+
+Parity, within a noise band of about 3% — this shape runs 2 us per
+inference, so it needs counters rather than the benchmark's wall clock.
+
+The wide shape benefited too, without asking. Its tail column group also
+has one use per splat, so 32 of its 64 broadcasts folded and the other 32
+— the three-use ones in the full group — correctly did not. oneDNN makes
+the same split by hand; here it falls out of the single-use rule the fold
+pass already had.
+
 ## Open
 
 1. **18 post-op descriptors.** `jit_uni_postops_injector` reserves and
@@ -289,9 +326,8 @@ count that mattered was the one that looked like overhead.
    passes; a different kind of work rather than a widening.
 5. **AMX** — a fourth register class plus tile configuration held as
    machine state, the same problem as RVV's `vl`.
-6. **The N=5 shape**, where the gap is still 8-9% (cycles per FMA 0.369
-   against oneDNN's 0.340, prefetching included). One masked column block
-   and eight broadcasts per reduction step makes it load-port bound
-   rather than FMA bound, which is a different problem from the one just
-   solved. The benchmark reports 2 us for it, so it has to be measured
-   with counters or not at all.
+6. **The per-call prologue**, which the skinny shape is the only place to
+   see: 16 `vpxord`, the batch-array loads and three loop guards, against
+   2 us of work. Not separated from the rest of that shape's time, so its
+   size is unknown; it is the remaining candidate now that the front-end
+   difference is gone.
