@@ -290,10 +290,6 @@ struct TernoclInt2Packed {
     memory::ptr weights;
     memory::ptr scales;
     memory::ptr had_signs;  // i8 [K] +-1, or null
-    memory::ptr had_input;  // f16 [rows, K] rotated activation
-    size_t had_rows = 0;
-    memory::ptr int8_sa;  // f16 [K/128, pitch] activation scales of the int8 prefill
-    size_t int8_sa_pitch = 0;
 };
 
 static std::mutex& ternocl_packed_mutex() {
@@ -370,6 +366,21 @@ struct fully_connected_ternocl_int2 : typed_primitive_impl<fully_connected> {
         return false;
     }
 
+    // Scratch comes from the network memory pool, so it is shared across primitives
+    // and resized with M: [had] f16 [M, K] rotated activation, [int8] f16 [K/128, LDSA(M)] scales.
+    std::vector<BufferDescriptor> get_internal_buffer_descs(const kernel_impl_params& params) const override {
+        const auto& out = params.output_layouts[0];
+        if (out.is_dynamic() || _N == 0)
+            return {};
+        const size_t M = ov::shape_size(out.get_shape()) / _N;
+        std::vector<BufferDescriptor> descs;
+        if (_had_block != 0)
+            descs.emplace_back(M * _K, ov::element::f16);
+        if (int8_prefill_enabled() && M > 8)
+            descs.emplace_back((_K / kTernoclGroupSize) * ((M + 31) & ~size_t{31}), ov::element::f16);
+        return descs;
+    }
+
 protected:
     void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
     void set_arguments_impl(typed_primitive_inst<fully_connected>&) override {}
@@ -428,12 +439,7 @@ protected:
         auto& stream = network.get_stream();
         auto& l = get_int8_launch(M);
         const size_t groups = _K / kTernoclGroupSize;
-        const size_t pitch = (M + 31) & ~size_t{31};  // the kernels' LDSA(M)
-        if (!pk.int8_sa || pitch > pk.int8_sa_pitch) {
-            const auto sl = layout{ov::PartialShape{static_cast<int64_t>(groups), static_cast<int64_t>(pitch)}, data_types::f16, format::bfyx};
-            pk.int8_sa = network.get_engine().allocate_memory(sl, allocation_type::usm_device, false);
-            pk.int8_sa_pitch = pitch;
-        }
+        const auto& sa = instance.get_intermediates_memories().at(_had_block != 0 ? 1 : 0);
 
         // quant_a(A, SA, Aq, M, K): SA[g, m] = 127 / absmax of row m over group g. Aq is not written in QMODE 1.
         kernel_arguments_desc qd;
@@ -450,7 +456,7 @@ protected:
         qs[1].v.s32 = static_cast<int32_t>(_K);
         kernel_arguments_data qa;
         qa.inputs = {in};
-        qa.outputs = {pk.int8_sa};
+        qa.outputs = {sa};
         qa.scalars = &qs;
         stream.set_arguments(*l.quant, qd, qa);
         deps = {stream.enqueue_kernel(*l.quant, qd, qa, deps, false)};
@@ -480,7 +486,7 @@ protected:
         memory::cptr other = (_postop == 1 || _postop == 2) ? instance.dep_memory_ptr(_other_dep) : in;
         memory::cptr bias = _postop == 3 ? instance.bias_memory() : in;
         kernel_arguments_data a;
-        a.inputs = {in, pk.int8_sa, pk.weights, pk.scales, other, bias};
+        a.inputs = {in, sa, pk.weights, pk.scales, other, bias};
         a.outputs = {instance.output_memory_ptr(0)};
         a.scalars = &sc;
         stream.set_arguments(*l.gemm, d, a);
@@ -505,11 +511,7 @@ protected:
         std::vector<event::ptr> deps = events;
         if (_had_block != 0) {
             // Rotated-basis checkpoint: the GEMM consumes H_1024(s * x) / 32.
-            if (!pk->had_input || M > pk->had_rows) {
-                const auto hl = layout{ov::PartialShape{static_cast<int64_t>(M), static_cast<int64_t>(_K)}, data_types::f16, format::bfyx};
-                pk->had_input = network.get_engine().allocate_memory(hl, allocation_type::usm_device, false);
-                pk->had_rows = M;
-            }
+            const auto& rotated = instance.get_intermediates_memories().at(0);
             if (!_fwht)
                 _fwht = make_kernel(*_engine, get_program(*_engine, kTernoclFwhtSource, "-cl-std=CL3.0"), "hadamard_fwht_1024");
             kernel_arguments_desc d;
@@ -526,11 +528,11 @@ protected:
             sc[1].v.s32 = pk->had_signs ? 1 : 0;
             kernel_arguments_data a;
             a.inputs = {in, pk->had_signs ? memory::cptr(pk->had_signs) : in};
-            a.outputs = {pk->had_input};
+            a.outputs = {rotated};
             a.scalars = &sc;
             stream.set_arguments(*_fwht, d, a);
             deps = {stream.enqueue_kernel(*_fwht, d, a, deps, false)};
-            in = pk->had_input;
+            in = rotated;
         }
 
         if (M > 8 && int8_prefill_enabled())
