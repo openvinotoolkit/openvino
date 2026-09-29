@@ -4,7 +4,7 @@
 
 #include "openvino/runtime/hsm_reader.hpp"
 
-#include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #include <algorithm>
 #include <cstring>
@@ -133,11 +133,97 @@ std::stringstream make_stream(const std::vector<uint8_t>& blob, size_t prefix_si
     return stream;
 }
 
+class MockStreamBuf : public std::streambuf {
+public:
+    explicit MockStreamBuf(const std::vector<uint8_t>& data) : m_real(std::string(data.begin(), data.end())) {
+        ON_CALL(*this, xsgetn).WillByDefault([this](char_type* dst, std::streamsize n) {
+            return m_real.sgetn(dst, n);
+        });
+        ON_CALL(*this, seekoff)
+            .WillByDefault([this](off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which) {
+                return m_real.pubseekoff(off, dir, which);
+            });
+        ON_CALL(*this, seekpos).WillByDefault([this](pos_type pos, std::ios_base::openmode which) {
+            return m_real.pubseekpos(pos, which);
+        });
+        ON_CALL(*this, underflow).WillByDefault([this]() {
+            return m_real.sgetc();
+        });
+        ON_CALL(*this, uflow).WillByDefault([this]() {
+            return m_real.sbumpc();
+        });
+    }
+
+    MOCK_METHOD(std::streamsize, xsgetn, (char_type * dst, std::streamsize n), (override));
+    MOCK_METHOD(pos_type,
+                seekoff,
+                (off_type off, std::ios_base::seekdir dir, std::ios_base::openmode which),
+                (override));
+    MOCK_METHOD(pos_type, seekpos, (pos_type pos, std::ios_base::openmode which), (override));
+    MOCK_METHOD(int_type, underflow, (), (override));
+    MOCK_METHOD(int_type, uflow, (), (override));
+
+private:
+    std::stringbuf m_real;
+};
+
 }  // namespace
+
+// --- Section: constructed directly, without a Reader - it's a publicly exposed type on its own ----------
+
+TEST(HsmSectionTest, inline_mode_reads_directly_from_the_entry_no_source_needed) {
+    const auto entry = make_inline_entry(fake_device_id, hsm::model_id_tag(), {0xAA, 0xBB, 0xCC});
+    const hsm::Section section(entry);
+
+    EXPECT_EQ(section.device(), fake_device_id);
+    EXPECT_EQ(section.tag().id(), hsm::model_id);
+    EXPECT_EQ(section.size(), entry.inline_bytes.size());
+
+    std::vector<std::byte> destination(section.size());
+    ASSERT_TRUE(section.read(destination.data()));
+    EXPECT_EQ(destination[0], std::byte{0xAA});
+}
+
+TEST(HsmSectionTest, pointer_mode_reads_from_an_explicitly_supplied_buffer) {
+    const std::string payload = "standalone-section-bytes";
+    auto entry = make_pointer_entry(fake_device_id, hsm::model_tag());
+    entry.size = payload.size();
+    const ov::util::MemoryView view{reinterpret_cast<const std::byte*>(payload.data()), payload.size()};
+    const hsm::Section section(entry, view);
+
+    const auto direct = section.view();
+    ASSERT_TRUE(direct.has_value());
+    EXPECT_EQ(to_string(std::vector<std::byte>(direct->begin(), direct->end())), payload);
+}
+
+TEST(HsmSectionTest, read_rejects_a_null_destination) {
+    const auto entry = make_inline_entry(fake_device_id, hsm::model_id_tag(), {0xAA});
+    const hsm::Section section(entry);
+    EXPECT_FALSE(section.read(0, section.size(), nullptr));
+}
+
+TEST(HsmSectionTest, pointer_mode_entry_built_with_the_inline_only_constructor_has_no_source) {
+    // Misuses the public API directly: the inline-only constructor never sets a payload source, so a
+    // pointer-mode entry built this way has nothing for view()/read() to fall back on (m_source stays
+    // std::monostate).
+    auto entry = make_pointer_entry(fake_device_id, hsm::model_tag());
+    entry.size = 4;
+    const hsm::Section section(entry);
+
+    EXPECT_FALSE(section.view().has_value());
+    std::vector<std::byte> destination(4);
+    EXPECT_FALSE(section.read(destination.data()));
+    EXPECT_FALSE(section.to_bytes().has_value());
+}
 
 TEST(HsmReaderTest, open_rejects_invalid_buffer) {
     const std::vector<uint8_t> garbage(sizeof(hsm::Header), 0xFF);
     EXPECT_FALSE(hsm::Reader::open(garbage.data(), garbage.size()).has_value());
+}
+
+TEST(HsmReaderTest, open_rejects_a_buffer_smaller_than_the_header_itself) {
+    const std::vector<uint8_t> too_small(sizeof(hsm::Header) - 1, 0xFF);
+    EXPECT_FALSE(hsm::Reader::open(too_small.data(), too_small.size()).has_value());
 }
 
 TEST(HsmReaderTest, open_accepts_valid_container) {
@@ -310,6 +396,18 @@ TEST(HsmReaderTest, sections_returns_empty_vector_when_no_entry_matches) {
     EXPECT_TRUE(reader->sections(/*device=*/42, hsm::model_id).empty());
 }
 
+TEST(HsmReaderTest, sections_any_device_id_overload_matches_the_explicit_any_device_id_form) {
+    const auto blob = make_sample_reader_container();
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
+    ASSERT_TRUE(reader.has_value());
+
+    const auto sections = reader->sections(hsm::model);
+    ASSERT_EQ(sections.size(), 1u);
+    EXPECT_EQ(to_string(sections[0]), "compiled-model-bytes");
+    // fake_device_id-owned tag must not surface through the any_device_id-only overload.
+    EXPECT_TRUE(reader->sections(hsm::make_device_tag(/*local_id=*/1, /*is_inline=*/false).id()).empty());
+}
+
 TEST(HsmReaderTest, count_matches_sections_size_without_reading_any_payload) {
     const auto shard_tag = hsm::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
     const auto blob = make_container({
@@ -322,6 +420,18 @@ TEST(HsmReaderTest, count_matches_sections_size_without_reading_any_payload) {
 
     EXPECT_EQ(reader->count(fake_device_id, shard_tag.id()), 2u);
     EXPECT_EQ(reader->count(/*device=*/42, hsm::model_id), 0u);
+}
+
+TEST(HsmReaderTest, count_any_device_id_overload_matches_the_explicit_any_device_id_form) {
+    const auto blob = make_sample_reader_container();
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
+    ASSERT_TRUE(reader.has_value());
+
+    // model is any_device_id-owned in make_sample_reader_container() - the any_device_id-only overload
+    // must find it too, not just count(any_device_id, tag).
+    EXPECT_EQ(reader->count(hsm::model), 1u);
+    // fake_device_id owns a different tag - the any_device_id-only overload must not see it.
+    EXPECT_EQ(reader->count(hsm::make_device_tag(/*local_id=*/1, /*is_inline=*/false).id()), 0u);
 }
 
 TEST(HsmReaderTest, entries_gives_a_manifest_overview_without_reading_any_payload) {
@@ -513,6 +623,23 @@ TEST(HsmReaderTest, decode_returns_nullopt_for_unknown_tag) {
     EXPECT_FALSE(reader->decode(/*device=*/42, hsm::model_id, decode_length).has_value());
 }
 
+TEST(HsmReaderTest, decode_with_an_explicit_device_finds_a_device_owned_section) {
+    const auto blob = make_sample_reader_container();
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
+    ASSERT_TRUE(reader.has_value());
+
+    const hsm::SectionDecoder<std::string> decode_bytes = [](const hsm::Section& section) {
+        const auto view = section.view();
+        return view ? std::make_optional(std::string(reinterpret_cast<const char*>(view->data()), view->size()))
+                    : std::nullopt;
+    };
+
+    const auto decoded =
+        reader->decode(fake_device_id, hsm::make_device_tag(/*local_id=*/1, /*is_inline=*/false).id(), decode_bytes);
+    ASSERT_TRUE(decoded.has_value());
+    EXPECT_EQ(*decoded, "device-specific-payload");
+}
+
 TEST(HsmReaderTest, decode_all_returns_every_matching_entry_decoded_in_order) {
     const auto shard_tag = hsm::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
     const auto blob = make_container({
@@ -532,6 +659,34 @@ TEST(HsmReaderTest, decode_all_returns_every_matching_entry_decoded_in_order) {
     ASSERT_EQ(shards.size(), 2u);
     EXPECT_EQ(shards[0], "shard-0");
     EXPECT_EQ(shards[1], "shard-1");
+}
+
+TEST(HsmReaderTest, decode_all_returns_an_empty_vector_when_nothing_matches) {
+    const auto blob = make_sample_reader_container();
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
+    ASSERT_TRUE(reader.has_value());
+
+    const hsm::SectionDecoder<std::string> decode_bytes = [](const hsm::Section&) {
+        return std::make_optional(std::string{});
+    };
+
+    EXPECT_TRUE(reader->decode_all(/*device=*/42, hsm::model_id, decode_bytes).empty());
+}
+
+TEST(HsmReaderTest, decode_all_any_device_id_overload_matches_the_explicit_any_device_id_form) {
+    const auto blob = make_sample_reader_container();
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
+    ASSERT_TRUE(reader.has_value());
+
+    const hsm::SectionDecoder<std::string> decode_bytes = [](const hsm::Section& section) {
+        const auto view = section.view();
+        return view ? std::make_optional(std::string(reinterpret_cast<const char*>(view->data()), view->size()))
+                    : std::nullopt;
+    };
+
+    const auto decoded = reader->decode_all(hsm::model, decode_bytes);
+    ASSERT_EQ(decoded.size(), 1u);
+    EXPECT_EQ(decoded[0], "compiled-model-bytes");
 }
 
 // --- Negative tests (Story 2 DoD: invalid header, invalid manifest, invalid offsets, unsupported
@@ -610,6 +765,12 @@ TEST(HsmReaderStreamTest, open_rejects_invalid_stream) {
     auto blob = make_container({});
     blob[0] = 'X';  // corrupt magic
     auto stream = make_stream(blob);
+    EXPECT_FALSE(hsm::Reader::open(stream).has_value());
+}
+
+TEST(HsmReaderStreamTest, open_rejects_a_stream_already_in_a_failed_state) {
+    std::stringstream stream;
+    stream.setstate(std::ios::failbit);
     EXPECT_FALSE(hsm::Reader::open(stream).has_value());
 }
 
@@ -820,6 +981,26 @@ TEST(HsmReaderStreamTest, read_sections_dispatches_same_handler_type_as_memory_b
     RecordingHandler extension(fake_device_id, /*tag_id=*/hsm::core_tag_id_range_end + 1);
     EXPECT_EQ(reader->read_sections({&extension}), 1u);
     EXPECT_EQ(extension.last_payload, "device-specific-payload");
+}
+
+TEST(HsmReaderStreamTest, read_sections_skips_an_entry_whose_bounds_validate_but_whose_read_fails) {
+    const auto blob = make_container({
+        {make_pointer_entry(fake_device_id, hsm::make_device_tag(1, false)), "unreadable-payload"},
+    });
+    ::testing::NiceMock<MockStreamBuf> buf(blob);
+    {
+        ::testing::InSequence seq;
+        EXPECT_CALL(buf, xsgetn).Times(2);                        // open()'s header + manifest reads
+        EXPECT_CALL(buf, xsgetn).WillOnce(::testing::Return(0));  // the one payload read this test targets
+        EXPECT_CALL(buf, xsgetn).Times(::testing::AnyNumber());
+    }
+    std::istream stream(&buf);
+    const auto reader = hsm::Reader::open(stream);
+    ASSERT_TRUE(reader.has_value());
+
+    RecordingHandler handler(fake_device_id, hsm::make_device_tag(/*local_id=*/1, /*is_inline=*/false).id());
+    EXPECT_EQ(reader->read_sections({&handler}), 0u);
+    EXPECT_EQ(handler.handled_count, 0u);
 }
 
 TEST(HsmReaderStreamTest, rejects_invalid_manifest_offset) {
