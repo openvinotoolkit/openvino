@@ -7,6 +7,7 @@ OpenVINO uses caches to accelerate builds and tests while minimizing network usa
 * [Available Caches](#available-caches)
 * [GitHub Actions Cache](#github-actions-cache)
 * [Shared Drive Cache](#shared-drive-cache)
+* [`ccache` Remote Storage](#ccache-remote-storage)
 * [Cloud Storage via Azure Blob Storage](#cloud-storage-via-azure-blob-storage)
 
 
@@ -26,6 +27,9 @@ Three types of caches are available:
 * Cloud storage via [Azure Blob Storage](https://azure.microsoft.com/en-us/products/storage/blobs)
   * Available only to self-hosted runners.
   * Used to cache and share build artifacts with [`sccache`](https://github.com/mozilla/sccache).
+* [`ccache` remote storage](#ccache-remote-storage) on the shared drive
+  * Available only to self-hosted runners.
+  * Used to cache and share build artifacts with [`ccache`](https://ccache.dev) on Windows and Ubuntu 24.04.
 
 Jobs in the workflows utilize these caches based on their requirements.
 
@@ -122,6 +126,46 @@ path in the Docker container where the resources will be available.
   * Used in the [`linux_riscv.yml`](./../../../../.github/workflows/linux_riscv.yml) workflow
 
 To add new resources, contact a member of the CI team for assistance.
+
+## `ccache` Remote Storage
+
+The Windows pipelines ([`job_build_windows.yml`](./../../../../.github/workflows/job_build_windows.yml),
+[`windows_conditional_compilation.yml`](./../../../../.github/workflows/windows_conditional_compilation.yml))
+and the Ubuntu 24.04 pipeline ([`ubuntu_24.yml`](./../../../../.github/workflows/ubuntu_24.yml))
+cache C++/C build files with [`ccache`](https://ccache.dev) using its
+[remote storage](https://ccache.dev/manual/latest.html#_remote_storage_backends) `file` backend
+pointed at the shared drive. Every compilation queries the job-local cache first and the shared
+directory second, so no cache archive has to be restored before or uploaded after the build.
+
+The configuration is done entirely via environment variables under the job's `env` key:
+```yaml
+Build:
+  ...
+  env:
+    CMAKE_CXX_COMPILER_LAUNCHER: ccache
+    CMAKE_C_COMPILER_LAUNCHER: ccache
+    CCACHE_REMOTE_STORAGE: "file:///mount/caches/ccache_remote/ubuntu_24_04_x86_64_Release|umask=002|update-mtime=true"
+    CCACHE_DIR: ${{ github.workspace }}/ccache
+    CCACHE_TEMPDIR: ${{ github.workspace }}/ccache_temp
+    CCACHE_MAXSIZE: 3G
+    CCACHE_BASEDIR: ${{ github.workspace }}
+    CCACHE_SLOPPINESS: pch_defines,time_macros
+```
+On Windows, the shared drive is mounted at `C:\mount`, so the URL takes the form
+`file:///C:/mount/caches/ccache_remote/<prefix>`.
+
+Notes:
+* Cache entries are content-addressed and the directory is neither keyed by commit nor by branch,
+  so every pull request, every commit within a pull request and every post-commit run read from
+  and write to the same cache. Do not add the branch name or `github.sha` to the path.
+* `CCACHE_BASEDIR` makes `ccache` hash absolute paths below the workspace as relative ones, and
+  `CCACHE_SLOPPINESS` keeps `__DATE__`/`__TIME__` and precompiled headers out of the hash. Without
+  them the same source compiles to a different cache entry on another runner or on another day.
+* `ccache` never evicts entries from its remote storage. The
+  [`cleanup_caches.yml`](./../../../../.github/workflows/cleanup_caches.yml) workflow removes
+  entries that have not been used for 30 days; `update-mtime=true` is what makes that eviction
+  least-recently-used.
+* `umask=002` keeps the entries writable for every user of the shared drive.
 
 ## Cloud Storage via Azure Blob Storage
 
