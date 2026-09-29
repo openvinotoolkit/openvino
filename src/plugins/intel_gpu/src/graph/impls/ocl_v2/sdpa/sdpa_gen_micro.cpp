@@ -43,6 +43,14 @@ inline size_t get_d_max(size_t head_size) {
     return head_size;
 }
 
+// The integer K*Q gemm quantizes Q in-kernel while staging it to SLM, four head-dim values per
+// lane into one dword. That needs an f16 Q (the conversion goes through float, and a bf16 Q
+// would be read as its bit pattern), a head size that packs into whole dwords, and enough
+// packed rows for one per subgroup lane.
+inline bool micro_i8_kq_shape_ok(const layout& Q, size_t k_head_size, size_t d_max, size_t sg_size) {
+    return Q.data_type == ov::element::f16 && k_head_size % 4 == 0 && (d_max / 4) % sg_size == 0;
+}
+
 micro::Type convert_type(ov::element::Type t) {
     switch (t) {
     case ov::element::f32:
@@ -1228,6 +1236,16 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     jit.make("KEY_DATA_T", to_ocl_type(K.data_type));
     jit.make("VAL_DATA_T", to_ocl_type(V.data_type));
 
+    // Integer K^T*Q, selected by an s8 key. The caller owns the quantization contract: Q must
+    // already hold integer-valued codes and both dequant scales must be folded into the op's
+    // scale input, so the in-kernel rounding that packs Q into SLM is exact.
+    // An i8 K here is an externally quantized operand, not the plugin's compressed KV cache:
+    // that one is i8 as well but carries scales/zero-points and must keep taking the
+    // decompression paths above, so it never selects this branch.
+    const bool external_i8_kv = !config.is_paged_attention && !config.is_kv_compressed;
+    const bool i8_kq = external_i8_kv && K.data_type == ov::element::i8 && micro_i8_kq_shape_ok(Q, k_head_size, d_max, get_subgroup_size(device_info.arch));
+    jit.make("I8_KQ", i8_kq ? 1 : 0);
+
     auto elems_per_byte = [](ov::element::Type dt) {
         switch (dt) {
         case ov::element::u4:
@@ -1442,6 +1460,20 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
     if (data_inputs_num > 3 && !config.is_paged_attention && sdpa_has_runtime_attn_mask_input(params)) {
         jit.add(convert_strides("MSK", "INPUT3", {0, 1, 2, 3}));
         jit.add(unit_parameters("MSK"));
+
+        // a [b, h, 1, k] mask carries one value per KEY and none per query, yet the
+        // general path in sdpa_micro.cl materialises it as a full S-shaped tile through a
+        // transposed load -- sg_tile_n times the traffic and registers for the same
+        // information, plus a half->float tile copy and a full-tile add. MASK_PER_KEY loads a
+        // coalesced sg_tile_m vector instead and broadcasts it along the query direction with
+        // the machinery REMAINDER_K's k_mask already uses.
+        // sdpa_has_runtime_attn_mask_input admits a dynamic-rank mask and PartialShape::size()
+        // asserts on one, so the rank is established before the shape is indexed. A mask whose
+        // rank is not known here takes the general path, as it did before this kernel existed.
+        const auto& msk_shape = params.input_layouts[3].get_partial_shape();
+        const bool per_key = msk_shape.rank().is_static() && msk_shape.size() == 4 && msk_shape[2].is_static() && msk_shape[2].get_length() == 1 &&
+                             msk_shape[3].is_static() && msk_shape[3].get_length() > 1;
+        jit.make("MASK_PER_KEY", per_key ? 1 : 0);
     }
 
     // std::cout << "JIT for micro kernel:" << std::endl;
@@ -1634,6 +1666,9 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     const auto& Q = params.input_layouts[0];
     const auto& K = (is_paged_attention && !is_prefill) ? params.input_layouts[3] : params.input_layouts[1];
     const auto& V = (is_paged_attention && !is_prefill) ? params.input_layouts[4] : params.input_layouts[2];
+    // Mirrors get_jit_constants: an i8 K selects the integer gemm only when it is an
+    // externally quantized operand, never for the (also i8) compressed KV cache.
+    const bool external_i8_kv = !is_paged_attention && !configuration.is_kv_compressed;
     const auto& out = params.output_layouts[0];
     const auto& out_ps = out.get_partial_shape();
     const auto& device_info = params.get_device_info();
@@ -1641,6 +1676,7 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     const auto k_head_size = micro_get_head_size(params, 1);
     const auto v_head_size = micro_get_head_size(params, 2);
     const auto d_max = get_d_max(k_head_size);
+    const bool i8_kq = external_i8_kv && K.data_type == ov::element::i8 && micro_i8_kq_shape_ok(Q, k_head_size, d_max, get_subgroup_size(device_info.arch));
 
     const ov::Dimension n_keys = micro_get_seq_length(params, 1);
     const ov::Dimension n_queries = micro_get_seq_length(params, 0);
@@ -1837,6 +1873,18 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
     reqs_kq.push_back(micro::StrategyRequirement::UnrollN == config->unroll_n_kq);
     reqs_kq.push_back(micro::StrategyRequirement::WGM == config->wg_m_kq);
     reqs_kq.push_back(micro::StrategyRequirement::WGN == config->wg_n_kq);
+
+    if (i8_kq) {
+        // s8 x s8 -> s32. The paged-attention "quantized" path only ever sets Ta = s8 as a
+        // DECOMPRESSION hint (Tb stays f16 and A is dequantised on load), so it cannot be
+        // reused here: this needs integer dpas on both operands.
+        problem_kq.Ta = problem_kq.Tb = micro::Type::s8;
+        problem_kq.Ta_ext = problem_kq.Tb_ext = micro::Type::s8;
+        problem_kq.Tc = problem_kq.Tc_ext = micro::Type::s32;
+        problem_kq.Ts = micro::Type::s32;
+        problem_kq.B.crosspack = 4;
+        problem_kq.A.setAlignment(micro::alignment_for_ld(static_cast<int>(k_head_size * problem_kq.Ta)));
+    }
 
     /* Ask microkernel provider for microkernel */
     try {
