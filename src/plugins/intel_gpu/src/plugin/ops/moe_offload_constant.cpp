@@ -10,7 +10,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <functional>
+#include <fstream>
 #include <iostream>
+#include <sstream>
 #include <string>
 #include <unordered_set>
 
@@ -128,9 +130,8 @@ PartialUploadDesc try_prepare_partial_upload(ProgramBuilder& p,
     return desc;
 }
 
-namespace {
-
 #if defined(_WIN32)
+namespace {
 bool is_luid_empty(const ov::device::LUID& luid) {
     return std::all_of(luid.luid.begin(), luid.luid.end(), [](uint8_t value) { return value == 0; });
 }
@@ -181,8 +182,26 @@ uint64_t query_dxgi_available_video_memory_bytes(const ov::device::LUID& luid) {
 
     return available_bytes;
 }
-#else
-uint64_t query_dxgi_available_video_memory_bytes(const ov::device::LUID&) {
+}  // namespace
+#endif
+
+#if defined(__linux__)
+uint64_t query_available_ram_bytes() {
+    // Read MemAvailable from /proc/meminfo (kernel's official estimate of usable memory)
+    std::ifstream meminfo_file("/proc/meminfo");
+    if (meminfo_file.is_open()) {
+        std::string line;
+        while (std::getline(meminfo_file, line)) {
+            if (line.rfind("MemAvailable:", 0) == 0) {
+                std::istringstream iss(line);
+                std::string key;
+                uint64_t kb_value = 0;
+                if (iss >> key >> kb_value) {
+                    return kb_value * 1024;
+                }
+            }
+        }
+    }
     return 0;
 }
 #endif
@@ -198,6 +217,8 @@ uint64_t estimate_available_tracked_device_memory_bytes(const cldnn::engine& eng
 
     return upper_bound - used_bytes;
 }
+
+namespace {
 
 struct MoEOffloadWeightStats {
     uint64_t total = 0;
@@ -272,10 +293,19 @@ size_t resolve_auto_offload_ratio(const ov::Model& model, cldnn::engine& engine)
     const bool is_igpu = info.dev_type == cldnn::device_type::integrated_gpu;
     std::string budget_source = "device_info";
     if (is_igpu) {
-        const uint64_t dxgi_budget = query_dxgi_available_video_memory_bytes(info.luid);
-        if (dxgi_budget > 0) {
-            m_budget = std::min<uint64_t>(m_budget, dxgi_budget);
-            budget_source = "dxgi_budget";
+#if defined(_WIN32)
+        const uint64_t os_budget = query_dxgi_available_video_memory_bytes(info.luid);
+        const char* os_budget_source = "dxgi_budget";
+#elif defined(__linux__)
+        const uint64_t os_budget = query_available_ram_bytes();
+        const char* os_budget_source = "meminfo_budget";
+#else
+        const uint64_t os_budget = 0;
+        const char* os_budget_source = "none";
+#endif
+        if (os_budget > 0) {
+            m_budget = std::min<uint64_t>(m_budget, os_budget);
+            budget_source = os_budget_source;
         } else {
             m_budget = estimate_available_tracked_device_memory_bytes(engine, m_budget);
             budget_source = "tracked_mem_stats";
