@@ -80,7 +80,7 @@ bool read_manifest(std::istream& stream,
 bool has_container_size_bytes(std::istream& stream, std::streampos start, const Header& header) {
     stream.seekg(start);
     stream.ignore(static_cast<std::streamsize>(header.container_size));
-    return stream.good();
+    return stream.gcount() == static_cast<std::streamsize>(header.container_size);
 }
 
 // 32-bit size_t can't represent every SizeType value - reject oversized sections before they're constructed.
