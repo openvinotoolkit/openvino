@@ -533,7 +533,7 @@ TEST_P(moe_gemm_test, basic) {
     execute(p);
 }
 
-INSTANTIATE_TEST_SUITE_P(smoke_moe_gemm,
+INSTANTIATE_TEST_SUITE_P(moe_gemm,
                          moe_gemm_test,
                          ::testing::ValuesIn(std::vector<moe_gemm_test_params>{// f16 / prefill
                                                                                moe_gemm_test_params{
