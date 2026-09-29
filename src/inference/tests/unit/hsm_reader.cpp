@@ -15,21 +15,20 @@
 #include <vector>
 
 namespace ov::test {
+namespace hsm = ov::runtime::hsm;
 namespace {
 
 enum class FakePluginTag : uint32_t { shard = 0 };
 
-constexpr runtime::DeviceId fake_device_id = 7;
+constexpr hsm::DeviceId fake_device_id = 7;
 
 struct EntrySpec {
-    runtime::ManifestEntry entry;
+    hsm::ManifestEntry entry;
     std::string payload;
 };
 
-runtime::ManifestEntry make_inline_entry(runtime::DeviceId device,
-                                         runtime::SectionTag tag,
-                                         const std::vector<uint8_t>& bytes) {
-    runtime::ManifestEntry entry{};
+hsm::ManifestEntry make_inline_entry(hsm::DeviceId device, hsm::SectionTag tag, const std::vector<uint8_t>& bytes) {
+    hsm::ManifestEntry entry{};
     entry.device = device;
     entry.tag = tag;
     const auto n = std::min(bytes.size(), entry.inline_bytes.size());
@@ -37,19 +36,18 @@ runtime::ManifestEntry make_inline_entry(runtime::DeviceId device,
     return entry;
 }
 
-runtime::ManifestEntry make_pointer_entry(runtime::DeviceId device, runtime::SectionTag tag) {
-    runtime::ManifestEntry entry{};
+hsm::ManifestEntry make_pointer_entry(hsm::DeviceId device, hsm::SectionTag tag) {
+    hsm::ManifestEntry entry{};
     entry.device = device;
     entry.tag = tag;
     return entry;  // offset/size are filled in by make_container() once payload placement is known.
 }
 
-std::vector<uint8_t> make_container(std::vector<EntrySpec> specs,
-                                    runtime::BlobMagic magic = runtime::BlobMagic::single) {
+std::vector<uint8_t> make_container(std::vector<EntrySpec> specs, hsm::BlobMagic magic = hsm::BlobMagic::single) {
     std::vector<uint8_t> payloads;
     for (auto& spec : specs) {
         if (spec.entry.tag.is_pointer()) {
-            spec.entry.offset = sizeof(runtime::HSMHeader) + payloads.size();
+            spec.entry.offset = sizeof(hsm::Header) + payloads.size();
             spec.entry.size = spec.payload.size();
             if (!spec.payload.empty()) {
                 payloads.insert(payloads.end(), spec.payload.begin(), spec.payload.end());
@@ -57,18 +55,16 @@ std::vector<uint8_t> make_container(std::vector<EntrySpec> specs,
         }
     }
 
-    std::vector<uint8_t> manifest(specs.size() * sizeof(runtime::ManifestEntry));
+    std::vector<uint8_t> manifest(specs.size() * sizeof(hsm::ManifestEntry));
     for (size_t i = 0; i < specs.size(); ++i) {
-        std::memcpy(manifest.data() + i * sizeof(runtime::ManifestEntry),
-                    &specs[i].entry,
-                    sizeof(runtime::ManifestEntry));
+        std::memcpy(manifest.data() + i * sizeof(hsm::ManifestEntry), &specs[i].entry, sizeof(hsm::ManifestEntry));
     }
 
-    runtime::HSMHeader header{};
+    hsm::Header header{};
     header.magic = magic;
-    header.version_major = runtime::HSMFormatVersion::major;
-    header.version_minor = runtime::HSMFormatVersion::minor;
-    header.manifest_offset = sizeof(runtime::HSMHeader) + payloads.size();
+    header.version_major = hsm::FormatVersion::major;
+    header.version_minor = hsm::FormatVersion::minor;
+    header.manifest_offset = sizeof(hsm::Header) + payloads.size();
     header.manifest_size = manifest.size();
     header.container_size = header.manifest_offset + header.manifest_size;
 
@@ -87,26 +83,26 @@ std::string to_string(const std::vector<std::byte>& section) {
     return {reinterpret_cast<const char*>(section.data()), section.size()};
 }
 
-std::string to_string(const runtime::HsmSection& section) {
+std::string to_string(const hsm::Section& section) {
     const auto bytes = section.to_bytes();
     return bytes ? to_string(*bytes) : std::string{};
 }
 
 std::vector<uint8_t> make_sample_reader_container() {
     return make_container({
-        {make_inline_entry(runtime::any_device_id, runtime::model_id_tag(), {0xAA, 0xBB, 0xCC, 0xDD}), {}},
-        {make_pointer_entry(runtime::any_device_id, runtime::model_tag()), "compiled-model-bytes"},
-        {make_pointer_entry(fake_device_id, runtime::make_device_tag(/*local_id=*/1, /*is_inline=*/false)),
+        {make_inline_entry(hsm::any_device_id, hsm::model_id_tag(), {0xAA, 0xBB, 0xCC, 0xDD}), {}},
+        {make_pointer_entry(hsm::any_device_id, hsm::model_tag()), "compiled-model-bytes"},
+        {make_pointer_entry(fake_device_id, hsm::make_device_tag(/*local_id=*/1, /*is_inline=*/false)),
          "device-specific-payload"},
     });
 }
 
-// Minimal IHsmSectionHandler: recognizes one (device, tag id) pair, records what it was handed.
-class RecordingHandler : public runtime::IHsmSectionHandler {
+// Minimal ISectionHandler: recognizes one (device, tag id) pair, records what it was handed.
+class RecordingHandler : public hsm::ISectionHandler {
 public:
-    RecordingHandler(runtime::DeviceId device, uint32_t tag_id) : m_device(device), m_tag_id(tag_id) {}
+    RecordingHandler(hsm::DeviceId device, uint32_t tag_id) : m_device(device), m_tag_id(tag_id) {}
 
-    bool handle_section(const runtime::ManifestEntry& entry, ov::util::MemoryView section) override {
+    bool handle_section(const hsm::ManifestEntry& entry, ov::util::MemoryView section) override {
         if (entry.device != m_device || entry.tag.id() != m_tag_id) {
             return false;
         }
@@ -119,7 +115,7 @@ public:
     size_t handled_count = 0;
 
 private:
-    runtime::DeviceId m_device;
+    hsm::DeviceId m_device;
     uint32_t m_tag_id;
 };
 
@@ -136,37 +132,37 @@ std::stringstream make_stream(const std::vector<uint8_t>& blob, size_t prefix_si
 }  // namespace
 
 TEST(HsmReaderTest, open_rejects_invalid_buffer) {
-    const std::vector<uint8_t> garbage(sizeof(runtime::HSMHeader), 0xFF);
-    EXPECT_FALSE(runtime::HsmReader::open(garbage.data(), garbage.size()).has_value());
+    const std::vector<uint8_t> garbage(sizeof(hsm::Header), 0xFF);
+    EXPECT_FALSE(hsm::Reader::open(garbage.data(), garbage.size()).has_value());
 }
 
 TEST(HsmReaderTest, open_accepts_valid_container) {
     const auto blob = make_container({});
-    EXPECT_TRUE(runtime::HsmReader::open(blob.data(), blob.size()).has_value());
+    EXPECT_TRUE(hsm::Reader::open(blob.data(), blob.size()).has_value());
 }
 
 TEST(HsmReaderTest, open_accepts_shared_context_magic_and_reads_its_sections) {
     const auto blob = make_container(
         {
-            {make_inline_entry(runtime::any_device_id, runtime::model_id_tag(), {0xAA}), {}},
-            {make_pointer_entry(fake_device_id, runtime::make_device_tag(/*local_id=*/1, /*is_inline=*/false)),
+            {make_inline_entry(hsm::any_device_id, hsm::model_id_tag(), {0xAA}), {}},
+            {make_pointer_entry(fake_device_id, hsm::make_device_tag(/*local_id=*/1, /*is_inline=*/false)),
              "shared-context-payload"},
         },
-        runtime::BlobMagic::multi);
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+        hsm::BlobMagic::multi);
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    const auto shard = reader->section(fake_device_id, runtime::make_device_tag(1, false).id());
+    const auto shard = reader->section(fake_device_id, hsm::make_device_tag(1, false).id());
     ASSERT_TRUE(shard.has_value());
     EXPECT_EQ(to_string(*shard), "shared-context-payload");
 }
 
 TEST(HsmReaderTest, model_id_section_reads_inline_payload) {
     const auto blob = make_sample_reader_container();
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    const auto section = reader->section(runtime::model_id);
+    const auto section = reader->section(hsm::model_id);
     ASSERT_TRUE(section.has_value());
     ASSERT_EQ(section->size(), 24u);  // full inline capacity - see ManifestEntry::inline_bytes
     const auto view = section->view();
@@ -176,45 +172,45 @@ TEST(HsmReaderTest, model_id_section_reads_inline_payload) {
 
 TEST(HsmReaderTest, model_section_reads_pointer_payload) {
     const auto blob = make_sample_reader_container();
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    const auto section = reader->section(runtime::model);
+    const auto section = reader->section(hsm::model);
     ASSERT_TRUE(section.has_value());
     EXPECT_EQ(to_string(*section), "compiled-model-bytes");
 }
 
 TEST(HsmReaderTest, common_sections_absent_when_manifest_is_empty) {
     const auto blob = make_container({});
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    EXPECT_FALSE(reader->section(runtime::model_id).has_value());
-    EXPECT_FALSE(reader->section(runtime::model).has_value());
-    EXPECT_FALSE(reader->section(runtime::runtime_requirements).has_value());
+    EXPECT_FALSE(reader->section(hsm::model_id).has_value());
+    EXPECT_FALSE(reader->section(hsm::model).has_value());
+    EXPECT_FALSE(reader->section(hsm::runtime_requirements).has_value());
 }
 
 TEST(HsmReaderTest, runtime_requirements_section_reads_opaque_payload) {
     const auto blob = make_container({
-        {make_pointer_entry(runtime::any_device_id, runtime::runtime_requirements_tag()), "req-v1"},
+        {make_pointer_entry(hsm::any_device_id, hsm::runtime_requirements_tag()), "req-v1"},
     });
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    const auto section = reader->section(runtime::runtime_requirements);
+    const auto section = reader->section(hsm::runtime_requirements);
     ASSERT_TRUE(section.has_value());
     EXPECT_EQ(to_string(*section), "req-v1");  // reader hands back raw bytes only, never interprets content
 }
 
 TEST(HsmReaderTest, move_constructed_reader_still_reads_sections) {
     const auto blob = make_sample_reader_container();
-    auto original = runtime::HsmReader::open(blob.data(), blob.size());
+    auto original = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(original.has_value());
 
-    const runtime::HsmReader moved(std::move(*original));
+    const hsm::Reader moved(std::move(*original));
 
     // Zero-copy view must still resolve too - the buffer moved along, not aliased via a stale copy.
-    const auto section = moved.section(runtime::model);
+    const auto section = moved.section(hsm::model);
     ASSERT_TRUE(section.has_value());
     const auto view = section->view();
     ASSERT_TRUE(view.has_value());
@@ -223,18 +219,18 @@ TEST(HsmReaderTest, move_constructed_reader_still_reads_sections) {
 
 TEST(HsmReaderTest, move_assignment_replaces_existing_reader) {
     const auto blob_a = make_sample_reader_container();
-    auto reader_a = runtime::HsmReader::open(blob_a.data(), blob_a.size());
+    auto reader_a = hsm::Reader::open(blob_a.data(), blob_a.size());
     ASSERT_TRUE(reader_a.has_value());
 
     const auto blob_b = make_container({
-        {make_inline_entry(runtime::any_device_id, runtime::model_id_tag(), {0xBB}), {}},
+        {make_inline_entry(hsm::any_device_id, hsm::model_id_tag(), {0xBB}), {}},
     });
-    auto reader_b = runtime::HsmReader::open(blob_b.data(), blob_b.size());
+    auto reader_b = hsm::Reader::open(blob_b.data(), blob_b.size());
     ASSERT_TRUE(reader_b.has_value());
 
     *reader_a = std::move(*reader_b);
 
-    const auto section = reader_a->section(runtime::model_id);
+    const auto section = reader_a->section(hsm::model_id);
     ASSERT_TRUE(section.has_value());
     const auto view = section->view();
     ASSERT_TRUE(view.has_value());
@@ -243,28 +239,28 @@ TEST(HsmReaderTest, move_assignment_replaces_existing_reader) {
 
 TEST(HsmReaderTest, section_returns_nullopt_for_unknown_device_or_tag) {
     const auto blob = make_sample_reader_container();
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    EXPECT_FALSE(reader->section(/*device=*/42, runtime::model_id).has_value());
-    EXPECT_FALSE(reader->section(runtime::any_device_id, /*tag_id=*/12345).has_value());
+    EXPECT_FALSE(reader->section(/*device=*/42, hsm::model_id).has_value());
+    EXPECT_FALSE(reader->section(hsm::any_device_id, /*tag_id=*/12345).has_value());
 }
 
 TEST(HsmReaderTest, section_accepts_any_enum_typed_tag_with_or_without_a_device) {
     const auto blob = make_container({
-        {make_inline_entry(runtime::any_device_id, runtime::model_id_tag(), {0xAA}), {}},
+        {make_inline_entry(hsm::any_device_id, hsm::model_id_tag(), {0xAA}), {}},
         {make_pointer_entry(fake_device_id,
-                            runtime::SectionTag::make(static_cast<uint32_t>(FakePluginTag::shard),
-                                                      /*is_inline=*/false)),
+                            hsm::SectionTag::make(static_cast<uint32_t>(FakePluginTag::shard),
+                                                  /*is_inline=*/false)),
          "plugin-shard"},
     });
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    // HSMTags, device-less (implies any_device_id) - no manual static_cast at the call site.
-    EXPECT_TRUE(reader->section(runtime::HSMTags::model_id).has_value());
-    // HSMTags, with an explicit device - same template, still no cast needed.
-    EXPECT_TRUE(reader->section(runtime::any_device_id, runtime::HSMTags::model_id).has_value());
+    // Tags, device-less (implies any_device_id) - no manual static_cast at the call site.
+    EXPECT_TRUE(reader->section(hsm::Tags::model_id).has_value());
+    // Tags, with an explicit device - same template, still no cast needed.
+    EXPECT_TRUE(reader->section(hsm::any_device_id, hsm::Tags::model_id).has_value());
     // A completely unrelated enum type (mimicking a plugin's own tag enum) - same template handles it too.
     const auto shard = reader->section(fake_device_id, FakePluginTag::shard);
     ASSERT_TRUE(shard.has_value());
@@ -272,12 +268,12 @@ TEST(HsmReaderTest, section_accepts_any_enum_typed_tag_with_or_without_a_device)
 }
 
 TEST(HsmReaderTest, section_returns_only_the_first_of_several_matching_entries) {
-    const auto shard_tag = runtime::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
+    const auto shard_tag = hsm::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
     const auto blob = make_container({
         {make_pointer_entry(fake_device_id, shard_tag), "shard-0"},
         {make_pointer_entry(fake_device_id, shard_tag), "shard-1"},
     });
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
     const auto section = reader->section(fake_device_id, shard_tag.id());
@@ -287,13 +283,13 @@ TEST(HsmReaderTest, section_returns_only_the_first_of_several_matching_entries) 
 
 TEST(HsmReaderTest, sections_returns_every_matching_entry_in_manifest_order) {
     // Nothing in the format guarantees a (device, tag) pair is unique - e.g. multiple named/indexed shards.
-    const auto shard_tag = runtime::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
+    const auto shard_tag = hsm::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
     const auto blob = make_container({
         {make_pointer_entry(fake_device_id, shard_tag), "shard-0"},
-        {make_pointer_entry(fake_device_id, runtime::make_device_tag(3, false)), "unrelated"},
+        {make_pointer_entry(fake_device_id, hsm::make_device_tag(3, false)), "unrelated"},
         {make_pointer_entry(fake_device_id, shard_tag), "shard-1"},
     });
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
     const auto sections = reader->sections(fake_device_id, shard_tag.id());
@@ -304,43 +300,43 @@ TEST(HsmReaderTest, sections_returns_every_matching_entry_in_manifest_order) {
 
 TEST(HsmReaderTest, sections_returns_empty_vector_when_no_entry_matches) {
     const auto blob = make_sample_reader_container();
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    EXPECT_TRUE(reader->sections(/*device=*/42, runtime::model_id).empty());
+    EXPECT_TRUE(reader->sections(/*device=*/42, hsm::model_id).empty());
 }
 
 TEST(HsmReaderTest, count_matches_sections_size_without_reading_any_payload) {
-    const auto shard_tag = runtime::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
+    const auto shard_tag = hsm::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
     const auto blob = make_container({
         {make_pointer_entry(fake_device_id, shard_tag), "shard-0"},
-        {make_pointer_entry(fake_device_id, runtime::make_device_tag(3, false)), "unrelated"},
+        {make_pointer_entry(fake_device_id, hsm::make_device_tag(3, false)), "unrelated"},
         {make_pointer_entry(fake_device_id, shard_tag), "shard-1"},
     });
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
     EXPECT_EQ(reader->count(fake_device_id, shard_tag.id()), 2u);
-    EXPECT_EQ(reader->count(/*device=*/42, runtime::model_id), 0u);
+    EXPECT_EQ(reader->count(/*device=*/42, hsm::model_id), 0u);
 }
 
 TEST(HsmReaderTest, entries_gives_a_manifest_overview_without_reading_any_payload) {
     const auto blob = make_sample_reader_container();
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
     ASSERT_EQ(reader->entries().size(), 3u);
-    EXPECT_EQ(reader->entries()[0].tag.id(), runtime::model_id);
-    EXPECT_EQ(reader->entries()[1].tag.id(), runtime::model);
+    EXPECT_EQ(reader->entries()[0].tag.id(), hsm::model_id);
+    EXPECT_EQ(reader->entries()[1].tag.id(), hsm::model);
     EXPECT_EQ(reader->entries()[2].device, fake_device_id);
 }
 
 TEST(HsmReaderTest, read_sections_dispatches_to_matching_handler_and_skips_the_rest) {
     const auto blob = make_sample_reader_container();
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    RecordingHandler matching(fake_device_id, /*tag_id=*/runtime::core_tag_id_range_end + 1);
+    RecordingHandler matching(fake_device_id, /*tag_id=*/hsm::core_tag_id_range_end + 1);
     RecordingHandler unrelated(/*device=*/9, /*tag_id=*/999);
 
     const auto handled = reader->read_sections({&unrelated, &matching});
@@ -354,30 +350,30 @@ TEST(HsmReaderTest, read_sections_can_dispatch_core_owned_entries_when_a_handler
     // Customization point: Core sections are ordinary entries here, not special-cased - a plugin extension
     // may register for (any_device_id, model_id) to override/extend how that common section is handled.
     const auto blob = make_sample_reader_container();
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    RecordingHandler model_id_override(runtime::any_device_id, runtime::model_id);
+    RecordingHandler model_id_override(hsm::any_device_id, hsm::model_id);
     EXPECT_EQ(reader->read_sections({&model_id_override}), 1u);
     EXPECT_EQ(model_id_override.handled_count, 1u);
 }
 
 TEST(HsmReaderTest, read_sections_returns_zero_for_empty_manifest) {
     const auto blob = make_container({});
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
     EXPECT_EQ(reader->read_sections({}), 0u);
 }
 
-// --- HsmSection::view(): zero-copy, only when opened over an addressable buffer (pointer-mode), always for
+// --- Section::view(): zero-copy, only when opened over an addressable buffer (pointer-mode), always for
 // inline-mode entries regardless of source -----------------------------------------------------------
 
 TEST(HsmReaderTest, section_view_points_into_the_original_buffer) {
     const auto blob = make_sample_reader_container();
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    const auto section = reader->section(runtime::model);
+    const auto section = reader->section(hsm::model);
     ASSERT_TRUE(section.has_value());
     const auto view = section->view();
     ASSERT_TRUE(view.has_value());
@@ -391,10 +387,10 @@ TEST(HsmReaderTest, section_view_points_into_the_original_buffer) {
 
 TEST(HsmReaderTest, section_view_available_even_for_inline_entries) {
     const auto blob = make_sample_reader_container();
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    const auto section = reader->section(runtime::model_id);
+    const auto section = reader->section(hsm::model_id);
     ASSERT_TRUE(section.has_value());
     const auto view = section->view();
     ASSERT_TRUE(view.has_value());
@@ -402,16 +398,16 @@ TEST(HsmReaderTest, section_view_available_even_for_inline_entries) {
     EXPECT_EQ(static_cast<uint8_t>(view->data()[0]), 0xAA);
 }
 
-// --- HsmSection::read(): section()/view() are whole-section only; this is for reading arbitrary ranges one
+// --- Section::read(): section()/view() are whole-section only; this is for reading arbitrary ranges one
 // at a time, deciding what's next from what a previous call already returned --------------------------
 
 TEST(HsmReaderTest, section_read_reads_a_slice_of_a_pointer_mode_section) {
     const std::string payload = "compiled-model-bytes";
     const auto blob = make_sample_reader_container();
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    const auto section = reader->section(runtime::model);
+    const auto section = reader->section(hsm::model);
     ASSERT_TRUE(section.has_value());
 
     std::vector<std::byte> destination(5);
@@ -421,10 +417,10 @@ TEST(HsmReaderTest, section_read_reads_a_slice_of_a_pointer_mode_section) {
 
 TEST(HsmReaderTest, section_read_rejects_a_window_exceeding_the_section_size) {
     const auto blob = make_sample_reader_container();
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    const auto section = reader->section(runtime::model);
+    const auto section = reader->section(hsm::model);
     ASSERT_TRUE(section.has_value());
 
     std::vector<std::byte> destination(section->size());
@@ -435,16 +431,16 @@ TEST(HsmReaderTest, section_read_rejects_a_window_exceeding_the_section_size) {
 TEST(HsmReaderTest, section_read_supports_several_calls_with_the_same_decoder) {
     const std::string payload = "compiled-model-bytes";
     const auto blob = make_sample_reader_container();
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    const auto section = reader->section(runtime::model);
+    const auto section = reader->section(hsm::model);
     ASSERT_TRUE(section.has_value());
 
     struct Piece {
         std::string bytes;
     };
-    const runtime::HsmSectionDecoder<Piece> decode_piece = [](const runtime::HsmSection& s) -> std::optional<Piece> {
+    const hsm::SectionDecoder<Piece> decode_piece = [](const hsm::Section& s) -> std::optional<Piece> {
         // Same decoder shape whether it's given the whole section (via view()/read()) or, as here, asked
         // to decode only a range read into a caller-owned buffer.
         std::vector<std::byte> bytes(s.size());
@@ -461,17 +457,17 @@ TEST(HsmReaderTest, section_read_supports_several_calls_with_the_same_decoder) {
     EXPECT_EQ(to_string(tail_bytes), payload.substr(9, 5));
 
     // The same decoder also still works when run through the reader, over the whole section, unchanged.
-    const auto whole = reader->decode(runtime::model, decode_piece);
+    const auto whole = reader->decode(hsm::model, decode_piece);
     ASSERT_TRUE(whole.has_value());
     EXPECT_EQ(whole->bytes, payload);
 }
 
 TEST(HsmReaderTest, section_read_works_for_inline_entries) {
     const auto blob = make_sample_reader_container();
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    const auto section = reader->section(runtime::model_id);
+    const auto section = reader->section(hsm::model_id);
     ASSERT_TRUE(section.has_value());
 
     std::byte first_byte{};
@@ -479,23 +475,23 @@ TEST(HsmReaderTest, section_read_works_for_inline_entries) {
     EXPECT_EQ(static_cast<uint8_t>(first_byte), 0xAA);
 }
 
-// --- decode()/decode_all(): the same HsmSectionDecoder<T> works whether the reader is buffer- or
+// --- decode()/decode_all(): the same SectionDecoder<T> works whether the reader is buffer- or
 // stream-backed - see HsmReaderStreamTest.decode_falls_back_to_read_when_no_view_is_available -----------
 
 TEST(HsmReaderTest, decode_uses_the_zero_copy_view_when_one_is_available) {
     const auto blob = make_sample_reader_container();
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
     const auto* blob_begin = reinterpret_cast<const std::byte*>(blob.data());
     const auto* blob_end = blob_begin + blob.size();
-    // Exercises make_hsm_section_decoder()'s zero-copy path: parse receives the section's own view
+    // Exercises make_section_decoder()'s zero-copy path: parse receives the section's own view
     // unchanged, still pointing inside the original buffer - not a copy routed through to_bytes().
-    const auto decode_as_view = runtime::make_hsm_section_decoder<ov::util::MemoryView>([](ov::util::MemoryView view) {
+    const auto decode_as_view = hsm::make_section_decoder<ov::util::MemoryView>([](ov::util::MemoryView view) {
         return std::make_optional(view);
     });
 
-    const auto decoded = reader->decode(runtime::model, decode_as_view);
+    const auto decoded = reader->decode(hsm::model, decode_as_view);
     ASSERT_TRUE(decoded.has_value());
     EXPECT_EQ(std::string(reinterpret_cast<const char*>(decoded->data()), decoded->size()), "compiled-model-bytes");
     EXPECT_GE(decoded->data(), blob_begin);
@@ -504,25 +500,25 @@ TEST(HsmReaderTest, decode_uses_the_zero_copy_view_when_one_is_available) {
 
 TEST(HsmReaderTest, decode_returns_nullopt_for_unknown_tag) {
     const auto blob = make_sample_reader_container();
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    const runtime::HsmSectionDecoder<int> decode_length = [](const runtime::HsmSection& section) {
+    const hsm::SectionDecoder<int> decode_length = [](const hsm::Section& section) {
         return std::make_optional(static_cast<int>(section.size()));
     };
-    EXPECT_FALSE(reader->decode(/*device=*/42, runtime::model_id, decode_length).has_value());
+    EXPECT_FALSE(reader->decode(/*device=*/42, hsm::model_id, decode_length).has_value());
 }
 
 TEST(HsmReaderTest, decode_all_returns_every_matching_entry_decoded_in_order) {
-    const auto shard_tag = runtime::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
+    const auto shard_tag = hsm::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
     const auto blob = make_container({
         {make_pointer_entry(fake_device_id, shard_tag), "shard-0"},
         {make_pointer_entry(fake_device_id, shard_tag), "shard-1"},
     });
-    const auto reader = runtime::HsmReader::open(blob.data(), blob.size());
+    const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    const runtime::HsmSectionDecoder<std::string> decode_shard = [](const runtime::HsmSection& section) {
+    const hsm::SectionDecoder<std::string> decode_shard = [](const hsm::Section& section) {
         const auto view = section.view();
         return view ? std::make_optional(std::string(reinterpret_cast<const char*>(view->data()), view->size()))
                     : std::nullopt;
@@ -535,103 +531,103 @@ TEST(HsmReaderTest, decode_all_returns_every_matching_entry_decoded_in_order) {
 }
 
 // --- Negative tests (Story 2 DoD: invalid header, invalid manifest, invalid offsets, unsupported
-// runtime requirements all reject at HsmReader::open(), before any section can be read) ------------------
+// runtime requirements all reject at Reader::open(), before any section can be read) ------------------
 
 TEST(HsmReaderTest, rejects_invalid_header_magic) {
     auto blob = make_container({});
     blob[0] = 'X';  // corrupt magic
-    EXPECT_FALSE(runtime::HsmReader::open(blob.data(), blob.size()).has_value());
+    EXPECT_FALSE(hsm::Reader::open(blob.data(), blob.size()).has_value());
 }
 
 TEST(HsmReaderTest, rejects_invalid_manifest_offset) {
     auto blob = make_sample_reader_container();
-    auto header = runtime::HSMHeader::view(blob.data());
-    header.manifest_offset = sizeof(runtime::HSMHeader) - 1;  // would start inside the header itself
+    auto header = hsm::Header::view(blob.data());
+    header.manifest_offset = sizeof(hsm::Header) - 1;  // would start inside the header itself
     std::memcpy(blob.data(), &header, sizeof(header));
 
-    EXPECT_FALSE(runtime::HsmReader::open(blob.data(), blob.size()).has_value());
+    EXPECT_FALSE(hsm::Reader::open(blob.data(), blob.size()).has_value());
 }
 
 TEST(HsmReaderTest, rejects_invalid_section_offset) {
     auto blob = make_sample_reader_container();
-    const auto header = runtime::HSMHeader::view(blob.data());
+    const auto header = hsm::Header::view(blob.data());
 
     // Second manifest entry is the pointer-mode "model" tag; corrupt its offset out of bounds.
-    const auto model_entry_offset = header.manifest_offset + sizeof(runtime::ManifestEntry);
-    runtime::ManifestEntry entry{};
+    const auto model_entry_offset = header.manifest_offset + sizeof(hsm::ManifestEntry);
+    hsm::ManifestEntry entry{};
     std::memcpy(&entry, blob.data() + model_entry_offset, sizeof(entry));
     entry.offset = blob.size() + 1;
     std::memcpy(blob.data() + model_entry_offset, &entry, sizeof(entry));
 
-    EXPECT_FALSE(runtime::HsmReader::open(blob.data(), blob.size()).has_value());
+    EXPECT_FALSE(hsm::Reader::open(blob.data(), blob.size()).has_value());
 }
 
 TEST(HsmReaderTest, rejects_container_with_out_of_bounds_runtime_requirements) {
     auto blob = make_container({
-        {make_pointer_entry(runtime::any_device_id, runtime::runtime_requirements_tag()), "req"},
+        {make_pointer_entry(hsm::any_device_id, hsm::runtime_requirements_tag()), "req"},
     });
-    auto header = runtime::HSMHeader::view(blob.data());
-    runtime::ManifestEntry entry{};
+    auto header = hsm::Header::view(blob.data());
+    hsm::ManifestEntry entry{};
     std::memcpy(&entry, blob.data() + header.manifest_offset, sizeof(entry));
-    entry.size = std::numeric_limits<runtime::HSMSizeType>::max();  // unsupported: payload can't possibly fit
+    entry.size = std::numeric_limits<hsm::SizeType>::max();  // unsupported: payload can't possibly fit
     std::memcpy(blob.data() + header.manifest_offset, &entry, sizeof(entry));
 
-    EXPECT_FALSE(runtime::HsmReader::open(blob.data(), blob.size()).has_value());
+    EXPECT_FALSE(hsm::Reader::open(blob.data(), blob.size()).has_value());
 }
 
 TEST(HsmReaderTest, rejects_buffer_smaller_than_container_size) {
     const auto blob = make_sample_reader_container();
-    // One byte short of what HSMHeader::container_size actually claims for this blob.
-    EXPECT_FALSE(runtime::HsmReader::open(blob.data(), blob.size() - 1).has_value());
+    // One byte short of what Header::container_size actually claims for this blob.
+    EXPECT_FALSE(hsm::Reader::open(blob.data(), blob.size() - 1).has_value());
 }
 
 TEST(HsmReaderTest, rejects_mismatched_major_version) {
     auto blob = make_sample_reader_container();
-    auto header = runtime::HSMHeader::view(blob.data());
-    header.version_major = runtime::HSMFormatVersion::major + 1;
+    auto header = hsm::Header::view(blob.data());
+    header.version_major = hsm::FormatVersion::major + 1;
     std::memcpy(blob.data(), &header, sizeof(header));
 
-    EXPECT_FALSE(runtime::HsmReader::open(blob.data(), blob.size()).has_value());
+    EXPECT_FALSE(hsm::Reader::open(blob.data(), blob.size()).has_value());
 }
 
 TEST(HsmReaderTest, accepts_container_with_different_minor_version) {
     // Only version_major is part of the compatibility contract - a minor-version bump must stay readable.
     auto blob = make_sample_reader_container();
-    auto header = runtime::HSMHeader::view(blob.data());
-    header.version_minor = runtime::HSMFormatVersion::minor + 1;
+    auto header = hsm::Header::view(blob.data());
+    header.version_minor = hsm::FormatVersion::minor + 1;
     std::memcpy(blob.data(), &header, sizeof(header));
 
-    EXPECT_TRUE(runtime::HsmReader::open(blob.data(), blob.size()).has_value());
+    EXPECT_TRUE(hsm::Reader::open(blob.data(), blob.size()).has_value());
 }
 
-// --- HsmReader over a std::istream& source: same class, same output type, just a different open() -------
+// --- Reader over a std::istream& source: same class, same output type, just a different open() -------
 
 TEST(HsmReaderStreamTest, open_rejects_invalid_stream) {
     auto blob = make_container({});
     blob[0] = 'X';  // corrupt magic
     auto stream = make_stream(blob);
-    EXPECT_FALSE(runtime::HsmReader::open(stream).has_value());
+    EXPECT_FALSE(hsm::Reader::open(stream).has_value());
 }
 
 TEST(HsmReaderStreamTest, open_accepts_valid_container_at_nonzero_stream_position) {
     const auto blob = make_sample_reader_container();
     auto stream = make_stream(blob, /*prefix_size=*/16);
-    const auto reader = runtime::HsmReader::open(stream);
+    const auto reader = hsm::Reader::open(stream);
     ASSERT_TRUE(reader.has_value());
 }
 
 TEST(HsmReaderStreamTest, open_accepts_shared_context_magic_and_reads_its_sections) {
     const auto blob = make_container(
         {
-            {make_pointer_entry(fake_device_id, runtime::make_device_tag(/*local_id=*/1, /*is_inline=*/false)),
+            {make_pointer_entry(fake_device_id, hsm::make_device_tag(/*local_id=*/1, /*is_inline=*/false)),
              "shared-context-payload"},
         },
-        runtime::BlobMagic::multi);
+        hsm::BlobMagic::multi);
     auto stream = make_stream(blob);
-    const auto reader = runtime::HsmReader::open(stream);
+    const auto reader = hsm::Reader::open(stream);
     ASSERT_TRUE(reader.has_value());
 
-    const auto shard = reader->section(fake_device_id, runtime::make_device_tag(1, false).id());
+    const auto shard = reader->section(fake_device_id, hsm::make_device_tag(1, false).id());
     ASSERT_TRUE(shard.has_value());
     EXPECT_EQ(to_string(*shard), "shared-context-payload");
 }
@@ -639,17 +635,17 @@ TEST(HsmReaderStreamTest, open_accepts_shared_context_magic_and_reads_its_sectio
 TEST(HsmReaderStreamTest, model_id_and_model_sections_read_correctly) {
     const auto blob = make_sample_reader_container();
     auto stream = make_stream(blob);
-    const auto reader = runtime::HsmReader::open(stream);
+    const auto reader = hsm::Reader::open(stream);
     ASSERT_TRUE(reader.has_value());
 
-    const auto model_id = reader->section(runtime::model_id);
+    const auto model_id = reader->section(hsm::model_id);
     ASSERT_TRUE(model_id.has_value());
     ASSERT_EQ(model_id->size(), 24u);
     const auto model_id_view = model_id->view();  // inline - always viewable, even without a buffer
     ASSERT_TRUE(model_id_view.has_value());
     EXPECT_EQ(static_cast<uint8_t>(model_id_view->data()[0]), 0xAA);
 
-    const auto model = reader->section(runtime::model);
+    const auto model = reader->section(hsm::model);
     ASSERT_TRUE(model.has_value());
     EXPECT_EQ(to_string(*model), "compiled-model-bytes");
 }
@@ -658,12 +654,12 @@ TEST(HsmReaderStreamTest, section_read_reads_only_the_requested_slice_without_a_
     const std::string payload = "compiled-model-bytes";
     const auto blob = make_sample_reader_container();
     auto stream = make_stream(blob);
-    const auto reader = runtime::HsmReader::open(stream);
+    const auto reader = hsm::Reader::open(stream);
     ASSERT_TRUE(reader.has_value());
 
     // view() has no zero-copy option here (no addressable buffer) - read() is the only way to get part of
     // a section without also reading (or allocating for) the rest.
-    const auto section = reader->section(runtime::model);
+    const auto section = reader->section(hsm::model);
     ASSERT_TRUE(section.has_value());
     EXPECT_FALSE(section->view().has_value());
 
@@ -676,10 +672,10 @@ TEST(HsmReaderStreamTest, section_read_supports_repeated_calls_without_a_buffer)
     const std::string payload = "compiled-model-bytes";
     const auto blob = make_sample_reader_container();
     auto stream = make_stream(blob);
-    const auto reader = runtime::HsmReader::open(stream);
+    const auto reader = hsm::Reader::open(stream);
     ASSERT_TRUE(reader.has_value());
 
-    const auto section = reader->section(runtime::model);
+    const auto section = reader->section(hsm::model);
     ASSERT_TRUE(section.has_value());
 
     // Read the first 9 bytes, decide (at "runtime") what to read next, then read the rest - without ever
@@ -698,11 +694,11 @@ TEST(HsmReaderStreamTest, section_outlives_the_reader_it_came_from) {
     const auto blob = make_sample_reader_container();
     auto stream = make_stream(blob);
 
-    std::optional<runtime::HsmSection> section;
+    std::optional<hsm::Section> section;
     {
-        auto reader = runtime::HsmReader::open(stream);
+        auto reader = hsm::Reader::open(stream);
         ASSERT_TRUE(reader.has_value());
-        section = reader->section(runtime::model);
+        section = reader->section(hsm::model);
         ASSERT_TRUE(section.has_value());
     }  // `reader` is destroyed here - `section` must not depend on it, only on `stream`.
 
@@ -714,19 +710,19 @@ TEST(HsmReaderStreamTest, section_outlives_the_reader_it_came_from) {
 TEST(HsmReaderStreamTest, decode_falls_back_to_read_when_no_view_is_available) {
     const auto blob = make_sample_reader_container();
     auto stream = make_stream(blob);
-    const auto reader = runtime::HsmReader::open(stream);
+    const auto reader = hsm::Reader::open(stream);
     ASSERT_TRUE(reader.has_value());
 
     struct ModelData {
         std::string bytes;
     };
-    // Exercises make_hsm_section_decoder()'s fallback path: no addressable buffer here, so it must
-    // resolve via HsmSection::to_bytes() instead of view() - same parse callback either way.
-    const auto decode_model = runtime::make_hsm_section_decoder<ModelData>([](ov::util::MemoryView view) {
+    // Exercises make_section_decoder()'s fallback path: no addressable buffer here, so it must
+    // resolve via Section::to_bytes() instead of view() - same parse callback either way.
+    const auto decode_model = hsm::make_section_decoder<ModelData>([](ov::util::MemoryView view) {
         return std::make_optional(ModelData{std::string(reinterpret_cast<const char*>(view.data()), view.size())});
     });
 
-    const auto decoded = reader->decode(runtime::model, decode_model);
+    const auto decoded = reader->decode(hsm::model, decode_model);
     ASSERT_TRUE(decoded.has_value());
     EXPECT_EQ(decoded->bytes, "compiled-model-bytes");
 }
@@ -734,12 +730,12 @@ TEST(HsmReaderStreamTest, decode_falls_back_to_read_when_no_view_is_available) {
 TEST(HsmReaderStreamTest, move_constructed_reader_still_reads_sections) {
     const auto blob = make_sample_reader_container();
     auto stream = make_stream(blob);
-    auto original = runtime::HsmReader::open(stream);
+    auto original = hsm::Reader::open(stream);
     ASSERT_TRUE(original.has_value());
 
-    const runtime::HsmReader moved(std::move(*original));
+    const hsm::Reader moved(std::move(*original));
 
-    const auto section = moved.section(runtime::model);
+    const auto section = moved.section(hsm::model);
     ASSERT_TRUE(section.has_value());
     EXPECT_EQ(to_string(*section), "compiled-model-bytes");
 }
@@ -747,19 +743,19 @@ TEST(HsmReaderStreamTest, move_constructed_reader_still_reads_sections) {
 TEST(HsmReaderStreamTest, move_assignment_replaces_existing_reader) {
     const auto blob_a = make_sample_reader_container();
     auto stream_a = make_stream(blob_a);
-    auto reader_a = runtime::HsmReader::open(stream_a);
+    auto reader_a = hsm::Reader::open(stream_a);
     ASSERT_TRUE(reader_a.has_value());
 
     const auto blob_b = make_container({
-        {make_inline_entry(runtime::any_device_id, runtime::model_id_tag(), {0xBB}), {}},
+        {make_inline_entry(hsm::any_device_id, hsm::model_id_tag(), {0xBB}), {}},
     });
     auto stream_b = make_stream(blob_b);
-    auto reader_b = runtime::HsmReader::open(stream_b);
+    auto reader_b = hsm::Reader::open(stream_b);
     ASSERT_TRUE(reader_b.has_value());
 
     *reader_a = std::move(*reader_b);
 
-    const auto section = reader_a->section(runtime::model_id);
+    const auto section = reader_a->section(hsm::model_id);
     ASSERT_TRUE(section.has_value());
     const auto view = section->view();
     ASSERT_TRUE(view.has_value());
@@ -769,17 +765,17 @@ TEST(HsmReaderStreamTest, move_assignment_replaces_existing_reader) {
 TEST(HsmReaderStreamTest, view_siblings_work_for_inline_but_not_pointer_mode_entries) {
     const auto blob = make_sample_reader_container();
     auto stream = make_stream(blob);
-    const auto reader = runtime::HsmReader::open(stream);
+    const auto reader = hsm::Reader::open(stream);
     ASSERT_TRUE(reader.has_value());
 
-    const auto model_id = reader->section(runtime::model_id);
+    const auto model_id = reader->section(hsm::model_id);
     ASSERT_TRUE(model_id.has_value());
     const auto model_id_view = model_id->view();
     ASSERT_TRUE(model_id_view.has_value());
     ASSERT_EQ(model_id_view->size(), 24u);
     EXPECT_EQ(static_cast<uint8_t>(model_id_view->data()[0]), 0xAA);
 
-    const auto model = reader->section(runtime::model);
+    const auto model = reader->section(hsm::model);
     ASSERT_TRUE(model.has_value());
     EXPECT_FALSE(model->view().has_value());
 }
@@ -787,22 +783,22 @@ TEST(HsmReaderStreamTest, view_siblings_work_for_inline_but_not_pointer_mode_ent
 TEST(HsmReaderStreamTest, common_sections_absent_when_manifest_is_empty) {
     const auto blob = make_container({});
     auto stream = make_stream(blob);
-    const auto reader = runtime::HsmReader::open(stream);
+    const auto reader = hsm::Reader::open(stream);
     ASSERT_TRUE(reader.has_value());
 
-    EXPECT_FALSE(reader->section(runtime::model_id).has_value());
-    EXPECT_FALSE(reader->section(runtime::model).has_value());
-    EXPECT_FALSE(reader->section(runtime::runtime_requirements).has_value());
+    EXPECT_FALSE(reader->section(hsm::model_id).has_value());
+    EXPECT_FALSE(reader->section(hsm::model).has_value());
+    EXPECT_FALSE(reader->section(hsm::runtime_requirements).has_value());
 }
 
 TEST(HsmReaderStreamTest, sections_returns_every_matching_entry) {
-    const auto shard_tag = runtime::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
+    const auto shard_tag = hsm::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
     const auto blob = make_container({
         {make_pointer_entry(fake_device_id, shard_tag), "shard-0"},
         {make_pointer_entry(fake_device_id, shard_tag), "shard-1"},
     });
     auto stream = make_stream(blob);
-    const auto reader = runtime::HsmReader::open(stream);
+    const auto reader = hsm::Reader::open(stream);
     ASSERT_TRUE(reader.has_value());
 
     const auto sections = reader->sections(fake_device_id, shard_tag.id());
@@ -814,68 +810,68 @@ TEST(HsmReaderStreamTest, sections_returns_every_matching_entry) {
 TEST(HsmReaderStreamTest, read_sections_dispatches_same_handler_type_as_memory_backed_reader) {
     const auto blob = make_sample_reader_container();
     auto stream = make_stream(blob);
-    const auto reader = runtime::HsmReader::open(stream);
+    const auto reader = hsm::Reader::open(stream);
     ASSERT_TRUE(reader.has_value());
 
-    RecordingHandler extension(fake_device_id, /*tag_id=*/runtime::core_tag_id_range_end + 1);
+    RecordingHandler extension(fake_device_id, /*tag_id=*/hsm::core_tag_id_range_end + 1);
     EXPECT_EQ(reader->read_sections({&extension}), 1u);
     EXPECT_EQ(extension.last_payload, "device-specific-payload");
 }
 
 TEST(HsmReaderStreamTest, rejects_invalid_manifest_offset) {
     auto blob = make_sample_reader_container();
-    auto header = runtime::HSMHeader::view(blob.data());
-    header.manifest_offset = sizeof(runtime::HSMHeader) - 1;  // would start inside the header itself
-    header.container_size = blob.size();  // ensure container_size is consistent with the actual blob size
+    auto header = hsm::Header::view(blob.data());
+    header.manifest_offset = sizeof(hsm::Header) - 1;  // would start inside the header itself
+    header.container_size = blob.size();               // ensure container_size is consistent with the actual blob size
     std::memcpy(blob.data(), &header, sizeof(header));
 
     auto stream = make_stream(blob);
-    EXPECT_FALSE(runtime::HsmReader::open(stream).has_value());
+    EXPECT_FALSE(hsm::Reader::open(stream).has_value());
 }
 
 TEST(HsmReaderStreamTest, rejects_container_size_exceeding_available_stream_bytes) {
     auto blob = make_sample_reader_container();
-    auto header = runtime::HSMHeader::view(blob.data());
+    auto header = hsm::Header::view(blob.data());
     header.container_size += 100;  // claims more bytes than the stream actually holds
     std::memcpy(blob.data(), &header, sizeof(header));
 
     auto stream = make_stream(blob);  // not padded to match the inflated container_size
-    EXPECT_FALSE(runtime::HsmReader::open(stream).has_value());
+    EXPECT_FALSE(hsm::Reader::open(stream).has_value());
 }
 
 TEST(HsmReaderStreamTest, rejects_invalid_section_offset) {
     auto blob = make_sample_reader_container();
-    const auto header = runtime::HSMHeader::view(blob.data());
+    const auto header = hsm::Header::view(blob.data());
 
     // Second manifest entry is the pointer-mode "model" tag; corrupt its offset out of bounds.
-    const auto model_entry_offset = header.manifest_offset + sizeof(runtime::ManifestEntry);
-    runtime::ManifestEntry entry{};
+    const auto model_entry_offset = header.manifest_offset + sizeof(hsm::ManifestEntry);
+    hsm::ManifestEntry entry{};
     std::memcpy(&entry, blob.data() + model_entry_offset, sizeof(entry));
     entry.offset = blob.size() + 1;
     std::memcpy(blob.data() + model_entry_offset, &entry, sizeof(entry));
 
     auto stream = make_stream(blob);
-    EXPECT_FALSE(runtime::HsmReader::open(stream).has_value());
+    EXPECT_FALSE(hsm::Reader::open(stream).has_value());
 }
 
 TEST(HsmReaderStreamTest, rejects_mismatched_major_version) {
     auto blob = make_sample_reader_container();
-    auto header = runtime::HSMHeader::view(blob.data());
-    header.version_major = runtime::HSMFormatVersion::major + 1;
+    auto header = hsm::Header::view(blob.data());
+    header.version_major = hsm::FormatVersion::major + 1;
     std::memcpy(blob.data(), &header, sizeof(header));
 
     auto stream = make_stream(blob);
-    EXPECT_FALSE(runtime::HsmReader::open(stream).has_value());
+    EXPECT_FALSE(hsm::Reader::open(stream).has_value());
 }
 
 TEST(HsmReaderStreamTest, accepts_container_with_different_minor_version) {
     auto blob = make_sample_reader_container();
-    auto header = runtime::HSMHeader::view(blob.data());
-    header.version_minor = runtime::HSMFormatVersion::minor + 1;
+    auto header = hsm::Header::view(blob.data());
+    header.version_minor = hsm::FormatVersion::minor + 1;
     std::memcpy(blob.data(), &header, sizeof(header));
 
     auto stream = make_stream(blob);
-    EXPECT_TRUE(runtime::HsmReader::open(stream).has_value());
+    EXPECT_TRUE(hsm::Reader::open(stream).has_value());
 }
 
 }  // namespace ov::test

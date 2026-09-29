@@ -15,34 +15,34 @@
 #include "openvino/runtime/hsm_format.hpp"
 #include "openvino/runtime/common.hpp"
 
-namespace ov::runtime {
+namespace ov::runtime::hsm {
 inline namespace v1 {
 
 /**
- * @brief Copyable handle to one manifest entry's payload - the single way to read a #HsmSection, whether the
- * owning #HsmReader was opened over a stream or a buffer. Never owns or copies memory itself; #read() is
+ * @brief Copyable handle to one manifest entry's payload - the single way to read a #Section, whether the
+ * owning #Reader was opened over a stream or a buffer. Never owns or copies memory itself; #read() is
  * the only copy point.
- * @note Outlives the #HsmReader that produced it, as long as the stream/buffer passed to `open()` is still
+ * @note Outlives the #Reader that produced it, as long as the stream/buffer passed to `open()` is still
  * alive.
  */
-class OPENVINO_RUNTIME_API HsmSection {
+class OPENVINO_RUNTIME_API Section {
 public:
     /**
      * @brief Inline-mode section - payload lives in @p entry itself, no external source needed.
      */
-    explicit constexpr HsmSection(const ManifestEntry& entry) noexcept : m_entry(entry) {}
+    explicit constexpr Section(const ManifestEntry& entry) noexcept : m_entry(entry) {}
 
     /**
      * @brief Pointer-mode section backed by an addressable buffer; @p payload is its own bytes only.
      */
-    constexpr HsmSection(const ManifestEntry& entry, ov::util::MemoryView payload) noexcept
+    constexpr Section(const ManifestEntry& entry, ov::util::MemoryView payload) noexcept
         : m_entry(entry),
           m_source(payload) {}
 
     /**
      * @brief Pointer-mode section backed by a stream; @p payload_start is its first byte's stream position.
      */
-    HsmSection(const ManifestEntry& entry, std::istream& stream, std::streampos payload_start) noexcept
+    Section(const ManifestEntry& entry, std::istream& stream, std::streampos payload_start) noexcept
         : m_entry(entry),
           m_source(StreamSource{&stream, payload_start}) {}
 
@@ -61,7 +61,7 @@ public:
 
     /**
      * @brief Zero-copy view of the whole section.
-     * @return `std::nullopt` only for a pointer-mode section read from a stream-only #HsmReader - there's no
+     * @return `std::nullopt` only for a pointer-mode section read from a stream-only #Reader - there's no
      * addressable memory to view; use #read() instead. Slice the returned view yourself for a sub-range.
      */
     std::optional<ov::util::MemoryView> view() const noexcept;
@@ -83,7 +83,7 @@ public:
     }
 
     /**
-     * @brief Owned-copy convenience - explicit opt-in, since #HsmSection itself never copies on its own.
+     * @brief Owned-copy convenience - explicit opt-in, since #Section itself never copies on its own.
      * @return `std::nullopt` if the underlying #read() failed.
      */
     std::optional<std::vector<std::byte>> to_bytes() const {
@@ -100,28 +100,28 @@ private:
 
 /**
  * @brief Common decoder contract: given a section, returns the decoded `T`, or `std::nullopt` if it doesn't
- * parse. Written once, works unchanged whether #HsmSection was opened over a stream or a buffer, and whether
- * the decoder reads all of it (#HsmSection::read()/#HsmSection::view()) or only part, decided from what it already
+ * parse. Written once, works unchanged whether #Section was opened over a stream or a buffer, and whether
+ * the decoder reads all of it (#Section::read()/#Section::view()) or only part, decided from what it already
  * read - the reader itself never interprets content, so nothing here needs to change per source or per shape
  * of read.
  * @note Convention, not enforced: report malformed content via `std::nullopt`, never throw.
- * @note Distinct from #IHsmSectionHandler: this is a stateless function for one already-known `(device, tag)`
- * pair, invoked via #HsmReader::decode()/#HsmReader::decode_all(). #IHsmSectionHandler is for a set of
+ * @note Distinct from #ISectionHandler: this is a stateless function for one already-known `(device, tag)`
+ * pair, invoked via #Reader::decode()/#Reader::decode_all(). #ISectionHandler is for a set of
  * stateful handlers dispatched across an entire manifest in one pass, without enumerating tags up front.
  */
 template <typename T>
-using HsmSectionDecoder = std::function<std::optional<T>(const HsmSection&)>;
+using SectionDecoder = std::function<std::optional<T>(const Section&)>;
 
 /**
  * @brief Adapts @p parse - the actual bytes-to-`T` logic, written once against a #ov::util::MemoryView -
- * into a #HsmSectionDecoder<T>. Runs @p parse directly over #HsmSection::view() when one is available (no extra
- * copy beyond what @p parse itself does), otherwise falls back to #HsmSection::read() into an owned buffer and
+ * into a #SectionDecoder<T>. Runs @p parse directly over #Section::view() when one is available (no extra
+ * copy beyond what @p parse itself does), otherwise falls back to #Section::read() into an owned buffer and
  * runs @p parse over that instead (exactly one copy) - so @p parse never needs to know or care which one
  * happened.
  */
 template <typename T>
-HsmSectionDecoder<T> make_hsm_section_decoder(std::function<std::optional<T>(ov::util::MemoryView)> parse) {
-    return [parse = std::move(parse)](const HsmSection& section) -> std::optional<T> {
+SectionDecoder<T> make_section_decoder(std::function<std::optional<T>(ov::util::MemoryView)> parse) {
+    return [parse = std::move(parse)](const Section& section) -> std::optional<T> {
         if (const auto view = section.view()) {
             return parse(*view);
         } else {
@@ -136,37 +136,37 @@ HsmSectionDecoder<T> make_hsm_section_decoder(std::function<std::optional<T>(ov:
  * buffer. Validates the container and drives extension dispatch so plugins can consume - or override - any
  * section, without ever needing to interpret proprietary content itself.
  * @note Deliberately stateless beyond the parsed manifest - every accessor resolves fresh by `(device, tag)`,
- * so an #HsmReader is cheap to move. #entries() gives a no-payload-read overview; #section()/#sections() hand
- * back #HsmSection handles; #decode()/#decode_all() run a #HsmSectionDecoder over them directly.
+ * so an #Reader is cheap to move. #entries() gives a no-payload-read overview; #section()/#sections() hand
+ * back #Section handles; #decode()/#decode_all() run a #SectionDecoder over them directly.
  */
-class OPENVINO_RUNTIME_API HsmReader {
+class OPENVINO_RUNTIME_API Reader {
 public:
     /**
      * @brief Opens an HSM container from a given input stream.
      * @param stream The input stream containing the HSM container data. Must remain valid for the lifetime
-     * of the returned HsmReader, and of any #HsmSection obtained from it.
-     * @return A valid HsmReader if the container is successfully opened and validated; `std::nullopt` otherwise.
+     * of the returned Reader, and of any #Section obtained from it.
+     * @return A valid Reader if the container is successfully opened and validated; `std::nullopt` otherwise.
      */
-    static std::optional<HsmReader> open(std::istream& stream);
+    static std::optional<Reader> open(std::istream& stream);
 
     /**
-     * @brief Opens an HSM container from a given in-memory buffer - enables zero-copy #HsmSection::view().
+     * @brief Opens an HSM container from a given in-memory buffer - enables zero-copy #Section::view().
      * @param data Pointer to the buffer containing the HSM container data. Must remain valid for the lifetime
-     * of the returned HsmReader, and of any #HsmSection obtained from it.
+     * of the returned Reader, and of any #Section obtained from it.
      * @param size Size of the buffer in bytes.
-     * @return A valid HsmReader if the container is successfully opened and validated; `std::nullopt` otherwise.
+     * @return A valid Reader if the container is successfully opened and validated; `std::nullopt` otherwise.
      */
-    static std::optional<HsmReader> open(const std::byte* data, size_t size);
+    static std::optional<Reader> open(const std::byte* data, size_t size);
 
     /**
      * @overload uint8_t variant of open(const std::byte*, size_t).
      */
-    static std::optional<HsmReader> open(const uint8_t* data, size_t size);
+    static std::optional<Reader> open(const uint8_t* data, size_t size);
 
-    HsmReader(const HsmReader&) = delete;
-    HsmReader& operator=(const HsmReader&) = delete;
-    HsmReader(HsmReader&&) = default;
-    HsmReader& operator=(HsmReader&&) = default;
+    Reader(const Reader&) = delete;
+    Reader& operator=(const Reader&) = delete;
+    Reader(Reader&&) = default;
+    Reader& operator=(Reader&&) = default;
 
     /**
      * @brief Returns a reference to the vector of all manifest entries in the container.
@@ -197,14 +197,14 @@ public:
     }
 
     /**
-     * @brief Finds the first manifest entry matching (@p device, @p tag) and returns a #HsmSection handle for it.
+     * @brief Finds the first manifest entry matching (@p device, @p tag) and returns a #Section handle for it.
      *
      * @param device The device ID to match.
      * @param tag The tag to match.
-     * @return std::optional<HsmSection> A handle to the matching section, or `std::nullopt` if not found.
+     * @return std::optional<Section> A handle to the matching section, or `std::nullopt` if not found.
      */
     template <typename Tag>
-    std::optional<HsmSection> section(DeviceId device, Tag tag) const {
+    std::optional<Section> section(DeviceId device, Tag tag) const {
         return section_by_id(device, static_cast<uint32_t>(tag));
     }
 
@@ -212,20 +212,20 @@ public:
      * @overload Uses #any_device_id - shorthand for Core sections; no new accessor needed as tags grow.
      */
     template <typename Tag>
-    std::optional<HsmSection> section(Tag tag) const {
+    std::optional<Section> section(Tag tag) const {
         return section_by_id(any_device_id, static_cast<uint32_t>(tag));
     }
 
     /**
-     * @brief Finds all manifest entries matching (@p device, @p tag) and returns a #HsmSection handle for each, in manifest order.
+     * @brief Finds all manifest entries matching (@p device, @p tag) and returns a #Section handle for each, in manifest order.
      *
      * @tparam Tag The type of the tag, typically an enum or `uint32_t`.
      * @param device The device ID to match.
      * @param tag The tag to match.
-     * @return std::vector<HsmSection> A vector of handles to the matching sections, in manifest order.
+     * @return std::vector<Section> A vector of handles to the matching sections, in manifest order.
      */
     template <typename Tag>
-    std::vector<HsmSection> sections(DeviceId device, Tag tag) const {
+    std::vector<Section> sections(DeviceId device, Tag tag) const {
         return sections_by_id(device, static_cast<uint32_t>(tag));
     }
 
@@ -233,7 +233,7 @@ public:
      * @overload Uses #any_device_id - shorthand for a Core-owned section.
      */
     template <typename Tag>
-    std::vector<HsmSection> sections(Tag tag) const {
+    std::vector<Section> sections(Tag tag) const {
         return sections_by_id(any_device_id, static_cast<uint32_t>(tag));
     }
 
@@ -246,7 +246,7 @@ public:
      * @return A decoded value if the section is found and the decoder succeeds; otherwise, `std::nullopt`.
      */
     template <typename T, typename Tag>
-    std::optional<T> decode(DeviceId device, Tag tag, const HsmSectionDecoder<T>& decoder) const {
+    std::optional<T> decode(DeviceId device, Tag tag, const SectionDecoder<T>& decoder) const {
         const auto found = section(device, tag);
         return found ? decoder(*found) : std::nullopt;
     }
@@ -255,7 +255,7 @@ public:
      * @overload Uses #any_device_id - shorthand for a Core-owned section.
      */
     template <typename T, typename Tag>
-    std::optional<T> decode(Tag tag, const HsmSectionDecoder<T>& decoder) const {
+    std::optional<T> decode(Tag tag, const SectionDecoder<T>& decoder) const {
         return decode(any_device_id, tag, decoder);
     }
 
@@ -270,7 +270,7 @@ public:
      * @return A vector of decoded values for the matching sections that the decoder accepts.
      */
     template <typename T, typename Tag>
-    std::vector<T> decode_all(DeviceId device, Tag tag, const HsmSectionDecoder<T>& decoder) const {
+    std::vector<T> decode_all(DeviceId device, Tag tag, const SectionDecoder<T>& decoder) const {
         std::vector<T> result;
         for (const auto& found : sections(device, tag)) {
             if (auto value = decoder(found)) {
@@ -284,7 +284,7 @@ public:
      * @overload Uses #any_device_id - shorthand for a Core-owned section.
      */
     template <typename T, typename Tag>
-    std::vector<T> decode_all(Tag tag, const HsmSectionDecoder<T>& decoder) const {
+    std::vector<T> decode_all(Tag tag, const SectionDecoder<T>& decoder) const {
         return decode_all(any_device_id, tag, decoder);
     }
 
@@ -295,10 +295,10 @@ public:
      * @param handlers The list of handlers to dispatch the manifest entries to.
      * @return The number of entries actually handled by some handler.
      */
-    size_t read_sections(const std::vector<IHsmSectionHandler*>& handlers) const;
+    size_t read_sections(const std::vector<ISectionHandler*>& handlers) const;
 
 private:
-    HsmReader(std::optional<ov::util::MemoryView> buffer,
+    Reader(std::optional<ov::util::MemoryView> buffer,
               std::istream* stream,
               std::streampos start,
               std::vector<ManifestEntry> manifest) noexcept
@@ -307,10 +307,10 @@ private:
           m_start(start),
           m_manifest(std::move(manifest)) {}
 
-    HsmSection make_section(const ManifestEntry& entry) const;
+    Section make_section(const ManifestEntry& entry) const;
 
-    std::optional<HsmSection> section_by_id(DeviceId device, uint32_t tag_id) const;
-    std::vector<HsmSection> sections_by_id(DeviceId device, uint32_t tag_id) const;
+    std::optional<Section> section_by_id(DeviceId device, uint32_t tag_id) const;
+    std::vector<Section> sections_by_id(DeviceId device, uint32_t tag_id) const;
     size_t count_by_id(DeviceId device, uint32_t tag_id) const noexcept;
 
     std::optional<ov::util::MemoryView> m_buffer;  //!< set only by open(data,size)
@@ -320,4 +320,4 @@ private:
 };
 
 }  // namespace v1
-}  // namespace ov::runtime
+}  // namespace ov::runtime::hsm

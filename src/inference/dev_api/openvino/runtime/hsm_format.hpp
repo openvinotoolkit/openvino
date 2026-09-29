@@ -8,7 +8,7 @@
  *
  * @verbatim
    +---------------------------+---------------------------+---------------------------+
-   |         HSMHeader         |      Section payloads     |          Manifest         |
+   |         Header         |      Section payloads     |          Manifest         |
    |          32 bytes         |     variable size, 0+     | ManifestEntry[], 32B each |
    |          offset 0         |         offset 32         |  offset = manifest_offset |
    +---------------------------+---------------------------+---------------------------+
@@ -27,15 +27,15 @@
 #include "openvino/util/container_util.hpp"
 #include "openvino/util/memory.hpp"
 
-namespace ov::runtime {
+namespace ov::runtime::hsm {
 
-using HSMMagicType = std::array<uint8_t, 5>;  //!< 5 raw ASCII bytes: container magic at offset 0.
-using HSMSizeType = uint64_t;                 //!< Container/section size fields.
-using HSMOffsetType = uint64_t;               //!< Byte offsets within the container.
+using MagicType = std::array<uint8_t, 5>;  //!< 5 raw ASCII bytes: container magic at offset 0.
+using SizeType = uint64_t;                 //!< Container/section size fields.
+using OffsetType = uint64_t;               //!< Byte offsets within the container.
 
 /// Container magic (5 raw bytes).
 struct BlobMagic {
-    HSMMagicType value{};  //!< Raw bytes. Zero-initialized: an unset BlobMagic never matches a valid magic.
+    MagicType value{};  //!< Raw bytes. Zero-initialized: an unset BlobMagic never matches a valid magic.
 
     /**
      * @brief Byte-wise compare; hand-written loop (not `value == other.value`) since
@@ -54,17 +54,18 @@ struct BlobMagic {
     }
 
     static const BlobMagic single;  //!< "OVBLS": container holds exactly one model blob.
-    static const BlobMagic multi;   //!< "OVWSH": shared-context container - see #HSMMultiBlobView.
+    static const BlobMagic multi;   //!< "OVWSH": shared-context container - see #MultiBlobView.
 };
 
 inline constexpr BlobMagic BlobMagic::single{ov::util::make_array<uint8_t>('O', 'V', 'B', 'L', 'S')};
 inline constexpr BlobMagic BlobMagic::multi{ov::util::make_array<uint8_t>('O', 'V', 'W', 'S', 'H')};
 
 /**
- * @brief The currently-active HSM v1.x format, as an `inline namespace`: `HSMHeader`, `HSMFormatVersion`,
- * `SectionTag`, `HSMTags`, `ManifestEntry` and friends all resolve here unqualified. A future major version
- * is a plain `namespace v2` alongside this one, explicit until promoted by moving `inline` here. Only
- * #BlobMagic and the basic type aliases above stay shared across every version.
+ * @brief The currently-active HSM v1.x format, as an `inline namespace` nested under #ov::runtime::hsm:
+ * `Header`, `FormatVersion`, `SectionTag`, `Tags`, `ManifestEntry` and friends all resolve as
+ * `ov::runtime::hsm::Header` etc. A future major version is a plain `namespace v2` alongside this one,
+ * explicit until promoted by moving `inline` here. Only #BlobMagic and the basic type aliases above stay
+ * shared across every version.
  */
 inline namespace v1 {
 
@@ -74,7 +75,7 @@ inline namespace v1 {
  * (new optional tags/fields never gate compatibility) - a reader must accept any #minor value once #major matches,
  * and must never fail solely on a #minor mismatch.
  */
-struct HSMFormatVersion {
+struct FormatVersion {
     static constexpr uint16_t major = 1;  //!< Major version written by this codebase.
     static constexpr uint8_t minor = 0;   //!< Minor version written by this codebase.
 };
@@ -100,27 +101,27 @@ struct HSMFormatVersion {
  * their documented offsets with no implicit padding.
  */
 #pragma pack(push, 1)
-struct HSMHeader {
+struct Header {
     BlobMagic magic;         //!< Container magic - see #BlobMagic.
-    uint16_t version_major;  //!< Format major version this container was written with - see #HSMFormatVersion.
-    uint8_t version_minor;   //!< Format minor version this container was written with - see #HSMFormatVersion.
+    uint16_t version_major;  //!< Format major version this container was written with - see #FormatVersion.
+    uint8_t version_minor;   //!< Format minor version this container was written with - see #FormatVersion.
 
-    HSMSizeType container_size;     //!< Whole container size, in bytes.
-    HSMOffsetType manifest_offset;  //!< Byte offset of the first ManifestEntry.
-    HSMSizeType manifest_size;      //!< Manifest size in bytes; entry count = manifest_size / sizeof(ManifestEntry).
+    SizeType container_size;     //!< Whole container size, in bytes.
+    OffsetType manifest_offset;  //!< Byte offset of the first ManifestEntry.
+    SizeType manifest_size;      //!< Manifest size in bytes; entry count = manifest_size / sizeof(ManifestEntry).
 
     /**
      * @brief Non-owning view of the header at the start of an HSM container buffer - reinterprets the bytes
      * in place, no copy.
-     * @warning No bounds checking: caller must ensure `data` points to at least `sizeof(HSMHeader)` readable bytes.
+     * @warning No bounds checking: caller must ensure `data` points to at least `sizeof(Header)` readable bytes.
      */
-    static const HSMHeader& view(const uint8_t* data) noexcept {
-        return *reinterpret_cast<const HSMHeader*>(data);
+    static const Header& view(const uint8_t* data) noexcept {
+        return *reinterpret_cast<const Header*>(data);
     }
 };
 #pragma pack(pop)
-static_assert(sizeof(HSMHeader) == 32,
-              "HSMHeader layout changed - bump HSMFormatVersion::major/document the change before touching "
+static_assert(sizeof(Header) == 32,
+              "Header layout changed - bump FormatVersion::major/document the change before touching "
               "this struct; readers and writers must be updated together.");
 
 /**
@@ -183,7 +184,7 @@ inline constexpr uint32_t max_tag_id = 0x7FFFFF;
  * @brief Core-owned HSM tag identifiers. These are automatically assigned in declaration order and should not collide
  * with device-specific tags.
  */
-enum class HSMTags : uint32_t {
+enum class Tags : uint32_t {
     invalid = 0,           //!< Reserved: never a real tag id.
     model_id,              //!< See #model_id.
     model,                 //!< See #model.
@@ -191,12 +192,12 @@ enum class HSMTags : uint32_t {
     // Add new Core tags above this line only - values are assigned automatically, in declaration order.
     sentinel_count,  // Not a real tag id - always exactly one past the last real entry above.
 };
-static_assert(static_cast<uint32_t>(HSMTags::sentinel_count) <= core_tag_id_range_end,
+static_assert(static_cast<uint32_t>(Tags::sentinel_count) <= core_tag_id_range_end,
               "Too many Core tags defined for core_tag_id_range_end - widen the boundary.");
 
-inline constexpr uint32_t model_id = static_cast<uint32_t>(HSMTags::model_id);  //!< Model identifier (e.g. a hash).
-inline constexpr uint32_t model = static_cast<uint32_t>(HSMTags::model);  //!< The serialized compiled model itself.
-inline constexpr uint32_t runtime_requirements = static_cast<uint32_t>(HSMTags::runtime_requirements);
+inline constexpr uint32_t model_id = static_cast<uint32_t>(Tags::model_id);  //!< Model identifier (e.g. a hash).
+inline constexpr uint32_t model = static_cast<uint32_t>(Tags::model);  //!< The serialized compiled model itself.
+inline constexpr uint32_t runtime_requirements = static_cast<uint32_t>(Tags::runtime_requirements);
 
 /// Wire tag for #model_id - always inline-mode.
 constexpr SectionTag model_id_tag() noexcept {
@@ -212,7 +213,7 @@ constexpr SectionTag model_tag() noexcept {
  * @brief Wire tag for #runtime_requirements - always pointer-mode. Payload is opaque to the common
  * reader/format: this contract only reserves the tag and its bounds (like any pointer-mode section) -
  * interpreting and enforcing the encoded requirements is entirely the emitting device/plugin's
- * responsibility, typically via #IHsmSectionHandler. No expression scheme is defined at this layer
+ * responsibility, typically via #ISectionHandler. No expression scheme is defined at this layer
  * (out of scope here; a richer format, if any, belongs to the tag registry).
  */
 constexpr SectionTag runtime_requirements_tag() noexcept {
@@ -231,7 +232,7 @@ constexpr SectionTag make_device_tag(uint32_t local_id, bool is_inline) noexcept
 }
 
 /**
- * @brief One fixed-size, 32-byte record of the manifest table (see #HSMHeader::manifest_offset).
+ * @brief One fixed-size, 32-byte record of the manifest table (see #Header::manifest_offset).
  *
  * @verbatim
    +--------+------+-------------------------+
@@ -263,8 +264,8 @@ struct ManifestEntry {
 
     union {
         struct {
-            HSMOffsetType offset;                     //!< Section payload offset (pointer-mode).
-            HSMSizeType size;                         //!< Section payload size (pointer-mode).
+            OffsetType offset;                     //!< Section payload offset (pointer-mode).
+            SizeType size;                         //!< Section payload size (pointer-mode).
             std::array<uint8_t, 8> pointer_reserved;  //!< Zero, unless (#device, #tag) redefines this.
         };
         std::array<uint8_t, 24> inline_bytes;  //!< Inline payload, up to 24 bytes (inline-mode).
@@ -279,9 +280,9 @@ static_assert(sizeof(ManifestEntry) == 32, "ManifestEntry layout changed.");
  * @param header The HSM header to check.
  * @return true if the header has a recognized magic number and version, false otherwise.
  */
-constexpr bool is_recognized_header(const HSMHeader& header) noexcept {
+constexpr bool is_recognized_header(const Header& header) noexcept {
     return (header.magic == BlobMagic::single || header.magic == BlobMagic::multi) &&
-           header.version_major == HSMFormatVersion::major && header.container_size >= sizeof(HSMHeader);
+           header.version_major == FormatVersion::major && header.container_size >= sizeof(Header);
 }
 
 /**
@@ -293,9 +294,9 @@ constexpr bool is_recognized_header(const HSMHeader& header) noexcept {
  * @param header The HSM header to validate.
  * @return true if the header fields satisfy the basic consistency rules, false otherwise.
  */
-constexpr bool is_valid_header_fields(const HSMHeader& header) noexcept {
+constexpr bool is_valid_header_fields(const Header& header) noexcept {
     return is_recognized_header(header) && header.manifest_size % sizeof(ManifestEntry) == 0 &&
-           header.manifest_offset >= sizeof(HSMHeader) && header.manifest_offset <= header.container_size &&
+           header.manifest_offset >= sizeof(Header) && header.manifest_offset <= header.container_size &&
            header.container_size - header.manifest_offset >= header.manifest_size;
 }
 
@@ -303,13 +304,13 @@ constexpr bool is_valid_header_fields(const HSMHeader& header) noexcept {
  * @brief Checks that a manifest entry's section bounds are valid within the container.
  *
  * Returns true for an inline-mode entry (nothing to bounds-check), or a pointer-mode one whose offset/size stay
- * within `header.manifest_offset` (payload always precedes the manifest - see #HSMHeader::manifest_offset).
+ * within `header.manifest_offset` (payload always precedes the manifest - see #Header::manifest_offset).
  * @param entry The manifest entry to validate.
  * @param header The HSM header providing context for bounds checking.
  * @return true if the section bounds are valid, false otherwise.
  */
-constexpr bool is_valid_section_bounds(const ManifestEntry& entry, const HSMHeader& header) noexcept {
-    return !entry.tag.is_pointer() || (entry.offset >= sizeof(HSMHeader) && entry.offset <= header.manifest_offset &&
+constexpr bool is_valid_section_bounds(const ManifestEntry& entry, const Header& header) noexcept {
+    return !entry.tag.is_pointer() || (entry.offset >= sizeof(Header) && entry.offset <= header.manifest_offset &&
                                        header.manifest_offset - entry.offset >= entry.size);
 }
 
@@ -319,16 +320,16 @@ constexpr bool is_valid_section_bounds(const ManifestEntry& entry, const HSMHead
  * recognized and handled it. Per the unknown-tag rule on #SectionTag, an entry no handler recognizes must
  * be skipped, never fail import.
  */
-class IHsmSectionHandler {
+class ISectionHandler {
 public:
-    virtual ~IHsmSectionHandler() = default;
+    virtual ~ISectionHandler() = default;
 
     /**
      * @brief Attempts to interpret @p entry's section content.
      * @note Not itself a dispatch loop - a caller tries this once per candidate entry against each handler
      * it holds, in turn, until one returns true.
      * @param entry Manifest entry being considered - not necessarily one this extension owns.
-     * @param section Bounds-checked view of the payload - #HSMContainerView::section() for a pointer-mode
+     * @param section Bounds-checked view of the payload - #ContainerView::section() for a pointer-mode
      * entry, or `entry.inline_bytes` for an inline-mode one; never a raw, unchecked pointer.
      * @return true if `(entry.device, entry.tag)` was recognized and handled, false otherwise.
      */
@@ -338,13 +339,13 @@ public:
 /**
  * @brief Read-only, zero-copy view of an entire in-memory HSM container: header, manifest and pointer-mode
  */
-class HSMContainerView {
+class ContainerView {
 public:
     /// Empty (zero-size, null-data) view - #validate() is false for it.
-    constexpr HSMContainerView() noexcept = default;
-    explicit constexpr HSMContainerView(const std::byte* data, size_t size) noexcept : m_view{data, size} {}
-    explicit HSMContainerView(const uint8_t* data, size_t size) noexcept
-        : HSMContainerView{reinterpret_cast<const std::byte*>(data), size} {}
+    constexpr ContainerView() noexcept = default;
+    explicit constexpr ContainerView(const std::byte* data, size_t size) noexcept : m_view{data, size} {}
+    explicit ContainerView(const uint8_t* data, size_t size) noexcept
+        : ContainerView{reinterpret_cast<const std::byte*>(data), size} {}
 
     constexpr size_t size() const noexcept {
         return m_view.size();
@@ -354,8 +355,8 @@ public:
      * @brief Returns the header at the start of the buffer.
      * @return Reference to the header at the start of the buffer.
      */
-    const HSMHeader& header() const noexcept {
-        return HSMHeader::view(reinterpret_cast<const uint8_t*>(begin()));
+    const Header& header() const noexcept {
+        return Header::view(reinterpret_cast<const uint8_t*>(begin()));
     }
 
     /**
@@ -387,7 +388,7 @@ public:
      * bounds all stay within #size() with no overflow. Doesn't interpret tag-specific (device, tag) content.
      */
     bool validate() const noexcept {
-        if (static_cast<size_t>(end() - begin()) < sizeof(HSMHeader)) {
+        if (static_cast<size_t>(end() - begin()) < sizeof(Header)) {
             return false;
         }
         const auto& hdr = header();
@@ -422,11 +423,11 @@ private:
  * This class allows iterating over and accessing the #BlobMagic::single containers within a multi-blob HSM file,
  * skipping over shared-context containers.
  */
-class HSMMultiBlobView {
+class MultiBlobView {
 public:
-    explicit constexpr HSMMultiBlobView(const std::byte* data, size_t size) noexcept : m_view{data, size} {}
-    explicit HSMMultiBlobView(const uint8_t* data, size_t size) noexcept
-        : HSMMultiBlobView{reinterpret_cast<const std::byte*>(data), size} {}
+    explicit constexpr MultiBlobView(const std::byte* data, size_t size) noexcept : m_view{data, size} {}
+    explicit MultiBlobView(const uint8_t* data, size_t size) noexcept
+        : MultiBlobView{reinterpret_cast<const std::byte*>(data), size} {}
 
     constexpr size_t size() const noexcept {
         return m_view.size();
@@ -439,7 +440,7 @@ public:
     size_t blob_count() const noexcept {
         auto view = m_view;
         size_t count = 0;
-        while (view.size() >= sizeof(HSMHeader)) {
+        while (view.size() >= sizeof(Header)) {
             const auto next = advance_container(view);
             if (!next) {
                 break;
@@ -454,16 +455,16 @@ public:
      * @brief The `index`-th #BlobMagic::single container (shared-context containers don't count towards `index`).
      * @return An empty (zero-size) view if `index >= blob_count()`.
      */
-    HSMContainerView blob_at(size_t index) const noexcept {
+    ContainerView blob_at(size_t index) const noexcept {
         auto view = m_view;
-        while (view.size() >= sizeof(HSMHeader)) {
+        while (view.size() >= sizeof(Header)) {
             const auto next = advance_container(view);
             if (!next) {
                 break;
             }
             if (next->is_blob) {
                 if (index == 0) {
-                    return HSMContainerView{view.data(), next->container_size};
+                    return ContainerView{view.data(), next->container_size};
                 }
                 --index;
             }
@@ -492,7 +493,7 @@ private:
      * is invalid.
      */
     static std::optional<NextContainer> advance_container(const ov::util::MemoryView& view) noexcept {
-        const auto& hdr = HSMHeader::view(reinterpret_cast<const uint8_t*>(view.data()));
+        const auto& hdr = Header::view(reinterpret_cast<const uint8_t*>(view.data()));
         if (!is_recognized_header(hdr) || hdr.container_size > view.size()) {
             return std::nullopt;
         } else {
@@ -507,4 +508,4 @@ private:
 };
 
 }  // namespace v1
-}  // namespace ov::runtime
+}  // namespace ov::runtime::hsm
