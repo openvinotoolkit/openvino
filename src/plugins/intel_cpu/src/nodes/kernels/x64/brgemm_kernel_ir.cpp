@@ -215,10 +215,17 @@ void brgemm_kernel_ir::generate() {
     const auto ldc = static_cast<size_t>(m_brg.LDC);
     constexpr size_t ts = sizeof(float);
 
-    // How far ahead B is fetched: one reduction block, the distance
-    // oneDNN uses. Zero when the target does not want prefetching.
+    // How far ahead B is fetched. The target answers in bytes; B is only
+    // ever addressed at multiples of the reduction block, so round the
+    // answer up to a whole number of them. LLVM does the same conversion
+    // in LoopDataPrefetch (ItersAhead * stride), just from a distance
+    // expressed in instructions. Zero means the target does not want
+    // prefetching at all, and nothing is emitted.
+    const size_t rd_stride = ldb * rd_block * ts;
     const size_t prefetch_ahead =
-        target().prefetch_distance() != 0 ? ldb * rd_block * ts : 0;
+        target().prefetch_distance() != 0
+            ? rd_stride * std::max<size_t>(1, utils::div_up(target().prefetch_distance(), rd_stride))
+            : 0;
 
     preamble();
     set_vec_width(N * ts * 8);  // 512: the whole register file is allocable

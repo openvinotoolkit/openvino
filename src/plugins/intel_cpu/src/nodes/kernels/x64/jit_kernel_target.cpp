@@ -56,10 +56,9 @@ std::optional<std::size_t> loop_alignment_override() {
     return value;
 }
 
-// OV_JIT_IR_PREFETCH gives a prefetch distance in bytes, turning software
-// prefetching on for a measurement. Off by default, which is both LLVM's
-// answer for x86 and what measurement said here — see
-// prefetch_distance().
+// OV_JIT_IR_PREFETCH overrides the prefetch distance in bytes; 0 turns
+// software prefetching off, which is LLVM's answer for x86 and was this
+// target's until it was measured — see prefetch_distance().
 std::optional<std::size_t> prefetch_distance_override() {
     static const std::optional<std::size_t> value = [] {
         const char* env = std::getenv("OV_JIT_IR_PREFETCH");
@@ -114,8 +113,14 @@ struct avx512_target final : vector_target {
     [[nodiscard]] std::size_t max_bytes_for_alignment() const override { return 0; }
 
     [[nodiscard]] std::size_t cache_line_size() const override { return 64; }
+
+    // Sixteen cache lines. Far enough ahead that an L2 hit lands before
+    // the loop reaches the line, at the rate a BRGEMM inner loop consumes
+    // its streaming operand; the same distance oneDNN's kernels use.
+    // Measured on AVX-512 — see the header for why this diverges from
+    // X86TargetTransformInfo, which does not prefetch at all.
     [[nodiscard]] std::size_t prefetch_distance() const override {
-        return prefetch_distance_override().value_or(0);
+        return prefetch_distance_override().value_or(16 * 64);
     }
 
     // k1..k7: k0 exists but cannot be used as a write-mask.
@@ -151,8 +156,11 @@ struct legacy_x86_target final : vector_target {
     [[nodiscard]] std::size_t max_bytes_for_alignment() const override { return 0; }
 
     [[nodiscard]] std::size_t cache_line_size() const override { return 64; }
+
+    // Same machine, same answer. Untested on this path: nothing the
+    // pre-AVX-512 targets generate asks for a prefetch yet.
     [[nodiscard]] std::size_t prefetch_distance() const override {
-        return prefetch_distance_override().value_or(0);
+        return prefetch_distance_override().value_or(16 * 64);
     }
 
     [[nodiscard]] const std::vector<std::uint32_t>& predicate_pool() const override {

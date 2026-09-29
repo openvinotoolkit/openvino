@@ -114,17 +114,32 @@ struct vector_target {
     // Cache line size in bytes, and how far ahead a streaming read
     // should be prefetched, also in bytes; 0 for either means do not
     // prefetch. LLVM: TargetTransformInfo::getCacheLineSize and
-    // getPrefetchDistance, which together gate its LoopDataPrefetch pass.
+    // getPrefetchDistance, which together gate its LoopDataPrefetch pass
+    // (LoopDataPrefetch.cpp: "If PrefetchDistance is not set, don't run
+    // the pass").
     //
     // X86TargetTransformInfo answers neither, so LLVM never
     // software-prefetches on x86, trusting the hardware prefetcher for
-    // strided access. oneDNN's BRGEMM kernels prefetch B one reduction
-    // block ahead regardless, so the two disagree and the question was
-    // settled by measurement: on the MatMul BRGEMM benchmark, B
-    // prefetching one reduction block ahead is worth nothing (84/87/85 us
-    // against 85/85/88 without). The x86 target therefore answers 0 and
-    // follows LLVM. OV_JIT_IR_PREFETCH sets a distance to re-open the
-    // question on another kernel or machine.
+    // strided access. This target deliberately disagrees, and the
+    // divergence is the one place in this file where measurement beat
+    // doctrine: on the MatMul BRGEMM benchmark, prefetching B one
+    // reduction block ahead is worth 5.5% of the kernel's cycles per FMA
+    // (median 0.2960 against 0.3133 without, oneDNN 0.2999), which is
+    // the entire gap against oneDNN's hand-written kernel.
+    //
+    // The first attempt at this question concluded the opposite, from
+    // wall-clock A/B on a whole inference: 84/87/85 us against 85/85/88.
+    // That instrument cannot see a 3% difference in a kernel that is
+    // part of an 80 us number with 3 us of run-to-run drift. The lesson
+    // is about the metric, not about prefetching — see the journal.
+    //
+    // LLVM's units here are instructions, not bytes: LoopDataPrefetch
+    // derives the address as ItersAhead * stride with ItersAhead =
+    // PrefetchDistance / LoopSize. With no such pass, a recording site
+    // knows its own stride, so the target answers in bytes and the site
+    // rounds up to a whole number of loop strides.
+    //
+    // OV_JIT_IR_PREFETCH overrides the distance, 0 to turn it off.
     [[nodiscard]] virtual std::size_t cache_line_size() const = 0;
     [[nodiscard]] virtual std::size_t prefetch_distance() const = 0;
 
