@@ -51,6 +51,7 @@
 #include "nodes/convert.h"
 #include "nodes/input.h"
 #include "nodes/memory.hpp"
+#include "nodes/paged_attn.h"
 #include "nodes/reorder.h"
 #include "nodes/subgraph.h"
 #include "nodes/tensoriterator.h"
@@ -2236,12 +2237,28 @@ std::shared_ptr<ov::Model> Graph::dump() const {
 }
 
 std::optional<size_t> Graph::get_paged_attention_block_size() const {
+    std::optional<size_t> block_size;
     for (const auto& node : graphNodes) {
         if (node->getType() == Type::PagedAttention) {
-            return static_cast<size_t>(32);
+            auto* pa_node = dynamic_cast<node::PagedAttention*>(node.get());
+            OPENVINO_ASSERT(pa_node != nullptr, "[CPU] Unexpected: PagedAttention node cast failed");
+            auto current_bs = pa_node->get_block_size();
+            if (!current_bs) {
+                // block_size dim is still dynamic at dump time — cannot determine
+                return std::nullopt;
+            }
+            if (!block_size) {
+                block_size = current_bs;
+            } else {
+                OPENVINO_ASSERT(block_size.value() == current_bs.value(),
+                                "[CPU] All PagedAttention layers must agree on the same block size, got ",
+                                block_size.value(),
+                                " vs ",
+                                current_bs.value());
+            }
         }
     }
-    return std::nullopt;
+    return block_size;
 }
 
 std::vector<MemStatePtr> Graph::memoryStates() const {

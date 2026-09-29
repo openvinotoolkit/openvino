@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -271,6 +272,26 @@ bool PagedAttention::isQuantByChannel(const Config::CacheQuantMode mode,
     byChannel = false;
 #endif
     return byChannel;
+}
+
+std::optional<size_t> PagedAttention::get_block_size() const {
+    const auto& cpuConfig = context->getConfig();
+    const auto& kcache_shape = getInputShapeAtPort(PagedAttentionExecutor::ID_KCACHE);
+    // K-cache layout is [block_number, H, block_size, S]; dim[2] is the page block size
+    // block_number is dynamic; block_size may also be UNDEFINED_DIM if not resolved at compile-time
+    const auto& dims = kcache_shape.getDims();
+    if (dims.size() < 3 || dims[2] == Shape::UNDEFINED_DIM) {
+        return std::nullopt;
+    }
+    size_t block_size = dims[2];
+    bool quantKeybyChannel = isQuantByChannel(cpuConfig.keyCacheQuantMode, cpuConfig.keyCachePrecision, true);
+    if (quantKeybyChannel && cpuConfig.keyCachePrecision.is_integral()) {
+        size_t params_count = (cpuConfig.keyCachePrecision == ov::element::i8) ? 1 : 2;
+        size_t key_sub_byte_mult = (cpuConfig.keyCachePrecision == ov::element::u4) ? 2 : 1;
+        size_t key_params_size = sizeof(float) * params_count * key_sub_byte_mult;
+        block_size -= key_params_size;
+    }
+    return block_size;
 }
 
 void PagedAttention::createPrimitive() {

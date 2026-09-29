@@ -18,6 +18,7 @@
 #include "cpu_types.h"
 #include "graph.h"
 #include "node.h"
+#include "nodes/paged_attn.h"
 #include "nodes/scaled_attn.h"
 #include "onednn/dnnl.h"
 #include "openvino/core/except.hpp"
@@ -132,7 +133,12 @@ std::map<std::string, std::string> extract_node_metadata(const NodePtr& node) {
         }
     }
     if (node->getType() == Type::PagedAttention) {
-        serialization_info["block_size"] = "32";
+        auto* pa_node = dynamic_cast<node::PagedAttention*>(node.get());
+        if (pa_node) {
+            if (auto bs = pa_node->get_block_size()) {
+                serialization_info["block_size"] = std::to_string(bs.value());
+            }
+        }
     }
 
     return serialization_info;
@@ -237,7 +243,6 @@ std::shared_ptr<ov::Model> dump_graph_as_ie_ngraph_net(const Graph& graph) {
     auto runtime_model = std::make_shared<ov::Model>(results, params, graph._name);
     if (auto pa_bs = graph.get_paged_attention_block_size()) {
         runtime_model->get_rt_info()["paged_attention_block_size"] = pa_bs.value();
-        runtime_model->get_rt_info()["paged_attention"] = ov::AnyMap{{"block_size", pa_bs.value()}};
     }
     return runtime_model;
 }

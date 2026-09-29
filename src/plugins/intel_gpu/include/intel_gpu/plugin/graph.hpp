@@ -78,7 +78,9 @@ public:
     std::mutex& get_mutex() { return m_infer_mutex; }
 
     bool use_external_queue() const;
-    std::optional<size_t> get_paged_attention_block_size() const { return m_paged_attention_block_size; }
+    std::optional<size_t> get_paged_attention_block_size() const {
+        return m_paged_attention_block_size;
+    }
 
     std::vector<HostTimeProfilingEntry> host_exec_times;
 

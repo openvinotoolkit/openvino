@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <oneapi/dnnl/dnnl_common.hpp>
+#include <optional>
 #include <string>
 
 #include "config.h"
@@ -51,6 +52,7 @@ public:
     static bool isSupportedOperation(const std::shared_ptr<const ov::Node>& op, std::string& errorMessage) noexcept;
 
     static bool isQuantByChannel(Config::CacheQuantMode mode, ov::element::Type precision, bool isKey);
+    std::optional<size_t> get_block_size() const;
 
 private:
     ov::element::Type getRuntimePrecision() const override;

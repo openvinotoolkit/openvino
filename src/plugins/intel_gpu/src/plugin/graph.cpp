@@ -4,7 +4,6 @@
 
 #include "intel_gpu/graph/serialization/helpers.hpp"
 #include "intel_gpu/runtime/layout.hpp"
-#include "openvino/core/any.hpp"
 #include "openvino/runtime/plugin_config.hpp"
 #include "openvino/runtime/threading/executor_manager.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
@@ -224,8 +223,16 @@ void Graph::build(std::shared_ptr<cldnn::program> program) {
         if (node->is_type<cldnn::paged_attention>()) {
             auto pa_prim = node->as<cldnn::paged_attention>().get_primitive();
             if (pa_prim) {
-                m_paged_attention_block_size = pa_prim->has_xattention ? cldnn::paged_attention::block_size_xattn : cldnn::paged_attention::block_size;
-                break;
+                size_t current_bs = pa_prim->has_xattention ? cldnn::paged_attention::block_size_xattn : cldnn::paged_attention::block_size;
+                if (!m_paged_attention_block_size) {
+                    m_paged_attention_block_size = current_bs;
+                } else {
+                    OPENVINO_ASSERT(m_paged_attention_block_size.value() == current_bs,
+                                    "[GPU] All PagedAttention layers must agree on the same block size, got ",
+                                    m_paged_attention_block_size.value(),
+                                    " vs ",
+                                    current_bs);
+                }
             }
         }
     }
@@ -609,7 +616,6 @@ std::shared_ptr<ov::Model> Graph::get_runtime_model(std::vector<cldnn::primitive
     auto runtime_model = std::make_shared<ov::Model>(results, params, "runtime_gpu_graph");
     if (m_paged_attention_block_size.has_value()) {
         runtime_model->get_rt_info()["paged_attention_block_size"] = m_paged_attention_block_size.value();
-        runtime_model->get_rt_info()["paged_attention"] = ov::AnyMap{{"block_size", m_paged_attention_block_size.value()}};
     }
     return runtime_model;
 }
