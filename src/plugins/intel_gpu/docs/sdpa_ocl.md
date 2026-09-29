@@ -731,11 +731,3 @@ Each needs its own measured change.
   where a shift would do.
 - The S*V block trim past `k_chunk` and the Vc prefetch are u4 only (`IS_PA_K_U4 &&
   PA_CUR_KV_F16`) and were never measured on i8 BY_CHANNEL MIXED.
-
-### Stale comments outside these files
-
-- `pa_kv_cache_update_ref.cl`, the BC_* layout comment: calls the token-major BY_CHANNEL page
-  "(opt-in)" and says only `sdpa_ocl_decode` reads it (rotate and `sdpa_ocl` MIXED do too, and the
-  page is created only where `paged_attention::by_channel_token_major_readable()` allows it).
-- `subgraph_tests/sdpa.cpp`, `SDPASplitHeadsPaddedView`: puts `block2d_layout_fixup_ok()` in
-  `sdpa_gen_ocl.cpp`; it lives in `sdpa_ocl_utils.hpp`.
