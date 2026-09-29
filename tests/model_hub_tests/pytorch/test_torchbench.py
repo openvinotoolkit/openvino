@@ -31,6 +31,19 @@ class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
             f"git clone https://github.com/pytorch/benchmark.git {self.repo_dir.name}")
         subprocess.check_call(
             ["git", "checkout", "364420aeca07d9519840a5b6e771035e4dff9d72"], cwd=self.repo_dir.name)
+        # torchaudio has no builds for recent torch and tested models don't need it
+        deps_file = os.path.join(self.repo_dir.name, "utils", "__init__.py")
+        with open(deps_file) as f:
+            deps = f.read()
+        with open(deps_file, "w") as f:
+            f.write(deps.replace('"torchvision", "torchaudio"]', '"torchvision"]'))
+        # some model deps (e.g. visdom) are sdists importing pkg_resources, removed in setuptools 81
+        build_constraints = os.path.join(self.repo_dir.name, "build_constraints.txt")
+        with open(build_constraints, "w") as f:
+            f.write("setuptools<81\n")
+        # pip>=25.3 uses PIP_BUILD_CONSTRAINT for isolated builds, older pip uses PIP_CONSTRAINT
+        os.environ["PIP_BUILD_CONSTRAINT"] = build_constraints
+        os.environ["PIP_CONSTRAINT"] = build_constraints
 
     def load_model(self, model_name, model_link):
         subprocess.check_call([sys.executable, "install.py"] + [model_name], cwd=self.repo_dir.name)
