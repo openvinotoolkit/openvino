@@ -45,8 +45,8 @@ def test_duplicate_model_names_are_preserved_per_test_type(tmp_path):
         test_type="convert_model",
         log_text="""
         tests/model_hub_tests/tensorflow/test_tf_convert_model.py::TestTFConvertModel::test_precommit[NPU-imagenet/resnet_v2_50/feature_vector] PASSED
-        Compilation memory usage: Peak 123.0 KB
-        Compile net time: 45.0 ms
+        [INFO] 15:08:13.409 [vpux-compiler] Compilation memory usage: Peak 123.0 KB
+        [INFO] 15:08:13.420 [vpux-compiler] Compile net time: 45.0 ms
         """,
     )
     assert convert_result.returncode == 0, convert_result.stderr
@@ -58,8 +58,8 @@ def test_duplicate_model_names_are_preserved_per_test_type(tmp_path):
         test_type="read_model",
         log_text="""
         tests/model_hub_tests/tensorflow/test_tf_read_model.py::TestTFReadModel::test_precommit[NPU-imagenet/resnet_v2_50/feature_vector] PASSED
-        Compilation memory usage: Peak 456.0 KB
-        Compile net time: 78.0 ms
+        [INFO] 15:08:13.409 [vpux-compiler] Compilation memory usage: Peak 456.0 KB
+        [INFO] 15:08:13.420 [vpux-compiler] Compile net time: 78.0 ms
         """,
     )
     assert read_result.returncode == 0, read_result.stderr
@@ -127,11 +127,11 @@ def test_rerun_updates_only_selected_test_type_and_preserves_other_entries(tmp_p
         test_type="convert_model",
         log_text="""
         tests/model_hub_tests/tensorflow/test_tf_convert_model.py::TestTFConvertModel::test_precommit[NPU-model-a] PASSED
-        Compilation memory usage: Peak 110.0 KB
-        Compile net time: 111.0 ms
+        [INFO] 15:08:13.409 [vpux-compiler] Compilation memory usage: Peak 110.0 KB
+        [INFO] 15:08:13.420 [vpux-compiler] Compile net time: 111.0 ms
         tests/model_hub_tests/tensorflow/test_tf_convert_model.py::TestTFConvertModel::test_precommit[NPU-model-b] PASSED
-        Compilation memory usage: Peak 210.0 KB
-        Compile net time: 211.0 ms
+        [INFO] 15:08:23.509 [vpux-compiler] Compilation memory usage: Peak 210.0 KB
+        [INFO] 15:08:23.512 [vpux-compiler] Compile net time: 211.0 ms
         """,
     )
     assert result.returncode == 0, result.stderr
@@ -176,8 +176,8 @@ def test_metric_extraction_handles_ansi_and_alternative_time_patterns(tmp_path):
         test_type="pt_groupA",
         log_text="""
         \x1b[32mtests/model_hub_tests/pytorch/test_timm.py::TestTimm::test_precommit[NPU-resnet18]\x1b[0m PASSED
-        Compilation memory usage: Peak 2048 KB
-        Compile model took 15.5 ms
+        \x1b[36m[INFO] 15:08:13.409 [vpux-compiler] Compilation memory usage: Peak 2048 KB\x1b[0m
+        [INFO] 15:08:13.420 [vpux-compiler] Compile model took 15.5 ms
         """,
     )
     assert result.returncode == 0, result.stderr
@@ -223,8 +223,8 @@ def test_legacy_framework_schema_is_rejected_deliberately(tmp_path):
         test_type="convert_model",
         log_text="""
         tests/model_hub_tests/tensorflow/test_tf_convert_model.py::TestTFConvertModel::test_precommit[NPU-model-a] PASSED
-        Compilation memory usage: Peak 110.0 KB
-        Compile net time: 111.0 ms
+        [INFO] 15:08:13.409 [vpux-compiler] Compilation memory usage: Peak 110.0 KB
+        [INFO] 15:08:13.420 [vpux-compiler] Compile net time: 111.0 ms
         """,
     )
 
@@ -256,8 +256,8 @@ def test_empty_namespaced_bucket_is_preserved_and_reused(tmp_path):
         test_type="read_model",
         log_text="""
         tests/model_hub_tests/tensorflow/test_tf_read_model.py::TestTFReadModel::test_precommit[NPU-model-a] PASSED
-        Compilation memory usage: Peak 110.0 KB
-        Compile net time: 111.0 ms
+        [INFO] 15:08:13.409 [vpux-compiler] Compilation memory usage: Peak 110.0 KB
+        [INFO] 15:08:13.420 [vpux-compiler] Compile net time: 111.0 ms
         """,
     )
 
@@ -272,6 +272,51 @@ def test_empty_namespaced_bucket_is_preserved_and_reused(tmp_path):
                         "compile_net_time_ms": 111.0,
                     }
                 },
+            }
+        }
+    }
+
+
+def test_only_the_npu_compilers_own_metric_lines_are_collected(tmp_path):
+    """Lines worded like the metrics but emitted by something else must be ignored.
+
+    The plugin-side compiler adapters log an identically worded "Compilation memory usage"
+    line from the weights-separation path, measuring the plugin process rather than the
+    compiler, and the compiler prints a "Compile network" row in its profile table. Here the
+    adapter's line comes *after* the compiler's, so a tag-blind pattern would overwrite the
+    real value with 999.0 instead of keeping 321.0.
+    """
+    result, output_path = run_parser(
+        tmp_path,
+        platform="3720",
+        framework="jax",
+        test_type="jax",
+        log_text="""
+        tests/model_hub_tests/jax/test_jax_convert_model.py::TestJaxConvertModel::test_precommit[NPU-jax-model-a] PASSED
+        [INFO] 15:08:13.409 [vpux-compiler] Compilation memory usage: Peak 321.0 KB
+        [INFO] 15:08:13.420 [vpux-compiler] Compile net time: 54.0 ms
+            1.4533 ( 93.1%)  Compile network
+        [INFO] 15:08:13.900 [PluginCompilerAdapter] Compilation memory usage: Peak 999.0 KB
+        tests/model_hub_tests/jax/test_jax_convert_model.py::TestJaxConvertModel::test_precommit[NPU-jax-model-b] PASSED
+        [INFO] 15:09:01.100 [DriverCompilerAdapter] Compilation memory usage: Peak 888.0 KB
+        """,
+    )
+    assert result.returncode == 0, result.stderr
+
+    assert json.loads(output_path.read_text(encoding="utf-8")) == {
+        "3720": {
+            "jax": {
+                "jax": {
+                    "NPU-jax-model-a": {
+                        "compilation_memory_usage_kb": 321.0,
+                        "compile_net_time_ms": 54.0,
+                    },
+                    # Only an adapter-emitted line was present, so nothing was recorded.
+                    "NPU-jax-model-b": {
+                        "compilation_memory_usage_kb": None,
+                        "compile_net_time_ms": None,
+                    },
+                }
             }
         }
     }

@@ -46,14 +46,24 @@ TEST_TYPES = {
 # tests/.../test_timm.py::TestTimm::test_timm_precommit[NPU-resnet18-...] PASSED
 PYTEST_CASE = re.compile(r"^(?P<nodeid>.+?\.py::.+?\[(?P<model>.+)\])(?:\s|$)")
 
+# Both metrics are reported by the NPU compiler itself, which logs under the "vpux-compiler"
+# tag, e.g.:
+#     [INFO] 15:08:13.409 [vpux-compiler] Compilation memory usage: Peak 137816 KB
+# The OpenVINO NPU plugin's own compiler adapters emit an identically worded
+# "Compilation memory usage" line from the weights-separation path, tagged
+# [DriverCompilerAdapter] / [PluginCompilerAdapter], but it measures the plugin-side process
+# peak rather than the compiler's. Matching on the tag keeps the two apart, so whichever
+# happens to print last for a model cannot silently overwrite the other.
+COMPILER_TAG = r"\[vpux-compiler\]\s*"
+
 MEMORY_PATTERNS = [
-    re.compile(r"Compilation memory usage:\s*Peak\s*(?P<value>\d+(?:\.\d+)?)\s*KB", re.I),
+    re.compile(COMPILER_TAG + r"Compilation memory usage:\s*Peak\s*(?P<value>\d+(?:\.\d+)?)\s*KB", re.I),
 ]
 
 TIME_PATTERNS = [
-    re.compile(r"Compile net time:\s*(?P<value>\d+(?:\.\d+)?)\s*ms", re.I),
-    re.compile(r"Compile network (?:took|time:)\s*(?P<value>\d+(?:\.\d+)?)\s*ms", re.I),
-    re.compile(r"Compile model took\s*(?P<value>\d+(?:\.\d+)?)\s*ms", re.I),
+    re.compile(COMPILER_TAG + r"Compile net time:\s*(?P<value>\d+(?:\.\d+)?)\s*ms", re.I),
+    re.compile(COMPILER_TAG + r"Compile network (?:took|time:)\s*(?P<value>\d+(?:\.\d+)?)\s*ms", re.I),
+    re.compile(COMPILER_TAG + r"Compile model took\s*(?P<value>\d+(?:\.\d+)?)\s*ms", re.I),
 ]
 
 
