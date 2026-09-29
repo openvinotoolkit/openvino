@@ -32,7 +32,7 @@ std::vector<const T*> get_data_ptrs(const TensorVector& inputs) {
     return ptrs;
 }
 
-enum class concat_kind { unsupported, string, packed, regular };
+enum class concat_kind { unsupported, string, bytes };
 
 concat_kind get_concat_kind(const element::Type& elem_type,
                             const std::vector<Shape>& input_shapes,
@@ -41,7 +41,7 @@ concat_kind get_concat_kind(const element::Type& elem_type,
     if (elem_type == element::string) {
         return concat_kind::string;
     } else if (const auto bitwidth = elem_type.bitwidth(); bitwidth >= 8) {
-        return concat_kind::regular;
+        return concat_kind::bytes;
     } else if (bitwidth == 0) {
         return concat_kind::unsupported;
     } else {
@@ -50,7 +50,7 @@ concat_kind get_concat_kind(const element::Type& elem_type,
             return (ov::shape_size(shape) / steps * bitwidth) % 8 != 0;
         };
         return steps == 0 || std::none_of(input_shapes.begin(), input_shapes.end(), is_misaligned)
-                   ? concat_kind::packed
+                   ? concat_kind::bytes
                    : concat_kind::unsupported;
     }
 }
@@ -119,21 +119,13 @@ bool Concat::evaluate(TensorVector& outputs, const TensorVector& inputs) const {
                           out_shape,
                           axis);
         return true;
-    case concat_kind::packed:
-        reference::concat(get_data_ptrs<int8_t>(inputs),
-                          static_cast<int8_t*>(outputs[0].data()),
-                          arg_shapes,
-                          out_shape,
-                          axis,
-                          elem_type.bitwidth());
-        return true;
-    case concat_kind::regular:
+    case concat_kind::bytes:
         reference::concat(get_data_ptrs<char>(inputs),
                           static_cast<char*>(outputs[0].data()),
                           arg_shapes,
                           out_shape,
                           axis,
-                          elem_type.size());
+                          elem_type.bitwidth());
         return true;
     case concat_kind::unsupported:
         [[fallthrough]];

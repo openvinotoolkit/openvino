@@ -28,29 +28,6 @@ std::vector<size_t> calculate_sizes(const std::vector<Shape>& in_shapes, size_t 
 }
 }  // namespace
 
-void concat(const std::vector<const char*>& args,
-            char* out,
-            const std::vector<Shape>& in_shapes,
-            const Shape& out_shape,
-            int64_t concatenation_axis,
-            size_t elem_size) {
-    const auto steps = shape_size(out_shape.begin(), out_shape.begin() + concatenation_axis);
-    if (steps == 0) {
-        return;
-    }
-    const auto sizes = calculate_sizes(in_shapes, steps, [elem_size](auto&& count) {
-        return count * elem_size;
-    });
-
-    for (size_t step = 0; step < steps; ++step) {
-        for (size_t in_index = 0; in_index < args.size(); ++in_index) {
-            const size_t size = sizes[in_index];
-            std::memcpy(out, args[in_index] + step * size, size);
-            out += size;
-        }
-    }
-}
-
 void concat(const std::vector<const std::string*>& args,
             std::string* out,
             const std::vector<Shape>& in_shapes,
@@ -72,8 +49,8 @@ void concat(const std::vector<const std::string*>& args,
     }
 }
 
-void concat(const std::vector<const int8_t*>& args,
-            int8_t* out,
+void concat(const std::vector<const char*>& args,
+            char* out,
             const std::vector<Shape>& in_shapes,
             const Shape& out_shape,
             int64_t concatenation_axis,
@@ -82,10 +59,15 @@ void concat(const std::vector<const int8_t*>& args,
     if (steps == 0) {
         return;
     }
-    // bitwidth < 8 always here, so this stays small regardless of tensor size.
-    const auto sizes = calculate_sizes(in_shapes, steps, [bitwidth](auto&& count) {
-        return (count * bitwidth) / 8;
-    });
+    // Byte-aligned: multiply by elem_size directly - count * bitwidth would overflow 8x sooner.
+    const auto sizes = bitwidth % 8 == 0 ? calculate_sizes(in_shapes,
+                                                           steps,
+                                                           [elem_size = bitwidth / 8](auto&& count) {
+                                                               return count * elem_size;
+                                                           })
+                                         : calculate_sizes(in_shapes, steps, [bitwidth](auto&& count) {
+                                               return (count * bitwidth) / 8;
+                                           });
 
     for (size_t step = 0; step < steps; ++step) {
         for (size_t in_index = 0; in_index < args.size(); ++in_index) {

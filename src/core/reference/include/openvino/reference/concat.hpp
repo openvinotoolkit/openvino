@@ -12,14 +12,6 @@
 
 namespace ov {
 namespace reference {
-/// \brief Concatenates byte-copyable data (elem_size is the size in bytes of a single element).
-void concat(const std::vector<const char*>& args,
-            char* out,
-            const std::vector<Shape>& in_shapes,
-            const Shape& out_shape,
-            int64_t concatenation_axis,
-            size_t elem_size);
-
 /// \brief Concatenates string data.
 void concat(const std::vector<const std::string*>& args,
             std::string* out,
@@ -27,9 +19,9 @@ void concat(const std::vector<const std::string*>& args,
             const Shape& out_shape,
             int64_t concatenation_axis);
 
-/// \brief Concatenates sub-byte packed data.
-void concat(const std::vector<const int8_t*>& args,
-            int8_t* out,
+/// \brief Concatenates non-string data given its bitwidth (byte-aligned or sub-byte packed).
+void concat(const std::vector<const char*>& args,
+            char* out,
             const std::vector<Shape>& in_shapes,
             const Shape& out_shape,
             int64_t concatenation_axis,
