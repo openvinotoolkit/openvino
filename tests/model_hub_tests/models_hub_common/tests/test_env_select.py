@@ -6,12 +6,14 @@
 # pytest's Item/CallSpec (a real Item needs a live pytest Session/Config) instead of spinning up a
 # real pytest run.
 #
-# Not part of any CI-invoked test path (not under pytorch/ or transformation_tests/); run directly,
-# e.g.: PYTHONPATH=tests/model_hub_tests <venv>/bin/python -m pytest
+# Run in precommit by multi_env/pytorch_models.toml's `multi_env_unit` run; or directly, e.g.:
+#   PYTHONPATH=tests/model_hub_tests <venv>/bin/python -m pytest
 #       tests/model_hub_tests/models_hub_common/tests/test_env_select.py -q
 import pytest
 
 from models_hub_common import env_select, utils
+
+pytestmark = pytest.mark.precommit
 
 
 # --- get_models_list / MODEL_ENV_TAGS ---

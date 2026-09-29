@@ -7,7 +7,8 @@
 # files/pip args come straight from the manifest). Uses the same cp<major><minor> wheel-glob logic
 # .github/actions/install_ov_wheels/action.yml uses (excluding free-threaded "...cp311t..." wheels), so
 # results are directly comparable to real CI. A venv is skipped and reused if its stamp file matches a
-# hash over its manifest steps + OpenVINO source.
+# hash over its manifest steps, the base interpreter, and the OpenVINO source (for wheels:<dir>, the
+# selected wheel files' contents; `nightly` is not content-addressed, use --force to pick up a newer one).
 #
 # Usage:
 #   build_envs.py --venvs-dir DIR [--manifest pytorch_models.toml] [--ov-source nightly|wheels:<dir>]
@@ -50,11 +51,40 @@ def resolve_step_files(manifest_dir: Path, step):
     return [str((manifest_dir / f).resolve()) for f in files], pip_args
 
 
-def stamp_content(env_steps, ov_source):
-    """Hash of every requirement file's content + the pip_args + the OpenVINO source, so a venv is
-    rebuilt exactly when something that would change its installed packages changes."""
+def interpreter_info(python_exe: str):
+    """(identity string, cp<major><minor> tag) of the interpreter a venv would be created from."""
+    out = subprocess.run(
+        [python_exe, "-c",
+         "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}'); "
+         "print(sys.executable); print(sys.version)"],
+        capture_output=True, text=True, check=True,
+    ).stdout
+    py_version = out.split("\n", 1)[0].strip()
+    return out, py_version
+
+
+def resolve_ov_wheels(ov_source: str, py_version: str):
+    """Wheel paths to install for a `wheels:<dir>` source, or [] for `nightly`."""
+    if ov_source == "nightly":
+        return []
+    if ov_source.startswith("wheels:"):
+        wheels_dir = Path(ov_source[len("wheels:"):])
+        return [find_ov_wheel(wheels_dir, n, py_version) for n in OV_WHEEL_NAMES]
+    raise ValueError(f"Unknown --ov-source {ov_source!r} (expected 'nightly' or 'wheels:<dir>')")
+
+
+def stamp_content(env_steps, ov_source, interpreter_id, ov_wheels):
+    """Hash of every requirement file's content + the pip_args + the base interpreter + the OpenVINO
+    source (including the selected wheels' contents), so a venv is rebuilt exactly when something
+    that would change its installed packages changes."""
     h = hashlib.sha256()
     h.update(ov_source.encode())
+    h.update(interpreter_id.encode())
+    for wheel in ov_wheels:
+        h.update(Path(wheel).name.encode())
+        with open(wheel, "rb") as f:
+            for chunk in iter(lambda: f.read(1 << 20), b""):
+                h.update(chunk)
     for files, pip_args in env_steps:
         h.update("|".join(pip_args).encode())
         for f in files:
@@ -90,7 +120,9 @@ def build_env(name, manifest_dir, steps_raw, venvs_dir: Path, python_exe: str, o
     venv_path = venvs_dir / name
     stamp_path = venv_path / ".env_stamp"
     env_steps = [resolve_step_files(manifest_dir, s) for s in steps_raw]
-    stamp = stamp_content(env_steps, ov_source)
+    interpreter_id, py_version = interpreter_info(python_exe)
+    ov_wheels = resolve_ov_wheels(ov_source, py_version)
+    stamp = stamp_content(env_steps, ov_source, interpreter_id, ov_wheels)
 
     if not force and stamp_path.exists() and stamp_path.read_text().strip() == stamp:
         print(f"[build_envs] {name}: up to date, reusing {venv_path}")
@@ -107,19 +139,10 @@ def build_env(name, manifest_dir, steps_raw, venvs_dir: Path, python_exe: str, o
         py = str(venv_path / "bin" / "python")
         run([py, "-m", "pip", "install", "--upgrade", "pip", "-q"], log_file)
 
-        py_version = subprocess.run(
-            [py, "-c", "import sys; print(f'{sys.version_info.major}{sys.version_info.minor}')"],
-            capture_output=True, text=True, check=True,
-        ).stdout.strip()
-
-        if ov_source == "nightly":
-            run([py, "-m", "pip", "install", "--pre", "--extra-index-url", OV_NIGHTLY_INDEX, *OV_WHEEL_NAMES], log_file)
-        elif ov_source.startswith("wheels:"):
-            wheels_dir = Path(ov_source[len("wheels:"):])
-            wheel_paths = [str(find_ov_wheel(wheels_dir, n, py_version)) for n in OV_WHEEL_NAMES]
-            run([py, "-m", "pip", "install", *wheel_paths], log_file)
+        if ov_wheels:
+            run([py, "-m", "pip", "install", *map(str, ov_wheels)], log_file)
         else:
-            raise ValueError(f"Unknown --ov-source {ov_source!r} (expected 'nightly' or 'wheels:<dir>')")
+            run([py, "-m", "pip", "install", "--pre", "--extra-index-url", OV_NIGHTLY_INDEX, *OV_WHEEL_NAMES], log_file)
 
         for files, pip_args in env_steps:
             file_flags = sum([["-r", f] for f in files], [])

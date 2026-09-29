@@ -81,6 +81,15 @@ steps = [
 # --- runs: one pytest invocation each ---
 
 [[runs]]
+name = "multi_env_unit"
+scopes = ["precommit"]
+# Unit tests for this dispatcher and models_hub_common/env_select.py themselves. They need only
+# pytest + numpy, so they reuse the timm_tv venv instead of building one of their own.
+paths = ["tests/test_run_multi_env.py", "../models_hub_common/tests/test_env_select.py"]
+default_env = "timm_tv"
+envs = ["timm_tv"]
+
+[[runs]]
 name = "timm_tv"
 scopes = ["precommit", "nightly_scope1"]
 # Explicit file list, not a directory + `-k` filter: each env is its own dedicated venv, so unlike a

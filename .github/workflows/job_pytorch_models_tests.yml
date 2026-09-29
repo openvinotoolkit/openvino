@@ -96,12 +96,13 @@ jobs:
       - name: Run PyTorch model-hub tests (multi-env)
         run: |
           python3 ${MODEL_HUB_TESTS_INSTALL_DIR}/multi_env/run_multi_env.py \
-            --scope ${{ inputs.model_scope }} \
+            --scope "${MODEL_SCOPE}" \
             --manifest ${MODEL_HUB_TESTS_INSTALL_DIR}/multi_env/pytorch_models.toml \
-            --venvs-dir ${{ env.INSTALL_DIR }}/multi_env_venvs \
-            --results-dir ${{ env.INSTALL_TEST_DIR }} \
-            --ov-source wheels:${{ env.INSTALL_DIR }}
+            --venvs-dir ${INSTALL_DIR}/multi_env_venvs \
+            --results-dir ${INSTALL_TEST_DIR} \
+            --ov-source wheels:${INSTALL_DIR}
         env:
+          MODEL_SCOPE: ${{ inputs.model_scope }}
           CPLUS_INCLUDE_PATH: ${{ env.Python_ROOT_DIR }}/include/python${{ env.PYTHON_VERSION }}
 
       - name: Reformat unsupported ops file

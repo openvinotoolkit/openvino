@@ -9,7 +9,7 @@
 #      selection, command construction, or exit-code aggregation would silently skip or misreport
 #      whole test suites without any test ever actually failing.
 #
-# Run directly, e.g.:
+# Run in precommit by pytorch_models.toml's `multi_env_unit` run; or directly, e.g.:
 #   PYTHONPATH=tests/model_hub_tests <venv>/bin/python -m pytest
 #       tests/model_hub_tests/multi_env/tests/test_run_multi_env.py -q
 import os
@@ -17,8 +17,12 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import run_multi_env as rme  # noqa: E402
+
+pytestmark = pytest.mark.precommit
 
 
 def _sample_manifest():
@@ -373,3 +377,43 @@ def test_main_isolates_one_envs_build_failure_from_the_rest(tmp_path, monkeypatc
     # ...but good_run/good_env still got dispatched despite bad_run/bad_env failing to build.
     assert len(ran_commands) == 1
     assert "good_env" in ran_commands[0][0]
+
+
+# --- build_envs stamp: a reused venv must match the interpreter and OpenVINO wheels it was built from ---
+
+def _stamp_inputs(tmp_path):
+    reqs = tmp_path / "reqs.txt"
+    reqs.write_text("pkg==1.0\n")
+    wheel = tmp_path / "openvino-1.0-cp311-cp311-manylinux_x86_64.whl"
+    wheel.write_bytes(b"wheel-v1")
+    return [([str(reqs)], [])], wheel
+
+
+def test_stamp_changes_when_wheel_content_changes(tmp_path):
+    env_steps, wheel = _stamp_inputs(tmp_path)
+    before = rme.build_envs.stamp_content(env_steps, "wheels:x", "py311", [wheel])
+    wheel.write_bytes(b"wheel-v2")
+    assert rme.build_envs.stamp_content(env_steps, "wheels:x", "py311", [wheel]) != before
+
+
+def test_stamp_changes_when_interpreter_changes(tmp_path):
+    env_steps, wheel = _stamp_inputs(tmp_path)
+    assert (rme.build_envs.stamp_content(env_steps, "wheels:x", "py311", [wheel])
+            != rme.build_envs.stamp_content(env_steps, "wheels:x", "py312", [wheel]))
+
+
+def test_stamp_is_stable_for_identical_inputs(tmp_path):
+    env_steps, wheel = _stamp_inputs(tmp_path)
+    assert (rme.build_envs.stamp_content(env_steps, "wheels:x", "py311", [wheel])
+            == rme.build_envs.stamp_content(env_steps, "wheels:x", "py311", [wheel]))
+
+
+def test_resolve_ov_wheels(tmp_path):
+    for name in ("openvino-1.0-cp311-cp311-manylinux_x86_64.whl",
+                 "openvino-1.0-cp311-cp311t-manylinux_x86_64.whl",
+                 "openvino_tokenizers-1.0-py3-none-manylinux_x86_64.whl"):
+        (tmp_path / name).write_bytes(b"")
+    wheels = rme.build_envs.resolve_ov_wheels(f"wheels:{tmp_path}", "311")
+    assert [w.name for w in wheels] == ["openvino-1.0-cp311-cp311-manylinux_x86_64.whl",
+                                        "openvino_tokenizers-1.0-py3-none-manylinux_x86_64.whl"]
+    assert rme.build_envs.resolve_ov_wheels("nightly", "311") == []
