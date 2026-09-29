@@ -1711,8 +1711,8 @@ const Shape max_unpool_spec_in_shape{1, 1, 2, 2};
 const Shape max_unpool_spec_out_shape{1, 1, 4, 4};
 const std::vector<float> max_unpool_spec_x{5.0f, 6.0f, 7.0f, 8.0f};
 const std::vector<int64_t> max_unpool_spec_indices{5, 7, 13, 15};
-const std::vector<float> max_unpool_spec_y{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.0f, 0.0f, 6.0f,
-                                           0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 7.0f, 0.0f, 8.0f};
+const std::vector<float>
+    max_unpool_spec_y{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.0f, 0.0f, 6.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 7.0f, 0.0f, 8.0f};
 
 template <typename T>
 void run_max_unpool(const std::string& model_path,
@@ -1781,13 +1781,13 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_output_shape_input) {
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_1d) {
-    run_max_unpool<float>("max_unpool_1d.onnx",
-                          Shape{1, 2, 4},
-                          {1.5f, -0.5f, 3.0f, 3.5f, 0.0f, 2.5f, 2.0f, 0.5f},
-                          {1, 2, 4, 6, 9, 11, 12, 15},
-                          Shape{1, 2, 8},
-                          {0.0f, 1.5f, -0.5f, 0.0f, 3.0f, 0.0f, 3.5f, 0.0f,
-                           0.0f, 0.0f, 0.0f, 2.5f, 2.0f, 0.0f, 0.0f, 0.5f});
+    run_max_unpool<float>(
+        "max_unpool_1d.onnx",
+        Shape{1, 2, 4},
+        {1.5f, -0.5f, 3.0f, 3.5f, 0.0f, 2.5f, 2.0f, 0.5f},
+        {1, 2, 4, 6, 9, 11, 12, 15},
+        Shape{1, 2, 8},
+        {0.0f, 1.5f, -0.5f, 0.0f, 3.0f, 0.0f, 3.5f, 0.0f, 0.0f, 0.0f, 0.0f, 2.5f, 2.0f, 0.0f, 0.0f, 0.5f});
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_3d) {
@@ -1822,23 +1822,23 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_batch_channels) {
          1.5f,  8.0f,  16.0f, 3.0f,  12.5f, 18.5f, 9.0f,  20.0f, 22.0f, 10.5f, 4.5f,  21.5f},
         {1, 3, 8, 11, 16, 22, 28, 26, 32, 39, 40, 46, 49, 51, 60, 62, 65, 66, 73, 78, 84, 86, 89, 94},
         Shape{2, 3, 4, 4},
-        {0.0f,  12.0f, 0.0f,  19.5f, 0.0f,  0.0f, 0.0f,  0.0f,  21.0f, 0.0f,  0.0f,  23.5f, 0.0f,  0.0f, 0.0f,  0.0f,
-         17.5f, 0.0f,  0.0f,  0.0f,  0.0f,  0.0f, 15.0f, 0.0f,  0.0f,  0.0f,  20.5f, 0.0f,  22.5f, 0.0f, 0.0f,  0.0f,
-         -6.0f, 0.0f,  0.0f,  0.0f,  0.0f,  0.0f, 0.0f,  -5.0f, 23.0f, 0.0f,  0.0f,  0.0f,  0.0f,  0.0f, 19.0f, 0.0f,
-         0.0f,  1.5f,  0.0f,  8.0f,  0.0f,  0.0f, 0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  0.0f,  16.0f, 0.0f, 3.0f,  0.0f,
-         0.0f,  12.5f, 18.5f, 0.0f,  0.0f,  0.0f, 0.0f,  0.0f,  0.0f,  9.0f,  0.0f,  0.0f,  0.0f,  0.0f, 20.0f, 0.0f,
-         0.0f,  0.0f,  0.0f,  0.0f,  22.0f, 0.0f, 10.5f, 0.0f,  0.0f,  4.5f,  0.0f,  0.0f,  0.0f,  0.0f, 21.5f, 0.0f});
+        {0.0f,  12.0f, 0.0f,  19.5f, 0.0f,  0.0f, 0.0f,  0.0f,  21.0f, 0.0f, 0.0f,  23.5f, 0.0f,  0.0f, 0.0f,  0.0f,
+         17.5f, 0.0f,  0.0f,  0.0f,  0.0f,  0.0f, 15.0f, 0.0f,  0.0f,  0.0f, 20.5f, 0.0f,  22.5f, 0.0f, 0.0f,  0.0f,
+         -6.0f, 0.0f,  0.0f,  0.0f,  0.0f,  0.0f, 0.0f,  -5.0f, 23.0f, 0.0f, 0.0f,  0.0f,  0.0f,  0.0f, 19.0f, 0.0f,
+         0.0f,  1.5f,  0.0f,  8.0f,  0.0f,  0.0f, 0.0f,  0.0f,  0.0f,  0.0f, 0.0f,  0.0f,  16.0f, 0.0f, 3.0f,  0.0f,
+         0.0f,  12.5f, 18.5f, 0.0f,  0.0f,  0.0f, 0.0f,  0.0f,  0.0f,  9.0f, 0.0f,  0.0f,  0.0f,  0.0f, 20.0f, 0.0f,
+         0.0f,  0.0f,  0.0f,  0.0f,  22.0f, 0.0f, 10.5f, 0.0f,  0.0f,  4.5f, 0.0f,  0.0f,  0.0f,  0.0f, 21.5f, 0.0f});
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_default_strides) {
     // duplicate indices
-    run_max_unpool<float>("max_unpool_2d_default_strides.onnx",
-                          Shape{1, 1, 3, 3},
-                          {16.0f, 16.0f, 8.0f, 16.0f, 16.0f, 12.0f, 14.0f, 15.0f, 15.0f},
-                          {5, 5, 7, 5, 5, 11, 13, 14, 14},
-                          Shape{1, 1, 4, 4},
-                          {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 16.0f, 0.0f, 8.0f,
-                           0.0f, 0.0f, 0.0f, 12.0f, 0.0f, 14.0f, 15.0f, 0.0f});
+    run_max_unpool<float>(
+        "max_unpool_2d_default_strides.onnx",
+        Shape{1, 1, 3, 3},
+        {16.0f, 16.0f, 8.0f, 16.0f, 16.0f, 12.0f, 14.0f, 15.0f, 15.0f},
+        {5, 5, 7, 5, 5, 11, 13, 14, 14},
+        Shape{1, 1, 4, 4},
+        {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 16.0f, 0.0f, 8.0f, 0.0f, 0.0f, 0.0f, 12.0f, 0.0f, 14.0f, 15.0f, 0.0f});
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_max_pool_round_trip) {
@@ -1846,9 +1846,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_max_pool_round_trip) {
     auto test_case = ov::test::TestCase(convert_model("max_unpool_max_pool_round_trip.onnx"), s_device);
     test_case.add_input<float>(
         Shape{1, 2, 5, 5},
-        {-3.0f, -9.0f, 11.0f, -11.0f, -8.5f, -12.5f, -2.5f,  10.5f, 12.0f, -10.0f, -2.0f,  -0.5f, -8.0f,
-         8.5f,  1.0f,  2.5f,  5.5f,   6.5f,  6.0f,   2.0f,   -9.5f, 10.0f, -5.5f,  8.0f,   -7.0f, 3.0f,
-         0.0f,  -6.0f, -3.5f, -1.0f,  -6.5f, 9.0f,   -12.0f, 1.5f,  3.5f,  5.0f,   -7.5f,  -10.5f, 4.5f,
+        {-3.0f, -9.0f, 11.0f, -11.0f, -8.5f, -12.5f, -2.5f,  10.5f, 12.0f, -10.0f, -2.0f, -0.5f,  -8.0f,
+         8.5f,  1.0f,  2.5f,  5.5f,   6.5f,  6.0f,   2.0f,   -9.5f, 10.0f, -5.5f,  8.0f,  -7.0f,  3.0f,
+         0.0f,  -6.0f, -3.5f, -1.0f,  -6.5f, 9.0f,   -12.0f, 1.5f,  3.5f,  5.0f,   -7.5f, -10.5f, 4.5f,
          -1.5f, 4.0f,  7.0f,  -4.5f,  9.5f,  0.5f,   -11.5f, -5.0f, 11.5f, -4.0f,  7.5f});
     test_case.add_expected_output<float>(
         Shape{1, 2, 5, 5},

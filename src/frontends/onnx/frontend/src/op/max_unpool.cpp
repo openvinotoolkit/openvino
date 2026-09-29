@@ -92,12 +92,11 @@ ov::OutputVector max_unpool(const ov::frontend::onnx::Node& node) {
     const auto flat_shape = v0::Constant::create(ov::element::i64, {1}, {-1});
     const auto flat_data = std::make_shared<v1::Reshape>(data, flat_shape, false);
     const auto flat_indices = std::make_shared<v1::Reshape>(indices, flat_shape, false);
-    const auto scattered =
-        std::make_shared<v12::ScatterElementsUpdate>(zeros,
-                                                     flat_indices,
-                                                     flat_data,
-                                                     v0::Constant::create(ov::element::i64, {}, {0}),
-                                                     v12::ScatterElementsUpdate::Reduction::NONE);
+    const auto scattered = std::make_shared<v12::ScatterElementsUpdate>(zeros,
+                                                                        flat_indices,
+                                                                        flat_data,
+                                                                        v0::Constant::create(ov::element::i64, {}, {0}),
+                                                                        v12::ScatterElementsUpdate::Reduction::NONE);
     return {std::make_shared<v1::Reshape>(scattered, output_shape, false)};
 }
 

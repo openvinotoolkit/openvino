@@ -1257,24 +1257,21 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_max_unpool_2d_dyn) {
 
     {
         auto test_case_1 = ov::test::TestCase(model, s_device);
-        test_case_1.add_input<float>(Shape{1, 1, 2, 3},
-                              {4.0f, 0.0f, 5.0f, 5.5f, 1.5f, 2.0f});
-        test_case_1.add_input<int64_t>(Shape{1, 1, 2, 3},
-                              {6, 2, 10, 13, 14, 16});
-        test_case_1.add_expected_output<float>(Shape{1, 1, 4, 6},
-                              {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 4.0f, 0.0f, 0.0f, 0.0f, 5.0f, 0.0f, 0.0f, 5.5f, 1.5f, 0.0f,
-                              2.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+        test_case_1.add_input<float>(Shape{1, 1, 2, 3}, {4.0f, 0.0f, 5.0f, 5.5f, 1.5f, 2.0f});
+        test_case_1.add_input<int64_t>(Shape{1, 1, 2, 3}, {6, 2, 10, 13, 14, 16});
+        test_case_1.add_expected_output<float>(Shape{1, 1, 4, 6}, {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 4.0f, 0.0f,
+                                                                   0.0f, 0.0f, 5.0f, 0.0f, 0.0f, 5.5f, 1.5f, 0.0f,
+                                                                   2.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
         test_case_1.run();
     }
     {
         auto test_case_2 = ov::test::TestCase(model, s_device);
-        test_case_2.add_input<float>(Shape{2, 2, 1, 2},
-                              {6.5f, 1.0f, 5.0f, 7.5f, 1.5f, 4.0f, 5.5f, 6.0f});
-        test_case_2.add_input<int64_t>(Shape{2, 2, 1, 2},
-                              {0, 3, 9, 10, 16, 19, 25, 27});
-        test_case_2.add_expected_output<float>(Shape{2, 2, 2, 4},
-                              {6.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.0f, 7.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-                              1.5f, 0.0f, 0.0f, 4.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.5f, 0.0f, 6.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+        test_case_2.add_input<float>(Shape{2, 2, 1, 2}, {6.5f, 1.0f, 5.0f, 7.5f, 1.5f, 4.0f, 5.5f, 6.0f});
+        test_case_2.add_input<int64_t>(Shape{2, 2, 1, 2}, {0, 3, 9, 10, 16, 19, 25, 27});
+        test_case_2.add_expected_output<float>(
+            Shape{2, 2, 2, 4},
+            {6.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.0f, 7.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+             1.5f, 0.0f, 0.0f, 4.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.5f, 0.0f, 6.0f, 0.0f, 0.0f, 0.0f, 0.0f});
         test_case_2.run();
     }
 }
