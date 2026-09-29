@@ -6,10 +6,7 @@
 #include "openvino/op/subtract.hpp"
 #include "utils/common.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 namespace opset_1 {
 ov::OutputVector sub(const ov::frontend::onnx::Node& node) {
     return common::handle_opset6_binary_op<ov::op::v1::Subtract>(node);
@@ -25,7 +22,4 @@ ov::OutputVector sub(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("Sub", OPSET_SINCE(7), ai_onnx::opset_7::sub);
 }  // namespace opset_7
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

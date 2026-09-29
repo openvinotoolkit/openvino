@@ -95,6 +95,8 @@ void unpack(const ov::SoPtr<ov::ITensor>& from,
             const ov::SoPtr<ov::ITensor>& to,
             const UnpackOptions& unpack_options = UnpackOptions{true, 16, false});
 
+void subtract_128(const ov::SoPtr<ov::ITensor>& from, const ov::SoPtr<ov::ITensor>& to);
+
 void gather(const ov::SoPtr<ov::ITensor>& src, const ov::SoPtr<ov::ITensor>& idx, const ov::SoPtr<ov::ITensor>& dst);
 void gather_cb4(const ov::SoPtr<ov::ITensor>& src,
                 const ov::SoPtr<ov::ITensor>& idx,

@@ -231,13 +231,13 @@ VCLCompilerImpl::~VCLCompilerImpl() {
 
 std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     const std::shared_ptr<const ov::Model>& model,
-    const FilteredConfig& config) const {
+    const Config& config) const {
     return compile(model, config, false);
 }
 
 std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
     const std::shared_ptr<const ov::Model>& model,
-    const FilteredConfig& config,
+    const Config& config,
     const bool storeWeightlessCacheAttributeFlag) const {
     _logger.debug("compile start");
 
@@ -270,7 +270,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
                                                     isOptionSupportedByCompiler,
                                                     false,
                                                     storeWeightlessCacheAttributeFlag);
-    FilteredConfig updatedConfig = config;
+    Config updatedConfig = config;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
         updatedConfig.update(ov::intel_npu::model_serializer_version.name(),
                              MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
@@ -368,7 +368,7 @@ std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compile(
 
 std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::compileWsOneShot(
     const std::shared_ptr<ov::Model>& model,
-    const FilteredConfig& config) const {
+    const Config& config) const {
     _logger.debug("compileWsOneShot start");
 
     /// Check the linked vcl version whether supported in plugin
@@ -400,7 +400,7 @@ std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::
                                                     isOptionSupportedByCompiler,
                                                     false,
                                                     true);
-    FilteredConfig updatedConfig = config;
+    Config updatedConfig = config;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
         updatedConfig.update(ov::intel_npu::model_serializer_version.name(),
                              MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
@@ -481,10 +481,10 @@ std::pair<std::vector<ov::Tensor>, std::optional<std::string>> VCLCompilerImpl::
 
 std::pair<ov::Tensor, std::optional<std::string>> VCLCompilerImpl::compileWsIterative(
     const std::shared_ptr<ov::Model>& model,
-    const FilteredConfig& config,
+    const Config& config,
     size_t callNumber) const {
     _logger.debug("compileWsIterative start");
-    FilteredConfig updatedConfig = config;
+    Config updatedConfig = config;
     updatedConfig.update(ov::intel_npu::ws_compile_call_number.name(), std::to_string(callNumber));
     // Return the compatibility descriptor together with the compiled blob.
     return compile(model, updatedConfig, true);
@@ -544,8 +544,7 @@ uint32_t VCLCompilerImpl::get_version() const {
     return ZE_MAKE_VERSION(_compilerProperties.version.major, _compilerProperties.version.minor);
 }
 
-ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model>& model,
-                                           const FilteredConfig& config) const {
+ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model>& model, const Config& config) const {
     _logger.debug("query start");
 
     /// Check the linked vcl version whether supported in plugin
@@ -565,7 +564,7 @@ ov::SupportedOpsMap VCLCompilerImpl::query(const std::shared_ptr<const ov::Model
     ze_graph_compiler_version_info_t compilerVersion;
     compilerVersion.major = _compilerProperties.version.major;
     compilerVersion.minor = _compilerProperties.version.minor;
-    FilteredConfig updatedConfig = config;
+    Config updatedConfig = config;
     const auto isOptionSupportedByCompiler = [this](const std::string& optionName,
                                                     const std::optional<std::string>& optionValue = std::nullopt) {
         return is_option_supported(optionName, optionValue);

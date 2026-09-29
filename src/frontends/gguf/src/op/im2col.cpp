@@ -20,10 +20,7 @@
 #include "openvino/op/util/attr_types.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 // GGML_OP_IM2COL: unfold a 1D/2D convolution input into column patches (conv / vision models).
 // The decoder exposes the conv params (strides/pads/dilations + is_2D) as a typed int vector.
@@ -126,7 +123,4 @@ OutputVector translate_im2col(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

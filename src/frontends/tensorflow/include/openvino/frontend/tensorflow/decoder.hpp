@@ -5,12 +5,8 @@
 
 #include "openvino/frontend/decoder.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
+namespace ov::frontend::tensorflow {
 
 using DecoderBase = ov::frontend::DecoderBase;
 
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow

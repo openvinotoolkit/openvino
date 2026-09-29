@@ -8,6 +8,7 @@ This document explains how to create new workflows and add tests.
 
 ## Table of Contents
 
+* [Skill Validation](#skill-validation)
 * [Adding Tests to an Existing Workflow](#adding-tests-to-an-existing-workflow)
   * [Adding Tests to an Existing Test Suite](#adding-tests-to-an-existing-test-suite)
   * [Creating a Step in a Job](#creating-a-step-in-a-job)
@@ -17,6 +18,31 @@ This document explains how to create new workflows and add tests.
   * [Adding a Step](#adding-a-step)
   * [Adding a Job](#adding-a-job)
   * [Adding a Workflow](#adding-a-workflow)
+
+## Skill Validation
+
+The [Documentation workflow](../../../../.github/workflows/build_doc.yml) validates
+skill metadata in its existing `Check_Doc_Links` job. The validation step runs only
+when the pull request or merge-group diff changes `.claude/skills/**` or the
+`.agents/skills` symlink, and checks all skills in `.claude/skills/`. Agents access
+the same collection through `.agents/skills/`. Validation follows the documentation
+workflow's existing Smart CI and draft-PR conditions. The `.github/agents-prototype/skills`
+collection is outside this metadata check's scope.
+
+The validator checks [Agent Skills metadata](https://agentskills.io/specification),
+directory/name agreement, duplicate YAML keys, and non-empty instructions.
+The existing Lychee step checks Markdown links, including skill references.
+Skill scripts are not executed; instruction quality and agent behavior still need
+review.
+
+Run from the repository root (also when changing the validator or workflow itself
+without skill changes, since metadata validation will be skipped in CI):
+
+```sh
+python -m pip install -r .github/scripts/skills/requirements.txt
+python -m unittest discover -s .github/scripts/skills -p 'test_*.py'
+python .github/scripts/skills/validate.py
+```
 
 ## Adding Tests to an Existing Workflow
 

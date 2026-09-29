@@ -9,10 +9,7 @@
 #include "openvino/op/multiply.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 OutputVector translate_rad2deg(const NodeContext& context) {
     // Ensure that the operation has exactly one input (the input tensor)
@@ -38,7 +35,4 @@ OutputVector translate_rad2deg(const NodeContext& context) {
     return {result};
 }
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op
