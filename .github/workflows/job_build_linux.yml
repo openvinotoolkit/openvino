@@ -146,7 +146,7 @@ jobs:
       BUILD_DIR: ${{ github.workspace }}/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}_Release
       # Entries are content-addressed, so a single directory is shared by all branches
-      CCACHE_REMOTE_STORAGE: "file:///mount/caches/ccache_remote/${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}_Release|umask=002|update-mtime=true"
+      CCACHE_REMOTE_STORAGE: "file:///mount/caches/ccache/remote/${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}_Release|umask=002|update-mtime=true"
       CCACHE_DIR: ${{ github.workspace }}/ccache
       CCACHE_TEMPDIR: ${{ github.workspace }}/ccache_temp
       CCACHE_MAXSIZE: 100G

@@ -59,7 +59,7 @@ jobs:
       CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
       CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
       # Entries are content-addressed, so a single directory is shared by all branches
-      CCACHE_REMOTE_STORAGE: "file:///C:/mount/caches/ccache_remote/windows_${{ inputs.build-variant }}_x86_64_${{ inputs.build-type }}|update-mtime=true"
+      CCACHE_REMOTE_STORAGE: "file:///C:/mount/caches/ccache/remote/windows_${{ inputs.build-variant }}_x86_64_${{ inputs.build-type }}|update-mtime=true"
       CCACHE_DIR: ${{ github.workspace }}\\ccache
       CCACHE_TEMPDIR: ${{ github.workspace }}\\ccache_temp
       CCACHE_MAXSIZE: 100G
