@@ -90,6 +90,7 @@ OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, verbose_color, true, "Enable colori
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, enable_mlir, false, "Enable/Disable MLIR/Graph-Compiler execution for supported subgraphs. Requires ENABLE_MLIR_FOR_GPU=ON at build time [EXPERIMENTAL, NOT PRODUCTION-READY]")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, mlir_debug, false, "Enable verbose logging of the MLIR/Graph-Compiler pipeline")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, disable_usm, false, "Disable USM memory allocations and use only cl_mem")
+OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, finish_after_enqueue, false, "Diagnostic: call finish() after each kernel enqueue so async errors like CL_OUT_OF_RESOURCES surface at the exact failing kernel/layer")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, usm_policy, 0, "0: default, 1: use usm_host, 2: do not use usm_host")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, dump_batch_limit, std::numeric_limits<int32_t>::max(), "Max number of batch elements to dump")
 OV_CONFIG_DEBUG_GLOBAL_OPTION(ov::intel_gpu, dump_profiling_data_per_iter, false, "Save profiling data w/o per-iteration aggregation")

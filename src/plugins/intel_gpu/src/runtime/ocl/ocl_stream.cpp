@@ -7,6 +7,8 @@
 #include <cassert>
 #include <memory>
 #include <string>
+#include <cstdio>
+#include <cstdlib>
 #include <vector>
 
 #include "CL/cl.h"
@@ -234,6 +236,7 @@ ocl_stream::ocl_stream(const ocl_engine& engine, const ExecutionConfig& config)
 
     _command_queue = queue_builder.build(context, device);
     _device_clock = make_device_clock(_engine, config);
+    m_finish_after_enqueue = config.get_finish_after_enqueue();
 }
 
 ocl_stream::ocl_stream(const ocl_engine& engine, const ExecutionConfig& config, void* handle)
@@ -242,6 +245,7 @@ ocl_stream::ocl_stream(const ocl_engine& engine, const ExecutionConfig& config, 
     auto* casted_handle = static_cast<cl_command_queue>(handle);
     _command_queue = ocl_queue_type(casted_handle, true);
     _device_clock = make_device_clock(_engine, config);
+    m_finish_after_enqueue = config.get_finish_after_enqueue();
 }
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
@@ -314,6 +318,19 @@ event::ptr ocl_stream::enqueue_kernel(kernel& kernel,
         _command_queue.enqueueNDRangeKernel(kern, cl::NullRange, global, local, dep_events_ptr, set_output_event ? &ret_ev : nullptr);
     } catch (const cl::Error& err) {
         ocl::rethrow(err, _engine.get_device_info());
+    }
+
+    // Diagnostic: force per-kernel completion so CL_OUT_OF_RESOURCES surfaces at the exact cldnn OCL kernel.
+    if (m_finish_after_enqueue) {
+        try {
+            _command_queue.finish();
+        } catch (cl::Error const& err) {
+            std::string kname;
+            try { kname = kern.getInfo<CL_KERNEL_FUNCTION_NAME>(); } catch (...) {}
+            std::fprintf(stderr, "[FINISH_AFTER_ENQUEUE][cldnn] kernel='%s' finish err=%d\n", kname.c_str(), err.err());
+            std::fflush(stderr);
+            ocl::rethrow(err, _engine.get_device_info());
+        }
     }
 
     return std::make_shared<ocl_event>(ret_ev, ++_queue_counter);
