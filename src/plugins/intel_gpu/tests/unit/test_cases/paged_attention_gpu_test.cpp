@@ -167,6 +167,41 @@ INSTANTIATE_TEST_SUITE_P(
         paged_attention_test_params{{{1, 1023}, {1, 526}}, 8, 2, 128, 128, 16, 256, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false, {}, {}, ov::element::u4}, // u4 GQA, head 128 (direct store)
         paged_attention_test_params{{{1, 1023}}, 8, 2, 128, 128, 16, 256, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, STATIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false}));                                     // i8 GQA, one sequence is enough
 
+// A runtime (non-constant) scale input. Every other case gives the primitive a constant scale, which the kernels
+// take as a jit literal, so the scale memory they read otherwise was never exercised. The multiplier makes the
+// scale 64 / sqrt(k_head_size) (8.0 for head 64, exact in f16); see paged_attention_test_params.
+class paged_attention_runtime_scale_test : public PagedAttentionTest<paged_attention_test_params> {};
+
+TEST_P(paged_attention_runtime_scale_test, matches_reference) {
+    // Below Xe2 the multi-token PREFILL/MIXED kernel is pa_sdpa_opt, which types a runtime scale as INPUT3_TYPE
+    // (sdpa_opt.cl SCALE_TYPE; see "Known issues" in docs/sdpa_ocl.md). Real models give a constant scale.
+    if (tests::get_test_engine().get_device_info().arch < cldnn::gpu_arch::xe2)
+        GTEST_SKIP() << "a runtime scale is only read correctly by sdpa_ocl / sdpa_ocl_decode";
+    auto p = GetParam();
+    execute(p, true);
+}
+
+namespace {
+paged_attention_test_params with_runtime_scale(paged_attention_test_params p) {
+    p.runtime_scale_multiplier = 64.0f;
+    return p;
+}
+}  // namespace
+
+// Instantiated under smoke_paged_attention so that every gtest group selecting smoke_paged_attention/* runs it.
+INSTANTIATE_TEST_SUITE_P(
+    smoke_paged_attention,
+    paged_attention_runtime_scale_test,
+    ::testing::ValuesIn(std::vector<paged_attention_test_params>{
+        // MIXED, PREFILL and GENERATE of an uncompressed cache.
+        with_runtime_scale(paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+        with_runtime_scale(paged_attention_test_params{ {{36, 0}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+        with_runtime_scale(paged_attention_test_params{ {{1, 34}, {1, 515}}, 2, 2, 64, 64, 16, 0, DISABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_TOKEN, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+        // GQA with a compressed cache.
+        with_runtime_scale(paged_attention_test_params{ {{1, 34}, {25, 0}, {10, 34}}, 8, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+        with_runtime_scale(paged_attention_test_params{ {{1, 34}, {1, 515}}, 8, 2, 64, 64, 16, 0, ENABLE_CACHE_COMPRESSION, ov::internal::CacheQuantMode::BY_CHANNEL, DYNAMIC_INPUT_PAD, DISABLE_SCORES, DISABLE_ROTATION, DISABLE_FA_V2, false, 0, {}, false }),
+    }));
+
 // k_head_size != v_head_size.
 //
 // The MIXED stage is the load-bearing case: the token-major BY_CHANNEL K page is read by sdpa_ocl,
