@@ -97,6 +97,20 @@ struct vector_target {
     // OV_JIT_IR_LOOP_ALIGN override.
     [[nodiscard]] virtual std::size_t preferred_loop_alignment() const = 0;
 
+    // How many padding bytes an alignment may spend; 0 means unlimited.
+    // LLVM: TargetLowering::getMaxPermittedBytesForAlignment, read by
+    // MachineBlockPlacement::alignBlocks and passed down to the
+    // AsmPrinter as the second operand of .p2align.
+    //
+    // TargetLoweringBase initializes it to 0 and only AArch64 and
+    // LoongArch override it, so X86 aligns loops to 16 with no cap. A cap
+    // is not a free safety margin: it silently drops the alignment on
+    // exactly those loops that need the most padding, which is
+    // uncorrelated with how hot they are. Capping at half the alignment
+    // left two of the three BRGEMM loops unaligned, including both inner
+    // ones.
+    [[nodiscard]] virtual std::size_t max_bytes_for_alignment() const = 0;
+
     // Cache line size in bytes, and how far ahead a streaming read
     // should be prefetched, also in bytes; 0 for either means do not
     // prefetch. LLVM: TargetTransformInfo::getCacheLineSize and

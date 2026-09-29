@@ -109,6 +109,10 @@ struct avx512_target final : vector_target {
         return loop_alignment_override().value_or(16);
     }
 
+    // X86ISelLowering never calls setMaxBytesForAlignment, so the
+    // TargetLoweringBase default of "unlimited" stands.
+    [[nodiscard]] std::size_t max_bytes_for_alignment() const override { return 0; }
+
     [[nodiscard]] std::size_t cache_line_size() const override { return 64; }
     [[nodiscard]] std::size_t prefetch_distance() const override {
         return prefetch_distance_override().value_or(0);
@@ -143,6 +147,8 @@ struct legacy_x86_target final : vector_target {
     [[nodiscard]] std::size_t preferred_loop_alignment() const override {
         return loop_alignment_override().value_or(16);
     }
+
+    [[nodiscard]] std::size_t max_bytes_for_alignment() const override { return 0; }
 
     [[nodiscard]] std::size_t cache_line_size() const override { return 64; }
     [[nodiscard]] std::size_t prefetch_distance() const override {

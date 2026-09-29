@@ -1926,10 +1926,11 @@ void jit_kernel::foreach (const B& begin,
     if (loop_align > 1) {
         auto& loop_op = _ir->last();
         loop_op.align = static_cast<std::uint32_t>(loop_align);
-        // Half the alignment: past that the nops cost more than the
-        // misalignment they remove. LLVM caps this too
-        // (setAlignment(Align, MaxBytes) / MaxBytesForAlignment).
-        loop_op.align_max_padding = static_cast<std::uint32_t>(loop_align / 2);
+        // The cap comes from the target, not from a local guess, because
+        // it is a property of how expensive nops are on the machine —
+        // LLVM keeps it in TargetLowering for the same reason, and X86
+        // leaves it at the "unlimited" default.
+        loop_op.align_max_padding = static_cast<std::uint32_t>(target().max_bytes_for_alignment());
     }
 }
 

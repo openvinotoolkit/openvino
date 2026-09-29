@@ -2481,6 +2481,7 @@ struct host_like_target : vector_target {
         return bytes <= 0x7fffffff;
     }
     [[nodiscard]] std::size_t preferred_loop_alignment() const override { return 16; }
+    [[nodiscard]] std::size_t max_bytes_for_alignment() const override { return 0; }
     [[nodiscard]] std::size_t cache_line_size() const override { return 64; }
     [[nodiscard]] std::size_t prefetch_distance() const override { return 64; }
     [[nodiscard]] const std::vector<std::uint32_t>& predicate_pool() const override {
