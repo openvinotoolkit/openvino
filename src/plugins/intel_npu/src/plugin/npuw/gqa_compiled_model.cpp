@@ -561,6 +561,12 @@ ov::npuw::GQACompiledModel::GQACompiledModel(const std::shared_ptr<ov::Model>& o
     m_dynamic_kv_cache_output_axes = find_dynamic_kv_cache_output_axes(outputs());
 }
 
+// NB: We hand-roll port serialization here instead of serializing the outer carcass as a real
+// ov::Model IR (via ov::pass::Serialize) because the IR writer never stores a Result's own
+// output shape/type - it is always recomputed on read from the Result's input node. Since our
+// carcass Results are fed by dummy placeholders (no real ops/weights), any such round trip
+// silently collapses every output shape to the placeholder's shape. Preserving the true output
+// port shapes therefore requires this explicit per-field encoding.
 void ov::npuw::GQACompiledModel::write_port_list(std::ostream& stream,
                                                  const std::vector<ov::Output<const ov::Node>>& ports) {
     using namespace ov::npuw::s11n;
