@@ -60,6 +60,11 @@ void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
     }
     for (size_t i = 1; i < input_size; i++) {
         const auto& element_type = get_input_element_type(i);
+        // A key or value holding quantization codes rather than values does not take part in the
+        // type merge, and the output type keeps following the query.
+        if ((i == 1 || i == 2) && is_quantized_kv_type(element_type)) {
+            continue;
+        }
         if (i == 3 && (element_type == element::boolean || causal)) {
             // Skip checking attention_mask in loop when boolean or skipped to not affect merged dtype.
             continue;
@@ -80,6 +85,16 @@ void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
 std::shared_ptr<Node> op::v13::ScaledDotProductAttention::clone_with_new_inputs(const OutputVector& new_args) const {
     OV_OP_SCOPE(v13_ScaledDotProductAttention_clone_with_new_inputs);
     return std::make_shared<ScaledDotProductAttention>(new_args, m_causal);
+}
+
+bool op::v13::ScaledDotProductAttention::is_quantized_kv_type(const element::Type& type) {
+    // The signed and unsigned 8- and 4-bit integer types, which is what a quantized key or value
+    // cache is stored as.
+    return type == element::i8 || type == element::u8 || type == element::i4 || type == element::u4;
+}
+
+bool op::v13::ScaledDotProductAttention::has_quantized_kv(const ScaledDotProductAttention& node) {
+    return is_quantized_kv_type(node.get_input_element_type(1)) || is_quantized_kv_type(node.get_input_element_type(2));
 }
 
 bool op::v13::ScaledDotProductAttention::visit_attributes(AttributeVisitor& visitor) {

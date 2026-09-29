@@ -71,6 +71,21 @@ std::shared_ptr<ov::Node> ov::pass::ScaledDotProductAttentionDecomposition::deco
     auto query = node->input_value(0);
     auto key = node->input_value(1);
     auto value = node->input_value(2);
+    // The op admits a key or value holding quantization codes, but this decomposition emits plain
+    // MatMuls that require both operands to share the query's type. Reject here, where the SDPA
+    // node can still be named, rather than letting a synthesized MatMul report the mismatch.
+    NODE_VALIDATION_CHECK(node.get(),
+                          !v13::ScaledDotProductAttention::is_quantized_kv_type(key.get_element_type()),
+                          "ScaledDotProductAttentionDecomposition does not support a quantized key "
+                          "operand. Its element type is ",
+                          key.get_element_type(),
+                          ".");
+    NODE_VALIDATION_CHECK(node.get(),
+                          !v13::ScaledDotProductAttention::is_quantized_kv_type(value.get_element_type()),
+                          "ScaledDotProductAttentionDecomposition does not support a quantized value "
+                          "operand. Its element type is ",
+                          value.get_element_type(),
+                          ".");
     auto q_shape = register_new_node<v3::ShapeOf>(query, element::i32);
     auto k_shape = register_new_node<v3::ShapeOf>(key, element::i32);
     auto minus_one = register_new_node(v0::Constant::create(element::i32, Shape{}, {-1}));
