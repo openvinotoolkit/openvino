@@ -74,12 +74,12 @@ void program_helpers::reshape_deconvolution_weights(const std::vector<float> &de
     }
 }
 
-bool onednn_add_fusing_helpers::is_full_tensor(const layout& l) {
+static bool is_full_tensor(const layout& l) {
     return l.spatial(0) > 1 || l.spatial(1) > 1 || (l.get_spatial_rank() == 3 && l.spatial(2) > 1)
         || l.batch() > 1;
 }
 
-void onednn_add_fusing_helpers::for_eltwise(
+void onednn_eltwise_fusing_helpers::for_eltwise(
     const program_node& node, eltwise_mode mode,
     std::function<void(const program_node& p_node,
                     const fused_primitive_desc& desc)> func) {
@@ -162,7 +162,7 @@ static bool can_reuse_residual_buffer(const program_node& p_node, const program_
         && (!dep_node.is_type<input_layout>() || dep_node.get_users().size() <= 1);
 }
 
-add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
+add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
     const program_node& p_node, const fused_primitive_desc& desc) {
     if (!desc.is_type<eltwise>()) {
         return add_fusing_type::not_supported;
@@ -193,7 +193,7 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
     return add_fusing_type::binary_per_oc;
 }
 
-bool onednn_add_fusing_helpers::can_use_mul_inplace(
+bool onednn_eltwise_fusing_helpers::can_use_mul_inplace(
     const program_node& p_node, const fused_primitive_desc& desc, const kernel_impl_params* params) {
     if (std::getenv("OV_GPU_FORCE_BINARY_MUL") != nullptr) {
         return false;
@@ -227,7 +227,7 @@ bool onednn_add_fusing_helpers::can_use_mul_inplace(
     return can_reuse_residual_buffer(p_node, dep_node, p_layout, d_layout);
 }
 
-int32_t onednn_add_fusing_helpers::get_reused_eltwmem_idx(const program_node& node, const kernel_impl_params* params) {
+int32_t onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(const program_node& node, const kernel_impl_params* params) {
     if (node.get_preferred_impl_type() == impl_types::onednn) {
         for (const auto& fused_op : node.get_fused_primitives()) {
             if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {

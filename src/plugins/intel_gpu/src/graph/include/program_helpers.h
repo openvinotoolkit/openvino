@@ -121,7 +121,7 @@ struct program_helpers {
     }
 };
 
-struct onednn_add_fusing_helpers {
+struct onednn_eltwise_fusing_helpers {
     enum class add_fusing_type {
         sum,
         binary_per_tensor,
@@ -129,20 +129,23 @@ struct onednn_add_fusing_helpers {
         not_supported,
     };
 
-    static bool is_full_tensor(const layout& layout);
-    static std::vector<fused_primitive_desc> get_fused_eltwise_primitives();
+    // Common to both fused eltwise modes.
     static void for_eltwise(const program_node& conv_node, eltwise_mode mode,
                             std::function<void(const program_node&, const fused_primitive_desc&)> func);
+    // Index of the dependency whose buffer is reused as the node's output, or -1.
+    static int32_t get_reused_eltwmem_idx(const program_node& node, const kernel_impl_params* params = nullptr);
+
+    // sum: residual add.
     static add_fusing_type get_add_fusing_type(const program_node& node, const fused_primitive_desc& desc);
-    // Checks whether the fused prod post-op can use oneDNN's in-place binary multiplication.
-    // Matmul-based primitives (gemm/fully_connected) support the operation with the same buffer-reuse conditions as sum.
-    // For a dynamic node the node layouts are still unresolved, so pass the runtime params to decide on actual shapes.
+
+    // prod: oneDNN's in-place binary multiplication, supported on matmul-based primitives
+    // (gemm/fully_connected) with the same buffer-reuse conditions as sum.
+    // The node layouts of a dynamic node are unresolved, so pass the runtime params to decide on actual shapes.
     static bool can_use_mul_inplace(const program_node& node, const fused_primitive_desc& desc,
                                     const kernel_impl_params* params = nullptr);
-    static int32_t get_reused_eltwmem_idx(const program_node& node, const kernel_impl_params* params = nullptr);
 };
 
-using add_fusing_type = onednn_add_fusing_helpers::add_fusing_type;
+using add_fusing_type = onednn_eltwise_fusing_helpers::add_fusing_type;
 
 static inline std::ostream& operator<< (std::ostream& os, add_fusing_type& t) {
     switch (t) {

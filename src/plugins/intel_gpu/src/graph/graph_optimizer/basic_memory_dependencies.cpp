@@ -45,7 +45,7 @@ void basic_memory_dependencies::run(program& p) {
             for (auto& fused_op : node->get_fused_primitives()) {
                 if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
                     // If it is first sum, reuse the buffer
-                    auto fusing_type = onednn_add_fusing_helpers::get_add_fusing_type(*node, fused_op);
+                    auto fusing_type = onednn_eltwise_fusing_helpers::get_add_fusing_type(*node, fused_op);
                     if (fusing_type != add_fusing_type::sum || eltw_dep != 0) {
                         continue;
                     }

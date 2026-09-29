@@ -15,17 +15,6 @@
 
 namespace cldnn {
 
-void log_memory_phase(const engine& engine, const std::string& phase) {
-    static const bool enabled = std::getenv("OV_GPU_DEBUG_MEMORY") != nullptr;
-    if (!enabled)
-        return;
-    GPU_DEBUG_COUT << "=== PHASE [" << phase << "]"
-                   << " usm_device current=" << engine.get_used_device_memory(allocation_type::usm_device)
-                   << " max=" << engine.get_max_used_device_memory(allocation_type::usm_device)
-                   << " | usm_host current=" << engine.get_used_device_memory(allocation_type::usm_host)
-                   << " max=" << engine.get_max_used_device_memory(allocation_type::usm_host) << std::endl;
-}
-
 MemoryTracker::MemoryTracker(engine* engine, void* buffer_ptr, size_t buffer_size, allocation_type alloc_type)
     : m_engine(engine)
     , m_buffer_ptr(buffer_ptr)
