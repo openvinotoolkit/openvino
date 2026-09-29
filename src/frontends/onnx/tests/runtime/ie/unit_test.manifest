@@ -413,7 +413,7 @@ IE_CPU.onnx_model_dft_inverse_length_provided_onesided
 # CVS-195973: GPU STFT returns nondeterministic wrong frames when frame_step/frame_length are runtime inputs
 IE_GPU.onnx_model_stft_runtime_frame_length
 
-# GPU: scatter ops with a Constant data input give wrong results for static shapes
+# GPU: scatter ops with a rank-1 Constant input give wrong results for static shapes
 IE_GPU.onnx_model_max_unpool_2d_opset9
 IE_GPU.onnx_model_max_unpool_2d_opset11
 IE_GPU.onnx_model_max_unpool_2d_opset22

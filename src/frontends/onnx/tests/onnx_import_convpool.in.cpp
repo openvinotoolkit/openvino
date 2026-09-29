@@ -1910,3 +1910,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_invalid_pads) {
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_invalid_rank) {
     OV_EXPECT_THROW(convert_model("max_unpool_invalid_rank.onnx"), ov::Exception, testing::HasSubstr("rank"));
 }
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_invalid_kernel_shape) {
+    OV_EXPECT_THROW(convert_model("max_unpool_invalid_kernel_shape.onnx"),
+                    ov::Exception,
+                    testing::HasSubstr("'kernel_shape'"));
+}
