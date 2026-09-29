@@ -383,10 +383,8 @@ def _patch_disable_sgl_kernel():
     the oneDNN / aten.linear fallback keeps the whole model in a single
     OV partition. On by default; opt out with OV_DISABLE_SGL_KERNEL=0.
     """
-    import sys
     if os.environ.get("OV_DISABLE_SGL_KERNEL", "1") == "0":
-        print("[OV plugin] SGL-kernel disable OFF (OV_DISABLE_SGL_KERNEL=0)",
-              file=sys.stderr, flush=True)
+        logger.info("[OV plugin] SGL-kernel disable OFF (OV_DISABLE_SGL_KERNEL=0)")
         return
     try:
         from vllm.model_executor.layers import utils as _vllm_utils
@@ -397,11 +395,9 @@ def _patch_disable_sgl_kernel():
         return
     _vllm_utils.check_cpu_sgl_kernel = lambda *a, **kw: False
     _vllm_utils._ov_plugin_sgl_disabled = True
-    print(
+    logger.info(
         "[OV plugin] check_cpu_sgl_kernel forced to False "
-        "(prevents OV partitioner fanout; set OV_DISABLE_SGL_KERNEL=0 to opt out)",
-        file=sys.stderr, flush=True,
-    )
+        "(prevents OV partitioner fanout; set OV_DISABLE_SGL_KERNEL=0 to opt out)")
 
 
 def _patch_lazy_kv_cache():
