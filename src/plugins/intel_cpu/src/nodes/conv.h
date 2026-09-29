@@ -65,7 +65,10 @@ public:
     // Hold stock per-tensor input zero point. Pass to onednn to calculate output compensation.
     std::vector<int32_t> inputZeroPoints;
     void initializeInputZeroPoints(const uint8_t* inputZpData, size_t inputZpSize);
+    
+    #if defined(OPENVINO_ARCH_ARM) || defined(OPENVINO_ARCH_ARM64)
     void initializeInputZeroPointsACL(int32_t zeroPoint);
+    #endif
 
     const VectorDims& getWeightDims() {
         return getInputShapeAtPort(WEIGHTS).getDims();
