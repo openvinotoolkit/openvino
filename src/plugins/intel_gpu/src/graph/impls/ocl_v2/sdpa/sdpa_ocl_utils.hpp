@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <initializer_list>
 #include <string>
@@ -74,19 +75,75 @@ inline bool axis_unpadded(const cldnn::layout& l, ChannelName ch) {
     return pad._lower_size.at(idx) == 0 && pad._upper_size.at(idx) == 0 && !pad._dynamic_dims_mask[idx];
 }
 
-// A tensor whose base needs no repair. Padding is not checked here (see "Known issues" in the docs).
-inline bool block2d_layout_ok(const cldnn::layout& /*l*/, size_t row_bytes) {
-    return block2d_surface_ok(row_bytes);
+// A paged-attention Q/K/V is a rank-2 token matrix [tokens, heads * head_size]. The head dimension lives inside
+// FEATURE, so feature padding moves both the base (by the padding before) and the token stride of every head by
+// an arbitrary amount: the argument "the pitch and the base are integer multiples of the row" that holds for a
+// rank-4 [b, h, s, d] tensor does not apply, and axis_unpadded(X) is vacuously true there (the format has no X).
+inline bool is_token_matrix(const cldnn::layout& l) {
+    return l.get_partial_shape().size() == 2;
 }
 
-// A tensor whose base the kernel repairs (BLOCK2D_KV_BASE_FIXUP). Padding is folded into the pitch, and
-// only padding on the innermost axis can make the pitch stop being a multiple of row_bytes.
+inline bool layout_unpadded(const cldnn::layout& l) {
+    return !l.data_padding && !l.data_padding.is_dynamic();
+}
+
+// Bytes before the first head of a token, and the token stride, of a token matrix whose padding is static. False
+// when they cannot be known at compile time: a dynamic padding (the sizes arrive with the shape) or a feature
+// dimension that is not static.
+inline bool token_matrix_bytes(const cldnn::layout& l, int64_t& first_head, int64_t& token_stride) {
+    const auto& pshape = l.get_partial_shape();
+    if (!is_token_matrix(l) || l.data_padding.is_dynamic() || pshape[1].is_dynamic())
+        return false;
+    const int idx = get_channel_index(ChannelName::FEATURE, 2, cldnn::format::is_weights_format(l.format), cldnn::format::is_grouped(l.format));
+    if (idx != 1)
+        return false;
+    const int64_t elt = static_cast<int64_t>(ov::element::Type(l.data_type).size());
+    const auto& pad = l.data_padding;
+    first_head = pad._lower_size.at(idx) * elt;
+    token_stride = (pshape[1].get_length() + pad._lower_size.at(idx) + pad._upper_size.at(idx)) * elt;
+    return true;
+}
+
+// A tensor whose base needs no repair: a 64 B aligned base and a pitch that is a multiple of 64 for every head of
+// every token, given a 64 B aligned buffer (true for engine allocations and for in-place crop views of them, whose
+// offset is folded into the padding). Unpadded, that is row_bytes % 64. A padded rank-4 tensor keeps it as long as its innermost axis is
+// unpadded (every offset is then a whole number of rows). A padded token matrix must prove it from static padding,
+// and a dynamic padding cannot be proven, so it never takes this tier.
+inline bool block2d_layout_ok(const cldnn::layout& l, size_t row_bytes) {
+    if (!block2d_surface_ok(row_bytes))
+        return false;
+    if (layout_unpadded(l))
+        return true;
+    if (is_token_matrix(l)) {
+        int64_t first_head = 0;
+        int64_t token_stride = 0;
+        return token_matrix_bytes(l, first_head, token_stride) && first_head % 64 == 0 && token_stride % 64 == 0;
+    }
+    // X is the innermost axis only at rank 4 (at rank 3 it does not exist and the test would be vacuously true).
+    return l.get_partial_shape().size() == 4 && cldnn::format::is_simple_data_format(l.format) && axis_unpadded(l, ChannelName::X);
+}
+
+// A tensor whose base the kernel repairs (BLOCK2D_KV_BASE_FIXUP), by rounding it down by up to 60 bytes (base & 63).
+// The pitch must still be a multiple of 16 and the base a multiple of 4 (the widened surface stays a multiple of 4
+// wide). A padded rank-4 tensor keeps that as long as its innermost axis is unpadded. A padded token matrix with
+// static padding is checked, at 16 bytes for both the start of the first head and the stride (stricter than the
+// device needs, like the 64 B of the strict tier). A dynamic one is taken on trust: the kernel reads the sizes at
+// run time, and the tier assumes a token stride that is a multiple of 16 B and a first-head start that is a multiple
+// of 4 B, as a crop view of a fused QKV tensor at head-size offsets has. A dynamic padding that breaks it reads
+// wrong values ("Block2d rules" in the docs).
 inline bool block2d_layout_fixup_ok(const cldnn::layout& l, size_t row_bytes) {
     if (!block2d_width_pitch_ok(row_bytes))
         return false;
-    if (!l.data_padding && !l.data_padding.is_dynamic())
+    if (layout_unpadded(l))
         return true;
-    return cldnn::format::is_simple_data_format(l.format) && axis_unpadded(l, ChannelName::X);
+    if (is_token_matrix(l)) {
+        if (l.data_padding.is_dynamic())
+            return true;
+        int64_t first_head = 0;
+        int64_t token_stride = 0;
+        return token_matrix_bytes(l, first_head, token_stride) && first_head % 16 == 0 && token_stride % 16 == 0;
+    }
+    return l.get_partial_shape().size() == 4 && cldnn::format::is_simple_data_format(l.format) && axis_unpadded(l, ChannelName::X);
 }
 
 // The configured kv-cache precision. A u4 cache is materialized as a u8 tensor (and an i4 one as i8), so
