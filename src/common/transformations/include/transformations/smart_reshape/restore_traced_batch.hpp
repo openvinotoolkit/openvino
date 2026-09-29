@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/matcher_pass.hpp"
+#include "openvino/pass/pattern/multi_matcher.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -59,8 +59,8 @@ class TRANSFORMATIONS_API RestoreTracedBatch;
  *             Reshape
  *              [B, 4]
  */
-class ov::pass::RestoreTracedBatch : public ov::pass::MatcherPass {
+class ov::pass::RestoreTracedBatch : public ov::pass::MultiMatcher {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("RestoreTracedBatch");
+    OPENVINO_RTTI("RestoreTracedBatch", "0", ov::pass::MultiMatcher);
     RestoreTracedBatch();
 };
