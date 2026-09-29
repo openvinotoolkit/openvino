@@ -113,7 +113,7 @@ INSTANTIATE_TEST_SUITE_P(
 //
 // Split on axis 2 of [b, s, 3H, D] makes each output an in-place view carrying padding on the head
 // axis, so the per-head row pitch becomes (H + pad) * D rather than D. That is the one layout class
-// the 2D-block-IO host gates used to reject outright (block2d_layout_fixup_ok in sdpa_gen_ocl.cpp
+// the 2D-block-IO host gates used to reject outright (block2d_layout_fixup_ok in sdpa_ocl_utils.hpp
 // refused every padded layout), which dropped sdpa_ocl onto a per-lane scalar gather and made it
 // 7.5x slower than sdpa_micro. Nothing else in the suite builds a padded Q/K/V view at
 // head_size % 64 != 0, so without this case that gate has no coverage.
