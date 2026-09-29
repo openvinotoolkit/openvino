@@ -129,15 +129,25 @@ To add new resources, contact a member of the CI team for assistance.
 
 ## `ccache` Remote Storage
 
+### Behavior
+
 The Windows pipelines ([`job_build_windows.yml`](./../../../../.github/workflows/job_build_windows.yml),
 [`windows_conditional_compilation.yml`](./../../../../.github/workflows/windows_conditional_compilation.yml))
 and the Ubuntu 24.04 pipeline ([`ubuntu_24.yml`](./../../../../.github/workflows/ubuntu_24.yml))
 cache C++/C build files with [`ccache`](https://ccache.dev) using its
 [remote storage](https://ccache.dev/manual/latest.html#_remote_storage_backends) `file` backend
-pointed at the shared drive. Every compilation queries the job-local cache first and the shared
-directory second, so no cache archive has to be restored before or uploaded after the build.
+pointed at the shared drive.
 
-The configuration is done entirely via environment variables under the job's `env` key:
+Every compilation queries the job-local cache first and the shared directory second, and writes
+to both on a miss. No cache archive is restored before or uploaded after the build.
+
+The path holds one directory per OS/architecture/build variant and is keyed by neither branch nor
+commit, so every pull request, every commit within a pull request and every post-commit run read
+from and write to the same cache.
+
+### Configuration
+
+Set entirely through environment variables under the job's `env` key:
 ```yaml
 Build:
   ...
@@ -147,25 +157,26 @@ Build:
     CCACHE_REMOTE_STORAGE: "file:///mount/caches/ccache_remote/ubuntu_24_04_x86_64_Release|umask=002|update-mtime=true"
     CCACHE_DIR: ${{ github.workspace }}/ccache
     CCACHE_TEMPDIR: ${{ github.workspace }}/ccache_temp
-    CCACHE_MAXSIZE: 3G
     CCACHE_BASEDIR: ${{ github.workspace }}
     CCACHE_SLOPPINESS: pch_defines,time_macros
 ```
 On Windows, the shared drive is mounted at `C:\mount`, so the URL takes the form
 `file:///C:/mount/caches/ccache_remote/<prefix>`.
 
-Notes:
-* Cache entries are content-addressed and the directory is neither keyed by commit nor by branch,
-  so every pull request, every commit within a pull request and every post-commit run read from
-  and write to the same cache. Do not add the branch name or `github.sha` to the path.
-* `CCACHE_BASEDIR` makes `ccache` hash absolute paths below the workspace as relative ones, and
-  `CCACHE_SLOPPINESS` keeps `__DATE__`/`__TIME__` and precompiled headers out of the hash. Without
-  them the same source compiles to a different cache entry on another runner or on another day.
-* `ccache` never evicts entries from its remote storage. The
-  [`cleanup_caches.yml`](./../../../../.github/workflows/cleanup_caches.yml) workflow removes
-  entries that have not been used for 30 days; `update-mtime=true` is what makes that eviction
-  least-recently-used.
-* `umask=002` keeps the entries writable for every user of the shared drive.
+### `ccache` constraints and what the configuration does about them
+
+| `ccache` constraint | Setting that addresses it |
+|---------------------|---------------------------|
+| Absolute paths of sources, include arguments and the build directory are part of the hash, so the same source built under another workspace path produces a different entry. | `CCACHE_BASEDIR` hashes paths below the workspace as relative ones. |
+| `__DATE__`/`__TIME__` and precompiled headers are part of the hash, so entries stop matching after a day. | `CCACHE_SLOPPINESS: pch_defines,time_macros` keeps them out of the hash. |
+| Entries are created with the writing job's umask and can end up not writable by other jobs. | The `umask=002` attribute of the URL. |
+| `ccache` never evicts anything from its remote storage. | [`cleanup_caches.yml`](./../../../../.github/workflows/cleanup_caches.yml) deletes entries unused for 30 days; the `update-mtime=true` attribute makes that eviction least-recently-used. |
+
+### Pitfalls
+
+* Do not add the branch name or `github.sha` to the remote storage path. Entries are
+  content-addressed, and keying the path only prevents pull requests from sharing the cache.
+* Do not expect `CCACHE_MAXSIZE` to bound the shared directory. It bounds `CCACHE_DIR` only.
 
 ## Cloud Storage via Azure Blob Storage
 
