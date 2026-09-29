@@ -241,14 +241,17 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
         net_id = get_unique_net_id();
     }
 
+    log_memory_phase(_engine, "network::ctor begin");
     calculate_weights_cache_capacity();
     allocate_primitives();
+    log_memory_phase(_engine, "network::allocate_primitives end");
     configure_primitives_second_output();
     build_insts_deps();
     build_exec_order();
     validate_primitives();
     preallocate_shape_info_buffers();
     add_default_output_chains();
+    log_memory_phase(_engine, "network::ctor end");
 }
 
 network::network(program::ptr program, bool is_internal, bool is_primary_stream)
@@ -906,6 +909,8 @@ void network::add_to_exec_order(const primitive_id& id) {
 std::map<primitive_id, network_output> network::execute(const std::vector<event::ptr>& dependencies) {
     OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, "NetworkImpl::Execute");
     NETWORK_DEBUG(*this);
+    log_memory_phase(_engine, "network::execute net_id=" + std::to_string(get_id()) +
+                                  " iter=" + std::to_string(get_current_iteration_num()));
 
     // Wait for previous execution completion
     reset_execution(false);

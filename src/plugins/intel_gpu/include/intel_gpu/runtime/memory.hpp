@@ -314,4 +314,8 @@ inline std::vector<T> read_vector(cldnn::memory::ptr mem, const cldnn::stream& s
     return out_vecs;
 }
 
+// Prints a coarse-grained phase marker (only when OV_GPU_DEBUG_MEMORY is set) so that the
+// allocation log shows whether the peak was reached at build time or during inference.
+void log_memory_phase(const engine& engine, const std::string& phase);
+
 }  // namespace cldnn

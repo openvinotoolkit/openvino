@@ -211,6 +211,8 @@ public:
                                     allocation_type type);
     void clear_pool_for_network(uint32_t network_id);
     void release_memory(memory* memory, const size_t& unique_id, primitive_id prim_id, uint32_t network_id);
+    // Register an extra user of an already pooled buffer (in-place post-op aliasing).
+    bool add_user(memory* memory, const size_t& unique_id, primitive_id prim_id, uint32_t network_id);
 
     size_t get_non_padded_pool_size() {
         return _non_padded_pool.size();

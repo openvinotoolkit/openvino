@@ -15,6 +15,17 @@
 
 namespace cldnn {
 
+void log_memory_phase(const engine& engine, const std::string& phase) {
+    static const bool enabled = std::getenv("OV_GPU_DEBUG_MEMORY") != nullptr;
+    if (!enabled)
+        return;
+    GPU_DEBUG_COUT << "=== PHASE [" << phase << "]"
+                   << " usm_device current=" << engine.get_used_device_memory(allocation_type::usm_device)
+                   << " max=" << engine.get_max_used_device_memory(allocation_type::usm_device)
+                   << " | usm_host current=" << engine.get_used_device_memory(allocation_type::usm_host)
+                   << " max=" << engine.get_max_used_device_memory(allocation_type::usm_host) << std::endl;
+}
+
 MemoryTracker::MemoryTracker(engine* engine, void* buffer_ptr, size_t buffer_size, allocation_type alloc_type)
     : m_engine(engine)
     , m_buffer_ptr(buffer_ptr)
@@ -22,9 +33,12 @@ MemoryTracker::MemoryTracker(engine* engine, void* buffer_ptr, size_t buffer_siz
     , m_alloc_type(alloc_type) {
     if (m_engine) {
         m_engine->add_memory_used(m_buffer_size, m_alloc_type);
-        GPU_DEBUG_TRACE_DETAIL << "Allocate " << m_buffer_size << " bytes of " << m_alloc_type << " allocation type ptr = " << m_buffer_ptr
-                      << " (current=" << m_engine->get_used_device_memory(m_alloc_type) << ";"
-                      << " max=" << m_engine->get_max_used_device_memory(m_alloc_type) << ")" << std::endl;
+        // Memory usage tracing is enabled only when OV_GPU_DEBUG_MEMORY is set,
+        // so the per-allocation logs do not pollute normal runs.
+        if (std::getenv("OV_GPU_DEBUG_MEMORY") != nullptr)
+            GPU_DEBUG_COUT << "Allocate " << m_buffer_size << " bytes of " << m_alloc_type << " allocation type ptr = " << m_buffer_ptr
+                          << " (current=" << m_engine->get_used_device_memory(m_alloc_type) << ";"
+                          << " max=" << m_engine->get_max_used_device_memory(m_alloc_type) << ")" << std::endl;
     }
 }
 
@@ -33,9 +47,10 @@ MemoryTracker::~MemoryTracker() {
         try {
             m_engine->subtract_memory_used(m_buffer_size, m_alloc_type);
         } catch (...) {}
-        GPU_DEBUG_TRACE_DETAIL << "Free " << m_buffer_size << " bytes of " << m_alloc_type << " allocation type ptr = " << m_buffer_ptr
-                      << " (current=" << m_engine->get_used_device_memory(m_alloc_type) << ";"
-                      << " max=" << m_engine->get_max_used_device_memory(m_alloc_type) << ")" << std::endl;
+        if (std::getenv("OV_GPU_DEBUG_MEMORY") != nullptr)
+            GPU_DEBUG_COUT << "Free " << m_buffer_size << " bytes of " << m_alloc_type << " allocation type ptr = " << m_buffer_ptr
+                          << " (current=" << m_engine->get_used_device_memory(m_alloc_type) << ";"
+                          << " max=" << m_engine->get_max_used_device_memory(m_alloc_type) << ")" << std::endl;
     }
 }
 

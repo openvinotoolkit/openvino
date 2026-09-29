@@ -499,6 +499,7 @@ void program::set_options() {
 }
 
 void program::build_program(bool is_internal) {
+    log_memory_phase(_engine, "program::build begin");
     init_graph();
     _config.finalize(_engine);
     _engine.set_enable_large_allocations(_config.get_enable_large_allocations());
@@ -519,6 +520,7 @@ void program::build_program(bool is_internal) {
         if (get_engine().get_device_info().has_separate_cache)
             transfer_memory_to_device();
     }
+    log_memory_phase(_engine, "program::build end");
 }
 
 void program::init_graph() {

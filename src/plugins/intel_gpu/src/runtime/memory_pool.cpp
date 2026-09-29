@@ -46,6 +46,25 @@ bool memory_pool::has_conflict(const memory_set& mem_cand,
     return false;
 }
 
+bool memory_pool::add_user(memory* mem, const size_t& unique_id, primitive_id prim_id, uint32_t network_id) {
+    auto _layout = mem->get_layout();
+    if (_layout.is_dynamic()) {
+        _layout = _layout.clone_with_other_shape(_layout.get_partial_shape().get_max_shape());
+    }
+    auto type = mem->get_allocation_type();
+    const auto _layout_bytes_count = _layout.bytes_count();
+
+    for (auto it = _non_padded_pool.lower_bound(_layout_bytes_count); it != _non_padded_pool.end(); ++it) {
+        if (it->second._network_id == network_id &&
+            it->second._type == type &&
+            it->second._memory->get_internal_params().mem == mem->get_internal_params().mem) {
+            it->second._users.insert(memory_user(MEM_USER(unique_id, network_id, prim_id, _layout_bytes_count)));
+            return true;
+        }
+    }
+    return false;
+}
+
 void memory_pool::release_memory(memory* mem, const size_t& unique_id, primitive_id prim_id, uint32_t network_id) {
     // check non padded pool first
     auto _layout = mem->get_layout();

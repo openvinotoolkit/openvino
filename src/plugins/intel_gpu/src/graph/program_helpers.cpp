@@ -194,7 +194,7 @@ add_fusing_type onednn_add_fusing_helpers::get_add_fusing_type(
 }
 
 bool onednn_add_fusing_helpers::can_use_mul_inplace(
-    const program_node& p_node, const fused_primitive_desc& desc) {
+    const program_node& p_node, const fused_primitive_desc& desc, const kernel_impl_params* params) {
     if (std::getenv("OV_GPU_FORCE_BINARY_MUL") != nullptr) {
         return false;
     }
@@ -214,11 +214,9 @@ bool onednn_add_fusing_helpers::can_use_mul_inplace(
     }
 
     auto& dep_node = p_node.get_dependency(desc.outer_dep_start_idx);
-    auto p_layout = p_node.get_output_layout();
-    auto d_layout = dep_node.get_output_layout();
-
-    // TODO: Handle dynamic shapes properly for in-place multiplication.
-    if (p_node.is_dynamic() || dep_node.is_dynamic()) {
+    auto p_layout = params ? params->get_output_layout() : p_node.get_output_layout();
+    auto d_layout = params ? params->get_input_layout(desc.outer_dep_start_idx) : dep_node.get_output_layout();
+    if (p_layout.is_dynamic() || d_layout.is_dynamic()) {
         return false;
     }
 
@@ -229,14 +227,14 @@ bool onednn_add_fusing_helpers::can_use_mul_inplace(
     return can_reuse_residual_buffer(p_node, dep_node, p_layout, d_layout);
 }
 
-int32_t onednn_add_fusing_helpers::get_reused_eltwmem_idx(const program_node& node) {
+int32_t onednn_add_fusing_helpers::get_reused_eltwmem_idx(const program_node& node, const kernel_impl_params* params) {
     if (node.get_preferred_impl_type() == impl_types::onednn) {
         for (const auto& fused_op : node.get_fused_primitives()) {
             if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
                 auto mode = fused_op.typed_desc<eltwise>()->mode;
                 // If it is the first sum, or an in-place mul, reuse the buffer.
                 bool reuse_eligible = (mode == eltwise_mode::sum && get_add_fusing_type(node, fused_op) == add_fusing_type::sum) ||
-                                      (mode == eltwise_mode::prod && can_use_mul_inplace(node, fused_op));
+                                      (mode == eltwise_mode::prod && can_use_mul_inplace(node, fused_op, params));
                 if (!reuse_eligible)
                     continue;
                 if (!fused_op.has_outer_dep())

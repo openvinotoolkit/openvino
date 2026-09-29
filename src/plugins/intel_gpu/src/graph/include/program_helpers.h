@@ -136,8 +136,10 @@ struct onednn_add_fusing_helpers {
     static add_fusing_type get_add_fusing_type(const program_node& node, const fused_primitive_desc& desc);
     // Checks whether the fused prod post-op can use oneDNN's in-place binary multiplication.
     // Matmul-based primitives (gemm/fully_connected) support the operation with the same buffer-reuse conditions as sum.
-    static bool can_use_mul_inplace(const program_node& node, const fused_primitive_desc& desc);
-    static int32_t get_reused_eltwmem_idx(const program_node& node);
+    // For a dynamic node the node layouts are still unresolved, so pass the runtime params to decide on actual shapes.
+    static bool can_use_mul_inplace(const program_node& node, const fused_primitive_desc& desc,
+                                    const kernel_impl_params* params = nullptr);
+    static int32_t get_reused_eltwmem_idx(const program_node& node, const kernel_impl_params* params = nullptr);
 };
 
 using add_fusing_type = onednn_add_fusing_helpers::add_fusing_type;
