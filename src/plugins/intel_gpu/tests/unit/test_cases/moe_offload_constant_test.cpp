@@ -252,23 +252,22 @@ TEST(moe_offload_constant, auto_ratio_mixed_consumer_constant_counted_as_fixed_w
     auto g = MoETestGraph::build();
     auto mixed_c = g.constants[0];  // g.constants[0] is w0_weight (connected to MOECompressed input 3)
 
-    // Connect mixed_c to a non-MoE consumer so it becomes ineligible for routed offload
+    // Connect mixed_c to a non-MoE consumer so it becomes ineligible for routed offload (classified as NotMoE)
     auto extra_res = std::make_shared<ov::op::v0::Result>(mixed_c);
     auto moe_res = std::make_shared<ov::op::v0::Result>(g.moe_node);
     auto model = std::make_shared<ov::Model>(ov::ResultVector{moe_res, extra_res}, g.parameters);
 
+    EXPECT_EQ(get_moe_constant_role(mixed_c), MoEConstantRole::NotMoE);
+
+    const uint64_t routed_bytes = sum_constant_bytes(g, MoEConstantRole::RoutedExpert);
+    const uint64_t shared_bytes = sum_constant_bytes(g, MoEConstantRole::SharedExpert);
     const uint64_t mixed_c_bytes = mixed_c->get_byte_size();
-    const uint64_t all_routed_bytes = sum_constant_bytes(g, MoEConstantRole::RoutedExpert);
-    const uint64_t orig_fixed_bytes = sum_constant_bytes(g, MoEConstantRole::SharedExpert);
+    // mixed_c is now non-routed (NotMoE), so it is counted as fixed weight along with shared experts:
+    const uint64_t w_fixed = shared_bytes + mixed_c_bytes;
 
-    // Because mixed_c is now ineligible, routed bytes decrease by mixed_c_bytes,
-    // and fixed bytes increase by mixed_c_bytes.
-    const uint64_t effective_routed_bytes = all_routed_bytes - mixed_c_bytes;
-    const uint64_t effective_fixed_bytes = orig_fixed_bytes + mixed_c_bytes;
-
-    // Set budget such that effective_fixed_bytes is covered and 50% of effective_routed_bytes fits
+    // Set budget such that w_fixed is covered and 50% of remaining routed_bytes fits
     const uint64_t budget = static_cast<uint64_t>(
-        (static_cast<double>(effective_fixed_bytes) + 0.5 * static_cast<double>(effective_routed_bytes)) / 0.85);
+        (static_cast<double>(w_fixed) + 0.5 * static_cast<double>(routed_bytes)) / 0.85);
 
     EXPECT_EQ(resolve_auto_offload_ratio_for_budget(*model, budget), 50U);
 }
