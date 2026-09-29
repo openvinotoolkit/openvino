@@ -59,7 +59,9 @@ std::vector<uint8_t> make_multi_blob_container(size_t blob_count) {
     std::vector<uint8_t> buffer;
     for (size_t i = 0; i < blob_count; ++i) {
         const auto blob = make_multi_container({}, {});
-        buffer.insert(buffer.end(), blob.begin(), blob.end());
+        if (!blob.empty()) {
+            buffer.insert(buffer.end(), blob.begin(), blob.end());
+        }
     }
     return buffer;
 }
@@ -69,7 +71,9 @@ std::vector<uint8_t> make_multi_blob_file(size_t blob_count) {
     std::vector<uint8_t> buffer = make_multi_container({}, {});
     for (size_t i = 0; i < blob_count; ++i) {
         const auto blob = make_single_blob_container({}, {});
-        buffer.insert(buffer.end(), blob.begin(), blob.end());
+        if (!blob.empty()) {
+            buffer.insert(buffer.end(), blob.begin(), blob.end());
+        }
     }
     return buffer;
 }
@@ -434,9 +438,13 @@ TEST(HsmMultiBlobViewTest, reads_multiple_blobs) {
 TEST(HsmMultiBlobViewTest, skips_optional_shared_context_between_blobs) {
     auto buffer = make_multi_blob_file(1);                    // mandatory shared context + 1 blob
     const auto extra_context = make_multi_container({}, {});  // optional shared-context update
-    buffer.insert(buffer.end(), extra_context.begin(), extra_context.end());
+    if (!extra_context.empty()) {
+        buffer.insert(buffer.end(), extra_context.begin(), extra_context.end());
+    }
     const auto blob1 = make_single_blob_container({}, {});
-    buffer.insert(buffer.end(), blob1.begin(), blob1.end());
+    if (!blob1.empty()) {
+        buffer.insert(buffer.end(), blob1.begin(), blob1.end());
+    }
 
     const hsm::MultiBlobView view(buffer.data(), buffer.size());
     ASSERT_EQ(view.blob_count(), 2u);  // the extra shared-context container doesn't count as a blob
@@ -469,8 +477,12 @@ TEST(HsmMultiBlobViewTest, blob_view_excludes_following_containers) {
     auto buffer = make_multi_container({}, {});  // mandatory shared context
     const auto blob0 = make_single_blob_container({}, {});
     const auto blob1 = make_single_blob_container({'O', 'V'}, {});  // different size than blob0
-    buffer.insert(buffer.end(), blob0.begin(), blob0.end());
-    buffer.insert(buffer.end(), blob1.begin(), blob1.end());
+    if (!blob0.empty()) {
+        buffer.insert(buffer.end(), blob0.begin(), blob0.end());
+    }
+    if (!blob1.empty()) {
+        buffer.insert(buffer.end(), blob1.begin(), blob1.end());
+    }
 
     const hsm::MultiBlobView view(buffer.data(), buffer.size());
     ASSERT_EQ(view.blob_count(), 2u);
@@ -486,7 +498,9 @@ TEST(HsmMultiBlobViewTest, stops_on_mismatched_major_version) {
     header.version_major = hsm::FormatVersion::major + 1;
     std::memcpy(buffer.data(), &header, sizeof(header));
     const auto blob0 = make_single_blob_container({}, {});
-    buffer.insert(buffer.end(), blob0.begin(), blob0.end());
+    if (!blob0.empty()) {
+        buffer.insert(buffer.end(), blob0.begin(), blob0.end());
+    }
 
     const hsm::MultiBlobView view(buffer.data(), buffer.size());
     EXPECT_EQ(view.blob_count(), 0u);  // can't trust framing past an unsupported major version
