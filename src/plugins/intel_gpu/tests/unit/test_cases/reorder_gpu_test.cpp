@@ -3257,7 +3257,9 @@ TEST(reorder_weights_gpu_i32, reorder_weights)
     }
 }
 
-static void check_imad_isv4_weight_padding(format input_format,
+template <typename T>
+static void check_imad_isv4_weight_padding(data_types data_type,
+                                           format input_format,
                                            format output_format,
                                            const tensor& weights_size,
                                            size_t groups,
@@ -3265,13 +3267,13 @@ static void check_imad_isv4_weight_padding(format input_format,
                                            size_t input_features) {
     auto& engine = get_test_engine();
 
-    layout input_weights_layout(data_types::i8, input_format, weights_size);
-    layout output_weights_layout(data_types::i8, output_format, weights_size);
+    layout input_weights_layout(data_type, input_format, weights_size);
+    layout output_weights_layout(data_type, output_format, weights_size);
     auto weights_reorder_params = std::make_shared<WeightsReorderParams>(input_weights_layout, output_weights_layout, false, groups > 1);
 
-    std::vector<int8_t> input_values(input_weights_layout.get_linear_size());
+    std::vector<T> input_values(input_weights_layout.get_linear_size());
     for (size_t i = 0; i < input_values.size(); ++i) {
-        input_values[i] = static_cast<int8_t>(i % 127 + 1);
+        input_values[i] = static_cast<T>(i % 127 + 1);
     }
 
     auto input = engine.allocate_memory(input_weights_layout);
@@ -3290,7 +3292,7 @@ static void check_imad_isv4_weight_padding(format input_format,
     network.set_input_data("input", input);
 
     auto output = engine.allocate_memory(output_weights_layout);
-    std::vector<int8_t> sentinel_values(output_weights_layout.get_linear_size(), static_cast<int8_t>(42));
+    std::vector<T> sentinel_values(output_weights_layout.get_linear_size(), static_cast<T>(42));
     set_values(output, sentinel_values);
     network.set_output_memory("reorder", output);
 
@@ -3298,7 +3300,7 @@ static void check_imad_isv4_weight_padding(format input_format,
     ASSERT_EQ(outputs.size(), size_t(1));
     ASSERT_EQ(outputs.begin()->first, "reorder");
     ASSERT_TRUE(engine.is_the_same_buffer(*output, *outputs.begin()->second.get_memory()));
-    cldnn::mem_lock<int8_t, mem_lock_type::read> output_ptr(output, get_test_stream());
+    cldnn::mem_lock<T, mem_lock_type::read> output_ptr(output, get_test_stream());
 
     ASSERT_NE(groups, size_t(0));
     ASSERT_EQ(output_features % groups, size_t(0));
@@ -3343,10 +3345,17 @@ static void check_imad_isv4_weight_padding(format input_format,
 }
 
 TEST(reorder_weights_gpu_i8, reorder_weights_imad_isv4_padding) {
-    check_imad_isv4_weight_padding(format::oiyx, format::os_is_yx_osv16_isv4, tensor(batch(16), feature(5), spatial(3, 3)), 1, 16, 5);
-    check_imad_isv4_weight_padding(format::goiyx, format::g_os_is_yx_osv16_isv4, tensor(group(16), batch(1), feature(5), spatial(3, 3)), 16, 16, 80);
-    check_imad_isv4_weight_padding(format::os_is_yx_osv16_isv4, format::os_is_yx_osv16_isv4, tensor(batch(16), feature(5), spatial(3, 3)), 1, 16, 5);
-    check_imad_isv4_weight_padding(format::g_os_is_yx_osv16_isv4, format::g_os_is_yx_osv16_isv4, tensor(group(16), batch(1), feature(5), spatial(3, 3)), 16, 16, 80);
+    check_imad_isv4_weight_padding<int8_t>(data_types::i8, format::oiyx, format::os_is_yx_osv16_isv4, tensor(batch(16), feature(5), spatial(3, 3)), 1, 16, 5);
+    check_imad_isv4_weight_padding<int8_t>(data_types::i8, format::goiyx, format::g_os_is_yx_osv16_isv4, tensor(group(16), batch(1), feature(5), spatial(3, 3)), 16, 16, 80);
+    check_imad_isv4_weight_padding<int8_t>(data_types::i8, format::os_is_yx_osv16_isv4, format::os_is_yx_osv16_isv4, tensor(batch(16), feature(5), spatial(3, 3)), 1, 16, 5);
+    check_imad_isv4_weight_padding<int8_t>(data_types::i8, format::g_os_is_yx_osv16_isv4, format::g_os_is_yx_osv16_isv4, tensor(group(16), batch(1), feature(5), spatial(3, 3)), 16, 16, 80);
+}
+
+TEST(reorder_weights_gpu_u8, reorder_weights_imad_isv4_padding) {
+    check_imad_isv4_weight_padding<uint8_t>(data_types::u8, format::oiyx, format::os_is_yx_osv16_isv4, tensor(batch(16), feature(5), spatial(3, 3)), 1, 16, 5);
+    check_imad_isv4_weight_padding<uint8_t>(data_types::u8, format::goiyx, format::g_os_is_yx_osv16_isv4, tensor(group(16), batch(1), feature(5), spatial(3, 3)), 16, 16, 80);
+    check_imad_isv4_weight_padding<uint8_t>(data_types::u8, format::os_is_yx_osv16_isv4, format::os_is_yx_osv16_isv4, tensor(batch(16), feature(5), spatial(3, 3)), 1, 16, 5);
+    check_imad_isv4_weight_padding<uint8_t>(data_types::u8, format::g_os_is_yx_osv16_isv4, format::g_os_is_yx_osv16_isv4, tensor(group(16), batch(1), feature(5), spatial(3, 3)), 16, 16, 80);
 }
 
 TEST(reorder_weights_gpu_i32, reorder_weights_in_dynamic_convolution)
