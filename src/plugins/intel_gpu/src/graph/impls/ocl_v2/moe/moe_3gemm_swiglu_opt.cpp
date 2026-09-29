@@ -635,11 +635,12 @@ static Int3ProjectionShape get_int3_projection_shape(const RuntimeParams& params
     return {k, n, weight_groups, weight_group_size, group_size};
 }
 
-// Decode rows run one work-group per row with INT3_ROW_SG_K subgroups splitting K; prefill work-groups cover
-// INT3_TILE_SG_M x INT3_TILE_M rows and int3_tile_nb 16-column blocks of one expert.
+// Decode rows run one work-group per row with INT3_ROW_SG_K subgroups splitting K. Prefill work-groups each take
+// one INT3_TILE_ROWS-row tile of one expert from a host-built tile list, split between int3_tile_sg_m subgroups of
+// int3_tile_m rows, over int3_tile_nb 16-column blocks.
 constexpr size_t INT3_ROW_SG_K = 4;
-constexpr size_t INT3_TILE_M = 16;
-constexpr size_t INT3_TILE_SG_M = 2;
+constexpr size_t INT3_TILE_ROWS = 64;
+constexpr size_t INT3_TILE_SG_M = 4;
 // Experts with at most this many rows go through the per-row kernel
 constexpr int INT3_ROW_MODE_MAX_ROWS = 4;
 
@@ -648,12 +649,21 @@ static size_t int3_row_sg_k(const Int3ProjectionShape& shape) {
 }
 
 static size_t int3_tile_nb(const Int3ProjectionShape& shape) {
-    return shape.n % 64 == 0 ? 4 : (shape.n % 32 == 0 ? 2 : 1);
+    return shape.n % 32 == 0 ? 2 : 1;
 }
 
 // The subgroups split the 32-value granules of a quantization group (for all column blocks) between them
 static size_t int3_tile_sg_m(const Int3ProjectionShape& shape) {
     return std::min(INT3_TILE_SG_M, int3_tile_nb(shape) * shape.group_size / 32);
+}
+
+static size_t int3_tile_m(const Int3ProjectionShape& shape) {
+    return INT3_TILE_ROWS / int3_tile_sg_m(shape);
+}
+
+// Upper bound of the prefill tile count: every expert with rows has at most one partial tile
+static size_t int3_max_tiles(size_t num_experts, size_t rows) {
+    return std::min(num_experts, rows) + rows / INT3_TILE_ROWS;
 }
 
 class MoE3GemmInt3Quantize : public KernelGenerator {
@@ -716,7 +726,7 @@ protected:
         jit.make("ZP_TYPE", params.get_input_layout(zp_idx).data_type == ov::element::i8 ? "char" : "uchar");
         jit.make("SG_K", int3_row_sg_k(shape));
         jit.make("SG_M", int3_tile_sg_m(shape));
-        jit.make("TILE_M", INT3_TILE_M);
+        jit.make("TILE_M", int3_tile_m(shape));
         jit.make("NB", int3_tile_nb(shape));
         return jit;
     }
@@ -1195,7 +1205,8 @@ public:
             // GPU mask gen avoids the host sync on topk, but the host never sees the real max rows per expert, which the
             // grouped GEMM needs as a dispatch hint, so token_num is used instead. That is exact for one token
             // but oversizes the dispatch for more (25-token prefill: 452 vs 290 ms on Qwen3.6-35B-A3B int3).
-            return force_gpu_mask_gen_prefill || token_num == 1;
+            // The prefill tiles of the u3 kernels are built by the host mask gen.
+            return (force_gpu_mask_gen_prefill && !use_int3_gemm) || token_num == 1;
         default:
             return false;
         }
@@ -1674,6 +1685,8 @@ public:
                 const size_t row_groups = std::max(gate_up.k / gate_up.group_size, down.k / down.group_size);
                 internal_buffers.emplace_back(layout(ov::Shape{max_batch, row_size}, ov::element::i8, cldnn::format::bfyx), false);  // 14
                 internal_buffers.emplace_back(layout(ov::Shape{max_batch, row_groups * 2}, ov::element::f32, cldnn::format::bfyx), false);  // 15
+                const size_t max_tiles = int3_max_tiles(expert_num, token_num * max_topk);
+                internal_buffers.emplace_back(layout(ov::Shape{max_tiles * 2}, ov::element::i32, cldnn::format::bfyx), false);  // 16
             }
         }
         return internal_buffers;
@@ -2772,17 +2785,23 @@ public:
             ->copy_from(stream, tokens_per_expert_cpu.data(), 0, 0, tokens_per_expert_cpu.size() * sizeof(tokens_per_expert_cpu[0]), true);
         intermediates_memories[MOE_INTERNAL_BUFFER_GROUPED_OFFSETS]
             ->copy_from(stream, grouped_offsets_cpu.data(), 0, 0, grouped_offsets_cpu.size() * sizeof(grouped_offsets_cpu[0]), true);
+        size_t int3_tile_count = 0;
+        if (use_int3_gemm && max_tokens_per_expert > INT3_ROW_MODE_MAX_ROWS) {
+            int3_tile_count = upload_int3_tiles(stream, instance, grouped_offsets_cpu);
+        }
 
-        return exec_grouped_gemm_core(ret_event, stream, instance, scratch, max_tokens_per_expert);
+        return exec_grouped_gemm_core(ret_event, stream, instance, scratch, max_tokens_per_expert, int3_tile_count);
     }
 
     // Steps 2-6 of the grouped GEMM path. Expects the gather token list, the grouped end-offsets and row_lut
     // in the internal buffers, written by the CPU (exec_grouped_gemm_cpu_mask_gen) or GPU (exec_grouped_gemm_gpu_mask_gen) mask gen.
+    // The prefill tiles of the u3 kernels come from the CPU mask gen only (int3_tile_count of them).
     cldnn::event::ptr exec_grouped_gemm_core(cldnn::event::ptr ret_event,
                                              cldnn::stream& stream,
                                              typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
                                              scratch_buffers& scratch,
-                                             int max_tokens_per_expert) {
+                                             int max_tokens_per_expert,
+                                             size_t int3_tile_count = 0) {
         const auto& config = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config;
 
         auto [hidden_states_mem_ptr, hidden_states_layout] = get_input_info(instance, static_cast<size_t>(MOE3GemmInputIndex::HIDDEN_STATES));
@@ -2812,7 +2831,8 @@ public:
         }
 
         if (use_int3_gemm) {
-            ret_event = exec_int3_grouped_gemm(ret_event, instance, scratch, total_gathered_tokens, max_tokens_per_expert, num_grouped_experts);
+            const int num_grouped_experts = get_num_grouped_experts(static_cast<int>(config.num_expert));
+            ret_event = exec_int3_grouped_gemm(ret_event, instance, scratch, total_gathered_tokens, max_tokens_per_expert, num_grouped_experts, int3_tile_count);
         } else {
             ret_event = exec_onednn_grouped_gemm(ret_event, stream, instance, scratch, total_gathered_tokens, max_tokens_per_expert);
         }
@@ -2838,6 +2858,28 @@ public:
         return ret_event;
     }
 
+    // Tile list of the prefill u3 expert GEMMs: {expert, first row} of every INT3_TILE_ROWS-row tile that holds
+    // rows, so the grid covers only experts with work. Returns the tile count.
+    size_t upload_int3_tiles(cldnn::stream& stream,
+                             typed_primitive_inst<moe_3gemm_fused_compressed>& instance,
+                             const std::vector<int32_t>& grouped_offsets) {
+        std::vector<int32_t> tiles;
+        int32_t begin = 0;
+        for (size_t e = 0; e < grouped_offsets.size(); ++e) {
+            for (int32_t m0 = 0; m0 < grouped_offsets[e] - begin; m0 += static_cast<int32_t>(INT3_TILE_ROWS)) {
+                tiles.push_back(static_cast<int32_t>(e));
+                tiles.push_back(m0);
+            }
+            begin = grouped_offsets[e];
+        }
+        auto tiles_mem = instance.get_intermediates_memories()[MOE_INTERNAL_BUFFER_INT3_TILES];
+        OPENVINO_ASSERT(tiles.size() <= tiles_mem->count(), "moe_3gemm_swiglu_opt: ", tiles.size() / 2, " u3 expert tiles exceed the tile buffer");
+        if (!tiles.empty()) {
+            tiles_mem->copy_from(stream, tiles.data(), 0, 0, tiles.size() * sizeof(tiles[0]), true);
+        }
+        return tiles.size() / 2;
+    }
+
     // Steps 3-5 on the u3 kernels: the gathered rows are quantized to int8 once for gate and up, and act(gate) * up
     // again for down. Rows are sorted by expert, with the end offsets in MOE_INTERNAL_BUFFER_GROUPED_OFFSETS.
     cldnn::event::ptr exec_int3_grouped_gemm(cldnn::event::ptr ret_event,
@@ -2845,7 +2887,8 @@ public:
                                              scratch_buffers& scratch,
                                              int total_rows,
                                              int max_rows_per_expert,
-                                             int num_experts) {
+                                             int num_experts,
+                                             size_t tile_count) {
         const auto& intermediates_memories = instance.get_intermediates_memories();
         const auto& params = *instance.get_impl_params();
         const bool has_zp = instance.get_typed_desc<moe_3gemm_fused_compressed>()->_config.has_zp;
@@ -2881,14 +2924,14 @@ public:
                                           false,
                                           {num_experts});
             } else {
+                inputs.push_back(intermediates_memories[MOE_INTERNAL_BUFFER_INT3_TILES]);
                 const size_t sg_m = int3_tile_sg_m(shape);
-                const size_t tiles = ceil_div(static_cast<size_t>(max_rows_per_expert), sg_m * INT3_TILE_M);
                 ret_event = execute_stage({ret_event},
                                           instance,
                                           down ? *int3_down_tiled : *int3_gate_up_tiled,
                                           inputs,
                                           {output},
-                                          {shape.n / int3_tile_nb(shape), tiles * sg_m, static_cast<size_t>(num_experts)},
+                                          {shape.n / int3_tile_nb(shape), tile_count * sg_m, 1},
                                           {simd, sg_m, 1},
                                           false,
                                           {num_experts});
