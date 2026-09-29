@@ -324,7 +324,7 @@ size_t resolve_auto_offload_ratio(const ov::Model& model, cldnn::engine& engine)
     }
     const size_t ratio = calculate_auto_offload_ratio(stats, m_budget);
 
-    std::cout << "[MOE OTD auto] dev_type=" << (info.dev_type == cldnn::device_type::integrated_gpu ? "iGPU" : "dGPU")
+    GPU_DEBUG_INFO << "[MOE OTD auto] dev_type=" << (info.dev_type == cldnn::device_type::integrated_gpu ? "iGPU" : "dGPU")
                    << " m_budget=" << m_budget
                    << " budget_source=" << budget_source
                    << " w_total=" << stats.total
