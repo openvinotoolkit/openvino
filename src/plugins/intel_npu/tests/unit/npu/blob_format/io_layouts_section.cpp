@@ -11,6 +11,12 @@
 #include "openvino/core/layout.hpp"
 #include "utils.hpp"
 
+namespace {
+
+constexpr size_t LAYOUTS_COUNT_SIZE = sizeof(uint32_t);
+
+}
+
 using namespace intel_npu;
 
 using IOLayoutsParams = std::tuple<std::vector<ov::Layout>, std::vector<ov::Layout>>;
@@ -88,9 +94,9 @@ TEST_F(IOLayoutsSectionRead, LessLayoutsThanExpected) {
     std::string buffer = stream.str();
 
     // overwrite both numbers of layouts
-    const uint64_t fake_count = 20;
+    const uint32_t fake_count = 20;
     std::memcpy(buffer.data(), &fake_count, sizeof(fake_count));
-    std::memcpy(buffer.data() + sizeof(uint64_t), &fake_count, sizeof(fake_count));
+    std::memcpy(buffer.data() + sizeof(uint32_t), &fake_count, sizeof(fake_count));
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
     BlobSource source(tensor);
@@ -106,9 +112,9 @@ TEST_F(IOLayoutsSectionRead, MoreLayoutsThanExpected) {
     std::string buffer = stream.str();
 
     // overwrite both numbers of layouts
-    const uint64_t fake_count = 1;
+    const uint32_t fake_count = 1;
     std::memcpy(buffer.data(), &fake_count, sizeof(fake_count));
-    std::memcpy(buffer.data() + sizeof(uint64_t), &fake_count, sizeof(fake_count));
+    std::memcpy(buffer.data() + sizeof(uint32_t), &fake_count, sizeof(fake_count));
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
     BlobSource source(tensor);
@@ -124,7 +130,7 @@ TEST_F(IOLayoutsSectionRead, InvalidLayoutNoThrow) {
     std::string buffer = stream.str();
 
     // overwrite input layout '[N]' with '[%]'
-    const size_t layout_offset = sizeof(uint64_t) + sizeof(uint64_t) + sizeof(uint16_t);
+    const size_t layout_offset = 2 * sizeof(uint32_t) + sizeof(uint16_t);
     ASSERT_GE(buffer.size(), layout_offset + 3);
     buffer[layout_offset] = '[';
     buffer[layout_offset + 1] = '%';
@@ -142,6 +148,23 @@ TEST_F(IOLayoutsSectionRead, InvalidLayoutNoThrow) {
     ASSERT_EQ(layouts_result->get_input_layouts().size(), 1);
     EXPECT_EQ(layouts_result->get_input_layouts()[0], ov::Layout());
     EXPECT_TRUE(layouts_result->get_output_layouts().empty());
+}
+
+TEST_F(IOLayoutsSectionRead, AlteredLayoutSizeTooBig) {
+    IOLayoutsSection real_section({ov::Layout("NCHW")}, {});
+    std::stringstream stream;
+    auto writer = ov::unit_test::intel_npu::create_default_writer_interface(stream);
+    real_section.write(writer);
+    std::string buffer = stream.str();
+
+    // overwrite both numbers of layouts
+    const uint16_t fake_layout_size = 5;
+    std::memcpy(buffer.data() + 2 * sizeof(uint32_t), &fake_layout_size, sizeof(fake_layout_size));
+
+    ov::Tensor tensor(ov::element::u8, ov::Shape{buffer.size()}, buffer.data());
+    BlobSource source(tensor);
+    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size());
+    ASSERT_ANY_THROW(IOLayoutsSection::read(reader));
 }
 
 INSTANTIATE_TEST_SUITE_P(
