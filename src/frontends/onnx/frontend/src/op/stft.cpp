@@ -12,6 +12,7 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/convert_like.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/pad.hpp"
@@ -66,12 +67,18 @@ ov::Output<ov::Node> make_real_stft(const ov::Output<ov::Node>& data,
         frame_length = get_dim(data, 1);
     }
 
+    const auto frame_length_1d = std::make_shared<v0::Unsqueeze>(frame_length, i64_const({}, {0}));
     ov::Output<ov::Node> window;
-    if (window_provided) {
-        window = inputs[2];
+    if (!window_provided) {
+        window = std::make_shared<v3::Broadcast>(
+            std::make_shared<v1::ConvertLike>(v0::Constant::create(ov::element::f32, {}, {1}), data),
+            frame_length_1d);
+    } else if (frame_length_provided) {
+        // ONNX requires window length == frame_length, v15::STFT would pad a shorter window.
+        // Broadcast fails at runtime on mismatch and is eliminated when the shapes are known to match.
+        window = std::make_shared<v3::Broadcast>(inputs[2], frame_length_1d);
     } else {
-        window = std::make_shared<v3::Broadcast>(v0::Constant::create(data.get_element_type(), {}, {1}),
-                                                 std::make_shared<v0::Unsqueeze>(frame_length, i64_const({}, {0})));
+        window = inputs[2];
     }
 
     const ov::Output<ov::Node> stft = std::make_shared<v15::STFT>(data, window, frame_length, frame_step, false);
@@ -88,7 +95,7 @@ ov::Output<ov::Node> make_real_stft(const ov::Output<ov::Node>& data,
     const auto mirrored = std::make_shared<v8::Gather>(stft, mirror_indices, bins_axis);
     const auto conj = std::make_shared<v1::Multiply>(
         mirrored,
-        v0::Constant::create(data.get_element_type(), {2}, std::vector<float>{1.f, -1.f}));
+        std::make_shared<v1::ConvertLike>(v0::Constant::create(ov::element::f32, {2}, {1.f, -1.f}), data));
     return std::make_shared<v0::Concat>(ov::OutputVector{stft, conj}, 2);
 }
 
@@ -112,7 +119,7 @@ ov::Output<ov::Node> make_complex_stft(const ov::Output<ov::Node>& signal,
     // i * (x + iy) = -y + ix
     const auto imag_rotated = std::make_shared<v1::Multiply>(
         std::make_shared<v8::Gather>(imag_stft, i64_const({2}, {1, 0}), i64_const({}, {-1})),
-        v0::Constant::create(signal.get_element_type(), {2}, std::vector<float>{-1.f, 1.f}));
+        std::make_shared<v1::ConvertLike>(v0::Constant::create(ov::element::f32, {2}, {-1.f, 1.f}), signal));
     return std::make_shared<v1::Add>(real_stft, imag_rotated);
 }
 }  // namespace
@@ -185,11 +192,8 @@ ov::OutputVector stft(const ov::frontend::onnx::Node& node) {
                                  i64_const({1}, {2}),
                                  std::make_shared<v0::Unsqueeze>(get_dim(signal, 2), i64_const({}, {0})))},
             0);
-        complex_signal = std::make_shared<v12::Pad>(signal,
-                                                    i64_const({3}, {0, 0, 0}),
-                                                    pads_end,
-                                                    v0::Constant::create(signal.get_element_type(), {}, {0}),
-                                                    ov::op::PadMode::CONSTANT);
+        complex_signal =
+            std::make_shared<v12::Pad>(signal, i64_const({3}, {0, 0, 0}), pads_end, ov::op::PadMode::CONSTANT);
     }
     return {make_complex_stft(complex_signal, ov_inputs, window_provided, frame_length_provided)};
 }

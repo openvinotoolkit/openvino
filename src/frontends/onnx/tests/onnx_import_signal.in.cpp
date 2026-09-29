@@ -16,6 +16,7 @@
 #include "common_test_utils/file_utils.hpp"
 #include "common_test_utils/test_case.hpp"
 #include "common_test_utils/test_control.hpp"
+#include "common_test_utils/test_tools.hpp"
 #include "onnx_utils.hpp"
 
 using namespace ov;
@@ -696,6 +697,39 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_non_scalar_fr
         std::string msg{exc.what()};
         EXPECT_TRUE(msg.find("frame_length input must be a scalar or Shape{1}.") != std::string::npos);
     }
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_float_frame_step) {
+    OV_EXPECT_THROW(convert_model("stft_float_frame_step.onnx"),
+                    ov::Exception,
+                    testing::HasSubstr("frame_step input must be of integer type."));
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_float_frame_length) {
+    OV_EXPECT_THROW(convert_model("stft_float_frame_length.onnx"),
+                    ov::Exception,
+                    testing::HasSubstr("frame_length input must be of integer type."));
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_runtime_frame_length_with_window) {
+    auto model = convert_model("stft_runtime_frame_length_with_window.onnx");
+    auto test_case = ov::test::TestCase(model, s_device);
+    const Shape signal_shape{2, 32, 1};
+    std::vector<float> signal(ov::shape_size(signal_shape));
+    std::iota(std::begin(signal), std::end(signal), 0.f);
+    test_case.add_input<float>(signal_shape, signal);
+    test_case.add_input<int64_t>(Shape{}, {8});
+    test_case.add_input<float>(Shape{16}, stft_window_16);
+    test_case.add_input<int64_t>(Shape{}, {16});
+    test_case.add_expected_output<float>(Shape{2, 3, 9, 2}, stft_window_16_expected);
+    test_case.run_with_tolerance_as_fp(1e-3f);
+
+    // ONNX requires window length == frame_length
+    test_case.add_input<float>(signal_shape, signal);
+    test_case.add_input<int64_t>(Shape{}, {8});
+    test_case.add_input<float>(Shape{16}, stft_window_16);
+    test_case.add_input<int64_t>(Shape{}, {32});
+    EXPECT_ANY_THROW(test_case.run());
 }
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_stft_proper_exception_if_complex_signal_and_onesided) {
