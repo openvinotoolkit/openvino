@@ -130,10 +130,10 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     #if WITH_SCALE
         /* Load scale */
         #if INVERT_SCALE
-            float iscale = convert_float(*scale_ptr);
+            float iscale = SCALE_TO_FLOAT(*scale_ptr);
             float scale = native_recip(iscale);
         #else
-            float scale = convert_float(*scale_ptr);
+            float scale = SCALE_TO_FLOAT(*scale_ptr);
             float iscale = native_recip(scale);
         #endif
     #else
