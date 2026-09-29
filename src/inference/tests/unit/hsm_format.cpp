@@ -19,6 +19,15 @@ namespace {
 // Byte size of one manifest entry; used for raw placeholder manifest bytes below.
 constexpr size_t k_manifest_entry_size = 32;
 
+// The one place that works around GCC 11's -Wstringop-overread false positive on vector::insert(it, begin, end)
+void append(std::vector<uint8_t>& dst, const std::vector<uint8_t>& src) {
+    if (!src.empty()) {
+        const auto offset = dst.size();
+        dst.resize(offset + src.size());
+        std::memcpy(dst.data() + offset, src.data(), src.size());
+    }
+}
+
 // Raw bytes of an HSM container: header, then section_payload, then manifest (already-serialized).
 std::vector<uint8_t> make_container(const hsm::BlobMagic& magic,
                                     const std::vector<uint8_t>& section_payload,
@@ -33,12 +42,8 @@ std::vector<uint8_t> make_container(const hsm::BlobMagic& magic,
 
     std::vector<uint8_t> buffer(sizeof(header));
     std::memcpy(buffer.data(), &header, sizeof(header));
-    if (!section_payload.empty()) {
-        buffer.insert(buffer.end(), section_payload.begin(), section_payload.end());
-    }
-    if (!manifest.empty()) {
-        buffer.insert(buffer.end(), manifest.begin(), manifest.end());
-    }
+    append(buffer, section_payload);
+    append(buffer, manifest);
     return buffer;
 }
 
@@ -58,10 +63,7 @@ std::vector<uint8_t> make_multi_container(const std::vector<uint8_t>& section_pa
 std::vector<uint8_t> make_multi_blob_container(size_t blob_count) {
     std::vector<uint8_t> buffer;
     for (size_t i = 0; i < blob_count; ++i) {
-        const auto blob = make_multi_container({}, {});
-        if (!blob.empty()) {
-            buffer.insert(buffer.end(), blob.begin(), blob.end());
-        }
+        append(buffer, make_multi_container({}, {}));
     }
     return buffer;
 }
@@ -70,10 +72,7 @@ std::vector<uint8_t> make_multi_blob_container(size_t blob_count) {
 std::vector<uint8_t> make_multi_blob_file(size_t blob_count) {
     std::vector<uint8_t> buffer = make_multi_container({}, {});
     for (size_t i = 0; i < blob_count; ++i) {
-        const auto blob = make_single_blob_container({}, {});
-        if (!blob.empty()) {
-            buffer.insert(buffer.end(), blob.begin(), blob.end());
-        }
+        append(buffer, make_single_blob_container({}, {}));
     }
     return buffer;
 }
@@ -438,13 +437,8 @@ TEST(HsmMultiBlobViewTest, reads_multiple_blobs) {
 TEST(HsmMultiBlobViewTest, skips_optional_shared_context_between_blobs) {
     auto buffer = make_multi_blob_file(1);                    // mandatory shared context + 1 blob
     const auto extra_context = make_multi_container({}, {});  // optional shared-context update
-    if (!extra_context.empty()) {
-        buffer.insert(buffer.end(), extra_context.begin(), extra_context.end());
-    }
-    const auto blob1 = make_single_blob_container({}, {});
-    if (!blob1.empty()) {
-        buffer.insert(buffer.end(), blob1.begin(), blob1.end());
-    }
+    append(buffer, extra_context);
+    append(buffer, make_single_blob_container({}, {}));
 
     const hsm::MultiBlobView view(buffer.data(), buffer.size());
     ASSERT_EQ(view.blob_count(), 2u);  // the extra shared-context container doesn't count as a blob
@@ -477,12 +471,8 @@ TEST(HsmMultiBlobViewTest, blob_view_excludes_following_containers) {
     auto buffer = make_multi_container({}, {});  // mandatory shared context
     const auto blob0 = make_single_blob_container({}, {});
     const auto blob1 = make_single_blob_container({'O', 'V'}, {});  // different size than blob0
-    if (!blob0.empty()) {
-        buffer.insert(buffer.end(), blob0.begin(), blob0.end());
-    }
-    if (!blob1.empty()) {
-        buffer.insert(buffer.end(), blob1.begin(), blob1.end());
-    }
+    append(buffer, blob0);
+    append(buffer, blob1);
 
     const hsm::MultiBlobView view(buffer.data(), buffer.size());
     ASSERT_EQ(view.blob_count(), 2u);
@@ -497,10 +487,7 @@ TEST(HsmMultiBlobViewTest, stops_on_mismatched_major_version) {
     auto header = hsm::Header::view(buffer.data());
     header.version_major = hsm::FormatVersion::major + 1;
     std::memcpy(buffer.data(), &header, sizeof(header));
-    const auto blob0 = make_single_blob_container({}, {});
-    if (!blob0.empty()) {
-        buffer.insert(buffer.end(), blob0.begin(), blob0.end());
-    }
+    append(buffer, make_single_blob_container({}, {}));
 
     const hsm::MultiBlobView view(buffer.data(), buffer.size());
     EXPECT_EQ(view.blob_count(), 0u);  // can't trust framing past an unsupported major version

@@ -43,15 +43,23 @@ hsm::ManifestEntry make_pointer_entry(hsm::DeviceId device, hsm::SectionTag tag)
     return entry;  // offset/size are filled in by make_container() once payload placement is known.
 }
 
+// The one place that works around GCC 11's -Wstringop-overread false positive on vector::insert(it, begin, end)
+template <typename Container>
+void append(std::vector<uint8_t>& dst, const Container& src) {
+    if (!src.empty()) {
+        const auto offset = dst.size();
+        dst.resize(offset + src.size());
+        std::memcpy(dst.data() + offset, src.data(), src.size());
+    }
+}
+
 std::vector<uint8_t> make_container(std::vector<EntrySpec> specs, hsm::BlobMagic magic = hsm::BlobMagic::single) {
     std::vector<uint8_t> payloads;
     for (auto& spec : specs) {
         if (spec.entry.tag.is_pointer()) {
             spec.entry.offset = sizeof(hsm::Header) + payloads.size();
             spec.entry.size = spec.payload.size();
-            if (!spec.payload.empty()) {
-                payloads.insert(payloads.end(), spec.payload.begin(), spec.payload.end());
-            }
+            append(payloads, spec.payload);
         }
     }
 
@@ -70,12 +78,8 @@ std::vector<uint8_t> make_container(std::vector<EntrySpec> specs, hsm::BlobMagic
 
     std::vector<uint8_t> buffer(sizeof(header));
     std::memcpy(buffer.data(), &header, sizeof(header));
-    if (!payloads.empty()) {
-        buffer.insert(buffer.end(), payloads.begin(), payloads.end());
-    }
-    if (!manifest.empty()) {
-        buffer.insert(buffer.end(), manifest.begin(), manifest.end());
-    }
+    append(buffer, payloads);
+    append(buffer, manifest);
     return buffer;
 }
 
