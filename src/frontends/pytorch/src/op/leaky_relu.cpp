@@ -6,10 +6,7 @@
 #include "openvino/op/prelu.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 
@@ -26,7 +23,4 @@ OutputVector translate_leaky_relu_fx(const NodeContext& context) {
     return {context.mark_node(std::make_shared<v0::PRelu>(x, negative_slope))};
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

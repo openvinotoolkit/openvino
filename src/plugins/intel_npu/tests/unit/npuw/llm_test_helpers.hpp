@@ -13,7 +13,11 @@
 #include "compiled_model.hpp"
 #include "llm_compiled_model.hpp"
 #include "model_builder.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/fake_convert.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/runtime/iplugin.hpp"
@@ -244,6 +248,30 @@ inline std::shared_ptr<ov::Model> build_gemma4_moe_llm_test_model() {
     auto ple = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, 0, 0});
     ple->output(0).set_names({"per_layer_inputs"});
     model->add_parameters({ple});
+    return model;
+}
+
+/// Real stateful LLM (like build_llm_test_model) plus a *consumed* per_layer_inputs
+/// parameter (non-zero, dynamic proj_dim), used to probe LLMCompiledModel's
+/// is_per_layer_inputs_model auto-enable path (Gemma-4 E2B/E4B cross-group KV sharing).
+/// A minimal standalone graph without beam_idx/KV-cache state fails
+/// StatefulToStateless (which LLMCompiledModel always runs), so this builds on the same
+/// base topology as the other test models and appends the probe input via a dedicated
+/// Add + Result, matching how build_gemma4_moe_llm_test_model appends its dangling PLE.
+inline std::shared_ptr<ov::Model> build_per_layer_inputs_probe_model() {
+    ModelBuilder mb;
+    auto model = mb.build_llm(make_test_model_config());
+
+    auto per_layer_inputs = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, -1, -1, -1});
+    per_layer_inputs->output(0).set_names({"per_layer_inputs"});
+    auto sibling = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1, 1, 1}, {0.0f});
+    auto add = std::make_shared<ov::op::v1::Add>(per_layer_inputs, sibling);
+    add->output(0).set_names({"per_layer_inputs_probe_output"});
+    auto result = std::make_shared<ov::op::v0::Result>(add);
+    result->set_friendly_name("per_layer_inputs_probe_output");
+
+    model->add_parameters({per_layer_inputs});
+    model->add_results({result});
     return model;
 }
 

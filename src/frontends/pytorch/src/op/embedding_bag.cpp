@@ -10,10 +10,7 @@
 #include "openvino/op/embeddingbag_packed.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 OutputVector translate_embedding_bag(const NodeContext& context) {
     num_inputs_check(context, 3, 9);
@@ -76,7 +73,4 @@ OutputVector translate_embedding_bag(const NodeContext& context) {
     return {result, zero, zero, zero};
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op
