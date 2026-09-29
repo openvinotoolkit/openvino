@@ -1058,7 +1058,7 @@ struct PagedAttentionManager {
     }
 
     // Multiplies the default 1/sqrt(k_head_size) scale (the primitive input, the scale memory and the reference all
-    // read it through get_default_scale()). Only paged_attention_test_params::runtime_scale_multiplier sets it.
+    // read it through get_default_scale()). Only paged_attention_test_params::runtime_scale_multiplier and logit_scale_gain set it.
     float scale_multiplier = 1.0f;
 
     float get_default_scale() {
@@ -2279,8 +2279,13 @@ public:
             }
         }
 
+        OPENVINO_ASSERT(!(p.runtime_scale_multiplier.has_value() && p.logit_scale_gain.has_value()),
+                        "runtime_scale_multiplier and logit_scale_gain are mutually exclusive");
         if (p.runtime_scale_multiplier.has_value()) {
             pam.scale_multiplier = p.runtime_scale_multiplier.value();
+        } else if (p.logit_scale_gain.has_value()) {
+            // Same multiplier, but the primitive keeps a constant scale (a jit literal), see below.
+            pam.scale_multiplier = p.logit_scale_gain.value();
         }
 
         if (p.has_qq_bias) {
@@ -2418,34 +2423,54 @@ public:
         qq_bias_layout.set_partial_shape(ov::PartialShape{-1});
         qq_bias_begins_layout.set_partial_shape(ov::PartialShape{-1});
 
-        if (p.dynamic_paddings) {
+        // Pads the FEATURE axis of one rank-2 input: re-allocates its memory with a padded layout (the padding is left
+        // uninitialised) and copies the data over. The compile-time layout gets either only the dynamic mask, or the sizes.
+        auto pad_feature_axis = [](cldnn::layout& compile_layout, cldnn::memory::ptr& mem, int pad_before, int pad_after, bool dynamic) {
             const auto padding_axis = 1;
-            const auto pad_before = p.k_head_size;
-            const auto pad_after = p.k_head_size * 2;
 
-            query_layout.data_padding._dynamic_dims_mask[padding_axis] = 1;
+            if (dynamic) {
+                compile_layout.data_padding._dynamic_dims_mask[padding_axis] = 1;
+            } else {
+                compile_layout.data_padding._lower_size[padding_axis] = pad_before;
+                compile_layout.data_padding._upper_size[padding_axis] = pad_after;
+            }
 
-            auto query_data_layout = query_mem->get_layout();
-            auto padded_query_data_layout = query_data_layout;
-            padded_query_data_layout.data_padding._lower_size[padding_axis] = pad_before;
-            padded_query_data_layout.data_padding._upper_size[padding_axis] = pad_after;
+            auto data_layout = mem->get_layout();
+            auto padded_data_layout = data_layout;
+            padded_data_layout.data_padding._lower_size[padding_axis] = pad_before;
+            padded_data_layout.data_padding._upper_size[padding_axis] = pad_after;
 
-            auto new_query_memory = tests::get_test_engine().allocate_memory(padded_query_data_layout, false);
+            auto new_memory = tests::get_test_engine().allocate_memory(padded_data_layout, false);
 
-            cldnn::mem_lock<ov::float16> query_mem_lock(query_mem, tests::get_test_stream());
-            cldnn::mem_lock<ov::float16> new_query_mem_lock(new_query_memory, tests::get_test_stream());
+            cldnn::mem_lock<ov::float16> mem_lock(mem, tests::get_test_stream());
+            cldnn::mem_lock<ov::float16> new_mem_lock(new_memory, tests::get_test_stream());
 
-            auto query_data_shape = query_data_layout.get_shape();
-            for (size_t b = 0; b < query_data_shape[0]; b++) {
-                for (size_t f = 0; f < query_data_shape[1]; f++) {
-                    auto input_offset = query_data_layout.get_linear_offset(cldnn::tensor(static_cast<int32_t>(b), static_cast<int32_t>(f), 0, 0, 0, 0));
-                    auto output_offset =
-                        padded_query_data_layout.get_linear_offset(cldnn::tensor(static_cast<int32_t>(b), static_cast<int32_t>(f), 0, 0, 0, 0));
+            auto data_shape = data_layout.get_shape();
+            for (size_t b = 0; b < data_shape[0]; b++) {
+                for (size_t f = 0; f < data_shape[1]; f++) {
+                    auto input_offset = data_layout.get_linear_offset(cldnn::tensor(static_cast<int32_t>(b), static_cast<int32_t>(f), 0, 0, 0, 0));
+                    auto output_offset = padded_data_layout.get_linear_offset(cldnn::tensor(static_cast<int32_t>(b), static_cast<int32_t>(f), 0, 0, 0, 0));
 
-                    new_query_mem_lock[output_offset] = query_mem_lock[input_offset];
+                    new_mem_lock[output_offset] = mem_lock[input_offset];
                 }
             }
-            query_mem = new_query_memory;
+            mem = new_memory;
+        };
+
+        OPENVINO_ASSERT(!(p.dynamic_paddings && p.input_pads.has_value()), "dynamic_paddings and input_pads are mutually exclusive");
+        if (p.dynamic_paddings) {
+            pad_feature_axis(query_layout, query_mem, p.k_head_size, p.k_head_size * 2, true);
+        }
+        if (p.input_pads.has_value()) {
+            const auto& pads = p.input_pads.value();
+            // An input with no pad stays exactly as it was, so a case can pad only some of them.
+            auto pad_if_any = [&](cldnn::layout& compile_layout, cldnn::memory::ptr& mem, const auto& pad) {
+                if (pad.before != 0 || pad.after != 0)
+                    pad_feature_axis(compile_layout, mem, pad.before, pad.after, pads.dynamic);
+            };
+            pad_if_any(query_layout, query_mem, pads.q);
+            pad_if_any(key_layout, key_mem, pads.k);
+            pad_if_any(value_layout, value_mem, pads.v);
         }
 
         std::vector<cldnn::input_info> pa_inputs = {cldnn::input_info("query"),
@@ -3353,6 +3378,21 @@ public:
     }
 };
 
+// Padding on the FEATURE axis of the rank-2 query / key / value inputs [tokens, heads * head_size], in elements.
+// `dynamic` tells the compile-time layout only that the axis is padded (the sizes arrive at run time, as for a crop
+// view in a dynamic-shape model); otherwise the compile-time layout carries the sizes.
+struct feature_pad {
+    int before = 0;
+    int after = 0;
+};
+
+struct input_feature_pads {
+    feature_pad q;
+    feature_pad k;
+    feature_pad v;
+    bool dynamic = true;
+};
+
 struct paged_attention_test_params {
     std::vector<SubsequenceDescriptor> subsequences;
     int num_heads;
@@ -3412,6 +3452,16 @@ struct paged_attention_test_params {
     // multiple of 1/sqrt(k_head_size). The harness data (N(0, 0.1)) has logits of ~0.01, where any scale
     // returns almost the same output, so a case needs a large multiplier (64) to notice a misread scale.
     std::optional<float> runtime_scale_multiplier = std::nullopt;
+
+    // Multiplies the default scale like runtime_scale_multiplier, but the primitive keeps its constant scale. The harness
+    // data (N(0, 0.1), q.k ~ 0.08) gives an almost uniform softmax, so a misread Q or K row barely moves the output and
+    // only a misread V is visible; a large gain (128) makes the softmax sharp enough for a wrong Q / K read to fail.
+    std::optional<float> logit_scale_gain = std::nullopt;
+
+    // Feature-axis padding of query / key / value on top of (and exclusive with) `dynamic_paddings`, which pads only the
+    // query by head sizes. The pads are not multiples of 64 B on purpose: the 2D block IO gates in sdpa_ocl must not
+    // assume an aligned base or pitch for a padded rank-2 input.
+    std::optional<input_feature_pads> input_pads = std::nullopt;
 };
 
 const auto ENABLE_CACHE_COMPRESSION = true;

@@ -402,11 +402,30 @@ least 64 bytes and a multiple of 16, and a 64-byte aligned base.
 
 - Plain SDPA and the PA current-token inputs: `block2d_layout_ok()` (`row_bytes >= 64 &&
   row_bytes % 64 == 0`) needs no base repair; `block2d_layout_fixup_ok()` (`row_bytes >= 64 &&
-  row_bytes % 16 == 0`, and no padding on the innermost axis, so the pitch stays a multiple of
-  `row_bytes`) relies on `BLOCK2D_KV_BASE_FIXUP` / `BLOCK2D_KV_CUR_BASE_FIXUP`. The fixup tier is
+  row_bytes % 16 == 0`) relies on `BLOCK2D_KV_BASE_FIXUP` / `BLOCK2D_KV_CUR_BASE_FIXUP`. The fixup tier is
   what lets a Q/K/V that is a crop view of a fused QKV tensor (phi-4-multimodal's vision tower) use
   block IO; without it `sdpa_ocl` fell back to the scalar gather and ran 7.5x slower than
-  `sdpa_micro` there.
+  `sdpa_micro` there. Both tiers look at the padding of the layout:
+  - A rank-4 tensor keeps its pitch and base offsets a whole number of rows as long as the innermost
+    axis (X) is unpadded, so that is the test. Any other padded rank is refused (X does not exist at
+    rank 3). The strict tier also assumes a 64 B aligned buffer, which holds for engine allocations and
+    for in-place crop views of them.
+  - A paged-attention Q/K/V is a rank-2 token matrix `[tokens, heads * head_size]`. The head dimension
+    lives inside FEATURE, so feature padding moves the base (by the padding before) and the token
+    stride of every head by an arbitrary amount, and the X test is vacuously true. With static padding
+    the strict tier needs the padding before and the token stride to be multiples of 64 B, the fixup
+    tier multiples of 16 B. A dynamic padding cannot be proven: the strict tier refuses it (Q and A,
+    which have no base repair, fall back to the scalar path; K/V, Kc/Vc take the fixup tier with
+    `BLOCK2D_KV_BASE_FIXUP`), and the fixup tier takes it on trust. That assumes the token stride stays a
+    multiple of 16 B and the start of the first head a multiple of 4 B (a crop view of a fused QKV
+    tensor at head-size offsets does); a dynamic K/V padding that breaks it reads wrong values.
+  - Measured on Arc Pro B70 with `paged_attention_feature_pad_test`: a token stride that is not a
+    multiple of 16 B (260 B, 264 B) and a base that is 2 B off give wrong results; a base off by 4, 16,
+    32 or 48 B with a 16 B-multiple stride reads correctly even without the repair. The 64 B base
+    rule is therefore the documented one, not what this device enforces, and only the host test
+    `sdpa_block2d_gate` guards it. With one KV head the widened fixup surface (row plus up to 48 B)
+    can exceed the pitch, which the spec leaves undefined; the B70 reads it correctly
+    (`paged_attention_feature_pad_test`, 4 heads / 1 KV head).
 - Cache pages: `block2d_page_ok()` (`row_bytes >= 64 && row_bytes % 16 == 0`). A page base is
   always a whole number of pages, and in each layout above the pitch rule already makes the page
   stride a multiple of 64 (f16 `32h` with `h % 8`; i8 BY_TOKEN `256n + 64`; i8 BY_CHANNEL `320n`;
@@ -420,9 +439,9 @@ least 64 bytes and a multiple of 16, and a 64-byte aligned base.
   surface that is not provably aligned gets the fixup whenever the block path is on. That is a
   no-op on an aligned base, and it keeps a forced `SDPA_OCL_KV_2D=1` correct; before it, forcing the
   path at head 72 gave the right timing and wrong results for 12 of 16 heads.
-- `BLOCK2D_KV_CUR_BASE_FIXUP` is forced on for u4 even on the aligned tier. Feature padding breaks
-  that tier's premise, and the u4 Kc dword read needs a 64-byte aligned origin and a meaningful
-  `KcD_x0` for its parity test.
+- `BLOCK2D_KV_CUR_BASE_FIXUP` is forced on for u4 even on the aligned tier: the u4 Kc dword read
+  needs a 64-byte aligned origin and a meaningful `KcD_x0` for its parity test, and the fixup is a
+  no-op on an aligned base.
 - The 8-bit VNNI-transform read has a 32-row minimum on Xe2 (there is no 16-row variant), while a
   page holds 16 tokens, so the page reads clamp the surface height to the page and consume only the
   first 16 rows. Unlike the plain-SDPA i8 path they cannot pair two key groups into one read:
@@ -624,10 +643,11 @@ result is quoted.
   page row 24, u4 16; dynamic has size 0: 16 and 8), while `graph/paged_attention.cpp` and
   `ops/paged_attention.cpp` assume f16 comp (20 / 12), so the block-size assert should fire at run
   time on either layout. Master has the same code. From code reading only.
-- `block2d_layout_ok()` does not check padding: the check has been commented out since it was
-  written. It is reachable for rank-2 paged-attention inputs with feature padding (the minicpm4 V
-  crop view is benign by luck). Adding it narrows a gate, so it needs its own change and a
-  regression sweep.
+- `pa_kv_cache_update_ref.cl`, `quantize_and_save_by_channel_block_with_requantize`, steps to the next new
+  token with the unpadded stride `K_HEAD_SIZE * KV_HEADS_NUM` and never uses its `in_data_pitch` argument, so a
+  key input with feature padding is misread for the second and later new tokens of a partially filled
+  i8 BY_CHANNEL block (a MIXED step that continues a prompt at `past_len % 16 != 0`). Found while testing the
+  block2d gate: the `paged_attention_feature_pad_test` compressed case therefore pads Q and V only.
 - `sdpa_opt.cl` types a paged-attention runtime scale as `INPUT3_TYPE` (`SCALE_TYPE` follows
   `HAS_ATTN_MASK_INPUT`, which the paged-attention generator never sets, and INPUT3 is a 32-bit index
   input there), so `pa_sdpa_opt` PREFILL and MIXED read the 16-bit scale as an int32. Real models give a
