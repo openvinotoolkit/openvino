@@ -173,9 +173,9 @@ def test_metric_extraction_handles_ansi_and_alternative_time_patterns(tmp_path):
         tmp_path,
         platform="4000",
         framework="pytorch",
-        test_type="pt_groupA",
+        test_type="pt_npu_models",
         log_text="""
-        \x1b[32mtests/model_hub_tests/pytorch/test_timm.py::TestTimm::test_precommit[NPU-resnet18]\x1b[0m PASSED
+        \x1b[32mtests/model_hub_tests/pytorch/test_npu_models.py::TestNPUModels::test_precommit[NPU-resnet18]\x1b[0m PASSED
         \x1b[36m[INFO] 15:08:13.409 [vpux-compiler] Compilation memory usage: Peak 2048 KB\x1b[0m
         [INFO] 15:08:13.420 [vpux-compiler] Compile model took 15.5 ms
         """,
@@ -185,7 +185,7 @@ def test_metric_extraction_handles_ansi_and_alternative_time_patterns(tmp_path):
     assert json.loads(output_path.read_text(encoding="utf-8")) == {
         "4000": {
             "pytorch": {
-                "pt_groupA": {
+                "pt_npu_models": {
                     "NPU-resnet18": {
                         "compilation_memory_usage_kb": 2048.0,
                         "compile_net_time_ms": 15.5,

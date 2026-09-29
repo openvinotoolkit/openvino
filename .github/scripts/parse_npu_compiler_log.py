@@ -17,7 +17,7 @@ Output structure:
     }
 
 The script merges into an existing output JSON when present, so several
-invocations (e.g. the four PyTorch groups, or the TensorFlow
+invocations (e.g. the PyTorch step, or the TensorFlow
 convert_model/read_model steps) accumulate into a single file per NPU
 platform without overwriting models that appear in multiple suites.
 
@@ -39,7 +39,7 @@ METRIC_KEYS = ("compilation_memory_usage_kb", "compile_net_time_ms")
 TEST_TYPES = {
     "tensorflow": {"convert_model", "read_model"},
     "jax": {"jax"},
-    "pytorch": {"pt_groupA", "pt_groupB", "pt_groupC", "pt_groupD"},
+    "pytorch": {"pt_npu_models"},
 }
 
 # pytest -v output, for example:
@@ -139,7 +139,7 @@ def main() -> None:
     parser.add_argument(
         "--test-type",
         required=True,
-        help="Stable test namespace within the framework, e.g. convert_model, read_model, jax, pt_groupA",
+        help="Stable test namespace within the framework, e.g. convert_model, read_model, jax, pt_npu_models",
     )
     parser.add_argument("--input", required=True, type=Path, help="Compiler log file")
     parser.add_argument(
