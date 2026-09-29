@@ -4,9 +4,6 @@
 
 #include "openvino/runtime/isync_infer_request.hpp"
 
-#include <gmock/gmock.h>
-#include <gtest/gtest.h>
-
 #include <memory>
 #include <string>
 #include <vector>
@@ -16,11 +13,15 @@
 #include "openvino/core/model.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/runtime/iremote_context.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_icompiled_model.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_iplugin.hpp"
 
-using namespace ::testing;
+using ::testing::Return;
+using ::testing::ReturnRefOfCopy;
+
+namespace ov::test {
 
 namespace {
 
@@ -52,6 +53,35 @@ public:
     }
 };
 
+class TrackingRemoteContext : public ov::IRemoteContext {
+public:
+    const std::string& get_device_name() const override {
+        return m_device_name;
+    }
+
+    const ov::AnyMap& get_property() const override {
+        return m_properties;
+    }
+
+    ov::SoPtr<ov::IRemoteTensor> create_tensor(const ov::element::Type&, const ov::Shape&, const ov::AnyMap&) override {
+        return {};
+    }
+
+    ov::SoPtr<ov::ITensor> create_host_tensor(const ov::element::Type type, const ov::Shape& shape) override {
+        ++m_host_tensor_creation_count;
+        return {ov::make_tensor(type, shape), nullptr};
+    }
+
+    size_t host_tensor_creation_count() const {
+        return m_host_tensor_creation_count;
+    }
+
+private:
+    const std::string m_device_name{"TEST"};
+    const ov::AnyMap m_properties;
+    size_t m_host_tensor_creation_count = 0;
+};
+
 std::shared_ptr<const ov::Model> create_string_input_model() {
     auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::string, ov::Shape{2});
     param->set_friendly_name("input0");
@@ -80,34 +110,54 @@ protected:
         mock_compiled_model = std::make_shared<ov::MockICompiledModel>(model, plugin);
         ON_CALL(*mock_compiled_model, inputs()).WillByDefault(ReturnRefOfCopy(model->inputs()));
         ON_CALL(*mock_compiled_model, outputs()).WillByDefault(ReturnRefOfCopy(model->outputs()));
-        ON_CALL(*mock_compiled_model, get_context()).WillByDefault(Return(ov::SoPtr<ov::IRemoteContext>()));
+        ON_CALL(*mock_plugin_impl, get_default_context(testing::_))
+            .WillByDefault(Return(ov::SoPtr<ov::IRemoteContext>()));
         request = std::make_shared<TestSyncInferRequest>(mock_compiled_model);
+    }
+
+    void expect_batched_strings_copied_independently(const std::string& value_prefix) {
+        std::vector<ov::SoPtr<ov::ITensor>> items;
+        for (int i = 0; i < 2; ++i) {
+            auto raw_tensor = ov::make_tensor(ov::element::string, ov::Shape{1});
+            raw_tensor->data<std::string>()[0] = value_prefix + std::to_string(i);
+            items.push_back(ov::SoPtr<ov::ITensor>(raw_tensor));
+        }
+
+        OV_ASSERT_NO_THROW(request->set_tensors(model->input(0), items));
+        OV_ASSERT_NO_THROW(request->run_convert_batched_tensors());
+
+        auto merged = request->get_tensor(model->input(0));
+        ASSERT_TRUE(merged);
+        auto* merged_strings = merged->data<std::string>();
+        EXPECT_EQ(merged_strings[0], value_prefix + "0");
+        EXPECT_EQ(merged_strings[1], value_prefix + "1");
+
+        merged_strings[0] = "mutated";
+        EXPECT_EQ(items[0]->data<std::string>()[0], value_prefix + "0");
+
+        merged = {};
+        items.clear();
     }
 };
 
-TEST_F(ISyncInferRequestStringBatchTest, ConvertBatchedStringTensorsCopiesElementsIndependently) {
-    const std::string long_value(64, 'A');  // exceeds SSO threshold on mainstream libstdc++/libc++
-    std::vector<ov::SoPtr<ov::ITensor>> items;
-    for (int i = 0; i < 2; ++i) {
-        auto raw_tensor = ov::make_tensor(ov::element::string, ov::Shape{1});
-        raw_tensor->data<std::string>()[0] = long_value + std::to_string(i);
-        items.push_back(ov::SoPtr<ov::ITensor>(raw_tensor));
-    }
+TEST_F(ISyncInferRequestStringBatchTest, ConvertBatchedLongStringTensorsCopiesElementsIndependently) {
+    // exceeds SSO threshold on mainstream libstdc++/libc++.
+    expect_batched_strings_copied_independently(std::string(64, 'A'));
+}
 
-    OV_ASSERT_NO_THROW(request->set_tensors(model->input(0), items));
-    OV_ASSERT_NO_THROW(request->run_convert_batched_tensors());
+TEST_F(ISyncInferRequestStringBatchTest, ConvertBatchedShortStringTensorsCopiesElementsIndependently) {
+    // within SSO threshold on mainstream libstdc++/libc++.
+    expect_batched_strings_copied_independently("ab");
+}
 
-    auto merged = request->get_tensor(model->input(0));
-    ASSERT_TRUE(merged);
-    auto* merged_strings = merged->data<std::string>();
-    EXPECT_EQ(merged_strings[0], long_value + "0");
-    EXPECT_EQ(merged_strings[1], long_value + "1");
+TEST_F(ISyncInferRequestStringBatchTest, ConvertBatchedStringTensorsDoNotUseRemoteHostStorage) {
+    auto remote_context = std::make_shared<TrackingRemoteContext>();
+    ON_CALL(*mock_plugin_impl, get_default_context(testing::_))
+        .WillByDefault(Return(ov::SoPtr<ov::IRemoteContext>(remote_context)));
 
-    merged_strings[0] = "mutated";
-    EXPECT_EQ(items[0]->data<std::string>()[0], long_value + "0");
+    expect_batched_strings_copied_independently(std::string(64, 'A'));
 
-    merged = {};
-    items.clear();
+    EXPECT_EQ(remote_context->host_tensor_creation_count(), 0);
 }
 
 TEST_F(ISyncInferRequestStringBatchTest, ConvertBatchedNumericTensorsStillUsesFastPath) {
@@ -120,9 +170,11 @@ TEST_F(ISyncInferRequestStringBatchTest, ConvertBatchedNumericTensorsStillUsesFa
         std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
 
     auto numeric_compiled_model = std::make_shared<ov::MockICompiledModel>(numeric_model, plugin);
+    auto remote_context = std::make_shared<TrackingRemoteContext>();
     ON_CALL(*numeric_compiled_model, inputs()).WillByDefault(ReturnRefOfCopy(numeric_model->inputs()));
     ON_CALL(*numeric_compiled_model, outputs()).WillByDefault(ReturnRefOfCopy(numeric_model->outputs()));
-    ON_CALL(*numeric_compiled_model, get_context()).WillByDefault(Return(ov::SoPtr<ov::IRemoteContext>()));
+    ON_CALL(*mock_plugin_impl, get_default_context(testing::_))
+        .WillByDefault(Return(ov::SoPtr<ov::IRemoteContext>(remote_context)));
     auto numeric_request = std::make_shared<TestSyncInferRequest>(numeric_compiled_model);
 
     for (float v : {1.0f, 2.0f}) {
@@ -139,4 +191,7 @@ TEST_F(ISyncInferRequestStringBatchTest, ConvertBatchedNumericTensorsStillUsesFa
     auto* merged_data = merged->data<float>();
     EXPECT_EQ(merged_data[0], 1.0f);
     EXPECT_EQ(merged_data[1], 2.0f);
+    EXPECT_EQ(remote_context->host_tensor_creation_count(), 1);
 }
+
+}  // namespace ov::test

@@ -184,7 +184,7 @@ void ov::ISyncInferRequest::convert_batched_tensors() {
             }
         } catch (const ov::NotImplemented&) {
         }
-        if (remote_context) {
+        if (remote_context && tmp_et != ov::element::string) {
             input_tensor = remote_context->create_host_tensor(tmp_et, tmp_shape);
         } else {
             input_tensor = {ov::make_tensor(tmp_et, tmp_shape), nullptr};
@@ -195,7 +195,7 @@ void ov::ISyncInferRequest::convert_batched_tensors() {
         if (tmp_et == ov::element::string) {
             ov::parallel_for(item.second.size(), [&](size_t i) {
                 const auto& tensor = item.second.at(i);
-                std::copy_n(tensor->data<const std::string>(),
+                std::copy_n(tensor->data<std::string>(),
                             tensor->get_size(),
                             input_tensor->data<std::string>() + i * tensor->get_size());
             });
