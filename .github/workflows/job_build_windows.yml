@@ -62,6 +62,7 @@ jobs:
       CCACHE_REMOTE_STORAGE: "file:///C:/mount/caches/ccache_remote/windows_${{ inputs.build-variant }}_x86_64_${{ inputs.build-type }}|update-mtime=true"
       CCACHE_DIR: ${{ github.workspace }}\\ccache
       CCACHE_TEMPDIR: ${{ github.workspace }}\\ccache_temp
+      CCACHE_MAXSIZE: 100G
       # Hash paths relative to the workspace so entries are reusable across runners and runs
       CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_SLOPPINESS: pch_defines,time_macros

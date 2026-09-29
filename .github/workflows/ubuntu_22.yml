@@ -125,6 +125,7 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_22_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
+      compiler-cache: 'ccache'
       use_latest_onednn: ${{ needs.smart_ci.outputs.use_latest_onednn == 'true' }}
       os: 'ubuntu_22_04'
       build-js: true

@@ -133,7 +133,8 @@ To add new resources, contact a member of the CI team for assistance.
 
 The Windows pipelines ([`job_build_windows.yml`](./../../../../.github/workflows/job_build_windows.yml),
 [`windows_conditional_compilation.yml`](./../../../../.github/workflows/windows_conditional_compilation.yml))
-and the Ubuntu 24.04 pipeline ([`ubuntu_24.yml`](./../../../../.github/workflows/ubuntu_24.yml))
+and the Ubuntu pipelines ([`ubuntu_22.yml`](./../../../../.github/workflows/ubuntu_22.yml),
+[`ubuntu_24.yml`](./../../../../.github/workflows/ubuntu_24.yml))
 cache C++/C build files with [`ccache`](https://ccache.dev) using its
 [remote storage](https://ccache.dev/manual/latest.html#_remote_storage_backends) `file` backend
 pointed at the shared drive.
@@ -157,6 +158,7 @@ Build:
     CCACHE_REMOTE_STORAGE: "file:///mount/caches/ccache_remote/ubuntu_24_04_x86_64_Release|umask=002|update-mtime=true"
     CCACHE_DIR: ${{ github.workspace }}/ccache
     CCACHE_TEMPDIR: ${{ github.workspace }}/ccache_temp
+    CCACHE_MAXSIZE: 100G
     CCACHE_BASEDIR: ${{ github.workspace }}
     CCACHE_SLOPPINESS: pch_defines,time_macros
 ```
@@ -176,7 +178,8 @@ On Windows, the shared drive is mounted at `C:\mount`, so the URL takes the form
 
 * Do not add the branch name or `github.sha` to the remote storage path. Entries are
   content-addressed, and keying the path only prevents pull requests from sharing the cache.
-* Do not expect `CCACHE_MAXSIZE` to bound the shared directory. It bounds `CCACHE_DIR` only.
+* `CCACHE_MAXSIZE` bounds `CCACHE_DIR`, the job-local cache, and nothing else. The shared
+  directory is bounded only by the cleanup workflow.
 
 ## Cloud Storage via Azure Blob Storage
 
