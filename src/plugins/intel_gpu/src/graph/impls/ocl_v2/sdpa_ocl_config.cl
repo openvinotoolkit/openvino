@@ -35,6 +35,15 @@
 #  define DT_FROM_RAW(x)       x
 #endif
 
+// Runtime scale input: SCALE_DATA_T is the input's own storage type (half, float, or ushort for bf16). A bf16
+// value is the upper half of the f32 with the same bits, so it widens with a shift (no bf16 helper needed,
+// which the include of bf16_utils.cl in sdpa_ocl.cl only provides for a bf16 Q).
+#if SCALE_IS_BF16
+#  define SCALE_TO_FLOAT(x) as_float(((uint)(x)) << 16)
+#else
+#  define SCALE_TO_FLOAT(x) convert_float(x)
+#endif
+
 #define kq_wg_tile_keys      (kq_sg_tile_keys * kq_sg_per_wg_keys)
 #define kq_wg_tile_queries   (kq_sg_tile_queries * kq_sg_per_wg_queries)
 #define kq_key_blocks        (kq_sg_tile_keys / DPAS_ROWS)
