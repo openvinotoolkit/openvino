@@ -97,6 +97,13 @@ struct avx512_target final : vector_target {
         return tail_folding_override().value_or(tail_folding::mask);
     }
 
+    // EVEX carries the broadcast in the encoding for 4- and 8-byte
+    // elements. There is no {1to32} for 2-byte elements before AVX512-FP16,
+    // and none at all for bytes.
+    [[nodiscard]] bool supports_broadcast_memory_operand(std::size_t elem_bytes) const override {
+        return elem_bytes == 4 || elem_bytes == 8;
+    }
+
     // Any displacement an unrolled loop can produce rides in the SIB byte.
     [[nodiscard]] bool is_legal_access_offset(std::size_t /*elem_bytes*/,
                                               std::size_t /*vectors*/,
@@ -141,6 +148,12 @@ struct legacy_x86_target final : vector_target {
     [[nodiscard]] bool supports_masked_interleaved_access() const override { return false; }
     [[nodiscard]] tail_folding preferred_tail_folding() const override {
         return tail_folding_override().value_or(tail_folding::epilogue);
+    }
+
+    // VEX has no broadcast field: a splat is vbroadcastss into a register.
+    [[nodiscard]] bool supports_broadcast_memory_operand(
+        std::size_t /*elem_bytes*/) const override {
+        return false;
     }
 
     [[nodiscard]] bool is_legal_access_offset(std::size_t /*elem_bytes*/,

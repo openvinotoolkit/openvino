@@ -691,12 +691,29 @@ value_id record_load(IR& ir, value_id base, std::uint32_t offset = 0) {
     return vid;
 }
 
+// A splat-from-memory: same shape as a load, different memory form.
+value_id record_broadcast(IR& ir, value_id base, std::uint32_t offset = 0) {
+    const auto vid = record_load(ir, base, offset);
+    ir.last().load_form = fold_form::element_broadcast;
+    return vid;
+}
+
 // A consumer with `foldable` as its bitmask of memory-capable operands.
 value_id record_consumer(IR& ir, std::vector<value_id> reads, std::uint8_t foldable) {
     const auto vid = ir.def(std::move(reads), stub(), "consume");
     auto& op = ir.last();
     op.foldable_reads = foldable;
     op.fold_emit = stub();
+    return vid;
+}
+
+// A consumer that also accepts the broadcast form on `broadcastable`.
+value_id record_broadcast_consumer(IR& ir, std::vector<value_id> reads, std::uint8_t foldable,
+                                   std::uint8_t broadcastable) {
+    const auto vid = record_consumer(ir, std::move(reads), foldable);
+    auto& op = ir.last();
+    op.broadcast_foldable_reads = broadcastable;
+    op.broadcast_fold_emit = stub();
     return vid;
 }
 
@@ -837,6 +854,67 @@ TEST(JitKernelIR, FoldsCommutedOperandForCommutativeOps) {
     EXPECT_FALSE(run_folding(non_commutative));
     EXPECT_TRUE(has_load(non_commutative.ops()))
         << "operand 0 of a non-commutative op cannot come from memory";
+}
+
+TEST(JitKernelIR, FoldsBroadcastOnlyIntoAConsumerThatAcceptsThatForm) {
+    // A full-vector operand and a splatted element are different
+    // instructions, so a consumer that accepts only the vector form must
+    // not take a broadcast: it would read a whole vector where four bytes
+    // were meant.
+    IR vector_only;
+    {
+        const value_id ptr = vector_only.def({}, stub(), "ptr", RegisterClass::GPR);
+        const value_id other = vector_only.def({}, stub(), "other");
+        const value_id splat = record_broadcast(vector_only, ptr);
+        const value_id result = record_consumer(vector_only, {other, splat}, 0b10);
+        vector_only.use({result}, stub(), "sink");
+    }
+    EXPECT_FALSE(run_folding(vector_only));
+    EXPECT_TRUE(has_load(vector_only.ops()))
+        << "a broadcast must not fold into the full-vector form";
+
+    IR accepts_broadcast;
+    {
+        const value_id ptr = accepts_broadcast.def({}, stub(), "ptr", RegisterClass::GPR);
+        const value_id other = accepts_broadcast.def({}, stub(), "other");
+        const value_id splat = record_broadcast(accepts_broadcast, ptr, /*offset=*/0x24);
+        const value_id result =
+            record_broadcast_consumer(accepts_broadcast, {other, splat}, 0b10, 0b10);
+        accepts_broadcast.use({result}, stub(), "sink");
+    }
+    EXPECT_TRUE(run_folding(accepts_broadcast));
+    EXPECT_FALSE(has_load(accepts_broadcast.ops()));
+    const auto& consumer = *std::next(accepts_broadcast.ops().begin(), 2);
+    EXPECT_EQ(consumer.folded_read, 1);
+    EXPECT_EQ(consumer.mem_offset, 0x24U);
+}
+
+TEST(JitKernelIR, DoesNotFoldAVectorLoadIntoTheBroadcastFormOnly) {
+    // The converse: a consumer that accepts only broadcasts must not
+    // swallow a full-width load.
+    IR ir;
+    const value_id ptr = ir.def({}, stub(), "ptr", RegisterClass::GPR);
+    const value_id other = ir.def({}, stub(), "other");
+    const value_id loaded = record_load(ir, ptr);
+    const value_id result = record_broadcast_consumer(ir, {other, loaded}, 0b00, 0b10);
+    ir.use({result}, stub(), "sink");
+
+    EXPECT_FALSE(run_folding(ir));
+    EXPECT_TRUE(has_load(ir.ops()));
+}
+
+TEST(JitKernelIR, DoesNotFoldMultiUseBroadcast) {
+    // The use count is what makes a GEMM microkernel keep vbroadcastss
+    // when several FMAs share the splat, and fold it when only one does.
+    IR ir;
+    const value_id ptr = ir.def({}, stub(), "ptr", RegisterClass::GPR);
+    const value_id other = ir.def({}, stub(), "other");
+    const value_id splat = record_broadcast(ir, ptr);
+    const value_id first = record_broadcast_consumer(ir, {other, splat}, 0b10, 0b10);
+    ir.use({splat, first}, stub(), "second_use");
+
+    EXPECT_FALSE(run_folding(ir));
+    EXPECT_TRUE(has_load(ir.ops())) << "the splat still has a second consumer";
 }
 
 TEST(JitKernelIR, DoesNotFoldMultiUseLoad) {
@@ -2476,6 +2554,9 @@ struct host_like_target : vector_target {
     [[nodiscard]] tail_folding preferred_tail_folding() const override {
         return tail_folding::mask;
     }
+    [[nodiscard]] bool supports_broadcast_memory_operand(std::size_t elem_bytes) const override {
+        return elem_bytes == 4 || elem_bytes == 8;
+    }
     [[nodiscard]] bool is_legal_access_offset(std::size_t, std::size_t,
                                               std::size_t bytes) const override {
         return bytes <= 0x7fffffff;
@@ -2505,6 +2586,14 @@ struct jit_ir_peel_target_kernel : public jit_ir_fma_peel_kernel<N> {
     jit_ir_peel_target_kernel(size_t count, const vector_target& t)
         : jit_ir_fma_peel_kernel<N>(count, /*limit=*/8) {
         this->set_target(t);
+    }
+};
+
+// A target without AVX-512's embedded broadcast — AVX2's answer, where a
+// splat is always vbroadcastss into a register.
+struct no_broadcast_operand_target final : host_like_target {
+    [[nodiscard]] bool supports_broadcast_memory_operand(std::size_t) const override {
+        return false;
     }
 };
 
@@ -2897,4 +2986,201 @@ TEST(JitKernelIR, TypeConvertingStoreKeepsSourceIntact) {
         EXPECT_FLOAT_EQ(dst_f32[i], src[i]) << "index " << i;
         EXPECT_EQ(dst_u8[i], static_cast<uint8_t>(std::lround(src[i]))) << "index " << i;
     }
+}
+
+// ── Embedded broadcast ─────────────────────────────────────────────────
+//
+// A splat whose value feeds one instruction should become that
+// instruction's memory operand — vfmadd231ps zmm, zmm, m32{1to16} — and a
+// splat shared by several must stay in a register. The shape below is a
+// GEMM microkernel's: Rows accumulator rows by Cols column blocks, so the
+// A splat has exactly Cols uses and the B load has Rows.
+
+namespace {
+
+struct BroadcastFmaParams {
+    const float* a;
+    const float* b;
+    float* dst;
+    size_t count;
+};
+
+template <size_t N, size_t Rows, size_t Cols>
+struct jit_ir_broadcast_fma_kernel : public jit_kernel {
+    DECLARE_CPU_JIT_AUX_FUNCTIONS(jit_ir_broadcast_fma_kernel)
+
+    jit_ir_broadcast_fma_kernel() : jit_kernel(jit_name()) {}
+
+    using fn_t = void (*)(const BroadcastFmaParams*);
+    fn_t fn_ = nullptr;
+
+    void init() {
+        if (create_kernel() != dnnl::impl::status::success) {
+            OPENVINO_THROW("Can't generate jit kernel");
+        }
+        fn_ = (fn_t)(jit_ker());  // NOLINT
+    }
+
+    void operator()(const BroadcastFmaParams& args) const { fn_(&args); }
+
+    void generate() override {
+        preamble();
+        set_vec_width(N * sizeof(float) * 8);
+        begin_ir();
+
+        auto a = arg<const float*>(&BroadcastFmaParams::a);
+        auto b = arg<const float*>(&BroadcastFmaParams::b);
+        auto dst = arg<float*>(&BroadcastFmaParams::dst);
+        auto count = arg(&BroadcastFmaParams::count);
+        const size_t lda = 64;  // A row stride, in elements
+
+        std::vector<variable<float[N]>> acc;
+        acc.reserve(Rows * Cols);
+        for (size_t i = 0; i < Rows * Cols; ++i) {
+            acc.push_back(ir_zero<N>());
+        }
+
+        foreach(size_t{0}, count, [&](const variable<size_t>&) {
+            // B first, as the BRGEMM generator records it: the column
+            // block is shared by every row, so it is the operand that
+            // cannot fold.
+            std::vector<variable<float[N]>> col;
+            col.reserve(Cols);
+            for (size_t c = 0; c < Cols; ++c) {
+                col.push_back(ir_load<N>(b, c * N * sizeof(float)));
+            }
+            for (size_t r = 0; r < Rows; ++r) {
+                auto splat = ir_broadcast<N>(a, r * lda * sizeof(float));
+                for (size_t c = 0; c < Cols; ++c) {
+                    ir_accumulate(acc[r * Cols + c], Insn3::fmadd231ps, splat, col[c]);
+                }
+            }
+            ir_advance(a, sizeof(float));
+            ir_advance(b, Cols * N * sizeof(float));
+        });
+
+        for (size_t i = 0; i < Rows * Cols; ++i) {
+            ir_store<N>(dst, i * N * sizeof(float), acc[i]);
+        }
+
+        end_ir();
+        postamble();
+    }
+};
+
+// Same kernel with an injected target, to compare the two forms.
+template <size_t N, size_t Rows, size_t Cols>
+struct jit_ir_broadcast_fma_target_kernel : public jit_ir_broadcast_fma_kernel<N, Rows, Cols> {
+    explicit jit_ir_broadcast_fma_target_kernel(const vector_target& t) { this->set_target(t); }
+};
+
+template <size_t N, size_t Rows, size_t Cols, typename Kernel>
+void check_broadcast_fma(Kernel& kernel) {
+    constexpr size_t lda = 64;
+    std::mt19937 rng(20260929 + Cols);
+    std::uniform_real_distribution<float> dist(-2.0F, 2.0F);
+
+    for (size_t count : {size_t{0}, size_t{1}, size_t{5}, size_t{17}}) {
+        const size_t steps = std::max<size_t>(count, 1);
+        std::vector<float> a(Rows * lda + steps);
+        std::vector<float> b(steps * Cols * N);
+        for (auto& v : a) {
+            v = dist(rng);
+        }
+        for (auto& v : b) {
+            v = dist(rng);
+        }
+        std::vector<float> dst(Rows * Cols * N, -1.0F);
+
+        kernel(BroadcastFmaParams{a.data(), b.data(), dst.data(), count});
+
+        for (size_t r = 0; r < Rows; ++r) {
+            for (size_t c = 0; c < Cols; ++c) {
+                for (size_t lane = 0; lane < N; ++lane) {
+                    float expected = 0.0F;
+                    for (size_t k = 0; k < count; ++k) {
+                        expected = std::fma(a[r * lda + k],
+                                            b[k * Cols * N + c * N + lane],
+                                            expected);
+                    }
+                    EXPECT_FLOAT_EQ(dst[(r * Cols + c) * N + lane], expected)
+                        << "count " << count << " row " << r << " col " << c << " lane " << lane;
+                }
+            }
+        }
+    }
+}
+
+}  // namespace
+
+TEST(JitKernelIR, DifferentialBroadcastFoldedIntoFma) {
+    using namespace dnnl::impl::cpu::x64;
+    if (!mayiuse(cpu_isa_t::avx512_core)) {
+        GTEST_SKIP() << "embedded broadcast is an AVX-512 encoding";
+    }
+    constexpr size_t N = 16;
+
+    // Cols == 1: the splat has one use and folds.
+    jit_ir_broadcast_fma_kernel<N, 2, 1> folded;
+    folded.init();
+    check_broadcast_fma<N, 2, 1>(folded);
+
+    // Cols == 3: three uses, so it must stay in a register.
+    jit_ir_broadcast_fma_kernel<N, 2, 3> shared;
+    shared.init();
+    check_broadcast_fma<N, 2, 3>(shared);
+}
+
+TEST(JitKernelIR, FoldingTheBroadcastRemovesInstructions) {
+    using namespace dnnl::impl::cpu::x64;
+    if (!mayiuse(cpu_isa_t::avx512_core)) {
+        GTEST_SKIP() << "embedded broadcast is an AVX-512 encoding";
+    }
+    // The only test here that asserts a fold *happened* through the real
+    // pipeline rather than by calling the pass, so it is the only one the
+    // A/B switch can turn off.
+    if (std::getenv("OV_JIT_IR_NO_FOLD") != nullptr) {
+        GTEST_SKIP() << "folding is disabled by OV_JIT_IR_NO_FOLD";
+    }
+    constexpr size_t N = 16;
+
+    // One use per splat, so the target with the capability folds and the
+    // AVX2-shaped one cannot. Both targets are injected, so the only
+    // difference between the two kernels is the fold — comparing against
+    // the host target instead would also pick up OV_JIT_IR_LOOP_ALIGN.
+    const host_like_target with_bcast;
+    const no_broadcast_operand_target no_bcast;
+
+    jit_ir_broadcast_fma_target_kernel<N, 2, 1> folded(with_bcast);
+    folded.init();
+    check_broadcast_fma<N, 2, 1>(folded);
+
+    jit_ir_broadcast_fma_target_kernel<N, 2, 1> unfolded(no_bcast);
+    unfolded.init();
+    check_broadcast_fma<N, 2, 1>(unfolded);
+
+    EXPECT_LT(folded.getSize(), unfolded.getSize())
+        << "folding a single-use splat into the FMA should shorten the kernel";
+}
+
+TEST(JitKernelIR, SharedBroadcastIsUnaffectedByTheTarget) {
+    using namespace dnnl::impl::cpu::x64;
+    if (!mayiuse(cpu_isa_t::avx512_core)) {
+        GTEST_SKIP() << "embedded broadcast is an AVX-512 encoding";
+    }
+    constexpr size_t N = 16;
+
+    // Three uses: nothing to fold, so the capability makes no difference.
+    // This is the case the BRGEMM generator hits on a wide N, and it is
+    // what keeps one load from becoming three.
+    const host_like_target with_bcast;
+    const no_broadcast_operand_target no_bcast;
+
+    jit_ir_broadcast_fma_target_kernel<N, 2, 3> with(with_bcast);
+    with.init();
+
+    jit_ir_broadcast_fma_target_kernel<N, 2, 3> without(no_bcast);
+    without.init();
+
+    EXPECT_EQ(with.getSize(), without.getSize());
 }

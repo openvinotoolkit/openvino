@@ -90,6 +90,22 @@ struct PhysReg {
 // `reads` is a plain vector rather than std::span because the intel_cpu
 // plugin is C++17 and std::span is C++20. Switch to std::span when the
 // plugin moves to C++20.
+// What a folded memory operand *is*. A full vector read from memory and a
+// single element read and splatted across the vector are different
+// instructions, not different addressing modes: on x86 they are
+// VFMADD231PSZrm and VFMADD231PSZrmb, and LLVM keeps them in separate
+// memory-fold tables for exactly that reason (X86InstrFoldTables, the
+// TB_BCAST_* entries).
+//
+// A producer supplies one form. A consumer accepts a set of forms, per
+// operand. A fold happens only where the two agree — which is what keeps
+// a broadcast from being folded into an instruction that would read the
+// whole vector instead of splatting four bytes.
+enum class fold_form : std::uint8_t {
+    vector,             // the operand's whole value comes from memory
+    element_broadcast,  // one element comes from memory, splatted
+};
+
 // A memory operand folded into an instruction: base register plus a byte
 // displacement. Arch-neutral on purpose — the emit closure turns it into
 // whatever address form the target uses.
@@ -130,6 +146,10 @@ struct Op {
     int mem_ptr_read = -1;               // index into reads[] holding the base pointer
     std::uint32_t mem_offset = 0;        // byte displacement of the access
 
+    // Which memory form this op's value would take if it were folded into
+    // its consumer. Only meaningful on a load.
+    fold_form load_form = fold_form::vector;
+
     // ── Foldable operands ─────────────────────────────────────────────
     // `foldable_reads` is a bitmask of the operands this op can take from
     // memory instead of a register, and `fold_emit` is the memory form of
@@ -142,8 +162,14 @@ struct Op {
     // swapping the sources. LLVM does the same thing with isCommutable +
     // commuteInstruction; here the fold closure reads
     // EmitContext::folded->read and picks the surviving register operand.
+    // One mask and one closure per memory form, mirroring the separate
+    // fold tables. A recording site declares the broadcast form only
+    // where the target has the instruction, so on a target without it no
+    // consumer ever accepts the form and the pass cannot fold one.
     std::uint8_t foldable_reads = 0;
     EmitFn fold_emit;
+    std::uint8_t broadcast_foldable_reads = 0;
+    EmitFn broadcast_fold_emit;
 
     // Set by FoldMemoryOperandsPass: the read index whose value now comes
     // from memory. reads[folded_read] holds the base pointer.

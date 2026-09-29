@@ -1455,6 +1455,15 @@ public:
     void postamble();
 
     const Xbyak::AddressFrame& address_frame(size_t size) const;
+
+    // The address form of an embedded broadcast: one element read from
+    // memory and splatted. Xbyak carries the broadcast in the address
+    // (ptr_b), so the instruction encoders need no separate entry point —
+    // lower()'s existing Address overload emits {1to16} when handed one of
+    // these. Only legal where supports_broadcast_memory_operand() says so.
+    [[nodiscard]] Xbyak::Address broadcast_address(jit_kernel_ir::PhysReg base,
+                                                   std::uint32_t offset) const;
+
     const reg_indices& free_x64regs() const;
     const reg_indices& free_rmmregs() const;
 
@@ -2040,6 +2049,15 @@ void jit_kernel::ir_accumulate(const variable<float[N]>& acc, Insn2 insn,
               address_frame(sizeof(reg_type))[Xbyak::Reg64(ctx.folded->base.idx) +
                                               ctx.folded->offset]);
     };
+    if (target().supports_broadcast_memory_operand(sizeof(float))) {
+        op.broadcast_foldable_reads = 0b10;
+        op.broadcast_fold_emit = [this, insn](const jit_kernel_ir::EmitContext& ctx) {
+            lower(insn,
+                  reg_type(ctx.def->idx),
+                  reg_type(ctx.reads[0].idx),
+                  broadcast_address(ctx.folded->base, ctx.folded->offset));
+        };
+    }
 }
 
 template <size_t N>
@@ -2073,6 +2091,21 @@ void jit_kernel::ir_accumulate(const variable<float[N]>& acc, Insn3 insn,
               address_frame(sizeof(reg_type))[Xbyak::Reg64(ctx.folded->base.idx) +
                                               ctx.folded->offset]);
     };
+
+    // Same two operands in the broadcast form. This is the fold that
+    // matters for a GEMM microkernel with one column block: the splatted
+    // A element has exactly one use, so it stops being an instruction and
+    // becomes the FMA's memory operand.
+    if (target().supports_broadcast_memory_operand(sizeof(float))) {
+        op.broadcast_foldable_reads = 0b110;
+        op.broadcast_fold_emit = [this, insn](const jit_kernel_ir::EmitContext& ctx) {
+            const auto kept = (ctx.folded->read == 1) ? 2U : 1U;
+            lower(insn,
+                  reg_type(ctx.def->idx),
+                  reg_type(ctx.reads[kept].idx),
+                  broadcast_address(ctx.folded->base, ctx.folded->offset));
+        };
+    }
 }
 
 template <size_t N>
@@ -2886,10 +2919,23 @@ jit_kernel::variable<float[N]> jit_kernel::ir_broadcast(const variable<PtrT>& pt
     OPENVINO_ASSERT(pvid != jit_kernel_ir::invalid_value,
                     "ir_broadcast: pointer is not an IR value (call arg() after begin_ir())");
 
-    return ir_def<N>({pvid}, [this, byte_offset](const jit_kernel_ir::EmitContext& ctx) {
+    auto vid = ir_def<N>({pvid}, [this, byte_offset](const jit_kernel_ir::EmitContext& ctx) {
         uni_vbroadcastss(reg_type(ctx.def->idx),
                          address_frame(sizeof(float))[Xbyak::Reg64(ctx.reads[0].idx) + byte_offset]);
     }, "broadcast");
+
+    // A splat from memory is a load, and declaring it as one lets the fold
+    // pass put it back into its consumer's operand as an embedded
+    // broadcast when it has a single use. Where the value feeds several
+    // instructions the one-use rule keeps the register form, which is the
+    // right call for both reasons: one load instead of several, and one
+    // instruction's worth of front end instead of several.
+    auto& op = _ir->last();
+    op.may_load = true;
+    op.mem_ptr_read = 0;
+    op.mem_offset = static_cast<std::uint32_t>(byte_offset);
+    op.load_form = jit_kernel_ir::fold_form::element_broadcast;
+    return vid;
 }
 
 // Active-lane mask for `count` leading lanes of an N-lane vector.

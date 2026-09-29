@@ -944,7 +944,8 @@ std::uint32_t fold_in_list(std::list<Op>& ops, const IR& ir) {
         auto& load = *load_it;
         const bool foldable_load = load.may_load && !load.may_store &&
                                    load.def != invalid_value && load.mem_ptr_read >= 0 &&
-                                   load.folded_read < 0 && load.foldable_reads == 0;
+                                   load.folded_read < 0 && load.foldable_reads == 0 &&
+                                   load.broadcast_foldable_reads == 0;
         if (!foldable_load || count_reads(ir.ops(), load.def) != 1) {
             ++load_it;
             continue;
@@ -980,16 +981,29 @@ std::uint32_t fold_in_list(std::list<Op>& ops, const IR& ir) {
         }
 
         auto& use = *use_it;
-        if (use.foldable_reads == 0 || !use.fold_emit || use.folded_read >= 0) {
+        if (use.folded_read >= 0) {
+            ++load_it;
+            continue;
+        }
+
+        // The producer supplies one memory form; only the mask and the
+        // closure for *that* form may be used. Folding a broadcast into
+        // the full-vector form would read a whole vector where four bytes
+        // were meant, which is why these are two tables and not one.
+        const bool broadcasting = load.load_form == fold_form::element_broadcast;
+        const std::uint8_t accepts =
+            broadcasting ? use.broadcast_foldable_reads : use.foldable_reads;
+        const EmitFn& form_emit = broadcasting ? use.broadcast_fold_emit : use.fold_emit;
+        if (accepts == 0 || !form_emit) {
             ++load_it;
             continue;
         }
 
         // Which operand of the consumer holds the loaded value, and may
-        // that operand come from memory?
+        // that operand come from memory in this form?
         int fold_read = -1;
         for (std::size_t i = 0; i < use.reads.size() && i < 8; ++i) {
-            if (use.reads[i] == load.def && ((use.foldable_reads >> i) & 1U) != 0U) {
+            if (use.reads[i] == load.def && ((accepts >> i) & 1U) != 0U) {
                 fold_read = static_cast<int>(i);
                 break;
             }
@@ -1006,10 +1020,11 @@ std::uint32_t fold_in_list(std::list<Op>& ops, const IR& ir) {
         use.mem_offset = load.mem_offset;
         use.may_load = true;
         use.mem_ptr_read = fold_read;
-        use.emit = use.fold_emit;
+        use.emit = form_emit;
 
-        trace_ir("fold load %" + std::to_string(load.def) + " into " +
-                 std::string(use.name) + " operand " + std::to_string(fold_read));
+        trace_ir("fold " + std::string(broadcasting ? "broadcast" : "load") + " %" +
+                 std::to_string(load.def) + " into " + std::string(use.name) + " operand " +
+                 std::to_string(fold_read));
 
         load_it = ops.erase(load_it);
         ++folded;

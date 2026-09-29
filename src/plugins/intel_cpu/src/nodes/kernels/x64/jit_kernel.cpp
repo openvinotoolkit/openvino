@@ -421,6 +421,15 @@ void jit_kernel::postamble() {
     }
 }
 
+Xbyak::Address jit_kernel::broadcast_address(jit_kernel_ir::PhysReg base,
+                                             std::uint32_t offset) const {
+    // ptr_b leaves the element size to the instruction, which is what
+    // {1to16} means: the operand width comes from the opcode, not the
+    // address. Xbyak rejects it on a VEX encoding, so the legality query
+    // is what keeps this off AVX2 rather than an assert here.
+    return Xbyak::util::ptr_b[Xbyak::Reg64(base.idx) + offset];
+}
+
 const AddressFrame& jit_kernel::address_frame(size_t size) const {
     switch (size) {
     case 1:

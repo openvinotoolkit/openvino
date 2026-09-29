@@ -65,6 +65,23 @@ struct vector_target {
     // LLVM: TargetTransformInfo::getPreferredTailFoldingStyle.
     [[nodiscard]] virtual tail_folding preferred_tail_folding() const = 0;
 
+    // Can a vector instruction take one `elem_bytes` element from memory
+    // and splat it across the vector, in place of a full-width source
+    // operand? AVX-512's embedded broadcast, `{1to16}` in Intel syntax.
+    //
+    // Asked before a broadcast is folded into its consumer. LLVM does not
+    // need a query here because it does not need a decision: the
+    // broadcast fold tables name EVEX opcodes, and a subtarget without
+    // AVX-512 never has an instruction those entries apply to. This IR's
+    // fold closures are written once for all x86, so the availability has
+    // to be asked rather than fall out of instruction selection.
+    //
+    // Not one query per operand shape: what varies between targets is
+    // whether the form exists at all. SVE has no equivalent — a splatted
+    // operand is a separate DUP — and NEON's by-element multiply is a
+    // lane index rather than a memory operand.
+    [[nodiscard]] virtual bool supports_broadcast_memory_operand(std::size_t elem_bytes) const = 0;
+
     // Can a load/store of `elem_bytes`-wide elements carry this constant
     // displacement in its addressing mode, or does the pointer have to be
     // incremented instead? Asked once per peeled iteration, so that
