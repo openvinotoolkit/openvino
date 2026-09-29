@@ -169,6 +169,9 @@ class TestTimmConvertModel(TestTorchConvertModel):
             # Use same batch as example because the FX decoder does not
             # fully propagate symbolic batch through reshape ops yet.
             self.inputs = (torch.randn([2] + shape),)
+        if model_name.startswith("convit"):
+            # convit caches rel_indices in the first forward, which makes tracing checks fail
+            m(*self.example)
         return m
 
     def infer_fw_model(self, model_obj, inputs):
