@@ -179,6 +179,7 @@ static constexpr Property<bool, ov::PropertyMutability::RW> verbose_color{"VERBO
 static constexpr Property<std::string, ov::PropertyMutability::RW> debug_config{"GPU_DEBUG_CONFIG"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> log_to_file{"GPU_LOG_TO_FILE"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_usm{"GPU_DISABLE_USM"};
+static constexpr Property<bool, ov::PropertyMutability::RW> finish_after_enqueue{"GPU_FINISH_AFTER_ENQUEUE"};
 static constexpr Property<bool, ov::PropertyMutability::RW> disable_onednn_post_ops_opt{"GPU_DISABLE_ONEDNN_POST_OPS_OPT"};
 static constexpr Property<std::string, PropertyMutability::RW> dump_graphs_path{"GPU_DUMP_GRAPHS_PATH"};
 static constexpr Property<std::string, ov::PropertyMutability::RW> dump_profiling_data_path{"GPU_DUMP_PROFILING_DATA_PATH"};

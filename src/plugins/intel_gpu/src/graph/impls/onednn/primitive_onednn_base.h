@@ -601,7 +601,7 @@ protected:
             // Diagnostic: onednn primitives execute directly on the onednn stream and never pass through
             // ocl_stream::enqueue_kernel, so force completion here too to surface async errors
             // (e.g. CL_OUT_OF_RESOURCES) at this exact onednn primitive/layer.
-            if (network.get_config().get_finish_after_enqueue()) {
+            GPU_DEBUG_IF(network.get_config().get_finish_after_enqueue()) {
                 try {
                     stream.finish();
                 } catch (std::exception& err) {
