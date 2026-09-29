@@ -198,4 +198,22 @@ TEST_F(VisualizeTreeTest, subgraph_friendly_name_with_safe_characters_is_dumped)
         std::filesystem::remove(subgraph_file_path);
     }
 }
+
+TEST_F(VisualizeTreeTest, output_path_with_spaces_is_supported) {
+    const auto directory_path =
+        vt_svg_file_path.parent_path() / (utils::generateTestFilePrefix() + " directory with spaces");
+    ASSERT_TRUE(std::filesystem::create_directories(directory_path));
+    const auto file_path = directory_path / "tree.svg";
+    const auto dot_path = file_path.string() + ".dot";
+    const auto model = make_dummy_add_model(element::f32);
+
+    pass::VisualizeTree vt(file_path);
+
+    OV_ASSERT_NO_THROW(vt.run_on_model(model));
+    ASSERT_TRUE(util::file_exists(dot_path)) << dot_path;
+#if defined(ENABLE_OPENVINO_DEBUG) && !defined(_WIN32)
+    ASSERT_TRUE(util::file_exists(file_path)) << file_path;
+#endif
+    std::filesystem::remove_all(directory_path);
+}
 }  // namespace ov::test
