@@ -22,6 +22,7 @@
 #include "gtest/gtest.h"
 #include "onnx_utils.hpp"
 #include "openvino/op/max_pool.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx::tests;
@@ -1702,4 +1703,210 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_convtranspose_output_shape_with_batch_
          5.00000000f, 2.59999990f, 2.50000000f, 1.30000007f, 2.70000005f, 1.39999998f, 2.90000010f, 1.50000000f});
 
     test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_opset9) {
+    // MaxUnpool-9, ONNX spec example
+    const auto model = convert_model("max_unpool_2d_opset9.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 2, 2},
+                          {5.0f, 6.0f, 7.0f, 8.0f});
+    test_case.add_input<int64_t>(Shape{1, 1, 2, 2},
+                          {5, 7, 13, 15});
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 4},
+                          {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.0f, 0.0f, 6.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 7.0f, 0.0f, 8.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_opset11) {
+    // MaxUnpool-11, ONNX spec example
+    const auto model = convert_model("max_unpool_2d_opset11.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 2, 2},
+                          {5.0f, 6.0f, 7.0f, 8.0f});
+    test_case.add_input<int64_t>(Shape{1, 1, 2, 2},
+                          {5, 7, 13, 15});
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 4},
+                          {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.0f, 0.0f, 6.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 7.0f, 0.0f, 8.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_opset22) {
+    // MaxUnpool-22, ONNX spec example
+    const auto model = convert_model("max_unpool_2d_opset22.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 2, 2},
+                          {5.0f, 6.0f, 7.0f, 8.0f});
+    test_case.add_input<int64_t>(Shape{1, 1, 2, 2},
+                          {5, 7, 13, 15});
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 4},
+                          {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.0f, 0.0f, 6.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 7.0f, 0.0f, 8.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_output_shape_const) {
+    // output_shape initializer, indices address flat(output_shape)
+    const auto model = convert_model("max_unpool_2d_output_shape_const.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 2, 2},
+                          {5.5f, 2.0f, 4.5f, 0.5f});
+    test_case.add_input<int64_t>(Shape{1, 1, 2, 2},
+                          {6, 8, 11, 17});
+    test_case.add_expected_output<float>(Shape{1, 1, 5, 5},
+                          {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.5f, 0.0f, 2.0f, 0.0f, 0.0f, 4.5f, 0.0f, 0.0f, 0.0f, 0.0f,
+                          0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_output_shape_input) {
+    // output_shape given as a runtime input
+    const auto model = convert_model("max_unpool_2d_output_shape_input.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 2, 2, 2},
+                          {6.5f, 1.5f, 9.5f, 8.0f, 9.0f, 8.5f, 2.0f, 3.5f});
+    test_case.add_input<int64_t>(Shape{1, 2, 2, 2},
+                          {1, 2, 9, 15, 20, 27, 28, 30});
+    test_case.add_input<int64_t>(Shape{4},
+                          {1, 2, 5, 4});
+    test_case.add_expected_output<float>(Shape{1, 2, 5, 4},
+                          {0.0f, 6.5f, 1.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 9.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 8.0f,
+                          0.0f, 0.0f, 0.0f, 0.0f, 9.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 8.5f, 2.0f, 0.0f, 3.5f, 0.0f,
+                          0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_1d) {
+    const auto model = convert_model("max_unpool_1d.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 2, 4},
+                          {1.5f, -0.5f, 3.0f, 3.5f, 0.0f, 2.5f, 2.0f, 0.5f});
+    test_case.add_input<int64_t>(Shape{1, 2, 4},
+                          {1, 2, 4, 6, 9, 11, 12, 15});
+    test_case.add_expected_output<float>(Shape{1, 2, 8},
+                          {0.0f, 1.5f, -0.5f, 0.0f, 3.0f, 0.0f, 3.5f, 0.0f, 0.0f, 0.0f, 0.0f, 2.5f, 2.0f, 0.0f, 0.0f, 0.5f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_3d) {
+    const auto model = convert_model("max_unpool_3d.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 2, 2, 2},
+                          {15.5f, 8.5f, 15.0f, 14.5f, 10.5f, 13.0f, 14.0f, 9.0f});
+    test_case.add_input<int64_t>(Shape{1, 1, 2, 2, 2},
+                          {1, 22, 8, 10, 48, 51, 61, 58});
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 4, 4},
+                          {0.0f, 15.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 15.0f, 0.0f, 14.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                          0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 8.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                          0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                          10.5f, 0.0f, 0.0f, 13.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 9.0f, 0.0f, 0.0f, 14.0f, 0.0f, 0.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_pads) {
+    const auto model = convert_model("max_unpool_2d_pads.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 3, 3},
+                          {5.0f, 5.0f, 3.0f, 4.5f, 6.0f, 6.0f, 2.0f, 6.0f, 6.0f});
+    test_case.add_input<int64_t>(Shape{1, 1, 3, 3},
+                          {1, 1, 3, 6, 18, 18, 20, 18, 18});
+    test_case.add_expected_output<float>(Shape{1, 1, 5, 5},
+                          {0.0f, 5.0f, 0.0f, 3.0f, 0.0f, 0.0f, 4.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                          0.0f, 0.0f, 6.0f, 0.0f, 2.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_batch_channels) {
+    // indices include batch and channel offsets
+    const auto model = convert_model("max_unpool_2d_batch_channels.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{2, 3, 2, 2},
+                          {12.0f, 19.5f, 21.0f, 23.5f, 17.5f, 15.0f, 22.5f, 20.5f, -6.0f, -5.0f, 23.0f, 19.0f, 1.5f, 8.0f,
+                          16.0f, 3.0f, 12.5f, 18.5f, 9.0f, 20.0f, 22.0f, 10.5f, 4.5f, 21.5f});
+    test_case.add_input<int64_t>(Shape{2, 3, 2, 2},
+                          {1, 3, 8, 11, 16, 22, 28, 26, 32, 39, 40, 46, 49, 51, 60, 62, 65, 66, 73, 78, 84, 86, 89, 94});
+    test_case.add_expected_output<float>(Shape{2, 3, 4, 4},
+                          {0.0f, 12.0f, 0.0f, 19.5f, 0.0f, 0.0f, 0.0f, 0.0f, 21.0f, 0.0f, 0.0f, 23.5f, 0.0f, 0.0f, 0.0f, 0.0f,
+                          17.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 15.0f, 0.0f, 0.0f, 0.0f, 20.5f, 0.0f, 22.5f, 0.0f, 0.0f, 0.0f,
+                          -6.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -5.0f, 23.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 19.0f, 0.0f,
+                          0.0f, 1.5f, 0.0f, 8.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 16.0f, 0.0f, 3.0f, 0.0f,
+                          0.0f, 12.5f, 18.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 9.0f, 0.0f, 0.0f, 0.0f, 0.0f, 20.0f, 0.0f,
+                          0.0f, 0.0f, 0.0f, 0.0f, 22.0f, 0.0f, 10.5f, 0.0f, 0.0f, 4.5f, 0.0f, 0.0f, 0.0f, 0.0f, 21.5f, 0.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_default_strides) {
+    // strides default to 1, duplicate indices
+    const auto model = convert_model("max_unpool_2d_default_strides.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 1, 3, 3},
+                          {16.0f, 16.0f, 8.0f, 16.0f, 16.0f, 12.0f, 14.0f, 15.0f, 15.0f});
+    test_case.add_input<int64_t>(Shape{1, 1, 3, 3},
+                          {5, 5, 7, 5, 5, 11, 13, 14, 14});
+    test_case.add_expected_output<float>(Shape{1, 1, 4, 4},
+                          {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 16.0f, 0.0f, 8.0f, 0.0f, 0.0f, 0.0f, 12.0f, 0.0f, 14.0f, 15.0f, 0.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_max_pool_round_trip) {
+    // MaxPool -> MaxUnpool(output_shape = Shape(X))
+    const auto model = convert_model("max_unpool_max_pool_round_trip.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<float>(Shape{1, 2, 5, 5},
+                          {-3.0f, -9.0f, 11.0f, -11.0f, -8.5f, -12.5f, -2.5f, 10.5f, 12.0f, -10.0f, -2.0f, -0.5f, -8.0f, 8.5f,
+                          1.0f, 2.5f, 5.5f, 6.5f, 6.0f, 2.0f, -9.5f, 10.0f, -5.5f, 8.0f, -7.0f, 3.0f, 0.0f, -6.0f, -3.5f,
+                          -1.0f, -6.5f, 9.0f, -12.0f, 1.5f, 3.5f, 5.0f, -7.5f, -10.5f, 4.5f, -1.5f, 4.0f, 7.0f, -4.5f, 9.5f,
+                          0.5f, -11.5f, -5.0f, 11.5f, -4.0f, 7.5f});
+    test_case.add_expected_output<float>(Shape{1, 2, 5, 5},
+                          {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -2.5f, 0.0f, 12.0f, 0.0f, 0.0f, 0.0f, 0.0f, 8.5f, 0.0f, 0.0f,
+                          5.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 9.0f,
+                          0.0f, 1.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 7.0f, 0.0f, 9.5f, 0.0f, 0.0f, 0.0f, 0.0f,
+                          0.0f, 0.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_f16) {
+    const auto model = convert_model("max_unpool_2d_f16.onnx");
+
+    auto test_case = ov::test::TestCase(model, s_device);
+    test_case.add_input<ov::float16>(Shape{1, 1, 2, 2},
+                          std::vector<ov::float16>{5.0f, 6.0f, 7.0f, 8.0f});
+    test_case.add_input<int64_t>(Shape{1, 1, 2, 2},
+                          {5, 7, 13, 15});
+    test_case.add_expected_output<ov::float16>(Shape{1, 1, 4, 4},
+                          std::vector<ov::float16>{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.0f, 0.0f, 6.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 7.0f, 0.0f, 8.0f});
+    test_case.run();
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_decomposition) {
+    const auto model = convert_model("max_unpool_2d_opset11.onnx");
+    const auto ops = model->get_ordered_ops();
+    EXPECT_EQ(std::count_if(ops.begin(),
+                            ops.end(),
+                            [](const std::shared_ptr<ov::Node>& op) {
+                                return ov::is_type<op::v12::ScatterElementsUpdate>(op);
+                            }),
+              1);
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_invalid_strides) {
+    OV_EXPECT_THROW(convert_model("max_unpool_invalid_strides.onnx"), ov::Exception, testing::HasSubstr("'strides'"));
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_invalid_pads) {
+    OV_EXPECT_THROW(convert_model("max_unpool_invalid_pads.onnx"), ov::Exception, testing::HasSubstr("'pads'"));
+}
+
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_invalid_rank) {
+    OV_EXPECT_THROW(convert_model("max_unpool_invalid_rank.onnx"), ov::Exception, testing::HasSubstr("rank"));
 }

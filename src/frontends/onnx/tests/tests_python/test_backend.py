@@ -9,7 +9,7 @@ import onnx.backend.test
 from tests import (
     BACKEND_NAME,
     skip_rng_tests,
-    xfail_issue_33488,
+    xfail_maxunpool_output_shape_onnx_ref,
     xfail_issue_33596,
     xfail_issue_33606,
     xfail_issue_33651,
@@ -219,9 +219,8 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_momentum_multiple_cpu",
     ),
     (
-        xfail_issue_33488,
+        xfail_maxunpool_output_shape_onnx_ref,
         "OnnxBackendNodeModelTest.test_maxunpool_export_with_output_shape_cpu",
-        "OnnxBackendNodeModelTest.test_maxunpool_export_without_output_shape_cpu",
     ),
     (
         xfail_issue_38724,
