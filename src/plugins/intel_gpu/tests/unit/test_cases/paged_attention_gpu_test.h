@@ -1057,8 +1057,12 @@ struct PagedAttentionManager {
         return get_memory_from_vec(qq_bias_begins);
     }
 
+    // Multiplies the default 1/sqrt(k_head_size) scale (the primitive input, the scale memory and the reference all
+    // read it through get_default_scale()). Only paged_attention_test_params::runtime_scale_multiplier sets it.
+    float scale_multiplier = 1.0f;
+
     float get_default_scale() {
-        return static_cast<float>(1.f / std::sqrt(k_head_size));
+        return scale_multiplier * static_cast<float>(1.f / std::sqrt(k_head_size));
     }
 
 private:
@@ -2275,6 +2279,10 @@ public:
             }
         }
 
+        if (p.runtime_scale_multiplier.has_value()) {
+            pam.scale_multiplier = p.runtime_scale_multiplier.value();
+        }
+
         if (p.has_qq_bias) {
             pam.has_qq_bias = true;
             pam.qq_bias = p.qq_bias_config.qq_bias;
@@ -2475,7 +2483,12 @@ public:
         pa_prim.v_head_size = p.v_head_size;
         pa_prim.kv_heads_num = p.num_kv_heads;
         pa_prim.heads_num = p.num_heads;
-        pa_prim.scale_val = pam.get_default_scale();
+        // Left unset for a runtime-scale case, so that the kernels read the scale memory (f16) instead of a jit literal.
+        if (p.runtime_scale_multiplier.has_value()) {
+            pa_prim.scale_val = std::nullopt;
+        } else {
+            pa_prim.scale_val = pam.get_default_scale();
+        }
         pa_prim.has_alibi = false;
         // has_token_type_ids used to double as the "disable micro-SDPA" lever, which is how the FA_V2
         // sink test was pinned to sdpa_opt.cl. It no longer is for sdpa_ocl -- can_use_micro_sdpa_for
@@ -3394,6 +3407,11 @@ struct paged_attention_test_params {
 
     // Replaces generated Key inputs with zeros and validates BY_CHANNEL cache scales.
     bool zero_key_data = false;
+
+    // When set, the primitive has no constant scale (the kernels read the scale input) and the scale is this
+    // multiple of 1/sqrt(k_head_size). The harness data (N(0, 0.1)) has logits of ~0.01, where any scale
+    // returns almost the same output, so a case needs a large multiplier (64) to notice a misread scale.
+    std::optional<float> runtime_scale_multiplier = std::nullopt;
 };
 
 const auto ENABLE_CACHE_COMPRESSION = true;
