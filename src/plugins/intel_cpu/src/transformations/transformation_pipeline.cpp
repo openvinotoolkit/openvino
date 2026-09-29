@@ -614,42 +614,24 @@ void Transformations::PreLpt(const std::vector<ov::element::Type>& defaultPrecis
         return true;
     };
 
-    // Only preserve f16 rounding at Math op boundaries when f16 execution was requested (explicitly, or
-    // implicitly via a model that already contains f16)
-    auto model_has_f16 = [&]() {
-        for (const auto& op : model->get_ordered_ops()) {
-            for (const auto& output : op->outputs()) {
-                if (output.get_element_type() == ov::element::f16) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    };
-    const bool preserve_math_f16_rounding =
-        config.requestedInferencePrecision == ov::element::f16 ||
-        (config.requestedInferencePrecision == ov::element::dynamic && model_has_f16());
-
-    if (preserve_math_f16_rounding) {
-        CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkMathBeforeFloorToKeepF16Rounding);
-        for (const auto& type_info : {ov::op::v0::Cos::get_type_info_static(),
-                                      ov::op::v0::Cosh::get_type_info_static(),
-                                      ov::op::v0::Sin::get_type_info_static(),
-                                      ov::op::v0::Sinh::get_type_info_static(),
-                                      ov::op::v0::Acos::get_type_info_static(),
-                                      ov::op::v3::Acosh::get_type_info_static(),
-                                      ov::op::v0::Asin::get_type_info_static(),
-                                      ov::op::v3::Asinh::get_type_info_static(),
-                                      ov::op::v0::Atan::get_type_info_static(),
-                                      ov::op::v3::Atanh::get_type_info_static(),
-                                      ov::op::v0::Tan::get_type_info_static(),
-                                      ov::op::v0::Sign::get_type_info_static(),
-                                      ov::op::v4::SoftPlus::get_type_info_static(),
-                                      ov::op::v9::SoftSign::get_type_info_static(),
-                                      ov::op::v0::Selu::get_type_info_static(),
-                                      ov::op::v0::HardSigmoid::get_type_info_static()}) {
-            type_to_fuse[type_info] = wrap_math_to_preserve_f16;
-        }
+    CPU_REGISTER_PASS_COMMON(manager, ov::pass::MarkMathBeforeFloorToKeepF16Rounding);
+    for (const auto& type_info : {ov::op::v0::Cos::get_type_info_static(),
+                                  ov::op::v0::Cosh::get_type_info_static(),
+                                  ov::op::v0::Sin::get_type_info_static(),
+                                  ov::op::v0::Sinh::get_type_info_static(),
+                                  ov::op::v0::Acos::get_type_info_static(),
+                                  ov::op::v3::Acosh::get_type_info_static(),
+                                  ov::op::v0::Asin::get_type_info_static(),
+                                  ov::op::v3::Asinh::get_type_info_static(),
+                                  ov::op::v0::Atan::get_type_info_static(),
+                                  ov::op::v3::Atanh::get_type_info_static(),
+                                  ov::op::v0::Tan::get_type_info_static(),
+                                  ov::op::v0::Sign::get_type_info_static(),
+                                  ov::op::v4::SoftPlus::get_type_info_static(),
+                                  ov::op::v9::SoftSign::get_type_info_static(),
+                                  ov::op::v0::Selu::get_type_info_static(),
+                                  ov::op::v0::HardSigmoid::get_type_info_static()}) {
+        type_to_fuse[type_info] = wrap_math_to_preserve_f16;
     }
 
     // It cannot be static data, because it may be difference for different inferencePrecision

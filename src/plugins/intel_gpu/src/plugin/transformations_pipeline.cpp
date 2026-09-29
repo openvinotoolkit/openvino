@@ -480,11 +480,6 @@ bool is_hybrid_linear_attention_model(const ov::Model& model) {
     return false;
 }
 
-// Whether f16 rounding must be preserved at Math op boundaries
-bool should_preserve_math_f16_rounding(const ov::element::Type& requested_infer_precision, bool model_has_f16) {
-    return requested_infer_precision == ov::element::f16 || (requested_infer_precision == ov::element::dynamic && model_has_f16);
-}
-
 // LPT's Split/VariadicSplitTransformation moves the dequantization from above the split to
 // below it, once per split output. That only pays off if the moved dequantization can be
 // absorbed by one of the consumers (a layer with quantized weights). If it cannot, the plugin
@@ -632,7 +627,6 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
     };
     const auto fallback_precision = ov::element::f32;
     auto infer_precision = config.get_inference_precision();
-    const auto requested_infer_precision = infer_precision;
     if (infer_precision != ov::element::dynamic && !fp_precision_supported(infer_precision)) {
         infer_precision = fallback_precision;
     }
@@ -818,42 +812,25 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             return true;
         };
 
-        // Only preserve f16 rounding at Math op boundaries when f16 execution was requested (explicitly, or
-        // implicitly via a model that already contains f16)
-        auto model_has_f16 = [&]() {
-            for (const auto& op : func->get_ops()) {
-                for (const auto& output : op->outputs()) {
-                    if (output.get_element_type() == ov::element::f16) {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        };
-
-        const bool preserve_math_f16_rounding = should_preserve_math_f16_rounding(requested_infer_precision, model_has_f16());
-
         type_to_fuse_map fp_type_to_fuse = {};
-        if (preserve_math_f16_rounding) {
-            manager.register_pass<ov::pass::MarkMathBeforeFloorToKeepF16Rounding>();
-            for (const auto& type_info : {ov::op::v0::Cos::get_type_info_static(),
-                                          ov::op::v0::Cosh::get_type_info_static(),
-                                          ov::op::v0::Sin::get_type_info_static(),
-                                          ov::op::v0::Sinh::get_type_info_static(),
-                                          ov::op::v0::Acos::get_type_info_static(),
-                                          ov::op::v3::Acosh::get_type_info_static(),
-                                          ov::op::v0::Asin::get_type_info_static(),
-                                          ov::op::v3::Asinh::get_type_info_static(),
-                                          ov::op::v0::Atan::get_type_info_static(),
-                                          ov::op::v3::Atanh::get_type_info_static(),
-                                          ov::op::v0::Tan::get_type_info_static(),
-                                          ov::op::v0::Sign::get_type_info_static(),
-                                          ov::op::v4::SoftPlus::get_type_info_static(),
-                                          ov::op::v9::SoftSign::get_type_info_static(),
-                                          ov::op::v0::Selu::get_type_info_static(),
-                                          ov::op::v0::HardSigmoid::get_type_info_static()}) {
-                fp_type_to_fuse[type_info] = wrap_math_to_preserve_f16;
-            }
+        manager.register_pass<ov::pass::MarkMathBeforeFloorToKeepF16Rounding>();
+        for (const auto& type_info : {ov::op::v0::Cos::get_type_info_static(),
+                                      ov::op::v0::Cosh::get_type_info_static(),
+                                      ov::op::v0::Sin::get_type_info_static(),
+                                      ov::op::v0::Sinh::get_type_info_static(),
+                                      ov::op::v0::Acos::get_type_info_static(),
+                                      ov::op::v3::Acosh::get_type_info_static(),
+                                      ov::op::v0::Asin::get_type_info_static(),
+                                      ov::op::v3::Asinh::get_type_info_static(),
+                                      ov::op::v0::Atan::get_type_info_static(),
+                                      ov::op::v3::Atanh::get_type_info_static(),
+                                      ov::op::v0::Tan::get_type_info_static(),
+                                      ov::op::v0::Sign::get_type_info_static(),
+                                      ov::op::v4::SoftPlus::get_type_info_static(),
+                                      ov::op::v9::SoftSign::get_type_info_static(),
+                                      ov::op::v0::Selu::get_type_info_static(),
+                                      ov::op::v0::HardSigmoid::get_type_info_static()}) {
+            fp_type_to_fuse[type_info] = wrap_math_to_preserve_f16;
         }
 
         // fuse softmax, MVN patterns, so that they will not be marked as precision sensitive in ConvertPrecision
