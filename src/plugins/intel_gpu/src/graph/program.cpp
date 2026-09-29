@@ -22,6 +22,7 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/compilation_context.hpp"
 #include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/state_conversion_executor.hpp"
 
 
 #include "allocation_order.hpp"
@@ -278,6 +279,10 @@ void program::init_primitives() {
 
 kernels_cache& program::get_kernels_cache() const {
     return *_kernels_cache;
+}
+
+std::shared_ptr<state_conversion_executor> program::get_state_conversion_executor() const {
+    return _state_conversion_executor;
 }
 
 program::ptr program::build_program(engine& engine,
@@ -1921,6 +1926,8 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
                 kernels_cache.add_to_cached_kernels(node->get_selected_impl()->get_kernels());
             }
         }
+        if (_state_conversion_executor)
+            kernels_cache.add_to_cached_kernels(_state_conversion_executor->get_kernels());
         ob << kernels_cache;
         ob << impl_ids;
         for (auto& impl_id : impl_ids) {
@@ -1931,6 +1938,15 @@ void program::save(cldnn::BinaryOutputBuffer& ob) const {
             ob << get_node_ptr(impl_id)->selected_impl;
             ob << get_node_ptr(impl_id)->get_selected_impl()->get_cached_kernel_ids(kernels_cache);
         }
+
+        auto keys = _state_conversion_executor ? _state_conversion_executor->get_keys() : std::vector<state_conversion_key>{};
+        ob << keys.size();
+        for (const auto& key : keys) {
+            ob << static_cast<int32_t>(key.first);
+            ob << static_cast<int32_t>(key.second);
+        }
+        ob << (_state_conversion_executor ? kernels_cache.get_cached_kernel_ids(_state_conversion_executor->get_kernels())
+                                          : std::vector<std::string>{});
     }
 
     ob << optimized_out.size();
@@ -2128,6 +2144,29 @@ void program::load(cldnn::BinaryInputBuffer& ib,
             ib >> cached_kernel_ids;
             p_node.selected_impl->init_by_cached_kernels(get_kernels_cache(), cached_kernel_ids);
         }
+
+        size_t conversion_count;
+        ib >> conversion_count;
+        std::vector<state_conversion_key> conversion_keys;
+        conversion_keys.reserve(conversion_count);
+        for (size_t i = 0; i < conversion_count; ++i) {
+            int32_t src_type, dst_type;
+            ib >> src_type;
+            ib >> dst_type;
+            conversion_keys.emplace_back(static_cast<data_types>(src_type), static_cast<data_types>(dst_type));
+        }
+        std::vector<std::string> conversion_ids;
+        ib >> conversion_ids;
+        OPENVINO_ASSERT(conversion_ids.size() == conversion_keys.size(), "[GPU] State conversion cache is incomplete");
+        if (!conversion_keys.empty()) {
+            std::vector<kernel::ptr> conversion_kernels;
+            for (const auto& id : conversion_ids)
+                conversion_kernels.push_back(kernels_cache.get_kernel_from_cached_kernels(id));
+            auto executor = std::make_shared<state_conversion_executor>();
+            executor->set_kernels(conversion_keys, conversion_kernels, _engine);
+            _state_conversion_executor = std::move(executor);
+        }
+        _state_conversions_prepared = true;
     }
 
     size_t optimized_out_size;
@@ -2198,4 +2237,3 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         }
     }
 }
-
