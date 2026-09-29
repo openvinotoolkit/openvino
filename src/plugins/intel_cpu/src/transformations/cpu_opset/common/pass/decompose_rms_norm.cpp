@@ -14,6 +14,7 @@
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/power.hpp"
 #include "openvino/op/reduce_mean.hpp"
@@ -51,7 +52,18 @@ DecomposeRMSNorm::DecomposeRMSNorm() {
         auto div = std::make_shared<ov::op::v1::Power>(sqrt, div_const);
         std::shared_ptr<ov::Node> result = std::make_shared<ov::op::v1::Multiply>(data, div);
         if (node->get_input_size() > 1) {
-            result = std::make_shared<ov::op::v1::Multiply>(node->input_value(1), result);
+            // gamma may be a narrower/wider dtype than the data path (e.g.
+            // bf16 gamma with an f32 RMS computation) -- align it, since
+            // Multiply requires matching input types.
+            auto gamma = node->input_value(1);
+            if (gamma.get_element_type() != data_precision) {
+                gamma = std::make_shared<ov::op::v0::Convert>(gamma, data_precision);
+            }
+            result = std::make_shared<ov::op::v1::Multiply>(gamma, result);
+        }
+        auto output_type = node->get_output_element_type(0);
+        if (result->get_output_element_type(0) != output_type) {
+            result = std::make_shared<ov::op::v0::Convert>(result, output_type);
         }
 
         ov::replace_node(node, result);

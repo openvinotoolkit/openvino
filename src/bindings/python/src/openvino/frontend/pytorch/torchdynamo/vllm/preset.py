@@ -70,16 +70,38 @@ _FALLBACK_FLOAT_PRECISION = "bf16"
 _COMPUTE_PRECISION_SUBSTITUTE = {"f16": "bf16"}
 
 
+def _amx_bf16_supported() -> bool:
+    """Whether this CPU has the AMX-BF16 tile ISA extension.
+
+    OV's CPU PagedAttention kernel only has a bf16-KV-cache implementation
+    for AMX-capable cores (Sapphire Rapids+); on AVX512F-only CPUs it asserts
+    `expect kvcache type f32` and `compile_model` raises. Same detection
+    vLLM's own SGL-kernel gate uses (`check_cpu_sgl_kernel`,
+    `torch.cpu._is_amx_tile_supported`), so it stays consistent with what
+    vLLM itself already decided this process's CPU can do.
+    """
+    try:
+        import torch
+        return bool(torch.cpu._is_amx_tile_supported())
+    except Exception:
+        return False
+
+
 def precision_config(model_precision: Optional[str] = None) -> dict:
     """Return the matching OV INFERENCE_PRECISION_HINT/KV_CACHE_PRECISION pair.
 
     Both keys must name the same type (OV CPU PagedAttention only instantiates
     matching compute/cache-type triples). f16 computes as bf16: vLLM's unfused
-    RMSNorm overflows f16's range but not bf16's.
+    RMSNorm overflows f16's range but not bf16's. bf16 itself only runs on
+    AMX-BF16 hardware -- falls back to f32 otherwise (see
+    _amx_bf16_supported), rather than handing compile_model a config it will
+    reject at runtime.
     """
     et = (model_precision if model_precision in SUPPORTED_FLOAT_PRECISIONS
           else _FALLBACK_FLOAT_PRECISION)
     et = _COMPUTE_PRECISION_SUBSTITUTE.get(et, et)
+    if et == "bf16" and not _amx_bf16_supported():
+        et = "f32"
     return {"INFERENCE_PRECISION_HINT": et, "KV_CACHE_PRECISION": et}
 
 

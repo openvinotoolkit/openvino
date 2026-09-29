@@ -19,6 +19,14 @@ backends agree, so it's the only regime where byte-for-byte equality is a
 meaningful correctness signal here. Both paths share a process so the
 comparison is meaningful (same tokenizer state, same prompt encoding); the
 eager and OV `LLM` instances are never alive at the same time.
+
+The OV backend's precision preset (vllm/preset.py) only recognizes bf16/f16
+as "narrow" dtypes; any other model dtype, including float32, silently falls
+back to bf16 compute and KV-cache precision unless overridden. Without the
+OV_INFERENCE_PRECISION_HINT/OV_KV_CACHE_PRECISION env vars set below, this
+test would actually be comparing eager-f32 against OV-bf16 -- reintroducing
+the exact bf16 non-determinism (including thread-count sensitivity) it
+exists to avoid.
 """
 
 import pytest
@@ -74,7 +82,7 @@ def _run(llm, prompt, max_new_tokens, skip_warmup_tokens):
 
 
 @pytest.mark.precommit
-def test_openvino_matches_eager_greedy():
+def test_openvino_matches_eager_greedy(monkeypatch):
     """The OV backend and vLLM eager must produce byte-identical greedy output.
 
     Builds its own float32 LLM instances rather than using the shared
@@ -82,6 +90,10 @@ def test_openvino_matches_eager_greedy():
     isn't a stable regime for this equality check.
     """
     select_cpu_platform()
+    # Force the OV backend to actually compute in f32; otherwise it silently
+    # falls back to bf16 despite dtype="float32" (see module docstring).
+    monkeypatch.setenv("OV_INFERENCE_PRECISION_HINT", "f32")
+    monkeypatch.setenv("OV_KV_CACHE_PRECISION", "f32")
     from vllm import LLM
 
     eager_llm = LLM(

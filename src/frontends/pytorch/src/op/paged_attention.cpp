@@ -96,7 +96,14 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
         }
     }
     if (layer_name.empty()) {
-        layer_name = "unknown_layer";
+        // Give each occurrence a distinct tag (side_channel.py's
+        // "unknown_layer"/"unknown_layer_N" convention): otherwise every
+        // layer in the model falls back to the SAME tag and they all alias
+        // one side-channel Parameter, even when their real KV-cache shapes
+        // differ (e.g. per-layer varying head_dim).
+        auto* session = context.get_session();
+        size_t idx = session ? session->m_unknown_pa_layer_count++ : 0;
+        layer_name = idx == 0 ? "unknown_layer" : "unknown_layer_" + std::to_string(idx);
     }
     if (std::getenv("OV_DBG_PA_TRANS")) {
         std::cerr << "[PA_TRANS_IN] layer='" << layer_name << "' q_ps=" << query.get_partial_shape()

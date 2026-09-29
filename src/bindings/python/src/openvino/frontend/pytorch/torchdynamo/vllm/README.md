@@ -15,7 +15,7 @@ Exercised on the following stack:
 
 | Component | Version | Notes |
 |---|---|---|
-| CPU | Intel Xeon (Sapphire Rapids or newer) | AMX-BF16 |
+| CPU | any x86-64 | AMX-BF16 (Sapphire Rapids+) for the bf16 compute path; older/smaller CPUs fall back to f32, see Precision |
 | OS | Linux 5.15+ / glibc 2.34+ | THP=madvise |
 | Python | 3.11 | 3.10 also works |
 | vLLM | `vllm-cpu` 0.28.0 | v1 engine; CPU wheel |
@@ -181,9 +181,14 @@ PagedAttention kernel is only instantiated for matching (compute, cache)
 pairs.
 
 `bfloat16`, `float16` and `float32` models all run. bf16 is the compute type
-in every case: it is exact for bf16 models, and for f16 models it avoids an
-overflow in vLLM's unfused RMSNorm, whose `x**2` reduction exceeds f16's
-65504 ceiling and returns NaN (bf16 has f32's exponent range, so it cannot).
+for bf16 and f16 models on AMX-BF16 hardware: it is exact for bf16 models,
+and for f16 models it avoids an overflow in vLLM's unfused RMSNorm, whose
+`x**2` reduction exceeds f16's 65504 ceiling and returns NaN (bf16 has f32's
+exponent range, so it cannot). OV's CPU PagedAttention kernel only has a
+bf16-KV-cache implementation for AMX-capable cores, though — on CPUs without
+AMX-BF16 (`torch.cpu._is_amx_tile_supported()` false), both dtypes fall back
+to f32 compute/KV-cache instead, since the bf16 kernel would otherwise assert
+`expect kvcache type f32` inside `compile_model`.
 To override, set `OV_INFERENCE_PRECISION_HINT` and `OV_KV_CACHE_PRECISION` —
 set **both**, to the same value, or `compile_model` will reject the pair.
 
@@ -196,6 +201,7 @@ Set these before running your script. The plugin's `register()` fills in
 
 | Variable | Default | Effect |
 |---|---|---|
+| `OV_LAZY_KVCACHE` | `0` | When `1`, allocate the KV-cache pool with `torch.empty` instead of vLLM's default `torch.zeros`, so pages commit as blocks are actually written instead of all at once at startup. Saves ~`VLLM_CPU_KVCACHE_SPACE` GiB of RSS (the whole configured pool, since `torch.zeros` on CPU eagerly memsets every page). Safe because PagedAttention always writes a block before reading it. Verified byte-identical output (batching, prefix caching, block churn, long sequences, float32) plus the full test suite, both with this on and off. Opt-in since it patches vLLM's own `GPUModelRunner._allocate_kv_cache_tensors`, not something owned by this plugin. |
 | `OV_LM_HEAD` | `0` | When `1`, compile `lm_head` on OV instead of leaving it on torch/oneDNN. `lm_head` runs outside the compiled graph (vLLM calls `compute_logits()` separately), so on torch it is governed by `OMP_NUM_THREADS`, and at 1–2 threads it costs far more than it needs to; on OV that dependency disappears. Off by default anyway: the OV path adds a second compiled model whose InferRequest is invoked between main-graph infers, and that interleaving roughly doubles the **main graph's** per-step time — a larger loss than the `OMP_NUM_THREADS` mistuning it avoids. Not caused by the lm_head kernel, and not fixable by capping the second model's threads, disabling its pinning, or sharing one `ov.Core`. Enable it where `OMP_NUM_THREADS` cannot be tuned per model and per machine. |
 | `OV_FAST_INFER` | `1` (set by plugin) | Bypass the `_data_dispatch` dict walk in `req.infer()`; use `set_tensor(port, ...)` directly and cache the `ov.Tensor` wrappers and output views per `id(InferRequest)`. Falls back to the slow path on any error. Set `0` to disable. |
 | `OV_NATIVE_SAMPLER` | `0` | When `1`, use a native OV opset13 graph for sampling (topk + softmax + Gumbel-max), bypassing the `torch.compile(backend="openvino")` layer. Trade-off: skips top_p rejection (pure Gumbel-max over top-k values). No effect on greedy. |

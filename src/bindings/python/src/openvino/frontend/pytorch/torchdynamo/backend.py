@@ -114,10 +114,6 @@ def _freeze_static_inputs(gm, example_inputs, fw_metadata):
     gm.recompile()
     return preserved_arg_indices
 
-# Disable regional compilation which was enabled by default from Torch 2.5.0
-if hasattr(torch._dynamo.config, "inline_inbuilt_nn_modules"):
-    torch._dynamo.config.inline_inbuilt_nn_modules=False
-
 @fake_tensor_unsupported
 def openvino(subgraph, example_inputs, options=None):
     if _get_aot_autograd(options):

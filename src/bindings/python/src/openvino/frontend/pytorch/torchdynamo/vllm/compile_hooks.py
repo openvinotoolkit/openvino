@@ -65,18 +65,44 @@ def apply_post_config(config, device, options, om=None):
     apply_kv_cache_config_defaults(config, device, options, om=om)
 
 
+def _vllm_omp_core_ids():
+    """Parse the core list vLLM's OMPProcessManager assigned this worker.
+
+    Read from GOMP_CPU_AFFINITY/OMP_PLACES/KMP_AFFINITY, whichever the
+    process's OpenMP runtime uses (see ompmultiprocessing.py:configure_omp_envs).
+    These are set as a context manager scoped around spawning the worker, so
+    the parent's copy is reverted right after -- but the worker inherited its
+    own copy at fork/exec time, which persists for the worker's whole life.
+    Returns None if absent (no vLLM OMP manager involved, e.g. a bare script).
+    """
+    gomp = os.environ.get("GOMP_CPU_AFFINITY")
+    if gomp:
+        return {int(c) for c in gomp.split()}
+    places = os.environ.get("OMP_PLACES")
+    if places:
+        return {int(c) for c in places.strip("{").strip("}").split(",") if c}
+    kmp = os.environ.get("KMP_AFFINITY")
+    if kmp and "proclist=[" in kmp:
+        proclist = kmp.split("proclist=[", 1)[1].split("]", 1)[0]
+        return {int(c) for c in proclist.split(",") if c}
+    return None
+
+
 def widen_affinity_if_needed(options):
-    """Widen process CPU affinity to all cores when narrower than needed.
+    """Widen process CPU affinity when narrower than needed.
 
-    Needed when the mask is narrower than the requested OV thread count.
-    vLLM's ``init_cpu_threads_env`` pins the worker to one CPU before
-    ``torch.compile``, and TBB/OV sample affinity on first parallel use -- so a
-    1-CPU mask locks ``INFERENCE_NUM_THREADS=1`` whatever config we pass.
-    Widening before ``core.compile`` is what lets the pool inherit a useful
-    mask at creation. No-op without sched_getaffinity, or if already wide
-    enough.
+    Needed because the worker's own sched_setaffinity mask narrows to one CPU
+    before torch.compile runs (independent of the OMP_NUM_THREADS-worth of
+    cores vLLM's OMPProcessManager assigned it -- that's env-var-only, read by
+    the OpenMP runtime, not the process's own affinity), and TBB/OV sample
+    affinity on first parallel use, so a 1-CPU mask locks
+    INFERENCE_NUM_THREADS=1 whatever config we pass. Widening before
+    core.compile is what lets the pool inherit a useful mask at creation.
 
-    TODO: this also overrides a deliberate taskset/numactl pin -- revisit.
+    Widens to vLLM's own assigned core list when available (_vllm_omp_core_ids),
+    which respects a launch-time taskset/numactl pin; only falls back to every
+    CPU on the machine, spanning all NUMA nodes, when that list isn't present.
+    No-op without sched_getaffinity, or if already wide enough.
     """
     try:
         cur = os.sched_getaffinity(0)
@@ -85,7 +111,8 @@ def widen_affinity_if_needed(options):
         req = int(cfg.get("INFERENCE_NUM_THREADS",
                           os.environ.get("OV_INFERENCE_NUM_THREADS", "0")) or 0)
         if req == 0 or len(cur) < req:
-            os.sched_setaffinity(0, set(range(os.cpu_count() or 1)))
+            target = _vllm_omp_core_ids() or set(range(os.cpu_count() or 1))
+            os.sched_setaffinity(0, target)
     except Exception as _e:
         logger.debug("widen_affinity skipped: %s", _e)
 
@@ -173,6 +200,8 @@ def bake_symint_constants(om, args, dyn_shapes: bool = True, gm=None):
         return om.inputs[idx] if idx < len(om.inputs) else None
 
     params_to_remove = []
+    # Two symints can share a source tensor -- reuse its ShapeOf instead of duplicating.
+    shape_of_cache = {}
     for idx, input_data in enumerate(args):
         if isinstance(input_data, int):
             om_input = _om_input_for(idx)
@@ -184,8 +213,11 @@ def bake_symint_constants(om, args, dyn_shapes: bool = True, gm=None):
                 repl = _opset1.constant(np.array([int(input_data)], dtype=np.int64))
             else:
                 tensor_arg_idx, dim = src
-                tensor_input = _om_input_for(tensor_arg_idx)
-                shape_of = _opset8.shape_of(tensor_input, output_type="i64")
+                shape_of = shape_of_cache.get(tensor_arg_idx)
+                if shape_of is None:
+                    tensor_input = _om_input_for(tensor_arg_idx)
+                    shape_of = _opset8.shape_of(tensor_input, output_type="i64")
+                    shape_of_cache[tensor_arg_idx] = shape_of
                 repl = _opset8.gather(
                     shape_of,
                     _opset1.constant(np.array([dim], dtype=np.int64)),

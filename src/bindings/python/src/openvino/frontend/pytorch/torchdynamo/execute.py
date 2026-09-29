@@ -115,17 +115,38 @@ def _structural_key(gm, args, options=None):
     Llama-3.2-1B, against a 0.25 s infer -- while the model already in the
     cache would have served that shape unchanged.
     """
+    shape_agnostic = _shape_agnostic_compile(gm, args, options)
+    dynamic_dims = {}
+    if shape_agnostic:
+        try:
+            from openvino.frontend.pytorch.torchdynamo.vllm import compile_hooks as _vh
+            for _int_idx, (tensor_idx, dim) in _vh.symint_shape_sources(gm, args).items():
+                dynamic_dims.setdefault(tensor_idx, set()).add(dim)
+        except Exception as e:
+            logger.debug("dynamic-dim sourcing unavailable: %s", e)
     try:
+        # Label placeholders by identity, not position: dynamo orders args
+        # differently across traces (prefill T,I,T,I vs decode T,I,I,T).
+        placeholders = [node for node in gm.graph.nodes if node.op == "placeholder"]
+        ph_label = {}
+        if shape_agnostic and len(placeholders) == len(args):
+            tensor_i = 0
+            for node, arg in zip(placeholders, args):
+                if isinstance(arg, int):
+                    ph_label[node] = "phI"
+                else:
+                    ph_label[node] = f"phT{tensor_i}"
+                    tensor_i += 1
         parts = []
         # Assign index-based ids to placeholders so arg99_1/arg132_1 don't
         # produce different hashes for structurally identical graphs.
         node_id = {}
         ph_i = 0
+        op_i = 0
         for node in gm.graph.nodes:
             if node.op == "placeholder":
-                node_id[node] = f"ph{ph_i}"
+                node_id[node] = ph_label.get(node, f"ph{ph_i}")
                 ph_i += 1
-                parts.append("placeholder")
                 continue
             # node target (stable)
             target = str(node.target) if hasattr(node, "target") else str(node.op)
@@ -134,23 +155,35 @@ def _structural_key(gm, args, options=None):
             for arg in node.args:
                 arg_descs.append(node_id.get(arg, type(arg).__name__))
             parts.append(f"{node.op}:{target}({','.join(arg_descs)})")
-            node_id[node] = f"n{len(node_id)}"
+            # Counted separately from placeholders, which reorder across traces.
+            node_id[node] = f"n{op_i}"
+            op_i += 1
+        parts.append(f"nph={ph_i}")
     except Exception:
         parts = [str(id(gm))]
-    shape_agnostic = _shape_agnostic_compile(gm, args, options)
     # Scopes reuse to one model: structural equality alone can't tell two
     # same-architecture models apart (their weights differ, not their ops).
     sig = [f"M{options.get('model_id') if options else None}", "|".join(parts)]
-    for arg in args:
+    for i, arg in enumerate(args):
         if isinstance(arg, torch.Tensor):
-            # Rank and dtype still matter even when sizes don't: they change
-            # which ops the frontend emits, not just the Parameter shapes.
             if shape_agnostic:
-                sig.append(f"T{arg.dtype}:r{arg.dim()}")
+                # Only the dims actually sourced from an int placeholder
+                # (symint_shape_sources) legitimately vary across traces of
+                # the same call site -- abstract those, but keep every other
+                # dim concrete. Otherwise two structurally-identical call
+                # sites with genuinely different fixed shapes (e.g. per-layer
+                # varying head_dim) collide on the same cache entry.
+                dyn = dynamic_dims.get(i, set())
+                shape_sig = ",".join(
+                    "*" if d in dyn else str(size) for d, size in enumerate(arg.shape)
+                )
+                sig.append(f"T{arg.dtype}:({shape_sig})")
             else:
                 sig.append(f"T{arg.dtype}:{tuple(arg.size())}")
         elif isinstance(arg, int):
-            sig.append("I:dyn" if shape_agnostic else f"I:{arg}")
+            # Shape-agnostic: Parameter is stripped, so it can't affect the key.
+            if not shape_agnostic:
+                sig.append(f"I:{arg}")
         else:
             sig.append(f"S{type(arg).__name__}")
     import hashlib

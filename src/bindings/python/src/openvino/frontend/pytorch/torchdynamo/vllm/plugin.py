@@ -123,6 +123,36 @@ def _own_kv_cache_update(model) -> int:
     return swapped
 
 
+# Past this many guard specializations, dynamo silently drops to eager --
+# and _own_kv_cache_update above already disabled vLLM's fallback KV-cache
+# write, so eager fallback corrupts decode. Raise the limit to make that
+# far less likely to trigger.
+_DYNAMO_CACHE_SIZE_LIMIT_DEFAULT = 64
+
+
+def _raise_dynamo_cache_limit():
+    """Raise torch._dynamo's cache_size_limit, unless already customized.
+
+    OV_DYNAMO_CACHE_SIZE_LIMIT overrides the floor below.
+    OV_DYNAMO_FAIL_ON_CACHE_LIMIT=1 hard-errors on exhaustion instead of
+    falling back silently -- but kills the whole engine, not just the
+    offending request, so it's opt-in, not default.
+    """
+    try:
+        import torch._dynamo.config as _dynamo_cfg
+    except Exception as _e:
+        logger.debug("[OV plugin] dynamo cache_size_limit raise skipped: %s", _e)
+        return
+    limit = int(os.environ.get(
+        "OV_DYNAMO_CACHE_SIZE_LIMIT", _DYNAMO_CACHE_SIZE_LIMIT_DEFAULT))
+    if _dynamo_cfg.cache_size_limit == 8 and limit != 8:
+        _dynamo_cfg.cache_size_limit = limit
+        logger.debug("[OV plugin] dynamo cache_size_limit raised 8 -> %d", limit)
+    if os.environ.get("OV_DYNAMO_FAIL_ON_CACHE_LIMIT", "0") != "0":
+        _dynamo_cfg.fail_on_recompile_limit_hit = True
+        logger.debug("[OV plugin] dynamo fail_on_recompile_limit_hit enabled")
+
+
 def _patch_cpu_model_runner():
     try:
         from vllm.v1.worker.cpu_model_runner import CPUModelRunner
@@ -196,10 +226,16 @@ def _patch_cpu_model_runner():
         except Exception as _e:
             logger.debug("[OV plugin] affinity widen skipped: %s", _e)
 
+        _raise_dynamo_cache_limit()
+
         logger.info("[OV plugin] Compiling model with torch.compile backend=openvino")
         # "vllm": True turns on every vLLM-required flag (see preset.py).
         # Precision keys are deliberately absent: derived per-model dtype.
         options = {"aot_autograd": True, "vllm": True, "model_id": next(_next_model_id)}
+        # Stops dynamo specializing num_tokens==1, so decode reuses
+        # prefill's compiled model instead of compiling its own copy.
+        import torch.fx.experimental._config as _dynamo_cfg
+        _dynamo_cfg.backed_size_oblivious = True
         # dynamic=None: specializes first, then symbolizes only the dim that
         # varies -- cheaper than dynamic=True (~1.7x steady-state cost).
         compiled = torch.compile(
@@ -333,6 +369,88 @@ def _warn_if_unpinned():
         )
 
 
+# Only swap allocations at least this large: targets the KV pool while
+# leaving small bookkeeping tensors (which may rely on zeros) alone.
+_LAZY_KV_MIN_BYTES = 64 << 20
+
+
+def _patch_disable_sgl_kernel():
+    """Force vLLM CPU linear dispatch to skip torch.ops._C.weight_packed_linear.
+
+    That op is an auto_functionalized_v2 HOP the OV Partitioner treats as
+    unsupported, so it fragments the graph into one partition per layer
+    (e.g. 71 partitions / 77 alive CompiledModels on Gemma-4-E2B). Forcing
+    the oneDNN / aten.linear fallback keeps the whole model in a single
+    OV partition. On by default; opt out with OV_DISABLE_SGL_KERNEL=0.
+    """
+    import sys
+    if os.environ.get("OV_DISABLE_SGL_KERNEL", "1") == "0":
+        print("[OV plugin] SGL-kernel disable OFF (OV_DISABLE_SGL_KERNEL=0)",
+              file=sys.stderr, flush=True)
+        return
+    try:
+        from vllm.model_executor.layers import utils as _vllm_utils
+    except Exception as _e:
+        logger.debug("[OV plugin] disable-SGL patch skipped: %s", _e)
+        return
+    if getattr(_vllm_utils, "_ov_plugin_sgl_disabled", False):
+        return
+    _vllm_utils.check_cpu_sgl_kernel = lambda *a, **kw: False
+    _vllm_utils._ov_plugin_sgl_disabled = True
+    print(
+        "[OV plugin] check_cpu_sgl_kernel forced to False "
+        "(prevents OV partitioner fanout; set OV_DISABLE_SGL_KERNEL=0 to opt out)",
+        file=sys.stderr, flush=True,
+    )
+
+
+def _patch_lazy_kv_cache():
+    """Allocate the KV pool lazily (OV_LAZY_KVCACHE=1).
+
+    vLLM sizes the pool from VLLM_CPU_KVCACHE_SPACE and zero-fills it, which
+    faults every page in at startup even though PagedAttention writes each
+    block before reading it. torch.empty lets RSS track blocks actually used.
+    """
+    if os.environ.get("OV_LAZY_KVCACHE", "0") == "0":
+        return
+    try:
+        import torch
+        from vllm.v1.worker.gpu_model_runner import GPUModelRunner
+    except Exception as _e:
+        logger.debug("[OV plugin] lazy KV patch skipped: %s", _e)
+        return
+
+    if getattr(GPUModelRunner, "_ov_plugin_lazy_kv_patched", False):
+        return
+
+    _orig_alloc = GPUModelRunner._allocate_kv_cache_tensors
+
+    def _patched_alloc(self, *args, **kwargs):
+        # Swap only for the duration of this call, so unrelated torch.zeros
+        # users are untouched and upstream's own logic stays authoritative.
+        real_zeros = torch.zeros
+
+        def _maybe_lazy_zeros(*a, **kw):
+            size = a[0] if a else kw.get("size")
+            try:
+                nbytes = size if isinstance(size, int) else None
+            except Exception:
+                nbytes = None
+            if nbytes is not None and nbytes >= _LAZY_KV_MIN_BYTES:
+                return torch.empty(*a, **kw)
+            return real_zeros(*a, **kw)
+
+        torch.zeros = _maybe_lazy_zeros
+        try:
+            return _orig_alloc(self, *args, **kwargs)
+        finally:
+            torch.zeros = real_zeros
+
+    GPUModelRunner._allocate_kv_cache_tensors = _patched_alloc
+    GPUModelRunner._ov_plugin_lazy_kv_patched = True
+    logger.info("[OV plugin] KV cache pool allocated lazily (OV_LAZY_KVCACHE=1)")
+
+
 def register():
     """Entry point for `vllm.general_plugins`.
 
@@ -345,3 +463,5 @@ def register():
     _patch_cpu_model_runner()
     _patch_reload_weights()
     _patch_worker_update_weights()
+    _patch_disable_sgl_kernel()
+    _patch_lazy_kv_cache()

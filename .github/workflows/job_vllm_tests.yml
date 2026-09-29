@@ -98,6 +98,11 @@ jobs:
           wheels-dir-path: ${{ env.INSTALL_DIR }}
           wheels-to-install: 'openvino'
 
+      - name: Install system dependencies for vllm-cpu
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test }}
+        run: |
+          apt-get update && apt-get install -y --no-install-recommends libnuma1
+
       - name: Install vLLM tests requirements
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test }}
         run: |
