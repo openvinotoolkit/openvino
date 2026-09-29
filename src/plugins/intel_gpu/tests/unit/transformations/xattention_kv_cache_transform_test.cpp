@@ -26,6 +26,8 @@
 #include "ov_ops/dynamic_quantize.hpp"
 #include "test_utils.h"
 
+#include "../../../src/plugin/transformations_pipeline.cpp"
+
 using namespace tests;
 
 namespace ov::test::intel_gpu {
