@@ -51,7 +51,15 @@ template <dnnl::impl::cpu::aarch64::cpu_isa_t isa>
 void jit_uni_eltwise_generic<isa>::generate() {
     preamble();
 
-    static const std::vector<element::Type> exec_precisions_priority = {element::f16, element::f32};
+    // The list is shared by all ARM64 eltwise algorithms
+    // Operation specific restrictions are being checked by the executor
+    static const std::vector<element::Type> exec_precisions_priority = {
+        element::i8,
+        element::u8,
+        element::i32,
+        element::f16,
+        element::f32,
+    };
     const auto exec_prc = eltwise_precision_helper::get_precision(jep_.inputs_number,
                                                                   jep_.src_prc,
                                                                   eltwise_data_,
@@ -381,6 +389,11 @@ void jit_uni_eltwise_generic<isa>::load_vector(const TReg& data,
     }
     case ov::element::i8:
     case ov::element::u8: {
+        if (src_prc == dst_prc) {
+            utils::load_vector(data.b, data.b16, ptr_reg, ptr_offset, broadcast, this);
+            break;
+        }
+
         // Stability-first: always lane-wise for i8/u8 to avoid crossing boundaries in tails.
         const size_t lane_count = cpu_isa_traits<isa>::vlen / dst_prc.size();
         utils::load_vector(data.b, data.s, ptr_reg, ptr_offset, broadcast, this, lane_count);
@@ -446,6 +459,10 @@ void jit_uni_eltwise_generic<isa>::load_scalar(const SReg& data,
     case ov::element::i8: {
         ldr(Xbyak_aarch64::BReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
 
+        if (src_prc == dst_prc) {
+            break;
+        }
+
         // scalar is loaded, operates with vector
         TReg vec(data.getIdx());
         sshll(vec.h8, vec.b8, 0);
@@ -454,6 +471,10 @@ void jit_uni_eltwise_generic<isa>::load_scalar(const SReg& data,
     }
     case ov::element::u8: {
         ldr(Xbyak_aarch64::BReg(data.getIdx()), Xbyak_aarch64::ptr(ptr, ptr_offset));
+
+        if (src_prc == dst_prc) {
+            break;
+        }
 
         // scalar is loaded, operates with vector
         TReg vec(data.getIdx());
@@ -737,6 +758,10 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
         OV_CASE(Algorithm::EltwiseLogicalOr, ov::intel_cpu::aarch64::jit_logical_or_emitter),
         OV_CASE(Algorithm::EltwiseLogicalNot, ov::intel_cpu::aarch64::jit_logical_not_emitter),
         OV_CASE(Algorithm::EltwiseLogicalXor, ov::intel_cpu::aarch64::jit_logical_xor_emitter),
+        OV_CASE(Algorithm::EltwiseBitwiseAnd, ov::intel_cpu::aarch64::jit_bitwise_and_emitter),
+        OV_CASE(Algorithm::EltwiseBitwiseNot, ov::intel_cpu::aarch64::jit_bitwise_not_emitter),
+        OV_CASE(Algorithm::EltwiseBitwiseOr, ov::intel_cpu::aarch64::jit_bitwise_or_emitter),
+        OV_CASE(Algorithm::EltwiseBitwiseXor, ov::intel_cpu::aarch64::jit_bitwise_xor_emitter),
         OV_CASE(Algorithm::EltwiseIsNaN, ov::intel_cpu::aarch64::jit_is_nan_emitter),
         OV_CASE(Algorithm::EltwiseMaximum, ov::intel_cpu::aarch64::jit_maximum_emitter),
         OV_CASE(Algorithm::EltwiseMinimum, ov::intel_cpu::aarch64::jit_minimum_emitter),
@@ -879,6 +904,10 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseLogicalOr, jit_logical_or_emitter),
               OV_CASE(Algorithm::EltwiseLogicalNot, jit_logical_not_emitter),
               OV_CASE(Algorithm::EltwiseLogicalXor, jit_logical_xor_emitter),
+              OV_CASE(Algorithm::EltwiseBitwiseAnd, jit_bitwise_and_emitter),
+              OV_CASE(Algorithm::EltwiseBitwiseNot, jit_bitwise_not_emitter),
+              OV_CASE(Algorithm::EltwiseBitwiseOr, jit_bitwise_or_emitter),
+              OV_CASE(Algorithm::EltwiseBitwiseXor, jit_bitwise_xor_emitter),
               OV_CASE(Algorithm::EltwiseMaximum, jit_maximum_emitter),
               OV_CASE(Algorithm::EltwiseMinimum, jit_minimum_emitter),
               OV_CASE(Algorithm::EltwiseMish, jit_mish_emitter),

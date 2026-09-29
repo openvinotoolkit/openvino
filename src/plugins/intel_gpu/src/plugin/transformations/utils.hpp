@@ -27,8 +27,9 @@ inline bool insert_converts_before_if_needed(const std::shared_ptr<ov::Node>& no
         const auto& incoming_node = incoming_output.get_node_shared_ptr();
         const auto input_et = incoming_output.get_element_type();
 
-        if (input_et == desired_et)
+        if (input_et == desired_et) {
             continue;
+        }
 
         if (std::find(skip_inputs.begin(), skip_inputs.end(), input.get_index()) != skip_inputs.end()) {
             continue;

@@ -372,10 +372,9 @@ TEST(GroupQueryAttentionValues, sliding_window_boundary_uses_window_size_constan
     EXPECT_EQ(window_const->cast_vector<int64_t>(), std::vector<int64_t>{W});
 }
 
-TEST(GroupQueryAttentionValues, static_cache_scatter_index_clamped_to_capacity) {
-    // capacity (past_len) = 8, curr_seqlen = 1 -> max valid past_seqlen = capacity - curr_seqlen = 7. A
-    // caller-supplied seqlens_k implying a larger past_seqlen must not push the ScatterUpdate write past
-    // the end of the static full-length cache buffer (G10: unguarded static-cache overflow).
+TEST(GroupQueryAttentionValues, static_cache_scatter_index_unclamped) {
+    // past_seqlen feeds the scatter index directly, with no Minimum clamp in the chain - bounds checking
+    // for an out-of-range past_seqlen is ScatterUpdate's own responsibility, not this decomposition's.
     auto model = make_gqa_model(GqaParams{"static_scatter"}.shape(1, 8));
     decompose(model);
 
@@ -390,18 +389,12 @@ TEST(GroupQueryAttentionValues, static_cache_scatter_index_clamped_to_capacity) 
     }
     ASSERT_NE(cache_scatter, nullptr) << "static full-length cache ScatterUpdate not found";
 
-    // indices = Range(0, S) + Minimum(past_seqlen, capacity - S)
+    // indices = Range(0, S) + past_seqlen
     auto add = as_type_ptr<op::v1::Add>(cache_scatter->get_input_node_shared_ptr(1));
     ASSERT_NE(add, nullptr);
-    std::shared_ptr<op::v1::Minimum> clamp;
     for (size_t i = 0; i < add->get_input_size(); ++i)
-        if (auto m = as_type_ptr<op::v1::Minimum>(add->get_input_node_shared_ptr(i)))
-            clamp = m;
-    ASSERT_NE(clamp, nullptr) << "past_seqlen feeding the static-cache scatter index is not clamped";
-
-    auto cap_const = as_type_ptr<op::v0::Constant>(clamp->get_input_node_shared_ptr(1));
-    ASSERT_NE(cap_const, nullptr) << "clamp bound is not a constant";
-    EXPECT_EQ(cap_const->cast_vector<int64_t>(), std::vector<int64_t>{7});
+        EXPECT_EQ(as_type_ptr<op::v1::Minimum>(add->get_input_node_shared_ptr(i)), nullptr)
+            << "past_seqlen feeding the static-cache scatter index must no longer be clamped";
 }
 
 TEST(GroupQueryAttentionValues, smooth_softmax_sink_is_zero) {

@@ -17,10 +17,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 namespace {
 ov::Output<ov::Node> translate_circular_pad(ov::Output<ov::Node> input,
@@ -64,7 +61,7 @@ OutputVector translate_pad(const NodeContext& context) {
     if (context.get_input_shape(0) == context.get_output_shape()) {
         auto input_shape = std::make_shared<ov::op::v3::ShapeOf>(input);
         auto res = std::make_shared<ov::op::v1::Reshape>(input, input_shape, false);
-        return rename_outputs_with_suffix({res}, context.get_name());
+        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
     auto pad_params = context.get_attribute<std::vector<int32_t>>("pad_params");
@@ -81,7 +78,7 @@ OutputVector translate_pad(const NodeContext& context) {
 
     if (circular) {
         auto res = translate_circular_pad(input, pads, context.get_input_shape(0).to_shape());
-        return rename_outputs_with_suffix({res}, context.get_name());
+        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
     }
 
     const std::vector<int64_t> pads_begin = {pads[6], pads[4], pads[2], pads[0]};
@@ -92,10 +89,7 @@ OutputVector translate_pad(const NodeContext& context) {
     auto res =
         std::make_shared<ov::op::v1::Pad>(input, pads_begin_node, pads_end_node, pad_value, ov::op::PadMode::CONSTANT);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

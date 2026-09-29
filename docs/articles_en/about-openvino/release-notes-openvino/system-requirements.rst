@@ -72,9 +72,6 @@ GPU
       * Processor graphics are not included in all processors. See
         `Product Specifications <https://ark.intel.com/>`__
         for information about your processor.
-      * While this release of OpenVINO supports Ubuntu 20.04, the driver stack
-        for Intel discrete graphic cards does not fully support Ubuntu 20.04.
-        We recommend using Ubuntu 22.04 and later when executing on discrete graphics.
       * OpenCL™ driver versions required may vary, depending on hardware and operating Systems
         used. Consult driver documentation to select the best version for your setup.
 
@@ -271,21 +268,21 @@ to learn more about the release types.
 
             All x86_64 / arm64 architectures are supported.
 
-            * `Node.js version 21.0.0 and higher <https://nodejs.org/en/download/package-manager>`__
+            * `Node.js version 22.0.0 and higher <https://nodejs.org/en/download/package-manager>`__
 
          .. tab-item:: macOS
             :sync: macos
 
             All x86_64 / arm64 architectures are supported, however, only for CPU inference.
 
-            * `Node.js version 21.0.0 and higher <https://nodejs.org/en/download/package-manager>`__
+            * `Node.js version 22.0.0 and higher <https://nodejs.org/en/download/package-manager>`__
 
          .. tab-item:: Windows
             :sync: Windows
 
             All x86_64 architectures are supported. Windows ARM is not supported.
 
-            * `Node.js version 21.0.0 and higher <https://nodejs.org/en/download/package-manager/>`__
+            * `Node.js version 22.0.0 and higher <https://nodejs.org/en/download/package-manager/>`__
 
    .. tab-item:: YUM
       :name: yum-sysreq

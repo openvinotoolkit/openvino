@@ -1722,6 +1722,77 @@ TEST(concat_gpu_onednn, basic_input_types) {
     }
 }
 
+// oneDNN counts DNNL_ARG_MULTIPLE_SRC + i (i >= 512) as an attribute argument because the arg id
+// bit-collides with DNNL_ARG_ATTR_PRECOMPUTED_REDUCTIONS (512), so executing a concat with more
+// than 512 inputs is rejected with "could not execute a primitive".
+static void run_concat_onednn_many_inputs(const std::vector<int32_t>& input_features, impl_types expected_impl) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        GTEST_SKIP() << "Skipping oneDNN concat test: device does not support IMMAD";
+
+    constexpr int32_t spatial_size = 2;
+    constexpr size_t elems_per_feature = spatial_size * spatial_size;
+
+    topology topology;
+    std::vector<input_info> concat_inputs;
+    std::vector<memory::ptr> input_mems;
+    int32_t total_features = 0;
+    for (size_t i = 0; i < input_features.size(); ++i) {
+        auto id = "input" + std::to_string(i);
+        layout in_layout = { data_types::f16, format::bfyx, tensor{ 1, input_features[i], spatial_size, spatial_size } };
+        auto mem = engine.allocate_memory(in_layout);
+        set_values(mem, VF<ov::float16>(in_layout.count(), ov::float16(static_cast<float>(i))));
+        topology.add(input_layout(id, in_layout));
+        concat_inputs.emplace_back(id);
+        input_mems.push_back(mem);
+        total_features += input_features[i];
+    }
+    topology.add(concatenation("concat", concat_inputs, 1, data_types::f16));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::custom_outputs(std::vector<std::string>{ "concat" }));
+
+    network network(engine, topology, config);
+    for (size_t i = 0; i < input_mems.size(); ++i)
+        network.set_input_data("input" + std::to_string(i), input_mems[i]);
+
+    auto impl = network.get_primitive("concat")->get_impl();
+    ASSERT_TRUE(impl != nullptr);
+    ASSERT_TRUE(impl->m_manager != nullptr);
+    EXPECT_EQ(impl->m_manager->get_impl_type(), expected_impl);
+
+    std::map<primitive_id, network_output> outputs;
+    ASSERT_NO_THROW(outputs = network.execute());
+
+    auto output_memory = outputs.at("concat").get_memory();
+    ASSERT_EQ(output_memory->get_layout().feature(), total_features);
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> output_ptr(output_memory, get_test_stream());
+    size_t offset = 0;
+    for (size_t i = 0; i < input_features.size(); ++i) {
+        const size_t elems = static_cast<size_t>(input_features[i]) * elems_per_feature;
+        for (size_t e = 0; e < elems; ++e, ++offset) {
+            ASSERT_EQ(static_cast<float>(output_ptr[offset]), static_cast<float>(i)) << "input " << i;
+        }
+    }
+}
+
+TEST(concat_gpu_onednn, max_supported_input_count_uses_onednn) {
+    ASSERT_NO_FATAL_FAILURE(run_concat_onednn_many_inputs(std::vector<int32_t>(512, 1), impl_types::onednn));
+}
+
+TEST(concat_gpu_onednn, above_max_input_count_falls_back_to_ocl) {
+    ASSERT_NO_FATAL_FAILURE(run_concat_onednn_many_inputs(std::vector<int32_t>(513, 1), impl_types::ocl));
+}
+
+// Wide concat whose sources do not all share one layout, so oneDNN source descriptors must be
+// indexed past 255 correctly.
+TEST(concat_gpu_onednn, varying_input_shapes_across_index_255) {
+    std::vector<int32_t> input_features(300, 1);
+    std::fill(input_features.begin() + 256, input_features.end(), 3);
+    ASSERT_NO_FATAL_FAILURE(run_concat_onednn_many_inputs(input_features, impl_types::onednn));
+}
+
 TEST(concat_gpu_onednn, impl_selection_unaligned_feature_axis) {
     auto& engine = get_test_engine();
     if (!engine.get_device_info().supports_immad)

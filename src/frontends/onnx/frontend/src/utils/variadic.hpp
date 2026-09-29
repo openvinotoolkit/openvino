@@ -9,10 +9,7 @@
 #include "core/node.hpp"
 #include "utils/common.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace variadic {
+namespace ov::frontend::onnx::variadic {
 /// \brief Create an OpenVINO version of an ONNX variadic operation.
 ///        This creates a subgraph with a series of binary operations.
 ///
@@ -47,7 +44,4 @@ inline ov::OutputVector make_ng_variadic_op(
     return {result};
 }
 
-}  // namespace variadic
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::variadic
