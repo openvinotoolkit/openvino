@@ -6,37 +6,37 @@
 
 #include <algorithm>
 
-namespace ov::runtime {
+namespace ov::runtime::hsm {
 
-HSMMultiBlobView::NextContainer::NextContainer(ov::util::MemoryView remaining,
-                                               size_t container_size,
-                                               bool is_blob) noexcept
+MultiBlobView::NextContainer::NextContainer(ov::util::MemoryView remaining,
+                                            size_t container_size,
+                                            bool is_blob) noexcept
     : m_remaining(remaining),
       m_container_size(container_size),
       m_is_blob(is_blob) {}
 
-const ov::util::MemoryView& HSMMultiBlobView::NextContainer::remaining() const noexcept {
+const ov::util::MemoryView& MultiBlobView::NextContainer::remaining() const noexcept {
     return m_remaining;
 }
 
-size_t HSMMultiBlobView::NextContainer::container_size() const noexcept {
+size_t MultiBlobView::NextContainer::container_size() const noexcept {
     return m_container_size;
 }
 
-bool HSMMultiBlobView::NextContainer::is_blob() const noexcept {
+bool MultiBlobView::NextContainer::is_blob() const noexcept {
     return m_is_blob;
 }
 
-const HSMHeader& HSMContainerView::header() const noexcept {
-    return HSMHeader::view(reinterpret_cast<const uint8_t*>(begin()));
+const Header& ContainerView::header() const noexcept {
+    return Header::view(reinterpret_cast<const uint8_t*>(begin()));
 }
 
-const HSMManifestEntry& HSMContainerView::manifest() const noexcept {
-    return *reinterpret_cast<const HSMManifestEntry*>(begin() + header().manifest_offset);
+const ManifestEntry& ContainerView::manifest() const noexcept {
+    return *reinterpret_cast<const ManifestEntry*>(begin() + header().manifest_offset);
 }
 
-bool HSMContainerView::validate() const noexcept {
-    if (static_cast<size_t>(end() - begin()) < sizeof(HSMHeader)) {
+bool ContainerView::validate() const noexcept {
+    if (static_cast<size_t>(end() - begin()) < sizeof(Header)) {
         return false;
     }
     const auto& hdr = header();
@@ -54,10 +54,10 @@ bool HSMContainerView::validate() const noexcept {
     });
 }
 
-size_t HSMMultiBlobView::blob_count() const noexcept {
+size_t MultiBlobView::blob_count() const noexcept {
     auto view = m_view;
     size_t count = 0;
-    while (view.size() >= sizeof(HSMHeader)) {
+    while (view.size() >= sizeof(Header)) {
         const auto next = advance_container(view);
         if (!next) {
             break;
@@ -68,16 +68,16 @@ size_t HSMMultiBlobView::blob_count() const noexcept {
     return count;
 }
 
-HSMContainerView HSMMultiBlobView::blob_at(size_t index) const noexcept {
+ContainerView MultiBlobView::blob_at(size_t index) const noexcept {
     auto view = m_view;
-    while (view.size() >= sizeof(HSMHeader)) {
+    while (view.size() >= sizeof(Header)) {
         const auto next = advance_container(view);
         if (!next) {
             break;
         }
         if (next->is_blob()) {
             if (index == 0) {
-                return HSMContainerView{view.data(), next->container_size()};
+                return ContainerView{view.data(), next->container_size()};
             }
             --index;
         }
@@ -86,9 +86,9 @@ HSMContainerView HSMMultiBlobView::blob_at(size_t index) const noexcept {
     return {};
 }
 
-std::optional<HSMMultiBlobView::NextContainer> HSMMultiBlobView::advance_container(
+std::optional<MultiBlobView::NextContainer> MultiBlobView::advance_container(
     const ov::util::MemoryView& view) noexcept {
-    const auto& hdr = HSMHeader::view(reinterpret_cast<const uint8_t*>(view.data()));
+    const auto& hdr = Header::view(reinterpret_cast<const uint8_t*>(view.data()));
     if (!is_recognized_header(hdr) || hdr.container_size > view.size()) {
         return std::nullopt;
     } else {
@@ -99,4 +99,4 @@ std::optional<HSMMultiBlobView::NextContainer> HSMMultiBlobView::advance_contain
     }
 }
 
-}  // namespace ov::runtime
+}  // namespace ov::runtime::hsm
