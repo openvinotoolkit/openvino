@@ -160,10 +160,6 @@ PyTorch_FE:
     - Python_API
     - TOKENIZERS # PyTorch_FE tests depend on tokenizers build
 
-PyTorch_Models_Nightly:
-  revalidate: []
-  build: []
-
 JAX_FE:
   revalidate:
     - OVC

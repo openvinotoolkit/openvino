@@ -189,11 +189,6 @@
         '!tests/model_hub_tests/jax/**/*',
         '!tests/model_hub_tests/gguf/**/*']
 
-'category: PyTorch Models Nightly':
-- '.github/workflows/job_pytorch_models_tests.yml'
-- 'tests/model_hub_tests/models_hub_common/**/*'
-- 'tests/model_hub_tests/pytorch/**/*'
-
 'category: JAX FE':
 - 'src/frontends/jax/**/*'
 - 'src/bindings/python/src/openvino/frontend/jax/**/*'
