@@ -23,7 +23,7 @@ import json
 import os
 import pathlib
 import shutil
-import subprocess
+import subprocess  # nosec B404
 import sys
 import time
 
