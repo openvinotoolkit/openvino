@@ -6,6 +6,7 @@
 
 #include <cerrno>
 #include <climits>
+#include <cstring>
 #include <tuple>
 #include <utility>
 
@@ -20,19 +21,34 @@ namespace ov {
 namespace threading {
 #if !(defined(__APPLE__) || defined(__EMSCRIPTEN__) || defined(_WIN32))
 std::tuple<CpuSet, int> get_process_mask() {
-    for (int ncpus = sizeof(cpu_set_t) / CHAR_BIT; ncpus < 32768 /* reasonable limit of #cores*/; ncpus <<= 1) {
-        CpuSet mask{CPU_ALLOC(ncpus)};
-        if (nullptr == mask)
-            break;
-        const size_t size = CPU_ALLOC_SIZE(ncpus);
-        CPU_ZERO_S(size, mask.get());
-        // the result fits the mask
-        if (0 == sched_getaffinity(getpid(), size, mask.get())) {
-            return std::make_tuple(std::move(mask), ncpus);
+    static const auto init_mask = []() -> std::pair<CpuSet, int> {
+        for (int ncpus = sizeof(cpu_set_t) / CHAR_BIT; ncpus < 32768 /* reasonable limit of #cores*/; ncpus <<= 1) {
+            CpuSet mask{CPU_ALLOC(ncpus)};
+            if (nullptr == mask)
+                break;
+            const size_t size = CPU_ALLOC_SIZE(ncpus);
+            CPU_ZERO_S(size, mask.get());
+            // the result fits the mask
+            if (0 == sched_getaffinity(getpid(), size, mask.get())) {
+                return {std::move(mask), ncpus};
+            }
+            // other error
+            if (errno != EINVAL)
+                break;
         }
-        // other error
-        if (errno != EINVAL)
-            break;
+        return {nullptr, 0};
+    }();
+
+    if (nullptr == init_mask.first) {
+        return std::make_tuple(nullptr, 0);
+    }
+
+    const int ncpus = init_mask.second;
+    const size_t size = CPU_ALLOC_SIZE(ncpus);
+    CpuSet mask{CPU_ALLOC(ncpus)};
+    if (nullptr != mask) {
+        std::memcpy(mask.get(), init_mask.first.get(), size);
+        return std::make_tuple(std::move(mask), ncpus);
     }
     return std::make_tuple(nullptr, 0);
 }
