@@ -646,12 +646,7 @@ void ov::npuw::GQACompiledModel::export_model(std::ostream& stream) const {
         GQA_TRACE("    '" << name << "' -> axis " << axis);
     }
     using namespace ov::npuw::s11n;
-    write(stream, NPUW_SERIALIZATION_INDICATOR);
-    write(stream, NPUW_GQA_COMPILED_MODEL_INDICATOR);
-    write(stream, OPENVINO_VERSION_MAJOR);
-    write(stream, OPENVINO_VERSION_MINOR);
-    write(stream, OPENVINO_VERSION_PATCH);
-    write(stream, std::string(NPUW_SERIALIZATION_VERSION));
+    write_header(stream, NPUW_GQA_COMPILED_MODEL_INDICATOR);
 
     // Preserve the outer-facing ports (dynamic KV-cache/attention-bias axes as seen by
     // the caller) and the dynamic-axis map itself, so import_model() can rebuild an
@@ -681,44 +676,7 @@ std::shared_ptr<ov::npuw::ICompiledModel> ov::npuw::GQACompiledModel::import_mod
 
     using namespace ov::npuw::s11n;
 
-    ov::npuw::s11n::IndicatorType serialization_indicator;
-    read(stream, serialization_indicator);
-    NPUW_ASSERT(serialization_indicator == NPUW_SERIALIZATION_INDICATOR);
-
-    ov::npuw::s11n::IndicatorType gqa_indicator;
-    read(stream, gqa_indicator);
-    NPUW_ASSERT(gqa_indicator == NPUW_GQA_COMPILED_MODEL_INDICATOR);
-
-    int vmajor, vminor, vpatch;
-    std::string s11n_version;
-    read(stream, vmajor);
-    read(stream, vminor);
-    read(stream, vpatch);
-    read(stream, s11n_version);
-
-    GQA_TRACE("    blob version " << vmajor << '.' << vminor << '.' << vpatch << " / s11n '" << s11n_version
-                                  << "', current is " << OPENVINO_VERSION_MAJOR << '.' << OPENVINO_VERSION_MINOR << '.'
-                                  << OPENVINO_VERSION_PATCH << " / s11n '" << NPUW_SERIALIZATION_VERSION << "'");
-
-    if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
-        s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {
-        OPENVINO_THROW("GQA blob was serialized with a different OV version (",
-                       vmajor,
-                       '.',
-                       vminor,
-                       '.',
-                       vpatch,
-                       " / NPUW s11n ",
-                       s11n_version,
-                       "); current is ",
-                       OPENVINO_VERSION_MAJOR,
-                       '.',
-                       OPENVINO_VERSION_MINOR,
-                       '.',
-                       OPENVINO_VERSION_PATCH,
-                       " / NPUW s11n ",
-                       NPUW_SERIALIZATION_VERSION);
-    }
+    read_and_check_header(stream, NPUW_GQA_COMPILED_MODEL_INDICATOR, "GQACompiledModel");
 
     // Rebuild the outer-facing model (with the dynamic KV-cache/attention-bias axes
     // restored to dynamic) and the axis map itself, exactly as they were before export.

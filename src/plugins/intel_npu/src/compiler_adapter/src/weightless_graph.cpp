@@ -263,7 +263,7 @@ WeightlessGraph::WeightlessGraph(
     std::optional<std::vector<ov::Tensor>> initBlobs,
     std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::pair<std::string, std::shared_ptr<ov::ICore>>>&&
         weightsSource,
-    const FilteredConfig& config,
+    const Config& config,
     const bool blobIsPersistent,
     const std::optional<std::string>& compatibilityDescriptor)
     : Graph(zeGraphExt,
@@ -370,7 +370,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
     return std::make_pair(totalBlobSize, initSizes);
 }
 
-void WeightlessGraph::initialize_impl(const FilteredConfig& config) {
+void WeightlessGraph::initialize_impl(const Config& config) {
     if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
         // To ensure that does not throw an issue when subsequently calling `_zeroInitStruct->getDevice()`
         return;

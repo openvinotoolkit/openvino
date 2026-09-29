@@ -10,6 +10,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/isync_infer_request.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -208,6 +209,10 @@ struct HostFlashAttentionInfo {
 
 // Compile-time host flash attention information
 struct HostFlashAttention {
+    // Upper bound on the number of tiles a single HFA inference may be split into. Only used to
+    // reject corrupted _context_size / _query_size combinations coming from a cache blob.
+    static constexpr std::size_t kMaxTiles = 1u << 20;
+
     // Models to compile (will be cleared after compilation)
     std::shared_ptr<ov::Model> _tile_model_to_compile;
     std::shared_ptr<ov::Model> _final_tile_model_to_compile;
@@ -246,10 +251,7 @@ struct HostFlashAttention {
         _final_tile_model_to_compile.reset();  // Free memory after compilation
     }
 
-    bool is_valid() const {
-        return _compiled_tile_model != nullptr && _compiled_final_tile_model != nullptr && _past_tile_size > 0 &&
-               _final_tile_size > 0;
-    }
+    bool is_valid() const;
 };
 
 }  // namespace compiled
@@ -360,7 +362,7 @@ struct HFARuntimeContext {
         // to be exact — context_size includes the final tile's present KV, which isn't itself
         // chunked into past_tile_size units, so the division may not be exact.
         const size_t context_size = hfa_desc._sdpa_attention_info._context_size;
-        const size_t max_num_tiles = (context_size + past_tile_size - 1) / past_tile_size;
+        const size_t max_num_tiles = context_size / past_tile_size + (context_size % past_tile_size != 0);
 
         m_mask_tile_buffers.reserve(max_num_tiles);
         for (size_t i = 0; i < max_num_tiles; ++i) {

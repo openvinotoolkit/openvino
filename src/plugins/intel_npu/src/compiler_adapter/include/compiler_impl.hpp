@@ -11,9 +11,9 @@
 #include <utility>
 #include <vector>
 
-#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/common/option_support_cache.hpp"
+#include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
@@ -46,7 +46,7 @@ public:
      *         string with runtime requirements for the blob
      */
     std::pair<ov::Tensor, std::optional<std::string>> compile(const std::shared_ptr<const ov::Model>& model,
-                                                              const FilteredConfig& config) const;
+                                                              const Config& config) const;
 
     /**
      * @brief Compiles the model, weights separation enabled. All init schedules along with the main one are compiled in
@@ -56,7 +56,7 @@ public:
      */
     std::pair<std::vector<ov::Tensor>, std::optional<std::string>> compileWsOneShot(
         const std::shared_ptr<ov::Model>& model,
-        const FilteredConfig& config) const;
+        const Config& config) const;
     /**
      * @brief Sequential compilation of Init(s) and Main
      *
@@ -72,7 +72,7 @@ public:
      * Plugin does not know total numbers of Init schedules
      */
     std::pair<ov::Tensor, std::optional<std::string>> compileWsIterative(const std::shared_ptr<ov::Model>& model,
-                                                                         const FilteredConfig& config,
+                                                                         const Config& config,
                                                                          size_t callNumber) const;
     /**
      * @brief Returns information about supported layers of the network passed
@@ -81,7 +81,7 @@ public:
      *        including config options related to compilation
      * @returns SupportedOpsMap structure with information about supported layers
      */
-    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const FilteredConfig& config) const;
+    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const;
 
     /**
      * @brief Returns the compiler version
@@ -120,7 +120,7 @@ private:
      * @note Storing the "WeightlessCacheAttribute" is necessary if the "weights separation" flow is being used.
      */
     std::pair<ov::Tensor, std::optional<std::string>> compile(const std::shared_ptr<const ov::Model>& model,
-                                                              const FilteredConfig& config,
+                                                              const Config& config,
                                                               const bool storeWeightlessCacheAttributeFlag) const;
 
     std::shared_ptr<const VCLFunctionTable> _functions;
