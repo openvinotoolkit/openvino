@@ -44,10 +44,18 @@ class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
         # pip>=25.3 uses PIP_BUILD_CONSTRAINT for isolated builds, older pip uses PIP_CONSTRAINT
         os.environ["PIP_BUILD_CONSTRAINT"] = build_constraints
         os.environ["PIP_CONSTRAINT"] = build_constraints
+        # build legacy setup.py packages in isolation, so setuptools plugins from the test env
+        # (e.g. kernels egg_info writer) are not loaded
+        os.environ["PIP_USE_PEP517"] = "1"
 
     def load_model(self, model_name, model_link):
         subprocess.check_call([sys.executable, "install.py"] + [model_name], cwd=self.repo_dir.name)
         sys.path.append(self.repo_dir.name)
+        import numpy as np
+        if int(np.__version__.split(".")[0]) >= 2:
+            # maml inputs are pickled with numpy<2 path, which weights_only load doesn't map to numpy._core
+            torch.serialization.add_safe_globals(
+                [(np._core.multiarray._reconstruct, "numpy.core.multiarray._reconstruct")])
         from torchbenchmark import load_model_by_name
         try:
             model_cls = load_model_by_name(
