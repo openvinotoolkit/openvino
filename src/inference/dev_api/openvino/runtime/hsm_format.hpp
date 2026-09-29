@@ -212,7 +212,7 @@ constexpr SectionTag model_tag() noexcept {
  * @brief Wire tag for #runtime_requirements - always pointer-mode. Payload is opaque to the common
  * reader/format: this contract only reserves the tag and its bounds (like any pointer-mode section) -
  * interpreting and enforcing the encoded requirements is entirely the emitting device/plugin's
- * responsibility, typically via #IHsmSectionExtension. No expression scheme is defined at this layer
+ * responsibility, typically via #IHsmSectionHandler. No expression scheme is defined at this layer
  * (out of scope here; a richer format, if any, belongs to the tag registry).
  */
 constexpr SectionTag runtime_requirements_tag() noexcept {
@@ -314,24 +314,25 @@ constexpr bool is_valid_section_bounds(const ManifestEntry& entry, const HSMHead
 }
 
 /**
- * @brief Reader-side plugin hook: interprets one manifest entry's section content. A concrete extension
- * self-dispatches by checking `(entry.device, entry.tag)` and returning whether it recognized it - per the
- * unknown-tag rule on #SectionTag, the reader must skip any entry no extension recognizes, never fail
- * import.
- * @note Forward-looking contract only - not yet wired to a real reader.
+ * @brief Per-entry hook a container reader offers to plugins/devices: given one manifest entry's section
+ * content, a concrete handler self-selects by checking `(entry.device, entry.tag)` and returns whether it
+ * recognized and handled it. Per the unknown-tag rule on #SectionTag, an entry no handler recognizes must
+ * be skipped, never fail import.
  */
-class IHsmSectionExtension {
+class IHsmSectionHandler {
 public:
-    virtual ~IHsmSectionExtension() = default;
+    virtual ~IHsmSectionHandler() = default;
 
     /**
      * @brief Attempts to interpret @p entry's section content.
+     * @note Not itself a dispatch loop - a caller tries this once per candidate entry against each handler
+     * it holds, in turn, until one returns true.
      * @param entry Manifest entry being considered - not necessarily one this extension owns.
      * @param section Bounds-checked view of the payload - #HSMContainerView::section() for a pointer-mode
      * entry, or `entry.inline_bytes` for an inline-mode one; never a raw, unchecked pointer.
      * @return true if `(entry.device, entry.tag)` was recognized and handled, false otherwise.
      */
-    virtual bool read_section(const ManifestEntry& entry, ov::util::MemoryView section) = 0;
+    virtual bool handle_section(const ManifestEntry& entry, ov::util::MemoryView section) = 0;
 };
 
 /**

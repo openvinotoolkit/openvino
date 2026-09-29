@@ -97,13 +97,13 @@ std::vector<uint8_t> make_sample_container_with_entries() {
     return make_single_blob_container({'O', 'V'}, manifest);
 }
 
-// Minimal IHsmSectionExtension: recognizes one (device, tag id) pair, records the section size it saw.
-class RecordingExtension : public runtime::IHsmSectionExtension {
+// Minimal IHsmSectionHandler: recognizes one (device, tag id) pair, records the section size it saw.
+class RecordingHandler : public runtime::IHsmSectionHandler {
 public:
     static constexpr runtime::DeviceId owned_device = 7;
     static constexpr uint32_t owned_tag_id = 42;
 
-    bool read_section(const runtime::ManifestEntry& entry, ov::util::MemoryView section) override {
+    bool handle_section(const runtime::ManifestEntry& entry, ov::util::MemoryView section) override {
         if (entry.device != owned_device || entry.tag.id() != owned_tag_id) {
             return false;
         }
@@ -497,24 +497,24 @@ TEST(HsmMultiBlobViewTest, stops_on_mismatched_major_version) {
     EXPECT_EQ(view.blob_count(), 0u);  // can't trust framing past an unsupported major version
 }
 
-TEST(IHsmSectionExtensionTest, recognizes_own_device_and_tag) {
+TEST(IHsmSectionHandlerTest, recognizes_own_device_and_tag) {
     runtime::ManifestEntry entry{};
-    entry.device = RecordingExtension::owned_device;
-    entry.tag = runtime::SectionTag::make(RecordingExtension::owned_tag_id, /*is_inline=*/false);
+    entry.device = RecordingHandler::owned_device;
+    entry.tag = runtime::SectionTag::make(RecordingHandler::owned_tag_id, /*is_inline=*/false);
 
     const std::byte payload[4] = {};
-    RecordingExtension extension;
-    EXPECT_TRUE(extension.read_section(entry, ov::util::MemoryView{payload, 4}));
+    RecordingHandler extension;
+    EXPECT_TRUE(extension.handle_section(entry, ov::util::MemoryView{payload, 4}));
     EXPECT_EQ(extension.last_section_size, 4u);
 }
 
-TEST(IHsmSectionExtensionTest, skips_entry_it_does_not_own) {
+TEST(IHsmSectionHandlerTest, skips_entry_it_does_not_own) {
     runtime::ManifestEntry entry{};
-    entry.device = RecordingExtension::owned_device + 1;  // different device
-    entry.tag = runtime::SectionTag::make(RecordingExtension::owned_tag_id, /*is_inline=*/false);
+    entry.device = RecordingHandler::owned_device + 1;  // different device
+    entry.tag = runtime::SectionTag::make(RecordingHandler::owned_tag_id, /*is_inline=*/false);
 
-    RecordingExtension extension;
-    EXPECT_FALSE(extension.read_section(entry, ov::util::MemoryView{}));
+    RecordingHandler extension;
+    EXPECT_FALSE(extension.handle_section(entry, ov::util::MemoryView{}));
     EXPECT_EQ(extension.last_section_size, 0u);  // never called
 }
 
