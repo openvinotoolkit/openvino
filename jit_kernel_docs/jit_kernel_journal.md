@@ -361,6 +361,7 @@ from a recording closure:
 |---|---|
 | `MachineBasicBlock::Alignment` | `Op::align` / `Op::align_max_padding` |
 | `TargetLowering::getPrefLoopAlignment` | `vector_target::preferred_loop_alignment()` |
+| `TargetLowering::getMaxPermittedBytesForAlignment` | `vector_target::max_bytes_for_alignment()` |
 | AsmPrinter emitting `.p2align` | `arch_emitter::align_to()` |
 | `MachineBlockPlacement::alignBlocks` | set at record time by `foreach` |
 
@@ -368,27 +369,55 @@ The pass is the part deliberately not copied: LLVM needs it because its
 layout is late and back edges can be synthetic from loop rotation, while
 here control flow is structural. What that costs is the heuristics —
 LLVM skips cold blocks and optsize functions using block frequencies this
-DSL does not have, so every loop gets aligned. The padding cap is kept,
-being the one heuristic available without profile data.
+DSL does not have, so every loop gets aligned.
 
 x86 answers 16, LLVM's value. **oneDNN uses 64 and measured 15% worse
 here** — see `jit_kernel_brgemm.md`.
 
-### Prefetching, and why it is off
+**The padding cap was invented here and was wrong.** `foreach` capped
+padding at half the alignment, reasoning that past that the nops cost
+more than the misalignment they remove. What that actually does is drop
+the alignment on exactly those loop heads that need the most padding,
+which is uncorrelated with how hot they are: in the BRGEMM kernel it
+left two of three loops unaligned, including both inner ones, and the
+disassembly showed a single five-byte `nopl` in the whole kernel against
+oneDNN's thirty-eight. LLVM does not do this —
+`TargetLoweringBase` initializes `MaxBytesForAlignment` to 0, meaning
+unlimited, and only AArch64 and LoongArch override it; X86 never calls
+`setMaxBytesForAlignment`. The cap is now a target query answering 0 on
+x86.
+
+Aligning the two inner loops that the cap had been suppressing **moved
+nothing measurable** (cycles per FMA 0.3112 against 0.3114). Kept
+because it is right, not because it paid.
+
+### Prefetching, and why it is on
 
 `arch_emitter::prefetch` and `ir_prefetch` exist, with
 `vector_target::cache_line_size()` and `prefetch_distance()` as the
-`TargetTransformInfo` analogues. The x86 target answers 0, so nothing is
-emitted.
+`TargetTransformInfo` analogues, gating emission exactly as
+`LoopDataPrefetch` gates itself ("If PrefetchDistance is not set, don't
+run the pass").
 
 Not a `LoopDataPrefetch` equivalent: that pass needs stride analysis to
-know what iteration *i+k* touches, which this IR has no SCEV for. More to
-the point, **LLVM does not run it on x86** —
+know what iteration *i+k* touches, which this IR has no SCEV for. A
+recording site knows its own stride, so the target answers a distance in
+bytes and the site rounds up to a whole number of loop strides — the same
+conversion LLVM performs as `ItersAhead * stride`, just from a distance
+LLVM expresses in instructions.
+
+**This is the one place the x86 target deliberately contradicts LLVM.**
 `X86TargetTransformInfo` answers neither `getPrefetchDistance` nor
 `getCacheLineSize`, so the pass returns early and the hardware prefetcher
-is left to handle strided access. Copying oneDNN's BRGEMM prefetch
-pattern exactly measured as nothing, so the x86 target follows LLVM.
-`OV_JIT_IR_PREFETCH=<bytes>` re-opens the question elsewhere.
+is left to handle strided access. On BRGEMM that costs 5.5% of the
+kernel's cycles per FMA — the whole of the gap against oneDNN. The x86
+target answers 16 cache lines.
+
+The first attempt at this question concluded the opposite, and the
+mistake was the instrument, not the reasoning: wall-clock A/B over a
+whole inference (84/87/85 us against 85/85/88) cannot resolve 3% of a
+kernel inside an 80 us number that drifts 3 us between runs. See "Naming
+a few percent" below.
 
 ### Arch emission interface
 
@@ -804,19 +833,50 @@ otherwise be repeated.
 | predicated interleaved store | color_convert | unmeasured; taken for register pressure, costs 6% code |
 | loop alignment at 16 | BRGEMM | **89 -> 84 us**, half the gap |
 | loop alignment at 64 (oneDNN's value) | BRGEMM | **96-98 us — worse** |
-| software prefetch, oneDNN's pattern | BRGEMM | none |
+| software prefetch, oneDNN's pattern | BRGEMM | **5.5% of cycles per FMA** |
 | rolling the M tile loop | BRGEMM | none (code 8617 -> 2240 bytes) |
 | loop rotation | BRGEMM | none |
+| aligning the loops the padding cap had skipped | BRGEMM | none |
 
-Two of nine moved the clock. Twice, copying oneDNN's choice directly was
-the wrong move — 64-byte alignment and prefetching both looked like
-obvious gaps in an instruction-mix diff and both were worthless or
-harmful here.
+Three of ten moved the clock. Copying oneDNN's choices directly was wrong
+once (64-byte alignment) and right once (prefetching) — and the
+prefetching answer was *recorded as wrong for a week* because the first
+measurement could not resolve it.
 
 The standing lesson: instruction counts have not once predicted time on
-this branch, in either direction. Our BRGEMM inner loop is now leaner
-than oneDNN's — 147 instructions against 157, 2228 bytes against 2912 —
-and still 5% slower.
+this branch, in either direction. The BRGEMM inner loop is leaner than
+oneDNN's — 147 instructions against 157, 2228 bytes against 2912 — and
+that told us nothing about which of the two was faster.
+
+### Naming a few percent
+
+Wall-clock A/B on `MatMulBrgemmBench` reports one number per run for the
+whole MatMul node, drifts 3 us between runs, and includes a B-repacking
+kernel. It cannot resolve 3% of the BRGEMM kernel, and twice it produced
+a confident wrong answer. What can:
+
+- **Symbolize the JIT code.** `DNNL_JIT_PROFILE=6` makes oneDNN write a
+  perf jitdump; `perf record -k mono` then `perf inject --jit` turns it
+  into annotatable ELF. Our kernel appears for free — `brgemm_kernel_ir`
+  reaches `jit_generator_t::create_kernel()`, which calls
+  `register_jit_code`. `DNNL_JIT_PROFILE=2` is enough for per-symbol
+  counters and is cheaper.
+- **Normalize by work, not by wall time.** The benchmark's warmup is
+  time-boxed, so a slower kernel runs fewer times and per-symbol totals
+  stay flat. `cycles / fp_arith_inst_retired.512b_packed_single` within
+  the symbol is independent of the call count and resolves about 1%.
+  (The counter increments twice per FMA; only ratios are used, so it
+  does not matter.)
+- **Read topdown before reading assembly.** Frontend bound was 2.8% on
+  both kernels, bad speculation under 1%, fully stalled cycles 3%. The
+  entire difference was backend: retiring 78.6% against 72.6%. That
+  ruled out every explanation involving code size, alignment or
+  instruction count in one measurement, after two days of diffing
+  instruction mixes had ruled out none of them.
+
+The port histogram (`exe_activity.*_ports_util`) then showed oneDNN with
+45% of cycles at four or more ports busy against our 32%, which is what
+an exposed load latency looks like — and prefetching removed it.
 
 ## Multi-architecture plan
 
@@ -1028,6 +1088,28 @@ Interleave the two rather than running three of each: the machine drifts
 several percent over minutes, which is the same size as the difference
 being measured.
 
+**And do not trust that number below ~5%.** Use per-symbol counters
+instead — cycles per FMA inside the kernel, which the time-boxed warmup
+cannot skew:
+
+```bash
+DNNL_JIT_PROFILE=2 OV_JIT_IR_BRGEMM=1 perf record -F 4000 \
+  -e cycles:u,fp_arith_inst_retired.512b_packed_single:u -o /tmp/a.data -- \
+  taskset -c 4 ./bin/intel64/RelWithDebInfo/ov_cpu_func_tests \
+  --gtest_also_run_disabled_tests --gtest_filter='*BrgemmBench*7.32.120*'
+
+perf report -i /tmp/a.data --stdio --no-children -F period,symbol --sort symbol |
+  grep -E 'of event|brgemm_kernel_ir\.0|jit_brgemm_kernel_t\.0'
+# divide cycles by fp_arith. oneDNN 0.300, ours 0.296. Four repeats,
+# interleaved; spread is ~0.005.
+```
+
+`DNNL_JIT_PROFILE=6` plus `perf record -k mono` and `perf inject --jit`
+gives annotatable ELF for both kernels instead (`perf annotate -s
+brgemm_kernel_ir.0`), and `objdump -d` on the injected `.so` is the
+easiest way to read what was actually emitted. Requires
+`perf_event_paranoid <= 1`.
+
 Benchmark (RoPE node time from `PERF_COUNT`, one thread, 200 attempts):
 
 ```bash
@@ -1070,7 +1152,7 @@ and why the flag is mandatory are in the file's header comment.
 | `OV_JIT_IR_PEEL` | max full iterations `foreach_vec` emits straight-line for a constant count (default 4; `0` forces the rolled loop) |
 | `OV_JIT_IR_BRGEMM` | `1` offer the IR BRGEMM generator, `2` force it (error instead of falling back) — see `jit_kernel_brgemm.md` |
 | `OV_JIT_IR_LOOP_ALIGN` | loop-head alignment in bytes, `0` to disable (default 16, LLVM's x86 value) |
-| `OV_JIT_IR_PREFETCH` | prefetch distance in bytes, enabling software prefetch (default off, as on LLVM's x86) |
+| `OV_JIT_IR_PREFETCH` | prefetch distance in bytes, `0` to disable (default 1024; LLVM's x86 does not prefetch, this target does — see above) |
 
 ## Test status (2026-09-15, RelWithDebInfo, AVX-512 host)
 

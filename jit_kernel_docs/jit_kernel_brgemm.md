@@ -193,14 +193,16 @@ timings are of our kernel rather than a silent fallback — and the shapes
 were chosen *because* they are accepted, since benchmarking a declined
 descriptor compares oneDNN against itself and reports a dead heat.
 
-Five interleaved repeats, `(7,32,120)x(3,7,120,50)`:
+Cycles per FMA inside the kernel, four interleaved repeats,
+`(7,32,120)x(3,7,120,50)`:
 
 ```
-oneDNN   78 79 84 83 79     median 79
-IR       82 83 84 84 82     median 83
+oneDNN         0.29742  0.30407  0.30052  0.29933     median 0.2999
+IR             0.29548  0.30080  0.29657  0.29429     median 0.2960
+IR, no prefetch 0.31596 0.31178  0.31118  0.31484     median 0.3133
 ```
 
-About 5% behind. It was 8-10% before loop alignment.
+Wall clock agrees: oneDNN median 79 us, IR 77.
 
 ### What moved the number, and what did not
 
@@ -208,33 +210,69 @@ About 5% behind. It was 8-10% before loop alignment.
 |---|---|
 | loop alignment at 16 bytes | **89 -> 84 us**, half the original gap |
 | loop alignment at 64 bytes (oneDNN's choice) | **96-98 us** — markedly worse |
-| B prefetching, oneDNN's exact pattern | none |
+| B prefetching, oneDNN's exact pattern | **5.5% of cycles per FMA** — the whole residual |
 | rolling the M loop | none (code 8617 -> 2240 bytes) |
 | loop rotation | none |
+| aligning the loops the padding cap had skipped | none |
 
-Two of oneDNN's choices were actively wrong for this kernel when copied
-directly. Both looked like obvious gaps in the instruction-mix diff.
+### Prefetching, measured twice
 
-### The inner loops are now equivalent
+The first pass recorded prefetching as worth nothing and the x86 target
+was set to follow LLVM, which does not software-prefetch on x86 at all.
+That was wrong, and the fault was the instrument: wall-clock A/B of a
+whole inference (84/87/85 us against 85/85/88) cannot resolve 3% of a
+kernel inside an 80 us number with 3 us of drift between runs.
+
+Per-symbol cycles-per-FMA resolves about 1%, and says B prefetching one
+reduction block ahead is worth 5.5% here. The x86 target now answers
+sixteen cache lines and the generator rounds that up to a whole number of
+reduction blocks, which reproduces oneDNN's `prefetcht0 0x400(%rB)`
+exactly. `OV_JIT_IR_PREFETCH=0` turns it back off.
+
+### Where the time was going
+
+Topdown on the two kernels, per symbol:
+
+```
+                     oneDNN    IR (no prefetch)
+retiring              78.6%    72.6%
+backend bound         17.8%    24.2%
+frontend bound         2.8%     2.9%
+bad speculation        0.8%     0.4%
+fully stalled cycles   2.7%     3.4%
+>= 4 ports busy       45.1%    31.8%
+```
+
+Frontend, speculation and full stalls were equal — which ruled out code
+size, alignment and instruction count in a single measurement, after
+several rounds of instruction-mix diffing had ruled out none of them. The
+port histogram is what an exposed load latency looks like, and
+prefetching removed it.
+
+### The inner loops
 
 ```
                  ours   oneDNN
 vfmadd231ps        96       96
 vbroadcastss       32       32
 vmovups            12       12
-prefetcht0          0       12
+prefetcht0         12       12
 add                 3        2
+dec                 0        1
+cmp                 1        1
 branches            1        1
-instructions      147      157
-bytes             979     1068
+instructions      157      157
+bytes            1075     1074
 ```
 
-Whole kernel: 2228 bytes against oneDNN's 2912.
+Whole kernel: 2372 bytes against oneDNN's 2912 — the difference is all
+prologue and tail-group code, not the loop.
 
-The static profile matches or beats oneDNN's and the time does not
-follow, so the residual is not anything countable in a listing. Next
-instrument is `perf stat` on the two kernels — front-end stalls, port
-pressure, memory — not more diffing.
+Before prefetching was added the two loops differed only by oneDNN's
+twelve `prefetcht0`, and the time differed by 4% in oneDNN's favour —
+so the one instruction our loop was "missing" was the entire difference.
+Instruction counts have not once predicted time on this branch; here the
+count that mattered was the one that looked like overhead.
 
 ## Open
 
@@ -251,4 +289,9 @@ pressure, memory — not more diffing.
    passes; a different kind of work rather than a widening.
 5. **AMX** — a fourth register class plus tile configuration held as
    machine state, the same problem as RVV's `vl`.
-6. **The residual 5%**, unexplained.
+6. **The N=5 shape**, where the gap is still 8-9% (cycles per FMA 0.369
+   against oneDNN's 0.340, prefetching included). One masked column block
+   and eight broadcasts per reduction step makes it load-port bound
+   rather than FMA bound, which is a different problem from the one just
+   solved. The benchmark reports 2 us for it, so it has to be measured
+   with counters or not at all.
