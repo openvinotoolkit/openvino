@@ -546,6 +546,11 @@ class TorchFXPythonDecoder (BaseFXDecoder):
 
     def get_output_type(self, index):
         output = self._raw_output(index)
+        if isinstance(self.pt_module, torch.fx.GraphModule) and isinstance(output, torch.fx.Node):
+            # Graph outputs report the dtype recorded by export, e.g. for bodies of autocast regions.
+            value = output.meta.get("val")
+            if isinstance(value, torch.Tensor) and not value.is_complex() and str(value.dtype) in pt_to_ov_type_map:
+                return OVAny(pt_to_ov_type_map[str(value.dtype)])
         return self.get_type_for_value(output)
 
     def get_shape_for_value(self, value):
