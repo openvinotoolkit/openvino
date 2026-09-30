@@ -85,9 +85,9 @@ def _run(llm, prompt, max_new_tokens, skip_warmup_tokens):
 def test_openvino_matches_eager_greedy(monkeypatch):
     """The OV backend and vLLM eager must produce byte-identical greedy output.
 
-    Builds its own float32 LLM instances rather than using the shared
-    `openvino_llm` fixture (bfloat16): see module docstring for why bf16
-    isn't a stable regime for this equality check.
+    Builds its own float32 LLM instances (other tests build bfloat16 ones via
+    new_openvino_llm): see module docstring for why bf16 isn't a stable
+    regime for this equality check.
     """
     select_cpu_platform()
     # Force the OV backend to actually compute in f32; otherwise it silently

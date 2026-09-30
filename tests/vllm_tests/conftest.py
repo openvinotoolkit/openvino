@@ -4,6 +4,7 @@
 
 """Shared fixtures for the vLLM + OpenVINO torchdynamo backend test suite."""
 
+import gc
 import os
 
 import pytest
@@ -32,6 +33,19 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "nightly: Tests to run on nightly CI")
 
 
+@pytest.fixture(autouse=True)
+def _gc_between_tests():
+    """Force a collection after every test.
+
+    A test's own `del llm` drops the last Python reference, but nothing
+    guarantees the collector runs before the next test starts -- without
+    this, a lingering reference can keep one test's memory resident into
+    the next.
+    """
+    yield
+    gc.collect()
+
+
 def select_cpu_platform():
     """Force CPU platform: this env may have both `vllm` and `vllm-cpu` installed.
 
@@ -49,10 +63,10 @@ def new_openvino_llm(**overrides):
 
     block_size=32 is a hard OV CPU PagedAttention kernel constraint;
     custom_ops=["none"] keeps vLLM from expanding RMSNorm/SiLU into ops the
-    CPU torch.compile path can't handle. Each distinct call-shape compiles
-    its own resident weight copy, so a test needing a shape the shared
-    `openvino_llm` fixture doesn't already have should build its own
-    instance here and delete it, rather than growing that fixture forever.
+    CPU torch.compile path can't handle. Every test builds and deletes its
+    own instance: sharing one across tests kept it resident for as long as
+    any test using it was still running, stacking its footprint onto every
+    other test's own peak (a real OOM cause on CI, not just a style choice).
     """
     select_cpu_platform()
     from vllm import LLM
@@ -72,17 +86,3 @@ def new_openvino_llm(**overrides):
     )
     kwargs.update(overrides)
     return LLM(**kwargs)
-
-
-@pytest.fixture(scope="session")
-def openvino_llm():
-    """A single OV-backend TinyLlama LLM instance, shared across the session.
-
-    Only for tests that reuse the *same* call shape as each other -- see
-    new_openvino_llm for why a different shape needs its own instance.
-    The exact-match correctness test builds its own float32 instances
-    instead; see test_run.py for why.
-    """
-    llm = new_openvino_llm()
-    yield llm
-    del llm

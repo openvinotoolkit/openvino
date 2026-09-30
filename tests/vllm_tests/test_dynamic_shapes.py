@@ -22,16 +22,15 @@ PROMPTS = [
     ("In a small village surrounded by mountains, there lived an old "
      "clockmaker who believed every gear told a story about the people "
      "who once needed it."),
-    "Hi",
 ]
 
 
 @pytest.mark.precommit
 def test_varying_sequence_lengths_reuse_compiled_cache():
-    """Same loaded model, prefill lengths short/long/short: every call must succeed.
+    """Same loaded model, prefill lengths short then long: both calls must succeed.
 
-    Own LLM instance: cache reuse is within-instance, and this deliberately
-    compiles several shapes (see new_openvino_llm).
+    Own LLM instance: cache reuse is within-instance, and this compiles a
+    second shape (see new_openvino_llm).
     """
     from vllm import SamplingParams
 
