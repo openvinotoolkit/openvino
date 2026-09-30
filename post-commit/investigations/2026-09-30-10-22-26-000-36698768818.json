@@ -1,0 +1,38 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-09-30-10-22-26-000-36698768818",
+    "timestamp": "2026-09-30T10:22:26Z",
+    "run_id": "36698768818",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36698768818",
+    "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+    "commit_sha": "2f8457d559ea238ac3d21059dbf92d67ad6b10a6",
+    "pr_number": "38484",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38484",
+    "author": "t-jankowski",
+    "category": "Flaky Test",
+    "title": "smoke_AvgPool_CPU_4D fails on ACL primitive type check (undef_f32 vs acl_f32)",
+    "signature": "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp: Failure: Value of: primTypeCheck(primType) Actual: false Expected: true primType is unexpected: undef_f32 Expected: acl_f32 (PoolingLayerCPUTest AvgPool ACL primitive)|Flaky Test",
+    "signature_hash": "d94563b07437b23b",
+    "confidence": "Medium",
+    "failed_jobs": [
+        {
+            "name": "CPU functional tests / CPU functional tests",
+            "conclusion": "failure",
+            "symptom": "1 of 71639 smoke tests failed: PoolingLayerCPUTest AvgPool primitive type check expected acl_f32 but got undef_f32"
+        }
+    ],
+    "key_errors": [
+        "[ RUN      ] smoke_AvgPool_CPU_4D/PoolingLayerCPUTest.CompareWithRefs/IS=([1..10.16.8.8])_TS=(1.16.8.8)_(2.16.8.8)_Prc=f32_AvgPool_ExcludePad=0_K(2.2)_S(2.2)_PB(1.0)_PE(0.0)_Rounding=floor_AutoPad=same_upper_INT8=0__primitive=acl\nsrc/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure\nValue of: primTypeCheck(primType)\n  Actual: false\nExpected: true\nprimType is unexpected : undef_f32 Expected : acl_f32\n[  FAILED  ] smoke_AvgPool_CPU_4D/PoolingLayerCPUTest.CompareWithRefs/... (70 ms)",
+        "ERROR:test_parallel_runner:Run is not successful\n##[error]Process completed with exit code 255."
+    ],
+    "root_cause": "A single ARM64 CPU functional smoke test (PoolingLayerCPUTest AvgPool, ACL primitive variant) asserts the executed node's selected implementation type equals 'acl_f32', but at runtime the graph executed with 'undef_f32' (no primitive/implementation type recorded), i.e. the ARM Compute Library (ACL) executor was not selected/attached for this AvgPool configuration on this run. Out of 71639 executed smoke tests only this one failed, and the failure is unrelated to the merged PR's change (removal of LazyBuffer / AlignedBuffer+NativeIfstream refactor in src/core, which does not touch CPU plugin ACL executor selection). This points to an intermittent ACL executor-selection issue (e.g., ACL primitive descriptor creation falling back silently, or a non-deterministic executor factory choice) rather than a regression introduced by this commit.",
+    "reproduction_steps": "Build OpenVINO for ARM64 with ACL enabled (THREADING=OMP or default, ENABLE_ACL=ON) and run: `./ov_cpu_func_tests --gtest_filter='*smoke_AvgPool_CPU_4D/PoolingLayerCPUTest.CompareWithRefs*primitive=acl*'` repeatedly; failure may only reproduce intermittently on ARM64 cross-compiled binaries.",
+    "recommended_actions": [
+        "Re-run the failed test in isolation on the same ARM64 runner to confirm flakiness vs deterministic reproduction.",
+        "Inspect src/plugins/intel_cpu/src/nodes/pooling.cpp / executor factory selection logic to see under what conditions the ACL executor is skipped in favor of an undef/no-op path for AvgPool with these parameters (K=(2,2), S=(2,2), PB=(1,0), PE=(0,0), floor rounding, same_upper autopad).",
+        "Check for recent unrelated changes to ACL executor registration or priority order that could cause silent fallback.",
+        "If confirmed flaky and non-reproducible, consider adding a temporary skip/xfail with a tracking ticket referencing this signature."
+    ],
+    "prevention_strategies": "Add stricter logging/assertions in the ACL executor factory to fail loudly (not silently fall back to undef) when an expected primitive cannot be created, making such issues reproducible instead of intermittent. Track ACL executor selection flakiness with a dedicated CI label to distinguish it from real regressions in future post-commit runs.",
+        "historical_context": "No prior post-commit investigation in this knowledge base matches this signature (primTypeCheck/ACL AvgPool). This is the first recorded occurrence."
+}

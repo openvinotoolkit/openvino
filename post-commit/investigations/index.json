@@ -1,37 +1,48 @@
 {
-    "schema_version": "1.0",
-    "total": 3,
-    "entries": [
-        {
-            "investigation_id": "2026-09-23-19-32-29-000-35899229472",
-            "run_id": "35899229472",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35899229472",
-            "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
-            "timestamp": "2026-09-23T19:32:29Z",
-            "title": "Upload Test Results fails with ENOTFOUND artifact upload error on Windows runner",
-            "category": "Network",
-            "signature_hash": "4e9cf236bf92d555",
-            "commit_sha": "31f1a4055a99ac3bd279b1930b28f6e2b6f43056"
-        },
-        {
-            "investigation_id": "2026-09-25-10-37-07-000-36123294303",
-            "run_id": "36123294303",
-            "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36123294303",
-            "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
-            "timestamp": "2026-09-25T10:37:07Z",
-            "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
-            "category": "Infrastructure",
-            "signature_hash": "0ee6d7327812b344",
-            "commit_sha": "a1bf0fb1ea427b651f8c65a74c22268b26dcf4a8"
-        },
-        {
-            "investigation_id": "2026-09-30-03-20-47-000-36656403596",
-            "run_id": "36656403596",
-            "timestamp": "2026-09-30T03:20:47Z",
-            "title": "Windows post-commit jobs fail installing pip dependencies via internal pip-proxy with malformed JSON simple-index response",
-            "category": "Infrastructure",
-            "signature_hash": "9cd22413ebd3589c",
-            "commit_sha": "e0fc3be851db3b77e02b46790fca8eace8d6fdc4"
-        }
-    ]
+  "schema_version": "1.0",
+  "total": 4,
+  "entries": [
+    {
+      "investigation_id": "2026-09-23-19-32-29-000-35899229472",
+      "run_id": "35899229472",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/35899229472",
+      "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+      "timestamp": "2026-09-23T19:32:29Z",
+      "title": "Upload Test Results fails with ENOTFOUND artifact upload error on Windows runner",
+      "category": "Network",
+      "signature_hash": "4e9cf236bf92d555",
+      "commit_sha": "31f1a4055a99ac3bd279b1930b28f6e2b6f43056"
+    },
+    {
+      "investigation_id": "2026-09-25-10-37-07-000-36123294303",
+      "run_id": "36123294303",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36123294303",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-09-25T10:37:07Z",
+      "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+      "category": "Infrastructure",
+      "signature_hash": "0ee6d7327812b344",
+      "commit_sha": "a1bf0fb1ea427b651f8c65a74c22268b26dcf4a8"
+    },
+    {
+      "investigation_id": "2026-09-30-03-20-47-000-36656403596",
+      "run_id": "36656403596",
+      "timestamp": "2026-09-30T03:20:47Z",
+      "title": "Windows post-commit jobs fail installing pip dependencies via internal pip-proxy with malformed JSON simple-index response",
+      "category": "Infrastructure",
+      "signature_hash": "9cd22413ebd3589c",
+      "commit_sha": "e0fc3be851db3b77e02b46790fca8eace8d6fdc4"
+    },
+    {
+      "investigation_id": "2026-09-30-10-22-26-000-36698768818",
+      "run_id": "36698768818",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36698768818",
+      "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+      "timestamp": "2026-09-30T10:22:26Z",
+      "title": "smoke_AvgPool_CPU_4D fails on ACL primitive type check (undef_f32 vs acl_f32)",
+      "category": "Flaky Test",
+      "signature_hash": "d94563b07437b23b",
+      "commit_sha": "2f8457d559ea238ac3d21059dbf92d67ad6b10a6"
+    }
+  ]
 }
