@@ -54,6 +54,21 @@ Config makeConfig() {
     return Config(makeOptionsDesc());
 }
 
+/// Registers the options relevant to compilation-target resolution, plus LOG_LEVEL to prove it gets
+/// filtered out of the resolution query rather than tripping the compiler's stricter validator there.
+std::shared_ptr<OptionsDesc> makePlatformOptionsDesc() {
+    auto desc = std::make_shared<OptionsDesc>();
+    desc->add<::intel_npu::PLATFORM>();
+    desc->add<::intel_npu::LOG_LEVEL>();
+    return desc;
+}
+
+Config makePlatformConfig(const std::string& platform) {
+    Config config(makePlatformOptionsDesc());
+    config.update(ov::intel_npu::platform.name(), platform);
+    return config;
+}
+
 /// A minimal model with one weight, enough for the serializer to produce a real IR.
 std::shared_ptr<ov::Model> makeModel() {
     auto weights = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{5}, std::vector<float>{1.0f});
@@ -990,6 +1005,105 @@ TEST_F(VCLCompilerImplTest, QueryThrowsWhenDestroyFails) {
     fake.failWith("vclQueryNetworkDestroy", VCL_RESULT_ERROR_UNKNOWN);
 
     EXPECT_THROW(compiler->query(makeModel(), config), ov::Exception);
+}
+
+// --- resolve_compilation_target_bundles ---
+
+// Older VCL library (no compilation-target entry points): must not call them, and must return empty.
+TEST_F(VCLCompilerImplTest, ResolveBundlesIsEmptyWhenEntryPointsAreUnwired) {
+    // Default fake state: the 3 compilation-target entry points are left null, simulating a VCL
+    // library older than this feature.
+    auto compiler = makeCompiler();
+    auto config = makePlatformConfig("6010");
+
+    EXPECT_TRUE(compiler->resolve_compilation_target_bundles(config).empty());
+    EXPECT_FALSE(fake.called("vclCompilationTargetsCreate"));
+}
+
+// A platform resolving to N bundles must return exactly those N bundle strings, verbatim, using the
+// bare (no "--config ") query string.
+TEST_F(VCLCompilerImplTest, ResolveBundlesReflectsWhatVclResolves) {
+    fake.enableCompilationTargets();
+    fake.compilationTargetPlatform = "6010";
+    fake.compilationTargetBundles = {"NPU_PLATFORM=\"6010\" NPU_MAX_TILES=\"3\"",
+                                     "NPU_PLATFORM=\"6010\" NPU_MAX_TILES=\"4\""};
+    auto compiler = makeCompiler();
+    auto config = makePlatformConfig("6010");
+
+    const auto bundles = compiler->resolve_compilation_target_bundles(config);
+    EXPECT_EQ(bundles, fake.compilationTargetBundles);
+    ASSERT_FALSE(fake.compilationTargetConfigs.empty());
+    EXPECT_NE(fake.compilationTargetConfigs.back().find("NPU_PLATFORM"), std::string::npos);
+    // vclCompilationTargetsCreate wants bare "KEY=\"value\"" content, not the "--config " prefix
+    // serializeConfig() adds for vclExecutableCreate's build flags.
+    EXPECT_NE(fake.compilationTargetConfigs.back().find("--config"), 0u);
+}
+
+// The full config is forwarded to the resolution query as-is, with no filtering.
+TEST_F(VCLCompilerImplTest, ResolveBundlesForwardsTheFullConfig) {
+    fake.enableCompilationTargets();
+    auto compiler = makeCompiler();
+    auto config = makePlatformConfig("4000");
+    config.update(ov::log::level.name(), ov::log::Level::DEBUG);
+
+    compiler->resolve_compilation_target_bundles(config);
+
+    ASSERT_FALSE(fake.compilationTargetConfigs.empty());
+    EXPECT_NE(fake.compilationTargetConfigs.back().find("NPU_PLATFORM"), std::string::npos);
+    EXPECT_NE(fake.compilationTargetConfigs.back().find("LOG_LEVEL"), std::string::npos);
+}
+
+// A single-SKU platform must return exactly one bundle, naming just the platform.
+TEST_F(VCLCompilerImplTest, ResolveBundlesIsSingleBundleForASingleSkuPlatform) {
+    fake.enableCompilationTargets();
+    fake.compilationTargetPlatform = "4000";
+    fake.compilationTargetBundles = {"NPU_PLATFORM=\"4000\""};
+    auto compiler = makeCompiler();
+    auto config = makePlatformConfig("4000");
+
+    EXPECT_EQ(compiler->resolve_compilation_target_bundles(config), fake.compilationTargetBundles);
+}
+
+// A zeroed-out target (VCL_RESULT_SUCCESS, no bundles) means "unresolved" - returns empty, not a throw.
+TEST_F(VCLCompilerImplTest, ResolveBundlesIsEmptyWhenNoTargetIsResolved) {
+    fake.enableCompilationTargets();
+    fake.compilationTargetBundles.clear();
+    auto compiler = makeCompiler();
+    auto config = makePlatformConfig("unknown-platform");
+
+    EXPECT_TRUE(compiler->resolve_compilation_target_bundles(config).empty());
+}
+
+// The compilation-targets handle must always be released, even on the ordinary success path.
+TEST_F(VCLCompilerImplTest, ResolveBundlesAlwaysDestroysTheHandle) {
+    fake.enableCompilationTargets();
+    auto compiler = makeCompiler();
+    auto config = makePlatformConfig("6010");
+
+    compiler->resolve_compilation_target_bundles(config);
+
+    EXPECT_EQ(fake.compilationTargetsDestroyCount, 1);
+}
+
+// A genuine vclCompilationTargetsCreate failure must propagate as an ov::Exception.
+TEST_F(VCLCompilerImplTest, ResolveBundlesThrowsWhenCreateFails) {
+    fake.enableCompilationTargets();
+    fake.failWith("vclCompilationTargetsCreate", VCL_RESULT_ERROR_INVALID_ARGUMENT);
+    auto compiler = makeCompiler();
+    auto config = makePlatformConfig("6010");
+
+    EXPECT_THROW(compiler->resolve_compilation_target_bundles(config), ov::Exception);
+}
+
+// A vclGetCompilationTargets failure must also throw, but the handle must still be destroyed first.
+TEST_F(VCLCompilerImplTest, ResolveBundlesThrowsWhenGetFailsButStillDestroysTheHandle) {
+    fake.enableCompilationTargets();
+    fake.failWith("vclGetCompilationTargets", VCL_RESULT_ERROR_UNKNOWN);
+    auto compiler = makeCompiler();
+    auto config = makePlatformConfig("6010");
+
+    EXPECT_THROW(compiler->resolve_compilation_target_bundles(config), ov::Exception);
+    EXPECT_EQ(fake.compilationTargetsDestroyCount, 1);
 }
 
 }  // namespace

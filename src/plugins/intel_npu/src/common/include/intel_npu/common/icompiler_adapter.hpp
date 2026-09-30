@@ -56,6 +56,21 @@ public:
     virtual bool is_option_supported(const std::string& optName,
                                      const std::optional<std::string>& optValue = std::nullopt) const = 0;
 
+    /**
+     * @brief Resolves the config bundle(s) the platform named in \p config's NPU_PLATFORM needs
+     * compiled from it - more than one when that platform ships as several SKU variants (e.g.
+     * differing tile counts).
+     * @details The default answer is an empty vector, i.e. "resolution is not available" - correct
+     * for every adapter that cannot resolve SKU variants itself; the caller then compiles \p config
+     * unchanged, as it always has. Only the adapter backed by the VCL compiler library overrides
+     * this with a real answer. A single-entry result is the resolved, device-specific bundle (e.g.
+     * naming NPU_MAX_TILES) the caller should merge into \p config before compiling.
+     */
+    virtual std::vector<std::string> resolve_compilation_target_bundles(const Config& config) const {
+        static_cast<void>(config);
+        return {};
+    }
+
     virtual ~ICompilerAdapter() = default;
 };
 

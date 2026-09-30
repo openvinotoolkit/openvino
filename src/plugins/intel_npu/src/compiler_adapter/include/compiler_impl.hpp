@@ -113,6 +113,18 @@ public:
     bool is_option_supported(const std::string& option,
                              const std::optional<std::string>& optValue = std::nullopt) const;
 
+    /**
+     * @brief Resolves the config bundle(s) the platform named in \p config's NPU_PLATFORM needs
+     * compiled from it - more than one when that platform ships as several SKU variants (e.g.
+     * differing tile counts).
+     * @details Calls vclCompilationTargetsCreate/vclGetCompilationTargets/vclCompilationTargetsDestroy,
+     * which are optional/weak VCL entry points: when the loaded library does not export them, or
+     * resolves \p config to no target at all, an empty vector is returned instead of guessing - the
+     * caller then compiles \p config unchanged, as it always has. A single-entry result is the
+     * resolved bundle the caller should merge into \p config before compiling.
+     */
+    std::vector<std::string> resolve_compilation_target_bundles(const Config& config) const;
+
 private:
     /**
      * @brief Compiles the given model according to the given configuration. During the model serialization step,
