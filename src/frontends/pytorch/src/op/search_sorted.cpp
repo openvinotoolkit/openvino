@@ -7,10 +7,7 @@
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 
@@ -30,7 +27,4 @@ OutputVector translate_search_sorted(const NodeContext& context) {
     auto op = context.mark_node(std::make_shared<ov::op::v15::SearchSorted>(sorted, values, right_mode));
     return {op};
 };
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

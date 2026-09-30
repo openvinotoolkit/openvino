@@ -50,9 +50,7 @@
 #include "transformations/op_conversions/convert_convertlike.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 using namespace ov::op;
 
@@ -391,6 +389,4 @@ std::shared_ptr<Model> TranslateSession::apply_transformations(std::shared_ptr<M
     return model;
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

@@ -5,10 +5,7 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs index_select(const NodeContext& node) {
     auto data = node.get_input("X");
     auto index = node.get_input("Index");
@@ -19,7 +16,4 @@ NamedOutputs index_select(const NodeContext& node) {
                                               {"Out"});
 }
 
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

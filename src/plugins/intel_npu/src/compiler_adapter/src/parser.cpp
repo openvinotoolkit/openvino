@@ -27,7 +27,7 @@ Parser::Parser(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct)
 
 std::shared_ptr<IGraph> Parser::parse(
     const ov::Tensor& mainBlob,
-    const FilteredConfig& config,
+    const Config& config,
     std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::pair<std::string, std::shared_ptr<ov::ICore>>>&&
         weightsSource,
     const std::optional<std::vector<ov::Tensor>>& initBlobs,
@@ -44,7 +44,9 @@ std::shared_ptr<IGraph> Parser::parse(
             "NPU driver, and NPU_ALLOW_BYTECODE is disabled, so only native NPU device blobs are accepted.");
         _logger.debug("Create graph for dynamic blob, use internal function to get metadata!");
         NPUVMRuntimeApi::initializeFromBlob(data, size);
-        return std::make_shared<DynamicGraph>(_zeroInitStruct, mainBlob, config, blobType.value());
+        auto dynamicGraph = std::make_shared<DynamicGraph>(_zeroInitStruct, mainBlob, blobType.value());
+        dynamicGraph->initialize(config);  // load metadata
+        return dynamicGraph;
     }
 
     GraphDescriptor mainGraphDesc;
@@ -70,7 +72,6 @@ std::shared_ptr<IGraph> Parser::parse(
                                        mainGraphDesc,
                                        std::move(mainNetworkMetadata),
                                        mainBlob,
-                                       config,
                                        compatibilityDescriptor,
                                        blobIsPersistent);
     }
@@ -101,7 +102,6 @@ std::shared_ptr<IGraph> Parser::parse(
                                              std::move(initNetworkMetadata),
                                              initBlobs,
                                              std::move(weightsSource),
-                                             config,
                                              blobIsPersistent,
                                              compatibilityDescriptor);
 }

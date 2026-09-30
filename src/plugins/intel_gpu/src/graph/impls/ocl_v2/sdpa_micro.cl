@@ -146,6 +146,15 @@ DECLARE_2D_TILE_RSELECT(a_scale_tile_type, SUBGROUP_SIZE, ugemm_vs_sg_tile_n, 1,
 #define cooperative_prefetch_2d_k cooperative_prefetch_2d_maybe_rem
 #endif
 
+#if TRANSPOSE_V
+#define cooperative_prefetch_2d_v( \
+    ptr, r, c, rmax, cmax, ld, sg_id, n_sg, sg_size, caching) \
+    cooperative_prefetch_2d_maybe_rem( \
+        ptr, c, r, cmax, rmax, ld, sg_id, n_sg, sg_size, caching)
+#else
+#define cooperative_prefetch_2d_v cooperative_prefetch_2d_maybe_rem
+#endif
+
 #if REMAINDER_Q
 #define tile_load_block_rem_q tile_load_block
 #define tile_store_block_rem_q tile_store_block
@@ -350,7 +359,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #else
     uint ldk = TRANSPOSE_K ? KEY_S3 : KEY_S2;
     uint ldq = QRY_S2;
-    uint ldv = VAL_S2;
+    uint ldv = TRANSPOSE_V ? VAL_S3 : VAL_S2;
     uint lda = DST_S2;
 #endif
 
@@ -463,7 +472,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 
 #if SLIDING_WINDOW_SIZE && !(IS_PAGED_ATTENTION && !IS_PREFILL)
     if (window_k0_begin > 0) {
-        V += (size_t)ldv * window_k0_begin / VAL_ELEMENTS_PER_BYTE;
+        V += (size_t)(TRANSPOSE_V ? window_k0_begin : ldv * window_k0_begin) / VAL_ELEMENTS_PER_BYTE;
     #if VAL_SCALES == QUANTIZE_2D
         V_scales += (size_t)ldvq * window_k0_begin;
     #endif
@@ -1135,8 +1144,8 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #else
     const int window_v_pf_begin = 0;
 #endif
-        cooperative_prefetch_2d_maybe_rem(
-                /* ptr */ V + (size_t)ldv * window_v_pf_begin / VAL_ELEMENTS_PER_BYTE,
+        cooperative_prefetch_2d_v(
+            /* ptr */ V + (size_t)(TRANSPOSE_V ? window_v_pf_begin : ldv * window_v_pf_begin) / VAL_ELEMENTS_PER_BYTE,
                 /* r */ d,
                 /* c */ causal_k - k0 - window_v_pf_begin,
                 /* rmax */ PREFETCH_D_MAX,
@@ -1489,7 +1498,7 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #endif
         );
 
-        V += ldv * ugemm_kq_wg_tile_m / VAL_ELEMENTS_PER_BYTE;
+        V += (TRANSPOSE_V ? ugemm_kq_wg_tile_m : ldv * ugemm_kq_wg_tile_m) / VAL_ELEMENTS_PER_BYTE;
 #endif
 
 #if VAL_SCALES == QUANTIZE_2D

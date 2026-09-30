@@ -23,7 +23,6 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              const GraphDescriptor& graphDesc,
              NetworkMetadata metadata,
              std::optional<ov::Tensor> blob,
-             const FilteredConfig& config,
              const std::optional<std::string>& compatibilityDescriptor,
              const bool blobIsPersistent)
     : IGraph(),
@@ -34,7 +33,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
       _blob(std::move(blob)),
       _compatibilityDescriptor(compatibilityDescriptor),
       _blobIsPersistent(blobIsPersistent),
-      _logger("Graph", config.get<LOG_LEVEL>()) {}
+      _logger("Graph", Logger::global().level()) {}
 
 const NetworkMetadata& Graph::get_metadata() const {
     return _metadata;
@@ -179,7 +178,7 @@ void Graph::set_argument_value_with_strides(uint32_t id, const void* data, const
     _zeGraphExt->setGraphArgumentValueWithStrides(_graphDesc, id, data, strides);
 }
 
-void Graph::initialize_impl(const FilteredConfig& config) {
+void Graph::initialize_impl(const Config& config) {
     _logger.debug("Graph initialize start");
 
     if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
@@ -242,7 +241,7 @@ void Graph::initialize_impl(const FilteredConfig& config) {
     _init_completed.store(true, std::memory_order_release);
 }
 
-bool Graph::release_blob(const FilteredConfig& config) {
+bool Graph::release_blob(const Config& config) {
     if ((_zeGraphExt != nullptr && _zeGraphExt->isBlobDataImported(_graphDesc)) || _blobIsPersistent ||
         _blob == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 8) ||
         config.get<PERF_COUNT>()) {

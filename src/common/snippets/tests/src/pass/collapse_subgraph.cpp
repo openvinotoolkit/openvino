@@ -8,6 +8,7 @@
 
 #include <memory>
 #include <pass/collapse_subgraph.hpp>
+#include <subgraph_common_parent.hpp>
 #include <subgraph_converts.hpp>
 #include <subgraph_fq.hpp>
 #include <subgraph_simple.hpp>
@@ -138,6 +139,11 @@ TEST_F(CollapseSubgraphTests, smoke_Snippets_EltwiseTwoResultsFunction) {
 
 TEST_F(CollapseSubgraphTests, smoke_Snippets_ThreeFQFunction) {
     const auto& f = ThreeFQFunction(std::vector<PartialShape>{});
+    execute_and_validate_function(*this, f);
+}
+
+TEST_F(CollapseSubgraphTests, smoke_Snippets_CommonParentTokenization) {
+    const auto& f = CommonParentTokenizationFunction(std::vector<PartialShape>{{3}});
     execute_and_validate_function(*this, f);
 }
 

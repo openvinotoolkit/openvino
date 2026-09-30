@@ -17,9 +17,7 @@
 #include "translate_session.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
+namespace ov::frontend::pytorch {
 
 using namespace ov::op;
 
@@ -551,6 +549,4 @@ ov::Any NodeContext::apply_additional_conversion_rules(const ov::Any& data, cons
     return data;
 }
 
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch
