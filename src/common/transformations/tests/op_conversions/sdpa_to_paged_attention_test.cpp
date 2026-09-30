@@ -7150,12 +7150,12 @@ TEST(SDPAToPA, Gemma4_AttentionMaskBatchBroadcastRequiresBroadcastMatMulFusion) 
     const int batch = 2;
 
     auto build_model = [&]() {
-        auto beam_idx = make_param(PartialShape{DYN}, element::i32, "beam_idx");
-        auto position_ids = make_param(PartialShape{batch, DYN}, element::i64, "position_ids");
-        auto attention_mask = make_param(PartialShape{batch, DYN}, element::i64, "attention_mask");
-        auto input_ids = make_param(PartialShape{batch, DYN}, element::i64, "input_ids");
-        auto rotary_base = make_param(PartialShape{batch, 4, 1}, element::f32, "rotary_base");
-        auto params = nodes_to_params({beam_idx, position_ids, attention_mask, input_ids, rotary_base});
+        auto beam_idx = ov::test::utils::make_param(element::i32, PartialShape{DYN}, "beam_idx");
+        auto position_ids = ov::test::utils::make_param(element::i64, PartialShape{batch, DYN}, "position_ids");
+        auto attention_mask = ov::test::utils::make_param(element::i64, PartialShape{batch, DYN}, "attention_mask");
+        auto input_ids = ov::test::utils::make_param(element::i64, PartialShape{batch, DYN}, "input_ids");
+        auto rotary_base = ov::test::utils::make_param(element::f32, PartialShape{batch, 4, 1}, "rotary_base");
+        ParameterVector params{beam_idx, position_ids, attention_mask, input_ids, rotary_base};
 
         // Batch size for KV-cache init shape
         auto shape_ids = makeOP<v3::ShapeOf>({input_ids}, {{"output_type", "i64"}});
