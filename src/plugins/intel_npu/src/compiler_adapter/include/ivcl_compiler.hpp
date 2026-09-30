@@ -85,6 +85,13 @@ public:
      */
     virtual std::vector<ov::ProfilingInfo> process_profiling_output(const std::vector<uint8_t>& profData,
                                                                     const std::vector<uint8_t>& network) const = 0;
+
+    /**
+     * @brief Resolves the config bundles a multi-SKU compilation target's platform compiles into.
+     * @return One config bundle per device variant; empty if the compiler cannot resolve targets or
+     * none apply to this config.
+     */
+    virtual std::vector<std::string> resolve_compilation_target_bundles(const Config& config) const = 0;
 };
 
 }  // namespace intel_npu
