@@ -293,7 +293,7 @@ void determine_tbb_partitioner_and_threads(Config& config,
                                            const std::vector<std::vector<int>>& proc_type_table,
                                            const ov::MemBandwidthPressure& tolerance,
                                            bool int8_intensive) {
-    if (config.tbbPartitioner != TbbPartitioner::NONE) {
+    if (config.tbbPartitionerLatency != TbbPartitioner::NONE) {
         return;
     }
 
@@ -308,7 +308,7 @@ void determine_tbb_partitioner_and_threads(Config& config,
         if (is_main_core_case_1(tolerance) || is_main_core_case_2(tolerance) || is_main_core_case_3(tolerance) ||
             is_main_core_case_4(tolerance)) {
             config.modelPreferThreadsLatency = proc_type_table[0][MAIN_CORE_PROC];
-            config.tbbPartitioner = TbbPartitioner::STATIC;
+            config.tbbPartitionerLatency = TbbPartitioner::STATIC;
             return;
         }
     }
@@ -323,7 +323,7 @@ void determine_tbb_partitioner_and_threads(Config& config,
         config.modelPreferThreadsLatency = proc_type_table[0][MAIN_CORE_PROC] +
                                            proc_type_table[0][EFFICIENT_CORE_PROC] +
                                            proc_type_table[0][LP_EFFICIENT_CORE_PROC];
-        config.tbbPartitioner = TbbPartitioner::AUTO;
+        config.tbbPartitionerLatency = TbbPartitioner::AUTO;
         return;
     }
 
@@ -337,9 +337,9 @@ void determine_tbb_partitioner_and_threads(Config& config,
 
     if (is_static_partitioner_case_1(tolerance) || is_static_partitioner_case_2(tolerance) || static_case_3 ||
         static_case_4 || static_case_5) {
-        config.tbbPartitioner = TbbPartitioner::STATIC;
+        config.tbbPartitionerLatency = TbbPartitioner::STATIC;
     } else {
-        config.tbbPartitioner = TbbPartitioner::AUTO;
+        config.tbbPartitionerLatency = TbbPartitioner::AUTO;
     }
 }
 #endif
@@ -1258,16 +1258,18 @@ void configure_x86_hybrid_lp_threads(Config& config,
     if (is_lp_auto_case_1(tolerance) || is_lp_auto_case_2(tolerance) || is_lp_auto_case_3(tolerance) ||
         is_lp_auto_case_4(tolerance) || is_lp_auto_case_5(tolerance)) {
         config.modelPreferThreadsLatency = main_cores + lp_efficient_cores;
-        config.tbbPartitioner =
-            config.tbbPartitioner == TbbPartitioner::NONE ? TbbPartitioner::AUTO : config.tbbPartitioner;
+        config.tbbPartitionerLatency = config.tbbPartitionerLatency == TbbPartitioner::NONE
+                                           ? TbbPartitioner::AUTO
+                                           : config.tbbPartitionerLatency;
     } else {
         if (is_lp_main_core_case_1(tolerance) || is_lp_main_core_case_2(tolerance)) {
             config.modelPreferThreadsLatency = main_cores;
         } else {
             config.modelPreferThreadsLatency = main_cores + lp_efficient_cores;
         }
-        config.tbbPartitioner =
-            config.tbbPartitioner == TbbPartitioner::NONE ? TbbPartitioner::STATIC : config.tbbPartitioner;
+        config.tbbPartitionerLatency = config.tbbPartitionerLatency == TbbPartitioner::NONE
+                                           ? TbbPartitioner::STATIC
+                                           : config.tbbPartitionerLatency;
     }
 }
 
@@ -1385,6 +1387,14 @@ int get_model_prefer_threads(const int num_streams,
         config.modelPreferThreads = config.modelPreferThreadsLatency;
     }
 
+    if (config.tbbPartitionerLatency == TbbPartitioner::NONE) {
+        config.tbbPartitionerLatency = TbbPartitioner::STATIC;
+    }
+    if (!config.changedTbbPartitioner) {
+        config.tbbPartitioner = (num_streams > 1 || num_streams == 0) ? TbbPartitioner::STATIC
+                                                                      : config.tbbPartitionerLatency;
+    }
+
     return config.modelPreferThreads;
 }
 
@@ -1405,6 +1415,9 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                             proc_type_table);
     if (-1 == preferred_nthreads_per_stream) {
         model_prefer_threads = get_model_prefer_threads(streams, proc_type_table, model, config);
+    } else if (config.tbbPartitioner == TbbPartitioner::NONE) {
+        // Callers supplying their own thread preference bypass the model heuristic.
+        config.tbbPartitioner = TbbPartitioner::STATIC;
     }
 
     if (proc_type_table.size() > 1) {
@@ -1422,8 +1435,6 @@ std::vector<std::vector<int>> generate_stream_info(const int streams,
                                                      ov::util::to_string(config.hintPerfMode),
                                                      config.modelDistributionPolicy,
                                                      proc_type_table);
-    config.tbbPartitioner =
-        config.tbbPartitioner == TbbPartitioner::NONE ? TbbPartitioner::STATIC : config.tbbPartitioner;
     OPENVINO_ASSERT(!streams_info_table.empty(), "streams_info_table is empty!");
     if (config.modelDistributionPolicy.find(ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL) !=
         config.modelDistributionPolicy.end()) {

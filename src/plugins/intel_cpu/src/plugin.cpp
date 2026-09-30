@@ -293,7 +293,8 @@ void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& m
                                                   std::string("MODEL_PREFER_THREADS_THROUGHPUT"),
                                                   std::string("TBB_PARTITIONER")};
     if (imported && model->has_rt_info("intel_cpu_hints_config")) {
-        // load model_prefer_threads and tbbPartitioner from cache
+        // TBB_PARTITIONER stores the model's latency preference, not the final multi-stream partitioner.
+        // Keep the existing key for compatibility with previously exported models.
         const auto& hints_config = model->get_rt_info<ov::AnyMap>("intel_cpu_hints_config");
         for (auto& one_name : model_prefer_name) {
             auto it_model_prefer = hints_config.find(one_name);
@@ -302,7 +303,7 @@ void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& m
                     if (one_name == std::string("TBB_PARTITIONER")) {
                         auto cached_partitioner = it_model_prefer->second.as<ov::intel_cpu::TbbPartitioner>();
                         if (!conf.changedTbbPartitioner) {
-                            conf.tbbPartitioner = cached_partitioner;
+                            conf.tbbPartitionerLatency = cached_partitioner;
                         }
                     } else if (one_name == std::string("MODEL_PREFER_THREADS_LATENCY")) {
                         conf.modelPreferThreadsLatency = it_model_prefer->second.as<int>();
@@ -322,16 +323,11 @@ void Plugin::calculate_streams(Config& conf, const std::shared_ptr<ov::Model>& m
         ov::AnyMap hints_props;
         hints_props.insert({model_prefer_name[0], std::to_string(conf.modelPreferThreadsLatency)});
         hints_props.insert({model_prefer_name[1], std::to_string(conf.modelPreferThreadsThroughput)});
+        // The cached value is the model's latency preference, not the final multi-stream partitioner.
         std::stringstream tbb_partitioner;
-        tbb_partitioner << conf.tbbPartitioner;
+        tbb_partitioner << conf.tbbPartitionerLatency;
         hints_props.insert({model_prefer_name[2], tbb_partitioner.str()});
         model->set_rt_info(hints_props, "intel_cpu_hints_config");
-    }
-    // The cached partitioner is the model's latency preference. Only override an automatically chosen
-    // partitioner for throughput or multi-stream execution; an explicit user choice takes precedence.
-    if (!conf.changedTbbPartitioner &&
-        (conf.hintPerfMode == ov::hint::PerformanceMode::THROUGHPUT || conf.streamExecutorConfig.get_streams() > 1)) {
-        conf.tbbPartitioner = TbbPartitioner::STATIC;
     }
 }
 

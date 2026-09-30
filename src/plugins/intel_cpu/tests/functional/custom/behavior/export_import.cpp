@@ -124,7 +124,12 @@ TEST(ExportImportPartitioner, ExplicitChoiceOverridesAutomaticSelection) {
 
     auto throughput = import_with({ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
                                    ov::num_streams(1)});
-    EXPECT_EQ(throughput.get_property(ov::intel_cpu::tbb_partitioner), ov::intel_cpu::TbbPartitioner::STATIC);
+    EXPECT_EQ(throughput.get_property(ov::intel_cpu::tbb_partitioner), ov::intel_cpu::TbbPartitioner::AUTO);
+
+    auto reset_partitioner = import_with({ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+                                          ov::num_streams(2),
+                                          ov::intel_cpu::tbb_partitioner(ov::intel_cpu::TbbPartitioner::NONE)});
+    EXPECT_EQ(reset_partitioner.get_property(ov::intel_cpu::tbb_partitioner), ov::intel_cpu::TbbPartitioner::STATIC);
 
     auto explicit_throughput = import_with({ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
                                             ov::intel_cpu::tbb_partitioner(ov::intel_cpu::TbbPartitioner::AUTO)});
