@@ -188,6 +188,8 @@ bool pin_thread_to_vacant_core(int thrIdx,
     }
 }
 bool pin_current_thread_by_mask(int ncores, const CpuSet& procMask) {
+    if (!procMask)
+        return false;
     DWORD_PTR mask = *procMask.get();
     return 0 != SetThreadAffinityMask(GetCurrentThread(), mask);
 }
