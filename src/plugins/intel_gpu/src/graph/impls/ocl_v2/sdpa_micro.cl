@@ -1346,17 +1346,33 @@ KERNEL(micro_sdpa)(OPTIONAL_SHAPE_INFO_ARG
 #if WITH_ATTN_MASK && defined(PREFETCH_MASK)
         /* Prefetch next mask tile. */
         if (!last) {
-            cooperative_prefetch_2d_maybe_rem(
-                    /* ptr */ msk + k0 + ugemm_kq_sg_tile_m + (wg_j0)*ldmsk,
-                    /* r */ causal_k - k0 - ugemm_kq_wg_tile_m,
-                    /* c */ q - wg_j0,
-                    /* rmax */ ugemm_kq_wg_tile_m,
-                    /* cmax */ (ugemm_kq_wg_tile_n * PREFETCH_D_MAX) / D_MAX,
-                    /* ld */ ldmsk,
-                    /* sg_id */ sg_ij,
-                    /* n_sg */ sg_per_wg,
-                    /* sg_size */ SUBGROUP_SIZE,
-                    /* cache */ LSC_LDCC_L1UC_L3C);
+            if (MSK_D2 == 1) {
+                /* Mask is broadcast over queries ([.., .., 1, K]): only one row exists.
+                   Striding by ldmsk per query would prefetch far past the end of the mask buffer. */
+                cooperative_prefetch_2d_maybe_rem(
+                        /* ptr */ msk + k0 + ugemm_kq_wg_tile_m,
+                        /* r */ causal_k - k0 - ugemm_kq_wg_tile_m,
+                        /* c */ 1,
+                        /* rmax */ ugemm_kq_wg_tile_m,
+                        /* cmax */ 1,
+                        /* ld */ 0,
+                        /* sg_id */ sg_ij,
+                        /* n_sg */ sg_per_wg,
+                        /* sg_size */ SUBGROUP_SIZE,
+                        /* cache */ LSC_LDCC_L1C_L3C);
+            } else {
+                cooperative_prefetch_2d_maybe_rem(
+                        /* ptr */ msk + k0 + ugemm_kq_sg_tile_m + (wg_j0)*ldmsk,
+                        /* r */ causal_k - k0 - ugemm_kq_wg_tile_m,
+                        /* c */ q - wg_j0,
+                        /* rmax */ ugemm_kq_wg_tile_m,
+                        /* cmax */ (ugemm_kq_wg_tile_n * PREFETCH_D_MAX) / D_MAX,
+                        /* ld */ ldmsk,
+                        /* sg_id */ sg_ij,
+                        /* n_sg */ sg_per_wg,
+                        /* sg_size */ SUBGROUP_SIZE,
+                        /* cache */ LSC_LDCC_L1UC_L3C);
+            }
         }
 #endif
 
