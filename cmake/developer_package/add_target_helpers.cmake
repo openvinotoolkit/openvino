@@ -475,13 +475,12 @@ function(ov_add_test_target)
     else()
         # Peek at SOURCES/ROOT without consuming them, so they are still forwarded to ov_add_target above as-is.
         cmake_parse_arguments(_ov_test_check "" "ROOT" "SOURCES" ${ARG_UNPARSED_ARGUMENTS})
-        list(FIND ARG_UNPARSED_ARGUMENTS SOURCES _ov_test_sources_index)
 
         if(_ov_test_check_ROOT)
             message(SEND_ERROR "ov_add_test_target(${ARG_NAME}): CHECK_SOURCES_LISTED "
                 "is not available for ROOT-based (legacy) targets - ROOT-based targets already glob every file "
                 "on disk. Migrate to SOURCES to use the completeness check.")
-        elseif(_ov_test_sources_index EQUAL -1)
+        elseif(NOT _ov_test_check_SOURCES)
             message(SEND_ERROR "ov_add_test_target(${ARG_NAME}): CHECK_SOURCES_LISTED "
                 "requires SOURCES (ROOT-based targets already glob every file on disk).")
         else()
