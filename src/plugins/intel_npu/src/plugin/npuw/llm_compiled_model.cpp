@@ -1398,8 +1398,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Apply block-based KV cache transformation for chunk prefill after ShapeOfParameter
     // This ensures ShapeOf nodes are already regularized before transformation
     if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE>()) {
-        const bool integer_kv_cache = kv_kache_storage_type == ov::element::i8 ||
-                                      kv_kache_storage_type == ov::element::u8;
+        const bool integer_kv_cache =
+            kv_kache_storage_type == ov::element::i8 || kv_kache_storage_type == ov::element::u8;
         OPENVINO_ASSERT(!integer_kv_cache,
                         "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE cannot be combined with integer KV-cache precision.");
         OPENVINO_ASSERT(!m_enable_prefix_caching,
