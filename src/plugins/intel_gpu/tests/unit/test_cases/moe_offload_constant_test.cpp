@@ -175,6 +175,11 @@ TEST(moe_offload_constant, auto_ratio_no_moe_model_resolves_zero) {
     EXPECT_EQ(resolve_auto_offload_ratio_for_budget(*model, 1), 0U);
 }
 
+TEST(moe_offload_constant, auto_ratio_zero_budget_resolves_zero) {
+    auto g = MoETestGraph::build();
+    EXPECT_EQ(resolve_auto_offload_ratio_for_budget(*g.to_model(), 0), 0U);
+}
+
 TEST(moe_offload_constant, auto_ratio_non_positive_budget_for_moe_resolves_zero) {
     auto g = MoETestGraph::build();
     const uint64_t fixed_bytes = sum_constant_bytes(g, MoEConstantRole::SharedExpert);
@@ -199,12 +204,48 @@ TEST(moe_offload_constant, auto_ratio_uses_routed_expert_bytes_for_resident_frac
     EXPECT_EQ(resolve_auto_offload_ratio_for_budget(*g.to_model(), budget), 50U);
 }
 
+TEST(moe_offload_constant, auto_ratio_calculates_boundary_ratio_75) {
+    auto g = MoETestGraph::build();
+    const uint64_t routed_bytes = sum_constant_bytes(g, MoEConstantRole::RoutedExpert);
+    const uint64_t fixed_bytes = sum_constant_bytes(g, MoEConstantRole::SharedExpert);
+    // 25% resident -> 75% offload
+    const uint64_t budget = static_cast<uint64_t>((static_cast<double>(fixed_bytes) + 0.25 * static_cast<double>(routed_bytes)) / 0.85);
+
+    EXPECT_EQ(resolve_auto_offload_ratio_for_budget(*g.to_model(), budget), 75U);
+}
+
+TEST(moe_offload_constant, auto_ratio_calculates_quarter_offload_25) {
+    auto g = MoETestGraph::build();
+    const uint64_t routed_bytes = sum_constant_bytes(g, MoEConstantRole::RoutedExpert);
+    const uint64_t fixed_bytes = sum_constant_bytes(g, MoEConstantRole::SharedExpert);
+    // 75% resident -> 25% offload
+    const uint64_t budget = static_cast<uint64_t>((static_cast<double>(fixed_bytes) + 0.75 * static_cast<double>(routed_bytes)) / 0.85);
+
+    EXPECT_EQ(resolve_auto_offload_ratio_for_budget(*g.to_model(), budget), 25U);
+}
+
 TEST(moe_offload_constant, auto_ratio_counts_shared_expert_bytes_as_fixed_weights) {
     auto g = MoETestGraph::build();
     const uint64_t routed_bytes = sum_constant_bytes(g, MoEConstantRole::RoutedExpert);
     const uint64_t budget = static_cast<uint64_t>(static_cast<double>(routed_bytes) / 0.85);
 
     EXPECT_GT(resolve_auto_offload_ratio_for_budget(*g.to_model(), budget), 0U);
+}
+
+TEST(moe_offload_constant, resolve_auto_offload_ratio_with_engine_no_moe) {
+    auto& engine = tests::get_test_engine();
+    auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::Shape{1, 16});
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{input}, ov::ParameterVector{input});
+
+    EXPECT_EQ(resolve_auto_offload_ratio(*model, engine), 0U);
+}
+
+TEST(moe_offload_constant, resolve_auto_offload_ratio_with_engine_small_model_fits) {
+    auto& engine = tests::get_test_engine();
+    auto g = MoETestGraph::build();
+
+    // The small test graph is << device memory, so all weights fit -> resolves to 0
+    EXPECT_EQ(resolve_auto_offload_ratio(*g.to_model(), engine), 0U);
 }
 
 TEST(moe_offload_constant, mixed_consumer_routed_and_shared_is_not_routed_eligible) {

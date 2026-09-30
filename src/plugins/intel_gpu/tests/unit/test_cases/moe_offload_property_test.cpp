@@ -80,4 +80,37 @@ TEST(moe_offload_property_test, auto_ratio_enables_weights_path_in_apply_rt_info
     ASSERT_EQ(config.get_weights_path(), fake_weights_path);
 }
 
+TEST(moe_offload_property_test, typed_cxx_sentinel_sets_auto) {
+    auto config = get_test_default_config(get_test_engine());
+    config.set_property(ov::intel_gpu::offload_ratio(ov::intel_gpu::OFFLOAD_RATIO_AUTO));
+    ASSERT_EQ(config.get_offload_ratio(), ov::intel_gpu::OFFLOAD_RATIO_AUTO);
+}
+
+TEST(moe_offload_property_test, user_property_integer_auto_sentinel) {
+    auto config = get_test_default_config(get_test_engine());
+    config.set_user_property({{ov::intel_gpu::offload_ratio.name(), int64_t{-1}}});
+    ASSERT_EQ(config.get_offload_ratio(), ov::intel_gpu::OFFLOAD_RATIO_AUTO);
+}
+
+TEST(moe_offload_property_test, invalid_values_rejected) {
+    auto config = get_test_default_config(get_test_engine());
+    // Value > 100 should throw
+    EXPECT_THROW(config.set_user_property({{ov::intel_gpu::offload_ratio.name(), int64_t{101}}}), ov::Exception);
+    // Value < -1 should throw
+    EXPECT_THROW(config.set_user_property({{ov::intel_gpu::offload_ratio.name(), int64_t{-2}}}), ov::Exception);
+    // Invalid string should throw
+    EXPECT_THROW(config.set_user_property({{ov::intel_gpu::offload_ratio.name(), std::string("INVALID")}}), ov::Exception);
+}
+
+TEST(moe_offload_property_test, config_clone_preserves_offload_ratio) {
+    auto config = get_test_default_config(get_test_engine());
+    config.set_property(ov::intel_gpu::offload_ratio(ov::intel_gpu::OFFLOAD_RATIO_AUTO));
+    auto cloned = config.clone();
+    ASSERT_EQ(cloned.get_offload_ratio(), ov::intel_gpu::OFFLOAD_RATIO_AUTO);
+
+    config.set_property(ov::intel_gpu::offload_ratio(42));
+    cloned = config.clone();
+    ASSERT_EQ(cloned.get_offload_ratio(), 42);
+}
+
 }  // namespace ov::test
