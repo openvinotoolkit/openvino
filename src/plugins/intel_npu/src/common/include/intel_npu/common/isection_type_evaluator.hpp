@@ -17,8 +17,6 @@ namespace intel_npu {
  */
 class ISectionTypeEvaluator {
 public:
-    ISectionTypeEvaluator() = default;
-
     virtual ~ISectionTypeEvaluator() = default;
 
     /**
@@ -32,6 +30,9 @@ public:
      * @brief Tells whether or not the section type has already been evaluated.
      */
     bool evaluated() const;
+
+protected:
+    ISectionTypeEvaluator() = default;
 
 private:
     /**

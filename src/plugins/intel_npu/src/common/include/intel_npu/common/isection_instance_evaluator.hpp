@@ -24,8 +24,6 @@ namespace intel_npu {
  */
 class ISectionInstanceEvaluator {
 public:
-    ISectionInstanceEvaluator() = default;
-
     virtual ~ISectionInstanceEvaluator() = default;
 
     /**
@@ -33,6 +31,9 @@ public:
      * requirements
      */
     virtual ov::CompatibilityCheck evaluate(std::string_view runtime_requirements) const = 0;
+
+protected:
+    ISectionInstanceEvaluator() = default;
 };
 
 }  // namespace intel_npu

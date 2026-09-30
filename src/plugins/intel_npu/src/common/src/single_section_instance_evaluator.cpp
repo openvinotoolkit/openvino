@@ -9,7 +9,9 @@ namespace intel_npu {
 SingleSectionInstanceEvaluator::SingleSectionInstanceEvaluator(const std::shared_ptr<ISectionInstanceEvaluator>& impl,
                                                                std::string_view runtime_requirements)
     : m_impl(impl),
-      m_runtime_requirements(runtime_requirements) {}
+      m_runtime_requirements(runtime_requirements) {
+    OPENVINO_ASSERT(impl, "Cannot evaluate using a null evaluator");
+}
 
 ov::CompatibilityCheck SingleSectionInstanceEvaluator::get_result() const {
     if (!m_result.has_value()) {
