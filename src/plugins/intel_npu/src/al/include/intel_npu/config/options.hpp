@@ -171,6 +171,23 @@ struct PLATFORM final : OptionBase<PLATFORM, std::string> {
     }
 };
 
+// No defaultValue(): unset until the caller passes ov::compilation_target explicitly.
+// RunTime despite selecting a compile-time target: intel_npu::utils::resolveCompilationTarget
+// resolves it into NPU_PLATFORM before the compiler ever sees a "COMPILATION_TARGET" key.
+struct COMPILATION_TARGET final : OptionBase<COMPILATION_TARGET, ov::CompilationTarget> {
+    static std::string_view key() {
+        return ov::compilation_target.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::CompilationTarget";
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
 struct DEVICE_ID final : OptionBase<DEVICE_ID, std::string> {
     static std::string_view key() {
         return ov::device::id.name();

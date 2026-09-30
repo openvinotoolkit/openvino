@@ -13,10 +13,12 @@
 #include <algorithm>
 #include <array>
 #include <cctype>
+#include <cstdint>
 #include <iomanip>
 #include <istream>
 #include <limits>
 #include <map>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -1526,4 +1528,73 @@ inline constexpr Property<std::string, PropertyMutability::RO> runtime_requireme
  * @endcode
  */
 static constexpr Property<CompatibilityCheck, PropertyMutability::RO> compatibility_check{"COMPATIBILITY_CHECK"};
+
+/**
+ * @brief A compilation target: an externally consumable descriptor of what a model can
+ * be compiled for, without that device being present.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+struct CompilationTarget {
+    /// Platform identifier. Equal to ov::device::architecture as reported by a device of
+    /// this platform, and to the platform the compiler is invoked with for an online compile.
+    std::string platform;
+    /// PCI device IDs this target corresponds to. Present so an application can filter the
+    /// returned list against an ID it sourced from the OS. A target may ship under several device IDs.
+    std::vector<uint32_t> device_ids;
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const CompilationTarget& target) {
+    os << "{platform: " << target.platform << " device_ids: [";
+    for (size_t i = 0; i < target.device_ids.size(); ++i) {
+        if (i != 0) {
+            os << ",";
+        }
+        os << "0x" << std::hex << target.device_ids[i] << std::dec;
+    }
+    return os << "]}";
+}
+
+inline std::istream& operator>>(std::istream& is, CompilationTarget& target) {
+    std::string delim;
+    std::string devicesToken;
+    if (!(is >> delim >> target.platform >> delim >> devicesToken) || devicesToken.size() < 3 ||
+        devicesToken.front() != '[') {
+        OPENVINO_THROW("Could not deserialize CompilationTarget. Invalid format!");
+    }
+
+    const auto listEnd = devicesToken.find(']');
+    OPENVINO_ASSERT(listEnd != std::string::npos, "Could not deserialize CompilationTarget. Invalid format!");
+
+    target.device_ids.clear();
+    std::stringstream listStream(devicesToken.substr(1, listEnd - 1));
+    std::string item;
+    while (std::getline(listStream, item, ',')) {
+        if (!item.empty()) {
+            target.device_ids.push_back(static_cast<uint32_t>(std::stoul(item, nullptr, 16)));
+        }
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Read-only: offline compilation targets supported by this device's compiler.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Answerable with no device present. Takes no arguments; a plugin may accept its own platform
+ * selector as a convenience, but callers must not assume every plugin does.
+ */
+static constexpr Property<std::vector<CompilationTarget>, PropertyMutability::RO> offline_compilation_targets{
+    "OFFLINE_COMPILATION_TARGETS"};
+
+/**
+ * @brief Select one offline compilation target for ov::Core::compile_model.
+ * @ingroup ov_runtime_cpp_prop_api
+ *
+ * Compiles for the target's platform instead of the current device.
+ * Combining it with an explicit platform selector is allowed only if they match; otherwise it throws.
+ * Only the platform value reaches the compiler, never the property itself.
+ */
+static constexpr Property<CompilationTarget, PropertyMutability::RW> compilation_target{"COMPILATION_TARGET"};
 }  // namespace ov

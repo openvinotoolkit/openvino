@@ -695,4 +695,73 @@ bool VCLCompilerImpl::is_option_supported(const std::string& option, const std::
     return supported;
 }
 
+std::vector<std::string> VCLCompilerImpl::resolve_compilation_target_bundles(const Config& config) const {
+    _logger.debug("resolve_compilation_target_bundles start");
+
+    // Optional/weak entry points: an older VCL library simply does not resolve SKU variants, so no
+    // bundle is available and the caller falls back to compiling the config as-is.
+    if (_functions->vclCompilationTargetsCreate == nullptr || _functions->vclGetCompilationTargets == nullptr ||
+        _functions->vclCompilationTargetsDestroy == nullptr) {
+        return {};
+    }
+
+    // The full config is sent as-is to the resolution query - whatever the compiler does not need
+    // for resolution, it simply ignores.
+    const std::string resolutionConfig = config.toStringForCompiler([](const std::string&) {
+        return true;
+    });
+    _logger.info("Resolving compilation target bundles for config '%s'", resolutionConfig.c_str());
+
+    vcl_compilation_targets_handle_t targetsHandle = nullptr;
+    vcl_log_handle_t targetsLogHandle = nullptr;
+    THROW_ON_FAIL_FOR_VCL(
+        *_functions,
+        "vclCompilationTargetsCreate",
+        _functions->vclCompilationTargetsCreate(resolutionConfig.c_str(), resolutionConfig.size(), &targetsHandle,
+                                                &targetsLogHandle),
+        nullptr);
+
+    // NPU_PLATFORM is always present in resolutionConfig here (resolveCompilationTarget already
+    // injected it), so the query narrows to that one platform - the array holds at most one target.
+    const vcl_compilation_target_t* targets = nullptr;
+    uint64_t targetCount = 0;
+    const vcl_result_t getResult = _functions->vclGetCompilationTargets(targetsHandle, &targets, &targetCount);
+
+    // Copy the bundle strings out before destroying the handle - it owns that memory.
+    std::vector<std::string> bundles;
+    if (getResult == VCL_RESULT_SUCCESS && targetCount > 0 && targets != nullptr) {
+        const auto& target = targets[0];
+        bundles.reserve(target.configBundleCount);
+        for (uint64_t i = 0; i < target.configBundleCount; ++i) {
+            bundles.emplace_back(target.configBundle[i], static_cast<size_t>(target.configBundleSizes[i]));
+        }
+    }
+
+    const vcl_result_t destroyResult = _functions->vclCompilationTargetsDestroy(targetsHandle);
+    if (destroyResult != VCL_RESULT_SUCCESS) {
+        _logger.warning("Failed to destroy VCL compilation targets handle: result 0x%x", destroyResult);
+    }
+
+    THROW_ON_FAIL_FOR_VCL(*_functions, "vclGetCompilationTargets", getResult, targetsLogHandle);
+
+    // No target for this config means "unresolved", not multi-SKU - the caller then compiles the
+    // config unchanged, as it always has; a real compile attempt right after will fail with a
+    // proper, specific error if the config really is invalid.
+    if (bundles.empty()) {
+        _logger.info("No compilation target bundle resolved for config '%s'", resolutionConfig.c_str());
+    } else {
+        std::ostringstream bundlesLog;
+        bundlesLog << "Resolved " << bundles.size() << " compilation target bundle(s): ";
+        for (size_t i = 0; i < bundles.size(); ++i) {
+            if (i > 0) {
+                bundlesLog << "; ";
+            }
+            bundlesLog << '[' << i << "] '" << bundles[i] << '\'';
+        }
+        _logger.info("%s", bundlesLog.str().c_str());
+    }
+
+    return bundles;
+}
+
 }  // namespace intel_npu

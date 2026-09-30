@@ -67,6 +67,11 @@ private:
                                     bool useSharedExecutors,
                                     uint64_t sharedExecutorsId);
 
+    // STUB: hook point for exporting additional compiled schedules (one per multi-SKU bundle)
+    // after the primary blob + metadata. No-op until CompiledModel actually holds more than one
+    // graph.
+    void export_additional_schedules(std::ostream& stream) const;
+
     Logger _logger;
 
     const std::shared_ptr<IDevice> _device;

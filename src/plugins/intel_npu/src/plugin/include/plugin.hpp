@@ -68,6 +68,12 @@ private:
 
     std::shared_ptr<ov::ICompiledModel> import_model(BlobSource& blobSource, ov::AnyMap& properties) const;
 
+    // STUB: hook point for picking among several schedules a multi-SKU blob could carry, matching
+    // the attached device via IDevice::validateCompatibilityDescriptor. No-op (returns `graph`
+    // unchanged) until the blob format actually carries more than one schedule.
+    std::shared_ptr<IGraph> select_matching_schedule(const std::shared_ptr<IGraph>& graph,
+                                                     const std::shared_ptr<IDevice>& device) const;
+
     std::unique_ptr<BackendsRegistry> _backendsRegistry;
 
     //  _backend might not be set by the plugin; certain actions, such as offline compilation, might be supported.

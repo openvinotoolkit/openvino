@@ -42,6 +42,8 @@ public:
 
     uint32_t get_version() const override;
 
+    std::vector<std::string> resolve_compilation_target_bundles(const Config& config) const override;
+
 private:
     std::shared_ptr<ZeroInitStructsHolder> _zeroInitStruct;
     std::shared_ptr<ZeGraphExtWrappers> _zeGraphExt;

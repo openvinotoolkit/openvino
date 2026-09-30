@@ -25,7 +25,8 @@ public:
         const ov::SoPtr<IEngineBackend>& engineBackend,
         ov::intel_npu::CompilerType& compilerType,
         std::string_view platform,
-        const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr) const;
+        const std::shared_ptr<OptionSupportCache>& optionSupportCache = nullptr,
+        bool isCompilationTarget = false) const;
 
     void decideCompilerType(ov::intel_npu::CompilerType& compilerType,
                             const std::shared_ptr<intel_npu::IDevice>& device,
@@ -40,7 +41,8 @@ private:
         const ov::SoPtr<IEngineBackend>& engineBackend,
         const std::shared_ptr<OptionSupportCache>& optionSupportCache,
         const std::shared_ptr<intel_npu::IDevice>& device,
-        std::string_view platform) const;
+        std::string_view platform,
+        bool isCompilationTarget) const;
 
     enum class PluginCompilerPresence : std::uint8_t {
         UNKNOWN = 0,
