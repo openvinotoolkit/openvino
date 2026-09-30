@@ -106,9 +106,8 @@ function(ov_add_target)
         message(SEND_ERROR "Unexpected parameters have passed to function: ${ARG_UNPARSED_ARGUMENTS}")
     endif()
 
-    list(FIND ARGN SOURCES _ov_sources_index)
     # adding files to target
-    if(NOT _ov_sources_index EQUAL -1)
+    if(ARG_SOURCES OR "SOURCES" IN_LIST ARG_KEYWORDS_MISSING_VALUES)
         # Explicit list provided — skip glob entirely
         set(includes ${ARG_SOURCES})
         list(FILTER includes INCLUDE REGEX "\\.(h|hpp)$")

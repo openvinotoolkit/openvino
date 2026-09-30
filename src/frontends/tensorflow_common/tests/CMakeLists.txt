@@ -2,13 +2,11 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
-include(${CMAKE_CURRENT_SOURCE_DIR}/sources.cmake)
-
 set(TARGET_NAME "ov_tensorflow_common_tests")
 
 ov_add_test_target(
     NAME ${TARGET_NAME}
-    SOURCES ${TENSORFLOW_COMMON_FRONTEND_SRCS}
+    SOURCES
     LINK_LIBRARIES
     gtest_main_manifest
     frontend_shared_test_classes
