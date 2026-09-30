@@ -8,6 +8,7 @@ import shutil
 import tempfile
 
 import pytest
+import torch
 from huggingface_hub import snapshot_download
 from optimum.intel.openvino import (OVModelForCausalLM,
                                     OVWeightQuantizationConfig)
@@ -106,7 +107,8 @@ def setup_model(model_id):
     # Download original model from a Hugging Face snapshot to get a stable, canonical on-disk layout
     # (once cached, subsequent `from_pretrained(..., local_files_only=True)` calls are fully offline)
     model_cached = snapshot_download(model_id)
-    model = AutoModelForCausalLM.from_pretrained(model_cached, local_files_only=True)
+    # transformers>=5 defaults to dtype="auto" (config dtype, e.g. bf16), while GT references were calibrated in fp32
+    model = AutoModelForCausalLM.from_pretrained(model_cached, local_files_only=True, dtype=torch.float32)
     tokenizer = AutoTokenizer.from_pretrained(model_cached, local_files_only=True)
 
     # Cache original model for reuse in repeated test runs and potential future tests

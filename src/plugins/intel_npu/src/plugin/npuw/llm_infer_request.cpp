@@ -414,7 +414,7 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     bool enable_cpu_wa = false;
     const auto& kvcache_compiled = m_npuw_llm_compiled_model->m_kvcache_compiled;
     for (std::size_t idx = 0; idx < kvcache_compiled->num_submodels(); ++idx) {
-        if (kvcache_compiled->submodel_device(idx) == "CPU") {
+        if (ov::npuw::util::starts_with(kvcache_compiled->submodel_device(idx), "CPU")) {
             enable_cpu_wa = true;
             break;
         }
@@ -473,7 +473,7 @@ std::string ov::npuw::LLMInferRequest::init_pre_alloc_device() {
     bool pre_alloc_on_npu = true;
     const auto& kvcache_compiled = m_npuw_llm_compiled_model->m_kvcache_compiled;
     for (std::size_t idx = 0; idx < kvcache_compiled->num_submodels(); ++idx) {
-        if (kvcache_compiled->submodel_device(idx) != "NPU") {
+        if (!ov::npuw::util::starts_with(kvcache_compiled->submodel_device(idx), "NPU")) {
             pre_alloc_on_npu = false;
             break;
         }
