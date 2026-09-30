@@ -9,10 +9,27 @@
 
 namespace intel_npu {
 
+/**
+ * @brief Settings consumed by the compiler adapter itself.
+ * Each adapter decides which of them are relevant and may ignore the rest.
+ */
+struct AdapterDescriptor {
+    // Disables the driver (UMD) cache for the compiled graph
+    bool bypassUmdCache = false;
+    // Requests secure compilation from the driver
+    bool secureCompile = false;
+};
+
 class ICompilerAdapter {
 public:
+    /**
+     * @param model The model that will be compiled.
+     * @param config Will be passed to the compiler.
+     * @param adapterDesc Adapter-specific settings, not forwarded to the compiler. See "AdapterDescriptor".
+     */
     virtual std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
-                                            const Config& config) const = 0;
+                                            const Config& config,
+                                            const AdapterDescriptor& adapterDesc) const = 0;
 
     /**
      * @brief Compiles the model, weights separation enabled.
@@ -26,9 +43,12 @@ public:
      * @param config Will be passed to the compiler. Additionally, the "SEPARATE_WEIGHTS_VERSION" option will determine
      * which weights separation implementation will be used. See the weights separation specific methods within
      * "icompiler.hpp".
+     * @param adapterDesc Adapter-specific settings, not forwarded to the compiler. See "AdapterDescriptor".
      * @return A "WeightlessGraph" type of object.
      */
-    virtual std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model, const Config& config) const = 0;
+    virtual std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model,
+                                              const Config& config,
+                                              const AdapterDescriptor& adapterDesc) const = 0;
 
     virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
     virtual uint32_t get_version() const = 0;

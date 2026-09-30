@@ -430,13 +430,20 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<intel_npu::IGraph> graph;
 
+    AdapterDescriptor adapterDesc;
+    // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
+    adapterDesc.bypassUmdCache = !localConfig.get<CACHE_DIR>().empty() || localConfig.get<BYPASS_UMD_CACHING>();
+    // If blob encryption is requested, enable secure compilation in the driver
+    adapterDesc.secureCompile = localConfig.has(ov::cache_encryption_callbacks.name()) &&
+                               localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr;
+
     auto compileWithConfig = [&](auto&& modelToCompile, const auto& config) {
         if (!localConfig.get<ENABLE_WEIGHTLESS>()) {
-            return compiler->compile(modelToCompile, config);
+            return compiler->compile(modelToCompile, config, adapterDesc);
         }
 
         check_weightless_cache_attribute_occurrence(model);
-        return compiler->compileWS(std::move(modelToCompile), config);
+        return compiler->compileWS(std::move(modelToCompile), config, adapterDesc);
     };
 
     try {
