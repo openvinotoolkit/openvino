@@ -34,6 +34,7 @@ struct lockable_gpu_mem : public memory {
         }
         return lock_impl(stream, type);
     }
+protected:
     virtual void* lock_impl(const stream& stream, mem_lock_type type) = 0;
 
     std::mutex _mutex;
@@ -47,7 +48,6 @@ struct gpu_usm : public lockable_gpu_mem{
     gpu_usm(ze_engine* engine, const layout& new_layout, ze_usm_resource usm_buffer, std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_usm(ze_engine* engine, const layout& layout, allocation_type type);
 
-    void* lock_impl(const stream& stream, mem_lock_type type) override;
     void unlock(const stream& stream) override;
 
     event::ptr fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
@@ -68,6 +68,8 @@ struct gpu_usm : public lockable_gpu_mem{
     static allocation_type detect_allocation_type(const ze_engine* engine, ze_usm_resource buffer);
 
 protected:
+    void* lock_impl(const stream& stream, mem_lock_type type) override;
+
     mutable ze_usm_resource _buffer;
     ze_usm_resource _host_buffer;
 };
@@ -76,7 +78,6 @@ struct gpu_image2d : public lockable_gpu_mem {
     gpu_image2d(ze_engine* engine, const layout& new_layout, ze_image_resource image, std::shared_ptr<MemoryTracker> mem_tracker);
     gpu_image2d(ze_engine* engine, const layout& layout);
 
-    void* lock_impl(const stream& stream, mem_lock_type type = mem_lock_type::read_write) override;
     void unlock(const stream& stream) override;
     event::ptr fill(stream& stream, unsigned char pattern, const std::vector<event::ptr>& dep_events = {}, bool blocking = true) override;
     shared_mem_params get_internal_params(runtime_types rt_type) const override;
@@ -91,6 +92,8 @@ struct gpu_image2d : public lockable_gpu_mem {
     event::ptr copy_to(stream& stream, void* data_ptr, size_t src_offset = 0, size_t dst_offset = 0, size_t size = 0, bool blocking = true) const override;
 
 protected:
+    void* lock_impl(const stream& stream, mem_lock_type type) override;
+
     mutable ze_image_resource _image_holder;
     ze_usm_resource _host_buffer;
     size_t _width;
