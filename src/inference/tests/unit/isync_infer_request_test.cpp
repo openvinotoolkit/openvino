@@ -18,10 +18,9 @@
 #include "unit_test_utils/mocks/openvino/runtime/mock_icompiled_model.hpp"
 #include "unit_test_utils/mocks/openvino/runtime/mock_iplugin.hpp"
 
-using ::testing::Return;
-using ::testing::ReturnRefOfCopy;
-
 namespace ov::test {
+
+using ::testing::Return, ::testing::ReturnRefOfCopy;
 
 namespace {
 
@@ -150,14 +149,14 @@ TEST_F(ISyncInferRequestStringBatchTest, ConvertBatchedShortStringTensorsCopiesE
     expect_batched_strings_copied_independently("ab");
 }
 
-TEST_F(ISyncInferRequestStringBatchTest, ConvertBatchedStringTensorsDoNotUseRemoteHostStorage) {
+TEST_F(ISyncInferRequestStringBatchTest, ConvertBatchedStringTensorsUseInitializedRemoteHostStorage) {
     auto remote_context = std::make_shared<TrackingRemoteContext>();
     ON_CALL(*mock_plugin_impl, get_default_context(testing::_))
         .WillByDefault(Return(ov::SoPtr<ov::IRemoteContext>(remote_context)));
 
     expect_batched_strings_copied_independently(std::string(64, 'A'));
 
-    EXPECT_EQ(remote_context->host_tensor_creation_count(), 0);
+    EXPECT_EQ(remote_context->host_tensor_creation_count(), 1);
 }
 
 TEST_F(ISyncInferRequestStringBatchTest, ConvertBatchedNumericTensorsStillUsesFastPath) {
