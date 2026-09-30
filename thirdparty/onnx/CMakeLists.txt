@@ -10,11 +10,11 @@ set(OV_ONNX_NAMESPACE openvino_onnx)
 
 # Apply local patches to the pinned ONNX submodule.
 #
-# not_equal_to_ctad.patch: ONNX 1.22 uses 'std::not_equal_to()' (relying on
-# CTAD with no deduction guide), which GCC 8 (e.g. RHEL 8.10's system compiler)
-# rejects with "cannot deduce template arguments for 'not_equal_to' from ()".
-# The patch rewrites it to the portable 'std::not_equal_to<>()'. Newer compilers
-# accept the upstream source as-is, so the patch is only needed for GCC < 9.
+# not_equal_to_ctad.patch: ONNX 1.23.1 still uses 'std::not_equal_to()' (relying
+# on CTAD with no deduction guide), which GCC 8 (e.g. RHEL 8.10's system
+# compiler) rejects. The patch rewrites it to the portable
+# 'std::not_equal_to<>()'. Newer compilers accept the upstream source as-is, so
+# the patch is only needed for GCC < 9.
 #
 # TODO: remove this patch (and the patches directory) once GCC 8 support is
 # dropped, or once the fix is upstreamed into the pinned ONNX version. Patches
