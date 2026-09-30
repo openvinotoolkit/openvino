@@ -401,7 +401,7 @@ void expect_kv_cache_present_output_types(const std::shared_ptr<ov::Model>& mode
 
         if (is_present_key) {
             found_present_key = true;
-            const auto expected = is_quantized ? precision_key_input_matrix().at(kv_type).at("value") : kv_type;
+            const auto expected = is_quantized ? precision_key_output_matrix().at(kv_type).at("value") : kv_type;
             EXPECT_EQ(output.get_element_type(), expected)
                 << present_key_label << " output must have type " << expected;
         }
@@ -937,6 +937,7 @@ TEST_F(ConvertKVCacheToPrecisionPassTest, UpdateKvCacheForCopiesQuantizedAuxTens
     };
     std::vector<UpdatePair> pairs;
     bool saw_aux = false;
+    bool saw_dynamic_quantize_aux = false;
 
     uint8_t seed = 23u;
     for (const auto& input_name : request.kvcache_past_names()) {
@@ -950,7 +951,11 @@ TEST_F(ConvertKVCacheToPrecisionPassTest, UpdateKvCacheForCopiesQuantizedAuxTens
         if (present->get_byte_size() == 0 || past->get_byte_size() == 0) {
             continue;
         }
-        saw_aux = saw_aux || is_aux_kv_name(input_name);
+        if (is_aux_kv_name(input_name)) {
+            saw_aux = true;
+            saw_dynamic_quantize_aux = saw_dynamic_quantize_aux ||
+                                       input_name.rfind("DynamicQuantize/", 0) == 0;
+        }
 
         ov::Tensor present_fill(present->get_element_type(), present->get_shape());
         std::memset(present_fill.data(), seed, present_fill.get_byte_size());
@@ -967,6 +972,8 @@ TEST_F(ConvertKVCacheToPrecisionPassTest, UpdateKvCacheForCopiesQuantizedAuxTens
     }
     ASSERT_FALSE(pairs.empty()) << "No KV output/input pairs found for update_kvcache_for test";
     ASSERT_TRUE(saw_aux) << "i8 KV cache must expose scale/zero-point past inputs";
+    ASSERT_TRUE(saw_dynamic_quantize_aux)
+        << "i8 KV cache update test must exercise DynamicQuantize auxiliary names";
 
     ASSERT_NO_THROW(request.update_kvcache_for(request.kvcache_request(),
                                                request.kvcache_in_ports(),

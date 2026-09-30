@@ -743,7 +743,7 @@ void ov::npuw::LLMInferRequest::copy_kvcache() {
 
         const auto output_name = ov::npuw::util::past_key_values_to_present_name(past_input_name);
         OPENVINO_ASSERT(m_prefill_out_ports.find(output_name) != m_prefill_out_ports.end(),
-                        "Incosistent input/output naming for KV cache: ",
+                        "Inconsistent input/output naming for KV cache: ",
                         past_input_name,
                         " has no matching output in prefill model.");
         auto prefill_out_tensor = m_prefill_request->get_tensor(m_prefill_out_ports.at(output_name));
