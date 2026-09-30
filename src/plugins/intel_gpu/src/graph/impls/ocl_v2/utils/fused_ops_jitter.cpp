@@ -987,6 +987,15 @@ JitConstants make_activation_jit_constants(const std::string& suffix,
         jit.add(make_jit_constant(macro_def, ternary(input.lt(threshold), log(exp(input) + one), input)));
         break;
     }
+    case activation_func::swoosh: {
+        const JitTerm offset = convert_to_type("m"_jit, calc_dt);
+        const JitTerm bias = convert_to_type("n"_jit, calc_dt);
+        const JitTerm slope = convert_to_type("0.08"_jit, calc_dt);
+        const JitTerm shifted = input - offset;
+        const JitTerm softplus = max(shifted, zero) + log(one + exp(neg(abs(shifted))));
+        jit.add(make_jit_constant(macro_def, softplus - slope * input - bias));
+        break;
+    }
     case activation_func::softsign: {
         jit.add(make_jit_constant(macro_def, input / (one + abs(input))));
         break;

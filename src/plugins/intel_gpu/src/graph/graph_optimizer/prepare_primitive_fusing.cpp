@@ -10,6 +10,7 @@
 #include "roi_pooling_inst.h"
 #include "quantize_inst.h"
 #include "activation_inst.h"
+#include "data_inst.h"
 #include "batch_to_space_inst.h"
 #include "crop_inst.h"
 #include "eltwise_inst.h"
@@ -36,6 +37,7 @@
 #include "shuffle_channels_inst.h"
 #include "space_to_batch_inst.h"
 #include "strided_slice_inst.h"
+#include "select_inst.h"
 #include "cum_sum_inst.h"
 #include "embedding_bag_inst.h"
 #include "swiglu_inst.h"
@@ -52,11 +54,17 @@
 #include <string>
 #include <utility>
 #include <deque>
+#include <cmath>
+#include <optional>
 #ifdef ENABLE_ONEDNN_FOR_GPU
 #include <impls/onednn/utils.hpp>
 #endif
 
 using namespace cldnn;
+
+namespace {
+constexpr float swoosh_constant_tolerance = 1e-4f;
+}
 
 void prepare_primitive_fusing::run(program& p) {
     GPU_DEBUG_IF(p.get_config().get_disable_post_ops_fusions() != 0) {
@@ -76,6 +84,8 @@ void prepare_primitive_fusing::run(program& p) {
                 fuse_constant_transposes(p); return;
             case 8:
                 optimize_fused_ops(p); return;
+            case 9:
+                fuse_swoosh(p); return;
             default:
                 return;
         }
@@ -83,6 +93,7 @@ void prepare_primitive_fusing::run(program& p) {
 
     fuse_reorders(p);
     remove_redundant_reshape(p);
+    fuse_swoosh(p);
     fuse_swiglu(p);
     fuse_bias(p);
     fuse_simple_primitives(p);
@@ -97,6 +108,223 @@ static std::optional<size_t> find_eltwise_const_dep_idx(const eltwise_node& node
     }
 
     return std::nullopt;
+}
+
+struct eltwise_scalar_match {
+    program_node* data;
+    data_node* scalar;
+    float value;
+};
+
+static std::optional<float> read_scalar_value(program& p, program_node& node) {
+    if (!node.is_type<data>() || node.get_output_layout().count() != 1)
+        return std::nullopt;
+
+    auto memory = node.as<data>().get_attached_memory_ptr();
+    switch (node.get_output_layout().data_type) {
+    case data_types::f32: {
+        mem_lock<float, mem_lock_type::read> lock(memory, p.get_stream());
+        return lock[0];
+    }
+    case data_types::f16: {
+        mem_lock<ov::float16, mem_lock_type::read> lock(memory, p.get_stream());
+        return static_cast<float>(lock[0]);
+    }
+    case data_types::bf16: {
+        mem_lock<ov::bfloat16, mem_lock_type::read> lock(memory, p.get_stream());
+        return static_cast<float>(lock[0]);
+    }
+    default:
+        return std::nullopt;
+    }
+}
+
+static std::optional<eltwise_scalar_match> match_eltwise_scalar(program& p,
+                                                                 program_node& node,
+                                                                 eltwise_mode mode) {
+    if (!node.is_type<eltwise>() || node.get_dependencies().size() != 2 ||
+        node.as<eltwise>().get_primitive()->mode != mode) {
+        return std::nullopt;
+    }
+
+    for (size_t scalar_idx = 0; scalar_idx < 2; ++scalar_idx) {
+        auto& scalar = node.get_dependency(scalar_idx);
+        auto value = read_scalar_value(p, scalar);
+        if (value.has_value()) {
+            return eltwise_scalar_match{&node.get_dependency(1 - scalar_idx), &scalar.as<data>(), value.value()};
+        }
+    }
+
+    return std::nullopt;
+}
+
+static bool has_only_users(program_node& node, std::initializer_list<program_node*> expected_users) {
+    if (node.get_users().size() != expected_users.size())
+        return false;
+
+    return std::all_of(expected_users.begin(), expected_users.end(), [&](program_node* expected) {
+        return std::find(node.get_users().begin(), node.get_users().end(), expected) != node.get_users().end();
+    });
+}
+
+struct swoosh_tail_match {
+    program_node* select;
+    program_node* input;
+    std::vector<program_node*> arithmetic_nodes;
+    std::vector<data_node*> scalar_nodes;
+};
+
+static std::optional<swoosh_tail_match> match_swoosh_tail(program& p, program_node& node) {
+    if (!node.is_type<eltwise>() || node.get_dependencies().size() != 2)
+        return std::nullopt;
+
+    const auto mode = node.as<eltwise>().get_primitive()->mode;
+    if (mode == eltwise_mode::sub) {
+        auto& select = node.get_dependency(0);
+        auto& multiply = node.get_dependency(1);
+        auto scale = match_eltwise_scalar(p, multiply, eltwise_mode::prod);
+        if (!select.is_type<cldnn::select>() || !scale.has_value() ||
+            std::abs(scale->value - 0.08f) >= swoosh_constant_tolerance || !has_only_users(multiply, {&node})) {
+            return std::nullopt;
+        }
+
+        return swoosh_tail_match{&select, scale->data, {&node, &multiply}, {scale->scalar}};
+    }
+
+    if (mode != eltwise_mode::sum)
+        return std::nullopt;
+
+    program_node* select = nullptr;
+    program_node* scaled = nullptr;
+    for (size_t index = 0; index < 2; ++index) {
+        auto& dependency = node.get_dependency(index);
+        if (dependency.is_type<cldnn::select>()) {
+            select = &dependency;
+            scaled = &node.get_dependency(1 - index);
+            break;
+        }
+    }
+    if (select == nullptr)
+        return std::nullopt;
+
+    auto outer_scale = match_eltwise_scalar(p, *scaled, eltwise_mode::prod);
+    if (!outer_scale.has_value() || !has_only_users(*scaled, {&node}))
+        return std::nullopt;
+
+    float effective_scale = outer_scale->value;
+    auto* input = outer_scale->data;
+    std::vector<program_node*> arithmetic_nodes{&node, scaled};
+    std::vector<data_node*> scalar_nodes{outer_scale->scalar};
+
+    auto inner_scale = match_eltwise_scalar(p, *input, eltwise_mode::prod);
+    if (inner_scale.has_value()) {
+        if (!has_only_users(*input, {scaled}))
+            return std::nullopt;
+        effective_scale *= inner_scale->value;
+        arithmetic_nodes.push_back(input);
+        scalar_nodes.push_back(inner_scale->scalar);
+        input = inner_scale->data;
+    }
+
+    if (std::abs(effective_scale + 0.08f) >= swoosh_constant_tolerance)
+        return std::nullopt;
+
+    return swoosh_tail_match{select, input, std::move(arithmetic_nodes), std::move(scalar_nodes)};
+}
+
+void prepare_primitive_fusing::fuse_swoosh(program& p) {
+    auto node_itr = p.get_processing_order().begin();
+    while (node_itr != p.get_processing_order().end()) {
+        auto* node = *node_itr++;
+        auto final_add = match_eltwise_scalar(p, *node, eltwise_mode::sum);
+        if (!final_add.has_value())
+            continue;
+
+        float offset = 0.0f;
+        float bias = 0.0f;
+        if (std::abs(final_add->value + 0.035f) < swoosh_constant_tolerance) {
+            offset = 4.0f;
+            bias = 0.035f;
+        } else if (std::abs(final_add->value + 0.313261687f) < swoosh_constant_tolerance) {
+            offset = 1.0f;
+            bias = 0.313261687f;
+        } else {
+            continue;
+        }
+
+        auto tail = match_swoosh_tail(p, *final_add->data);
+        if (!tail.has_value()) {
+            continue;
+        }
+
+        auto& select = *tail->select;
+        if (select.get_dependencies().size() != 3)
+            continue;
+
+        auto& equal = select.get_dependency(0);
+        auto& shifted = select.get_dependency(1);
+        auto& softplus = select.get_dependency(2);
+        if (!softplus.is_type<activation>() ||
+            softplus.as<activation>().get_primitive()->activation_function != activation_func::softplus ||
+            softplus.get_dependencies().size() != 1 ||
+            &softplus.get_dependency(0) != &shifted) {
+            continue;
+        }
+
+        auto equal_match = match_eltwise_scalar(p, equal, eltwise_mode::eq);
+        if (!equal_match.has_value() || equal_match->data != &softplus ||
+            equal_match->value < 65000.0f)
+            continue;
+
+        auto shifted_match = match_eltwise_scalar(p, shifted, eltwise_mode::sum);
+        if (!shifted_match.has_value() || shifted_match->data != tail->input ||
+            std::abs(shifted_match->value + offset) >= swoosh_constant_tolerance) {
+            continue;
+        }
+
+        if (!has_only_users(*tail->arithmetic_nodes.front(), {node}) ||
+            !has_only_users(select, {tail->arithmetic_nodes.front()}) ||
+            !has_only_users(equal, {&select}) ||
+            !has_only_users(softplus, {&equal, &select}) ||
+            !has_only_users(shifted, {&softplus, &select})) {
+            continue;
+        }
+
+        auto& input = *shifted_match->data;
+        auto swoosh_prim = std::make_shared<activation>(node->id() + "_swoosh",
+                                                        input_info(input.id()),
+                                                        activation_func::swoosh,
+                                                        activation_additional_params{offset, bias});
+        auto& swoosh = p.get_or_create(swoosh_prim);
+
+        std::vector<program_node*> obsolete_nodes = std::move(tail->arithmetic_nodes);
+        obsolete_nodes.insert(obsolete_nodes.end(), {&select, &equal, &softplus, &shifted});
+        std::vector<data_node*> obsolete_constants = std::move(tail->scalar_nodes);
+        obsolete_constants.insert(obsolete_constants.end(),
+                      {final_add->scalar, equal_match->scalar, shifted_match->scalar});
+        std::vector<primitive_id> obsolete_ids;
+        obsolete_ids.reserve(obsolete_nodes.size());
+        for (auto* obsolete : obsolete_nodes)
+            obsolete_ids.push_back(obsolete->id());
+
+        p.replace(*node, swoosh);
+        while (!swoosh.get_dependencies().empty())
+            p.remove_connection(swoosh.get_dependency(0), swoosh);
+        p.add_connection(input, swoosh);
+        swoosh.recalc_output_layout();
+
+        for (auto* obsolete : obsolete_nodes) {
+            while (!obsolete->get_dependencies().empty())
+                p.remove_connection(obsolete->get_dependency(0), *obsolete);
+            p.remove_if_dangling(*obsolete);
+        }
+
+        for (auto* constant : obsolete_constants)
+            p.remove_if_dangling(*constant);
+
+        for (const auto& obsolete_id : obsolete_ids)
+            p.add_optimized_primitive_info(obsolete_id, {swoosh.id()});
+    }
 }
 
 
@@ -830,6 +1058,10 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
                 return;
             }
 
+
+            if (activation_func == cldnn::activation_func::swoosh) {
+                return;
+            }
 
             auto& input = activation_node.get_dependency(0);
             if (activation_node.get_dependencies().size() >= 3)

@@ -1337,6 +1337,17 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             jitConstants.AddConstant(MakeJitConstant(macro_def, ternary(input.lt(threshold), log(exp(input) + one), input).str()));
             break;
         }
+        case ActivationFunction::SWOOSH: {
+            auto offset = disable_type_conversion ? "m"_jit : to_type("m"_jit);
+            auto bias = disable_type_conversion ? "n"_jit : to_type("n"_jit);
+            const JitTerm shifted = input - offset;
+            const JitTerm softplus = max_func(shifted, zero) + log(one + exp(neg(abs_func(shifted))));
+            const JitTerm slope = disable_type_conversion ? "0.08"_jit : to_type("0.08"_jit);
+            jitConstants.AddConstant(MakeJitConstant(
+                    macro_def,
+                    (softplus - slope * input - bias).str()));
+            break;
+        }
         case ActivationFunction::SOFTSIGN: {
             jitConstants.AddConstant(MakeJitConstant(
                     macro_def,
