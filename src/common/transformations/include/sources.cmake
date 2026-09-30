@@ -286,6 +286,7 @@ set(PAGED_ATTENTION_HEADERS
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/attention_mask_shape_replacer.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/convert_pagedattn_inputs.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/eliminate_conv_padding_mask_gating.hpp
+    ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/gemma4_mtp_state_management_pattern.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_causal_conv1d_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/paged_gated_delta_net_fusion.hpp
     ${CMAKE_CURRENT_LIST_DIR}/transformations/paged_attention/position_ids_replacer.hpp
