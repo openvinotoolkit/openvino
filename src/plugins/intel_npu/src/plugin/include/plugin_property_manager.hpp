@@ -43,6 +43,9 @@ public:
     std::string determinePlatform(const ov::AnyMap& properties) const;
     std::string determineDeviceId(const ov::AnyMap& properties) const;
     ov::intel_npu::CompilerType determineCompilerType(const ov::AnyMap& properties) const;
+    // The compilation target passed to this call, else the one set on the plugin; nullopt if neither is set. An empty
+    // value means no target, and is returned as is so that a per-call "" can override a target set on the plugin.
+    std::optional<std::string> determineCompilationTarget(const ov::AnyMap& properties) const;
 
 private:
     void registerProperties();
@@ -67,6 +70,7 @@ private:
     const std::vector<ov::PropertyName> _cachingProperties = [] {
         std::vector<ov::PropertyName> properties = {
             ov::cache_mode.name(),
+            ov::compilation_target.name(),
             ov::enable_profiling.name(),
             ov::intel_npu::profiling_type.name(),
             ov::device::architecture.name(),

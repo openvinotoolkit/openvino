@@ -26,6 +26,12 @@ std::string getLatestVCLLog(const VCLFunctionTable& functions, vcl_log_handle_t 
     // Null graph handle to get error log
     ret = functions.vclLogHandleGetString(logHandle, &size, nullptr);
     if (VCL_RESULT_SUCCESS != ret) {
+        // A library that keeps no latest error answers a null handle with an error. The call then either requested no
+        // log, and the library printed its errors itself, or failed without returning one.
+        if (logHandle == nullptr) {
+            return "No VCL error log is available for this call (when none is requested, the compiler prints its "
+                   "errors to the console)";
+        }
         return "Failed to get size of latest VCL log";
     }
 

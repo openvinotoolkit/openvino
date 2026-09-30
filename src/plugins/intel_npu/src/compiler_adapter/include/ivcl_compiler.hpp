@@ -14,6 +14,7 @@
 #include "intel_npu/config/config.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/runtime/common.hpp"
+#include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
 
 namespace intel_npu {
@@ -78,6 +79,20 @@ public:
      */
     virtual bool is_option_supported(const std::string& option,
                                      const std::optional<std::string>& optValue = std::nullopt) const = 0;
+
+    /**
+     * @brief Resolves the config bundles a multi-SKU compilation target's platform compiles into.
+     * @return One config bundle per device variant; empty only if the compiler library cannot resolve
+     * targets at all.
+     * @throws ov::Exception if the config resolves to no target.
+     */
+    virtual std::vector<std::string> resolve_compilation_target_bundles(const Config& config) const = 0;
+
+    /**
+     * @brief Every offline compilation target the compiler supports, one per platform; empty if the compiler
+     * library cannot enumerate targets.
+     */
+    virtual std::vector<std::string> get_offline_compilation_targets() const = 0;
 };
 
 }  // namespace intel_npu
