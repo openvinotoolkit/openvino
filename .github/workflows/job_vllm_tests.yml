@@ -100,8 +100,22 @@ jobs:
 
       - name: Install system dependencies for vllm-cpu
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test }}
+        # libnuma1: vllm._C_AVX512 links against it, and cpu_worker calls
+        # torch.ops._C.init_cpu_memory_env at startup, so a missing libnuma
+        # fails the whole engine rather than degrading.
+        # python*-dev: vLLM decorates its own CPU sampling helper
+        # (v1/sample/ops/topk_topp_sampler.py::compiled_random_sample) with a
+        # bare @torch.compile, which uses Inductor regardless of the OpenVINO
+        # backend we select for the model. Inductor codegens a C++ extension,
+        # so it needs Python.h at test time.
         run: |
-          apt-get update && apt-get install -y --no-install-recommends libnuma1
+          apt-get update
+          apt-get install -y --no-install-recommends libnuma1
+          # Fall back to the unversioned package if this image's Python did not
+          # come from a versioned apt package.
+          apt-get install -y --no-install-recommends python${{ inputs.python-version }}-dev \
+            || apt-get install -y --no-install-recommends python3-dev
+          python3 -c 'import sysconfig, pathlib; p = pathlib.Path(sysconfig.get_path("include")) / "Python.h"; print(f"Python.h: {p} exists={p.exists()}")'
 
       - name: Install vLLM tests requirements
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test }}
