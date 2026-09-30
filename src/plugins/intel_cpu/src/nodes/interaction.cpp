@@ -230,7 +230,9 @@ void Interaction::initSupportedPrimitiveDescriptors() {
         return;
     }
     dataPrecision = getOriginalInputPrecisionAtPort(0);
-    if (dataPrecision != ov::element::f32 && ov::with_cpu_x86_bfloat16()) {
+    // BF16 rounds integer interaction results;
+    // use FP32 for i32 inputs as the interaction results are represented in FP32 without loss of precision
+    if (dataPrecision != ov::element::f32 && dataPrecision != ov::element::i32 && ov::with_cpu_x86_bfloat16()) {
         dataPrecision = ov::element::bf16;
     } else {
         dataPrecision = ov::element::f32;
