@@ -6,6 +6,9 @@
 
 #include <cinttypes>
 #include <fstream>
+#include <iostream>
+#include <ostream>
+#include <streambuf>
 #include <string_view>
 
 #include "async_infer_request.hpp"
@@ -20,6 +23,45 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "transformations/utils/utils.hpp"
 
+namespace {
+
+/**
+ * @brief Forwards everything to another stream buffer and counts the bytes, so the size of what was written can be
+ * known without requiring the target stream to support `tellp`.
+ */
+class CountingStreamBuf final : public std::streambuf {
+public:
+    explicit CountingStreamBuf(std::streambuf* target) : m_target(target) {}
+
+    uint64_t count() const {
+        return m_count;
+    }
+
+protected:
+    std::streamsize xsputn(const char* data, std::streamsize size) override {
+        const std::streamsize written = m_target->sputn(data, size);
+        m_count += static_cast<uint64_t>(written);
+        return written;
+    }
+
+    int_type overflow(int_type ch) override {
+        if (traits_type::eq_int_type(ch, traits_type::eof())) {
+            return traits_type::not_eof(ch);
+        }
+        if (traits_type::eq_int_type(m_target->sputc(traits_type::to_char_type(ch)), traits_type::eof())) {
+            return traits_type::eof();
+        }
+        ++m_count;
+        return ch;
+    }
+
+private:
+    std::streambuf* m_target;
+    uint64_t m_count = 0;
+};
+
+}  // namespace
+
 namespace intel_npu {
 
 CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
@@ -28,11 +70,13 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<IGraph>& graph,
                              const Config& config,
                              const ov::AnyMap& properties,
-                             const std::optional<int64_t>& batchSize)
+                             const std::optional<int64_t>& batchSize,
+                             const std::vector<std::shared_ptr<IGraph>>& additionalGraphs)
     : ICompiledModel(model, plugin, nullptr, nullptr),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
       _graph(graph),
+      _additionalGraphs(additionalGraphs),
       _batchSize(batchSize),
       _propertiesManager(
           std::make_unique<CompiledModelPropertyManager>(config, properties, _device, _graph, _batchSize, _logger)) {
@@ -93,9 +137,55 @@ void CompiledModel::export_model(std::ostream& stream) const {
 
     const auto localConfig = _propertiesManager->getConfig();
 
+    if (_additionalGraphs.empty()) {
+        export_entry(_graph, stream, localConfig);
+        return;
+    }
+
+    if (localConfig.get<EXPORT_RAW_BLOB>()) {
+        _logger.warning("Raw blob export only contains the main graph, the %zu additional graph(s) are skipped",
+                        _additionalGraphs.size());
+        export_entry(_graph, stream, localConfig);
+        return;
+    }
+
+    // A container holding the main graph followed by the additional ones, each exported as a complete blob
+    std::vector<ContainerEntry> entries;
+    uint64_t position = 0;
+    const auto exportToContainer = [&](const std::shared_ptr<IGraph>& graph) {
+        // Entries start on a page boundary (relative to the container), so they can be imported without a copy
+        const uint64_t offset = utils::align_size_to_standard_page_size(position);
+        if (offset > position) {
+            const std::string padding(offset - position, '\0');
+            stream.write(padding.data(), static_cast<std::streamsize>(padding.size()));
+        }
+
+        CountingStreamBuf countingBuffer(stream.rdbuf());
+        std::ostream countingStream(&countingBuffer);
+        export_entry(graph, countingStream, localConfig);
+        OPENVINO_ASSERT(countingStream, "Failed to write an entry of the blob container");
+
+        entries.push_back({offset,
+                           countingBuffer.count(),
+                           std::string(graph->get_compatibility_descriptor().value_or(std::string_view{}))});
+        position = offset + countingBuffer.count();
+    };
+
+    exportToContainer(_graph);
+    for (const std::shared_ptr<IGraph>& additionalGraph : _additionalGraphs) {
+        exportToContainer(additionalGraph);
+    }
+    write_container_directory(stream, entries);
+
+    std::cout << "[MULTI-BLOB] Exported a container of " << entries.size() << " blobs" << std::endl;
+}
+
+void CompiledModel::export_entry(const std::shared_ptr<IGraph>& graph,
+                                 std::ostream& stream,
+                                 const Config& localConfig) const {
     const bool rawBlobExportRequested = localConfig.get<EXPORT_RAW_BLOB>();
     if (rawBlobExportRequested) {
-        OPENVINO_ASSERT(_graph->get_blob_type() == BlobType::ELF && _graph->get_kind() == GraphKind::Weightful,
+        OPENVINO_ASSERT(graph->get_blob_type() == BlobType::ELF && graph->get_kind() == GraphKind::Weightful,
                         "Requested raw blob export, but the graph is not a weightful ELF one.");
     }
 
@@ -111,8 +201,8 @@ void CompiledModel::export_model(std::ostream& stream) const {
             {
                 std::stringstream tmpStringStream;
                 std::tie(blobSizesBeforeVersioning, initBlobSizes) =
-                    _graph->export_blob(tmpStringStream);  // +1x blob size
-                tmpBlobStr = tmpStringStream.str();        // +2x blob size
+                    graph->export_blob(tmpStringStream);  // +1x blob size
+                tmpBlobStr = tmpStringStream.str();       // +2x blob size
             }  // -1x blob size when deallocating temporary stringstream
             encryptedBlobStr = localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt(tmpBlobStr);  // +2x blob size
             blobSizeAfterEncryption = encryptedBlobStr.size();
@@ -121,7 +211,7 @@ void CompiledModel::export_model(std::ostream& stream) const {
     }  // -1x blob size when deallocating encrypted blob string
     else {
         //  Write blob directly to user's output stream
-        std::tie(blobSizesBeforeVersioning, initBlobSizes) = _graph->export_blob(stream);
+        std::tie(blobSizesBeforeVersioning, initBlobSizes) = graph->export_blob(stream);
     }
 
     if (rawBlobExportRequested) {
@@ -153,8 +243,8 @@ void CompiledModel::export_model(std::ostream& stream) const {
                                        outputLayouts,
                                        compilerVersion,
                                        blobSizeAfterEncryption,
-                                       _graph->get_compatibility_descriptor(),
-                                       _graph->get_blob_type())
+                                       graph->get_compatibility_descriptor(),
+                                       graph->get_blob_type())
         .write(stream);
 }
 

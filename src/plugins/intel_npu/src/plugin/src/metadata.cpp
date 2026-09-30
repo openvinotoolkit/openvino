@@ -722,4 +722,107 @@ std::optional<std::string_view> Metadata<METADATA_VERSION_2_6>::get_compatibilit
     return _compatibilityDescriptor;
 }
 
+namespace {
+
+constexpr uint32_t CONTAINER_FORMAT_VERSION = 1;
+// Offset, size and descriptor length
+constexpr size_t MIN_CONTAINER_ENTRY_SIZE = 3 * sizeof(uint64_t);
+// Directory size + magic bytes
+constexpr size_t CONTAINER_FOOTER_SIZE = sizeof(uint64_t) + CONTAINER_MAGIC_BYTES.size();
+
+}  // namespace
+
+void write_container_directory(std::ostream& stream, const std::vector<ContainerEntry>& entries) {
+    uint64_t directorySize = sizeof(CONTAINER_FORMAT_VERSION) + sizeof(uint64_t);
+    for (const ContainerEntry& entry : entries) {
+        directorySize += MIN_CONTAINER_ENTRY_SIZE + entry.compatibilityDescriptor.size();
+    }
+
+    const uint64_t entryCount = entries.size();
+    stream.write(reinterpret_cast<const char*>(&CONTAINER_FORMAT_VERSION), sizeof(CONTAINER_FORMAT_VERSION));
+    stream.write(reinterpret_cast<const char*>(&entryCount), sizeof(entryCount));
+
+    for (const ContainerEntry& entry : entries) {
+        const uint64_t descriptorLength = entry.compatibilityDescriptor.size();
+        stream.write(reinterpret_cast<const char*>(&entry.offset), sizeof(entry.offset));
+        stream.write(reinterpret_cast<const char*>(&entry.size), sizeof(entry.size));
+        stream.write(reinterpret_cast<const char*>(&descriptorLength), sizeof(descriptorLength));
+        if (descriptorLength > 0) {
+            stream.write(entry.compatibilityDescriptor.data(), static_cast<std::streamsize>(descriptorLength));
+        }
+    }
+
+    stream.write(reinterpret_cast<const char*>(&directorySize), sizeof(directorySize));
+    stream.write(CONTAINER_MAGIC_BYTES.data(), CONTAINER_MAGIC_BYTES.size());
+}
+
+std::optional<std::vector<ContainerEntry>> read_container_directory(BlobSource& source) {
+    const size_t containerStart = source.tellg();
+    const size_t containerSize = source.get_remaining_size();
+    if (containerSize < CONTAINER_MAGIC_BYTES.size()) {
+        return std::nullopt;
+    }
+
+    std::string magicBytes(CONTAINER_MAGIC_BYTES.size(), 0);
+    source.seekg(-static_cast<int64_t>(CONTAINER_MAGIC_BYTES.size()), std::ios::end);
+    source.read_into_buffer(magicBytes.data(), magicBytes.size());
+    if (std::string_view(magicBytes) != CONTAINER_MAGIC_BYTES) {
+        source.seekg(containerStart, std::ios::beg);
+        return std::nullopt;
+    }
+
+    OPENVINO_ASSERT(containerSize >= CONTAINER_FOOTER_SIZE, "The blob container is too small to hold its footer");
+    uint64_t directorySize;
+    source.seekg(-static_cast<int64_t>(CONTAINER_FOOTER_SIZE), std::ios::end);
+    source.read_into_buffer(&directorySize, sizeof(directorySize));
+    OPENVINO_ASSERT(directorySize <= containerSize - CONTAINER_FOOTER_SIZE,
+                    "The directory of the blob container is larger than the container");
+    OPENVINO_ASSERT(directorySize >= sizeof(CONTAINER_FORMAT_VERSION) + sizeof(uint64_t),
+                    "The directory of the blob container is too small");
+
+    // Relative to the beginning of the container; the entries end where the directory starts
+    const uint64_t directoryStart = containerSize - CONTAINER_FOOTER_SIZE - directorySize;
+    source.seekg(containerStart + directoryStart, std::ios::beg);
+
+    uint32_t version;
+    source.read_into_buffer(&version, sizeof(version));
+    OPENVINO_ASSERT(version == CONTAINER_FORMAT_VERSION, "Unsupported blob container version: ", version);
+
+    uint64_t entryCount;
+    source.read_into_buffer(&entryCount, sizeof(entryCount));
+    uint64_t consumed = sizeof(version) + sizeof(entryCount);
+    OPENVINO_ASSERT(entryCount > 0 && entryCount <= (directorySize - consumed) / MIN_CONTAINER_ENTRY_SIZE,
+                    "Invalid number of entries in the blob container: ",
+                    entryCount);
+
+    std::vector<ContainerEntry> entries;
+    entries.reserve(entryCount);
+    for (uint64_t entryIndex = 0; entryIndex < entryCount; ++entryIndex) {
+        OPENVINO_ASSERT(MIN_CONTAINER_ENTRY_SIZE <= directorySize - consumed,
+                        "The directory of the blob container ends in the middle of an entry");
+        ContainerEntry entry;
+        uint64_t descriptorLength;
+        source.read_into_buffer(&entry.offset, sizeof(entry.offset));
+        source.read_into_buffer(&entry.size, sizeof(entry.size));
+        source.read_into_buffer(&descriptorLength, sizeof(descriptorLength));
+        consumed += MIN_CONTAINER_ENTRY_SIZE;
+
+        OPENVINO_ASSERT(descriptorLength <= directorySize - consumed,
+                        "The compatibility descriptor of a blob container entry surpasses the directory");
+        entry.compatibilityDescriptor.resize(descriptorLength);
+        if (descriptorLength > 0) {
+            source.read_into_buffer(entry.compatibilityDescriptor.data(), descriptorLength);
+        }
+        consumed += descriptorLength;
+
+        OPENVINO_ASSERT(entry.size > 0 && entry.size <= directoryStart && entry.offset <= directoryStart - entry.size,
+                        "A blob container entry lies outside the entries area");
+        entries.push_back(std::move(entry));
+    }
+    OPENVINO_ASSERT(consumed == directorySize, "The directory of the blob container has unexpected trailing data");
+
+    source.seekg(containerStart, std::ios::beg);
+    return entries;
+}
+
 }  // namespace intel_npu

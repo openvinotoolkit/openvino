@@ -16,15 +16,19 @@ namespace intel_npu {
 
 namespace {
 
+// isCompilationTarget being true means the compilation target may name a platform other than the attached
+// device, which would make its properties describe the wrong one - withhold them in that case only
 std::shared_ptr<IVCLCompiler> makePluginCompiler(std::shared_ptr<const VCLFunctionTable>& functions,
                                                  const std::shared_ptr<IDevice>& device,
-                                                 const std::shared_ptr<OptionSupportCache>& optionSupportCache) {
+                                                 const std::shared_ptr<OptionSupportCache>& optionSupportCache,
+                                                 bool isCompilationTarget) {
     auto vclLoader = VCLLoader::getInstance();
     OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
     functions = vclLoader->sharedFunctions();
     return std::make_shared<VCLCompilerImpl>(
         functions,
-        device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt,
+        device && !isCompilationTarget ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()}
+                                       : std::nullopt,
         ScopedOptionSupportCache{optionSupportCache,
                                  static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN)});
 }
@@ -35,12 +39,13 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
     const ov::SoPtr<IEngineBackend>& engineBackend,
     ov::intel_npu::CompilerType& compilerType,
     std::string_view platform,
-    const std::shared_ptr<OptionSupportCache>& optionSupportCache) const {
+    const std::shared_ptr<OptionSupportCache>& optionSupportCache,
+    bool offlineCompilation) const {
     const auto device = engineBackend ? engineBackend->getDevice() : nullptr;
 
     if (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
         auto [pluginCompiler, resolvedCompilerType] =
-            resolvePreferPluginCompiler(engineBackend, optionSupportCache, device, platform);
+            resolvePreferPluginCompiler(engineBackend, optionSupportCache, device, platform, offlineCompilation);
         compilerType = resolvedCompilerType;
         if (pluginCompiler) {
             return std::move(pluginCompiler);
@@ -51,7 +56,7 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
         std::shared_ptr<const VCLFunctionTable> functions;
         std::shared_ptr<IVCLCompiler> compiler;
         try {
-            compiler = makePluginCompiler(functions, device, optionSupportCache);
+            compiler = makePluginCompiler(functions, device, optionSupportCache, offlineCompilation);
         } catch (const std::exception& vclException) {
             OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vclException.what());
         }
@@ -95,7 +100,7 @@ void CompilerAdapterFactory::decideCompilerType(ov::intel_npu::CompilerType& com
         return;
     }
 
-    compilerType = resolvePreferPluginCompiler({}, nullptr, device, platform).second;
+    compilerType = resolvePreferPluginCompiler({}, nullptr, device, platform, false).second;
 }
 
 ov::intel_npu::CompilerType CompilerAdapterFactory::determineAppropriateCompilerTypeBasedOnPlatform(
@@ -112,7 +117,8 @@ std::pair<std::unique_ptr<ICompilerAdapter>, ov::intel_npu::CompilerType>
 CompilerAdapterFactory::resolvePreferPluginCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
                                                     const std::shared_ptr<OptionSupportCache>& optionSupportCache,
                                                     const std::shared_ptr<intel_npu::IDevice>& device,
-                                                    std::string_view platform) const {
+                                                    std::string_view platform,
+                                                    bool isCompilationTarget) const {
     const auto pluginCompilerPresence = _pluginCompilerPresence.load(std::memory_order_acquire);
     const bool onlineCompilation = device && (platform.empty() || device->getName() == platform);
 
@@ -137,7 +143,7 @@ CompilerAdapterFactory::resolvePreferPluginCompiler(const ov::SoPtr<IEngineBacke
         std::shared_ptr<IVCLCompiler> pluginCompiler;
         std::shared_ptr<const VCLFunctionTable> functions;
         try {
-            pluginCompiler = makePluginCompiler(functions, device, optionSupportCache);
+            pluginCompiler = makePluginCompiler(functions, device, optionSupportCache, isCompilationTarget);
         } catch (...) {
             _pluginCompilerPresence.store(PluginCompilerPresence::ABSENT, std::memory_order_release);
             if (onlineCompilation) {
