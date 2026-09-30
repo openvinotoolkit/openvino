@@ -1,33 +1,12 @@
 # Configuration
 
-The config system is intended to make Python, YAML, CLI, and Studio payloads use the same workflow shape.
+Physical AI describes setups in a simple, repeatable way: **pick a Python class**
+and **pass the arguments its constructor needs**. The same description can live in
+Python, YAML, the CLI, or Studio.
 
-```bash
-physicalai run --config runtime.yaml
-```
+## Config recipes
 
-## Layers
-
-```text
-Config
-  typed constructor args for one class
-
-ComponentSpec
-  target + args for one instantiable component
-
-Workflow config
-  user-authored workflow before execution
-
-Manifest
-  exported package metadata after build/export
-
-Orchestrator
-  live object that executes the workflow
-```
-
-## ComponentSpec
-
-Direct class mode:
+A config recipe names the class and its constructor arguments:
 
 ```yaml
 class_path: physicalai.capture.UVCCamera
@@ -37,47 +16,58 @@ init_args:
   height: 480
 ```
 
-> **Tip:** Use stable device paths (`/dev/v4l/by-id/...`) in config files. Index-based paths like `/dev/video0` can change after reboot.
+- `class_path` — import path to the class (for example a camera driver).
+- `init_args` — keyword arguments passed to `__init__`.
 
-Registry mode:
+Classes that should round-trip through YAML can opt in with `@export_config`.
+Then `Config.from_instance(live_object)` records how the object was created:
+which arguments you passed, without open devices, sockets, or other runtime state.
 
-```yaml
-type: uvc
-device: /dev/v4l/by-id/usb-Example_Camera-video-index0
-width: 640
-height: 480
+```text
+live object -> Config.from_instance() -> YAML/JSON -> config.instantiate() -> new object
 ```
 
-If both `class_path` and `type` are present, `class_path` takes precedence.
+`Config.instantiate()` only runs the constructor. Your app still calls methods like
+`connect()` or `run()` when needed.
 
-## Typed Config
+## Workflow files (`physicalai run`)
 
-Typed configs are useful when constructor validation and IDE support matter.
+Run configs add structure around the same recipe. For example, `physicalai run`
+expects runtime settings under `runtime:` and optional run options under `run:`.
+You can also pass a bare exported `RobotRuntime` recipe; the loader reshapes it
+into that form.
+
+Nested parts (robot, policy, cameras, callbacks) use the same
+`class_path` + `init_args` pattern, nested inside `init_args` where needed.
+
+## Inference manifests
+
+An exported policy folder includes a **manifest**: file paths, preprocessors,
+runners, and compatibility metadata. That format is aimed at loading a trained
+package. Robot and runtime YAML typically use `Config` recipes instead.
+
+Use workflow YAML when you describe **how to run** something. Use the manifest
+when you describe **what is inside an export**.
+
+## Training and typed settings
+
+When you already know the Python type (a trainer, dataclass, CLI model), build
+it with **jsonargparse**: define a parser for that type, load YAML or CLI values,
+then call `instantiate()`.
 
 ```python
-@dataclass
-class Pi05Config(Config):
-    chunk_size: int = 50
-    n_action_steps: int = 50
-
-    def __post_init__(self) -> None:
-        if self.n_action_steps > self.chunk_size:
-            raise ValueError("n_action_steps must be <= chunk_size")
+parser = ArgumentParser(exit_on_error=False)
+parser.add_class_arguments(Trainer, "trainer")
+parsed = parser.parse_object(document, defaults=False)
+trainer = parser.instantiate(parsed).trainer
 ```
 
-Typed configs do not decide which class to instantiate. They only validate and carry constructor arguments.
+`physicalai.config.Config` is the shared recipe format for portable YAML:
+`class_path` plus `init_args`. Pair it with `@export_config` when a live
+component should save to disk and be recreated later.
 
-```python
-cfg = Pi05Config(chunk_size=50)
-policy = instantiate_obj(cfg, target_cls=Pi05)
-```
+## Safety
 
-## Execution Boundary
-
-Configuration objects remain passive data. Orchestrators are responsible for creating live objects and executing workflows.
-
-```python
-config = RuntimeConfig.load("runtime.yaml")
-runtime = PolicyRuntime.from_config(config)
-runtime.run()
-```
+Loading a config imports Python modules from `class_path`. Only use files you
+wrote or otherwise trust on that machine. Do not build objects from robot or
+camera metadata received over the network.

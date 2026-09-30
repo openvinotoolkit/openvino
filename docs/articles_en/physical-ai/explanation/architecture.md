@@ -5,21 +5,22 @@ The Physical AI runtime has a small set of layers with clear boundaries between 
 ```text
 exported package
     -> InferenceModel
-    -> PolicyRuntime
+    -> RobotRuntime
     -> Robot and cameras
 ```
 
 ## Components
 
-| Component        | Responsibility                                          |
-| ---------------- | ------------------------------------------------------- |
-| `Manifest`       | describes exported artifacts and the inference pipeline |
-| `InferenceModel` | loads artifacts and computes actions                    |
-| `PolicyRuntime`  | runs the robot control loop                             |
-| `Execution`      | decides where inference runs                            |
-| `ActionQueue`    | buffers and merges action chunks                        |
-| `Robot`          | reads state and sends commands                          |
-| `Camera`         | reads image frames                                      |
+| Component        | Responsibility                                                   |
+| ---------------- | ---------------------------------------------------------------- |
+| `Manifest`       | describes exported artifacts and the inference pipeline          |
+| `InferenceModel` | loads artifacts and computes actions                             |
+| `ActionSource`   | decides the action to send each tick (policy, teleop, or custom) |
+| `RobotRuntime`   | runs the robot control loop                                      |
+| `Execution`      | decides where inference runs                                     |
+| `ActionQueue`    | buffers and merges action chunks                                 |
+| `Robot`          | reads state and sends commands                                   |
+| `Camera`         | reads image frames                                               |
 
 ## Package Boundary
 
@@ -45,6 +46,6 @@ training package
 - Config objects remain passive data structures.
 - Orchestrators are responsible for executing workflows.
 - `InferenceModel` does not own robot timing.
-- `PolicyRuntime` does not own policy math.
+- `RobotRuntime` does not own policy math or the decision of what action to send — that is the action source's job.
 - Manifests describe exported packages.
 - Workflow configs describe the desired execution before it starts.

@@ -48,6 +48,10 @@ model:
   postprocessors:
     - type: denormalize
       artifact: stats.safetensors
+  callbacks:
+    - type: rldx1_vtc
+      video_length: 4
+      video_stride: 2
 ```
 
 Fields:
@@ -59,6 +63,7 @@ Fields:
 | `runner`         | `ComponentSpec`       | Inference runner                   |
 | `preprocessors`  | list[`ComponentSpec`] | Preprocessing pipeline             |
 | `postprocessors` | list[`ComponentSpec`] | Postprocessing pipeline            |
+| `callbacks`      | list[`ComponentSpec`] | Inference lifecycle callbacks      |
 
 ## Hardware
 
