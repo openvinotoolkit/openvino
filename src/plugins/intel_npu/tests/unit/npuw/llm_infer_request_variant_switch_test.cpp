@@ -420,14 +420,19 @@ TEST_F(LLMInferRequestVariantSwitchTest, BlockKvVariantsExposeCompatibleBindings
 // model). This is why the block strategy never has to handle quantized aux tensors.
 TEST_F(LLMInferRequestVariantSwitchTest, BlockKvCacheRejectsQuantizedKvCache) {
     VariantSwitchFactory factory;
-    EXPECT_THROW(create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
-                                        {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"},
-                                        {"NPUW_LLM_PREFILL_ATTENTION_HINT", "PYRAMID"},
-                                        {"NPUW_LLM_GENERATE_ATTENTION_HINT", "PYRAMID"},
-                                        {"NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE", "YES"},
-                                        {ov::hint::kv_cache_precision.name(), ov::element::i8}},
-                                       factory),
-                 ov::Exception);
+    try {
+        create_compiled_model({{"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
+                               {"NPUW_LLM_PREFILL_CHUNK_SIZE", "512"},
+                               {"NPUW_LLM_PREFILL_ATTENTION_HINT", "PYRAMID"},
+                               {"NPUW_LLM_GENERATE_ATTENTION_HINT", "PYRAMID"},
+                               {"NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE", "YES"},
+                               {ov::hint::kv_cache_precision.name(), ov::element::i8}},
+                              factory);
+        FAIL() << "Expected block-based KV cache with integer KV-cache precision to be rejected";
+    } catch (const ov::Exception& ex) {
+        EXPECT_NE(std::string(ex.what()).find("cannot be combined with integer KV-cache precision"), std::string::npos)
+            << ex.what();
+    }
 }
 
 // The deserializer restores m_kvcache_sizes and the generate-variant count as two independent blob
