@@ -51,10 +51,10 @@ OutputVector translate_wrap_with_context_fx(const NodeContext& context) {
                                 context.get_op_type(),
                                 " body has fewer outputs than expected.");
     // Results after the declared outputs hold operands mutated by the body.
-    std::vector<std::pair<size_t, Output<Node>>> mutations;
+    // Values are read after parameter replacement, so a mutated value which is an operand refers to the parent input.
+    std::vector<std::pair<size_t, std::shared_ptr<v0::Result>>> mutations;
     for (size_t i = num_outputs; i < results.size(); ++i) {
-        const auto value = results[i]->input_value(0);
-        mutations.emplace_back(get_operand(session->decode_tensor_name(value)), value);
+        mutations.emplace_back(get_operand(session->decode_tensor_name(results[i]->input_value(0))), results[i]);
     }
     std::vector<std::pair<std::shared_ptr<v0::Parameter>, size_t>> parameters;
     for (const auto& parameter : body->get_parameters()) {
@@ -82,8 +82,8 @@ OutputVector translate_wrap_with_context_fx(const NodeContext& context) {
         }
         outputs.push_back(output);
     }
-    for (const auto& [operand, value] : mutations) {
-        context.mutate_input(operand, value);
+    for (const auto& [operand, result] : mutations) {
+        context.mutate_input(operand, result->input_value(0));
     }
     // Outputs which are views of operands are registered as aliases. The inlined view operations connect them to
     // the operand, so in-place updates are propagated like for any other view. The current operand value already
@@ -99,7 +99,7 @@ OutputVector translate_wrap_with_context_fx(const NodeContext& context) {
             context.get_input(static_cast<int>(operand))};
     }
     // The wrapper returns a tuple even for a single value; parent getitem nodes select its elements.
-    return {make_list_construct(outputs)};
+    return {context.mark_node(make_list_construct(outputs))};
 }
 
 }  // namespace ov::frontend::pytorch::op
