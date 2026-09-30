@@ -9,7 +9,6 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "intel_npu/common/cre.hpp"
 #include "intel_npu/common/section_id.hpp"
-#include "utils.hpp"
 
 namespace {
 

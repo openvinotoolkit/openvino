@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "batch_size_section.hpp"
+
 #include <gtest/gtest.h>
 
-#include "batch_size_section.hpp"
 #include "intel_npu/common/blob_reader_interface.hpp"
 #include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/section_type.hpp"

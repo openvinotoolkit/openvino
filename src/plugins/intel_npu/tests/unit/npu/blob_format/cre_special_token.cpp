@@ -4,15 +4,12 @@
 
 #include <gtest/gtest.h>
 
-#include "common_test_utils/test_assertions.hpp"
 #include "intel_npu/common/cre.hpp"
 #include "intel_npu/common/section_id.hpp"
 #include "intel_npu/common/section_type.hpp"
-#include "utils.hpp"
 
 using namespace intel_npu;
 
-using testing::_;
 using CRESpecialTokenUnitTests = ::testing::Test;
 
 TEST_F(CRESpecialTokenUnitTests, CreateAllTokensUsingCorrectCode) {
