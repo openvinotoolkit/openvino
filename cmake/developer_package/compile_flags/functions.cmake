@@ -291,7 +291,7 @@ macro(ov_arm_sve_optimization_flags flags)
                 # but the knob is compiler-specific (Android/MSVC/IntelLLVM handled above).
                 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
                     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 16)
-                        list(APPEND ${flags} --param=aarch64-autovec-preference=asimd-only)
+                        list(APPEND ${flags} -mautovec-preference=asimd-only)
                     else()
                         list(APPEND ${flags} --param=aarch64-autovec-preference=1)
                     endif()
