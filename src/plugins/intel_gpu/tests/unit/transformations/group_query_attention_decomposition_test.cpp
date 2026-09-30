@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include "intel_gpu/op/sdpa.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -142,10 +143,20 @@ std::shared_ptr<ov::intel_gpu::op::SDPA> decompose_and_get_sdpa(const GQAConfig&
     return ::testing::AssertionSuccess();
 }
 
+void expect_fixed_int4_zero_point(const ov::Output<ov::Node>& zero_point) {
+    EXPECT_EQ(zero_point.get_element_type(), ov::element::f16);
+    EXPECT_EQ(zero_point.get_partial_shape(), ov::PartialShape({1, 1, 1, 1}));
+    const auto broadcast = ov::as_type_ptr<ov::op::v3::Broadcast>(zero_point.get_node_shared_ptr());
+    ASSERT_NE(broadcast, nullptr);
+    const auto value = ov::as_type_ptr<ov::op::v0::Constant>(broadcast->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(value, nullptr);
+    EXPECT_EQ(value->cast_vector<float>(), std::vector<float>{8.0f});
+}
+
 // Verify that GQAConfig maps sliding_window_cache and smooth_softmax
 // to the intended constructor arguments. Re-checks this at runtime so a future ctor change
 // cannot silently invalidate the rest of the suite.
-TEST(GroupQueryAttentionDecompositionTest, control_field_mapping_sanity) {
+TEST(GQADecompositionTest, maps_control_fields) {
     {
         GQAConfig cfg;
         cfg.sliding_window_cache = true;
@@ -162,7 +173,7 @@ TEST(GroupQueryAttentionDecompositionTest, control_field_mapping_sanity) {
 }
 
 // Plain causal attention uses lower-right masking without an explicit mask.
-TEST(GroupQueryAttentionDecompositionTest, control_plain_causal_uses_lower_right_without_mask) {
+TEST(GQADecompositionTest, causal_uses_lower_right_without_mask) {
     GQAConfig cfg;
     const auto sdpa = decompose_and_get_sdpa(cfg);
 
@@ -172,7 +183,7 @@ TEST(GroupQueryAttentionDecompositionTest, control_plain_causal_uses_lower_right
     EXPECT_EQ(sdpa->get_causal_mask_alignment(), ov::intel_gpu::op::SDPA::CausalMaskAlignment::LOWER_RIGHT);
 }
 
-TEST(GroupQueryAttentionDecompositionTest, quantized_kv_per_tensor_uses_compressed_sdpa) {
+TEST(GQADecompositionTest, per_tensor_kv_uses_compressed_sdpa) {
     GQAConfig cfg;
     cfg.kv_cache_bit_width = 8;
     cfg.kv_quant = QuantType::PER_TENSOR;
@@ -200,7 +211,7 @@ TEST(GroupQueryAttentionDecompositionTest, quantized_kv_per_tensor_uses_compress
     EXPECT_EQ(sdpa->input_value(4).get_partial_shape(), ov::PartialShape({1, 1, 1, 1}));
 }
 
-TEST(GroupQueryAttentionDecompositionTest, quantized_kv_per_channel_uses_compressed_sdpa) {
+TEST(GQADecompositionTest, per_channel_kv_uses_compressed_sdpa) {
     GQAConfig cfg;
     cfg.kv_cache_bit_width = 8;
     cfg.kv_quant = QuantType::PER_CHANNEL;
@@ -228,7 +239,7 @@ TEST(GroupQueryAttentionDecompositionTest, quantized_kv_per_channel_uses_compres
     EXPECT_EQ(sdpa->input_value(num_data_inputs + 1).get_partial_shape(), ov::PartialShape({1, kv_num_heads, 1, head_size}));
 }
 
-TEST(GroupQueryAttentionDecompositionTest, quantized_kv_preserves_mask_scale_and_sink_inputs) {
+TEST(GQADecompositionTest, compressed_kv_preserves_optional_inputs) {
     GQAConfig cfg;
     cfg.kv_cache_bit_width = 8;
     cfg.kv_quant = QuantType::PER_TENSOR;
@@ -249,7 +260,7 @@ TEST(GroupQueryAttentionDecompositionTest, quantized_kv_preserves_mask_scale_and
     EXPECT_EQ(sdpa->input_value(7).get_element_type(), ov::element::f16);
 }
 
-TEST(GroupQueryAttentionDecompositionTest, int4_kv_uses_logical_i4_with_byte_backed_cache) {
+TEST(GQADecompositionTest, int4_i8_cache_uses_u4_zp8) {
     GQAConfig cfg;
     cfg.kv_cache_bit_width = 4;
     cfg.kv_quant = QuantType::PER_TENSOR;
@@ -258,13 +269,18 @@ TEST(GroupQueryAttentionDecompositionTest, int4_kv_uses_logical_i4_with_byte_bac
     const auto sdpa = decompose_and_get_sdpa(cfg);
 
     ASSERT_NE(sdpa, nullptr);
-    EXPECT_TRUE(sdpa->get_kv_compressed());
-    EXPECT_EQ(sdpa->get_quantization_attrs().quantization_dt, ov::element::i4);
+    ASSERT_TRUE(sdpa->get_kv_compressed());
+    ASSERT_EQ(sdpa->get_input_size(), 7u) << "Q, K, V, K scale, V scale, K zero point, V zero point";
+    EXPECT_EQ(sdpa->get_quantization_attrs().quantization_type,
+              ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric);
+    EXPECT_EQ(sdpa->get_quantization_attrs().quantization_dt, ov::element::u4);
     EXPECT_EQ(sdpa->input_value(1).get_element_type(), ov::element::i8);
     EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::i8);
+    expect_fixed_int4_zero_point(sdpa->input_value(5));
+    expect_fixed_int4_zero_point(sdpa->input_value(6));
 }
 
-TEST(GroupQueryAttentionDecompositionTest, int4_kv_uses_logical_u4_with_byte_backed_cache) {
+TEST(GQADecompositionTest, int4_u8_cache_uses_u4_zp8) {
     GQAConfig cfg;
     cfg.kv_cache_bit_width = 4;
     cfg.kv_quant = QuantType::PER_TENSOR;
@@ -274,14 +290,19 @@ TEST(GroupQueryAttentionDecompositionTest, int4_kv_uses_logical_u4_with_byte_bac
     const auto sdpa = decompose_and_get_sdpa(cfg);
 
     ASSERT_NE(sdpa, nullptr);
-    EXPECT_TRUE(sdpa->get_kv_compressed());
+    ASSERT_TRUE(sdpa->get_kv_compressed());
+    ASSERT_EQ(sdpa->get_input_size(), 7u) << "Q, K, V, K scale, V scale, K zero point, V zero point";
+    EXPECT_EQ(sdpa->get_quantization_attrs().quantization_type,
+              ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric);
     EXPECT_EQ(sdpa->get_quantization_attrs().quantization_dt, ov::element::u4);
     EXPECT_EQ(sdpa->input_value(1).get_element_type(), ov::element::u8);
     EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::u8);
+    expect_fixed_int4_zero_point(sdpa->input_value(5));
+    expect_fixed_int4_zero_point(sdpa->input_value(6));
 }
 
 // A sliding-window cache retains the explicit attention mask.
-TEST(GroupQueryAttentionDecompositionTest, explicit_mask_for_sliding_window_cache) {
+TEST(GQADecompositionTest, sliding_window_keeps_mask) {
     GQAConfig cfg;
     cfg.local_window_size = 128;
     cfg.sliding_window_cache = true;
@@ -293,7 +314,7 @@ TEST(GroupQueryAttentionDecompositionTest, explicit_mask_for_sliding_window_cach
 }
 
 // Causal smooth softmax retains the explicit mask.
-TEST(GroupQueryAttentionDecompositionTest, explicit_mask_for_causal_smooth_softmax) {
+TEST(GQADecompositionTest, smooth_softmax_keeps_mask) {
     GQAConfig cfg;
     cfg.smooth_softmax = true;
     cfg.causal = true;
@@ -316,7 +337,7 @@ TEST(GroupQueryAttentionDecompositionTest, explicit_mask_for_causal_smooth_softm
 }
 
 // An explicit scale and smooth_softmax retains the explicit mask.
-TEST(GroupQueryAttentionDecompositionTest, explicit_mask_for_causal_smooth_softmax_with_scale) {
+TEST(GQADecompositionTest, smooth_softmax_with_scale_keeps_mask) {
     GQAConfig cfg;
     cfg.smooth_softmax = true;
     cfg.causal = true;
@@ -329,7 +350,7 @@ TEST(GroupQueryAttentionDecompositionTest, explicit_mask_for_causal_smooth_softm
 }
 
 // A local window with a plain KV cache retains the explicit mask.
-TEST(GroupQueryAttentionDecompositionTest, explicit_mask_for_local_window) {
+TEST(GQADecompositionTest, local_window_keeps_mask) {
     GQAConfig cfg;
     cfg.causal = true;
     cfg.local_window_size = 128;
@@ -344,7 +365,7 @@ TEST(GroupQueryAttentionDecompositionTest, explicit_mask_for_local_window) {
 }
 
 // Combining a local window and sink retains the explicit mask.
-TEST(GroupQueryAttentionDecompositionTest, explicit_mask_for_local_window_with_sink) {
+TEST(GQADecompositionTest, local_window_with_sink_keeps_mask) {
     GQAConfig cfg;
     cfg.causal = true;
     cfg.smooth_softmax = true;

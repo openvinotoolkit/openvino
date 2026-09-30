@@ -49,6 +49,8 @@ protected:
     ov::Output<ov::Node> m_compressed_value;
     ov::Output<ov::Node> m_key_scale;
     ov::Output<ov::Node> m_value_scale;
+    ov::Output<ov::Node> m_key_zp;
+    ov::Output<ov::Node> m_value_zp;
     op::SDPA::QuantizationAttribute m_quantization_attrs;
 };
 

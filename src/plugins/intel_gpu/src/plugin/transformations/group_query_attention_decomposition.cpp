@@ -7,8 +7,10 @@
 #include <limits>
 
 #include "intel_gpu/op/sdpa.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/group_query_attention.hpp"
+#include "openvino/op/shape_of.hpp"
 
 namespace {
 
@@ -62,13 +64,22 @@ void GroupQueryAttentionDecomposition::prepare_compressed_kv(const std::shared_p
     if (m_value_scale.get_element_type() != ov::element::f16)
         m_value_scale = register_new_node<ov::op::v0::Convert>(m_value_scale, ov::element::f16);
 
-    m_quantization_attrs.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
+    const bool is_int4 = kv_cache_bit_width == 4;
+    m_quantization_attrs.quantization_type = is_int4 ? ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric
+                                                     : ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
     m_quantization_attrs.output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
-    // INT4 KV caches are physically byte-backed, while SDPA needs the logical
-    // 4-bit type to select the packed-cache kernel.
-    m_quantization_attrs.quantization_dt =
-        kv_cache_bit_width == 4 ? (key.get_element_type() == ov::element::u8 ? ov::element::u4 : ov::element::i4) : key.get_element_type();
+    // GQA stores signed INT4 values as unsigned nibbles biased by +8. Describe that physical encoding to SDPA
+    // as asymmetric u4 with a fixed zero point instead of i4, whose nibbles use two's-complement encoding.
+    m_quantization_attrs.quantization_dt = is_int4 ? ov::element::u4 : key.get_element_type();
     m_quantization_attrs.scale_dt = ov::element::f16;
+    if (is_int4) {
+        m_quantization_attrs.zp_dt = ov::element::f16;
+        const auto storage_zp = register_new_node<ov::op::v0::Constant>(ov::element::f16, ov::Shape{}, 8.0f);
+        const auto key_scale_shape = register_new_node<ov::op::v3::ShapeOf>(m_key_scale, ov::element::i64);
+        const auto value_scale_shape = register_new_node<ov::op::v3::ShapeOf>(m_value_scale, ov::element::i64);
+        m_key_zp = register_new_node<ov::op::v3::Broadcast>(storage_zp, key_scale_shape);
+        m_value_zp = register_new_node<ov::op::v3::Broadcast>(storage_zp, value_scale_shape);
+    }
     m_quantization_attrs.group_sizes = compute_kv_group_sizes(key.get_partial_shape(), m_key_scale.get_partial_shape());
     m_quantization_attrs.scales_zp_output_order = {0, 1, 2, 3};
     m_use_compressed_sdpa = true;
@@ -95,6 +106,10 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_sdpa(const ov::
     if (compressed) {
         inputs.push_back(m_key_scale);
         inputs.push_back(m_value_scale);
+        if (m_quantization_attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric) {
+            inputs.push_back(m_key_zp);
+            inputs.push_back(m_value_zp);
+        }
     }
 
     const auto order = op::SDPA::default_order(query.get_partial_shape().rank().get_length());
