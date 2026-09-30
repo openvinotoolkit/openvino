@@ -627,11 +627,6 @@ void RemoteTensorImpl::update_properties() {
     default:
         OPENVINO_THROW("[GPU] Unsupported shared object type ", static_cast<int>(m_mem_type));
     }
-
-    if (m_memory_object->get_engine()->runtime_type() == cldnn::runtime_types::ze) {
-        const auto ze_params = m_memory_object->get_internal_params(cldnn::runtime_types::ze);
-        m_properties.emplace(ov::intel_gpu::ze_mem_handle(ze_params.mem));
-    }
 }
 
 }  // namespace ov::intel_gpu

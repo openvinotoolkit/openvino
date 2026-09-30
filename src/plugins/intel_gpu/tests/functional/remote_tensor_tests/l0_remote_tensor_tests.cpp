@@ -12,7 +12,6 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_gpu/properties.hpp"
 #include "openvino/runtime/intel_gpu/remote_properties.hpp"
-#include "openvino/runtime/intel_gpu/ze/ze.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/util/memory.hpp"
 #include "openvino/util/mmap_object.hpp"
@@ -30,11 +29,8 @@ std::shared_ptr<ov::Model> make_l0_copy_model(const ov::Shape& shape) {
 TEST(GpuRemoteTensorL0, smoke_allocAlignedCPUMemory) {
     ov::Core core;
     const std::string target_device = "GPU";
-    const auto cacheline_size = core.get_property(target_device, ov::intel_gpu::cacheline_size);
-    ASSERT_GT(cacheline_size, 0u);
     const auto page_size = static_cast<size_t>(ov::util::get_system_page_size());
     ASSERT_GT(page_size, 0u);
-    ASSERT_EQ(page_size % cacheline_size, 0u);
 
     const size_t float_size = sizeof(float);
     const ov::Shape shape{page_size / float_size};
@@ -48,21 +44,21 @@ TEST(GpuRemoteTensorL0, smoke_allocAlignedCPUMemory) {
     std::fill_n(static_cast<float*>(output_ptr), element_count, 0.0f);
 
     {
-        auto context = core.get_default_context(target_device).as<ov::intel_gpu::ze::ZeContext>();
+        auto context = core.get_default_context(target_device);
+        auto make_cpu_va_params = [](void* ptr, size_t size, ov::intel_gpu::AccessMode access) {
+            return ov::AnyMap{{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::CPU_VA},
+                              {ov::intel_gpu::cpu_va.name(), static_cast<ov::intel_gpu::gpu_handle_param>(ptr)},
+                              {ov::intel_gpu::cpu_va_size.name(), static_cast<int64_t>(size)},
+                              {ov::intel_gpu::cpu_va_access.name(), access}};
+        };
         auto remote_input_tensor =
             context.create_tensor(ov::element::f32,
                                   shape,
-                                  ov::intel_gpu::VirtualAddressMemory(input_ptr,
-                                                                      static_cast<int64_t>(byte_size),
-                                                                      ov::intel_gpu::AccessMode::READ));
+                                  make_cpu_va_params(input_ptr, byte_size, ov::intel_gpu::AccessMode::READ));
         auto remote_output_tensor =
             context.create_tensor(ov::element::f32,
                                   shape,
-                                  ov::intel_gpu::VirtualAddressMemory(output_ptr, static_cast<int64_t>(byte_size)));
-        ASSERT_TRUE(remote_input_tensor.is<ov::intel_gpu::ze::ZeRemoteTensor>());
-        ASSERT_TRUE(remote_output_tensor.is<ov::intel_gpu::ze::ZeRemoteTensor>());
-        ASSERT_NE(remote_input_tensor.get(), nullptr);
-        ASSERT_NE(remote_output_tensor.get(), nullptr);
+                                  make_cpu_va_params(output_ptr, byte_size, ov::intel_gpu::AccessMode::READ_WRITE));
 
         auto model = make_l0_copy_model(shape);
         auto compiled = core.compile_model(model, context);

@@ -206,11 +206,6 @@ static constexpr Property<SharedMemType> shared_mem_type{"SHARED_MEM_TYPE"};
 static constexpr Property<gpu_handle_param> mem_handle{"MEM_HANDLE"};
 
 /**
- * @brief This key identifies the native Level Zero memory handle in a remote tensor parameter map.
- */
-static constexpr Property<gpu_handle_param> ze_mem_handle{"ZE_MEM_HANDLE"};
-
-/**
  * @brief This key identifies system memory handle (fd on Linux, NT handle on Windows)
  * @ingroup ov_runtime_ocl_gpu_cpp_api
  */

@@ -231,10 +231,12 @@ memory_ptr ze_engine::create_hostbuffer_impl(void* cpu_address,
 
         ov_ze_usm_handle usm_handle{ctx.handle(), nullptr};
         OV_ZE_EXPECT(ze::zeMemAllocHost(usm_handle.context, &host_desc, data_size, 0, &usm_handle.ptr));
+        ze_usm_resource usm_resource(usm_handle);
         OPENVINO_ASSERT(usm_handle.ptr == cpu_address,
                         "[GPU] zeMemAllocHost with external system memory mapping returned a different pointer than requested");
         auto mem_tracker = std::make_shared<MemoryTracker>(nullptr, usm_handle.ptr, data_size, allocation);
-        auto memory = std::make_shared<ze::gpu_usm_from_external_sysmem>(this, output_layout, usm_handle, allocation, mem_tracker);
+        auto memory = std::make_shared<ze::gpu_usm>(
+            this, output_layout, std::move(usm_resource), allocation, mem_tracker);
         return memory;
     }
 
