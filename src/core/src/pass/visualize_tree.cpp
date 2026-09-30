@@ -207,6 +207,7 @@ static std::filesystem::path name_of_subgraph_file(const std::shared_ptr<ov::Nod
     return file_name;
 }
 
+#if defined(ENABLE_OPENVINO_DEBUG) && !defined(_WIN32)
 static std::string quote_shell_argument(const std::filesystem::path& path) {
     const auto path_string = ov::util::path_to_string(path);
     std::string quoted_path = "'";
@@ -220,6 +221,7 @@ static std::string quote_shell_argument(const std::filesystem::path& path) {
     quoted_path += "'";
     return quoted_path;
 }
+#endif
 
 static void collect_symbol_print_values(const std::shared_ptr<ov::Model>& m,
                                         std::unordered_map<std::shared_ptr<ov::Symbol>, size_t>& symbol_to_number) {
