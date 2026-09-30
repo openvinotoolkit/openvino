@@ -434,11 +434,11 @@ struct PagedAttentionManager {
     }
 
     // by_channel_token_major_readable() with the test device's facts, as transformations_pipeline.cpp
-    // gathers them (it queries microkernels only where a reader could run).
+    // gathers them (it queries microkernels only where a reader could run: the same predicate).
     static bool by_channel_token_major_readable_on(cldnn::engine& engine,
                                                    const std::vector<cldnn::paged_attention::by_channel_tm_op_info>& ops) {
         const auto& info = engine.get_device_info();
-        const bool microkernels_supported = info.supports_immad && info.arch >= cldnn::gpu_arch::xe2 &&
+        const bool microkernels_supported = cldnn::paged_attention::sdpa_ocl_decode_reader_available(info) &&
                                             cldnn::query_microkernels_supported(engine, tests::get_test_default_config(engine));
         return cldnn::paged_attention::by_channel_token_major_readable(info, microkernels_supported, ov::element::f16, ops);
     }
