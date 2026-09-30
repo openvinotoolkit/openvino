@@ -251,8 +251,6 @@ Physical AI Runtime v0.2.0 introduces a single runtime for both policy inference
 
 It also adds runtime support for compatible RLDX-1, MolmoAct2, and XR0 exports, and lets applications start a new policy run without reconnecting hardware.
 
-Install: ``pip install --upgrade physicalai``.
-
 One runtime for policy inference and teleoperation
 --------------------------------------------------
 
