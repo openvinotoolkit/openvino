@@ -59,6 +59,20 @@ jobs:
           # the PR merge commit and its base parent, to list changed files
           fetch-depth: 2
 
+      - name: Check if nightly PyTorch model tests are changed
+        id: pytorch_models_nightly
+        if: ${{ github.event_name == 'pull_request' }}
+        # runs before smart-ci action, which re-fetches the repo with depth 1
+        shell: bash
+        run: |
+          if ! files=$(git diff --name-only --no-renames HEAD^1 HEAD); then
+            echo "::warning::Could not list changed files, nightly PyTorch model tests are not triggered"
+            exit 0
+          fi
+          if grep -qE '^(tests/model_hub_tests/(pytorch|models_hub_common)/|\.github/workflows/job_pytorch_models_tests\.yml$)' <<< "$files"; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Get affected components
         id: smart_ci
         uses: ./.github/actions/smart-ci
@@ -87,16 +101,6 @@ jobs:
             echo "use_latest_onednn=true" >> "$GITHUB_OUTPUT"
           else
             echo "use_latest_onednn=false" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Check if nightly PyTorch model tests are changed
-        id: pytorch_models_nightly
-        if: ${{ github.event_name == 'pull_request' }}
-        shell: bash
-        run: |
-          files=$(git diff --name-only --no-renames HEAD^1 HEAD)
-          if grep -qE '^(tests/model_hub_tests/(pytorch|models_hub_common)/|\.github/workflows/job_pytorch_models_tests\.yml$)' <<< "$files"; then
-            echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
   Docker:
