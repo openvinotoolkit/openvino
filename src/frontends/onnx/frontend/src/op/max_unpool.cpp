@@ -37,7 +37,7 @@ ov::OutputVector max_unpool(const ov::frontend::onnx::Node& node) {
     const auto pads = node.get_attribute_value<std::vector<int64_t>>("pads", std::vector<int64_t>(spatial_rank * 2, 0));
 
     // The bound keeps 'k - s - pb - pe' far from int64 overflow
-    constexpr int64_t max_value = std::numeric_limits<int32_t>::max();
+    static constexpr int64_t max_value = std::numeric_limits<int32_t>::max();
     const auto is_positive = [](int64_t v) {
         return v > 0 && v <= max_value;
     };
@@ -93,7 +93,9 @@ ov::OutputVector max_unpool(const ov::frontend::onnx::Node& node) {
             const auto values = os_const->cast_vector<int64_t>();
             const auto& data_shape = data.get_partial_shape();
             CHECK_VALID_NODE(node,
-                             std::all_of(values.begin(), values.end(), is_non_negative),
+                             std::all_of(values.begin(), values.end(), [](int64_t v) {
+                                 return v >= 0;
+                             }),
                              "MaxUnpool 'output_shape' must be non-negative. Got: ",
                              ov::util::vector_to_string(values));
             for (size_t i = 0; i < 2 && data_shape.rank().is_static(); ++i) {

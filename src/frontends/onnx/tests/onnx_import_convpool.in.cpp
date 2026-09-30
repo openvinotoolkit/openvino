@@ -1878,6 +1878,11 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_decomposition) {
               1);
 }
 
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_large_output_shape_dim) {
+    // Valid int64 dimension above INT32_MAX is accepted at conversion
+    EXPECT_NO_THROW(convert_model("max_unpool_output_shape_large_dim.onnx"));
+}
+
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_invalid_attributes) {
     const std::vector<std::pair<std::string, std::string>> cases{
         {"max_unpool_invalid_kernel_shape.onnx", "'kernel_shape'"},
