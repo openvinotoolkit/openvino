@@ -56,6 +56,8 @@ jobs:
         timeout-minutes: 15
         with:
           sparse-checkout: .github/actions/smart-ci
+          # the PR merge commit and its base parent, to list changed files
+          fetch-depth: 2
 
       - name: Get affected components
         id: smart_ci
@@ -91,11 +93,8 @@ jobs:
         id: pytorch_models_nightly
         if: ${{ github.event_name == 'pull_request' }}
         shell: bash
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PR_NUMBER: ${{ github.event.number }}
         run: |
-          files=$(gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}/files" --jq '.[].filename')
+          files=$(git diff --name-only --no-renames HEAD^1 HEAD)
           if grep -qE '^(tests/model_hub_tests/(pytorch|models_hub_common)/|\.github/workflows/job_pytorch_models_tests\.yml$)' <<< "$files"; then
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
