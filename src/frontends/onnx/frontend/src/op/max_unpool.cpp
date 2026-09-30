@@ -38,6 +38,9 @@ ov::OutputVector max_unpool(const ov::frontend::onnx::Node& node) {
     const auto is_positive = [](int64_t v) {
         return v > 0;
     };
+    const auto is_non_negative = [](int64_t v) {
+        return v >= 0;
+    };
     CHECK_VALID_NODE(node,
                      spatial_rank > 0 && std::all_of(kernel_shape.begin(), kernel_shape.end(), is_positive),
                      "MaxUnpool 'kernel_shape' attribute must be non-empty and positive. Got: ",
@@ -49,10 +52,10 @@ ov::OutputVector max_unpool(const ov::frontend::onnx::Node& node) {
                      " positive elements. Got: ",
                      ov::util::vector_to_string(strides));
     CHECK_VALID_NODE(node,
-                     pads.size() == spatial_rank * 2,
+                     pads.size() == spatial_rank * 2 && std::all_of(pads.begin(), pads.end(), is_non_negative),
                      "MaxUnpool 'pads' attribute must have ",
                      spatial_rank * 2,
-                     " elements. Got: ",
+                     " non-negative elements. Got: ",
                      ov::util::vector_to_string(pads));
     const auto data_rank = data.get_partial_shape().rank();
     CHECK_VALID_NODE(node,
