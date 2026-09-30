@@ -192,6 +192,7 @@ public:
     bool contains_state(const std::string& variable_id);
     memory& get_output_remote_memory(const primitive_id& id) const;
     bool has_output_remote_memory_ptr(const primitive_id& id) const;
+    bool is_output_remote_memory(const memory& mem) const;
     void reset_output_remote_memory_ptrs();
 
     /// @brief Register an externally-owned output memory block for a network output primitive.
@@ -277,6 +278,7 @@ private:
     size_t _weights_cache_capacity = 1;
 
     output_chains_map _output_chains;
+    output_chains_map _remote_output_chains;
 
     std::shared_ptr<ShapePredictor> _shape_predictor;
 
@@ -292,7 +294,7 @@ private:
     std::shared_ptr<primitive_inst> find_primitive(const primitive_id& id) const;
     void add_default_output_chains();
     void calculate_weights_cache_capacity();
-    output_chains_map::iterator add_output_chain(std::shared_ptr<primitive_inst>& p_inst);
+    std::vector<primitive_inst*> build_output_chain(std::shared_ptr<primitive_inst>& p_inst, bool is_remote);
     void set_variables_state_info(const std::string& variable_id,
                                   const layout& variable_layout,
                                   ov::element::Type user_specified_type,
