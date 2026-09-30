@@ -148,7 +148,7 @@ TEST(ThreadAffinity, ProcessMaskStaysAtBaselineWhileThreadIsPinned) {
     ASSERT_GE(target_cpu, 0);
 
     // Pin the calling thread to a single CPU.
-    ov::threading::CpuSet narrow = std::make_unique<cpu_set_t>(DWORD_PTR(1) << target_cpu);
+    ov::threading::CpuSet narrow = std::make_unique<ov::threading::cpu_set_t>(DWORD_PTR(1) << target_cpu);
     ASSERT_NE(narrow, nullptr);
     ASSERT_TRUE(ov::threading::pin_current_thread_by_mask(0, narrow));
 
