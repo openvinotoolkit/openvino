@@ -1885,6 +1885,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_invalid_attributes) {
         {"max_unpool_invalid_pads.onnx", "'pads'"},
         {"max_unpool_invalid_negative_pads.onnx", "'pads'"},
         {"max_unpool_invalid_rank.onnx", "rank"},
+        {"max_unpool_invalid_huge_pads.onnx", "'pads'"},
+        {"max_unpool_invalid_output_shape_rank.onnx", "'output_shape'"},
+        {"max_unpool_invalid_output_shape_channels.onnx", "'output_shape'"},
+        {"max_unpool_invalid_indices_shape.onnx", "'indices'"},
     };
     for (const auto& [model_path, message] : cases) {
         SCOPED_TRACE(model_path);
