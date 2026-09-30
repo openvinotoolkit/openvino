@@ -4,10 +4,7 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs matmul_v2(const NodeContext& node) {
     const auto x = node.get_input("X");
     const auto y = node.get_input("Y");
@@ -25,7 +22,4 @@ NamedOutputs matmul_v2(const NodeContext& node) {
     return node.default_single_output_mapping({result}, {"Out"});
 }
 
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

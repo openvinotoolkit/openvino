@@ -80,23 +80,25 @@ JitConstants QuantizeKernelScaleShift_vload8::GetJitConstants(const quantize_par
 
 bool QuantizeKernelScaleShift_vload8::Validate(const Params& p) const {
     const quantize_params& params = static_cast<const quantize_params&>(p);
-    if (params.inputs.size() != 9)
+    if (params.inputs.size() != 9) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     // this kernel is opt for per tensor quantization params for now
     if (!params.per_tensor_input_range || !params.per_tensor_output_range || !params.per_tensor_input_scale ||
         !params.per_tensor_output_scale || !params.per_tensor_output_shift ||
         (params.has_pre_shift && !params.per_tensor_input_shift) ||
         params.outputs[0].GetLayout() != params.inputs[0].GetLayout() ||
-        params.inputs[1].GetDType() != params.inputs[3].GetDType())
+        params.inputs[1].GetDType() != params.inputs[3].GetDType()) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     // for blocked format, if extra padding exist in a block, will be opt in a seprate kernel
     if (!params.inputs[0].SimpleLayout()) {
         const auto input_layout = params.inputs[0].GetLayout();
         const auto batch_size = params.inputs[0].Batch().v;
         const auto feature_size = params.inputs[0].Feature().v;
-        if (!params.inputs[0].SimpleLayout())
+        if (!params.inputs[0].SimpleLayout()) {
             if (((input_layout == DataLayout::b_fs_yx_fsv16 || input_layout == DataLayout::b_fs_zyx_fsv16) &&
                  feature_size % 16 != 0) ||
                 ((input_layout == DataLayout::b_fs_yx_fsv32 || input_layout == DataLayout::b_fs_zyx_fsv32) &&
@@ -114,11 +116,14 @@ bool QuantizeKernelScaleShift_vload8::Validate(const Params& p) const {
                  (feature_size % 16 != 0 || batch_size % 16 != 0)) ||
                 ((input_layout == DataLayout::bs_fs_yx_bsv16_fsv32 ||
                   input_layout == DataLayout::bs_fs_zyx_bsv16_fsv32) &&
-                 (feature_size % 32 != 0 || batch_size % 16 != 0)))
+                 (feature_size % 32 != 0 || batch_size % 16 != 0))) {
                 DO_NOT_USE_THIS_KERNEL(p.layerID);
+            }
+        }
     }
-    if (CalculateTotalWorkItemCount(params) < vec_size)
+    if (CalculateTotalWorkItemCount(params) < vec_size) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
@@ -128,10 +133,11 @@ static inline size_t CalculateTotalWorkItemCount(const quantize_params& params) 
         auto feature = Align(params.outputs[0].Feature().v, GetInnerFeatureBlockSize(params.outputs[0]));
         auto batch = Align(params.outputs[0].Batch().v, GetInnerBatchBlockSize(params.outputs[0]));
         size_t spatial = 0;
-        if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5)
+        if (DataTensor::ChannelsCount(params.outputs[0].GetLayout()) == 5) {
             spatial = params.outputs[0].X().v * params.outputs[0].Y().v * params.outputs[0].Z().v;
-        else
+        } else {
             spatial = params.outputs[0].X().v * params.outputs[0].Y().v;
+        }
 
         return (feature * batch * spatial);
     }

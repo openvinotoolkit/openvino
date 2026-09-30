@@ -21,9 +21,7 @@
 #include "openvino/pass/node_registry.hpp"
 #include "transformations/utils/utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
+namespace ov::frontend::pytorch {
 
 using namespace ov::op;
 
@@ -438,6 +436,4 @@ Output<Node> dequantize_ct_weight(const NodeContext& context,
     return low_precision_subgraph(context, like, new_weight, new_zp, new_scales, out_shape);
 }
 
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch

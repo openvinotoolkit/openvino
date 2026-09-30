@@ -91,8 +91,9 @@ struct non_max_suppression : public primitive_base<non_max_suppression> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
 
         auto rhs_casted = downcast<const non_max_suppression>(rhs);
 
@@ -143,23 +144,29 @@ protected:
         auto ret = std::map<size_t, const input_info*>{};
         auto idx = input.size();
 
-        if (num_select_per_class.is_valid())
+        if (num_select_per_class.is_valid()) {
             ret[idx++] = &num_select_per_class;
+        }
 
-        if (iou_threshold.is_valid())
+        if (iou_threshold.is_valid()) {
             ret[idx++] = &iou_threshold;
+        }
 
-        if (score_threshold.is_valid())
+        if (score_threshold.is_valid()) {
             ret[idx++] = &score_threshold;
+        }
 
-        if (soft_nms_sigma.is_valid())
+        if (soft_nms_sigma.is_valid()) {
             ret[idx++] = &soft_nms_sigma;
+        }
 
-        if (second_output.is_valid())
+        if (second_output.is_valid()) {
             ret[idx++] = &second_output;
+        }
 
-        if (third_output.is_valid())
+        if (third_output.is_valid()) {
             ret[idx++] = &third_output;
+        }
 
         return ret;
     }

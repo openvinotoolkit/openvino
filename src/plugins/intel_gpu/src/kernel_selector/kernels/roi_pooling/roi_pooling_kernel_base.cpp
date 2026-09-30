@@ -55,8 +55,9 @@ KernelsData ROIPoolingKernelBase::GetCommonKernelsData(const Params& params) con
     auto& kernel = kd.kernels[0];
     FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point);
     kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 1});
-    if (orgParams.mode == PoolType::DEFORMABLE_BILINEAR && !orgParams.no_trans)
+    if (orgParams.mode == PoolType::DEFORMABLE_BILINEAR && !orgParams.no_trans) {
         kernel.params.arguments.push_back({ArgumentDescriptor::Types::INPUT, 2});
+    }
 
     return {kd};
 }

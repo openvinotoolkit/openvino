@@ -14,24 +14,52 @@
 #include "common_test_utils/ov_tensor_utils.hpp"
 #include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/float16.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/paged_selective_ssm.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/runtime/core.hpp"
+#include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/remote_context.hpp"
 #include "openvino/runtime/remote_tensor.hpp"
 #include "openvino/runtime/tensor.hpp"
 #include "transformations/rt_info/keep_const_precision.hpp"
+#include "utils/precision_support.h"
 
 namespace {
+enum class InputPort : size_t {
+    A,
+    TimeStep,
+    InputProjection,
+    Input,
+    OutputProjection,
+    State,
+    SubsequenceBegins,
+    BlockIndices,
+    BlockIndicesBegins,
+    NumProcessedTokens,
+    CacheInterval,
+    Count,
+};
 
-template <typename T, typename IndexT>
-void run_reference(const std::vector<T>& A,
-                   const std::vector<T>& dt,
-                   const std::vector<T>& B,
-                   const std::vector<T>& x,
-                   const std::vector<T>& C,
-                   std::vector<T>& recurrent_state_table,
+constexpr size_t input_port_index(InputPort port) noexcept {
+    return static_cast<size_t>(port);
+}
+
+constexpr bool is_float_port(InputPort port) noexcept {
+    return port <= InputPort::State;
+}
+
+inline constexpr size_t input_count = input_port_index(InputPort::Count);
+
+template <typename DataT, typename StateT, typename IndexT>
+void run_reference(const std::vector<DataT>& A,
+                   const std::vector<DataT>& dt,
+                   const std::vector<DataT>& B,
+                   const std::vector<DataT>& x,
+                   const std::vector<DataT>& C,
+                   std::vector<StateT>& recurrent_state_table,
                    const std::vector<IndexT>& subsequence_begins,
                    const std::vector<IndexT>& block_indices,
                    const std::vector<IndexT>& block_indices_begins,
@@ -41,7 +69,7 @@ void run_reference(const std::vector<T>& A,
                    size_t num_groups,
                    size_t head_dim,
                    size_t state_size,
-                   std::vector<T>& output) {
+                   std::vector<DataT>& output) {
     const size_t tokens = x.size() / (num_heads * head_dim);
     const size_t heads_per_group = num_heads / num_groups;
     const size_t num_sequences = subsequence_begins.size() - 1;
@@ -79,8 +107,7 @@ void run_reference(const std::vector<T>& A,
                 const auto projection_base = (token * num_groups + group) * state_size;
                 std::vector<float> input_projection(state_size);
                 for (size_t state_index = 0; state_index < state_size; ++state_index) {
-                    input_projection[state_index] =
-                        delta * static_cast<float>(B[projection_base + state_index]);
+                    input_projection[state_index] = delta * static_cast<float>(B[projection_base + state_index]);
                 }
 
                 for (size_t position = 0; position < head_dim; ++position) {
@@ -96,7 +123,7 @@ void run_reference(const std::vector<T>& A,
                         reduction += static_cast<double>(state[state_base + state_index]) *
                                      static_cast<float>(C[projection_base + state_index]);
                     }
-                    output[(token * num_heads + head) * head_dim + position] = static_cast<T>(reduction);
+                    output[(token * num_heads + head) * head_dim + position] = static_cast<DataT>(reduction);
                 }
 
                 if (interval > 0) {
@@ -110,12 +137,11 @@ void run_reference(const std::vector<T>& A,
                     if (is_boundary || is_last) {
                         const auto write_slot = 1 + (cached_tokens - 1) / positive_interval;
                         OPENVINO_ASSERT(logical_block_begin + write_slot < logical_block_end);
-                        const auto write_block =
-                            static_cast<size_t>(block_indices[logical_block_begin + write_slot]);
+                        const auto write_block = static_cast<size_t>(block_indices[logical_block_begin + write_slot]);
                         for (size_t position = 0; position < head_dim; ++position) {
                             for (size_t state_index = 0; state_index < state_size; ++state_index) {
                                 recurrent_state_table[state_off(write_block, head, position, state_index)] =
-                                    static_cast<T>(state[position * state_size + state_index]);
+                                    static_cast<StateT>(state[position * state_size + state_index]);
                             }
                         }
                     }
@@ -131,12 +157,15 @@ std::vector<T> tensor_to_vector(const ov::Tensor& tensor) {
     return std::vector<T>(ptr, ptr + tensor.get_size());
 }
 
-ov::Tensor make_index_tensor(const std::vector<int32_t>& values, const ov::element::Type& index_type) {
+template <typename T>
+ov::Tensor make_index_tensor(const std::vector<T>& values, const ov::element::Type& index_type) {
     ov::Tensor tensor(index_type, ov::Shape{values.size()});
     if (index_type == ov::element::i32) {
-        std::copy(values.begin(), values.end(), tensor.data<int32_t>());
+        std::transform(values.begin(), values.end(), tensor.data<int32_t>(), [](T value) {
+            return static_cast<int32_t>(value);
+        });
     } else {
-        std::transform(values.begin(), values.end(), tensor.data<int64_t>(), [](int32_t value) {
+        std::transform(values.begin(), values.end(), tensor.data<int64_t>(), [](T value) {
             return static_cast<int64_t>(value);
         });
     }
@@ -150,18 +179,20 @@ ov::Tensor make_f32_tensor(const ov::Shape& shape, const std::vector<float>& val
     return tensor;
 }
 
-std::shared_ptr<ov::Model> make_paged_validation_model() {
+std::shared_ptr<ov::Model> make_paged_validation_model(size_t token_count = 1,
+                                                       size_t physical_block_count = 2,
+                                                       const ov::element::Type& index_type = ov::element::i32) {
     auto A = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
-    auto dt = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1});
-    auto B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 1});
-    auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 1});
-    auto C = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1, 1, 1});
-    auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{2, 1, 1, 1});
-    auto subsequences = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2});
-    auto blocks = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2});
-    auto block_begins = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2});
-    auto processed = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
-    auto intervals = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+    auto dt = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{token_count, 1});
+    auto B = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{token_count, 1, 1});
+    auto x = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{token_count, 1, 1});
+    auto C = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{token_count, 1, 1});
+    auto state = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{physical_block_count, 1, 1, 1});
+    auto subsequences = std::make_shared<ov::op::v0::Parameter>(index_type, ov::Shape{2});
+    auto blocks = std::make_shared<ov::op::v0::Parameter>(index_type, ov::Shape{physical_block_count});
+    auto block_begins = std::make_shared<ov::op::v0::Parameter>(index_type, ov::Shape{2});
+    auto processed = std::make_shared<ov::op::v0::Parameter>(index_type, ov::Shape{1});
+    auto intervals = std::make_shared<ov::op::v0::Parameter>(index_type, ov::Shape{1});
     const ov::ParameterVector
         parameters{A, dt, B, x, C, state, subsequences, blocks, block_begins, processed, intervals};
     const auto ssm = std::make_shared<ov::op::internal::PagedSelectiveSSM>(A,
@@ -178,29 +209,33 @@ std::shared_ptr<ov::Model> make_paged_validation_model() {
     return std::make_shared<ov::Model>(ssm->outputs(), parameters);
 }
 
-template <typename T, typename IndexT>
+template <typename DataT, typename StateT, typename IndexT>
 std::vector<ov::Tensor> calculate_typed_refs(const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& host_inputs,
                                              const std::shared_ptr<ov::Model>& function,
                                              size_t num_heads,
                                              size_t num_groups,
                                              size_t head_dim,
                                              size_t state_size,
-                                             const ov::element::Type& data_type) {
+                                             const ov::element::Type& data_type,
+                                             const ov::element::Type& state_type) {
     const auto& params = function->get_parameters();
+    const auto tensor_for = [&](InputPort port) -> const ov::Tensor& {
+        return host_inputs.at(params.at(input_port_index(port)));
+    };
 
-    auto A = tensor_to_vector<T>(host_inputs.at(params[0]));
-    auto dt = tensor_to_vector<T>(host_inputs.at(params[1]));
-    auto B = tensor_to_vector<T>(host_inputs.at(params[2]));
-    auto x = tensor_to_vector<T>(host_inputs.at(params[3]));
-    auto C = tensor_to_vector<T>(host_inputs.at(params[4]));
-    auto state = tensor_to_vector<T>(host_inputs.at(params[5]));
-    auto subsequence_begins = tensor_to_vector<IndexT>(host_inputs.at(params[6]));
-    auto block_indices = tensor_to_vector<IndexT>(host_inputs.at(params[7]));
-    auto block_indices_begins = tensor_to_vector<IndexT>(host_inputs.at(params[8]));
-    auto num_processed_tokens = tensor_to_vector<IndexT>(host_inputs.at(params[9]));
-    auto cache_interval = tensor_to_vector<IndexT>(host_inputs.at(params[10]));
+    auto A = tensor_to_vector<DataT>(tensor_for(InputPort::A));
+    auto dt = tensor_to_vector<DataT>(tensor_for(InputPort::TimeStep));
+    auto B = tensor_to_vector<DataT>(tensor_for(InputPort::InputProjection));
+    auto x = tensor_to_vector<DataT>(tensor_for(InputPort::Input));
+    auto C = tensor_to_vector<DataT>(tensor_for(InputPort::OutputProjection));
+    auto state = tensor_to_vector<StateT>(tensor_for(InputPort::State));
+    auto subsequence_begins = tensor_to_vector<IndexT>(tensor_for(InputPort::SubsequenceBegins));
+    auto block_indices = tensor_to_vector<IndexT>(tensor_for(InputPort::BlockIndices));
+    auto block_indices_begins = tensor_to_vector<IndexT>(tensor_for(InputPort::BlockIndicesBegins));
+    auto num_processed_tokens = tensor_to_vector<IndexT>(tensor_for(InputPort::NumProcessedTokens));
+    auto cache_interval = tensor_to_vector<IndexT>(tensor_for(InputPort::CacheInterval));
 
-    std::vector<T> ref_output;
+    std::vector<DataT> ref_output;
     run_reference(A,
                   dt,
                   B,
@@ -218,31 +253,89 @@ std::vector<ov::Tensor> calculate_typed_refs(const std::map<std::shared_ptr<ov::
                   state_size,
                   ref_output);
 
-    ov::Tensor output_tensor(data_type, host_inputs.at(params[3]).get_shape());
-    std::copy(ref_output.begin(), ref_output.end(), output_tensor.data<T>());
+    ov::Tensor output_tensor(data_type, tensor_for(InputPort::Input).get_shape());
+    std::copy(ref_output.begin(), ref_output.end(), output_tensor.data<DataT>());
 
-    ov::Tensor state_tensor(data_type, host_inputs.at(params[5]).get_shape());
-    std::copy(state.begin(), state.end(), state_tensor.data<T>());
+    ov::Tensor state_tensor(state_type, tensor_for(InputPort::State).get_shape());
+    std::copy(state.begin(), state.end(), state_tensor.data<StateT>());
 
     return {output_tensor, state_tensor};
 }
 
-template <typename T>
-std::vector<ov::Tensor> calculate_data_typed_refs(
-    const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& host_inputs,
-    const std::shared_ptr<ov::Model>& function,
-    size_t num_heads,
-    size_t num_groups,
-    size_t head_dim,
-    size_t state_size,
-    const ov::element::Type& data_type,
-    const ov::element::Type& index_type) {
+template <typename DataT, typename StateT>
+std::vector<ov::Tensor> calculate_state_typed_refs(const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& host_inputs,
+                                                   const std::shared_ptr<ov::Model>& function,
+                                                   size_t num_heads,
+                                                   size_t num_groups,
+                                                   size_t head_dim,
+                                                   size_t state_size,
+                                                   const ov::element::Type& data_type,
+                                                   const ov::element::Type& state_type,
+                                                   const ov::element::Type& index_type) {
     if (index_type == ov::element::i64) {
-        return calculate_typed_refs<T, int64_t>(
-            host_inputs, function, num_heads, num_groups, head_dim, state_size, data_type);
+        return calculate_typed_refs<DataT, StateT, int64_t>(host_inputs,
+                                                            function,
+                                                            num_heads,
+                                                            num_groups,
+                                                            head_dim,
+                                                            state_size,
+                                                            data_type,
+                                                            state_type);
     }
-    return calculate_typed_refs<T, int32_t>(
-        host_inputs, function, num_heads, num_groups, head_dim, state_size, data_type);
+    return calculate_typed_refs<DataT, StateT, int32_t>(host_inputs,
+                                                        function,
+                                                        num_heads,
+                                                        num_groups,
+                                                        head_dim,
+                                                        state_size,
+                                                        data_type,
+                                                        state_type);
+}
+
+template <typename DataT>
+std::vector<ov::Tensor> calculate_data_typed_refs(const std::map<std::shared_ptr<ov::Node>, ov::Tensor>& host_inputs,
+                                                  const std::shared_ptr<ov::Model>& function,
+                                                  size_t num_heads,
+                                                  size_t num_groups,
+                                                  size_t head_dim,
+                                                  size_t state_size,
+                                                  const ov::element::Type& data_type,
+                                                  const ov::element::Type& state_type,
+                                                  const ov::element::Type& index_type) {
+    if (state_type == ov::element::f32) {
+        return calculate_state_typed_refs<DataT, float>(host_inputs,
+                                                        function,
+                                                        num_heads,
+                                                        num_groups,
+                                                        head_dim,
+                                                        state_size,
+                                                        data_type,
+                                                        state_type,
+                                                        index_type);
+    }
+    if (state_type == ov::element::f16) {
+        return calculate_state_typed_refs<DataT, ov::float16>(host_inputs,
+                                                              function,
+                                                              num_heads,
+                                                              num_groups,
+                                                              head_dim,
+                                                              state_size,
+                                                              data_type,
+                                                              state_type,
+                                                              index_type);
+    }
+    if (state_type == ov::element::bf16) {
+        return calculate_state_typed_refs<DataT, ov::bfloat16>(host_inputs,
+                                                               function,
+                                                               num_heads,
+                                                               num_groups,
+                                                               head_dim,
+                                                               state_size,
+                                                               data_type,
+                                                               state_type,
+                                                               index_type);
+    }
+    OPENVINO_THROW("Unsupported PagedSelectiveSSM state precision ", state_type, ".");
 }
 
 int32_t count_logical_blocks(const std::vector<int32_t>& sequence_lengths,
@@ -284,6 +377,7 @@ std::string PagedSelectiveSSMLayerTest::getTestCaseName(
                  num_processed_tokens,
                  cache_intervals,
                  element_type,
+                 state_type,
                  index_type,
                  target_device] = obj.param;
     std::ostringstream result;
@@ -314,6 +408,7 @@ std::string PagedSelectiveSSMLayerTest::getTestCaseName(
         }
     }
     result << "_Type=" << element_type;
+    result << "_StateType=" << state_type;
     result << "_IndexType=" << index_type;
     result << "_Target=" << target_device;
     return result.str();
@@ -328,21 +423,17 @@ void PagedSelectiveSSMLayerTest::SetUp() {
                  num_processed_tokens,
                  cache_intervals,
                  data_type,
+                 state_type,
                  index_type,
                  device] = GetParam();
-    if (device.find("CPU") != std::string::npos) {
-        // Skip BF16/F16 tests if not support
-        if ((data_type == ov::element::bf16) && !with_cpu_x86_avx512_core_amx_bf16()) {
-            GTEST_SKIP();
-        }
-        if ((data_type == ov::element::f16) && !with_cpu_x86_avx512_core_fp16()) {
-            GTEST_SKIP();
-        }
-    }
 
     targetDevice = device;
     this->data_type = data_type;
-    configuration[ov::hint::inference_precision.name()] = data_type;
+    this->state_type = state_type;
+    if (!ov::intel_cpu::hasHardwareSupport(state_type)) {
+        GTEST_SKIP() << "CPU precision policy does not preserve " << state_type << " state storage on this system.";
+    }
+    configuration[ov::hint::inference_precision.name()] = state_type;
     OPENVINO_ASSERT(!seq_lengths.empty());
     OPENVINO_ASSERT(seq_lengths.size() == num_processed_tokens.size());
     OPENVINO_ASSERT(seq_lengths.size() == cache_intervals.size());
@@ -421,8 +512,13 @@ void PagedSelectiveSSMLayerTest::SetUp() {
     auto p_B = std::make_shared<ov::op::v0::Parameter>(data_type, ov::PartialShape{-1, num_groups, state_size});
     auto p_x = std::make_shared<ov::op::v0::Parameter>(data_type, ov::PartialShape{-1, num_heads, head_dim});
     auto p_C = std::make_shared<ov::op::v0::Parameter>(data_type, ov::PartialShape{-1, num_groups, state_size});
+    // Keep the source model valid. ConvertPagedAttnInputs applies the requested state storage precision inside the
+    // CPU pipeline while computation parameters retain data_type through keep_const_precision.
     auto p_state =
         std::make_shared<ov::op::v0::Parameter>(data_type, ov::PartialShape{-1, num_heads, head_dim, state_size});
+    for (const auto& parameter : {p_A, p_dt, p_B, p_x, p_C, p_state}) {
+        ov::enable_keep_const_precision(parameter);
+    }
     auto p_subseq = std::make_shared<ov::op::v0::Parameter>(index_type, ov::PartialShape{-1});
     auto p_blocks = std::make_shared<ov::op::v0::Parameter>(index_type, ov::PartialShape{-1});
     auto p_block_begins = std::make_shared<ov::op::v0::Parameter>(index_type, ov::PartialShape{-1});
@@ -466,12 +562,17 @@ void PagedSelectiveSSMLayerTest::generate_inputs(const std::vector<ov::Shape>& t
                  num_processed_tokens_param,
                  cache_intervals,
                  element_type,
+                 state_type,
                  index_type,
                  device] = GetParam();
-    const auto num_sequences = static_cast<int32_t>(targetInputStaticShapes[9][0]);
-    OPENVINO_ASSERT(targetInputStaticShapes[6][0] == static_cast<size_t>(num_sequences + 1));
-    OPENVINO_ASSERT(targetInputStaticShapes[8][0] == static_cast<size_t>(num_sequences + 1));
-    OPENVINO_ASSERT(targetInputStaticShapes[10][0] == static_cast<size_t>(num_sequences));
+    const auto shape_for = [&](InputPort port) -> const ov::Shape& {
+        return targetInputStaticShapes.at(input_port_index(port));
+    };
+    OPENVINO_ASSERT(targetInputStaticShapes.size() == input_count);
+    const auto num_sequences = static_cast<int32_t>(shape_for(InputPort::NumProcessedTokens).front());
+    OPENVINO_ASSERT(shape_for(InputPort::SubsequenceBegins).front() == static_cast<size_t>(num_sequences + 1));
+    OPENVINO_ASSERT(shape_for(InputPort::BlockIndicesBegins).front() == static_cast<size_t>(num_sequences + 1));
+    OPENVINO_ASSERT(shape_for(InputPort::CacheInterval).front() == static_cast<size_t>(num_sequences));
     const bool use_alternate_metadata = static_cast<size_t>(num_sequences) != seq_lengths.size();
     auto active_seq_lengths = seq_lengths;
     auto active_processed_tokens = num_processed_tokens_param;
@@ -530,44 +631,48 @@ void PagedSelectiveSSMLayerTest::generate_inputs(const std::vector<ov::Shape>& t
         remote_context = compiledModel.get_context();
     }
 
-    for (size_t i = 0; i < params.size(); i++) {
-        const auto& param = params[i];
-        const auto& shape = targetInputStaticShapes[i];
+    for (size_t input_index = 0; input_index < params.size(); ++input_index) {
+        const auto port = static_cast<InputPort>(input_index);
+        const auto& param = params[input_index];
+        const auto& shape = targetInputStaticShapes[input_index];
         ov::Tensor tensor;
 
-        if (i == 0) {
+        if (port == InputPort::A) {
             tensor = ov::test::utils::create_and_fill_tensor_real_distribution(param->get_element_type(),
-                                                                                shape,
-                                                                                -0.5f,
-                                                                                0.2f,
-                                                                                1);
-        } else if (i == 1) {
+                                                                               shape,
+                                                                               -0.5f,
+                                                                               0.2f,
+                                                                               1);
+        } else if (port == InputPort::TimeStep) {
             tensor = ov::test::utils::create_and_fill_tensor_real_distribution(param->get_element_type(),
-                                                                                shape,
-                                                                                0.0f,
-                                                                                0.5f,
-                                                                                1);
-        } else if (i <= 5) {
-            tensor = ov::test::utils::create_and_fill_tensor(param->get_element_type(),
+                                                                               shape,
+                                                                               0.0f,
+                                                                               0.5f,
+                                                                               1);
+        } else if (is_float_port(port)) {
+            const auto tensor_type = port == InputPort::State ? state_type : param->get_element_type();
+            tensor = ov::test::utils::create_and_fill_tensor(tensor_type,
                                                              shape,
                                                              ov::test::utils::InputGenerateData(-0.5f, 1.0f, 1000, 1));
-        } else if (i == 6) {
+        } else if (port == InputPort::SubsequenceBegins) {
             tensor = make_index_tensor(subsequence_begins, index_type);
-        } else if (i == 7) {
+        } else if (port == InputPort::BlockIndices) {
             tensor = make_index_tensor(block_indices, index_type);
-        } else if (i == 8) {
+        } else if (port == InputPort::BlockIndicesBegins) {
             tensor = make_index_tensor(block_indices_begins, index_type);
-        } else if (i == 9) {
+        } else if (port == InputPort::NumProcessedTokens) {
             tensor = make_index_tensor(num_processed_tokens, index_type);
-        } else if (i == 10) {
+        } else if (port == InputPort::CacheInterval) {
             tensor = make_index_tensor(cache_interval, index_type);
+        } else {
+            OPENVINO_THROW("Unexpected PagedSelectiveSSM input port ", input_index, ".");
         }
 
         // The operation updates the state input in place, so the oracle needs an independent pre-inference snapshot.
         ov::Tensor host_tensor(tensor.get_element_type(), tensor.get_shape());
         tensor.copy_to(host_tensor);
         host_inputs[param] = host_tensor;
-        if (use_remote_tensors && i <= 5) {
+        if (use_remote_tensors && is_float_port(port)) {
             auto remote_tensor = remote_context.create_tensor(param->get_element_type(), shape);
             remote_tensor.copy_from(tensor);
             inputs[param] = remote_tensor;
@@ -586,25 +691,47 @@ std::vector<ov::Tensor> PagedSelectiveSSMLayerTest::calculate_refs() {
                  num_processed_tokens,
                  cache_intervals,
                  element_type,
+                 state_type,
                  index_type,
                  device] = GetParam();
 
     if (element_type == ov::element::f16) {
-        return calculate_data_typed_refs<ov::float16>(
-            host_inputs, function, num_heads, num_groups, head_dim, state_size, element_type, index_type);
+        return calculate_data_typed_refs<ov::float16>(host_inputs,
+                                                      function,
+                                                      num_heads,
+                                                      num_groups,
+                                                      head_dim,
+                                                      state_size,
+                                                      element_type,
+                                                      state_type,
+                                                      index_type);
     }
     if (element_type == ov::element::bf16) {
-        return calculate_data_typed_refs<ov::bfloat16>(
-            host_inputs, function, num_heads, num_groups, head_dim, state_size, element_type, index_type);
+        return calculate_data_typed_refs<ov::bfloat16>(host_inputs,
+                                                       function,
+                                                       num_heads,
+                                                       num_groups,
+                                                       head_dim,
+                                                       state_size,
+                                                       element_type,
+                                                       state_type,
+                                                       index_type);
     }
-    return calculate_data_typed_refs<float>(
-        host_inputs, function, num_heads, num_groups, head_dim, state_size, element_type, index_type);
+    return calculate_data_typed_refs<float>(host_inputs,
+                                            function,
+                                            num_heads,
+                                            num_groups,
+                                            head_dim,
+                                            state_size,
+                                            element_type,
+                                            state_type,
+                                            index_type);
 }
 
 std::vector<ov::Tensor> PagedSelectiveSSMLayerTest::get_plugin_outputs() {
     auto outputs = SubgraphBaseTest::get_plugin_outputs();
 
-    const auto& state_param = function->get_parameters().at(5);
+    const auto& state_param = function->get_parameters().at(input_port_index(InputPort::State));
     const auto actual_state_tensor = inferRequest.get_tensor(state_param);
     ov::Tensor host_state_tensor(actual_state_tensor.get_element_type(), actual_state_tensor.get_shape());
     actual_state_tensor.copy_to(host_state_tensor);
@@ -616,10 +743,10 @@ std::vector<ov::Tensor> PagedSelectiveSSMLayerTest::get_plugin_outputs() {
 void PagedSelectiveSSMLayerTest::compare(const std::vector<ov::Tensor>& expected,
                                          const std::vector<ov::Tensor>& actual) {
     ASSERT_EQ(expected.size(), actual.size());
-    if (data_type == ov::element::bf16) {
+    if (data_type == ov::element::bf16 || state_type == ov::element::bf16) {
         abs_threshold = 1e-3f;
         rel_threshold = 1e-2f;
-    } else if (data_type == ov::element::f16) {
+    } else if (data_type == ov::element::f16 || state_type == ov::element::f16) {
         abs_threshold = 5e-4f;
         rel_threshold = 1e-5f;
     } else {
@@ -636,6 +763,33 @@ TEST_P(PagedSelectiveSSMLayerTest, Inference) {
     const auto runtime_model = compiledModel.get_runtime_model();
     CheckNumberOfNodesWithType(runtime_model, {"PagedSelectiveSSM"}, 1);
     CheckNumberOfNodesWithType(runtime_model, {"Loop"}, 0);
+}
+
+TEST(PagedSelectiveSSMFunctionalTest, AlignsComputationPrecisionAfterCpuLowering) {
+    if (!ov::intel_cpu::hasHardwareSupport(ov::element::bf16)) {
+        GTEST_SKIP() << "CPU does not support bf16 inference.";
+    }
+
+    auto model = make_paged_validation_model();
+    const auto a_parameter = model->get_parameters().at(input_port_index(InputPort::A));
+    const auto a_constant = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1}, {-0.2F});
+    a_parameter->output(0).replace(a_constant->output(0));
+    model->remove_parameter(a_parameter);
+    const auto result = model->get_results().front();
+    const auto weights = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{1, 1}, {1.F});
+    const auto matmul = std::make_shared<ov::op::v0::MatMul>(result->input_value(0), weights, false, false);
+    result->input(0).replace_source_output(matmul);
+
+    ov::Core core;
+    const auto compiled_model = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::bf16));
+    const auto runtime_model = compiled_model.get_runtime_model();
+    CheckNumberOfNodesWithType(runtime_model, {"PagedSelectiveSSM"}, 1);
+    for (const auto& node : runtime_model->get_ops()) {
+        const auto& rt_info = node->get_rt_info();
+        if (rt_info.at(ov::exec_model_info::LAYER_TYPE).as<std::string>() == "PagedSelectiveSSM") {
+            EXPECT_EQ(rt_info.at(ov::exec_model_info::RUNTIME_PRECISION).as<ov::element::Type>(), ov::element::bf16);
+        }
+    }
 }
 
 TEST(PagedSelectiveSSMFunctionalTest, RejectsMalformedMetadataBeforeExecution) {
@@ -658,21 +812,25 @@ TEST(PagedSelectiveSSMFunctionalTest, RejectsMalformedMetadataBeforeExecution) {
     };
 
     ov::Core core;
-    auto compiled_model = core.compile_model(make_paged_validation_model(), "CPU");
+    auto compiled_model =
+        core.compile_model(make_paged_validation_model(), "CPU", ov::hint::inference_precision(ov::element::f32));
     for (const auto& test_case : cases) {
         SCOPED_TRACE(test_case.name);
         auto request = compiled_model.create_infer_request();
-        request.set_input_tensor(0, make_f32_tensor({1}, {-0.2F}));
-        request.set_input_tensor(1, make_f32_tensor({1, 1}, {0.1F}));
-        request.set_input_tensor(2, make_f32_tensor({1, 1, 1}, {0.2F}));
-        request.set_input_tensor(3, make_f32_tensor({1, 1, 1}, {0.3F}));
-        request.set_input_tensor(4, make_f32_tensor({1, 1, 1}, {0.4F}));
-        request.set_input_tensor(5, make_f32_tensor({2, 1, 1, 1}, {0.F, 0.F}));
-        request.set_input_tensor(6, make_index_tensor(test_case.subsequences, ov::element::i32));
-        request.set_input_tensor(7, make_index_tensor(test_case.blocks, ov::element::i32));
-        request.set_input_tensor(8, make_index_tensor(test_case.block_begins, ov::element::i32));
-        request.set_input_tensor(9, make_index_tensor(test_case.processed, ov::element::i32));
-        request.set_input_tensor(10, make_index_tensor(test_case.intervals, ov::element::i32));
+        const auto set_input = [&](InputPort port, const ov::Tensor& tensor) {
+            request.set_input_tensor(input_port_index(port), tensor);
+        };
+        set_input(InputPort::A, make_f32_tensor({1}, {-0.2F}));
+        set_input(InputPort::TimeStep, make_f32_tensor({1, 1}, {0.1F}));
+        set_input(InputPort::InputProjection, make_f32_tensor({1, 1, 1}, {0.2F}));
+        set_input(InputPort::Input, make_f32_tensor({1, 1, 1}, {0.3F}));
+        set_input(InputPort::OutputProjection, make_f32_tensor({1, 1, 1}, {0.4F}));
+        set_input(InputPort::State, make_f32_tensor({2, 1, 1, 1}, {0.F, 0.F}));
+        set_input(InputPort::SubsequenceBegins, make_index_tensor(test_case.subsequences, ov::element::i32));
+        set_input(InputPort::BlockIndices, make_index_tensor(test_case.blocks, ov::element::i32));
+        set_input(InputPort::BlockIndicesBegins, make_index_tensor(test_case.block_begins, ov::element::i32));
+        set_input(InputPort::NumProcessedTokens, make_index_tensor(test_case.processed, ov::element::i32));
+        set_input(InputPort::CacheInterval, make_index_tensor(test_case.intervals, ov::element::i32));
         EXPECT_THROW(request.infer(), ov::Exception);
     }
 }

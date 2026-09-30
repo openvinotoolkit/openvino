@@ -27,7 +27,8 @@ Output files:
 import json
 import os
 import pathlib
-import subprocess
+# Posts report via gh using argv lists; comment body is passed as a dedicated argument.
+import subprocess  # nosec B404
 import sys
 import textwrap
 

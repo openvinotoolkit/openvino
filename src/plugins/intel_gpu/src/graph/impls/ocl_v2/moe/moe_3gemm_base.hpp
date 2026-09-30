@@ -24,6 +24,7 @@ namespace ov::intel_gpu::ocl {
 #define MOE_INTERNAL_BUFFER_TOKEN_IDX_PER_EXPERT           10  // token idx per expert
 #define MOE_INTERNAL_BUFFER_ACTUAL_USED_EXPERT_NUM         11  // num_actual_used_experts
 #define MOE_INTERNAL_BUFFER_GROUPED_OFFSETS                12  // int32_t cumulative end-offsets per expert for OneDNN grouped GEMM
+#define MOE_INTERNAL_BUFFER_ROW_LUT                        13  // gathered row index per (token, topk), inverse of token idx per expert
 
 #define ENABLE_MOE_MICRO_GEMM_POST_PROC_SILU_MUL 1
 

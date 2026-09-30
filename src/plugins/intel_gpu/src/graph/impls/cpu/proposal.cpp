@@ -159,8 +159,9 @@ std::vector<roi_t> perform_nms(const std::vector<proposal_t>& proposals,
 
         if (!overlaps) {
             res.push_back(bbox);
-            if (res.size() == top_n)
+            if (res.size() == top_n) {
                 break;
+            }
         }
     }
 
@@ -381,8 +382,9 @@ struct proposal_impl : typed_primitive_impl<proposal> {
                 float_write_helper(top_data + 5 * i + 2, 0.0f);
                 float_write_helper(top_data + 5 * i + 3, 0.0f);
                 float_write_helper(top_data + 5 * i + 4, 0.0f);
-                if (top_data_prob != nullptr)
+                if (top_data_prob != nullptr) {
                     float_write_helper(top_data_prob + i, 0.0f);
+                }
             }
         }
     }
@@ -404,8 +406,9 @@ struct proposal_impl : typed_primitive_impl<proposal> {
         }
 
         if (instance.dep_memory(proposal_inst::cls_scores_index).get_layout().data_type !=
-            instance.dep_memory(proposal_inst::bbox_pred_index).get_layout().data_type)
+            instance.dep_memory(proposal_inst::bbox_pred_index).get_layout().data_type) {
             throw std::runtime_error("clDNN: proposal primitive doesn't support mixed bbox and scores types");
+        }
 
         if (instance.dependencies().size() == 4) {
             auto proposal_probabilities = instance.dep_memory_ptr(proposal_inst::proposal_probabilities_out);

@@ -53,8 +53,9 @@ struct onednn_matmul {
         }
         if (ic_group_size >= 0) {
             w_scale(ic_group_size);
-            if (has_zp)
+            if (has_zp) {
                 w_zp(ic_group_size);
+            }
             fpmath_f16();
         }
     }
@@ -97,8 +98,9 @@ struct onednn_matmul {
     }
     onednn_matmul& post_op_bin_mul(bool per_oc = true) {
         dnnl::memory::dim batch_size = m_M;
-        if (batch_size == DNNL_RUNTIME_DIM_VAL)
+        if (batch_size == DNNL_RUNTIME_DIM_VAL) {
             batch_size = 1024 * 1024;  // big enough fake static batch
+        }
 
         dnnl::memory::desc bin_mul_md = dnnl::memory::desc(dnnl::memory::dims({batch_size, per_oc ? m_N : 1}), m_a_type, dnnl::memory::format_tag::ab);
         postops.append_binary(dnnl::algorithm::binary_mul, bin_mul_md);
@@ -178,8 +180,9 @@ struct onednn_matmul {
             post_op_bin_mul(false);
             post_op_sum();
         }
-        if (t == type::with_gate_act)
+        if (t == type::with_gate_act) {
             post_op_gate_activation(activation_algo);
+        }
         if (t == type::with_gate_act_bin_mul) {
             bin_post_id = 1;
             post_op_gate_activation(activation_algo);

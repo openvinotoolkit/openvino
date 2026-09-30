@@ -12,6 +12,7 @@
 #include "openvino/core/model.hpp"
 #include "openvino/core/node_vector.hpp"
 #include "openvino/core/partial_shape.hpp"
+#include "openvino/core/type/bfloat16.hpp"
 #include "openvino/core/type/element_type.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -78,6 +79,9 @@ std::shared_ptr<ov::Node> make_attention_mask(ov::Output<ov::Node> q,
     else if (element_type == ov::element::f16)
         minus_inf =
             ov::op::v0::Constant::create(element_type, ov::Shape{}, {std::numeric_limits<ov::float16>::lowest()});
+    else if (element_type == ov::element::bf16)
+        minus_inf =
+            ov::op::v0::Constant::create(element_type, ov::Shape{}, {std::numeric_limits<ov::bfloat16>::lowest()});
     auto q_shape = std::make_shared<ov::op::v3::ShapeOf>(q, ov::element::i32);
     auto k_shape = std::make_shared<ov::op::v3::ShapeOf>(k, ov::element::i32);
 

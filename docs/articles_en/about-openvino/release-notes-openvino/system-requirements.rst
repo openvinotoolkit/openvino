@@ -72,9 +72,6 @@ GPU
       * Processor graphics are not included in all processors. See
         `Product Specifications <https://ark.intel.com/>`__
         for information about your processor.
-      * While this release of OpenVINO supports Ubuntu 20.04, the driver stack
-        for Intel discrete graphic cards does not fully support Ubuntu 20.04.
-        We recommend using Ubuntu 22.04 and later when executing on discrete graphics.
       * OpenCL™ driver versions required may vary, depending on hardware and operating Systems
         used. Consult driver documentation to select the best version for your setup.
 
@@ -110,7 +107,7 @@ Operating systems and developer environment
 
       Build environment components:
 
-      * Python 3.10-3.14
+      * Python 3.11-3.14
       * `Intel® HD Graphics Driver <https://downloadcenter.intel.com/product/80939/Graphics-Drivers>`__
         required for inference on GPU
       * GNU Compiler Collection and CMake are needed for building from source:
@@ -133,7 +130,7 @@ Operating systems and developer environment
 
       * `Microsoft Visual Studio 2019 or later <https://visualstudio.microsoft.com/downloads/>`__
       * `CMake <https://cmake.org/download/>`__ 3.26 or higher
-      * `Python <https://www.python.org/downloads/>`__ 3.10-3.14
+      * `Python <https://www.python.org/downloads/>`__ 3.11-3.14
       * `Intel® HD Graphics Driver <https://downloadcenter.intel.com/product/80939/Graphics-Drivers>`__
         required for inference on GPU
 
@@ -145,7 +142,7 @@ Operating systems and developer environment
 
       * `Xcode <https://developer.apple.com/xcode/>`__ 10.3
       * `CMake <https://cmake.org/download/>`__ 3.26 or higher
-      * `Python <https://www.python.org/downloads/>`__ 3.10-3.14
+      * `Python <https://www.python.org/downloads/>`__ 3.11-3.14
 
    .. tab-item:: DL framework versions:
 
@@ -183,7 +180,7 @@ to learn more about the release types.
             :name: archive-lnx-sysreq
 
             * `CMake 3.26 or higher, 64-bit <https://cmake.org/download/>`__
-            * `Python 3.10 - 3.14, 64-bit <https://www.python.org/downloads/>`__
+            * `Python 3.11 - 3.14, 64-bit <https://www.python.org/downloads/>`__
             * GCC:
 
               .. tab-set::
@@ -202,7 +199,7 @@ to learn more about the release types.
             :name: archive-mac-sysreq
 
             * `CMake 3.26 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default install).
-            * `Python 3.10 - 3.14 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.10 - 3.14). Install and add to path.
+            * `Python 3.11 - 3.14 <https://www.python.org/downloads/mac-osx/>`__ (choose 3.11 - 3.14). Install and add to path.
             * Apple Xcode Command Line Tools. In the terminal, run ``xcode-select --install`` from any directory
             * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 
@@ -212,7 +209,7 @@ to learn more about the release types.
             * `C++ libraries (included in Visual Studio redistributable) <https://aka.ms/vs/17/release/vc_redist.x64.exe>`__ (a core dependency for OpenVINO Runtime)
             * `Microsoft Visual Studio 2019 or later <http://visualstudio.microsoft.com/downloads/>`__ (for development and app compilation with OpenVINO)
             * `CMake 3.26 or higher, 64-bit <https://cmake.org/download/>`__ (optional, only required for building sample applications)
-            * `Python 3.10 - 3.14, 64-bit <https://www.python.org/downloads/windows/>`__
+            * `Python 3.11 - 3.14, 64-bit <https://www.python.org/downloads/windows/>`__
 
             .. note::
 
@@ -237,7 +234,7 @@ to learn more about the release types.
 
             * `CMake 3.26 or higher, 64-bit <https://cmake.org/download/>`__
             * GCC 11.3.0 (for Ubuntu 22.04), GCC 13.2.0 (for Ubuntu 24.04) or GCC 15.2.0 (for Ubuntu 26.04)
-            * `Python 3.10 - 3.14, 64-bit <https://www.python.org/downloads/>`__
+            * `Python 3.11 - 3.14, 64-bit <https://www.python.org/downloads/>`__
 
    .. tab-item:: Homebrew
       :name: homebrew-sysreq
@@ -250,14 +247,14 @@ to learn more about the release types.
             * `Homebrew <https://brew.sh/>`_
             * `CMake 3.26 or higher, 64-bit <https://cmake.org/download/>`__
             * GCC 11.3.0 (for Ubuntu 22.04), GCC 13.2.0 (for Ubuntu 24.04) or GCC 15.2.0 (for Ubuntu 26.04)
-            * `Python 3.10 - 3.14, 64-bit <https://www.python.org/downloads/>`__
+            * `Python 3.11 - 3.14, 64-bit <https://www.python.org/downloads/>`__
 
          .. tab-item:: macOS
             :sync: macos
 
             * `Homebrew <https://brew.sh/>`_
             * `CMake 3.26 or higher <https://cmake.org/download/>`__ (choose "macOS 10.13 or later"). Add ``/Applications/CMake.app/Contents/bin`` to path (for default installation).
-            * `Python 3.10 - 3.14 <https://www.python.org/downloads/mac-osx/>`__ . Install and add it to path.
+            * `Python 3.11 - 3.14 <https://www.python.org/downloads/mac-osx/>`__ . Install and add it to path.
             * Apple Xcode Command Line Tools. In the terminal, run ``xcode-select --install`` from any directory to install it.
             * (Optional) Apple Xcode IDE (not required for OpenVINO™, but useful for development)
 
@@ -271,21 +268,21 @@ to learn more about the release types.
 
             All x86_64 / arm64 architectures are supported.
 
-            * `Node.js version 21.0.0 and higher <https://nodejs.org/en/download/package-manager>`__
+            * `Node.js version 22.0.0 and higher <https://nodejs.org/en/download/package-manager>`__
 
          .. tab-item:: macOS
             :sync: macos
 
             All x86_64 / arm64 architectures are supported, however, only for CPU inference.
 
-            * `Node.js version 21.0.0 and higher <https://nodejs.org/en/download/package-manager>`__
+            * `Node.js version 22.0.0 and higher <https://nodejs.org/en/download/package-manager>`__
 
          .. tab-item:: Windows
             :sync: Windows
 
             All x86_64 architectures are supported. Windows ARM is not supported.
 
-            * `Node.js version 21.0.0 and higher <https://nodejs.org/en/download/package-manager/>`__
+            * `Node.js version 22.0.0 and higher <https://nodejs.org/en/download/package-manager/>`__
 
    .. tab-item:: YUM
       :name: yum-sysreq
@@ -311,7 +308,7 @@ to learn more about the release types.
 
             * `CMake 3.26 or higher, 64-bit <https://cmake.org/download/>`_
             * GCC 8.4.1
-            * `Python 3.10 - 3.14, 64-bit <https://www.python.org/downloads/>`_
+            * `Python 3.11 - 3.14, 64-bit <https://www.python.org/downloads/>`_
 
    .. tab-item:: ZYPPER
       :name: zypper-sysreq
@@ -327,7 +324,7 @@ to learn more about the release types.
 
             * `CMake 3.26 or higher, 64-bit <https://cmake.org/download/>`_
             * GCC 8.2.0
-            * `Python 3.10 - 3.14, 64-bit <https://www.python.org/downloads/>`_
+            * `Python 3.11 - 3.14, 64-bit <https://www.python.org/downloads/>`_
 
 
 The claims stated here may not apply to all use cases and setups. See

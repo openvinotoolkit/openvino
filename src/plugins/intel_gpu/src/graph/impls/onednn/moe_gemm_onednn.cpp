@@ -160,6 +160,8 @@ public:
         auto moe_cfg = MoEGemmImplementationManager::get_moe_cfg(impl_params);
 
         if (moe_cfg.is_weight_quantized) {
+            attr->set_fpmath_mode(dnnl::fpmath_mode::f16, true);
+
             if (moe_cfg.weight_group_size == -1) {
                 attr->set_scales(DNNL_ARG_WEIGHTS,
                                  (1 << 0) | (1 << 2),

@@ -15,8 +15,9 @@ layout group_normalization_inst::calc_output_layout(group_normalization_node con
     auto input_node_layout = impl_param.get_non_padded_input_layout();
     auto output_type = impl_param.desc->output_data_types[0].value_or(input_node_layout.data_type);
 
-    if (impl_param.has_fused_primitives())
+    if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_output_element_type();
+    }
 
     return layout(output_type, input_node_layout.format, input_node_layout.get_tensor());
 }

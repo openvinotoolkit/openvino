@@ -34,8 +34,9 @@ bool ShuffleChannelsKernelRef::Validate(const Params& p) const {
 
     const shuffle_channels_params& params = static_cast<const shuffle_channels_params&>(p);
 
-    if (params.inputs[0].Dimentions() > 4)
+    if (params.inputs[0].Dimentions() > 4) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
