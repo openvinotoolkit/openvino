@@ -15,10 +15,10 @@ through several different prefill lengths to catch that class of bug.
 
 import pytest
 
+from conftest import new_openvino_llm
+
 PROMPTS = [
     "Hi",
-    "The quick brown fox jumps over the lazy dog near the riverbank at dawn.",
-    "1 + 1 =",
     ("In a small village surrounded by mountains, there lived an old "
      "clockmaker who believed every gear told a story about the people "
      "who once needed it."),
@@ -27,16 +27,24 @@ PROMPTS = [
 
 
 @pytest.mark.precommit
-def test_varying_sequence_lengths_reuse_compiled_cache(openvino_llm):
-    """Same loaded model, prefill lengths short/long/short: every call must succeed."""
+def test_varying_sequence_lengths_reuse_compiled_cache():
+    """Same loaded model, prefill lengths short/long/short: every call must succeed.
+
+    Own LLM instance: cache reuse is within-instance, and this deliberately
+    compiles several shapes (see new_openvino_llm).
+    """
     from vllm import SamplingParams
 
-    for prompt in PROMPTS:
-        params = SamplingParams(max_tokens=8, temperature=0.0, ignore_eos=True)
-        out = openvino_llm.generate([{"prompt": prompt}], params)
-        result = out[0].outputs[0]
+    llm = new_openvino_llm()
+    try:
+        for prompt in PROMPTS:
+            params = SamplingParams(max_tokens=8, temperature=0.0, ignore_eos=True)
+            out = llm.generate([{"prompt": prompt}], params)
+            result = out[0].outputs[0]
 
-        assert len(result.token_ids) == 8, (
-            f"prompt {prompt!r} produced {len(result.token_ids)} tokens, expected 8 "
-            "-- looks like the shape-keyed cache served a stale/wrong-shaped output")
-        assert result.text, f"prompt {prompt!r} produced empty output text"
+            assert len(result.token_ids) == 8, (
+                f"prompt {prompt!r} produced {len(result.token_ids)} tokens, expected 8 "
+                "-- looks like the shape-keyed cache served a stale/wrong-shaped output")
+            assert result.text, f"prompt {prompt!r} produced empty output text"
+    finally:
+        del llm

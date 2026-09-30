@@ -17,7 +17,7 @@ import os
 import pytest
 from vllm.v1.sample.logits_processor import LogitsProcessor
 
-from conftest import MODEL_ID, select_cpu_platform
+from conftest import MODEL_ID, new_openvino_llm, select_cpu_platform
 
 PROMPT = "The capital of France is"
 
@@ -65,20 +65,25 @@ def test_logprobs_greater_than_zero(openvino_llm):
 
 
 @pytest.mark.precommit
-def test_continuous_batching(openvino_llm):
+def test_continuous_batching():
+    """Own LLM instance: a 3-prompt batch is a new shape (see new_openvino_llm)."""
     from vllm import SamplingParams
 
-    prompts = [
-        "Hi",
-        "The quick brown fox jumps over the lazy dog near the riverbank at dawn.",
-        "1 + 1 =",
-    ]
-    out = openvino_llm.generate(
-        [{"prompt": p} for p in prompts],
-        SamplingParams(max_tokens=8, temperature=0.0, ignore_eos=True),
-    )
-    assert len(out) == len(prompts)
-    assert all(o.outputs[0].text for o in out)
+    llm = new_openvino_llm()
+    try:
+        prompts = [
+            "Hi",
+            "The quick brown fox jumps over the lazy dog near the riverbank at dawn.",
+            "1 + 1 =",
+        ]
+        out = llm.generate(
+            [{"prompt": p} for p in prompts],
+            SamplingParams(max_tokens=8, temperature=0.0, ignore_eos=True),
+        )
+        assert len(out) == len(prompts)
+        assert all(o.outputs[0].text for o in out)
+    finally:
+        del llm
 
 
 @pytest.mark.precommit
@@ -98,16 +103,26 @@ def test_grammar_constrained_decoding(openvino_llm):
 
 
 @pytest.mark.precommit
-def test_beam_search(openvino_llm):
+def test_beam_search():
+    """Own LLM instance (see new_openvino_llm).
+
+    max_tokens=2, not 8: beam_search compiles and retains a new OV model per
+    decode step (~3.3 GB each, measured), unlike generate()'s single reused
+    shape.
+    """
     from vllm.sampling_params import BeamSearchParams
 
-    out = openvino_llm.beam_search(
-        [{"prompt": PROMPT}],
-        BeamSearchParams(beam_width=3, max_tokens=8),
-    )
-    sequences = out[0].sequences
-    assert len(sequences) == 3
-    assert all(s.text for s in sequences)
+    llm = new_openvino_llm()
+    try:
+        out = llm.beam_search(
+            [{"prompt": PROMPT}],
+            BeamSearchParams(beam_width=3, max_tokens=2),
+        )
+        sequences = out[0].sequences
+        assert len(sequences) == 3
+        assert all(s.text for s in sequences)
+    finally:
+        del llm
 
 
 @pytest.mark.precommit

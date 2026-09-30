@@ -100,6 +100,10 @@ jobs:
 
       - name: Install system dependencies for vllm-cpu
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test }}
+        # Passed via env rather than interpolated into run: directly -- github
+        # context data in a shell script is a script-injection vector.
+        env:
+          PYTHON_VERSION: ${{ inputs.python-version }}
         # libnuma1: vllm._C_AVX512 links against it, and cpu_worker calls
         # torch.ops._C.init_cpu_memory_env at startup, so a missing libnuma
         # fails the whole engine rather than degrading.
@@ -113,7 +117,7 @@ jobs:
           apt-get install -y --no-install-recommends libnuma1
           # Fall back to the unversioned package if this image's Python did not
           # come from a versioned apt package.
-          apt-get install -y --no-install-recommends python${{ inputs.python-version }}-dev \
+          apt-get install -y --no-install-recommends "python${PYTHON_VERSION}-dev" \
             || apt-get install -y --no-install-recommends python3-dev
           python3 -c 'import sysconfig, pathlib; p = pathlib.Path(sysconfig.get_path("include")) / "Python.h"; print(f"Python.h: {p} exists={p.exists()}")'
 
@@ -129,6 +133,10 @@ jobs:
           python3 -m pytest ${VLLM_TESTS_INSTALL_DIR} -m precommit --html=${INSTALL_TEST_DIR}/TEST-vllm_tests.html --self-contained-html -v
         env:
           TEST_DEVICE: CPU
+          # Allocate the KV pool lazily instead of zero-filling it up front.
+          # Without this the suite OOM-kills the 32 GB runner, which surfaces as
+          # "self-hosted runner lost communication with the server".
+          OV_LAZY_KVCACHE: "1"
 
       - name: Upload Test Results
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main

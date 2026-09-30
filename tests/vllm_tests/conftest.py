@@ -44,25 +44,20 @@ def select_cpu_platform():
     _vp._current_platform = _CpuPlatform()
 
 
-@pytest.fixture(scope="session")
-def openvino_llm():
-    """A single OV-backend TinyLlama LLM instance, shared across the session.
+def new_openvino_llm(**overrides):
+    """Build a fresh OV-backend TinyLlama LLM instance (bfloat16).
 
-    OV CPU PagedAttention requires block_size=32 (hard kernel constraint).
-    custom_ops=["none"] keeps vLLM from expanding RMSNorm/SiLU into custom
-    CUDA ops that the CPU torch.compile path can't handle. Built once per
-    session so the compiled-model cache carries over between tests that
-    reuse it (e.g. dynamic-shape coverage).
-
-    Uses bfloat16, the project's recommended default -- this fixture is for
-    tests that don't need byte-for-byte parity with eager (e.g. dynamic
-    shapes). The exact-match correctness test builds its own float32
-    instances instead; see test_run.py for why.
+    block_size=32 is a hard OV CPU PagedAttention kernel constraint;
+    custom_ops=["none"] keeps vLLM from expanding RMSNorm/SiLU into ops the
+    CPU torch.compile path can't handle. Each distinct call-shape compiles
+    its own resident weight copy, so a test needing a shape the shared
+    `openvino_llm` fixture doesn't already have should build its own
+    instance here and delete it, rather than growing that fixture forever.
     """
     select_cpu_platform()
     from vllm import LLM
 
-    llm = LLM(
+    kwargs = dict(
         model=MODEL_ID,
         dtype="bfloat16",
         enforce_eager=False,
@@ -75,5 +70,19 @@ def openvino_llm():
             "custom_ops": ["none"],
         },
     )
+    kwargs.update(overrides)
+    return LLM(**kwargs)
+
+
+@pytest.fixture(scope="session")
+def openvino_llm():
+    """A single OV-backend TinyLlama LLM instance, shared across the session.
+
+    Only for tests that reuse the *same* call shape as each other -- see
+    new_openvino_llm for why a different shape needs its own instance.
+    The exact-match correctness test builds its own float32 instances
+    instead; see test_run.py for why.
+    """
+    llm = new_openvino_llm()
     yield llm
     del llm
