@@ -960,7 +960,7 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
                     pa_ops.push_back(info);
                 }
                 // The microkernel probe may build a kernel, so skip it where no reader can run anyway.
-                const bool microkernels_supported = device_info.supports_immad && device_info.arch >= cldnn::gpu_arch::xe2 &&
+                const bool microkernels_supported = cldnn::paged_attention::sdpa_ocl_decode_reader_available(device_info) &&
                                                     cldnn::query_microkernels_supported(m_context->get_engine(), config);
                 allow_by_channel_token_major =
                     cldnn::paged_attention::by_channel_token_major_readable(device_info, microkernels_supported, infer_precision, pa_ops);
