@@ -13,7 +13,7 @@ idna==3.19
 imagesize==2.0.1
 importlib-metadata>=4.8.0,<10.0.0
 iniconfig==2.1.0
-ipython==9.9.0
+ipython==9.17.1
 Jinja2==3.1.6
 jsonschema==4.26.0
 lxml>=4.9.2
