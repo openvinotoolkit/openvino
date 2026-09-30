@@ -285,4 +285,12 @@ bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
     return supported;
 }
 
+std::vector<std::string> PluginCompilerAdapter::resolve_compilation_target_bundles(const Config& config) const {
+    return _compiler->resolve_compilation_target_bundles(config);
+}
+
+std::vector<ov::CompilationTarget> PluginCompilerAdapter::get_offline_compilation_targets() const {
+    return _compiler->get_offline_compilation_targets();
+}
+
 }  // namespace intel_npu

@@ -4,6 +4,8 @@
 
 #include "intel_npu/common/device_helpers.hpp"
 
+#include <algorithm>
+
 #include "openvino/core/except.hpp"
 
 namespace intel_npu {
@@ -33,6 +35,49 @@ std::string utils::getPlatformByDeviceName(const std::string_view deviceName) {
         (platformPos == std::string::npos) ? deviceName : deviceName.substr(0, platformPos);
 
     return std::string(platformName);
+}
+
+const std::vector<utils::KnownPlatform>& utils::getKnownPlatforms() {
+    // KMD sets usDeviceID from VpuFamilyID.h
+    static const std::vector<KnownPlatform> knownPlatforms = {
+        // NPU3720 ships under two PCI device IDs (P and S parts)
+        {ov::intel_npu::Platform::NPU3720, {0x7D1D, 0xAD1D}},
+        {ov::intel_npu::Platform::NPU4000, {0x643E}},
+        {ov::intel_npu::Platform::NPU5010, {0xB03E}},
+        {ov::intel_npu::Platform::NPU5020, {0xFD3E}},
+        {ov::intel_npu::Platform::NPU6010, {0xD71D}},
+    };
+    return knownPlatforms;
+}
+
+std::string_view utils::getPlatformByDeviceId(uint32_t deviceId) {
+    for (const auto& entry : getKnownPlatforms()) {
+        if (std::find(entry.deviceIds.begin(), entry.deviceIds.end(), deviceId) != entry.deviceIds.end()) {
+            return entry.platform;
+        }
+    }
+    return {};
+}
+
+void utils::resolveCompilationTarget(ov::AnyMap& properties) {
+    auto compilationTargetIt = properties.find(ov::compilation_target.name());
+    if (compilationTargetIt == properties.end()) {
+        return;
+    }
+
+    const auto compilationTarget = compilationTargetIt->second.as<ov::CompilationTarget>();
+    auto explicitPlatformIt = properties.find(ov::intel_npu::platform.name());
+    if (explicitPlatformIt != properties.end()) {
+        OPENVINO_ASSERT(explicitPlatformIt->second.as<std::string>() == compilationTarget.platform,
+                        "ov::compilation_target's platform ('",
+                        compilationTarget.platform,
+                        "') conflicts with the explicit ov::intel_npu::platform ('",
+                        explicitPlatformIt->second.as<std::string>(),
+                        "')");
+        return;
+    }
+
+    properties[ov::intel_npu::platform.name()] = compilationTarget.platform;
 }
 
 std::string utils::getCompilationPlatform(const ov::SoPtr<IEngineBackend>& engineBackend,

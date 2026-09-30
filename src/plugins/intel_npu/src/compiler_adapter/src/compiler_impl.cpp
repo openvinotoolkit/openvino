@@ -8,9 +8,11 @@
 #include <cinttypes>
 #include <cstring>
 #include <limits>
+#include <memory>
 #include <mutex>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -710,6 +712,130 @@ std::shared_ptr<IVCLCompiler> makeVCLCompiler(const std::optional<IDevice::Devic
     return std::make_shared<VCLCompilerImpl>(vclLoader->sharedFunctions(),
                                              deviceProperties,
                                              ScopedOptionSupportCache{optionSupportCache, pluginOptionSupportKey});
+}
+
+std::vector<std::string> VCLCompilerImpl::resolve_compilation_target_bundles(const Config& config) const {
+    _logger.debug("resolve_compilation_target_bundles start");
+
+    // Optional/weak entry points: an older VCL library simply does not resolve SKU variants, so no
+    // bundle is available and the caller falls back to compiling the config as-is.
+    if (_functions->vclCompilationTargetsCreate == nullptr || _functions->vclGetCompilationTargets == nullptr ||
+        _functions->vclCompilationTargetsDestroy == nullptr) {
+        return {};
+    }
+
+    // The full config is sent as-is to the resolution query - whatever the compiler does not need
+    // for resolution, it simply ignores.
+    const std::string resolutionConfig = config.toStringForCompiler([](const std::string&) {
+        return true;
+    });
+    _logger.info("Resolving compilation target bundles for config '%s'", resolutionConfig.c_str());
+
+    vcl_compilation_targets_handle_t createdHandle = nullptr;
+    vcl_log_handle_t targetsLogHandle = nullptr;
+    THROW_ON_FAIL_FOR_VCL(
+        *_functions,
+        "vclCompilationTargetsCreate",
+        _functions->vclCompilationTargetsCreate(resolutionConfig.c_str(), resolutionConfig.size(), &createdHandle,
+                                                &targetsLogHandle),
+        nullptr);
+
+    // The handle owns the error log as well, so it must stay alive until that log has been read.
+    const auto destroyTargets = [this](vcl_compilation_targets_handle_t handle) {
+        const vcl_result_t destroyResult = _functions->vclCompilationTargetsDestroy(handle);
+        if (destroyResult != VCL_RESULT_SUCCESS) {
+            _logger.warning("Failed to destroy VCL compilation targets handle: result 0x%x", destroyResult);
+        }
+    };
+    std::unique_ptr<std::remove_pointer_t<vcl_compilation_targets_handle_t>, decltype(destroyTargets)> targetsHandle(
+        createdHandle,
+        destroyTargets);
+
+    // NPU_PLATFORM is always present in resolutionConfig here (resolveCompilationTarget already
+    // injected it), so the query narrows to that one platform - the array holds at most one target.
+    const vcl_compilation_target_t* targets = nullptr;
+    uint64_t targetCount = 0;
+    THROW_ON_FAIL_FOR_VCL(*_functions,
+                          "vclGetCompilationTargets",
+                          _functions->vclGetCompilationTargets(targetsHandle.get(), &targets, &targetCount),
+                          targetsLogHandle);
+
+    // The handle owns the target memory, so the bundle strings are copied out of it.
+    std::vector<std::string> bundles;
+    if (targetCount > 0 && targets != nullptr) {
+        const auto& target = targets[0];
+        bundles.reserve(target.configBundleCount);
+        for (uint64_t i = 0; i < target.configBundleCount; ++i) {
+            bundles.emplace_back(target.configBundle[i], static_cast<size_t>(target.configBundleSizes[i]));
+        }
+    }
+    targetsHandle.reset();
+
+    // A successful query that resolves to no target means nothing can be compiled for this request: the
+    // platform is unknown to the compiler, or does not support an option the config asks for.
+    OPENVINO_ASSERT(!bundles.empty(),
+                    "Cannot compile for platform '",
+                    config.get<PLATFORM>(),
+                    "': the compiler resolved no compilation target for config '",
+                    resolutionConfig,
+                    "'. The platform is unknown to this compiler, or does not support an option of the config.");
+
+    std::ostringstream bundlesLog;
+    bundlesLog << "Resolved " << bundles.size() << " compilation target bundle(s): ";
+    for (size_t i = 0; i < bundles.size(); ++i) {
+        if (i > 0) {
+            bundlesLog << "; ";
+        }
+        bundlesLog << '[' << i << "] '" << bundles[i] << '\'';
+    }
+    _logger.info("%s", bundlesLog.str().c_str());
+
+    return bundles;
+}
+
+std::vector<ov::CompilationTarget> VCLCompilerImpl::get_offline_compilation_targets() const {
+    _logger.debug("get_offline_compilation_targets start");
+
+    if (_functions->vclCompilationTargetsCreate == nullptr || _functions->vclGetCompilationTargets == nullptr ||
+        _functions->vclCompilationTargetsDestroy == nullptr) {
+        _logger.info("The VCL library does not export the compilation target entry points");
+        return {};
+    }
+
+    // No config leaves NPU_PLATFORM out, so every platform the compiler can compile for resolves to a target.
+    vcl_compilation_targets_handle_t targetsHandle = nullptr;
+    THROW_ON_FAIL_FOR_VCL(*_functions,
+                          "vclCompilationTargetsCreate",
+                          _functions->vclCompilationTargetsCreate(nullptr, 0, &targetsHandle, nullptr),
+                          nullptr);
+
+    const vcl_compilation_target_t* targets = nullptr;
+    uint64_t targetCount = 0;
+    const vcl_result_t getResult = _functions->vclGetCompilationTargets(targetsHandle, &targets, &targetCount);
+
+    // Copy everything out before destroying the handle - it owns the memory the targets point to.
+    std::vector<ov::CompilationTarget> result;
+    if (getResult == VCL_RESULT_SUCCESS && targets != nullptr) {
+        result.reserve(static_cast<size_t>(targetCount));
+        for (uint64_t i = 0; i < targetCount; ++i) {
+            const auto& target = targets[i];
+            std::vector<uint32_t> deviceIds;
+            if (target.deviceIDs != nullptr) {
+                deviceIds.assign(target.deviceIDs, target.deviceIDs + target.deviceIDCount);
+            }
+            result.push_back({std::string(target.platform, static_cast<size_t>(target.platformSize)),
+                              std::move(deviceIds)});
+        }
+    }
+
+    const vcl_result_t destroyResult = _functions->vclCompilationTargetsDestroy(targetsHandle);
+    if (destroyResult != VCL_RESULT_SUCCESS) {
+        _logger.warning("Failed to destroy VCL compilation targets handle: result 0x%x", destroyResult);
+    }
+
+    THROW_ON_FAIL_FOR_VCL(*_functions, "vclGetCompilationTargets", getResult, nullptr);
+
+    return result;
 }
 
 }  // namespace intel_npu

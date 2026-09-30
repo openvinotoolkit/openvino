@@ -97,6 +97,22 @@ ov::CompatibilityCheck validateCompatibilityDescriptor(const ov::SoPtr<intel_npu
     }
 }
 
+// The compiler answers, and no backend is handed over so that the answer cannot depend on the local hardware.
+// An absent or older compiler library yields an empty list rather than a failing property.
+std::vector<ov::CompilationTarget> getOfflineCompilationTargets(
+    const std::shared_ptr<intel_npu::OptionSupportCache>& optionSupportCache,
+    intel_npu::Logger& logger) {
+    try {
+        auto compilerType = ov::intel_npu::CompilerType::PLUGIN;
+        return intel_npu::CompilerAdapterFactory()
+            .getCompiler({}, compilerType, "", optionSupportCache, true)
+            ->get_offline_compilation_targets();
+    } catch (const std::exception& ex) {
+        logger.warning("Could not enumerate the offline compilation targets: %s", ex.what());
+        return {};
+    }
+}
+
 }  // namespace
 
 namespace intel_npu {
@@ -480,6 +496,7 @@ void PluginPropertyManager::registerProperties() {
 
     registerConfigProperty(BYPASS_UMD_CACHING{}, true);
     registerConfigProperty(CACHE_DIR{}, true);
+    registerConfigProperty(COMPILATION_TARGET{}, true);
     registerConfigProperty(DEFER_WEIGHTS_LOAD{}, true);
     registerConfigProperty(MODEL_PRIORITY{}, true);
     registerConfigProperty(NUM_STREAMS{}, true);
@@ -806,6 +823,21 @@ void PluginPropertyManager::registerProperties() {
     }, readOnlySetter);
     register_property(ov::available_devices.name(), true, ov::PropertyMutability::RO, alwaysSupported, [this](const ov::AnyMap&) {
         return _backend == nullptr ? std::vector<std::string>() : _backend->getDeviceNames();
+    }, readOnlySetter);
+    register_property(ov::offline_compilation_targets.name(), true, ov::PropertyMutability::RO, alwaysSupported, [this](const ov::AnyMap& arguments) {
+        auto targets = getOfflineCompilationTargets(_compilerOptionSupportHelper->getOptionSupportCache(), _logger);
+        // The optional platform selector only filters the compiler's list, so it stays answerable with no device.
+        const auto platformIt = arguments.find(ov::intel_npu::platform.name());
+        if (platformIt != arguments.end()) {
+            const auto requestedPlatform = platformIt->second.as<std::string>();
+            targets.erase(std::remove_if(targets.begin(),
+                                         targets.end(),
+                                         [&requestedPlatform](const ov::CompilationTarget& target) {
+                                             return target.platform != requestedPlatform;
+                                         }),
+                          targets.end());
+        }
+        return targets;
     }, readOnlySetter);
     register_property(ov::hint::model.name(), true, ov::PropertyMutability::RW,
         [this](const ov::AnyMap&) {

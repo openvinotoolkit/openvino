@@ -129,12 +129,15 @@ namespace blob_format_importer_factory {
  * `nullptr`.
  * @param config Will be held by the newly created importer and used for multiple purposes, such as: extracting the log
  * level, weights path, decryption callbacks.
+ * @param device Used only if the blob is a container of several blobs: the importer is created for the entry the
+ * device can run. If `nullptr`, the first entry is used.
  * @return An importer object of the type that corresponds to the format of the blob.
  */
 std::unique_ptr<IBlobFormatImporter> create(BlobSource& npu_formatted_blob,
                                             const bool is_raw_blob,
                                             const std::shared_ptr<const ov::Model>& original_model,
-                                            const Config& config);
+                                            const Config& config,
+                                            const std::shared_ptr<IDevice>& device = nullptr);
 
 }  // namespace blob_format_importer_factory
 

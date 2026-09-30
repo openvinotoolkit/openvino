@@ -171,6 +171,31 @@ struct PLATFORM final : OptionBase<PLATFORM, std::string> {
     }
 };
 
+// Defaults to AUTO_DETECT/no device_ids, mirroring PLATFORM's own default - this is what lets a
+// generic property query (e.g. hello_query_device enumerating SUPPORTED_PROPERTIES) read this
+// option's current value without throwing when the caller never explicitly passed
+// ov::compilation_target. Config::has<COMPILATION_TARGET>() still reports false in that case (it
+// only reflects explicit sets, not the default), so the code that checks for an explicit target -
+// intel_npu::utils::resolveCompilationTarget and the bundle resolution in Plugin::compile_model -
+// is unaffected by the default.
+struct COMPILATION_TARGET final : OptionBase<COMPILATION_TARGET, ov::CompilationTarget> {
+    static std::string_view key() {
+        return ov::compilation_target.name();
+    }
+
+    static constexpr std::string_view getTypeName() {
+        return "ov::CompilationTarget";
+    }
+
+    static ov::CompilationTarget defaultValue() {
+        return {std::string(ov::intel_npu::Platform::AUTO_DETECT), {}};
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
 struct DEVICE_ID final : OptionBase<DEVICE_ID, std::string> {
     static std::string_view key() {
         return ov::device::id.name();

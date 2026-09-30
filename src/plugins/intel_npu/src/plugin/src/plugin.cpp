@@ -4,7 +4,9 @@
 
 #include "plugin.hpp"
 
+#include <cstdlib>
 #include <fstream>
+#include <iostream>
 #include <numeric>
 
 #include "blob_format_importers.hpp"
@@ -62,6 +64,38 @@ void check_weightless_cache_attribute_occurrence(const std::shared_ptr<const ov:
                    "attribute is required for running the \"weights separation\" flow.");
 }
 
+/**
+ * @brief Index of the compilation target bundle with the lowest NPU_MAX_TILES. Bundles that do not name it are
+ * skipped; returns 0 if none does.
+ */
+size_t find_lowest_tile_bundle(const std::vector<std::string>& bundles) {
+    constexpr std::string_view tilesKey = "NPU_MAX_TILES=";
+    size_t lowestIndex = 0;
+    std::optional<unsigned long> lowestTiles;
+    for (size_t i = 0; i < bundles.size(); ++i) {
+        const size_t keyPos = bundles[i].find(tilesKey);
+        if (keyPos == std::string::npos) {
+            continue;
+        }
+
+        size_t valuePos = keyPos + tilesKey.size();
+        if (valuePos < bundles[i].size() && bundles[i][valuePos] == '"') {
+            ++valuePos;
+        }
+        char* valueEnd = nullptr;
+        const unsigned long tiles = std::strtoul(bundles[i].c_str() + valuePos, &valueEnd, 10);
+        if (valueEnd == bundles[i].c_str() + valuePos) {
+            continue;
+        }
+
+        if (!lowestTiles.has_value() || tiles < lowestTiles.value()) {
+            lowestTiles = tiles;
+            lowestIndex = i;
+        }
+    }
+    return lowestIndex;
+}
+
 std::shared_ptr<ov::ICompiledModel> import_model_npuw(std::istream& stream,
                                                       ov::AnyMap& properties,
                                                       std::shared_ptr<const ov::IPlugin> pluginSO) {
@@ -112,6 +146,7 @@ void register_options(const ov::SoPtr<intel_npu::IEngineBackend>& backend, intel
     REGISTER_OPTION(COMPILER_TYPE);
     REGISTER_OPTION(COMPILER_VERSION);
     REGISTER_OPTION(PLATFORM);
+    REGISTER_OPTION(COMPILATION_TARGET);
     REGISTER_OPTION(CREATE_EXECUTOR);
     REGISTER_OPTION(DYNAMIC_SHAPE_TO_STATIC);
     REGISTER_OPTION(PROFILING_TYPE);
@@ -265,6 +300,11 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         return ov::npuw::ICompiledModel::create(model->clone(), shared_from_this(), npuwProperties);
     }
 
+    // Offline target-driven mode: resolves ov::compilation_target into NPU_PLATFORM before
+    // platform/device resolution runs below (see utils::resolveCompilationTarget for the throw
+    // conditions).
+    utils::resolveCompilationTarget(localProperties);
+
     // DEVICE_ID can be passed both as an index and as a platform name.
     // Identify the right device object to be taken into account when the target compilation platform is determined
     std::string deviceId = _propertiesManager->determineDeviceId(localProperties);
@@ -282,7 +322,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto compiler = factory.getCompiler(_backend,
                                         compilerType,
                                         compilationPlatform,
-                                        _compilerOptionSupportHelper->getOptionSupportCache());
+                                        _compilerOptionSupportHelper->getOptionSupportCache(),
+                                        localProperties.count(ov::compilation_target.name()) > 0);
 
     localProperties[ov::intel_npu::compiler_type.name()] = compilerType;
     if (!compilationPlatform.empty()) {
@@ -296,6 +337,23 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     auto& unknownProperties = mergedConfigAndUnknownProperties.second;
 
     localConfig.update(ov::intel_npu::compiler_version.name(), compiler->get_version());
+
+    // Only the compiler knows whether the platform ov::compilation_target names resolves to more
+    // than one device variant (e.g. differing tile counts) - ask it, rather than the plugin
+    // guessing. Kept at function scope: a multi-SKU platform resolves to more than one bundle. The
+    // first one is merged into the config used for the returned CompiledModel; the remaining ones are
+    // compiled further down and exported along with it in a container.
+    std::vector<std::string> compilationTargetBundles;
+    if (localConfig.has<COMPILATION_TARGET>()) {
+        compilationTargetBundles = compiler->resolve_compilation_target_bundles(localConfig);
+        if (!compilationTargetBundles.empty()) {
+            _logger.info("Merging compilation target bundle '%s' into config '%s'",
+                        compilationTargetBundles.front().c_str(),
+                        localConfig.toString().c_str());
+            localConfig.mergeFromString(compilationTargetBundles.front());
+            _logger.info("Config after merging compilation target bundle: '%s'", localConfig.toString().c_str());
+        }
+    }
 
     // Resolve HostCompile before batching so the selected mode controls subsequent model and batch handling.
     if (should_use_host_compile_interpreter(model,
@@ -313,6 +371,20 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     const bool useDynamicGraphForDynamicModel = model->is_dynamic() &&
                                                 compilerType == ov::intel_npu::CompilerType::PLUGIN &&
                                                 localConfig.get<COMPILATION_MODE>().find("HostCompile_Interpreter") == 0;
+
+    // The compiler returns no compatibility descriptor for HostCompile_Interpreter blobs, so the importer could not
+    // choose between one blob per bundle. Until it does, only the bundle with the lowest tile count is compiled.
+    if (compilationTargetBundles.size() > 1 &&
+        localConfig.get<COMPILATION_MODE>().find("HostCompile_Interpreter") != std::string::npos) {
+        const std::string lowestTileBundle = compilationTargetBundles[find_lowest_tile_bundle(compilationTargetBundles)];
+        _logger.info("HostCompile blobs carry no compatibility descriptor, compiling only the lowest-tile bundle '%s' "
+                     "of the %zu compilation target bundles",
+                     lowestTileBundle.c_str(),
+                     compilationTargetBundles.size());
+        compilationTargetBundles = {lowestTileBundle};
+        // The first bundle was merged above, the lowest-tile one may be a different one
+        localConfig.mergeFromString(lowestTileBundle);
+    }
 
     // Handle batch mode configuration
     std::optional<ov::Dimension> originalBatch = std::nullopt;
@@ -413,6 +485,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     }
 
     std::shared_ptr<intel_npu::IGraph> graph;
+    // Graphs compiled for the remaining bundles of a multi-SKU platform. Exported along with `graph` in a container.
+    std::vector<std::shared_ptr<intel_npu::IGraph>> additionalGraphs;
 
     AdapterDescriptor adapterDesc;
     // Bypass the adapter's internal cache if requested explicitly or if the OV cache is enabled
@@ -435,6 +509,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
         // Determine which model to use
         auto modelToCompile = successfullyDebatched ? std::move(batchedModel) : model->clone();
+
+        // Each bundle is compiled from this same (possibly debatched) model; the compiler modifies what it is given.
+        std::shared_ptr<ov::Model> modelForAdditionalBundles =
+            compilationTargetBundles.size() > 1 ? modelToCompile->clone() : nullptr;
 
         const bool performanceHintSetByUser = localConfig.has(ov::hint::performance_mode.name());
         const bool shouldForceThroughput = successfullyDebatched && !performanceHintSetByUser;
@@ -468,6 +546,25 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
 
         graph = compileWithConfig(std::move(modelToCompile), compilerConfig);
+        if (!compilationTargetBundles.empty()) {
+            const auto descriptor = graph->get_compatibility_descriptor();
+            std::cout << "[MULTI-BLOB] Primary compile of bundle '" << compilationTargetBundles.front()
+                      << "' succeeded; compatibility descriptor: '" << descriptor.value_or("<none>") << "'"
+                      << std::endl;
+        }
+
+        // One more schedule per remaining device variant. A failure is fatal: a partial set would silently leave some
+        // devices of the platform without a schedule.
+        for (size_t i = 1; i < compilationTargetBundles.size(); ++i) {
+            const auto& bundle = compilationTargetBundles[i];
+            Config bundleConfig = compilerConfig;
+            bundleConfig.mergeFromString(bundle);
+            auto bundleGraph = compileWithConfig(modelForAdditionalBundles->clone(), bundleConfig);
+            const auto descriptor = bundleGraph->get_compatibility_descriptor();
+            std::cout << "[MULTI-BLOB] Compile of bundle '" << bundle << "' succeeded; compatibility descriptor: '"
+                      << descriptor.value_or("<none>") << "'" << std::endl;
+            additionalGraphs.push_back(std::move(bundleGraph));
+        }
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -481,6 +578,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         if (batch > 0 && graph->get_kind() != GraphKind::Dynamic) {
             // Initial batch setup for static cases
             graph->set_batch_size(batch.value());
+            for (const auto& additionalGraph : additionalGraphs) {
+                additionalGraph->set_batch_size(batch.value());
+            }
         }
     }
 
@@ -499,7 +599,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
                                                         graph,
                                                         localConfig,
                                                         unknownProperties,
-                                                        batch);
+                                                        batch,
+                                                        additionalGraphs);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -597,14 +698,16 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
     auto [runtimeConfig, unknownProperties] =
         _propertiesManager->getMergedConfigAndUnknownProperties(properties, ConfigMergeMode::Import);
 
+    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, runtimeConfig.get<DEVICE_ID>());
+    OPENVINO_ASSERT(device != nullptr, "Device not found.");
+
+    // The device is needed up front to pick the right entry if the blob is a container of several blobs
     std::unique_ptr<IBlobFormatImporter> blobFormatImporter = blob_format_importer_factory::create(
         blobSource,
         runtimeConfig.get<DISABLE_VERSION_CHECK>() ? true : runtimeConfig.get<IMPORT_RAW_BLOB>(),
         runtimeConfig.has<MODEL_PTR>() ? runtimeConfig.get<MODEL_PTR>().lock() : nullptr,
-        runtimeConfig);
-
-    std::shared_ptr<IDevice> device = utils::getDeviceById(_backend, runtimeConfig.get<DEVICE_ID>());
-    OPENVINO_ASSERT(device != nullptr, "Device not found.");
+        runtimeConfig,
+        device);
 
     if (!runtimeConfig.get<LOADED_FROM_CACHE>()) {
         _logger.warning("The usage of a compiled model can lead to undefined behavior. Please use OpenVINO IR instead");
