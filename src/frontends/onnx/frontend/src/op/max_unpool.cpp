@@ -80,15 +80,15 @@ ov::OutputVector max_unpool(const ov::frontend::onnx::Node& node) {
         output_shape = inputs[2];
         // A runtime 'output_shape' can only be checked by its shape
         const auto& os_shape = output_shape.get_partial_shape();
-        CHECK_VALID_NODE(node,
-                         os_shape.rank().is_dynamic() ||
-                             (os_shape.rank().get_length() == 1 &&
-                              (os_shape[0].is_dynamic() ||
-                               os_shape[0].get_length() == static_cast<int64_t>(spatial_rank + 2))),
-                         "MaxUnpool 'output_shape' must be a 1D tensor with ",
-                         spatial_rank + 2,
-                         " elements. Got shape: ",
-                         os_shape);
+        CHECK_VALID_NODE(
+            node,
+            os_shape.rank().is_dynamic() ||
+                (os_shape.rank().get_length() == 1 &&
+                 (os_shape[0].is_dynamic() || os_shape[0].get_length() == static_cast<int64_t>(spatial_rank + 2))),
+            "MaxUnpool 'output_shape' must be a 1D tensor with ",
+            spatial_rank + 2,
+            " elements. Got shape: ",
+            os_shape);
         if (const auto os_const = ov::as_type_ptr<v0::Constant>(output_shape.get_node_shared_ptr())) {
             const auto values = os_const->cast_vector<int64_t>();
             const auto& data_shape = data.get_partial_shape();
