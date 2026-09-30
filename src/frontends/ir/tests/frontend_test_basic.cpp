@@ -662,6 +662,44 @@ TEST_P(IRFrontendMMapTests, read_model_get_weights_map) {
     }
 }
 
+TEST_P(IRFrontendMMapTests, read_model_sets_weights_path_rt_info) {
+    {
+        auto p1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 4});
+        auto a1 = std::make_shared<ov::opset1::Add>(
+            p1,
+            std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{1, 4}, 1.0f));
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{std::make_shared<ov::opset1::Result>(a1)},
+                                                 ov::ParameterVector{p1});
+        ov::save_model(model, xmlFileName);
+    }
+
+    const auto is_mmap_enabled = GetParam();
+    for (const auto& bin_path : {binFileName, std::filesystem::path{}}) {
+        SCOPED_TRACE(bin_path.empty() ? "bin path derived from the xml path" : "explicit bin path");
+        const auto model = core.read_model(xmlFileName, bin_path, {ov::enable_mmap(is_mmap_enabled)});
+        ASSERT_TRUE(model->has_rt_info("__weights_path"));
+        EXPECT_EQ(std::filesystem::path(model->get_rt_info<std::string>("__weights_path")), binFileName);
+    }
+}
+
+TEST_F(IRFrontendTests, read_model_from_memory_has_no_weights_path_rt_info) {
+    {
+        auto p1 = std::make_shared<ov::opset1::Parameter>(ov::element::f32, ov::Shape{1, 4});
+        auto a1 = std::make_shared<ov::opset1::Add>(
+            p1,
+            std::make_shared<ov::opset1::Constant>(ov::element::f32, ov::Shape{1, 4}, 1.0f));
+        auto model = std::make_shared<ov::Model>(ov::OutputVector{std::make_shared<ov::opset1::Result>(a1)},
+                                                 ov::ParameterVector{p1});
+        ov::save_model(model, xmlFileName);
+    }
+    std::stringstream xml_content;
+    xml_content << std::ifstream(xmlFileName).rdbuf();
+    const auto weights = ov::read_tensor_data(binFileName, ov::element::u8, ov::PartialShape::dynamic(1), 0, false);
+
+    const auto model = core.read_model(xml_content.str(), weights);
+    EXPECT_FALSE(model->has_rt_info("__weights_path"));
+}
+
 INSTANTIATE_TEST_SUITE_P(EnableMMapPropery, IRFrontendMMapTests, ::testing::Bool());
 
 TEST_F(IRFrontendTests, model_without_weights_reading_from_disk) {
