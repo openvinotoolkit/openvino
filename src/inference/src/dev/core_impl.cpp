@@ -1155,7 +1155,7 @@ ov::SoPtr<ov::ICompiledModel> ov::CoreImpl::compile_model(const std::shared_ptr<
                                                 is_proxy_device(patched_device_name));
     auto plugin = get_plugin(parsed.m_device_name, parsed.m_config);
     const auto& [cache_dir, cache_manager] = parsed.m_core_config.get_cache_config_for_device(plugin);
-    auto compiled_model = import_compiled_model(plugin, {}, config, model);
+    auto compiled_model = import_compiled_model(plugin, {}, parsed.m_config, model);
     // Skip caching for proxy plugin. HW plugin will load network from the cache
     if (compiled_model) {
         // hint::compiled_blob is set and imported skip compilation

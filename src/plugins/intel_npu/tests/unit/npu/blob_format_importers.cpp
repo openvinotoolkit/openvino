@@ -56,7 +56,7 @@ struct BlobFormatImportersTest : public ::testing::Test {
     BlobFormatImportersTest() : config(std::make_shared<OptionsDesc>()) {}
 
     std::unique_ptr<IBlobFormatImporter> importer;
-    FilteredConfig config;
+    Config config;
 };
 
 /**

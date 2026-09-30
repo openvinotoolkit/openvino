@@ -25,9 +25,7 @@
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
+namespace ov::frontend::pytorch {
 
 using namespace ov::op;
 
@@ -664,6 +662,4 @@ Output<Node> TranslateSession::get_reverseprop_op(const std::shared_ptr<TorchDec
     return std::make_shared<PtFrameworkNode>(node, OutputVector{value}, 1, true);
 }
 
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch

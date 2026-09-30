@@ -10,9 +10,7 @@
 #include "helper_ops/internal_operation.hpp"
 #include "openvino/frontend/decoder.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow_lite {
+namespace ov::frontend::tensorflow_lite {
 
 class Rfft2d : public ov::frontend::tensorflow::InternalOperation {
 public:
@@ -33,6 +31,4 @@ public:
         set_output_type(0, element::dynamic, PartialShape::dynamic(get_input_partial_shape(0).rank()));
     }
 };
-}  // namespace tensorflow_lite
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow_lite

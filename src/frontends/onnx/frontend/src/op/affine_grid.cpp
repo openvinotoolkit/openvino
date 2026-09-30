@@ -28,11 +28,7 @@
 using namespace ov::op;
 using ov::Shape;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 
 namespace detail {
 
@@ -269,8 +265,4 @@ ov::OutputVector affine_grid(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("AffineGrid", OPSET_SINCE(1), ai_onnx::opset_1::affine_grid);
 
-}  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1
