@@ -173,11 +173,16 @@ INSTANTIATE_TEST_SUITE_P(
 class paged_attention_runtime_scale_test : public PagedAttentionTest<paged_attention_test_params> {};
 
 TEST_P(paged_attention_runtime_scale_test, matches_reference) {
-    // Below Xe2 the multi-token PREFILL/MIXED kernel is pa_sdpa_opt, which types a runtime scale as INPUT3_TYPE
-    // (sdpa_opt.cl SCALE_TYPE; see "Known issues" in docs/sdpa_ocl.md). Real models give a constant scale.
-    if (tests::get_test_engine().get_device_info().arch < cldnn::gpu_arch::xe2)
-        GTEST_SKIP() << "a runtime scale is only read correctly by sdpa_ocl / sdpa_ocl_decode";
     auto p = GetParam();
+    const auto& info = tests::get_test_engine().get_device_info();
+    const bool generate = std::all_of(p.subsequences.begin(), p.subsequences.end(), [](const SubsequenceDescriptor& s) {
+        return s.num_tokens == 1;
+    });
+    // Below Xe2 the opt multi-token kernel (pa_sdpa_opt) types a runtime scale as INPUT3_TYPE (sdpa_opt.cl SCALE_TYPE;
+    // see "Known issues" in docs/sdpa_ocl.md). Real models give a constant scale. Whatever runs on Xe2+ reads it right.
+    // A pre-Xe2 device that takes the sdpa_ocl lane reads it right for PREFILL/MIXED only: GENERATE stays on pa_single_token.
+    if (!(info.arch >= cldnn::gpu_arch::xe2 || (!generate && cldnn::paged_attention::sdpa_ocl_selected(info))))
+        GTEST_SKIP() << "a runtime scale is only read correctly by sdpa_ocl / sdpa_ocl_decode";
     execute(p, true);
 }
 
@@ -214,7 +219,7 @@ INSTANTIATE_TEST_SUITE_P(
 class paged_attention_feature_pad_test : public PagedAttentionTest<paged_attention_test_params> {};
 
 namespace {
-// The suite only means something where sdpa_ocl serves PREFILL / MIXED (Xe2 XMX with oneDNN, not switched off by TEST_USE_SDPA_OCL=0);
+// The suite only means something where sdpa_ocl serves PREFILL / MIXED (the sdpa_ocl lane: sdpa_ocl_selected());
 // elsewhere the multi-token kernel is sdpa_micro or pa_sdpa_opt, which have their own padding handling.
 bool sdpa_ocl_serves_prefill_mixed() {
     return cldnn::paged_attention::sdpa_ocl_selected(tests::get_test_engine().get_device_info());
@@ -386,7 +391,7 @@ INSTANTIATE_TEST_SUITE_P(
 // input) and GENERATE asserts that sdpa_ocl_decode, which was already k/v-split, keeps working.
 //
 // sdpa_micro derives both of its ugemm packages from a single d_max and so cannot serve k != v at
-// all; where it is the DPAS kernel (pre-Xe2 XMX, or TEST_USE_SDPA_OCL=0) these cases run pa_multi_token
+// all; where it is the DPAS kernel (the sdpa_micro lane: pre-Xe2 XMX, or TEST_USE_SDPA_OCL=0) these cases run pa_multi_token
 // instead, on the d-major page that lane also selects.
 
 class paged_attention_kv_head_size_test : public PagedAttentionTest<paged_attention_test_params> {};
@@ -426,14 +431,10 @@ INSTANTIATE_TEST_SUITE_P(
 class paged_attention_kv_head_size_uses_sdpa_ocl_test : public PagedAttentionTest<paged_attention_test_params> {};
 
 TEST_P(paged_attention_kv_head_size_uses_sdpa_ocl_test, dispatches_sdpa_ocl) {
-    if (!tests::get_test_engine().get_device_info().supports_immad)
-        GTEST_SKIP() << "sdpa_ocl requires DPAS/XMX support";
-    // sdpa_ocl is Xe2+ only; on pre-Xe2 DPAS parts the k != v MIXED cases fall back to pa_multi_token
+    // Where the sdpa_micro lane is the DPAS kernel, the k != v MIXED cases fall back to pa_multi_token
     // (sdpa_micro needs k == v), so there is no sdpa_ocl kernel to assert on.
-    if (tests::get_test_engine().get_device_info().arch < cldnn::gpu_arch::xe2)
-        GTEST_SKIP() << "sdpa_ocl is only selected on Xe2 and later";
-    if (!cldnn::paged_attention::sdpa_ocl_enabled())
-        GTEST_SKIP() << "TEST_USE_SDPA_OCL=0 selects sdpa_micro, so there is no sdpa_ocl kernel to assert on";
+    if (!cldnn::paged_attention::sdpa_ocl_selected(tests::get_test_engine().get_device_info()))
+        GTEST_SKIP() << "sdpa_ocl is not this device's DPAS lane (pre-Xe2 without TEST_USE_SDPA_OCL_HPG=1, TEST_USE_SDPA_OCL=0, or no oneDNN)";
 
     auto p = GetParam();
     ASSERT_TRUE(this->pam.has_value());
@@ -472,16 +473,15 @@ TEST_P(paged_attention_by_channel_tm_guard_test, rejects_d_major_reader) {
     // The reader this stage gets, from the gates' device and switch conditions (the cases pass all the
     // per-op ones).
     const auto& info = engine.get_device_info();
-    const bool xe2_xmx = info.supports_immad && info.arch >= cldnn::gpu_arch::xe2;
     const bool generate = std::all_of(p.subsequences.begin(), p.subsequences.end(), [](const SubsequenceDescriptor& s) {
         return s.num_tokens == 1;
     });
     bool token_major_reader = false;
     if (generate) {
-        token_major_reader = xe2_xmx && cldnn::paged_attention::sdpa_ocl_decode_enabled();
+        token_major_reader = cldnn::paged_attention::sdpa_ocl_decode_reader_available(info);
     } else {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        token_major_reader = xe2_xmx && cldnn::paged_attention::sdpa_ocl_enabled() &&
+        token_major_reader = cldnn::paged_attention::sdpa_ocl_selected(info) &&
                              cldnn::query_microkernels_supported(engine, tests::get_test_default_config(engine));
 #endif
     }
