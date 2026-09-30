@@ -867,35 +867,32 @@ static kv_quant_result quantize_kv_per_channel(const std::vector<ov::float16>& s
     return r;
 }
 
-// Per-channel symmetric INT4 quantization that reproduces the GQA decomposition's
-// write path (GroupQueryAttentionDecomposition::quantize_kv):
-//   q       = clamp(round(v / scale), -8, 7)
-//   nibble  = q + 8                    (+8 storage bias, ORT/MLAS parity)
-//   packed  = even head dim -> low nibble, odd head dim -> high nibble
-//   dequant = (nibble - 8) * scale
-// The compressed SDPA path represents this as asymmetric u4 with a fixed zero
-// point of 8, distinct from the two's-complement encoding used by symmetric i4.
-static kv_quant_result quantize_kv_per_channel_gqa_decomp_int4(const std::vector<ov::float16>& src,
-                                                           int batch,
-                                                           int seq,
-                                                           int heads,
-                                                           int head_size,
-                                                           int bit_width,
-                                                           bool seq_major = true,
-                                                           const std::vector<ov::float16>* provided_scale = nullptr,
-                                                           bool symmetric = false) {
-    OPENVINO_ASSERT(bit_width == 4, "biased INT4 helper is only defined for 4-bit");
-    OPENVINO_ASSERT(head_size % 2 == 0, "INT4 KV packing requires an even head size");
-    const int q_min = -8;
-    const int q_max = 7;
-    const int packed_hs = head_size / 2;
+// Per-channel symmetric quantization that reproduces the GQA decomposition's write path.
+// INT4 values use a +8 storage bias and are exposed to SDPA as asymmetric u4 with zero point 8.
+// INT8 values retain their signed representation and are exposed as symmetric i8.
+static kv_quant_result quantize_kv_per_channel_gqa_decomp(const std::vector<ov::float16>& src,
+                                                          int batch,
+                                                          int seq,
+                                                          int heads,
+                                                          int head_size,
+                                                          int bit_width,
+                                                          bool seq_major = true,
+                                                          const std::vector<ov::float16>* provided_scale = nullptr,
+                                                          bool symmetric = false) {
+    OPENVINO_ASSERT(bit_width == 4 || bit_width == 8, "GQA decomposition supports only INT4 and INT8 KV caches");
+    OPENVINO_ASSERT(symmetric, "GQA decomposition uses symmetric KV quantization");
+    OPENVINO_ASSERT(bit_width != 4 || head_size % 2 == 0, "INT4 KV packing requires an even head size");
+    const int q_min = bit_width == 4 ? -8 : -128;
+    const int q_max = bit_width == 4 ? 7 : 127;
+    const int packed_hs = bit_width == 4 ? head_size / 2 : head_size;
     const size_t channel_count = static_cast<size_t>(batch) * heads * head_size;
 
     kv_quant_result r;
     r.packed.assign(static_cast<size_t>(batch) * seq * heads * packed_hs, 0);
     r.dequantized.assign(static_cast<size_t>(batch) * seq * heads * head_size, ov::float16(0.0f));
     r.scales.assign(channel_count, ov::float16(0.0f));
-    r.zero_points.assign(channel_count, ov::float16(8.0f));
+    if (bit_width == 4)
+        r.zero_points.assign(channel_count, ov::float16(8.0f));
 
     const auto elem_base = [&](int b, int s, int h) -> size_t {
         return seq_major ? ((static_cast<size_t>(b) * seq + s) * heads + h) * head_size
@@ -906,7 +903,7 @@ static kv_quant_result quantize_kv_per_channel_gqa_decomp_int4(const std::vector
                          : ((static_cast<size_t>(b) * heads + h) * seq + s) * packed_hs;
     };
 
-    tests::random_generator scale_rg("quantize_kv_per_channel_gqa_decomp_int4_scale");
+    tests::random_generator scale_rg("quantize_kv_per_channel_gqa_decomp_scale");
     const auto scale_mul = scale_rg.generate_random_1d<float>(channel_count, 1, 2, 8);
 
     for (int b = 0; b < batch; ++b) {
@@ -924,17 +921,13 @@ static kv_quant_result quantize_kv_per_channel_gqa_decomp_int4(const std::vector
                 float scale = 0.0f;
                 if (provided_scale != nullptr) {
                     scale = static_cast<float>((*provided_scale)[channel]);
-                } else if (symmetric) {
-                    scale = std::max(std::abs(min_v), std::abs(max_v)) / static_cast<float>(q_max) * scale_mul[channel];
                 } else {
-                    scale = (max_v - min_v) / static_cast<float>(q_max - q_min) * scale_mul[channel];
+                    scale = std::max(std::abs(min_v), std::abs(max_v)) / static_cast<float>(q_max) * scale_mul[channel];
                 }
                 if (scale == 0.0f)
                     scale = 1.0f;
 
                 r.scales[channel] = ov::float16(scale);
-                if (!symmetric)
-                    r.zero_points[channel] = ov::float16(std::round(static_cast<float>(q_min) - min_v / scale));
             }
         }
     }
@@ -948,17 +941,19 @@ static kv_quant_result quantize_kv_per_channel_gqa_decomp_int4(const std::vector
                 for (int d = 0; d < head_size; ++d) {
                     const float scale = static_cast<float>(r.scales[scale_base + d]);
                     const float v = static_cast<float>(src[base + d]);
-                    // Decomposition write path: clamp(round(v/scale), -8, 7) + 8 bias.
-                    int q = static_cast<int>(std::lround(v / scale));
+                    int q = static_cast<int>(std::nearbyint(v / scale));
                     q = std::max(q_min, std::min(q_max, q));
-                    const int nibble = q + 8;
-                    // Reference dequantization the kernel must produce: (nibble - 8) * scale.
-                    r.dequantized[base + d] = ov::float16((static_cast<float>(nibble) - 8.0f) * scale);
-                    auto& byte = r.packed[packed_base + d / 2];
-                    if (d % 2 == 0)
-                        byte = static_cast<int8_t>((byte & 0xF0) | (nibble & 0x0F));
-                    else
-                        byte = static_cast<int8_t>((byte & 0x0F) | ((nibble & 0x0F) << 4));
+                    r.dequantized[base + d] = ov::float16(static_cast<float>(q) * scale);
+                    if (bit_width == 4) {
+                        const int nibble = q + 8;
+                        auto& byte = r.packed[packed_base + d / 2];
+                        if (d % 2 == 0)
+                            byte = static_cast<int8_t>((byte & 0xF0) | (nibble & 0x0F));
+                        else
+                            byte = static_cast<int8_t>((byte & 0x0F) | ((nibble & 0x0F) << 4));
+                    } else {
+                        r.packed[packed_base + d] = static_cast<int8_t>(q);
+                    }
                 }
             }
         }
@@ -969,7 +964,7 @@ static kv_quant_result quantize_kv_per_channel_gqa_decomp_int4(const std::vector
 
 static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
                                         kv_quant_granularity granularity,
-                                        bool gqa_decomp_int4_encoding = false) {
+                                        bool gqa_decomp = false) {
     tests::random_generator rg;
     rg.set_seed(GET_SUITE_NAME);
     auto& engine = get_test_engine();
@@ -983,7 +978,7 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
 
     const int bit_width = params.bit_width;
     const bool asymmetric = params.asymmetric;
-    const bool has_storage_zero_point = asymmetric || gqa_decomp_int4_encoding;
+    const bool has_storage_zero_point = asymmetric || (gqa_decomp && bit_width == 4);
     const int batch = params.batch;
     const int q_num_heads = params.num_heads;
     const int kv_num_heads = params.kv_num_heads;
@@ -1000,10 +995,10 @@ static void run_compressed_kv_sdpa_test(const sdpa_test_params& params,
     auto v_orig = rg.generate_random_1d<ov::float16>(static_cast<size_t>(batch) * seq_kv * kv_num_heads * head_size, -1.0f, 1.0f);
 
     const auto quantize_kv = [&]() {
-        if (gqa_decomp_int4_encoding) {
-            OPENVINO_ASSERT(granularity == kv_quant_granularity::per_channel && bit_width == 4,
-                            "gqa_decomp_int4_encoding requires per-channel INT4");
-            return &quantize_kv_per_channel_gqa_decomp_int4;
+        if (gqa_decomp) {
+            OPENVINO_ASSERT(granularity == kv_quant_granularity::per_channel && !asymmetric,
+                            "GQA decomposition requires symmetric per-channel quantization");
+            return &quantize_kv_per_channel_gqa_decomp;
         }
         return granularity == kv_quant_granularity::per_channel ? quantize_kv_per_channel
                                                                 : quantize_kv_per_token;
@@ -1181,13 +1176,11 @@ TEST_P(sdpa_gpu_compressed_kv_per_token_test, compare_with_gpu_dequantized_refer
     run_compressed_kv_sdpa_test(GetParam(), kv_quant_granularity::per_token);
 }
 
-// INT4 KV cache written by the GQA decomposition uses the +8 storage bias
-// (q + 8 per nibble, ORT/MLAS parity). Verify that compressed SDPA receives the
-// corresponding u4 + zero-point-8 metadata and reproduces (nibble - 8) * scale.
-struct sdpa_gpu_compressed_kv_gqa_decomp_int4_encoding_test : public sdpa_gpu_compressed_kv_test_base {};
+// Verify the INT4 and INT8 cache encodings produced by the GQA decomposition.
+struct sdpa_gpu_gqa_decomp_test : public sdpa_gpu_compressed_kv_test_base {};
 
-TEST_P(sdpa_gpu_compressed_kv_gqa_decomp_int4_encoding_test, compare_with_gpu_dequantized_reference) {
-    run_compressed_kv_sdpa_test(GetParam(), kv_quant_granularity::per_channel, /*gqa_decomp_int4_encoding=*/true);
+TEST_P(sdpa_gpu_gqa_decomp_test, compare_with_gpu_dequantized_reference) {
+    run_compressed_kv_sdpa_test(GetParam(), kv_quant_granularity::per_channel, /*gqa_decomp=*/true);
 }
 
 INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_per_channel,
@@ -1222,13 +1215,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_per_token,
                                            sdpa_test_params{128, 40, 40, 1, 512, 1, 8, true}),
                          sdpa_gpu_compressed_kv_per_token_test::PrintToStringParamName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_compressed_kv_gqa_decomp_int4_encoding,
-                         sdpa_gpu_compressed_kv_gqa_decomp_int4_encoding_test,
+INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_gqa_decomp,
+                         sdpa_gpu_gqa_decomp_test,
                          ::testing::Values(sdpa_test_params{128, 40, 10, 512, 512, 1, 4, false},
                                            sdpa_test_params{128, 40, 10, 1, 512, 1, 4, false},
                                            sdpa_test_params{128, 40, 40, 512, 512, 1, 4, false},
-                                           sdpa_test_params{128, 40, 40, 1, 512, 1, 4, false}),
-                         sdpa_gpu_compressed_kv_gqa_decomp_int4_encoding_test::PrintToStringParamName);
+                                           sdpa_test_params{128, 40, 40, 1, 512, 1, 4, false},
+                                           sdpa_test_params{128, 40, 10, 512, 512, 1, 8, false},
+                                           sdpa_test_params{128, 40, 10, 1, 512, 1, 8, false},
+                                           sdpa_test_params{128, 40, 40, 512, 512, 1, 8, false},
+                                           sdpa_test_params{128, 40, 40, 1, 512, 1, 8, false}),
+                         sdpa_gpu_gqa_decomp_test::PrintToStringParamName);
 #endif
 
 TEST(sdpa_gpu_custom, dynamic_mismatched_v_head_size) {

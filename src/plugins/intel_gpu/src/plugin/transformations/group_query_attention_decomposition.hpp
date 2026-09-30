@@ -21,7 +21,8 @@ protected:
                                         const ov::Output<ov::Node>& mask,
                                         const ov::Output<ov::Node>& scale,
                                         const ov::Output<ov::Node>& sink,
-                                        bool is_causal) override;
+                                        bool is_causal,
+                                        const std::optional<CompressedKV>& compressed_kv) override;
     std::shared_ptr<ov::Node> make_attention_mask(const ov::Output<ov::Node>& curr_seqlen_scalar,
                                                   const ov::Output<ov::Node>& kv_len_scalar,
                                                   const ov::Output<ov::Node>& kv_len_1d,
@@ -34,23 +35,13 @@ protected:
                                                   bool sliding_window_cache,
                                                   float scale,
                                                   bool has_sink) override;
-    void prepare_compressed_kv(const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
-                               const ov::Output<ov::Node>& key,
-                               const ov::Output<ov::Node>& value,
-                               const ov::Output<ov::Node>& key_scale,
-                               const ov::Output<ov::Node>& value_scale) override;
+    std::optional<CompressedKV> prepare_compressed_kv(
+        const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
+        const ov::Output<ov::Node>& key,
+        const ov::Output<ov::Node>& value,
+        const ov::Output<ov::Node>& key_scale,
+        const ov::Output<ov::Node>& value_scale) override;
 
-    bool use_compressed_kv() const override {
-        return m_use_compressed_sdpa;
-    }
-
-    bool m_use_compressed_sdpa = false;
-    ov::Output<ov::Node> m_compressed_key;
-    ov::Output<ov::Node> m_compressed_value;
-    ov::Output<ov::Node> m_key_scale;
-    ov::Output<ov::Node> m_value_scale;
-    ov::Output<ov::Node> m_key_zp;
-    ov::Output<ov::Node> m_value_zp;
     op::SDPA::QuantizationAttribute m_quantization_attrs;
 };
 
