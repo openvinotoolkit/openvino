@@ -1032,35 +1032,42 @@ void network::execute_impl(const std::vector<event::ptr>& events) {
         _record_replay_session->begin_recording(events);
         is_recording = true;
     }
-    set_arguments();
+    try {
+        set_arguments();
 
-    // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
-    // since it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
-    // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287, 139931.
-    const bool needs_flushing = _is_dynamic;
-    const size_t flush_frequency = needs_flushing ? 16 : 0;
-    size_t executed_prims = 0;
+        // This extra flush command is needed for dynamic models in both cases of out_of_order / in_order operating mode
+        // since it reduces `bubbles` number in pipeline and GPU's idle time by timely flushing new kernels to device.
+        // The freqency of flushing (16) is selected empirically, see details in tickets 116365, 116287, 139931.
+        const bool needs_flushing = _is_dynamic;
+        const size_t flush_frequency = needs_flushing ? 16 : 0;
+        size_t executed_prims = 0;
 
-    for (auto& inst : _exec_order) {
-        NODE_DEBUG(*inst);
-        OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::intel_gpu_op, openvino::itt::handle(inst->id()));
+        for (auto& inst : _exec_order) {
+            NODE_DEBUG(*inst);
+            OV_ITT_SCOPED_TASK_BASE(ov::intel_gpu::itt::domains::intel_gpu_op, openvino::itt::handle(inst->id()));
 
-        inst->clear_events();
+            inst->clear_events();
 
-        // Dependency events should not be recorded to the command list
-        // As they could propagate to the subsequent replay iteration
-        // Instead events were passed to begin_recording()
-        if (!is_recording && inst->is_input()) {
-            inst->add_dep_events(events);
+            // Dependency events should not be recorded to the command list
+            // As they could propagate to the subsequent replay iteration
+            // Instead events were passed to begin_recording()
+            if (!is_recording && inst->is_input()) {
+                inst->add_dep_events(events);
+            }
+
+            inst->prepare_primitive();
+            inst->execute();
+
+            executed_prims++;
+            if (needs_flushing && executed_prims % flush_frequency == 0) {
+                get_stream().flush();
+            }
         }
-
-        inst->prepare_primitive();
-        inst->execute();
-
-        executed_prims++;
-        if (needs_flushing && executed_prims % flush_frequency == 0) {
-            get_stream().flush();
+    } catch (...) {
+        if (is_recording) {
+            _record_replay_session->end_recording();
         }
+        throw;
     }
     if (is_recording) {
         _record_replay_session->end_recording();
