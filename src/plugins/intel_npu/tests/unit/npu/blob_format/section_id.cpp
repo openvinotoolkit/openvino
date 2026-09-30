@@ -53,6 +53,7 @@ TEST_F(SectionIdUnitTests, InvalidFromString) {
     OV_EXPECT_THROW(SectionID::from_string("_0"), ov::Exception, _);
     OV_EXPECT_THROW(SectionID::from_string("0.0"), ov::Exception, _);
     OV_EXPECT_THROW(SectionID::from_string("section_id"), ov::Exception, _);
+    OV_EXPECT_THROW(SectionID::from_string("100000000000000000"), ov::Exception, _);
 }
 
 TEST_F(SectionIdUnitTests, IsSectionId) {

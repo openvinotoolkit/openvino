@@ -123,13 +123,12 @@ TEST_F(SectionTypeUnitTests, ValidFromStringLowerCased) {
               SectionType(SectionTypeCode::COMPILER_VERSION));
 }
 
-TEST_F(SectionTypeUnitTests, FromStringOnUnknown) {
-    OV_EXPECT_THROW(SectionType::from_string("UNKNOWN"), ov::Exception, _);
-}
-
-TEST_F(SectionTypeUnitTests, FromStringUnsupportedStrings) {
-    OV_EXPECT_THROW(SectionType::from_string(""), ov::Exception, _);
-    OV_EXPECT_THROW(SectionType::from_string(std::string(BATCH_SIZE_SECTION_NAME) + "_1"), ov::Exception, _);
+TEST_F(SectionTypeUnitTests, FromStringOnUnknownTypes) {
+    ASSERT_EQ(SectionType::from_string("UNKNOWN"), SectionType(SectionTypeCode::UNKNOWN));
+    ASSERT_EQ(SectionType::from_string("random_name"), SectionType(SectionTypeCode::UNKNOWN));
+    ASSERT_EQ(SectionType::from_string(""), SectionType(SectionTypeCode::UNKNOWN));
+    ASSERT_EQ(SectionType::from_string(std::string(BATCH_SIZE_SECTION_NAME) + "_1"),
+              SectionType(SectionTypeCode::UNKNOWN));
 }
 
 TEST_F(SectionTypeUnitTests, IsSectionType) {

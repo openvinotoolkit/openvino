@@ -40,11 +40,16 @@ SectionID SectionID::from_string(const std::string_view id) {
                     id,
                     " is not made exclusively out of digits");
 
+    unsigned long result;
     try {
-        return std::stoul(std::string(id));
+        result = std::stoul(std::string(id));
     } catch (const std::exception&) {
         OPENVINO_THROW("Failed to convert the section id ", id, " to integer");
     }
+
+    OPENVINO_ASSERT(result <= std::numeric_limits<uint16_t>::max(),
+                    "Read a section ID that is larger than the maximum limit");
+    return result;
 }
 
 std::ostream& operator<<(std::ostream& os, const SectionID& id) {

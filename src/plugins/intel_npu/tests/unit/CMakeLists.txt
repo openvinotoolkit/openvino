@@ -169,6 +169,7 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/section_type.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/section_id.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/cre_special_token.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npu/blob_format/sections_string_conersions.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/executor_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/compiler_option_support_helper_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npu/option_support_cache_test.cpp
