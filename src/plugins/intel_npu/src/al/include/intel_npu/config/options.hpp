@@ -171,6 +171,34 @@ struct PLATFORM final : OptionBase<PLATFORM, std::string> {
     }
 };
 
+// Selects an offline compilation target (see ov::compilation_target). Empty (the default) means no target, so setting
+// "" clears a target set on the plugin, and passing "" to compile_model overrides it for that call. A target is in
+// effect only when the value is non-empty: Config::has<COMPILATION_TARGET>() alone is not enough. Declared RunTime
+// although it only affects compilation: CompileTime options are serialized to the compiler, which does not know this
+// one - it reaches the compiler as NPU_PLATFORM instead.
+struct COMPILATION_TARGET final : OptionBase<COMPILATION_TARGET, std::string> {
+    static std::string_view key() {
+        return ov::compilation_target.name();
+    }
+
+    static std::string defaultValue() {
+        return {};
+    }
+
+    // A target names one platform; AUTO_DETECT would ask for the attached device, which offline compilation has not.
+    static void validateValue(const std::string& value) {
+        OPENVINO_ASSERT(value != ov::intel_npu::Platform::AUTO_DETECT,
+                        "Invalid ov::compilation_target '",
+                        value,
+                        "': it has to name one of the targets listed by ov::offline_compilation_targets, or be empty "
+                        "for no target");
+    }
+
+    static OptionMode mode() {
+        return OptionMode::RunTime;
+    }
+};
+
 struct DEVICE_ID final : OptionBase<DEVICE_ID, std::string> {
     static std::string_view key() {
         return ov::device::id.name();

@@ -21,6 +21,16 @@
 
 namespace intel_npu {
 
+namespace {
+
+// No driver objects are handed to the adapter either without an NPU driver, or on purpose for an offline compilation
+// target, whose result must not depend on the attached device.
+constexpr const char* NO_GRAPH_HANDLE_MESSAGE =
+    "No Level Zero graph is created for this blob (no NPU driver is available, or the model is compiled for an "
+    "offline compilation target), so its metadata is empty. Only export is available.";
+
+}  // namespace
+
 PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct,
                                              const std::shared_ptr<IVCLCompiler>& compiler,
                                              const std::shared_ptr<IProfilingDecoder>& profilingDecoder)
@@ -84,7 +94,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                          ex.what());
         }
     } else {
-        _logger.warning("No driver is found, zeGraphExt is nullptr, so metadata is empty. Only exports are available");
+        _logger.warning("%s", NO_GRAPH_HANDLE_MESSAGE);
     }
 
     return std::make_shared<Graph>(
@@ -154,8 +164,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                              ex.what());
             }
         } else {
-            _logger.warning(
-                "No driver is found, zeGraphExt is nullptr, so metadata is empty. Only exports are available");
+            _logger.warning("%s", NO_GRAPH_HANDLE_MESSAGE);
         }
 
         initGraphDescriptors.reserve(tensorsInits.size());
@@ -174,8 +183,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
                         ex.what());
                 }
             } else {
-                _logger.warning(
-                    "No driver is found, zeGraphExt is nullptr, so metadata is empty. Only exports are available");
+                _logger.warning("%s", NO_GRAPH_HANDLE_MESSAGE);
             }
 
             initGraphDescriptors.push_back(initGraphDesc);
@@ -282,6 +290,14 @@ bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
                   supported ? "is supported" : "is not supported");
 
     return supported;
+}
+
+std::vector<std::string> PluginCompilerAdapter::resolve_compilation_target_bundles(const Config& config) const {
+    return _compiler->resolve_compilation_target_bundles(config);
+}
+
+std::vector<std::string> PluginCompilerAdapter::get_offline_compilation_targets() const {
+    return _compiler->get_offline_compilation_targets();
 }
 
 }  // namespace intel_npu

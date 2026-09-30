@@ -7,9 +7,11 @@
 #include <algorithm>
 #include <cinttypes>
 #include <limits>
+#include <memory>
 #include <mutex>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -72,6 +74,100 @@ static std::optional<std::string> getVCLCompatibilityString(const VCLFunctionTab
         compatibilityString.resize(outSize - 1);
     }
     return compatibilityString;
+}
+
+static bool hasCompilationTargetSymbols(const VCLFunctionTable& functions) {
+    return functions.vclCompilationTargetsCreate != nullptr && functions.vclCompilationTargetsGetCount != nullptr &&
+           functions.vclCompilationTargetsGetTarget != nullptr &&
+           functions.vclCompilationTargetGetPlatform != nullptr &&
+           functions.vclCompilationTargetGetConfigBundleCount != nullptr &&
+           functions.vclCompilationTargetGetConfigBundle != nullptr &&
+           functions.vclCompilationTargetsDestroy != nullptr;
+}
+
+namespace {
+
+struct ResolvedCompilationTarget {
+    std::string platform;
+    std::vector<std::string> configBundles;
+};
+
+}  // namespace
+
+/**
+ * @brief Resolves \p config through the VCL compilation target entry points and copies every target out of the
+ * handle, which owns the strings and is destroyed before returning.
+ */
+static std::vector<ResolvedCompilationTarget> resolveVCLCompilationTargets(const VCLFunctionTable& functions,
+                                                                           const std::string& config,
+                                                                           const Logger& logger) {
+    vcl_compilation_targets_handle_t createdHandle = nullptr;
+    // No log handle on purpose: a failed create returns none, so a requested one would swallow the
+    // compiler's reason. Without it the compiler prints the reason itself. The getters log nothing.
+    THROW_ON_FAIL_FOR_VCL(functions,
+                          "vclCompilationTargetsCreate",
+                          functions.vclCompilationTargetsCreate(config.empty() ? nullptr : config.c_str(),
+                                                                config.size(),
+                                                                &createdHandle,
+                                                                nullptr),
+                          nullptr);
+
+    const auto destroyTargets = [&functions, &logger](vcl_compilation_targets_handle_t handle) {
+        const vcl_result_t destroyResult = functions.vclCompilationTargetsDestroy(handle);
+        if (destroyResult != VCL_RESULT_SUCCESS) {
+            logger.warning("Failed to destroy VCL compilation targets handle: result 0x%x", destroyResult);
+        }
+    };
+    std::unique_ptr<std::remove_pointer_t<vcl_compilation_targets_handle_t>, decltype(destroyTargets)> targetsHandle(
+        createdHandle,
+        destroyTargets);
+
+    uint64_t targetCount = 0;
+    THROW_ON_FAIL_FOR_VCL(functions,
+                          "vclCompilationTargetsGetCount",
+                          functions.vclCompilationTargetsGetCount(targetsHandle.get(), &targetCount),
+                          nullptr);
+
+    std::vector<ResolvedCompilationTarget> targets;
+    targets.reserve(static_cast<size_t>(targetCount));
+    for (uint64_t targetIndex = 0; targetIndex < targetCount; ++targetIndex) {
+        vcl_compilation_target_handle_t targetHandle = nullptr;
+        THROW_ON_FAIL_FOR_VCL(functions,
+                              "vclCompilationTargetsGetTarget",
+                              functions.vclCompilationTargetsGetTarget(targetsHandle.get(), targetIndex, &targetHandle),
+                              nullptr);
+
+        ResolvedCompilationTarget& target = targets.emplace_back();
+
+        const char* platform = nullptr;
+        uint64_t platformSize = 0;
+        THROW_ON_FAIL_FOR_VCL(functions,
+                              "vclCompilationTargetGetPlatform",
+                              functions.vclCompilationTargetGetPlatform(targetHandle, &platform, &platformSize),
+                              nullptr);
+        OPENVINO_ASSERT(platform != nullptr, "vclCompilationTargetGetPlatform returned a null platform");
+        target.platform.assign(platform, static_cast<size_t>(platformSize));
+
+        uint64_t bundleCount = 0;
+        THROW_ON_FAIL_FOR_VCL(functions,
+                              "vclCompilationTargetGetConfigBundleCount",
+                              functions.vclCompilationTargetGetConfigBundleCount(targetHandle, &bundleCount),
+                              nullptr);
+        target.configBundles.reserve(static_cast<size_t>(bundleCount));
+        for (uint64_t bundleIndex = 0; bundleIndex < bundleCount; ++bundleIndex) {
+            const char* bundle = nullptr;
+            uint64_t bundleSize = 0;
+            THROW_ON_FAIL_FOR_VCL(
+                functions,
+                "vclCompilationTargetGetConfigBundle",
+                functions.vclCompilationTargetGetConfigBundle(targetHandle, bundleIndex, &bundle, &bundleSize),
+                nullptr);
+            OPENVINO_ASSERT(bundle != nullptr, "vclCompilationTargetGetConfigBundle returned a null bundle");
+            target.configBundles.emplace_back(bundle, static_cast<size_t>(bundleSize));
+        }
+    }
+
+    return targets;
 }
 
 VCLCompilerImpl::VCLCompilerImpl(const std::shared_ptr<const VCLFunctionTable>& functions,
@@ -589,6 +685,100 @@ bool VCLCompilerImpl::is_option_supported(const std::string& option, const std::
     }
 
     return supported;
+}
+
+std::vector<std::string> VCLCompilerImpl::resolve_compilation_target_bundles(const Config& config) const {
+    _logger.debug("resolve_compilation_target_bundles start");
+
+    // Optional/weak entry points: an older VCL library cannot resolve SKU variants, so no bundle is
+    // available and the caller rejects the compilation target.
+    if (!hasCompilationTargetSymbols(*_functions)) {
+        return {};
+    }
+
+    // The full config is sent as-is to the resolution query. The compiler ignores the options it knows but does
+    // not need for resolution; an option it does not know at all makes the query fail with INVALID_ARGUMENT.
+    const std::string resolutionConfig = config.toStringForCompiler([](const std::string&) {
+        return true;
+    });
+
+    // Alternative under discussion: filter on the plugin side, the same way a compile does. The query rejects any
+    // option the compiler does not know, so with the accept-everything filter above an unsupported RunTime/Both
+    // option, or NPU_COMPILE_LOG_LEVEL (the compiler knows only LOG_LEVEL), fails the resolution even though the
+    // compile itself would accept the config. This variant skips/reports unsupported options exactly as a compile
+    // does and maps NPU_COMPILE_LOG_LEVEL onto LOG_LEVEL as compiler_utils::serializeConfig does
+    // (compiler_utils::serializeConfig itself cannot be reused: it prefixes its output with "--config ").
+    //
+    // std::optional<Config> configWithCompileLogLevel;
+    // if (config.has<COMPILE_LOG_LEVEL>()) {
+    //     configWithCompileLogLevel = config;
+    //     configWithCompileLogLevel->update(ov::log::level.name(), config.get<COMPILE_LOG_LEVEL>());
+    //     configWithCompileLogLevel->remove(ov::intel_npu::compile_log_level.name());
+    // }
+    // const Config& filteredConfig = configWithCompileLogLevel.has_value() ? *configWithCompileLogLevel : config;
+    // const std::string resolutionConfig = filteredConfig.toStringForCompiler([this](const std::string& optionName) {
+    //     return is_option_supported(optionName);
+    // });
+
+    _logger.info("Resolving compilation target bundles for config '%s'", resolutionConfig.c_str());
+
+    // NPU_PLATFORM is always present in resolutionConfig here (resolveCompilationTarget already
+    // injected it), so the query narrows to that one platform - at most one target comes back.
+    const auto targets = resolveVCLCompilationTargets(*_functions, resolutionConfig, _logger);
+    OPENVINO_ASSERT(targets.size() <= 1,
+                    "The compiler resolved ",
+                    targets.size(),
+                    " compilation targets for config '",
+                    resolutionConfig,
+                    "', which names one platform; expected at most one");
+    if (!targets.empty()) {
+        OPENVINO_ASSERT(ov::intel_npu::Platform::standardize(targets.front().platform) ==
+                            ov::intel_npu::Platform::standardize(config.get<PLATFORM>()),
+                        "The compiler resolved a compilation target for platform '",
+                        targets.front().platform,
+                        "' while platform '",
+                        config.get<PLATFORM>(),
+                        "' was requested");
+    }
+    std::vector<std::string> bundles = targets.empty() ? std::vector<std::string>{} : targets.front().configBundles;
+
+    // A successful query that resolves to no target means nothing can be compiled for this request: the
+    // platform is unknown to the compiler, or does not support an option the config asks for.
+    OPENVINO_ASSERT(!bundles.empty(),
+                    "Cannot compile for platform '",
+                    config.get<PLATFORM>(),
+                    "': the compiler resolved no compilation target for config '",
+                    resolutionConfig,
+                    "'. The platform is unknown to this compiler, or does not support an option of the config.");
+
+    std::ostringstream bundlesLog;
+    bundlesLog << "Resolved " << bundles.size() << " compilation target bundle(s): ";
+    for (size_t i = 0; i < bundles.size(); ++i) {
+        if (i > 0) {
+            bundlesLog << "; ";
+        }
+        bundlesLog << '[' << i << "] '" << bundles[i] << '\'';
+    }
+    _logger.info("%s", bundlesLog.str().c_str());
+
+    return bundles;
+}
+
+std::vector<std::string> VCLCompilerImpl::get_offline_compilation_targets() const {
+    _logger.debug("get_offline_compilation_targets start");
+
+    if (!hasCompilationTargetSymbols(*_functions)) {
+        _logger.info("The VCL library does not export the compilation target entry points");
+        return {};
+    }
+
+    // No config leaves NPU_PLATFORM out, so every platform the compiler can compile for resolves to a target.
+    std::vector<std::string> result;
+    for (auto& target : resolveVCLCompilationTargets(*_functions, std::string{}, _logger)) {
+        result.push_back(std::move(target.platform));
+    }
+
+    return result;
 }
 
 }  // namespace intel_npu
