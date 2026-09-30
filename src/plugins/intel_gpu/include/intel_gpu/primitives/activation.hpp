@@ -57,7 +57,8 @@ enum class activation_func {
     gelu_tanh,                 // x⋅0.5⋅(1+tanh[sqrt(2/pi)*val(1 + 0.044715⋅val^2)])
     round_half_to_even,        // round halfs to the nearest even integer
     round_half_away_from_zero, // round the number so it's further away from zero
-    erfinv                     // inverse Gauss error function (erfinv)
+    erfinv,                    // inverse Gauss error function (erfinv)
+    swoosh                     // softplus(val - a) - 0.08 * val - b
 };
 
 /// @brief activation additional params
