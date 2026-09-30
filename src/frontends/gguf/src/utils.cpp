@@ -9,14 +9,17 @@
 #include <memory>
 #include <string>
 
+#include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/clamp.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/cos.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sin.hpp"
@@ -25,14 +28,55 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs) {
     auto input_size = context.get_input_size();
     FRONT_END_OP_CONVERSION_CHECK(input_size >= min_inputs, "Got less inputs than expected");
     FRONT_END_OP_CONVERSION_CHECK(input_size <= max_inputs, "Got more inputs than expected");
+}
+
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> get_glu_inputs(const NodeContext& context) {
+    num_inputs_check(context, 1, 2);
+
+    ov::Output<ov::Node> src0;
+    ov::Output<ov::Node> src1;
+    if (context.get_input_size() == 2) {
+        src0 = context.get_input(0);
+        src1 = context.get_input(1);
+    } else {
+        // GGUF splits along ne[0] (OV last axis) using floor division. Both halves have nc
+        // elements; an odd trailing element is dropped.
+        auto combined = context.get_input(0);
+        const auto combined_shape = combined.get_partial_shape();
+        const auto last_dim = combined_shape[combined_shape.rank().get_length() - 1].get_length();
+        const auto half_dim = last_dim / 2;
+
+        auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+        auto step = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+        auto start0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+        auto stop0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {half_dim});
+        auto start1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {half_dim});
+        auto stop1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {2 * half_dim});
+
+        src0 = std::make_shared<ov::op::v8::Slice>(combined, start0, stop0, step, axis);
+        src1 = std::make_shared<ov::op::v8::Slice>(combined, start1, stop1, step, axis);
+    }
+
+    if (context.get_attribute<bool>("swapped")) {
+        std::swap(src0, src1);
+    }
+    return {src0, src1};
+}
+
+std::shared_ptr<ov::op::v0::Parameter> find_parameter(const std::shared_ptr<ov::Model>& model,
+                                                      const std::string& name) {
+    for (const auto& p : model->get_parameters()) {
+        if (p->get_friendly_name() == name || p->output(0).get_names().count(name)) {
+            return p;
+        }
+    }
+    return nullptr;
 }
 
 int non_cont_dim(std::vector<size_t> ne, std::vector<size_t> nb) {
@@ -59,7 +103,7 @@ std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, con
     return get_dimensions(std::make_shared<ov::op::v3::ShapeOf>(output), dims);
 }
 
-OutputVector rename_outputs_with_suffix(const OutputVector& outputs, const std::string& suffix) {
+OutputVector rename_outputs_with_suffix(OutputVector outputs, const std::string& suffix) {
     for (const auto& output : outputs) {
         auto node = output.get_node_shared_ptr();
         std::string name = node->get_friendly_name();
@@ -74,14 +118,13 @@ ov::Output<ov::Node> make_topk_indices(const ov::Output<ov::Node>& input,
                                        const ov::Output<ov::Node>& k,
                                        int64_t axis,
                                        ov::op::v11::TopK::Mode mode,
-                                       const ov::element::Type& index_type,
                                        bool stable) {
     auto topk = std::make_shared<ov::op::v11::TopK>(input,
                                                     k,
                                                     axis,
                                                     mode,
                                                     ov::op::v11::TopK::SortType::SORT_VALUES,
-                                                    index_type,
+                                                    ov::element::i32,
                                                     stable);
     return topk->output(1);  // indices
 }
@@ -260,6 +303,29 @@ ov::Output<ov::Node> process_view_input(const NodeContext& context, int input_in
     // Only works for VIEW operations that slice at the lowest dimension
     // If the VIEW also reshape the result, `slice_len` should be provided
     auto input = context.get_input(input_index);
+
+    // The standalone VIEW translator may already have materialized this operand as a Slice and
+    // dynamic Reshape. Reapplying the consumer-side legacy view handling would slice the resolved
+    // tensor a second time. Falcon K/V projection views expose this at zero cache length: the
+    // second slice starts beyond the resolved head-width and produces [1,0,H,S]. Treat a shape
+    // matching the ggml view itself as authoritative and pass it through unchanged.
+    const auto& expected_shape = context.get_input_shape(input_index);
+    const auto actual_shape = input.get_partial_shape();
+    if (actual_shape.rank().is_static() && expected_shape.rank().is_static() &&
+        actual_shape.rank() == expected_shape.rank()) {
+        bool view_is_materialized = true;
+        for (int64_t i = 0; i < actual_shape.rank().get_length(); ++i) {
+            if (expected_shape[i].is_static() &&
+                (actual_shape[i].is_dynamic() || actual_shape[i] != expected_shape[i])) {
+                view_is_materialized = false;
+                break;
+            }
+        }
+        if (view_is_materialized) {
+            return input;
+        }
+    }
+
     // The decoder already returns the view start offset in ELEMENTS (it divides ggml's raw byte
     // offset by the element size), so no stride division is needed here.
     int64_t split_addr = context.get_input_view_element_offset(input_index);
@@ -291,6 +357,4 @@ ov::Output<ov::Node> process_view_input(const NodeContext& context, int input_in
     return sliced;
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

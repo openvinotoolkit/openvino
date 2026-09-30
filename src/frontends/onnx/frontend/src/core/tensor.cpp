@@ -8,9 +8,7 @@
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/util/file_util.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 
 namespace {
 template <typename StorageT>
@@ -684,6 +682,4 @@ void ov::frontend::onnx::TensorONNXPlace::translate(ov::Output<ov::Node>& output
     }
 }
 
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx

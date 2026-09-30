@@ -62,6 +62,10 @@ inline std::string get_ocl_type_name<ov::float16>() {
     return "half";
 }
 template <>
+inline std::string get_ocl_type_name<ov::bfloat16>() {
+    return "ushort";
+}
+template <>
 inline std::string get_ocl_type_name<double>() {
     return "double";
 }

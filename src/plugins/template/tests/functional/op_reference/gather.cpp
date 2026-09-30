@@ -788,4 +788,21 @@ INSTANTIATE_TEST_SUITE_P(smoke_Gather_With_Hardcoded_Refs,
                          ReferenceGatherTestV8,
                          testing::ValuesIn(generateCombinedParamsV8()),
                          ReferenceGatherTestV8::getTestCaseName);
+
+class ReferenceGatherRegressionTest : public CommonReferenceTest, public testing::Test {};
+
+TEST_F(ReferenceGatherRegressionTest, ExoticDtypeDynamicShapeIndices) {
+    const auto P = std::make_shared<op::v0::Parameter>(element::f8e4m3, Shape{4, 2});
+    const auto I = std::make_shared<op::v0::Parameter>(element::i64, PartialShape::dynamic(1));
+    const auto A = op::v0::Constant::create(element::i64, Shape{}, {0});
+    const auto G = std::make_shared<op::v8::Gather>(P, I, A);
+    function = std::make_shared<Model>(G, ParameterVector{P, I});
+
+    inputData = {CreateTensor(Shape{4, 2},
+                              element::f8e4m3,
+                              std::vector<ov::float8_e4m3>{1.f, 2.f, 3.f, 4.f, 5.f, 6.f, 7.f, 8.f}),
+                 CreateTensor(Shape{2}, element::i64, std::vector<int64_t>{0, 2})};
+    refOutData = {CreateTensor(Shape{2, 2}, element::f8e4m3, std::vector<ov::float8_e4m3>{1.f, 2.f, 5.f, 6.f})};
+    Exec();
+}
 }  // namespace

@@ -69,8 +69,9 @@ bool ROIAlignKernelRef::Validate(const Params& p) const {
     }
 
     const roi_align_params &params = static_cast<const roi_align_params&>(p);
-    if (params.inputs.size() != 3)
+    if (params.inputs.size() != 3) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
