@@ -13,6 +13,7 @@
 #  define ACC_TO_OUT8(x)   _convert_bfloat168_as_ushort8(x)
 #  define MASK_TO_FLOAT(x) _convert_as_bfloat16_float(as_ushort(x))
 #  define MASK_TO_FLOAT2(x) _convert_as_bfloat162_float2(as_ushort2(x))
+#  define MASK_TO_FLOAT4(x) _convert_as_bfloat164_float4(as_ushort4(x))
 #  define MASK_TO_FLOAT16(x) _convert_as_bfloat1616_float16(as_ushort16(x))
 #  define DT_OUT8_T            ushort8
 #  define DT_ELEM2_T           ushort2
@@ -26,6 +27,7 @@
 #  define ACC_TO_OUT8(x)   convert_half8(x)
 #  define MASK_TO_FLOAT(x) convert_float(x)
 #  define MASK_TO_FLOAT2(x) convert_float2(x)
+#  define MASK_TO_FLOAT4(x) convert_float4(x)
 #  define MASK_TO_FLOAT16(x) convert_float16(x)
 #  define DT_OUT8_T            half8
 #  define DT_ELEM2_T           half2
@@ -93,9 +95,33 @@
 #  error "sdpa_ocl.cl: the S*V value tiles must cover the V head dim"
 #endif
 #if kq_sg_tile_keys != 16 && kq_sg_tile_keys != 32
-// k_mask / mask_tile hold kq_sg_tile_keys / SUBGROUP_SIZE <= 2 entries, and one i8 transform read
-// covers 32 keys.
+// One i8 transform read covers 32 keys.
 #  error "sdpa_ocl.cl: kq_sg_tile_keys must be 16 or 32"
+#endif
+
+// Keys are counted in two units that are equal only on Xe2:
+//  DPAS_K (16)     keys per DPAS step: the S*V "cp" block (one 16-token cache page), the S_slm row length,
+//                  the row coordinate of the V/Vc reads.
+//  SUBGROUP_SIZE   lanes (16 on Xe2, 8 on xe_hpg): the DPAS N dimension (queries of the KQ B operand, value
+//                  columns of the S*V B operand) and the width of the lane-per-key vectors (k_mask, mask_tile,
+//                  the K comp hoists). Use it for those only.
+#if IS_PAGED_ATTENTION && PAGED_ATTENTION_BLOCK_SIZE != DPAS_K
+#  error "sdpa_ocl.cl: a cp block (DPAS_K keys) must be exactly one paged-attention page"
+#endif
+
+// Keys per half16/float16 vector of mask_tile_2d (a lane loads its own query row): the vector width, not the lane count.
+#define MASK_VEC_KEYS 16
+
+// Lane-per-key mask state: key = group * SUBGROUP_SIZE + lane, group < kq_sg_tile_keys / SUBGROUP_SIZE. Never narrower
+// than 2: a 1-wide vector would be a scalar and change the Xe2 codegen.
+#if (kq_sg_tile_keys / SUBGROUP_SIZE) <= 2
+#  define KMASK_HALF_T      half2
+#  define KMASK_FLOAT_T     float2
+#  define KMASK_TO_FLOAT(x) MASK_TO_FLOAT2(x)
+#else
+#  define KMASK_HALF_T      half4
+#  define KMASK_FLOAT_T     float4
+#  define KMASK_TO_FLOAT(x) MASK_TO_FLOAT4(x)
 #endif
 
 // Paged attention's MIXED stage: K/V come from the paged cache (plus the raw current tokens).
@@ -331,6 +357,21 @@
 #  if (PA_V_ROW_ELEMS % SUBGROUP_SIZE) != 0 || PA_PAGE_COLS(PA_V_ROW_ELEMS) > PA_PAGE_UC16 || \
       (PA_PAGE_COLS(PA_V_ROW_ELEMS) & (PA_PAGE_COLS(PA_V_ROW_ELEMS) - 1)) != 0
 #    error "sdpa_ocl.cl: the 1D V page read needs PA_V_ROW_ELEMS = SUBGROUP_SIZE * 2^n, n <= 4"
+#  endif
+#endif
+
+// SG8 tripwires: each is a spot that compiles on SG8 but is silently wrong there; the named plan step resolves it.
+#if SUBGROUP_SIZE != 16
+#  error "sdpa_ocl.cl SG8: the DPAS A operand and the S_slm pA read are short8 (lane == key or head dim); SG8 needs int8, 2 halves per lane (plan S6a)"
+#  if USE_2D_BLOCK_IO_Q || USE_2D_BLOCK_IO_KV || USE_2D_BLOCK_IO_A || USE_2D_BLOCK_IO_K_I8 || USE_2D_BLOCK_IO_V_I8 || \
+      USE_2D_BLOCK_IO_K_PA || USE_2D_BLOCK_IO_V_PA || USE_2D_BLOCK_IO_K_PA_I8 || USE_2D_BLOCK_IO_V_PA_I8
+#    error "sdpa_ocl.cl SG8: 2D block IO needs a 16-wide subgroup; the host must force every USE_2D_BLOCK_IO_* to 0 (plan S5)"
+#  endif
+#  if IS_PA_MIXED && IS_PA_KV_COMPRESSED
+#    error "sdpa_ocl.cl SG8: pa_v_comp_fold and the V-page zp broadcasts hold one scale/zp per lane (lane == key); SG8 has 2 keys per lane (plan S8a)"
+#  endif
+#  if IS_PA_MIXED && IS_PA_K_BY_CHANNEL
+#    error "sdpa_ocl.cl SG8: pa_k_comp_by_channel reads one (scale, zp) dword per lane (lane == channel) at stride SUBGROUP_SIZE (plan S8b/S8c)"
 #  endif
 #endif
 

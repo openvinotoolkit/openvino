@@ -54,7 +54,7 @@ SDPA_OCL_INLINE int FUNC(bidir_scan_begin)(const __global int *token_type_ids, c
 // walks past the single row (OOB -> CL_OUT_OF_RESOURCES or a NaN mask). The same holds for the key
 // side of a [B, H, q, 1] mask. The selects fold when MSK_D2/MSK_D3 are literals.
 SDPA_OCL_INLINE void FUNC(mask_tile_2d)(OPTIONAL_SHAPE_INFO_ARG
-                                        __private float16 (*mask_full)[kq_sg_tile_keys / SUBGROUP_SIZE],
+                                        __private float16 (*mask_full)[kq_sg_tile_keys / MASK_VEC_KEYS],
                                         const __global half *msk, const float iscale, const size_t wg_j0,
                                         const size_t sg_j0_kq, const size_t lane, const int key_base) {
     #pragma unroll
@@ -62,17 +62,17 @@ SDPA_OCL_INLINE void FUNC(mask_tile_2d)(OPTIONAL_SHAPE_INFO_ARG
         const int mask_query = (MSK_D2 == 1) ? 0
                                              : (wg_j0 + sg_j0_kq + qb * SUBGROUP_SIZE + lane);
         #pragma unroll
-        for (int ii = 0; ii < kq_sg_tile_keys / SUBGROUP_SIZE; ++ii) {
-            const int mask_key = key_base + ii * SUBGROUP_SIZE;
+        for (int ii = 0; ii < kq_sg_tile_keys / MASK_VEC_KEYS; ++ii) {
+            const int mask_key = key_base + ii * MASK_VEC_KEYS;
             half16 mv = (half16)0.0f;
             if (mask_query < MSK_D2) {
                 if (MSK_D3 == 1) {
                     mv = (half16)msk[MSK_OFF(0, 0, mask_query, 0)];
-                } else if (mask_key + SUBGROUP_SIZE <= MSK_D3) {
+                } else if (mask_key + MASK_VEC_KEYS <= MSK_D3) {
                     mv = vload16(0, msk + MSK_OFF(0, 0, mask_query, mask_key));
                 } else {
                     #pragma unroll
-                    for (int kk = 0; kk < SUBGROUP_SIZE; ++kk) {
+                    for (int kk = 0; kk < MASK_VEC_KEYS; ++kk) {
                         if (mask_key + kk < MSK_D3)
                             mv[kk] = msk[MSK_OFF(0, 0, mask_query, mask_key + kk)];
                     }
