@@ -151,17 +151,53 @@ struct paged_attention : public primitive_base<paged_attention> {
         return enabled;
     }
 
+    // TEST_USE_SDPA_OCL_HPG: '1' => xe_hpg (DG2/Arc-A, ARL-H) may take the sdpa_ocl lane. Default OFF (xe_hpg keeps
+    // sdpa_micro) until the default flip. Has no effect on Xe2+. Read once per process.
+    static bool sdpa_ocl_hpg_enabled() {
+        static const bool enabled = []() {
+            const char* env = std::getenv("TEST_USE_SDPA_OCL_HPG");
+            return env != nullptr && env[0] == '1';
+        }();
+        return enabled;
+    }
+
+    // Device generations sdpa_ocl may run on (arch only; XMX and the switches are in sdpa_ocl_selected()).
+    // The two-argument form is pure so a host test can walk the whole table; the one-argument form reads the process env.
+    static bool sdpa_ocl_arch_ok(const device_info& info, bool hpg_opt_in) {
+        return info.arch >= gpu_arch::xe2 || (info.arch == gpu_arch::xe_hpg && hpg_opt_in);
+    }
+    static bool sdpa_ocl_arch_ok(const device_info& info) {
+        return sdpa_ocl_arch_ok(info, sdpa_ocl_hpg_enabled());
+    }
+
     // Which DPAS SDPA kernel plain SDPA and PA PREFILL/MIXED use on this device: sdpa_ocl on Xe2+ XMX (unless
     // TEST_USE_SDPA_OCL=0), sdpa_micro elsewhere, as upstream. One choice per device, never per op: where the chosen
     // kernel refuses an op, the opt kernels run, not the other DPAS kernel.
-    static bool sdpa_ocl_selected(const device_info& info) {
+    // This is the lane, i.e. which kernel serves PREFILL/MIXED. It is NOT "a GENERATE reader exists": ask
+    // sdpa_ocl_decode_reader_available() for that.
+    static bool sdpa_ocl_selected(const device_info& info, bool ocl_enabled, bool hpg_opt_in) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        return sdpa_ocl_enabled() && info.supports_immad && info.arch >= gpu_arch::xe2;
+        return ocl_enabled && info.supports_immad && sdpa_ocl_arch_ok(info, hpg_opt_in);
 #else
         // Neither DPAS kernel is built without oneDNN.
         (void)info;
+        (void)ocl_enabled;
+        (void)hpg_opt_in;
         return false;
 #endif
+    }
+    static bool sdpa_ocl_selected(const device_info& info) {
+        return sdpa_ocl_selected(info, sdpa_ocl_enabled(), sdpa_ocl_hpg_enabled());
+    }
+
+    // Whether sdpa_ocl_decode (the only reader of the token-major BY_CHANNEL K page in GENERATE) can serve this device.
+    // Mirrors the device/switch part of SDPAOclDecodeGenerator::supported(), which calls this itself so the two cannot drift.
+    // Deliberately no HPG term and no oneDNN guard: the decode kernel is SG16 + 2D block IO and does not need oneDNN.
+    static bool sdpa_ocl_decode_reader_available(const device_info& info, bool decode_enabled) {
+        return decode_enabled && info.supports_immad && info.arch >= gpu_arch::xe2;
+    }
+    static bool sdpa_ocl_decode_reader_available(const device_info& info) {
+        return sdpa_ocl_decode_reader_available(info, sdpa_ocl_decode_enabled());
     }
 
     // What the gates of the two token-major readers look at in one PagedAttention op.
@@ -178,14 +214,15 @@ struct paged_attention : public primitive_base<paged_attention> {
 
     // Whether a model whose PagedAttention ops are `ops` may keep its i8/u4 BY_CHANNEL K cache
     // token-major on this device: true only if every op's MIXED dispatch will run sdpa_ocl
-    // (the sdpa_ocl branch of PagedAttentionOptImpl::choose_dpas_backend) AND every GENERATE dispatch
-    // sdpa_ocl_decode (SDPAOclDecodeGenerator::supported). The layout is decided once per model but
+    // (sdpa_ocl_selected(), the sdpa_ocl branch of PagedAttentionOptImpl::choose_dpas_backend) AND every GENERATE
+    // dispatch sdpa_ocl_decode (sdpa_ocl_decode_reader_available(), SDPAOclDecodeGenerator::supported). The two are
+    // independent: folding them into one would give xe_hpg a token-major page that only d-major readers see. The layout is decided once per model but
     // the reader per dispatch, and a refused gate lands on a d-major reader that returns garbage, so
     // this must never say yes where a gate says no. Saying no where a gate would say yes only costs
     // speed: the d-major page has a correct reader in every stage. Keep it in step with those two
     // gates; PagedAttentionOptImpl::update_rt_params() throws if they ever disagree.
     // `microkernels_supported` is cldnn::query_microkernels_supported() -- the MIXED gate requires it;
-    // callers only need to query it when info.supports_immad && info.arch >= gpu_arch::xe2.
+    // callers only need to query it when sdpa_ocl_selected(info) && sdpa_ocl_decode_reader_available(info).
     // `infer_precision` is the plugin's inference precision (the PA op's Q/output type).
     // Defined next to the gates, in graph/impls/ocl_v2/sdpa/paged_attention_opt.cpp.
     static bool by_channel_token_major_readable(const device_info& info,
