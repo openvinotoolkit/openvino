@@ -3,6 +3,7 @@
 //
 
 #include <algorithm>
+#include <limits>
 
 #include "core/operator_set.hpp"
 #include "exceptions.hpp"
@@ -35,27 +36,29 @@ ov::OutputVector max_unpool(const ov::frontend::onnx::Node& node) {
         node.get_attribute_value<std::vector<int64_t>>("strides", std::vector<int64_t>(spatial_rank, 1));
     const auto pads = node.get_attribute_value<std::vector<int64_t>>("pads", std::vector<int64_t>(spatial_rank * 2, 0));
 
+    // The bound keeps 'k - s - pb - pe' far from int64 overflow
+    constexpr int64_t max_value = std::numeric_limits<int32_t>::max();
     const auto is_positive = [](int64_t v) {
-        return v > 0;
+        return v > 0 && v <= max_value;
     };
     const auto is_non_negative = [](int64_t v) {
-        return v >= 0;
+        return v >= 0 && v <= max_value;
     };
     CHECK_VALID_NODE(node,
                      spatial_rank > 0 && std::all_of(kernel_shape.begin(), kernel_shape.end(), is_positive),
-                     "MaxUnpool 'kernel_shape' attribute must be non-empty and positive. Got: ",
+                     "MaxUnpool 'kernel_shape' attribute must be non-empty and positive (<= INT32_MAX). Got: ",
                      ov::util::vector_to_string(kernel_shape));
     CHECK_VALID_NODE(node,
                      strides.size() == spatial_rank && std::all_of(strides.begin(), strides.end(), is_positive),
                      "MaxUnpool 'strides' attribute must have ",
                      spatial_rank,
-                     " positive elements. Got: ",
+                     " positive (<= INT32_MAX) elements. Got: ",
                      ov::util::vector_to_string(strides));
     CHECK_VALID_NODE(node,
                      pads.size() == spatial_rank * 2 && std::all_of(pads.begin(), pads.end(), is_non_negative),
                      "MaxUnpool 'pads' attribute must have ",
                      spatial_rank * 2,
-                     " non-negative elements. Got: ",
+                     " non-negative (<= INT32_MAX) elements. Got: ",
                      ov::util::vector_to_string(pads));
     const auto data_rank = data.get_partial_shape().rank();
     CHECK_VALID_NODE(node,
@@ -65,9 +68,43 @@ ov::OutputVector max_unpool(const ov::frontend::onnx::Node& node) {
                      ", 'kernel_shape' size: ",
                      spatial_rank);
 
+    CHECK_VALID_NODE(node,
+                     data.get_partial_shape().compatible(indices.get_partial_shape()),
+                     "MaxUnpool 'indices' shape must match the input shape. Got: ",
+                     indices.get_partial_shape(),
+                     " and ",
+                     data.get_partial_shape());
+
     ov::Output<ov::Node> output_shape;
     if (common::is_input_valid(node, 2)) {
         output_shape = inputs[2];
+        // A runtime 'output_shape' can only be checked by its shape
+        const auto& os_shape = output_shape.get_partial_shape();
+        CHECK_VALID_NODE(node,
+                         os_shape.rank().is_dynamic() ||
+                             (os_shape.rank().get_length() == 1 &&
+                              (os_shape[0].is_dynamic() ||
+                               os_shape[0].get_length() == static_cast<int64_t>(spatial_rank + 2))),
+                         "MaxUnpool 'output_shape' must be a 1D tensor with ",
+                         spatial_rank + 2,
+                         " elements. Got shape: ",
+                         os_shape);
+        if (const auto os_const = ov::as_type_ptr<v0::Constant>(output_shape.get_node_shared_ptr())) {
+            const auto values = os_const->cast_vector<int64_t>();
+            const auto& data_shape = data.get_partial_shape();
+            CHECK_VALID_NODE(node,
+                             std::all_of(values.begin(), values.end(), is_non_negative),
+                             "MaxUnpool 'output_shape' must be non-negative. Got: ",
+                             ov::util::vector_to_string(values));
+            for (size_t i = 0; i < 2 && data_shape.rank().is_static(); ++i) {
+                CHECK_VALID_NODE(node,
+                                 data_shape[i].is_dynamic() || data_shape[i].get_length() == values[i],
+                                 "MaxUnpool 'output_shape' batch and channel dimensions must match the input. Got: ",
+                                 ov::util::vector_to_string(values),
+                                 " for input shape ",
+                                 data_shape);
+            }
+        }
     } else {
         // out[i] = (in[i] - 1) * strides[i] + kernel_shape[i] - pads_begin[i] - pads_end[i]
         std::vector<int64_t> shift(spatial_rank);
