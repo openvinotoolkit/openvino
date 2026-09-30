@@ -166,16 +166,12 @@ skip_issue_119896 = pytest.mark.skip(reason="Unsupported element type: FLOAT8")
 xfail_issue_171767 = pytest.mark.skip(reason="Unsupported element type: FLOAT4E2M1")
 xfail_issue_171771 = pytest.mark.skip(reason="Mismatches in tests: Top K values")
 
-# Attention op (ONNX opset 23/24) -- requires ONNX >= 1.23; CI uses ONNX 1.18.
-# Tests pass locally when ONNX >= 1.23 is installed.
-xfail_attention_onnx_version = pytest.mark.skip(reason="Attention op tests require ONNX >= 1.23; CI uses ONNX 1.18")
-
 # Attention op fully-masked-row / NaN-robustness tests that do not yet pass:
 xfail_attention_nan_robustness = pytest.mark.skip(reason="Attention fully-masked-row NaN robustness not yet handled in expanded/SDPA paths")
 
-# ONNX 1.22 (opset 24-27) — operators and data types not yet implemented in the
-# OpenVINO ONNX frontend, and reference-data changes exposed by the newer opset.
-# These were surfaced when bumping the bundled ONNX submodule to 1.22.0.
+# ONNX 1.22+ (opset 24-28) — operators and data types not yet implemented in
+# the OpenVINO ONNX frontend, and reference-data changes exposed by newer opsets.
+# These were surfaced while upgrading the bundled ONNX dependency.
 xfail_issue_onnx122_linearattention = xfail_test(
     reason="OV ONNX FE does not support LinearAttention-27 (new in ONNX opset 27)")
 xfail_issue_onnx122_causalconv = xfail_test(
@@ -192,11 +188,13 @@ xfail_issue_onnx122_attention = xfail_test(
     reason="OV ONNX FE does not fully support Attention-24 for these cases (ONNX opset 24)")
 xfail_issue_onnx122_newdtype = xfail_test(
     reason="OV ONNX FE does not support new sub-byte / float8 data types "
-           "(INT2/UINT2, INT4/UINT4, FLOAT4E2M1, FLOAT8E8M0, FLOAT8E*FNUZ) in Cast/CastLike/Quantize")
+           "(INT2/UINT2, INT4/UINT4, FLOAT4E2M1, FLOAT6E2M3/FLOAT6E3M2, "
+           "FLOAT8E8M0, FLOAT8E*FNUZ) "
+           "in Cast/CastLike/Quantize")
 xfail_issue_onnx122_accuracy = xfail_test(
-    reason="Accuracy / reference-data mismatch exposed by ONNX 1.22 (e.g. Cast inf-vs-FLT_MAX "
+    reason="Accuracy / reference-data mismatch exposed by ONNX 1.22+ (e.g. Cast inf-vs-FLT_MAX "
            "saturation, DFT rfft/irfft shape, NonMaxSuppression boundary, Range bfloat16)")
-# Plain float-width Cast/CastLike overflow: ONNX 1.22 expects +/-inf while OV core Cast saturates
+# Plain float-width Cast/CastLike overflow: ONNX 1.22+ expects +/-inf while OV core Cast saturates
 # to +/-FLT_MAX (infinity handling in OV core). Non-strict so the tests are not required to fail
 # and will not XPASS-fail once the core behavior is aligned.
 xfail_issue_onnx122_cast_infinity = xfail_test(

@@ -12,7 +12,7 @@ wheel>=0.38.1
 defusedxml>=0.7.1
 tensorflow>=2.5,<2.21.0
 requests>=2.33.0
-onnx>=1.22.0
+onnx>=1.23.1
 onnxruntime>=1.23.2
 opencv-python>=4.5
 paddlepaddle==3.3.0

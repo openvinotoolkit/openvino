@@ -59,7 +59,6 @@ from tests import (
     xfail_issue_139936,
     xfail_issue_171767,
     xfail_issue_171771,
-    xfail_attention_onnx_version,
     xfail_attention_nan_robustness,
     xfail_issue_onnx122_linearattention,
     xfail_issue_onnx122_causalconv,
@@ -505,50 +504,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_top_k_same_values_largest_cpu",
     ),
     (
-        xfail_attention_onnx_version,
-        # Pass locally with ONNX >= 1.23
-        "OnnxBackendNodeModelTest.test_attention_3d_attn_mask_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_causal_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_diff_heads_sizes_attn_mask_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_diff_heads_sizes_causal_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_diff_heads_sizes_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_diff_heads_sizes_scaled_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_diff_heads_sizes_softcap_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_diff_heads_with_past_and_present_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_gqa_attn_mask_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_gqa_causal_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_gqa_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_gqa_scaled_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_gqa_softcap_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_gqa_with_past_and_present_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_scaled_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_softcap_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_with_past_and_present_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_with_past_and_present_qk_matmul_bias_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_with_past_and_present_qk_matmul_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_with_past_and_present_qk_matmul_softcap_cpu",
-        "OnnxBackendNodeModelTest.test_attention_3d_with_past_and_present_qk_matmul_softmax_cpu",
-        "OnnxBackendNodeModelTest.test_attention_4d_gqa_attn_mask_cpu",
-        "OnnxBackendNodeModelTest.test_attention_4d_gqa_causal_cpu",
-        "OnnxBackendNodeModelTest.test_attention_4d_gqa_cpu",
-        "OnnxBackendNodeModelTest.test_attention_4d_gqa_scaled_cpu",
-        "OnnxBackendNodeModelTest.test_attention_4d_gqa_softcap_cpu",
-        "OnnxBackendNodeModelTest.test_attention_4d_gqa_with_past_and_present_cpu",
-        "OnnxBackendNodeModelTest.test_attention_4d_with_past_and_present_qk_matmul_bias_cpu",
-        "OnnxBackendNodeModelTest.test_attention_4d_with_qk_matmul_bias_cpu",
-        "OnnxBackendNodeModelTest.test_attention_4d_with_qk_matmul_softcap_cpu",
-    ),
-    (
-        xfail_attention_onnx_version,
-        # These 4 tests pass locally with ONNX >= 1.23
-        # They are skipped in CI because ONNX 1.18 does not provide correct reference values for opset-23/24 tests.
-        "OnnxBackendNodeModelTest.test_attention_23_fullymasked_qk_matmul_output_mode3_zero_cpu",
-        "OnnxBackendNodeModelTest.test_attention_24_fullymasked_qk_matmul_output_mode3_zero_cpu",
-        "OnnxBackendNodeModelTest.test_attention_24_qk_matmul_output_mode3_softmax_precision_cpu",
-        "OnnxBackendNodeModelTest.test_attention_23_boolmask_fullymasked_row_nan_robustness_cpu",
-    ),
-    (
         xfail_attention_nan_robustness,
         # expanded variants use the ONNX reference decomposition (not our translator) and do not yet pass.
         "OnnxBackendNodeModelTest.test_attention_23_boolmask_fullymasked_row_nan_robustness_expanded_cpu",
@@ -740,7 +695,7 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_onnx122_cast_infinity,
-        # Plain float-width casts: ONNX 1.22 changed the reference so double/float ->
+        # Plain float-width casts: ONNX 1.22+ changed the reference so double/float ->
         # narrower-float overflow yields +/-inf, while the OV Cast saturates to +/-FLT_MAX.
         # Non-strict (infinity handling in OV core): tolerated whether they pass or fail.
         "OnnxBackendNodeModelTest.test_cast_DOUBLE_to_FLOAT_cpu",
@@ -758,7 +713,7 @@ tests_expected_to_fail = [
     ),
     (
         xfail_issue_onnx122_accuracy,
-        # float8 Cast/CastLike variants and other ONNX 1.22 reference-data mismatches.
+        # float8 Cast/CastLike variants and other ONNX 1.22+ reference-data mismatches.
         "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT8E4M3FN_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT8E4M3FN_expanded_cpu",
         "OnnxBackendNodeModelTest.test_castlike_FLOAT16_to_FLOAT8E5M2_cpu",
