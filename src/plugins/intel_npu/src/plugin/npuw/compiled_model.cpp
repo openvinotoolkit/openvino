@@ -210,11 +210,19 @@ std::set<std::string> device_list_to_set(const std::string& device_list) {
 void validate_closure_metadata_sizes(std::size_t closure_size,
                                      std::size_t lazy_closure_size,
                                      std::size_t is_remote_size,
-                                     std::size_t closure_uid_size) {
+                                     std::size_t closure_uid_size,
+                                     std::size_t scales_size,
+                                     std::size_t zerops_size) {
     NPUW_ASSERT(lazy_closure_size == closure_size &&
                 "Malformed ORC blob: lazy_closure size does not match closure size");
     NPUW_ASSERT(is_remote_size == closure_size && "Malformed ORC blob: is_remote size does not match closure size");
     NPUW_ASSERT(closure_uid_size == closure_size && "Malformed ORC blob: closure_uid size does not match closure size");
+    // Quantization metadata is optional, but when present it is indexed by closure index
+    const bool has_quant_metadata = scales_size != 0 || zerops_size != 0;
+    NPUW_ASSERT((!has_quant_metadata || scales_size == closure_size) &&
+                "Malformed ORC blob: scales size does not match closure size");
+    NPUW_ASSERT((!has_quant_metadata || zerops_size == closure_size) &&
+                "Malformed ORC blob: zerops size does not match closure size");
 }
 }  // anonymous namespace
 
@@ -1004,7 +1012,9 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
             validate_closure_metadata_sizes(closure_size,
                                             closure_size,
                                             closure_desc.is_remote.size(),
-                                            closure_desc.closure_uid.size());
+                                            closure_desc.closure_uid.size(),
+                                            scales.size(),
+                                            zerops.size());
         }
         std::vector<ov::Tensor> cpu_closures;
         std::vector<std::size_t> cpu_closure_ids;
@@ -1058,7 +1068,9 @@ void ov::npuw::CompiledModel::CompiledModelDesc::serialize(ov::npuw::s11n::Strea
             validate_closure_metadata_sizes(closure_size,
                                             closure_size,
                                             closure_desc.is_remote.size(),
-                                            closure_desc.closure_uid.size());
+                                            closure_desc.closure_uid.size(),
+                                            scales.size(),
+                                            zerops.size());
         }
         std::vector<std::size_t> cpu_closure_ids;
         if (stream.output()) {
@@ -1501,27 +1513,6 @@ void ov::npuw::CompiledModel::validate_import_routing_tables(const std::shared_p
                            num_submodels,
                            ")");
         }
-        if (!submodel_desc.scales.empty() || !submodel_desc.zerops.empty()) {
-            const auto closure_size = submodel_desc.closure.get().closure.size();
-            if (submodel_desc.scales.size() != closure_size) {
-                OPENVINO_THROW("Invalid m_compiled_submodels[",
-                               idx,
-                               "].scales size ",
-                               submodel_desc.scales.size(),
-                               " (expected ",
-                               closure_size,
-                               ")");
-            }
-            if (submodel_desc.zerops.size() != closure_size) {
-                OPENVINO_THROW("Invalid m_compiled_submodels[",
-                               idx,
-                               "].zerops size ",
-                               submodel_desc.zerops.size(),
-                               " (expected ",
-                               closure_size,
-                               ")");
-            }
-        }
     }
 
     if (compiled->m_inputs_to_submodels_inputs.size() != compiled->inputs().size()) {
@@ -1617,7 +1608,9 @@ void ov::npuw::CompiledModel::reconstruct_closure() {
         validate_closure_metadata_sizes(desc_closure.closure.size(),
                                         desc_closure.closure.size(),
                                         desc_closure.is_remote.size(),
-                                        desc_closure.closure_uid.size());
+                                        desc_closure.closure_uid.size(),
+                                        comp_model_desc.scales.size(),
+                                        comp_model_desc.zerops.size());
 
         for (std::size_t cidx = 0; cidx < desc_closure.closure.size(); ++cidx) {
             if (desc_closure.closure[cidx]) {
@@ -1668,7 +1661,9 @@ void ov::npuw::CompiledModel::finalize_weights_bank() {
             validate_closure_metadata_sizes(comp_model_desc.closure.unsafe_get().closure.size(),
                                             comp_model_desc.lazy_closure.size(),
                                             comp_model_desc.closure.unsafe_get().is_remote.size(),
-                                            comp_model_desc.closure.unsafe_get().closure_uid.size());
+                                            comp_model_desc.closure.unsafe_get().closure_uid.size(),
+                                            comp_model_desc.scales.size(),
+                                            comp_model_desc.zerops.size());
 
             for (std::size_t tidx = 0; tidx < comp_model_desc.lazy_closure.size(); ++tidx) {
                 if (comp_model_desc.closure.unsafe_get().closure[tidx]) {
