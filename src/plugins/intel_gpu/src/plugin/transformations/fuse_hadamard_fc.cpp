@@ -88,9 +88,10 @@ bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
                 auto w = mm->get_input_node_shared_ptr(1);
                 std::cerr << "[hadamard-fc] " << fc->get_friendly_name() << ": no H behind " << mm->get_type_name() << " inputs=" << mm->get_input_size()
                           << " w=" << w->get_type_name() << " " << w->get_output_element_type(0) << " " << w->get_output_partial_shape(0);
-                if (w->get_input_size() > 0)
+                if (w->get_input_size() > 0) {
                     std::cerr << " <- " << w->get_input_node_shared_ptr(0)->get_type_name() << " "
                               << w->get_input_node_shared_ptr(0)->get_output_partial_shape(0);
+                }
                 if (h) {
                     const auto v = h->cast_vector<float>();
                     std::cerr << " const[0,0..3]=" << v[0] << "," << v[1] << "," << v[2] << "," << v[3] << " [1,1]=" << v[kBlock + 1]
@@ -121,10 +122,11 @@ bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
                     ok = std::fabs(std::fabs(vals[i]) - 1.0f) < 1e-6f;
                     signs[i] = vals[i] < 0 ? -1 : 1;
                 }
-                if (ok)
+                if (ok) {
                     x = mul->input_value(data_port);
-                else
+                } else {
                     signs.clear();
+                }
             }
         }
         // The Reshape to [..., K/1024, 1024] already pins the source's last dim
@@ -140,9 +142,10 @@ bool FuseHadamardIntoFC::run_on_model(const std::shared_ptr<ov::Model>& model) {
         rt[int2_hadamard_block_key] = static_cast<int64_t>(kBlock);
         rt[int2_hadamard_signs_key] = signs;
         ++fused;
-        if (trace)
+        if (trace) {
             std::cerr << "[hadamard-fc] fused into " << fc->get_friendly_name() << " K=" << K << " signs=" << (signs.empty() ? "folded" : "explicit")
                       << std::endl;
+        }
     }
     if (trace || (fused && ov::util::getenv_bool("OV_TERNOCL_INT2_DEBUG")))
         std::cerr << "[hadamard-fc] fused " << fused << " input rotations" << std::endl;

@@ -149,13 +149,15 @@ GemvTile gemv_tile(size_t K, size_t N, bool integrated) {
         {5120, 248320, {32, 2, 2}},
     };
     if (integrated) {
-        for (const auto& e : igpu)
+        for (const auto& e : igpu) {
             if (e.k == K && e.n == N)
                 return e.t;
+        }
     }
-    for (const auto& e : discrete)
+    for (const auto& e : discrete) {
         if (e.k == K && e.n == N)
             return e.t;
+    }
     return N <= 8192 ? GemvTile{32, 4, 2} : GemvTile{16, 2, 1};
 }
 
@@ -207,14 +209,16 @@ MtTile mt_tile(size_t K, size_t N, size_t M, bool integrated) {
         {5120, 248320, {128, 16, 2, 2}},
     };
     if (integrated) {
-        for (const auto& e : igpu)
+        for (const auto& e : igpu) {
             if (e.k == K && e.n == N)
                 return e.t;
+        }
         return MtTile{128, 16, 2, 4};
     }
-    for (const auto& e : table)
+    for (const auto& e : table) {
         if (e.k == K && e.n == N)
             return e.t;
+    }
     return MtTile{64, 32, 4, 4};
 }
 
@@ -243,9 +247,10 @@ MtTile int8_tile(size_t K, size_t N, size_t M) {
         {5120, 14336, {{8, 32, 2, 4}, {8, 64, 2, 2}, {8, 128, 8, 2}, {8, 128, 4, 2}}},      // qkv
         {5120, 248320, {{8, 128, 2, 4}, {8, 128, 4, 4}, {8, 128, 8, 2}, {8, 128, 16, 1}}},  // lm_head
     };
-    for (const auto& e : table)
+    for (const auto& e : table) {
         if (e.k == K && e.n == N)
             return e.t[band];
+    }
     static const MtTile fallback[4] = {{8, 32, 2, 4}, {8, 64, 2, 2}, {8, 128, 8, 2}, {8, 128, 8, 2}};
     return fallback[band];
 }
@@ -678,9 +683,10 @@ public:
             std::vector<uint16_t> scale_src(scale_mem->size() / sizeof(uint16_t));
             scale_mem->copy_to(stream, scale_src.data(), true);
             std::vector<uint16_t> scale_host(groups * N);
-            for (size_t g = 0; g < groups; ++g)
+            for (size_t g = 0; g < groups; ++g) {
                 for (size_t n = 0; n < N; ++n)
                     scale_host[g * N + n] = n_major ? scale_src[n * groups + g] : scale_src[g * N + n];
+            }
             own.scales = engine.allocate_memory(layout{ov::PartialShape{static_cast<int64_t>(groups), static_cast<int64_t>(N)}, data_types::f16, format::bfyx},
                                                 allocation_type::usm_device,
                                                 false);
@@ -701,9 +707,10 @@ public:
             std::lock_guard<std::mutex> lock(ternocl_packed_mutex());
             ternocl_packed_cache().try_emplace(key, own);
         }
-        if (dbg)
+        if (dbg) {
             std::cerr << "[ternocl-int2] create " << arg.id() << " N=" << N << " K=" << K << " postop=" << postop << " out_f32=" << out_f32
                       << " hadamard=" << desc->hadamard_block << std::endl;
+        }
 
         return std::make_unique<fully_connected_ternocl_int2>(downcast<const ocl_engine>(engine), own, N, K, postop, other_dep, out_f32, desc->hadamard_block);
     }
