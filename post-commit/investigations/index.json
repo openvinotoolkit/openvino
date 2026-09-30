@@ -1,6 +1,6 @@
 {
     "schema_version": "1.0",
-    "total": 2,
+    "total": 3,
     "entries": [
         {
             "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -23,6 +23,15 @@
             "category": "Infrastructure",
             "signature_hash": "0ee6d7327812b344",
             "commit_sha": "a1bf0fb1ea427b651f8c65a74c22268b26dcf4a8"
+        },
+        {
+            "investigation_id": "2026-09-30-03-20-47-000-36656403596",
+            "run_id": "36656403596",
+            "timestamp": "2026-09-30T03:20:47Z",
+            "title": "Windows post-commit jobs fail installing pip dependencies via internal pip-proxy with malformed JSON simple-index response",
+            "category": "Infrastructure",
+            "signature_hash": "9cd22413ebd3589c",
+            "commit_sha": "e0fc3be851db3b77e02b46790fca8eace8d6fdc4"
         }
     ]
 }

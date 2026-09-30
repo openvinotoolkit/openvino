@@ -1,0 +1,73 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-09-30-03-20-47-000-36656403596",
+    "timestamp": "2026-09-30T03:20:47Z",
+    "run_id": "36656403596",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36656403596",
+    "workflow_name": "Windows (VS 2022, Python 3.11, Release)",
+    "commit_sha": "e0fc3be851db3b77e02b46790fca8eace8d6fdc4",
+    "pr_number": "38451",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38451",
+    "author": null,
+    "category": "Infrastructure",
+    "title": "Windows post-commit jobs fail installing pip dependencies via internal pip-proxy with malformed JSON simple-index response",
+    "signature": "pip install fails with json.decoder.JSONDecodeError: Expecting ':' delimiter parsing pip-proxy simple-index page (malformed/truncated JSON from internal pip proxy)|Infrastructure",
+    "signature_hash": "9cd22413ebd3589c",
+    "confidence": "High",
+    "failed_jobs": [
+        {
+            "name": "Python unit tests",
+            "conclusion": "failure",
+            "symptom": "pip install for torchvision requirements fails with JSONDecodeError from pip-proxy simple-index"
+        },
+        {
+            "name": "OpenVINO Python API Tests (3.13)",
+            "conclusion": "failure",
+            "symptom": "pip install for python API test deps fails with JSONDecodeError from pip-proxy simple-index"
+        },
+        {
+            "name": "OpenVINO Python API Tests (3.12)",
+            "conclusion": "failure",
+            "symptom": "pip install for python API test deps fails with JSONDecodeError from pip-proxy simple-index"
+        },
+        {
+            "name": "OpenVINO Python API Tests (3.14t)",
+            "conclusion": "failure",
+            "symptom": "pip install for python API test deps fails with JSONDecodeError from pip-proxy simple-index"
+        },
+        {
+            "name": "Pytorch FX Layer Tests / PyTorch FX Layer Tests",
+            "conclusion": "failure",
+            "symptom": "pip install for torch>=2.7.0 fails with JSONDecodeError from pip-proxy simple-index"
+        },
+        {
+            "name": "NPU Models Tests / 6010",
+            "conclusion": "failure",
+            "symptom": "pip install for TF/JAX/PyTorch model test requirements fails with JSONDecodeError from pip-proxy simple-index"
+        },
+        {
+            "name": "TensorFlow Layer Tests / TensorFlow Layer Tests",
+            "conclusion": "failure",
+            "symptom": "pip install for requirements_tensorflow (ml-dtypes/keras resolution) fails with JSONDecodeError from pip-proxy simple-index"
+        },
+        {
+            "name": "ci/gha_overall_status_windows",
+            "conclusion": "failure",
+            "symptom": "Aggregate status check fails because upstream jobs failed"
+        }
+    ],
+    "key_errors": [
+        "ERROR: Exception:\nTraceback (most recent call last):\n  File \"...\\pip\\_internal\\index\\collector.py\", line 228, in parse_links\n    data = json.loads(page.content)\n  File \"...\\json\\decoder.py\", line 337, in decode\n    obj, end = self.raw_decode(s, idx=_w(s, 0).end())\njson.decoder.JSONDecodeError: Expecting ':' delimiter: line 1 column 33791 (char 33790)",
+        "Looking in indexes: http://pip-proxy.pip-proxy.svc.cluster.local/simple/, https://download.pytorch.org/whl/cpu\nCollecting torch>=2.7.0 (...)\n  Downloading torch-2.14.0%2Bcpu-cp311-cp311-win_amd64.whl.metadata (38 kB)\nERROR: Exception: ..."
+    ],
+    "root_cause": "All Windows post-commit dependency-install steps use PIP_INDEX_URL pointed at the in-cluster pip proxy (pip-proxy.pip-proxy.svc.cluster.local), which serves the PyPI JSON simple-index API. In this run the proxy returned a truncated or malformed JSON body (parsing fails deterministically at the same byte offset, char 33790, across every affected job and every Python version), so pip's json.loads() raises JSONDecodeError while resolving unrelated packages (torchvision, python API test deps, TF/JAX/PyTorch model requirements, ml-dtypes/keras). The identical column offset across independently-running jobs strongly indicates the proxy is serving a cached/broken response (e.g., a corrupted cache entry or a response truncated by a proxy-side size/timeout limit) rather than a per-job or per-package problem; no product source code is implicated.",
+    "reproduction_steps": "N/A (depends on the internal pip-proxy's cached/served response at a specific point in time; not reproducible from a local clone). To probe: curl -s http://pip-proxy.pip-proxy.svc.cluster.local/simple/torch/ (or torchvision/tensorflow/etc.) from a runner with access to the proxy and check whether the JSON response is valid/complete with `python3 -c \"import json,sys; json.load(sys.stdin)\"`.",
+    "recommended_actions": [
+        "Escalate to the CI infrastructure/runner team owning pip-proxy.pip-proxy.svc.cluster.local to inspect proxy logs/cache around 2026-09-30T02:41-02:58Z for truncated responses or upstream PyPI JSON API errors.",
+        "Add proxy-side response validation (or a cache-busting retry) so pip-proxy never forwards a truncated JSON body to clients.",
+        "Consider adding automatic pip retry-on-JSONDecodeError logic (e.g., `pip install --retries` plus a short backoff, or falling back to the public PyPI index) in the Windows dependency-install steps to reduce sensitivity to transient proxy glitches.",
+        "Monitor whether this recurs at the same byte offset (char 33790); a stable offset across many packages suggests a fixed-size buffer/truncation bug in the proxy rather than package-specific content."
+    ],
+    "prevention_strategies": "Add health checks / synthetic pip-proxy JSON validation on a schedule so a corrupted proxy cache is detected before it causes a wave of post-commit failures across many jobs. Consider a fallback PIP_INDEX_URL or automatic retry with a fresh connection when pip raises JSONDecodeError while talking to the internal proxy.",
+    "historical_context": "No prior post-commit investigation with this exact signature exists in the pattern database as of this run (first occurrence of the pip-proxy malformed-JSON signature). Other recent unrelated infrastructure issues recorded: ARM64 cross-compilation cc1plus invalid-pch error (2026-09-25) and Windows artifact-upload ENOTFOUND (2026-09-23), both different root causes."
+}

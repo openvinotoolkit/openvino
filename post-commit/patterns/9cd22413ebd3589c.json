@@ -1,0 +1,19 @@
+{
+    "schema_version": "1.0",
+    "signature": "pip install fails with json.decoder.JSONDecodeError: Expecting ':' delimiter parsing pip-proxy simple-index page (malformed/truncated JSON from internal pip proxy)|Infrastructure",
+    "signature_hash": "9cd22413ebd3589c",
+    "title": "Windows post-commit jobs fail installing pip dependencies via internal pip-proxy with malformed JSON simple-index response",
+    "category": "Infrastructure",
+    "count": 1,
+    "first_seen": "2026-09-30T03:20:47Z",
+    "last_seen": "2026-09-30T03:20:47Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/36656403596"
+    ],
+    "affected_commits": [
+        "e0fc3be851db3b77e02b46790fca8eace8d6fdc4"
+    ],
+    "recent_timestamps": [
+        "2026-09-30T03:20:47Z"
+    ]
+}
