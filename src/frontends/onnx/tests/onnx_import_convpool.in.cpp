@@ -1883,6 +1883,7 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_invalid_attributes) {
         {"max_unpool_invalid_kernel_shape.onnx", "'kernel_shape'"},
         {"max_unpool_invalid_strides.onnx", "'strides'"},
         {"max_unpool_invalid_pads.onnx", "'pads'"},
+        {"max_unpool_invalid_negative_pads.onnx", "'pads'"},
         {"max_unpool_invalid_rank.onnx", "rank"},
     };
     for (const auto& [model_path, message] : cases) {
