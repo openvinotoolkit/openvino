@@ -403,14 +403,25 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         OPENVINO_ASSERT(m_lm_head_request);
         const ov::Output<const ov::Node> lm_head_embed_port = m_lm_head_request->get_inputs()[0];
         m_lm_head_logits_port = m_lm_head_request->get_outputs()[0];
+
+        // NB: get_tensor() on a freshly-created infer request can come back
+        // without a backing allocation when this port's tensor is small
+        // (e.g. Qwen3-0.6B's [1,1,1024] embed port vs. Qwen3-1.7B's
+        // [1,1,2048], which is unaffected despite identical lm_head subgraph
+        // topology), causing "Tensor was not initialized" the first time
+        // this port is read. Force a real allocation up front.
+        ov::Tensor lm_head_embed_tensor(lm_head_embed_port.get_element_type(),
+                                        lm_head_embed_port.get_shape());
+        m_lm_head_request->set_tensor(lm_head_embed_port, lm_head_embed_tensor);
+
         m_prefill_request->set_tensor(m_prefill_out_ports.at(layer_names::output_embeds),
-                                      m_lm_head_request->get_tensor(lm_head_embed_port));
+                                      lm_head_embed_tensor);
 
         // Set output_embeds tensor for all generate variants
         for (auto& generate_req : m_generate_requests) {
             const auto& variant_out_ports = m_generate_variant_out_ports.at(generate_req);
             generate_req->set_tensor(variant_out_ports.at(layer_names::output_embeds),
-                                     m_lm_head_request->get_tensor(lm_head_embed_port));
+                                     lm_head_embed_tensor);
         }
     }
 
