@@ -71,7 +71,10 @@ ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16(
             return false;
         }
 
-        const bool has_subtract = ov::is_type<ov::op::v1::Subtract>(conv->get_input_node_ptr(0));
+        const auto u8_subtract_out = conv_mul_add_fq->get_anchor("u8_subtract", pattern_map);
+        const auto i8_subtract_out = conv_mul_add_fq->get_anchor("i8_subtract", pattern_map);
+        const bool has_subtract = u8_subtract_out.has_value() || i8_subtract_out.has_value();
+
         const auto activation_out = conv_mul_add_fq->get_anchor("activation", pattern_map);
         if (has_subtract) {
             if (const auto zp_constant = ov::as_type_ptr<ov::op::v0::Constant>(
