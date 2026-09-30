@@ -550,6 +550,12 @@ static void optimize_weights_decompression_parameters(fully_connected_node& fc_n
     if (!fc_prim->compressed_weights)
         return;
 
+    // u2 weights: keep per-group scales / zero points bfyx ([N, K/64]). The CM u2 FC kernel
+    // (impls/cm/woq_u2_gemm_dual.cm, N-major layout) reads them that way, and the only other u2 FC kernel,
+    // fully_connected_gpu_bfyx_ref, indexes them format-generically.
+    if (fc_node.get_input_layout(1).data_type == data_types::u2)
+        return;
+
     auto reorder_bfyx = [&](size_t dep_id, cldnn::format format) {
         auto& dep = fc_node.get_dependency(dep_id);
         auto target_layout = dep.get_output_layout();
