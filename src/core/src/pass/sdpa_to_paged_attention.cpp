@@ -120,7 +120,7 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
     }
 
     std::unordered_set<std::string> var_ids_to_remove;
-    std::unordered_set<std::string> params_to_remove {"beam_idx", "attention_mask"};
+    std::unordered_set<std::string> params_to_remove{"beam_idx", "attention_mask"};
 
     // Get-or-create the flattened position_ids parameter and restore its rank at each existing consumer with a
     // single shared Unsqueeze(-1). The PositionIDsReplacer* passes below consume the raw parameter and add their
