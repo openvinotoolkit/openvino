@@ -177,10 +177,11 @@ const ov::npuw::function::PyramidValidationBlockResult& get_block_result(
 }
 // Helper function to apply SplitKVCacheIntoBlocks transformation
 std::shared_ptr<ov::Model> apply_split_kvcache_into_blocks(const std::shared_ptr<ov::Model>& model,
-                                                           uint32_t block_size = 32) {
+                                                           uint32_t block_size = 32,
+                                                           bool v_transposed = false) {
     auto cloned = model->clone();
-    // Use v_transposed=false to match test model structure where both key and value use axis 2
-    ov::npuw::pass::SplitKVCacheIntoBlocks(block_size, false).run_on_model(cloned);
+    // Most existing test models use axis 2 for both K and V; transposed-V fixtures pass true.
+    ov::npuw::pass::SplitKVCacheIntoBlocks(block_size, v_transposed).run_on_model(cloned);
     return cloned;
 }
 // --- Tests for validate_and_setup_pyramid_attention (Contiguous KV Cache) ---
@@ -422,6 +423,54 @@ TEST(PyramidAttentionTest, PrefillSpecializesBothKVReshapeSequenceAxes) {
         }
         EXPECT_EQ(patched_reshapes, 2u);
     }
+}
+
+TEST(PyramidAttentionTest, BlockPrefillSpecializesBothKVReshapeSequenceAxes) {
+    constexpr size_t query_len = 64;
+    constexpr size_t past_len = 128;
+    constexpr size_t head_dim = 16;
+    constexpr size_t block_size = query_len;
+    constexpr size_t expected_context_length = 2 * query_len;
+
+    auto model = build_reshaped_attention_model(query_len, past_len, head_dim);
+    // V is stored as [B, H, D, S], so its sequence axis is 3 in this fixture.
+    auto block_model = apply_split_kvcache_into_blocks(model, block_size, /*v_transposed=*/true);
+
+    auto validation = ov::npuw::function::validate_and_setup_pyramid_attention(block_model);
+    ASSERT_TRUE(validation.has_value());
+    const auto& info = get_block_result(*validation);
+    ASSERT_EQ(info.query_length, query_len);
+    ASSERT_EQ(info.past_kv_length, past_len);
+    ASSERT_EQ(info.full_context_length, query_len + past_len);
+
+    // Variant 1 retains one 64-token past block and the 64-token present KV.
+    auto variant = ov::npuw::function::process_pyramid_model(block_model,
+                                                             1,
+                                                             block_size,
+                                                             info.query_length,
+                                                             info.past_kv_length,
+                                                             info.full_context_length,
+                                                             {},
+                                                             {},
+                                                             true);
+    ASSERT_TRUE(variant.has_value());
+    EXPECT_EQ(variant->attention.context_len(), expected_context_length);
+
+    size_t patched_reshapes = 0;
+    for (const auto& op : variant->model->get_ordered_ops()) {
+        auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(op);
+        if (!reshape) {
+            continue;
+        }
+        if (reshape->get_friendly_name() == "key_reshape") {
+            EXPECT_EQ(reshape->get_output_shape(0), (ov::Shape{1, 8, expected_context_length, head_dim}));
+            ++patched_reshapes;
+        } else if (reshape->get_friendly_name() == "value_reshape") {
+            EXPECT_EQ(reshape->get_output_shape(0), (ov::Shape{1, 8, head_dim, expected_context_length}));
+            ++patched_reshapes;
+        }
+    }
+    EXPECT_EQ(patched_reshapes, 2u);
 }
 
 TEST(PyramidAttentionTest, ProcessPyramidModelProducesCorrectAttentionInfo) {
