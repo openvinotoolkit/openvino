@@ -23,14 +23,14 @@ SDPA_OCL_INLINE void FUNC(vc_prefetch)(const __global half *Vc_b2d, const int Vc
                                        const int k0, const int k_chunk, const int past_len) {
     #pragma unroll
     for (int cp = 0; cp < sv_key_blocks; ++cp) {
-        if (cp * SUBGROUP_SIZE < k_chunk) {
+        if (cp * DPAS_K < k_chunk) {
             #pragma unroll
             for (int cd = 0; cd < sv_value_blocks; ++cd) {
                 if (sg_j0_sv + cd * SUBGROUP_SIZE < dv) {
                     intel_sub_group_2d_block_prefetch_16b_16r16x1c(
                         (const global void *)Vc_b2d, VcD_w_b2d, VcD_h, VcD_p,
                         (int2)(VcD_x0 + sg_j0_sv + cd * SUBGROUP_SIZE,
-                               k0 + cp * SUBGROUP_SIZE - past_len));
+                               k0 + cp * DPAS_K - past_len));
                 }
             }
         }
@@ -38,14 +38,14 @@ SDPA_OCL_INLINE void FUNC(vc_prefetch)(const __global half *Vc_b2d, const int Vc
 }
 #endif
 
-// ---- V tile of one cp block (SUBGROUP_SIZE keys): vb[cd] is the S*V B operand of value block cd,
+// ---- V tile of one cp block (DPAS_K keys): vb[cd] is the S*V B operand of value block cd,
 // f16 VNNI (dword key_pair packs keys 2*key_pair and 2*key_pair + 1, lane == value). Scratch arrays
 // belong to the caller, as for the K tiles.
 
 #if USE_2D_BLOCK_IO_KV || IS_PA_MIXED
 // f16 [key, value] surface (the V input, MIXED's Vc, or one f16 V page) via the 16b VNNI-transform
 // read: value block cd at column x0 + sg_j0_sv + cd * SUBGROUP_SIZE, the cp block at row k0 + cp *
-// SUBGROUP_SIZE - y_sub. The coordinates are computed here, in the loop, from their leaves: a partial
+// DPAS_K - y_sub. The coordinates are computed here, in the loop, from their leaves: a partial
 // sum passed in from the caller changed instruction order (and scheduling) on MIXED Vc reads.
 SDPA_OCL_INLINE void FUNC(v_tile_b2d16)(__private int8 *vb, const __global void *surf, const int w, const int h,
                                         const int p, const int x0, const size_t sg_j0_sv, const int k0, const int cp,
@@ -54,7 +54,7 @@ SDPA_OCL_INLINE void FUNC(v_tile_b2d16)(__private int8 *vb, const __global void 
     for (int cd = 0; cd < sv_value_blocks; ++cd) {
         intel_sub_group_2d_block_read_transform_16b_16r16x1c(
             (global void *)surf, w, h, p,
-            (int2)(x0 + sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE - y_sub), (private uint *)&vb[cd]);
+            (int2)(x0 + sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * DPAS_K - y_sub), (private uint *)&vb[cd]);
     }
 }
 #endif
@@ -86,19 +86,19 @@ SDPA_OCL_INLINE void FUNC(v_i8_read)(__private uint *vt, const __global VAL_DATA
 #if sv_value_blocks == 2
     intel_sub_group_2d_block_read_transform_8b_32r16x2c(
         (global void *)V, VD_w, VD_h, VD_p,
-        (int2)(sg_j0_sv, k0 + cp * SUBGROUP_SIZE),
+        (int2)(sg_j0_sv, k0 + cp * DPAS_K),
         (private uint *)&vt[0]);
 #elif sv_value_blocks == 4
     intel_sub_group_2d_block_read_transform_8b_32r16x4c(
         (global void *)V, VD_w, VD_h, VD_p,
-        (int2)(sg_j0_sv, k0 + cp * SUBGROUP_SIZE),
+        (int2)(sg_j0_sv, k0 + cp * DPAS_K),
         (private uint *)&vt[0]);
 #else
     #pragma unroll
     for (int cd = 0; cd < sv_value_blocks; ++cd) {
         intel_sub_group_2d_block_read_transform_8b_32r16x1c(
             (global void *)V, VD_w, VD_h, VD_p,
-            (int2)(sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * SUBGROUP_SIZE),
+            (int2)(sg_j0_sv + cd * SUBGROUP_SIZE, k0 + cp * DPAS_K),
             (private uint *)&vt[cd * 8]);
     }
 #endif
@@ -114,7 +114,7 @@ SDPA_OCL_INLINE half FUNC(v_i8_comp_fold)(OPTIONAL_SHAPE_INFO_ARG __private shor
                                           const __global VAL_ATTR_SCALES_DATA_T *V_scales,
                                           const __global VAL_ATTR_ZP_DATA_T *V_zp, const uint v_comp_base,
                                           const int k0, const int cp, const int k, const size_t lane) {
-    const int vs_key = k0 + cp * SUBGROUP_SIZE + lane;
+    const int vs_key = k0 + cp * DPAS_K + lane;
     const uint vs_co = v_comp_base + VAL_COMP_OFF(0, 0, vs_key, 0);
     const half vs_c = (vs_key < k) ? V_scales[vs_co] : (half)0.0f;
 #if INPUT0_IS_BF16
@@ -178,7 +178,7 @@ SDPA_OCL_INLINE half FUNC(pa_v_comp_fold)(__private short8 *pA, const __global V
                                           const __global INPUT3_TYPE *block_indices, const uint base_block_index,
                                           const int k0, const int cp, const int k, const size_t b0_kv,
                                           const size_t lane) {
-    const int vs_key_pa = k0 + cp * SUBGROUP_SIZE + lane;
+    const int vs_key_pa = k0 + cp * DPAS_K + lane;
     const size_t vs_page_pa =
         FUNC_CALL(pa_v_page_base)(block_indices, base_block_index, vs_key_pa, k, b0_kv);
     const global half *v_comp_pa =
@@ -438,7 +438,7 @@ SDPA_OCL_INLINE void FUNC(v_tile_gather)(OPTIONAL_SHAPE_INFO_ARG __private int8 
         if (value < dv) {
             #pragma unroll
             for (int key_pair = 0; key_pair < 8; ++key_pair) {
-                const int key0 = k0 + cp * SUBGROUP_SIZE + key_pair * 2;
+                const int key0 = k0 + cp * DPAS_K + key_pair * 2;
                 const int key1 = key0 + 1;
                 DT_ELEM2_T vv = DT_ELEM2_ZERO;
                 if (key0 < k) {
