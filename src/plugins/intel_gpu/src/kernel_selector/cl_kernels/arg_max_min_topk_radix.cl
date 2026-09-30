@@ -141,6 +141,7 @@ inline INPUT0_TYPE FUNC(from_sortable)(uint sortable) {
 
 REQD_SUB_GROUP_SIZE(16)
 KERNEL(arg_max_min_topk_radix)(
+    OPTIONAL_SHAPE_INFO_ARG
     const __global INPUT0_TYPE* input
     ,__global OUTPUT_TYPE* output
 #ifdef OUTPUT1_TYPE
