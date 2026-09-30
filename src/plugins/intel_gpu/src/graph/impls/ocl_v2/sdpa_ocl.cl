@@ -595,8 +595,8 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             }
         }
 
-        half2 mask_tile;
-        float2 k_mask;
+        KMASK_HALF_T mask_tile;
+        KMASK_FLOAT_T k_mask;
         #pragma unroll
         for (int ii = 0; ii < kq_sg_tile_keys / SUBGROUP_SIZE; ++ii) {
             const int key = key_base + ii * SUBGROUP_SIZE + lane;
@@ -617,13 +617,13 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             k_mask[ii] = (key < causal_k) ? 0.0f : -INFINITY;
 #endif
         }
-        float2 mask_tile_float = MASK_TO_FLOAT2(mask_tile);
+        KMASK_FLOAT_T mask_tile_float = KMASK_TO_FLOAT(mask_tile);
         #pragma unroll
         for (int ii = 0; ii < kq_sg_tile_keys / SUBGROUP_SIZE; ++ii)
             mask_tile_float[ii] = mask_tile_float[ii] * iscale;
 
         #if WITH_ATTN_MASK
-            float16 mask_full[kq_query_blocks][kq_sg_tile_keys / SUBGROUP_SIZE];
+            float16 mask_full[kq_query_blocks][kq_sg_tile_keys / MASK_VEC_KEYS];
             if (MASK_IS_FULL_2D)
                 FUNC_CALL(mask_tile_2d)(OPTIONAL_SHAPE_INFO_TENSOR mask_full, msk, iscale, wg_j0, sg_j0_kq, lane,
                                         key_base);
@@ -675,7 +675,11 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                         if (MASK_IS_PER_KEY) {
                             s += sub_group_broadcast(mask_tile_float[mask_idx], mask_lane);
                         } else if (MASK_IS_FULL_2D) {
+#if MASK_VEC_KEYS == SUBGROUP_SIZE
                             s += mask_full[qb][mask_idx][mask_lane];
+#else
+                            s += mask_full[qb][key_rel / MASK_VEC_KEYS][key_rel % MASK_VEC_KEYS];
+#endif
                         } else if (query < q && key < k) {
                             const int mask_query = (MSK_D2 == 1) ? 0 : query;
                             const int mask_key = (MSK_D3 == 1) ? 0 : key;
@@ -775,9 +779,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
                 const int key = sg_i0_kq + mb * 8;
-                const int key_block = key / SUBGROUP_SIZE;
-                const int key_lane = key - key_block * SUBGROUP_SIZE;
-                const int s_half_offset = (key_block * kq_wg_tile_queries + query) * SUBGROUP_SIZE + key_lane;
+                const int key_block = key / DPAS_K;
+                const int key_lane = key - key_block * DPAS_K;
+                const int s_half_offset = (key_block * kq_wg_tile_queries + query) * DPAS_K + key_lane;
                 vstore4(as_uint4(PACK_SOFTMAX8(exp_tile)), 0, &S_slm[s_half_offset >> 1]);
             }
 #if MICRO_MATH
@@ -846,7 +850,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             // Exact chunks can end before the fixed S*V tile: skip whole blocks past k_chunk (their
             // scores are zero) together with their SLM/V loads, dequant and DPAS. Uniform; the
             // barriers stay outside.
-            if (cp * SUBGROUP_SIZE >= k_chunk)
+            if (cp * DPAS_K >= k_chunk)
                 continue;
 #endif
             #if USE_2D_BLOCK_IO_V_I8
@@ -864,7 +868,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             for (int r = 0; r < sv_score_blocks; ++r) {
                 const int query0 = sg_i0_sv + r * 8;
                 pA[r] = as_short8(intel_sub_group_block_read_us8(
-                    (local void *)&S_slm[((cp * kq_wg_tile_queries + query0) * SUBGROUP_SIZE) >> 1]));
+                    (local void *)&S_slm[((cp * kq_wg_tile_queries + query0) * DPAS_K) >> 1]));
             }
 
             #if USE_2D_BLOCK_IO_V_I8
@@ -880,10 +884,10 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             int8 vb[sv_value_blocks];
             #if IS_PA_MIXED
             if (from_cache) {
-                // A cp block is SUBGROUP_SIZE (== DPAS_K == PAGED_ATTENTION_BLOCK_SIZE) keys
+                // A cp block is DPAS_K (== PAGED_ATTENTION_BLOCK_SIZE, asserted in sdpa_ocl_config.cl) keys
                 // starting at a multiple of kq_wg_tile_keys, i.e. exactly one cache page, so the
                 // page lookup is hoisted out of the cd and key_pair loops.
-                const int cp_key0 = k0 + cp * SUBGROUP_SIZE;
+                const int cp_key0 = k0 + cp * DPAS_K;
                 const size_t v_page_base =
                     FUNC_CALL(pa_v_page_base)(block_indices, base_block_index, cp_key0, k, b0_kv);
                 #if IS_PA_KV_COMPRESSED

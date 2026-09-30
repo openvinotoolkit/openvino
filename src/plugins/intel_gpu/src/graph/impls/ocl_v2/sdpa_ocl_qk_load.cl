@@ -205,8 +205,16 @@ SDPA_OCL_INLINE void FUNC(pa_k_comp_by_token)(__private half *k_pa_sc_lane, __pr
             K + PA_K_PAGE_OFF(k_page[kg * (SUBGROUP_SIZE / DPAS_ROWS)], b0_kv) +
             PA_K_COMP_OFF);
         const bool sc_valid = (key_base + kg * SUBGROUP_SIZE + lane_i) < k;
+#if PAGED_ATTENTION_BLOCK_SIZE > SUBGROUP_SIZE
+        // A page holds PAGED_ATTENTION_BLOCK_SIZE / SUBGROUP_SIZE key groups; group kg reads its own token slice
+        // (without this, group 1 of a 16-token page re-reads tokens 0..7 at SG8).
+        const int kg_tok0 = (kg * SUBGROUP_SIZE) % PAGED_ATTENTION_BLOCK_SIZE;
+        k_pa_sc_lane[kg] = sc_valid ? k_comp[kg_tok0 + lane] : (half)0.0h;
+        k_pa_zp_lane[kg] = sc_valid ? k_comp[PAGED_ATTENTION_BLOCK_SIZE + kg_tok0 + lane] : (half)0.0h;
+#else
         k_pa_sc_lane[kg] = sc_valid ? k_comp[lane] : (half)0.0h;
         k_pa_zp_lane[kg] = sc_valid ? k_comp[PAGED_ATTENTION_BLOCK_SIZE + lane] : (half)0.0h;
+#endif
     }
 }
 #endif
