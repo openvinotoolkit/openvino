@@ -410,8 +410,8 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         // [1,1,2048], which is unaffected despite identical lm_head subgraph
         // topology), causing "Tensor was not initialized" the first time
         // this port is read. Force a real allocation up front.
-        ov::Tensor lm_head_embed_tensor(lm_head_embed_port.get_element_type(),
-                                        lm_head_embed_port.get_shape());
+        auto lm_head_embed_tensor = ov::get_tensor_impl(
+            ov::Tensor(lm_head_embed_port.get_element_type(), lm_head_embed_port.get_shape()));
         m_lm_head_request->set_tensor(lm_head_embed_port, lm_head_embed_tensor);
 
         m_prefill_request->set_tensor(m_prefill_out_ports.at(layer_names::output_embeds),
