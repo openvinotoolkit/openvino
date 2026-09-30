@@ -41,8 +41,9 @@ void read_value_inst::on_execute() {
 void read_value_inst::release_variable() {
     // readvalue simply assign outputs from variablestate, 
     // does not need to keep reference in outputs after execution
-    if (!can_be_optimized() || !get_network().has_variable(variable_id()))
+    if (!can_be_optimized() || !get_network().has_variable(variable_id())) {
         return;
+    }
     for (size_t i = 0; i < _outputs.size(); ++i) {
         auto& output = _outputs[i];
         output.reset();
@@ -50,8 +51,9 @@ void read_value_inst::release_variable() {
 }
 
 void read_value_inst::update_output_memory() {
-    if (!can_be_optimized() || !get_network().has_variable(variable_id()))
+    if (!can_be_optimized() || !get_network().has_variable(variable_id())) {
         return;
+    }
 
     const auto& variable = get_network().get_variable(variable_id());
     GPU_DEBUG_TRACE_DETAIL << id() << " Update output memory with variable " << variable_id() << std::endl;

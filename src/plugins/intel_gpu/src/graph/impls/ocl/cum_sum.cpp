@@ -20,24 +20,27 @@ kernel_selector::cum_sum_axis convert_axis(int64_t axis, size_t rank) {
         case 0: return kernel_selector::cum_sum_axis::BATCH;
         case 1: return kernel_selector::cum_sum_axis::FEATURE;
         case 2:
-            if (rank == 6)
+            if (rank == 6) {
                 return kernel_selector::cum_sum_axis::W;
-            else if (rank == 5)
+            } else if (rank == 5) {
                 return kernel_selector::cum_sum_axis::Z;
-            else
+            } else {
                 return kernel_selector::cum_sum_axis::Y;
+            }
         case 3:
-            if (rank == 6)
+            if (rank == 6) {
                 return kernel_selector::cum_sum_axis::Z;
-            else if (rank == 5)
+            } else if (rank == 5) {
                 return kernel_selector::cum_sum_axis::Y;
-            else
+            } else {
                 return kernel_selector::cum_sum_axis::X;
+            }
         case 4:
-            if (rank == 6)
+            if (rank == 6) {
                 return kernel_selector::cum_sum_axis::Y;
-            else
+            } else {
                 return kernel_selector::cum_sum_axis::X;
+            }
         case 5: return kernel_selector::cum_sum_axis::X;
         default: return kernel_selector::cum_sum_axis::BATCH;
     }

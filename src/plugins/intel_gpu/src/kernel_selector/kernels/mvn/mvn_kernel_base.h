@@ -25,8 +25,9 @@ struct mvn_params : public base_params {
 
         k.EnableMVNMode(mvnMode);
 
-        if (mvnNormalizeVariance)
+        if (mvnNormalizeVariance) {
             k.EnableMVNNormalizeVariance();
+        }
 
         return k;
     }

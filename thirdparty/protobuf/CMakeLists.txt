@@ -9,6 +9,11 @@
 if(ENABLE_THREAD_SANITIZER AND OV_COMPILER_IS_CLANG)
     string(REPLACE "-ltsan" "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
     string(REPLACE "-shared-libsan" "" CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}")
+    # protobuf 26 vendors abseil/utf8_range; disable TSan for the whole subtree so
+    # instrumented deps can't leak into the -fno-sanitize=thread protoc link
+    string(APPEND CMAKE_C_FLAGS   " -fno-sanitize=thread")
+    string(APPEND CMAKE_CXX_FLAGS " -fno-sanitize=thread")
+    string(REPLACE "-shared-libsan" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 endif()
 
 set(BUILD_SHARED_LIBS OFF)

@@ -10,6 +10,7 @@
 #endif
 #include "impls/ocl_v2/utils/kernels_db.hpp"
 #include "intel_gpu/runtime/kernel_args.hpp"
+#include "intel_gpu/runtime/engine_configuration.hpp"
 #include "openvino/util/pp.hpp"
 #include "intel_gpu/graph/serialization/set_serializer.hpp"
 #include "intel_gpu/graph/serialization/vector_serializer.hpp"
@@ -22,7 +23,7 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/file_util.hpp"
 
-#ifdef WIN32
+#ifdef _WIN32
 #include <sdkddkver.h>
 #ifdef NTDDI_WIN10_RS5
 #include <appmodel.h>
@@ -235,6 +236,9 @@ void kernels_cache::get_program_source(const kernels_code& kernels_source_code, 
 
             std::string full_code = options + " " + _device->get_info().driver_version;
             full_code += _device->get_info().dev_name;
+            // Partition the kernel cache per runtime: OCL and ZE store incompatible native
+            // binaries, so their .cl_cache files must never share a hash (wrong-format load).
+            full_code += get_runtime_cache_tag();
             for (auto& ss : b.source)
                 full_code += ss;
 
@@ -413,7 +417,7 @@ void kernels_cache::build_all() {
     // build_batch crashes randomly when threaded while running from a Microsoft Store app
     // it seems to be a bug in Intel's graphics driver, disabling threading is a work around
     auto use_threads{true};
-#if defined(WIN32) && defined(NTDDI_WIN10_RS5)
+#if defined(_WIN32) && defined(NTDDI_WIN10_RS5)
     UINT32 length{0};
     auto error_code{GetCurrentPackageFullName(&length, nullptr)};
     // If we get this error, it means we're a regular desktop application, and we can use threads

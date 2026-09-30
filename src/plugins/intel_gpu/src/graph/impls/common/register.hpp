@@ -26,6 +26,9 @@ REGISTER_COMMON(condition);
 REGISTER_COMMON(data);
 REGISTER_COMMON(input_layout);
 REGISTER_COMMON(loop);
+#ifdef ENABLE_MLIR_FOR_GPU
+REGISTER_COMMON(mlir_primitive);
+#endif
 
 #undef REGISTER_COMMON
 
