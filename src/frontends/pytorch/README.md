@@ -58,6 +58,29 @@ The following extension types are supported:
 * `ov::BaseOpExtension` - enable support for a custom operation.
 * `ov::detail::SOExtension` - allow support for `ov::BaseOpExtension` extensions loaded from an external library.
 
+### Context-manager scopes in exported models
+
+OpenVINO performs inference only. `torch.export` represents `torch.no_grad()`,
+`torch.set_grad_enabled()` and `torch.autocast()` regions as
+`wrap_with_set_grad_enabled` and `wrap_with_autocast` operations. Their bodies
+are inlined into the converted graph: gradient mode is ignored, and region
+outputs are converted to the element types recorded by `torch.export`, so an
+enabled autocast region returns the same types as in PyTorch. Precision of
+operations inside the region is selected by the OpenVINO device.
+Outputs of such a region that are its operands or their views keep the alias relation,
+so later in-place operations on them update the operands. This does not require
+`ExportedProgram.run_decompositions()` or an additional trace.
+
+### Views returned from subgraphs
+
+When `prim::If` or `prim::Loop` returns a view of a tensor from the outer graph,
+the frontend keeps the alias relation. In-place operations on the returned view
+update its base, and mutations of the base are visible through the view. The
+positions of the view elements in the base are added to the graph only when such
+an update is needed. If the relation cannot be represented, for example when the
+branches of `prim::If` return views of different tensors, conversion fails
+instead of producing a wrong result.
+
 ## How to Implement Support for a New PyTorch Operation
 
 PyTorch conversion into the OpenVINO opset operations consists of two stages:

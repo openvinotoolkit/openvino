@@ -312,3 +312,121 @@ class TestViewMutations(PytorchLayerTest):
                 return torch.view_as_real(base), alias, before
 
         self._test(Model(), "aten::add_", ie_device, precision, ir_version, freeze_model=False)
+
+
+@pytest.mark.nightly
+@pytest.mark.precommit
+class TestSubgraphViewMutations(PytorchLayerTest):
+    def _prepare_input(self, positive=True):
+        data = abs(self.random.randn(3, 4, 5).astype("float32")) + 1
+        return (data if positive else -data,)
+
+    @pytest.mark.parametrize("positive", [False, True])
+    @pytest.mark.parametrize("else_view", [False, True])
+    @pytest.mark.parametrize("mutate_base", [False, True])
+    def test_if_returns_view(self, positive, else_view, mutate_base, ie_device, precision, ir_version):
+        class Model(torch.nn.Module):
+            __constants__ = ["else_view", "mutate_base"]
+
+            def __init__(self):
+                super().__init__()
+                self.else_view = else_view
+                self.mutate_base = mutate_base
+
+            def forward(self, data):
+                base = data.clone()
+                if bool(data[0, 0, 0] > 0):
+                    alias = base.transpose(0, 2)[1:3]
+                elif self.else_view:
+                    alias = base[1].unsqueeze(0)
+                else:
+                    alias = base[1].unsqueeze(0) + 1
+                before = alias + 1
+                if self.mutate_base:
+                    base.mul_(3)
+                else:
+                    alias.add_(2)
+                return base, alias, before
+
+        self._test(Model(), ["prim::If", "aten::mul_" if mutate_base else "aten::add_"],
+                   ie_device, precision, ir_version, freeze_model=False,
+                   kwargs_to_prepare_input={"positive": positive})
+
+    @pytest.mark.parametrize(("iterations", "carried_root"), [(0, True), (2, True), (1, False), (2, False)])
+    @pytest.mark.parametrize("mutate_base", [False, True])
+    def test_loop_returns_view(self, iterations, carried_root, mutate_base, ie_device, precision, ir_version):
+        class Model(torch.nn.Module):
+            __constants__ = ["iterations", "carried_root", "mutate_base"]
+
+            def __init__(self):
+                super().__init__()
+                self.iterations = iterations
+                self.carried_root = carried_root
+                self.mutate_base = mutate_base
+
+            def forward(self, data):
+                base = data.clone()
+                alias = base[:, 1:] if self.carried_root else base[0]
+                for i in range(data.shape[0] - 3 + self.iterations):
+                    if self.carried_root:
+                        alias = alias[:, 1:]
+                    else:
+                        alias = base[i + 1]
+                before = alias + 1
+                if self.mutate_base:
+                    base.mul_(3)
+                else:
+                    alias.add_(2)
+                return base, alias, before
+
+        self._test(Model(), ["prim::Loop", "aten::mul_" if mutate_base else "aten::add_"],
+                   ie_device, precision, ir_version, freeze_model=False)
+
+    @pytest.mark.parametrize("positive", [False, True])
+    @pytest.mark.parametrize("operation", ["clone", "transpose_base", "transpose_view", "mutate_transposed_base"])
+    def test_if_view_after_operation(self, positive, operation, ie_device, precision, ir_version):
+        class Model(torch.nn.Module):
+            __constants__ = ["operation"]
+
+            def __init__(self):
+                super().__init__()
+                self.operation = operation
+
+            def forward(self, data):
+                base = data[0].clone()
+                if bool(data[0, 0, 0] > 0):
+                    alias = base[1:]
+                else:
+                    alias = base[:3]
+                if self.operation == "clone":
+                    alias = alias.clone()
+                elif self.operation == "transpose_view":
+                    alias.transpose_(0, 1)
+                else:
+                    base.transpose_(0, 1)
+                if self.operation == "mutate_transposed_base":
+                    base.mul_(3)
+                else:
+                    alias.add_(2)
+                return base, alias + 0
+
+        kind = "aten::clone" if operation == "clone" else "aten::transpose_"
+        self._test(Model(), ["prim::If", kind], ie_device, precision, ir_version, freeze_model=False,
+                   kwargs_to_prepare_input={"positive": positive})
+
+    def test_if_returns_views_of_different_tensors(self, ie_device, precision, ir_version):
+        from openvino import convert_model
+
+        class Model(torch.nn.Module):
+            def forward(self, data):
+                left = data.clone()
+                right = data.clone()
+                if bool(data[0, 0, 0] > 0):
+                    alias = left[0]
+                else:
+                    alias = right[0]
+                alias.add_(2)
+                return left, right
+
+        with pytest.raises(Exception, match="Cannot propagate a mutation of a view returned from prim::If"):
+            convert_model(torch.jit.script(Model()), example_input=(torch.ones(3, 4, 5),))
