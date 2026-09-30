@@ -213,8 +213,8 @@ constexpr SectionTag model_tag() noexcept {
  * @brief Wire tag for #runtime_requirements - always pointer-mode. Payload is opaque to the common
  * reader/format: this contract only reserves the tag and its bounds (like any pointer-mode section) -
  * interpreting and enforcing the encoded requirements is entirely the emitting device/plugin's
- * responsibility, typically via #ISectionHandler. No expression scheme is defined at this layer
- * (out of scope here; a richer format, if any, belongs to the tag registry).
+ * responsibility. No expression scheme is defined at this layer (out of scope here; a richer format,
+ * if any, belongs to the tag registry).
  */
 constexpr SectionTag runtime_requirements_tag() noexcept {
     return SectionTag::make(runtime_requirements, /*is_inline=*/false);
@@ -313,28 +313,6 @@ constexpr bool is_valid_section_bounds(const ManifestEntry& entry, const Header&
     return !entry.tag.is_pointer() || (entry.offset >= sizeof(Header) && entry.offset <= header.manifest_offset &&
                                        header.manifest_offset - entry.offset >= entry.size);
 }
-
-/**
- * @brief Per-entry hook a container reader offers to plugins/devices: given one manifest entry's section
- * content, a concrete handler self-selects by checking `(entry.device, entry.tag)` and returns whether it
- * recognized and handled it. Per the unknown-tag rule on #SectionTag, an entry no handler recognizes must
- * be skipped, never fail import.
- */
-class ISectionHandler {
-public:
-    virtual ~ISectionHandler() = default;
-
-    /**
-     * @brief Attempts to interpret @p entry's section content.
-     * @note Not itself a dispatch loop - a caller tries this once per candidate entry against each handler
-     * it holds, in turn, until one returns true.
-     * @param entry Manifest entry being considered - not necessarily one this extension owns.
-     * @param section Bounds-checked view of the payload - #ContainerView::section() for a pointer-mode
-     * entry, or `entry.inline_bytes` for an inline-mode one; never a raw, unchecked pointer.
-     * @return true if `(entry.device, entry.tag)` was recognized and handled, false otherwise.
-     */
-    virtual bool handle_section(const ManifestEntry& entry, ov::util::MemoryView section) = 0;
-};
 
 /**
  * @brief Read-only, zero-copy view of an entire in-memory HSM container: header, manifest and pointer-mode

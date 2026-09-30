@@ -101,8 +101,8 @@ std::vector<uint8_t> make_sample_reader_container() {
     });
 }
 
-// Minimal ISectionHandler: recognizes one (device, tag id) pair, records what it was handed.
-class RecordingHandler : public hsm::ISectionHandler {
+// Minimal ISectionReaderHandler: recognizes one (device, tag id) pair, records what it was handed.
+class RecordingHandler : public hsm::ISectionReaderHandler {
 public:
     RecordingHandler(hsm::DeviceId device, uint32_t tag_id) : m_device(device), m_tag_id(tag_id) {}
 
@@ -214,6 +214,30 @@ TEST(HsmSectionTest, pointer_mode_entry_built_with_the_inline_only_constructor_h
     std::vector<std::byte> destination(4);
     EXPECT_FALSE(section.read(destination.data()));
     EXPECT_FALSE(section.to_bytes().has_value());
+}
+
+// --- ISectionReaderHandler: constructed directly, without a Reader driving dispatch ---------------------
+
+TEST(ISectionReaderHandlerTest, recognizes_own_device_and_tag) {
+    hsm::ManifestEntry entry{};
+    entry.device = fake_device_id;
+    entry.tag = hsm::SectionTag::make(/*id=*/42, /*is_inline=*/false);
+
+    const std::byte payload[4] = {};
+    RecordingHandler handler(fake_device_id, /*tag_id=*/42);
+    EXPECT_TRUE(handler.handle_section(entry, ov::util::MemoryView{payload, 4}));
+    EXPECT_EQ(handler.last_payload.size(), 4u);
+    EXPECT_EQ(handler.handled_count, 1u);
+}
+
+TEST(ISectionReaderHandlerTest, skips_entry_it_does_not_own) {
+    hsm::ManifestEntry entry{};
+    entry.device = fake_device_id + 1;  // different device
+    entry.tag = hsm::SectionTag::make(/*id=*/42, /*is_inline=*/false);
+
+    RecordingHandler handler(fake_device_id, /*tag_id=*/42);
+    EXPECT_FALSE(handler.handle_section(entry, ov::util::MemoryView{}));
+    EXPECT_EQ(handler.handled_count, 0u);  // never called
 }
 
 TEST(HsmReaderTest, open_rejects_invalid_buffer) {

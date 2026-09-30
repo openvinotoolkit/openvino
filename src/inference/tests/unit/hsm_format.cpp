@@ -101,23 +101,6 @@ std::vector<uint8_t> make_sample_container_with_entries() {
     return make_single_blob_container({'O', 'V'}, manifest);
 }
 
-// Minimal ISectionHandler: recognizes one (device, tag id) pair, records the section size it saw.
-class RecordingHandler : public hsm::ISectionHandler {
-public:
-    static constexpr hsm::DeviceId owned_device = 7;
-    static constexpr uint32_t owned_tag_id = 42;
-
-    bool handle_section(const hsm::ManifestEntry& entry, ov::util::MemoryView section) override {
-        if (entry.device != owned_device || entry.tag.id() != owned_tag_id) {
-            return false;
-        }
-        last_section_size = section.size();
-        return true;
-    }
-
-    size_t last_section_size = 0;
-};
-
 }  // namespace
 
 // --- HSM wire-format layout/version compatibility --------------------------------------------------------
@@ -491,27 +474,6 @@ TEST(HsmMultiBlobViewTest, stops_on_mismatched_major_version) {
 
     const hsm::MultiBlobView view(buffer.data(), buffer.size());
     EXPECT_EQ(view.blob_count(), 0u);  // can't trust framing past an unsupported major version
-}
-
-TEST(ISectionHandlerTest, recognizes_own_device_and_tag) {
-    hsm::ManifestEntry entry{};
-    entry.device = RecordingHandler::owned_device;
-    entry.tag = hsm::SectionTag::make(RecordingHandler::owned_tag_id, /*is_inline=*/false);
-
-    const std::byte payload[4] = {};
-    RecordingHandler extension;
-    EXPECT_TRUE(extension.handle_section(entry, ov::util::MemoryView{payload, 4}));
-    EXPECT_EQ(extension.last_section_size, 4u);
-}
-
-TEST(ISectionHandlerTest, skips_entry_it_does_not_own) {
-    hsm::ManifestEntry entry{};
-    entry.device = RecordingHandler::owned_device + 1;  // different device
-    entry.tag = hsm::SectionTag::make(RecordingHandler::owned_tag_id, /*is_inline=*/false);
-
-    RecordingHandler extension;
-    EXPECT_FALSE(extension.handle_section(entry, ov::util::MemoryView{}));
-    EXPECT_EQ(extension.last_section_size, 0u);  // never called
 }
 
 // OPENVINO_DEBUG_ASSERT compiles out entirely under NDEBUG (Release builds), so this only runs in debug builds.

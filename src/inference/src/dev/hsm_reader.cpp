@@ -160,7 +160,7 @@ size_t Reader::count_by_id(DeviceId device, uint32_t tag_id) const noexcept {
     }));
 }
 
-size_t Reader::read_sections(const std::vector<ISectionHandler*>& handlers) const {
+size_t Reader::read_sections(const std::vector<ISectionReaderHandler*>& handlers) const {
     size_t handled = 0;
     for (const auto& entry : m_manifest) {
         const auto section = make_section(entry);

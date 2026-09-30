@@ -102,9 +102,9 @@ private:
  * read - the reader itself never interprets content, so nothing here needs to change per source or per shape
  * of read.
  * @note Convention, not enforced: report malformed content via `std::nullopt`, never throw.
- * @note Distinct from #ISectionHandler: this is a stateless function for one already-known `(device, tag)`
- * pair, invoked via #Reader::decode()/#Reader::decode_all(). #ISectionHandler is for a set of
- * stateful handlers dispatched across an entire manifest in one pass, without enumerating tags up front.
+ * @note Distinct from #ISectionReaderHandler: this is a stateless function for one already-known
+ * `(device, tag)` pair, invoked via #Reader::decode()/#Reader::decode_all(). #ISectionReaderHandler is for a
+ * set of stateful handlers dispatched across an entire manifest in one pass, without enumerating tags up front.
  */
 template <typename T>
 using SectionDecoder = std::function<std::optional<T>(const Section&)>;
@@ -127,6 +127,27 @@ SectionDecoder<T> make_section_decoder(std::function<std::optional<T>(ov::util::
         }
     };
 }
+
+/**
+ * @brief Per-entry hook a #Reader offers to plugins/devices: given one manifest entry's section content, a
+ * concrete handler self-selects by checking `(entry.device, entry.tag)` and returns whether it recognized
+ * and handled it. Per the unknown-tag rule on #SectionTag, an entry no handler recognizes must be skipped,
+ * never fail import.
+ */
+class OPENVINO_RUNTIME_API ISectionReaderHandler {
+public:
+    virtual ~ISectionReaderHandler() = default;
+
+    /**
+     * @brief Attempts to interpret @p entry's section content.
+     * @note Not itself a dispatch loop - a caller tries this once per candidate entry against each handler
+     * it holds, in turn, until one returns true.
+     * @param entry Manifest entry being considered - not necessarily one this extension owns.
+     * @param section Bounds-checked view of the payload.
+     * @return true if `(entry.device, entry.tag)` was recognized and handled, false otherwise.
+     */
+    virtual bool handle_section(const ManifestEntry& entry, ov::util::MemoryView section) = 0;
+};
 
 /**
  * @brief Common (device-agnostic) reader for a single HSM container, over any `std::istream&` or addressable
@@ -292,7 +313,7 @@ public:
      * @param handlers The list of handlers to dispatch the manifest entries to.
      * @return The number of entries actually handled by some handler.
      */
-    size_t read_sections(const std::vector<ISectionHandler*>& handlers) const;
+    size_t read_sections(const std::vector<ISectionReaderHandler*>& handlers) const;
 
 private:
     Reader(std::optional<ov::util::MemoryView> buffer,
