@@ -671,10 +671,36 @@ TEST_F(ConvertKVCacheToPrecisionPassTest, CopyKvCacheSimpleSmoke) {
     auto compiled = create_testable_model(make_kv_precision_props(ov::element::i8), recorder);
     ASSERT_NE(compiled, nullptr);
     ASSERT_GT(compiled->kvcache_desc().max_prompt_size, 0u) << "model kvcache_desc not initialized after construction";
-    // Isolate: only test construction. If this passes, the crash is in LLMInferRequest ctor
-    // TestableLLMInferRequest request(compiled);
-    // request.prepare_non_chunked_copy();
-    // ASSERT_NO_THROW(request.copy_kvcache());
+    TestableLLMInferRequest request(compiled);
+    request.prepare_non_chunked_copy();
+    ASSERT_NO_THROW(request.copy_kvcache());
+}
+
+TEST_F(ConvertKVCacheToPrecisionPassTest, CopyKvCacheWithPyramidAttentionUsesPyramidKvNames) {
+    RecordingFactory recorder;
+    auto props = make_kv_precision_props(ov::element::i8);
+    props["NPUW_LLM_PREFILL_ATTENTION_HINT"] = "PYRAMID";
+    props["NPUW_LLM_GENERATE_ATTENTION_HINT"] = "PYRAMID";
+    auto compiled = create_testable_model(props, recorder);
+    ASSERT_NE(compiled, nullptr);
+
+    TestableLLMInferRequest request(compiled);
+    request.prepare_non_chunked_copy();
+
+    ASSERT_FALSE(request.kvcache_past_names().empty());
+    bool found_key_name = false;
+    bool found_value_name = false;
+    for (const auto& name : request.kvcache_past_names()) {
+        EXPECT_TRUE(is_kv_name(name)) << "Unexpected Pyramid KV-cache input name: " << name;
+        EXPECT_NE(name.find("past_key_values"), std::string::npos)
+            << "Pyramid KV-cache input is missing the past_key_values marker: " << name;
+        found_key_name |= name.find(".key") != std::string::npos;
+        found_value_name |= name.find(".value") != std::string::npos;
+    }
+    EXPECT_TRUE(found_key_name) << "Pyramid KV-cache key input name was not discovered";
+    EXPECT_TRUE(found_value_name) << "Pyramid KV-cache value input name was not discovered";
+
+    ASSERT_NO_THROW(request.copy_kvcache());
 }
 
 // Regression for kv-cache runtime copy path: execute real copy_kvcache() and verify

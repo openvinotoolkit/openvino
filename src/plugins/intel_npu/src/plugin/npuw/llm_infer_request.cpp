@@ -503,7 +503,7 @@ void ov::npuw::LLMInferRequest::init_past_name_lists() {
                 m_swa_past_names.push_back(name);
                 break;
             }
-            if (ov::npuw::util::starts_with(name, layer_names::past_key_values)) {
+            if (ov::npuw::util::isKVCacheName(name)) {
                 m_kvcache_past_names.push_back(name);
                 break;
             }

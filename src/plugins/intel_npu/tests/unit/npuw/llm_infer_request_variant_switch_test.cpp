@@ -428,6 +428,8 @@ TEST_F(LLMInferRequestVariantSwitchTest, BlockKvCacheRejectsQuantizedKvCache) {
                                         {ov::hint::kv_cache_precision.name(), ov::element::i8}},
                                        factory),
                  ov::Exception);
+}
+
 // The deserializer restores m_kvcache_sizes and the generate-variant count as two independent blob
 // fields. A corrupted blob can therefore declare a size table that disagrees with the variant count,
 // which downstream turns into an out-of-bounds read. LLMCompiledModel::deserialize() now rejects the
