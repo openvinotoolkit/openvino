@@ -2,12 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 #pragma once
-
 #include "openvino/core/node.hpp"
 
-namespace ov {
-namespace op {
-namespace util {
+namespace ov::op::util {
 /// \brief      Split value on specified axis into multiple parts.
 ///
 /// \param  value          The value to be split.
@@ -40,6 +37,4 @@ ov::OutputVector make_split(const Output<Node>& value, const std::vector<int64_t
 ///             The vector is output of VariadicSplit:v1 op
 ///
 ov::OutputVector make_split(const Output<Node>& value, int64_t num_splits, int64_t axis = 0);
-}  // namespace util
-}  // namespace op
-}  // namespace ov
+}  // namespace ov::op::util

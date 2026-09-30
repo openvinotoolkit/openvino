@@ -32,10 +32,7 @@
 #include "openvino/pass/node_registry.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 OutputVector translate_rope(const NodeContext& context) {
     num_inputs_check(context, 2, 3);
@@ -95,6 +92,25 @@ OutputVector translate_rope(const NodeContext& context) {
     const auto output_type = data.get_element_type();
     if (data.get_element_type() != ov::element::f32) {
         data = std::make_shared<ov::op::v0::Convert>(data, ov::element::f32);
+    }
+
+    const int64_t head_dim = output_shape[3].get_length();
+    const int64_t n_rot = rope_config.n_dims > 0 ? rope_config.n_dims : head_dim;
+    const int64_t offset = context.get_attribute<int64_t>("rope_offset", 0);
+    FRONT_END_OP_CONVERSION_CHECK(offset >= 0 && offset % 2 == 0 && n_rot > 0 && n_rot % 2 == 0 && offset <= head_dim &&
+                                      n_rot <= head_dim - offset,
+                                  "ROPE requires even dimensions and offset within the head");
+    Output<Node> prefix;
+    if (offset != 0) {
+        data = std::make_shared<ov::op::v1::Reshape>(data, make_bhsd_shape(), true);
+        auto axis = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
+        auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
+        auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
+        auto start = ov::op::v0::Constant::create(ov::element::i64, {1}, {offset});
+        auto end = ov::op::v0::Constant::create(ov::element::i64, {1}, {head_dim});
+        prefix = std::make_shared<ov::op::v8::Slice>(data, zero, start, one, axis);
+        data = std::make_shared<ov::op::v8::Slice>(data, start, end, one, axis);
+        output_shape[3] = head_dim - offset;
     }
 
     if (mode == TYPE_NORMAL) {
@@ -284,6 +300,10 @@ OutputVector translate_rope(const NodeContext& context) {
     // Fail cleanly on an unmapped mode rather than dereferencing a null res downstream.
     FRONT_END_CHECK_IMPLEMENTED(res.get_node_shared_ptr() != nullptr, "Unsupported ROPE mode");
 
+    if (prefix.get_node_shared_ptr()) {
+        res = std::make_shared<ov::op::v0::Concat>(OutputVector{prefix, res}, -1);
+    }
+
     if (res.get_element_type() != output_type) {
         res = std::make_shared<ov::op::v0::Convert>(res, output_type);
     }
@@ -291,7 +311,4 @@ OutputVector translate_rope(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op
