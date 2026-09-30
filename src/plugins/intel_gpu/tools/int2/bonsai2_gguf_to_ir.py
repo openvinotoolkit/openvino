@@ -13,7 +13,9 @@ the right graph. This tool keeps that graph and swaps every weight:
   * dense tensors (norms, GDN A_log/dt_bias/conv1d/in_proj_a/in_proj_b): read
     from the GGUF, with llama.cpp's V-head reorder undone the way the HF model
     expects;
-  * the token embedding goes into the separate text-embeddings IR.
+  * the token embedding goes into the separate text-embeddings IR, still ternary
+    (u8-packed codes + fp16 scales, 0.34 GB): the device gathers the rows and
+    dequantises them.
 
 Bonsai 2 additionally stores its folded weights in a rotated basis: the input
 of each folded projection is sign-flipped and put through a blockwise (1024)
@@ -23,13 +25,12 @@ H_1024 constant -> Reshape); the sign flips are folded into the preceding
 RMSNorm weight where every consumer is folded (compensating the dense GDN gate
 projections), into the up_proj rows for down_proj, and kept as an explicit
 Multiply only for the two attention output projections whose producer is not a
-per-channel weight. The embedding table gets the inverse transform applied
-offline.
+per-channel weight. The embedding rows get the inverse transform after the
+gather, on the device.
 
     python bonsai2_gguf_to_ir.py \
         --gguf <Ternary-Bonsai-2-27B-PQ2_0.gguf> \
         --template-dir <bonsai27b-u2 dir with openvino_model.xml> \
-        --template-embed <bonsai27b-fp16/openvino_text_embeddings_model.xml> \
         --out-dir <bonsai2-27b-u2> [--gguf-py <prism llama.cpp>/gguf-py]
 
     # self-check: run it on the Bonsai 1 GGUF and compare against its own IR
@@ -134,6 +135,46 @@ def hadamard(n: int) -> np.ndarray:
     return np.where(pop[i[:, None] & i[None, :]] % 2, -1.0, 1.0) / np.sqrt(n)
 
 
+def ternary_embedding(blocks: np.ndarray, block: int, signs_k: np.ndarray | None) -> ov.Model:
+    """Embedding model that gathers the ternary rows and dequantises them on the device.
+
+    Byte j of a u8 table row holds the codes of columns j, j+K/4, j+K/2 and j+3K/4 in its
+    four 2-bit lanes, so unpacking is four floor/mod planes concatenated in column order.
+    With a Hadamard contract the gathered rows get the inverse rotation (x H_block * signs)."""
+    v, g, _ = blocks.shape
+    k = g * GROUP
+    q = blocks[:, :, 2:]
+    codes = np.stack([(q >> (2 * j)) & 3 for j in range(4)], axis=-1).reshape(v, k)
+    quarter = k // 4
+    table = np.zeros((v, quarter), np.uint8)
+    for p in range(4):
+        table |= codes[:, p * quarter:(p + 1) * quarter] << (2 * p)
+    del codes
+    scales = np.ascontiguousarray(blocks[:, :, :2]).view("<f2").reshape(v, g)
+
+    ids = ops.parameter([-1, -1], ov.Type.i64, name="input")
+    idx = ops.convert(ids, ov.Type.i32)
+    axis = ops.constant(np.int32(0))
+    qf = ops.convert(ops.gather(ops.constant(table), idx, axis), ov.Type.f32)
+    planes = []
+    for p in range(4):
+        x = ops.floor(ops.divide(qf, ops.constant(np.float32(4 ** p)))) if p else qf
+        planes.append(ops.floor_mod(x, ops.constant(np.float32(4))) if p < 3 else x)
+    w = ops.subtract(ops.concat(planes, -1), ops.constant(np.float32(1)))    # codes {0,1,2} - zp
+    s = ops.convert(ops.gather(ops.constant(scales), idx, axis), ov.Type.f32)
+    w = ops.multiply(ops.reshape(w, ops.constant(np.array([0, 0, g, GROUP], np.int64)), True),
+                     ops.unsqueeze(s, ops.constant(np.int64(-1))))
+    w = ops.reshape(w, ops.constant(np.array([0, 0, k], np.int64)), True)
+    if signs_k is not None:
+        w = ops.reshape(w, ops.constant(np.array([0, 0, k // block, block], np.int64)), True)
+        w = ops.matmul(w, ops.constant(hadamard(block).astype(np.float32)), False, False)
+        w = ops.multiply(ops.reshape(w, ops.constant(np.array([0, 0, k], np.int64)), True),
+                         ops.constant(signs_k.reshape(1, 1, k).astype(np.float32)))
+    out = ops.result(w)
+    out.output(0).get_tensor().set_names({"inputs_embeds"})
+    return ov.Model([out], [ids], "text_embeddings")
+
+
 def f32_to_bf16_bits(x: np.ndarray) -> np.ndarray:
     u = np.ascontiguousarray(x, dtype=np.float32).view(np.uint32)
     rounding = ((u >> 16) & 1) + 0x7FFF
@@ -211,8 +252,8 @@ def main():
     ap.add_argument("--gguf", required=True)
     ap.add_argument("--template-dir", required=True,
                     help="dir with the Bonsai 1 27B u2 openvino_model.xml")
-    ap.add_argument("--template-embed", required=True,
-                    help="Bonsai 1 27B openvino_text_embeddings_model.xml")
+    ap.add_argument("--template-embed",
+                    help="Bonsai 1 27B openvino_text_embeddings_model.xml (--verify only)")
     ap.add_argument("--out-dir")
     ap.add_argument("--gguf-py")
     ap.add_argument("--verify", action="store_true",
@@ -228,6 +269,8 @@ def main():
     fold_up = not (a.explicit_signs or a.no_fold_up)
     if not a.verify and not a.out_dir:
         ap.error("--out-dir is required unless --verify")
+    if a.verify and not a.template_embed:
+        ap.error("--verify needs --template-embed")
 
     sys.path.insert(0, find_gguf_py(a.gguf_py))
     from gguf import GGUFReader  # noqa: E402
@@ -520,29 +563,30 @@ def main():
               f"{n_norm_fold} norm folds")
 
     # ---- embedding ------------------------------------------------------------
-    emb = core.read_model(a.template_embed)
-    emb_c = next(n for n in emb.get_ordered_ops()
-                 if n.get_type_name() == "Constant" and len(n.get_output_shape(0)) == 2
-                 and n.get_output_shape(0)[1] == int(g("embedding_length")))
     t = tensors["token_embd.weight"]
     if t.tensor_type.name != "PQ2_0":
         sys.exit(f"token_embd is {t.tensor_type.name}, expected PQ2_0")
-    E = blocks_dequant(pq2_blocks(t))
-    print(f"[ir] embedding dequantised {E.shape} ({time.perf_counter() - t0:.0f}s)")
-    if folded:
-        k = E.shape[1]
-        Hn = hadamard(block).astype(np.float32)
-        for b in range(k // block):
-            E[:, b * block:(b + 1) * block] = E[:, b * block:(b + 1) * block] @ Hn
-        E *= signs[k][None, :]
-        print(f"[ir] embedding inverse-rotated ({time.perf_counter() - t0:.0f}s)")
     if a.verify:
+        emb = core.read_model(a.template_embed)
+        emb_c = next(n for n in emb.get_ordered_ops()
+                     if n.get_type_name() == "Constant" and len(n.get_output_shape(0)) == 2
+                     and n.get_output_shape(0)[1] == int(g("embedding_length")))
+        E = blocks_dequant(pq2_blocks(t))
+        if folded:
+            k = E.shape[1]
+            Hn = hadamard(block).astype(np.float32)
+            for b in range(k // block):
+                E[:, b * block:(b + 1) * block] = E[:, b * block:(b + 1) * block] @ Hn
+            E *= signs[k][None, :]
         rep.add("embedding", "token_embd", E, const_f32(emb_c))
         rep.dump()
         print("[ir] verify OK")
         return
-    replace_const(emb_c, E)
-    del E
+    blocks = pq2_blocks(t)
+    emb = ternary_embedding(blocks, block, signs[blocks.shape[1] * GROUP] if folded else None)
+    print(f"[ir] embedding: ternary {blocks.shape[0]}x{blocks.shape[1] * GROUP}"
+          f"{', inverse-rotated on the device' if folded else ''} ({time.perf_counter() - t0:.0f}s)")
+    del blocks
 
     os.makedirs(a.out_dir, exist_ok=True)
     ov.save_model(model, os.path.join(a.out_dir, "openvino_model.xml"), compress_to_fp16=False)

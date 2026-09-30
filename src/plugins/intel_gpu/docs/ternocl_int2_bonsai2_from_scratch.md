@@ -14,7 +14,7 @@ or integrated). How the int2 `FullyConnected` path works is described in
 | GPU runtime | Intel compute runtime with OpenCL — the int2 path runs on the plugin's **OpenCL** runtime |
 | Compiler | Intel oneAPI (`icx`/`icpx`) |
 | Tools | CMake ≥ 3.16, Ninja, git, Python 3.10+ |
-| Disk | ~150 GB: OpenVINO build ~25 GB, Bonsai 1 27B checkpoint 51 GB + fp16 IR 51 GB (template, see step 3), Bonsai 2 GGUF 7.2 GB, final IR 9.4 GB |
+| Disk | ~150 GB: OpenVINO build ~25 GB, Bonsai 1 27B checkpoint 51 GB + fp16 IR 51 GB (template, see step 3), Bonsai 2 GGUF 7.2 GB, final IR 7.2 GB |
 | RAM | ≥ 64 GB on the machine that runs the exports (step 3 loads the 27B in fp16) |
 
 The environment every GPU command needs (put it in a file and `source` it):
@@ -98,8 +98,7 @@ Bonsai 2 27B ships only as GGUF and has *exactly* the Qwen3.5-27B architecture
 of Bonsai 27B. Instead of rebuilding a 54 GB dense checkpoint and re-exporting,
 the converter reuses the Bonsai 27B IR as the graph and swaps every weight in
 from the GGUF (step 4). So the Bonsai 27B IR is a one-time prerequisite; if you
-already have `bonsai27b-u2/` and `bonsai27b-fp16/openvino_text_embeddings_model.xml`
-skip to step 4.
+already have `bonsai27b-u2/` skip to step 4.
 
 ```bash
 cd $WORK
@@ -116,11 +115,11 @@ hf download prism-ml/Ternary-Bonsai-27B-unpacked --local-dir bonsai27b-hf      #
 # expected: "rewriting 497 MatMul weights" ... "weights 47.72 GiB -> 6.34 GiB"
 ```
 
-Only two artefacts of this step are used further: `bonsai27b-u2/openvino_model.xml`
-(+`.bin`) and `bonsai27b-fp16/openvino_text_embeddings_model.xml` (+`.bin`,
-2.5 GB). The rest of `bonsai27b-fp16` (51 GB) and `bonsai27b-hf` can be deleted.
+Only `bonsai27b-u2/openvino_model.xml` (+`.bin`) is used further; the optional
+`--verify` self-check of step 4 also reads `bonsai27b-fp16/openvino_text_embeddings_model.xml`.
+The rest of `bonsai27b-fp16` (51 GB) and `bonsai27b-hf` can be deleted.
 
-## 4. Download Bonsai 2 27B and build its IR ("sidecar" step)
+## 4. Download Bonsai 2 27B and build its IR
 
 ```bash
 cd $WORK
@@ -131,7 +130,6 @@ hf download prism-ml/Ternary-Bonsai-2-27B-mlx-2bit tokenizer.json tokenizer_conf
 ./venv/bin/python $OV_ROOT/src/plugins/intel_gpu/tools/int2/bonsai2_gguf_to_ir.py \
     --gguf           bonsai2-gguf/Ternary-Bonsai-2-27B-PQ2_0.gguf \
     --template-dir   bonsai27b-u2 \
-    --template-embed bonsai27b-fp16/openvino_text_embeddings_model.xml \
     --gguf-py        llama.cpp-prism/gguf-py \
     --out-dir        bonsai2-27b-u2
 ```
@@ -144,18 +142,19 @@ Needs ~16 GB RAM. Expected log:
 [ir] 497 linear MatMuls in template
 [ir] weights: 401 ternary, 96 dense, 64 up_proj row folds
 [ir] hadamard: 257 rotations inserted, 64 explicit sign multiplies, 129 norm folds
-[ir] embedding dequantised (248320, 5120)
-[ir] embedding inverse-rotated
+[ir] embedding: ternary 248320x5120, inverse-rotated on the device
 [ir] wrote bonsai2-27b-u2
 ```
 
 Output: `bonsai2-27b-u2/openvino_model.xml` + `.bin` (6.9 GB; u2 weights, fp16
 scales, the H_1024 rotation in front of every folded projection) and
-`bonsai2-27b-u2/openvino_text_embeddings_model.xml` + `.bin` (2.5 GB bf16,
-inverse-rotated offline). How the rotation is executed is described in section 7
-of the architecture doc. Self-check of the mapping (optional): run the tool on
-the Bonsai 1 GGUF with `--verify`; it must print `verify OK` (every ternary
-matrix bit-identical to the template).
+`bonsai2-27b-u2/openvino_text_embeddings_model.xml` + `.bin` (0.34 GB: the
+ternary table as u8-packed codes + fp16 scales; the GPU gathers the rows,
+dequantises them and applies the inverse rotation). How the rotation is executed
+is described in section 7 of the architecture doc. Self-check of the mapping
+(optional): run the tool on the Bonsai 1 GGUF with `--verify --template-embed
+bonsai27b-fp16/openvino_text_embeddings_model.xml`; it must print `verify OK`
+(every ternary matrix bit-identical to the template).
 
 ## 5. Run
 
@@ -195,7 +194,9 @@ $WORK/venv/bin/python $TOOLS/lm_eval_ov.py \
 ```
 
 `$TOOLS/run_lm_eval_ov.sh <model-dir> <tokenizer-dir> <out-dir>` wraps the same
-call (`PY`, `LIMIT`, `BATCH`, `THINK`, `TASKS`, `SERVE` from the environment).
+call (`PY`, `LIMIT`, `BATCH`, `THINK`, `TASKS`, `SERVE`, `GPUS` from the environment).
+On a multi-GPU host, `--gpus 0,1,...` (`GPUS=...`) splits the requests over one
+serving process per GPU; `--batch` is then per GPU.
 Full test set (1319 examples, thinking, up to 4096 generated tokens):
 `exact_match 0.970` (1279/1319). First 100: ~0.96-0.98 depending on the slice.
 
