@@ -1124,7 +1124,7 @@ TEST(arg_max_min_test, check_second_output_data_type) {
 
 // =============================================================================
 // Tests for arg_max_min_topk_radix kernel
-// Conditions: f16/f32 input, SORT_VALUES, N >= 2, N <= 65535, SLM fits
+// Conditions: f16/f32 input, SORT_VALUES, N >= 2, SLM fits
 // =============================================================================
 
 inline ExecutionConfig get_radix_topk_config(const cldnn::engine& engine, format::type fmt = format::bfyx) {
@@ -1140,6 +1140,79 @@ inline void assert_radix_topk_selected(const cldnn::network& net) {
     auto info = net.get_primitive_info("arg_max");
     ASSERT_TRUE(info.find("arg_max_min_topk_radix") != std::string::npos)
         << "Expected arg_max_min_topk_radix, got: " << info;
+}
+
+TEST(arg_max_gpu_topk_radix, dynamic_f32_dflash_shape_transitions_use_radix) {
+    constexpr int32_t batch_num = 1;
+    constexpr int32_t vocab_size = 248320;
+    constexpr int32_t top_k = 16;
+    auto& engine = get_test_engine();
+
+    auto input_layout_dynamic = layout{
+        ov::PartialShape{ov::Dimension::dynamic(), ov::Dimension::dynamic(), vocab_size, 1},
+        data_types::f32,
+        format::bfyx};
+    const std::vector<float> sorted_values = {
+        4.4388075f,
+        4.3951770f,
+        4.2429514f,
+        4.2423444f,
+        4.2085915f,
+        4.1768341f,
+        4.0288038f,
+        3.9938712f,
+        3.9857004f,
+        3.9501023f,
+        3.9219890f,
+        3.8840609f,
+        3.8789275f,
+        3.8753984f,
+        3.7988553f,
+        3.7939982f,
+    };
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_dynamic));
+    topology.add(arg_max_min("arg_max",
+                             {input_info("input")},
+                             ov::op::TopKMode::MAX,
+                             top_k,
+                             2,
+                             ov::op::TopKSortType::SORT_VALUES,
+                             true,
+                             false,
+                             data_types::f32,
+                             2));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    network network(engine, topology, config);
+    ASSERT_NO_FATAL_FAILURE(assert_radix_topk_selected(network));
+
+    for (const int32_t feature_num : {1, 7, 15, 7, 1}) {
+        auto input_layout_static =
+            layout{ov::PartialShape{batch_num, feature_num, vocab_size, 1}, data_types::f32, format::bfyx};
+        auto input = engine.allocate_memory(input_layout_static);
+        std::vector<float> input_values(batch_num * feature_num * vocab_size, -1.0f);
+        for (int32_t feature = 0; feature < feature_num; ++feature) {
+            for (int32_t rank = 0; rank < top_k; ++rank) {
+                input_values[feature * vocab_size + rank * 7919] = sorted_values[rank] + feature;
+            }
+        }
+        set_values(input, input_values);
+
+        network.set_input_data("input", input);
+        auto outputs = network.execute();
+        auto output = outputs.at("arg_max").get_memory();
+        cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+        for (int32_t feature = 0; feature < feature_num; ++feature) {
+            for (int32_t rank = 0; rank < top_k; ++rank) {
+                EXPECT_FLOAT_EQ(output_ptr[feature * top_k + rank],
+                                sorted_values[rank] + feature)
+                    << "value mismatch at feature_num=" << feature_num << ", feature=" << feature << ", rank=" << rank;
+            }
+        }
+    }
 }
 
 namespace {

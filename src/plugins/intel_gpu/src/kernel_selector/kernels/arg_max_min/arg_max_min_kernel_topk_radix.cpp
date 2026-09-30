@@ -69,6 +69,7 @@ ParamsKey ArgMaxMinKernelTopKRadix::GetSupportedKey() const {
     k.EnableBatching();
     k.EnableTensorPitches();
     k.EnableTensorOffset();
+    k.EnableDynamicShapesSupport();
     return k;
 }
 
