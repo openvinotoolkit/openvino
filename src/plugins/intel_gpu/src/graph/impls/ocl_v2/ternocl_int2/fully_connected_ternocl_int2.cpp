@@ -290,6 +290,9 @@ struct TernoclInt2Packed {
     memory::ptr weights;
     memory::ptr scales;
     memory::ptr had_signs;  // i8 [K] +-1, or null
+    // Weights repacked in place are taken from the network at execution: the program moves
+    // host constants to device memory after the impls are built.
+    primitive_id weights_id;
 };
 
 static std::mutex& ternocl_packed_mutex() {
@@ -297,8 +300,14 @@ static std::mutex& ternocl_packed_mutex() {
     return m;
 }
 
-// Process lifetime: the plugin can be unloaded after the context is gone.
+// Keyed by program id and node id. Process lifetime: the plugin can be unloaded after the context is gone.
 static std::unordered_map<std::string, TernoclInt2Packed>& ternocl_packed_cache() {
+    static auto* c = new std::unordered_map<std::string, TernoclInt2Packed>;
+    return *c;
+}
+
+// Constant buffers already repacked in place, keyed by program id and buffer address.
+static std::unordered_map<std::string, TernoclInt2Packed>& ternocl_packed_buffers() {
     static auto* c = new std::unordered_map<std::string, TernoclInt2Packed>;
     return *c;
 }
@@ -502,9 +511,12 @@ protected:
         TernoclInt2Packed* pk = &_own;
         {
             std::lock_guard<std::mutex> lock(ternocl_packed_mutex());
-            auto it = ternocl_packed_cache().find(params->desc->id);
+            const auto prog = network.get_program();
+            auto it = prog ? ternocl_packed_cache().find(std::to_string(prog->get_id()) + "|" + params->desc->id) : ternocl_packed_cache().end();
             if (it != ternocl_packed_cache().end())
                 pk = &it->second;
+            if (!pk->weights)
+                pk->weights = network.get_primitive(pk->weights_id)->output_memory_ptr();
         }
 
         memory::cptr in = instance.input_memory_ptr(0);
@@ -594,14 +606,27 @@ public:
         OPENVINO_ASSERT(postop >= 0, "[GPU] ternocl int2: ", arg.id(), " has no folded epilogue for its fused chain");
         const bool out_f32 = impl_params.output_layouts[0].data_type == data_types::f32;
 
+        const std::string key = std::to_string(prog.get_id()) + "|" + arg.id();
         TernoclInt2Packed own;
         {
             std::lock_guard<std::mutex> lock(ternocl_packed_mutex());
-            auto it = ternocl_packed_cache().find(arg.id());
+            auto it = ternocl_packed_cache().find(key);
             if (it != ternocl_packed_cache().end())
                 own = it->second;
         }
-        if (!own.weights) {
+        auto wei_mem = arg.weights().as<data>().get_attached_memory_ptr();
+        std::ostringstream buffer_key;
+        buffer_key << prog.get_id() << "|" << wei_mem->buffer_ptr();
+        const auto packed_already = [](const TernoclInt2Packed& p) {
+            return p.weights || !p.weights_id.empty();
+        };
+        if (!packed_already(own)) {
+            std::lock_guard<std::mutex> lock(ternocl_packed_mutex());
+            auto it = ternocl_packed_buffers().find(buffer_key.str());
+            if (it != ternocl_packed_buffers().end())
+                own = it->second;
+        }
+        if (!packed_already(own)) {
             // Dependencies are input, weights, [bias], scale, [zero point].
             const size_t scale_dep_idx = desc->bias.is_valid() ? 3 : 2;
             int32_t zp = 0;
@@ -613,23 +638,32 @@ public:
                 zp = static_cast<int32_t>(std::lround(read_scalar(zp_node->as<data>().get_attached_memory_ptr(), stream)));
             }
 
-            // Blocking copies: mapping a large device constant can expose it before it is resident.
-            auto wei_mem = arg.weights().as<data>().get_attached_memory_ptr();
-            OPENVINO_ASSERT(wei_mem->size() >= N * K / 4,
+            const size_t packed_bytes = N * K / 4;
+            OPENVINO_ASSERT(wei_mem->size() >= packed_bytes,
                             "[GPU] ternocl int2: weight buffer ",
                             wei_mem->size(),
                             " B is smaller than the dense ",
-                            N * K / 4,
+                            packed_bytes,
                             " B");
+            // The kernel layout has the constant's byte size, so it is written over the constant and the
+            // weights stay resident once. Other readers, or an export (cache_dir) saving the constant's
+            // bytes, still need the original, so those cases get a separate buffer.
+            const bool in_place = prog.get_config().get_cache_dir().empty() && arg.weights().get_users().size() == 1;
+            // Blocking copies: mapping a large device constant can expose it before it is resident.
             std::vector<uint8_t> wei_host(wei_mem->size());
             wei_mem->copy_to(stream, wei_host.data(), true);
             std::vector<uint32_t> packed((K / kTernoclPackFactor) * N);
             pack_weights(wei_host.data(), packed.data(), N, K, zp);
-            own.weights = engine.allocate_memory(
-                layout{ov::PartialShape{static_cast<int64_t>(K / kTernoclPackFactor), static_cast<int64_t>(N)}, data_types::i32, format::bfyx},
-                allocation_type::usm_device,
-                false);
-            own.weights->copy_from(stream, packed.data(), true);
+            if (in_place) {
+                wei_mem->copy_from(stream, packed.data(), 0, 0, packed_bytes, true);
+                own.weights_id = arg.weights().id();
+            } else {
+                own.weights = engine.allocate_memory(
+                    layout{ov::PartialShape{static_cast<int64_t>(K / kTernoclPackFactor), static_cast<int64_t>(N)}, data_types::i32, format::bfyx},
+                    allocation_type::usm_device,
+                    false);
+                own.weights->copy_from(stream, packed.data(), true);
+            }
 
             // OpenVINO keeps scales per output channel, [N, groups]; the kernel wants [groups, N].
             const size_t groups = K / kTernoclGroupSize;
@@ -637,11 +671,12 @@ public:
             OPENVINO_ASSERT(scale_node != nullptr, "[GPU] ternocl int2: decompression scale is not constant");
             auto scale_mem = scale_node->as<data>().get_attached_memory_ptr();
             OPENVINO_ASSERT(scale_mem->get_layout().data_type == data_types::f16, "[GPU] ternocl int2: decompression scale must be f16");
-            std::vector<uint16_t> scale_src(scale_mem->size() / sizeof(uint16_t));
-            scale_mem->copy_to(stream, scale_src.data(), true);
             // const_source() skipped any reorder, so this is the constant's own [N, groups] layout.
+            // That node may not survive into the network, so the scales (1/16 of the weights) keep a copy.
             const auto scale_shape = scale_mem->get_layout().get_shape();
             const bool n_major = scale_shape.size() >= 2 && scale_shape[0] == N;
+            std::vector<uint16_t> scale_src(scale_mem->size() / sizeof(uint16_t));
+            scale_mem->copy_to(stream, scale_src.data(), true);
             std::vector<uint16_t> scale_host(groups * N);
             for (size_t g = 0; g < groups; ++g)
                 for (size_t n = 0; n < N; ++n)
@@ -658,8 +693,13 @@ public:
                 own.had_signs->copy_from(stream, desc->hadamard_signs.data(), true);
             }
             std::lock_guard<std::mutex> lock(ternocl_packed_mutex());
+            if (in_place)
+                ternocl_packed_buffers().emplace(buffer_key.str(), own);
             // A second impl for a node that is already executing must not swap its buffers.
-            own = ternocl_packed_cache().try_emplace(arg.id(), own).first->second;
+            own = ternocl_packed_cache().try_emplace(key, own).first->second;
+        } else {
+            std::lock_guard<std::mutex> lock(ternocl_packed_mutex());
+            ternocl_packed_cache().try_emplace(key, own);
         }
         if (dbg)
             std::cerr << "[ternocl-int2] create " << arg.id() << " N=" << N << " K=" << K << " postop=" << postop << " out_f32=" << out_f32
