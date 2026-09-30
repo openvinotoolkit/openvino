@@ -99,6 +99,10 @@ public:
                                                             const std::vector<uint8_t>&) const override {
         return {};
     }
+
+    std::vector<std::string> resolve_compilation_target_bundles(const ::intel_npu::Config&) const override {
+        return {};
+    }
 };
 
 }  // namespace fake_vcl
