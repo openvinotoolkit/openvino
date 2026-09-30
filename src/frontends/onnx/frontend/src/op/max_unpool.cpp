@@ -93,9 +93,11 @@ ov::OutputVector max_unpool(const ov::frontend::onnx::Node& node) {
             const auto values = os_const->cast_vector<int64_t>();
             const auto& data_shape = data.get_partial_shape();
             CHECK_VALID_NODE(node,
-                             std::all_of(values.begin(), values.end(), [](int64_t v) {
-                                 return v >= 0;
-                             }),
+                             std::all_of(values.begin(),
+                                         values.end(),
+                                         [](int64_t v) {
+                                             return v >= 0;
+                                         }),
                              "MaxUnpool 'output_shape' must be non-negative. Got: ",
                              ov::util::vector_to_string(values));
             for (size_t i = 0; i < 2 && data_shape.rank().is_static(); ++i) {
