@@ -398,13 +398,13 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
 }
 
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_sdpa(const ov::Output<ov::Node>& query,
-                                                                                 const ov::Output<ov::Node>& key,
-                                                                                 const ov::Output<ov::Node>& value,
-                                                                                 const ov::Output<ov::Node>& mask,
-                                                                                 const ov::Output<ov::Node>& scale,
-                                                                                 const ov::Output<ov::Node>& sink,
-                                                                                 bool is_causal,
-                                                                                 const std::optional<CompressedKV>&) {
+                                                                                const ov::Output<ov::Node>& key,
+                                                                                const ov::Output<ov::Node>& value,
+                                                                                const ov::Output<ov::Node>& mask,
+                                                                                const ov::Output<ov::Node>& scale,
+                                                                                const ov::Output<ov::Node>& sink,
+                                                                                bool is_causal,
+                                                                                const std::optional<CompressedKV>&) {
     if (sink.get_node()) {
         return register_new_node<v13::ScaledDotProductAttention>(query, key, value, mask, scale, sink, is_causal);
     }
