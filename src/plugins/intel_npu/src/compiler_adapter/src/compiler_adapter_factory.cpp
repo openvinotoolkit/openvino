@@ -16,11 +16,15 @@ namespace {
 // Composing the compiler here, rather than inside PluginCompilerAdapter, keeps the adapter free of
 // any knowledge of how a compiler is obtained.
 std::shared_ptr<IVCLCompiler> makePluginCompiler(const std::shared_ptr<IDevice>& device,
-                                                 const std::shared_ptr<OptionSupportCache>& optionSupportCache) {
+                                                 const std::shared_ptr<OptionSupportCache>& optionSupportCache,
+                                                 bool offlineCompilation) {
+    // offlineCompilation being true means the compilation target may name a platform other than the attached
+    // device, which would make its properties describe the wrong one - withhold them in that case only
     try {
-        return makeVCLCompiler(
-            device ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()} : std::nullopt,
-            optionSupportCache);
+        return makeVCLCompiler(device && !offlineCompilation
+                                   ? std::optional<IDevice::DeviceProperties>{device->getDeviceProperties()}
+                                   : std::nullopt,
+                               optionSupportCache);
     } catch (const std::exception& vclException) {
         OPENVINO_THROW("VCL compiler loading failed, aborting. Error: ", vclException.what());
     }
@@ -31,12 +35,13 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
     const ov::SoPtr<IEngineBackend>& engineBackend,
     ov::intel_npu::CompilerType& compilerType,
     std::string_view platform,
-    const std::shared_ptr<OptionSupportCache>& optionSupportCache) const {
+    const std::shared_ptr<OptionSupportCache>& optionSupportCache,
+    bool offlineCompilation) const {
     const auto device = engineBackend ? engineBackend->getDevice() : nullptr;
 
     if (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
         auto [pluginCompiler, resolvedCompilerType] =
-            resolvePreferPluginCompiler(engineBackend, optionSupportCache, device, platform);
+            resolvePreferPluginCompiler(engineBackend, optionSupportCache, device, platform, offlineCompilation);
         compilerType = resolvedCompilerType;
         if (pluginCompiler) {
             return std::move(pluginCompiler);
@@ -44,8 +49,9 @@ std::unique_ptr<ICompilerAdapter> CompilerAdapterFactory::getCompiler(
     }
 
     if (compilerType == ov::intel_npu::CompilerType::PLUGIN) {
-        return std::make_unique<PluginCompilerAdapter>(engineBackend ? engineBackend->getInitStructs() : nullptr,
-                                                       makePluginCompiler(device, optionSupportCache));
+        return std::make_unique<PluginCompilerAdapter>(
+            engineBackend ? engineBackend->getInitStructs() : nullptr,
+            makePluginCompiler(device, optionSupportCache, offlineCompilation));
     }
 
     if (compilerType == ov::intel_npu::CompilerType::DRIVER) {
@@ -74,7 +80,7 @@ void CompilerAdapterFactory::decideCompilerType(ov::intel_npu::CompilerType& com
         return;
     }
 
-    compilerType = resolvePreferPluginCompiler({}, nullptr, device, platform).second;
+    compilerType = resolvePreferPluginCompiler({}, nullptr, device, platform, false).second;
 }
 
 ov::intel_npu::CompilerType CompilerAdapterFactory::determineAppropriateCompilerTypeBasedOnPlatform(
@@ -91,7 +97,8 @@ std::pair<std::unique_ptr<ICompilerAdapter>, ov::intel_npu::CompilerType>
 CompilerAdapterFactory::resolvePreferPluginCompiler(const ov::SoPtr<IEngineBackend>& engineBackend,
                                                     const std::shared_ptr<OptionSupportCache>& optionSupportCache,
                                                     const std::shared_ptr<intel_npu::IDevice>& device,
-                                                    std::string_view platform) const {
+                                                    std::string_view platform,
+                                                    bool isCompilationTarget) const {
     const auto pluginCompilerPresence = _pluginCompilerPresence.load(std::memory_order_acquire);
     const bool onlineCompilation = device && (platform.empty() || device->getName() == platform);
 
@@ -114,9 +121,9 @@ CompilerAdapterFactory::resolvePreferPluginCompiler(const ov::SoPtr<IEngineBacke
 
     if (pluginCompilerPresence == PluginCompilerPresence::UNKNOWN) {
         try {
-            auto pluginCompiler =
-                std::make_unique<PluginCompilerAdapter>(engineBackend ? engineBackend->getInitStructs() : nullptr,
-                                                        makePluginCompiler(device, optionSupportCache));
+            auto pluginCompiler = std::make_unique<PluginCompilerAdapter>(
+                engineBackend ? engineBackend->getInitStructs() : nullptr,
+                makePluginCompiler(device, optionSupportCache, isCompilationTarget));
             _pluginCompilerPresence.store(PluginCompilerPresence::PRESENT, std::memory_order_release);
             return {std::move(pluginCompiler), ov::intel_npu::CompilerType::PLUGIN};
         } catch (...) {

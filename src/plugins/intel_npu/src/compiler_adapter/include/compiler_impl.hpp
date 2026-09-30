@@ -114,6 +114,28 @@ public:
     bool is_option_supported(const std::string& option,
                              const std::optional<std::string>& optValue = std::nullopt) const override;
 
+    /**
+     * @brief Resolves the config bundle(s) the platform named in \p config's NPU_PLATFORM needs
+     * compiled from it - more than one when that platform ships as several SKU variants (e.g.
+     * differing tile counts).
+     * @details Calls vclCompilationTargetsCreate/vclGetCompilationTargets/vclCompilationTargetsDestroy,
+     * which are optional/weak VCL entry points: when the loaded library does not export them, an empty
+     * vector is returned instead of guessing - the caller then compiles \p config unchanged, as it
+     * always has. Each entry is a bundle the caller merges into \p config for one compilation, so several
+     * entries mean several blobs.
+     * @throws ov::Exception if the query fails, or resolves \p config to no target (unknown platform, or
+     * an option the platform does not support).
+     */
+    std::vector<std::string> resolve_compilation_target_bundles(const Config& config) const override;
+
+    /**
+     * @brief Every offline compilation target the VCL library can compile for, one per platform.
+     * @details Resolves an empty config, so no device and no compiler state take part. Returns an empty
+     * vector when the loaded library does not export the optional target entry points.
+     * @throws ov::Exception if the query fails.
+     */
+    std::vector<ov::CompilationTarget> get_offline_compilation_targets() const override;
+
 private:
     /**
      * @brief Compiles the given model according to the given configuration. During the model serialization step,
