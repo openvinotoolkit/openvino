@@ -49,16 +49,20 @@ std::optional<GroupQueryAttentionDecomposition::CompressedKV> GroupQueryAttentio
     const ov::Output<ov::Node>& key_scale,
     const ov::Output<ov::Node>& value_scale) {
     using GQAInputs = ov::op::internal::GroupQueryAttentionInputs;
+    using GQAQuantType = ov::op::internal::GroupQueryAttentionQuantType;
 
     const auto kv_cache_bit_width = node->get_kv_cache_bit_width();
+    const auto key_quant_type = node->get_k_quant_type();
+    const auto value_quant_type = node->get_v_quant_type();
     if (!node->is_kv_quantized() || (kv_cache_bit_width != 8 && kv_cache_bit_width != 4) || key.get_element_type() != value.get_element_type() ||
-        !is_supported_compressed_kv_type(key.get_element_type()))
+        !is_supported_compressed_kv_type(key.get_element_type()) || key_quant_type == GQAQuantType::PER_TENSOR ||
+        value_quant_type == GQAQuantType::PER_TENSOR)
         return std::nullopt;
 
     ov::Output<ov::Node> prepared_key_scale =
-        make_kv_scale(node->input_value(static_cast<size_t>(GQAInputs::K_SCALE)), node->get_kv_num_heads(), node->get_k_quant_type());
+        make_kv_scale(node->input_value(static_cast<size_t>(GQAInputs::K_SCALE)), node->get_kv_num_heads(), key_quant_type);
     ov::Output<ov::Node> prepared_value_scale =
-        make_kv_scale(node->input_value(static_cast<size_t>(GQAInputs::V_SCALE)), node->get_kv_num_heads(), node->get_v_quant_type());
+        make_kv_scale(node->input_value(static_cast<size_t>(GQAInputs::V_SCALE)), node->get_kv_num_heads(), value_quant_type);
 
     if (prepared_key_scale.get_element_type() != ov::element::f16)
         prepared_key_scale = register_new_node<ov::op::v0::Convert>(prepared_key_scale, ov::element::f16);

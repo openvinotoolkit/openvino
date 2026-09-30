@@ -145,7 +145,7 @@ std::shared_ptr<ov::intel_gpu::op::SDPA> decompose_and_get_sdpa(const GQAConfig&
 
 void expect_fixed_int4_zero_point(const ov::Output<ov::Node>& zero_point) {
     EXPECT_EQ(zero_point.get_element_type(), ov::element::f16);
-    EXPECT_EQ(zero_point.get_partial_shape(), ov::PartialShape({1, 1, 1, 1}));
+    EXPECT_EQ(zero_point.get_partial_shape(), ov::PartialShape({1, kv_num_heads, 1, head_size}));
     const auto broadcast = ov::as_type_ptr<ov::op::v3::Broadcast>(zero_point.get_node_shared_ptr());
     ASSERT_NE(broadcast, nullptr);
     const auto value = ov::as_type_ptr<ov::op::v0::Constant>(broadcast->input_value(0).get_node_shared_ptr());
@@ -183,7 +183,7 @@ TEST(GQADecompositionTest, causal_uses_lower_right_without_mask) {
     EXPECT_EQ(sdpa->get_causal_mask_alignment(), ov::intel_gpu::op::SDPA::CausalMaskAlignment::LOWER_RIGHT);
 }
 
-TEST(GQADecompositionTest, per_tensor_kv_uses_compressed_sdpa) {
+TEST(GQADecompositionTest, per_tensor_kv_uses_decompressed_sdpa) {
     GQAConfig cfg;
     cfg.kv_cache_bit_width = 8;
     cfg.kv_quant = QuantType::PER_TENSOR;
@@ -192,23 +192,10 @@ TEST(GQADecompositionTest, per_tensor_kv_uses_compressed_sdpa) {
     const auto sdpa = decompose_and_get_sdpa(cfg);
 
     ASSERT_NE(sdpa, nullptr);
-    ASSERT_TRUE(sdpa->get_kv_compressed());
-    ASSERT_EQ(sdpa->get_input_size(), 5u) << "Q, K, V, K scale, V scale";
-    EXPECT_EQ(sdpa->get_quantization_attrs().quantization_dt, ov::element::i8);
-    EXPECT_EQ(sdpa->get_quantization_attrs().scale_dt, ov::element::f16);
-    EXPECT_EQ(sdpa->get_quantization_attrs().group_sizes,
-              (std::vector<uint64_t>{1,
-                                     1,
-                                     std::numeric_limits<uint64_t>::max(),
-                                     std::numeric_limits<uint64_t>::max()}));
-    EXPECT_EQ(sdpa->input_value(1).get_element_type(), ov::element::i8);
-    EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::i8);
-    EXPECT_TRUE(ov::is_type<ov::op::v0::Concat>(sdpa->input_value(1).get_node_shared_ptr()));
-    EXPECT_TRUE(ov::is_type<ov::op::v0::Concat>(sdpa->input_value(2).get_node_shared_ptr()));
-    EXPECT_EQ(sdpa->input_value(3).get_element_type(), ov::element::f16);
-    EXPECT_EQ(sdpa->input_value(4).get_element_type(), ov::element::f16);
-    EXPECT_EQ(sdpa->input_value(3).get_partial_shape(), ov::PartialShape({1, 1, 1, 1}));
-    EXPECT_EQ(sdpa->input_value(4).get_partial_shape(), ov::PartialShape({1, 1, 1, 1}));
+    EXPECT_FALSE(sdpa->get_kv_compressed());
+    ASSERT_EQ(sdpa->get_input_size(), 3u) << "Q, dequantized K, dequantized V";
+    EXPECT_EQ(sdpa->input_value(1).get_element_type(), ov::element::f32);
+    EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::f32);
 }
 
 TEST(GQADecompositionTest, per_channel_kv_uses_compressed_sdpa) {
@@ -242,8 +229,10 @@ TEST(GQADecompositionTest, per_channel_kv_uses_compressed_sdpa) {
 TEST(GQADecompositionTest, compressed_kv_preserves_optional_inputs) {
     GQAConfig cfg;
     cfg.kv_cache_bit_width = 8;
-    cfg.kv_quant = QuantType::PER_TENSOR;
-    cfg.out_quant = QuantType::PER_TENSOR;
+    cfg.kv_quant = QuantType::PER_CHANNEL;
+    cfg.out_quant = QuantType::PER_CHANNEL;
+    cfg.key_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+    cfg.value_scale_shape = ov::PartialShape{kv_num_heads * head_size};
     cfg.scale = 0.125f;
     cfg.attention_bias = true;
     cfg.head_sink = true;
@@ -263,8 +252,10 @@ TEST(GQADecompositionTest, compressed_kv_preserves_optional_inputs) {
 TEST(GQADecompositionTest, int4_i8_cache_uses_u4_zp8) {
     GQAConfig cfg;
     cfg.kv_cache_bit_width = 4;
-    cfg.kv_quant = QuantType::PER_TENSOR;
-    cfg.out_quant = QuantType::PER_TENSOR;
+    cfg.kv_quant = QuantType::PER_CHANNEL;
+    cfg.out_quant = QuantType::PER_CHANNEL;
+    cfg.key_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+    cfg.value_scale_shape = ov::PartialShape{kv_num_heads * head_size};
 
     const auto sdpa = decompose_and_get_sdpa(cfg);
 
@@ -283,8 +274,10 @@ TEST(GQADecompositionTest, int4_i8_cache_uses_u4_zp8) {
 TEST(GQADecompositionTest, int4_u8_cache_uses_u4_zp8) {
     GQAConfig cfg;
     cfg.kv_cache_bit_width = 4;
-    cfg.kv_quant = QuantType::PER_TENSOR;
-    cfg.out_quant = QuantType::PER_TENSOR;
+    cfg.kv_quant = QuantType::PER_CHANNEL;
+    cfg.out_quant = QuantType::PER_CHANNEL;
+    cfg.key_scale_shape = ov::PartialShape{kv_num_heads * head_size};
+    cfg.value_scale_shape = ov::PartialShape{kv_num_heads * head_size};
     cfg.cache_type = ov::element::u8;
 
     const auto sdpa = decompose_and_get_sdpa(cfg);
