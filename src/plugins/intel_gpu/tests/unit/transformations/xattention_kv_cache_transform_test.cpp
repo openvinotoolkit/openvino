@@ -370,6 +370,8 @@ TEST(PagedAttentionKCacheLayout, ByChannelTokenMajorReadable) {
     auto no_xmx = xe2;
     no_xmx.supports_immad = false;
     EXPECT_FALSE(pa::by_channel_token_major_readable(no_xmx, true, f16, {op}));
+    // With TEST_USE_SDPA_OCL_HPG=1 sdpa_ocl_selected(xe_hpg) is true, so only the decode predicate keeps this false; with
+    // the default env selected is already false and this line alone would not catch a landmine.
     auto xe_hpg = xe2;
     xe_hpg.arch = cldnn::gpu_arch::xe_hpg;
     EXPECT_FALSE(pa::by_channel_token_major_readable(xe_hpg, true, f16, {op}));
@@ -442,9 +444,9 @@ TEST_P(PagedAttentionKCacheLayoutPipelineTest, ByChannelPageFollowsReaders) {
     // The page has a token-major reader in both stages only on XMX Xe2+ with microkernel support, and
     // only for a model without alibi or qq_bias.
     const auto& info = engine.get_device_info();
-    bool readers = info.supports_immad && info.arch >= cldnn::gpu_arch::xe2 &&
-                   cldnn::query_microkernels_supported(engine, config) && cldnn::paged_attention::k_by_channel_token_major() &&
-                   cldnn::paged_attention::sdpa_ocl_enabled() && cldnn::paged_attention::sdpa_ocl_decode_enabled();
+    bool readers = cldnn::paged_attention::sdpa_ocl_selected(info) &&
+                   cldnn::paged_attention::sdpa_ocl_decode_reader_available(info) &&
+                   cldnn::query_microkernels_supported(engine, config) && cldnn::paged_attention::k_by_channel_token_major();
 #ifndef ENABLE_ONEDNN_FOR_GPU
     readers = false;
 #endif

@@ -1579,7 +1579,7 @@ public:
     // Which DPAS kernel serves PREFILL/MIXED of this op, decided once per impl from the descriptor, config,
     // environment and device -- never per shape -- and remembered only as the staged pair (dpas_backend()).
     // paged_attention::by_channel_token_major_readable() replays the shared checks and the sdpa_ocl branch that do
-    // not depend on the K page; change them together.
+    // not depend on the K page (the GENERATE half is SDPAOclDecodeGenerator::supported()); change them together.
     static DpasBackend choose_dpas_backend(const kernel_impl_params& params) {
         auto& engine = params.get_program().get_engine();
         const auto& info = params.get_device_info();
@@ -2342,16 +2342,17 @@ std::unique_ptr<primitive_impl> PagedAttentionOpt::create_impl(const program_nod
 namespace cldnn {
 
 // Replays, per op, the parts of PagedAttentionOptImpl::choose_dpas_backend() (its sdpa_ocl branch) /
-// can_use_micro_sdpa_for() (MIXED) and SDPAOclDecodeGenerator::supported() (GENERATE) that do not depend on the
-// page itself. Change it together with those gates.
+// can_use_micro_sdpa_for() (MIXED reader = sdpa_ocl_selected) and SDPAOclDecodeGenerator::supported() (GENERATE
+// reader = sdpa_ocl_decode_reader_available) that do not depend on the page itself. Change it together with those gates.
 bool paged_attention::by_channel_token_major_readable(const device_info& info,
                                                       bool microkernels_supported,
                                                       const ov::element::Type& infer_precision,
                                                       const std::vector<by_channel_tm_op_info>& ops) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-    // Both readers need XMX on Xe2+ (the sdpa_ocl lane); MIXED also asks for microkernel support, and
-    // sdpa_ocl_decode for an f16 query and output.
-    if (!sdpa_ocl_selected(info) || !sdpa_ocl_decode_enabled() || !microkernels_supported || infer_precision != ov::element::f16) {
+    // Two independent readers: MIXED = sdpa_ocl_selected() (the lane), GENERATE = sdpa_ocl_decode_reader_available().
+    // Neither implies the other (an xe_hpg sdpa_ocl lane has no GENERATE reader). MIXED also asks for microkernel
+    // support, and sdpa_ocl_decode for an f16 query and output.
+    if (!sdpa_ocl_selected(info) || !sdpa_ocl_decode_reader_available(info) || !microkernels_supported || infer_precision != ov::element::f16) {
         return false;
     }
     // sdpa_ocl_decode tiles K by the DPAS depth and V by the subgroup size, both 16.

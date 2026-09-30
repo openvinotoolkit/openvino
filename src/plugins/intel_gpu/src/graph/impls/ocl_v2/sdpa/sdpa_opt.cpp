@@ -63,7 +63,8 @@ public:
     }
     explicit SDPAOptImpl(const RuntimeParams& impl_param) : SDPAOptImpl() {
         auto params = SDPABase::requires_shape_canonicalization(impl_param) ? SDPABase::static_canonicalize_shapes(impl_param) : impl_param;
-        // sdpa_ocl on Xe2+ XMX, sdpa_micro elsewhere. No fallback from one to the other: where the lane's kernel is
+        // sdpa_ocl on the lane sdpa_ocl_selected() picks (Xe2+ XMX today; xe_hpg only with TEST_USE_SDPA_OCL_HPG=1 once the
+        // kernels exist), sdpa_micro elsewhere. No fallback from one to the other: where the lane's kernel is
         // refused, the opt kernels run.
         const bool ocl_lane = cldnn::paged_attention::sdpa_ocl_selected(params.get_device_info());
 #ifdef ENABLE_ONEDNN_FOR_GPU
