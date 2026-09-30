@@ -782,7 +782,8 @@ enum Field {
     OPSET_IMPORT = 8,
     METADATA_PROPS = 14,
     TRAINING_INFO = 20,
-    FUNCTIONS = 25
+    FUNCTIONS = 25,
+    CONFIGURATION = 26
 };
 
 enum WireType { VARINT = 0, BITS_64 = 1, LENGTH_DELIMITED = 2, START_GROUP = 3, END_GROUP = 4, BITS_32 = 5 };
@@ -807,6 +808,7 @@ bool is_correct_onnx_field(const PbKey& decoded_key) {
         {METADATA_PROPS, LENGTH_DELIMITED},
         {TRAINING_INFO, LENGTH_DELIMITED},
         {FUNCTIONS, LENGTH_DELIMITED},
+        {CONFIGURATION, LENGTH_DELIMITED},
     };
 
     if (!onnx_fields.count(static_cast<Field>(decoded_key.first))) {
