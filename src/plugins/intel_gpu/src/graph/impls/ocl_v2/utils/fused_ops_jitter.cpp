@@ -972,9 +972,8 @@ JitConstants make_activation_jit_constants(const std::string& suffix,
         break;
     }
     case activation_func::softplus: {
-        const auto threshold = (calc_dt == ov::element::f32)
-                                   ? JitTerm{std::to_string(std::log(std::numeric_limits<float>::max())) + "f"}
-                                   : JitTerm{std::to_string(std::log(std::numeric_limits<ov::float16>::max())) + "h"};
+        const auto threshold = (calc_dt == ov::element::f32) ? JitTerm{std::to_string(std::log(std::numeric_limits<float>::max())) + "f"}
+                                                             : JitTerm{std::to_string(std::log(std::numeric_limits<ov::float16>::max())) + "h"};
         jit.add(make_jit_constant(macro_def, ternary(input.lt(threshold), log(exp(input) + one), input)));
         break;
     }

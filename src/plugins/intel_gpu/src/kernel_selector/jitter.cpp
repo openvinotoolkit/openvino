@@ -1328,9 +1328,8 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             break;
         }
         case ActivationFunction::SOFTPLUS: {
-            const auto threshold = (out_dt == Datatype::F32)
-                                       ? JitTerm{std::to_string(std::log(std::numeric_limits<float>::max())) + "f"}
-                                       : JitTerm{std::to_string(std::log(std::numeric_limits<ov::float16>::max())) + "h"};
+            const auto threshold = (out_dt == Datatype::F32) ? JitTerm{std::to_string(std::log(std::numeric_limits<float>::max())) + "f"}
+                                                             : JitTerm{std::to_string(std::log(std::numeric_limits<ov::float16>::max())) + "h"};
             jitConstants.AddConstant(MakeJitConstant(macro_def, ternary(input.lt(threshold), log(exp(input) + one), input).str()));
             break;
         }
