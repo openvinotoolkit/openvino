@@ -135,16 +135,18 @@ TEST(GroupQueryAttentionDecompositionTest, control_plain_causal_uses_lower_right
     EXPECT_EQ(sdpa->get_causal_mask_alignment(), ov::intel_gpu::op::SDPA::CausalMaskAlignment::LOWER_RIGHT);
 }
 
-// A sliding-window cache retains the explicit attention mask.
-TEST(GroupQueryAttentionDecompositionTest, explicit_mask_for_sliding_window_cache) {
+// A sliding-window cache uses the native is_causal + sliding_window_size path; the mask is elided.
+TEST(GroupQueryAttentionDecompositionTest, sliding_window_cache_uses_native_swa_without_mask) {
     GQAConfig cfg;
     cfg.local_window_size = 128;
     cfg.sliding_window_cache = true;
 
     const auto sdpa = decompose_and_get_sdpa(cfg);
     ASSERT_NE(sdpa, nullptr);
-    EXPECT_EQ(sdpa->get_input_size(), 4u) << "Q, K, V, mask";
-    EXPECT_TRUE(slot_holds_a_mask(sdpa->input_value(3)));
+    EXPECT_EQ(sdpa->get_input_size(), 3u) << "Q, K, V only -- the mask is elided; the kernel applies the window natively";
+    EXPECT_TRUE(sdpa->get_causal());
+    EXPECT_EQ(sdpa->get_causal_mask_alignment(), ov::intel_gpu::op::SDPA::CausalMaskAlignment::LOWER_RIGHT);
+    EXPECT_EQ(sdpa->get_sliding_window_size(), cfg.local_window_size);
 }
 
 // Causal smooth softmax retains the explicit mask.

@@ -30,7 +30,8 @@ protected:
                                                 const ov::Output<ov::Node>& mask,
                                                 const ov::Output<ov::Node>& scale,
                                                 const ov::Output<ov::Node>& sink,
-                                                bool is_causal);
+                                                bool is_causal,
+                                                int64_t local_window_size = -1);
     std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<op::v3::ShapeOf>& shape,
                                              const std::vector<int>& dims);
     std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::Node>& node, const std::vector<int>& dims);
