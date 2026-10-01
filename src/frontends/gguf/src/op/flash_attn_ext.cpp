@@ -100,29 +100,6 @@ ov::Output<Node> tile_kv(int64_t num_heads,
 }  // namespace
 
 OutputVector translate_flash_attn_ext(const NodeContext& context) {
-    if (context.get_attribute<bool>("encoder_attention", false)) {
-        num_inputs_check(context, 3, 4);
-        // Encoders hand over ggml-natural [B, L, H(_kv), S]: expand K/V heads, then transpose.
-        const auto q_shape = context.get_input_shape(0);
-        const auto k_shape = context.get_input_shape(1);
-        const auto heads = q_shape[2].get_length();
-        const auto heads_kv = k_shape[2].get_length();
-        const auto head_size = q_shape[3].get_length();
-        const auto order = ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3});
-        auto q = std::make_shared<ov::op::v1::Transpose>(context.get_input(0), order);
-        auto k =
-            std::make_shared<ov::op::v1::Transpose>(tile_kv(heads, heads_kv, head_size, context.get_input(1), true),
-                                                    order);
-        auto v =
-            std::make_shared<ov::op::v1::Transpose>(tile_kv(heads, heads_kv, head_size, context.get_input(2), true),
-                                                    order);
-        ov::Output<ov::Node> mask = context.get_input_size() == 4
-                                        ? context.get_input(3)
-                                        : ov::op::v0::Constant::create(ov::element::f32, {}, {0})->output(0);
-        auto scale = ov::op::v0::Constant::create(ov::element::f32, {}, {context.get_attribute<float>("scale")});
-        auto sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q, k, v, mask, scale, false);
-        return rename_outputs_with_suffix({std::make_shared<ov::op::v1::Transpose>(sdpa, order)}, context.get_name());
-    }
     num_inputs_check(context, 3, 5);
     auto q_f32 = context.get_input(0);
     auto k = context.get_input(1);
@@ -155,7 +132,8 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
     FRONT_END_OP_CONVERSION_CHECK(has_mask || kq_soft_cap == 0.0f,
                                   "Maskless FLASH_ATTN_EXT does not support a non-zero soft cap");
 
-    const auto sdpa_type = ov::element::f16;
+    // Encoders keep f32 attention; decoders use f16 SDPA.
+    const auto sdpa_type = context.get_attribute<bool>("f32_attention", false) ? ov::element::f32 : ov::element::f16;
     auto q = std::make_shared<ov::op::v0::Convert>(q_f32, sdpa_type);
     auto scale_node = std::make_shared<ov::op::v0::Constant>(sdpa_type, ov::Shape{}, std::vector<float>{scale});
 
@@ -173,7 +151,7 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
             auto zero = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
             auto one = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
             auto two = ov::op::v0::Constant::create(ov::element::i64, {1}, {2});
-            auto token_len = get_dimensions(q, {2});
+            auto token_len = get_dimensions(q, {op_case == 100 ? 1 : 2});
             mask_sliced = std::make_shared<ov::op::v8::Slice>(mask, zero, token_len, one, two);
         }
 
@@ -291,8 +269,8 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
     // [B, H, L, S] -> [B, L, H, S] (ggml-natural layout expected by caller).
     res = std::make_shared<ov::op::v1::Transpose>(sdpa,
                                                   ov::op::v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3}));
-    // SDPA paths produce f16; the soft-cap path produces f32 directly.
-    if (kq_soft_cap == 0.0f) {
+    // SDPA paths produce sdpa_type; the soft-cap path produces f32 directly.
+    if (kq_soft_cap == 0.0f && sdpa_type != ov::element::f32) {
         res = std::make_shared<ov::op::v0::Convert>(res, ov::element::f32);
     }
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());

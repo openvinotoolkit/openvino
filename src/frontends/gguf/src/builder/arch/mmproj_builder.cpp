@@ -392,7 +392,7 @@ private:
         std::vector<GgufValue> inputs{q, k, v};
         if (mask)
             inputs.push_back(mask);
-        return g.node("GGML_OP_FLASH_ATTN_EXT", inputs, 0, {{"encoder_attention", true}, {"scale", factor}});
+        return g.node("GGML_OP_FLASH_ATTN_EXT", inputs, 100, {{"f32_attention", true}, {"scale", factor}});
     }
     GgufValue patch_embeddings(const GgufValue& spatial, int64_t width, bool with_bias = true) {
         auto x = transpose(reshape(spatial, {1, 1, width, -1}));
