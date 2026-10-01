@@ -285,11 +285,8 @@ public:
                 graph->mmproj_config[key] = join(ctx.metadata.get_float_array(key));
             }
         }
-        graph->mmproj_config["version"] = std::string("1");
         for (const auto& c : encoders) {
             graph->mmproj_config[c.modality + ".projector"] = c.projector;
-            graph->mmproj_config[c.modality + ".output"] = c.modality + ".embeddings";
-            graph->mmproj_config[c.modality + ".output_layout"] = std::string("1,B,T,D");
             graph->mmproj_config[c.modality + ".merge"] = std::to_string(c.merge);
             if (c.topology == EncoderTopology::MuseGlimmer)
                 graph->mmproj_config["vision.window_size"] = std::to_string(vision_window_size);
@@ -299,12 +296,6 @@ public:
             }
         }
         graph->mmproj_config["vision.auxiliary_count"] = std::to_string(auxiliary.size());
-        if (!auxiliary.empty()) {
-            std::string roles = "image_features";
-            for (size_t i = 0; i < auxiliary.size(); ++i)
-                roles += ",deepstack_features." + std::to_string(i);
-            graph->mmproj_config["vision.output_roles"] = roles;
-        }
         return graph;
     }
 
