@@ -323,6 +323,7 @@ jobs:
           # Stage TBB cmake config so OpenVINOConfig.cmake find_dependency(TBB) resolves in downstream builds
           mkdir -p ${INSTALL_DIR}/runtime/3rdparty/tbb/lib
           cp -r ${TBB_INSTALL}/lib/cmake ${INSTALL_DIR}/runtime/3rdparty/tbb/lib/cmake
+          cp -r ${TBB_INSTALL}/include ${INSTALL_DIR}/runtime/3rdparty/tbb/include
           find ${TBB_INSTALL}/lib -name "*.so*" -type f -exec cp {} ${INSTALL_DIR}/runtime/3rdparty/tbb/lib/ \; 2>/dev/null || echo "No .so files in TBB_INSTALL/lib"
 
       # Release build keeps -g (NDK default); strip unused debug symbols to shrink every download
