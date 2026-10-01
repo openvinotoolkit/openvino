@@ -48,12 +48,4 @@ std::optional<WeightTensors> concat_rows(const WeightTensors& a,
                                          GgufTensorType qa,
                                          GgufTensorType qb);
 
-// Like concat_rows, but when the layouts differ, first re-express both 32-group 4/8-bit weights
-// exactly in a common 8-bit layout (Q8_0: i8 symmetric, or Q5_K: u8 + u8 zero-point). Returns the
-// merged tensors and the quant type describing their layout; empty when not representable.
-std::optional<std::pair<WeightTensors, GgufTensorType>> concat_rows_widened(const WeightTensors& a,
-                                                                            const WeightTensors& b,
-                                                                            GgufTensorType qa,
-                                                                            GgufTensorType qb);
-
 }  // namespace ov::frontend::gguf::blocks

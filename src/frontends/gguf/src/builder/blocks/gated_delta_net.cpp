@@ -178,19 +178,16 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
 
     // z, ssm_beta and ssm_alpha share the input. beta/alpha produce one scalar per v-head, and
     // such a narrow matmul costs about as much as a wide one, so all three run as one matmul when
-    // their quantization layouts can be expressed in a common one.
+    // they share a quantization layout. Widening z to merge would cost more weight bandwidth.
     std::string z, beta, alpha;
     auto ba = concat_rows(weight_parts(e, beta_base),
                           weight_parts(e, alpha_base),
                           weight_qtype(e, beta_base),
                           weight_qtype(e, alpha_base));
-    auto zba = ba ? concat_rows_widened(weight_parts(e, gate_base),
-                                        *ba,
-                                        weight_qtype(e, gate_base),
-                                        weight_qtype(e, beta_base))
+    auto zba = ba ? concat_rows(weight_parts(e, gate_base), *ba, weight_qtype(e, gate_base), weight_qtype(e, beta_base))
                   : std::nullopt;
     if (zba) {
-        store_parts(e, p + "ssm_z_beta_alpha", zba->first, zba->second);
+        store_parts(e, p + "ssm_z_beta_alpha", *zba, weight_qtype(e, gate_base));
         e.add_weight(p + "ssm_z_beta_alpha.weight");
         auto zba_out = e.add_op("GGML_OP_MUL_MAT", p + "z_beta_alpha", {p + "ssm_z_beta_alpha.weight", attn_norm});
         z = e.add_op("GGML_OP_VIEW", p + "z", {zba_out}, 3, {{"view_slice", std::vector<int64_t>{3, 0, value_dim}}});
