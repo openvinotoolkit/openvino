@@ -64,17 +64,13 @@ def main():
         root = Path(tmp)
         model = root / "model.gguf"
         write_model(model)
-        combined = {}
+        combined = {"model": np.frombuffer(model.read_bytes(), np.uint8)}
         for step, (height, width) in enumerate([(8, 12), (4, 4)]):
             raw = np.random.default_rng(42).uniform(-1, 1, (height, width, 3)).astype(np.float32)
-            arrays = dict(model=np.frombuffer(model.read_bytes(), np.uint8),
-                          inputs=raw.transpose(2, 0, 1)[None],
+            arrays = dict(pixel_values=raw.transpose(2, 0, 1)[None],
                           embeddings=run_oracle(args.oracle, model, "vision", width, height, raw).reshape(1, 1, -1, 12))
             arrays.update(muse_glimmer_indices(height // 2, width // 2, 2))
-            if step == 0:
-                combined.update(arrays)
-            combined.update({f"{step}." + ("pixel_values" if name == "inputs" else name): value
-                             for name, value in arrays.items() if name != "model"})
+            combined.update({f"{step}.{name}": value for name, value in arrays.items()})
         save_npz(args.output / "muse-glimmer.npz", combined)
 
 
