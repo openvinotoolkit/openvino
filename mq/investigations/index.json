@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 273,
+  "total": 274,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2676,6 +2676,15 @@
       "category": "Network",
       "signature_hash": "8c8192df2f508443",
       "pr_number": "38536"
+    },
+    {
+      "investigation_id": "2026-10-01-16-36-03-000-36887680376",
+      "run_id": "36887680376",
+      "timestamp": "2026-10-01T16:36:03Z",
+      "title": "OpenVINO tokenizers extension build fails downloading sentencepiece-0.2.1.tar.gz (HTTP 500 from github.com)",
+      "category": "Network",
+      "signature_hash": "ab13d93818e84607",
+      "pr_number": "36733"
     }
   ]
 }

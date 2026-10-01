@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-01-16-36-03-000-36887680376",
+  "timestamp": "2026-10-01T16:36:03Z",
+  "run_id": "36887680376",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36887680376",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "36733",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/36733",
+  "author": "LeoHeller",
+  "category": "Network",
+  "title": "OpenVINO tokenizers extension build fails downloading sentencepiece-0.2.1.tar.gz (HTTP 500 from github.com)",
+  "signature": "downloading sentencepiece-0.2.1.tar.gz failed HTTP response code said error 500|Network",
+  "signature_hash": "ab13d93818e84607",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO tokenizers extension / OpenVINO tokenizers extension",
+      "conclusion": "failure",
+      "symptom": "CMake FetchContent download of sentencepiece-0.2.1.tar.gz from github.com failed with HTTP 500 Internal Server Error, aborting the tokenizers wheel build metadata step (run attempt 1); re-run (attempt 2) was in progress at investigation time."
+    }
+  ],
+  "key_errors": [
+    "-- Using src='https://github.com/google/sentencepiece/releases/download/v0.2.1/sentencepiece-0.2.1.tar.gz'\nCMake Error at sentencepiece-subbuild/sentencepiece-populate-prefix/src/sentencepiece-populate-stamp/download-sentencepiece-populate.cmake:163 (message):\n  Each download failed!\n    error: downloading 'https://github.com/google/sentencepiece/releases/download/v0.2.1/sentencepiece-0.2.1.tar.gz' failed\n          status_code: 22\n          status_string: \"HTTP response code said error\"",
+    "HTTP/2 500\ncontent-type: text/html; charset=utf-8\nserver: github.com\nThe requested URL returned error: 500",
+    "gmake[2]: *** [CMakeFiles/sentencepiece-populate.dir/build.make:100: sentencepiece-populate-prefix/src/sentencepiece-populate-stamp/sentencepiece-populate-download] Error 1\nCMake Error at .../FetchContent.cmake:1918 (message):\n  Build step for sentencepiece failed: 2"
+  ],
+  "root_cause": "The OpenVINO Tokenizers build uses CMake FetchContent to download the sentencepiece v0.2.1 release tarball directly from github.com/google/sentencepiece/releases. The ARM64 merge-queue runner's outbound HTTPS request to that release-asset URL received an HTTP 500 Internal Server Error from GitHub's edge (x-github-edge-region: westus2), a transient upstream/CDN availability issue unrelated to the PR's actual change (constant offset alignment in .bin serialization, scoped to src/core/src/xml_util/ and its tests). This is the same failure mode recorded for the identical URL three hours earlier in run 36863877140 (HTTP 504), confirming github.com release-asset fetches for this specific job are an ongoing soft spot rather than a one-off.",
+  "reproduction_steps": "Not reliably reproducible locally since it depends on a transient GitHub release-asset CDN hiccup. To attempt: on an aarch64 Linux host, run `pip wheel ./src/bindings/python/tools/openvino_tokenizers` (or trigger the 'OpenVINO tokenizers extension' CI job) and observe the CMake FetchContent_Populate step fetching https://github.com/google/sentencepiece/releases/download/v0.2.1/sentencepiece-0.2.1.tar.gz; a transient 5xx from GitHub during that window reproduces the failure.",
+  "recommended_actions": [
+    "Re-run the failed 'OpenVINO tokenizers extension' job; no code change needed (attempt 2 was already in progress at investigation time).",
+    "Mirror the sentencepiece release tarball (and other FetchContent-based third-party sources such as pcre2) through an internal artifact cache/proxy to remove the hard dependency on github.com release-asset CDN availability during merge-queue builds.",
+    "Add retry/backoff around the CMake FetchContent download step for third-party sources fetched directly from github.com releases (e.g., a pre-fetch script with curl --retry, or CMake's URL download retry options)."
+  ],
+  "prevention_strategies": "Mirror or cache third-party FetchContent sources (sentencepiece, pcre2, etc.) in an internally controlled location, and/or wrap FetchContent downloads with automatic retry logic to absorb transient GitHub release-asset 5xx responses without failing the whole merge-queue run.",
+  "historical_context": "This is the second occurrence of the exact same sentencepiece-0.2.1.tar.gz download failure in roughly 3 hours: run 36863877140 (PR #38536, 2026-10-01T13:27:03Z) hit HTTP 504 on the identical URL; this run hit HTTP 500. An earlier, related but distinct pattern (2baab38e090720ec) recorded a pcre2-10.48.zip download failure for the same job on 2026-09-21 (HTTP 504, PR #38190). All three point to the same root cause: this job's direct dependency on github.com release-asset CDN availability during the FetchContent step."
+}

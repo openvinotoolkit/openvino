@@ -1,0 +1,20 @@
+{
+  "schema_version": "1.0",
+  "signature": "downloading sentencepiece-0.2.1.tar.gz failed HTTP response code said error 500|Network",
+  "signature_hash": "ab13d93818e84607",
+  "title": "OpenVINO tokenizers extension build fails downloading sentencepiece-0.2.1.tar.gz (HTTP 500 from github.com)",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-10-01T16:36:03Z",
+  "last_seen": "2026-10-01T16:36:03Z",
+  "recent_run_urls": [
+    "https://github.com/openvinotoolkit/openvino/actions/runs/36887680376"
+  ],
+  "affected_prs": [
+    "https://github.com/openvinotoolkit/openvino/pull/36733"
+  ],
+  "recent_timestamps": [
+    "2026-10-01T16:36:03Z"
+  ],
+  "rerun_search_string": "downloading 'https://github.com/google/sentencepiece/releases/download/v0.2.1/sentencepiece-0.2.1.tar.gz' failed"
+}
