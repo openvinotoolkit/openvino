@@ -78,6 +78,13 @@ steps = [
     ["../pytorch/envs/compile_gptq.txt"],
 ]
 
+[envs.gated_delta_net]
+# GatedDeltaNet Fusion Test: Qwen3-Next linear attention needs transformers>=4.57 and
+# optimum-intel>=2.0, newer than any other env here allows (see envs/gated_delta_net.txt).
+steps = [
+    ["../../requirements_pytorch", "../pytorch/envs/gated_delta_net.txt"],
+]
+
 # --- runs: one pytest invocation each ---
 
 [[runs]]
@@ -110,7 +117,8 @@ extra_env = { OP_REPORT_FILE = "TEST-torch_unsupported_ops.log" }
 name = "hf_transformers"
 scopes = ["precommit", "nightly_scope2"]
 # See timm_tv's comment above -- same reasoning, inverted: these are every ../pytorch/test_*.py file
-# NOT covered by timm_tv/llm/detectron2/torchbench's own dedicated runs.
+# NOT covered by timm_tv/llm/detectron2/torchbench's own dedicated runs (test_npu_models.py is run
+# by job_npu_tests.yml, not this job).
 paths = [
     "../pytorch/test_hf_transformers.py",
     "../pytorch/test_aliked.py",
@@ -186,6 +194,14 @@ default_env = "optimum_intel"
 envs = ["optimum_intel"]
 xdist_n = 2
 html_name = "TEST-torch_moe_tests.html"
+
+[[runs]]
+name = "gated_delta_net"
+scopes = ["precommit"]
+paths = ["../transformation_tests/test_gated_delta_net_transformation.py"]
+default_env = "gated_delta_net"
+envs = ["gated_delta_net"]
+html_name = "TEST-torch_gated_delta_net_tests.html"
 
 [[runs]]
 name = "rope"
