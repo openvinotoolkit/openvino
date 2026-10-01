@@ -175,11 +175,13 @@ public:
         ASSERT_TRUE(engine->is_the_same_buffer(*relu_inst->dep_memory_ptr(0),  *input));
         ASSERT_TRUE(engine->is_the_same_buffer(*relu2_inst->dep_memory_ptr(0), *input));
 
-        // input_layout no longer pre-allocates memory at network construction time,
-        // The remaining peak is 1280 bytes:
-        // 256 bytes host for the input, 256 bytes host for relu4 output, 256 bytes host for relu7 output,
-        // and 256 bytes device for two outputs from the first relu on a branch
-        ASSERT_EQ(engine->get_max_used_device_memory(), 1280ull);
+        // input_layout no longer pre-allocates memory at network construction time.
+        // The input and two outputs use 768 bytes of host memory. An out-of-order queue needs
+        // two 256-byte device buffers for the interleaved branches, while the output-rooted DFS
+        // order used by an in-order queue executes the branches contiguously and reuses one buffer.
+        const uint64_t expected_peak =
+            network->get_config().get_queue_type() == QueueTypes::in_order ? 1024ull : 1280ull;
+        ASSERT_EQ(engine->get_max_used_device_memory(), expected_peak);
     }
 
     void test_oooq(bool is_caching_test) {
