@@ -2738,7 +2738,73 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::CompiledModel::create_infer_re
 }
 
 void ov::npuw::CompiledModel::set_property(const ov::AnyMap& properties) {
-    OPENVINO_NOT_IMPLEMENTED;
+    // Only the model priority can be changed after compilation
+    for (const auto& [key, value] : properties) {
+        if (key != ov::hint::model_priority.name()) {
+            OPENVINO_THROW("NPUW CompiledModel: '", key, "' cannot be changed after the model is compiled");
+        }
+    }
+
+    const auto& name = ov::hint::model_priority.name();
+    const auto it = properties.find(name);
+    if (it == properties.end()) {
+        return;
+    }
+    const auto priority = it->second.as<ov::hint::Priority>();
+    const ov::AnyMap priority_prop = {{name, priority}};
+
+    // Collect every distinct device-level compiled model owned by this partitioned model.
+    // Function bodies, pyramid/HFA final tiles and similar reuse the same instance, so dedup.
+    std::vector<ov::SoPtr<ov::ICompiledModel>> targets;
+    std::set<const ov::ICompiledModel*> visited;
+    auto add_target = [&](const ov::SoPtr<ov::ICompiledModel>& cm) {
+        if (cm && visited.insert(cm._ptr.get()).second) {
+            targets.push_back(cm);
+        }
+    };
+    for (auto& desc : m_compiled_submodels) {
+        add_target(desc.compiled_model);
+        if (const auto* pyramid = ov::npuw::attn::get_compiled_pyramid(desc.pipeline.context)) {
+            for (const auto& cm : pyramid->_compiled_models) {
+                add_target(cm);
+            }
+        }
+        if (const auto* hfa = ov::npuw::attn::get_compiled_hfa(desc.pipeline.context)) {
+            add_target(hfa->_compiled_tile_model);
+            add_target(hfa->_compiled_final_tile_model);
+        }
+        if (const auto* experts = ov::npuw::moe::get_compiled_experts(desc.pipeline.context)) {
+            for (const auto& [chunk_size, cm] : experts->_compiled_models) {
+                add_target(cm);
+            }
+        }
+        if (const auto* downstream = ov::npuw::moe::get_compiled_downstream(desc.pipeline.context)) {
+            add_target(downstream->_compiled_model);
+        }
+    }
+
+    for (const auto& cm : targets) {
+        if (!ov::npuw::util::is_mutable_property(cm, name)) {
+            LOG_DEBUG("Skipping " << name << " for a submodel which doesn't support changing it");
+            continue;
+        }
+        cm->set_property(priority_prop);
+    }
+
+    // Keep the per-device configs in sync so submodels compiled later (e.g. failsafe
+    // fallbacks) inherit the new priority, and remember it for get_property/export
+    auto core = get_npuw_plugin()->get_core();
+    for (auto& [device, device_props] : m_meta_devices) {
+        const auto supported_properties = core->get_property(device, ov::supported_properties);
+        const bool supports_priority =
+            std::any_of(supported_properties.begin(), supported_properties.end(), [&](const ov::PropertyName& p) {
+                return p == name && p.is_mutable();
+            });
+        if (supports_priority) {
+            device_props[name] = priority;
+        }
+    }
+    m_non_npuw_props[name] = priority;
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::CompiledModel::get_runtime_model() const {
@@ -2931,9 +2997,16 @@ void ov::npuw::CompiledModel::implement_properties() {
                        [&](const ::intel_npu::Config&) {
                            GET_PLUGIN_PROP(ov::hint::enable_cpu_pinning);
                        }}},
-                     {ov::hint::model_priority.name(), {ov::PropertyMutability::RO, [&](const ::intel_npu::Config&) {
-                                                            GET_PLUGIN_PROP(ov::hint::model_priority);
-                                                        }}}};
+                     {ov::hint::model_priority.name(),
+                      {ov::PropertyMutability::RW, [&](const ::intel_npu::Config&) -> ov::Any {
+                           // Report the priority the submodels actually use (set at compile time
+                           // or via set_property), falling back to the plugin's default
+                           if (auto it = m_non_npuw_props.find(ov::hint::model_priority.name());
+                               it != m_non_npuw_props.end()) {
+                               return it->second.as<ov::hint::Priority>();
+                           }
+                           GET_PLUGIN_PROP(ov::hint::model_priority);
+                       }}}};
 #undef GET_PLUGIN_PROP
 
     // 2.

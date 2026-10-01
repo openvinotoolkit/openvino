@@ -3,6 +3,8 @@
 //
 #include "llm_compiled_model.hpp"
 
+#include <set>
+
 #include "embedding/embedding_infer_request.hpp"
 #include "embedding/encoder_embedding_infer_request.hpp"
 #include "embedding/prepare_embedding_model.hpp"
@@ -1846,7 +1848,20 @@ std::shared_ptr<const ov::Model> ov::npuw::LLMCompiledModel::get_runtime_model()
 }
 
 void ov::npuw::LLMCompiledModel::set_property(const ov::AnyMap& properties) {
-    OPENVINO_NOT_IMPLEMENTED;
+    // Propagate to every inner compiled model; they validate which keys are mutable.
+    // m_kvcache_compiled aliases the last generate variant when variants are used.
+    std::set<const ov::ICompiledModel*> visited;
+    auto apply = [&](const std::shared_ptr<ov::npuw::ICompiledModel_v0>& cm) {
+        if (cm && visited.insert(cm.get()).second) {
+            cm->set_property(properties);
+        }
+    };
+    apply(m_prefill_compiled);
+    apply(m_kvcache_compiled);
+    for (const auto& variant : m_generate_compiled_variants) {
+        apply(variant);
+    }
+    apply(m_lm_head_compiled);
 }
 
 bool ov::npuw::LLMCompiledModel::compute_continuous_prefill_supported() const {
