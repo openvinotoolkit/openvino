@@ -43,37 +43,45 @@ enum class EncoderTopology {
 constexpr int ROPE_NEOX = 1 << 16;
 constexpr int ROPE_VISION = 3 << 16;
 
+// Per-projector traits follow llama.cpp's clip.cpp choices.
+enum ProjectorTraits : unsigned {
+    RMS_NORM = 1,     // encoder norms are RMS rather than layer norms
+    SWAPPED_FFN = 2,  // legacy exports name ffn_up/ffn_down after each other's roles
+    POOL_2 = 4,       // average-pool encoder tokens by 2 before the projector
+};
+
 struct ProjectorDefinition {
     const char* modality;
     const char* name;
     EncoderTopology topology;
+    unsigned traits = 0;
 };
 
 // Entries describe implemented graph topologies, independently of language DecoderConfig.
 constexpr ProjectorDefinition projector_catalog[] = {
     {"vision", "deepseekocr", EncoderTopology::Ocr},
-    {"vision", "deepseekocr2", EncoderTopology::Ocr2},
-    {"vision", "pixtral", EncoderTopology::Pixtral},
+    {"vision", "deepseekocr2", EncoderTopology::Ocr2, RMS_NORM},
+    {"vision", "pixtral", EncoderTopology::Pixtral, RMS_NORM},
     {"vision", "phi4", EncoderTopology::Phi4},
     {"vision", "muse-glimmer", EncoderTopology::MuseGlimmer},
-    {"vision", "gemma4v", EncoderTopology::Gemma4},
+    {"vision", "gemma4v", EncoderTopology::Gemma4, RMS_NORM},
     {"vision", "gemma4uv", EncoderTopology::UnifiedVision},
     {"audio", "gemma4a", EncoderTopology::Gemma4Audio},
     {"audio", "gemma4ua", EncoderTopology::UnifiedAudio},
     {"vision", "minicpmv4_6", EncoderTopology::MiniCPM46},
-    {"vision", "gemma3", EncoderTopology::Siglip},
-    {"vision", "idefics3", EncoderTopology::Siglip},
+    {"vision", "gemma3", EncoderTopology::Siglip, SWAPPED_FFN},
+    {"vision", "idefics3", EncoderTopology::Siglip, SWAPPED_FFN},
     {"vision", "janus_pro", EncoderTopology::Siglip},
-    {"vision", "mlp", EncoderTopology::Clip},
+    {"vision", "mlp", EncoderTopology::Clip, SWAPPED_FFN},
     {"vision", "internvl", EncoderTopology::Internvl},
     {"vision", "resampler", EncoderTopology::Resampler},
-    {"vision", "qwen2vl_merger", EncoderTopology::Qwen},
-    {"vision", "qwen2.5vl_merger", EncoderTopology::Qwen},
+    {"vision", "qwen2vl_merger", EncoderTopology::Qwen, SWAPPED_FFN},
+    {"vision", "qwen2.5vl_merger", EncoderTopology::Qwen, RMS_NORM | SWAPPED_FFN},
     {"vision", "qwen3vl_merger", EncoderTopology::Qwen},
-    {"audio", "qwen2a", EncoderTopology::Whisper},
+    {"audio", "qwen2a", EncoderTopology::Whisper, POOL_2},
     {"audio", "ultravox", EncoderTopology::Whisper},
-    {"audio", "voxtral", EncoderTopology::Whisper},
-    {"audio", "musicflamingo", EncoderTopology::Whisper},
+    {"audio", "voxtral", EncoderTopology::Whisper, POOL_2},
+    {"audio", "musicflamingo", EncoderTopology::Whisper, POOL_2},
     {"audio", "meralion", EncoderTopology::Whisper},
     {"audio", "glma", EncoderTopology::Whisper},
 };
@@ -87,13 +95,13 @@ struct EncoderConfig {
     std::vector<int64_t> feature_layers;
     float eps;
     bool clip = false;  // clamp linear inputs/outputs to the recorded per-tensor bounds
-    bool rms = false;   // encoder norms are RMS rather than layer norms
+    unsigned traits = 0;
+    bool rms = false;  // encoder norms are RMS rather than layer norms
 };
 
 bool rms_encoder(const EncoderConfig& c) {
-    return c.projector == "qwen2.5vl_merger" || c.topology == EncoderTopology::Pixtral ||
-           c.topology == EncoderTopology::Gemma4 || c.topology == EncoderTopology::Ocr2 ||
-           (c.topology == EncoderTopology::Internvl && c.width == 3200 && c.layers == 45);
+    // As in llama.cpp, InternViT-6B is recognized by its geometry.
+    return (c.traits & RMS_NORM) || (c.topology == EncoderTopology::Internvl && c.width == 3200 && c.layers == 45);
 }
 
 int64_t positive(const GgufMetadata& meta, const std::string& key) {
@@ -126,6 +134,7 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality) {
                     c.projector,
                     "'");
     c.topology = entry->topology;
+    c.traits = entry->traits;
     c.clip = c.topology == EncoderTopology::Gemma4 || c.topology == EncoderTopology::Gemma4Audio;
     if (c.topology == EncoderTopology::UnifiedAudio) {
         c.width = 640;
@@ -431,11 +440,8 @@ private:
             x = add(x, positions);
         if (first == 0 && g.tensors().has(c.prefix + "pre_ln.weight"))
             x = encoder_norm(x, c.prefix + "pre_ln", c);
-        // Families whose ffn_up/ffn_down tensor names are swapped relative to their roles; the
-        // per-layer width check below confirms it.
-        const bool swappable = c.projector == "gemma3" || c.projector == "idefics3" ||
-                               c.topology == EncoderTopology::Clip || c.projector == "qwen2vl_merger" ||
-                               c.projector == "qwen2.5vl_merger";
+        // The per-layer width check below confirms a legacy ffn_up/ffn_down name swap.
+        const bool swappable = c.traits & SWAPPED_FFN;
         std::vector<GgufValue> features;
         const auto save_feature = [&](int64_t layer, const GgufValue& value) {
             if (std::find(c.feature_layers.begin(), c.feature_layers.end(), layer) != c.feature_layers.end())
@@ -506,7 +512,7 @@ private:
                 auxiliary.push_back(ffn(feature, deep + ".fc1", deep + ".fc2", "GGML_UNARY_OP_GELU"));
             }
         }
-        if (c.projector == "qwen2a" || c.projector == "voxtral" || c.projector == "musicflamingo")
+        if (c.traits & POOL_2)
             x = transpose(pool(transpose(x), 2, 1));
         if (post_norm && end == c.layers && g.tensors().has(c.prefix + "post_ln.weight"))
             x = encoder_norm(x, c.prefix + "post_ln", c);
