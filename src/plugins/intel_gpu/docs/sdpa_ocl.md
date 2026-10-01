@@ -42,7 +42,8 @@ token_type_ids tensor is honoured only by `sdpa_ocl`.
 `TEST_USE_SDPA_OCL_DECODE=0` disables `SDPAOclDecodeGenerator`, so GENERATE falls back to the
 `paged_attention_opt` single-token kernels. Either switch also keeps the i8/u4 BY_CHANNEL K cache
 d-major, the page those fallbacks read ("Paged-attention cache layouts").
-`SDPAOclGenerator::supported()` requires Xe2 or later and f16/bf16 Q and output. Plain SDPA
+`SDPAOclGenerator::supported()` requires Xe2 or later (xe_hpg only during the bring-up, below) and
+f16/bf16 Q and output. Plain SDPA
 additionally requires equal K and V head sizes (`SDPAOpt::supports_micro_sdpa()`), paged
 attention does not.
 
@@ -57,6 +58,27 @@ Reachable configurations on Xe2 with XMX and no environment overrides:
 |---|---|---|---|
 | `sdpa_ocl` | PA PREFILL f16 (MICRO_MATH=1); PA MIXED i8/u4 BY_CHANNEL token-major with raw f16 Kc/Vc; plain SDPA f16 prefill and single-token | PA MIXED f16 and i8 BY_TOKEN d-major; plain i8 KV compression (always asymmetric + planar); plain bf16; token-major f16/i8 BY_TOKEN (`OV_GPU_PA_K_TOKEN_MAJOR=1`) | d-major BY_CHANNEL MIXED, plain int4 |
 | `sdpa_ocl_decode` | PA GENERATE i8/u4 BY_CHANNEL token-major | f16 and i8 BY_TOKEN (`OV_GPU_PA_K_TOKEN_MAJOR=1`) | — |
+
+### xe_hpg bring-up (DG2, SG8)
+
+xe_hpg (SG8, no 2D block IO) can take the `sdpa_ocl` lane only with `TEST_USE_SDPA_OCL_HPG=1`; without
+it nothing about xe_hpg changes. The kernels have no SG8 arm yet, so `supported()` also requires the
+op's `HpgTier` bits (`sdpa_ocl_hpg.hpp`, `hpg_tier_required()`) to be set in `kHpgTiersReady`, which
+is empty: every op is refused and, while the bring-up lasts (`TEMP(S9)` in `sdpa_opt.cpp` and
+`choose_dpas_backend()`), goes to `sdpa_micro` as it does with the switch off. The SG8 host jit is
+still generated: the 2D block and 1D page flags are forced to 0 whatever the `SDPA_OCL_*_2D` overrides
+say (`block2d_io_allowed()`), the tiling is 16 x 16 keys x queries with 4 x 2 subgroups, 256 GRF is
+always requested, and `tiling_fits_device()` (used by both `choose_config()` and `supported()`, so
+the `SDPA_OCL_KQ_*` overrides are judged too) keeps local memory within 64 KiB and the work-group
+within 1024 work-items. `sdpa_ocl_config.cl` `#error`s on SG8 (`SUBGROUP_SIZE != 16`) at every spot
+that is silently wrong there, because DG2 compiles a `short8` DPAS operand without a DPAS.
+
+To look at the SG8 jit and compile it offline without a DG2: build with `ENABLE_DEBUG_CAPS`, run a
+test group with `OV_GPU_ARCH_OVERRIDE=xe_hpg TEST_USE_SDPA_OCL_HPG=1 SDPA_OCL_HPG_TIERS=all` and
+`OV_GPU_DUMP_SOURCES_PATH` (`test/sdpa_ocl_gtests.sh dump`), then `sdpa_ocl_ab.py corpus` and
+`sdpa_ocl_ab.py hpg --device dg2 --grf256` (`--define SDPA_OCL_SG8_ARM_READY` lifts the one
+`#error` that hides the dropped DPAS). The forged arch makes every kernel choice believe in xe_hpg,
+so the results of such a run mean nothing; only the dumped sources do.
 
 ## Source layout
 
@@ -617,7 +639,10 @@ All are read on the host when the kernel is compiled.
 | `TEST_USE_SDPA_OCL`, `TEST_USE_SDPA_OCL_DECODE` | `0` selects the micro / opt path instead, and keeps the i8/u4 BY_CHANNEL K cache d-major for it |
 | `SDPA_OCL_KQ_TILE_KEYS`, `_TILE_QUERIES`, `_PER_WG_KEYS`, `_PER_WG_QUERIES` | Override the KQ tiling (`kq_sg_tile_keys` must be 16 or 32) |
 | `SDPA_OCL_TRACE_CONFIG`, `SDPA_OCL_TRACE_STAGE` | Print the chosen tiling / PA stage |
-| `SDPA_OCL_256GRF`, `SDPA_OCL_DECODE_256GRF` | Large-GRF compile |
+| `SDPA_OCL_256GRF`, `SDPA_OCL_DECODE_256GRF` | Large-GRF compile (`SDPAOclGenerator` always on xe_hpg) |
+| `TEST_USE_SDPA_OCL_HPG` | `1`: xe_hpg may take the `sdpa_ocl` lane (default off; see "xe_hpg bring-up") |
+| `SDPA_OCL_HPG_TIERS` | `all` or a comma list of `HpgTier` names: pretend those xe_hpg tiers are ready (dump only) |
+| `OV_GPU_ARCH_OVERRIDE` | Debug caps only: report another arch (`xe_hpg`, `xe2`, ...) so its host code runs on this device (dump only) |
 | `SDPA_OCL_Q_2D`, `_KV_2D`, `_A_2D`, `_K_I8_2D`, `_V_I8_2D` | Plain-SDPA block IO paths |
 | `SDPA_OCL_K_PA_2D`, `_V_PA_2D`, `_K_PA_I8_2D`, `_V_PA_I8_2D`, `_K_PA_1D`, `_V_PA_1D` | Cache page read paths (`0` = scalar gather, same dequant) |
 | `SDPA_OCL_PA_CUR_F16` | MIXED current tokens from Kc/Vc (`0` = from the cache) |
