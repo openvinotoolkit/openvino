@@ -9,14 +9,14 @@ Build architecture_oracle.cpp against a CPU-only llama.cpp (include/, ggml/inclu
 link libllama, libggml, libggml-base). The generated NPZs are consumed without llama.cpp.
 """
 import argparse
-import io
-import zipfile
 from pathlib import Path
 import subprocess
 import tempfile
 
 import gguf
 import numpy as np
+
+from mmproj_fixtures import finish, save_npz
 
 CASES = {
     "qwen35": {}, "qwen35moe": {},
@@ -49,6 +49,14 @@ CASES = {
 }
 
 
+def tensor_writer(writer, rng):
+    """Uniform random F32 tensors; norm weights are centered at 1."""
+    def tensor(name, shape, norm=False):
+        values = rng.uniform(-1, 1, shape).astype(np.float32)
+        writer.add_tensor(name, 1 + values * .3 if norm else values * .2)
+    return tensor
+
+
 def write_mamba2_model(path, opts, arch="mamba2"):
     w = gguf.GGUFWriter(path, arch)
     hybrid = arch == "nemotron_h"
@@ -69,10 +77,7 @@ def write_mamba2_model(path, opts, arch="mamba2"):
                        "state_size": state, "conv_kernel": kernel}.items():
         w.add_uint32(arch + ".ssm." + key, value)
     rng = np.random.default_rng(20260915)
-
-    def tensor(name, shape, norm=False):
-        values = rng.uniform(-1, 1, shape).astype(np.float32)
-        w.add_tensor(name, 1 + values * .3 if norm else values * .2)
+    tensor = tensor_writer(w, rng)
 
     tensor("token_embd.weight", (vocab, d))
     tensor("output_norm.weight", (d,), True)
@@ -103,10 +108,7 @@ def write_mamba2_model(path, opts, arch="mamba2"):
         tensor(p + "ssm_d", (heads, 1))
         tensor(p + "ssm_norm.weight", (groups, inner // groups), True)
         tensor(p + "ssm_out.weight", (d, inner))
-    w.write_header_to_file()
-    w.write_kv_data_to_file()
-    w.write_tensors_to_file()
-    w.close()
+    finish(w)
 
 
 def write_qwen35_model(path, arch, fused_experts=False):
@@ -139,10 +141,7 @@ def write_qwen35_model(path, arch, fused_experts=False):
         w.add_expert_feed_forward_length(ff)
         w.add_expert_shared_feed_forward_length(ff)
     rng = np.random.default_rng(20260922)
-
-    def tensor(name, shape, norm=False):
-        values = rng.uniform(-1, 1, shape).astype(np.float32)
-        w.add_tensor(name, 1 + values * .3 if norm else values * .2)
+    tensor = tensor_writer(w, rng)
 
     tensor("token_embd.weight", (vocab, d))
     tensor("output_norm.weight", (d,), True)
@@ -178,10 +177,7 @@ def write_qwen35_model(path, arch, fused_experts=False):
             tensor(p + "ffn_gate_inp_shexp.weight", (d,))
         for name, shape in (("gate", (ff, d)), ("up", (ff, d)), ("down", (d, ff))):
             tensor(p + f"ffn_{name}" + ("_shexp" if moe else "") + ".weight", shape)
-    w.write_header_to_file()
-    w.write_kv_data_to_file()
-    w.write_tensors_to_file()
-    w.close()
+    finish(w)
 
 
 def write_gemma4_model(path, opts):
@@ -212,10 +208,7 @@ def write_gemma4_model(path, opts):
         w.add_expert_used_count(2)
         w.add_uint32("gemma4.expert_feed_forward_length", 24)
     rng = np.random.default_rng(20260922)
-
-    def tensor(name, shape, norm=False):
-        values = rng.uniform(-1, 1, shape).astype(np.float32)
-        w.add_tensor(name, 1 + values * .3 if norm else values * .2)
+    tensor = tensor_writer(w, rng)
 
     tensor("token_embd.weight", (vocab, d))
     tensor("output_norm.weight", (d,), True)
@@ -243,10 +236,7 @@ def write_gemma4_model(path, opts):
             tensor(p + "ffn_gate_up_exps.weight", (4, 48, d))
             tensor(p + "ffn_down_exps.weight", (4, d, 24))
             tensor(p + "ffn_down_exps.scale", (4,), True)
-    w.write_header_to_file()
-    w.write_kv_data_to_file()
-    w.write_tensors_to_file()
-    w.close()
+    finish(w)
 
 
 def write_model(path, arch, opts):
@@ -311,11 +301,7 @@ def write_model(path, arch, opts):
         if arch == "ernie4_5-moe":
             w.add_interleave_moe_layer_step(2)
     rng = np.random.default_rng(20260907)
-
-    def tensor(name, shape, norm=False):
-        values = rng.uniform(-1, 1, shape).astype(np.float32)
-        values = (1 + values * .3) if norm else values * .2
-        w.add_tensor(name, values)
+    tensor = tensor_writer(w, rng)
 
     tensor("token_embd.weight", (vocab, d))
     tensor("output_norm.weight", (d,), True)
@@ -357,10 +343,7 @@ def write_model(path, arch, opts):
         else:
             for name, shape in (("gate", (ff, d)), ("up", (ff, d)), ("down", (d, ff))):
                 tensor(p + f"ffn_{name}.weight", shape)
-    w.write_header_to_file()
-    w.write_kv_data_to_file()
-    w.write_tensors_to_file()
-    w.close()
+    finish(w)
 
 
 def main():
@@ -381,14 +364,7 @@ def main():
             vocab = np.fromfile(reference, dtype="<i4", count=1)[0]
             logits = np.fromfile(reference, dtype="<f4", offset=4).reshape(3, vocab)
             assert np.isfinite(logits).all() and np.linalg.norm(logits) > 0
-            # cnpy reads standard ZIP headers; NumPy's savez forces ZIP64 even for tiny arrays.
-            with zipfile.ZipFile(args.out_dir / f"{arch}.npz", "w", compression=zipfile.ZIP_DEFLATED) as archive:
-                for key, array in {"model": np.fromfile(model, dtype=np.uint8), "logits": logits}.items():
-                    payload = io.BytesIO()
-                    np.save(payload, array)
-                    info = zipfile.ZipInfo(key + ".npy", date_time=(1980, 1, 1, 0, 0, 0))
-                    info.compress_type = zipfile.ZIP_DEFLATED
-                    archive.writestr(info, payload.getvalue())
+            save_npz(args.out_dir / f"{arch}.npz", {"model": np.fromfile(model, dtype=np.uint8), "logits": logits})
             print(f"{arch}: {model.stat().st_size} bytes, reference logits {logits.shape}", flush=True)
 
 
