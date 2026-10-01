@@ -121,7 +121,13 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         p.primitive_ids[initialconstPrimID] = constPrimID;
         p.profiling_ids.push_back(initialconstPrimID);
     } else {
-        auto partial_upload = try_prepare_partial_upload(p, op, const_shape, out_dtype, constFormat, constLayout);
+        auto partial_upload = try_prepare_partial_upload(p.get_engine(),
+                                 p.get_config(),
+                                 op,
+                                 const_shape,
+                                 out_dtype,
+                                 constFormat,
+                                 constLayout);
 
         cldnn::memory::ptr mem = nullptr;
 

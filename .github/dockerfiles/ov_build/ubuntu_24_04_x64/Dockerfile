@@ -28,9 +28,6 @@ RUN apt-get update && \
         # parallel gzip
         pigz \
         # Pythons
-        python3.10-dev \
-        python3.10-venv \
-        python3.10-distutils \
         python3.11-dev \
         python3.11-venv \
         python3.11-distutils \
@@ -80,7 +77,6 @@ ENV PATH="/venv/bin:$PATH"
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     /venv/bin/python3 -m pip install --upgrade pip==${PIP_VERSION} && \
-    python3.10 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.11 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.12 -m pip install --upgrade pip==${PIP_VERSION} && \
     python3.13 -m pip install --upgrade pip==${PIP_VERSION} && \
