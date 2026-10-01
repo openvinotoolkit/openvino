@@ -3057,3 +3057,38 @@ TEST(strided_slice_gpu_mark_skippable, full_end_mask_is_skippable) {
     // All dims are full-slice, so it should be runtime skippable
     ASSERT_TRUE(ss_node.is_runtime_skippable());
 }
+
+TEST(strided_slice_gpu_mark_skippable, runtime_strides_not_skippable) {
+    auto& engine = get_test_engine();
+    const auto input_layout_value = layout{ov::PartialShape{1, 2, 8, 4}, data_types::f32, format::bfyx};
+    const auto indices_layout = layout{ov::PartialShape{4}, data_types::i64, format::bfyx};
+
+    topology topology;
+    topology.add(input_layout("input", input_layout_value));
+    topology.add(input_layout("begin", indices_layout));
+    topology.add(input_layout("end", indices_layout));
+    topology.add(input_layout("strides", indices_layout));
+    topology.add(strided_slice("strided_slice",
+                               input_info("input"),
+                               input_info("begin"),
+                               input_info("end"),
+                               input_info("strides"),
+                               {1, 1, 1, 1},
+                               {1, 1, 1, 1},
+                               {},
+                               {},
+                               {},
+                               {1, 2, 8, 4}));
+    topology.add(reorder("output", input_info("strided_slice"), format::bfyx, data_types::f32));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+
+    auto prog = program::build_program(engine, topology, config, false, true);
+    ASSERT_NE(prog, nullptr);
+    program_wrapper::apply_opt_pass<mark_runtime_skippable_nodes>(*prog);
+
+    const auto& node = prog->get_node("strided_slice");
+    ASSERT_FALSE(node.is_runtime_skippable());
+}
