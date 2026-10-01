@@ -180,3 +180,26 @@ TEST(SdpaOclPredicates, ExpectedDpasBackendTruthTable) {
     EXPECT_EQ(fn(gpu_arch::xe3p, true, false, false, false, 128), dpas_backend::micro);    // xe3p plain SDPA head 128, =0
     EXPECT_EQ(fn(gpu_arch::xe2, false, true, false, false, 128), dpas_backend::none);      // no microkernels
 }
+
+#ifdef ENABLE_ONEDNN_FOR_GPU
+TEST(SdpaOclPredicates, ExpectedBackendMirrorsTheTempRouting) {
+    using tests::dpas_backend;
+    cldnn::device_info hpg{};
+    hpg.arch = gpu_arch::xe_hpg;
+    hpg.supports_immad = true;
+    cldnn::device_info xe2 = hpg;
+    xe2.arch = gpu_arch::xe2;
+    for (const bool pa : {false, true}) {
+        // opt-in, no tier ready: every op is refused by sdpa_ocl and routed to sdpa_micro
+        EXPECT_EQ(tests::expected_dpas_backend_for(hpg, true, true, true, pa, 128, false), dpas_backend::micro);
+        // opt-in, a tier ready: the sdpa_ocl lane
+        EXPECT_EQ(tests::expected_dpas_backend_for(hpg, true, true, true, pa, 128, true), dpas_backend::ocl);
+        // not opted in: micro whatever the tiers say
+        EXPECT_EQ(tests::expected_dpas_backend_for(hpg, true, true, false, pa, 128, false), dpas_backend::micro);
+        EXPECT_EQ(tests::expected_dpas_backend_for(hpg, true, true, false, pa, 128, true), dpas_backend::micro);
+        // Xe2 has no tier mask
+        EXPECT_EQ(tests::expected_dpas_backend_for(xe2, true, true, false, pa, 128, false), dpas_backend::ocl);
+        EXPECT_EQ(tests::expected_dpas_backend_for(xe2, true, true, true, pa, 128, false), dpas_backend::ocl);
+    }
+}
+#endif  // ENABLE_ONEDNN_FOR_GPU
