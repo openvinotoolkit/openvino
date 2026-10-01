@@ -113,7 +113,7 @@ KERNEL(dynamic_quantize_gpu_opt)(
     INPUT0_COMPUTE_TYPE max[quantize_block];
 
     unroll_for (uint i = 0 ; i < quantize_block; ++i) {
-        input_0[i] = DECODE_INPUT0_COMPUTE_VECTOR_TYPE(vload4(0, (INPUT0_TYPE*)input + input_offset + i * 4), 4);
+        input_0[i] = DECODE_INPUT0_COMPUTE_VECTOR_TYPE(vload4(0, input + input_offset + i * 4), 4);
         max[i] = fmax(fmax(fabs(input_0[i][0]), fabs(input_0[i][1])), fmax(fabs(input_0[i][2]), fabs(input_0[i][3])));
     }
 
