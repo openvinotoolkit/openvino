@@ -27,7 +27,7 @@ Install OpenVINO™ 2026.4
 OpenVINO 2026.4, described here, is not a Long-Term-Support version!
 All currently supported versions are:
 
-* 2026.4.0 (development)
+* 2026.4.1 (development)
 * 2025.4.1 (maintenance)
 
 .. dropdown:: Effortless GenAI integration with OpenVINO GenAI
