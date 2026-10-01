@@ -11,10 +11,10 @@ namespace kernel_selector {
 // Fully connected for u3 compressed weights, feeding the matrix engine with int8
 // activations produced by the dynamic quantization path.
 //
-// Builds three kernels from one .cl file:
-//   0 - activation quantizer (FC_KERNEL_DYNAMIC_QUANTIZE)
-//   1 - DPAS GEMM, used once the batch is large enough to fill the 8-row tiles
-//   2 - scalar GEMM with a K split, used for decode-shaped batches
+// Builds its kernels from one .cl file:
+//   0  - activation quantizer (FC_KERNEL_DYNAMIC_QUANTIZE)
+//   1.. - GEMM variants: one or four DPAS configs, then a scalar K-split GEMM for
+//         decode-shaped batches. See get_gemm_configs for the classification.
 // Which GEMM runs is decided from the runtime batch in update_dispatch_data_func.
 class FullyConnected_int3_dpas : public FullyConnectedKernelBase {
 public:
