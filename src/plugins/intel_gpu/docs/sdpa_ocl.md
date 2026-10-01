@@ -62,22 +62,30 @@ Reachable configurations on Xe2 with XMX and no environment overrides:
 ### xe_hpg bring-up (DG2, SG8)
 
 xe_hpg (SG8, no 2D block IO) can take the `sdpa_ocl` lane only with `TEST_USE_SDPA_OCL_HPG=1`; without
-it nothing about xe_hpg changes. The kernels have no SG8 arm yet, so `supported()` also requires the
+it nothing about xe_hpg changes. Only the kernel arms that exist are served: `supported()` requires the
 op's `HpgTier` bits (`sdpa_ocl_hpg.hpp`, `hpg_tier_required()`) to be set in `kHpgTiersReady`, which
-is empty: every op is refused and, while the bring-up lasts (`TEMP(S9)` in `sdpa_opt.cpp` and
-`choose_dpas_backend()`), goes to `sdpa_micro` as it does with the switch off. The SG8 host jit is
+has `PLAIN_F16_STATIC` (plain f16 SDPA, static shape, more than one query, no mask / causal / sink / runtime
+scale). Every other op is refused and, while the bring-up lasts (`TEMP(S9)` in `sdpa_opt.cpp` and
+`choose_dpas_backend()`), goes to `sdpa_micro` as it does with the switch off. The SG8 arm (`SG8` in
+`sdpa_ocl_config.cl`, i.e. `SUBGROUP_SIZE == 8`) feeds the DPAS an `int8` A operand, two halves per lane
+(lane l = reduction elements 2l, 2l+1): the K tile is read by `k_tile_dword` (a dword block read per key row, a
+two-ushort fallback for an unaligned or tail tile) and the S*V A operand is one 8-row dword block read of
+`S_slm`; everything else (Q staging, softmax, V gather, output) is lane = query / value column and is shared with
+SG16. `SDPA_OCL_NEG_SG8=1..3` (SG8 only) breaks one of the three mappings on purpose for the sharp-softmax test,
+`=4` forces the unaligned-K fallback. The SG8 host jit is
 still generated: the 2D block and 1D page flags are forced to 0 whatever the `SDPA_OCL_*_2D` overrides
 say (`block2d_io_allowed()`), the tiling is 16 x 16 keys x queries with 4 x 2 subgroups, 256 GRF is
 always requested, and `tiling_fits_device()` (used by both `choose_config()` and `supported()`, so
 the `SDPA_OCL_KQ_*` overrides are judged too) keeps local memory within 64 KiB and the work-group
 within 1024 work-items. `sdpa_ocl_config.cl` `#error`s on SG8 (`SUBGROUP_SIZE != 16`) at every spot
-that is silently wrong there, because DG2 compiles a `short8` DPAS operand without a DPAS.
+that is silently wrong there (2D block IO, the compressed and paged-MIXED K/V readers), because DG2
+compiles a `short8` DPAS operand without a DPAS.
 
 To look at the SG8 jit and compile it offline without a DG2: build with `ENABLE_DEBUG_CAPS`, run a
 test group with `OV_GPU_ARCH_OVERRIDE=xe_hpg TEST_USE_SDPA_OCL_HPG=1 SDPA_OCL_HPG_TIERS=all` and
 `OV_GPU_DUMP_SOURCES_PATH` (`test/sdpa_ocl_gtests.sh dump`), then `sdpa_ocl_ab.py corpus` and
-`sdpa_ocl_ab.py hpg --device dg2 --grf256` (`--define SDPA_OCL_SG8_ARM_READY` lifts the one
-`#error` that hides the dropped DPAS). The forged arch makes every kernel choice believe in xe_hpg,
+`sdpa_ocl_ab.py hpg --device dg2 --grf256` (the `dpas` column must be nonzero for every in-tier kernel: DG2
+drops a SG16 DPAS silently). The forged arch makes every kernel choice believe in xe_hpg,
 so the results of such a run mean nothing; only the dumped sources do.
 
 ## Source layout
@@ -642,6 +650,7 @@ All are read on the host when the kernel is compiled.
 | `SDPA_OCL_256GRF`, `SDPA_OCL_DECODE_256GRF` | Large-GRF compile (`SDPAOclGenerator` always on xe_hpg) |
 | `TEST_USE_SDPA_OCL_HPG` | `1`: xe_hpg may take the `sdpa_ocl` lane (default off; see "xe_hpg bring-up") |
 | `SDPA_OCL_HPG_TIERS` | `all` or a comma list of `HpgTier` names: pretend those xe_hpg tiers are ready (dump only) |
+| `SDPA_OCL_NEG_SG8` | xe_hpg (SG8) only: `1` swaps the K pair order, `2` reads the S*V A operand transposed, `3` swaps the S_slm pair order (each must fail the sharp-softmax test); `4` forces the unaligned-K fallback (must pass) |
 | `OV_GPU_ARCH_OVERRIDE` | Debug caps only: report another arch (`xe_hpg`, `xe2`, ...) so its host code runs on this device (dump only) |
 | `SDPA_OCL_Q_2D`, `_KV_2D`, `_A_2D`, `_K_I8_2D`, `_V_I8_2D` | Plain-SDPA block IO paths |
 | `SDPA_OCL_K_PA_2D`, `_V_PA_2D`, `_K_PA_I8_2D`, `_V_PA_I8_2D`, `_K_PA_1D`, `_V_PA_1D` | Cache page read paths (`0` = scalar gather, same dequant) |
