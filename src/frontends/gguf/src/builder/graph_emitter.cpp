@@ -14,15 +14,6 @@ namespace ov::frontend::gguf {
 
 namespace {
 
-// Split "<something>.weight" into "<something>"; return the name unchanged when it does not end
-// in ".weight" (biases and other plain tensors keep their full name as the base).
-std::string strip_weight_suffix(const std::string& name) {
-    static const std::string suffix = ".weight";
-    const bool ends_with_weight =
-        name.size() > suffix.size() && name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0;
-    return ends_with_weight ? name.substr(0, name.size() - suffix.size()) : name;
-}
-
 WeightTensors find_weight_tensors(const std::unordered_map<std::string, ov::Tensor>& weights, const std::string& base) {
     WeightTensors tensors;
     if (auto it = weights.find(base + ".weight"); it != weights.end()) {
@@ -38,6 +29,13 @@ WeightTensors find_weight_tensors(const std::unordered_map<std::string, ov::Tens
 }
 
 }  // namespace
+
+std::string strip_weight_suffix(const std::string& name) {
+    static const std::string suffix = ".weight";
+    const bool ends_with_weight =
+        name.size() > suffix.size() && name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0;
+    return ends_with_weight ? name.substr(0, name.size() - suffix.size()) : name;
+}
 
 GraphEmitter::GraphEmitter(std::unordered_map<std::string, ov::Tensor>& weights,
                            std::unordered_map<std::string, GgufTensorType>& qtypes,

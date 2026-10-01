@@ -13,11 +13,9 @@ namespace ov::frontend::gguf::blocks {
 
 namespace {
 
-// "<name>.weight" -> "<name>.bias": every weight tensor in this file follows that naming
-// convention, so a projection's bias weight name can always be derived from its own.
+// "<name>.weight" -> "<name>.bias".
 std::string bias_weight_name(const std::string& weight_name) {
-    static const std::string suffix = ".weight";
-    return weight_name.substr(0, weight_name.size() - suffix.size()) + ".bias";
+    return strip_weight_suffix(weight_name) + ".bias";
 }
 
 // Emits [gate | up] rows as one weight named `merged_w`, or returns false when the two do not share
@@ -27,9 +25,8 @@ bool merge_gate_up_weights(GraphEmitter& e,
                            const std::string& gate_w,
                            const std::string& up_w,
                            const std::string& merged_w) {
-    static const std::string suffix = ".weight";
-    const auto gate = gate_w.substr(0, gate_w.size() - suffix.size());
-    const auto up = up_w.substr(0, up_w.size() - suffix.size());
+    const auto gate = strip_weight_suffix(gate_w);
+    const auto up = strip_weight_suffix(up_w);
     const auto merged = concat_rows(e.weight_parts(gate), e.weight_parts(up), e.weight_qtype(gate), e.weight_qtype(up));
     if (!merged) {
         return false;

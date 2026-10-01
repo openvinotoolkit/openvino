@@ -22,6 +22,10 @@
 
 namespace ov::frontend::gguf {
 
+// Split "<something>.weight" into "<something>"; return the name unchanged when it does not end
+// in ".weight" (biases and other plain tensors keep their full name as the base).
+std::string strip_weight_suffix(const std::string& name);
+
 // Builds OpenVINO values through the shared GGML converters.
 class GraphEmitter {
 public:
