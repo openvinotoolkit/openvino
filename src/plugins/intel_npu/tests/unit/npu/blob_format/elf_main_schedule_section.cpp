@@ -2,11 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "compiler_schedules_sections.hpp"
-
 #include <gtest/gtest.h>
 
 #include "common_test_utils/test_assertions.hpp"
+#include "compiler_schedules_sections.hpp"
 #include "intel_npu/common/blob_reader_interface.hpp"
 #include "intel_npu/common/blob_writer.hpp"
 #include "intel_npu/common/section_type.hpp"
@@ -51,6 +50,14 @@ TEST_F(ELFMainScheduleSectionTest, CtorSetsTheRightValue) {
                           COMPILER_SCHEDULE_CONTENT.data(),
                           COMPILER_SCHEDULE_CONTENT.size()),
               0);
+
+    // Test using an empty schedule too
+    section =
+        std::make_shared<ELFMainScheduleSection>(ov::Tensor(ov::element::Type_t::u8, ov::Shape({0}), (void*)nullptr));
+    ASSERT_EQ(section->get_type(), SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE));
+    ASSERT_EQ(section->get_schedule().get_element_type(), ov::element::Type_t::u8);
+    ASSERT_EQ(section->get_schedule().get_shape(), ov::Shape({0}));
+    ASSERT_EQ(section->get_schedule().get_byte_size(), 0);
 }
 
 TEST_F(ELFMainScheduleSectionTest, CompatibilityReqsSubexpression) {
@@ -125,8 +132,8 @@ TEST_F(ELFMainScheduleSectionTest, ReadingATooSmallSection) {
 }
 
 TEST_F(ELFMainScheduleSectionTest, ReadPaddingTooBig) {
-    const std::string section_content = "\x00\x06"
-                                        "dummy";
+    std::string section_content("\x00\x06");  // padding
+    section_content += "dummy";               // dummy compiler schedule;
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
     BlobSource source(tensor);

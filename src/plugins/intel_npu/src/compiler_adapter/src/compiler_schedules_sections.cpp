@@ -346,7 +346,10 @@ DynamicScheduleSection::DynamicScheduleSection(
     : ISection(SectionTypeCode::DYNAMIC_SCHEDULE),
       m_impl(std::move(main_schedule), encryption_callback, log_level),
       m_blob_type(blob_type),
-      m_logger("DynamicScheduleSection", log_level) {}
+      m_logger("DynamicScheduleSection", log_level) {
+    OPENVINO_ASSERT(blob_type == BlobType::LLVM || blob_type == BlobType::BYTECODE,
+                    "Invalid blob type for a dynamic compiler schedule");
+}
 
 std::vector<std::shared_ptr<CREToken>> DynamicScheduleSection::get_compatibility_requirements_subexpression(
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
