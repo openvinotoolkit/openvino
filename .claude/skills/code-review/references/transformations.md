@@ -26,6 +26,9 @@ alongside this reference.
 - Keep frontend transformations independent of hardware and plugins.
   Put device-specific rewrites in the relevant plugin pipeline.
 
+Consult the [transformation writing guide](../../../../src/common/transformations/docs/writing_transformations.md)
+for pass-type choice, pattern predicates, and other implementation details.
+
 ## Regression coverage
 
 - Verify that a positive test demonstrates the intended rewrite. Add negative
