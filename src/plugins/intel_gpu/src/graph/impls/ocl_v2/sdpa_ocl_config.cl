@@ -57,6 +57,13 @@
 #  define SCALE_TO_FLOAT(x) convert_float(x)
 #endif
 
+// Sink input: SINK_DATA_T is its storage type (half, float, or ushort for bf16, the upper half of the f32).
+#if SINK_IS_BF16
+#  define SINK_TO_FLOAT(x) as_float(((uint)(x)) << 16)
+#else
+#  define SINK_TO_FLOAT(x) convert_float(x)
+#endif
+
 #define kq_wg_tile_keys      (kq_sg_tile_keys * kq_sg_per_wg_keys)
 #define kq_wg_tile_queries   (kq_sg_tile_queries * kq_sg_per_wg_queries)
 #define kq_key_blocks        (kq_sg_tile_keys / DPAS_ROWS)
@@ -133,6 +140,14 @@
 #  define KMASK_HALF_T      half4
 #  define KMASK_FLOAT_T     float4
 #  define KMASK_TO_FLOAT(x) MASK_TO_FLOAT4(x)
+#endif
+
+// The lane a per-key mask broadcast reads (always mask_lane). SDPA_OCL_NEG_SG8=6 shifts it by one lane on purpose, a negative
+// control for the key -> (group, lane) split; absent otherwise, so no jit or token stream changes.
+#if SG8 && defined(NEG_SG8) && NEG_SG8 == 6
+#  define SDPA_MASK_LANE ((mask_lane + 1) & (SUBGROUP_SIZE - 1))
+#else
+#  define SDPA_MASK_LANE mask_lane
 #endif
 
 // Paged attention's MIXED stage: K/V come from the paged cache (plus the raw current tokens).

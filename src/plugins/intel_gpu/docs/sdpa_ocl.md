@@ -65,14 +65,18 @@ xe_hpg (SG8, no 2D block IO) can take the `sdpa_ocl` lane only with `TEST_USE_SD
 it nothing about xe_hpg changes. Only the kernel arms that exist are served: `supported()` requires the
 op's `HpgTier` bits (`sdpa_ocl_hpg.hpp`, `hpg_tier_required()`) to be set in `kHpgTiersReady`, which
 has `PLAIN_F16_STATIC` (plain f16 SDPA, static shape, more than one query, no mask / causal / sink / runtime
-scale). Every other op is refused and, while the bring-up lasts (`TEMP(S9)` in `sdpa_opt.cpp` and
+scale) and `PLAIN_EXT` (the rest of uncompressed plain SDPA: bf16, a mask, causal, a sink, a runtime scale, a dynamic
+shape, one query; the mask, causal, sink and softmax code is lane = query and shared with SG16, only the 16-key
+`mask_full` vector of a full 2D mask is wider than the subgroup). Every other op is refused and, while the bring-up lasts (`TEMP(S9)` in `sdpa_opt.cpp` and
 `choose_dpas_backend()`), goes to `sdpa_micro` as it does with the switch off. The SG8 arm (`SG8` in
 `sdpa_ocl_config.cl`, i.e. `SUBGROUP_SIZE == 8`) feeds the DPAS an `int8` A operand, two halves per lane
 (lane l = reduction elements 2l, 2l+1): the K tile is read by `k_tile_dword` (a dword block read per key row, a
 two-ushort fallback for an unaligned or tail tile) and the S*V A operand is one 8-row dword block read of
 `S_slm`; everything else (Q staging, softmax, V gather, output) is lane = query / value column and is shared with
 SG16. `SDPA_OCL_NEG_SG8=1..3` (SG8 only) breaks one of the three mappings on purpose for the sharp-softmax test,
-`=4` forces the unaligned-K fallback. The SG8 host jit is
+`=4` forces the unaligned-K fallback, `=5` / `=6` read the full / per-key mask with the wrong lane width / one lane off.
+The K dword read is guarded at run time (`k_dword_ok`: even row pitch and a 4 B aligned base), so a dynamic shape or a
+sliced K view needs no host proof. The SG8 host jit is
 still generated: the 2D block and 1D page flags are forced to 0 whatever the `SDPA_OCL_*_2D` overrides
 say (`block2d_io_allowed()`), the tiling is 16 x 16 keys x queries with 4 x 2 subgroups, 256 GRF is
 always requested, and `tiling_fits_device()` (used by both `choose_config()` and `supported()`, so
