@@ -144,5 +144,7 @@ ov::OutputVector max_unpool(const ov::frontend::onnx::Node& node) {
     return {std::make_shared<v1::Reshape>(scattered, output_shape, false)};
 }
 
+// MaxUnpool is defined since opset 9, but it is registered since opset 1,
+// because OperatorsBridge requires a translator for every version imported by a model.
 ONNX_OP("MaxUnpool", OPSET_SINCE(1), ai_onnx::opset_9::max_unpool);
 }  // namespace ov::frontend::onnx::ai_onnx::opset_9
