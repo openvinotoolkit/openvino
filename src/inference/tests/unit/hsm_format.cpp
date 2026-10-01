@@ -81,11 +81,11 @@ std::vector<uint8_t> make_sample_single_blob_container() {
 // Sample container with real entries: inline model_id tag + pointer-mode model tag ("OV" payload).
 std::vector<uint8_t> make_sample_container_with_entries() {
     hsm::ManifestEntry id_entry{};
-    id_entry.tag = hsm::model_id_tag();
+    id_entry.tag = hsm::model_id_tag;
     id_entry.inline_bytes = {0xAA, 0xBB, 0xCC, 0xDD};
 
     hsm::ManifestEntry model_entry{};
-    model_entry.tag = hsm::model_tag();
+    model_entry.tag = hsm::model_tag;
     model_entry.offset = sizeof(hsm::Header);
     model_entry.size = 2;
 
@@ -175,14 +175,14 @@ TEST_F(HsmFormatLayoutCompatibilityTest, section_tag_packs_id_and_mode_at_compil
 }
 
 TEST_F(HsmFormatLayoutCompatibilityTest, core_tags_have_fixed_mode) {
-    static_assert(hsm::model_id_tag().id() == hsm::model_id, "model_id_tag id");
-    static_assert(hsm::model_id_tag().is_inline(), "model_id_tag must always be inline-mode");
+    static_assert(hsm::model_id_tag.id() == hsm::model_id, "model_id_tag id");
+    static_assert(hsm::model_id_tag.is_inline(), "model_id_tag must always be inline-mode");
 
-    static_assert(hsm::model_tag().id() == hsm::model, "model_tag id");
-    static_assert(hsm::model_tag().is_pointer(), "model_tag must always be pointer-mode");
+    static_assert(hsm::model_tag.id() == hsm::model, "model_tag id");
+    static_assert(hsm::model_tag.is_pointer(), "model_tag must always be pointer-mode");
 
-    static_assert(hsm::runtime_requirements_tag().id() == hsm::runtime_requirements, "runtime_requirements_tag id");
-    static_assert(hsm::runtime_requirements_tag().is_pointer(), "runtime_requirements_tag must always be pointer-mode");
+    static_assert(hsm::runtime_requirements_tag.id() == hsm::runtime_requirements, "runtime_requirements_tag id");
+    static_assert(hsm::runtime_requirements_tag.is_pointer(), "runtime_requirements_tag must always be pointer-mode");
 
     SUCCEED();
 }
@@ -299,7 +299,7 @@ TEST(HsmContainerViewTest, section_rejects_inline_mode_entry) {
     const hsm::ContainerView view(blob.data(), blob.size());
 
     hsm::ManifestEntry entry{};
-    entry.tag = hsm::model_id_tag();  // inline-mode: offset/size below don't refer to a real section
+    entry.tag = hsm::model_id_tag;  // inline-mode: offset/size below don't refer to a real section
     entry.offset = sizeof(hsm::Header);
     entry.size = 2;
 
@@ -311,7 +311,7 @@ TEST(HsmContainerViewTest, section_rejects_out_of_bounds_offset) {
     const hsm::ContainerView view(blob.data(), blob.size());
 
     hsm::ManifestEntry entry{};
-    entry.tag = hsm::model_tag();
+    entry.tag = hsm::model_tag;
     entry.offset = view.size() + 1;
     entry.size = 1;
 
@@ -323,7 +323,7 @@ TEST(HsmContainerViewTest, section_rejects_out_of_bounds_size) {
     const hsm::ContainerView view(blob.data(), blob.size());
 
     hsm::ManifestEntry entry{};
-    entry.tag = hsm::model_tag();
+    entry.tag = hsm::model_tag;
     entry.offset = 0;
     entry.size = view.size() + 1;  // fits at offset 0 alone, but overruns the buffer
 

@@ -8,7 +8,7 @@
  *
  * @verbatim
    +---------------------------+---------------------------+---------------------------+
-   |           Header           |      Section payloads     |          Manifest         |
+   |           Header          |      Section payloads     |          Manifest         |
    |          32 bytes         |     variable size, 0+     | ManifestEntry[], 32B each |
    |          offset 0         |         offset 32         |  offset = manifest_offset |
    +---------------------------+---------------------------+---------------------------+
@@ -201,10 +201,10 @@ struct SectionTag {
  * value once shipped. #sentinel_count auto-tracks the count and must stay last.
  */
 enum class Tags : uint32_t {
-    invalid = 0,                //!< Reserved: never a real tag id.
-    model_id = 1,               //!< See #model_id.
-    model = 2,                  //!< See #model.
-    runtime_requirements = 3,   //!< See #runtime_requirements_tag().
+    invalid = 0,               //!< Reserved: never a real tag id.
+    model_id = 1,              //!< See #model_id.
+    model = 2,                 //!< See #model.
+    runtime_requirements = 3,  //!< See #runtime_requirements_tag.
     // Add new Core tags above this line only, each with the next explicit value - never change or reuse an
     // existing tag's value.
     sentinel_count,  // Not a real tag id - always exactly one past the last real entry above.
@@ -213,18 +213,14 @@ static_assert(static_cast<uint32_t>(Tags::sentinel_count) <= core_tag_id_range_e
               "Too many Core tags defined for core_tag_id_range_end - widen the boundary.");
 
 inline constexpr uint32_t model_id = static_cast<uint32_t>(Tags::model_id);  //!< Model identifier (e.g. a hash).
-inline constexpr uint32_t model = static_cast<uint32_t>(Tags::model);  //!< The serialized compiled model itself.
+inline constexpr uint32_t model = static_cast<uint32_t>(Tags::model);        //!< The serialized compiled model itself.
 inline constexpr uint32_t runtime_requirements = static_cast<uint32_t>(Tags::runtime_requirements);
 
 /// Wire tag for #model_id - always inline-mode.
-constexpr SectionTag model_id_tag() noexcept {
-    return SectionTag::make(model_id, /*is_inline=*/true);
-}
+inline constexpr SectionTag model_id_tag = SectionTag::make(model_id, /*is_inline=*/true);
 
 /// Wire tag for #model - always pointer-mode.
-constexpr SectionTag model_tag() noexcept {
-    return SectionTag::make(model, /*is_inline=*/false);
-}
+inline constexpr SectionTag model_tag = SectionTag::make(model, /*is_inline=*/false);
 
 /**
  * @brief Wire tag for #runtime_requirements - always pointer-mode. Payload is opaque to the common
@@ -233,9 +229,7 @@ constexpr SectionTag model_tag() noexcept {
  * responsibility, typically via #ISectionExtension. No expression scheme is defined at this layer
  * (out of scope here; a richer format, if any, belongs to the tag registry).
  */
-constexpr SectionTag runtime_requirements_tag() noexcept {
-    return SectionTag::make(runtime_requirements, /*is_inline=*/false);
-}
+inline constexpr SectionTag runtime_requirements_tag = SectionTag::make(runtime_requirements, /*is_inline=*/false);
 
 /**
  * @brief One fixed-size, 32-byte record of the manifest table (see #Header::manifest_offset).
@@ -259,8 +253,8 @@ constexpr SectionTag runtime_requirements_tag() noexcept {
  *
  * @note `#pragma pack(1)` is required: without it, the 3-byte `SectionTag` followed by the 8-byte-aligned
  * `offset` field would force padding, cascading misalignment through the rest of the struct.
- * @note A specific `(device, tag)` pair may redefine what its own `tag_reserved`/`pointer_reserved` bytes
- * mean; they're zero otherwise. This struct doesn't interpret content.
+ * @note `tag_reserved`/`pointer_reserved` are zero unless the specific `(device, tag)` pair they belong to
+ * redefines their meaning - treat them as opaque otherwise.
  */
 #pragma pack(push, 1)
 struct ManifestEntry {
@@ -270,8 +264,8 @@ struct ManifestEntry {
 
     union {
         struct {
-            OffsetType offset;                     //!< Section payload offset (pointer-mode).
-            SizeType size;                         //!< Section payload size (pointer-mode).
+            OffsetType offset;                        //!< Section payload offset (pointer-mode).
+            SizeType size;                            //!< Section payload size (pointer-mode).
             std::array<uint8_t, 8> pointer_reserved;  //!< Zero, unless (#device, #tag) redefines this.
         };
         std::array<uint8_t, 24> inline_bytes;  //!< Inline payload, up to 24 bytes (inline-mode).
@@ -406,10 +400,15 @@ private:
  *
  * This class allows iterating over and accessing the #BlobMagic::single containers within a multi-blob HSM file,
  * skipping over shared-context containers.
+
  */
 class OPENVINO_RUNTIME_API MultiBlobView {
 public:
+    // CVS-191965: finalize this class (multi-blob/shared-context implementation).
+    /// Constructs a view over `[data, data + size)` - no copy, no validation of its contents.
     explicit constexpr MultiBlobView(const std::byte* data, size_t size) noexcept : m_view{data, size} {}
+
+    /// @overload uint8_t variant of MultiBlobView(const std::byte*, size_t).
     explicit MultiBlobView(const uint8_t* data, size_t size) noexcept
         : MultiBlobView{reinterpret_cast<const std::byte*>(data), size} {}
 
