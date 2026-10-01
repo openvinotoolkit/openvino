@@ -639,11 +639,14 @@ private:
         }
         return ffn(x, "mm.0", "mm.1", c.activation);
     }
-    GgufValue convolution(const GgufValue& pixels, const std::string& weight, int64_t stride, int64_t padding = 0) {
+    GgufValue convolution(const GgufValue& pixels, const GgufValue& weight, int64_t stride, int64_t padding = 0) {
         return g.node("GGML_OP_CONV_2D",
-                      {g.tensors().require(weight), pixels},
+                      {weight, pixels},
                       0,
                       {{"conv_params", std::vector<int64_t>{stride, stride, padding, padding, 1, 1}}});
+    }
+    GgufValue convolution(const GgufValue& pixels, const std::string& weight, int64_t stride, int64_t padding = 0) {
+        return convolution(pixels, g.tensors().require(weight), stride, padding);
     }
     GgufValue unfold(const GgufValue& x, int64_t channels, int64_t kernel) {
         ov::Tensor dummy(ov::element::f32, {1, size_t(channels), size_t(kernel), size_t(kernel)});
@@ -829,8 +832,10 @@ private:
         // A temporal pair; still-image callers duplicate the image. Index inputs specify
         // spatial 2x2 grouping and, for Qwen2.5, the reference's window permutation.
         auto pixels = g.add_input("vision.pixel_values", ov::element::f32, {2, 3, -1, -1});
-        auto patches = add(convolution(slice(pixels, 0, 0, 1), "v.patch_embd.weight", c.patch),
-                           convolution(slice(pixels, 0, 1, 1), "v.patch_embd.weight.1", c.patch));
+        // One convolution over both frames stacked on the channel axis.
+        auto weight =
+            concat(g.tensors().require("v.patch_embd.weight"), g.tensors().require("v.patch_embd.weight.1"), 2);
+        auto patches = convolution(reshape(pixels, {1, -1, 0, 0}, true), weight, c.patch);
         auto indices = index_input("patch_indices");
         auto group = [&](const GgufValue& value) {
             return g.node("GGML_OP_GET_ROWS", {transpose(reshape(value, {1, 1, c.width, -1})), indices});
