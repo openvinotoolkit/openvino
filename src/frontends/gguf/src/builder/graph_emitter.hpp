@@ -51,6 +51,11 @@ public:
     // First extent of a weight's OV shape (its row count), 1 when the weight is absent/scalar.
     int64_t weight_rows(const std::string& name) const;
 
+    // The "<base>.weight" / ".scales" / ".zp" tensors present for a weight, and its quant type
+    // ("<base>.qtype", F16 when absent).
+    WeightTensors weight_parts(const std::string& base) const;
+    GgufTensorType weight_qtype(const std::string& base) const;
+
     std::unordered_map<std::string, ov::Tensor>& weights() {
         return m_weights;
     }

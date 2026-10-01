@@ -29,20 +29,6 @@ std::string add_bias(GraphEmitter& e, const std::string& x, const std::string& b
     return e.add_op("GGML_OP_ADD", name, {x, bias_weight});
 }
 
-WeightTensors weight_parts(GraphEmitter& e, const std::string& base) {
-    auto& w = e.weights();
-    const auto get = [&](const char* suffix) {
-        const auto it = w.find(base + suffix);
-        return it == w.end() ? ov::Tensor() : it->second;
-    };
-    return {get(".weight"), get(".scales"), get(".zp")};
-}
-
-GgufTensorType weight_qtype(GraphEmitter& e, const std::string& base) {
-    const auto it = e.qtypes().find(base + ".qtype");
-    return it == e.qtypes().end() ? GGUF_TYPE_F16 : it->second;
-}
-
 void store_parts(GraphEmitter& e, const std::string& base, const WeightTensors& t, GgufTensorType qtype) {
     auto& w = e.weights();
     w[base + ".weight"] = t.weight;

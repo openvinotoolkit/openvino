@@ -139,31 +139,27 @@ void GraphEmitter::emit_weight_op(const std::string& node_name, const WeightTens
     add_op("GGML_OP_NONE", node_name, {}, 0, std::move(attrs));
 }
 
+WeightTensors GraphEmitter::weight_parts(const std::string& base) const {
+    return find_weight_tensors(m_weights, base);
+}
+
+GgufTensorType GraphEmitter::weight_qtype(const std::string& base) const {
+    return lookup_qtype(base, m_qtypes);
+}
+
 void GraphEmitter::add_weight(const std::string& ggml_name) {
     if (m_emitted_weights.count(ggml_name)) {
         return;
     }
     const std::string base = strip_weight_suffix(ggml_name);
-
-    auto tensors = find_weight_tensors(m_weights, base);
-    GgufTensorType qtype = GGUF_TYPE_F16;
-    if (auto it = m_qtypes.find(base + ".qtype"); it != m_qtypes.end()) {
-        qtype = it->second;
-    }
-
-    emit_weight_op(ggml_name, tensors, qtype);
+    emit_weight_op(ggml_name, weight_parts(base), weight_qtype(base));
 }
 
 void GraphEmitter::add_weight_from(const std::string& node_name, const std::string& src_base) {
     if (m_emitted_weights.count(node_name)) {
         return;
     }
-    auto tensors = find_weight_tensors(m_weights, src_base);
-    GgufTensorType qtype = GGUF_TYPE_F16;
-    if (auto it = m_qtypes.find(src_base + ".qtype"); it != m_qtypes.end()) {
-        qtype = it->second;
-    }
-    emit_weight_op(node_name, tensors, qtype);
+    emit_weight_op(node_name, weight_parts(src_base), weight_qtype(src_base));
 }
 
 void GraphEmitter::add_named_weight(const std::string& ggml_name) {

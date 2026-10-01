@@ -143,11 +143,11 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
         };
         WeightTensors qkv, gate, alpha, beta, out;
         ov::Tensor conv, a, dt;
-        bool ok = transform_parts(weight_parts(e, qkv_base), qkv, rows(2 * key_dim, head_v)) &&
-                  transform_parts(weight_parts(e, gate_base), gate, rows(0, head_v)) &&
-                  transform_parts(weight_parts(e, alpha_base), alpha, rows(0, 1)) &&
-                  transform_parts(weight_parts(e, beta_base), beta, rows(0, 1)) &&
-                  transform_parts(weight_parts(e, out_base), out, [&](const ov::Tensor& t) {
+        bool ok = transform_parts(e.weight_parts(qkv_base), qkv, rows(2 * key_dim, head_v)) &&
+                  transform_parts(e.weight_parts(gate_base), gate, rows(0, head_v)) &&
+                  transform_parts(e.weight_parts(alpha_base), alpha, rows(0, 1)) &&
+                  transform_parts(e.weight_parts(beta_base), beta, rows(0, 1)) &&
+                  transform_parts(e.weight_parts(out_base), out, [&](const ov::Tensor& t) {
                       return permute_col_blocks(t, value_dim, head_v, src);
                   });
         if (ok) {
@@ -158,11 +158,11 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
         }
         if (ok) {
             const std::string g = "_grouped";
-            store_parts(e, qkv_base + g, qkv, weight_qtype(e, qkv_base));
-            store_parts(e, gate_base + g, gate, weight_qtype(e, gate_base));
-            store_parts(e, alpha_base + g, alpha, weight_qtype(e, alpha_base));
-            store_parts(e, beta_base + g, beta, weight_qtype(e, beta_base));
-            store_parts(e, out_base + g, out, weight_qtype(e, out_base));
+            store_parts(e, qkv_base + g, qkv, e.weight_qtype(qkv_base));
+            store_parts(e, gate_base + g, gate, e.weight_qtype(gate_base));
+            store_parts(e, alpha_base + g, alpha, e.weight_qtype(alpha_base));
+            store_parts(e, beta_base + g, beta, e.weight_qtype(beta_base));
+            store_parts(e, out_base + g, out, e.weight_qtype(out_base));
             qkv_base += g, gate_base += g, alpha_base += g, beta_base += g, out_base += g;
             conv_w = p + "ssm_conv1d" + g + ".weight", a_w = p + "ssm_a" + g, dt_w = p + "ssm_dt" + g + ".bias";
             e.weights()[conv_w] = conv;
@@ -180,14 +180,14 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     // such a narrow matmul costs about as much as a wide one, so all three run as one matmul when
     // they share a quantization layout. Widening z to merge would cost more weight bandwidth.
     std::string z, beta, alpha;
-    auto ba = concat_rows(weight_parts(e, beta_base),
-                          weight_parts(e, alpha_base),
-                          weight_qtype(e, beta_base),
-                          weight_qtype(e, alpha_base));
-    auto zba = ba ? concat_rows(weight_parts(e, gate_base), *ba, weight_qtype(e, gate_base), weight_qtype(e, beta_base))
+    auto ba = concat_rows(e.weight_parts(beta_base),
+                          e.weight_parts(alpha_base),
+                          e.weight_qtype(beta_base),
+                          e.weight_qtype(alpha_base));
+    auto zba = ba ? concat_rows(e.weight_parts(gate_base), *ba, e.weight_qtype(gate_base), e.weight_qtype(beta_base))
                   : std::nullopt;
     if (zba) {
-        store_parts(e, p + "ssm_z_beta_alpha", *zba, weight_qtype(e, gate_base));
+        store_parts(e, p + "ssm_z_beta_alpha", *zba, e.weight_qtype(gate_base));
         e.add_weight(p + "ssm_z_beta_alpha.weight");
         auto zba_out = e.add_op("GGML_OP_MUL_MAT", p + "z_beta_alpha", {p + "ssm_z_beta_alpha.weight", attn_norm});
         z = e.add_op("GGML_OP_VIEW", p + "z", {zba_out}, 3, {{"view_slice", std::vector<int64_t>{3, 0, value_dim}}});
@@ -204,7 +204,7 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     } else if (ba) {
         e.add_weight(gate_base + ".weight");
         z = e.add_op("GGML_OP_MUL_MAT", p + "z", {gate_base + ".weight", attn_norm});
-        store_parts(e, p + "ssm_beta_alpha", *ba, weight_qtype(e, beta_base));
+        store_parts(e, p + "ssm_beta_alpha", *ba, e.weight_qtype(beta_base));
         e.add_weight(p + "ssm_beta_alpha.weight");
         auto ba_out = e.add_op("GGML_OP_MUL_MAT", p + "beta_alpha", {p + "ssm_beta_alpha.weight", attn_norm});
         beta = e.add_op("GGML_OP_VIEW", p + "beta", {ba_out}, 3, {{"view_slice", std::vector<int64_t>{3, 0, H_v}}});

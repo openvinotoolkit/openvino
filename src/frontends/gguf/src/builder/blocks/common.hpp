@@ -33,12 +33,6 @@ std::string scale(GraphEmitter& e, const std::string& x, float factor, const std
 // Elementwise add of a (broadcast) bias weight: GGML_OP_ADD(x, bias_weight).
 std::string add_bias(GraphEmitter& e, const std::string& x, const std::string& bias_weight, const std::string& name);
 
-// The extracted weight/scales/zero-point tensors of weight `base` ("<base>.weight" etc.).
-WeightTensors weight_parts(GraphEmitter& e, const std::string& base);
-
-// Quant type of weight `base`; F16 when unknown.
-GgufTensorType weight_qtype(GraphEmitter& e, const std::string& base);
-
 // Register the tensors of a derived weight `base` with quant type `qtype`.
 void store_parts(GraphEmitter& e, const std::string& base, const WeightTensors& t, GgufTensorType qtype);
 

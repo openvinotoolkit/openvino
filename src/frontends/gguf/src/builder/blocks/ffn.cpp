@@ -30,12 +30,11 @@ bool merge_gate_up_weights(GraphEmitter& e,
     static const std::string suffix = ".weight";
     const auto gate = gate_w.substr(0, gate_w.size() - suffix.size());
     const auto up = up_w.substr(0, up_w.size() - suffix.size());
-    const auto merged =
-        concat_rows(weight_parts(e, gate), weight_parts(e, up), weight_qtype(e, gate), weight_qtype(e, up));
+    const auto merged = concat_rows(e.weight_parts(gate), e.weight_parts(up), e.weight_qtype(gate), e.weight_qtype(up));
     if (!merged) {
         return false;
     }
-    e.emit_weight_op(merged_w, *merged, weight_qtype(e, gate));
+    e.emit_weight_op(merged_w, *merged, e.weight_qtype(gate));
     return true;
 }
 

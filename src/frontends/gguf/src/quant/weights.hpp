@@ -53,6 +53,9 @@ struct WeightTensors {
     ov::Tensor zero_point;
 };
 
+// Quant type recorded for a weight as "<base>.qtype"; F16 when absent.
+GgufTensorType lookup_qtype(const std::string& base, const std::unordered_map<std::string, GgufTensorType>& qtypes);
+
 // Build the OpenVINO node for one extracted GGUF weight. Quantized weights become a
 // low-bitness compressed subgraph (u4/u8 weights + zero-point + f16 scale, Convert ->
 // Subtract -> Multiply -> Reshape), matching what the cgraph path produces; F16/F32 weights
