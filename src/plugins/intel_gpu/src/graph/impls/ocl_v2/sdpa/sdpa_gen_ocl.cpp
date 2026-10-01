@@ -1192,6 +1192,18 @@ bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
     if (arch < gpu_arch::xe2 && !hpg_tiers_cover(hpg_tier_required(params), hpg_tiers_ready())) {
         return false;
     }
+    // xe_hpg serves plain SDPA on an i8 KV cache only (k_tile_dword_i8 / v_tile_gather). A plain int4 cache has no nibble
+    // unpack in the kernel and is never dispatched to it (sdpa_opt.cpp !is_int4_kv), and i8 data without the planar
+    // scale/zp tensors has no dequant, so neither gets a kernel that compiles but reads garbage.
+    if (arch < gpu_arch::xe2 && !params.is_type<paged_attention>()) {
+        const auto desc = params.typed_desc<scaled_dot_product_attention>();
+        for (size_t i : {1, 2}) {
+            const auto dt = params.input_layouts[i].data_type;
+            if (data_type_traits::is_i4_u4(dt) || (data_type_traits::is_i8_u8(dt) && !desc->is_kv_compressed)) {
+                return false;
+            }
+        }
+    }
     // No tiling for these head sizes, or none that fits the device once the SDPA_OCL_KQ_* overrides are applied.
     {
         size_t k_head_size = 0;

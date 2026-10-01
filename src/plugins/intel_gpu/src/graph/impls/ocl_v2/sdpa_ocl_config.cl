@@ -399,10 +399,10 @@
 #  if IS_PA_MIXED && IS_PA_K_BY_CHANNEL
 #    error "sdpa_ocl.cl SG8: pa_k_comp_by_channel reads one (scale, zp) dword per lane (lane == channel) at stride SUBGROUP_SIZE (plan S8b/S8c)"
 #  endif
-// S6a gave only the contiguous K input read (k_tile_dword) an int8 A form. The paged-cache and compressed readers still
-// fill a ushort8 per key row (lane == head dim), which an int8 A operand cannot take (plan S6c / S7b).
-#  if IS_PA_MIXED || defined(KV_COMPRESSED)
-#    error "sdpa_ocl.cl SG8: the paged-cache MIXED and compressed-KV K readers fill ushort8 (lane == head dim); only the contiguous K read has an int8 form (plan S6c/S7b)"
+// The contiguous K input reads (k_tile_dword, and k_tile_dword_i8 for the plain i8 cache) have an int8 A form. The
+// paged-cache readers still fill a ushort8 per key row (lane == head dim), which an int8 A operand cannot take (plan S7b).
+#  if IS_PA_MIXED
+#    error "sdpa_ocl.cl SG8: the paged-cache MIXED K readers fill ushort8 (lane == head dim); only the contiguous K reads have an int8 form (plan S7b)"
 #  endif
 #endif
 
