@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include "../utils/kernel_generator.hpp"
 #include "common_utils/jitter.hpp"
 #include "intel_gpu/graph/kernel_impl_params.hpp"
@@ -15,6 +17,7 @@
 #include "ocl_v2/utils/jitter.hpp"
 #include "scaled_dot_product_attention_inst.h"
 #include "sdpa_base.hpp"
+#include "sdpa_ocl_hpg.hpp"
 
 using namespace cldnn;  // TODO: Remove once namespaces are aligned
 namespace ov::intel_gpu::ocl {
@@ -35,9 +38,12 @@ public:
     // because an added stage is compiled even for parameters it is never dispatched with.
     static bool supports_head_sizes(gpu_arch arch, size_t k_head_size, size_t v_head_size);
 
-    // Whether sdpa_ocl.cl compiles for these layouts: Xe2 or later, f16/bf16 Q and output, K/V matching Q
-    // or an i8/u4 cache. An added stage is compiled even when it is never dispatched, so everything else
-    // must be rejected here.
+    // The HpgTier bits this op needs on xe_hpg.
+    static uint32_t hpg_tier_required(const kernel_impl_params& params);
+
+    // Whether sdpa_ocl.cl compiles for these layouts: Xe2 or later (xe_hpg only with TEST_USE_SDPA_OCL_HPG=1, and then only
+    // for ops whose HpgTier bits are all ready), f16/bf16 Q and output, K/V matching Q or an i8/u4 cache. An added stage
+    // is compiled even when it is never dispatched, so everything else must be rejected here.
     static bool supported(const kernel_impl_params& params);
 
 private:
