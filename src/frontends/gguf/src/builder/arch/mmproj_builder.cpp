@@ -754,13 +754,16 @@ private:
                 parts[i] = gather_rows(value, name + ".indices." + std::to_string(i));
             return parts;
         };
+        const auto concat4 = [&](const std::array<GgufValue, 4>& parts) {
+            return concat(concat(concat(parts[0], parts[1]), parts[2]), parts[3]);
+        };
         auto parts = gather4(x, "vit_merger");
-        auto cat = concat(concat(concat(parts[0], parts[1]), parts[2]), parts[3]);
+        auto cat = concat4(parts);
         x = add(ffn(norm(cat, p + "ds_ln", c.eps), p + "ds_ffn_up", p + "ds_ffn_down", "GGML_UNARY_OP_GELU"),
                 scale(add(add(add(parts[0], parts[1]), parts[2]), parts[3]), .25f));
         x = vit(x, c, {}, {}, {}, {}, c.window_pattern + 1);
         parts = gather4(x, "merger");
-        cat = concat(concat(concat(parts[0], parts[1]), parts[2]), parts[3]);
+        cat = concat4(parts);
         return ffn(norm(cat, "mm.input_norm", c.eps), "mm.up", "mm.down", "GGML_UNARY_OP_GELU_ERF");
     }
     GgufValue resampler_vision(const EncoderConfig& c) {
@@ -895,12 +898,13 @@ private:
             };
             auto q = project(0), k = project(1), v = project(2);
             auto qr = reshape_like(transpose(q, {0, 2, 1, 3}), geometry, {-1, 0, 0, head}, {-1, 1, 2, -1});
-            auto rw = g.node("GGML_OP_GET_REL_POS",
-                             {g.tensors().require(p + "attn.pos_w.weight"), global_layer ? global : local},
-                             1);
-            auto rh = g.node("GGML_OP_GET_REL_POS",
-                             {g.tensors().require(p + "attn.pos_h.weight"), global_layer ? global : local},
-                             1);
+            const auto rel_pos = [&](const std::string& axis) {
+                return g.node("GGML_OP_GET_REL_POS",
+                              {g.tensors().require(p + "attn.pos_" + axis + ".weight"), global_layer ? global : local},
+                              1);
+            };
+            auto rw = rel_pos("w");
+            auto rh = rel_pos("h");
             rw = transpose(g.node("GGML_OP_MUL_MAT", {rw, transpose(qr, {0, 2, 1, 3})}), {0, 2, 1, 3});
             rh = g.node("GGML_OP_MUL_MAT", {rh, qr});
             rw = reshape_like(rw, rw, {0, 0, 0, 1, 0}, {0, 1, 2, -1, 3});
