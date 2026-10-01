@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "../../logging.hpp"
+#include "../../util.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 
@@ -68,6 +69,19 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
 void CompiledModel::set_property(const ov::AnyMap& properties) {
     std::lock_guard<std::mutex> lock(m_mutex);
     active_compiled_model_locked()->set_property(properties);
+
+    // Keep the standby model in sync too (it may run on a different device), so a
+    // later switch to/from the reference doesn't silently drop the change
+    const auto& standby = m_switched_to_reference ? m_main_compiled : m_ref_compiled;
+    ov::AnyMap standby_props;
+    for (const auto& [key, value] : properties) {
+        if (ov::npuw::util::is_mutable_property(standby, key)) {
+            standby_props.emplace(key, value);
+        }
+    }
+    if (!standby_props.empty()) {
+        standby->set_property(standby_props);
+    }
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
