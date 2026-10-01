@@ -219,10 +219,11 @@ INSTANTIATE_TEST_SUITE_P(
 class paged_attention_feature_pad_test : public PagedAttentionTest<paged_attention_test_params> {};
 
 namespace {
-// The suite only means something where sdpa_ocl serves PREFILL / MIXED (the sdpa_ocl lane: sdpa_ocl_selected());
-// elsewhere the multi-token kernel is sdpa_micro or pa_sdpa_opt, which have their own padding handling.
-bool sdpa_ocl_serves_prefill_mixed() {
-    return cldnn::paged_attention::sdpa_ocl_selected(tests::get_test_engine().get_device_info());
+// The suite only means something where sdpa_ocl serves PREFILL / MIXED; elsewhere the multi-token kernel is
+// sdpa_micro or pa_sdpa_opt, which have their own padding handling. The lane alone is not enough: xe_hpg with
+// TEST_USE_SDPA_OCL_HPG=1 and no tier ready is on the lane, yet every op still runs sdpa_micro.
+bool sdpa_ocl_serves_prefill_mixed(size_t k_head_size = 64) {
+    return tests::expected_dpas_backend(tests::get_test_engine(), true, k_head_size) == tests::dpas_backend::ocl;
 }
 }  // namespace
 
@@ -433,8 +434,8 @@ class paged_attention_kv_head_size_uses_sdpa_ocl_test : public PagedAttentionTes
 TEST_P(paged_attention_kv_head_size_uses_sdpa_ocl_test, dispatches_sdpa_ocl) {
     // Where the sdpa_micro lane is the DPAS kernel, the k != v MIXED cases fall back to pa_multi_token
     // (sdpa_micro needs k == v), so there is no sdpa_ocl kernel to assert on.
-    if (!cldnn::paged_attention::sdpa_ocl_selected(tests::get_test_engine().get_device_info()))
-        GTEST_SKIP() << "sdpa_ocl is not this device's DPAS lane (pre-Xe2 without TEST_USE_SDPA_OCL_HPG=1, TEST_USE_SDPA_OCL=0, or no oneDNN)";
+    if (!sdpa_ocl_serves_prefill_mixed())
+        GTEST_SKIP() << "sdpa_ocl is not this device's DPAS kernel (pre-Xe2 without TEST_USE_SDPA_OCL_HPG=1 or a ready tier, TEST_USE_SDPA_OCL=0, or no oneDNN)";
 
     auto p = GetParam();
     ASSERT_TRUE(this->pam.has_value());
@@ -481,8 +482,7 @@ TEST_P(paged_attention_by_channel_tm_guard_test, rejects_d_major_reader) {
         token_major_reader = cldnn::paged_attention::sdpa_ocl_decode_reader_available(info);
     } else {
 #ifdef ENABLE_ONEDNN_FOR_GPU
-        token_major_reader = cldnn::paged_attention::sdpa_ocl_selected(info) &&
-                             cldnn::query_microkernels_supported(engine, tests::get_test_default_config(engine));
+        token_major_reader = sdpa_ocl_serves_prefill_mixed(p.k_head_size);
 #endif
     }
     if (token_major_reader)
