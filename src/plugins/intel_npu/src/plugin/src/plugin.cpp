@@ -346,16 +346,14 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         const auto& modelInputs = model->inputs();
         const auto& modelOutputs = model->outputs();
         const bool inputsDynamic = std::any_of(modelInputs.begin(), modelInputs.end(), isDynamicHostCompilePort);
-        const bool outputsDynamic = std::any_of(modelOutputs.begin(), modelOutputs.end(), isDynamicHostCompilePort);
 
         // Candidate detection above uses any_of; validate every I/O separately because one unrelated unbounded port
         // still prevents HostCompile from allocating all dynamic buffers.
         const bool allPortsHaveFiniteUpperBounds =
-            std::all_of(modelInputs.begin(), modelInputs.end(), hasFiniteUpperBounds) &&
-            std::all_of(modelOutputs.begin(), modelOutputs.end(), hasFiniteUpperBounds);
-        if (inputsDynamic && outputsDynamic && allPortsHaveFiniteUpperBounds) {
+            std::all_of(modelInputs.begin(), modelInputs.end(), hasFiniteUpperBounds);
+        if (inputsDynamic && allPortsHaveFiniteUpperBounds) {
             _logger.info("NPU_COMPILATION_MODE not set; selecting 'HostCompile_Interpreter' "
-                         "for fully-dynamic model (inputs and outputs both dynamic)");
+                         "for fully-dynamic model (inputs are dynamic)");
             localConfig.update(ov::intel_npu::compilation_mode.name(), "HostCompile_Interpreter");
         }
     }
