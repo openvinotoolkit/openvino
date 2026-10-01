@@ -107,7 +107,7 @@ function(ov_add_target)
     endif()
 
     # adding files to target
-    if(ARG_SOURCES OR "SOURCES" IN_LIST ARG_KEYWORDS_MISSING_VALUES)
+    if(ARG_SOURCES)
         # Explicit list provided — skip glob entirely
         set(includes ${ARG_SOURCES})
         list(FILTER includes INCLUDE REGEX "\\.(h|hpp)$")
