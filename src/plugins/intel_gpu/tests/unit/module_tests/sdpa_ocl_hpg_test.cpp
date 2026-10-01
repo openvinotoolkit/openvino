@@ -180,12 +180,14 @@ TEST(SdpaOclHpg, TierMaskCover) {
     EXPECT_FALSE(hpg_tiers_cover(PLAIN_F16_STATIC | PLAIN_EXT, PLAIN_F16_STATIC)) << "every bit the op touches is needed";
     EXPECT_TRUE(hpg_tiers_cover(PLAIN_F16_STATIC | PLAIN_EXT, PLAIN_F16_STATIC | PLAIN_EXT | PA_U4));
     EXPECT_FALSE(hpg_tiers_cover(PA_PREFILL | PA_MIXED_F16, PA_PREFILL));
-    // The step that ports a kernel family turns its bit on (and edits this line): S6a = the plain f16 static prefill.
-    EXPECT_EQ(kHpgTiersReady, static_cast<uint32_t>(PLAIN_F16_STATIC));
+    // The step that ports a kernel family turns its bit on (and edits this line): S6a = the plain f16 static prefill,
+    // S6b = the rest of plain SDPA.
+    EXPECT_EQ(kHpgTiersReady, static_cast<uint32_t>(PLAIN_F16_STATIC | PLAIN_EXT));
     if (std::getenv("SDPA_OCL_HPG_TIERS") == nullptr) {
-        EXPECT_EQ(hpg_tiers_ready(), static_cast<uint32_t>(PLAIN_F16_STATIC));
+        EXPECT_EQ(hpg_tiers_ready(), static_cast<uint32_t>(PLAIN_F16_STATIC | PLAIN_EXT));
         EXPECT_TRUE(hpg_tier_ready(PLAIN_F16_STATIC));
-        EXPECT_FALSE(hpg_tier_ready(PLAIN_EXT));
+        EXPECT_TRUE(hpg_tier_ready(PLAIN_EXT));
+        EXPECT_FALSE(hpg_tier_ready(PLAIN_I8));
         EXPECT_FALSE(hpg_tiers_cover(PA_PREFILL | PA_MIXED_F16, hpg_tiers_ready()));
     }
 }
