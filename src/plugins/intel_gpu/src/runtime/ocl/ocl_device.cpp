@@ -26,6 +26,7 @@
 
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "ocl_common.hpp"
+#include "../arch_override.hpp"
 
 #ifdef _WIN32
 #    ifndef WIN32_LEAN_AND_MEAN
@@ -366,7 +367,7 @@ device_info init_device_info(const cl::Device& device, const cl::Context& contex
     using namespace dnnl::impl::gpu::intel::jit;
     if (context.get() != nullptr) {
         ngen::Product product = ngen::OpenCLCodeGenerator<ngen::HW::Unknown>::detectHWInfo(context.get(), device.get());
-        info.arch = convert_ngen_arch(ngen::getCore(product.family));
+        info.arch = debug_arch_override(convert_ngen_arch(ngen::getCore(product.family)));
 
         // We change the value of this flag to avoid OneDNN usage for the platforms unknown to OneDNN
         // This is required to guarantee some level of forward compatibility for the new HW generations
