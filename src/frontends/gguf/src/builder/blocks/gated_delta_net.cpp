@@ -5,9 +5,10 @@
 #include "builder/blocks/gated_delta_net.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstring>
+#include <functional>
 #include <optional>
-#include <tuple>
 #include <vector>
 
 #include "builder/blocks/common.hpp"
@@ -141,15 +142,23 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
                 return permute_row_blocks(t, first, per_block, src);
             };
         };
-        WeightTensors qkv, gate, alpha, beta, out;
+        const auto cols = [&](const ov::Tensor& t) {
+            return permute_col_blocks(t, value_dim, head_v, src);
+        };
+        struct Grouped {
+            std::string& base;
+            std::function<ov::Tensor(const ov::Tensor&)> permute;
+            WeightTensors parts;
+        };
+        std::array<Grouped, 5> grouped{{{qkv_base, rows(2 * key_dim, head_v), {}},
+                                        {gate_base, rows(0, head_v), {}},
+                                        {alpha_base, rows(0, 1), {}},
+                                        {beta_base, rows(0, 1), {}},
+                                        {out_base, cols, {}}}};
+        bool ok = std::all_of(grouped.begin(), grouped.end(), [&](Grouped& w) {
+            return transform_parts(e.weight_parts(w.base), w.parts, w.permute);
+        });
         ov::Tensor conv, a, dt;
-        bool ok = transform_parts(e.weight_parts(qkv_base), qkv, rows(2 * key_dim, head_v)) &&
-                  transform_parts(e.weight_parts(gate_base), gate, rows(0, head_v)) &&
-                  transform_parts(e.weight_parts(alpha_base), alpha, rows(0, 1)) &&
-                  transform_parts(e.weight_parts(beta_base), beta, rows(0, 1)) &&
-                  transform_parts(e.weight_parts(out_base), out, [&](const ov::Tensor& t) {
-                      return permute_col_blocks(t, value_dim, head_v, src);
-                  });
         if (ok) {
             conv = permute_row_blocks(e.weight_tensor(conv_w), 2 * key_dim, head_v, src);
             a = permute_row_blocks(e.weight_tensor(a_w), 0, 1, src);
@@ -158,12 +167,10 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
         }
         if (ok) {
             const std::string g = "_grouped";
-            store_parts(e, qkv_base + g, qkv, e.weight_qtype(qkv_base));
-            store_parts(e, gate_base + g, gate, e.weight_qtype(gate_base));
-            store_parts(e, alpha_base + g, alpha, e.weight_qtype(alpha_base));
-            store_parts(e, beta_base + g, beta, e.weight_qtype(beta_base));
-            store_parts(e, out_base + g, out, e.weight_qtype(out_base));
-            qkv_base += g, gate_base += g, alpha_base += g, beta_base += g, out_base += g;
+            for (auto& w : grouped) {
+                store_parts(e, w.base + g, w.parts, e.weight_qtype(w.base));
+                w.base += g;
+            }
             conv_w = p + "ssm_conv1d" + g + ".weight", a_w = p + "ssm_a" + g, dt_w = p + "ssm_dt" + g + ".bias";
             e.weights()[conv_w] = conv;
             e.weights()[a_w] = a;
