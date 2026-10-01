@@ -30,6 +30,7 @@ CASES = {
     "qwen3moe": {"qk": True, "moe": True},
     "gemma4-mqa": {"architecture": "gemma4"},
     "gemma4-moe": {"architecture": "gemma4", "moe": True},
+    "gemma4-ple": {"architecture": "gemma4", "per_layer": 8, "layers": 4, "shared_kv": 2},
     "gemma": {"mqa": True, "tied": True},
     "gemma2": {"post": True, "swa": True, "tied": True, "softcap": True},
     "gemma3": {"post": True, "swa": True, "tied": True, "qk": True, "linear": 8.0},
@@ -181,13 +182,17 @@ def write_qwen35_model(path, arch, fused_experts=False):
 
 
 def write_gemma4_model(path, opts):
+    """Layers alternate sliding/full attention; E2B/E4B-style options add per-layer
+    embeddings (`per_layer`) and reuse earlier KV in the last `shared_kv` layers, which keep
+    their unused K/V tensors as real checkpoints do."""
     w = gguf.GGUFWriter(path, "gemma4")
-    d, heads, layers, vocab, ff = 32, 4, 2, 32, 48
+    d, heads, layers, vocab, ff = 32, 4, opts.get("layers", 2), 32, 48
+    per_layer, shared = opts.get("per_layer", 0), opts.get("shared_kv", 0)
     w.add_context_length(128)
     w.add_embedding_length(d)
     w.add_block_count(layers)
     w.add_head_count(heads)
-    w.add_head_count_kv([2, 1])
+    w.add_head_count_kv([2, 1] * (layers // 2))
     w.add_feed_forward_length(ff)
     w.add_key_length(16)
     w.add_value_length(16)
@@ -195,11 +200,11 @@ def write_gemma4_model(path, opts):
     w.add_vocab_size(vocab)
     w.add_tokenizer_model("none")
     for key, value in {"attention.key_length_swa": 8, "attention.value_length_swa": 8,
-                       "attention.sliding_window": 2, "attention.shared_kv_layers": 0,
-                       "embedding_length_per_layer_input": 0, "rope.dimension_count": 16,
+                       "attention.sliding_window": 2, "attention.shared_kv_layers": shared,
+                       "embedding_length_per_layer_input": per_layer, "rope.dimension_count": 16,
                        "rope.dimension_count_swa": 8}.items():
         w.add_uint32("gemma4." + key, value)
-    w.add_array("gemma4.attention.sliding_window_pattern", [True, False])
+    w.add_array("gemma4.attention.sliding_window_pattern", [True, False] * (layers // 2))
     w.add_float32("gemma4.rope.freq_base", 1000000.)
     w.add_float32("gemma4.rope.freq_base_swa", 10000.)
     w.add_float32("gemma4.final_logit_softcapping", 30.)
@@ -213,14 +218,19 @@ def write_gemma4_model(path, opts):
     tensor("token_embd.weight", (vocab, d))
     tensor("output_norm.weight", (d,), True)
     tensor("rope_freqs.weight", (8,), True)
+    if per_layer:
+        tensor("per_layer_token_embd.weight", (vocab, per_layer * layers))
+        tensor("per_layer_model_proj.weight", (per_layer * layers, d))
+        tensor("per_layer_proj_norm.weight", (per_layer,), True)
     for layer in range(layers):
         p = f"blk.{layer}."
-        head, kv = (8, 2) if layer == 0 else (16, 1)
+        swa = layer % 2 == 0
+        head, kv = (8, 2) if swa else (16, 1)
         for name in ("attn_norm", "ffn_norm", "post_attention_norm", "post_ffw_norm"):
             tensor(p + name + ".weight", (d,), True)
         tensor(p + "attn_q.weight", (heads * head, d))
         tensor(p + "attn_k.weight", (kv * head, d))
-        if layer == 0:
+        if swa:
             tensor(p + "attn_v.weight", (kv * head, d))
         for name in ("q", "k"):
             tensor(p + f"attn_{name}_norm.weight", (head,), True)
@@ -228,6 +238,10 @@ def write_gemma4_model(path, opts):
         for name, shape in (("gate", (ff, d)), ("up", (ff, d)), ("down", (d, ff))):
             tensor(p + f"ffn_{name}.weight", shape)
         tensor(p + "layer_output_scale.weight", (1,), True)
+        if per_layer:
+            tensor(p + "inp_gate.weight", (per_layer, d))
+            tensor(p + "proj.weight", (d, per_layer))
+            tensor(p + "post_norm.weight", (d,), True)
         if opts.get("moe"):
             for name in ("pre_ffw_norm_2", "post_ffw_norm_1", "post_ffw_norm_2"):
                 tensor(p + name + ".weight", (d,), True)

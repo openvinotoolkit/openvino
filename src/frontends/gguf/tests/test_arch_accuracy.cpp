@@ -78,7 +78,7 @@ void check_batched_decode(const std::shared_ptr<ov::Model>& model) {
 }
 
 TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttention) {
-    for (const auto* family : {"qwen35", "qwen35moe", "qwen35moe-fused", "gemma4-mqa", "gemma4-moe"}) {
+    for (const auto* family : {"qwen35", "qwen35moe", "qwen35moe-fused", "gemma4-mqa", "gemma4-moe", "gemma4-ple"}) {
         SCOPED_TRACE(family);
         auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
         const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
@@ -109,7 +109,7 @@ TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttenti
                 EXPECT_EQ(gdn->get_input_partial_shape(0)[0], 5);
             }
         }
-        EXPECT_EQ(attention, gemma ? 2 : 1);
+        EXPECT_EQ(attention, gemma ? (std::string(family) == "gemma4-ple" ? 4 : 2) : 1);
         EXPECT_EQ(recurrent, gemma ? 0 : 3);
         EXPECT_TRUE(model->get_sinks().empty());
     }
@@ -118,7 +118,7 @@ TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttenti
 // Gemma3/Gemma4 scale token lookups only, as in llama.cpp, so the scale belongs to the embedding
 // model and injected media embeddings reach the decoder unscaled.
 TEST(GGUFMultimodalBackboneAdaptation, GemmaEmbeddingModelOwnsTokenScaling) {
-    for (const auto* family : {"gemma3", "gemma4-mqa"}) {
+    for (const auto* family : {"gemma3", "gemma4-mqa", "gemma4-ple"}) {
         SCOPED_TRACE(family);
         auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
         const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
@@ -340,6 +340,7 @@ INSTANTIATE_TEST_SUITE_P(Architectures,
                                            "qwen35moe-fused",
                                            "gemma4-mqa",
                                            "gemma4-moe",
+                                           "gemma4-ple",
                                            "nemotron_h",
                                            "mamba2",
                                            "mamba2-tied",
