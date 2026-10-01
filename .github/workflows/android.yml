@@ -295,6 +295,7 @@ jobs:
 
           # Install runtime into install dir; fallback to full install if component is unavailable
           cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component core
+          cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component core_c
           cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component cpu
           cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component template
 
