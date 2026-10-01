@@ -332,9 +332,7 @@ std::string gemma4_moe_ffn(GraphEmitter& e,
     router = scale(e, router, 1.f / std::sqrt(float(cfg.n_embd)), p + "router_scale");
     e.add_named_weight(p + "ffn_gate_inp.scale");
     router = e.add_op("GGML_OP_MUL", p + "router_weighted", {router, p + "ffn_gate_inp.scale"});
-    auto expert_cfg = cfg;
-    expert_cfg.expert_weights_norm = true;
-    auto routed = moe_ffn(e, expert_cfg, p, routed_input, router);
+    auto routed = moe_ffn(e, cfg, p, routed_input, router);
     routed = rms_norm(e, routed, p + "post_ffw_norm_2.weight", p + "expert_post_norm", cfg.rms_eps);
     return e.add_op("GGML_OP_ADD", p + "combined_experts", {dense, routed});
 }
