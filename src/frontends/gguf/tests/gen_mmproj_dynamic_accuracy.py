@@ -108,6 +108,9 @@ def write_model(path, family):
                 norm(p + name, width, False)
             for name in ("attn_q", "attn_k", "attn_v", "attn_out", "attn_k_rel", "conv_pw2"):
                 linear(p + name, width, width, False)
+            # Q-only input bounds catch clipping leaking into the shared K/V input.
+            w.add_tensor(p + "attn_q.input_min", np.array([-.2], np.float32))
+            w.add_tensor(p + "attn_q.input_max", np.array([.25], np.float32))
             norm(p + "per_dim_scale", width // heads, False)
             norm(p + "per_dim_k_scale", width // heads, False)
             for suffix in ("", "_1"):

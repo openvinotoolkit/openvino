@@ -364,11 +364,9 @@ private:
                        lo ? lo : bound(default_clip_min, "mmproj.clip_min", -limit),
                        hi ? hi : bound(default_clip_max, "mmproj.clip_max", limit)});
     }
-    // clip_input=false when the caller already clamped x to this projection's input bounds.
-    GgufValue linear(const GgufValue& x, const std::string& base, bool with_bias = true, bool clip_input = true) {
-        auto y = g.node(
-            "GGML_OP_MUL_MAT",
-            {g.tensors().require(base + ".weight"), clippable && clip_input ? clip_linear(x, base, "input") : x});
+    GgufValue linear(const GgufValue& x, const std::string& base, bool with_bias = true) {
+        auto y = g.node("GGML_OP_MUL_MAT",
+                        {g.tensors().require(base + ".weight"), clippable ? clip_linear(x, base, "input") : x});
         if (clippable)
             y = clip_linear(y, base, "output");
         if (auto bias = with_bias ? g.tensors()(base + ".bias") : GgufValue{})
@@ -408,11 +406,9 @@ private:
                   const std::string& activation,
                   const std::string& gate = "",
                   bool with_bias = true) {
-        // The pinned ggml CLAMP aliases its source; the following gate observes the clipped input.
-        auto input = clippable ? clip_linear(x, up, "input") : x;
-        auto y = linear(input, up, with_bias, false);
+        auto y = linear(x, up, with_bias);
         if (!gate.empty() && g.tensors().has(gate + ".weight"))
-            y = mul(y, g.node(activation, {linear(input, gate)}));
+            y = mul(y, g.node(activation, {linear(x, gate)}));
         else
             y = g.node(activation, {y});
         return linear(y, down, with_bias);
@@ -457,10 +453,7 @@ private:
             const bool per_head = fused || (g.tensors().has(p + "attn_q_norm.weight") &&
                                             g.tensors().require(p + "attn_q_norm.weight").ne(0) == c.width / c.heads);
             const auto projection = [&](const std::string& name, int64_t offset) {
-                // ggml CLAMP is in-place: Q input clipping carries into K, then V.
-                if (clippable && !fused)
-                    z = clip_linear(z, p + name, "input");
-                auto value = fused ? slice(qkv, 3, offset * c.width, c.width) : linear(z, p + name, true, false);
+                auto value = fused ? slice(qkv, 3, offset * c.width, c.width) : linear(z, p + name);
                 const auto weight = g.tensors()(p + name + "_norm.weight");
                 if (weight && !per_head)
                     value = encoder_norm(value, p + name + "_norm", c, false);
@@ -1022,11 +1015,8 @@ private:
             const auto p = "a.blk." + std::to_string(i) + ".";
             x = half_ffn(x, p, "");
             auto z = rms(x, p + (g.tensors().has(p + "attn_pre_norm.weight") ? "attn_pre_norm" : "ln1"));
-            // ggml CLAMP is in-place: Q input clipping carries into K, then V.
-            z = clip_linear(z, p + "attn_q", "input");
-            auto q = linear(z, p + "attn_q", false, false);
-            z = clip_linear(z, p + "attn_k", "input");
-            auto k = linear(z, p + "attn_k", false, false);
+            auto q = linear(z, p + "attn_q", false);
+            auto k = linear(z, p + "attn_k", false);
             auto v = linear(z, p + "attn_v", false);
             const auto head = c.width / c.heads;
             q = scale(reshape(q, {1, -1, c.heads, head}), 1.f / std::sqrt(float(head)) / std::log(2.f));

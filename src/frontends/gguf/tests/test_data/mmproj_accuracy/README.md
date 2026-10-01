@@ -22,15 +22,13 @@ vision/interleaved RoPE, antialiased bilinear resize and 2D im2col.
 
 The fixtures were generated with llama.cpp
 [`16fb7d9d326a3fe69a331ce5fbe7a679a1a281bb`](https://github.com/ggml-org/llama.cpp/commit/16fb7d9d326a3fe69a331ce5fbe7a679a1a281bb),
-except `qwen3vl_merger`, `muse-glimmer` and `gemma4uv_low_contrast`, which need
+except `qwen3vl_merger`, `muse-glimmer`, `gemma4uv_low_contrast`, `gemma4v` (+`_one_sided`)
+and `gemma4a`, which need
 [`03fa73cb27f5c251b9528489b18d303b1366aca4`](https://github.com/ggml-org/llama.cpp/commit/03fa73cb27f5c251b9528489b18d303b1366aca4)
-(aligned-corner position interpolation and the Muse Glimmer encoder). Regenerating every
-family at `03fa73cb` reproduces the stored arrays, except:
-
-- `deepseekocr` embeddings differ at normalized MSE `7e-7`;
-- `gemma4v` embeddings differ at normalized MSE `0.15`, and the frontend does not match the
-  `03fa73cb` result on these small 16x8 / 8x24 grids. Real Gemma4 projectors match `03fa73cb`
-  at 144x96. Keep the stored `gemma4v` fixture until this is resolved.
+(aligned-corner position interpolation, the Muse Glimmer encoder, and a `ggml_clamp` that no
+longer clamps its source in place). The Gemma4 fixtures clip only the Q input, so clipping that
+leaks into the shared K/V input fails them. Regenerating every family at `03fa73cb` reproduces
+the stored arrays, except `deepseekocr`, whose embeddings differ at normalized MSE `7e-7`.
 
 ## Regenerating
 
