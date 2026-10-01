@@ -476,7 +476,7 @@ SDPA_OCL_INLINE void FUNC(kc_tile_u4_dword)(__private ushort8 *k_raw, __private 
 }
 #endif
 
-#if SG8
+#if SG8 && !defined(KV_COMPRESSED)
 // SG8 K input read: the KQ DPAS A operand for DPAS_ROWS keys per row block. Component kk is key key_base + mb * DPAS_ROWS
 // + kk; lane l holds dword l of the key's depth tile, i.e. head dims (db * DPAS_K + 2l, + 2l + 1) with the low half the
 // even one (plan S2 H1). Rows are contiguous in the head dim, so a whole tile row is one 32 B block read (8 lanes x 4 B).
@@ -526,6 +526,53 @@ SDPA_OCL_INLINE void FUNC(k_tile_dword)(__private int8 *k_raw, const __global KE
             w = (w << 16) | (w >> 16);
 #endif
             k_raw[mb][key_offset] = as_int(w);
+        }
+    }
+}
+#endif
+
+#if SG8 && defined(KV_COMPRESSED)
+// SG8 K input read of the plain-SDPA i8 cache: the same A operand as k_tile_dword (component kk = key key_base + mb * DPAS_ROWS
+// + kk, lane l = head dims db * DPAS_K + 2l (low half) and + 2l + 1), with the per-token asymmetric dequant
+// (q - zp) * scale applied per element, as k_tile_gather does. Bytes are loaded one at a time: a pair of i8 head dims has no
+// alignment guarantee on a view. The scale/zp broadcasts are collective, so they stay outside the key and head guards; a key
+// at/past k has scale 0 from k_comp_per_key and stays 0, and so does a head at/past d.
+SDPA_OCL_INLINE void FUNC(k_tile_dword_i8)(__private int8 *k_raw, const __global KEY_DATA_T *K, const uint ldk,
+                                           const __private half *k_scale_lane, const __private half *k_zpb_lane,
+                                           const int key_base, const int k, const int d, const int db, const size_t lane) {
+    const int head = db * DPAS_K + 2 * (int)lane;
+    #pragma unroll
+    for (int mb = 0; mb < kq_key_blocks; ++mb) {
+        k_raw[mb] = (int8)0;
+        #pragma unroll
+        for (int key_offset = 0; key_offset < DPAS_ROWS; ++key_offset) {
+            const int key = key_base + mb * DPAS_ROWS + key_offset;
+            const int krel = mb * DPAS_ROWS + key_offset;
+            const float k_sc = convert_float(sub_group_broadcast(k_scale_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE));
+            #if INPUT0_IS_BF16
+            const float k_zp = convert_float(sub_group_broadcast(k_zpb_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE));
+            #else
+            // k_zpb_lane holds zp+1152.0h; recover the raw zp for this scalar path.
+            const float k_zp = convert_float(sub_group_broadcast(k_zpb_lane[krel / SUBGROUP_SIZE], krel % SUBGROUP_SIZE)) - 1152.0f;
+            #endif
+            uint lo = 0, hi = 0;
+            if (key < k) {
+                // DT_BITS_FROM_F32 does not parenthesize its argument: name the float first.
+                if (head < d) {
+                    const float deq_lo = (convert_float(K[(size_t)key * ldk + head]) - k_zp) * k_sc;
+                    lo = DT_BITS_FROM_F32(deq_lo);
+                }
+                if (head + 1 < d) {
+                    const float deq_hi = (convert_float(K[(size_t)key * ldk + head + 1]) - k_zp) * k_sc;
+                    hi = DT_BITS_FROM_F32(deq_hi);
+                }
+            }
+#if defined(NEG_SG8) && NEG_SG8 == 1
+            // Negative control: swap the two head dims packed in every dword.
+            k_raw[mb][key_offset] = as_int(hi | (lo << 16));
+#else
+            k_raw[mb][key_offset] = as_int(lo | (hi << 16));
+#endif
         }
     }
 }
