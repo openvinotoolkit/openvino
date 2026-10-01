@@ -22,7 +22,6 @@ CPU
       * Intel® Core™ Ultra Series 1, Series 2 and Series 3
       * Intel® Xeon® 6 processor
       * Intel Atom® Processor X Series
-      * Intel Atom® processor with Intel® SSE4.2 support
       * Intel® Pentium® processor N4200/5, N3350/5, N3450/5 with Intel® HD Graphics
       * 6th - 14th generation Intel® Core™ processors
       * 1st - 5th generation Intel® Xeon® Scalable Processors
