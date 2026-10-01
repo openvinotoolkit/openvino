@@ -4,8 +4,6 @@
 
 #include "transformations/op_conversions/convert_weight_compressed_conv1x1_to_matmul.hpp"
 
-#include <iostream>
-#include <ostream>
 #include <vector>
 
 #include "itt.hpp"
@@ -212,8 +210,7 @@ ov::pass::ConvertWeightCompressedConv1x1ToMatmul::ConvertWeightCompressedConv1x1
             }
 
             if (auto reshape = ov::as_type_ptr<ov::op::v1::Reshape>(node)) {
-                const auto& source_shape = reshape->get_input_partial_shape(0);
-                if (source_shape.is_static() && ov::shape_size(source_shape.to_shape()) == ov::shape_size(new_shape)) {
+                if (ov::shape_size(current_shape) == ov::shape_size(new_shape)) {
                     auto shape_const =
                         ov::op::v0::Constant::create(ov::element::i32, ov::Shape{new_shape.size()}, new_shape);
                     auto composed_reshape =
