@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 272,
+  "total": 273,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2665,6 +2665,17 @@
       "category": "Dependencies",
       "signature_hash": "a87e95431b0e8175",
       "pr_number": "38430"
+    },
+    {
+      "investigation_id": "2026-10-01-13-27-03-000-36863877140",
+      "run_id": "36863877140",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36863877140",
+      "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-10-01T13:27:03Z",
+      "title": "OpenVINO tokenizers extension build fails downloading sentencepiece-0.2.1.tar.gz (HTTP 504 from github.com)",
+      "category": "Network",
+      "signature_hash": "8c8192df2f508443",
+      "pr_number": "38536"
     }
   ]
 }

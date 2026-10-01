@@ -1,0 +1,37 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-01-13-27-03-000-36863877140",
+  "timestamp": "2026-10-01T13:27:03Z",
+  "run_id": "36863877140",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36863877140",
+  "workflow_name": "Linux ARM64 (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "38536",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38536",
+  "author": "yatarkan",
+  "category": "Network",
+  "title": "OpenVINO tokenizers extension build fails downloading sentencepiece-0.2.1.tar.gz (HTTP 504 from github.com)",
+  "signature": "downloading sentencepiece-0.2.1.tar.gz failed HTTP response code said error 504|Network",
+  "signature_hash": "8c8192df2f508443",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "OpenVINO tokenizers extension / OpenVINO tokenizers extension",
+      "conclusion": "failure",
+      "symptom": "CMake FetchContent download of sentencepiece-0.2.1.tar.gz from github.com failed with HTTP 504 Gateway Timeout, aborting the tokenizers wheel build (run attempt 1); re-run (attempt 2) succeeded."
+    }
+  ],
+  "key_errors": [
+    "-- Using src='https://github.com/google/sentencepiece/releases/download/v0.2.1/sentencepiece-0.2.1.tar.gz'\nCMake Error at sentencepiece-subbuild/sentencepiece-populate-prefix/src/sentencepiece-populate-stamp/download-sentencepiece-populate.cmake:163 (message):\n  Each download failed!\n    error: downloading 'https://github.com/google/sentencepiece/releases/download/v0.2.1/sentencepiece-0.2.1.tar.gz' failed\n          status_code: 22\n          status_string: \"HTTP response code said error\"",
+    "HTTP/2 504\ncontent-length: 92\ncontent-type: text/html\nThe requested URL returned error: 504",
+    "gmake[2]: *** [CMakeFiles/sentencepiece-populate.dir/build.make:100: sentencepiece-populate-prefix/src/sentencepiece-populate-stamp/sentencepiece-populate-download] Error 1\nCMake Error ... Build step for sentencepiece failed: 2"
+  ],
+  "root_cause": "The OpenVINO Tokenizers build uses CMake FetchContent to download the sentencepiece v0.2.1 release tarball directly from github.com/google/sentencepiece/releases. The ARM64 merge-queue runner's outbound HTTPS request to that release-asset URL received an HTTP 504 Gateway Timeout from GitHub's edge (x-github-edge-region: sea), a transient upstream/CDN availability issue unrelated to the PR's doc-only changes (install-openvino.rst and the selector-tool static assets). Run attempt 2 of the same job completed successfully with no code changes, confirming the failure was a one-off network blip rather than a deterministic defect.",
+  "reproduction_steps": "Not reliably reproducible locally since it depends on a transient GitHub release-asset CDN hiccup. To attempt: on an aarch64 Linux host, run `pip wheel ./src/bindings/python/tools/openvino_tokenizers` (or trigger the 'OpenVINO tokenizers extension' CI job) and observe the CMake FetchContent_Populate step fetching https://github.com/google/sentencepiece/releases/download/v0.2.1/sentencepiece-0.2.1.tar.gz; a transient 504 from GitHub during that window reproduces the failure.",
+  "recommended_actions": [
+    "Re-run the failed 'OpenVINO tokenizers extension' job (already succeeded on attempt 2); no code change needed.",
+    "Consider mirroring the sentencepiece release tarball (and other FetchContent-based third-party sources) through an internal artifact cache/proxy to reduce dependency on github.com release-asset CDN availability during merge-queue builds.",
+    "Consider adding retry/backoff to the CMake FetchContent download step (e.g., CMAKE_TLS_... retry wrapper or a pre-fetch script with retries) for third-party sources fetched directly from github.com releases."
+  ],
+  "prevention_strategies": "Mirror or cache third-party FetchContent sources (sentencepiece, pcre2, etc.) in an internally controlled location, and/or wrap FetchContent downloads with automatic retry logic to absorb transient GitHub release-asset 5xx responses without failing the whole merge-queue run.",
+  "historical_context": "A near-identical pattern was recorded on 2026-09-21 for the same job (OpenVINO tokenizers extension) downloading pcre2-10.48.zip from github.com and failing with HTTP 504 (pattern 2baab38e090720ec, PR #38190, run 35611487106). This is the second distinct third-party-download timeout observed for this job in about 10 days, suggesting github.com release-asset fetches from this job are a recurring soft spot even though each specific package/signature is new."
+}
