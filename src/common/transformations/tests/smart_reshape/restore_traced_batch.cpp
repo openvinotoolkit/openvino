@@ -6,93 +6,71 @@
 
 #include <gtest/gtest.h>
 
-#include <optional>
-
 #include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/op/add.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/parameter.hpp"
-#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/roll.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/transpose.hpp"
 
 using namespace ov;
 
 namespace {
 
-Output<Node> leading_dimension_of(const std::shared_ptr<op::v0::Parameter>& parameter) {
-    const auto shape_of = std::make_shared<op::v3::ShapeOf>(parameter);
-    return std::make_shared<op::v8::Gather>(shape_of,
-                                            op::v0::Constant::create(element::i64, Shape{1}, {0}),
-                                            op::v0::Constant::create(element::i64, Shape{}, {0}));
+Output<Node> i64(const std::vector<int64_t>& values) {
+    return op::v0::Constant::create(element::i64, Shape{values.size()}, values);
 }
 
-// Reproduces a traced graph: a Reshape keeps the leading dimension live, the next one pins it to a constant, and a
-// third one rebuilds the batch from the input shape. Passing restored builds what the transformation is expected to
-// produce, which is the only difference between the model and its reference.
-std::shared_ptr<Model> make_traced_model(const std::vector<int64_t>& pinned_target,
-                                         bool rebuilds_batch,
-                                         bool restored = false,
-                                         const std::optional<PartialShape>& pinned_source = std::nullopt) {
-    const auto param = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 4});
-    const auto live = leading_dimension_of(param);
-    const auto inferred = op::v0::Constant::create(element::i64, Shape{1}, {-1});
-    const auto kept = op::v0::Constant::create(element::i64, Shape{1}, {4});
-
-    ParameterVector parameters{param};
-    std::shared_ptr<Node> data =
-        std::make_shared<op::v1::Reshape>(param, std::make_shared<op::v0::Concat>(OutputVector{live, kept}, 0), false);
-    if (pinned_source) {
-        const auto batch_independent = std::make_shared<op::v0::Parameter>(element::f32, *pinned_source);
-        parameters.push_back(batch_independent);
-        data = batch_independent;
-    }
-
-    OutputVector pinned_inputs;
-    for (size_t index = 0; index < pinned_target.size(); ++index) {
-        if (index == 0 && restored) {
-            pinned_inputs.push_back(live);
-        } else {
-            pinned_inputs.push_back(op::v0::Constant::create(element::i64, Shape{1}, {pinned_target[index]}));
-        }
-    }
-
-    std::shared_ptr<Node> result =
-        std::make_shared<op::v1::Reshape>(data, std::make_shared<op::v0::Concat>(pinned_inputs, 0), false);
-    if (rebuilds_batch) {
-        result = std::make_shared<op::v1::Reshape>(result,
-                                                   std::make_shared<op::v0::Concat>(OutputVector{live, inferred}, 0),
-                                                   false);
-    }
-    return std::make_shared<Model>(OutputVector{result}, parameters);
+Output<Node> concat(const OutputVector& inputs) {
+    return std::make_shared<op::v0::Concat>(inputs, 0);
 }
 
-// Adds an intentional collapse of the batch next to the traced pin of make_traced_model. With shared_target both
-// Reshapes read the same target node, as frontends produce for identical shape subgraphs.
-std::shared_ptr<Model> make_model_with_collapse(bool shared_target, bool restored = false) {
-    const auto param = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 4});
-    const auto live = leading_dimension_of(param);
-    const auto one = op::v0::Constant::create(element::i64, Shape{1}, {1});
-    const auto inferred = op::v0::Constant::create(element::i64, Shape{1}, {-1});
-    const auto kept = op::v0::Constant::create(element::i64, Shape{1}, {4});
+struct WindowReverse {
+    bool restored = false;
+    bool shifted = false;
+    bool rebuilds_batch = true;
+    bool merge_shared = false;
+    bool compact_targets = false;
+    std::vector<int64_t> permutation{0, 1, 3, 2, 4, 5};
+    std::vector<int64_t> roll_axes{1, 2};
+};
 
-    const auto pinned_target = std::make_shared<op::v0::Concat>(OutputVector{one, inferred}, 0);
-    const auto collapse_target =
-        shared_target ? pinned_target : std::make_shared<op::v0::Concat>(OutputVector{one, inferred}, 0);
-    const auto traced_target =
-        restored ? std::make_shared<op::v0::Concat>(OutputVector{live, inferred}, 0) : pinned_target;
+// SwinIR's window_reverse for a 16x16 image split into 8x8 windows, as traced with batch one.
+std::shared_ptr<Model> make_window_reverse_model(const WindowReverse& options) {
+    const auto x = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 16, 16, 4});
+    const auto batch = std::make_shared<op::v8::Gather>(std::make_shared<op::v3::ShapeOf>(x), i64({0}), i64({0}));
+    const auto one = i64({1});
+    const Output<Node> pinned = options.restored ? batch->output(0) : one;
 
-    const auto kept_batch =
-        std::make_shared<op::v1::Reshape>(param, std::make_shared<op::v0::Concat>(OutputVector{live, kept}, 0), false);
-    const auto pinned = std::make_shared<op::v1::Reshape>(kept_batch, traced_target, false);
-    const auto rebuilt =
-        std::make_shared<op::v1::Reshape>(pinned,
-                                          std::make_shared<op::v0::Concat>(OutputVector{live, inferred}, 0),
-                                          false);
-    const auto collapsed = std::make_shared<op::v1::Reshape>(param, collapse_target, false);
-    return std::make_shared<Model>(OutputVector{rebuilt, collapsed}, ParameterVector{param});
+    const auto windows = std::make_shared<op::v1::Reshape>(x, i64({-1, 8, 8, 4}), false);
+    const auto split_target = options.compact_targets
+                                  ? concat({pinned, i64({2}), i64({2}), i64({8, 8, -1})})
+                                  : concat({pinned, i64({2}), i64({2}), i64({8}), i64({8}), i64({-1})});
+    const auto split = std::make_shared<op::v1::Reshape>(windows, split_target, false);
+    const auto permute = std::make_shared<op::v1::Transpose>(split, i64(options.permutation));
+    const auto merge_target = options.compact_targets ? concat({pinned, i64({16, 16, -1})})
+                                                      : concat({pinned, i64({16}), i64({16}), i64({-1})});
+    const auto merge = std::make_shared<op::v1::Reshape>(permute, merge_target, false);
+    std::shared_ptr<Node> merged = merge;
+    if (options.shifted) {
+        merged = std::make_shared<op::v7::Roll>(merge,
+                                                i64(std::vector<int64_t>(options.roll_axes.size(), 4)),
+                                                i64(options.roll_axes));
+    }
+    const Output<Node> rebuilt_batch = options.rebuilds_batch ? batch->output(0) : one;
+    const auto rebuild_target = options.compact_targets ? concat({rebuilt_batch, i64({256, 4})})
+                                                        : concat({rebuilt_batch, i64({256}), i64({4})});
+    const auto rebuilt = std::make_shared<op::v1::Reshape>(merged, rebuild_target, false);
+
+    ResultVector results{std::make_shared<op::v0::Result>(rebuilt)};
+    if (options.merge_shared) {
+        results.push_back(std::make_shared<op::v0::Result>(merge));
+    }
+    return std::make_shared<Model>(results, ParameterVector{x});
 }
 
 }  // namespace
@@ -105,78 +83,86 @@ protected:
     }
 };
 
-TEST_F(RestoreTracedBatchTests, PinnedLeadingDimensionTakenFromInputShape) {
-    model = make_traced_model({1, -1}, true);
-    model_ref = make_traced_model({1, -1}, true, true);
+TEST_F(RestoreTracedBatchTests, WindowReverseTakesBatchFromInputShape) {
+    WindowReverse traced;
+    WindowReverse restored;
+    restored.restored = true;
+    model = make_window_reverse_model(traced);
+    model_ref = make_window_reverse_model(restored);
 }
 
-TEST_F(RestoreTracedBatchTests, RestoredModelIsLeftAlone) {
-    model = make_traced_model({1, -1}, true, true);
+TEST_F(RestoreTracedBatchTests, ShiftedWindowReverseTakesBatchFromInputShape) {
+    WindowReverse traced;
+    traced.shifted = true;
+    WindowReverse restored = traced;
+    restored.restored = true;
+    model = make_window_reverse_model(traced);
+    model_ref = make_window_reverse_model(restored);
 }
 
-// A collapse to a leading dimension of one is indistinguishable from a traced batch by target shape alone, so only
-// the absence of a rebuilt batch keeps the transformation away from it.
-TEST_F(RestoreTracedBatchTests, CollapseThatKeepsBatchOutOfTheGraphIsLeftAlone) {
-    model = make_traced_model({1, -1}, false);
+TEST_F(RestoreTracedBatchTests, CompactConcatTargetsTakeBatchFromInputShape) {
+    WindowReverse traced;
+    traced.compact_targets = true;
+    WindowReverse restored = traced;
+    restored.restored = true;
+    model = make_window_reverse_model(traced);
+    model_ref = make_window_reverse_model(restored);
 }
 
-TEST_F(RestoreTracedBatchTests, TargetWithoutInferredDimensionIsLeftAlone) {
-    model = make_traced_model({1, 2, 2}, true);
+TEST_F(RestoreTracedBatchTests, RestoredWindowReverseIsLeftAlone) {
+    WindowReverse restored;
+    restored.restored = true;
+    model = make_window_reverse_model(restored);
 }
 
-TEST_F(RestoreTracedBatchTests, BatchIndependentSourceIsLeftAlone) {
-    model = make_traced_model({1, -1}, true, false, PartialShape{1, 4});
+TEST_F(RestoreTracedBatchTests, WindowReverseWithoutBatchFromInputShapeIsLeftAlone) {
+    WindowReverse collapsed;
+    collapsed.rebuilds_batch = false;
+    model = make_window_reverse_model(collapsed);
 }
 
-TEST_F(RestoreTracedBatchTests, CollapseNextToTracedPinIsLeftAlone) {
-    model = make_model_with_collapse(false);
-    model_ref = make_model_with_collapse(false, true);
+TEST_F(RestoreTracedBatchTests, OtherLeadingAxisPermutationTakesBatchFromInputShape) {
+    WindowReverse traced;
+    traced.permutation = {0, 2, 1, 3, 4, 5};
+    WindowReverse restored = traced;
+    restored.restored = true;
+    model = make_window_reverse_model(traced);
+    model_ref = make_window_reverse_model(restored);
 }
 
-TEST_F(RestoreTracedBatchTests, CollapseSharingTargetWithTracedPinIsLeftAlone) {
-    model = make_model_with_collapse(true);
-    model_ref = make_model_with_collapse(true, true);
+TEST_F(RestoreTracedBatchTests, PermutationMovingLeadingAxisIsLeftAlone) {
+    WindowReverse other;
+    other.permutation = {1, 0, 2, 3, 4, 5};
+    model = make_window_reverse_model(other);
 }
 
-// The later Reshape takes the batch from the input, but its data already carries the batch again.
-TEST_F(RestoreTracedBatchTests, CollapseBroadcastBackToBatchIsLeftAlone) {
-    const auto param = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 4});
-    const auto live = leading_dimension_of(param);
-    const auto inferred = op::v0::Constant::create(element::i64, Shape{1}, {-1});
-    const auto kept = std::make_shared<op::v1::Reshape>(
-        param,
-        std::make_shared<op::v0::Concat>(OutputVector{live, op::v0::Constant::create(element::i64, Shape{1}, {4})}, 0),
-        false);
-    const auto collapsed = std::make_shared<op::v1::Reshape>(
-        kept,
-        std::make_shared<op::v0::Concat>(OutputVector{op::v0::Constant::create(element::i64, Shape{1}, {1}), inferred},
-                                         0),
-        false);
-    const auto global =
-        std::make_shared<op::v1::ReduceSum>(collapsed, op::v0::Constant::create(element::i64, Shape{1}, {1}), true);
-    const auto per_batch = std::make_shared<op::v1::Add>(kept, global);
-    const auto result =
-        std::make_shared<op::v1::Reshape>(per_batch,
-                                          std::make_shared<op::v0::Concat>(OutputVector{live, inferred}, 0),
-                                          false);
-    model = std::make_shared<Model>(OutputVector{result}, ParameterVector{param});
+TEST_F(RestoreTracedBatchTests, OtherNonLeadingRollAxesTakeBatchFromInputShape) {
+    WindowReverse traced;
+    traced.shifted = true;
+    traced.roll_axes = {2, 3};
+    WindowReverse restored = traced;
+    restored.restored = true;
+    model = make_window_reverse_model(traced);
+    model_ref = make_window_reverse_model(restored);
 }
 
-TEST_F(RestoreTracedBatchTests, ModelWithoutLeadingDimensionExpressionIsLeftAlone) {
-    const auto param = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 4});
-    const auto target =
-        std::make_shared<op::v0::Concat>(OutputVector{op::v0::Constant::create(element::i64, Shape{1}, {1}),
-                                                      op::v0::Constant::create(element::i64, Shape{1}, {-1})},
-                                         0);
-    model = std::make_shared<Model>(OutputVector{std::make_shared<op::v1::Reshape>(param, target, false)},
-                                    ParameterVector{param});
+TEST_F(RestoreTracedBatchTests, RollOnLeadingAxisIsLeftAlone) {
+    WindowReverse other;
+    other.shifted = true;
+    other.roll_axes = {0, 2};
+    model = make_window_reverse_model(other);
 }
 
-TEST(SmartReshapeTests, ReshapeRestoresTracedBatch) {
-    const auto model = make_traced_model({1, -1}, true);
+TEST_F(RestoreTracedBatchTests, WindowMergeWithOtherConsumersIsLeftAlone) {
+    WindowReverse shared;
+    shared.merge_shared = true;
+    model = make_window_reverse_model(shared);
+}
 
-    model->reshape(PartialShape{2, 4});
+TEST(SmartReshapeTests, ReshapeRestoresWindowReverseBatch) {
+    const auto model = make_window_reverse_model({});
 
-    const auto pinned_reshape = model->get_results()[0]->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(0);
-    EXPECT_EQ(pinned_reshape->get_output_partial_shape(0), (PartialShape{2, 4}));
+    model->reshape(PartialShape{2, 16, 16, 4});
+
+    EXPECT_EQ(model->get_results()[0]->get_input_partial_shape(0), (PartialShape{2, 256, 4}));
 }

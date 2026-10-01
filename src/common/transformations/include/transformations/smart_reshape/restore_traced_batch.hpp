@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "openvino/pass/pattern/multi_matcher.hpp"
+#include "openvino/pass/matcher_pass.hpp"
 #include "transformations_visibility.hpp"
 
 namespace ov {
@@ -17,50 +17,42 @@ class TRANSFORMATIONS_API RestoreTracedBatch;
 
 /**
  * @ingroup ov_transformation_common_api
- * @brief Restores a Reshape target leading dimension that model tracing froze to one.
+ * @brief Restores the batch that tracing froze to one in a `window_reverse` subgraph.
  *
- * Tracing with batch one turns expressions like `int(x.shape[0])` into constants, so a Reshape keeps a leading one
- * while a `-1` absorbs the batch. When a Reshape taking the batch from the input shape follows such pins, separated
- * only by Transpose and Roll keeping the leading axis, each constant is replaced with that `Gather(ShapeOf(parameter),
- * 0)`.
+ * A traced `window_reverse` may compute its batch as `int(windows.shape[0] / (H * W / ws / ws))`, which tracing with
+ * batch one turns into a constant. Only this subgraph is matched: a leading constant one cannot be told apart from an
+ * intentional collapse in general, so the pass is not a generic batch restoration.
  *
  * ## Before
  *
- *         Parameter [B, 4]
- *                |
- *               ...          Constant(1)   Constant(-1)
- *                |                |             |
- *                |                +---Concat----+
- *                |                       |
- *             Reshape <------------------+
- *            [1, 4 * B]       (batch pinned by tracing)
- *                |
- *         Transpose / Roll    (optional, keeping axis 0)
- *                |      Gather(ShapeOf(Parameter), 0)   Constant(-1)
- *                |                    |                      |
- *                |                    +--------Concat--------+
- *                |                               |
- *             Reshape <--------------------------+
- *              [B, 4]         (batch rebuilt)
+ *           windows [B * nW, ws, ws, C]
+ *                      |
+ *     Reshape(Concat(1, H / ws, W / ws, ws, ws, -1))     (batch pinned by tracing)
+ *                      |
+ *          Transpose(axis 0 preserved)
+ *                      |
+ *          Reshape(Concat(1, H, W, -1))                  (batch pinned by tracing)
+ *                      |
+ *          Roll(non-leading axes)                        (optional, shifted windows)
+ *                      |
+ *     Reshape(Concat(Gather(ShapeOf(Parameter), 0), H * W, C))
  *
  * ## After
  *
- *         Parameter [B, 4]
- *                |
- *               ...     Gather(ShapeOf(Parameter), 0)   Constant(-1)
- *                |                    |                      |
- *                |                    +--------Concat--------+
- *                |                               |
- *             Reshape <--------------------------+
- *              [B, 4]
- *                |
- *         Transpose / Roll
- *                |
- *             Reshape
- *              [B, 4]
+ *           windows [B * nW, ws, ws, C]
+ *                      |
+ *     Reshape(Concat(Gather(ShapeOf(Parameter), 0), H / ws, W / ws, ws, ws, -1))
+ *                      |
+ *          Transpose(axis 0 preserved)
+ *                      |
+ *          Reshape(Concat(Gather(ShapeOf(Parameter), 0), H, W, -1))
+ *                      |
+ *          Roll(non-leading axes)
+ *                      |
+ *     Reshape(Concat(Gather(ShapeOf(Parameter), 0), H * W, C))
  */
-class ov::pass::RestoreTracedBatch : public ov::pass::MultiMatcher {
+class ov::pass::RestoreTracedBatch : public ov::pass::MatcherPass {
 public:
-    OPENVINO_RTTI("RestoreTracedBatch", "0", ov::pass::MultiMatcher);
+    OPENVINO_MATCHER_PASS_RTTI("RestoreTracedBatch");
     RestoreTracedBatch();
 };
