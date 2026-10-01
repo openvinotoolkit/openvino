@@ -66,7 +66,15 @@ public:
         // sdpa_ocl on the lane sdpa_ocl_selected() picks (Xe2+ XMX today; xe_hpg only with TEST_USE_SDPA_OCL_HPG=1 once the
         // kernels exist), sdpa_micro elsewhere. No fallback from one to the other: where the lane's kernel is
         // refused, the opt kernels run.
-        const bool ocl_lane = cldnn::paged_attention::sdpa_ocl_selected(params.get_device_info());
+        bool ocl_lane = cldnn::paged_attention::sdpa_ocl_selected(params.get_device_info());
+#ifdef ENABLE_ONEDNN_FOR_GPU
+        // TEMP(S9): xe_hpg only. While the SG8 kernels are being brought up, an op sdpa_ocl refuses (SDPAOclGenerator::supported(),
+        // i.e. its tier is not ready) keeps the sdpa_micro lane instead of the opt kernels, exactly as with TEST_USE_SDPA_OCL_HPG
+        // off. Remove at the default flip (docs "no cross-lane fallback").
+        if (ocl_lane && params.get_device_info().arch == gpu_arch::xe_hpg && !SDPAOclGenerator::supported(params)) {
+            ocl_lane = false;
+        }
+#endif
 #ifdef ENABLE_ONEDNN_FOR_GPU
         Stage::Ptr& dpas_single_token = ocl_lane ? ocl_single_token : micro_single_token;
         Stage::Ptr& dpas_multi_tokens = ocl_lane ? ocl_multi_tokens : micro_multi_tokens;

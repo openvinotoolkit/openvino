@@ -1620,7 +1620,10 @@ public:
             return DpasBackend::none;
         }
 
-        if (cldnn::paged_attention::sdpa_ocl_selected(info)) {
+        // TEMP(S9): xe_hpg only. An op sdpa_ocl refuses (SDPAOclGenerator::supported(), i.e. its tier is not ready) keeps
+        // the sdpa_micro lane below instead of the opt kernels, exactly as with TEST_USE_SDPA_OCL_HPG off. Remove at the
+        // default flip (docs "no cross-lane fallback"). The per-dispatch gate can_use_micro_sdpa_for() is not touched.
+        if (cldnn::paged_attention::sdpa_ocl_selected(info) && (info.arch != gpu_arch::xe_hpg || SDPAOclGenerator::supported(params))) {
             if (!SDPAOclGenerator::supported(params)) {
                 return DpasBackend::none;
             }
