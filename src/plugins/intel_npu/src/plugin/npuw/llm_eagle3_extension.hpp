@@ -234,7 +234,6 @@ private:
     uint32_t m_chunked_seq_offset = 0;
     SamplingResult m_pending_sampling_result;               ///< Pending sampling result from previous inference
     std::shared_ptr<Eagle3SamplingState> m_sampling_state;  ///< VariableState for external pipeline communication
-    ov::SoPtr<ov::ITensor> m_hidden_states;  ///< Draft model input: hidden_states
 };
 
 }  // namespace npuw
