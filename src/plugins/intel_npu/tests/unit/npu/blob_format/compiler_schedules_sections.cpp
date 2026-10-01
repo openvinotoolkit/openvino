@@ -110,13 +110,115 @@ TEST_F(ELFMainScheduleSectionTest, WorkingDecryption) {
     }
 }
 
-// TEST_F(ELFMainScheduleSectionTest, Read) {
-//     ov::Tensor tensor(ov::element::u8, ov::Shape{sizeof(batch_size)}, &batch_size);
-//     BlobSource source(tensor);
-//     BlobReaderInterface reader(source, 0, sizeof(batch_size), 0, sizeof(batch_size));
+TEST_F(ELFMainScheduleSectionTest, ReadingATooSmallSection) {
+    const std::string section_content = "0";
 
-//     auto read_section = BatchSizeSection::read(reader);
-//     auto casted_section = std::dynamic_pointer_cast<BatchSizeSection>(read_section);
-//     ASSERT_TRUE(casted_section);
-//     EXPECT_EQ(casted_section->get_batch_size(), batch_size);
-// }
+    ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
+    BlobSource source(tensor);
+    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size());
+    OV_EXPECT_THROW(ELFMainScheduleSection::read(reader), ov::Exception, _);
+
+    std::istringstream stream(section_content);
+    source = BlobSource(stream);
+    reader = BlobReaderInterface(source, 0, section_content.size(), 0, section_content.size());
+    OV_EXPECT_THROW(ELFMainScheduleSection::read(reader), ov::Exception, _);
+}
+
+TEST_F(ELFMainScheduleSectionTest, ReadPaddingTooBig) {
+    const std::string section_content = "\x00\x06"
+                                        "dummy";
+
+    ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
+    BlobSource source(tensor);
+    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size());
+    OV_EXPECT_THROW(ELFMainScheduleSection::read(reader), ov::Exception, _);
+
+    std::istringstream stream(section_content);
+    source = BlobSource(stream);
+    reader = BlobReaderInterface(source, 0, section_content.size(), 0, section_content.size());
+    OV_EXPECT_THROW(ELFMainScheduleSection::read(reader), ov::Exception, _);
+}
+
+class ELFMainScheduleSectionReadTest : public testing::TestWithParam<std::tuple<size_t, bool, bool>> {
+public:
+    ELFMainScheduleSectionReadTest() : source(stream), reader(source, 0, 0, 0, 0) {}
+
+    static std::string getTestCaseName(const testing::TestParamInfo<std::tuple<size_t, bool, bool>>& obj) {
+        size_t padding_size;
+        bool tensor_source;
+        bool empty_schedule;
+        std::tie(padding_size, tensor_source, empty_schedule) = obj.param;
+
+        return std::to_string(padding_size) + "_" + (tensor_source ? "tensor" : "stream") + "_" +
+               (empty_schedule ? "empty" : "not_empty");
+    }
+
+protected:
+    void SetUp() override {
+        uint16_t padding_size;
+        bool empty_schedule;
+        std::tie(padding_size, is_tensor_source, empty_schedule) = GetParam();
+
+        section_content = std::string(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
+        section_content += std::string(padding_size, 0);
+        after_padding_offset = section_content.size();
+        if (!empty_schedule) {
+            section_content += "dummy";
+        }
+
+        if (is_tensor_source) {
+            tensor = ov::Tensor(ov::element::Type_t::u8, {section_content.size()}, section_content.data());
+            source = BlobSource(tensor);
+        } else {
+            stream = std::istringstream(section_content);
+            source = BlobSource(stream);
+        }
+
+        const auto options = std::make_shared<OptionsDesc>();
+        FilteredConfig empty_config(options);
+        reader = BlobReaderInterface(source, 0, section_content.size(), 0, section_content.size(), empty_config);
+    }
+
+    bool is_tensor_source;
+    std::string section_content;
+    size_t after_padding_offset;
+    ov::Tensor tensor;
+    std::istringstream stream;
+    BlobSource source;
+    BlobReaderInterface reader;
+};
+
+TEST_P(ELFMainScheduleSectionReadTest, SuccessfulRead) {
+    auto read_section = ELFMainScheduleSection::read(reader);
+    auto casted_section = std::dynamic_pointer_cast<ELFMainScheduleSection>(read_section);
+    ASSERT_TRUE(casted_section);
+
+    // Check that the cursor was left at the end of the section. This may be an indicator that the whole section has
+    // been read.
+    ASSERT_EQ(reader.get_offset_relative_to_current_section(), section_content.size());
+
+    const std::string parsed_content(casted_section->get_schedule().data<char>(),
+                                     casted_section->get_schedule().get_byte_size());
+    // The padding should be skipped by the parser
+    ASSERT_EQ(parsed_content, std::string(section_content.begin() + after_padding_offset, section_content.end()));
+
+    if (is_tensor_source) {
+        // The parsed content should point towards the original buffer (past the padding region). This implies no copies
+        // have been performed, and page aligment has been preserved.
+        ASSERT_EQ(casted_section->get_schedule().data(), section_content.data() + after_padding_offset);
+    } else {
+        // Stream case: a page aligned buffer should have been allocated for the parsed content
+        ASSERT_EQ(reinterpret_cast<size_t>(casted_section->get_schedule().data()) % utils::STANDARD_PAGE_SIZE, 0);
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(UnitTests,
+                         ELFMainScheduleSectionReadTest,
+                         testing::Combine(testing::ValuesIn(std::vector<size_t>{0,
+                                                                                1,
+                                                                                utils::STANDARD_PAGE_SIZE - 1,
+                                                                                utils::STANDARD_PAGE_SIZE,
+                                                                                utils::STANDARD_PAGE_SIZE + 1}),
+                                          testing::ValuesIn(std::vector<bool>{true, false}),
+                                          testing::ValuesIn(std::vector<bool>{true, false})),
+                         ELFMainScheduleSectionReadTest::getTestCaseName);

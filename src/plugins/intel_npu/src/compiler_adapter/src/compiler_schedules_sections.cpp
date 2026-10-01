@@ -143,22 +143,26 @@ std::shared_ptr<ISection> ELFMainScheduleSection::read(BlobReaderInterface& blob
     logger.debug("Skipped %lu padding from offset %lu", padding_size, blob_reader.get_offset_relative_to_npu_region());
 
     const size_t main_schedule_size = blob_reader.get_remaining_section_size();
+    std::shared_ptr<ELFMainScheduleSection> section;
 
     if (!blob_reader.source_is_contiguous()) {
         ov::Tensor main_schedule = utils::allocate_aligned_tensor(main_schedule_size);
         blob_reader.read_into_buffer(main_schedule.data(), main_schedule_size);
 
         logger.info(NEW_PAGE_ALIGNED_BUFFER_MESSAGE.data(), main_schedule_size);
-        return std::make_shared<ELFMainScheduleSection>(std::move(main_schedule),
-                                                        get_encryption_callback_from_config(blob_reader.get_config()),
-                                                        logger.level());
+        section =
+            std::make_shared<ELFMainScheduleSection>(std::move(main_schedule),
+                                                     get_encryption_callback_from_config(blob_reader.get_config()),
+                                                     logger.level());
+    } else {
+        section =
+            std::make_shared<ELFMainScheduleSection>(blob_reader.create_roi_tensor(main_schedule_size),
+                                                     get_encryption_callback_from_config(blob_reader.get_config()),
+                                                     logger.level());
     }
 
     OPENVINO_ASSERT(blob_reader.get_remaining_section_size() == 0, "Failed to read the whole content of the section");
-
-    return std::make_shared<ELFMainScheduleSection>(blob_reader.create_roi_tensor(main_schedule_size),
-                                                    get_encryption_callback_from_config(blob_reader.get_config()),
-                                                    logger.level());
+    return section;
 }
 
 std::optional<std::string> ELFMainScheduleSection::get_individual_compatibility_requirements() const {

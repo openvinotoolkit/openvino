@@ -13,7 +13,7 @@
 
 using namespace intel_npu;
 
-class BatchSizeSectionUnitTests : public ::testing::Test {
+class BatchSizeSectionTest : public ::testing::Test {
 protected:
     void SetUp() override {
         batch_size = 0xDEADBEEF;
@@ -26,12 +26,12 @@ protected:
     std::stringstream stream;
 };
 
-TEST_F(BatchSizeSectionUnitTests, CtorSetsTheRightValue) {
+TEST_F(BatchSizeSectionTest, CtorSetsTheRightValue) {
     ASSERT_EQ(section->get_type(), SectionType(SectionTypeCode::BATCH_SIZE));
     ASSERT_EQ(section->get_batch_size(), batch_size);
 }
 
-TEST_F(BatchSizeSectionUnitTests, CompatibilityReqsSubexpression) {
+TEST_F(BatchSizeSectionTest, CompatibilityReqsSubexpression) {
     const std::vector<std::shared_ptr<CREToken>> requirements =
         section->get_compatibility_requirements_subexpression({});
     ASSERT_EQ(requirements.size(), 1);
@@ -40,11 +40,11 @@ TEST_F(BatchSizeSectionUnitTests, CompatibilityReqsSubexpression) {
               SectionType(SectionTypeCode::BATCH_SIZE));
 }
 
-TEST_F(BatchSizeSectionUnitTests, NullIndividualReqs) {
+TEST_F(BatchSizeSectionTest, NullIndividualReqs) {
     ASSERT_FALSE(section->get_individual_compatibility_requirements().has_value());
 }
 
-TEST_F(BatchSizeSectionUnitTests, Write) {
+TEST_F(BatchSizeSectionTest, Write) {
     BlobWriterInterface writer = ov::unit_test::intel_npu::create_default_writer_interface(stream);
     section->write(writer);
 
@@ -55,7 +55,7 @@ TEST_F(BatchSizeSectionUnitTests, Write) {
     EXPECT_EQ(parsed_batch_size, batch_size);
 }
 
-TEST_F(BatchSizeSectionUnitTests, Read) {
+TEST_F(BatchSizeSectionTest, Read) {
     ov::Tensor tensor(ov::element::u8, ov::Shape{sizeof(batch_size)}, &batch_size);
     BlobSource source(tensor);
     BlobReaderInterface reader(source, 0, sizeof(batch_size), 0, sizeof(batch_size));
@@ -66,7 +66,7 @@ TEST_F(BatchSizeSectionUnitTests, Read) {
     EXPECT_EQ(casted_section->get_batch_size(), batch_size);
 }
 
-TEST_F(BatchSizeSectionUnitTests, WriteRead) {
+TEST_F(BatchSizeSectionTest, WriteRead) {
     BlobWriterInterface writer = ov::unit_test::intel_npu::create_default_writer_interface(stream);
     section->write(writer);
 
@@ -81,7 +81,7 @@ TEST_F(BatchSizeSectionUnitTests, WriteRead) {
     EXPECT_EQ(casted_section->get_batch_size(), batch_size);
 }
 
-TEST_F(BatchSizeSectionUnitTests, InvalidSectionLength) {
+TEST_F(BatchSizeSectionTest, InvalidSectionLength) {
     std::vector<uint8_t> dummy(0xFFFF, 0xFF);
     ov::Tensor tensor(ov::element::u8, ov::Shape{dummy.size()}, const_cast<uint8_t*>(dummy.data()));
     BlobSource source(tensor);
