@@ -362,7 +362,10 @@
 
 // SG8 tripwires: each is a spot that compiles on SG8 but is silently wrong there; the named plan step resolves it.
 #if SUBGROUP_SIZE != 16
-#  error "sdpa_ocl.cl SG8: the DPAS A operand and the S_slm pA read are short8 (lane == key or head dim); SG8 needs int8, 2 halves per lane (plan S6a)"
+// -DSDPA_OCL_SG8_ARM_READY lifts this one (offline compiles, to see what DG2 does with the SG16 operands); the rest stay.
+#  if !defined(SDPA_OCL_SG8_ARM_READY)
+#    error "sdpa_ocl.cl SG8: the DPAS A operand and the S_slm pA read are short8 (lane == key or head dim); SG8 needs int8, 2 halves per lane (plan S6a)"
+#  endif
 #  if USE_2D_BLOCK_IO_Q || USE_2D_BLOCK_IO_KV || USE_2D_BLOCK_IO_A || USE_2D_BLOCK_IO_K_I8 || USE_2D_BLOCK_IO_V_I8 || \
       USE_2D_BLOCK_IO_K_PA || USE_2D_BLOCK_IO_V_PA || USE_2D_BLOCK_IO_K_PA_I8 || USE_2D_BLOCK_IO_V_PA_I8
 #    error "sdpa_ocl.cl SG8: 2D block IO needs a 16-wide subgroup; the host must force every USE_2D_BLOCK_IO_* to 0 (plan S5)"
