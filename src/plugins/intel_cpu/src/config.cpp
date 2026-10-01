@@ -193,17 +193,6 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                             ov::intel_cpu::sparse_weights_decompression_rate.name(),
                             ". Sparse rate must be in range [0.0f,1.0f]");
             fcSparseWeiDecompressionRate = val_f;
-        } else if (key == ov::intel_cpu::multi_app_thread_sync_execution.name()) {
-            try {
-                multiAppThreadSyncExecution = val.as<bool>();
-                streamExecutorConfig.set_inline_mode(multiAppThreadSyncExecution);
-            } catch (ov::Exception&) {
-                OPENVINO_THROW("Wrong value ",
-                               val.as<std::string>(),
-                               " for property key ",
-                               ov::intel_cpu::multi_app_thread_sync_execution.name(),
-                               ". Expected only true/false");
-            }
         } else if (key == ov::intel_cpu::tbb_partitioner.name()) {
             try {
                 tbbPartitioner = val.as<ov::intel_cpu::TbbPartitioner>();
@@ -213,6 +202,16 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
                                "for property key ",
                                ov::intel_cpu::tbb_partitioner.name(),
                                ". Expected only ov::intel_cpu::TbbPartitioner::STATIC/AUTO");
+            }
+        } else if (key == ov::intel_cpu::multi_app_thread_sync_execution.name()) {
+            try {
+                multiAppThreadSyncExecution = val.as<bool>();
+            } catch (ov::Exception&) {
+                OPENVINO_THROW("Wrong value ",
+                               val.as<std::string>(),
+                               "for property key ",
+                               ov::intel_cpu::multi_app_thread_sync_execution.name(),
+                               ". Expected only true/false.");
             }
         } else if (key == ov::hint::dynamic_quantization_group_size.name()) {
             try {
@@ -592,6 +591,20 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
     updateProperties();
 }
 
+void Config::normalizeMultiAppThreadSyncExecution() {
+    runSyncInferInCallerThread = multiAppThreadSyncExecution;
+
+    if (exclusiveAsyncRequests) {
+        // Exclusive async requests mux all work through the shared async executor, so caller-thread execution is not
+        // supported for synchronous infer() in this mode.
+        runSyncInferInCallerThread = false;
+    } else if (numSubStreams > 0) {
+        // Sub-stream inference spawns subordinate requests and waits on their async execution, so the synchronous
+        // caller-thread path is unsupported and must be disabled after stream calculation.
+        runSyncInferInCallerThread = false;
+    }
+}
+
 void Config::updateProperties() {
     if (!_config.empty()) {
         return;
@@ -601,11 +614,6 @@ void Config::updateProperties() {
         _config.insert({ov::enable_profiling.name(), "YES"});
     } else {
         _config.insert({ov::enable_profiling.name(), "NO"});
-    }
-    if (multiAppThreadSyncExecution) {
-        _config.insert({ov::intel_cpu::multi_app_thread_sync_execution.name(), "YES"});
-    } else {
-        _config.insert({ov::intel_cpu::multi_app_thread_sync_execution.name(), "NO"});
     }
     if (exclusiveAsyncRequests) {
         _config.insert({ov::internal::exclusive_async_requests.name(), "YES"});

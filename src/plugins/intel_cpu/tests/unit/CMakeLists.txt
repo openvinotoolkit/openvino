@@ -38,7 +38,6 @@ ov_add_test_target(
                 $<TARGET_PROPERTY:openvino::reference,SOURCE_DIR>/include
             PRIVATE
                 $<TARGET_PROPERTY:openvino::snippets,SOURCE_DIR>/include
-                $<TARGET_PROPERTY:openvino::snippets,SOURCE_DIR>/tests/include
         OBJECT_FILES
             ${OBJ_LIB}
         LINK_LIBRARIES

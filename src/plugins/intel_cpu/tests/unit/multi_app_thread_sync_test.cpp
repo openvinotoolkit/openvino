@@ -42,23 +42,28 @@ TEST(MultiAppThreadSyncTest, ReadPropertiesInvalidValueThrows) {
         ov::Exception);
 }
 
-TEST(MultiAppThreadSyncTest, UpdatePropertiesTrueWritesYes) {
+TEST(MultiAppThreadSyncTest, EffectiveValueFollowsRequestedValue) {
+    Config config;
+    config.readProperties({{ov::intel_cpu::multi_app_thread_sync_execution.name(), true}});
+    config.normalizeMultiAppThreadSyncExecution();
+    ASSERT_TRUE(config.runSyncInferInCallerThread);
+}
+
+TEST(MultiAppThreadSyncTest, EffectiveValueIsFalseWhenNotRequested) {
+    Config config;
+    config.normalizeMultiAppThreadSyncExecution();
+    ASSERT_FALSE(config.runSyncInferInCallerThread);
+}
+
+TEST(MultiAppThreadSyncTest, LegacyConfigMapDoesNotShadowEffectiveValue) {
+    // The compiled model resolves this property through an explicit handler that reports the
+    // normalized value, so the legacy _config map must not carry a stale requested value.
     Config config;
     config.readProperties({{ov::intel_cpu::multi_app_thread_sync_execution.name(), true}});
     config.updateProperties();
 
-    auto it = config._config.find(ov::intel_cpu::multi_app_thread_sync_execution.name());
-    ASSERT_NE(it, config._config.end());
-    ASSERT_EQ(it->second, "YES");
-}
-
-TEST(MultiAppThreadSyncTest, UpdatePropertiesFalseWritesNo) {
-    Config config;
-    config.updateProperties();
-
-    auto it = config._config.find(ov::intel_cpu::multi_app_thread_sync_execution.name());
-    ASSERT_NE(it, config._config.end());
-    ASSERT_EQ(it->second, "NO");
+    ASSERT_EQ(config._config.find(ov::intel_cpu::multi_app_thread_sync_execution.name()),
+              config._config.end());
 }
 
 }  // namespace

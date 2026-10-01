@@ -13,6 +13,7 @@
 #include "openvino/runtime/compiled_model.hpp"
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/intel_cpu/properties.hpp"
+#include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/system_conf.hpp"
 #include "utils/properties_test.hpp"
 
@@ -57,8 +58,7 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkSupportedPropertiesAreAvailable
         RO_property(ov::value_cache_precision.name()),
         RO_property(ov::key_cache_group_size.name()),
         RO_property(ov::value_cache_group_size.name()),
-        RO_property(ov::runtime_requirements.name())
-    };
+        RO_property(ov::runtime_requirements.name())};
 
     ov::Core ie;
     std::vector<ov::PropertyName> supportedProperties;
@@ -169,6 +169,54 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckModelZeroStreams) {
     OV_ASSERT_NO_THROW(value = compiledModel.get_property(ov::num_streams));
 
     ASSERT_EQ(streams, value);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckMultiAppThreadSyncExecutionWithZeroStreams) {
+    ov::Core ie;
+    ov::CompiledModel compiledModel;
+    bool value = false;
+    ov::AnyMap config = {ov::num_streams(0), ov::intel_cpu::multi_app_thread_sync_execution(true)};
+
+    OV_ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName, config));
+    OV_ASSERT_NO_THROW(value = compiledModel.get_property(ov::intel_cpu::multi_app_thread_sync_execution));
+
+    ASSERT_TRUE(value);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckExclusiveAsyncDisablesMultiAppThreadSyncExecution) {
+    ov::Core ie;
+    ov::CompiledModel compiledModel;
+    bool value = true;
+    ov::AnyMap config = {ov::num_streams(4),
+                         ov::internal::exclusive_async_requests(true),
+                         ov::intel_cpu::multi_app_thread_sync_execution(true)};
+
+    OV_ASSERT_NO_THROW(compiledModel = ie.compile_model(model, deviceName, config));
+    OV_ASSERT_NO_THROW(value = compiledModel.get_property(ov::intel_cpu::multi_app_thread_sync_execution));
+
+    ASSERT_FALSE(value);
+}
+
+TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckTensorParallelDisablesMultiAppThreadSyncExecution) {
+    ov::Core ie;
+    std::shared_ptr<ov::Model> tensorParallelModel = ov::test::utils::make_matmul_bias();
+    std::set<ov::hint::ModelDistributionPolicy> modelDistributionPolicy = {
+        ov::hint::ModelDistributionPolicy::TENSOR_PARALLEL};
+    ov::CompiledModel compiledModel;
+    bool value = true;
+    bool enableTensorParallel = false;
+    ov::AnyMap config = {{ov::hint::model_distribution_policy.name(), modelDistributionPolicy},
+                         {ov::intel_cpu::enable_tensor_parallel.name(), true},
+                         {ov::num_streams.name(), 1},
+                         {ov::inference_num_threads.name(), 1},
+                         {ov::intel_cpu::multi_app_thread_sync_execution.name(), true}};
+
+    OV_ASSERT_NO_THROW(compiledModel = ie.compile_model(tensorParallelModel, deviceName, config));
+    OV_ASSERT_NO_THROW(value = compiledModel.get_property(ov::intel_cpu::multi_app_thread_sync_execution));
+    OV_ASSERT_NO_THROW(enableTensorParallel = compiledModel.get_property(ov::intel_cpu::enable_tensor_parallel));
+
+    ASSERT_TRUE(enableTensorParallel);
+    ASSERT_FALSE(value);
 }
 
 TEST_F(OVClassConfigTestCPU, smoke_CpuExecNetworkCheckCpuReservation) {
@@ -539,7 +587,8 @@ TEST_F(OVClassConfigTestCPU, smoke_CpuModelDistributionPolicyTensorParallel) {
 
     std::set<ov::hint::ModelDistributionPolicy> model_distribution_policy_value = {};
     bool enable_tensor_parallel = false;
-    OV_ASSERT_NO_THROW(model_distribution_policy_value = compiledModel.get_property(ov::hint::model_distribution_policy));
+    OV_ASSERT_NO_THROW(model_distribution_policy_value =
+                           compiledModel.get_property(ov::hint::model_distribution_policy));
     OV_ASSERT_NO_THROW(enable_tensor_parallel = compiledModel.get_property(ov::intel_cpu::enable_tensor_parallel));
     ASSERT_EQ(model_distribution_policy_value, setModels);
     ASSERT_EQ(enable_tensor_parallel, true);

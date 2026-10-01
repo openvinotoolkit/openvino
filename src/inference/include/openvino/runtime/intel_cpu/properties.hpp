@@ -67,7 +67,7 @@ inline std::istream& operator>>(std::istream& is, TbbPartitioner& tbb_partitione
 
 /**
  * @brief This property defines the type of TBB partitioner in parallel.
- * @ingroup ov_runtime_cpp_prop_api
+ * @ingroup ov_runtime_cpu_prop_cpp_api
  *
  * Developer can use this property to select the type of TBB partitioner.
  *

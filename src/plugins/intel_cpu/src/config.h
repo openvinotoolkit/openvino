@@ -54,6 +54,7 @@ struct Config {
 
     bool collectPerfCounters = false;
     bool exclusiveAsyncRequests = false;
+    bool runSyncInferInCallerThread = false;
     SnippetsMode snippetsMode = SnippetsMode::Enable;
     std::string dumpToDot;
     std::string device_id;
@@ -135,6 +136,8 @@ struct Config {
     bool DAZOn = false;
 
     void readProperties(const ov::AnyMap& prop, ModelType modelType = ModelType::Unknown);
+
+    void normalizeMultiAppThreadSyncExecution();
 
     void updateProperties();
 
