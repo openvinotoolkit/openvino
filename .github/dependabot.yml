@@ -46,6 +46,10 @@ updates:
       pip-python-api:
         patterns:
           - "*"
+        # exclude packages that usually need a dedicated PR
+        exclude-patterns:
+          - "onnx"
+          - "paddlepaddle"
 
   # Tests
   - package-ecosystem: pip
