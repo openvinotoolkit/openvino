@@ -249,6 +249,9 @@ public:
             auto output = c.modality == "vision" ? vision(c) : audio(c);
             g.set_output(output, c.modality + ".embeddings");
         }
+        // Muse Glimmer windows match the square learned position grid.
+        const auto positions = g.tensors()("v.position_embd.weight");
+        const auto window_size = positions ? int64_t(std::sqrt(double(positions.ne(1)))) : 0;
         auto graph = g.finish();
         const auto number = [](auto value) {
             std::ostringstream stream;
@@ -289,7 +292,7 @@ public:
             graph->mmproj_config[c.modality + ".projector"] = c.projector;
             graph->mmproj_config[c.modality + ".merge"] = std::to_string(c.merge);
             if (c.topology == EncoderTopology::MuseGlimmer)
-                graph->mmproj_config["vision.window_size"] = std::to_string(vision_window_size);
+                graph->mmproj_config["vision.window_size"] = std::to_string(window_size);
             if (c.topology == EncoderTopology::Resampler) {
                 graph->mmproj_config["vision.minicpmv_version"] = std::to_string(c.version);
                 graph->mmproj_config["vision.query_count"] = std::to_string(c.queries);
@@ -306,7 +309,6 @@ private:
     GgufValue default_clip_min, default_clip_max;
     // Set once per encoder in build(); the Gemma4 families clamp every linear's input and output.
     bool clippable = false;
-    int64_t vision_window_size = 0;
 
     GgufValue reshape(const GgufValue& x, std::vector<int64_t> shape, bool special_zero = false) {
         return g.node("GGML_OP_RESHAPE",
@@ -802,7 +804,6 @@ private:
         auto spatial = convolution(pixels, "v.patch_embd.weight", c.patch);
         auto x = patch_embeddings(spatial, c.width);
         auto table = g.tensors().require("v.position_embd.weight");
-        vision_window_size = int64_t(std::sqrt(double(table.ne(1))));
         table = resize_square_table(table, spatial, c.width, 1, "Muse Glimmer");
         x = add(x, reshape(transpose(table, {0, 2, 3, 1}), {1, 1, -1, c.width}));
         x = gather_rows(x, "patch_indices");
