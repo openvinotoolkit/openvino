@@ -99,10 +99,10 @@ Source — `MATCHER_SCOPE`, pattern, callback, registration:
 #include "openvino/pass/pattern/op/pattern.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 
-using namespace ov::pass::pattern;
-
 ov::pass::MyFusion::MyFusion() {
     MATCHER_SCOPE(MyFusion);   // defines `matcher_name`, enables conditional compilation
+
+    using namespace ov::pass::pattern;
 
     auto weights_m = any_input(type_matches(element::i8));
     auto conv_m    = wrap_type<ov::op::v1::Convolution>({any_input(), weights_m});
@@ -110,6 +110,9 @@ ov::pass::MyFusion::MyFusion() {
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
         const auto conv = pattern_map.at(conv_m).get_node_shared_ptr();
+        if (transformation_callback(conv)) {
+            return false;
+        }
         // ... build the replacement
         return true;
     };
@@ -132,7 +135,7 @@ A few mechanics are worth remembering:
 
 ## Pattern matching
 
-**Every condition that decides whether the pass applies must be expressed in the pattern** — operation type, rank, shape, element type, attribute values, whether an input has to be a `Constant`, whether a shape has to be static. The callback is responsible only for *building the replacement*.
+**Every condition that decides whether the pass applies should be expressed in the pattern whenever possible** — operation type, rank, shape, element type, attribute values, whether an input has to be a `Constant`, whether a shape has to be static. Sometimes a condition cannot be expressed in the pattern; only in those cases callback-based checks are applicable. The callback is otherwise responsible only for *building the replacement*.
 
 Conditions in the pattern are self-documenting, composable, enforced by the matcher (so the callback needs no defensive code), and — crucially — visible in [matcher logs](./debug_capabilities/matcher_logging.md), which turns "why didn't my pass fire?" into a log-reading exercise instead of a debugging session.
 
@@ -231,6 +234,14 @@ ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
 };
 ```
 
+**Important note:** symbolic predicates usage require symbols to have been propagated through the model first. Ensure `SymbolicOptimizations(false)` runs before the pass that uses symbols:
+
+```cpp
+ov::pass::Manager manager;
+manager.register_pass<ov::pass::SymbolicOptimizations>(false);
+manager.register_pass<MyPass>();
+```
+
 Ellipsis notation (`"Batches..., M, N"`) matches a variable number of leading dimensions and lets the same name be reused across several pattern inputs to require equality.
 
 For dynamic shapes, `ov::symbol::util::dims_are_equal` compares dimensions that are equal by symbol — this often removes the need for a static-shape restriction.
@@ -300,12 +311,11 @@ This also simplifies the matcher: build the node unconditionally, fold it, and u
 | Eliminate a node, reconnecting consumers to its input | `ov::replace_output_update_name(old_out, new_out)` |
 | Replace a node by a new one | `ov::replace_node(old_node, new_node)` |
 | Rebuild a node with different inputs | `node->clone_with_new_inputs({...})` |
-| Insert a node after an existing one | build `new_node` on top of `node->clone_with_new_inputs(node->input_values())`, then `ov::replace_node(node, new_node)` |
 | Rewire a single input edge | `node->input(i).replace_source_output(new_out)` |
 
 Prefer `replace_node` with a cloned node over a sequence of `replace_source_output` calls: the latter is easy to get partially wrong and loses the original node's identity. Note that `replace_node` requires both nodes to have the same number of output ports and throws otherwise.
 
-`replace_output_update_name` copies the runtime info of the eliminated node onto the replacement, and keeps the friendly name when the output feeds a `Result`. It refuses the replacement and returns `false` when a tensor name would be lost, so check the return value instead of assuming the node is gone.
+`replace_output_update_name` copies the runtime info of the eliminated node onto the replacement and keeps its friendly name when the output feeds a `Result`. It returns `false` when that Result-facing name cannot be preserved safely: if either node has multiple outputs, the replacement is a `Parameter`, or the replacement already has a `Result` consumer. Check the return value instead of assuming the node is gone.
 
 A node that is about to be removed or whose output semantics change must not be shared: verify its consumer count — preferably in the pattern, with `consumers_count(1)` — before rewriting it, otherwise the other consumers silently get different values. Rewiring a single input edge of the match root is the opposite case and needs no such guard: the other consumers of the producer are untouched.
 
@@ -325,6 +335,7 @@ new_node->set_friendly_name(old_node->get_friendly_name());
 When a pass performs several independent fusions or decompositions, call `copy_runtime_info` once per fusion — not once for all created nodes.
 
 `copy_runtime_info` overwrites destination attributes whose keys are also present in the sources. To let the destination's own attributes participate in the merge instead of being overwritten, list the destination among the sources: `copy_runtime_info({a, b, c}, {a, b})`.
+This merge applies only to `ov::RuntimeAttribute` values: keys with multiple non-attribute values or an empty `merge()` result are dropped, and `assign_runtime_info` preserves only the destination's `opset` key.
 
 When a subgraph is replaced by another subgraph, the original friendly name goes to the **last** node of the replacement.
 
@@ -336,7 +347,7 @@ Folding in place, shown in [Compute constants with OV ops](#compute-constants-wi
 
 ### Let the framework clean up
 
-Dead consumers left behind by a rewrite are removed by the next `Validate` run. Add manual clean-up code only in case of strong justification.
+Dead nodes made unreachable by a rewrite fall out of model traversal automatically. Add manual clean-up code only in case of strong justification.
 
 If a pass changes shapes or element types, make sure a `Validate` pass runs after it: shapes and types are not revalidated automatically, and the following passes would otherwise observe stale ones. `ov::pass::Manager` inserts `Validate` after every registered pass while per-pass validation is enabled; pipelines that call `set_per_pass_validation(false)` must register it explicitly.
 
@@ -415,7 +426,7 @@ If an existing utility is insufficient, extend it — do not fork it. Duplicated
 - Do **not** put matching conditions in the callback when a predicate can express them
 - Do **not** write a custom predicate lambda before checking the [predicate reference](#predicate-reference)
 - Do **not** hand-roll `Or` chains where `optional<>` or `operator|` applies
-- Do **not** re-check what the matcher guarantees (mandatory nodes existance, input-count checks, duplicated shape checks)
+- Do **not** re-check what the matcher guarantees (mandatory nodes existence, input-count checks, duplicated shape checks)
 - Do **not** `return false` on a broken invariant — assert
 - Do **not** traverse the graph manually in a callback or a plugin pipeline when a pattern or `visit_path` fits
 - Do **not** modify nodes that come after the match root in topological order from a `MatcherPass` callback — use a `ModelPass`
@@ -423,7 +434,6 @@ If an existing utility is insufficient, extend it — do not fork it. Duplicated
 - Do **not** target an older opset unless the pass is a downgrade transformation
 - Do **not** create a node without `copy_runtime_info`, or drop friendly names
 - Do **not** clean up dead nodes manually without a strong justification — `Validate` does it
-- Do **not** gate a transformation on a proxy signal without strong justification (ops count, neighboring node name)
 - Do **not** add a restriction (consumer count, per-tensor, const-only, static-shape-only) without reason
 - Do **not** duplicate a device-agnostic pass per plugin — parameterize one common pass
 - Do **not** grow a pass with variant branches — split into matchers under a `GraphRewrite`
