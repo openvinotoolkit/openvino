@@ -489,6 +489,18 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
 
     if (batchable_recurrent) {
         const auto& states = model->get_rt_info().at(gguf_recurrent_states_key()).as<std::vector<std::string>>();
+        // Left-padding must not seed the causal convolution with padding embeddings. The
+        // Slice -> Unsqueeze -> Convert order matches the gate EliminateConvPaddingMaskGating
+        // removes for packed PagedAttention sequences.
+        auto current_mask = make_shared<v8::Slice>(attention_mask, past_len, kv_len, one_1, one_1);
+        auto recurrent_mask =
+            make_shared<v0::Convert>(make_shared<v0::Unsqueeze>(current_mask, one_1), ov::element::f32);
+        const auto feeds_convolution = [](const ov::Node& node) {
+            const auto targets = node.output(0).get_target_inputs();
+            return std::any_of(targets.begin(), targets.end(), [](const ov::Input<ov::Node>& target) {
+                return ov::is_type<v1::GroupConvolution>(target.get_node()) && target.get_index() == 0;
+            });
+        };
         for (const auto& node : model->get_ops()) {
             const auto read = ov::as_type_ptr<v6::ReadValue>(node);
             if (!read || std::find(states.begin(), states.end(), read->get_variable_id()) == states.end())
@@ -505,24 +517,13 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
             read->get_variable()->update(info);
             const auto consumers = read->output(0).get_target_inputs();
             auto reordered = make_shared<v8::Gather>(read, beam_idx, v0::Constant::create(ov::element::i64, {}, {0}));
-            for (auto consumer : consumers)
+            for (auto consumer : consumers) {
                 consumer.replace_source_output(reordered);
-        }
-        // Left-padding must not seed the causal convolution with padding embeddings. The
-        // Slice -> Unsqueeze -> Convert order matches the gate EliminateConvPaddingMaskGating
-        // removes for packed PagedAttention sequences.
-        auto current_mask = make_shared<v8::Slice>(attention_mask, past_len, kv_len, one_1, one_1);
-        auto recurrent_mask =
-            make_shared<v0::Convert>(make_shared<v0::Unsqueeze>(current_mask, one_1), ov::element::f32);
-        for (const auto& node : model->get_ops()) {
-            auto convolution = ov::as_type_ptr<v1::GroupConvolution>(node);
-            if (!convolution)
-                continue;
-            auto window = ov::as_type_ptr<v0::Concat>(convolution->get_input_node_shared_ptr(0));
-            if (window && window->get_input_size() == 2 &&
-                ov::is_type<v8::Gather>(window->get_input_node_shared_ptr(0))) {
-                window->input(1).replace_source_output(
-                    make_shared<v1::Multiply>(window->input_value(1), recurrent_mask));
+                // A causal convolution window: [reordered state | current tokens].
+                auto* window = ov::as_type<v0::Concat>(consumer.get_node());
+                if (window && consumer.get_index() == 0 && window->get_input_size() == 2 && feeds_convolution(*window))
+                    window->input(1).replace_source_output(
+                        make_shared<v1::Multiply>(window->input_value(1), recurrent_mask));
             }
         }
     }
