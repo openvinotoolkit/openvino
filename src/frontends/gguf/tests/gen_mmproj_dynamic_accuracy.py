@@ -1,10 +1,11 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""CPU oracle fixtures for mmproj families paired with registered language backbones.
+"""CPU oracle fixtures for GGUFMMProjDynamicAccuracy: each family runs on two input sizes.
 
-Reference: llama.cpp 16fb7d9d326a3fe69a331ce5fbe7a679a1a281bb.
-Use PYTHONPATH=<llama.cpp>/gguf-py and --oracle <mmproj_oracle>.
+Use PYTHONPATH=<llama.cpp>/gguf-py and --oracle <mmproj_oracle>; see
+test_data/mmproj_accuracy/README.md for the reference revisions.
+--ops-oracle <mmproj_ops_oracle> also regenerates the standalone op expectations.
 """
 import argparse
 import os
@@ -15,13 +16,66 @@ from pathlib import Path
 import gguf
 import numpy as np
 
-from mmproj_fixtures import (TensorWriter, finish, gemma4a_positions, merge_window_order, run_oracle, save_npz,
-                             split_variants)
+from mmproj_fixtures import (TensorWriter, finish, gemma4a_positions, merge_window_order, muse_glimmer_indices,
+                             run_oracle, save_npz, split_variants)
 
 VARIANTS = ("_resize", "_overview", "_one_sided", "_low_contrast")
+# mmproj_ops_oracle output file -> test_data .npy name.
+OPS_EXPECTATIONS = {
+    "window_input": "mmproj_window_input", "windows": "mmproj_windows", "restored": "mmproj_restored",
+    "relative_table": "mmproj_relative_table", "relative": "mmproj_relative",
+    "vision": "vision_rope_expected", "imrope": "multimodal_imrope_expected",
+    "resize": "mmproj_interpolate_expected", "resize_corners": "mmproj_interpolate_corners_expected",
+    "resize_down": "mmproj_interpolate_down_expected",
+    "resize_down_corners": "mmproj_interpolate_down_corners_expected",
+    "im2col7": "mmproj_im2col7", "im2col9": "mmproj_im2col9",
+}
+
+
+def write_muse_model(path):
+    """Muse Glimmer: sparse/global windows, two-axis RoPE and pixel-shuffle merging."""
+    w = gguf.GGUFWriter(path, "clip")
+    t = TensorWriter(w, np.random.default_rng(20260922))
+    tensor, linear = t.tensor, t.linear
+    width, hidden, layers = 32, 48, 6
+    w.add_bool("clip.has_vision_encoder", True)
+    w.add_string("clip.projector_type", "muse-glimmer")
+    w.add_bool("clip.use_gelu", True)
+    for name, value in {"embedding_length": width, "feed_forward_length": hidden,
+                        "block_count": layers, "projection_dim": 12, "attention.head_count": 4,
+                        "image_size": 4, "patch_size": 2, "spatial_merge_size": 2,
+                        "image_min_pixels": 16, "image_max_pixels": 4096}.items():
+        w.add_uint32("clip.vision." + name, value)
+    w.add_float32("clip.vision.attention.layer_norm_epsilon", 1e-5)
+    w.add_array("clip.vision.image_mean", [.5, .5, .5])
+    w.add_array("clip.vision.image_std", [.5, .5, .5])
+
+    def norm(name):
+        t.norm(name, width)
+
+    tensor("v.patch_embd.weight", (width, 3, 2, 2))
+    tensor("v.patch_embd.bias", (width,))
+    tensor("v.position_embd.weight", (4, width))
+    norm("v.pre_ln")
+    norm("v.post_ln")
+    for i in range(layers):
+        p = f"v.blk.{i}."
+        norm(p + "ln1")
+        norm(p + "ln2")
+        for name in ("attn_q", "attn_k", "attn_v", "attn_out"):
+            linear(p + name, width, width)
+        linear(p + "ffn_up", width, hidden)
+        linear(p + "ffn_down", hidden, width)
+    linear("mm.0", width * 4, 24, False)
+    linear("mm.1", 24, 20, False)
+    linear("mm.2", 20, 12, False)
+    finish(w)
+    return 12
 
 
 def write_model(path, family):
+    if family == "muse-glimmer":
+        return write_muse_model(path)
     family, variants = split_variants(family, *VARIANTS)
     one_sided = "_one_sided" in variants
     low_contrast = "_low_contrast" in variants
@@ -190,6 +244,9 @@ def write_model(path, family):
 
 
 def inputs(family, width, height):
+    if family == "muse-glimmer":
+        raw = np.random.default_rng(42).uniform(-1, 1, (height, width, 3)).astype(np.float32)
+        return raw, {"pixel_values": raw.transpose(2, 0, 1)[None], **muse_glimmer_indices(height // 2, width // 2, 2)}
     family, variants = split_variants(family, *VARIANTS)
     overview = "_overview" in variants
     raw = np.random.default_rng(42).normal(.1, .4, (height, width) if family in {"gemma4ua", "gemma4a"} else (height, width, 3)).astype(np.float32)
@@ -250,21 +307,20 @@ def inputs(family, width, height):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--oracle", type=Path, required=True)
-    parser.add_argument("--geometry-oracle", type=Path, help="Optional mmproj_ops_oracle executable")
+    parser.add_argument("--ops-oracle", type=Path, help="Optional mmproj_ops_oracle executable")
     parser.add_argument("--output", type=Path, default=Path(__file__).parent / "test_data/mmproj_accuracy")
     parser.add_argument("--families", nargs="+", default=[
-        "pixtral", "pixtral_merge", "phi4", "gemma4v", "gemma4uv", "gemma4uv_low_contrast", "gemma4ua",
+        "muse-glimmer", "pixtral", "pixtral_merge", "phi4", "gemma4v", "gemma4uv", "gemma4uv_low_contrast", "gemma4ua",
         "gemma4v_one_sided", "minicpmv4_6", "gemma4a", "deepseekocr", "deepseekocr2", "deepseekocr_resize",
         "deepseekocr_overview", "deepseekocr2_overview",
     ])
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
-    if args.geometry_oracle:
+    if args.ops_oracle:
         with tempfile.TemporaryDirectory() as directory:
-            subprocess.run([str(args.geometry_oracle.resolve()), directory], check=True)
-            for name in ("window_input", "windows", "restored", "relative_table", "relative"):
-                values = np.fromfile(Path(directory) / f"{name}.bin", np.float32)
-                np.save(args.output.parent / f"mmproj_{name}.npy", values)
+            subprocess.run([str(args.ops_oracle.resolve()), directory], check=True)
+            for name, npy in OPS_EXPECTATIONS.items():
+                np.save(args.output.parent / f"{npy}.npy", np.fromfile(Path(directory) / f"{name}.bin", np.float32))
     for family in args.families:
         with tempfile.TemporaryDirectory() as directory:
             model = Path(directory) / "model.gguf"
@@ -279,6 +335,7 @@ def main():
                 "gemma4a": [(49, 8), (101, 8)],
                 "gemma4ua": [(3, 640), (5, 640)],
                 "gemma4uv_low_contrast": [(96, 48), (48, 144)],
+                "muse-glimmer": [(12, 8), (4, 4)],
             }.get(family, [(16, 8), (8, 24)])
             modality = "audio" if family in {"gemma4ua", "gemma4a"} else "vision"
             environment = dict(os.environ)

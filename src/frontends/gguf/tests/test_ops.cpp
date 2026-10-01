@@ -3593,7 +3593,7 @@ TEST(GGUFOps, SolveTriDynamicBatchDimensions) {
 }  // namespace
 
 TEST(GGUFOps, MultimodalRopeMatchesIndependentSections) {
-    // Reference: multimodal_rope_oracle.cpp, pinned ggml CPU. Three heads, differing
+    // Reference: mmproj_ops_oracle.cpp, pinned ggml CPU. Three heads, differing
     // coordinates on all four axes, and unequal IMROPE sections exercise layout and routing.
     for (bool vision : {false, true}) {
         RopeConfig config;
@@ -3625,7 +3625,7 @@ TEST(GGUFOps, MultimodalRopeMatchesIndependentSections) {
 
 TEST(GGUFOps, InterpolateBilinearAntialiasDynamicSize) {
     for (bool corners : {false, true}) {
-        // Reference: multimodal_rope_oracle.cpp resize, ggml CPU.
+        // Reference: mmproj_ops_oracle.cpp resize modes, ggml CPU.
         auto model = SingleOpBuilder()
                          .op("GGML_OP_UPSCALE")
                          .input("data", ov::element::f32, {1, 2, -1, -1})

@@ -1,12 +1,11 @@
 # Copyright (C) 2018-2026 Intel Corporation
 # SPDX-License-Identifier: Apache-2.0
 
-"""Generate nonzero mmproj fixtures using llama.cpp CPU, without OpenVINO.
+"""CPU oracle fixtures for GGUFMMProjAccuracy: one input size per family.
 
-PYTHONPATH=<llama.cpp>/gguf-py python gen_mmproj_accuracy.py --oracle /path/to/mmproj_oracle
-Reference revision: 16fb7d9d326a3fe69a331ce5fbe7a679a1a281bb.
-Qwen3 uses 03fa73cb27f5c251b9528489b18d303b1366aca4 (align-corners position interpolation).
-Pass that build separately with --qwen3-oracle.
+PYTHONPATH=<llama.cpp>/gguf-py python gen_mmproj_accuracy.py --oracle <mmproj_oracle> --qwen3-oracle <mmproj_oracle>
+qwen3vl_merger needs a newer reference than the other families; see
+test_data/mmproj_accuracy/README.md for the revisions.
 """
 import argparse
 import subprocess
