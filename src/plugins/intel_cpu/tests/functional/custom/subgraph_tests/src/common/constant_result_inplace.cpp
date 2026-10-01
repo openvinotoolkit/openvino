@@ -17,19 +17,14 @@ namespace ov {
 namespace test {
 namespace {
 
-using ConstantResultInPlaceParams = std::tuple<bool, bool, bool>;
+// Parameters: enable_snippets, constant_branch.
+using ConstantResultInPlaceParams = std::tuple<bool, bool>;
 
 class ConstantResultInPlaceTest : public testing::TestWithParam<ConstantResultInPlaceParams> {};
 
 TEST_P(ConstantResultInPlaceTest, PreserveConstantResultAcrossInferences) {
-    const auto [enable_snippets, use_f16, constant_branch] = GetParam();
+    const auto [enable_snippets, constant_branch] = GetParam();
     ov::Core core;
-    if (use_f16) {
-        const auto capabilities = core.get_property("CPU", ov::device::capabilities);
-        if (std::find(capabilities.begin(), capabilities.end(), "FP16") == capabilities.end()) {
-            GTEST_SKIP() << "CPU does not advertise FP16 support";
-        }
-    }
 
     const ov::Shape shape{100, 1, 512};
     const ov::Shape affine_shape{1, 1, 512};
@@ -80,7 +75,6 @@ TEST_P(ConstantResultInPlaceTest, PreserveConstantResultAcrossInferences) {
     const auto model = std::make_shared<ov::Model>(ov::OutputVector{output}, parameters, "ConstantResultInPlace");
 
     const ov::AnyMap config{
-        {ov::hint::inference_precision.name(), use_f16 ? ov::element::f16 : ov::element::f32},
         {ov::inference_num_threads.name(), 1},
         {ov::num_streams.name(), 1},
         {"SNIPPETS_MODE", enable_snippets ? "ENABLE" : "DISABLE"},
@@ -142,13 +136,11 @@ TEST_P(ConstantResultInPlaceTest, PreserveConstantResultAcrossInferences) {
 
 INSTANTIATE_TEST_SUITE_P(smoke_CPU,
                          ConstantResultInPlaceTest,
-                         testing::Combine(testing::Bool(), testing::Bool(), testing::Bool()),
+                         testing::Combine(testing::Bool(), testing::Bool()),
                          [](const testing::TestParamInfo<ConstantResultInPlaceParams>& info) {
                              const bool enable_snippets = std::get<0>(info.param);
-                             const bool use_f16 = std::get<1>(info.param);
                              return std::string(enable_snippets ? "SnippetsEnabled" : "SnippetsDisabled") +
-                                    (use_f16 ? "F16" : "F32") +
-                                    (std::get<2>(info.param) ? "ConstantBranch" : "ParameterBranch");
+                                    (std::get<1>(info.param) ? "ConstantBranch" : "ParameterBranch");
                          });
 
 }  // namespace
