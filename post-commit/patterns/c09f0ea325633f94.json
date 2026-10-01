@@ -1,0 +1,19 @@
+{
+    "schema_version": "1.0",
+    "signature": "sccache: error: Timed out waiting for server startup. Maybe the remote service is unreachable?|Infrastructure",
+    "signature_hash": "c09f0ea325633f94",
+    "title": "GGUF llama.cpp build fails when sccache server times out on startup",
+    "category": "Infrastructure",
+    "count": 1,
+    "first_seen": "2026-10-01T09:59:49Z",
+    "last_seen": "2026-10-01T09:59:49Z",
+    "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/36836680252"
+    ],
+    "affected_commits": [
+        "7ca416dd5ef914100202913101ae81a2a51a44c0"
+    ],
+    "recent_timestamps": [
+        "2026-10-01T09:59:49Z"
+    ]
+}

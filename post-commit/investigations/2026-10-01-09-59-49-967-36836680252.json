@@ -1,0 +1,41 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-01-09-59-49-967-36836680252",
+    "timestamp": "2026-10-01T09:59:49Z",
+    "run_id": "36836680252",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36836680252",
+    "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+    "commit_sha": "7ca416dd5ef914100202913101ae81a2a51a44c0",
+    "pr_number": "37157",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37157",
+    "author": "Kotomi-Du",
+    "category": "Infrastructure",
+    "title": "GGUF llama.cpp build fails when sccache server times out on startup",
+    "signature": "sccache: error: Timed out waiting for server startup. Maybe the remote service is unreachable?|Infrastructure",
+    "signature_hash": "c09f0ea325633f94",
+    "confidence": "Medium",
+    "failed_jobs": [
+        {
+            "name": "GGUF Frontend x llama.cpp validation / Build llama.cpp and run its tests against the GGUF frontend",
+            "conclusion": "failure",
+            "symptom": "Build llama.cpp step fails compiling ggml.c because sccache could not start its local server"
+        }
+    ],
+    "key_errors": [
+        "FAILED: [code=2] ggml/src/CMakeFiles/ggml-base.dir/ggml.c.o",
+        "sccache /usr/bin/cc -DGGML_BUILD ... -o ggml/src/CMakeFiles/ggml-base.dir/ggml.c.o -c /__w/openvino/openvino/llama.cpp/ggml/src/ggml.c",
+        "sccache: error: Timed out waiting for server startup. Maybe the remote service is unreachable?",
+        "Run with SCCACHE_LOG=debug SCCACHE_NO_DAEMON=1 to get more information",
+        "ninja: build stopped: subcommand failed.",
+        "##[error]Process completed with exit code 2."
+    ],
+    "root_cause": "The 'Build llama.cpp' step compiles ggml.c through the sccache wrapper. On the first invocation sccache must spawn its background compilation-cache server; that spawn/handshake timed out ('Timed out waiting for server startup'), causing the single cc invocation to fail and ninja to abort the whole build. This mirrors known upstream sccache flakiness where the daemon fails to bind/start quickly enough on a busy or resource-constrained runner (the 16-core/32GB aks-linux runner), rather than any issue in the compiled source (unrelated earlier steps for this same commit compiled hundreds of other translation units successfully). The triggering commit's own diff (GPU SDPA kernel changes, PR #37157) does not touch the GGUF/llama.cpp frontend or its build configuration, further supporting an infrastructure/transient cause rather than a code regression.",
+    "reproduction_steps": "Not reliably reproducible locally since it is a timing-dependent sccache server-startup race on the CI runner. To attempt reproduction: run the 'GGUF Frontend x llama.cpp validation' job's steps locally (checkout llama.cpp, configure, `cmake --build build` with `SCCACHE_NO_DAEMON=1` unset) on a resource-constrained container to increase the chance of hitting the same race; setting `SCCACHE_LOG=debug SCCACHE_NO_DAEMON=1` as suggested in the log output would reveal the underlying daemon start failure.",
+    "recommended_actions": [
+        "Re-run the failed 'GGUF Frontend x llama.cpp validation' job; this is very likely a transient infrastructure issue that will succeed on retry.",
+        "Consider adding a short retry/backoff around the initial sccache-wrapped compiler invocation in job_gguf_llamacpp_validation.yml, or set SCCACHE_STARTUP_TIMEOUT (seconds) to a larger value than the sccache default to reduce flakiness under load.",
+        "If this signature recurs frequently, check whether the aks-linux-16-cores-32gb runner pool is under memory/CPU pressure at job start, which can delay the sccache daemon from binding its socket in time."
+    ],
+    "prevention_strategies": "Add a small retry wrapper (e.g. 2 attempts with a short delay) around the ninja/cmake --build invocation in the GGUF llama.cpp validation job specifically for sccache startup-timeout errors, and/or increase SCCACHE_STARTUP_TIMEOUT. Monitor sccache startup timing to detect resource contention on the runner pool proactively.",
+        "historical_context": "No prior pattern for sccache server-startup timeouts exists in the post-commit knowledge base (checked patterns/: PCH invalid-pch on ARM64 cross-compile, Windows artifact-upload ENOTFOUND, Windows pip-proxy malformed JSON, and an ACL primitive-type flaky test — none match this signature). This is the first recorded occurrence of this failure signature."
+}

@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 4,
+  "total": 5,
   "entries": [
     {
       "investigation_id": "2026-09-23-19-32-29-000-35899229472",
@@ -43,6 +43,17 @@
       "category": "Flaky Test",
       "signature_hash": "d94563b07437b23b",
       "commit_sha": "2f8457d559ea238ac3d21059dbf92d67ad6b10a6"
+    },
+    {
+      "investigation_id": "2026-10-01-09-59-49-967-36836680252",
+      "run_id": "36836680252",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36836680252",
+      "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+      "timestamp": "2026-10-01T09:59:49Z",
+      "title": "GGUF llama.cpp build fails when sccache server times out on startup",
+      "category": "Infrastructure",
+      "signature_hash": "c09f0ea325633f94",
+      "commit_sha": "7ca416dd5ef914100202913101ae81a2a51a44c0"
     }
   ]
 }
