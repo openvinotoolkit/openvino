@@ -245,7 +245,8 @@ static void requantize_group_u4(const uint8_t* source_q,
 // Q4_1 asymmetric: block = |f16 scale|f16 min|32x4bit weights|.
 // Dequant w = sc*q + mn = sc*(q - zp), zp = -mn/sc.
 // Outputs u32-packed u4 weights + f16 scales + zero-points (one per block). With a u8 zp the
-// block is requantized to a new u4 grid with an integer zero-point, like Q4_K.
+// block is requantized to a new u4 grid with an integer zero-point, like Q4_K. Unlike Q4_K, a
+// Q4_1 block need not contain zero, and a one-sided block then gets a coarser grid that does.
 void fill_q4_1(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& scales_arr, ov::Tensor& zp_arr) {
     const uint64_t bytes_per_block = 20;  // 2 bytes scale, 2 bytes min, 32x0.5 byte weights
     auto data = static_cast<const uint8_t*>(tensor.weights_data);
