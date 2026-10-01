@@ -264,6 +264,9 @@ Do not re-verify what the pattern already guarantees:
 If a condition can only be false because the matcher or the pipeline is broken, assert — do not `return false`. A silent `return false` produces a transformation that "did nothing", which is the hardest class of transformation defect to diagnose. Assertions also keep static analyzers (Coverity) quiet about the unchecked cast.
 
 ```cpp
+// Matcher
+auto swish_m = wrap_type<v4::Swish>();
+
 // Avoid
 auto swish = ov::as_type_ptr<v4::Swish>(pattern_map[swish_m].get_node_shared_ptr());
 if (!swish)
