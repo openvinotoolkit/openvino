@@ -104,9 +104,8 @@ using namespace ov::pass::pattern;
 ov::pass::MyFusion::MyFusion() {
     MATCHER_SCOPE(MyFusion);   // defines `matcher_name`, enables conditional compilation
 
-    auto weights_m = any_input(type_matches(element::i8) && shape_matches("OC, IC, 3, 3"));
-    auto conv_m    = wrap_type<ov::op::v1::Convolution>({any_input(), weights_m},
-                                                        {{"strides", Strides{1, 1}}});
+    auto weights_m = any_input(type_matches(element::i8));
+    auto conv_m    = wrap_type<ov::op::v1::Convolution>({any_input(), weights_m});
 
     ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
         const auto& pattern_map = m.get_pattern_value_map();
@@ -127,7 +126,7 @@ Use `OV_CAPTURE_CPY_AND_THIS` in the callback lambda capture list instead of `[=
 A few mechanics are worth remembering:
 
 - **One matcher per `MatcherPass`.** `register_matcher` is called exactly once. Several matchers belong in a `GraphRewrite`.
-- **The callback return value is meaningful.** Return `true` when the match root was replaced — no other matcher will be tried on that root. Return `false` when the graph was left untouched.
+- **The callback return value is meaningful.** Return `true` when the matched graph was rewritten in any way — no other matcher will be tried on that root. Return `false` when the graph was left untouched.
 - **Nodes created by the callback are not re-matched by default.** If they should be picked up by the other matchers of the same `GraphRewrite`, report them with `register_new_node` (in topological order).
 - **A pass must be idempotent.** The same matcher can be applied again — to nodes the callback created, on a repeated run of the pipeline, or from another container. Running the pass twice must leave the graph unchanged the second time.
 
@@ -180,14 +179,11 @@ Declared in [openvino/pass/pattern/op/pattern.hpp](../../../core/include/openvin
 
 | Need | Predicate |
 |------|-----------|
-| Shape / dimension relations, symbol capture | `shape_matches("B, ?, 1, 1")`, `shape_matches("Batches..., M, N")` |
-| Constant value relations | `value_matches("[1, 2]")` |
 | Rank only | `rank_equals(3)`, `rank_more_than(1)` |
 | Element type | `type_matches(element::i8)`, `type_matches_any({element::u8, element::i8})` |
 | Node attributes | `attrs_match({{"mode", "numpy"}})`, or the `attrs` argument of `wrap_type` |
 | Static shape / rank | `has_static_shape()`, `has_static_rank()`, `has_static_dim(pos)`, `has_static_dims({...})` |
 | Consumers | `consumers_count(1)`, `consumers_more_than(1)` |
-| Specific output port | `output_index_matches(0)` |
 
 Node builders:
 
