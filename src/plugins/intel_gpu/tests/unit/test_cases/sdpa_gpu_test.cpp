@@ -26,6 +26,7 @@
 #include <limits>
 #include <numeric>
 #include <tuple>
+#include <random>
 #include <iostream>
 
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -1994,6 +1995,229 @@ INSTANTIATE_TEST_SUITE_P(
         sdpa_hpg_ext_params{64, 100, 100, false, 0, 0, false, false, 5}
     ),
     sdpa_hpg_ext_test::PrintToStringParamName
+);
+
+// Plain SDPA on an i8 KV cache (asymmetric, planar: a per-token f16 scale and an i8 zero point for K and for V, which is what
+// kv_cache_compression.cpp makes on immad parts), against a CPU reference that dequantizes (q - zp) * scale in double. The
+// existing F2 compressed tests cannot do this job: their threshold is 1e-1 over an almost uniform softmax and a demoted
+// kernel passes them. Here the softmax is sharp (logit sigma ~5, checked through the mean top probability) and every key has
+// its own scale and zp, so a pair of head dims in the wrong order, a scale/zp read from the wrong key or a dropped zp each move
+// the output far past the tolerance. SDPA_KVC_NEG=pair_swap|scale_alias|zp_off perturbs the REFERENCE the same way; every case
+// must then fail by >= 0.1. Not covered here: GQA (the primitive takes equal q/kv heads), a mask input.
+struct sdpa_kv_compressed_params {
+    int head_size;
+    int heads;
+    int q_len;
+    int kv_len;
+    int batch;
+};
+
+struct sdpa_kv_compressed_test : public ::testing::TestWithParam<sdpa_kv_compressed_params> {
+    static std::string PrintToStringParamName(const testing::TestParamInfo<sdpa_kv_compressed_params>& info) {
+        const auto& p = info.param;
+        return "head" + std::to_string(p.head_size) + "_h" + std::to_string(p.heads) + "_q" + std::to_string(p.q_len) + "_kv" + std::to_string(p.kv_len) +
+               "_b" + std::to_string(p.batch);
+    }
+};
+
+TEST_P(sdpa_kv_compressed_test, matches_dequant_reference) {
+    const auto p = GetParam();
+    auto& engine = get_test_engine();
+    const uint32_t tiers = ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_I8 | (p.q_len <= 1 ? ov::intel_gpu::ocl::PLAIN_EXT : 0u);
+    const auto backend = tests::expected_dpas_backend(engine, false, static_cast<size_t>(p.head_size), tiers);
+    if (backend == tests::dpas_backend::none)
+        GTEST_SKIP() << "no DPAS backend on this device";
+
+    const char* neg_env = std::getenv("SDPA_KVC_NEG");
+    const std::string neg = neg_env ? neg_env : "";
+    ASSERT_TRUE(neg.empty() || neg == "pair_swap" || neg == "scale_alias" || neg == "zp_off") << "unknown SDPA_KVC_NEG " << neg;
+
+    const int B = p.batch, H = p.heads, d = p.head_size, nq = p.q_len, nk = p.kv_len;
+    std::mt19937 rng(1234u + static_cast<uint32_t>(d) * 31u + static_cast<uint32_t>(nk));
+    auto uni = [&](float lo, float hi) { return std::uniform_real_distribution<float>(lo, hi)(rng); };
+    auto uni_int = [&](int lo, int hi) { return std::uniform_int_distribution<int>(lo, hi)(rng); };
+
+    const size_t kv_count = static_cast<size_t>(B) * H * nk * d, comp_count = static_cast<size_t>(B) * H * nk;
+    std::vector<int8_t> kq(kv_count), vq(kv_count), kzp(comp_count), vzp(comp_count);
+    std::vector<float> ksc(comp_count), vsc(comp_count);
+    for (auto& x : kq) x = static_cast<int8_t>(uni_int(-127, 127));
+    for (auto& x : vq) x = static_cast<int8_t>(uni_int(-127, 127));
+    for (auto& x : kzp) x = static_cast<int8_t>(uni_int(-30, 30));
+    for (auto& x : vzp) x = static_cast<int8_t>(uni_int(-30, 30));
+    for (auto& x : ksc) x = static_cast<float>(ov::float16(uni(0.01f, 0.04f)));
+    for (auto& x : vsc) x = static_cast<float>(ov::float16(uni(0.01f, 0.04f)));
+    std::vector<float> q(static_cast<size_t>(B) * H * nq * d);
+    for (auto& x : q) x = static_cast<float>(ov::float16(uni(-1.0f, 1.0f)));
+
+    // The reference's view of the cache (perturbed by the negative controls, never what the kernel reads).
+    auto comp_at = [&](size_t bh, int j) { return bh * nk + static_cast<size_t>(neg == "scale_alias" ? (j & ~7) : j); };
+    auto deq_k = [&](size_t bh, int j, int c) {
+        const int cc = neg == "pair_swap" ? (c ^ 1) : c;
+        const size_t ci = comp_at(bh, j);
+        const double zp = neg == "zp_off" ? 0.0 : static_cast<double>(kzp[ci]);
+        return (static_cast<double>(kq[(bh * nk + j) * d + (cc < d ? cc : c)]) - zp) * static_cast<double>(ksc[ci]);
+    };
+    auto deq_v = [&](size_t bh, int j, int c) {
+        const size_t ci = comp_at(bh, j);
+        const double zp = neg == "zp_off" ? 0.0 : static_cast<double>(vzp[ci]);
+        return (static_cast<double>(vq[(bh * nk + j) * d + c]) - zp) * static_cast<double>(vsc[ci]);
+    };
+
+    // Scale the logits to sigma ~5 (measured on the true, unperturbed dequant, so the neg modes keep the same scale).
+    double sum2 = 0.0;
+    size_t samples = 0;
+    for (size_t bh = 0; bh < static_cast<size_t>(B) * H; ++bh)
+        for (int i = 0; i < std::min(nq, 8); ++i)
+            for (int j = 0; j < nk; j += 3) {
+                double dot = 0.0;
+                for (int c = 0; c < d; ++c) {
+                    const size_t ci = bh * nk + j;
+                    dot += static_cast<double>(q[(bh * nq + i) * d + c]) * (static_cast<double>(kq[(bh * nk + j) * d + c]) - kzp[ci]) * ksc[ci];
+                }
+                sum2 += dot * dot;
+                ++samples;
+            }
+    const float scale_val = static_cast<float>(5.0 / std::sqrt(sum2 / static_cast<double>(samples)));
+
+    const layout q_lay({B, H, nq, d}, data_types::f16, format::bfyx);
+    const layout kv_lay({B, H, nk, d}, data_types::i8, format::bfyx);
+    const layout sc_lay({B, H, nk, 1}, data_types::f16, format::bfyx);
+    const layout zp_lay({B, H, nk, 1}, data_types::i8, format::bfyx);
+    auto q_mem = engine.allocate_memory(q_lay);
+    auto k_mem = engine.allocate_memory(kv_lay);
+    auto v_mem = engine.allocate_memory(kv_lay);
+    auto ksc_mem = engine.allocate_memory(sc_lay);
+    auto vsc_mem = engine.allocate_memory(sc_lay);
+    auto kzp_mem = engine.allocate_memory(zp_lay);
+    auto vzp_mem = engine.allocate_memory(zp_lay);
+    auto fill = [&](cldnn::memory::ptr m, auto& host, auto conv) {
+        using T = std::decay_t<decltype(conv(host[0]))>;
+        cldnn::mem_lock<T, mem_lock_type::write> l(m, get_test_stream());
+        ASSERT_GE(l.size(), host.size());
+        for (size_t i = 0; i < host.size(); ++i)
+            l[i] = conv(host[i]);
+    };
+    fill(q_mem, q, [](float x) { return ov::float16(x); });
+    fill(k_mem, kq, [](int8_t x) { return x; });
+    fill(v_mem, vq, [](int8_t x) { return x; });
+    fill(ksc_mem, ksc, [](float x) { return ov::float16(x); });
+    fill(vsc_mem, vsc, [](float x) { return ov::float16(x); });
+    fill(kzp_mem, kzp, [](int8_t x) { return x; });
+    fill(vzp_mem, vzp, [](int8_t x) { return x; });
+
+    scaled_dot_product_attention::QuantizationAttributes qa;
+    qa.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric;
+    qa.output_storage_type = ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
+    qa.group_sizes = {1, 1, 1, UINT64_MAX};
+    qa.quantization_dt = ov::element::i8;
+    qa.scale_dt = ov::element::f16;
+    qa.zp_dt = ov::element::i8;
+    qa.scales_zp_output_order = {0, 1, 2, 3};
+
+    topology topo;
+    topo.add(input_layout("q", q_lay));
+    topo.add(input_layout("k", kv_lay));
+    topo.add(input_layout("v", kv_lay));
+    topo.add(input_layout("ksc", sc_lay));
+    topo.add(input_layout("kzp", zp_lay));
+    topo.add(input_layout("vsc", sc_lay));
+    topo.add(input_layout("vzp", zp_lay));
+    // Input order of the primitive: q, k, v, [mask, scale, sink], k_scales, v_scales, k_zp, v_zp (none optional here).
+    auto prim = scaled_dot_product_attention("sdpa", {input_info("q"), input_info("k"), input_info("v"), input_info("ksc"), input_info("vsc"),
+                                             input_info("kzp"), input_info("vzp")},
+                                             false, -1, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, qa, true);
+    prim.scale_val = scale_val;
+    topo.add(prim);
+    topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
+    net->set_input_data("q", q_mem);
+    net->set_input_data("k", k_mem);
+    net->set_input_data("v", v_mem);
+    net->set_input_data("ksc", ksc_mem);
+    net->set_input_data("kzp", kzp_mem);
+    net->set_input_data("vsc", vsc_mem);
+    net->set_input_data("vzp", vzp_mem);
+    auto output = net->execute().at("result").get_memory();
+
+    auto sdpa_inst = net->get_primitive("sdpa");
+    ASSERT_NE(sdpa_inst, nullptr);
+    ASSERT_NE(sdpa_inst->get_impl(), nullptr);
+    const auto entries = sdpa_inst->get_impl()->get_kernels_dump_info(*sdpa_inst->get_impl_params()).get_entries();
+    if (backend == tests::dpas_backend::ocl) {
+        ASSERT_NE(entries.find("sdpa_ocl"), std::string::npos) << "dispatched: " << entries;
+        EXPECT_EQ(entries.find("sdpa_micro"), std::string::npos) << "dispatched: " << entries;
+        ASSERT_NE(entries.find(nq > 1 ? "sdpa_ocl_prefill" : "sdpa_ocl_mixed"), std::string::npos) << "dispatched: " << entries;
+    } else {
+        EXPECT_EQ(entries.find("sdpa_ocl"), std::string::npos) << "dispatched: " << entries;
+    }
+
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out(output, get_test_stream());
+    ASSERT_EQ(out.size(), static_cast<size_t>(B) * H * nq * d);
+    double max_abs_err = 0.0, sum_abs_err = 0.0, maxprob_sum = 0.0;
+    size_t rows = 0;
+    std::vector<double> logit(nk), acc(d);
+    for (size_t bh = 0; bh < static_cast<size_t>(B) * H; ++bh) {
+        for (int i = 0; i < nq; ++i) {
+            double mx = -INFINITY;
+            for (int j = 0; j < nk; ++j) {
+                double dot = 0.0;
+                for (int c = 0; c < d; ++c)
+                    dot += static_cast<double>(q[(bh * nq + i) * d + c]) * deq_k(bh, j, c);
+                logit[j] = dot * static_cast<double>(scale_val);
+                mx = std::max(mx, logit[j]);
+            }
+            double sum = 0.0, top = 0.0;
+            std::fill(acc.begin(), acc.end(), 0.0);
+            for (int j = 0; j < nk; ++j) {
+                const double w = std::exp(logit[j] - mx);
+                sum += w;
+                top = std::max(top, w);
+                for (int c = 0; c < d; ++c)
+                    acc[c] += w * deq_v(bh, j, c);
+            }
+            maxprob_sum += top / sum;
+            ++rows;
+            for (int c = 0; c < d; ++c) {
+                const double got = static_cast<double>(static_cast<float>(out[(bh * nq + i) * d + c]));
+                ASSERT_FALSE(std::isnan(got)) << "NaN at bh " << bh << " query " << i << " col " << c;
+                const double err = std::abs(got - acc[c] / sum);
+                max_abs_err = std::max(max_abs_err, err);
+                sum_abs_err += err;
+            }
+        }
+    }
+    const double mean_abs_err = sum_abs_err / static_cast<double>(out.size()), maxprob_mean = maxprob_sum / static_cast<double>(rows);
+    RecordProperty("max_abs_err", std::to_string(max_abs_err));
+    std::cout << "[s6c_kvc] " << sdpa_kv_compressed_test::PrintToStringParamName(testing::TestParamInfo<sdpa_kv_compressed_params>(p, 0))
+              << " lane=" << entries << " max_abs_err=" << max_abs_err << " mean_abs_err=" << mean_abs_err << " maxprob_mean=" << maxprob_mean
+              << " neg=" << (neg.empty() ? "none" : neg) << std::endl;
+    ASSERT_GE(maxprob_mean, 0.5) << "the softmax is not sharp enough for this case to see a dequant error";
+    if (neg.empty()) {
+        // The sdpa_opt single-token kernel (an unaligned head on the micro lane, e.g. head 72) dequantizes less precisely than
+        // sdpa_ocl / sdpa_micro (measured max 0.030, mean 0.007 on DG2), so only the ocl lane is held to the tight bound.
+        const bool tight = backend == tests::dpas_backend::ocl || entries.find("sdpa_opt") == std::string::npos;
+        EXPECT_LE(max_abs_err, tight ? 0.03 : 0.06);
+        EXPECT_LE(mean_abs_err, tight ? 0.003 : 0.012);
+    } else {
+        // The perturbed reference must disagree with the (correct) kernel, or the test would not notice that error.
+        EXPECT_LE(max_abs_err, 0.03) << "negative control " << neg << " is observable: max_abs_err " << max_abs_err;
+        EXPECT_GE(max_abs_err, 0.1) << "negative control " << neg << " is too weak";
+    }
+}
+
+// {head, heads, q, kv, batch}. Unaligned head (72), q/kv tails (33, 130, 200, 300), single query (static decode), batch 2.
+INSTANTIATE_TEST_SUITE_P(
+    smoke_sdpa_kv_compressed,
+    sdpa_kv_compressed_test,
+    ::testing::Values(sdpa_kv_compressed_params{64, 8, 128, 128, 2}, sdpa_kv_compressed_params{64, 8, 33, 300, 1},
+                      sdpa_kv_compressed_params{128, 4, 64, 256, 2}, sdpa_kv_compressed_params{72, 4, 40, 200, 1},
+                      sdpa_kv_compressed_params{32, 4, 64, 96, 1}, sdpa_kv_compressed_params{96, 4, 17, 130, 1},
+                      sdpa_kv_compressed_params{64, 8, 1, 300, 2}, sdpa_kv_compressed_params{128, 4, 1, 256, 1},
+                      sdpa_kv_compressed_params{72, 4, 1, 200, 1}),
+    sdpa_kv_compressed_test::PrintToStringParamName
 );
 #endif
 
