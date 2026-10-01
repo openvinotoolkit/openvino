@@ -49,14 +49,19 @@ TEST_P(CoreThreadingCpuMultiAppThreadSyncTest, smoke_CpuExecNetworkMultiAppThrea
             requests.back().set_input_tensor(inputTensors.back());
         }
 
-        CoreThreadingTestsBase::runParallelIndexed(
-            [&](size_t i) {
+        std::vector<std::thread> threads;
+        threads.reserve(numThreads);
+        for (unsigned int i = 0; i < numThreads; ++i) {
+            threads.emplace_back([&, i]() {
                 requests[i].infer();
                 const auto output = requests[i].get_output_tensor(0);
                 outputs[i] = ov::Tensor(output.get_element_type(), output.get_shape());
                 output.copy_to(outputs[i]);
-            },
-            numThreads);
+            });
+        }
+        for (auto& thread : threads) {
+            thread.join();
+        }
 
         return outputs;
     };
