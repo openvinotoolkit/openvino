@@ -51,16 +51,12 @@ void concat(const std::vector<const char*>& args,
 
     const auto copy_func = elem_type == ov::element::string ? copy_string_elements : copy_elements;
 
-    // Sub-byte types are packed several elements per byte, so element counts and
-    // offsets have to be converted to the packed unit the copy works in.
-    const auto bits = elem_type.bitwidth();
-    const size_t per_byte = (bits > 0 && bits < 8 && 8 % bits == 0) ? 8 / bits : 1;
-
     size_t out_offset = 0;
     for (size_t step = 0; step < steps; ++step) {
         for (size_t in_index = 0; in_index < args.size(); ++in_index) {
             size_t size = shape_sizes[in_index] / steps;
-            size /= per_byte;
+            if (elem_type == ov::element::u4 || elem_type == ov::element::i4)
+                size /= 2;
             const size_t in_offset = step * size;
             copy_func(args[in_index], out, in_offset, out_offset, size, elem_size);
 
