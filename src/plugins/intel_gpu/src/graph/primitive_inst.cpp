@@ -1240,19 +1240,17 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
     }
 
     if (actual_layouts.size() == 1 && get_node().get_preferred_impl_type() == impl_types::onednn) {
-        // Must match the params the post-op was emitted with (update_impl), not the fake-aligned ones.
-        auto reused_eltwmem_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(get_node(), _impl_params.get());
+        // binary_mul_inplace for reusing eltwise memory
+        auto reused_eltwmem_idx = onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(get_node());
         if (reused_eltwmem_idx != -1) {
             const auto& eltw_inst = get_network().get_primitive(get_node().get_dependency(reused_eltwmem_idx).id());
             auto eltw_mem = eltw_inst->output_memory_ptr();
             if (eltw_mem && eltw_mem->get_mem_tracker() &&
                 eltw_mem->get_mem_tracker()->size() >= updated_layouts[0].get_linear_size() * dt_sizes_in_B[0]) {
-                auto& pool = get_network().get_memory_pool();
                 if (_outputs[0]) {
-                    pool.release_memory(_outputs[0].get(), get_node().get_unique_id(), id(), get_network_id());
+                    get_network().get_memory_pool().release_memory(_outputs[0].get(), get_node().get_unique_id(), id(), get_network_id());
                 }
                 _outputs[0] = eltw_mem->get_engine()->reinterpret_buffer(*eltw_mem, updated_layouts[0]);
-                pool.add_user(eltw_mem.get(), get_node().get_unique_id(), id(), get_network_id());
                 _max_output_layout_count[0] = eltw_mem->get_mem_tracker()->size() / dt_sizes_in_B[0];
                 return;
             }

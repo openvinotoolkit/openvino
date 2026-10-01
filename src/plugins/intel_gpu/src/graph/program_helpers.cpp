@@ -6,8 +6,10 @@
 #include "intel_gpu/graph/program.hpp"
 #include "data_inst.h"
 #include "pooling_inst.h"
+#include "fully_connected_inst.h"
+#include "transformations/symbolic_transformations/utils.hpp"
+
 #include <algorithm>
-#include <cstdlib>
 #include <utility>
 #include <vector>
 #include <sstream>
@@ -148,19 +150,6 @@ static bool is_direct_ancestor(const program_node& child, const program_node& ta
     return false;
 }
 
-// Checks whether the residual buffer can be reused as the output buffer.
-static bool can_reuse_residual_buffer(const program_node& p_node, const program_node& dep_node,
-                                      const layout& p_layout, const layout& d_layout) {
-    return data_type_traits::size_of(p_layout.data_type) == data_type_traits::size_of(d_layout.data_type)
-        && p_layout.format == d_layout.format && p_layout.get_tensor() == d_layout.get_tensor()
-        && p_layout.data_padding == d_layout.data_padding
-        && (dep_node.get_users().size() == 1 || is_direct_ancestor(p_node, dep_node))
-        && !dep_node.is_constant()
-        && !p_node.is_type<pooling>()
-        && !p_node.is_output()
-        && (!dep_node.is_type<input_layout>() || dep_node.get_users().size() <= 1);
-}
-
 add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
     const program_node& p_node, const fused_primitive_desc& desc) {
     if (!desc.is_type<eltwise>()) {
@@ -181,7 +170,14 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
     }
 
     if (is_full_tensor(p_layout) && is_full_tensor(d_layout)) {
-        if (can_reuse_residual_buffer(p_node, dep_node, p_layout, d_layout)) {
+        if (data_type_traits::size_of(p_layout.data_type) == data_type_traits::size_of(d_layout.data_type)
+            && p_layout.format == d_layout.format && p_layout.get_tensor() == d_layout.get_tensor()
+            && p_layout.data_padding == d_layout.data_padding
+            && (dep_node.get_users().size() == 1 || is_direct_ancestor(p_node, dep_node))
+            && !dep_node.is_constant()
+            && !p_node.is_type<pooling>()
+            && !p_node.is_output()
+            && (!dep_node.is_type<input_layout>() || dep_node.get_users().size() <= 1)) {
             return add_fusing_type::sum;
         }
         if (p_layout.get_tensor() == d_layout.get_tensor()) {
@@ -193,10 +189,7 @@ add_fusing_type onednn_eltwise_fusing_helpers::get_add_fusing_type(
 }
 
 bool onednn_eltwise_fusing_helpers::can_use_mul_inplace(
-    const program_node& p_node, const fused_primitive_desc& desc, const kernel_impl_params* params) {
-    if (std::getenv("OV_GPU_FORCE_BINARY_MUL") != nullptr) {
-        return false;
-    }
+    const program_node& p_node, const fused_primitive_desc& desc) {
     if (!desc.is_type<eltwise>()) {
         return false;
     }
@@ -206,34 +199,50 @@ bool onednn_eltwise_fusing_helpers::can_use_mul_inplace(
     if (!desc.has_outer_dep()) {
         return false;
     }
-    // oneDNN only supports in-place binary post-ops (binary_mul_inplace) on the matmul primitive,
-    // which backs both gemm and fully_connected in the onednn GPU implementation.
-    if (!p_node.is_type<gemm>() && !p_node.is_type<fully_connected>()) {
+    // oneDNN only supports in-place binary post-ops (binary_mul_inplace) on the matmul primitive.
+    if (!p_node.is_type<fully_connected>()) {
         return false;
     }
 
     auto& dep_node = p_node.get_dependency(desc.outer_dep_start_idx);
-    auto p_layout = params ? params->get_output_layout() : p_node.get_output_layout();
-    auto d_layout = params ? params->get_input_layout(desc.outer_dep_start_idx) : dep_node.get_output_layout();
+    auto p_layout = p_node.get_output_layout();
+    auto d_layout = dep_node.get_output_layout();
+
+    // Aliasing needs the same buffer on both sides; under dynamic shape ov::Symbol proves equal extents.
     if (p_layout.is_dynamic() || d_layout.is_dynamic()) {
-        return false;
+        if (p_layout.data_type != d_layout.data_type || p_layout.format != d_layout.format
+            || p_layout.data_padding != d_layout.data_padding) {
+            return false;
+        }
+        const auto& p_pshape = p_layout.get_partial_shape();
+        const auto& d_pshape = d_layout.get_partial_shape();
+        if (p_pshape.rank().is_dynamic() || d_pshape.rank().is_dynamic() || p_pshape.size() != d_pshape.size()) {
+            return false;
+        }
+        for (size_t i = 0; i < p_pshape.size(); ++i) {
+            if (!ov::symbol::util::dims_are_equal(p_pshape[i], d_pshape[i])) {
+                return false;
+            }
+        }
+    } else {
+        if (p_layout != d_layout || !is_full_tensor(p_layout)) {
+            return false;
+        }
     }
 
-    if (!is_full_tensor(p_layout) || !is_full_tensor(d_layout)) {
-        return false;
-    }
-
-    return can_reuse_residual_buffer(p_node, dep_node, p_layout, d_layout);
+    // Single user only: the LLM FFN pattern. Two users with a direct ancestor also valid (sum path),
+    // but kept at one for now because of memory dependency complexity.
+    return dep_node.get_users().size() == 1 && !dep_node.is_constant() && !p_node.is_output();
 }
 
-int32_t onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(const program_node& node, const kernel_impl_params* params) {
+int32_t onednn_eltwise_fusing_helpers::get_reused_eltwmem_idx(const program_node& node) {
     if (node.get_preferred_impl_type() == impl_types::onednn) {
         for (const auto& fused_op : node.get_fused_primitives()) {
             if (fused_op.is_type<eltwise>() && fused_op.deps.size() == 1) {
                 auto mode = fused_op.typed_desc<eltwise>()->mode;
                 // If it is the first sum, or an in-place mul, reuse the buffer.
                 bool reuse_eligible = (mode == eltwise_mode::sum && get_add_fusing_type(node, fused_op) == add_fusing_type::sum) ||
-                                      (mode == eltwise_mode::prod && can_use_mul_inplace(node, fused_op, params));
+                                      (mode == eltwise_mode::prod && can_use_mul_inplace(node, fused_op));
                 if (!reuse_eligible)
                     continue;
                 if (!fused_op.has_outer_dep())

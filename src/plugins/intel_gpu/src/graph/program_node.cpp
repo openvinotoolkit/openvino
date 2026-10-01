@@ -1782,8 +1782,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
             } else if (desc.typed_desc<eltwise>()->mode == eltwise_mode::prod) {
                 // RHS = DST in-place multiplication lets onednn accumulate directly into the residual's
                 // buffer (reused as this node's output), avoiding a separate binary read of that tensor.
-                const bool force_binary_mul = std::getenv("OV_GPU_FORCE_BINARY_MUL") != nullptr;
-                if (!force_binary_mul && onednn_eltwise_fusing_helpers::can_use_mul_inplace(*this, cldnn_post_ops[idx], impl_params)
+                if (onednn_eltwise_fusing_helpers::can_use_mul_inplace(*this, cldnn_post_ops[idx])
                     && num_sum_post_ops == 0) {
                     set_binary_op(dnnl::algorithm::binary_mul_inplace, onednn_post_op_type::binary_mul_inplace);
                     num_binary_mul_inplace_post_ops++;
