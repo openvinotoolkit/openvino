@@ -73,6 +73,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/memory_dependency_set_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/nodes_ordering_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/primitive_comparison_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/module_tests/sdpa_ocl_hpg_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/sdpa_ocl_predicates_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/shape_predictor_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/module_tests/sycl/sycl_test_context.hpp
