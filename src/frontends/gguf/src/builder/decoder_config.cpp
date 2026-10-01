@@ -188,6 +188,7 @@ DecoderConfig::DecoderConfig(const std::map<std::string, GGUFMetaData>& config,
 
     // Per-architecture scalars from metadata (1.0 / 0.0 when absent -> no-op).
     embedding_scale = cfg_f("embedding_scale");
+    embedding_scale_tokens_only = arch == "gemma3" || arch == "gemma4";
     residual_scale = cfg_f("residual_scale");
     logit_scale = cfg_f("logit_scale");
     attention_scale = cfg_f("attention_scale");            // 0 -> 1/sqrt(head_size)

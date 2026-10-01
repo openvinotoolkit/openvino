@@ -17,6 +17,8 @@
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/openvino.hpp"
@@ -110,6 +112,79 @@ TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttenti
         EXPECT_EQ(attention, gemma ? 2 : 1);
         EXPECT_EQ(recurrent, gemma ? 0 : 3);
         EXPECT_TRUE(model->get_sinks().empty());
+    }
+}
+
+// Gemma3/Gemma4 scale token lookups only, as in llama.cpp, so the scale belongs to the embedding
+// model and injected media embeddings reach the decoder unscaled.
+TEST(GGUFMultimodalBackboneAdaptation, GemmaEmbeddingModelOwnsTokenScaling) {
+    for (const auto* family : {"gemma3", "gemma4-mqa"}) {
+        SCOPED_TRACE(family);
+        auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
+        const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+        const auto convert = [&] {
+            ov::frontend::gguf::FrontEnd frontend;
+            frontend.add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(
+                ov::frontend::gguf::pass::GGUFMakeStateful()));
+            return frontend.convert(frontend.load(temporary.path));
+        };
+        auto token_model = convert(), embedded_model = convert();
+        ov::frontend::gguf::pass::AdaptToGenAI().run_on_model(token_model);
+        ov::frontend::gguf::pass::AdaptToGenAI adapter(
+            ov::frontend::gguf::pass::AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+        ASSERT_TRUE(adapter.run_on_model(embedded_model));
+        const auto embedding_model = adapter.get_embedding_model();
+        const auto width = embedding_model->output("inputs_embeds").get_partial_shape()[2].get_length();
+        const auto embedding_ops = embedding_model->get_ops();
+        const bool scaled =
+            std::any_of(embedding_ops.begin(), embedding_ops.end(), [&](const std::shared_ptr<ov::Node>& node) {
+                if (!ov::is_type<ov::op::v1::Multiply>(node))
+                    return false;
+                auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1));
+                return constant && ov::shape_size(constant->get_shape()) == 1 &&
+                       std::abs(constant->cast_vector<float>()[0] - std::sqrt(float(width))) < 1e-4f;
+            });
+        EXPECT_TRUE(scaled) << "embedding model does not apply sqrt(n_embd)";
+
+        ov::Core core;
+        const auto compile = [&](const std::shared_ptr<ov::Model>& model) {
+            return core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32))
+                .create_infer_request();
+        };
+        auto tokens = compile(token_model), values = compile(embedded_model), lookup = compile(embedding_model);
+        ov::Tensor ids(ov::element::i64, {1, 3}), mask(ov::element::i64, {1, 3}), positions(ov::element::i64, {1, 3});
+        for (int64_t i = 0; i < 3; ++i) {
+            ids.data<int64_t>()[i] = i + 1;
+            positions.data<int64_t>()[i] = i;
+        }
+        std::fill_n(mask.data<int64_t>(), 3, 1);
+        ov::Tensor beam(ov::element::i32, {1});
+        beam.data<int32_t>()[0] = 0;
+        lookup.set_tensor("input_ids", ids);
+        lookup.infer();
+        for (auto* request : {&tokens, &values}) {
+            request->set_tensor("attention_mask", mask);
+            request->set_tensor("position_ids", positions);
+            request->set_tensor("beam_idx", beam);
+        }
+        tokens.set_tensor("input_ids", ids);
+        values.set_tensor("inputs_embeds", lookup.get_tensor("inputs_embeds"));
+        for (const auto& input : embedded_model->inputs()) {
+            if (input.get_names().count("token_type_ids")) {
+                ov::Tensor types(ov::element::i64, {1, 3});
+                std::fill_n(types.data<int64_t>(), 3, 0);
+                values.set_tensor("token_type_ids", types);
+            }
+            if (input.get_names().count("per_layer_inputs"))
+                values.set_tensor("per_layer_inputs", lookup.get_tensor("per_layer_inputs"));
+        }
+        tokens.infer();
+        values.infer();
+        const auto expected = tokens.get_output_tensor(), actual = values.get_output_tensor();
+        ASSERT_EQ(actual.get_shape(), expected.get_shape());
+        ov_gguf_test::expect_nmse_below(
+            ov_gguf_test::nmse(actual.data<const float>(), expected.data<const float>(), actual.get_size()),
+            1e-10);
     }
 }
 
