@@ -17,18 +17,14 @@
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
-#include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/less.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/matmul.hpp"
-#include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
-#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
-#include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/tile.hpp"
@@ -169,18 +165,9 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
 
     // ggml's l2_norm (x / max(||x||, eps)) when the builder asked the fused op to normalize q/k.
     if (context.get_attribute<bool>("fuse_qk_l2norm", false)) {
-        const auto eps = ov::op::v0::Constant::create(ov::element::f32,
-                                                      {1},
-                                                      {context.get_attribute<float>("qk_l2_norm_eps", 1e-6f)});
-        const auto last = ov::op::v0::Constant::create(ov::element::i64, {1}, {-1});
-        const auto l2_norm = [&](const ov::Output<ov::Node>& x) {
-            auto sum =
-                std::make_shared<ov::op::v1::ReduceSum>(std::make_shared<ov::op::v1::Multiply>(x, x), last, true);
-            auto norm = std::make_shared<ov::op::v1::Maximum>(std::make_shared<ov::op::v0::Sqrt>(sum), eps);
-            return std::make_shared<ov::op::v1::Divide>(x, norm)->output(0);
-        };
-        q = l2_norm(q);
-        k = l2_norm(k);
+        const float eps = context.get_attribute<float>("qk_l2_norm_eps", 1e-6f);
+        q = make_l2_norm(q, eps);
+        k = make_l2_norm(k, eps);
     }
 
     if (context.has_input("chunk_valid_len")) {

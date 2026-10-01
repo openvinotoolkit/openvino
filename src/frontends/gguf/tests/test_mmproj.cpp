@@ -7,6 +7,7 @@
 
 #include "cnpy.h"
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "gguf_writer.hpp"
 #include "gtest/gtest.h"
 #include "op_test_utils.hpp"
@@ -145,12 +146,7 @@ TEST_F(GGUFMMProj, UnsupportedSecondModalityIsNotSilentlyDiscarded) {
     encoder("vision", "gemma3");
     writer.kv_bool("clip.has_audio_encoder", true);
     writer.kv_str("clip.audio.projector_type", "unsupported_audio");
-    try {
-        convert();
-        FAIL() << "Expected unsupported audio error";
-    } catch (const ov::Exception& e) {
-        EXPECT_NE(std::string(e.what()).find("unsupported_audio"), std::string::npos);
-    }
+    OV_EXPECT_THROW(convert(), ov::Exception, testing::HasSubstr("unsupported_audio"));
 }
 
 TEST_F(GGUFMMProj, LegacyGlobalProjectorTakesPrecedence) {
@@ -162,35 +158,20 @@ TEST_F(GGUFMMProj, LegacyGlobalProjectorTakesPrecedence) {
 TEST_F(GGUFMMProj, ResamplerRejectsUnknownVersion) {
     encoder("vision", "resampler");
     writer.kv_u32("clip.minicpmv_version", 999);
-    try {
-        convert();
-        FAIL() << "Expected unsupported resampler version";
-    } catch (const ov::Exception& e) {
-        EXPECT_NE(std::string(e.what()).find("resampler' version 999"), std::string::npos);
-    }
+    OV_EXPECT_THROW(convert(), ov::Exception, testing::HasSubstr("resampler' version 999"));
 }
 
 TEST_F(GGUFMMProj, ResamplerRejectsInconsistentQueries) {
     encoder("vision", "resampler");
     writer.kv_u32("clip.minicpmv_query_num", 3);
     weight("resampler.query", {256, 2});
-    try {
-        convert();
-        FAIL() << "Expected query-count mismatch";
-    } catch (const ov::Exception& e) {
-        EXPECT_NE(std::string(e.what()).find("query tensor matching query_count"), std::string::npos);
-    }
+    OV_EXPECT_THROW(convert(), ov::Exception, testing::HasSubstr("query tensor matching query_count"));
 }
 
 TEST_F(GGUFMMProj, ResamplerRequiresQueryNormalization) {
     encoder("vision", "resampler");
     weight("resampler.query", {256, 96});
-    try {
-        convert();
-        FAIL() << "Expected missing normalization tensor";
-    } catch (const ov::Exception& e) {
-        EXPECT_NE(std::string(e.what()).find("resampler.ln_q.weight"), std::string::npos);
-    }
+    OV_EXPECT_THROW(convert(), ov::Exception, testing::HasSubstr("resampler.ln_q.weight"));
 }
 
 class GGUFMMProjAccuracy : public ::testing::TestWithParam<const char*> {

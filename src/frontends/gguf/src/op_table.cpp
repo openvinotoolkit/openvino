@@ -10,6 +10,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/gelu.hpp"
 #include "openvino/op/log.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
@@ -88,7 +89,7 @@ std::unordered_map<std::string, CreatorFunction> get_supported_ops() {
         {"GGML_UNARY_OP_ELU", op::translate_unary_elu},
         {"GGML_UNARY_OP_EXP", op::translate_1to1_match_1_input<v0::Exp>},
         {"GGML_UNARY_OP_GELU", op::translate_unary_gelu},
-        {"GGML_UNARY_OP_GELU_ERF", op::translate_unary_gelu_erf},
+        {"GGML_UNARY_OP_GELU_ERF", op::translate_1to1_match_1_input<v7::Gelu>},
         {"GGML_UNARY_OP_GELU_QUICK", op::translate_unary_gelu_quick},
         {"GGML_UNARY_OP_NEG", op::translate_1to1_match_1_input<v0::Negative>},
         {"GGML_UNARY_OP_RELU", op::translate_1to1_match_1_input<v0::Relu>},

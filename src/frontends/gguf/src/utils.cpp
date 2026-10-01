@@ -22,10 +22,12 @@
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/sin.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/sqrt.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
@@ -100,6 +102,15 @@ int non_cont_dim(std::vector<size_t> ne, std::vector<size_t> nb) {
         }
     }
     return 0;
+}
+
+ov::Output<ov::Node> make_l2_norm(const ov::Output<ov::Node>& x, float eps) {
+    auto sum = std::make_shared<ov::op::v1::ReduceSum>(std::make_shared<ov::op::v1::Multiply>(x, x),
+                                                       ov::op::v0::Constant::create(ov::element::i64, {1}, {-1}),
+                                                       true);
+    auto norm = std::make_shared<ov::op::v1::Maximum>(std::make_shared<ov::op::v0::Sqrt>(sum),
+                                                      ov::op::v0::Constant::create(ov::element::f32, {1}, {eps}));
+    return std::make_shared<ov::op::v1::Divide>(x, norm);
 }
 
 void name_output(const ov::Output<ov::Node>& out, const std::string& name) {

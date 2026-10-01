@@ -11,7 +11,6 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/floor_mod.hpp"
 #include "openvino/op/gather.hpp"
-#include "openvino/op/gelu.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/interpolate.hpp"
 #include "openvino/op/less.hpp"
@@ -125,13 +124,6 @@ OutputVector translate_upscale(const NodeContext& context) {
         ov::op::v0::Constant::create(ov::element::i64, {axes.size()}, axes),
         attrs);
     return rename_outputs_with_suffix({result}, context.get_name());
-}
-
-OutputVector translate_unary_gelu_erf(const NodeContext& context) {
-    num_inputs_check(context, 1, 1);
-    return rename_outputs_with_suffix(
-        {std::make_shared<ov::op::v7::Gelu>(context.get_input(0), ov::op::GeluApproximationMode::ERF)},
-        context.get_name());
 }
 
 OutputVector translate_conv_2d(const NodeContext& context) {

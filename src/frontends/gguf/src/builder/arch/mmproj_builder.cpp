@@ -137,6 +137,8 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality) {
     c.width = positive(meta, key + "embedding_length");
     c.heads = c.topology == EncoderTopology::UnifiedVision ? 1 : positive(meta, key + "attention.head_count");
     c.kv_heads = c.topology == EncoderTopology::Ocr2 ? positive(meta, key + "attention.head_count_kv") : c.heads;
+    // GQA head expansion is done by the FLASH_ATTN_EXT translator.
+    OPENVINO_ASSERT(c.heads % c.kv_heads == 0, "[GGUF] encoder GQA head count mismatch");
     c.layers = c.topology == EncoderTopology::UnifiedVision ? 0 : positive(meta, key + "block_count");
     if (c.topology == EncoderTopology::Clip) {
         c.feature_layers = meta.get_int_array(key + "feature_layer");
@@ -471,8 +473,6 @@ private:
             auto q = projection("attn_q", 0);
             auto k = projection("attn_k", 1);
             auto v = projection("attn_v", 2);
-            // GQA head expansion is done by the FLASH_ATTN_EXT translator.
-            OPENVINO_ASSERT(c.heads % c.kv_heads == 0, "[GGUF] encoder GQA head count mismatch");
             if (rope_positions) {
                 q = encoder_rope(q, c, rope_positions, rope_positions_b);
                 k = encoder_rope(k, c, rope_positions, rope_positions_b);
@@ -927,7 +927,8 @@ private:
     GgufValue ocr_vision(const EncoderConfig& c) {
         auto pixels = g.add_input("vision.pixel_values", ov::element::f32, {-1, 3, -1, -1});
         auto spatial = sam(pixels);
-        auto x = reshape(transpose(spatial, {0, 2, 3, 1}), {0, 1, -1, c.width}, true);
+        const auto sam_features = reshape(transpose(spatial, {0, 2, 3, 1}), {0, 1, -1, c.width}, true);
+        auto x = sam_features;
         if (c.topology == EncoderTopology::Ocr2) {
             auto queries = concat(reshape(g.tensors().require("v.resample_query_768.weight"), {1, 1, 144, c.width}),
                                   reshape(g.tensors().require("v.resample_query_1024.weight"), {1, 1, 256, c.width}),
@@ -962,7 +963,6 @@ private:
             clip.activation = "GGML_UNARY_OP_GELU_QUICK";
             x = vit(x, clip, pos);
             x = slice(x, 2, 1, std::numeric_limits<int32_t>::max() - 1);
-            auto sam_features = reshape(transpose(spatial, {0, 2, 3, 1}), {0, 1, -1, c.width}, true);
             x = concat(x, sam_features);
         }
         x = linear(x, "mm.model.fc");

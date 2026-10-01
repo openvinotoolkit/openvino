@@ -33,11 +33,15 @@ ov::Tensor permute_chunks(const ov::Tensor& t,
     ov::Tensor out(t.get_element_type(), t.get_shape());
     const auto* in_data = static_cast<const uint8_t*>(t.data());
     auto* out_data = static_cast<uint8_t*>(out.data());
-    std::memcpy(out_data, in_data, bytes);
+    const size_t head = first * chunk_bytes, tail = (first + src.size()) * chunk_bytes;
     for (size_t r = 0; r < outer; ++r) {
+        const auto* in_row = in_data + r * row_bytes;
+        auto* out_row = out_data + r * row_bytes;
+        std::memcpy(out_row, in_row, head);
+        std::memcpy(out_row + tail, in_row + tail, row_bytes - tail);
         for (size_t n = 0; n < src.size(); ++n) {
-            std::memcpy(out_data + r * row_bytes + (first + n) * chunk_bytes,
-                        in_data + r * row_bytes + (first + static_cast<size_t>(src[n])) * chunk_bytes,
+            std::memcpy(out_row + (first + n) * chunk_bytes,
+                        in_row + (first + static_cast<size_t>(src[n])) * chunk_bytes,
                         chunk_bytes);
         }
     }

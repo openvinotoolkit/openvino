@@ -4,6 +4,7 @@
 
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
 
+#include <algorithm>
 #include <memory>
 #include <vector>
 
@@ -314,10 +315,9 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     name_output(position_ids, "position_ids");
     std::shared_ptr<v0::Parameter> token_type_ids;
     const auto arch_it = model->get_rt_info().find("gguf_architecture");
-    if (inputs_embeds && arch_it != model->get_rt_info().end() &&
-        (arch_it->second.as<std::string>() == "gemma3" ||
-         (arch_it->second.as<std::string>() == "gemma4" && inputs_embeds->get_partial_shape()[2] != 1536 &&
-          inputs_embeds->get_partial_shape()[2] != 2560))) {
+    const auto arch = arch_it != model->get_rt_info().end() ? arch_it->second.as<std::string>() : std::string{};
+    if (inputs_embeds && (arch == "gemma3" || (arch == "gemma4" && inputs_embeds->get_partial_shape()[2] != 1536 &&
+                                               inputs_embeds->get_partial_shape()[2] != 2560))) {
         token_type_ids = make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
         name_output(token_type_ids, "token_type_ids");
     }
@@ -459,7 +459,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     auto mask_4d = to_mask_4d(allowed);
     if (self_kq_mask) {
         // Gemma4 permits bidirectional image attention only in sliding-window layers.
-        const bool causal_global = token_type_ids && arch_it->second.as<std::string>() == "gemma4";
+        const bool causal_global = token_type_ids && arch == "gemma4";
         auto global_mask = causal_global ? to_mask_4d(make_shared<v1::LogicalAnd>(causal, valid_keys)) : mask_4d;
         self_kq_mask->output(0).replace(global_mask->output(0));
     }
@@ -643,20 +643,15 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // Swap the input list to the genai contract. beam_idx is kept as-is; every other old
     // gguf Parameter has had its output rewired (consumers now read the derived subgraph),
     // so removing it is safe.
-    model->add_parameters({input_ids, attention_mask, position_ids});
-    if (inputs_embeds)
-        model->add_parameters({inputs_embeds});
-    if (per_layer_inputs)
-        model->add_parameters({per_layer_inputs});
-    if (token_type_ids)
-        model->add_parameters({token_type_ids});
+    ov::ParameterVector kept{input_ids, attention_mask, position_ids};
+    for (const auto& p : {inputs_embeds, per_layer_inputs, token_type_ids})
+        if (p)
+            kept.push_back(p);
+    model->add_parameters(kept);
     const auto params_snapshot = model->get_parameters();  // copy: remove_parameter mutates the list
     for (const auto& p : params_snapshot) {
-        if (p == input_ids || p == attention_mask || p == position_ids || p == beam_idx || p == inputs_embeds ||
-            p == per_layer_inputs || p == token_type_ids) {
-            continue;
-        }
-        model->remove_parameter(p);
+        if (p != beam_idx && std::find(kept.begin(), kept.end(), p) == kept.end())
+            model->remove_parameter(p);
     }
 
     // Pin the runtime KV-cache precision to f16 for large-head models so decode matches both
