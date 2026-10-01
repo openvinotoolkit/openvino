@@ -70,7 +70,17 @@ OutputVector translate_get_rows(const NodeContext& context) {
         const auto ids_shape = indices.get_partial_shape();
         const int64_t K = ids_shape[ids_shape.size() - 1].get_length();
         auto idx = std::make_shared<ov::op::v0::Convert>(indices, ov::element::i32);
-        auto ge = std::make_shared<ov::op::v6::GatherElements>(data, idx, -1);  // [1,1,T,K]
+        // A single shared row (per-expert scales [1,1,1,E]) is gathered directly instead of per token.
+        ov::Output<Node> ge;
+        if (context.get_attribute<bool>("shared_row", false)) {
+            auto row = std::make_shared<ov::op::v1::Reshape>(data,
+                                                             ov::op::v0::Constant::create(ov::element::i64, {1}, {-1}),
+                                                             false);
+            ge =
+                std::make_shared<ov::op::v8::Gather>(row, idx, ov::op::v0::Constant::create(ov::element::i32, {}, {0}));
+        } else {
+            ge = std::make_shared<ov::op::v6::GatherElements>(data, idx, -1);  // [1,1,T,K]
+        }
         auto col = std::make_shared<ov::op::v1::Reshape>(
             ge,
             ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, -1, K, 1}),

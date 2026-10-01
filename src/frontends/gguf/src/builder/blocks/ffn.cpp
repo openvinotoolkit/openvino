@@ -268,8 +268,8 @@ std::string moe_ffn(GraphEmitter& e,
                      {p + "ffn_down_exps.scale"},
                      6,
                      {{"reshape_target", std::vector<int64_t>{1, 1, 1, cfg.n_expert}}, {"special_zero", false}});
-        scales = e.add_op("GGML_OP_REPEAT", p + "moe_expert_scales", {scales, probs});
-        scales = e.add_op("GGML_OP_GET_ROWS", p + "moe_selected_scales", {scales, selected}, 10);
+        scales =
+            e.add_op("GGML_OP_GET_ROWS", p + "moe_selected_scales", {scales, selected}, 10, {{"shared_row", true}});
         weights = e.add_op("GGML_OP_MUL", p + "moe_scaled_weights", {weights, scales});
     }
 
