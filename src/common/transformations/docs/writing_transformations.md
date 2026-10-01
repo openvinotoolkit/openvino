@@ -139,18 +139,17 @@ Conditions in the pattern are self-documenting, composable, enforced by the matc
 Avoid:
 
 ```cpp
-auto conv_m = wrap_type<v1::Convolution>();
+auto add_m = wrap_type<v1::Add>();
 
 ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
-    auto conv = ov::as_type_ptr<v1::Convolution>(m.get_match_root());
-    if (!conv)
+    auto add = ov::as_type_ptr<v1::Add>(m.get_match_root());
+    if (!add)
         return false;
-    if (conv->get_strides() != Strides{1, 1})
+    const auto& data_shape = add->get_input_partial_shape(0);
+    if (data_shape.is_dynamic() || data_shape.rank().get_length() != 2)
         return false;
-    const auto& w = conv->get_input_partial_shape(1);
-    if (w.rank().is_dynamic() || w.rank().get_length() != 4 || w[2] != 3 || w[3] != 3)
-        return false;
-    if (conv->get_input_element_type(1) != element::i8)
+    const auto data_type = add->get_input_element_type(0);
+    if (data_type != element::u8 && data_type != element::i8)
         return false;
     // ... actual rewrite
 };
@@ -159,12 +158,12 @@ ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
 Prefer:
 
 ```cpp
-auto weights_m = any_input(type_matches(element::i8) && shape_matches("OC, IC, 3, 3"));
-auto conv_m    = wrap_type<v1::Convolution>({any_input(), weights_m}, {{"strides", Strides{1, 1}}});
+auto data_m = any_input(has_static_shape() && rank_equals(2) && type_matches_any({element::u8, element::i8}));
+auto add_m  = wrap_type<v1::Add>({data_m, any_input()});
 
 ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& m) {
     const auto& pattern_map = m.get_pattern_value_map();
-    const auto& symbols     = m.get_symbols();   // "OC" / "IC" available for further checks
+    const auto data = pattern_map.at(data_m);
     // ... actual rewrite only
 };
 ```
