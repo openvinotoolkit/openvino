@@ -180,19 +180,19 @@ struct Fingerprint {
 
 const std::map<std::string, Fingerprint>& fingerprints() {
     static const std::map<std::string, Fingerprint> fp{
-        {"mamba2-dense.gguf.hdr", {293, 6}},     {"nemotron_h-dense.gguf.hdr", {280, 8}},
-        {"bailingmoe2-moe.gguf.hdr", {473, 10}}, {"ernie4_5-moe-moe.gguf.hdr", {455, 10}},
-        {"exaone4-dense.gguf.hdr", {417, 11}},   {"gemma-dense.gguf.hdr", {365, 10}},
-        {"gemma2-dense.gguf.hdr", {415, 11}},    {"glm4moe-moe.gguf.hdr", {485, 10}},
-        {"gpt-oss-moe.gguf.hdr", {574, 11}},     {"hunyuan-dense-dense.gguf.hdr", {416, 10}},
-        {"hunyuan-moe-moe.gguf.hdr", {554, 10}}, {"llama-dense.gguf.hdr", {400, 10}},
-        {"llama-moe.gguf.hdr", {506, 10}},       {"maincoder-dense.gguf.hdr", {432, 10}},
-        {"minicpm-dense.gguf.hdr", {398, 10}},   {"minicpm-moe.gguf.hdr", {504, 10}},
-        {"minimax-m2-moe.gguf.hdr", {534, 10}},  {"mistral3-dense.gguf.hdr", {400, 10}},
-        {"mistral3-moe.gguf.hdr", {506, 10}},    {"olmoe-moe.gguf.hdr", {534, 10}},
-        {"phi3-dense.gguf.hdr", {380, 10}},      {"qwen2-dense.gguf.hdr", {368, 10}},
-        {"qwen3-dense.gguf.hdr", {416, 10}},     {"qwen3moe-moe.gguf.hdr", {546, 10}},
-        {"qwen35-dense.gguf.hdr", {395, 10}},    {"smollm3-dense.gguf.hdr", {384, 10}},
+        {"mamba2-dense.gguf.hdr", {289, 6}},     {"nemotron_h-dense.gguf.hdr", {278, 8}},
+        {"bailingmoe2-moe.gguf.hdr", {470, 10}}, {"ernie4_5-moe-moe.gguf.hdr", {453, 10}},
+        {"exaone4-dense.gguf.hdr", {415, 11}},   {"gemma-dense.gguf.hdr", {365, 10}},
+        {"gemma2-dense.gguf.hdr", {415, 11}},    {"glm4moe-moe.gguf.hdr", {482, 10}},
+        {"gpt-oss-moe.gguf.hdr", {570, 11}},     {"hunyuan-dense-dense.gguf.hdr", {414, 10}},
+        {"hunyuan-moe-moe.gguf.hdr", {550, 10}}, {"llama-dense.gguf.hdr", {398, 10}},
+        {"llama-moe.gguf.hdr", {504, 10}},       {"maincoder-dense.gguf.hdr", {430, 10}},
+        {"minicpm-dense.gguf.hdr", {396, 10}},   {"minicpm-moe.gguf.hdr", {502, 10}},
+        {"minimax-m2-moe.gguf.hdr", {532, 10}},  {"mistral3-dense.gguf.hdr", {398, 10}},
+        {"mistral3-moe.gguf.hdr", {504, 10}},    {"olmoe-moe.gguf.hdr", {532, 10}},
+        {"phi3-dense.gguf.hdr", {378, 10}},      {"qwen2-dense.gguf.hdr", {366, 10}},
+        {"qwen3-dense.gguf.hdr", {414, 10}},     {"qwen3moe-moe.gguf.hdr", {544, 10}},
+        {"qwen35-dense.gguf.hdr", {391, 10}},    {"smollm3-dense.gguf.hdr", {382, 10}},
     };
     return fp;
 }
