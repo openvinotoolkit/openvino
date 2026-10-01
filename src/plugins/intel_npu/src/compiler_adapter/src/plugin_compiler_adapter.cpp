@@ -80,6 +80,11 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                                        const Config& config) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
+    std::optional<MemoryPeakTracker> memoryPeakTracker;
+    if (_logger.level() >= ov::log::Level::INFO) {
+        memoryPeakTracker.emplace();
+    }
+
     _logger.debug("compile start");
     auto [tensor, compatibilityDescriptor] = _compiler->compile(model, config);
     _logger.debug("compile end");
@@ -96,6 +101,10 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 
         // metadata will be obtained in initialze() of DynamicGraph
         _logger.debug("Use dynamicGraph to hold blob for HostCompile mode!");
+        if (memoryPeakTracker) {
+            // Note: Following log is parsed by CI. Take care when modifying it.
+            _logger.info("Compilation memory usage: Peak %lld KB", memoryPeakTracker->get_peak_increase_kb());
+        }
         return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), blobType);
     }
 
@@ -116,6 +125,11 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         }
     } else {
         _logger.warning("No driver is found, zeGraphExt is nullptr, so metadata is empty. Only exports are available");
+    }
+
+    if (memoryPeakTracker) {
+        // Note: Following log is parsed by CI. Take care when modifying it.
+        _logger.info("Compilation memory usage: Peak %lld KB", memoryPeakTracker->get_peak_increase_kb());
     }
 
     return std::make_shared<Graph>(

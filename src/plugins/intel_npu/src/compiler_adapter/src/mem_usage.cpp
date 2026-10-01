@@ -31,7 +31,17 @@ int64_t intel_npu::get_current_memory_usage() {
     return static_cast<int64_t>(std::round(mem_counters.WorkingSetSize / bytes_in_kilobyte));
 }
 
+// Windows keeps freed pages resident in the working set until something trims it, so
+// WorkingSetSize can stay inflated by earlier, unrelated work. Trimming it right before a
+// tracking window starts means any memory the tracked work touches - even if it reuses
+// address space freed earlier - must fault back in and show up as a real increase.
+static void reset_working_set() {
+    EmptyWorkingSet(GetCurrentProcess());
+}
+
 #else
+
+static void reset_working_set() {}
 
 #    include <fstream>
 #    include <regex>
@@ -67,8 +77,11 @@ int64_t intel_npu::get_current_memory_usage() {
 namespace intel_npu {
 
 MemoryPeakTracker::MemoryPeakTracker(std::chrono::milliseconds pollInterval)
-    : _baselineKb(get_current_memory_usage()),
-      _peakKb(_baselineKb) {
+    : _baselineKb(0),
+      _peakKb(0) {
+    reset_working_set();
+    _baselineKb = get_current_memory_usage();
+    _peakKb = _baselineKb;
     _pollThread = std::thread(&MemoryPeakTracker::poll_loop, this, pollInterval);
 }
 
