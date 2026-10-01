@@ -1,5 +1,7 @@
 #pragma OPENCL EXTENSION cl_intel_subgroup_matrix_multiply_accumulate : enable
+#if SUBGROUP_SIZE == 16
 #pragma OPENCL EXTENSION cl_intel_subgroup_2d_block_io               : enable
+#endif
 #pragma OPENCL EXTENSION cl_intel_subgroups                         : enable
 #pragma OPENCL EXTENSION cl_intel_subgroups_short                   : enable
 
@@ -217,6 +219,17 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     K += KEY_OFF(b1, b0_kv, 0, 0) + INPUT1_OFFSET;
     V += VAL_OFF(b1, b0_kv, 0, 0) + INPUT2_OFFSET;
     A += DST_OFF(b1, b0, 0, 0, 0);
+#endif
+#if SG8
+    // k_tile_dword reads K one dword (2 head dims) per lane with a block read, which needs an even row pitch and a 4 B
+    // aligned base (a view/slice can break either; an unaligned dword block read returns wrong data without an error).
+    // Uniform across the workgroup; false selects the two-ushort fallback.
+    #if defined(NEG_SG8) && NEG_SG8 == 4
+    // Not a negative control: forces the fallback so the sharp test covers it (it must still PASS).
+    const bool k_dword_ok = false;
+    #else
+    const bool k_dword_ok = ((ldk & 1u) == 0) && ((as_long(K) & 3) == 0);
+    #endif
 #endif
 #if WITH_ATTN_MASK
     msk += MSK_OFF(b1 % MSK_D0, b0 % MSK_D1, 0, 0);
@@ -530,7 +543,12 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     (local void *)&Q_slm[Q_SLM_OFF(db, q_block)]));
             }
 
+#if SG8
+            // A operand of the KQ DPAS: component = key row, lane = dword (2 head dims). int8, not ushort8.
+            int8 k_raw[kq_key_blocks];
+#else
             ushort8 k_raw[kq_key_blocks];
+#endif
 #if IS_PA_MIXED
             if (from_cache) {
     #if USE_2D_BLOCK_IO_K_PA
@@ -580,10 +598,14 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #elif USE_2D_BLOCK_IO_KV
             FUNC_CALL(k_tile_b2d16)(k_raw, K_b2d, KD_w_b2d, KD_h, KD_p, KD_x0, db, key_base, 0);
 #else
+    #if SG8
+            FUNC_CALL(k_tile_dword)(k_raw, K, ldk, key_base, k, d, db, lane, k_dword_ok);
+    #else
     #ifdef KV_COMPRESSED
             FUNC_CALL(k_tile_gather)(k_raw, K, ldk, k_scale_lane, k_zpb_lane, key_base, k, d, db, lane);
     #else
             FUNC_CALL(k_tile_gather)(k_raw, K, ldk, key_base, k, d, db, lane);
+    #endif
     #endif
 #endif
 
@@ -591,7 +613,11 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
             for (int mb = 0; mb < kq_key_blocks; ++mb) {
                 #pragma unroll
                 for (int qb = 0; qb < kq_query_blocks; ++qb)
+#if SG8
+                    S_tile[mb][qb] = DPAS_MAD_K16(k_raw[mb], qB[qb], S_tile[mb][qb]);
+#else
                     S_tile[mb][qb] = DPAS_MAD_K16(as_short8(k_raw[mb]), qB[qb], S_tile[mb][qb]);
+#endif
             }
         }
 
@@ -782,7 +808,14 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                 const int key_block = key / DPAS_K;
                 const int key_lane = key - key_block * DPAS_K;
                 const int s_half_offset = (key_block * kq_wg_tile_queries + query) * DPAS_K + key_lane;
+#if SG8 && defined(NEG_SG8) && NEG_SG8 == 3
+                // Negative control: swap the two keys packed in every dword of the S_slm row.
+                uint4 p_pack = as_uint4(PACK_SOFTMAX8(exp_tile));
+                p_pack = (p_pack << 16) | (p_pack >> 16);
+                vstore4(p_pack, 0, &S_slm[s_half_offset >> 1]);
+#else
                 vstore4(as_uint4(PACK_SOFTMAX8(exp_tile)), 0, &S_slm[s_half_offset >> 1]);
+#endif
             }
 #if MICRO_MATH
             if (!first)
@@ -863,12 +896,25 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
                     FUNC_CALL(v_i8_read)(vt, V, VD_w, VD_h, VD_p, sg_j0_sv, k0, cp);
             #endif
 
-            short8 pA[sv_score_blocks];
+            DPAS_A_T pA[sv_score_blocks];
             #pragma unroll
             for (int r = 0; r < sv_score_blocks; ++r) {
                 const int query0 = sg_i0_sv + r * 8;
+#if SG8
+                // A operand of the S*V DPAS: component i = query query0 + i, lane l = the dword of keys (2l, 2l+1) of
+                // this cp block. An S_slm row is DPAS_K halves = 8 dwords = one SG8 block-read row, so the 8 rows are
+                // consecutive and one 8-row dword block read is the whole operand.
+    #if defined(NEG_SG8) && NEG_SG8 == 2
+                // Negative control: transposed (lane = query row, component = dword).
+                pA[r] = as_int8(vload8(0, (local uint *)&S_slm[(((cp * kq_wg_tile_queries + query0) * DPAS_K) >> 1) + lane * 8]));
+    #else
+                pA[r] = as_int8(intel_sub_group_block_read8(
+                    (local uint *)&S_slm[((cp * kq_wg_tile_queries + query0) * DPAS_K) >> 1]));
+    #endif
+#else
                 pA[r] = as_short8(intel_sub_group_block_read_us8(
                     (local void *)&S_slm[((cp * kq_wg_tile_queries + query0) * DPAS_K) >> 1]));
+#endif
             }
 
             #if USE_2D_BLOCK_IO_V_I8
