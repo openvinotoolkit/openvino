@@ -65,7 +65,9 @@ ov::Output<Node> non_overlapping_patches(const ov::Output<Node>& image, size_t I
 // GGML_OP_IM2COL: unfold a 1D/2D convolution input into column patches (conv / vision models).
 // The decoder exposes the conv params (strides/pads/dilations + is_2D) as a typed int vector.
 OutputVector translate_im2col(const NodeContext& context) {
-    num_inputs_check(context, 2, 2);
+    // Builder graphs pass the kernel shape as an attribute instead of a placeholder kernel tensor.
+    num_inputs_check(context, 1, 2);
+    const bool kernel_input = context.get_input_size() == 2;
 
     auto params = context.get_attribute<std::vector<int32_t>>("im2col_params");
     FRONT_END_OP_CONVERSION_CHECK(params.size() >= 7, "IM2COL requires 7 params");
@@ -78,8 +80,9 @@ OutputVector translate_im2col(const NodeContext& context) {
     bool is_2D = params[6] == 1;
     ov::Output<Node> res;
 
-    ov::Output<Node> image = context.get_input(1);
-    const ov::Shape kernel_shape = context.get_input(0).get_shape();
+    ov::Output<Node> image = context.get_input(kernel_input ? 1 : 0);
+    const ov::Shape kernel_shape =
+        kernel_input ? context.get_input(0).get_shape() : context.get_attribute<ov::Shape>("kernel_shape");
 
     const size_t IC = is_2D ? kernel_shape[1] : kernel_shape[2];
     const size_t KH = is_2D ? kernel_shape[2] : 1;
@@ -112,48 +115,44 @@ OutputVector translate_im2col(const NodeContext& context) {
     if (is_2D && stride_h == static_cast<int32_t>(KH) && stride_w == static_cast<int32_t>(KW) && pad_h == 0 &&
         pad_w == 0 && dil_h == 1 && dil_w == 1) {
         res = non_overlapping_patches(image, IC, KH, KW);
-        if (res.get_element_type() != output_type) {
-            res = std::make_shared<ov::op::v0::Convert>(res, output_type);
+    } else {
+        const ov::Shape patch_sizes = {KH, KW};
+        const ov::Strides strides = {static_cast<size_t>(stride_h), static_cast<size_t>(stride_w)};
+        const ov::Shape rates = {static_cast<size_t>(dil_h), static_cast<size_t>(dil_w)};
+
+        auto pads_begin =
+            ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, pad_h, pad_w});
+        auto pad = std::make_shared<ov::op::v1::Pad>(image, pads_begin, pads_begin, ov::op::PadMode::CONSTANT);
+        auto patches =
+            std::make_shared<ov::op::v3::ExtractImagePatches>(pad, patch_sizes, strides, rates, ov::op::PadType::VALID);
+
+        auto perm1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 3, 1});
+        auto t1 = std::make_shared<ov::op::v1::Transpose>(patches, perm1);
+
+        auto reshape1_shape = ov::op::v0::Constant::create(
+            ov::element::i64,
+            {5},
+            std::vector<int64_t>{0, 0, 0, static_cast<int64_t>(KH * KW), static_cast<int64_t>(IC)});
+        auto r1 = std::make_shared<ov::op::v1::Reshape>(t1, reshape1_shape, true);
+
+        auto perm2 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, std::vector<int64_t>{0, 1, 2, 4, 3});
+        auto t2 = std::make_shared<ov::op::v1::Transpose>(r1, perm2);
+
+        auto r2_shape = ov::op::v0::Constant::create(ov::element::i64,
+                                                     {4},
+                                                     std::vector<int64_t>{0, 0, 0, static_cast<int64_t>(IC * KH * KW)});
+        res = std::make_shared<ov::op::v1::Reshape>(t2, r2_shape, true);
+
+        if (!is_2D) {
+            auto final_reshape_shape = std::make_shared<ov::op::v0::Concat>(
+                ov::OutputVector{ov::op::v0::Constant::create(ov::element::i64, {1}, {1}),
+                                 get_dimensions(t1, {0, 2}),
+                                 ov::op::v0::Constant::create(ov::element::i64,
+                                                              {1},
+                                                              std::vector<int64_t>{static_cast<int64_t>(IC * KW)})},
+                0);
+            res = std::make_shared<ov::op::v1::Reshape>(res, final_reshape_shape, false);
         }
-        return rename_outputs_with_suffix({std::move(res)}, context.get_name());
-    }
-
-    const ov::Shape patch_sizes = {KH, KW};
-    const ov::Strides strides = {static_cast<size_t>(stride_h), static_cast<size_t>(stride_w)};
-    const ov::Shape rates = {static_cast<size_t>(dil_h), static_cast<size_t>(dil_w)};
-
-    auto pads_begin =
-        ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 0, pad_h, pad_w});
-    auto pad = std::make_shared<ov::op::v1::Pad>(image, pads_begin, pads_begin, ov::op::PadMode::CONSTANT);
-    auto patches =
-        std::make_shared<ov::op::v3::ExtractImagePatches>(pad, patch_sizes, strides, rates, ov::op::PadType::VALID);
-
-    auto perm1 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, std::vector<int64_t>{0, 2, 3, 1});
-    auto t1 = std::make_shared<ov::op::v1::Transpose>(patches, perm1);
-
-    auto reshape1_shape = ov::op::v0::Constant::create(
-        ov::element::i64,
-        {5},
-        std::vector<int64_t>{0, 0, 0, static_cast<int64_t>(KH * KW), static_cast<int64_t>(IC)});
-    auto r1 = std::make_shared<ov::op::v1::Reshape>(t1, reshape1_shape, true);
-
-    auto perm2 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, std::vector<int64_t>{0, 1, 2, 4, 3});
-    auto t2 = std::make_shared<ov::op::v1::Transpose>(r1, perm2);
-
-    auto r2_shape = ov::op::v0::Constant::create(ov::element::i64,
-                                                 {4},
-                                                 std::vector<int64_t>{0, 0, 0, static_cast<int64_t>(IC * KH * KW)});
-    res = std::make_shared<ov::op::v1::Reshape>(t2, r2_shape, true);
-
-    if (!is_2D) {
-        auto final_reshape_shape = std::make_shared<ov::op::v0::Concat>(
-            ov::OutputVector{ov::op::v0::Constant::create(ov::element::i64, {1}, {1}),
-                             get_dimensions(t1, {0, 2}),
-                             ov::op::v0::Constant::create(ov::element::i64,
-                                                          {1},
-                                                          std::vector<int64_t>{static_cast<int64_t>(IC * KW)})},
-            0);
-        res = std::make_shared<ov::op::v1::Reshape>(res, final_reshape_shape, false);
     }
 
     if (res.get_element_type() != output_type) {

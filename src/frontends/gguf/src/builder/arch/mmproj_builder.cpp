@@ -649,12 +649,11 @@ private:
         return convolution(pixels, g.tensors().require(weight), stride, padding);
     }
     GgufValue unfold(const GgufValue& x, int64_t channels, int64_t kernel) {
-        ov::Tensor dummy(ov::element::f32, {1, size_t(channels), size_t(kernel), size_t(kernel)});
-        std::fill_n(dummy.data<float>(), dummy.get_size(), 0.f);
         return g.node("GGML_OP_IM2COL",
-                      {g.add_constant("vision.unfold_kernel", dummy), x},
+                      {x},
                       0,
                       {{"im2col_params", std::vector<int32_t>{int32_t(kernel), int32_t(kernel), 0, 0, 1, 1, 1}},
+                       {"kernel_shape", ov::Shape{1, size_t(channels), size_t(kernel), size_t(kernel)}},
                        {"dst_type", ov::element::f32}});
     }
     GgufValue dynamic_vision(const EncoderConfig& c) {
