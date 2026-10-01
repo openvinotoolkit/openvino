@@ -51,8 +51,9 @@ bool EltwiseKernel_mixed_byxf_and_fs_b_yx_fsv32::Validate(const Params& params) 
     }
 
     for (auto in : inputs) {
-        if (in.GetLayout() != DataLayout::fs_b_yx_fsv32 && in.GetLayout() != DataLayout::byxf)
+        if (in.GetLayout() != DataLayout::fs_b_yx_fsv32 && in.GetLayout() != DataLayout::byxf) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     }
 
     const auto& input1 = inputs[0];

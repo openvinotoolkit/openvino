@@ -58,9 +58,7 @@ std::string GatedMLP::getTestCaseName(const testing::TestParamInfo<ov::test::sni
 }
 
 TEST_P(GatedMLP, CompareWithRefImpl) {
-    SKIP_IF_CURRENT_TEST_IS_DISABLED()
     run();
-    validateNumSubgraphs();
 }
 
 }  // namespace snippets

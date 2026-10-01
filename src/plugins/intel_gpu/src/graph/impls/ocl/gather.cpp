@@ -83,11 +83,13 @@ protected:
         kernel_arguments_data args = parent::get_arguments(instance);
         const auto& desc = instance.get_typed_desc<gather>();
 
-        if (desc->decompression_scale.is_valid())
+        if (desc->decompression_scale.is_valid()) {
             args.inputs.push_back(instance.dep_memory_ptr(2));
+        }
 
-        if (desc->decompression_zero_point.is_valid())
+        if (desc->decompression_zero_point.is_valid()) {
             args.inputs.push_back(instance.dep_memory_ptr(3));
+        }
 
         return args;
     }
@@ -158,8 +160,9 @@ public:
                     size_t num_outer_deps = fd.total_num_deps > 0 ? fd.total_num_deps - 1 : 0;
                     for (size_t di = 0; di < num_outer_deps; di++) {
                         size_t dep_idx = static_cast<size_t>(fd.outer_dep_start_idx) + di;
-                        if (dep_idx >= updated_impl_params.input_layouts.size())
+                        if (dep_idx >= updated_impl_params.input_layouts.size()) {
                             break;
+                        }
                         auto& dep_layout = updated_impl_params.input_layouts[dep_idx];
                         auto dep_pshape = dep_layout.get_partial_shape();
                         if (dep_pshape.size() < output_pshape.size()) {
@@ -203,16 +206,15 @@ std::unique_ptr<primitive_impl> GatherImplementationManager::create_impl(const p
 namespace detail {
 
 attach_gather_impl::attach_gather_impl() {
-    auto dyn_types = {
-        data_types::f32,
-        data_types::f16,
-        data_types::bf16,
-        data_types::i8,
-        data_types::u8,
-        data_types::i4,
-        data_types::u4,
-        data_types::i32
-    };
+    auto dyn_types = {data_types::f32,
+                      data_types::f16,
+                      data_types::bf16,
+                      data_types::i8,
+                      data_types::u8,
+                      data_types::i4,
+                      data_types::u4,
+                      data_types::i32,
+                      data_types::f8e4m3};
 
     auto dyn_formats = {
         format::bfyx,

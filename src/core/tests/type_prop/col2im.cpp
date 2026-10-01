@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <limits>
+
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/constant.hpp"
@@ -400,6 +402,76 @@ TEST_F(TypePropCol2ImTest, interval_inputs_from_shapeof) {
     EXPECT_EQ(op->get_output_partial_shape(0), (PartialShape{{4, 5}, Dimension::dynamic(), {5, 16}, {5, 16}}));
     EXPECT_THAT(get_shape_symbols(op->get_output_partial_shape(0)),
                 testing::ElementsAre(data_symbols[0], nullptr, output_size_symbols[0], output_size_symbols[1]));
+}
+
+TEST_F(TypePropCol2ImTest, kernel_size_zero_both_dims) {
+    const auto data = std::make_shared<Parameter>(element::i64, PartialShape{3, 12, 81});
+    const auto output_size = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{16, 16});
+    const auto kernel_size = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{0, 0});
+
+    OV_EXPECT_THROW(
+        std::ignore = make_op(data, output_size, kernel_size, Strides{2, 2}, Strides{2, 2}, Shape{2, 2}, Shape{2, 2}),
+        ov::NodeValidationFailure,
+        HasSubstr("kernel"));
+}
+
+TEST_F(TypePropCol2ImTest, kernel_size_zero_one_dim) {
+    const auto data = std::make_shared<Parameter>(element::i64, PartialShape{3, 12, 81});
+    const auto output_size = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{16, 16});
+    const auto kernel_size = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{0, 3});
+
+    OV_EXPECT_THROW(
+        std::ignore = make_op(data, output_size, kernel_size, Strides{2, 2}, Strides{2, 2}, Shape{2, 2}, Shape{2, 2}),
+        ov::NodeValidationFailure,
+        HasSubstr("kernel"));
+}
+
+TEST_F(TypePropCol2ImTest, zero_strides_both_dims) {
+    const auto data = std::make_shared<Parameter>(element::i64, Shape{12, 324});
+    const auto output_size = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int32_t>{32, 32});
+    const auto kernel_size = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int32_t>{2, 2});
+
+    OV_EXPECT_THROW(
+        std::ignore = make_op(data, output_size, kernel_size, Strides{0, 0}, Strides{1, 1}, Shape{0, 0}, Shape{0, 0}),
+        ov::NodeValidationFailure,
+        HasSubstr("strides"));
+}
+
+TEST_F(TypePropCol2ImTest, zero_strides_one_dim) {
+    const auto data = std::make_shared<Parameter>(element::i64, Shape{12, 324});
+    const auto output_size = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int32_t>{32, 32});
+    const auto kernel_size = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int32_t>{2, 2});
+
+    OV_EXPECT_THROW(
+        std::ignore = make_op(data, output_size, kernel_size, Strides{1, 0}, Strides{1, 1}, Shape{0, 0}, Shape{0, 0}),
+        ov::NodeValidationFailure,
+        HasSubstr("strides"));
+}
+
+TEST_F(TypePropCol2ImTest, kernel_size_overflow_product) {
+    const auto data = std::make_shared<Parameter>(element::i64, PartialShape{1, 12, 81});
+    const auto output_size = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{16, 16});
+    const int64_t large = std::numeric_limits<int64_t>::max() / 2 + 1;
+    const auto kernel_size = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{large, 2});
+
+    OV_EXPECT_THROW(
+        std::ignore = make_op(data, output_size, kernel_size, Strides{1, 1}, Strides{1, 1}, Shape{0, 0}, Shape{0, 0}),
+        ov::NodeValidationFailure,
+        HasSubstr("kernel_size product overflows"));
+}
+
+TEST_F(TypePropCol2ImTest, kernel_size_product_wraps_to_zero) {
+    const auto data = std::make_shared<Parameter>(element::i64, PartialShape{1, 12, 81});
+    const auto output_size = std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{16, 16});
+    // Both elements are positive, but their product wraps around to exactly 0 without the overflow guard.
+    constexpr int64_t two_pow_32 = int64_t{1} << 32;
+    const auto kernel_size =
+        std::make_shared<Constant>(element::i64, Shape{2}, std::vector<int64_t>{two_pow_32, two_pow_32});
+
+    OV_EXPECT_THROW(
+        std::ignore = make_op(data, output_size, kernel_size, Strides{1, 1}, Strides{1, 1}, Shape{0, 0}, Shape{0, 0}),
+        ov::NodeValidationFailure,
+        HasSubstr("kernel_size product overflows"));
 }
 
 }  // namespace test

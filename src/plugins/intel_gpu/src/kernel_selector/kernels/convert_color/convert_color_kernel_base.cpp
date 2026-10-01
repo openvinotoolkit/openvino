@@ -15,8 +15,9 @@ bool ConvertColorKernelBase::Validate(const Params& p) const {
 
     const convert_color_params& params = static_cast<const convert_color_params&>(p);
 
-    if (params.inputs[0].Dimentions() > 4)
+    if (params.inputs[0].Dimentions() > 4) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }

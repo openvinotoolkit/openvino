@@ -3,9 +3,11 @@
 //
 
 #include "gather_elements_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 static size_t GetGatherElementsChannelIndex(const gather_elements_params& params) {
@@ -14,20 +16,20 @@ static size_t GetGatherElementsChannelIndex(const gather_elements_params& params
     size_t inputSize = params.inputs[0].GetDims().size();
 
     switch (params.axis) {
-        case GatherAxis::X:
-            return inputSize - 1;
-        case GatherAxis::Y:
-            return inputSize - 2;
-        case GatherAxis::Z:
-            return inputSize - 3;
-        case GatherAxis::W:
-            return 2;
-        case GatherAxis::FEATURE:
-            return 1;
-        case GatherAxis::BATCH:
-            return 0;
-        default:
-            break;
+    case GatherAxis::X:
+        return inputSize - 1;
+    case GatherAxis::Y:
+        return inputSize - 2;
+    case GatherAxis::Z:
+        return inputSize - 3;
+    case GatherAxis::W:
+        return 2;
+    case GatherAxis::FEATURE:
+        return 1;
+    case GatherAxis::BATCH:
+        return 0;
+    default:
+        break;
     }
 
     return DataTensor::Channelndex(params.outputs[0].GetLayout(), name);
@@ -54,7 +56,7 @@ static std::string GetAxisDimSizeStr(const gather_elements_params& params) {
 
 static std::string GetLoadAndHandleNegativeIndicesStr(const gather_elements_params& params) {
     std::string str = "const int axis_dim = " + GetAxisDimSizeStr(params) + ";";
-    str += "const int indices_val_read = (int)indices[out_idx];";
+    str += "const int indices_val_read = (int)indices[indices_idx];";
     str += "const int indices_val = indices_val_read < 0 ? indices_val_read + axis_dim : indices_val_read;";
     return str;
 }
@@ -73,8 +75,12 @@ ParamsKey GatherElementsKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::b_fs_yx_fsv16);
+    k.EnableOutputLayout(DataLayout::b_fs_yx_fsv16);
     k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::bfzyx);
+    k.EnableInputLayout(DataLayout::b_fs_zyx_fsv16);
+    k.EnableOutputLayout(DataLayout::b_fs_zyx_fsv16);
     k.EnableInputLayout(DataLayout::bfwzyx);
     k.EnableOutputLayout(DataLayout::bfwzyx);
     k.EnableTensorOffset();
@@ -88,11 +94,11 @@ ParamsKey GatherElementsKernelRef::GetSupportedKey() const {
 static inline std::vector<std::string> GetDefaultOrder(size_t size) {
     std::vector<std::string> default_order;
     if (size <= 4) {
-        default_order = { "b", "f", "y", "x" };
+        default_order = {"b", "f", "y", "x"};
     } else if (size == 5) {
-        default_order = { "b", "f", "z", "y", "x" };
+        default_order = {"b", "f", "z", "y", "x"};
     } else if (size == 6) {
-        default_order = { "b", "f", "w", "z", "y", "x" };
+        default_order = {"b", "f", "w", "z", "y", "x"};
     }
 
     return default_order;
@@ -100,8 +106,9 @@ static inline std::vector<std::string> GetDefaultOrder(size_t size) {
 
 static inline std::string GetOrderString(const std::vector<std::string>& order) {
     std::string order_str = order[0];
-    for (size_t i = 1; i < order.size(); i++)
+    for (size_t i = 1; i < order.size(); i++) {
         order_str += ", " + order[i];
+    }
 
     return order_str;
 }
@@ -125,14 +132,14 @@ CommonDispatchData GatherElementsKernelRef::SetDefault(const gather_elements_par
 
     switch (params.inputs[1].GetLayout()) {
     case DataLayout::bfyx:
+    case DataLayout::b_fs_yx_fsv16:
         dispatchData.gws = {output.X().v, output.Y().v, output.Feature().v * output.Batch().v};
-        dims_by_gws = {{Tensor::DataChannelName::X},
-                       {Tensor::DataChannelName::Y},
-                       {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
+        dims_by_gws = {{Tensor::DataChannelName::X}, {Tensor::DataChannelName::Y}, {Tensor::DataChannelName::FEATURE, Tensor::DataChannelName::BATCH}};
 
         break;
 
     case DataLayout::bfzyx:
+    case DataLayout::b_fs_zyx_fsv16:
         dispatchData.gws = {output.X().v, output.Y().v * output.Z().v, output.Feature().v * output.Batch().v};
         dims_by_gws = {{Tensor::DataChannelName::X},
                        {Tensor::DataChannelName::Y, Tensor::DataChannelName::Z},
@@ -167,8 +174,8 @@ JitConstants GatherElementsKernelRef::GetJitConstants(const gather_elements_para
 
     if (!params.fused_ops.empty()) {
         std::vector<std::string> idx_order = GetDefaultOrder(params.inputs[0].GetDims().size());
-        FusedOpsConfiguration conf = { "", idx_order, "val", params.inputs[0].GetDType() };
-        jit.Merge(MakeFusedOpsJitConstants(params, { conf }));
+        FusedOpsConfiguration conf = {"", idx_order, "val", params.inputs[0].GetDType()};
+        jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
     }
 
     return jit;
@@ -188,8 +195,9 @@ bool GatherElementsKernelRef::Validate(const Params& p) const {
     }
 
     for (const auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op))
+        if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
     return true;
@@ -222,9 +230,20 @@ KernelsData GatherElementsKernelRef::GetKernelsData(const Params& params) const 
     GetUpdateDispatchDataFunc(kd);
 
     auto& kernel = kd.kernels[0];
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     "", false, false, 2, GetFusedPrimitiveInputsCount(params), 1, newParams.is_shape_agnostic);
-    return { kd };
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     "",
+                     false,
+                     false,
+                     2,
+                     GetFusedPrimitiveInputsCount(params),
+                     1,
+                     newParams.is_shape_agnostic);
+    return {kd};
 }
 
 KernelsPriority GatherElementsKernelRef::GetKernelsPriority(const Params& /*params*/) const {

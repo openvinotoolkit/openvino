@@ -63,9 +63,10 @@ struct concatenation_impl : public typed_primitive_impl<concatenation> {
         ov::TensorVector input_host_tensors;
         ov::TensorVector output_host_tensors;
 
-        for (auto input_layout : instance.get_impl_params()->input_layouts)
+        for (auto input_layout : instance.get_impl_params()->input_layouts) {
             OPENVINO_ASSERT(input_layout.data_type == instance.get_impl_params()->get_output_layout().data_type,
                             "[GPU] Couldn't create concat operation: unsupported mixed inputs/output data types");
+        }
 
         std::vector<memory::ptr> input_mem_ptrs;
         for (size_t i = 0; i < instance.dependencies().size(); i++) {
@@ -92,8 +93,9 @@ struct concatenation_impl : public typed_primitive_impl<concatenation> {
         OPENVINO_ASSERT(op->evaluate(output_host_tensors, input_host_tensors),
                         "[GPU] Couldn't execute concat primitive with id ", instance.id());
 
-        for (size_t i = 0; i < input_mem_ptrs.size(); i++)
+        for (size_t i = 0; i < input_mem_ptrs.size(); i++) {
             input_mem_ptrs[i]->unlock(stream);
+        }
 
         if (pass_through_events) {
             return stream.group_events(events);

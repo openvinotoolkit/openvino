@@ -4,6 +4,7 @@
 
 #include "include/batch_headers/fetch_data.cl"
 #include "include/batch_headers/common.cl"
+#include "include/batch_headers/bf16_utils.cl"
 #include "include/batch_headers/int4_utils.cl"
 #include "include/batch_headers/sub_group_block_read.cl"
 #include "include/batch_headers/sub_group_block_write.cl"
@@ -125,6 +126,7 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
 
 #define OUTPUT_BLOCK_READ(ptr, offset) BLOCK_READN(OUTPUT_TYPE, 1, ptr, offset)
 #define OUTPUT_BLOCK_WRITE(ptr, offset, val) BLOCK_WRITEN(OUTPUT_TYPE, 1, ptr, offset, val)
+
 #if IS_INT4_COMPRESSED
 #define VALUE_BLOCK_READ(ptr, offset) ((ptr)[(offset) + sglid])
 #else
@@ -132,6 +134,11 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
 #endif
 #define SUBGROUPS_PER_WG CEIL_DIV(V_HEAD_SIZE * SG_SCALE_FACTOR, SUBGROUP_SIZE)
 
+#if IS_INT4_SIGNED
+#define DECODE_INT4_NIBBLE(value) (((value) >= 8) ? ((value) - 16) : (value))
+#else
+#define DECODE_INT4_NIBBLE(value) (value)
+#endif
 #if IS_KV_COMPRESSED
 #if COMPRESSED_PER_HEAD
     #define GET_COMPRESSION_INDEX(INPUT, b, f, y, x) GET_DATA_INDEX(INPUT, (b), (f), (y), (0));
@@ -144,6 +151,11 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
     #define GET_ZP(zp, scale, comp_offset) ((zp)[(comp_offset)])
 #else
     #define GET_ZP(zp, scale, comp_offset) ((scale)[(comp_offset) + 1])
+#endif
+#if USE_ASYMMETRIC_QUANTIZATION
+    #define DEQUANTIZE_KV(value, zp, scale) (((value) - (zp)) * (scale))
+#else
+    #define DEQUANTIZE_KV(value, zp, scale) ((value) * (scale))
 #endif
 #endif
 
@@ -220,7 +232,7 @@ KERNEL(sdpa_opt)(
                                                   : (SOURCE_SEQ_LEN - partition_idx * SEQ_LEN_PARTITION_SIZE);
 
     // SLM for query inputs
-    __local INPUT0_TYPE query_local[K_HEAD_SIZE * TARGET_SEQ_LEN_BLOCK_SIZE];
+    __local INPUT0_COMPUTE_TYPE query_local[K_HEAD_SIZE * TARGET_SEQ_LEN_BLOCK_SIZE];
     // SLM for intermediate QK results
     __local SOFTMAX_ACCUMULATOR_TYPE qk_local[SEQ_LEN_PARTITION_SIZE * TARGET_SEQ_LEN_BLOCK_SIZE];
     // SLM buffers for SoftMax calculation and qk_max/qk_sums results aggregation across all WG
@@ -237,11 +249,11 @@ KERNEL(sdpa_opt)(
         {
             // Gemm1 calculation
 #if HAS_SCALE_INPUT
-            const OUTPUT_TYPE scale_val = *scale;
+            const OUTPUT_COMPUTE_TYPE scale_val = TO_OUTPUT_COMPUTE_TYPE(*scale);
 #elif defined(STATIC_SCALE_VALUE)
-            const OUTPUT_TYPE scale_val = TO_OUTPUT_TYPE(STATIC_SCALE_VALUE);
+            const OUTPUT_COMPUTE_TYPE scale_val = TO_OUTPUT_COMPUTE_TYPE(STATIC_SCALE_VALUE);
 #else
-            const OUTPUT_TYPE scale_val = OUTPUT_VAL_ONE / sqrt(TO_OUTPUT_TYPE(V_HEAD_SIZE));
+            const OUTPUT_COMPUTE_TYPE scale_val = OUTPUT_VAL_ONE / sqrt(TO_OUTPUT_COMPUTE_TYPE(V_HEAD_SIZE));
 #endif
             #if K_HEAD_SIZE > V_HEAD_SIZE
             for (uint block_idx = sgid; block_idx < K_HEAD_SIZE / SUBGROUP_SIZE; block_idx++)
@@ -270,7 +282,7 @@ KERNEL(sdpa_opt)(
                         #define QUERY_BLOCK_SIZE 1
 
                         INPUT0_TYPE val = BLOCK_READN(INPUT0_TYPE, QUERY_BLOCK_SIZE, query_input, query_offset);
-                        query_local[query_local_offset] = val * scale_val;
+                        query_local[query_local_offset] = DECODE_INPUT0_COMPUTE_TYPE(val) * scale_val;
                         query_local_offset += QUERY_STEP_LOCAL;
                         query_offset += query_pitch;
                     }
@@ -326,13 +338,13 @@ KERNEL(sdpa_opt)(
                     INPUT1_TYPE packed_byte = KEY_BLOCK_READ_1(key_input, key_offset + head_idx_index / 2);
                     char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
 
-                    KEY_COMPRESSION_SCALE_TYPE key_val0 = (CAT(convert_, KEY_COMPRESSION_SCALE_TYPE)(unpacked.s0) - comp_zp) * comp_scale;
-                    KEY_COMPRESSION_SCALE_TYPE key_val1 = (CAT(convert_, KEY_COMPRESSION_SCALE_TYPE)(unpacked.s1) - comp_zp) * comp_scale;
+                    KEY_COMPRESSION_SCALE_TYPE key_val0 = DEQUANTIZE_KV(CAT(convert_, KEY_COMPRESSION_SCALE_TYPE)(DECODE_INT4_NIBBLE(unpacked.s0)), comp_zp, comp_scale);
+                    KEY_COMPRESSION_SCALE_TYPE key_val1 = DEQUANTIZE_KV(CAT(convert_, KEY_COMPRESSION_SCALE_TYPE)(DECODE_INT4_NIBBLE(unpacked.s1)), comp_zp, comp_scale);
 
                     unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                         uint query_offset = seq_idx * K_HEAD_SIZE + head_idx_index;
-                        INPUT0_TYPE q_val0 = query_local[query_offset + 2 * sglid];
-                        INPUT0_TYPE q_val1 = query_local[query_offset + 2 * sglid + 1];
+                        INPUT0_COMPUTE_TYPE q_val0 = query_local[query_offset + 2 * sglid];
+                        INPUT0_COMPUTE_TYPE q_val1 = query_local[query_offset + 2 * sglid + 1];
                         acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(q_val0), TO_SOFTMAX_ACCUMULATOR_TYPE(key_val0), acc[seq_idx]);
                         acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(q_val1), TO_SOFTMAX_ACCUMULATOR_TYPE(key_val1), acc[seq_idx]);
                     }
@@ -347,16 +359,16 @@ KERNEL(sdpa_opt)(
                         ? KEY_BLOCK_READ_1(key_input, key_offset + head_idx_index / 2) : (INPUT1_TYPE)0;
                     char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
 
-                    KEY_COMPRESSION_SCALE_TYPE key_val0 = (CAT(convert_, KEY_COMPRESSION_SCALE_TYPE)(unpacked.s0) - comp_zp) * comp_scale;
-                    KEY_COMPRESSION_SCALE_TYPE key_val1 = (CAT(convert_, KEY_COMPRESSION_SCALE_TYPE)(unpacked.s1) - comp_zp) * comp_scale;
+                    KEY_COMPRESSION_SCALE_TYPE key_val0 = DEQUANTIZE_KV(CAT(convert_, KEY_COMPRESSION_SCALE_TYPE)(DECODE_INT4_NIBBLE(unpacked.s0)), comp_zp, comp_scale);
+                    KEY_COMPRESSION_SCALE_TYPE key_val1 = DEQUANTIZE_KV(CAT(convert_, KEY_COMPRESSION_SCALE_TYPE)(DECODE_INT4_NIBBLE(unpacked.s1)), comp_zp, comp_scale);
                     KEY_COMPRESSION_SCALE_TYPE lane_mask = (head_idx_index + 2 * sglid < K_HEAD_SIZE) ? (KEY_COMPRESSION_SCALE_TYPE)1 : (KEY_COMPRESSION_SCALE_TYPE)0;
                     key_val0 *= lane_mask;
                     key_val1 *= lane_mask;
 
                     unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                         uint query_offset = seq_idx * K_HEAD_SIZE + head_idx_index;
-                        INPUT0_TYPE q_val0 = query_local[query_offset + 2 * sglid];
-                        INPUT0_TYPE q_val1 = query_local[query_offset + 2 * sglid + 1];
+                        INPUT0_COMPUTE_TYPE q_val0 = query_local[query_offset + 2 * sglid];
+                        INPUT0_COMPUTE_TYPE q_val1 = query_local[query_offset + 2 * sglid + 1];
                         acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(q_val0), TO_SOFTMAX_ACCUMULATOR_TYPE(key_val0), acc[seq_idx]);
                         acc[seq_idx] = mad(TO_SOFTMAX_ACCUMULATOR_TYPE(q_val1), TO_SOFTMAX_ACCUMULATOR_TYPE(key_val1), acc[seq_idx]);
                     }
@@ -377,7 +389,7 @@ KERNEL(sdpa_opt)(
                     #define KEY_BLOCK MAKE_VECTOR_TYPE(INPUT1_TYPE, KEY_BLOCK_SIZE)
                     #define KEY_BLOCK_UNCOMPRESSED MAKE_VECTOR_TYPE(KEY_COMPRESSION_SCALE_TYPE, KEY_BLOCK_SIZE)
                     #define TO_KEY_BLOCK_UNCOMPRESSED_TYPE(val) CAT(convert_, KEY_BLOCK_UNCOMPRESSED)(val)
-                    #define QUERY_BLOCK MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_BLOCK_SIZE)
+                    #define QUERY_BLOCK MAKE_VECTOR_TYPE(INPUT0_COMPUTE_TYPE, KEY_BLOCK_SIZE)
 
                     KEY_BLOCK key_vec_packed = KEY_BLOCK_READ(key_input, key_offset + head_idx_index);
 #if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
@@ -385,7 +397,10 @@ KERNEL(sdpa_opt)(
 #elif IS_KV_COMPRESSED
                     KEY_BLOCK_UNCOMPRESSED key_vals = (TO_KEY_BLOCK_UNCOMPRESSED_TYPE(key_vec_packed)) * comp_scale;
 #else
-                    KEY_BLOCK key_vals = key_vec_packed;
+                    MAKE_VECTOR_TYPE(INPUT1_COMPUTE_TYPE, KEY_BLOCK_SIZE) key_vals;
+                    unroll_for(uint _kb = 0; _kb < KEY_BLOCK_SIZE; _kb++) {
+                        key_vals[_kb] = DECODE_INPUT1_COMPUTE_TYPE(key_vec_packed[_kb]);
+                    }
 #endif
 
                     uint query_offset = head_idx_index + sglid;
@@ -409,7 +424,7 @@ KERNEL(sdpa_opt)(
                     #define KEY_BLOCK MAKE_VECTOR_TYPE(INPUT1_TYPE, KEY_BLOCK_SIZE)
                     #define KEY_BLOCK_UNCOMPRESSED MAKE_VECTOR_TYPE(KEY_COMPRESSION_SCALE_TYPE, KEY_BLOCK_SIZE)
                     #define TO_KEY_BLOCK_UNCOMPRESSED_TYPE(val) CAT(convert_, KEY_BLOCK_UNCOMPRESSED)(val)
-                    #define QUERY_BLOCK MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_BLOCK_SIZE)
+                    #define QUERY_BLOCK MAKE_VECTOR_TYPE(INPUT0_COMPUTE_TYPE, KEY_BLOCK_SIZE)
 
                     KEY_BLOCK key_vec_packed = KEY_BLOCK_READ(key_input, key_offset + head_idx_index);
 #if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
@@ -417,7 +432,10 @@ KERNEL(sdpa_opt)(
 #elif IS_KV_COMPRESSED
                     KEY_BLOCK_UNCOMPRESSED key_vals = (TO_KEY_BLOCK_UNCOMPRESSED_TYPE(key_vec_packed)) * comp_scale;
 #else
-                    KEY_BLOCK key_vals = key_vec_packed;
+                    MAKE_VECTOR_TYPE(INPUT1_COMPUTE_TYPE, KEY_BLOCK_SIZE) key_vals;
+                    unroll_for(uint _kb = 0; _kb < KEY_BLOCK_SIZE; _kb++) {
+                        key_vals[_kb] = DECODE_INPUT1_COMPUTE_TYPE(key_vec_packed[_kb]);
+                    }
 #endif
 
                     uint query_offset = head_idx_index + sglid;
@@ -441,7 +459,7 @@ KERNEL(sdpa_opt)(
                     #define KEY_BLOCK MAKE_VECTOR_TYPE(INPUT1_TYPE, KEY_BLOCK_SIZE)
                     #define KEY_BLOCK_UNCOMPRESSED MAKE_VECTOR_TYPE(KEY_COMPRESSION_SCALE_TYPE, KEY_BLOCK_SIZE)
                     #define TO_KEY_BLOCK_UNCOMPRESSED_TYPE(val) CAT(convert_, KEY_BLOCK_UNCOMPRESSED)(val)
-                    #define QUERY_BLOCK MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_BLOCK_SIZE)
+                    #define QUERY_BLOCK MAKE_VECTOR_TYPE(INPUT0_COMPUTE_TYPE, KEY_BLOCK_SIZE)
 
                     KEY_BLOCK key_vec_packed = KEY_BLOCK_READ(key_input, key_offset + head_idx_index);
 #if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
@@ -449,7 +467,10 @@ KERNEL(sdpa_opt)(
 #elif IS_KV_COMPRESSED
                     KEY_BLOCK_UNCOMPRESSED key_vals = (TO_KEY_BLOCK_UNCOMPRESSED_TYPE(key_vec_packed)) * comp_scale;
 #else
-                    KEY_BLOCK key_vals = key_vec_packed;
+                    MAKE_VECTOR_TYPE(INPUT1_COMPUTE_TYPE, KEY_BLOCK_SIZE) key_vals;
+                    unroll_for(uint _kb = 0; _kb < KEY_BLOCK_SIZE; _kb++) {
+                        key_vals[_kb] = DECODE_INPUT1_COMPUTE_TYPE(key_vec_packed[_kb]);
+                    }
 #endif
 
                     uint query_offset = head_idx_index + sglid;
@@ -473,7 +494,7 @@ KERNEL(sdpa_opt)(
                     #define KEY_BLOCK MAKE_VECTOR_TYPE(INPUT1_TYPE, KEY_BLOCK_SIZE)
                     #define KEY_BLOCK_UNCOMPRESSED MAKE_VECTOR_TYPE(KEY_COMPRESSION_SCALE_TYPE, KEY_BLOCK_SIZE)
                     #define TO_KEY_BLOCK_UNCOMPRESSED_TYPE(val) CAT(convert_, KEY_BLOCK_UNCOMPRESSED)(val)
-                    #define QUERY_BLOCK MAKE_VECTOR_TYPE(INPUT0_TYPE, KEY_BLOCK_SIZE)
+                    #define QUERY_BLOCK MAKE_VECTOR_TYPE(INPUT0_COMPUTE_TYPE, KEY_BLOCK_SIZE)
 
                     KEY_BLOCK key_vec_packed = KEY_BLOCK_READ(key_input, key_offset + head_idx_index);
 #if IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
@@ -481,7 +502,7 @@ KERNEL(sdpa_opt)(
 #elif IS_KV_COMPRESSED
                     KEY_BLOCK_UNCOMPRESSED key_vals = (TO_KEY_BLOCK_UNCOMPRESSED_TYPE(key_vec_packed)) * comp_scale;
 #else
-                    KEY_BLOCK key_vals = key_vec_packed;
+                    INPUT1_COMPUTE_TYPE key_vals = DECODE_INPUT1_COMPUTE_TYPE(key_vec_packed);
 #endif
 
                     uint query_offset = head_idx_index + sglid;
@@ -518,11 +539,16 @@ KERNEL(sdpa_opt)(
 
                         // Apply attention mask
 #if IS_CAUSAL
-                        if (start_partition_idx + seq_len > target_seq_idx + seq_idx)
+                        #if !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
+                            const uint causal_offset = max(0, (int)SOURCE_SEQ_LEN - (int)TARGET_SEQ_LEN);
+                            if (start_partition_idx + seq_len > causal_offset + target_seq_idx + seq_idx)
+                        #else
+                            if (start_partition_idx + seq_len > target_seq_idx + seq_idx)
+                        #endif
                             qk_val[seq_idx] += INPUT0_VAL_MIN;
 #elif !IS_CAUSAL && HAS_ATTN_MASK_INPUT
                         const uint attn_mask_offset = INPUT3_GET_INDEX_SAFE(b0_idx, b1_idx, target_seq_idx + seq_idx, start_partition_idx + seq_len);
-                        INPUT3_TYPE mask_val = attn_mask[attn_mask_offset];
+                        INPUT3_COMPUTE_TYPE mask_val = DECODE_INPUT3_COMPUTE_TYPE(attn_mask[attn_mask_offset]);
 #ifdef CLAMP_ATTN_MASK_INPUT
                         // Conditionally clamp attention mask when attention mask differs from SOFTMAX_ACCUMULATOR_TYPE(f32)
                         mask_val = INPUT3_MAX_FUNC(mask_val, INPUT3_VAL_MIN);
@@ -615,7 +641,7 @@ KERNEL(sdpa_opt)(
                 if (local_data_idx < partition_seq_len) {
                     for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
                         SOFTMAX_ACCUMULATOR_TYPE qk_new = native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + local_data_idx]) - qk_max[seq_idx]);
-                        qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + local_data_idx] = TO_OUTPUT_TYPE(qk_new);
+                        qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + local_data_idx] = TO_OUTPUT_COMPUTE_TYPE(qk_new);
 
                         exp_sum[seq_idx] += qk_new;
                     }
@@ -686,7 +712,7 @@ KERNEL(sdpa_opt)(
                 if (local_data_idx < partition_seq_len) {
                     for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
                         SOFTMAX_ACCUMULATOR_TYPE qk_new = TO_SOFTMAX_ACCUMULATOR_TYPE(qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + local_data_idx]) / exp_sum[seq_idx];
-                        qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + local_data_idx] = TO_OUTPUT_TYPE(qk_new);
+                        qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + local_data_idx] = TO_OUTPUT_COMPUTE_TYPE(qk_new);
                     }
                 }
             }
@@ -714,7 +740,7 @@ KERNEL(sdpa_opt)(
 
     {
         // Gemm2 calculation
-        OUTPUT_TYPE acc[TARGET_SEQ_LEN_BLOCK_SIZE] = {OUTPUT_VAL_ZERO};
+        OUTPUT_COMPUTE_TYPE acc[TARGET_SEQ_LEN_BLOCK_SIZE] = {OUTPUT_VAL_ZERO};
 #ifndef BEAM_TABLE_TYPE
 #ifdef INPUT2_DIMS_ORDER
         uint value_offset = FUNC_CALL(get_input2_index)(OPTIONAL_SHAPE_INFO_TENSOR b0_idx, b1_idx, 0, 0, 0, 0);
@@ -785,9 +811,9 @@ KERNEL(sdpa_opt)(
 #endif
 #endif
 
-            OUTPUT_TYPE qk_val[TARGET_SEQ_LEN_BLOCK_SIZE];
+            OUTPUT_COMPUTE_TYPE qk_val[TARGET_SEQ_LEN_BLOCK_SIZE];
             unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
-                qk_val[seq_idx] = qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len * SUBGROUP_SIZE + sglid];
+                qk_val[seq_idx] = TO_OUTPUT_COMPUTE_TYPE(qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len * SUBGROUP_SIZE + sglid]);
             }
 
             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
@@ -807,18 +833,18 @@ KERNEL(sdpa_opt)(
                 INPUT2_TYPE needed_byte = intel_sub_group_shuffle(value_packed, shuffle_src_p0);
                 char2 v_unpacked = unpack_to_char(*(uint4x2_t*)&needed_byte);
                 VALUE_COMPRESSION_SCALE_TYPE value_val = (nibble_sel_p0 == 0 ?
-                    CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked.s0) :
-                    CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked.s1));
-                value_val = (value_val - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
+                    CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(DECODE_INT4_NIBBLE(v_unpacked.s0)) :
+                    CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(DECODE_INT4_NIBBLE(v_unpacked.s1)));
+                value_val = DEQUANTIZE_KV(value_val, sub_group_broadcast(comp_zp, i), sub_group_broadcast(comp_scale, i));
 #elif IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                 VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
 #elif IS_KV_COMPRESSED
                 VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed * sub_group_broadcast(comp_scale, i));
 #else
-                INPUT2_TYPE value_val = value_packed;
+                INPUT2_COMPUTE_TYPE value_val = DECODE_INPUT2_COMPUTE_TYPE(value_packed);
 #endif
                 unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
-                    acc[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), value_val, acc[seq_idx]);
+                    acc[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), TO_OUTPUT_COMPUTE_TYPE(value_val), acc[seq_idx]);
                 }
 
 #ifndef BEAM_TABLE_TYPE
@@ -863,9 +889,9 @@ KERNEL(sdpa_opt)(
 #endif
 #endif
 
-            OUTPUT_TYPE qk_val[TARGET_SEQ_LEN_BLOCK_SIZE];
+            OUTPUT_COMPUTE_TYPE qk_val[TARGET_SEQ_LEN_BLOCK_SIZE];
             unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
-                qk_val[seq_idx] = qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len];
+                qk_val[seq_idx] = TO_OUTPUT_COMPUTE_TYPE(qk_local[seq_idx * SEQ_LEN_PARTITION_SIZE + seq_len]);
             }
 
 #if IS_INT4_COMPRESSED
@@ -879,19 +905,19 @@ KERNEL(sdpa_opt)(
             INPUT2_TYPE needed_byte = intel_sub_group_shuffle(value_packed, shuffle_src_p0);
             char2 v_rem_unpacked = unpack_to_char(*(uint4x2_t*)&needed_byte);
             VALUE_COMPRESSION_SCALE_TYPE value_val = (nibble_sel_p0 == 0 ?
-                CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_rem_unpacked.s0) :
-                CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_rem_unpacked.s1));
-            value_val = (value_val - comp_zp) * comp_scale;
+                CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(DECODE_INT4_NIBBLE(v_rem_unpacked.s0)) :
+                CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(DECODE_INT4_NIBBLE(v_rem_unpacked.s1)));
+            value_val = DEQUANTIZE_KV(value_val, comp_zp, comp_scale);
 #elif IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
             const VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - comp_zp) * comp_scale;
 #elif IS_KV_COMPRESSED
             const VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed * comp_scale);
 #else
-            const INPUT2_TYPE value_val = value_packed;
+            const INPUT2_COMPUTE_TYPE value_val = DECODE_INPUT2_COMPUTE_TYPE(value_packed);
 #endif
 
             unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
-                acc[seq_idx] = mad(qk_val[seq_idx], value_val, acc[seq_idx]);
+                acc[seq_idx] = mad(qk_val[seq_idx], TO_OUTPUT_COMPUTE_TYPE(value_val), acc[seq_idx]);
             }
         }
 
@@ -926,13 +952,13 @@ KERNEL(sdpa_opt)(
                                             (target_seq_idx + seq_idx) * (num_of_partitions * V_HEAD_SIZE) +
                                             partition_idx * (V_HEAD_SIZE) +
                                             head_size_idx;
-                tmp_out[tmp_out_offset] = acc[seq_idx];
+                tmp_out[tmp_out_offset] = TO_OUTPUT_TYPE(acc[seq_idx]);
             }
         } else {
             const uint seq_idx_end = 1;
             for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
                 const uint output_offset = SDPA_OUTPUT_GET_INDEX(b0_idx, b1_idx, target_seq_idx + seq_idx, head_size_idx);
-                output[output_offset] = acc[seq_idx];
+                output[output_offset] = TO_OUTPUT_TYPE(acc[seq_idx]);
             }
         }
 #if SG_SCALE_FACTOR > 1
@@ -984,7 +1010,7 @@ KERNEL(sdpa_opt)(
 #define APPLY_SCALES_TO_QUERY 1
 #endif
 
-#define MASK_VECTOR_TYPE MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
+#define MASK_VECTOR_TYPE MAKE_VECTOR_TYPE(INPUT0_COMPUTE_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
 
 inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
                                              uint b0_idx,
@@ -1010,13 +1036,13 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
         if (source_seq_idx + SUBGROUP_SIZE <= (uint)SOURCE_SEQ_LEN) {
             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
                 const INPUT3_TYPE mask_val = attn_mask[attn_mask_offset + i];
-                mask_vec[i] = mask_val;
+                mask_vec[i] = DECODE_INPUT3_COMPUTE_TYPE(mask_val);
             }
         } else {
             const uint max_mask_offset = min(source_seq_idx + SUBGROUP_SIZE, (uint)SOURCE_SEQ_LEN);
             for (uint i = 0; i < SUBGROUP_SIZE; i++) {
                 const INPUT3_TYPE mask_val = source_seq_idx + i < max_mask_offset ? attn_mask[attn_mask_offset + i] : NAN;
-                mask_vec[i] = mask_val;
+                mask_vec[i] = DECODE_INPUT3_COMPUTE_TYPE(mask_val);
             }
         }
     }
@@ -1036,6 +1062,11 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if IS_CAUSAL
+    #if !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
+        const uint causal_offset = max(0, (int)SOURCE_SEQ_LEN - (int)TARGET_SEQ_LEN);
+    #else
+        const uint causal_offset = 0;
+    #endif
     if (target_seq_idx >= (uint)TARGET_SEQ_LEN) {
         unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
             mask_vec[i] = NAN;
@@ -1046,7 +1077,7 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
             if ((source_seq_idx + i > target_seq_idx) ||
                 (target_seq_idx >= SLIDING_WINDOW_SIZE && source_seq_idx + i < target_seq_idx - SLIDING_WINDOW_SIZE))
 #else
-            if (source_seq_idx + i > target_seq_idx)
+            if (source_seq_idx + i > target_seq_idx + causal_offset)
 #endif
                 mask_vec[i] = NAN;
         }
@@ -1054,9 +1085,9 @@ inline MASK_VECTOR_TYPE FUNC(load_attn_mask)(OPTIONAL_SHAPE_INFO_ARG
 #endif
 
 #if HAS_SCALE_INPUT
-    const OUTPUT_TYPE scale_val = OUTPUT_VAL_ONE / *scale;
+    const OUTPUT_COMPUTE_TYPE scale_val = OUTPUT_VAL_ONE / TO_OUTPUT_COMPUTE_TYPE(*scale);
 #else
-    const INPUT0_TYPE scale_val = TO_INPUT0_TYPE(STATIC_SCALE_VALUE_INV);
+    const INPUT0_COMPUTE_TYPE scale_val = TO_INPUT0_COMPUTE_TYPE(STATIC_SCALE_VALUE_INV);
 #endif
 
     // Apply scale to attn_mask
@@ -1311,10 +1342,10 @@ KERNEL(sdpa_opt)(
     #define sgid (uint)get_sub_group_id()
 
     // SLM buffer for query inputs
-    __local INPUT0_TYPE slm_query[K_HEAD_SIZE * TARGET_SEQ_LEN_BLOCK_SIZE];
+    __local INPUT0_COMPUTE_TYPE slm_query[K_HEAD_SIZE * TARGET_SEQ_LEN_BLOCK_SIZE];
 
     // SLM buffer for intermediate QK results
-    __local OUTPUT_TYPE slm_qk_vals[TARGET_SEQ_LEN_BLOCK_SIZE][SEQ_LEN_PARTITION_SIZE];
+    __local OUTPUT_COMPUTE_TYPE slm_qk_vals[TARGET_SEQ_LEN_BLOCK_SIZE][SEQ_LEN_PARTITION_SIZE];
 
     // SLM buffers for SoftMax calculation and qk_max/qk_sums results aggregation across all WGs
 #if IS_FLASHATTEN_V2
@@ -1355,7 +1386,15 @@ KERNEL(sdpa_opt)(
 #endif
 
 #if IS_CAUSAL
-    const SEQ_RANGE default_this_work_item_seq_range = {0, target_seq_idx + sglid, target_seq_idx + seq_idx_end};
+    #if !IS_PAGED_ATTENTION && CAUSAL_MASK_LOWER_RIGHT
+        const uint causal_offset = max(0, (int)SOURCE_SEQ_LEN - (int)TARGET_SEQ_LEN);
+    #else
+        const uint causal_offset = 0;
+    #endif
+    const SEQ_RANGE default_this_work_item_seq_range = {
+        0,
+        target_seq_idx + sglid + causal_offset,
+        target_seq_idx + seq_idx_end + causal_offset};
     SEQ_RANGE this_work_item_seq_range_temp = default_this_work_item_seq_range;
 
     #if IS_PAGED_ATTENTION
@@ -1414,12 +1453,12 @@ KERNEL(sdpa_opt)(
 
 #if APPLY_SCALES_TO_QUERY
 #if HAS_SCALE_INPUT
-        const INPUT0_TYPE scale_val = *scale;
+        const INPUT0_COMPUTE_TYPE scale_val = TO_INPUT0_COMPUTE_TYPE(*scale);
 #else
-        const INPUT0_TYPE scale_val = TO_INPUT0_TYPE(STATIC_SCALE_VALUE);
+        const INPUT0_COMPUTE_TYPE scale_val = TO_INPUT0_COMPUTE_TYPE(STATIC_SCALE_VALUE);
 #endif
 #else
-        const INPUT0_TYPE scale_val = INPUT0_VAL_ONE;
+        const INPUT0_COMPUTE_TYPE scale_val = INPUT0_VAL_ONE;
 #endif
 
         if (seq_idx_end != TARGET_SEQ_LEN_BLOCK_SIZE) {
@@ -1428,7 +1467,7 @@ KERNEL(sdpa_opt)(
                 for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
                     INPUT0_TYPE val = BLOCK_READN(INPUT0_TYPE, 1, query_input, query_offset);
 
-                    slm_query[query_local_offset] = val * scale_val;
+                    slm_query[query_local_offset] = DECODE_INPUT0_COMPUTE_TYPE(val) * scale_val;
                     query_offset += query_pitch;
                     query_local_offset++;
                 }
@@ -1438,7 +1477,7 @@ KERNEL(sdpa_opt)(
                 if (sglid < valid_workers) {
                     unroll_for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
                         INPUT0_TYPE val = query_input[query_offset];
-                        slm_query[query_local_offset] = val * scale_val;
+                        slm_query[query_local_offset] = DECODE_INPUT0_COMPUTE_TYPE(val) * scale_val;
                         query_offset += query_pitch;
                         query_local_offset++;
                     }
@@ -1448,7 +1487,7 @@ KERNEL(sdpa_opt)(
             if (k_sgid * SUBGROUP_SIZE < K_HEAD_SIZE) {
                 for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
                     INPUT0_TYPE val = BLOCK_READN(INPUT0_TYPE, 1, query_input, query_offset);
-                    slm_query[query_local_offset] = val * scale_val;
+                    slm_query[query_local_offset] = DECODE_INPUT0_COMPUTE_TYPE(val) * scale_val;
                     query_offset += query_pitch;
                     query_local_offset++;
                 }
@@ -1459,7 +1498,7 @@ KERNEL(sdpa_opt)(
                 if (k_sgid < (K_HEAD_SIZE / SUBGROUP_SIZE)) {
                     unroll_for (uint seq_idx = 0; seq_idx < (TARGET_SEQ_LEN_BLOCK_SIZE / SG_SCALE_FACTOR); seq_idx++) {
                         INPUT0_TYPE val = BLOCK_READN(INPUT0_TYPE, 1, query_input, query_offset);
-                        slm_query[query_local_offset] = val * scale_val;
+                        slm_query[query_local_offset] = DECODE_INPUT0_COMPUTE_TYPE(val) * scale_val;
                         query_offset += query_pitch;
                         query_local_offset++;
                     }
@@ -1469,7 +1508,7 @@ KERNEL(sdpa_opt)(
                     unroll_for (uint seq_idx = 0; seq_idx < (TARGET_SEQ_LEN_BLOCK_SIZE / SG_SCALE_FACTOR); seq_idx++) {
                         INPUT0_TYPE val = BLOCK_READN(INPUT0_TYPE, 1, query_input, query_offset);
 
-                        slm_query[query_local_offset] = val * scale_val;
+                        slm_query[query_local_offset] = DECODE_INPUT0_COMPUTE_TYPE(val) * scale_val;
                         query_offset += query_pitch;
                         query_local_offset++;
                     }
@@ -1480,7 +1519,7 @@ KERNEL(sdpa_opt)(
                 unroll_for (uint seq_idx = 0; seq_idx < (TARGET_SEQ_LEN_BLOCK_SIZE / SG_SCALE_FACTOR); seq_idx++) {
                     INPUT0_TYPE val = BLOCK_READN(INPUT0_TYPE, 1, query_input, query_offset);
 
-                    slm_query[query_local_offset] = val * scale_val;
+                    slm_query[query_local_offset] = DECODE_INPUT0_COMPUTE_TYPE(val) * scale_val;
                     query_offset += query_pitch;
                     query_local_offset++;
                 }
@@ -1503,7 +1542,7 @@ KERNEL(sdpa_opt)(
                 unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                     INPUT0_TYPE val = BLOCK_READN(INPUT0_TYPE, 1, query_input, query_offset);
 
-                    slm_query[query_local_offset] = val * scale_val;
+                    slm_query[query_local_offset] = DECODE_INPUT0_COMPUTE_TYPE(val) * scale_val;
                     query_offset += query_pitch;
                     query_local_offset++;
                 }
@@ -1513,7 +1552,7 @@ KERNEL(sdpa_opt)(
                 if (sglid < valid_workers) {
                     unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                         INPUT0_TYPE val = query_input[query_offset];
-                        slm_query[query_local_offset] = val * scale_val;
+                        slm_query[query_local_offset] = DECODE_INPUT0_COMPUTE_TYPE(val) * scale_val;
                         query_offset += query_pitch;
                         query_local_offset++;
                     }
@@ -1536,7 +1575,7 @@ KERNEL(sdpa_opt)(
     }
 
     // Q*K calculation loop
-    MAKE_VECTOR_TYPE(OUTPUT_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) output_acc = OUTPUT_VAL_ZERO;
+    MAKE_VECTOR_TYPE(OUTPUT_COMPUTE_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) output_acc = OUTPUT_VAL_ZERO;
 
 #if IS_INT4_COMPRESSED && !defined(BEAM_TABLE_TYPE)
     #ifdef INPUT1_DIMS_ORDER
@@ -1557,7 +1596,7 @@ KERNEL(sdpa_opt)(
         const uint partition_seq_len = min((uint)SOURCE_SEQ_LEN - start_partition_idx, (uint)SEQ_LEN_PARTITION_SIZE);
 #endif
 
-        MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZERO;
+        MAKE_VECTOR_TYPE(INPUT0_COMPUTE_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_acc = INPUT0_VAL_ZERO;
 #if IS_CAUSAL
         if (seq_len <= this_work_item_seq_range_temp.subgroup_max) { // keep tril i.e. m >= n
 #endif
@@ -1625,7 +1664,7 @@ KERNEL(sdpa_opt)(
                     // Lane i holds key at head dims (hi + 2*i) and (hi + 2*i + 1).
                     // Load query values matching adjacent-packed head dims.
                     #define KEY_BLOCK_READ(ptr, offset) ((ptr)[(offset) + sglid])
-                    #define QUERY_VEC MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
+                    #define QUERY_VEC MAKE_VECTOR_TYPE(INPUT0_COMPUTE_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
                     for (uint hi = 0; hi + 2 * SUBGROUP_SIZE <= K_HEAD_SIZE; hi += 2 * SUBGROUP_SIZE) {
                         QUERY_VEC qvec_lo, qvec_hi;
                         // qvec_lo[i] = query at head dim (hi + 2*i) for target token sglid
@@ -1641,8 +1680,8 @@ KERNEL(sdpa_opt)(
                             const INPUT1_TYPE packed_byte = KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch + hi / 2);
 #endif
                             char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
-                            KEY_COMPRESSION_SCALE_TYPE key_lo = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s0) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
-                            KEY_COMPRESSION_SCALE_TYPE key_hi = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s1) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
+                            KEY_COMPRESSION_SCALE_TYPE key_lo = DEQUANTIZE_KV(TO_KEY_COMPRESSION_SCALE_TYPE(DECODE_INT4_NIBBLE(unpacked.s0)), sub_group_broadcast(comp_zp, key_row_idx), sub_group_broadcast(comp_scale, key_row_idx));
+                            KEY_COMPRESSION_SCALE_TYPE key_hi = DEQUANTIZE_KV(TO_KEY_COMPRESSION_SCALE_TYPE(DECODE_INT4_NIBBLE(unpacked.s1)), sub_group_broadcast(comp_zp, key_row_idx), sub_group_broadcast(comp_scale, key_row_idx));
                             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
                                 qk_acc[key_row_idx] = mad(sub_group_broadcast(key_lo, i), qvec_lo[i], qk_acc[key_row_idx]);
                                 qk_acc[key_row_idx] = mad(sub_group_broadcast(key_hi, i), qvec_hi[i], qk_acc[key_row_idx]);
@@ -1669,8 +1708,8 @@ KERNEL(sdpa_opt)(
                                 ? KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch + hi / 2) : (INPUT1_TYPE)0;
 #endif
                             char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
-                            KEY_COMPRESSION_SCALE_TYPE key_lo = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s0) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
-                            KEY_COMPRESSION_SCALE_TYPE key_hi = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s1) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
+                            KEY_COMPRESSION_SCALE_TYPE key_lo = DEQUANTIZE_KV(TO_KEY_COMPRESSION_SCALE_TYPE(DECODE_INT4_NIBBLE(unpacked.s0)), sub_group_broadcast(comp_zp, key_row_idx), sub_group_broadcast(comp_scale, key_row_idx));
+                            KEY_COMPRESSION_SCALE_TYPE key_hi = DEQUANTIZE_KV(TO_KEY_COMPRESSION_SCALE_TYPE(DECODE_INT4_NIBBLE(unpacked.s1)), sub_group_broadcast(comp_zp, key_row_idx), sub_group_broadcast(comp_scale, key_row_idx));
                             KEY_COMPRESSION_SCALE_TYPE lo_mask = (hi + 2 * sglid < K_HEAD_SIZE) ? (KEY_COMPRESSION_SCALE_TYPE)1 : (KEY_COMPRESSION_SCALE_TYPE)0;
                             KEY_COMPRESSION_SCALE_TYPE hi_mask = (hi + 2 * sglid + 1 < K_HEAD_SIZE) ? (KEY_COMPRESSION_SCALE_TYPE)1 : (KEY_COMPRESSION_SCALE_TYPE)0;
                             key_lo *= lo_mask;
@@ -1688,7 +1727,7 @@ KERNEL(sdpa_opt)(
                 __attribute__((opencl_unroll_hint(1)))
                 for (; head_idx_index + SUBGROUP_SIZE <= K_HEAD_SIZE; head_idx_index += SUBGROUP_SIZE) {
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, 1, ptr, offset);
-                    #define QUERY_VEC MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
+                    #define QUERY_VEC MAKE_VECTOR_TYPE(INPUT0_COMPUTE_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
 
                     QUERY_VEC queries_vec;
                     uint query_local_offset = (head_idx_index * TARGET_SEQ_LEN_BLOCK_SIZE) + sglid;
@@ -1709,7 +1748,7 @@ KERNEL(sdpa_opt)(
 #elif IS_KV_COMPRESSED
                         KEY_COMPRESSION_SCALE_TYPE key_vals = (TO_KEY_COMPRESSION_SCALE_TYPE(key_packed) * sub_group_broadcast(comp_scale, key_row_idx));
 #else
-                        INPUT1_TYPE key_vals = key_packed;
+                        INPUT1_COMPUTE_TYPE key_vals = DECODE_INPUT1_COMPUTE_TYPE(key_packed);
 #endif
 
                         unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
@@ -1735,7 +1774,7 @@ KERNEL(sdpa_opt)(
 #elif IS_KV_COMPRESSED
                         KEY_COMPRESSION_SCALE_TYPE key_vals = (TO_KEY_COMPRESSION_SCALE_TYPE(key_packed) * sub_group_broadcast(comp_scale, key_row_idx));
 #else
-                        INPUT1_TYPE key_vals = key_packed;
+                        INPUT1_COMPUTE_TYPE key_vals = DECODE_INPUT1_COMPUTE_TYPE(key_packed);
 #endif
                         unroll_for (uint i = 0; i < K_HEAD_SIZE_LEFTOVER; i++) {
                             qk_acc[key_row_idx] = mad(sub_group_broadcast(key_vals, i), queries_vec[i], qk_acc[key_row_idx]);
@@ -1755,7 +1794,7 @@ KERNEL(sdpa_opt)(
                 {
                     // INT4 partial block: process 2*SUBGROUP_SIZE logical head dims per iteration
                     #define KEY_BLOCK_READ(ptr, offset) ((ptr)[(offset) + sglid])
-                    #define QUERY_VEC_TYPE MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
+                    #define QUERY_VEC_TYPE MAKE_VECTOR_TYPE(INPUT0_COMPUTE_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
                     const uint key_pitch_int4 = INPUT1_SIZE_X;
                     for (uint hi = 0; hi + 2 * SUBGROUP_SIZE <= K_HEAD_SIZE; hi += 2 * SUBGROUP_SIZE) {
                         QUERY_VEC_TYPE qvec_lo, qvec_hi;
@@ -1773,8 +1812,8 @@ KERNEL(sdpa_opt)(
                                 const INPUT1_TYPE packed_byte = KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch_int4 + hi / 2);
 #endif
                                 char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
-                                key_lo = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s0) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
-                                key_hi = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s1) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
+                                key_lo = DEQUANTIZE_KV(TO_KEY_COMPRESSION_SCALE_TYPE(DECODE_INT4_NIBBLE(unpacked.s0)), sub_group_broadcast(comp_zp, key_row_idx), sub_group_broadcast(comp_scale, key_row_idx));
+                                key_hi = DEQUANTIZE_KV(TO_KEY_COMPRESSION_SCALE_TYPE(DECODE_INT4_NIBBLE(unpacked.s1)), sub_group_broadcast(comp_zp, key_row_idx), sub_group_broadcast(comp_scale, key_row_idx));
                             }
                             unroll_for (uint i = 0; i < SUBGROUP_SIZE; i++) {
                                 qk_acc[key_row_idx] = mad(sub_group_broadcast(key_lo, i), qvec_lo[i], qk_acc[key_row_idx]);
@@ -1805,8 +1844,8 @@ KERNEL(sdpa_opt)(
                                     ? KEY_BLOCK_READ(key_input, key_offset + key_row_idx * key_pitch_int4 + hi / 2) : (INPUT1_TYPE)0;
 #endif
                                 char2 unpacked = unpack_to_char(*(uint4x2_t*)&packed_byte);
-                                key_lo = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s0) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
-                                key_hi = (TO_KEY_COMPRESSION_SCALE_TYPE(unpacked.s1) - sub_group_broadcast(comp_zp, key_row_idx)) * sub_group_broadcast(comp_scale, key_row_idx);
+                                key_lo = DEQUANTIZE_KV(TO_KEY_COMPRESSION_SCALE_TYPE(DECODE_INT4_NIBBLE(unpacked.s0)), sub_group_broadcast(comp_zp, key_row_idx), sub_group_broadcast(comp_scale, key_row_idx));
+                                key_hi = DEQUANTIZE_KV(TO_KEY_COMPRESSION_SCALE_TYPE(DECODE_INT4_NIBBLE(unpacked.s1)), sub_group_broadcast(comp_zp, key_row_idx), sub_group_broadcast(comp_scale, key_row_idx));
                             }
                             KEY_COMPRESSION_SCALE_TYPE lo_mask = (hi + 2 * sglid < K_HEAD_SIZE) ? (KEY_COMPRESSION_SCALE_TYPE)1 : (KEY_COMPRESSION_SCALE_TYPE)0;
                             KEY_COMPRESSION_SCALE_TYPE hi_mask = (hi + 2 * sglid + 1 < K_HEAD_SIZE) ? (KEY_COMPRESSION_SCALE_TYPE)1 : (KEY_COMPRESSION_SCALE_TYPE)0;
@@ -1825,15 +1864,15 @@ KERNEL(sdpa_opt)(
                 __attribute__((opencl_unroll_hint(1)))
                 for (; head_idx_index + SUBGROUP_SIZE <= K_HEAD_SIZE; head_idx_index += SUBGROUP_SIZE) {
                     #define KEY_BLOCK_READ(ptr, offset) BLOCK_READN(INPUT1_TYPE, 1, ptr, offset)
-                    #define QUERY_VEC_TYPE MAKE_VECTOR_TYPE(INPUT0_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
+                    #define QUERY_VEC_TYPE MAKE_VECTOR_TYPE(INPUT0_COMPUTE_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
 #if IS_KV_COMPRESSED
                     #define KEY_UNPACKED_TYPE KEY_COMPRESSION_SCALE_TYPE
                     #define KEY_UNPACKED_VEC_TYPE MAKE_VECTOR_TYPE(KEY_COMPRESSION_SCALE_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
                     #define TO_KEY_UNPACKED_TYPE(val) TO_KEY_COMPRESSION_SCALE_TYPE(val)
 #else
-                    #define KEY_UNPACKED_TYPE INPUT1_TYPE
-                    #define KEY_UNPACKED_VEC_TYPE MAKE_VECTOR_TYPE(INPUT1_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
-                    #define TO_KEY_UNPACKED_TYPE(val) TO_INPUT1_TYPE(val)
+                    #define KEY_UNPACKED_TYPE INPUT1_COMPUTE_TYPE
+                    #define KEY_UNPACKED_VEC_TYPE MAKE_VECTOR_TYPE(INPUT1_COMPUTE_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE)
+                    #define TO_KEY_UNPACKED_TYPE(val) DECODE_INPUT1_COMPUTE_TYPE(val)
 #endif
 
                     QUERY_VEC_TYPE queries_vec;
@@ -1901,7 +1940,7 @@ KERNEL(sdpa_opt)(
 #elif IS_KV_COMPRESSED
                         KEY_COMPRESSION_SCALE_TYPE key_val = (TO_KEY_COMPRESSION_SCALE_TYPE(key_packed) * sub_group_broadcast(comp_scale, key_row_idx));
 #else
-                        INPUT1_TYPE key_val = key_packed;
+                        INPUT1_COMPUTE_TYPE key_val = DECODE_INPUT1_COMPUTE_TYPE(key_packed);
 #endif
                         unroll_for (uint i = 0; i < K_HEAD_SIZE_LEFTOVER; i++) {
                             qk_acc[key_row_idx] = mad(sub_group_broadcast(key_val, i), queries_vec[i], qk_acc[key_row_idx]);
@@ -1924,9 +1963,9 @@ KERNEL(sdpa_opt)(
 
 #if !APPLY_SCALES_TO_QUERY
 #if HAS_SCALE_INPUT
-                        const OUTPUT_TYPE scale_val = *scale;
+                        const OUTPUT_COMPUTE_TYPE scale_val = TO_OUTPUT_COMPUTE_TYPE(*scale);
 #else
-                        const OUTPUT_TYPE scale_val = TO_OUTPUT_TYPE(STATIC_SCALE_VALUE);
+                        const OUTPUT_COMPUTE_TYPE scale_val = TO_OUTPUT_COMPUTE_TYPE(STATIC_SCALE_VALUE);
 #endif
                         qk_acc[i] *= scale_val;
 #endif // !APPLY_SCALES_TO_QUERY
@@ -1992,7 +2031,7 @@ KERNEL(sdpa_opt)(
                 SOFTMAX_ACCUMULATOR_TYPE exp_sum_new = SOFTMAX_ACCUMULATOR_VAL_ZERO;
                 for (uint k = sglid; k < partition_seq_len; k += SUBGROUP_SIZE) {
                     SOFTMAX_ACCUMULATOR_TYPE a = native_exp(TO_SOFTMAX_ACCUMULATOR_TYPE(slm_qk_vals[m][k]) - qk_max_new);
-                    slm_qk_vals[m][k] = TO_OUTPUT_TYPE(a);
+                    slm_qk_vals[m][k] = TO_OUTPUT_COMPUTE_TYPE(a);
                     exp_sum_new += a;
                 }
                 exp_sum_new = sub_group_reduce_add(exp_sum_new);
@@ -2171,7 +2210,7 @@ KERNEL(sdpa_opt)(
 
         // QK*V calculation
         {
-            MAKE_VECTOR_TYPE(OUTPUT_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) acc_output_res = OUTPUT_VAL_ZERO;
+            MAKE_VECTOR_TYPE(OUTPUT_COMPUTE_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) acc_output_res = OUTPUT_VAL_ZERO;
 #if IS_PAGED_ATTENTION
             const uint value_pitch = (V_HEAD_SIZE * NUM_KV_HEADS + INPUT2_PAD_BEFORE_FEATURE_NUM + INPUT2_PAD_AFTER_FEATURE_NUM);
 #else
@@ -2240,7 +2279,7 @@ KERNEL(sdpa_opt)(
     #endif
 #endif
 #endif
-                    MAKE_VECTOR_TYPE(OUTPUT_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_val;
+                    MAKE_VECTOR_TYPE(OUTPUT_COMPUTE_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_val;
                     unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                         qk_val[seq_idx] = slm_qk_vals[seq_idx][seq_len + sglid];
                     }
@@ -2267,15 +2306,15 @@ KERNEL(sdpa_opt)(
                         INPUT2_TYPE needed_byte = intel_sub_group_shuffle(value_packed, shuffle_src_s1);
                         char2 v_unpacked = unpack_to_char(*(uint4x2_t*)&needed_byte);
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (nibble_sel_s1 == 0 ?
-                            CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked.s0) :
-                            CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked.s1));
-                        value_val = (value_val - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
+                            CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(DECODE_INT4_NIBBLE(v_unpacked.s0)) :
+                            CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(DECODE_INT4_NIBBLE(v_unpacked.s1)));
+                        value_val = DEQUANTIZE_KV(value_val, sub_group_broadcast(comp_zp, i), sub_group_broadcast(comp_scale, i));
                         #elif IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
                         #elif IS_KV_COMPRESSED
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed * sub_group_broadcast(comp_scale, i));
                         #else
-                        INPUT2_TYPE value_val = value_packed;
+                        INPUT2_COMPUTE_TYPE value_val = DECODE_INPUT2_COMPUTE_TYPE(value_packed);
                         #endif
                         unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                             acc_output_res[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), value_val, acc_output_res[seq_idx]);
@@ -2297,15 +2336,15 @@ KERNEL(sdpa_opt)(
                             INPUT2_TYPE needed_byte_elt = intel_sub_group_shuffle(value_packed, shuffle_src_s1);
                             char2 v_unpacked_elt = unpack_to_char(*(uint4x2_t*)&needed_byte_elt);
                             VALUE_COMPRESSION_SCALE_TYPE value_val = (nibble_sel_s1 == 0 ?
-                                CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked_elt.s0) :
-                                CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked_elt.s1));
-                            value_val = (value_val - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
+                                CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(DECODE_INT4_NIBBLE(v_unpacked_elt.s0)) :
+                                CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(DECODE_INT4_NIBBLE(v_unpacked_elt.s1)));
+                            value_val = DEQUANTIZE_KV(value_val, sub_group_broadcast(comp_zp, i), sub_group_broadcast(comp_scale, i));
                         #elif IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                             VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
                         #elif IS_KV_COMPRESSED
                             VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed * sub_group_broadcast(comp_scale, i));
                         #else
-                            INPUT2_TYPE value_val = value_packed;
+                            INPUT2_COMPUTE_TYPE value_val = DECODE_INPUT2_COMPUTE_TYPE(value_packed);
                         #endif
                             unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                                 acc_output_res[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), value_val, acc_output_res[seq_idx]);
@@ -2363,7 +2402,7 @@ KERNEL(sdpa_opt)(
 #endif
 #endif // IS_KV_COMPRESSED
 
-                    MAKE_VECTOR_TYPE(OUTPUT_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_val;
+                    MAKE_VECTOR_TYPE(OUTPUT_COMPUTE_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_val;
                     unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                         qk_val[seq_idx] = slm_qk_vals[seq_idx][seq_len * SUBGROUP_SIZE + sglid];
                     }
@@ -2383,15 +2422,15 @@ KERNEL(sdpa_opt)(
                         INPUT2_TYPE needed_byte = intel_sub_group_shuffle(value_packed, shuffle_src_s1);
                         char2 v_unpacked = unpack_to_char(*(uint4x2_t*)&needed_byte);
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (nibble_sel_s1 == 0 ?
-                            CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked.s0) :
-                            CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked.s1));
-                        value_val = (value_val - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
+                            CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(DECODE_INT4_NIBBLE(v_unpacked.s0)) :
+                            CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(DECODE_INT4_NIBBLE(v_unpacked.s1)));
+                        value_val = DEQUANTIZE_KV(value_val, sub_group_broadcast(comp_zp, i), sub_group_broadcast(comp_scale, i));
                 #elif IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
                 #elif IS_KV_COMPRESSED
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed * sub_group_broadcast(comp_scale, i));
                 #else
-                        INPUT2_TYPE value_val = value_packed;
+                        INPUT2_COMPUTE_TYPE value_val = DECODE_INPUT2_COMPUTE_TYPE(value_packed);
                 #endif
                         unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                             acc_output_res[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), value_val, acc_output_res[seq_idx]);
@@ -2413,15 +2452,15 @@ KERNEL(sdpa_opt)(
                             INPUT2_TYPE needed_byte_elt = intel_sub_group_shuffle(value_packed, shuffle_src_s1);
                             char2 v_unpacked_elt = unpack_to_char(*(uint4x2_t*)&needed_byte_elt);
                             VALUE_COMPRESSION_SCALE_TYPE value_val = (nibble_sel_s1 == 0 ?
-                                CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked_elt.s0) :
-                                CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_unpacked_elt.s1));
-                            value_val = (value_val - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
+                                CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(DECODE_INT4_NIBBLE(v_unpacked_elt.s0)) :
+                                CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(DECODE_INT4_NIBBLE(v_unpacked_elt.s1)));
+                            value_val = DEQUANTIZE_KV(value_val, sub_group_broadcast(comp_zp, i), sub_group_broadcast(comp_scale, i));
                         #elif IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                             VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, i)) * sub_group_broadcast(comp_scale, i);
                         #elif IS_KV_COMPRESSED
                             VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed * sub_group_broadcast(comp_scale, i));
                         #else
-                            INPUT2_TYPE value_val = value_packed;
+                            INPUT2_COMPUTE_TYPE value_val = DECODE_INPUT2_COMPUTE_TYPE(value_packed);
                         #endif
                             unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                                 acc_output_res[seq_idx] = mad(sub_group_broadcast(qk_val[seq_idx], i), value_val, acc_output_res[seq_idx]);
@@ -2437,7 +2476,7 @@ KERNEL(sdpa_opt)(
                 // QK*V leftovers processing
                 const uint seq_len_leftovers_start = ((seq_len_end / SUBGROUP_SIZE) * SUBGROUP_SIZE);
                 if (seq_len_leftovers_start != seq_len_end) {
-                    MAKE_VECTOR_TYPE(OUTPUT_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_val;
+                    MAKE_VECTOR_TYPE(OUTPUT_COMPUTE_TYPE, TARGET_SEQ_LEN_BLOCK_SIZE) qk_val;
                     unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                         qk_val[seq_idx] = slm_qk_vals[seq_idx][seq_len_leftovers_start+sglid];
                     }
@@ -2507,15 +2546,15 @@ KERNEL(sdpa_opt)(
                         INPUT2_TYPE needed_byte = intel_sub_group_shuffle(value_packed, shuffle_src_s1);
                         char2 v_left_unpacked = unpack_to_char(*(uint4x2_t*)&needed_byte);
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (nibble_sel_s1 == 0 ?
-                            CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_left_unpacked.s0) :
-                            CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(v_left_unpacked.s1));
-                        value_val = (value_val - sub_group_broadcast(comp_zp, seq_len_idx)) * sub_group_broadcast(comp_scale, seq_len_idx);
+                            CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(DECODE_INT4_NIBBLE(v_left_unpacked.s0)) :
+                            CAT(convert_, VALUE_COMPRESSION_SCALE_TYPE)(DECODE_INT4_NIBBLE(v_left_unpacked.s1)));
+                        value_val = DEQUANTIZE_KV(value_val, sub_group_broadcast(comp_zp, seq_len_idx), sub_group_broadcast(comp_scale, seq_len_idx));
 #elif IS_KV_COMPRESSED && USE_ASYMMETRIC_QUANTIZATION
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed - sub_group_broadcast(comp_zp, seq_len_idx)) * sub_group_broadcast(comp_scale, seq_len_idx);
 #elif IS_KV_COMPRESSED
                         VALUE_COMPRESSION_SCALE_TYPE value_val = (value_packed * sub_group_broadcast(comp_scale, seq_len_idx));
 #else
-                        INPUT2_TYPE value_val = value_packed;
+                        INPUT2_COMPUTE_TYPE value_val = DECODE_INPUT2_COMPUTE_TYPE(value_packed);
 #endif
 
                         for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
@@ -2537,7 +2576,7 @@ KERNEL(sdpa_opt)(
 
                 for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
                     if (start_partition_idx > 0) {
-                        OUTPUT_TYPE updated_prev_res = TO_SOFTMAX_ACCUMULATOR_TYPE(output_acc[seq_idx]) * slm_update_factor[seq_idx];
+                        OUTPUT_COMPUTE_TYPE updated_prev_res = TO_SOFTMAX_ACCUMULATOR_TYPE(output_acc[seq_idx]) * slm_update_factor[seq_idx];
                         acc_output_res[seq_idx] += updated_prev_res;
                     }
                     output_acc[seq_idx] = acc_output_res[seq_idx];
@@ -2559,7 +2598,7 @@ KERNEL(sdpa_opt)(
                     SOFTMAX_ACCUMULATOR_TYPE updated_total_exp_sum = updated_exp_sum_prev + updated_exp_sum_cur;
 
                     if (start_partition_idx > 0 && updated_total_exp_sum > SOFTMAX_ACCUMULATOR_VAL_ZERO) {
-                        OUTPUT_TYPE updated_prev_res = TO_SOFTMAX_ACCUMULATOR_TYPE(output_acc[seq_idx]) * updated_exp_sum_prev / updated_total_exp_sum;
+                        OUTPUT_COMPUTE_TYPE updated_prev_res = TO_SOFTMAX_ACCUMULATOR_TYPE(output_acc[seq_idx]) * updated_exp_sum_prev / updated_total_exp_sum;
                         acc_output_res[seq_idx] *= updated_exp_sum_cur / updated_total_exp_sum;
                         acc_output_res[seq_idx] += updated_prev_res;
                     }
@@ -2586,7 +2625,7 @@ KERNEL(sdpa_opt)(
             SOFTMAX_ACCUMULATOR_TYPE max_new = SOFTMAX_ACCUMULATOR_MAX_FUNC(max_prev, sink_val);
             SOFTMAX_ACCUMULATOR_TYPE correction = native_exp(max_prev - max_new);
             // Rescale output_acc (all work items do this for their own register)
-            output_acc[seq_idx] = TO_OUTPUT_TYPE(TO_SOFTMAX_ACCUMULATOR_TYPE(output_acc[seq_idx]) * correction);
+            output_acc[seq_idx] = TO_OUTPUT_COMPUTE_TYPE(TO_SOFTMAX_ACCUMULATOR_TYPE(output_acc[seq_idx]) * correction);
             // Update exp_sum (only one thread per seq_idx)
             if (sgid == 0 && sglid == 0) {
                 slm_exp_sum_prev[seq_idx] = slm_exp_sum_prev[seq_idx] * correction + native_exp(sink_val - max_new);
@@ -2632,7 +2671,7 @@ KERNEL(sdpa_opt)(
                     output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
 #endif
                     // Use scalar writes since block writes require alignment, but we process leftovers here
-                    output[output_offset + sglid] = output_acc[seq_idx];
+                    output[output_offset + sglid] = TO_OUTPUT_TYPE(output_acc[seq_idx]);
                     output_offset += output_pitch;
                 }
             } else if (sglid < V_HEAD_SIZE_LEFTOVER) {
@@ -2640,7 +2679,7 @@ KERNEL(sdpa_opt)(
 #if IS_FLASHATTEN_V2
                     output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
 #endif
-                    output[output_offset + sglid] = output_acc[seq_idx];
+                    output[output_offset + sglid] = TO_OUTPUT_TYPE(output_acc[seq_idx]);
                     output_offset += output_pitch;
                 }
             }
@@ -2651,7 +2690,7 @@ KERNEL(sdpa_opt)(
                     output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
 #endif
                     // Use scalar writes since block writes require alignment, but we process leftovers here
-                    output[output_offset + sglid] = output_acc[seq_idx];
+                    output[output_offset + sglid] = TO_OUTPUT_TYPE(output_acc[seq_idx]);
                     output_offset += output_pitch;
                 }
             } else if (sglid < V_HEAD_SIZE_LEFTOVER) {
@@ -2659,7 +2698,7 @@ KERNEL(sdpa_opt)(
 #if IS_FLASHATTEN_V2
                     output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
 #endif
-                    output[output_offset + sglid] = output_acc[seq_idx];
+                    output[output_offset + sglid] = TO_OUTPUT_TYPE(output_acc[seq_idx]);
                     output_offset += output_pitch;
                 }
             }
@@ -2670,7 +2709,7 @@ KERNEL(sdpa_opt)(
 #if IS_FLASHATTEN_V2
                 output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
 #endif
-                OUTPUT_BLOCK_WRITE(output, output_offset, output_acc[seq_idx]);
+                OUTPUT_BLOCK_WRITE(output, output_offset, TO_OUTPUT_TYPE(output_acc[seq_idx]));
                 output_offset += output_pitch;
             }
         } else {
@@ -2678,7 +2717,7 @@ KERNEL(sdpa_opt)(
 #if IS_FLASHATTEN_V2
                     output_acc[seq_idx] /= slm_exp_sum_prev[seq_idx];
 #endif
-                    OUTPUT_BLOCK_WRITE(output, output_offset, output_acc[seq_idx]);
+                    OUTPUT_BLOCK_WRITE(output, output_offset, TO_OUTPUT_TYPE(output_acc[seq_idx]));
                     output_offset += output_pitch;
                 }
         }
@@ -2796,7 +2835,13 @@ KERNEL(sdpa_opt_finalization_stage)(
                                         target_seq_idx * (num_of_partitions * V_HEAD_SIZE) +
                                         partition_idx * (V_HEAD_SIZE) + local_id;
             OUTPUT_TYPE out_val = tmp_out[tmp_out_offset];
-            acc += TO_SOFTMAX_ACCUMULATOR_TYPE(out_val) * TO_SOFTMAX_ACCUMULATOR_TYPE(max_logits_u_exp_sum[partition_idx]);
+#if defined(INPUT0_IS_FP) && INPUT0_IS_FP
+            const SOFTMAX_ACCUMULATOR_TYPE out_val_f = TO_SOFTMAX_ACCUMULATOR_TYPE(out_val);
+#else
+            // bf16 is stored as ushort; reinterpret bits rather than performing an integer cast.
+            const SOFTMAX_ACCUMULATOR_TYPE out_val_f = _convert_as_bfloat16_float(out_val);
+#endif
+            acc += out_val_f * TO_SOFTMAX_ACCUMULATOR_TYPE(max_logits_u_exp_sum[partition_idx]);
     }
     const uint out_offset = b0_idx * (NUM_HEADS * TARGET_SEQ_LEN * V_HEAD_SIZE) +
 #ifdef OUTPUT_TRANSPOSE_ORDER_PRESENT
@@ -2808,7 +2853,7 @@ KERNEL(sdpa_opt_finalization_stage)(
 #endif
                             local_id;
 
-    output[out_offset] = TO_OUTPUT_TYPE(acc) / TO_OUTPUT_TYPE(global_exp_sum);
+    output[out_offset] = TO_OUTPUT_TYPE(acc / global_exp_sum);
 }
 
 #endif
