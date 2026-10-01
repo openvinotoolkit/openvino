@@ -404,7 +404,7 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     // Build one mask per sequence. Token positions exclude left padding, so keys
     // use cumulative non-padding positions rather than their physical column index.
     auto am_shape = make_shared<v3::ShapeOf>(attention_mask, ov::element::i64);
-    auto kv_len = get_dimensions(am_shape, {1});
+    auto kv_len = gather_dims(am_shape, {1});
     auto batch_len = gather_dims(ids_shape, {0});
     auto query_len = gather_dims(ids_shape, {1});
     // Cached tokens precede the current chunk in attention_mask.

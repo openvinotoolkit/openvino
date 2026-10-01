@@ -53,8 +53,9 @@ std::vector<T> permute(const std::vector<T>& x, const std::vector<size_t>& perm)
 // calls on one tensor, which build a fresh ShapeOf each time.
 std::shared_ptr<ov::Node> gather_dims(const ov::Output<ov::Node>& shape, const std::vector<int>& dims);
 
+// Use gather_dims for an existing shape: an Output overload would take its ShapeOf again.
 std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::op::v3::ShapeOf>& shape,
-                                         const std::vector<int>& dims);
+                                         const std::vector<int>& dims) = delete;
 // Takes the Output rather than the node so a producer with several outputs keeps the right port.
 std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, const std::vector<int>& dims);
 

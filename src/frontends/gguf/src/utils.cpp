@@ -125,11 +125,6 @@ std::shared_ptr<ov::Node> gather_dims(const ov::Output<ov::Node>& shape, const s
     return std::make_shared<v8::Gather>(shape, dims_const, zero);
 }
 
-std::shared_ptr<ov::Node> get_dimensions(const std::shared_ptr<ov::op::v3::ShapeOf>& shape,
-                                         const std::vector<int>& dims) {
-    return gather_dims(shape, dims);
-}
-
 std::shared_ptr<ov::Node> get_dimensions(const ov::Output<ov::Node>& output, const std::vector<int>& dims) {
     return gather_dims(std::make_shared<ov::op::v3::ShapeOf>(output), dims);
 }
