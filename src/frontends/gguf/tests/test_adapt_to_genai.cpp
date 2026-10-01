@@ -270,7 +270,7 @@ TEST(GGUFAdaptToGenAI, EmbeddingModeExtractsLookupAndAcceptsInjectedValues) {
     EXPECT_FALSE(pass.run_on_model(m.model));
 }
 
-TEST(GGUFAdaptToGenAI, EmbeddingModeMovesPerLayerTokenLookupToEmbeddingModel) {
+TEST(GGUFAdaptToGenAI, EmbeddingModeMovesPerLayerTokenLookupToItsOwnModel) {
     auto m = build_minimal_gguf_model(4, 2, false, true);
     m.pe_tok->get_rt_info()["gguf.per_layer_token_embedding"] = int64_t{2};
     AdaptToGenAI pass(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
@@ -279,11 +279,15 @@ TEST(GGUFAdaptToGenAI, EmbeddingModeMovesPerLayerTokenLookupToEmbeddingModel) {
     EXPECT_NE(find_parameter(m.model, "inputs_embeds"), nullptr);
     EXPECT_EQ(m.model->input("per_layer_inputs").get_partial_shape(), (ov::PartialShape{-1, -1, 2, 1}));
     const auto& lookup = pass.get_embedding_model();
-    EXPECT_EQ(lookup->get_parameters().size(), 1);
-    ASSERT_EQ(lookup->outputs().size(), 2);
+    ASSERT_EQ(lookup->outputs().size(), 1);
     EXPECT_EQ(lookup->output(0).get_any_name(), "inputs_embeds");
-    EXPECT_EQ(lookup->output(1).get_any_name(), "per_layer_inputs");
-    EXPECT_EQ(lookup->output(1).get_partial_shape(), (ov::PartialShape{-1, -1, 2, 1}));
+    const auto& per_layer = pass.get_per_layer_embedding_model();
+    ASSERT_NE(per_layer, nullptr);
+    EXPECT_EQ(per_layer->get_parameters().size(), 1);
+    EXPECT_EQ(per_layer->input(0).get_any_name(), "input_ids");
+    ASSERT_EQ(per_layer->outputs().size(), 1);
+    EXPECT_EQ(per_layer->output(0).get_any_name(), "per_layer_inputs");
+    EXPECT_EQ(per_layer->output(0).get_partial_shape(), (ov::PartialShape{-1, -1, 2, 1}));
 }
 
 // An untagged token lookup cannot be moved, so the language model keeps input_ids for it.
@@ -949,6 +953,9 @@ TEST_P(GGUFAdaptToGenAIEmbeddingMode, MatchesTokenModeAcrossCachedDecodeAndReset
     auto values =
         core.compile_model(embedded, "CPU", ov::hint::inference_precision(ov::element::f32)).create_infer_request();
     auto lookup = core.compile_model(adapter.get_embedding_model(), "CPU").create_infer_request();
+    ov::InferRequest per_layer_lookup;
+    if (per_layer)
+        per_layer_lookup = core.compile_model(adapter.get_per_layer_embedding_model(), "CPU").create_infer_request();
     for (int chat = 0; chat < 2; ++chat) {
         size_t past = 0;
         for (size_t length : {3, 1, 2}) {
@@ -961,8 +968,11 @@ TEST_P(GGUFAdaptToGenAIEmbeddingMode, MatchesTokenModeAcrossCachedDecodeAndReset
                     values.set_tensor(entry.first, entry.second);
             }
             values.set_tensor("inputs_embeds", lookup.get_tensor("inputs_embeds"));
-            if (per_layer)
-                values.set_tensor("per_layer_inputs", lookup.get_tensor("per_layer_inputs"));
+            if (per_layer) {
+                per_layer_lookup.set_tensor("input_ids", inputs.at("input_ids"));
+                per_layer_lookup.infer();
+                values.set_tensor("per_layer_inputs", per_layer_lookup.get_tensor("per_layer_inputs"));
+            }
             tokens.infer();
             values.infer();
             auto expected = tokens.get_output_tensor(), actual = values.get_output_tensor();

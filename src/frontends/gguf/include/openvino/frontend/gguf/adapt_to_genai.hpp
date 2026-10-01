@@ -50,7 +50,7 @@ public:
     /// IDS_TO_LOGITS  : input_ids -> logits (text LLMPipeline).
     /// EMBEDS_TO_LOGITS: raw inputs_embeds -> logits, with scaling retained in the decoder.
     /// Token-dependent auxiliary branches retain input_ids when required. Per-layer token
-    /// embeddings (Gemma4 E2B/E4B) become a second embedding-model output and the
+    /// embeddings (Gemma4 E2B/E4B) move to a separate lookup model and become the
     /// per_layer_inputs [B,T,layers,width] input; Gemma3 and other Gemma4 models take
     /// token_type_ids [B,T] for bidirectional attention within each image. M-RoPE models
     /// receive position_ids [4,B,T], containing GenAI's sequence/time/height/width sections;
@@ -62,15 +62,21 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
     /// Raw token lookup extracted by EMBEDS_TO_LOGITS, sharing the original weight buffers.
-    /// Available after a successful run; inputs input_ids [B,T], output inputs_embeds [B,T,D]
-    /// and, for per-layer token embeddings, per_layer_inputs.
+    /// Available after a successful run; inputs input_ids [B,T], output inputs_embeds [B,T,D].
     const std::shared_ptr<ov::Model>& get_embedding_model() const {
         return m_embedding_model;
+    }
+
+    /// Per-layer token lookup extracted by EMBEDS_TO_LOGITS (Gemma4 E2B/E4B), or null.
+    /// Inputs input_ids [B,T], output per_layer_inputs [B,T,layers,width].
+    const std::shared_ptr<ov::Model>& get_per_layer_embedding_model() const {
+        return m_per_layer_embedding_model;
     }
 
 private:
     InputMode m_mode;
     std::shared_ptr<ov::Model> m_embedding_model;
+    std::shared_ptr<ov::Model> m_per_layer_embedding_model;
 };
 
 }  // namespace ov::frontend::gguf::pass

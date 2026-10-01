@@ -175,8 +175,12 @@ TEST(GGUFMultimodalBackboneAdaptation, GemmaEmbeddingModelOwnsTokenScaling) {
                 std::fill_n(types.data<int64_t>(), 3, 0);
                 values.set_tensor("token_type_ids", types);
             }
-            if (input.get_names().count("per_layer_inputs"))
-                values.set_tensor("per_layer_inputs", lookup.get_tensor("per_layer_inputs"));
+            if (input.get_names().count("per_layer_inputs")) {
+                auto per_layer = compile(adapter.get_per_layer_embedding_model());
+                per_layer.set_tensor("input_ids", ids);
+                per_layer.infer();
+                values.set_tensor("per_layer_inputs", per_layer.get_tensor("per_layer_inputs"));
+            }
         }
         tokens.infer();
         values.infer();

@@ -255,7 +255,23 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         auto axis_1 = v0::Constant::create(ov::element::i64, {1}, {1});
         auto embedding = find_boundary(embedding_name);
         const auto width = embedding->get_output_partial_shape(0)[3].get_length();
-        ov::OutputVector lookups{make_shared<v0::Squeeze>(embedding, axis_1)};
+        // Clone each lookup graph before rewiring the language model. Constants retain shared buffers.
+        const auto extract = [&](const ov::Output<ov::Node>& lookup, const std::string& name) {
+            auto extracted = make_shared<ov::Model>(ov::OutputVector{lookup}, ov::ParameterVector{inp_tokens})->clone();
+            extracted->get_rt_info() = model->get_rt_info();
+            auto ids = make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
+            name_output(ids, "input_ids");
+            auto ids4 = make_shared<v0::Unsqueeze>(make_shared<v0::Convert>(ids, ov::element::i32),
+                                                   v0::Constant::create(ov::element::i64, {2}, {0, 1}));
+            auto old_ids = extracted->get_parameters().front();
+            old_ids->output(0).replace(ids4->output(0));
+            extracted->remove_parameter(old_ids);
+            extracted->add_parameters({ids});
+            extracted->output(0).get_tensor().set_names({name});
+            extracted->validate_nodes_and_infer_types();
+            return extracted;
+        };
+        m_embedding_model = extract(make_shared<v0::Squeeze>(embedding, axis_1), "inputs_embeds");
         auto per_layer = per_layer_name.empty() ? nullptr : find_boundary(per_layer_name);
         int64_t per_layer_width = 0;
         if (per_layer) {
@@ -264,26 +280,15 @@ bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
                             "[GGUF] per-layer token embedding width does not match its layer count");
             per_layer_width = total / per_layer_count;
             // [batch, tokens, layers, width], as in optimum-intel.
-            lookups.push_back(make_shared<v1::Reshape>(
-                make_shared<v0::Squeeze>(per_layer, axis_1),
-                v0::Constant::create(ov::element::i64, {4}, {int64_t{0}, int64_t{0}, per_layer_count, per_layer_width}),
-                true));
+            m_per_layer_embedding_model =
+                extract(make_shared<v1::Reshape>(
+                            make_shared<v0::Squeeze>(per_layer, axis_1),
+                            v0::Constant::create(ov::element::i64,
+                                                 {4},
+                                                 {int64_t{0}, int64_t{0}, per_layer_count, per_layer_width}),
+                            true),
+                        "per_layer_inputs");
         }
-        // Clone the lookup graph before rewiring the language model. Constants retain shared buffers.
-        m_embedding_model = make_shared<ov::Model>(lookups, ov::ParameterVector{inp_tokens})->clone();
-        m_embedding_model->get_rt_info() = model->get_rt_info();
-        auto ids = make_shared<v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
-        name_output(ids, "input_ids");
-        auto ids4 = make_shared<v0::Unsqueeze>(make_shared<v0::Convert>(ids, ov::element::i32),
-                                               v0::Constant::create(ov::element::i64, {2}, {0, 1}));
-        auto old_ids = m_embedding_model->get_parameters().front();
-        old_ids->output(0).replace(ids4->output(0));
-        m_embedding_model->remove_parameter(old_ids);
-        m_embedding_model->add_parameters({ids});
-        m_embedding_model->output(0).get_tensor().set_names({"inputs_embeds"});
-        if (per_layer)
-            m_embedding_model->output(1).get_tensor().set_names({"per_layer_inputs"});
-        m_embedding_model->validate_nodes_and_infer_types();
         inputs_embeds = make_shared<v0::Parameter>(ov::element::f32, ov::PartialShape{-1, -1, width});
         name_output(inputs_embeds, "inputs_embeds");
         auto lifted = make_shared<v0::Unsqueeze>(inputs_embeds, v0::Constant::create(ov::element::i64, {1}, {1}));
