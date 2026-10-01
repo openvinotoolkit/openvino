@@ -1,0 +1,101 @@
+name: OpenVINO GenAI
+
+on:
+  workflow_call:
+    inputs:
+      runner:
+        description: 'Machine on which to run the build'
+        type: string
+        required: true
+      shell:
+        description: "shell to override the default shell settings in the runner's operating system."
+        type: string
+        required: true
+      image:
+        description: 'Docker image to use for the job'
+        type: string
+        required: false
+        default: null
+      affected-components:
+        description: 'Components that are affected by changes in the commit defined by the Smart CI Action'
+        type: string
+        required: true
+      python-version:
+        description: 'Python version to setup. E.g., "3.12"'
+        type: string
+        required: true
+      target-branch:
+        description: 'Target branch for the build; taken from event context by default'
+        type: string
+        required: false
+
+permissions: read-all
+
+env:
+  TARGET_BRANCH: ${{ inputs.target-branch || github.base_ref || github.event.merge_group.base_ref || github.ref }}
+
+jobs:
+  Openvino_genai:
+    name: OpenVINO GenAI
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: ${{ inputs.shell }}
+    runs-on: ${{ inputs.runner }}
+    container:
+      image: ${{ inputs.image }}
+      volumes:
+        - /mount:/mount
+        - ${{ github.workspace }}:${{ github.workspace }} # Needed as ${{ github.workspace }} is not working correctly when using Docker
+    env:
+      INSTALL_DIR: ${{ github.workspace }}/install
+      INSTALL_WHEELS_DIR: ${{ github.workspace }}/install/wheels
+      OPENVINO_GENAI_REPO: ${{ github.workspace }}/openvino.genai
+      GENAI_BUILD_DIR: ${{ github.workspace }}/build
+
+    steps:
+      - name: checkout actions
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          sparse-checkout: |
+            .github/actions
+            install_build_dependencies.sh
+          sparse-checkout-cone-mode: false
+          submodules: 'false'
+
+      - name: Clone OpenVINO GenAI
+        uses: ababushk/checkout@dd591a6a2ac25618db4eda86e7e0d938f88cf01b # cherry_pick_retries
+        timeout-minutes: 15
+        with:
+          repository: 'openvinotoolkit/openvino.genai'
+          path: ${{ env.OPENVINO_GENAI_REPO }}
+          ref: ${{ env.TARGET_BRANCH }}
+          submodules: 'recursive'
+
+      - name: Setup Python ${{ inputs.python-version }}
+        uses: ./.github/actions/setup_python
+        with:
+          version: ${{ inputs.python-version }}
+          use-pip-proxy: 'true'
+          set-pip-install-path: ${{ runner.os != 'macOS' }}
+          self-hosted-runner: ${{ runner.os != 'macOS' }}
+
+      - name: Download OpenVINO artifacts (wheels)
+        uses: akashchi/download-artifact@d59a9c15fec3fdb7c9adf09464124d00f9c11415 # main
+        with:
+          pattern: 'openvino_{wheels,tokenizers_wheel}'
+          path: ${{ env.INSTALL_WHEELS_DIR }}
+          merge-multiple: true
+
+      - name: Build GenAI wheel
+        working-directory: ${{ env.OPENVINO_GENAI_REPO }}
+        run: python3 -m pip wheel -v --no-deps --wheel-dir ${GENAI_BUILD_DIR} --find-links ${INSTALL_WHEELS_DIR} .
+
+      - name: Upload OpenVINO GenAI wheel
+        if: ${{ always() }}
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        with:
+          name: openvino_genai_wheel
+          path: ${{ env.GENAI_BUILD_DIR }}/*.whl
+          if-no-files-found: 'error'
