@@ -380,7 +380,7 @@ void notify_lossy_weight_approximation(LossyWeightApproximation kind) {
                       << std::endl;
         });
         break;
-    case LossyWeightApproximation::Q4_K_REQUANT:
+    case LossyWeightApproximation::Q4_REQUANT:
         std::call_once(zero_point_once, [] {
             std::cerr << "[GGUF] accuracy notice: Q4_K / Q4_1 weights are faithfully decoded and requantized "
                          "group-wise to OpenVINO u4. This adds a small quantization error, so results may differ "

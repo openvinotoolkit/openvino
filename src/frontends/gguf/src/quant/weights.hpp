@@ -31,7 +31,7 @@ enum class LossyWeightApproximation {
     // token_embd / output / Q6_K / Q5_K tensors requantized channel-wise to Q8_0_C.
     Q8_0_C_REQUANT,
     // Q4_K / Q4_1 asymmetric weights faithfully decoded and requantized group-wise to OpenVINO u4.
-    Q4_K_REQUANT,
+    Q4_REQUANT,
     // Q5_K asymmetric weights faithfully decoded and requantized group-wise to OpenVINO u8.
     Q5_K_REQUANT,
 };

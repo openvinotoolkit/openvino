@@ -253,7 +253,7 @@ void fill_q4_1(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& sc
     auto scales = scales_arr.data<ov::element_type_traits<ov::element::f16>::value_type>();
     const ZeroPointWriter zp(zp_arr);
     if (zp.is_integer()) {
-        notify_lossy_weight_approximation(LossyWeightApproximation::Q4_K_REQUANT);
+        notify_lossy_weight_approximation(LossyWeightApproximation::Q4_REQUANT);
     }
     ov::parallel_for(scales_arr.get_size(), [&](size_t i) {
         const uint8_t* block = data + i * bytes_per_block;
@@ -345,7 +345,7 @@ void fill_q4_k(const GgufTensor& tensor, ov::Tensor& weights_arr, ov::Tensor& sc
     const ZeroPointWriter zp_out(zp_arr);
     if (zp_out.is_integer()) {
         // An integer zero-point means this tensor is being requantized onto a new u4 grid below.
-        notify_lossy_weight_approximation(LossyWeightApproximation::Q4_K_REQUANT);
+        notify_lossy_weight_approximation(LossyWeightApproximation::Q4_REQUANT);
     }
 
     ov::parallel_for(n_super_block, [&](size_t i) {
