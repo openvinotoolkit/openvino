@@ -919,12 +919,13 @@ TEST(GGUFAdaptToGenAI, PagedAttentionFlattensEmbeddingsWithPerLayerInputs) {
     ASSERT_EQ(find_parameter(model, "input_ids"), nullptr);
     ASSERT_EQ(model->input("inputs_embeds").get_partial_shape().rank().get_length(), 3);
     ASSERT_EQ(model->input("per_layer_inputs").get_partial_shape(), (ov::PartialShape{-1, -1, 2, 2}));
+    // Gemma4 variants with per-layer embeddings keep image attention causal.
+    ASSERT_EQ(find_parameter(model, "token_type_ids"), nullptr);
     ASSERT_TRUE(ov::pass::SDPAToPagedAttention().run_on_model(model));
     EXPECT_EQ(model->input("inputs_embeds").get_partial_shape(), (ov::PartialShape{-1, -1}));
     // GenAI's continuous batching supplies per_layer_inputs as [tokens, 1, layers, width].
     EXPECT_NO_THROW(model->reshape({{"inputs_embeds", {5, 4}},
                                     {"per_layer_inputs", {5, 1, 2, 2}},
-                                    {"token_type_ids", {5, 1}},
                                     {"position_ids", {5}}}));
     EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
 }
