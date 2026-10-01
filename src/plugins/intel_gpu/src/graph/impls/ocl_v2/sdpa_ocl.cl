@@ -220,7 +220,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     V += VAL_OFF(b1, b0_kv, 0, 0) + INPUT2_OFFSET;
     A += DST_OFF(b1, b0, 0, 0, 0);
 #endif
-#if SG8
+#if SG8 && !defined(KV_COMPRESSED)
     // k_tile_dword reads K one dword (2 head dims) per lane with a block read, which needs an even row pitch and a 4 B
     // aligned base (a view/slice can break either; an unaligned dword block read returns wrong data without an error).
     // Uniform across the workgroup; false selects the two-ushort fallback.
@@ -598,7 +598,9 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #elif USE_2D_BLOCK_IO_KV
             FUNC_CALL(k_tile_b2d16)(k_raw, K_b2d, KD_w_b2d, KD_h, KD_p, KD_x0, db, key_base, 0);
 #else
-    #if SG8
+    #if SG8 && defined(KV_COMPRESSED)
+            FUNC_CALL(k_tile_dword_i8)(k_raw, K, ldk, k_scale_lane, k_zpb_lane, key_base, k, d, db, lane);
+    #elif SG8
             FUNC_CALL(k_tile_dword)(k_raw, K, ldk, key_base, k, d, db, lane, k_dword_ok);
     #else
     #ifdef KV_COMPRESSED
