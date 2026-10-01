@@ -1296,6 +1296,14 @@ bool has_compiled_state(const v1::subgraphs::CompiledPipeline& pipeline) {
            get_compiled_hfa(pipeline.context) != nullptr;
 }
 
+bool has_block_kv_hfa(const v1::subgraphs::CompiledPipeline& pipeline) {
+    if (!pipeline.runtime_behavior.has_value() || !pipeline.runtime_behavior->handles_function_prologue) {
+        return false;
+    }
+    const auto* hfa = get_compiled_hfa(pipeline.context);
+    return hfa != nullptr && hfa->is_block_mode();
+}
+
 void serialize_compiled_state(v1::subgraphs::Context& context,
                               ov::npuw::s11n::Stream& stream,
                               const ov::npuw::s11n::SubmodelDeserializeCtx* submodel_ctx) {
