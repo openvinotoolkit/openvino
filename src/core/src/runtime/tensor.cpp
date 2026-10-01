@@ -233,6 +233,8 @@ Tensor read_tensor_data_mmap_impl(std::shared_ptr<MappedMemory> mapped_memory,
                                                                                              mapped_memory->size(),
                                                                                              mapped_memory);
     auto tensor = wrap_obj_to_viewtensor(shared_buffer, shared_buffer->get_ptr(), element_type, static_shape);
+    // Keeps the mapping reachable from the tensor, so its consumers can prefetch the regions they need.
+    set_tensor_source_buffer(tensor, shared_buffer);
     if (const auto source_id = mapped_memory->get_id()) {
         set_tensor_source_id(tensor, *source_id);
     }
@@ -277,5 +279,9 @@ Tensor read_tensor_data(ov::FileHandle file_handle,
     return read_tensor_data_mmap_impl(load_mmap_object(file_handle, offset_in_bytes, size),
                                       element_type,
                                       partial_shape);
+}
+
+std::shared_ptr<AlignedBuffer> detail::get_tensor_buffer(const Tensor& tensor) {
+    return get_tensor_source_buffer(tensor);
 }
 }  // namespace ov

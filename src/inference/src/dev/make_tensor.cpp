@@ -9,6 +9,7 @@
 
 #include "openvino/core/memory_util.hpp"
 #include "openvino/core/type/element_type_info.hpp"
+#include "openvino/runtime/aligned_buffer.hpp"
 #include "openvino/runtime/iremote_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -128,6 +129,14 @@ public:
         m_source_id = id;
     }
 
+    const std::shared_ptr<AlignedBuffer>& get_source_buffer() const {
+        return m_source_buffer;
+    }
+
+    void set_source_buffer(std::shared_ptr<AlignedBuffer> buffer) {
+        m_source_buffer = std::move(buffer);
+    }
+
 protected:
     bool is_pointer_representable(const element::Type& element_type) const {
         if (element_type.is_dynamic()) {
@@ -166,6 +175,7 @@ protected:
     mutable std::once_flag m_strides_once;
     void* m_ptr;
     std::optional<uint64_t> m_source_id;
+    std::shared_ptr<AlignedBuffer> m_source_buffer;
 };
 
 /**
@@ -454,6 +464,10 @@ public:
         return m_offset;
     }
 
+    const std::shared_ptr<ITensor>& get_owner() const {
+        return m_owner;
+    }
+
 protected:
     std::shared_ptr<ITensor> m_owner;
     Shape m_shape;
@@ -650,6 +664,23 @@ std::optional<uint64_t> get_tensor_source_id(const ov::Tensor& tensor) {
 void set_tensor_source_id(ov::Tensor& tensor, uint64_t id) {
     if (auto itensor = std::dynamic_pointer_cast<ViewTensor>(get_tensor_impl(tensor)._ptr)) {
         itensor->set_source_id(id);
+    }
+}
+
+std::shared_ptr<AlignedBuffer> get_tensor_source_buffer(const ov::Tensor& tensor) {
+    auto itensor = get_tensor_impl(tensor)._ptr;
+    while (const auto roi = std::dynamic_pointer_cast<BaseRoiTensor>(itensor)) {
+        itensor = roi->get_owner();
+    }
+    if (const auto view = std::dynamic_pointer_cast<ViewTensor>(itensor)) {
+        return view->get_source_buffer();
+    }
+    return nullptr;
+}
+
+void set_tensor_source_buffer(ov::Tensor& tensor, std::shared_ptr<AlignedBuffer> buffer) {
+    if (auto itensor = std::dynamic_pointer_cast<ViewTensor>(get_tensor_impl(tensor)._ptr)) {
+        itensor->set_source_buffer(std::move(buffer));
     }
 }
 

@@ -14,6 +14,8 @@
 
 #include "common_test_utils/common_utils.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/tensor.hpp"
 #include "openvino/util/mmap_object.hpp"
 
 namespace ov::test {
@@ -643,5 +645,61 @@ TEST_F(SharedBufferTest, aligned_shared_buffer_propagates_hint_prefetch_async_to
 
     EXPECT_CALL(*mock, hint_prefetch_async(parent_offset + child_offset, child_size)).Times(1);
     child->hint_prefetch_async();
+}
+
+TEST_F(SharedBufferTest, nested_aligned_shared_buffers_propagate_hint_prefetch_async_to_mmap) {
+    constexpr size_t mmap_size = 2048;
+    constexpr size_t root_offset = 64;
+    constexpr size_t middle_offset = 128;  // relative to root data ptr
+    constexpr size_t leaf_offset = 32;     // relative to middle data ptr
+    constexpr size_t leaf_size = 256;
+
+    auto mock = std::make_shared<MockMappedMemory>(mmap_size);
+
+    auto root = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mock->data() + root_offset,
+                                                                                      mmap_size - root_offset,
+                                                                                      mock);
+    auto middle = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+        root->get_ptr<char>() + middle_offset,
+        root->size() - middle_offset,
+        std::static_pointer_cast<ov::AlignedBuffer>(root));
+    auto leaf = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+        middle->get_ptr<char>() + leaf_offset,
+        leaf_size,
+        std::static_pointer_cast<ov::AlignedBuffer>(middle));
+
+    EXPECT_CALL(*mock, hint_prefetch_async(root_offset + middle_offset + leaf_offset, leaf_size)).Times(1);
+    leaf->hint_prefetch_async();
+}
+
+TEST_F(SharedBufferTest, tensor_shared_buffer_propagates_hint_prefetch_async_to_tensor_source_buffer) {
+    constexpr size_t mmap_size = 2048;
+    constexpr size_t tensor_offset = 64;
+    constexpr size_t leaf_offset = 128;  // relative to tensor data ptr
+    constexpr size_t leaf_size = 256;
+
+    auto mock = std::make_shared<MockMappedMemory>(mmap_size);
+    auto root = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::MappedMemory>>>(mock->data(), mmap_size, mock);
+
+    ov::Tensor tensor{ov::element::u8, ov::Shape{mmap_size - tensor_offset}, root->get_ptr<char>() + tensor_offset};
+    ov::set_tensor_source_buffer(tensor, root);
+
+    auto leaf = std::make_shared<ov::SharedBuffer<ov::Tensor>>(static_cast<char*>(tensor.data()) + leaf_offset,
+                                                               leaf_size,
+                                                               tensor);
+    ASSERT_NE(leaf->get_descriptor(), nullptr);
+
+    EXPECT_CALL(*mock, hint_prefetch_async(tensor_offset + leaf_offset, leaf_size)).Times(1);
+    leaf->hint_prefetch_async();
+}
+
+TEST_F(SharedBufferTest, tensor_shared_buffer_without_source_buffer_has_no_descriptor) {
+    std::vector<uint8_t> data(64);
+    ov::Tensor tensor{ov::element::u8, ov::Shape{data.size()}, data.data()};
+
+    auto buffer =
+        std::make_shared<ov::SharedBuffer<ov::Tensor>>(reinterpret_cast<char*>(data.data()), data.size(), tensor);
+    EXPECT_EQ(buffer->get_descriptor(), nullptr);
+    buffer->hint_prefetch_async();
 }
 }  // namespace ov::test

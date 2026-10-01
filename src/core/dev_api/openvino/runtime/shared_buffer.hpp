@@ -12,11 +12,16 @@
 #include "openvino/util/mmap_object.hpp"
 
 namespace ov {
+class Tensor;
+
 OPENVINO_API std::shared_ptr<IBufferDescriptor>
 create_base_descriptor(size_t id, size_t offset, const std::shared_ptr<ov::AlignedBuffer>& source_buffer);
 
 namespace detail {
 OPENVINO_API std::shared_ptr<IBufferDescriptor> create_mmap_descriptor(const std::shared_ptr<ov::MappedMemory>& mmap);
+
+/// \brief Returns the buffer owning the tensor memory (e.g. a memory mapped file) or nullptr if unknown.
+OPENVINO_API std::shared_ptr<ov::AlignedBuffer> get_tensor_buffer(const ov::Tensor& tensor);
 }  // namespace detail
 
 template <typename T>
@@ -36,24 +41,13 @@ public:
             if (m_shared_object) {
                 m_shared_object->hint_evict(get_offset(), m_byte_size);
             }
-        } else if constexpr (std::is_same_v<std::shared_ptr<ov::AlignedBuffer>, T>) {
-            if (m_shared_object) {
-                invoke_evict(*m_shared_object, get_offset(), m_byte_size);
-            }
-        } else {
+        } else if (const auto parent = get_parent_buffer()) {
+            invoke_evict(*parent, get_offset(), m_byte_size);
         }
     }
 
     void hint_prefetch_async() const override {
-        if constexpr (std::is_same_v<std::shared_ptr<ov::MappedMemory>, T>) {
-            if (m_shared_object) {
-                m_shared_object->hint_prefetch_async(get_offset(), m_byte_size);
-            }
-        } else if constexpr (is_aligned_buffer_ptr_v<T>) {
-            if (m_shared_object) {
-                AlignedBuffer::invoke_hint_prefetch_async(*m_shared_object, get_offset(), m_byte_size);
-            }
-        }
+        hint_prefetch_async(get_offset(), m_byte_size);
     }
 
 protected:
@@ -63,6 +57,17 @@ protected:
     struct is_aligned_buffer_ptr<std::shared_ptr<U>> : std::is_base_of<ov::AlignedBuffer, U> {};
     template <typename U>
     static constexpr bool is_aligned_buffer_ptr_v = is_aligned_buffer_ptr<U>::value;
+
+    // Next buffer towards the memory owner; hints are forwarded to it with offsets relative to the shared root.
+    std::shared_ptr<ov::AlignedBuffer> get_parent_buffer() const {
+        if constexpr (is_aligned_buffer_ptr_v<T>) {
+            return m_shared_object;
+        } else if constexpr (std::is_same_v<T, ov::Tensor>) {
+            return detail::get_tensor_buffer(m_shared_object);
+        } else {
+            return nullptr;
+        }
+    }
 
     virtual void hint_evict(size_t offset, size_t size) noexcept override {
         if constexpr (std::is_same_v<std::shared_ptr<ov::MappedMemory>, T>) {
@@ -74,10 +79,8 @@ protected:
     }
 
     void hint_prefetch() const override {
-        if constexpr (is_aligned_buffer_ptr_v<T>) {
-            if (this->m_shared_object) {
-                AlignedBuffer::invoke_hint_prefetch(*this->m_shared_object);
-            }
+        if (const auto parent = get_parent_buffer()) {
+            AlignedBuffer::invoke_hint_prefetch(*parent);
         }
     }
 
@@ -86,6 +89,8 @@ protected:
             if (m_shared_object) {
                 m_shared_object->hint_prefetch_async(offset, size);
             }
+        } else if (const auto parent = get_parent_buffer()) {
+            AlignedBuffer::invoke_hint_prefetch_async(*parent, offset, size);
         }
     }
 
@@ -150,6 +155,9 @@ class SharedBuffer : public SharedBufferBase<T> {
             return detail::create_mmap_descriptor(shared_object);
         } else if constexpr (SharedBufferBase<T>::template is_aligned_buffer_ptr_v<T>) {
             return shared_object ? shared_object->get_descriptor() : nullptr;
+        } else if constexpr (std::is_same_v<T, ov::Tensor>) {
+            const auto buffer = detail::get_tensor_buffer(shared_object);
+            return buffer ? buffer->get_descriptor() : nullptr;
         } else {
             return nullptr;
         }

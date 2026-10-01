@@ -18,6 +18,8 @@
 
 namespace ov {
 
+class AlignedBuffer;
+
 /**
  * @brief Constructs Tensor using element type and shape. Allocate internal host storage using default allocator
  * @param type Tensor element type
@@ -118,5 +120,25 @@ OPENVINO_RUNTIME_API std::optional<uint64_t> get_tensor_source_id(const ov::Tens
  * @param id The source ID to associate with the tensor.
  */
 OPENVINO_RUNTIME_API void set_tensor_source_id(ov::Tensor& tensor, uint64_t id);
+
+/**
+ * @brief Returns the buffer which owns the memory the tensor data points to (e.g. a memory-mapped file).
+ *
+ * @details ROI tensors report the source buffer of the tensor they are created from, so the returned buffer may be
+ * larger than the tensor data itself.
+ *
+ * @param tensor OpenVINO Tensor to get the source buffer from.
+ *
+ * @return The source buffer, or nullptr if not set.
+ */
+OPENVINO_RUNTIME_API std::shared_ptr<ov::AlignedBuffer> get_tensor_source_buffer(const ov::Tensor& tensor);
+
+/**
+ * @brief Sets the buffer which owns the tensor data if the tensor implementation supports it.
+ *
+ * @param tensor OpenVINO Tensor to set the source buffer on.
+ * @param buffer Buffer owning the memory the tensor data points to.
+ */
+OPENVINO_RUNTIME_API void set_tensor_source_buffer(ov::Tensor& tensor, std::shared_ptr<ov::AlignedBuffer> buffer);
 
 }  // namespace ov
