@@ -232,14 +232,22 @@ void select_preferred_formats::run(program& p) {
             print_selected_formats(*n);
         }
 
-        if (!factory) {
-            for (size_t i = 0; i < n->get_dependencies().size(); ++i) {
-                const auto input_format = n->get_dependency(i).get_output_layout().format;
-                n->set_preferred_input_fmt(i, input_format);
+        if (!factory && n->is_type<fully_connected>()) {
+            const auto& fc_prim = n->as<fully_connected>().get_primitive();
+            size_t decompression_param_idx =
+                fc_prim->bias.is_valid() ? 3 : 2;
+
+            if (fc_prim->decompression_scale.is_valid()) {
+                n->set_preferred_input_fmt(
+                    decompression_param_idx,
+                    n->get_input_layout(decompression_param_idx).format);
+                decompression_param_idx++;
             }
-            for (size_t i = 0; i < n->get_outputs_count(); ++i) {
-                const auto output_format = n->get_output_layout().format;
-                n->set_preferred_output_fmt(i, output_format);
+
+            if (fc_prim->decompression_zero_point.is_valid()) {
+                n->set_preferred_input_fmt(
+                    decompression_param_idx,
+                    n->get_input_layout(decompression_param_idx).format);
             }
         }
     }
