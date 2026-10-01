@@ -282,7 +282,7 @@ def main():
     if args.geometry_oracle:
         with tempfile.TemporaryDirectory() as directory:
             subprocess.run([str(args.geometry_oracle.resolve()), directory], check=True)
-            for name in ("window_input", "windows", "restored", "relative_input", "relative"):
+            for name in ("window_input", "windows", "restored", "relative_table", "relative"):
                 values = np.fromfile(Path(directory) / f"{name}.bin", np.float32)
                 np.save(args.output.parent / f"mmproj_{name}.npy", values)
     for family in args.families:

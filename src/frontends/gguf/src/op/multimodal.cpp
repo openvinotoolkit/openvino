@@ -208,24 +208,7 @@ OutputVector translate_win_unpart(const NodeContext& context) {
 }
 
 OutputVector translate_get_rel_pos(const NodeContext& context) {
-    num_inputs_check(context, 1, 2);
-    if (context.get_input_size() == 1) {
-        const auto side = context.get_attribute<int64_t>("q_size");
-        FRONT_END_OP_CONVERSION_CHECK(side > 0, "Invalid relative position grid");
-        std::vector<int32_t> indices(size_t(side * side));
-        for (int64_t q = 0; q < side; ++q)
-            for (int64_t k = 0; k < side; ++k)
-                indices[size_t(q * side + k)] = int32_t(q - k + side - 1);
-        auto ids = ov::op::v0::Constant::create(ov::element::i32, {1, size_t(side), size_t(side)}, indices);
-        auto table = std::make_shared<ov::op::v1::Reshape>(
-            context.get_input(0),
-            ov::op::v0::Constant::create(ov::element::i64, {2}, std::vector<int64_t>{2 * side - 1, -1}),
-            false);
-        auto output =
-            std::make_shared<ov::op::v8::Gather>(table, ids, ov::op::v0::Constant::create(ov::element::i64, {}, {0}));
-        return rename_outputs_with_suffix({std::make_shared<ov::op::v0::Convert>(output, ov::element::f16)},
-                                          context.get_name());
-    }
+    num_inputs_check(context, 2, 2);
     FRONT_END_OP_CONVERSION_CHECK(context.get_op_case() == 1, "Indexed relative positions require case 1");
     using namespace ov::op;
     auto table = context.get_input(0), indices = context.get_input(1);

@@ -3739,18 +3739,24 @@ TEST(GGUFOps, WindowUnpartitionRemovesPadding) {
     expect_near(result, load_npy<float>("mmproj_restored"));
 }
 
-TEST(GGUFOps, RelativePositionsMatchCPU) {
+TEST(GGUFOps, IndexedRelativePositionsMatchCPU) {
     auto model = SingleOpBuilder()
                      .op("GGML_OP_GET_REL_POS")
-                     .input("table", ov::element::f32, {5, 4})
-                     .output("out", ov::element::f16, {1, 3, 3, 4})
-                     .attr<int64_t>("q_size", 3)
+                     .op_case(1)
+                     .input("table", ov::element::f32, {3, 4})
+                     .input("indices", ov::element::i32, {1, 3, 3})
+                     .output("out", ov::element::f32, {3, 3, 4})
                      .build();
-    auto result = run_on_cpu(model, {{"table", make_f32_tensor({5, 4}, load_npy<float>("mmproj_relative_input"))}});
-    const auto expected = load_npy<float>("mmproj_relative");
-    ASSERT_EQ(result.get_size(), expected.size());
-    for (size_t i = 0; i < expected.size(); ++i)
-        EXPECT_FLOAT_EQ(float(result.data<ov::float16>()[i]), expected[i]);
+    std::vector<int32_t> indices;
+    for (int32_t q = 0; q < 3; ++q)
+        for (int32_t k = 0; k < 3; ++k)
+            indices.push_back(q - k + 2);
+    ov::Tensor ids(ov::element::i32, {1, 3, 3});
+    std::copy(indices.begin(), indices.end(), ids.data<int32_t>());
+    auto result =
+        run_on_cpu(model,
+                   {{"table", make_f32_tensor({3, 4}, load_npy<float>("mmproj_relative_table"))}, {"indices", ids}});
+    expect_near(result, load_npy<float>("mmproj_relative"));
 }
 
 TEST(GGUFOps, ReferenceReshapeTracksSpatialDimensions) {
