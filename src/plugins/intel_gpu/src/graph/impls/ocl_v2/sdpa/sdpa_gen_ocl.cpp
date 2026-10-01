@@ -146,6 +146,40 @@ inline size_t get_d_max(size_t head_size) {
     return head_size;
 }
 
+// Local memory the kernel declares (sdpa_ocl.cl: Q_slm, S_slm, S_sum_slm, S_max_slm), same expressions. The Q depth
+// tiles count DKS (d_max / DPAS_K), an upper bound of DKS_ACTIVE.
+size_t slm_bytes(const sdpa_ocl_config_t& t, size_t d_max) {
+    constexpr size_t q_dwords = 8;  // Q_DWORDS
+    constexpr size_t dpas_k = 16;   // DPAS_K
+    const auto sg = static_cast<size_t>(t.subgroup_size);
+    const auto wg_queries = static_cast<size_t>(t.kq_wg_tile_queries());
+    const auto q_blocks = wg_queries / sg;
+    const size_t q_slm = (d_max / dpas_k) * q_blocks * q_dwords * sg;
+    const size_t s_slm = static_cast<size_t>(t.kq_wg_tile_keys()) * wg_queries / 2;
+    const size_t s_sum = wg_queries * static_cast<size_t>(t.kq_sg_per_wg_keys);
+    const size_t s_max = wg_queries;
+    return (q_slm + s_slm + s_sum + s_max) * sizeof(uint32_t);
+}
+
+// Per-arch limits the tiling must respect: the xe_hpg values are DG2's (64 KiB local memory, 1024 work-items), Xe2's the
+// B-series ones.
+size_t max_slm_bytes_for(gpu_arch arch) {
+    return arch >= gpu_arch::xe2 ? 128 * 1024 : 64 * 1024;
+}
+size_t max_wg_size_for(gpu_arch) {
+    return 1024;  // DG2 and the B-series alike
+}
+
+// Whether the kernel's local memory and work-group fit the device. The one check both choose_config() (asserts)
+// and supported() (returns false) go through, so an override cannot pass one and fail the other.
+bool tiling_fits_device(gpu_arch arch, size_t d_max, const sdpa_ocl_config_t& t) {
+    if (t.subgroup_size <= 0 || t.sg_per_wg() <= 0) {
+        return false;
+    }
+    const auto wg_size = static_cast<size_t>(t.sg_per_wg()) * static_cast<size_t>(t.subgroup_size);
+    return wg_size <= max_wg_size_for(arch) && slm_bytes(t, d_max) <= max_slm_bytes_for(arch);
+}
+
 // Per-head-size tuned tiling for k_head_size == v_head_size, mirroring sdpa_micro's choose_config_*
 // tables: a 128-key KQ workgroup tile with 16 subgroups, varying only the S*V split (and the query tile
 // for d_max <= 64). Every branch must satisfy solve_sv_split()'s invariants.
@@ -156,6 +190,18 @@ sdpa_ocl_config_t choose_config_kq_only(gpu_arch arch, size_t d_max) {
 
     sdpa_ocl_config_t config;
     config.subgroup_size = static_cast<int>(get_subgroup_size(arch));
+
+    if (arch == gpu_arch::xe_hpg) {
+        // DG2 (SG8, 256 GRF): the 16 x 16 KQ subgroup tile with 4 x 2 subgroups spilled nothing and was the fastest
+        // measured; larger tiles spill even at 256 GRF. The S*V split is derived (widest value split whose alpha[]
+        // nesting holds); config stays zero-split when none exists, which solve_tiling() then rejects.
+        config.kq_sg_tile_keys = 16;
+        config.kq_sg_tile_queries = 16;
+        config.kq_sg_per_wg_keys = 4;
+        config.kq_sg_per_wg_queries = 2;
+        solve_sv_split(config, d_max);
+        return config;
+    }
 
     config.kq_sg_tile_keys = 16;
     config.kq_sg_tile_queries = 16;
@@ -207,14 +253,40 @@ sdpa_ocl_config_t choose_config_kq_only(gpu_arch arch, size_t d_max) {
 // unreachable for k_head_size == v_head_size, so the tuned tilings stay as they are. False: no tiling.
 bool solve_tiling(gpu_arch arch, size_t d_max, size_t vd_max, sdpa_ocl_config_t& config) {
     config = choose_config_kq_only(arch, d_max);
-    if (vd_max == d_max || solve_sv_split(config, vd_max)) {
+    // A tuned table row has its S*V split filled in; the xe_hpg seed leaves it zero when it found none.
+    const bool tuned_split = config.sv_sg_tile_values > 0;
+    if (((vd_max == d_max && tuned_split) || solve_sv_split(config, vd_max)) && tiling_fits_device(arch, d_max, config)) {
         return true;
     }
     config.kq_sg_tile_keys = 16;
     config.kq_sg_tile_queries = 16;
     config.kq_sg_per_wg_keys = 4;
     config.kq_sg_per_wg_queries = 4;
-    return solve_sv_split(config, vd_max);
+    return solve_sv_split(config, vd_max) && tiling_fits_device(arch, d_max, config);
+}
+
+bool kq_override_requested() {
+    return env_set("SDPA_OCL_KQ_TILE_KEYS") || env_set("SDPA_OCL_KQ_TILE_QUERIES") || env_set("SDPA_OCL_KQ_PER_WG_KEYS") || env_set("SDPA_OCL_KQ_PER_WG_QUERIES");
+}
+
+void read_kq_override(sdpa_ocl_config_t& config) {
+    config.kq_sg_tile_keys = env_int("SDPA_OCL_KQ_TILE_KEYS", config.kq_sg_tile_keys);
+    config.kq_sg_tile_queries = env_int("SDPA_OCL_KQ_TILE_QUERIES", config.kq_sg_tile_queries);
+    config.kq_sg_per_wg_keys = env_int("SDPA_OCL_KQ_PER_WG_KEYS", config.kq_sg_per_wg_keys);
+    config.kq_sg_per_wg_queries = env_int("SDPA_OCL_KQ_PER_WG_QUERIES", config.kq_sg_per_wg_queries);
+}
+
+// choose_config() without the asserts: the tiling for these head sizes with the overrides applied, and whether it exists
+// and fits the device.
+bool resolve_tiling(gpu_arch arch, size_t d_max, size_t vd_max, sdpa_ocl_config_t& config) {
+    if (d_max > 512 || vd_max > 512 || !solve_tiling(arch, d_max, vd_max, config)) {
+        return false;
+    }
+    if (kq_override_requested()) {
+        read_kq_override(config);
+        return solve_sv_split(config, vd_max) && tiling_fits_device(arch, d_max, config);
+    }
+    return true;
 }
 
 // d_max drives the KQ side (the Q/K contraction depth, hence DKS and the query tile), vd_max the S*V side.
@@ -234,17 +306,13 @@ sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max, size_t vd_max) {
 
     // Tuning overrides of the KQ tiling. The S*V split is re-derived, because it must keep using exactly
     // the sg_per_wg subgroups the KQ side dispatches ("Tiling" in the docs).
-    const bool kq_override =
-        env_set("SDPA_OCL_KQ_TILE_KEYS") || env_set("SDPA_OCL_KQ_TILE_QUERIES") || env_set("SDPA_OCL_KQ_PER_WG_KEYS") || env_set("SDPA_OCL_KQ_PER_WG_QUERIES");
+    const bool kq_override = kq_override_requested();
     const bool trace_config = env_set("SDPA_OCL_TRACE_CONFIG");
     if (trace_config) {
         std::cerr << "[sdpa_ocl] choose_config d_max=" << d_max << " kq_override=" << kq_override << std::endl;
     }
     if (kq_override) {
-        config.kq_sg_tile_keys = env_int("SDPA_OCL_KQ_TILE_KEYS", config.kq_sg_tile_keys);
-        config.kq_sg_tile_queries = env_int("SDPA_OCL_KQ_TILE_QUERIES", config.kq_sg_tile_queries);
-        config.kq_sg_per_wg_keys = env_int("SDPA_OCL_KQ_PER_WG_KEYS", config.kq_sg_per_wg_keys);
-        config.kq_sg_per_wg_queries = env_int("SDPA_OCL_KQ_PER_WG_QUERIES", config.kq_sg_per_wg_queries);
+        read_kq_override(config);
 
         const bool override_solved = solve_sv_split(config, vd_max);
         OPENVINO_ASSERT(override_solved,
@@ -258,6 +326,12 @@ sdpa_ocl_config_t choose_config(gpu_arch arch, size_t d_max, size_t vd_max) {
                         config.kq_sg_per_wg_queries,
                         ") admits no valid S*V split for vd_max=",
                         vd_max);
+        OPENVINO_ASSERT(tiling_fits_device(arch, d_max, config),
+                        "[GPU] sdpa_ocl: the SDPA_OCL_KQ_* override needs ",
+                        slm_bytes(config, d_max),
+                        " B of local memory and ",
+                        config.sg_per_wg() * config.subgroup_size,
+                        " work-items per group, over the device limits");
         // Opt-in: this also runs on every dispatch.
         if (trace_config) {
             std::cout << "[new config] config.kq_sg_tile_keys=" << config.kq_sg_tile_keys << " config.kq_sg_tile_queries=" << config.kq_sg_tile_queries
@@ -626,23 +700,36 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
     jit.make("SUBGROUP_SIZE", t.subgroup_size);
 }
 
+// The 2D block builtins (and the 1D page reads / Kc/Vc block reads built on the same subgroup shape) need a
+// 16-wide subgroup; xe_hpg (SG8) has neither the builtins nor a block2d_layout_ok() answer that means anything.
+// Every USE_2D_BLOCK_IO_* / USE_1D_BLOCK_IO_* / PA_CUR_KV_F16 decision goes through this, including the
+// SDPA_OCL_*_2D overrides: on SG8 an override must not turn a path on (DG2 rejects the builtins, or
+// misbehaves). Identity for SG16, so the Xe2 jit does not change.
+inline bool block2d_io_allowed(size_t subgroup_size) {
+    return subgroup_size == 16;
+}
+inline int block2d_env_int(const char* name, int dflt, bool allowed) {
+    return allowed ? env_int(name, dflt) : 0;
+}
+
 // 2D block IO for Q, the K/V inputs and the output ("Block2d rules" in the docs). MIXED emits the K/V flags
 // too but reads the caches. The SDPA_OCL_*_2D overrides can also force a path on; the base fixup is derived
 // after the override, so a forced path on an unaligned surface stays correct.
 void add_tensor_block_io_jit(JitConstants& jit, const jit_inputs& in) {
+    const bool allowed = block2d_io_allowed(static_cast<size_t>(in.problem.tiling.subgroup_size));
     // The transpose read's 16-row geometry needs a subgroup of 16; the head tail is guarded in the kernel.
     const bool q_2d = in.problem.tiling.subgroup_size == 16 && ov::element::Type(in.q.data_type).size() == 2 && block2d_layout_ok(in.q, in.ldq);
-    jit.make("USE_2D_BLOCK_IO_Q", env_int("SDPA_OCL_Q_2D", q_2d ? 1 : 0));
+    jit.make("USE_2D_BLOCK_IO_Q", block2d_env_int("SDPA_OCL_Q_2D", q_2d ? 1 : 0, allowed));
 
     // f16 K/V only: the i8 cache takes the 8-bit paths below.
     const bool kv_aligned = block2d_layout_ok(in.k, in.ldk) && block2d_layout_ok(in.v, in.ldv);
     const bool kv_fixup_ok = block2d_layout_fixup_ok(in.k, in.ldk) && block2d_layout_fixup_ok(in.v, in.ldv);
-    const int kv_2d = env_int("SDPA_OCL_KV_2D", (!in.config.is_kv_compressed && (kv_aligned || kv_fixup_ok)) ? 1 : 0);
+    const int kv_2d = block2d_env_int("SDPA_OCL_KV_2D", (!in.config.is_kv_compressed && (kv_aligned || kv_fixup_ok)) ? 1 : 0, allowed);
     jit.make("USE_2D_BLOCK_IO_KV", kv_2d);
     jit.make("BLOCK2D_KV_BASE_FIXUP", (kv_2d && !kv_aligned) ? 1 : 0);
 
     // The output is f16 whatever the KV precision, so KV compression must not disable it.
-    jit.make("USE_2D_BLOCK_IO_A", env_int("SDPA_OCL_A_2D", block2d_layout_ok(in.out, in.lda) ? 1 : 0));
+    jit.make("USE_2D_BLOCK_IO_A", block2d_env_int("SDPA_OCL_A_2D", block2d_layout_ok(in.out, in.lda) ? 1 : 0, allowed));
 }
 
 // Page geometry of the cache MIXED reads ("Paged-attention cache layouts" in the docs).
@@ -685,19 +772,20 @@ bool pa_1d_page_ok(size_t row_elems, size_t sg, size_t block_size) {
 void add_pa_page_read_jit(JitConstants& jit, const jit_inputs& in) {
     const auto& c = in.cache;
     const auto& p = in.problem;
+    const bool allowed = block2d_io_allowed(static_cast<size_t>(p.tiling.subgroup_size));
 
     int v_pa_2d = 0;
     if (in.is_pa && !in.is_prefill && !in.config.is_kv_compressed && !data_type_traits::is_i8_u8(in.v.data_type) &&
         !data_type_traits::is_i4_u4(in.v.data_type)) {
         v_pa_2d = block2d_page_ok(p.v_head_size * ov::element::Type(in.v.data_type).size());
     }
-    jit.make("USE_2D_BLOCK_IO_V_PA", env_int("SDPA_OCL_V_PA_2D", v_pa_2d));
+    jit.make("USE_2D_BLOCK_IO_V_PA", block2d_env_int("SDPA_OCL_V_PA_2D", v_pa_2d, allowed));
 
     int v_pa_2d_i8 = 0;
     if (c.dequant_ok && !in.is_prefill) {
         v_pa_2d_i8 = c.u4_by_channel_tm ? block2d_surface_ok(c.v_row_elems) : block2d_page_ok(c.v_row_elems);
     }
-    v_pa_2d_i8 = env_int("SDPA_OCL_V_PA_I8_2D", v_pa_2d_i8);
+    v_pa_2d_i8 = block2d_env_int("SDPA_OCL_V_PA_I8_2D", v_pa_2d_i8, allowed);
     jit.make("USE_2D_BLOCK_IO_V_PA_I8", v_pa_2d_i8);
 
     // A d-major K page's row is 32 B, below the block2d minimum, so K block reads need a token-major page.
@@ -705,21 +793,22 @@ void add_pa_page_read_jit(JitConstants& jit, const jit_inputs& in) {
     if (c.k_token_major && !in.config.is_kv_compressed && !data_type_traits::is_i8_u8(in.k.data_type) && !data_type_traits::is_i4_u4(in.k.data_type)) {
         k_pa_2d = block2d_page_ok(p.k_head_size * ov::element::Type(in.k.data_type).size());
     }
-    jit.make("USE_2D_BLOCK_IO_K_PA", env_int("SDPA_OCL_K_PA_2D", k_pa_2d));
+    jit.make("USE_2D_BLOCK_IO_K_PA", block2d_env_int("SDPA_OCL_K_PA_2D", k_pa_2d, allowed));
 
     int k_pa_2d_i8 = 0;
     if (c.k_token_major && c.dequant_ok) {
         k_pa_2d_i8 = c.u4_by_channel_tm ? block2d_surface_ok(c.k_row_elems) : block2d_page_ok(c.k_row_elems);
     }
-    k_pa_2d_i8 = env_int("SDPA_OCL_K_PA_I8_2D", k_pa_2d_i8);
+    k_pa_2d_i8 = block2d_env_int("SDPA_OCL_K_PA_I8_2D", k_pa_2d_i8, allowed);
     jit.make("USE_2D_BLOCK_IO_K_PA_I8", k_pa_2d_i8);
 
     const auto sg = static_cast<size_t>(p.tiling.subgroup_size);
     const auto block = static_cast<size_t>(in.config.paged_attention_block_size);
     const int k_pa_1d = (c.u4_by_channel_tm && !k_pa_2d_i8 && pa_1d_page_ok(c.k_row_elems, sg, block)) ? 1 : 0;
-    jit.make("USE_1D_BLOCK_IO_K_PA_U4", env_int("SDPA_OCL_K_PA_1D", k_pa_1d));
+    // The 1D page read also needs block_size == sg, so SG8 (block 16) already ends up 0; stated here, not relied on.
+    jit.make("USE_1D_BLOCK_IO_K_PA_U4", block2d_env_int("SDPA_OCL_K_PA_1D", k_pa_1d, allowed));
     const int v_pa_1d = (c.u4_by_channel_tm && !v_pa_2d_i8 && pa_1d_page_ok(c.v_row_elems, sg, block)) ? 1 : 0;
-    jit.make("USE_1D_BLOCK_IO_V_PA_U4", env_int("SDPA_OCL_V_PA_1D", v_pa_1d));
+    jit.make("USE_1D_BLOCK_IO_V_PA_U4", block2d_env_int("SDPA_OCL_V_PA_1D", v_pa_1d, allowed));
 }
 
 // MIXED reads the new keys [past_len, k) from the raw K/V inputs (Kc/Vc), not from the pages they were just
@@ -729,7 +818,9 @@ void add_pa_page_read_jit(JitConstants& jit, const jit_inputs& in) {
 void add_pa_current_token_jit(JitConstants& jit, const jit_inputs& in) {
     int cur_f16 = 0;
     bool cur_aligned = false;
-    if (in.is_pa && !in.is_prefill) {
+    // SG8: Kc/Vc have only a block2d reader until the scalar one exists (S7b); 0 reads them from the cache, which
+    // is lossy for a compressed cache, so the tier mask (not this default) keeps such ops off SG8.
+    if (in.is_pa && !in.is_prefill && block2d_io_allowed(static_cast<size_t>(in.problem.tiling.subgroup_size))) {
         const auto& kc = in.params.input_layouts[1];
         const auto& vc = in.params.input_layouts[2];
         const auto ldk = in.problem.k_head_size * ov::element::Type(kc.data_type).size();
@@ -750,13 +841,18 @@ void add_pa_current_token_jit(JitConstants& jit, const jit_inputs& in) {
 // inputs. Always asymmetric: supported() rejects anything else.
 void add_plain_compressed_jit(JitConstants& jit, const jit_inputs& in) {
     const auto& config = in.config;
+    const bool allowed = block2d_io_allowed(static_cast<size_t>(in.problem.tiling.subgroup_size));
     int v_i8_2d = (config.is_kv_compressed && block2d_layout_ok(in.v, in.ldv)) ? 1 : 0;
     if (config.is_kv_compressed)
-        v_i8_2d = env_int("SDPA_OCL_V_I8_2D", v_i8_2d);
+        v_i8_2d = block2d_env_int("SDPA_OCL_V_I8_2D", v_i8_2d, allowed);
+    if (!allowed)
+        v_i8_2d = 0;
     jit.make("USE_2D_BLOCK_IO_V_I8", v_i8_2d);
     int k_i8_2d = (config.is_kv_compressed && block2d_layout_ok(in.k, in.ldk)) ? 1 : 0;
     if (config.is_kv_compressed)
-        k_i8_2d = env_int("SDPA_OCL_K_I8_2D", k_i8_2d);
+        k_i8_2d = block2d_env_int("SDPA_OCL_K_I8_2D", k_i8_2d, allowed);
+    if (!allowed)
+        k_i8_2d = 0;
     jit.make("USE_2D_BLOCK_IO_K_I8", k_i8_2d);
     if (in.is_pa || !config.is_kv_compressed) {
         return;
@@ -929,7 +1025,8 @@ std::string SDPAOclGenerator::get_build_options(const kernel_impl_params& params
     extra_options += " -Dcl_intel_subgroup_split_matrix_multiply_accumulate";
     // Tuning toggle. 256 GRF halves the threads per EU, so it only pays where it removes spill ("Tiling" in
     // the docs).
-    if (env_on("SDPA_OCL_256GRF"))
+    // xe_hpg always takes it: at 128 GRF every measured DG2 tile spills.
+    if (env_on("SDPA_OCL_256GRF") || params.get_device_info().arch == gpu_arch::xe_hpg)
         extra_options += " -cl-intel-256-GRF-per-thread";
 
     return base_options + extra_options;
@@ -954,6 +1051,116 @@ bool SDPAOclGenerator::supports_head_sizes(gpu_arch arch, size_t k_head_size, si
     return solve_tiling(arch, d_max, vd_max, config);
 }
 
+bool sdpa_ocl_describe_tiling(gpu_arch arch, size_t k_head_size, size_t v_head_size, SDPAOclTilingInfo& info) {
+    if (k_head_size == 0 || v_head_size == 0 || k_head_size > 512 || v_head_size > 512) {
+        return false;
+    }
+    const auto d_max = get_d_max(k_head_size);
+    sdpa_ocl_config_t config;
+    if (!resolve_tiling(arch, d_max, get_d_max(v_head_size), config)) {
+        return false;
+    }
+    info.subgroup_size = config.subgroup_size;
+    info.sg_per_wg = config.sg_per_wg();
+    info.wg_size = config.sg_per_wg() * config.subgroup_size;
+    info.kq_sg_tile_keys = config.kq_sg_tile_keys;
+    info.kq_sg_tile_queries = config.kq_sg_tile_queries;
+    info.kq_sg_per_wg_keys = config.kq_sg_per_wg_keys;
+    info.kq_sg_per_wg_queries = config.kq_sg_per_wg_queries;
+    info.sv_sg_tile_values = config.sv_sg_tile_values;
+    info.sv_sg_tile_scores = config.sv_sg_tile_scores;
+    info.sv_sg_per_wg_values = config.sv_sg_per_wg_values;
+    info.sv_sg_per_wg_scores = config.sv_sg_per_wg_scores;
+    info.kq_wg_tile_keys = config.kq_wg_tile_keys();
+    info.kq_wg_tile_queries = config.kq_wg_tile_queries();
+    info.slm_bytes = slm_bytes(config, d_max);
+    return true;
+}
+
+size_t sdpa_ocl_max_slm_bytes(gpu_arch arch) {
+    return max_slm_bytes_for(arch);
+}
+
+size_t sdpa_ocl_max_wg_size(gpu_arch arch) {
+    return max_wg_size_for(arch);
+}
+
+uint32_t hpg_tiers_ready() {
+    static const uint32_t ready = []() {
+        uint32_t mask = kHpgTiersReady;
+        const char* env = std::getenv("SDPA_OCL_HPG_TIERS");
+        if (env == nullptr || env[0] == '\0') {
+            return mask;
+        }
+        static const std::pair<const char*, HpgTier> names[] = {{"PLAIN_F16_STATIC", PLAIN_F16_STATIC},
+                                                                {"PLAIN_EXT", PLAIN_EXT},
+                                                                {"PLAIN_I8", PLAIN_I8},
+                                                                {"PA_PREFILL", PA_PREFILL},
+                                                                {"PA_MIXED_F16", PA_MIXED_F16},
+                                                                {"PA_FEATURES", PA_FEATURES},
+                                                                {"PA_I8_TOKEN", PA_I8_TOKEN},
+                                                                {"PA_I8_CHANNEL", PA_I8_CHANNEL},
+                                                                {"PA_U4", PA_U4}};
+        std::string rest(env);
+        if (rest == "all") {
+            for (const auto& n : names)
+                mask |= n.second;
+            return mask;
+        }
+        // A typo must not silently leave a tier off (the dump would just miss ops).
+        size_t pos = 0;
+        while (pos <= rest.size()) {
+            const auto comma = rest.find(',', pos);
+            const auto item = rest.substr(pos, comma == std::string::npos ? std::string::npos : comma - pos);
+            bool found = false;
+            for (const auto& n : names) {
+                if (item == n.first) {
+                    mask |= n.second;
+                    found = true;
+                }
+            }
+            OPENVINO_ASSERT(found, "[GPU] SDPA_OCL_HPG_TIERS: unknown tier '", item, "' (all or a comma list of tier names)");
+            if (comma == std::string::npos)
+                break;
+            pos = comma + 1;
+        }
+        return mask;
+    }();
+    return ready;
+}
+
+uint32_t SDPAOclGenerator::hpg_tier_required(const kernel_impl_params& params) {
+    uint32_t bits = 0;
+    if (params.is_type<paged_attention>()) {
+        const auto desc = params.typed_desc<paged_attention>();
+        // supported() admits an op for both stages (PREFILL reads the K/V inputs, MIXED the cache).
+        bits |= PA_PREFILL | PA_MIXED_F16;
+        if (desc->has_sink_input || desc->has_token_type_ids || desc->has_qq_bias || desc->sliding_window != 0 || desc->k_head_size != desc->v_head_size ||
+            !desc->scale_val.has_value()) {
+            bits |= PA_FEATURES;
+        }
+        const auto cache_dt = params.input_layouts[PagedAttentionInputIdx::KEY_CACHE].data_type;
+        // u4 is stored as u8: the configured cache precision tells the two apart.
+        if (data_type_traits::is_i4_u4(params.get_program().get_config().get_kv_cache_precision())) {
+            bits |= PA_U4;
+        } else if (data_type_traits::is_i8_u8(cache_dt)) {
+            bits |= desc->is_key_by_channel ? PA_I8_CHANNEL : PA_I8_TOKEN;
+        }
+        return bits;
+    }
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    bits |= PLAIN_F16_STATIC;
+    const auto q_len = get_seq_length(params.input_layouts[0], extend_order_in_num_heads_dim(desc->input_q_transpose_order));  // -1: dynamic
+    if (params.is_dynamic() || q_len <= 1 || params.input_layouts[0].data_type != ov::element::f16 || desc->is_causal ||
+        desc->has_attn_mask_input || desc->attn_mask_val.has_value() || desc->has_sink_input || desc->has_scale_input) {
+        bits |= PLAIN_EXT;
+    }
+    if (desc->is_kv_compressed || data_type_traits::is_i8_u8(params.input_layouts[1].data_type) || data_type_traits::is_i4_u4(params.input_layouts[1].data_type)) {
+        bits |= PLAIN_I8;
+    }
+    return bits;
+}
+
 bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
     const auto is_f16 = [](data_types dt) {
         return dt == ov::element::f16 || dt == ov::element::bf16;
@@ -962,9 +1169,39 @@ bool SDPAOclGenerator::supported(const kernel_impl_params& params) {
         return dt == ov::element::f16 || dt == ov::element::bf16 || data_type_traits::is_i8_u8(dt) || data_type_traits::is_i4_u4(dt);
     };
 
-    // Built on the Xe2 2D block IO intrinsics (as sdpa_ocl_decode); every caller already requires XMX.
-    if (params.get_device_info().arch < gpu_arch::xe2) {
+    // Xe2+ always (the kernel is built on the 2D block IO intrinsics, as sdpa_ocl_decode); xe_hpg only with
+    // TEST_USE_SDPA_OCL_HPG=1. Every caller already requires XMX.
+    const auto arch = params.get_device_info().arch;
+    if (!paged_attention::sdpa_ocl_arch_ok(params.get_device_info())) {
         return false;
+    }
+    // xe_hpg (SG8) runs only the op families whose kernel arm exists; returning false, never throwing, so the op takes the
+    // route of an op sdpa_ocl refuses (add_stage would swallow an exception as a silent opt fallback).
+    if (arch < gpu_arch::xe2 && !hpg_tiers_cover(hpg_tier_required(params), hpg_tiers_ready())) {
+        return false;
+    }
+    // No tiling for these head sizes, or none that fits the device once the SDPA_OCL_KQ_* overrides are applied.
+    {
+        size_t k_head_size = 0;
+        size_t v_head_size = 0;
+        if (params.is_type<paged_attention>()) {
+            k_head_size = qkv_head_size(params, 1);
+            v_head_size = qkv_head_size(params, 2);
+        } else {
+            // qkv_head_size() throws on a dynamic head dimension; supported() must not.
+            const auto desc = params.typed_desc<scaled_dot_product_attention>();
+            const auto k = get_head_size(params.input_layouts[1], extend_order_in_num_heads_dim(desc->input_k_transpose_order));
+            const auto v = get_head_size(params.input_layouts[2], extend_order_in_num_heads_dim(desc->input_v_transpose_order));
+            if (k <= 0 || v <= 0) {
+                return false;
+            }
+            k_head_size = static_cast<size_t>(k);
+            v_head_size = static_cast<size_t>(v);
+        }
+        SDPAOclTilingInfo tiling;
+        if (!sdpa_ocl_describe_tiling(arch, k_head_size, v_head_size, tiling)) {
+            return false;
+        }
     }
 
     if (!is_f16(params.input_layouts[0].data_type) || !is_f16(params.output_layouts[0].data_type)) {
