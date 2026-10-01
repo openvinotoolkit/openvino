@@ -32,15 +32,32 @@ encoder check means a downloaded projector matched llama.cpp at normalized MSE b
 | Audio | `gemma4ua` | raw 640-sample waveform frames | 12B |
 | Audio | `qwen2a`, `ultravox`, `voxtral`, `musicflamingo`, `meralion`, `glma` | Whisper-derived encoders | — |
 
-The global `clip.projector_type` key takes precedence over modality-specific keys; the legacy
-`qwen2.5o` name resolves to Qwen2.5 VL vision and Qwen2 audio. A combined file builds every
-encoder it declares, and an unsupported modality fails conversion instead of being dropped.
 InternViT-6B (width 3200, 45 layers) uses RMS norms like the reference, but has no fixture.
 
 Not implemented: `ldp`, `ldpv2`, `adapter`, `step3vl`, `gemma3nv`, `llama4`, `qwen3a`, `lfm2`,
 `kimivl`, `paddleocr`, `lightonocr`, `cogvlm`, `dots_ocr`, `lfm2a`, `glm4v`, `youtuvl`, `yasa2`,
 `kimik25`, `nemotron_v2_vl`, `exaone4_5`, `hunyuanvl`, `granite_speech`, `mimovl`,
 `granite4_vision`. `gemma3na` has no graph builder in the reference.
+
+## Files with vision and audio encoders
+
+A projector file holds at most one vision and one audio encoder; Gemma4 E2B/E4B/12B files carry
+both. Conversion builds every encoder the file declares into one model:
+
+1. `clip.has_vision_encoder` and `clip.has_audio_encoder` select the encoders. A file with
+   neither fails conversion.
+2. Each encoder takes its projector from the global `clip.projector_type`, or else from
+   `clip.vision.projector_type` / `clip.audio.projector_type`. A combined file therefore uses the
+   per-modality keys; only the legacy `qwen2.5o` resolves to a different projector per modality
+   (Qwen2.5 VL vision, Qwen2 audio). An unsupported projector fails conversion of the whole file,
+   so no declared modality is dropped silently.
+3. The encoders become disconnected branches of the same graph. Vision reads `v.*` tensors and
+   `vision.*` inputs and produces `vision.embeddings`; audio reads `a.*` tensors and `audio.*`
+   inputs and produces `audio.embeddings`.
+4. `gguf_mmproj` rt_info records each encoder's `<modality>.projector` and `<modality>.merge`.
+
+Running the combined model requires the inputs of both branches. `AdaptMmprojToGenAI` (below)
+turns it into one encoder; apply it to a clone per modality to obtain both.
 
 ## Graph boundary
 
@@ -86,8 +103,8 @@ cgraph decoders return an empty map.
 
 [`AdaptMmprojToGenAI`](../include/openvino/frontend/gguf/adapt_mmproj_to_genai.hpp) keeps one
 modality, drops the other branch's inputs and prefixes, and exposes `[1,T,D]` outputs named
-`image_features` and `deepstack_features.N`, or `audio_features`. Run it on separate clones to
-keep both encoders of a combined file.
+`image_features` and `deepstack_features.N`, or `audio_features`. It rewrites the model in place,
+so run it on a separate clone for each modality of a combined file.
 
 [`AdaptToGenAI`](../include/openvino/frontend/gguf/adapt_to_genai.hpp) in `EMBEDS_TO_LOGITS`
 mode prepares the language model for media injection:
