@@ -637,32 +637,6 @@ std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model
 
 }  // namespace
 
-// Apply DEVICE_ROUTED MoE transformations to models
-class ApplyMoEDeviceRoutedTransforms : public ov::pass::ModelPass {
-public:
-    OPENVINO_MODEL_PASS_RTTI("ov::npuw::ApplyMoEDeviceRoutedTransforms");
-    ApplyMoEDeviceRoutedTransforms() = default;
-
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
-        apply_moe_device_routed_transforms(model);
-
-        return true;
-    }
-};
-
-class LoraStatefulToStatelessPass : public ov::pass::ModelPass {
-public:
-    OPENVINO_MODEL_PASS_RTTI("ov::npuw::LoraStatefulToStatelessPass");
-
-    explicit LoraStatefulToStatelessPass() = default;
-
-    bool run_on_model(const std::shared_ptr<ov::Model>& model) override {
-        convert_stateful_lora_to_stateless(model);
-
-        return true;
-    }
-};
-
 std::map<std::string, std::vector<std::size_t>> find_other_dynamic_outputs(const std::shared_ptr<ov::Model>& model) {
     std::map<std::string, std::vector<std::size_t>> other_dynamic_outputs;
     for (const auto& output : model->outputs()) {
