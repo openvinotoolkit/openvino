@@ -1666,6 +1666,335 @@ INSTANTIATE_TEST_SUITE_P(
     ),
     sdpa_hpg_sharp_test::PrintToStringParamName
 );
+
+// The rest of plain SDPA on xe_hpg (the PLAIN_EXT tier): bf16, attn_mask (per key / full 2D / const scalar), causal, sink, dynamic
+// shape, a single query, and a K view whose row pitch or base breaks the 4 B alignment of the dword K read. Same idea as the sharp
+// test: every value row is unique and the softmax has a clear winner per (head, query), so a lane that reads the wrong mask element,
+// key pair or query row moves the winner and the output is off by ~the value spread, far above the tolerance. Two data modes,
+// because one mode cannot show both kinds of error:
+//   sharp : Q = 32 * K[winner]; the QK logit decides. A mask / sink here would be invisible (the logit gap dwarfs it).
+//   masked: Q is small independent noise and the mask (or the mask plus the sink) decides: mask = -2.5 * |key - winner| puts a
+//           weight of 1 on the winner, 0.08 on its neighbours, so a mask element read from the wrong key moves the winner. Softmax
+//           is shift invariant, so a const scalar mask is only a does-it-run check (it uses sharp data).
+// max_abs_err is recorded as in the sharp test; SDPA_OCL_NEG_SG8=5 / 6 break the full / per-key mask read on purpose.
+struct sdpa_hpg_ext_params {
+    int head_size;
+    int q_len;
+    int kv_len;
+    bool bf16;
+    int mask;     // 0 none, 1 per key [1, H, 1, kv], 2 full [1, H, q, kv], 3 const scalar (primitive attn_mask_val)
+    int causal;   // 0 off, 1 top-left aligned, 2 lower-right aligned
+    bool sink;    // adds the scale and sink inputs; needs mask 1 or 2
+    bool dynamic;
+    int k_pad;    // 0 none, 1 head dim padded (1, 1): even pitch, base 2 B off 4; 2 padded (1, 0): odd pitch
+};
+
+struct sdpa_hpg_ext_test : public ::testing::TestWithParam<sdpa_hpg_ext_params> {
+    static constexpr int num_heads = 8;
+
+    static std::string PrintToStringParamName(const testing::TestParamInfo<sdpa_hpg_ext_params>& info) {
+        const auto& p = info.param;
+        static const char* mask_names[] = {"nomask", "keymask", "fullmask", "constmask"};
+        static const char* causal_names[] = {"nocausal", "causalTL", "causalLR"};
+        std::string r = "head" + std::to_string(p.head_size) + "_q" + std::to_string(p.q_len) + "_kv" + std::to_string(p.kv_len) +
+                        (p.bf16 ? "_bf16_" : "_f16_") + mask_names[p.mask] + "_" + causal_names[p.causal];
+        if (p.sink)
+            r += "_sink";
+        r += p.dynamic ? "_dyn" : "_static";
+        if (p.k_pad)
+            r += "_kpad" + std::to_string(p.k_pad);
+        return r;
+    }
+
+    static float round_to(float x, bool bf16) {
+        return bf16 ? static_cast<float>(ov::bfloat16(x)) : static_cast<float>(ov::float16(x));
+    }
+    static void write(cldnn::memory::ptr m, const std::vector<float>& v, bool bf16) {
+        if (bf16) {
+            cldnn::mem_lock<ov::bfloat16, mem_lock_type::write> l(m, get_test_stream());
+            ASSERT_GE(l.size(), v.size());
+            for (size_t i = 0; i < v.size(); ++i)
+                l[i] = ov::bfloat16(v[i]);
+        } else {
+            cldnn::mem_lock<ov::float16, mem_lock_type::write> l(m, get_test_stream());
+            ASSERT_GE(l.size(), v.size());
+            for (size_t i = 0; i < v.size(); ++i)
+                l[i] = ov::float16(v[i]);
+        }
+    }
+    static std::vector<float> read(cldnn::memory::ptr m, bool bf16) {
+        std::vector<float> out;
+        if (bf16) {
+            cldnn::mem_lock<ov::bfloat16, mem_lock_type::read> l(m, get_test_stream());
+            for (size_t i = 0; i < l.size(); ++i)
+                out.push_back(static_cast<float>(l[i]));
+        } else {
+            cldnn::mem_lock<ov::float16, mem_lock_type::read> l(m, get_test_stream());
+            for (size_t i = 0; i < l.size(); ++i)
+                out.push_back(static_cast<float>(l[i]));
+        }
+        return out;
+    }
+};
+
+TEST_P(sdpa_hpg_ext_test, plain_sdpa) {
+    using T = sdpa_hpg_sharp_test;
+    const auto p = GetParam();
+    auto& engine = get_test_engine();
+    if (tests::expected_dpas_backend(engine, false, static_cast<size_t>(p.head_size),
+                                     ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT) != tests::dpas_backend::ocl)
+        GTEST_SKIP() << "sdpa_ocl does not serve plain SDPA on this device (xe_hpg needs TEST_USE_SDPA_OCL_HPG=1 and TEST_USE_SDPA_OCL not 0)";
+    ASSERT_TRUE(!p.sink || p.mask == 1 || p.mask == 2);
+    ASSERT_TRUE(!(p.dynamic && p.k_pad)) << "the padded K cases are static";
+    ASSERT_TRUE(p.mask != 2 || p.q_len > 1) << "a [.., 1, kv] mask is the per-key kind";
+
+    const int H = num_heads, d = p.head_size, nq = p.q_len, nk = p.kv_len;
+    const bool bf16 = p.bf16;
+    const auto dt = bf16 ? data_types::bf16 : data_types::f16;
+    const bool soft = p.mask == 1 || p.mask == 2;  // the mask decides, Q is noise
+    const float key_gain = 32.0f;
+
+    // Last key query i may see (causal), and the winner of (head, query): inside the visible keys in soft mode (the mask puts it
+    // there), anywhere in sharp mode (a winner the causal mask hides then makes the kernel pick the best visible key, and a kernel
+    // that forgot the mask pick the hidden one).
+    const int lr_shift = std::max(0, nk - nq);
+    auto last_visible = [&](int i) {
+        if (p.causal == 0)
+            return nk - 1;
+        return std::min(nk - 1, p.causal == 2 ? i + lr_shift : i);
+    };
+    auto winner = [&](int h, int i) {
+        const int span = soft ? last_visible(i) + 1 : nk;
+        return static_cast<int>((17u * static_cast<uint32_t>(i) + 3u + 5u * static_cast<uint32_t>(h)) % static_cast<uint32_t>(span));
+    };
+
+    std::vector<float> q(static_cast<size_t>(H) * nq * d), k(static_cast<size_t>(H) * nk * d), v(static_cast<size_t>(H) * nk * d);
+    for (int h = 0; h < H; ++h) {
+        for (int j = 0; j < nk; ++j)
+            for (int c = 0; c < d; ++c) {
+                const size_t at = (static_cast<size_t>(h) * nk + j) * d + c;
+                k[at] = T::grid_value(1, h, j, c);
+                v[at] = T::grid_value(2, h, j, c) * 2.0f;
+            }
+        for (int i = 0; i < nq; ++i)
+            for (int c = 0; c < d; ++c) {
+                const size_t at = (static_cast<size_t>(h) * nq + i) * d + c;
+                q[at] = soft ? T::grid_value(3, h, i, c) : key_gain * T::grid_value(1, h, winner(h, i), c);
+            }
+    }
+
+    // Mask (stored values, in logit units). Per key: one winner per head. Full: one winner per (head, query), some other keys -inf.
+    std::vector<float> mask;
+    if (p.mask == 1) {
+        mask.resize(static_cast<size_t>(H) * nk);
+        for (int h = 0; h < H; ++h) {
+            const int w = (7 * h + 3) % nk;
+            for (int j = 0; j < nk; ++j)
+                mask[static_cast<size_t>(h) * nk + j] = round_to(-2.5f * static_cast<float>((j - w + nk) % nk), bf16);
+        }
+    } else if (p.mask == 2) {
+        mask.resize(static_cast<size_t>(H) * nq * nk);
+        for (int h = 0; h < H; ++h)
+            for (int i = 0; i < nq; ++i) {
+                const int w = winner(h, i);
+                for (int j = 0; j < nk; ++j) {
+                    float m = -2.5f * static_cast<float>(std::abs(j - w));
+                    if (j != w && (3 * i + j + h) % 11 == 7)
+                        m = -INFINITY;
+                    mask[(static_cast<size_t>(h) * nq + i) * nk + j] = round_to(m, bf16);
+                }
+            }
+    }
+    const float const_mask_val = 0.5f;
+    std::vector<float> sink_vals(H), scale_val{round_to(1.0f / std::sqrt(static_cast<float>(d)), bf16)};
+    for (int h = 0; h < H; ++h)
+        sink_vals[h] = round_to(0.5f * static_cast<float>(h - 3), bf16);
+
+    // Layouts. K may be a padded view (static only): physical row = d + lower + upper elements, the data starts `lower` in.
+    static const int kpad_lo[] = {0, 1, 1, 2, 0, 3}, kpad_up[] = {0, 1, 0, 0, 1, 1};
+    const int k_lo = kpad_lo[p.k_pad], k_up = kpad_up[p.k_pad];
+    const layout q_static({1, H, nq, d}, dt, format::bfyx);
+    layout k_static({1, H, nk, d}, dt, format::bfyx);
+    k_static.data_padding._lower_size[3] = k_lo;
+    k_static.data_padding._upper_size[3] = k_up;
+    const layout v_static({1, H, nk, d}, dt, format::bfyx);
+    const layout q_lay = p.dynamic ? layout({1, H, -1, d}, dt, format::bfyx) : q_static;
+    const layout kv_lay = p.dynamic ? layout({1, H, -1, d}, dt, format::bfyx) : k_static;
+    const layout v_lay = p.dynamic ? layout({1, H, -1, d}, dt, format::bfyx) : v_static;
+    const layout mask_static = p.mask == 1 ? layout({1, H, 1, nk}, dt, format::bfyx) : layout({1, H, nq, nk}, dt, format::bfyx);
+    const layout mask_lay = !p.dynamic ? mask_static : p.mask == 1 ? layout({1, H, 1, -1}, dt, format::bfyx) : layout({1, H, -1, -1}, dt, format::bfyx);
+
+    auto q_mem = engine.allocate_memory(q_static);
+    auto k_mem = engine.allocate_memory(k_static);
+    auto v_mem = engine.allocate_memory(v_static);
+    write(q_mem, q, bf16);
+    write(v_mem, v, bf16);
+    {
+        const size_t row = static_cast<size_t>(d + k_lo + k_up);
+        std::vector<float> k_phys(static_cast<size_t>(H) * nk * row, 0.0f);
+        for (size_t r = 0; r < static_cast<size_t>(H) * nk; ++r)
+            for (int c = 0; c < d; ++c)
+                k_phys[r * row + k_lo + c] = k[r * d + c];
+        write(k_mem, k_phys, bf16);
+    }
+
+    topology topo;
+    topo.add(input_layout("q", q_lay));
+    topo.add(input_layout("k", kv_lay));
+    topo.add(input_layout("v", v_lay));
+    std::vector<input_info> inputs{input_info("q"), input_info("k"), input_info("v")};
+    if (p.mask == 1 || p.mask == 2) {
+        topo.add(input_layout("mask", mask_lay));
+        inputs.push_back(input_info("mask"));
+    }
+    if (p.sink) {
+        topo.add(input_layout("scale", layout({1, 1, 1, 1}, dt, format::bfyx)));
+        topo.add(input_layout("sink", layout({1, H, 1, 1}, dt, format::bfyx)));
+        inputs.push_back(input_info("scale"));
+        inputs.push_back(input_info("sink"));
+    }
+    auto prim = scaled_dot_product_attention("sdpa", inputs, p.causal != 0, -1, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {0, 1, 2, 3}, {}, false,
+                                             p.causal == 2);
+    if (p.mask == 3)
+        prim.attn_mask_val = const_mask_val;
+    topo.add(prim);
+    topo.add(reorder("result", input_info("sdpa"), format::bfyx, dt));
+
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
+    net->set_input_data("q", q_mem);
+    net->set_input_data("k", k_mem);
+    net->set_input_data("v", v_mem);
+    if (p.mask == 1 || p.mask == 2) {
+        auto m = engine.allocate_memory(mask_static);
+        write(m, mask, bf16);
+        net->set_input_data("mask", m);
+    }
+    if (p.sink) {
+        auto sc = engine.allocate_memory(layout({1, 1, 1, 1}, dt, format::bfyx));
+        auto sk = engine.allocate_memory(layout({1, H, 1, 1}, dt, format::bfyx));
+        write(sc, scale_val, bf16);
+        write(sk, sink_vals, bf16);
+        net->set_input_data("scale", sc);
+        net->set_input_data("sink", sk);
+    }
+    auto output = net->execute().at("result").get_memory();
+
+    // The kernel that ran: sdpa_ocl, the prefill stage for q > 1 and the single-token stage for q == 1 (a dynamic op builds both).
+    auto sdpa_inst = net->get_primitive("sdpa");
+    ASSERT_NE(sdpa_inst, nullptr);
+    ASSERT_NE(sdpa_inst->get_impl(), nullptr);
+    const auto entries = sdpa_inst->get_impl()->get_kernels_dump_info(*sdpa_inst->get_impl_params()).get_entries();
+    ASSERT_NE(entries.find("sdpa_ocl"), std::string::npos) << "dispatched: " << entries;
+    EXPECT_EQ(entries.find("sdpa_micro"), std::string::npos) << "dispatched: " << entries;
+    if (!p.dynamic) {
+        ASSERT_NE(entries.find(nq > 1 ? "sdpa_ocl_prefill" : "sdpa_ocl_mixed"), std::string::npos) << "dispatched: " << entries;
+    }
+
+    // CPU reference in double over the stored (rounded) inputs: softmax over [logits..., sink], the sink column dropped.
+    const auto out = read(output, bf16);
+    ASSERT_EQ(out.size(), static_cast<size_t>(H) * nq * d);
+    const double scale = p.sink ? static_cast<double>(scale_val[0]) : 1.0 / std::sqrt(static_cast<double>(d));
+    double max_abs_err = 0.0;
+    double err_by_qblock[2] = {0.0, 0.0};  // max error of the even / odd 8-query blocks (the two DPAS query blocks of a subgroup)
+    std::vector<double> logit(nk), acc(d);
+    for (int h = 0; h < H; ++h) {
+        for (int i = 0; i < nq; ++i) {
+            const int last = last_visible(i);
+            double max_logit = p.sink ? static_cast<double>(sink_vals[h]) : -INFINITY;
+            for (int j = 0; j < nk; ++j) {
+                logit[j] = -INFINITY;
+                if (j > last)
+                    continue;
+                double dot = 0.0;
+                for (int c = 0; c < d; ++c)
+                    dot += static_cast<double>(q[(static_cast<size_t>(h) * nq + i) * d + c]) * static_cast<double>(k[(static_cast<size_t>(h) * nk + j) * d + c]);
+                double l = dot * scale;
+                if (p.mask == 1)
+                    l += mask[static_cast<size_t>(h) * nk + j];
+                else if (p.mask == 2)
+                    l += mask[(static_cast<size_t>(h) * nq + i) * nk + j];
+                else if (p.mask == 3)
+                    l += const_mask_val;
+                logit[j] = l;
+                max_logit = std::max(max_logit, l);
+            }
+            double sum = p.sink ? std::exp(static_cast<double>(sink_vals[h]) - max_logit) : 0.0;
+            std::fill(acc.begin(), acc.end(), 0.0);
+            for (int j = 0; j < nk; ++j) {
+                if (logit[j] == -INFINITY)
+                    continue;
+                const double w = std::exp(logit[j] - max_logit);
+                sum += w;
+                for (int c = 0; c < d; ++c)
+                    acc[c] += w * static_cast<double>(v[(static_cast<size_t>(h) * nk + j) * d + c]);
+            }
+            for (int c = 0; c < d; ++c) {
+                const float got = out[(static_cast<size_t>(h) * nq + i) * d + c];
+                ASSERT_FALSE(std::isnan(got)) << "NaN at head " << h << " query " << i << " col " << c;
+                const double err = std::abs(static_cast<double>(got) - acc[c] / sum);
+                max_abs_err = std::max(max_abs_err, err);
+                err_by_qblock[(i / 8) & 1] = std::max(err_by_qblock[(i / 8) & 1], err);
+            }
+        }
+    }
+    RecordProperty("max_abs_err", std::to_string(max_abs_err));
+    if (max_abs_err > (bf16 ? 2e-2 : 1e-2))
+        std::cout << "DIAG max err by query block (i / 8 even, odd): " << err_by_qblock[0] << " " << err_by_qblock[1] << std::endl;
+    EXPECT_LE(max_abs_err, bf16 ? 2e-2 : 1e-2) << sdpa_hpg_ext_test::PrintToStringParamName(testing::TestParamInfo<sdpa_hpg_ext_params>(p, 0))
+                                               << " max_abs_err " << max_abs_err;
+}
+
+// One axis at a time away from the base (f16, static, head 64, 100 x 100, nothing extra), plus the risky combinations. 100 is not a
+// multiple of any tile; 17 / 33 straddle the 8 / 16 / 32 key tiles.
+// {head, q, kv, bf16, mask, causal, sink, dynamic, k_pad}
+INSTANTIATE_TEST_SUITE_P(
+    smoke_sdpa_hpg_ext,
+    sdpa_hpg_ext_test,
+    ::testing::Values(
+        // bf16 (sharp)
+        sdpa_hpg_ext_params{64, 100, 100, true, 0, 0, false, false, 0}, sdpa_hpg_ext_params{128, 64, 64, true, 0, 0, false, false, 0},
+        sdpa_hpg_ext_params{72, 100, 100, true, 0, 0, false, false, 0}, sdpa_hpg_ext_params{256, 100, 100, true, 0, 0, false, false, 0},
+        // per-key mask (kind 1), tile-boundary lengths
+        sdpa_hpg_ext_params{64, 17, 17, false, 1, 0, false, false, 0}, sdpa_hpg_ext_params{64, 33, 33, false, 1, 0, false, false, 0},
+        sdpa_hpg_ext_params{64, 100, 100, false, 1, 0, false, false, 0}, sdpa_hpg_ext_params{128, 256, 256, false, 1, 0, false, false, 0},
+        sdpa_hpg_ext_params{64, 100, 100, true, 1, 0, false, false, 0},
+        // full 2D mask (kind 2)
+        sdpa_hpg_ext_params{64, 17, 17, false, 2, 0, false, false, 0}, sdpa_hpg_ext_params{64, 33, 33, false, 2, 0, false, false, 0},
+        sdpa_hpg_ext_params{64, 100, 100, false, 2, 0, false, false, 0}, sdpa_hpg_ext_params{128, 256, 256, false, 2, 0, false, false, 0},
+        sdpa_hpg_ext_params{72, 100, 100, false, 2, 0, false, false, 0}, sdpa_hpg_ext_params{64, 100, 100, true, 2, 0, false, false, 0},
+        sdpa_hpg_ext_params{64, 16, 64, false, 2, 0, false, false, 0},
+        // const scalar mask (does it run; softmax is shift invariant)
+        sdpa_hpg_ext_params{64, 100, 100, false, 3, 0, false, false, 0},
+        // causal, both alignments, q != kv
+        sdpa_hpg_ext_params{64, 100, 100, false, 0, 1, false, false, 0}, sdpa_hpg_ext_params{64, 100, 100, false, 0, 2, false, false, 0},
+        sdpa_hpg_ext_params{64, 16, 64, false, 0, 2, false, false, 0}, sdpa_hpg_ext_params{64, 16, 64, false, 0, 1, false, false, 0},
+        sdpa_hpg_ext_params{128, 256, 256, false, 0, 1, false, false, 0}, sdpa_hpg_ext_params{64, 100, 100, true, 0, 1, false, false, 0},
+        // sink (needs the mask to decide)
+        sdpa_hpg_ext_params{64, 100, 100, false, 2, 0, true, false, 0}, sdpa_hpg_ext_params{64, 100, 100, false, 1, 0, true, false, 0},
+        sdpa_hpg_ext_params{128, 256, 256, false, 2, 0, true, false, 0}, sdpa_hpg_ext_params{64, 100, 100, false, 2, 1, true, false, 0},
+        // dynamic shape
+        sdpa_hpg_ext_params{64, 100, 100, false, 0, 0, false, true, 0}, sdpa_hpg_ext_params{64, 100, 100, false, 2, 0, false, true, 0},
+        sdpa_hpg_ext_params{64, 100, 100, false, 1, 0, false, true, 0}, sdpa_hpg_ext_params{64, 100, 100, false, 0, 1, false, true, 0},
+        sdpa_hpg_ext_params{64, 100, 100, true, 2, 1, false, true, 0}, sdpa_hpg_ext_params{64, 100, 100, false, 2, 1, true, true, 0},
+        // the risky product: full mask x causal x bf16 x dynamic x sink
+        sdpa_hpg_ext_params{128, 100, 100, true, 2, 2, true, true, 0}, sdpa_hpg_ext_params{128, 100, 100, false, 2, 2, true, true, 0},
+        sdpa_hpg_ext_params{64, 100, 100, true, 2, 0, true, false, 0}, sdpa_hpg_ext_params{64, 100, 100, true, 1, 0, true, false, 0},
+        sdpa_hpg_ext_params{128, 100, 100, true, 2, 2, false, true, 0},
+        // single query (the sdpa_ocl_mixed stage)
+        sdpa_hpg_ext_params{64, 1, 100, false, 0, 0, false, false, 0}, sdpa_hpg_ext_params{64, 1, 1000, false, 1, 0, false, false, 0},
+        sdpa_hpg_ext_params{64, 1, 100, true, 1, 0, false, false, 0}, sdpa_hpg_ext_params{128, 1, 100, false, 0, 2, false, false, 0},
+        sdpa_hpg_ext_params{64, 1, 100, false, 1, 0, true, false, 0}, sdpa_hpg_ext_params{64, 1, 100, false, 1, 0, false, true, 0},
+        sdpa_hpg_ext_params{64, 1, 100, false, 0, 0, false, true, 0},
+        // K views that break the dword read (even pitch, base 2 B off; odd pitch): the runtime fallback
+        sdpa_hpg_ext_params{64, 100, 100, false, 0, 0, false, false, 1}, sdpa_hpg_ext_params{64, 100, 100, false, 0, 0, false, false, 2},
+        sdpa_hpg_ext_params{72, 100, 100, true, 0, 0, false, false, 1},
+        sdpa_hpg_ext_params{64, 100, 100, false, 0, 0, false, false, 3}, sdpa_hpg_ext_params{64, 100, 100, false, 0, 0, false, false, 4},
+        sdpa_hpg_ext_params{64, 100, 100, false, 0, 0, false, false, 5}
+    ),
+    sdpa_hpg_ext_test::PrintToStringParamName
+);
 #endif
 
 enum class sdpa_ref_accuracy_case { uniform_16, uniform_32, uniform_64, nonuniform, nonuniform_33, nonuniform_100, mask, causal };
