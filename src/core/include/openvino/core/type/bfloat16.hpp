@@ -83,7 +83,8 @@ public:
 #define cu32(x) (F32(x).i)
 
     static uint16_t round_to_nearest_even(float x) {
-        return static_cast<uint16_t>((cu32(x) + ((cu32(x) & 0x00010000) >> 1)) >> 16);
+        const auto bits = cu32(x);
+        return static_cast<uint16_t>((bits + 0x7fff + ((bits >> 16) & 1)) >> 16);
     }
 
     static uint16_t round_to_nearest(float x) {
@@ -120,67 +121,67 @@ bool bfloat16::operator==(const T& other) const {
 #if defined(__GNUC__)
 #    pragma GCC diagnostic pop
 #endif
-}
+    }
 
 template <typename T>
 bool bfloat16::operator<(const T& other) const {
     return (static_cast<float>(*this) < static_cast<float>(other));
-}
+    }
 
 template <typename T>
 bool bfloat16::operator<=(const T& other) const {
     return (static_cast<float>(*this) <= static_cast<float>(other));
-}
+    }
 
 template <typename T>
 bool bfloat16::operator>(const T& other) const {
     return (static_cast<float>(*this) > static_cast<float>(other));
-}
+    }
 
 template <typename T>
 bool bfloat16::operator>=(const T& other) const {
     return (static_cast<float>(*this) >= static_cast<float>(other));
-}
+    }
 
 template <typename T>
 bfloat16 bfloat16::operator+(const T& other) const {
     return {static_cast<float>(*this) + static_cast<float>(other)};
-}
+    }
 
 template <typename T>
 bfloat16 bfloat16::operator+=(const T& other) {
     return *this = *this + other;
-}
+    }
 
 template <typename T>
 bfloat16 bfloat16::operator-(const T& other) const {
     return {static_cast<float>(*this) - static_cast<float>(other)};
-}
+    }
 
 template <typename T>
 bfloat16 bfloat16::operator-=(const T& other) {
     return *this = *this - other;
-}
+    }
 
 template <typename T>
 bfloat16 bfloat16::operator*(const T& other) const {
     return {static_cast<float>(*this) * static_cast<float>(other)};
-}
+    }
 
 template <typename T>
 bfloat16 bfloat16::operator*=(const T& other) {
     return *this = *this * other;
-}
+    }
 
 template <typename T>
 bfloat16 bfloat16::operator/(const T& other) const {
     return {static_cast<float>(*this) / static_cast<float>(other)};
-}
+    }
 
 template <typename T>
 bfloat16 bfloat16::operator/=(const T& other) {
     return *this = *this / other;
-}
+    }
 #if defined(_MSC_VER)
 #    pragma warning(pop)
 #endif
