@@ -4,6 +4,7 @@
 
 #include "ze_device.hpp"
 #include "ze_common.hpp"
+#include "../arch_override.hpp"
 #include "ze_ocl_interop.hpp"
 #include "compute_runtime/zex_common.h"
 
@@ -302,7 +303,7 @@ device_info init_device_info(ze_driver_handle_t driver, ze_device_handle_t devic
     OV_ZE_EXPECT(ze::zeContextCreate(driver, &context_desc, &context));
     ngen::Product product = ngen::LevelZeroCodeGenerator<ngen::HW::Unknown>::detectHWInfo(context, device);
     OV_ZE_WARN(ze::zeContextDestroy(context));
-    info.arch = convert_ngen_arch(ngen::getCore(product.family));
+    info.arch = debug_arch_override(convert_ngen_arch(ngen::getCore(product.family)));
 
     if (product.family == ngen::ProductFamily::Unknown) {
         info.supports_immad = false;
