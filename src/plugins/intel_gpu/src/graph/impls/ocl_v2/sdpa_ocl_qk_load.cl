@@ -502,9 +502,23 @@ SDPA_OCL_INLINE void FUNC(k_tile_dword)(__private int8 *k_raw, const __global KE
                 if (dword_ok && whole_tile) {
                     w = intel_sub_group_block_read((const __global uint *)row);
                 } else {
-                    const uint lo = (head < d) ? (uint)as_ushort(K[(size_t)key * ldk + head]) : 0u;
-                    const uint hi = (head + 1 < d) ? (uint)as_ushort(K[(size_t)key * ldk + head + 1]) : 0u;
-                    w = lo | (hi << 16);
+                    // Aligned dword loads only: the dword holding half `head`, shifted down when that half is the high
+                    // one, plus the next dword for the second half. Two ushort loads here were miscompiled (query block 1
+                    // wrong) for some row pitches / views on DG2; this reads like the block-read arm.
+                    w = 0;
+                    if (head < d) {
+                        const ulong addr = (ulong)((const __global char *)K) + ((ulong)key * ldk + (ulong)head) * sizeof(KEY_DATA_T);
+                        const __global uint *aligned = (const __global uint *)(addr & ~(ulong)3);
+                        if ((addr & 2) == 0) {
+                            w = aligned[0];
+                            if (head + 1 >= d)
+                                w &= 0xFFFFu;
+                        } else {
+                            w = aligned[0] >> 16;
+                            if (head + 1 < d)
+                                w |= aligned[1] << 16;
+                        }
+                    }
                 }
             }
 #if defined(NEG_SG8) && NEG_SG8 == 1

@@ -160,7 +160,7 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
     // state seeded with one synthetic key (running max = sink, running sum = 1, A_tile = 0); the
     // key loop is untouched. It enters in the raw score domain (divided by the attention scale),
     // like the mask.
-    const float sink_raw = convert_float(sink_ptr[b0]) * iscale;
+    const float sink_raw = SINK_TO_FLOAT(sink_ptr[b0]) * iscale;
 #endif
 
     /* Row stride (in elements) of the Q/K/V/A matrices. */
@@ -699,10 +699,13 @@ KERNEL(sdpa_ocl)(OPTIONAL_SHAPE_INFO_ARG
 #endif
                     #if WITH_ATTN_MASK
                         if (MASK_IS_PER_KEY) {
-                            s += sub_group_broadcast(mask_tile_float[mask_idx], mask_lane);
+                            s += sub_group_broadcast(mask_tile_float[mask_idx], SDPA_MASK_LANE);
                         } else if (MASK_IS_FULL_2D) {
 #if MASK_VEC_KEYS == SUBGROUP_SIZE
                             s += mask_full[qb][mask_idx][mask_lane];
+#elif SG8 && defined(NEG_SG8) && NEG_SG8 == 5
+                            // Negative control: the SG16 formula's lane width (key_rel % SUBGROUP_SIZE) on a 16-key vector.
+                            s += mask_full[qb][key_rel / MASK_VEC_KEYS][key_rel % SUBGROUP_SIZE];
 #else
                             s += mask_full[qb][key_rel / MASK_VEC_KEYS][key_rel % MASK_VEC_KEYS];
 #endif
