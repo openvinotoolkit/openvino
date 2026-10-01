@@ -20,7 +20,7 @@ namespace ov::intel_gpu::ocl {
 enum HpgTier : uint32_t {
     PLAIN_F16_STATIC = 1u << 0,  // plain SDPA, f16, static shape, more than one query, no mask/causal/sink/runtime scale
     PLAIN_EXT = 1u << 1,         // plain SDPA with bf16, a mask, causal, a sink, a runtime scale, a dynamic shape or one query
-    PLAIN_I8 = 1u << 2,          // plain SDPA on a compressed (i8/u4) KV input
+    PLAIN_I8 = 1u << 2,          // plain SDPA on a compressed i8 KV input (u4 is refused outright on xe_hpg, see supported())
     PA_PREFILL = 1u << 3,        // paged attention, both stages compile, so every PA op needs PA_PREFILL and PA_MIXED_F16
     PA_MIXED_F16 = 1u << 4,
     PA_FEATURES = 1u << 5,       // PA with a sink, token_type_ids, qq_bias, a sliding window, k_head_size != v_head_size or a runtime scale
@@ -29,8 +29,8 @@ enum HpgTier : uint32_t {
     PA_U4 = 1u << 8,             // PA on a u4 cache
 };
 
-// Bits ready on xe_hpg. PLAIN_F16_STATIC since plan S6a (the first SG8 kernel arm), PLAIN_EXT since S6b; the later steps add theirs.
-constexpr uint32_t kHpgTiersReady = PLAIN_F16_STATIC | PLAIN_EXT;
+// Bits ready on xe_hpg. PLAIN_F16_STATIC since plan S6a (the first SG8 kernel arm), PLAIN_EXT since S6b, PLAIN_I8 since S6c; the later steps add theirs.
+constexpr uint32_t kHpgTiersReady = PLAIN_F16_STATIC | PLAIN_EXT | PLAIN_I8;
 
 // kHpgTiersReady, or every bit when SDPA_OCL_HPG_TIERS=all (a comma list of tier names selects some). Development only,
 // for dumping the jit of every combination: the kernels of a tier that is not ready fail to build. Read once per process.
