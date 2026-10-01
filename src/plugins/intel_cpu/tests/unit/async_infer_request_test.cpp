@@ -137,7 +137,11 @@ TEST(AsyncInferRequestTest, PropagatesExceptionsFromCallerThreadSyncInferPath) {
 
     request->throw_on_infer = true;
 
+    const auto caller_thread_id = std::this_thread::get_id();
     ASSERT_THROW(async_request.infer(), std::runtime_error);
+    // Also pin the path: the throwing infer() must have run on the calling thread, otherwise
+    // this would only assert that some exception surfaced from the regular dispatch path.
+    ASSERT_EQ(request->infer_thread_id, caller_thread_id);
 }
 
 TEST(MultiAppThreadSyncExecutionConfigTest, KeepsRequestedValueEnabledForExplicitZeroStreams) {
