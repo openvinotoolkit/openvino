@@ -197,7 +197,9 @@ bool shape_of_upgrade(const shared_ptr<Model>& model) {
                     rewritten = shape_of_upgrade(sub_graph) || rewritten;
             }
         } else if (auto v1_shape_of = ov::as_type_ptr<v0::ShapeOf>(op)) {
-            auto v3_shape_of = std::make_shared<ov::op::v3::ShapeOf>(v1_shape_of->input_value(0), element::i64);
+            // keep the output type: a type-relaxed v0::ShapeOf may already produce i32
+            auto v3_shape_of = std::make_shared<ov::op::v3::ShapeOf>(v1_shape_of->input_value(0),
+                                                                     v1_shape_of->get_output_element_type(0));
             v3_shape_of->set_friendly_name(v1_shape_of->get_friendly_name());
             ov::replace_output_update_name(v1_shape_of, v3_shape_of);
             rewritten = true;
