@@ -261,16 +261,16 @@ KERNEL(sdpa_ref)(
                 INPUT1_TYPE k_val_packed = key_input[key_offset];
 #if IS_KV_COMPRESSED
                 const uint comp_offset = GET_COMPRESSION_INDEX(KEY_COMPRESSION_SCALE, b_idx, b1 / BROADCAST_GROUP_SIZE, s, 0);
-                KEY_COMPRESSION_SCALE_TYPE comp_scale = key_scale[comp_offset];
+                KEY_COMPRESSION_SCALE_COMPUTE_TYPE comp_scale = DECODE_KEY_COMPRESSION_SCALE_COMPUTE_TYPE(key_scale[comp_offset]);
 
 #if USE_ASYMMETRIC_QUANTIZATION && HAS_KV_CACHE_ZP_INPUT
-                KEY_COMPRESSION_SCALE_TYPE comp_zp = key_zp[comp_offset];
+                KEY_COMPRESSION_SCALE_COMPUTE_TYPE comp_zp = TO_KEY_COMPRESSION_SCALE_COMPUTE_TYPE(DECODE_KEY_COMPRESSION_ZP_COMPUTE_TYPE(key_zp[comp_offset]));
 #elif USE_ASYMMETRIC_QUANTIZATION
-                VALUE_COMPRESSION_SCALE_TYPE comp_zp = key_scale[comp_offset + 1];
+                KEY_COMPRESSION_SCALE_COMPUTE_TYPE comp_zp = DECODE_KEY_COMPRESSION_SCALE_COMPUTE_TYPE(key_scale[comp_offset + 1]);
 #else
-                KEY_COMPRESSION_SCALE_TYPE comp_zp = 0;
+                KEY_COMPRESSION_SCALE_COMPUTE_TYPE comp_zp = 0;
 #endif
-                KEY_COMPRESSION_SCALE_TYPE k_val = ((k_val_packed - comp_zp) * comp_scale);
+                KEY_COMPRESSION_SCALE_COMPUTE_TYPE k_val = ((k_val_packed - comp_zp) * comp_scale);
 
 #else
                 INPUT1_COMPUTE_T k_val = LOAD_INPUT1(k_val_packed);
@@ -369,16 +369,16 @@ KERNEL(sdpa_ref)(
         const INPUT2_TYPE value_packed = value_input[value_offset];
 #if IS_KV_COMPRESSED
         const uint comp_offset = GET_COMPRESSION_INDEX(VALUE_COMPRESSION_SCALE, b_idx, b1 / BROADCAST_GROUP_SIZE, s, 0);
-        VALUE_COMPRESSION_SCALE_TYPE comp_scale = val_scale[comp_offset];
+        VALUE_COMPRESSION_SCALE_COMPUTE_TYPE comp_scale = DECODE_VALUE_COMPRESSION_SCALE_COMPUTE_TYPE(val_scale[comp_offset]);
 
 #if USE_ASYMMETRIC_QUANTIZATION && HAS_KV_CACHE_ZP_INPUT
-        VALUE_COMPRESSION_SCALE_TYPE comp_zp = val_zp[comp_offset];
+        VALUE_COMPRESSION_SCALE_COMPUTE_TYPE comp_zp = TO_VALUE_COMPRESSION_SCALE_COMPUTE_TYPE(DECODE_VALUE_COMPRESSION_ZP_COMPUTE_TYPE(val_zp[comp_offset]));
 #elif USE_ASYMMETRIC_QUANTIZATION
-        VALUE_COMPRESSION_SCALE_TYPE comp_zp = val_scale[comp_offset + 1];
+        VALUE_COMPRESSION_SCALE_COMPUTE_TYPE comp_zp = DECODE_VALUE_COMPRESSION_SCALE_COMPUTE_TYPE(val_scale[comp_offset + 1]);
 #else
-        VALUE_COMPRESSION_SCALE_TYPE comp_zp = 0;
+        VALUE_COMPRESSION_SCALE_COMPUTE_TYPE comp_zp = 0;
 #endif
-        VALUE_COMPRESSION_SCALE_TYPE value = ((value_packed - comp_zp) * comp_scale);
+        VALUE_COMPRESSION_SCALE_COMPUTE_TYPE value = ((value_packed - comp_zp) * comp_scale);
 #else
         INPUT2_COMPUTE_T value = LOAD_INPUT2(value_packed);
 #endif
