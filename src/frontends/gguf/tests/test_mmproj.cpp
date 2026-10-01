@@ -179,8 +179,7 @@ protected:
     cnpy::npz_t arrays;
     std::shared_ptr<ov::Model> model;
     ov::Core core;
-    std::string model_path =
-        (std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + ".gguf")).string();
+    std::unique_ptr<ov_gguf_test::TemporaryGguf> model_file;
 
     const cnpy::NpyArray& array(const std::string& name) const {
         return ov_gguf_test::npz_array(arrays, name);
@@ -189,17 +188,9 @@ protected:
         arrays = cnpy::npz_load((std::filesystem::path(ov_gguf_test::test_data_dir()) / "mmproj_accuracy" /
                                  (std::string(GetParam()) + ".npz"))
                                     .string());
-        {
-            std::ofstream file(model_path, std::ios::binary);
-            const auto& bytes = array("model");
-            file.write(bytes.data<char>(), bytes.num_vals);
-            ASSERT_TRUE(file);
-        }
+        model_file = std::make_unique<ov_gguf_test::TemporaryGguf>(array("model"));
         ov::frontend::gguf::FrontEnd frontend;
-        model = frontend.convert(frontend.load(model_path));
-    }
-    void TearDown() override {
-        std::filesystem::remove(model_path);
+        model = frontend.convert(frontend.load(model_file->path));
     }
     ov::InferRequest compile(const std::shared_ptr<ov::Model>& current) {
         return core
@@ -255,10 +246,9 @@ TEST_P(GGUFMMProjAccuracy, EmbeddingsMatchLlamaCPU) {
     const auto actual = request.get_output_tensor();
     const auto& expected = array("embeddings");
     ASSERT_EQ(actual.get_shape(), expected.shape);
-    const auto metric = ov_gguf_test::nmse(actual.data<const float>(), expected.data<float>(), actual.get_size());
-    ASSERT_TRUE(metric.all_finite());
-    ASSERT_GT(metric.reference_norm(), 1e-12);
-    EXPECT_LT(metric.value(), 1e-5);
+    ov_gguf_test::expect_nmse_below(
+        ov_gguf_test::nmse(actual.data<const float>(), expected.data<float>(), actual.get_size()),
+        1e-5);
 
     // Adaptation must preserve every feature, including the channel-packed
     // DeepStack branches, while exposing independently executable modalities.
@@ -280,8 +270,7 @@ TEST_P(GGUFMMProjAccuracy, EmbeddingsMatchLlamaCPU) {
         for (size_t i = 0; i < output.get_size(); ++i)
             adapted_metric.add(output.data<const float>()[i],
                                expected.data<float>()[(i / width) * width * branches + branch * width + i % width]);
-        ASSERT_GT(adapted_metric.reference_norm(), 1e-12);
-        EXPECT_LT(adapted_metric.value(), 1e-5);
+        ov_gguf_test::expect_nmse_below(adapted_metric, 1e-5);
     }
 }
 
@@ -308,11 +297,10 @@ TEST_P(GGUFMMProjDynamicAccuracy, ReusesCompiledModelAcrossGrids) {
             if (adapt)
                 shape.erase(shape.begin());
             ASSERT_EQ(output.get_shape(), shape);
-            const auto metric =
-                ov_gguf_test::nmse(output.data<const float>(), expected.data<float>(), output.get_size());
-            ASSERT_TRUE(metric.all_finite());
-            ASSERT_GT(metric.reference_norm(), 1e-12);
-            EXPECT_LT(metric.value(), 1e-5) << GetParam() << " step=" << step << " adapted=" << adapt;
+            ov_gguf_test::expect_nmse_below(
+                ov_gguf_test::nmse(output.data<const float>(), expected.data<float>(), output.get_size()),
+                1e-5,
+                std::string(GetParam()) + " step=" + std::to_string(step) + " adapted=" + std::to_string(adapt));
         }
     }
 }

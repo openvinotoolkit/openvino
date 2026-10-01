@@ -65,10 +65,7 @@ void check_batched_decode(const std::shared_ptr<ov::Model>& model) {
             auto expected = first;
             expected.insert(expected.end(), second.begin(), second.end());
             ASSERT_EQ(actual.size(), expected.size());
-            const auto error = ov_gguf_test::nmse(actual.data(), expected.data(), actual.size());
-            ASSERT_TRUE(error.all_finite());
-            ASSERT_GT(error.reference_norm(), 1e-12);
-            EXPECT_LT(error.value(), 1e-5);
+            ov_gguf_test::expect_nmse_below(ov_gguf_test::nmse(actual.data(), expected.data(), actual.size()), 1e-5);
         };
     auto a = infer(first, 1, {1, 2, 3}, {1, 1, 1}, {0, 1, 2}, {0});
     auto b = infer(second, 1, {2, 3}, {1, 1}, {0, 1}, {0});
@@ -82,25 +79,13 @@ TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttenti
     for (const auto* family : {"qwen35", "qwen35moe", "qwen35moe-fused", "gemma4-mqa", "gemma4-moe"}) {
         SCOPED_TRACE(family);
         auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
-        const auto& bytes = ov_gguf_test::npz_array(arrays, "model");
-        struct TemporaryModel {
-            std::filesystem::path path =
-                std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + ".gguf");
-            ~TemporaryModel() {
-                std::filesystem::remove(path);
-            }
-        } temporary;
-        {
-            std::ofstream stream(temporary.path, std::ios::binary);
-            stream.write(bytes.data<char>(), bytes.num_vals);
-            ASSERT_TRUE(stream);
-        }
+        const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
         ov::frontend::gguf::FrontEnd frontend;
         frontend.add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(
             ov::frontend::gguf::pass::GGUFMakeStateful()));
         frontend.add_extension(
             std::make_shared<ov::frontend::DecoderTransformationExtension>(ov::frontend::gguf::pass::AdaptToGenAI()));
-        auto model = frontend.convert(frontend.load(temporary.path.string()));
+        auto model = frontend.convert(frontend.load(temporary.path));
         check_batched_decode(model);
         ov::pass::Manager manager;
         manager.register_pass<ov::pass::SDPAToPagedAttention>();
@@ -140,13 +125,7 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     std::vector<float> reference;
     int32_t vocab = 0;
     std::string model_path = base.string() + ".gguf";
-    struct TemporaryModel {
-        std::string path;
-        ~TemporaryModel() {
-            if (!path.empty())
-                std::filesystem::remove(path);
-        }
-    } temporary;
+    std::unique_ptr<ov_gguf_test::TemporaryGguf> temporary;
     if (real_checkpoint) {
         std::ifstream file(base.string() + ".bin", std::ios::binary);
         ASSERT_TRUE(file) << base;
@@ -181,13 +160,8 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         vocab = static_cast<int32_t>(logits.shape[1]);
         const auto* values = logits.data<float>();
         reference.assign(values, values + 3 * vocab);
-        temporary.path =
-            (std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + ".gguf")).string();
-        model_path = temporary.path;
-        std::ofstream file(model_path, std::ios::binary);
-        const auto& bytes = array("model");
-        file.write(bytes.data<char>(), bytes.num_vals);
-        ASSERT_TRUE(file);
+        temporary = std::make_unique<ov_gguf_test::TemporaryGguf>(array("model"));
+        model_path = temporary->path;
     }
     ov::frontend::gguf::FrontEnd fe;
     fe.add_extension(
