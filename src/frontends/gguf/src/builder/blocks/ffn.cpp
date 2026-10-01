@@ -18,23 +18,6 @@ std::string bias_weight_name(const std::string& weight_name) {
     return strip_weight_suffix(weight_name) + ".bias";
 }
 
-// Emits [gate | up] rows as one weight named `merged_w`, or returns false when the two do not share
-// a quantization layout. One FC instead of two on the same input saves a kernel launch per layer and
-// decode step.
-bool merge_gate_up_weights(GraphEmitter& e,
-                           const std::string& gate_w,
-                           const std::string& up_w,
-                           const std::string& merged_w) {
-    const auto gate = strip_weight_suffix(gate_w);
-    const auto up = strip_weight_suffix(up_w);
-    const auto merged = concat_rows(e.weight_parts(gate), e.weight_parts(up), e.weight_qtype(gate), e.weight_qtype(up));
-    if (!merged) {
-        return false;
-    }
-    e.emit_weight_op(merged_w, *merged, e.weight_qtype(gate));
-    return true;
-}
-
 std::string gated_gate_up(GraphEmitter& e,
                           const std::string& glu_op,
                           const std::string& gate_w,
@@ -44,11 +27,7 @@ std::string gated_gate_up(GraphEmitter& e,
                           const std::string& up_name,
                           const std::string& glu_name,
                           bool has_bias) {
-    const auto merged_w = gate_name + "_up.weight";
-    if (!has_bias && merge_gate_up_weights(e, gate_w, up_w, merged_w)) {
-        auto gate_up = e.add_op("GGML_OP_MUL_MAT", gate_name + "_up", {merged_w, ffn_norm});
-        return e.add_op(glu_op, glu_name, {gate_up}, 0, {{"swapped", false}});
-    }
+    // Separate gate and up matmuls: a merged weight would copy both and keep the originals alive.
     e.add_weight(gate_w);
     auto gate = e.add_op("GGML_OP_MUL_MAT", gate_name, {gate_w, ffn_norm});
     if (has_bias) {
