@@ -470,8 +470,7 @@ bool ActivationsScaling::run_on_model(const std::shared_ptr<ov::Model>& model) {
     manager.register_pass<SharedOpOptimization>();
     manager.register_pass<Validate>();
 
-    manager.run_passes(model);
-    return false;
+    return manager.run_passes(model);
 }
 
 }  // namespace ov::pass
