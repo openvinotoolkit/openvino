@@ -5,6 +5,17 @@
 // Compile-time configuration of sdpa_ocl.cl: derived tiling, dtype and layout macros, and the
 // host/kernel invariants as #errors. Included once, by sdpa_ocl.cl only.
 
+// xe_hpg (DG2): 8-lane subgroups. The DPAS A operand is then an int8 of 2 halves per lane (lane l = reduction
+// elements 2l, 2l+1 of a row), not the SG16 short8 of 1 half per lane, so every spot that builds or reads an A operand
+// has an `#if SG8` arm. The SG16 arm is the text that was there before, untouched (SG16 token streams must not move).
+// SG8 is defined here, so anything above the include of this file spells SUBGROUP_SIZE out.
+#define SG8 (SUBGROUP_SIZE == 8)
+#if SG8
+#  define DPAS_A_T int8
+#else
+#  define DPAS_A_T short8
+#endif
+
 // 16-bit element type of Q/K/V/output (f16 or bf16). The DT_* bodies are not parenthesised (they
 // replaced per-dtype code token for token), so pass only simple operands.
 #if INPUT0_IS_BF16
@@ -361,11 +372,8 @@
 #endif
 
 // SG8 tripwires: each is a spot that compiles on SG8 but is silently wrong there; the named plan step resolves it.
+// (The DPAS A operand / S_slm pA read tripwire is gone: plan S6a gave both an int8 arm.)
 #if SUBGROUP_SIZE != 16
-// -DSDPA_OCL_SG8_ARM_READY lifts this one (offline compiles, to see what DG2 does with the SG16 operands); the rest stay.
-#  if !defined(SDPA_OCL_SG8_ARM_READY)
-#    error "sdpa_ocl.cl SG8: the DPAS A operand and the S_slm pA read are short8 (lane == key or head dim); SG8 needs int8, 2 halves per lane (plan S6a)"
-#  endif
 #  if USE_2D_BLOCK_IO_Q || USE_2D_BLOCK_IO_KV || USE_2D_BLOCK_IO_A || USE_2D_BLOCK_IO_K_I8 || USE_2D_BLOCK_IO_V_I8 || \
       USE_2D_BLOCK_IO_K_PA || USE_2D_BLOCK_IO_V_PA || USE_2D_BLOCK_IO_K_PA_I8 || USE_2D_BLOCK_IO_V_PA_I8
 #    error "sdpa_ocl.cl SG8: 2D block IO needs a 16-wide subgroup; the host must force every USE_2D_BLOCK_IO_* to 0 (plan S5)"
@@ -375,6 +383,11 @@
 #  endif
 #  if IS_PA_MIXED && IS_PA_K_BY_CHANNEL
 #    error "sdpa_ocl.cl SG8: pa_k_comp_by_channel reads one (scale, zp) dword per lane (lane == channel) at stride SUBGROUP_SIZE (plan S8b/S8c)"
+#  endif
+// S6a gave only the contiguous K input read (k_tile_dword) an int8 A form. The paged-cache and compressed readers still
+// fill a ushort8 per key row (lane == head dim), which an int8 A operand cannot take (plan S6c / S7b).
+#  if IS_PA_MIXED || defined(KV_COMPRESSED)
+#    error "sdpa_ocl.cl SG8: the paged-cache MIXED and compressed-KV K readers fill ushort8 (lane == head dim); only the contiguous K read has an int8 form (plan S6c/S7b)"
 #  endif
 #endif
 
