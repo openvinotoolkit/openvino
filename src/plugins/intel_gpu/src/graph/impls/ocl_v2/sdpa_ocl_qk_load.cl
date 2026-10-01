@@ -476,6 +476,47 @@ SDPA_OCL_INLINE void FUNC(kc_tile_u4_dword)(__private ushort8 *k_raw, __private 
 }
 #endif
 
+#if SG8
+// SG8 K input read: the KQ DPAS A operand for DPAS_ROWS keys per row block. Component kk is key key_base + mb * DPAS_ROWS
+// + kk; lane l holds dword l of the key's depth tile, i.e. head dims (db * DPAS_K + 2l, + 2l + 1) with the low half the
+// even one (plan S2 H1). Rows are contiguous in the head dim, so a whole tile row is one 32 B block read (8 lanes x 4 B).
+// A block read needs a 4 B aligned address (dword_ok: even row pitch and base, proved once per workgroup by the caller) and
+// a whole in-bounds tile (an overrun would read the next head or past the buffer); the head-dim tail and the unaligned
+// case read each lane's two halves separately. A key at/past k stays 0, and so does a half at/past d, which keeps NaN
+// out of S_tile (Q is zero there too, but 0 * NaN is NaN). The key index is uniform across the subgroup, so the branches are.
+SDPA_OCL_INLINE void FUNC(k_tile_dword)(__private int8 *k_raw, const __global KEY_DATA_T *K, const uint ldk,
+                                        const int key_base, const int k, const int d, const int db, const size_t lane,
+                                        const bool dword_ok) {
+    const int head_base = db * DPAS_K;
+    const int head = head_base + 2 * (int)lane;
+    const bool whole_tile = head_base + DPAS_K <= d;
+    #pragma unroll
+    for (int mb = 0; mb < kq_key_blocks; ++mb) {
+        k_raw[mb] = (int8)0;
+        #pragma unroll
+        for (int key_offset = 0; key_offset < DPAS_ROWS; ++key_offset) {
+            const int key = key_base + mb * DPAS_ROWS + key_offset;
+            uint w = 0;
+            if (key < k) {
+                const __global KEY_DATA_T *row = K + (size_t)key * ldk + head_base;
+                if (dword_ok && whole_tile) {
+                    w = intel_sub_group_block_read((const __global uint *)row);
+                } else {
+                    const uint lo = (head < d) ? (uint)as_ushort(K[(size_t)key * ldk + head]) : 0u;
+                    const uint hi = (head + 1 < d) ? (uint)as_ushort(K[(size_t)key * ldk + head + 1]) : 0u;
+                    w = lo | (hi << 16);
+                }
+            }
+#if defined(NEG_SG8) && NEG_SG8 == 1
+            // Negative control: swap the two head dims packed in every dword.
+            w = (w << 16) | (w >> 16);
+#endif
+            k_raw[mb][key_offset] = as_int(w);
+        }
+    }
+}
+#endif
+
 // ---- Per-key scalar gathers: the fallbacks wherever no block read applies. One message per (key,
 // head); a key at/past k (or a head at/past d) leaves its element 0.
 
