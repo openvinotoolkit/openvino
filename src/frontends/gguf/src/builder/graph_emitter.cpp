@@ -79,12 +79,14 @@ std::string GraphEmitter::add_op(const std::string& op_type,
                                  const std::string& name,
                                  const std::vector<std::string>& inputs,
                                  int op_case,
-                                 std::map<std::string, ov::Any> attrs) {
+                                 std::map<std::string, ov::Any> attrs,
+                                 std::vector<std::string> extra_outputs) {
     GgufOp op;
     op.op_type = op_type;
     op.name = name;
     op.input_names = inputs;
     op.output_name = name;
+    op.extra_output_names = std::move(extra_outputs);
     op.op_case = op_case;
     op.attributes = std::move(attrs);
     m_graph->nodes.push_back(std::move(op));

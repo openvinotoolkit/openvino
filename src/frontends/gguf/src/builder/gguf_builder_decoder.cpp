@@ -88,7 +88,9 @@ PartialShape GgufBuilderDecoder::get_output_shape() const {
 }
 
 std::vector<std::string> GgufBuilderDecoder::get_output_names() const {
-    return {node().output_name};
+    auto names = node().extra_output_names;
+    names.insert(names.begin(), node().output_name);
+    return names;
 }
 
 // ---- Op type / name ----

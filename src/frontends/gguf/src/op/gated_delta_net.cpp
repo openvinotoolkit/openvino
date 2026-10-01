@@ -60,9 +60,14 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
                                   "GATED_DELTA_NET supports a single recurrent-state snapshot, got K = ",
                                   snapshot_slots);
 
+    // Builder graphs take attention and the state as separate outputs, the state in the op's
+    // [B, H_v, key_dim, value_dim] layout; ggml graphs pack both in ggml's state layout.
+    const bool split_outputs = context.get_attribute<bool>("split_outputs", false);
+
     // kda needs the Loop path; "force_ref" lets tests exercise the Loop path's multi-head packing
     // against the ggml-CPU oracle for the scalar-gate case too.
     if (kda || context.get_attribute<bool>("force_ref", false)) {
+        FRONT_END_OP_CONVERSION_CHECK(!split_outputs, "GATED_DELTA_NET split outputs require the fused path");
         return translate_gated_delta_net_ref(context);
     }
 
@@ -86,7 +91,8 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     // ggml state layout (OV notation) is [B, H_v, value_dim, key_dim]; the op expects
     // [B, H_v, key_dim, value_dim].
     auto state_perm = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{0, 1, 3, 2});
-    state = std::make_shared<ov::op::v1::Transpose>(state, state_perm);
+    if (!split_outputs)
+        state = std::make_shared<ov::op::v1::Transpose>(state, state_perm);
 
     // Gate/beta carry a trailing singleton in the scalar-gate case; the op takes them rank-3.
     auto sq_axis_3 = ov::op::v0::Constant::create(ov::element::i64, {1}, {3});
@@ -122,6 +128,10 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
                                                                  context.get_attribute<float>("qk_l2_norm_eps", 1e-6f));
     auto attn_4d = gdn->output(0);
     auto state_4d = gdn->output(1);  // [B, H_v, key_dim, value_dim]
+    if (split_outputs) {
+        rename_outputs_with_suffix({attn_4d}, context.get_name());
+        return {attn_4d, state_4d};
+    }
 
     // Transpose state back to ggml's [B, H_v, value_dim, key_dim] and pack [attn | state] flat,
     // matching the reference path.

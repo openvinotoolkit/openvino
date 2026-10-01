@@ -255,6 +255,7 @@ std::shared_ptr<GgufGraph> GgufGraphContext::finish() {
             OPENVINO_ASSERT(available.count(input), "[GGUF] node '", node.name, "' uses unknown value '", input, "'");
         }
         available.insert(node.output_name);
+        available.insert(node.extra_output_names.begin(), node.extra_output_names.end());
     }
     std::set<std::string> outputs;
     for (const auto& output : graph->model_output_names) {

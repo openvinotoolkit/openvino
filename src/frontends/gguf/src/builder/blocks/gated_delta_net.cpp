@@ -274,27 +274,24 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     auto v = slice_heads("v_conv", 2 * key_dim, value_dim, H_v, head_v);
 
     // ---- recurrent delta rule ----
-    // ggml state layout is [B, H_v, value_dim, key_dim]; the translator transposes it for
-    // the fused op and transposes the new state back, so the Parameter keeps ggml's layout.
+    // The state keeps the fused op's [B, H_v, key_dim, value_dim] layout, and the op returns the
+    // attention and the new state as separate outputs.
     const std::string ss = "ssm_state_l" + std::to_string(il);
     if (!e.has_model_input(ss)) {
-        e.add_input(ss, f32, ps({1, H_v, head_v, S}));
+        e.add_input(ss, f32, ps({1, H_v, S, head_v}));
     }
 
-    auto gdn = e.add_op("GGML_OP_GATED_DELTA_NET",
-                        p + "gdn",
-                        {q, k, v, g, beta, ss},
-                        0,
-                        {{"gdn_state_slots", int64_t{1}},
-                         {"fuse_qk_l2norm", true},
-                         {"qk_l2_norm_eps", cfg.rms_eps},
-                         {"gqa_grouped", gqa_grouped}});
-
-    // Split the packed attention rows and recurrent state; only the token axis is inferred.
-    const std::vector<int64_t> attn_view{0, head_v};
-    const std::vector<int64_t> state_view{1, head_v};
-    auto attn = e.add_op("GGML_OP_VIEW", p + "gdn_attn", {gdn}, 4, {{"gdn_view", attn_view}});
-    auto new_state = e.add_op("GGML_OP_VIEW", ss + "_out", {gdn}, 4, {{"gdn_view", state_view}});
+    const auto new_state = ss + "_out";
+    auto attn = e.add_op("GGML_OP_GATED_DELTA_NET",
+                         p + "gdn",
+                         {q, k, v, g, beta, ss},
+                         0,
+                         {{"gdn_state_slots", int64_t{1}},
+                          {"fuse_qk_l2norm", true},
+                          {"qk_l2_norm_eps", cfg.rms_eps},
+                          {"gqa_grouped", gqa_grouped},
+                          {"split_outputs", true}},
+                         {new_state});
     graph.model_output_names.push_back(new_state);
     graph.recurrent_states.emplace_back(ss, new_state);
 

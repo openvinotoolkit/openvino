@@ -24,10 +24,11 @@ namespace ov::frontend::gguf {
 // builder fills these by construction, so all per-op parameters are typed attributes (no
 // raw gguf op_params layout).
 struct GgufOp {
-    std::string op_type;                   // e.g. "GGML_OP_MUL_MAT"
-    std::string name;                      // unique node/op name
-    std::vector<std::string> input_names;  // producer tensor names (weights / inputs / other nodes)
-    std::string output_name;               // this node's output tensor name
+    std::string op_type;                          // e.g. "GGML_OP_MUL_MAT"
+    std::string name;                             // unique node/op name
+    std::vector<std::string> input_names;         // producer tensor names (weights / inputs / other nodes)
+    std::string output_name;                      // this node's output tensor name
+    std::vector<std::string> extra_output_names;  // further outputs of multi-output ops
     int op_case = 0;
 
     // Typed scalar/struct op attributes consumed by translators via get_attribute<T>

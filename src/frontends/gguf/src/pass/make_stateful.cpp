@@ -21,7 +21,6 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
-#include "openvino/op/gated_delta_net.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/group_conv.hpp"
 #include "openvino/op/parameter.hpp"
@@ -166,37 +165,6 @@ void normalize_causal_conv_state(const std::shared_ptr<ov::op::v0::Parameter>& s
     state_result->input(0).replace_source_output(new_state);
 }
 
-// Keep the private Variable in the fused GDN layout so paged conversion sees ReadValue directly.
-void normalize_gdn_state(const std::shared_ptr<ov::op::v0::Parameter>& state,
-                         const std::shared_ptr<ov::op::v0::Result>& state_result) {
-    using namespace ov::op;
-    if (state->output(0).get_target_inputs().size() != 1)
-        return;
-    auto transpose =
-        ov::as_type_ptr<v1::Transpose>(state->output(0).get_target_inputs().begin()->get_node()->shared_from_this());
-    if (!transpose || transpose->output(0).get_target_inputs().size() != 1)
-        return;
-    const std::vector<int64_t> order{0, 1, 3, 2};
-    if (!ov::op::util::has_constant_value(transpose->get_input_node_shared_ptr(1), order))
-        return;
-    const auto consumer = *transpose->output(0).get_target_inputs().begin();
-    const auto gdn = ov::as_type_ptr<internal::GatedDeltaNet>(consumer.get_node()->shared_from_this());
-    if (!gdn || consumer.get_index() != 3)
-        return;
-    auto update = state_result->input_value(0);
-    if (const auto reshape = ov::as_type_ptr<v1::Reshape>(update.get_node_shared_ptr()))
-        update = reshape->input_value(0);
-    const auto inverse = ov::as_type_ptr<v1::Transpose>(update.get_node_shared_ptr());
-    if (!inverse || inverse->input_value(0) != gdn->output(1) ||
-        !ov::op::util::has_constant_value(inverse->get_input_node_shared_ptr(1), order))
-        return;
-    const auto shape = transpose->get_output_partial_shape(0);
-    transpose->output(0).replace(state->output(0));
-    state->set_partial_shape(shape);
-    state->validate_and_infer_types();
-    state_result->input(0).replace_source_output(gdn->output(1));
-}
-
 // A KV read feeding SDPA: Concat -> [grouped-query broadcast] -> [type alignment] -> [Transpose].
 struct KvRead {
     const ov::Node* concat = nullptr;
@@ -318,13 +286,10 @@ static bool make_recurrent_states_stateful(const std::shared_ptr<ov::Model>& mod
                         "' must have a fully static shape, got ",
                         param->get_partial_shape());
 
-        // The Result holding this state's new value: the one whose producing node carries the
-        // state's output name. The builder names that node after the state (see the VIEW cases),
-        // which is why those names have to survive translation.
+        // Translation names each Result after the output it holds.
         std::shared_ptr<v0::Result> state_result;
         for (const auto& r : model->get_results()) {
-            const auto producer = r->get_input_node_shared_ptr(0);
-            if (producer->get_friendly_name().find(out_name) != std::string::npos) {
+            if (r->get_friendly_name() == out_name) {
                 state_result = r;
                 break;
             }
@@ -332,7 +297,6 @@ static bool make_recurrent_states_stateful(const std::shared_ptr<ov::Model>& mod
         OPENVINO_ASSERT(state_result, "[GGUF] GGUFMakeStateful: no Result produces recurrent state '", out_name, "'");
 
         normalize_causal_conv_state(param, state_result);
-        normalize_gdn_state(param, state_result);
         const auto& ps = param->get_partial_shape();
         const auto et = param->get_element_type();
         auto var = std::make_shared<ov::op::util::Variable>(ov::op::util::VariableInfo{ps, et, in_name});

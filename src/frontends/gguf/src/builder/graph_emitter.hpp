@@ -72,7 +72,8 @@ public:
                        const std::string& name,
                        const std::vector<std::string>& inputs,
                        int op_case = 0,
-                       std::map<std::string, ov::Any> attrs = {});
+                       std::map<std::string, ov::Any> attrs = {},
+                       std::vector<std::string> extra_outputs = {});
 
     std::shared_ptr<ov::op::v0::Parameter> add_input(const std::string& name,
                                                      ov::element::Type type,
