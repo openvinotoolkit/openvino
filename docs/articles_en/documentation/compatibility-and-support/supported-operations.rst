@@ -120,7 +120,7 @@ Data as of OpenVINO 2025.4.1 (December 18, 2025).
        DequantizeLinear
        DFT
        Div
-       Dropout
+       Dropout                                     Training mode (training_mode=true) is not supported.
        DynamicQuantizeLinear
        Einsum
        Elu
