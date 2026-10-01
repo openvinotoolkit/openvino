@@ -37,9 +37,9 @@ constexpr std::string_view COMPILER_VERSION_SECTION_NAME_LOWER = "compiler_versi
 using namespace intel_npu;
 
 using testing::_;
-using SectionTypeUnitTests = ::testing::Test;
+using SectionTypeTest = ::testing::Test;
 
-TEST_F(SectionTypeUnitTests, CreateAllSectionTypeUsingCorrectCode) {
+TEST_F(SectionTypeTest, CreateAllSectionTypeUsingCorrectCode) {
     ASSERT_EQ(SectionType(SectionTypeCode::UNKNOWN).get_code(), SectionTypeCode::UNKNOWN);
     ASSERT_EQ(SectionType(SectionTypeCode::RUNTIME_REQUIREMENTS).get_code(), SectionTypeCode::RUNTIME_REQUIREMENTS);
     ASSERT_EQ(SectionType(SectionTypeCode::MANIFEST).get_code(), SectionTypeCode::MANIFEST);
@@ -53,25 +53,25 @@ TEST_F(SectionTypeUnitTests, CreateAllSectionTypeUsingCorrectCode) {
     ASSERT_EQ(SectionType(SectionTypeCode::COMPILER_VERSION).get_code(), SectionTypeCode::COMPILER_VERSION);
 }
 
-TEST_F(SectionTypeUnitTests, EqualOperator) {
+TEST_F(SectionTypeTest, EqualOperator) {
     ASSERT_TRUE(SectionType(SectionTypeCode::RUNTIME_REQUIREMENTS) ==
                 SectionType(SectionTypeCode::RUNTIME_REQUIREMENTS));
     ASSERT_FALSE(SectionType(SectionTypeCode::RUNTIME_REQUIREMENTS) == SectionType(SectionTypeCode::MANIFEST));
 }
 
-TEST_F(SectionTypeUnitTests, DifferentOperator) {
+TEST_F(SectionTypeTest, DifferentOperator) {
     ASSERT_TRUE(SectionType(SectionTypeCode::RUNTIME_REQUIREMENTS) != SectionType(SectionTypeCode::MANIFEST));
     ASSERT_FALSE(SectionType(SectionTypeCode::RUNTIME_REQUIREMENTS) !=
                  SectionType(SectionTypeCode::RUNTIME_REQUIREMENTS));
 }
 
-TEST_F(SectionTypeUnitTests, LowerOperator) {
+TEST_F(SectionTypeTest, LowerOperator) {
     ASSERT_TRUE(SectionType(SectionTypeCode::RUNTIME_REQUIREMENTS) < SectionType(SectionTypeCode::MANIFEST));
     ASSERT_FALSE(SectionType(SectionTypeCode::MANIFEST) < SectionType(SectionTypeCode::MANIFEST));
     ASSERT_FALSE(SectionType(SectionTypeCode::MANIFEST) < SectionType(SectionTypeCode::RUNTIME_REQUIREMENTS));
 }
 
-TEST_F(SectionTypeUnitTests, ToStringAllKnownTypes) {
+TEST_F(SectionTypeTest, ToStringAllKnownTypes) {
     ASSERT_EQ(SectionType(SectionTypeCode::RUNTIME_REQUIREMENTS).to_string(), RUNTIME_REQUIREMENTS_SECTION_NAME);
     ASSERT_EQ(SectionType(SectionTypeCode::MANIFEST).to_string(), MANIFEST_SECTION_NAME);
     ASSERT_EQ(SectionType(SectionTypeCode::ELF_MAIN_SCHEDULE).to_string(), ELF_MAIN_SCHEDULE_SECTION_NAME);
@@ -84,11 +84,11 @@ TEST_F(SectionTypeUnitTests, ToStringAllKnownTypes) {
     ASSERT_EQ(SectionType(SectionTypeCode::COMPILER_VERSION).to_string(), COMPILER_VERSION_SECTION_NAME);
 }
 
-TEST_F(SectionTypeUnitTests, ToStringUnKnownType) {
+TEST_F(SectionTypeTest, ToStringUnKnownType) {
     OV_EXPECT_THROW(SectionType(SectionTypeCode::UNKNOWN).to_string(), ov::Exception, _);
 }
 
-TEST_F(SectionTypeUnitTests, ValidFromStringUpperCased) {
+TEST_F(SectionTypeTest, ValidFromStringUpperCased) {
     ASSERT_EQ(SectionType::from_string(RUNTIME_REQUIREMENTS_SECTION_NAME),
               SectionType(SectionTypeCode::RUNTIME_REQUIREMENTS));
     ASSERT_EQ(SectionType::from_string(MANIFEST_SECTION_NAME), SectionType(SectionTypeCode::MANIFEST));
@@ -104,7 +104,7 @@ TEST_F(SectionTypeUnitTests, ValidFromStringUpperCased) {
     ASSERT_EQ(SectionType::from_string(COMPILER_VERSION_SECTION_NAME), SectionType(SectionTypeCode::COMPILER_VERSION));
 }
 
-TEST_F(SectionTypeUnitTests, ValidFromStringLowerCased) {
+TEST_F(SectionTypeTest, ValidFromStringLowerCased) {
     ASSERT_EQ(SectionType::from_string(RUNTIME_REQUIREMENTS_SECTION_NAME_LOWER),
               SectionType(SectionTypeCode::RUNTIME_REQUIREMENTS));
     ASSERT_EQ(SectionType::from_string(MANIFEST_SECTION_NAME_LOWER), SectionType(SectionTypeCode::MANIFEST));
@@ -122,7 +122,7 @@ TEST_F(SectionTypeUnitTests, ValidFromStringLowerCased) {
               SectionType(SectionTypeCode::COMPILER_VERSION));
 }
 
-TEST_F(SectionTypeUnitTests, FromStringOnUnknownTypes) {
+TEST_F(SectionTypeTest, FromStringOnUnknownTypes) {
     ASSERT_EQ(SectionType::from_string("UNKNOWN"), SectionType(SectionTypeCode::UNKNOWN));
     ASSERT_EQ(SectionType::from_string("random_name"), SectionType(SectionTypeCode::UNKNOWN));
     ASSERT_EQ(SectionType::from_string(""), SectionType(SectionTypeCode::UNKNOWN));
@@ -130,7 +130,7 @@ TEST_F(SectionTypeUnitTests, FromStringOnUnknownTypes) {
               SectionType(SectionTypeCode::UNKNOWN));
 }
 
-TEST_F(SectionTypeUnitTests, IsSectionType) {
+TEST_F(SectionTypeTest, IsSectionType) {
     const auto section_type = std::make_shared<SectionType>(SectionTypeCode::MANIFEST);
     const auto section_id = std::make_shared<SectionID>(0);
     const auto cre_special_token = std::make_shared<CRESpecialToken>(CRESpecialTokenCode::AND);

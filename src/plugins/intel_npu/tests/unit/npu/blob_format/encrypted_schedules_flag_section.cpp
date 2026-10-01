@@ -2,17 +2,18 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "intel_npu/common/encrypted_schedules_flag_section.hpp"
+
 #include <gtest/gtest.h>
 
 #include "intel_npu/common/blob_reader_interface.hpp"
 #include "intel_npu/common/blob_writer.hpp"
-#include "intel_npu/common/encrypted_schedules_flag_section.hpp"
 #include "intel_npu/common/section_type.hpp"
 #include "utils.hpp"
 
 using namespace intel_npu;
 
-class EncryptedSchedulesFlagSectionUnitTests : public testing::TestWithParam<bool> {
+class EncryptedSchedulesFlagSectionTest : public testing::TestWithParam<bool> {
 public:
     static std::string getTestCaseName(const testing::TestParamInfo<bool>& obj) {
         return obj.param ? "true" : "false";
@@ -29,12 +30,12 @@ protected:
     std::stringstream stream;
 };
 
-TEST_P(EncryptedSchedulesFlagSectionUnitTests, CtorSetsTheRightValue) {
+TEST_P(EncryptedSchedulesFlagSectionTest, CtorSetsTheRightValue) {
     ASSERT_EQ(section->get_type(), SectionType(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG));
     ASSERT_EQ(section->get_flag(), encrypted_flag);
 }
 
-TEST_P(EncryptedSchedulesFlagSectionUnitTests, CompatibilityReqsSubexpression) {
+TEST_P(EncryptedSchedulesFlagSectionTest, CompatibilityReqsSubexpression) {
     const std::vector<std::shared_ptr<CREToken>> requirements =
         section->get_compatibility_requirements_subexpression({});
     ASSERT_EQ(requirements.size(), 1);
@@ -43,11 +44,11 @@ TEST_P(EncryptedSchedulesFlagSectionUnitTests, CompatibilityReqsSubexpression) {
               SectionType(SectionTypeCode::ENCRYPTED_SCHEDULES_FLAG));
 }
 
-TEST_P(EncryptedSchedulesFlagSectionUnitTests, NullIndividualReqs) {
+TEST_P(EncryptedSchedulesFlagSectionTest, NullIndividualReqs) {
     ASSERT_FALSE(section->get_individual_compatibility_requirements().has_value());
 }
 
-TEST_P(EncryptedSchedulesFlagSectionUnitTests, Write) {
+TEST_P(EncryptedSchedulesFlagSectionTest, Write) {
     BlobWriterInterface writer = ov::unit_test::intel_npu::create_default_writer_interface(stream);
     section->write(writer);
 
@@ -58,7 +59,7 @@ TEST_P(EncryptedSchedulesFlagSectionUnitTests, Write) {
     EXPECT_EQ(parsed_flag, encrypted_flag);
 }
 
-TEST_P(EncryptedSchedulesFlagSectionUnitTests, Read) {
+TEST_P(EncryptedSchedulesFlagSectionTest, Read) {
     ov::Tensor tensor(ov::element::u8, ov::Shape{sizeof(encrypted_flag)}, &encrypted_flag);
     BlobSource source(tensor);
     BlobReaderInterface reader(source, 0, sizeof(encrypted_flag), 0, sizeof(encrypted_flag));
@@ -69,7 +70,7 @@ TEST_P(EncryptedSchedulesFlagSectionUnitTests, Read) {
     EXPECT_EQ(casted_section->get_flag(), encrypted_flag);
 }
 
-TEST_P(EncryptedSchedulesFlagSectionUnitTests, WriteRead) {
+TEST_P(EncryptedSchedulesFlagSectionTest, WriteRead) {
     BlobWriterInterface writer = ov::unit_test::intel_npu::create_default_writer_interface(stream);
     section->write(writer);
 
@@ -84,7 +85,7 @@ TEST_P(EncryptedSchedulesFlagSectionUnitTests, WriteRead) {
     EXPECT_EQ(casted_section->get_flag(), encrypted_flag);
 }
 
-TEST_P(EncryptedSchedulesFlagSectionUnitTests, InvalidSectionLength) {
+TEST_P(EncryptedSchedulesFlagSectionTest, InvalidSectionLength) {
     std::vector<uint8_t> dummy(0xFFFF, 0xFF);
     ov::Tensor tensor(ov::element::u8, ov::Shape{dummy.size()}, const_cast<uint8_t*>(dummy.data()));
     BlobSource source(tensor);
@@ -93,6 +94,6 @@ TEST_P(EncryptedSchedulesFlagSectionUnitTests, InvalidSectionLength) {
 }
 
 INSTANTIATE_TEST_SUITE_P(UnitTests,
-                         EncryptedSchedulesFlagSectionUnitTests,
+                         EncryptedSchedulesFlagSectionTest,
                          testing::ValuesIn(std::vector<bool>{true, false}),
-                         EncryptedSchedulesFlagSectionUnitTests::getTestCaseName);
+                         EncryptedSchedulesFlagSectionTest::getTestCaseName);

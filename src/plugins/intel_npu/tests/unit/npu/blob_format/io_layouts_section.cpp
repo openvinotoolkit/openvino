@@ -21,7 +21,7 @@ using namespace intel_npu;
 
 using IOLayoutsParams = std::tuple<std::vector<ov::Layout>, std::vector<ov::Layout>>;
 
-class IOLayoutsSectionUnitTests : public ::testing::TestWithParam<IOLayoutsParams> {
+class IOLayoutsSectionTest : public ::testing::TestWithParam<IOLayoutsParams> {
 protected:
     void SetUp() override {
         std::vector<ov::Layout> input_layouts;
@@ -35,7 +35,7 @@ protected:
     std::stringstream stream;
 };
 
-using ValidLayouts = IOLayoutsSectionUnitTests;
+using ValidLayouts = IOLayoutsSectionTest;
 
 TEST_P(ValidLayouts, WriteRead) {
     BlobWriterInterface writer = ov::unit_test::intel_npu::create_default_writer_interface(stream);
@@ -168,7 +168,7 @@ TEST_F(IOLayoutsSectionRead, AlteredLayoutSizeTooBig) {
 }
 
 INSTANTIATE_TEST_SUITE_P(
-    IOLayoutsSectionUnitTests,
+    IOLayoutsSectionTest,
     ValidLayouts,
     ::testing::Values(
         std::make_tuple(std::vector<ov::Layout>{ov::Layout("NCHW")}, std::vector<ov::Layout>{ov::Layout("NCHW")}),

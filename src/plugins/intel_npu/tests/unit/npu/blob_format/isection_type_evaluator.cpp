@@ -29,14 +29,14 @@ public:
     MOCK_METHOD(bool, evaluate, (), (const, override));
 };
 
-using ISectionTypeEvaluatorUnitTests = ::testing::Test;
+using ISectionTypeEvaluatorTest = ::testing::Test;
 
-TEST(ISectionTypeEvaluatorUnitTests, ReturnsTheCorrectResult) {
+TEST(ISectionTypeEvaluatorTest, ReturnsTheCorrectResult) {
     ASSERT_TRUE(DumbSectionTypeEvaluator(true).get_result());
     ASSERT_FALSE(DumbSectionTypeEvaluator(false).get_result());
 }
 
-TEST(ISectionTypeEvaluatorUnitTests, Evaluated) {
+TEST(ISectionTypeEvaluatorTest, Evaluated) {
     DumbSectionTypeEvaluator evaluator(false);
     ASSERT_FALSE(evaluator.evaluated());
     evaluator.get_result();
@@ -45,14 +45,14 @@ TEST(ISectionTypeEvaluatorUnitTests, Evaluated) {
     ASSERT_TRUE(evaluator.evaluated());
 }
 
-TEST(ISectionTypeEvaluatorUnitTests, EvaluatesOnlyOnceWhenRequested) {
+TEST(ISectionTypeEvaluatorTest, EvaluatesOnlyOnceWhenRequested) {
     MockSectionTypeEvaluator evaluator;
     EXPECT_CALL(evaluator, evaluate()).Times(1);
     evaluator.get_result();
     evaluator.get_result();
 }
 
-TEST(ISectionTypeEvaluatorUnitTests, NoEvaluation) {
+TEST(ISectionTypeEvaluatorTest, NoEvaluation) {
     MockSectionTypeEvaluator evaluator;
     EXPECT_CALL(evaluator, evaluate()).Times(0);
     evaluator.evaluated();

@@ -8,8 +8,8 @@
 
 using namespace intel_npu;
 
-using SupportedSectionTypeEvaluatorUnitTests = ::testing::Test;
+using SupportedSectionTypeEvaluatorTest = ::testing::Test;
 
-TEST_F(SupportedSectionTypeEvaluatorUnitTests, AlwaysEvaluatesToTrue) {
+TEST_F(SupportedSectionTypeEvaluatorTest, AlwaysEvaluatesToTrue) {
     ASSERT_TRUE(SupportedSectionTypeEvaluator::get_instance()->get_result());
 }

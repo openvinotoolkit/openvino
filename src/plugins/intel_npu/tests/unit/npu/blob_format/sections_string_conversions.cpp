@@ -10,9 +10,9 @@
 using namespace intel_npu;
 using testing::_;
 
-using SectionsStringConversionsUnitTests = ::testing::Test;
+using SectionsStringConversionsTest = ::testing::Test;
 
-TEST_F(SectionsStringConversionsUnitTests, TypeAndIDToStringAllValidTypes) {
+TEST_F(SectionsStringConversionsTest, TypeAndIDToStringAllValidTypes) {
     ASSERT_EQ(section_type_and_id_to_string(SectionType(SectionTypeCode::RUNTIME_REQUIREMENTS), SectionID(0)),
               "RUNTIME_REQUIREMENTS_0");
     ASSERT_EQ(section_type_and_id_to_string(SectionType(SectionTypeCode::MANIFEST), SectionID(0)), "MANIFEST_0");
@@ -30,20 +30,20 @@ TEST_F(SectionsStringConversionsUnitTests, TypeAndIDToStringAllValidTypes) {
               "COMPILER_VERSION_0");
 }
 
-TEST_F(SectionsStringConversionsUnitTests, UnknownTypeToString) {
+TEST_F(SectionsStringConversionsTest, UnknownTypeToString) {
     OV_EXPECT_THROW(section_type_and_id_to_string(SectionType(SectionTypeCode::UNKNOWN), SectionID(0)),
                     ov::Exception,
                     _);
 }
 
-TEST_F(SectionsStringConversionsUnitTests, DifferentIDsToString) {
+TEST_F(SectionsStringConversionsTest, DifferentIDsToString) {
     ASSERT_EQ(section_type_and_id_to_string(SectionType(SectionTypeCode::MANIFEST), SectionID(0)), "MANIFEST_0");
     ASSERT_EQ(section_type_and_id_to_string(SectionType(SectionTypeCode::MANIFEST),
                                             SectionID(std::numeric_limits<uint16_t>::max())),
               "MANIFEST_" + std::to_string(std::numeric_limits<uint16_t>::max()));
 }
 
-TEST_F(SectionsStringConversionsUnitTests, ValidTypesAndIDsFromString) {
+TEST_F(SectionsStringConversionsTest, ValidTypesAndIDsFromString) {
     ASSERT_EQ(section_type_and_id_from_string("RUNTIME_REQUIREMENTS_0"),
               std::make_pair(SectionType(SectionTypeCode::RUNTIME_REQUIREMENTS), std::make_optional(SectionID(0))));
     ASSERT_EQ(section_type_and_id_from_string("MANIFEST_0"),
@@ -71,13 +71,13 @@ TEST_F(SectionsStringConversionsUnitTests, ValidTypesAndIDsFromString) {
               std::make_pair(SectionType(SectionTypeCode::MANIFEST), std::make_optional(SectionID(0))));
 }
 
-TEST_F(SectionsStringConversionsUnitTests, ValidTypeAndNoIDFromString) {
+TEST_F(SectionsStringConversionsTest, ValidTypeAndNoIDFromString) {
     const std::pair<SectionType, std::optional<SectionID>> result =
         std::make_pair(SectionType(SectionTypeCode::MANIFEST), std::nullopt);
     ASSERT_EQ(section_type_and_id_from_string("MANIFEST"), result);
 }
 
-TEST_F(SectionsStringConversionsUnitTests, InvalidTypesFromString) {
+TEST_F(SectionsStringConversionsTest, InvalidTypesFromString) {
     const std::pair<SectionType, std::optional<SectionID>> result =
         std::make_pair(SectionType(SectionTypeCode::UNKNOWN), std::nullopt);
     ASSERT_EQ(section_type_and_id_from_string("MANIFEST_"), result);
@@ -88,17 +88,17 @@ TEST_F(SectionsStringConversionsUnitTests, InvalidTypesFromString) {
     ASSERT_EQ(section_type_and_id_from_string("UNKNOWN"), result);
 }
 
-TEST_F(SectionsStringConversionsUnitTests, InvalidIDsFromString) {
+TEST_F(SectionsStringConversionsTest, InvalidIDsFromString) {
     OV_EXPECT_THROW(section_type_and_id_from_string("MANIFEST_1000000000000000"), ov::Exception, _);
 }
 
-TEST_F(SectionsStringConversionsUnitTests, InvalidTypeValidIDFromString) {
+TEST_F(SectionsStringConversionsTest, InvalidTypeValidIDFromString) {
     const std::pair<SectionType, std::optional<SectionID>> result =
         std::make_pair(SectionType(SectionTypeCode::UNKNOWN), std::make_optional(SectionID(0)));
     ASSERT_EQ(section_type_and_id_from_string("MANIFEST_1.0_0"), result);
 }
 
-TEST_F(SectionsStringConversionsUnitTests, ChainToStringFromString) {
+TEST_F(SectionsStringConversionsTest, ChainToStringFromString) {
     ASSERT_EQ(section_type_and_id_from_string(
                   section_type_and_id_to_string(SectionType(SectionTypeCode::MANIFEST), SectionID(0))),
               std::make_pair(SectionType(SectionTypeCode::MANIFEST), std::make_optional(SectionID(0))));

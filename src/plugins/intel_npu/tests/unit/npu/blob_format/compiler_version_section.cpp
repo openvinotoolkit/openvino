@@ -13,7 +13,7 @@
 
 using namespace intel_npu;
 
-class CompilerVersionSectionUnitTests : public ::testing::Test {
+class CompilerVersionSectionTest : public ::testing::Test {
 protected:
     void SetUp() override {
         compiler_version = 0xDEADBEEF;
@@ -26,22 +26,22 @@ protected:
     std::stringstream stream;
 };
 
-TEST_F(CompilerVersionSectionUnitTests, CtorSetsTheRightValue) {
+TEST_F(CompilerVersionSectionTest, CtorSetsTheRightValue) {
     ASSERT_EQ(section->get_type(), SectionType(SectionTypeCode::COMPILER_VERSION));
     ASSERT_EQ(section->get_compiler_version(), compiler_version);
 }
 
-TEST_F(CompilerVersionSectionUnitTests, EmptyCompatibilityReqsSubexpression) {
+TEST_F(CompilerVersionSectionTest, EmptyCompatibilityReqsSubexpression) {
     const std::vector<std::shared_ptr<CREToken>> requirements =
         section->get_compatibility_requirements_subexpression({});
     ASSERT_TRUE(requirements.empty());
 }
 
-TEST_F(CompilerVersionSectionUnitTests, NullIndividualReqs) {
+TEST_F(CompilerVersionSectionTest, NullIndividualReqs) {
     ASSERT_FALSE(section->get_individual_compatibility_requirements().has_value());
 }
 
-TEST_F(CompilerVersionSectionUnitTests, Write) {
+TEST_F(CompilerVersionSectionTest, Write) {
     BlobWriterInterface writer = ov::unit_test::intel_npu::create_default_writer_interface(stream);
     section->write(writer);
 
@@ -52,7 +52,7 @@ TEST_F(CompilerVersionSectionUnitTests, Write) {
     EXPECT_EQ(parsed_compiler_version, compiler_version);
 }
 
-TEST_F(CompilerVersionSectionUnitTests, Read) {
+TEST_F(CompilerVersionSectionTest, Read) {
     ov::Tensor tensor(ov::element::u8, ov::Shape{sizeof(compiler_version)}, &compiler_version);
     BlobSource source(tensor);
     BlobReaderInterface reader(source, 0, sizeof(compiler_version), 0, sizeof(compiler_version));
@@ -63,7 +63,7 @@ TEST_F(CompilerVersionSectionUnitTests, Read) {
     EXPECT_EQ(casted_section->get_compiler_version(), compiler_version);
 }
 
-TEST_F(CompilerVersionSectionUnitTests, WriteRead) {
+TEST_F(CompilerVersionSectionTest, WriteRead) {
     BlobWriterInterface writer = ov::unit_test::intel_npu::create_default_writer_interface(stream);
     section->write(writer);
 
@@ -78,7 +78,7 @@ TEST_F(CompilerVersionSectionUnitTests, WriteRead) {
     EXPECT_EQ(casted_section->get_compiler_version(), compiler_version);
 }
 
-TEST_F(CompilerVersionSectionUnitTests, InvalidSectionLength) {
+TEST_F(CompilerVersionSectionTest, InvalidSectionLength) {
     std::vector<uint8_t> dummy(0xFFFF, 0xFF);
     ov::Tensor tensor(ov::element::u8, ov::Shape{dummy.size()}, const_cast<uint8_t*>(dummy.data()));
     BlobSource source(tensor);

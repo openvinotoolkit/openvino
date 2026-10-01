@@ -10,9 +10,9 @@
 
 using namespace intel_npu;
 
-using CRESpecialTokenUnitTests = ::testing::Test;
+using CRESpecialTokenTest = ::testing::Test;
 
-TEST_F(CRESpecialTokenUnitTests, CreateAllTokensUsingCorrectCode) {
+TEST_F(CRESpecialTokenTest, CreateAllTokensUsingCorrectCode) {
     ASSERT_EQ(CRESpecialToken(CRESpecialTokenCode::AND).get_code(), CRESpecialTokenCode::AND);
     ASSERT_EQ(CRESpecialToken(CRESpecialTokenCode::OR).get_code(), CRESpecialTokenCode::OR);
     ASSERT_EQ(CRESpecialToken(CRESpecialTokenCode::NOT).get_code(), CRESpecialTokenCode::NOT);
@@ -20,17 +20,17 @@ TEST_F(CRESpecialTokenUnitTests, CreateAllTokensUsingCorrectCode) {
     ASSERT_EQ(CRESpecialToken(CRESpecialTokenCode::CLOSE).get_code(), CRESpecialTokenCode::CLOSE);
 }
 
-TEST_F(CRESpecialTokenUnitTests, EqualOperator) {
+TEST_F(CRESpecialTokenTest, EqualOperator) {
     ASSERT_TRUE(CRESpecialToken(CRESpecialTokenCode::AND) == CRESpecialToken(CRESpecialTokenCode::AND));
     ASSERT_FALSE(CRESpecialToken(CRESpecialTokenCode::AND) == CRESpecialToken(CRESpecialTokenCode::OR));
 }
 
-TEST_F(CRESpecialTokenUnitTests, DifferentOperator) {
+TEST_F(CRESpecialTokenTest, DifferentOperator) {
     ASSERT_FALSE(CRESpecialToken(CRESpecialTokenCode::AND) != CRESpecialToken(CRESpecialTokenCode::AND));
     ASSERT_TRUE(CRESpecialToken(CRESpecialTokenCode::AND) != CRESpecialToken(CRESpecialTokenCode::OR));
 }
 
-TEST_F(CRESpecialTokenUnitTests, IsSpecialToken) {
+TEST_F(CRESpecialTokenTest, IsSpecialToken) {
     const auto section_type = std::make_shared<SectionType>(SectionTypeCode::MANIFEST);
     const auto section_id = std::make_shared<SectionID>(0);
     const auto cre_special_token = std::make_shared<CRESpecialToken>(CRESpecialTokenCode::AND);

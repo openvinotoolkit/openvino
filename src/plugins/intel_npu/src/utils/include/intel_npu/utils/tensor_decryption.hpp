@@ -14,7 +14,8 @@ namespace utils {
 
 // TODO make a source file for this
 /**
- * @brief Uses the provided decryption callback to decrypt the given payload.
+ * @brief Uses the provided decryption callback to decrypt the given payload. The result is zero padded until page
+ * alignment.
  */
 static inline void decrypt_payload(ov::Tensor& payload,
                                    const std::function<std::string(const std::string&)>& decryption_callback,

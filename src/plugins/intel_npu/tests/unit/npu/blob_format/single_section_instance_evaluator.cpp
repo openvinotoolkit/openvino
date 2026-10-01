@@ -40,14 +40,14 @@ public:
     MOCK_METHOD(ov::CompatibilityCheck, evaluate, (std::string_view), (const, override));
 };
 
-using SingleSectionInstanceEvaluatorUnitTests = ::testing::Test;
+using SingleSectionInstanceEvaluatorTest = ::testing::Test;
 using testing::_;
 
-TEST(SingleSectionInstanceEvaluatorUnitTests, NullEvaluator) {
+TEST(SingleSectionInstanceEvaluatorTest, NullEvaluator) {
     OV_EXPECT_THROW(SingleSectionInstanceEvaluator(nullptr, ""), ov::Exception, _);
 }
 
-TEST(SingleSectionInstanceEvaluatorUnitTests, ReturnsTheCorrectResult) {
+TEST(SingleSectionInstanceEvaluatorTest, ReturnsTheCorrectResult) {
     SingleSectionInstanceEvaluator evaluator(std::make_shared<DumbSectionInstanceEvaluator>(),
                                              STRING_THAT_EVALUATES_TO_SUPPORTED);
     ASSERT_EQ(evaluator.get_result(), ov::CompatibilityCheck::SUPPORTED);
@@ -59,7 +59,7 @@ TEST(SingleSectionInstanceEvaluatorUnitTests, ReturnsTheCorrectResult) {
     ASSERT_EQ(evaluator.get_result(), ov::CompatibilityCheck::NOT_APPLICABLE);
 }
 
-TEST(SingleSectionInstanceEvaluatorUnitTests, Evaluated) {
+TEST(SingleSectionInstanceEvaluatorTest, Evaluated) {
     const SingleSectionInstanceEvaluator evaluator(std::make_shared<DumbSectionInstanceEvaluator>(),
                                                    STRING_THAT_EVALUATES_TO_SUPPORTED);
     ASSERT_FALSE(evaluator.evaluated());
@@ -69,7 +69,7 @@ TEST(SingleSectionInstanceEvaluatorUnitTests, Evaluated) {
     ASSERT_TRUE(evaluator.evaluated());
 }
 
-TEST(SingleSectionInstanceEvaluatorUnitTests, EvaluatesOnlyOnceWhenRequested) {
+TEST(SingleSectionInstanceEvaluatorTest, EvaluatesOnlyOnceWhenRequested) {
     const auto mock = std::make_shared<MockSectionInstanceEvaluator>();
     const auto evaluator = SingleSectionInstanceEvaluator(mock, STRING_THAT_EVALUATES_TO_SUPPORTED);
     EXPECT_CALL(*mock, evaluate(STRING_THAT_EVALUATES_TO_SUPPORTED)).Times(1);
@@ -77,7 +77,7 @@ TEST(SingleSectionInstanceEvaluatorUnitTests, EvaluatesOnlyOnceWhenRequested) {
     evaluator.get_result();
 }
 
-TEST(SingleSectionInstanceEvaluatorUnitTests, NoEvaluation) {
+TEST(SingleSectionInstanceEvaluatorTest, NoEvaluation) {
     const auto mock = std::make_shared<MockSectionInstanceEvaluator>();
     const auto evaluator = SingleSectionInstanceEvaluator(mock, STRING_THAT_EVALUATES_TO_SUPPORTED);
     EXPECT_CALL(*mock, evaluate(STRING_THAT_EVALUATES_TO_SUPPORTED)).Times(0);
