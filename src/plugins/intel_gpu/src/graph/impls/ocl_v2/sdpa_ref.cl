@@ -270,7 +270,7 @@ KERNEL(sdpa_ref)(
 #else
                 KEY_COMPRESSION_SCALE_COMPUTE_TYPE comp_zp = 0;
 #endif
-                KEY_COMPRESSION_SCALE_COMPUTE_TYPE k_val = ((k_val_packed - comp_zp) * comp_scale);
+                KEY_COMPRESSION_SCALE_COMPUTE_TYPE k_val = (k_val_packed - comp_zp) * comp_scale;
 
 #else
                 INPUT1_COMPUTE_T k_val = LOAD_INPUT1(k_val_packed);
@@ -378,7 +378,7 @@ KERNEL(sdpa_ref)(
 #else
         VALUE_COMPRESSION_SCALE_COMPUTE_TYPE comp_zp = 0;
 #endif
-        VALUE_COMPRESSION_SCALE_COMPUTE_TYPE value = ((value_packed - comp_zp) * comp_scale);
+        VALUE_COMPRESSION_SCALE_COMPUTE_TYPE value = (value_packed - comp_zp) * comp_scale;
 #else
         INPUT2_COMPUTE_T value = LOAD_INPUT2(value_packed);
 #endif

@@ -67,7 +67,7 @@ KERNEL(dynamic_quantize_gpu_kv_cache)(
     // The innermost dimension is always processed in the loop inside the kernel
     const uint x = 0;
 
-    INPUT0_COMPUTE_TYPE grp_max = 0.001h;
+    const INPUT0_COMPUTE_TYPE grp_max = TO_INPUT0_COMPUTE_TYPE(0.001f);
     INPUT0_COMPUTE_TYPE max_value = INPUT0_VAL_MIN;
     INPUT0_COMPUTE_TYPE min_value = INPUT0_VAL_MAX;
 
