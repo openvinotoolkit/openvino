@@ -63,6 +63,11 @@ Always finish with `rename_outputs_with_suffix(..., context.get_name())`: the wa
 the `TensorMap` under the decoder's output names, and stable friendly names are what the passes and
 the graph-fingerprint gate rely on.
 
+A ggml node has one output. A native builder may declare more with `add_op(..., extra_outputs)`;
+the translator then returns one output per name, in order. `GATED_DELTA_NET` uses this
+(`split_outputs`) to return the attention and the new recurrent state separately instead of
+ggml's packed tensor.
+
 `NodeContext` ([`src/node_context.hpp`](../src/node_context.hpp)):
 
 | Call | Purpose |

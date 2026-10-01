@@ -33,6 +33,9 @@ The GGUF frontend is currently hidden from automatic frontend discovery, so
 Conversion produces a stateless graph by default. Callers that need an OpenVINO
 KV cache can register a decoder transformation extension using
 [`GGUFMakeStateful`](include/openvino/frontend/gguf/make_stateful.hpp).
+[`AdaptToGenAI`](include/openvino/frontend/gguf/adapt_to_genai.hpp) then gives a stateful
+language model the OpenVINO GenAI input contract. Multimodal projector files convert to
+encoder models; see [native multimodal conversion](docs/mmproj.md).
 The [frontend API](include/openvino/frontend/gguf/frontend.hpp) documents supported
 extensions; [internal operation guidance](docs/internal_ops.md) describes lowering
 and serialization constraints.
@@ -47,7 +50,7 @@ and serialization constraints.
 | [src/quant](src/quant/) | GGUF parsing, weight loading, and quantization handling |
 | [src/op](src/op/) and [op_table.cpp](src/op_table.cpp) | Operation translators and their registration |
 | [src/pass](src/pass/) | Stateful conversion, GenAI adaptation, and graph cleanup |
-| [tests](tests/) | Operation, architecture, quantization, and extension tests and fixtures |
+| [tests](tests/) | Operation, architecture, multimodal, quantization, and extension tests, fixtures, fixture generators and llama.cpp oracles |
 | [examples](examples/) | Architecture-extension example |
 
 ## Development guides
@@ -56,7 +59,9 @@ and serialization constraints.
 * [Add a built-in architecture](docs/adding_an_architecture.md).
 * [Port a llama.cpp model or build an external architecture extension](docs/porting_a_llama_cpp_model.md).
 * [Debug accuracy differences](docs/debugging_accuracy.md).
+* [Convert multimodal projectors](docs/mmproj.md).
 * [Generate architecture accuracy fixtures](tests/test_data/arch_accuracy/README.md).
+* [Generate multimodal accuracy fixtures](tests/test_data/mmproj_accuracy/README.md).
 
 ## Building and testing
 

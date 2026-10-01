@@ -28,6 +28,9 @@ namespace ov::frontend::gguf::pass {
 /// the KV-cache sinks are preserved, and beam_idx (created by the make-stateful pass) passes
 /// through unchanged since genai sets that tensor itself.
 ///
+/// Gated-DeltaNet recurrent states get a dynamic batch dimension and follow beam_idx; models with
+/// other recurrent states (Mamba 2) keep input_ids at one sequence.
+///
 /// token_len_per_seq is optional when the source graph does not consume it.
 /// If the required gguf inputs are absent (e.g. the model is already in genai form), the
 /// pass is a no-op and returns false.
@@ -46,9 +49,12 @@ public:
     /// \brief Which genai input contract to expose.
     /// IDS_TO_LOGITS  : input_ids -> logits (text LLMPipeline).
     /// EMBEDS_TO_LOGITS: raw inputs_embeds -> logits, with scaling retained in the decoder.
-    /// Token-dependent auxiliary branches retain input_ids when required.
-    /// Embedding mode is batch-one SDPA. M-RoPE models receive position_ids [4,1,T],
-    /// containing GenAI's sequence/time/height/width sections; callers supply all sections.
+    /// Token-dependent auxiliary branches retain input_ids when required. Per-layer token
+    /// embeddings (Gemma4 E2B/E4B) become a second embedding-model output and the
+    /// per_layer_inputs [B,T,layers,width] input; Gemma3 and other Gemma4 models take
+    /// token_type_ids [B,T] for bidirectional attention within each image. M-RoPE models
+    /// receive position_ids [4,B,T], containing GenAI's sequence/time/height/width sections;
+    /// callers supply all sections.
     enum class InputMode { IDS_TO_LOGITS, EMBEDS_TO_LOGITS };
 
     explicit AdaptToGenAI(InputMode mode = InputMode::IDS_TO_LOGITS) : m_mode(mode) {}
@@ -56,7 +62,8 @@ public:
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
     /// Raw token lookup extracted by EMBEDS_TO_LOGITS, sharing the original weight buffers.
-    /// Available after a successful run; inputs input_ids [B,T], output inputs_embeds [B,T,D].
+    /// Available after a successful run; inputs input_ids [B,T], output inputs_embeds [B,T,D]
+    /// and, for per-layer token embeddings, per_layer_inputs.
     const std::shared_ptr<ov::Model>& get_embedding_model() const {
         return m_embedding_model;
     }
