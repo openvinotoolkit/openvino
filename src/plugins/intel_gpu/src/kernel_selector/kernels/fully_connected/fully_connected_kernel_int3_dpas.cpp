@@ -270,7 +270,38 @@ gemm_config get_dpas_config(const fully_connected_params& params) {
     return cfg;
 }
 
-// DPAS variants followed by the scalar one, which is always last.
+// GEMM variants
+// -------------
+// Every FC builds the activation quantizer (kernel 0) plus a list of GEMM variants
+// (kernels 1..); exactly one GEMM runs per inference. The whole kernel requires
+// supports_immad (see Validate). The variants are:
+//
+//   scalar  - no DPAS. One row per subgroup, sg_k (8/4/2) subgroups split K and
+//             reduce through SLM. Always the last entry; runs for rows < 8
+//             (dpas_min_batch), i.e. decode.
+//   DPAS v1 - tile_m rows (8, 16 or 32) per subgroup; sg_m subgroups of a
+//             workgroup share each decoded weight group through SLM. Any zero
+//             point layout, any arch with immad.
+//   DPAS v2 - 16 x 64 tiles per subgroup (nb = 4 column blocks), 2D block reads,
+//             256 GRF, sg_m 8 or 16. Needs Xe2+, a scalar or absent zero point,
+//             N % 64 == 0, K >= 64 and an even number of granules per group
+//             (supports_v2).
+//
+// Which DPAS variants are compiled depends on whether the row count is known:
+//
+//   static shape            - one DPAS config from get_dpas_config: tile_m 8 for
+//                             rows <= 8, 16 for rows <= 16, otherwise v2 (sg_m 8 from
+//                             96 rows, 16 from 192) if supported, else v1 32-row
+//                             tiles with sg_m from get_dense_sg_m.
+//   dynamic, dense variants - four DPAS configs keyed by min_rows: v1 32x sg_m 1
+//                             (0 rows) and sg_m 2 (48), then v2 sg_m 8 (96) and 16
+//                             (192) if supported, else v1 sg_m 4 (96) and 8 (384).
+//                             Used when every sg_m is valid for the group layout
+//                             (use_dense_variants).
+//   dynamic, otherwise      - a single v1 32 x 1 config.
+//
+// select_gemm then picks, from the runtime row count, scalar below dpas_min_batch
+// and otherwise the DPAS entry with the largest min_rows not above it.
 std::vector<gemm_config> get_gemm_configs(const fully_connected_params& params, bool dense_variants) {
     std::vector<gemm_config> configs;
     if (dense_variants) {
