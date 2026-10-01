@@ -18,6 +18,7 @@
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "util.hpp"
+#include <iostream>
 
 namespace {
 using ov::npuw::LLMInferRequest;
@@ -392,29 +393,37 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     }
 
     if (compiled_model->m_lm_head_compiled) {
-        m_lm_head_request = compiled_model->m_lm_head_compiled->create_infer_request();
-        OPENVINO_ASSERT(m_lm_head_request);
-        const ov::Output<const ov::Node> lm_head_embed_port = m_lm_head_request->get_inputs()[0];
-        m_lm_head_logits_port = m_lm_head_request->get_outputs()[0];
+        try {
+            std::cerr << "[dbg] shared_head: before lm_head create_infer_request" << std::endl;
+            m_lm_head_request = compiled_model->m_lm_head_compiled->create_infer_request();
+            std::cerr << "[dbg] shared_head: after lm_head create_infer_request" << std::endl;
 
-        // NB: get_tensor() on a freshly-created infer request can come back
-        // without a backing allocation when this port's tensor is small
-        // (e.g. Qwen3-0.6B's [1,1,1024] embed port vs. Qwen3-1.7B's
-        // [1,1,2048], which is unaffected despite identical lm_head subgraph
-        // topology), causing "Tensor was not initialized" the first time
-        // this port is read. Force a real allocation up front.
-        auto lm_head_embed_tensor = ov::get_tensor_impl(
-            ov::Tensor(lm_head_embed_port.get_element_type(), lm_head_embed_port.get_shape()));
-        m_lm_head_request->set_tensor(lm_head_embed_port, lm_head_embed_tensor);
+            OPENVINO_ASSERT(m_lm_head_request);
+            const ov::Output<const ov::Node> lm_head_embed_port = m_lm_head_request->get_inputs()[0];
+            std::cerr << "[dbg] shared_head: got lm_head input port" << std::endl;
 
-        m_prefill_request->set_tensor(m_prefill_out_ports.at(layer_names::output_embeds),
-                                      lm_head_embed_tensor);
+            m_lm_head_logits_port = m_lm_head_request->get_outputs()[0];
+            std::cerr << "[dbg] shared_head: got lm_head output port" << std::endl;
 
-        // Set output_embeds tensor for all generate variants
-        for (auto& generate_req : m_generate_requests) {
-            const auto& variant_out_ports = m_generate_variant_out_ports.at(generate_req);
-            generate_req->set_tensor(variant_out_ports.at(layer_names::output_embeds),
-                                     lm_head_embed_tensor);
+            auto lm_head_embed_tensor = ov::get_tensor_impl(
+                ov::Tensor(lm_head_embed_port.get_element_type(), lm_head_embed_port.get_shape()));
+            std::cerr << "[dbg] shared_head: allocated embed tensor shape=" << lm_head_embed_port.get_shape()
+                      << std::endl;
+
+            m_lm_head_request->set_tensor(lm_head_embed_port, lm_head_embed_tensor);
+            std::cerr << "[dbg] shared_head: set lm_head input tensor" << std::endl;
+
+            m_prefill_request->set_tensor(m_prefill_out_ports.at(layer_names::output_embeds), lm_head_embed_tensor);
+            std::cerr << "[dbg] shared_head: set prefill output_embeds tensor" << std::endl;
+
+            for (auto& generate_req : m_generate_requests) {
+                const auto& variant_out_ports = m_generate_variant_out_ports.at(generate_req);
+                generate_req->set_tensor(variant_out_ports.at(layer_names::output_embeds), lm_head_embed_tensor);
+                std::cerr << "[dbg] shared_head: set generate output_embeds tensor" << std::endl;
+            }
+        } catch (const std::exception& ex) {
+            std::cerr << "[dbg] shared_head exception: " << ex.what() << std::endl;
+            throw;
         }
     }
 
