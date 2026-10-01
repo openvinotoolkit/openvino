@@ -651,8 +651,13 @@ jit_inputs make_jit_inputs(const kernel_impl_params& params, bool is_prefill) {
 void add_sink_qq_bias_jit(JitConstants& jit, const jit_inputs& in) {
     const auto& params = in.params;
     if (!in.is_pa) {
-        if (params.typed_desc<scaled_dot_product_attention>()->has_sink_input)
-            add_sink_jit(jit, params.input_layouts[ScaledDotProductAttentionInputIdx::SINK]);
+        if (params.typed_desc<scaled_dot_product_attention>()->has_sink_input) {
+            const auto& sink = params.input_layouts[ScaledDotProductAttentionInputIdx::SINK];
+            add_sink_jit(jit, sink);
+            // SINK_DATA_T of a bf16 sink is ushort (its bits); the kernel must widen it, not convert the integer.
+            if (sink.data_type == ov::element::bf16)
+                jit.make("SINK_IS_BF16", 1);
+        }
         jit.make("HAS_QQ_BIAS", 0);
         return;
     }
@@ -699,7 +704,8 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
     jit.make("Q_DWORDS", 8);  // 16 half values per Q KSTEP packed as 8 uint dwords
     jit.make("SUBGROUP_SIZE", t.subgroup_size);
     // Negative controls of the SG8 operand mapping (1 = K pair order, 2 = pA transposed, 3 = S_slm pair order): each must
-    // fail a sharp-softmax test. 4 is the positive twin: it forces the unaligned-K fallback, which must still pass. Absent unless asked for, so the default jit (and every SG16 jit) is unchanged.
+    // fail a sharp-softmax test. 4 is the positive twin: it forces the unaligned-K fallback, which must still pass. 5 = full 2D mask read
+    // with the SG16 lane width, 6 = per-key mask broadcast one lane off (both must fail the mask tests). Absent unless asked for, so the default jit (and every SG16 jit) is unchanged.
     if (t.subgroup_size == 8) {
         if (const int neg = env_int("SDPA_OCL_NEG_SG8", 0); neg != 0)
             jit.make("NEG_SG8", neg);
