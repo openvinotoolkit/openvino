@@ -29,8 +29,8 @@ enum HpgTier : uint32_t {
     PA_U4 = 1u << 8,             // PA on a u4 cache
 };
 
-// Bits ready on xe_hpg. Zero until the SG8 kernels exist.
-constexpr uint32_t kHpgTiersReady = 0;
+// Bits ready on xe_hpg. PLAIN_F16_STATIC since plan S6a (the first SG8 kernel arm); the later steps add theirs.
+constexpr uint32_t kHpgTiersReady = PLAIN_F16_STATIC;
 
 // kHpgTiersReady, or every bit when SDPA_OCL_HPG_TIERS=all (a comma list of tier names selects some). Development only,
 // for dumping the jit of every combination: the kernels of a tier that is not ready fail to build. Read once per process.

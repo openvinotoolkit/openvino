@@ -15,6 +15,7 @@
 #include "impls/ocl_v2/sdpa/sdpa_opt.hpp"
 #include "openvino/util/file_util.hpp"
 #include "program_wrapper.h"
+#include <algorithm>
 #include <array>
 #include <iostream>
 #include <vector>
@@ -612,7 +613,9 @@ public:
         const bool prefill = p.sequence_length_q > 1;
         const bool unaligned = p.head_size % 16 != 0;
         const bool is_ARL_H = info.gfx_ver.major == 12 && info.gfx_ver.minor == 74;
-        const auto backend = tests::expected_dpas_backend(engine, false, static_cast<size_t>(p.head_size));
+        // This harness always feeds a mask input, which is PLAIN_EXT on xe_hpg (SDPAOclGenerator::hpg_tier_required()).
+        const auto backend = tests::expected_dpas_backend(engine, false, static_cast<size_t>(p.head_size),
+                                                          ov::intel_gpu::ocl::PLAIN_F16_STATIC | ov::intel_gpu::ocl::PLAIN_EXT);
         std::string expected;
         switch (backend) {
         case tests::dpas_backend::ocl:
@@ -684,6 +687,149 @@ INSTANTIATE_TEST_SUITE_P(
         sdpa_test_params{72, 8, 1, 128, 2, false}      // static decode, head size % 16 != 0
     ),
     sdpa_gpu_test::PrintToStringParamName
+);
+
+// Sharp-softmax check of the SG8 (xe_hpg) operand mapping of sdpa_ocl, plain f16, static, q == kv > 1, no mask / causal / scale input
+// (the PLAIN_F16_STATIC tier). Every query's logit row has ONE key that wins by a wide margin, and every key / value row is unique, so
+// a lane that reads the wrong head dim, key pair or query row moves the winner or mixes in another value row: the output is off by
+// ~the value spread, far above the f16 tolerance. Random N(0, 0.1)-like data would not show it (pa-harness-data-hides-qk-errors).
+// Runs wherever sdpa_ocl serves the op (Xe2 and xe_hpg with TEST_USE_SDPA_OCL_HPG=1), SKIPs elsewhere; the SDPA_OCL_NEG_SG8=1..3
+// groups of test/sdpa_ocl_gtests.sh break the mapping on purpose and must FAIL it. max_abs_err is recorded so a NEG run that fails on
+// the error can be told from one that fails on a crash.
+struct sdpa_hpg_sharp_params {
+    int head_size;
+    int seq_len;
+};
+
+struct sdpa_hpg_sharp_test : public ::testing::TestWithParam<sdpa_hpg_sharp_params> {
+    static constexpr int num_heads = 8;
+    static constexpr float key_gain = 32.0f;  // Q = key_gain * K[winner]: the scaled winner logit leads by >= ~20 (head 32) .. ~2500 (head 256)
+
+    // A deterministic pseudo-random value in [-15/16, 15/16] on a 1/16 grid (exact in f16), distinct per (stream, row, col, head).
+    // The modulus is a prime, so no row repeats with a short period.
+    static float grid_value(uint32_t stream, uint32_t head, uint32_t row, uint32_t col) {
+        uint32_t h = stream * 0x9E3779B1u ^ (head * 0x85EBCA6Bu + 0x27D4EB2Fu) ^ (row * 73856093u) ^ (col * 19349663u + 83492791u);
+        h ^= h >> 13;
+        h *= 1274126177u;
+        h ^= h >> 16;
+        return (static_cast<float>(h % 31u) - 15.0f) / 16.0f;
+    }
+
+    static std::string PrintToStringParamName(const testing::TestParamInfo<sdpa_hpg_sharp_params>& info) {
+        return "head" + std::to_string(info.param.head_size) + "_seq" + std::to_string(info.param.seq_len);
+    }
+};
+
+TEST_P(sdpa_hpg_sharp_test, f16_static_prefill) {
+    const auto p = GetParam();
+    auto& engine = get_test_engine();
+    if (tests::expected_dpas_backend(engine, false, static_cast<size_t>(p.head_size)) != tests::dpas_backend::ocl)
+        GTEST_SKIP() << "sdpa_ocl does not serve plain f16 static SDPA on this device (xe_hpg needs TEST_USE_SDPA_OCL_HPG=1 and TEST_USE_SDPA_OCL not 0)";
+
+    const int d = p.head_size;
+    const int n = p.seq_len;
+    const size_t count = static_cast<size_t>(num_heads) * n * d;
+    std::vector<ov::float16> q_data(count), k_data(count), v_data(count);
+    std::vector<int> winner(n);
+    for (int i = 0; i < n; ++i)
+        winner[i] = static_cast<int>((17u * static_cast<uint32_t>(i) + 3u) % static_cast<uint32_t>(n));
+    for (int h = 0; h < num_heads; ++h) {
+        for (int j = 0; j < n; ++j) {
+            for (int c = 0; c < d; ++c) {
+                const size_t at = (static_cast<size_t>(h) * n + j) * d + c;
+                k_data[at] = ov::float16(sdpa_hpg_sharp_test::grid_value(1, h, j, c));
+                v_data[at] = ov::float16(sdpa_hpg_sharp_test::grid_value(2, h, j, c) * 2.0f);
+            }
+        }
+        for (int i = 0; i < n; ++i) {
+            for (int c = 0; c < d; ++c) {
+                const size_t at = (static_cast<size_t>(h) * n + i) * d + c;
+                q_data[at] = ov::float16(sdpa_hpg_sharp_test::key_gain * sdpa_hpg_sharp_test::grid_value(1, h, winner[i], c));
+            }
+        }
+    }
+
+    const layout layout_bhsd({1, num_heads, n, d}, data_types::f16, format::bfyx);
+    auto q_mem = engine.allocate_memory(layout_bhsd);
+    auto k_mem = engine.allocate_memory(layout_bhsd);
+    auto v_mem = engine.allocate_memory(layout_bhsd);
+    set_values(q_mem, q_data);
+    set_values(k_mem, k_data);
+    set_values(v_mem, v_data);
+
+    topology topo;
+    topo.add(input_layout("q", layout_bhsd));
+    topo.add(input_layout("k", layout_bhsd));
+    topo.add(input_layout("v", layout_bhsd));
+    topo.add(scaled_dot_product_attention("sdpa", {input_info("q"), input_info("k"), input_info("v")}, false, -1, {0, 1, 2, 3}, {0, 1, 2, 3},
+                                          {0, 1, 2, 3}, {0, 1, 2, 3}, {}, false));
+    topo.add(reorder("result", input_info("sdpa"), format::bfyx, data_types::f16));
+
+    ExecutionConfig cfg = get_test_default_config(engine);
+    cfg.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto net = get_network(engine, topo, cfg, get_test_stream_ptr(), false);
+    net->set_input_data("q", q_mem);
+    net->set_input_data("k", k_mem);
+    net->set_input_data("v", v_mem);
+    auto output = net->execute().at("result").get_memory();
+
+    // The kernel that ran, not just the lane that was selected: the whole point is the sdpa_ocl SG8 arm.
+    std::shared_ptr<cldnn::primitive_inst> sdpa_inst = net->get_primitive("sdpa");
+    ASSERT_NE(sdpa_inst, nullptr);
+    ASSERT_NE(sdpa_inst->get_impl(), nullptr);
+    const auto entries = sdpa_inst->get_impl()->get_kernels_dump_info(*sdpa_inst->get_impl_params()).get_entries();
+    ASSERT_NE(entries.find("sdpa_ocl_prefill"), std::string::npos) << "dispatched: " << entries;
+
+    // CPU reference in double over the stored (f16-rounded) inputs, default scale 1 / sqrt(head).
+    cldnn::mem_lock<ov::float16, mem_lock_type::read> out_ptr(output, get_test_stream());
+    ASSERT_EQ(out_ptr.size(), count);
+    const double scale = 1.0 / std::sqrt(static_cast<double>(d));
+    double max_abs_err = 0.0;
+    std::vector<double> logit(n), acc(d);
+    for (int h = 0; h < num_heads; ++h) {
+        for (int i = 0; i < n; ++i) {
+            double max_logit = -INFINITY;
+            for (int j = 0; j < n; ++j) {
+                double dot = 0.0;
+                for (int c = 0; c < d; ++c)
+                    dot += static_cast<double>(static_cast<float>(q_data[(static_cast<size_t>(h) * n + i) * d + c])) *
+                           static_cast<double>(static_cast<float>(k_data[(static_cast<size_t>(h) * n + j) * d + c]));
+                logit[j] = dot * scale;
+                max_logit = std::max(max_logit, logit[j]);
+            }
+            double sum = 0.0;
+            std::fill(acc.begin(), acc.end(), 0.0);
+            for (int j = 0; j < n; ++j) {
+                const double w = std::exp(logit[j] - max_logit);
+                sum += w;
+                for (int c = 0; c < d; ++c)
+                    acc[c] += w * static_cast<double>(static_cast<float>(v_data[(static_cast<size_t>(h) * n + j) * d + c]));
+            }
+            for (int c = 0; c < d; ++c) {
+                const float got = static_cast<float>(out_ptr[(static_cast<size_t>(h) * n + i) * d + c]);
+                ASSERT_FALSE(std::isnan(got)) << "NaN at head " << h << " query " << i << " col " << c;
+                max_abs_err = std::max(max_abs_err, std::abs(static_cast<double>(got) - acc[c] / sum));
+            }
+        }
+    }
+    RecordProperty("max_abs_err", std::to_string(max_abs_err));
+    EXPECT_LE(max_abs_err, 1e-2) << "head " << d << " seq " << n << " max_abs_err " << max_abs_err;
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    smoke_sdpa_hpg_sharp,
+    sdpa_hpg_sharp_test,
+    ::testing::Values(
+        // seq 100 is not a multiple of any query / key tile; head 40 and 72 are not a multiple of the 16-deep DPAS step
+        sdpa_hpg_sharp_params{32, 16},  sdpa_hpg_sharp_params{32, 64},  sdpa_hpg_sharp_params{32, 100},  sdpa_hpg_sharp_params{32, 1024},
+        sdpa_hpg_sharp_params{40, 16},  sdpa_hpg_sharp_params{40, 64},  sdpa_hpg_sharp_params{40, 100},  sdpa_hpg_sharp_params{40, 1024},
+        sdpa_hpg_sharp_params{64, 16},  sdpa_hpg_sharp_params{64, 64},  sdpa_hpg_sharp_params{64, 100},  sdpa_hpg_sharp_params{64, 1024},
+        sdpa_hpg_sharp_params{72, 16},  sdpa_hpg_sharp_params{72, 64},  sdpa_hpg_sharp_params{72, 100},  sdpa_hpg_sharp_params{72, 1024},
+        sdpa_hpg_sharp_params{96, 16},  sdpa_hpg_sharp_params{96, 64},  sdpa_hpg_sharp_params{96, 100},  sdpa_hpg_sharp_params{96, 1024},
+        sdpa_hpg_sharp_params{128, 16}, sdpa_hpg_sharp_params{128, 64}, sdpa_hpg_sharp_params{128, 100}, sdpa_hpg_sharp_params{128, 1024},
+        sdpa_hpg_sharp_params{256, 16}, sdpa_hpg_sharp_params{256, 64}, sdpa_hpg_sharp_params{256, 100}, sdpa_hpg_sharp_params{256, 1024}
+    ),
+    sdpa_hpg_sharp_test::PrintToStringParamName
 );
 #endif
 
