@@ -23,7 +23,6 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
              const GraphDescriptor& graphDesc,
              NetworkMetadata metadata,
              std::optional<ov::Tensor> blob,
-             const Config& config,
              const std::optional<std::string>& compatibilityDescriptor,
              const bool blobIsPersistent)
     : IGraph(),
@@ -34,7 +33,7 @@ Graph::Graph(const std::shared_ptr<ZeGraphExtWrappers>& zeGraphExt,
       _blob(std::move(blob)),
       _compatibilityDescriptor(compatibilityDescriptor),
       _blobIsPersistent(blobIsPersistent),
-      _logger("Graph", config.get<LOG_LEVEL>()) {}
+      _logger("Graph", Logger::global().level()) {}
 
 const NetworkMetadata& Graph::get_metadata() const {
     return _metadata;
