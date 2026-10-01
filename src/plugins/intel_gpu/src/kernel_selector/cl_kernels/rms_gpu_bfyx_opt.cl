@@ -37,49 +37,6 @@ KERNEL(rms_gpu_bfyx_opt)(
     #endif
 )
 {
-#if NORMALIZE_FEATURE
-    const uint spatial_idx = get_global_id(0);
-    const uint spatial_size = INPUT0_SIZE_Z * INPUT0_SIZE_Y * INPUT0_SIZE_X;
-    if (spatial_idx >= spatial_size)
-        return;
-
-    const uint b = get_global_id(1);
-    const uint x = spatial_idx % INPUT0_SIZE_X;
-    const uint yz = spatial_idx / INPUT0_SIZE_X;
-    const uint y = yz % INPUT0_SIZE_Y;
-    const uint z = yz / INPUT0_SIZE_Y;
-
-    ACCUMULATOR_TYPE rms = ACCUMULATOR_VAL_ZERO;
-    for (uint f = 0; f < INPUT0_FEATURE_NUM; f++) {
-        const uint input_idx = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, 0, z, y, x);
-        const ACCUMULATOR_TYPE value = TO_ACCUMULATOR_TYPE(input[input_idx]);
-        rms = fma(value, value, rms);
-    }
-    rms = native_rsqrt(rms / INPUT0_FEATURE_NUM + EPSILON);
-
-#if ELEMENTWISE_AFFINE && RMS_GAMMA_IS_SCALAR
-    const ACCUMULATOR_TYPE gamma_scalar = TO_ACCUMULATOR_TYPE(gamma[0]);
-#endif
-    for (uint f = 0; f < INPUT0_FEATURE_NUM; f++) {
-        const uint input_idx = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, 0, z, y, x);
-        const uint output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR b, f, 0, z, y, x);
-#if ELEMENTWISE_AFFINE
-#if RMS_GAMMA_IS_SCALAR
-        OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(input[input_idx]) * gamma_scalar);
-#else
-        OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(input[input_idx]) *
-                                                TO_ACCUMULATOR_TYPE(gamma[INPUT1_OFFSET + f]));
-#endif
-#else
-        OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * TO_ACCUMULATOR_TYPE(input[input_idx]));
-#endif
-#if HAS_FUSED_OPS
-        FUSED_OPS;
-        normalized = FUSED_OPS_RESULT;
-#endif
-        output[output_idx] = normalized;
-    }
-#else
     const uint data_idx = get_global_id(1);
     const uint in_data_idx = get_global_id(0);
     const uint workers_per_data = LWS;
@@ -87,7 +44,15 @@ KERNEL(rms_gpu_bfyx_opt)(
     const uint items_num = data_size / workers_per_data;
     const uint leftovers = data_size % workers_per_data;
 
-    #if HAS_PADDING
+    #if NORMALIZE_FEATURE
+        uint spatial_idx = data_idx;
+        const uint x_idx = spatial_idx % INPUT0_SIZE_X;
+        spatial_idx /= INPUT0_SIZE_X;
+        const uint y_idx = spatial_idx % INPUT0_SIZE_Y;
+        spatial_idx /= INPUT0_SIZE_Y;
+        const uint z_idx = spatial_idx % INPUT0_SIZE_Z;
+        const uint b_idx = spatial_idx / INPUT0_SIZE_Z;
+    #elif HAS_PADDING
         uint b_idx = 0;
         uint f_idx = 0;
         uint z_idx = 0;
@@ -106,11 +71,13 @@ KERNEL(rms_gpu_bfyx_opt)(
         #endif
 
         const uint input_data_offset = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, f_idx, 0, z_idx, y_idx, x_idx);
-    #else
+    #elif !NORMALIZE_FEATURE
         const uint input_data_offset = data_idx * data_size;
     #endif
 
+#if !NORMALIZE_FEATURE
     const uint output_data_offset = data_idx * data_size;
+#endif
 
     const uint subgroup_offset = get_sub_group_id() * get_sub_group_size() * items_num;
 
@@ -120,6 +87,7 @@ KERNEL(rms_gpu_bfyx_opt)(
     __local ACCUMULATOR_TYPE slm_buf[SLM_SIZE];
 
     uint i = 0;
+#if !NORMALIZE_FEATURE
     if (workers_per_data > SUB_GROUP_SIZE)
     {
         for (; i < items_num - (items_num % SUBGROUP_BLOCK_SIZE); i += SUBGROUP_BLOCK_SIZE)
@@ -138,17 +106,30 @@ KERNEL(rms_gpu_bfyx_opt)(
 #endif
         }
     }
+    #endif
 
     for (; i < items_num; i++)
     {
+    #if NORMALIZE_FEATURE
+        const uint f_idx = subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size();
+        const uint input_idx = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, f_idx, 0, z_idx, y_idx, x_idx);
+        ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(input[input_idx]);
+    #else
         ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(input[input_data_offset + subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()]);
+    #endif
         rms += native_powr(tmp, 2);
         data[i] = tmp;
     }
 
     if (in_data_idx < leftovers)
     {
+#if NORMALIZE_FEATURE
+        const uint f_idx = workers_per_data * items_num + in_data_idx;
+        const uint input_idx = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, f_idx, 0, z_idx, y_idx, x_idx);
+        ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(input[input_idx]);
+#else
         ACCUMULATOR_TYPE tmp = TO_ACCUMULATOR_TYPE(input[input_data_offset + workers_per_data * items_num + in_data_idx]);
+#endif
         rms += native_powr(tmp, 2);
         data[items_num] = tmp;
     }
@@ -178,7 +159,7 @@ KERNEL(rms_gpu_bfyx_opt)(
     const ACCUMULATOR_TYPE gamma_scalar = TO_ACCUMULATOR_TYPE(gamma[0]);
 #endif
 
-    #if HAS_FUSED_OPS
+    #if HAS_FUSED_OPS && !NORMALIZE_FEATURE
         uint b, f, z, y, x;
         #if INPUT_RANK == 1
             f = z = y = x = 1;
@@ -199,6 +180,7 @@ KERNEL(rms_gpu_bfyx_opt)(
     #endif
 
     i = 0;
+#if !NORMALIZE_FEATURE
     if ((workers_per_data > SUB_GROUP_SIZE) && USE_BLOCK_WRITE)
     {
         for (; i < items_num - (items_num % SUBGROUP_BLOCK_SIZE); i += SUBGROUP_BLOCK_SIZE)
@@ -249,47 +231,77 @@ KERNEL(rms_gpu_bfyx_opt)(
             BLOCK_WRITE(output, output_data_offset + subgroup_offset + i * get_sub_group_size(), vec_tmp);
         }
     }
+#endif
 
     for (; i < items_num; i++)
     {
+#if NORMALIZE_FEATURE
+        const uint f_idx = subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size();
+        const uint input_idx = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, f_idx, 0, z_idx, y_idx, x_idx);
+        const uint output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, f_idx, 0, z_idx, y_idx, x_idx);
+#endif
 #if ELEMENTWISE_AFFINE
     #if RMS_GAMMA_IS_SCALAR
         OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i] * gamma_scalar);
     #else
+#if NORMALIZE_FEATURE
+        ACCUMULATOR_TYPE temp = TO_ACCUMULATOR_TYPE(gamma[INPUT1_OFFSET + f_idx]);
+#else
         ACCUMULATOR_TYPE temp = TO_ACCUMULATOR_TYPE(gamma[subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()]);
+#endif
         OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i] * temp);
     #endif
 #else
         OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[i]);
 #endif
         #if HAS_FUSED_OPS
+        #if !NORMALIZE_FEATURE
             LAST_DIM = subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size();
+        #endif
             FUSED_OPS;
             normalized = FUSED_OPS_RESULT;
         #endif
+    #if NORMALIZE_FEATURE
+        output[output_idx] = normalized;
+    #else
         output[output_data_offset + subgroup_offset + get_sub_group_local_id() + i * get_sub_group_size()] = normalized;
+    #endif
     }
 
     if (in_data_idx < leftovers)
     {
+    #if NORMALIZE_FEATURE
+        const uint f_idx = workers_per_data * items_num + in_data_idx;
+        const uint input_idx = FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, f_idx, 0, z_idx, y_idx, x_idx);
+        const uint output_idx = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR b_idx, f_idx, 0, z_idx, y_idx, x_idx);
+    #endif
 #if ELEMENTWISE_AFFINE
     #if RMS_GAMMA_IS_SCALAR
         OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[items_num] * gamma_scalar);
     #else
+#if NORMALIZE_FEATURE
+        ACCUMULATOR_TYPE temp = TO_ACCUMULATOR_TYPE(gamma[INPUT1_OFFSET + f_idx]);
+#else
         ACCUMULATOR_TYPE temp = TO_ACCUMULATOR_TYPE(gamma[workers_per_data * items_num + in_data_idx]);
+#endif
         OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[items_num] * temp);
     #endif
 #else
         OUTPUT_TYPE normalized = TO_OUTPUT_TYPE(rms * data[items_num]);
 #endif
         #if HAS_FUSED_OPS
+        #if !NORMALIZE_FEATURE
             LAST_DIM = workers_per_data * items_num + in_data_idx;
+        #endif
             FUSED_OPS;
             normalized = FUSED_OPS_RESULT;
         #endif
+    #if NORMALIZE_FEATURE
+        output[output_idx] = normalized;
+    #else
         output[output_data_offset + workers_per_data * items_num + in_data_idx] = normalized;
+    #endif
     }
-#endif
 }
 #undef USE_BLOCK_WRITE
 #undef BLOCK_READ

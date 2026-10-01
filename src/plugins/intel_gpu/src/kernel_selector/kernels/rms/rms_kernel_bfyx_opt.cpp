@@ -62,19 +62,18 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
     }
     jit.AddConstant(MakeJitConstant("RMS_GAMMA_IS_SCALAR", gamma_is_scalar));
 
-    if (GetNormalizationAxis(params) == Tensor::DataChannelName::FEATURE) {
-        jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
+    const bool normalize_feature = GetNormalizationAxis(params) == Tensor::DataChannelName::FEATURE;
+    if (normalize_feature) {
         if (!params.fused_ops.empty()) {
             std::vector<std::string> idx_order;
             if (params.inputs[0].GetDims().size() == 5) {
-                idx_order = {"(b)", "(f)", "(z)", "(y)", "(x)"};
+                idx_order = {"(b_idx)", "(f_idx)", "(z_idx)", "(y_idx)", "(x_idx)"};
             } else {
-                idx_order = {"(b)", "(f)", "(y)", "(x)"};
+                idx_order = {"(b_idx)", "(f_idx)", "(y_idx)", "(x_idx)"};
             }
             auto conf = FusedOpsConfiguration("", idx_order, "normalized", params.outputs[0].GetDType(), 1);
             jit.Merge(MakeFusedOpsJitConstants(params, {conf}));
         }
-        return jit;
     }
 
     // Check for any padding (dynamic or static) on input dimensions.
@@ -97,19 +96,23 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
         const auto& input = params.inputs[0];
         DimensionAccessHelperJit dims(input);
         std::string data_size;
-        switch (params.ov_input_rank) {
-            case 1 :
+        if (normalize_feature) {
+            data_size = dims.f();
+        } else {
+            switch (params.ov_input_rank) {
+            case 1:
                 data_size = dims.b();
                 break;
-            case 2 :
+            case 2:
                 data_size = dims.f();
                 break;
-            case 3 :
+            case 3:
                 data_size = dims.y();
                 break;
             default:
                 data_size = dims.x();
                 break;
+            }
         }
 
         const std::string lws_0 = "get_local_size(0)";
@@ -136,7 +139,7 @@ JitConstants RMSKernelBfyxOpt::GetJitConstants(const rms_params& params, Dispatc
     }
     jit.AddConstant(MakeJitConstant("SUB_GROUP_SIZE", subgroup_size));
     jit.AddConstant(MakeJitConstant("SUBGROUP_BLOCK_SIZE", dispatchData.subgroupBlockSize));
-    if (!params.fused_ops.empty()) {
+    if (!params.fused_ops.empty() && !normalize_feature) {
         switch (params.ov_input_rank) {
             case 1 :
                 jit.AddConstant(MakeJitConstant("LAST_DIM", "b"));
@@ -172,19 +175,16 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
     DispatchData dispatchData;
     const auto& input = params.inputs[0];
 
-    if (!params.has_dynamic_tensors() && GetNormalizationAxis(params) == Tensor::DataChannelName::FEATURE) {
-        const auto spatial_size = input.X().v * input.Y().v * input.Z().v;
-        dispatchData.gws = {Align(spatial_size, subgroup_size), input.Batch().v, 1};
-        dispatchData.lws = {subgroup_size, 1, 1};
-        return dispatchData;
-    }
-
     auto local_mem_per_wi = 2 * BytesPerElement(input.GetDType());
     auto max_lws = std::min(params.engineInfo.maxWorkGroupSize, params.engineInfo.maxLocalMemSize / local_mem_per_wi);
     dispatchData.maxSlmSize = max_lws;
     if (!params.has_dynamic_tensors()) {
         // data size to be processed within a LWG
-        switch (params.ov_input_rank) {
+        if (GetNormalizationAxis(params) == Tensor::DataChannelName::FEATURE) {
+            dispatchData.dataSize = input.Feature().v;
+            dispatchData.dataCount = input.Batch().v * input.Z().v * input.Y().v * input.X().v;
+        } else {
+            switch (params.ov_input_rank) {
             case 1:
                 dispatchData.dataSize = input.Batch().v;
                 dispatchData.dataCount = 1;
@@ -201,6 +201,7 @@ RMSKernelBase::DispatchData RMSKernelBfyxOpt::SetDefault(const rms_params& param
                 dispatchData.dataSize = input.X().v;
                 dispatchData.dataCount = input.Batch().v * input.Feature().v * input.Z().v * input.Y().v;
                 break;
+            }
         }
         dispatchData.gws[0] = 1;
         dispatchData.gws[1] = dispatchData.dataCount;
