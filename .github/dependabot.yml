@@ -50,6 +50,8 @@ updates:
         exclude-patterns:
           - "onnx"
           - "paddlepaddle"
+          - "tensorflow"
+          - "protobuf"
 
   # Tests
   - package-ecosystem: pip
