@@ -77,8 +77,10 @@ ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16(
 
         const auto activation_out = conv_mul_add_fq->get_anchor("activation", pattern_map);
         if (has_subtract) {
-            if (const auto zp_constant = ov::as_type_ptr<ov::op::v0::Constant>(
-                    conv->get_input_node_shared_ptr(0)->get_input_node_shared_ptr(1))) {
+        const auto u8_zero_point_out = conv_mul_add_fq->get_anchor("u8_zero_point", pattern_map);
+        const auto i8_zero_point_out = conv_mul_add_fq->get_anchor("i8_zero_point", pattern_map);
+        const auto zero_point_out = u8_zero_point_out ? u8_zero_point_out : i8_zero_point_out;
+            if (const auto zp_constant = ov::as_type_ptr<ov::op::v0::Constant>(zero_point_out->get_node_shared_ptr())) {
                 const auto zp = zp_constant->cast_vector<float>();
                 if (zp.empty()) {
                     return false;

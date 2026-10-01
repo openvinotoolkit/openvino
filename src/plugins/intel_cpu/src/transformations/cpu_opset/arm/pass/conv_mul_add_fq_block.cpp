@@ -48,4 +48,6 @@ ov::intel_cpu::ConvMulAddFQBlock::ConvMulAddFQBlock(const bool require_int_fq_ou
     register_anchor("gemm", conv);
     register_anchor("u8_subtract", u8_opt_subtract);
     register_anchor("i8_subtract", i8_opt_subtract);
+    register_anchor("u8_zero_point", u8_zero_point);
+    register_anchor("i8_zero_point", i8_zero_point);
 }
