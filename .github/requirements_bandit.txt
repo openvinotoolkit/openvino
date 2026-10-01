@@ -1,0 +1,7 @@
+bandit==1.9.2
+markdown-it-py==4.2.0
+mdurl==0.1.2
+Pygments==2.21.0
+PyYAML==6.0.3
+rich==15.0.0
+stevedore==5.9.1
