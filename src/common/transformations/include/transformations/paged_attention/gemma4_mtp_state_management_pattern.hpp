@@ -22,6 +22,45 @@ class TRANSFORMATIONS_API Gemma4MTPStateManagementPattern;
 }  // namespace pass
 }  // namespace ov
 
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief Converts SDPA of a Gemma4 MTP draft model into PagedAttention that reads the target model's KV cache.
+ *
+ * The draft has no K/V projections and no state: K/V come as model inputs holding the target's cache.
+ * They become key_cache.N / value_cache.N (shared by all layers reading the same input), and the last
+ * cached token is read back from them as the current K/V.
+ *
+ * Before:
+ *
+ *   +-------+   +-----------------+   +-----------------+   +------+
+ *   |   Q   |   | K [B,Hkv,L,S]   |   | V [B,Hkv,L,S]   |   | mask |
+ *   +-------+   +-----------------+   +-----------------+   +------+
+ *       |                |                     |                |
+ *       |       +-----------------+   +-----------------+       |
+ *       |       |    repeat_kv    |   |    repeat_kv    |       |
+ *       |       +-----------------+   +-----------------+       |
+ *       v                v                     v                v
+ *   +--------------------------------------------------------------+
+ *   |                  ScaledDotProductAttention                   |
+ *   +--------------------------------------------------------------+
+ *
+ * After:
+ *
+ *   +-------+   +-------------+   +-----------+   +----------------+   +---------------+
+ *   |   Q   |   | key_cache.N |   | past_lens |   | block_indices* |   | value_cache.N |
+ *   +-------+   +-------------+   +-----------+   +----------------+   +---------------+
+ *       |          |      |             |                 |                |        |
+ *       |          |      |             v                 v                |        |
+ *       |          |      |   +----------------------------------------+   |        |
+ *       |          |      +-->|     last token extraction subgraph     |<--+        |
+ *       |          |          +----------------------------------------+            |
+ *       |          |                              |                                 |
+ *       |          |                              | K, V, past_lens - 1             |
+ *       v          v                              v                                 v
+ *   +----------------------------------------------------------------------------------+
+ *   |                                  PagedAttention                                  |
+ *   +----------------------------------------------------------------------------------+
+ */
 class ov::pass::Gemma4MTPStateManagementPattern : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("Gemma4MTPStateManagementPattern");
