@@ -10,6 +10,7 @@
 // fixes below specifically need the exact node shapes translate_get_rows itself builds.
 
 #include <cmath>
+#include <functional>
 #include <memory>
 
 #include "common_test_utils/node_builders/constant.hpp"
@@ -84,6 +85,24 @@ std::map<std::string, ov::Tensor> make_genai_inputs(size_t length, size_t past =
     return {{"input_ids", ids}, {"attention_mask", mask}, {"position_ids", positions}, {"beam_idx", beam}};
 }
 
+// Expect 0 where `allowed(q, k)` and a large negative bias elsewhere in a [queries, keys] mask.
+void expect_mask(const float* mask,
+                 size_t queries,
+                 size_t keys,
+                 const std::function<bool(size_t, size_t)>& allowed,
+                 const std::function<bool(size_t)>& skip_query = {}) {
+    for (size_t q = 0; q < queries; ++q) {
+        if (skip_query && skip_query(q))
+            continue;
+        for (size_t k = 0; k < keys; ++k) {
+            if (allowed(q, k))
+                EXPECT_EQ(mask[q * keys + k], 0.f) << "q=" << q << " k=" << k;
+            else
+                EXPECT_LT(mask[q * keys + k], -1e4f) << "q=" << q << " k=" << k;
+        }
+    }
+}
+
 MinimalGgufModel build_minimal_gguf_model(int64_t vocab = 4,
                                           int64_t hidden = 2,
                                           bool with_inp_out_ids = false,
@@ -111,6 +130,7 @@ MinimalGgufModel build_minimal_gguf_model(int64_t vocab = 4,
     auto gather = std::make_shared<v8::Gather>(vocab_table, indices, axis0);
     m.embd = std::make_shared<v0::Unsqueeze>(gather, axis0);
     m.embd->set_friendly_name("Unsqueeze_test_embd");
+    m.embd->get_rt_info()["gguf.token_embedding"] = true;
 
     ov::ParameterVector params{m.inp_tokens, inp_pos, self_kq_mask, token_len_per_seq, beam_idx};
     if (with_inp_out_ids) {
@@ -206,7 +226,6 @@ TEST(GGUFAdaptToGenAI, NoOpWithoutGgufInputs) {
 
 TEST(GGUFAdaptToGenAI, EmbeddingModeExtractsLookupAndAcceptsInjectedValues) {
     auto m = build_minimal_gguf_model();
-    m.embd->get_rt_info()["gguf.token_embedding"] = true;
     // Keep an unreachable consumer alive across adaptation. Rewiring inp_tokens also
     // updates this node, but it must not keep input_ids in the decoder's input contract.
     auto detached = std::make_shared<v0::Convert>(m.inp_tokens, ov::element::i64);
@@ -253,7 +272,6 @@ TEST(GGUFAdaptToGenAI, EmbeddingModeExtractsLookupAndAcceptsInjectedValues) {
 
 TEST(GGUFAdaptToGenAI, EmbeddingModeMovesPerLayerTokenLookupToEmbeddingModel) {
     auto m = build_minimal_gguf_model(4, 2, false, true);
-    m.embd->get_rt_info()["gguf.token_embedding"] = true;
     m.pe_tok->get_rt_info()["gguf.per_layer_token_embedding"] = int64_t{2};
     AdaptToGenAI pass(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
     ASSERT_TRUE(pass.run_on_model(m.model));
@@ -271,7 +289,6 @@ TEST(GGUFAdaptToGenAI, EmbeddingModeMovesPerLayerTokenLookupToEmbeddingModel) {
 // An untagged token lookup cannot be moved, so the language model keeps input_ids for it.
 TEST(GGUFAdaptToGenAI, EmbeddingModePreservesUntaggedAuxiliaryTokenLookup) {
     auto m = build_minimal_gguf_model(4, 2, false, true);
-    m.embd->get_rt_info()["gguf.token_embedding"] = true;
     AdaptToGenAI pass(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
     ASSERT_TRUE(pass.run_on_model(m.model));
     EXPECT_NE(find_parameter(m.model, "input_ids"), nullptr);
@@ -281,7 +298,6 @@ TEST(GGUFAdaptToGenAI, EmbeddingModePreservesUntaggedAuxiliaryTokenLookup) {
 
 TEST(GGUFAdaptToGenAI, EmbeddingModeRetainsScalingOnce) {
     auto m = build_minimal_gguf_model();
-    m.embd->get_rt_info()["gguf.token_embedding"] = true;
     auto reduction = m.model->get_results().front()->input_value(0).get_node_shared_ptr();
     reduction->input(0).replace_source_output(
         std::make_shared<v1::Multiply>(m.embd, v0::Constant::create(ov::element::f32, {}, {7.f})));
@@ -328,19 +344,17 @@ TEST(GGUFAdaptToGenAI, BatchedMaskKeepsSequencesSeparateAndExcludesPadding) {
         const auto actual = request.get_output_tensor(0);
         ASSERT_EQ(actual.get_shape(), (ov::Shape{2, 1, 3, past + 3}));
         for (size_t b = 0; b < 2; ++b) {
-            for (size_t q = 0; q < 3; ++q) {
-                for (size_t k = 0; k < past + 3; ++k) {
-                    const bool allowed = k <= past + q && (b == 0 || k >= 2);
-                    const float value = actual.data<const float>()[(b * 3 + q) * (past + 3) + k];
-                    // Padded query rows are ignored by generation.
-                    if (b == 1 && past + q < 2)
-                        continue;
-                    if (allowed)
-                        EXPECT_EQ(value, 0.f);
-                    else
-                        EXPECT_LT(value, -1e4f);
-                }
-            }
+            // Padded query rows are ignored by generation.
+            expect_mask(
+                actual.data<const float>() + b * 3 * (past + 3),
+                3,
+                past + 3,
+                [&](size_t q, size_t k) {
+                    return k <= past + q && (b == 0 || k >= 2);
+                },
+                [&](size_t q) {
+                    return b == 1 && past + q < 2;
+                });
         }
     }
 }
@@ -349,13 +363,10 @@ class GGUFAdaptToGenAIImageMask : public testing::TestWithParam<std::string> {};
 
 TEST_P(GGUFAdaptToGenAIImageMask, RespectsLayerTypeImageGroupsAndCachedPrefix) {
     auto m = build_minimal_gguf_model();
-    m.embd->get_rt_info()["gguf.token_embedding"] = true;
     m.model->get_rt_info()["gguf_architecture"] = GetParam();
     m.model->get_rt_info()[ov::frontend::gguf::pass::gguf_swa_window_key()] = int64_t{3};
     auto mask = find_parameter(m.model, "self_kq_mask");
-    auto swa_mask = ov::test::utils::make_param(ov::element::f32,
-                                               ov::PartialShape{1, 1, -1, -1},
-                                               "self_kq_mask_swa");
+    auto swa_mask = ov::test::utils::make_param(ov::element::f32, ov::PartialShape{1, 1, -1, -1}, "self_kq_mask_swa");
     m.model->add_parameters({swa_mask});
     m.model->add_results({std::make_shared<v0::Result>(mask), std::make_shared<v0::Result>(swa_mask)});
     AdaptToGenAI(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS).run_on_model(m.model);
@@ -377,19 +388,12 @@ TEST_P(GGUFAdaptToGenAIImageMask, RespectsLayerTypeImageGroupsAndCachedPrefix) {
             auto actual = request.get_output_tensor(layer);
             ASSERT_EQ(actual.get_shape(), (ov::Shape{1, 1, types.size(), past + types.size()}));
             const bool bidirectional = layer == 1 || GetParam() == "gemma3";
-            for (size_t q = 0; q < types.size(); ++q) {
-                for (size_t k = 0; k < past + types.size(); ++k) {
-                    const bool same_image = k >= past && types[q] == 1 && types[k - past] == 1 &&
-                                            ((q <= 2 && k - past <= 2) || (q >= 4 && k - past >= 4));
-                    const bool allowed = (k <= past + q || (bidirectional && same_image)) &&
-                                         (layer == 0 || k + 3 > past + q);
-                    const float value = actual.data<float>()[q * (past + types.size()) + k];
-                    if (allowed)
-                        EXPECT_EQ(value, 0.f) << "layer=" << layer << " past=" << past << " q=" << q << " k=" << k;
-                    else
-                        EXPECT_LT(value, -1e4f) << "layer=" << layer << " past=" << past << " q=" << q << " k=" << k;
-                }
-            }
+            SCOPED_TRACE("layer=" + std::to_string(layer) + " past=" + std::to_string(past));
+            expect_mask(actual.data<const float>(), types.size(), past + types.size(), [&](size_t q, size_t k) {
+                const bool same_image = k >= past && types[q] == 1 && types[k - past] == 1 &&
+                                        ((q <= 2 && k - past <= 2) || (q >= 4 && k - past >= 4));
+                return (k <= past + q || (bidirectional && same_image)) && (layer == 0 || k + 3 > past + q);
+            });
         }
     }
 }
@@ -397,11 +401,12 @@ TEST_P(GGUFAdaptToGenAIImageMask, RespectsLayerTypeImageGroupsAndCachedPrefix) {
 INSTANTIATE_TEST_SUITE_P(Gemma,
                          GGUFAdaptToGenAIImageMask,
                          testing::Values(std::string("gemma3"), std::string("gemma4")),
-                         [](const testing::TestParamInfo<std::string>& info) { return info.param; });
+                         [](const testing::TestParamInfo<std::string>& info) {
+                             return info.param;
+                         });
 
 TEST(GGUFAdaptToGenAI, EmbeddingModeMapsGenAIMultimodalPositionsToGGML) {
     auto m = build_minimal_gguf_model();
-    m.embd->get_rt_info()["gguf.token_embedding"] = true;
     m.model->get_rt_info()[ov::frontend::gguf::pass::gguf_imrope_key()] = true;
     auto positions = find_parameter(m.model, "inp_pos");
     m.model->add_results({std::make_shared<v0::Result>(positions)});
@@ -924,9 +929,8 @@ TEST(GGUFAdaptToGenAI, PagedAttentionFlattensEmbeddingsWithPerLayerInputs) {
     ASSERT_TRUE(ov::pass::SDPAToPagedAttention().run_on_model(model));
     EXPECT_EQ(model->input("inputs_embeds").get_partial_shape(), (ov::PartialShape{-1, -1}));
     // GenAI's continuous batching supplies per_layer_inputs as [tokens, 1, layers, width].
-    EXPECT_NO_THROW(model->reshape({{"inputs_embeds", {5, 4}},
-                                    {"per_layer_inputs", {5, 1, 2, 2}},
-                                    {"position_ids", {5}}}));
+    EXPECT_NO_THROW(
+        model->reshape({{"inputs_embeds", {5, 4}}, {"per_layer_inputs", {5, 1, 2, 2}}, {"position_ids", {5}}}));
     EXPECT_NO_THROW(model->validate_nodes_and_infer_types());
 }
 

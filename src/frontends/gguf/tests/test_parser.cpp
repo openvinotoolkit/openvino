@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "common_test_utils/common_utils.hpp"
+#include "gguf_writer.hpp"
 #include "op_test_utils.hpp"
 #include "quant/weights.hpp"
 
@@ -44,7 +45,7 @@ protected:
             const std::string key = "general.architecture";
             put(uint64_t{key.size()});
             out.write(key.data(), key.size());
-            put(uint32_t{8});  // string
+            put(uint32_t(ov_gguf_test::GGUF_TYPE_STRING));
             put(uint64_t{architecture.size()});
             out.write(architecture.data(), architecture.size());
         }
