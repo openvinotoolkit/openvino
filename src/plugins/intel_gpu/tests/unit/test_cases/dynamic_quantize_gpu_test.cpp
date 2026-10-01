@@ -602,7 +602,7 @@ static void test_scale_is_computed_from_decoded_values(const std::string& impl_n
         host_values[g * elements_per_group] = 1.0f + static_cast<float>(g);
     }
     if (beyond_f16_range) {
-        // Put a few values beyond the f16 range (max 65504) into every other group, with both signs
+        // Put a few values beyond the f16 range (max 65504) into each even-indexed group, with both signs
         for (size_t g = 0; g < groups_num; g += 2) {
             const float magnitude = 1.0e5f + 2.0e5f * static_cast<float>(g) / static_cast<float>(groups_num);
             host_values[g * elements_per_group + 1] = round_to_input_type(magnitude);
