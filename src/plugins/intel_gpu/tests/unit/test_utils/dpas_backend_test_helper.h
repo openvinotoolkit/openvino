@@ -7,6 +7,9 @@
 #include <intel_gpu/primitives/paged_attention.hpp>
 
 #include "test_utils.h"
+#ifdef ENABLE_ONEDNN_FOR_GPU
+#    include "impls/ocl_v2/sdpa/sdpa_ocl_hpg.hpp"
+#endif
 
 namespace cldnn {
 extern bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig& config);
@@ -25,14 +28,19 @@ inline dpas_backend expected_dpas_backend_for(const cldnn::device_info& info,
                                               bool ocl_enabled,
                                               bool hpg_opt_in,
                                               bool paged_attention,
-                                              size_t k_head_size) {
+                                              size_t k_head_size,
+                                              bool any_hpg_tier_ready = true) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
     if (!info.supports_immad)
         return dpas_backend::none;
+    // TEMP(S9): xe_hpg with no HpgTier ready refuses every op (SDPAOclGenerator::supported()), and the temporary routing
+    // sends those to sdpa_micro. Once a tier is ready the answer depends on the op, which this helper does not see: the
+    // step that turns the first bit on must add that. Remove with the routing.
+    const bool hpg_all_refused = info.arch == cldnn::gpu_arch::xe_hpg && hpg_opt_in && !any_hpg_tier_ready;
     // The sdpa_ocl lane. It still needs the microkernel query today (choose_dpas_backend / supports_micro_sdpa);
     // the default flip drops exactly this term. An ocl branch before the mk check WITHOUT this term would
     // expect ocl on a driver where production returns none.
-    if (cldnn::paged_attention::sdpa_ocl_selected(info, ocl_enabled, hpg_opt_in))
+    if (cldnn::paged_attention::sdpa_ocl_selected(info, ocl_enabled, hpg_opt_in) && !hpg_all_refused)
         return microkernels_supported ? dpas_backend::ocl : dpas_backend::none;
     if (info.arch < cldnn::gpu_arch::xe_hpg || !microkernels_supported)
         return dpas_backend::none;
@@ -47,6 +55,7 @@ inline dpas_backend expected_dpas_backend_for(const cldnn::device_info& info,
     (void)hpg_opt_in;
     (void)paged_attention;
     (void)k_head_size;
+    (void)any_hpg_tier_ready;
     return dpas_backend::none;
 #endif
 }
@@ -62,7 +71,8 @@ inline dpas_backend expected_dpas_backend(cldnn::engine& engine, bool paged_atte
                                      cldnn::paged_attention::sdpa_ocl_enabled(),
                                      cldnn::paged_attention::sdpa_ocl_hpg_enabled(),
                                      paged_attention,
-                                     k_head_size);
+                                     k_head_size,
+                                     ov::intel_gpu::ocl::hpg_tiers_ready() != 0);
 #else
     (void)engine;
     (void)paged_attention;
