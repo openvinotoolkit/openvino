@@ -3,7 +3,10 @@
 
 """Shared helpers for the mmproj fixture generators."""
 import io
+import subprocess
+import tempfile
 import zipfile
+from pathlib import Path
 
 import numpy as np
 
@@ -14,6 +17,56 @@ def finish(writer):
     writer.write_kv_data_to_file()
     writer.write_tensors_to_file()
     writer.close()
+
+
+class TensorWriter:
+    """Random F32 fixture tensors added to a gguf.GGUFWriter; norm weights are centered at 1."""
+
+    def __init__(self, writer, rng, std=.08):
+        self.writer, self.rng, self.std = writer, rng, std
+
+    def tensor(self, name, shape, norm=False):
+        self.writer.add_tensor(name, (self.rng.normal(0, self.std, shape) + int(norm)).astype(np.float32))
+
+    def linear(self, name, inp, out, bias=True):
+        self.tensor(name + ".weight", (out, inp))
+        if bias:
+            self.tensor(name + ".bias", (out,))
+
+    def norm(self, name, size, bias=True):
+        self.tensor(name + ".weight", (size,), True)
+        if bias:
+            self.tensor(name + ".bias", (size,))
+
+
+def run_oracle(oracle, model, modality, width, height, raw, env=None):
+    """Run mmproj_oracle on `raw` and return its flat F32 embeddings."""
+    with tempfile.TemporaryDirectory() as directory:
+        directory = Path(directory)
+        raw.tofile(directory / "input.f32")
+        subprocess.run([str(Path(oracle).resolve()), str(model), modality, str(width), str(height),
+                        str(directory / "input.f32"), str(directory / "output.f32")], check=True, env=env)
+        return np.fromfile(directory / "output.f32", np.float32)
+
+
+def merge_window_order(height, width, merge=2):
+    """Grid indices with each merge x merge window contiguous, windows in row-major order."""
+    return [(y + dy) * width + x + dx
+            for y in range(0, height, merge) for x in range(0, width, merge)
+            for dy in range(merge) for dx in range(merge)]
+
+
+def gemma4a_positions(frames, channels):
+    """Gemma4 audio relative-position inputs for `frames` mel frames, subsampled 4x."""
+    n = (frames + 3) // 4
+    q, k = np.indices((n, n))
+    distance = q - k
+    half = channels // 2
+    timescale = np.exp(-np.arange(half, dtype=np.float32) * (np.log(np.float32(10000)) / max(half - 1, 1)))
+    theta = np.arange(12, -1, -1, dtype=np.float32)[:, None] * timescale[None]
+    return {"position_embeddings": np.concatenate([np.sin(theta), np.cos(theta)], axis=1)[None, None],
+            "attention_mask": np.where((distance >= 0) & (distance < 12), 0, -1e9).astype(np.float32)[None, None],
+            "relative_indices": np.clip(12 - distance, 0, 12).astype(np.int32)[None, None]}
 
 
 def split_variants(name, *suffixes):
@@ -50,9 +103,7 @@ def muse_glimmer_indices(height, width, window, merge=2):
     rows, cols = np.divmod(order, width)
     def indices(values):
         return np.asarray(values, np.int32).reshape(1, 1, 1, -1)
-    shuffle = [(y + dy) * width + x + dx
-               for y in range(0, height, merge) for x in range(0, width, merge)
-               for dy in range(merge) for dx in range(merge)]
+    shuffle = merge_window_order(height, width, merge)
     return {"patch_indices": indices(order), "output_indices": indices(np.argsort(order)),
             "position_x": indices(cols + 1), "position_y": indices(rows + 1),
             "merge_indices": indices(shuffle),

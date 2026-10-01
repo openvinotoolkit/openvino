@@ -7,18 +7,18 @@ Build mmproj_oracle.cpp against that revision's CPU-only libmtmd, then pass --or
 """
 import argparse
 from pathlib import Path
-import subprocess
 import tempfile
 
 import gguf
 import numpy as np
 
-from mmproj_fixtures import finish, muse_glimmer_indices, save_npz
+from mmproj_fixtures import TensorWriter, finish, muse_glimmer_indices, run_oracle, save_npz
 
 
 def write_model(path):
     w = gguf.GGUFWriter(path, "clip")
-    rng = np.random.default_rng(20260922)
+    t = TensorWriter(w, np.random.default_rng(20260922))
+    tensor, linear = t.tensor, t.linear
     width, hidden, layers = 32, 48, 6
     w.add_bool("clip.has_vision_encoder", True)
     w.add_string("clip.projector_type", "muse-glimmer")
@@ -32,17 +32,8 @@ def write_model(path):
     w.add_array("clip.vision.image_mean", [.5, .5, .5])
     w.add_array("clip.vision.image_std", [.5, .5, .5])
 
-    def tensor(name, shape, norm=False):
-        w.add_tensor(name, (rng.normal(0, .08, shape) + int(norm)).astype(np.float32))
-
-    def linear(name, inp, out, bias=True):
-        tensor(name + ".weight", (out, inp))
-        if bias:
-            tensor(name + ".bias", (out,))
-
     def norm(name):
-        tensor(name + ".weight", (width,), True)
-        tensor(name + ".bias", (width,))
+        t.norm(name, width)
 
     tensor("v.patch_embd.weight", (width, 3, 2, 2))
     tensor("v.patch_embd.bias", (width,))
@@ -76,12 +67,9 @@ def main():
         combined = {}
         for step, (height, width) in enumerate([(8, 12), (4, 4)]):
             raw = np.random.default_rng(42).uniform(-1, 1, (height, width, 3)).astype(np.float32)
-            raw.tofile(root / "input.f32")
-            subprocess.run([str(args.oracle.resolve()), str(model), "vision", str(width), str(height),
-                            str(root / "input.f32"), str(root / "output.f32")], check=True)
             arrays = dict(model=np.frombuffer(model.read_bytes(), np.uint8),
                           inputs=raw.transpose(2, 0, 1)[None],
-                          embeddings=np.fromfile(root / "output.f32", np.float32).reshape(1, 1, -1, 12))
+                          embeddings=run_oracle(args.oracle, model, "vision", width, height, raw).reshape(1, 1, -1, 12))
             arrays.update(muse_glimmer_indices(height // 2, width // 2, 2))
             if step == 0:
                 combined.update(arrays)

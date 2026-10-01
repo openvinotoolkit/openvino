@@ -15,7 +15,8 @@ from pathlib import Path
 import gguf
 import numpy as np
 
-from mmproj_fixtures import finish, save_npz, split_variants
+from mmproj_fixtures import (TensorWriter, finish, gemma4a_positions, merge_window_order, run_oracle, save_npz,
+                             split_variants)
 
 VARIANTS = ("_resize", "_overview", "_one_sided", "_low_contrast")
 
@@ -28,20 +29,8 @@ def write_model(path, family):
     width, heads, hidden, output = 16, 2, 24, 12
     prefix, modality = ("a.", "audio") if audio else ("v.", "vision")
     w = gguf.GGUFWriter(path, "clip")
-    rng = np.random.default_rng(2718)
-
-    def tensor(name, shape, norm=False):
-        w.add_tensor(name, (rng.normal(0, .08, shape) + (1 if norm else 0)).astype(np.float32))
-
-    def linear(name, inp, out, bias=True):
-        tensor(name + ".weight", (out, inp))
-        if bias:
-            tensor(name + ".bias", (out,))
-
-    def norm(name, size, bias=True):
-        tensor(name + ".weight", (size,), True)
-        if bias:
-            tensor(name + ".bias", (size,))
+    t = TensorWriter(w, np.random.default_rng(2718))
+    tensor, linear, norm = t.tensor, t.linear, t.norm
 
     w.add_bool(f"clip.has_{modality}_encoder", True)
     w.add_string("clip.projector_type", family.removesuffix("_merge"))
@@ -209,15 +198,7 @@ def inputs(family, width, height):
     if family == "gemma4ua":
         return raw, {"waveform_frames": raw.T.reshape(1, 1, width, height)}
     if family == "gemma4a":
-        n = (width + 3) // 4
-        q, k = np.indices((n, n))
-        distance = q - k
-        timescale = np.exp(-np.arange(8, dtype=np.float32) * (np.log(np.float32(10000)) / 7))
-        theta = np.arange(12, -1, -1, dtype=np.float32)[:, None] * timescale[None]
-        return raw, {"features": raw.reshape(1, 1, height, width),
-                     "position_embeddings": np.concatenate([np.sin(theta), np.cos(theta)], axis=1)[None, None],
-                     "attention_mask": np.where((distance >= 0) & (distance < 12), 0, -1e9).astype(np.float32)[None, None],
-                     "relative_indices": np.clip(12 - distance, 0, 12).astype(np.int32)[None, None]}
+        return raw, {"features": raw.reshape(1, 1, height, width), **gemma4a_positions(width, 16)}
     if family.startswith("deepseekocr"):
         # Repeat a nonzero tile to keep large SAM-grid fixtures compact on disk.
         raw = np.tile(np.random.default_rng(42).normal(.1, .4, (16, 16, 3)).astype(np.float32), (height // 16, width // 16, 1))
@@ -254,8 +235,7 @@ def inputs(family, width, height):
                       position_y=rows.astype(np.int32).reshape(1, 1, 1, -1))
     if family == "minicpmv4_6":
         result["position_ids"] = (70 * (70 * rows // h) + 70 * cols // w).astype(np.int32).reshape(1, 1, 1, -1)
-        order = [(y + dy) * w + x + dx for y in range(0, h, 2) for x in range(0, w, 2)
-                 for dy in range(2) for dx in range(2)]
+        order = merge_window_order(h, w)
         result["window_indices"] = np.array(order, np.int32).reshape(1, 1, 1, -1)
         result["inverse_window_indices"] = np.argsort(order).astype(np.int32).reshape(1, 1, 1, -1)
         index = np.arange(h * w) // 4
@@ -287,8 +267,7 @@ def main():
                 np.save(args.output.parent / f"mmproj_{name}.npy", values)
     for family in args.families:
         with tempfile.TemporaryDirectory() as directory:
-            d = Path(directory)
-            model = d / "model.gguf"
+            model = Path(directory) / "model.gguf"
             out = write_model(model, family)
             fixtures = {"model": np.frombuffer(model.read_bytes(), np.uint8)}
             sizes = {
@@ -307,10 +286,8 @@ def main():
                 environment["GGUF_ORACLE_OVERVIEW"] = "1"
             for step, (width, height) in enumerate(sizes):
                 raw, values = inputs(family, width, height)
-                raw.tofile(d / "input.bin")
-                subprocess.run([str(args.oracle.resolve()), str(model), modality, str(width), str(height),
-                                str(d / "input.bin"), str(d / "output.bin")], check=True, env=environment)
-                values["embeddings"] = np.fromfile(d / "output.bin", np.float32).reshape(1, 1, -1, out)
+                values["embeddings"] = run_oracle(args.oracle, model, modality, width, height, raw,
+                                                  environment).reshape(1, 1, -1, out)
                 fixtures.update({f"{step}.{k}": np.ascontiguousarray(v) for k, v in values.items()})
             save_npz(args.output / f"{family}.npz", fixtures)
 

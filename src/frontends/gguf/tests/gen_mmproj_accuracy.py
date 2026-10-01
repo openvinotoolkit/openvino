@@ -16,7 +16,7 @@ from pathlib import Path
 import gguf
 import numpy as np
 
-from mmproj_fixtures import finish, save_npz
+from mmproj_fixtures import finish, merge_window_order, save_npz
 
 
 def write_model(path, projector, projection_width=6):
@@ -233,9 +233,7 @@ def main():
                                           70 * cols // (width // 2)).astype(np.int32).reshape(1, 1, 1, -1)
             if qwen:
                 inputs = np.repeat(inputs, 2, axis=0)
-                indices = [y * (width // 2) + x + dy * (width // 2) + dx
-                           for y in range(0, height // 2, 2) for x in range(0, width // 2, 2)
-                           for dy in range(2) for dx in range(2)]
+                indices = merge_window_order(height // 2, width // 2)
                 rows, cols = np.divmod(indices, width // 2)
                 extra["patch_indices"] = np.array(indices, np.int32).reshape(1, 1, 1, -1)
                 extra["position_ids"] = np.array([rows, cols, rows, cols], np.int32).reshape(1, 1, 1, -1)

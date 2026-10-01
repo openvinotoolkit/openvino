@@ -13,15 +13,13 @@ import argparse
 import hashlib
 import json
 import os
-import subprocess
-import tempfile
 from pathlib import Path
 
 import numpy as np
 import openvino as ov
 from openvino.frontend import FrontEndManager
 
-from mmproj_fixtures import muse_glimmer_indices
+from mmproj_fixtures import gemma4a_positions, merge_window_order, muse_glimmer_indices, run_oracle
 
 
 def sha256(path):
@@ -92,9 +90,7 @@ def main():
             if width % (2 * patch) or height % (2 * patch):
                 raise ValueError("Qwen image dimensions must be divisible by twice the patch size")
             gh, gw = height // patch, width // patch
-            indices = [y * gw + x + dy * gw + dx
-                       for y in range(0, gh, 2) for x in range(0, gw, 2)
-                       for dy in range(2) for dx in range(2)]
+            indices = merge_window_order(gh, gw)
             rows, cols = np.divmod(indices, gw)
             feeds["vision.pixel_values"] = np.repeat(values, 2, axis=0)
             feeds["vision.patch_indices"] = np.array(indices, np.int32).reshape(1, 1, 1, -1)
@@ -114,24 +110,10 @@ def main():
             shape = [1, 1, height, width]
             values = rng.normal(0, .4, shape).astype(np.float32)
             feeds["audio.features"] = values
-            channels = int(metadata["clip.audio.embedding_length"])
-            n = (width + 3) // 4
-            q, k = np.indices((n, n))
-            distance = q - k
-            timescale = np.exp(-np.arange(channels // 2, dtype=np.float32) *
-                               (np.log(np.float32(10000)) / max(channels // 2 - 1, 1)))
-            theta = np.arange(12, -1, -1, dtype=np.float32)[:, None] * timescale[None]
-            feeds["audio.position_embeddings"] = np.concatenate([np.sin(theta), np.cos(theta)], axis=1)[None, None]
-            feeds["audio.attention_mask"] = np.where((distance >= 0) & (distance < 12), 0, -1e9).astype(np.float32)[None, None]
-            feeds["audio.relative_indices"] = np.clip(12 - distance, 0, 12).astype(np.int32)[None, None]
+            feeds.update({"audio." + name: value for name, value in gemma4a_positions(
+                width, int(metadata["clip.audio.embedding_length"])).items()})
             raw = values
-    with tempfile.TemporaryDirectory() as directory:
-        directory = Path(directory)
-        raw.tofile(directory / "input.f32")
-        subprocess.run([str(args.oracle.resolve()), str(reference_model.resolve()), args.modality,
-                        str(width), str(height), str(directory / "input.f32"),
-                        str(directory / "output.f32")], check=True)
-        expected = np.fromfile(directory / "output.f32", dtype=np.float32)
+    expected = run_oracle(args.oracle, reference_model.resolve(), args.modality, width, height, raw)
     request = ov.Core().compile_model(model, "CPU", {
         "INFERENCE_PRECISION_HINT": "f32", "DYNAMIC_QUANTIZATION_GROUP_SIZE": 0,
         "INFERENCE_NUM_THREADS": 4,
