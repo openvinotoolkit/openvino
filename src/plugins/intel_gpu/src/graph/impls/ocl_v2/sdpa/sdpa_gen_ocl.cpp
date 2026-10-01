@@ -698,6 +698,12 @@ void add_tiling_jit(JitConstants& jit, const sdpa_ocl_problem& p) {
     jit.make("DKS", "(D_MAX / DPAS_K)");
     jit.make("Q_DWORDS", 8);  // 16 half values per Q KSTEP packed as 8 uint dwords
     jit.make("SUBGROUP_SIZE", t.subgroup_size);
+    // Negative controls of the SG8 operand mapping (1 = K pair order, 2 = pA transposed, 3 = S_slm pair order): each must
+    // fail a sharp-softmax test. 4 is the positive twin: it forces the unaligned-K fallback, which must still pass. Absent unless asked for, so the default jit (and every SG16 jit) is unchanged.
+    if (t.subgroup_size == 8) {
+        if (const int neg = env_int("SDPA_OCL_NEG_SG8", 0); neg != 0)
+            jit.make("NEG_SG8", neg);
+    }
 }
 
 // The 2D block builtins (and the 1D page reads / Kc/Vc block reads built on the same subgroup shape) need a
