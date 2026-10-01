@@ -108,12 +108,8 @@ OutputVector translate_rope(const NodeContext& context) {
         const auto type = data.get_element_type();
         if (type != ov::element::f32)
             data = std::make_shared<v0::Convert>(data, ov::element::f32);
-        auto split = std::make_shared<v1::Split>(data, v0::Constant::create(ov::element::i64, {}, {3}), 2);
-        auto first = std::make_shared<v1::Subtract>(std::make_shared<v1::Multiply>(split->output(0), cos),
-                                                    std::make_shared<v1::Multiply>(split->output(1), sin));
-        auto second = std::make_shared<v1::Add>(std::make_shared<v1::Multiply>(split->output(0), sin),
-                                                std::make_shared<v1::Multiply>(split->output(1), cos));
-        res = std::make_shared<v0::Concat>(OutputVector{first, second}, 3);
+        ov::pass::NodeRegistry reg;
+        res = ov::decomposition::rope(reg, data, cos, sin, half);
         if (type != ov::element::f32)
             res = std::make_shared<v0::Convert>(res, type);
         return rename_outputs_with_suffix({res}, context.get_name());
