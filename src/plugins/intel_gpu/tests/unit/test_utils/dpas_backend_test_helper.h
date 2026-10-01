@@ -34,8 +34,8 @@ inline dpas_backend expected_dpas_backend_for(const cldnn::device_info& info,
     if (!info.supports_immad)
         return dpas_backend::none;
     // TEMP(S9): xe_hpg with no HpgTier ready refuses every op (SDPAOclGenerator::supported()), and the temporary routing
-    // sends those to sdpa_micro. Once a tier is ready the answer depends on the op, which this helper does not see: the
-    // step that turns the first bit on must add that. Remove with the routing.
+    // sends those to sdpa_micro. The caller states which tiers its op needs (expected_dpas_backend's hpg_tiers) and passes
+    // whether they are all ready as any_hpg_tier_ready. Remove with the routing.
     const bool hpg_all_refused = info.arch == cldnn::gpu_arch::xe_hpg && hpg_opt_in && !any_hpg_tier_ready;
     // The sdpa_ocl lane. It still needs the microkernel query today (choose_dpas_backend / supports_micro_sdpa);
     // the default flip drops exactly this term. An ocl branch before the mk check WITHOUT this term would
@@ -60,23 +60,31 @@ inline dpas_backend expected_dpas_backend_for(const cldnn::device_info& info,
 #endif
 }
 
-inline dpas_backend expected_dpas_backend(cldnn::engine& engine, bool paged_attention, size_t k_head_size) {
+// `hpg_tiers`: the HpgTier bits the op under test needs on xe_hpg (SDPAOclGenerator::hpg_tier_required()); 0 = the family's
+// base set (plain SDPA: PLAIN_F16_STATIC; PA: PA_PREFILL | PA_MIXED_F16). Ignored off xe_hpg. A caller whose op touches
+// more than the base set (a mask, bf16, a dynamic shape, ...) must pass the extra bits, or the helper expects sdpa_ocl for
+// an op the tier mask still sends to sdpa_micro.
+inline dpas_backend expected_dpas_backend(cldnn::engine& engine, bool paged_attention, size_t k_head_size, uint32_t hpg_tiers = 0) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
     const auto& info = engine.get_device_info();
     // Query only where the old helper did (immad && arch >= xe_hpg): the probe may build a kernel.
     const bool mk = info.supports_immad && info.arch >= cldnn::gpu_arch::xe_hpg &&
                     cldnn::query_microkernels_supported(engine, get_test_default_config(engine));
+    if (hpg_tiers == 0) {
+        hpg_tiers = paged_attention ? (ov::intel_gpu::ocl::PA_PREFILL | ov::intel_gpu::ocl::PA_MIXED_F16) : ov::intel_gpu::ocl::PLAIN_F16_STATIC;
+    }
     return expected_dpas_backend_for(info,
                                      mk,
                                      cldnn::paged_attention::sdpa_ocl_enabled(),
                                      cldnn::paged_attention::sdpa_ocl_hpg_enabled(),
                                      paged_attention,
                                      k_head_size,
-                                     ov::intel_gpu::ocl::hpg_tiers_ready() != 0);
+                                     ov::intel_gpu::ocl::hpg_tiers_cover(hpg_tiers, ov::intel_gpu::ocl::hpg_tiers_ready()));
 #else
     (void)engine;
     (void)paged_attention;
     (void)k_head_size;
+    (void)hpg_tiers;
     return dpas_backend::none;
 #endif
 }
