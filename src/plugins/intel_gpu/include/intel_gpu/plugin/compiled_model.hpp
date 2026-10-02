@@ -15,8 +15,8 @@
 #include "intel_gpu/plugin/plugin.hpp"
 #include "intel_gpu/plugin/remote_context.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
-#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/internal_properties.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 
 namespace ov::intel_gpu {
 
@@ -111,18 +111,7 @@ private:
     bool m_loaded_from_cache;
     std::string m_runtime_requirements;
     std::shared_ptr<ov::Tensor> _backing_tensor;
-
-    // The member m_weight_sharing_context holds the context for weight sharing currently used by cross-plugin sharing.
-    // That context consists of the necessary information as source_id, constant_id, and the non-owning view of the source buffer, where the weights are stored.
-    // As in the general case the view may not own the underlying storage,
-    // the source buffer's must be kept alive by each plugin adhering to the weight-sharing contract.
-    // Whenever the plugin is a consumer or the producer of
-    // weight-sharing context, the source buffer track held on the plugin side. That means each consumer must retain
-    // a strong reference to the source buffer for as long as the imported constant may still be used.
-    // m_shared_weight_sources holds strong references to the source buffers to ensure they remain valid even if the original weight-sharing producer is
-    // destroyed.
     ov::internal::WeightSharingCtxPtr m_weight_sharing_context;
-    std::set<std::shared_ptr<ov::AlignedBuffer>> m_shared_weight_sources;
 };
 
 }  // namespace ov::intel_gpu
