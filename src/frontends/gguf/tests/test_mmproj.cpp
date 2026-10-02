@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include <algorithm>
 #include <cmath>
 #include <filesystem>
 
@@ -153,6 +154,30 @@ TEST_F(GGUFMMProj, LegacyGlobalProjectorTakesPrecedence) {
     encoder("vision", "unused_modality_key");
     writer.kv_str("clip.projector_type", "gemma3");
     EXPECT_NO_THROW(convert());
+}
+
+// Legacy Qwen2.5 Omni files name one global projector for both encoders.
+TEST_F(GGUFMMProj, Qwen25OmniResolvesProjectorPerModality) {
+    encoder("vision", "unused_modality_key");
+    encoder("audio", "unused_modality_key");
+    writer.kv_str("clip.projector_type", "qwen2.5o");
+    writer.kv_u32("clip.vision.spatial_merge_size", 2);
+    writer.kv_u32("clip.vision.n_wa_pattern", 2);
+    weight("v.patch_embd.weight.1", {2, 2, 3, 8});
+    weight("mm.0.weight", {32, 12});
+    weight("mm.0.bias", {12});
+    weight("mm.2.weight", {12, 6});
+    weight("mm.2.bias", {6});
+    auto model = convert();
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"}), "qwen2.5vl_merger");
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "audio.projector"}), "qwen2a");
+    ASSERT_EQ(model->outputs().size(), 2);
+    for (const auto* name : {"vision.attention_mask", "vision.output_indices", "audio.features"}) {
+        const auto inputs = model->inputs();
+        EXPECT_TRUE(std::any_of(inputs.begin(), inputs.end(), [&](const ov::Output<ov::Node>& input) {
+            return input.get_names().count(name);
+        })) << name;
+    }
 }
 
 TEST_F(GGUFMMProj, ResamplerRejectsUnknownVersion) {
@@ -337,12 +362,14 @@ INSTANTIATE_TEST_SUITE_P(Reference,
                                            "musicflamingo",
                                            "mlp",
                                            "mlp_norm",
+                                           "mlp_feature",
                                            "meralion",
                                            "glma",
                                            "qwen2vl_merger",
                                            "qwen2.5vl_merger",
                                            "qwen3vl_merger",
                                            "internvl",
+                                           "internvl_qknorm",
                                            "qwen2.5vl_merger_window_video",
                                            "voxtral_odd",
                                            "resampler",

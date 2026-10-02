@@ -20,6 +20,9 @@ from mmproj_fixtures import finish, merge_window_order, save_npz
 
 def write_model(path, projector, projection_width=6):
     projector, _, variant = projector.partition("_") if projector.startswith("gemma3_") else (projector, "", "")
+    # Concatenated CLIP feature layers; InternViT-style whole-tensor QK norms.
+    if projector in ("mlp_feature", "internvl_qknorm"):
+        projector, _, variant = projector.partition("_")
     if projector.startswith("resampler"):
         projector, _, variant = projector.partition("_")
         projection_width = 256  # two 128-wide cross-attention heads
@@ -42,6 +45,8 @@ def write_model(path, projector, projection_width=6):
                         "projection_dim": projection_width, "attention.head_count": 2}.items():
         w.add_uint32(key + name, value)
     w.add_float32(key + "attention.layer_norm_epsilon", 1e-5)
+    if variant == "feature":
+        w.add_array(key + "feature_layer", [1, 2])
     rng = np.random.default_rng(1729)
 
     def tensor(name, shape, norm=False):
@@ -75,6 +80,9 @@ def write_model(path, projector, projection_width=6):
             tensor(p + "out_scale.weight", (8,), True)
             tensor(p + "attn_post_norm.weight", (8,), True)
             tensor(p + "ffn_post_norm.weight", (8,), True)
+        if variant == "qknorm":
+            tensor(p + "attn_q_norm.weight", (8,), True)
+            tensor(p + "attn_k_norm.weight", (8,), True)
         tensor(p + "ffn_up.weight", (12, 8))
         tensor(p + "ffn_up.bias", (12,))
         tensor(p + "ffn_down.weight", (8, 12))
@@ -135,7 +143,7 @@ def write_model(path, projector, projection_width=6):
             tensor("mm.3.weight", (6, 12))
             tensor("mm.3.bias", (6,))
         elif clip:
-            tensor("mm.0.weight", (12, 8))
+            tensor("mm.0.weight", (12, 16 if variant == "feature" else 8))
             tensor("mm.0.bias", (12,))
             tensor("mm.3.weight" if projector == "mlp_norm" else "mm.2.weight", (6, 12))
             tensor("mm.3.bias" if projector == "mlp_norm" else "mm.2.bias", (6,))
@@ -191,12 +199,14 @@ def main():
     parser.add_argument("--oracle", required=True, type=Path)
     parser.add_argument("--qwen3-oracle", required=True, type=Path)
     parser.add_argument("--output", type=Path, default=Path(__file__).parent / "test_data/mmproj_accuracy")
+    parser.add_argument("--families", nargs="+", default=[
+        "gemma3", "gemma3_fused", "gemma3_legacy", "idefics3", "janus_pro", "mlp", "mlp_norm", "mlp_feature",
+        "qwen2a", "ultravox", "voxtral", "musicflamingo", "meralion", "glma",
+        "qwen2vl_merger", "qwen2.5vl_merger", "qwen3vl_merger", "internvl", "internvl_qknorm",
+        "qwen2.5vl_merger_window_video", "voxtral_odd", "resampler", "resampler_v2", "resampler_v4"])
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
-    for projector in ("gemma3", "gemma3_fused", "gemma3_legacy", "idefics3", "janus_pro", "mlp", "mlp_norm",
-                      "qwen2a", "ultravox", "voxtral", "musicflamingo", "meralion", "glma",
-                      "qwen2vl_merger", "qwen2.5vl_merger", "qwen3vl_merger", "internvl",
-                      "qwen2.5vl_merger_window_video", "voxtral_odd", "resampler", "resampler_v2", "resampler_v4"):
+    for projector in args.families:
         with tempfile.TemporaryDirectory() as directory:
             directory = Path(directory)
             path = directory / "model.gguf"
