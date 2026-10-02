@@ -181,6 +181,19 @@ void ov::npuw::FuncMemMgr::assign_memory() {
                                                 << " global funcall outputs - will be allocated on-demand");
     }
 
+    // A funcall output may be a global Result AND, at the same time, feed a
+    // downstream subgraph internally (e.g. Flux.2-klein text_encoder: the last
+    // repeated block's output is both returned and consumed by the tail subgraph).
+    // Such outputs must NOT be skipped below: connect_subrequests() needs the tensor
+    // in m_funcall_result to wire the internal link, otherwise it throws map::at.
+    std::set<LinkFrom> internally_consumed;
+    for (const auto& kvp : m_model->m_submodels_input_to_prev_output) {
+        const auto& read_from = kvp.second;
+        if (read_from != CompiledModel::NO_LINK) {
+            internally_consumed.insert(read_from);
+        }
+    }
+
     // Walk over the subgraphs, pre-allocate and pre-assign tensors to the subgraphs
     // outputs.
     for (std::size_t idx = 0u; idx < num_submodels; idx++) {
@@ -205,9 +218,10 @@ void ov::npuw::FuncMemMgr::assign_memory() {
             const auto num_outs = proto_comp_model_desc.compiled_model->outputs().size();
             for (std::size_t out_idx = 0u; out_idx < num_outs; out_idx++) {
                 const LinkFrom this_out = LinkFrom{idx, out_idx};
-                if (m_global_outputs.count(this_out)) {
-                    // Skip allocation - user will provide tensor via set_tensor() or
-                    // will be allocated via get_tensor() on-demand
+                if (m_global_outputs.count(this_out) && internally_consumed.count(this_out) == 0) {
+                    // Pure global output (no internal consumers): skip allocation -
+                    // user will provide tensor via set_tensor() or it will be
+                    // allocated via get_tensor() on-demand.
                     continue;
                 }
                 assign(this_out);
