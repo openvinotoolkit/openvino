@@ -10,9 +10,7 @@
 #include "utils.hpp"
 #include "utils_quantize.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
+namespace ov::frontend::pytorch {
 namespace op {
 
 #define OP_CONVERTER(op) OutputVector op(const NodeContext& node)
@@ -158,6 +156,8 @@ OP_CONVERTER(translate_linalg_matrix_norm);
 OP_CONVERTER(translate_linalg_vector_norm);
 OP_CONVERTER(translate_linear);
 OP_CONVERTER(translate_linspace);
+OP_CONVERTER(translate_lietorch_exp);
+OP_CONVERTER(translate_lietorch_act3);
 OP_CONVERTER(translate_list_construct);
 OP_CONVERTER(translate_list_unpack);
 OP_CONVERTER(translate_logaddexp);
@@ -169,6 +169,7 @@ OP_CONVERTER(translate_log10);
 OP_CONVERTER(translate_logsumexp);
 OP_CONVERTER(translate_loop);
 OP_CONVERTER(translate_while_loop_fx);
+OP_CONVERTER(translate_wrap_with_context_fx);
 OP_CONVERTER(translate_lstm);
 OP_CONVERTER(translate_masked_fill);
 OP_CONVERTER(translate_masked_scatter);
@@ -814,6 +815,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"ov_ext::embedding", op::translate_embedding_ext},
         {"ov_ext::conv1d", op::translate_conv1d_ext},
         {"ov_ext::linear", op::translate_linear_ext},
+        {"lietorch::Exp", op::translate_lietorch_exp},
+        {"lietorch::Act3", op::translate_lietorch_act3},
         {"prim::abs", op::translate_1to1_match_1_inputs<opset10::Abs>},
         {"prim::Constant", op::translate_constant},
         {"prim::device", op::translate_constant},
@@ -921,6 +924,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.log_sigmoid_forward.default", op::translate_log_sigmoid_fx},
         {"aten.mean.default", op::translate_mean_fx},
         {"aten.mean.dim", op::translate_mean_fx},
+        {"aten.meshgrid.default", op::translate_meshgrid},
+        {"aten.meshgrid.indexing", op::translate_meshgrid},
         {"aten.native_batch_norm.default", op::translate_batch_norm_legit_fx},
         {"aten.native_dropout.default", op::skip_node},
         {"aten.native_group_norm.default", op::translate_group_norm_fx},
@@ -981,9 +986,9 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         // Higher-order operations from torch.export (torch.cond, torch.while_loop, etc.)
         {"cond", op::translate_cond_fx},
         {"while_loop", op::translate_while_loop_fx},
+        {"wrap_with_autocast", op::translate_wrap_with_context_fx},
+        {"wrap_with_set_grad_enabled", op::translate_wrap_with_context_fx},
     };
 };
 
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch
