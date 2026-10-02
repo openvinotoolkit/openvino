@@ -11,10 +11,7 @@
 #include "openvino/op/variadic_split.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 namespace opset_1 {
 ov::OutputVector split(const ov::frontend::onnx::Node& node) {
     const auto input = node.get_ov_inputs().at(0);
@@ -63,7 +60,4 @@ ov::OutputVector split(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("Split", OPSET_SINCE(18), ai_onnx::opset_18::split);
 }  // namespace opset_18
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

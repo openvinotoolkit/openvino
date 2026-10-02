@@ -8,9 +8,7 @@
 #include "openvino/frontend/tensorflow_lite/decoder.hpp"
 #include "openvino/frontend/tensorflow_lite/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow_lite {
+namespace ov::frontend::tensorflow_lite {
 
 /// Abstract representation for an input model graph that gives nodes in topologically sorted order
 /// It returns decoders for model inputs and outputs (DecoderBaseTensor objects) and for operation nodes
@@ -55,6 +53,4 @@ public:
     virtual ~GraphIterator();
 };
 
-}  // namespace tensorflow_lite
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow_lite

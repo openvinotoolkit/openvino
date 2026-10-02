@@ -290,10 +290,9 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         } else {
             if (is_small_matmul) {
                 // Weights normalization: FullyConnected expects weights in [N, K] layout (transpose_b=true).
-                if (!matmul->get_transpose_b()) {
-                    fc_input_b = can_reuse_transpose(fc_input_b)
-                                     ? transpose_node
-                                     : create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
+                // A reusable Transpose was skipped above, so its input already has that layout.
+                if (!matmul->get_transpose_b() && !can_reuse_transpose(fc_input_b)) {
+                    fc_input_b = create_transpose(fc_input_b, matmul->get_friendly_name() + "/transpose_b");
                 }
             } else {
                 if (!matmul->get_transpose_b()) {

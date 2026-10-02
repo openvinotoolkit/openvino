@@ -12,10 +12,7 @@
 #include "openvino/frontend/tensorflow_lite/node_context.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow_lite {
-namespace op {
+namespace ov::frontend::tensorflow_lite::op {
 
 void set_output_names(const ov::frontend::tensorflow_lite::NodeContext& node, OutputVector& outputs) {
     const auto& decoder_with_name =
@@ -103,7 +100,4 @@ void get_activation(ov::OutputVector& output,
     get_activation(output, context_for_activation, activation);
 }
 
-}  // namespace op
-}  // namespace tensorflow_lite
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow_lite::op

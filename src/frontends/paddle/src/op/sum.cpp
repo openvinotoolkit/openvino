@@ -5,10 +5,7 @@
 #include "default_opset.hpp"
 #include "openvino/frontend/paddle/node_context.hpp"
 
-namespace ov {
-namespace frontend {
-namespace paddle {
-namespace op {
+namespace ov::frontend::paddle::op {
 NamedOutputs sum(const NodeContext& node) {
     auto data = node.get_ng_inputs("X");
     auto sum = data[0].get_node_shared_ptr();
@@ -18,7 +15,4 @@ NamedOutputs sum(const NodeContext& node) {
     return node.default_single_output_mapping({sum}, {"Out"});
 }
 
-}  // namespace op
-}  // namespace paddle
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::paddle::op

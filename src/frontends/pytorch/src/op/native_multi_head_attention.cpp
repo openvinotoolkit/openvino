@@ -6,10 +6,7 @@
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     /*
@@ -66,7 +63,4 @@ OutputVector translate_native_multi_head_attention(const NodeContext& context) {
     return {mha.first, context.mark_node(none)};
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op
