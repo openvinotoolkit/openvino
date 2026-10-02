@@ -1,6 +1,6 @@
 ---
 name: ov-debug
-description: Debug OpenVINO CPU/GPU plugin inference, accuracy, performance, memory, and device compilation issues, or inspect graph transformations, using debug capabilities such as tensor dumps, execution graphs, profiling, and transformation tracing. Do NOT use for frontend model conversion failures (unsupported operators, translation errors, or source-model loading), build/configuration failures, or generic test/CI failures. For a MatcherPass that does not fire, use ov-debug-matcher-pass.
+description: Debug OpenVINO CPU/GPU plugin inference, accuracy, performance, memory, and device compilation issues, or inspect graph transformations, using debug capabilities such as tensor dumps, execution graphs, profiling, and transformation tracing. Do NOT use for frontend model conversion failures (unsupported operators, translation errors, or source-model loading), build/configuration failures, or generic test/CI failures.
 ---
 
 # Debug Skill
@@ -18,7 +18,7 @@ Build flags that enable debug capabilities (check CMakeCache.txt in the build di
 |---------------------------|---------------------------------------|-------------------------------------------------------------------------------|
 | openvino_intel_cpu_plugin | [@components/debug-intel-cpu-plugin.md](components/debug-intel-cpu-plugin.md) | CPU: inference issues, wrong results, slow inference, tensor dumps, execution graphs |
 | openvino_intel_gpu_plugin | [@components/debug-intel-gpu-plugin.md](components/debug-intel-gpu-plugin.md) | GPU: inference issues, wrong results, slow inference, tensor dumps, execution graphs |
-| transformations           | [@components/debug-transformations.md](components/debug-transformations.md)  | transformation tracing, slow compilation, graph inspection; for a MatcherPass that does not fire, use `ov-debug-matcher-pass` |
+| transformations           | [@components/debug-transformations.md](components/debug-transformations.md)  | transformation not applied, pass not firing, transformation tracing, slow compilation, graph inspection |
 
 ## Steps
 1. Match the user's symptom to the routing hints above to identify the component(s)
