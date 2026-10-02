@@ -132,28 +132,32 @@ TEST_F(ShouldUseHostCompileInterpreterTest, DynamicRankDoesNotEnableHostCompile)
     EXPECT_FALSE(run(make_relu_model(ov::PartialShape::dynamic())));
 }
 
-TEST_F(ShouldUseHostCompileInterpreterTest, NonFourDimensionalModelDoesNotEnableHostCompile) {
-    EXPECT_FALSE(run(make_relu_model({1, bounded(), 16})));
+TEST_F(ShouldUseHostCompileInterpreterTest, DynamicRankAdditionalPortDoesNotEnableHostCompile) {
+    EXPECT_FALSE(run(make_two_input_relu_model({1, bounded(), 16, 32}, ov::PartialShape::dynamic())));
 }
 
-TEST_F(ShouldUseHostCompileInterpreterTest, DynamicBatchDoesNotEnableHostCompile) {
-    EXPECT_FALSE(run(make_relu_model({bounded(), 3, 16, 32})));
+TEST_F(ShouldUseHostCompileInterpreterTest, NonFourDimensionalModelEnablesHostCompile) {
+    EXPECT_TRUE(run(make_relu_model({1, bounded(), 16})));
 }
 
-TEST_F(ShouldUseHostCompileInterpreterTest, DynamicBatchWithDynamicSpatialDoesNotEnableHostCompile) {
-    EXPECT_FALSE(run(make_relu_model({bounded(), 3, bounded(), 32})));
+TEST_F(ShouldUseHostCompileInterpreterTest, DynamicBatchEnablesHostCompile) {
+    EXPECT_TRUE(run(make_relu_model({bounded(), 3, 16, 32})));
+}
+
+TEST_F(ShouldUseHostCompileInterpreterTest, DynamicBatchWithDynamicSpatialEnablesHostCompile) {
+    EXPECT_TRUE(run(make_relu_model({bounded(), 3, bounded(), 32})));
 }
 
 TEST_F(ShouldUseHostCompileInterpreterTest, UnboundedDimensionEnablesHostCompile) {
     EXPECT_TRUE(run(make_relu_model({1, unbounded(), 16, 32})));
 }
 
-TEST_F(ShouldUseHostCompileInterpreterTest, StaticOutputDoesNotEnableHostCompile) {
-    EXPECT_FALSE(run(make_dynamic_input_static_output_model({1, bounded(), 16, 32})));
+TEST_F(ShouldUseHostCompileInterpreterTest, StaticOutputEnablesHostCompile) {
+    EXPECT_TRUE(run(make_dynamic_input_static_output_model({1, bounded(), 16, 32})));
 }
 
-TEST_F(ShouldUseHostCompileInterpreterTest, StaticInputDynamicOutputDoesNotEnableHostCompile) {
-    EXPECT_FALSE(run(make_static_input_dynamic_output_model({1, 3, 16, 32})));
+TEST_F(ShouldUseHostCompileInterpreterTest, StaticInputDynamicOutputEnablesHostCompile) {
+    EXPECT_TRUE(run(make_static_input_dynamic_output_model({1, 3, 16, 32})));
 }
 
 TEST_F(ShouldUseHostCompileInterpreterTest, UnboundedAdditionalPortEnablesHostCompile) {

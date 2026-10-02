@@ -23,21 +23,26 @@ bool should_use_host_compile_interpreter(const std::shared_ptr<const ov::Model>&
         return false;
     }
 
-    // Detect a dynamic 4D I/O port that makes the model a HostCompile candidate.
-    const auto isDynamicHostCompilePort = [](const auto& port) {
-        const auto& shape = port.get_partial_shape();
-        const auto rank = shape.rank();
-        // Keep batch static to avoid failures in ConvertBatchedLayerTo1N and AdjustScaleShiftForDWConv, because reshape
-        // operations in these passes do not support dynamic batch shapes.
-        return shape.is_dynamic() && rank.is_static() && rank.get_length() == 4 && shape[0].is_static();
+    // HostCompile supports dynamic dimensions only; a single dynamic-rank I/O tensor rules the model out.
+    const auto hasStaticRank = [](const auto& port) {
+        return port.get_partial_shape().rank().is_static();
+    };
+
+    // Any dynamic dimension, bounded or unbounded, makes the model a HostCompile model: HostCompile sizes dynamic
+    // buffers at run time from the bound tensor or the predicted output shape.
+    const auto isDynamicPort = [](const auto& port) {
+        return port.get_partial_shape().is_dynamic();
     };
 
     const auto& modelInputs = model->inputs();
     const auto& modelOutputs = model->outputs();
-    const bool inputsDynamic = std::any_of(modelInputs.begin(), modelInputs.end(), isDynamicHostCompilePort);
-    const bool outputsDynamic = std::any_of(modelOutputs.begin(), modelOutputs.end(), isDynamicHostCompilePort);
+    if (!std::all_of(modelInputs.begin(), modelInputs.end(), hasStaticRank) ||
+        !std::all_of(modelOutputs.begin(), modelOutputs.end(), hasStaticRank)) {
+        return false;
+    }
 
-    return inputsDynamic && outputsDynamic;
+    return std::any_of(modelInputs.begin(), modelInputs.end(), isDynamicPort) ||
+           std::any_of(modelOutputs.begin(), modelOutputs.end(), isDynamicPort);
 }
 
 namespace batch_helpers {
