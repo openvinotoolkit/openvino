@@ -140,6 +140,9 @@ They use F32 inference, F16 KV cache, no dynamic activation quantization and
   Gemma4 26B Q4_0 (7/13) miss the first token.
 - **Multimodal (GenAI `VLMPipeline`):** Qwen3.5-4B passes text, image and video for Q4_K_M with
   PA and SDPA, and for Q4_0 with PA; Gemma4 E2B Q4_K_M passes text, image, video, audio and mixed input with PA.
+  In Gemma4 E2B chat, the audio follow-up turn misses only the first token (19/20); llama.cpp
+  running the same Q4_K_M file on that history makes the same choice, so quantization, not
+  history handling, causes the difference.
   Gemma4 12B Q4_0 PA fails mixed input (17/20, first token differs) and video (17/20). Muse
   Glimmer Q4_K_M passes against the same quantized file in llama.cpp; no publisher reference is
   available for it.
