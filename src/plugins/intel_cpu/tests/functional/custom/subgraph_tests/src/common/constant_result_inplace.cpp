@@ -23,7 +23,9 @@ using ConstantResultInPlaceParams = std::tuple<bool, bool>;
 class ConstantResultInPlaceTest : public testing::TestWithParam<ConstantResultInPlaceParams> {};
 
 TEST_P(ConstantResultInPlaceTest, PreserveConstantResultAcrossInferences) {
-    const auto [enable_snippets, constant_branch] = GetParam();
+    const auto params = GetParam();
+    const bool enable_snippets = std::get<0>(params);
+    const bool constant_branch = std::get<1>(params);
     ov::Core core;
 
     const ov::Shape shape{100, 1, 512};
