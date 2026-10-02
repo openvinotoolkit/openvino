@@ -40,3 +40,25 @@ class TestSoftplusTail(PytorchLayerTest):
 
         self._test(SoftplusTail(), "aten::softplus", ie_device, precision, ir_version,
                    trace_model=True, custom_eps=1e-4)
+
+
+class TestSoftplusBfloat16Constants(PytorchLayerTest):
+    def _prepare_input(self):
+        import numpy as np
+        return (np.linspace(-12, 12, 192, dtype=np.float32).reshape(2, 8, 12),)
+
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_bfloat16_coefficients(self, ie_device, precision, ir_version):
+        class SoftplusCoefficients(torch.nn.Module):
+            def __init__(self):
+                super().__init__()
+                self.register_buffer("coefficients", torch.tensor([0.2041015625, -1.046875], dtype=torch.bfloat16))
+
+            def forward(self, value):
+                coefficients = torch.nn.functional.softplus(self.coefficients)
+                shifted = coefficients + torch.tensor(0.5, dtype=torch.bfloat16)
+                return value * coefficients[0], value * shifted[1]
+
+        self._test(SoftplusCoefficients(), "aten::softplus", ie_device, precision, ir_version,
+                   trace_model=True, custom_eps=1e-4)

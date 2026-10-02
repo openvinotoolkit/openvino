@@ -4,6 +4,9 @@
 
 #include "openvino/op/softplus.hpp"
 
+#include <cmath>
+
+#include "openvino/core/validation_util.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/convert.hpp"
@@ -24,11 +27,16 @@ OutputVector translate_softplus(const NodeContext& context) {
     num_inputs_check(context, 1, 3);
     auto input = context.get_input(0);
     auto original_type = input.get_element_type();
-    if ((original_type == element::bf16 || original_type == element::f16) &&
-        (context.input_is_none(1) || context.const_input<float>(1) == 1.0f) &&
+    if (original_type == element::bf16 && (context.input_is_none(1) || context.const_input<float>(1) == 1.0f) &&
         (context.input_is_none(2) || context.const_input<float>(2) == 20.0f) && !context.has_attribute("beta") &&
         !context.has_attribute("threshold")) {
-        return {context.mark_node(std::make_shared<v4::SoftPlus>(input))};
+        if (auto constant = ov::util::get_constant_from_source(input)) {
+            auto values = constant->cast_vector<float>();
+            for (auto& value : values) {
+                value = value > 20 ? value : std::log1p(std::exp(value));
+            }
+            return {context.mark_node(make_bfloat16_constant(constant->get_shape(), values))};
+        }
     }
     if (original_type == element::bf16 || original_type == element::f16) {
         input = context.mark_node(std::make_shared<v0::Convert>(input, element::f32));
