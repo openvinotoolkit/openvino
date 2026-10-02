@@ -36,13 +36,12 @@ Use `-k cache`, `-k export`, or another primitive/mode name to select cases.
 Inputs are returned alongside primitive outputs so export keeps otherwise-unused
 inputs. Cache objects are recreated for each invocation to keep conversion and
 reference execution independent. xdist distributes cases across worker processes.
-The 132 primitives produce 264 trace/export cases. A local CPU run with Python
-3.10, PyTorch 2.12.1+cpu, and Transformers 5.18.0 took about eight seconds with
-four workers (252 passed, 12 expected failures), excluding dependency installation
-and build time. CI runs the suite as a dedicated precommit step.
+The matrix includes 132 shared recipes and 65 model-local recipes, each running
+through trace/export. CI runs the suite as a dedicated precommit step.
 The precommit coverage-inventory test also runs the eager audit once, independently
-of conversion mode and device. Including this audit, the local precommit run took
-18 seconds (253 passed, 12 expected failures).
+of conversion mode and device. Timings exclude dependency installation and builds.
+The expanded precommit matrix takes about 26 seconds locally with four workers
+(383 passed, 12 expected failures; Python 3.10, PyTorch 2.12.1+cpu).
 
 ## Establishing library coverage
 
@@ -54,6 +53,13 @@ primitive in every architecture. The following mechanisms expose missing coverag
   registered variants become cases automatically. A variant requiring a new
   configuration fails rather than being silently omitted.
 * Each case has a stable family/name ID and uses the actual library implementation.
+* Model-local recipes import the named function/class from its actual modeling
+  module. They cover five rotation helpers, head repetition, 25 RoPE application
+  variants, 21 eager attention implementations, and 13 normalization classes.
+  Cases exercise interleaved/partial/trailing RoPE, vision prefix preservation,
+  audio rotation, attention sinks, soft-capping, position bias, and channel-first
+  normalization. Nonuniform norm weights prevent identity initialization from
+  hiding differences.
 * The audit below records ATen overloads exercised by each case and scans all
   installed Transformers Python sources for explicit PyTorch call sites. It flags
   call sites whose source lines were not executed during the primitive matrix.
@@ -98,6 +104,25 @@ primitives. Activation/RoPE registries discover new variants automatically, whil
 other families still require source review and explicit recipes. The inventory
 excludes executed source-line counts because optional dependency paths can differ
 across platforms; the full audit report retains those counts for review.
+
+The audit inventories model-local definitions named `rotate_half`, `repeat_kv`,
+`apply_rotary_pos_emb`, `eager_attention_forward`, and classes ending in `RMSNorm`
+or `LayerNorm`. For Transformers 5.18.0 it finds 1,071 definitions in these families;
+65 have direct recipes across 55 model modules. Each record contains its source
+file, symbol, implementation fingerprint, and `direct_recipe` flag. Untested
+definitions are not silently treated as covered because another model has similar
+code. Fingerprints help identify duplicates for review; they do not prove semantic
+equivalence, particularly when helper functions, configuration, or inheritance
+differ. Direct recipes exercise 57 of 85 recorded implementation fingerprints;
+this does not count the remaining copies as directly tested. Changes to this
+inventory also fail the precommit baseline check.
+
+This naming-based inventory does not discover every primitive: model-local MLPs,
+MoE routers, state-space blocks, patch/position embedding classes, and arbitrary
+tensor helper methods still need additional discovery rules and explicit recipes.
+The expanded eager audit executes 294 of 44,453 explicit PyTorch call sites (0.66%)
+in 66 files and observes 115 ATen overloads. These are call-site observations,
+not whole-library line/branch coverage or exhaustive operator coverage.
 
 Remaining coverage includes MoE routing, recurrent/state-space kernels,
 multimodal packing, additional generation processors, dtype variants, fully

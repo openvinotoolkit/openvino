@@ -14,6 +14,7 @@ import transformers
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from primitives import make_primitive, primitive_cases
+from model_primitives import implementation_inventory
 
 
 class OperatorRecorder(TorchDispatchMode):
@@ -95,6 +96,7 @@ def main():
     report = {"transformers_version": transformers.__version__, "torch_version": torch.__version__,
               "cases": results, "source_torch_calls": calls,
               "aten_ops": sorted({op for result in results for op in result.get("aten_ops", [])}),
+              "model_implementations": implementation_inventory(),
               "unexecuted_source_calls": sum(not call["executed"] for call in calls)}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
@@ -111,6 +113,7 @@ def main():
             {key: call[key] for key in ("file", "line", "call")} for call in calls
         ], sort_keys=True).encode()).hexdigest(),
         "source_call_count": len(calls),
+        "model_implementations": implementation_inventory(),
         "cases": [{"case": result["case"], "aten_ops": result["aten_ops"]} for result in results],
     }
     if args.update_baseline:

@@ -154,12 +154,17 @@ def primitive_cases():
         "TypicalLogitsWarper", "EpsilonLogitsWarper", "EtaLogitsWarper", "RepetitionPenaltyLogitsProcessor",
         "MinLengthLogitsProcessor", "ForcedBOSTokenLogitsProcessor", "ForcedEOSTokenLogitsProcessor",
         "SuppressTokensLogitsProcessor", "InfNanRemoveLogitsProcessor", "LogitNormalization")]
+    from model_primitives import model_cases
+    cases += [PrimitiveCase(f"{model}/{symbol}", "model") for model, symbol in model_cases()]
     return cases
 
 
 def make_primitive(case):
     torch.manual_seed(0)
     name, family = case.name, case.family
+    if family == "model":
+        from model_primitives import make_model_primitive
+        return make_model_primitive(name, FunctionModule)
     if family == "activation":
         return ACT2FN[name].eval(), (torch.linspace(-12, 12, 192).reshape(2, 8, 12),)
     if family == "utility":
