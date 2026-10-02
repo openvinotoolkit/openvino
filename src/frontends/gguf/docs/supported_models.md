@@ -42,6 +42,9 @@ that loads but emits garbage is **not** counted as supported.
 
 ## Native GGUF path
 
+Vision/audio projector files (`mmproj-*.gguf`) are covered by
+[native multimodal conversion](mmproj.md).
+
 The native architecture catalog is defined in
 [`src/builder/arch_registry.cpp`](../src/builder/arch_registry.cpp):
 
@@ -65,7 +68,7 @@ time. External definitions and custom-family catalog entries extend the same reg
 | `gemma` | GeGLU and multi-query attention |
 | `gemma2` | post-norms, SWA, attention and final logit soft-caps |
 | `gemma3` | post-norms and final logit soft-cap |
-| `gemma4` | SWA, per-layer embeddings and shared KV |
+| `gemma4` | SWA, per-layer embeddings, shared KV, and dense plus routed experts (26B-A4B) |
 | `gpt-oss` | MoE, attention sinks, SWA and OAI gated activation |
 | `hunyuan-dense` | learned QK-norm after RoPE |
 | `llama` | llama-2 / llama-3 |
@@ -80,11 +83,11 @@ time. External definitions and custom-family catalog entries extend the same reg
 | `phi3` | fused QKV |
 | `qwen2` | qwen2 / qwen2.5 |
 | `qwen3` | QK-norm before RoPE; also covers Bonsai-8B (Q1_0) |
-| `qwen35` | hybrid GatedDeltaNet + full attention, interleaved M-RoPE; greedy / batch 1 only; also covers Bonsai-27B (Q1_0) and Ternary-Bonsai-27B (Q2_0) |
+| `qwen35` | hybrid GatedDeltaNet + full attention, interleaved M-RoPE; batching and beam search with SDPA and PA; also covers Bonsai-27B (Q1_0) and Ternary-Bonsai-27B (Q2_0) |
 | `qwen3moe` | NEOX RoPE, per-head QK-norm and normalized expert weights |
 | `smollm3` | NORMAL RoPE, skipped on every fourth layer |
 
-### Experimental — 7 architectures
+### Experimental — 8 architectures
 
 | Architecture | Status / limitation |
 |---|---|
@@ -95,13 +98,18 @@ time. External definitions and custom-family catalog entries extend the same reg
 | `llama-embed` | needs embedding-specific numerical and pooling tests; completion is not a suitable test |
 | `minimax-m2` | no real checkpoint validated |
 | `plamo3` | native builder disagrees with the real checkpoint reference (0/13 matching choices); post-norm tensors without `.weight` are not recognized |
+| `qwen35moe` | `qwen35` with routed and shared experts (separate or fused gate/up); small numerical fixtures pass |
 
 ### Numerical regression coverage
 
-[`GGUFArchitectureAccuracy`](../tests/test_arch_accuracy.cpp) contains 26 small, nonzero F32
-fixtures covering 21 verified architecture identifiers and experimental `hunyuan-moe`.
+[`GGUFArchitectureAccuracy`](../tests/test_arch_accuracy.cpp) contains 34 small, nonzero F32
+fixtures, including the experimental `hunyuan-moe` and `qwen35moe` families.
 Additional model variants exercise YaRN and position-dependent attention scaling under
-`llama` and `mistral3`. The suite does not cover `gemma3`, `gemma4`, `gpt-oss` or `qwen35`.
+`llama` and `mistral3`. Gemma3 covers distinct global/local RoPE scaling, and Gemma4 covers
+mixed-head MQA and dense plus routed experts. The suite does not cover `gpt-oss` or Gemma4
+per-layer embeddings (E2B/E4B). For `qwen35`, `qwen35moe` and `gemma4`,
+`GGUFMultimodalBackboneAdaptation` also checks padded batches and beam reordering against
+independent requests, and PagedAttention conversion.
 
 Each fixture compares complete last-token logits with llama.cpp CPU through multi-token
 prefill, one-token decode and a two-token cache append. The normalized MSE limit is `1e-5`.
@@ -161,7 +169,9 @@ The real-model check requires the same first prediction and at least 90% matchin
 choices. It records full-logit errors but does not apply the F32 fixture tolerance to
 lossy weight conversions. This is bounded decoder validation, not a quality benchmark
 or a guarantee for every checkpoint, context length, quantization or device. In particular,
-default integer-zero-point Q4_K and U8 KV-cache approximations can change output.
+the default requantization of Q4_K, Q4_1 (u4) and Q5_K (u8) weights to integer zero points,
+and the U8 KV cache, can change output. `OV_GGUF_Q4_K_ZP_F16=1` keeps the exact fractional zero
+points of Q4_K and Q4_1 weights, at the cost of a slower matmul.
 
 Native Q8_0 preserves weight codes and scales. These comparisons disable OpenVINO's dynamic
 activation quantization (`DYNAMIC_QUANTIZATION_GROUP_SIZE=0`) and use F32 inference.
@@ -180,10 +190,10 @@ additional checkpoint/quantization combinations in precommit/nightly jobs.
 
 ### Runtime limitations
 
-- **`qwen35`: greedy decoding, batch size 1.** Recurrent states have no batch axis and are
-  not reordered by `beam_idx`. Beam search, larger batches, prefix caching and PagedAttention
-  are unsupported. Verified checkpoints include Qwen3.5-0.8B Q8_0 and
-  Ternary-Bonsai-27B Q2_g64.
+- **Recurrent states.** `AdaptToGenAI` gives Gated-DeltaNet states (`qwen35`, `qwen35moe`) a
+  dynamic batch dimension, reorders them by `beam_idx` and masks left padding out of their causal
+  convolution. Mamba 2 and `nemotron_h` states stay at one sequence. GenAI must recognize
+  `gguf_recurrent_states` metadata to reset, rather than trim, SDPA state.
 - **Multimodal models:** a verified language backbone does not establish support for its
   vision or audio components, preprocessing or full application pipeline.
 - **Ternary Bonsai packaging:** `Ternary-Bonsai-27B-Q2_0.gguf` uses g128 packing that does

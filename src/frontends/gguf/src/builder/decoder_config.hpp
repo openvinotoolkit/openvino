@@ -89,6 +89,8 @@ struct DecoderConfig {
     int expert_groups = 1;
     int expert_groups_used = 1;
     float embedding_scale = 1.0f;
+    // Like llama.cpp's Gemma3/Gemma4, scale token lookups only; injected embeddings stay raw.
+    bool embedding_scale_tokens_only = false;
     float residual_scale = 1.0f;
     float logit_scale = 1.0f;
     float attention_scale = 0.0f;  // 0 -> 1/sqrt(head_size)

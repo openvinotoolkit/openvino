@@ -61,6 +61,11 @@ serializable — see the example below.
 | `ov::op::internal::SelectiveSSM` | `GGML_OP_SSM_SCAN` | `translate_ssm_scan` (Mamba 2 scalar decay) | No frontend decomposition |
 | `ov::op::internal::GatedDeltaNet` | `GGML_OP_GATED_DELTA_NET` | `translate_gated_delta_net` (scalar gate) | `translate_gated_delta_net_ref` — a serializable `Loop` scan, used for per-key-dimension gating (`kda`) and as a portable fallback |
 
+Native builder graphs request `split_outputs` from `GGML_OP_GATED_DELTA_NET`: the op then
+returns attention and the new state as separate outputs, and the state input and output keep
+the internal op's `[B, H_v, key_dim, value_dim]` layout. ggml graphs keep ggml's packed
+output and state layout. The split form requires the fused (scalar-gate) path.
+
 See [`src/op/gated_delta_net.cpp`](../src/op/gated_delta_net.cpp).
 
 ## Guidance for adding a new internal-op path

@@ -91,6 +91,7 @@ GraphBuilder load_gguf_builder(const std::string& file, const ArchRegistry& regi
         auto graph = builder->build();
         OPENVINO_ASSERT(graph, "[GGUF] architecture handler '", definition.id, "' returned no graph");
         graph->tokenizer_config = extract_tokenizer_config(metadata);
+        graph->architecture = meta_view.architecture();
         return graph;
     };
 }

@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
 
@@ -16,10 +17,180 @@
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/multiply.hpp"
+#include "openvino/op/paged_attention.hpp"
+#include "openvino/op/paged_gated_delta_net.hpp"
 #include "openvino/openvino.hpp"
+#include "openvino/pass/manager.hpp"
+#include "openvino/pass/sdpa_to_paged_attention.hpp"
 
 namespace {
 class GGUFArchitectureAccuracy : public ::testing::TestWithParam<const char*> {};
+
+// Check batching and beam reordering against independent stateful requests. The
+// same synthetic checkpoints are qualified against llama.cpp below.
+void check_batched_decode(const std::shared_ptr<ov::Model>& model) {
+    ov::Core core;
+    auto compiled = core.compile_model(model,
+                                       "CPU",
+                                       ov::hint::inference_precision(ov::element::f32),
+                                       ov::num_streams(1),
+                                       ov::inference_num_threads(4),
+                                       ov::hint::dynamic_quantization_group_size(0),
+                                       ov::hint::kv_cache_precision(ov::element::f16));
+    auto first = compiled.create_infer_request();
+    auto second = compiled.create_infer_request();
+    auto batch = compiled.create_infer_request();
+    const auto infer = [](ov::InferRequest& request,
+                          size_t batch_size,
+                          const std::vector<int64_t>& ids,
+                          const std::vector<int64_t>& mask,
+                          const std::vector<int64_t>& positions,
+                          const std::vector<int32_t>& beams) {
+        const auto set_tensor =
+            [&](const char* name, const ov::element::Type& type, const ov::Shape& shape, const auto& values) {
+                ov::Tensor tensor(type, shape);
+                std::memcpy(tensor.data(), values.data(), tensor.get_byte_size());
+                request.set_tensor(name, tensor);
+            };
+        set_tensor("input_ids", ov::element::i64, {batch_size, ids.size() / batch_size}, ids);
+        set_tensor("attention_mask", ov::element::i64, {batch_size, mask.size() / batch_size}, mask);
+        set_tensor("position_ids", ov::element::i64, {batch_size, positions.size() / batch_size}, positions);
+        set_tensor("beam_idx", ov::element::i32, {batch_size}, beams);
+        request.infer();
+        auto output = request.get_tensor("logits");
+        return std::vector<float>(output.data<const float>(), output.data<const float>() + output.get_size());
+    };
+    const auto compare =
+        [](const std::vector<float>& actual, const std::vector<float>& first, const std::vector<float>& second) {
+            auto expected = first;
+            expected.insert(expected.end(), second.begin(), second.end());
+            ASSERT_EQ(actual.size(), expected.size());
+            ov_gguf_test::expect_nmse_below(ov_gguf_test::nmse(actual.data(), expected.data(), actual.size()), 1e-5);
+        };
+    auto a = infer(first, 1, {1, 2, 3}, {1, 1, 1}, {0, 1, 2}, {0});
+    auto b = infer(second, 1, {2, 3}, {1, 1}, {0, 1}, {0});
+    compare(infer(batch, 2, {1, 2, 3, 0, 2, 3}, {1, 1, 1, 0, 1, 1}, {0, 1, 2, 0, 0, 1}, {0, 0}), a, b);
+    a = infer(first, 1, {4}, {1, 1, 1, 1}, {3}, {0});
+    b = infer(second, 1, {5}, {1, 1, 1}, {2}, {0});
+    compare(infer(batch, 2, {5, 4}, {0, 1, 1, 1, 1, 1, 1, 1}, {2, 3}, {1, 0}), b, a);
+}
+
+TEST(GGUFMultimodalBackboneAdaptation, QwenAndGemmaSupportBatchesAndPagedAttention) {
+    for (const auto* family : {"qwen35", "qwen35moe", "qwen35moe-fused", "gemma4-mqa", "gemma4-moe", "gemma4-ple"}) {
+        SCOPED_TRACE(family);
+        auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
+        const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+        ov::frontend::gguf::FrontEnd frontend;
+        frontend.add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(
+            ov::frontend::gguf::pass::GGUFMakeStateful()));
+        frontend.add_extension(
+            std::make_shared<ov::frontend::DecoderTransformationExtension>(ov::frontend::gguf::pass::AdaptToGenAI()));
+        auto model = frontend.convert(frontend.load(temporary.path));
+        check_batched_decode(model);
+        ov::pass::Manager manager;
+        manager.register_pass<ov::pass::SDPAToPagedAttention>();
+        ASSERT_NO_THROW(manager.run_passes(model));
+        // Multiple tokens expose accidental [tokens,tokens,...] M-RoPE broadcasts.
+        model->reshape({{"input_ids", {5}}, {"position_ids", {5}}});
+        const bool gemma = std::string(family).find("gemma4") == 0;
+        size_t attention = 0, recurrent = 0;
+        for (const auto& node : model->get_ops()) {
+            if (auto pa = ov::as_type_ptr<ov::op::PagedAttentionExtension>(node)) {
+                ++attention;
+                const auto& query_shape = pa->get_input_partial_shape(0);
+                EXPECT_EQ(query_shape.rank(), 2);
+                EXPECT_EQ(query_shape[0], 5);
+                EXPECT_TRUE(query_shape[1] == 64 || (gemma && query_shape[1] == 32));
+            }
+            if (auto gdn = ov::as_type_ptr<ov::op::internal::PagedGatedDeltaNet>(node)) {
+                ++recurrent;
+                EXPECT_EQ(gdn->get_input_partial_shape(0)[0], 5);
+            }
+        }
+        EXPECT_EQ(attention, gemma ? (std::string(family) == "gemma4-ple" ? 4 : 2) : 1);
+        EXPECT_EQ(recurrent, gemma ? 0 : 3);
+        EXPECT_TRUE(model->get_sinks().empty());
+    }
+}
+
+// Gemma3/Gemma4 scale token lookups only, as in llama.cpp, so the scale belongs to the embedding
+// model and injected media embeddings reach the decoder unscaled.
+TEST(GGUFMultimodalBackboneAdaptation, GemmaEmbeddingModelOwnsTokenScaling) {
+    for (const auto* family : {"gemma3", "gemma4-mqa", "gemma4-ple"}) {
+        SCOPED_TRACE(family);
+        auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
+        const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+        const auto convert = [&] {
+            ov::frontend::gguf::FrontEnd frontend;
+            frontend.add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(
+                ov::frontend::gguf::pass::GGUFMakeStateful()));
+            return frontend.convert(frontend.load(temporary.path));
+        };
+        auto token_model = convert(), embedded_model = convert();
+        ov::frontend::gguf::pass::AdaptToGenAI().run_on_model(token_model);
+        ov::frontend::gguf::pass::AdaptToGenAI adapter(
+            ov::frontend::gguf::pass::AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+        ASSERT_TRUE(adapter.run_on_model(embedded_model));
+        const auto embedding_model = adapter.get_embedding_model();
+        const auto width = embedding_model->output("inputs_embeds").get_partial_shape()[2].get_length();
+        const auto embedding_ops = embedding_model->get_ops();
+        const bool scaled =
+            std::any_of(embedding_ops.begin(), embedding_ops.end(), [&](const std::shared_ptr<ov::Node>& node) {
+                if (!ov::is_type<ov::op::v1::Multiply>(node))
+                    return false;
+                auto constant = ov::as_type_ptr<ov::op::v0::Constant>(node->get_input_node_shared_ptr(1));
+                return constant && ov::shape_size(constant->get_shape()) == 1 &&
+                       std::abs(constant->cast_vector<float>()[0] - std::sqrt(float(width))) < 1e-4f;
+            });
+        EXPECT_TRUE(scaled) << "embedding model does not apply sqrt(n_embd)";
+
+        ov::Core core;
+        const auto compile = [&](const std::shared_ptr<ov::Model>& model) {
+            return core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32))
+                .create_infer_request();
+        };
+        auto tokens = compile(token_model), values = compile(embedded_model), lookup = compile(embedding_model);
+        ov::Tensor ids(ov::element::i64, {1, 3}), mask(ov::element::i64, {1, 3}), positions(ov::element::i64, {1, 3});
+        for (int64_t i = 0; i < 3; ++i) {
+            ids.data<int64_t>()[i] = i + 1;
+            positions.data<int64_t>()[i] = i;
+        }
+        std::fill_n(mask.data<int64_t>(), 3, 1);
+        ov::Tensor beam(ov::element::i32, {1});
+        beam.data<int32_t>()[0] = 0;
+        lookup.set_tensor("input_ids", ids);
+        lookup.infer();
+        for (auto* request : {&tokens, &values}) {
+            request->set_tensor("attention_mask", mask);
+            request->set_tensor("position_ids", positions);
+            request->set_tensor("beam_idx", beam);
+        }
+        tokens.set_tensor("input_ids", ids);
+        values.set_tensor("inputs_embeds", lookup.get_tensor("inputs_embeds"));
+        for (const auto& input : embedded_model->inputs()) {
+            if (input.get_names().count("token_type_ids")) {
+                ov::Tensor types(ov::element::i64, {1, 3});
+                std::fill_n(types.data<int64_t>(), 3, 0);
+                values.set_tensor("token_type_ids", types);
+            }
+            if (input.get_names().count("per_layer_inputs")) {
+                auto per_layer = compile(adapter.get_per_layer_embedding_model());
+                per_layer.set_tensor("input_ids", ids);
+                per_layer.infer();
+                values.set_tensor("per_layer_inputs", per_layer.get_tensor("per_layer_inputs"));
+            }
+        }
+        tokens.infer();
+        values.infer();
+        const auto expected = tokens.get_output_tensor(), actual = values.get_output_tensor();
+        ASSERT_EQ(actual.get_shape(), expected.get_shape());
+        ov_gguf_test::expect_nmse_below(
+            ov_gguf_test::nmse(actual.data<const float>(), expected.data<const float>(), actual.get_size()),
+            1e-10);
+    }
+}
 
 TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     const char* override_dir = std::getenv("OV_GGUF_ACCURACY_DATA");
@@ -33,13 +204,7 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     std::vector<float> reference;
     int32_t vocab = 0;
     std::string model_path = base.string() + ".gguf";
-    struct TemporaryModel {
-        std::string path;
-        ~TemporaryModel() {
-            if (!path.empty())
-                std::filesystem::remove(path);
-        }
-    } temporary;
+    std::unique_ptr<ov_gguf_test::TemporaryGguf> temporary;
     if (real_checkpoint) {
         std::ifstream file(base.string() + ".bin", std::ios::binary);
         ASSERT_TRUE(file) << base;
@@ -66,11 +231,7 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     } else {
         const auto arrays = cnpy::npz_load(base.string() + ".npz");
         const auto array = [&](const std::string& name) -> const cnpy::NpyArray& {
-            const auto it = std::find_if(arrays.begin(), arrays.end(), [&](const auto& entry) {
-                return entry.first == name;
-            });
-            OPENVINO_ASSERT(it != arrays.end(), "Missing reference array ", name);
-            return it->second;
+            return ov_gguf_test::npz_array(arrays, name);
         };
         const auto& logits = array("logits");
         ASSERT_EQ(logits.shape.size(), 2);
@@ -78,13 +239,8 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         vocab = static_cast<int32_t>(logits.shape[1]);
         const auto* values = logits.data<float>();
         reference.assign(values, values + 3 * vocab);
-        temporary.path =
-            (std::filesystem::temp_directory_path() / (ov::test::utils::generateTestFilePrefix() + ".gguf")).string();
-        model_path = temporary.path;
-        std::ofstream file(model_path, std::ios::binary);
-        const auto& bytes = array("model");
-        file.write(bytes.data<char>(), bytes.num_vals);
-        ASSERT_TRUE(file);
+        temporary = std::make_unique<ov_gguf_test::TemporaryGguf>(array("model"));
+        model_path = temporary->path;
     }
     ov::frontend::gguf::FrontEnd fe;
     fe.add_extension(
@@ -127,17 +283,6 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         request.infer();
         return request.get_output_tensor();
     };
-    const auto nmse = [vocab](const float* actual, const float* expected) {
-        double error = 0, norm = 0;
-        for (int32_t i = 0; i < vocab; ++i) {
-            EXPECT_TRUE(std::isfinite(actual[i]));
-            const double difference = actual[i] - expected[i];
-            error += difference * difference;
-            norm += expected[i] * expected[i];
-        }
-        EXPECT_GT(norm, 1e-12) << "Reference must contain nonzero logits";
-        return error / norm;
-    };
     size_t past = 0;
     size_t step = 0;
     size_t matching_tokens = 0;
@@ -148,12 +293,14 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
         ASSERT_GE(result.get_size(), static_cast<size_t>(vocab));
         const auto* actual = result.data<const float>() + result.get_size() - vocab;
         const auto* expected = reference.data() + step++ * vocab;
-        const auto error = nmse(actual, expected);
+        const auto metric = ov_gguf_test::nmse(actual, expected, static_cast<size_t>(vocab));
+        ASSERT_TRUE(metric.all_finite());
+        ASSERT_GT(metric.reference_norm(), 1e-12) << "Reference must contain nonzero logits";
         const auto predicted = std::max_element(actual, actual + vocab) - actual;
         const auto wanted = std::max_element(expected, expected + vocab) - expected;
         matching_tokens += predicted == wanted;
         RecordProperty("top1_match_step_" + std::to_string(step), predicted == wanted ? 1 : 0);
-        RecordProperty("nmse_step_" + std::to_string(step), std::to_string(error));
+        RecordProperty("nmse_step_" + std::to_string(step), std::to_string(metric.value()));
         if (real_checkpoint) {
             // Real checkpoints can use different quantization arithmetic. Check the first prediction
             // and continuation agreement; keep their full-logit metrics in the XML report.
@@ -161,7 +308,7 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
                 EXPECT_EQ(predicted, wanted);
             }
         } else {
-            EXPECT_LT(error, 1e-5) << "Normalized MSE against llama.cpp CPU";
+            EXPECT_LT(metric.value(), 1e-5) << "Normalized MSE against llama.cpp CPU";
         }
         past += tokens.size();
     }
@@ -172,12 +319,14 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
             state.reset();
         const auto logits = infer(schedule.front(), 0);
         const auto* actual = logits.data<const float>() + logits.get_size() - vocab;
-        const auto error = nmse(actual, reference.data());
+        const auto metric = ov_gguf_test::nmse(actual, reference.data(), static_cast<size_t>(vocab));
+        ASSERT_TRUE(metric.all_finite());
+        ASSERT_GT(metric.reference_norm(), 1e-12);
         if (real_checkpoint)
             EXPECT_EQ(std::max_element(actual, actual + vocab) - actual,
                       std::max_element(reference.begin(), reference.begin() + vocab) - reference.begin());
         else
-            EXPECT_LT(error, 1e-5) << "Fresh prefill after resetting recurrent states";
+            EXPECT_LT(metric.value(), 1e-5) << "Fresh prefill after resetting recurrent states";
     }
     if (real_checkpoint) {
         EXPECT_GE(matching_tokens * 10, schedule.size() * 9) << "Fewer than 90% of greedy choices match";
@@ -186,7 +335,14 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
 
 INSTANTIATE_TEST_SUITE_P(Architectures,
                          GGUFArchitectureAccuracy,
-                         ::testing::Values("nemotron_h",
+                         ::testing::Values("qwen35",
+                                           "qwen35-mixed",
+                                           "qwen35moe",
+                                           "qwen35moe-fused",
+                                           "gemma4-mqa",
+                                           "gemma4-moe",
+                                           "gemma4-ple",
+                                           "nemotron_h",
                                            "mamba2",
                                            "mamba2-tied",
                                            "llama",
@@ -200,6 +356,7 @@ INSTANTIATE_TEST_SUITE_P(Architectures,
                                            "qwen3moe",
                                            "gemma",
                                            "gemma2",
+                                           "gemma3",
                                            "exaone4",
                                            "ernie4_5-moe",
                                            "bailingmoe2",
