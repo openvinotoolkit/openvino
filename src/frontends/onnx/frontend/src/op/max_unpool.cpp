@@ -19,6 +19,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/variadic_split.hpp"
 #include "openvino/util/common_util.hpp"
+#include "openvino/util/math_util.hpp"
 #include "utils/common.hpp"
 
 using namespace ov::op;
@@ -75,6 +76,45 @@ ov::OutputVector max_unpool(const ov::frontend::onnx::Node& node) {
                      " and ",
                      data.get_partial_shape());
 
+    // out[i] = (in[i] - 1) * strides[i] + kernel_shape[i] - pads_begin[i] - pads_end[i]
+    std::vector<int64_t> shift(spatial_rank);
+    for (size_t i = 0; i < spatial_rank; ++i) {
+        shift[i] = kernel_shape[i] - strides[i] - pads[i] - pads[i + spatial_rank];
+    }
+
+    // Static output shapes are checked here, the graph arithmetic does not detect overflow
+    const auto checked_size = [&node](const std::vector<int64_t>& dims) {
+        int64_t size = 1;
+        for (const auto dim : dims) {
+            CHECK_VALID_NODE(node,
+                             !ov::util::mul_overflow(size, dim, size),
+                             "MaxUnpool output size overflows int64. Got shape: ",
+                             ov::util::vector_to_string(dims));
+        }
+        return size;
+    };
+    const auto& data_shape = data.get_partial_shape();
+    std::vector<int64_t> inferred_dims;
+    if (data_shape.is_static()) {
+        inferred_dims = {data_shape[0].get_length(), data_shape[1].get_length()};
+    }
+    for (size_t i = 0; i < spatial_rank && data_shape.rank().is_static(); ++i) {
+        if (data_shape[i + 2].is_dynamic()) {
+            continue;
+        }
+        int64_t dim = 0;
+        const bool overflow = ov::util::mul_overflow(data_shape[i + 2].get_length(), strides[i], dim) ||
+                              ov::util::add_overflow(dim, shift[i], dim);
+        CHECK_VALID_NODE(node,
+                         !overflow && dim > 0,
+                         "MaxUnpool inferred output dimension must be positive and fit in int64. Got input shape: ",
+                         data_shape);
+        if (!inferred_dims.empty()) {
+            inferred_dims.push_back(dim);
+        }
+    }
+    const auto inferred_size = inferred_dims.empty() ? int64_t{-1} : checked_size(inferred_dims);
+
     ov::Output<ov::Node> output_shape;
     if (common::is_input_valid(node, 2)) {
         output_shape = inputs[2];
@@ -91,7 +131,6 @@ ov::OutputVector max_unpool(const ov::frontend::onnx::Node& node) {
             os_shape);
         if (const auto os_const = ov::as_type_ptr<v0::Constant>(output_shape.get_node_shared_ptr())) {
             const auto values = os_const->cast_vector<int64_t>();
-            const auto& data_shape = data.get_partial_shape();
             CHECK_VALID_NODE(node,
                              std::all_of(values.begin(),
                                          values.end(),
@@ -108,16 +147,17 @@ ov::OutputVector max_unpool(const ov::frontend::onnx::Node& node) {
                                  " for input shape ",
                                  data_shape);
             }
+            CHECK_VALID_NODE(node,
+                             checked_size(values) >= inferred_size,
+                             "MaxUnpool 'output_shape' must not be smaller than the inferred shape. Got: ",
+                             ov::util::vector_to_string(values),
+                             ", inferred: ",
+                             ov::util::vector_to_string(inferred_dims));
         }
     } else {
-        // out[i] = (in[i] - 1) * strides[i] + kernel_shape[i] - pads_begin[i] - pads_end[i]
-        std::vector<int64_t> shift(spatial_rank);
-        for (size_t i = 0; i < spatial_rank; ++i) {
-            shift[i] = kernel_shape[i] - strides[i] - pads[i] - pads[i + spatial_rank];
-        }
-        const auto data_shape = std::make_shared<v3::ShapeOf>(data, ov::element::i64);
+        const auto shape_of = std::make_shared<v3::ShapeOf>(data, ov::element::i64);
         // [N, C] and spatial dims
-        const auto split = std::make_shared<v1::VariadicSplit>(data_shape,
+        const auto split = std::make_shared<v1::VariadicSplit>(shape_of,
                                                                v0::Constant::create(ov::element::i64, {}, {0}),
                                                                v0::Constant::create(ov::element::i64, {2}, {2, -1}));
         const auto scaled =

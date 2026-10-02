@@ -207,6 +207,88 @@ graph {
       type: INTS
     }
   }
+  node {
+    input: "X_size_overflow"
+    input: "I_size_overflow"
+    output: "Y_size_overflow"
+    op_type: "MaxUnpool"
+    attribute {
+      name: "kernel_shape"
+      ints: 2147483647
+      ints: 2147483647
+      type: INTS
+    }
+    attribute {
+      name: "strides"
+      ints: 2147483647
+      ints: 2147483647
+      type: INTS
+    }
+  }
+  node {
+    input: "X_output_shape_overflow"
+    input: "I_output_shape_overflow"
+    input: "output_shape_output_shape_overflow"
+    output: "Y_output_shape_overflow"
+    op_type: "MaxUnpool"
+    attribute {
+      name: "kernel_shape"
+      ints: 2
+      ints: 2
+      type: INTS
+    }
+    attribute {
+      name: "strides"
+      ints: 2
+      ints: 2
+      type: INTS
+    }
+  }
+  node {
+    input: "X_non_positive_dim"
+    input: "I_non_positive_dim"
+    output: "Y_non_positive_dim"
+    op_type: "MaxUnpool"
+    attribute {
+      name: "kernel_shape"
+      ints: 3
+      ints: 3
+      type: INTS
+    }
+    attribute {
+      name: "pads"
+      ints: 2
+      ints: 2
+      ints: 2
+      ints: 2
+      type: INTS
+    }
+    attribute {
+      name: "strides"
+      ints: 1
+      ints: 1
+      type: INTS
+    }
+  }
+  node {
+    input: "X_output_shape_small"
+    input: "I_output_shape_small"
+    input: "output_shape_output_shape_small"
+    output: "Y_output_shape_small"
+    op_type: "MaxUnpool"
+    attribute {
+      name: "kernel_shape"
+      ints: 2
+      ints: 2
+      type: INTS
+    }
+    attribute {
+      name: "strides"
+      ints: 2
+      ints: 2
+      type: INTS
+    }
+  }
   name: "compute_graph"
   initializer {
     dims: 3
@@ -233,6 +315,24 @@ graph {
     int64_data: 4294967296
     int64_data: 4
     name: "output_shape_large_dim"
+  }
+  initializer {
+    dims: 4
+    data_type: 7
+    int64_data: 1
+    int64_data: 1
+    int64_data: 4294967296
+    int64_data: 4294967296
+    name: "output_shape_output_shape_overflow"
+  }
+  initializer {
+    dims: 4
+    data_type: 7
+    int64_data: 1
+    int64_data: 1
+    int64_data: 2
+    int64_data: 2
+    name: "output_shape_output_shape_small"
   }
   input {
     name: "X_kernel_shape"
@@ -674,6 +774,182 @@ graph {
       }
     }
   }
+  input {
+    name: "X_size_overflow"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "I_size_overflow"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "X_output_shape_overflow"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "I_output_shape_overflow"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "X_non_positive_dim"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "I_non_positive_dim"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "X_output_shape_small"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "I_output_shape_small"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
   output {
     name: "Y_kernel_shape"
     type {
@@ -849,6 +1125,94 @@ graph {
           dim {
           }
           dim {
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y_size_overflow"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: ""
+          }
+          dim {
+            dim_param: ""
+          }
+          dim {
+            dim_param: ""
+          }
+          dim {
+            dim_param: ""
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y_output_shape_overflow"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: ""
+          }
+          dim {
+            dim_param: ""
+          }
+          dim {
+            dim_param: ""
+          }
+          dim {
+            dim_param: ""
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y_non_positive_dim"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: ""
+          }
+          dim {
+            dim_param: ""
+          }
+          dim {
+            dim_param: ""
+          }
+          dim {
+            dim_param: ""
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y_output_shape_small"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_param: ""
+          }
+          dim {
+            dim_param: ""
+          }
+          dim {
+            dim_param: ""
+          }
+          dim {
+            dim_param: ""
           }
         }
       }
