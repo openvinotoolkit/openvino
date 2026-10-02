@@ -34,6 +34,8 @@ def apply_post_convert(om, options):
         om.set_rt_info(True, "vllm_model")
     register_pa_parameters(om)
     normalize_concat_ranks(om)
+    redirect_kv_shared_kv(om)
+    fix_pa_attention_scale(om)
     if bool_opt(options, "fc_decompress", True):
         rewrite_fc_decompression(om)
 
@@ -320,6 +322,231 @@ def normalize_concat_ranks(om):
         om.validate_nodes_and_infer_types()
     except Exception as e:
         logger.debug("concat-rank normalization skipped: %s", e)
+
+
+# Layer-name suffix of the PA key-cache Parameter, "__pa__<layer>__key_cache".
+_PA_KEY_CACHE_SUFFIX = "__key_cache"
+
+
+def _pa_layer_name(node):
+    """Layer name of a PagedAttentionExtension node, or None.
+
+    Read off the node's own ``__pa__<layer>__key_cache`` Parameter rather than
+    its friendly name, because that is the spelling vLLM's
+    ``kv_sharing_target_layer_name`` uses.
+    """
+    for i in range(node.get_input_size()):
+        port = node.input_value(i)
+        if port.get_node().get_type_name() != "Parameter":
+            continue
+        for name in _port_names(port):
+            if name.startswith("__pa__") and name.endswith(
+                    _PA_KEY_CACHE_SUFFIX):
+                return name[len("__pa__"):-len(_PA_KEY_CACHE_SUFFIX)]
+    return None
+
+
+def _vllm_attention_layers():
+    """vLLM's {layer_name: Attention} from the live forward context, or {}.
+
+    Authoritative rather than inferred: conversion runs inside the model's
+    first forward, so the context and its attention layers are available, the
+    same way side_channel resolves them at infer time. Returns {} when vLLM is
+    absent (plain torchdynamo use).
+    """
+    from vllm.forward_context import get_forward_context
+    layers = get_forward_context().no_compile_layers
+    return layers if isinstance(layers, dict) else {}
+
+
+def _kv_sharing_targets():
+    """{layer_name: target_layer_name} for layers that reuse another's KV."""
+    out = {}
+    for name, layer in _vllm_attention_layers().items():
+        target = getattr(layer, "kv_sharing_target_layer_name", None)
+        if target:
+            out[name] = target
+    return out
+
+
+def redirect_kv_shared_kv(om):
+    """Point KV-shared layers' PagedAttention key/value at their target layer's.
+
+    Gemma-4-style KV sharing has the last N layers reuse an earlier layer's KV
+    cache instead of keeping their own. vLLM hands those layers *raw* k/v --
+    no k_norm, no v_norm, no RoPE -- because its attention backends suppress
+    the cache write for them:
+
+        # vllm/v1/attention/backends/cpu_attn.py
+        if (self.kv_sharing_target_layer_name is None
+                and key is not None and value is not None):
+            ops.cpu_attn_reshape_and_cache(...)
+
+    ``PagedAttentionExtension`` has no read-only mode and always writes, so
+    every shared layer overwrites the shared cache with that placeholder junk
+    and each layer reading the cache then attends over junk. On
+    Gemma-4-E4B (18 of 42 layers shared) the raw k arrives at rms 3.6-9.7
+    against 0.06-0.13 for properly normed k, which saturates the softmax and
+    flattens the output distribution into noise.
+
+    Suppressing the write would need a new PagedAttention input, i.e. core and
+    CPU-plugin changes. Instead this makes the write *idempotent*: repoint each
+    shared layer's key/value at the target layer's already-normed,
+    already-RoPE'd key/value, so PA writes exactly the values that are
+    supposed to be there. Reads are unaffected -- side_channel already binds a
+    shared layer's cache Parameter to the target layer's tensor.
+
+    Query is deliberately left alone: a shared layer has its own
+    q_proj/q_norm/RoPE and vLLM uses it.
+
+    Set ``OV_PA_KV_SHARING=0`` to skip this pass.
+    """
+    if os.environ.get("OV_PA_KV_SHARING") == "0":
+        logger.debug("KV-shared redirect disabled by OV_PA_KV_SHARING=0")
+        return
+
+    try:
+        pa_by_layer, order = {}, {}
+        for idx, node in enumerate(om.get_ordered_ops()):
+            if node.get_type_name() != "PagedAttentionExtension":
+                continue
+            name = _pa_layer_name(node)
+            if name is not None:
+                pa_by_layer[name] = node
+                order[name] = idx
+        if not pa_by_layer:
+            return
+
+        targets = _kv_sharing_targets()
+        if not targets:
+            return
+
+        patched = 0
+        for layer, target in sorted(targets.items(),
+                                    key=lambda kv: order.get(kv[0], -1)):
+            src, dst = pa_by_layer.get(layer), pa_by_layer.get(target)
+            if src is None or dst is None:
+                logger.debug("KV sharing %s -> %s: no PA node, skipped",
+                             layer, target)
+                continue
+            # The target must already be computed where the shared layer sits,
+            # or the rewire would introduce a cycle. vLLM always targets an
+            # earlier layer; this only guards against a surprising map.
+            if order[target] >= order[layer]:
+                logger.warning(
+                    "KV sharing %s -> %s: target is not earlier in the graph,"
+                    " skipped", layer, target)
+                continue
+            # Ports 1 and 2 are key and value; 0 is query, left untouched.
+            ports = []
+            for port in (1, 2):
+                new = dst.input_value(port)
+                old = src.input_value(port)
+                if new.get_partial_shape() != old.get_partial_shape() or \
+                        new.get_element_type() != old.get_element_type():
+                    ports = None
+                    logger.warning(
+                        "KV sharing %s -> %s: port %d mismatch (%s %s vs"
+                        " %s %s), skipped", layer, target, port,
+                        old.get_partial_shape(), old.get_element_type(),
+                        new.get_partial_shape(), new.get_element_type())
+                    break
+                ports.append((port, new))
+            if not ports:
+                continue
+            for port, new in ports:
+                src.input(port).replace_source_output(new)
+            src.validate_and_infer_types()
+            patched += 1
+            logger.debug("KV sharing: %s key/value <- %s", layer, target)
+
+        if patched:
+            om.validate_nodes_and_infer_types()
+            logger.info("redirected key/value of %d KV-shared PagedAttention"
+                        " layer(s) to their target layer", patched)
+    except Exception as e:
+        logger.debug("KV-shared key/value redirect skipped: %s", e)
+
+
+# PagedAttentionExtension input index of the attention scale, fixed by the op
+# spec. Validated as a rank-0 float Constant before being rewritten.
+_PA_SCALE_INPUT = 9
+
+
+def fix_pa_attention_scale(om):
+    """Replace PagedAttention's derived scale with the one vLLM actually uses.
+
+    The ``openvino.paged_attention`` torch op takes only
+    ``(query, key, value, layer_name)``, so the attention scale never reaches
+    the frontend and ``paged_attention.cpp`` falls back to
+    ``1/sqrt(head_dim)``. That is wrong for any model whose scale is not
+    ``1/sqrt(head_dim)`` -- notably Gemma-4, which folds the normalization into
+    its learnable Q/K norm weights and so uses a scale of 1.0:
+
+        # vllm/model_executor/models/gemma4.py
+        # Gemma4 uses scaling=1.0.
+        # Unlike Gemma2/3, query_pre_attn_scalar is NOT used here;
+        # Q/K norms with learnable weights handle scaling implicitly.
+        self.scaling = 1.0
+
+    Uncorrected, the graph divides every score by ``sqrt(head_dim)`` a second
+    time -- 16x on Gemma-4's head_dim-256 layers and 22.6x on its 512 ones --
+    which pushes the softmax toward uniform and flattens the output
+    distribution. ``Attention.extra_repr`` treats ``impl.scale`` as the
+    authoritative value, so that is what is read here.
+
+    Set ``OV_PA_FIX_SCALE=0`` to skip this pass.
+    """
+    if os.environ.get("OV_PA_FIX_SCALE") == "0":
+        logger.debug("PA scale fix disabled by OV_PA_FIX_SCALE=0")
+        return
+
+    try:
+        from openvino import opset1 as _o1
+
+        layers = _vllm_attention_layers()
+        if not layers:
+            return
+
+        fixed = 0
+        for node in om.get_ordered_ops():
+            if node.get_type_name() != "PagedAttentionExtension":
+                continue
+            name = _pa_layer_name(node)
+            impl = getattr(layers.get(name), "impl", None)
+            want = getattr(impl, "scale", None)
+            if want is None:
+                continue
+            port = node.input_value(_PA_SCALE_INPUT)
+            const = port.get_node()
+            # Only touch what the frontend itself emitted: a rank-0 float
+            # Constant. Anything else means the op layout moved and the index
+            # is no longer the scale.
+            if const.get_type_name() != "Constant" or \
+                    port.get_partial_shape().rank.get_length() != 0 or \
+                    not port.get_element_type().is_real():
+                logger.warning(
+                    "PA scale fix %s: input %d is %s %s, not a scalar float"
+                    " Constant -- skipped", name, _PA_SCALE_INPUT,
+                    const.get_type_name(), port.get_partial_shape())
+                continue
+            have = float(const.get_vector()[0])
+            want = float(want)
+            if abs(have - want) <= 1e-9 * max(1.0, abs(want)):
+                continue
+            new = _o1.constant(want, port.get_element_type())
+            node.input(_PA_SCALE_INPUT).replace_source_output(new.output(0))
+            node.validate_and_infer_types()
+            fixed += 1
+            logger.debug("PA scale %s: %.8g -> %.8g (vLLM impl.scale)",
+                         name, have, want)
+
+        if fixed:
+            om.validate_nodes_and_infer_types()
+            logger.info("corrected the attention scale on %d PagedAttention"
+                        " layer(s) to vLLM's value", fixed)
+    except Exception as e:
+        logger.debug("PA scale fix skipped: %s", e)
 
 
 def model_float_precision(om):
