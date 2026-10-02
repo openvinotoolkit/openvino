@@ -94,9 +94,9 @@ std::string to_string(const hsm::Section& section) {
 
 std::vector<uint8_t> make_sample_reader_container() {
     return make_container({
-        {make_inline_entry(hsm::any_device_id, hsm::model_id_tag(), {0xAA, 0xBB, 0xCC, 0xDD}), {}},
-        {make_pointer_entry(hsm::any_device_id, hsm::model_tag()), "compiled-model-bytes"},
-        {make_pointer_entry(fake_device_id, hsm::make_device_tag(/*local_id=*/1, /*is_inline=*/false)),
+        {make_inline_entry(hsm::any_device_id, hsm::model_id_tag, {0xAA, 0xBB, 0xCC, 0xDD}), {}},
+        {make_pointer_entry(hsm::any_device_id, hsm::model_tag), "compiled-model-bytes"},
+        {make_pointer_entry(fake_device_id, hsm::SectionTag::make_device_tag(/*local_id=*/1, /*is_inline=*/false)),
          "device-specific-payload"},
     });
 }
@@ -172,7 +172,7 @@ private:
 // --- Section: constructed directly, without a Reader - it's a publicly exposed type on its own ----------
 
 TEST(HsmSectionTest, inline_mode_reads_directly_from_the_entry_no_source_needed) {
-    const auto entry = make_inline_entry(fake_device_id, hsm::model_id_tag(), {0xAA, 0xBB, 0xCC});
+    const auto entry = make_inline_entry(fake_device_id, hsm::model_id_tag, {0xAA, 0xBB, 0xCC});
     const hsm::Section section(entry);
 
     EXPECT_EQ(section.device(), fake_device_id);
@@ -186,7 +186,7 @@ TEST(HsmSectionTest, inline_mode_reads_directly_from_the_entry_no_source_needed)
 
 TEST(HsmSectionTest, pointer_mode_reads_from_an_explicitly_supplied_buffer) {
     const std::string payload = "standalone-section-bytes";
-    auto entry = make_pointer_entry(fake_device_id, hsm::model_tag());
+    auto entry = make_pointer_entry(fake_device_id, hsm::model_tag);
     entry.size = payload.size();
     const ov::util::MemoryView view{reinterpret_cast<const std::byte*>(payload.data()), payload.size()};
     const hsm::Section section(entry, view);
@@ -197,7 +197,7 @@ TEST(HsmSectionTest, pointer_mode_reads_from_an_explicitly_supplied_buffer) {
 }
 
 TEST(HsmSectionTest, read_rejects_a_null_destination) {
-    const auto entry = make_inline_entry(fake_device_id, hsm::model_id_tag(), {0xAA});
+    const auto entry = make_inline_entry(fake_device_id, hsm::model_id_tag, {0xAA});
     const hsm::Section section(entry);
     EXPECT_FALSE(section.read(0, section.size(), nullptr));
 }
@@ -206,7 +206,7 @@ TEST(HsmSectionTest, pointer_mode_entry_built_with_the_inline_only_constructor_h
     // Misuses the public API directly: the inline-only constructor never sets a payload source, so a
     // pointer-mode entry built this way has nothing for view()/read() to fall back on (m_source stays
     // std::monostate).
-    auto entry = make_pointer_entry(fake_device_id, hsm::model_tag());
+    auto entry = make_pointer_entry(fake_device_id, hsm::model_tag);
     entry.size = 4;
     const hsm::Section section(entry);
 
@@ -258,15 +258,15 @@ TEST(HsmReaderTest, open_accepts_valid_container) {
 TEST(HsmReaderTest, open_accepts_shared_context_magic_and_reads_its_sections) {
     const auto blob = make_container(
         {
-            {make_inline_entry(hsm::any_device_id, hsm::model_id_tag(), {0xAA}), {}},
-            {make_pointer_entry(fake_device_id, hsm::make_device_tag(/*local_id=*/1, /*is_inline=*/false)),
+            {make_inline_entry(hsm::any_device_id, hsm::model_id_tag, {0xAA}), {}},
+            {make_pointer_entry(fake_device_id, hsm::SectionTag::make_device_tag(/*local_id=*/1, /*is_inline=*/false)),
              "shared-context-payload"},
         },
         hsm::BlobMagic::multi);
     const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
 
-    const auto shard = reader->section(fake_device_id, hsm::make_device_tag(1, false).id());
+    const auto shard = reader->section(fake_device_id, hsm::SectionTag::make_device_tag(1, false).id());
     ASSERT_TRUE(shard.has_value());
     EXPECT_EQ(to_string(*shard), "shared-context-payload");
 }
@@ -306,7 +306,7 @@ TEST(HsmReaderTest, common_sections_absent_when_manifest_is_empty) {
 
 TEST(HsmReaderTest, runtime_requirements_section_reads_opaque_payload) {
     const auto blob = make_container({
-        {make_pointer_entry(hsm::any_device_id, hsm::runtime_requirements_tag()), "req-v1"},
+        {make_pointer_entry(hsm::any_device_id, hsm::runtime_requirements_tag), "req-v1"},
     });
     const auto reader = hsm::Reader::open(blob.data(), blob.size());
     ASSERT_TRUE(reader.has_value());
@@ -337,7 +337,7 @@ TEST(HsmReaderTest, move_assignment_replaces_existing_reader) {
     ASSERT_TRUE(reader_a.has_value());
 
     const auto blob_b = make_container({
-        {make_inline_entry(hsm::any_device_id, hsm::model_id_tag(), {0xBB}), {}},
+        {make_inline_entry(hsm::any_device_id, hsm::model_id_tag, {0xBB}), {}},
     });
     auto reader_b = hsm::Reader::open(blob_b.data(), blob_b.size());
     ASSERT_TRUE(reader_b.has_value());
@@ -362,7 +362,7 @@ TEST(HsmReaderTest, section_returns_nullopt_for_unknown_device_or_tag) {
 
 TEST(HsmReaderTest, section_accepts_any_enum_typed_tag_with_or_without_a_device) {
     const auto blob = make_container({
-        {make_inline_entry(hsm::any_device_id, hsm::model_id_tag(), {0xAA}), {}},
+        {make_inline_entry(hsm::any_device_id, hsm::model_id_tag, {0xAA}), {}},
         {make_pointer_entry(fake_device_id,
                             hsm::SectionTag::make(static_cast<uint32_t>(FakePluginTag::shard),
                                                   /*is_inline=*/false)),
@@ -382,7 +382,7 @@ TEST(HsmReaderTest, section_accepts_any_enum_typed_tag_with_or_without_a_device)
 }
 
 TEST(HsmReaderTest, section_returns_only_the_first_of_several_matching_entries) {
-    const auto shard_tag = hsm::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
+    const auto shard_tag = hsm::SectionTag::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
     const auto blob = make_container({
         {make_pointer_entry(fake_device_id, shard_tag), "shard-0"},
         {make_pointer_entry(fake_device_id, shard_tag), "shard-1"},
@@ -397,10 +397,10 @@ TEST(HsmReaderTest, section_returns_only_the_first_of_several_matching_entries) 
 
 TEST(HsmReaderTest, sections_returns_every_matching_entry_in_manifest_order) {
     // Nothing in the format guarantees a (device, tag) pair is unique - e.g. multiple named/indexed shards.
-    const auto shard_tag = hsm::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
+    const auto shard_tag = hsm::SectionTag::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
     const auto blob = make_container({
         {make_pointer_entry(fake_device_id, shard_tag), "shard-0"},
-        {make_pointer_entry(fake_device_id, hsm::make_device_tag(3, false)), "unrelated"},
+        {make_pointer_entry(fake_device_id, hsm::SectionTag::make_device_tag(3, false)), "unrelated"},
         {make_pointer_entry(fake_device_id, shard_tag), "shard-1"},
     });
     const auto reader = hsm::Reader::open(blob.data(), blob.size());
@@ -429,14 +429,14 @@ TEST(HsmReaderTest, sections_any_device_id_overload_matches_the_explicit_any_dev
     ASSERT_EQ(sections.size(), 1u);
     EXPECT_EQ(to_string(sections[0]), "compiled-model-bytes");
     // fake_device_id-owned tag must not surface through the any_device_id-only overload.
-    EXPECT_TRUE(reader->sections(hsm::make_device_tag(/*local_id=*/1, /*is_inline=*/false).id()).empty());
+    EXPECT_TRUE(reader->sections(hsm::SectionTag::make_device_tag(/*local_id=*/1, /*is_inline=*/false).id()).empty());
 }
 
 TEST(HsmReaderTest, count_matches_sections_size_without_reading_any_payload) {
-    const auto shard_tag = hsm::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
+    const auto shard_tag = hsm::SectionTag::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
     const auto blob = make_container({
         {make_pointer_entry(fake_device_id, shard_tag), "shard-0"},
-        {make_pointer_entry(fake_device_id, hsm::make_device_tag(3, false)), "unrelated"},
+        {make_pointer_entry(fake_device_id, hsm::SectionTag::make_device_tag(3, false)), "unrelated"},
         {make_pointer_entry(fake_device_id, shard_tag), "shard-1"},
     });
     const auto reader = hsm::Reader::open(blob.data(), blob.size());
@@ -455,7 +455,7 @@ TEST(HsmReaderTest, count_any_device_id_overload_matches_the_explicit_any_device
     // must find it too, not just count(any_device_id, tag).
     EXPECT_EQ(reader->count(hsm::model), 1u);
     // fake_device_id owns a different tag - the any_device_id-only overload must not see it.
-    EXPECT_EQ(reader->count(hsm::make_device_tag(/*local_id=*/1, /*is_inline=*/false).id()), 0u);
+    EXPECT_EQ(reader->count(hsm::SectionTag::make_device_tag(/*local_id=*/1, /*is_inline=*/false).id()), 0u);
 }
 
 TEST(HsmReaderTest, entries_gives_a_manifest_overview_without_reading_any_payload) {
@@ -658,14 +658,15 @@ TEST(HsmReaderTest, decode_with_an_explicit_device_finds_a_device_owned_section)
                     : std::nullopt;
     };
 
-    const auto decoded =
-        reader->decode(fake_device_id, hsm::make_device_tag(/*local_id=*/1, /*is_inline=*/false).id(), decode_bytes);
+    const auto decoded = reader->decode(fake_device_id,
+                                        hsm::SectionTag::make_device_tag(/*local_id=*/1, /*is_inline=*/false).id(),
+                                        decode_bytes);
     ASSERT_TRUE(decoded.has_value());
     EXPECT_EQ(*decoded, "device-specific-payload");
 }
 
 TEST(HsmReaderTest, decode_all_returns_every_matching_entry_decoded_in_order) {
-    const auto shard_tag = hsm::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
+    const auto shard_tag = hsm::SectionTag::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
     const auto blob = make_container({
         {make_pointer_entry(fake_device_id, shard_tag), "shard-0"},
         {make_pointer_entry(fake_device_id, shard_tag), "shard-1"},
@@ -747,7 +748,7 @@ TEST(HsmReaderTest, rejects_invalid_section_offset) {
 
 TEST(HsmReaderTest, rejects_container_with_out_of_bounds_runtime_requirements) {
     auto blob = make_container({
-        {make_pointer_entry(hsm::any_device_id, hsm::runtime_requirements_tag()), "req"},
+        {make_pointer_entry(hsm::any_device_id, hsm::runtime_requirements_tag), "req"},
     });
     auto header = hsm::Header::view(blob.data());
     hsm::ManifestEntry entry{};
@@ -808,7 +809,7 @@ TEST(HsmReaderStreamTest, open_accepts_valid_container_at_nonzero_stream_positio
 TEST(HsmReaderStreamTest, open_accepts_shared_context_magic_and_reads_its_sections) {
     const auto blob = make_container(
         {
-            {make_pointer_entry(fake_device_id, hsm::make_device_tag(/*local_id=*/1, /*is_inline=*/false)),
+            {make_pointer_entry(fake_device_id, hsm::SectionTag::make_device_tag(/*local_id=*/1, /*is_inline=*/false)),
              "shared-context-payload"},
         },
         hsm::BlobMagic::multi);
@@ -816,7 +817,7 @@ TEST(HsmReaderStreamTest, open_accepts_shared_context_magic_and_reads_its_sectio
     const auto reader = hsm::Reader::open(stream);
     ASSERT_TRUE(reader.has_value());
 
-    const auto shard = reader->section(fake_device_id, hsm::make_device_tag(1, false).id());
+    const auto shard = reader->section(fake_device_id, hsm::SectionTag::make_device_tag(1, false).id());
     ASSERT_TRUE(shard.has_value());
     EXPECT_EQ(to_string(*shard), "shared-context-payload");
 }
@@ -936,7 +937,7 @@ TEST(HsmReaderStreamTest, move_assignment_replaces_existing_reader) {
     ASSERT_TRUE(reader_a.has_value());
 
     const auto blob_b = make_container({
-        {make_inline_entry(hsm::any_device_id, hsm::model_id_tag(), {0xBB}), {}},
+        {make_inline_entry(hsm::any_device_id, hsm::model_id_tag, {0xBB}), {}},
     });
     auto stream_b = make_stream(blob_b);
     auto reader_b = hsm::Reader::open(stream_b);
@@ -981,7 +982,7 @@ TEST(HsmReaderStreamTest, common_sections_absent_when_manifest_is_empty) {
 }
 
 TEST(HsmReaderStreamTest, sections_returns_every_matching_entry) {
-    const auto shard_tag = hsm::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
+    const auto shard_tag = hsm::SectionTag::make_device_tag(/*local_id=*/2, /*is_inline=*/false);
     const auto blob = make_container({
         {make_pointer_entry(fake_device_id, shard_tag), "shard-0"},
         {make_pointer_entry(fake_device_id, shard_tag), "shard-1"},
@@ -1009,7 +1010,7 @@ TEST(HsmReaderStreamTest, read_sections_dispatches_same_handler_type_as_memory_b
 
 TEST(HsmReaderStreamTest, read_sections_skips_an_entry_whose_bounds_validate_but_whose_read_fails) {
     const auto blob = make_container({
-        {make_pointer_entry(fake_device_id, hsm::make_device_tag(1, false)), "unreadable-payload"},
+        {make_pointer_entry(fake_device_id, hsm::SectionTag::make_device_tag(1, false)), "unreadable-payload"},
     });
     ::testing::NiceMock<MockStreamBuf> buf(blob);
     {
@@ -1022,7 +1023,8 @@ TEST(HsmReaderStreamTest, read_sections_skips_an_entry_whose_bounds_validate_but
     const auto reader = hsm::Reader::open(stream);
     ASSERT_TRUE(reader.has_value());
 
-    RecordingHandler handler(fake_device_id, hsm::make_device_tag(/*local_id=*/1, /*is_inline=*/false).id());
+    RecordingHandler handler(fake_device_id,
+                             hsm::SectionTag::make_device_tag(/*local_id=*/1, /*is_inline=*/false).id());
     EXPECT_EQ(reader->read_sections({&handler}), 0u);
     EXPECT_EQ(handler.handled_count, 0u);
 }
