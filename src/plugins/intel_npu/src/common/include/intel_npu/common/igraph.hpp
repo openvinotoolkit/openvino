@@ -19,6 +19,10 @@
 
 namespace intel_npu {
 
+/// Backend-owned submission-ordering state. Deliberately only forward declared: graphs carry it
+/// without needing its definition, so this header stays free of the submission machinery.
+class SubmissionOrder;
+
 enum class BlobType : uint8_t { ELF, LLVM, BYTECODE };
 
 enum class GraphKind : uint8_t { Weightful, Weightless, Dynamic };
@@ -86,16 +90,23 @@ public:
         return _init_completed.load(std::memory_order_acquire);
     }
 
-    virtual void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList);
-    virtual const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const;
-    virtual void resize_last_submitted_event(size_t batch);
     virtual void set_batch_size(std::size_t batch);
 
     virtual const std::optional<std::size_t> get_batch_size() const;
 
-    virtual uint32_t get_unique_id();
-    virtual void set_last_submitted_id(uint32_t id_index);
-    virtual uint32_t get_last_submitted_id() const;
+    /**
+     * @brief Installs `candidate` as this graph's submission-ordering state if none is installed
+     * yet, and returns whichever instance is now in effect.
+     *
+     * The graph carries this state because it is precisely the scope across which inferences have
+     * to be ordered: every pipeline built on one graph must share one instance. The state itself is
+     * created and used by the backend and is opaque here, which keeps the submission machinery out
+     * of this interface.
+     *
+     * Idempotent, so every pipeline can call it unconditionally without coordinating; the losers of
+     * the race simply get the instance that was installed first and drop their candidate.
+     */
+    std::shared_ptr<SubmissionOrder> install_submission_order(std::shared_ptr<SubmissionOrder> candidate);
 
     virtual void evict_memory();
 
@@ -121,6 +132,11 @@ protected:
     // happen only once per graph, typically when the graph is first used (e.g. when the first inference starts)
     std::mutex _initialize_mutex;
     std::atomic<bool> _init_completed{false};
+
+    // Guards the submission-order slot only. Kept separate from _initialize_mutex so installing the
+    // state cannot interact with graph initialization.
+    mutable std::mutex _submission_order_mutex;
+    std::shared_ptr<SubmissionOrder> _submission_order;
 };
 
 }  // namespace intel_npu

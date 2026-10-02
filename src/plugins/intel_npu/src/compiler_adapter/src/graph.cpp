@@ -232,12 +232,6 @@ void Graph::initialize_impl(const Config& config) {
         _batchSize = determine_batch_size();
     }
 
-    if (config.get<RUN_INFERENCES_SEQUENTIALLY>() &&
-        _zeroInitStruct->getCommandQueueDdiTable().version() < ZE_MAKE_VERSION(1, 1)) {
-        auto numberOfCommandLists = _batchSize.has_value() ? *_batchSize : 1;
-
-        _lastSubmittedEvent.resize(numberOfCommandLists);
-    }
     // To ensure that the initialization of the graph does not exit prematurely due to nullptrs
     _init_completed.store(true, std::memory_order_release);
 }
@@ -263,32 +257,8 @@ bool Graph::release_blob(const Config& config) {
     return true;
 };
 
-void Graph::set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) {
-    _lastSubmittedEvent[indexOfCommandList] = event;
-}
-
-const std::shared_ptr<Event>& Graph::get_last_submitted_event(size_t indexOfCommandList) const {
-    return _lastSubmittedEvent[indexOfCommandList];
-}
-
-void Graph::resize_last_submitted_event(size_t batch) {
-    _lastSubmittedEvent.resize(batch);
-}
-
 void Graph::set_batch_size(std::size_t batch) {
     _batchSize = batch;
-}
-
-uint32_t Graph::get_unique_id() {
-    return _uniqueId++;
-}
-
-void Graph::set_last_submitted_id(uint32_t id_index) {
-    _lastSubmittedId = id_index;
-}
-
-uint32_t Graph::get_last_submitted_id() const {
-    return _lastSubmittedId;
 }
 
 std::optional<std::string_view> Graph::get_compatibility_descriptor() const {
@@ -376,10 +346,6 @@ Graph::~Graph() {
     // make sure all the context-dependent components are destroyed before the zero context is destroyed
     if (_zeGraphExt != nullptr) {
         _zeGraphExt->destroyGraph(_graphDesc);
-    }
-
-    if (!_lastSubmittedEvent.empty()) {
-        _lastSubmittedEvent.clear();
     }
 }
 

@@ -47,16 +47,9 @@ public:
     void set_workload_type(const ov::WorkloadType workloadType) override;
     void set_model_priority(const ov::hint::Priority modelPriority) override;
 
-    void set_last_submitted_event(const std::shared_ptr<Event>& event, size_t indexOfCommandList) override;
-    const std::shared_ptr<Event>& get_last_submitted_event(size_t indexOfCommandList) const override;
-    void resize_last_submitted_event(size_t batch) override;
     void set_batch_size(std::size_t batch) override;
 
     const std::optional<std::size_t> get_batch_size() const override;
-
-    uint32_t get_unique_id() override;
-    void set_last_submitted_id(uint32_t id_index) override;
-    uint32_t get_last_submitted_id() const override;
 
     std::optional<bool> is_profiling_blob() const override;
 
@@ -86,7 +79,6 @@ protected:
 
     mutable std::mutex _commandQueueDescMutex;
     CommandQueueDesc _commandQueueDesc;
-    std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
 
     std::optional<ov::Tensor> _blob;
     std::optional<std::string> _compatibilityDescriptor;
@@ -95,9 +87,6 @@ protected:
     // exported
     bool _blobIsReleased = false;
     bool _blobIsPersistent = false;
-
-    uint32_t _uniqueId = 0;
-    uint32_t _lastSubmittedId = 0;
 
     /**
      * @brief The batch size used by the corresponding model.

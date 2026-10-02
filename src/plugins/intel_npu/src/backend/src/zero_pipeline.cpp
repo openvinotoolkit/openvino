@@ -17,9 +17,10 @@
 
 namespace {
 
-uint32_t get_graph_unique_id_or_throw(const std::shared_ptr<intel_npu::IGraph>& graph) {
+/// Installs the shared ordering state on the graph, or returns the one already installed there.
+std::shared_ptr<intel_npu::SubmissionOrder> submission_order_or_throw(const std::shared_ptr<intel_npu::IGraph>& graph) {
     OPENVINO_ASSERT(graph != nullptr, "Failed to create pipeline: graph is null");
-    return graph->get_unique_id();
+    return graph->install_submission_order(std::make_shared<intel_npu::SubmissionOrder>());
 }
 
 }  // namespace
@@ -70,7 +71,8 @@ IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
       _extension_version(init_structs->getCommandQueueDdiTable().version()),
       _run_inferences_sequentially(_extension_version < ZE_MAKE_VERSION(1, 1) &&
                                    _config.get<RUN_INFERENCES_SEQUENTIALLY>()),
-      _pipeline_unique_id_per_graph(get_graph_unique_id_or_throw(graph)),
+      _submission_order(submission_order_or_throw(graph)),
+      _pipeline_unique_id_per_graph(_submission_order->next_id()),
       _logger(logName, _config.get<LOG_LEVEL>()) {
     _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, _graph->get_command_queue_desc());
 
@@ -164,7 +166,7 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
     _logger.debug("Pipeline - initialization started, batch size: %i", _batch_size);
 
     if (_run_inferences_sequentially) {
-        _graph->resize_last_submitted_event(_batch_size);
+        _submission_order->resize(_batch_size);
     }
 
     OPENVINO_ASSERT(_sync_output_with_fences || !_run_inferences_sequentially,
@@ -249,8 +251,8 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
         }
 
         if (_run_inferences_sequentially) {
-            if (_graph->get_last_submitted_event(i)) {
-                _graph->get_last_submitted_event(i)->AppendWaitOnEvent(*_command_lists.at(i));
+            if (const auto last_event = _submission_order->last_event(i)) {
+                last_event->AppendWaitOnEvent(*_command_lists.at(i));
             }
         }
 
@@ -270,12 +272,12 @@ Pipeline::Pipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
         }
 
         if (_run_inferences_sequentially) {
-            if (_graph->get_last_submitted_event(i)) {
-                _graph->get_last_submitted_event(i)->AppendEventReset(*_command_lists.at(i));
+            if (const auto last_event = _submission_order->last_event(i)) {
+                last_event->AppendEventReset(*_command_lists.at(i));
             }
 
             _events.at(i)->AppendSignalEvent(*_command_lists.at(i));
-            _graph->set_last_submitted_event(_events.at(i), i);
+            _submission_order->set_last_event(_events.at(i), i);
         }
 
         // appendBarrier used in L0 as well
@@ -292,14 +294,14 @@ void Pipeline::push() {
 
     if (_run_inferences_sequentially) {
         if (_pipeline_unique_id_per_graph) {
-            auto previousIndex = _graph->get_last_submitted_id();
+            auto previousIndex = _submission_order->last_submitted_id();
 
             if (_pipeline_unique_id_per_graph != ++previousIndex) {
                 OPENVINO_THROW("Inferences should be called in the same order they were called the first time!");
             }
         }
 
-        _graph->set_last_submitted_id(_pipeline_unique_id_per_graph);
+        _submission_order->set_last_submitted_id(_pipeline_unique_id_per_graph);
     }
 
     const auto command_queue_desc = _graph->get_command_queue_desc();

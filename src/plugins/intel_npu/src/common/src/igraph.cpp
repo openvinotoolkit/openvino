@@ -74,16 +74,12 @@ void IGraph::set_model_priority(const ov::hint::Priority) {
     OPENVINO_THROW("set_model_priority not implemented");
 }
 
-void IGraph::set_last_submitted_event(const std::shared_ptr<Event>&, size_t) {
-    OPENVINO_THROW("set_last_submitted_event not implemented");
-}
-
-const std::shared_ptr<Event>& IGraph::get_last_submitted_event(size_t) const {
-    OPENVINO_THROW("get_last_submitted_event not implemented");
-}
-
-void IGraph::resize_last_submitted_event(size_t) {
-    OPENVINO_THROW("resize_last_submitted_event not implemented");
+std::shared_ptr<SubmissionOrder> IGraph::install_submission_order(std::shared_ptr<SubmissionOrder> candidate) {
+    std::lock_guard<std::mutex> lock(_submission_order_mutex);
+    if (_submission_order == nullptr) {
+        _submission_order = std::move(candidate);
+    }
+    return _submission_order;
 }
 
 void IGraph::set_batch_size(std::size_t) {
@@ -92,18 +88,6 @@ void IGraph::set_batch_size(std::size_t) {
 
 const std::optional<std::size_t> IGraph::get_batch_size() const {
     OPENVINO_THROW("get_batch_size not implemented");
-}
-
-uint32_t IGraph::get_unique_id() {
-    OPENVINO_THROW("get_unique_id not implemented");
-}
-
-void IGraph::set_last_submitted_id(uint32_t) {
-    OPENVINO_THROW("set_last_submitted_id not implemented");
-}
-
-uint32_t IGraph::get_last_submitted_id() const {
-    OPENVINO_THROW("get_last_submitted_id not implemented");
 }
 
 void IGraph::evict_memory() {}

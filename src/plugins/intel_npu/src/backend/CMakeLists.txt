@@ -5,6 +5,7 @@
 set(TARGET_NAME "openvino_npu_level_zero_backend")
 
 set(SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/submission_order.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_backend.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_device.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_dynamic_infer_request.hpp

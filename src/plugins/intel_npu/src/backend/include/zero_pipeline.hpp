@@ -9,6 +9,7 @@
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/zero/zero_tensor.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
+#include "submission_order.hpp"
 #include "zero_profiling.hpp"
 
 namespace intel_npu {
@@ -75,6 +76,9 @@ protected:
     bool _sync_output_with_fences = true;
     uint32_t _extension_version;
     bool _run_inferences_sequentially = false;
+    /// Shared with every other pipeline built on the same graph. Declared before the ticket below,
+    /// which is drawn from it during construction.
+    const std::shared_ptr<SubmissionOrder> _submission_order;
     const uint32_t _pipeline_unique_id_per_graph;
 
     Logger _logger;

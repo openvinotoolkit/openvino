@@ -46,10 +46,6 @@ public:
     void set_workload_type(const ov::WorkloadType workloadType) override;
     void set_model_priority(const ov::hint::Priority modelPriority) override;
 
-    uint32_t get_unique_id() override;
-    void set_last_submitted_id(uint32_t id_index) override;
-    uint32_t get_last_submitted_id() const override;
-
     std::optional<bool> is_profiling_blob() const override;
 
     std::optional<std::string_view> get_compatibility_descriptor() const override;
@@ -74,7 +70,6 @@ private:
 
     mutable std::mutex _commandQueueDescMutex;
     CommandQueueDesc _commandQueueDesc;
-    std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
 
     std::optional<ov::Tensor> _blob;
     BlobType _blobType = BlobType::LLVM;
@@ -82,9 +77,6 @@ private:
     // In the case of the import path, the blob is released after graph initialization so it can not be any longer
     // exported
     bool _blobIsReleased = false;
-
-    uint32_t _uniqueId = 0;
-    uint32_t _lastSubmittedId = 0;
 
     Logger _logger;
 

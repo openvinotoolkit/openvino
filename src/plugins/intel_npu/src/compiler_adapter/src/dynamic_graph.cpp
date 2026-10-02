@@ -317,22 +317,7 @@ bool DynamicGraph::release_blob(const Config& config) {
     return false;
 }
 
-uint32_t DynamicGraph::get_unique_id() {
-    return _uniqueId++;
-}
-
-void DynamicGraph::set_last_submitted_id(uint32_t id_index) {
-    _lastSubmittedId = id_index;
-}
-
-uint32_t DynamicGraph::get_last_submitted_id() const {
-    return _lastSubmittedId;
-}
-
 DynamicGraph::~DynamicGraph() {
-    if (!_lastSubmittedEvent.empty()) {
-        _lastSubmittedEvent.clear();
-    }
     if (_engine != nullptr) {
         npuVMRuntimeDestroy(_engine);
         _engine = nullptr;
