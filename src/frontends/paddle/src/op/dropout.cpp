@@ -16,10 +16,7 @@ NamedOutputs dropout(const NodeContext& node) {
                     (dropout_implementation == "downgrade_in_infer" || dropout_implementation == "upscale_in_train"),
                     "Unsupported dropout mode!");
     if (dropout_implementation == "downgrade_in_infer") {
-        // The scale must have the same element type as the input, otherwise the Multiply below
-        // cannot merge its arguments (e.g. a float16 or float64 input). The element type of the
-        // input is not necessarily resolved yet, so the constant is created in f32 and converted
-        // like the input, as done in atan2.cpp.
+        // The input element type is not resolved yet here, so build the scale in f32 and ConvertLike it.
         auto scale =
             ov::opset6::Constant::create(ov::element::f32, {1}, {1 - node.get_attribute<float>("dropout_prob")});
         auto dropout_prob = std::make_shared<ov::opset6::ConvertLike>(scale, data);
