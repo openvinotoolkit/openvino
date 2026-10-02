@@ -169,6 +169,49 @@ ov::npuw::accuracy_checked::CompiledModel::Checker make_threshold_checker(float 
     };
 }
 
+// Compiled model which reports ov::hint::model_priority as RW (like NPU) or not at all
+// (like CPU, whose set_property always throws) and records every set_property call.
+class PriorityCompiledModel final : public ov::ICompiledModel {
+public:
+    PriorityCompiledModel(const std::shared_ptr<ov::Model>& model,
+                          const std::shared_ptr<const ov::IPlugin>& plugin,
+                          bool priority_is_mutable)
+        : ov::ICompiledModel(model, plugin), m_model(model), m_priority_is_mutable(priority_is_mutable) {}
+
+    void export_model(std::ostream&) const override {}
+    std::shared_ptr<const ov::Model> get_runtime_model() const override { return m_model; }
+    void set_property(const ov::AnyMap& properties) override {
+        if (!m_priority_is_mutable) {
+            OPENVINO_THROW_NOT_IMPLEMENTED("Properties can't be changed after compilation");
+        }
+        set_calls.push_back(properties);
+    }
+    ov::Any get_property(const std::string& name) const override {
+        if (name == ov::supported_properties.name()) {
+            std::vector<ov::PropertyName> supported;
+            if (m_priority_is_mutable) {
+                supported.emplace_back(ov::hint::model_priority.name(), ov::PropertyMutability::RW);
+            }
+            return supported;
+        }
+        OPENVINO_THROW("Unsupported property: ", name);
+    }
+    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
+        OPENVINO_NOT_IMPLEMENTED;
+    }
+
+    std::vector<ov::AnyMap> set_calls;
+
+private:
+    std::shared_ptr<ov::Model> m_model;
+    bool m_priority_is_mutable;
+};
+
+bool is_model_priority(const ov::AnyMap& properties, ov::hint::Priority priority) {
+    const auto it = properties.find(ov::hint::model_priority.name());
+    return properties.size() == 1 && it != properties.end() && it->second.as<ov::hint::Priority>() == priority;
+}
+
 }  // namespace
 
 // ---------------------------------------------------------------------------
@@ -502,4 +545,44 @@ TEST(AccuracyCheckedCompiledModelTest, RepeatingBlockAccuracyFailsAtThirdCall) {
     }
     // Last output via reference: 30+10=40.
     EXPECT_FLOAT_EQ(request->get_tensor(model->outputs().front())->data<const float>()[0], 40.f);
+}
+
+TEST(AccuracyCheckedCompiledModelTest, ModelPriorityIsSetOnBothMainAndReference) {
+    auto model = make_test_model();
+    auto plugin = std::make_shared<NullPlugin>();
+
+    auto main_cm = std::make_shared<PriorityCompiledModel>(model, plugin, true);
+    auto ref_cm = std::make_shared<PriorityCompiledModel>(model, plugin, true);
+
+    auto so = ov::npuw::accuracy_checked::CompiledModel::create(
+        model, plugin, {main_cm, {}}, {ref_cm, {}}, make_threshold_checker(0.5f));
+    ASSERT_NE(std::dynamic_pointer_cast<ov::npuw::accuracy_checked::CompiledModel>(so._ptr), nullptr);
+
+    ASSERT_NO_THROW(so->set_property({{ov::hint::model_priority.name(), ov::hint::Priority::HIGH}}));
+
+    // The active (main) model gets it, and so does the standby reference, so a later
+    // switch to the reference keeps the priority
+    ASSERT_EQ(main_cm->set_calls.size(), 1u);
+    EXPECT_TRUE(is_model_priority(main_cm->set_calls.front(), ov::hint::Priority::HIGH));
+    ASSERT_EQ(ref_cm->set_calls.size(), 1u);
+    EXPECT_TRUE(is_model_priority(ref_cm->set_calls.front(), ov::hint::Priority::HIGH));
+}
+
+TEST(AccuracyCheckedCompiledModelTest, ModelPriorityIsSkippedForReferenceWhichCannotChangeIt) {
+    auto model = make_test_model();
+    auto plugin = std::make_shared<NullPlugin>();
+
+    auto main_cm = std::make_shared<PriorityCompiledModel>(model, plugin, true);
+    auto ref_cm = std::make_shared<PriorityCompiledModel>(model, plugin, false);  // e.g. CPU reference
+
+    auto so = ov::npuw::accuracy_checked::CompiledModel::create(
+        model, plugin, {main_cm, {}}, {ref_cm, {}}, make_threshold_checker(0.5f));
+    ASSERT_NE(std::dynamic_pointer_cast<ov::npuw::accuracy_checked::CompiledModel>(so._ptr), nullptr);
+
+    // The reference would throw if called, so it must be skipped instead
+    ASSERT_NO_THROW(so->set_property({{ov::hint::model_priority.name(), ov::hint::Priority::LOW}}));
+
+    ASSERT_EQ(main_cm->set_calls.size(), 1u);
+    EXPECT_TRUE(is_model_priority(main_cm->set_calls.front(), ov::hint::Priority::LOW));
+    EXPECT_TRUE(ref_cm->set_calls.empty());
 }
