@@ -16,11 +16,7 @@
 #include "openvino/op/slice.hpp"
 #include "utils/common.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace com_microsoft {
-namespace opset_1 {
+namespace ov::frontend::onnx::com_microsoft::opset_1 {
 
 // com.microsoft.GatherBlockQuantized: a Gather over a block-quantized table.
 // https://github.com/microsoft/onnxruntime/blob/main/docs/ContribOperators.md#com.microsoft.GatherBlockQuantized
@@ -296,8 +292,4 @@ ov::OutputVector gather_block_quantized(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("GatherBlockQuantized", OPSET_SINCE(1), com_microsoft::opset_1::gather_block_quantized, MICROSOFT_DOMAIN);
 
-}  // namespace opset_1
-}  // namespace com_microsoft
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::com_microsoft::opset_1

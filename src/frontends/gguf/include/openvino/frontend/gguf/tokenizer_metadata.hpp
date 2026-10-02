@@ -8,9 +8,7 @@
 #include "openvino/core/runtime_attribute.hpp"
 #include "openvino/frontend/gguf/visibility.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 /// \brief Carries the GGUF tokenizer metadata (the `tokenizer.*` ggml keys) on a converted
 ///        model's runtime info, so a downstream consumer (e.g. OpenVINO GenAI) can build the
@@ -53,6 +51,4 @@ public:
 /// Runtime-info key under which GGUFTokenizerMetadata is stored on the model.
 GGUF_FRONTEND_API const std::string& gguf_tokenizer_metadata_key();
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

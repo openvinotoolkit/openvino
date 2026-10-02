@@ -226,6 +226,15 @@ jobs:
         env:
           TEST_DEVICE: CPU
 
+      - name: GatedDeltaNet Fusion Test
+        if: ${{ inputs.model_scope == 'precommit' }}
+        run: |
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/gated_delta_net.txt
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_gated_delta_net_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_gated_delta_net_tests.html --self-contained-html -vvv -s --tb=short
+        env:
+          TEST_DEVICE: CPU
+
       - name: RoPE Test
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |

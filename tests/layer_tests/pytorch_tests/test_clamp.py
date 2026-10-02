@@ -42,14 +42,14 @@ class TestClamp(PytorchLayerTest):
     @pytest.mark.parametrize("minimum,maximum",
                              [(0., 1.), (-0.5, 1.5), (None, 10.), (None, -10.), (10., None), (-10., None), (100, 200), (1.0, 0.0)])
     @pytest.mark.parametrize("as_tensors", [skip_if_export(True), False])
-    @pytest.mark.parametrize("op_type", ["clamp", skip_if_export("clamp_")])
+    @pytest.mark.parametrize("op_type", ["clamp", "clamp_"])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_clamp(self, minimum, maximum, as_tensors, op_type, ie_device, precision, ir_version):
         self._test(*self.create_model(minimum, maximum, as_tensors,
-                   op_type), ie_device, precision, ir_version, fx_kind="aten.clamp")
+                   op_type), ie_device, precision, ir_version, fx_kind=f"aten.{op_type}")
 
 
 class TestClampMin(PytorchLayerTest):
@@ -113,11 +113,11 @@ class TestClampMax(PytorchLayerTest):
 
     @pytest.mark.parametrize("maximum", [0., 1., -1., 0.5, 2])
     @pytest.mark.parametrize("as_tensor", [True, False])
-    @pytest.mark.parametrize("inplace", [skip_if_export(True), False])
+    @pytest.mark.parametrize("inplace", [True, False])
     @pytest.mark.nightly
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_clamp_max(self, maximum, as_tensor, inplace, ie_device, precision, ir_version):
         self._test(*self.create_model(maximum, as_tensor, inplace), ie_device,
-                   precision, ir_version, use_convert_model=True, trace_model=True, fx_kind="aten.clamp_max")
+                   precision, ir_version, use_convert_model=True, trace_model=True, fx_kind="aten.clamp_max_" if inplace else "aten.clamp_max")
