@@ -31,6 +31,9 @@
 #include "openvino/op/prelu.hpp"
 #include "openvino/op/roi_align.hpp"
 #include "openvino/op/roi_align_rotated.hpp"
+#include "openvino/op/util/scatter_base.hpp"
+#include "openvino/op/util/scatter_elements_update_base.hpp"
+#include "openvino/op/util/scatter_nd_base.hpp"
 #include "openvino/op/split.hpp"
 #include "openvino/op/squared_difference.hpp"
 #include "openvino/op/tensor_iterator.hpp"
@@ -120,7 +123,13 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
         p.primitive_ids[initialconstPrimID] = constPrimID;
         p.profiling_ids.push_back(initialconstPrimID);
     } else {
-        auto partial_upload = try_prepare_partial_upload(p, op, const_shape, out_dtype, constFormat, constLayout);
+        auto partial_upload = try_prepare_partial_upload(p.get_engine(),
+                                 p.get_config(),
+                                 op,
+                                 const_shape,
+                                 out_dtype,
+                                 constFormat,
+                                 constLayout);
 
         cldnn::memory::ptr mem = nullptr;
 
@@ -146,30 +155,14 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
             auto bufSize = constLayout.bytes_count();
             auto upload_count = ov::shape_size(const_shape);
 
-            // If a constant has element type f64 but contains no elements (empty tensor),
-            // convert it to f32 because the GPU plugin only supports the f32 data type internally.
-            if (upload_count == 1 && out_dtype == cldnn::data_types::f32 && op->get_output_element_type(0) == ov::element::f64) {
-                const auto* f64data = op->get_data_ptr<double>();
-                auto* f32buf = reinterpret_cast<float*>(buf);
-                f32buf[0] = static_cast<float>(f64data[0]);
-            } else if (out_dtype == cldnn::data_types::f32 &&
-                       (op->get_output_element_type(0) == ov::element::u16 || op->get_output_element_type(0) == ov::element::i16)) {
-                size_t count = upload_count;
-                auto* f32buf = reinterpret_cast<float*>(buf);
-
-                if (op->get_output_element_type(0) == ov::element::u16) {
-                    const auto* u16data = op->get_data_ptr<uint16_t>();
-                    for (size_t i = 0; i < count; i++) {
-                        f32buf[i] = static_cast<float>(u16data[i]);
-                    }
-                } else {
-                    const auto* i16data = op->get_data_ptr<int16_t>();
-                    for (size_t i = 0; i < count; i++) {
-                        f32buf[i] = static_cast<float>(i16data[i]);
-                    }
-                }
-            } else {
+            // When the constant type is not supported by GPU plugin, the layout gets a supported type
+            // instead. Convert the data in that case, otherwise just copy it.
+            const auto src_et = op->get_output_element_type(0);
+            const auto dst_et = ov::element::Type(out_dtype);
+            if (src_et == dst_et) {
                 std::memcpy(&buf[0], &data[0], bufSize);
+            } else {
+                convert_and_copy(data, src_et, buf, dst_et, upload_count, constLayout);
             }
         }
         ov::wsh::Extension::hint_evict(*op);
@@ -262,7 +255,8 @@ static void CreateConstantOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v0
             consts[op].needsBatchInterpretation = constDims.size() == 1;
         } else if (ov::is_type<ov::op::v1::Gather>(outOp) || ov::is_type<ov::op::v7::Gather>(outOp) || ov::is_type<ov::op::v8::Gather>(outOp) ||
                    ov::is_type<ov::op::v5::GatherND>(outOp) || ov::is_type<ov::op::v8::GatherND>(outOp) || ov::is_type<ov::op::v1::Split>(outOp) ||
-                   ov::is_type<ov::op::v1::VariadicSplit>(outOp)) {
+                   ov::is_type<ov::op::v1::VariadicSplit>(outOp) || ov::is_type<ov::op::util::ScatterBase>(outOp) ||
+                   ov::is_type<ov::op::util::ScatterElementsUpdateBase>(outOp) || ov::is_type<ov::op::util::ScatterNDBase>(outOp)) {
             consts[op].needsBatchInterpretation = constDims.size() == 1;
         } else if (ov::is_type<ov::op::v0::PRelu>(outOp) && node.get_index() == 1) {
             // PReLU slope tensor reshape policy

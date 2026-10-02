@@ -260,8 +260,7 @@ std::shared_ptr<ov::Model> ConvolutionFunction::getReference(
     std::shared_ptr<ov::opset1::Constant> weights,
     const ov::builder::subgraph::FakeQuantizeOnWeights fakeQuantizeOnWeights,
     const ov::element::Type precisionAfterOperation,
-    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter,
-    const ov::element::Type precisionAfterDequantization) {
+    const ov::builder::subgraph::DequantizationOperations& dequantizationAfter) {
     auto input = std::make_shared<ov::opset1::Parameter>(inputPrecision, inputShape);
     auto dequantizationBeforeStructure = dequantizationBefore;
     dequantizationBeforeStructure.multiply.outPrecision = netPrecision;
