@@ -16,8 +16,12 @@ from pathlib import Path
 import gguf
 import numpy as np
 
+import gen_mmproj_accuracy as single_grid
 from mmproj_fixtures import (TensorWriter, finish, gemma4a_positions, merge_window_order, muse_glimmer_indices,
                              run_oracle, save_npz, split_variants)
+
+# Single-grid families rerun here on two grids with different token counts.
+GRIDS = ("qwen2.5vl_merger_grids", "resampler_grids")
 
 VARIANTS = ("_resize", "_overview", "_one_sided", "_low_contrast")
 # mmproj_ops_oracle output file -> test_data .npy name.
@@ -315,7 +319,7 @@ def main():
     parser.add_argument("--families", nargs="+", default=[
         "muse-glimmer", "pixtral", "pixtral_merge", "phi4", "gemma4v", "gemma4uv", "gemma4uv_low_contrast", "gemma4ua",
         "gemma4v_one_sided", "minicpmv4_6", "gemma4a", "deepseekocr", "deepseekocr2", "deepseekocr_resize",
-        "deepseekocr_overview", "deepseekocr2_overview",
+        "deepseekocr_overview", "deepseekocr2_overview", *GRIDS,
     ])
     args = parser.parse_args()
     args.output.mkdir(parents=True, exist_ok=True)
@@ -325,6 +329,19 @@ def main():
             for name, npy in OPS_EXPECTATIONS.items():
                 np.save(args.output.parent / f"{npy}.npy", np.fromfile(Path(directory) / f"{name}.bin", np.float32))
     for family in args.families:
+        if family in GRIDS:
+            projector = family.removesuffix("_grids")
+            with tempfile.TemporaryDirectory() as directory:
+                model = Path(directory) / "model.gguf"
+                single_grid.write_model(model, projector)
+                fixtures = {"model": np.frombuffer(model.read_bytes(), np.uint8)}
+                for step, (width, height) in enumerate([(12, 8), (8, 16)]):
+                    raw, second, pixels, extra = single_grid.encoder_inputs(projector, width, height)
+                    embeddings = single_grid.run_encoder_oracle(args.oracle, model, projector, width, height, raw, second)
+                    values = {"pixel_values": pixels, **extra, "embeddings": embeddings}
+                    fixtures.update({f"{step}.{k}": np.ascontiguousarray(v) for k, v in values.items()})
+            save_npz(args.output / f"{family}.npz", fixtures)
+            continue
         with tempfile.TemporaryDirectory() as directory:
             model = Path(directory) / "model.gguf"
             out = write_model(model, family)

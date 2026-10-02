@@ -333,6 +333,8 @@ TEST_P(GGUFMMProjDynamicAccuracy, ReusesCompiledModelAcrossGrids) {
 INSTANTIATE_TEST_SUITE_P(Reference,
                          GGUFMMProjDynamicAccuracy,
                          ::testing::Values("muse-glimmer",
+                                           "qwen2.5vl_merger_grids",
+                                           "resampler_grids",
                                            "pixtral",
                                            "pixtral_merge",
                                            "phi4",

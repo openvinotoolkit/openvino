@@ -194,6 +194,71 @@ def write_model(path, projector, projection_width=6):
     return audio
 
 
+def encoder_inputs(projector, width, height):
+    """Raw oracle input, optional second video frame, encoder inputs and their family extras."""
+    audio = projector.removesuffix("_odd") in {"qwen2a", "ultravox", "voxtral", "musicflamingo", "meralion", "glma"}
+    window_video = projector.endswith("_window_video")
+    qwen = "vl_merger" in projector
+    shape = (height, width) if audio else (height, width, 3)
+    raw = np.random.default_rng(42).normal(0, 0.4, shape).astype(np.float32)
+    raw_second = np.random.default_rng(43).normal(0, 0.4, shape).astype(np.float32) if window_video else None
+    inputs = raw.reshape(1, height, 1, width) if audio else raw.transpose(2, 0, 1)[None]
+    extra = {}
+    if projector.startswith("resampler"):
+        rows, cols = np.indices((height // 2, width // 2))
+        extra["position_h"] = rows.astype(np.float32).reshape(1, 1, -1, 1)
+        extra["position_w"] = cols.astype(np.float32).reshape(1, 1, -1, 1)
+        extra["position_ids"] = ((70 * rows // (height // 2)) * 70 +
+                                  70 * cols // (width // 2)).astype(np.int32).reshape(1, 1, 1, -1)
+    if qwen:
+        inputs = np.repeat(inputs, 2, axis=0)
+        indices = merge_window_order(height // 2, width // 2)
+        rows, cols = np.divmod(indices, width // 2)
+        extra["patch_indices"] = np.array(indices, np.int32).reshape(1, 1, 1, -1)
+        extra["position_ids"] = np.array([rows, cols, rows, cols], np.int32).reshape(1, 1, 1, -1)
+        extra["attention_mask"] = np.zeros((1, 1, len(indices), len(indices)), np.float32)
+        extra["output_indices"] = np.arange(len(indices) // 4, dtype=np.int32).reshape(1, 1, 1, -1)
+        if window_video:
+            inputs[1] = raw_second.transpose(2, 0, 1)
+            groups, windows = [], []
+            gh, gw = height // 4, width // 4
+            for y in range(0, gh, 28):
+                for x in range(0, gw, 28):
+                    window = [yy * gw + xx for yy in range(y, min(y + 28, gh))
+                              for xx in range(x, min(x + 28, gw))]
+                    groups.extend(window)
+                    windows.append(len(window) * 4)
+            permutation = np.array([4 * group + i for group in groups for i in range(4)])
+            extra["patch_indices"] = extra["patch_indices"][..., permutation]
+            extra["position_ids"] = np.array([rows[permutation], cols[permutation]] * 2,
+                                               np.int32).reshape(1, 1, 1, -1)
+            mask = np.full((len(indices), len(indices)), np.finfo(np.float32).min, np.float32)
+            offset = 0
+            for count in windows:
+                mask[offset:offset + count, offset:offset + count] = 0
+                offset += count
+            extra["attention_mask"] = mask[None, None]
+            extra["output_indices"] = np.argsort(groups).astype(np.int32).reshape(1, 1, 1, -1)
+    return raw, raw_second, inputs, extra
+
+
+def run_encoder_oracle(oracle, path, projector, width, height, raw, raw_second):
+    """Embeddings [1, 1, T, D] from mmproj_oracle for `encoder_inputs` values."""
+    with tempfile.TemporaryDirectory() as directory:
+        directory = Path(directory)
+        raw.tofile(directory / "input.bin")
+        second = []
+        if raw_second is not None:
+            raw_second.tofile(directory / "second.bin")
+            second = [str(directory / "second.bin")]
+        audio = raw.ndim == 2
+        subprocess.run([str(oracle.resolve()), str(path), "audio" if audio else "vision",
+                        str(width), str(height), str(directory / "input.bin"),
+                        str(directory / "output.bin"), *second], check=True)
+        output_width = 256 if projector.startswith("resampler") else 12 if projector == "qwen3vl_merger" else 6
+        return np.fromfile(directory / "output.bin", dtype=np.float32).reshape(1, 1, -1, output_width)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--oracle", required=True, type=Path)
@@ -208,8 +273,7 @@ def main():
     args.output.mkdir(parents=True, exist_ok=True)
     for projector in args.families:
         with tempfile.TemporaryDirectory() as directory:
-            directory = Path(directory)
-            path = directory / "model.gguf"
+            path = Path(directory) / "model.gguf"
             window_video = projector.endswith("_window_video")
             audio = write_model(path, projector.removesuffix("_window_video").removesuffix("_odd"))
             qwen = "vl_merger" in projector
@@ -218,57 +282,9 @@ def main():
                 width, height = (12, 8) if projector == "resampler" else (8, 12)
             if projector.endswith("_odd"):
                 width = 18
-            shape = (height, width) if audio else (height, width, 3)
-            raw = np.random.default_rng(42).normal(0, 0.4, shape).astype(np.float32)
-            raw.tofile(directory / "input.bin")
-            second = []
-            if window_video:
-                raw_second = np.random.default_rng(43).normal(0, 0.4, shape).astype(np.float32)
-                raw_second.tofile(directory / "second.bin")
-                second = [str(directory / "second.bin")]
+            raw, raw_second, inputs, extra = encoder_inputs(projector, width, height)
             oracle = args.qwen3_oracle if projector == "qwen3vl_merger" else args.oracle
-            subprocess.run([str(oracle.resolve()), str(path), "audio" if audio else "vision",
-                            str(width), str(height), str(directory / "input.bin"),
-                            str(directory / "output.bin"), *second], check=True)
-            output_width = 256 if projector.startswith("resampler") else 12 if projector == "qwen3vl_merger" else 6
-            output = np.fromfile(directory / "output.bin", dtype=np.float32).reshape(1, 1, -1, output_width)
-            inputs = raw.reshape(1, height, 1, width) if audio else raw.transpose(2, 0, 1)[None]
-            extra = {}
-            if projector.startswith("resampler"):
-                rows, cols = np.indices((height // 2, width // 2))
-                extra["position_h"] = rows.astype(np.float32).reshape(1, 1, -1, 1)
-                extra["position_w"] = cols.astype(np.float32).reshape(1, 1, -1, 1)
-                extra["position_ids"] = ((70 * rows // (height // 2)) * 70 +
-                                          70 * cols // (width // 2)).astype(np.int32).reshape(1, 1, 1, -1)
-            if qwen:
-                inputs = np.repeat(inputs, 2, axis=0)
-                indices = merge_window_order(height // 2, width // 2)
-                rows, cols = np.divmod(indices, width // 2)
-                extra["patch_indices"] = np.array(indices, np.int32).reshape(1, 1, 1, -1)
-                extra["position_ids"] = np.array([rows, cols, rows, cols], np.int32).reshape(1, 1, 1, -1)
-                extra["attention_mask"] = np.zeros((1, 1, len(indices), len(indices)), np.float32)
-                extra["output_indices"] = np.arange(len(indices) // 4, dtype=np.int32).reshape(1, 1, 1, -1)
-                if window_video:
-                    inputs[1] = raw_second.transpose(2, 0, 1)
-                    groups, windows = [], []
-                    gh, gw = height // 4, width // 4
-                    for y in range(0, gh, 28):
-                        for x in range(0, gw, 28):
-                            window = [yy * gw + xx for yy in range(y, min(y + 28, gh))
-                                      for xx in range(x, min(x + 28, gw))]
-                            groups.extend(window)
-                            windows.append(len(window) * 4)
-                    permutation = np.array([4 * group + i for group in groups for i in range(4)])
-                    extra["patch_indices"] = extra["patch_indices"][..., permutation]
-                    extra["position_ids"] = np.array([rows[permutation], cols[permutation]] * 2,
-                                                       np.int32).reshape(1, 1, 1, -1)
-                    mask = np.full((len(indices), len(indices)), np.finfo(np.float32).min, np.float32)
-                    offset = 0
-                    for count in windows:
-                        mask[offset:offset + count, offset:offset + count] = 0
-                        offset += count
-                    extra["attention_mask"] = mask[None, None]
-                    extra["output_indices"] = np.argsort(groups).astype(np.int32).reshape(1, 1, 1, -1)
+            output = run_encoder_oracle(oracle, path, projector, width, height, raw, raw_second)
             save_npz(args.output / f"{projector}.npz",
                      {"model": np.frombuffer(path.read_bytes(), np.uint8),
                       "inputs": inputs, "embeddings": output, **extra})
