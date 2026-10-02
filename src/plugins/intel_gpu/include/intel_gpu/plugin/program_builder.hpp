@@ -4,25 +4,24 @@
 
 #pragma once
 
-#include "openvino/core/node.hpp"
-#include "openvino/runtime/profiling_info.hpp"
-#include "openvino/op/parameter.hpp"
-
-#include "intel_gpu/plugin/custom_layer.hpp"
-#include "intel_gpu/runtime/engine.hpp"
-#include "intel_gpu/runtime/execution_config.hpp"
-#include "intel_gpu/runtime/compilation_context.hpp"
-#include "intel_gpu/graph/topology.hpp"
-#include "intel_gpu/graph/program.hpp"
-
-#include <vector>
+#include <cstdint>
 #include <map>
 #include <memory>
-#include <string>
-#include <cstdint>
 #include <mutex>
 #include <set>
+#include <string>
 #include <unordered_set>
+#include <vector>
+
+#include "intel_gpu/graph/program.hpp"
+#include "intel_gpu/graph/topology.hpp"
+#include "intel_gpu/plugin/custom_layer.hpp"
+#include "intel_gpu/runtime/compilation_context.hpp"
+#include "intel_gpu/runtime/engine.hpp"
+#include "intel_gpu/runtime/execution_config.hpp"
+#include "openvino/core/node.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/runtime/profiling_info.hpp"
 
 #if defined(_WIN32) && !defined(__GNUC__)
 #    define __PRETTY_FUNCTION__ __FUNCSIG__
@@ -38,24 +37,23 @@ enum class reduce_mode : uint16_t;
 enum class eltwise_mode : int32_t;
 }  // namespace cldnn
 
-#define REGISTER_FACTORY_IMPL(op_version, op_name)                                                  \
-void __register ## _ ## op_name ## _ ## op_version();                                               \
-void __register ## _ ## op_name ## _ ## op_version() {                                              \
-    ProgramBuilder::RegisterFactory<ov::op::op_version::op_name>(                                   \
-    [](ProgramBuilder& p, const std::shared_ptr<ov::Node>& op) {                                    \
-        auto op_casted = std::dynamic_pointer_cast<ov::op::op_version::op_name>(op);                \
-        OPENVINO_ASSERT(op_casted, "[GPU] Invalid ov Node type passed into ", __PRETTY_FUNCTION__); \
-        Create##op_name##Op(p, op_casted);                                                          \
-       });                                                                                          \
-}
+#define REGISTER_FACTORY_IMPL(op_version, op_name)                                                                                \
+    void __register##_##op_name##_##op_version();                                                                                 \
+    void __register##_##op_name##_##op_version() {                                                                                \
+        ProgramBuilder::RegisterFactory<ov::op::op_version::op_name>([](ProgramBuilder& p, const std::shared_ptr<ov::Node>& op) { \
+            auto op_casted = std::dynamic_pointer_cast<ov::op::op_version::op_name>(op);                                          \
+            OPENVINO_ASSERT(op_casted, "[GPU] Invalid ov Node type passed into ", __PRETTY_FUNCTION__);                           \
+            Create##op_name##Op(p, op_casted);                                                                                    \
+        });                                                                                                                       \
+    }
 
 namespace ov::intel_gpu {
 
-template<class T>
+template <class T>
 struct is_smart_pointer : std::false_type {};
-template<class T>
+template <class T>
 struct is_smart_pointer<std::shared_ptr<T>> : std::true_type {};
-template<class T>
+template <class T>
 struct is_smart_pointer<std::shared_ptr<const T>> : std::true_type {};
 
 std::string layer_type_lower(const ov::Node* op);
@@ -74,18 +72,27 @@ struct PerfCounter {
 
     PerfCounter() = default;
 
-    long long realTime_avg() const { return (num == 0) ? 0 : realTime_uSec / num; }
-    long long cpu_avg() const { return (num == 0) ? 0 : cpu_uSec / num; }
+    long long realTime_avg() const {
+        return (num == 0) ? 0 : realTime_uSec / num;
+    }
+    long long cpu_avg() const {
+        return (num == 0) ? 0 : cpu_uSec / num;
+    }
 };
 
 class ProgramBuilder final {
 public:
-    ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config,
-            std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr,
-            std::shared_ptr<cldnn::ICompilationContext> compilation_context = nullptr,
-            bool innerProgram = false,
-            ov::internal::WeightSharingCtxPtr weight_sharing_ctx = nullptr);
-    ProgramBuilder(std::shared_ptr<ov::Model> model, cldnn::engine& engine, const ExecutionConfig& config, ov::internal::WeightSharingCtxPtr weight_sharing_ctx);
+    ProgramBuilder(std::shared_ptr<ov::Model> model,
+                   cldnn::engine& engine,
+                   const ExecutionConfig& config,
+                   std::shared_ptr<ov::threading::IStreamsExecutor> task_executor = nullptr,
+                   std::shared_ptr<cldnn::ICompilationContext> compilation_context = nullptr,
+                   bool innerProgram = false,
+                   ov::internal::WeightSharingCtxPtr weight_sharing_ctx = nullptr);
+    ProgramBuilder(std::shared_ptr<ov::Model> model,
+                   cldnn::engine& engine,
+                   const ExecutionConfig& config,
+                   ov::internal::WeightSharingCtxPtr weight_sharing_ctx);
     ProgramBuilder(cldnn::engine& engine, const ExecutionConfig& config);
 
     static const cldnn::primitive_id m_preProcessTag;
@@ -104,16 +111,20 @@ public:
     using BlobCacheKey = std::tuple<const char*, ov::Shape, ov::element::Type, IsRemoteWeight>;
     std::map<BlobCacheKey, cldnn::primitive_id> blobMemCache;
 
-    void register_remote_constant(const cldnn::primitive_id& id) {
-        remote_constant_ids.insert(id);
+    std::shared_ptr<cldnn::program> get_compiled_program() const;
+    std::shared_ptr<cldnn::topology> get_topology() const {
+        return m_topology;
     }
 
-    std::shared_ptr<cldnn::program> get_compiled_program() const;
-    std::shared_ptr<cldnn::topology> get_topology() const { return m_topology; }
-
-    const std::map<size_t, cldnn::layout>& get_input_layouts() const { return inputLayouts; }
-    cldnn::engine& get_engine() const { return m_engine; }
-    const ExecutionConfig& get_config() const { return m_config; }
+    const std::map<size_t, cldnn::layout>& get_input_layouts() const {
+        return inputLayouts;
+    }
+    cldnn::engine& get_engine() const {
+        return m_engine;
+    }
+    const ExecutionConfig& get_config() const {
+        return m_config;
+    }
 
     int64_t get_parameter_index(const std::shared_ptr<ov::op::v0::Parameter>& parameter) const;
     int64_t get_result_index(const ov::Output<ov::Node>& value) const;
@@ -130,7 +141,7 @@ public:
     using factory_t = std::function<void(ProgramBuilder&, const std::shared_ptr<ov::Node>&)>;
     using factories_map_t = std::map<ov::DiscreteTypeInfo, factory_t>;
 
-    template<typename OpType>
+    template <typename OpType>
     static void RegisterFactory(factory_t func) {
         std::lock_guard<std::mutex> lock(m_mutex);
         if (ProgramBuilder::factories_map.find(OpType::get_type_info_static()) == ProgramBuilder::factories_map.end()) {
@@ -138,23 +149,41 @@ public:
         }
     }
 
-    template<typename PType, typename = typename std::enable_if<!is_smart_pointer<PType>::value>::type>
+    template <typename PType, typename = typename std::enable_if<!is_smart_pointer<PType>::value>::type>
     void add_primitive(const ov::Node& op, PType prim, std::vector<std::string> aliases = {}) {
         add_primitive(op, std::static_pointer_cast<cldnn::primitive>(std::make_shared<PType>(prim)), std::move(aliases));
     }
 
     void add_primitive(const ov::Node& op, std::shared_ptr<cldnn::primitive> prim, std::vector<std::string> aliases = {});
 
-    bool use_new_shape_infer() const { return m_config.get_allow_new_shape_infer(); }
-    bool is_inner_program() const { return m_is_inner_program; }
-    bool is_query_mode() const { return queryMode; }
+    bool use_new_shape_infer() const {
+        return m_config.get_allow_new_shape_infer();
+    }
+    bool is_inner_program() const {
+        return m_is_inner_program;
+    }
+    bool is_query_mode() const {
+        return queryMode;
+    }
 
-    std::shared_ptr<ov::threading::IStreamsExecutor> get_task_executor() const { return m_task_executor; }
-    std::shared_ptr<cldnn::ICompilationContext> get_compilation_context() const { return m_compilation_context; }
-    std::shared_ptr<ov::Model> get_model() const { return m_model; }
+    std::shared_ptr<ov::threading::IStreamsExecutor> get_task_executor() const {
+        return m_task_executor;
+    }
+    std::shared_ptr<cldnn::ICompilationContext> get_compilation_context() const {
+        return m_compilation_context;
+    }
+    std::shared_ptr<ov::Model> get_model() const {
+        return m_model;
+    }
 
-    ov::internal::WeightSharingCtxPtr get_weight_sharing_ctx() const { return m_weight_sharing_ctx; }
+    ov::internal::WeightSharingCtxPtr get_weight_sharing_ctx() const {
+        return m_weight_sharing_ctx;
+    }
     void register_shared_weight_source(std::shared_ptr<ov::AlignedBuffer> source);
+    std::set<std::shared_ptr<ov::AlignedBuffer>> get_shared_weight_sources() const {
+        return m_shared_weight_sources;
+    }
+
 private:
     static factories_map_t factories_map;
     std::shared_ptr<cldnn::program> m_program;
@@ -172,12 +201,15 @@ private:
     std::shared_ptr<cldnn::ICompilationContext> m_compilation_context;
 
     bool m_is_inner_program = false;
-    std::unordered_set<cldnn::primitive_id> remote_constant_ids;
     ov::internal::WeightSharingCtxPtr m_weight_sharing_ctx;
     std::set<std::shared_ptr<ov::AlignedBuffer>> m_shared_weight_sources;
 
-    void EnableQueryMode() { queryMode = true; }
-    void DisableQueryMode() { queryMode = false; }
+    void EnableQueryMode() {
+        queryMode = true;
+    }
+    void DisableQueryMode() {
+        queryMode = false;
+    }
 
     void prepare_build();
     void cleanup_build();
@@ -188,8 +220,7 @@ private:
 };
 
 void CreateCustomOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& node, CustomLayerPtr customLayer);
-void CreateUnaryEltwiseOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& node,
-                          cldnn::activation_func func, cldnn::activation_additional_params params);
+void CreateUnaryEltwiseOp(ProgramBuilder& p, const std::shared_ptr<ov::Node>& node, cldnn::activation_func func, cldnn::activation_additional_params params);
 void CreateElementwiseOp(ProgramBuilder& p,
                          const std::shared_ptr<ov::Node>& node,
                          cldnn::eltwise_mode mode,
