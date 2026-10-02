@@ -19,15 +19,6 @@ namespace {
 // Byte size of one manifest entry; used for raw placeholder manifest bytes below.
 constexpr size_t k_manifest_entry_size = 32;
 
-// The one place that works around GCC 11's -Wstringop-overread false positive on vector::insert(it, begin, end)
-void append(std::vector<uint8_t>& dst, const std::vector<uint8_t>& src) {
-    if (!src.empty()) {
-        const auto offset = dst.size();
-        dst.resize(offset + src.size());
-        std::memcpy(dst.data() + offset, src.data(), src.size());
-    }
-}
-
 // Raw bytes of an HSM container: header, then section_payload, then manifest (already-serialized).
 std::vector<uint8_t> make_container(const hsm::BlobMagic& magic,
                                     const std::vector<uint8_t>& section_payload,
@@ -40,10 +31,12 @@ std::vector<uint8_t> make_container(const hsm::BlobMagic& magic,
     header.manifest_size = manifest.size();
     header.container_size = header.manifest_offset + header.manifest_size;
 
-    std::vector<uint8_t> buffer(sizeof(header));
-    std::memcpy(buffer.data(), &header, sizeof(header));
-    append(buffer, section_payload);
-    append(buffer, manifest);
+    std::vector<uint8_t> buffer;
+    buffer.reserve(header.container_size);
+    const auto* header_bytes = reinterpret_cast<const uint8_t*>(&header);
+    buffer.insert(buffer.end(), header_bytes, header_bytes + sizeof(header));
+    buffer.insert(buffer.end(), section_payload.begin(), section_payload.end());
+    buffer.insert(buffer.end(), manifest.begin(), manifest.end());
     return buffer;
 }
 
@@ -63,7 +56,8 @@ std::vector<uint8_t> make_multi_container(const std::vector<uint8_t>& section_pa
 std::vector<uint8_t> make_multi_blob_container(size_t blob_count) {
     std::vector<uint8_t> buffer;
     for (size_t i = 0; i < blob_count; ++i) {
-        append(buffer, make_multi_container({}, {}));
+        const auto blob = make_multi_container({}, {});
+        buffer.insert(buffer.end(), blob.begin(), blob.end());
     }
     return buffer;
 }
@@ -72,7 +66,8 @@ std::vector<uint8_t> make_multi_blob_container(size_t blob_count) {
 std::vector<uint8_t> make_multi_blob_file(size_t blob_count) {
     std::vector<uint8_t> buffer = make_multi_container({}, {});
     for (size_t i = 0; i < blob_count; ++i) {
-        append(buffer, make_single_blob_container({}, {}));
+        const auto blob = make_single_blob_container({}, {});
+        buffer.insert(buffer.end(), blob.begin(), blob.end());
     }
     return buffer;
 }
@@ -86,11 +81,11 @@ std::vector<uint8_t> make_sample_single_blob_container() {
 // Sample container with real entries: inline model_id tag + pointer-mode model tag ("OV" payload).
 std::vector<uint8_t> make_sample_container_with_entries() {
     hsm::ManifestEntry id_entry{};
-    id_entry.tag = hsm::model_id_tag();
+    id_entry.tag = hsm::model_id_tag;
     id_entry.inline_bytes = {0xAA, 0xBB, 0xCC, 0xDD};
 
     hsm::ManifestEntry model_entry{};
-    model_entry.tag = hsm::model_tag();
+    model_entry.tag = hsm::model_tag;
     model_entry.offset = sizeof(hsm::Header);
     model_entry.size = 2;
 
@@ -100,6 +95,23 @@ std::vector<uint8_t> make_sample_container_with_entries() {
 
     return make_single_blob_container({'O', 'V'}, manifest);
 }
+
+// Minimal ISectionExtension: recognizes one (device, tag id) pair, records the section size it saw.
+class RecordingExtension : public hsm::ISectionExtension {
+public:
+    static constexpr hsm::DeviceId owned_device = 7;
+    static constexpr uint32_t owned_tag_id = 42;
+
+    bool read_section(const hsm::ManifestEntry& entry, ov::util::MemoryView section) override {
+        if (entry.device != owned_device || entry.tag.id() != owned_tag_id) {
+            return false;
+        }
+        last_section_size = section.size();
+        return true;
+    }
+
+    size_t last_section_size = 0;
+};
 
 }  // namespace
 
@@ -163,27 +175,39 @@ TEST_F(HsmFormatLayoutCompatibilityTest, section_tag_packs_id_and_mode_at_compil
 }
 
 TEST_F(HsmFormatLayoutCompatibilityTest, core_tags_have_fixed_mode) {
-    static_assert(hsm::model_id_tag().id() == hsm::model_id, "model_id_tag id");
-    static_assert(hsm::model_id_tag().is_inline(), "model_id_tag must always be inline-mode");
+    static_assert(hsm::model_id_tag.id() == hsm::model_id, "model_id_tag id");
+    static_assert(hsm::model_id_tag.is_inline(), "model_id_tag must always be inline-mode");
 
-    static_assert(hsm::model_tag().id() == hsm::model, "model_tag id");
-    static_assert(hsm::model_tag().is_pointer(), "model_tag must always be pointer-mode");
+    static_assert(hsm::model_tag.id() == hsm::model, "model_tag id");
+    static_assert(hsm::model_tag.is_pointer(), "model_tag must always be pointer-mode");
 
-    static_assert(hsm::runtime_requirements_tag().id() == hsm::runtime_requirements, "runtime_requirements_tag id");
-    static_assert(hsm::runtime_requirements_tag().is_pointer(), "runtime_requirements_tag must always be pointer-mode");
+    static_assert(hsm::runtime_requirements_tag.id() == hsm::runtime_requirements, "runtime_requirements_tag id");
+    static_assert(hsm::runtime_requirements_tag.is_pointer(), "runtime_requirements_tag must always be pointer-mode");
 
     SUCCEED();
 }
 
 TEST_F(HsmFormatLayoutCompatibilityTest, device_tags_cannot_collide_with_core_tags) {
     // A device tag built from local id 0 must never land in the Core-owned range, no matter how small the
-    // local id is - this is the whole point of make_device_tag() vs. picking a raw absolute id by hand.
-    static_assert(hsm::make_device_tag(0, true).id() == hsm::core_tag_id_range_end,
+    // local id is - this is the whole point of SectionTag::make_device_tag() vs. picking a raw absolute id by hand.
+    static_assert(hsm::SectionTag::make_device_tag(0, true).device_local_id() == 0,
+                  "make_device_tag()/device_local_id() must round-trip the local id");
+    static_assert(hsm::SectionTag::make_device_tag(0, true).id() == hsm::core_tag_id_range_end,
                   "make_device_tag(0, ...) must land exactly at the range boundary");
-    static_assert(hsm::make_device_tag(0, true).id() >= hsm::core_tag_id_range_end,
+    static_assert(hsm::SectionTag::make_device_tag(0, true).id() >= hsm::core_tag_id_range_end,
                   "device tag ids must never fall below core_tag_id_range_end");
     static_assert(hsm::model_id < hsm::core_tag_id_range_end, "model_id must stay below core_tag_id_range_end");
     static_assert(hsm::model < hsm::core_tag_id_range_end, "model must stay below core_tag_id_range_end");
+
+    SUCCEED();
+}
+
+TEST_F(HsmFormatLayoutCompatibilityTest, core_tag_values_are_pinned) {
+    static_assert(static_cast<uint32_t>(hsm::Tags::invalid) == 0, "Tags::invalid value changed");
+    static_assert(static_cast<uint32_t>(hsm::Tags::model_id) == 1, "Tags::model_id value changed");
+    static_assert(static_cast<uint32_t>(hsm::Tags::model) == 2, "Tags::model value changed");
+    static_assert(static_cast<uint32_t>(hsm::Tags::runtime_requirements) == 3,
+                  "Tags::runtime_requirements value changed");
 
     SUCCEED();
 }
@@ -275,7 +299,7 @@ TEST(HsmContainerViewTest, section_rejects_inline_mode_entry) {
     const hsm::ContainerView view(blob.data(), blob.size());
 
     hsm::ManifestEntry entry{};
-    entry.tag = hsm::model_id_tag();  // inline-mode: offset/size below don't refer to a real section
+    entry.tag = hsm::model_id_tag;  // inline-mode: offset/size below don't refer to a real section
     entry.offset = sizeof(hsm::Header);
     entry.size = 2;
 
@@ -287,7 +311,7 @@ TEST(HsmContainerViewTest, section_rejects_out_of_bounds_offset) {
     const hsm::ContainerView view(blob.data(), blob.size());
 
     hsm::ManifestEntry entry{};
-    entry.tag = hsm::model_tag();
+    entry.tag = hsm::model_tag;
     entry.offset = view.size() + 1;
     entry.size = 1;
 
@@ -299,7 +323,7 @@ TEST(HsmContainerViewTest, section_rejects_out_of_bounds_size) {
     const hsm::ContainerView view(blob.data(), blob.size());
 
     hsm::ManifestEntry entry{};
-    entry.tag = hsm::model_tag();
+    entry.tag = hsm::model_tag;
     entry.offset = 0;
     entry.size = view.size() + 1;  // fits at offset 0 alone, but overruns the buffer
 
@@ -308,6 +332,12 @@ TEST(HsmContainerViewTest, section_rejects_out_of_bounds_size) {
 
 TEST(HsmContainerViewValidateTest, accepts_well_formed_container) {
     const auto blob = make_sample_container_with_entries();
+    const hsm::ContainerView view(blob.data(), blob.size());
+    EXPECT_TRUE(view.validate());
+}
+
+TEST(HsmContainerViewValidateTest, accepts_well_formed_multi_container) {
+    const auto blob = make_multi_container({}, {});
     const hsm::ContainerView view(blob.data(), blob.size());
     EXPECT_TRUE(view.validate());
 }
@@ -350,6 +380,16 @@ TEST(HsmContainerViewValidateTest, rejects_manifest_offset_inside_header) {
     auto blob = make_sample_container_with_entries();
     auto header = hsm::Header::view(blob.data());
     header.manifest_offset = sizeof(hsm::Header) - 1;  // would start reading manifest inside the header
+    std::memcpy(blob.data(), &header, sizeof(header));
+
+    const hsm::ContainerView view(blob.data(), blob.size());
+    EXPECT_FALSE(view.validate());
+}
+
+TEST(HsmContainerViewValidateTest, rejects_manifest_size_not_multiple_of_entry_size) {
+    auto blob = make_sample_container_with_entries();
+    auto header = hsm::Header::view(blob.data());
+    header.manifest_size -= 1;  // no longer a multiple of sizeof(ManifestEntry)
     std::memcpy(blob.data(), &header, sizeof(header));
 
     const hsm::ContainerView view(blob.data(), blob.size());
@@ -420,8 +460,9 @@ TEST(HsmMultiBlobViewTest, reads_multiple_blobs) {
 TEST(HsmMultiBlobViewTest, skips_optional_shared_context_between_blobs) {
     auto buffer = make_multi_blob_file(1);                    // mandatory shared context + 1 blob
     const auto extra_context = make_multi_container({}, {});  // optional shared-context update
-    append(buffer, extra_context);
-    append(buffer, make_single_blob_container({}, {}));
+    buffer.insert(buffer.end(), extra_context.begin(), extra_context.end());
+    const auto blob1 = make_single_blob_container({}, {});
+    buffer.insert(buffer.end(), blob1.begin(), blob1.end());
 
     const hsm::MultiBlobView view(buffer.data(), buffer.size());
     ASSERT_EQ(view.blob_count(), 2u);  // the extra shared-context container doesn't count as a blob
@@ -454,8 +495,8 @@ TEST(HsmMultiBlobViewTest, blob_view_excludes_following_containers) {
     auto buffer = make_multi_container({}, {});  // mandatory shared context
     const auto blob0 = make_single_blob_container({}, {});
     const auto blob1 = make_single_blob_container({'O', 'V'}, {});  // different size than blob0
-    append(buffer, blob0);
-    append(buffer, blob1);
+    buffer.insert(buffer.end(), blob0.begin(), blob0.end());
+    buffer.insert(buffer.end(), blob1.begin(), blob1.end());
 
     const hsm::MultiBlobView view(buffer.data(), buffer.size());
     ASSERT_EQ(view.blob_count(), 2u);
@@ -470,17 +511,39 @@ TEST(HsmMultiBlobViewTest, stops_on_mismatched_major_version) {
     auto header = hsm::Header::view(buffer.data());
     header.version_major = hsm::FormatVersion::major + 1;
     std::memcpy(buffer.data(), &header, sizeof(header));
-    append(buffer, make_single_blob_container({}, {}));
+    const auto blob0 = make_single_blob_container({}, {});
+    buffer.insert(buffer.end(), blob0.begin(), blob0.end());
 
     const hsm::MultiBlobView view(buffer.data(), buffer.size());
     EXPECT_EQ(view.blob_count(), 0u);  // can't trust framing past an unsupported major version
+}
+
+TEST(IHsmSectionExtensionTest, recognizes_own_device_and_tag) {
+    hsm::ManifestEntry entry{};
+    entry.device = RecordingExtension::owned_device;
+    entry.tag = hsm::SectionTag::make(RecordingExtension::owned_tag_id, /*is_inline=*/false);
+
+    const std::byte payload[4] = {};
+    RecordingExtension extension;
+    EXPECT_TRUE(extension.read_section(entry, ov::util::MemoryView{payload, 4}));
+    EXPECT_EQ(extension.last_section_size, 4u);
+}
+
+TEST(IHsmSectionExtensionTest, skips_entry_it_does_not_own) {
+    hsm::ManifestEntry entry{};
+    entry.device = RecordingExtension::owned_device + 1;  // different device
+    entry.tag = hsm::SectionTag::make(RecordingExtension::owned_tag_id, /*is_inline=*/false);
+
+    RecordingExtension extension;
+    EXPECT_FALSE(extension.read_section(entry, ov::util::MemoryView{}));
+    EXPECT_EQ(extension.last_section_size, 0u);  // never called
 }
 
 // OPENVINO_DEBUG_ASSERT compiles out entirely under NDEBUG (Release builds), so this only runs in debug builds.
 #ifndef NDEBUG
 TEST(MakeDeviceTagTest, debug_asserts_on_id_overflow) {
     const auto out_of_range_id = hsm::max_tag_id - hsm::core_tag_id_range_end + 1;
-    EXPECT_DEATH(hsm::make_device_tag(out_of_range_id, false), "");
+    EXPECT_DEATH(hsm::SectionTag::make_device_tag(out_of_range_id, false), "");
 }
 #endif
 

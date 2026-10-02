@@ -8,7 +8,7 @@
  *
  * @verbatim
    +---------------------------+---------------------------+---------------------------+
-   |         Header         |      Section payloads     |          Manifest         |
+   |           Header          |      Section payloads     |          Manifest         |
    |          32 bytes         |     variable size, 0+     | ManifestEntry[], 32B each |
    |          offset 0         |         offset 32         |  offset = manifest_offset |
    +---------------------------+---------------------------+---------------------------+
@@ -17,13 +17,13 @@
 
 #pragma once
 
-#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
 
 #include "openvino/core/except.hpp"
+#include "openvino/runtime/common.hpp"
 #include "openvino/util/container_util.hpp"
 #include "openvino/util/memory.hpp"
 
@@ -135,6 +135,15 @@ using DeviceId = uint8_t;
 inline constexpr DeviceId any_device_id = 0;
 
 /**
+ * @brief Boundary in the 23-bit #SectionTag id space: Core ids are `< core_tag_id_range_end`;
+ * #SectionTag::make_device_tag() only produces ids at/above it, so a device can never collide with a Core tag.
+ */
+inline constexpr uint32_t core_tag_id_range_end = 0x1000;
+
+/** @brief Maximum tag id representable by the 23-bit #SectionTag id space. */
+inline constexpr uint32_t max_tag_id = 0x7FFFFF;
+
+/**
  * @brief Semantic content of a ManifestEntry section (or inline payload); a raw 3-byte value split into a
  * 23-bit tag id (Core-owned range vs. device-specific range) plus a pointer/inline mode flag in bit 7 of
  * `value[0]` - see #is_inline().
@@ -154,6 +163,17 @@ struct SectionTag {
                  static_cast<uint8_t>(id & 0xFF)}};
     }
 
+    /**
+     * @brief Builds a device-specific wire SectionTag from a device-local id; always lands at/above
+     * #core_tag_id_range_end, so it can never collide with a Core tag.
+     * @param local_id Device-local id, starting at 0; must be `<= max_tag_id - core_tag_id_range_end`.
+     * @param is_inline true for inline-mode, false for pointer-mode.
+     */
+    static constexpr SectionTag make_device_tag(uint32_t local_id, bool is_inline) noexcept {
+        OPENVINO_DEBUG_ASSERT(local_id <= max_tag_id - core_tag_id_range_end);
+        return make(core_tag_id_range_end + local_id, is_inline);
+    }
+
     /// The 23-bit tag id (mode bit masked out).
     constexpr uint32_t id() const noexcept {
         return (static_cast<uint32_t>(value[0] & 0x7F) << 16) | (static_cast<uint32_t>(value[1]) << 8) |
@@ -169,67 +189,47 @@ struct SectionTag {
     constexpr bool is_pointer() const noexcept {
         return !is_inline();
     }
+
+    /// Inverse of #make_device_tag(): recovers the device-local id (`id() - core_tag_id_range_end`).
+    constexpr uint32_t device_local_id() const noexcept {
+        return id() - core_tag_id_range_end;
+    }
 };
 
 /**
- * @brief Boundary in the 23-bit #SectionTag id space: Core ids are `< core_tag_id_range_end`;
- * #make_device_tag() only produces ids at/above it, so a device can never collide with a Core tag.
- */
-inline constexpr uint32_t core_tag_id_range_end = 0x1000;
-
-/** @brief Maximum tag id representable by the 23-bit #SectionTag id space. */
-inline constexpr uint32_t max_tag_id = 0x7FFFFF;
-
-/**
- * @brief Core-owned HSM tag identifiers. These are automatically assigned in declaration order and should not collide
- * with device-specific tags.
+ * @brief Core-owned HSM tag identifiers - explicit wire values so reordering is safe; never change or reuse a
+ * value once shipped. #sentinel_count auto-tracks the count and must stay last.
  */
 enum class Tags : uint32_t {
-    invalid = 0,           //!< Reserved: never a real tag id.
-    model_id,              //!< See #model_id.
-    model,                 //!< See #model.
-    runtime_requirements,  //!< See #runtime_requirements_tag().
-    // Add new Core tags above this line only - values are assigned automatically, in declaration order.
+    invalid = 0,               //!< Reserved: never a real tag id.
+    model_id = 1,              //!< See #model_id.
+    model = 2,                 //!< See #model.
+    runtime_requirements = 3,  //!< See #runtime_requirements_tag.
+    // Add new Core tags above this line only, each with the next explicit value - never change or reuse an
+    // existing tag's value.
     sentinel_count,  // Not a real tag id - always exactly one past the last real entry above.
 };
 static_assert(static_cast<uint32_t>(Tags::sentinel_count) <= core_tag_id_range_end,
               "Too many Core tags defined for core_tag_id_range_end - widen the boundary.");
 
 inline constexpr uint32_t model_id = static_cast<uint32_t>(Tags::model_id);  //!< Model identifier (e.g. a hash).
-inline constexpr uint32_t model = static_cast<uint32_t>(Tags::model);  //!< The serialized compiled model itself.
+inline constexpr uint32_t model = static_cast<uint32_t>(Tags::model);        //!< The serialized compiled model itself.
 inline constexpr uint32_t runtime_requirements = static_cast<uint32_t>(Tags::runtime_requirements);
 
 /// Wire tag for #model_id - always inline-mode.
-constexpr SectionTag model_id_tag() noexcept {
-    return SectionTag::make(model_id, /*is_inline=*/true);
-}
+inline constexpr SectionTag model_id_tag = SectionTag::make(model_id, /*is_inline=*/true);
 
 /// Wire tag for #model - always pointer-mode.
-constexpr SectionTag model_tag() noexcept {
-    return SectionTag::make(model, /*is_inline=*/false);
-}
+inline constexpr SectionTag model_tag = SectionTag::make(model, /*is_inline=*/false);
 
 /**
  * @brief Wire tag for #runtime_requirements - always pointer-mode. Payload is opaque to the common
  * reader/format: this contract only reserves the tag and its bounds (like any pointer-mode section) -
  * interpreting and enforcing the encoded requirements is entirely the emitting device/plugin's
- * responsibility. No expression scheme is defined at this layer (out of scope here; a richer format,
- * if any, belongs to the tag registry).
+ * responsibility, typically via #ISectionExtension. No expression scheme is defined at this layer
+ * (out of scope here; a richer format, if any, belongs to the tag registry).
  */
-constexpr SectionTag runtime_requirements_tag() noexcept {
-    return SectionTag::make(runtime_requirements, /*is_inline=*/false);
-}
-
-/**
- * @brief Builds a device-specific wire #SectionTag from a device-local id; always lands at/above
- * #core_tag_id_range_end, so it can never collide with a Core tag.
- * @param local_id Device-local id, starting at 0; must be `<= max_tag_id - core_tag_id_range_end`
- * @param is_inline true for inline-mode, false for pointer-mode.
- */
-constexpr SectionTag make_device_tag(uint32_t local_id, bool is_inline) noexcept {
-    OPENVINO_DEBUG_ASSERT(local_id <= max_tag_id - core_tag_id_range_end);
-    return SectionTag::make(core_tag_id_range_end + local_id, is_inline);
-}
+inline constexpr SectionTag runtime_requirements_tag = SectionTag::make(runtime_requirements, /*is_inline=*/false);
 
 /**
  * @brief One fixed-size, 32-byte record of the manifest table (see #Header::manifest_offset).
@@ -253,8 +253,8 @@ constexpr SectionTag make_device_tag(uint32_t local_id, bool is_inline) noexcept
  *
  * @note `#pragma pack(1)` is required: without it, the 3-byte `SectionTag` followed by the 8-byte-aligned
  * `offset` field would force padding, cascading misalignment through the rest of the struct.
- * @note A specific `(device, tag)` pair may redefine what its own `tag_reserved`/`pointer_reserved` bytes
- * mean; they're zero otherwise. This struct doesn't interpret content.
+ * @note `tag_reserved`/`pointer_reserved` are zero unless the specific `(device, tag)` pair they belong to
+ * redefines their meaning - treat them as opaque otherwise.
  */
 #pragma pack(push, 1)
 struct ManifestEntry {
@@ -264,8 +264,8 @@ struct ManifestEntry {
 
     union {
         struct {
-            OffsetType offset;                     //!< Section payload offset (pointer-mode).
-            SizeType size;                         //!< Section payload size (pointer-mode).
+            OffsetType offset;                        //!< Section payload offset (pointer-mode).
+            SizeType size;                            //!< Section payload size (pointer-mode).
             std::array<uint8_t, 8> pointer_reserved;  //!< Zero, unless (#device, #tag) redefines this.
         };
         std::array<uint8_t, 24> inline_bytes;  //!< Inline payload, up to 24 bytes (inline-mode).
@@ -310,14 +310,35 @@ constexpr bool is_valid_header_fields(const Header& header) noexcept {
  * @return true if the section bounds are valid, false otherwise.
  */
 constexpr bool is_valid_section_bounds(const ManifestEntry& entry, const Header& header) noexcept {
-    return !entry.tag.is_pointer() || (entry.offset >= sizeof(Header) && entry.offset <= header.manifest_offset &&
-                                       header.manifest_offset - entry.offset >= entry.size);
+    return entry.tag.is_inline() || (entry.offset >= sizeof(Header) && entry.offset <= header.manifest_offset &&
+                                     header.manifest_offset - entry.offset >= entry.size);
 }
+
+/**
+ * @brief Reader-side plugin hook: interprets one manifest entry's section content. A concrete extension
+ * self-dispatches by checking `(entry.device, entry.tag)` and returning whether it recognized it - per the
+ * unknown-tag rule on #SectionTag, the reader must skip any entry no extension recognizes, never fail
+ * import.
+ * @note Forward-looking contract only - not yet wired to a real reader.
+ */
+class ISectionExtension {
+public:
+    virtual ~ISectionExtension() = default;
+
+    /**
+     * @brief Attempts to interpret @p entry's section content.
+     * @param entry Manifest entry being considered - not necessarily one this extension owns.
+     * @param section Bounds-checked view of the payload - #ContainerView::section() for a pointer-mode
+     * entry, or `entry.inline_bytes` for an inline-mode one; never a raw, unchecked pointer.
+     * @return true if `(entry.device, entry.tag)` was recognized and handled, false otherwise.
+     */
+    virtual bool read_section(const ManifestEntry& entry, ov::util::MemoryView section) = 0;
+};
 
 /**
  * @brief Read-only, zero-copy view of an entire in-memory HSM container: header, manifest and pointer-mode
  */
-class ContainerView {
+class OPENVINO_RUNTIME_API ContainerView {
 public:
     /// Empty (zero-size, null-data) view - #validate() is false for it.
     constexpr ContainerView() noexcept = default;
@@ -333,17 +354,13 @@ public:
      * @brief Returns the header at the start of the buffer.
      * @return Reference to the header at the start of the buffer.
      */
-    const Header& header() const noexcept {
-        return Header::view(reinterpret_cast<const uint8_t*>(begin()));
-    }
+    const Header& header() const noexcept;
 
     /**
      * @brief Returns the first manifest entry at `header().manifest_offset`.
      * @return The first manifest entry at `header().manifest_offset`.
      */
-    const ManifestEntry& manifest() const noexcept {
-        return *reinterpret_cast<const ManifestEntry*>(begin() + header().manifest_offset);
-    }
+    const ManifestEntry& manifest() const noexcept;
 
     /// Number of entries at #manifest().
     size_t manifest_count() const noexcept {
@@ -354,7 +371,7 @@ public:
      * @brief Bounds-checked payload bytes of a pointer-mode manifest entry; empty view for an invalid or inline entry.
      */
     constexpr ov::util::MemoryView section(const ManifestEntry& entry) const noexcept {
-        if (!entry.tag.is_pointer() || entry.offset > size() || entry.size > size() - entry.offset) {
+        if (entry.tag.is_inline() || entry.offset > size() || entry.size > size() - entry.offset) {
             return {};
         } else {
             return {begin() + static_cast<size_t>(entry.offset), static_cast<size_t>(entry.size)};
@@ -365,24 +382,7 @@ public:
      * @brief Basic structural integrity check: magic, and that the header/manifest/pointer-mode section
      * bounds all stay within #size() with no overflow. Doesn't interpret tag-specific (device, tag) content.
      */
-    bool validate() const noexcept {
-        if (static_cast<size_t>(end() - begin()) < sizeof(Header)) {
-            return false;
-        }
-        const auto& hdr = header();
-        if (!is_valid_header_fields(hdr) || hdr.container_size > size()) {
-            return false;
-        }
-
-        if (hdr.manifest_size == 0) {
-            return true;
-        }
-
-        const auto* entries = &manifest();
-        return std::all_of(entries, entries + manifest_count(), [&hdr](const ManifestEntry& entry) {
-            return is_valid_section_bounds(entry, hdr);
-        });
-    }
+    bool validate() const noexcept;
 
 private:
     constexpr const std::byte* begin() const noexcept {
@@ -400,10 +400,15 @@ private:
  *
  * This class allows iterating over and accessing the #BlobMagic::single containers within a multi-blob HSM file,
  * skipping over shared-context containers.
+
  */
-class MultiBlobView {
+class OPENVINO_RUNTIME_API MultiBlobView {
 public:
+    // CVS-191965: finalize this class (multi-blob/shared-context implementation).
+    /// Constructs a view over `[data, data + size)` - no copy, no validation of its contents.
     explicit constexpr MultiBlobView(const std::byte* data, size_t size) noexcept : m_view{data, size} {}
+
+    /// @overload uint8_t variant of MultiBlobView(const std::byte*, size_t).
     explicit MultiBlobView(const uint8_t* data, size_t size) noexcept
         : MultiBlobView{reinterpret_cast<const std::byte*>(data), size} {}
 
@@ -415,41 +420,13 @@ public:
      * @brief Returns the number of #BlobMagic::single containers in the multi-blob HSM file.
      * @return The number of #BlobMagic::single containers in the multi-blob HSM file.
      */
-    size_t blob_count() const noexcept {
-        auto view = m_view;
-        size_t count = 0;
-        while (view.size() >= sizeof(Header)) {
-            const auto next = advance_container(view);
-            if (!next) {
-                break;
-            }
-            count += next->is_blob ? 1 : 0;
-            view = next->remaining;
-        }
-        return count;
-    }
+    size_t blob_count() const noexcept;
 
     /**
      * @brief The `index`-th #BlobMagic::single container (shared-context containers don't count towards `index`).
      * @return An empty (zero-size) view if `index >= blob_count()`.
      */
-    ContainerView blob_at(size_t index) const noexcept {
-        auto view = m_view;
-        while (view.size() >= sizeof(Header)) {
-            const auto next = advance_container(view);
-            if (!next) {
-                break;
-            }
-            if (next->is_blob) {
-                if (index == 0) {
-                    return ContainerView{view.data(), next->container_size};
-                }
-                --index;
-            }
-            view = next->remaining;
-        }
-        return {};
-    }
+    ContainerView blob_at(size_t index) const noexcept;
 
 private:
     /**
@@ -459,9 +436,17 @@ private:
      * blob.
      */
     struct NextContainer {
-        ov::util::MemoryView remaining;  //!< The remaining view after the container.
-        size_t container_size;           //!< Size of the container just advanced past.
-        bool is_blob;                    //!< True if the container was a blob.
+        // Definitions in hsm_format.cpp: only used there, so out-of-line costs no inlining (same TU).
+        NextContainer(ov::util::MemoryView remaining, size_t container_size, bool is_blob) noexcept;
+
+        const ov::util::MemoryView& remaining() const noexcept;
+        size_t container_size() const noexcept;
+        bool is_blob() const noexcept;
+
+    private:
+        ov::util::MemoryView m_remaining;  //!< The remaining view after the container.
+        size_t m_container_size;           //!< Size of the container just advanced past.
+        bool m_is_blob;                    //!< True if the container was a blob.
     };
 
     /**
@@ -470,17 +455,7 @@ private:
      * @return A NextContainer describing the remaining view and whether it was a blob, or `std::nullopt` if the header
      * is invalid.
      */
-    static std::optional<NextContainer> advance_container(const ov::util::MemoryView& view) noexcept {
-        const auto& hdr = Header::view(reinterpret_cast<const uint8_t*>(view.data()));
-        if (!is_recognized_header(hdr) || hdr.container_size > view.size()) {
-            return std::nullopt;
-        } else {
-            const auto container_size = static_cast<size_t>(hdr.container_size);
-            return std::make_optional(NextContainer{{view.data() + container_size, view.size() - container_size},
-                                                    container_size,
-                                                    hdr.magic == BlobMagic::single});
-        }
-    }
+    static std::optional<NextContainer> advance_container(const ov::util::MemoryView& view) noexcept;
 
     ov::util::MemoryView m_view;
 };
