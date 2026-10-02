@@ -1740,6 +1740,71 @@ TEST(prepare_buffer_fusing, in_place_onednn_concat_static) {
 }
 #endif  // ENABLE_ONEDNN_FOR_GPU
 
+TEST(prepare_buffer_fusing, in_place_concat_dynamic_bfyx_to_fsv16_reorder_feature_padding) {
+    // Runtime in-place concat gives the second producer a lower feature padding, which the static
+    // path rejects, so only the shape agnostic kernel sees it. With batch > 1 it must span padded
+    // feature slices instead of overwriting batch 0.
+    auto& engine = get_test_engine();
+    tests::random_generator rg(GET_SUITE_NAME);
+
+    const size_t batch = 2, feature = 16, y_size = 4, x_size = 8;
+    auto dyn_layout = layout{ov::PartialShape::dynamic(4), data_types::f32, format::bfyx};
+    auto in_layout = layout{ov::PartialShape{2, 16, 4, 8}, data_types::f32, format::bfyx};
+
+    topology topology;
+    topology.add(input_layout("input1", dyn_layout));
+    topology.add(input_layout("input2", dyn_layout));
+    topology.add(reorder("input1_fsv16", input_info("input1"), format::b_fs_yx_fsv16, data_types::f32));
+    topology.add(reorder("input2_fsv16", input_info("input2"), format::b_fs_yx_fsv16, data_types::f32));
+    topology.add(concatenation("concat", {input_info("input1_fsv16"), input_info("input2_fsv16")}, 1));
+    topology.add(reorder("output", input_info("concat"), format::bfyx, data_types::f32));
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    // In-place concat rejects batch > 1 when the producers prefer onednn, so pin them to the ocl
+    // path. The kernel itself is still chosen by the selector and asserted on below.
+    ov::intel_gpu::ImplementationDesc ocl_reorder = {format::b_fs_yx_fsv16, "", impl_types::ocl};
+    config.set_property(ov::intel_gpu::force_implementations(
+        ov::intel_gpu::ImplForcingMap{{"input1_fsv16", ocl_reorder}, {"input2_fsv16", ocl_reorder}}));
+
+    network net(engine, topology, config);
+
+    auto input_memory1 = engine.allocate_memory(in_layout);
+    auto input_memory2 = engine.allocate_memory(in_layout);
+    auto input1_vals = rg.generate_random_1d<float>(in_layout.count(), -10, 10);
+    auto input2_vals = rg.generate_random_1d<float>(in_layout.count(), -10, 10);
+    set_values(input_memory1, input1_vals);
+    set_values(input_memory2, input2_vals);
+
+    net.set_input_data("input1", input_memory1);
+    net.set_input_data("input2", input_memory2);
+
+    std::map<cldnn::primitive_id, cldnn::network_output> output;
+    EXPECT_NO_THROW(output = net.execute());
+    ASSERT_TRUE(net.get_primitive("concat")->can_be_optimized());
+
+    // The padded producer must really run the tiled kernel, otherwise this is not a regression.
+    auto* padded_impl = net.get_primitive("input2_fsv16")->get_impl();
+    ASSERT_TRUE(padded_impl != nullptr);
+    ASSERT_NE(padded_impl->get_kernel_name().find("reorder_data_bfyx_to_blocked_format"), std::string::npos);
+
+    auto out_mem = output.at("output").get_memory();
+    cldnn::mem_lock<float> output_ptr(out_mem, get_test_stream());
+    ASSERT_EQ(out_mem->count(), input1_vals.size() + input2_vals.size());
+
+    const size_t per_batch_in = feature * y_size * x_size;
+    const size_t per_batch_out = 2 * per_batch_in;
+    for (size_t b = 0; b < batch; ++b) {
+        for (size_t i = 0; i < per_batch_in; ++i) {
+            ASSERT_EQ(output_ptr[b * per_batch_out + i], input1_vals[b * per_batch_in + i])
+                << "input1 b=" << b << " i=" << i;
+            ASSERT_EQ(output_ptr[b * per_batch_out + per_batch_in + i], input2_vals[b * per_batch_in + i])
+                << "input2 b=" << b << " i=" << i;
+        }
+    }
+}
+
 TEST(prepare_buffer_fusing, in_place_concat_with_fsv32_to_fsv16_reorder_regression) {
     // Regression test for fsv32->fsv16 reorder + in-place concat path.
     // Keep in-place enabled, then verify buffer sharing and output channel order.

@@ -91,6 +91,8 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_prefix_caching.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_prefix_caching.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_stored_tokens_state.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_swa_cache.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/llm_swa_cache.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/logging.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/logging.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe/moe_config.hpp

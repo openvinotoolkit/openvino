@@ -10,6 +10,7 @@ set(GPU_UNIT_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/memory_realloc_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/optimized_out_execution_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/priorbox_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/remote_output_lifecycle.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/skip_gather_at_runtime.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/skip_permutes_at_runtime.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dynamic_execution/skip_redundant_reorder_at_runtime.cpp

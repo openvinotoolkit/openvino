@@ -365,11 +365,14 @@ static constexpr ov::Property<WSVersion> separate_weights_version{"NPU_SEPARATE_
 static constexpr ov::Property<ModelSerializerVersion> model_serializer_version{"NPU_MODEL_SERIALIZER_VERSION"};
 
 /**
- * @brief [Experimental, only for NPU Plugin]
+ * @brief [Only for NPU Plugin]
  * Type: integer.
  *
  * Used for communicating a state to the compiler when compiling a model using the compiler-in-driver interfaces. This
  * takes effect only when weights separation is enabled and "NPU_SEPARATE_WEIGHTS_VERSION" is set to "ITERATIVE".
+ *
+ * Note: This property is internal, it is used strictly for plugin -> compiler synchronization and is not meant to be
+ * used by the application. Setting or getting it from user code will throw.
  */
 static constexpr ov::Property<uint32_t> ws_compile_call_number{"WS_COMPILE_CALL_NUMBER"};
 

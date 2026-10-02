@@ -37,16 +37,22 @@ PluginCompilerAdapter::PluginCompilerAdapter(const std::shared_ptr<ZeroInitStruc
                                              const std::shared_ptr<OptionSupportCache>& optionSupportCache,
                                              const std::optional<IDevice::DeviceProperties>& deviceProperties)
     : _zeroInitStruct(zeroInitStruct),
-      _optionSupportCache(optionSupportCache),
       _logger("PluginCompilerAdapter", Logger::global().level()) {
     _logger.info("initialize PluginCompilerAdapter start");
 
     _logger.info("Loading PLUGIN compiler");
     try {
         auto ovLibPath = ov::util::path_to_string(ov::util::get_ov_lib_path());
-        auto vclCompilerPtr = std::make_shared<VCLCompilerImpl>(ovLibPath, deviceProperties);
+        auto vclLoader = VCLLoader::getInstance(ovLibPath);
+        OPENVINO_ASSERT(vclLoader != nullptr, "VCL loader is nullptr");
+        auto vclCompilerPtr =
+            std::make_shared<VCLCompilerImpl>(vclLoader->sharedFunctions(),
+                                              deviceProperties,
+                                              ScopedOptionSupportCache{optionSupportCache, pluginOptionSupportKey});
         OPENVINO_ASSERT(vclCompilerPtr != nullptr, "VCL compiler is nullptr");
-        auto vclLib = vclCompilerPtr->getLinkedLibrary();
+        // Pair the compiler with the library so the .so cannot be unloaded while the compiler
+        // dispatches into it. The compiler itself no longer knows a library is involved.
+        auto vclLib = vclLoader->getLibrary();
         _logger.info("PLUGIN VCL compiler is loading");
         OPENVINO_ASSERT(vclLib != nullptr, "VCL library is nullptr");
         _compiler = ov::SoPtr<VCLCompilerImpl>(vclCompilerPtr, vclLib);
@@ -215,6 +221,11 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         std::shared_ptr<ov::Model> targetModel = model;
         size_t i = 0;
 
+        OPENVINO_ASSERT(is_option_supported(ov::intel_npu::ws_compile_call_number.name()),
+                        "WS_COMPILE_CALL_NUMBER is a compiler option and must be supported by the compiler.");
+        OPENVINO_ASSERT(!localConfig.has(ov::intel_npu::ws_compile_call_number.name()),
+                        "WS_COMPILE_CALL_NUMBER is an internal option owned by the weights separation compilation "
+                        "loop and must not be set by the user.");
         while (true) {
             auto iterativeResult = _compiler->compileWsIterative(targetModel, localConfig, i++);
             auto tensor = std::move(iterativeResult.first);
@@ -287,49 +298,12 @@ uint32_t PluginCompilerAdapter::get_version() const {
 }
 
 std::vector<std::string> PluginCompilerAdapter::get_supported_options() const {
-    std::vector<char> options;
-    _compiler->get_supported_options(options);
-    size_t optionsSize = options.size();
-    while (optionsSize > 0 && options[optionsSize - 1] == '\0') {
-        --optionsSize;
-    }
-    if (optionsSize == 0) {
-        return {};
-    }
-
-    std::string compilerOptionsStr(options.data(), optionsSize);
-    _logger.debug("VCLCompilerImpl return supported_options: %s", compilerOptionsStr.c_str());
-    // vectorize string
-    std::istringstream suppstream(compilerOptionsStr);
-    std::vector<std::string> compilerOpts = {};
-    std::string option;
-    while (suppstream >> option) {
-        compilerOpts.push_back(option);
-    }
-
-    if (_optionSupportCache) {
-        _optionSupportCache->setSupportedOptions(pluginOptionSupportKey, compilerOpts);
-    }
-    return compilerOpts;
+    return _compiler->get_supported_options();
 }
 
 bool PluginCompilerAdapter::is_option_supported(const std::string& optname,
                                                 const std::optional<std::string>& optValue) const {
-    bool optionSupportCache = _optionSupportCache && !optValue.has_value();
-    if (optionSupportCache) {
-        const auto cachedSupport = _optionSupportCache->isOptionSupported(pluginOptionSupportKey, optname);
-        if (cachedSupport.has_value()) {
-            _logger.debug("Option %s %s by PluginCompilerAdapter",
-                          optname.c_str(),
-                          cachedSupport.value() ? "is supported" : "is not supported");
-            return cachedSupport.value();
-        }
-    }
-
     const bool supported = _compiler->is_option_supported(optname, optValue);
-    if (optionSupportCache) {
-        _optionSupportCache->addSupportedOption(pluginOptionSupportKey, optname, supported);
-    }
 
     _logger.debug("Option %s with value '%s' %s by PluginCompilerAdapter",
                   optname.c_str(),
