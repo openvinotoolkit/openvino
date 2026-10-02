@@ -177,7 +177,7 @@ A pattern is a single-rooted graph: the node passed to `Matcher` is the root, an
 
 ### Predicate reference
 
-Declared in [openvino/pass/pattern/op/pattern.hpp](../../../core/include/openvino/pass/pattern/op/pattern.hpp). Combine them with `&&`, `||` and `!`.
+Here are some commonly used predicates:
 
 | Need | Predicate |
 |------|-----------|
@@ -186,6 +186,11 @@ Declared in [openvino/pass/pattern/op/pattern.hpp](../../../core/include/openvin
 | Node attributes | `attrs_match({{"mode", "numpy"}})`, or the `attrs` argument of `wrap_type` |
 | Static shape / rank | `has_static_shape()`, `has_static_rank()`, `has_static_dim(pos)`, `has_static_dims({...})` |
 | Consumers | `consumers_count(1)`, `consumers_more_than(1)` |
+
+Predicates can be combined with `&&`, `||` and `!`.
+
+For the complete list, see [pattern.hpp](../../../core/include/openvino/pass/pattern/op/pattern.hpp).
+If the existing predicates, including their combinations, cannot express the condition, use a custom `pattern::Predicate` lambda.
 
 Node builders:
 
@@ -196,8 +201,9 @@ Node builders:
 | Any `Constant` | `wrap_const()` |
 | Optional node in the chain | `optional<v1::Subtract>({input, any_input()})` |
 | Alternatives | `a \| b` |
+| Multi-output node with explicitly indexed outputs | `wrap_type_strict_index<v1::Split>({input, axis})->output(i)` |
 
-Custom `pattern::Predicate` lambdas should be a last resort. The built-ins already handle dynamic dimensions, symbol propagation and precision corner cases that hand-written checks tend to get wrong.
+**Note:** If `wrap_type_strict_index` is used, access a matched multi-output pattern node through `Matcher::get_pattern_map()`, not `Matcher::get_pattern_value_map()`, which stores a matched output rather than the node.
 
 ### Optional nodes and alternatives
 
@@ -215,6 +221,8 @@ auto sub_m = optional<v1::Subtract>({convert, zp});
 // Alternatives use operator|
 auto weights_m = weights_5d_convert_m | weights_4d_convert_m;
 ```
+
+**Note:** Use only the 0th input as a 'data' input for optional. So `optional<T>({a, b})` can only bypass to `a`.
 
 Presence of an optional node is checked in the callback with `pattern_map.count(sub_m)`.
 
@@ -262,17 +270,9 @@ const bool has_sub = pattern_map.count(sub_m) > 0;          // optional node -> 
 
 Use `.at()` for mandatory entries. `operator[]` and `count()`-guarded lookups on mandatory labels hide pattern/callback mismatches.
 
-### Trust the matcher
-
-Do not re-verify what the pattern already guarantees:
-
-- no `as_type_ptr` + null check on a node matched by `wrap_type<T>` (unless `T`-specific API is actually used);
-- no input-count checks when `validate_inputs_count` or the op constructor already enforced them;
-- no shape/type re-checks that duplicate a predicate.
-
 ### Fail fast on violated invariants
 
-If a condition can only be false because the matcher or the pipeline is broken, assert — do not `return false`. A silent `return false` produces a transformation that "did nothing", which is the hardest class of transformation defect to diagnose. Assertions also keep static analyzers (Coverity) quiet about the unchecked cast.
+Use assertions for conditions that can only fail if the matcher or pipeline is broken. For example, a type mismatch for a node matched by a single-type `wrap_type<T>` violates an invariant; asserting instead of returning `false` avoids silently skipping the transformation and keeps static analyzers (Coverity) quiet about unchecked casts.
 
 ```cpp
 // Matcher
@@ -288,16 +288,32 @@ const auto swish = ov::as_type_ptr<v4::Swish>(pattern_map.at(swish_m).get_node_s
 OPENVINO_ASSERT(swish, "MyFusion: matched node is expected to be v4::Swish");
 ```
 
-`return false` is reserved for "the pattern matched, but this instance is legitimately not transformable" — and even then, prefer moving the condition into the pattern (see [Pattern matching](#pattern-matching)).
+Use `return false` when the matched instance is legitimately not transformable:
+
+```cpp
+auto new_weights = fuse_const_to_weights(matmul, weights, mul_const);
+// Fusion was not successfull
+if (!new_weights)
+    return false;
+```
+
+### Trust the matcher
+
+Do not re-verify what the pattern already guarantees:
+
+- do not return false if `as_type_ptr` returns nullptr for a node matched by `wrap_type<T>`, use assert instead;
+- no input-count checks when `validate_inputs_count` or the op constructor already enforced them;
+- no shape/type re-checks that duplicate a predicate.
 
 ### Compute constants with OV ops, not raw buffers
 
-To compare or derive constant values (FakeQuantize ranges, scales, zero points), build a small OV subgraph and fold it instead of iterating raw data. The opset implementation handles broadcasting, mixed precisions and corner cases for free, and the cost is paid once at compile time.
+To compare or derive constant values (FakeQuantize ranges, scales, zero points), build a small OV subgraph and fold it instead of iterating raw data. The opset implementation handles nuances such as broadcasting authomatically, and the cost is paid once at model compile time.
 
 ```cpp
-auto reshape = std::make_shared<v1::Reshape>(bias, new_shape, false);
-auto folded  = ov::util::get_constant_from_source(reshape);
-auto new_bias = folded ? folded->output(0) : reshape->output(0);
+auto diff = std::make_shared<ov::op::v1::Subtract>(val1, val2);
+auto abs_diff = std::make_shared<ov::op::v0::Abs>(diff);
+auto eps = ov::op::v0::Constant::create(val1.get_element_type(), {}, {1e-6f});
+auto is_less = ov::util::get_constant_from_source(std::make_shared<ov::op::v1::Less>(abs_diff, eps));
 ```
 
 This also simplifies the matcher: build the node unconditionally, fold it, and use the folded constant if folding succeeded — instead of separating constant and non-constant cases in the pattern.
@@ -317,7 +333,7 @@ Prefer `replace_node` with a cloned node over a sequence of `replace_source_outp
 
 `replace_output_update_name` copies the runtime info of the eliminated node onto the replacement and keeps its friendly name when the output feeds a `Result`. It returns `false` when that Result-facing name cannot be preserved safely: if either node has multiple outputs, the replacement is a `Parameter`, or the replacement already has a `Result` consumer. Check the return value instead of assuming the node is gone.
 
-A node that is about to be removed or whose output semantics change must not be shared: verify its consumer count — preferably in the pattern, with `consumers_count(1)` — before rewriting it, otherwise the other consumers silently get different values. Rewiring a single input edge of the match root is the opposite case and needs no such guard: the other consumers of the producer are untouched.
+**Note:** Replacing an output redirects all its consumers, including those not represented in the matcher. If the rewrite is not valid for such additional consumers, use `consumers_count(...)` in the pattern to require that every consumer of the original output is represented in the matcher. Rewiring one input edge changes no other consumers.
 
 ### Preserve runtime info and friendly names
 
@@ -332,8 +348,6 @@ ov::copy_runtime_info({a, b, c}, {e, f});           // N:M  — anything else
 new_node->set_friendly_name(old_node->get_friendly_name());
 ```
 
-When a pass performs several independent fusions or decompositions, call `copy_runtime_info` once per fusion — not once for all created nodes.
-
 `copy_runtime_info` overwrites destination attributes whose keys are also present in the sources. To let the destination's own attributes participate in the merge instead of being overwritten, list the destination among the sources: `copy_runtime_info({a, b, c}, {a, b})`.
 This merge applies only to `ov::RuntimeAttribute` values: keys with multiple non-attribute values or an empty `merge()` result are dropped, and `assign_runtime_info` preserves only the destination's `opset` key.
 
@@ -343,13 +357,7 @@ Attributes already applied by dedicated markup passes (`keep_const_precision`, `
 
 ### Fold the constant subgraphs you create if possible
 
-Folding in place, shown in [Compute constants with OV ops](#compute-constants-with-ov-ops-not-raw-buffers), is targeted and cheaper than relying on a later full-model `ov::pass::ConstantFolding` run in general case. If a foldable subgraph is intentionally left in the graph, make sure `ov::pass::ConstantFolding` runs after the pass in every pipeline that registers it.
-
-### Let the framework clean up
-
-Dead nodes made unreachable by a rewrite fall out of model traversal automatically. Add manual clean-up code only in case of strong justification.
-
-If a pass changes shapes or element types, make sure a `Validate` pass runs after it: shapes and types are not revalidated automatically, and the following passes would otherwise observe stale ones. `ov::pass::Manager` inserts `Validate` after every registered pass while per-pass validation is enabled; pipelines that call `set_per_pass_validation(false)` must register it explicitly.
+When a transformation creates a foldable subgraph, fold it immediately rather than relying on a later `ov::pass::ConstantFolding` pass: use `ov::op::util::make_try_fold<T>(...)` to construct an op and keep its folded result when possible (otherwise it returns the op), or `ov::util::get_constant_from_source(output)` when a Constant is needed (it returns nullptr if folding is not possible). This avoids carrying foldable nodes through the rest of the pipeline and is more profitable from model compilation time perspective.
 
 ## Documenting the pass
 
@@ -392,6 +400,7 @@ Rules for comments:
 - Verify every comment against the code. A comment that contradicts the expression it documents, or carries a factually wrong justification, is a defect.
 - Delete comments that merely restate a symbolic predicate — once `shape_matches("?, ?, 1, 1")` is in the pattern, `// 1x1 spatial dims` adds nothing.
 - Document non-obvious numeric criteria (tolerance formulas, relative vs absolute comparisons) with at least a pseudo-formula.
+- For non-trivial transformation logic, add shape annotations when they clarify how shapes change through the transformation.
 - Avoid enumerating specific operation types in a description when the list may grow ("value-preserving ops" instead of "Reshape, Squeeze, Unsqueeze").
 - Avoid mentioning exact precisions when the pass is parameterized by a precision list.
 
