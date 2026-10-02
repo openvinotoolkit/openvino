@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "unable to access ssl certificate problem self signed certificate|Network",
+  "signature_hash": "abe11b87b263e6c2",
+  "title": "Windows merge-queue build fails to clone submodules with SSL self-signed certificate error",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-10-02T14:54:09Z",
+  "last_seen": "2026-10-02T14:54:09Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/37021370228"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/38558"],
+  "recent_timestamps": ["2026-10-02T14:54:09Z"],
+  "rerun_search_string": "SSL certificate problem: self-signed certificate"
+}

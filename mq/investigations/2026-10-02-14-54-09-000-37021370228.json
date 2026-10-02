@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-02-14-54-09-000-37021370228",
+  "timestamp": "2026-10-02T14:54:09Z",
+  "run_id": "37021370228",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37021370228",
+  "workflow_name": "Build / Build",
+  "pr_number": "38558",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38558",
+  "author": "pereanub",
+  "category": "Network",
+  "title": "Windows merge-queue build fails to clone submodules with SSL self-signed certificate error",
+  "signature": "unable to access ssl certificate problem self signed certificate|Network",
+  "signature_hash": "abe11b87b263e6c2",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "Clone OpenVINO step failed: git submodule fetch of thirdparty/ocl/cl_headers (KhronosGroup/OpenCL-Headers) and later thirdparty/onnx/onnx hit SSL 'self-signed certificate' errors after 3 retries"
+    },
+    {
+      "name": "ci/gha_overall_status_windows_debug",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because the upstream Build job failed"
+    }
+  ],
+  "key_errors": [
+    "##[error]fatal: unable to access 'https://github.com/KhronosGroup/OpenCL-Headers.git/': SSL certificate problem: self-signed certificate",
+    "##[error]fatal: Fetched in submodule path 'thirdparty/ocl/cl_headers', but it did not contain 6fe718c31a45fe25151362a72ef041c3a1047cbd. Direct fetching of that commit failed.",
+    "##[error]fatal: unable to access 'https://github.com/onnx/onnx.git/': SSL certificate problem: self-signed certificate",
+    "##[error]fatal: Fetched in submodule path 'thirdparty/onnx/onnx', but it did not contain 2bb50465112feca9003e1ed654d77f01ff1415ca. Direct fetching of that commit failed."
+  ],
+  "root_cause": "The Windows merge-queue 'Clone OpenVINO' step performs a recursive/forced submodule update over HTTPS (git -c protocol.version=2 submodule update --init --force --depth=1 --recursive). While fetching several unrelated third-party submodules (KhronosGroup/OpenCL-Headers, then onnx/onnx) git reported 'SSL certificate problem: self-signed certificate', indicating the Windows runner's TLS trust chain (or an intercepting proxy/corporate SSL inspection appliance between the runner and github.com) presented a self-signed certificate instead of GitHub's real certificate. This is not caused by the PR's code changes (which only touch src/plugins/intel_npu/src/plugin/*) - it is an outbound network/TLS infrastructure issue on the Windows runner fleet. The step retried 3 times (14s, 10s backoff) and still failed on the third attempt, exhausting the checkout action's git-submodule retry budget.",
+  "reproduction_steps": "N/A - not reliably reproducible outside the affected Windows runner's network path. To attempt reproduction: on the same Windows runner image, run `git -c protocol.version=2 submodule update --init --force --depth=1 --recursive` against a fresh clone of openvinotoolkit/openvino and observe whether TLS verification against github.com and raw.githubusercontent.com/objects for KhronosGroup/OpenCL-Headers.git succeeds.",
+  "recommended_actions": [
+    "Re-run the failed 'Build / Build' job (or re-queue the PR) - this looks like a transient runner/network TLS issue unrelated to the PR diff",
+    "If the failure recurs across multiple PRs/runs, escalate to the GitHub Actions runner infrastructure team to check for a misconfigured TLS-inspection proxy or expired/self-signed CA injected on the Windows runner image",
+    "Consider adding retry/backoff with a longer window or a fallback to protocol.version=1 for submodule fetches if this proves to be a persistent runner-image issue",
+    "Monitor for recurrence within the next 12 hours via the CI Doctor MQ pattern database (signature_hash abe11b87b263e6c2)"
+  ],
+  "prevention_strategies": "Track this failure signature in the repo-memory pattern database; if it recurs 3+ times within a 12-hour window, escalate via Teams to the CI infrastructure team to investigate the Windows runner image's TLS trust store or any SSL-inspecting network appliance. No code change is needed on the PR itself.",
+  "historical_context": "A related but distinct SSL certificate failure (signature_hash d27ae006a3ab2b1f, 'Smart CI fails with SSL certificate verify failed self-signed certificate') was recorded once on 2026-08-12 for PR #37364, also a self-signed-certificate TLS failure but in the SmartCI job rather than during submodule cloning. This confirms self-signed-certificate TLS issues have intermittently affected this CI infrastructure before, supporting the Network/Infrastructure classification and transient nature of the current failure."
+}

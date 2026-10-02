@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "total": 275,
+  "total": 276,
   "entries": [
     {
       "investigation_id": "2026-07-09-13-58-10-000-29022024794",
@@ -2696,6 +2696,17 @@
       "category": "Flaky Test",
       "signature_hash": "eb0b94c864ee1a85",
       "pr_number": "38528"
+    },
+    {
+      "investigation_id": "2026-10-02-14-54-09-000-37021370228",
+      "run_id": "37021370228",
+      "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37021370228",
+      "workflow_name": "Build / Build",
+      "timestamp": "2026-10-02T14:54:09Z",
+      "title": "Windows merge-queue build fails to clone submodules with SSL self-signed certificate error",
+      "category": "Network",
+      "signature_hash": "abe11b87b263e6c2",
+      "pr_number": "38558"
     }
   ]
 }
