@@ -1,5 +1,6 @@
-// Copyright (C) 2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #pragma once
 
@@ -13,6 +14,8 @@ namespace ov::pass {
  *
  * Recognizes spatial padding computed from ShapeOf of the unpadded input, including the
  * scalar arithmetic and padding-vector rearrangements produced by PyTorch/timm exports.
+ * Matches the expanded and constant-folded SAME formulas without treating arbitrary
+ * floating-point reassociations as equivalent padding calculations.
  * Supports Convolution and GroupConvolution, preserving other users of the Pad and its
  * shape subgraph. Only constant zero padding and convolutions without existing padding
  * are eligible.

@@ -1,10 +1,10 @@
-// Copyright (C) 2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "transformations/common_optimizations/dynamic_same_padding_fusion.hpp"
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <functional>
 #include <limits>
@@ -210,51 +210,45 @@ bool divided_by(Scalar scalar, double divisor, Scalar& numerator) {
     return false;
 }
 
-using Coefficients = std::array<double, 3>;
-using Atom = std::function<bool(const Scalar&, Coefficients&)>;
-
-// Recognize affine combinations of two explicitly checked atoms and a constant.
-// This handles both (ceil(I/S)-1)*S+Keff-I and constant-folded/reassociated exports.
-bool affine(Scalar scalar, const Atom& atom, Coefficients& result, size_t& budget) {
-    if (budget == 0 || !resolve(scalar))
-        return false;
-    --budget;
-    if (atom(scalar, result))
-        return true;
-    double value;
-    if (constant(scalar, value)) {
-        result = {0, 0, value};
-        return true;
-    }
-    Scalar a, b;
-    const auto node = scalar.value.get_node_shared_ptr();
-    if ((!is_type<op::v1::Add>(node) && !is_type<op::v1::Subtract>(node) && !is_type<op::v1::Multiply>(node)) ||
-        !input_scalar(scalar, 0, a) || !input_scalar(scalar, 1, b))
-        return false;
-    if (is_type<op::v1::Multiply>(node)) {
-        if (constant(a, value))
-            std::swap(a, b);
-        else if (!constant(b, value))
-            return false;
-        if (!affine(a, atom, result, budget))
-            return false;
-        for (auto& coefficient : result)
-            coefficient *= value;
-    } else {
-        Coefficients lhs, rhs;
-        if (!affine(a, atom, lhs, budget) || !affine(b, atom, rhs, budget))
-            return false;
-        const auto sign = is_type<op::v1::Add>(node) ? 1 : -1;
-        for (size_t i = 0; i < result.size(); ++i)
-            result[i] = lhs[i] + sign * rhs[i];
-    }
-    return true;
+template <typename Op>
+bool binary_inputs(Scalar scalar, Scalar& a, Scalar& b) {
+    return resolve(scalar) && is_shape_float(scalar.value.get_element_type()) && is_type<Op>(scalar.value.get_node()) &&
+           input_scalar(scalar, 0, a) && input_scalar(scalar, 1, b);
 }
 
-bool matches_affine(const Scalar& scalar, const Atom& atom, const Coefficients& expected) {
-    size_t budget = 128;
-    Coefficients result;
-    return affine(scalar, atom, result, budget) && result == expected;
+template <typename Op>
+bool with_constant(Scalar scalar, double expected, Scalar& other) {
+    Scalar a, b;
+    if (!binary_inputs<Op>(scalar, a, b))
+        return false;
+    if (constant_is(a, expected)) {
+        other = b;
+        return true;
+    }
+    if (constant_is(b, expected)) {
+        other = a;
+        return true;
+    }
+    return false;
+}
+
+// Match only subtraction and its exported Add(lhs, Multiply(rhs, -1)) form.
+// Do not cancel or reassociate float expressions: (x + C) - C can differ from x.
+bool subtraction(Scalar scalar, Scalar& lhs, Scalar& rhs) {
+    if (binary_inputs<op::v1::Subtract>(scalar, lhs, rhs))
+        return true;
+    Scalar a, b;
+    if (!binary_inputs<op::v1::Add>(scalar, a, b))
+        return false;
+    if (with_constant<op::v1::Multiply>(b, -1, rhs)) {
+        lhs = a;
+        return true;
+    }
+    if (with_constant<op::v1::Multiply>(a, -1, rhs)) {
+        lhs = b;
+        return true;
+    }
+    return false;
 }
 
 class SamePadding {
@@ -270,21 +264,8 @@ public:
     }
 
     bool end(Scalar scalar) const {
-        if (!unwrap_integer_convert(scalar))
-            return false;
-        return matches_affine(scalar,
-                              [this](const Scalar& s, Coefficients& c) {
-                                  if (total(s)) {
-                                      c = {1, 0, 0};
-                                      return true;
-                                  }
-                                  if (half(s)) {
-                                      c = {0, 1, 0};
-                                      return true;
-                                  }
-                                  return false;
-                              },
-                              {1, -1, 0});
+        Scalar padding, before;
+        return unwrap_integer_convert(scalar) && subtraction(scalar, padding, before) && total(padding) && half(before);
     }
 
 private:
@@ -298,21 +279,34 @@ private:
             std::swap(a, b);
         if (!constant_is(b, 0))
             return false;
-        return matches_affine(a,
-                              [this](Scalar s, Coefficients& c) {
-                                  if (is_dimension(s, m_data, m_axis)) {
-                                      c = {1, 0, 0};
-                                      return true;
-                                  }
-                                  Scalar numerator;
-                                  if (is_type<op::v0::Ceiling>(s.value.get_node()) && input_scalar(s, 0, s) &&
-                                      divided_by(s, m_stride, numerator) && is_dimension(numerator, m_data, m_axis)) {
-                                      c = {0, 1, 0};
-                                      return true;
-                                  }
-                                  return false;
-                              },
-                              {-1, m_stride, m_kernel - m_stride});
+        Scalar extent, dimension;
+        return subtraction(a, extent, dimension) && is_dimension(dimension, m_data, m_axis) && padded_extent(extent);
+    }
+
+    bool output_size(Scalar scalar) const {
+        Scalar numerator;
+        return resolve(scalar) && is_type<op::v0::Ceiling>(scalar.value.get_node()) &&
+               input_scalar(scalar, 0, scalar) && divided_by(scalar, m_stride, numerator) &&
+               is_dimension(numerator, m_data, m_axis);
+    }
+
+    bool padded_extent(Scalar scalar) const {
+        Scalar product, size;
+        // Constant-folded form: S * ceil(I / S) + (Keff - S).
+        // NopElimination may have removed the Add when Keff equals S.
+        if (m_kernel == m_stride && with_constant<op::v1::Multiply>(scalar, m_stride, size) && output_size(size))
+            return true;
+        if (with_constant<op::v1::Add>(scalar, m_kernel - m_stride, product) &&
+            with_constant<op::v1::Multiply>(product, m_stride, size) && output_size(size))
+            return true;
+
+        // Expanded form: (ceil(I / S) - 1) * S + Keff.
+        if (!with_constant<op::v1::Add>(scalar, m_kernel, product) ||
+            !with_constant<op::v1::Multiply>(product, m_stride, size))
+            return false;
+        Scalar ceil, one;
+        return (subtraction(size, ceil, one) && constant_is(one, 1) && output_size(ceil)) ||
+               (with_constant<op::v1::Add>(size, -1, ceil) && output_size(ceil));
     }
 
     bool half(Scalar scalar) const {

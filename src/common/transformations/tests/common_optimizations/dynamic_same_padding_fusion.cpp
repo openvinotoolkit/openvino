@@ -1,5 +1,6 @@
-// Copyright (C) 2026 Intel Corporation
+// Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
+//
 
 #include "transformations/common_optimizations/dynamic_same_padding_fusion.hpp"
 
@@ -35,6 +36,12 @@ struct Config {
     bool output_pad = false;
     bool output_shape = false;
     bool implicit_pad_value = false;
+    bool omit_zero_offset = false;
+    bool constant_fold_decrement = false;
+    bool cancel_dimension = false;
+    bool cancel_end = false;
+    double cancellation_offset = 16777216;
+    double dimension_scale = 1;
     double pad_value = 0;
     double batch_pad = 0;
     double kernel_adjustment = 0;
@@ -62,23 +69,38 @@ std::shared_ptr<op::util::PadBase> make_pad(const Output<Node>& data, const Outp
         const auto size = std::make_shared<Convert>(
             std::make_shared<Gather>(shape, Constant::create(element::i64, Shape{}, {axis}), axis_zero),
             c.math_type);
-        const auto stride = scalar_constant(c, c.strides[i]);
+        const auto stride_value = static_cast<double>(c.strides[i]);
+        const auto stride = scalar_constant(c, stride_value);
         Output<Node> divided;
         if (c.reciprocal_stride)
-            divided = std::make_shared<Multiply>(size, scalar_constant(c, 1.0 / c.strides[i]));
+            divided = std::make_shared<Multiply>(size, scalar_constant(c, 1.0 / stride_value));
         else
             divided = std::make_shared<Divide>(size, stride);
         const auto ceil = std::make_shared<Ceiling>(divided);
-        const auto effective = (c.kernel[i] - 1) * c.dilations[i] + 1 + c.kernel_adjustment;
+        const auto effective = static_cast<double>((c.kernel[i] - 1) * c.dilations[i] + 1) + c.kernel_adjustment;
         Output<Node> extent;
         if (c.expanded) {
-            extent = std::make_shared<Add>(std::make_shared<Multiply>(subtract(ceil, scalar_constant(c, 1), c), stride),
-                                           scalar_constant(c, effective));
+            const Output<Node> decrement = c.constant_fold_decrement
+                                               ? Output<Node>(std::make_shared<Add>(ceil, scalar_constant(c, -1)))
+                                               : subtract(ceil, scalar_constant(c, 1), c);
+            extent =
+                std::make_shared<Add>(std::make_shared<Multiply>(decrement, stride), scalar_constant(c, effective));
         } else {
-            extent = std::make_shared<Add>(std::make_shared<Multiply>(stride, ceil),
-                                           scalar_constant(c, effective - c.strides[i]));
+            extent = std::make_shared<Multiply>(stride, ceil);
+            if (!c.omit_zero_offset || effective != stride_value)
+                extent = std::make_shared<Add>(extent, scalar_constant(c, effective - stride_value));
         }
-        const auto total = std::make_shared<Maximum>(scalar_constant(c, 0), subtract(extent, size, c));
+        Output<Node> dimension = size;
+        if (c.cancel_dimension) {
+            const auto offset = scalar_constant(c, c.cancellation_offset);
+            dimension = subtract(std::make_shared<Add>(dimension, offset), offset, c);
+        }
+        if (c.dimension_scale != 1) {
+            dimension =
+                std::make_shared<Multiply>(std::make_shared<Multiply>(dimension, scalar_constant(c, c.dimension_scale)),
+                                           scalar_constant(c, 1.0 / c.dimension_scale));
+        }
+        const auto total = std::make_shared<Maximum>(scalar_constant(c, 0), subtract(extent, dimension, c));
         Output<Node> half;
         if (c.reciprocal)
             half = std::make_shared<Multiply>(scalar_constant(c, 1 / c.split_divisor), total);
@@ -86,7 +108,12 @@ std::shared_ptr<op::util::PadBase> make_pad(const Output<Node>& data, const Outp
             half = std::make_shared<Divide>(total, scalar_constant(c, c.split_divisor));
         half = std::make_shared<Floor>(half);
         Output<Node> before = std::make_shared<Convert>(half, c.shape_type);
-        Output<Node> after = std::make_shared<Convert>(subtract(total, half, c), c.shape_type);
+        Output<Node> end_total = total;
+        if (c.cancel_end) {
+            const auto offset = scalar_constant(c, c.cancellation_offset);
+            end_total = subtract(std::make_shared<Add>(end_total, offset), offset, c);
+        }
+        Output<Node> after = std::make_shared<Convert>(subtract(end_total, half, c), c.shape_type);
         if (c.same_lower)
             std::swap(before, after);
         begins.push_back(std::make_shared<Unsqueeze>(before, axis_zero));
@@ -263,6 +290,30 @@ TEST_F(DynamicSamePaddingFusionTests, DecomposedSubtractAndDirectPaddingVectors)
     model_ref = get_model_ref(c);
 }
 
+TEST_F(DynamicSamePaddingFusionTests, FoldedZeroOffsetWithoutAdd) {
+    Config c;
+    c.kernel = {2, 2};
+    c.omit_zero_offset = true;
+    model = get_model(c);
+    model_ref = get_model_ref(c);
+}
+
+TEST_F(DynamicSamePaddingFusionTests, ExpandedConstantFoldedDecrement) {
+    Config c;
+    c.expanded = true;
+    c.constant_fold_decrement = true;
+    c.decompose_subtract = true;
+    model = get_model(c);
+    model_ref = get_model_ref(c);
+}
+
+TEST_F(DynamicSamePaddingFusionTests, FoldedNegativeOffset) {
+    Config c;
+    c.kernel = {1, 1};
+    model = get_model(c);
+    model_ref = get_model_ref(c);
+}
+
 TEST_F(DynamicSamePaddingFusionTests, SharedKeyValueConvolutions) {
     Config c;
     c.grouped = true;
@@ -403,6 +454,55 @@ TEST_F(DynamicSamePaddingFusionTests, RoundedReciprocalStride) {
     model = get_model(c);
 }
 
+using CancellationParams = std::tuple<bool, bool, bool>;
+class DynamicSamePaddingCancellationTests : public DynamicSamePaddingFusionTests,
+                                            public testing::WithParamInterface<CancellationParams> {
+public:
+    static std::string get_test_name(const testing::TestParamInfo<CancellationParams>& info) {
+        const auto& [cancel_end, decompose_subtract, use_f64] = info.param;
+        return std::string(cancel_end ? "End" : "Dimension") + (decompose_subtract ? "_AddNegate" : "_Subtract") +
+               (use_f64 ? "_f64" : "_f32");
+    }
+};
+
+TEST_P(DynamicSamePaddingCancellationTests, PreserveFloatCancellation) {
+    const auto& [cancel_end, decompose_subtract, use_f64] = GetParam();
+    Config c;
+    c.cancel_end = cancel_end;
+    c.cancel_dimension = !cancel_end;
+    c.decompose_subtract = decompose_subtract;
+    c.math_type = use_f64 ? element::f64 : element::f32;
+    c.cancellation_offset = use_f64 ? 9007199254740992.0 : 16777216.0;
+    model = get_model(c);
+    if (!use_f64) {
+        // Evaluate the original shape arithmetic directly. Compiling a dynamic
+        // reference would also run MOC and could mask the incorrect fusion.
+        const auto conv = model->get_results()[0]->input_value(0).get_node_shared_ptr();
+        const auto pad = conv->input_value(0).get_node_shared_ptr();
+        const auto pads =
+            std::make_shared<Model>(OutputVector{pad->input_value(1), pad->input_value(2)}, model->get_parameters());
+        const size_t length = cancel_end ? 6 : 7;
+        const TensorVector inputs{Tensor(element::f32, Shape{1, 3, length, length})};
+        TensorVector outputs{Tensor(element::i64, Shape{4}), Tensor(element::i64, Shape{4})};
+        ASSERT_TRUE(pads->evaluate(outputs, inputs));
+        for (size_t axis = 2; axis < 4; ++axis) {
+            EXPECT_EQ(outputs[0].data<const int64_t>()[axis], 0);
+            EXPECT_EQ(outputs[1].data<const int64_t>()[axis], cancel_end ? 0 : 1);
+        }
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         DynamicSamePaddingCancellationTests,
+                         testing::Combine(testing::Bool(), testing::Bool(), testing::Bool()),
+                         DynamicSamePaddingCancellationTests::get_test_name);
+
+TEST_F(DynamicSamePaddingFusionTests, PreserveDimensionScaling) {
+    Config c;
+    c.dimension_scale = 0.1;
+    model = get_model(c);
+}
+
 TEST_F(DynamicSamePaddingFusionTests, TransformationCallback) {
     manager.get_pass_config()->set_callback<pass::DynamicSamePaddingFusion>([](const std::shared_ptr<const Node>&) {
         return true;
@@ -412,6 +512,16 @@ TEST_F(DynamicSamePaddingFusionTests, TransformationCallback) {
 
 TEST_F(TransformationTestsF, DynamicSamePaddingFusionInMOCTransformations) {
     const Config c;
+    model = get_model(c);
+    model_ref = get_model_ref(c);
+    comparator.enable(FunctionsComparator::ATTRIBUTES);
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    manager.register_pass<pass::MOCTransformations>(true, false);
+}
+
+TEST_F(TransformationTestsF, DynamicSamePaddingFusionZeroOffsetInMOCTransformations) {
+    Config c;
+    c.kernel = {2, 2};
     model = get_model(c);
     model_ref = get_model_ref(c);
     comparator.enable(FunctionsComparator::ATTRIBUTES);
