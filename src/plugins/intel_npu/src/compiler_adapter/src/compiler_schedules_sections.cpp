@@ -284,6 +284,15 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
 
     logger.debug("Parsed number of init schedules: %lu", number_of_inits);
 
+    std::vector<ov::Tensor> init_schedules;
+    if (number_of_inits == 0) {
+        OPENVINO_ASSERT(blob_reader.get_remaining_section_size() == 0,
+                        "Failed to read the whole content of the section");
+        return std::make_shared<ELFInitSchedulesSection>(std::move(init_schedules),
+                                                         get_encryption_callback_from_config(blob_reader.get_config()),
+                                                         logger.level());
+    }
+
     size_t total_init_sizes = 0;
     std::vector<uint64_t> init_sizes;
     uint64_t value;
@@ -297,7 +306,7 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
         logger.debug("Init schedule parsed size: %lu", value);
     }
 
-    OPENVINO_ASSERT(total_init_sizes < blob_reader.get_remaining_section_size(),
+    OPENVINO_ASSERT(total_init_sizes <= blob_reader.get_remaining_section_size() - SIZE_OF_PADDING_SIZE,
                     "The sum of the parsed init schedule sizes is too big for the current section size");
 
     // Skip the first padding
@@ -306,7 +315,6 @@ std::shared_ptr<ISection> ELFInitSchedulesSection::read(BlobReaderInterface& blo
     blob_reader.move_cursor_relative_to_current_section(blob_reader.get_offset_relative_to_current_section() +
                                                         padding_size);
 
-    std::vector<ov::Tensor> init_schedules;
     for (const auto& init_size : init_sizes) {
         ov::Tensor init_schedule;
 
