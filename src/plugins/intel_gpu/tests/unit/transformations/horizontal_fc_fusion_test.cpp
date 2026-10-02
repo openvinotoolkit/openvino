@@ -20,6 +20,7 @@
 #include "openvino/op/add.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 
 #include <transformations/utils/utils.hpp>
@@ -526,6 +527,88 @@ TEST_F(TransformationTestsF, FullyConnectedHorizontalFusion_transpose_b_false) {
         model_ref = std::make_shared<ov::Model>(ov::ResultVector{result1, result2, result3}, ov::ParameterVector{input});
         comparator.enable(FunctionsComparator::ATTRIBUTES);
     }
+}
+
+class FullyConnectedHorizontalFusionU3Test : public TransformationTestsF {
+public:
+    FullyConnectedHorizontalFusionU3Test() {
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+        comparator.enable(FunctionsComparator::CONST_VALUES);
+    }
+
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        manager.register_pass<ov::intel_gpu::FullyConnectedHorizontalFusion>();
+        manager.register_pass<ov::pass::ConstantFolding>();
+    }
+
+    static std::shared_ptr<ov::op::v0::Constant> make_weight(const ov::Shape& shape, const std::vector<uint8_t>& bytes) {
+        return std::make_shared<ov::op::v0::Constant>(ov::element::u3, shape, bytes.data());
+    }
+
+    static std::shared_ptr<ov::op::v0::Constant> make_scale(size_t output_channels) {
+        return std::make_shared<ov::op::v0::Constant>(ov::element::f16, ov::Shape{output_channels, 1});
+    }
+
+    static std::vector<uint8_t> get_expected_weight_bytes() {
+        return {0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99,
+                0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF, 0x01, 0x02, 0x03};
+    }
+
+    static std::shared_ptr<ov::Model> get_model() {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 7, 8});
+        auto weight1 = make_weight(ov::Shape{2, 8}, std::vector<uint8_t>{0x11, 0x22, 0x33, 0x44, 0x55, 0x66});
+        auto weight2 = make_weight(ov::Shape{3, 8}, std::vector<uint8_t>{0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF});
+        auto weight3 = make_weight(ov::Shape{1, 8}, std::vector<uint8_t>{0x01, 0x02, 0x03});
+        auto fc1 = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                                 weight1,
+                                                                                 std::make_shared<ov::intel_gpu::op::Placeholder>(),
+                                                                                 make_scale(2));
+        auto fc2 = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                                 weight2,
+                                                                                 std::make_shared<ov::intel_gpu::op::Placeholder>(),
+                                                                                 make_scale(3));
+        auto fc3 = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                                 weight3,
+                                                                                 std::make_shared<ov::intel_gpu::op::Placeholder>(),
+                                                                                 make_scale(1));
+        std::vector<int64_t> pattern = {7, -1};
+        auto reshape_pattern = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{2}, pattern);
+        auto reshape1 = std::make_shared<ov::op::v1::Reshape>(fc1, reshape_pattern, true);
+        auto reshape2 = std::make_shared<ov::op::v1::Reshape>(fc2, reshape_pattern, true);
+        auto reshape3 = std::make_shared<ov::op::v1::Reshape>(fc3, reshape_pattern, true);
+        auto result1 = std::make_shared<ov::op::v0::Result>(reshape1);
+        auto result2 = std::make_shared<ov::op::v0::Result>(reshape2);
+        auto result3 = std::make_shared<ov::op::v0::Result>(reshape3);
+        return std::make_shared<ov::Model>(ov::ResultVector{result1, result2, result3}, ov::ParameterVector{input});
+    }
+
+    static std::shared_ptr<ov::Model> get_model_ref() {
+        auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 7, 8});
+        auto fused_weight = make_weight(ov::Shape{6, 8}, get_expected_weight_bytes());
+        auto fc_fused = std::make_shared<ov::intel_gpu::op::FullyConnectedCompressed>(input,
+                                                                                      fused_weight,
+                                                                                      std::make_shared<ov::intel_gpu::op::Placeholder>(),
+                                                                                      make_scale(6));
+        auto axis_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+        auto split_const = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{3}, {2, 3, 1});
+        auto split = std::make_shared<ov::op::v1::VariadicSplit>(fc_fused, axis_const, split_const);
+        std::vector<int64_t> pattern = {7, -1};
+        auto reshape_pattern = std::make_shared<ov::op::v0::Constant>(ov::element::i64, ov::Shape{2}, pattern);
+        auto reshape1 = std::make_shared<ov::op::v1::Reshape>(split->output(0), reshape_pattern, true);
+        auto reshape2 = std::make_shared<ov::op::v1::Reshape>(split->output(1), reshape_pattern, true);
+        auto reshape3 = std::make_shared<ov::op::v1::Reshape>(split->output(2), reshape_pattern, true);
+        auto result1 = std::make_shared<ov::op::v0::Result>(reshape1);
+        auto result2 = std::make_shared<ov::op::v0::Result>(reshape2);
+        auto result3 = std::make_shared<ov::op::v0::Result>(reshape3);
+        return std::make_shared<ov::Model>(ov::ResultVector{result1, result2, result3}, ov::ParameterVector{input});
+    }
+};
+
+TEST_F(FullyConnectedHorizontalFusionU3Test, weight_concat_fold_preserves_byte_packed_data) {
+    model = get_model();
+    model_ref = get_model_ref();
 }
 
 }  // namespace intel_gpu
