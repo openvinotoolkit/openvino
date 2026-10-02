@@ -197,8 +197,9 @@ ELFInitSchedulesSection::ELFInitSchedulesSection(
 std::vector<std::shared_ptr<CREToken>> ELFInitSchedulesSection::get_compatibility_requirements_subexpression(
     const std::unordered_map<SectionID, std::shared_ptr<ISection>>&
     /*all_registered_sections*/) const {
+    OPENVINO_ASSERT(get_id().has_value());
     m_logger.debug("Added the ELF_INIT_SCHEDULES section type to the CRE");
-    return {std::make_shared<SectionType>(get_type())};
+    return {std::make_shared<SectionType>(get_type()), std::make_shared<SectionID>(get_id().value())};
 }
 
 void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
@@ -394,6 +395,7 @@ std::shared_ptr<ISection> DynamicScheduleSection::read(BlobReaderInterface& blob
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "DynamicScheduleSection::read");
     // TODO more logs
 
+    OPENVINO_ASSERT(blob_reader.get_remaining_section_size() >= sizeof(BlobType), SECTION_TOO_SHORT_MESSAGE);
     BlobType blob_type;
     blob_reader.read_into_buffer(&blob_type, sizeof(blob_type));
 

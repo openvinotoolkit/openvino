@@ -18,9 +18,9 @@ using namespace intel_npu;
 namespace {
 
 constexpr std::string_view COMPILER_SCHEDULE_CONTENT = "dummy";
-constexpr std::string_view ELF_BLOB_TYPE_SERIALIZED_VALUE = "\x00";
-constexpr std::string_view LLVM_BLOB_TYPE_SERIALIZED_VALUE = "\x01";
-constexpr std::string_view BYTECODE_BLOB_TYPE_SERIALIZED_VALUE = "\x02";
+constexpr uint8_t ELF_BLOB_TYPE_SERIALIZED_VALUE = 0;
+constexpr uint8_t LLVM_BLOB_TYPE_SERIALIZED_VALUE = 1;
+constexpr uint8_t BYTECODE_BLOB_TYPE_SERIALIZED_VALUE = 2;
 constexpr size_t FIRST_REGISTERED_SECTION_ID = 0;
 constexpr size_t SECOND_REGISTERED_SECTION_ID = 1;
 
@@ -133,9 +133,10 @@ TEST_F(DynamicScheduleSectionTest, WorkingDecryption) {
 }
 
 TEST_F(DynamicScheduleSectionTest, ReadELFBlobType) {
-    std::string section_content(ELF_BLOB_TYPE_SERIALIZED_VALUE);
-    section_content += "\x00\x00";  // padding
-    section_content += "0";         // dummy compiler schedule
+    std::string section_content(reinterpret_cast<const char*>(&ELF_BLOB_TYPE_SERIALIZED_VALUE),
+                                sizeof(ELF_BLOB_TYPE_SERIALIZED_VALUE));
+    section_content += std::string("\x00\x00", 2);  // padding
+    section_content += "0";                         // dummy compiler schedule
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
     BlobSource source(tensor);
@@ -149,7 +150,8 @@ TEST_F(DynamicScheduleSectionTest, ReadELFBlobType) {
 }
 
 TEST_F(DynamicScheduleSectionTest, ReadingATooSmallSection) {
-    std::string section_content = std::string(LLVM_BLOB_TYPE_SERIALIZED_VALUE);
+    std::string section_content(reinterpret_cast<const char*>(&LLVM_BLOB_TYPE_SERIALIZED_VALUE),
+                                sizeof(LLVM_BLOB_TYPE_SERIALIZED_VALUE));
     section_content += "0";  // dummy compiler schedule
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
@@ -164,9 +166,10 @@ TEST_F(DynamicScheduleSectionTest, ReadingATooSmallSection) {
 }
 
 TEST_F(DynamicScheduleSectionTest, ReadPaddingTooBig) {
-    std::string section_content = std::string(LLVM_BLOB_TYPE_SERIALIZED_VALUE);
-    section_content += "\x00\x06";  // padding
-    section_content += "dummy";     // dummy compiler schedule
+    std::string section_content(reinterpret_cast<const char*>(&LLVM_BLOB_TYPE_SERIALIZED_VALUE),
+                                sizeof(LLVM_BLOB_TYPE_SERIALIZED_VALUE));
+    section_content += std::string("\x06\x00", 2);  // padding
+    section_content += "dummy";                     // dummy compiler schedule
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
     BlobSource source(tensor);
@@ -197,8 +200,11 @@ protected:
         uint16_t padding_size;
         bool empty_schedule;
         std::tie(is_llvm_blob_type, padding_size, is_tensor_source, empty_schedule) = GetParam();
-
-        section_content = is_llvm_blob_type ? LLVM_BLOB_TYPE_SERIALIZED_VALUE : BYTECODE_BLOB_TYPE_SERIALIZED_VALUE;
+        section_content = is_llvm_blob_type
+                              ? std::string(reinterpret_cast<const char*>(&LLVM_BLOB_TYPE_SERIALIZED_VALUE),
+                                            sizeof(LLVM_BLOB_TYPE_SERIALIZED_VALUE))
+                              : std::string(reinterpret_cast<const char*>(&BYTECODE_BLOB_TYPE_SERIALIZED_VALUE),
+                                            sizeof(BYTECODE_BLOB_TYPE_SERIALIZED_VALUE));
         section_content += std::string(reinterpret_cast<char*>(&padding_size), sizeof(padding_size));
         section_content += std::string(padding_size, 0);
         after_padding_offset = section_content.size();

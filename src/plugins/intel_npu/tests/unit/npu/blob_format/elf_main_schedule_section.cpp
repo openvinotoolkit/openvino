@@ -132,8 +132,8 @@ TEST_F(ELFMainScheduleSectionTest, ReadingATooSmallSection) {
 }
 
 TEST_F(ELFMainScheduleSectionTest, ReadPaddingTooBig) {
-    std::string section_content("\x00\x06");  // padding
-    section_content += "dummy";               // dummy compiler schedule;
+    std::string section_content("\x06\x00", 2);  // padding
+    section_content += "dummy";                  // dummy compiler schedule;
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
     BlobSource source(tensor);

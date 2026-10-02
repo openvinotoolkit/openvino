@@ -18,8 +18,8 @@ using namespace intel_npu;
 namespace {
 
 constexpr std::array<std::string_view, 2> COMPILER_SCHEDULES_CONTENT{"dummy1", "dumy2"};
-constexpr std::string_view NO_INIT_SCHEDULE_SERIALIZED_VALUE = "\x00\x00";
-constexpr std::string_view TWO_INIT_SCHEDULES_SERIALIZED_VALUE = "\x00\x02";
+constexpr uint16_t NO_INIT_SCHEDULE_SERIALIZED_VALUE = 0;
+constexpr uint16_t TWO_INIT_SCHEDULES_SERIALIZED_VALUE = 2;
 constexpr size_t FIRST_REGISTERED_SECTION_ID = 0;
 constexpr size_t SECOND_REGISTERED_SECTION_ID = 1;
 
@@ -159,10 +159,10 @@ TEST_F(ELFInitSchedulesSectionTest, ReadingATooSmallSection) {
 }
 
 TEST_F(ELFInitSchedulesSectionTest, ReadNumberOfInitsTooBig) {
-    std::string section_content = "\x00\x02";               // number of inits
-    section_content += "\x00\x00\x00\x00\x00\x00\x00\x05";  // the size of init schedule 1
-    section_content += "\x00\x00";                          // padding size
-    section_content += "dummy";                             // the content of init schedule 1
+    std::string section_content("\x02\x00", 2);                             // number of inits
+    section_content += std::string("\x05\x00\x00\x00\x00\x00\x00\x00", 8);  // the size of init schedule 1
+    section_content += std::string("\x00\x00", 2);                          // padding size
+    section_content += "dummy";                                             // the content of init schedule 1
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
     BlobSource source(tensor);
@@ -176,10 +176,10 @@ TEST_F(ELFInitSchedulesSectionTest, ReadNumberOfInitsTooBig) {
 }
 
 TEST_F(ELFInitSchedulesSectionTest, ReadNumberOfInitsTooSmall) {
-    std::string section_content = "\x00\x00";               // number of inits
-    section_content += "\x00\x00\x00\x00\x00\x00\x00\x05";  // the size of init schedule 1
-    section_content += "\x00\x00";                          // padding size
-    section_content += "dummy";                             // the content of init schedule 1
+    std::string section_content("\x00\x00", 2);                             // number of inits
+    section_content += std::string("\x05\x00\x00\x00\x00\x00\x00\x00", 8);  // the size of init schedule 1
+    section_content += std::string("\x00\x00", 2);                          // padding size
+    section_content += "dummy";                                             // the content of init schedule 1
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
     BlobSource source(tensor);
@@ -193,10 +193,10 @@ TEST_F(ELFInitSchedulesSectionTest, ReadNumberOfInitsTooSmall) {
 }
 
 TEST_F(ELFInitSchedulesSectionTest, ReadInitSizeTooBig) {
-    std::string section_content = "\x00\x01";               // number of inits
-    section_content += "\x00\x00\x00\x00\x00\x00\x00\x06";  // the size of init schedule 1
-    section_content += "\x00\x00";                          // padding size
-    section_content += "dummy";                             // the content of init schedule 1
+    std::string section_content("\x01\x00", 2);                             // number of inits
+    section_content += std::string("\x06\x00\x00\x00\x00\x00\x00\x00", 8);  // the size of init schedule 1
+    section_content += std::string("\x00\x00", 2);                          // padding size
+    section_content += "dummy";                                             // the content of init schedule 1
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
     BlobSource source(tensor);
@@ -210,10 +210,10 @@ TEST_F(ELFInitSchedulesSectionTest, ReadInitSizeTooBig) {
 }
 
 TEST_F(ELFInitSchedulesSectionTest, ReadPaddingTooBig) {
-    std::string section_content = "\x00\x01";               // number of inits
-    section_content += "\x00\x00\x00\x00\x00\x00\x00\x05";  // the size of init schedule 1
-    section_content += "\x00\x06";                          // padding size
-    section_content += "dummy";                             // the content of init schedule 1
+    std::string section_content("\x01\x00", 2);                             // number of inits
+    section_content += std::string("\x05\x00\x00\x00\x00\x00\x00\x00", 8);  // the size of init schedule 1
+    section_content += std::string("\x06\x00", 2);                          // padding size
+    section_content += "dummy";                                             // the content of init schedule 1
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
     BlobSource source(tensor);
@@ -243,13 +243,14 @@ public:
 protected:
     void SetUp() override {
         uint16_t padding_size;
-        bool empty_schedule;
-        std::tie(padding_size, is_tensor_source, empty_schedule) = GetParam();
+        std::tie(padding_size, is_tensor_source, is_empty) = GetParam();
 
-        if (empty_schedule) {
-            section_content = NO_INIT_SCHEDULE_SERIALIZED_VALUE;
+        if (is_empty) {
+            section_content = std::string(reinterpret_cast<const char*>(&NO_INIT_SCHEDULE_SERIALIZED_VALUE),
+                                          sizeof(NO_INIT_SCHEDULE_SERIALIZED_VALUE));
         } else {
-            section_content = TWO_INIT_SCHEDULES_SERIALIZED_VALUE;
+            section_content = std::string(reinterpret_cast<const char*>(&TWO_INIT_SCHEDULES_SERIALIZED_VALUE),
+                                          sizeof(TWO_INIT_SCHEDULES_SERIALIZED_VALUE));
 
             uint64_t size_of_init_schedule_1 = COMPILER_SCHEDULES_CONTENT.at(0).size();
             uint64_t size_of_init_schedule_2 = COMPILER_SCHEDULES_CONTENT.at(1).size();
@@ -280,6 +281,7 @@ protected:
     }
 
     bool is_tensor_source;
+    bool is_empty;
     std::string section_content;
     size_t after_padding_offset;
     size_t after_schedule1_offset;
@@ -298,26 +300,31 @@ TEST_P(ELFInitSchedulesSectionReadTest, SuccessfulRead) {
     // been read.
     ASSERT_EQ(reader.get_offset_relative_to_current_section(), section_content.size());
 
-    ASSERT_EQ(casted_section->get_schedules().size(), 2);
-    const std::string parsed_schedule1(casted_section->get_schedules().at(0).data<char>(),
-                                       casted_section->get_schedules().at(0).get_byte_size());
-    const std::string parsed_schedule2(casted_section->get_schedules().at(1).data<char>(),
-                                       casted_section->get_schedules().at(1).get_byte_size());
-    // The padding should be skipped by the parser
-    ASSERT_EQ(
-        parsed_schedule1,
-        std::string(section_content.begin() + after_padding_offset, section_content.begin() + after_schedule1_offset));
-    ASSERT_EQ(parsed_schedule2, std::string(section_content.begin() + after_schedule1_offset, section_content.end()));
-
-    if (is_tensor_source) {
-        // The parsed content should point towards the original buffer (past the padding region). This implies no copies
-        // have been performed, and page aligment has been preserved.
-        ASSERT_EQ(casted_section->get_schedules().at(0).data(), section_content.data() + after_padding_offset);
-        ASSERT_EQ(casted_section->get_schedules().at(1).data(), section_content.data() + after_schedule1_offset);
+    if (is_empty) {
+        ASSERT_EQ(casted_section->get_schedules().size(), 0);
     } else {
-        // Stream case: a page aligned buffer should have been allocated for the parsed content
-        ASSERT_EQ(reinterpret_cast<size_t>(casted_section->get_schedules().at(0).data()) % utils::STANDARD_PAGE_SIZE,
-                  0);
+        const std::string parsed_schedule1(casted_section->get_schedules().at(0).data<char>(),
+                                           casted_section->get_schedules().at(0).get_byte_size());
+        const std::string parsed_schedule2(casted_section->get_schedules().at(1).data<char>(),
+                                           casted_section->get_schedules().at(1).get_byte_size());
+        // The padding should be skipped by the parser
+        ASSERT_EQ(parsed_schedule1,
+                  std::string(section_content.begin() + after_padding_offset,
+                              section_content.begin() + after_schedule1_offset));
+        ASSERT_EQ(parsed_schedule2,
+                  std::string(section_content.begin() + after_schedule1_offset, section_content.end()));
+
+        if (is_tensor_source) {
+            // The parsed content should point towards the original buffer (past the padding region). This implies no
+            // copies have been performed, and page aligment has been preserved.
+            ASSERT_EQ(casted_section->get_schedules().at(0).data(), section_content.data() + after_padding_offset);
+            ASSERT_EQ(casted_section->get_schedules().at(1).data(), section_content.data() + after_schedule1_offset);
+        } else {
+            // Stream case: a page aligned buffer should have been allocated for the parsed content
+            ASSERT_EQ(
+                reinterpret_cast<size_t>(casted_section->get_schedules().at(0).data()) % utils::STANDARD_PAGE_SIZE,
+                0);
+        }
     }
 }
 
