@@ -9,10 +9,7 @@
 using namespace std;
 using namespace ov;
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
-namespace op {
+namespace ov::frontend::tensorflow::op {
 OutputVector translate_while_op(const NodeContext& node) {
     default_op_checks(node, 1, {"While", "StatelessWhile"});
     auto node_name = node.get_name();
@@ -47,7 +44,4 @@ OutputVector translate_while_op(const NodeContext& node) {
     return loop->outputs();
 }
 
-}  // namespace op
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow::op

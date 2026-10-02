@@ -140,7 +140,7 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_value_tensors.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/optimize_value_tensors.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/shrink_sliding_window_kv_cache.cpp
-    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/shrink_sliding_window_kv_cache.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/shrink_sliding_window_kv_cache.hpp    
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/patch_sliding_window_mask.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/patch_sliding_window_mask.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/npuw_transformations/remove_token_type_ids.cpp
@@ -229,9 +229,12 @@ set(NPUW_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/util_xarch.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/elements/accuracy_checked.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/elements/accuracy_checked.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/elements/batched.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/elements/batched.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/elements/failsafe.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/elements/failsafe.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/v1/subgraph_pipeline.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/npuw/variable_state.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/weights_bank.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/weights_bank.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/npuw/whisper/prepare_whisper_model.cpp
