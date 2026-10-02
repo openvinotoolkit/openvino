@@ -200,3 +200,25 @@ xfail_issue_onnx122_accuracy = xfail_test(
 xfail_issue_onnx122_cast_infinity = xfail_test(
     reason="Cast/CastLike float-width overflow: infinity handling in OV core (saturates to FLT_MAX)",
     strict=False)
+
+# ONNX 1.23.1 — operators, data types and reference-data changes not yet handled
+# by the OpenVINO ONNX frontend. These were surfaced when bumping the bundled ONNX
+# dependency to 1.23.1 (opset 28). Tracked by CVS-190467 for a proper fix.
+xfail_issue_onnx123_swiglu = xfail_test(
+    reason="OV ONNX FE does not support SwiGLU-28 (new op in ONNX opset 28)")
+xfail_issue_onnx123_celu = xfail_test(
+    reason="OV ONNX FE Celu-28 conversion fails for bfloat16/float16 inputs (ONNX opset 28)")
+xfail_issue_onnx123_mod = xfail_test(
+    reason="OV ONNX FE Mod-28 conversion fails for fmod float edge cases / mixed-sign "
+           "fmod by zero (ONNX opset 28)")
+xfail_issue_onnx123_bitshift = xfail_test(
+    reason="BitShift reference-data mismatch for opset edge cases (overflow, negative "
+           "input/shift, shift >= bit width) exposed by ONNX 1.23")
+xfail_issue_onnx123_bfloat16 = xfail_test(
+    reason="bfloat16 data-type handling / accuracy mismatch exposed by ONNX 1.23 "
+           "(Compress, Einsum, OneHot, ReverseSequence, Unique)")
+xfail_issue_onnx123_attention = xfail_test(
+    reason="OV ONNX FE Attention accuracy mismatch for bfloat16 and local/sliding-window "
+           "variants exposed by ONNX 1.23")
+xfail_issue_onnx123_spacetodepth = xfail_test(
+    reason="SpaceToDepth CRD mode reference-data mismatch exposed by ONNX 1.23")
