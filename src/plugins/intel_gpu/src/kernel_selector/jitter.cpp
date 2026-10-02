@@ -19,7 +19,6 @@
 #include <eltwise/eltwise_kernel_base.h>
 #include <activation/activation_kernel_base.h>
 
-
 namespace {
 class JitTerm {
 public:
