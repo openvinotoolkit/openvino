@@ -18,7 +18,7 @@ Build flags that enable debug capabilities (check CMakeCache.txt in the build di
 |---------------------------|---------------------------------------|-------------------------------------------------------------------------------|
 | openvino_intel_cpu_plugin | [@components/debug-intel-cpu-plugin.md](components/debug-intel-cpu-plugin.md) | CPU: inference issues, wrong results, slow inference, tensor dumps, execution graphs |
 | openvino_intel_gpu_plugin | [@components/debug-intel-gpu-plugin.md](components/debug-intel-gpu-plugin.md) | GPU: inference issues, wrong results, slow inference, tensor dumps, execution graphs |
-| transformations           | [@components/debug-transformations.md](components/debug-transformations.md)  | transformation not applied, pass not firing, slow compilation, graph inspection |
+| transformations           | [@components/debug-transformations.md](components/debug-transformations.md)  | transformation tracing, slow compilation, graph inspection; for a MatcherPass that does not fire, use `ov-debug-matcher-pass` |
 
 ## Steps
 1. Match the user's symptom to the routing hints above to identify the component(s)
