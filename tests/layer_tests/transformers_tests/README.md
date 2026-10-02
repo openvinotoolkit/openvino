@@ -36,12 +36,13 @@ Use `-k cache`, `-k export`, or another primitive/mode name to select cases.
 Inputs are returned alongside primitive outputs so export keeps otherwise-unused
 inputs. Cache objects are recreated for each invocation to keep conversion and
 reference execution independent. xdist distributes cases across worker processes.
-The matrix includes 132 shared recipes and 65 model-local recipes, each running
-through trace/export. CI runs the suite as a dedicated precommit step.
+The matrix includes 132 shared recipes, 65 explicit model-local recipes, and
+160 discovery-driven component recipes, each running through trace/export. CI runs the suite as a dedicated precommit step.
 The precommit coverage-inventory test also runs the eager audit once, independently
 of conversion mode and device. Timings exclude dependency installation and builds.
-The expanded precommit matrix takes about 26 seconds locally with four workers
-(383 passed, 12 expected failures; Python 3.10, PyTorch 2.12.1+cpu).
+The expanded precommit matrix takes about 42 seconds locally with four workers
+(703 passed, 12 expected failures; Python 3.10, PyTorch 2.12.1+cpu).
+The 320 added component conversion tests take about 14 seconds in isolation.
 
 ## Establishing library coverage
 
@@ -117,11 +118,63 @@ differ. Direct recipes exercise 57 of 85 recorded implementation fingerprints;
 this does not count the remaining copies as directly tested. Changes to this
 inventory also fail the precommit baseline check.
 
-This naming-based inventory does not discover every primitive: model-local MLPs,
-MoE routers, state-space blocks, patch/position embedding classes, and arbitrary
-tensor helper methods still need additional discovery rules and explicit recipes.
-The expanded eager audit executes 294 of 44,453 explicit PyTorch call sites (0.66%)
-in 66 files and observes 115 ATen overloads. These are call-site observations,
+### Model-local component discovery and adapters
+
+`component_adapters.py` scans every installed PyTorch `modeling_*.py` file without
+importing all architectures. It discovers classes with `forward` or recognized
+module inheritance, tensor helper functions, and tensor helper methods. Each
+entry in the full audit JSON's `components` list records its source file, symbol,
+kind, implementation fingerprint, adapter, status, and reason:
+
+* `tested`: an explicit recipe or an applicable direct-construction adapter.
+* `needs_adapter`: discovered, but requires reviewed construction and inputs.
+* `excluded`: whole-model orchestration, identified through local inheritance
+  from `PreTrainedModel` or generic task wrappers. Whole models are not instantiated.
+
+The general MLP adapter selects classes by a conservative AST contract: a
+`config` constructor using only supported size/activation/bias fields and linear
+layers, and a single-input forward without explicit control-flow blocks. Each
+selected implementation runs directly; matching fingerprints do not substitute
+for testing another architecture. New compatible MLPs become parametrized cases
+automatically. Import, construction, conversion, compilation, and accuracy
+failures fail the case rather than becoming automatic skips. The minimal
+configuration supplies only the fields accepted by this contract; other
+components use actual local Transformers configuration objects.
+
+Specialized adapters directly construct Llama/Qwen3 attention with grouped KV
+heads and causal masks for multi-token and single-token inputs, Phi3's fused-gate
+MLP, Bert embeddings, and DeepSeek V2 greedy/group-limited routers. Routers use
+nonuniform weights rather than their zero initialization. These adapters construct
+no enclosing model and use no Optimum model patches.
+
+`component_fixtures.json` preserves provenance and input parameters adapted from
+upstream v5.18.0's direct `DeepseekV2RotaryEmbedding` test: default, linear, and
+YaRN frequencies, factor 10, and short/long positions. The adapter reads these
+parameters and constructs only that component; complex outputs are exposed as
+real/imaginary pairs. Dynamic growth/reset still needs a stateful adapter and is
+recorded as unadapted. We reuse component scenarios, not upstream whole-model
+forwards or their pytest suite. Upstream tests are not required at runtime.
+
+For Transformers 5.18.0, discovery records 11,305 definitions: 217 have direct
+adapters, 8,725 need adapters, and 2,363 whole-model definitions are excluded.
+Direct adapters span 164 architecture directories. These counts describe the
+discovery scope, including helper methods, rather than exhaustive library coverage.
+
+The full component inventory is hashed in the precommit baseline, together with
+its size and the upstream fixture manifest. Constructor/body changes, newly
+discovered components, adapter selection changes, and fixture edits invalidate
+the baseline. Review the old/new full reports to prioritize missing adapters;
+baseline regeneration must not turn `needs_adapter` into claimed coverage.
+
+Discovery is deliberately conservative and is not a semantic analysis: tensor
+helpers are detected from Torch/nn/F references and Tensor annotations; imported
+aliases, indirect tensor calls, nested definitions, and external inheritance can
+escape detection. A source definition with a recipe does not imply all branches,
+dtypes, or state transitions are covered. The large `needs_adapter` list remains
+visible rather than being treated as exclusions.
+
+The expanded eager audit executes 308 of 44,453 explicit PyTorch call sites (0.69%)
+and observes 120 ATen overloads. These are call-site observations,
 not whole-library line/branch coverage or exhaustive operator coverage.
 
 Remaining coverage includes MoE routing, recurrent/state-space kernels,

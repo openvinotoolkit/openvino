@@ -15,6 +15,7 @@ import transformers
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from primitives import make_primitive, primitive_cases
 from model_primitives import implementation_inventory
+from component_adapters import component_inventory
 
 
 class OperatorRecorder(TorchDispatchMode):
@@ -90,6 +91,7 @@ def main():
             record.update(status="failed", error=f"{type(error).__name__}: {error}")
         record["aten_ops"] = sorted(recorder.operators)
         results.append(record)
+    fixtures = json.loads((Path(__file__).resolve().parents[1] / "component_fixtures.json").read_text())
     calls = source_calls(root)
     for call in calls:
         call["executed"] = (call["file"], call["line"]) in executed
@@ -97,6 +99,8 @@ def main():
               "cases": results, "source_torch_calls": calls,
               "aten_ops": sorted({op for result in results for op in result.get("aten_ops", [])}),
               "model_implementations": implementation_inventory(),
+              "components": component_inventory(),
+              "component_fixtures": fixtures,
               "unexecuted_source_calls": sum(not call["executed"] for call in calls)}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
@@ -104,6 +108,7 @@ def main():
           f"{report['unexecuted_source_calls']}/{len(calls)} source call sites unexecuted")
     if any(result["status"] == "failed" for result in results):
         return 1
+    components = component_inventory()
     inventory = {
         "transformers_version": transformers.__version__,
         "requirements_sha256": hashlib.sha256(
@@ -114,6 +119,9 @@ def main():
         ], sort_keys=True).encode()).hexdigest(),
         "source_call_count": len(calls),
         "model_implementations": implementation_inventory(),
+        "components_sha256": hashlib.sha256(json.dumps(components, sort_keys=True).encode()).hexdigest(),
+        "component_count": len(components),
+        "component_fixtures": fixtures,
         "cases": [{"case": result["case"], "aten_ops": result["aten_ops"]} for result in results],
     }
     if args.update_baseline:

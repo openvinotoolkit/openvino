@@ -6431,6 +6431,41 @@
       "direct_recipe": false
     }
   ],
+  "components_sha256": "3600712a941576b6ed7b773a33f336fea07c35d494251ad459edbac92b748748",
+  "component_count": 11305,
+  "component_fixtures": {
+    "transformers_version": "5.18.0",
+    "fixtures": [
+      {
+        "component": "deepseek_v2/DeepseekV2RotaryEmbedding",
+        "source": "https://github.com/huggingface/transformers/blob/v5.18.0/tests/models/deepseek_v2/test_modeling_deepseek_v2.py",
+        "source_sha256": "eebe71e7c869dc9df553c5390080a60dec5da5b1997f641ed09155fc3dfaf732",
+        "test": "DeepseekV2ModelTest.test_model_rope_scaling_frequencies",
+        "reused": {
+          "short_length": 10,
+          "long_length_factor": 1.5,
+          "scaling_factor": 10,
+          "rope_theta": 10000.0,
+          "rope_types": [
+            "default",
+            "linear",
+            "yarn"
+          ]
+        },
+        "adaptations": [
+          "Construct only the rotary module, with local config and max_position_embeddings=16.",
+          "Expose complex output as real/imaginary pairs for comparison.",
+          "Check conversion and numerical agreement separately for short and long inputs."
+        ],
+        "unadapted": [
+          {
+            "scenario": "dynamic frequency growth/reset",
+            "reason": "Requires an adapter for state changes and data-dependent export guards."
+          }
+        ]
+      }
+    ]
+  },
   "cases": [
     {
       "case": "activation-gelu",
@@ -8864,6 +8899,1692 @@
         "aten.mul.Tensor",
         "aten.pow.Tensor_Scalar",
         "aten.rsqrt.default"
+      ]
+    },
+    {
+      "case": "component-aimv2/Aimv2MLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-altclip/AltCLIPMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-arcee/ArceeMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-audio_spectrogram_transformer/ASTMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-bamba/BambaMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-beit/BeitMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-bert/BertEmbeddings/default",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.embedding.default",
+        "aten.expand.default",
+        "aten.gather.default",
+        "aten.native_layer_norm.default",
+        "aten.slice.Tensor"
+      ]
+    },
+    {
+      "case": "component-blip/BlipMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-blip_2/Blip2MLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-blt/BltMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-canary/CanaryDecoderMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-chameleon/ChameleonMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-chinese_clip/ChineseCLIPVisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-clip/CLIPMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-clipseg/CLIPSegMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-cohere/CohereMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-cohere2/Cohere2MLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-cohere_asr/CohereAsrDecoderMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-cohere_compass/CohereCompassMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-cohere_compass/CohereCompassVisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-cosmos3_edge/Cosmos3EdgeTextMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-cosmos3_edge/Cosmos3EdgeMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-csm/CsmMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-cwm/CwmMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-deepseek_ocr2/DeepseekOcr2VisionMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-deepseek_v2/DeepseekV2TopkRouter/greedy",
+      "aten_ops": [
+        "aten._softmax.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.t.default",
+        "aten.topk.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-deepseek_v2/DeepseekV2TopkRouter/group_limited_greedy",
+      "aten_ops": [
+        "aten._softmax.default",
+        "aten._to_copy.default",
+        "aten._unsafe_view.default",
+        "aten.bitwise_not.default",
+        "aten.clone.default",
+        "aten.expand.default",
+        "aten.masked_fill.Scalar",
+        "aten.max.dim",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.scatter_.value",
+        "aten.t.default",
+        "aten.topk.default",
+        "aten.unsqueeze.default",
+        "aten.view.default",
+        "aten.zeros_like.default"
+      ]
+    },
+    {
+      "case": "component-deepseek_v2/DeepseekV2RotaryEmbedding/default-short",
+      "aten_ops": [
+        "aten._to_copy.default",
+        "aten._unsafe_view.default",
+        "aten.bmm.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.ones_like.default",
+        "aten.polar.default",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default",
+        "aten.view_as_real.default"
+      ]
+    },
+    {
+      "case": "component-deepseek_v2/DeepseekV2RotaryEmbedding/default-long",
+      "aten_ops": [
+        "aten._to_copy.default",
+        "aten._unsafe_view.default",
+        "aten.bmm.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.ones_like.default",
+        "aten.polar.default",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default",
+        "aten.view_as_real.default"
+      ]
+    },
+    {
+      "case": "component-deepseek_v2/DeepseekV2RotaryEmbedding/linear-short",
+      "aten_ops": [
+        "aten._to_copy.default",
+        "aten._unsafe_view.default",
+        "aten.bmm.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.ones_like.default",
+        "aten.polar.default",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default",
+        "aten.view_as_real.default"
+      ]
+    },
+    {
+      "case": "component-deepseek_v2/DeepseekV2RotaryEmbedding/linear-long",
+      "aten_ops": [
+        "aten._to_copy.default",
+        "aten._unsafe_view.default",
+        "aten.bmm.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.ones_like.default",
+        "aten.polar.default",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default",
+        "aten.view_as_real.default"
+      ]
+    },
+    {
+      "case": "component-deepseek_v2/DeepseekV2RotaryEmbedding/yarn-short",
+      "aten_ops": [
+        "aten._to_copy.default",
+        "aten._unsafe_view.default",
+        "aten.bmm.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.ones_like.default",
+        "aten.polar.default",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default",
+        "aten.view_as_real.default"
+      ]
+    },
+    {
+      "case": "component-deepseek_v2/DeepseekV2RotaryEmbedding/yarn-long",
+      "aten_ops": [
+        "aten._to_copy.default",
+        "aten._unsafe_view.default",
+        "aten.bmm.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.ones_like.default",
+        "aten.polar.default",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default",
+        "aten.view_as_real.default"
+      ]
+    },
+    {
+      "case": "component-deit/DeiTMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-dia/DiaMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.split.Tensor",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-diffllama/DiffLlamaMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-dinov3_vit/DINOv3ViTMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-dinov3_vit/DINOv3ViTGatedMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-doge/DogeMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-emu3/Emu3MLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-eomt_dinov3/EomtDinov3MLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-eomt_dinov3/EomtDinov3GatedMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-esmc/EsmcMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-eurobert/EuroBertMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-evolla/EvollaMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-exaone4/Exaone4MLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-flex_olmo/FlexOlmoMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-gemma/GemmaMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-gemma2/Gemma2MLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.gelu.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-gemma3/Gemma3MLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.gelu.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-git/GitVisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-glm/GlmMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.split.Tensor",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-glm4/Glm4MLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.split.Tensor",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-glm4v/Glm4vTextMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.split.Tensor",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-glm_image/GlmImageVisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-glm_image/GlmImageTextMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.split.Tensor",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-glm_ocr/GlmOcrTextMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.split.Tensor",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-glmasr/GlmAsrMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-gpt_neox/GPTNeoXMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-granite/GraniteMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-granite4_vision/Granite4VisionTextMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-granite_swa/GraniteSWAMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-helium/HeliumMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-higgs_audio_v2/HiggsAudioV2MLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-hrm_text/HrmTextMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-hunyuan_v1_moe/HunYuanMoEV1MLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-hunyuan_vl/HunYuanVLVisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-hyperclovax/HyperCLOVAXMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-idefics2/Idefics2VisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-idefics3/Idefics3VisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-ijepa/IJepaMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-instructblip/InstructBlipMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-instructblipvideo/InstructBlipVideoMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-internvl/InternVLVisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-jais2/Jais2MLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-jamba/JambaMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-jina_embeddings_v3/JinaEmbeddingsV3MLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-kosmos2/Kosmos2VisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-llama/LlamaMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-llama/LlamaAttention/prefill",
+      "aten_ops": [
+        "aten._softmax.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.bmm.default",
+        "aten.cat.default",
+        "aten.clone.default",
+        "aten.expand.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.neg.default",
+        "aten.slice.Tensor",
+        "aten.t.default",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-llama/LlamaAttention/single_token",
+      "aten_ops": [
+        "aten._softmax.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.bmm.default",
+        "aten.cat.default",
+        "aten.clone.default",
+        "aten.expand.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.neg.default",
+        "aten.slice.Tensor",
+        "aten.t.default",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-metaclip_2/MetaClip2MLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-mimi/MimiMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-minicpm3/MiniCPM3MLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-minicpmv4_6/MiniCPMV4_6VisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-minicpmv4_7/MiniCPMV4_7VisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-minimax_m3_vl/MiniMaxM3VLVisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-ministral/MinistralMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-ministral3/Ministral3MLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-mistral/MistralMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-mlcd/MLCDMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-mllama/MllamaVisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-mllama/MllamaTextMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-moonshine_streaming/MoonshinMoonshineStreamingDecoderMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-muse_glimmer/MuseGlimmerTextMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.gelu.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-muse_glimmer_assistant/MuseGlimmerAssistantMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-nanochat/NanoChatMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-nemotron/NemotronMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-nemotron3_diarization/Nemotron3DiarizationMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-neomme/NeoMMEMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-neucodec/NeuCodecMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-nomic_bert/NomicBertMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-olmo/OlmoMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-olmo2/Olmo2MLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-olmo3/Olmo3MLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-olmo_hybrid/OlmoHybridMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-olmoe/OlmoeMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-ovis2/Ovis2VisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-ovis2/Ovis2MLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-owlv2/Owlv2MLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-owlvit/OwlViTMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-paddleocr_vl/PaddleOCRVisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-pe_audio/PeAudioEncoderMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-pe_audio_video/PeAudioVideoEncoderMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-pe_video/PeVideoEncoderMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-persimmon/PersimmonMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-phi/PhiMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-phi3/Phi3MLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.split.Tensor",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-phi4_multimodal/Phi4MultimodalVisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-phi4_multimodal/Phi4MultimodalMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.split.Tensor",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-pixtral/PixtralMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-qianfan_ocr/QianfanOCRVisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-qwen2/Qwen2MLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-qwen2_5_vl/Qwen2MLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-qwen2_vl/Qwen2MLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-qwen3/Qwen3MLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-qwen3/Qwen3Attention/prefill",
+      "aten_ops": [
+        "aten._softmax.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.bmm.default",
+        "aten.cat.default",
+        "aten.clone.default",
+        "aten.expand.default",
+        "aten.mean.dim",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.neg.default",
+        "aten.pow.Tensor_Scalar",
+        "aten.rsqrt.default",
+        "aten.slice.Tensor",
+        "aten.t.default",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-qwen3/Qwen3Attention/single_token",
+      "aten_ops": [
+        "aten._softmax.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.bmm.default",
+        "aten.cat.default",
+        "aten.clone.default",
+        "aten.expand.default",
+        "aten.mean.dim",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.neg.default",
+        "aten.pow.Tensor_Scalar",
+        "aten.rsqrt.default",
+        "aten.slice.Tensor",
+        "aten.t.default",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-qwen3_5/Qwen3_5VisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-qwen3_5_moe/Qwen3_5MoeVisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-qwen3_omni_moe/Qwen3OmniMoeVisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-qwen3_omni_moe/Qwen3OmniMoeMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-qwen3_vl/Qwen3VLVisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-qwen3_vl/Qwen3VLTextMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-qwen3_vl_moe/Qwen3VLMoeVisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-qwen4_exp/Qwen4ExpVisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-sam3_lite_text/Sam3LiteTextTextMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-sapiens2/Sapiens2MLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-sapiens2/Sapiens2GatedMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-siglip/SiglipMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-siglip2/Siglip2MLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-smollm3/SmolLM3MLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-smolvlm/SmolVLMVisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-stablelm/StableLmMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-step3p7/Step3p7VisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-tipsv2/Tipsv2MLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-vaultgemma/VaultGemmaMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.gelu.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-vibevoice/VibeVoiceMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-video_llama_3/VideoLlama3VisionMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-videoprism/VideoPrismMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-vit/ViTMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-vit_mae/ViTMAEMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-vit_msn/ViTMSNMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-vivit/VivitMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-voxtral_realtime/VoxtralRealtimeMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.addmm.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-voxtral_realtime/VoxtralRealtimeTextMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-x_clip/XCLIPMLP/default",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-xcodec2/Xcodec2MLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-youtu/YoutuMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "component-zamba/ZambaMLP/default",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
       ]
     }
   ]

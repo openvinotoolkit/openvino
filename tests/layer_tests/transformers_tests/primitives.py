@@ -156,12 +156,17 @@ def primitive_cases():
         "SuppressTokensLogitsProcessor", "InfNanRemoveLogitsProcessor", "LogitNormalization")]
     from model_primitives import model_cases
     cases += [PrimitiveCase(f"{model}/{symbol}", "model") for model, symbol in model_cases()]
+    from component_adapters import component_cases
+    cases += [PrimitiveCase(name, "component") for name in component_cases()]
     return cases
 
 
 def make_primitive(case):
     torch.manual_seed(0)
     name, family = case.name, case.family
+    if family == "component":
+        from component_adapters import make_component
+        return make_component(name)
     if family == "model":
         from model_primitives import make_model_primitive
         return make_model_primitive(name, FunctionModule)
