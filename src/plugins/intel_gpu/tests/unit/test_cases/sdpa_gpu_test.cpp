@@ -11,12 +11,15 @@
 #include <intel_gpu/runtime/debug_configuration.hpp>
 
 #include "impls/ocl_v2/sdpa/sdpa_opt.hpp"
+#include "impls/ocl_v2/sdpa/sdpa_ref.hpp"
+#include "openvino/reference/scaled_dot_product_attention.hpp"
 #include "openvino/util/file_util.hpp"
 #include "program_wrapper.h"
 #include <array>
 #include <iostream>
 #include <vector>
 #include <cmath>
+#include <limits>
 #include <numeric>
 #include <iostream>
 
@@ -1426,6 +1429,189 @@ INSTANTIATE_TEST_SUITE_P(smoke_sdpa_gpu_gqa_decomp,
                                            sdpa_test_params{128, 40, 40, 1, 512, 1, 8, false}),
                          sdpa_gpu_gqa_decomp_test::PrintToStringParamName);
 #endif
+
+enum class sdpa_ref_accuracy_case { uniform_16, uniform_32, uniform_64, nonuniform, nonuniform_33, nonuniform_100, mask, causal };
+
+class sdpa_ref_accuracy_test
+    : public ::testing::TestWithParam<std::tuple<data_types, sdpa_ref_accuracy_case>> {
+protected:
+    template <typename T>
+    void check_accuracy(data_types dt, sdpa_ref_accuracy_case test_case) {
+        auto& engine = get_test_engine();
+        RecordProperty("device", engine.get_device_info().dev_name);
+        const bool uniform = test_case == sdpa_ref_accuracy_case::uniform_16 ||
+                             test_case == sdpa_ref_accuracy_case::uniform_32 ||
+                             test_case == sdpa_ref_accuracy_case::uniform_64;
+        const bool use_mask = test_case == sdpa_ref_accuracy_case::mask;
+        const bool causal = test_case == sdpa_ref_accuracy_case::causal;
+        const size_t seq_q = use_mask || causal ? 4 : 1;
+        const size_t seq_kv = test_case == sdpa_ref_accuracy_case::uniform_16 ? 16 :
+                             test_case == sdpa_ref_accuracy_case::uniform_64 ? 64 :
+                             test_case == sdpa_ref_accuracy_case::nonuniform_33 ? 33 :
+                             test_case == sdpa_ref_accuracy_case::nonuniform_100 ? 100 : 32;
+        const ov::Shape q_shape{2, 4, seq_q, 64};
+        const ov::Shape kv_shape{2, 4, seq_kv, 64};
+        std::array<std::vector<T>, 3> input_data;
+        std::array<std::vector<float>, 3> reference_data;
+        std::array<memory::ptr, 3> inputs;
+        const std::array<std::string, 3> names{"q", "k", "v"};
+        topology topo;
+        for (size_t input = 0; input < inputs.size(); ++input) {
+            const auto& shape = input == 0 ? q_shape : kv_shape;
+            input_data[input].resize(ov::shape_size(shape));
+            reference_data[input].resize(input_data[input].size());
+            for (size_t b = 0; b < shape[0]; ++b)
+                for (size_t h = 0; h < shape[1]; ++h)
+                    for (size_t s = 0; s < shape[2]; ++s)
+                        for (size_t e = 0; e < shape[3]; ++e) {
+                            const auto index = ((b * shape[1] + h) * shape[2] + s) * shape[3] + e;
+                            float value = std::sin(float((b + 1) * 73 + h * 29 + s * 17 + e * 11 + input * 47) * 0.07f);
+                            if (input == 2)
+                                value = value * 0.5f + float(b) * 0.3f;
+                            if (uniform)
+                                value = input == 2 ? 0.25f + float(b) * 0.5f : 0.f;
+                            input_data[input][index] = T(value);
+                            reference_data[input][index] = static_cast<float>(input_data[input][index]);
+                        }
+            inputs[input] = engine.allocate_memory(layout(shape, dt, format::bfyx));
+            set_values(inputs[input], input_data[input]);
+            auto parameter_shape = ov::PartialShape(shape);
+            // A dynamic V head size selects SDPARef without relying on kernel-name forcing.
+            if (input == 2)
+                parameter_shape[3] = ov::Dimension::dynamic();
+            topo.add(input_layout(names[input], layout(parameter_shape, dt, format::bfyx)));
+        }
+
+        const ov::Shape mask_shape{1, 1, seq_q, seq_kv};
+        std::vector<T> mask_data;
+        std::vector<float> reference_mask;
+        std::vector<input_info> sdpa_inputs{input_info("q"), input_info("k"), input_info("v")};
+        memory::ptr mask_mem;
+        if (use_mask) {
+            mask_data.resize(ov::shape_size(mask_shape));
+            reference_mask.resize(mask_data.size());
+            for (size_t i = 0; i < mask_data.size(); ++i) {
+                mask_data[i] = T(i % seq_kv == seq_kv - 1 ? -std::numeric_limits<float>::infinity() :
+                                                              -float(i % 5) * 0.125f);
+                reference_mask[i] = static_cast<float>(mask_data[i]);
+            }
+            mask_mem = engine.allocate_memory(layout(mask_shape, dt, format::bfyx));
+            set_values(mask_mem, mask_data);
+            topo.add(input_layout("mask", mask_mem->get_layout()));
+            sdpa_inputs.emplace_back("mask");
+        }
+        const std::vector<int64_t> order{0, 1, 2, 3};
+        auto sdpa = scaled_dot_product_attention("sdpa", sdpa_inputs, causal, -1, order, order, order, order, {}, false);
+        const float scale = 0.125f;
+        topo.add(sdpa);
+        ExecutionConfig config = get_test_default_config(engine);
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        auto net = get_network(engine, topo, config, get_test_stream_ptr(), false);
+        for (size_t input = 0; input < inputs.size(); ++input)
+            net->set_input_data(names[input], inputs[input]);
+        if (use_mask)
+            net->set_input_data("mask", mask_mem);
+        auto output = net->execute().at("sdpa").get_memory();
+        ASSERT_EQ(net->get_primitive("sdpa")->get_impl()->m_manager->get_type_info(),
+                  ov::intel_gpu::ocl::SDPARef::get_type_info_static());
+        ASSERT_EQ(output->get_layout().get_shape(), q_shape);
+        ASSERT_EQ(output->get_layout().data_type, dt);
+
+        std::vector<float> expected(ov::shape_size(q_shape));
+        ov::reference::scaled_dot_product_attention<float, float>(reference_data[0].data(),
+                                                                 reference_data[1].data(),
+                                                                 reference_data[2].data(),
+                                                                 use_mask ? reference_mask.data() : nullptr,
+                                                                 &scale,
+                                                                 nullptr,
+                                                                 expected.data(),
+                                                                 causal,
+                                                                 q_shape,
+                                                                 kv_shape,
+                                                                 kv_shape,
+                                                                 mask_shape,
+                                                                 {},
+                                                                 q_shape);
+        mem_lock<T, mem_lock_type::read> output_data(output, get_test_stream());
+        ASSERT_EQ(output_data.size(), expected.size());
+        const float tolerance = dt == data_types::f32 ? 1e-5f : 5e-3f;
+        for (size_t i = 0; i < expected.size(); ++i) {
+            const float actual = static_cast<float>(output_data[i]);
+            ASSERT_TRUE(std::isfinite(actual)) << "index=" << i;
+            if (uniform)
+                ASSERT_NEAR(actual, 0.25f + float(i / (4 * seq_q * 64)) * 0.5f, 1e-3f) << "index=" << i;
+            else
+                ASSERT_NEAR(actual, expected[i], tolerance) << "index=" << i;
+        }
+    }
+};
+
+TEST_P(sdpa_ref_accuracy_test, matches_independent_reference) {
+    const auto [dt, test_case] = GetParam();
+    if (dt == data_types::f16)
+        check_accuracy<ov::float16>(dt, test_case);
+    else if (dt == data_types::bf16)
+        check_accuracy<ov::bfloat16>(dt, test_case);
+    else
+        check_accuracy<float>(dt, test_case);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    sdpa_ref,
+    sdpa_ref_accuracy_test,
+    ::testing::Combine(::testing::Values(data_types::f16, data_types::f32, data_types::bf16),
+                       ::testing::Values(sdpa_ref_accuracy_case::uniform_16,
+                                         sdpa_ref_accuracy_case::uniform_32,
+                                         sdpa_ref_accuracy_case::uniform_64,
+                                         sdpa_ref_accuracy_case::nonuniform,
+                                         sdpa_ref_accuracy_case::nonuniform_33,
+                                         sdpa_ref_accuracy_case::nonuniform_100,
+                                         sdpa_ref_accuracy_case::mask,
+                                         sdpa_ref_accuracy_case::causal)),
+    ([](const ::testing::TestParamInfo<sdpa_ref_accuracy_test::ParamType>& info) {
+        const auto [dt, test_case] = info.param;
+        const std::array<std::string, 8> names{"Uniform16", "Uniform32", "Uniform64", "Nonuniform32",
+                                             "Nonuniform33", "Nonuniform100", "Mask", "Causal"};
+        return (dt == data_types::f16 ? "FP16" : dt == data_types::f32 ? "FP32" : "BF16") +
+               names[static_cast<size_t>(test_case)];
+    }));
+
+TEST(sdpa_gpu_custom, ref_fp16_accuracy_reused_dynamic_batch) {
+    auto& engine = get_test_engine();
+    ::testing::Test::RecordProperty("device", engine.get_device_info().dev_name);
+    topology topo;
+    topo.add(input_layout("q", layout(ov::PartialShape{-1, 4, 1, 64}, data_types::f16, format::bfyx)));
+    topo.add(input_layout("k", layout(ov::PartialShape{-1, 4, 32, 64}, data_types::f16, format::bfyx)));
+    topo.add(input_layout("v", layout(ov::PartialShape{-1, 4, 32, -1}, data_types::f16, format::bfyx)));
+    const std::vector<int64_t> order{0, 1, 2, 3};
+    topo.add(scaled_dot_product_attention("sdpa", {input_info("q"), input_info("k"), input_info("v")},
+                                          false, -1, order, order, order, order, {}, false));
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+    auto net = get_network(engine, topo, config, get_test_stream_ptr(), false);
+    for (size_t batch : {1, 2, 1}) {
+        SCOPED_TRACE(batch);
+        auto q = engine.allocate_memory(layout(ov::Shape{batch, 4, 1, 64}, data_types::f16, format::bfyx));
+        auto k = engine.allocate_memory(layout(ov::Shape{batch, 4, 32, 64}, data_types::f16, format::bfyx));
+        auto v = engine.allocate_memory(k->get_layout());
+        set_values(q, std::vector<ov::float16>(q->get_layout().count(), ov::float16(0.f)));
+        set_values(k, std::vector<ov::float16>(k->get_layout().count(), ov::float16(0.f)));
+        std::vector<ov::float16> values(v->get_layout().count());
+        for (size_t i = 0; i < values.size(); ++i)
+            values[i] = ov::float16(0.25f + float(i / (4 * 32 * 64)) * 0.5f);
+        set_values(v, values);
+        net->set_input_data("q", q);
+        net->set_input_data("k", k);
+        net->set_input_data("v", v);
+        auto output = net->execute().at("sdpa").get_memory();
+        ASSERT_EQ(net->get_primitive("sdpa")->get_impl()->m_manager->get_type_info(),
+                  ov::intel_gpu::ocl::SDPARef::get_type_info_static());
+        ASSERT_EQ(output->get_layout().get_shape(), (ov::Shape{batch, 4, 1, 64}));
+        mem_lock<ov::float16, mem_lock_type::read> output_data(output, get_test_stream());
+        for (size_t i = 0; i < output_data.size(); ++i)
+            ASSERT_NEAR(static_cast<float>(output_data[i]), 0.25f + float(i / (4 * 64)) * 0.5f, 1e-3f) << "index=" << i;
+    }
+}
 
 TEST(sdpa_gpu_custom, dynamic_mismatched_v_head_size) {
     auto& engine = get_test_engine();

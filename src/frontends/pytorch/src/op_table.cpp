@@ -924,6 +924,8 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.log_sigmoid_forward.default", op::translate_log_sigmoid_fx},
         {"aten.mean.default", op::translate_mean_fx},
         {"aten.mean.dim", op::translate_mean_fx},
+        {"aten.meshgrid.default", op::translate_meshgrid},
+        {"aten.meshgrid.indexing", op::translate_meshgrid},
         {"aten.native_batch_norm.default", op::translate_batch_norm_legit_fx},
         {"aten.native_dropout.default", op::skip_node},
         {"aten.native_group_norm.default", op::translate_group_norm_fx},
