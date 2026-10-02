@@ -137,15 +137,20 @@ They use F32 inference, F16 KV cache, no dynamic activation quantization and
 - **Language (GenAI `LLMPipeline`, plus chat, reset, batch-of-two, beam and streaming checks):**
   Qwen3.5-4B Q4_0 (12/13) and Q4_K_M (13/13) with PA and SDPA, Qwen3.6-35B Q4_K_M PA (12/13),
   Gemma4 E4B Q4_K_M PA and Muse Glimmer Q4_K_M PA (13/13) pass. Gemma4 12B Q4_0 (10/13) and
-  Gemma4 26B Q4_0 (7/13) miss the first token.
+  Gemma4 26B Q4_0 (7/13) miss the first token. llama.cpp replaying the same reference history on
+  the same Q4_0 files scores the same 10/13 and 7/13 and also misses the first token; OV matches
+  its choices at 12/13 and 11/13 steps, differing only where its top two are within 0.21-0.51
+  logits.
 - **Multimodal (GenAI `VLMPipeline`):** Qwen3.5-4B passes text, image and video for Q4_K_M with
   PA and SDPA, and for Q4_0 with PA; Gemma4 E2B Q4_K_M passes text, image, video, audio and mixed input with PA.
   In Gemma4 E2B chat, the audio follow-up turn misses only the first token (19/20); llama.cpp
   running the same Q4_K_M file on that history makes the same choice, so quantization, not
   history handling, causes the difference.
-  Gemma4 12B Q4_0 PA fails mixed input (17/20, first token differs) and video (17/20). Muse
-  Glimmer Q4_K_M passes against the same quantized file in llama.cpp; no publisher reference is
-  available for it.
+  Gemma4 12B Q4_0 PA fails mixed input (17/20, first token differs) and video (17/20) against
+  the publisher reference. Against llama.cpp with the same Q4_0 files it passes all five inputs:
+  20/20 except mixed (18/20), where OV takes llama.cpp's runner-up at margins of 0.28 and 0.53
+  logits. Muse Glimmer Q4_K_M passes against the same quantized file in llama.cpp; no publisher
+  reference is available for it.
 
 The Gemma4 26B difference starts at layer 8, where two experts swap places at the top-8 cutoff
 for a near tie. Checkpoint matrices for Qwen3.5 0.8B-9B, Qwen3.6, Qwen3.8 and all Gemma4 sizes
