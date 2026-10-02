@@ -9,6 +9,7 @@
 
 #ifdef ENABLE_ONEDNN_FOR_GPU
 
+#    include <algorithm>
 #    include <memory>
 #    include <mutex>
 #    include <oneapi/dnnl/dnnl.hpp>
@@ -34,13 +35,15 @@ struct onednn_matmul {
     dnnl::primitive_attr attr;
     dnnl::post_ops postops;
 
+    // zp_dtype == undef means no weight zero-point. zp_common selects a single (per-tensor) zero-point.
     onednn_matmul(dnnl::memory::data_type act_dtype,
                   dnnl::memory::data_type weight_dtype,
                   int batch_size,
                   int ic,
                   int oc,
                   int ic_group_size = -1,
-                  bool has_zp = true) {
+                  dnnl::memory::data_type zp_dtype = dnnl::memory::data_type::undef,
+                  bool zp_common = false) {
         m_a_type = act_dtype;
         m_w_type = weight_dtype;
         m_K_groups = 0;
@@ -53,8 +56,8 @@ struct onednn_matmul {
         }
         if (ic_group_size >= 0) {
             w_scale(ic_group_size);
-            if (has_zp) {
-                w_zp(ic_group_size);
+            if (zp_dtype != dnnl::memory::data_type::undef) {
+                w_zp(ic_group_size, zp_dtype, zp_common);
             }
             fpmath_f16();
         }
@@ -74,14 +77,16 @@ struct onednn_matmul {
         return *this;
     }
 
-    onednn_matmul& w_zp(int k_group_size) {
-        if (k_group_size <= 0) {
+    onednn_matmul& w_zp(int k_group_size, dnnl::memory::data_type zp_dtype, bool zp_common) {
+        if (zp_common) {
+            attr.set_zero_points(DNNL_ARG_WEIGHTS, 0, {}, zp_dtype);
+        } else if (k_group_size <= 0) {
             OPENVINO_ASSERT(m_K_groups == 1);
-            attr.set_zero_points(DNNL_ARG_WEIGHTS, (0 << 0) + (1 << 1), {1}, m_w_type);
+            attr.set_zero_points(DNNL_ARG_WEIGHTS, (0 << 0) + (1 << 1), {1}, zp_dtype);
         } else {
             OPENVINO_ASSERT((m_K % k_group_size) == 0);
             m_K_groups = (m_K / k_group_size);
-            attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) + (1 << 1), {k_group_size, 1}, m_w_type);
+            attr.set_zero_points(DNNL_ARG_WEIGHTS, (1 << 0) + (1 << 1), {k_group_size, 1}, zp_dtype);
         }
         return *this;
     }
@@ -154,9 +159,10 @@ struct onednn_matmul {
                   int oc,
                   int ic_group_size,
                   type t,
-                  bool has_zp = true,
+                  dnnl::memory::data_type zp_dtype = dnnl::memory::data_type::undef,
+                  bool zp_common = false,
                   dnnl::algorithm activation_algo = dnnl::algorithm::eltwise_swish)
-        : onednn_matmul(act_dtype, weight_dtype, batch, ic, oc, ic_group_size, has_zp) {
+        : onednn_matmul(act_dtype, weight_dtype, batch, ic, oc, ic_group_size, zp_dtype, zp_common) {
         if (t == type::with_bin_mul) {
             bin_post_id = 0;
             post_op_bin_mul(true);
@@ -263,8 +269,19 @@ struct onednn_linear {
                                 dnnl::memory zp,
                                 dnnl::algorithm activation_algo = dnnl::algorithm::eltwise_swish) {
         OV_ITT_SCOPED_TASK(ov::intel_gpu::itt::domains::intel_gpu_plugin, openvino::itt::handle("onednn_linear::create()"));
-        bool has_zp = static_cast<bool>(zp);
-        auto mm = make_cacheable<onednn_matmul>(eng, act_dtype, weight_dtype, batch, ic, oc, ic_group_size, t, has_zp, activation_algo);
+        // The zero-point dtype and granularity come from the zp memory itself: it may differ from the
+        // weight dtype (e.g. u3 weights with u8 zp), and a single-element zp is a per-tensor (common) zp.
+        auto zp_dtype = dnnl::memory::data_type::undef;
+        bool zp_common = false;
+        if (zp) {
+            const auto zp_md = zp.get_desc();
+            zp_dtype = zp_md.get_data_type();
+            const auto zp_dims = zp_md.get_dims();
+            zp_common = std::all_of(zp_dims.begin(), zp_dims.end(), [](dnnl::memory::dim d) {
+                return d == 1;
+            });
+        }
+        auto mm = make_cacheable<onednn_matmul>(eng, act_dtype, weight_dtype, batch, ic, oc, ic_group_size, t, zp_dtype, zp_common, activation_algo);
         onednn_linear linear;
         linear.mm = mm;
         linear.bin_post_id = mm->bin_post_id;
