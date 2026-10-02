@@ -46,13 +46,13 @@ bool excludes_leading_axis(const ov::Output<ov::Node>& axes) {
 
 ov::pass::RestoreTracedBatch::RestoreTracedBatch() {
     MATCHER_SCOPE(RestoreTracedBatch);
-    
+
     using ov::pass::pattern::any_input;
     using ov::pass::pattern::attrs_match;
     using ov::pass::pattern::consumers_count;
     using ov::pass::pattern::value_matches;
     using ov::pass::pattern::wrap_type;
-    
+
     const auto axis_zero = attrs_match({{"axis", 0}});
 
     // window_reverse: view(B, H / ws, W / ws, ws, ws, -1) with B traced to one.
