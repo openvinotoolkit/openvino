@@ -7,7 +7,7 @@ basic_gnn_edgecnn,None
 basic_gnn_gcn,None,xfail,CPU failed to allocate
 basic_gnn_gin,None
 basic_gnn_sage,None
-cm3leon_generate,None
+cm3leon_generate,None,xfail,Trace lacks aten::nan_to_num conversion; export has data-dependent control flow
 dcgan,None
 demucs,None
 #densenet121,None - Already tested by torchvision tests
@@ -28,7 +28,7 @@ dlrm,None,xfail,Conversion is failed for: prim::Constant - None
 #doctr_reco_predictor,None - No module named 'tf2onnx'
 drq,None,skip,Tracer cannot infer type of SquashedNormal()
 fastNLP_Bert,None,skip,tuple expected at most 1 argument got 2
-functorch_dp_cifar10,None
+functorch_dp_cifar10,None,skip_export,CPU compilation of the exported model segfaults
 functorch_maml_omniglot,None
 #hf_Albert,None - Already tested by hf tests
 #hf_Bart,None - Already tested by hf tests
@@ -57,11 +57,11 @@ maml_omniglot,None
 microbench_unbacked_tolist_sum,None,xfail_trace,torch._check condition becomes a tensor during tracing
 mnasnet1_0,None
 #mobilenet_v2,None - Already tested by torchvision tests
-mobilenet_v2_quantized_qat,None
+mobilenet_v2_quantized_qat,None,xfail_export,torch.export cannot flatten quantized Conv2dPackedParamsBase
 #mobilenet_v3_large,None - Already tested by torchvision tests
 #moco,None - DistributedDataParallel/allgather requires cuda
 modded_nanogpt,None,skip,Not supported on CPU by TorchBench
-moondream,None
+moondream,None,xfail,Transformers causal mask vmap fails tracing and exports unsupported batch-dimension ops
 nanogpt,None
 nvidia_deeprecommender,None
 opacus_cifar10,None,skip,Modules that have backward hooks assigned can't be compiled
@@ -84,7 +84,7 @@ sam_fast,None,skip,Not supported on CPU by TorchBench
 simple_gpt,None,skip,Requires CUDA and distributed execution
 simple_gpt_tp_manual,None,skip,Requires CUDA and distributed execution
 soft_actor_critic,None,skip,Tracer cannot infer type of SquashedNormal
-speech_transformer,None
+speech_transformer,None,xfail_export,torch.export cannot specialize data-dependent input_lengths
 #squeezenet1_1,None - Already tested by torchvision tests
 stable_diffusion_text_encoder,None,skip,Failed to install in torchbench
 stable_diffusion_unet,None,skip,Failed to install in torchbench

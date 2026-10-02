@@ -60,6 +60,12 @@ class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
             model(*self.example)
         return model
 
+    def infer_fw_model(self, model_obj, inputs):
+        outputs = super().infer_fw_model(model_obj, inputs)
+        if isinstance(outputs, dict):
+            return list(outputs.values())
+        return outputs
+
     def teardown_class(self):
         sys.path.remove(self.repo_dir.name)
         self.repo_dir.cleanup()
@@ -68,8 +74,9 @@ class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
     @pytest.mark.parametrize("mode", ["trace", "export"])
     @pytest.mark.nightly
     def test_convert_model_all_models(self, name, link, mark, reason, mode, ie_device, request):
-        assert mark in (None, "skip", "xfail", "xfail_trace", "xfail_export"), f"Incorrect test case for {name}"
-        if mark == "skip":
+        assert mark in (None, "skip", "skip_trace", "skip_export", "xfail", "xfail_trace", "xfail_export"), \
+            f"Incorrect test case for {name}"
+        if mark in ("skip", f"skip_{mode}"):
             pytest.skip(reason)
         if mark in ("xfail", f"xfail_{mode}"):
             request.node.add_marker(pytest.mark.xfail(reason=reason))
