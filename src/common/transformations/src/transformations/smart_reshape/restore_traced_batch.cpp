@@ -119,9 +119,13 @@ ov::pass::RestoreTracedBatch::RestoreTracedBatch() {
             }
         }
 
-        // Targets may be shared with other Reshapes, so only the matched ones get a restored copy.
         for (const auto& [reshape, target] : pinned_reshapes) {
             const auto pinned_target = pattern_map.at(target).get_node_shared_ptr();
+            if (pinned_target->get_output_target_inputs(0).size() == 1) {
+                pinned_target->input(0).replace_source_output(batch);
+                continue;
+            }
+            // Shared with other Reshapes, so only the matched one gets a restored copy.
             auto inputs = pinned_target->input_values();
             inputs[0] = batch;
             const auto restored_target = pinned_target->clone_with_new_inputs(inputs);

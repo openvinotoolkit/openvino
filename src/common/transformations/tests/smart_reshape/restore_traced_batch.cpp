@@ -6,6 +6,9 @@
 
 #include <gtest/gtest.h>
 
+#include <set>
+#include <string>
+
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
@@ -210,6 +213,26 @@ TEST_F(RestoreTracedBatchTests, ConvertedBatchIsTakenFromInputShape) {
     restored.restored = true;
     model = make_window_reverse_model(traced);
     model_ref = make_window_reverse_model(restored);
+}
+
+TEST(RestoreTracedBatch, ExclusiveTargetsKeepNames) {
+    const auto model = make_window_reverse_model({});
+    const auto concat_names = [&] {
+        std::set<std::string> names;
+        for (const auto& node : model->get_ops()) {
+            if (ov::is_type<op::v0::Concat>(node)) {
+                names.insert(node->get_friendly_name());
+            }
+        }
+        return names;
+    };
+    const auto names_before = concat_names();
+
+    pass::Manager manager;
+    manager.register_pass<pass::RestoreTracedBatch>();
+    ASSERT_TRUE(manager.run_passes(model));
+
+    EXPECT_EQ(concat_names(), names_before);
 }
 
 TEST(SmartReshapeTests, ReshapeRestoresWindowReverseBatch) {
