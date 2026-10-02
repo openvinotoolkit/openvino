@@ -86,10 +86,12 @@ TEST(CutLMHeadTest, BasicCut) {
     ASSERT_EQ(model->get_results().size(), 1u);
 
     std::shared_ptr<ov::Model> lm_head_model;
-    const bool changed = ov::npuw::CutLMHead(lm_head_model).run_on_model(model);
+    std::string output_embeds_name;
+    const bool changed = ov::npuw::CutLMHead(lm_head_model, output_embeds_name).run_on_model(model);
 
     EXPECT_TRUE(changed);
     ASSERT_NE(lm_head_model, nullptr);
+    EXPECT_EQ(output_embeds_name, LLMCompiledModel::layer_names::output_embeds);
 
     // Original model: the logits Result is renamed to output_embeds and now reads
     // directly from the hidden Parameter (the MatMul moved to the LM head sub-model).
@@ -115,10 +117,13 @@ TEST(CutLMHeadTest, ReusesAttachedResult) {
     ASSERT_EQ(model->get_results().size(), 2u);
 
     std::shared_ptr<ov::Model> lm_head_model;
-    const bool changed = ov::npuw::CutLMHead(lm_head_model).run_on_model(model);
+    std::string output_embeds_name;
+    const bool changed = ov::npuw::CutLMHead(lm_head_model, output_embeds_name).run_on_model(model);
 
     EXPECT_TRUE(changed);
     ASSERT_NE(lm_head_model, nullptr);
+    // The pre-existing Result is reused, so its name is reported as the output-embeds name.
+    EXPECT_EQ(output_embeds_name, "last_hidden_state");
 
     // Original model: only the pre-existing Result remains; logits has been dropped.
     ASSERT_EQ(model->get_results().size(), 1u);
@@ -146,10 +151,12 @@ TEST(CutLMHeadTest, NoLogitsIsUntouched) {
         std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{hidden}, "no_logits_model");
 
     std::shared_ptr<ov::Model> lm_head_model;
-    const bool changed = ov::npuw::CutLMHead(lm_head_model).run_on_model(model);
+    std::string output_embeds_name;
+    const bool changed = ov::npuw::CutLMHead(lm_head_model, output_embeds_name).run_on_model(model);
 
     EXPECT_FALSE(changed);
     EXPECT_EQ(lm_head_model, nullptr);
+    EXPECT_TRUE(output_embeds_name.empty());
     ASSERT_EQ(model->get_results().size(), 1u);
     EXPECT_EQ(find_result_by_name(model, "not_logits"), result);
 }
