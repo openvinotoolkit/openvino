@@ -13,8 +13,6 @@ from pathlib import Path
 import gguf
 import numpy as np
 
-from mmproj_fixtures import finish
-
 
 def dequantize_mmproj(source, destination):
     """Write an F32 copy of every tensor in source to destination, keeping all metadata."""
@@ -27,7 +25,10 @@ def dequantize_mmproj(source, destination):
                              field.types[-1] if len(field.types) > 1 else None)
     for tensor in reader.tensors:
         writer.add_tensor(tensor.name, gguf.dequantize(tensor.data, tensor.tensor_type).astype(np.float32))
-    finish(writer)
+    writer.write_header_to_file()
+    writer.write_kv_data_to_file()
+    writer.write_tensors_to_file()
+    writer.close()
 
 
 def main():

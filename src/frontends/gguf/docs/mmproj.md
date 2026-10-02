@@ -164,6 +164,5 @@ also convert downloaded projector files for `idefics3`, `internvl`, `pixtral`, t
 `gemma3`, Gemma4 vision and audio, `voxtral`, `ultravox` and Qwen2.5 Omni, and compare every
 encoder with llama.cpp built at the pinned revision during the test session.
 
-The GenAI checks are run with [`validate_genai.py`](../tests/validate_genai.py) (language) and
-GenAI's `tests/python_tests/validate_gguf_mmproj.py` (media). Keep their reports outside the
-source tree.
+The GenAI checks are run with GenAI's `tests/python_tests/validate_gguf_llm.py` (language) and
+`tests/python_tests/validate_gguf_mmproj.py` (media). Keep their reports outside the source tree.

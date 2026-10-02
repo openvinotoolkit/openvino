@@ -9,6 +9,9 @@
 # so the comparison measures conversion and execution, not the file's quantization.
 #
 # Encoders with dynamic input sizes run twice on one compiled model, at two grid shapes.
+#
+# To check local files, list them with an empty repo_id and an absolute filename in a file of
+# the same format, and point GGUF_MMPROJ_LIST at it; it replaces the precommit list.
 
 import os
 import sys
@@ -88,7 +91,7 @@ class TestGGUFMMProj:
             pytest.xfail(reason)
         from dequantize_mmproj import dequantize_mmproj
 
-        path = gguf_hub_download(repo_id, filename)
+        path = gguf_hub_download(repo_id, filename) if repo_id else filename
         frontend = FrontEndManager().load_by_framework("gguf")
         model = frontend.convert(frontend.load(path))
         metadata = model.get_rt_info(["gguf_mmproj"]).value
@@ -122,7 +125,8 @@ class TestGGUFMMProj:
 
     @pytest.mark.parametrize(
         "projector,repo_id,filename,mark,reason",
-        parse_gguf_model_list(os.path.join(os.path.dirname(__file__), "gguf_mmproj_precommit")))
+        parse_gguf_model_list(
+            os.environ.get("GGUF_MMPROJ_LIST", os.path.join(os.path.dirname(__file__), "gguf_mmproj_precommit"))))
     @pytest.mark.precommit
     def test_gguf_mmproj_precommit(self, projector, repo_id, filename, mark, reason, ie_device, oracle, tmp_path):
         self.run(projector, repo_id, filename, mark, reason, ie_device, oracle, tmp_path)

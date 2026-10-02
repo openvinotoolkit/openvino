@@ -5,10 +5,12 @@ the embeddings that the real llama.cpp CPU encoder produces for them. OpenVINO d
 participate in reference generation. The regular frontend test run consumes these files; no
 llama.cpp build or model download is needed unless they are regenerated.
 
-| Suite | Generator | Layout | Families |
-|---|---|---|---|
-| `GGUFMMProjAccuracy` | `gen_mmproj_accuracy.py` | `inputs`, `embeddings` and family-specific index inputs | `gemma3` (+`_fused`, `_legacy`), `idefics3`, `janus_pro`, `mlp` (+`_norm`, `_feature`), `internvl` (+`_qknorm`), `resampler` (+`_v2`, `_v4`), `qwen2vl_merger`, `qwen2.5vl_merger` (+`_window_video`), `qwen3vl_merger`, `qwen2a`, `ultravox`, `voxtral` (+`_odd`), `musicflamingo`, `meralion`, `glma` |
-| `GGUFMMProjDynamicAccuracy` | `gen_mmproj_dynamic_accuracy.py` | two input sizes as `0.*` and `1.*`; one compiled model must serve both | `muse-glimmer`, `pixtral` (+`_merge`), `phi4`, `gemma4v` (+`_one_sided`), `gemma4uv` (+`_low_contrast`), `gemma4ua`, `gemma4a`, `minicpmv4_6`, `deepseekocr` (+`_resize`, `_overview`), `deepseekocr2` (+`_overview`); `qwen2.5vl_merger_grids` and `resampler_grids` rerun single-grid fixture models |
+`gen_mmproj_accuracy.py` generates both suites:
+
+| Suite | Layout | Families |
+|---|---|---|
+| `GGUFMMProjAccuracy` | `inputs`, `embeddings` and family-specific index inputs | `gemma3` (+`_fused`, `_legacy`), `idefics3`, `janus_pro`, `mlp` (+`_norm`, `_feature`), `internvl` (+`_qknorm`), `resampler` (+`_v2`, `_v4`), `qwen2vl_merger`, `qwen2.5vl_merger` (+`_window_video`), `qwen3vl_merger`, `qwen2a`, `ultravox`, `voxtral` (+`_odd`), `musicflamingo`, `meralion`, `glma` |
+| `GGUFMMProjDynamicAccuracy` | two input sizes as `0.*` and `1.*`; one compiled model must serve both | `muse-glimmer`, `pixtral` (+`_merge`), `phi4`, `gemma4v` (+`_one_sided`), `gemma4uv` (+`_low_contrast`), `gemma4ua`, `gemma4a`, `minicpmv4_6`, `deepseekocr` (+`_resize`, `_overview`), `deepseekocr2` (+`_overview`); `qwen2.5vl_merger_grids` and `resampler_grids` rerun single-grid fixture models |
 
 Suffixes select fixture variants, for example fused QKV, legacy FFN names, concatenated CLIP
 feature layers, whole-tensor QK norms, an odd frame count, one-sided clipping bounds or OCR
@@ -19,17 +21,13 @@ The standalone op tests in `test_ops.cpp` read `../mmproj_*.npy`, `../vision_rop
 and `../multimodal_imrope_expected.npy`: window partition, SAM relative positions,
 vision/interleaved RoPE, antialiased bilinear resize and 2D im2col.
 
-## Reference revisions
+## Reference revision
 
-The fixtures were generated with llama.cpp
-[`16fb7d9d326a3fe69a331ce5fbe7a679a1a281bb`](https://github.com/ggml-org/llama.cpp/commit/16fb7d9d326a3fe69a331ce5fbe7a679a1a281bb),
-except `qwen3vl_merger`, `muse-glimmer`, `gemma4uv_low_contrast`, `gemma4v` (+`_one_sided`),
-`gemma4a`, `mlp_feature`, `internvl_qknorm` and the `_grids` fixtures, which were generated with
-[`03fa73cb27f5c251b9528489b18d303b1366aca4`](https://github.com/ggml-org/llama.cpp/commit/03fa73cb27f5c251b9528489b18d303b1366aca4)
-(aligned-corner position interpolation, the Muse Glimmer encoder, and a `ggml_clamp` that no
-longer clamps its source in place). The Gemma4 fixtures clip only the Q input, so clipping that
-leaks into the shared K/V input fails them. Regenerating every family at `03fa73cb` reproduces
-the stored arrays, except `deepseekocr`, whose embeddings differ at normalized MSE `7e-7`.
+All fixtures and op expectations come from llama.cpp
+[`03fa73cb27f5c251b9528489b18d303b1366aca4`](https://github.com/ggml-org/llama.cpp/commit/03fa73cb27f5c251b9528489b18d303b1366aca4),
+which has aligned-corner position interpolation, the Muse Glimmer encoder, and a `ggml_clamp`
+that no longer clamps its source in place. The Gemma4 fixtures clip only the Q input, so
+clipping that leaks into the shared K/V input fails them.
 
 ## Regenerating
 
@@ -43,33 +41,19 @@ c++ -std=c++17 mmproj_oracle.cpp -I "$LLAMA_SRC/tools/mtmd" -I "$LLAMA_SRC/inclu
     -lmtmd -lllama -lggml -lggml-base -o mmproj_oracle
 c++ -std=c++17 mmproj_ops_oracle.cpp -I "$LLAMA_SRC/ggml/include" -L "$LLAMA_BUILD/bin" \
     -Wl,-rpath,"$LLAMA_BUILD/bin" -lggml -lggml-base -lggml-cpu -o mmproj_ops_oracle
-export PYTHONPATH="$LLAMA_SRC/gguf-py"
-python3 gen_mmproj_accuracy.py --oracle ./mmproj_oracle --qwen3-oracle <03fa73cb mmproj_oracle>
-python3 gen_mmproj_dynamic_accuracy.py --oracle ./mmproj_oracle --ops-oracle ./mmproj_ops_oracle
+PYTHONPATH="$LLAMA_SRC/gguf-py" python3 gen_mmproj_accuracy.py --oracle ./mmproj_oracle \
+    --ops-oracle ./mmproj_ops_oracle
 ```
 
 `--families` regenerates a subset. `mmproj_oracle` takes
 `model vision|audio width height input.f32 output.f32 [second_frame.f32]`;
 `GGUF_ORACLE_DUMP=<directory>` writes its intermediate F32 tensors, and
 `GGUF_ORACLE_OVERVIEW=1` adds the OCR view separator. `mmproj_fixtures.py` holds the helpers
-shared by the generators and `validate_mmproj.py`.
+shared by the generator and the model hub tests.
 
 ## Real checkpoints
 
-`validate_mmproj.py` compares a real projector with `mmproj_oracle` on synthetic normalized
-inputs and writes a JSON report. For a quantized projector, compare with an F32 copy of the
-same represented weights made by `dequantize_mmproj.py`; the pinned `llama-quantize` rejects
-`clip` files.
-
-```sh
-python3 dequantize_mmproj.py mmproj-Q8_0.gguf mmproj-F32.gguf
-python3 validate_mmproj.py mmproj-Q8_0.gguf --reference-model mmproj-F32.gguf \
-    --oracle ./mmproj_oracle --report encoder.json [--modality audio] [--width W --height H]
-```
-
-`tests/model_hub_tests/gguf/test_gguf_mmproj.py` automates this check for downloaded projectors
-in precommit and nightly runs; it builds `mmproj_oracle` itself.
-
-Without `--reference-model`, both runtimes execute the same quantized file; llama.cpp then
-quantizes activations in its Q8 matmuls, so that comparison is a diagnostic, not acceptance.
-Keep the reports outside the source tree.
+`tests/model_hub_tests/gguf/test_gguf_mmproj.py` compares downloaded projector files with
+`mmproj_oracle`, which it builds at the revision above, on an F32 copy of the same weights.
+To check local files, list them with an empty `repo_id` and set `GGUF_MMPROJ_LIST`; see the
+test for the list format.
