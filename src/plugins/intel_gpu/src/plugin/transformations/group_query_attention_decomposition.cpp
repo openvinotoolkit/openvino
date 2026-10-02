@@ -2,16 +2,28 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "group_query_attention_decomposition.hpp"
-
 #include <limits>
 #include <utility>
 
+#include "group_query_attention_decomposition.hpp"
+
 #include "intel_gpu/op/sdpa.hpp"
+#include "intel_gpu/op/stateless_kv.hpp"
+#include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/convert.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/greater.hpp"
+#include "openvino/op/greater_eq.hpp"
+#include "openvino/op/logical_or.hpp"
+#include "openvino/op/maximum.hpp"
+#include "openvino/op/range.hpp"
+#include "openvino/op/select.hpp"
+#include "openvino/op/subtract.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/unsqueeze.hpp"
 
 namespace {
 
@@ -89,6 +101,41 @@ std::optional<GroupQueryAttentionDecomposition::CompressedKV> GroupQueryAttentio
     m_quantization_attrs.group_sizes = compute_kv_group_sizes(key.get_partial_shape(), prepared_key_scale.get_partial_shape());
     m_quantization_attrs.scales_zp_output_order = {0, 1, 2, 3};
     return CompressedKV{key, value, std::move(quantization_inputs)};
+}
+
+GroupQueryAttentionDecomposition::KVCacheOutputs GroupQueryAttentionDecomposition::construct_kvcache(
+    const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
+    const ov::Output<ov::Node>& past_key,
+    const ov::Output<ov::Node>& past_value,
+    const ov::Output<ov::Node>& key,
+    const ov::Output<ov::Node>& value,
+    const ov::Output<ov::Node>& seqlens_1d,
+    const ov::Output<ov::Node>& past_seqlen,
+    const ov::Output<ov::Node>& current_seqlen_scalar) {
+    using namespace ov::op;
+
+    if (!node->get_sliding_window_cache()) {
+        const auto key_cache = register_new_node<op::StatelessKV>(past_key, key, seqlens_1d, 2, true);
+        const auto value_cache = register_new_node<op::StatelessKV>(past_value, value, seqlens_1d, 2, true);
+
+        KVCacheOutputs outputs;
+        outputs.present_key = key_cache->output(0);
+        outputs.present_value = value_cache->output(0);
+        outputs.sdpa_key = key_cache->output(1);
+        outputs.sdpa_value = value_cache->output(1);
+        outputs.mask_past_seqlen = past_seqlen;
+        outputs.bias_col_offset = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+        return outputs;
+    }
+
+    return ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(node,
+                                                                         past_key,
+                                                                         past_value,
+                                                                         key,
+                                                                         value,
+                                                                         seqlens_1d,
+                                                                         past_seqlen,
+                                                                         current_seqlen_scalar);
 }
 
 std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_sdpa(const ov::Output<ov::Node>& query,

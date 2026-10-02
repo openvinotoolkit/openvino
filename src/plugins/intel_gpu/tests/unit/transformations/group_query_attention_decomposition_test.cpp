@@ -7,9 +7,9 @@
 #include <gtest/gtest.h>
 
 #include "intel_gpu/op/sdpa.hpp"
+#include "intel_gpu/op/stateless_kv.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/core/model.hpp"
-#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/parameter.hpp"
@@ -39,6 +39,7 @@ struct GQAConfig {
     QuantType out_quant = QuantType::NONE;
     ov::element::Type cache_type = ov::element::i8;
     int64_t local_window_size = -1;  // >= 1 enables sliding window attention
+    bool static_past_cache = false;
     bool sliding_window_cache = false;
     bool smooth_softmax = false;  // adds an extra logit -> sink branch
     bool attention_bias = false;
@@ -50,7 +51,7 @@ struct GQAConfig {
 
 std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
     const auto f32 = ov::element::f32;
-    const auto past_len = ov::Dimension::dynamic();
+    const auto past_len = cfg.static_past_cache ? ov::Dimension{128} : ov::Dimension::dynamic();
 
     auto query = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, num_heads, 1, head_size});
     auto key = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, kv_num_heads, 1, head_size});
@@ -115,11 +116,16 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
     return std::make_shared<ov::Model>(results, parameters);
 }
 
-std::shared_ptr<ov::intel_gpu::op::SDPA> decompose_and_get_sdpa(const GQAConfig& cfg) {
+std::shared_ptr<ov::Model> decompose_gqa_model(const GQAConfig& cfg) {
     auto model = make_gqa_model(cfg);
     ov::pass::Manager manager;
     manager.register_pass<ov::intel_gpu::GroupQueryAttentionDecomposition>();
     manager.run_passes(model);
+    return model;
+}
+
+std::shared_ptr<ov::intel_gpu::op::SDPA> decompose_and_get_sdpa(const GQAConfig& cfg) {
+    auto model = decompose_gqa_model(cfg);
 
     std::shared_ptr<ov::intel_gpu::op::SDPA> result;
     for (const auto& node : model->get_ordered_ops()) {
@@ -129,6 +135,81 @@ std::shared_ptr<ov::intel_gpu::op::SDPA> decompose_and_get_sdpa(const GQAConfig&
         }
     }
     return result;
+}
+
+void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
+    const auto model = decompose_gqa_model(cfg);
+    const auto parameters = model->get_parameters();
+    EXPECT_EQ(parameters[3]->get_partial_shape().is_static(), cfg.static_past_cache);
+
+    std::shared_ptr<ov::intel_gpu::op::SDPA> sdpa;
+    std::vector<std::shared_ptr<ov::intel_gpu::op::StatelessKV>> statelesskvs;
+    for (const auto& node : model->get_ordered_ops()) {
+        if (auto current_sdpa = ov::as_type_ptr<ov::intel_gpu::op::SDPA>(node)) {
+            ASSERT_EQ(sdpa, nullptr);
+            sdpa = current_sdpa;
+        }
+        if (auto stateless_kv = ov::as_type_ptr<ov::intel_gpu::op::StatelessKV>(node)) {
+            statelesskvs.emplace_back(std::move(stateless_kv));
+        }
+    }
+
+    ASSERT_NE(sdpa, nullptr);
+    EXPECT_EQ(statelesskvs.size(), 2u);
+
+    std::shared_ptr<ov::intel_gpu::op::StatelessKV> key;
+    std::shared_ptr<ov::intel_gpu::op::StatelessKV> value;
+
+    const auto find_sdpa_index = [&](const std::set<ov::Input<ov::Node>>& targets, const auto& self) -> std::optional<size_t> {
+        for (const auto& target : targets) {
+            if (ov::is_type<ov::op::v0::ShapeOf>(target.get_node())) {
+                continue;
+            } else if (target.get_node() == sdpa.get()) {
+                return target.get_index();
+            }
+        }
+        for (const auto& target : targets) {
+            for (size_t i = 0; i < target.get_node()->get_output_size(); ++i) {
+                const auto targets_ = target.get_node()->get_output_target_inputs(i);
+                const auto result = self(targets_, self);
+                if (result) {
+                    return result;
+                }
+            }
+        }
+        return std::nullopt;
+    };
+
+    for (const auto& stateless_kv : statelesskvs) {
+        const auto sdpa_index = find_sdpa_index(stateless_kv->output(1).get_target_inputs(), find_sdpa_index);
+        if (sdpa_index == 1) {
+            ASSERT_EQ(key, nullptr);
+            key = stateless_kv;
+        } else if (sdpa_index == 2) {
+            ASSERT_EQ(value, nullptr);
+            value = stateless_kv;
+        } else {
+            ASSERT_TRUE(sdpa_index == 1 || sdpa_index == 2);
+        }
+    }
+
+    EXPECT_EQ(key->input_value(0).get_node_shared_ptr(), parameters[3]);
+    EXPECT_EQ(key->input_value(1).get_node_shared_ptr(), parameters[1]);
+    EXPECT_EQ(value->input_value(0).get_node_shared_ptr(), parameters[4]);
+    EXPECT_EQ(value->input_value(1).get_node_shared_ptr(), parameters[2]);
+    EXPECT_EQ(key->input_value(2).get_node_shared_ptr(), value->input_value(2).get_node_shared_ptr());
+}
+
+TEST(GQADecompositionTest, static_input_uses_stateless_kv) {
+    GQAConfig cfg;
+    cfg.static_past_cache = true;
+    expect_stateless_kv_cache_connections(cfg);
+}
+
+TEST(GQADecompositionTest, dynamic_input_uses_stateless_kv) {
+    GQAConfig cfg;
+
+    expect_stateless_kv_cache_connections(cfg);
 }
 
 // A mask produced by make_attention_mask() is a rank-4 broadcastable tensor.
@@ -217,8 +298,8 @@ TEST(GQADecompositionTest, per_channel_kv_uses_compressed_sdpa) {
               (std::vector<uint64_t>{1, 1, std::numeric_limits<uint64_t>::max(), 1}));
     EXPECT_EQ(sdpa->input_value(1).get_element_type(), ov::element::i8);
     EXPECT_EQ(sdpa->input_value(2).get_element_type(), ov::element::i8);
-    EXPECT_TRUE(ov::is_type<ov::op::v0::Concat>(sdpa->input_value(1).get_node_shared_ptr()));
-    EXPECT_TRUE(ov::is_type<ov::op::v0::Concat>(sdpa->input_value(2).get_node_shared_ptr()));
+    EXPECT_TRUE(ov::is_type<ov::intel_gpu::op::StatelessKV>(sdpa->input_value(1).get_node_shared_ptr()));
+    EXPECT_TRUE(ov::is_type<ov::intel_gpu::op::StatelessKV>(sdpa->input_value(2).get_node_shared_ptr()));
     const size_t num_data_inputs = sdpa->get_input_size() - sdpa->get_compression_inputs_num();
     EXPECT_EQ(sdpa->input_value(num_data_inputs).get_element_type(), ov::element::f16);
     EXPECT_EQ(sdpa->input_value(num_data_inputs + 1).get_element_type(), ov::element::f16);

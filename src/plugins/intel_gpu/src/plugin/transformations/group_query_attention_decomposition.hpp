@@ -15,6 +15,14 @@ public:
     GroupQueryAttentionDecomposition() = default;
 
 protected:
+    KVCacheOutputs construct_kvcache(const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
+                                     const ov::Output<ov::Node>& past_key,
+                                     const ov::Output<ov::Node>& past_value,
+                                     const ov::Output<ov::Node>& key,
+                                     const ov::Output<ov::Node>& value,
+                                     const ov::Output<ov::Node>& seqlens_1d,
+                                     const ov::Output<ov::Node>& past_seqlen,
+                                     const ov::Output<ov::Node>& current_seqlen_scalar) override;
     std::shared_ptr<ov::Node> make_sdpa(const ov::Output<ov::Node>& query,
                                         const ov::Output<ov::Node>& key,
                                         const ov::Output<ov::Node>& value,

@@ -141,7 +141,6 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto zero_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
     const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
     const auto one_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
-    const auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
     const auto seqlens_elemi64 = register_new_node<v0::Convert>(seqlens_k, ov::element::i64);
     const auto real_seqlens = register_new_node<v1::Add>(seqlens_elemi64, one);
 
@@ -173,8 +172,6 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         Q = rotaryEmbedding(Q, cos, sin, rotary_interleaved);
         K = rotaryEmbedding(K, cos, sin, rotary_interleaved);
     }
-    const auto is_static_input = K.get_partial_shape().is_static() && past_key.get_partial_shape().is_static();
-
     // Quantize-on-write: when the cache is quantized, quantize the (post-RoPE) current K/V into the cache type
     // before appending them, so the assembled present cache stays quantized and the past bytes are preserved
     // verbatim (no re-rounding of past tokens). Matches ONNX Runtime MLAS/CUDA semantics.
@@ -183,120 +180,20 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         V = quantize_kv(V, v_scale, kv_num_heads, kv_cache_bit_width, v_quant_type, kv_cache_type);
     }
 
-    // past_seqlen expressed in the coordinate system the attention mask uses. Equals the absolute past
-    // length for a full-length cache; a windowed cache overrides it with the resident row count.
-    ov::Output<ov::Node> mask_past_seqlen = past_seqlen;
-    // Absolute key position of the KV buffer's first slot, used to align an external attention_bias (indexed
-    // by absolute key). 0 for a full-length cache (slot j == absolute key j); a windowed cache rolls, so its
-    // first slot holds absolute key P - resident_rows (set in the windowed branches below).
-    ov::Output<ov::Node> bias_col_offset = zero;
-    ov::Output<ov::Node> present_k, present_v;
-
-    if (node->get_sliding_window_cache()) {
-        // Windowed KV cache (capacity C, rolled with front eviction). end_before/end_after are the resident
-        // row counts before/after appending the S new tokens (see windowed_cache_end).
-        const auto capacity = get_dimensions(past_key.get_node_shared_ptr(), {2});
-        const auto capacity_scalar = register_new_node<v0::Squeeze>(capacity);
-        const auto abs_past_scalar = register_new_node<v0::Squeeze>(past_seqlen);  // P
-        const auto abs_total_scalar = register_new_node<v0::Squeeze>(seqlens_1d);  // P + S
-        const auto end_before = windowed_cache_end(abs_past_scalar, capacity_scalar, local_window_size);
-        const auto end_after = windowed_cache_end(abs_total_scalar, capacity_scalar, local_window_size);
-
-        // Static single-token decode (S == 1) always fits the window and uses the in-place Gather +
-        // ScatterUpdate assembly (static-shape friendly). Otherwise (dynamic S) a multi-token step may cross
-        // an eviction, making the in-place kept = end_after - S negative, so it takes the staging path below.
-        // A statically-known S > 1 is rejected up front (FE + op), so it never reaches here.
-        const auto& q_ps = node->get_input_partial_shape(0);
-        const bool static_single_token = q_ps.rank().is_static() && q_ps.rank().get_length() == 4 &&
-                                         q_ps[2].is_static() && q_ps[2].get_length() == 1;
-
-        const auto scatter_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
-        const auto zeros =
-            register_new_node<v3::Broadcast>(register_new_node(v0::Constant::create(kv_cache_type, ov::Shape{}, {0})),
-                                             register_new_node<v3::ShapeOf>(past_key));
-
-        if (static_single_token) {
-            // present = [survivors, new, zeros] left-aligned in the C buffer: the last kept = end_after - S
-            // resident rows, then the S new tokens.
-            const auto kept = register_new_node<v1::Subtract>(end_after, curr_seqlen_scalar);  // end_after - S
-            const auto survivor_start = register_new_node<v1::Subtract>(end_before, kept);
-            const auto kept_row =
-                register_new_node<v4::Range>(zero_without_shape, kept, one_without_shape, ov::element::i64);
-            const auto survivor_idx = register_new_node<v1::Add>(kept_row, survivor_start);
-            const auto survivor_k = register_new_node<v8::Gather>(past_key, survivor_idx, two);
-            const auto survivor_v = register_new_node<v8::Gather>(past_value, survivor_idx, two);
-            const auto kept_idx = kept_row;
-            const auto new_row = register_new_node<v4::Range>(zero_without_shape,
-                                                              curr_seqlen_scalar,
-                                                              one_without_shape,
-                                                              ov::element::i64);
-            const auto new_idx = register_new_node<v1::Add>(new_row, kept);
-
-            present_k = register_new_node<v3::ScatterUpdate>(zeros, kept_idx, survivor_k, scatter_axis);
-            present_k = register_new_node<v3::ScatterUpdate>(present_k, new_idx, K, scatter_axis);
-            present_v = register_new_node<v3::ScatterUpdate>(zeros, kept_idx, survivor_v, scatter_axis);
-            present_v = register_new_node<v3::ScatterUpdate>(present_v, new_idx, V, scatter_axis);
-
-            K = present_k;
-            V = present_v;
-            mask_past_seqlen = register_new_node<v0::Unsqueeze>(kept, zero);
-            // First resident slot holds absolute key P - kept (the survivors start there).
-            bias_col_offset =
-                register_new_node<v0::Unsqueeze>(register_new_node<v1::Subtract>(abs_past_scalar, kept), zero);
-        } else {
-            // Staging (ORT parity): attend against a temp buffer of the end_before resident rows + S new
-            // tokens, then write only the surviving tail (last end_after rows) back into the capacity-C cache.
-            const auto end_before_1d = register_new_node<v0::Unsqueeze>(end_before, zero);
-            const auto resident_k = register_new_node<v8::Slice>(past_key, zero, end_before_1d, one, two);
-            const auto resident_v = register_new_node<v8::Slice>(past_value, zero, end_before_1d, one, two);
-            const auto temp_k = register_new_node<v0::Concat>(ov::OutputVector{resident_k, K}, 2);
-            const auto temp_v = register_new_node<v0::Concat>(ov::OutputVector{resident_v, V}, 2);
-
-            // tail = last end_after rows of the temp buffer, scattered into [0, end_after) of the C buffer.
-            const auto temp_len = register_new_node<v1::Add>(end_before, curr_seqlen_scalar);
-            const auto tail_start = register_new_node<v1::Subtract>(temp_len, end_after);
-            const auto tail_start_1d = register_new_node<v0::Unsqueeze>(tail_start, zero);
-            const auto temp_len_1d = register_new_node<v0::Unsqueeze>(temp_len, zero);
-            const auto tail_k = register_new_node<v8::Slice>(temp_k, tail_start_1d, temp_len_1d, one, two);
-            const auto tail_v = register_new_node<v8::Slice>(temp_v, tail_start_1d, temp_len_1d, one, two);
-            const auto present_row =
-                register_new_node<v4::Range>(zero_without_shape, end_after, one_without_shape, ov::element::i64);
-            present_k = register_new_node<v3::ScatterUpdate>(zeros, present_row, tail_k, scatter_axis);
-            present_v = register_new_node<v3::ScatterUpdate>(zeros, present_row, tail_v, scatter_axis);
-
-            // Attention runs on the temp buffer; only the returned present is the capacity-C tail.
-            K = temp_k;
-            V = temp_v;
-            mask_past_seqlen = register_new_node<v0::Unsqueeze>(end_before, zero);
-            // Temp buffer's first slot holds absolute key P - end_before.
-            bias_col_offset =
-                register_new_node<v0::Unsqueeze>(register_new_node<v1::Subtract>(abs_past_scalar, end_before), zero);
-        }
-    } else if (is_static_input) {
-        // Static full-length cache (max length, valid KVs left-aligned). Insert current K/V at
-        // [past_seqlen, past_seqlen + curr_seqlen] with ScatterUpdate, keeping the buffer shape.
-        // An out-of-range past_seqlen is ScatterUpdate's own bounds-check responsibility, not something to
-        // guard against here via a graph-level clamp; the decomposition assumes the caller-supplied
-        // seqlens_k stays within the declared cache capacity.
-        std::shared_ptr<ov::Node> scatter_idx =
-            register_new_node<v4::Range>(zero_without_shape, curr_seqlen_scalar, one_without_shape, ov::element::i64);
-        scatter_idx = register_new_node<v1::Add>(scatter_idx, past_seqlen);
-        const auto scatter_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
-        K = register_new_node<v3::ScatterUpdate>(past_key, scatter_idx, K, scatter_axis);
-        V = register_new_node<v3::ScatterUpdate>(past_value, scatter_idx, V, scatter_axis);
-        present_k = K;
-        present_v = V;
-    } else {
-        auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
-            return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
-        };
-        past_key = register_new_node<v8::Slice>(past_key, zero, past_seqlen, one, two);
-        past_value = register_new_node<v8::Slice>(past_value, zero, past_seqlen, one, two);
-        K = construct_kv_cache(past_key, K);
-        V = construct_kv_cache(past_value, V);
-        present_k = K;
-        present_v = V;
-    }
+    const auto cache = construct_kvcache(node,
+                                          past_key,
+                                          past_value,
+                                          K,
+                                          V,
+                                          seqlens_1d,
+                                          past_seqlen,
+                                          curr_seqlen_scalar);
+    K = cache.sdpa_key;
+    V = cache.sdpa_value;
+    const auto present_k = cache.present_key;
+    const auto present_v = cache.present_value;
+    const auto mask_past_seqlen = cache.mask_past_seqlen;
+    const auto bias_col_offset = cache.bias_col_offset;
 
     const auto compressed_kv = prepare_compressed_kv(node, K, V, k_scale, v_scale);
 
@@ -307,7 +204,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         V = dequantize_kv(V, v_scale, kv_num_heads, kv_cache_bit_width, v_quant_type, T);
     }
 
-    const auto concat_kv_len = get_dimensions(K.get_node_shared_ptr(), {2});
+    const auto concat_kv_len = get_dimensions(K, {2});
     const auto concat_kv_len_scalar = register_new_node<v0::Squeeze>(concat_kv_len);
 
     // Broadcast KV if grouped query attention
@@ -395,6 +292,141 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     auto output = register_new_node<v1::Reshape>(qga_output_transposed, dim_merge_shape, true)->output(0);
 
     return {output, present_k, present_v};
+}
+
+ov::pass::GroupQueryAttentionDecomposition::KVCacheOutputs
+ov::pass::GroupQueryAttentionDecomposition::construct_kvcache(
+    const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
+    const ov::Output<ov::Node>& past_key,
+    const ov::Output<ov::Node>& past_value,
+    const ov::Output<ov::Node>& key,
+    const ov::Output<ov::Node>& value,
+    const ov::Output<ov::Node>& seqlens_1d,
+    const ov::Output<ov::Node>& past_seqlen,
+    const ov::Output<ov::Node>& current_seqlen_scalar) {
+    const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+    const auto zero_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {0}));
+    const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
+    const auto one_without_shape = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{}, {1}));
+    const auto two = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+    const auto kv_cache_type = past_key.get_element_type();
+
+    KVCacheOutputs outputs;
+    outputs.mask_past_seqlen = past_seqlen;
+    outputs.bias_col_offset = zero;
+
+    const bool is_static_input = key.get_partial_shape().is_static() && past_key.get_partial_shape().is_static();
+
+    if (node->get_sliding_window_cache()) {
+        // Windowed KV cache (capacity C, rolled with front eviction). end_before/end_after are the resident
+        // row counts before/after appending the S new tokens (see windowed_cache_end).
+        const auto local_window_size = node->get_local_window_size();
+        const auto capacity = get_dimensions(past_key, {2});
+        const auto capacity_scalar = register_new_node<v0::Squeeze>(capacity);
+        const auto abs_past_scalar = register_new_node<v0::Squeeze>(past_seqlen);  // P
+        const auto abs_total_scalar = register_new_node<v0::Squeeze>(seqlens_1d);  // P + S
+        const auto end_before = windowed_cache_end(abs_past_scalar, capacity_scalar, local_window_size);
+        const auto end_after = windowed_cache_end(abs_total_scalar, capacity_scalar, local_window_size);
+
+        // Static single-token decode (S == 1) always fits the window and uses the in-place Gather +
+        // ScatterUpdate assembly (static-shape friendly). Otherwise (dynamic S) a multi-token step may cross
+        // an eviction, making the in-place kept = end_after - S negative, so it takes the staging path below.
+        // A statically-known S > 1 is rejected up front (FE + op), so it never reaches here.
+        const auto& q_ps = node->get_input_partial_shape(0);
+        const bool static_single_token = q_ps.rank().is_static() && q_ps.rank().get_length() == 4 &&
+                                         q_ps[2].is_static() && q_ps[2].get_length() == 1;
+
+        const auto scatter_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+        const auto zeros =
+            register_new_node<v3::Broadcast>(register_new_node(v0::Constant::create(kv_cache_type, ov::Shape{}, {0})),
+                                             register_new_node<v3::ShapeOf>(past_key));
+
+        if (static_single_token) {
+            // present = [survivors, new, zeros] left-aligned in the C buffer: the last kept = end_after - S
+            // resident rows, then the S new tokens.
+            const auto kept = register_new_node<v1::Subtract>(end_after, current_seqlen_scalar);  // end_after - S
+            const auto survivor_start = register_new_node<v1::Subtract>(end_before, kept);
+            const auto kept_row =
+                register_new_node<v4::Range>(zero_without_shape, kept, one_without_shape, ov::element::i64);
+            const auto survivor_idx = register_new_node<v1::Add>(kept_row, survivor_start);
+            const auto survivor_k = register_new_node<v8::Gather>(past_key, survivor_idx, two);
+            const auto survivor_v = register_new_node<v8::Gather>(past_value, survivor_idx, two);
+            const auto kept_idx = kept_row;
+            const auto new_row = register_new_node<v4::Range>(zero_without_shape,
+                                                              current_seqlen_scalar,
+                                                              one_without_shape,
+                                                              ov::element::i64);
+            const auto new_idx = register_new_node<v1::Add>(new_row, kept);
+
+            outputs.present_key = register_new_node<v3::ScatterUpdate>(zeros, kept_idx, survivor_k, scatter_axis);
+            outputs.present_key = register_new_node<v3::ScatterUpdate>(outputs.present_key, new_idx, key, scatter_axis);
+            outputs.present_value = register_new_node<v3::ScatterUpdate>(zeros, kept_idx, survivor_v, scatter_axis);
+            outputs.present_value =
+                register_new_node<v3::ScatterUpdate>(outputs.present_value, new_idx, value, scatter_axis);
+
+            outputs.sdpa_key = outputs.present_key;
+            outputs.sdpa_value = outputs.present_value;
+            outputs.mask_past_seqlen = register_new_node<v0::Unsqueeze>(kept, zero);
+            // First resident slot holds absolute key P - kept (the survivors start there).
+            outputs.bias_col_offset =
+                register_new_node<v0::Unsqueeze>(register_new_node<v1::Subtract>(abs_past_scalar, kept), zero);
+        } else {
+            // Staging (ORT parity): attend against a temp buffer of the end_before resident rows + S new
+            // tokens, then write only the surviving tail (last end_after rows) back into the capacity-C cache.
+            const auto end_before_1d = register_new_node<v0::Unsqueeze>(end_before, zero);
+            const auto resident_k = register_new_node<v8::Slice>(past_key, zero, end_before_1d, one, two);
+            const auto resident_v = register_new_node<v8::Slice>(past_value, zero, end_before_1d, one, two);
+            const auto temp_k = register_new_node<v0::Concat>(ov::OutputVector{resident_k, key}, 2);
+            const auto temp_v = register_new_node<v0::Concat>(ov::OutputVector{resident_v, value}, 2);
+
+            // tail = last end_after rows of the temp buffer, scattered into [0, end_after) of the C buffer.
+            const auto temp_len = register_new_node<v1::Add>(end_before, current_seqlen_scalar);
+            const auto tail_start = register_new_node<v1::Subtract>(temp_len, end_after);
+            const auto tail_start_1d = register_new_node<v0::Unsqueeze>(tail_start, zero);
+            const auto temp_len_1d = register_new_node<v0::Unsqueeze>(temp_len, zero);
+            const auto tail_k = register_new_node<v8::Slice>(temp_k, tail_start_1d, temp_len_1d, one, two);
+            const auto tail_v = register_new_node<v8::Slice>(temp_v, tail_start_1d, temp_len_1d, one, two);
+            const auto present_row =
+                register_new_node<v4::Range>(zero_without_shape, end_after, one_without_shape, ov::element::i64);
+            outputs.present_key = register_new_node<v3::ScatterUpdate>(zeros, present_row, tail_k, scatter_axis);
+            outputs.present_value = register_new_node<v3::ScatterUpdate>(zeros, present_row, tail_v, scatter_axis);
+
+            // Attention runs on the temp buffer; only the returned present is the capacity-C tail.
+            outputs.sdpa_key = temp_k;
+            outputs.sdpa_value = temp_v;
+            outputs.mask_past_seqlen = register_new_node<v0::Unsqueeze>(end_before, zero);
+            // Temp buffer's first slot holds absolute key P - end_before.
+            outputs.bias_col_offset =
+                register_new_node<v0::Unsqueeze>(register_new_node<v1::Subtract>(abs_past_scalar, end_before), zero);
+        }
+    } else if (is_static_input) {
+        // Static full-length cache (max length, valid KVs left-aligned). Insert current K/V at
+        // [past_seqlen, past_seqlen + curr_seqlen] with ScatterUpdate, keeping the buffer shape.
+        // An out-of-range past_seqlen is ScatterUpdate's own bounds-check responsibility, not something to
+        // guard against here via a graph-level clamp; the decomposition assumes the caller-supplied
+        // seqlens_k stays within the declared cache capacity.
+        std::shared_ptr<ov::Node> scatter_idx = register_new_node<v4::Range>(zero_without_shape,
+                                                                             current_seqlen_scalar,
+                                                                             one_without_shape,
+                                                                             ov::element::i64);
+        scatter_idx = register_new_node<v1::Add>(scatter_idx, past_seqlen);
+        const auto scatter_axis = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {2}));
+        outputs.present_key = register_new_node<v3::ScatterUpdate>(past_key, scatter_idx, key, scatter_axis);
+        outputs.present_value = register_new_node<v3::ScatterUpdate>(past_value, scatter_idx, value, scatter_axis);
+        outputs.sdpa_key = outputs.present_key;
+        outputs.sdpa_value = outputs.present_value;
+    } else {
+        auto construct_kv_cache = [&](const ov::Output<ov::Node>& past, const ov::Output<ov::Node>& current) {
+            return register_new_node<v0::Concat>(ov::OutputVector{past, current}, 2);
+        };
+        const auto sliced_past_key = register_new_node<v8::Slice>(past_key, zero, past_seqlen, one, two);
+        const auto sliced_past_value = register_new_node<v8::Slice>(past_value, zero, past_seqlen, one, two);
+        outputs.present_key = construct_kv_cache(sliced_past_key, key);
+        outputs.present_value = construct_kv_cache(sliced_past_value, value);
+        outputs.sdpa_key = outputs.present_key;
+        outputs.sdpa_value = outputs.present_value;
+    }
+    return outputs;
 }
 
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_sdpa(const ov::Output<ov::Node>& query,
@@ -562,6 +594,12 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::get_dimens
     return get_dimensions(register_new_node<v3::ShapeOf>(node), dims);
 }
 
+std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::get_dimensions(
+    const ov::Output<ov::Node>& output,
+    const std::vector<int>& dims) {
+    return get_dimensions(register_new_node<v3::ShapeOf>(output), dims);
+}
+
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbedding(ov::Output<ov::Node> input,
                                                                                       ov::Output<ov::Node> cos,
                                                                                       ov::Output<ov::Node> sin,
@@ -605,7 +643,7 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::rotaryEmbe
     if (interleaved) {
         input_shape = register_new_node<v3::ShapeOf>(rotary_input);
         dim_bns = get_dimensions(input_shape, {0, 1, 2});
-        half_head_size = get_dimensions(cos.get_node_shared_ptr(), {-1});
+        half_head_size = get_dimensions(cos, {-1});
         perm_5d = v0::Constant::create(ov::element::i64, ov::Shape{5}, {0, 1, 2, 4, 3});
 
         // Deinterleave: [bs,nh,seq,rotary_dim]
