@@ -30,7 +30,8 @@ protected:
                                         const ov::Output<ov::Node>& scale,
                                         const ov::Output<ov::Node>& sink,
                                         bool is_causal,
-                                        const std::optional<CompressedKV>& compressed_kv) override;
+                                        const std::optional<CompressedKV>& compressed_kv,
+                                        const ov::Any& kvcache_metadata) override;
     std::shared_ptr<ov::Node> make_attention_mask(const ov::Output<ov::Node>& curr_seqlen_scalar,
                                                   const ov::Output<ov::Node>& kv_len_scalar,
                                                   const ov::Output<ov::Node>& kv_len_1d,
@@ -42,7 +43,8 @@ protected:
                                                   const ov::Output<ov::Node>& bias_col_offset,
                                                   bool sliding_window_cache,
                                                   float scale,
-                                                  bool has_sink) override;
+                                                  bool has_sink,
+                                                  const ov::Any& kvcache_metadata) override;
     std::optional<CompressedKV> prepare_compressed_kv(
         const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
         const ov::Output<ov::Node>& key,

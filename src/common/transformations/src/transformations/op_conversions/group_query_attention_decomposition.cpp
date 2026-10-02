@@ -242,7 +242,8 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
                                           bias_col_offset,
                                           node->get_sliding_window_cache(),
                                           scale,
-                                          has_sink);
+                                          has_sink,
+                                          cache.metadata);
 
     // head_sink (input 11) or smooth_softmax add an extra logit to the softmax denominator. SDPA models
     // this with its sink input: a [1, num_heads, 1, 1] tensor appended as one logit column, included in
@@ -276,12 +277,12 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
             const auto neg_half = register_new_node(v0::Constant::create(T, Shape{}, {-0.5f}));
             scale_node = register_new_node<v0::Squeeze>(register_new_node<ov::op::v1::Power>(head_size_t, neg_half));
         }
-        qga_output = make_sdpa(Q, K, V, mask, scale_node, sink, false, compressed_kv);
+        qga_output = make_sdpa(Q, K, V, mask, scale_node, sink, false, compressed_kv, cache.metadata);
     } else if (scale != 0.0f) {
         auto scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
-        qga_output = make_sdpa(Q, K, V, mask, scale_node, {}, false, compressed_kv);
+        qga_output = make_sdpa(Q, K, V, mask, scale_node, {}, false, compressed_kv, cache.metadata);
     } else {
-        qga_output = make_sdpa(Q, K, V, mask, {}, {}, !mask, compressed_kv);
+        qga_output = make_sdpa(Q, K, V, mask, {}, {}, !mask, compressed_kv, cache.metadata);
     }
 
     // transpose the result from (batch_size, num_heads, sequence_length, head_size)
@@ -436,7 +437,8 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_sdpa(
                                                                                 const ov::Output<ov::Node>& scale,
                                                                                 const ov::Output<ov::Node>& sink,
                                                                                 bool is_causal,
-                                                                                const std::optional<CompressedKV>&) {
+                                                                                const std::optional<CompressedKV>&,
+                                                                                const ov::Any&) {
     if (sink.get_node()) {
         return register_new_node<v13::ScaledDotProductAttention>(query, key, value, mask, scale, sink, is_causal);
     }
@@ -487,7 +489,8 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_atten
     const ov::Output<ov::Node>& bias_col_offset,
     [[maybe_unused]] bool sliding_window_cache,
     [[maybe_unused]] float scale,
-    [[maybe_unused]] bool has_sink) {
+    [[maybe_unused]] bool has_sink,
+    [[maybe_unused]] const ov::Any& kvcache_metadata) {
     const bool has_bias = external_bias.get_node_shared_ptr() != nullptr;
     // A window is active for local_window_size >= 1; -1 disables it and 0 is rejected upstream (FE + op).
     // A window is only ever paired with causal=1 (enforced upstream by the FE and the op), so it is only

@@ -250,6 +250,12 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
         auto order_k = op::SDPA::default_order(sdpa->get_input_partial_shape(1).size());
         auto order_v = op::SDPA::default_order(sdpa->get_input_partial_shape(2).size());
         auto order_output = op::SDPA::default_order(sdpa->get_output_partial_shape(0).size());
+        if (gpu_sdpa) {
+            order_q = gpu_sdpa->get_input0_transpose_order();
+            order_k = gpu_sdpa->get_input1_transpose_order();
+            order_v = gpu_sdpa->get_input2_transpose_order();
+            order_output = gpu_sdpa->get_output_transpose_order();
+        }
         size_t input_q_output_idx = sdpa->get_input_source_output(0).get_index();
         size_t input_k_output_idx = sdpa->get_input_source_output(1).get_index();
         size_t input_v_output_idx = sdpa->get_input_source_output(2).get_index();

@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "openvino/core/any.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/pass/matcher_pass.hpp"
@@ -37,6 +38,7 @@ protected:
         ov::Output<ov::Node> sdpa_value;
         ov::Output<ov::Node> mask_past_seqlen;
         ov::Output<ov::Node> bias_col_offset;
+        ov::Any metadata;
     };
 
     ov::OutputVector decompose(std::shared_ptr<ov::op::internal::GroupQueryAttention> node);
@@ -55,7 +57,8 @@ protected:
                                                 const ov::Output<ov::Node>& scale,
                                                 const ov::Output<ov::Node>& sink,
                                                 bool is_causal,
-                                                const std::optional<CompressedKV>& compressed_kv);
+                                                const std::optional<CompressedKV>& compressed_kv,
+                                                const ov::Any& kvcache_metadata);
     virtual std::optional<CompressedKV> prepare_compressed_kv(
         const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
         const ov::Output<ov::Node>& key,
@@ -96,7 +99,8 @@ protected:
                                                           const ov::Output<ov::Node>& bias_col_offset,
                                                           bool sliding_window_cache,
                                                           float scale,
-                                                          bool has_sink);
+                                                          bool has_sink,
+                                                          const ov::Any& kvcache_metadata);
     // Reshape a flat KV-cache dequant scale so it broadcasts against a [B, kv_num_heads, S, head_size] tensor:
     // PER_CHANNEL -> [1, kv_num_heads, 1, head_size]; PER_TENSOR -> [1, 1, 1, 1].
     std::shared_ptr<ov::Node> make_kv_scale(const ov::Output<ov::Node>& scale,

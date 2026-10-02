@@ -4,7 +4,12 @@
 
 #include "plugin/transformations/group_query_attention_decomposition.hpp"
 
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
+
+#include <optional>
+#include <set>
+#include <vector>
 
 #include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/op/stateless_kv.hpp"
@@ -14,6 +19,7 @@
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/pass/manager.hpp"
 
 namespace ov::test::intel_gpu {
@@ -40,6 +46,7 @@ struct GQAConfig {
     ov::element::Type cache_type = ov::element::i8;
     int64_t local_window_size = -1;  // >= 1 enables sliding window attention
     bool static_past_cache = false;
+    bool transpose_v = false;
     bool sliding_window_cache = false;
     bool smooth_softmax = false;  // adds an extra logit -> sink branch
     bool attention_bias = false;
@@ -59,7 +66,14 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
     const auto cache_type = cfg.kv_cache_bit_width ? cfg.cache_type : f32;
     const auto cache_head_size = cfg.kv_cache_bit_width == 4 ? head_size / 2 : head_size;
     auto past_key = std::make_shared<ov::op::v0::Parameter>(cache_type, ov::PartialShape{1, kv_num_heads, past_len, cache_head_size});
-    auto past_value = std::make_shared<ov::op::v0::Parameter>(cache_type, ov::PartialShape{1, kv_num_heads, past_len, cache_head_size});
+    const auto past_value_shape =
+        cfg.transpose_v ? ov::PartialShape{1, kv_num_heads, cache_head_size, past_len} : ov::PartialShape{1, kv_num_heads, past_len, cache_head_size};
+    auto past_value = std::make_shared<ov::op::v0::Parameter>(cache_type, past_value_shape);
+    ov::Output<ov::Node> gqa_past_value = past_value->output(0);
+    if (cfg.transpose_v) {
+        const auto value_transpose_order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 3, 2});
+        gqa_past_value = std::make_shared<ov::op::v1::Transpose>(gqa_past_value, value_transpose_order);
+    }
     auto seqlens_k = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{1});
     auto total_sequence_length = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::PartialShape{});
 
@@ -68,7 +82,7 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
     inputs[1] = key;
     inputs[2] = value;
     inputs[3] = past_key;
-    inputs[4] = past_value;
+    inputs[4] = gqa_past_value;
     inputs[5] = seqlens_k;
     inputs[6] = total_sequence_length;
     for (size_t i = 7; i <= 13; ++i) {
@@ -110,7 +124,12 @@ std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
                                                                        cfg.causal);
 
     ov::ResultVector results;
-    for (const auto& output : gqa->outputs()) {
+    for (size_t output_idx = 0; output_idx < gqa->get_output_size(); ++output_idx) {
+        auto output = gqa->output(output_idx);
+        if (cfg.transpose_v && output_idx == 2) {
+            const auto value_transpose_order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{4}, {0, 1, 3, 2});
+            output = std::make_shared<ov::op::v1::Transpose>(output, value_transpose_order);
+        }
         results.push_back(std::make_shared<ov::op::v0::Result>(output));
     }
     return std::make_shared<ov::Model>(results, parameters);
@@ -155,7 +174,7 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
     }
 
     ASSERT_NE(sdpa, nullptr);
-    EXPECT_EQ(statelesskvs.size(), 2u);
+    ASSERT_EQ(statelesskvs.size(), 2u);
 
     std::shared_ptr<ov::intel_gpu::op::StatelessKV> key;
     std::shared_ptr<ov::intel_gpu::op::StatelessKV> value;
@@ -193,11 +212,32 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
         }
     }
 
+    const auto present_key_source = model->output(1).get_node()->input_value(0);
+    const auto present_value_source = model->output(2).get_node()->input_value(0);
+    ASSERT_EQ(present_key_source, key->output(0));
+    ASSERT_EQ(present_value_source, value->output(0));
+    EXPECT_EQ(key->get_concat_axis(), 2);
+    EXPECT_EQ(value->get_concat_axis(), cfg.transpose_v ? 3 : 2);
     EXPECT_EQ(key->input_value(0).get_node_shared_ptr(), parameters[3]);
     EXPECT_EQ(key->input_value(1).get_node_shared_ptr(), parameters[1]);
-    EXPECT_EQ(value->input_value(0).get_node_shared_ptr(), parameters[4]);
-    EXPECT_EQ(value->input_value(1).get_node_shared_ptr(), parameters[2]);
+    if (cfg.transpose_v) {
+        const auto value_transpose = ov::as_type_ptr<ov::op::v1::Transpose>(value->input_value(1).get_node_shared_ptr());
+        ASSERT_NE(value_transpose, nullptr);
+        const auto value_transpose_order = ov::as_type_ptr<ov::op::v0::Constant>(value_transpose->input_value(1).get_node_shared_ptr());
+        ASSERT_NE(value_transpose_order, nullptr);
+        EXPECT_THAT(value_transpose_order->cast_vector<int64_t>(), ::testing::ElementsAre(0, 1, 3, 2));
+        EXPECT_EQ(value_transpose->input_value(0).get_node_shared_ptr(), parameters[2]);
+    } else {
+        EXPECT_EQ(value->input_value(0).get_node_shared_ptr(), parameters[4]);
+        EXPECT_EQ(value->input_value(1).get_node_shared_ptr(), parameters[2]);
+    }
     EXPECT_EQ(key->input_value(2).get_node_shared_ptr(), value->input_value(2).get_node_shared_ptr());
+
+    if (cfg.transpose_v) {
+        EXPECT_THAT(sdpa->get_input2_transpose_order(), ::testing::ElementsAre(0, 1, 3, 2));
+    } else {
+        EXPECT_EQ(sdpa->get_input2_transpose_order(), ov::intel_gpu::op::SDPA::default_order(4));
+    }
 }
 
 TEST(GQADecompositionTest, static_input_uses_stateless_kv) {
@@ -208,6 +248,13 @@ TEST(GQADecompositionTest, static_input_uses_stateless_kv) {
 
 TEST(GQADecompositionTest, dynamic_input_uses_stateless_kv) {
     GQAConfig cfg;
+
+    expect_stateless_kv_cache_connections(cfg);
+}
+
+TEST(GQADecompositionTest, transposed_value_cache_fuses_transposes) {
+    GQAConfig cfg;
+    cfg.transpose_v = true;
 
     expect_stateless_kv_cache_connections(cfg);
 }
