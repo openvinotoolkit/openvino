@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-02-04-38-52-777-36963098158",
+  "timestamp": "2026-10-02T04:38:52Z",
+  "run_id": "36963098158",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/36963098158",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "38528",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38528",
+  "author": "e-ddykim",
+  "category": "Flaky Test",
+  "title": "smoke_AvgPool_CPU_4D/PoolingLayerCPUTest primType is unexpected (undef_f32 vs acl_f32) on ARM64",
+  "signature": "primType is unexpected undef_f32 Expected acl_f32|Flaky Test",
+  "signature_hash": "eb0b94c864ee1a85",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "CPU functional tests / CPU functional tests",
+      "conclusion": "failure",
+      "symptom": "Single smoke_AvgPool_CPU_4D/PoolingLayerCPUTest.CompareWithRefs ACL AvgPool test fails asserting primType undef_f32 vs expected acl_f32"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Overall status job failed because the CPU functional tests job failed"
+    }
+  ],
+  "key_errors": [
+    "src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp:248: Failure\nValue of: primTypeCheck(primType)\n  Actual: false\nExpected: true\nprimType is unexpected : undef_f32 Expected : acl_f32",
+    "[  FAILED  ] smoke_AvgPool_CPU_4D/PoolingLayerCPUTest.CompareWithRefs/IS=([1..10.16.8.8])_TS=(1.16.8.8)_(2.16.8.8)_Prc=f32_AvgPool_ExcludePad=1_K(2.2)_S(2.2)_PB(0.0)_PE(0.0)_Rounding=floor_AutoPad=explicit_INT8=0__primitive=acl"
+  ],
+  "root_cause": "Only 1 of 71,639 tests failed: a single ACL-backed AvgPool CPU functional test on ARM64 asserted that the selected primitive implementation type was 'acl_f32' but the runtime picked 'undef_f32' instead. This is the same known recurring ACL primitive-selection flakiness (ARM Compute Library heuristics choosing a different/undefined primitive type for certain AvgPool/Convert/MatMul shapes depending on runner load or ACL version/threading), previously seen for FC/MatMul/Convert layer tests and now observed for AvgPool. The failing test file (src/plugins/intel_cpu/tests/functional/utils/cpu_test_utils.cpp) and test target are entirely unrelated to the PR's actual change (GPU SDPA reference kernel FP16 normalization: sdpa_ref.cl / sdpa_gpu_test.cpp), confirming this is pre-existing CPU/ARM64 test flakiness unrelated to PR #38528.",
+  "reproduction_steps": "Build CPU plugin for ARM64 (Ubuntu 22.04 cross-compilation) and run: ov_cpu_func_tests --gtest_filter=*smoke_AvgPool_CPU_4D/PoolingLayerCPUTest.CompareWithRefs*acl* repeatedly; the ACL primitive-type assertion in cpu_test_utils.cpp:248 fails intermittently depending on ACL's runtime kernel selection.",
+  "recommended_actions": [
+    "Re-run the failed CPU functional tests job; this is a known flaky ACL primitive-selection assertion unrelated to the PR diff.",
+    "Track the recurring ACL primType mismatch (undef_f32 vs acl_f32) across AvgPool/FC/MatMul/Convert layer tests as a single ARM64 CPU-plugin flakiness ticket and consider relaxing/retrying the primTypeCheck assertion or adding ACL-implementation-selection diagnostics.",
+    "No action required on PR #38528 itself (GPU SDPA fix) - the failure is confined to an unrelated CPU/ARM64 test."
+  ],
+  "prevention_strategies": "Add a short internal retry (or gtest repeat) for the primTypeCheck assertion in cpu_test_utils.cpp specifically for ACL-backed primitives, since ACL's kernel/primitive selection can legitimately vary by runtime/thread count; alternatively, log the actual selected primitive alongside expected to aid triage without failing on a single mismatch when results are still numerically correct.",
+  "historical_context": "This is the 4th recorded occurrence of the 'primType is unexpected ... undef_f32 Expected : acl_f32' signature (pattern eb0b94c864ee1a85, first seen 2026-09-11, previously affecting PRs #37783, #37885, #38052). Closely related sibling signatures (76751669c7a78fcd, 0de8f57e3fb03230, 7c36e50cffda3cd7) show the same ACL primitive-selection flakiness across ConvertCPULayerTest, MatMulLayerCPUTest, and MatMulDecompressConvertTest since July 2026."
+}
