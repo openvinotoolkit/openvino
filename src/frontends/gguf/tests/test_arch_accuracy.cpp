@@ -336,6 +336,7 @@ TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
 INSTANTIATE_TEST_SUITE_P(Architectures,
                          GGUFArchitectureAccuracy,
                          ::testing::Values("qwen35",
+                                           "qwen35-mixed",
                                            "qwen35moe",
                                            "qwen35moe-fused",
                                            "gemma4-mqa",

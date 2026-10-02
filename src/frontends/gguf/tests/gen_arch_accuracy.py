@@ -21,6 +21,9 @@ from mmproj_fixtures import finish, save_npz
 CASES = {
     "qwen35": {}, "qwen35moe": {},
     "qwen35moe-fused": {"architecture": "qwen35moe", "fused_experts": True},
+    # Real checkpoints quantize attn_gate apart from ssm_beta/ssm_alpha: F16 here selects the
+    # frontend's beta+alpha-only merge, and an F16 beta in layer 2 selects separate projections.
+    "qwen35-mixed": {"architecture": "qwen35", "f16": ("attn_gate", "blk.2.ssm_beta")},
     "nemotron_h": {},
     "mamba2": {}, "mamba2-tied": {"architecture": "mamba2", "tied": True},
     "llama": {}, "qwen2": {"bias": True}, "qwen3": {"qk": True},
@@ -50,11 +53,13 @@ CASES = {
 }
 
 
-def tensor_writer(writer, rng):
-    """Uniform random F32 tensors; norm weights are centered at 1."""
+def tensor_writer(writer, rng, f16=()):
+    """Uniform random F32 tensors; norm weights are centered at 1. Names containing an `f16`
+    entry are stored as F16."""
     def tensor(name, shape, norm=False):
         values = rng.uniform(-1, 1, shape).astype(np.float32)
-        writer.add_tensor(name, 1 + values * .3 if norm else values * .2)
+        values = 1 + values * .3 if norm else values * .2
+        writer.add_tensor(name, values.astype(np.float16) if any(s in name for s in f16) else values)
     return tensor
 
 
@@ -112,7 +117,7 @@ def write_mamba2_model(path, opts, arch="mamba2"):
     finish(w)
 
 
-def write_qwen35_model(path, arch, fused_experts=False):
+def write_qwen35_model(path, arch, fused_experts=False, f16=()):
     w = gguf.GGUFWriter(path, arch)
     d, head, heads, kv, ff, vocab = 32, 16, 4, 2, 48, 32
     state, groups, vheads, kernel = 8, 2, 4, 4
@@ -142,7 +147,7 @@ def write_qwen35_model(path, arch, fused_experts=False):
         w.add_expert_feed_forward_length(ff)
         w.add_expert_shared_feed_forward_length(ff)
     rng = np.random.default_rng(20260922)
-    tensor = tensor_writer(w, rng)
+    tensor = tensor_writer(w, rng, f16)
 
     tensor("token_embd.weight", (vocab, d))
     tensor("output_norm.weight", (d,), True)
@@ -258,7 +263,7 @@ def write_model(path, arch, opts):
     if arch == "gemma4":
         return write_gemma4_model(path, opts)
     if arch in ("qwen35", "qwen35moe"):
-        return write_qwen35_model(path, arch, opts.get("fused_experts", False))
+        return write_qwen35_model(path, arch, opts.get("fused_experts", False), opts.get("f16", ()))
     if arch in ("mamba2", "nemotron_h"):
         return write_mamba2_model(path, opts, arch)
     w = gguf.GGUFWriter(path, arch)
