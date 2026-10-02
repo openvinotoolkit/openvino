@@ -152,16 +152,29 @@ Properties will get registered and advertised based on the following logic:
 - Does the compiler report supported properties? (older compilers from driver do not)
     - Yes:
         - check if property is supported by compiler
-            - if supported: **Enable** and advertise in supported_properties
-            - if NOT supported: **Disable** and don't advertise in supported properties
+            - if supported: advertise in supported_properties
+            - if NOT supported: don't advertise in supported properties
     - No (fallback to legacy mode):
         - check if property's support version >= compiler version
-            - true: **Enable** and advertise in supported properties
-            - false: **Disable** and don't advertise in supported properties
+            - true: advertise in supported properties
+            - false: don't advertise in supported properties
 
-![Properties registration logic](./docs/img/properties_init_sequence.png)
 
 Note: this logic does not affect OptionMode::Runtime type of options/properties. Those will get registered w/o any criteria, with the exception of some special cases, like NPU_TURBO or WORKLOAD_TYPE (which are tied to driver graph extension version).
+
+### Property manager and configuration flow
+
+The property manager handles individual property requests through `getProperty`, `setProperty`, and
+`isPropertySupported`. For compilation, import, and query operations, it also provides
+`getMergedConfigAndUnknownProperties`, which returns a merged `Config` and an `ov::AnyMap` of properties that are not
+consumed by the plugin.
+
+The merged `Config` is shared with the compiler, import path, and other runtime components. During compilation and
+import, the `Config` and `unknownProperties` are passed together to the compiled model, which uses them to initialize its
+property manager. Compiler-supported internal options are kept in `Config`; only the remaining unconsumed properties are
+forwarded in `unknownProperties`.
+
+The detailed property and configuration design, is described in [NPU Properties](./docs/npu-properties-howto.md).
 
 The following methods are made available to return the value of a given property (at core level or model specific):
 ```
@@ -208,7 +221,7 @@ The following properties are supported (may differ based on current system confi
 | `ov::cache_encryption_callbacks`/</br>`CACHE_ENCRYPTION_CALLBACKS` | WO | Encryption/Decryption functions called when exporting or reading the blob. | ov::EncryptionCallbacks structures populated with any function respecting signature `std::string(const std::string&)` for both encryption and decryption callbacks | ov::EncryptionCallbacks{nullptr, nullptr} |
 | `ov::cache_mode`/</br>`CACHE_MODE` | RW | If `CACHE_DIR` has been set, then this option indicates whether or not the size of the compiled model binary object will be reduced by decoupling a portion of the weights. | `OPTIMIZE_SIZE` /</br>`OPTIMIZE_SPEED` | `OPTIMIZE_SPEED` |
 | `ov::available_devices`/</br>`AVAILABLE_DEVICES` | RO | Returns the list of enumerated NPU devices. </br> NPU plugin does not currently support multiple devices. | `N/A`| `N/A` |
-| `ov::device::id`/</br>`DEVICE_ID` | RW | Device identifier. Empty means auto detection. | empty/</br> `3720`/</br> `4000`/</br> `5010`/</br> `5020`/</br> `6010` | empty |
+| `ov::device::id`/</br>`DEVICE_ID` | RW | The property for setting the required device to execute on.</br>**Note:** Besides the device index, `DEVICE_ID` also accepts a platform name known by the NPU plugin (e.g. `3720`, `5010`). In that case, the first available device matching that platform is selected.</br>If `NPU_PLATFORM` is also set, `NPU_PLATFORM` takes precedence for compilation, while `DEVICE_ID` is used only to select the device for runtime. | Device ID starts from `0` for the first device, `1` for the second device, and so on. | `0` |
 | `ov::device::uuid`/</br> | RO | Returns the Universal Unique ID of the NPU device. | `N/A`| `N/A` |
 | `ov::device::architecture`/</br>`DEVICE_ARCHITECTURE` | RO | Returns the platform information. | `N/A`| `N/A` |
 | `ov::device::full_name`/</br>`FULL_DEVICE_NAME` | RO | Returns the full name of the NPU device. | `N/A`| `N/A` |

@@ -50,7 +50,10 @@ protected:
         }
         auto inType = GetParam();  // Get data type from parameter
         if (inType == ov::element::bf16) {
+            // Set GPU model input precision to BF16.
             configuration.insert(ov::hint::inference_precision(ov::element::bf16));
+            // Convert bf16 to fp32 in the ref model for higher numerial precision.
+            convert_precisions[ov::element::bf16] = ov::element::f32;
         }
         ov::Shape inputShape{3, 4, 8, 16};
         auto constant1 = ov::op::v0::Constant::create(ov::element::i32, {4}, {1, 4, 8, 16});

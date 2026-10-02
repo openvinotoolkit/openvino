@@ -18,7 +18,6 @@
 #include "select_inst.h"
 #include "condition_inst.h"
 #include "strided_slice_inst.h"
-#include <sstream>
 
 #include "gated_mlp_inst.h"
 #include "gemm_inst.h"
@@ -1559,7 +1558,9 @@ bool layout_optimizer::all_users_simple_format_until_output(program_node& origin
             return false;
     }
 
-    if (cur_node.is_in_data_flow() && (cur_node.type() != origin_node.type())) {
+    // Reshape intrinsically requires plain input and output formats. Continue through it without
+    // recursively querying its dependency's preferred format.
+    if (cur_node.is_in_data_flow() && !cur_node.is_type<reshape>() && (cur_node.type() != origin_node.type())) {
         const auto& fmt = get_preferred_format(cur_node);
         if (fmt != format::any && !format::is_simple_data_format(fmt)) {
             return false;

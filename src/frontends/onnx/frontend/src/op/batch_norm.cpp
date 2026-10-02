@@ -24,10 +24,7 @@
 #include "openvino/op/subtract.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
+namespace ov::frontend::onnx::ai_onnx {
 namespace {
 // Axes of all dimensions except the channel one (index 1), used to calculate per-channel statistics.
 ov::Output<ov::Node> statistics_axes(const ov::Output<ov::Node>& x) {
@@ -228,7 +225,4 @@ ONNX_OP("BatchNormalization", OPSET_SINCE(14), ai_onnx::opset_14::batch_norm);
         to avoid overflow for float16 inputs.
  */
 
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx

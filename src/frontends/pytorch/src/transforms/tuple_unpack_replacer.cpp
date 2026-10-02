@@ -15,10 +15,7 @@
 #include "pt_framework_node.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace pass {
+namespace ov::frontend::pytorch::pass {
 
 using namespace ov::op;
 
@@ -201,7 +198,4 @@ bool TupleUnpackInBodyReplacer::run_on_model(const std::shared_ptr<Model>& model
     return result;
 };
 
-}  // namespace pass
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::pass
