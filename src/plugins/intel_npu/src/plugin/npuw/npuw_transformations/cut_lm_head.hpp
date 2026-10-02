@@ -19,11 +19,12 @@ namespace ov::npuw {
 class CutLMHead : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::npuw::CutLMHead");
-    explicit CutLMHead(std::shared_ptr<ov::Model>& lm_head_model);
-    bool run_on_model(const std::shared_ptr<ov::Model>& model, std::string& output_embeds_name) override;
+    explicit CutLMHead(std::shared_ptr<ov::Model>& lm_head_model, std::string& output_embeds_name);
+    bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
 private:
     std::shared_ptr<ov::Model>& m_lm_head_model;
+    std::string& m_output_embeds_name;
 };
 
 }  // namespace ov::npuw
