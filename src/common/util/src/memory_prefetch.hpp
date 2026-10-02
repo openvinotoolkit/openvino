@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "openvino/util/memory.hpp"
+#include "openvino/util/memory_prefetch.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "openvino/util/parallel_io.hpp"
 
@@ -31,8 +32,6 @@ struct PageToucher {
         }
     }
 };
-
-class PrefetchToken;
 
 /**
  * @brief Pre-fetches a page-aligned, committed VM range into physical memory, blocking until every
@@ -60,59 +59,23 @@ void vm_prefetch(void* ptr, size_t size, size_t num_threads) noexcept;
 PrefetchToken vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noexcept;
 
 /**
- * @brief Move-only RAII handle for background page-population started by @ref vm_prefetch_async.
+ * @brief Asks the OS to read [ptr, ptr + size) into the page cache without mapping it into the
+ * process (MADV_WILLNEED / PrefetchVirtualMemory), so the resident set size does not grow.
  *
- * Destruction (or an explicit @ref wait) joins the outstanding work, so nothing is ever left
- * running uncontrolled. The token does not keep the populated memory alive: the caller must keep
- * that memory valid until the token completes, is destroyed, or its futures are @ref detach "detached".
+ * @param ptr   Page-aligned base address of the range.
+ * @param size  Size of the range in bytes.
  */
-class PrefetchToken {
-public:
-    PrefetchToken() noexcept = default;
-    explicit PrefetchToken(std::vector<std::future<void>>&& tasks) noexcept : m_tasks(std::move(tasks)) {}
+void vm_readahead(void* ptr, size_t size) noexcept;
 
-    PrefetchToken(const PrefetchToken&) = delete;
-    PrefetchToken& operator=(const PrefetchToken&) = delete;
-    PrefetchToken(PrefetchToken&&) noexcept = default;
-
-    PrefetchToken& operator=(PrefetchToken&& other) noexcept {
-        if (this != &other) {
-            wait();
-            m_tasks = std::move(other.m_tasks);
-        }
-        return *this;
-    }
-
-    ~PrefetchToken() {
-        wait();
-    }
-
-    void wait() noexcept {
-        for (auto& task : m_tasks) {
-            if (task.valid()) {
-                task.wait();
-            }
-        }
-        m_tasks.clear();
-    }
-
-    std::vector<std::future<void>> detach() noexcept {
-        auto tasks = std::move(m_tasks);
-        m_tasks.clear();
-        return tasks;
-    }
-
-    bool valid() const noexcept {
-        return !m_tasks.empty();
-    }
-
-    explicit operator bool() const noexcept {
-        return valid();
-    }
-
-private:
-    std::vector<std::future<void>> m_tasks;
-};
+/**
+ * @brief Populates the page tables for [ptr, ptr + size) with a single OS call where supported
+ * (MADV_POPULATE_READ on Linux 5.14+).
+ *
+ * @param ptr   Page-aligned base address of the range.
+ * @param size  Size of the range in bytes.
+ * @return false if the OS has no such facility or the call failed, the caller should touch the pages.
+ */
+bool vm_populate(void* ptr, size_t size) noexcept;
 
 /**
  * @brief Submits page-population jobs for [ptr, ptr + size) to the shared background thread pool,

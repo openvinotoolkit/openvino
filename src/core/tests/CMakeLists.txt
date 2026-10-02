@@ -94,6 +94,7 @@ set(OV_CORE_TESTS_SRCS
     ${CMAKE_CURRENT_SOURCE_DIR}/uint4.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/validation_utils.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/weight_sharing_util_test.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/weights_prefetch.cpp
 )
 
 if(ENABLE_TESTS_PER_SOURCE)

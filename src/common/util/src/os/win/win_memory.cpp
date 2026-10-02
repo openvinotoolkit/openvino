@@ -79,4 +79,14 @@ PrefetchToken vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noex
     return PrefetchToken(submit_page_toucher_tasks(ptr, size, num_threads));
 }
 
+void vm_readahead(void* ptr, size_t size) noexcept {
+    // The prefetched pages are cached in physical memory but not added to the working set.
+    WIN32_MEMORY_RANGE_ENTRY entry{ptr, size};
+    ::PrefetchVirtualMemory(::GetCurrentProcess(), 1, &entry, 0);
+}
+
+bool vm_populate(void*, size_t) noexcept {
+    return false;
+}
+
 }  // namespace ov::util

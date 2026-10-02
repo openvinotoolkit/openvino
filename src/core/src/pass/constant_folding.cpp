@@ -4,16 +4,27 @@
 
 #include "openvino/pass/constant_folding.hpp"
 
+#include <algorithm>
+#include <unordered_set>
+
 #include "openvino/cc/pass/itt.hpp"
 #include "openvino/core/constant_fold_utils.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
+#include "openvino/core/weights_prefetch.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/convert.hpp"
+#include "openvino/op/reshape.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/strided_slice.hpp"
+#include "openvino/op/unsqueeze.hpp"
+#include "openvino/op/util/gather_base.hpp"
+#include "openvino/op/util/gather_nd_base.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/op/util/read_value_base.hpp"
 #include "openvino/op/util/shape_of_base.hpp"
+#include "openvino/op/util/squeeze_base.hpp"
 #include "openvino/op/util/sub_graph_base.hpp"
 #include "transformations/rt_info/decompression.hpp"
 #include "transformations/rt_info/dequantization_node.hpp"
@@ -102,6 +113,82 @@ static void remove_requires_precision_conversion_attribute(const std::shared_ptr
     }
 }
 
+namespace {
+/// Tells whether folding the node reads its constant inputs entirely. Views (the folded constant
+/// shares the input buffer) and shape-only or index-addressed folds read none or only part of them.
+bool folding_reads_all_inputs(const ov::Node& node) {
+    return !ov::is_type_any_of<ov::op::v0::Constant,
+                               ov::op::util::ShapeOfBase,
+                               ov::op::v1::Reshape,
+                               ov::op::util::SqueezeBase,
+                               ov::op::v0::Unsqueeze,
+                               ov::op::util::GatherBase,
+                               ov::op::util::GatherNDBase,
+                               ov::op::v1::StridedSlice,
+                               ov::op::v8::Slice>(&node);
+}
+
+/// Prefetches the constants read by the folding of each node just ahead of it. A constant whose
+/// consumers are all folded here is not read anymore after the last of them, its pages are released.
+std::unique_ptr<ov::wsh::PrefetchScheduler> make_weights_prefetch(const ov::NodeVector& nodes) {
+    const auto config = ov::wsh::PrefetchScheduler::Config::from_env("cf");
+    if (!config) {
+        return nullptr;
+    }
+    try {
+        std::unordered_set<const ov::Node*> folded;
+        for (const auto& node : nodes) {
+            if (node->get_input_size() != 0 && folding_reads_all_inputs(*node) &&
+                node->can_constant_fold(node->input_values())) {
+                folded.insert(node.get());
+            }
+        }
+        auto only_folded_consumers = [&](const ov::op::v0::Constant& constant) {
+            const auto consumers = constant.get_output_target_inputs(0);
+            return std::all_of(consumers.begin(), consumers.end(), [&](const ov::Input<ov::Node>& consumer) {
+                return folded.count(consumer.get_node()) != 0;
+            });
+        };
+
+        ov::wsh::PrefetchScheduler::Plan plan(nodes.size());
+        bool empty = true;
+        for (size_t n = 0; n < nodes.size(); ++n) {
+            if (folded.count(nodes[n].get()) == 0) {
+                continue;
+            }
+            for (const auto& input : nodes[n]->input_values()) {
+                if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(input.get_node_shared_ptr())) {
+                    const bool evict = only_folded_consumers(*constant);
+                    plan[n].push_back({std::move(constant), evict});
+                    empty = false;
+                }
+            }
+        }
+        return empty ? nullptr : std::make_unique<ov::wsh::PrefetchScheduler>(plan, *config);
+    } catch (...) {
+        return nullptr;
+    }
+}
+
+struct WeightsPrefetchStep {
+    WeightsPrefetchStep(ov::wsh::PrefetchScheduler* scheduler, size_t step) : m_scheduler(scheduler), m_step(step) {
+        if (m_scheduler) {
+            m_scheduler->begin(m_step);
+        }
+    }
+    ~WeightsPrefetchStep() {
+        if (m_scheduler) {
+            m_scheduler->end(m_step);
+        }
+    }
+    WeightsPrefetchStep(const WeightsPrefetchStep&) = delete;
+    WeightsPrefetchStep& operator=(const WeightsPrefetchStep&) = delete;
+
+    ov::wsh::PrefetchScheduler* m_scheduler;
+    size_t m_step;
+};
+}  // namespace
+
 bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(ConstantFolding);
 
@@ -110,7 +197,9 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
     // Creating a local vector and moving each element to reduce memory peak.
     // Elements of 'nodes' vector are nullptr after the std::move in the loop.
     auto nodes = model->get_ordered_ops();
+    const auto prefetch = make_weights_prefetch(nodes);
     for (size_t n = 0; n < nodes.size(); ++n) {
+        const WeightsPrefetchStep prefetch_step{prefetch.get(), n};
         auto original_node = std::move(nodes[n]);
         auto node = original_node;
         if (!original_node->can_constant_fold(original_node->input_values())) {

@@ -22,6 +22,7 @@
 #include "node.h"
 #include "nodes/input.h"
 #include "openvino/core/model.hpp"
+#include "openvino/core/weights_prefetch.hpp"
 #include "openvino/runtime/profiling_info.hpp"
 #include "openvino/runtime/so_ptr.hpp"
 #include "openvino/runtime/tensor.hpp"
@@ -297,6 +298,7 @@ protected:
         graphNodes.clear();
         graphEdges.clear();
         m_executableSyncNodesInds.clear();
+        m_firstInferPrefetch.reset();
     }
     Status status{Status::NotReady};
 
@@ -305,6 +307,9 @@ protected:
     int infer_count = -1;
 
     std::vector<NodePtr> graphNodes;
+    // Prefetches the weights read by the dynamic nodes on the first inference.
+    std::unique_ptr<ov::wsh::PrefetchScheduler> m_firstInferPrefetch;
+    bool m_firstInferDone = false;
     std::vector<EdgePtr> graphEdges;
 
     std::string _name;
