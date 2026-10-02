@@ -234,6 +234,15 @@ class TorchScriptPythonDecoder(TorchDecoderBase):
         raw_input = self._raw_input(index)
         return self.get_shape_for_value(raw_input)
 
+    def get_input_complete_shape(self, index: int):
+        # Complete (statically known) traced shape of the input, without the generalization to a fully
+        # dynamic shape applied by get_input_shape. Used only to recognize shape-dependent op
+        # configurations; it is never used as a model/graph shape.
+        raw_input = self._raw_input(index)
+        if isinstance(raw_input, torch.Value) and raw_input.isCompleteTensor():
+            return PartialShape(list(raw_input.type().sizes()))
+        return self.get_shape_for_value(raw_input)
+
     def get_input_strides(self, index: int) -> list[int]:
         raw_input = self._raw_input(index)
         if isinstance(raw_input, torch.Value):
