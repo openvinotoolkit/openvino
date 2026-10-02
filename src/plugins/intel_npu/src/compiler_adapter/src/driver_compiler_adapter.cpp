@@ -130,7 +130,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     _logger.debug("compile start");
     auto graphDesc = _zeGraphExt->getGraphDescriptor(std::move(serializedIR),
                                                      buildFlags,
-                                                     adapterDesc.bypassUmdCache,
+                                                     adapterDesc.bypassCache,
                                                      adapterDesc.secureCompile);
     _logger.debug("compile end");
 
@@ -226,7 +226,7 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         _logger.debug("compile start");
         auto graphDesc = _zeGraphExt->getGraphDescriptor(serializedIR,
                                                          buildFlags,
-                                                         adapterDesc.bypassUmdCache,
+                                                         adapterDesc.bypassCache,
                                                          adapterDesc.secureCompile);
         _logger.debug("compile end");
 

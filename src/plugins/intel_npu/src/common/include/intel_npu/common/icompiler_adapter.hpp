@@ -14,9 +14,9 @@ namespace intel_npu {
  * Each adapter decides which of them are relevant and may ignore the rest.
  */
 struct AdapterDescriptor {
-    // Disables the driver (UMD) cache for the compiled graph
-    bool bypassUmdCache = false;
-    // Requests secure compilation from the driver
+    // If set, the adapter skips any internal caching it may have for the compiled graph.
+    bool bypassCache = false;
+    // If set, the adapter requests secure compilation from its backend, if supported.
     bool secureCompile = false;
 };
 

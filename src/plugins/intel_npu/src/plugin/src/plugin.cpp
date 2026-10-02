@@ -431,9 +431,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     std::shared_ptr<intel_npu::IGraph> graph;
 
     AdapterDescriptor adapterDesc;
-    // If UMD Caching is requested to be bypassed or if OV cache is enabled, disable driver caching
-    adapterDesc.bypassUmdCache = !localConfig.get<CACHE_DIR>().empty() || localConfig.get<BYPASS_UMD_CACHING>();
-    // If blob encryption is requested, enable secure compilation in the driver
+    // Bypass the adapter's internal cache if requested explicitly or if the OV cache is enabled
+    adapterDesc.bypassCache = !localConfig.get<CACHE_DIR>().empty() || localConfig.get<BYPASS_UMD_CACHING>();
+    // Request secure compilation if blob encryption is requested
     adapterDesc.secureCompile = localConfig.has(ov::cache_encryption_callbacks.name()) &&
                                localConfig.get<CACHE_ENCRYPTION_CALLBACKS>().encrypt != nullptr;
 
