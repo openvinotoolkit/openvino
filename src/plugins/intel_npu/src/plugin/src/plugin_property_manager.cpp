@@ -5,7 +5,11 @@
 #include "plugin_property_manager.hpp"
 
 #include <algorithm>
+#include <map>
 #include <optional>
+#include <sstream>
+#include <string>
+#include <string_view>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -16,8 +20,35 @@
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "metadata.hpp"
+#include "openvino/util/ov_version.hpp"
 
 namespace {
+
+/**
+ * @brief Keys of the entries composing ov::internal::compiled_model_runtime_properties.
+ */
+constexpr std::string_view OV_VERSION_KEY = "OV_VERSION";
+constexpr std::string_view DRIVER_VERSION_KEY = "DRIVER_VERSION";
+
+/**
+ * @brief Splits a "KEY=VALUE;KEY=VALUE" runtime properties string into its entries.
+ * @details Unknown and malformed entries are ignored, so that a stamp written by a different version of the
+ * plugin can still be compared on the entries both versions understand.
+ */
+std::map<std::string, std::string, std::less<>> parseRuntimeProperties(const std::string& runtimeProperties) {
+    std::map<std::string, std::string, std::less<>> parsedProperties;
+
+    std::istringstream propertiesStream(runtimeProperties);
+    std::string entry;
+    while (std::getline(propertiesStream, entry, ';')) {
+        const auto separator = entry.find('=');
+        if (separator != std::string::npos) {
+            parsedProperties.emplace(entry.substr(0, separator), entry.substr(separator + 1));
+        }
+    }
+
+    return parsedProperties;
+}
 
 void logCpuPinningDeprecationWarning(intel_npu::Logger& logger) {
     OPENVINO_SUPPRESS_DEPRECATED_START
@@ -941,12 +972,84 @@ void PluginPropertyManager::registerProperties() {
         return true;
     }, readOnlySetter);
     register_property(ov::internal::supported_properties.name(), false, ov::PropertyMutability::RO, alwaysSupported, [](const ov::AnyMap&) {
-        return std::vector<ov::PropertyName>{ov::internal::caching_properties.name(),
-                                             ov::internal::caching_with_mmap.name(),
-                                             ov::internal::cache_header_alignment.name()};
+        static const std::vector<ov::PropertyName> internalSupportedProperties{
+            ov::internal::caching_properties.name(),
+            ov::internal::caching_with_mmap.name(),
+            ov::internal::cache_header_alignment.name(),
+            ov::internal::compiled_model_runtime_properties.name(),
+            ov::internal::compiled_model_runtime_properties_supported.name()};
+        return internalSupportedProperties;
     }, readOnlySetter);
     register_property(ov::internal::cache_header_alignment.name(), false, ov::PropertyMutability::RO, alwaysSupported, [](const ov::AnyMap&) {
         return utils::STANDARD_PAGE_SIZE;
+    }, readOnlySetter);
+
+    const auto buildRuntimeProperties = [this, getCompilerTypeOrDefault, getDeviceId](const ov::AnyMap& arguments) {
+        // The blob is produced by the plugin compiler, so the OpenVINO version identifies it entirely.
+        // When the compiler lives in the driver, the driver version becomes part of the blob's identity as well.
+        auto compilerType = getCompilerTypeOrDefault(arguments).value_or(_config.get<COMPILER_TYPE>());
+        if (compilerType == ov::intel_npu::CompilerType::PREFER_PLUGIN) {
+            const auto platformIt = arguments.find(ov::intel_npu::platform.name());
+            const auto platform = platformIt != arguments.end() ? platformIt->second.as<std::string>() : _config.get<PLATFORM>();
+            // If the compiler cannot be resolved, fall back to the stricter stamp: reporting the driver
+            // version can only reject a cache entry that might have worked, never accept an incompatible one.
+            compilerType = resolveCompilerType(compilerType, getDeviceId(arguments), platform).value_or(ov::intel_npu::CompilerType::DRIVER);
+        }
+
+        std::ostringstream runtimeProperties;
+        runtimeProperties << OV_VERSION_KEY << "=" << ov::get_openvino_version().buildNumber;
+        if (compilerType == ov::intel_npu::CompilerType::DRIVER && _backend != nullptr) {
+            runtimeProperties << ";" << DRIVER_VERSION_KEY << "=" << _backend->getDriverVersion();
+        }
+        return runtimeProperties.str();
+    };
+    register_property(ov::internal::compiled_model_runtime_properties.name(), false, ov::PropertyMutability::RO, alwaysSupported, [buildRuntimeProperties](const ov::AnyMap& arguments) {
+        return buildRuntimeProperties(arguments);
+    }, readOnlySetter);
+    register_property(ov::internal::compiled_model_runtime_properties_supported.name(), false, ov::PropertyMutability::RO, alwaysSupported, [this, buildRuntimeProperties](const ov::AnyMap& arguments) {
+        const auto storedIt = arguments.find(ov::internal::compiled_model_runtime_properties.name());
+        if (storedIt == arguments.end()) {
+            _logger.debug("No runtime properties provided for validation, the compiled model cannot be reused.");
+            return false;
+        }
+
+        const auto stored = parseRuntimeProperties(storedIt->second.as<std::string>());
+        const auto current = parseRuntimeProperties(buildRuntimeProperties(arguments));
+
+        const auto storedOvVersion = stored.find(OV_VERSION_KEY);
+        const auto currentOvVersion = current.find(OV_VERSION_KEY);
+        if (storedOvVersion == stored.end() || currentOvVersion == current.end()) {
+            _logger.debug("Missing OpenVINO version in the runtime properties, the compiled model cannot be reused.");
+            return false;
+        }
+
+        // The compiled model must not have been produced by a newer OpenVINO than the one importing it.
+        try {
+            if (!ov::util::is_version_compatible(ov::util::Version(storedOvVersion->second), ov::util::Version(currentOvVersion->second))) {
+                _logger.debug("OpenVINO version of the compiled model (%s) is not compatible with the current one (%s).", storedOvVersion->second.c_str(), currentOvVersion->second.c_str());
+                return false;
+            }
+        } catch (const std::exception& ex) {
+            _logger.debug("Failed to compare the OpenVINO versions of the runtime properties: %s", ex.what());
+            return false;
+        }
+
+        const auto storedDriverVersion = stored.find(DRIVER_VERSION_KEY);
+        const auto currentDriverVersion = current.find(DRIVER_VERSION_KEY);
+
+        // A driver version is stamped only for driver-compiled blobs, so its presence has to match as well:
+        // the compiler in use now is not the one that produced the blob otherwise.
+        if ((storedDriverVersion == stored.end()) != (currentDriverVersion == current.end())) {
+            _logger.debug("The compiled model was not produced by the compiler in use, it cannot be reused.");
+            return false;
+        }
+        // The driver compiled the blob, hence its version is part of the blob identity: require an exact match.
+        if (storedDriverVersion != stored.end() && storedDriverVersion->second != currentDriverVersion->second) {
+            _logger.debug("Driver version of the compiled model (%s) differs from the current one (%s).", storedDriverVersion->second.c_str(), currentDriverVersion->second.c_str());
+            return false;
+        }
+
+        return true;
     }, readOnlySetter);
     register_property(ov::internal::caching_properties.name(), false, ov::PropertyMutability::RO, alwaysSupported, [this, getCompilerTypeOrDefault, getDeviceId](const ov::AnyMap& arguments) {
         auto resolvedArguments = arguments;
