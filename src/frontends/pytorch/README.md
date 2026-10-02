@@ -58,6 +58,19 @@ The following extension types are supported:
 * `ov::BaseOpExtension` - enable support for a custom operation.
 * `ov::detail::SOExtension` - allow support for `ov::BaseOpExtension` extensions loaded from an external library.
 
+### Context-manager scopes in exported models
+
+OpenVINO performs inference only. `torch.export` represents `torch.no_grad()`,
+`torch.set_grad_enabled()` and `torch.autocast()` regions as
+`wrap_with_set_grad_enabled` and `wrap_with_autocast` operations. Their bodies
+are inlined into the converted graph: gradient mode is ignored, and region
+outputs are converted to the element types recorded by `torch.export`, so an
+enabled autocast region returns the same types as in PyTorch. Precision of
+operations inside the region is selected by the OpenVINO device.
+Outputs of such a region that are its operands or their views keep the alias relation,
+so later in-place operations on them update the operands. This does not require
+`ExportedProgram.run_decompositions()` or an additional trace.
+
 ## How to Implement Support for a New PyTorch Operation
 
 PyTorch conversion into the OpenVINO opset operations consists of two stages:
@@ -134,6 +147,56 @@ To test the entire suite of the PyTorch operation set support, run the following
 ```bash
 python -m pytest layer_tests/pytorch_tests
 ```
+
+To run the layer tests with the `torch.export` (FX) conversion path, use:
+```bash
+PYTORCH_TRACING_MODE=EXPORT python -m pytest layer_tests/pytorch_tests -m precommit_torch_export
+```
+
+### PyTorch Frontend Model Hub Tests
+
+The model hub tests in [tests/model_hub_tests/pytorch](../../../tests/model_hub_tests/pytorch)
+download real models (timm, torchvision, HuggingFace, etc.), convert them, and compare
+inference results with PyTorch. Each test file has its own requirements in
+[envs](../../../tests/model_hub_tests/pytorch/envs), for example:
+```bash
+python -m pip install -r tests/requirements_pytorch -r tests/model_hub_tests/pytorch/envs/timm.txt
+```
+
+Tests are split into `precommit` (a few small models) and `nightly` (full model lists)
+scopes. Run them from the repository root with `tests/model_hub_tests` in `PYTHONPATH`:
+```bash
+export PYTHONPATH=$PWD/tests/model_hub_tests:$PYTHONPATH
+export TEST_DEVICE=CPU  # default is "CPU;GPU"
+python -m pytest tests/model_hub_tests/pytorch/test_timm.py -m precommit
+python -m pytest tests/model_hub_tests/pytorch/test_timm.py -m nightly -k "convnext_atto or vit_tiny"
+```
+
+Model caches:
+- HuggingFace models (including timm weights) are stored in `HF_HUB_CACHE`, which
+  defaults to a directory under the system temp directory. Set `HF_HUB_CACHE` (and `HF_HOME`)
+  to a persistent directory to reuse downloaded models between runs.
+- Torch Hub models (torchvision) are stored in `TORCH_HOME`.
+- Some tests (for example `test_hf_transformers.py`) remove the content of `HF_HUB_CACHE`
+  after each test if `USE_SYSTEM_CACHE=True`. Keep `USE_SYSTEM_CACHE=False` (default) when
+  you want to reuse the cache.
+
+Nightly model lists (for example [timm_models](../../../tests/model_hub_tests/pytorch/timm_models))
+have the format `name,link[,mark,reason]`, where `mark` is one of `skip`, `xfail`,
+`xfail_trace` or `xfail_export`. The timm list is generated from `timm.list_pretrained()`
+by `filter_timm` in [test_timm.py](../../../tests/model_hub_tests/pytorch/test_timm.py),
+which keeps the smallest pretrained variant of each architecture;
+`test_models_list_complete` checks that the list matches the installed timm version.
+To regenerate it after a timm version update:
+```bash
+cd tests/model_hub_tests/pytorch
+python -c "import timm; from test_timm import filter_timm; print('\n'.join(f'{m},None' for m in filter_timm(timm.list_pretrained())))"
+```
+Then restore the marks for models that are still in the list.
+
+Nightly tests run in parallel in CI (`pytest -n 4`) on a limited-memory runner, so avoid
+adding very large models: each worker loads the PyTorch model, converts it, and runs both
+models at the same time.
 
 ### Investigation of accuracy issues
 
