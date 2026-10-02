@@ -129,13 +129,9 @@ bool validate_reshape_shapes(const std::shared_ptr<ov::op::v1::Reshape>& factor_
     }
 
     const auto output_shape = ov::as_type_ptr<ov::op::v0::Concat>(output_reshape->get_input_node_shared_ptr(1));
-    if (!output_shape || output_shape->get_axis() != 0 || output_shape->get_input_size() != 5 || !has_values(output_shape->input_value(1), {output_channels}) ||
-        !has_values(output_shape->input_value(2), {input_time * factor_t}) || !multiply_uses_factor(output_shape->input_value(3), factor_s) ||
-        !multiply_uses_factor(output_shape->input_value(4), factor_s)) {
-        return false;
-    }
-
-    return true;
+    return output_shape && output_shape->get_axis() == 0 && output_shape->get_input_size() == 5 &&
+           has_values(output_shape->input_value(1), {output_channels}) && has_values(output_shape->input_value(2), {input_time * factor_t}) &&
+           multiply_uses_factor(output_shape->input_value(3), factor_s) && multiply_uses_factor(output_shape->input_value(4), factor_s);
 }
 
 }  // namespace
