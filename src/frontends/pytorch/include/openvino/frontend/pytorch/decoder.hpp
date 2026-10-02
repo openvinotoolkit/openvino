@@ -142,6 +142,16 @@ public:
 
     /// \brief Converts the node if `has_converter` returns true
     virtual OutputVector convert(const ov::frontend::NodeContext* context) const = 0;
+
+    // Return the complete tensor shape recorded for the input during tracing, keeping statically known
+    // dimensions. Unlike get_input_shape (which is intentionally generalized to a fully dynamic shape so
+    // that conversion does not over-specialize on the traced sizes), this is used only to recognize
+    // shape-dependent op configurations - e.g. a global average pool expressed as an avg_pool whose kernel
+    // is larger than the feature map. It never bakes a static shape into the produced graph. Defaults to
+    // get_input_shape for decoders that do not record complete shapes.
+    virtual PartialShape get_input_complete_shape(size_t index) const {
+        return get_input_shape(index);
+    }
 };
 
 }  // namespace ov::frontend::pytorch
