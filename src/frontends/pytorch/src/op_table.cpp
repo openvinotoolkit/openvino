@@ -270,6 +270,7 @@ OP_CONVERTER(translate_svd);
 OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sub_);
 OP_CONVERTER(translate_sum);
+OP_CONVERTER(translate_isin);
 OP_CONVERTER(translate_t);
 OP_CONVERTER(translate_take_along_dim);
 OP_CONVERTER(translate_to);
@@ -586,6 +587,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::is_nonzero", op::translate_is_nonzero},
         {"aten::kthvalue", op::translate_kthvalue},
         {"aten::isfinite", op::translate_1to1_match_1_inputs<opset10::IsFinite>},
+        {"aten::isin", op::translate_isin},
         {"aten::isinf", op::translate_1to1_match_1_inputs<opset10::IsInf>},
         {"aten::isnan", op::translate_1to1_match_1_inputs<opset10::IsNaN>},
         {"aten::item", op::translate_1to1_match_1_inputs<opset10::Squeeze>},
@@ -762,6 +764,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::stft", op::translate_stft},
         {"aten::sub", op::translate_sub},
         {"aten::sub_", op::translate_sub_},
+        {"aten::nansum", op::translate_sum},
         {"aten::sum", op::translate_sum},
         {"aten::svd", op::translate_svd},
         {"aten::swapaxes", op::quantizable_op<op::translate_transpose>},
@@ -950,6 +953,10 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.split.Tensor", op::translate_list_view_fx},
         {"aten.stack.default", op::translate_stack_fx},
         {"aten.std.correction", op::translate_std_fx},
+        {"aten.isin.Tensor_Tensor", op::translate_isin},
+        {"aten.isin.Tensor_Scalar", op::translate_isin},
+        {"aten.isin.Scalar_Tensor", op::translate_isin},
+        {"aten.nansum.default", op::translate_sum_fx},
         {"aten.sum.default", op::translate_sum_fx},
         {"aten.sum.dim_IntList", op::translate_sum_fx},
         {"aten.sym_size.int", op::translate_size},

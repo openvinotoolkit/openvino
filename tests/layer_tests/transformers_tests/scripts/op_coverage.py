@@ -12,7 +12,7 @@ from torch.utils._python_dispatch import TorchDispatchMode
 import transformers
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from transformers_primitives import make_primitive, primitive_cases
+from primitives import make_primitive, primitive_cases
 
 
 class OperatorRecorder(TorchDispatchMode):
