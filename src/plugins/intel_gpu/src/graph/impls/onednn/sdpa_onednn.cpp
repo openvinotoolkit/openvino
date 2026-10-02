@@ -66,7 +66,7 @@ bool has_runtime_attn_mask(const scaled_dot_product_attention& prim, const kerne
         return false;
 
     const auto& mask_shape = impl_params.get_input_layout(ScaledDotProductAttentionInputIdx::ATTN_MASK).get_partial_shape();
-    return !(mask_shape.rank().is_static() && mask_shape.rank().get_length() <= 1);
+    return !mask_shape.rank().is_static() || mask_shape.rank().get_length() > 1;
 }
 
 float get_scale_value(const kernel_impl_params& impl_params) {
@@ -323,7 +323,7 @@ public:
     static std::unique_ptr<primitive_impl> create(const scaled_dot_product_attention_node&,
                                                   const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
-        auto& config = impl_params.prog->get_config();
+        const auto& config = impl_params.prog->get_config();
         auto attr = impl_params.attrs_onednn;
         attr->set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
