@@ -192,6 +192,33 @@ public:
     }
 };
 
+bool SDPAOpt::has_bf16_compressed_kv_zero_point(const kernel_impl_params& params) {
+#ifdef ENABLE_ONEDNN_FOR_GPU
+    const auto desc = params.typed_desc<scaled_dot_product_attention>();
+    if (!desc->is_kv_compressed || desc->quantization_attributes.quantization_type != ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric ||
+        desc->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
+        return false;
+    }
+
+    const auto& k_layout = params.get_input_layout(1);
+    if (!data_type_traits::is_i8_u8(k_layout.data_type) && !data_type_traits::is_i4_u4(k_layout.data_type)) {
+        return false;
+    }
+
+    // Per-channel compressed KV is only supported by the micro kernel, so it cannot be taken over by the
+    // regular stages and is not supposed to match here.
+    if (has_per_channel_compressed_kv(params)) {
+        return false;
+    }
+
+    const auto data_inputs_num = get_data_inputs_num(*desc);
+    return params.get_input_layout(data_inputs_num + 2).data_type == ov::element::bf16;
+#else
+    UNUSED(params);
+    return false;
+#endif
+}
+
 bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
 #ifdef ENABLE_ONEDNN_FOR_GPU
     auto& engine = params.get_program().get_engine();
@@ -255,6 +282,13 @@ bool SDPAOpt::supports_micro_sdpa(const RuntimeParams& params) {
     // Known limitation: In vision encoding model of qwen-vl, when the shape of sdpa is 3D and num_heads is 1,
     // there is an accuracy issue with sdpa_micro kernel. Therefore, it is currently restricted to execute with sdpa_opt kernel.
     const bool is_output_rank_4d = desc->output_transpose_order.size() == 4;
+
+    // Asymmetric compressed KV with a bf16 zero-point buffer must not use the oneDNN micro SDPA stage:
+    // It emits NaN output and oneDNN own tests haven't test this combination yet
+    if (has_bf16_compressed_kv_zero_point(params)) {
+        return false;
+    }
+
     return is_output_rank_4d;
 #else
     return false;
