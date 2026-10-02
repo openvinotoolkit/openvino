@@ -124,10 +124,7 @@ private:
             return false;
 
         const auto& pad = l.data_padding;
-        if (std::any_of(pad._lower_size.begin(), pad._lower_size.end(), [](auto v) { return v > 0; }))
-            return false;
-
-        return true;
+        return !std::any_of(pad._lower_size.begin(), pad._lower_size.end(), [](auto v) { return v > 0; });
     }
 
     static bool dims_compatible(const ov::Dimension& lhs, const ov::Dimension& rhs) {
@@ -178,7 +175,7 @@ private:
             return false;
 
         const auto mask_rank = input_layouts[ScaledDotProductAttentionInputIdx::ATTN_MASK].get_partial_shape().rank();
-        return !(mask_rank.is_static() && mask_rank.get_length() <= 1);
+        return !mask_rank.is_static() || mask_rank.get_length() > 1;
     }
 
     static bool has_effective_sink_input(const scaled_dot_product_attention& prim, const std::vector<layout>& input_layouts) {
