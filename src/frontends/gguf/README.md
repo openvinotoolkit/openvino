@@ -33,9 +33,9 @@ The GGUF frontend is currently hidden from automatic frontend discovery, so
 Conversion produces a stateless graph by default. Callers that need an OpenVINO
 KV cache can register a decoder transformation extension using
 [`GGUFMakeStateful`](include/openvino/frontend/gguf/make_stateful.hpp).
-The [frontend API](include/openvino/frontend/gguf/frontend.hpp) documents supported
-extensions; [internal operation guidance](docs/internal_ops.md) describes lowering
-and serialization constraints.
+The [extension guide](docs/extensions.md) explains architecture handlers, operation converters,
+normalization passes, registration timing, and shared-library loading.
+[Internal operation guidance](docs/internal_ops.md) describes lowering and serialization constraints.
 
 ## Source layout
 
@@ -52,6 +52,7 @@ and serialization constraints.
 
 ## Development guides
 
+* [Register and combine frontend extensions](docs/extensions.md).
 * [Add an operation translator](docs/how_to_add_op.md).
 * [Add a built-in architecture](docs/adding_an_architecture.md).
 * [Port a llama.cpp model or build an external architecture extension](docs/porting_a_llama_cpp_model.md).

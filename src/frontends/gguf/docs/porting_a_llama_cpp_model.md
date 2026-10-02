@@ -4,6 +4,10 @@ An architecture is described by an `ArchitectureDefinition`. The native catalog 
 extensions consume the **same definition**, invoke the same factory, and use the same conversion
 and normalization pipeline. `ArchitectureExtension` is only the runtime registration adapter.
 
+Start with [extensions.md](extensions.md) for an overview of extension types, registration timing,
+handler replacement, operation converters, and normalization passes. This document focuses on
+implementing and validating the builder itself.
+
 Build extensions against the OpenVINO release they will run with. The builder API does not promise
 compatibility across releases. Loading an extension does not require rebuilding OpenVINO.
 
