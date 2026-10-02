@@ -19,7 +19,7 @@ import numpy as np
 import openvino as ov
 from openvino.frontend import FrontEndManager
 
-from mmproj_fixtures import gemma4a_positions, merge_window_order, muse_glimmer_indices, run_oracle
+from mmproj_fixtures import merge_window_order, muse_glimmer_indices, run_oracle
 
 
 def sha256(path):
@@ -110,8 +110,6 @@ def main():
             shape = [1, 1, height, width]
             values = rng.normal(0, .4, shape).astype(np.float32)
             feeds["audio.features"] = values
-            feeds.update({"audio." + name: value for name, value in gemma4a_positions(
-                width, int(metadata["clip.audio.embedding_length"])).items()})
             raw = values
     expected = run_oracle(args.oracle, reference_model.resolve(), args.modality, width, height, raw)
     request = ov.Core().compile_model(model, "CPU", {

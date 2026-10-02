@@ -74,16 +74,16 @@ dynamic, so one compiled model serves different image sizes.
 | Muse Glimmer | pixels, one-based `position_x` / `position_y`, window `patch_indices`, `output_indices`, pixel-shuffle `merge_indices`, additive `attention_mask` |
 | MiniCPM-V 4.6 | pixels, position IDs, `window_indices`, `inverse_window_indices`, `attention_mask`, `vit_merger.indices.N`, `merger.indices.N` |
 | DeepSeek-OCR / OCR2 | `vision.pixel_values [B,3,H,W]` (independent square tiles), local/global relative-position indices, `vision.output_indices`; OCR1 `position_indices`, OCR2 `query_indices`, `query_output_indices`, `position_ids`, `attention_mask` |
-| Gemma4 audio | `audio.features [1,1,mel,frames]`, `position_embeddings [1,1,13,D]`, `attention_mask [1,1,T,T]`, `relative_indices [1,1,T,T]` |
+| Gemma4 audio | `audio.features [1,1,mel,frames]` |
 | Gemma4 unified audio | `audio.waveform_frames [1,1,T,640]`, 16 kHz waveform in 640-sample frames |
 | Whisper-derived audio | `audio.features [1,mel,1,frames]`, `audio.position_ids [1,1,1,ceil(frames/2)]` |
 
 Index inputs reorder patches the way the reference does: spatial grouping and windows before
 the encoder, the inverse order after it. Qwen sizes must be divisible by patch size times merge
 size. Gemma4 vision takes pixels in [0,1] and applies the reference's `2*x-1` inside the graph;
-unified vision uses patch size times projector scale factor. Gemma4 audio expresses its
-12-position causal horizon as a full mask, so memory grows quadratically with the number of
-frames. Missing/zero `clip.minicpmv_version` selects 2; missing/zero `clip.minicpmv_query_num`
+unified vision uses patch size times projector scale factor. Gemma4 audio builds its
+12-position causal horizon and relative positions in the graph as `[T,T]` tensors, so memory
+grows quadratically with the number of frames. Missing/zero `clip.minicpmv_version` selects 2; missing/zero `clip.minicpmv_query_num`
 selects 96 queries for version 2 and 64 otherwise, and an explicit count must match the query
 tensor.
 

@@ -56,19 +56,6 @@ def merge_window_order(height, width, merge=2):
             for dy in range(merge) for dx in range(merge)]
 
 
-def gemma4a_positions(frames, channels):
-    """Gemma4 audio relative-position inputs for `frames` mel frames, subsampled 4x."""
-    n = (frames + 3) // 4
-    q, k = np.indices((n, n))
-    distance = q - k
-    half = channels // 2
-    timescale = np.exp(-np.arange(half, dtype=np.float32) * (np.log(np.float32(10000)) / max(half - 1, 1)))
-    theta = np.arange(12, -1, -1, dtype=np.float32)[:, None] * timescale[None]
-    return {"position_embeddings": np.concatenate([np.sin(theta), np.cos(theta)], axis=1)[None, None],
-            "attention_mask": np.where((distance >= 0) & (distance < 12), 0, -1e9).astype(np.float32)[None, None],
-            "relative_indices": np.clip(12 - distance, 0, 12).astype(np.int32)[None, None]}
-
-
 def split_variants(name, *suffixes):
     """Strip known fixture suffixes off `name`, returning (base, set of suffixes present)."""
     present = set()

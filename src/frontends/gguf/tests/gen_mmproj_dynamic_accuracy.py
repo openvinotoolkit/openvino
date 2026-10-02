@@ -17,8 +17,8 @@ import gguf
 import numpy as np
 
 import gen_mmproj_accuracy as single_grid
-from mmproj_fixtures import (TensorWriter, finish, gemma4a_positions, merge_window_order, muse_glimmer_indices,
-                             run_oracle, save_npz, split_variants)
+from mmproj_fixtures import (TensorWriter, finish, merge_window_order, muse_glimmer_indices, run_oracle, save_npz,
+                             split_variants)
 
 # Single-grid families rerun here on two grids with different token counts.
 GRIDS = ("qwen2.5vl_merger_grids", "resampler_grids")
@@ -262,7 +262,7 @@ def inputs(family, width, height):
     if family == "gemma4ua":
         return raw, {"waveform_frames": raw.T.reshape(1, 1, width, height)}
     if family == "gemma4a":
-        return raw, {"features": raw.reshape(1, 1, height, width), **gemma4a_positions(width, 16)}
+        return raw, {"features": raw.reshape(1, 1, height, width)}
     if family.startswith("deepseekocr"):
         # Repeat a nonzero tile to keep large SAM-grid fixtures compact on disk.
         raw = np.tile(np.random.default_rng(42).normal(.1, .4, (16, 16, 3)).astype(np.float32), (height // 16, width // 16, 1))

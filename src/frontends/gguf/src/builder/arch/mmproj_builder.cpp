@@ -991,9 +991,30 @@ private:
         const auto flattened = g.tensors().require("a.input_projection.weight").ne(0);
         x = reshape(transpose(x, {0, 2, 3, 1}), {1, 1, -1, flattened});
         x = linear(x, "a.input_projection");
-        auto positions = g.add_input("audio.position_embeddings", ov::element::f32, {1, 1, 13, c.width});
-        auto mask = g.add_input("audio.attention_mask", ov::element::f32, {1, 1, -1, -1});
-        auto relative = g.add_input("audio.relative_indices", ov::element::i32, {1, 1, -1, -1});
+        // Each token attends to itself and the 11 before it, with relative positions 12..0.
+        constexpr int64_t horizon = 12;
+        ov::Tensor table(ov::element::f32, {1, 1, horizon + 1, static_cast<size_t>(c.width)});
+        const int64_t half = c.width / 2;
+        const float increment = std::log(10000.f) / std::max<int64_t>(half - 1, 1);
+        for (int64_t p = 0; p <= horizon; ++p)
+            for (int64_t i = 0; i < half; ++i) {
+                const float angle = float(horizon - p) * std::exp(-float(i) * increment);
+                table.data<float>()[p * c.width + i] = std::sin(angle);
+                table.data<float>()[p * c.width + half + i] = std::cos(angle);
+            }
+        auto positions = g.add_constant("mmproj.audio.relative_positions", table);
+        const auto clamp = [&](const GgufValue& value, float lo, float hi) {
+            return g.node("GGML_OP_CLAMP", {value}, 0, {{"clamp_min", lo}, {"clamp_max", hi}});
+        };
+        auto index = scale(g.node("GGML_OP_CUMSUM", {transpose(scale(slice(x, 3, 0, 1), 0.f, 1.f))}), 1.f, -1.f);
+        auto distance = g.node("GGML_OP_SUB", {transpose(index), index});  // query - key
+        auto relative = g.node("GGML_OP_CPY",
+                               {clamp(scale(distance, -1.f, float(horizon)), 0.f, float(horizon))},
+                               0,
+                               {{"dst_type", ov::element::i32}});
+        auto inside =
+            mul(clamp(scale(distance, 1.f, 1.f), 0.f, 1.f), clamp(scale(distance, -1.f, float(horizon)), 0.f, 1.f));
+        auto mask = scale(inside, 1e9f, -1e9f);
         const auto rms = [&](const GgufValue& value, const std::string& name) {
             return g.build_norm(value, g.tensors().require(name + ".weight"), c.eps);
         };
