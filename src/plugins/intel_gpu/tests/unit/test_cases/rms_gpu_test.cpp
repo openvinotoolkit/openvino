@@ -214,7 +214,7 @@ TEST(rms_gpu_test, rms_test_bfyx_ref_rank4_scalar_gamma_dyn) {
     }
 }
 
-TEST(rms_gpu_test, rms_test_bfyx_opt_feature_axis) {
+static void run_rms_test_bfyx_feature_axis(const std::string& kernel_name) {
     auto& engine = get_test_engine();
 
     constexpr size_t batch_size = 1;
@@ -260,17 +260,29 @@ TEST(rms_gpu_test, rms_test_bfyx_opt_feature_axis) {
 
     ExecutionConfig config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::force_implementations(ov::intel_gpu::ImplForcingMap{
-        {"rms", {format::bfyx, "rms_gpu_bfyx_opt"}}
+        {"rms", {format::bfyx, kernel_name}}
     }));
     network network(engine, topology, config);
     network.set_input_data("input", input);
     network.set_input_data("gamma", gamma);
+
+    auto impl = network.get_primitive("rms")->get_impl();
+    ASSERT_NE(impl, nullptr);
+    ASSERT_EQ(impl->get_kernel_name(), kernel_name);
 
     auto output = network.execute().at("rms").get_memory();
     cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
     for (size_t index = 0; index < expected.size(); ++index) {
         EXPECT_NEAR(output_ptr[index], expected[index], 1e-4f) << " index=" << index;
     }
+}
+
+TEST(rms_gpu_test, rms_test_bfyx_opt_feature_axis) {
+    run_rms_test_bfyx_feature_axis("rms_gpu_bfyx_opt");
+}
+
+TEST(rms_gpu_test, rms_test_bfyx_ref_feature_axis) {
+    run_rms_test_bfyx_feature_axis("rms_gpu_ref");
 }
 
 TEST(rms_gpu_test, rms_test_bfzyx_opt_feature_axis_matches_transposed_fp16) {
