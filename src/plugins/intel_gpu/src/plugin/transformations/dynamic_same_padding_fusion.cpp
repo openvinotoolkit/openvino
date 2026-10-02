@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/dynamic_same_padding_fusion.hpp"
+#include "dynamic_same_padding_fusion.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -10,7 +10,6 @@
 #include <limits>
 #include <numeric>
 
-#include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/op/add.hpp"
@@ -87,8 +86,7 @@ bool resolve(Scalar& scalar) {
             const auto axis = as_type_ptr<op::v0::Constant>(gather->input_value(2).get_node_shared_ptr());
             const auto& input = gather->input_value(0);
             const auto size = small_tensor_size(input);
-            if (!indices || !axis || shape_size(axis->get_shape()) != 1 || size == 0 || input.get_shape().size() != 1 ||
-                gather->get_batch_dims() != 0)
+            if (!indices || !axis || shape_size(axis->get_shape()) != 1 || size == 0 || input.get_shape().size() != 1 || gather->get_batch_dims() != 0)
                 return false;
             const auto axis_value = axis->cast_vector<int64_t>()[0];
             if (axis_value != 0 && axis_value != -1)
@@ -113,11 +111,9 @@ bool resolve(Scalar& scalar) {
                 axis_value += static_cast<int64_t>(shape.size());
             if (axis_value < 0 || static_cast<size_t>(axis_value) >= shape.size())
                 return false;
-            const auto inner =
-                std::accumulate(shape.begin() + axis_value + 1, shape.end(), size_t{1}, std::multiplies<size_t>());
+            const auto inner = std::accumulate(shape.begin() + axis_value + 1, shape.end(), size_t{1}, std::multiplies<size_t>());
             const auto chunk = scalar.value.get_shape()[axis_value] * inner;
-            scalar.index = scalar.index / chunk * shape[axis_value] * inner + scalar.value.get_index() * chunk +
-                           scalar.index % chunk;
+            scalar.index = scalar.index / chunk * shape[axis_value] * inner + scalar.value.get_index() * chunk + scalar.index % chunk;
             scalar.value = input;
         } else {
             return true;
@@ -171,9 +167,7 @@ bool is_dimension(Scalar scalar, const Output<Node>& data, size_t axis) {
         return false;
     if (const auto convert = as_type_ptr<op::v0::Convert>(scalar.value.get_node_shared_ptr())) {
         if (!is_shape_float(convert->get_destination_type()) ||
-            (convert->get_input_element_type(0) != element::i32 &&
-             convert->get_input_element_type(0) != element::i64) ||
-            !input_scalar(scalar, 0, scalar))
+            (convert->get_input_element_type(0) != element::i32 && convert->get_input_element_type(0) != element::i64) || !input_scalar(scalar, 0, scalar))
             return false;
     }
     const auto shape = as_type_ptr<op::util::ShapeOfBase>(scalar.value.get_node_shared_ptr());
@@ -185,8 +179,7 @@ bool divided_by(Scalar scalar, double divisor, Scalar& numerator) {
         return false;
     Scalar a, b;
     const auto node = scalar.value.get_node_shared_ptr();
-    if ((!is_type<op::v1::Divide>(node) && !is_type<op::v1::Multiply>(node)) || !input_scalar(scalar, 0, a) ||
-        !input_scalar(scalar, 1, b))
+    if ((!is_type<op::v1::Divide>(node) && !is_type<op::v1::Multiply>(node)) || !input_scalar(scalar, 0, a) || !input_scalar(scalar, 1, b))
         return false;
     if (is_type<op::v1::Divide>(node)) {
         if (!constant_is(b, divisor))
@@ -212,8 +205,8 @@ bool divided_by(Scalar scalar, double divisor, Scalar& numerator) {
 
 template <typename Op>
 bool binary_inputs(Scalar scalar, Scalar& a, Scalar& b) {
-    return resolve(scalar) && is_shape_float(scalar.value.get_element_type()) && is_type<Op>(scalar.value.get_node()) &&
-           input_scalar(scalar, 0, a) && input_scalar(scalar, 1, b);
+    return resolve(scalar) && is_shape_float(scalar.value.get_element_type()) && is_type<Op>(scalar.value.get_node()) && input_scalar(scalar, 0, a) &&
+           input_scalar(scalar, 1, b);
 }
 
 template <typename Op>
@@ -285,9 +278,8 @@ private:
 
     bool output_size(Scalar scalar) const {
         Scalar numerator;
-        return resolve(scalar) && is_type<op::v0::Ceiling>(scalar.value.get_node()) &&
-               input_scalar(scalar, 0, scalar) && divided_by(scalar, m_stride, numerator) &&
-               is_dimension(numerator, m_data, m_axis);
+        return resolve(scalar) && is_type<op::v0::Ceiling>(scalar.value.get_node()) && input_scalar(scalar, 0, scalar) &&
+               divided_by(scalar, m_stride, numerator) && is_dimension(numerator, m_data, m_axis);
     }
 
     bool padded_extent(Scalar scalar) const {
@@ -296,23 +288,20 @@ private:
         // NopElimination may have removed the Add when Keff equals S.
         if (m_kernel == m_stride && with_constant<op::v1::Multiply>(scalar, m_stride, size) && output_size(size))
             return true;
-        if (with_constant<op::v1::Add>(scalar, m_kernel - m_stride, product) &&
-            with_constant<op::v1::Multiply>(product, m_stride, size) && output_size(size))
+        if (with_constant<op::v1::Add>(scalar, m_kernel - m_stride, product) && with_constant<op::v1::Multiply>(product, m_stride, size) && output_size(size))
             return true;
 
         // Expanded form: (ceil(I / S) - 1) * S + Keff.
-        if (!with_constant<op::v1::Add>(scalar, m_kernel, product) ||
-            !with_constant<op::v1::Multiply>(product, m_stride, size))
+        if (!with_constant<op::v1::Add>(scalar, m_kernel, product) || !with_constant<op::v1::Multiply>(product, m_stride, size))
             return false;
         Scalar ceil, one;
-        return (subtraction(size, ceil, one) && constant_is(one, 1) && output_size(ceil)) ||
-               (with_constant<op::v1::Add>(size, -1, ceil) && output_size(ceil));
+        return (subtraction(size, ceil, one) && constant_is(one, 1) && output_size(ceil)) || (with_constant<op::v1::Add>(size, -1, ceil) && output_size(ceil));
     }
 
     bool half(Scalar scalar) const {
         Scalar numerator;
-        return resolve(scalar) && is_type<op::v0::Floor>(scalar.value.get_node()) && input_scalar(scalar, 0, scalar) &&
-               divided_by(scalar, 2, numerator) && total(numerator);
+        return resolve(scalar) && is_type<op::v0::Floor>(scalar.value.get_node()) && input_scalar(scalar, 0, scalar) && divided_by(scalar, 2, numerator) &&
+               total(numerator);
     }
 
     Output<Node> m_data;
@@ -322,18 +311,17 @@ private:
 };
 }  // namespace
 
-ov::pass::DynamicSamePaddingFusion::DynamicSamePaddingFusion() {
-    MATCHER_SCOPE(DynamicSamePaddingFusion);
-    const auto root_pattern = pattern::wrap_type<op::v1::Convolution, op::v1::GroupConvolution>();
+ov::intel_gpu::DynamicSamePaddingFusion::DynamicSamePaddingFusion() {
+    using namespace ov::pass;
+    const auto root_pattern = pattern::wrap_type<ov::op::v1::Convolution, ov::op::v1::GroupConvolution>();
     matcher_pass_callback callback = [this](pattern::Matcher& matcher) {
-        const auto conv = as_type_ptr<op::util::ConvolutionFwdPropBase>(matcher.get_match_root());
+        const auto conv = as_type_ptr<ov::op::util::ConvolutionFwdPropBase>(matcher.get_match_root());
         if (transformation_callback(conv))
             return false;
-        const auto pad = as_type_ptr<op::util::PadBase>(conv->input_value(0).get_node_shared_ptr());
-        if (!pad || pad->get_pad_mode() != op::PadMode::CONSTANT ||
-            (pad->get_input_size() == 4 && !constant_is({pad->input_value(3)}, 0)))
+        const auto pad = as_type_ptr<ov::op::util::PadBase>(conv->input_value(0).get_node_shared_ptr());
+        if (!pad || pad->get_pad_mode() != ov::op::PadMode::CONSTANT || (pad->get_input_size() == 4 && !constant_is({pad->input_value(3)}, 0)))
             return false;
-        if (conv->get_auto_pad() != op::PadType::EXPLICIT && conv->get_auto_pad() != op::PadType::VALID)
+        if (conv->get_auto_pad() != ov::op::PadType::EXPLICIT && conv->get_auto_pad() != ov::op::PadType::VALID)
             return false;
         const auto is_zero = [](ptrdiff_t value) {
             return value == 0;
@@ -347,9 +335,8 @@ ov::pass::DynamicSamePaddingFusion::DynamicSamePaddingFusion() {
         if (shape.rank().is_dynamic() || weights.rank().is_dynamic())
             return false;
         const auto rank = static_cast<size_t>(shape.rank().get_length());
-        const auto offset = is_type<op::v1::GroupConvolution>(conv) ? 3u : 2u;
-        if (rank < 3 || rank > 5 || weights.size() != rank + offset - 2 || conv->get_strides().size() != rank - 2 ||
-            conv->get_dilations().size() != rank - 2 ||
+        const auto offset = is_type<ov::op::v1::GroupConvolution>(conv) ? 3u : 2u;
+        if (rank < 3 || rank > 5 || weights.size() != rank + offset - 2 || conv->get_strides().size() != rank - 2 || conv->get_dilations().size() != rank - 2 ||
             pad->get_input_partial_shape(1) != PartialShape{static_cast<int64_t>(rank)} ||
             pad->get_input_partial_shape(2) != PartialShape{static_cast<int64_t>(rank)})
             return false;
@@ -366,8 +353,7 @@ ov::pass::DynamicSamePaddingFusion::DynamicSamePaddingFusion() {
                 return false;
             const auto stride = conv->get_strides()[axis - 2];
             const auto dilation = conv->get_dilations()[axis - 2];
-            if (stride == 0 || dilation == 0 ||
-                static_cast<size_t>(kernel.get_length()) - 1 > (std::numeric_limits<size_t>::max() - 1) / dilation)
+            if (stride == 0 || dilation == 0 || static_cast<size_t>(kernel.get_length()) - 1 > (std::numeric_limits<size_t>::max() - 1) / dilation)
                 return false;
             const auto effective_kernel = (static_cast<size_t>(kernel.get_length()) - 1) * dilation + 1;
             const SamePadding same(data, axis, stride, effective_kernel);
@@ -376,15 +362,14 @@ ov::pass::DynamicSamePaddingFusion::DynamicSamePaddingFusion() {
         }
         // Clone first, so Pad users with different convolution attributes or other
         // consumers of the shape arithmetic retain their original inputs.
-        const auto replacement =
-            as_type_ptr<op::util::ConvolutionFwdPropBase>(conv->clone_with_new_inputs(conv->input_values()));
+        const auto replacement = as_type_ptr<ov::op::util::ConvolutionFwdPropBase>(conv->clone_with_new_inputs(conv->input_values()));
         replacement->set_argument(0, data);
-        replacement->set_auto_pad(op::PadType::SAME_UPPER);
+        replacement->set_auto_pad(ov::op::PadType::SAME_UPPER);
         replacement->validate_and_infer_types();
         replacement->set_friendly_name(conv->get_friendly_name());
         copy_runtime_info({pad, conv}, replacement);
         replace_node(conv, replacement);
         return true;
     };
-    register_matcher(std::make_shared<pattern::Matcher>(root_pattern, matcher_name), callback);
+    register_matcher(std::make_shared<pattern::Matcher>(root_pattern, "DynamicSamePaddingFusion"), callback);
 }

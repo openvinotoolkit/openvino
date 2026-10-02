@@ -2,12 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "transformations/common_optimizations/dynamic_same_padding_fusion.hpp"
+#include "plugin/transformations/dynamic_same_padding_fusion.hpp"
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+
 #include "common_test_utils/ov_test_utils.hpp"
+#include "intel_gpu/op/convolution.hpp"
+#include "intel_gpu/plugin/transformations_pipeline.hpp"
 #include "openvino/opsets/opset13.hpp"
+#include "openvino/runtime/properties.hpp"
+#include "test_utils.h"
+#include "transformations/common_optimizations/common_optimizations.hpp"
 #include "transformations/common_optimizations/moc_transformations.hpp"
 
 namespace {
@@ -66,9 +73,7 @@ std::shared_ptr<op::util::PadBase> make_pad(const Output<Node>& data, const Outp
     OutputVector begins, ends;
     for (size_t i = 0; i < c.kernel.size(); ++i) {
         const auto axis = c.wrong_axis ? 2 + (i + 1) % c.kernel.size() : 2 + i;
-        const auto size = std::make_shared<Convert>(
-            std::make_shared<Gather>(shape, Constant::create(element::i64, Shape{}, {axis}), axis_zero),
-            c.math_type);
+        const auto size = std::make_shared<Convert>(std::make_shared<Gather>(shape, Constant::create(element::i64, Shape{}, {axis}), axis_zero), c.math_type);
         const auto stride_value = static_cast<double>(c.strides[i]);
         const auto stride = scalar_constant(c, stride_value);
         Output<Node> divided;
@@ -80,11 +85,9 @@ std::shared_ptr<op::util::PadBase> make_pad(const Output<Node>& data, const Outp
         const auto effective = static_cast<double>((c.kernel[i] - 1) * c.dilations[i] + 1) + c.kernel_adjustment;
         Output<Node> extent;
         if (c.expanded) {
-            const Output<Node> decrement = c.constant_fold_decrement
-                                               ? Output<Node>(std::make_shared<Add>(ceil, scalar_constant(c, -1)))
-                                               : subtract(ceil, scalar_constant(c, 1), c);
-            extent =
-                std::make_shared<Add>(std::make_shared<Multiply>(decrement, stride), scalar_constant(c, effective));
+            const Output<Node> decrement =
+                c.constant_fold_decrement ? Output<Node>(std::make_shared<Add>(ceil, scalar_constant(c, -1))) : subtract(ceil, scalar_constant(c, 1), c);
+            extent = std::make_shared<Add>(std::make_shared<Multiply>(decrement, stride), scalar_constant(c, effective));
         } else {
             extent = std::make_shared<Multiply>(stride, ceil);
             if (!c.omit_zero_offset || effective != stride_value)
@@ -96,9 +99,8 @@ std::shared_ptr<op::util::PadBase> make_pad(const Output<Node>& data, const Outp
             dimension = subtract(std::make_shared<Add>(dimension, offset), offset, c);
         }
         if (c.dimension_scale != 1) {
-            dimension =
-                std::make_shared<Multiply>(std::make_shared<Multiply>(dimension, scalar_constant(c, c.dimension_scale)),
-                                           scalar_constant(c, 1.0 / c.dimension_scale));
+            dimension = std::make_shared<Multiply>(std::make_shared<Multiply>(dimension, scalar_constant(c, c.dimension_scale)),
+                                                   scalar_constant(c, 1.0 / c.dimension_scale));
         }
         const auto total = std::make_shared<Maximum>(scalar_constant(c, 0), subtract(extent, dimension, c));
         Output<Node> half;
@@ -163,13 +165,7 @@ std::shared_ptr<Node> make_conv(const Output<Node>& data, const Config& c, bool 
     const auto auto_pad = same ? op::PadType::SAME_UPPER : c.auto_pad;
     std::shared_ptr<Node> conv;
     if (c.grouped)
-        conv = std::make_shared<GroupConvolution>(data,
-                                                  weights,
-                                                  c.strides,
-                                                  c.conv_pads,
-                                                  c.conv_pads,
-                                                  c.dilations,
-                                                  auto_pad);
+        conv = std::make_shared<GroupConvolution>(data, weights, c.strides, c.conv_pads, c.conv_pads, c.dilations, auto_pad);
     else
         conv = std::make_shared<Convolution>(data, weights, c.strides, c.conv_pads, c.conv_pads, c.dilations, auto_pad);
     conv->set_friendly_name(name);
@@ -178,9 +174,7 @@ std::shared_ptr<Node> make_conv(const Output<Node>& data, const Config& c, bool 
 }
 
 Output<Node> spatial_shape(const Output<Node>& shape) {
-    return std::make_shared<Gather>(shape,
-                                    Constant::create(element::i64, Shape{2}, {2, 3}),
-                                    Constant::create(element::i64, Shape{}, {0}));
+    return std::make_shared<Gather>(shape, Constant::create(element::i64, Shape{2}, {2, 3}), Constant::create(element::i64, Shape{}, {0}));
 }
 
 std::shared_ptr<Model> get_model(const Config& c) {
@@ -239,18 +233,17 @@ protected:
         TransformationTestsF::SetUp();
         comparator.enable(FunctionsComparator::ATTRIBUTES);
         comparator.enable(FunctionsComparator::CONST_VALUES);
-        manager.register_pass<pass::DynamicSamePaddingFusion>();
+        manager.register_pass<intel_gpu::DynamicSamePaddingFusion>();
     }
 };
 
 using TestParams = std::tuple<bool, bool, bool, size_t>;
-class DynamicSamePaddingFusionParameterized : public DynamicSamePaddingFusionTests,
-                                              public testing::WithParamInterface<TestParams> {
+class DynamicSamePaddingFusionParameterized : public DynamicSamePaddingFusionTests, public testing::WithParamInterface<TestParams> {
 public:
     static std::string get_test_name(const testing::TestParamInfo<TestParams>& info) {
         const auto& [grouped, pad_v1, expanded, spatial_rank] = info.param;
-        return std::string(grouped ? "GroupConv" : "Conv") + (pad_v1 ? "_Pad1" : "_Pad12") +
-               (expanded ? "_Expanded" : "_Folded") + "_" + std::to_string(spatial_rank) + "D";
+        return std::string(grouped ? "GroupConv" : "Conv") + (pad_v1 ? "_Pad1" : "_Pad12") + (expanded ? "_Expanded" : "_Folded") + "_" +
+               std::to_string(spatial_rank) + "D";
     }
 };
 
@@ -455,13 +448,11 @@ TEST_F(DynamicSamePaddingFusionTests, RoundedReciprocalStride) {
 }
 
 using CancellationParams = std::tuple<bool, bool, bool>;
-class DynamicSamePaddingCancellationTests : public DynamicSamePaddingFusionTests,
-                                            public testing::WithParamInterface<CancellationParams> {
+class DynamicSamePaddingCancellationTests : public DynamicSamePaddingFusionTests, public testing::WithParamInterface<CancellationParams> {
 public:
     static std::string get_test_name(const testing::TestParamInfo<CancellationParams>& info) {
         const auto& [cancel_end, decompose_subtract, use_f64] = info.param;
-        return std::string(cancel_end ? "End" : "Dimension") + (decompose_subtract ? "_AddNegate" : "_Subtract") +
-               (use_f64 ? "_f64" : "_f32");
+        return std::string(cancel_end ? "End" : "Dimension") + (decompose_subtract ? "_AddNegate" : "_Subtract") + (use_f64 ? "_f64" : "_f32");
     }
 };
 
@@ -476,11 +467,10 @@ TEST_P(DynamicSamePaddingCancellationTests, PreserveFloatCancellation) {
     model = get_model(c);
     if (!use_f64) {
         // Evaluate the original shape arithmetic directly. Compiling a dynamic
-        // reference would also run MOC and could mask the incorrect fusion.
+        // reference could run transformations and mask the incorrect fusion.
         const auto conv = model->get_results()[0]->input_value(0).get_node_shared_ptr();
         const auto pad = conv->input_value(0).get_node_shared_ptr();
-        const auto pads =
-            std::make_shared<Model>(OutputVector{pad->input_value(1), pad->input_value(2)}, model->get_parameters());
+        const auto pads = std::make_shared<Model>(OutputVector{pad->input_value(1), pad->input_value(2)}, model->get_parameters());
         const size_t length = cancel_end ? 6 : 7;
         const TensorVector inputs{Tensor(element::f32, Shape{1, 3, length, length})};
         TensorVector outputs{Tensor(element::i64, Shape{4}), Tensor(element::i64, Shape{4})};
@@ -504,28 +494,91 @@ TEST_F(DynamicSamePaddingFusionTests, PreserveDimensionScaling) {
 }
 
 TEST_F(DynamicSamePaddingFusionTests, TransformationCallback) {
-    manager.get_pass_config()->set_callback<pass::DynamicSamePaddingFusion>([](const std::shared_ptr<const Node>&) {
+    manager.get_pass_config()->set_callback<intel_gpu::DynamicSamePaddingFusion>([](const std::shared_ptr<const Node>&) {
         return true;
     });
     model = get_model(Config{});
 }
 
-TEST_F(TransformationTestsF, DynamicSamePaddingFusionInMOCTransformations) {
+TEST_F(TransformationTestsF, DynamicSamePaddingFusionBeforeCommonOptimizations) {
     const Config c;
     model = get_model(c);
     model_ref = get_model_ref(c);
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CONST_VALUES);
-    manager.register_pass<pass::MOCTransformations>(true, false);
+    manager.register_pass<intel_gpu::DynamicSamePaddingFusion>();
+    manager.register_pass<pass::CommonOptimizations>();
 }
 
-TEST_F(TransformationTestsF, DynamicSamePaddingFusionZeroOffsetInMOCTransformations) {
+TEST_F(TransformationTestsF, DynamicSamePaddingFusionZeroOffsetBeforeCommonOptimizations) {
     Config c;
     c.kernel = {2, 2};
     model = get_model(c);
     model_ref = get_model_ref(c);
     comparator.enable(FunctionsComparator::ATTRIBUTES);
     comparator.enable(FunctionsComparator::CONST_VALUES);
-    manager.register_pass<pass::MOCTransformations>(true, false);
+    manager.register_pass<intel_gpu::DynamicSamePaddingFusion>();
+    manager.register_pass<pass::CommonOptimizations>();
 }
+
+TEST(DynamicSamePaddingFusionRegistration, NotInMOCTransformations) {
+    const auto model = get_model(Config{});
+    pass::MOCTransformations moc(true, false);
+    moc.run_on_model(model);
+    const auto conv = as_type_ptr<op::v1::Convolution>(model->get_results()[0]->input_value(0).get_node_shared_ptr());
+    ASSERT_NE(conv, nullptr);
+    EXPECT_EQ(conv->get_auto_pad(), op::PadType::EXPLICIT);
+    EXPECT_TRUE(is_type<op::util::PadBase>(conv->input_value(0).get_node()));
+}
+
+using PipelineParams = std::tuple<bool, bool, size_t, element::Type>;
+class DynamicSamePaddingFusionPipelineTests : public testing::TestWithParam<PipelineParams> {
+public:
+    static std::string get_test_name(const testing::TestParamInfo<PipelineParams>& info) {
+        const auto& [grouped, expanded, spatial_rank, precision] = info.param;
+        return std::string(grouped ? "GroupConv" : "Conv") + (expanded ? "_Expanded" : "_Folded") + "_" + std::to_string(spatial_rank) + "D_" +
+               precision.get_type_name();
+    }
+};
+
+TEST_P(DynamicSamePaddingFusionPipelineTests, FuseBeforeConvolutionLowering) {
+    const auto& [grouped, expanded, spatial_rank, precision] = GetParam();
+    Config c;
+    c.grouped = grouped;
+    c.expanded = expanded;
+    c.shape = PartialShape::dynamic(spatial_rank + 2);
+    c.shape[1] = 3;
+    c.kernel.assign(spatial_rank, 3);
+    c.strides.assign(spatial_rank, 2);
+    c.dilations.assign(spatial_rank, 1);
+    c.conv_pads.assign(spatial_rank, 0);
+    const auto model = get_model(c);
+
+    auto& engine = tests::get_test_engine();
+    auto context = std::make_shared<intel_gpu::RemoteContextImpl>("GPU", std::vector<cldnn::device::ptr>{engine.get_device()});
+    auto config = tests::get_test_default_config(engine);
+    config.set_user_property(ov::hint::inference_precision(precision));
+    config.finalize(context.get(), model.get());
+    intel_gpu::TransformationsPipeline pipeline(config, context);
+    pipeline.apply(model);
+
+    const auto ops = model->get_ordered_ops();
+    EXPECT_TRUE(std::none_of(ops.begin(), ops.end(), [](const auto& node) {
+        return is_type<op::util::PadBase>(node);
+    }));
+    const auto conv = std::find_if(ops.begin(), ops.end(), [](const auto& node) {
+        return is_type<intel_gpu::op::Convolution>(node);
+    });
+    ASSERT_NE(conv, ops.end());
+    const auto internal_conv = as_type_ptr<intel_gpu::op::Convolution>(*conv);
+    EXPECT_EQ(internal_conv->get_auto_pad(), op::PadType::SAME_UPPER);
+    EXPECT_EQ(internal_conv->get_strides(), c.strides);
+    EXPECT_EQ(internal_conv->get_dilations(), c.dilations);
+    EXPECT_EQ(internal_conv->get_output_element_type(0), precision);
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke,
+                         DynamicSamePaddingFusionPipelineTests,
+                         testing::Combine(testing::Bool(), testing::Bool(), testing::Values(1, 2, 3), testing::Values(element::f32, element::f16)),
+                         DynamicSamePaddingFusionPipelineTests::get_test_name);
 }  // namespace

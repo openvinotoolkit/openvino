@@ -5,9 +5,8 @@
 #pragma once
 
 #include "openvino/pass/matcher_pass.hpp"
-#include "transformations_visibility.hpp"
 
-namespace ov::pass {
+namespace ov::intel_gpu {
 
 /**
  * @brief Absorb explicit, dynamically computed SAME_UPPER padding into a forward convolution.
@@ -20,10 +19,10 @@ namespace ov::pass {
  * shape subgraph. Only constant zero padding and convolutions without existing padding
  * are eligible.
  */
-class TRANSFORMATIONS_API DynamicSamePaddingFusion : public MatcherPass {
+class DynamicSamePaddingFusion : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("DynamicSamePaddingFusion");
     DynamicSamePaddingFusion();
 };
 
-}  // namespace ov::pass
+}  // namespace ov::intel_gpu
