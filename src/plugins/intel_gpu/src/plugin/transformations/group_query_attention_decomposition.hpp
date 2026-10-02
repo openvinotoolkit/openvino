@@ -15,6 +15,14 @@ public:
     GroupQueryAttentionDecomposition() = default;
 
 protected:
+    KVCacheOutputs construct_kvcache(const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
+                                     const ov::Output<ov::Node>& past_key,
+                                     const ov::Output<ov::Node>& past_value,
+                                     const ov::Output<ov::Node>& key,
+                                     const ov::Output<ov::Node>& value,
+                                     const ov::Output<ov::Node>& seqlens_1d,
+                                     const ov::Output<ov::Node>& past_seqlen,
+                                     const ov::Output<ov::Node>& current_seqlen_scalar) override;
     std::shared_ptr<ov::Node> make_sdpa(const ov::Output<ov::Node>& query,
                                         const ov::Output<ov::Node>& key,
                                         const ov::Output<ov::Node>& value,
@@ -22,7 +30,8 @@ protected:
                                         const ov::Output<ov::Node>& scale,
                                         const ov::Output<ov::Node>& sink,
                                         bool is_causal,
-                                        const std::optional<CompressedKV>& compressed_kv) override;
+                                        const std::optional<CompressedKV>& compressed_kv,
+                                        const ov::Any& kvcache_metadata) override;
     std::shared_ptr<ov::Node> make_attention_mask(const ov::Output<ov::Node>& curr_seqlen_scalar,
                                                   const ov::Output<ov::Node>& kv_len_scalar,
                                                   const ov::Output<ov::Node>& kv_len_1d,
@@ -34,7 +43,8 @@ protected:
                                                   const ov::Output<ov::Node>& bias_col_offset,
                                                   bool sliding_window_cache,
                                                   float scale,
-                                                  bool has_sink) override;
+                                                  bool has_sink,
+                                                  const ov::Any& kvcache_metadata) override;
     std::optional<CompressedKV> prepare_compressed_kv(
         const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
         const ov::Output<ov::Node>& key,
