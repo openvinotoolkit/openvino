@@ -66,7 +66,7 @@ You can use the following additional build options:
 - To build the OpenVINO Runtime Python API:
   1. Enable the `-DENABLE_PYTHON=ON` option in the CMake step above (Step 4). To specify an exact Python version, use the following options (requires cmake 3.16 and higher):
      ```
-   -DPython3_EXECUTABLE=/usr/bin/python3.11
+     -DPython3_EXECUTABLE=/usr/bin/python3.11
      ```
   2. To build a wheel package (.whl), enable the `-DENABLE_WHEEL=ON` option in the CMake step above (Step 4), and install requirements:
      ```sh
