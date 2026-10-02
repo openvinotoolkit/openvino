@@ -1,6 +1,5 @@
 BERT_pytorch,None
 Background_Matting,None
-#DALLE2_pytorch,None - Not Supported on CPU
 LearningToPaint,None
 Super_SloMo,None,xfail,Unsupported ops aten::l1_loss aten::mse_loss
 #alexnet,None - Already tested by torchvision tests
@@ -8,7 +7,7 @@ basic_gnn_edgecnn,None
 basic_gnn_gcn,None,xfail,CPU failed to allocate
 basic_gnn_gin,None
 basic_gnn_sage,None
-#cm3leon_generate,None,skip,No install.py is found
+cm3leon_generate,None
 dcgan,None
 demucs,None
 #densenet121,None - Already tested by torchvision tests
@@ -41,23 +40,29 @@ functorch_maml_omniglot,None
 #hf_GPT2_large,None - Already tested by hf tests
 #hf_Longformer,None - Already tested by hf tests
 #hf_Reformer,None - Already tested by hf tests
+#hf_Roberta_base,None - Already tested by hf tests
 #hf_T5,None - Already tested by hf tests
 #hf_T5_base,None - Already tested by hf tests
-#hf_T5_generate,None,skip,No install.py is found
+#hf_T5_generate,None - Already tested by hf tests
 #hf_T5_large,None - Already tested by hf tests
 hf_Whisper,None
-#hf_clip,None,skip,No install.py is found
+hf_distil_whisper,None
+#hf_clip,None - Already tested by hf tests
 lennard_jones,None
+llava,None,skip,Not supported on CPU by TorchBench
 llama,None,skip,Type 'Tuple[Tensor int]' cannot be traced
-llama_v2_7b_16h,None,skip,Tracer cannot infer type of CausalLMOutputWithPast
+llama_v2_7b_16h,None,skip,Not supported on CPU by TorchBench
 maml,None,skip,element 0 of tensors does not require grad and does not have a grad_fn
 maml_omniglot,None
+microbench_unbacked_tolist_sum,None,xfail_trace,torch._check condition becomes a tensor during tracing
 mnasnet1_0,None
 #mobilenet_v2,None - Already tested by torchvision tests
 mobilenet_v2_quantized_qat,None
 #mobilenet_v3_large,None - Already tested by torchvision tests
 #moco,None - DistributedDataParallel/allgather requires cuda
-#nanogpt,None,skip,No install.py is found
+modded_nanogpt,None,skip,Not supported on CPU by TorchBench
+moondream,None
+nanogpt,None
 nvidia_deeprecommender,None
 opacus_cifar10,None,skip,Modules that have backward hooks assigned can't be compiled
 phlippe_densenet,None
@@ -74,9 +79,10 @@ pytorch_unet,None
 resnet50_quantized_qat,None,xfail,Accuracy validation failed
 #resnext50_32x4d,None - Already tested by torchvision tests
 sam,None,xfail,Unexpected type of example_input
+sam_fast,None,skip,Not supported on CPU by TorchBench
 #shufflenet_v2_x1_0,None - Already tested by torchvision tests
-#simple_gpt,None,skip,No install.py is found
-#simple_gpt_tp_manual,None,skip,No install.py is found
+simple_gpt,None,skip,Requires CUDA and distributed execution
+simple_gpt_tp_manual,None,skip,Requires CUDA and distributed execution
 soft_actor_critic,None,skip,Tracer cannot infer type of SquashedNormal
 speech_transformer,None
 #squeezenet1_1,None - Already tested by torchvision tests
