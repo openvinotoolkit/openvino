@@ -10,6 +10,7 @@ from tests import (
     BACKEND_NAME,
     skip_rng_tests,
     xfail_maxunpool_output_shape_onnx_ref,
+    skip_maxunpool_gpu,
     xfail_issue_33596,
     xfail_issue_33606,
     xfail_issue_33651,
@@ -221,6 +222,10 @@ tests_expected_to_fail = [
     (
         xfail_maxunpool_output_shape_onnx_ref,
         "OnnxBackendNodeModelTest.test_maxunpool_export_with_output_shape_cpu",
+    ),
+    (
+        skip_maxunpool_gpu,
+        "OnnxBackendNodeModelTest.test_maxunpool_export_without_output_shape_cpu",
     ),
     (
         xfail_issue_38724,

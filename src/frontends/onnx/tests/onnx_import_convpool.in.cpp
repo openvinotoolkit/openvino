@@ -1838,6 +1838,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_validation) {
         {"Y_output_shape_rank", "'output_shape'"},
         {"Y_output_shape_channels", "'output_shape'"},
         {"Y_indices_shape", "'indices'"},
+        {"Y_size_overflow", "overflows int64"},
+        {"Y_output_shape_overflow", "overflows int64"},
+        {"Y_non_positive_dim", "inferred output dimension"},
+        {"Y_output_shape_small", "smaller than the inferred"},
     };
     // Y_large_dim: a valid int64 dimension above INT32_MAX is converted
     EXPECT_EQ(errors.size(), expected.size());

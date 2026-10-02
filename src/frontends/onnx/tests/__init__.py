@@ -31,6 +31,8 @@ xfail_issue_67415 = xfail_test(reason="RuntimeError: Unsupported data type for w
 xfail_maxunpool_output_shape_onnx_ref = xfail_test(reason="MaxUnpool with output_shape: ONNX reference data places "
                                                           "values in the inferred shape, onnxruntime and OV index "
                                                           "flat(output_shape) (onnx/onnx#2398)")
+# GPU: wrong scatter result for a static rank-1 Constant data input
+skip_maxunpool_gpu = pytest.mark.skip_on_gpu
 skip_issue_38084 = pytest.mark.skip(reason="Aborted (core dumped) Assertion "
                                            "`(layer->get_output_partial_shape(i).is_static())' failed.")
 xfail_issue_33596 = xfail_test(reason="RuntimeError: OV does not support different sequence operations: "
