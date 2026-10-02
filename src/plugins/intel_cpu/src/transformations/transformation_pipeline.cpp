@@ -1143,8 +1143,9 @@ void Transformations::PostLpt() {
     // MLP & QKV fusion optimizations is focused on throughput, only enabled on AMX-bf16 & LLM serving use cases.
     auto can_use_amx_bf16_int8 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx) &&
                                  (config.inferencePrecision == element::bf16);
+    // ActivationsScaling (registered below) can't scale MatMuls once they are fused into LLMMLP/QKVProjection
     auto can_use_amx_fp16 = dnnl::impl::cpu::x64::mayiuse(dnnl::impl::cpu::x64::avx512_core_amx_fp16) &&
-                            (config.inferencePrecision == element::f16);
+                            (config.inferencePrecision == element::f16) && config.activationsScaleFactor <= 0.F;
 
     if (can_use_amx_bf16_int8 || can_use_amx_fp16) {
         const auto fcDynamicQuantizationGroupSize = config.fcDynamicQuantizationGroupSize;

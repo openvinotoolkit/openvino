@@ -7,6 +7,7 @@
 #include <gtest/gtest.h>
 
 #include <memory>
+#include <sstream>
 #include <string>
 
 #include "common_test_utils/graph_comparator.hpp"
@@ -340,90 +341,109 @@ TEST_F(TransformationTestsF, EliminateScalarMulTest) {
     comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
-TEST_F(TransformationTestsF, EliminateScalarMulTest_ConvertBeforeNorm) {
-    double epsilon = 1.f;
-    float scale_factor = 8.f;
+namespace {
+enum class NormType { RMS, MVN, GroupNorm };
+
+std::ostream& operator<<(std::ostream& os, NormType type) {
+    switch (type) {
+    case NormType::RMS:
+        return os << "RMS";
+    case NormType::MVN:
+        return os << "MVN";
+    default:
+        return os << "GroupNorm";
+    }
+}
+
+// f32 normalization over [1, 3, 4, 4], as kept by ConvertPrecision in an f16 model
+std::shared_ptr<ov::Node> make_f32_norm(NormType type, const ov::Output<ov::Node>& input, double epsilon) {
+    switch (type) {
+    case NormType::RMS: {
+        auto gamma = v0::Constant::create(ov::element::f32, ov::Shape{4}, {10});
+        return std::make_shared<ov::op::internal::RMS>(input, gamma, epsilon, ov::element::f32);
+    }
+    case NormType::MVN: {
+        auto axes = v0::Constant::create(ov::element::i64, ov::Shape{2}, {2, 3});
+        return std::make_shared<ov::op::v6::MVN>(input,
+                                                 axes,
+                                                 true,
+                                                 static_cast<float>(epsilon),
+                                                 ov::op::MVNEpsMode::INSIDE_SQRT);
+    }
+    default: {
+        auto scale = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
+        auto bias = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
+        return std::make_shared<v12::GroupNormalization>(input, scale, bias, 1, epsilon);
+    }
+    }
+}
+
+class EliminateScalarMulF32NormTest : public TransformationTestsF, public WithParamInterface<NormType> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<NormType>& info) {
+        std::ostringstream ss;
+        ss << info.param;
+        return ss.str();
+    }
+
+protected:
+    void SetUp() override {
+        TransformationTestsF::SetUp();
+        comparator.enable(FunctionsComparator::ATTRIBUTES);
+        manager.register_pass<ov::pass::activations_scaling::EliminateScalarMul>();
+    }
+};
+
+constexpr float kScale = 8.f;
+constexpr double kEpsilon = 1.0;
+}  // namespace
+
+TEST_P(EliminateScalarMulF32NormTest, ConvertBeforeNorm) {
     {
         auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
-        auto scale_const = v0::Constant::create(ov::element::f16, ov::Shape{}, {scale_factor});
-        auto mul = std::make_shared<v1::Multiply>(input, scale_const);
+        auto mul = std::make_shared<v1::Multiply>(input, v0::Constant::create(ov::element::f16, ov::Shape{}, {kScale}));
         auto convert = std::make_shared<v0::Convert>(mul, ov::element::f32);
-        auto norm_scale_const = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
-        auto norm_bias_const = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
-        auto group_norm =
-            std::make_shared<v12::GroupNormalization>(convert, norm_scale_const, norm_bias_const, 1, epsilon);
-        auto result = std::make_shared<v0::Result>(group_norm);
-
-        model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
-        manager.register_pass<ov::pass::activations_scaling::EliminateScalarMul>();
+        auto norm = make_f32_norm(GetParam(), convert, kEpsilon);
+        model = std::make_shared<ov::Model>(ov::OutputVector{norm}, ov::ParameterVector{input});
     }
     {
         auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
         auto convert = std::make_shared<v0::Convert>(input, ov::element::f32);
-        auto norm_scale_const = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
-        auto norm_bias_const = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
-        epsilon /= scale_factor * scale_factor;
-        auto group_norm =
-            std::make_shared<v12::GroupNormalization>(convert, norm_scale_const, norm_bias_const, 1, epsilon);
-        auto result = std::make_shared<v0::Result>(group_norm);
-
-        model_ref = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
+        auto norm = make_f32_norm(GetParam(), convert, kEpsilon / kScale / kScale);
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{norm}, ov::ParameterVector{input});
     }
-    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
 }
 
-TEST_F(TransformationTestsF, EliminateScalarMulTest_SharedConvertBeforeNorm) {
-    double epsilon = 1.f;
-    float scale_factor = 8.f;
+TEST_P(EliminateScalarMulF32NormTest, SharedConvertBeforeNorm) {
     {
         auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
-        auto scale_const = v0::Constant::create(ov::element::f16, ov::Shape{}, {scale_factor});
-        auto mul = std::make_shared<v1::Multiply>(input, scale_const);
+        auto mul = std::make_shared<v1::Multiply>(input, v0::Constant::create(ov::element::f16, ov::Shape{}, {kScale}));
         auto convert = std::make_shared<v0::Convert>(mul, ov::element::f32);
-        auto norm_scale_const = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
-        auto norm_bias_const = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
-        auto group_norm =
-            std::make_shared<v12::GroupNormalization>(convert, norm_scale_const, norm_bias_const, 1, epsilon);
-        auto result0 = std::make_shared<v0::Result>(group_norm);
-        auto result1 = std::make_shared<v0::Result>(convert);
-
-        model = std::make_shared<ov::Model>(ov::ResultVector{result0, result1}, ov::ParameterVector{input});
-        manager.register_pass<ov::pass::activations_scaling::EliminateScalarMul>();
+        auto norm = make_f32_norm(GetParam(), convert, kEpsilon);
+        model = std::make_shared<ov::Model>(ov::OutputVector{norm, convert}, ov::ParameterVector{input});
     }
     {
         auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
         auto norm_convert = std::make_shared<v0::Convert>(input, ov::element::f32);
-        auto norm_scale_const = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
-        auto norm_bias_const = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
-        epsilon /= scale_factor * scale_factor;
-        auto group_norm =
-            std::make_shared<v12::GroupNormalization>(norm_convert, norm_scale_const, norm_bias_const, 1, epsilon);
-        auto result0 = std::make_shared<v0::Result>(group_norm);
-        auto scale_const = v0::Constant::create(ov::element::f16, ov::Shape{}, {scale_factor});
-        auto mul = std::make_shared<v1::Multiply>(input, scale_const);
+        auto norm = make_f32_norm(GetParam(), norm_convert, kEpsilon / kScale / kScale);
+        auto mul = std::make_shared<v1::Multiply>(input, v0::Constant::create(ov::element::f16, ov::Shape{}, {kScale}));
         auto convert = std::make_shared<v0::Convert>(mul, ov::element::f32);
-        auto result1 = std::make_shared<v0::Result>(convert);
-
-        model_ref = std::make_shared<ov::Model>(ov::ResultVector{result0, result1}, ov::ParameterVector{input});
-    }
-    comparator.enable(FunctionsComparator::CmpValues::ACCURACY);
-}
-
-TEST_F(TransformationTestsF, EliminateScalarMulTest_ScaleBelowOneIsKept) {
-    {
-        auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
-        auto scale_const = v0::Constant::create(ov::element::f16, ov::Shape{}, {0.5f});
-        auto mul = std::make_shared<v1::Multiply>(input, scale_const);
-        auto convert = std::make_shared<v0::Convert>(mul, ov::element::f32);
-        auto norm_scale_const = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
-        auto norm_bias_const = v0::Constant::create(ov::element::f32, ov::Shape{3}, {10});
-        auto group_norm = std::make_shared<v12::GroupNormalization>(convert, norm_scale_const, norm_bias_const, 1, 1.f);
-        auto result = std::make_shared<v0::Result>(group_norm);
-
-        model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
-        manager.register_pass<ov::pass::activations_scaling::EliminateScalarMul>();
+        model_ref = std::make_shared<ov::Model>(ov::OutputVector{norm, convert}, ov::ParameterVector{input});
     }
 }
+
+TEST_P(EliminateScalarMulF32NormTest, ScaleBelowOneIsKept) {
+    auto input = std::make_shared<v0::Parameter>(ov::element::f16, ov::PartialShape{1, 3, 4, 4});
+    auto mul = std::make_shared<v1::Multiply>(input, v0::Constant::create(ov::element::f16, ov::Shape{}, {0.5f}));
+    auto convert = std::make_shared<v0::Convert>(mul, ov::element::f32);
+    auto norm = make_f32_norm(GetParam(), convert, kEpsilon);
+    model = std::make_shared<ov::Model>(ov::OutputVector{norm}, ov::ParameterVector{input});
+}
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         EliminateScalarMulF32NormTest,
+                         ::testing::Values(NormType::RMS, NormType::MVN, NormType::GroupNorm),
+                         EliminateScalarMulF32NormTest::getTestCaseName);
 
 namespace {
 constexpr size_t kBlockHidden = 16;
@@ -461,82 +481,89 @@ std::shared_ptr<ov::Model> make_residual_block(bool mixed) {
     ov::Output<ov::Node> norm1 = make_rms(add);
     if (mixed)
         norm1 = std::make_shared<v0::Convert>(norm1, ov::element::f16);
-    auto result = std::make_shared<v0::Result>(norm1);
-    return std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{input});
+    return std::make_shared<ov::Model>(ov::OutputVector{norm1}, ov::ParameterVector{input});
 }
 
-// scale_up Multiply in front of a norm, directly or through a Convert
-bool has_scale_up_before_norm(const std::shared_ptr<ov::Model>& model) {
-    for (const auto& op : model->get_ops()) {
-        if (!ov::is_type<ov::op::internal::RMS>(op))
-            continue;
-        auto src = op->get_input_node_shared_ptr(0);
-        if (ov::is_type<v0::Convert>(src))
-            src = src->get_input_node_shared_ptr(0);
-        if (!ov::is_type<v1::Multiply>(src))
-            continue;
-        for (const auto& in : src->input_values()) {
-            auto scale = ov::as_type_ptr<v0::Constant>(in.get_node_shared_ptr());
-            if (scale && ov::shape_size(scale->get_shape()) == 1 && scale->cast_vector<float>()[0] > 1.f)
-                return true;
-        }
-    }
-    return false;
-}
-
-bool has_scale_down_before_matmul(const std::shared_ptr<ov::Model>& model, float scale_factor) {
-    for (const auto& op : model->get_ops()) {
-        if (!ov::is_type<v0::MatMul>(op))
-            continue;
-        auto src = op->get_input_node_shared_ptr(0);
-        if (!ov::is_type<v1::Multiply>(src))
-            continue;
-        for (const auto& in : src->input_values()) {
-            auto scale = ov::as_type_ptr<v0::Constant>(in.get_node_shared_ptr());
-            if (scale && ov::shape_size(scale->get_shape()) == 1 &&
-                scale->cast_vector<float>()[0] == 1.f / scale_factor)
-                return true;
-        }
-    }
-    return false;
-}
-
-void check_accuracy(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<ov::Model>& model_ref) {
-    auto comparator = FunctionsComparator::no_default().enable(FunctionsComparator::CmpValues::ACCURACY);
-    comparator.set_accuracy_thresholds(0.05f, 0.05f);
-    auto res = comparator.compare(model, model_ref);
-    ASSERT_TRUE(res.valid) << res.message;
-}
+class ActivationsScalingDisabledTest : public TransformationTestsF, public WithParamInterface<float> {};
 }  // namespace
 
-TEST(TransformationTests, ActivationsScalingDisabled) {
-    for (float scale_factor : {0.f, -1.f}) {
-        auto model = make_residual_block(true);
-        auto model_ref = model->clone();
-
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::ActivationsScaling>(scale_factor, ov::element::f16);
-        manager.run_passes(model);
-
-        auto res = FunctionsComparator::with_default().compare(model, model_ref);
-        ASSERT_TRUE(res.valid) << res.message;
-    }
+TEST_P(ActivationsScalingDisabledTest, ModelIsUnchanged) {
+    model = make_residual_block(true);
+    manager.register_pass<ov::pass::ActivationsScaling>(GetParam(), ov::element::f16);
 }
 
-TEST(TransformationTests, ActivationsScalingResidualStream) {
-    for (bool mixed : {false, true}) {
-        auto model = make_residual_block(mixed);
-        auto model_ref = model->clone();
+INSTANTIATE_TEST_SUITE_P(TransformationTests, ActivationsScalingDisabledTest, ::testing::Values(0.f, -1.f));
 
-        ov::pass::Manager manager;
-        manager.register_pass<ov::pass::ActivationsScaling>(8.f, ov::element::f16);
-        manager.run_passes(model);
+namespace {
+// scale = 1 / 8: every scale-up Multiply is gone, the residual stream runs scaled and both norms get eps / 64
+std::shared_ptr<ov::Model> make_scaled_residual_block(bool mixed) {
+    using ov::op::TemporaryReplaceOutputType;
+    using ov::op::TypeRelaxed;
+    const auto f16 = ov::element::f16;
+    const auto f32 = ov::element::f32;
+    auto scale_down = [&]() {
+        return v0::Constant::create(f16, ov::Shape{}, {0.125f});
+    };
 
-        ASSERT_TRUE(has_scale_down_before_matmul(model, 8.f)) << "mixed=" << mixed;
-        ASSERT_FALSE(has_scale_up_before_norm(model)) << "mixed=" << mixed;
-        check_accuracy(model, model_ref);
+    auto input = std::make_shared<v0::Parameter>(f16, ov::PartialShape{1, 4, kBlockHidden});
+    auto scaled_input = std::make_shared<v1::Multiply>(input, scale_down());
+    ov::Output<ov::Node> norm0;
+    if (mixed) {
+        auto rms = make_rms(make_f32_convert(input));
+        norm0 = std::make_shared<TypeRelaxed<v1::Multiply>>(ov::element::TypeVector{f32, f32},
+                                                            ov::element::TypeVector{f16},
+                                                            TemporaryReplaceOutputType(rms, f32).get(),
+                                                            TemporaryReplaceOutputType(scale_down(), f32).get());
+    } else {
+        auto gamma = v0::Constant::create(f16, ov::Shape{kBlockHidden}, {1.5f});
+        auto rms = std::make_shared<ov::op::internal::RMS>(scaled_input, gamma, 1e-5 / 64, f16);
+        norm0 = std::make_shared<v1::Multiply>(rms, scale_down());
     }
+    auto weights0 = v0::Constant::create(f16, ov::Shape{kBlockHidden, kBlockHidden}, {0.1f});
+    auto matmul0 = std::make_shared<v0::MatMul>(norm0, weights0);
+    auto weights1 = v0::Constant::create(f16, ov::Shape{kBlockHidden, kBlockHidden}, {0.1f});
+    auto matmul1 = std::make_shared<v0::MatMul>(matmul0, weights1);
+    // with f32 norms the f16 Add inputs are converted inside a TypeRelaxed Add
+    const auto add_prec = mixed ? f32 : f16;
+    std::shared_ptr<ov::Node> add;
+    if (mixed) {
+        add = std::make_shared<TypeRelaxed<v1::Add>>(ov::element::TypeVector{f32, f32},
+                                                     ov::element::TypeVector{f32},
+                                                     TemporaryReplaceOutputType(scaled_input, f32).get(),
+                                                     TemporaryReplaceOutputType(matmul1, f32).get());
+    } else {
+        add = std::make_shared<v1::Add>(scaled_input, matmul1);
+    }
+    auto gamma1 = v0::Constant::create(add_prec, ov::Shape{kBlockHidden}, {1.5f});
+    ov::Output<ov::Node> norm1 = std::make_shared<ov::op::internal::RMS>(add, gamma1, 1e-5 / 64, add_prec);
+    if (mixed)
+        norm1 = std::make_shared<v0::Convert>(norm1, f16);
+    return std::make_shared<ov::Model>(ov::OutputVector{norm1}, ov::ParameterVector{input});
 }
+
+class ActivationsScalingResidualStreamTest : public TransformationTestsF, public WithParamInterface<bool> {
+public:
+    static std::string getTestCaseName(const testing::TestParamInfo<bool>& info) {
+        return info.param ? "f32_norms" : "f16";
+    }
+};
+}  // namespace
+
+TEST_P(ActivationsScalingResidualStreamTest, ScaleUpIsRemovedAtNorms) {
+    model = make_residual_block(GetParam());
+    model_ref = make_scaled_residual_block(GetParam());
+    manager.register_pass<ov::pass::ActivationsScaling>(8.f, ov::element::f16);
+    // LPT AddTransformation creates the residual-branch Multiply without copying rt_info
+    disable_rt_info_check();
+    // the pass must keep the model output; norm epsilons are checked exactly by EliminateScalarMulF32NormTest
+    comparator.enable(FunctionsComparator::CONST_VALUES);
+    comparator.enable(FunctionsComparator::ACCURACY);
+}
+
+INSTANTIATE_TEST_SUITE_P(TransformationTests,
+                         ActivationsScalingResidualStreamTest,
+                         ::testing::Values(false, true),
+                         ActivationsScalingResidualStreamTest::getTestCaseName);
 
 TEST_F(TransformationTestsF, MoveDownScalarMulTest) {
     {

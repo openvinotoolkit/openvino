@@ -32,7 +32,34 @@ class TRANSFORMATIONS_API MoveDownScalarMul;
 // For example, when this property is set as 16, activations are divided by 16.
 // If ov::hint::activations_scale_factor is less than or equal to zero, it is disabled.
 
-// Adds scale_down/scale_up layers around Conv/MatMul and moves the scale_up layers down the graph
+/**
+ * @ingroup ov_transformation_common_api
+ * @brief Keeps activations of a reduced-precision model in range by scaling them down around
+ * Convolution/MatMul layers and removing the compensating scale-up at normalization layers.
+ *
+ * Linear layers can produce activations beyond the range of the scaled precision (e.g. above 65504
+ * for f16), which turns into inf and then NaN at the following normalization. Since
+ * Conv(x / s) = Conv(x) / s, the pass divides the input of every Conv/MatMul whose input already has
+ * the scaled precision by the scale factor, multiplies the output back, and moves that scale-up
+ * Multiply down the graph (through Add, residual connections and data movement ops) with LPT. A
+ * normalization is invariant to the input scale, Norm(s * x) = Norm(x) with epsilon / s^2, so the
+ * scale-up is dropped there and the subgraph between two normalizations runs scaled.
+ *
+ * Before:                              After:
+ *
+ *   residual    x                        residual          x
+ *      │        │                           │              │
+ *      │     MatMul                    Multiply(1/s)  Multiply(1/s)
+ *      │        │                           │              │
+ *      └──Add───┘                           │           MatMul
+ *          │                                └─────Add──────┘
+ *        Norm(eps)                                 │
+ *                                            Norm(eps / s^2)
+ *
+ * The pass runs its own pipeline on a copy of the caller's PassConfig: the caller's callbacks apply to
+ * the inner passes, while the LPT transformations disabled here stay disabled only inside the pass.
+ * A scale factor <= 0 disables the pass.
+ */
 class ov::pass::ActivationsScaling : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("ActivationsScaling");

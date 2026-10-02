@@ -415,17 +415,19 @@ ActivationsScaling::ActivationsScaling(float scale_factor, ov::element::Type sca
       m_scaled_prec(scaled_prec) {}
 
 bool ActivationsScaling::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    RUN_ON_FUNCTION_SCOPE(ActivationsScaling);
+    RUN_ON_MODEL_SCOPE(ActivationsScaling);
     if (m_scale_factor <= 0.f)
         return false;
 
     using namespace ov::pass::low_precision;
 
-    // own PassConfig: the disables below must not leak to the caller
-    Manager manager("ActivationsScaling");
+    // a copy keeps the caller's callbacks (e.g. plugin restrictions on MoveEltwiseUpThroughDataMovScalar),
+    // while the disables below don't leak to the caller
+    Manager manager(*get_pass_config(), "ActivationsScaling");
     manager.set_per_pass_validation(false);
     auto pass_config = manager.get_pass_config();
 
+    // keeps LPT's LinOpSequenceFusion prerequisite from fusing scale Multiplies into bias Adds
     pass_config->disable<AddMultiplyFusion>();
     pass_config->disable<RecurrentCellTransformation>();
     pass_config->disable<MultiplyToGroupConvolutionTransformation>();
