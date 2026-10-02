@@ -134,11 +134,40 @@ void MoESubgraphTest::SetUp() {
     }
 }
 
+namespace {
+// With bf16 inference on AMX hardware GatherMatmul executes an AMX GEMM when the input has more than one row.
+// The implementation type reported for the node has to follow what was executed for the last inferred shape,
+// so that PERF_COUNT and the runtime model show the kernel that actually ran. For a single-row input the GEMV
+// is executed, and whether that one is an AMX kernel depends on the weights format, so it is not checked.
+void check_gather_mm_impl_type(const std::set<std::shared_ptr<ov::Node>>& gather_mm_nodes,
+                               const ov::AnyMap& configuration,
+                               const std::vector<ov::Shape>& last_inferred_shapes) {
+#if defined(OPENVINO_ARCH_X86_64)
+    const auto itr = configuration.find(ov::hint::inference_precision.name());
+    if (itr == configuration.end() || !(itr->second == ov::element::bf16) || !ov::with_cpu_x86_avx512_core_amx()) {
+        return;
+    }
+    ASSERT_FALSE(last_inferred_shapes.empty());
+    const auto& data_shape = last_inferred_shapes.front();
+    ASSERT_GE(data_shape.size(), 2U);
+    const size_t rows = data_shape[0] * data_shape[1];
+    for (const auto& node : gather_mm_nodes) {
+        const auto impl_type = node->get_rt_info().at(ov::exec_model_info::IMPL_TYPE).as<std::string>();
+        if (rows > 1) {
+            EXPECT_NE(impl_type.find("amx"), std::string::npos)
+                << "GatherMatmul reports " << impl_type << " for " << rows << " input rows";
+        }
+    }
+#endif
+}
+}  // namespace
+
 void MoESubgraphTest::check_results() {
     const auto& moe_type = std::get<1>(GetParam());
     const auto& gather_mm_nodes = get_gather_mm_nodes(compiledModel.get_runtime_model(), moe_type);
     const size_t expected_gather_mm_count = get_expected_gather_mm_count(moe_type);
     EXPECT_EQ(gather_mm_nodes.size(), expected_gather_mm_count);
+    check_gather_mm_impl_type(gather_mm_nodes, configuration, targetStaticShapes.back());
 }
 
 std::string MoECompressedWeightsSubgraphTest::getTestCaseName(const testing::TestParamInfo<MoeCompressedWeightsTestParams>& obj) {
@@ -267,6 +296,7 @@ void MoECompressedWeightsSubgraphTest::check_results() {
                                                         : gather_mm_node->get_input_element_type(0);
         EXPECT_EQ(gather_mm_node->get_input_element_type(1), expected_weights_precision);
     }
+    check_gather_mm_impl_type(gather_mm_nodes, configuration, targetStaticShapes.back());
 }
 
 TEST_P(MoESubgraphTest, CompareWithRefs) {

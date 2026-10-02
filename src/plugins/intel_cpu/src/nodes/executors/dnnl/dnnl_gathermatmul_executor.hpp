@@ -4,8 +4,11 @@
 
 #pragma once
 
+#include <cstddef>
+#include <functional>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <unordered_map>
 
 #include "cpu_memory.h"
 #include "memory_desc/cpu_memory_desc.h"
@@ -40,6 +43,10 @@ private:
 
     InnerProductPtr m_gemvImpl;
     InnerProductPtr m_gemmImpl;
+    // GEMM primitives keyed by row count, so each gather index (expert) can run a GEMM sized to the
+    // rows actually routed to it instead of the full input length.
+    std::unordered_map<size_t, InnerProductPtr> m_gemmBySize;
+    std::function<InnerProductPtr(size_t)> m_makeGemm;
 
     MemoryPtr m_tmpInpBuffer;
     MemoryDescPtr m_tmpInputDesc;

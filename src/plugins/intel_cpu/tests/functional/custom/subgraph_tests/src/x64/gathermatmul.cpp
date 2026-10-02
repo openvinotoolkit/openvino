@@ -26,6 +26,31 @@ const std::vector<MoeTestShapeParams> moe_params_smoke = {
     },
 };
 
+// More experts than top-k and longer, varying sequences: each expert receives a different number of rows
+// (some none), and the row count changes between inferences. With bf16 on AMX hardware every expert then
+// runs a GEMM of its own height, so these cases cover several GEMM sizes inside one node, an expert whose
+// rows cross the 512-row rounding boundary, and a single-row input (GEMV) following a multi-row one.
+const std::vector<MoeTestShapeParams> moe_params_uneven_routing = {
+    {
+        {{-1, -1, 256}, {{1, 96, 256}, {1, 1, 256}, {1, 40, 256}, {2, 64, 256}}},  // data_shape
+        4,                                                                         // topk
+        32,                                                                        // number_of_experts
+        512                                                                        // intermediate_size
+    },
+    {
+        {{-1, -1, 128}, {{1, 700, 128}, {1, 17, 128}}},  // long sequence, few experts: > 512 rows per expert
+        2,                                               // topk
+        4,                                               // number_of_experts
+        256                                              // intermediate_size
+    },
+    {
+        {{-1, -1, 128}, {{1, 48, 128}, {1, 1, 128}}},  // ends on a single-row input (GEMV)
+        2,                                             // topk
+        16,                                            // number_of_experts
+        256                                            // intermediate_size
+    },
+};
+
 std::vector<ov::AnyMap> generate_additional_config() {
     std::vector<ov::AnyMap> additional_config = {{{ov::hint::inference_precision.name(), ov::element::f32}}};
     if (ov::with_cpu_x86_bfloat16()) {
@@ -49,6 +74,14 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoESubgraph_3gemm_gelu,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
                                             ::testing::Values(MoEType::MoE3GeMM),
                                             ::testing::Values(MoEActivationType::GELU),
+                                            ::testing::ValuesIn(generate_additional_config())),
+                         MoESubgraphTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoESubgraph_uneven_routing,
+                         MoESubgraphTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_uneven_routing),
+                                            ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEActivationType::SWISH),
                                             ::testing::ValuesIn(generate_additional_config())),
                          MoESubgraphTest::getTestCaseName);
 
@@ -79,6 +112,22 @@ INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_3gemm_gelu,
                          ::testing::Combine(::testing::ValuesIn(moe_params_smoke),
                                             ::testing::Values(MoEType::MoE3GeMM),
                                             ::testing::Values(MoEActivationType::GELU),
+                                            ::testing::ValuesIn(weights_precisions),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::f32),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(ov::test::utils::DecompressionType::full),
+                                            ::testing::Values(false),  // reshape on decompression
+                                            ::testing::Values(16),     // decompression group size
+                                            ::testing::ValuesIn(generate_additional_config()),
+                                            ::testing::Values(true)),  // use_matmul_decompression_impl
+                         MoECompressedWeightsSubgraphTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_MoeCompressedWeights_uneven_routing,
+                         MoECompressedWeightsSubgraphTest,
+                         ::testing::Combine(::testing::ValuesIn(moe_params_uneven_routing),
+                                            ::testing::ValuesIn(moe_types),
+                                            ::testing::Values(MoEActivationType::SWISH),
                                             ::testing::ValuesIn(weights_precisions),
                                             ::testing::ValuesIn(decompression_precisions),
                                             ::testing::Values(ov::element::f32),
