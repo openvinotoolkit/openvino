@@ -133,7 +133,7 @@ bool constant(Scalar scalar, double& value) {
 }
 
 bool constant_is(const Scalar& scalar, double expected) {
-    double value;
+    double value = 0.0;
     return constant(scalar, value) && value == expected;
 }
 
