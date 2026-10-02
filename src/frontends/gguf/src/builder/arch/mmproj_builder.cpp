@@ -258,9 +258,6 @@ public:
             auto output = c.modality == "vision" ? vision(c) : audio(c);
             g.set_output(output, c.modality + ".embeddings");
         }
-        // Muse Glimmer windows match the square learned position grid.
-        const auto positions = g.tensors()("v.position_embd.weight");
-        const auto window_size = positions ? int64_t(std::sqrt(double(positions.ne(1)))) : 0;
         auto graph = g.finish();
         const auto number = [](auto value) {
             std::ostringstream stream;
@@ -301,7 +298,7 @@ public:
             graph->mmproj_config[c.modality + ".projector"] = c.projector;
             graph->mmproj_config[c.modality + ".merge"] = std::to_string(c.merge);
             if (c.topology == EncoderTopology::MuseGlimmer)
-                graph->mmproj_config["vision.window_size"] = std::to_string(window_size);
+                graph->mmproj_config["vision.window_size"] = std::to_string(muse_window);
             if (c.topology == EncoderTopology::Resampler) {
                 graph->mmproj_config["vision.minicpmv_version"] = std::to_string(c.version);
                 graph->mmproj_config["vision.query_count"] = std::to_string(c.queries);
@@ -318,6 +315,8 @@ private:
     GgufValue default_clip_min, default_clip_max;
     // Set once per encoder in build(); the Gemma4 families clamp every linear's input and output.
     bool clippable = false;
+    // Muse Glimmer window side, which matches its square learned position grid.
+    int64_t muse_window = 0;
 
     GgufValue reshape(const GgufValue& x, std::vector<int64_t> shape, bool special_zero = false) {
         return g.node("GGML_OP_RESHAPE",
@@ -471,16 +470,28 @@ private:
             }
             if (c.topology == EncoderTopology::Gemma4)
                 v = g.build_norm(v, {}, c.eps);
-            const auto mask = window_mask && (c.window_pattern == 0 || (i + 1) % c.window_pattern != 0) &&
-                                      !(c.topology == EncoderTopology::MuseGlimmer && i == c.layers - 1)
-                                  ? window_mask
-                                  : GgufValue{};
+            const bool muse = c.topology == EncoderTopology::MuseGlimmer;
+            const bool windowed = window_mask && (c.window_pattern == 0 || (i + 1) % c.window_pattern != 0) &&
+                                  !(muse && i == c.layers - 1);
+            auto mask = windowed ? window_mask : GgufValue{};
+            // Muse Glimmer windows are padded to equal size and attend as a batch; its global
+            // layer still ignores the padding.
+            const int64_t window_tokens = muse && windowed ? muse_window * muse_window : 0;
+            if (window_tokens) {
+                const auto head = c.width / c.heads;
+                q = reshape(q, {-1, window_tokens, c.heads, head});
+                k = reshape(k, {-1, window_tokens, c.kv_heads, head});
+                v = reshape(v, {-1, window_tokens, c.kv_heads, head});
+            } else if (muse && window_mask) {
+                mask = reshape(window_mask, {1, 1, 1, -1});
+            }
             z = attention(q,
                           k,
                           v,
                           c.topology == EncoderTopology::Gemma4 ? 1.f : 1.f / std::sqrt(float(c.width / c.heads)),
                           mask);
-            z = linear(reshape(z, {0, 1, -1, c.width}, true), p + "attn_out");
+            z = window_tokens ? reshape(z, {1, 1, -1, c.width}) : reshape(z, {0, 1, -1, c.width}, true);
+            z = linear(z, p + "attn_out");
             if (auto scale = g.tensors()(p + "ls1.weight"))
                 z = mul(z, scale);
             if (g.tensors().has(p + "attn_post_norm.weight"))
@@ -810,7 +821,9 @@ private:
         x = add(x, reshape(transpose(table, {0, 2, 3, 1}), {1, 1, -1, c.width}));
         x = gather_rows(x, "patch_indices");
         auto pos_x = index_input("position_x"), pos_y = index_input("position_y");
-        auto mask = g.add_input("vision.attention_mask", ov::element::f32, {1, 1, -1, -1});
+        muse_window = int64_t(std::sqrt(double(g.tensors().require("v.position_embd.weight").ne(1))));
+        // Additive key mask of every window padded to muse_window^2 patches.
+        auto mask = g.add_input("vision.window_mask", ov::element::f32, {-1, 1, 1, muse_window * muse_window});
         x = vit(x, c, {}, pos_x, mask, pos_y);
         x = gather_rows(x, "output_indices");
         x = gather_rows(x, "merge_indices");

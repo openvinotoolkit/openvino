@@ -59,7 +59,7 @@ def write_muse_model(path):
 
     tensor("v.patch_embd.weight", (width, 3, 2, 2))
     tensor("v.patch_embd.bias", (width,))
-    tensor("v.position_embd.weight", (4, width))
+    tensor("v.position_embd.weight", (9, width))  # 3x3 windows; the fixture grids leave partial ones
     norm("v.pre_ln")
     norm("v.post_ln")
     for i in range(layers):
@@ -253,7 +253,7 @@ def write_model(path, family):
 def inputs(family, width, height):
     if family == "muse-glimmer":
         raw = np.random.default_rng(42).uniform(-1, 1, (height, width, 3)).astype(np.float32)
-        return raw, {"pixel_values": raw.transpose(2, 0, 1)[None], **muse_glimmer_indices(height // 2, width // 2, 2)}
+        return raw, {"pixel_values": raw.transpose(2, 0, 1)[None], **muse_glimmer_indices(height // 2, width // 2, 3)}
     family, variants = split_variants(family, *VARIANTS)
     overview = "_overview" in variants
     raw = np.random.default_rng(42).normal(.1, .4, (height, width) if family in {"gemma4ua", "gemma4a"} else (height, width, 3)).astype(np.float32)

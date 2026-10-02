@@ -71,7 +71,7 @@ dynamic, so one compiled model serves different image sizes.
 | Qwen vision | `vision.pixel_values [2,3,H,W]` (a temporal pair; repeat a still image), `vision.patch_indices [1,1,1,T]`, `vision.position_ids [1,1,1,4*T]` |
 | Qwen2.5 vision | also `vision.attention_mask [1,1,T,T]` (additive window mask) and `vision.output_indices [1,1,1,T/4]` |
 | Pixtral / Phi4 / Gemma4 vision | `vision.pixel_values [1,3,H,W]`; Pixtral and Gemma4 also `vision.position_x`, `vision.position_y [1,1,1,T]` |
-| Muse Glimmer | pixels, one-based `position_x` / `position_y`, window `patch_indices`, `output_indices`, pixel-shuffle `merge_indices`, additive `attention_mask` |
+| Muse Glimmer | pixels; `patch_indices` in window order with each window padded to `window_size²` slots; one-based `position_x` / `position_y` per slot; `output_indices`; pixel-shuffle `merge_indices`; additive key mask `window_mask [W,1,1,window_size²]` that hides the padding |
 | MiniCPM-V 4.6 | pixels, position IDs, `window_indices`, `inverse_window_indices`, `attention_mask`, `vit_merger.indices.N`, `merger.indices.N` |
 | DeepSeek-OCR / OCR2 | `vision.pixel_values [B,3,H,W]` (independent square tiles), local/global relative-position indices, `vision.output_indices`; OCR1 `position_indices`, OCR2 `query_indices`, `query_output_indices`, `position_ids`, `attention_mask` |
 | Gemma4 audio | `audio.features [1,1,mel,frames]` |

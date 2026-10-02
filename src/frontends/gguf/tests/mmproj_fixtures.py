@@ -78,20 +78,23 @@ def save_npz(path, arrays):
 
 
 def muse_glimmer_indices(height, width, window, merge=2):
-    """Encoder inputs matching clip.cpp's Muse Glimmer window and shuffle ordering."""
+    """Encoder inputs matching clip.cpp's Muse Glimmer window and shuffle ordering. Every window is
+    padded to window^2 slots that repeat its first patch and are masked out as keys."""
     if min(height, width, window, merge) <= 0 or height % merge or width % merge:
         raise ValueError("Muse Glimmer grid must be positive and divisible by its merge size")
     groups = [[y * width + x
                for y in range(wy, min(wy + window, height))
                for x in range(wx, min(wx + window, width))]
               for wy in range(0, height, window) for wx in range(0, width, window)]
-    order = np.array([i for group in groups for i in group], np.int32)
-    ids = np.repeat(np.arange(len(groups)), [len(group) for group in groups])
+    slots = window * window
+    order = np.array([i for group in groups for i in group + group[:1] * (slots - len(group))], np.int32)
+    valid = np.array([k < len(group) for group in groups for k in range(slots)])
+    inverse = np.empty(height * width, np.int32)
+    inverse[order[valid]] = np.flatnonzero(valid)
     rows, cols = np.divmod(order, width)
     def indices(values):
         return np.asarray(values, np.int32).reshape(1, 1, 1, -1)
-    shuffle = merge_window_order(height, width, merge)
-    return {"patch_indices": indices(order), "output_indices": indices(np.argsort(order)),
+    return {"patch_indices": indices(order), "output_indices": indices(inverse),
             "position_x": indices(cols + 1), "position_y": indices(rows + 1),
-            "merge_indices": indices(shuffle),
-            "attention_mask": np.where(ids[:, None] == ids[None, :], 0, -np.inf).astype(np.float32)[None, None]}
+            "merge_indices": indices(merge_window_order(height, width, merge)),
+            "window_mask": np.where(valid, 0, -np.inf).astype(np.float32).reshape(len(groups), 1, 1, slots)}
