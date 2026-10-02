@@ -156,7 +156,13 @@ The Gemma4 26B difference starts at layer 8, where two experts swap places at th
 for a near tie. Checkpoint matrices for Qwen3.5 0.8B-9B, Qwen3.6, Qwen3.8 and all Gemma4 sizes
 are summarized in the
 [architecture fixture README](../tests/test_data/arch_accuracy/README.md#q8_0_c-requantization-accuracy-check).
-GPU, NPU, long contexts and concurrent requests are not qualified.
+End-to-end GenAI generation, including long contexts, also runs on an Intel Arc A770 GPU (16 GB)
+for the models that fit its memory. NPU and concurrent requests are not qualified.
+
+The model hub tests in [`tests/model_hub_tests/gguf`](../../../../tests/model_hub_tests/gguf)
+also convert downloaded projector files for `idefics3`, `internvl`, `pixtral`, the Qwen VL mergers,
+`gemma3`, Gemma4 vision and audio, `voxtral`, `ultravox` and Qwen2.5 Omni, and compare every
+encoder with llama.cpp built at the pinned revision during the test session.
 
 The GenAI checks are run with [`validate_genai.py`](../tests/validate_genai.py) (language) and
 GenAI's `tests/python_tests/validate_gguf_mmproj.py` (media). Keep their reports outside the

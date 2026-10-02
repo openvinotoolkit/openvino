@@ -158,6 +158,14 @@ install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/test_data"
             PATTERN "*.npz"
             PATTERN "manifest.txt")
 
+# tests/model_hub_tests/gguf/test_gguf_mmproj.py builds this oracle and reuses these helpers.
+install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/mmproj_oracle.cpp"
+              "${CMAKE_CURRENT_SOURCE_DIR}/mmproj_fixtures.py"
+              "${CMAKE_CURRENT_SOURCE_DIR}/dequantize_mmproj.py"
+        DESTINATION tests/model_hub_tests/gguf
+        COMPONENT tests
+        EXCLUDE_FROM_ALL)
+
 # Sources compiled into the binary: resolve the visibility macros to local definitions, not dllimport.
 target_compile_definitions(${TARGET_NAME} PRIVATE openvino_gguf_frontend_EXPORTS)
 

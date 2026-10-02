@@ -67,6 +67,9 @@ python3 validate_mmproj.py mmproj-Q8_0.gguf --reference-model mmproj-F32.gguf \
     --oracle ./mmproj_oracle --report encoder.json [--modality audio] [--width W --height H]
 ```
 
+`tests/model_hub_tests/gguf/test_gguf_mmproj.py` automates this check for downloaded projectors
+in precommit and nightly runs; it builds `mmproj_oracle` itself.
+
 Without `--reference-model`, both runtimes execute the same quantized file; llama.cpp then
 quantizes activations in its Q8 matmuls, so that comparison is a diagnostic, not acceptance.
 Keep the reports outside the source tree.

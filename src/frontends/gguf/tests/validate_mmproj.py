@@ -19,7 +19,7 @@ import numpy as np
 import openvino as ov
 from openvino.frontend import FrontEndManager
 
-from mmproj_fixtures import merge_window_order, muse_glimmer_indices, run_oracle
+from mmproj_fixtures import checkpoint_inputs, run_oracle
 
 
 def sha256(path):
@@ -63,54 +63,13 @@ def main():
             visit(value.get_node())
     visit(output.get_node())
     model = ov.Model([output], [p for p in model.get_parameters() if p in reachable])
-    rng = np.random.default_rng(42)
-    feeds = {}
     if args.modality == "vision":
-        if projector not in {"gemma3", "gemma4v", "gemma4uv", "pixtral", "phi4", "qwen3vl_merger", "muse-glimmer"}:
-            raise ValueError(f"Add processor/index inputs for {projector} before checkpoint validation")
         default = int(metadata["clip.vision.image_size"])
         width, height = args.width or default, args.height or default
-        shape = [1, 3, height, width]
-        values = rng.uniform(0 if projector == "gemma4v" else -1, 1, shape).astype(np.float32)
-        feeds["vision.pixel_values"] = values
-        patch = int(metadata["clip.vision.patch_size"])
-        if projector == "gemma4uv":
-            patch *= int(metadata.get("clip.vision.projector.scale_factor", 3))
-        if projector in {"gemma4v", "gemma4uv", "pixtral"}:
-            rows, cols = np.indices((height // patch, width // patch))
-            feeds["vision.position_x"] = cols.astype(np.int32).reshape(1, 1, 1, -1)
-            feeds["vision.position_y"] = rows.astype(np.int32).reshape(1, 1, 1, -1)
-        if projector == "muse-glimmer":
-            if height % patch or width % patch:
-                raise ValueError("Muse Glimmer image dimensions must be divisible by the patch size")
-            feeds.update({"vision." + name: value for name, value in muse_glimmer_indices(
-                height // patch, width // patch, int(metadata["vision.window_size"]),
-                int(metadata["vision.merge"])).items()})
-        if projector == "qwen3vl_merger":
-            if width % (2 * patch) or height % (2 * patch):
-                raise ValueError("Qwen image dimensions must be divisible by twice the patch size")
-            gh, gw = height // patch, width // patch
-            indices = merge_window_order(gh, gw)
-            rows, cols = np.divmod(indices, gw)
-            feeds["vision.pixel_values"] = np.repeat(values, 2, axis=0)
-            feeds["vision.patch_indices"] = np.array(indices, np.int32).reshape(1, 1, 1, -1)
-            feeds["vision.position_ids"] = np.array([rows, cols, rows, cols], np.int32).reshape(1, 1, 1, -1)
-            shape = list(feeds["vision.pixel_values"].shape)
-        raw = values[0].transpose(1, 2, 0)
     else:
-        if projector not in {"gemma4a", "gemma4ua"}:
-            raise ValueError(f"Add audio input contract for {projector}")
-        if projector == "gemma4ua":
-            width, height = args.width or 9, 640
-            raw = rng.normal(0, .4, (height, width)).astype(np.float32)
-            shape = [1, 1, width, height]
-            feeds["audio.waveform_frames"] = raw.T.reshape(shape)
-        else:
-            width, height = args.width or 101, int(metadata["clip.audio.num_mel_bins"])
-            shape = [1, 1, height, width]
-            values = rng.normal(0, .4, shape).astype(np.float32)
-            feeds["audio.features"] = values
-            raw = values
+        width, height = args.width or (9 if projector == "gemma4ua" else 101), None
+    feeds, raw, width, height = checkpoint_inputs(metadata, args.modality, width, height)
+    shape = list(next(v for k, v in feeds.items() if k.endswith(("pixel_values", "features", "waveform_frames"))).shape)
     expected = run_oracle(args.oracle, reference_model.resolve(), args.modality, width, height, raw)
     request = ov.Core().compile_model(model, "CPU", {
         "INFERENCE_PRECISION_HINT": "f32", "DYNAMIC_QUANTIZATION_GROUP_SIZE": 0,

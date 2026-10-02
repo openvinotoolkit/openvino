@@ -16,15 +16,10 @@ import numpy as np
 from mmproj_fixtures import finish
 
 
-def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("source", type=Path)
-    parser.add_argument("destination", type=Path)
-    args = parser.parse_args()
-    if args.source.resolve() == args.destination.resolve():
-        parser.error("Source and destination must differ")
-    reader = gguf.GGUFReader(args.source)
-    writer = gguf.GGUFWriter(args.destination, reader.fields["general.architecture"].contents(), use_temp_file=True)
+def dequantize_mmproj(source, destination):
+    """Write an F32 copy of every tensor in source to destination, keeping all metadata."""
+    reader = gguf.GGUFReader(source)
+    writer = gguf.GGUFWriter(destination, reader.fields["general.architecture"].contents(), use_temp_file=True)
     for name, field in reader.fields.items():
         if name.startswith("GGUF.") or name == "general.architecture":
             continue
@@ -33,6 +28,16 @@ def main():
     for tensor in reader.tensors:
         writer.add_tensor(tensor.name, gguf.dequantize(tensor.data, tensor.tensor_type).astype(np.float32))
     finish(writer)
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("source", type=Path)
+    parser.add_argument("destination", type=Path)
+    args = parser.parse_args()
+    if args.source.resolve() == args.destination.resolve():
+        parser.error("Source and destination must differ")
+    dequantize_mmproj(args.source, args.destination)
 
 
 if __name__ == "__main__":
