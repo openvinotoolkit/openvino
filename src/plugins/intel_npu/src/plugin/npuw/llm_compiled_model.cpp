@@ -16,6 +16,7 @@
 #include "moe_transformations/apply_moe_device_routed_transforms.hpp"
 #include "npuw_transformations/add_position_ids_param.hpp"
 #include "npuw_transformations/convert_kvcache_to_precision.hpp"
+#include "npuw_transformations/cut_lm_head.hpp"
 #include "npuw_transformations/detect_causal_mask.hpp"
 #include "npuw_transformations/duplicate_shared_kv_concat.hpp"
 #include "npuw_transformations/insert_vocab_sub128.hpp"
@@ -36,6 +37,7 @@
 #include "openvino/op/ops.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/util/node_util.hpp"
+#include "openvino/op/util/op_types.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
@@ -71,105 +73,10 @@ bool is_aligned_to(T value, T alignment) {
 
 }  // namespace
 
-class CutLMHead : public ov::pass::MatcherPass {
-public:
-    OPENVINO_MATCHER_PASS_RTTI("ov::npuw::CutLMHead");
-    explicit CutLMHead(std::shared_ptr<ov::Model>& lm_head_model) {
-        // We are interested at first input to MatMul as a cut point
-        auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
-
-        // There are several patterns for matmul we are looking for:
-        // Matmul -> Result
-        // Matmul -> Add -> Result
-        auto matmul_add = opp::wrap_type<ov::op::v1::Add>({matmul, opp::any_input()});
-        // Matmul -> Transpose -> Result
-        auto matmul_transpose = opp::wrap_type<ov::op::v1::Transpose>({matmul, opp::any_input()});
-        //  Matmul -> Convert -> Result
-        auto matmul_convert = opp::wrap_type<ov::op::v0::Convert>({matmul});
-        // MatMul -> Divide -> Tanh -> Multiply -> Result
-        auto div = opp::wrap_type<ov::op::v1::Multiply, ov::op::v1::Divide>({matmul, opp::any_input()});
-        auto tanh = opp::wrap_type<ov::op::v0::Tanh>({div});
-        auto matmul_multiply = opp::wrap_type<ov::op::v1::Multiply>({tanh, opp::any_input()});
-
-        auto last_op = std::make_shared<opp::op::Or>(ov::OutputVector{matmul->output(0),
-                                                                      matmul_add->output(0),
-                                                                      matmul_transpose->output(0),
-                                                                      matmul_convert->output(0),
-                                                                      matmul_multiply->output(0)});
-        auto res = opp::wrap_type<ov::op::v0::Result>({last_op->output(0)});
-
-        auto callback = [=, &lm_head_model](opp::Matcher& m) {
-            auto& node_to_output = m.get_pattern_value_map();
-
-            auto matched_node_matmul = node_to_output.at(matmul).get_node_shared_ptr();
-            std::shared_ptr<ov::Node> matched_node_last_op = nullptr;
-            if (node_to_output.count(matmul_add)) {
-                matched_node_last_op = node_to_output[matmul_add].get_node_shared_ptr();
-            } else if (node_to_output.count(matmul_transpose)) {
-                matched_node_last_op = node_to_output[matmul_transpose].get_node_shared_ptr();
-            } else if (node_to_output.count(matmul_convert)) {
-                matched_node_last_op = node_to_output[matmul_convert].get_node_shared_ptr();
-            } else if (node_to_output.count(matmul_multiply)) {
-                matched_node_last_op = node_to_output[matmul_multiply].get_node_shared_ptr();
-            } else {
-                matched_node_last_op = matched_node_matmul;
-            }
-            auto matched_node_result = node_to_output.at(res).get_node_shared_ptr();
-
-            auto matched_matmul = std::static_pointer_cast<ov::op::v0::MatMul>(matched_node_matmul);
-            auto matched_result = std::static_pointer_cast<ov::op::v0::Result>(matched_node_result);
-
-            // Skip Result nodes that are not logits.
-            // Note: We can check that Result's output name is "logits" and it will be a
-            //       sufficiently reliable check for finding exatly logits output, because:
-            //       1. LLMInferRequest always rely on "logits" name to get logits from
-            ///         prefill/kvcache models.
-            //       2. - Following Exporter configs: OnnxConfig, OnnxConfigWithPast,
-            //            TextDecoderOnnxConfig and TextDecoderWithPositionIdsOnnxConfig
-            //            from optimum-onnx name LLM output with "logits".
-            //          - Most of optimum-intel OpenVINO Exporter configs are derived
-            //            from the configs above.
-            //          - optimum-intel `export()` function set names for output tensors
-            //            from Exporter config:
-            //            https://github.com/huggingface/optimum-intel/blob/main/optimum/exporters/openvino/convert.py#L442-L445
-            if (matched_result->output(0).get_names().count(ov::npuw::LLMCompiledModel::layer_names::logits) == 0) {
-                return false;
-            }
-
-            // Cut point:
-            auto matmul_first_source = matched_matmul->input(0).get_source_output();
-
-            // Cut original model:
-            matched_result->input(0).replace_source_output(matmul_first_source);
-            // FIXME: Somehow for KVCache model result output gets renamed in
-            //        ICompiledModel::ICompiledModel().
-            //        As a WA, setting the same name to output from MatMul
-            //        avoids the issue.
-            matmul_first_source.set_names({ov::npuw::LLMCompiledModel::layer_names::output_embeds});
-            matched_result->output(0).set_names({ov::npuw::LLMCompiledModel::layer_names::output_embeds});
-            matched_result->validate_and_infer_types();
-
-            // Create an additional model after cut point:
-            auto new_param = std::make_shared<ov::op::v0::Parameter>(matmul_first_source.get_element_type(),
-                                                                     matmul_first_source.get_partial_shape());
-            new_param->output(0).add_names({ov::npuw::LLMCompiledModel::layer_names::output_embeds});
-            matched_matmul->input(0).replace_source_output(new_param);
-            auto new_result = std::make_shared<ov::op::v0::Result>(matched_node_last_op);
-            lm_head_model =
-                std::make_shared<ov::Model>(ov::OutputVector{new_result->output(0)}, ov::ParameterVector{new_param});
-
-            return true;
-        };
-        register_matcher(std::make_shared<opp::Matcher>(res, "CutLMHead"), std::move(callback));
-    }
-};
-
 namespace {
-std::shared_ptr<ov::Model> cut_lm_head(const std::shared_ptr<ov::Model>& model) {
-    ov::pass::GraphRewrite rewr;
+std::shared_ptr<ov::Model> cut_lm_head(const std::shared_ptr<ov::Model>& model, std::string& output_embeds_name) {
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
-    rewr.add_matcher<CutLMHead>(lm_head_model);
-    rewr.run_on_model(model);
+    ov::npuw::CutLMHead(lm_head_model).run_on_model(model, output_embeds_name);
     if (lm_head_model) {
         lm_head_model->set_friendly_name(model->get_friendly_name() + "_lm_head");
     }
@@ -616,12 +523,12 @@ ov::element::Type choose_kv_cache_storage_type(const std::shared_ptr<ov::Model>&
     return kv_kache_storage_type;
 }
 
-std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model>& m, const ::intel_npu::Config& cfg) {
+std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model>& m, const ::intel_npu::Config& cfg, std::string& output_embeds_name) {
     bool shared_head_enabled = cfg.get<::intel_npu::NPUW_LLM_SHARED_HEAD>();
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
     if (shared_head_enabled) {
         LOG_DEBUG("Trying to separate Vocabulary matrix multiplication op into additional model...");
-        lm_head_model = cut_lm_head(m);
+        lm_head_model = cut_lm_head(m, output_embeds_name);
         if (lm_head_model) {
             LOG_INFO("Three-model pipeline will be created: LM head will be shared between prefill and generate.");
         } else {
@@ -1059,7 +966,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ov::npuw::ReplaceDeepstackScatterWithAdd().run_on_model(kvcache_model);
 
-    auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);
+    auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg, m_output_embeds_name);
 
     // Detect attention mask kind before the SDPA subgraph is isolated by partitioning,
     // annotating each SDPA node's rt_info. HostFlashAttention reads this per-node to

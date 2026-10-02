@@ -404,18 +404,19 @@ ov::npuw::LLMInferRequest::LLMInferRequest(
         }
     }
 
+    // Allow multiple names here
     if (compiled_model->m_lm_head_compiled) {
         m_lm_head_request = compiled_model->m_lm_head_compiled->create_infer_request();
         OPENVINO_ASSERT(m_lm_head_request);
         const ov::Output<const ov::Node> lm_head_embed_port = m_lm_head_request->get_inputs()[0];
         m_lm_head_logits_port = m_lm_head_request->get_outputs()[0];
-        m_prefill_request->set_tensor(m_prefill_out_ports.at(layer_names::output_embeds),
+        m_prefill_request->set_tensor(m_prefill_out_ports.at(compiled_model->m_output_embeds_name),
                                       m_lm_head_request->get_tensor(lm_head_embed_port));
 
         // Set output_embeds tensor for all generate variants
         for (auto& generate_req : m_generate_requests) {
             const auto& variant_out_ports = m_generate_variant_out_ports.at(generate_req);
-            generate_req->set_tensor(variant_out_ports.at(layer_names::output_embeds),
+            generate_req->set_tensor(variant_out_ports.at(compiled_model->m_output_embeds_name),
                                      m_lm_head_request->get_tensor(lm_head_embed_port));
         }
     }
