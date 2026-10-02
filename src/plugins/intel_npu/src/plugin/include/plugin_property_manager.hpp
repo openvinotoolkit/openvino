@@ -46,9 +46,14 @@ public:
 
 private:
     void registerProperties();
-    std::optional<ov::intel_npu::CompilerType> resolveCompilerType(ov::intel_npu::CompilerType compilerType,
-                                                                   const std::string& deviceId,
-                                                                   const std::string& platform) const;
+
+    // The helpers below read the value from the arguments and fall back to the stored config when missing.
+    // They don't lock _mutex, callers must hold it.
+    std::string getDeviceIdOrDefault(const ov::AnyMap& arguments) const;
+    std::string getPlatformOrDefault(const ov::AnyMap& arguments) const;
+    std::optional<ov::intel_npu::CompilerType> getCompilerTypeOrDefault(const ov::AnyMap& arguments) const;
+    std::optional<ov::intel_npu::CompilerType> resolveCompilerType(const ov::AnyMap& arguments) const;
+
     void warnCompilerOnlyOptionSkipped(const std::string& key) const;
 
     Config _config;
