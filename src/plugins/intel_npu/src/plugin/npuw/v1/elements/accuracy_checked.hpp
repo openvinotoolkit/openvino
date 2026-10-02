@@ -22,8 +22,11 @@ class InferRequest;
 // normalised RMSE threshold is exceeded.
 //
 // The wrapper is transparent: it exposes the same I/O as the wrapped
-// model and forwards all property queries to the currently active model
-// (main until a switch happens, reference afterwards).
+// model and forwards property queries to the currently active model
+// (main until a switch happens, reference afterwards). The exception is
+// the mutable-property surface: set_property always writes the main model
+// (and the reference only for keys it can change), so ov::supported_properties
+// and the properties main reports as mutable are always answered by main.
 //
 // Intended to be composed on top of a failsafe::CompiledModel so that
 // the full chain becomes:

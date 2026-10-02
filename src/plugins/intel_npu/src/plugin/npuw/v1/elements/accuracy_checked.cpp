@@ -10,6 +10,7 @@
 #include "../../util.hpp"
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/make_tensor.hpp"
+#include "openvino/runtime/properties.hpp"
 
 namespace ov::npuw::accuracy_checked {
 
@@ -68,24 +69,31 @@ std::shared_ptr<const ov::Model> CompiledModel::get_runtime_model() const {
 
 void CompiledModel::set_property(const ov::AnyMap& properties) {
     std::lock_guard<std::mutex> lock(m_mutex);
-    active_compiled_model_locked()->set_property(properties);
+    // The main model is the authoritative writable target, whether or not we have
+    // switched to the reference: it validates the keys and its errors reach the caller.
+    m_main_compiled->set_property(properties);
 
-    // Keep the standby model in sync too (it may run on a different device), so a
-    // later switch to/from the reference doesn't silently drop the change
-    const auto& standby = m_switched_to_reference ? m_main_compiled : m_ref_compiled;
-    ov::AnyMap standby_props;
+    // The reference (often on another device, e.g. CPU) only gets the keys it can change,
+    // so a switch to it doesn't silently drop the update
+    ov::AnyMap ref_props;
     for (const auto& [key, value] : properties) {
-        if (ov::npuw::util::is_mutable_property(standby, key)) {
-            standby_props.emplace(key, value);
+        if (ov::npuw::util::is_mutable_property(m_ref_compiled, key)) {
+            ref_props.emplace(key, value);
         }
     }
-    if (!standby_props.empty()) {
-        standby->set_property(standby_props);
+    if (!ref_props.empty()) {
+        m_ref_compiled->set_property(ref_props);
     }
 }
 
 ov::Any CompiledModel::get_property(const std::string& name) const {
     std::lock_guard<std::mutex> lock(m_mutex);
+    // Keep the mutable-property surface stable across a switch: set_property always
+    // writes the main model, so it also describes and answers the mutable properties.
+    // Everything else (e.g. ov::execution_devices) reflects the active model.
+    if (name == ov::supported_properties.name() || ov::npuw::util::is_mutable_property(m_main_compiled, name)) {
+        return m_main_compiled->get_property(name);
+    }
     return active_compiled_model_locked()->get_property(name);
 }
 
