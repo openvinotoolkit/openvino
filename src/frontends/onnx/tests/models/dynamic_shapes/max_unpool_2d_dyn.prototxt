@@ -2,9 +2,28 @@ ir_version: 6
 producer_name: "OpenVINO ONNX Frontend"
 graph {
   node {
-    input: "X"
-    input: "I"
-    output: "Y"
+    input: "X_dyn"
+    input: "I_dyn"
+    output: "Y_dyn"
+    op_type: "MaxUnpool"
+    attribute {
+      name: "kernel_shape"
+      ints: 2
+      ints: 2
+      type: INTS
+    }
+    attribute {
+      name: "strides"
+      ints: 2
+      ints: 2
+      type: INTS
+    }
+  }
+  node {
+    input: "X_oshape"
+    input: "I_oshape"
+    input: "output_shape_oshape"
+    output: "Y_oshape"
     op_type: "MaxUnpool"
     attribute {
       name: "kernel_shape"
@@ -21,7 +40,7 @@ graph {
   }
   name: "compute_graph"
   input {
-    name: "X"
+    name: "X_dyn"
     type {
       tensor_type {
         elem_type: 1
@@ -43,7 +62,7 @@ graph {
     }
   }
   input {
-    name: "I"
+    name: "I_dyn"
     type {
       tensor_type {
         elem_type: 7
@@ -64,8 +83,65 @@ graph {
       }
     }
   }
+  input {
+    name: "X_oshape"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "I_oshape"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 1
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+          dim {
+            dim_value: 2
+          }
+        }
+      }
+    }
+  }
+  input {
+    name: "output_shape_oshape"
+    type {
+      tensor_type {
+        elem_type: 7
+        shape {
+          dim {
+            dim_value: 4
+          }
+        }
+      }
+    }
+  }
   output {
-    name: "Y"
+    name: "Y_dyn"
     type {
       tensor_type {
         elem_type: 1
@@ -81,6 +157,24 @@ graph {
           }
           dim {
             dim_param: "OW"
+          }
+        }
+      }
+    }
+  }
+  output {
+    name: "Y_oshape"
+    type {
+      tensor_type {
+        elem_type: 1
+        shape {
+          dim {
+          }
+          dim {
+          }
+          dim {
+          }
+          dim {
           }
         }
       }

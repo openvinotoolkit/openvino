@@ -415,13 +415,5 @@ IE_GPU.onnx_model_stft_runtime_frame_length
 
 # GPU: scatter ops with a rank-1 Constant input give wrong results for static shapes
 IE_GPU.onnx_model_max_unpool_2d_opset9
-IE_GPU.onnx_model_max_unpool_2d_opset11
 IE_GPU.onnx_model_max_unpool_2d_opset22
-IE_GPU.onnx_model_max_unpool_2d_output_shape_const
-IE_GPU.onnx_model_max_unpool_1d
-IE_GPU.onnx_model_max_unpool_3d
-IE_GPU.onnx_model_max_unpool_2d_pads
-IE_GPU.onnx_model_max_unpool_2d_batch_channels
-IE_GPU.onnx_model_max_unpool_2d_default_strides
-IE_GPU.onnx_model_max_unpool_max_pool_round_trip
-IE_GPU.onnx_model_max_unpool_2d_f16
+IE_GPU.onnx_model_max_unpool

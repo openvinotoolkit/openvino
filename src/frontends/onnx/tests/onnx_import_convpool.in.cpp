@@ -8,6 +8,7 @@
 #include <fstream>
 #include <iterator>
 #include <limits>
+#include <map>
 #include <numeric>
 #include <sstream>
 #include <stdexcept>
@@ -23,6 +24,7 @@
 #include "onnx_utils.hpp"
 #include "openvino/op/max_pool.hpp"
 #include "openvino/op/scatter_elements_update.hpp"
+#include "openvino/op/util/framework_node.hpp"
 
 using namespace ov;
 using namespace ov::frontend::onnx::tests;
@@ -1713,114 +1715,79 @@ const std::vector<float> max_unpool_spec_x{5.0f, 6.0f, 7.0f, 8.0f};
 const std::vector<int64_t> max_unpool_spec_indices{5, 7, 13, 15};
 const std::vector<float>
     max_unpool_spec_y{0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.0f, 0.0f, 6.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 7.0f, 0.0f, 8.0f};
-
-template <typename T>
-void run_max_unpool(const std::string& model_path,
-                    const Shape& in_shape,
-                    const std::vector<T>& x,
-                    const std::vector<int64_t>& indices,
-                    const Shape& out_shape,
-                    const std::vector<T>& expected) {
-    auto test_case = ov::test::TestCase(convert_model(model_path), s_device);
-    test_case.add_input<T>(in_shape, x);
-    test_case.add_input<int64_t>(in_shape, indices);
-    test_case.add_expected_output<T>(out_shape, expected);
-    test_case.run();
-}
 }  // namespace
 
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_opset9) {
-    run_max_unpool<float>("max_unpool_2d_opset9.onnx",
-                          max_unpool_spec_in_shape,
-                          max_unpool_spec_x,
-                          max_unpool_spec_indices,
-                          max_unpool_spec_out_shape,
-                          max_unpool_spec_y);
-}
-
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_opset11) {
-    run_max_unpool<float>("max_unpool_2d_opset11.onnx",
-                          max_unpool_spec_in_shape,
-                          max_unpool_spec_x,
-                          max_unpool_spec_indices,
-                          max_unpool_spec_out_shape,
-                          max_unpool_spec_y);
-}
-
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_opset22) {
-    run_max_unpool<float>("max_unpool_2d_opset22.onnx",
-                          max_unpool_spec_in_shape,
-                          max_unpool_spec_x,
-                          max_unpool_spec_indices,
-                          max_unpool_spec_out_shape,
-                          max_unpool_spec_y);
-}
-
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_output_shape_const) {
-    // indices address flat(output_shape)
-    run_max_unpool<float>("max_unpool_2d_output_shape_const.onnx",
-                          Shape{1, 1, 2, 2},
-                          {5.5f, 2.0f, 4.5f, 0.5f},
-                          {6, 8, 11, 17},
-                          Shape{1, 1, 5, 5},
-                          {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.5f, 0.0f, 2.0f, 0.0f, 0.0f, 4.5f, 0.0f,
-                           0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
-}
-
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_output_shape_input) {
-    auto test_case = ov::test::TestCase(convert_model("max_unpool_2d_output_shape_input.onnx"), s_device);
-    test_case.add_input<float>(Shape{1, 2, 2, 2}, {6.5f, 1.5f, 9.5f, 8.0f, 9.0f, 8.5f, 2.0f, 3.5f});
-    test_case.add_input<int64_t>(Shape{1, 2, 2, 2}, {1, 2, 9, 15, 20, 27, 28, 30});
-    test_case.add_input<int64_t>(Shape{4}, {1, 2, 5, 4});
-    test_case.add_expected_output<float>(
-        Shape{1, 2, 5, 4},
-        {0.0f, 6.5f, 1.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 9.5f, 0.0f, 0.0f, 0.0f, 0.0f,
-         0.0f, 8.0f, 0.0f, 0.0f, 0.0f, 0.0f, 9.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 8.5f,
-         2.0f, 0.0f, 3.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+    auto test_case = ov::test::TestCase(convert_model("max_unpool_2d_opset9.onnx"), s_device);
+    test_case.add_input<float>(max_unpool_spec_in_shape, max_unpool_spec_x);
+    test_case.add_input<int64_t>(max_unpool_spec_in_shape, max_unpool_spec_indices);
+    test_case.add_expected_output<float>(max_unpool_spec_out_shape, max_unpool_spec_y);
     test_case.run();
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_1d) {
-    run_max_unpool<float>(
-        "max_unpool_1d.onnx",
-        Shape{1, 2, 4},
-        {1.5f, -0.5f, 3.0f, 3.5f, 0.0f, 2.5f, 2.0f, 0.5f},
-        {1, 2, 4, 6, 9, 11, 12, 15},
-        Shape{1, 2, 8},
-        {0.0f, 1.5f, -0.5f, 0.0f, 3.0f, 0.0f, 3.5f, 0.0f, 0.0f, 0.0f, 0.0f, 2.5f, 2.0f, 0.0f, 0.0f, 0.5f});
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_opset22) {
+    // f32 and f16 nodes
+    auto test_case = ov::test::TestCase(convert_model("max_unpool_2d_opset22.onnx"), s_device);
+    test_case.add_input<float>(max_unpool_spec_in_shape, max_unpool_spec_x);
+    test_case.add_input<int64_t>(max_unpool_spec_in_shape, max_unpool_spec_indices);
+    test_case.add_input<ov::float16>(max_unpool_spec_in_shape,
+                                     std::vector<ov::float16>(max_unpool_spec_x.begin(), max_unpool_spec_x.end()));
+    test_case.add_input<int64_t>(max_unpool_spec_in_shape, max_unpool_spec_indices);
+    test_case.add_expected_output<float>(max_unpool_spec_out_shape, max_unpool_spec_y);
+    test_case.add_expected_output<ov::float16>(
+        max_unpool_spec_out_shape,
+        std::vector<ov::float16>(max_unpool_spec_y.begin(), max_unpool_spec_y.end()));
+    test_case.run();
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_3d) {
-    run_max_unpool<float>(
-        "max_unpool_3d.onnx",
-        Shape{1, 1, 2, 2, 2},
-        {15.5f, 8.5f, 15.0f, 14.5f, 10.5f, 13.0f, 14.0f, 9.0f},
-        {1, 22, 8, 10, 48, 51, 61, 58},
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool) {
+    // Independent MaxUnpool nodes, one per case
+    auto test_case = ov::test::TestCase(convert_model("max_unpool.onnx"), s_device);
+    // 1d
+    test_case.add_input<float>(Shape{1, 2, 4}, {1.5f, -0.5f, 3.0f, 3.5f, 0.0f, 2.5f, 2.0f, 0.5f});
+    test_case.add_input<int64_t>(Shape{1, 2, 4}, {1, 2, 4, 6, 9, 11, 12, 15});
+    // 3d
+    test_case.add_input<float>(Shape{1, 1, 2, 2, 2}, {15.5f, 8.5f, 15.0f, 14.5f, 10.5f, 13.0f, 14.0f, 9.0f});
+    test_case.add_input<int64_t>(Shape{1, 1, 2, 2, 2}, {1, 22, 8, 10, 48, 51, 61, 58});
+    // pads
+    test_case.add_input<float>(Shape{1, 1, 3, 3}, {5.0f, 5.0f, 3.0f, 4.5f, 6.0f, 6.0f, 2.0f, 6.0f, 6.0f});
+    test_case.add_input<int64_t>(Shape{1, 1, 3, 3}, {1, 1, 3, 6, 18, 18, 20, 18, 18});
+    // default strides, duplicate indices
+    test_case.add_input<float>(Shape{1, 1, 3, 3}, {16.0f, 16.0f, 8.0f, 16.0f, 16.0f, 12.0f, 14.0f, 15.0f, 15.0f});
+    test_case.add_input<int64_t>(Shape{1, 1, 3, 3}, {5, 5, 7, 5, 5, 11, 13, 14, 14});
+    // indices include batch and channel offsets
+    test_case.add_input<float>(Shape{2, 3, 2, 2},
+                               {12.0f, 19.5f, 21.0f, 23.5f, 17.5f, 15.0f, 22.5f, 20.5f, -6.0f, -5.0f, 23.0f, 19.0f,
+                                1.5f,  8.0f,  16.0f, 3.0f,  12.5f, 18.5f, 9.0f,  20.0f, 22.0f, 10.5f, 4.5f,  21.5f});
+    test_case.add_input<int64_t>(Shape{2, 3, 2, 2},
+                                 {1, 3, 8, 11, 16, 22, 28, 26, 32, 39, 40, 46, 49, 51, 60, 62, 65, 66, 73, 78, 84, 86, 89, 94});
+    // constant output_shape, indices address flat(output_shape)
+    test_case.add_input<float>(Shape{1, 1, 2, 2}, {5.5f, 2.0f, 4.5f, 0.5f});
+    test_case.add_input<int64_t>(Shape{1, 1, 2, 2}, {6, 8, 11, 17});
+    // MaxPool -> MaxUnpool(output_shape = Shape(X))
+    test_case.add_input<float>(
+        Shape{1, 2, 5, 5},
+        {-3.0f, -9.0f, 11.0f, -11.0f, -8.5f, -12.5f, -2.5f,  10.5f, 12.0f, -10.0f, -2.0f, -0.5f,  -8.0f,
+         8.5f,  1.0f,  2.5f,  5.5f,   6.5f,  6.0f,   2.0f,   -9.5f, 10.0f, -5.5f,  8.0f,  -7.0f,  3.0f,
+         0.0f,  -6.0f, -3.5f, -1.0f,  -6.5f, 9.0f,   -12.0f, 1.5f,  3.5f,  5.0f,   -7.5f, -10.5f, 4.5f,
+         -1.5f, 4.0f,  7.0f,  -4.5f,  9.5f,  0.5f,   -11.5f, -5.0f, 11.5f, -4.0f,  7.5f});
+
+    test_case.add_expected_output<float>(
+        Shape{1, 2, 8},
+        {0.0f, 1.5f, -0.5f, 0.0f, 3.0f, 0.0f, 3.5f, 0.0f, 0.0f, 0.0f, 0.0f, 2.5f, 2.0f, 0.0f, 0.0f, 0.5f});
+    test_case.add_expected_output<float>(
         Shape{1, 1, 4, 4, 4},
         {0.0f,  15.5f, 0.0f, 0.0f,  0.0f, 0.0f, 0.0f, 0.0f, 15.0f, 0.0f, 14.5f, 0.0f, 0.0f, 0.0f,  0.0f, 0.0f,
          0.0f,  0.0f,  0.0f, 0.0f,  0.0f, 0.0f, 8.5f, 0.0f, 0.0f,  0.0f, 0.0f,  0.0f, 0.0f, 0.0f,  0.0f, 0.0f,
          0.0f,  0.0f,  0.0f, 0.0f,  0.0f, 0.0f, 0.0f, 0.0f, 0.0f,  0.0f, 0.0f,  0.0f, 0.0f, 0.0f,  0.0f, 0.0f,
          10.5f, 0.0f,  0.0f, 13.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,  0.0f, 9.0f,  0.0f, 0.0f, 14.0f, 0.0f, 0.0f});
-}
-
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_pads) {
-    run_max_unpool<float>("max_unpool_2d_pads.onnx",
-                          Shape{1, 1, 3, 3},
-                          {5.0f, 5.0f, 3.0f, 4.5f, 6.0f, 6.0f, 2.0f, 6.0f, 6.0f},
-                          {1, 1, 3, 6, 18, 18, 20, 18, 18},
-                          Shape{1, 1, 5, 5},
-                          {0.0f, 5.0f, 0.0f, 3.0f, 0.0f, 0.0f, 4.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
-                           0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 6.0f, 0.0f, 2.0f, 0.0f, 0.0f, 0.0f, 0.0f});
-}
-
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_batch_channels) {
-    // indices include batch and channel offsets
-    run_max_unpool<float>(
-        "max_unpool_2d_batch_channels.onnx",
-        Shape{2, 3, 2, 2},
-        {12.0f, 19.5f, 21.0f, 23.5f, 17.5f, 15.0f, 22.5f, 20.5f, -6.0f, -5.0f, 23.0f, 19.0f,
-         1.5f,  8.0f,  16.0f, 3.0f,  12.5f, 18.5f, 9.0f,  20.0f, 22.0f, 10.5f, 4.5f,  21.5f},
-        {1, 3, 8, 11, 16, 22, 28, 26, 32, 39, 40, 46, 49, 51, 60, 62, 65, 66, 73, 78, 84, 86, 89, 94},
+    test_case.add_expected_output<float>(Shape{1, 1, 5, 5},
+                                         {0.0f, 5.0f, 0.0f, 3.0f, 0.0f, 0.0f, 4.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                          0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 6.0f, 0.0f, 2.0f, 0.0f, 0.0f, 0.0f, 0.0f});
+    test_case.add_expected_output<float>(
+        Shape{1, 1, 4, 4},
+        {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 16.0f, 0.0f, 8.0f, 0.0f, 0.0f, 0.0f, 12.0f, 0.0f, 14.0f, 15.0f, 0.0f});
+    test_case.add_expected_output<float>(
         Shape{2, 3, 4, 4},
         {0.0f,  12.0f, 0.0f,  19.5f, 0.0f,  0.0f, 0.0f,  0.0f,  21.0f, 0.0f, 0.0f,  23.5f, 0.0f,  0.0f, 0.0f,  0.0f,
          17.5f, 0.0f,  0.0f,  0.0f,  0.0f,  0.0f, 15.0f, 0.0f,  0.0f,  0.0f, 20.5f, 0.0f,  22.5f, 0.0f, 0.0f,  0.0f,
@@ -1828,28 +1795,9 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_batch_channels) {
          0.0f,  1.5f,  0.0f,  8.0f,  0.0f,  0.0f, 0.0f,  0.0f,  0.0f,  0.0f, 0.0f,  0.0f,  16.0f, 0.0f, 3.0f,  0.0f,
          0.0f,  12.5f, 18.5f, 0.0f,  0.0f,  0.0f, 0.0f,  0.0f,  0.0f,  9.0f, 0.0f,  0.0f,  0.0f,  0.0f, 20.0f, 0.0f,
          0.0f,  0.0f,  0.0f,  0.0f,  22.0f, 0.0f, 10.5f, 0.0f,  0.0f,  4.5f, 0.0f,  0.0f,  0.0f,  0.0f, 21.5f, 0.0f});
-}
-
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_default_strides) {
-    // duplicate indices
-    run_max_unpool<float>(
-        "max_unpool_2d_default_strides.onnx",
-        Shape{1, 1, 3, 3},
-        {16.0f, 16.0f, 8.0f, 16.0f, 16.0f, 12.0f, 14.0f, 15.0f, 15.0f},
-        {5, 5, 7, 5, 5, 11, 13, 14, 14},
-        Shape{1, 1, 4, 4},
-        {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 16.0f, 0.0f, 8.0f, 0.0f, 0.0f, 0.0f, 12.0f, 0.0f, 14.0f, 15.0f, 0.0f});
-}
-
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_max_pool_round_trip) {
-    // MaxPool -> MaxUnpool(output_shape = Shape(X))
-    auto test_case = ov::test::TestCase(convert_model("max_unpool_max_pool_round_trip.onnx"), s_device);
-    test_case.add_input<float>(
-        Shape{1, 2, 5, 5},
-        {-3.0f, -9.0f, 11.0f, -11.0f, -8.5f, -12.5f, -2.5f,  10.5f, 12.0f, -10.0f, -2.0f, -0.5f,  -8.0f,
-         8.5f,  1.0f,  2.5f,  5.5f,   6.5f,  6.0f,   2.0f,   -9.5f, 10.0f, -5.5f,  8.0f,  -7.0f,  3.0f,
-         0.0f,  -6.0f, -3.5f, -1.0f,  -6.5f, 9.0f,   -12.0f, 1.5f,  3.5f,  5.0f,   -7.5f, -10.5f, 4.5f,
-         -1.5f, 4.0f,  7.0f,  -4.5f,  9.5f,  0.5f,   -11.5f, -5.0f, 11.5f, -4.0f,  7.5f});
+    test_case.add_expected_output<float>(Shape{1, 1, 5, 5},
+                                         {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 5.5f, 0.0f, 2.0f, 0.0f, 0.0f, 4.5f, 0.0f,
+                                          0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
     test_case.add_expected_output<float>(
         Shape{1, 2, 5, 5},
         {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, -2.5f, 0.0f, 12.0f, 0.0f, 0.0f, 0.0f, 0.0f, 8.5f, 0.0f, 0.0f, 5.5f,
@@ -1858,17 +1806,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_max_pool_round_trip) {
     test_case.run();
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_2d_f16) {
-    run_max_unpool<ov::float16>("max_unpool_2d_f16.onnx",
-                                max_unpool_spec_in_shape,
-                                std::vector<ov::float16>(max_unpool_spec_x.begin(), max_unpool_spec_x.end()),
-                                max_unpool_spec_indices,
-                                max_unpool_spec_out_shape,
-                                std::vector<ov::float16>(max_unpool_spec_y.begin(), max_unpool_spec_y.end()));
-}
-
 OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_decomposition) {
-    const auto model = convert_model("max_unpool_2d_opset11.onnx");
+    const auto model = convert_model("max_unpool_2d_opset9.onnx");
     const auto ops = model->get_ordered_ops();
     EXPECT_EQ(std::count_if(ops.begin(),
                             ops.end(),
@@ -1878,25 +1817,33 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_decomposition) {
               1);
 }
 
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_large_output_shape_dim) {
-    // Valid int64 dimension above INT32_MAX is accepted at conversion
-    EXPECT_NO_THROW(convert_model("max_unpool_output_shape_large_dim.onnx"));
-}
-
-OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_invalid_attributes) {
-    const std::vector<std::pair<std::string, std::string>> cases{
-        {"max_unpool_invalid_kernel_shape.onnx", "'kernel_shape'"},
-        {"max_unpool_invalid_strides.onnx", "'strides'"},
-        {"max_unpool_invalid_pads.onnx", "'pads'"},
-        {"max_unpool_invalid_negative_pads.onnx", "'pads'"},
-        {"max_unpool_invalid_rank.onnx", "rank"},
-        {"max_unpool_invalid_huge_pads.onnx", "'pads'"},
-        {"max_unpool_invalid_output_shape_rank.onnx", "'output_shape'"},
-        {"max_unpool_invalid_output_shape_channels.onnx", "'output_shape'"},
-        {"max_unpool_invalid_indices_shape.onnx", "'indices'"},
+OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool_validation) {
+    // Each invalid node becomes a framework node with its own error
+    const auto model = convert_partially("max_unpool_validation.onnx");
+    std::map<std::string, std::string> errors;
+    for (const auto& op : model->get_ops()) {
+        if (const auto fw_node = ov::as_type_ptr<ov::op::util::FrameworkNode>(op)) {
+            for (const auto& attr : fw_node->get_attrs()) {
+                errors[op->get_output_tensor(0).get_any_name()] += attr.second + "\n";
+            }
+        }
+    }
+    const std::map<std::string, std::string> expected{
+        {"Y_kernel_shape", "'kernel_shape'"},
+        {"Y_strides", "'strides'"},
+        {"Y_pads", "'pads'"},
+        {"Y_negative_pads", "'pads'"},
+        {"Y_huge_pads", "'pads'"},
+        {"Y_rank", "rank"},
+        {"Y_output_shape_rank", "'output_shape'"},
+        {"Y_output_shape_channels", "'output_shape'"},
+        {"Y_indices_shape", "'indices'"},
     };
-    for (const auto& [model_path, message] : cases) {
-        SCOPED_TRACE(model_path);
-        OV_EXPECT_THROW(convert_model(model_path), ov::Exception, testing::HasSubstr(message));
+    // Y_large_dim: a valid int64 dimension above INT32_MAX is converted
+    EXPECT_EQ(errors.size(), expected.size());
+    for (const auto& [output, message] : expected) {
+        SCOPED_TRACE(output);
+        ASSERT_EQ(errors.count(output), 1);
+        EXPECT_THAT(errors.at(output), testing::HasSubstr(message));
     }
 }
