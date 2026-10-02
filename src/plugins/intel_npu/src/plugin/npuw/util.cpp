@@ -195,8 +195,7 @@ bool ov::npuw::util::starts_with(const std::string& str, const std::string& pref
     return str.substr(0, prefix.size()) == prefix;
 }
 
-bool ov::npuw::util::is_mutable_property(const ov::SoPtr<ov::ICompiledModel>& compiled_model,
-                                         const std::string& name) {
+bool ov::npuw::util::is_mutable_property(const ov::SoPtr<ov::ICompiledModel>& compiled_model, const std::string& name) {
     const auto supported =
         compiled_model->get_property(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
     return std::any_of(supported.begin(), supported.end(), [&](const ov::PropertyName& p) {
