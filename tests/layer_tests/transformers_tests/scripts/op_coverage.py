@@ -3,6 +3,7 @@
 
 import argparse
 import ast
+import hashlib
 import json
 from pathlib import Path
 import sys
@@ -52,6 +53,9 @@ def source_calls(root):
 def main():
     parser = argparse.ArgumentParser(description="Audit Transformers source call sites and primitive ATen coverage")
     parser.add_argument("--output", type=Path, required=True)
+    baseline = parser.add_mutually_exclusive_group()
+    baseline.add_argument("--check-baseline", type=Path)
+    baseline.add_argument("--update-baseline", type=Path)
     args = parser.parse_args()
     root = Path(transformers.__file__).parent.resolve()
     executed = set()
@@ -96,7 +100,29 @@ def main():
     args.output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     print(f"{len(results)} cases; {len(report['aten_ops'])} ATen overloads; "
           f"{report['unexecuted_source_calls']}/{len(calls)} source call sites unexecuted")
-    return int(any(result["status"] == "failed" for result in results))
+    if any(result["status"] == "failed" for result in results):
+        return 1
+    inventory = {
+        "transformers_version": transformers.__version__,
+        "requirements_sha256": hashlib.sha256(
+            (Path(__file__).resolve().parents[1] / "requirements.txt").read_text(encoding="utf-8").encode()
+        ).hexdigest(),
+        "source_calls_sha256": hashlib.sha256(json.dumps([
+            {key: call[key] for key in ("file", "line", "call")} for call in calls
+        ], sort_keys=True).encode()).hexdigest(),
+        "source_call_count": len(calls),
+        "cases": [{"case": result["case"], "aten_ops": result["aten_ops"]} for result in results],
+    }
+    if args.update_baseline:
+        args.update_baseline.write_text(json.dumps(inventory, indent=2) + "\n", encoding="utf-8")
+    if args.check_baseline:
+        expected = json.loads(args.check_baseline.read_text(encoding="utf-8"))
+        changed = [key for key in inventory if inventory[key] != expected.get(key)]
+        if changed:
+            print(f"Coverage inventory changed: {', '.join(changed)}. Review {args.output}, add recipes for new "
+                  "primitives or document exclusions in README.md, then regenerate coverage_inventory.json.")
+            return 1
+    return 0
 
 
 if __name__ == "__main__":

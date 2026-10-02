@@ -40,6 +40,9 @@ The 132 primitives produce 264 trace/export cases. A local CPU run with Python
 3.10, PyTorch 2.12.1+cpu, and Transformers 5.18.0 took about eight seconds with
 four workers (252 passed, 12 expected failures), excluding dependency installation
 and build time. CI runs the suite as a dedicated precommit step.
+The precommit coverage-inventory test also runs the eager audit once, independently
+of conversion mode and device. Including this audit, the local precommit run took
+18 seconds (253 passed, 12 expected failures).
 
 ## Establishing library coverage
 
@@ -71,6 +74,30 @@ kernels, and architecture-specific code. Tensor methods and indirect calls are
 not statically inventoried, and executing a source line does not establish branch
 coverage. Initialization is excluded from ATen recording. This audit is a gap
 finder, not proof of full coverage or conversion support.
+
+`test_coverage.py` invokes this script in precommit and compares its results with
+the committed `coverage_inventory.json`. It fails when the suite requirements,
+Transformers version, source-call inventory, primitive IDs, or per-primitive ATen
+overloads change. It runs on every precommit invocation so the gate also works in
+installed test packages without Git history or changed-file metadata. Requirements
+updates therefore cannot silently retain an outdated coverage inventory.
+
+For a dependency update, inspect the full audit JSON and compare it with the old
+version's report. Add recipes for new inference primitives, or document explicit
+exclusions and reasons here, before updating the inventory:
+
+```bash
+python3 tests/layer_tests/transformers_tests/scripts/op_coverage.py \
+  --output /tmp/transformers-op-coverage.json \
+  --update-baseline tests/layer_tests/transformers_tests/coverage_inventory.json
+```
+
+Commit the reviewed inventory with the requirements and recipes. Regenerating the
+inventory alone acknowledges changes; it does not establish coverage of new
+primitives. Activation/RoPE registries discover new variants automatically, while
+other families still require source review and explicit recipes. The inventory
+excludes executed source-line counts because optional dependency paths can differ
+across platforms; the full audit report retains those counts for review.
 
 Remaining coverage includes MoE routing, recurrent/state-space kernels,
 multimodal packing, additional generation processors, dtype variants, fully

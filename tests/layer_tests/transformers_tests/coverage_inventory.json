@@ -1,0 +1,1655 @@
+{
+  "transformers_version": "5.18.0",
+  "requirements_sha256": "359f04ac1cf37d472295f019943743cf087e6f04daff5aa45d18a90be490970b",
+  "source_calls_sha256": "5e5c405421b367e81b77628a545747a45a453526eb86adb96197140a5e79c913",
+  "source_call_count": 44453,
+  "cases": [
+    {
+      "case": "activation-gelu",
+      "aten_ops": [
+        "aten.gelu.default"
+      ]
+    },
+    {
+      "case": "activation-gelu_10",
+      "aten_ops": [
+        "aten.clamp.default",
+        "aten.gelu.default"
+      ]
+    },
+    {
+      "case": "activation-gelu_accurate",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.mul.Tensor",
+        "aten.pow.Tensor_Scalar",
+        "aten.tanh.default"
+      ]
+    },
+    {
+      "case": "activation-gelu_fast",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.mul.Tensor",
+        "aten.tanh.default"
+      ]
+    },
+    {
+      "case": "activation-gelu_new",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.mul.Tensor",
+        "aten.pow.Tensor_Scalar",
+        "aten.tanh.default"
+      ]
+    },
+    {
+      "case": "activation-gelu_python",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.div.Tensor",
+        "aten.erf.default",
+        "aten.mul.Tensor"
+      ]
+    },
+    {
+      "case": "activation-gelu_python_tanh",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.mul.Tensor",
+        "aten.pow.Tensor_Scalar",
+        "aten.tanh.default"
+      ]
+    },
+    {
+      "case": "activation-gelu_pytorch_tanh",
+      "aten_ops": [
+        "aten.gelu.default"
+      ]
+    },
+    {
+      "case": "activation-hardswish",
+      "aten_ops": [
+        "aten.hardswish.default"
+      ]
+    },
+    {
+      "case": "activation-laplace",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.div.Tensor",
+        "aten.erf.default",
+        "aten.mul.Tensor",
+        "aten.sub.Tensor"
+      ]
+    },
+    {
+      "case": "activation-leaky_relu",
+      "aten_ops": [
+        "aten.leaky_relu.default"
+      ]
+    },
+    {
+      "case": "activation-linear",
+      "aten_ops": []
+    },
+    {
+      "case": "activation-mish",
+      "aten_ops": [
+        "aten.mish.default"
+      ]
+    },
+    {
+      "case": "activation-prelu",
+      "aten_ops": [
+        "aten._prelu_kernel.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "activation-quick_gelu",
+      "aten_ops": [
+        "aten.mul.Tensor",
+        "aten.sigmoid.default"
+      ]
+    },
+    {
+      "case": "activation-relu",
+      "aten_ops": [
+        "aten.relu.default"
+      ]
+    },
+    {
+      "case": "activation-relu2",
+      "aten_ops": [
+        "aten.pow.Tensor_Scalar",
+        "aten.relu.default"
+      ]
+    },
+    {
+      "case": "activation-relu6",
+      "aten_ops": [
+        "aten.hardtanh.default"
+      ]
+    },
+    {
+      "case": "activation-sigmoid",
+      "aten_ops": [
+        "aten.sigmoid.default"
+      ]
+    },
+    {
+      "case": "activation-silu",
+      "aten_ops": [
+        "aten.silu.default"
+      ]
+    },
+    {
+      "case": "activation-sqrtsoftplus",
+      "aten_ops": [
+        "aten.softplus.default",
+        "aten.sqrt.default"
+      ]
+    },
+    {
+      "case": "activation-swish",
+      "aten_ops": [
+        "aten.silu.default"
+      ]
+    },
+    {
+      "case": "activation-tanh",
+      "aten_ops": [
+        "aten.tanh.default"
+      ]
+    },
+    {
+      "case": "activation-xielu",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.expm1.default",
+        "aten.gt.Scalar",
+        "aten.minimum.default",
+        "aten.mul.Tensor",
+        "aten.softplus.default",
+        "aten.sub.Tensor",
+        "aten.where.self"
+      ]
+    },
+    {
+      "case": "utility-conv1d",
+      "aten_ops": [
+        "aten.addmm.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "utility-chunking",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.cat.default",
+        "aten.mul.Tensor",
+        "aten.pow.Tensor_Scalar",
+        "aten.split.Tensor",
+        "aten.tanh.default"
+      ]
+    },
+    {
+      "case": "utility-meshgrid",
+      "aten_ops": [
+        "aten.expand.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "utility-rms_norm",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.mean.dim",
+        "aten.mul.Tensor",
+        "aten.pow.Tensor_Scalar",
+        "aten.rsqrt.default"
+      ]
+    },
+    {
+      "case": "utility-gated_mlp",
+      "aten_ops": [
+        "aten._unsafe_view.default",
+        "aten.mm.default",
+        "aten.mul.Tensor",
+        "aten.silu.default",
+        "aten.t.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "utility-relative_position",
+      "aten_ops": [
+        "aten._to_copy.default",
+        "aten.abs.default",
+        "aten.add.Tensor",
+        "aten.add_.Tensor",
+        "aten.div.Tensor",
+        "aten.full_like.default",
+        "aten.gt.Scalar",
+        "aten.log.default",
+        "aten.lt.Scalar",
+        "aten.minimum.default",
+        "aten.mul.Tensor",
+        "aten.where.self"
+      ]
+    },
+    {
+      "case": "mask-eager-causal-prefill",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.arange.default",
+        "aten.bitwise_and.Tensor",
+        "aten.expand.default",
+        "aten.index.Tensor",
+        "aten.le.Tensor",
+        "aten.lift_fresh.default",
+        "aten.new_ones.default",
+        "aten.scalar_tensor.default",
+        "aten.unsqueeze.default",
+        "aten.where.self"
+      ]
+    },
+    {
+      "case": "mask-eager-causal-decode",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.arange.default",
+        "aten.bitwise_and.Tensor",
+        "aten.expand.default",
+        "aten.index.Tensor",
+        "aten.le.Tensor",
+        "aten.lift_fresh.default",
+        "aten.new_ones.default",
+        "aten.scalar_tensor.default",
+        "aten.unsqueeze.default",
+        "aten.where.self"
+      ]
+    },
+    {
+      "case": "mask-eager-bidirectional-prefill",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.arange.default",
+        "aten.bitwise_and.Tensor",
+        "aten.expand.default",
+        "aten.ge.Scalar",
+        "aten.index.Tensor",
+        "aten.lift_fresh.default",
+        "aten.new_ones.default",
+        "aten.scalar_tensor.default",
+        "aten.unsqueeze.default",
+        "aten.where.self"
+      ]
+    },
+    {
+      "case": "mask-eager-bidirectional-decode",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.arange.default",
+        "aten.bitwise_and.Tensor",
+        "aten.expand.default",
+        "aten.ge.Scalar",
+        "aten.index.Tensor",
+        "aten.lift_fresh.default",
+        "aten.new_ones.default",
+        "aten.scalar_tensor.default",
+        "aten.unsqueeze.default",
+        "aten.where.self"
+      ]
+    },
+    {
+      "case": "mask-eager-sliding-prefill",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.arange.default",
+        "aten.bitwise_and.Tensor",
+        "aten.expand.default",
+        "aten.gt.Tensor",
+        "aten.index.Tensor",
+        "aten.le.Tensor",
+        "aten.lift_fresh.default",
+        "aten.new_ones.default",
+        "aten.scalar_tensor.default",
+        "aten.sub.Tensor",
+        "aten.unsqueeze.default",
+        "aten.where.self"
+      ]
+    },
+    {
+      "case": "mask-eager-sliding-decode",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.arange.default",
+        "aten.bitwise_and.Tensor",
+        "aten.expand.default",
+        "aten.gt.Tensor",
+        "aten.index.Tensor",
+        "aten.le.Tensor",
+        "aten.lift_fresh.default",
+        "aten.new_ones.default",
+        "aten.scalar_tensor.default",
+        "aten.sub.Tensor",
+        "aten.unsqueeze.default",
+        "aten.where.self"
+      ]
+    },
+    {
+      "case": "mask-eager-chunked-prefill",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.arange.default",
+        "aten.bitwise_and.Tensor",
+        "aten.eq.Tensor",
+        "aten.expand.default",
+        "aten.floor_divide.default",
+        "aten.index.Tensor",
+        "aten.le.Tensor",
+        "aten.lift_fresh.default",
+        "aten.new_ones.default",
+        "aten.scalar_tensor.default",
+        "aten.sub.Tensor",
+        "aten.unsqueeze.default",
+        "aten.where.self"
+      ]
+    },
+    {
+      "case": "mask-eager-chunked-decode",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.arange.default",
+        "aten.bitwise_and.Tensor",
+        "aten.eq.Tensor",
+        "aten.expand.default",
+        "aten.floor_divide.default",
+        "aten.index.Tensor",
+        "aten.le.Tensor",
+        "aten.lift_fresh.default",
+        "aten.new_ones.default",
+        "aten.scalar_tensor.default",
+        "aten.sub.Tensor",
+        "aten.unsqueeze.default",
+        "aten.where.self"
+      ]
+    },
+    {
+      "case": "mask-eager-packed-prefill",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.arange.default",
+        "aten.bitwise_and.Tensor",
+        "aten.eq.Tensor",
+        "aten.expand.default",
+        "aten.index.Tensor",
+        "aten.lift_fresh.default",
+        "aten.new_ones.default",
+        "aten.scalar_tensor.default",
+        "aten.unsqueeze.default",
+        "aten.where.self"
+      ]
+    },
+    {
+      "case": "mask-eager-packed-decode",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.arange.default",
+        "aten.bitwise_and.Tensor",
+        "aten.eq.Tensor",
+        "aten.expand.default",
+        "aten.index.Tensor",
+        "aten.lift_fresh.default",
+        "aten.new_ones.default",
+        "aten.scalar_tensor.default",
+        "aten.unsqueeze.default",
+        "aten.where.self"
+      ]
+    },
+    {
+      "case": "mask-sdpa-causal-prefill",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.arange.default",
+        "aten.bitwise_and.Tensor",
+        "aten.expand.default",
+        "aten.index.Tensor",
+        "aten.le.Tensor",
+        "aten.new_ones.default",
+        "aten.unsqueeze.default"
+      ]
+    },
+    {
+      "case": "mask-sdpa-causal-decode",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.arange.default",
+        "aten.bitwise_and.Tensor",
+        "aten.expand.default",
+        "aten.index.Tensor",
+        "aten.le.Tensor",
+        "aten.new_ones.default",
+        "aten.unsqueeze.default"
+      ]
+    },
+    {
+      "case": "mask-sdpa-bidirectional-prefill",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.arange.default",
+        "aten.bitwise_and.Tensor",
+        "aten.expand.default",
+        "aten.ge.Scalar",
+        "aten.index.Tensor",
+        "aten.new_ones.default",
+        "aten.unsqueeze.default"
+      ]
+    },
+    {
+      "case": "mask-sdpa-bidirectional-decode",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.arange.default",
+        "aten.bitwise_and.Tensor",
+        "aten.expand.default",
+        "aten.ge.Scalar",
+        "aten.index.Tensor",
+        "aten.new_ones.default",
+        "aten.unsqueeze.default"
+      ]
+    },
+    {
+      "case": "mask-sdpa-sliding-prefill",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.arange.default",
+        "aten.bitwise_and.Tensor",
+        "aten.expand.default",
+        "aten.gt.Tensor",
+        "aten.index.Tensor",
+        "aten.le.Tensor",
+        "aten.new_ones.default",
+        "aten.sub.Tensor",
+        "aten.unsqueeze.default"
+      ]
+    },
+    {
+      "case": "mask-sdpa-sliding-decode",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.arange.default",
+        "aten.bitwise_and.Tensor",
+        "aten.expand.default",
+        "aten.gt.Tensor",
+        "aten.index.Tensor",
+        "aten.le.Tensor",
+        "aten.new_ones.default",
+        "aten.sub.Tensor",
+        "aten.unsqueeze.default"
+      ]
+    },
+    {
+      "case": "mask-sdpa-chunked-prefill",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.arange.default",
+        "aten.bitwise_and.Tensor",
+        "aten.eq.Tensor",
+        "aten.expand.default",
+        "aten.floor_divide.default",
+        "aten.index.Tensor",
+        "aten.le.Tensor",
+        "aten.new_ones.default",
+        "aten.sub.Tensor",
+        "aten.unsqueeze.default"
+      ]
+    },
+    {
+      "case": "mask-sdpa-chunked-decode",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.arange.default",
+        "aten.bitwise_and.Tensor",
+        "aten.eq.Tensor",
+        "aten.expand.default",
+        "aten.floor_divide.default",
+        "aten.index.Tensor",
+        "aten.le.Tensor",
+        "aten.new_ones.default",
+        "aten.sub.Tensor",
+        "aten.unsqueeze.default"
+      ]
+    },
+    {
+      "case": "mask-sdpa-packed-prefill",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.arange.default",
+        "aten.bitwise_and.Tensor",
+        "aten.eq.Tensor",
+        "aten.expand.default",
+        "aten.index.Tensor",
+        "aten.new_ones.default",
+        "aten.unsqueeze.default"
+      ]
+    },
+    {
+      "case": "mask-sdpa-packed-decode",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.arange.default",
+        "aten.bitwise_and.Tensor",
+        "aten.eq.Tensor",
+        "aten.expand.default",
+        "aten.index.Tensor",
+        "aten.new_ones.default",
+        "aten.unsqueeze.default"
+      ]
+    },
+    {
+      "case": "attention-eager-1-prefill-False",
+      "aten_ops": [
+        "aten._softmax.default",
+        "aten._unsafe_view.default",
+        "aten.bmm.default",
+        "aten.clone.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.transpose.int",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "attention-eager-1-prefill-True",
+      "aten_ops": [
+        "aten._softmax.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.bmm.default",
+        "aten.clone.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.transpose.int",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "attention-eager-1-decode-False",
+      "aten_ops": [
+        "aten._softmax.default",
+        "aten._unsafe_view.default",
+        "aten.bmm.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.transpose.int",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "attention-eager-1-decode-True",
+      "aten_ops": [
+        "aten._softmax.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.bmm.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.transpose.int",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "attention-eager-1-cross-False",
+      "aten_ops": [
+        "aten._softmax.default",
+        "aten._unsafe_view.default",
+        "aten.bmm.default",
+        "aten.clone.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.transpose.int",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "attention-eager-1-cross-True",
+      "aten_ops": [
+        "aten._softmax.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.bmm.default",
+        "aten.clone.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.transpose.int",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "attention-eager-2-prefill-False",
+      "aten_ops": [
+        "aten._softmax.default",
+        "aten._unsafe_view.default",
+        "aten.bmm.default",
+        "aten.clone.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "attention-eager-2-prefill-True",
+      "aten_ops": [
+        "aten._softmax.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.bmm.default",
+        "aten.clone.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "attention-eager-2-decode-False",
+      "aten_ops": [
+        "aten._softmax.default",
+        "aten._unsafe_view.default",
+        "aten.bmm.default",
+        "aten.clone.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "attention-eager-2-decode-True",
+      "aten_ops": [
+        "aten._softmax.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.bmm.default",
+        "aten.clone.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "attention-eager-2-cross-False",
+      "aten_ops": [
+        "aten._softmax.default",
+        "aten._unsafe_view.default",
+        "aten.bmm.default",
+        "aten.clone.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "attention-eager-2-cross-True",
+      "aten_ops": [
+        "aten._softmax.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.bmm.default",
+        "aten.clone.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "attention-sdpa-1-prefill-False",
+      "aten_ops": [
+        "aten._scaled_dot_product_flash_attention_for_cpu.default",
+        "aten.clone.default",
+        "aten.transpose.int"
+      ]
+    },
+    {
+      "case": "attention-sdpa-1-prefill-True",
+      "aten_ops": [
+        "aten._scaled_dot_product_flash_attention_for_cpu.default",
+        "aten.clone.default",
+        "aten.transpose.int"
+      ]
+    },
+    {
+      "case": "attention-sdpa-1-decode-False",
+      "aten_ops": [
+        "aten._scaled_dot_product_flash_attention_for_cpu.default",
+        "aten.transpose.int"
+      ]
+    },
+    {
+      "case": "attention-sdpa-1-decode-True",
+      "aten_ops": [
+        "aten._scaled_dot_product_flash_attention_for_cpu.default",
+        "aten.transpose.int"
+      ]
+    },
+    {
+      "case": "attention-sdpa-1-cross-False",
+      "aten_ops": [
+        "aten._scaled_dot_product_flash_attention_for_cpu.default",
+        "aten.clone.default",
+        "aten.transpose.int"
+      ]
+    },
+    {
+      "case": "attention-sdpa-1-cross-True",
+      "aten_ops": [
+        "aten._scaled_dot_product_flash_attention_for_cpu.default",
+        "aten.clone.default",
+        "aten.transpose.int"
+      ]
+    },
+    {
+      "case": "attention-sdpa-2-prefill-False",
+      "aten_ops": [
+        "aten._scaled_dot_product_flash_attention_for_cpu.default",
+        "aten.clone.default",
+        "aten.transpose.int"
+      ]
+    },
+    {
+      "case": "attention-sdpa-2-prefill-True",
+      "aten_ops": [
+        "aten._scaled_dot_product_flash_attention_for_cpu.default",
+        "aten._unsafe_view.default",
+        "aten.clone.default",
+        "aten.expand.default",
+        "aten.transpose.int",
+        "aten.unsqueeze.default"
+      ]
+    },
+    {
+      "case": "attention-sdpa-2-decode-False",
+      "aten_ops": [
+        "aten._scaled_dot_product_flash_attention_for_cpu.default",
+        "aten.transpose.int"
+      ]
+    },
+    {
+      "case": "attention-sdpa-2-decode-True",
+      "aten_ops": [
+        "aten._scaled_dot_product_flash_attention_for_cpu.default",
+        "aten._unsafe_view.default",
+        "aten.clone.default",
+        "aten.expand.default",
+        "aten.transpose.int",
+        "aten.unsqueeze.default"
+      ]
+    },
+    {
+      "case": "attention-sdpa-2-cross-False",
+      "aten_ops": [
+        "aten._scaled_dot_product_flash_attention_for_cpu.default",
+        "aten.clone.default",
+        "aten.transpose.int"
+      ]
+    },
+    {
+      "case": "attention-sdpa-2-cross-True",
+      "aten_ops": [
+        "aten._scaled_dot_product_flash_attention_for_cpu.default",
+        "aten._unsafe_view.default",
+        "aten.clone.default",
+        "aten.expand.default",
+        "aten.transpose.int",
+        "aten.unsqueeze.default"
+      ]
+    },
+    {
+      "case": "cache-dynamic-update-prefill",
+      "aten_ops": [
+        "aten.cat.default",
+        "aten.clone.default",
+        "aten.lift_fresh.default"
+      ]
+    },
+    {
+      "case": "cache-dynamic-update-decode",
+      "aten_ops": [
+        "aten.cat.default",
+        "aten.clone.default",
+        "aten.lift_fresh.default"
+      ]
+    },
+    {
+      "case": "cache-dynamic-reorder-prefill",
+      "aten_ops": [
+        "aten.cat.default",
+        "aten.clone.default",
+        "aten.index_select.default",
+        "aten.lift_fresh.default"
+      ]
+    },
+    {
+      "case": "cache-dynamic-reorder-decode",
+      "aten_ops": [
+        "aten.cat.default",
+        "aten.clone.default",
+        "aten.index_select.default",
+        "aten.lift_fresh.default"
+      ]
+    },
+    {
+      "case": "cache-dynamic-repeat-prefill",
+      "aten_ops": [
+        "aten.cat.default",
+        "aten.clone.default",
+        "aten.expand.default",
+        "aten.lift_fresh.default",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "cache-dynamic-repeat-decode",
+      "aten_ops": [
+        "aten.cat.default",
+        "aten.clone.default",
+        "aten.expand.default",
+        "aten.lift_fresh.default",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "cache-dynamic-crop-prefill",
+      "aten_ops": [
+        "aten.cat.default",
+        "aten.clone.default",
+        "aten.lift_fresh.default",
+        "aten.slice.Tensor"
+      ]
+    },
+    {
+      "case": "cache-dynamic-crop-decode",
+      "aten_ops": [
+        "aten.cat.default",
+        "aten.clone.default",
+        "aten.lift_fresh.default",
+        "aten.slice.Tensor"
+      ]
+    },
+    {
+      "case": "cache-sliding-update-prefill",
+      "aten_ops": [
+        "aten.cat.default",
+        "aten.clone.default",
+        "aten.lift_fresh.default",
+        "aten.slice.Tensor"
+      ]
+    },
+    {
+      "case": "cache-sliding-update-decode",
+      "aten_ops": [
+        "aten.cat.default",
+        "aten.clone.default",
+        "aten.lift_fresh.default",
+        "aten.slice.Tensor"
+      ]
+    },
+    {
+      "case": "cache-sliding-reorder-prefill",
+      "aten_ops": [
+        "aten.cat.default",
+        "aten.clone.default",
+        "aten.index_select.default",
+        "aten.lift_fresh.default",
+        "aten.slice.Tensor"
+      ]
+    },
+    {
+      "case": "cache-sliding-reorder-decode",
+      "aten_ops": [
+        "aten.cat.default",
+        "aten.clone.default",
+        "aten.index_select.default",
+        "aten.lift_fresh.default",
+        "aten.slice.Tensor"
+      ]
+    },
+    {
+      "case": "cache-static-update-prefill",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.add_.Tensor",
+        "aten.arange.default",
+        "aten.clone.default",
+        "aten.index_copy_.default",
+        "aten.lift_fresh.default",
+        "aten.new_zeros.default",
+        "aten.zeros.default"
+      ]
+    },
+    {
+      "case": "cache-static-update-decode",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.add_.Tensor",
+        "aten.arange.default",
+        "aten.clone.default",
+        "aten.index_copy_.default",
+        "aten.lift_fresh.default",
+        "aten.new_zeros.default",
+        "aten.zeros.default"
+      ]
+    },
+    {
+      "case": "cache-static-reorder-prefill",
+      "aten_ops": [
+        "aten._local_scalar_dense.default",
+        "aten.add.Tensor",
+        "aten.add_.Tensor",
+        "aten.arange.default",
+        "aten.clone.default",
+        "aten.gt.Scalar",
+        "aten.index_copy_.default",
+        "aten.index_select.default",
+        "aten.lift_fresh.default",
+        "aten.new_zeros.default",
+        "aten.zeros.default"
+      ]
+    },
+    {
+      "case": "cache-static-reorder-decode",
+      "aten_ops": [
+        "aten._local_scalar_dense.default",
+        "aten.add.Tensor",
+        "aten.add_.Tensor",
+        "aten.arange.default",
+        "aten.clone.default",
+        "aten.gt.Scalar",
+        "aten.index_copy_.default",
+        "aten.index_select.default",
+        "aten.lift_fresh.default",
+        "aten.new_zeros.default",
+        "aten.zeros.default"
+      ]
+    },
+    {
+      "case": "cache-static_sliding-update-prefill",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.add_.Tensor",
+        "aten.arange.default",
+        "aten.cat.default",
+        "aten.clone.default",
+        "aten.copy_.default",
+        "aten.index_copy_.default",
+        "aten.lift_fresh.default",
+        "aten.new_zeros.default",
+        "aten.slice.Tensor",
+        "aten.zeros.default"
+      ]
+    },
+    {
+      "case": "cache-static_sliding-update-decode",
+      "aten_ops": [
+        "aten.clone.default",
+        "aten.copy_.default",
+        "aten.index_put_.default",
+        "aten.lift_fresh.default",
+        "aten.new_zeros.default",
+        "aten.roll.default",
+        "aten.slice.Tensor",
+        "aten.zeros.default"
+      ]
+    },
+    {
+      "case": "cache-static_sliding-reorder-prefill",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.add_.Tensor",
+        "aten.arange.default",
+        "aten.cat.default",
+        "aten.clone.default",
+        "aten.copy_.default",
+        "aten.index_copy_.default",
+        "aten.index_select.default",
+        "aten.lift_fresh.default",
+        "aten.new_zeros.default",
+        "aten.slice.Tensor",
+        "aten.zeros.default"
+      ]
+    },
+    {
+      "case": "cache-static_sliding-reorder-decode",
+      "aten_ops": [
+        "aten.clone.default",
+        "aten.copy_.default",
+        "aten.index_put_.default",
+        "aten.index_select.default",
+        "aten.lift_fresh.default",
+        "aten.new_zeros.default",
+        "aten.roll.default",
+        "aten.slice.Tensor",
+        "aten.zeros.default"
+      ]
+    },
+    {
+      "case": "rope-default-short",
+      "aten_ops": [
+        "aten._to_copy.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.alias.default",
+        "aten.bmm.default",
+        "aten.cat.default",
+        "aten.cos.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.neg.default",
+        "aten.sin.default",
+        "aten.slice.Tensor",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "rope-default-long",
+      "aten_ops": [
+        "aten._to_copy.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.alias.default",
+        "aten.bmm.default",
+        "aten.cat.default",
+        "aten.cos.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.neg.default",
+        "aten.sin.default",
+        "aten.slice.Tensor",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "rope-dynamic-short",
+      "aten_ops": [
+        "aten._local_scalar_dense.default",
+        "aten._to_copy.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.alias.default",
+        "aten.bmm.default",
+        "aten.cat.default",
+        "aten.cos.default",
+        "aten.expand.default",
+        "aten.gt.Scalar",
+        "aten.lt.Scalar",
+        "aten.max.default",
+        "aten.mul.Tensor",
+        "aten.neg.default",
+        "aten.sin.default",
+        "aten.slice.Tensor",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "rope-dynamic-long",
+      "aten_ops": [
+        "aten._local_scalar_dense.default",
+        "aten._to_copy.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.alias.default",
+        "aten.arange.start_step",
+        "aten.bmm.default",
+        "aten.cat.default",
+        "aten.cos.default",
+        "aten.div.Tensor",
+        "aten.expand.default",
+        "aten.gt.Scalar",
+        "aten.lift_fresh.default",
+        "aten.lt.Scalar",
+        "aten.max.default",
+        "aten.maximum.default",
+        "aten.mul.Tensor",
+        "aten.neg.default",
+        "aten.pow.Tensor_Scalar",
+        "aten.pow.Tensor_Tensor",
+        "aten.reciprocal.default",
+        "aten.sin.default",
+        "aten.slice.Tensor",
+        "aten.sub.Tensor",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "rope-linear-short",
+      "aten_ops": [
+        "aten._to_copy.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.alias.default",
+        "aten.bmm.default",
+        "aten.cat.default",
+        "aten.cos.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.neg.default",
+        "aten.sin.default",
+        "aten.slice.Tensor",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "rope-linear-long",
+      "aten_ops": [
+        "aten._to_copy.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.alias.default",
+        "aten.bmm.default",
+        "aten.cat.default",
+        "aten.cos.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.neg.default",
+        "aten.sin.default",
+        "aten.slice.Tensor",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "rope-llama3-short",
+      "aten_ops": [
+        "aten._to_copy.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.alias.default",
+        "aten.bmm.default",
+        "aten.cat.default",
+        "aten.cos.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.neg.default",
+        "aten.sin.default",
+        "aten.slice.Tensor",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "rope-llama3-long",
+      "aten_ops": [
+        "aten._to_copy.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.alias.default",
+        "aten.bmm.default",
+        "aten.cat.default",
+        "aten.cos.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.neg.default",
+        "aten.sin.default",
+        "aten.slice.Tensor",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "rope-longrope-short",
+      "aten_ops": [
+        "aten._local_scalar_dense.default",
+        "aten._to_copy.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.alias.default",
+        "aten.bmm.default",
+        "aten.cat.default",
+        "aten.cos.default",
+        "aten.expand.default",
+        "aten.gt.Scalar",
+        "aten.max.default",
+        "aten.mul.Tensor",
+        "aten.neg.default",
+        "aten.sin.default",
+        "aten.slice.Tensor",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "rope-longrope-long",
+      "aten_ops": [
+        "aten._local_scalar_dense.default",
+        "aten._to_copy.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.alias.default",
+        "aten.arange.start_step",
+        "aten.bmm.default",
+        "aten.cat.default",
+        "aten.cos.default",
+        "aten.div.Tensor",
+        "aten.expand.default",
+        "aten.gt.Scalar",
+        "aten.lift_fresh.default",
+        "aten.max.default",
+        "aten.mul.Tensor",
+        "aten.neg.default",
+        "aten.pow.Scalar",
+        "aten.reciprocal.default",
+        "aten.sin.default",
+        "aten.slice.Tensor",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "rope-proportional-short",
+      "aten_ops": [
+        "aten._to_copy.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.alias.default",
+        "aten.bmm.default",
+        "aten.cat.default",
+        "aten.cos.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.neg.default",
+        "aten.sin.default",
+        "aten.slice.Tensor",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "rope-proportional-long",
+      "aten_ops": [
+        "aten._to_copy.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.alias.default",
+        "aten.bmm.default",
+        "aten.cat.default",
+        "aten.cos.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.neg.default",
+        "aten.sin.default",
+        "aten.slice.Tensor",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "rope-yarn-short",
+      "aten_ops": [
+        "aten._to_copy.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.alias.default",
+        "aten.bmm.default",
+        "aten.cat.default",
+        "aten.cos.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.neg.default",
+        "aten.sin.default",
+        "aten.slice.Tensor",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "rope-yarn-long",
+      "aten_ops": [
+        "aten._to_copy.default",
+        "aten._unsafe_view.default",
+        "aten.add.Tensor",
+        "aten.alias.default",
+        "aten.bmm.default",
+        "aten.cat.default",
+        "aten.cos.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.neg.default",
+        "aten.sin.default",
+        "aten.slice.Tensor",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "vision-patch_embedding",
+      "aten_ops": [
+        "aten._to_copy.default",
+        "aten.add.Tensor",
+        "aten.cat.default",
+        "aten.convolution.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.rsub.Scalar",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "vision-patch_interpolation",
+      "aten_ops": [
+        "aten._to_copy.default",
+        "aten.add.Tensor",
+        "aten.cat.default",
+        "aten.convolution.default",
+        "aten.expand.default",
+        "aten.mul.Tensor",
+        "aten.permute.default",
+        "aten.rsub.Scalar",
+        "aten.slice.Tensor",
+        "aten.transpose.int",
+        "aten.unsqueeze.default",
+        "aten.upsample_bicubic2d.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "vision-sine_position",
+      "aten_ops": [
+        "aten._to_copy.default",
+        "aten.add.Tensor",
+        "aten.arange.default",
+        "aten.cat.default",
+        "aten.cos.default",
+        "aten.cumsum.default",
+        "aten.div.Tensor",
+        "aten.div.Tensor_mode",
+        "aten.mul.Tensor",
+        "aten.permute.default",
+        "aten.pow.Scalar",
+        "aten.sin.default",
+        "aten.slice.Tensor",
+        "aten.stack.default",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "vision-window_partition",
+      "aten_ops": [
+        "aten.clone.default",
+        "aten.transpose.int",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "audio-group_norm",
+      "aten_ops": [
+        "aten.convolution.default",
+        "aten.gelu.default",
+        "aten.native_group_norm.default"
+      ]
+    },
+    {
+      "case": "audio-layer_norm",
+      "aten_ops": [
+        "aten.convolution.default",
+        "aten.gelu.default",
+        "aten.native_layer_norm.default",
+        "aten.transpose.int"
+      ]
+    },
+    {
+      "case": "audio-positional_conv",
+      "aten_ops": [
+        "aten._weight_norm_interface.default",
+        "aten.convolution.default",
+        "aten.gelu.default",
+        "aten.slice.Tensor",
+        "aten.transpose.int"
+      ]
+    },
+    {
+      "case": "time_series-patchify",
+      "aten_ops": [
+        "aten.alias.default",
+        "aten.clone.default",
+        "aten.transpose.int",
+        "aten.unfold.default"
+      ]
+    },
+    {
+      "case": "time_series-std_scaler",
+      "aten_ops": [
+        "aten.add.Tensor",
+        "aten.clamp_min.default",
+        "aten.div.Tensor",
+        "aten.mul.Tensor",
+        "aten.pow.Tensor_Scalar",
+        "aten.sqrt.default",
+        "aten.sub.Tensor",
+        "aten.sum.dim_IntList"
+      ]
+    },
+    {
+      "case": "time_series-mean_scaler",
+      "aten_ops": [
+        "aten.abs.default",
+        "aten.clamp.default",
+        "aten.div.Tensor",
+        "aten.gt.Scalar",
+        "aten.mul.Tensor",
+        "aten.squeeze.default",
+        "aten.sum.dim_IntList",
+        "aten.where.self",
+        "aten.zeros_like.default"
+      ]
+    },
+    {
+      "case": "generation-TemperatureLogitsWarper",
+      "aten_ops": [
+        "aten.div.Tensor"
+      ]
+    },
+    {
+      "case": "generation-TopKLogitsWarper",
+      "aten_ops": [
+        "aten.lt.Tensor",
+        "aten.masked_fill.Scalar",
+        "aten.select.int",
+        "aten.topk.default",
+        "aten.unsqueeze.default"
+      ]
+    },
+    {
+      "case": "generation-TopPLogitsWarper",
+      "aten_ops": [
+        "aten._softmax.default",
+        "aten.cumsum.default",
+        "aten.fill_.Tensor",
+        "aten.le.Scalar",
+        "aten.lift_fresh.default",
+        "aten.masked_fill.Scalar",
+        "aten.scatter.src",
+        "aten.slice.Tensor",
+        "aten.sort.default"
+      ]
+    },
+    {
+      "case": "generation-MinPLogitsWarper",
+      "aten_ops": [
+        "aten._softmax.default",
+        "aten.amax.default",
+        "aten.lt.Tensor",
+        "aten.masked_fill.Scalar",
+        "aten.mul.Tensor",
+        "aten.scatter_.value",
+        "aten.topk.default"
+      ]
+    },
+    {
+      "case": "generation-TypicalLogitsWarper",
+      "aten_ops": [
+        "aten._log_softmax.default",
+        "aten._softmax.default",
+        "aten.abs.default",
+        "aten.clamp_.default",
+        "aten.cumsum.default",
+        "aten.exp.default",
+        "aten.fill_.Tensor",
+        "aten.gather.default",
+        "aten.gt.Tensor",
+        "aten.lift_fresh.default",
+        "aten.lt.Scalar",
+        "aten.masked_fill.Scalar",
+        "aten.mul.Tensor",
+        "aten.nansum.default",
+        "aten.neg.default",
+        "aten.scatter.src",
+        "aten.slice.Tensor",
+        "aten.sort.default",
+        "aten.sub.Tensor",
+        "aten.sum.dim_IntList",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "generation-EpsilonLogitsWarper",
+      "aten_ops": [
+        "aten._softmax.default",
+        "aten.bitwise_and.Tensor",
+        "aten.lt.Scalar",
+        "aten.lt.Tensor",
+        "aten.masked_fill.Scalar",
+        "aten.select.int",
+        "aten.topk.default",
+        "aten.unsqueeze.default"
+      ]
+    },
+    {
+      "case": "generation-EtaLogitsWarper",
+      "aten_ops": [
+        "aten._is_all_true.default",
+        "aten._local_scalar_dense.default",
+        "aten._softmax.default",
+        "aten.all.dim",
+        "aten.bitwise_and.Tensor",
+        "aten.clamp.default",
+        "aten.eq.Tensor",
+        "aten.exp.default",
+        "aten.logsumexp.default",
+        "aten.lt.Tensor",
+        "aten.masked_fill.Scalar",
+        "aten.minimum.default",
+        "aten.mul.Tensor",
+        "aten.neg.default",
+        "aten.select.int",
+        "aten.sqrt.default",
+        "aten.sub.Tensor",
+        "aten.sum.dim_IntList",
+        "aten.topk.default",
+        "aten.unsqueeze.default",
+        "aten.view.default"
+      ]
+    },
+    {
+      "case": "generation-RepetitionPenaltyLogitsProcessor",
+      "aten_ops": [
+        "aten.clamp.default",
+        "aten.constant_pad_nd.default",
+        "aten.div.Tensor",
+        "aten.gather.default",
+        "aten.lt.Scalar",
+        "aten.mul.Tensor",
+        "aten.scatter.src",
+        "aten.slice.Tensor",
+        "aten.where.self"
+      ]
+    },
+    {
+      "case": "generation-MinLengthLogitsProcessor",
+      "aten_ops": [
+        "aten.arange.default",
+        "aten.clone.default",
+        "aten.isin.Tensor_Tensor",
+        "aten.scalar_tensor.default",
+        "aten.where.self"
+      ]
+    },
+    {
+      "case": "generation-ForcedBOSTokenLogitsProcessor",
+      "aten_ops": [
+        "aten.fill_.Tensor",
+        "aten.full_like.default",
+        "aten.lift_fresh.default",
+        "aten.select.int"
+      ]
+    },
+    {
+      "case": "generation-ForcedEOSTokenLogitsProcessor",
+      "aten_ops": [
+        "aten.full_like.default",
+        "aten.index_put_.default",
+        "aten.lift_fresh.default"
+      ]
+    },
+    {
+      "case": "generation-SuppressTokensLogitsProcessor",
+      "aten_ops": [
+        "aten.arange.default",
+        "aten.isin.Tensor_Tensor",
+        "aten.scalar_tensor.default",
+        "aten.where.self"
+      ]
+    },
+    {
+      "case": "generation-InfNanRemoveLogitsProcessor",
+      "aten_ops": [
+        "aten.eq.Scalar",
+        "aten.ne.Tensor",
+        "aten.scalar_tensor.default",
+        "aten.where.self"
+      ]
+    },
+    {
+      "case": "generation-LogitNormalization",
+      "aten_ops": [
+        "aten._log_softmax.default"
+      ]
+    }
+  ]
+}
