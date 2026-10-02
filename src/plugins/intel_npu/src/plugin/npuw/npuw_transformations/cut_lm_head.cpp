@@ -148,12 +148,15 @@ public:
 
 namespace ov::npuw {
 
-CutLMHead::CutLMHead(std::shared_ptr<ov::Model>& lm_head_model) : m_lm_head_model(lm_head_model) {}
+CutLMHead::CutLMHead(std::shared_ptr<ov::Model>& lm_head_model,
+                     std::string& output_embeds_name)
+    : m_lm_head_model(lm_head_model),
+      m_output_embeds_name(output_embeds_name) {}
 
-bool CutLMHead::run_on_model(const std::shared_ptr<ov::Model>& model, std::string& output_embeds_name) {
+bool CutLMHead::run_on_model(const std::shared_ptr<ov::Model>& model) {
     std::shared_ptr<ov::op::v0::Result> drop_result;
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<CutLMHeadMatcher>(m_lm_head_model, drop_result, output_embeds_name);
+    rewr.add_matcher<CutLMHeadMatcher>(m_lm_head_model, drop_result, m_output_embeds_name);
     rewr.run_on_model(model);
     if (drop_result) {
         model->remove_result(drop_result);

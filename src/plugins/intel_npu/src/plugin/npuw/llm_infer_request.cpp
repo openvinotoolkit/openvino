@@ -404,7 +404,6 @@ ov::npuw::LLMInferRequest::LLMInferRequest(
         }
     }
 
-    // Allow multiple names here
     if (compiled_model->m_lm_head_compiled) {
         m_lm_head_request = compiled_model->m_lm_head_compiled->create_infer_request();
         OPENVINO_ASSERT(m_lm_head_request);

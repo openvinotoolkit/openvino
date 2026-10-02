@@ -37,7 +37,6 @@
 #include "openvino/op/ops.hpp"
 #include "openvino/op/range.hpp"
 #include "openvino/op/util/node_util.hpp"
-#include "openvino/op/util/op_types.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
@@ -76,7 +75,7 @@ bool is_aligned_to(T value, T alignment) {
 namespace {
 std::shared_ptr<ov::Model> cut_lm_head(const std::shared_ptr<ov::Model>& model, std::string& output_embeds_name) {
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
-    ov::npuw::CutLMHead(lm_head_model).run_on_model(model, output_embeds_name);
+    ov::npuw::CutLMHead(lm_head_model, output_embeds_name).run_on_model(model);
     if (lm_head_model) {
         lm_head_model->set_friendly_name(model->get_friendly_name() + "_lm_head");
     }
@@ -1234,6 +1233,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Prefill will have all other outputs. It might be a wrong assumption that all of
     // them need to be sliced for, for instance, 1 token.
     if (lm_head_model) {
+        LOG_DEBUG("LM head model is present, erasing NPUW_SLICE_OUT from prefill config.");
         prefill_config.erase("NPUW_SLICE_OUT");
     }
     merge_config_with(generate_config, generate_config_addition_value);
