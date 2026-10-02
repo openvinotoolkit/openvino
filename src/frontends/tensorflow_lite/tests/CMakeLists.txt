@@ -2,6 +2,8 @@
 # SPDX-License-Identifier: Apache-2.0
 #
 
+include(${CMAKE_CURRENT_SOURCE_DIR}/sources.cmake)
+
 set(TARGET_NAME "ov_tensorflow_lite_frontend_tests")
 
 ov_check_pip_packages(REQUIREMENTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/requirements.txt"
@@ -15,7 +17,8 @@ endif()
 
 ov_add_test_target(
     NAME ${TARGET_NAME}
-        ROOT ${CMAKE_CURRENT_SOURCE_DIR}
+        SOURCES
+            ${OV_TENSORFLOW_LITE_TESTS_SRC}
         DEPENDENCIES
             tensorflow_lite_test_models
             tensorflow_lite_fe_standalone_build_test
@@ -24,6 +27,9 @@ ov_add_test_target(
             frontend_shared_test_classes
             openvino_tensorflow_lite_frontend
         ADD_CLANG_FORMAT
+        CHECK_SOURCES_LISTED
+        CHECK_SOURCES_EXCLUDE_DIRECTORIES
+            ${CMAKE_CURRENT_SOURCE_DIR}/standalone_build
         LABELS
             ${ctest_labels} TFL_FE
 )
@@ -40,8 +46,6 @@ target_compile_definitions(${TARGET_NAME} PRIVATE -D TEST_TENSORFLOW_LITE_MODELS
 if (tensorflow_FOUND)
     set(TEST_TENSORFLOW_LITE_MODELS "${TEST_MODEL_ZOO_OUTPUT_DIR}/tensorflow_lite_test_models")
 
-    file(GLOB_RECURSE TENSORFLOW_GEN_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/test_models/gen_scripts/generate_*.py)
-    file(GLOB_RECURSE TENSORFLOW_ALL_SCRIPTS ${CMAKE_CURRENT_SOURCE_DIR}/*.py)
     set(OUT_FILES "")
     foreach(GEN_SCRIPT ${TENSORFLOW_GEN_SCRIPTS})
         get_filename_component(FILE_WE ${GEN_SCRIPT} NAME_WE)
