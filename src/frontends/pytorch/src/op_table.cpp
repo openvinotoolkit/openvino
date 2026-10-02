@@ -270,6 +270,7 @@ OP_CONVERTER(translate_svd);
 OP_CONVERTER(translate_sub);
 OP_CONVERTER(translate_sub_);
 OP_CONVERTER(translate_sum);
+OP_CONVERTER(translate_softplus);
 OP_CONVERTER(translate_isin);
 OP_CONVERTER(translate_t);
 OP_CONVERTER(translate_take_along_dim);
@@ -746,7 +747,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_ts() {
         {"aten::size", op::translate_size},
         {"aten::slice", op::quantizable_op<op::translate_slice>},
         {"aten::softmax", op::translate_softmax},
-        {"aten::softplus", op::translate_1to1_match_1_inputs<opset10::SoftPlus>},
+        {"aten::softplus", op::translate_softplus},
         {"aten::sort", op::translate_sort},
         {"aten::special_expit",
          op::optional_out<op::translate_1to1_match_1_inputs_with_fp32_type_alignment<opset10::Sigmoid>, 1>},
@@ -957,6 +958,7 @@ const std::unordered_map<std::string, CreatorFunction> get_supported_ops_fx() {
         {"aten.isin.Tensor_Scalar", op::translate_isin},
         {"aten.isin.Scalar_Tensor", op::translate_isin},
         {"aten.nansum.default", op::translate_sum_fx},
+        {"aten.softplus.default", op::translate_softplus},
         {"aten.sum.default", op::translate_sum_fx},
         {"aten.sum.dim_IntList", op::translate_sum_fx},
         {"aten.sym_size.int", op::translate_size},

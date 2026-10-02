@@ -17,9 +17,9 @@ agreement (`rtol=atol=1e-4`). CPU execution requests f32 inference.
 Traced graphs are reshaped to the example inputs before compilation; dynamic
 shape reuse is outside this matrix.
 
-Known failures remain executable strict xfails: two activation accuracy
-mismatches, static sliding-cache prefill output lengths, and PyTorch tracing or
-export restrictions in cache reordering, dynamic/long RoPE, MinP, and Eta sampling.
+Known failures remain executable strict xfails: static sliding-cache prefill
+output lengths and PyTorch tracing or export restrictions in cache reordering,
+dynamic/long RoPE, MinP, and Eta sampling.
 An `OpConversionFailure` always fails the test, including an expected-failure
 case. No case currently requires a new OpenVINO opset operation or is skipped
 for missing conversion support.
@@ -38,7 +38,7 @@ inputs. Cache objects are recreated for each invocation to keep conversion and
 reference execution independent. xdist distributes cases across worker processes.
 The 132 primitives produce 264 trace/export cases. A local CPU run with Python
 3.10, PyTorch 2.12.1+cpu, and Transformers 5.18.0 took about eight seconds with
-four workers (248 passed, 16 expected failures), excluding dependency installation
+four workers (252 passed, 12 expected failures), excluding dependency installation
 and build time. CI runs the suite as a dedicated precommit step.
 
 ## Establishing library coverage

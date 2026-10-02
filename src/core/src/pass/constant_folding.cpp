@@ -130,6 +130,7 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
         }
         if (node_has_requires_precision_conversion_attribute(node)) {
             remove_requires_precision_conversion_attribute(node);
+            restore_original_input_precision(node);
             node = util::convert_to_supported_precision(node.get());
         } else {
             rewritten = restore_original_input_precision(node) || rewritten;
@@ -153,6 +154,13 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
                 const auto& replacement = replacements.at(i);
                 auto replacement_ptr = replacement.get_node_shared_ptr();
                 if (replacement_ptr && (node_output != replacement)) {
+                    if (replacement.get_element_type() != node_output.get_element_type()) {
+                        auto convert = std::make_shared<op::v0::Convert>(replacement, node_output.get_element_type());
+                        OutputVector rounded(1);
+                        OPENVINO_ASSERT(convert->constant_fold(rounded, convert->input_values()));
+                        replacements[i] = rounded[0];
+                        replacement_ptr = rounded[0].get_node_shared_ptr();
+                    }
                     replacement_ptr->set_friendly_name(friendly_name_from(*original_node, replacements.size(), i));
 
                     node_output.replace(replacement);

@@ -4045,6 +4045,19 @@ TEST(constant_folding, sq_diff) {
     ASSERT_NE(res_node, nullptr);
 }
 
+TEST(constant_folding, bfloat16_softplus_rounding) {
+    auto input = op::v0::Constant::create(element::bf16, Shape{1}, {0.2041015625f});
+    auto softplus = make_shared<op::v4::SoftPlus>(input);
+    auto beta = op::v0::Constant::create(element::bf16, Shape{}, {0.5f});
+    auto add = make_shared<op::v1::Add>(softplus, beta);
+    auto output = make_shared<op::v0::Convert>(add, element::f32);
+    auto model = make_shared<Model>(OutputVector{output}, ParameterVector{});
+
+    run_constant_folding(model);
+
+    EXPECT_EQ(get_result_constant_data<float>(model, 0), (vector<float>{1.296875f}));
+}
+
 class UnsupportedTypesTest : public testing::TestWithParam<element::Type> {};
 
 TEST_P(UnsupportedTypesTest, add_multiply) {

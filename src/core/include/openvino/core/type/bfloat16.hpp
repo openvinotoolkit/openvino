@@ -83,7 +83,11 @@ public:
 #define cu32(x) (F32(x).i)
 
     static uint16_t round_to_nearest_even(float x) {
-        return static_cast<uint16_t>((cu32(x) + ((cu32(x) & 0x00010000) >> 1)) >> 16);
+        const auto bits = cu32(x);
+        if ((bits & 0x7fffffff) > 0x7f800000) {
+            return static_cast<uint16_t>((bits >> 16) | 0x0040);
+        }
+        return static_cast<uint16_t>((bits + 0x7fff + ((bits >> 16) & 1)) >> 16);
     }
 
     static uint16_t round_to_nearest(float x) {

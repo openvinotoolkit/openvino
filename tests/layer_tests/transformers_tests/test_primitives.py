@@ -32,9 +32,7 @@ def primitive_parameters():
     for case in primitive_cases():
         for mode in ("trace", "export"):
             reason = None
-            if case.family == "activation" and case.name in {"sqrtsoftplus", "xielu"}:
-                reason = "Activation accuracy differs from PyTorch at rtol=atol=1e-4"
-            elif case.family == "cache":
+            if case.family == "cache":
                 if mode == "export" and case.name.startswith("static-reorder"):
                     reason = "Static cache reorder has a data-dependent guard rejected by torch.export"
                 elif mode == "trace" and case.name.startswith("static_sliding") and case.name.endswith("prefill"):

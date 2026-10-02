@@ -49,6 +49,14 @@ TEST(bfloat16, conversions) {
     EXPECT_STREQ(source_string, bf_string.c_str());
 }
 
+TEST(bfloat16, round_to_nearest_even_non_midpoints) {
+    EXPECT_EQ(static_cast<float>(bfloat16(0.80039614f)), 0.80078125f);
+    EXPECT_EQ(static_cast<float>(bfloat16(-0.80039614f)), -0.80078125f);
+    EXPECT_EQ(bfloat16::round_to_nearest_even(1.002f), 0x3f80);
+    EXPECT_EQ(bfloat16::round_to_nearest_even(1.006f), 0x3f81);
+    EXPECT_TRUE(std::isnan(static_cast<float>(bfloat16(std::numeric_limits<float>::quiet_NaN()))));
+}
+
 TEST(bfloat16, round_to_nearest) {
     const char* fstring;
     std::string expected;
