@@ -545,10 +545,18 @@ JitConstants FusedOpsCodeGenerator::make_op_jit_constants(const FusedOpsConfigur
             }
 
             if (dep_data.size() == 2) {
-                if (dep_data[1].m_element_type != out_type) {
-                    nl_m = convert_to_output_type(get_input_var_name(0), vec_size);
+                // The slope must be referenced the same way make_load_jit_constants()
+                // names it (get_input_var_name(m_idx), keyed by the graph input index),
+                // not by its position in dep_data - otherwise the generated kernel uses
+                // an undeclared variable and fails with CL_BUILD_PROGRAM_FAILURE.
+                const auto& slope_dep = dep_data[1];
+                auto slope_name = (slope_dep.m_type == FusedInputType::ORIGINAL)   ? in_var
+                                  : (slope_dep.m_type == FusedInputType::INTERNAL) ? get_output_var_name(in_var, slope_dep.m_idx)
+                                                                                   : get_input_var_name(slope_dep.m_idx, is_shuffled, shuffle_var);
+                if (slope_dep.m_element_type != out_type) {
+                    nl_m = convert_to_output_type(slope_name, vec_size);
                 } else {
-                    nl_m = get_input_var_name(0);
+                    nl_m = slope_name;
                 }
             } else {
                 nl_m = broadcast(nl_m, out_type, vec_size);
@@ -840,7 +848,14 @@ JitConstants make_activation_jit_constants(const std::string& suffix,
         break;
     case activation_func::relu_negative_slope: {
         const JitTerm slope = convert_to_type("m"_jit, calc_dt);
-        jit.add(make_jit_constant(macro_def, ternary(isinf(slope), ternary(input.ge(zero), input, neg(slope)), max(input, zero) + (slope * min(input, zero)))));
+        // OpenCL max/min may drop the NaN operand, so select on the input
+        // explicitly to keep NaN propagating instead of turning into zero.
+        // A ternary is used for the NaN branch instead of select(): select()
+        // requires the condition to be a signed integer of the same width as
+        // the operands (short for half), while isnan() returns int, so f16
+        // kernels do not compile with select().
+        const JitTerm prelu_body = ternary(isinf(slope), ternary(input.ge(zero), input, neg(slope)), max(input, zero) + (slope * min(input, zero)));
+        jit.add(make_jit_constant(macro_def, ternary(isnan(input), input, prelu_body)));
         break;
     }
     case activation_func::elu: {

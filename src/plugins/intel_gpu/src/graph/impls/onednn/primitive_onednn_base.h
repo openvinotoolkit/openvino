@@ -10,6 +10,7 @@
 #include "intel_gpu/graph/serialization/binary_buffer.hpp"
 #include "intel_gpu/runtime/memory.hpp"
 #include "intel_gpu/runtime/file_util.hpp"
+#include "intel_gpu/runtime/engine_configuration.hpp"
 #include "to_string_utils.h"
 #include "utils.hpp"
 
@@ -344,6 +345,9 @@ private:
         }
 
         std::string key_str(key.begin(), key.end());
+        // Partition the oneDNN cache per runtime so a blob built by one runtime is never
+        // loaded by the other (the driver-string difference alone is not a safe guard).
+        key_str += get_runtime_cache_tag();
         size_t hash = std::hash<std::string>()(key_str);
         return path + std::to_string(hash) + ".onednn.cl_cache";
     }
@@ -359,6 +363,10 @@ private:
             _prim = PrimType(_pd);
         } else {
             std::vector<uint8_t> key = _pd.get_cache_blob_id();
+            if (key.empty()) {  // runtime does not support cache blobs (e.g. SYCL)
+                _prim = PrimType(_pd);
+                return;
+            }
             assert(!key.empty());
 
             std::vector<uint8_t> cache;
@@ -382,6 +390,27 @@ private:
     }
 
 protected:
+    // Returns an empty blob if the primitive does not support cache blob serialization.
+    std::vector<uint8_t> get_cache_blob() const {
+        std::vector<uint8_t> cache;
+        try {
+            cache = _prim.get_cache_blob();
+        } catch (const dnnl::error& e) {
+            if (e.status != dnnl_unimplemented) {
+                throw;
+            }
+        }
+        return cache;
+    }
+
+    // Falls back to constructing the primitive from _pd alone when the blob is empty.
+    PrimType make_primitive_from_blob(const std::vector<uint8_t>& cache_blob) const {
+        if (cache_blob.empty()) {
+            return PrimType(_pd);
+        }
+        return PrimType(_pd, cache_blob);
+    }
+
     virtual bool optimized_out(typed_primitive_inst<PType>&) const { return false; }
 
     void configure_post_ops_arguments(typed_primitive_inst<PType>& instance, std::unordered_map<int, dnnl::memory>& args) const {

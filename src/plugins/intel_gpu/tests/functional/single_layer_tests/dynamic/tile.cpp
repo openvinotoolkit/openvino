@@ -157,6 +157,18 @@ const std::vector<std::vector<ov::test::InputShape>> dynamic_input_shapes4D = {
     }
 };
 
+const std::vector<std::vector<ov::test::InputShape>> dynamic_input_shapes3D = {
+    {
+        {
+            {-1, -1, 2048},
+            {
+                {1, 16, 2048},
+                {2, 7, 2048}
+            }
+        }
+    }
+};
+
 const std::vector<std::vector<ov::test::InputShape>> dynamic_input_shapes5D = {
     {
         { // Origin dynamic shapes
@@ -206,6 +218,15 @@ INSTANTIATE_TEST_SUITE_P(DynamicShape4D, TileLayerGPUTest,
                                         ::testing::Values(true, false),
                                         ::testing::Values(ov::test::utils::DEVICE_GPU)),
                         TileLayerGPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(DynamicShape3DWith4DRepeats, TileLayerGPUTest,
+                         ::testing::Combine(
+                             ::testing::ValuesIn(dynamic_input_shapes3D),
+                             ::testing::Values(std::vector<int64_t>{4, 1, 1, 1}),
+                             ::testing::ValuesIn(model_types),
+                             ::testing::Values(true, false),
+                             ::testing::Values(ov::test::utils::DEVICE_GPU)),
+                         TileLayerGPUTest::getTestCaseName);
 
 INSTANTIATE_TEST_SUITE_P(DynamicShape5D, TileLayerGPUTest,
                                 ::testing::Combine(
