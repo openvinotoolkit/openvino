@@ -1260,9 +1260,10 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_dyn_shapes_max_unpool_2d_dyn) {
 
     const std::vector<float> oshape_x{6.5f, 1.5f, 9.5f, 8.0f, 9.0f, 8.5f, 2.0f, 3.5f};
     const std::vector<int64_t> oshape_indices{1, 2, 9, 15, 20, 27, 28, 30};
-    const std::vector<float> oshape_y{0.0f, 6.5f, 1.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 9.5f, 0.0f, 0.0f, 0.0f, 0.0f,
-                                      0.0f, 8.0f, 0.0f, 0.0f, 0.0f, 0.0f, 9.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 8.5f,
-                                      2.0f, 0.0f, 3.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
+    const std::vector<float> oshape_y{0.0f, 6.5f, 1.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 9.5f,
+                                      0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 8.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                                      9.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 8.5f, 2.0f, 0.0f,
+                                      3.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f};
     {
         auto test_case_1 = ov::test::TestCase(model, s_device);
         test_case_1.add_input<float>(Shape{1, 1, 2, 3}, {4.0f, 0.0f, 5.0f, 5.5f, 1.5f, 2.0f});

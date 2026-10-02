@@ -1759,8 +1759,8 @@ OPENVINO_TEST(${BACKEND_NAME}, onnx_model_max_unpool) {
     test_case.add_input<float>(Shape{2, 3, 2, 2},
                                {12.0f, 19.5f, 21.0f, 23.5f, 17.5f, 15.0f, 22.5f, 20.5f, -6.0f, -5.0f, 23.0f, 19.0f,
                                 1.5f,  8.0f,  16.0f, 3.0f,  12.5f, 18.5f, 9.0f,  20.0f, 22.0f, 10.5f, 4.5f,  21.5f});
-    test_case.add_input<int64_t>(Shape{2, 3, 2, 2},
-                                 {1, 3, 8, 11, 16, 22, 28, 26, 32, 39, 40, 46, 49, 51, 60, 62, 65, 66, 73, 78, 84, 86, 89, 94});
+    test_case.add_input<int64_t>(Shape{2, 3, 2, 2}, {1,  3,  8,  11, 16, 22, 28, 26, 32, 39, 40, 46,
+                                                     49, 51, 60, 62, 65, 66, 73, 78, 84, 86, 89, 94});
     // constant output_shape, indices address flat(output_shape)
     test_case.add_input<float>(Shape{1, 1, 2, 2}, {5.5f, 2.0f, 4.5f, 0.5f});
     test_case.add_input<int64_t>(Shape{1, 1, 2, 2}, {6, 8, 11, 17});
