@@ -107,7 +107,8 @@ const std::string& DecoderProto::get_op_name() const {
 
 bool DecoderProto::has_attribute(const std::string& name) const {
     for (const auto& attr : m_node->attribute()) {
-        if (attr.has_name() && attr.name() == name) {
+        if (attr.has_name() && attr.name() == name &&
+            attr.type() != AttributeProto_AttributeType::AttributeProto_AttributeType_UNDEFINED) {
             return true;
         }
     }

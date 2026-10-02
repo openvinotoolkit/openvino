@@ -26,7 +26,8 @@ void LLMContinuousKVCacheStrategy::on_initialize() {
     m_kv_pairs.clear();
     m_kv_pairs.reserve(m_req.m_kvcache_past_names.size());
     for (const auto& name : m_req.m_kvcache_past_names) {
-        m_kv_pairs.push_back({name, ov::npuw::util::isPastValueParam(name)});
+        const bool is_value = ov::npuw::util::isPastValueParam(name) || ov::npuw::util::isDQScaleOrZPValue(name);
+        m_kv_pairs.push_back({name, is_value});
     }
 
     // Step 1: share past KV buffers across generate variants.
