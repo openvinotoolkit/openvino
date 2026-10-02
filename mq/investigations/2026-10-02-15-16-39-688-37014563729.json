@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-02-15-16-39-688-37014563729",
+  "timestamp": "2026-10-02T15:16:39Z",
+  "run_id": "37014563729",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37014563729",
+  "workflow_name": "Linux (Ubuntu 22.04, Python 3.11)",
+  "pr_number": "37085",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37085",
+  "author": "kuwa6805",
+  "category": "Network",
+  "title": "PyTorch model-hub tests fail to clone mvafin/ALIKED due to SSL certificate verification error",
+  "signature": "unable to access server certificate verification failed cafile none crlfile none|Network",
+  "signature_hash": "bba899b95ab90f76",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "PyTorch Models tests / PyTorch Models tests",
+      "conclusion": "failure",
+      "symptom": "setup error: git clone/checkout of https://github.com/mvafin/ALIKED.git fails with 'server certificate verification failed: CAfile: none CRLfile: none'"
+    }
+  ],
+  "key_errors": [
+    "ERROR at setup of TestAlikedConvertModel.test_convert_model_all_models_default[CPU-aliked-n16rot]",
+    "subprocess.CalledProcessError: Command ['git', 'checkout', '6008af43942925eec7e32006814ef41fbd0858d8'] returned non-zero exit status 128.",
+    "Cloning into '/tmp/tmpocmzj1v6'...",
+    "fatal: unable to access 'https://github.com/mvafin/ALIKED.git/': server certificate verification failed. CAfile: none CRLfile: none",
+    "fatal: not a git repository (or any of the parent directories): .git",
+    "===== 11 passed, 23 skipped, 1696 deselected, 1 error in 172.18s (0:02:52) ====="
+  ],
+  "root_cause": "The test_aliked.py setup_class clones an external GitHub repo (mvafin/ALIKED) at runtime via `os.system('git clone ...')` without checking the clone's exit status, then immediately runs `git checkout <sha>` in the (possibly empty/failed) target directory. On this runner, the outbound HTTPS connection to github.com failed TLS server-certificate verification (CAfile/CRLfile both 'none'), so the clone silently failed; the subsequent checkout then errored with exit 128 ('not a git repository'). This points to a transient CA-trust-store/network issue reaching github.com from the runner (unrelated to the PR's actual SYCL/dockerfile changes, which only touch .github/dockerfiles and a workflow file), not a defect in the PR under test.",
+  "reproduction_steps": "On a runner with the same CI image, run: `python -m pytest install/tests/model_hub_tests/pytorch/test_aliked.py -k aliked-n16rot`. The failure is network/CA-trust dependent and may not reproduce outside the affected runner/time window.",
+  "recommended_actions": [
+    "Re-run the failed 'PyTorch Models tests' job; this is very likely a transient CA/network issue on the runner reaching github.com.",
+    "Harden test_aliked.py's setup_class to check the return code of `os.system('git clone ...')` and raise a clear error instead of silently proceeding to `git checkout`, to avoid masking the real failure as a confusing exit-128 'not a git repository' error.",
+    "If this recurs frequently, consider mirroring small third-party model repos used by model-hub tests (e.g., ALIKED) into an internal cache/proxy to remove the runtime dependency on live github.com TLS reachability."
+  ],
+  "prevention_strategies": "Avoid relying on `os.system()` (no error checking) for critical clone steps in test setup; use `subprocess.run(..., check=True)` so failures surface immediately with the real git error instead of a confusing follow-on 'not a git repository' error from the next step.",
+  "historical_context": "Two related but distinct SSL/TLS patterns exist in the database (self-signed-certificate clone failures for Windows submodules and for Smart CI), but neither matches this exact 'server certificate verification failed: CAfile: none CRLfile: none' signature against github.com from the PyTorch model-hub test suite; this is recorded as a new, first-seen pattern."
+}

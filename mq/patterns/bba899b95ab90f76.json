@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0",
+  "signature": "unable to access server certificate verification failed cafile none crlfile none|Network",
+  "signature_hash": "bba899b95ab90f76",
+  "title": "PyTorch model-hub tests fail to clone mvafin/ALIKED due to SSL certificate verification error",
+  "category": "Network",
+  "count": 1,
+  "first_seen": "2026-10-02T15:16:39Z",
+  "last_seen": "2026-10-02T15:16:39Z",
+  "recent_run_urls": ["https://github.com/openvinotoolkit/openvino/actions/runs/37014563729"],
+  "affected_prs": ["https://github.com/openvinotoolkit/openvino/pull/37085"],
+  "recent_timestamps": ["2026-10-02T15:16:39Z"],
+  "rerun_search_string": "server certificate verification failed"
+}
