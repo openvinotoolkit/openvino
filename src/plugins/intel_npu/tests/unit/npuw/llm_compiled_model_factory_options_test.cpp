@@ -1027,6 +1027,8 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, WeightSharingContextFillUp) {
     ASSERT_NE(compiled, nullptr);
     const auto &weightCtx = ov::test::npuw::LLMTSharedWeightContextTestAccess::get_shared_weight_context(*compiled);
     ASSERT_NE(weightCtx, nullptr);
+    // TODO CVS-195637
+    ASSERT_NE(weightCtx->m_cache_sources.size(), 0);
 }
 
 }  // namespace

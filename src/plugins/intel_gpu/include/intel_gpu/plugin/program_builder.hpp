@@ -104,10 +104,6 @@ public:
     using BlobCacheKey = std::tuple<const char*, ov::Shape, ov::element::Type, IsRemoteWeight>;
     std::map<BlobCacheKey, cldnn::primitive_id> blobMemCache;
 
-    void register_remote_constant(const cldnn::primitive_id& id) {
-        remote_constant_ids.insert(id);
-    }
-
     std::shared_ptr<cldnn::program> get_compiled_program() const;
     std::shared_ptr<cldnn::topology> get_topology() const { return m_topology; }
 
@@ -155,6 +151,9 @@ public:
 
     ov::internal::WeightSharingCtxPtr get_weight_sharing_ctx() const { return m_weight_sharing_ctx; }
     void register_shared_weight_source(std::shared_ptr<ov::AlignedBuffer> source);
+    std::set<std::shared_ptr<ov::AlignedBuffer>> get_shared_weight_sources() const {
+        return m_shared_weight_sources;
+    }
 private:
     static factories_map_t factories_map;
     std::shared_ptr<cldnn::program> m_program;
@@ -172,7 +171,6 @@ private:
     std::shared_ptr<cldnn::ICompilationContext> m_compilation_context;
 
     bool m_is_inner_program = false;
-    std::unordered_set<cldnn::primitive_id> remote_constant_ids;
     ov::internal::WeightSharingCtxPtr m_weight_sharing_ctx;
     std::set<std::shared_ptr<ov::AlignedBuffer>> m_shared_weight_sources;
 
