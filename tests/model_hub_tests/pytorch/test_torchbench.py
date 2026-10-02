@@ -74,11 +74,12 @@ class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
     @pytest.mark.parametrize("mode", ["trace", "export"])
     @pytest.mark.nightly
     def test_convert_model_all_models(self, name, link, mark, reason, mode, ie_device, request):
-        assert mark in (None, "skip", "skip_trace", "skip_export", "xfail", "xfail_trace", "xfail_export"), \
-            f"Incorrect test case for {name}"
-        if mark in ("skip", f"skip_{mode}"):
+        marks = mark.split(";") if mark else []
+        assert all(m in ("skip", "skip_trace", "skip_export", "xfail", "xfail_trace", "xfail_export")
+                   for m in marks), f"Incorrect test case for {name}"
+        if "skip" in marks or f"skip_{mode}" in marks:
             pytest.skip(reason)
-        if mark in ("xfail", f"xfail_{mode}"):
+        if "xfail" in marks or f"xfail_{mode}" in marks:
             request.node.add_marker(pytest.mark.xfail(reason=reason))
         self.mode = mode
         self.run(name, link, ie_device)
