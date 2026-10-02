@@ -142,6 +142,7 @@ protected:
     std::map<ov::Output<const ov::Node>, std::size_t> m_prefill_other_outs_to_seqdims;
     // This model is optional, so can be null.
     std::shared_ptr<ov::npuw::ICompiledModel_v0> m_lm_head_compiled;
+    std::string m_output_embeds_name;
 
     // Each stage serializes only its own update, so set_property() holds this for the whole
     // propagation: concurrent calls can't leave the stages with different values
