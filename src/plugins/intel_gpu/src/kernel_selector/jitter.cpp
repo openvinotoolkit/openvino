@@ -6,12 +6,8 @@
 
 #include "jitter.h"
 #include "kernel_selector_utils.h"
-#include "openvino/core/type/float16.hpp"
 #include "tensor_type.h"
-
 #include <string>
-#include <cmath>
-#include <limits>
 #include <memory>
 #include <utility>
 
@@ -1337,8 +1333,7 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             break;
         }
         case ActivationFunction::SOFTPLUS: {
-            const auto threshold = (out_dt == Datatype::F32) ? JitTerm{std::to_string(std::log(std::numeric_limits<float>::max())) + "f"}
-                                                             : JitTerm{std::to_string(std::log(std::numeric_limits<ov::float16>::max())) + "h"};
+            const auto threshold = (out_dt == Datatype::F32) ? "20.0f"_jit : "11.0h"_jit;
             jitConstants.AddConstant(MakeJitConstant(macro_def, ternary(input.lt(threshold), log(exp(input) + one), input).str()));
             break;
         }

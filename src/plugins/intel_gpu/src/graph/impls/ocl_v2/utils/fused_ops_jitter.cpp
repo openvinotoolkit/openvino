@@ -4,9 +4,6 @@
 
 #include "fused_ops_jitter.hpp"
 
-#include <cmath>
-#include <limits>
-
 #include "activation_inst.h"
 #include "common_utils/dispatch_utils.hpp"
 #include "eltwise_inst.h"
@@ -17,7 +14,6 @@
 #include "jitter.hpp"
 #include "kernel_selector/jitter.h"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/core/type/float16.hpp"
 #include "quantize_inst.h"
 
 using namespace cldnn;
@@ -987,8 +983,7 @@ JitConstants make_activation_jit_constants(const std::string& suffix,
         break;
     }
     case activation_func::softplus: {
-        const auto threshold = (calc_dt == ov::element::f32) ? JitTerm{std::to_string(std::log(std::numeric_limits<float>::max())) + "f"}
-                                                             : JitTerm{std::to_string(std::log(std::numeric_limits<ov::float16>::max())) + "h"};
+        const auto threshold = (calc_dt == ov::element::f32) ? "20.0f"_jit : "11.0h"_jit;
         jit.add(make_jit_constant(macro_def, ternary(input.lt(threshold), log(exp(input) + one), input)));
         break;
     }
