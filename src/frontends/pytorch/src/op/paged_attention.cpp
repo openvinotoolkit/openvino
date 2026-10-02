@@ -72,8 +72,10 @@ std::shared_ptr<v0::Parameter> get_or_make_shared_pa_param(const NodeContext& co
 }  // namespace
 
 OutputVector translate_openvino_paged_attention(const NodeContext& context) {
-    // Args: (query, key, value, layer_name)
-    num_inputs_check(context, 4, 4);
+    // Args: (query, key, value, layer_name[, scale, kv_sharing_target]).
+    // The trailing two are optional so graphs produced by an older
+    // paged_attention.py still translate; both then fall back to derivation.
+    num_inputs_check(context, 4, 6);
 
     auto query = context.get_input(0);
     auto key = context.get_input(1);
@@ -105,9 +107,67 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
         size_t idx = session ? session->m_unknown_pa_layer_count++ : 0;
         layer_name = idx == 0 ? "unknown_layer" : "unknown_layer_" + std::to_string(idx);
     }
+    // Attention scale as vLLM computed it (layer.impl.scale). 0 means the op
+    // did not carry one, so fall back to 1/sqrt(head_dim) below.
+    double scale_arg = 0.0;
+    if (context.get_input_size() >= 5) {
+        try {
+            scale_arg = context.const_input<double>(4);
+        } catch (const std::exception&) {
+            try {
+                scale_arg = static_cast<double>(context.const_input<float>(4));
+            } catch (const std::exception&) {
+                scale_arg = 0.0;
+            }
+        }
+    }
+
+    // Name of the layer whose KV cache this one reuses, or empty.
+    std::string kv_sharing_target;
+    if (context.get_input_size() >= 6) {
+        try {
+            kv_sharing_target = context.const_input<std::string>(5);
+        } catch (const std::exception&) {
+            try {
+                auto vals = context.get_values_from_const_input(5);
+                if (vals.is<std::string>()) {
+                    kv_sharing_target = vals.as<std::string>();
+                }
+            } catch (const std::exception&) {
+                // Leave empty: treat as not shared.
+            }
+        }
+    }
+
+    // KV sharing. vLLM hands a sharing layer raw k/v -- no k_norm, no v_norm,
+    // no RoPE -- because its own backends skip the cache write for such
+    // layers. PagedAttentionExtension always writes, so using those raw
+    // tensors would overwrite the very cache this layer is meant to read.
+    // Substituting the target layer's already-normed k/v makes the write
+    // idempotent, which is equivalent to not writing at all. The query is
+    // left alone: a sharing layer has its own q_proj/q_norm/RoPE.
+    auto* kv_session = context.get_session();
+    if (!kv_sharing_target.empty() && kv_session) {
+        auto it = kv_session->m_pa_layer_kv.find(kv_sharing_target);
+        if (it != kv_session->m_pa_layer_kv.end()) {
+            key = it->second.first;
+            value = it->second.second;
+        } else {
+            // Target not translated yet. vLLM always points at an earlier
+            // layer, so this means the map is unexpected; keeping the raw
+            // tensors is wrong, but refusing to translate is worse.
+            std::cerr << "[PA_TRANS] warning: layer '" << layer_name << "' shares KV with '" << kv_sharing_target
+                      << "', which has not been translated yet; using its own key/value" << std::endl;
+        }
+    } else if (kv_session) {
+        // Only non-sharing layers own their k/v and may be a sharing target.
+        kv_session->m_pa_layer_kv[layer_name] = {key, value};
+    }
+
     if (std::getenv("OV_DBG_PA_TRANS")) {
         std::cerr << "[PA_TRANS_IN] layer='" << layer_name << "' q_ps=" << query.get_partial_shape()
-                  << " k_ps=" << key.get_partial_shape() << " v_ps=" << value.get_partial_shape() << std::endl;
+                  << " k_ps=" << key.get_partial_shape() << " v_ps=" << value.get_partial_shape()
+                  << " scale_arg=" << scale_arg << " kv_share='" << kv_sharing_target << "'" << std::endl;
     }
 
     const std::string prefix = "__pa__" + layer_name + "__";
@@ -116,15 +176,30 @@ OutputVector translate_openvino_paged_attention(const NodeContext& context) {
     // input, and read head_dim off q pre-flattening for the scale.
     Output<Node> scale_from_q;
     {
-        const auto& q_ps = query.get_partial_shape();
-        if (q_ps.rank().is_static() && q_ps.rank().get_length() >= 3 &&
-            q_ps[q_ps.rank().get_length() - 1].is_static()) {
-            double head_dim = static_cast<double>(q_ps[q_ps.rank().get_length() - 1].get_length());
-            double scale_val = 1.0 / std::sqrt(head_dim);
-            // scale must be f16 or f32 per PA validator; bf16 rejected
-            auto scale_et_tmp = query.get_element_type();
-            if (scale_et_tmp == element::dynamic || scale_et_tmp == element::bf16)
-                scale_et_tmp = element::f32;
+        // scale must be f16 or f32 per PA validator; bf16 rejected
+        auto scale_et_tmp = query.get_element_type();
+        if (scale_et_tmp == element::dynamic || scale_et_tmp == element::bf16)
+            scale_et_tmp = element::f32;
+
+        bool have_scale = false;
+        double scale_val = 0.0;
+        if (scale_arg > 0.0) {
+            // Authoritative: whatever vLLM's Attention layer uses. Not always
+            // 1/sqrt(head_dim) -- Gemma-4 uses 1.0 and folds the
+            // normalization into its learnable Q/K norm weights, so deriving
+            // would scale every score down by sqrt(head_dim) a second time.
+            scale_val = scale_arg;
+            have_scale = true;
+        } else {
+            const auto& q_ps = query.get_partial_shape();
+            if (q_ps.rank().is_static() && q_ps.rank().get_length() >= 3 &&
+                q_ps[q_ps.rank().get_length() - 1].is_static()) {
+                double head_dim = static_cast<double>(q_ps[q_ps.rank().get_length() - 1].get_length());
+                scale_val = 1.0 / std::sqrt(head_dim);
+                have_scale = true;
+            }
+        }
+        if (have_scale) {
             scale_from_q = v0::Constant::create(scale_et_tmp, Shape{}, {static_cast<float>(scale_val)});
         }
     }
