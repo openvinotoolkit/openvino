@@ -55,7 +55,7 @@ jobs:
           component_pattern: "category: (.*)"
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           skip_when_only_listed_labels_set: 'docs'
-          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg,.github/workflows/ci-doctor.lock.yml,.github/workflows/ci-doctor-mq.lock.yml'
+          skip_when_only_listed_files_changed: '*.md,*.rst,*.png,*.jpg,*.svg'
 
       - name: Show affected components
         run: |
@@ -100,6 +100,7 @@ jobs:
     uses: ./.github/workflows/job_build_linux.yml
     with:
       runner: 'aks-linux-16-cores-32gb'
+      cmake-build-parallel-level: '15'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
@@ -222,7 +223,7 @@ jobs:
       )
     uses: ./.github/workflows/job_llm_accuracy_tests.yml
     with:
-      runner: '{"group": "Intel-GPU", "labels": ["self-hosted", "dgpu", "Arc-B50", "Battlemage", "Linux"]}'
+      runner: '{"group": "Intel-GPU", "labels": ["self-hosted", "dgpu", "BMG-precommit", "Linux"]}'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
       container-options: '--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129'
       device: 'GPU'
@@ -294,8 +295,8 @@ jobs:
         fromJSON(needs.smart_ci.outputs.affected_components).Core
       )
 
-  dGPU_B50_Nightly:
-    name: dGPU Arc-B50 Tests Nightly
+  dGPU_BMG_Nightly:
+    name: dGPU Arc-BMG Tests Nightly
     needs: [ Build, Smart_CI, Docker ]
     uses: ./.github/workflows/job_gpu_tests.yml
     strategy:
@@ -306,29 +307,11 @@ jobs:
     with:
       device: 'dgpu'
       test_type: ${{ matrix.TEST_TYPE }}
-      runner: "[ 'self-hosted', 'dgpu', 'Arc-B50', 'Battlemage', 'Linux' ]"
+      runner: "[ 'self-hosted', 'dgpu', 'BMG-precommit', 'Linux' ]"
       runner-group: 'Intel-GPU'
       image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
       options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
     if: ${{ github.event_name == 'schedule' }}
-
-  dGPU_B580_Nightly:
-      name: dGPU Arc-B580 Tests Nightly
-      needs: [ Build, Smart_CI, Docker ]
-      uses: ./.github/workflows/job_gpu_tests.yml
-      strategy:
-        max-parallel: 2
-        fail-fast: false
-        matrix:
-          TEST_TYPE: ['unit', 'func']
-      with:
-        device: 'dgpu'
-        test_type: ${{ matrix.TEST_TYPE }}
-        runner: "[ 'self-hosted', 'dgpu', 'Arc-B580', 'Battlemage', 'Linux' ]"
-        runner-group: 'Intel-GPU'
-        image: ${{ fromJSON(needs.docker.outputs.images).ov_test.ubuntu_24_04_x64_dgpu }}
-        options: "--group-add 44 --group-add 993 --device /dev/dri/renderD129:/dev/dri/renderD129"
-      if: ${{ github.event_name == 'schedule' }}
 
   Overall_Status:
     name: ci/gha_overall_status_ubuntu_24

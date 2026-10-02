@@ -78,16 +78,22 @@ size_t get_beam_table_id(const std::shared_ptr<const scaled_dot_product_attentio
 // innermost dimension (head_size) of K/V layouts.  Any code that reads head_size
 // from K/V layouts must use the logical (un-halved) size from the query layout.
 bool SDPABase::is_int4_kv_cache(const kernel_impl_params& params) {
+    if (params.is_type<scaled_dot_product_attention>()) {
+        const auto& desc = params.typed_desc<scaled_dot_product_attention>();
+        return desc->is_kv_compressed && data_type_traits::is_i4_u4(desc->quantization_attributes.quantization_dt);
+    }
+
     const auto kv_cache_dt = params.get_program().get_config().get_kv_cache_precision();
-    return ov::element::Type(kv_cache_dt).bitwidth() == 4;
+    return data_type_traits::is_i4_u4(kv_cache_dt);
 }
 
 std::pair<int64_t, int64_t> SDPABase::get_gqa_params(const kernel_impl_params& params) const {
     if (params.is_type<scaled_dot_product_attention>()) {
         auto desc = params.typed_desc<scaled_dot_product_attention>();
         auto transpose_pshape = [](const ov::PartialShape& pshape, const std::vector<int64_t>& order) {
-            if (order.empty())
+            if (order.empty()) {
                 return pshape;
+            }
 
             auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
             for (size_t i = 0; i < order.size(); i++) {
@@ -136,8 +142,9 @@ sdpa_configuration SDPABase::get_sdpa_configuration(const kernel_impl_params& im
     sdpa_configuration config;
 
     auto transpose_pshape = [](const ov::PartialShape& pshape, const std::vector<int64_t>& order) {
-        if (order.empty())
+        if (order.empty()) {
             return pshape;
+        }
 
         auto transposed_pshape = ov::PartialShape::dynamic(pshape.rank());
         for (size_t i = 0; i < order.size(); i++) {
@@ -159,11 +166,13 @@ sdpa_configuration SDPABase::get_sdpa_configuration(const kernel_impl_params& im
         }
     }
 
-    if (query_shape[query_shape.size() - 1].is_static())
+    if (query_shape[query_shape.size() - 1].is_static()) {
         config.k_head_size = query_shape[query_shape.size() - 1].get_length();
+    }
 
-    if (value_shape[value_shape.size() - 1].is_static())
+    if (value_shape[value_shape.size() - 1].is_static()) {
         config.v_head_size = value_shape[value_shape.size() - 1].get_length();
+    }
 
     // 4-bit KV-cache: physical V layout has head_size/2 due to u4 packing.
     // Use logical head size from query to get the correct un-halved value.
@@ -231,6 +240,7 @@ JitConstants SDPABase::get_jit_constants(const kernel_impl_params& params) const
         }
         jit.make("IS_KV_COMPRESSED", desc->is_kv_compressed);
         jit.make("IS_INT4_COMPRESSED", desc->is_kv_compressed && SDPABase::is_int4_kv_cache(params));
+        jit.make("IS_INT4_SIGNED", desc->is_kv_compressed && desc->quantization_attributes.quantization_dt == ov::element::i4);
         GPU_DEBUG_TRACE_DETAIL << "desc->is_kv_compressed = " << desc->is_kv_compressed << std::endl;
 
         const auto& in_offsets_map = params.in_port_to_shape_info_offset;

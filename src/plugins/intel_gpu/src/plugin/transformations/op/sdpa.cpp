@@ -126,8 +126,9 @@ size_t SDPA::get_compression_inputs_num() const {
         compression_inputs += 2; // 2 * scales
 
         if (m_quantization_attrs.quantization_type == ov::op::internal::DynamicQuantize::QuantizationType::Asymmetric &&
-            m_quantization_attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar)
+            m_quantization_attrs.output_storage_type == ov::op::internal::DynamicQuantize::OutputStorageType::Planar) {
             compression_inputs += 2; // 2 * zp
+        }
     }
 
     return compression_inputs;
@@ -176,6 +177,16 @@ std::vector<ov::PartialShape> shape_infer(const SDPA* op,
     }
 
     std::vector<ov::PartialShape> transposed_input_shapes{ shape_q_t, shape_k_t, shape_v_t };
+
+    // INT4 KV data is stored as packed bytes, so its physical head dimension
+    // is half the logical dimension used by SDPA shape inference.
+    if (op->get_kv_compressed() && ov::element::Type(op->get_quantization_attrs().quantization_dt).bitwidth() == 4) {
+        shape_k_t[shape_k_t.rank().get_length() - 1] *= 2;
+        shape_v_t[shape_v_t.rank().get_length() - 1] *= 2;
+        transposed_input_shapes[1] = shape_k_t;
+        transposed_input_shapes[2] = shape_v_t;
+    }
+
     for (size_t i = 3; i < transposed_input_shapes.size(); i++) {
         transposed_input_shapes.push_back(input_shapes[i]);
     }

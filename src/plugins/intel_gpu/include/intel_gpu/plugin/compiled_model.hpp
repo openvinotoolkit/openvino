@@ -58,7 +58,8 @@ public:
     // Version of the runtime requirements descriptor persisted in the blob. Bump this whenever
     // build_runtime_requirements() changes (its format or the fields it emits) so the importer
     // can detect and reject descriptors produced by a different build.
-    static constexpr uint32_t runtime_requirements_version = 1;
+    // v2: added the compile-time runtime tag (rt=) to partition OCL/ZE blobs.
+    static constexpr uint32_t runtime_requirements_version = 2;
 
     // Magic marker that prefixes the compatibility-descriptor block in the exported blob, letting
     // the importer reject blobs that lack it (e.g. produced by an OpenVINO build predating this

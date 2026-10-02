@@ -21,8 +21,9 @@ GPU_DEFINE_PRIMITIVE_TYPE_ID(data)
 namespace {
 memory::ptr attach_or_copy_data(network& network, memory::ptr mem) {
     auto& engine = network.get_engine();
-    if (mem->is_allocated_by(engine))
+    if (mem->is_allocated_by(engine)) {
         return mem;
+    }
 
     memory::ptr result = engine.allocate_memory(mem->get_layout(), false);
     mem_lock<char, mem_lock_type::read> src(mem, network.get_stream());

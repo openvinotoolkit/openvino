@@ -4,23 +4,18 @@
 
 #include "core/operator_set.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 extern ov::OutputVector gather_nd(const ov::frontend::onnx::Node& node);
 extern ov::OutputVector trilu(const ov::frontend::onnx::Node& node);
 extern ov::OutputVector gelu(const ov::frontend::onnx::Node& node);
-}  // namespace opset_1
-namespace opset_13 {
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1
+
+namespace ov::frontend::onnx::ai_onnx::opset_13 {
 extern ov::OutputVector dequantize_linear(const ov::frontend::onnx::Node& node);
 extern ov::OutputVector quantize_linear(const ov::frontend::onnx::Node& node);
-}  // namespace opset_13
-}  // namespace ai_onnx
+}  // namespace ov::frontend::onnx::ai_onnx::opset_13
 
-namespace com_microsoft {
-namespace opset_1 {
+namespace ov::frontend::onnx::com_microsoft::opset_1 {
 bool register_multiple_translators(void) {
     ONNX_OP_M("DequantizeLinear", OPSET_SINCE(1), ai_onnx::opset_13::dequantize_linear, MICROSOFT_DOMAIN);
     ONNX_OP_M("GatherND", OPSET_SINCE(1), ai_onnx::opset_1::gather_nd, MICROSOFT_DOMAIN);
@@ -31,8 +26,4 @@ bool register_multiple_translators(void) {
 }
 
 static bool registered = register_multiple_translators();
-}  // namespace opset_1
-}  // namespace com_microsoft
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::com_microsoft::opset_1

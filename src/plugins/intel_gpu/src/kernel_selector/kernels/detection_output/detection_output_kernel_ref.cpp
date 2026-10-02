@@ -200,8 +200,9 @@ void DetectionOutputKernelRef::SetKernelArguments(const detection_output_params&
 KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params) const {
     assert(params.GetType() == KernelType::DETECTION_OUTPUT);
 
-    if (!Validate(params))
+    if (!Validate(params)) {
         return {};
+    }
 
     constexpr size_t kKernelsNum = 4;
     KernelData kd = KernelData::Default<detection_output_params>(params, kKernelsNum);
@@ -268,8 +269,9 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params) const
                 //                                           stack [LWS1 * LWS2 * 100 (stack_size) * 4 (int size) bytes]
                 auto req_local_mem_size = dispatchData.lws[1] * dispatchData.lws[2] * 2 * 4 +
                                           dispatchData.lws[1] * dispatchData.lws[2] * stack_size * 4;
-                if (req_local_mem_size < detectOutParams.engineInfo.maxLocalMemSize)
+                if (req_local_mem_size < detectOutParams.engineInfo.maxLocalMemSize) {
                     cldnnJit.AddConstant(MakeJitConstant("USE_LOCAL_MEMORY_FOR_STACK", true));
+                }
                 cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"),
                                        MakeJitConstant("LOCAL_CLASS_NUM", dispatchData.lws[1]),
                                        MakeJitConstant("LOCAL_WORK_NUM", dispatchData.lws[2]),
@@ -306,8 +308,9 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params) const
                         return static_cast<float>(bytes_used) / static_cast<float>(max_reg_bytes);
                     };
 
-                    if (estimateRegPressure() > 0.8)
+                    if (estimateRegPressure() > 0.8) {
                         cldnnJit.AddConstant(MakeJitConstant("USE_LOCAL_MEMORY", "true"));
+                    }
 
                     cldnnJit.AddConstant(MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE_OPT", "true"));
                 } else {
@@ -322,8 +325,9 @@ KernelsData DetectionOutputKernelRef::GetKernelsData(const Params& params) const
             } else {
                 // Limit local memory usage for stack buffer [LWS0 * 100 (stack_size) * 4 (int size) bytes]
                 auto req_local_mem_size = dispatchData.lws[0] * stack_size * 4;
-                if (req_local_mem_size < detectOutParams.engineInfo.maxLocalMemSize)
+                if (req_local_mem_size < detectOutParams.engineInfo.maxLocalMemSize) {
                     cldnnJit.AddConstant(MakeJitConstant("USE_LOCAL_MEMORY_FOR_STACK", true));
+                }
                 cldnnJit.AddConstants({MakeJitConstant("DO_STAGE_" + std::to_string(i) + "_CAFFE", "true"),
                                        MakeJitConstant("LOCAL_BATCHES_NUM", dispatchData.lws[0])});
             }
