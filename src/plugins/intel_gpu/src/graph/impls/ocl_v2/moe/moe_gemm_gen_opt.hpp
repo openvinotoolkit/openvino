@@ -35,7 +35,7 @@ public:
     static moe_config get_moe_cfg(const kernel_impl_params& params) {
         moe_config moe_cfg;
         auto desc = params.typed_desc<moe_gemm>();
-        std::vector<cldnn::data_types> quantized_types = {data_types::u4, data_types::i4, data_types::u8, data_types::i8};
+        std::vector<cldnn::data_types> quantized_types = {data_types::u4, data_types::i4, data_types::u2, data_types::u8, data_types::i8};
         moe_cfg.has_bias = desc->has_bias;
         if (std::any_of(quantized_types.begin(), quantized_types.end(), [=](const cldnn::data_types& t) -> bool {
                 return t == params.input_layouts[1].data_type;
