@@ -448,7 +448,21 @@ void ov::npuw::s11n::read_and_check_header(std::istream& stream,
     read(stream, vmajor);
     read(stream, vminor);
     read(stream, vpatch);
-    read(stream, s11n_version);
+
+    // Generous cap so any past/future version string still reaches the mismatch report below.
+    constexpr std::size_t MAX_S11N_VERSION_SIZE = 64u;
+    auto stream_io = Stream::reader(stream);
+    std::size_t s11n_version_size = 0u;
+    stream_io & s11n_version_size;
+    OPENVINO_ASSERT(s11n_version_size <= MAX_S11N_VERSION_SIZE,
+                    "Corrupted NPUW blob: serialization version string is ",
+                    s11n_version_size,
+                    " bytes, the maximum is ",
+                    MAX_S11N_VERSION_SIZE);
+    s11n_version.resize(s11n_version_size);
+    if (s11n_version_size != 0u) {
+        stream_io.bytes(s11n_version.data(), s11n_version_size);
+    }
 
     if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
         s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {
