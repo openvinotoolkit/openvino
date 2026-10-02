@@ -126,13 +126,7 @@ bool isSuitableConvolutionParent(const std::shared_ptr<const Node>& node) {
     return is_suitable_node && has_only_child;
 }
 bool isSuitableSubtractAsZeroPointsParent(const std::shared_ptr<const Node>& node) {
-    const bool is_suitable_node = ov::is_type<ov::op::v1::Subtract>(node);
-    // have single output, with 2 parents (activation, zeropoint)
-    const auto out = node->outputs();
-    const bool has_only_child = all_of(1U, out.size(), out[0].get_target_inputs().size());
-    const bool has_two_parents = node->get_input_size() == 2;
-    const bool all_conditions = is_suitable_node && has_only_child && has_two_parents;
-    if (!all_conditions) {
+    if (!ov::is_type<ov::op::v1::Subtract>(node) || node->get_users().size() != 1) {
         return false;
     }
 
