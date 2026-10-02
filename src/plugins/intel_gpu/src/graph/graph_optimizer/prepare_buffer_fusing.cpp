@@ -417,8 +417,10 @@ static bool is_optimizable_padding_for_crop(const crop_node& node,
 // input correctly via the standard pitch-aware layout addressing; sdpa's 4 kernels
 // (ref/opt/gen_opt/gen_micro) are the only ones known to assume contiguous memory.
 // If another kernel is found to make the same assumption, add it here too.
+// gemm is here for the same reason (ocl gemm_tiled_opt), reached when a non-f16 precision
+// decomposes sdpa. Unconditional: preferred impl type is not the impl that gets built.
 static bool requires_contiguous_input(const program_node& node) {
-    return node.is_type<scaled_dot_product_attention>();
+    return node.is_type<scaled_dot_product_attention>() || node.is_type<gemm>();
 }
 
 bool crop_in_place_optimization::can_crop_be_optimized_along_feature(const layout& crop_layout,
