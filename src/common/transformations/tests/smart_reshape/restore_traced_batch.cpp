@@ -9,6 +9,7 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/gather.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
@@ -34,6 +35,10 @@ struct WindowReverse {
     bool shifted = false;
     bool rebuilds_batch = true;
     bool merge_shared = false;
+    bool roll_shared = false;
+    bool split_target_shared = false;
+    bool converted_batch = false;
+    bool rank5_merge = false;
     bool compact_targets = false;
     std::vector<int64_t> permutation{0, 1, 3, 2, 4, 5};
     std::vector<int64_t> roll_axes{1, 2};
@@ -42,18 +47,24 @@ struct WindowReverse {
 // SwinIR's window_reverse for a 16x16 image split into 8x8 windows, as traced with batch one.
 std::shared_ptr<Model> make_window_reverse_model(const WindowReverse& options) {
     const auto x = std::make_shared<op::v0::Parameter>(element::f32, PartialShape{-1, 16, 16, 4});
-    const auto batch = std::make_shared<op::v8::Gather>(std::make_shared<op::v3::ShapeOf>(x), i64({0}), i64({0}));
+    const Output<Node> gathered_batch =
+        std::make_shared<op::v8::Gather>(std::make_shared<op::v3::ShapeOf>(x), i64({0}), i64({0}));
+    const Output<Node> batch =
+        options.converted_batch ? std::make_shared<op::v0::Convert>(gathered_batch, element::i64) : gathered_batch;
     const auto one = i64({1});
-    const Output<Node> pinned = options.restored ? batch->output(0) : one;
+    const Output<Node> pinned = options.restored ? batch : one;
 
     const auto windows = std::make_shared<op::v1::Reshape>(x, i64({-1, 8, 8, 4}), false);
-    const auto split_target = options.compact_targets
-                                  ? concat({pinned, i64({2}), i64({2}), i64({8, 8, -1})})
-                                  : concat({pinned, i64({2}), i64({2}), i64({8}), i64({8}), i64({-1})});
+    const auto make_split_target = [&](const Output<Node>& leading) {
+        return options.compact_targets ? concat({leading, i64({2}), i64({2}), i64({8, 8, -1})})
+                                       : concat({leading, i64({2}), i64({2}), i64({8}), i64({8}), i64({-1})});
+    };
+    const auto split_target = make_split_target(pinned);
     const auto split = std::make_shared<op::v1::Reshape>(windows, split_target, false);
     const auto permute = std::make_shared<op::v1::Transpose>(split, i64(options.permutation));
-    const auto merge_target = options.compact_targets ? concat({pinned, i64({16, 16, -1})})
-                                                      : concat({pinned, i64({16}), i64({16}), i64({-1})});
+    const auto merge_target = options.rank5_merge       ? concat({pinned, i64({16, 1}), i64({16}), i64({-1})})
+                              : options.compact_targets ? concat({pinned, i64({16, 16, -1})})
+                                                        : concat({pinned, i64({16}), i64({16}), i64({-1})});
     const auto merge = std::make_shared<op::v1::Reshape>(permute, merge_target, false);
     std::shared_ptr<Node> merged = merge;
     if (options.shifted) {
@@ -61,7 +72,7 @@ std::shared_ptr<Model> make_window_reverse_model(const WindowReverse& options) {
                                                 i64(std::vector<int64_t>(options.roll_axes.size(), 4)),
                                                 i64(options.roll_axes));
     }
-    const Output<Node> rebuilt_batch = options.rebuilds_batch ? batch->output(0) : one;
+    const Output<Node> rebuilt_batch = options.rebuilds_batch ? batch : one;
     const auto rebuild_target = options.compact_targets ? concat({rebuilt_batch, i64({256, 4})})
                                                         : concat({rebuilt_batch, i64({256}), i64({4})});
     const auto rebuilt = std::make_shared<op::v1::Reshape>(merged, rebuild_target, false);
@@ -69,6 +80,15 @@ std::shared_ptr<Model> make_window_reverse_model(const WindowReverse& options) {
     ResultVector results{std::make_shared<op::v0::Result>(rebuilt)};
     if (options.merge_shared) {
         results.push_back(std::make_shared<op::v0::Result>(merge));
+    }
+    if (options.roll_shared) {
+        results.push_back(std::make_shared<op::v0::Result>(merged));
+    }
+    if (options.split_target_shared) {
+        // Another Reshape reads the traced target and keeps it.
+        const auto other_target = options.restored ? make_split_target(one) : split_target;
+        results.push_back(
+            std::make_shared<op::v0::Result>(std::make_shared<op::v1::Reshape>(windows, other_target, false)));
     }
     return std::make_shared<Model>(results, ParameterVector{x});
 }
@@ -157,6 +177,39 @@ TEST_F(RestoreTracedBatchTests, WindowMergeWithOtherConsumersIsLeftAlone) {
     WindowReverse shared;
     shared.merge_shared = true;
     model = make_window_reverse_model(shared);
+}
+
+TEST_F(RestoreTracedBatchTests, RollWithOtherConsumersIsLeftAlone) {
+    WindowReverse shared;
+    shared.shifted = true;
+    shared.roll_shared = true;
+    model = make_window_reverse_model(shared);
+}
+
+TEST_F(RestoreTracedBatchTests, RollOnNegativeLeadingAxisOfOtherRankIsLeftAlone) {
+    WindowReverse other;
+    other.rank5_merge = true;
+    other.shifted = true;
+    other.roll_axes = {-5};
+    model = make_window_reverse_model(other);
+}
+
+TEST_F(RestoreTracedBatchTests, SharedSplitTargetIsRestoredOnlyForWindowReverse) {
+    WindowReverse traced;
+    traced.split_target_shared = true;
+    WindowReverse restored = traced;
+    restored.restored = true;
+    model = make_window_reverse_model(traced);
+    model_ref = make_window_reverse_model(restored);
+}
+
+TEST_F(RestoreTracedBatchTests, ConvertedBatchIsTakenFromInputShape) {
+    WindowReverse traced;
+    traced.converted_batch = true;
+    WindowReverse restored = traced;
+    restored.restored = true;
+    model = make_window_reverse_model(traced);
+    model_ref = make_window_reverse_model(restored);
 }
 
 TEST(SmartReshapeTests, ReshapeRestoresWindowReverseBatch) {
