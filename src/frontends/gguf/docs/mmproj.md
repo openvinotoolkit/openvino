@@ -3,34 +3,30 @@
 A llama.cpp multimodal projector file (`general.architecture = clip`, usually named
 `mmproj-*.gguf`) converts to an `ov::Model` that runs its vision and/or audio encoder and
 projector. The language model is a separate `.gguf` converted by the regular decoder path.
-Conversion, encoder accuracy and end-to-end generation are separate qualification levels:
-a supported projector does not certify every checkpoint, preprocessing variant or language
-pairing.
 
 ## Supported projectors
 
 The catalog is `projector_catalog` in
 [`mmproj_builder.cpp`](../src/builder/arch/mmproj_builder.cpp). Every entry has a small
 numerical fixture checked against the llama.cpp CPU encoder (see
-[the fixture README](../tests/test_data/mmproj_accuracy/README.md)). A real-checkpoint
-encoder check means a downloaded projector matched llama.cpp at normalized MSE below `1e-5`.
+[the fixture README](../tests/test_data/mmproj_accuracy/README.md)).
 
-| Modality | Projector | Graph features | Real-checkpoint encoder check |
-|---|---|---|---|
-| Vision | `gemma3`, `idefics3`, `janus_pro` | SigLIP; fused QKV and legacy FFN names | `gemma3`: gemma-3-4b F16 |
-| Vision | `mlp` | CLIP feature layers; normalized variant detected from tensors | — |
-| Vision | `internvl` | InternViT, class token, pixel-shuffle merge | — |
-| Vision | `resampler` | MiniCPM-V resampler, `clip.minicpmv_version` 2-6 and 100045 | — |
-| Vision | `minicpmv4_6` | window attention, two-stage merging | — |
-| Vision | `qwen2vl_merger`, `qwen2.5vl_merger`, `qwen3vl_merger` | temporal pairs, M-RoPE, windows (2.5), DeepStack (3) | `qwen3vl_merger`: Qwen3.5 0.8B/2B/4B/9B, Qwen3.6 35B, Qwen3.8 27B |
-| Vision | `pixtral` | 2D RoPE, patch merger, row separators | Ministral-3 3B Q8_0 |
-| Vision | `phi4` | dynamic resolution, resized positions | — |
-| Vision | `gemma4v`, `gemma4uv` | two-axis positions, per-tensor clipping, pooling; unified patch normalization | E2B, E4B, 26B, 31B (`gemma4v`); 12B (`gemma4uv`) |
-| Vision | `muse-glimmer` | sparse/global windows, two-axis RoPE, pixel shuffle | Muse Glimmer 30B Q4_K |
-| Vision | `deepseekocr`, `deepseekocr2` | SAM local/global attention, tiles, queries, view separators | — |
-| Audio | `gemma4a` | causal convolution, 12-position relative attention with softcap | E2B, E4B |
-| Audio | `gemma4ua` | raw 640-sample waveform frames | 12B |
-| Audio | `qwen2a`, `ultravox`, `voxtral`, `musicflamingo`, `meralion`, `glma` | Whisper-derived encoders | — |
+| Modality | Projector | Graph features |
+|---|---|---|
+| Vision | `gemma3`, `idefics3`, `janus_pro` | SigLIP; fused QKV and legacy FFN names |
+| Vision | `mlp` | CLIP feature layers; normalized variant detected from tensors |
+| Vision | `internvl` | InternViT, class token, pixel-shuffle merge |
+| Vision | `resampler` | MiniCPM-V resampler, `clip.minicpmv_version` 2-6 and 100045 |
+| Vision | `minicpmv4_6` | window attention, two-stage merging |
+| Vision | `qwen2vl_merger`, `qwen2.5vl_merger`, `qwen3vl_merger` | temporal pairs, M-RoPE, windows (2.5), DeepStack (3) |
+| Vision | `pixtral` | 2D RoPE, patch merger, row separators |
+| Vision | `phi4` | dynamic resolution, resized positions |
+| Vision | `gemma4v`, `gemma4uv` | two-axis positions, per-tensor clipping, pooling; unified patch normalization |
+| Vision | `muse-glimmer` | sparse/global windows, two-axis RoPE, pixel shuffle |
+| Vision | `deepseekocr`, `deepseekocr2` | SAM local/global attention, tiles, queries, view separators |
+| Audio | `gemma4a` | causal convolution, 12-position relative attention with softcap |
+| Audio | `gemma4ua` | raw 640-sample waveform frames |
+| Audio | `qwen2a`, `ultravox`, `voxtral`, `musicflamingo`, `meralion`, `glma` | Whisper-derived encoders |
 
 InternViT-6B (width 3200, 45 layers) uses RMS norms like the reference, but has no fixture.
 
@@ -117,52 +113,3 @@ mode prepares the language model for media injection:
   bidirectionally within their image, in every Gemma3 layer and in Gemma4 sliding-window layers;
 - interleaved M-RoPE models take `position_ids [4,B,T]`: GenAI's sequence, time, height and width
   sections.
-
-Embedding mode is validated with one sequence, with SDPA and PagedAttention. The GenAI branch
-`gguf-frontend-mmproj` uses both passes in `VLMPipeline(language.gguf, device,
-mmproj_path=mmproj.gguf)` for Gemma3, Qwen3.5/3.6 with `qwen3vl_merger`, Gemma4 vision/audio and
-Muse Glimmer.
-
-## Validation status
-
-Last full run: 2026-10-01, CPU, llama.cpp `03fa73cb27f5c251b9528489b18d303b1366aca4` as the
-oracle. Encoder checks use the represented-weight F32 projector as reference. GenAI checks
-compare greedy choices on identical histories with the original publisher BF16 weights; they
-pass with the first token and at least 90% of choices (13 for language, up to 20 per medium).
-They use F32 inference, F16 KV cache, no dynamic activation quantization and
-`OV_GGUF_Q4_K_ZP_F16=1`.
-
-- **Encoders:** all real-checkpoint checks in the table above pass, at normalized MSE between
-  `2e-13` and `5.4e-6`.
-- **Language (GenAI `LLMPipeline`, plus chat, reset, batch-of-two, beam and streaming checks):**
-  Qwen3.5-4B Q4_0 (12/13) and Q4_K_M (13/13) with PA and SDPA, Qwen3.6-35B Q4_K_M PA (12/13),
-  Gemma4 E4B Q4_K_M PA and Muse Glimmer Q4_K_M PA (13/13) pass. Gemma4 12B Q4_0 (10/13) and
-  Gemma4 26B Q4_0 (7/13) miss the first token. llama.cpp replaying the same reference history on
-  the same Q4_0 files scores the same 10/13 and 7/13 and also misses the first token; OV matches
-  its choices at 12/13 and 11/13 steps, differing only where its top two are within 0.21-0.51
-  logits.
-- **Multimodal (GenAI `VLMPipeline`):** Qwen3.5-4B passes text, image and video for Q4_K_M with
-  PA and SDPA, and for Q4_0 with PA; Gemma4 E2B Q4_K_M passes text, image, video, audio and mixed input with PA.
-  In Gemma4 E2B chat, the audio follow-up turn misses only the first token (19/20); llama.cpp
-  running the same Q4_K_M file on that history makes the same choice, so quantization, not
-  history handling, causes the difference.
-  Gemma4 12B Q4_0 PA fails mixed input (17/20, first token differs) and video (17/20) against
-  the publisher reference. Against llama.cpp with the same Q4_0 files it passes all five inputs:
-  20/20 except mixed (18/20), where OV takes llama.cpp's runner-up at margins of 0.28 and 0.53
-  logits. Muse Glimmer Q4_K_M passes against the same quantized file in llama.cpp; no publisher
-  reference is available for it.
-
-The Gemma4 26B difference starts at layer 8, where two experts swap places at the top-8 cutoff
-for a near tie. Checkpoint matrices for Qwen3.5 0.8B-9B, Qwen3.6, Qwen3.8 and all Gemma4 sizes
-are summarized in the
-[architecture fixture README](../tests/test_data/arch_accuracy/README.md#q8_0_c-requantization-accuracy-check).
-End-to-end GenAI generation, including long contexts, also runs on an Intel Arc A770 GPU (16 GB)
-for the models that fit its memory. NPU and concurrent requests are not qualified.
-
-The model hub tests in [`tests/model_hub_tests/gguf`](../../../../tests/model_hub_tests/gguf)
-also convert downloaded projector files for `idefics3`, `internvl`, `pixtral`, the Qwen VL mergers,
-`gemma3`, Gemma4 vision and audio, `voxtral`, `ultravox` and Qwen2.5 Omni, and compare every
-encoder with llama.cpp built at the pinned revision during the test session.
-
-The GenAI checks are run with GenAI's `tests/python_tests/validate_gguf_llm.py` (language) and
-`tests/python_tests/validate_gguf_mmproj.py` (media). Keep their reports outside the source tree.

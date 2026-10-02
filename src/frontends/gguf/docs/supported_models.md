@@ -43,7 +43,7 @@ that loads but emits garbage is **not** counted as supported.
 ## Native GGUF path
 
 Vision/audio projector files (`mmproj-*.gguf`) are covered by
-[native multimodal conversion](mmproj.md), including their GenAI validation status.
+[native multimodal conversion](mmproj.md).
 
 The native architecture catalog is defined in
 [`src/builder/arch_registry.cpp`](../src/builder/arch_registry.cpp):
@@ -98,11 +98,11 @@ time. External definitions and custom-family catalog entries extend the same reg
 | `llama-embed` | needs embedding-specific numerical and pooling tests; completion is not a suitable test |
 | `minimax-m2` | no real checkpoint validated |
 | `plamo3` | native builder disagrees with the real checkpoint reference (0/13 matching choices); post-norm tensors without `.weight` are not recognized |
-| `qwen35moe` | `qwen35` with routed and shared experts (separate or fused gate/up); small numerical fixtures pass; Qwen3.6-35B-A3B Q4_K_M passes the GenAI language check (12/13), Q4_0 does not (11/13) |
+| `qwen35moe` | `qwen35` with routed and shared experts (separate or fused gate/up); small numerical fixtures pass |
 
 ### Numerical regression coverage
 
-[`GGUFArchitectureAccuracy`](../tests/test_arch_accuracy.cpp) contains 32 small, nonzero F32
+[`GGUFArchitectureAccuracy`](../tests/test_arch_accuracy.cpp) contains 34 small, nonzero F32
 fixtures, including the experimental `hunyuan-moe` and `qwen35moe` families.
 Additional model variants exercise YaRN and position-dependent attention scaling under
 `llama` and `mistral3`. Gemma3 covers distinct global/local RoPE scaling, and Gemma4 covers
