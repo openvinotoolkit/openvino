@@ -30,9 +30,7 @@ using namespace ov::op;
 using ov::Shape;
 
 namespace ov {
-namespace frontend {
-namespace onnx {
-namespace reshape {
+namespace frontend::onnx::reshape {
 std::vector<std::size_t> infer_dimensions(const std::string& node_name,
                                           const std::vector<std::size_t>& input_shape,
                                           const std::vector<std::size_t>& output_shape) {
@@ -115,12 +113,9 @@ ov::Output<ov::Node> reshape_channel_shaped_node_to_nchw(const ov::Output<ov::No
     return std::make_shared<v1::Reshape>(node, new_shape, false);
 }
 
-}  // namespace  reshape
-}  // namespace onnx
-}  // namespace frontend
+}  // namespace frontend::onnx::reshape
 
-namespace op {
-namespace util {
+namespace op::util {
 std::shared_ptr<ov::Node> reshape(const Output<ov::Node>& value, const Shape& shape) {
     if (value.get_partial_shape().same_scheme(shape)) {
         return value.get_node_shared_ptr();
@@ -220,6 +215,5 @@ std::shared_ptr<ov::Node> flatten(const Output<ov::Node>& value, int axis) {
     }
     return std::make_shared<ov::op::v1::Reshape>(value, output_shape, true);
 }
-}  // namespace util
-}  // namespace op
+}  // namespace op::util
 }  // namespace ov

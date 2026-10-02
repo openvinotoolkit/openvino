@@ -10,8 +10,7 @@
 #include "openvino/frontend/visibility.hpp"
 #include "openvino/op/util/framework_node.hpp"
 
-namespace ov {
-namespace frontend {
+namespace ov::frontend {
 
 // ComplexTypeMark serves to mark places that require complex type propagation
 // that means to represent native complex type with simulating floating-point tensor
@@ -117,5 +116,4 @@ private:
     ov::Output<ov::Node> m_imag;
 };
 
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend

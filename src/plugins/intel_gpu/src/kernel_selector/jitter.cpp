@@ -88,6 +88,11 @@ JitTerm isinf(const JitTerm& arg) {
     return jit_term;
 }
 
+JitTerm isnan(const JitTerm& arg) {
+    JitTerm jit_term{"(isnan(" + arg.str() + "))"};
+    return jit_term;
+}
+
 JitTerm exp(const JitTerm& arg) {
     JitTerm jit_term{"(exp(" + arg.str() + "))"};
     return jit_term;
@@ -1176,12 +1181,17 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             break;
         case ActivationFunction::RELU_NEGATIVE_SLOPE: {
             const JitTerm slope = disable_type_conversion ? "m"_jit : to_type("m"_jit);
-            jitConstants.AddConstant(MakeJitConstant(
-                macro_def,
-                ternary(isinf(slope),
-                        ternary(input.ge(zero), input, neg(slope)),
-                        max_func(input, zero) + (slope * min_func(input, zero)))
-                    .str()));
+            // OpenCL fmax/fmin return the non-NaN operand, so the naive
+            // fmax(x, 0) + slope * fmin(x, 0) form silently turns a NaN input
+            // into zero. Select on the input explicitly to keep NaN propagating.
+            // A ternary is used for the NaN branch instead of select(): select()
+            // requires the condition to be a signed integer of the same width as
+            // the operands (short for half), while isnan() returns int, so f16
+            // kernels do not compile with select().
+            const JitTerm prelu_body = ternary(isinf(slope),
+                                               ternary(input.ge(zero), input, neg(slope)),
+                                               max_func(input, zero) + (slope * min_func(input, zero)));
+            jitConstants.AddConstant(MakeJitConstant(macro_def, ternary(isnan(input), input, prelu_body).str()));
             break;
         }
         case ActivationFunction::ELU: {
@@ -1323,10 +1333,15 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             break;
         }
         case ActivationFunction::SOFTPLUS: {
-            const JitTerm input_f = out_dt == Datatype::F16 ? JitTerm{"convert_float(input)"} : input;
-            const JitTerm output =
-                out_dt == Datatype::F16 ? JitTerm{"convert_half(" + (log(exp(input_f) + one)).str() + ")"} : JitTerm{(log(exp(input_f) + one)).str()};
-            jitConstants.AddConstant(MakeJitConstant(macro_def, output.str()));
+            // Numerically stable softplus: max(x, 0) + log(1 + exp(-|x|)).
+            // Mathematically equivalent to log(1 + exp(x)) for all x, but
+            // exp(-|x|) is in [0, 1] so it never overflows even at the
+            // float16 limit (~65504). Uses only type-dispatched helpers and
+            // vector-generic builtins, so it compiles for both the scalar ref
+            // kernel and the vectorised opt kernel without width-specific
+            // type conversions.
+            jitConstants.AddConstant(MakeJitConstant(macro_def,
+                    (max_func(input, zero) + log(one + exp(neg(abs_func(input))))).str()));
             break;
         }
         case ActivationFunction::SOFTSIGN: {

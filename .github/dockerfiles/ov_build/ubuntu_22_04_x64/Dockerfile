@@ -29,9 +29,6 @@ RUN apt-get update && \
         # parallel gzip
         pigz \
         # Pythons
-        python3.10-dev \
-        python3.10-venv \
-        python3.10-distutils \
         python3.11-dev \
         python3.11-venv \
         python3.11-distutils \
@@ -84,7 +81,6 @@ ENV PATH="$SCCACHE_HOME:$PATH"
 ENV PIP_VERSION="24.0"
 RUN curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py && \
     python3 get-pip.py  --no-cache-dir pip==${PIP_VERSION} && \
-    python3.10 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.11 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.12 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
     python3.13 get-pip.py --no-cache-dir pip==${PIP_VERSION} && \
@@ -105,7 +101,7 @@ RUN python3 -m pip install --no-cache-dir ninja==1.13.0
 RUN locale-gen en_US.UTF-8 && update-locale LANG=en_US.UTF-8
 
 # Install Node
-ENV NODE_VERSION=21.7.3
+ENV NODE_VERSION=22.23.2
 ENV NVM_DIR=/.nvm
 RUN mkdir -p $NVM_DIR
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.0/install.sh | bash
