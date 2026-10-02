@@ -375,14 +375,10 @@ std::optional<ov::intel_npu::CompilerType> PluginPropertyManager::getCompilerTyp
         return std::nullopt;
     }
 
-    try {
-        if (compilerTypeIt->second.is<std::string>()) {
-            return COMPILER_TYPE::parse(compilerTypeIt->second.as<std::string>());
-        }
-        return compilerTypeIt->second.as<ov::intel_npu::CompilerType>();
-    } catch (...) {
-        return std::nullopt;
+    if (compilerTypeIt->second.is<std::string>()) {
+        return COMPILER_TYPE::parse(compilerTypeIt->second.as<std::string>());
     }
+    return compilerTypeIt->second.as<ov::intel_npu::CompilerType>();
 }
 
 std::optional<ov::intel_npu::CompilerType> PluginPropertyManager::resolveCompilerType(
@@ -451,14 +447,15 @@ void PluginPropertyManager::registerProperties() {
         };
 
     const auto isCompilerOptionSupported = [this](const std::string& propertyName, const ov::AnyMap& arguments) {
-        const auto resolvedCompilerType = resolveCompilerType(arguments);
-        if (!resolvedCompilerType.has_value()) {
-            return false;
-        }
-
         try {
+            const auto resolvedCompilerType = resolveCompilerType(arguments);
+            if (!resolvedCompilerType.has_value()) {
+                return false;
+            }
+
             return _compilerOptionSupportHelper->isOptionSupported(resolvedCompilerType.value(), propertyName);
         } catch (...) {
+            // an invalid compiler type argument or a compiler failure makes the property unsupported
             return false;
         }
     };
@@ -933,7 +930,12 @@ void PluginPropertyManager::registerProperties() {
 
     register_property(ov::intel_npu::compiler_version.name(), true, ov::PropertyMutability::RO,
          [this](const ov::AnyMap& arguments)  {  // support predicate
-            auto compilerType = getCompilerTypeOrDefault(arguments);
+            std::optional<ov::intel_npu::CompilerType> compilerType;
+            try {
+                compilerType = getCompilerTypeOrDefault(arguments);
+            } catch (...) {
+                return false;
+            }
             if (!compilerType.has_value()) {
                 return false;
             }
