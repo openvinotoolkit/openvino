@@ -54,6 +54,33 @@ public:
     MoveEltwiseUpThroughDataMovPerChannel();
 };
 
+/// This transformation handles the non-constant case where a binary element-wise op
+/// consumes the output of an op that inserts a single unit dimension (Unsqueeze or a
+/// rank-increasing Reshape) whose producer is a "fusable" op (one that can absorb the
+/// eltwise as a post-op, e.g. FullyConnected, MatMul, Transpose). Instead of reshaping
+/// the other input (which is not a constant), it squeezes the other input's unit
+/// dimension, performs the eltwise in the lower rank,
+/// and unsqueezes the result:
+///     Eltwise(R, Unsqueeze(P, axis))
+///       => Unsqueeze(Eltwise(Squeeze(R, axis), P), axis)
+///
+/// so the eltwise operates in the lower rank and can be fused as a post-op on P.
+/// For non-commutative element-wise ops the fusable producer has to be the first eltwise input,
+/// otherwise fusing it would reverse the operation.
+class TRANSFORMATIONS_API MoveEltwiseUpThroughDataMovFusableProducer : public ov::pass::MatcherPass {
+public:
+    OPENVINO_MATCHER_PASS_RTTI("MoveEltwiseUpThroughDataMovFusableProducer");
+    /// @param fusable_producer_types List of op types that can fuse an eltwise
+    ///        as a post-op. Passed as a runtime vector of type infos (instead of
+    ///        compile-time wrap_type<...>()) because callers may include plugin-private
+    ///        ops that are not visible to this device-agnostic common transformation,
+    ///        e.g. ov::intel_gpu::op::FullyConnected. The common library must not depend
+    ///        on a plugin, so those types can only be injected at runtime. A bias Add on
+    ///        top of such a producer is always treated as a fusable producer as well,
+    ///        since the bias is folded into the producer's kernel.
+    MoveEltwiseUpThroughDataMovFusableProducer(std::vector<DiscreteTypeInfo> fusable_producer_types);
+};
+
 class TRANSFORMATIONS_API MoveEltwiseUpThroughDataMov : public ov::pass::GraphRewrite {
 public:
     OPENVINO_GRAPH_REWRITE_RTTI("MoveEltwiseUpThroughDataMov");
