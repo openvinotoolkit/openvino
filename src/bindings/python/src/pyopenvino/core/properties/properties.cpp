@@ -340,6 +340,7 @@ void regmodule_properties(py::module m) {
     wrap_property_RW(m_intel_auto, ov::intel_auto::device_bind_buffer, "device_bind_buffer");
     wrap_property_RW(m_intel_auto, ov::intel_auto::enable_startup_fallback, "enable_startup_fallback");
     wrap_property_RW(m_intel_auto, ov::intel_auto::enable_runtime_fallback, "enable_runtime_fallback");
+    wrap_property_RW(m_intel_auto, ov::intel_auto::compile_for_all, "compile_for_all");
     wrap_property_RW(m_intel_auto, ov::intel_auto::schedule_policy, "schedule_policy");
     wrap_property_RW(m_intel_auto, ov::intel_auto::devices_utilization_threshold, "devices_utilization_threshold");
     // perf_curve_table: name/string/map overloads (map form uses pybind11's default STL caster).
