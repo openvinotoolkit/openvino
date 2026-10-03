@@ -48,6 +48,7 @@ target_sources(${TARGET_NAME}
         ${UTIL_INCLUDE_DIR}/openvino/util/io.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/log.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/memory.hpp
+        ${UTIL_INCLUDE_DIR}/openvino/util/memory_prefetch.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/mmap_object.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/native_stream.hpp
         ${UTIL_INCLUDE_DIR}/openvino/util/native_streambuf.hpp

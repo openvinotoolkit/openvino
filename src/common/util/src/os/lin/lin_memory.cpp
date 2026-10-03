@@ -4,6 +4,7 @@
 
 #include <sys/mman.h>
 
+#include <atomic>
 #include <cassert>
 #include <cerrno>
 #include <cstddef>
@@ -93,6 +94,31 @@ PrefetchToken vm_prefetch_async(void* ptr, size_t size, size_t num_threads) noex
         return {};
     }
     return PrefetchToken(submit_page_toucher_tasks(ptr, size, num_threads));
+}
+
+void vm_readahead(void* ptr, size_t size) noexcept {
+    // MADV_WILLNEED only: unlike MADV_SEQUENTIAL it changes no VMA flags, so applying it to many
+    // sub-ranges of one mapping neither splits the VMA nor enables drop-behind.
+    std::ignore = madvise(ptr, size, MADV_WILLNEED);
+}
+
+bool vm_populate(void* ptr, size_t size) noexcept {
+#if defined(__linux__)
+#    ifndef MADV_POPULATE_READ
+#        define MADV_POPULATE_READ 22
+#    endif
+    // Linux 5.14+, older kernels reject the advice with EINVAL: remember it and fall back to touching.
+    static std::atomic<bool> supported{true};
+    if (supported.load(std::memory_order_relaxed)) {
+        if (madvise(ptr, size, MADV_POPULATE_READ) == 0) {
+            return true;
+        }
+        if (errno == EINVAL) {
+            supported.store(false, std::memory_order_relaxed);
+        }
+    }
+#endif
+    return false;
 }
 
 }  // namespace ov::util

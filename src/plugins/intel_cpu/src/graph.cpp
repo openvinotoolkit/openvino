@@ -60,6 +60,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/weights_prefetch.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/parameter.hpp"
@@ -392,6 +393,123 @@ void Graph::Init(const std::shared_ptr<const ov::Model>& model,
     Configure();
 }
 
+namespace {
+
+/// Tells whether the node reads only a few entries of its input @p port, picked by indices.
+bool readsInputByIndex(const Node& node, int port) {
+    switch (node.getType()) {
+    case Type::Gather:
+    case Type::GatherND:
+    case Type::GatherElements:
+    case Type::EmbeddingBagPacked:
+    case Type::EmbeddingBagOffsets:
+    case Type::EmbeddingSegmentsSum:
+    case Type::EmbeddingBagPackedSum:
+    case Type::EmbeddingBagOffsetsSum:
+        return port == 0;
+    case Type::GatherMatmul:
+        // The expert weights are selected per token.
+        return port == 1;
+    default:
+        return false;
+    }
+}
+
+/// Tells whether the constant data is not read anymore after its consumers are executed once: all of
+/// them are executable constant nodes writing their results to memory of their own.
+bool isCopiedByConsumers(const Node& input, const ov::op::v0::Constant& constant) {
+    const auto begin = reinterpret_cast<uintptr_t>(constant.get_data_ptr());
+    const auto end = begin + constant.get_byte_size();
+    for (const auto& weakEdge : input.getChildEdges()) {
+        const auto edge = weakEdge.lock();
+        if (!edge) {
+            continue;
+        }
+        const auto child = edge->getChild();
+        if (!child->isConstant() || !child->isExecutable()) {
+            return false;
+        }
+        for (const auto& weakChildEdge : child->getChildEdges()) {
+            const auto childEdge = weakChildEdge.lock();
+            const auto memory = childEdge ? childEdge->getMemoryPtr() : nullptr;
+            if (!memory) {
+                continue;
+            }
+            try {
+                const auto data = reinterpret_cast<uintptr_t>(memory->getData());
+                if (data >= begin && data < end) {
+                    return false;
+                }
+            } catch (...) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+/// Prefetches the constants read by @p nodes just ahead of them, a step is a position in @p nodes.
+/// Only the nodes accepted by @p readsWeights read their weights in the phase the scheduler is for.
+template <typename Filter>
+std::unique_ptr<ov::wsh::PrefetchScheduler> makeWeightsPrefetch(const std::vector<NodePtr>& nodes,
+                                                                std::string_view site,
+                                                                Filter&& readsWeights) {
+    // The planned constants are read in place and stay resident, so populating them ahead does not
+    // grow the peak resident set size and the window may be large.
+    ov::wsh::PrefetchScheduler::Config defaults;
+    defaults.populate_bytes = 256UL << 20;
+    const auto config = ov::wsh::PrefetchScheduler::Config::from_env(site, defaults);
+    if (!config) {
+        return nullptr;
+    }
+    ov::wsh::PrefetchScheduler::Plan plan(nodes.size());
+    bool empty = true;
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        const auto& node = nodes[i];
+        if (node->getType() == Type::Input || !readsWeights(*node)) {
+            continue;
+        }
+        for (const auto& weakEdge : node->getParentEdges()) {
+            const auto edge = weakEdge.lock();
+            if (!edge || readsInputByIndex(*node, edge->getOutputNum())) {
+                continue;
+            }
+            const auto parent = edge->getParent();
+            if (parent->getType() != Type::Input) {
+                continue;
+            }
+            if (auto constant = std::static_pointer_cast<node::Input>(parent)->getSharedConstOp()) {
+                const bool evict = isCopiedByConsumers(*parent, *constant);
+                plan[i].push_back({std::move(constant), evict});
+                empty = false;
+            }
+        }
+    }
+    return empty ? nullptr : std::make_unique<ov::wsh::PrefetchScheduler>(plan, *config);
+}
+
+class WeightsPrefetchStep {
+public:
+    WeightsPrefetchStep(ov::wsh::PrefetchScheduler* scheduler, size_t step) : m_scheduler(scheduler), m_step(step) {
+        if (m_scheduler) {
+            m_scheduler->begin(m_step);
+        }
+    }
+    ~WeightsPrefetchStep() {
+        if (m_scheduler) {
+            m_scheduler->end(m_step);
+        }
+    }
+    WeightsPrefetchStep(const WeightsPrefetchStep&) = delete;
+    WeightsPrefetchStep& operator=(const WeightsPrefetchStep&) = delete;
+
+private:
+    ov::wsh::PrefetchScheduler* m_scheduler;
+    size_t m_step;
+};
+
+}  // namespace
+
 void Graph::Activate() {
     // @todo It is possible that execution graph is already created in scope of
     // the allocation context collection from the outer graph so the state for inner graph is "Ready"
@@ -400,6 +518,7 @@ void Graph::Activate() {
     Allocate();
 
     CreatePrimitivesAndExecConstants();
+    m_firstInferDone = false;
 
 #ifndef CPU_DEBUG_CAPS
     for (auto& graphNode : graphNodes) {
@@ -561,7 +680,14 @@ void Graph::CreatePrimitivesAndExecConstants() const {
         return std::make_tuple(hasExternalInvalidEdges, hasLocalAllocatedEdges, outputs);
     };
 
-    for (const auto& node : graphNodes) {
+    // Static nodes read their weights here, when the primitives are created and the constant
+    // subgraphs are executed. Dynamic nodes read them on the first inference, see m_firstInferPrefetch.
+    const auto weightsPrefetch = makeWeightsPrefetch(graphNodes, "cpu_compile", [](const Node& node) {
+        return !node.isDynamicNode();
+    });
+    for (size_t i = 0; i < graphNodes.size(); ++i) {
+        const auto& node = graphNodes[i];
+        const WeightsPrefetchStep prefetchStep(weightsPrefetch.get(), i);
         {
             OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, node->profiling.createPrimitive);
             DEBUG_LOG(*node);
@@ -1371,14 +1497,17 @@ namespace {
 
 class UpdateNodesSeq {
 public:
-    explicit UpdateNodesSeq(std::vector<NodePtr>& executableGraphNodes)
-        : m_executableGraphNodes(executableGraphNodes) {}
+    explicit UpdateNodesSeq(std::vector<NodePtr>& executableGraphNodes,
+                            ov::wsh::PrefetchScheduler* weightsPrefetch = nullptr)
+        : m_executableGraphNodes(executableGraphNodes),
+          m_weightsPrefetch(weightsPrefetch) {}
 
     void operator()(size_t stopIndx) {
         for (; prepareCounter < stopIndx; ++prepareCounter) {
             const auto& node = m_executableGraphNodes[prepareCounter];
             if (node->isDynamicNode()) {
                 node->updateShapes();
+                const WeightsPrefetchStep prefetchStep(m_weightsPrefetch, prepareCounter);
                 node->updateDynamicParams();
             }
         }
@@ -1387,6 +1516,7 @@ public:
 private:
     size_t prepareCounter = 0;
     std::vector<NodePtr>& m_executableGraphNodes;
+    ov::wsh::PrefetchScheduler* m_weightsPrefetch;
 };
 
 #if (OV_THREAD == OV_THREAD_SEQ)
@@ -1398,8 +1528,10 @@ using UpdateNodes = UpdateNodesSeq;
 
 class UpdateNodesBase {
 public:
-    explicit UpdateNodesBase(std::vector<NodePtr>& executableGraphNodes)
-        : m_executableGraphNodes(executableGraphNodes) {}
+    explicit UpdateNodesBase(std::vector<NodePtr>& executableGraphNodes,
+                             ov::wsh::PrefetchScheduler* weightsPrefetch = nullptr)
+        : m_executableGraphNodes(executableGraphNodes),
+          m_weightsPrefetch(weightsPrefetch) {}
     void updateShapes(size_t node_indx, size_t stop_indx) {
         try {
             for (size_t i = node_indx; i < stop_indx; i++) {
@@ -1426,8 +1558,11 @@ public:
                 break;
             }
             while (local_counter < prepareCounter) {
-                const auto& node = m_executableGraphNodes[local_counter++];
+                const auto index = local_counter++;
+                const auto& node = m_executableGraphNodes[index];
                 if (node->isDynamicNode()) {
+                    // A single task updates the params, the scheduler is never used concurrently.
+                    const WeightsPrefetchStep prefetchStep(m_weightsPrefetch, index);
                     node->updateDynamicParams();
                 }
             }
@@ -1438,6 +1573,7 @@ protected:
     std::atomic<size_t> m_prepareCounter{0};
     std::atomic<bool> m_completion{false};
     std::vector<NodePtr>& m_executableGraphNodes;
+    ov::wsh::PrefetchScheduler* m_weightsPrefetch;
 };
 
 // NOLINTBEGIN(misc-include-cleaner) tbb has multiple implicit includes, which are not supposed to be included directly
@@ -1660,12 +1796,21 @@ void Graph::Infer(SyncInferRequest* request) {
 
     m_context->allocateMemory();
 
+    // Dynamic nodes read their weights on the first inference. The scheduler is created only when it
+    // starts, so graphs which are never run (e.g. untaken If branches) do not populate anything.
+    if (!m_firstInferDone && status != Status::ReadyStatic) {
+        m_firstInferPrefetch = makeWeightsPrefetch(m_executableGraphNodes, "cpu_infer", [](const Node& node) {
+            return node.isDynamicNode();
+        });
+    }
+    m_firstInferDone = true;
+
     switch (status) {
     case Status::ReadyDynamic:
-        InferDynamic(request, numaId, UpdateNodes(m_executableGraphNodes));
+        InferDynamic(request, numaId, UpdateNodes(m_executableGraphNodes, m_firstInferPrefetch.get()));
         break;
     case Status::ReadyDynamicSeq:
-        InferDynamic(request, numaId, UpdateNodesSeq(m_executableGraphNodes));
+        InferDynamic(request, numaId, UpdateNodesSeq(m_executableGraphNodes, m_firstInferPrefetch.get()));
         break;
     case Status::ReadyStatic:
         InferStatic(request, numaId);
@@ -1675,6 +1820,8 @@ void Graph::Infer(SyncInferRequest* request) {
                         "Wrong state of the ov::intel_cpu::Graph. Topology is not ready: ",
                         static_cast<int>(status));
     }
+
+    m_firstInferPrefetch.reset();
 
     if (infer_count != -1) {
         infer_count++;

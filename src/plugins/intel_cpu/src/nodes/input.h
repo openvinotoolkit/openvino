@@ -90,6 +90,11 @@ public:
         return false;
     }
 
+    /// Constant the node reads its data from without a copy, or nullptr.
+    std::shared_ptr<ov::op::v0::Constant> getSharedConstOp() const {
+        return (m_constOp && memoryPtr && memoryPtr->getData() == m_constOp->get_data_ptr()) ? m_constOp : nullptr;
+    }
+
 private:
     void cloneBlobIfRequired();
     void initSupportedPdDefault();

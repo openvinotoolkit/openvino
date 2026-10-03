@@ -14,6 +14,7 @@
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
+#include "openvino/core/weights_prefetch.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -143,14 +144,45 @@ void ProgramBuilder::cleanup_build() {
 #endif
 }
 
+namespace {
+// Constants are read when their data primitive is created (copied to device memory and evicted from
+// the host right away, see ops/constant.cpp), so the scheduler prefetches each one just ahead of its
+// own step and leaves the eviction to the copy.
+std::unique_ptr<ov::wsh::PrefetchScheduler> make_weights_prefetch(const std::vector<std::shared_ptr<ov::Node>>& ops,
+                                                                  const ExecutionConfig& config) {
+    // With offloading part of the MoE experts stay on the host and are read later on demand.
+    if (config.get_offload_ratio() != 0) {
+        return nullptr;
+    }
+    const auto prefetch_config = ov::wsh::PrefetchScheduler::Config::from_env("gpu_build");
+    if (!prefetch_config) {
+        return nullptr;
+    }
+    ov::wsh::PrefetchScheduler::Plan plan(ops.size());
+    for (size_t i = 0; i < ops.size(); ++i) {
+        if (auto constant = ov::as_type_ptr<ov::op::v0::Constant>(ops[i])) {
+            plan[i].push_back({std::move(constant), false});
+        }
+    }
+    return std::make_unique<ov::wsh::PrefetchScheduler>(plan, *prefetch_config);
+}
+}  // namespace
+
 std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::shared_ptr<ov::Node>>& ops, bool is_inner_program) {
     OV_ITT_SCOPED_TASK(itt::domains::intel_gpu_plugin, "ProgramBuilder::build");
 
     prepare_build();
     {
         GPU_DEBUG_DEFINE_MEM_LOGGER("CreateSingleLayerPrimitives");
-        for (const auto& op : ops) {
-            CreateSingleLayerPrimitive(op);
+        const auto weights_prefetch = make_weights_prefetch(ops, m_config);
+        for (size_t i = 0; i < ops.size(); ++i) {
+            if (weights_prefetch) {
+                weights_prefetch->begin(i);
+            }
+            CreateSingleLayerPrimitive(ops[i]);
+            if (weights_prefetch) {
+                weights_prefetch->end(i);
+            }
         }
     }
 
