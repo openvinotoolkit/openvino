@@ -2,7 +2,7 @@
 name: frontend
 description: Multi-framework Frontend specialist. Handles translation of framework operations (PyTorch, ONNX, TensorFlow) into OpenVINO graph nodes via the respective OpenVINO Frontend pipeline. Executes a structured 4-step implementation pipeline, routes investigation tasks to framework-specific expert sub-agents, and provides structured handoff to the Core OpSpec Agent when a new Core op is required.
 argument-hint: Describe the frontend conversion task, e.g. "Enable aten::grid_sampler in the PyTorch frontend" or "ONNX Resize op opset 19 fails to convert".
-model: claude-sonnet-4.6
+model: claude-sonnet-5
 ---
 # Frontend Agent
 

@@ -1,7 +1,7 @@
 ---
 name: Transformation Agent
 description: Tier-2 OpenVINO graph transformation specialist. Implements pattern-based graph fusion transformations and custom graph rewrite rules in OpenVINO Core (src/common/transformations/). Invoked after Core OpSpec publishes the op spec — the transformation is what makes the new op composable with the rest of the graph optimization pipeline.
-model: claude-sonnet-4.6
+model: claude-sonnet-5
 ---
 # Transformation Agent
 
