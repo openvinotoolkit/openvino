@@ -511,6 +511,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     auto low_power_device = load_config.get_property(ov::intel_auto::low_power_device);
     if (!low_power_device.empty()) {
         auto_s_context->m_low_power_device = low_power_device;
+        // Single IPF query point for this compile_model() call.
+        auto_s_context->m_is_low_power_mode_active = get_low_power_mode().value_or(false);
         LOG_INFO_TAG("low_power_device is set to %s", low_power_device.c_str());
     }
     auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
@@ -626,7 +628,7 @@ std::unordered_map<std::string, float> Plugin::get_device_utilizations(const std
     return result;
 }
 
-std::optional<bool> Plugin::get_low_power_mode() {
+std::optional<bool> Plugin::get_low_power_mode() const {
     std::call_once(m_telemetry_client_init_once, [this]() {
         m_telemetry_client = std::make_unique<device_monitor::TelemetryClient>();
     });
@@ -742,7 +744,8 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
                                         const std::string& model_precision,
                                         unsigned int priority,
                                         const DeviceSelectionPolicy& selection_policy,
-                                        const std::string& low_power_device) {
+                                        const std::string& low_power_device,
+                                        bool is_low_power_mode_active) {
     OV_ITT_SCOPED_TASK(itt::domains::AutoPlugin, "Plugin::SelectDevice");
 
     const auto& utilization_thresholds = selection_policy.utilization_thresholds;
@@ -799,16 +802,13 @@ DeviceInformation Plugin::select_device(const std::vector<DeviceInformation>& me
     };
     // Finds the configured low-power device by exact or base device name.
     auto find_low_power_device = [&]() -> DeviceInformation* {
-        if (low_power_device.empty()) {
+        if (low_power_device.empty() || !is_low_power_mode_active) {
             return nullptr;
         }
         auto it = std::find_if(valid_devices.begin(), valid_devices.end(), [&](const DeviceInformation& device) {
-            if (device.device_name == low_power_device) {
-                return true;
-            }
-            return ov::DeviceIDParser(device.device_name).get_device_name() == low_power_device;
+            return device_name_matches(device.device_name, low_power_device);
         });
-        if (it == valid_devices.end() || !get_low_power_mode().value_or(false)) {
+        if (it == valid_devices.end()) {
             return nullptr;
         }
         return &(*it);
