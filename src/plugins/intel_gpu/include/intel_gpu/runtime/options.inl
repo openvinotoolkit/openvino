@@ -2,6 +2,24 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#define OV_CONFIG_RELEASE_GLOBAL_OPTION(PropertyNamespace, PropertyVar, ...)                                \
+    public:                                                                                                 \
+        static const decltype(PropertyNamespace::PropertyVar)::value_type& get_##PropertyVar() {            \
+            static PluginConfig::GlobalOptionInitializer init_helper(PropertyNamespace::PropertyVar.name(), \
+                                                                     m_allowed_env_prefix,                  \
+                                                                     m_##PropertyVar);                      \
+            return init_helper.m_option.value;                                                              \
+        }                                                                                                   \
+                                                                                                            \
+    private:                                                                                                \
+        static inline ConfigOption<decltype(PropertyNamespace::PropertyVar)::value_type,                    \
+                                   OptionVisibility::RELEASE>                                               \
+            m_##PropertyVar{nullptr,                                                                        \
+                            PropertyNamespace::PropertyVar.name(),                                          \
+                            #PropertyNamespace "::" #PropertyVar,                                           \
+                            __VA_ARGS__};                                                                   \
+        OptionRegistrationHelper m_##PropertyVar##_rh{this, PropertyNamespace::PropertyVar.name(), &m_##PropertyVar};
+
 // OV_CONFIG_RELEASE_OPTION:
 //      Options exposed via the public API in all build types.
 //      Must be properly documented and aligned with OpenVINO Runtime stakeholders.
@@ -15,8 +33,12 @@
 //      Intended for OpenVINO development and troubleshooting features.
 // OV_CONFIG_DEBUG_GLOBAL_OPTION:
 //      Same as OV_CONFIG_DEBUG_OPTION, but applied globally to all models.
+// OV_CONFIG_RELEASE_GLOBAL_OPTION:
+//      Same as OV_CONFIG_RELEASE_OPTION, but applied globally to all models.
 
 // Namespace, property name, default value, [validator], description
+OV_CONFIG_RELEASE_GLOBAL_OPTION(ov::log, level, ov::log::Level::NO, "Generic alias for ov::intel_gpu::verbose using the ov::log::Level scale")
+
 OV_CONFIG_RELEASE_OPTION(ov, enable_profiling, false, "Enable profiling for the plugin")
 OV_CONFIG_RELEASE_OPTION(ov::device, id, "0", "ID of the current device")
 OV_CONFIG_RELEASE_OPTION(ov, cache_dir, "", "Directory where model cache can be stored. Caching is disabled if empty")
