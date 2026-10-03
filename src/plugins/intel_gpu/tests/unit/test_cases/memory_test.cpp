@@ -14,7 +14,9 @@
 #include <intel_gpu/primitives/reshape.hpp>
 #include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/primitives/eltwise.hpp>
+#include <intel_gpu/primitives/gemm.hpp>
 #include <intel_gpu/primitives/grid_sample.hpp>
+#include <intel_gpu/primitives/permute.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <primitive_inst.h>
 #include <fully_connected_inst.h>
@@ -175,11 +177,13 @@ public:
         ASSERT_TRUE(engine->is_the_same_buffer(*relu_inst->dep_memory_ptr(0),  *input));
         ASSERT_TRUE(engine->is_the_same_buffer(*relu2_inst->dep_memory_ptr(0), *input));
 
-        // input_layout no longer pre-allocates memory at network construction time,
-        // The remaining peak is 1280 bytes:
-        // 256 bytes host for the input, 256 bytes host for relu4 output, 256 bytes host for relu7 output,
-        // and 256 bytes device for two outputs from the first relu on a branch
-        ASSERT_EQ(engine->get_max_used_device_memory(), 1280ull);
+        // input_layout no longer pre-allocates memory at network construction time.
+        // The input and two outputs use 768 bytes of host memory. An out-of-order queue needs
+        // two 256-byte device buffers for the interleaved branches, while the output-rooted DFS
+        // order used by an in-order queue executes the branches contiguously and reuses one buffer.
+        const uint64_t expected_peak =
+            network->get_config().get_queue_type() == QueueTypes::in_order ? 1024ull : 1280ull;
+        ASSERT_EQ(engine->get_max_used_device_memory(), expected_peak);
     }
 
     void test_oooq(bool is_caching_test) {
@@ -783,6 +787,57 @@ public:
         }
     }
 
+    void test_shared_weight_memory_for_multiple_gemms() {
+        auto engine = create_test_engine();
+        const layout input_lay{ov::PartialShape{1, 1, 1, 8}, data_types::f32, format::bfyx};
+        const layout weights_lay{ov::PartialShape{1, 1, 4, 8}, data_types::f32, format::bfyx};
+
+        auto input = engine->allocate_memory(input_lay);
+        set_values(input, std::vector<float>(input_lay.count(), 1.0f));
+
+        std::array<memory::ptr, 5> weights;
+        for (auto& weight : weights) {
+            weight = engine->allocate_memory(weights_lay);
+            set_values(weight, std::vector<float>(weights_lay.count(), 1.0f));
+        }
+
+        topology topology{
+            input_layout("input", input_lay),
+            input_layout("weights0", weights_lay),
+            input_layout("weights1", weights_lay),
+            input_layout("weights2", weights_lay),
+            input_layout("weights3", weights_lay),
+            input_layout("weights4", weights_lay),
+            permute("transpose0", input_info("weights0"), {0, 1, 3, 2}),
+            permute("transpose1", input_info("weights1"), {0, 1, 3, 2}),
+            permute("transpose2", input_info("weights2"), {0, 1, 3, 2}),
+            permute("transpose3", input_info("weights3"), {0, 1, 3, 2}),
+            permute("transpose4", input_info("weights4"), {0, 1, 3, 2}),
+            gemm("gemm0", {input_info("input"), input_info("transpose0")}, data_types::f32, false, false),
+            gemm("gemm1", {input_info("input"), input_info("transpose1")}, data_types::f32, false, false),
+            gemm("gemm2", {input_info("input"), input_info("transpose2")}, data_types::f32, false, false),
+            gemm("gemm3", {input_info("input"), input_info("transpose3")}, data_types::f32, false, false),
+            gemm("gemm4", {input_info("input"), input_info("transpose4")}, data_types::f32, false, false),
+        };
+
+        auto config = get_test_default_config(*engine);
+        config.set_property(ov::intel_gpu::optimize_data(true));
+        config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
+        network network(*engine, topology, config);
+        network.set_input_data("input", input);
+        for (size_t i = 0; i < weights.size(); ++i)
+            network.set_input_data("weights" + std::to_string(i), weights[i]);
+        network.execute();
+
+        const auto shared_transpose_buffer = network.get_primitive("transpose0")->output_memory_ptr()->buffer_ptr();
+        ASSERT_NE(shared_transpose_buffer, nullptr);
+        for (size_t i = 1; i < 5; ++i) {
+            EXPECT_EQ(network.get_primitive("transpose" + std::to_string(i))->output_memory_ptr()->buffer_ptr(),
+                      shared_transpose_buffer)
+                << "transpose" << i << " uses a separate intermediate weight allocation";
+        }
+    }
+
     void test_dynamic_mem_reuse_for_null_sel_impl() {
         auto& engine = get_test_engine();
 
@@ -931,6 +986,10 @@ TEST_F(memory_pool, add_mem_dep_test) {
 
 TEST_F(memory_pool, dynamic_mem_reuse) {
     this->test_dynamic_mem_reuse();
+}
+
+TEST_F(memory_pool, shared_weight_memory_for_multiple_gemms) {
+    this->test_shared_weight_memory_for_multiple_gemms();
 }
 
 TEST_F(memory_pool, dynamic_mem_reuse_for_null_sel_impl) {
