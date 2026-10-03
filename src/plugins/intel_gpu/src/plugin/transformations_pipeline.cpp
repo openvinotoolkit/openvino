@@ -109,6 +109,7 @@
 #include "plugin/transformations/indirect_kv_cache.hpp"
 #include "plugin/transformations/keep_gqa_kv_scale_precision.hpp"
 #include "plugin/transformations/keep_moe_3gemm_const_precision.hpp"
+#include "plugin/transformations/keep_precision_sensitive_bf16.hpp"
 #include "plugin/transformations/keep_xattention_threshold_precision.hpp"
 #include "plugin/transformations/preserve_single_selective_ssm_output.hpp"
 #include "plugin/transformations/kv_cache_compression.hpp"
@@ -824,6 +825,14 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
         manager.register_pass<ov::pass::KeepDequantizationPrecision>(
             ov::element::TypeVector{ov::element::i32, ov::element::u32, ov::element::u16}, add_precision_sensitive_convert);
+        // The marks left by LPT and KeepDequantizationPrecision always use element::f16 as the
+        // key, and the attention QK-normalization is only protected for f16 by the div-with-eps
+        // pattern. Mirror both onto bf16 before the conversion below, so that the normalization's
+        // own reduction (mean of squares over the head dimension, plus the division) is computed
+        // in f32 instead of in bf16's 7-bit mantissa.
+        if (infer_precision == ov::element::bf16 && device_info.supports_immad) {
+            manager.register_pass<ov::intel_gpu::KeepPrecisionSensitiveSubgraphsForBF16>();
+        }
         // Keep xattention threshold in fp32 to avoid boundary issues caused by fp16 quantization.
         manager.register_pass<ov::intel_gpu::KeepXAttentionThresholdPrecision>();
         // Keep GroupQueryAttention quantized-KV scales fp32 through the ConvertPrecision below

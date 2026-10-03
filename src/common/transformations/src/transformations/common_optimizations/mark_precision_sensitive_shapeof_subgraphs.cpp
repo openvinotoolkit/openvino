@@ -21,9 +21,9 @@
 using namespace std;
 
 namespace op_util = ov::op::util;
-ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs::MarkPrecisionSensitiveShapeOfSubgraphs() {
-    m_markup_func = [](Node* node) {
-        ov::disable_conversion(node->shared_from_this(), element::f16);
+ov::pass::MarkPrecisionSensitiveShapeOfSubgraphs::MarkPrecisionSensitiveShapeOfSubgraphs(const element::Type& target) {
+    m_markup_func = [target](Node* node) {
+        ov::disable_conversion(node->shared_from_this(), target);
     };
 }
 

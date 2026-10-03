@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "openvino/core/type/element_type.hpp"
 #include "openvino/pass/backward_graph_rewrite.hpp"
 #include "transformations_visibility.hpp"
 
@@ -22,9 +23,14 @@ constexpr auto float16_min_normalized = float16::from_bits(0x0400);
  * @brief: MarkSugraphsToKeepInMixedPrecision container for marking passes which marks subgraphs
  * to be kept in f32 for mixed precision inference. Includes passes for the following patterns:
  * L2Normalize, MVN, ShapeOf subgraphs, Exp in ReduceOp paths and Division with small eps values.
+ * @param target lower precision the marked subgraphs must not be converted to (f16 by default).
  */
 class ov::pass::MarkSugraphsToKeepInMixedPrecision : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("MarkSugraphsToKeepInMixedPrecision");
+    explicit MarkSugraphsToKeepInMixedPrecision(const ov::element::Type& target = ov::element::f16);
     bool run_on_model(const std::shared_ptr<ov::Model>& m) override;
+
+private:
+    ov::element::Type m_target;
 };
