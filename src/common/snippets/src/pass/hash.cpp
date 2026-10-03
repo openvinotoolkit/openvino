@@ -14,6 +14,7 @@
 #include <sstream>
 #include <string>
 #include <type_traits>
+#include <typeinfo>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -303,21 +304,42 @@ std::vector<Edge> create_edge_mapping(const std::unordered_map<ov::Node*, int>& 
     return edges;
 }
 
-void hash_rt_info(uint64_t& hash, const ov::Any& data) {
+template <typename T>
+void hash_rt_info_leaf(uint64_t& hash, const std::string& key, const ov::Any& data) {
+    hash = hash_combine(hash_combine(hash, key), data.type_info().hash_code());
+    hash = hash_combine(hash, data.as<T>());
+}
+
+void hash_rt_info(uint64_t& hash, const std::string& key, const ov::Any& data) {
     if (data.is<std::shared_ptr<ov::Meta>>()) {
         const auto& meta = data.as<std::shared_ptr<ov::Meta>>();
         ov::AnyMap& map = *meta;
+        hash = hash_combine(hash_combine(hash, key), typeid(ov::AnyMap).hash_code());
+        hash = hash_combine(hash, map.size());
         for (const auto& it : map) {
-            hash_rt_info(hash, it.second);
+            hash_rt_info(hash, it.first, it.second);
         }
     } else if (data.is<ov::AnyMap>()) {
         const auto& any_map = data.as<ov::AnyMap>();
+        hash = hash_combine(hash_combine(hash, key), typeid(ov::AnyMap).hash_code());
+        hash = hash_combine(hash, any_map.size());
         for (const auto& it : any_map) {
-            hash_rt_info(hash, it.second);
+            hash_rt_info(hash, it.first, it.second);
         }
+    } else if (data.is<bool>()) {
+        hash_rt_info_leaf<bool>(hash, key, data);
+    } else if (data.is<std::string>()) {
+        hash_rt_info_leaf<std::string>(hash, key, data);
+    } else if (data.is<int64_t>()) {
+        hash_rt_info_leaf<int64_t>(hash, key, data);
+    } else if (data.is<uint64_t>()) {
+        hash_rt_info_leaf<uint64_t>(hash, key, data);
+    } else if (data.is<float>()) {
+        hash_rt_info_leaf<float>(hash, key, data);
+    } else if (data.is<double>()) {
+        hash_rt_info_leaf<double>(hash, key, data);
     } else {
-        const auto& value = data.as<std::string>();
-        hash = hash_combine(hash_combine(hash, AttrType::value), value);
+        hash_rt_info_leaf<std::string>(hash, key, data);
     }
 }
 
@@ -409,7 +431,7 @@ void ovfunction_2_hash(uint64_t& hash, const ov::Model& model) {
     // Serialize rt info
     hash = hash_combine(hash, AttrType::rt_info);
     for (const auto& it : model.get_rt_info()) {
-        hash_rt_info(hash, it.second);
+        hash_rt_info(hash, it.first, it.second);
     }
 }
 
