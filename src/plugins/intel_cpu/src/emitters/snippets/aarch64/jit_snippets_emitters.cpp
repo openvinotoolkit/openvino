@@ -81,7 +81,16 @@ jit_scalar_emitter::jit_scalar_emitter(jit_generator* h, cpu_isa_t isa, const Ex
     : jit_emitter(h, isa) {
     const auto n = expr->get_node();
     const auto& precision = n->get_output_element_type(0);
+    byte_size = precision.size();
     switch (precision) {
+    case element::i8: {
+        value = ov::as_type_ptr<ov::op::v0::Constant>(n)->cast_vector<int8_t>()[0];
+        break;
+    }
+    case element::u8: {
+        value = ov::as_type_ptr<ov::op::v0::Constant>(n)->cast_vector<uint8_t>()[0];
+        break;
+    }
     case element::i32: {
         value = ov::as_type_ptr<ov::op::v0::Constant>(n)->cast_vector<int32_t>()[0];
         break;
@@ -113,7 +122,16 @@ void jit_scalar_emitter::emit_isa([[maybe_unused]] const std::vector<size_t>& in
     auto dst = TReg(out[0]);
     AdrImm src = table_val("scalar");
 
-    h->uni_ld1rw(dst.s, src.getXn(), src.getImm());
+    switch (byte_size) {
+    case 1:
+        h->ld1r(dst.b, table_val2("scalar"));
+        break;
+    case 4:
+        h->uni_ld1rw(dst.s, src.getXn(), src.getImm());
+        break;
+    default:
+        OV_CPU_JIT_EMITTER_THROW("Unsupported scalar data size ", byte_size);
+    }
 }
 
 }  // namespace ov::intel_cpu::aarch64
