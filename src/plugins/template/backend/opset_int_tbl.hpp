@@ -179,6 +179,7 @@ _OPENVINO_OP_REG(SliceScatter, ov::op::v15)
 _OPENVINO_OP_REG(SearchSorted, ov::op::v15)
 
 _OPENVINO_OP_REG(AvgPool, ov::op::v16)
+_OPENVINO_OP_REG(BlockSparseAttention, ov::op::v17)
 _OPENVINO_OP_REG(ErfInv, ov::op::v17)
 _OPENVINO_OP_REG(GroupedMatMul, ov::op::v17)
 _OPENVINO_OP_REG(Identity, ov::op::v16)
