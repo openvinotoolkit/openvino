@@ -495,6 +495,7 @@ def split_inputs(input_str):
     inputs = []
     while input_str:
         idx = 0
+        separator_found = False
         for c in input_str:
             if c == '[':
                 brakets_count += 1
@@ -505,9 +506,10 @@ def split_inputs(input_str):
                     idx += 1
                     continue
                 else:
+                    separator_found = True
                     break
             idx += 1
-        if idx >= len(input_str) - 1:
+        if not separator_found:
             inputs.append(input_str)
             break
         inputs.append(input_str[:idx])
