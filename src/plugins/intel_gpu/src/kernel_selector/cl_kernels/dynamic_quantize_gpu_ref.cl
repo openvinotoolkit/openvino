@@ -8,6 +8,7 @@
 #include "include/batch_headers/fetch_data.cl"
 #if IS_F8_F4
 #include "include/f8_utils.cl"
+#include "include/dynamic_quantize_utils.cl"
 #endif
 
 #if F4E2M1_OUTPUT
@@ -161,7 +162,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
     OUTPUT1_TYPE zp = (OUTPUT1_TYPE)(zp_tmp);
 #else  // !ASYMMETRIC_QUANTIZATION
 #if IS_MXFP
-    SCALE_TYPE scale = (SCALE_TYPE)(exp2(floor(log2(_convert_float(OUTPUT_VAL_MAX) / convert_float(max_val)))));
+    SCALE_TYPE scale = (SCALE_TYPE)(DQ_COMPUTE_MXFP_SCALE(max_val));
 #else
     SCALE_TYPE scale = TO_SCALE_TYPE(OUTPUT_VAL_MAX) / max_val;
 #endif // IS_FP8

@@ -1021,7 +1021,15 @@ void program::swap_names(program_node& node1, program_node& node2) {
 }
 
 void program::replace_all_usages(program_node& old_node, program_node& new_node, bool remove_if_dangling) {
-    return replace_all_usages(old_node, std::make_pair(&new_node, 0), remove_if_dangling);
+    const std::list<program_node*> users(old_node.users);
+    for (auto* user : users) {
+        for (size_t i = 0; i < user->dependencies.size(); ++i) {
+            if (user->dependencies[i].first == &old_node) {
+                const auto port = user->dependencies[i].second;
+                user->replace_dependency(i, {&new_node, port}, remove_if_dangling);
+            }
+        }
+    }
 }
 
 void program::replace_all_usages(program_node& old_node, std::pair<program_node*, int32_t> new_node, bool remove_if_dangling) {
@@ -1195,12 +1203,17 @@ bool program::move_node(program_node& node,
 void program::fuse_nodes(program_node &fused_node,
                          program_node &peer_node,
                          std::map<primitive_id, std::vector<std::pair<primitive_id, size_t>>>* fusing_history) {
-    auto peer_layout = peer_node.get_output_layout();
+    auto peer_layouts = peer_node.get_output_layouts();
+    OPENVINO_ASSERT(peer_layouts.size() == 1 || (peer_layouts.size() == 2 && peer_node.is_type<dynamic_quantize>()));
+    if (peer_layouts.size() == 2) {
+        fused_node.set_num_outputs(2);
+    }
+
     fused_primitive_desc local_desc(peer_node.get_primitive());
     local_desc.f_param = get_node_ptr(peer_node.id())->get_fuse_params();
     local_desc.total_num_deps = peer_node.get_dependencies().size();
     local_desc.input_layout = peer_node.get_input_layout(0);
-    local_desc.output_layout = peer_layout;
+    local_desc.output_layouts = peer_layouts;
 
     if (fused_node.in_shape_of_subgraph && !peer_node.in_shape_of_subgraph) {
         fused_node.in_shape_of_subgraph = false;
@@ -1209,8 +1222,10 @@ void program::fuse_nodes(program_node &fused_node,
     int32_t orig_fused_node_num_deps = static_cast<int32_t>(fused_node.get_dependencies().size());
     auto fused_layout = fused_node.get_output_layout();
     auto fused_padding = fused_layout.data_padding;
-    cldnn::padding needed_padding = padding::max(peer_layout.data_padding,
-                                                 fused_padding);
+    cldnn::padding needed_padding = fused_padding;
+    for (const auto& peer_layout : peer_layouts) {
+        needed_padding = padding::max(needed_padding, peer_layout.data_padding);
+    }
 
     auto history_iter = fusing_history->find(peer_node.id());
     if (history_iter != fusing_history->end()) {
@@ -1293,8 +1308,8 @@ void program::fuse_nodes(program_node &fused_node,
 
     // Update output layout. Recalculation is not needed.
     fused_node.merge_output_padding(needed_padding);
-    fused_node.set_output_layout(peer_layout, false);
-    fused_node.recalc_output_layout(true);
+    fused_node.set_output_layouts(peer_layouts, false);
+    fused_node.recalc_output_layouts(true);
 }
 
 void program::remove_nodes(std::vector<program_node*>& to_remove) {
