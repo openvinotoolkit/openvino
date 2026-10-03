@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "dev/threading/parallel_custom_arena.hpp"
+#include "dev/threading/thread_affinity.hpp"
 #include "openvino/util/log.hpp"
 
 namespace ov {
@@ -67,6 +68,27 @@ public:
     std::map<int, int> _numaid_mapping_table;
     std::mutex _cpu_mutex;
     int _socket_idx = 0;
+
+    /**
+     * @brief Return the process affinity mask baseline snapshotted during CPU topology
+     *        initialization (before any thread is pinned).
+     * @return The raw process affinity mask baseline
+     */
+    const ov::threading::CpuSet& get_process_mask_raw() const {
+        return _process_mask;
+    }
+
+    /**
+     * @brief Return the number of CPUs associated with the process affinity mask baseline.
+     * @return The number of CPUs
+     */
+    int get_process_mask_ncpus() const {
+        return _process_mask_ncpus;
+    }
+
+private:
+    ov::threading::CpuSet _process_mask;
+    int _process_mask_ncpus = 0;
 };
 
 CPU& cpu_info();
