@@ -329,8 +329,12 @@ static bool is_decompression_multiply(const std::shared_ptr<const ov::Node> node
             auto get_child_consumers = [&]() {
                 auto child_consumers = consumer.get_node()->get_output_target_inputs(0);
 
-                // Reshape + Transpose chain
-                if (all_has_types(child_consumers, { ov::op::v1::Transpose::get_type_info_static() })) {
+                // Reshape + Transpose or Transpose + Reshape chain
+                const bool transpose_reshape_chain =
+                    ov::is_type<ov::op::v1::Transpose>(consumer.get_node()) &&
+                    all_has_types(child_consumers, {ov::op::v1::Reshape::get_type_info_static()});
+                if (all_has_types(child_consumers, {ov::op::v1::Transpose::get_type_info_static()}) ||
+                    transpose_reshape_chain) {
                     std::set<ov::Input<ov::Node>> next_child_consumers;
                     for (const auto& child_consumer : child_consumers) {
                         const auto grand_child_consumers = child_consumer.get_node()->get_output_target_inputs(0);

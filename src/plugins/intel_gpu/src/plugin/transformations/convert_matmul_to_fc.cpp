@@ -44,10 +44,9 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
     auto activations_m = ov::pass::pattern::any_input(static_rank_gt_1);
     auto general_weights_m = ov::pass::pattern::any_input(weights_path);
 
-    auto weights_m = std::make_shared<ov::pass::pattern::op::Or>(
-        ov::OutputVector{compressed_weights_input_m, general_weights_m});
+    auto matmul_weights_m = compressed_weights_input_m | general_weights_m;
     auto matmul_m =
-        ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({activations_m, weights_m}, ov::pass::pattern::has_static_rank());
+        ov::pass::pattern::wrap_type<ov::op::v0::MatMul>({activations_m, matmul_weights_m}, ov::pass::pattern::has_static_rank());
 
     auto shared_convert_cache =
         std::make_shared<std::map<std::pair<std::shared_ptr<ov::Node>, bool>, ov::Output<ov::Node>>>();
@@ -61,7 +60,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
         }
 
         auto fc_input_a = pattern_map.at(activations_m);
-        auto fc_input_b = pattern_map.at(weights_m);
+        auto fc_input_b = pattern_map.at(matmul_weights_m);
 
         auto introduces_non_trivial_batch_broadcast = [](const ov::PartialShape& original_shape,
                                                          const ov::PartialShape& broadcasted_shape) {
@@ -231,9 +230,9 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
             is_compressed_weight &&
             !transpose_node &&
             !matmul->get_transpose_b() &&
-            pattern_map.count(weights_param_m) != 0 &&
-            pattern_map.at(weights_param_m).get_node_shared_ptr() != nullptr &&
-            pattern_map.at(weights_param_m).get_element_type().bitwidth() < 8;
+            pattern_map.count(weights_m) != 0 &&
+            ov::is_type<ov::op::v0::Parameter>(pattern_map.at(weights_m).get_node_shared_ptr()) &&
+            pattern_map.at(weights_m).get_element_type().bitwidth() < 8;
 
         if (is_parameter_compressed_weight) {
             is_small_matmul = false;
@@ -282,7 +281,7 @@ ConvertMatMulToFullyConnected::ConvertMatMulToFullyConnected(bool supports_immad
             return order == expected_order;
         };
 
-        auto convert = is_convert ? pattern_map.at(weights_m).get_node_shared_ptr() : nullptr;
+        auto convert = is_convert ? pattern_map.at(matmul_weights_m).get_node_shared_ptr() : nullptr;
         const auto cache_key = std::make_pair(convert, is_small_matmul);
         const auto cached = is_convert ? shared_convert_cache->find(cache_key) : shared_convert_cache->end();
         if (is_convert && cached != shared_convert_cache->end()) {
