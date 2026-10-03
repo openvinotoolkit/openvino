@@ -37,6 +37,15 @@ def main():
     scatter("scatter_test_1", x,index,updates,overwrite=True)
     scatter("scatter_test_2", x,index,updates,overwrite=False)
 
+    # overwrite=False with an index that does not reference every row of x: only the rows listed in
+    # index are zeroed before the updates are accumulated on top of them, the remaining rows of x
+    # have to be passed through unchanged (row 0 here).
+    x_partial = np.array([[1, 1], [2, 2], [3, 3]]).astype(np.float32)
+    index_partial = np.array([2, 1]).astype(np.int64)
+    updates_partial = np.array([[10, 10], [20, 20]]).astype(np.float32)
+
+    scatter("scatter_test_3", x_partial,index_partial,updates_partial,overwrite=False)
+
 
 
 if __name__ == "__main__":
