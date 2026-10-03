@@ -378,6 +378,42 @@ inline std::istream& operator>>(std::istream& is, PerformanceMode& performance_m
 static constexpr Property<PerformanceMode> performance_mode{"PERFORMANCE_HINT"};
 
 /**
+ * @brief Enum to define attention kernel backend hints.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+enum class AttnMode {
+    PA_CM = 0,  //!< Enable CM PagedAttention kernel backend
+};
+
+/** @cond INTERNAL */
+inline std::ostream& operator<<(std::ostream& os, const AttnMode& attn_mode) {
+    switch (attn_mode) {
+    case AttnMode::PA_CM:
+        return os << "PA_CM";
+    default:
+        OPENVINO_THROW("Unsupported attention mode hint");
+    }
+}
+
+inline std::istream& operator>>(std::istream& is, AttnMode& attn_mode) {
+    std::string str;
+    is >> str;
+    if (str == "PA_CM") {
+        attn_mode = AttnMode::PA_CM;
+    } else {
+        OPENVINO_THROW("Unsupported attention mode: ", str);
+    }
+    return is;
+}
+/** @endcond */
+
+/**
+ * @brief Hint for selecting attention kernel backend.
+ * @ingroup ov_runtime_cpp_prop_api
+ */
+static constexpr Property<std::vector<AttnMode>> attn_mode{"ATTENTION_MODE"};
+
+/**
  * @enum       SchedulingCoreType
  * @brief      This enum contains definition of core type can be used for CPU tasks on different devices.
  */
