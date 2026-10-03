@@ -2,16 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
 #include "intel_gpu/op/fully_connected.hpp"
-#include "intel_gpu/op/fully_connected_compressed.hpp"
-#include "openvino/op/constant.hpp"
 
+#include "intel_gpu/op/fully_connected_compressed.hpp"
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/fully_connected.hpp"
-#include "intel_gpu/primitives/reshape.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
+#include "intel_gpu/primitives/reshape.hpp"
+#include "openvino/op/constant.hpp"
+#include "plugin/transformations/fuse_hadamard_fc.hpp"
 
 namespace ov {
 namespace op {
@@ -68,6 +68,14 @@ static void CreateFullyConnectedCompressedOp(ProgramBuilder& p, const std::share
 
     if (has_scalar_zp) {
         fc.decompression_zero_point_scalar = zp_value;
+    }
+
+    // Input rotation absorbed by FuseHadamardIntoFC.
+    const auto& rt = op->get_rt_info();
+    if (auto it = rt.find(int2_hadamard_block_key); it != rt.end()) {
+        fc.hadamard_block = static_cast<size_t>(it->second.as<int64_t>());
+        if (auto st = rt.find(int2_hadamard_signs_key); st != rt.end())
+            fc.hadamard_signs = st->second.as<std::vector<int8_t>>();
     }
 
     p.add_primitive(*op, fc);
