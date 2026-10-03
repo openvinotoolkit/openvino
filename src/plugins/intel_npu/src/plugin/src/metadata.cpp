@@ -28,8 +28,6 @@ constexpr std::string_view BLOB_TOO_SMALL_MESSAGE =
 constexpr std::string_view INVALID_PAYLOAD_SIZE_MESSAGE =
     "The size of the compiler payload parsed from the blob is greater "
     "than the size of the blob. Compiler payload size: ";
-constexpr std::string_view MISSING_BLOB_MESSAGE = "No blob has been provided to NPU plugin's metadata reader.";
-constexpr std::string_view STREAM_BAD_STATUS_MESSAGE = "The stream is in bad status";
 
 template <typename T>
 void write_text_field(std::ostream& stream, std::string_view key, const T& value) {
