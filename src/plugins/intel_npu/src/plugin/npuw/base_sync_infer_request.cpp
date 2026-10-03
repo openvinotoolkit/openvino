@@ -351,6 +351,10 @@ void ov::npuw::IBaseInferRequest::unpack_closure(std::size_t idx, RqPtr request)
 
     auto& desc_closure = comp_model_desc.closure.get().closure;
 
+    // Quantization metadata is optional, but when present it is indexed by closure index
+    NPUW_ASSERT(comp_model_desc.scales.empty() || comp_model_desc.scales.size() == desc_closure.size());
+    NPUW_ASSERT(comp_model_desc.zerops.size() == comp_model_desc.scales.size());
+
     for (std::size_t cidx = 0u; cidx < desc_closure.size(); cidx++) {
         auto& closure = desc_closure[cidx];
         const auto closure_param_id = comp_model_desc.param_base + cidx;
