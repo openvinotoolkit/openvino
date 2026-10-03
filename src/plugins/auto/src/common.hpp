@@ -232,6 +232,8 @@ public:
     std::string                                    m_model_precision;
     DeviceSelectionPolicy                          m_selection_policy;
     std::string                                    m_low_power_device;
+    // re-select the target device for every incoming inference, turned on by the resource aware selection properties
+    bool                                           m_dynamic_device_selection = false;
     // hold the resource of static variable to avoid the unexpected destruction.
     std::shared_ptr<std::mutex>                                          m_mtx;
     std::shared_ptr<std::map<unsigned int, std::list<std::string>>>      m_priority_map;

@@ -462,8 +462,9 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     bool is_cumulative =
         (auto_s_context->m_performance_hint == ov::hint::PerformanceMode::CUMULATIVE_THROUGHPUT) ? true : false;
     std::list<DeviceInformation> devices_with_priority(support_devices.begin(), support_devices.end());
+    bool is_stateful_model = false;
     if (model_path.empty()) {
-        support_devices = filter_device_by_model(support_devices_by_property, model, load_config);
+        support_devices = filter_device_by_model(support_devices_by_property, model, load_config, is_stateful_model);
     } else {
         // AUTO / MULTI don't support caching explicitly, but can redirect this functionality to actual HW plugin
         LOG_INFO_TAG("compile model with model path");
@@ -515,6 +516,23 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     }
     auto_s_context->m_startup_fallback = load_config.get_property(ov::intel_auto::enable_startup_fallback);
     auto_s_context->m_runtime_fallback = load_config.get_property(ov::intel_auto::enable_runtime_fallback);
+    auto_s_context->m_bind_buffer = load_config.get_property(ov::intel_auto::device_bind_buffer);
+    auto_s_context->m_dynamic_device_selection =
+        // dynamic selection requires an in-memory model and is incompatible with bind_buffer
+        model_path.empty() && !is_cumulative && !is_stateful_model && !auto_s_context->m_bind_buffer &&
+        (!auto_s_context->m_selection_policy.utilization_thresholds.empty() ||
+         !auto_s_context->m_selection_policy.perf_curve_table.empty() ||
+         !auto_s_context->m_low_power_device.empty());
+    if (auto_s_context->m_dynamic_device_selection) {
+        LOG_INFO_TAG("[dynamic] per inference device selection enabled by the resource aware selection properties");
+        // the CPU accelerator assumes a fixed target device for the whole model lifetime
+        auto_s_context->m_startup_fallback = false;
+    } else if (is_stateful_model &&
+               (!auto_s_context->m_selection_policy.utilization_thresholds.empty() ||
+                !auto_s_context->m_selection_policy.perf_curve_table.empty() ||
+                !auto_s_context->m_low_power_device.empty())) {
+        LOG_WARNING_TAG("resource aware device selection properties are ignored for stateful models");
+    }
     // in case of mismatching shape conflict when AUTO creates the infer requests for actual device with reshaped model
     auto_s_context->m_model = model_path.empty() ? std::const_pointer_cast<ov::Model>(model) : nullptr;
     auto_s_context->m_model_path = model_path;
@@ -530,7 +548,6 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model_impl(const std::filesy
     OPENVINO_ASSERT(auto_s_context->m_ov_core);
     auto_s_context->m_log_tag = get_device_name();
     auto_s_context->m_model_precision = model_precision;
-    auto_s_context->m_bind_buffer = load_config.get_property(ov::intel_auto::device_bind_buffer);
     auto_s_context->m_schedule_policy = load_config.get_property(ov::intel_auto::schedule_policy);
     auto_s_context->m_mtx = m_mtx;
     auto_s_context->m_priority_map = m_priority_map;
@@ -989,12 +1006,12 @@ void Plugin::unregister_priority(const unsigned int& priority, const std::string
     if (m_mtx && m_priority_map) {
         std::lock_guard<std::mutex> lck(*m_mtx);
         auto& priority_devices = (*m_priority_map)[priority];
-        for (auto iter = priority_devices.begin(); iter != priority_devices.end();) {
+        // remove the most recently registered matching entry
+        for (auto iter = priority_devices.rbegin(); iter != priority_devices.rend(); ++iter) {
             if (*iter == device_name) {
-                priority_devices.erase(iter);
+                priority_devices.erase(std::next(iter).base());
                 break;
             }
-            iter++;
         }
     }
 }
@@ -1242,7 +1259,9 @@ std::vector<DeviceInformation> Plugin::filter_device(const std::vector<DeviceInf
 
 std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<DeviceInformation>& meta_devices,
                                                               const std::shared_ptr<const ov::Model>& model,
-                                                              PluginConfig& load_config) const {
+                                                              PluginConfig& load_config,
+                                                              bool& is_stateful_model) const {
+    is_stateful_model = false;
     if (meta_devices.empty()) {
         OPENVINO_THROW("No available device to filter ", get_device_name(), " plugin");
     }
@@ -1258,10 +1277,8 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
         }
     };
 
-    if (meta_devices.size() == 1) {
-        return meta_devices;
-    }
-
+    // detect statefulness before the single-candidate early return below, so callers that gate behavior on
+    // is_stateful_model (e.g. per inference dynamic device selection) get a correct answer even then
     std::vector<std::string> stateful_node_names;
     for (auto& op : model->get_ops()) {
         if (ov::as_type_ptr<ov::op::util::AssignBase>(op) ||
@@ -1269,8 +1286,13 @@ std::vector<DeviceInformation> Plugin::filter_device_by_model(const std::vector<
             stateful_node_names.push_back(op->get_friendly_name());
         }
     }
-    if (stateful_node_names.empty()) {
-        // not stateful model
+    is_stateful_model = !stateful_node_names.empty();
+
+    if (meta_devices.size() == 1) {
+        return meta_devices;
+    }
+
+    if (!is_stateful_model) {
         return meta_devices;
     }
 
