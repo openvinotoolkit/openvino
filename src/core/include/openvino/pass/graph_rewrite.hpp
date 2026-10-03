@@ -30,18 +30,11 @@ namespace pass {
 /// Graph rewrite pass is used for matcher passes execution on Function.
 /// To register MatcherPass use \sa add_matcher<T>(args) method where T is a MatcherPass
 /// class.
-/// As a default algorithm graph rewrite pass traverse Function in topological order and
-/// applies
-/// registered matcher passes for each node. But if all registered matcher passes have type
-/// based
-/// root node in Matcher pattern then efficient mechanism is used to execute them.
-/// Matcher pattern root is type based if it's operation from opset or
-/// pattern::op::WrapType.
-/// Note: when implementing pattern for Matcher make sure that root node is an operation
-/// from opset
-/// or has ov::pattern::op::WrapType. That will help GraphRewrite to execute matcher
-/// passes more
-/// efficient.
+/// GraphRewrite traverses the model in topological order and applies matcher passes in
+/// registration order. Matchers rooted at an opset operation or pattern::op::WrapType
+/// are selected by the node type, including its parent types. Other matchers are
+/// considered for every node. The combined list is cached per node type for each run.
+/// Prefer a typed pattern root when possible to avoid trying a matcher on unrelated nodes.
 /// \ingroup ov_pass_cpp_api
 class OPENVINO_API GraphRewrite : public ModelPass {
 public:

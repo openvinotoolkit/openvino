@@ -101,18 +101,19 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
     bool rewritten = false;
     const auto& pass_config = get_pass_config();
 
-    // Check that all Matchers in MatcherPasses has type bases root node
+    // Retain registration order when combining typed and generic matchers.
     bool all_roots_has_type = true;
+    std::vector<bool> enabled_matchers(m_matchers.size());
+    std::vector<size_t> generic_matchers;
     std::unordered_map<NodeTypeInfo, std::vector<size_t>> type_to_matcher;
     for (size_t matcher_index = 0; matcher_index < m_matchers.size(); ++matcher_index) {
-        // Skip passes that are disabled
-        if (pass_config->is_disabled(m_matchers[matcher_index]->get_type_info()))
-            continue;
+        enabled_matchers[matcher_index] = !pass_config->is_disabled(m_matchers[matcher_index]->get_type_info());
 
         auto matcher = m_matchers[matcher_index]->get_matcher();
         if (!matcher) {
-            all_roots_has_type = false;
-            break;
+            generic_matchers.push_back(matcher_index);
+            all_roots_has_type &= !enabled_matchers[matcher_index];
+            continue;
         }
 
         auto root = matcher->get_pattern_value().get_node_shared_ptr();
@@ -132,15 +133,12 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
                     type_to_matcher[root_type_info].push_back(matcher_index);
                 }
             } else {
-                all_roots_has_type = false;
-                break;
+                generic_matchers.push_back(matcher_index);
+                all_roots_has_type &= !enabled_matchers[matcher_index];
             }
         } else {
             type_to_matcher[root->get_type_info()].push_back(matcher_index);
         }
-
-        // TODO: traverse parents for root_type_info in order to register complete list of matchers
-        // including ones triggered by parent type info.
     }
 
     // This lambda preforms execution of particular MatcherPass on given node.
@@ -175,8 +173,8 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
         return status;
     };
 
-    // list of matchers to run for a node; define here to keep memory allocated
-    std::vector<size_t> matcher_passes_to_run;
+    // A model usually has many nodes of each type. Resolve parent types and sort only once per type.
+    std::unordered_map<NodeTypeInfo, std::vector<size_t>> resolved_matchers;
 
     while (!nodes_to_run.empty()) {
         auto weak_node = nodes_to_run.front();
@@ -200,47 +198,42 @@ bool ov::pass::GraphRewrite::apply_matcher_passes(std::shared_ptr<Model> f,
         if (m_enable_shape_inference) {
             node->revalidate_and_infer_types();
         }
-        // If all Matchers in MatcherPasses has type based root node then we apply efficient
-        // algorithm for finding matchers
-        if (all_roots_has_type) {
+        auto entry = resolved_matchers.try_emplace(node->get_type_info());
+        auto& matcher_passes_to_run = entry.first->second;
+        if (entry.second) {
+            matcher_passes_to_run = generic_matchers;
             const DiscreteTypeInfo* node_type_info = &node->get_type_info();
-            matcher_passes_to_run.clear();
             while (node_type_info) {
                 auto matchers = type_to_matcher.find(*node_type_info);
                 if (matchers != type_to_matcher.end()) {
-                    // do not run found matchers immediately, need to collect all matchers for
-                    // parents
-                    // and sort them in order of the registration
                     matcher_passes_to_run.insert(matcher_passes_to_run.end(),
                                                  matchers->second.begin(),
                                                  matchers->second.end());
                 }
                 node_type_info = node_type_info->parent;
             }
-
             std::sort(matcher_passes_to_run.begin(), matcher_passes_to_run.end());
-
-            // TODO: type_to_matcher with just collected list of matchers to enable
-            // fast processing at the next time when node with the same type will be processed
-
-            for (size_t matcher_index : matcher_passes_to_run) {
-                if (run_matcher_pass(m_matchers[matcher_index], node)) {
-                    rewritten = true;
-                    break;
-                }
+            // Several root types can select the same registered matcher.
+            matcher_passes_to_run.erase(std::unique(matcher_passes_to_run.begin(), matcher_passes_to_run.end()),
+                                        matcher_passes_to_run.end());
+            if (all_roots_has_type) {
+                // Typed-only groups have always captured enabled passes at the start of the run.
+                matcher_passes_to_run.erase(std::remove_if(matcher_passes_to_run.begin(),
+                                                           matcher_passes_to_run.end(),
+                                                           [&](size_t index) {
+                                                               return !enabled_matchers[index];
+                                                           }),
+                                            matcher_passes_to_run.end());
             }
         }
-        // Otherwise we use default algorithm that iterates over all registered matcher passes
-        else {
-            for (auto& m_pass : m_matchers) {
-                // Skip passes that are disabled
-                if (pass_config->is_disabled(m_pass->get_type_info()))
-                    continue;
 
-                if (run_matcher_pass(m_pass, node)) {
-                    rewritten = true;
-                    break;
-                }
+        for (size_t matcher_index : matcher_passes_to_run) {
+            // Preserve the fallback's dynamic pass configuration checks for mixed groups.
+            if (!all_roots_has_type && pass_config->is_disabled(m_matchers[matcher_index]->get_type_info()))
+                continue;
+            if (run_matcher_pass(m_matchers[matcher_index], node)) {
+                rewritten = true;
+                break;
             }
         }
     }

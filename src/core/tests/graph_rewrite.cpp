@@ -9,13 +9,17 @@
 #include "openvino/core/rtti.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
+#include "openvino/op/if.hpp"
 #include "openvino/op/op.hpp"
 #include "openvino/op/relu.hpp"
 #include "openvino/op/result.hpp"
+#include "openvino/op/split.hpp"
 #include "openvino/op/tanh.hpp"
 #include "openvino/pass/backward_graph_rewrite.hpp"
 #include "openvino/pass/manager.hpp"
+#include "openvino/pass/pattern/op/any_output.hpp"
 #include "openvino/pass/pattern/op/label.hpp"
+#include "openvino/pass/pattern/op/wrap_type.hpp"
 
 using namespace ::testing;
 using namespace std;
@@ -443,4 +447,189 @@ TEST(GraphRewriteTest, nodes_use_count) {
     pass::Manager m;
     m.register_pass<CheckConsumers>();
     OV_ASSERT_NO_THROW(m.run_passes(f));
+}
+
+namespace {
+std::shared_ptr<MatcherPass> record_dispatch(const std::shared_ptr<Node>& root,
+                                             int marker,
+                                             std::vector<int>& calls,
+                                             bool succeeds = false) {
+    auto matcher = std::make_shared<pattern::Matcher>(root, "RecordDispatch");
+    return std::make_shared<MatcherPass>(matcher, [&, marker, succeeds](pattern::Matcher& m) {
+        if (ov::is_type<op::v1::Divide>(m.get_match_root())) {
+            calls.push_back(marker);
+            return succeeds;
+        }
+        return false;
+    });
+}
+}  // namespace
+
+TEST(GraphRewriteDispatchTest, mixed_roots_keep_registration_order) {
+    auto model = get_derived_model();
+    std::vector<int> calls;
+    GraphRewrite pass;
+    pass.add_matcher(record_dispatch(pattern::wrap_type<op::v1::Divide>(), 1, calls));
+    pass.add_matcher(record_dispatch(pattern::any_input(), 2, calls));
+    pass.add_matcher(record_dispatch(pattern::wrap_type<PrivateDivide>(), 3, calls));
+    pass.add_matcher(record_dispatch(pattern::any_input(), 4, calls));
+    pass.run_on_model(model);
+    EXPECT_EQ(calls, (std::vector<int>{1, 2, 3, 4}));
+}
+
+TEST(GraphRewriteDispatchTest, generic_success_stops_later_typed_matchers) {
+    auto model = get_derived_model();
+    std::vector<int> calls;
+    GraphRewrite pass;
+    pass.add_matcher(record_dispatch(pattern::wrap_type<op::v1::Divide>(), 1, calls));
+    pass.add_matcher(record_dispatch(pattern::any_input(), 2, calls, true));
+    pass.add_matcher(record_dispatch(pattern::wrap_type<PrivateDivide>(), 3, calls));
+    pass.run_on_model(model);
+    EXPECT_EQ(calls, (std::vector<int>{1, 2}));
+}
+
+TEST(GraphRewriteDispatchTest, mixed_overlapping_root_types_run_once) {
+    auto model = get_derived_model();
+    std::vector<int> calls;
+    GraphRewrite pass;
+    pass.add_matcher(record_dispatch(pattern::wrap_type<op::v1::Divide, PrivateDivide>(), 1, calls));
+    pass.add_matcher(record_dispatch(pattern::any_input(), 2, calls));
+    pass.run_on_model(model);
+    EXPECT_EQ(calls, (std::vector<int>{1, 2}));
+}
+
+TEST(GraphRewriteDispatchTest, typed_overlapping_root_types_run_once) {
+    auto model = get_derived_model();
+    std::vector<int> calls;
+    GraphRewrite pass;
+    pass.add_matcher(record_dispatch(pattern::wrap_type<op::v1::Divide, PrivateDivide>(), 1, calls));
+    pass.add_matcher(record_dispatch(pattern::wrap_type<PrivateDivide>(), 2, calls));
+    pass.run_on_model(model);
+    EXPECT_EQ(calls, (std::vector<int>{1, 2}));
+}
+
+TEST(GraphRewriteDispatchTest, handler_without_pattern_remains_generic) {
+    auto model = get_model();
+    std::vector<int> calls;
+    GraphRewrite pass;
+    auto generic = std::make_shared<MatcherPass>("NoPattern", nullptr, [&](const std::shared_ptr<Node>& node) {
+        if (ov::is_type<op::v1::Divide>(node))
+            calls.push_back(1);
+        return false;
+    });
+    pass.add_matcher(generic);
+    pass.add_matcher(record_dispatch(pattern::wrap_type<op::v1::Divide>(), 2, calls));
+    pass.run_on_model(model);
+    EXPECT_EQ(calls, (std::vector<int>{1, 2}));
+}
+
+TEST(GraphRewriteDispatchTest, rebuilds_dispatch_when_pass_configuration_changes) {
+    GraphRewrite pass;
+    NodeVector visited;
+    pass.add_matcher<GatherNodesPass>(visited);
+    pass.add_matcher<TypeBasedTestPass>()->set_callback(get_callback());
+    pass.get_pass_config()->disable<TypeBasedTestPass>();
+    auto first = get_model();
+    pass.run_on_model(first);
+    EXPECT_EQ(count_ops_of_type<op::v0::Relu>(first), 0);
+    pass.get_pass_config()->enable<TypeBasedTestPass>();
+    auto second = get_model();
+    pass.run_on_model(second);
+    EXPECT_EQ(count_ops_of_type<op::v0::Relu>(second), 1);
+}
+
+TEST(GraphRewriteDispatchTest, mixed_group_preserves_configuration_changes_during_run) {
+    GraphRewrite pass;
+    auto config = pass.get_pass_config();
+    auto enabler =
+        std::make_shared<MatcherPass>(std::make_shared<pattern::Matcher>(pattern::any_input(), "EnableTypedPass"),
+                                      [config](pattern::Matcher&) {
+                                          config->enable<TypeBasedTestPass>();
+                                          return false;
+                                      });
+    pass.add_matcher(enabler);
+    pass.add_matcher<TypeBasedTestPass>()->set_callback(get_callback());
+    config->disable<TypeBasedTestPass>();
+    auto model = get_model();
+    pass.run_on_model(model);
+    EXPECT_EQ(count_ops_of_type<op::v0::Relu>(model), 1);
+}
+
+TEST(GraphRewriteDispatchTest, backward_mixed_dispatch_keeps_matcher_order) {
+    auto model = get_derived_model();
+    std::vector<int> calls;
+    BackwardGraphRewrite pass;
+    pass.add_matcher(record_dispatch(pattern::any_input(), 1, calls));
+    pass.add_matcher(record_dispatch(pattern::wrap_type<op::v1::Divide>(), 2, calls));
+    pass.run_on_model(model);
+    EXPECT_EQ(calls, (std::vector<int>{1, 2}));
+}
+
+TEST(GraphRewriteDispatchTest, registered_nodes_use_their_own_type_dispatch) {
+    auto model = get_model();
+    GraphRewrite pass;
+    auto convert = std::make_shared<MatcherPass>();
+    auto matcher = std::make_shared<pattern::Matcher>(pattern::wrap_type<op::v1::Divide>(), "DivideToRelu");
+    convert = std::make_shared<MatcherPass>(matcher, [&convert](pattern::Matcher& m) {
+        auto relu = convert->register_new_node<op::v0::Relu>(m.get_match_root()->input_value(0));
+        ov::replace_node(m.get_match_root(), relu);
+        return true;
+    });
+    pass.add_matcher(convert);
+    NodeVector visited;
+    pass.add_matcher<GatherNodesPass>(visited);
+    size_t relus = 0;
+    pass.add_matcher(std::make_shared<MatcherPass>(
+        std::make_shared<pattern::Matcher>(pattern::wrap_type<op::v0::Relu>(), "VisitRelu"),
+        [&relus](pattern::Matcher&) {
+            ++relus;
+            return false;
+        }));
+    pass.run_on_model(model);
+    EXPECT_EQ(relus, 1);
+    EXPECT_EQ(count_ops_of_type<op::v0::Relu>(model), 1);
+}
+
+TEST(GraphRewriteDispatchTest, any_output_pattern_uses_wrapped_type) {
+    auto model = get_model();
+    auto split = std::make_shared<op::v1::Split>(model->get_parameters().front(),
+                                                 op::v0::Constant::create(element::i64, Shape{}, {0}),
+                                                 3);
+    model = std::make_shared<Model>(OutputVector{split->output(0), split->output(1), split->output(2)},
+                                    model->get_parameters());
+    GraphRewrite pass;
+    NodeVector visited;
+    pass.add_matcher<GatherNodesPass>(visited);
+    size_t splits = 0;
+    auto split_pattern = std::make_shared<op::v1::Split>(pattern::any_input(), pattern::any_input(), 3);
+    auto matcher = std::make_shared<pattern::Matcher>(split_pattern, "VisitSplit");
+    ASSERT_TRUE(ov::is_type<pattern::op::AnyOutput>(matcher->get_pattern_value().get_node_shared_ptr()));
+    pass.add_matcher(std::make_shared<MatcherPass>(matcher, [&splits](pattern::Matcher&) {
+        ++splits;
+        return false;
+    }));
+    pass.run_on_model(model);
+    EXPECT_EQ(splits, 1);
+}
+
+TEST(GraphRewriteDispatchTest, recursively_dispatches_each_if_body) {
+    auto condition = std::make_shared<op::v0::Parameter>(element::boolean, Shape{});
+    auto conditional = std::make_shared<op::v8::If>(condition);
+    auto make_body = [] {
+        auto lhs = op::v0::Constant::create(element::f32, Shape{}, {4.f});
+        auto rhs = op::v0::Constant::create(element::f32, Shape{}, {2.f});
+        return std::make_shared<Model>(OutputVector{std::make_shared<op::v1::Divide>(lhs, rhs)}, ParameterVector{});
+    };
+    auto then_body = make_body();
+    auto else_body = make_body();
+    conditional->set_then_body(then_body);
+    conditional->set_else_body(else_body);
+    auto output = conditional->set_output(then_body->get_results().front(), else_body->get_results().front());
+    auto model = std::make_shared<Model>(OutputVector{output}, ParameterVector{condition});
+    std::vector<int> calls;
+    GraphRewrite pass;
+    pass.add_matcher(record_dispatch(pattern::any_input(), 1, calls));
+    pass.add_matcher(record_dispatch(pattern::wrap_type<op::v1::Divide>(), 2, calls));
+    pass.run_on_model(model);
+    EXPECT_EQ(calls, (std::vector<int>{1, 2, 1, 2}));
 }
