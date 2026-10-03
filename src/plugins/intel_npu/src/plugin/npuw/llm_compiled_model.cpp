@@ -522,7 +522,9 @@ ov::element::Type choose_kv_cache_storage_type(const std::shared_ptr<ov::Model>&
     return kv_kache_storage_type;
 }
 
-std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model>& m, const ::intel_npu::Config& cfg, std::string& output_embeds_name) {
+std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model>& m,
+                                                 const ::intel_npu::Config& cfg,
+                                                 std::string& output_embeds_name) {
     bool shared_head_enabled = cfg.get<::intel_npu::NPUW_LLM_SHARED_HEAD>();
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
     if (shared_head_enabled) {
@@ -540,8 +542,6 @@ std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model
 
     return lm_head_model;
 }
-
-}  // namespace
 
 std::map<std::string, std::vector<std::size_t>> find_other_dynamic_outputs(const std::shared_ptr<ov::Model>& model) {
     std::map<std::string, std::vector<std::size_t>> other_dynamic_outputs;
@@ -619,6 +619,8 @@ std::map<ov::Output<const ov::Node>, std::size_t> find_other_outputs_with_seqdim
     }
     return other_outputs_with_seqdim;
 }
+
+}  // namespace
 
 std::vector<std::shared_ptr<ov::Model>> ov::npuw::LLMCompiledModel::create_generate_model_variants(
     const std::shared_ptr<ov::Model>& generate_model,
