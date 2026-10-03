@@ -1,0 +1,432 @@
+# Copyright (C) 2018-2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+# Sample pipeline that demonstrates several ways of producing OpenVINO
+# distribution archives. All jobs run in parallel and use ccache.
+#
+#   * cpack_flavors - a single CPack-driven build emits two monolithic tarballs
+#     (full + reduced "winget" without samples/Python). Both come from one build;
+#     the flavor is chosen at packaging time via -D OV_CPACK_ARCHIVE_FLAVOR, wired
+#     through cmake/packaging (archive.cmake + archive_flavors.cmake).
+#
+#   * legacy_merge - CPack emits one archive per component ("all targets"), which
+#     are then extracted and merged into a single common openvino.tar.gz.
+#
+#   * override - a full OpenVINO build (GPU and NPU enabled) that produces
+#     different packages WITHOUT any CMake changes, by overriding
+#     CPACK_COMPONENTS_ALL on the cpack command line.
+name: CPack packaging samples
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'cmake/packaging/archive.cmake'
+      - 'cmake/packaging/archive_flavors.cmake'
+      - '.github/workflows/cpack_packaging_samples.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: read-all
+
+env:
+  CMAKE_BUILD_TYPE: Release
+  CCACHE_DIR: ${{ github.workspace }}/.ccache
+  CCACHE_MAXSIZE: 10G
+  # a single full OpenVINO configuration shared by all jobs (GPU and NPU enabled,
+  # samples and Python registered so the "winget" flavor has content to exclude)
+  COMMON_CMAKE_OPTIONS: >-
+    -G Ninja
+    -DCMAKE_C_COMPILER_LAUNCHER=ccache
+    -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+    -DENABLE_PYTHON=ON
+    -DENABLE_SAMPLES=ON
+    -DENABLE_INTEL_CPU=ON
+    -DENABLE_INTEL_GPU=ON
+    -DENABLE_INTEL_NPU=ON
+    -DENABLE_WHEEL=OFF
+    -DENABLE_TESTS=OFF
+    -DENABLE_NCC_STYLE=OFF
+    -DCPACK_GENERATOR=TGZ
+
+jobs:
+  # New approach: two flavors from a single build via CPack.
+  cpack_flavors:
+    name: CPack flavors (full + winget)
+    runs-on: ubuntu-22.04
+    env:
+      BUILD_DIR: ${{ github.workspace }}/build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ninja-build ccache python3-dev python3-pip patchelf \
+            opencl-headers ocl-icd-opencl-dev
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r src/bindings/python/requirements.txt
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-samples-flavors-${{ github.run_id }}
+          restore-keys: |
+            ccache-samples-flavors-
+
+      - name: Configure (enable multi-flavor archives)
+        run: |
+          cmake -S . -B "${BUILD_DIR}" \
+            ${COMMON_CMAKE_OPTIONS} \
+            -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} \
+            -DOV_CPACK_ARCHIVE_FLAVORS=ON
+
+      - name: Build
+        run: cmake --build "${BUILD_DIR}" --parallel "$(nproc)" --config "${CMAKE_BUILD_TYPE}"
+
+      - name: ccache statistics
+        run: ccache --show-stats
+
+      - name: Package full OpenVINO archive
+        working-directory: ${{ env.BUILD_DIR }}
+        run: cpack -G TGZ -C "${CMAKE_BUILD_TYPE}" -D OV_CPACK_ARCHIVE_FLAVOR=full
+
+      - name: Package winget OpenVINO archive (no samples, no Python)
+        working-directory: ${{ env.BUILD_DIR }}
+        run: cpack -G TGZ -C "${CMAKE_BUILD_TYPE}" -D OV_CPACK_ARCHIVE_FLAVOR=winget
+
+      - name: Show archive contents
+        working-directory: ${{ env.BUILD_DIR }}
+        run: |
+          echo "::group::openvino.tar.gz"
+          tar -tzf openvino.tar.gz | sort | head -n 100
+          echo "::endgroup::"
+          echo "::group::openvino_winget.tar.gz"
+          tar -tzf openvino_winget.tar.gz | sort | head -n 100
+          echo "::endgroup::"
+
+      - name: Upload full OpenVINO archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: flavors_openvino_package
+          path: ${{ env.BUILD_DIR }}/openvino.tar.gz
+          if-no-files-found: error
+
+      - name: Upload winget OpenVINO archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: flavors_openvino_winget_package
+          path: ${{ env.BUILD_DIR }}/openvino_winget.tar.gz
+          if-no-files-found: error
+
+  # Old approach: per-component archives merged into one.
+  legacy_merge:
+    name: Legacy per-component archives + merge
+    runs-on: ubuntu-22.04
+    env:
+      BUILD_DIR: ${{ github.workspace }}/build
+      MERGE_DIR: ${{ github.workspace }}/merge
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ninja-build ccache python3-dev python3-pip patchelf \
+            opencl-headers ocl-icd-opencl-dev
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r src/bindings/python/requirements.txt
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-samples-legacy-${{ github.run_id }}
+          restore-keys: |
+            ccache-samples-legacy-
+
+      - name: Configure (per-component archives)
+        run: |
+          cmake -S . -B "${BUILD_DIR}" \
+            ${COMMON_CMAKE_OPTIONS} \
+            -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+
+      - name: Build
+        run: cmake --build "${BUILD_DIR}" --parallel "$(nproc)" --config "${CMAKE_BUILD_TYPE}"
+
+      - name: ccache statistics
+        run: ccache --show-stats
+
+      - name: Package all targets (one archive per component)
+        working-directory: ${{ env.BUILD_DIR }}
+        run: cpack -G TGZ -C "${CMAKE_BUILD_TYPE}"
+
+      - name: Merge per-component archives into the common archive
+        working-directory: ${{ env.BUILD_DIR }}
+        run: |
+          rm -rf "${MERGE_DIR}"
+          mkdir -p "${MERGE_DIR}"
+          shopt -s nullglob
+          component_archives=(inference-engine-*.tar.gz)
+          if [ ${#component_archives[@]} -eq 0 ]; then
+            echo "No per-component archives were produced" >&2
+            exit 1
+          fi
+          for archive in "${component_archives[@]}"; do
+            echo "Merging ${archive}"
+            tar -xzf "${archive}" -C "${MERGE_DIR}"
+          done
+          tar -czf openvino.tar.gz -C "${MERGE_DIR}" .
+
+      - name: Show merged archive contents
+        working-directory: ${{ env.BUILD_DIR }}
+        run: tar -tzf openvino.tar.gz | sort | head -n 100
+
+      - name: Upload merged OpenVINO archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: legacy_merge_openvino_package
+          path: ${{ env.BUILD_DIR }}/openvino.tar.gz
+          if-no-files-found: error
+
+  # No-CMake-changes approach: full build (GPU + NPU) + command-line overrides.
+  override:
+    name: Full build + component-override packages
+    runs-on: ubuntu-22.04
+    env:
+      BUILD_DIR: ${{ github.workspace }}/build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ninja-build ccache python3-dev python3-pip patchelf \
+            opencl-headers ocl-icd-opencl-dev
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r src/bindings/python/requirements.txt
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-samples-override-${{ github.run_id }}
+          restore-keys: |
+            ccache-samples-override-
+
+      - name: Configure full OpenVINO
+        run: |
+          cmake -S . -B "${BUILD_DIR}" \
+            ${COMMON_CMAKE_OPTIONS} \
+            -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+
+      - name: Build
+        run: cmake --build "${BUILD_DIR}" --parallel "$(nproc)" --config "${CMAKE_BUILD_TYPE}"
+
+      - name: ccache statistics
+        run: ccache --show-stats
+
+      # Full package: all components bundled into a single archive.
+      - name: Package full OpenVINO archive
+        working-directory: ${{ env.BUILD_DIR }}
+        run: |
+          cpack -G TGZ -C "${CMAKE_BUILD_TYPE}" \
+            -D CPACK_ARCHIVE_COMPONENT_INSTALL=ON \
+            -D CPACK_COMPONENTS_GROUPING=ALL_COMPONENTS_IN_ONE \
+            -D CPACK_PACKAGE_FILE_NAME=openvino
+
+      # Different package, no CMake changes: the component set is overridden on
+      # the command line. This mirrors the "winget" flavor from the cpack_flavors
+      # job (same components: keeps runtime, development files, plugins and
+      # frontends; drops samples and Python).
+      - name: Package winget OpenVINO archive (component override)
+        working-directory: ${{ env.BUILD_DIR }}
+        run: |
+          cpack -G TGZ -C "${CMAKE_BUILD_TYPE}" \
+            -D "CPACK_COMPONENTS_ALL=core;core_c;core_dev;core_c_dev;core_dev_links;core_dev_pkgconfig;tbb;tbb_dev;cpu;gpu;npu;hetero;multi;batch;ir;onnx;paddle;pytorch;tensorflow;tensorflow_lite;licensing;setupvars;install_dependencies" \
+            -D CPACK_ARCHIVE_COMPONENT_INSTALL=ON \
+            -D CPACK_COMPONENTS_GROUPING=ALL_COMPONENTS_IN_ONE \
+            -D CPACK_PACKAGE_FILE_NAME=openvino_winget
+
+      - name: Show archive contents
+        working-directory: ${{ env.BUILD_DIR }}
+        run: |
+          echo "::group::openvino.tar.gz"
+          tar -tzf openvino.tar.gz | sort | head -n 100
+          echo "::endgroup::"
+          echo "::group::openvino_winget.tar.gz"
+          tar -tzf openvino_winget.tar.gz | sort | head -n 100
+          echo "::endgroup::"
+
+      - name: Upload full OpenVINO archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: override_openvino_package
+          path: ${{ env.BUILD_DIR }}/openvino.tar.gz
+          if-no-files-found: error
+
+      - name: Upload winget OpenVINO archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: override_openvino_winget_package
+          path: ${{ env.BUILD_DIR }}/openvino_winget.tar.gz
+          if-no-files-found: error
+
+  # Staging approach: build once, install all components in a single command into
+  # one staging tree, and upload it together with the CPack configuration.
+  prepare_staging:
+    name: Prepare CPack staging
+    runs-on: ubuntu-22.04
+    env:
+      BUILD_DIR: ${{ github.workspace }}/build
+      STAGING_DIR: ${{ github.workspace }}/staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential ninja-build ccache python3-dev python3-pip patchelf \
+            opencl-headers ocl-icd-opencl-dev
+          python3 -m pip install --upgrade pip
+          python3 -m pip install -r src/bindings/python/requirements.txt
+
+      - name: Restore ccache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.CCACHE_DIR }}
+          key: ccache-samples-staging-${{ github.run_id }}
+          restore-keys: |
+            ccache-samples-staging-
+
+      - name: Configure
+        run: |
+          cmake -S . -B "${BUILD_DIR}" \
+            ${COMMON_CMAKE_OPTIONS} \
+            -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+
+      - name: Build
+        run: cmake --build "${BUILD_DIR}" --parallel "$(nproc)" --config "${CMAKE_BUILD_TYPE}"
+
+      - name: ccache statistics
+        run: ccache --show-stats
+
+      # Install all default components in a single command into one staging tree.
+      # The CPack configuration is kept beside it (not inside) for version reuse.
+      - name: Stage install (single cmake --install)
+        run: |
+          set -euo pipefail
+          rm -rf "${STAGING_DIR}"
+          mkdir -p "${STAGING_DIR}"
+          cmake --install "${BUILD_DIR}" --config "${CMAKE_BUILD_TYPE}" \
+            --prefix "${STAGING_DIR}/tree"
+          cp "${BUILD_DIR}/CPackConfig.cmake" "${STAGING_DIR}/CPackConfig.cmake"
+
+      - name: Upload CPack staging
+        uses: actions/upload-artifact@v4
+        with:
+          name: openvino_cpack_staging
+          path: ${{ env.STAGING_DIR }}
+          if-no-files-found: error
+
+  # Reuse the uploaded staging tree to assemble the final packages without
+  # rebuilding: the full distribution and the custom "winget" subset.
+  package_from_staging:
+    name: Package from CPack staging (all + winget)
+    needs: prepare_staging
+    runs-on: ubuntu-22.04
+    env:
+      STAGING_DIR: ${{ github.workspace }}/staging
+      OUTPUT_DIR: ${{ github.workspace }}/packages
+    steps:
+      - name: Install CPack
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends cmake
+
+      - name: Download CPack staging
+        uses: actions/download-artifact@v4
+        with:
+          name: openvino_cpack_staging
+          path: ${{ env.STAGING_DIR }}
+
+      # CPACK_INSTALLED_DIRECTORIES lets CPack package the pre-staged tree without
+      # rebuilding. The winget subset is the full tree minus the samples and
+      # Python top-level directories (the excluded components).
+      - name: Package from staging (all + winget)
+        run: |
+          set -euo pipefail
+          mkdir -p "${OUTPUT_DIR}"
+          tree="${STAGING_DIR}/tree"
+
+          # reuse the version from the staged CPack configuration
+          version=$(sed -n 's/^set(CPACK_PACKAGE_VERSION "\(.*\)")$/\1/p' \
+            "${STAGING_DIR}/CPackConfig.cmake" | head -1)
+          version="${version:-0.0.0}"
+
+          make_package() {
+            local package_name="$1"
+            local source_tree="$2"
+            local config="${OUTPUT_DIR}/${package_name}.cmake"
+            {
+              echo 'set(CPACK_GENERATOR "TGZ")'
+              echo 'set(CPACK_PACKAGE_NAME "openvino")'
+              echo "set(CPACK_PACKAGE_VERSION \"${version}\")"
+              echo 'set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "OpenVINO Toolkit")'
+              echo 'set(CPACK_PACKAGE_DESCRIPTION "OpenVINO Toolkit distribution archive")'
+              echo "set(CPACK_PACKAGE_FILE_NAME \"${package_name}\")"
+              echo "set(CPACK_PACKAGE_DIRECTORY \"${OUTPUT_DIR}\")"
+              echo 'set(CPACK_INCLUDE_TOPLEVEL_DIRECTORY OFF)'
+              echo 'set(CPACK_THREADS 8)'
+              echo "set(CPACK_INSTALLED_DIRECTORIES \"${source_tree};.\")"
+            } > "${config}"
+            cpack --config "${config}"
+          }
+
+          # all: the whole staged tree
+          make_package "openvino" "${tree}"
+
+          # winget: full tree without samples and Python
+          winget_tree="${STAGING_DIR}/tree_winget"
+          rm -rf "${winget_tree}"
+          cp -al "${tree}" "${winget_tree}"
+          rm -rf "${winget_tree}/samples" "${winget_tree}/python"
+          make_package "openvino_winget" "${winget_tree}"
+
+      - name: Show archive contents
+        working-directory: ${{ env.OUTPUT_DIR }}
+        run: |
+          echo "::group::openvino.tar.gz"
+          tar -tzf openvino.tar.gz | sort | head -n 100
+          echo "::endgroup::"
+          echo "::group::openvino_winget.tar.gz"
+          tar -tzf openvino_winget.tar.gz | sort | head -n 100
+          echo "::endgroup::"
+
+      - name: Upload packages built from staging
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging_openvino_packages
+          path: |
+            ${{ env.OUTPUT_DIR }}/openvino.tar.gz
+            ${{ env.OUTPUT_DIR }}/openvino_winget.tar.gz
+          if-no-files-found: error
