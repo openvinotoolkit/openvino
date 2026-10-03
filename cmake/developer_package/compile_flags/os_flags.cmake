@@ -182,6 +182,10 @@ else()
     # Disable noisy warnings
     #
 
+    if(CMAKE_COMPILER_IS_GNUCXX)
+        ov_add_compiler_flags(-Wno-psabi)
+    endif()
+
     if(OV_COMPILER_IS_INTEL_LLVM)
         ov_add_compiler_flags(-Wno-tautological-constant-compare)
     endif()
