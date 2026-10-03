@@ -60,6 +60,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/weights_prefetch.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/parameter.hpp"
@@ -225,7 +226,13 @@ void Graph::Replicate(const std::shared_ptr<const ov::Model>& model,
     inputNodes.resize(model->get_parameters().size());
     outputNodes.resize(model->get_results().size());
 
-    for (const auto& op : model->get_ordered_ops()) {
+    const auto orderedOps = model->get_ordered_ops();
+    // The transfer itself is started by the first Infer(), see Graph::Infer.
+    if (const auto& weightsPrefetch = m_context->getWeightsPrefetch(); weightsPrefetch) {
+        weightsPrefetch->register_constants(orderedOps);
+    }
+
+    for (const auto& op : orderedOps) {
         const NodePtr node = createNode(op);
 
         AddNode(node);
@@ -1657,6 +1664,10 @@ static int GetNumaNodeId([[maybe_unused]] const GraphContext::CPtr& context) {
 void Graph::Infer(SyncInferRequest* request) {
     DEBUG_LOG("Infer graph: ", GetName(), ". Status: ", static_cast<int>(status));
     const int numaId = GetNumaNodeId(m_context);
+
+    if (const auto& weightsPrefetch = m_context->getWeightsPrefetch(); weightsPrefetch) {
+        weightsPrefetch->prefetch_once();
+    }
 
     m_context->allocateMemory();
 

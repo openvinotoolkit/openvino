@@ -1343,4 +1343,53 @@ TEST_F(OVTensorTest, sourceIdAllocatedTensorHasNoSourceId) {
     EXPECT_EQ(ov::get_tensor_source_id(tensor), std::nullopt);
 }
 
+TEST_F(OVTensorTest, sourceBufferSetGet) {
+    float data[16] = {};
+    ov::Tensor tensor{ov::element::f32, ov::Shape{4, 4}, data};
+    EXPECT_EQ(ov::get_tensor_source_buffer(tensor), nullptr);
+
+    const auto buffer = std::make_shared<ov::AlignedBuffer>(sizeof(data));
+    ov::set_tensor_source_buffer(tensor, buffer);
+    EXPECT_EQ(ov::get_tensor_source_buffer(tensor), buffer);
+
+    // ROI tensors report the source buffer of the tensor they are created from
+    ov::Tensor roi{tensor, {1, 0}, {3, 4}};
+    EXPECT_EQ(ov::get_tensor_source_buffer(roi), buffer);
+    ov::Tensor nested_roi{roi, {1, 1}, {2, 3}};
+    EXPECT_EQ(ov::get_tensor_source_buffer(nested_roi), buffer);
+}
+
+TEST_F(OVTensorTest, sourceBufferMmapTensorCoversTensorData) {
+    auto tmp_path = ov::test::utils::generateTestFilePrefix() + "_ov_source_buffer_test.bin";
+    {
+        std::ofstream f(tmp_path, std::ios::binary);
+        float data[6] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+        f.write(reinterpret_cast<const char*>(data), sizeof(data));
+    }
+
+    {
+        const auto tensor = ov::read_tensor_data(tmp_path, ov::element::f32, ov::PartialShape{2, 3}, 0, true);
+        const auto buffer = ov::get_tensor_source_buffer(tensor);
+        ASSERT_NE(buffer, nullptr);
+        EXPECT_EQ(buffer->get_ptr(), tensor.data());
+        EXPECT_EQ(buffer->size(), tensor.get_byte_size());
+    }
+    std::filesystem::remove(tmp_path);
+}
+
+TEST_F(OVTensorTest, sourceBufferIfstreamTensorHasNoSourceBuffer) {
+    auto tmp_path = ov::test::utils::generateTestFilePrefix() + "_ov_source_buffer_ifstream_test.bin";
+    {
+        std::ofstream f(tmp_path, std::ios::binary);
+        float data[6] = {1.f, 2.f, 3.f, 4.f, 5.f, 6.f};
+        f.write(reinterpret_cast<const char*>(data), sizeof(data));
+    }
+
+    {
+        const auto tensor = ov::read_tensor_data(tmp_path, ov::element::f32, ov::PartialShape{2, 3}, 0, false);
+        EXPECT_EQ(ov::get_tensor_source_buffer(tensor), nullptr);
+    }
+    std::filesystem::remove(tmp_path);
+}
+
 }  // namespace ov::test

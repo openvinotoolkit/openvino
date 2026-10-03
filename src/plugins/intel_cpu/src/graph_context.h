@@ -13,6 +13,7 @@
 #include "cpu_parallel.hpp"
 #include "dnnl_scratch_pad.h"
 #include "memory_control.hpp"
+#include "openvino/core/weights_prefetch.hpp"
 #include "openvino/runtime/threading/cpu_streams_executor.hpp"
 #include "openvino/runtime/threading/istreams_executor.hpp"
 #include "sub_memory_manager.hpp"
@@ -37,7 +38,8 @@ public:
                  bool isGraphQuantized,
                  ov::threading::IStreamsExecutor::Ptr streamExecutor = nullptr,
                  std::shared_ptr<CpuParallel> cpuParallel = nullptr,
-                 std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr);
+                 std::shared_ptr<SubMemoryManager> sub_memory_manager = nullptr,
+                 ov::wsh::WeightsPrefetch::Ptr weights_prefetch = nullptr);
 
     [[nodiscard]] const Config& getConfig() const {
         return m_config;
@@ -45,6 +47,10 @@ public:
 
     [[nodiscard]] WeightsSharing::Ptr getWeightsCache() const {
         return m_weightsCache;
+    }
+
+    [[nodiscard]] const ov::wsh::WeightsPrefetch::Ptr& getWeightsPrefetch() const {
+        return m_weightsPrefetch;
     }
 
     [[nodiscard]] MultiCachePtr getParamsCache() const {
@@ -114,6 +120,8 @@ private:
     Config m_config;
     // per NUMA node caches for sharing weights data
     WeightsSharing::Ptr m_weightsCache;
+    // shared by all the graphs of a compiled model, so weights are prefetched only once
+    ov::wsh::WeightsPrefetch::Ptr m_weightsPrefetch;
     // primitive cache
     MultiCachePtr m_rtParamsCache;
     MultiCachePtr m_snippetsParamsCache;
