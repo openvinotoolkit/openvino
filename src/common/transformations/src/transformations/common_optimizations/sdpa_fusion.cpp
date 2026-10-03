@@ -4,10 +4,15 @@
 
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 
+#include <limits>
+#include <memory>
+
 #include "itt.hpp"
 #include "openvino/core/graph_util.hpp"
 #include "openvino/core/rt_info.hpp"
 #include "openvino/core/type.hpp"
+#include "openvino/core/type/bfloat16.hpp"
+#include "openvino/core/type/float16.hpp"
 #include "openvino/core/validation_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
@@ -18,6 +23,7 @@
 #include "openvino/op/reduce_max.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
+#include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
 #include "openvino/op/softmax.hpp"
@@ -143,6 +149,20 @@ std::shared_ptr<ov::Node> try_align_outputs(const std::shared_ptr<ov::Node>& src
     ov::copy_runtime_info(src, {axes_const, reshape});
 
     return reshape;
+}
+
+// All SDPA patterns require a v8 Softmax normalized to the last axis.
+ov::pass::pattern::op::Predicate softmax_last_axis() {
+    return ov::pass::pattern::op::Predicate([](const ov::Output<ov::Node>& node) {
+        auto softmax = ov::as_type_ptr<v8::Softmax>(node.get_node_shared_ptr());
+        if (!softmax)
+            return false;
+        const auto rank = node.get_partial_shape().rank();
+        if (rank.is_dynamic())
+            return false;
+        const auto axis = ov::util::try_normalize_axis(softmax->get_axis(), rank, *softmax);
+        return axis == static_cast<size_t>(rank.get_length() - 1);
+    });
 }
 
 }  // namespace
@@ -295,18 +315,61 @@ static std::shared_ptr<ov::Node> get_scale(std::shared_ptr<ov::Node> scale_patte
     }
 }
 
+// Sentinel upper bound: accept masked-out values at or below the lowest f16 value (-65504). A true
+// -inf passes this test as well; NaN does not.
+constexpr float kMaskSentinelMax = -65504.0f;
+
+// Additive mask value for a where-style mask: half of the lowest representable score value. A true
+// -inf cannot be built for f16/bf16 constants and `scores + value` cannot overflow to -inf, so a
+// fully masked row stays finite instead of turning into NaN inside the Softmax.
+static double additive_mask_value(const ov::element::Type& et) {
+    if (et == ov::element::f16)
+        return static_cast<double>(std::numeric_limits<ov::float16>::lowest()) / 2.0;
+    if (et == ov::element::bf16)
+        return static_cast<double>(std::numeric_limits<ov::bfloat16>::lowest()) / 2.0;
+    OPENVINO_THROW("Unsupported score element type for the SDPA additive mask: ", et.get_type_name());
+}
+
+static std::shared_ptr<ov::Node> get_additive_mask(const std::shared_ptr<v1::Select>& select, Matcher& matcher) {
+    // The fused SDPA primitive supports f16/bf16 scores only.
+    const auto score_type = select->get_input_element_type(1);
+    if (score_type != ov::element::f16 && score_type != ov::element::bf16)
+        return nullptr;
+
+    // PDPD/NONE broadcasting cannot be reproduced by the scalar constants of the additive form.
+    if (select->get_auto_broadcast() != ov::op::AutoBroadcastType::NUMPY)
+        return nullptr;
+
+    const auto sentinel = ov::as_type_ptr<v0::Constant>(select->input_value(2).get_node_shared_ptr());
+    if (!sentinel || ov::shape_size(sentinel->get_shape()) != 1)
+        return nullptr;
+    // A true -inf passes this comparison as well; NaN does not, so it is rejected.
+    if (!(sentinel->cast_vector<float>()[0] <= kMaskSentinelMax))
+        return nullptr;
+
+    auto zero = v0::Constant::create(score_type, ov::Shape{}, {0.0});
+    auto mask_value = v0::Constant::create(score_type, ov::Shape{}, {additive_mask_value(score_type)});
+    auto mask =
+        std::make_shared<v1::Select>(select->input_value(0), zero, mask_value, ov::op::AutoBroadcastType::NUMPY);
+    ov::copy_runtime_info(matcher.get_matched_nodes(), {zero, mask_value, mask});
+    return mask;
+}
+
 static std::shared_ptr<ov::Node> get_mask(std::shared_ptr<ov::Node> mask_pattern,
                                           std::shared_ptr<ov::Node> opt_mask_add,
                                           element::Type default_mask_type,
                                           bool mask_present,
-                                          Matcher& matcher) {
+                                          Matcher& matcher,
+                                          const std::shared_ptr<ov::Node>& additive_mask = nullptr) {
     auto& pm = matcher.get_pattern_value_map();
-    if (mask_present && pm.count(opt_mask_add)) {
+    // `additive_mask` is set when the attention mask comes from a where-style Select instead of a
+    // mask Add; both cases are normalized the same way below.
+    if (mask_present || additive_mask) {
         const auto& qk_out = pm.at(opt_mask_add);
         // Get shape of the first input
         const auto& qk_out_ps = qk_out.get_target_inputs().begin()->get_partial_shape();
 
-        auto mask_node = pm.at(mask_pattern);
+        auto mask_node = additive_mask ? additive_mask->output(0) : pm.at(mask_pattern);
         auto mask_input_ps = mask_node.get_partial_shape();
 
         if (!qk_out_ps.rank().is_static() || !mask_input_ps.rank().is_static())
@@ -459,24 +522,20 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
     auto add_pred = consumers_count(1) && corner_case_check;
     auto qk_opt_scaled_opt_mask_added =
         ov::pass::pattern::optional<v1::Add>({qk_opt_scaled_pre_mask_opt_reshaped, mask}, add_pred);
-    auto qk_post_mask_opt_reshaped =
-        ov::pass::pattern::optional<v1::Reshape>({qk_opt_scaled_opt_mask_added, any_input()});
+    // Where-style mask: Select(cond, scores, sentinel) in place of the mask Add. It is represented in
+    // the fused SDPA as the additive attention mask Select(cond, 0, mask_value).
+    auto select_cond = any_input();
+    auto select_sentinel = wrap_type<v0::Constant>();
+    auto select_mask =
+        wrap_type<v1::Select>({select_cond, qk_opt_scaled_pre_mask_opt_reshaped, select_sentinel}, consumers_count(1));
+    auto masked_scores = qk_opt_scaled_opt_mask_added | select_mask;
+    auto qk_post_mask_opt_reshaped = ov::pass::pattern::optional<v1::Reshape>({masked_scores, any_input()});
 
     // Softmax axis can be:
     // Pattern 1: axis = -1 (last axis)
     // Pattern 2: axis = rank size - 1 (also means last axis for static rank inputs)
-    auto axis_predicate = ([](const ov::Output<ov::Node>& node) {
-        auto softmax = std::dynamic_pointer_cast<v8::Softmax>(node.get_node_shared_ptr());
-        if (!softmax)
-            return false;
-        auto input_rank = node.get_partial_shape().rank();
-        if (input_rank.is_dynamic())
-            return false;
-        auto axis = ov::util::try_normalize_axis(softmax->get_axis(), input_rank, *softmax);
-        return static_cast<size_t>(input_rank.get_length() - 1) == axis;
-    });
     auto softmax_pred =
-        consumers_count(1) && axis_predicate &&
+        consumers_count(1) && softmax_last_axis() &&
         (ov::pass::pattern::shape_matches("..., H, S_q, S_kv") || ov::pass::pattern::shape_matches("S_q, S_kv"));
     auto softmax = wrap_type<v8::Softmax>({qk_post_mask_opt_reshaped}, softmax_pred);
     auto softmax_opt_reshaped = ov::pass::pattern::optional<v1::Reshape>({softmax, any_input()});
@@ -496,6 +555,7 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
             return false;
 
         bool mask_present = pm.count(mask);
+        bool select_mask_present = pm.count(select_mask);
         bool matmul_transposes_k = pm.count(qk_transpose_b);
 
         const auto& q_node = pm.at(q);
@@ -510,8 +570,15 @@ SDPAFusionMatcher::SDPAFusionMatcher() {
         if (!(scale_node = get_scale(attn_scale, T, m)))
             return false;
 
+        std::shared_ptr<ov::Node> additive_mask;
+        if (select_mask_present) {
+            auto select_node = ov::as_type_ptr<v1::Select>(pm.at(select_mask).get_node_shared_ptr());
+            if (!(additive_mask = get_additive_mask(select_node, m)))
+                return false;
+        }
+
         std::shared_ptr<ov::Node> mask_input;
-        if (!(mask_input = get_mask(mask, qk_opt_scaled_opt_mask_added, T, mask_present, m)))
+        if (!(mask_input = get_mask(mask, masked_scores, T, mask_present, m, additive_mask)))
             return false;
 
         ov::OutputVector qkv = get_qkv({q_node, k_node, v_node}, mask_input, T, matmul_transposes_k, m);
@@ -565,17 +632,7 @@ SDPAFusionMatcherSinks::SDPAFusionMatcherSinks() {
     // Softmax axis can be:
     // Pattern 1: axis = -1 (last axis)
     // Pattern 2: axis = rank size - 1 (also means last axis for static rank inputs)
-    auto axis_predicate = ([](const ov::Output<ov::Node>& node) {
-        auto softmax = ov::as_type_ptr<v8::Softmax>(node.get_node_shared_ptr());
-        if (!softmax)
-            return false;
-        auto input_rank = node.get_partial_shape().rank();
-        if (input_rank.is_dynamic())
-            return false;
-        auto axis = ov::util::try_normalize_axis(softmax->get_axis(), input_rank, *softmax);
-        return static_cast<size_t>(input_rank.get_length() - 1) == axis;
-    });
-    auto softmax_pred = consumers_count(1) && axis_predicate;
+    auto softmax_pred = consumers_count(1) && softmax_last_axis();
     auto softmax = wrap_type<v8::Softmax>({sinks_sub}, softmax_pred);
 
     auto sinks_slice = wrap_type<v1::StridedSlice>({softmax, any_input(), any_input(), any_input()}) |
