@@ -477,6 +477,10 @@ public:
 
     virtual std::set<size_t> get_lockable_input_ids() const;
 
+    // Can this node's kernel read input_idx and write output_idx using the same buffer?
+    // The caller verifies an exact buffer match; see network::can_bind_user_output_memory.
+    virtual bool can_support_input_output_alias(size_t /*input_idx*/, size_t /*output_idx*/) const { return false; }
+
     void add_dependant_shape_of_node(const program_node* node);
 
     const std::set<const program_node*>& get_dependant_shape_of_nodes() const {

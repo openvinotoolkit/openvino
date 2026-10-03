@@ -5,6 +5,7 @@
 #include "intel_gpu/plugin/sync_infer_request.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <functional>
 #include <iterator>
 #include <map>
@@ -45,6 +46,31 @@ bool same_host_mem(cldnn::memory::cptr memory, const uint8_t* host_ptr) {
     const uint8_t* device_ptr =
         memory->get_allocation_type() == cldnn::allocation_type::usm_host ? static_cast<uint8_t*>(memory->get_internal_params().mem) : nullptr;
     return device_ptr == host_ptr;
+}
+
+bool byte_ranges_overlap(const void* lhs_ptr, size_t lhs_size, const void* rhs_ptr, size_t rhs_size) {
+    if (lhs_ptr == nullptr || rhs_ptr == nullptr || lhs_size == 0 || rhs_size == 0)
+        return false;
+
+    const auto lhs_begin = reinterpret_cast<uintptr_t>(lhs_ptr);
+    const auto rhs_begin = reinterpret_cast<uintptr_t>(rhs_ptr);
+    return lhs_begin < rhs_begin ? rhs_begin - lhs_begin < lhs_size : lhs_begin - rhs_begin < rhs_size;
+}
+
+// Byte range backing a tensor for aliasing checks: host tensor -> data()/byte_size; RemoteTensorImpl
+// -> cldnn memory, but only if usm_host (device pointers aren't comparable to host ones). Else {nullptr, 0}.
+std::pair<const void*, size_t> tensor_alias_range(const std::shared_ptr<ov::ITensor>& tensor) {
+    if (!tensor)
+        return {nullptr, 0};
+    if (auto remote = std::dynamic_pointer_cast<ov::intel_gpu::RemoteTensorImpl>(tensor)) {
+        auto memory = remote->get_memory();
+        if (memory && memory->get_allocation_type() == cldnn::allocation_type::usm_host)
+            return {memory->buffer_ptr(), memory->size()};
+        return {nullptr, 0};
+    }
+    if (std::dynamic_pointer_cast<ov::IRemoteTensor>(tensor))
+        return {nullptr, 0};
+    return {tensor->data(), tensor->get_byte_size()};
 }
 
 inline bool all_remote_buffers(const std::vector<ov::SoPtr<ov::ITensor>>& tensors) {
@@ -1193,8 +1219,8 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
     auto device_tensor_et = convert_to_supported_device_type(element_type);
     bool convert_needed = is_convert_required(device_tensor_et, element_type);
 
-    // Even if the network is dynamic, if user tensor's shape is static, remote tensor can be set as plugin's output tensor
     if (is_remote_tensor_impl && !convert_needed) {
+        // Even if the network is dynamic, if user tensor's shape is static, remote tensor can be set as plugin's output tensor
         m_plugin_outputs[output_idx] = user_tensor_wrapper;
     }
 
@@ -1202,13 +1228,71 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
         bool need_lockable_mem = network->does_node_need_lockable_output(internal_name);
         bool has_device_buffer = m_plugin_outputs.count(output_idx) > 0;
         bool update_device_tensor =
-            !has_device_buffer || is_generic_remote || (m_plugin_outputs[output_idx].owner == TensorOwner::USER && !is_remote_tensor_impl);
+            !has_device_buffer || is_generic_remote ||
+            (m_plugin_outputs[output_idx].owner == TensorOwner::USER && !is_remote_tensor_impl);
         if (update_device_tensor) {
             if (!is_remote_tensor_impl) {
                 m_plugin_outputs[output_idx] =
                     create_or_share_device_tensor(user_tensor_wrapper, internal_name, pshape, device_tensor_et, need_lockable_mem || convert_needed);
             } else {
                 m_plugin_outputs[output_idx] = {create_device_tensor(pshape, device_tensor_et, need_lockable_mem || convert_needed), TensorOwner::PLUGIN};
+            }
+        }
+    } else if (is_generic_remote) {
+        // A generic remote output cannot reuse a previous dynamic binding.
+        m_plugin_outputs.erase(output_idx);
+    }
+
+    if (is_dynamic && user_tensor_wrapper.owner == TensorOwner::USER) {
+        // Caller-owned memory and the plugin-owned OutputMemoryBlock are mutually exclusive.
+        network->unregister_output_memory_block(internal_name);
+
+        if (!is_remote_tensor_impl && !is_generic_remote) {
+            const bool had_caller_owned_output_buffer =
+                m_plugin_outputs.count(output_idx) > 0 && m_plugin_outputs[output_idx].owner == TensorOwner::USER;
+            auto& engine = m_graph->get_engine();
+            const bool overlap_unsupported = !can_use_caller_output_memory(user_tensor, user_tensor_wrapper.actual_size);
+            // Import a caller USM-host pointer as a shared remote tensor so the graph writes into it directly.
+            const bool can_share_user_usm_host =
+                !convert_needed && !overlap_unsupported &&
+                engine.get_device_info().dev_type == cldnn::device_type::integrated_gpu &&
+                engine.detect_usm_allocation_type(user_tensor->data()) == cldnn::allocation_type::usm_host &&
+                can_use_usm_host(engine, total_output_bytes);
+            const bool need_lockable_mem = network->does_node_need_lockable_output(internal_name);
+            auto create_plugin_output = [&]() -> TensorWrapper {
+                auto tensor_shape = user_tensor->get_shape();
+                auto actual_memory_shape = predict_shape(internal_name,
+                                                         cldnn::layout(tensor_shape,
+                                                                       device_tensor_et,
+                                                                       cldnn::format::get_default_format(tensor_shape.size())),
+                                                         *m_shape_predictor);
+                return {create_device_tensor(actual_memory_shape, device_tensor_et, need_lockable_mem || convert_needed), TensorOwner::PLUGIN};
+            };
+            if (can_share_user_usm_host) {
+                auto candidate = create_or_share_device_tensor(user_tensor_wrapper,
+                                                               internal_name,
+                                                               pshape,
+                                                               device_tensor_et,
+                                                               need_lockable_mem || convert_needed);
+                auto candidate_tensor = std::dynamic_pointer_cast<RemoteTensorImpl>(candidate.ptr);
+                if (candidate_tensor && candidate_tensor->get_memory() &&
+                    network->can_bind_user_output_memory(internal_name, *candidate_tensor->get_memory())) {
+                    m_plugin_outputs[output_idx] = std::move(candidate);
+                } else {
+                    m_plugin_outputs[output_idx] = create_plugin_output();
+                }
+            } else if (overlap_unsupported) {
+                // The output buffer is also used as an input (and the producer doesn't support the exact
+                // in-place contract): allocate plugin-owned memory to avoid overwriting the input data
+                // before it is read. The result is copied out in wait().
+                m_plugin_outputs[output_idx] = create_plugin_output();
+            } else if (had_caller_owned_output_buffer) {
+                // The new host tensor is ineligible for direct binding, so replace the stale caller allocation.
+                m_plugin_outputs[output_idx] = create_or_share_device_tensor(user_tensor_wrapper,
+                                                                             internal_name,
+                                                                             pshape,
+                                                                             device_tensor_et,
+                                                                             need_lockable_mem || convert_needed);
             }
         }
     }
@@ -1222,10 +1306,6 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
             if (block_it != m_output_memory_blocks.end()) {
                 network->register_output_memory_block(internal_name, block_it->second.get());
             }
-        } else if (is_dynamic) {
-            // User set a custom tensor — unregister any previously registered block
-            // so the graph uses its normal memory pool and copies to user's tensor.
-            network->unregister_output_memory_block(internal_name);
         }
         return {};
     }
@@ -1251,6 +1331,36 @@ void SyncInferRequest::init_mappings() {
 
 bool SyncInferRequest::is_batched_input(const ov::Output<const ov::Node>& port) const {
     return m_batched_tensors.count(port.get_tensor_ptr()) > 0;
+}
+
+bool SyncInferRequest::can_use_caller_output_memory(const std::shared_ptr<ov::ITensor>& output_tensor,
+                                                    size_t output_capacity_bytes) const {
+    const auto [output_ptr, output_logical_size] = tensor_alias_range(output_tensor);
+    if (output_ptr == nullptr)
+        return true;
+    // wait() can shrink the output tensor's logical shape while the caller keeps the larger allocation,
+    // so use the recorded capacity: a later growth would write the full span and could hit an input in the tail.
+    const size_t output_size = std::max(output_logical_size, output_capacity_bytes);
+
+    auto inputs = m_user_inputs.read();
+    size_t overlapping_inputs = 0;
+    for (const auto& entry : *inputs) {
+        const auto& wrapper = entry.second;
+        const auto [input_ptr, input_logical_size] = tensor_alias_range(wrapper.ptr);
+        // Symmetric to the output span: a caller may have shrunk this input's logical shape while
+        // keeping a larger backing allocation, so an output starting in that unshrunk tail must still
+        // be seen as overlapping.
+        const size_t input_size = std::max(input_logical_size, wrapper.actual_size);
+        if (!byte_ranges_overlap(output_ptr, output_size, input_ptr, input_size))
+            continue;
+        // A partial/offset overlap is never safe; only an exact-address overlap can be tolerated,
+        // and only for the producer's declared in-place contract (checked by the caller).
+        if (input_ptr != output_ptr)
+            return false;
+        if (++overlapping_inputs > 1)
+            return false;
+    }
+    return true;
 }
 
 }  // namespace ov::intel_gpu

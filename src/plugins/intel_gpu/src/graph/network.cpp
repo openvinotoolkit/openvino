@@ -661,6 +661,81 @@ bool network::does_node_need_lockable_output(const primitive_id& id) const {
     return prim_inst->get_impl() ? prim_inst->get_impl()->is_cpu() : true;
 }
 
+bool network::can_bind_user_output_memory(const primitive_id& output_id, const memory& candidate) const {
+    auto output = find_primitive(output_id);
+    // Only network outputs with a usable buffer can be bound.
+    if (!output->is_output() || candidate.buffer_ptr() == nullptr || candidate.size() == 0)
+        return false;
+
+    auto& engine = const_cast<cldnn::engine&>(get_engine());
+    const auto candidate_type = candidate.get_allocation_type();
+    const auto candidate_ptr = reinterpret_cast<uintptr_t>(candidate.buffer_ptr());
+    const primitive_inst* aliased_input = nullptr;
+    for (const auto& input_id : get_input_ids()) {
+        auto input = find_primitive(input_id);
+        auto input_memory = input->output_memory_ptr();
+        if (!input_memory || input_memory->buffer_ptr() == nullptr || input_memory->size() == 0)
+            continue;
+
+        // Compare address ranges only for matching USM types; other pointers may be buffer handles.
+        if (candidate_type == input_memory->get_allocation_type() && memory_capabilities::is_usm_type(candidate_type)) {
+            // Sharing can start only at the beginning of an input buffer.
+            const auto input_ptr = reinterpret_cast<uintptr_t>(input_memory->buffer_ptr());
+            const bool overlaps = candidate_ptr < input_ptr ? input_ptr - candidate_ptr < candidate.size()
+                                                            : candidate_ptr - input_ptr < input_memory->size();
+            if (!overlaps)
+                continue;
+            if (candidate_ptr != input_ptr)
+                return false;
+        } else if (!engine.is_the_same_buffer(*input_memory, candidate)) {
+            continue;
+        }
+
+        if (aliased_input)
+            return false;
+        aliased_input = input.get();
+    }
+
+    if (!aliased_input)
+        return true;
+
+    // An optimized output forwards its producer's buffer. Look through one such node only.
+    const primitive_inst* writer = output.get();
+    size_t writer_port = 0;
+    if (output->can_be_optimized()) {
+        const auto& dependencies = output->dependencies();
+        if (dependencies.size() != 1)
+            return false;
+        writer = dependencies.front().first;
+        writer_port = static_cast<size_t>(dependencies.front().second);
+        if (writer->can_be_optimized())
+            return false;
+    }
+
+    // The writer must be the input's only reader.
+    const auto& input_users = aliased_input->get_node().get_users();
+    if (input_users.size() != 1 || input_users.front() != &writer->get_node())
+        return false;
+
+    // Find the writer's one use of this input and check whether its output may share the buffer.
+    const auto& writer_deps = writer->dependencies();
+    size_t alias_input_idx = writer_deps.size();
+    for (size_t i = 0; i < writer_deps.size(); ++i) {
+        if (writer_deps[i].first == aliased_input) {
+            if (alias_input_idx != writer_deps.size())
+                return false;
+            alias_input_idx = i;
+        }
+    }
+    if (alias_input_idx == writer_deps.size() ||
+        !writer->get_node().can_support_input_output_alias(alias_input_idx, writer_port))
+        return false;
+
+    // Confirm the writer reads the buffer the caller provided.
+    const auto aliased_memory = writer->input_memory_ptr(alias_input_idx);
+    return aliased_memory && engine.is_the_same_buffer(*aliased_memory, candidate);
+}
+
 std::string network::get_implementation_info(const primitive_id& id) const {
     try {
         auto it = _primitives.find(id);
