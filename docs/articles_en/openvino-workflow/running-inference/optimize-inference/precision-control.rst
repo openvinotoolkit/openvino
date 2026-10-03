@@ -103,7 +103,7 @@ To address this issue, activation scaling divides the input of linear operations
 The layer's output is then multiplied back by the activations scale factor to restore its original value, but overflow can occur again during this process.
 Activation scaling uses :doc:`LPT (Low Precision Transformations) <../../../documentation/openvino-extensibility/openvino-plugin-library/advanced-guides/low-precision-transformations>` to delay multiplication by the scale factor as much as possible, preventing overflow.
 The activations scale factor can be specified in the ``rt_info`` of the model IR or via ``ov::hint::activations_scale_factor``.
-Currently, this property is supported on GPU.
+Currently, this property is supported on GPU and on CPU (x86-64 only, and only when ``inference_precision`` is ``f16``).
 
 .. scrollbox::   
 

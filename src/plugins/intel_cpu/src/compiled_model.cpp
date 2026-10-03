@@ -307,6 +307,7 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
             RO_property(ov::intel_cpu::enable_tensor_parallel.name()),
             RO_property(ov::intel_cpu::tbb_partitioner.name()),
             RO_property(ov::hint::dynamic_quantization_group_size.name()),
+            RO_property(ov::hint::activations_scale_factor.name()),
             RO_property(ov::hint::kv_cache_precision.name()),
             RO_property(ov::key_cache_precision.name()),
             RO_property(ov::value_cache_precision.name()),
@@ -395,6 +396,9 @@ ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::hint::dynamic_quantization_group_size) {
         return static_cast<decltype(ov::hint::dynamic_quantization_group_size)::value_type>(
             config.fcDynamicQuantizationGroupSize);
+    }
+    if (name == ov::hint::activations_scale_factor) {
+        return static_cast<decltype(ov::hint::activations_scale_factor)::value_type>(config.activationsScaleFactor);
     }
     if (name == ov::hint::kv_cache_precision) {
         return decltype(ov::hint::kv_cache_precision)::value_type(config.kvCachePrecision);
