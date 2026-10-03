@@ -100,6 +100,7 @@ namespace detail {
 
 attach_concatenation_impl::attach_concatenation_impl() {
     auto dyn_types = {
+        data_types::boolean,
         data_types::i8,
         data_types::u8,
         data_types::f16,
@@ -127,6 +128,7 @@ attach_concatenation_impl::attach_concatenation_impl() {
     std::set<implementation_map<concatenation>::key_type> keys;
 
     auto static_types = {
+        data_types::boolean,
         data_types::i8,
         data_types::u8,
         data_types::f16,

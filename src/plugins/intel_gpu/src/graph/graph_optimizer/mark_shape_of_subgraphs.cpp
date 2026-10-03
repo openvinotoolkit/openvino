@@ -99,13 +99,9 @@ bool mark_shape_of_subgraphs::can_mark_node(const program_node& node) {
         return true;
     }
 
-    // Exclude eltwise with boolean mode types since CPU reference implementation
-    // couldn't save result in int8 data type (as it requested by GPU plugin,
-    // because we use it instead of boolean data type)
     if (node.is_type<eltwise>()) {
-        const auto& eltwise_node = node.as<eltwise>();
-        auto eltwise_mode = eltwise_node.get_primitive()->mode;
-        if (eltwise::eltwise_bool_modes.find(eltwise_mode) != eltwise::eltwise_bool_modes.end()) {
+        const auto mode = node.as<eltwise>().get_primitive()->mode;
+        if (eltwise::eltwise_bool_modes.count(mode) > 0 && node.get_input_layout(0).data_type != data_types::boolean) {
             return false;
         }
     }

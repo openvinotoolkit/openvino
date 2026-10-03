@@ -48,6 +48,7 @@ static size_t GetUsedOutDimsCount(const strided_slice_params& params) {
 
 ParamsKey StridedSliceKernelRef::GetSupportedKey() const {
     ParamsKey k;
+    k.EnableInputDataType(Datatype::BOOLEAN);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
@@ -55,6 +56,7 @@ ParamsKey StridedSliceKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT8);
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::INT64);
+    k.EnableOutputDataType(Datatype::BOOLEAN);
     k.EnableOutputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);

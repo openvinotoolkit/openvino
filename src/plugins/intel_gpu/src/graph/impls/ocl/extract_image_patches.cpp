@@ -69,6 +69,7 @@ attach_extract_image_patches_impl::attach_extract_image_patches_impl() {
         std::make_tuple(data_types::u8, format::bfyx),
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
+        std::make_tuple(data_types::boolean, format::bfyx),
     });
 }
 

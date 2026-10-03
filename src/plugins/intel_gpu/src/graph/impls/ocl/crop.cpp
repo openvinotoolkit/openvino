@@ -93,6 +93,7 @@ namespace detail {
 
 attach_crop_impl::attach_crop_impl() {
     auto dyn_types = {
+        data_types::boolean,
         data_types::f32,
         data_types::f16,
         data_types::bf16,
@@ -115,6 +116,7 @@ attach_crop_impl::attach_crop_impl() {
                                      dyn_formats);
 
     implementation_map<crop>::add(impl_types::ocl, typed_primitive_impl_ocl<crop>::create<crop_impl>, {
+        std::make_tuple(data_types::boolean, format::yxfb),
         std::make_tuple(data_types::f32, format::yxfb),
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::bf16, format::yxfb),
@@ -122,6 +124,7 @@ attach_crop_impl::attach_crop_impl() {
         std::make_tuple(data_types::i32, format::yxfb),
         std::make_tuple(data_types::i8, format::yxfb),
         std::make_tuple(data_types::u8, format::yxfb),
+        std::make_tuple(data_types::boolean, format::bfyx),
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::bf16, format::bfyx),
@@ -129,6 +132,7 @@ attach_crop_impl::attach_crop_impl() {
         std::make_tuple(data_types::i32, format::bfyx),
         std::make_tuple(data_types::i8, format::bfyx),
         std::make_tuple(data_types::u8, format::bfyx),
+        std::make_tuple(data_types::boolean, format::byxf),
         std::make_tuple(data_types::f32, format::byxf),
         std::make_tuple(data_types::f16, format::byxf),
         std::make_tuple(data_types::bf16, format::byxf),
@@ -136,6 +140,7 @@ attach_crop_impl::attach_crop_impl() {
         std::make_tuple(data_types::i32, format::byxf),
         std::make_tuple(data_types::i8, format::byxf),
         std::make_tuple(data_types::u8, format::byxf),
+        std::make_tuple(data_types::boolean, format::fyxb),
         std::make_tuple(data_types::f32, format::fyxb),
         std::make_tuple(data_types::f16, format::fyxb),
         std::make_tuple(data_types::bf16, format::fyxb),
@@ -143,6 +148,7 @@ attach_crop_impl::attach_crop_impl() {
         std::make_tuple(data_types::i32, format::fyxb),
         std::make_tuple(data_types::i8, format::fyxb),
         std::make_tuple(data_types::u8, format::fyxb),
+        std::make_tuple(data_types::boolean, format::bfzyx),
         std::make_tuple(data_types::f32, format::bfzyx),
         std::make_tuple(data_types::f16, format::bfzyx),
         std::make_tuple(data_types::bf16, format::bfzyx),
@@ -150,6 +156,7 @@ attach_crop_impl::attach_crop_impl() {
         std::make_tuple(data_types::i32, format::bfzyx),
         std::make_tuple(data_types::i8, format::bfzyx),
         std::make_tuple(data_types::u8, format::bfzyx),
+        std::make_tuple(data_types::boolean, format::bfwzyx),
         std::make_tuple(data_types::f32, format::bfwzyx),
         std::make_tuple(data_types::f16, format::bfwzyx),
         std::make_tuple(data_types::bf16, format::bfwzyx),

@@ -52,6 +52,10 @@ struct ReorderImplementationManager : public ImplementationManager {
         auto in_dt = input_layout.data_type;
         auto out_dt = output_layout.data_type;
 
+        if (in_dt == data_types::boolean || out_dt == data_types::boolean) {
+            return false;
+        }
+
         // custom layout is requested by onednn only, so we ignore other checks
         if (output_fmt == format::custom) {
             return true;

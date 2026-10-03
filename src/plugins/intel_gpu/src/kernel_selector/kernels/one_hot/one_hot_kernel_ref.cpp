@@ -21,6 +21,7 @@ ParamsKey OneHotKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BOOLEAN);
 
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableInputLayout(DataLayout::bfzyx);

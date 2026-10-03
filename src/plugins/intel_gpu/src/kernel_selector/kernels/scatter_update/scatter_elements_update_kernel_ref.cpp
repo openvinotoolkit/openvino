@@ -77,7 +77,7 @@ static size_t GetScatterElementsUpdateChannelIndex(const scatter_elements_update
 
 ParamsKey ScatterElementsUpdateKernelRef::GetSupportedKey() const {
     ParamsKey k;
-    const std::vector<Datatype> supportedTypes{Datatype::F16, Datatype::F32, Datatype::INT32, Datatype::INT8, Datatype::UINT8};
+    const std::vector<Datatype> supportedTypes{Datatype::BOOLEAN, Datatype::F16, Datatype::F32, Datatype::INT32, Datatype::INT8, Datatype::UINT8};
     for (const auto t : supportedTypes) {
         k.EnableInputDataType(t);
         k.EnableOutputDataType(t);

@@ -123,6 +123,20 @@ auto stb_only_test_cases = []() {
                                                 std::vector<ov::Shape>({{1, 1, 3, 2, 1}})),
                                 ov::element::u8,
                                 ov::test::utils::DEVICE_GPU),
+        spaceToBatchParamsTuple({1, 1, 2, 2},
+                                {0, 0, 0, 0},
+                                {0, 0, 0, 0},
+                                ov::test::static_shapes_to_test_representation(
+                                                std::vector<ov::Shape>({{1, 1, 4, 4}})),
+                                ov::element::boolean,
+                                ov::test::utils::DEVICE_GPU),
+        spaceToBatchParamsTuple({1, 1, 3, 2, 2},
+                                {0, 0, 1, 0, 3},
+                                {0, 0, 2, 0, 0},
+                                ov::test::static_shapes_to_test_representation(
+                                                std::vector<ov::Shape>({{1, 1, 3, 2, 1}})),
+                                ov::element::boolean,
+                                ov::test::utils::DEVICE_GPU),
     };
 };
 

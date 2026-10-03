@@ -28,6 +28,7 @@ std::map<std::vector<ov::Shape>, std::vector<std::vector<int>>> emptyAxesVectors
 };
 
 const std::vector<ov::element::Type> netPrecisions = {
+        ov::element::boolean,
         ov::element::f32,
         ov::element::f16
 };

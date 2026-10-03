@@ -37,10 +37,14 @@ struct ScatterUpdateImplementationManager : public ImplementationManager {
             format::bfwzyx
         };
 
-        static const std::vector<ov::element::Type_t> supported_in_types =
+        static const std::vector<ov::element::Type_t> supported_data_types =
+            {ov::element::boolean, ov::element::f32, ov::element::f16, ov::element::i32, ov::element::i8, ov::element::u8, ov::element::f8e4m3};
+
+        static const std::vector<ov::element::Type_t> supported_indices_types =
             {ov::element::f32, ov::element::f16, ov::element::i32, ov::element::i8, ov::element::u8, ov::element::f8e4m3};
 
         static const std::vector<ov::element::Type_t> supported_out_types = {
+            ov::element::boolean,
             ov::element::f32,
             ov::element::f16,
             ov::element::i32,
@@ -51,6 +55,7 @@ struct ScatterUpdateImplementationManager : public ImplementationManager {
 
         const auto& in0_layout = node.get_input_layout(0);
         const auto& in1_layout = node.get_input_layout(1);
+        const auto& in2_layout = node.get_input_layout(2);
         const auto& out_layout = node.get_output_layout(0);
         if (m_shape_type == shape_types::dynamic_shape) {
             if (!one_of(in0_layout.format, supported_dynamic_fmts) || !one_of(out_layout.format, supported_dynamic_fmts)) {
@@ -62,7 +67,8 @@ struct ScatterUpdateImplementationManager : public ImplementationManager {
             }
         }
 
-        if (!one_of(in0_layout.data_type, supported_in_types) || !one_of(in1_layout.data_type, supported_in_types)) {
+        if (!one_of(in0_layout.data_type, supported_data_types) || !one_of(in1_layout.data_type, supported_indices_types) ||
+            !one_of(in2_layout.data_type, supported_data_types)) {
             return false;
         }
 

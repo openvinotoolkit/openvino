@@ -9,6 +9,7 @@ namespace kernel_selector {
 
 ParamsKey EltwiseKernelRef::GetSupportedKey() const {
     ParamsKey k;
+    k.EnableInputDataType(Datatype::BOOLEAN);
     k.EnableInputDataType(Datatype::F16);
     k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
@@ -29,6 +30,7 @@ ParamsKey EltwiseKernelRef::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::INT32);
     k.EnableOutputDataType(Datatype::UINT32);
     k.EnableOutputDataType(Datatype::INT64);
+    k.EnableOutputDataType(Datatype::BOOLEAN);
     k.EnableDifferentTypes();
     k.EnableAllInputLayout();
     k.EnableAllOutputLayout();

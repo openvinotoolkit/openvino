@@ -206,7 +206,8 @@ std::unique_ptr<primitive_impl> GatherImplementationManager::create_impl(const p
 namespace detail {
 
 attach_gather_impl::attach_gather_impl() {
-    auto dyn_types = {data_types::f32,
+    auto dyn_types = {data_types::boolean,
+                      data_types::f32,
                       data_types::f16,
                       data_types::bf16,
                       data_types::i8,
@@ -229,6 +230,7 @@ attach_gather_impl::attach_gather_impl() {
                                     dyn_formats);
 
     implementation_map<gather>::add(impl_types::ocl, shape_types::static_shape, typed_primitive_impl_ocl<gather>::create<gather_impl>, {
+        std::make_tuple(data_types::boolean, format::fyxb),
         std::make_tuple(data_types::f32, format::fyxb),
         std::make_tuple(data_types::f16, format::fyxb),
         std::make_tuple(data_types::bf16, format::fyxb),
@@ -236,6 +238,7 @@ attach_gather_impl::attach_gather_impl() {
         std::make_tuple(data_types::i8, format::fyxb),
         std::make_tuple(data_types::u8, format::fyxb),
 
+        std::make_tuple(data_types::boolean, format::yxfb),
         std::make_tuple(data_types::f32, format::yxfb),
         std::make_tuple(data_types::f16, format::yxfb),
         std::make_tuple(data_types::bf16, format::yxfb),
@@ -243,6 +246,7 @@ attach_gather_impl::attach_gather_impl() {
         std::make_tuple(data_types::i8, format::yxfb),
         std::make_tuple(data_types::u8, format::yxfb),
 
+        std::make_tuple(data_types::boolean, format::byxf),
         std::make_tuple(data_types::f32, format::byxf),
         std::make_tuple(data_types::f16, format::byxf),
         std::make_tuple(data_types::bf16, format::byxf),
@@ -250,6 +254,7 @@ attach_gather_impl::attach_gather_impl() {
         std::make_tuple(data_types::i8, format::byxf),
         std::make_tuple(data_types::u8, format::byxf),
 
+        std::make_tuple(data_types::boolean, format::bfyx),
         std::make_tuple(data_types::f32, format::bfyx),
         std::make_tuple(data_types::f16, format::bfyx),
         std::make_tuple(data_types::bf16, format::bfyx),
@@ -259,6 +264,7 @@ attach_gather_impl::attach_gather_impl() {
         std::make_tuple(data_types::i4, format::bfyx),
         std::make_tuple(data_types::u4, format::bfyx),
 
+        std::make_tuple(data_types::boolean, format::bfzyx),
         std::make_tuple(data_types::f32, format::bfzyx),
         std::make_tuple(data_types::f16, format::bfzyx),
         std::make_tuple(data_types::bf16, format::bfzyx),
@@ -266,6 +272,7 @@ attach_gather_impl::attach_gather_impl() {
         std::make_tuple(data_types::i8, format::bfzyx),
         std::make_tuple(data_types::u8, format::bfzyx),
 
+        std::make_tuple(data_types::boolean, format::bfwzyx),
         std::make_tuple(data_types::f32, format::bfwzyx),
         std::make_tuple(data_types::f16, format::bfwzyx),
         std::make_tuple(data_types::bf16, format::bfwzyx),

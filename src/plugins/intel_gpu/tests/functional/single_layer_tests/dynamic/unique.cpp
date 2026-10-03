@@ -115,6 +115,7 @@ TEST_P(UniqueLayerDynamicGPUTest, Inference) {
 const std::vector<ov::element::Type> model_types = {
     ov::element::f16,
     ov::element::i32,
+    ov::element::boolean,
 };
 
 std::vector<std::tuple<bool, int>> flat_or_axis{{true, 0}, {false, 0}, {false, 1}, {false, -1}};
