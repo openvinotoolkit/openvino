@@ -5,6 +5,7 @@
 #include "plugin_compiler_adapter.hpp"
 
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "dynamic_graph.hpp"
@@ -80,6 +81,11 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
                                                        const AdapterDescriptor&) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
+    std::optional<MemoryPeakTracker> memoryPeakTracker;
+    if (_logger.level() >= ov::log::Level::INFO) {
+        memoryPeakTracker.emplace();
+    }
+
     _logger.debug("compile start");
     auto [tensor, compatibilityDescriptor] = _compiler->compile(model, config);
     _logger.debug("compile end");
@@ -96,6 +102,10 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 
         // metadata will be obtained in initialze() of DynamicGraph
         _logger.debug("Use dynamicGraph to hold blob for HostCompile mode!");
+        if (memoryPeakTracker) {
+            // Note: Following log is parsed by CI. Take care when modifying it.
+            _logger.info("Compilation memory usage: Peak %lld KB", memoryPeakTracker->get_peak_increase_kb());
+        }
         return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), blobType);
     }
 
@@ -116,6 +126,11 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         }
     } else {
         _logger.warning("No driver is found, zeGraphExt is nullptr, so metadata is empty. Only exports are available");
+    }
+
+    if (memoryPeakTracker) {
+        // Note: Following log is parsed by CI. Take care when modifying it.
+        _logger.info("Compilation memory usage: Peak %lld KB", memoryPeakTracker->get_peak_increase_kb());
     }
 
     return std::make_shared<Graph>(
@@ -142,9 +157,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     _logger.info("SEPARATE_WEIGHTS_VERSION: %s",
                  SEPARATE_WEIGHTS_VERSION::toString(localConfig.get<SEPARATE_WEIGHTS_VERSION>()).c_str());
 
-    int64_t compileModelMemStart = 0;
+    std::optional<MemoryPeakTracker> memoryPeakTracker;
     if (_logger.level() >= ov::log::Level::INFO) {
-        compileModelMemStart = get_peak_memory_usage();
+        memoryPeakTracker.emplace();
     }
 
     std::vector<ov::Tensor> tensorsInits;
@@ -261,12 +276,9 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         break;
     }
 
-    if (_logger.level() >= ov::log::Level::INFO) {
-        auto compileModelMemEnd = get_peak_memory_usage();
-        _logger.debug("Start of compilation memory usage: Peak %lld KB", compileModelMemStart);
-        _logger.debug("End of compilation memory usage: Peak %lld KB", compileModelMemEnd);
+    if (memoryPeakTracker) {
         // Note: Following log is parsed by CI. Take care when modifying it.
-        _logger.info("Compilation memory usage: Peak %lld KB", compileModelMemEnd - compileModelMemStart);
+        _logger.info("Compilation memory usage: Peak %lld KB", memoryPeakTracker->get_peak_increase_kb());
     }
 
     _logger.debug("compile end");
