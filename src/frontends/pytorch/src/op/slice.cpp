@@ -10,12 +10,33 @@
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "openvino/frontend/pytorch/node_context.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert_like.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/reshape.hpp"
+#include "openvino/op/select.hpp"
 #include "utils.hpp"
 
 namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
+
+namespace {
+// Bound to use for an omitted start/end: `forward` when `step` is positive, `backward` when it is
+// negative. Resolved at conversion time if `step` is known, otherwise selected at runtime.
+Output<Node> default_bound(const NodeContext& context, const Output<Node>& step, int forward, int backward) {
+    if (const auto step_const = ov::util::get_constant_from_source(step)) {
+        const auto step_values = step_const->cast_vector<int64_t>();
+        const bool is_backward = step_values.size() == 1 && step_values[0] < 0;
+        return context.mark_node(v0::Constant::create(element::i32, Shape{1}, {is_backward ? backward : forward}));
+    }
+    auto forward_const = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {forward}));
+    auto backward_const = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {backward}));
+    auto zero = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
+    zero = context.mark_node(std::make_shared<v1::ConvertLike>(zero, step));
+    auto is_backward = context.mark_node(std::make_shared<v1::Less>(step, zero));
+    return context.mark_node(std::make_shared<v1::Select>(is_backward, backward_const, forward_const));
+}
+}  // namespace
 
 OutputVector translate_slice_common(const NodeContext& context,
                                     const size_t num_inputs,
@@ -47,7 +68,22 @@ OutputVector translate_slice_common(const NodeContext& context,
     } else {
         PYTORCH_OP_CONVERSION_CHECK(false, "Slice must have either 4 or 5 inputs.");
     }
-    // TODO: support default start/end with negative step
+    ov::Output<ov::Node> step;
+    if (!context.input_is_none(step_idx)) {
+        step = context.get_input(step_idx);
+        if (step.get_partial_shape().rank().is_dynamic() || step.get_partial_shape().rank().get_length() == 0) {
+            step = context.mark_node(std::make_shared<v1::Reshape>(step, dims_1d_shape, false));
+        }
+        if (const auto step_const = ov::util::get_constant_from_source(step)) {
+            step = step_const;
+        }
+    } else {
+        step = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
+    }
+
+    // An omitted start/end means the whole axis, and which end that is depends on the sign of step:
+    // aten::slice.t allows a negative step (e.g. `shape[::-1]` in TorchScript), where the slice starts
+    // at the last element and stops past the first one.
     ov::Output<ov::Node> start;
     if (!context.input_is_none(start_idx)) {
         start = context.get_input(start_idx);
@@ -58,7 +94,7 @@ OutputVector translate_slice_common(const NodeContext& context,
             start = start_const;
         }
     } else {
-        start = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {0}));
+        start = default_bound(context, step, 0, -1);
     }
 
     ov::Output<ov::Node> end;
@@ -73,19 +109,7 @@ OutputVector translate_slice_common(const NodeContext& context,
             end = end_const;
         }
     } else {
-        end = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {INT_MAX}));
-    }
-    ov::Output<ov::Node> step;
-    if (!context.input_is_none(step_idx)) {
-        step = context.get_input(step_idx);
-        if (step.get_partial_shape().rank().is_dynamic() || step.get_partial_shape().rank().get_length() == 0) {
-            step = context.mark_node(std::make_shared<v1::Reshape>(step, dims_1d_shape, false));
-        }
-        if (const auto step_const = ov::util::get_constant_from_source(step)) {
-            step = step_const;
-        }
-    } else {
-        step = context.mark_node(v0::Constant::create(element::i32, Shape{1}, {1}));
+        end = default_bound(context, step, INT_MAX, INT_MIN);
     }
 
     if (const auto complex = as_type_ptr<ComplexTypeMark>(data.get_node_shared_ptr())) {
