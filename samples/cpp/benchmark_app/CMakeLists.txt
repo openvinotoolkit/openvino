@@ -28,6 +28,10 @@ ov_add_sample(NAME ${TARGET_NAME}
 # Required nlohmann_json dependency
 
 if(NOT TARGET nlohmann_json::nlohmann_json)
+    find_package(nlohmann_json QUIET)
+endif()
+
+if(NOT TARGET nlohmann_json::nlohmann_json)
     if(EXISTS "${Samples_SOURCE_DIR}/thirdparty/nlohmann_json")
         # OpenVINO package puts thirdparty to samples dir
         # suppress shadowing names warning
