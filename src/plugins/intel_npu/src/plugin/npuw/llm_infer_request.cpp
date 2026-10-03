@@ -357,6 +357,16 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
         }
     }
 
+    // NOTE: Granite-4.0-h-micro uses no Positional Encoding, it doesn't need it because
+    //       Mamba inherently preserves information about the order of tokens.
+    if (m_prefill_in_ports.find(layer_names::position_ids) == m_prefill_in_ports.end()) {
+        m_no_position_ids = true;
+        for (auto&& [__, variant_ports] : m_generate_variant_in_ports) {
+            OPENVINO_ASSERT(variant_ports.find(layer_names::position_ids) == variant_ports.end(),
+                            "Generate model variant unexpectedly has position_ids port while prefill hasn't!");
+        }
+    }
+
     init_past_name_lists();
 
     m_swa_cache = std::make_unique<SwaKVCacheHelper>(*this, m_npuw_llm_compiled_model->m_swa_window_size);
@@ -691,9 +701,8 @@ void ov::npuw::LLMInferRequest::zero_prefill_staging() {
         uu::fill_tensor_bytes(m_prefill_request->get_tensor(type_ids_port->second), 0u);
     }
     uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask)), 0);
-    // NOTE: Granite-4.0-h-micro uses no Positional Encoding, it doesn't need it because
-    //       Mamba inherently does preserve information about the order of tokens.
-    if (m_prefill_in_ports.find(layer_names::position_ids) != m_prefill_in_ports.end()) {
+
+    if (!m_no_position_ids) {
         uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids)), 0);
     }
 
@@ -1111,9 +1120,7 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                         reinterpret_cast<uint8_t*>(input_ids_in_tensor->data()) + input_ids_in_tensor->get_byte_size() -
                             current_prefill_bytes);
 
-            // NOTE: Granite-4.0-h-micro uses no Positional Encoding, it doesn't need it because
-            //       Mamba inherently does preserve information about the order of tokens.
-            if (m_prefill_in_ports.find(layer_names::position_ids) != m_prefill_in_ports.end()) {
+            if (!m_no_position_ids) {
                 // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni, Qwen3.5 VL use 3D
                 // position_ids [3, BATCH, SEQ_LEN] Copy postion ids with considering the 3D position_ids The caller
                 // tensor is delta-relative during a continued prefill.
@@ -1294,9 +1301,7 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
             util::copy_to_right(token_type_ids, padded_token_type_ids);
         }
 
-        // NOTE: Granite-4.0-h-micro uses no Positional Encoding, it doesn't need it because
-        //       Mamba inherently does preserve information about the order of tokens.
-        if (m_prefill_in_ports.find(layer_names::position_ids) != m_prefill_in_ports.end()) {
+        if (!m_no_position_ids) {
             auto padded_position_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
             ov::npuw::util::pad_position_ids(padded_position_ids, position_ids);
         }
@@ -1557,9 +1562,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             uu::fill_tensor_bytes(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name)), 0u);
             uu::fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask)),
                                      0);
-            // NOTE: Granite-4.0-h-micro uses no Positional Encoding, it doesn't need it because
-            //       Mamba inherently does preserve information about the order of tokens.
-            if (m_kvcache_in_ports.find(layer_names::position_ids) != m_kvcache_in_ports.end()) {
+            if (!m_no_position_ids) {
                 uu::fill_tensor<int64_t>(
                     m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids)),
                     0);
@@ -1612,9 +1615,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         }
         std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - input_tokens_len, input_tokens_len, 1);
 
-        // NOTE: Granite-4.0-h-micro uses no Positional Encoding, it doesn't need it because
-        //       Mamba inherently does preserve information about the order of tokens.
-        if (m_kvcache_in_ports.find(layer_names::position_ids) != m_kvcache_in_ports.end()) {
+        if (!m_no_position_ids) {
             auto kv_pos_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids));
             ov::npuw::util::pad_position_ids(kv_pos_ids, position_ids);
         }
