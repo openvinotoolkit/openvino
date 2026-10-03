@@ -14,16 +14,18 @@ class TestInstanceNorm(PytorchLayerTest):
         shape = shape5d[:ndim]
         return (self.random.randn(*shape),)
 
-    def create_model(self, weights=False, bias=False, mean_var=False, eps=1e-05):
+    def create_model(self, weights=False, bias=False, mean_var=False, use_input_stats=None, eps=1e-05):
         import torch
 
         class aten_instance_norm(torch.nn.Module):
-            def __init__(self, rng, weights=False, bias=False, mean_var=False, eps=1e-05):
+            def __init__(self, rng, weights=False, bias=False, mean_var=False, use_input_stats=None, eps=1e-05):
                 super().__init__()
                 weights_shape = (6, )
                 self.weight = rng.torch_randn(*weights_shape) if weights else None
                 self.bias = None
-                self.use_input_stats = not mean_var
+                # By default normalize with running statistics only when they are provided;
+                # use_input_stats can be forced independently to exercise the corners below.
+                self.use_input_stats = (not mean_var) if use_input_stats is None else use_input_stats
                 if bias:
                     self.bias = rng.torch_randn(*weights_shape)
                 self.mean = None
@@ -38,7 +40,7 @@ class TestInstanceNorm(PytorchLayerTest):
                 return torch.instance_norm(x, self.weight, self.bias, self.mean, self.var,  self.use_input_stats, 0.1, self.eps, False)
 
 
-        return aten_instance_norm(self.random, weights, bias, mean_var, eps), "aten::instance_norm"
+        return aten_instance_norm(self.random, weights, bias, mean_var, use_input_stats, eps), "aten::instance_norm"
 
     @pytest.mark.parametrize("params",
                              [
@@ -51,7 +53,12 @@ class TestInstanceNorm(PytorchLayerTest):
                                  {"weights": False, 'bias': True, "mean_var": True},
                                  {"weights": False, 'bias': False, "mean_var": True},
                                  {"weights": False, 'bias': False,
-                                  "mean_var": True, "eps": 1.5}
+                                  "mean_var": True, "eps": 1.5},
+                                 # use_input_stats=True WITH running stats provided -> running stats must be IGNORED
+                                 {"weights": True, 'bias': True, "mean_var": True, "use_input_stats": True},
+                                 # use_input_stats=False WITH running stats provided -> running stats used
+                                 {"weights": True, 'bias': True, "mean_var": True, "use_input_stats": False},
+                                 {"weights": True, 'bias': False, "mean_var": True, "use_input_stats": True}
                              ])
     @pytest.mark.parametrize("kwargs_to_prepare_input", [
         {"ndim": 3},
