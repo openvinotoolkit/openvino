@@ -84,7 +84,6 @@ protected:
         auto power = std::make_shared<ov::op::v1::Power>(parameter, exponent);
         ov::ParameterVector parameters{parameter};
         function = create_ov_model(ov::element::f32, parameters, power, "PowerStaticRvvLmul");
-        configuration.insert(ov::intel_cpu::snippets_mode(ov::intel_cpu::SnippetsMode::IGNORE_CALLBACK));
     }
 
     void generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) override {

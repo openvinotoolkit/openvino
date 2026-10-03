@@ -3136,7 +3136,9 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         const auto vector_regs_count = get_max_vecs_count();
         const auto scalar_buffer_offset = vector_regs_offset + vector_regs_count * get_vec_length();
         const auto scalar_buffer_size = 8 * get_vec_length();
-        const auto frame_size = rnd_up(scalar_buffer_offset + scalar_buffer_size, sp_alignment);
+        const auto loop_counter_offset = scalar_buffer_offset + scalar_buffer_size;
+        const auto loop_pointer_offset = loop_counter_offset + get_gpr_length();
+        const auto frame_size = rnd_up(loop_pointer_offset + get_gpr_length(), sp_alignment);
 
         utils::sub_sp(*h, frame_size);
         utils::save_vector_state(*h, t0, t1, 0, get_gpr_length());
@@ -3151,42 +3153,55 @@ void jit_power_static_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
         utils::save_vregs(*h, t0, t1, vector_regs_offset, vector_regs);
         utils::restore_vector_state(*h, t0, t1, 0, get_gpr_length());
 
-        const auto max_lanes = scalar_buffer_size / sizeof(float);
         Reg vl_reg(aux_gpr_idxs[1]);
         h->uni_li(t0, scalar_buffer_offset);
         h->add(t0, sp, t0);
         h->vse32_v(dst, t0);
 
-        for (size_t elem = 0; elem < max_lanes; ++elem) {
-            Xbyak_riscv::Label skip;
+        h->uni_li(t0, loop_counter_offset);
+        h->add(t0, sp, t0);
+        h->ld(vl_reg, sp, 0);
+        h->sd(vl_reg, t0, 0);
 
-            h->ld(vl_reg, sp, 0);
-            if (elem != 0) {
-                if (elem <= 2047) {
-                    h->addi(vl_reg, vl_reg, -static_cast<int>(elem));
-                } else {
-                    h->uni_li(t1, elem);
-                    h->sub(vl_reg, vl_reg, t1);
-                }
-            }
-            h->blez(vl_reg, skip);
+        h->uni_li(t0, loop_pointer_offset);
+        h->add(t0, sp, t0);
+        h->uni_li(t1, scalar_buffer_offset);
+        h->add(t1, sp, t1);
+        h->sd(t1, t0, 0);
 
-            const auto offset = scalar_buffer_offset + elem * sizeof(float);
-            h->uni_li(t0, offset);
-            h->add(t0, sp, t0);
-            h->flw(fa0, t0, 0);
-            h->ld(func_reg, sp, static_cast<int32_t>(vector_state_bytes));
-            h->ld(p_table, sp, static_cast<int32_t>(vector_state_bytes + get_gpr_length()));
-            load_table_val("power", fa1);
+        Xbyak_riscv::Label pow_loop;
+        Xbyak_riscv::Label pow_done;
+        h->L(pow_loop);
 
-            h->jalr(ra, func_reg);
+        h->uni_li(t0, loop_counter_offset);
+        h->add(t0, sp, t0);
+        h->ld(vl_reg, t0, 0);
+        h->blez(vl_reg, pow_done);
 
-            h->uni_li(t0, offset);
-            h->add(t0, sp, t0);
-            h->fsw(fa0, t0, 0);
+        h->uni_li(t0, loop_pointer_offset);
+        h->add(t0, sp, t0);
+        h->ld(t1, t0, 0);
+        h->flw(fa0, t1, 0);
+        h->ld(func_reg, sp, static_cast<int32_t>(vector_state_bytes));
+        h->ld(p_table, sp, static_cast<int32_t>(vector_state_bytes + get_gpr_length()));
+        load_table_val("power", fa1);
 
-            h->L(skip);
-        }
+        h->jalr(ra, func_reg);
+
+        h->uni_li(t0, loop_pointer_offset);
+        h->add(t0, sp, t0);
+        h->ld(t1, t0, 0);
+        h->fsw(fa0, t1, 0);
+        h->addi(t1, t1, sizeof(float));
+        h->sd(t1, t0, 0);
+
+        h->uni_li(t0, loop_counter_offset);
+        h->add(t0, sp, t0);
+        h->ld(vl_reg, t0, 0);
+        h->addi(vl_reg, vl_reg, -1);
+        h->sd(vl_reg, t0, 0);
+        h->jal(Xbyak_riscv::zero, pow_loop);
+        h->L(pow_done);
 
         utils::restore_vregs(*h, t0, t1, vector_regs_offset, vector_regs);
         utils::restore_vector_state(*h, t0, t1, 0, get_gpr_length());
