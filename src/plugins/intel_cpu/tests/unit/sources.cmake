@@ -3,12 +3,14 @@
 #
 
 set(CPU_UNIT_TESTS_SRCS
+    ${CMAKE_CURRENT_LIST_DIR}/async_infer_request_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/caseless_tests.cpp
     ${CMAKE_CURRENT_LIST_DIR}/cpu_tensor_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/cpu_tensor_test_ext.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dnnl_memory_desc_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dnnl_memory_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/dnnl_zero_dims_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/multi_app_thread_sync_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/pa_kv_reorder_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/rt_cache.cpp
     ${CMAKE_CURRENT_LIST_DIR}/graph/dummy_node.hpp
