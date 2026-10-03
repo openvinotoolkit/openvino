@@ -32,16 +32,6 @@ pass::ConvertMulticlassNmsToMulticlassNmsIE::ConvertMulticlassNmsToMulticlassNms
 
         const auto new_args = nms->input_values();
 
-        // if input shape is dynamic force the output shape must be dynamic too
-        if (nms->get_input_partial_shape(0).is_dynamic() || nms->get_input_partial_shape(1).is_dynamic()) {
-            return false;
-        }
-        if (new_args.size() > 2) {
-            if (nms->get_input_partial_shape(2).is_dynamic()) {
-                return false;
-            }
-        }
-
         // vector of new openvino operations
         NodeVector new_ops;
         auto attrs = nms->get_attrs();
