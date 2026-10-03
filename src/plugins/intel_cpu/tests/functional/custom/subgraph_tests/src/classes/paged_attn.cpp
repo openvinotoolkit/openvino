@@ -633,6 +633,11 @@ void PagedAttnTestBase::prepare() {
     compile_model();
     inferRequest = compiledModel.create_infer_request();
     ASSERT_TRUE(inferRequest);
+    auto runtime_model = compiledModel.get_runtime_model();
+    ASSERT_NE(runtime_model, nullptr);
+    if (runtime_model->has_rt_info("paged_attention_block_size")) {
+        EXPECT_EQ(runtime_model->get_rt_info<size_t>("paged_attention_block_size"), 32);
+    }
 }
 void PagedAttnTestBase::reset() {
     for (auto&& state : inferRequest.query_state()) {
