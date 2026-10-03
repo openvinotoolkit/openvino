@@ -255,8 +255,10 @@ def scaled_dot_product_attention(
     """Return a node which implements Scaled Dot Product Attention.
 
     :param query: Query tensor of shape [N, ..., L, E] and floating-point datatype.
-    :param key: Key tensor of shape [N, ..., S, E] and floating-point datatype.
-    :param value: Value tensor of shape [N, ..., S, Ev] and floating-point datatype.
+    :param key: Key tensor of shape [N, ..., S, E] and floating-point datatype, or i8, u8, i4 or u4
+                when it holds quantization codes.
+    :param value: Value tensor of shape [N, ..., S, Ev] and floating-point datatype, or i8, u8, i4
+                  or u4 when it holds quantization codes.
     :param attention_mask: Optional attention mask tensor of shape [N, ..., L, S] or scalar float type zero value.
                            Refer to the operation specification for a complete description.
     :param scale: Optional alternative scale, a floating-point type scalar.
