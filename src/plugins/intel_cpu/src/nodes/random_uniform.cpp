@@ -162,7 +162,7 @@ void RandomUniform::createPrimitive() {
 
     prepareGeneratorKernel();
 
-    if (m_const_inputs[SHAPE]) {
+    if (!isDynamicNode()) {
         Node::createPrimitive();
     }
 }
