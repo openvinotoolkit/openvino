@@ -56,6 +56,8 @@ ParamsKey ArgMaxMinKernelTopKRadix::GetSupportedKey() const {
     k.EnableAllOutputDataType();
     k.EnableInputLayout(DataLayout::bfyx);
     k.EnableOutputLayout(DataLayout::bfyx);
+    k.EnableInputLayout(DataLayout::byxf);
+    k.EnableOutputLayout(DataLayout::byxf);
     k.EnableInputLayout(DataLayout::bfzyx);
     k.EnableOutputLayout(DataLayout::bfzyx);
     k.EnableArgMaxMinAxis(ArgMaxMinAxis::BATCH);

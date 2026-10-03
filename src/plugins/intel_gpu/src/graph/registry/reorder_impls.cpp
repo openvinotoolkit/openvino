@@ -29,6 +29,7 @@ static std::vector<format> supported_dyn_formats = {
     format::bfyx,
     format::bfzyx,
     format::bfwzyx,
+    format::byxf,
     format::b_fs_yx_fsv4,
     format::b_fs_yx_fsv16,
     format::b_fs_yx_fsv32,

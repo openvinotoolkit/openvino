@@ -1102,10 +1102,9 @@ TEST(arg_max_min_test, check_second_output_data_type) {
 // Conditions: f16/f32 input, SORT_VALUES, N >= 2, N <= 65535, SLM fits
 // =============================================================================
 
-// Helper: create ExecutionConfig that forces the radix TopK kernel
-inline ExecutionConfig get_radix_topk_config(const cldnn::engine& engine) {
+inline ExecutionConfig get_radix_topk_config(const cldnn::engine& engine, format::type fmt = format::bfyx) {
     auto config = get_test_default_config(engine);
-    ov::intel_gpu::ImplementationDesc radix_impl = {format::bfyx, "arg_max_min_topk_radix", impl_types::ocl};
+    ov::intel_gpu::ImplementationDesc radix_impl = {fmt, "arg_max_min_topk_radix", impl_types::ocl};
     config.set_property(ov::intel_gpu::force_implementations(
         ov::intel_gpu::ImplForcingMap{{"arg_max", radix_impl}}));
     return config;
@@ -1500,6 +1499,101 @@ TYPED_TEST(arg_max_gpu_topk_radix, max_n100k_k256_axis_feature) {
         ASSERT_NEAR(static_cast<float>(val_ptr[k]), 100.0f + static_cast<float>(top_k - k),
                     topk_radix_tolerance<T>()) << "value mismatch at k=" << k;
         ASSERT_EQ(static_cast<int>(idx_ptr[k]), k * stride) << "index mismatch at k=" << k;
+    }
+}
+
+
+namespace {
+inline std::vector<float> make_radix_topk_input(int batch_num,
+                                                int feature_num,
+                                                int y_size,
+                                                int x_size,
+                                                int top_k) {
+    std::vector<float> values(static_cast<size_t>(batch_num) * feature_num * y_size * x_size);
+
+    for (int b = 0; b < batch_num; ++b) {
+        for (int f = 0; f < feature_num; ++f) {
+            for (int y = 0; y < y_size; ++y) {
+                for (int x = 0; x < x_size; ++x) {
+                    const size_t offset = ((static_cast<size_t>(b) * feature_num + f) * y_size + y) * x_size + x;
+                    values[offset] = f < top_k ? 100.0f : 0.0f;
+                }
+            }
+        }
+    }
+
+    return values;
+}
+
+template <typename T>
+void run_radix_topk_case(cldnn::engine& engine,
+                         const std::vector<float>& input_vec,
+                         data_types dt,
+                         int batch_num,
+                         int feature_num,
+                         int y_size,
+                         int x_size,
+                         int top_k,
+                         format::type fmt,
+                         std::vector<float>& result) {
+    const size_t out_size = static_cast<size_t>(batch_num) * top_k * y_size * x_size;
+    auto input = engine.allocate_memory({dt, format::bfyx, {batch_num, feature_num, x_size, y_size}});
+    set_values(input, topk_radix_typed_vec<T>(input_vec));
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(reorder("input_byxf", input_info("input"), format::byxf, dt));
+    topology.add(arg_max_min("arg_max", {input_info("input_byxf")},
+                             ov::op::TopKMode::MAX, top_k, 1,
+                             ov::op::TopKSortType::SORT_VALUES, true, false, dt));
+    topology.add(reorder("plane_arg_max", input_info("arg_max"), format::bfyx, dt));
+
+    network net(engine, topology, get_radix_topk_config(engine, fmt));
+    ASSERT_NO_FATAL_FAILURE(assert_radix_topk_selected(net));
+    net.set_input_data("input", input);
+    auto outputs = net.execute();
+
+    auto output = outputs.at("plane_arg_max").get_memory();
+    cldnn::mem_lock<T, mem_lock_type::read> out_ptr(output, get_test_stream());
+
+    result.resize(out_size);
+    for (size_t i = 0; i < out_size; i++)
+        result[i] = static_cast<float>(out_ptr[i]);
+}
+}  // namespace
+
+TYPED_TEST(arg_max_gpu_topk_radix, byxf_matches_bfyx_reference) {
+    using T = TypeParam;
+    const data_types dt = ov::element::from<T>();
+    auto& engine = get_test_engine();
+
+    const int batch_num = 1, feature_num = 384, y_size = 2, x_size = 3;
+    const int top_k = 6;
+
+    const std::vector<float> input_vec = make_radix_topk_input(batch_num, feature_num, y_size, x_size, top_k);
+
+    std::vector<float> byxf_result;
+    run_radix_topk_case<T>(engine,
+                           input_vec,
+                           dt,
+                           batch_num,
+                           feature_num,
+                           y_size,
+                           x_size,
+                           top_k,
+                           format::byxf,
+                           byxf_result);
+
+    for (int b = 0; b < batch_num; b++) {
+        for (int y = 0; y < y_size; y++) {
+            for (int x = 0; x < x_size; x++) {
+                for (int k = 0; k < top_k; k++) {
+                    const size_t out_idx = ((static_cast<size_t>(b) * top_k + k) * y_size + y) * x_size + x;
+                    ASSERT_NEAR(byxf_result[out_idx], 100.0f, topk_radix_tolerance<T>())
+                        << "value mismatch at b=" << b << " y=" << y << " x=" << x << " k=" << k;
+                }
+            }
+        }
     }
 }
 

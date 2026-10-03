@@ -1508,7 +1508,22 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                                                                               cldnn::softmax::type_id(),
                                                                               cldnn::reduce::type_id(),
                                                                               cldnn::reorder::type_id(),
-                                                                              cldnn::eltwise::type_id()};
+                                                                              cldnn::eltwise::type_id(),
+                                                                              cldnn::arg_max_min::type_id(),
+                                                                              cldnn::broadcast::type_id(),
+                                                                              cldnn::concatenation::type_id(),
+                                                                              cldnn::crop::type_id(),
+                                                                              cldnn::deconvolution::type_id(),
+                                                                              cldnn::gather::type_id(),
+                                                                              cldnn::non_max_suppression::type_id(),
+                                                                              cldnn::non_max_suppression_gather::type_id(),
+                                                                              cldnn::pooling::type_id(),
+                                                                              cldnn::range::type_id(),
+                                                                              cldnn::reshape::type_id(),
+                                                                              cldnn::select::type_id(),
+                                                                              cldnn::shape_of::type_id(),
+                                                                              cldnn::strided_slice::type_id(),
+                                                                              cldnn::tile::type_id()};
 #endif
     for (const auto& node : get_processing_order()) {
         auto &prim = *node;
@@ -2184,6 +2199,7 @@ void program::load(cldnn::BinaryInputBuffer& ib,
     size_t state_initializers_size;
     ib >> state_initializers_size;
     state_initializers.clear();
+
     for (size_t i = 0; i < state_initializers_size; i++) {
         std::string variable_id;
         std::vector<primitive_id> initializers;
@@ -2199,4 +2215,3 @@ void program::load(cldnn::BinaryInputBuffer& ib,
         }
     }
 }
-

@@ -139,6 +139,7 @@ attach_arg_max_min_impl::attach_arg_max_min_impl() {
 
     auto formats = {
         format::bfyx,
+        format::byxf,
         format::yxfb,
         format::b_fs_yx_fsv16,
         format::b_fs_yx_fsv32,
