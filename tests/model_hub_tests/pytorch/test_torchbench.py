@@ -56,6 +56,8 @@ class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
         from torchbenchmark import load_model_by_name
         benchmark = load_model_by_name(model_name)(test="eval", device="cpu")
         model, self.example = benchmark.get_module()
+        if model_name in ("hf_Whisper", "hf_distil_whisper"):
+            model.config.return_dict = False
         if model_name in ("BERT_pytorch", "yolov3"):
             model(*self.example)
         return model
