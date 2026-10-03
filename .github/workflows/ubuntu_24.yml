@@ -104,6 +104,7 @@ jobs:
       image: ${{ fromJSON(needs.docker.outputs.images).ov_build.ubuntu_24_04_x64 }}
       affected-components: ${{ needs.smart_ci.outputs.affected_components }}
       event-name: ${{ github.event_name }}
+      compiler-cache: 'ccache'
       os: 'ubuntu_24_04'
       build-rpm-packages: false
       build-js: false

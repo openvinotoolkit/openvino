@@ -74,9 +74,13 @@ jobs:
       CMAKE_GENERATOR: 'Ninja Multi-Config' # Visual Studio does not seem to work with `ccache`. Ninja is the generator supported by `ccache`
       CMAKE_CXX_COMPILER_LAUNCHER: ccache
       CMAKE_C_COMPILER_LAUNCHER: ccache
-      CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows2022_x86_64_itt\\${{ github.base_ref || github.ref_name }}"
+      # Entries are content-addressed, so a single directory is shared by all branches
+      CCACHE_REMOTE_STORAGE: "file:///C:/mount/caches/ccache_remote/windows2022_x86_64_itt|update-mtime=true"
       CCACHE_DIR: ${{ github.workspace }}\\ccache
-      CCACHE_MAXSIZE: 3G
+      CCACHE_TEMPDIR: ${{ github.workspace }}\\ccache_temp
+      CCACHE_MAXSIZE: 100G
+      # Hash paths relative to the workspace so entries are reusable across runners and runs
+      CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_SLOPPINESS: pch_defines,time_macros
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       INSTALL_DIR: "${{ github.workspace }}\\openvino_install"
@@ -135,17 +139,6 @@ jobs:
       #
       # Build
       #
-
-      - name: Setup ccache
-        uses: ./openvino/.github/actions/cache
-        with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
-          path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-ccache
 
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0

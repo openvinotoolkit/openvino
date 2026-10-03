@@ -99,6 +99,11 @@ on:
         description: 'Number of threads for parallel build (hard-coded; nproc and NUMBER_OF_PROCESSORS do not respect container CPU limits)'
         type: string
         required: true
+      compiler-cache:
+        description: 'Compiler cache to use: "sccache" (Azure Blob Storage) or "ccache" (shared drive remote storage)'
+        type: string
+        required: false
+        default: 'sccache'
 
 permissions: read-all
 
@@ -125,8 +130,8 @@ jobs:
     env:
       DEBIAN_FRONTEND: noninteractive # to prevent apt-get from waiting user input
       CMAKE_BUILD_TYPE: 'Release'
-      CMAKE_CXX_COMPILER_LAUNCHER: sccache
-      CMAKE_C_COMPILER_LAUNCHER: sccache
+      CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.compiler-cache }}
+      CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.compiler-cache }}
       SCCACHE_IGNORE_SERVER_IO_ERROR: 1
       SCCACHE_SERVER_PORT: 35555
       SCCACHE_ERROR_LOG: ${{ github.workspace }}/sccache_log.txt
@@ -140,6 +145,14 @@ jobs:
       DEVELOPER_PACKAGE_DIR: ${{ github.workspace }}/openvino/developer_package_install
       BUILD_DIR: ${{ github.workspace }}/openvino/openvino_build
       SCCACHE_AZURE_KEY_PREFIX: ${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}_Release
+      # Entries are content-addressed, so a single directory is shared by all branches
+      CCACHE_REMOTE_STORAGE: "file:///mount/caches/ccache/remote/${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}_Release|umask=002|update-mtime=true"
+      CCACHE_DIR: ${{ github.workspace }}/ccache
+      CCACHE_TEMPDIR: ${{ github.workspace }}/ccache_temp
+      CCACHE_MAXSIZE: 100G
+      # Hash paths relative to the workspace so entries are reusable across runners and runs
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_SLOPPINESS: pch_defines,time_macros
       ARTIFACTS_SHARE: "/mount/build-artifacts"
       MANIFEST_PATH: '${{ github.workspace }}/openvino/manifest.yml'
       PRODUCT_TYPE: public_linux_${{ inputs.os }}_${{ inputs.arch }}${{ inputs.build-variant && format('_{0}', inputs.build-variant) || '' }}_release
@@ -151,6 +164,7 @@ jobs:
       CMAKE_BUILD_PARALLEL_LEVEL: ${{ inputs.cmake-build-parallel-level }}
     steps:
       - name: Append the environment variable - load SCCACHE_AZURE_CONNECTION_STRING from file
+        if: ${{ inputs.compiler-cache == 'sccache' }}
         shell: bash
         run: |
           SCCACHE_AZURE_CONNECTION_STRING="$(cat /secrets/sccache/connection-string)"
@@ -251,15 +265,29 @@ jobs:
         env:
           CMAKE_OPTIONS: ${{ inputs.cmake-options }} -DENABLE_SAMPLES=${{ inputs.build-samples && 'ON' || 'OFF' }}
 
-      - name: Clean sccache stats
-        run: ${SCCACHE_PATH} --zero-stats
+      - name: Clean compiler cache stats
+        run: |
+          if [[ "${COMPILER_CACHE}" == "sccache" ]]; then
+            ${SCCACHE_PATH} --zero-stats
+          else
+            ccache --zero-stats
+          fi
+        env:
+          COMPILER_CACHE: ${{ inputs.compiler-cache }}
 
       - name: Cmake build - OpenVINO
         id: cmake_build_openvino
         run: cmake --build ${BUILD_DIR} --parallel ${CMAKE_BUILD_PARALLEL_LEVEL} --config ${{ env.CMAKE_BUILD_TYPE }} -- --quiet
 
-      - name: Show sccache stats
-        run: ${SCCACHE_PATH} --show-stats
+      - name: Show compiler cache stats
+        run: |
+          if [[ "${COMPILER_CACHE}" == "sccache" ]]; then
+            ${SCCACHE_PATH} --show-stats
+          else
+            ccache --show-stats
+          fi
+        env:
+          COMPILER_CACHE: ${{ inputs.compiler-cache }}
 
       - name: Cmake install - OpenVINO
         run: |

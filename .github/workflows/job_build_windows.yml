@@ -58,9 +58,13 @@ jobs:
       CMAKE_BUILD_TYPE: ${{ inputs.build-type }}
       CMAKE_CXX_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
       CMAKE_C_COMPILER_LAUNCHER: ${{ inputs.build-type != 'Debug' && 'ccache' || '' }}
-      CCACHE_REMOTE_DIR: "C:\\mount\\caches\\ccache\\windows${{ inputs.build-variant }}_x86_64_${{ inputs.build-type }}\\${{ inputs.target-branch }}"
+      # Entries are content-addressed, so a single directory is shared by all branches
+      CCACHE_REMOTE_STORAGE: "file:///C:/mount/caches/ccache/remote/windows_${{ inputs.build-variant }}_x86_64_${{ inputs.build-type }}|update-mtime=true"
       CCACHE_DIR: ${{ github.workspace }}\\ccache
-      CCACHE_MAXSIZE: 3G
+      CCACHE_TEMPDIR: ${{ github.workspace }}\\ccache_temp
+      CCACHE_MAXSIZE: 100G
+      # Hash paths relative to the workspace so entries are reusable across runners and runs
+      CCACHE_BASEDIR: ${{ github.workspace }}
       CCACHE_SLOPPINESS: pch_defines,time_macros
       OPENVINO_REPO: "${{ github.workspace }}\\openvino"
       OPENVINO_CONTRIB_REPO: "${{ github.workspace }}\\openvino_contrib"
@@ -154,18 +158,6 @@ jobs:
       #
       # Build
       #
-
-      - name: Setup ccache
-        uses: ./openvino/.github/actions/cache
-        if: ${{ inputs.build-type != 'Debug' }}
-        with:
-          save-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cleanup-always: ${{ github.event_name == 'push' && 'true' || 'false' }}
-          cache-path: ${{ env.CCACHE_REMOTE_DIR }}
-          path: ${{ env.CCACHE_DIR }}
-          key: ${{ runner.os }}-${{ runner.arch }}-ccache-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-${{ runner.arch }}-ccache
 
       - name: Configure Developer Command Prompt for Microsoft Visual C++
         uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
