@@ -13,6 +13,7 @@
 #include "logging.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/runtime/icompiled_model.hpp"
 #include "openvino/runtime/iplugin.hpp"
 #include "openvino/runtime/itensor.hpp"
 #include "openvino/runtime/so_ptr.hpp"
@@ -35,6 +36,9 @@ ov::Tensor tensor_from_const(const std::shared_ptr<ov::Node>& node);
 ov::Tensor copy_tensor_from_const(const std::shared_ptr<ov::Node>& node);
 
 bool starts_with(const std::string& str, const std::string& prefix);
+
+// True if the compiled model reports `name` as a RW entry of ov::supported_properties
+bool is_mutable_property(const ov::SoPtr<ov::ICompiledModel>& compiled_model, const std::string& name);
 
 // Shared by the attention/pyramid_attention/host_flash_attention runtime selectors:
 // matches a "position_ids" input of a supported shape - flat [seq_len], regular
