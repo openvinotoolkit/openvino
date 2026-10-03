@@ -102,8 +102,24 @@ static void remove_requires_precision_conversion_attribute(const std::shared_ptr
     }
 }
 
+ov::pass::ConstantFolding::Observer::~Observer() = default;
+
 bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& model) {
     RUN_ON_MODEL_SCOPE(ConstantFolding);
+
+    const auto observer = get_pass_config()->get_pass_extension<ConstantFolding, Observer>();
+    if (observer) {
+        observer->on_pass_begin(model);
+    }
+    struct ObserverGuard {
+        std::shared_ptr<Observer> observer;
+        std::shared_ptr<ov::Model> model;
+        ~ObserverGuard() {
+            if (observer) {
+                observer->on_pass_end(model);
+            }
+        }
+    } observer_guard{observer, model};
 
     bool rewritten = pre_calculated_values_folding(model);
 
@@ -113,6 +129,9 @@ bool ov::pass::ConstantFolding::run_on_model(const std::shared_ptr<ov::Model>& m
     for (size_t n = 0; n < nodes.size(); ++n) {
         auto original_node = std::move(nodes[n]);
         auto node = original_node;
+        if (observer) {
+            observer->before_ordered_node(model, original_node);
+        }
         if (!original_node->can_constant_fold(original_node->input_values())) {
             if (auto sub_graph_node = ov::as_type_ptr<ov::op::util::MultiSubGraphOp>(node)) {
                 // recursively constant fold operators containing subgraphs (ie: TensorIterator, Loop)
@@ -201,6 +220,7 @@ void ov::pass::ConstantFolding::copy_runtime_info_from_input_values(const std::s
 }
 
 bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_ptr<ov::Model>& model) {
+    const auto observer = get_pass_config()->get_pass_extension<ConstantFolding, Observer>();
     // IsOutputNodeFoldable is_output_foldable;
     // To avoid excess graph traversals we have to manually propagate DisableConstantFolding with some
     // temporary attribute which indicates that the node which is marked with this attribute can't be folded because
@@ -209,6 +229,7 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
         const auto& input_values = node->input_values();
         bool can_be_folded;
         bool node_has_disabled_constant_folding = constant_folding_is_disabled(node);
+        const bool defer = observer && observer->defer_pre_calculated_values(model, node);
 
         // During constant folding process, current node's input precision may not match
         // the node's original input precision. After we removed evaluates for some types (like f16, bf16)
@@ -216,11 +237,11 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
         // become an input to a node that's not constfoldable. Then we need to convert that constant back to
         // that input's original precision.
         util::save_original_input_precisions(node);
-        if (!node_has_disabled_constant_folding && util::node_requires_precision_conversion(node.get())) {
+        if (!defer && !node_has_disabled_constant_folding && util::node_requires_precision_conversion(node.get())) {
             mark_node_requires_precision_conversion(node);
         }
 
-        if (node_has_disabled_constant_folding) {
+        if (defer || node_has_disabled_constant_folding) {
             can_be_folded = false;
         } else if (is_type<op::util::ShapeOfBase>(node)) {
             // In case if node is ShapeOf operation we stop propagation of can_be_folded attribute. We have to limit
@@ -256,8 +277,9 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
         visited.insert(curr_node);
 
         for (auto& output : curr_node->input_values()) {
-            if (is_output_foldable(output) && output.get_tensor().has_and_set_bound()) {
-                auto input_node = output.get_node_shared_ptr();
+            auto input_node = output.get_node_shared_ptr();
+            const bool defer = observer && observer->defer_pre_calculated_values(model, input_node);
+            if (is_output_foldable(output) && !defer && output.get_tensor().has_and_set_bound()) {
                 const auto& lower = output.get_tensor().get_lower_value();
                 auto replacement =
                     std::make_shared<ov::op::v0::Constant>(lower.get_element_type(), lower.get_shape(), lower.data());
@@ -271,9 +293,8 @@ bool ov::pass::ConstantFolding::pre_calculated_values_folding(const std::shared_
 
                     rewritten = true;
                 }
-            } else {
+            } else if (!defer) {
                 // continue searching
-                const auto& input_node = output.get_node_shared_ptr();
                 nodes.push_front(input_node);
             }
         }

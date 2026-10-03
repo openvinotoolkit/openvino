@@ -107,6 +107,26 @@ void Extension::hint_evict(ov::op::v0::Constant& constant) noexcept {
     }
 }
 
+void Extension::hint_prefetch_async(const ov::op::v0::Constant& constant) noexcept {
+    if (constant.m_data) {
+        try {
+            constant.m_data->hint_prefetch_async();
+        } catch (...) {
+            // Prefetching is only an optimization hint and must not affect compilation correctness.
+        }
+    }
+}
+
+void Extension::wait_prefetch(const ov::op::v0::Constant& constant) noexcept {
+    if (constant.m_data) {
+        constant.m_data->wait_prefetch();
+    }
+}
+
+bool Extension::supports_async_prefetch(const ov::op::v0::Constant& constant) noexcept {
+    return constant.m_data && constant.m_data->supports_async_prefetch();
+}
+
 std::shared_ptr<ov::AlignedBuffer> get_source_buffer(const Context& shared_context, const DataID source_id) {
     const auto& weights = shared_context.m_cache_sources;
     if (auto weight_it = weights.find(source_id); weight_it != weights.end()) {

@@ -77,11 +77,26 @@ public:
     /// \brief Ensures the buffer is available and populated with actual data.
     virtual void hint_prefetch() const;
 
+    /// \brief Starts populating the buffer in the background and returns immediately.
+    virtual void hint_prefetch_async() const;
+
+    /// \brief Waits for background prefetch work intersecting this buffer.
+    virtual void wait_prefetch() const noexcept;
+
+    /// \brief Reports whether the buffer ultimately refers to mmap-backed storage.
+    virtual bool supports_async_prefetch() const noexcept;
+
 protected:
     virtual void hint_evict(size_t offset, size_t size) noexcept;
     static void invoke_evict(AlignedBuffer& buffer, size_t offset, size_t size) noexcept;
 
     static void invoke_hint_prefetch(const AlignedBuffer& buffer);
+
+    virtual void hint_prefetch_async(size_t offset, size_t size) const;
+    static void invoke_hint_prefetch_async(const AlignedBuffer& buffer, size_t offset, size_t size);
+
+    virtual void wait_prefetch(size_t offset, size_t size) const noexcept;
+    static void invoke_wait_prefetch(const AlignedBuffer& buffer, size_t offset, size_t size) noexcept;
 
     char* m_aligned_buffer;
     size_t m_byte_size;

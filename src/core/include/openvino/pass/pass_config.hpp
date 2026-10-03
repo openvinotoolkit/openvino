@@ -5,7 +5,10 @@
 #pragma once
 
 #include <list>
+#include <map>
 #include <memory>
+#include <typeindex>
+#include <utility>
 #include <vector>
 
 #include "openvino/core/core_visibility.hpp"
@@ -128,6 +131,24 @@ public:
         return get_callback(T::get_type_info_static());
     }
 
+    /// \brief Attach a typed extension to all instances of a pass, including nested passes
+    ///        which share this PassConfig.
+    template <class T, class Extension>
+    void set_pass_extension(std::shared_ptr<Extension> extension) {
+        m_pass_extensions.insert_or_assign({T::get_type_info_static(), std::type_index(typeid(Extension))},
+                                           std::move(extension));
+    }
+
+    /// \brief Get a typed extension attached to a pass type, or nullptr when none is set.
+    template <class T, class Extension>
+    std::shared_ptr<Extension> get_pass_extension() const {
+        const auto found = m_pass_extensions.find({T::get_type_info_static(), std::type_index(typeid(Extension))});
+        if (found == m_pass_extensions.end()) {
+            return nullptr;
+        }
+        return std::static_pointer_cast<Extension>(found->second);
+    }
+
     /// \brief Check either transformation type is disabled or not
     /// \param type_info Transformation type_info
     /// \return true if transformation type was disabled and false otherwise
@@ -161,6 +182,7 @@ public:
 private:
     param_callback m_callback;
     param_callback_map m_callback_map;
+    std::map<std::pair<ov::DiscreteTypeInfo, std::type_index>, std::shared_ptr<void>> m_pass_extensions;
     std::unordered_set<DiscreteTypeInfo> m_disabled;
     std::unordered_set<DiscreteTypeInfo> m_enabled;
 };

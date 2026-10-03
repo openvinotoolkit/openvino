@@ -14,6 +14,7 @@
 
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/plugin/weights_prefetch_plan.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
@@ -30,7 +31,6 @@
 #if defined(__unix__) && !defined(__ANDROID__)
 #include <malloc.h>
 #endif
-
 
 namespace ov::intel_gpu {
 
@@ -149,8 +149,13 @@ std::shared_ptr<cldnn::program> ProgramBuilder::build(const std::vector<std::sha
     prepare_build();
     {
         GPU_DEBUG_DEFINE_MEM_LOGGER("CreateSingleLayerPrimitives");
+        WeightsPrefetchPlan weights_prefetch(ops,
+                                             get_mmap_weights_prefetch_budget(m_config.get_offload_ratio() == 0));
+        weights_prefetch.prime();
         for (const auto& op : ops) {
+            weights_prefetch.before(op);
             CreateSingleLayerPrimitive(op);
+            weights_prefetch.after(op);
         }
     }
 

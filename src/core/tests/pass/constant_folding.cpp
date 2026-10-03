@@ -67,6 +67,43 @@ void run_constant_folding(std::shared_ptr<ov::Model>& model) {
     pass_manager.run_passes(model);
 }
 
+class SelectiveConstantFoldingObserver : public pass::ConstantFolding::Observer {
+public:
+    explicit SelectiveConstantFoldingObserver(const Node* deferred) : m_deferred(deferred) {}
+
+    void on_pass_begin(const std::shared_ptr<Model>&) noexcept override {
+        ++begin_count;
+    }
+
+    bool defer_pre_calculated_values(const std::shared_ptr<Model>&,
+                                     const std::shared_ptr<const Node>& node) noexcept override {
+        if (node.get() == m_deferred) {
+            ++defer_count;
+            return true;
+        }
+        return false;
+    }
+
+    void before_ordered_node(const std::shared_ptr<Model>&,
+                             const std::shared_ptr<const Node>& node) noexcept override {
+        if (node.get() == m_deferred) {
+            ++ordered_count;
+        }
+    }
+
+    void on_pass_end(const std::shared_ptr<Model>&) noexcept override {
+        ++end_count;
+    }
+
+    size_t begin_count = 0;
+    size_t defer_count = 0;
+    size_t ordered_count = 0;
+    size_t end_count = 0;
+
+private:
+    const Node* m_deferred;
+};
+
 void check_names(const std::shared_ptr<ov::Node>& node,
                  const std::vector<std::string>& expected_fused_names,
                  const std::string expected_name = "test",
@@ -4178,5 +4215,50 @@ TEST(constant_folding, loop_with_node_which_has_no_evaluate) {
 
     EXPECT_NO_THROW(pass::ConstantFolding().run_on_model(model));
     EXPECT_EQ(count_ops_of_type<op::v5::Loop>(model), 1);
+}
+
+TEST(constant_folding, selective_observer_defers_precalculated_value_to_ordered_loop) {
+    auto data = op::v0::Constant::create(element::f16, Shape{2, 3}, {1, 2, 3, 4, 5, 6});
+    auto order = op::v0::Constant::create(element::i64, Shape{2}, {1, 0});
+    auto transpose = std::make_shared<op::v1::Transpose>(data, order);
+    auto model = std::make_shared<Model>(transpose, ParameterVector{});
+
+    auto observer = std::make_shared<SelectiveConstantFoldingObserver>(transpose.get());
+    pass::Manager manager;
+    manager.get_pass_config()->set_pass_extension<pass::ConstantFolding, pass::ConstantFolding::Observer>(observer);
+    manager.register_pass<pass::ConstantFolding>();
+    manager.run_passes(model);
+
+    const auto folded = get_result_constant(model);
+    ASSERT_NE(folded, nullptr);
+    EXPECT_EQ(folded->get_shape(), Shape({3, 2}));
+    EXPECT_EQ(folded->cast_vector<float>(), (std::vector<float>{1, 4, 2, 5, 3, 6}));
+    EXPECT_EQ(observer->begin_count, 1);
+    EXPECT_GT(observer->defer_count, 0);
+    EXPECT_EQ(observer->ordered_count, 1);
+    EXPECT_EQ(observer->end_count, 1);
+}
+
+TEST(constant_folding, selective_observer_blocks_precalculation_through_deferred_node) {
+    auto data = op::v0::Constant::create(element::f16, Shape{2, 3}, {1, 2, 3, 4, 5, 6});
+    auto convert = std::make_shared<op::v0::Convert>(data, element::f32);
+    auto order = op::v0::Constant::create(element::i64, Shape{2}, {1, 0});
+    auto transpose = std::make_shared<op::v1::Transpose>(convert, order);
+    auto model = std::make_shared<Model>(transpose, ParameterVector{});
+
+    auto observer = std::make_shared<SelectiveConstantFoldingObserver>(convert.get());
+    pass::Manager manager;
+    manager.get_pass_config()->set_pass_extension<pass::ConstantFolding, pass::ConstantFolding::Observer>(observer);
+    manager.register_pass<pass::ConstantFolding>();
+    manager.run_passes(model);
+
+    const auto folded = get_result_constant(model);
+    ASSERT_NE(folded, nullptr);
+    EXPECT_EQ(folded->get_shape(), Shape({3, 2}));
+    EXPECT_EQ(folded->cast_vector<float>(), (std::vector<float>{1, 4, 2, 5, 3, 6}));
+    EXPECT_EQ(observer->begin_count, 1);
+    EXPECT_GT(observer->defer_count, 0);
+    EXPECT_EQ(observer->ordered_count, 1);
+    EXPECT_EQ(observer->end_count, 1);
 }
 }  // namespace ov::test

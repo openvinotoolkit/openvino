@@ -13,6 +13,7 @@
 #include "intel_gpu/op/convolution.hpp"
 #include "intel_gpu/plugin/common_utils.hpp"
 #include "intel_gpu/plugin/program_builder.hpp"
+#include "intel_gpu/plugin/weights_prefetch_plan.hpp"
 #include "intel_gpu/primitives/data.hpp"
 #include "intel_gpu/runtime/debug_configuration.hpp"
 #include "moe_offload_constant.hpp"
@@ -113,6 +114,7 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
     cldnn::primitive_id initialconstPrimID = layer_type_name_ID(op);
     cldnn::primitive_id constPrimID;
     const auto* data = op->get_data_ptr<char>();
+    trace_mmap_weight_event("data_resolved", *op);
 
     const auto cache_key = std::make_tuple(data, const_shape, op->get_output_element_type(0));
 
@@ -159,13 +161,17 @@ static void create_data(ProgramBuilder& p, const ov::Shape& const_shape, const s
             // instead. Convert the data in that case, otherwise just copy it.
             const auto src_et = op->get_output_element_type(0);
             const auto dst_et = ov::element::Type(out_dtype);
+            trace_mmap_weight_event("copy_begin", *op);
             if (src_et == dst_et) {
                 std::memcpy(&buf[0], &data[0], bufSize);
             } else {
                 convert_and_copy(data, src_et, buf, dst_et, upload_count, constLayout);
             }
+            trace_mmap_weight_event("copy_end", *op);
         }
+        trace_mmap_weight_event("evict_begin", *op);
         ov::wsh::Extension::hint_evict(*op);
+        trace_mmap_weight_event("evict_end", *op);
         auto data_prim = cldnn::data(initialconstPrimID, mem, partial_upload.enabled);
         p.add_primitive(*op, data_prim);
         p.blobMemCache[cache_key] = initialconstPrimID;
