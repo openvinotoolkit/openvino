@@ -1,0 +1,558 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include "infer_request.hpp"
+
+#include <algorithm>
+#include <chrono>
+#include <cstring>
+#include <iostream>
+#include <numeric>
+#include <unordered_map>
+#include <unordered_set>
+#include <vector>
+
+#include "compiled_model.hpp"
+#include "openvino/runtime/iasync_infer_request.hpp"
+#include "openvino/runtime/iremote_tensor.hpp"
+#include "openvino/runtime/ivariable_state.hpp"
+#include "openvino/runtime/intel_gpu/properties.hpp"
+#include "openvino/runtime/intel_gpu/remote_properties.hpp"
+#include "openvino/runtime/make_tensor.hpp"
+
+namespace ov {
+namespace tp_gpu {
+
+namespace {
+
+// Fan-out wrapper that broadcasts reset()/set_state() to every per-rank state
+// sharing the same variable_id. Without it, state.reset() reaches rank 0
+// alone and the other ranks keep accumulating their KV cache across calls --
+// wrong numerics from the second inference on.
+//
+// For variables the graph rewriter sharded by kv head, get_state()/set_state()
+// also gather and scatter along that axis, so a caller that reads a whole
+// state tensor, edits it and writes it back sees the unsharded model's state
+// rather than rank 0's slice.
+class FanOutVariableState : public ov::IVariableState {
+public:
+    FanOutVariableState(const std::string& name,
+                        std::vector<ov::SoPtr<ov::IVariableState>> per_rank,
+                        bool sharded,
+                        bool profiling,
+                        std::size_t dump_period)
+        : ov::IVariableState(name),
+          m_per_rank(std::move(per_rank)),
+          m_sharded(sharded),
+          m_profiling(profiling),
+          m_period(dump_period) {}
+
+    void reset() override {
+        if (TP_VERBOSE_AT_LEAST(ov::log::Level::DEBUG)) {
+            // Two ranks sharing a pointer would mean the states were aliased
+            // rather than paired by name, and reset() would reach one rank --
+            // which is why this reports at error level.
+            for (size_t r = 1; r < m_per_rank.size(); ++r) {
+                if (m_per_rank[r]._ptr == m_per_rank[0]._ptr) {
+                    TP_LOG_ERR << "[TP][STATE][BUG] FanOut '" << get_name() << "' rank " << r
+                               << " aliases rank 0 (same pointer)" << std::endl;
+                }
+            }
+        }
+        {
+            ScopedTime timer(m_profiling, m_reset);
+            for (auto& s : m_per_rank)
+                s->reset();
+        }
+        // reset() runs for every layer's state back to back, so the timings
+        // are aggregated and printed once a period.
+        if (m_profiling && m_period.due()) {
+            TP_REPORT << "[TP][STATE] reset agg over " << m_period.calls()
+                      << " calls: total_ms=" << m_reset.ms() << std::endl;
+        }
+    }
+
+    void set_state(const ov::SoPtr<ov::ITensor>& state) override {
+        if (!m_sharded || m_per_rank.size() == 1) {
+            for (auto& s : m_per_rank)
+                s->set_state(state);
+            return;
+        }
+
+        // The caller handed us a whole-model KV cache; hand each rank back the
+        // slice of kv heads it owns. Only the kv-head axis has to line up:
+        // callers legitimately change the sequence length.
+        const auto& heads_per_rank = rank_head_counts();
+        const auto full_shape = state->get_shape();
+        OPENVINO_ASSERT(full_shape.size() == 4,
+                        "[TP] variable '", get_name(), "' is sharded by kv head but the given state has rank ",
+                        full_shape.size(), " instead of 4");
+
+        const size_t heads_total = std::accumulate(heads_per_rank.begin(), heads_per_rank.end(), size_t{0});
+        OPENVINO_ASSERT(full_shape[kHeadAxis] == heads_total,
+                        "[TP] variable '", get_name(), "': expected a state covering all ", heads_total,
+                        " kv heads, got ", full_shape[kHeadAxis]);
+
+        const size_t head_bytes = per_head_bytes(full_shape, state->get_element_type());
+        const auto* src = static_cast<const uint8_t*>(state->data());
+
+        size_t head_offset = 0;
+        for (size_t r = 0; r < m_per_rank.size(); ++r) {
+            const size_t heads = heads_per_rank[r];
+            auto rank_shape = full_shape;
+            rank_shape[kHeadAxis] = heads;
+
+            auto slice = ov::make_tensor(state->get_element_type(), rank_shape);
+            auto* dst = static_cast<uint8_t*>(slice->data());
+            for (size_t b = 0; b < full_shape[0]; ++b) {
+                std::memcpy(dst + (b * heads) * head_bytes,
+                            src + (b * heads_total + head_offset) * head_bytes,
+                            heads * head_bytes);
+            }
+            m_per_rank[r]->set_state(slice);
+            head_offset += heads;
+        }
+    }
+
+    ov::SoPtr<ov::ITensor> get_state() const override {
+        OPENVINO_ASSERT(!m_per_rank.empty(), "[TP] variable '", get_name(), "' has no per-rank states");
+        if (!m_sharded || m_per_rank.size() == 1) {
+            return m_per_rank.front()->get_state();
+        }
+
+        // Every rank holds a slice of the kv heads. Stitch them back into the
+        // tensor the unsharded model would have produced, so that generic
+        // consumers see the state they expect instead of rank 0's slice.
+        const auto shards = collect_shards();
+        const auto full_shape = concat_shape(shards);
+        const auto type = shards.front()->get_element_type();
+
+        auto full = ov::make_tensor(type, full_shape);
+        const size_t heads_total = full_shape[kHeadAxis];
+        const size_t head_bytes = per_head_bytes(full_shape, type);
+        auto* dst = static_cast<uint8_t*>(full->data());
+
+        size_t head_offset = 0;
+        for (const auto& shard : shards) {
+            const size_t heads = shard->get_shape()[kHeadAxis];
+            const auto* src = static_cast<const uint8_t*>(shard->data());
+            for (size_t b = 0; b < full_shape[0]; ++b) {
+                std::memcpy(dst + (b * heads_total + head_offset) * head_bytes,
+                            src + (b * heads) * head_bytes,
+                            heads * head_bytes);
+            }
+            head_offset += heads;
+        }
+        return full;
+    }
+
+private:
+    /// KV cache states are [batch, kv_heads, seq, head_dim] and the graph
+    /// rewriter splits dimension 1 across ranks.
+    static constexpr size_t kHeadAxis = 1;
+
+    /// How many kv heads each rank owns. Fixed for the life of the request --
+    /// the rewriter baked the split into every rank's variable -- so it is read
+    /// once and remembered. Reading it costs a state round-trip, which is why
+    /// it is not repeated on every scatter.
+    const std::vector<size_t>& rank_head_counts() const {
+        if (m_rank_heads.empty()) {
+            record_head_counts(collect_shards());
+        }
+        return m_rank_heads;
+    }
+
+    void record_head_counts(const std::vector<ov::SoPtr<ov::ITensor>>& shards) const {
+        m_rank_heads.clear();
+        m_rank_heads.reserve(shards.size());
+        for (const auto& shard : shards)
+            m_rank_heads.push_back(shard->get_shape()[kHeadAxis]);
+    }
+
+    std::vector<ov::SoPtr<ov::ITensor>> collect_shards() const {
+        std::vector<ov::SoPtr<ov::ITensor>> shards;
+        shards.reserve(m_per_rank.size());
+        for (const auto& s : m_per_rank)
+            shards.push_back(s->get_state());
+        return shards;
+    }
+
+    /// Shape of the concatenation of all shards along the kv-head axis, with
+    /// the checks that make the concatenation meaningful.
+    ov::Shape concat_shape(const std::vector<ov::SoPtr<ov::ITensor>>& shards) const {
+        auto shape = shards.front()->get_shape();
+        OPENVINO_ASSERT(shape.size() == 4,
+                        "[TP] variable '", get_name(), "' was sharded by kv head but its state has rank ",
+                        shape.size(), " instead of 4");
+
+        size_t heads = 0;
+        for (const auto& shard : shards) {
+            auto other = shard->get_shape();
+            OPENVINO_ASSERT(shard->get_element_type() == shards.front()->get_element_type(),
+                            "[TP] variable '", get_name(), "': ranks disagree on element type");
+            heads += other[kHeadAxis];
+            other[kHeadAxis] = shape[kHeadAxis];
+            OPENVINO_ASSERT(other == shape,
+                            "[TP] variable '", get_name(),
+                            "': ranks disagree on the state shape outside the kv-head axis");
+        }
+        record_head_counts(shards);
+        shape[kHeadAxis] = heads;
+        return shape;
+    }
+
+    /// Bytes of one kv head: the trailing [seq, head_dim] block, which is
+    /// contiguous, so a shard's data for one batch item is one memcpy.
+    size_t per_head_bytes(const ov::Shape& shape, const ov::element::Type& type) const {
+        OPENVINO_ASSERT(type.bitwidth() % 8 == 0,
+                        "[TP] variable '", get_name(), "': sub-byte state element type ", type,
+                        " cannot be sliced by kv head");
+        return shape[2] * shape[3] * type.size();
+    }
+
+    std::vector<ov::SoPtr<ov::IVariableState>> m_per_rank;
+    bool m_sharded;
+    bool m_profiling;
+    NS m_reset;
+    DumpPeriod m_period;
+    mutable std::vector<size_t> m_rank_heads;
+};
+
+}  // namespace
+
+InferRequest::InferRequest(const std::shared_ptr<const CompiledModel>& compiled_model)
+    : ov::ISyncInferRequest(compiled_model),
+      m_compiled_model(compiled_model),
+      m_stage_limit(compiled_model->config().get_input_stage_max_bytes()),
+      m_profiling(compiled_model->config().profiling_host()),
+      m_dump_period(compiled_model->config().dump_period()) {
+    const auto& rank_compiled = m_compiled_model->get_rank_compiled();
+
+    m_rank_requests.reserve(rank_compiled.size());
+    for (const auto& rank_model : rank_compiled) {
+        m_rank_requests.push_back(rank_model->create_infer_request());
+    }
+
+    // Pre-allocate tensors for every port. Callers are allowed to read a
+    // tensor back before they have ever set one and the base class hands out a null
+    // SoPtr until something is stored. Dynamic dimensions start at 0, so the
+    // tensor is empty until the caller reshapes or replaces it.
+    auto allocate_port = [this](const ov::Output<const ov::Node>& port) {
+        // A port can leave its element type open -- PagedAttention's
+        // key_cache/value_cache do, because the cache precision is decided by
+        // whoever allocates it. There is nothing to allocate then, and the
+        // caller has to set a tensor before the first infer.
+        if (port.get_element_type().is_dynamic()) {
+            return;
+        }
+
+        const auto& ps = port.get_partial_shape();
+        ov::Shape shape;
+        if (ps.is_static()) {
+            shape = ps.get_shape();
+        } else if (ps.rank().is_static()) {
+            shape.resize(ps.rank().get_length(), 0);
+            for (int64_t d = 0; d < ps.rank().get_length(); ++d) {
+                shape[d] = ps[d].is_static() ? ps[d].get_length() : 0;
+            }
+        } else {
+            shape = {0};
+        }
+        allocate_tensor(port, [&](ov::SoPtr<ov::ITensor>& t) {
+            t = ov::make_tensor(port.get_element_type(), shape);
+        });
+    };
+
+    for (const auto& input : compiled_model->inputs()) {
+        allocate_port(input);
+    }
+    for (const auto& output : compiled_model->outputs()) {
+        allocate_port(output);
+    }
+
+    // Remember which user inputs the cache owns, so infer() leaves them alone.
+    const size_t num_inputs = compiled_model->inputs().size();
+    m_cache_input.assign(num_inputs, 0);
+    if (const auto& controller = m_compiled_model->get_cache_controller()) {
+        std::unordered_set<std::string> cache_names;
+        for (const auto& port : controller->ports(0)) {
+            cache_names.insert(port.get_names().begin(), port.get_names().end());
+        }
+        const auto& inputs = compiled_model->inputs();
+        for (size_t i = 0; i < num_inputs; ++i) {
+            for (const auto& name : inputs[i].get_names()) {
+                if (cache_names.count(name) != 0) {
+                    m_cache_input[i] = 1;
+                    break;
+                }
+            }
+        }
+    }
+
+    m_input_stage.assign(m_rank_requests.size(), std::vector<ov::SoPtr<ov::ITensor>>(num_inputs));
+    m_input_stage_capacity.assign(m_rank_requests.size(), std::vector<size_t>(num_inputs, 0));
+    m_input_stage_refused.assign(m_rank_requests.size(), std::vector<uint8_t>(num_inputs, 0));
+
+    m_rank_time.resize(m_rank_requests.size());
+    m_rank_start.resize(m_rank_requests.size() > 1 ? m_rank_requests.size() : 0);
+}
+
+ov::SoPtr<ov::ITensor> InferRequest::stage_input(size_t rank,
+                                                 size_t input_idx,
+                                                 const ov::SoPtr<ov::ITensor>& user_tensor) {
+    if (m_stage_limit == 0 || !user_tensor || m_input_stage_refused[rank][input_idx] != 0) {
+        return {};
+    }
+    // Device-side memory the caller owns already skips the plugin's staging
+    // copy; wrapping it again would only add work.
+    if (std::dynamic_pointer_cast<ov::IRemoteTensor>(user_tensor._ptr) != nullptr) {
+        return {};
+    }
+    const size_t bytes = user_tensor->get_byte_size();
+    if (bytes == 0 || bytes > m_stage_limit) {
+        return {};
+    }
+
+    auto& slot = m_input_stage[rank][input_idx];
+    auto& capacity = m_input_stage_capacity[rank][input_idx];
+    const auto& shape = user_tensor->get_shape();
+    const auto type = user_tensor->get_element_type();
+
+    if (!slot || slot->get_element_type() != type || bytes > capacity) {
+        try {
+            const auto& ctx = m_compiled_model->get_rank_compiled()[rank]->get_context();
+            OPENVINO_ASSERT(ctx, "[TP_GPU] rank ", rank, " has no remote context");
+            auto staged = ctx->create_tensor(
+                type,
+                shape,
+                {{ov::intel_gpu::shared_mem_type.name(), ov::intel_gpu::SharedMemType::USM_HOST_BUFFER}});
+            slot = ov::SoPtr<ov::ITensor>(staged._ptr, staged._so);
+            capacity = bytes;
+        } catch (const std::exception&) {
+            // Nothing here is required for correctness: fall back to handing
+            // the caller's tensor over, which is what happened before.
+            m_input_stage_refused[rank][input_idx] = 1;
+            slot = {};
+            capacity = 0;
+            return {};
+        }
+    } else if (slot->get_shape() != shape) {
+        slot->set_shape(shape);
+    }
+
+    void* dst = nullptr;
+    if (auto remote = std::dynamic_pointer_cast<ov::IRemoteTensor>(slot._ptr)) {
+        const auto& props = remote->get_properties();
+        auto it = props.find(ov::intel_gpu::mem_handle.name());
+        if (it != props.end()) {
+            dst = it->second.as<ov::intel_gpu::gpu_handle_param>();
+        }
+    }
+    if (dst == nullptr) {
+        m_input_stage_refused[rank][input_idx] = 1;
+        slot = {};
+        capacity = 0;
+        return {};
+    }
+
+    std::memcpy(dst, user_tensor->data(), bytes);
+    return slot;
+}
+
+void InferRequest::bind_cache() {
+    const auto& controller = m_compiled_model->get_cache_controller();
+    if (!controller) {
+        return;
+    }
+    OPENVINO_ASSERT(controller->get_num_allocated_blocks() > 0,
+                    "[TP_GPU] The paged-attention cache has not been allocated. Allocate it through "
+                    "the compiled model's cache controller before inferring.");
+    if (controller->generation() == m_bound_cache_generation) {
+        return;
+    }
+
+    for (size_t rank = 0; rank < m_rank_requests.size(); ++rank) {
+        const auto& ports = controller->ports(rank);
+        const auto& tensors = controller->tensors(rank);
+        for (size_t i = 0; i < ports.size(); ++i) {
+            m_rank_requests[rank]->set_tensor(ports[i], tensors[i]);
+        }
+    }
+    m_bound_cache_generation = controller->generation();
+}
+
+void InferRequest::check_tensors() const {
+    const auto& inputs = m_compiled_model->inputs();
+    for (size_t i = 0; i < inputs.size(); ++i) {
+        // Cache ports stay empty on purpose: the plugin owns that memory and
+        // binds its per-rank slices straight to the rank requests.
+        if (m_cache_input[i] != 0) {
+            continue;
+        }
+        check_tensor(inputs[i], get_tensor(inputs[i]));
+    }
+    for (const auto& output : m_compiled_model->outputs()) {
+        check_tensor(output, get_tensor(output));
+    }
+}
+
+void InferRequest::set_rank_inputs() {
+    const auto& user_inputs = m_compiled_model->inputs();
+    const auto& rank_ports = m_rank_requests[0]->get_compiled_model()->inputs();
+
+    for (size_t i = 0; i < user_inputs.size(); ++i) {
+        // Cache ports are not the caller's to fill: the cache belongs to the
+        // plugin, sliced by kv head, and each rank gets its own slice.
+        if (m_cache_input[i] != 0) {
+            continue;
+        }
+        auto tensor = get_tensor(user_inputs[i]);
+        for (size_t rank = 0; rank < m_rank_requests.size(); ++rank) {
+            auto staged = stage_input(rank, i, tensor);
+            m_rank_requests[rank]->set_tensor(rank_ports[i], staged ? staged : tensor);
+        }
+    }
+}
+
+void InferRequest::run_ranks() {
+    if (m_rank_requests.size() == 1) {
+        ScopedTime timer(m_profiling, m_rank_time[0]);
+        m_rank_requests[0]->infer();
+        return;
+    }
+
+    const Stopwatch launch(m_profiling);
+    m_compiled_model->rank_workers().run([&](std::size_t rank) {
+        if (m_profiling) {
+            m_rank_start[rank] = launch.elapsed();
+        }
+        ScopedTime timer(m_profiling, m_rank_time[rank]);
+        m_rank_requests[rank]->infer();
+    });
+}
+
+void InferRequest::collect_outputs() {
+    const auto& outputs = m_compiled_model->outputs();
+    const auto& rank_ports = m_rank_requests[0]->get_compiled_model()->outputs();
+
+    for (size_t i = 0; i < outputs.size(); ++i) {
+        set_tensor(outputs[i], m_rank_requests[0]->get_tensor(rank_ports[i]));
+    }
+}
+
+void InferRequest::accumulate_dispatch_spread() {
+    const auto [lo, hi] = std::minmax_element(m_rank_start.begin(), m_rank_start.end(),
+                                              [](const NS& a, const NS& b) { return a.ns() < b.ns(); });
+    m_dispatch_spread.add(hi->ns() - lo->ns());
+    m_dispatch_first.add(lo->ns());
+}
+
+void InferRequest::report_dispatch_spread() {
+    const auto n = static_cast<double>(m_dump_period.calls());
+    TP_REPORT << "[TP][RANK|host] rank dispatch over " << m_dump_period.calls()
+              << " inferences: first rank starts after " << (m_dispatch_first.us() / n) << "us"
+              << ", spread between ranks " << (m_dispatch_spread.us() / n) << "us" << std::endl;
+}
+
+void InferRequest::report_breakdown(const Stages& stages) {
+    const double total_ms = stages.set_inputs.ms() + stages.infer.ms() + stages.collect.ms();
+    TP_REPORT << "[TP] Infer breakdown: set_inputs=" << stages.set_inputs.ms()
+              << "ms  infer=" << stages.infer.ms()
+              << "ms  collect=" << stages.collect.ms()
+              << "ms  total=" << total_ms << "ms";
+    for (size_t r = 0; r < m_rank_time.size(); ++r) {
+        TP_REPORT << "  r" << r << "=" << m_rank_time[r].ms() << "ms";
+    }
+    TP_REPORT << std::endl;
+}
+
+void InferRequest::infer() {
+    // Serialize complete outer inferences so two requests cannot mix ranks
+    // in the same rendezvous epoch or overwrite shared L0 command lists.
+    [[maybe_unused]] auto inference_guard = m_compiled_model->lock_inference();
+
+    Stages stages;
+    if (m_profiling) {
+        std::fill(m_rank_time.begin(), m_rank_time.end(), NS{});
+    }
+
+    {
+        ScopedTime timer(m_profiling, stages.set_inputs);
+        set_rank_inputs();
+        bind_cache();
+    }
+    {
+        ScopedTime timer(m_profiling, stages.infer);
+        run_ranks();
+    }
+    {
+        ScopedTime timer(m_profiling, stages.collect);
+        collect_outputs();
+    }
+
+    if (!m_profiling) {
+        return;
+    }
+    // The spread is summed every inference and printed once a period.
+    if (!m_rank_start.empty()) {
+        accumulate_dispatch_spread();
+    }
+    if (m_dump_period.due()) {
+        if (!m_rank_start.empty()) {
+            report_dispatch_spread();
+        }
+        report_breakdown(stages);
+    }
+}
+
+std::vector<ov::SoPtr<ov::IVariableState>> InferRequest::query_state() const {
+    if (m_rank_requests.size() == 1)
+        return m_rank_requests[0]->query_state();
+
+    std::lock_guard<std::mutex> lk(m_state_mutex);
+    if (!m_fanout_states.empty())
+        return m_fanout_states;
+
+    // Pair the per-rank states by NAME, never by vector index: the GPU plugin
+    // returns them by iterating its own unordered_map, whose order is not
+    // guaranteed to match between two instances holding identical keys.
+    std::unordered_map<std::string, std::vector<ov::SoPtr<ov::IVariableState>>> grouped;
+
+    size_t expected = 0;
+    for (size_t r = 0; r < m_rank_requests.size(); ++r) {
+        auto rs = m_rank_requests[r]->query_state();
+        if (r == 0) {
+            expected = rs.size();
+            grouped.reserve(expected);
+        }
+        OPENVINO_ASSERT(rs.size() == expected,
+                        "[TP] per-rank state count mismatch: rank ", r,
+                        " has ", rs.size(), " states, expected ", expected);
+        for (auto& s : rs) {
+            grouped[s->get_name()].push_back(s);
+        }
+    }
+
+    const auto& sharded_ids = m_compiled_model->get_sharded_state_ids();
+    const std::unordered_set<std::string> sharded(sharded_ids.begin(), sharded_ids.end());
+
+    m_fanout_states.reserve(grouped.size());
+    for (auto& kv : grouped) {
+        OPENVINO_ASSERT(kv.second.size() == m_rank_requests.size(),
+                        "[TP] variable '", kv.first,
+                        "' present on only ", kv.second.size(),
+                        " of ", m_rank_requests.size(), " ranks");
+        m_fanout_states.emplace_back(std::make_shared<FanOutVariableState>(
+            kv.first, std::move(kv.second), sharded.count(kv.first) != 0,
+            m_profiling, m_dump_period.period()));
+    }
+    return m_fanout_states;
+}
+
+std::vector<ov::ProfilingInfo> InferRequest::get_profiling_info() const {
+    return m_rank_requests[0]->get_profiling_info();
+}
+
+}  // namespace tp_gpu
+}  // namespace ov

@@ -1,0 +1,473 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#include <gtest/gtest.h>
+
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "graph_rewriter.hpp"
+#include "openvino/op/ops.hpp"
+#include "openvino/opsets/opset13.hpp"
+#include "tp_gpu/op/tp_all_reduce.hpp"
+#include "tp_gpu/op/tp_gather.hpp"
+#include "tp_test_models.hpp"
+
+namespace ov::tp_gpu::tests {
+namespace {
+
+size_t count_ops_of_type(const std::shared_ptr<ov::Model>& model, const ov::DiscreteTypeInfo& type) {
+    size_t count = 0;
+    for (const auto& op : model->get_ordered_ops())
+        count += op->get_type_info().is_castable(type) ? 1 : 0;
+    return count;
+}
+
+/// Runs the rewriter for every rank of a world and hands back the models.
+std::vector<std::shared_ptr<ov::Model>> rewrite_all_ranks(const std::shared_ptr<ov::Model>& model,
+                                                          const ShardingPlan& plan,
+                                                          uint32_t world_size) {
+    std::vector<std::shared_ptr<ov::Model>> per_rank;
+    per_rank.reserve(world_size);
+    for (uint32_t rank = 0; rank < world_size; ++rank)
+        per_rank.push_back(GraphRewriter::rewrite(model, plan, rank, world_size));
+    return per_rank;
+}
+
+/// The number of output features the projection's weight still carries.
+int64_t lm_head_rows(const std::shared_ptr<ov::Model>& model) {
+    for (const auto& op : model->get_ordered_ops()) {
+        auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(op);
+        if (!matmul || matmul->get_friendly_name() != "lm_head")
+            continue;
+        const auto& weight = matmul->input_value(1).get_partial_shape();
+        return weight[matmul->get_transpose_b() ? weight.size() - 2 : weight.size() - 1].get_length();
+    }
+    return -1;
+}
+
+}  // namespace
+
+// ---------------------------------------------------------------------------
+// analyze()
+// ---------------------------------------------------------------------------
+
+TEST(TPGraphRewriterAnalyze, FindsProjectionsAndGeometry) {
+    BlockConfig config;
+    auto plan = GraphRewriter::analyze(make_transformer_block(config));
+
+    EXPECT_EQ(plan.num_layers, 1);
+    EXPECT_EQ(plan.num_heads, static_cast<int>(config.num_heads));
+    EXPECT_EQ(plan.num_kv_heads, static_cast<int>(config.num_kv_heads));
+    EXPECT_EQ(plan.head_dim, static_cast<int>(config.head_dim));
+    EXPECT_EQ(plan.intermediate_size, static_cast<int>(config.intermediate));
+
+    // q, k, v, o, gate, up, down -- and nothing else.
+    EXPECT_EQ(plan.linears.size(), 7u);
+    EXPECT_EQ(GraphRewriter::count_collectives(plan, 2), 2);  // o_proj and down_proj
+}
+
+TEST(TPGraphRewriterAnalyze, ReportsBiasOnProjections) {
+    BlockConfig config;
+    config.with_bias = true;
+    auto plan = GraphRewriter::analyze(make_transformer_block(config));
+
+    size_t biased = 0;
+    for (const auto& linear : plan.linears)
+        biased += linear.has_bias ? 1 : 0;
+    EXPECT_EQ(biased, 3u);  // q, k and v carry a bias in this configuration
+}
+
+TEST(TPGraphRewriterAnalyze, HandlesWeightsWithoutTransposeB) {
+    BlockConfig config;
+    config.transpose_b = false;  // weight laid out as [in, out]
+    auto plan = GraphRewriter::analyze(make_transformer_block(config));
+
+    EXPECT_EQ(plan.linears.size(), 7u);
+    EXPECT_EQ(plan.num_heads, static_cast<int>(config.num_heads));
+    EXPECT_EQ(plan.intermediate_size, static_cast<int>(config.intermediate));
+}
+
+TEST(TPGraphRewriterAnalyze, HandlesSingleBranchMlp) {
+    BlockConfig config;
+    config.gated_mlp = false;  // down(act(up(x)))
+    auto plan = GraphRewriter::analyze(make_transformer_block(config));
+
+    // q, k, v, o, up, down -- one projection fewer than the gated variant.
+    EXPECT_EQ(plan.linears.size(), 6u);
+    EXPECT_EQ(GraphRewriter::count_collectives(plan, 2), 2);
+}
+
+TEST(TPGraphRewriterAnalyze, RejectsModelWithoutAttention) {
+    auto data = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{1, 8, 256});
+    auto weights = ov::op::v0::Constant::create(ov::element::f32, ov::Shape{256, 256}, std::vector<float>(65536, 0.1f));
+    auto matmul = std::make_shared<ov::op::v0::MatMul>(data, weights, false, true);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{matmul}, ov::ParameterVector{data});
+
+    EXPECT_THROW(GraphRewriter::analyze(model), ov::Exception);
+}
+
+TEST(TPGraphRewriterAnalyze, RejectsProjectionWithRuntimeWeights) {
+    // A weight fed by a Parameter -- a live LoRA adapter, say -- cannot be
+    // sharded at compile time, and the query projection is then not found.
+    BlockConfig config;
+    auto model = make_transformer_block(config);
+
+    auto weights = std::make_shared<ov::op::v0::Parameter>(
+        ov::element::f32, ov::Shape{config.num_heads * config.head_dim, config.hidden});
+    for (const auto& op : model->get_ordered_ops()) {
+        auto matmul = ov::as_type_ptr<ov::op::v0::MatMul>(op);
+        if (matmul && matmul->get_output_partial_shape(0)[2].get_length() ==
+                          static_cast<int64_t>(config.num_heads * config.head_dim)) {
+            matmul->input(1).replace_source_output(weights);
+            break;
+        }
+    }
+    model->add_parameters({weights});
+    model->validate_nodes_and_infer_types();
+
+    EXPECT_THROW(GraphRewriter::analyze(model), ov::Exception);
+}
+
+// ---------------------------------------------------------------------------
+// The vocabulary projection
+// ---------------------------------------------------------------------------
+
+TEST(TPGraphRewriterLMHead, AnalyzeFindsTheVocabularyProjection) {
+    BlockConfig config;
+    auto plan = GraphRewriter::analyze(make_block_with_lm_head(config, 1024));
+
+    EXPECT_EQ(plan.lm_head_name, "lm_head");
+    EXPECT_EQ(plan.lm_head_vocab, 1024);
+
+    // The two row-parallel projections plus the gather that collects the
+    // vocabulary bands.
+    EXPECT_EQ(GraphRewriter::count_collectives(plan, 4), 3);
+    EXPECT_TRUE(GraphRewriter::shards_lm_head(plan, 4));
+}
+
+TEST(TPGraphRewriterLMHead, LeavesTheProjectionWholeWhenItDoesNotDivide) {
+    BlockConfig config;
+    // 1022 = 2 * 7 * 73: splits in two, never in four.
+    auto plan = GraphRewriter::analyze(make_block_with_lm_head(config, 1022));
+
+    EXPECT_TRUE(GraphRewriter::shards_lm_head(plan, 2));
+    EXPECT_FALSE(GraphRewriter::shards_lm_head(plan, 4));
+    EXPECT_EQ(GraphRewriter::count_collectives(plan, 4), 2);
+}
+
+TEST(TPGraphRewriterLMHead, LeavesTheProjectionWholeOnASingleRank) {
+    BlockConfig config;
+    auto plan = GraphRewriter::analyze(make_block_with_lm_head(config, 1024));
+
+    EXPECT_FALSE(GraphRewriter::shards_lm_head(plan, 1));
+    EXPECT_EQ(GraphRewriter::count_collectives(plan, 1), 2);
+}
+
+TEST(TPGraphRewriterLMHead, ReportsNothingWhenTheModelHasNoVocabularyProjection) {
+    BlockConfig config;
+    auto plan = GraphRewriter::analyze(make_transformer_block(config));
+
+    EXPECT_TRUE(plan.lm_head_name.empty());
+    EXPECT_FALSE(GraphRewriter::shards_lm_head(plan, 4));
+}
+
+// ---------------------------------------------------------------------------
+// rewrite()
+// ---------------------------------------------------------------------------
+
+class TPGraphRewriterSharding : public ::testing::TestWithParam<uint32_t> {};
+
+TEST_P(TPGraphRewriterSharding, GivesEveryRankOneBandOfTheVocabulary) {
+    const uint32_t world_size = GetParam();
+    const size_t vocab = 1536;  // divides by two, three and four
+    BlockConfig config;
+    auto model = make_block_with_lm_head(config, vocab);
+    auto plan = GraphRewriter::analyze(model);
+
+    for (const auto& rank_model : rewrite_all_ranks(model, plan, world_size)) {
+        EXPECT_EQ(lm_head_rows(rank_model), static_cast<int64_t>(vocab / world_size));
+        EXPECT_EQ(count_ops_of_type(rank_model, ov::tp_gpu::op::TPGather::get_type_info_static()), 1u);
+        // The band is cut out of the stored weight, not out of the decompressed
+        // one: a Slice left in the graph would be read at every token.
+        EXPECT_EQ(count_ops_of_type(rank_model, ov::op::v8::Slice::get_type_info_static()), 0u);
+    }
+}
+
+TEST_P(TPGraphRewriterSharding, OnlyRankZeroSeesTheWholeVocabulary) {
+    const uint32_t world_size = GetParam();
+    const size_t vocab = 1536;  // divides by two, three and four
+    BlockConfig config;
+    auto model = make_block_with_lm_head(config, vocab);
+    auto plan = GraphRewriter::analyze(model);
+
+    // The gather widens the logits back on the rank whose outputs are read,
+    // and leaves the band alone everywhere else -- nobody reads those.
+    auto per_rank = rewrite_all_ranks(model, plan, world_size);
+    for (uint32_t rank = 0; rank < world_size; ++rank) {
+        const auto& shape = per_rank[rank]->get_results()[0]->get_output_partial_shape(0);
+        const int64_t expected = rank == 0 ? static_cast<int64_t>(vocab) : static_cast<int64_t>(vocab / world_size);
+        EXPECT_EQ(shape[shape.size() - 1].get_length(), expected) << "rank " << rank;
+    }
+}
+
+TEST_P(TPGraphRewriterSharding, LeavesTheVocabularyProjectionAloneWhenThereIsNone) {
+    const uint32_t world_size = GetParam();
+    BlockConfig config;
+    auto model = make_transformer_block(config);
+    auto plan = GraphRewriter::analyze(model);
+
+    for (const auto& rank_model : rewrite_all_ranks(model, plan, world_size))
+        EXPECT_EQ(count_ops_of_type(rank_model, ov::tp_gpu::op::TPGather::get_type_info_static()), 0u);
+}
+
+TEST_P(TPGraphRewriterSharding, ProducesValidModelsForEveryRank) {
+    const uint32_t world_size = GetParam();
+    BlockConfig config;
+    auto model = make_transformer_block(config);
+    auto plan = GraphRewriter::analyze(model);
+
+    // Shapes are re-inferred inside rewrite(); a mismatch between projections
+    // sharing a dimension surfaces here.
+    ASSERT_NO_THROW(rewrite_all_ranks(model, plan, world_size));
+}
+
+TEST_P(TPGraphRewriterSharding, KeepsWeightsPreSliced) {
+    const uint32_t world_size = GetParam();
+    BlockConfig config;
+    auto model = make_transformer_block(config);
+    auto plan = GraphRewriter::analyze(model);
+
+    // A weight that cannot be pre-sliced falls back to a runtime Slice, which
+    // the GPU plugin then has to constant-fold -- correct, but an order of
+    // magnitude slower to compile.  The source model has no Slice at all.
+    ASSERT_EQ(count_ops_of_type(model, ov::op::v8::Slice::get_type_info_static()), 0u);
+    for (const auto& rank_model : rewrite_all_ranks(model, plan, world_size))
+        EXPECT_EQ(count_ops_of_type(rank_model, ov::op::v8::Slice::get_type_info_static()), 0u)
+            << "world_size=" << world_size;
+}
+
+TEST_P(TPGraphRewriterSharding, InsertsOneCollectivePerRowParallelProjection) {
+    const uint32_t world_size = GetParam();
+    BlockConfig config;
+    auto model = make_transformer_block(config);
+    auto plan = GraphRewriter::analyze(model);
+
+    for (const auto& rank_model : rewrite_all_ranks(model, plan, world_size))
+        EXPECT_EQ(count_ops_of_type(rank_model, ov::tp_gpu::op::TPAllReduce::get_type_info_static()), 2u);
+}
+
+INSTANTIATE_TEST_SUITE_P(TPGraphRewriter,
+                         TPGraphRewriterSharding,
+                         ::testing::Values(2u, 3u, 4u),
+                         [](const ::testing::TestParamInfo<uint32_t>& info) {
+                             return "world" + std::to_string(info.param);
+                         });
+
+// ---------------------------------------------------------------------------
+// Stateful KV cache
+// ---------------------------------------------------------------------------
+
+TEST_P(TPGraphRewriterSharding, LocalizesKvCacheVariables) {
+    const uint32_t world_size = GetParam();
+    BlockConfig config;
+    config.stateful = true;
+    auto model = make_transformer_block(config);
+    auto plan = GraphRewriter::analyze(model);
+
+    for (uint32_t rank = 0; rank < world_size; ++rank) {
+        auto rank_model = GraphRewriter::rewrite(model, plan, rank, world_size);
+
+        // Whole KV heads are handed out, so the expected count is the same one
+        // the rewriter derives -- spread the remainder over the first ranks.
+        const auto base = config.num_kv_heads / world_size;
+        const auto remainder = config.num_kv_heads % world_size;
+        const int64_t expected = static_cast<int64_t>(base + (rank < remainder ? 1 : 0));
+
+        auto variables = rank_model->get_variables();
+        ASSERT_EQ(variables.size(), 2u);
+        for (const auto& variable : variables) {
+            const auto& shape = variable->get_info().data_shape;
+            EXPECT_EQ(shape[1].get_length(), expected)
+                << "variable=" << variable->get_info().variable_id << " rank=" << rank;
+        }
+    }
+}
+
+TEST_P(TPGraphRewriterSharding, LocalizesEveryKvCacheInitializer) {
+    const uint32_t world_size = GetParam();
+    BlockConfig config;
+    config.stateful = true;
+    auto model = make_transformer_block(config);
+    auto plan = GraphRewriter::analyze(model);
+
+    // Every ReadValue carries its own initializer chain; patching only the
+    // first one leaves the rest claiming the original head count.
+    auto rank_model = GraphRewriter::rewrite(model, plan, /*rank=*/0, world_size);
+
+    const int64_t expected = static_cast<int64_t>(config.num_kv_heads / world_size +
+                                                  (config.num_kv_heads % world_size ? 1 : 0));
+    size_t checked = 0;
+    for (const auto& op : rank_model->get_ordered_ops()) {
+        auto read_value = ov::as_type_ptr<ov::op::v6::ReadValue>(op);
+        if (!read_value || read_value->get_input_size() == 0)
+            continue;
+        EXPECT_EQ(read_value->get_output_partial_shape(0)[1].get_length(), expected);
+        ++checked;
+    }
+    EXPECT_EQ(checked, 2u) << "expected one initializer per KV cache";
+}
+
+// ---------------------------------------------------------------------------
+// PagedAttention (continuous batching)
+// ---------------------------------------------------------------------------
+
+namespace {
+
+/// KV heads rank `rank` owns: whole heads, remainder spread over the first ranks.
+int64_t expected_local_kv_heads(const BlockConfig& config, uint32_t rank, uint32_t world_size) {
+    const auto base = config.num_kv_heads / world_size;
+    const auto remainder = config.num_kv_heads % world_size;
+    return static_cast<int64_t>(base + (rank < remainder ? 1 : 0));
+}
+
+std::vector<std::shared_ptr<ov::Node>> paged_attention_nodes(const std::shared_ptr<ov::Model>& model) {
+    std::vector<std::shared_ptr<ov::Node>> nodes;
+    for (const auto& op : model->get_ordered_ops()) {
+        if (ov::is_type<ov::op::PagedAttentionExtension>(op))
+            nodes.push_back(op);
+    }
+    return nodes;
+}
+
+}  // namespace
+
+TEST(TPGraphRewriterPagedAttention, RecognizesPagedAttentionAsTheAnchor) {
+    BlockConfig config;
+    auto plan = GraphRewriter::analyze(make_paged_attention_block(config));
+
+    EXPECT_EQ(plan.attention_backend, ShardingPlan::AttentionBackend::PA);
+    EXPECT_EQ(plan.num_layers, 1);
+    EXPECT_EQ(plan.num_heads, static_cast<int>(config.num_heads));
+    EXPECT_EQ(plan.num_kv_heads, static_cast<int>(config.num_kv_heads));
+    EXPECT_EQ(plan.head_dim, static_cast<int>(config.head_dim));
+    // Seven projections: q, k, v, o, gate, up, down.
+    EXPECT_EQ(plan.linears.size(), 7u);
+}
+
+TEST(TPGraphRewriterPagedAttention, SdpaBlockIsStillRecognizedAsSdpa) {
+    // The anchor drives whether the KV broadcast is demanded, so a plan that
+    // mislabels the backend fails in a confusing place much later.
+    auto plan = GraphRewriter::analyze(make_transformer_block(BlockConfig{}));
+    EXPECT_EQ(plan.attention_backend, ShardingPlan::AttentionBackend::SDPA);
+}
+
+TEST_P(TPGraphRewriterSharding, PagedAttentionModelShardsForEveryRank) {
+    const uint32_t world_size = GetParam();
+    BlockConfig config;
+    auto model = make_paged_attention_block(config);
+    auto plan = GraphRewriter::analyze(model);
+
+    // PagedAttention has no KV broadcast to re-shape; demanding one used to
+    // abort the whole compilation here.
+    ASSERT_NO_THROW(rewrite_all_ranks(model, plan, world_size));
+}
+
+TEST_P(TPGraphRewriterSharding, LocalizesPagedAttentionKvHeadCount) {
+    const uint32_t world_size = GetParam();
+    BlockConfig config;
+    auto model = make_paged_attention_block(config);
+    auto plan = GraphRewriter::analyze(model);
+
+    for (uint32_t rank = 0; rank < world_size; ++rank) {
+        auto rank_model = GraphRewriter::rewrite(model, plan, rank, world_size);
+
+        auto nodes = paged_attention_nodes(rank_model);
+        ASSERT_EQ(nodes.size(), 1u);
+
+        // The GPU plugin reads the kv head count from here and derives the
+        // query head count from the operand; the pass that sizes the cache
+        // reads the value entry separately. Leaving either whole makes them
+        // disagree with the sharded operands.
+        const auto& rt_info = nodes.front()->get_rt_info();
+        for (const char* key : {"num_k_heads", "num_v_heads"}) {
+            auto entry = rt_info.find(key);
+            ASSERT_NE(entry, rt_info.end()) << key;
+            EXPECT_EQ(entry->second.as<int64_t>(), expected_local_kv_heads(config, rank, world_size))
+                << key << " rank=" << rank << " world_size=" << world_size;
+        }
+
+        // Head size is per head and does not shard.
+        EXPECT_EQ(rt_info.at("k_head_size").as<int64_t>(), static_cast<int64_t>(config.head_dim));
+        EXPECT_EQ(rt_info.at("v_head_size").as<int64_t>(), static_cast<int64_t>(config.head_dim));
+    }
+}
+
+TEST_P(TPGraphRewriterSharding, LocalizesPagedAttentionOperands) {
+    const uint32_t world_size = GetParam();
+    BlockConfig config;
+    auto model = make_paged_attention_block(config);
+    auto plan = GraphRewriter::analyze(model);
+
+    for (uint32_t rank = 0; rank < world_size; ++rank) {
+        auto rank_model = GraphRewriter::rewrite(model, plan, rank, world_size);
+        auto attention = paged_attention_nodes(rank_model).front();
+
+        const int64_t local_kv = expected_local_kv_heads(config, rank, world_size);
+        const int64_t local_q = local_kv * static_cast<int64_t>(config.num_heads / config.num_kv_heads);
+        const auto head_dim = static_cast<int64_t>(config.head_dim);
+
+        // Nothing in the graph names a head count -- the operands are flattened
+        // relatively -- so the shapes are what proves the sharding landed.
+        EXPECT_EQ(attention->get_input_partial_shape(0)[1].get_length(), local_q * head_dim) << "rank=" << rank;
+        EXPECT_EQ(attention->get_input_partial_shape(1)[1].get_length(), local_kv * head_dim) << "rank=" << rank;
+        EXPECT_EQ(attention->get_input_partial_shape(2)[1].get_length(), local_kv * head_dim) << "rank=" << rank;
+        EXPECT_EQ(attention->get_output_partial_shape(0)[1].get_length(), local_q * head_dim) << "rank=" << rank;
+    }
+}
+
+TEST_P(TPGraphRewriterSharding, LeavesPagedAttentionCachePortsToTheRuntime) {
+    const uint32_t world_size = GetParam();
+    auto model = make_paged_attention_block(BlockConfig{});
+    auto plan = GraphRewriter::analyze(model);
+
+    // The cache is not described in the graph: the plugin that allocates it
+    // decides its shape and precision. A rewriter that "helpfully" pinned
+    // either would fight whoever binds the tensors.
+    for (const auto& rank_model : rewrite_all_ranks(model, plan, world_size)) {
+        size_t cache_ports = 0;
+        for (const auto& parameter : rank_model->get_parameters()) {
+            const auto& name = parameter->get_friendly_name();
+            if (name.rfind("key_cache.", 0) != 0 && name.rfind("value_cache.", 0) != 0)
+                continue;
+            ++cache_ports;
+            EXPECT_TRUE(parameter->get_element_type().is_dynamic()) << name;
+            EXPECT_TRUE(parameter->get_output_partial_shape(0).is_dynamic()) << name;
+        }
+        EXPECT_EQ(cache_ports, 2u);
+    }
+}
+
+TEST_P(TPGraphRewriterSharding, InsertsCollectivesOnPagedAttentionModel) {
+    const uint32_t world_size = GetParam();
+    auto model = make_paged_attention_block(BlockConfig{});
+    auto plan = GraphRewriter::analyze(model);
+
+    // Same two row-parallel projections as the SDPA block: the attention
+    // formulation does not change where the sums have to be reduced.
+    EXPECT_EQ(GraphRewriter::count_collectives(plan, 2), 2);
+    for (const auto& rank_model : rewrite_all_ranks(model, plan, world_size))
+        EXPECT_EQ(count_ops_of_type(rank_model, ov::tp_gpu::op::TPAllReduce::get_type_info_static()), 2u);
+}
+
+TEST(TPGraphRewriterPagedAttention, ReportsNoShardedStatesForPagedAttention) {
+    // A converted model keeps no ReadValue/Assign, so there is no per-rank
+    // state to gather or scatter -- the cache took that role.
+    auto model = make_paged_attention_block(BlockConfig{});
+    auto plan = GraphRewriter::analyze(model);
+    EXPECT_TRUE(GraphRewriter::sharded_state_ids(model, plan).empty());
+}
+
+}  // namespace ov::tp_gpu::tests

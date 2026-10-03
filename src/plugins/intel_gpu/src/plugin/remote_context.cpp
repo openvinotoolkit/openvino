@@ -13,6 +13,10 @@
 #include "intel_gpu/runtime/itt.hpp"
 #include "intel_gpu/runtime/device_query.hpp"
 #include "intel_gpu/runtime/utils.hpp"
+#ifdef OV_GPU_WITH_ZE_RT
+#    include "ze/ze_device.hpp"
+#    include "ze/ze_engine.hpp"
+#endif
 #include <memory>
 
 namespace ov::intel_gpu {
@@ -98,6 +102,27 @@ RemoteContextImpl::RemoteContextImpl(const std::map<std::string, RemoteContextIm
             m_va_display = extract_object(params, ov::intel_gpu::va_device);
             OPENVINO_ASSERT(m_va_display != nullptr, "[GPU] Can't create shared VA/DX context as user handle is nullptr! Params:\n", params);
         } else if (ctx_type == ov::intel_gpu::ContextType::ZE) {
+#ifdef OV_GPU_WITH_ZE_RT
+            if (params.find(ov::intel_gpu::ocl_context.name()) != params.end() &&
+                params.find(ov::intel_gpu::ze_device_handle.name()) != params.end() &&
+                params.find(ov::intel_gpu::ze_driver_handle.name()) != params.end()) {
+
+                auto ze_ctx_h = extract_object(params, ov::intel_gpu::ocl_context);
+                auto ze_dev_h = extract_object(params, ov::intel_gpu::ze_device_handle);
+                auto ze_driver_h = extract_object(params, ov::intel_gpu::ze_driver_handle);
+
+                m_device = std::make_shared<cldnn::ze::ze_device>(
+                    cldnn::ze::ze_driver_resource(reinterpret_cast<ze_driver_handle_t>(ze_driver_h), /*is_borrowed=*/true),
+                    cldnn::ze::ze_device_resource(reinterpret_cast<ze_device_handle_t>(ze_dev_h), /*is_borrowed=*/true),
+                    cldnn::ze::ze_context_resource(reinterpret_cast<ze_context_handle_t>(ze_ctx_h), /*is_borrowed=*/true),
+                    /*initialize_device=*/false);
+                m_type = ctx_type;
+                m_device_name = get_device_name(known_contexts, m_device);
+
+                initialize();
+                return;
+            }
+#endif
             OPENVINO_THROW("Level Zero interoperability is not supported");
         } else {
             OPENVINO_THROW("Invalid execution context type", ctx_type);
@@ -152,6 +177,13 @@ void RemoteContextImpl::init_properties() {
     case ContextType::ZE:
         properties.insert(ov::intel_gpu::context_type(ov::intel_gpu::ContextType::ZE));
         properties.insert(ov::intel_gpu::ocl_context(m_engine->get_user_context(cldnn::runtime_types::ze)));
+#ifdef OV_GPU_WITH_ZE_RT
+        {
+            const auto& ze_engine = cldnn::downcast<const cldnn::ze::ze_engine>(*m_engine);
+            properties.insert(ov::intel_gpu::ze_device_handle(static_cast<gpu_handle_param>(ze_engine.get_device().handle())));
+            properties.insert(ov::intel_gpu::ze_driver_handle(static_cast<gpu_handle_param>(ze_engine.get_driver().handle())));
+        }
+#endif
         break;
     default:
         OPENVINO_THROW("[GPU] Unsupported shared context type ", m_type);

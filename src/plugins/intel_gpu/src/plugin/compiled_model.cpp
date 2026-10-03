@@ -311,6 +311,30 @@ std::shared_ptr<Graph> CompiledModel::get_graph(size_t n) const {
     return m_graphs[n];
 }
 
+void CompiledModel::set_property(const ov::AnyMap& properties) {
+    // Only the collective registry set: it is state of a compiled model rather
+    // than a compilation parameter, and the same path has to serve an imported
+    // model, which was never compiled here.
+    for (const auto& [name, value] : properties) {
+        OPENVINO_ASSERT(name == ov::intel_gpu::collective_comm_registry_set.name(),
+                        "[GPU] It's not possible to set property of an already compiled model. Set property "
+                        "to Core::compile_model during compilation. Property: ",
+                        name);
+
+        const auto& registries = value.as<std::vector<CollectiveCommRegistryPtr>>();
+        OPENVINO_ASSERT(registries.size() >= m_graphs.size(),
+                        "[GPU] Got ",
+                        registries.size(),
+                        " collective registries for ",
+                        m_graphs.size(),
+                        " streams; one per stream is required");
+
+        for (size_t i = 0; i < m_graphs.size(); ++i) {
+            m_graphs[i]->get_network()->set_collective_comm_registry(registries[i]);
+        }
+    }
+}
+
 ov::Any CompiledModel::get_property(const std::string& name) const {
     if (name == ov::supported_properties) {
         return decltype(ov::supported_properties)::value_type{

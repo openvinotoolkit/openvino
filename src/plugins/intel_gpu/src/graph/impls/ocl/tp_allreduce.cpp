@@ -1,0 +1,184 @@
+// Copyright (C) 2018-2026 Intel Corporation
+// SPDX-License-Identifier: Apache-2.0
+//
+
+#ifdef ENABLE_TP_GPU
+
+#include "ze/ze_stream.hpp"
+
+#include "impls/cpu/cpu_impl_helpers.hpp"
+#include "register.hpp"
+#include "tp_allreduce_inst.h"
+#include "registry/implementation_map.hpp"
+
+#include "tp_gpu/tp_device_coordinator.hpp"
+
+#include <algorithm>
+#include <chrono>
+#include <cstdlib>
+#include <iostream>
+#include <mutex>
+
+namespace cldnn {
+namespace ocl {
+
+namespace {
+
+// The immediate command list intel_gpu runs the model on.
+ze_command_list_handle_t model_queue_of(stream& s) {
+    auto* ze = dynamic_cast<cldnn::ze::ze_stream*>(&s);
+    OPENVINO_ASSERT(ze != nullptr, "[GPU] tp_allreduce expects the Level Zero stream");
+    return ze->get_queue();
+}
+
+}  // namespace
+
+// "OCL" impl that does not actually compile an OpenCL kernel. All work is
+// dispatched via Level Zero by TPDeviceCoordinator. Registering as
+// impl_types::ocl with is_cpu()=false makes intel_gpu allocate IO buffers
+// in usm_device, which is the only way to get device-local bandwidth on
+// the all-reduce hot path.
+struct tp_allreduce_impl : public typed_primitive_impl<tp_allreduce> {
+    using parent = typed_primitive_impl<tp_allreduce>;
+    using parent::parent;
+
+    uint32_t collective_id = 0;
+    uint32_t rank = 0;
+
+    DECLARE_OBJECT_TYPE_SERIALIZATION(cldnn::ocl::tp_allreduce_impl)
+
+    bool is_cpu() const override { return false; }
+
+    std::unique_ptr<primitive_impl> clone() const override {
+        return std::make_unique<tp_allreduce_impl>(*this);
+    }
+
+    tp_allreduce_impl() : parent("tp_allreduce_ocl_impl") {}
+
+    explicit tp_allreduce_impl(const tp_allreduce_node& outer) {
+        set_node_params(outer);
+    }
+
+    void set_node_params(const program_node& arg) override {
+        OPENVINO_ASSERT(arg.is_type<tp_allreduce>(), "[GPU] Incorrect program_node type");
+        const auto& prim = arg.as<tp_allreduce>().get_primitive();
+        collective_id = prim->collective_id;
+        rank = prim->rank;
+    }
+
+    void save(BinaryOutputBuffer& ob) const override {
+        parent::save(ob);
+        ob << collective_id;
+        ob << rank;
+    }
+
+    void load(BinaryInputBuffer& ib) override {
+        parent::load(ib);
+        ib >> collective_id;
+        ib >> rank;
+    }
+
+    event::ptr execute_impl(const std::vector<event::ptr>& events,
+                            tp_allreduce_inst& instance) override {
+        auto& stream = instance.get_network().get_stream();
+
+        const auto& coordinator = coordinator_of(instance);
+        const bool async = coordinator->run_spliced();
+
+        if (TP_VERBOSE_AT_LEAST(ov::log::Level::INFO)) {
+            static std::once_flag reported;
+            std::call_once(reported, [&] {
+                TP_LOG_INFO << "[TP] collective rides "
+                            << (async ? "in the model queue" : "on its own queue (synchronous)")
+                            << ", in-order=" << (stream.get_queue_type() == QueueTypes::in_order)
+                            << std::endl;
+            });
+        }
+
+        // Spliced, the recording lands in the model's in-order queue after
+        // the operations that produced our input and before whatever reads
+        // our output -- `events` and stream.finish() were both only ever
+        // standing in for that.  Draining is the fallback: on the
+        // coordinator's own queue the collective has no ordering against the
+        // model at all, and the drain is what supplies it.
+        if (!async) {
+            if (!events.empty()) {
+                stream.wait_for_events(events);
+            }
+            stream.finish();
+        }
+
+        auto [in_dev, out_dev, num_elements, ov_dtype] = collective_operands(instance);
+        coordinator->allreduce(static_cast<int>(collective_id),
+                               static_cast<int>(rank),
+                               in_dev, out_dev, num_elements, ov_dtype,
+                               async ? model_queue_of(stream) : nullptr);
+        return cpu::make_output_event(stream, instance.is_output());
+    }
+
+    /// The coordinator is runtime state of the network, injected by the
+    /// TP plugin after this model was compiled or imported.
+    const ov::tp_gpu::TPDeviceCoordinatorPtr& coordinator_of(tp_allreduce_inst& instance) const {
+        const auto& registry = instance.get_network().get_collective_comm_registry();
+        OPENVINO_ASSERT(registry != nullptr,
+            "[GPU] tp_allreduce requires a collective registry; the TP plugin must inject "
+            "one into the compiled model before inference");
+
+        const auto& coordinator = registry->coordinator();
+        OPENVINO_ASSERT(coordinator != nullptr,
+            "[GPU] tp_allreduce ocl impl requires TPDeviceCoordinator (shared L0 context)");
+        return coordinator;
+    }
+
+    struct Operands {
+        void* in_dev;
+        void* out_dev;
+        size_t num_elements;
+        ov::element::Type dtype;
+    };
+
+    static Operands collective_operands(tp_allreduce_inst& instance) {
+        const auto& input_layout = instance.get_impl_params()->input_layouts[0];
+
+        return {instance.input_memory_ptr()->buffer_ptr(),
+                instance.output_memory_ptr()->buffer_ptr(),
+                input_layout.count(),
+                ov::element::Type{input_layout.data_type}};
+    }
+
+    void init_kernels(const kernels_cache&, const kernel_impl_params&) override {}
+    void update(primitive_inst& inst, const kernel_impl_params& impl_param) override {}
+
+public:
+    static std::unique_ptr<primitive_impl> create(const tp_allreduce_node& arg,
+                                                  const kernel_impl_params& impl_param) {
+        return std::make_unique<tp_allreduce_impl>();
+    }
+};
+
+namespace detail {
+
+attach_tp_allreduce_impl::attach_tp_allreduce_impl() {
+    auto formats = {
+        format::bfyx,
+        format::bfzyx,
+        format::bfwzyx,
+    };
+
+    auto types = {
+        data_types::f32,
+        data_types::f16,
+    };
+
+    implementation_map<tp_allreduce>::add(impl_types::ocl, shape_types::static_shape, tp_allreduce_impl::create, types, formats);
+    implementation_map<tp_allreduce>::add(impl_types::ocl, shape_types::dynamic_shape, tp_allreduce_impl::create, types, formats);
+}
+
+}  // namespace detail
+}  // namespace ocl
+}  // namespace cldnn
+
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::ocl::tp_allreduce_impl)
+BIND_BINARY_BUFFER_WITH_TYPE(cldnn::tp_allreduce)
+
+#endif  // ENABLE_TP_GPU

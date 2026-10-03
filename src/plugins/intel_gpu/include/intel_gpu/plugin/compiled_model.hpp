@@ -68,10 +68,7 @@ public:
     // [DO NOT CHANGE THIS CONSTANT] changing it breaks import of every previously exported blob.
     static constexpr uint64_t runtime_requirements_magic = 0x4F5645505F525251ULL;
 
-    void set_property(const ov::AnyMap& properties) override {
-        OPENVINO_THROW_NOT_IMPLEMENTED("It's not possible to set property of an already compiled model. Set property "
-                                       "to Core::compile_model during compilation");
-    };
+    void set_property(const ov::AnyMap& properties) override;
 
     const std::vector<ov::Output<const ov::Node>>& outputs() const override {
         return m_outputs;

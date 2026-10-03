@@ -9,6 +9,7 @@
 #include "openvino/runtime/intel_gpu/properties.hpp"
 
 #include "intel_gpu/primitives/implementation_desc.hpp"
+#include "intel_gpu/runtime/collective_comm_registry.hpp"
 #include "openvino/core/rt_info/weightless_caching_attributes.hpp"
 
 namespace ov::intel_gpu {
@@ -124,6 +125,18 @@ inline std::istream& operator>>(std::istream& is, DumpTensors& val) {
 
 using GpuWeightlessCacheMap = std::unordered_map<size_t, ov::WeightlessCacheAttribute>;
 static constexpr Property<std::shared_ptr<GpuWeightlessCacheMap>, PropertyMutability::RW> weightless_attr{"GPU_WEIGHTLESS_ATTR"};
+
+/**
+ * @brief Collective groups the compiled model takes part in, one registry per
+ * stream worker. Injected by the tensor-parallel plugin through
+ * `ICompiledModel::set_property` after compile or import, so the same path
+ * serves both.
+ *
+ * State of a compiled model rather than a compilation parameter, which is why
+ * it is not an ExecutionConfig option.
+ */
+static constexpr Property<std::vector<CollectiveCommRegistryPtr>, PropertyMutability::RW>
+    collective_comm_registry_set{"GPU_COLLECTIVE_COMM_REGISTRY_SET"};
 
 /**
  * @brief Defines queue type that must be used for model execution
