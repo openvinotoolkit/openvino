@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include "common_test_utils/test_assertions.hpp"
 #include "infer_request_utils.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "util.hpp"
@@ -30,6 +31,12 @@ std::vector<float> to_vec(const ov::SoPtr<ov::ITensor>& t) {
     const auto* data = reinterpret_cast<const float*>(t->data());
     return std::vector<float>(data, data + t->get_size());
 }
+
+ov::SoPtr<ov::ITensor> make_tensor(const ov::Shape& shape) {
+    return ov::get_tensor_impl(ov::Tensor(ov::element::f32, shape));
+}
+
+constexpr auto kCopyByPlanesExpectedMessage = "source plane size exceeds destination plane capacity";
 
 // --- copy_per_layer_inputs_chunk_to_right tests ---------------------------------
 
@@ -179,6 +186,35 @@ TEST(PerLayerInputsCopyTest, CopyToRightSameSizeCopiesAll) {
     ASSERT_NO_THROW(ov::npuw::util::copy_to_right(src, dst));
 
     EXPECT_EQ(to_vec(dst), to_vec(src));
+}
+
+TEST(NPUWInferRequestUtils, CopyByPlanesRejectsOversizedSource) {
+    auto src = make_tensor({1, 1, 6, 1});
+    auto dst = make_tensor({1, 1, 4, 1});
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::util::copy_by_planes(src, dst),
+                                  ov::AssertFailure,
+                                  kCopyByPlanesExpectedMessage);
+}
+
+TEST(NPUWInferRequestUtils, CopyByPlanesAcceptsMatchingShapes) {
+    auto src = make_tensor({1, 1, 6, 1});
+    auto dst = make_tensor({1, 1, 6, 1});
+    EXPECT_NO_THROW(ov::npuw::util::copy_by_planes(src, dst));
+}
+
+TEST(NPUWInferRequestUtils, CopyTensorByDimRejectsOversizedSource) {
+    auto src = make_tensor({1, 1, 6, 1});
+    auto dst = make_tensor({1, 1, 4, 1});
+    OV_EXPECT_THROW_HAS_SUBSTRING(ov::npuw::util::copy_tensor_by_dim(src, dst, 2, 2),
+                                  ov::AssertFailure,
+                                  kCopyByPlanesExpectedMessage);
+}
+
+TEST(NPUWInferRequestUtils, CopyByPlanesAcceptsNonContiguousDestinationSlice) {
+    auto parent = make_tensor({1, 2, 6, 3});
+    auto dst_slice = ov::npuw::util::make_tensor_slice(parent, 2, 0u, 3u);
+    auto src = make_tensor({1, 2, 3, 3});
+    EXPECT_NO_THROW(ov::npuw::util::copy_by_planes(src, dst_slice));
 }
 
 }  // namespace
