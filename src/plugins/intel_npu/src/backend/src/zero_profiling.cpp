@@ -6,6 +6,8 @@
 
 #include <ze_graph_profiling_ext.h>
 
+#include <algorithm>
+
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/profiling.hpp"
 #include "intel_npu/utils/zero/zero_api.hpp"
@@ -144,15 +146,17 @@ NpuInferStatistics NpuInferProfiling::getNpuInferStatistics() const {
     NpuInferStatistics npuPerfCounts;
 
     /// if the log isn't full/rolled over yet = skip reporting empty logs
-    uint32_t stat_cnt = (_npu_infer_stats_cnt < _npu_infer_log_maxsize) ? _npu_infer_stats_cnt : _npu_infer_log_maxsize;
+    const uint32_t stat_cnt = static_cast<uint32_t>(std::min<uint64_t>(_npu_infer_stats_cnt, _npu_infer_log_maxsize));
     if (stat_cnt != 0 && _loglevel >= ov::log::Level::WARNING) {
+        const uint32_t first_log_idx = (_npu_infer_stats_cnt > _npu_infer_log_maxsize) ? _npu_infer_logidx : 0;
         /// Populate npuinferstatistics vector
-        for (unsigned i = 0; i < stat_cnt; i++) {
+        for (uint32_t i = 0; i < stat_cnt; i++) {
             ov::ProfilingInfo info;
 
             info.status = ov::ProfilingInfo::Status::EXECUTED;
-            info.real_time = std::chrono::microseconds(convertCCtoUS(_npu_infer_duration_log[i]));
-            info.cpu_time = std::chrono::microseconds(convertCCtoUS(_npu_infer_duration_log[i]));
+            const uint32_t log_idx = (first_log_idx + i) % _npu_infer_log_maxsize;
+            info.real_time = std::chrono::microseconds(convertCCtoUS(_npu_infer_duration_log[log_idx]));
+            info.cpu_time = std::chrono::microseconds(convertCCtoUS(_npu_infer_duration_log[log_idx]));
             info.node_name = std::to_string(i);
             info.exec_type = "INFER_REQ";
             info.node_type = "INFER_REQ";
@@ -192,6 +196,24 @@ NpuInferStatistics NpuInferProfiling::getNpuInferStatistics() const {
                                   "MAX",
                                   std::chrono::microseconds::zero()};
     npuPerfCounts.push_back(std::move(info_max));
+
+    if (_npu_infer_stats_cnt != 0) {
+        const auto add_summary = [this, &npuPerfCounts](const char* name, int64_t duration_cc) {
+            const auto duration = std::chrono::microseconds(convertCCtoUS(duration_cc));
+            npuPerfCounts.push_back({ov::ProfilingInfo::Status::EXECUTED,
+                                     duration,
+                                     duration,
+                                     name,
+                                     name,
+                                     name,
+                                     std::chrono::microseconds::zero()});
+        };
+        add_summary("STEADY_AVG_P95", getAverageCC(95));
+        add_summary("STEADY_AVG_P99", getAverageCC(99));
+        add_summary("MEDIAN_P95", getMedianCC(95));
+        add_summary("MEDIAN_P99", getMedianCC(99));
+    }
+
     return npuPerfCounts;
 }
 
@@ -235,12 +257,51 @@ void NpuInferProfiling::sampleNpuTimestamps() {
         _npu_infer_stats_max_cc = infer_duration_cc;
     _npu_infer_stats_accu_cc += infer_duration_cc;
     _npu_infer_stats_cnt++;
-    /// only log individual infer durations if requested
-    if (_loglevel >= ov::log::Level::WARNING) {
-        _npu_infer_duration_log[_npu_infer_logidx++] = infer_duration_cc;
-        if (_npu_infer_logidx >= _npu_infer_log_maxsize)
-            _npu_infer_logidx = 0;
+
+    _npu_infer_duration_log[_npu_infer_logidx++] = infer_duration_cc;
+    if (_npu_infer_logidx >= _npu_infer_log_maxsize)
+        _npu_infer_logidx = 0;
+}
+
+std::vector<int64_t> NpuInferProfiling::getFastestPercentDurations(uint32_t percent_to_keep) const {
+    const uint32_t sample_count =
+        static_cast<uint32_t>(std::min<uint64_t>(_npu_infer_stats_cnt, _npu_infer_log_maxsize));
+    const uint32_t first_log_idx = (_npu_infer_stats_cnt > _npu_infer_log_maxsize) ? _npu_infer_logidx : 0;
+    std::vector<int64_t> durations;
+    durations.reserve(sample_count);
+    for (uint32_t i = 0; i < sample_count; ++i) {
+        durations.push_back(_npu_infer_duration_log[(first_log_idx + i) % _npu_infer_log_maxsize]);
     }
+
+    const uint32_t trimmed_sample_count = sample_count * (100 - percent_to_keep) / 100;
+    const uint32_t included_sample_count = sample_count - trimmed_sample_count;
+    if (trimmed_sample_count != 0) {
+        std::nth_element(durations.begin(), durations.begin() + included_sample_count, durations.end());
+    }
+    durations.resize(included_sample_count);
+    return durations;
+}
+
+int64_t NpuInferProfiling::getAverageCC(uint32_t percent_to_keep) const {
+    const auto durations = getFastestPercentDurations(percent_to_keep);
+    long double included_duration_sum = 0;
+    for (const auto duration : durations) {
+        included_duration_sum += duration;
+    }
+    return static_cast<int64_t>(included_duration_sum / durations.size());
+}
+
+int64_t NpuInferProfiling::getMedianCC(uint32_t percent_to_keep) const {
+    auto durations = getFastestPercentDurations(percent_to_keep);
+    const auto middle = durations.begin() + durations.size() / 2;
+    std::nth_element(durations.begin(), middle, durations.end());
+    const int64_t upper_middle = *middle;
+    if (durations.size() % 2 != 0) {
+        return upper_middle;
+    }
+
+    const int64_t lower_middle = *std::max_element(durations.begin(), middle);
+    return lower_middle + (upper_middle - lower_middle) / 2;
 }
 
 int64_t NpuInferProfiling::convertCCtoUS(int64_t val_cc) const {

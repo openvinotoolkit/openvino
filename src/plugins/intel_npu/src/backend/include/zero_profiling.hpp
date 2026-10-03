@@ -9,6 +9,7 @@
 
 #include <climits>
 #include <map>
+#include <vector>
 
 #include "intel_npu/common/igraph.hpp"
 #include "intel_npu/config/options.hpp"
@@ -100,14 +101,17 @@ private:
     int64_t _npu_infer_stats_min_cc = LLONG_MAX;
     int64_t _npu_infer_stats_max_cc = 0;
     int64_t _npu_infer_stats_accu_cc = 0;
-    uint32_t _npu_infer_stats_cnt = 0;
+    uint64_t _npu_infer_stats_cnt = 0;
     uint32_t _npu_infer_logidx = 0;
-    static const uint32_t _npu_infer_log_maxsize = 1024;
+    static const uint32_t _npu_infer_log_maxsize = 14000;
     /// rolling buffer to store duration of last <_npu_infer_log_maxsize number> infers
     int64_t _npu_infer_duration_log[_npu_infer_log_maxsize];
 
     /// Helper function to convert npu clockcycles to usec
     int64_t convertCCtoUS(int64_t val_cc) const;
+    std::vector<int64_t> getFastestPercentDurations(uint32_t percent_to_keep) const;
+    int64_t getAverageCC(uint32_t percent_to_keep) const;
+    int64_t getMedianCC(uint32_t percent_to_keep) const;
 };
 
 }  // namespace zeroProfiling
