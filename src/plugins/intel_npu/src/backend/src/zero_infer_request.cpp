@@ -803,7 +803,10 @@ std::shared_ptr<ZeroTensor> ZeroInferRequest::allocate_tensor(const size_t index
     ov::Shape allocatedTensorShape = descriptor.shapeFromCompiler.get_max_shape();
 
     if (batchSize.has_value()) {
-        allocatedTensorShape[utils::BATCH_AXIS] = *batchSize;
+        // Read through "at": a descriptor without a batch dimension is rejected while the batch size is set, but the
+        // subscript operator of "ov::Shape" performs no bound checking, so a rank zero shape reaching this point would
+        // be written outside its allocation instead of being reported.
+        allocatedTensorShape.at(utils::BATCH_AXIS) = *batchSize;
     }
 
     auto tensor = std::make_shared<ZeroTensor>(_initStructs, descriptor.precision, allocatedTensorShape, isInput);
