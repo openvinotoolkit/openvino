@@ -90,3 +90,36 @@ class TestRoundScalar(PytorchLayerTest):
         else:
             self._prepare_input = self._prepare_input_float
         self._test(*self.create_model(input_type), ie_device, precision, ir_version, trace_model=True)
+
+
+class TestRoundDecimals(PytorchLayerTest):
+    # torch.round(x, decimals=...) was previously converted as a plain integer round: the
+    # decimals value (TorchScript scalar input / FX aten.round.decimals kwarg) was ignored.
+    def _prepare_input(self, dtype="float32"):
+        import numpy as np
+        # includes half-way ties and negatives to exercise HALF_TO_EVEN and sign handling
+        input = np.array([1.234, 2.567, -1.256, 0.05, 3.449, 0.5, 1.5, 2.5,
+                          -0.5, -1.5, 6.5, 1234.0, 1250.0, 2.675], dtype=dtype)
+        return (input,)
+
+    def create_model(self, decimals):
+        import torch
+
+        class aten_round_decimals(torch.nn.Module):
+            def __init__(self, decimals):
+                super().__init__()
+                self.decimals = decimals
+
+            def forward(self, x):
+                return torch.round(x, decimals=self.decimals)
+
+        return aten_round_decimals(decimals), "aten::round"
+
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    @pytest.mark.parametrize("decimals", [1, 2, -1])
+    @pytest.mark.parametrize("dtype", ["float32", "float64"])
+    def test_round_decimals(self, decimals, dtype, ie_device, precision, ir_version):
+        self._test(*self.create_model(decimals), ie_device, precision, ir_version,
+                   kwargs_to_prepare_input={"dtype": dtype})
