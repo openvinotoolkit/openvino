@@ -136,6 +136,15 @@ public:
     bool has_domain_sensitive_ops() const {
         return config.m_has_domain_sensitive_ops;
     }
+    // See SubgraphConfig::m_defer_softmax_normalization. Survives clone() and
+    // clone_with_new_inputs(), so it may be set on the tokenized Subgraph op; it is read when
+    // data_flow_transformations() runs, i.e. during generate().
+    void set_defer_softmax_normalization(bool defer) {
+        config.m_defer_softmax_normalization = defer;
+    }
+    bool defer_softmax_normalization() const {
+        return config.m_defer_softmax_normalization;
+    }
 
     // plugin sets generator for a snippet to some specific generator.
     // it's going to be replaced with Jitters table later
@@ -237,6 +246,10 @@ private:
         // True if Subgraph contains ops that are not applicable to auto broadcast rule.
         // (e.g. GroupNormalization, reshape)
         bool m_has_broadcast_sensitive_ops = false;
+        // True if SoftmaxDecomposition may apply the softmax row sums to the output of an integer
+        // matmul that consumes the softmax, rather than to the softmax itself. Off by default: it
+        // re-quantizes that operand, so it is a plugin's decision to make on its own models.
+        bool m_defer_softmax_normalization = false;
 #ifdef SNIPPETS_DEBUG_CAPS
         std::shared_ptr<DebugCapsConfig> m_debug_config = std::make_shared<DebugCapsConfig>();
 #endif
