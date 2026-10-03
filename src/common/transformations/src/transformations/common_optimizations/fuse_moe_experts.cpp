@@ -392,18 +392,8 @@ ov::pass::FuseMOEExperts::FuseMOEExperts() : MultiMatcher("FuseMOEExperts") {
                     inputs.emplace_back(op_util::make_try_fold<v0::Unsqueeze>(original_weight, const_0));
                 }
 
-                auto fused = std::make_shared<v0::Concat>(inputs, 0);
-                // Tag the fused expert weight so it can be identified directly, e.g. by tests,
-                // instead of being guessed from its rank and shape.
-                fused->set_friendly_name(fused->get_friendly_name() + "/FusedMOEWeights");
-                if (std::all_of(inputs.begin(), inputs.end(), [](const auto& input) {
-                        return op_util::is_constant(input.get_node());
-                    })) {
-                    // postponed_constant attribute is needed to perform constant folding on serialization step
-                    fused->get_rt_info()["postponed_constant"] = true;
-                    // disable constant folding here to postpone it to serialization step
-                    ov::pass::disable_constant_folding(fused);
-                }
+                auto fused = op_util::make_try_fold<v0::Concat>(inputs, 0);
+
                 if (needs_decompress) {
                     auto convert = std::make_shared<v0::Convert>(fused, target_type);
                     ov::mark_as_decompression(convert);
