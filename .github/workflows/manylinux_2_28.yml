@@ -282,6 +282,14 @@ jobs:
           path: ${{ env.BUILD_DIR }}/compile_commands.json
           if-no-files-found: 'ignore'
 
+      - name: Upload CPack component BOM
+        uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
+        if: always()
+        with:
+          name: bom_manylinux_2_28_x86_64
+          path: ${{ env.BUILD_DIR }}/bom
+          if-no-files-found: 'error'
+
       - name: Store artifacts to a shared drive
         id: store_artifacts
         if: ${{ github.event_name != 'merge_group' }}
