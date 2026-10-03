@@ -130,7 +130,8 @@ event::ptr sycl_stream::enqueue_kernel(kernel& kernel,
     return std::make_shared<sycl_event>(ret_ev, _command_queue, ++_queue_counter);
 }
 
-void sycl_stream::enqueue_barrier() {
+void sycl_stream::enqueue_barrier(const std::vector<event::ptr>& deps) {
+    OPENVINO_ASSERT(deps.empty(), "sycl_stream::enqueue_barrier implements only global barrier");
     try {
         _command_queue.ext_oneapi_submit_barrier();
     } catch (::sycl::exception const& err) {

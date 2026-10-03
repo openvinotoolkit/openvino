@@ -17,7 +17,7 @@ public:
     ze_empty_event(uint64_t queue_stamp)
     : ze_base_event(queue_stamp) { }
 
-    void wait_impl() override { }
+    void ze_wait_impl() override { }
     void set_impl() override { }
     bool is_set_impl() override { return true; }
     ze_event_handle_t get_handle() const override { return nullptr; }
