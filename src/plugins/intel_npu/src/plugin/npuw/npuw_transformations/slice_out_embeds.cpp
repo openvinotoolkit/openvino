@@ -14,7 +14,7 @@ void slice_out_embeds(std::shared_ptr<ov::Model> model,
                       std::size_t max_generation_token_len) {
     std::shared_ptr<ov::Node> embed_result;
     for (auto&& output : model->outputs()) {
-        if (output.get_any_name() == ov::npuw::LLMCompiledModel::output_embeds) {
+        if (output.get_any_name() == ov::npuw::LLMCompiledModel::layer_names::output_embeds) {
             embed_result = output.get_node_shared_ptr();
         }
     }
