@@ -1,6 +1,7 @@
 // Copyright (C) 2018-2026 Intel Corporation
 // SPDX-License-Identifier: Apache-2.0
 //
+#include <algorithm>
 #include <cfloat>
 #include <cmath>
 #include <cstdint>
@@ -1446,7 +1447,7 @@ static void mha_single_token_kernel(const ov::intel_cpu::PlainTensor& query,
 
     cpu_parallel->parallel_for3d(B, H, q_len, [&](size_t b, size_t h, size_t pq) {
         auto cur_kv_len = kv_len;
-        auto ncausal = auto_causal ? (cur_kv_len - q_len + pq + 1) : cur_kv_len;
+        auto ncausal = auto_causal ? std::min<size_t>(pq + 1, cur_kv_len) : cur_kv_len;
         // apply attention mask & sofmax
         T3* alibi_ptr = alibi_mask ? &alibi_mask.at<T3>({b, h, pq, 0}, true) : nullptr;
         uint8_t* attn_mask_ptr = nullptr;
