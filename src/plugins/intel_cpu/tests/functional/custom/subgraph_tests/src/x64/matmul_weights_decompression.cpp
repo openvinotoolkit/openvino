@@ -5,6 +5,7 @@
 #include "custom/subgraph_tests/src/classes/matmul_weights_decompression.hpp"
 
 #include "common_test_utils/subgraph_builders/weights_decompression_builders.hpp"
+#include "utils/precision_support.h"
 
 using namespace CPUTestUtils;
 
@@ -18,6 +19,38 @@ std::vector<ov::AnyMap> filter_additional_config_basic() {
     std::vector<ov::AnyMap> additional_config = {{ov::hint::dynamic_quantization_group_size(0)}};
     return additional_config;
 }
+// FP8 weights decompression needs a bf16/f16 inference precision: oneDNN has no
+// f32 x fp8 matmul configuration, so with an f32 hint the fp8 constant must keep
+// being folded. The suite is empty on HW without the feature, which makes the
+// expectations below platform-correct by construction.
+std::vector<ov::AnyMap> filter_additional_config_fp8_wd() {
+    std::vector<ov::AnyMap> additional_config = {};
+    // bf16 and f16 fp8-decompression support don't always come together (e.g. Sapphire
+    // Rapids has avx512_core_amx for bf16 but not avx512_core_amx_fp16/avx10_2 for f16),
+    // so each inference precision must be gated independently.
+    if (ov::intel_cpu::hasFp8WeightsDecompressionSupport(ov::element::bf16)) {
+        additional_config.push_back(
+            {{ov::hint::dynamic_quantization_group_size(0), ov::hint::inference_precision(ov::element::bf16)}});
+    }
+    if (ov::intel_cpu::hasFp8WeightsDecompressionSupport(ov::element::f16)) {
+        additional_config.push_back(
+            {{ov::hint::dynamic_quantization_group_size(0), ov::hint::inference_precision(ov::element::f16)}});
+    }
+    return additional_config;
+}
+
+// must treat ov::element::dynamic as "not supported", not as a wildcard for "any
+// activation precision". ov::element::dynamic is the actual value
+// Config::inferencePrecision takes in ACCURACY execution mode with no explicit
+// inference_precision hint (no forced bf16/f16 promotion) - a common, real
+// deployment configuration - so fp8 weights must stay folded there too, on every
+// x64 CPU this file is built for (see CMakeLists.txt's X86_64 exclusion for this
+// directory), including ones that do support fp8 weights decompression for bf16/f16.
+std::vector<ov::AnyMap> filter_additional_config_fp8_accuracy_mode() {
+    return {{{ov::hint::dynamic_quantization_group_size(0),
+              ov::hint::execution_mode(ov::hint::ExecutionMode::ACCURACY)}}};
+}
+
 std::vector<ov::AnyMap> filter_additional_config_amx() {
     std::vector<ov::AnyMap> additional_config = {};
     if (ov::with_cpu_x86_avx512_core_amx())
@@ -52,6 +85,33 @@ const std::vector<MatMulDecompressionShapeParams> input_shapes_basic_u2 = {
     {{{}, {{1, 4, 48}}}, {48, 256}},
     {{{-1, -1, -1}, {{10, 40, 480}, {11, 40, 480}}}, {1, 480, 256}},
 };
+// Shapes exercising the fp8 copy-B kernel and the blocked-B layout picker:
+// N aligned to each of the 64/48/32/16 blocked layouts, N/K tails, K not a
+// multiple of the fp8 VNNI granularity (4), M == 1 (decode), dynamic M
+// (which is what makes the FC-as-matmul path build dummy shapes) and a few
+// LLM-sized projections.
+const std::vector<MatMulDecompressionShapeParams> input_shapes_fp8_wd = {
+    {{{}, {{1, 16, 256}}}, {256, 64}},
+    {{{}, {{1, 16, 256}}}, {256, 48}},
+    {{{}, {{1, 16, 256}}}, {256, 32}},
+    {{{}, {{1, 16, 256}}}, {256, 16}},
+    {{{}, {{1, 16, 260}}}, {260, 77}},
+    {{{}, {{1, 11, 154}}}, {154, 77}},
+    {{{}, {{1, 8, 18}}}, {18, 32}},
+    {{{}, {{1, 8, 6}}}, {6, 32}},
+    {{{}, {{1, 1, 480}}}, {480, 256}},
+    {{{-1, -1, 480}, {{1, 17, 480}, {1, 1, 480}}}, {480, 256}},
+    {{{-1, -1, -1}, {{10, 40, 480}, {11, 40, 480}}}, {480, 256}},
+    {{{}, {{1, 128, 512}}}, {512, 1024}},
+};
+
+// Same subgraph but with a grouped (per-IC-group) scale. oneDNN rejects grouped
+// scales for fp8 weights, so these must keep falling back to folded weights.
+const std::vector<MatMulDecompressionShapeParams> input_shapes_fp8_grouped = {
+    {{{}, {{1, 8, 256}}}, {256, 64}, 64UL},
+    {{{}, {{1, 16, 512}}}, {512, 128}, 128UL},
+};
+
 const std::vector<MatMulDecompressionShapeParams> input_shapes_amx = {
     {{{-1, -1, -1}, {{10, 40, 480}, {11, 40, 480}}}, {1, 480, 256}},
     {{{}, {{1, 4, 32}}}, {32, 256}},
@@ -99,6 +159,8 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic_u2,
                                             ::testing::Values(true)),
                          MatmulWeightsDecompression::getTestCaseName);
 
+// f32 inference precision: fp8 weights must keep being folded on every platform,
+// including the ones that do support fp8 weights decompression.
 INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic_fp8,
                          MatmulWeightsDecompression,
                          ::testing::Combine(::testing::ValuesIn(input_shapes_basic),
@@ -111,6 +173,77 @@ INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_basic_fp8,
                                             // todo: zero points converted to fp32 for reshape == true case
                                             ::testing::Values(false),
                                             ::testing::ValuesIn(filter_additional_config_basic()),
+                                            ::testing::ValuesIn(fusing_params),
+                                            ::testing::Values(false)),
+                         MatmulWeightsDecompression::getTestCaseName);
+
+// fp8 weights decompression actually engaged: bf16/f16 activations, scale-only
+// dequantization (fp8 has no zero point) and a per-OC scale.
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_fp8_wd,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_fp8_wd),
+                                            ::testing::ValuesIn(weights_precisions_fp8),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(true),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(DecompressionType::empty),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(filter_additional_config_fp8_wd()),
+                                            ::testing::ValuesIn(fusing_params),
+                                            ::testing::Values(true)),
+                         MatmulWeightsDecompression::getTestCaseName);
+
+// A zero point makes the subgraph fall outside the fp8 (scale-only) dequantization
+// scheme, so the weights have to be folded even on HW that supports the feature.
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_fp8_wd_zp_not_supported,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_fp8_wd),
+                                            ::testing::ValuesIn(weights_precisions_fp8),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(true),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(filter_additional_config_fp8_wd()),
+                                            ::testing::ValuesIn(fusing_params),
+                                            ::testing::Values(false)),
+                         MatmulWeightsDecompression::getTestCaseName);
+
+// ACCURACY execution mode with no explicit inference_precision hint (dynamic
+// Config::inferencePrecision, no forced bf16/f16 promotion) must fall back to
+// folded weights, on every platform - this is run unconditionally (not gated by
+// hasFp8WeightsDecompressionSupport()), since it must hold even on HW that does
+// support the feature for an explicit bf16/f16 hint.
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_fp8_wd_accuracy_mode_not_supported,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_fp8_wd),
+                                            ::testing::ValuesIn(weights_precisions_fp8),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(true),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(DecompressionType::empty),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(filter_additional_config_fp8_accuracy_mode()),
+                                            ::testing::ValuesIn(fusing_params),
+                                            ::testing::Values(false)),
+                         MatmulWeightsDecompression::getTestCaseName);
+
+// Grouped (per-IC-group) fp8 scales are not applied by the fp8 copy-B kernel, so
+// these must fall back to folded weights as well.
+INSTANTIATE_TEST_SUITE_P(smoke_MatMulCompressedWeights_fp8_wd_grouped_not_supported,
+                         MatmulWeightsDecompression,
+                         ::testing::Combine(::testing::ValuesIn(input_shapes_fp8_grouped),
+                                            ::testing::ValuesIn(weights_precisions_fp8),
+                                            ::testing::ValuesIn(decompression_precisions),
+                                            ::testing::Values(ov::element::dynamic),
+                                            ::testing::Values(true),
+                                            ::testing::Values(DecompressionType::full),
+                                            ::testing::Values(DecompressionType::empty),
+                                            ::testing::Values(false),
+                                            ::testing::ValuesIn(filter_additional_config_fp8_wd()),
                                             ::testing::ValuesIn(fusing_params),
                                             ::testing::Values(false)),
                          MatmulWeightsDecompression::getTestCaseName);

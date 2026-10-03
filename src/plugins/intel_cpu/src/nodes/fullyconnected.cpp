@@ -51,6 +51,9 @@
 #include "transformations/utils/utils.hpp"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#if defined(OPENVINO_ARCH_X86_64)
+#    include "utils/precision_support.h"
+#endif
 #if defined(OV_CPU_WITH_KLEIDIAI)
 #    include "openvino/core/shape.hpp"
 #    include "utils/arm_isa_support.h"
@@ -96,6 +99,17 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes()
         return {Type_t::f32, Type_t::f16};
     }
 #if defined(OPENVINO_ARCH_X86_64)
+    // fp8 weights are decompressed inside the oneDNN matmul kernel, which only has
+    // bf16 x fp8 and f16 x fp8 dtype combinations. Both activation types have to be
+    // admitted here for the FullyConnectedCompressed pattern to match at all.
+    // This widening is neutralized for every other weights type by the wei-dtype
+    // aware gate in isSupportedCompressedOperation(), so u8/i4/nf4/... keep seeing
+    // exactly the sets below.
+    // bf16 is the query for "is fp8 weights decompression available on this platform
+    // at all" - it is supported wherever any of the three platforms is present.
+    if (hasFp8WeightsDecompressionSupport(ov::element::bf16)) {
+        return {Type_t::f32, Type_t::bf16, Type_t::f16};
+    }
     // BF16 compressed-activations path is intended for SIMD (avx512_vnni)
     // dynamic-quant kernels. On AMX-capable HW, AMX BF16 TMUL outperforms
     // VNNI int8 on prefill, so keep f32 here and let the existing AMX BF16
@@ -156,6 +170,53 @@ bool FullyConnected::isSupportedCompressedOperation([[maybe_unused]] const std::
 
         if (!ov::with_cpu_x86_avx2()) {
             return false;
+        }
+
+        const auto weightsPrecision = op->get_input_element_type(WEIGHTS);
+        if (any_of(weightsPrecision, ov::element::f8e4m3, ov::element::f8e5m2)) {
+            // FP8 weights decompression. Handled entirely by the oneDNN brgemm matmul
+            // kernel (is_bf16_fp8 / is_f16_fp8), so none of the checks below - which are
+            // tailored to the int-weights dynamic-quantization / AMX inner_product paths -
+            // apply here. There is no f32 x fp8 configuration in oneDNN either: with an
+            // f32 (or any other) inference precision the fp8 constant must keep being
+            // folded, just like today.
+            if (!hasFp8WeightsDecompressionSupport(config.inferencePrecision)) {
+                return false;
+            }
+            // Only per-OC (or per-tensor) scales. Grouped scales over IC are not applied
+            // by the fp8 copy-B kernel, oneDNN rejects them for fp8 weights.
+            if (G != 1) {
+                return false;
+            }
+            // The fp8 dequantization scheme is scale-only.
+            if (op->get_input_size() > WEIGHT_ZERO_POINTS &&
+                op->get_input_element_type(WEIGHT_ZERO_POINTS) != ov::element::dynamic) {
+                return false;
+            }
+            // oneDNN needs a blocked B layout for fp8, which requires 2D const weights
+            // whose shape actually matches [OC, IC] (not e.g. broadcast from a smaller
+            // constant via the scale multiply - such a "weights" constant does not carry
+            // real per-OC data and must keep being folded like today).
+            const auto& weightsShape = op->get_input_shape(WEIGHTS);
+            if (weightsShape.size() != 2 || weightsShape[0] != OC || weightsShape[1] != IC) {
+                return false;
+            }
+            return IC >= 4 && OC != 1;
+        }
+
+        // getSupportedCompressedActivationsTypes() adds f16 to the FCC pattern's
+        // activation set on HW with fp8 weights decompression, purely so fp8 weights
+        // can match at all (handled above). For every other weights type f16 must
+        // still be rejected here, and bf16 only on non-AMX HW (AMX BF16 TMUL is
+        // reserved for the dynamic-quant inner_product path below).
+        if (hasFp8WeightsDecompressionSupport(ov::element::bf16)) {
+            const auto activationPrecision = op->get_input_element_type(DATA);
+            if (activationPrecision == ov::element::f16) {
+                return false;
+            }
+            if (activationPrecision == ov::element::bf16 && ov::with_cpu_x86_avx512_core_amx()) {
+                return false;
+            }
         }
 
         if (ov::with_cpu_x86_avx512_core_amx() && config.inferencePrecision == ov::element::bf16) {

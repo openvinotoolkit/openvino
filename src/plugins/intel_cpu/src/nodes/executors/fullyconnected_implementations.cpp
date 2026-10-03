@@ -32,6 +32,7 @@
 #include "utils/arch_macros.h"
 #include "utils/debug_capabilities.h"
 #include "utils/general_utils.h"
+#include "utils/precision_support.h"
 
 #if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
 #    include <common/memory_desc_wrapper.hpp>
@@ -158,6 +159,16 @@ static const TypeMapping dnnlMatMulTypeMapping {
     {{_u8 | _i8, _i8, _any, _any},                            {bypass(), bypass(), just<f32>(), just<f32>()}},
     // compresses int weights
     {{_f32 | _bf16 | _f16, _u8 | _i8, _any, _any},            {bypass(), bypass(), use<0>(), use<0>()}},
+    // compressed fp8 weights: decompressed inside the oneDNN brgemm matmul kernel,
+    // so keep both src and wei precisions as they are and derive bias / dst from src.
+    // The enabled check uses bf16 (the widest-supported precision) rather than the
+    // actual src precision - this row is only ever consulted for a config that
+    // already passed matmul_dnnl's `supports()`, whose first check
+    // (dnnlMatMulSupportedPrecision -> useWeightsDecompressionImpl) already gates
+    // bf16 vs f16 precisely per platform, so a coarser check here cannot admit a
+    // combination `supports()` would have rejected.
+    {{_bf16 | _f16, _f8e4m3 | _f8e5m2, _any, _any},           {bypass(), bypass(), use<0>(), use<0>()},
+     []() { return hasFp8WeightsDecompressionSupport(ov::element::bf16); }},
     // @todo should we fallback to FPXX instead of _f32?
     {{_any, _any, _any, _any},                                {just<f32>(), just<f32>(), just<f32>(), just<f32>()}},
     // @todo explicitly cover configuration limitations for oneDNN on ARM
@@ -184,6 +195,10 @@ static const TypeMapping dnnlMatMulTypeMapping {
     // i32 can be up converted to f32
     if (any_of(srcType(config), i32) && any_of(weiType(config), i32)) {
         return true;
+    }
+    // bf16/f16 activations with fp8 weights decompression
+    if (any_of(weiType(config), f8e4m3, f8e5m2)) {
+        return DnnlMatMulPrimitive::useWeightsDecompressionImpl(srcType(config), weiType(config));
     }
     // support integer type quantization matmul
     return any_of(srcType(config), u8, i8) && any_of(weiType(config), u8, i8);
@@ -415,6 +430,15 @@ const std::vector<ExecutorImplementation<FCAttrs>>& getImplementations() {
                     })
                 VERIFY(dnnlMatMulSupportedPrecision(config), UNSUPPORTED_SRC_WEI_PRECISIONS);
                 VERIFY(noSparseDecompression(config), UNSUPPORTED_SPARSE_WEIGHTS);
+                // FP8 weights decompression has to run on dnnl::matmul: brgemm
+                // inner_product has no xf16 x fp8 dtype combination at all, and even its
+                // pure-fp8 path requires AMX-FP16. Such FullyConnected nodes come in with
+                // rank-2 weights, so the batched-matmul rank checks must be skipped.
+                if (any_of(weiType(config), f8e4m3, f8e5m2) &&
+                    DnnlMatMulPrimitive::useWeightsDecompressionImpl(srcType(config), weiType(config))) {
+                    VERIFY(weiRank(config) == 2U, UNSUPPORTED_WEI_RANK);
+                    return true;
+                }
                 VERIFY(weiRank(config) == 3U, UNSUPPORTED_WEI_RANK);
                 VERIFY(weiDims(config)[0] > 1, UNSUPPORTED_WEI_RANK);
                 return true;
