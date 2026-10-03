@@ -111,6 +111,7 @@ jobs:
         run: |
           # pytorch test requirements
           python3 -m pip install -r ${{ env.INSTALL_TEST_DIR }}/requirements_pytorch
+          python3 -m pip install -r ${{ env.LAYER_TESTS_INSTALL_DIR }}/transformers_tests/requirements.txt
 
       - name: PyTorch Layer Tests
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }} # Ticket: 126287, 142196
@@ -119,7 +120,7 @@ jobs:
         env:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP32
-          PARALLEL: ${{ runner.os == 'Windows' && ' ' || '-n logical'}}
+          PARALLEL: ${{ runner.os == 'Windows' && ' ' || '-n logical --dist load'}}
 
       - name: PyTorch torch.export Layer Tests
         if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' && runner.os != 'Windows' }} # Ticket: 126287
@@ -129,7 +130,15 @@ jobs:
           TEST_DEVICE: CPU
           TEST_PRECISION: FP32
           PYTORCH_TRACING_MODE: EXPORT
-          PARALLEL: ${{ runner.os == 'Windows' && ' ' || '-n logical'}}
+          PARALLEL: ${{ runner.os == 'Windows' && ' ' || '-n logical --dist load'}}
+
+      - name: Transformers Primitive Tests
+        if: ${{ fromJSON(inputs.affected-components).PyTorch_FE.test && runner.arch != 'ARM64' }}
+        run: |
+          python3 -m pytest ${{ env.LAYER_TESTS_INSTALL_DIR }}/transformers_tests -m precommit -n 4 --dist load -v --junitxml=${{ env.INSTALL_TEST_DIR }}/TEST-transformers.xml
+        env:
+          TEST_DEVICE: CPU
+          OMP_NUM_THREADS: '1'
 
       - name: Upload Test Results
         uses: ababushk/upload-artifact@ebc7d74ace101c08868aed05dba2aaf274b9a2c7 # main
