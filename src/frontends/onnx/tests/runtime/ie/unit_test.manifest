@@ -412,3 +412,10 @@ IE_CPU.onnx_model_dft_inverse_length_provided_onesided
 
 # CVS-195973: GPU STFT returns nondeterministic wrong frames when frame_step/frame_length are runtime inputs
 IE_GPU.onnx_model_stft_runtime_frame_length
+IE_CPU.onnx_model_rnn_fwd_bias_initial_h_const
+IE_CPU.onnx_model_attention_extra_add
+IE_CPU.onnx_model_lstm_fwd_with_clip_const
+IE_CPU.onnx_model_rnn_rev_clip_const
+IE_CPU.onnx_model_rnn_bidirectional
+IE_CPU.onnx_model_rnn_bidirectional_layout_1
+IE_CPU.onnx_model_lp_pool_p3_dilations

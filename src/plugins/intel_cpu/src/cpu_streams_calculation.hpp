@@ -124,6 +124,13 @@ void get_num_streams(int streams, const std::shared_ptr<ov::Model>& model, Confi
 void sort_table_by_numa_node_id(int current_numa_node, std::vector<std::vector<int>>& proc_type_table);
 
 // Internal configure_* helpers are declared below and are publicly callable.
+#if defined(OPENVINO_ARCH_ARM64) && defined(_WIN32)
+void configure_arm64_win_threads(Config& config,
+                                 const std::vector<std::vector<int>>& proc_type_table,
+                                 bool int8_intensive,
+                                 bool is_LLM);
+#endif
+
 #if defined(OPENVINO_ARCH_ARM) && defined(__linux__)
 void configure_arm_linux_threads(Config& config,
                                  const std::vector<std::vector<int>>& proc_type_table,
