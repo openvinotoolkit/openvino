@@ -4,6 +4,8 @@
 
 #include "pre_compute.hpp"
 
+#include <limits>
+
 #include "../../logging.hpp"
 #include "../../orc.hpp"
 #include "openvino/op/ops.hpp"
@@ -517,13 +519,39 @@ bool ov::npuw::patterns::pre_compute::RopeCache::run_on_model(const std::shared_
     return true;
 }
 
+bool ov::npuw::patterns::pre_compute::LongRopeCosSin::rotary_ndims_matches_factor_size(size_t rotary_ndims,
+                                                                                       size_t factor_size) {
+    return factor_size <= std::numeric_limits<size_t>::max() / 2 && rotary_ndims == factor_size * 2;
+}
+
 void ov::npuw::patterns::pre_compute::LongRopeCosSin::rebuild_tables() {
     cos = {};
     sin = {};
     if (max_len == 0 || rotary_ndims == 0 || inv_freq_short.empty()) {
         return;
     }
+    // max_len/rotary_ndims/inv_freq_short/inv_freq_long are deserialized independently from
+    // a potentially untrusted blob: rotary_ndims sizes the allocation below, while
+    // writeCosSinRows' row width comes from the inv_freq vectors - a mismatch here would
+    // overflow the tensors it writes into (writeCosSinRows always duplicates, i.e. row
+    // width == 2 * inv_freq.size()).
+    OPENVINO_ASSERT(rotary_ndims_matches_factor_size(rotary_ndims, inv_freq_short.size()),
+                    "Malformed LongRoPE metadata: rotary_ndims (",
+                    rotary_ndims,
+                    ") does not match 2 * inv_freq_short.size() (",
+                    inv_freq_short.size(),
+                    ")");
+    OPENVINO_ASSERT(!has_long || rotary_ndims_matches_factor_size(rotary_ndims, inv_freq_long.size()),
+                    "Malformed LongRoPE metadata: rotary_ndims (",
+                    rotary_ndims,
+                    ") does not match 2 * inv_freq_long.size() (",
+                    inv_freq_long.size(),
+                    ")");
+
     const size_t regimes = has_long ? 2u : 1u;
+    OPENVINO_ASSERT(max_len <= std::numeric_limits<size_t>::max() / regimes &&
+                        regimes * max_len <= std::numeric_limits<size_t>::max() / rotary_ndims,
+                    "Malformed LongRoPE metadata: table size overflow");
     const ov::Shape shape{1, regimes * max_len, rotary_ndims};
     cos = ov::Tensor(ov::element::f16, shape);
     sin = ov::Tensor(ov::element::f16, shape);
