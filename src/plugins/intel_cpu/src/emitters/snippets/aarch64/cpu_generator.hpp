@@ -23,6 +23,10 @@
 #    include "emitters/snippets/utils/debug_caps_config.hpp"
 #endif
 
+namespace ov {
+class Model;
+}  // namespace ov
+
 namespace ov::intel_cpu::aarch64 {
 
 using CompiledSnippetCPU = ov::intel_cpu::CompiledSnippetCPUCommon<dnnl::impl::cpu::aarch64::jit_generator_t>;
@@ -40,6 +44,7 @@ public:
     [[nodiscard]] std::vector<snippets::Reg> get_vec_reg_pool() const override;
 
     [[nodiscard]] dnnl::impl::cpu::aarch64::cpu_isa_t get_isa() const;
+    [[nodiscard]] bool supports_current_isa(const std::shared_ptr<ov::Model>& body) const;
 #ifdef SNIPPETS_DEBUG_CAPS
     SnippetsDebugCapsConfig debug_config;
 #endif
