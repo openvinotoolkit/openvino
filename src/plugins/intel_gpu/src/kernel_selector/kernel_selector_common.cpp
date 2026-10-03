@@ -84,6 +84,7 @@ std::string toString(ActivationFunction activation) {
         case ActivationFunction::ROUND_HALF_TO_EVEN:        method = "ROUND_HALF_TO_EVEN"; break;
         case ActivationFunction::ROUND_HALF_AWAY_FROM_ZERO: method = "ROUND_HALF_AWAY_FROM_ZERO"; break;
         case ActivationFunction::ERFINV:                    method = "ERFINV"; break;
+        case ActivationFunction::SWOOSH:                    method = "SWOOSH"; break;
         default: break;
     }
     return method;
