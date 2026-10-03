@@ -106,7 +106,8 @@ struct mlir_primitive_impl : typed_primitive_impl<mlir_primitive> {
 
         std::vector<void*> events_list;
         std::vector<void*> result_events;
-        const bool need_result_events = instance.get_config().get_enable_profiling() || stream.get_queue_type() == QueueTypes::out_of_order;
+        const bool need_result_events =
+            instance.get_config().get_enable_profiling() || stream.get_queue_type() == QueueTypes::out_of_order || instance.needs_completion_event();
         if (need_result_events) {
             meta.insert(ov::internal::mlir_meta::result_events(&result_events));
         }
