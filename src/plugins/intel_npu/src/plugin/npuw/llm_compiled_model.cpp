@@ -126,17 +126,30 @@ public:
             if (rt_info.count("manually_added_output")) {
                 return false;
             }
-
             // Cut point:
             auto matmul_first_source = matched_matmul->input(0).get_source_output();
 
+            // Tag public Results that consume the activation. The tag is kept
+            // in the prefill output port and identifies them at request setup.
+            for (const auto& target : matmul_first_source.get_target_inputs()) {
+                auto target_result = ov::as_type_ptr<ov::op::v0::Result>(target.get_node()->shared_from_this());
+                if (target_result && target_result != matched_result) {
+                    target_result->output(0).add_names({ov::npuw::LLMCompiledModel::shared_head_passthrough_output});
+                }
+            }
+
             // Cut original model:
-            matched_result->input(0).replace_source_output(matmul_first_source);
+            // A Result shares its input tensor descriptor. Put the boundary
+            // Convert on the LM-head Result, leaving public activation Results
+            // with their original descriptors and names.
+            auto lm_head_input =
+                std::make_shared<ov::op::v0::Convert>(matmul_first_source, matmul_first_source.get_element_type());
+            matched_result->input(0).replace_source_output(lm_head_input);
             // FIXME: Somehow for KVCache model result output gets renamed in
             //        ICompiledModel::ICompiledModel().
-            //        As a WA, setting the same name to output from MatMul
+            //        As a WA, setting the same name to the LM-head boundary
             //        avoids the issue.
-            matmul_first_source.set_names({ov::npuw::LLMCompiledModel::output_embeds});
+            lm_head_input->output(0).set_names({ov::npuw::LLMCompiledModel::output_embeds});
             matched_result->output(0).set_names({ov::npuw::LLMCompiledModel::output_embeds});
             matched_result->validate_and_infer_types();
 
