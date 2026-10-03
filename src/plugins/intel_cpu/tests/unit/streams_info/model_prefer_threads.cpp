@@ -9,6 +9,7 @@
 #include "common_test_utils/test_common.hpp"
 #include "cpu_streams_calculation.hpp"
 #include "openvino/opsets/opset8.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 #include "openvino/runtime/performance_heuristics.hpp"
 #include "openvino/runtime/threading/cpu_streams_info.hpp"
 
@@ -297,7 +298,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_high_lp_share_relaxe
     configure_x86_hybrid_threads(config, proc_type_table, tolerance, false, false);
 
     EXPECT_EQ(config.modelPreferThreadsLatency, 16);
-    EXPECT_EQ(config.tbbPartitioner, TbbPartitioner::AUTO);
+    EXPECT_EQ(config.tbbPartitionerLatency, TbbPartitioner::AUTO);
 }
 
 TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_low_lp_share_keeps_main_and_efficient_auto_case) {
@@ -335,7 +336,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_high_lp_share_generi
     configure_x86_hybrid_threads(config, proc_type_table, tolerance, false, false);
 
     EXPECT_EQ(config.modelPreferThreadsLatency, 16);
-    EXPECT_EQ(config.tbbPartitioner, TbbPartitioner::AUTO);
+    EXPECT_EQ(config.tbbPartitionerLatency, TbbPartitioner::AUTO);
 }
 
 TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_low_lp_share_generic_auto_keeps_main_and_efficient) {
@@ -355,7 +356,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_low_lp_share_generic
     configure_x86_hybrid_threads(config, proc_type_table, tolerance, false, false);
 
     EXPECT_EQ(config.modelPreferThreadsLatency, 24);
-    EXPECT_EQ(config.tbbPartitioner, TbbPartitioner::AUTO);
+    EXPECT_EQ(config.tbbPartitionerLatency, TbbPartitioner::AUTO);
 }
 
 TEST_F(ModelPreferThreadsIntegrationTest, latency_single_socket_preserves_main_and_efficient_preference) {
@@ -420,7 +421,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_high_lp_share_relaxe
     configure_x86_hybrid_threads(config, proc_type_table, tolerance, false, false);
 
     EXPECT_EQ(config.modelPreferThreadsLatency, 16);
-    EXPECT_EQ(config.tbbPartitioner, TbbPartitioner::AUTO);
+    EXPECT_EQ(config.tbbPartitionerLatency, TbbPartitioner::AUTO);
 }
 
 TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_high_lp_share_vision_auto_case) {
@@ -440,7 +441,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_high_lp_share_vision
     configure_x86_hybrid_threads(config, proc_type_table, tolerance, false, false);
 
     EXPECT_EQ(config.modelPreferThreadsLatency, 16);
-    EXPECT_EQ(config.tbbPartitioner, TbbPartitioner::AUTO);
+    EXPECT_EQ(config.tbbPartitionerLatency, TbbPartitioner::AUTO);
 }
 
 TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_low_lp_share_vision_case_keeps_main_and_efficient) {
@@ -479,7 +480,7 @@ TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_high_lp_share_residu
     configure_x86_hybrid_threads(config, proc_type_table, tolerance, false, false);
 
     EXPECT_EQ(config.modelPreferThreadsLatency, 16);
-    EXPECT_EQ(config.tbbPartitioner, TbbPartitioner::AUTO);
+    EXPECT_EQ(config.tbbPartitionerLatency, TbbPartitioner::AUTO);
 }
 
 TEST_F(ModelPreferThreadsIntegrationTest, direct_x86_hybrid_low_lp_share_residual_vision_keeps_main_and_efficient) {
@@ -688,6 +689,67 @@ TEST_F(ModelPreferThreadsIntegrationTest, direct_apple_special_latency_and_throu
     EXPECT_EQ(config.modelPreferThreadsLatency, 6);
 }
 
+#endif
+
+#if defined(OPENVINO_ARCH_X86) || defined(OPENVINO_ARCH_X86_64)
+TEST_F(ModelPreferThreadsIntegrationTest, hybrid_auto_latency_preference_is_static_only_for_multiple_streams) {
+    const std::vector<std::vector<int>> proc_type_table = {{16, 4, 8, 4, 0, 0, 0}};
+    Config preference;
+    const auto tolerance = MemBandwidthPressureBuilder{}
+                               .total_gemms(0)
+                               .total_convs(20)
+                               .ratio_compute_convs(0.29f)
+                               .ratio_mem_limited_convs(0.15f)
+                               .ratio_mem_limited_gemms(0.0f)
+                               .ratio_mem_limited_adds(0.4f)
+                               .max_mem_tolerance(0.2f)
+                               .build();
+    configure_x86_hybrid_threads(preference, proc_type_table, tolerance, false, false);
+    ASSERT_EQ(preference.modelPreferThreadsLatency, 16);
+    ASSERT_EQ(preference.tbbPartitionerLatency, TbbPartitioner::AUTO);
+
+    // Reuse the deterministic PTL preference to exercise the selection without host CPU dependencies.
+    preference.modelPreferThreads = 0;
+    preference.modelPreferThreadsThroughput = 2;
+    auto model = make_dummy_model();
+    get_model_prefer_threads(1, proc_type_table, model, preference, 1, 2.0f);
+    EXPECT_EQ(preference.tbbPartitioner, TbbPartitioner::AUTO);
+
+    auto single_stream_throughput = preference;
+    get_model_prefer_threads(1, proc_type_table, model, single_stream_throughput, 1, 2.0f);
+    EXPECT_EQ(single_stream_throughput.tbbPartitioner, TbbPartitioner::AUTO);
+
+    auto multi_stream = preference;
+    get_model_prefer_threads(2, proc_type_table, model, multi_stream, 1, 2.0f);
+    EXPECT_EQ(multi_stream.tbbPartitioner, TbbPartitioner::STATIC);
+    EXPECT_EQ(multi_stream.tbbPartitionerLatency, TbbPartitioner::AUTO);
+
+    auto automatic_streams = preference;
+    get_model_prefer_threads(0, proc_type_table, model, automatic_streams, 1, 2.0f);
+    EXPECT_EQ(automatic_streams.tbbPartitioner, TbbPartitioner::STATIC);
+    EXPECT_EQ(automatic_streams.tbbPartitionerLatency, TbbPartitioner::AUTO);
+
+    auto imported = preference;
+    imported.tbbPartitioner = TbbPartitioner::NONE;
+    get_model_prefer_threads(2, proc_type_table, model, imported, 1, 2.0f);
+    EXPECT_EQ(imported.tbbPartitioner, TbbPartitioner::STATIC);
+    EXPECT_EQ(imported.tbbPartitionerLatency, TbbPartitioner::AUTO);
+
+    auto reset_partitioner = preference;
+    reset_partitioner.readProperties({ov::intel_cpu::tbb_partitioner(TbbPartitioner::NONE)});
+    get_model_prefer_threads(2, proc_type_table, model, reset_partitioner, 1, 2.0f);
+    EXPECT_EQ(reset_partitioner.tbbPartitioner, TbbPartitioner::STATIC);
+
+    auto explicit_auto = preference;
+    explicit_auto.readProperties({ov::intel_cpu::tbb_partitioner(TbbPartitioner::AUTO)});
+    get_model_prefer_threads(2, proc_type_table, model, explicit_auto, 1, 2.0f);
+    EXPECT_EQ(explicit_auto.tbbPartitioner, TbbPartitioner::AUTO);
+
+    auto explicit_static = preference;
+    explicit_static.readProperties({ov::intel_cpu::tbb_partitioner(TbbPartitioner::STATIC)});
+    get_model_prefer_threads(1, proc_type_table, model, explicit_static, 1, 2.0f);
+    EXPECT_EQ(explicit_static.tbbPartitioner, TbbPartitioner::STATIC);
+}
 #endif
 
 }  // namespace

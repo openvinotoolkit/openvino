@@ -196,6 +196,8 @@ void Config::readProperties(const ov::AnyMap& prop, const ModelType modelType) {
         } else if (key == ov::intel_cpu::tbb_partitioner.name()) {
             try {
                 tbbPartitioner = val.as<ov::intel_cpu::TbbPartitioner>();
+                tbbPartitionerLatency = tbbPartitioner;
+                changedTbbPartitioner = (tbbPartitioner != ov::intel_cpu::TbbPartitioner::NONE);
             } catch (ov::Exception&) {
                 OPENVINO_THROW("Wrong value ",
                                val.as<std::string>(),

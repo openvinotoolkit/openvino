@@ -4,6 +4,7 @@
 
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/compiled_model.hpp"
+#include "openvino/runtime/intel_cpu/properties.hpp"
 #include "common_test_utils/test_common.hpp"
 #include "common_test_utils/node_builders/eltwise.hpp"
 #include "common_test_utils/node_builders/constant.hpp"
@@ -92,6 +93,75 @@ TEST_P(ExportOptimalNumStreams, OptimalNumStreams) {
         EXPECT_EQ(new_properties_output[5], imported_properties_output[5]);
         EXPECT_EQ(new_properties_output[6], imported_properties_output[6]);
     }
+}
+
+TEST(ExportImportPartitioner, ExplicitChoiceOverridesAutomaticSelection) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    ov::Core core;
+    auto model = MakeMatMulModel();
+    auto compiled = core.compile_model(model,
+                                       "CPU",
+                                       {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+                                        ov::intel_cpu::tbb_partitioner(ov::intel_cpu::TbbPartitioner::AUTO)});
+    EXPECT_EQ(compiled.get_property(ov::intel_cpu::tbb_partitioner), ov::intel_cpu::TbbPartitioner::AUTO);
+
+    auto automatic_throughput = core.compile_model(model,
+                                                   "CPU",
+                                                   {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
+    EXPECT_EQ(automatic_throughput.get_property(ov::intel_cpu::tbb_partitioner),
+              ov::intel_cpu::TbbPartitioner::STATIC);
+
+    std::stringstream exported_model;
+    compiled.export_model(exported_model);
+
+    auto import_with = [&](const ov::AnyMap& properties) {
+        std::stringstream stream(exported_model.str());
+        return core.import_model(stream, "CPU", properties);
+    };
+
+    auto latency = import_with({ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY), ov::num_streams(1)});
+    EXPECT_EQ(latency.get_property(ov::intel_cpu::tbb_partitioner), ov::intel_cpu::TbbPartitioner::AUTO);
+
+    auto throughput = import_with({ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+                                   ov::num_streams(1)});
+    EXPECT_EQ(throughput.get_property(ov::intel_cpu::tbb_partitioner), ov::intel_cpu::TbbPartitioner::AUTO);
+
+    auto reset_partitioner = import_with({ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+                                          ov::num_streams(2),
+                                          ov::intel_cpu::tbb_partitioner(ov::intel_cpu::TbbPartitioner::NONE)});
+    EXPECT_EQ(reset_partitioner.get_property(ov::intel_cpu::tbb_partitioner), ov::intel_cpu::TbbPartitioner::STATIC);
+
+    auto explicit_throughput = import_with({ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT),
+                                            ov::intel_cpu::tbb_partitioner(ov::intel_cpu::TbbPartitioner::AUTO)});
+    EXPECT_EQ(explicit_throughput.get_property(ov::intel_cpu::tbb_partitioner), ov::intel_cpu::TbbPartitioner::AUTO);
+
+    auto explicit_static = import_with({ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
+                                        ov::intel_cpu::tbb_partitioner(ov::intel_cpu::TbbPartitioner::STATIC)});
+    EXPECT_EQ(explicit_static.get_property(ov::intel_cpu::tbb_partitioner), ov::intel_cpu::TbbPartitioner::STATIC);
+
+    auto multi_stream = import_with({ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY),
+                                     ov::num_streams(2)});
+    EXPECT_EQ(multi_stream.get_property(ov::intel_cpu::tbb_partitioner), ov::intel_cpu::TbbPartitioner::STATIC);
+
+    auto automatic_multi_stream = core.compile_model(model, "CPU", {ov::num_streams(2)});
+    EXPECT_EQ(automatic_multi_stream.get_property(ov::intel_cpu::tbb_partitioner),
+              ov::intel_cpu::TbbPartitioner::STATIC);
+
+    auto compiled_multi_stream = core.compile_model(model,
+                                                    "CPU",
+                                                    {ov::num_streams(2),
+                                                     ov::intel_cpu::tbb_partitioner(ov::intel_cpu::TbbPartitioner::AUTO)});
+    EXPECT_EQ(compiled_multi_stream.get_property(ov::intel_cpu::tbb_partitioner),
+              ov::intel_cpu::TbbPartitioner::AUTO);
+
+    ov::Core core_with_explicit_partitioner;
+    core_with_explicit_partitioner.set_property("CPU",
+                                                ov::intel_cpu::tbb_partitioner(ov::intel_cpu::TbbPartitioner::AUTO));
+    auto inherited_partitioner = core_with_explicit_partitioner.compile_model(
+        model,
+        "CPU",
+        {ov::hint::performance_mode(ov::hint::PerformanceMode::THROUGHPUT)});
+    EXPECT_EQ(inherited_partitioner.get_property(ov::intel_cpu::tbb_partitioner), ov::intel_cpu::TbbPartitioner::AUTO);
 }
 
 const std::vector<ov::AnyMap> testing_property_for_streams = {{ov::num_streams(1)}, {ov::num_streams(2)}};
