@@ -116,6 +116,53 @@ std::vector<layout> paged_attention_inst::calc_output_layouts(paged_attention_no
         }
     }
 
+    // Validate block_indices consistency: if block_indices is shorter than
+    // the context implied by past_lens, the PA kernel will read out-of-bounds,
+    // causing CL_OUT_OF_RESOURCES (error -5) which kills the process.
+    // Catch this early with a clear error message. (See issue #37662, Request 6)
+    const auto block_indices_idx = cldnn::paged_attention::PagedAttentionInputIdx::BLOCK_INDICES;
+    const auto subseq_begins_idx = cldnn::paged_attention::PagedAttentionInputIdx::SUBSEQUENCE_BEGINS;
+    const auto past_lens_idx_val = cldnn::paged_attention::PagedAttentionInputIdx::PAST_LENS;
+    const auto& block_indices_layout = impl_param.get_input_layout(block_indices_idx);
+    const auto& subseq_begins_layout = impl_param.get_input_layout(subseq_begins_idx);
+    const auto& past_lens_layout_val = impl_param.get_input_layout(past_lens_idx_val);
+
+    if (block_indices_layout.is_static() && subseq_begins_layout.is_static() && past_lens_layout_val.is_static()) {
+        const auto& memory_deps = impl_param.memory_deps;
+        if (memory_deps.count(past_lens_idx_val) && memory_deps.count(subseq_begins_idx)) {
+            auto past_lens_mem = memory_deps.at(past_lens_idx_val);
+            auto subseq_begins_mem = memory_deps.at(subseq_begins_idx);
+            mem_lock<int32_t, mem_lock_type::read> past_lens_lock(past_lens_mem, *impl_param.strm);
+            mem_lock<int32_t, mem_lock_type::read> subseq_begins_lock(subseq_begins_mem, *impl_param.strm);
+
+            const auto num_sequences = past_lens_lock.size();
+            const auto block_indices_count = static_cast<size_t>(block_indices_layout.get_shape()[0]);
+            const auto pa_block_sz = desc->has_xattention ? paged_attention::block_size_xattn : paged_attention::block_size;
+
+            // Derive required blocks per sequence: ceil((past_len + new_tokens) / block_size)
+            // new_tokens for sequence i = subsequence_begins[i+1] - subsequence_begins[i]
+            size_t required_blocks = 0;
+            if (num_sequences > 0 && subseq_begins_lock.size() > num_sequences) {
+                for (size_t i = 0; i < num_sequences; i++) {
+                    const auto past_len = static_cast<size_t>(past_lens_lock[i]);
+                    const auto new_tokens = static_cast<size_t>(subseq_begins_lock[i + 1] - subseq_begins_lock[i]);
+                    const auto total_tokens = past_len + new_tokens;
+                    required_blocks += (total_tokens + pa_block_sz - 1) / pa_block_sz;
+                }
+                OPENVINO_ASSERT(block_indices_count >= required_blocks,
+                                "[GPU] PagedAttention: block_indices length (",
+                                block_indices_count,
+                                ") is smaller than required (",
+                                required_blocks,
+                                ") for ",
+                                num_sequences,
+                                " sequences with block_size=",
+                                pa_block_sz,
+                                ". This will cause the kernel to read out-of-bounds memory.");
+            }
+        }
+    }
+
     return output_layouts;
 }
 
