@@ -22,6 +22,8 @@ class ICore;
 
 namespace intel_npu {
 
+void validate_imported_batch_size(const NetworkMetadata& metadata, size_t batch_size);
+
 /**
  * @brief Abstract class used as the base for importing blobs of different formats.
  */

@@ -48,6 +48,12 @@ std::shared_ptr<ov::Model> create_simple_model() {
     return std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{input}, "Simple with weights");
 }
 
+IODescriptor make_descriptor(const ov::PartialShape& shape) {
+    IODescriptor descriptor;
+    descriptor.shapeFromCompiler = shape;
+    return descriptor;
+}
+
 }  // namespace
 
 using testing::_;
@@ -153,4 +159,28 @@ TEST_F(BlobFormatImportersTest, CannotCreateModelBeforeGraph) {
 
     OV_ASSERT_NO_THROW(importer = blob_format_importer_factory::create(source, true, nullptr, config));
     OV_EXPECT_THROW(importer->create_dummy_model(), ov::Exception, _);
+}
+
+TEST_F(BlobFormatImportersTest, RejectsImportedBatchSizeForBatchedNativeOutput) {
+    NetworkMetadata metadata;
+    metadata.inputs.push_back(make_descriptor(ov::PartialShape{1, 64}));
+    metadata.outputs.push_back(make_descriptor(ov::PartialShape{2, 64}));
+
+    OV_EXPECT_THROW(validate_imported_batch_size(metadata, 2), ov::Exception, _);
+}
+
+TEST_F(BlobFormatImportersTest, AcceptsImportedBatchSizeForUnbatchedNativeIO) {
+    NetworkMetadata metadata;
+    metadata.inputs.push_back(make_descriptor(ov::PartialShape{1, 64}));
+    metadata.outputs.push_back(make_descriptor(ov::PartialShape{1, 64}));
+
+    OV_ASSERT_NO_THROW(validate_imported_batch_size(metadata, 2));
+}
+
+TEST_F(BlobFormatImportersTest, RejectsImportedBatchSizeForDynamicNativeShape) {
+    NetworkMetadata metadata;
+    metadata.inputs.push_back(make_descriptor(ov::PartialShape{1, -1}));
+    metadata.outputs.push_back(make_descriptor(ov::PartialShape{1, 64}));
+
+    OV_EXPECT_THROW(validate_imported_batch_size(metadata, 2), ov::Exception, _);
 }
