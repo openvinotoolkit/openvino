@@ -272,13 +272,12 @@ std::shared_ptr<ov::Model> InputModel::InputModelIRImpl::convert() {
     std::shared_ptr<ov::Model> model;
     visitor.on_attribute("net", model);
     model->get_rt_info()["version"] = int64_t(version);
-    // Buffer-backed providers (mmap, or a buffer read from the file) report no path, so fall back to the
-    // weights file the frontend resolved. Plugins read ov::weights_path from this key (e.g. GPU MoE offload).
-    auto weights_path = m_weights_provider ? m_weights_provider->path() : std::filesystem::path{};
-    if (weights_path.empty())
-        weights_path = m_weights_path;
-    if (!weights_path.empty())
-        model->get_rt_info()["__weights_path"] = ov::util::path_to_string(weights_path);
+    // `__weights_path` is an internal, legacy bridge and not part of the IR format: it hands the weights file the
+    // frontend resolved to plugins that need it after read_model (GPU MoE offload, weightless cache import) until
+    // they receive the path through an explicit property or compilation context, when it is to be removed.
+    // m_weights_path is the only source: every provider FrontEnd::load_impl builds from a file is built from it.
+    if (!m_weights_path.empty())
+        model->get_rt_info()["__weights_path"] = ov::util::path_to_string(m_weights_path);
     parse_pre_process(m_root, m_weights_provider, model);
 
     return model;
