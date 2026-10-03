@@ -2,17 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "cm_qq_bias_mask.hpp"
-
 namespace KERNEL_NAME {
 
-// TILE_Q optimisation: each SG packs TILE_Q q-tokens of the same subsequence
-// so K/V loads are amortised across the spec window and DPAS RepeatCount stays
-// saturated at Q_head_chunk_size * TILE_Q (≤ 8). Mapping is host-packed as i32
-// triples (orig_seq_idx, q_start_in_subseq, valid_count); valid_count is in the
-// range [1, TILE_Q] and equals TILE_Q for full tiles. Tail tiles (valid_count <
-// TILE_Q) write neutral output (lse = -inf) for the dummy rows so finalize can
-// safely reduce a fixed-size partition buffer.
+#include "cm_qq_bias_mask.hpp"
+
 //
 // Layout invariants:
 //   selected_q_mapping  : i32 triples, length = 3 * tile_count
@@ -28,34 +21,180 @@ namespace KERNEL_NAME {
 #define USE_LSC_BLOCK_2D_DESC 1
 #endif
 
+#if KV_STEP != REG_N
+    #error "KV_STEP must equal REG_N: one online tile is exactly one DPAS N-tile of keys"
+#endif
+
 #define SystolicDepth 8
 #define RepeatCount 1
 #define VNNI_WIDTH 2
 #define REG_K (SystolicDepth * VNNI_WIDTH)
 #define REG_M RepeatCount
-#define KV_PARTITION_STEP_NUM  (KV_PARTITION_SIZE / KV_STEP)
+// KV_PARTITION_SIZE arrives as a kernel scalar, not a jit constant, so one compiled kernel
+// serves every context length and the host can size the partition from max_context_len
+// instead of pinning a value that is only right at one point. That matters because the
+// partition sets two opposing things at once -- the workgroup count (parallelism) and the
+// fp32 partial traffic the finalization reads back -- so the optimum moves with context.
+// Measured: the best fixed value still costs +44 % worst / +17 % mean against the per-case
+// best, and one tuned at 15 k regressed past_len=512 by 3.3x.
+//
+// The jit constant survives as an upper *bound* only, because the three prologue lookaside
+// tables below are the one thing that genuinely needs a compile-time extent. They cost
+// 3 * (KV_PARTITION_SIZE_MAX / KV_STEP) * 4 bytes of GRF unconditionally -- 480 B (7.5 GRF)
+// at 640 -- which is what bounds how large a partition may be requested. Raising the bound is
+// not free: at 2048 it would be 24 GRF on a kernel that already sits near the ceiling.
+#define KV_PARTITION_SIZE_MAX      KV_PARTITION_SIZE
+#define KV_PARTITION_STEP_NUM_MAX  (KV_PARTITION_SIZE_MAX / KV_STEP)
 
+#define STEPS_PER_BLOCK (KV_BLOCK_SIZE / KV_STEP)
+#if (KV_BLOCK_SIZE % KV_STEP) != 0
+    #error "KV_BLOCK_SIZE must be a whole number of KV_STEP online tiles"
+#endif
+#if (KV_PARTITION_SIZE % KV_STEP) != 0
+    #error "KV_PARTITION_SIZE must be a whole number of KV_STEP online tiles"
+#endif
+
+// Total q-rows handled by one SG. q_chunk Q-heads share one DPAS row; TILE_Q
+// q-tokens stack on top so DPAS RepeatCount = Q_ROWS = Q_head_chunk_size * TILE_Q.
 #define Q_ROWS (Q_head_chunk_size * TILE_Q)
 
-// Online softmax tile configuration
-// Each online tile processes ONLINE_TILE_STEPS * KV_STEP columns of the partition.
-// Overridable via JIT: -DONLINE_TILE_STEPS=N. When N == KV_PARTITION_STEP_NUM,
-// the online loop degenerates to a single iteration ("disable online softmax").
-#ifndef ONLINE_TILE_STEPS
-#define ONLINE_TILE_STEPS 8
+// Q-rows a single thread owns. This is also the DPAS RepeatCount it issues, because a
+// thread makes exactly one DPAS pass per head-dim chunk: 8 is the widest the systolic
+// array takes and maximises K/V reuse per thread.
+//
+#if Q_ROWS > 8
+#if (Q_ROWS % 8) != 0
+        #error "Q_ROWS > 8 requires Q_ROWS to be divisible by 8"
 #endif
-#define ONLINE_TILE_SIZE (ONLINE_TILE_STEPS * KV_STEP)
-#define NUM_ONLINE_TILES (KV_PARTITION_STEP_NUM / ONLINE_TILE_STEPS)
+    #define ROWS_PER_THREAD 8
+#else
+    #define ROWS_PER_THREAD Q_ROWS
+#endif
+
+// Threads per workgroup, i.e. lws[0]. Must equal the host's wg_threads; the host derives
+// it from the same TILE_Q and Q_head_chunk_size, and a mismatch is silent.
+#define WG_THREADS (Q_ROWS / ROWS_PER_THREAD)
+
+// Marshalling chunk counts, as macros so they are usable in #if conditions.
+#define MARSHAL_CHUNKS_C (HEAD_SIZE / REG_K)
+
+// Number of threads that participate in cooperative marshalling. It defaults to the
+// whole workgroup, but the two counts are independent: marshalling is a fixed
+// MARSHAL_CHUNKS_C of work per tile no matter how many q-rows the WG serves. Spreading
+// it over *fewer* threads gives each one more adjacent chunks, which widens the strided
+// raw read out of the row-major staging buffer (MARSHAL_CPT*REG_K bytes per token row
+// instead of REG_K) — the send-count lever, paid for with idle threads during the
+// marshal phase. At WG_THREADS == MARSHAL_CHUNKS_C == 8 the default gives CPT=1, i.e.
+// 16-byte reads. Widening that by marshalling on fewer threads was measured
+// slower: the lost parallelism costs more than the saved sends.
+#if WG_THREADS > MARSHAL_CHUNKS_C
+// More threads than chunks: extra threads would get MARSHAL_CPT == 0 and marshal nothing
+// while still being counted, so cap at one chunk each.
+#define MARSHAL_TG MARSHAL_CHUNKS_C
+#else
+#define MARSHAL_TG WG_THREADS
+#endif
+#if MARSHAL_TG > WG_THREADS
+    #error "MARSHAL_TG cannot exceed WG_THREADS"
+#endif
+#define MARSHAL_CPT      (MARSHAL_CHUNKS_C / MARSHAL_TG)
+
+// KV blocks folded into one online-softmax step. Raising it halves the number of
+// barrier-separated phases per unit of KV and the number of softmax updates, at the cost of
+// ONLINE_TILE_STEPS x the live rS_tile / P_tile / final_sum_acc state and of the marshalled
+// SLM footprint. Overridable from the build options so it can be A/B'd.
+#ifndef ONLINE_TILE_STEPS
+#define ONLINE_TILE_STEPS 1
+#endif
+
+// Issue V's raw load in the K chunk loop so both 2D-block loads are outstanding at once. V's
+// dequantize and V's prefetch stay in the V loop; only the undecoded tile is carried across,
+// which costs one uint8 REG_K x REG_N register (256 B) and not the whole V chain.
+//
+// A microbenchmark of this kernel's exact access pattern -- 16 token rows x 16 B at pitch 128,
+// from 256-token pages behind an index indirection, prefetch distance 1 -- reads 109 GB/s when
+// a thread drives one such stream and 133 GB/s when it drives two, against 133 GB/s for a plain
+// contiguous uint4 stream. One stream leaves memory-level parallelism on the table; two do not.
+//
+// Measured here over 20 interleaved rounds, main kernel ms, at the (context, partition) pairs
+// pick_small_q_partition produces, off -> on:
+//
+//   past 15360 part 640   0.765 -> 0.757   -1.1 %
+//   past  2048 part 384   0.135 -> 0.130   -3.5 %
+//   past  1024 part 256   0.067 -> 0.066   -1.8 %
+//   past   512 part 128   0.041 -> 0.040   -2.1 %
+//
+// Bit-exact -- reordering a load changes no value -- and no context regresses.
+//
+// Two neighbouring variants were measured and lost; do not "simplify" into either. Moving only
+// V's *prefetch* into the K loop costs no registers at all and loses 3.8-5.6 %, because it puts
+// the prefetch a whole K body ahead of its load and the line ages out of L1 -- the same reason
+// KV_PREFETCH_DIST 2 and 4 lose to 1. Moving load and prefetch together nets zero, the two
+// effects cancelling. Only separating them wins. Detail is in the sandbox copy of this kernel,
+// aboutSHW opencl/tests/pageatten/pa_small_q_ov_exp.cm.
+//
+// Requires one chunk per thread so that exactly one V tile is live: true at q_len=16 (8 threads
+// over 8 chunks) and false at q_len=6 (3 threads over 8), which is why this is gated rather
+// than unconditional. The rung mechanism compiles a separate variant per TILE_Q, so each rung
+// gets the right answer on its own.
+#ifndef MARSHAL_HOIST_V
+#if MARSHAL_CPT == 1 && ONLINE_TILE_STEPS == 1
+#define MARSHAL_HOIST_V 1
+#else
+#define MARSHAL_HOIST_V 0
+#endif
+#endif
+#if MARSHAL_HOIST_V && (MARSHAL_CPT != 1 || ONLINE_TILE_STEPS != 1)
+#error "MARSHAL_HOIST_V keeps one Vq live per thread; it needs MARSHAL_CPT == 1"
+#endif
+
+#ifndef SPLIT_BARRIER
+#if MARSHAL_TG == WG_THREADS && MARSHAL_CPT == 1 && ONLINE_TILE_STEPS == 1
+#define SPLIT_BARRIER 1
+#else
+#define SPLIT_BARRIER 0
+#endif
+#endif
+
+#if SPLIT_BARRIER && (MARSHAL_TG != WG_THREADS || MARSHAL_CPT != 1 || ONLINE_TILE_STEPS != 1)
+#error "SPLIT_BARRIER needs all threads to marshal one chunk in one online tile"
+#endif
+
+#define KV_PREFETCH_DIST 1
+
+#define SLM_SLOTS 1
+
+#define PA_PRAGMA_STR(x) _Pragma(#x)
+#define PA_PRAGMA_UNROLL(n) PA_PRAGMA_STR(unroll n)
+
+#ifndef TILE_UNROLL
+#define TILE_UNROLL 4
+#endif
+
+#ifndef SOFTMAX_RESCALE_BRANCHLESS
+#define SOFTMAX_RESCALE_BRANCHLESS 1
+#endif
+
+#ifndef DEQUANT_MAD
+#define DEQUANT_MAD 0
+#endif
 
 #if KV_CACHE_COMPRESSION
-    #if KV_CACHE_COMPRESSION == 2
+#if KV_CACHE_COMPRESSION == 2
     #define GROUPS_PER_BLOCK (KV_BLOCK_SIZE / SUB_BLOCK_SIZE)
+    // Sub-block groups spanned by one online tile. 1 whenever SUB_BLOCK_SIZE >= KV_STEP,
+    // which is the usual case (both 16).
+    #if SUB_BLOCK_SIZE >= KV_STEP
+    #define GROUPS_PER_TILE 1
+    #else
+    #define GROUPS_PER_TILE (KV_STEP / SUB_BLOCK_SIZE)
+    #endif
     #define K_SCALE_ZP_SIZE (4 * GROUPS_PER_BLOCK)
     #define V_SCALE_ZP_SIZE 4
-    #elif KV_CACHE_COMPRESSION == 1
+#elif KV_CACHE_COMPRESSION == 1
     #define K_SCALE_ZP_SIZE 4
     #define V_SCALE_ZP_SIZE 4
-    #endif
+#endif
     #define KV_ELEMENT_TYPE uint8_t
 #else
     #define V_SCALE_ZP_SIZE 0
@@ -78,10 +217,33 @@ CM_INLINE void Transpose_8x8(matrix_ref<T1, 8, 8> in, matrix_ref<T2, 8, 8> out) 
     }
 }
 
+// Per-row max of a ROWS x N tile as a log-depth tree over the column axis, with every
+// step applied to all ROWS at once. Reducing one row at a time costs ROWS*log2(N)
+// instructions at SIMD N/2, N/4 ... 1 -- mostly below the machine width. This is
+// log2(N) instructions at SIMD ROWS*N/2 ... ROWS.
+template <int ROWS, int N>
+struct MatRowMax {
+    CM_INLINE static vector<float, ROWS> apply(matrix_ref<float, ROWS, N> m) {
+        matrix<float, ROWS, N / 2> h =
+            cm_max<float>(m.template select<ROWS, 1, N / 2, 1>(0, 0),
+                          m.template select<ROWS, 1, N / 2, 1>(0, N / 2));
+        return MatRowMax<ROWS, N / 2>::apply(h.template select<ROWS, 1, N / 2, 1>(0, 0));
+    }
+};
+template <int ROWS>
+struct MatRowMax<ROWS, 1> {
+    CM_INLINE static vector<float, ROWS> apply(matrix_ref<float, ROWS, 1> m) {
+        return m.column(0);
+    }
+};
+
 // selected_q_mapping is packed as i32 triples:
 //   [orig_seq_idx_0, q_start_0, valid_count_0,
 //    orig_seq_idx_1, q_start_1, valid_count_1, ...]
-// Length = 3 * tile_count. cm_global_id(0) indexes the tile list directly.
+// Length = 3 * tile_count. One *workgroup* handles one tile: the host dispatches
+// gws[0] = tile_count * WG_THREADS with lws[0] = WG_THREADS, so cm_group_id(0) indexes the
+// tile list. WG_THREADS is 1 when Q_ROWS <= 8 and the path below is unchanged in that case:
+// the single thread marshals all MARSHAL_CHUNKS chunks and the barriers are trivial.
 extern "C" _GENX_MAIN_ void KERNEL_NAME(
     half* query [[type("svmptr_t")]],
     KV_ELEMENT_TYPE* key [[type("svmptr_t")]],
@@ -98,12 +260,19 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     int* selected_q_mapping [[type("svmptr_t")]],
     float* output [[type("svmptr_t")]],
     float* lse [[type("svmptr_t")]],
-    int q_len_unused,
+    int kv_partition_size_arg,   // KV_PARTITION_SIZE, runtime (was q_len_unused)
     int selected_token_count
     ) {
     // tile_idx indexes the host-packed (orig_seq, q_start, valid_count) triple list.
-    const uint tile_idx = cm_global_id(0);
-
+    // Keep the original global-id path for lws[0]=1, and switch to group-based
+    // indexing only when the experimental workgroup-shared path is enabled.
+    const uint tile_idx = cm_group_id(0);
+    const uint local_qg = cm_local_id(0);
+    // Must equal the value the host sized gws[2] and the partial buffers with; all three come
+    // from rt_params->small_q_partition_size.
+    const uint kv_partition_size = (uint)kv_partition_size_arg;
+    const uint kv_part_steps = kv_partition_size / KV_STEP;
+    const uint num_online_tiles = (kv_part_steps + ONLINE_TILE_STEPS - 1) / ONLINE_TILE_STEPS;
     if (tile_idx >= (uint)selected_token_count) {
         return;
     }
@@ -122,7 +291,6 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     if (subseq_q_end_i <= subseq_q_begin_i) {
         return;
     }
-
     const uint subseq_q_begin = (uint)subseq_q_begin_i;
 
     // Causal cap: row t sees past + q_start + t + 1 keys. The whole tile uses the
@@ -130,7 +298,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     // re-applies the tighter bound on rS columns.
     const uint past_q_lens         = (uint)past_lens[orig_seq_idx];
     const uint kv_len_max          = past_q_lens + q_start + valid_count;       // tile-wide upper bound
-    const uint seq_kv_partition_num = (kv_len_max + KV_PARTITION_SIZE - 1) / KV_PARTITION_SIZE;
+    const uint seq_kv_partition_num = (kv_len_max + kv_partition_size - 1) / kv_partition_size;
 
 #if HAS_QQ_BIAS
     // Per-subsequence qq_bias slice: row-major [spec_num, spec_num] over speculative tokens.
@@ -148,21 +316,7 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     const uint block_begin = block_indices_begins[orig_seq_idx];
     const uint block_end   = block_indices_begins[orig_seq_idx + 1];
 
-    const uint blocks_per_partition = (KV_PARTITION_SIZE / KV_BLOCK_SIZE);
     constexpr uint kv_pitch = HEAD_SIZE * sizeof(KV_ELEMENT_TYPE);
-
-    // Load Q for this tile once (shared across all partitions).
-    // Q is [TILE_Q q-tokens × Q_head_chunk_size heads × HEAD_SIZE].
-    matrix<half, Q_ROWS, HEAD_SIZE> Qmat = 0;
-    #pragma unroll
-    for (int t = 0; t < TILE_Q; t++) {
-        if (t >= (int)valid_count) continue;
-        const uint q_token_idx = subseq_q_begin + q_start + t;
-        const uint qo_offset = (q_token_idx * HEADS_NUM + head_num_idx) * HEAD_SIZE;
-        cm_svm_block_read<half, Q_head_chunk_size * HEAD_SIZE>(
-            (svmptr_t)(query + qo_offset),
-            Qmat.select<Q_head_chunk_size, 1, HEAD_SIZE, 1>(t * Q_head_chunk_size, 0).format<half>());
-    }
 
     constexpr uint per_v_block_element_num = KV_BLOCK_SIZE * KV_HEADS_NUM * (HEAD_SIZE + V_SCALE_ZP_SIZE);
 #if KV_CACHE_COMPRESSION == 1
@@ -173,731 +327,818 @@ extern "C" _GENX_MAIN_ void KERNEL_NAME(
     constexpr uint per_k_block_element_num = KV_BLOCK_SIZE * KV_HEADS_NUM * HEAD_SIZE;
 #endif
 
-    // Early exit if this partition is beyond what this sequence needs
-    if (kv_partition_idx >= seq_kv_partition_num) {
-            // Still need to write neutral output for finalization
+    if (local_qg >= WG_THREADS) {
+        return;
+    }
+
+        // Cooperative marshalling: every thread in the WG consumes the same K/V tile, so
+        // the dequantize + transpose/VNNI-pack is shared work. Stage the DPAS-ready
+        // operands in SLM once per WG instead of recomputing them per thread. The *raw*
+        // int8 bytes never touch SLM: each marshalling thread pulls its own
+        // REG_N x REG_K sub-tile straight from global memory with an LSC 2D block
+        // descriptor, which does the row->column gather the old staging buffer existed for.
+        // See PROFILING.md round 14.
+        //   Kt chunk = matrix<half, REG_K, REG_N>      (transposed, dword-VNNI)
+        //   Vt chunk = matrix<half, REG_K/2, REG_N*2>  (VNNI-interleaved)
+        // Both are REG_K * REG_N halves, so one chunk stride covers either.
+        constexpr uint MARSHAL_CHUNKS = HEAD_SIZE / REG_K;          // == HEAD_SIZE / REG_N
+        constexpr uint MARSHAL_CHUNK_BYTES = REG_K * REG_N * sizeof(half);
+        constexpr uint KT_BYTES = ONLINE_TILE_STEPS * MARSHAL_CHUNKS * MARSHAL_CHUNK_BYTES;
+        constexpr uint VT_BYTES = ONLINE_TILE_STEPS * MARSHAL_CHUNKS * MARSHAL_CHUNK_BYTES;
+        // Move a whole chunk per SLM transfer. This kernel is send-count sensitive here:
+        // 64 / 128 / 256 / 512 B per transfer measured 3.105 / 2.464 / 2.403 / 2.344 ms.
+        constexpr uint MARSHAL_XFER_BYTES = MARSHAL_CHUNK_BYTES;
+        constexpr uint MARSHAL_XFERS = MARSHAL_CHUNK_BYTES / MARSHAL_XFER_BYTES;
+        // Only the marshalled DPAS operands live in SLM: 8 KiB per WG, so residency is set
+        // by the register file (min(GRF limit, 128 KiB / slm_per_wg)), not by SLM.
+        cm_slm_init(SLM_SLOTS * (KT_BYTES + VT_BYTES));
+        auto slm_Kt = cm_slm_alloc(SLM_SLOTS * KT_BYTES);
+        auto slm_Vt = cm_slm_alloc(SLM_SLOTS * VT_BYTES);
+
+        const uint subgroup_row_base = local_qg * ROWS_PER_THREAD;
+        matrix<half, ROWS_PER_THREAD, HEAD_SIZE> Qmat_group = 0;
+#if (ROWS_PER_THREAD % Q_head_chunk_size) == 0
+        #pragma unroll
+        for (int tg = 0; tg < (ROWS_PER_THREAD / Q_head_chunk_size); tg++) {
+            const int global_row = subgroup_row_base + tg * Q_head_chunk_size;
+            const int t = global_row / Q_head_chunk_size;
+            if (t >= (int)valid_count) {
+                continue;
+            }
+            const uint q_token_idx = subseq_q_begin + q_start + t;
+            const uint qo_offset = (q_token_idx * HEADS_NUM + head_num_idx) * HEAD_SIZE;
+            cm_svm_block_read<half, Q_head_chunk_size * HEAD_SIZE>(
+                (svmptr_t)(query + qo_offset),
+                Qmat_group.select<Q_head_chunk_size, 1, HEAD_SIZE, 1>(tg * Q_head_chunk_size, 0).format<half>());
+        }
+#else
+        #pragma unroll
+        for (int row = 0; row < ROWS_PER_THREAD; row++) {
+            const int global_row = subgroup_row_base + row;
+            const int t = global_row / Q_head_chunk_size;
+            const int qi = global_row % Q_head_chunk_size;
+            if (t >= (int)valid_count) {
+                continue;
+            }
+            const uint q_token_idx = subseq_q_begin + q_start + t;
+            const uint qo_offset = (q_token_idx * HEADS_NUM + head_num_idx + qi) * HEAD_SIZE;
+            cm_svm_block_read<half, HEAD_SIZE>(
+                (svmptr_t)(query + qo_offset),
+                Qmat_group.row(row).format<half>());
+        }
+#endif
+
+        // Q and O are held *chunk-major*: head-dim chunk `ri` is a contiguous register
+        // region, which is what DPAS needs. A DPAS dst/src0 must be consecutive GRFs and
+        // src2 must be a legal direct region; with the natural row-major
+        // Omat[ROWS_PER_THREAD][HEAD_SIZE] the chunk-ri slice is 8 GRFs at 8-GRF stride, so
+        // IGC copies the accumulator in, DPASes and copies it back out on every iteration
+        // (8 + 8 movs per PV DPAS), and Qmat_group's src2 slice costs another 8 (8 rows at
+        // 256 B stride). Chunk-major plus an unrolled chunk loop -- so `ri` is compile-time
+        // -- makes all three regions direct and deletes 192 movs per online tile, 20 % of
+        // the kernel's dynamic instruction count. See PROFILING.md round 13.
+        //
+        // Repack Q once, out of the tile loop: MARSHAL_CHUNKS*ROWS_PER_THREAD movs here in
+        // exchange for the same number on every one of the NUM_ONLINE_TILES tiles.
+        matrix<half, MARSHAL_CHUNKS_C, ROWS_PER_THREAD * REG_K> Qchunks;
+        #pragma unroll
+        for (int c = 0; c < (int)MARSHAL_CHUNKS_C; c++) {
+            Qchunks[c].format<half, ROWS_PER_THREAD, REG_K>() =
+                Qmat_group.select<ROWS_PER_THREAD, 1, REG_K, 1>(0, c * REG_K);
+        }
+
+        if (kv_partition_idx >= seq_kv_partition_num) {
             #pragma unroll
-            for (int t = 0; t < TILE_Q; t++) {
+            for (int row = 0; row < ROWS_PER_THREAD; row++) {
+                const int global_row = subgroup_row_base + row;
+                const int t = global_row / Q_head_chunk_size;
+                const int qi = global_row % Q_head_chunk_size;
                 const uint token_row = tile_idx * TILE_Q + t;
+                matrix<float, REG_M, REG_N> zero = 0.0f;
+                uint o_offset = token_row * kv_partition_num * HEADS_NUM * HEAD_SIZE
+                              + kv_partition_num * (head_num_idx + qi) * HEAD_SIZE
+                              + kv_partition_idx * HEAD_SIZE;
                 #pragma unroll
-                for (int qi = 0; qi < Q_head_chunk_size; qi++) {
-                    matrix<float, REG_M, REG_N> zero = 0.0f;
-                    uint o_offset = token_row * kv_partition_num * HEADS_NUM * HEAD_SIZE
-                                  + kv_partition_num * (head_num_idx + qi) * HEAD_SIZE
-                                  + kv_partition_idx * HEAD_SIZE;
-                    #pragma unroll
-                    for (int k = 0; k < HEAD_SIZE; k += REG_N) {
-                        cm_svm_block_write<float, REG_N>((svmptr_t)(output + o_offset + k), zero.format<float>());
-                    }
-                    uint lse_offset = token_row * HEADS_NUM * kv_partition_num
-                                    + (head_num_idx + qi) * kv_partition_num
-                                    + kv_partition_idx;
-                    lse[lse_offset] = -3e38f;
+                for (int k = 0; k < HEAD_SIZE; k += REG_N) {
+                    cm_svm_block_write<float, REG_N>((svmptr_t)(output + o_offset + k), zero.format<float>());
                 }
+                uint lse_offset = token_row * HEADS_NUM * kv_partition_num
+                                + (head_num_idx + qi) * kv_partition_num
+                                + kv_partition_idx;
+                lse[lse_offset] = -3e38f;
             }
-            return; // Nothing else to do; this SG is done
+            return;
         }
 
-        const uint start_block_idx = block_begin + kv_partition_idx * blocks_per_partition;
-
-        // Buffer base index for this tile's TILE_Q output rows (tile-major layout).
-        const uint base_token_row = tile_idx * TILE_Q;
-
-        // Inactive partition (this tile is shorter than the dispatched grid). Write
-        // neutral so finalize can blindly reduce all partitions.
-        if (kv_partition_idx * KV_PARTITION_SIZE >= kv_len_max || start_block_idx >= block_end) {
+        // Ordinal of the first cache block this partition touches. Derived from the key
+        // position rather than from a blocks-per-partition ratio, so it stays correct when a
+        // block is larger than a partition as well as smaller.
+        const uint first_blk_ord = (kv_partition_idx * kv_partition_size) / KV_BLOCK_SIZE;
+        if (kv_partition_idx * kv_partition_size >= kv_len_max || block_begin + first_blk_ord >= block_end) {
             #pragma unroll
-            for (int t = 0; t < TILE_Q; t++) {
-                const uint token_row = base_token_row + t;
+            for (int row = 0; row < ROWS_PER_THREAD; row++) {
+                const int global_row = subgroup_row_base + row;
+                const int t = global_row / Q_head_chunk_size;
+                const int qi = global_row % Q_head_chunk_size;
+                const uint token_row = tile_idx * TILE_Q + t;
+                matrix<float, REG_M, REG_N> zero = 0.0f;
+                uint o_offset = token_row * kv_partition_num * HEADS_NUM * HEAD_SIZE
+                              + kv_partition_num * (head_num_idx + qi) * HEAD_SIZE
+                              + kv_partition_idx * HEAD_SIZE;
                 #pragma unroll
-                for (int qi = 0; qi < Q_head_chunk_size; qi++) {
-                    matrix<float, REG_M, REG_N> zero = 0.0f;
-                    uint o_offset = token_row * kv_partition_num * HEADS_NUM * HEAD_SIZE
-                                  + kv_partition_num * (head_num_idx + qi) * HEAD_SIZE
-                                  + kv_partition_idx * HEAD_SIZE;
-                    #pragma unroll
-                    for (int k = 0; k < HEAD_SIZE; k += REG_N) {
-                        cm_svm_block_write<float, REG_N>((svmptr_t)(output + o_offset + k), zero.format<float>());
-                    }
-                    uint lse_offset = token_row * HEADS_NUM * kv_partition_num
-                                    + (head_num_idx + qi) * kv_partition_num
-                                    + kv_partition_idx;
-                    lse[lse_offset] = -3e38f;
+                for (int k = 0; k < HEAD_SIZE; k += REG_N) {
+                    cm_svm_block_write<float, REG_N>((svmptr_t)(output + o_offset + k), zero.format<float>());
                 }
+                uint lse_offset = token_row * HEADS_NUM * kv_partition_num
+                                + (head_num_idx + qi) * kv_partition_num
+                                + kv_partition_idx;
+                lse[lse_offset] = -3e38f;
             }
-            return; // Nothing else to do; this SG is done
+            return;
         }
 
-        // Q matrix is already loaded outside the loop (shared across all partitions)
+        uint leftover_size = 0;
+        if (kv_partition_idx == seq_kv_partition_num - 1) {
+            leftover_size = (kv_len_max - kv_partition_size * kv_partition_idx) % kv_partition_size;
+        }
 
-    uint block_num = blocks_per_partition;
-    if (block_num > block_end - start_block_idx) {
-        block_num = block_end - start_block_idx;
-    }
-
-    // leftover_size is computed against the tile-wide kv_len_max so K loads cover
-    // the longest causal cap in the tile. Per-row tighter caps are applied later
-    // via the causal mask pass.
-    uint leftover_size = 0;
-    if (kv_partition_idx == seq_kv_partition_num - 1) {
-        leftover_size = (kv_len_max - KV_PARTITION_SIZE * kv_partition_idx) % KV_PARTITION_SIZE;
-    }
-
-    // =========================================================================
-    // Online softmax fused Q@K + softmax + P@V
-    // reducing peak register pressure.
-    // =========================================================================
-
-    constexpr float log2e = 1.4426950408889634f;
-    constexpr float loge2 = 0.6931471805599453f;
-
-    vector<float, Q_ROWS> running_max = -3e38f;
-    vector<float, Q_ROWS> running_sum = 0.0f;
-    matrix<float, Q_ROWS, HEAD_SIZE> Omat = 0;
-
-#if !USE_LSC_BLOCK_2D_DESC && KV_CACHE_COMPRESSION
-    constexpr uint VALUE_TILE_NUM = 2;
-#else
-    constexpr uint VALUE_TILE_NUM = 1;
-#endif
-
-    #pragma unroll
-    for (int online_tile = 0; online_tile < NUM_ONLINE_TILES; online_tile++) {
-        const int tile_kv_start = online_tile * ONLINE_TILE_SIZE;
-
-        // =====================================================================
-        // Phase 1: Q @ K for this online tile
-        // =====================================================================
-        matrix<float, Q_ROWS, ONLINE_TILE_STEPS * REG_N> rS_tile = 0;
+        constexpr float log2e_wg = 1.4426950408889634f;
+        constexpr float loge2_wg = 0.6931471805599453f;
+        vector<float, ROWS_PER_THREAD> final_max = -3e38f;
+        // The denominator is only ever read in the epilogue, so there is no reason to
+        // collapse each tile's exp() block to a scalar inside the loop. Accumulate it
+        // lane-wise and pay the single cross-lane reduction once, at the end: this turns
+        // ROWS_PER_THREAD log-depth cm_sum reductions per online tile into
+        // ROWS_PER_THREAD vector adds. Costs REG_N*ROWS_PER_THREAD*4 = 512 B of GRF.
+        matrix<float, ROWS_PER_THREAD, ONLINE_TILE_STEPS * REG_N> final_sum_acc = 0.0f;
+        vector<float, ROWS_PER_THREAD> final_sum = 0.0f;
+        // Omat[ri] holds head-dim chunk ri as ROWS_PER_THREAD*REG_N contiguous floats.
+        matrix<float, HEAD_SIZE / REG_N, ROWS_PER_THREAD * REG_N> Omat = 0;
 
         {
-        const uint tile_block_start = tile_kv_start / KV_BLOCK_SIZE;
-        const uint tile_block_end = (tile_kv_start + ONLINE_TILE_SIZE + KV_BLOCK_SIZE - 1) / KV_BLOCK_SIZE;
-        #pragma unroll
-        for (uint block_idx = tile_block_start; block_idx < block_num && block_idx < tile_block_end; block_idx++) {
-            uint blk_indices = block_indices[start_block_idx + block_idx];
-            uint k_base_offset = blk_indices * per_k_block_element_num + kv_head_num_idx * (per_k_block_element_num / KV_HEADS_NUM);
-            uint k_scale_zp_offset = k_base_offset + KV_BLOCK_SIZE * HEAD_SIZE;
+            const uint partition_valid = (leftover_size > 0) ? leftover_size : kv_partition_size;
 
-#if USE_LSC_BLOCK_2D_DESC
-    #if KV_CACHE_COMPRESSION
-            lsc::block_2d_desc<uint, 1, REG_N, REG_K/4> b2dK(reinterpret_cast<uint*>(key + k_base_offset), KV_BLOCK_SIZE - 1, HEAD_SIZE*sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
-    #else
-            lsc::block_2d_desc<uint, 1, REG_N, REG_K/2> b2dK(reinterpret_cast<uint*>(key + k_base_offset), KV_BLOCK_SIZE - 1, HEAD_SIZE*sizeof(half) - 1, kv_pitch - 1, 0, 0);
-    #endif
-#else
-            uint kv_offset = k_base_offset;
-            uint kv_stride = HEAD_SIZE;
-#endif
-
-            uint block_start_in_partition = block_idx * KV_BLOCK_SIZE;
-            uint kv_pos_begin_in_block = (tile_kv_start > (int)block_start_in_partition)
-                                         ? (tile_kv_start - (int)block_start_in_partition) : 0;
-            const uint partition_valid = (leftover_size > 0) ? leftover_size : (uint)KV_PARTITION_SIZE;
-            uint kv_pos_end_in_block = 0;
-            if (partition_valid > block_start_in_partition) {
-                kv_pos_end_in_block = partition_valid - block_start_in_partition;
-                if (kv_pos_end_in_block > KV_BLOCK_SIZE)
-                    kv_pos_end_in_block = KV_BLOCK_SIZE;
+            // Column blocks strictly below mask_bound are unmasked for *every* row this
+            // thread owns, so the whole per-row masking block can be skipped for them.
+            // The bound is loop-invariant; only the comparison stays in the tile loop.
+            // Rows past valid_count must always be forced to -inf, so the fast path is
+            // only available to threads that own no such row.
+            const int t_min_thread = (int)(subgroup_row_base / Q_head_chunk_size);
+            const int t_max_thread = (int)((subgroup_row_base + ROWS_PER_THREAD - 1) / Q_head_chunk_size);
+            const int kv_global_start_h = (int)(kv_partition_idx * kv_partition_size);
+            const int mask_from_min = (int)(past_q_lens + q_start + t_min_thread + 1) - kv_global_start_h;
+            int mask_bound_i = mask_from_min < (int)partition_valid ? mask_from_min : (int)partition_valid;
+            if (t_min_thread >= (int)valid_count) {
+                mask_bound_i = (int)partition_valid;
+            } else if (t_max_thread >= (int)valid_count) {
+                mask_bound_i = 0;
             }
-            uint tile_end_in_partition = tile_kv_start + ONLINE_TILE_SIZE;
-            if (block_start_in_partition + kv_pos_end_in_block > tile_end_in_partition)
-                kv_pos_end_in_block = tile_end_in_partition - block_start_in_partition;
-            uint effective_kv_pos_end = kv_pos_end_in_block;
-            if (effective_kv_pos_end == 0)
-                continue;
+            const int mask_bound = mask_bound_i;
 
-#if KV_CACHE_COMPRESSION == 1
-            vector<half, KV_BLOCK_SIZE> scale_vec;
-            vector<half, KV_BLOCK_SIZE> zp_vec;
-            cm_svm_block_read(reinterpret_cast<svmptr_t>(key + k_scale_zp_offset), scale_vec);
-            cm_svm_block_read(reinterpret_cast<svmptr_t>(key + k_scale_zp_offset + KV_BLOCK_SIZE * sizeof(half)), zp_vec);
-            if (effective_kv_pos_end < KV_BLOCK_SIZE) {
-                #pragma unroll
-                for (int i = effective_kv_pos_end; i < KV_BLOCK_SIZE; i++) {
-                    scale_vec[i] = 0.0;
-                    zp_vec[i] = 0.0;
-                }
-            }
-#endif
+            // Lane index constant for the scale/zp masked copy below; hoisted out of the
+            // tile loop.
+            vector<ushort, REG_N> lane_idx;
+            #pragma unroll
+            for (int i = 0; i < REG_N; i++) lane_idx[i] = (ushort)i;
 
-            int ki_base = (int)(block_start_in_partition + kv_pos_begin_in_block - tile_kv_start) / KV_STEP;
-            for (int kv_pos = (int)kv_pos_begin_in_block, ki = ki_base;
-                 ki < ONLINE_TILE_STEPS && kv_pos < (int)effective_kv_pos_end;
-                 kv_pos += KV_STEP, ki++) {
-#if KV_CACHE_COMPRESSION == 1
-    #if USE_LSC_BLOCK_2D_DESC
-                vector<half, REG_N * 2> temp_scale, temp_zp;
-                temp_scale.select<REG_N,2>(0) = scale_vec.select<REG_N,1>(kv_pos);
-                temp_scale.select<REG_N,2>(1) = scale_vec.select<REG_N,1>(kv_pos);
-                temp_zp.select<REG_N,2>(0) = zp_vec.select<REG_N,1>(kv_pos);
-                temp_zp.select<REG_N,2>(1) = zp_vec.select<REG_N,1>(kv_pos);
-    #else
-                matrix<half, REG_N, REG_K> temp_scale;
-                matrix<half, REG_N, REG_K> temp_zp;
-                #pragma unroll
-                for (int kk = 0; kk < REG_K; kk++) {
-                    temp_scale.select<REG_N, 1, 1, 1>(0, kk) = scale_vec.select<REG_N,1>(kv_pos);
-                    temp_zp.select<REG_N, 1, 1, 1>(0, kk) = zp_vec.select<REG_N,1>(kv_pos);
-                }
-    #endif
-#endif
-
-                #pragma unroll
-#if KV_CACHE_COMPRESSION
-    #if !USE_LSC_BLOCK_2D_DESC && KV_CACHE_COMPRESSION == 1 && XE_ARCH==1
-                for (int k = 0, ri = 0; k < HEAD_SIZE/4; k += (REG_K/4)*4, ri += 4) {
-    #else
-                for (int k = 0, ri = 0; k < HEAD_SIZE/4; k += REG_K/4, ri++) {
-    #endif
-#else
-                for (int k = 0, ri = 0; k < HEAD_SIZE/2; k += REG_K/2, ri++) {
-#endif
-#if !USE_LSC_BLOCK_2D_DESC && KV_CACHE_COMPRESSION == 1 && XE_ARCH==1
-                    matrix<uint8_t, REG_N, REG_K*4> temp4;
-                    uint cur_kv_offset4 = kv_offset + kv_pos * kv_stride + k * 4;
-                    #pragma unroll
-                    for (int kk = 0; kk < REG_N; kk++) {
-                        vector<uint, (REG_K*4)/4> tmp_dw;
-                        cm_svm_block_read<uint, (REG_K*4)/4>((svmptr_t)(reinterpret_cast<uint*>(key + cur_kv_offset4 + kk * kv_stride)), tmp_dw);
-                        temp4[kk].format<uint>() = tmp_dw;
+            // Precompute per-ki valid span once and reuse across all online tiles.
+            vector<uint, KV_PARTITION_STEP_NUM_MAX> kv_pos_end_cache = 0;
+            // Same for the physical block index. Same number of loads as reading it once per
+            // tile, but they all issue here, in the prologue, where their latency overlaps
+            // instead of sitting on every tile's critical path -- and it makes tile i+1's
+            // prefetch address available with no load at all.
+            vector<uint, KV_PARTITION_STEP_NUM_MAX> blk_idx_cache = 0;
+            // ...and the token offset of the tile *inside* that block. With KV_BLOCK_SIZE
+            // 256 and KV_STEP 16 a block spans 16 online tiles, so this is what tells the 2D
+            // descriptors which rows to read (set_block_y) and where the tile's per-token
+            // scale/zero-point live.
+            vector<uint, KV_PARTITION_STEP_NUM_MAX> tok_in_blk_cache = 0;
+            #pragma unroll
+            for (int ki = 0; ki < (int)kv_part_steps; ki++) {
+                // Valid key positions in *this online tile*, in [0, KV_STEP]. Note this is a
+                // per-tile count, not a per-block one: the two coincide only when
+                // STEPS_PER_BLOCK == 1.
+                const uint pos_in_part = (uint)ki * KV_STEP;
+                uint tile_valid = 0;
+                if (partition_valid > pos_in_part) {
+                    tile_valid = partition_valid - pos_in_part;
+                    if (tile_valid > KV_STEP) {
+                        tile_valid = KV_STEP;
                     }
-                    #pragma unroll
-                    for (int ur = 0; ur < 4; ur++) {
-                        if (ri + ur >= HEAD_SIZE / REG_K) break;
-                        matrix<half, REG_K, REG_N> Kt = 0;
-                        matrix<uint8_t, REG_N, REG_K> temp;
-                        #pragma unroll
-                        for (int kk = 0; kk < REG_N; kk++) {
-                            temp[kk] = temp4[kk].select<REG_K,1>(ur*REG_K);
-                        }
-                        matrix<half, REG_N, REG_K> KtNormal = temp;
-                        KtNormal = KtNormal - temp_zp;
-                        KtNormal = cm_mul<half>(KtNormal, temp_scale);
-                        Transpose_8x8(KtNormal.format<uint, REG_N, REG_K/2>(), Kt.format<uint, REG_K/2, REG_N>());
+                }
+                if (tile_valid > 0) {
+                    const uint pos_global = kv_partition_idx * kv_partition_size + pos_in_part;
+                    const uint blk_ord = pos_global / KV_BLOCK_SIZE;   // block ordinal in the sequence
+                    if (block_begin + blk_ord < block_end) {
+                        blk_idx_cache[ki] = block_indices[block_begin + blk_ord];
+                        tok_in_blk_cache[ki] = pos_global % KV_BLOCK_SIZE;
+                    } else {
+                        tile_valid = 0;
+                    }
+                }
+                kv_pos_end_cache[ki] = tile_valid;
+            }
+
+
+#if TILE_UNROLL > 0
+            PA_PRAGMA_UNROLL(TILE_UNROLL)
+#else
+            #pragma unroll
+#endif
+            for (int online_tile = 0; online_tile < (int)num_online_tiles; online_tile++) {
+                const int ki_base = online_tile * ONLINE_TILE_STEPS;
+                const int ki_base_m = ki_base;
+                const uint slm_slot_k = 0;
+                const uint slm_slot_v = 0;
+                const uint slm_slot_k_m = slm_slot_k;
+                const uint slm_slot_v_m = slm_slot_v;
+
+                matrix<float, ROWS_PER_THREAD, ONLINE_TILE_STEPS * REG_N> rS_tile = 0;
+                matrix<half, ROWS_PER_THREAD, ONLINE_TILE_STEPS * REG_N> P_tile = 0;
+
+                // Pre-marshal barrier: with a single set of marshalled buffers this tile's
+                // writes must not overtake the previous tile's reads. Unnecessary once the
+                // marshalled buffers were double-buffered.
+                cm_fence(CM_LOCAL_BARRIER);
+#if SPLIT_BARRIER
+                cm_sbarrier(1);
+#else
+                cm_barrier();
+#endif
+
+
+                // ---- Cooperative marshalling ------------------------------------------
+                // All threads in the workgroup consume the same K/V tile, so dequantize +
+                // transpose/VNNI-pack it once per WG rather than once per thread. Work is
+                // split by chunk (not by token row) because both the dword-transpose and
+                // the VNNI interleave mix adjacent token rows.
+                //
+                // Only the first MARSHAL_TG threads marshal; the rest fall straight through
+                // to the barrier below. The barrier itself stays outside this guard so the
+                // whole workgroup still meets at it.
+                if (local_qg < MARSHAL_TG
+                   ) {
+                #pragma unroll
+                for (int li_m = 0; li_m < ONLINE_TILE_STEPS; li_m++) {
+                    const int ki_m = ki_base_m + li_m;
+                    if (ki_m >= (int)kv_part_steps) {
+                        continue;
+                    }
+
+                    vector<half, REG_N> k_scale = 0.0f;
+                    vector<half, REG_N> k_zp = 0.0f;
+                    vector<half, REG_K> v_scale = 0.0f;
+                    vector<half, REG_K> v_zp = 0.0f;
+                    // Needed by the 2D descriptors in the chunk loops below. When the block
+                    // is out of range these stay 0 and the load reads block 0 -- harmless,
+                    // because k_scale/k_zp are 0 for those tokens so the dequantized value
+                    // is 0 regardless, and the columns are masked to -inf anyway.
+                    uint k_blk_base = 0;
+                    uint v_blk_base = 0;
+                    // Next tile's bases, for the prefetches in the chunk loops. Out of range
+                    // leaves them 0, which prefetches block 0 -- a prefetch to any mapped
+                    // address is harmless, so no guard is needed.
+                    uint k_blk_next = 0;
+                    uint v_blk_next = 0;
+                    uint tok_in_blk_next = 0;
+                    if (ki_m + KV_PREFETCH_DIST < (int)kv_part_steps
+                        && kv_pos_end_cache[ki_m + KV_PREFETCH_DIST] > 0) {
+                        const uint bn = blk_idx_cache[ki_m + KV_PREFETCH_DIST];
+                        tok_in_blk_next = tok_in_blk_cache[ki_m + KV_PREFETCH_DIST];
+                        k_blk_next = bn * per_k_block_element_num
+                                   + kv_head_num_idx * (per_k_block_element_num / KV_HEADS_NUM);
+                        v_blk_next = bn * per_v_block_element_num
+                                   + kv_head_num_idx * (per_v_block_element_num / KV_HEADS_NUM);
+                    }
+                    // Token offset of this online tile inside its cache block. Zero when
+                    // STEPS_PER_BLOCK == 1; a multiple of KV_STEP otherwise.
+                    const uint tok_in_blk = tok_in_blk_cache[ki_m];
+                    if (kv_pos_end_cache[ki_m] > 0) {
+                        const uint kv_pos_end_in_block = kv_pos_end_cache[ki_m];
+                        const uint blk_indices = blk_idx_cache[ki_m];
+                        const uint k_base_offset = blk_indices * per_k_block_element_num
+                                                 + kv_head_num_idx * (per_k_block_element_num / KV_HEADS_NUM);
+                        k_blk_base = k_base_offset;
+#if KV_CACHE_COMPRESSION == 1
+                        // Per-token scale/zp live after the KV_BLOCK_SIZE*HEAD_SIZE data
+                        // bytes as [KV_BLOCK_SIZE] halves of scale then [KV_BLOCK_SIZE] of
+                        // zero-point. Read only this tile's REG_N entries at its offset in
+                        // the block -- reading the whole block would be KV_BLOCK_SIZE*4 bytes
+                        // per thread per tile, which is 1 KiB at KV_BLOCK_SIZE 256.
+                        // tok_in_blk is a multiple of KV_STEP so the address is 32 B aligned.
+                        const uint k_szp = k_base_offset + KV_BLOCK_SIZE * HEAD_SIZE;
+                        vector<half, REG_N> k_scale_raw, k_zp_raw;
+                        cm_svm_block_read<half, REG_N>(
+                            (svmptr_t)(key + k_szp + tok_in_blk * sizeof(half)), k_scale_raw);
+                        cm_svm_block_read<half, REG_N>(
+                            (svmptr_t)(key + k_szp + (KV_BLOCK_SIZE + tok_in_blk) * sizeof(half)),
+                            k_zp_raw);
+#endif
+
+                        const uint v_base_offset = blk_indices * per_v_block_element_num
+                                                 + kv_head_num_idx * (per_v_block_element_num / KV_HEADS_NUM);
+                        v_blk_base = v_base_offset;
+#if KV_CACHE_COMPRESSION
+                        const uint v_szp = v_base_offset + KV_BLOCK_SIZE * HEAD_SIZE;
+                        vector<half, REG_K> v_scale_raw, v_zp_raw;
+                        cm_svm_block_read<half, REG_K>(
+                            (svmptr_t)(value + v_szp + tok_in_blk * sizeof(half)), v_scale_raw);
+                        cm_svm_block_read<half, REG_K>(
+                            (svmptr_t)(value + v_szp + (KV_BLOCK_SIZE + tok_in_blk) * sizeof(half)),
+                            v_zp_raw);
+
+                        // Vector-masked copy. The per-token loop above is semantically
+                        // identical but IGC unrolls it into REG_N predicated *scalar*
+                        // blocks -- 6 exec-1 instructions and a branch each, 109
+                        // instructions and 17 branches per online tile (19 % of the tile's
+                        // executed instructions) to move 64 halves already contiguous.
+                        //
+                        // Masking tokens past kv_pos_end_in_block to zero scale/zp is what
+                        // neutralises the tail of a partial block for the *per-token*
+                        // layout. It is strictly redundant -- column c of block ki is at
+                        // partition offset ki*REG_N+c and the causal/partition mask already
+                        // forces exactly those columns to -inf -- but it is free here and
+                        // keeps the values bounded. compr=2 cannot use it for K (a
+                        // per-channel scale cannot single out a token) and does not need to.
+                        vector<ushort, REG_N> lane_valid =
+                            lane_idx < (ushort)kv_pos_end_in_block;
+#if KV_CACHE_COMPRESSION == 1
+                        k_scale.merge(k_scale_raw, lane_valid);
+                        k_zp.merge(k_zp_raw, lane_valid);
+#endif
+                        v_scale.merge(v_scale_raw, lane_valid);
+                        v_zp.merge(v_zp_raw, lane_valid);
+#endif
+                    }
+
+#if DEQUANT_MAD
+                    vector<half, REG_K> v_negzpscale = cm_mul<half>(v_zp, v_scale);
+                    v_negzpscale = (half)0.0f - v_negzpscale;
+#if KV_CACHE_COMPRESSION == 1
+                    vector<half, REG_N> k_negzpscale = cm_mul<half>(k_zp, k_scale);
+                    k_negzpscale = (half)0.0f - k_negzpscale;
+#endif
+#endif
+
+                    // K and V marshalled in separate loops so their working sets do not
+                    // have to be live at the same time — this kernel already sits at
+                    // 243/256 GRF, so overlapping them spills.
+#if MARSHAL_HOIST_V
+                    // Loaded by the K loop below, consumed by the V loop. One chunk per thread
+                    // (MARSHAL_CPT == 1, enforced at the define), so exactly one is live.
+                    matrix<KV_ELEMENT_TYPE, REG_K, REG_N> Vq;
+#endif
+                    #pragma nounroll
+                    for (int c = local_qg; c < (int)MARSHAL_CHUNKS; c += MARSHAL_TG) {
+                        const uint chunk_out = (li_m * MARSHAL_CHUNKS + c) * MARSHAL_CHUNK_BYTES;
+
+                        // K: dequantize token rows, then dword-transpose into VNNI layout.
+                        matrix<KV_ELEMENT_TYPE, REG_N, REG_K> Kq;
+                        // REG_N token rows x REG_K bytes of head-dim at pitch HEAD_SIZE --
+                        // the exact sub-tile this thread needs, gathered by the LSC in one
+                        // message instead of REG_N SLM reads of a staged copy.
                         {
-                            matrix<half, Q_ROWS, REG_K> Qmat_data = Qmat.select<Q_ROWS,1,REG_K,1>(0, (ri+ur)*REG_K);
-                            matrix<float, Q_ROWS, REG_N> rS_data = 0;
-                            rS_data = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, Q_ROWS>(
-                                        rS_data.format<float>(),
-                                        Kt.format<int32_t>(),
-                                        Qmat_data.format<int32_t>());
-                            rS_tile.select<Q_ROWS, 1, REG_N, 1>(0, ki*REG_N) += rS_data;
+                            lsc::block_2d_desc<KV_ELEMENT_TYPE, 1, REG_N, REG_K> b2dK(
+                                key + k_blk_base, KV_BLOCK_SIZE - 1,
+                                HEAD_SIZE * sizeof(KV_ELEMENT_TYPE) - 1, kv_pitch - 1, 0, 0);
+                            b2dK.set_block_x(c * REG_K);
+                            b2dK.set_block_y(tok_in_blk);
+                            cm_load<lsc::Normal>(Kq.format<KV_ELEMENT_TYPE>(), b2dK);
                         }
-                    }
-                    continue;
-#endif
-                    matrix<half, REG_K, REG_N> Kt = 0;
-#if USE_LSC_BLOCK_2D_DESC
-                    b2dK.set_block_x(k);
-    #if KV_CACHE_COMPRESSION
-                    matrix<uint8_t, REG_K, REG_N> Kt_quant_temp, Kt_quant;
-                    cm_load<lsc::Transpose>(Kt_quant_temp.format<uint>(), b2dK.set_block_y(kv_pos));
-                    auto quant_src = Kt_quant_temp.format<ushort, REG_K/2, REG_N>();
-                    auto quant_dst = Kt_quant.format<ushort, REG_K/2, REG_N>();
-
-                    #pragma unroll
-                    for (int r = 0; r < REG_K / 2; r += 2) {
-                        quant_dst.row(r  ) = quant_src.select<2,1,8,2>(r,0);
-                        quant_dst.row(r+1) = quant_src.select<2,1,8,2>(r,1);
-                    }
-        #if KV_CACHE_COMPRESSION == 2
-                    uint group_idx = (kv_pos / SUB_BLOCK_SIZE);
-                    vector<half, REG_K> temp_scale, temp_zp;
-                    svmptr_t scale_ptr = (svmptr_t)(key + k_scale_zp_offset
-                                        + group_idx * HEAD_SIZE * sizeof(half)
-                                        + k * 4 * sizeof(half));
-                    svmptr_t zp_ptr = (svmptr_t)(key + k_scale_zp_offset
-                                        + GROUPS_PER_BLOCK * HEAD_SIZE * sizeof(half)
-                                        + group_idx * HEAD_SIZE * sizeof(half)
-                                        + k * 4 * sizeof(half));
-                    cm_svm_block_read<half, REG_K>(scale_ptr, temp_scale);
-                    cm_svm_block_read<half, REG_K>(zp_ptr, temp_zp);
-
-                    auto Kt_dequant_out = Kt.format<half, REG_K/2, 2*REG_N>();
-                    auto Kt_dequant_tmp = Kt_quant.format<uint8_t, REG_K/2, 2*REG_N>();
-                    #pragma unroll
-                    for (int r = 0; r < REG_K/2; r++) {
-                        Kt_dequant_out[r].select<REG_N, 2>(0) = Kt_dequant_tmp[r].select<REG_N, 2>(0) - temp_zp[r*2];
-                        Kt_dequant_out[r].select<REG_N, 2>(0) = cm_mul<half>(Kt_dequant_out[r].select<REG_N, 2>(0), temp_scale[r*2]);
-                        Kt_dequant_out[r].select<REG_N, 2>(1) = Kt_dequant_tmp[r].select<REG_N, 2>(1) - temp_zp[r*2+1];
-                        Kt_dequant_out[r].select<REG_N, 2>(1) = cm_mul<half>(Kt_dequant_out[r].select<REG_N, 2>(1), temp_scale[r*2+1]);
-                    }
-        #elif KV_CACHE_COMPRESSION == 1
-                    // Vectorized dequantization: explicitly format to ensure vector operations
-                    auto scale_mat = temp_scale.format<half, 2, REG_N>();
-                    auto zp_mat = temp_zp.format<half, 2, REG_N>();
-
-                    #pragma unroll
-                    for (int r = 0; r < REG_K; r++) {
-                        int scale_idx = r % 2;
-                        // Vector operations on entire row (REG_N elements processed together)
-                        Kt[r] = Kt_quant[r] - zp_mat[scale_idx];
-                        Kt[r] = cm_mul<half>(Kt[r], scale_mat[scale_idx]);
-                    }
-        #endif
-    #else
-                    cm_load<lsc::Transpose>(Kt.format<uint>(), b2dK.set_block_y(kv_pos));
-    #endif
-#else
-    #if KV_CACHE_COMPRESSION
-                    matrix<uint8_t, REG_N, REG_K> temp;
-                    uint cur_kv_offset = kv_offset + kv_pos * kv_stride + k * 4;
-                    #pragma unroll
-                    for (int kk = 0; kk < REG_N; kk++) {
-                        cm_svm_block_read<uint8_t, REG_K>((svmptr_t)(key + cur_kv_offset + kk * kv_stride), temp[kk].format<uint8_t>());
-                    }
-        #if KV_CACHE_COMPRESSION == 1
-                    matrix<half, REG_N, REG_K> KtNormal = temp;
-                    KtNormal = KtNormal - temp_zp;
-                    KtNormal = cm_mul<half>(KtNormal, temp_scale);
-        #else
-                    uint group_idx = (kv_pos / SUB_BLOCK_SIZE);
-                    vector<half, REG_K> temp_scale, temp_zp;
-                    svmptr_t scale_ptr = (svmptr_t)(key + k_scale_zp_offset
-                                        + group_idx * HEAD_SIZE * sizeof(half)
-                                        + k * 4 * sizeof(half));
-                    svmptr_t zp_ptr = (svmptr_t)(key + k_scale_zp_offset
-                                        + GROUPS_PER_BLOCK * HEAD_SIZE * sizeof(half)
-                                        + group_idx * HEAD_SIZE * sizeof(half)
-                                        + k * 4 * sizeof(half));
-                    cm_svm_block_read<half, REG_K>(scale_ptr, temp_scale);
-                    cm_svm_block_read<half, REG_K>(zp_ptr, temp_zp);
-                    matrix<half, REG_N, REG_K> KtNormal;
-                    #pragma unroll
-                    for (int kk = 0; kk < REG_N; kk++) {
-                        KtNormal[kk] = temp[kk] - temp_zp;
-                        KtNormal[kk] = cm_mul<half>(KtNormal[kk], temp_scale);
-                    }
-        #endif
-    #else
-                    matrix<uint, REG_N, REG_K/2> KtNormal;
-                    uint cur_kv_offset = kv_offset + kv_pos * kv_stride + k * 2;
-                    #pragma unroll
-                    for (int kk = 0; kk < REG_N; kk++) {
-                        cm_svm_block_read<uint, REG_K/2>((svmptr_t)(key + cur_kv_offset + kk * kv_stride), KtNormal[kk].format<uint>());
-                    }
-    #endif
-    #if XE_ARCH==1
-                    Transpose_8x8(KtNormal.format<uint, REG_N, REG_K/2>(), Kt.format<uint, REG_K/2, REG_N>());
-    #else
-                    Transpose_8x8(KtNormal.format<uint, REG_N, REG_K/2>().select<8,1,8,1>(0,0), Kt.format<uint, REG_K/2, REG_N>().select<8,1,8,1>(0,0));
-                    Transpose_8x8(KtNormal.format<uint, REG_N, REG_K/2>().select<8,1,8,1>(8,0), Kt.format<uint, REG_K/2, REG_N>().select<8,1,8,1>(0,8));
-    #endif
-#endif
-                {
-                    matrix<half, Q_ROWS, REG_K> Qmat_data = Qmat.select<Q_ROWS,1,REG_K,1>(0, ri*REG_K);
-                    matrix<float, Q_ROWS, REG_N> rS_data = 0;
-                    rS_data = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, Q_ROWS>(
-                                rS_data.format<float>(),
-                                Kt.format<int32_t>(),
-                                Qmat_data.format<int32_t>());
-                    rS_tile.select<Q_ROWS, 1, REG_N, 1>(0, ki*REG_N) += rS_data;
-                }
-                }
-            }
-        }
-        } // end Phase 1 block scope
-
-        // =====================================================================
-        // Phase 2: Scale + causal mask on rS_tile
-        // =====================================================================
-        // Apply scale factor
-        rS_tile = cm_mul<float>(rS_tile, (float)SCALE_FACTOR);
-
-        // Per-row causal mask on tile columns
-        {
-            const int kv_global_start = (int)(kv_partition_idx * KV_PARTITION_SIZE);
-            vector<int, REG_N> col_index;
-            #pragma unroll
-            for (int c = 0; c < REG_N; ++c) col_index[c] = c;
-            const float NEG_INF = -3.4e38f;
-
-            #pragma unroll
-            for (int t = 0; t < TILE_Q; ++t) {
-                const int kv_len_t = (t < (int)valid_count) ? (int)(past_q_lens + q_start + t + 1) : 0;
-                const int row_kv_in_partition = kv_len_t - kv_global_start;
-                // mask_from is relative to partition start
-                const int mask_from = row_kv_in_partition > 0 ? row_kv_in_partition : 0;
-                #pragma unroll
-                for (int qi = 0; qi < Q_head_chunk_size; ++qi) {
-                    const int row = t * Q_head_chunk_size + qi;
-                    auto rs_row = rS_tile[row].format<float, ONLINE_TILE_STEPS, REG_N>();
-                    #pragma unroll
-                    for (int b = 0; b < ONLINE_TILE_STEPS; ++b) {
-                        // blk_lo is the partition-relative column index for this tile block
-                        const int blk_lo = online_tile * ONLINE_TILE_SIZE + b * REG_N;
-                        if (blk_lo >= mask_from) {
-                            rs_row.row(b) = NEG_INF;
-                        } else if (blk_lo + REG_N > mask_from) {
-                            vector<unsigned short, REG_N> m = col_index >= (mask_from - blk_lo);
-                            auto blk = rs_row.row(b);
-                            blk.merge(NEG_INF, m);
+                        {
+                            lsc::block_2d_desc<KV_ELEMENT_TYPE, 1, REG_N, REG_K> pfK(
+                                key + k_blk_next, KV_BLOCK_SIZE - 1,
+                                HEAD_SIZE * sizeof(KV_ELEMENT_TYPE) - 1, kv_pitch - 1, 0, 0);
+                            pfK.set_block_x(c * REG_K);
+                            pfK.set_block_y(tok_in_blk_next);
+                            cm_prefetch(pfK);
                         }
-                    }
-                }
-            }
-
-#if HAS_QQ_BIAS
-            // Speculative tree mask on the "new token" K-range only.
-            // key_spec  = key_local - past_q_lens
-            // query_spec = q_start + t
-            if (qq_bias_num_subseq > 0 && qq_bias_spec_num > 0) {
-                #pragma unroll
-                for (int t = 0; t < TILE_Q; ++t) {
-                    if (t >= (int)valid_count) {
-                        continue;
-                    }
-                    const int query_spec = (int)q_start + t;
-                    if (query_spec < 0 || query_spec >= qq_bias_spec_num) {
-                        continue;
-                    }
-                    #pragma unroll
-                    for (int b = 0; b < ONLINE_TILE_STEPS; ++b) {
-                        const int blk_lo = online_tile * ONLINE_TILE_SIZE + b * REG_N;
-                        vector<unsigned short, REG_N> m =
-                            build_qq_bias_tree_mask_row<REG_N>(qq_bias_subseq_ptr, qq_bias_spec_num,
-                                                               query_spec, kv_global_start + blk_lo,
-                                                               (int)past_q_lens);
+#if MARSHAL_HOIST_V
+                        // Immediately after K's load and before any of K's arithmetic, so the
+                        // two loads are in flight together. V's prefetch deliberately stays in
+                        // the V loop: hoisting it too cancels the gain, see the define.
+                        {
+                            lsc::block_2d_desc<KV_ELEMENT_TYPE, 1, REG_K, REG_N> b2dVh(
+                                value + v_blk_base, KV_BLOCK_SIZE - 1,
+                                HEAD_SIZE * sizeof(KV_ELEMENT_TYPE) - 1, kv_pitch - 1, 0, 0);
+                            b2dVh.set_block_x(c * REG_N);
+                            b2dVh.set_block_y(tok_in_blk);
+                            cm_load<lsc::Normal>(Vq.format<KV_ELEMENT_TYPE>(), b2dVh);
+                        }
+#endif
+#if KV_CACHE_COMPRESSION == 2
+                        // Per-channel scale/zp for exactly this chunk's REG_K channels, one
+                        // vector per sub-block group. The metadata sits after the
+                        // KV_BLOCK_SIZE*HEAD_SIZE data bytes as [group][channel] halves,
+                        // scale first then zero-point, so each of these is a contiguous
+                        // REG_K*2 = 32 B read at a 32 B-aligned address. With
+                        // SUB_BLOCK_SIZE == KV_BLOCK_SIZE (GROUPS_PER_BLOCK == 1) it is one
+                        // read each per chunk.
+                        matrix<half, GROUPS_PER_TILE, REG_K> kc_scale = 0.0f;
+                        matrix<half, GROUPS_PER_TILE, REG_K> kc_zp = 0.0f;
+                        if (kv_pos_end_cache[ki_m] > 0) {
+                            const uint szp_base = k_blk_base + KV_BLOCK_SIZE * HEAD_SIZE;
+                            // Group of the tile's *first* token within the block. Only the
+                            // GROUPS_PER_TILE groups this tile actually spans are read.
+                            const uint g_base = tok_in_blk / SUB_BLOCK_SIZE;
+                            #pragma unroll
+                            for (int g = 0; g < (int)GROUPS_PER_TILE; g++) {
+                                cm_svm_block_read<half, REG_K>(
+                                    (svmptr_t)(key + szp_base
+                                               + ((g_base + g) * HEAD_SIZE + c * REG_K) * sizeof(half)),
+                                    kc_scale.row(g).format<half>());
+                                cm_svm_block_read<half, REG_K>(
+                                    (svmptr_t)(key + szp_base
+                                               + ((GROUPS_PER_BLOCK + g_base + g) * HEAD_SIZE
+                                                  + c * REG_K) * sizeof(half)),
+                                    kc_zp.row(g).format<half>());
+                            }
+                        }
+#endif
+#if DEQUANT_MAD && KV_CACHE_COMPRESSION == 2
+                        matrix<half, GROUPS_PER_TILE, REG_K> kc_negzpscale =
+                            cm_mul<half>(kc_zp, kc_scale);
+                        kc_negzpscale = (half)0.0f - kc_negzpscale;
+#endif
+                        matrix<half, REG_N, REG_K> KtNormal = 0;
                         #pragma unroll
-                        for (int qi = 0; qi < Q_head_chunk_size; ++qi) {
-                            const int row = t * Q_head_chunk_size + qi;
-                            auto rs_row = rS_tile[row].format<float, ONLINE_TILE_STEPS, REG_N>();
-                            auto blk = rs_row.row(b);
-                            blk.merge(NEG_INF, m);
+                        for (int col = 0; col < REG_N; col++) {
+                            KtNormal.row(col) = Kq.row(col);
+#if DEQUANT_MAD
+#if KV_CACHE_COMPRESSION == 2
+                            KtNormal.row(col) = KtNormal.row(col) * kc_scale.row(col / SUB_BLOCK_SIZE)
+                                              + kc_negzpscale.row(col / SUB_BLOCK_SIZE);
+#else
+                            KtNormal.row(col) = KtNormal.row(col) * k_scale[col] + k_negzpscale[col];
+#endif
+#else
+#if KV_CACHE_COMPRESSION == 2
+                            // Per channel: the scale/zp vector spans the row (the REG_K
+                            // channels of this chunk) and is shared by every token row of
+                            // the group, so this is vector-vector where per-token is
+                            // vector-scalar. Same element count, same instruction count.
+                            // col is a compile-time unroll index, so the group select folds.
+                            KtNormal.row(col) = KtNormal.row(col) - kc_zp.row(col / SUB_BLOCK_SIZE);
+                            KtNormal.row(col) = cm_mul<half>(KtNormal.row(col),
+                                                             kc_scale.row(col / SUB_BLOCK_SIZE));
+                            // col is the token's index *within the online tile*, so
+                            // col / SUB_BLOCK_SIZE is its group relative to g_base above.
+#elif KV_CACHE_COMPRESSION == 1
+                            KtNormal.row(col) = KtNormal.row(col) - k_zp[col];
+                            KtNormal.row(col) = cm_mul<half>(KtNormal.row(col), k_scale[col]);
+#endif
+#endif
+                        }
+                        matrix<half, REG_K, REG_N> Kt_m = 0;
+                        Transpose_8x8(
+                            KtNormal.format<uint, REG_N, REG_K/2>().select<8,1,8,1>(0,0),
+                            Kt_m.format<uint, REG_K/2, REG_N>().select<8,1,8,1>(0,0));
+                        Transpose_8x8(
+                            KtNormal.format<uint, REG_N, REG_K/2>().select<8,1,8,1>(8,0),
+                            Kt_m.format<uint, REG_K/2, REG_N>().select<8,1,8,1>(0,8));
+#if SPLIT_BARRIER
+                        cm_sbarrier(0);
+#endif
+                        auto Kt_bytes = Kt_m.format<uint8_t>();
+                        #pragma unroll
+                        for (int x = 0; x < (int)MARSHAL_XFERS; x++) {
+                            cm_slm_block_write(slm_Kt, slm_slot_k_m + chunk_out + x * MARSHAL_XFER_BYTES,
+                                               Kt_bytes.select<MARSHAL_XFER_BYTES, 1>(x * MARSHAL_XFER_BYTES));
                         }
                     }
-                }
-            }
-#endif
 
-            // Also mask columns beyond kv_pos_end for the last tile
-            {
-                uint partition_kv_pos_end = KV_PARTITION_SIZE;  // = kv_pos_end for single block
-                if (leftover_size > 0) {
-                    partition_kv_pos_end = leftover_size % KV_BLOCK_SIZE;
-                    if (partition_kv_pos_end == 0) partition_kv_pos_end = KV_BLOCK_SIZE;
-                }
-                // Mask tile columns beyond the valid range
-                #pragma unroll
-                for (int b = 0; b < ONLINE_TILE_STEPS; ++b) {
-                    const int col_abs = tile_kv_start + b * REG_N;
-                    if (col_abs >= (int)partition_kv_pos_end) {
-                        // Entire block is past valid data
-                        #pragma unroll
-                        for (int row = 0; row < Q_ROWS; ++row) {
-                            rS_tile.select<1, 1, REG_N, 1>(row, b * REG_N) = NEG_INF;
+                    #pragma nounroll
+                    for (int c = local_qg; c < (int)MARSHAL_CHUNKS; c += MARSHAL_TG) {
+                        const uint chunk_out = (li_m * MARSHAL_CHUNKS + c) * MARSHAL_CHUNK_BYTES;
+
+                        // V: dequantize token rows, then VNNI-interleave row pairs.
+#if !MARSHAL_HOIST_V
+                        matrix<KV_ELEMENT_TYPE, REG_K, REG_N> Vq;
+                        {
+                            lsc::block_2d_desc<KV_ELEMENT_TYPE, 1, REG_K, REG_N> b2dV(
+                                value + v_blk_base, KV_BLOCK_SIZE - 1,
+                                HEAD_SIZE * sizeof(KV_ELEMENT_TYPE) - 1, kv_pitch - 1, 0, 0);
+                            b2dV.set_block_x(c * REG_N);
+                            b2dV.set_block_y(tok_in_blk);
+                            cm_load<lsc::Normal>(Vq.format<KV_ELEMENT_TYPE>(), b2dV);
                         }
-                    } else if (col_abs + REG_N > (int)partition_kv_pos_end) {
-                        // Straddling block
-                        int local_mask = (int)partition_kv_pos_end - col_abs;
-                        vector<unsigned short, REG_N> m = col_index >= local_mask;
-                        #pragma unroll
-                        for (int row = 0; row < Q_ROWS; ++row) {
-                            auto blk = rS_tile.select<1, 1, REG_N, 1>(row, b * REG_N).format<float, 1, REG_N>().row(0);
-                            blk.merge(NEG_INF, m);
+#endif
+                        {
+                            lsc::block_2d_desc<KV_ELEMENT_TYPE, 1, REG_K, REG_N> pfV(
+                                value + v_blk_next, KV_BLOCK_SIZE - 1,
+                                HEAD_SIZE * sizeof(KV_ELEMENT_TYPE) - 1, kv_pitch - 1, 0, 0);
+                            pfV.set_block_x(c * REG_N);
+                            pfV.set_block_y(tok_in_blk_next);
+                            cm_prefetch(pfV);
                         }
-                    }
-                }
-            }
-        }
-
-        // =====================================================================
-        // Phase 3: Online softmax update
-        // =====================================================================
-        matrix<half, Q_ROWS, ONLINE_TILE_STEPS * REG_N> P_tile = 0;
-
-        #pragma unroll
-        for (int row = 0; row < Q_ROWS; row++) {
-            auto rS_row = rS_tile[row].format<float>();
-
-            // Find tile max
-#if XE_ARCH==1
-            float tile_max = cm_reduced_max<float>(rS_row);
-#else
-            float tile_max = rS_row[0];
-    #if KV_CACHE_COMPRESSION
-            #pragma unroll
-    #endif
-            for (int r = 1; r < rS_row.n_elems(); r++)
-                tile_max = cm_max<float>(tile_max, rS_row[r]);
-#endif
-
-            // Compute new running max and correction factor
-            float new_max = cm_max<float>(running_max[row], tile_max);
-            float correction = cm_exp((running_max[row] - new_max) * log2e);
-
-            // Correct running state
-            running_sum[row] *= correction;
-            Omat[row] *= correction;
-
-            // Compute exp values for this tile
-            vector<float, ONLINE_TILE_STEPS * REG_N> exp_vals = cm_exp((rS_row - new_max) * log2e);
-
-            // Accumulate sum and update max
-            running_sum[row] += cm_sum<float>(exp_vals);
-            running_max[row] = new_max;
-
-            // Store P_tile as half for DPAS
-            P_tile[row] = exp_vals;
-        }
-
-        // =====================================================================
-        // Phase 4: P_tile @ V for this online tile
-        // =====================================================================
-        {
-        const uint tile_block_start_v = tile_kv_start / KV_BLOCK_SIZE;
-        const uint tile_block_end_v = (tile_kv_start + ONLINE_TILE_SIZE + KV_BLOCK_SIZE - 1) / KV_BLOCK_SIZE;
-        #pragma unroll
-        for (uint block_idx = tile_block_start_v; block_idx < block_num && block_idx < tile_block_end_v; block_idx++) {
-            uint blk_indices = block_indices[start_block_idx + block_idx];
-            uint v_base_offset = blk_indices * per_v_block_element_num + kv_head_num_idx * (per_v_block_element_num / KV_HEADS_NUM);
-            uint v_scale_zp_offset = v_base_offset + KV_BLOCK_SIZE * HEAD_SIZE;
-
-#if USE_LSC_BLOCK_2D_DESC
-    #if KV_CACHE_COMPRESSION
-            lsc::block_2d_desc<uint8_t, 1, REG_K, REG_N> b2dV(value + v_base_offset, KV_BLOCK_SIZE - 1, HEAD_SIZE*sizeof(uint8_t) - 1, kv_pitch - 1, 0, 0);
-    #else
-            lsc::block_2d_desc<half, 1, REG_K, REG_N>   b2dV(value + v_base_offset, KV_BLOCK_SIZE - 1, HEAD_SIZE * sizeof(half) - 1, kv_pitch - 1, 0, 0);
-    #endif
-#else
-            uint kv_offset = v_base_offset;
-            uint kv_stride = HEAD_SIZE;
-#endif
-            uint block_start_in_partition_v = block_idx * KV_BLOCK_SIZE;
-            uint kv_pos_begin_in_block_v = (tile_kv_start > (int)block_start_in_partition_v)
-                                           ? (tile_kv_start - (int)block_start_in_partition_v) : 0;
-            const uint partition_valid_v = (leftover_size > 0) ? leftover_size : (uint)KV_PARTITION_SIZE;
-            uint kv_pos_end_in_block_v = 0;
-            if (partition_valid_v > block_start_in_partition_v) {
-                kv_pos_end_in_block_v = partition_valid_v - block_start_in_partition_v;
-                if (kv_pos_end_in_block_v > KV_BLOCK_SIZE)
-                    kv_pos_end_in_block_v = KV_BLOCK_SIZE;
-            }
-            uint tile_end_in_partition_v = tile_kv_start + ONLINE_TILE_SIZE;
-            if (block_start_in_partition_v + kv_pos_end_in_block_v > tile_end_in_partition_v)
-                kv_pos_end_in_block_v = tile_end_in_partition_v - block_start_in_partition_v;
-            uint effective_kv_pos_end = kv_pos_end_in_block_v;
-            if (effective_kv_pos_end == 0)
-                continue;
-
-#if KV_CACHE_COMPRESSION
-            vector<half, KV_BLOCK_SIZE> scale_vec;
-            vector<half, KV_BLOCK_SIZE> zp_vec;
-            cm_svm_block_read(reinterpret_cast<svmptr_t>(value + v_scale_zp_offset), scale_vec);
-            cm_svm_block_read(reinterpret_cast<svmptr_t>(value + v_scale_zp_offset + KV_BLOCK_SIZE * sizeof(half)), zp_vec);
-            if (effective_kv_pos_end < KV_BLOCK_SIZE) {
-                for (int i = effective_kv_pos_end; i < KV_BLOCK_SIZE; i++) {
-                    scale_vec[i] = 0.0;
-                    zp_vec[i] = 0.0;
-                }
-            }
-#endif
-
-            int ki_base_v = (int)(block_start_in_partition_v + kv_pos_begin_in_block_v - tile_kv_start) / REG_K;
-            #pragma unroll
-            for (int kv_pos = (int)kv_pos_begin_in_block_v, ki = ki_base_v;
-                 ki < ONLINE_TILE_STEPS && kv_pos < (int)effective_kv_pos_end;
-                 kv_pos += REG_K, ki++) {
-#if KV_CACHE_COMPRESSION
-                vector<half, REG_K> temp_scale = scale_vec.select<REG_K, 1>(kv_pos);
-                vector<half, REG_K> temp_zp = zp_vec.select<REG_K, 1>(kv_pos);
-                matrix<uint8_t, REG_K, REG_N * VALUE_TILE_NUM> Vt_quant;
-#endif
-                #pragma unroll
-#if !USE_LSC_BLOCK_2D_DESC && KV_CACHE_COMPRESSION && XE_ARCH==1
-                for (int k = 0, ri = 0; k < HEAD_SIZE; k += (REG_N * VALUE_TILE_NUM) * 4, ri += VALUE_TILE_NUM * 4) {
-#else
-                for (int k = 0, ri = 0; k < HEAD_SIZE; k += REG_N * VALUE_TILE_NUM, ri += VALUE_TILE_NUM) {
-#endif
-                    matrix<half, REG_K, REG_N * VALUE_TILE_NUM> VmatNormal;
-                    matrix<half, REG_K, REG_N * VALUE_TILE_NUM> Vmat;
-#if USE_LSC_BLOCK_2D_DESC
-                    b2dV.set_block_x(k);
-    #if KV_CACHE_COMPRESSION
-                    cm_load<lsc::Normal>(Vt_quant.format<uint8_t>(), b2dV.set_block_y(kv_pos));
-    #else
-                    cm_load<lsc::VNNI>(Vmat.format<half>(), b2dV.set_block_y(kv_pos));
-    #endif
-#else
-    #if KV_CACHE_COMPRESSION
-        #if XE_ARCH==1
-                    matrix<uint8_t, REG_K, REG_N * VALUE_TILE_NUM * 4> Vt_quant4;
-                    uint cur_kv_offset4 = kv_offset + kv_pos * kv_stride + k;
-                    #pragma unroll
-                    for (int kk = 0; kk < REG_K; kk++) {
-                        vector<uint, (REG_N * VALUE_TILE_NUM * 4)/4> tmp_dw;
-                        cm_svm_block_read<uint, (REG_N * VALUE_TILE_NUM * 4)/4>((svmptr_t)(reinterpret_cast<uint*>(value + cur_kv_offset4 + kk * kv_stride)), tmp_dw);
-                        Vt_quant4[kk].format<uint>() = tmp_dw;
-                    }
-                    #pragma unroll
-                    for (int ur = 0; ur < 4; ur++) {
-                        if (k + ur * (REG_N * VALUE_TILE_NUM) >= HEAD_SIZE) break;
-                        #pragma unroll
-                        for (int kk = 0; kk < REG_K; kk++) {
-                            Vt_quant[kk] = Vt_quant4[kk].select<REG_N * VALUE_TILE_NUM, 1>(ur * (REG_N * VALUE_TILE_NUM));
-                        }
-                        int ri_ur = ri + ur * VALUE_TILE_NUM;
-
-                        VmatNormal = Vt_quant;
+                        matrix<half, REG_K, REG_N> VmatNormal = 0;
                         #pragma unroll
                         for (int r = 0; r < REG_K; r++) {
-                            VmatNormal[r] = VmatNormal[r] - temp_zp[r];
-                            VmatNormal[r] = cm_mul<half>(VmatNormal[r], temp_scale[r]);
-                        }
-
-                        if ((int)effective_kv_pos_end - kv_pos < KV_STEP) {
-                            #pragma unroll
-                            for (int r = effective_kv_pos_end - kv_pos; r < KV_STEP; r++)  {
-                                VmatNormal[r] = 0;
-                            }
-                        }
-                        auto Vref = Vmat.format<half, REG_K/2, 2 * REG_N * VALUE_TILE_NUM>();
-                        Vref.select<REG_K/2, 1, REG_N * VALUE_TILE_NUM, 2>(0, 0) = VmatNormal.select<REG_K/2, 2, REG_N * VALUE_TILE_NUM, 1>(0, 0);
-                        Vref.select<REG_K/2, 1, REG_N * VALUE_TILE_NUM, 2>(0, 1) = VmatNormal.select<REG_K/2, 2, REG_N * VALUE_TILE_NUM, 1>(1, 0);
-
-            #if CLEAN_UNUSED_KVCACHE
-                        if ((int)effective_kv_pos_end - kv_pos < KV_STEP) {
-                            auto VmatRef = Vmat.format<half, REG_K/2, REG_N*2*VALUE_TILE_NUM>();
-                            uint valid_rows = effective_kv_pos_end - kv_pos;
-                            uint valid_rows_vnni = (valid_rows+1)/2;
-                            #pragma unroll
-                            for (int r = valid_rows_vnni; r < REG_K/2; r++) {
-                                VmatRef.row(r) = 0.0f;
-                            }
-                            if (valid_rows % 2 == 1) {
-                                VmatRef.row(valid_rows_vnni-1).select<REG_N*VALUE_TILE_NUM, 2>(1) = 0.0f;
-                            }
-                        }
-            #endif
-                        matrix<half, Q_ROWS, REG_K> Pmat_data = P_tile.select<Q_ROWS,1,REG_K,1>(0, ki*REG_K);
-                        #pragma unroll
-                        for (int tile = 0; tile < VALUE_TILE_NUM; tile++) {
-                            auto Omat_data = Omat.select<Q_ROWS,1,REG_N,1>(0, (ri_ur + tile)*REG_N);
-                            Omat_data = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, Q_ROWS>(
-                                        Omat_data.format<float>(),
-                                        Vmat.format<half, REG_K/2, REG_N*2*VALUE_TILE_NUM>().select<REG_K/2, 1, REG_N*2, 1>(0, REG_N*2*tile).format<int32_t>(),
-                                        Pmat_data.format<int32_t>());
-                        }
-                    }
-                    continue;
-        #else
-                    uint cur_kv_offset = kv_offset + kv_pos * kv_stride + k;
-                    #pragma unroll
-                    for (int kk = 0; kk < REG_K; kk++) {
-                        cm_svm_block_read<uint8_t, REG_N * VALUE_TILE_NUM>((svmptr_t)(value + cur_kv_offset + kk * kv_stride), Vt_quant[kk].format<uint8_t>());
-                    }
-        #endif
-    #else
-                    uint cur_kv_offset = kv_offset + kv_pos * kv_stride + k;
-                    #pragma unroll
-                    for (int kk = 0; kk < REG_K; kk++) {
-                        cm_svm_block_read<half, REG_N * VALUE_TILE_NUM>((svmptr_t)(value + cur_kv_offset + kk * kv_stride), VmatNormal[kk].format<half>());
-                    }
-                    auto Vref = Vmat.format<half, REG_K/2, 2 * REG_N * VALUE_TILE_NUM>();
-                    Vref.select<REG_K/2, 1, REG_N * VALUE_TILE_NUM, 2>(0, 0) = VmatNormal.select<REG_K/2, 2, REG_N * VALUE_TILE_NUM, 1>(0, 0);
-                    Vref.select<REG_K/2, 1, REG_N * VALUE_TILE_NUM, 2>(0, 1) = VmatNormal.select<REG_K/2, 2, REG_N * VALUE_TILE_NUM, 1>(1, 0);
-    #endif
-#endif
-
+                            VmatNormal[r] = Vq.row(r);
+#if DEQUANT_MAD
+                            VmatNormal[r] = VmatNormal[r] * v_scale[r] + v_negzpscale[r];
+#else
 #if KV_CACHE_COMPRESSION
-                    VmatNormal = Vt_quant;
-                    #pragma unroll
-                    for (int r = 0; r < REG_K; r++) {
-                        VmatNormal[r] = VmatNormal[r] - temp_zp[r];
-                        VmatNormal[r] = cm_mul<half>(VmatNormal[r], temp_scale[r]);
+                            VmatNormal[r] = VmatNormal[r] - v_zp[r];
+                            VmatNormal[r] = cm_mul<half>(VmatNormal[r], v_scale[r]);
+#endif
+#endif
+                        }
+                        matrix<half, REG_K/2, REG_N*2> Vmat_m;
+                        Vmat_m.select<REG_K/2, 1, REG_N, 2>(0, 0) = VmatNormal.select<REG_K/2, 2, REG_N, 1>(0, 0);
+                        Vmat_m.select<REG_K/2, 1, REG_N, 2>(0, 1) = VmatNormal.select<REG_K/2, 2, REG_N, 1>(1, 0);
+                        auto Vt_bytes = Vmat_m.format<uint8_t>();
+                        #pragma unroll
+                        for (int x = 0; x < (int)MARSHAL_XFERS; x++) {
+                            cm_slm_block_write(slm_Vt, slm_slot_v_m + chunk_out + x * MARSHAL_XFER_BYTES,
+                                               Vt_bytes.select<MARSHAL_XFER_BYTES, 1>(x * MARSHAL_XFER_BYTES));
+                        }
+                    }
+                }
+                } /* local_qg < MARSHAL_TG */
+                cm_slm_fence(CM_LOCAL_BARRIER);
+                cm_barrier();
+
+                #pragma unroll
+                for (int li = 0; li < ONLINE_TILE_STEPS; li++) {
+                    const int ki = ki_base + li;
+                    if (ki >= (int)kv_part_steps) {
+                        continue;
                     }
 
-                    if ((int)effective_kv_pos_end - kv_pos < KV_STEP) {
+                    // Fully unrolled so `ri` is compile-time and the chunk-major Q/O
+                    // register regions above stay direct. Earlier attempts to unroll this
+                    // loop spilled, but that was with the row-major layout, where each
+                    // unrolled copy needed its own gathered Qmat_data temporary; with
+                    // chunk-major there are no temporaries and GRF *drops* (154 -> 148).
+                    #pragma unroll
+                    for (int k = 0, ri = 0; k < HEAD_SIZE / REG_K; k += 1, ri++) {
+                        // Already dequantized, transposed and VNNI-packed by the marshalling
+                        // stage — read the DPAS operand straight out of SLM.
+                        matrix<half, REG_K, REG_N> Kt;
+                        {
+                            auto Kt_in = Kt.format<uint8_t>();
+                            const uint chunk_in = (li * MARSHAL_CHUNKS + ri) * MARSHAL_CHUNK_BYTES;
+                            #pragma unroll
+                            for (int x = 0; x < (int)MARSHAL_XFERS; x++) {
+                                cm_slm_block_read(slm_Kt, GENX_DWALIGNED,
+                                                  slm_slot_k + chunk_in + x * MARSHAL_XFER_BYTES,
+                                                  Kt_in.select<MARSHAL_XFER_BYTES, 1>(x * MARSHAL_XFER_BYTES));
+                            }
+                        }
+                        auto Qmat_data = Qchunks[ri].format<half, ROWS_PER_THREAD, REG_K>();
+                        // Accumulate straight into rS_tile, the way the PV loop below
+                        // already accumulates into Omat. Zeroing a temporary, DPAS'ing into
+                        // it and adding it in costs an extra zero-init and accumulate pass
+                        // per head-dim chunk, and breaks the systolic accumulator chain
+                        // that lets back-to-back dpas issue at full rate.
+                        auto rS_acc = rS_tile.select<ROWS_PER_THREAD, 1, REG_N, 1>(0, li * REG_N);
+                        rS_acc = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, ROWS_PER_THREAD>(
+                                    rS_acc.format<float>(),
+                                    Kt.format<int32_t>(),
+                                    Qmat_data.format<int32_t>());
+                    }
+                }
+
+                rS_tile = cm_mul<float>(rS_tile, (float)SCALE_FACTOR);
+
+                if ((ki_base + ONLINE_TILE_STEPS) * REG_N > mask_bound)
+                {
+                    const int kv_global_start = (int)(kv_partition_idx * kv_partition_size);
+                    vector<int, REG_N> col_index;
+                    #pragma unroll
+                    for (int c = 0; c < REG_N; ++c) col_index[c] = c;
+                    const float NEG_INF = -3.4e38f;
+
+                    #pragma unroll
+                    for (int row = 0; row < ROWS_PER_THREAD; ++row) {
+                        const int global_row = subgroup_row_base + row;
+                        const int t = global_row / Q_head_chunk_size;
+                        const int kv_len_t = (t < (int)valid_count) ? (int)(past_q_lens + q_start + t + 1) : 0;
+                        const int row_kv_in_partition = kv_len_t - kv_global_start;
+                        const int mask_from = row_kv_in_partition > 0 ? row_kv_in_partition : 0;
+                        auto rs_row = rS_tile[row].format<float, ONLINE_TILE_STEPS, REG_N>();
                         #pragma unroll
-                        for (int r = effective_kv_pos_end - kv_pos; r < KV_STEP; r++)  {
-                            VmatNormal[r] = 0;
+                        for (int b = 0; b < ONLINE_TILE_STEPS; ++b) {
+                            const int blk_lo = (ki_base + b) * REG_N;
+                            if (blk_lo >= mask_from) {
+                                rs_row.row(b) = NEG_INF;
+                            } else if (blk_lo + REG_N > mask_from) {
+                                vector<unsigned short, REG_N> m = col_index >= (mask_from - blk_lo);
+                                auto blk = rs_row.row(b);
+                                blk.merge(NEG_INF, m);
+                            }
+
+                            if (blk_lo >= (int)partition_valid) {
+                                rs_row.row(b) = NEG_INF;
+                            } else if (blk_lo + REG_N > (int)partition_valid) {
+                                vector<unsigned short, REG_N> m2 = col_index >= ((int)partition_valid - blk_lo);
+                                auto blk2 = rs_row.row(b);
+                                blk2.merge(NEG_INF, m2);
+                            }
                         }
                     }
-                    auto Vref = Vmat.format<half, REG_K/2, 2 * REG_N * VALUE_TILE_NUM>();
-                    Vref.select<REG_K/2, 1, REG_N * VALUE_TILE_NUM, 2>(0, 0) = VmatNormal.select<REG_K/2, 2, REG_N * VALUE_TILE_NUM, 1>(0, 0);
-                    Vref.select<REG_K/2, 1, REG_N * VALUE_TILE_NUM, 2>(0, 1) = VmatNormal.select<REG_K/2, 2, REG_N * VALUE_TILE_NUM, 1>(1, 0);
+                }
+
+#if HAS_QQ_BIAS
+                // Speculative tree mask, on the "new token" K-range only:
+                //   key_spec   = (kv_global_start + col) - past_q_lens
+                //   query_spec = q_start + t
+                // This is deliberately *outside* the mask_bound fast path above. That path
+                // skips column blocks that are causally unmasked for every row this thread
+                // owns, and such a block can still fall inside the spec window -- mask_bound
+                // is past_q_lens + q_start + t_min + 1, which reaches past past_q_lens. The
+                // tile test below is the cheap equivalent: only blocks that extend beyond
+                // past_q_lens can carry a spec key at all.
+                if (qq_bias_num_subseq > 0 && qq_bias_spec_num > 0) {
+                    const int kv_gs = (int)(kv_partition_idx * kv_partition_size);
+                    const float NEG_INF_QQ = -3.4e38f;
+                    #pragma unroll
+                    for (int b = 0; b < ONLINE_TILE_STEPS; ++b) {
+                        const int blk_lo = (ki_base + b) * REG_N;
+                        // Symmetric to the lower bound above: a tile fully past the spec
+                        // window (key_spec already >= qq_bias_spec_num for every column) has
+                        // no masked key either. Without this, every tile from the spec window
+                        // to the end of the partition still ran the full per-t mask-build loop
+                        // below only to have build_qq_bias_tree_mask_row's inner check discard
+                        // all REG_N lanes -- up to ~39 of 40 tiles per partition at KV_STEP=16 /
+                        // REG_N=16, since qq_bias_spec_num <= 16 means at most one tile ever
+                        // straddles the window.
+                        if (kv_gs + blk_lo + REG_N <= (int)past_q_lens ||
+                            kv_gs + blk_lo >= (int)past_q_lens + qq_bias_spec_num) {
+                            continue;
+                        }
+                        // The mask depends only on query_spec, i.e. only on t -- not on which
+                        // of the Q_head_chunk_size GQA heads a row carries. Building it per row
+                        // rebuilt the identical mask Q_head_chunk_size times (8 calls for 2
+                        // distinct masks at ROWS_PER_THREAD 8 / chunk 4), and each call is a
+                        // 16-iteration unrolled scalar-load loop inlined into the hottest loop
+                        // in the kernel. That cost ~0.133 ms -- 17 % of the kernel at q_len=16
+                        // and 27 % at q_len=6 -- even though the guard above means only about
+                        // one online tile in a thousand actually masks anything at a 15 k
+                        // context. The price was code size in the hot loop, not work.
+                        //
+                        // Build once per t, then apply to that t's rows. ROWS_PER_THREAD is a
+                        // multiple of Q_head_chunk_size (chunk divides q_heads_per_kv_head,
+                        // which divides 8) and subgroup_row_base is a multiple of
+                        // ROWS_PER_THREAD, so t is exactly base/chunk + tg. Verified
+                        // bit-identical to the per-row form over 96 configurations (q_len
+                        // 4/6/8/16 x chunk 1/2/4 x compr 1/2 x block 16/256 x four mask
+                        // patterns, three of which measurably change the result).
+                        #pragma unroll
+                        for (int tg = 0; tg < (ROWS_PER_THREAD / Q_head_chunk_size); ++tg) {
+                            const int t = (int)(subgroup_row_base / Q_head_chunk_size) + tg;
+                            if (t >= (int)valid_count) {
+                                continue;
+                            }
+                            const int query_spec = (int)q_start + t;
+                            if (query_spec < 0 || query_spec >= qq_bias_spec_num) {
+                                continue;
+                            }
+                            vector<unsigned short, REG_N> mq =
+                                build_qq_bias_tree_mask_row<REG_N>(qq_bias_subseq_ptr,
+                                                                   qq_bias_spec_num, query_spec,
+                                                                   kv_gs + blk_lo,
+                                                                   (int)past_q_lens);
+                            #pragma unroll
+                            for (int qi = 0; qi < Q_head_chunk_size; ++qi) {
+                                const int row = tg * Q_head_chunk_size + qi;
+                                auto rsq = rS_tile[row].format<float, ONLINE_TILE_STEPS, REG_N>();
+                                auto blkq = rsq.row(b);
+                                blkq.merge(NEG_INF_QQ, mq);
+                            }
+                        }
+                    }
+                }
 #endif
 
-#if CLEAN_UNUSED_KVCACHE
-                    if ((int)effective_kv_pos_end - kv_pos < KV_STEP) {
-                        auto VmatRef = Vmat.format<half, REG_K/2, REG_N*2*VALUE_TILE_NUM>();
-                        uint valid_rows = effective_kv_pos_end - kv_pos;
-                        uint valid_rows_vnni = (valid_rows+1)/2;
-                        #pragma unroll
-                        for (int r = valid_rows_vnni; r < REG_K/2; r++) {
-                            VmatRef.row(r) = 0.0f;
-                        }
-                        if (valid_rows % 2 == 1) {
-                            VmatRef.row(valid_rows_vnni-1).select<REG_N*VALUE_TILE_NUM, 2>(1) = 0.0f;
+                // Whole-tile online softmax. Every step below -- the max tree, the shift,
+                // the exp, the denominator accumulate and the fp16 pack -- runs over the
+                // full ROWS_PER_THREAD x REG_N tile, so each is a handful of full-width
+                // instructions instead of ROWS_PER_THREAD narrow ones. Only the
+                // accumulator rescale stays per-row, because whether it is needed is
+                // data-dependent per row.
+                {
+                    constexpr int SM_N = ONLINE_TILE_STEPS * REG_N;
+                    vector<float, ROWS_PER_THREAD> tile_max =
+                        MatRowMax<ROWS_PER_THREAD, SM_N>::apply(
+                            rS_tile.select<ROWS_PER_THREAD, 1, SM_N, 1>(0, 0));
+                    vector<float, ROWS_PER_THREAD> new_max = cm_max<float>(final_max, tile_max);
+
+#if SOFTMAX_RESCALE_BRANCHLESS
+                    // final_max - new_max <= 0, and is exactly 0 for rows that did not move.
+                    vector<float, ROWS_PER_THREAD> correction_v =
+                        cm_exp((final_max - new_max) * log2e_wg);
+                    #pragma unroll
+                    for (int row = 0; row < ROWS_PER_THREAD; row++) {
+                        final_sum_acc.row(row) *= correction_v[row];
+                        // Row `row` lives at offset row*REG_N of every chunk.
+                        Omat.select<HEAD_SIZE / REG_N, 1, REG_N, 1>(0, row * REG_N) *= correction_v[row];
+                    }
+#else
+                    #pragma unroll
+                    for (int row = 0; row < ROWS_PER_THREAD; row++) {
+                        if (tile_max[row] > final_max[row])
+                        {
+                            float correction = cm_exp((final_max[row] - new_max[row]) * log2e_wg);
+                            final_sum_acc.row(row) *= correction;
+                            // Row `row` lives at offset row*REG_N of every chunk.
+                            Omat.select<HEAD_SIZE / REG_N, 1, REG_N, 1>(0, row * REG_N) *= correction;
                         }
                     }
 #endif
-                    matrix<half, Q_ROWS, REG_K> Pmat_data = P_tile.select<Q_ROWS,1,REG_K,1>(0, ki*REG_K);
+                    final_max = new_max;
+
+                    vector<float, ROWS_PER_THREAD * SM_N> shifted =
+                        (rS_tile.format<float>()
+                         - new_max.replicate<ROWS_PER_THREAD, 1, SM_N, 0>()) * log2e_wg;
+                    vector<float, ROWS_PER_THREAD * SM_N> exp_all = cm_exp(shifted);
+                    final_sum_acc.format<float>() += exp_all;
+                    P_tile.format<half>() = exp_all;
+                }
+
+                #pragma unroll
+                for (int li_v = 0; li_v < ONLINE_TILE_STEPS; li_v++) {
+                    const int ki = ki_base + li_v;
+                    if (ki >= (int)kv_part_steps) {
+                        continue;
+                    }
+
                     #pragma unroll
-                    for (int tile = 0; tile < VALUE_TILE_NUM; tile++) {
-                        auto Omat_data = Omat.select<Q_ROWS,1,REG_N,1>(0, (ri + tile)*REG_N);
-                        Omat_data = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, Q_ROWS>(
+                    for (int k = 0, ri = 0; k < HEAD_SIZE; k += REG_N, ri++) {
+                        matrix<half, REG_K/2, REG_N*2> Vmat;
+                        {
+                            auto Vt_in = Vmat.format<uint8_t>();
+                            const uint chunk_in = (li_v * MARSHAL_CHUNKS + ri) * MARSHAL_CHUNK_BYTES;
+                            #pragma unroll
+                            for (int x = 0; x < (int)MARSHAL_XFERS; x++) {
+                                cm_slm_block_read(slm_Vt, GENX_DWALIGNED,
+                                                  slm_slot_v + chunk_in + x * MARSHAL_XFER_BYTES,
+                                                  Vt_in.select<MARSHAL_XFER_BYTES, 1>(x * MARSHAL_XFER_BYTES));
+                            }
+                        }
+
+                        matrix<half, ROWS_PER_THREAD, REG_K> Pmat_data =
+                            P_tile.select<ROWS_PER_THREAD, 1, REG_K, 1>(0, li_v * REG_N);
+                        auto Omat_data = Omat[ri].format<float, ROWS_PER_THREAD, REG_N>();
+                        Omat_data = cm_dpas<CM_PRECISION_HF, CM_PRECISION_HF, SystolicDepth, ROWS_PER_THREAD>(
                                     Omat_data.format<float>(),
-                                    Vmat.format<half, REG_K/2, REG_N*2*VALUE_TILE_NUM>().select<REG_K/2, 1, REG_N*2, 1>(0, REG_N*2*tile).format<int32_t>(),
+                                    Vmat.format<int32_t>(),
                                     Pmat_data.format<int32_t>());
                     }
                 }
+
+                // No barrier here. All threads must finish consuming slm_Kt / slm_Vt before
+                // the next iteration's marshal overwrites them, but the barrier at the top
+                // of the loop body already guarantees exactly that, and with the raw-staging
+                // block gone the two used to sit back to back with nothing in between. Two
+                // 10-12 round A/Bs put the removal at -3.6 % and -1.1 %; call it ~2 %, which
+                // is at this rig's resolution limit, but it never measured positive and it
+                // deletes a synchronisation point that provably separated nothing.
             }
         }
-        } // end Phase 4 block scope
-    } // end online tile loop
 
-    // Compute cur_lse and cur_sum from running state
-    vector<float, Q_ROWS> cur_sum = running_sum;
-    vector<float, Q_ROWS> cur_lse;
-    #pragma unroll
-    for (int row = 0; row < Q_ROWS; row++) {
-        // Guard: if running_sum is 0 (all columns masked), lse = -inf (neutral for finalization)
-        cur_lse[row] = (running_sum[row] > 0.0f)
-                       ? (cm_log<float>(running_sum[row]) * loge2 + running_max[row])
-                       : -3e38f;
-    }
-
-    // Save partition output / lse. Output is laid out as
-    //   [tile_count * TILE_Q, head, partition, head_size]
-    // Each row `t` of this tile writes to (base_token_row + t). Dummy rows
-    // (t >= valid_count) write zeros + lse = -inf so finalize treats them as
-    // having no contribution.
-    #pragma unroll
-    for (int t = 0; t < TILE_Q; t++) {
-        const uint token_row = base_token_row + t;
-        const bool row_valid = (t < (int)valid_count);
         #pragma unroll
-        for (int qi = 0; qi < Q_head_chunk_size; qi++) {
-            const int row = t * Q_head_chunk_size + qi;
+        for (int row = 0; row < ROWS_PER_THREAD; row++) {
+            final_sum[row] = cm_sum<float>(final_sum_acc.row(row));
+        }
+
+        vector<float, ROWS_PER_THREAD> cur_lse;
+        #pragma unroll
+        for (int row = 0; row < ROWS_PER_THREAD; row++) {
+            cur_lse[row] = (final_sum[row] > 0.0f)
+                           ? (cm_log<float>(final_sum[row]) * loge2_wg + final_max[row])
+                           : -3e38f;
+        }
+
+        #pragma unroll
+        for (int row = 0; row < ROWS_PER_THREAD; row++) {
+            const int global_row = subgroup_row_base + row;
+            const int t = global_row / Q_head_chunk_size;
+            const int qi = global_row % Q_head_chunk_size;
+            const uint token_row = tile_idx * TILE_Q + t;
+            const bool row_valid = (t < (int)valid_count);
             matrix<float, REG_M, REG_N> cur_O_f32;
             uint o_offset = token_row * kv_partition_num * HEADS_NUM * HEAD_SIZE
                           + kv_partition_num * (head_num_idx + qi) * HEAD_SIZE
                           + kv_partition_idx * HEAD_SIZE;
-            // Guard: row_valid AND cur_sum > 0 (causal mask may zero out entire rows in a partition)
-            float div_cur_sum = (row_valid && cur_sum[row] > 0.0f) ? (1.0f / cur_sum[row]) : 0.0f;
-            auto Omat_slice = Omat[row].format<float, HEAD_SIZE/REG_N * REG_M, REG_N>();
+            float div_cur_sum = (row_valid && final_sum[row] > 0.0f) ? (1.0f / final_sum[row]) : 0.0f;
             #pragma unroll
             for (int k = 0, ri = 0; k < HEAD_SIZE; k += REG_N, ri++) {
-                auto cO = Omat_slice[ri].format<float, REG_M, REG_N>();
-                if (row_valid && cur_sum[row] > 0.0f) {
-#if XE_ARCH==1
-                    cur_O_f32 = cm_mul<float>(cO, div_cur_sum);
-#else
-                    cur_O_f32 = cm_div_ieee(cO, cur_sum[row]);
-#endif
-                } else {
-                    cur_O_f32 = 0.0f;
-                }
+                auto cO = Omat.select<1, 1, REG_N, 1>(ri, row * REG_N)
+                              .format<float, REG_M, REG_N>();
+                // Multiply by the reciprocal computed above instead of issuing a full
+                // IEEE divide per register block. cm_div_ieee expands to invm + 7*madm,
+                // and the row_valid predicate puts each expansion in its own basic block,
+                // so the 128 chains per thread cannot pipeline. See PROFILING.md.
+                cur_O_f32 = row_valid && final_sum[row] > 0.0f ? cm_mul<float>(cO, div_cur_sum) : 0.0f;
                 cm_svm_block_write<float, REG_N>((svmptr_t)(output + o_offset + k), cur_O_f32.format<float>());
             }
             uint lse_offset = token_row * HEADS_NUM * kv_partition_num
                             + (head_num_idx + qi) * kv_partition_num
                             + kv_partition_idx;
-            lse[lse_offset] = (row_valid && cur_sum[row] > 0.0f) ? cur_lse[row] : -3e38f;
+            lse[lse_offset] = (row_valid && final_sum[row] > 0.0f) ? cur_lse[row] : -3e38f;
         }
-    }
 }
 
 }  // namespace KERNEL_NAME
