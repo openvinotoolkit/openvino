@@ -4,6 +4,7 @@
 
 #include "util.hpp"
 
+#include <algorithm>
 #include <intel_npu/config/config.hpp>
 #include <iomanip>
 #include <openvino/core/parallel.hpp>
@@ -1002,6 +1003,46 @@ bool ov::npuw::util::is_pa_kv_cache_name(const std::string& input_name) {
     return ov::npuw::util::starts_with(input_name, "key_cache.") ||
            ov::npuw::util::starts_with(input_name, "value_cache.");
 }
+
+std::ostream& ov::npuw::util::operator<<(std::ostream& os, const TensorBrief& brief) {
+    const auto& tensor = brief.tensor;
+    const auto type = tensor->get_element_type();
+    const auto n = tensor->get_size();
+    os << type << " " << tensor->get_shape();
+    const bool readable =
+        type == ov::element::f32 || type == ov::element::f16 || type == ov::element::i32 || type == ov::element::i64;
+    if (!readable || n == 0 || n > TensorBrief::kMaxStats) {
+        return os;
+    }
+    const auto value_at = [&](std::size_t i) -> double {
+        if (type == ov::element::f32) {
+            return tensor->data<float>()[i];
+        }
+        if (type == ov::element::f16) {
+            return static_cast<float>(tensor->data<ov::float16>()[i]);
+        }
+        if (type == ov::element::i32) {
+            return tensor->data<int32_t>()[i];
+        }
+        return static_cast<double>(tensor->data<int64_t>()[i]);
+    };
+    if (n <= TensorBrief::kMaxInline) {
+        os << " {";
+        for (std::size_t i = 0; i < n; ++i) {
+            os << (i ? ", " : "") << value_at(i);
+        }
+        return os << "}";
+    }
+    auto lo = value_at(0), hi = lo, sum = 0.0;
+    for (std::size_t i = 0; i < n; ++i) {
+        const auto v = value_at(i);
+        lo = std::min(lo, v);
+        hi = std::max(hi, v);
+        sum += v;
+    }
+    return os << " min=" << lo << " max=" << hi << " mean=" << sum / static_cast<double>(n);
+}
+
 void ov::npuw::util::fill_tensor_bytes(ov::SoPtr<ov::ITensor> tensor, uint8_t fill_val) {
     auto* tensor_data = reinterpret_cast<uint8_t*>(tensor->data());
     const size_t byte_size = tensor->get_byte_size();
