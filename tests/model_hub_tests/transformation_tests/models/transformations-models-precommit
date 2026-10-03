@@ -18,7 +18,7 @@ katuni4ka/tiny-random-olmo-hf,https://huggingface.co/katuni4ka/tiny-random-olmo-
 katuni4ka/tiny-random-baichuan2,https://huggingface.co/katuni4ka/tiny-random-baichuan2,,,ts_name:ov::pass::RoPEFusion,layer:RoPE
 katuni4ka/tiny-random-internlm,https://huggingface.co/katuni4ka/tiny-random-internlm,,,ts_name:ov::pass::RoPEFusion,layer:RoPE
 katuni4ka/tiny-random-internlm2,https://huggingface.co/katuni4ka/tiny-random-internlm2,,,ts_name:ov::pass::RoPEFusion,layer:RoPE
-katuni4ka/tiny-random-minicpm,https://huggingface.co/katuni4ka/tiny-random-minicpm,,,ts_name:ov::pass::RoPEFusion,layer:RoPE
+katuni4ka/tiny-random-minicpm,https://huggingface.co/katuni4ka/tiny-random-minicpm,,,ts_name:ov::pass::RoPEFusion,layer:RoPE,env:optimum_intel_legacy
 katuni4ka/tiny-random-falcon-40b,https://huggingface.co/katuni4ka/tiny-random-falcon-40b,,,ts_name:ov::pass::RoPEFusion,layer:RoPE
 katuni4ka/tiny-random-dbrx,https://huggingface.co/katuni4ka/tiny-random-dbrx,,,ts_name:ov::pass::RoPEFusion,layer:RoPE
 fxmarty/tiny-random-GemmaForCausalLM,https://huggingface.co/fxmarty/tiny-random-GemmaForCausalLM,,,ts_name:ov::pass::RoPEFusion,layer:RoPE

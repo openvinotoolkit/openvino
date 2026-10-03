@@ -1,0 +1,25 @@
+# "optimum_intel_legacy" env (OV_TEST_ENV=optimum_intel_legacy) for the PA/VLM/RoPE models that
+# optimum-intel caps at transformers<=4.53.3 as of optimum-intel==1.27.0 through 2.2.0/main: minicpm,
+# minicpm3, arctic (tiny-random-snowflake), deepseek_v3, llava-qwen2 (nanollava), phi3_v
+# (phi3-vision) and phi4mm (phi-4-multimodal) -- see the `env:optimum_intel_legacy` tags in
+# transformation_tests/models/{hf-tiny-random-models-precommit,hf-tiny-random-vl-models-precommit,
+# transformations-models-precommit}. These are the only models in the PA/VLM/RoPE lists whose
+# MIN/MAX_TRANSFORMERS_VERSION window excludes 4.55.4.
+#
+# transformers 4.53.3 also still has Cache.get_usable_length (removed in 4.55.0), which
+# phi3-vision's cached trust_remote_code modeling script calls directly.
+# Same optimum-intel version as the main env (1.27.0); huggingface-hub's floor is lower here only
+# because it tracks what transformers 4.53.3 itself requires, not a deliberate choice.
+transformers==4.53.3
+huggingface-hub>=0.30.0,<1.0
+optimum-intel==1.27.0
+optimum~=2.1.0; python_version < "3.12"
+
+# See optimum_intel.txt for why these are needed explicitly in a dedicated venv.
+einops==0.8.0
+transformers_stream_generator==0.0.5
+timm==1.0.24
+accelerate==1.15.0
+autoawq==0.2.7; platform_system == "Linux" and platform_machine == "x86_64"
+scipy
+peft==0.18.1; python_version < "3.12"  # pure-Python wheel (py3-none-any); no platform_machine gate needed, unlike its neighbors here

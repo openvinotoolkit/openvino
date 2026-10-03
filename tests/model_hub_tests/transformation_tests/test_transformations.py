@@ -3,6 +3,7 @@
 
 from huggingface_hub import snapshot_download
 import models_hub_common.utils as utils
+from models_hub_common.env_select import OV_TEST_ENV
 import pytest
 import os
 import platform
@@ -96,6 +97,12 @@ def run_test(model_id, ie_device, ts_names, expected_layer_types):
     try:
         model = OVModelForCausalLM.from_pretrained(model_cached, export=True, trust_remote_code=True)
     except (ValueError, ImportError) as e:
+        # When OV_TEST_ENV is set, this exception almost always means the model was routed to the
+        # wrong env (see models_hub_common/env_select.py) -- fail loudly so a missing/wrong env: tag
+        # shows up as a red test instead of silently inflating the SKIP count. Outside a multi-env run
+        # (OV_TEST_ENV unset), keep the original skip behavior unchanged.
+        if OV_TEST_ENV:
+            pytest.fail(f"model export failed in env '{OV_TEST_ENV}': {e}")
         pytest.skip(f"model export is not possible with the installed package versions: {e}")
 
     compile_and_check(model.model, ie_device, ts_names, expected_layer_types)

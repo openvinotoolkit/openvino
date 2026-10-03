@@ -23,9 +23,33 @@ def parse_list_file(file_name: str):
             yield model_info.split(',')
 
 
+# Populated as a side effect of get_models_list(): maps model_name -> env name, for every list line
+# that carries an `env:<name>` token (see _extract_env_tag below). Read by
+# models_hub_common/env_select.py to decide which OV_TEST_ENV a given test case belongs to.
+MODEL_ENV_TAGS = {}
+
+
+def _extract_env_tag(line_items):
+    """Strips any `env:<name>` item out of a parsed list-file line and returns (remaining_items,
+    env_name_or_None). Done before column-count branching below so an `env:` tag never changes a
+    line's column-count shape (2 / 4 / >4) as seen by existing get_models_list callers."""
+    kept = []
+    env_name = None
+    for item in line_items:
+        if item.startswith('env:'):
+            env_name = item[4:]
+        else:
+            kept.append(item)
+    return kept, env_name
+
+
 def get_models_list(file_name: str):
     models = []
     for line_items in parse_list_file(file_name):
+        line_items, env_name = _extract_env_tag(line_items)
+        model_name = line_items[0] if line_items else None
+        if env_name is not None and model_name is not None:
+            MODEL_ENV_TAGS[model_name] = env_name
         if len(line_items) == 2:
             model_name, model_link = line_items
             models.append((model_name, model_link, None, None))

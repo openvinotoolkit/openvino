@@ -163,7 +163,12 @@ def run_pa(tmp_path,
     if cls is OVModelForCausalLM:
         ov_model = model.model
     elif cls is OVModelForVisualCausalLM:
-        ov_model = model.lm_model
+        # Newer optimum-intel releases renamed lm_model -> language_model (the
+        # OVModelWithEmbedForCausalLM wrapper); older releases only have the old attribute.
+        if hasattr(model, "language_model"):
+            ov_model = model.language_model.model
+        else:
+            ov_model = model.lm_model
     elif cls is OVModelForSeq2SeqLM:
         ov_model = model.decoder_with_past_model
     else:

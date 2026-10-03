@@ -1,0 +1,18 @@
+# "optimum_intel_gptq" env (OV_TEST_ENV=optimum_intel_gptq) for exactly one PA model:
+# optimum-intel-internal-testing/opt-125m-gptq-4bit (tagged `env:optimum_intel_gptq` in
+# hf-tiny-random-models-precommit).
+#
+# Why this can't just live in optimum_intel.txt: optimum 2.x's GPTQQuantizer only defines
+# QuantizeConfig when `gptqmodel` is installed (auto-gptq is no longer supported), but installing
+# gptqmodel==6.0.3 on top of the main env silently upgrades transformers to 5.17.0 (gptqmodel's own
+# dependency floor forces it) even though transformers==4.55.4 was already installed and satisfies
+# gptqmodel's stated requirement -- transformers 5.x removed the `transformers.onnx` module, which
+# breaks optimum-intel's import entirely (not just the one GPTQ model, the whole PA test file fails
+# to collect). Kept on the pre-optimum-2.x stack this model was already running against instead,
+# isolated to its own venv so it can't drag the main/legacy envs' transformers version around.
+transformers==4.51.3
+optimum==1.25.0; python_version < "3.12"
+auto-gptq==0.7.1; platform_system == "Linux" and platform_machine == "x86_64" and python_version < "3.12"
+git+https://github.com/huggingface/optimum-intel.git@8ba536cd0a2bf93e9e88408b0048a7695db5be0b; python_version < "3.12"
+
+peft==0.18.1; python_version < "3.12"  # pure-Python wheel (py3-none-any); no platform_machine gate needed, unlike its neighbors here
