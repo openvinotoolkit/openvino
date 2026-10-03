@@ -647,6 +647,9 @@ public:
             const auto& qq_begins_layout = params.input_layouts[PagedAttentionInputIdx::QQ_BIAS_BEGINS];
             jit.make("QQ_BIAS_BEGINS_DATA_T", to_ocl_type(qq_begins_layout.data_type));
         }
+        if (desc->has_token_type_ids) {
+            jit.make("HAS_TOKEN_TYPE_IDS", 1);
+        }
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
 
         return jit;
@@ -689,6 +692,9 @@ public:
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS});         // qq_bias
             args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::QQ_BIAS_BEGINS});  // qq_bias_begins
         }
+        if (desc->has_token_type_ids) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});  // token_type_ids
+        }
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
         add_intermediate_inputs(args, has_scores_output, true, desc->has_score_aggregation);
         return args;
@@ -729,6 +735,9 @@ public:
         jit.add(make_layout_jit_constants("INPUT3", params.input_layouts[5], in_offsets_map.at(5)));
         jit.add(make_layout_jit_constants("INPUT6", params.input_layouts[6], in_offsets_map.at(6)));
         jit.add(make_layout_jit_constants("OUTPUT", params.output_layouts[0], out_offsets_map.at(0)));
+        if (params.typed_desc<paged_attention>()->has_token_type_ids) {
+            jit.make("HAS_TOKEN_TYPE_IDS", 1);
+        }
 
         return jit;
     }
@@ -739,6 +748,9 @@ public:
 
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::PAST_LENS});           // past_lens
         args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::SUBSEQUENCE_BEGINS});  // subsequence_begins
+        if (desc->has_token_type_ids) {
+            args.push_back({ArgumentDescriptor::Types::INPUT, PagedAttentionInputIdx::TOKEN_TYPE_IDS});  // token_type_ids
+        }
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});
 
         const auto has_scores_output = desc->has_scores_output();
@@ -1383,11 +1395,13 @@ public:
         return false;
     }
 
-    // MIXED may use micro SDPA regardless of token_type_ids: bidirectional masking is implemented
-    // only in the PREFILL kernels, and in MIXED neither micro SDPA nor paged_attention_opt.cl consumes token_type_ids.
-    // TODO: implement bidirectional attention for MIXED with token_type_ids
+    // In MIXED, bidirectional masking by token_type_ids is implemented only in paged_attention_opt.cl
+    // (multi-token kernels), so micro SDPA is not used for MIXED when token_type_ids are present.
+    // TODO: implement bidirectional attention for MIXED with token_type_ids in micro SDPA
     bool can_use_micro_sdpa_for(const kernel_impl_params& params, const PagedAttentionStage& stage) const {
-        const auto can_use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(stage);
+        const auto desc = params.typed_desc<paged_attention>();
+        const bool mixed_with_token_type_ids = stage == PagedAttentionStage::MIXED && desc->has_token_type_ids;
+        const auto can_use_micro_sdpa = supports_micro_sdpa(params) && valid_micro_stage(stage) && !mixed_with_token_type_ids;
         GPU_DEBUG_TRACE_DETAIL << "can_use_micro_sdpa_for: stage = " << static_cast<size_t>(stage)
                                << ", token_type_ids = " << params.get_input_layout(PagedAttentionInputIdx::TOKEN_TYPE_IDS).to_short_string()
                                << ", can_use_micro_sdpa = " << can_use_micro_sdpa << std::endl;
