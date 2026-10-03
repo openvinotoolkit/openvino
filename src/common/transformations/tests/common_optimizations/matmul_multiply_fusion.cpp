@@ -9,10 +9,14 @@
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
+#include "openvino/op/convert.hpp"
+#include "openvino/op/divide.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
+#include "openvino/op/reshape.hpp"
 #include "openvino/opsets/opset8_decl.hpp"
 #include "openvino/pass/manager.hpp"
+#include "transformations/common_optimizations/common_optimizations.hpp"
 
 using namespace ov;
 
@@ -145,6 +149,32 @@ TEST_F(TransformationTestsF, MatMulMultiplyFusionAllowedForFP16DynamicWeightsRed
         auto mul_const = opset8::Constant::create(element::f16, Shape{1, 1}, {0.5f});
         auto mul = std::make_shared<opset8::Multiply>(weights, mul_const);
         auto matmul = std::make_shared<opset8::MatMul>(data, mul, false, true);
+        model_ref = std::make_shared<Model>(OutputVector{matmul}, ParameterVector{data, weights});
+    }
+    comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
+}
+
+TEST_F(TransformationTestsF, CommonOptimizationsFuseMatMulReshapeDivideConvertedConstant) {
+    {
+        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 32, 5, 96});
+        auto weights = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 32, 5, 96});
+        auto matmul = std::make_shared<opset8::MatMul>(data, weights, false, true);
+        auto reshape_pattern = opset8::Constant::create(element::i64, Shape{4}, {1, 32, 5, 5});
+        auto reshape = std::make_shared<opset8::Reshape>(matmul, reshape_pattern, false);
+        auto scale = opset8::Constant::create(element::f16, Shape{1, 1, 1, 1}, {8.0f});
+        auto converted_scale = std::make_shared<opset8::Convert>(scale, element::f32);
+        auto divide = std::make_shared<opset8::Divide>(reshape, converted_scale);
+        model = std::make_shared<Model>(OutputVector{divide}, ParameterVector{data, weights});
+
+        manager.register_pass<ov::pass::CommonOptimizations>();
+    }
+
+    {
+        auto data = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 32, 5, 96});
+        auto weights = std::make_shared<opset8::Parameter>(element::f32, Shape{1, 32, 5, 96});
+        auto scale = opset8::Constant::create(element::f32, Shape{1, 1, 1, 1}, {0.125f});
+        auto scaled_weights = std::make_shared<opset8::Multiply>(weights, scale);
+        auto matmul = std::make_shared<opset8::MatMul>(data, scaled_weights, false, true);
         model_ref = std::make_shared<Model>(OutputVector{matmul}, ParameterVector{data, weights});
     }
     comparator.enable(FunctionsComparator::CmpValues::CONST_VALUES);
