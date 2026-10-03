@@ -33,6 +33,15 @@ void ov::npuw::WhisperInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_i
 
     prepare_for_new_conversation();
 
+    const auto& kvcache_desc = m_npuw_llm_compiled_model->m_kvcache_desc;
+    const auto prompt_length = input_ids->get_shape()[INPUT_IDS_SEQ_LEN_DIM];
+    OPENVINO_ASSERT(prompt_length <= kvcache_desc.max_prompt_size,
+                    "Whisper prompt of length ",
+                    prompt_length,
+                    " is longer than the compiled prefill input (",
+                    kvcache_desc.max_prompt_size,
+                    "). Please shorten the prompt.");
+
     // NB: input_ids for whisper: [token, token, pad, pad]
     auto padded_input = m_prefill_request->get_tensor(m_prefill_in_ports.at(m_input_ids_name));
     std::copy_n(input_ids->data<int64_t>(), input_ids->get_size(), padded_input->data<int64_t>());
@@ -41,6 +50,12 @@ void ov::npuw::WhisperInferRequest::infer_prefill(ov::SoPtr<ov::ITensor> input_i
     std::fill_n(padded_attention_mask->data<int64_t>(), input_ids->get_size(), 1u);
 
     auto encoder_hidden_states = m_prefill_request->get_tensor(m_prefill_in_ports.at("encoder_hidden_states"));
+    OPENVINO_ASSERT(enc_hidden_states->get_byte_size() == encoder_hidden_states->get_byte_size(),
+                    "Whisper encoder_hidden_states size (",
+                    enc_hidden_states->get_byte_size(),
+                    " bytes) does not match the compiled prefill input (",
+                    encoder_hidden_states->get_byte_size(),
+                    " bytes).");
     auto remote_tensor = std::dynamic_pointer_cast<::intel_npu::ZeroRemoteTensor>(enc_hidden_states._ptr);
     void* enc_hidden_states_data = !remote_tensor ? enc_hidden_states->data() : remote_tensor->get_original_memory();
     std::copy_n(reinterpret_cast<uint8_t*>(enc_hidden_states_data),
@@ -150,6 +165,12 @@ void ov::npuw::WhisperInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_
     }
 
     auto kv_input_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name));
+    OPENVINO_ASSERT(input_ids->get_size() <= kv_input_ids->get_size(),
+                    "Whisper generate input_ids size (",
+                    input_ids->get_size(),
+                    ") exceeds the compiled kv-cache input (",
+                    kv_input_ids->get_size(),
+                    ").");
     std::copy_n(input_ids->data<int64_t>(), input_ids->get_size(), kv_input_ids->data<int64_t>());
 
     auto kv_attn_mask = m_kvcache_request->get_tensor(m_kvcache_in_ports.at("attention_mask"));
