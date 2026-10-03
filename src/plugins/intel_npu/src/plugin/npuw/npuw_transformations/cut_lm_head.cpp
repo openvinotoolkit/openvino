@@ -148,8 +148,7 @@ public:
 
 namespace ov::npuw {
 
-CutLMHead::CutLMHead(std::shared_ptr<ov::Model>& lm_head_model,
-                     std::string& output_embeds_name)
+CutLMHead::CutLMHead(std::shared_ptr<ov::Model>& lm_head_model, std::string& output_embeds_name)
     : m_lm_head_model(lm_head_model),
       m_output_embeds_name(output_embeds_name) {}
 
