@@ -7,6 +7,7 @@
 #include <map>
 
 #include "common_test_utils/node_builders/reshape.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
@@ -15,6 +16,7 @@
 
 using namespace std;
 using namespace ov;
+using testing::HasSubstr;
 
 TEST(type_prop, tensor_iterator_lstm) {
     // That which we iterate over
@@ -263,4 +265,46 @@ TEST(type_prop, tensor_iterator_dyn_slice) {
     EXPECT_EQ(tensor_iterator->get_num_iterations(), -1);
     PartialShape ref_ps = {N, part_size, I};
     EXPECT_EQ(X->get_partial_shape(), ref_ps);
+}
+
+static shared_ptr<Node> make_nested_ti(size_t depth) {
+    auto ti = make_shared<op::v0::TensorIterator>();
+
+    auto body_param = make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 1});
+    shared_ptr<Node> body_out;
+    if (depth > 0) {
+        // Nest another TI whose input comes from the outer body parameter
+        auto inner_ti = make_shared<op::v0::TensorIterator>();
+        auto inner_param = make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 1});
+        shared_ptr<Node> inner_out;
+        if (depth > 1) {
+            inner_out = make_nested_ti(depth - 1);
+        } else {
+            inner_out = inner_param;
+        }
+        auto inner_res = make_shared<op::v0::Result>(inner_out);
+        auto inner_body = make_shared<Model>(OutputVector{inner_res}, ParameterVector{inner_param});
+        inner_ti->set_body(inner_body);
+        inner_ti->set_invariant_input(inner_param, body_param);
+        inner_ti->get_iter_value(inner_res, -1);
+        body_out = inner_ti;
+    } else {
+        body_out = body_param;
+    }
+    auto body_res = make_shared<op::v0::Result>(body_out);
+    auto body = make_shared<Model>(OutputVector{body_res}, ParameterVector{body_param});
+
+    ti->set_body(body);
+    auto data = make_shared<op::v0::Parameter>(element::f32, PartialShape{1, 1});
+    ti->set_invariant_input(body_param, data);
+    ti->get_iter_value(body_res, -1);
+    return ti;
+}
+
+// TI already blocks nesting via a hard assert in revalidate_and_infer_types_for_body_ops.
+TEST(type_prop, tensor_iterator_nested_is_rejected) {
+    const size_t excessive_depth = 2;
+    OV_EXPECT_THROW(std::ignore = make_nested_ti(excessive_depth),
+        ov::AssertFailure,
+        HasSubstr("No nested TensorIterator"));
 }
