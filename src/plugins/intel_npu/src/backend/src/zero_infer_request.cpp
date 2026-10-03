@@ -11,6 +11,7 @@
 #include "intel_npu/utils/zero/zero_api.hpp"
 #include "intel_npu/utils/zero/zero_remote_tensor.hpp"
 #include "intel_npu/utils/zero/zero_utils.hpp"
+#include "openvino/core/memory_util.hpp"
 #include "openvino/op/util/op_types.hpp"
 #include "openvino/runtime/intel_npu/remote_properties.hpp"
 #include "openvino/runtime/make_tensor.hpp"
@@ -30,6 +31,41 @@ std::shared_ptr<const ov::ICompiledModel> validate_compiled_model(
 bool has_related_shape_tensor(const std::vector<intel_npu::IODescriptor>& metadata, size_t descriptorIdx) {
     const auto& relatedDescriptor = metadata.at(descriptorIdx).relatedDescriptorIndex;
     return relatedDescriptor.has_value() && metadata.at(relatedDescriptor.value()).isShapeTensor;
+}
+
+// The model exposes only the descriptors which belong to the original IR model; the ones added by the compiler are
+// filtered out while building it. Port indices are therefore indices into the public port vectors, while every
+// container held by the inference request is indexed by descriptor index. The two coincide only for as long as no
+// hidden descriptor precedes a public one, which is an assumption about the order chosen by the compiler rather than
+// something the plugin controls. Check it once, here, instead of letting a port index silently select a foreign
+// descriptor and its driver argument.
+void check_public_ports_match_descriptors(const std::vector<intel_npu::IODescriptor>& descriptors,
+                                          const size_t portCount,
+                                          const bool isInput) {
+    const std::string_view portType = isInput ? "input" : "output";
+
+    OPENVINO_ASSERT(portCount <= descriptors.size(),
+                    "The compiled model exposes more ",
+                    portType,
+                    " ports (",
+                    portCount,
+                    ") than the number of descriptors provided by the compiler (",
+                    descriptors.size(),
+                    ").");
+
+    for (size_t portIndex = 0; portIndex < portCount; ++portIndex) {
+        const intel_npu::IODescriptor& descriptor = descriptors.at(portIndex);
+        OPENVINO_ASSERT(!(isInput ? descriptor.isHiddenInput() : descriptor.isHiddenOutput()),
+                        "The descriptor found at the index of the ",
+                        portType,
+                        " port ",
+                        portIndex,
+                        " is not part of the model, entry name: ",
+                        descriptor.nameFromCompiler,
+                        ". The compiled model metadata is inconsistent with its ",
+                        portType,
+                        " ports.");
+    }
 }
 
 void copy_tensor_with_optional_shape_view(const std::shared_ptr<ov::ITensor>& srcTensor,
@@ -143,6 +179,9 @@ ZeroInferRequest::ZeroInferRequest(const std::shared_ptr<ZeroInitStructsHolder>&
         }
         portType = ZeroInferRequest::FoundPort::Type::OUTPUT;
     }
+
+    check_public_ports_match_descriptors(_metadata.inputs, get_inputs().size(), INPUT);
+    check_public_ports_match_descriptors(_metadata.outputs, get_outputs().size(), OUTPUT);
 
     _logger.debug("ZeroInferRequest - checking level zero attributes and allocating tensors");
     size_t ioIndex = 0;
@@ -512,6 +551,22 @@ void ZeroInferRequest::sync_zero_tensor_with_graph(const ZeroInferRequest::Found
     const auto& metadata = foundPort.is_input() ? _metadata.inputs : _metadata.outputs;
     auto& levelZeroTensor =
         foundPort.is_input() ? get_level_zero_input(foundPort.idx) : _levelZeroOutputTensors.at(foundPort.idx);
+
+    // The descriptor decides how many bytes the driver accesses through this argument, so a tensor which is about to
+    // back it has to be at least that large. The tensor was already checked against the port, which carries the same
+    // shape as the descriptor; this guards the case where the two disagree. Descriptors holding a dynamic shape are
+    // skipped: their allocation is kept at the maximum shape, so a smaller tensor is legitimate there.
+    const IODescriptor& descriptor = metadata.at(foundPort.idx);
+    if (descriptor.shapeFromCompiler.is_static()) {
+        const auto requiredByteSize =
+            ov::util::get_memory_size_safe(descriptor.precision, descriptor.shapeFromCompiler.to_shape());
+        OPENVINO_ASSERT(requiredByteSize.has_value() && tensor->get_byte_size() >= *requiredByteSize,
+                        "The tensor set for the entry '",
+                        descriptor.nameFromCompiler,
+                        "' holds ",
+                        tensor->get_byte_size(),
+                        " bytes, which is less than the size required by the compiled model for it.");
+    }
 
     // For dynamic bounds (related shape tensor present), we must keep Level Zero allocation at max shape.
     // Therefore user-memory import is allowed only when there is no related shape tensor.
