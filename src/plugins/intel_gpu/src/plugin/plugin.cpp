@@ -44,6 +44,7 @@
 #include "openvino/runtime/weightless_properties_utils.hpp"
 #include "openvino/util/env_util.hpp"
 #include "openvino/util/file_util.hpp"
+#include "openvino/util/mmap_object.hpp"
 #include "transformations/common_optimizations/dimension_tracking.hpp"
 #include "transformations/init_node_info.hpp"
 #include "transformations/rt_info/fused_names_attribute.hpp"
@@ -762,7 +763,8 @@ ov::Any Plugin::get_metric(const std::string& name, const ov::AnyMap& options) c
         return decltype(ov::device::pci_info)::value_type {info};
     }
     if (name == ov::internal::cache_header_alignment) {
-        return decltype(ov::internal::cache_header_alignment)::value_type{4096};
+        return decltype(ov::internal::cache_header_alignment)::value_type{
+            static_cast<decltype(ov::internal::cache_header_alignment)::value_type>(ov::util::get_system_page_size())};
     }
     if (name == ov::compatibility_check) {
         if (auto it = options.find(ov::runtime_requirements.name()); it != options.end()) {
