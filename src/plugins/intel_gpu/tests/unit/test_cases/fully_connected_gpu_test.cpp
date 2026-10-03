@@ -5604,6 +5604,54 @@ TEST_F(fully_connected_gpu_tests, gemv_compressed_int4_scale_large_n_dynamic_b1_
     this->test_compressed_int4_scale_large_n_gemv(false, true, 1, false, false);
 }
 
+// Primitive-level test for UINT2 (2-bit) compressed weights, oneDNN-only (no OCL fallback for u2).
+TEST(fully_connected_gpu, compressed_u2_weights_immad) {
+    auto& engine = get_test_engine();
+    if (!engine.get_device_info().supports_immad)
+        return;
+
+    // Input: 1x4 (batch=1, ifm=4)
+    // Weights: 2x4 packed as u2 (4 values/byte, low-to-high bit order):
+    //   ofm0 = [1, 2, 3, 0] -> byte 0x39, ofm1 = [3, 1, 0, 2] -> byte 0x87
+    // Scale: 1.0 per output channel, so decompressed weight == raw u2 value
+    // Expected output: ofm0 = 1+2+3+0 = 6, ofm1 = 3+1+0+2 = 6
+    const int32_t batch_num = 1, ifm_num = 4, ofm_num = 2;
+
+    auto input_ps = ov::PartialShape{ batch_num, 1, ifm_num };
+    auto input_mem = engine.allocate_memory({ input_ps, data_types::f16, format::bfyx });
+    auto weights_mem = engine.allocate_memory({ {ofm_num, ifm_num}, data_types::u2, format::bfyx });
+    auto scale_mem = engine.allocate_memory({ {ofm_num, 1}, data_types::f16, format::bfyx });
+
+    set_values(input_mem, std::vector<ov::float16>{1, 1, 1, 1});
+    set_values(weights_mem, std::vector<uint8_t>{0x39, 0x87});
+    set_values(scale_mem, std::vector<ov::float16>{1, 1});
+
+    auto fc_prim = fully_connected("fc_prim", input_info("input"), "weights", "", "scale", "", data_types::f16, 3, 2);
+
+    topology topology;
+    topology.add(input_layout("input", input_mem->get_layout()));
+    topology.add(data("weights", weights_mem));
+    topology.add(data("scale", scale_mem));
+    topology.add(fc_prim);
+
+    ExecutionConfig config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::optimize_data(true));
+    network network(engine, topology, config);
+    network.set_input_data("input", input_mem);
+
+    auto fc_impl = network.get_primitive("fc_prim")->get_impl();
+    ASSERT_TRUE(fc_impl != nullptr);
+    ASSERT_TRUE(fc_impl->is_onednn());
+
+    auto outputs = network.execute();
+    auto output_mem = outputs.begin()->second.get_memory();
+    cldnn::mem_lock<ov::float16> output_ptr(output_mem, get_test_stream());
+
+    ASSERT_EQ(output_ptr.size(), size_t(ofm_num));
+    EXPECT_NEAR(static_cast<float>(output_ptr[0]), 6.0f, 1e-2f);
+    EXPECT_NEAR(static_cast<float>(output_ptr[1]), 6.0f, 1e-2f);
+}
+
 // Test weight zp for INT8 ASYM
 TEST_F(fully_connected_gpu_tests, compressed_int8_scale_dynamic_quantize_wzp_128_large_input_1025) {
     this->test_comp_weight_scale_zp(true, 1025, 1792, 4608, 128, 128, 1, WzpMode::AsymmetricScalar, WeightMode::Bit8, TargetDevice::SkipDgpu);
