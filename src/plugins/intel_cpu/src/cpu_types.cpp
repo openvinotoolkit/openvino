@@ -265,6 +265,8 @@ static const TypeToNameMap& get_type_to_name_tbl() {
         {"LoraSubgraph", Type::LoRA},
         {"GatherMatmul", Type::GatherMatmul},
         {"GatherMatmulCompressed", Type::GatherMatmul},
+        {"GroupedMatMul", Type::GroupedMatMul},
+        {"GroupedMatMulCompressed", Type::GroupedMatMul},
         {"GatedDeltaNet", Type::GatedDeltaNet},
         {"PagedGatedDeltaNet", Type::PagedGatedDeltaNet},
         {"SelectiveSSM", Type::SelectiveSSM},
@@ -406,6 +408,7 @@ std::string NameFromType(const Type type) {
         CASE(SegmentMax);
         CASE(LoRA);
         CASE(GatherMatmul);
+        CASE(GroupedMatMul);
         CASE(GatedDeltaNet);
         CASE(PagedGatedDeltaNet);
         CASE(SelectiveSSM);
@@ -497,6 +500,8 @@ std::string algToString(const Algorithm alg) {
         CASE(FullyConnectedQuantizedLegacy);
         CASE(GatherMatmulDefault);
         CASE(GatherMatmulCompressed);
+        CASE(GroupedMatMulDefault);
+        CASE(GroupedMatMulCompressed);
         CASE(ROIPoolingMax);
         CASE(ROIPoolingBilinear);
         CASE(ROIAlignMax);

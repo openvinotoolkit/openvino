@@ -13,6 +13,7 @@
 #include "nodes/executors/fullyconnected_config.hpp"
 #include "nodes/executors/gated_delta_net_config.hpp"
 #include "nodes/executors/gathermatmul_config.hpp"
+#include "nodes/executors/groupedmatmul_config.hpp"
 #include "nodes/executors/matmul_config.hpp"
 #include "nodes/executors/paged_selective_ssm_config.hpp"
 #include "nodes/executors/selective_ssm_config.hpp"
@@ -44,6 +45,10 @@ const std::vector<ExecutorImplementation<EltwiseAttrs>>& getImplementations();
 // GatherMatmul
 template <>
 const std::vector<ExecutorImplementation<GatherMatmulAttrs>>& getImplementations();
+
+// GroupedMatMul
+template <>
+const std::vector<ExecutorImplementation<GroupedMatMulAttrs>>& getImplementations();
 
 // GatedDeltaNet
 template <>
