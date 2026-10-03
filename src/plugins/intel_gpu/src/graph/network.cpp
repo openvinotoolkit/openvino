@@ -249,6 +249,11 @@ network::network(program::ptr program, stream::ptr stream, bool is_internal, boo
     validate_primitives();
     preallocate_shape_info_buffers();
     add_default_output_chains();
+#ifdef ENABLE_MLIR_FOR_GPU
+    if (ov::intel_gpu::mlir::MLIRGpuRuntime::create) {
+        _gc_runtime = ov::intel_gpu::mlir::MLIRGpuRuntime::create(*_stream, _engine);
+    }
+#endif
 }
 
 network::network(program::ptr program, bool is_internal, bool is_primary_stream)
