@@ -28,6 +28,7 @@ bool RMS::visit_attributes(ov::AttributeVisitor& visitor) {
     visitor.on_attribute("epsilon", m_epsilon);
     visitor.on_attribute("output_type", m_output_type);
     visitor.on_attribute("elementwise_affine", m_elementwise_affine);
+    visitor.on_attribute("axis", m_axis);
     return true;
 }
 
@@ -38,10 +39,14 @@ void RMS::validate_and_infer_types() {
 
 std::shared_ptr<Node> RMS::clone_with_new_inputs(const ov::OutputVector& new_args) const {
     check_new_args_count(this, new_args);
+    std::shared_ptr<RMS> cloned_rms;
     if (new_args.size() == 1) {
-        return std::make_shared<RMS>(new_args.at(0), m_epsilon, m_output_type);
+        cloned_rms = std::make_shared<RMS>(new_args.at(0), m_epsilon, m_output_type);
+    } else {
+        cloned_rms = std::make_shared<RMS>(new_args.at(0), new_args.at(1), m_epsilon, m_output_type);
     }
-    return std::make_shared<RMS>(new_args.at(0), new_args.at(1), m_epsilon, m_output_type);
+    cloned_rms->set_axis(m_axis);
+    return cloned_rms;
 }
 
 }  // namespace internal
