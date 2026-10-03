@@ -269,6 +269,7 @@ class MaxPool;
 }  // namespace ov::op::v14
 
 namespace ov::op::v15 {
+class BevPoolV2;
 class BitwiseLeftShift;
 class BitwiseRightShift;
 class Col2Im;
