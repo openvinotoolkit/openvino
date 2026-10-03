@@ -4,6 +4,7 @@
 import platform
 
 import numpy as np
+import torch
 import pytest
 
 from pytorch_layer_test_class import PytorchLayerTest
@@ -124,3 +125,56 @@ class TestFloorDivide(PytorchLayerTest):
         else:
             self.other_tensor = other_tensor
         self._test(*self.create_model_int(), ie_device, precision, ir_version)
+
+
+class TestFloorDivideNegativeInt(PytorchLayerTest):
+    """Signed integer floor division must round toward negative infinity, as in Python and torch."""
+
+    def _prepare_input(self):
+        return (self.input_tensor, self.other_tensor)
+
+    def create_model(self):
+        class aten_floor_divide(torch.nn.Module):
+            def forward(self, input_tensor, other_tensor):
+                return torch.floor_divide(input_tensor, other_tensor)
+
+        return aten_floor_divide(), "aten::floor_divide"
+
+    @pytest.mark.parametrize("dtype", [np.int32, np.int64])
+    @pytest.mark.parametrize("input_data,other_data", [
+        ([-5, 5, -5, 5, -7, 7, -8, 0], [2, 2, -2, -2, 3, -3, 4, -3]),
+        ([[-9, 9], [-1, 1]], [[4, -4], [2, 2]]),
+        ([-5, -4, -3, 3, 4, 5], [2]),
+    ])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    @pytest.mark.precommit_torch_export
+    def test_floor_divide_negative_int(self, dtype, input_data, other_data, ie_device, precision, ir_version):
+        self.input_tensor = np.array(input_data, dtype=dtype)
+        self.other_tensor = np.array(other_data, dtype=dtype)
+        self._test(*self.create_model(), ie_device, precision, ir_version)
+
+
+class TestFloorDivideNegativeIntScalar(PytorchLayerTest):
+    """TorchScript integer `//` (aten::floordiv) on shape arithmetic with a negative operand."""
+
+    def _prepare_input(self):
+        return (self.random.randn(5, 3).astype(np.float32),)
+
+    def create_model(self, divisor):
+        class aten_floordiv(torch.nn.Module):
+            def __init__(self, divisor):
+                super().__init__()
+                self.divisor = divisor
+
+            def forward(self, x):
+                n = -x.shape[0] // self.divisor
+                return torch.ones(n + 10) * x.sum()
+
+        return aten_floordiv(divisor), "aten::floordiv"
+
+    @pytest.mark.parametrize("divisor", [2, -2, 3])
+    @pytest.mark.nightly
+    @pytest.mark.precommit
+    def test_floordiv_negative_int_scalar(self, divisor, ie_device, precision, ir_version):
+        self._test(*self.create_model(divisor), ie_device, precision, ir_version)
