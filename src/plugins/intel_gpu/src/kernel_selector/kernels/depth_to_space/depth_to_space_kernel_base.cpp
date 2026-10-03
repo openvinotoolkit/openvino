@@ -36,8 +36,15 @@ JitConstants DepthToSpaceKernelBase::GetJitConstants(const depth_to_space_params
     jit.AddConstant(MakeJitConstant("BLOCK_SIZE", params.block_size));
     if (params.mode == DepthToSpaceMode::BLOCKS_FIRST) {
         jit.AddConstant(MakeJitConstant("BLOCKS_FIRST", 1));
-    } else {
+    } else if (params.mode == DepthToSpaceMode::DEPTH_FIRST) {
         jit.AddConstant(MakeJitConstant("DEPTH_FIRST", 1));
+    } else {
+        jit.AddConstant(MakeJitConstant("GROUPED_DEPTH_FIRST", 1));
+        jit.AddConstant(MakeJitConstant("FACTOR_T", params.factor_t));
+        jit.AddConstant(MakeJitConstant("FACTOR_S", params.factor_s));
+        jit.AddConstant(MakeJitConstant("CROP_BEGIN_T", params.crop_begin_t));
+        jit.AddConstant(
+            MakeJitConstant("CHANNEL_REPEATS", params.output_channels * params.factor_t * params.factor_s * params.factor_s / params.inputs[0].Feature().v));
     }
 
     return jit;
