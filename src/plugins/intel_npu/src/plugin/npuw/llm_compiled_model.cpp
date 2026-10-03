@@ -248,8 +248,7 @@ std::optional<NPUDesc> extract_npu_descriptor(const std::shared_ptr<const ov::IP
     }
 
     static const std::unordered_set<std::string_view> flash_attention_tile_supported_platforms = {
-        ov::intel_npu::Platform::NPU5010,
-        ov::intel_npu::Platform::NPU6010};
+        ov::intel_npu::Platform::NPU5010};
 
     // Flash attention tile with GQA is supported starting from compiler version 8.1 on supported platforms
     desc.support_flash_attention_tile =
