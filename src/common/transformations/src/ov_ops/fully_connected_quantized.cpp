@@ -46,10 +46,43 @@ std::shared_ptr<ov::Node> FullyConnectedQuantized::clone_with_new_inputs(const o
                                                      m_output_type);
 }
 
-// @todo finalize validate_and_infer_types
 void FullyConnectedQuantized::validate_and_infer_types() {
     const auto input_size = get_input_size();
     NODE_VALIDATION_CHECK(this, input_size == 9, "Number of inputs is incorrect. Current value is: ", input_size);
+
+    // Scales are mandatory inputs, so each must carry a concrete floating-point element type; a dynamic
+    // type is rejected because that is how an absent optional input is encoded.
+    // Zero-points are usually integral quantization offsets but may also be real (subtracted before
+    // scaling), so any numeric type is accepted. String is the only concrete element type that is not
+    // numeric, and an absent zero-points input is an empty element::dynamic constant, so string is the
+    // only type rejected.
+    const auto check_scales = [this](size_t idx, const char* name) {
+        const auto& et = get_input_element_type(idx);
+        NODE_VALIDATION_CHECK(this,
+                              et.is_real(),
+                              name,
+                              " (input ",
+                              idx,
+                              ") must have a floating-point element type. Got: ",
+                              et);
+    };
+    const auto check_zero_points = [this](size_t idx, const char* name) {
+        const auto& et = get_input_element_type(idx);
+        NODE_VALIDATION_CHECK(this,
+                              et != element::string,
+                              name,
+                              " (input ",
+                              idx,
+                              ") must have a numeric element type. Got: ",
+                              et);
+    };
+
+    check_scales(3, "weight_scales");
+    check_zero_points(4, "weight_zero_points");
+    check_scales(5, "input_scales");
+    check_zero_points(6, "input_zero_points");
+    check_scales(7, "output_scales");
+    check_zero_points(8, "output_zero_points");
 
     FullyConnected::validate_and_infer_types();
 }

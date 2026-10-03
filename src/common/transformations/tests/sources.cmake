@@ -177,6 +177,7 @@ set(OP_CONVERSIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_embedding_bag_offsets15_downgrade_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_embedding_bag_packed15_downgrade_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_fc_to_compressed_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_fc_to_quantized_legacy_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_gather_0d_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_gather_downgrade_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/op_conversions/convert_gather_to_compressed_test.cpp
