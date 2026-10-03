@@ -5,6 +5,7 @@
 #include "test_utils.h"
 
 #include "intel_gpu/plugin/remote_context.hpp"
+#include "intel_gpu/runtime/debug_configuration.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
 
 #include "openvino/op/constant.hpp"
@@ -244,3 +245,18 @@ TEST(execution_config, kv_cache_4bit_by_token_throws) {
 
     ASSERT_ANY_THROW(config.finalize(ctx.get(), model.get()));
 }
+
+// finish_after_enqueue only works in debug builds and is turned on by an env var.
+// Check that it is set up and stays OFF by default so normal runs are not affected.
+TEST(execution_config, finish_after_enqueue_default_off) {
+    GPU_DEBUG_IF(ov::intel_gpu::ExecutionConfig::get_finish_after_enqueue()) {
+        GTEST_FAIL() << "finish_after_enqueue must default to OFF when OV_GPU_FINISH_AFTER_ENQUEUE is unset";
+    }
+}
+
+// The env var that enables the option is "OV_" + property name. Lock the name so the documented
+// OV_GPU_FINISH_AFTER_ENQUEUE switch keeps working.
+TEST(execution_config, finish_after_enqueue_env_name) {
+    EXPECT_STREQ(ov::intel_gpu::finish_after_enqueue.name(), "GPU_FINISH_AFTER_ENQUEUE");
+}
+
