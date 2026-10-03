@@ -3,3 +3,5 @@ optimum-intel==1.25.2
 transformers==4.53.3
 # transformers 4.53 needs huggingface-hub>=0.30,<1.0; override hf_transformers pin
 huggingface-hub>=0.30.0,<1.0
+# optimum-intel 1.25.2 imports nncf.torch.patch_torch_operators, removed in nncf 3.3.0
+nncf==3.2.0
