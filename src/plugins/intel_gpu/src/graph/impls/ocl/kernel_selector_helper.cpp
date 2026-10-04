@@ -166,6 +166,11 @@ bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig
         return cache.at(device);
     }
 
+    if (e.get_device_info().vendor_id != INTEL_VENDOR_ID) {
+        cache[device] = false;
+        return false;
+    }
+
     // Fast path mirroring oneDNN's mayiuse_microkernels(): when the driver runtime version is
     // known to support microkernels, skip building the igc_check probe kernel.
     if (driver_version_supports_microkernels(e.get_device_info().driver_version)) {
