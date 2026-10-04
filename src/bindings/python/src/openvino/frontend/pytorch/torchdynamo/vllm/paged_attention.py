@@ -4,7 +4,8 @@
 
 """vLLM PagedAttention integration for the OV torchdynamo backend.
 
-Registers a custom torch op `openvino::paged_attention(q, k, v, layer_name)`
+Registers a custom torch op
+`openvino::paged_attention(q, k, v, layer_name, scale, kv_sharing_target)`
 whose Python impl delegates to vLLM's `unified_attention_with_output`, plus an
 FX pre-pass that rewrites `auto_functionalized_v2(unified_attention_with_output)`
 call sites into it. That turns attention from an untranslatable HOP into an
@@ -12,6 +13,29 @@ op the partitioner can keep inside an OV partition.
 
 The C++ translator emits a PagedAttentionExtension for the op; side_channel.py
 binds the KV cache, block tables and lengths from vllm.forward_context.
+
+`scale` and `kv_sharing_target` are carried on the op because neither can be
+recovered from the FX graph, and guessing either one silently corrupts output:
+
+* **scale** -- the frontend otherwise falls back to ``1/sqrt(head_dim)``. That
+  is wrong for any model that scales differently, e.g. Gemma-4, which uses
+  ``scaling = 1.0`` and folds the normalization into its learnable Q/K norm
+  weights. Guessing divides every score by ``sqrt(head_dim)`` a second time
+  and flattens the softmax toward uniform. 0.0 means "not supplied, derive it".
+
+* **kv_sharing_target** -- layers that reuse an earlier layer's KV cache are
+  handed *raw* k/v by vLLM (no k_norm, no v_norm, no RoPE), because its
+  attention backends suppress the cache write for them:
+
+      # vllm/v1/attention/backends/cpu_attn.py
+      if (self.kv_sharing_target_layer_name is None
+              and key is not None and value is not None):
+          ops.cpu_attn_reshape_and_cache(...)
+
+  `PagedAttentionExtension` has no read-only mode and always writes, so without
+  this the shared layers scribble that placeholder junk over the cache they are
+  supposed to be reading. Naming the target lets the translator reuse its
+  already-normed k/v, which makes the write idempotent. "" means not shared.
 """
 
 # mypy: ignore-errors
@@ -39,9 +63,13 @@ def _register_custom_op():
         key: torch.Tensor,
         value: torch.Tensor,
         layer_name: str,
+        scale: float,
+        kv_sharing_target: str,
     ) -> torch.Tensor:
         # Only hit on the torch-eager fallback path. vLLM's CPU backend
         # implements just the "_with_output" variant, so pass in an output.
+        # scale/kv_sharing_target are consumed by the OV translator; on this
+        # path vLLM's own Attention layer already applies both.
         out = torch.empty_like(query).contiguous()
         torch.ops.vllm.unified_attention_with_output(
             query, key, value, out, layer_name
@@ -54,11 +82,44 @@ def _register_custom_op():
         key: torch.Tensor,
         value: torch.Tensor,
         layer_name: str,
+        scale: float,
+        kv_sharing_target: str,
     ) -> torch.Tensor:
         return torch.empty_like(query).contiguous()
 
     _REGISTERED = True
     logger.debug("Registered torch.ops.openvino.paged_attention")
+
+
+def _attention_layer_meta(layer_name):
+    """(scale, kv_sharing_target) for a vLLM attention layer, by name.
+
+    Read from the live forward context, which is the same place
+    `unified_attention_with_output` resolves `layer_name` and the same source
+    side_channel uses at infer time. The rewrite runs inside the model's first
+    forward, so the context exists.
+
+    Returns (0.0, "") when the layer cannot be resolved, which tells the
+    translator to fall back to its own derivation rather than trust a guess.
+    """
+    try:
+        from vllm.forward_context import get_forward_context
+
+        layers = get_forward_context().no_compile_layers
+        layer = layers.get(layer_name) if isinstance(layers, dict) else None
+    except Exception as e:
+        logger.debug("no forward context for %s: %s", layer_name, e)
+        return 0.0, ""
+    if layer is None:
+        logger.warning(
+            "paged_attention: layer %r not in no_compile_layers; the OV "
+            "translator will derive the scale and assume no KV sharing",
+            layer_name)
+        return 0.0, ""
+    # Attention.extra_repr treats impl.scale as the authoritative value.
+    scale = getattr(getattr(layer, "impl", None), "scale", None)
+    target = getattr(layer, "kv_sharing_target_layer_name", None)
+    return (float(scale) if scale is not None else 0.0), str(target or "")
 
 
 def _is_unified_attention_with_output(node) -> bool:
@@ -114,10 +175,12 @@ def rewrite_unified_attention_to_paged_attention(gm) -> int:
             )
             continue
 
+        scale, kv_sharing_target = _attention_layer_meta(layer_name)
         with gm.graph.inserting_after(node):
             new_node = gm.graph.call_function(
                 paged_attention_op,
-                args=(query, key, value, layer_name),
+                args=(query, key, value, layer_name, scale,
+                      kv_sharing_target),
             )
 
         # auto_functionalized_v2 writes output to _all_bases[_output_base_index];

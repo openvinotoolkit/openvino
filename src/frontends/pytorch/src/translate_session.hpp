@@ -75,6 +75,10 @@ public:
     // Shared derived PA side-channel Outputs (graph-level computations of
     // past_lens, max_context_len etc. from seq_lens + query_start_loc).
     std::map<std::string, ov::Output<ov::Node>> m_shared_pa_outputs;
+    // Per-layer PagedAttention key/value, keyed by vLLM layer name, so a
+    // KV-sharing layer can reuse the normed/RoPE'd tensors its target layer
+    // already built instead of the raw placeholders vLLM hands it.
+    std::map<std::string, std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>>> m_pa_layer_kv;
     // Counts PagedAttention calls whose layer_name didn't const-fold, so each
     // gets a distinct "unknown_layer"/"unknown_layer_N" tag instead of all
     // of them colliding on one shared (and wrongly-shaped) side-channel Parameter.
