@@ -110,6 +110,31 @@ struct LLMVariantSwitchTestAccess {
         req.m_kvcache_variant_idx = idx;
     }
 
+    static std::shared_ptr<ov::npuw::ICompiledModel_v0> prefill_compiled(
+        const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+        return compiled->m_prefill_compiled;
+    }
+
+    static void set_prefill_other_outs_to_seqdims(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
+                                                  std::map<ov::Output<const ov::Node>, std::size_t> table) {
+        compiled->m_prefill_other_outs_to_seqdims = std::move(table);
+    }
+
+    static const std::map<ov::Output<const ov::Node>, std::size_t>& prefill_other_outs_to_seqdims(
+        const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+        return compiled->m_prefill_other_outs_to_seqdims;
+    }
+
+    static std::map<std::string, std::size_t> prefill_other_outs_seqdims_by_name(
+        const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled) {
+        return compiled->prefill_other_outs_seqdims_by_name();
+    }
+
+    static void rebuild_prefill_other_outs_to_seqdims(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
+                                                      const std::map<std::string, std::size_t>& by_name) {
+        compiled->rebuild_prefill_other_outs_to_seqdims(by_name);
+    }
+
     // Re-serialize the model's metadata in the exact field order LLMCompiledModel::serialize() uses
     // (write_model_meta), but write a forged trailing variant count instead of the real one. All
     // fields except that count come straight from the real, valid compiled model, so the blob
@@ -144,6 +169,7 @@ struct LLMVariantSwitchTestAccess {
         s::write(os, compiled->m_is_block_kv_cache);
         s::write(os, compiled->m_is_encoder_embedding);
         s::write(os, compiled->m_swa_window_size);
+        s::write(os, compiled->m_output_embeds_name);
         s::write(os, compiled->m_longrope_tables);
         s::write(os, compiled->m_cfg);
         s::write(os, compiled->m_kvcache_sizes);
@@ -491,6 +517,56 @@ TEST_F(LLMInferRequestVariantSwitchTest, CurrentVariantCapacityRejectsOutOfRange
     LLMVariantSwitchTestAccess::set_current_variant_index(req, 1u);
 
     EXPECT_THROW(LLMVariantSwitchTestAccess::current_variant_capacity(req), std::out_of_range);
+}
+
+// m_prefill_other_outs_to_seqdims is keyed by prefill output ports, which can't be serialized
+// directly. serialize() exports the table by tensor name and deserialize() rebuilds the port keys
+// against the restored prefill model. This pins that name<->port round-trip through the real
+// production helpers.
+TEST_F(LLMInferRequestVariantSwitchTest, PrefillOtherOutsSeqDimTableRebuildsAgainstPrefillModel) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    auto prefill = LLMVariantSwitchTestAccess::prefill_compiled(compiled);
+    ASSERT_NE(prefill, nullptr);
+    const auto& prefill_outs = prefill->outputs();
+    ASSERT_FALSE(prefill_outs.empty());
+
+    std::map<ov::Output<const ov::Node>, std::size_t> original;
+    std::size_t seqdim = 1u;
+    for (const auto& out : prefill_outs) {
+        original.emplace(out, seqdim++);
+    }
+    LLMVariantSwitchTestAccess::set_prefill_other_outs_to_seqdims(compiled, original);
+
+    // serialize side: the table is reduced to tensor names.
+    const auto by_name = LLMVariantSwitchTestAccess::prefill_other_outs_seqdims_by_name(compiled);
+    ASSERT_EQ(by_name.size(), original.size());
+
+    // deserialize side: rebuild the port keys from the restored prefill model.
+    LLMVariantSwitchTestAccess::set_prefill_other_outs_to_seqdims(compiled, {});
+    LLMVariantSwitchTestAccess::rebuild_prefill_other_outs_to_seqdims(compiled, by_name);
+
+    const auto& restored = LLMVariantSwitchTestAccess::prefill_other_outs_to_seqdims(compiled);
+    ASSERT_EQ(restored.size(), original.size());
+    for (const auto& [port, dim] : original) {
+        auto it = restored.find(port);
+        ASSERT_NE(it, restored.end()) << "Missing port " << port.get_any_name() << " after round-trip";
+        EXPECT_EQ(it->second, dim) << port.get_any_name();
+    }
+}
+
+// A seq-dim table entry naming a tensor absent from the prefill model must fault loudly instead of
+// silently dropping the output.
+TEST_F(LLMInferRequestVariantSwitchTest, PrefillOtherOutsSeqDimRejectsUnknownTensorName) {
+    VariantSwitchFactory factory;
+    auto compiled = create_compiled_model({}, factory);
+    ASSERT_NE(compiled, nullptr);
+
+    EXPECT_THROW(LLMVariantSwitchTestAccess::rebuild_prefill_other_outs_to_seqdims(compiled,
+                                                                                  {{"does_not_exist_in_prefill", 2u}}),
+                 ov::Exception);
 }
 
 }  // namespace
