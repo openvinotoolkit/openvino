@@ -583,11 +583,12 @@ std::map<ov::Output<const ov::Node>, std::size_t> find_other_outputs_with_seqdim
     const std::size_t static_seqdim_value) {
     std::map<ov::Output<const ov::Node>, std::size_t> other_outputs_with_seqdim;
     for (const auto& [name, dynamic_dims] : other_dynamic_outputs) {
+        const auto& output_name = name;
         const auto& cm_outs = compiled_model->outputs();
         if (auto it = std::find_if(cm_outs.begin(),
                                    cm_outs.end(),
-                                   [&name](const ov::Output<const ov::Node>& output) {
-                                       return output.get_names().count(name) > 0;
+                                   [&output_name](const ov::Output<const ov::Node>& output) {
+                                       return output.get_names().count(output_name) > 0;
                                    });
             it != cm_outs.end()) {
             const auto& port = *it;
