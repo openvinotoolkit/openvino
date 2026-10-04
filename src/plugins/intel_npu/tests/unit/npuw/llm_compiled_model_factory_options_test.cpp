@@ -426,7 +426,8 @@ TEST_F(LLMCompiledModelFactoryOptionsTest, DefaultStageConfigsCarryBaselineNpuwO
         EXPECT_FALSE(prop_string(call->props, "NPUW_WEIGHTS_BANK").empty());
     }
 
-    expect_prop(prefill.props, "NPUW_SLICE_OUT", "YES");
+    // In three-model pipeline, `slice_out_embeds()` handles the slicing for the prefill model.
+    expect_missing_prop(prefill.props, "NPUW_SLICE_OUT");
     expect_prop(prefill.props, "NPUW_FUNCALL_ASYNC", "YES");
     expect_prop(prefill.props, "NPUW_ATTN", "PYRAMID");
     expect_prop(prefill.props, "NPUW_ONLINE_PIPELINE", "REP");
