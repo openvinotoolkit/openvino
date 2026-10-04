@@ -138,6 +138,19 @@ Datatype EltwiseKernelBase::GetAccumulatorType(const eltwise_params& params) con
         return Datatype::INT32;
     }
 
+    if (params.operations[0].mode == EltwiseMode::DIV && params.operations[0].m_pythondiv && !params.inputs.empty()) {
+        bool all_inputs_are_int16 = true;
+        for (const auto& input : params.inputs) {
+            if (input.GetDType() != Datatype::INT16) {
+                all_inputs_are_int16 = false;
+                break;
+            }
+        }
+        if (all_inputs_are_int16) {
+            return Datatype::INT16;
+        }
+    }
+
     Datatype types[] = {Datatype::F32, Datatype::BF16, Datatype::F16, Datatype::INT64, Datatype::INT32, Datatype::UINT32};
 
     for (Datatype type : types) {
