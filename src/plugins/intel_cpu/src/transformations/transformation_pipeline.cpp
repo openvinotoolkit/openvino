@@ -74,6 +74,7 @@
 #include "transformations/common_optimizations/move_eltwise_up_data_movement.hpp"
 #include "transformations/common_optimizations/mul_fake_quantize_fusion.hpp"
 #include "transformations/common_optimizations/nop_elimination.hpp"
+#include "transformations/common_optimizations/normalize_vllm_mlp.hpp"
 #include "transformations/common_optimizations/reshape_prelu.hpp"
 #include "transformations/common_optimizations/sdpa_fusion.hpp"
 #include "transformations/common_optimizations/shared_ops_optimization.hpp"
@@ -1133,6 +1134,11 @@ void Transformations::PostLpt() {
     // Execute before snippets. Otherwise FQ will be converted to Subgraph
     CPU_REGISTER_PASS_X64(postLPTPassManager, ConvertFqRnnToQuantizedRnn);
 
+    // Runs postLPT: LPT re-inserts precision Converts around MatMul that
+    // only this position can canonicalize away. Gated on "vllm_model" rt_info.
+    if (model->has_rt_info("vllm_model") && model->get_rt_info<bool>("vllm_model")) {
+        CPU_REGISTER_PASS_COMMON(postLPTPassManager, ov::pass::NormalizeVLLMMLP);
+    }
     CPU_REGISTER_PASS_X64(postLPTPassManager, ov::pass::RoPEFusion, true);
     CPU_REGISTER_PASS_ARM64(postLPTPassManager, ov::pass::RoPEFusion, true);
     CPU_DISABLE_PASS_COMMON(postLPTPassManager, ov::pass::RoPEFusionCohere);

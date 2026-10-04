@@ -86,7 +86,8 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedWeightsTypes([[may
 #endif
 }
 
-ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes() {
+ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes(
+    [[maybe_unused]] bool allow_bf16_on_amx) {
     using ov::element::Type_t;
 
     bool useMatmulPrim = false;
@@ -100,7 +101,12 @@ ov::element::TypeVector FullyConnected::getSupportedCompressedActivationsTypes()
     // dynamic-quant kernels. On AMX-capable HW, AMX BF16 TMUL outperforms
     // VNNI int8 on prefill, so keep f32 here and let the existing AMX BF16
     // path handle bf16 inference precision.
-    if (ov::with_cpu_x86_avx512_core_amx()) {
+    //
+    // allow_bf16_on_amx opts out of that restriction. A bf16 graph that folds into
+    // FullyConnectedCompressed beats the f32-graph + bf16-inference-hint route, which pays
+    // f32 Reorders on the activations. It is driven by the "vllm_model" rt_info in
+    // ConvertToCPUSpecificOpset, so non-vLLM models keep the stock behaviour.
+    if (ov::with_cpu_x86_avx512_core_amx() && !allow_bf16_on_amx) {
         return {Type_t::f32};
     }
     return {Type_t::f32, Type_t::bf16};

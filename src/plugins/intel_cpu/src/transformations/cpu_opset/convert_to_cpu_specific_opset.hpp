@@ -46,6 +46,11 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
     ov::pass::Manager manager("CPU:ConvertToCPUSpecificOpset");
     manager.set_per_pass_validation(false);
 
+    // vLLM runs the model in bf16 end to end, so letting compressed FullyConnected take bf16
+    // activations on AMX avoids f32 Reorders on every layer. Gated on "vllm_model" rt_info to
+    // keep the stock AMX f32-only behaviour for every other model.
+    const bool is_vllm_model = model->has_rt_info("vllm_model") && model->get_rt_info<bool>("vllm_model");
+
     // Convert public GroupedMatMul-17 into the internal GatherMatmul
     // Must run before the compression pass.
     CPU_REGISTER_PASS_COMMON(manager, ov::pass::ConvertGroupedMatMulToGatherMatmul);
@@ -84,7 +89,7 @@ inline void ConvertToCPUSpecificOpset(std::shared_ptr<ov::Model>& model, const C
     CPU_REGISTER_PASS_COMMON(
         manager,
         pass::ConvertFullyConnectedToFullyConnectedCompressed,
-        ov::intel_cpu::node::FullyConnected::getSupportedCompressedActivationsTypes(),
+        ov::intel_cpu::node::FullyConnected::getSupportedCompressedActivationsTypes(is_vllm_model),
         ov::intel_cpu::node::FullyConnected::getSupportedCompressedWeightsTypes(),
         [&config](const std::shared_ptr<ov::op::internal::FullyConnected>& fc, size_t IC, size_t OC, size_t G) {
             return ov::intel_cpu::node::FullyConnected::isSupportedCompressedOperation(fc, IC, OC, G, config);

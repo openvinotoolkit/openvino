@@ -7,6 +7,7 @@ add_subdirectory(model_hub_tests)
 add_subdirectory(samples_tests)
 add_subdirectory(e2e_tests)
 add_subdirectory(memory_tests)
+add_subdirectory(vllm_tests)
 
 install(FILES requirements_pytorch requirements_tensorflow requirements_onnx requirements_jax requirements_gguf
         DESTINATION tests COMPONENT tests EXCLUDE_FROM_ALL)

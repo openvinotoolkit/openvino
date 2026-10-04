@@ -78,7 +78,8 @@ public:
                                                size_t G,
                                                const Config& config) noexcept;
     static ov::element::TypeVector getSupportedCompressedWeightsTypes(bool apply_fp8 = false);
-    static ov::element::TypeVector getSupportedCompressedActivationsTypes();
+    // allow_bf16_on_amx lifts the AMX f32-only restriction; see the comment on the definition.
+    static ov::element::TypeVector getSupportedCompressedActivationsTypes(bool allow_bf16_on_amx = false);
 
     bool isExecutable() const override {
         return !isInputTensorAtPortEmpty(0);

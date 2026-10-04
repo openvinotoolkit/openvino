@@ -99,6 +99,8 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/nonzero_horizontal_fusion_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/nop_elimination.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/normalize_l2_fusion_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/normalize_vllm_mlp_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/normalize_vllm_rope_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/optimize_strided_slice_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/pack_multi_head_attention_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/pad_fusion.cpp
@@ -140,6 +142,7 @@ set(COMMON_OPTIMIZATIONS_TESTS_SRCS
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/transpose_reshape_elimination_for_matmul.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/transpose_sinking_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/transpose_to_reshape_test.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/vllm_gating_test.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/weights_dequantize_to_fake_quantize.cpp
     ${CMAKE_CURRENT_LIST_DIR}/common_optimizations/wrap_interpolate_into_transposes_test.cpp
 )
