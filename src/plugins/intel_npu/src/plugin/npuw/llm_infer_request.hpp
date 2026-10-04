@@ -27,6 +27,7 @@ struct LLMTrimKVCacheTestAccess;
 struct LLMPortNameRegistrationTestAccess;
 struct LLMContinuedPrefillTestAccess;
 struct LLMSwaCacheTestAccess;
+struct LLMNoPositionIdsTestAccess;
 }  // namespace npuw
 }  // namespace test
 }  // namespace ov
@@ -239,6 +240,7 @@ protected:
     friend struct ov::test::npuw::LLMPortNameRegistrationTestAccess;
     friend struct ov::test::npuw::LLMContinuedPrefillTestAccess;
     friend struct ov::test::npuw::LLMSwaCacheTestAccess;
+    friend struct ov::test::npuw::LLMNoPositionIdsTestAccess;
 };
 
 }  // namespace npuw
