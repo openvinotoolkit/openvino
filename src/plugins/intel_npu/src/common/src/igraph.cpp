@@ -74,14 +74,6 @@ void IGraph::set_model_priority(const ov::hint::Priority) {
     OPENVINO_THROW("set_model_priority not implemented");
 }
 
-std::shared_ptr<SubmissionOrder> IGraph::install_submission_order(std::shared_ptr<SubmissionOrder> candidate) {
-    std::lock_guard<std::mutex> lock(_submission_order_mutex);
-    if (_submission_order == nullptr) {
-        _submission_order = std::move(candidate);
-    }
-    return _submission_order;
-}
-
 void IGraph::set_batch_size(std::size_t) {
     OPENVINO_THROW("set_batch_size not implemented");
 }

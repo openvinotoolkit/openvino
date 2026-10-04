@@ -17,10 +17,17 @@
 
 namespace {
 
-/// Installs the shared ordering state on the graph, or returns the one already installed there.
-std::shared_ptr<intel_npu::SubmissionOrder> submission_order_or_throw(const std::shared_ptr<intel_npu::IGraph>& graph) {
+/// The ordering state shared with the sibling pipelines of this graph, or null when submissions are
+/// not ordered and there is nothing to share.
+std::shared_ptr<intel_npu::SubmissionOrder> submission_order_for(const std::shared_ptr<intel_npu::IGraph>& graph,
+                                                                 bool run_inferences_sequentially) {
     OPENVINO_ASSERT(graph != nullptr, "Failed to create pipeline: graph is null");
-    return graph->install_submission_order(std::make_shared<intel_npu::SubmissionOrder>());
+
+    if (!run_inferences_sequentially) {
+        return nullptr;
+    }
+
+    return intel_npu::SubmissionOrderPool::getInstance().get(*graph);
 }
 
 }  // namespace
@@ -71,8 +78,8 @@ IPipeline::IPipeline(const std::shared_ptr<ZeroInitStructsHolder>& init_structs,
       _extension_version(init_structs->getCommandQueueDdiTable().version()),
       _run_inferences_sequentially(_extension_version < ZE_MAKE_VERSION(1, 1) &&
                                    _config.get<RUN_INFERENCES_SEQUENTIALLY>()),
-      _submission_order(submission_order_or_throw(graph)),
-      _pipeline_unique_id_per_graph(_submission_order->next_id()),
+      _submission_order(submission_order_for(graph, _run_inferences_sequentially)),
+      _pipeline_unique_id_per_graph(_submission_order ? _submission_order->next_id() : 0),
       _logger(logName, _config.get<LOG_LEVEL>()) {
     _command_queue = ZeroCmdQueuePool::getInstance().getCommandQueue(_init_structs, _graph->get_command_queue_desc());
 

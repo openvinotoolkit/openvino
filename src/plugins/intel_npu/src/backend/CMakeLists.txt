@@ -14,6 +14,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_pipeline.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_profiling.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/zero_variable_state.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/submission_order.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_backend.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_device.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/zero_dynamic_infer_request.cpp

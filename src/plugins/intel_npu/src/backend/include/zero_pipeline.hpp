@@ -76,8 +76,9 @@ protected:
     bool _sync_output_with_fences = true;
     uint32_t _extension_version;
     bool _run_inferences_sequentially = false;
-    /// Shared with every other pipeline built on the same graph. Declared before the ticket below,
-    /// which is drawn from it during construction.
+    /// Shared with every other pipeline built on the same graph, and null unless submissions are
+    /// actually ordered. Declared before the ticket below, which is drawn from it during
+    /// construction.
     const std::shared_ptr<SubmissionOrder> _submission_order;
     const uint32_t _pipeline_unique_id_per_graph;
 

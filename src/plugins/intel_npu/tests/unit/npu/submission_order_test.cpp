@@ -9,6 +9,7 @@
 #include "openvino/core/except.hpp"
 
 using ::intel_npu::SubmissionOrder;
+using ::intel_npu::SubmissionOrderPool;
 
 namespace {
 
@@ -17,6 +18,16 @@ namespace {
 // Level Zero driver. Everything else here runs with no driver and no NPU, which is the point of
 // having this state off IGraph.
 //
+
+/// The pool only ever uses a graph's address, so the bare interface is a sufficient stand-in.
+/// is_profiling_blob is IGraph's only pure virtual; every other method keeps its throwing default,
+/// and none of them is reachable from here.
+class FakeGraph final : public intel_npu::IGraph {
+public:
+    std::optional<bool> is_profiling_blob() const override {
+        return std::nullopt;
+    }
+};
 
 TEST(SubmissionOrderTest, TicketsStartAtZeroAndIncrement) {
     SubmissionOrder order;
@@ -84,6 +95,57 @@ TEST(SubmissionOrderTest, ShrinkingDropsTheSlotsItRemoves) {
     // A pipeline with a smaller batch has nothing to wait on in the slots that went away.
     EXPECT_EQ(order.last_event(1), nullptr);
     EXPECT_EQ(order.last_event(3), nullptr);
+}
+
+TEST(SubmissionOrderPoolTest, SiblingsOfOneGraphShareOneInstance) {
+    FakeGraph graph;
+    auto& pool = SubmissionOrderPool::getInstance();
+
+    const auto first = pool.get(graph);
+    const auto second = pool.get(graph);
+
+    ASSERT_NE(first, nullptr);
+    EXPECT_EQ(first, second);
+
+    // The shared instance is what makes the tickets a single sequence per graph.
+    EXPECT_EQ(first->next_id(), 0u);
+    EXPECT_EQ(second->next_id(), 1u);
+}
+
+TEST(SubmissionOrderPoolTest, DifferentGraphsAreOrderedIndependently) {
+    FakeGraph first_graph;
+    FakeGraph second_graph;
+    auto& pool = SubmissionOrderPool::getInstance();
+
+    const auto first = pool.get(first_graph);
+    const auto second = pool.get(second_graph);
+
+    ASSERT_NE(first, nullptr);
+    ASSERT_NE(second, nullptr);
+    EXPECT_NE(first, second);
+
+    EXPECT_EQ(first->next_id(), 0u);
+    EXPECT_EQ(second->next_id(), 0u);
+}
+
+TEST(SubmissionOrderPoolTest, StateOutlivesIndividualHoldersButNotAllOfThem) {
+    FakeGraph graph;
+    auto& pool = SubmissionOrderPool::getInstance();
+
+    auto held = pool.get(graph);
+    const auto* const original = held.get();
+    EXPECT_EQ(pool.get(graph).get(), original);  // dropping a temporary holder keeps it alive
+
+    held->set_last_submitted_id(5);
+    held.reset();
+
+    // With no pipeline left the ordering constraint is vacuous, so the next one starts over. This
+    // is also what makes the pool's raw-pointer keys safe: a pipeline holds a shared_ptr to its
+    // graph, so a graph can only be destroyed once its state has expired exactly like this, and an
+    // address that gets recycled lands on a dead entry rather than on another graph's state.
+    const auto fresh = pool.get(graph);
+    EXPECT_EQ(fresh->next_id(), 0u);
+    EXPECT_EQ(fresh->last_submitted_id(), 0u);
 }
 
 }  // namespace

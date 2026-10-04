@@ -8,8 +8,10 @@
 #include <cstdint>
 #include <memory>
 #include <mutex>
+#include <unordered_map>
 #include <vector>
 
+#include "intel_npu/common/igraph.hpp"
 #include "intel_npu/utils/zero/zero_wrappers.hpp"
 #include "openvino/core/except.hpp"
 
@@ -25,9 +27,9 @@ namespace intel_npu {
  *    the queue itself.
  *  - a ticket counter, so a pipeline can check it is being pushed in its turn.
  *
- * Owned by the backend and reached through IGraph, which is the scope across which inferences are
- * ordered. Every accessor is safe to call concurrently, since sibling infer requests share one
- * instance.
+ * Lives entirely in the backend, where Event is an ordinary type; the graph it belongs to knows
+ * nothing about it. Every accessor is safe to call concurrently, since sibling infer requests share
+ * one instance. Obtain an instance from SubmissionOrderPool rather than constructing one directly.
  */
 class SubmissionOrder final {
 public:
@@ -88,6 +90,45 @@ private:
     std::vector<std::shared_ptr<Event>> _lastSubmittedEvent;
     std::atomic<uint32_t> _nextId{0};
     uint32_t _lastSubmittedId = 0;
+};
+
+/**
+ * @brief Hands out the SubmissionOrder shared by all pipelines built on the same graph.
+ *
+ * A graph is the scope across which inferences are ordered, so it is used here purely as an
+ * identity - it holds nothing and knows nothing about the ordering. Keeping the mapping on this
+ * side means the submission machinery, and with it Level Zero's Event, stays out of IGraph.
+ *
+ * Only pipelines that actually order their submissions ask for an instance, which is a regular
+ * graph on a driver below command-queue extension 1.1. On any newer driver the pool is never
+ * touched.
+ */
+class SubmissionOrderPool final {
+public:
+    SubmissionOrderPool(const SubmissionOrderPool&) = delete;
+    SubmissionOrderPool(SubmissionOrderPool&&) = delete;
+    SubmissionOrderPool& operator=(const SubmissionOrderPool&) = delete;
+    SubmissionOrderPool& operator=(SubmissionOrderPool&&) = delete;
+
+    static SubmissionOrderPool& getInstance();
+
+    /**
+     * @brief Returns the instance belonging to @p graph, creating it on first use.
+     * @details The pool keeps only a weak reference, so the state lives exactly as long as the
+     * pipelines using it. Once the last one goes away the ordering constraint is vacuous - there is
+     * nothing left to be ordered against - and the next pipeline starts a fresh sequence.
+     */
+    std::shared_ptr<SubmissionOrder> get(const IGraph& graph);
+
+private:
+    SubmissionOrderPool() = default;
+
+    // Keyed by address, which is safe precisely because the entries are weak: a pipeline holds a
+    // shared_ptr to its graph, so a graph cannot be destroyed while any instance of its
+    // SubmissionOrder is still alive. An address that gets recycled therefore always finds an
+    // expired entry and starts over, never another graph's state.
+    std::unordered_map<const IGraph*, std::weak_ptr<SubmissionOrder>> _pool;
+    std::mutex _mutex;
 };
 
 }  // namespace intel_npu
