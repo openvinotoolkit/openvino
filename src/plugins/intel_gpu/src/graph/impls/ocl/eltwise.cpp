@@ -51,17 +51,21 @@ public:
         }
 
         if (inputs_count == 1) {
-            params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0)}, mode});
+            params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0)},
+                                          mode,
+                                          primitive->m_pythondiv});
         } else {
             params.operations.push_back({{kernel_selector::eltwise_params::InputType::Buffer(0),
                                           kernel_selector::eltwise_params::InputType::Buffer(1)},
-                                         mode});
+                                         mode,
+                                         primitive->m_pythondiv});
         }
 
         for (uint32_t i = 2; i < static_cast<uint32_t>(inputs_count); i++) {
             params.operations.push_back({{kernel_selector::eltwise_params::InputType::Intermediate(i - 2),
                                           kernel_selector::eltwise_params::InputType::Buffer(i)},
-                                         mode});
+                                         mode,
+                                         primitive->m_pythondiv});
         }
 
         params.coefficients = primitive->coefficients;
@@ -74,8 +78,10 @@ public:
         } else {
             for (size_t i = 0; i < params.inputs.size(); i++) {
                 if (!params.inputs[i].SameDims(params.outputs[0])) {
-                    std::vector<ov::Dimension::value_type> input_size = impl_param.input_layouts[i].get_tensor().raw.vector();
-                    std::vector<ov::Dimension::value_type> output_size = impl_param.get_output_layout().get_tensor().raw.vector();
+                    std::vector<ov::Dimension::value_type> input_size =
+                        impl_param.input_layouts[i].get_tensor().raw.vector();
+                    std::vector<ov::Dimension::value_type> output_size =
+                        impl_param.get_output_layout().get_tensor().raw.vector();
                     bool broadcast = false;
                     for (size_t d = 0; d < output_size.size(); d++) {
                         if (output_size[d] != 1 && input_size[d] == 1) {
@@ -253,8 +259,8 @@ attach_eltwise_impl::attach_eltwise_impl() {
         std::make_tuple(data_types::i16, format::bfwzyx),
         std::make_tuple(data_types::u16, format::bfwzyx),
         std::make_tuple(data_types::u32, format::bfwzyx),
-        std::make_tuple(data_types::i32, format::bfwzyx),
-        std::make_tuple(data_types::i64, format::bfwzyx),
+        std::make_tuple(data_types::i32, format::bfzyx),
+        std::make_tuple(data_types::i64, format::bfzyx),
 
         std::make_tuple(data_types::f32, format::bfuwzyx),
         std::make_tuple(data_types::f16, format::bfuwzyx),
@@ -269,7 +275,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
 
         std::make_tuple(data_types::f32, format::bfvuwzyx),
         std::make_tuple(data_types::f16, format::bfvuwzyx),
-        std::make_tuple(data_types::bf16, format::bfvuwzyx),
+        std::make_tuple(data_types::bfvuwzyx),
         std::make_tuple(data_types::i8, format::bfvuwzyx),
         std::make_tuple(data_types::u8, format::bfvuwzyx),
         std::make_tuple(data_types::i16, format::bfvuwzyx),

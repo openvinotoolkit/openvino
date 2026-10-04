@@ -329,7 +329,8 @@ jit_divide_emitter::jit_divide_emitter(x64::jit_generator_t* host,
                                        x64::cpu_isa_t host_isa,
                                        const std::shared_ptr<ov::Node>& node,
                                        ov::element::Type /*exec_prc*/)
-    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)) {}
+    : jit_emitter(host, host_isa, get_arithmetic_binary_exec_precision(node)),
+      m_pythondiv(ov::as_type_ptr<ov::op::v1::Divide>(node)->is_pythondiv()) {}
 jit_divide_emitter::jit_divide_emitter(x64::jit_generator_t* host, x64::cpu_isa_t host_isa, ov::element::Type exec_prc)
     : jit_emitter(host, host_isa, exec_prc) {}
 
@@ -372,7 +373,7 @@ void jit_divide_emitter::emit_isa(const std::vector<size_t>& in_vec_idxs,
             h->uni_vcvtdq2ps(vmm_dst, vmm_src0);
             h->uni_vcvtdq2ps(vmm_aux0, vmm_src1);
             h->uni_vdivps(vmm_dst, vmm_dst, vmm_aux0);
-            h->uni_vroundps(vmm_dst, vmm_dst, 3);  // rounding to zero
+            h->uni_vroundps(vmm_dst, vmm_dst, m_pythondiv ? 1 : 3);
             h->uni_vcvtps2dq(vmm_dst, vmm_dst);
             break;
         }

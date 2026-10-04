@@ -17,6 +17,7 @@
 #include <limits>
 #include <memory>
 #include <oneapi/dnnl/dnnl.hpp>
+#include <type_traits>
 #include <vector>
 
 #include "cpu/primitive_attr_postops.hpp"
@@ -45,6 +46,7 @@ size_t EltwiseRefKey::hash() const {
         seed = hash_combine(seed, eltwiseData.alpha);
         seed = hash_combine(seed, eltwiseData.beta);
         seed = hash_combine(seed, eltwiseData.gamma);
+        seed = hash_combine(seed, eltwiseData.pythondiv);
         return seed;
     };
     std::for_each(eltwise_data.begin(), eltwise_data.end(), [&](const EltwiseData& item) {
@@ -315,7 +317,18 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
                 *dst_ptr_f = src_f[0] * src_f[1];
                 break;
             case Algorithm::EltwiseDivide:
-                *dst_ptr_f = src_f[0] / src_f[1];
+                if (this->m_opData.pythondiv) {
+                    if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
+                        const auto quotient = src_f[0] / src_f[1];
+                        const auto remainder = src_f[0] % src_f[1];
+                        *dst_ptr_f =
+                            quotient - ((remainder != 0) && ((src_f[0] < 0) != (src_f[1] < 0)));
+                    } else {
+                        *dst_ptr_f = src_f[0] / src_f[1];
+                    }
+                } else {
+                    *dst_ptr_f = src_f[0] / src_f[1];
+                }
                 break;
             case Algorithm::EltwiseCeiling:
                 *dst_ptr_f = ceilf(src_f[0]);

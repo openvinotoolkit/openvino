@@ -30,10 +30,11 @@ struct EltwiseData {
     float alpha = 0.0F;
     float beta = 0.0F;
     float gamma = 0.0F;
+    bool pythondiv = false;
 
     bool operator==(const EltwiseData& rhs) const noexcept {
         return algo == rhs.algo && onednnAlgorithm == rhs.onednnAlgorithm && alpha == rhs.alpha && beta == rhs.beta &&
-               gamma == rhs.gamma;
+               gamma == rhs.gamma && pythondiv == rhs.pythondiv;
     }
 };
 
