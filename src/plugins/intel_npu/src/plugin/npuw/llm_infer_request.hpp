@@ -224,7 +224,7 @@ protected:
     // coefficients. Meaningless for models without LongRoPE, where it stays false.
     bool m_longrope_long_mode = false;
 
-    bool m_no_position_ids = false;
+    bool m_position_ids_present = true;
     int64_t m_first_position_id = 0;
 
     uint64_t m_tokens_in_present_chunk = 0;
