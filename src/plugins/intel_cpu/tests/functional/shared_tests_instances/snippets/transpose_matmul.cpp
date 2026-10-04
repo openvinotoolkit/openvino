@@ -29,7 +29,11 @@ static inline std::vector<std::vector<element::Type>> precisions(bool only_fp32 
     return prc;
 }
 
+#if defined(OPENVINO_ARCH_RISCV64)
+static constexpr size_t expected_nodes_transpose_input = 2;
+#else
 static constexpr size_t expected_nodes_transpose_input = 1;
+#endif
 
 namespace transpose_zero_input {
 const auto& transpose_input_shapes = SNIPPETS_TESTS_STATIC_SHAPES({{1, 49, 2, 23}, {2, 2, 23, 39}});

@@ -485,7 +485,6 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*Quantized.*)"),
             std::regex(R"(.*smoke_Snippets_MatMult.*)"),
             std::regex(R"(.*smoke_Snippets_ExplicitTransposeMatMul.*)"),
-            std::regex(R"(.*smoke_Snippets_Dyn.*Mat.*)"),
             std::regex(R"(.*smoke_Snippets_FullyConnected.*)"),
             std::regex(R"(.*smoke_Snippets_MHA(INT8|Quant|FQ).*)"),
             std::regex(R"(.*smoke_Snippets_MLP.*)"),

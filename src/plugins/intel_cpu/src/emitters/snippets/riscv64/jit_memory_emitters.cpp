@@ -123,6 +123,14 @@ void jit_memory_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
     emitter_postamble();
 }
 
+void jit_memory_emitter::emit_code_impl(const std::vector<size_t>& in_idxs,
+                                        const std::vector<size_t>& out_idxs,
+                                        const std::vector<size_t>& pool_vec_idxs,
+                                        const std::vector<size_t>& pool_gpr_idxs,
+                                        [[maybe_unused]] const std::vector<size_t>& pool_fp_gpr_idxs) const {
+    emit_code_impl(in_idxs, out_idxs, pool_vec_idxs, pool_gpr_idxs);
+}
+
 jit_load_memory_emitter::jit_load_memory_emitter(jit_generator_t* h, cpu_isa_t isa, const ExpressionPtr& expr)
     : jit_memory_emitter(h, isa, expr, emitter_in_out_map::gpr_to_vec) {
     const auto load = ov::as_type_ptr<snippets::op::Load>(expr->get_node());
