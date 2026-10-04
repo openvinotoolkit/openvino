@@ -83,7 +83,8 @@ computed by other operations and passed in through ``index_query`` and ``index_k
                 w = index_weights[n, l, :].astype(numpy.float32)                      # [Hi]
                 scores = (w[:, None] * numpy.maximum(q @ k.T, 0.0)).sum(axis=0)      # [B]
                 num_selected_blocks = min(block_topk, num_visible_blocks)
-                # descending score, equal scores -> smaller block index first
+                # descending score; which of equal scores are taken is implementation-defined,
+                # this stable sort is one valid choice (see the note on equal scores below)
                 blocks = numpy.argsort(-scores, kind="stable")[:num_selected_blocks]
                 block_indices[n, l, :num_selected_blocks] = blocks
                 block_count[n, l] = num_selected_blocks
@@ -116,6 +117,22 @@ Properties that follow from the definition:
   ``w * ReLU(q . k)`` differs from ``ReLU((w * q) . k)`` for ``w < 0``.
 * The valid block indices of a row are ordered by descending score. The order does not affect
   the result of *BlockSparseAttention*.
+
+.. note::
+
+   **Equal scores.** The selected blocks are ``block_count`` blocks with the largest scores. When
+   blocks with equal scores compete for the last selected places, which of them are selected is
+   implementation-defined and does not have to be stable between invocations; the order of equal
+   scores within a row is implementation-defined too. The stable sort in the pseudo-code is one
+   valid choice. This matches the reference: Qwen3.8-Flash-Next in Hugging Face Transformers
+   selects with ``scores.topk(min(block_topk, num_complete_blocks), dim=0)``, and PyTorch documents
+   for ``torch.topk`` that "the indices of tied elements are not guaranteed to be stable and may vary
+   across different invocations".
+
+   Ties at the cut occur mainly between blocks whose score is exactly ``0``, because every rectified
+   head product is ``0``, and only when more blocks are visible than can be selected. Accuracy tests
+   against a reference implementation should avoid such inputs or compare the selected blocks only
+   among those with a score above the cut.
 
 **Preparing the inputs** (informative)
 
