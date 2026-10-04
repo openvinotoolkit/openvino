@@ -30,9 +30,10 @@ compiled to a binary (even if the module has dynamic shapes), on `infer()` it la
 
 ## Communication with the graph-compiler
 
-`MLIROp` communicates with the graph-compiler using its public api (the actual communication is delegated to a
-separate `intel_gpu::mlir::MLIREvaluateGcGPU` class that is defined under `transformations/mlir` to avoid
-bringing mlir/gc includes to the main plugin). The simplified flow is following:
+`MLIROp` delegates execution to an `MLIREvaluateBase` implementation created by
+`create_mlir_evaluator()`. The current implementation uses the Graph Compiler OpenCL API and is kept inside
+`transformations/mlir` so its GC runtime types do not reach the rest of the plugin. This factory is the
+construction seam for adding another compiler implementation. The simplified flow is following:
 
 **A. Compilation:**
 

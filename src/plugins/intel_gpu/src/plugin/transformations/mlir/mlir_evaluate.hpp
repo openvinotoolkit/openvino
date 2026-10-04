@@ -5,37 +5,13 @@
 #pragma once
 
 #include <memory>
-#include <vector>
 
-#include "gc/ExecutionEngine/GPURuntime/GpuOclRuntime.h"
 #include "interface/mlir_evaluate_base.hpp"
-#include "mlir/ExecutionEngine/ExecutionEngine.h"
 #include "mlir/IR/BuiltinOps.h"
-#include "openvino/core/any.hpp"
-#include "openvino/core/node.hpp"
-#include "openvino/runtime/tensor.hpp"
 
 namespace ov::intel_gpu::mlir {
 
-using ::mlir::ExecutionEngine;
-using ::mlir::ModuleOp;
-using ::mlir::OwningOpRef;
-
-class MLIREvaluateGcGPU : public MLIREvaluateBase {
-    std::unique_ptr<const ::mlir::gc::gpu::OclModule> module;
-
-public:
-    MLIREvaluateGcGPU(OwningOpRef<ModuleOp> _module, const std::shared_ptr<ov::EvaluationContext>& loweringContext);
-
-    [[nodiscard]] bool requires_packed_args() const override {
-        return !module->isStatic();
-    }
-    bool invoke(const ov::TensorVector& inputs, ov::TensorVector& outputs, const ov::EvaluationContext& evaluationContext) override;
-    bool invoke_packed(std::vector<void*>& args, const ov::EvaluationContext& evaluationContext) override;
-
-private:
-    ::mlir::gc::gpu::OclContext build_ocl_context(const ov::EvaluationContext& evaluationContext);
-    static void maybe_set_result_events(const ov::EvaluationContext& evaluationContext, ::mlir::gc::gpu::OclContext& ctx);
-};
+std::shared_ptr<MLIREvaluateBase> create_mlir_evaluator(::mlir::OwningOpRef<::mlir::ModuleOp> module,
+                                                        const std::shared_ptr<ov::EvaluationContext>& loweringContext);
 
 }  // namespace ov::intel_gpu::mlir
