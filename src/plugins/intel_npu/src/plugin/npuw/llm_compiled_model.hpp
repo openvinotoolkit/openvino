@@ -121,6 +121,9 @@ protected:
     // generate models.
     void validate_imported_kvcache_dim() const;
 
+    std::map<std::string, std::size_t> prefill_other_outs_seqdims_by_name() const;
+    void rebuild_prefill_other_outs_to_seqdims(const std::map<std::string, std::size_t>& by_name);
+
     std::string m_name;
     std::shared_ptr<::intel_npu::OptionsDesc> m_options_desc;
     ::intel_npu::Config m_cfg;
