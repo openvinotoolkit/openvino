@@ -25,7 +25,7 @@ recovered from the FX graph, and guessing either one silently corrupts output:
 
 * **kv_sharing_target** -- layers that reuse an earlier layer's KV cache are
   handed *raw* k/v by vLLM (no k_norm, no v_norm, no RoPE), because its
-  attention backends suppress the cache write for them:
+  attention backends suppress the cache write for them::
 
       # vllm/v1/attention/backends/cpu_attn.py
       if (self.kv_sharing_target_layer_name is None

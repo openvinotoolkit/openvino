@@ -116,6 +116,7 @@ def _structural_key(gm, args, options=None):
     cache would have served that shape unchanged.
     """
     shape_agnostic = _shape_agnostic_compile(gm, args, options)
+    placeholders = [node for node in gm.graph.nodes if node.op == "placeholder"]
     dynamic_dims = {}
     if shape_agnostic:
         try:
@@ -124,10 +125,20 @@ def _structural_key(gm, args, options=None):
                 dynamic_dims.setdefault(tensor_idx, set()).add(dim)
         except Exception as e:
             logger.debug("dynamic-dim sourcing unavailable: %s", e)
+        # symint_shape_sources names one source tensor per int, so a second
+        # tensor sharing that size (e.g. positions alongside input_ids) would
+        # stay concrete and miss the cache on every new prompt length. Dynamo's
+        # own placeholder metadata marks every symbolic dim.
+        if len(placeholders) == len(args):
+            for i, node in enumerate(placeholders):
+                fake = node.meta.get("val", node.meta.get("example_value"))
+                if isinstance(fake, torch.Tensor):
+                    for dim, size in enumerate(fake.shape):
+                        if isinstance(size, torch.SymInt):
+                            dynamic_dims.setdefault(i, set()).add(dim)
     try:
         # Label placeholders by identity, not position: dynamo orders args
         # differently across traces (prefill T,I,T,I vs decode T,I,I,T).
-        placeholders = [node for node in gm.graph.nodes if node.op == "placeholder"]
         ph_label = {}
         if shape_agnostic and len(placeholders) == len(args):
             tensor_i = 0
@@ -167,12 +178,9 @@ def _structural_key(gm, args, options=None):
     for i, arg in enumerate(args):
         if isinstance(arg, torch.Tensor):
             if shape_agnostic:
-                # Only the dims actually sourced from an int placeholder
-                # (symint_shape_sources) legitimately vary across traces of
-                # the same call site -- abstract those, but keep every other
-                # dim concrete. Otherwise two structurally-identical call
-                # sites with genuinely different fixed shapes (e.g. per-layer
-                # varying head_dim) collide on the same cache entry.
+                # Abstract only the symbolic dims; keep fixed ones concrete so
+                # call sites with different static shapes (e.g. per-layer
+                # head_dim) don't collide on one cache entry.
                 dyn = dynamic_dims.get(i, set())
                 shape_sig = ",".join(
                     "*" if d in dyn else str(size) for d, size in enumerate(arg.shape)
