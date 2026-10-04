@@ -360,7 +360,7 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     // NOTE: Granite-4.0-h-micro uses no Positional Encoding, it doesn't need it because
     //       Mamba inherently preserves information about the order of tokens.
     if (m_prefill_in_ports.find(layer_names::position_ids) == m_prefill_in_ports.end()) {
-        m_no_position_ids = true;
+        m_position_ids_present = false;
         for (auto&& [__, variant_ports] : m_generate_variant_in_ports) {
             OPENVINO_ASSERT(variant_ports.find(layer_names::position_ids) == variant_ports.end(),
                             "Generate model variant unexpectedly has position_ids port while prefill hasn't!");
@@ -424,7 +424,6 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
                                      m_lm_head_request->get_tensor(lm_head_embed_port));
         }
     }
-
     // FIXME: E-177589
     // FIXME: "fixes"/workarounds caching import on CPU (also might be related to bf16 weights).
     // Unclear how it's related. Previously fill_tensor()
@@ -702,7 +701,7 @@ void ov::npuw::LLMInferRequest::zero_prefill_staging() {
     }
     uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask)), 0);
 
-    if (!m_no_position_ids) {
+    if (m_position_ids_present) {
         uu::fill_tensor<int64_t>(m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids)), 0);
     }
 
@@ -1043,6 +1042,10 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
     }
 
     auto attn_mask_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::attention_mask));
+    ov::SoPtr<ov::ITensor> pos_ids_in_tensor;
+    if (m_position_ids_present) {
+        pos_ids_in_tensor = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
+    }
 
     const auto token_type_ids_it = m_prefill_in_ports.find(layer_names::token_type_ids);
     const bool has_token_type_ids = token_type_ids_it != m_prefill_in_ports.end();
@@ -1120,12 +1123,10 @@ void ov::npuw::LLMInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITensor> inp
                         reinterpret_cast<uint8_t*>(input_ids_in_tensor->data()) + input_ids_in_tensor->get_byte_size() -
                             current_prefill_bytes);
 
-            if (!m_no_position_ids) {
+            if (m_position_ids_present) {
                 // NB: Regular LLM uses 2D position_ids [BATCH, SEQ_LEN], Qwen2.5 VL/Omni, Qwen3.5 VL use 3D
                 // position_ids [3, BATCH, SEQ_LEN] Copy postion ids with considering the 3D position_ids The caller
                 // tensor is delta-relative during a continued prefill.
-                auto pos_ids_in_tensor =
-                    m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
                 auto last_dim = position_ids->get_shape().size() - 1;
                 const uint32_t pos_src_offset = kvcache_desc.num_stored_tokens - m_continued_prefill_base;
                 auto actual_position_ids_slice =
@@ -1301,7 +1302,7 @@ void ov::npuw::LLMInferRequest::infer_whole_prefill(ov::SoPtr<ov::ITensor> input
             util::copy_to_right(token_type_ids, padded_token_type_ids);
         }
 
-        if (!m_no_position_ids) {
+        if (m_position_ids_present) {
             auto padded_position_ids = m_prefill_request->get_tensor(m_prefill_in_ports.at(layer_names::position_ids));
             ov::npuw::util::pad_position_ids(padded_position_ids, position_ids);
         }
@@ -1562,7 +1563,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
             uu::fill_tensor_bytes(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(m_input_ids_name)), 0u);
             uu::fill_tensor<int64_t>(m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::attention_mask)),
                                      0);
-            if (!m_no_position_ids) {
+            if (m_position_ids_present) {
                 uu::fill_tensor<int64_t>(
                     m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids)),
                     0);
@@ -1615,7 +1616,7 @@ void ov::npuw::LLMInferRequest::infer_generate(ov::SoPtr<ov::ITensor> input_ids,
         }
         std::fill_n(kv_attn_mask->data<int64_t>() + kv_attn_mask->get_size() - input_tokens_len, input_tokens_len, 1);
 
-        if (!m_no_position_ids) {
+        if (m_position_ids_present) {
             auto kv_pos_ids = m_kvcache_request->get_tensor(m_kvcache_in_ports.at(layer_names::position_ids));
             ov::npuw::util::pad_position_ids(kv_pos_ids, position_ids);
         }

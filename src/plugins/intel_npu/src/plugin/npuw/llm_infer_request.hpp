@@ -185,7 +185,7 @@ protected:
 
     bool m_first_run = true;
 
-    bool m_no_position_ids = false;
+    bool m_position_ids_present = true;
     int64_t m_first_position_id = 0;
 
     uint64_t m_tokens_in_present_chunk = 0;
