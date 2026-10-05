@@ -43,6 +43,7 @@ struct WindowReverse {
     bool converted_batch = false;
     bool rank5_merge = false;
     bool compact_targets = false;
+    bool static_trailing_dim = false;
     std::vector<int64_t> permutation{0, 1, 3, 2, 4, 5};
     std::vector<int64_t> roll_axes{1, 2};
 };
@@ -58,16 +59,17 @@ std::shared_ptr<Model> make_window_reverse_model(const WindowReverse& options) {
     const Output<Node> pinned = options.restored ? batch : one;
 
     const auto windows = std::make_shared<op::v1::Reshape>(x, i64({-1, 8, 8, 4}), false);
+    const int64_t trailing = options.static_trailing_dim ? 4 : -1;
     const auto make_split_target = [&](const Output<Node>& leading) {
-        return options.compact_targets ? concat({leading, i64({2}), i64({2}), i64({8, 8, -1})})
-                                       : concat({leading, i64({2}), i64({2}), i64({8}), i64({8}), i64({-1})});
+        return options.compact_targets ? concat({leading, i64({2}), i64({2}), i64({8, 8, trailing})})
+                                       : concat({leading, i64({2}), i64({2}), i64({8}), i64({8}), i64({trailing})});
     };
     const auto split_target = make_split_target(pinned);
     const auto split = std::make_shared<op::v1::Reshape>(windows, split_target, false);
     const auto permute = std::make_shared<op::v1::Transpose>(split, i64(options.permutation));
     const auto merge_target = options.rank5_merge       ? concat({pinned, i64({16, 1}), i64({16}), i64({-1})})
-                              : options.compact_targets ? concat({pinned, i64({16, 16, -1})})
-                                                        : concat({pinned, i64({16}), i64({16}), i64({-1})});
+                              : options.compact_targets ? concat({pinned, i64({16, 16, trailing})})
+                                                        : concat({pinned, i64({16}), i64({16}), i64({trailing})});
     const auto merge = std::make_shared<op::v1::Reshape>(permute, merge_target, false);
     std::shared_ptr<Node> merged = merge;
     if (options.shifted) {
@@ -130,6 +132,13 @@ TEST_F(RestoreTracedBatchTests, CompactConcatTargetsTakeBatchFromInputShape) {
     restored.restored = true;
     model = make_window_reverse_model(traced);
     model_ref = make_window_reverse_model(restored);
+}
+
+TEST_F(RestoreTracedBatchTests, CompactTargetsWithoutFlattenedTailAreLeftAlone) {
+    WindowReverse other;
+    other.compact_targets = true;
+    other.static_trailing_dim = true;
+    model = make_window_reverse_model(other);
 }
 
 TEST_F(RestoreTracedBatchTests, RestoredWindowReverseIsLeftAlone) {
