@@ -170,6 +170,30 @@ TEST(HsmDeferredWriterTest, finalize_is_idempotent) {
     EXPECT_EQ(stream.str(), written_once);  // no bytes written again
 }
 
+TEST(HsmDeferredWriterTest, finalize_propagates_an_exception_thrown_by_a_section_encoder) {
+    std::stringstream stream;
+    auto writer = open_writer(stream);
+    writer.add_section(hsm::any_device_id, hsm::model_tag, 4, [](const hsm::SectionSink&) -> void {
+        OPENVINO_THROW("encoder blew up");
+    });
+    EXPECT_THROW(writer.finalize(), ov::Exception);
+}
+
+TEST(HsmDeferredWriterTest, finalize_does_not_retry_the_encoder_after_it_threw) {
+    int call_count = 0;
+    std::stringstream stream;
+    auto writer = open_writer(stream);
+    writer.add_section(hsm::any_device_id, hsm::model_tag, 4, [&call_count](const hsm::SectionSink&) -> void {
+        ++call_count;
+        OPENVINO_THROW("encoder blew up");
+    });
+    EXPECT_THROW(writer.finalize(), ov::Exception);
+    EXPECT_EQ(call_count, 1);
+
+    EXPECT_NO_THROW(writer.finalize());
+    EXPECT_EQ(call_count, 1);  // not invoked again
+}
+
 TEST(HsmDeferredWriterTest, unsized_section_forces_the_header_to_be_patched_after_the_fact) {
     // With only sized content, the header is computed in one pass up front. An unsized section forces the
     // placeholder-then-patch fallback - verified here by confirming the final header is still correct.
