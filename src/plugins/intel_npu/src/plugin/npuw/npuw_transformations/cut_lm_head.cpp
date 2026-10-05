@@ -4,6 +4,7 @@
 
 #include "cut_lm_head.hpp"
 
+#include <algorithm>
 #include <memory>
 
 #include "../llm_compiled_model.hpp"
@@ -95,13 +96,29 @@ public:
             // Cut point:
             auto matmul_first_source = matched_matmul->input(0).get_source_output();
 
-            // Cut original model:
-            matched_result->input(0).replace_source_output(matmul_first_source);
-            // FIXME: Somehow for KVCache model result output gets renamed in
-            //        ICompiledModel::ICompiledModel().
-            //        As a WA, setting the same name to output from MatMul
-            //        avoids the issue.
-            matmul_first_source.set_names({ov::npuw::LLMCompiledModel::layer_names::output_embeds});
+            // If the cut-point tensor already feeds another Result (e.g. a hidden-states
+            // output), the embeddings Result must own a distinct tensor. Otherwise both
+            // Results share one descriptor and collapse to a single named port in
+            // ov::ICompiledModel::ICompiledModel(). A cheap pass-through Convert gives the
+            // embeddings its own tensor; NopElimination keeps it alive because dropping it
+            // would merge two Result-feeding outputs (see can_output_be_replaced()).
+            ov::Output<ov::Node> embeds_source = matmul_first_source;
+            const auto& cut_readers = matmul_first_source.get_target_inputs();
+            const bool producer_feeds_result =
+                std::any_of(cut_readers.begin(), cut_readers.end(), [](const ov::Input<ov::Node>& in) {
+                    return ov::is_type<ov::op::v0::Result>(in.get_node());
+                });
+            if (producer_feeds_result) {
+                embeds_source =
+                    std::make_shared<ov::op::v0::Convert>(matmul_first_source, matmul_first_source.get_element_type())
+                        ->output(0);
+            }
+
+            // Cut original model: repurpose the logits Result as the embeddings output.
+            matched_result->input(0).replace_source_output(embeds_source);
+            // Name the producing tensor too, so the output name survives
+            // ov::ICompiledModel::ICompiledModel() reconstruction.
+            embeds_source.set_names({ov::npuw::LLMCompiledModel::layer_names::output_embeds});
             matched_result->output(0).set_names({ov::npuw::LLMCompiledModel::layer_names::output_embeds});
             matched_result->validate_and_infer_types();
 
