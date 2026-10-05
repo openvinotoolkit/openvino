@@ -125,19 +125,19 @@ GemvTile gemv_tile(size_t K, size_t N, bool integrated) {
         size_t k, n;
         GemvTile t;
     };
-    // Arc Pro B70, M = 1.
+    // Arc Pro B70, M = 1 (TernOCL int2_fp16_upcvt default_tiles).
     static const Entry discrete[] = {
         {4096, 6144, {16, 4, 1}},    // 8B qkv
         {4096, 4096, {32, 8, 1}},    // 8B o_proj
-        {4096, 24576, {64, 1, 2}},   // 8B gate_up (merged)
+        {4096, 24576, {64, 1, 1}},   // 8B gate_up (merged)
         {12288, 4096, {32, 8, 1}},   // 8B down
-        {4096, 151680, {16, 8, 1}},  // 8B lm_head
-        {5120, 34816, {16, 4, 2}},   // 27B gate_up (merged)
-        {17408, 5120, {32, 4, 2}},   // 27B down
-        {5120, 16384, {16, 2, 1}},   // 27B in_proj_qkvz
-        {6144, 5120, {32, 6, 1}},    // 27B out_proj / o_proj
-        {5120, 14336, {16, 2, 1}},   // 27B qkv
-        {5120, 248320, {16, 4, 2}},  // 27B lm_head
+        {4096, 151680, {32, 1, 1}},  // 8B lm_head
+        {5120, 34816, {32, 8, 1}},   // 27B gate_up (merged)
+        {17408, 5120, {16, 6, 1}},   // 27B down
+        {5120, 16384, {32, 2, 1}},   // 27B in_proj_qkvz
+        {6144, 5120, {16, 6, 1}},    // 27B out_proj / o_proj
+        {5120, 14336, {32, 2, 1}},   // 27B qkv
+        {5120, 248320, {16, 1, 1}},  // 27B lm_head
     };
     // Arc 140V (Lunar Lake), M = 1, paced sweep.
     static const Entry igpu[] = {
@@ -158,7 +158,7 @@ GemvTile gemv_tile(size_t K, size_t N, bool integrated) {
         if (e.k == K && e.n == N)
             return e.t;
     }
-    return N <= 8192 ? GemvTile{32, 4, 2} : GemvTile{16, 2, 1};
+    return N <= 8192 ? GemvTile{32, 4, 1} : GemvTile{32, 2, 1};
 }
 
 MtTile mt_tile(size_t K, size_t N, size_t M, bool integrated) {
@@ -185,19 +185,19 @@ MtTile mt_tile(size_t K, size_t N, size_t M, bool integrated) {
         size_t k, n;
         MtTile t;
     };
-    // Arc Pro B70, M = 1024.
+    // Arc Pro B70, M = 1024 (TernOCL int2_fp16_upcvt README).
     static const Entry table[] = {
         {4096, 6144, {64, 32, 4, 4}},
-        {4096, 4096, {64, 32, 1, 8}},
-        {4096, 24576, {64, 32, 4, 4}},
-        {12288, 4096, {64, 32, 1, 8}},
-        {4096, 151680, {128, 16, 2, 2}},
+        {4096, 4096, {64, 16, 2, 4}},
+        {4096, 24576, {64, 16, 2, 2}},
+        {12288, 4096, {64, 32, 4, 2}},
+        {4096, 151680, {64, 32, 4, 4}},
         {5120, 34816, {64, 32, 4, 4}},
-        {17408, 5120, {64, 32, 4, 2}},
-        {5120, 16384, {64, 32, 8, 1}},
-        {6144, 5120, {64, 32, 2, 4}},
+        {17408, 5120, {32, 32, 1, 8}},
+        {5120, 16384, {64, 16, 2, 2}},
+        {6144, 5120, {64, 16, 1, 8}},
         {5120, 14336, {64, 32, 4, 4}},
-        {5120, 248320, {128, 16, 2, 4}},
+        {5120, 248320, {64, 32, 4, 4}},
     };
     // Arc 140V (Lunar Lake), M = 512.
     static const Entry igpu[] = {
