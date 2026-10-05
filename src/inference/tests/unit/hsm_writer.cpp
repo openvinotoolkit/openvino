@@ -524,7 +524,8 @@ TEST(HsmWriterTest, handler_based_add_section_reuses_one_handler_for_several_sec
 TEST(HsmWriterTest, written_header_satisfies_the_format_contract) {
     std::stringstream stream;
     auto writer = open_writer(stream);
-    writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(std::string("model")));
+    const std::string model = "model";
+    writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(model));
     ASSERT_FALSE(writer.finalize());
 
     hsm::Header header{};
@@ -540,8 +541,10 @@ TEST(HsmWriterTest, written_header_satisfies_the_format_contract) {
 TEST(HsmWriterTest, every_written_manifest_entry_has_valid_section_bounds) {
     std::stringstream stream;
     auto writer = open_writer(stream);
-    writer.add_section(hsm::any_device_id, hsm::model_id_tag, view_of(std::string("id")));
-    writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(std::string("model-bytes")));
+    const std::string id = "id";
+    const std::string model = "model-bytes";
+    writer.add_section(hsm::any_device_id, hsm::model_id_tag, view_of(id));
+    writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(model));
     ASSERT_FALSE(writer.finalize());
 
     const auto container = parse_container(stream.str());
