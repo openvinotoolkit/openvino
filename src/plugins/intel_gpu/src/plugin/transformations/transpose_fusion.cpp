@@ -276,7 +276,7 @@ TransposeSDPAMatcher::TransposeSDPAMatcher() {
 
             order = transpose_order_const->cast_vector<int64_t>();
             // Allow any transposes without head_size dim position change
-            if (order.back() != static_cast<int64_t>(order.size() - 1) && !(is_value && order == value_transposed_order)) {
+            if (order.back() != static_cast<int64_t>(order.size() - 1) && (!is_value || order != value_transposed_order)) {
                 return false;
             }
 
