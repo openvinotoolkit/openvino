@@ -11,7 +11,10 @@
 #include <unordered_map>
 #include <vector>
 
+#include "openvino/core/any.hpp"
+#include "openvino/core/except.hpp"
 #include "openvino/core/model.hpp"
+#include "openvino/core/weight_sharing_util.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
@@ -20,6 +23,7 @@
 #include "openvino/util/mmap_object.hpp"
 #include "shared_weights_assigner.hpp"
 #include "shared_weights_contex_extractor.hpp"
+#include "shared_weights_producer.hpp"
 
 namespace {
 
@@ -164,6 +168,52 @@ TEST(SharedWeightsAssignerTest, MutateModelWithConstantSharingReturnsExpectedBuf
         shared_sources_constant_count += registry_entry.second.size();
     }
     EXPECT_EQ(shared_sources_constant_count, model_constants_count);
+}
+
+TEST(SharedWeightsProducerTest, EmptyPropertyDoesNotMutateModel) {
+    std::unordered_map<std::string, std::shared_ptr<ov::op::v0::Constant>> original_by_name;
+    auto model = make_test_model(static_cast<size_t>(ov::util::get_system_page_size()), original_by_name);
+
+    auto [sources, context] = ov::intel_npu::assign_shared_weight_to_model_if_possible(model, ov::Any{});
+
+    EXPECT_TRUE(sources.empty());
+    EXPECT_EQ(context, nullptr);
+    auto current_by_name = collect_named_constants(model);
+    for (const auto& [name, constant] : original_by_name) {
+        EXPECT_EQ(current_by_name.at(name), constant);
+    }
+}
+
+TEST(SharedWeightsProducerTest, ReturnsSourcesAndContextForSharedConstants) {
+    const size_t page_size = static_cast<size_t>(ov::util::get_system_page_size());
+    std::unordered_map<std::string, std::shared_ptr<ov::op::v0::Constant>> original_by_name;
+    auto model = make_test_model(page_size, original_by_name);
+
+    auto [sources, context] = ov::intel_npu::assign_shared_weight_to_model_if_possible(model, std::string("NPU"));
+
+    ASSERT_EQ(sources.size(), 1u);
+    ASSERT_NE(context, nullptr);
+    ASSERT_EQ(context->m_runtime_sources.size(), sources.size());
+    EXPECT_EQ(sources.front()->size(), original_by_name.size() * page_size);
+    const auto source_id = sources.front()->get_descriptor()->get_id();
+    EXPECT_EQ(context->m_runtime_sources.at(source_id).m_weights.lock(), sources.front());
+    ASSERT_EQ(context->m_weight_registry.count(source_id), 1u);
+    EXPECT_EQ(context->m_weight_registry.at(source_id).size(), original_by_name.size());
+
+    auto current_by_name = collect_named_constants(model);
+    ASSERT_EQ(current_by_name.size(), original_by_name.size());
+    for (const auto& [name, original] : original_by_name) {
+        const auto& constant = current_by_name.at(name);
+        EXPECT_NE(constant, original);
+        EXPECT_EQ(ov::weight_sharing::Extension::get_constant_source_buffer(*constant), sources.front());
+    }
+}
+
+TEST(SharedWeightsProducerTest, RejectsNonStringProperty) {
+    std::unordered_map<std::string, std::shared_ptr<ov::op::v0::Constant>> original_by_name;
+    auto model = make_test_model(static_cast<size_t>(ov::util::get_system_page_size()), original_by_name);
+
+    EXPECT_THROW(ov::intel_npu::assign_shared_weight_to_model_if_possible(model, 123), ov::Exception);
 }
 
 }  // namespace

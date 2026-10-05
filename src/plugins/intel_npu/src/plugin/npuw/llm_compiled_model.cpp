@@ -47,7 +47,6 @@
 #include "openvino/pass/pattern/op/wrap_type.hpp"
 #include "openvino/pass/stateful_to_stateless.hpp"
 #include "openvino/pass/validate.hpp"
-#include "openvino/runtime/device_id_parser.hpp"
 #include "openvino/runtime/iasync_infer_request.hpp"
 #include "openvino/runtime/internal_properties.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -55,8 +54,7 @@
 #include "partitioning/patterns/moe.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
 #include "partitioning/patterns/sdpa.hpp"
-#include "shared_weights_assigner.hpp"
-#include "shared_weights_contex_extractor.hpp"
+#include "shared_weights_producer.hpp"
 #include "serialization.hpp"
 #include "transformations/convert_precision.hpp"
 #include "util.hpp"
@@ -762,42 +760,6 @@ void ov::npuw::LLMCompiledModel::compile_generate_model_variants(
     }
 }
 
-void ov::npuw::LLMCompiledModel::assign_shared_weight_to_model_if_possible(const std::shared_ptr<ov::Model> model, const std::shared_ptr<const ov::IPlugin>& plugin,
-const ov::Any& shared_weight_property) {
-    NPUW_ASSERT(model && "Model for assigning shared weights must not be null");
-    NPUW_ASSERT(plugin && "Plugin for assigning shared weights must not be null");
-    if (shared_weight_property.empty()) {
-        return;
-    }
-
-    NPUW_ASSERT(shared_weight_property.is<std::string>() && "NPU shared weight property must be a std::string");
-    auto shared_device_contexts =
-        ov::DeviceIDParser::get_hetero_devices(shared_weight_property.as<std::string>());
-    ::ov::intel_npu::SharedWeightsAssigner::Options shared_weights_assigner_options;
-    shared_weights_assigner_options.shared_device_contexts = std::move(shared_device_contexts);
-    shared_weights_assigner_options.preserve_weightless_cache_attr = (std::getenv("NO_WEIGHTLESS_ATTR") == nullptr);
-    ::ov::intel_npu::SharedWeightsAssigner shared_weights_assigner(std::move(shared_weights_assigner_options));
-    auto collect_result = shared_weights_assigner.collect_and_partition(model);
-
-    LOG_INFO("[NPUW] SHARED_WEIGHTS: " << collect_result.statistic.to_string());
-
-    auto shared_sources_with_constants =
-        shared_weights_assigner.mutate_model_with_constant_sharing(std::move(collect_result.partitioned_constants));
-
-    m_shared_weight_sources.clear();
-    for (const auto& [shared_source, constants] : shared_sources_with_constants) {
-        LOG_INFO("[NPUW] SHARED_WEIGHTS: allocated shared source buffer: source_id: " << shared_source->get_descriptor()->get_id() 
-                 << ", ptr: " << static_cast<void*>(shared_source->get_ptr<char>())
-                 << ", size: " << shared_source->size()
-                 << ", holds shared weight count: " << constants.size());
-        // Keep source buffers alive for the lifetime of this compiled model.
-        m_shared_weight_sources.push_back(shared_source);
-    }
-
-    NPUW_ASSERT(!m_shared_ctx_ptr && "Shared weight context must not be already assigned");
-    m_shared_ctx_ptr = ::ov::intel_npu::SharedWeightsContextExtractor::extract_weight_sharing_context(shared_sources_with_constants);
-}
-
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
                                              const std::shared_ptr<const ov::IPlugin>& plugin,
                                              const ov::AnyMap& properties,
@@ -927,7 +889,8 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto shared_weight_property_it = properties.find("SHARED_WEIGHTS");
     if (shared_weight_property_it != properties.end()) {
         LOG_DEBUG("Try to assign shared weights to the model if possible.");
-        assign_shared_weight_to_model_if_possible(model, plugin, shared_weight_property_it->second);
+        std::tie(m_shared_weight_sources, m_shared_ctx_ptr) =
+            ::ov::intel_npu::assign_shared_weight_to_model_if_possible(model, shared_weight_property_it->second);
     }
 
     const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();

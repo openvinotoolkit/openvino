@@ -18,6 +18,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/include/remote_context.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/shared_weights_assigner.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/shared_weights_contex_extractor.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/shared_weights_producer.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/include/transformations.hpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/async_infer_request.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/backends_registry.cpp
@@ -34,6 +35,7 @@ set(SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/remote_context.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/shared_weights_assigner.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/shared_weights_context_extractor.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/shared_weights_producer.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/transformations.cpp
 )
 

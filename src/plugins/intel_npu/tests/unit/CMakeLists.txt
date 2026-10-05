@@ -50,6 +50,7 @@ ov_add_test_target(
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/transformations.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/shared_weights_assigner.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/shared_weights_context_extractor.cpp
+            ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/src/shared_weights_producer.cpp
             # npuw core
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/compiled_model.cpp
             ${OpenVINO_SOURCE_DIR}/src/plugins/intel_npu/src/plugin/npuw/flux2_compiled_model.cpp
@@ -217,7 +218,7 @@ target_sources(${TARGET_NAME} PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/pyramid_attention_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/sdpa_pattern_matcher_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/host_flash_attention_test.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/shared_weights_assigner_test.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/npuw/shared_weights_utils_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_k_tag_test.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/npuw/moe_executor_test.cpp
 )
