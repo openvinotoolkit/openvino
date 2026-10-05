@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-05-23-14-06-031-37382707255",
+  "timestamp": "2026-10-05T23:14:06Z",
+  "run_id": "37382707255",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37382707255",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "38483",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38483",
+  "author": "ababushk",
+  "category": "Infrastructure",
+  "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_reference",
+  "signature": "cc1plus error cmake_pch hxx gch not a pch file werror invalid pch|Infrastructure",
+  "signature_hash": "5b4b1e6917a69856",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "CMake configure, build and install step for OpenVINO JS API failed: cc1plus errors that cmake_pch.hxx.gch is not a valid PCH file, treated as -Werror=invalid-pch across src/core/reference"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because the upstream Build job failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/convert.cpp.o\ncc1plus: error: /__w/openvino/openvino/openvino/openvino_build/src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]\ncc1plus: all warnings being treated as errors",
+    "sccache stats: Compile requests 8248, Compile requests executed 8246, Cache hits 8243, Cache misses 0 (abnormally close to 100% hit rate just before the PCH errors begin)"
+  ],
+  "root_cause": "The precompiled header (cmake_pch.hxx.gch) for the openvino_reference target was retrieved from sccache in a corrupted or incompatible form (stale/incomplete cache entry, likely from a prior run's partially-written or cross-run-incompatible PCH artifact), so when GCC's cc1plus tried to consume it, it rejected it as 'not a PCH file'. Because the build uses -Werror=invalid-pch, this diagnostic is escalated to a hard build failure. This is the third recorded occurrence of the identical cc1plus/PCH signature on this ARM64 cross-compilation workflow (previously seen 2026-09-24/25, affecting different source files each time but the same openvino_reference/other core targets), strongly indicating a flaky/corrupted sccache artifact issue rather than a code defect — this PR's changes (Bandit nosec annotations in Python CI scripts and a docker_tag string) do not touch any C++ source, build flags, or PCH configuration."
+}
