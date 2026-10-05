@@ -1507,7 +1507,11 @@ KERNEL(sdpa_opt)(
             } else {
                 // remainder
                 int valid_workers = K_HEAD_SIZE - k_sgid * SUBGROUP_SIZE;
-                if (sglid < valid_workers) {
+                // valid_workers can be negative when extra subgroups (dispatched to cover a larger
+                // V_HEAD_SIZE) exceed what's needed for K_HEAD_SIZE. Comparing unsigned sglid against
+                // a negative int would implicitly convert it to a huge unsigned value, making the
+                // condition true for all lanes and corrupting slm_query. Cast sglid to int instead.
+                if ((int)sglid < valid_workers) {
                     unroll_for (uint seq_idx = 0; seq_idx < seq_idx_end; seq_idx++) {
                         INPUT0_TYPE val = query_input[query_offset];
                         slm_query[query_local_offset] = DECODE_INPUT0_COMPUTE_TYPE(val) * scale_val;
@@ -1582,7 +1586,11 @@ KERNEL(sdpa_opt)(
             } else {
                 // remainder
                 int valid_workers = K_HEAD_SIZE - k_sgid * SUBGROUP_SIZE;
-                if (sglid < valid_workers) {
+                // valid_workers can be negative when extra subgroups (dispatched to cover a larger
+                // V_HEAD_SIZE) exceed what's needed for K_HEAD_SIZE. Comparing unsigned sglid against
+                // a negative int would implicitly convert it to a huge unsigned value, making the
+                // condition true for all lanes and corrupting slm_query. Cast sglid to int instead.
+                if ((int)sglid < valid_workers) {
                     unroll_for (uint seq_idx = 0; seq_idx < TARGET_SEQ_LEN_BLOCK_SIZE; seq_idx++) {
                         INPUT0_TYPE val = query_input[query_offset];
                         slm_query[query_local_offset] = DECODE_INPUT0_COMPUTE_TYPE(val) * scale_val;
