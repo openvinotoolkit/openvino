@@ -69,7 +69,7 @@ OutputVector translate_rope(const NodeContext& context) {
         FRONT_END_OP_CONVERSION_CHECK(rope_config.ext_factor == 0.f && context.get_input_size() == 2,
                                       "Vision RoPE with YaRN or frequency-factor weights is not supported");
         auto sections = rope_config.sections;
-        int total = 0;
+        int64_t total = 0;  // four int32 counts always fit in 64 bits
         for (auto section : sections) {
             FRONT_END_OP_CONVERSION_CHECK(section >= 0, "Negative vision RoPE section");
             total += section;
