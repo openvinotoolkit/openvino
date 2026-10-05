@@ -28,9 +28,9 @@ the tensor table, so a same-family architecture costs zero lines of code.
 
 Both routes use `ArchitectureDefinition`, the same factory, and the same conversion pipeline.
 An external library wraps its definition in `ArchitectureExtension`; the frontend registers that
-same definition in `builtin_architectures()`. See
-[extensions.md](extensions.md) for registration timing, handler matching, shared-library loading,
-and combining architecture extensions with converters and passes. See
+same definition in `builtin_architectures()`. Read
+[extensions.md](extensions.md) to learn what extensions are, how to write them, and how to
+register and use them. See
 [porting_a_llama_cpp_model.md](porting_a_llama_cpp_model.md) for the builder API and integration steps.
 
 ## The 90% case: add a decoder definition
