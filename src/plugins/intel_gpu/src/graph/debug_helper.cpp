@@ -319,8 +319,12 @@ void log_memory_to_file(memory::ptr mem, layout data_layout, stream& stream, std
         file_stream << "(count: " << size.count()
                     << ", original format: " << cldnn::fmt_to_str(actual_mem->get_layout().format) << ")"
                     << (dump_raw ? " raw data" : "") << std::endl;
-        if (size.count() == 0) { file_stream << "Empty buffer" << std::endl; }
-        else {
+        if (size.count() == 0) {
+            file_stream << "Empty buffer" << std::endl;
+        } else if (!dump_raw) {
+            // Non-raw mode would need layout/padding-aware indexing; not supported yet, same as dump_i4u4.
+            GPU_DEBUG_COUT << " supports raw dump only" << std::endl;
+        } else {
             mem_lock<uint8_t, mem_lock_type::read> lock(actual_mem, stream);
             auto* mem_ptr = lock.data();
             std::stringstream buffer;
