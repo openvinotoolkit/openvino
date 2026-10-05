@@ -23,6 +23,7 @@ class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
 
     def setup_class(self):
         super().setup_class(self)
+        self.installed_models = set()
         self.repo_dir = tempfile.TemporaryDirectory()
         subprocess.check_call([
             "git", "clone", "https://github.com/pytorch/benchmark.git", self.repo_dir.name])
@@ -47,7 +48,6 @@ class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
         sys.path.insert(0, self.repo_dir.name)
 
     def load_model(self, model_name, model_link):
-        subprocess.check_call([sys.executable, "install.py", model_name], cwd=self.repo_dir.name)
         import numpy as np
         if int(np.__version__.split(".")[0]) >= 2:
             # maml inputs are pickled with numpy<2 path, which weights_only load doesn't map to numpy._core
@@ -83,5 +83,9 @@ class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
             pytest.skip(reason)
         if "xfail" in marks or f"xfail_{mode}" in marks:
             request.node.add_marker(pytest.mark.xfail(reason=reason))
+        if name not in self.installed_models:
+            subprocess.check_call([sys.executable, "install.py", name], cwd=self.repo_dir.name,
+                                  timeout=self.infer_timeout)
+            self.installed_models.add(name)
         self.mode = mode
         self.run(name, link, ie_device)
