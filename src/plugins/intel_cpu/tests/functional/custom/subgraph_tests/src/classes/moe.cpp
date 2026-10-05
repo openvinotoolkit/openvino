@@ -265,7 +265,11 @@ void MoECompressedWeightsSubgraphTest::SetUp() {
     }
 }
 
-void MoECompressedWeightsSubgraphTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+namespace {
+// One input in [0.125, 2.125) with a resolution of 1/8, the same values for every run.
+void generate_small_range_inputs(std::map<std::shared_ptr<ov::Node>, ov::Tensor>& inputs,
+                                 const std::shared_ptr<ov::Model>& function,
+                                 const std::vector<ov::Shape>& targetInputStaticShapes) {
     inputs.clear();
     const auto& itTargetShape = targetInputStaticShapes.front();
     const auto& params = function->get_parameters();
@@ -279,6 +283,15 @@ void MoECompressedWeightsSubgraphTest::generate_inputs(const std::vector<ov::Sha
                                                 ov::test::utils::InputGenerateData(0.125, 2, 8, 1234));
 
     inputs.insert({param, input_tensor});
+}
+}  // namespace
+
+void MoESubgraphSmallInputsTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    generate_small_range_inputs(inputs, function, targetInputStaticShapes);
+}
+
+void MoECompressedWeightsSubgraphTest::generate_inputs(const std::vector<ov::Shape>& targetInputStaticShapes) {
+    generate_small_range_inputs(inputs, function, targetInputStaticShapes);
 }
 
 void MoECompressedWeightsSubgraphTest::check_results() {
@@ -304,6 +317,15 @@ TEST_P(MoESubgraphTest, CompareWithRefs) {
     #if defined(OPENVINO_ARCH_ARM)
         GTEST_SKIP();
     #endif
+    run();
+    check_results();
+}
+
+TEST_P(MoESubgraphSmallInputsTest, CompareWithRefs) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED()
+#if defined(OPENVINO_ARCH_ARM)
+    GTEST_SKIP();
+#endif
     run();
     check_results();
 }

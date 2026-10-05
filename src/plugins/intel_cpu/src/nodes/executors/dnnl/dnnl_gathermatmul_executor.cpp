@@ -226,9 +226,9 @@ private:
     impl_desc_type m_impl_type = impl_desc_type::unknown;
 };
 
-namespace {
+// ---- row rounding -------------------------------------------------------------
 
-// ---- normalizeM helper -------------------------------------------------------
+namespace gathermatmul {
 
 Dim normalizeM(Dim M) {
     if (M < 512) {
@@ -240,6 +240,14 @@ Dim normalizeM(Dim M) {
     }
     return M;
 }
+
+size_t gemmRows(size_t num_valid_rows, size_t M_size) {
+    return std::min<size_t>(normalizeM(num_valid_rows), M_size);
+}
+
+}  // namespace gathermatmul
+
+namespace {
 
 // ---- GatherMatmulDnnlExecutor -----------------------------------------------
 
@@ -415,7 +423,7 @@ bool GatherMatmulDnnlExecutor::update(const MemoryArgs& memory) {
         m_implType = m_gemvImpl->get_impl_type();
         return true;
     }
-    const Dim M = normalizeM(srcShape[1]);
+    const Dim M = gathermatmul::normalizeM(srcShape[1]);
     const auto& creatorsMap = BlockedDescCreator::getCommonCreators();
     const auto srcPrc = srcMem->getDesc().getPrecision();
 
@@ -559,7 +567,7 @@ void GatherMatmulDnnlExecutor::execute(const MemoryArgs& memory) {
 
                 // Size the GEMM to the rows routed to this gather index (rounded up by normalizeM), not to
                 // the full input length: with top-k routing most rows of a full-length GEMM are zero padding.
-                const size_t gemm_rows = std::min<size_t>(normalizeM(num_valid_rows), M_size);
+                const size_t gemm_rows = gathermatmul::gemmRows(num_valid_rows, M_size);
                 auto& gemmImpl = m_gemmBySize[gemm_rows];
                 if (!gemmImpl) {
                     gemmImpl = m_makeGemm(gemm_rows);
