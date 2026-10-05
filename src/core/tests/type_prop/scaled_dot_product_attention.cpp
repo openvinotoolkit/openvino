@@ -660,7 +660,7 @@ TEST(type_prop, scaled_dot_product_attention_quantized_scale_still_rejected) {
 }
 
 // Seven consumers gate on these two predicates, so pin the set here: a consumer that disagrees
-// with the op about which operands are codes would read the codes as magnitudes.
+// with the op about which operands are integers would reinterpret them instead of converting them.
 TEST(type_prop, scaled_dot_product_attention_quantized_kv_type_predicate) {
     using SDPA = op::v13::ScaledDotProductAttention;
 

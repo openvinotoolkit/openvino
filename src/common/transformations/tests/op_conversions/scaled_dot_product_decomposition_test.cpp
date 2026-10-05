@@ -5,12 +5,12 @@
 #include <gtest/gtest.h>
 
 #include "common_test_utils/ov_test_utils.hpp"
-#include "common_test_utils/test_assertions.hpp"
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/convert_like.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/gather.hpp"
@@ -29,7 +29,6 @@
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
-#include "openvino/pass/manager.hpp"
 #include "openvino/pass/visualize_tree.hpp"
 #include "transformations/op_conversions/scaled_dot_product_attention_decomposition.hpp"
 
@@ -430,32 +429,27 @@ TEST_F(TransformationTestsF, ScaledDotProductAttentionDecomposition_Sinks) {
     }
 }
 
-TEST(TransformationTests, ScaledDotProductAttentionDecompositionRejectsQuantizedKey) {
+TEST_F(TransformationTestsF, ScaledDotProductAttentionDecompositionIntegerKeyValue) {
     const auto query = std::make_shared<v0::Parameter>(element::f16, PartialShape{1, 32, 32});
     const auto key = std::make_shared<v0::Parameter>(element::i8, PartialShape{1, 32, 32});
-    const auto value = std::make_shared<v0::Parameter>(element::f16, PartialShape{1, 32, 32});
-    const auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(query, key, value, false);
-    const auto model = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
-
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
-
-    OV_EXPECT_THROW(manager.run_passes(model),
-                    ov::Exception,
-                    HasSubstr("ScaledDotProductAttentionDecomposition does not support a quantized key operand"));
-}
-
-TEST(TransformationTests, ScaledDotProductAttentionDecompositionRejectsQuantizedValue) {
-    const auto query = std::make_shared<v0::Parameter>(element::f16, PartialShape{1, 32, 32});
-    const auto key = std::make_shared<v0::Parameter>(element::f16, PartialShape{1, 32, 32});
-    const auto value = std::make_shared<v0::Parameter>(element::u8, PartialShape{1, 32, 32});
-    const auto sdpa = std::make_shared<v13::ScaledDotProductAttention>(query, key, value, false);
-    const auto model = std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value});
-
-    ov::pass::Manager manager;
-    manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
-
-    OV_EXPECT_THROW(manager.run_passes(model),
-                    ov::Exception,
-                    HasSubstr("ScaledDotProductAttentionDecomposition does not support a quantized value operand"));
+    const auto value = std::make_shared<v0::Parameter>(element::u4, PartialShape{1, 32, 32});
+    const auto attention_mask = std::make_shared<v0::Parameter>(element::f16, PartialShape{1, 32, 32});
+    const auto scale = std::make_shared<v0::Parameter>(element::f16, PartialShape{1});
+    {
+        const auto sdpa =
+            std::make_shared<v13::ScaledDotProductAttention>(query, key, value, attention_mask, scale, false);
+        model =
+            std::make_shared<ov::Model>(OutputVector{sdpa}, ParameterVector{query, key, value, attention_mask, scale});
+        manager.register_pass<ov::pass::ScaledDotProductAttentionDecomposition>();
+    }
+    {
+        const auto ref = scaled_dot_product_attention_decomposition(query,
+                                                                    std::make_shared<v0::Convert>(key, element::f16),
+                                                                    std::make_shared<v0::Convert>(value, element::f16),
+                                                                    attention_mask,
+                                                                    scale,
+                                                                    false);
+        model_ref =
+            std::make_shared<ov::Model>(OutputVector{ref}, ParameterVector{query, key, value, attention_mask, scale});
+    }
 }

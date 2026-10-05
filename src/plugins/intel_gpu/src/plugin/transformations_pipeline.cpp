@@ -991,10 +991,9 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
 
             auto sdpa = ov::as_type_ptr<const ov::op::v13::ScaledDotProductAttention>(node);
 
-            // A key or value holding quantization codes reaches this op without the scale and
-            // zero-point operands a compressed KV cache carries, so nothing here can define the
-            // mapping from codes to values. Decompose, and let the decomposition report it
-            // against the node by name rather than dispatching a kernel that reads the codes.
+            // The SDPA kernels take an integer key or value only as a compressed KV cache, which
+            // carries scale operands this op does not have. Decompose instead, which converts it
+            // to the query's type as the op specification defines.
             if (ov::op::v13::ScaledDotProductAttention::has_quantized_kv(*sdpa)) {
                 return false;
             }
