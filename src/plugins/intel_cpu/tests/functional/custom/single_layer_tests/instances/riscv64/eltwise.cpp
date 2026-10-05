@@ -68,7 +68,9 @@ const auto params_4D_jit = ::testing::Combine(
 
 INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs_4D_jit, EltwiseLayerCPUTest, params_4D_jit, EltwiseLayerCPUTest::getTestCaseName);
 
-class PowerStaticRvvLmulTest : virtual public SubgraphBaseTest, public CpuTestWithFusing {
+class PowerStaticRvvLmulTest : public testing::WithParamInterface<ov::Shape>,
+                               virtual public SubgraphBaseTest,
+                               public CpuTestWithFusing {
 protected:
     void SetUp() override {
         if (!ov::intel_cpu::riscv64::mayiuse(ov::intel_cpu::riscv64::gv)) {
@@ -76,7 +78,8 @@ protected:
         }
 
         targetDevice = ov::test::utils::DEVICE_CPU;
-        const auto shape = ov::PartialShape{1, 1, 1, 35};
+        selectedType = makeSelectedTypeStr("jit", ov::element::f32);
+        const auto shape = ov::PartialShape{GetParam()};
         init_input_shapes({{shape, {shape.to_shape()}}});
 
         auto parameter = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, shape);
@@ -96,9 +99,14 @@ protected:
     }
 };
 
-TEST_F(PowerStaticRvvLmulTest, CompareWithRefs) {
+TEST_P(PowerStaticRvvLmulTest, CompareWithRefs) {
     run();
+    CheckPluginRelatedResults(compiledModel, std::set<std::string>{"Eltwise", "Subgraph"});
 }
+
+INSTANTIATE_TEST_SUITE_P(smoke_PowerStaticRvvLmul,
+                         PowerStaticRvvLmulTest,
+                         ::testing::Values(ov::Shape{1, 1, 1, 35}));
 
 }  // namespace
 }  // namespace Eltwise
