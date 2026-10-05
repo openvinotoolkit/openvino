@@ -17,19 +17,15 @@
 
 namespace fake_vcl {
 
-/// A trivial IVCLCompiler with settable canned returns, for exercising PluginCompilerAdapter's own
-/// logic without a driver, a compiler library, or an NPU.
+// A trivial IVCLCompiler with settable canned returns, for exercising PluginCompilerAdapter's own
+// logic without a driver, a compiler library, or an NPU.
 class FakeVCLCompiler : public ::intel_npu::IVCLCompiler {
 public:
-    //
-    // --- canned returns ---
-    //
-
-    /// Blob handed back by compile(); a page-sized buffer by default.
+    // Blob handed back by compile(); a page-sized buffer by default.
     ov::Tensor compileResult = ov::Tensor(ov::element::u8, ov::Shape{4096});
     std::optional<std::string> compatibility = std::string("fake-compat");
 
-    /// Tensors handed back by compileWsOneShot(): init schedules first, main last.
+    // Tensors handed back by compileWsOneShot(): init schedules first, main last.
     std::vector<ov::Tensor> wsOneShotResult = {ov::Tensor(ov::element::u8, ov::Shape{4096}),
                                                ov::Tensor(ov::element::u8, ov::Shape{4096})};
 
@@ -38,14 +34,10 @@ public:
     ov::SupportedOpsMap queryResult;
     uint32_t version = 0x0007000A;
     std::vector<std::string> supportedOptions = {"OPT_A", "OPT_B"};
-    /// Options the fake reports as supported; anything else is unsupported.
+    // Options the fake reports as supported; anything else is unsupported.
     std::vector<std::string> supportedOptionNames = {"OPT_A", "OPT_B"};
 
     bool throwOnCompile = false;
-
-    //
-    // --- recordings ---
-    //
 
     mutable int compileCalls = 0;
     mutable int compileWsOneShotCalls = 0;
@@ -54,10 +46,6 @@ public:
     mutable int getSupportedOptionsCalls = 0;
     mutable std::vector<std::pair<std::string, std::optional<std::string>>> optionSupportQueries;
     mutable std::vector<size_t> wsIterativeCallNumbers;
-
-    //
-    // --- IVCLCompiler ---
-    //
 
     std::pair<ov::Tensor, std::optional<std::string>> compile(const std::shared_ptr<const ov::Model>&,
                                                               const ::intel_npu::Config&) const override {
@@ -83,8 +71,7 @@ public:
         return {wsIterativeResult, compatibility};
     }
 
-    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>&,
-                              const ::intel_npu::Config&) const override {
+    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>&, const ::intel_npu::Config&) const override {
         ++queryCalls;
         return queryResult;
     }

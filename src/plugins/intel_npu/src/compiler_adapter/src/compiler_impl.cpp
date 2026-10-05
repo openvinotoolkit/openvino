@@ -696,7 +696,7 @@ bool VCLCompilerImpl::is_option_supported(const std::string& option, const std::
 }
 
 namespace {
-/// The cache key under which the compiler-in-plugin's option-support answers are stored.
+// The cache key under which the compiler-in-plugin's option-support answers are stored.
 constexpr OptionSupportCache::CacheKey pluginOptionSupportKey =
     static_cast<OptionSupportCache::CacheKey>(ov::intel_npu::CompilerType::PLUGIN);
 }  // namespace

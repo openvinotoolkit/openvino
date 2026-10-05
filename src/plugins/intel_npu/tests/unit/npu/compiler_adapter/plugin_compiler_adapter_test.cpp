@@ -35,8 +35,8 @@ std::shared_ptr<ov::Model> makeModel() {
     return std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{input}, "adapter_test_model");
 }
 
-/// The weights-separation flow requires every participating Constant to carry a
-/// WeightlessCacheAttribute; WeightlessGraph asserts on its absence.
+// The weights-separation flow requires every participating Constant to carry a
+// WeightlessCacheAttribute; WeightlessGraph asserts on its absence.
 std::shared_ptr<ov::Model> makeWeightlessModel() {
     auto weights = std::make_shared<ov::op::v0::Constant>(ov::element::f32, ov::Shape{5}, std::vector<float>{1.0f});
     weights->get_rt_info()[ov::WeightlessCacheAttribute::get_type_info_static()] =
@@ -50,8 +50,8 @@ std::shared_ptr<ov::Model> makeWeightlessModel() {
 struct PluginCompilerAdapterTest : public ::testing::Test {
     std::shared_ptr<FakeVCLCompiler> compiler = std::make_shared<FakeVCLCompiler>();
 
-    /// The adapter is built with a null ZeroInitStructsHolder throughout: that is the no-driver path,
-    /// which is the only one reachable without an NPU.
+    // The adapter is built with a null ZeroInitStructsHolder throughout: that is the no-driver path,
+    // which is the only one reachable without an NPU.
     std::unique_ptr<PluginCompilerAdapter> makeAdapter() {
         return std::make_unique<PluginCompilerAdapter>(ov::SoPtr<::intel_npu::IVCLCompiler>(compiler), nullptr);
     }
@@ -78,10 +78,6 @@ struct PluginCompilerAdapterTest : public ::testing::Test {
     }
 };
 
-//
-// --- construction ---
-//
-
 TEST_F(PluginCompilerAdapterTest, InjectedCompilerIsAdapted) {
     auto adapter = makeAdapter();
     ASSERT_NE(adapter, nullptr);
@@ -97,10 +93,6 @@ TEST_F(PluginCompilerAdapterTest, NullCompilerIsRejected) {
         },
         ov::Exception);
 }
-
-//
-// --- compile: no-driver path ---
-//
 
 TEST_F(PluginCompilerAdapterTest, CompileProducesAGraphEvenWithoutADriver) {
     auto adapter = makeAdapter();
@@ -130,10 +122,6 @@ TEST_F(PluginCompilerAdapterTest, CompileDefaultsToTheElfBlobType) {
     const auto graph = adapter->compile(makeModel(), config);
     ASSERT_NE(graph, nullptr);
 }
-
-//
-// --- compileWS ---
-//
 
 TEST_F(PluginCompilerAdapterTest, CompileWSDefaultsToOneShotWhenTheVersionIsUnset) {
     auto adapter = makeAdapter();
@@ -188,10 +176,6 @@ TEST_F(PluginCompilerAdapterTest, CompileWSIterativeRequiresAGraphHandle) {
     EXPECT_EQ(compiler->compileWsIterativeCalls, 0);
 }
 
-//
-// --- query / get_version delegation ---
-//
-
 TEST_F(PluginCompilerAdapterTest, QueryIsDelegatedToTheCompiler) {
     compiler->queryResult = {{"Add_1", "NPU"}};
     auto adapter = makeAdapter();
@@ -209,17 +193,6 @@ TEST_F(PluginCompilerAdapterTest, GetVersionIsDelegatedToTheCompiler) {
     auto adapter = makeAdapter();
     EXPECT_EQ(adapter->get_version(), 0x000B0002u);
 }
-
-//
-// --- get_supported_options and the option-support cache ---
-//
-
-//
-// Option-support caching lives in VCLCompilerImpl, bound to its own cache key at construction, so
-// the adapter is a pass-through on both calls. The caching behaviour itself is covered by
-// VCLCompilerImplTest in compiler_impl_test.cpp; asserting it again here would only test a
-// collaborator.
-//
 
 TEST_F(PluginCompilerAdapterTest, GetSupportedOptionsIsDelegatedToTheCompiler) {
     auto adapter = makeAdapter();

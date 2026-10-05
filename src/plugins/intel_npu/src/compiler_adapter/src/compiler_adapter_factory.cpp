@@ -13,9 +13,9 @@
 namespace intel_npu {
 
 namespace {
-/// Loads the compiler-in-plugin, translating any failure into the aborting message callers expect.
-/// Composing the compiler here, rather than inside PluginCompilerAdapter, keeps the adapter free of
-/// any knowledge of how a compiler is obtained.
+// Loads the compiler-in-plugin, translating any failure into the aborting message callers expect.
+// Composing the compiler here, rather than inside PluginCompilerAdapter, keeps the adapter free of
+// any knowledge of how a compiler is obtained.
 ov::SoPtr<IVCLCompiler> makePluginCompiler(const std::shared_ptr<IDevice>& device,
                                            const std::shared_ptr<OptionSupportCache>& optionSupportCache) {
     try {

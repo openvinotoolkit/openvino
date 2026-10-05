@@ -26,6 +26,7 @@ public:
      * The adapter never loads a compiler itself; composition is the caller's job. See
      * makeVCLCompiler() for the compiler-in-plugin.
      *
+     * @param compiler The compiler-in-plugin to adapt; must be non-null.
      * @param zeroInitStruct Pass null to construct without a Level Zero driver; the adapter then
      *        produces export-only graphs with no runtime metadata.
      */

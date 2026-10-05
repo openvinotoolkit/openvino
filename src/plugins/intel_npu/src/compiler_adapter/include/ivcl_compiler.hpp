@@ -53,16 +53,13 @@ public:
      * @param callNumber Tells the compiler which Init (or Main) to return; the plugin does not know
      * the total number of Init schedules.
      */
-    virtual std::pair<ov::Tensor, std::optional<std::string>> compileWsIterative(
-        const std::shared_ptr<ov::Model>& model,
-        const Config& config,
-        size_t callNumber) const = 0;
+    virtual std::pair<ov::Tensor, std::optional<std::string>>
+    compileWsIterative(const std::shared_ptr<ov::Model>& model, const Config& config, size_t callNumber) const = 0;
 
     /**
      * @brief Returns information about supported layers of the network passed.
      */
-    virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
-                                      const Config& config) const = 0;
+    virtual ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const = 0;
 
     /**
      * @brief Returns the compiler version.

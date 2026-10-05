@@ -154,9 +154,8 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> Graph::export_blob(std
 }
 
 std::vector<ov::ProfilingInfo> Graph::process_profiling_output(const std::vector<uint8_t>& profData) const {
-    // Built through the same factory the adapter uses, so the load and the library pairing stay in
-    // one place. Decoding needs no compiler handle, so this is heavier than it should be - see
-    // docs/vcl-profiling-decoder.md.
+    // Built through the same factory the adapter uses, so the load and library pairing stay in one
+    // place. Profiling decode needs no compiler handle, so this does more work than necessary.
     auto compiler = makeVCLCompiler(ov::util::path_to_string(ov::util::get_ov_lib_path()));
     OPENVINO_ASSERT(compiler != nullptr, "Profiling post-processing requires the NPU plugin compiler library");
 
