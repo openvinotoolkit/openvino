@@ -27,7 +27,7 @@ enum class AngleChain {
     CENTERED_GRID,  // (grid * 2 - 1) * freqs -> Reshape (LTX-2, single position axis)
 };
 
-std::ostream& operator<<(std::ostream& os, AngleChain chain) {
+inline std::ostream& operator<<(std::ostream& os, AngleChain chain) {
     return os << (chain == AngleChain::SHIFTED_GRID ? "ShiftedGrid" : "CenteredGrid");
 }
 
