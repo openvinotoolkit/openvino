@@ -18,8 +18,8 @@
 
 #include "executor.hpp"
 #include "llm_block_kvcache_strategy.hpp"
-#include "llm_infer_request.hpp"
 #include "llm_compiled_model.hpp"
+#include "llm_infer_request.hpp"
 #include "llm_test_helpers.hpp"
 #include "openvino/openvino.hpp"
 #include "serialization.hpp"
@@ -42,7 +42,8 @@ struct LLMVariantSwitchTestAccess {
         return compiled->m_is_block_kv_cache;
     }
 
-    static void set_num_stored_tokens(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled, uint32_t num_tokens) {
+    static void set_num_stored_tokens(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled,
+                                      uint32_t num_tokens) {
         compiled->m_kvcache_desc.num_stored_tokens = num_tokens;
     }
 
@@ -169,7 +170,6 @@ struct LLMVariantSwitchTestAccess {
         s::write(os, compiled->m_is_block_kv_cache);
         s::write(os, compiled->m_is_encoder_embedding);
         s::write(os, compiled->m_swa_window_size);
-        s::write(os, compiled->m_output_embeds_name);
         s::write(os, compiled->m_longrope_tables);
         s::write(os, compiled->m_cfg);
         s::write(os, compiled->m_kvcache_sizes);
@@ -267,8 +267,9 @@ FakeSubInferRequest::FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledMo
                                           ov::get_tensor_impl(ov::Tensor(input.get_element_type(), input.get_shape())));
     }
     for (const auto& output : get_compiled_model()->outputs()) {
-        ov::ISyncInferRequest::set_tensor(output,
-                                          ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
+        ov::ISyncInferRequest::set_tensor(
+            output,
+            ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
     }
 }
 
@@ -360,8 +361,10 @@ protected:
             saw_aux = saw_aux || name.find("scale") != std::string::npos || name.find("zp") != std::string::npos;
             auto src = LLMVariantSwitchTestAccess::kvcache_request(req)->get_tensor(
                 LLMVariantSwitchTestAccess::kvcache_in_ports(req).at(name));
-            auto src_slice = ov::npuw::util::make_tensor_slice(
-                src, LLMVariantSwitchTestAccess::kv_dim_for_name(req, name), 0u, stored_tokens);
+            auto src_slice = ov::npuw::util::make_tensor_slice(src,
+                                                               LLMVariantSwitchTestAccess::kv_dim_for_name(req, name),
+                                                               0u,
+                                                               stored_tokens);
             fill_tensor_pattern(src_slice, seed);
             expected_kv_bytes.emplace(name, materialize_bytes(src_slice));
             seed = static_cast<uint8_t>(seed + 37u);
@@ -376,8 +379,10 @@ protected:
         for (const auto& name : LLMVariantSwitchTestAccess::kvcache_past_names(req)) {
             auto dst = LLMVariantSwitchTestAccess::kvcache_request(req)->get_tensor(
                 LLMVariantSwitchTestAccess::kvcache_in_ports(req).at(name));
-            auto dst_slice = ov::npuw::util::make_tensor_slice(
-                dst, LLMVariantSwitchTestAccess::kv_dim_for_name(req, name), 0u, stored_tokens);
+            auto dst_slice = ov::npuw::util::make_tensor_slice(dst,
+                                                               LLMVariantSwitchTestAccess::kv_dim_for_name(req, name),
+                                                               0u,
+                                                               stored_tokens);
             EXPECT_EQ(materialize_bytes(dst_slice), expected_kv_bytes.at(name)) << name;
         }
     }
@@ -404,11 +409,11 @@ TEST_F(LLMInferRequestVariantSwitchTest, BlockKvVariantsExposeCompatibleBindings
     ASSERT_NE(compiled, nullptr);
     ASSERT_EQ(LLMVariantSwitchTestAccess::generate_variant_count(compiled), 2u);
     ASSERT_TRUE(LLMVariantSwitchTestAccess::is_block_kv_cache(compiled));
-    auto small_variant = std::dynamic_pointer_cast<FakeSubCompiledModel>(
-        LLMVariantSwitchTestAccess::generate_variant(compiled, 0u));
-    auto large_variant = std::dynamic_pointer_cast<FakeSubCompiledModel>(
-        LLMVariantSwitchTestAccess::generate_variant(compiled,
-                                                     LLMVariantSwitchTestAccess::generate_variant_count(compiled) - 1u));
+    auto small_variant =
+        std::dynamic_pointer_cast<FakeSubCompiledModel>(LLMVariantSwitchTestAccess::generate_variant(compiled, 0u));
+    auto large_variant = std::dynamic_pointer_cast<FakeSubCompiledModel>(LLMVariantSwitchTestAccess::generate_variant(
+        compiled,
+        LLMVariantSwitchTestAccess::generate_variant_count(compiled) - 1u));
     ASSERT_NE(small_variant, nullptr);
     ASSERT_NE(large_variant, nullptr);
 
@@ -565,7 +570,7 @@ TEST_F(LLMInferRequestVariantSwitchTest, PrefillOtherOutsSeqDimRejectsUnknownTen
     ASSERT_NE(compiled, nullptr);
 
     EXPECT_THROW(LLMVariantSwitchTestAccess::rebuild_prefill_other_outs_to_seqdims(compiled,
-                                                                                  {{"does_not_exist_in_prefill", 2u}}),
+                                                                                   {{"does_not_exist_in_prefill", 2u}}),
                  ov::Exception);
 }
 
