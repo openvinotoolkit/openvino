@@ -226,6 +226,24 @@ void jit_selective_ssm_kernel<isa>::store_state(const Vmm& source, size_t active
 }
 
 template <cpu_isa_t isa>
+void jit_selective_ssm_kernel<isa>::zero_accumulators(size_t row) {
+    const auto accumulator = accumulator_vmm(row);
+    uni_vpxor(accumulator, accumulator, accumulator);
+    if constexpr ((isa & zmm_bit) != 0) {
+        const auto second = accumulator_vmm(row, 1);
+        uni_vpxor(second, second, second);
+    }
+}
+
+template <cpu_isa_t isa>
+void jit_selective_ssm_kernel<isa>::fold_partial_accumulators(size_t row) {
+    if constexpr ((isa & zmm_bit) != 0) {
+        const auto accumulator = accumulator_vmm(row);
+        vaddps(accumulator, accumulator, accumulator_vmm(row, 1));
+    }
+}
+
+template <cpu_isa_t isa>
 void jit_selective_ssm_kernel<isa>::emit_row_tile(size_t rows) {
     const auto data_size = m_jcp.data_precision.size();
     const auto state_element_size = m_jcp.state_precision.size();
@@ -238,7 +256,6 @@ void jit_selective_ssm_kernel<isa>::emit_row_tile(size_t rows) {
     }
     for (size_t row = 0; row < rows; ++row) {
         const auto scale = input_scale_vmm(row);
-        const auto accumulator = accumulator_vmm(row);
         if (!use_packed_rows) {
             load(scale, reg_x, m_jcp.data_precision, 1, row * data_size, false);
             vmulss(Xbyak::Xmm(scale.getIdx()),
@@ -246,11 +263,7 @@ void jit_selective_ssm_kernel<isa>::emit_row_tile(size_t rows) {
                    ptr[reg_steps + offsetof(jit_selective_ssm_step, delta)]);
         }
         vbroadcastss(scale, Xbyak::Xmm(scale.getIdx()));
-        uni_vpxor(accumulator, accumulator, accumulator);
-        if constexpr ((isa & zmm_bit) != 0) {
-            const auto second = accumulator_vmm(row, 1);
-            uni_vpxor(second, second, second);
-        }
+        zero_accumulators(row);
     }
 
     const auto loop_chunks = full_vectors > max_unrolled_vectors ? full_vectors / max_unrolled_vectors : 0;
@@ -291,9 +304,7 @@ void jit_selective_ssm_kernel<isa>::emit_row_tile(size_t rows) {
 
     for (size_t row = 0; row < rows; ++row) {
         const auto accumulator = accumulator_vmm(row);
-        if constexpr ((isa & zmm_bit) != 0) {
-            vaddps(accumulator, accumulator, accumulator_vmm(row, 1));
-        }
+        fold_partial_accumulators(row);
         reduce_to_scalar(accumulator);
         if (!use_packed_rows) {
             store_output(accumulator, 1, row * data_size);

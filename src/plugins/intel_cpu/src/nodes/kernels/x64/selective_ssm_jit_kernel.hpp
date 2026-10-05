@@ -96,6 +96,10 @@ private:
     void store_state(const Vmm& source, size_t active_lanes, size_t offset);
     void advance_row_pointers(size_t rows);
     void advance_state_pointers(int64_t elements);
+    // Initialize both banks for one row on AVX-512, or the single bank on AVX2.
+    void zero_accumulators(size_t row);
+    // Fold the odd bank into the even bank for one row; AVX2 needs no fold.
+    void fold_partial_accumulators(size_t row);
     void reduce_to_scalar(const Vmm& accumulator);
     void store_output(const Vmm& source, int element_count, size_t offset = 0);
     void prepare_row_scales();
@@ -115,6 +119,9 @@ private:
     static Vmm state_vmm(size_t row) {
         return Vmm(row);
     }
+    // Output dot products alternate banks for even/odd state vectors on AVX-512 to hide FMA latency.
+    // The first bank follows the state registers; the second follows the conversion-emitter auxiliaries.
+    // AVX2 has only 16 registers and keeps a single bank to leave room for state, scales and projections.
     static Vmm accumulator_vmm(size_t row, size_t vector = 0) {
         if constexpr ((isa & dnnl::impl::cpu::x64::zmm_bit) != 0) {
             if (vector % 2 != 0) {
