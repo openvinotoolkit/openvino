@@ -5,11 +5,13 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <limits>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
+#include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
@@ -17,6 +19,7 @@
 #include "openvino/op/result.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "shared_weights_assigner.hpp"
+#include "shared_weights_contex_extractor.hpp"
 
 namespace {
 
@@ -75,27 +78,35 @@ ov::intel_npu::SharedWeightsAssigner::Options make_options(size_t max_source_siz
     return options;
 }
 
+TEST(SharedWeightsAssignerTest, OptionsDefaultToMaximumSharedSourceSize) {
+    const ov::intel_npu::SharedWeightsAssigner::Options options{};
+    EXPECT_EQ(options.single_weight_shared_source_size_max, std::numeric_limits<size_t>::max());
+}
+
 TEST(SharedWeightsAssignerTest, CollectAndPartitionProvidesStatsWithoutMutation) {
     const size_t page_size = static_cast<size_t>(ov::util::get_system_page_size());
 
     std::unordered_map<std::string, std::shared_ptr<ov::op::v0::Constant>> original_by_name;
     auto model = make_test_model(page_size, original_by_name);
+    const size_t model_constants_count = original_by_name.size();
 
-    ov::intel_npu::SharedWeightsAssigner assigner(make_options(2 * page_size));
+    size_t expected_constant_partition_count = (model_constants_count - 1);
+    ov::intel_npu::SharedWeightsAssigner assigner(make_options(expected_constant_partition_count * page_size));
     auto collect_result = assigner.collect_and_partition(model);
 
-    EXPECT_EQ(collect_result.statistic.collected_constants_count, 3u);
-    ASSERT_EQ(collect_result.statistic.partition_constant_counts.size(), 2u);
-    EXPECT_EQ(collect_result.statistic.partition_constant_counts[0], 2u);
-    EXPECT_EQ(collect_result.statistic.partition_constant_counts[1], 1u);
-    EXPECT_EQ(collect_result.statistic.total_shared_constant_bytes, 3 * page_size);
-    EXPECT_EQ(collect_result.statistic.total_non_shared_constant_bytes_released, 3 * page_size);
+    ASSERT_EQ(collect_result.statistic.collected_constants_count, model_constants_count);
+    ASSERT_EQ(collect_result.statistic.partition_constant_counts.size(), expected_constant_partition_count);
+    ASSERT_EQ(collect_result.statistic.partition_constant_counts[0], (model_constants_count - 1));
+    ASSERT_EQ(collect_result.statistic.partition_constant_counts[1], 1u);
+    ASSERT_EQ(collect_result.statistic.constant_cannot_be_shared_count, 0u);
+    ASSERT_EQ(collect_result.statistic.total_shared_constant_bytes, model_constants_count * page_size);
+    ASSERT_EQ(collect_result.statistic.total_non_shared_constant_bytes_released, model_constants_count * page_size);
 
     auto current_by_name = collect_named_constants(model);
-    ASSERT_EQ(current_by_name.size(), 3u);
-    EXPECT_EQ(current_by_name.at("c1").get(), original_by_name.at("c1").get());
-    EXPECT_EQ(current_by_name.at("c2").get(), original_by_name.at("c2").get());
-    EXPECT_EQ(current_by_name.at("c3").get(), original_by_name.at("c3").get());
+    ASSERT_EQ(current_by_name.size(), model_constants_count);
+    for (auto &[name, constant] : current_by_name) {
+        ASSERT_EQ(constant.get(), original_by_name.at(name).get());
+    }
 }
 
 TEST(SharedWeightsAssignerTest, MutateModelWithConstantSharingReturnsExpectedBuffers) {
@@ -103,16 +114,18 @@ TEST(SharedWeightsAssignerTest, MutateModelWithConstantSharingReturnsExpectedBuf
 
     std::unordered_map<std::string, std::shared_ptr<ov::op::v0::Constant>> original_by_name;
     auto model = make_test_model(page_size, original_by_name);
+    const size_t model_constants_count = original_by_name.size();
 
-    ov::intel_npu::SharedWeightsAssigner assigner(make_options(2 * page_size));
+    const size_t expected_constant_partition_count = model_constants_count - 1;
+    ov::intel_npu::SharedWeightsAssigner assigner(make_options(expected_constant_partition_count * page_size));
     auto collect_result = assigner.collect_and_partition(model);
     auto shared_sources_with_constants =
         assigner.mutate_model_with_constant_sharing(std::move(collect_result.partitioned_constants));
 
-    ASSERT_EQ(shared_sources_with_constants.size(), 2u);
-    EXPECT_EQ(shared_sources_with_constants[0].first->size(), 2 * page_size);
+    ASSERT_EQ(shared_sources_with_constants.size(), expected_constant_partition_count);
+    EXPECT_EQ(shared_sources_with_constants[0].first->size(), (model_constants_count - 1) * page_size);
     EXPECT_EQ(shared_sources_with_constants[1].first->size(), page_size);
-    EXPECT_EQ(shared_sources_with_constants[0].second.size(), 2u);
+    EXPECT_EQ(shared_sources_with_constants[0].second.size(), model_constants_count - 1);
     EXPECT_EQ(shared_sources_with_constants[1].second.size(), 1u);
 
     // All returned constants should point inside their partition buffer ranges.
@@ -128,10 +141,29 @@ TEST(SharedWeightsAssignerTest, MutateModelWithConstantSharingReturnsExpectedBuf
     }
 
     auto mutated_by_name = collect_named_constants(model);
-    ASSERT_EQ(mutated_by_name.size(), 3u);
-    EXPECT_NE(mutated_by_name.at("c1").get(), original_by_name.at("c1").get());
-    EXPECT_NE(mutated_by_name.at("c2").get(), original_by_name.at("c2").get());
-    EXPECT_NE(mutated_by_name.at("c3").get(), original_by_name.at("c3").get());
+    ASSERT_EQ(mutated_by_name.size(), model_constants_count);
+    for (auto &[name, constant] : mutated_by_name) {
+        ASSERT_EQ(constant.get(), original_by_name.at(name).get());
+    }
+
+    auto model_context = ov::intel_npu::SharedWeightsContextExtractor::extract_weight_sharing_context(model);
+    ASSERT_EQ(model_context->m_runtime_sources.size(), expected_constant_partition_count);
+    EXPECT_TRUE(model_context->m_cache_sources.empty());
+    size_t model_context_constant_count = 0;
+    for (const auto& registry_entry : model_context->m_weight_registry) {
+        model_context_constant_count += registry_entry.second.size();
+    }
+    EXPECT_EQ(model_context_constant_count, model_constants_count);
+
+    auto shared_sources_context = ov::intel_npu::SharedWeightsContextExtractor::extract_weight_sharing_context(
+        shared_sources_with_constants);
+    ASSERT_EQ(shared_sources_context->m_runtime_sources.size(), expected_constant_partition_count);
+    EXPECT_TRUE(shared_sources_context->m_cache_sources.empty());
+    size_t shared_sources_constant_count = 0;
+    for (const auto& registry_entry : shared_sources_context->m_weight_registry) {
+        shared_sources_constant_count += registry_entry.second.size();
+    }
+    EXPECT_EQ(shared_sources_constant_count, model_constants_count);
 }
 
 }  // namespace
