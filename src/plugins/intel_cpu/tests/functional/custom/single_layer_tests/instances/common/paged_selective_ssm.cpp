@@ -29,6 +29,13 @@ std::vector<PagedSelectiveSSMLayerParams> paged_selective_ssm_test_cases = {
      ov::element::i32,
      "CPU"},
     {4, 2, 9, 17, {129, 65}, {7, 3}, {64, 0}, ov::element::f32, ov::element::f32, ov::element::i32, "CPU"},
+    // Numerical coverage through the executor: row/vector tails, large states and single-snapshot aliasing.
+    {2, 1, 17, 127, {7, 8, 9}, {0, 3, 7}, {3, 4, 0}, ov::element::f32, ov::element::f32, ov::element::i32, "CPU"},
+    {4, 2, 33, 129, {8, 1, 17}, {1, 0, 4}, {1, 3, 5}, ov::element::f32, ov::element::f32, ov::element::i32, "CPU"},
+    {2, 1, 9, 4095, {8}, {3}, {4}, ov::element::f32, ov::element::f32, ov::element::i32, "CPU"},
+    {2, 1, 9, 4096, {8}, {3}, {4}, ov::element::f32, ov::element::f32, ov::element::i32, "CPU"},
+    {2, 1, 5, 129, {5}, {0}, {16}, ov::element::f32, ov::element::f32, ov::element::i32, "CPU"},
+    {2, 1, 5, 129, {5}, {3}, {16}, ov::element::f32, ov::element::f32, ov::element::i32, "CPU"},
     {4, 2, 5, 3, {1}, {0}, {2}, ov::element::f32, ov::element::f32, ov::element::i32, "CPU"},
     {64, 1, 64, 128, {1}, {0}, {1}, ov::element::f32, ov::element::f32, ov::element::i32, "CPU"},
     {96, 8, 80, 80, {5}, {0}, {2}, ov::element::f32, ov::element::f32, ov::element::i32, "CPU"},

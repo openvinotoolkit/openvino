@@ -169,7 +169,12 @@ std::vector<ov::Tensor> SelectiveSSM::calculate_refs() {
 
 void SelectiveSSM::compare(const std::vector<ov::Tensor>& expected, const std::vector<ov::Tensor>& actual) {
     ASSERT_EQ(expected.size(), actual.size());
-    ov::test::utils::compare(expected[0], actual[0], abs_threshold, rel_threshold);
+    // Large dot products allow reduction-order differences; final-state checks keep the original tolerance.
+    const auto large_state = std::get<5>(GetParam()) >= 512;
+    ov::test::utils::compare(expected[0],
+                             actual[0],
+                             large_state ? std::max(abs_threshold, 1e-5) : abs_threshold,
+                             large_state ? std::max(rel_threshold, 1e-4) : rel_threshold);
     ov::test::utils::compare(expected[1], actual[1], abs_threshold, rel_threshold);
 }
 
