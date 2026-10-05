@@ -50,13 +50,13 @@ std::optional<ParsedContainer> parse_container(std::vector<std::byte> raw) {
     if (raw.size() < sizeof(hsm::Header)) {
         return std::nullopt;
     }
-    hsm::Header header{};
-    std::memcpy(&header, raw.data(), sizeof(header));
+    const auto& header = hsm::Header::view(reinterpret_cast<const uint8_t*>(raw.data()));
     if (!hsm::is_valid_header_fields(header)) {
         return std::nullopt;
     }
-    std::vector<hsm::ManifestEntry> entries(header.manifest_size / sizeof(hsm::ManifestEntry));
-    std::memcpy(entries.data(), raw.data() + header.manifest_offset, header.manifest_size);
+    const auto first_entry = reinterpret_cast<const hsm::ManifestEntry*>(raw.data() + header.manifest_offset);
+    std::vector<hsm::ManifestEntry> entries(first_entry,
+                                            first_entry + header.manifest_size / sizeof(hsm::ManifestEntry));
     return ParsedContainer{header, std::move(entries), std::move(raw)};
 }
 
@@ -529,7 +529,7 @@ TEST(HsmWriterTest, written_header_satisfies_the_format_contract) {
 
     hsm::Header header{};
     const auto bytes = stream.str();
-    std::memcpy(&header, bytes.data(), sizeof(header));
+    header = hsm::Header::view(reinterpret_cast<const uint8_t*>(bytes.data()));
     EXPECT_TRUE(hsm::is_recognized_header(header));
     EXPECT_TRUE(hsm::is_valid_header_fields(header));
     EXPECT_EQ(header.magic, hsm::BlobMagic::single);

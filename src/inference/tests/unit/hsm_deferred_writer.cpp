@@ -6,7 +6,6 @@
 
 #include <gtest/gtest.h>
 
-#include <cstring>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -49,18 +48,18 @@ std::optional<ParsedContainer> parse_container(std::vector<std::byte> raw) {
     if (raw.size() < sizeof(hsm::Header)) {
         return std::nullopt;
     }
-    hsm::Header header{};
-    std::memcpy(&header, raw.data(), sizeof(header));
+    const auto& header = hsm::Header::view(reinterpret_cast<const uint8_t*>(raw.data()));
     if (!hsm::is_valid_header_fields(header)) {
         return std::nullopt;
     }
-    std::vector<hsm::ManifestEntry> entries(header.manifest_size / sizeof(hsm::ManifestEntry));
-    std::memcpy(entries.data(), raw.data() + header.manifest_offset, header.manifest_size);
+    const auto first_entry = reinterpret_cast<const hsm::ManifestEntry*>(raw.data() + header.manifest_offset);
+    std::vector<hsm::ManifestEntry> entries(first_entry,
+                                            first_entry + header.manifest_size / sizeof(hsm::ManifestEntry));
     return ParsedContainer{header, std::move(entries), std::move(raw)};
 }
 
 std::optional<ParsedContainer> parse_container(const std::string& stream_bytes) {
-    const auto* data = reinterpret_cast<const std::byte*>(stream_bytes.data());
+    const auto data = reinterpret_cast<const std::byte*>(stream_bytes.data());
     return parse_container(std::vector<std::byte>(data, data + stream_bytes.size()));
 }
 
@@ -120,7 +119,7 @@ TEST(HsmDeferredWriterTest, writes_into_a_preallocated_buffer) {
 
     const auto container = parse_container(buffer.data(), buffer.size());
     ASSERT_TRUE(container.has_value());
-    const auto* entry = find_entry(*container, hsm::any_device_id, hsm::model);
+    const auto entry = find_entry(*container, hsm::any_device_id, hsm::model);
     ASSERT_NE(entry, nullptr);
     EXPECT_EQ(payload_string(*container, *entry), "model-bytes");
 }
@@ -208,7 +207,7 @@ TEST(HsmDeferredWriterTest, unsized_section_forces_the_header_to_be_patched_afte
     const auto container = parse_container(stream.str());
     ASSERT_TRUE(container.has_value());
     EXPECT_TRUE(hsm::is_valid_header_fields(container->header));
-    const auto* entry = find_entry(*container, hsm::any_device_id, hsm::model);
+    const auto entry = find_entry(*container, hsm::any_device_id, hsm::model);
     ASSERT_NE(entry, nullptr);
     EXPECT_EQ(payload_string(*container, *entry), "discovered-at-write-time");
 }
