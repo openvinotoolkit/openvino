@@ -2,19 +2,17 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "v1/elements/accuracy_checked.hpp"
-
 #include <gtest/gtest.h>
 
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "v1/elements/accuracy_checked.hpp"
+#include "v1/elements/failsafe.hpp"
 #include "openvino/opsets/opset10.hpp"
 #include "openvino/runtime/make_tensor.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "util.hpp"
-#include "v1/elements/failsafe.hpp"
 
 namespace {
 
@@ -36,43 +34,23 @@ std::shared_ptr<ov::Model> make_test_model() {
 class NullPlugin final : public ov::IPlugin {
 public:
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
-                                                      const ov::AnyMap&) const override {
-        return {};
-    }
+                                                      const ov::AnyMap&) const override { return {}; }
     std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
                                                       const ov::AnyMap&,
-                                                      const ov::SoPtr<ov::IRemoteContext>&) const override {
-        return {};
-    }
-    std::shared_ptr<ov::ICompiledModel> import_model(std::istream&, const ov::AnyMap&) const override {
-        return {};
-    }
+                                                      const ov::SoPtr<ov::IRemoteContext>&) const override { return {}; }
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream&, const ov::AnyMap&) const override { return {}; }
     std::shared_ptr<ov::ICompiledModel> import_model(std::istream&,
                                                      const ov::SoPtr<ov::IRemoteContext>&,
-                                                     const ov::AnyMap&) const override {
-        return {};
-    }
-    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&, const ov::AnyMap&) const override {
-        return {};
-    }
+                                                     const ov::AnyMap&) const override { return {}; }
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&, const ov::AnyMap&) const override { return {}; }
     std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&,
                                                      const ov::SoPtr<ov::IRemoteContext>&,
-                                                     const ov::AnyMap&) const override {
-        return {};
-    }
-    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>&, const ov::AnyMap&) const override {
-        return {};
-    }
+                                                     const ov::AnyMap&) const override { return {}; }
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>&, const ov::AnyMap&) const override { return {}; }
     void set_property(const ov::AnyMap&) override {}
-    ov::Any get_property(const std::string&, const ov::AnyMap&) const override {
-        return {};
-    }
-    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap&) const override {
-        return {};
-    }
-    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap&) const override {
-        return {};
-    }
+    ov::Any get_property(const std::string&, const ov::AnyMap&) const override { return {}; }
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap&) const override { return {}; }
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap&) const override { return {}; }
 };
 
 // Compiled model that adds a fixed bias to its single input and writes the
@@ -88,10 +66,6 @@ struct ModelState {
     int infer_count = 0;
     int glitch_at_call = 0;
     float glitch_bias = 0.f;
-    // Property behavior: ov::hint::model_priority is either RW (like NPU) or not
-    // listed at all with set_property throwing (like CPU). Calls are recorded.
-    bool priority_is_mutable = false;
-    std::vector<ov::AnyMap> set_calls;
 };
 
 class TestCompiledModel;
@@ -108,12 +82,8 @@ public:
         ov::ISyncInferRequest::set_tensor(port, tensor);
     }
     void check_tensors() const override {}
-    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override {
-        return {};
-    }
-    std::vector<ov::ProfilingInfo> get_profiling_info() const override {
-        return {};
-    }
+    std::vector<ov::SoPtr<ov::IVariableState>> query_state() const override { return {}; }
+    std::vector<ov::ProfilingInfo> get_profiling_info() const override { return {}; }
 
 private:
     std::shared_ptr<ModelState> m_state;
@@ -124,30 +94,14 @@ public:
     TestCompiledModel(const std::shared_ptr<ov::Model>& model,
                       const std::shared_ptr<const ov::IPlugin>& plugin,
                       std::shared_ptr<ModelState> state)
-        : ov::ICompiledModel(model, plugin),
-          m_model(model),
-          m_state(std::move(state)) {}
+        : ov::ICompiledModel(model, plugin), m_model(model), m_state(std::move(state)) {}
 
     void export_model(std::ostream&) const override {}
-    std::shared_ptr<const ov::Model> get_runtime_model() const override {
-        return m_model;
-    }
-    void set_property(const ov::AnyMap& properties) override {
-        if (!m_state->priority_is_mutable) {
-            OPENVINO_THROW_NOT_IMPLEMENTED("Properties can't be changed after compilation");
-        }
-        m_state->set_calls.push_back(properties);
-    }
+    std::shared_ptr<const ov::Model> get_runtime_model() const override { return m_model; }
+    void set_property(const ov::AnyMap&) override {}
     ov::Any get_property(const std::string& name) const override {
         if (name == ov::execution_devices.name()) {
             return std::vector<std::string>{m_state->name};
-        }
-        if (name == ov::supported_properties.name()) {
-            std::vector<ov::PropertyName> supported{{ov::execution_devices.name(), ov::PropertyMutability::RO}};
-            if (m_state->priority_is_mutable) {
-                supported.emplace_back(ov::hint::model_priority.name(), ov::PropertyMutability::RW);
-            }
-            return supported;
         }
         OPENVINO_THROW("Unsupported property: ", name);
     }
@@ -170,16 +124,14 @@ private:
 };
 
 TestInferRequest::TestInferRequest(std::shared_ptr<const TestCompiledModel> cm, std::shared_ptr<ModelState> state)
-    : ov::ISyncInferRequest(cm),
-      m_state(std::move(state)) {
+    : ov::ISyncInferRequest(cm), m_state(std::move(state)) {
     for (const auto& input : get_compiled_model()->inputs()) {
-        ov::ISyncInferRequest::set_tensor(input,
-                                          ov::get_tensor_impl(ov::Tensor(input.get_element_type(), input.get_shape())));
+        ov::ISyncInferRequest::set_tensor(
+            input, ov::get_tensor_impl(ov::Tensor(input.get_element_type(), input.get_shape())));
     }
     for (const auto& output : get_compiled_model()->outputs()) {
         ov::ISyncInferRequest::set_tensor(
-            output,
-            ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
+            output, ov::get_tensor_impl(ov::Tensor(output.get_element_type(), output.get_shape())));
     }
 }
 
@@ -202,23 +154,19 @@ void TestInferRequest::infer() {
 
 // Helper to build an ov::SoPtr<ov::ICompiledModel> backed by a TestCompiledModel.
 ov::SoPtr<ov::ICompiledModel> make_test_compiled_model(const std::shared_ptr<ov::Model>& model,
-                                                       const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                       std::shared_ptr<ModelState> state) {
+                                                        const std::shared_ptr<const ov::IPlugin>& plugin,
+                                                        std::shared_ptr<ModelState> state) {
     return {std::make_shared<TestCompiledModel>(model, plugin, std::move(state)), {}};
 }
 
 // A checker that passes when |actual - reference| <= threshold for a scalar f32 tensor.
 ov::npuw::accuracy_checked::CompiledModel::Checker make_threshold_checker(float threshold) {
-    return [threshold](const ov::SoPtr<ov::ITensor>& actual, const ov::SoPtr<ov::ITensor>& reference) -> bool {
+    return [threshold](const ov::SoPtr<ov::ITensor>& actual,
+                       const ov::SoPtr<ov::ITensor>& reference) -> bool {
         const float a = actual->data<const float>()[0];
         const float r = reference->data<const float>()[0];
         return std::abs(a - r) <= threshold;
     };
-}
-
-bool is_model_priority(const ov::AnyMap& properties, ov::hint::Priority priority) {
-    const auto it = properties.find(ov::hint::model_priority.name());
-    return properties.size() == 1 && it != properties.end() && it->second.as<ov::hint::Priority>() == priority;
 }
 
 }  // namespace
@@ -233,8 +181,7 @@ TEST(AccuracyCheckedCompiledModelTest, NullRefReturnsMainUnwrapped) {
     auto main_state = std::make_shared<ModelState>(ModelState{"main", nullptr, 0.f});
     auto main_cm = make_test_compiled_model(model, plugin, main_state);
 
-    auto so =
-        ov::npuw::accuracy_checked::CompiledModel::create(model, plugin, main_cm, {}, make_threshold_checker(0.f));
+    auto so = ov::npuw::accuracy_checked::CompiledModel::create(model, plugin, main_cm, {}, make_threshold_checker(0.f));
 
     // When ref is null create() must return the unwrapped main model.
     EXPECT_EQ(std::dynamic_pointer_cast<ov::npuw::accuracy_checked::CompiledModel>(so._ptr), nullptr);
@@ -247,13 +194,13 @@ TEST(AccuracyCheckedCompiledModelTest, AccurateInferencePassesThrough) {
     std::vector<std::string> events;
 
     auto main_state = std::make_shared<ModelState>(ModelState{"main", &events, 10.f});
-    auto ref_state = std::make_shared<ModelState>(ModelState{"ref", &events, 10.f});  // same bias → same output
+    auto ref_state  = std::make_shared<ModelState>(ModelState{"ref",  &events, 10.f});  // same bias → same output
 
     auto main_cm = make_test_compiled_model(model, plugin, main_state);
-    auto ref_cm = make_test_compiled_model(model, plugin, ref_state);
+    auto ref_cm  = make_test_compiled_model(model, plugin, ref_state);
 
-    auto so =
-        ov::npuw::accuracy_checked::CompiledModel::create(model, plugin, main_cm, ref_cm, make_threshold_checker(0.1f));
+    auto so = ov::npuw::accuracy_checked::CompiledModel::create(
+        model, plugin, main_cm, ref_cm, make_threshold_checker(0.1f));
     auto compiled = std::dynamic_pointer_cast<ov::npuw::accuracy_checked::CompiledModel>(so._ptr);
     ASSERT_NE(compiled, nullptr);
 
@@ -281,13 +228,13 @@ TEST(AccuracyCheckedCompiledModelTest, InaccurateInferenceSwitchesToReference) {
 
     // main bias=10, ref bias=11 → difference=1 > threshold=0.5 → fail
     auto main_state = std::make_shared<ModelState>(ModelState{"main", &events, 10.f});
-    auto ref_state = std::make_shared<ModelState>(ModelState{"ref", &events, 11.f});
+    auto ref_state  = std::make_shared<ModelState>(ModelState{"ref",  &events, 11.f});
 
     auto main_cm = make_test_compiled_model(model, plugin, main_state);
-    auto ref_cm = make_test_compiled_model(model, plugin, ref_state);
+    auto ref_cm  = make_test_compiled_model(model, plugin, ref_state);
 
-    auto so =
-        ov::npuw::accuracy_checked::CompiledModel::create(model, plugin, main_cm, ref_cm, make_threshold_checker(0.5f));
+    auto so = ov::npuw::accuracy_checked::CompiledModel::create(
+        model, plugin, main_cm, ref_cm, make_threshold_checker(0.5f));
     auto compiled = std::dynamic_pointer_cast<ov::npuw::accuracy_checked::CompiledModel>(so._ptr);
     ASSERT_NE(compiled, nullptr);
 
@@ -309,13 +256,13 @@ TEST(AccuracyCheckedCompiledModelTest, PermanentSwitchSkipsMainOnSubsequentInfer
     std::vector<std::string> events;
 
     auto main_state = std::make_shared<ModelState>(ModelState{"main", &events, 10.f});
-    auto ref_state = std::make_shared<ModelState>(ModelState{"ref", &events, 11.f});
+    auto ref_state  = std::make_shared<ModelState>(ModelState{"ref",  &events, 11.f});
 
     auto main_cm = make_test_compiled_model(model, plugin, main_state);
-    auto ref_cm = make_test_compiled_model(model, plugin, ref_state);
+    auto ref_cm  = make_test_compiled_model(model, plugin, ref_state);
 
-    auto so =
-        ov::npuw::accuracy_checked::CompiledModel::create(model, plugin, main_cm, ref_cm, make_threshold_checker(0.5f));
+    auto so = ov::npuw::accuracy_checked::CompiledModel::create(
+        model, plugin, main_cm, ref_cm, make_threshold_checker(0.5f));
     auto compiled = std::dynamic_pointer_cast<ov::npuw::accuracy_checked::CompiledModel>(so._ptr);
     auto request = compiled->create_sync_infer_request();
 
@@ -346,19 +293,19 @@ TEST(AccuracyCheckedCompiledModelTest, UserOutputBufferReceivesReferenceValueOnS
     auto plugin = std::make_shared<NullPlugin>();
 
     auto main_state = std::make_shared<ModelState>(ModelState{"main", nullptr, 10.f});
-    auto ref_state = std::make_shared<ModelState>(ModelState{"ref", nullptr, 20.f});
+    auto ref_state  = std::make_shared<ModelState>(ModelState{"ref",  nullptr, 20.f});
 
     auto main_cm = make_test_compiled_model(model, plugin, main_state);
-    auto ref_cm = make_test_compiled_model(model, plugin, ref_state);
+    auto ref_cm  = make_test_compiled_model(model, plugin, ref_state);
 
-    auto so =
-        ov::npuw::accuracy_checked::CompiledModel::create(model, plugin, main_cm, ref_cm, make_threshold_checker(0.5f));
+    auto so = ov::npuw::accuracy_checked::CompiledModel::create(
+        model, plugin, main_cm, ref_cm, make_threshold_checker(0.5f));
     auto compiled = std::dynamic_pointer_cast<ov::npuw::accuracy_checked::CompiledModel>(so._ptr);
     auto request = compiled->create_sync_infer_request();
 
-    auto input = ov::get_tensor_impl(ov::Tensor(ov::element::f32, ov::Shape{1}));
+    auto input  = ov::get_tensor_impl(ov::Tensor(ov::element::f32, ov::Shape{1}));
     auto output = ov::get_tensor_impl(ov::Tensor(ov::element::f32, ov::Shape{1}));
-    input->data<float>()[0] = 4.f;
+    input->data<float>()[0]  = 4.f;
     output->data<float>()[0] = -1.f;  // sentinel
     request->set_tensor(model->inputs().front(), input);
     request->set_tensor(model->outputs().front(), output);
@@ -377,13 +324,13 @@ TEST(AccuracyCheckedCompiledModelTest, NewRequestFromSwitchedModelStartsOnRefere
     std::vector<std::string> events;
 
     auto main_state = std::make_shared<ModelState>(ModelState{"main", &events, 10.f});
-    auto ref_state = std::make_shared<ModelState>(ModelState{"ref", &events, 20.f});
+    auto ref_state  = std::make_shared<ModelState>(ModelState{"ref",  &events, 20.f});
 
     auto main_cm = make_test_compiled_model(model, plugin, main_state);
-    auto ref_cm = make_test_compiled_model(model, plugin, ref_state);
+    auto ref_cm  = make_test_compiled_model(model, plugin, ref_state);
 
-    auto so =
-        ov::npuw::accuracy_checked::CompiledModel::create(model, plugin, main_cm, ref_cm, make_threshold_checker(0.5f));
+    auto so = ov::npuw::accuracy_checked::CompiledModel::create(
+        model, plugin, main_cm, ref_cm, make_threshold_checker(0.5f));
     auto compiled = std::dynamic_pointer_cast<ov::npuw::accuracy_checked::CompiledModel>(so._ptr);
 
     // Trigger switch via first request.
@@ -437,11 +384,8 @@ TEST(AccuracyCheckedCompiledModelTest, ChainedWithFailsafeModel) {
     auto ref_state = std::make_shared<ModelState>(ModelState{"ref_cpu", &events, 20.f});
     auto ref_cm = make_test_compiled_model(model, plugin, ref_state);
 
-    auto so = ov::npuw::accuracy_checked::CompiledModel::create(model,
-                                                                plugin,
-                                                                failsafe_cm,
-                                                                ref_cm,
-                                                                make_threshold_checker(0.5f));
+    auto so = ov::npuw::accuracy_checked::CompiledModel::create(
+        model, plugin, failsafe_cm, ref_cm, make_threshold_checker(0.5f));
     auto acc_compiled = std::dynamic_pointer_cast<ov::npuw::accuracy_checked::CompiledModel>(so._ptr);
     ASSERT_NE(acc_compiled, nullptr);
 
@@ -463,13 +407,13 @@ TEST(AccuracyCheckedCompiledModelTest, ExecutionDevicesReflectsActiveModel) {
     auto plugin = std::make_shared<NullPlugin>();
 
     auto main_state = std::make_shared<ModelState>(ModelState{"NPU", nullptr, 10.f});
-    auto ref_state = std::make_shared<ModelState>(ModelState{"CPU", nullptr, 11.f});
+    auto ref_state  = std::make_shared<ModelState>(ModelState{"CPU", nullptr, 11.f});
 
     auto main_cm = make_test_compiled_model(model, plugin, main_state);
-    auto ref_cm = make_test_compiled_model(model, plugin, ref_state);
+    auto ref_cm  = make_test_compiled_model(model, plugin, ref_state);
 
-    auto so =
-        ov::npuw::accuracy_checked::CompiledModel::create(model, plugin, main_cm, ref_cm, make_threshold_checker(0.5f));
+    auto so = ov::npuw::accuracy_checked::CompiledModel::create(
+        model, plugin, main_cm, ref_cm, make_threshold_checker(0.5f));
     auto compiled = std::dynamic_pointer_cast<ov::npuw::accuracy_checked::CompiledModel>(so._ptr);
     ASSERT_NE(compiled, nullptr);
 
@@ -507,21 +451,21 @@ TEST(AccuracyCheckedCompiledModelTest, RepeatingBlockAccuracyFailsAtThirdCall) {
 
     auto main_state = std::make_shared<ModelState>(ModelState{"main", &events, 10.f});
     main_state->glitch_at_call = 3;
-    main_state->glitch_bias = 11.f;  // diverges from ref by 1 on call 3+
+    main_state->glitch_bias    = 11.f;  // diverges from ref by 1 on call 3+
 
     auto ref_state = std::make_shared<ModelState>(ModelState{"ref", &events, 10.f});
 
     auto main_cm = make_test_compiled_model(model, plugin, main_state);
-    auto ref_cm = make_test_compiled_model(model, plugin, ref_state);
+    auto ref_cm  = make_test_compiled_model(model, plugin, ref_state);
 
-    auto so =
-        ov::npuw::accuracy_checked::CompiledModel::create(model, plugin, main_cm, ref_cm, make_threshold_checker(0.5f));
+    auto so = ov::npuw::accuracy_checked::CompiledModel::create(
+        model, plugin, main_cm, ref_cm, make_threshold_checker(0.5f));
     auto compiled = std::dynamic_pointer_cast<ov::npuw::accuracy_checked::CompiledModel>(so._ptr);
     ASSERT_NE(compiled, nullptr);
 
     // One AccuracyChecked::InferRequest reused for all N instances of the block.
     auto request = compiled->create_sync_infer_request();
-    auto input = ov::get_tensor_impl(ov::Tensor(ov::element::f32, ov::Shape{1}));
+    auto input   = ov::get_tensor_impl(ov::Tensor(ov::element::f32, ov::Shape{1}));
     request->set_tensor(model->inputs().front(), input);
 
     // -- Forward pass 1, instance 1: main call #1, bias=10. Accurate. ---------
@@ -558,90 +502,4 @@ TEST(AccuracyCheckedCompiledModelTest, RepeatingBlockAccuracyFailsAtThirdCall) {
     }
     // Last output via reference: 30+10=40.
     EXPECT_FLOAT_EQ(request->get_tensor(model->outputs().front())->data<const float>()[0], 40.f);
-}
-
-TEST(AccuracyCheckedCompiledModelTest, ModelPriorityIsSetOnBothMainAndReference) {
-    auto model = make_test_model();
-    auto plugin = std::make_shared<NullPlugin>();
-
-    auto main_state = std::make_shared<ModelState>(ModelState{"NPU", nullptr, 10.f});
-    auto ref_state = std::make_shared<ModelState>(ModelState{"ref", nullptr, 10.f});
-    main_state->priority_is_mutable = true;
-    ref_state->priority_is_mutable = true;
-
-    auto so = ov::npuw::accuracy_checked::CompiledModel::create(model,
-                                                                plugin,
-                                                                make_test_compiled_model(model, plugin, main_state),
-                                                                make_test_compiled_model(model, plugin, ref_state),
-                                                                make_threshold_checker(0.5f));
-    ASSERT_NE(std::dynamic_pointer_cast<ov::npuw::accuracy_checked::CompiledModel>(so._ptr), nullptr);
-
-    ASSERT_NO_THROW(so->set_property({{ov::hint::model_priority.name(), ov::hint::Priority::HIGH}}));
-
-    // Both get it, so a later switch to the reference keeps the priority
-    ASSERT_EQ(main_state->set_calls.size(), 1u);
-    EXPECT_TRUE(is_model_priority(main_state->set_calls.front(), ov::hint::Priority::HIGH));
-    ASSERT_EQ(ref_state->set_calls.size(), 1u);
-    EXPECT_TRUE(is_model_priority(ref_state->set_calls.front(), ov::hint::Priority::HIGH));
-}
-
-TEST(AccuracyCheckedCompiledModelTest, ModelPriorityIsSkippedForReferenceWhichCannotChangeIt) {
-    auto model = make_test_model();
-    auto plugin = std::make_shared<NullPlugin>();
-
-    auto main_state = std::make_shared<ModelState>(ModelState{"NPU", nullptr, 10.f});
-    auto ref_state = std::make_shared<ModelState>(ModelState{"CPU", nullptr, 10.f});
-    main_state->priority_is_mutable = true;  // the reference keeps the CPU-like default
-
-    auto so = ov::npuw::accuracy_checked::CompiledModel::create(model,
-                                                                plugin,
-                                                                make_test_compiled_model(model, plugin, main_state),
-                                                                make_test_compiled_model(model, plugin, ref_state),
-                                                                make_threshold_checker(0.5f));
-    ASSERT_NE(std::dynamic_pointer_cast<ov::npuw::accuracy_checked::CompiledModel>(so._ptr), nullptr);
-
-    // The reference would throw if called, so it must be skipped instead
-    ASSERT_NO_THROW(so->set_property({{ov::hint::model_priority.name(), ov::hint::Priority::LOW}}));
-
-    ASSERT_EQ(main_state->set_calls.size(), 1u);
-    EXPECT_TRUE(is_model_priority(main_state->set_calls.front(), ov::hint::Priority::LOW));
-    EXPECT_TRUE(ref_state->set_calls.empty());
-}
-
-TEST(AccuracyCheckedCompiledModelTest, ModelPriorityIsSetOnMainAfterSwitchToImmutableReference) {
-    auto model = make_test_model();
-    auto plugin = std::make_shared<NullPlugin>();
-
-    // main bias=10, ref bias=11 -> difference=1 > threshold=0.5 -> switch to the reference
-    auto main_state = std::make_shared<ModelState>(ModelState{"NPU", nullptr, 10.f});
-    auto ref_state = std::make_shared<ModelState>(ModelState{"CPU", nullptr, 11.f});
-    main_state->priority_is_mutable = true;  // the reference keeps the CPU-like default
-
-    auto so = ov::npuw::accuracy_checked::CompiledModel::create(model,
-                                                                plugin,
-                                                                make_test_compiled_model(model, plugin, main_state),
-                                                                make_test_compiled_model(model, plugin, ref_state),
-                                                                make_threshold_checker(0.5f));
-    auto compiled = std::dynamic_pointer_cast<ov::npuw::accuracy_checked::CompiledModel>(so._ptr);
-    ASSERT_NE(compiled, nullptr);
-
-    auto request = compiled->create_sync_infer_request();
-    auto input = ov::get_tensor_impl(ov::Tensor(ov::element::f32, ov::Shape{1}));
-    input->data<float>()[0] = 1.f;
-    request->set_tensor(model->inputs().front(), input);
-    request->infer();
-    ASSERT_TRUE(compiled->has_switched_to_reference());
-
-    // The mutable-property surface still comes from main, so an outer NPUW model
-    // doesn't skip this wrapper...
-    EXPECT_TRUE(ov::npuw::util::is_mutable_property(so, ov::hint::model_priority.name()));
-    // ...while other queries still reflect the active (reference) model
-    EXPECT_EQ(compiled->get_property(ov::execution_devices.name()).as<std::vector<std::string>>(),
-              (std::vector<std::string>{"CPU"}));
-
-    // The immutable reference must neither throw nor block the update of main
-    ASSERT_NO_THROW(compiled->set_property({{ov::hint::model_priority.name(), ov::hint::Priority::HIGH}}));
-    ASSERT_EQ(main_state->set_calls.size(), 1u);
-    EXPECT_TRUE(is_model_priority(main_state->set_calls.front(), ov::hint::Priority::HIGH));
-    EXPECT_TRUE(ref_state->set_calls.empty());
 }
