@@ -129,18 +129,18 @@ void jit_selective_ssm_kernel<isa>::store_row_tile() {
 template <cpu_isa_t isa>
 void jit_selective_ssm_kernel<isa>::emit_state_vector(size_t rows,
                                                       size_t active_lanes,
+                                                      size_t vector_index,
                                                       size_t projection_offset,
                                                       size_t state_vector_offset) {
     load_projections(active_lanes, projection_offset);
     const auto state_row_bytes = m_jcp.state_size * m_jcp.state_precision.size();
-    const auto vector = projection_offset / (vector_size * sizeof(float));
     for (size_t row = 0; row < rows; ++row) {
         const auto state = state_vmm(row);
         const auto offset = row * state_row_bytes + state_vector_offset;
         load_state(state, active_lanes, offset);
         compute_state(row, active_lanes);
         store_state(state, active_lanes, offset);
-        accumulate_output(row, active_lanes, vector);
+        accumulate_output(row, active_lanes, vector_index);
     }
 }
 
@@ -262,6 +262,7 @@ void jit_selective_ssm_kernel<isa>::emit_row_tile(size_t rows) {
         for (size_t vector = 0; vector < max_unrolled_vectors; ++vector) {
             emit_state_vector(rows,
                               vector_size,
+                              vector,
                               vector * vector_size * sizeof(float),
                               vector * vector_size * state_element_size);
         }
@@ -273,13 +274,14 @@ void jit_selective_ssm_kernel<isa>::emit_row_tile(size_t rows) {
     for (size_t vector = 0; vector < full_vectors - loop_vectors; ++vector) {
         const auto projection_offset = vector * vector_size * sizeof(float);
         const auto state_vector_offset = vector * vector_size * state_element_size;
-        emit_state_vector(rows, vector_size, projection_offset, state_vector_offset);
+        emit_state_vector(rows, vector_size, vector, projection_offset, state_vector_offset);
     }
 
     if (tail > 0) {
-        const auto projection_offset = (full_vectors - loop_vectors) * vector_size * sizeof(float);
-        const auto state_vector_offset = (full_vectors - loop_vectors) * vector_size * state_element_size;
-        emit_state_vector(rows, tail, projection_offset, state_vector_offset);
+        const auto vector = full_vectors - loop_vectors;
+        const auto projection_offset = vector * vector_size * sizeof(float);
+        const auto state_vector_offset = vector * vector_size * state_element_size;
+        emit_state_vector(rows, tail, vector, projection_offset, state_vector_offset);
     }
 
     if (loop_vectors > 0) {

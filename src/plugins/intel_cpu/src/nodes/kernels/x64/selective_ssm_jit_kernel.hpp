@@ -65,6 +65,7 @@ private:
     static constexpr size_t max_row_tile = 4;
     // Keep the common 128-element state fully unrolled on AVX2 and AVX-512.
     static constexpr size_t max_unrolled_vectors = 16;
+    // An even chunk length preserves accumulator-bank parity when the runtime vector loop restarts at index 0.
     static_assert(max_unrolled_vectors % 2 == 0);
 
     // Preparation scratch aliases the first accumulator, before any accumulation bank is initialized.
@@ -75,7 +76,11 @@ private:
 
     void generate() override;
     void emit_row_tile(size_t rows);
-    void emit_state_vector(size_t rows, size_t active_lanes, size_t projection_offset, size_t state_vector_offset);
+    void emit_state_vector(size_t rows,
+                           size_t active_lanes,
+                           size_t vector_index,
+                           size_t projection_offset,
+                           size_t state_vector_offset);
     void load_projections(size_t active_lanes, size_t projection_offset);
     void load_state(const Vmm& destination, size_t active_lanes, size_t offset);
     void compute_state(size_t row, size_t active_lanes);
