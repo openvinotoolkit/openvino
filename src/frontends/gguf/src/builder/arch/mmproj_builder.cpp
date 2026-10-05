@@ -21,22 +21,22 @@ namespace {
 constexpr float kUnifiedShrink = 1.f / 16;
 
 enum class EncoderTopology {
-    Siglip,
-    Clip,
-    Whisper,
-    Qwen,
-    Internvl,
-    Resampler,
-    Pixtral,
-    Gemma4,
-    UnifiedVision,
-    UnifiedAudio,
-    MiniCPM46,
-    MuseGlimmer,
-    Phi4,
-    Gemma4Audio,
-    Ocr,
-    Ocr2
+    SIGLIP,
+    CLIP,
+    WHISPER,
+    QWEN,
+    INTERNVL,
+    RESAMPLER,
+    PIXTRAL,
+    GEMMA4,
+    UNIFIED_VISION,
+    UNIFIED_AUDIO,
+    MINICPM46,
+    MUSE_GLIMMER,
+    PHI4,
+    GEMMA4_AUDIO,
+    OCR,
+    OCR2
 };
 
 // ggml rope mode bits, as passed in the op_case.
@@ -59,31 +59,31 @@ struct ProjectorDefinition {
 
 // Entries describe implemented graph topologies, independently of language DecoderConfig.
 constexpr ProjectorDefinition projector_catalog[] = {
-    {"vision", "deepseekocr", EncoderTopology::Ocr},
-    {"vision", "deepseekocr2", EncoderTopology::Ocr2, RMS_NORM},
-    {"vision", "pixtral", EncoderTopology::Pixtral, RMS_NORM},
-    {"vision", "phi4", EncoderTopology::Phi4},
-    {"vision", "muse-glimmer", EncoderTopology::MuseGlimmer},
-    {"vision", "gemma4v", EncoderTopology::Gemma4, RMS_NORM},
-    {"vision", "gemma4uv", EncoderTopology::UnifiedVision},
-    {"audio", "gemma4a", EncoderTopology::Gemma4Audio},
-    {"audio", "gemma4ua", EncoderTopology::UnifiedAudio},
-    {"vision", "minicpmv4_6", EncoderTopology::MiniCPM46},
-    {"vision", "gemma3", EncoderTopology::Siglip, SWAPPED_FFN},
-    {"vision", "idefics3", EncoderTopology::Siglip, SWAPPED_FFN},
-    {"vision", "janus_pro", EncoderTopology::Siglip},
-    {"vision", "mlp", EncoderTopology::Clip, SWAPPED_FFN},
-    {"vision", "internvl", EncoderTopology::Internvl},
-    {"vision", "resampler", EncoderTopology::Resampler},
-    {"vision", "qwen2vl_merger", EncoderTopology::Qwen, SWAPPED_FFN},
-    {"vision", "qwen2.5vl_merger", EncoderTopology::Qwen, RMS_NORM | SWAPPED_FFN},
-    {"vision", "qwen3vl_merger", EncoderTopology::Qwen},
-    {"audio", "qwen2a", EncoderTopology::Whisper, POOL_2},
-    {"audio", "ultravox", EncoderTopology::Whisper},
-    {"audio", "voxtral", EncoderTopology::Whisper, POOL_2},
-    {"audio", "musicflamingo", EncoderTopology::Whisper, POOL_2},
-    {"audio", "meralion", EncoderTopology::Whisper},
-    {"audio", "glma", EncoderTopology::Whisper},
+    {"vision", "deepseekocr", EncoderTopology::OCR},
+    {"vision", "deepseekocr2", EncoderTopology::OCR2, RMS_NORM},
+    {"vision", "pixtral", EncoderTopology::PIXTRAL, RMS_NORM},
+    {"vision", "phi4", EncoderTopology::PHI4},
+    {"vision", "muse-glimmer", EncoderTopology::MUSE_GLIMMER},
+    {"vision", "gemma4v", EncoderTopology::GEMMA4, RMS_NORM},
+    {"vision", "gemma4uv", EncoderTopology::UNIFIED_VISION},
+    {"audio", "gemma4a", EncoderTopology::GEMMA4_AUDIO},
+    {"audio", "gemma4ua", EncoderTopology::UNIFIED_AUDIO},
+    {"vision", "minicpmv4_6", EncoderTopology::MINICPM46},
+    {"vision", "gemma3", EncoderTopology::SIGLIP, SWAPPED_FFN},
+    {"vision", "idefics3", EncoderTopology::SIGLIP, SWAPPED_FFN},
+    {"vision", "janus_pro", EncoderTopology::SIGLIP},
+    {"vision", "mlp", EncoderTopology::CLIP, SWAPPED_FFN},
+    {"vision", "internvl", EncoderTopology::INTERNVL},
+    {"vision", "resampler", EncoderTopology::RESAMPLER},
+    {"vision", "qwen2vl_merger", EncoderTopology::QWEN, SWAPPED_FFN},
+    {"vision", "qwen2.5vl_merger", EncoderTopology::QWEN, RMS_NORM | SWAPPED_FFN},
+    {"vision", "qwen3vl_merger", EncoderTopology::QWEN},
+    {"audio", "qwen2a", EncoderTopology::WHISPER, POOL_2},
+    {"audio", "ultravox", EncoderTopology::WHISPER},
+    {"audio", "voxtral", EncoderTopology::WHISPER, POOL_2},
+    {"audio", "musicflamingo", EncoderTopology::WHISPER, POOL_2},
+    {"audio", "meralion", EncoderTopology::WHISPER},
+    {"audio", "glma", EncoderTopology::WHISPER},
 };
 
 struct EncoderConfig {
@@ -101,7 +101,7 @@ struct EncoderConfig {
 
 bool rms_encoder(const EncoderConfig& c) {
     // As in llama.cpp, InternViT-6B is recognized by its geometry.
-    return (c.traits & RMS_NORM) || (c.topology == EncoderTopology::Internvl && c.width == 3200 && c.layers == 45);
+    return (c.traits & RMS_NORM) || (c.topology == EncoderTopology::INTERNVL && c.width == 3200 && c.layers == 45);
 }
 
 int64_t positive(const GgufMetadata& meta, const std::string& key) {
@@ -135,8 +135,8 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality) {
                     "'");
     c.topology = entry->topology;
     c.traits = entry->traits;
-    c.clip = c.topology == EncoderTopology::Gemma4 || c.topology == EncoderTopology::Gemma4Audio;
-    if (c.topology == EncoderTopology::UnifiedAudio) {
+    c.clip = c.topology == EncoderTopology::GEMMA4 || c.topology == EncoderTopology::GEMMA4_AUDIO;
+    if (c.topology == EncoderTopology::UNIFIED_AUDIO) {
         c.width = 640;
         c.heads = 1;
         c.layers = 0;
@@ -144,12 +144,12 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality) {
         return c;
     }
     c.width = positive(meta, key + "embedding_length");
-    c.heads = c.topology == EncoderTopology::UnifiedVision ? 1 : positive(meta, key + "attention.head_count");
-    c.kv_heads = c.topology == EncoderTopology::Ocr2 ? positive(meta, key + "attention.head_count_kv") : c.heads;
+    c.heads = c.topology == EncoderTopology::UNIFIED_VISION ? 1 : positive(meta, key + "attention.head_count");
+    c.kv_heads = c.topology == EncoderTopology::OCR2 ? positive(meta, key + "attention.head_count_kv") : c.heads;
     // GQA head expansion is done by the FLASH_ATTN_EXT translator.
     OPENVINO_ASSERT(c.heads % c.kv_heads == 0, "[GGUF] encoder GQA head count mismatch");
-    c.layers = c.topology == EncoderTopology::UnifiedVision ? 0 : positive(meta, key + "block_count");
-    if (c.topology == EncoderTopology::Clip) {
+    c.layers = c.topology == EncoderTopology::UNIFIED_VISION ? 0 : positive(meta, key + "block_count");
+    if (c.topology == EncoderTopology::CLIP) {
         c.feature_layers = meta.get_int_array(key + "feature_layer");
         for (auto layer : c.feature_layers)
             OPENVINO_ASSERT(layer >= 0 && layer <= c.layers, "[GGUF] invalid CLIP feature layer ", layer);
@@ -159,7 +159,7 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality) {
     OPENVINO_ASSERT(c.width % c.heads == 0, "[GGUF] mmproj embedding width must be divisible by head count");
     const auto eps = meta.get_float(key + "attention.layer_norm_epsilon");
     OPENVINO_ASSERT(eps && std::isfinite(*eps) && *eps > 0, "[GGUF] invalid ", key, "attention.layer_norm_epsilon");
-    c.eps = c.topology == EncoderTopology::Gemma4Audio ? 1e-6f : static_cast<float>(*eps);
+    c.eps = c.topology == EncoderTopology::GEMMA4_AUDIO ? 1e-6f : static_cast<float>(*eps);
     const bool gelu = meta.get_bool("clip.use_gelu").value_or(false);
     const bool silu = meta.get_bool("clip.use_silu").value_or(false);
     OPENVINO_ASSERT(!(gelu && silu), "[GGUF] mmproj cannot enable both GELU and SiLU");
@@ -170,29 +170,29 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality) {
         c.activation = "GGML_UNARY_OP_SILU";
     if (modality == "vision") {
         c.patch = positive(meta, key + "patch_size");
-        if (c.topology == EncoderTopology::Ocr || c.topology == EncoderTopology::Ocr2) {
+        if (c.topology == EncoderTopology::OCR || c.topology == EncoderTopology::OCR2) {
             c.patch = 16;
             c.merge = 4;
-            if (c.topology == EncoderTopology::Ocr)
+            if (c.topology == EncoderTopology::OCR)
                 c.eps = 1e-5f;
             else
                 c.activation = "GGML_UNARY_OP_SILU";
             return c;
         }
-        if (c.topology == EncoderTopology::Pixtral || c.topology == EncoderTopology::Gemma4 ||
-            c.topology == EncoderTopology::UnifiedVision || c.topology == EncoderTopology::MiniCPM46 ||
-            c.topology == EncoderTopology::Phi4) {
-            if (c.topology == EncoderTopology::Pixtral)
+        if (c.topology == EncoderTopology::PIXTRAL || c.topology == EncoderTopology::GEMMA4 ||
+            c.topology == EncoderTopology::UNIFIED_VISION || c.topology == EncoderTopology::MINICPM46 ||
+            c.topology == EncoderTopology::PHI4) {
+            if (c.topology == EncoderTopology::PIXTRAL)
                 c.merge = meta.get_int(key + "spatial_merge_size").value_or(1);
-            else if (c.topology != EncoderTopology::Phi4)
+            else if (c.topology != EncoderTopology::PHI4)
                 c.merge = meta.get_int(key + "projector.scale_factor")
-                              .value_or(c.topology == EncoderTopology::MiniCPM46 ? 4 : 3);
+                              .value_or(c.topology == EncoderTopology::MINICPM46 ? 4 : 3);
             OPENVINO_ASSERT(c.merge > 0, "[GGUF] invalid vision merge size");
-            if (c.topology == EncoderTopology::UnifiedVision) {
+            if (c.topology == EncoderTopology::UNIFIED_VISION) {
                 c.patch *= c.merge;
                 c.merge = 1;
             }
-            if (c.topology == EncoderTopology::MiniCPM46) {
+            if (c.topology == EncoderTopology::MINICPM46) {
                 auto layers = meta.get_int_array(key + "wa_layer_indexes");
                 c.window_pattern = layers.empty() ? 0 : layers.front();
                 OPENVINO_ASSERT(c.merge == 4 && c.window_pattern >= 0 && c.window_pattern < c.layers,
@@ -200,7 +200,7 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality) {
             }
             return c;
         }
-        if (c.topology == EncoderTopology::MuseGlimmer) {
+        if (c.topology == EncoderTopology::MUSE_GLIMMER) {
             c.merge = meta.get_int(key + "spatial_merge_size").value_or(2);
             c.window_pattern = 4;
             c.activation = "GGML_UNARY_OP_GELU_ERF";
@@ -208,7 +208,7 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality) {
                             "[GGUF] invalid Muse Glimmer merge or rotary head dimensions");
             return c;
         }
-        if (c.topology == EncoderTopology::Resampler) {
+        if (c.topology == EncoderTopology::RESAMPLER) {
             c.version = meta.get_int("clip.minicpmv_version").value_or(2);
             if (c.version == 0)
                 c.version = 2;
@@ -222,7 +222,7 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality) {
                 c.queries = c.version == 2 ? 96 : 64;
             return c;
         }
-        if (c.topology == EncoderTopology::Qwen) {
+        if (c.topology == EncoderTopology::QWEN) {
             c.merge = meta.get_int(key + "spatial_merge_size").value_or(2);
             c.window_pattern = c.projector == "qwen2.5vl_merger" ? positive(meta, key + "n_wa_pattern") : 0;
             OPENVINO_ASSERT(c.merge == 2 && c.width / c.heads % 4 == 0,
@@ -230,7 +230,7 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality) {
             return c;
         }
         c.image_size = positive(meta, key + "image_size");
-        c.merge = c.projector == "janus_pro" || c.topology == EncoderTopology::Clip
+        c.merge = c.projector == "janus_pro" || c.topology == EncoderTopology::CLIP
                       ? 1
                       : meta.get_int(key + "projector.scale_factor").value_or(c.projector == "gemma3" ? 4 : 2);
         OPENVINO_ASSERT(c.merge > 0 && c.image_size % c.patch == 0 && (c.image_size / c.patch) % c.merge == 0,
@@ -297,9 +297,9 @@ public:
         for (const auto& c : encoders) {
             graph->mmproj_config[c.modality + ".projector"] = c.projector;
             graph->mmproj_config[c.modality + ".merge"] = std::to_string(c.merge);
-            if (c.topology == EncoderTopology::MuseGlimmer)
+            if (c.topology == EncoderTopology::MUSE_GLIMMER)
                 graph->mmproj_config["vision.window_size"] = std::to_string(muse_window);
-            if (c.topology == EncoderTopology::Resampler) {
+            if (c.topology == EncoderTopology::RESAMPLER) {
                 graph->mmproj_config["vision.minicpmv_version"] = std::to_string(c.version);
                 graph->mmproj_config["vision.query_count"] = std::to_string(c.queries);
             }
@@ -468,9 +468,9 @@ private:
                 q = encoder_rope(q, c, rope_positions, rope_positions_b);
                 k = encoder_rope(k, c, rope_positions, rope_positions_b);
             }
-            if (c.topology == EncoderTopology::Gemma4)
+            if (c.topology == EncoderTopology::GEMMA4)
                 v = g.build_norm(v, {}, c.eps);
-            const bool muse = c.topology == EncoderTopology::MuseGlimmer;
+            const bool muse = c.topology == EncoderTopology::MUSE_GLIMMER;
             const bool windowed = window_mask && (c.window_pattern == 0 || (i + 1) % c.window_pattern != 0) &&
                                   !(muse && i == c.layers - 1);
             auto mask = windowed ? window_mask : GgufValue{};
@@ -488,7 +488,7 @@ private:
             z = attention(q,
                           k,
                           v,
-                          c.topology == EncoderTopology::Gemma4 ? 1.f : 1.f / std::sqrt(float(c.width / c.heads)),
+                          c.topology == EncoderTopology::GEMMA4 ? 1.f : 1.f / std::sqrt(float(c.width / c.heads)),
                           mask);
             z = window_tokens ? reshape(z, {1, 1, -1, c.width}) : reshape(z, {0, 1, -1, c.width}, true);
             z = linear(z, p + "attn_out");
@@ -538,7 +538,7 @@ private:
         const auto rope = [&](const GgufValue& value, const GgufValue& pos, int mode) {
             return g.node("GGML_OP_ROPE", {value, pos}, mode, {{"rope_config", r}});
         };
-        if (c.topology == EncoderTopology::Ocr2) {
+        if (c.topology == EncoderTopology::OCR2) {
             r.n_dims = head;
             r.freq_base = 1000000.f;
             return rope(x, positions, ROPE_NEOX);
@@ -550,11 +550,11 @@ private:
             return rope(x, positions, ROPE_VISION);
         }
         // Two position axes, each rotating one half of the head.
-        const bool gemma4 = c.topology == EncoderTopology::Gemma4;
+        const bool gemma4 = c.topology == EncoderTopology::GEMMA4;
         const int mode = gemma4 ? ROPE_NEOX : 0;
         r.freq_base = gemma4 ? 100.f : 10000.f;
         auto a = rope(slice(x, 3, 0, r.n_dims), positions, mode);
-        if (c.topology == EncoderTopology::Pixtral)
+        if (c.topology == EncoderTopology::PIXTRAL)
             r.freq_scale = std::pow(r.freq_base, -2.f / float(head));
         auto b = rope(slice(x, 3, r.n_dims, r.n_dims), positions_b, mode);
         return concat(a, b);
@@ -579,27 +579,27 @@ private:
         return g.node("GGML_OP_GET_ROWS", {x, index_input(index_name)});
     }
     GgufValue vision(const EncoderConfig& c) {
-        if (c.topology == EncoderTopology::Ocr || c.topology == EncoderTopology::Ocr2)
+        if (c.topology == EncoderTopology::OCR || c.topology == EncoderTopology::OCR2)
             return ocr_vision(c);
-        if (c.topology == EncoderTopology::Pixtral || c.topology == EncoderTopology::Gemma4 ||
-            c.topology == EncoderTopology::UnifiedVision || c.topology == EncoderTopology::Phi4)
+        if (c.topology == EncoderTopology::PIXTRAL || c.topology == EncoderTopology::GEMMA4 ||
+            c.topology == EncoderTopology::UNIFIED_VISION || c.topology == EncoderTopology::PHI4)
             return dynamic_vision(c);
-        if (c.topology == EncoderTopology::MiniCPM46)
+        if (c.topology == EncoderTopology::MINICPM46)
             return minicpm46(c);
-        if (c.topology == EncoderTopology::Qwen)
+        if (c.topology == EncoderTopology::QWEN)
             return qwen_vision(c);
-        if (c.topology == EncoderTopology::MuseGlimmer)
+        if (c.topology == EncoderTopology::MUSE_GLIMMER)
             return muse_glimmer_vision(c);
-        if (c.topology == EncoderTopology::Resampler)
+        if (c.topology == EncoderTopology::RESAMPLER)
             return resampler_vision(c);
         auto x = g.add_input("vision.pixel_values", ov::element::f32, {1, 3, c.image_size, c.image_size});
         x = patch_embeddings(convolution(x, "v.patch_embd.weight", c.patch), c.width);
-        if ((c.topology == EncoderTopology::Clip || c.topology == EncoderTopology::Internvl) &&
+        if ((c.topology == EncoderTopology::CLIP || c.topology == EncoderTopology::INTERNVL) &&
             g.tensors().has("v.class_embd"))
             x = concat(x, reshape(g.tensors().require("v.class_embd"), {1, 1, 1, c.width}), 1);
         x = vit(x, c, g.tensors().require("v.position_embd.weight"));
         const auto side = c.image_size / c.patch;
-        if (c.topology == EncoderTopology::Internvl) {
+        if (c.topology == EncoderTopology::INTERNVL) {
             OPENVINO_ASSERT(g.tensors().has("v.class_embd"), "[GGUF] InternVL requires a class embedding");
             x = slice(x, 2, 0, side * side);
             x = reshape(x, {1, side, side / c.merge, c.width * c.merge});
@@ -609,7 +609,7 @@ private:
             x = reshape(x, {1, 1, -1, c.width * c.merge * c.merge});
             return ffn(norm(x, "mm.model.mlp.0", 1e-5f), "mm.model.mlp.1", "mm.model.mlp.3", "GGML_UNARY_OP_GELU");
         }
-        if (c.topology == EncoderTopology::Clip) {
+        if (c.topology == EncoderTopology::CLIP) {
             const int64_t offset = g.tensors().has("v.class_embd") ? 1 : 0;
             x = slice(x, 2, offset, side * side);
             x = linear(x, "mm.0");
@@ -662,7 +662,7 @@ private:
     GgufValue dynamic_vision(const EncoderConfig& c) {
         auto pixels = g.add_input("vision.pixel_values", ov::element::f32, {1, 3, -1, -1});
         GgufValue spatial, x;
-        if (c.topology == EncoderTopology::UnifiedVision) {
+        if (c.topology == EncoderTopology::UNIFIED_VISION) {
             for (int i = 1; i <= 3; ++i) {
                 g.tensors().require("v.patch_norm." + std::to_string(i) + ".weight");
                 g.tensors().require("v.patch_norm." + std::to_string(i) + ".bias");
@@ -679,20 +679,20 @@ private:
             x = add(x, scale(g.tensors().require("v.patch_embd.bias"), kUnifiedShrink));
             x = norm(x, "v.patch_norm.2", 1e-5f * kUnifiedShrink * kUnifiedShrink);
         } else {
-            spatial = convolution(c.topology == EncoderTopology::Gemma4 ? scale(pixels, 2.f, -1.f) : pixels,
+            spatial = convolution(c.topology == EncoderTopology::GEMMA4 ? scale(pixels, 2.f, -1.f) : pixels,
                                   "v.patch_embd.weight",
                                   c.patch);
-            x = patch_embeddings(spatial, c.width, c.topology != EncoderTopology::Gemma4);
+            x = patch_embeddings(spatial, c.width, c.topology != EncoderTopology::GEMMA4);
         }
         GgufValue pos_a, pos_b, learned;
-        if (c.topology == EncoderTopology::Phi4) {
+        if (c.topology == EncoderTopology::PHI4) {
             auto table =
                 resize_square_table(g.tensors().require("v.position_embd.weight"), spatial, c.width, 0x201, "phi4");
             learned = reshape(transpose(table, {0, 2, 3, 1}), {1, 1, -1, c.width});
         } else {
             pos_a = index_input("position_x");
             pos_b = index_input("position_y");
-            if (c.topology != EncoderTopology::Pixtral) {
+            if (c.topology != EncoderTopology::PIXTRAL) {
                 auto table = g.tensors().require("v.position_embd.weight");
                 OPENVINO_ASSERT(table.ne(2) == 2, "[GGUF] Gemma4 position table requires x/y axes");
                 table = reshape(table, {1, 2, table.ne(1), c.width});
@@ -700,7 +700,7 @@ private:
                               g.node("GGML_OP_GET_ROWS", {slice(table, 1, 1, 1), pos_b}));
             }
         }
-        if (c.topology == EncoderTopology::UnifiedVision) {
+        if (c.topology == EncoderTopology::UNIFIED_VISION) {
             // The RMSNorm input squared exceeds F16 (x up to ~800); RMSNorm is scale-invariant as well.
             auto normed = scale(norm(add(x, learned), "v.patch_norm.3", 1e-5f), kUnifiedShrink);
             return linear(g.build_norm(normed, {}, c.eps * kUnifiedShrink * kUnifiedShrink), "mm.input_projection");
@@ -709,15 +709,15 @@ private:
         x = vit(x,
                 c,
                 learned,
-                c.topology == EncoderTopology::Pixtral ? pos_b : pos_a,
+                c.topology == EncoderTopology::PIXTRAL ? pos_b : pos_a,
                 {},
-                c.topology == EncoderTopology::Pixtral ? pos_a : pos_b);
-        if (c.topology == EncoderTopology::Phi4) {
+                c.topology == EncoderTopology::PIXTRAL ? pos_a : pos_b);
+        if (c.topology == EncoderTopology::PHI4) {
             g.tensors().require("mm.0.bias");
             g.tensors().require("mm.2.bias");
             return ffn(x, "mm.0", "mm.2", "GGML_UNARY_OP_GELU");
         }
-        if (c.topology == EncoderTopology::Gemma4) {
+        if (c.topology == EncoderTopology::GEMMA4) {
             x = pool(grid(transpose(x), spatial, c.width), c.merge, c.merge);
             x = scale(transpose(reshape(x, {1, 1, c.width, -1})), std::sqrt(float(c.width)));
             if (g.tensors().has("v.std_bias") && g.tensors().has("v.std_scale"))
@@ -941,7 +941,7 @@ private:
         auto spatial = sam(pixels);
         const auto sam_features = reshape(transpose(spatial, {0, 2, 3, 1}), {0, 1, -1, c.width}, true);
         auto x = sam_features;
-        if (c.topology == EncoderTopology::Ocr2) {
+        if (c.topology == EncoderTopology::OCR2) {
             auto queries = concat(reshape(g.tensors().require("v.resample_query_768.weight"), {1, 1, 144, c.width}),
                                   reshape(g.tensors().require("v.resample_query_1024.weight"), {1, 1, 256, c.width}),
                                   1);
@@ -981,7 +981,7 @@ private:
         const auto width = g.tensors().require("mm.model.fc.weight").ne(1);
         x = reshape(x, {1, 1, -1, width});
         // Indexing describes overview/tile row assembly, including learned separators.
-        if (c.topology == EncoderTopology::Ocr)
+        if (c.topology == EncoderTopology::OCR)
             x = concat(x, reshape(g.tensors().require("v.image_newline"), {1, 1, 1, width}), 1);
         x = concat(x, reshape(g.tensors().require("v.view_seperator"), {1, 1, 1, width}), 1);
         return gather_rows(x, "output_indices");
@@ -1094,9 +1094,9 @@ private:
         return linear(x, "mm.a.input_projection", false);
     }
     GgufValue audio(const EncoderConfig& c) {
-        if (c.topology == EncoderTopology::Gemma4Audio)
+        if (c.topology == EncoderTopology::GEMMA4_AUDIO)
             return gemma4_audio(c);
-        if (c.topology == EncoderTopology::UnifiedAudio) {
+        if (c.topology == EncoderTopology::UNIFIED_AUDIO) {
             auto x = g.add_input("audio.waveform_frames", ov::element::f32, {1, 1, -1, 640});
             return linear(g.build_norm(x, {}, c.eps), "mm.a.input_projection");
         }

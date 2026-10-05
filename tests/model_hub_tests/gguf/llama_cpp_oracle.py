@@ -8,7 +8,8 @@ The reference values come from llama.cpp itself at test time, so no stored expec
 stale. The build fetches one upstream commit, builds only libmtmd and its dependencies, and
 compiles mmproj_oracle.cpp from the GGUF frontend tests against it. Results are cached per
 revision under GGUF_LLAMA_CPP_CACHE (default: ~/.cache/openvino_gguf_llama_cpp).
-Set GGUF_MMPROJ_ORACLE to an already built mmproj_oracle to skip the build.
+Set GGUF_MMPROJ_ORACLE to an already built mmproj_oracle to skip the build; the checkout is
+still fetched for its gguf-py package.
 """
 
 import os
@@ -42,21 +43,31 @@ def _compilers():
     return cc, cxx
 
 
-def build_mmproj_oracle() -> Path:
-    if prebuilt := os.environ.get("GGUF_MMPROJ_ORACLE"):
-        return Path(prebuilt)
+def _root() -> Path:
     cache = Path(os.environ.get("GGUF_LLAMA_CPP_CACHE", Path.home() / ".cache" / "openvino_gguf_llama_cpp"))
-    root = cache / LLAMA_CPP_REVISION
-    oracle = root / "mmproj_oracle"
-    if oracle.exists():
-        return oracle
-    source, build = root / "src", root / "build"
+    return cache / LLAMA_CPP_REVISION
+
+
+def llama_cpp_checkout() -> Path:
+    """The pinned llama.cpp source tree, fetched on first use."""
+    source = _root() / "src"
     if not (source / "CMakeLists.txt").exists():
         shutil.rmtree(source, ignore_errors=True)
         source.mkdir(parents=True)
         _run(["git", "init", "-q"], cwd=source)
         _run(["git", "fetch", "-q", "--depth", "1", LLAMA_CPP_REPO, LLAMA_CPP_REVISION], cwd=source)
         _run(["git", "checkout", "-q", "FETCH_HEAD"], cwd=source)
+    return source
+
+
+def build_mmproj_oracle() -> Path:
+    if prebuilt := os.environ.get("GGUF_MMPROJ_ORACLE"):
+        return Path(prebuilt)
+    root = _root()
+    oracle = root / "mmproj_oracle"
+    if oracle.exists():
+        return oracle
+    source, build = llama_cpp_checkout(), root / "build"
     cc, cxx = _compilers()
     _run(["cmake", "-S", source, "-B", build, "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
           f"-DCMAKE_C_COMPILER={cc}", f"-DCMAKE_CXX_COMPILER={cxx}", "-DGGML_NATIVE=OFF",

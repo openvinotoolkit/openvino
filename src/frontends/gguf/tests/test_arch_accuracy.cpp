@@ -8,12 +8,14 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <set>
 
 #include "cnpy.h"
 #include "common_test_utils/common_utils.hpp"
 #include "gtest/gtest.h"
 #include "op_test_utils.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
+#include "openvino/frontend/gguf/adapt_mmproj_to_genai.hpp"
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
@@ -190,6 +192,36 @@ TEST(GGUFMultimodalBackboneAdaptation, GemmaEmbeddingModelOwnsTokenScaling) {
             ov_gguf_test::nmse(actual.data<const float>(), expected.data<const float>(), actual.get_size()),
             1e-10);
     }
+}
+
+// Adapters registered as transformation extensions run during conversion and must already see
+// the architecture and projector metadata they select their changes by.
+TEST(GGUFMultimodalBackboneAdaptation, AdaptersRegisteredAsExtensionsSeeModelMetadata) {
+    using ov::frontend::DecoderTransformationExtension;
+    namespace pass = ov::frontend::gguf::pass;
+    const auto convert = [](const std::string& fixture, const std::vector<std::shared_ptr<ov::Extension>>& passes) {
+        auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/" + fixture);
+        const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+        ov::frontend::gguf::FrontEnd frontend;
+        for (const auto& extension : passes)
+            frontend.add_extension(extension);
+        return frontend.convert(frontend.load(temporary.path));
+    };
+    const auto names = [](const auto& ports) {
+        std::set<std::string> result;
+        for (const auto& port : ports)
+            result.insert(port.get_any_name());
+        return result;
+    };
+    const auto language = convert("arch_accuracy/gemma3.npz",
+                                  {std::make_shared<DecoderTransformationExtension>(pass::GGUFMakeStateful()),
+                                   std::make_shared<DecoderTransformationExtension>(
+                                       pass::AdaptToGenAI(pass::AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS))});
+    EXPECT_EQ(names(language->inputs()).count("token_type_ids"), 1);
+    const auto vision = convert("mmproj_accuracy/qwen3vl_merger.npz",
+                                {std::make_shared<DecoderTransformationExtension>(
+                                    pass::AdaptMmprojToGenAI(pass::AdaptMmprojToGenAI::Modality::VISION))});
+    EXPECT_EQ(names(vision->outputs()), (std::set<std::string>{"image_features", "deepstack_features.0"}));
 }
 
 TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {

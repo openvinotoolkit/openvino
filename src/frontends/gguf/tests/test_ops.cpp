@@ -2402,6 +2402,37 @@ TEST(GGUFOps, GatedDeltaNetFused) {
     expect_near(out, expected, 1e-4f);
 }
 
+// Requested Q/K normalization follows ggml, x / max(||x||, eps), also for vectors below eps-scale
+// norms: q = k = [1e-4, 0] normalize to [1, 0], so one update with v = [1, 0] attends 1/sqrt(2).
+TEST(GGUFOps, GatedDeltaNetFusedQkNormFollowsGgmlForSmallVectors) {
+    const int64_t B = 1, T = 1, H = 1, D = 2;
+    auto qkv_shp = ov::PartialShape{B, T, H, D};
+    auto gate_shp = ov::PartialShape{B, T, H, 1};
+    auto model = SingleOpBuilder()
+                     .op("GGML_OP_GATED_DELTA_NET")
+                     .input("q", ov::element::f32, qkv_shp)
+                     .input("k", ov::element::f32, qkv_shp)
+                     .input("v", ov::element::f32, qkv_shp)
+                     .input("g", ov::element::f32, gate_shp)
+                     .input("beta", ov::element::f32, gate_shp)
+                     .input("state", ov::element::f32, ov::PartialShape{B, H, D, D})
+                     .output("out", ov::element::f32, {1, 1, (T + D) * B, D * H})
+                     .attr("fuse_qk_l2norm", true)
+                     .attr("qk_l2_norm_eps", 1e-6f)
+                     .build();
+    const ov::Shape qkv{1, 1, 1, 2}, gate{1, 1, 1, 1};
+    auto out = run_on_cpu(model,
+                          {{"q", make_f32_tensor(qkv, {1e-4f, 0})},
+                           {"k", make_f32_tensor(qkv, {1e-4f, 0})},
+                           {"v", make_f32_tensor(qkv, {1, 0})},
+                           {"g", make_f32_tensor(gate, {0})},
+                           {"beta", make_f32_tensor(gate, {1})},
+                           {"state", make_f32_tensor({1, 1, 2, 2}, {0, 0, 0, 0})}});
+    ASSERT_GE(out.get_size(), 2u);
+    EXPECT_NEAR(out.data<const float>()[0], 1.0f / std::sqrt(2.0f), 1e-4f);
+    EXPECT_NEAR(out.data<const float>()[1], 0.0f, 1e-6f);
+}
+
 // GatedDeltaNet, fused-op path with MULTIPLE HEADS (H=2). qwen3-next real dims are H=32; the
 // single-head tests above (H=1) collapse the head axis so they never exercise the per-head packing
 // of attn/state into the flat output. This reproduces the multi-head case: for B=1, T tokens and

@@ -78,6 +78,14 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     auto beta = context.get_input(4);
     auto state = context.get_input(5);
 
+    // ggml normalizes with x / max(||x||, eps); the op's fused normalization adds eps under the
+    // square root instead, which differs for small vectors, so normalize here.
+    if (context.get_attribute<bool>("fuse_qk_l2norm", false)) {
+        const float eps = context.get_attribute<float>("qk_l2_norm_eps", 1e-6f);
+        q = make_l2_norm(q, eps);
+        k = make_l2_norm(k, eps);
+    }
+
     // ggml maps GQA heads in tiled order, while the OV op maps repeated heads in grouped order:
     // tile Q/K along the head axis so their head count matches V. A builder that already stored
     // the V heads in grouped order sets "gqa_grouped" and needs no Tile.
@@ -117,15 +125,7 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
         beta = std::make_shared<ov::op::v1::Multiply>(beta, mask);
     }
 
-    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q,
-                                                                 k,
-                                                                 v,
-                                                                 state,
-                                                                 g,
-                                                                 beta,
-                                                                 context.get_attribute<bool>("fuse_qk_l2norm", false),
-                                                                 context.get_attribute<float>("qk_l2_norm_eps", 1e-6f),
-                                                                 context.get_attribute<float>("qk_l2_norm_eps", 1e-6f));
+    auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q, k, v, state, g, beta, false);
     auto attn_4d = gdn->output(0);
     auto state_4d = gdn->output(1);  // [B, H_v, key_dim, value_dim]
     if (split_outputs) {

@@ -23,7 +23,7 @@ from openvino.frontend import FrontEndManager
 
 from models_hub_common.constants import clean_hf_cache_dir, hf_cache_dir
 from models_hub_common.utils import cleanup_dir
-from llama_cpp_oracle import build_mmproj_oracle, frontend_test_file
+from llama_cpp_oracle import build_mmproj_oracle, frontend_test_file, llama_cpp_checkout
 from utils import gguf_hub_download, parse_gguf_model_list
 
 # Input builders and the dequantizer are shared with src/frontends/gguf/tests.
@@ -37,12 +37,9 @@ DEFAULT_NMSE_LIMIT = 1e-4
 
 @pytest.fixture(scope="module")
 def oracle():
-    path = build_mmproj_oracle()
     # The pinned checkout's gguf-py writes the F32 reference copies.
-    gguf_py = path.parent / "src" / "gguf-py"
-    if gguf_py.exists():
-        sys.path.insert(0, str(gguf_py))
-    return path
+    sys.path.insert(0, str(llama_cpp_checkout() / "gguf-py"))
+    return build_mmproj_oracle()
 
 
 def encoder(model, modality):
