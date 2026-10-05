@@ -120,7 +120,7 @@ TEST_F(GGUFMMProj, MixedFileHasIndependentVisionAndAudioBranches) {
     EXPECT_EQ(model->output(1).get_any_name(), "audio.embeddings");
     auto vision = model->clone();
     using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
-    Adapter(Adapter::Modality::Vision).run_on_model(vision);
+    Adapter(Adapter::Modality::VISION).run_on_model(vision);
     EXPECT_EQ(vision->inputs().size(), 1);
     EXPECT_EQ(vision->input().get_any_name(), "pixel_values");
     EXPECT_EQ(vision->output().get_shape(), (ov::Shape{1, 4, 6}));
@@ -279,7 +279,7 @@ TEST_P(GGUFMMProjAccuracy, EmbeddingsMatchLlamaCPU) {
     // DeepStack branches, while exposing independently executable modalities.
     auto adapted = model->clone();
     using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
-    Adapter(audio ? Adapter::Modality::Audio : Adapter::Modality::Vision).run_on_model(adapted);
+    Adapter(audio ? Adapter::Modality::AUDIO : Adapter::Modality::VISION).run_on_model(adapted);
     auto adapted_request = compile(adapted);
     for (const auto& input : adapted->inputs())
         adapted_request.set_tensor(
@@ -301,13 +301,19 @@ TEST_P(GGUFMMProjAccuracy, EmbeddingsMatchLlamaCPU) {
 
 class GGUFMMProjDynamicAccuracy : public GGUFMMProjAccuracy {};
 
+// The low-contrast fixture's patch projection cancels to rounding noise, which differs with the
+// platform's summation order (3e-5 on ARM64). Dropping its recentering raises the error to 1e-3.
+double dynamic_accuracy_limit(const std::string& family) {
+    return family == "gemma4uv_low_contrast" ? 1e-4 : 1e-5;
+}
+
 TEST_P(GGUFMMProjDynamicAccuracy, ReusesCompiledModelAcrossGrids) {
     for (bool adapt : {false, true}) {
         auto current = model->clone();
         const bool audio = model->has_rt_info({"gguf_mmproj", "audio.projector"});
         using Adapter = ov::frontend::gguf::pass::AdaptMmprojToGenAI;
         if (adapt)
-            Adapter(audio ? Adapter::Modality::Audio : Adapter::Modality::Vision).run_on_model(current);
+            Adapter(audio ? Adapter::Modality::AUDIO : Adapter::Modality::VISION).run_on_model(current);
         auto request = compile(current);
         for (int step : {0, 1, 0}) {
             for (const auto& input : current->inputs()) {
@@ -324,7 +330,7 @@ TEST_P(GGUFMMProjDynamicAccuracy, ReusesCompiledModelAcrossGrids) {
             ASSERT_EQ(output.get_shape(), shape);
             ov_gguf_test::expect_nmse_below(
                 ov_gguf_test::nmse(output.data<const float>(), expected.data<float>(), output.get_size()),
-                1e-5,
+                dynamic_accuracy_limit(GetParam()),
                 std::string(GetParam()) + " step=" + std::to_string(step) + " adapted=" + std::to_string(adapt));
         }
     }

@@ -16,7 +16,7 @@
 
 namespace ov::frontend::gguf::pass {
 bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    const std::string prefix = m_modality == Modality::Vision ? "vision." : "audio.";
+    const std::string prefix = m_modality == Modality::VISION ? "vision." : "audio.";
     std::shared_ptr<ov::op::v0::Result> selected;
     for (const auto& result : model->get_results()) {
         if (result->input_value(0).get_names().count(prefix + "embeddings"))
@@ -31,7 +31,7 @@ bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     auto embeddings = std::make_shared<ov::op::v0::Squeeze>(selected->input_value(0),
                                                             ov::op::v0::Constant::create(ov::element::i64, {1}, {0}));
     size_t auxiliary_count = 0;
-    if (m_modality == Modality::Vision && model->has_rt_info({"gguf_mmproj", "vision.auxiliary_count"}))
+    if (m_modality == Modality::VISION && model->has_rt_info({"gguf_mmproj", "vision.auxiliary_count"}))
         auxiliary_count = std::stoull(model->get_rt_info<std::string>({"gguf_mmproj", "vision.auxiliary_count"}));
     if (auxiliary_count) {
         auto split = std::make_shared<ov::op::v1::Split>(embeddings,
@@ -43,7 +43,7 @@ bool AdaptMmprojToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
         }
     } else {
         // Only the tensor that becomes a Result is named; the Split path names output 0 instead.
-        embeddings->output(0).set_names({m_modality == Modality::Vision ? "image_features" : "audio_features"});
+        embeddings->output(0).set_names({m_modality == Modality::VISION ? "image_features" : "audio_features"});
         model->add_results({std::make_shared<ov::op::v0::Result>(embeddings)});
     }
     PruneParametersOrphanedSince(live_before).run_on_model(model);

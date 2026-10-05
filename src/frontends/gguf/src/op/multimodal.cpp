@@ -141,8 +141,8 @@ OutputVector translate_conv_2d(const NodeContext& context) {
         {std::make_shared<ov::op::v1::Convolution>(x,
                                                    w,
                                                    ov::Strides{size_t(p[1]), size_t(p[0])},
-                                                   ov::CoordinateDiff{p[3], p[2]},
-                                                   ov::CoordinateDiff{p[3], p[2]},
+                                                   ov::CoordinateDiff{std::ptrdiff_t(p[3]), std::ptrdiff_t(p[2])},
+                                                   ov::CoordinateDiff{std::ptrdiff_t(p[3]), std::ptrdiff_t(p[2])},
                                                    ov::Strides{size_t(p[5]), size_t(p[4])})},
         context.get_name());
 }

@@ -14,7 +14,7 @@ namespace ov::frontend::gguf::pass {
 class GGUF_FRONTEND_API AdaptMmprojToGenAI : public ov::pass::ModelPass {
 public:
     OPENVINO_MODEL_PASS_RTTI("ov::frontend::gguf::pass::AdaptMmprojToGenAI");
-    enum class Modality { Vision, Audio };
+    enum class Modality { VISION, AUDIO };
     explicit AdaptMmprojToGenAI(Modality modality) : m_modality(modality) {}
     bool run_on_model(const std::shared_ptr<ov::Model>& model) override;
 
