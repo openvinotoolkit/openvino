@@ -33,9 +33,13 @@ public:
     PluginCompilerAdapter(ov::SoPtr<IVCLCompiler> compiler,
                           const std::shared_ptr<ZeroInitStructsHolder>& zeroInitStruct);
 
-    std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
+    std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
+                                    const Config& config,
+                                    const AdapterDescriptor& adapterDesc) const override;
 
-    std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model, const Config& config) const override;
+    std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model,
+                                      const Config& config,
+                                      const AdapterDescriptor& adapterDesc) const override;
 
     ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
 

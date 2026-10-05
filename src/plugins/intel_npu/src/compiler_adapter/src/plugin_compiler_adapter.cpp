@@ -50,7 +50,8 @@ PluginCompilerAdapter::PluginCompilerAdapter(ov::SoPtr<IVCLCompiler> compiler,
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<const ov::Model>& model,
-                                                       const Config& config) const {
+                                                       const Config& config,
+                                                       const AdapterDescriptor&) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compile");
 
     _logger.debug("compile start");
@@ -69,7 +70,7 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
 
         // metadata will be obtained in initialze() of DynamicGraph
         _logger.debug("Use dynamicGraph to hold blob for HostCompile mode!");
-        return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), config, blobType);
+        return std::make_shared<DynamicGraph>(_zeroInitStruct, std::move(tensor), blobType);
     }
 
     GraphDescriptor graphDesc;
@@ -97,13 +98,13 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compile(const std::shared_ptr<con
         graphDesc,
         std::move(networkMeta),
         std::move(tensor),
-        config,
         compatibilityDescriptor,
         /* persistentBlob = */ true);  // exporting the blob shall be available in such a scenario
 }
 
 std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Model>&& model,
-                                                         const Config& config) const {
+                                                         const Config& config,
+                                                         const AdapterDescriptor&) const {
     OV_ITT_TASK_CHAIN(COMPILE_BLOB, itt::domains::NPUPlugin, "PluginCompilerAdapter", "compileWS");
     _logger.debug("compile start");
 
@@ -254,7 +255,6 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
         std::move(initNetworkMetadata),
         tensorsInits,
         std::move(model),
-        localConfig,
         /* persistentBlob = */ true,
         compatibilityDescriptor);  // exporting the blob shall be available in such a scenario
 }
