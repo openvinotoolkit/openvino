@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <algorithm>
 #include <memory>
 
 #include "low_precision/network_helper.hpp"
@@ -64,26 +63,16 @@ inline ov::matcher_pass_callback make_int8_bias_reorder_callback(
         }
 
         // Subtract could be optional
-        if (const auto subtract = ov::as_type_ptr<ov::op::v1::Subtract>(gemm->get_input_node_shared_ptr(0))) {
-            if (fakeQuantize->get_output_element_type(0) != subtract->get_input_element_type(0)) {
-                return false;
-            }
-
-            const auto zp_constant = ov::as_type_ptr<ov::op::v0::Constant>(subtract->get_input_node_shared_ptr(1));
-            if (!zp_constant) {
-                return false;
-            }
-            const auto zp = zp_constant->cast_vector<float>();
-            if (zp.empty() || !std::all_of(zp.begin(), zp.end(), [&zp](float value) {
-                    return value == zp[0];
-                })) {
-                return false;
-            }
-        } else {
-            if (fakeQuantize->get_output_element_type(0) != gemm->get_input_element_type(0)) {
-                return false;
-            }
+        auto subtract_out = block->get_anchor("u8_subtract", pattern_map);
+        if (!subtract_out) {
+            subtract_out = block->get_anchor("i8_subtract", pattern_map);
         }
+        const auto& activation_type =
+            subtract_out ? subtract_out->get_node()->get_input_element_type(0) : gemm->get_input_element_type(0);
+        if (fakeQuantize->get_output_element_type(0) != activation_type) {
+            return false;
+        }
+
         auto new_mul = ov::as_type_ptr<ov::opset1::Multiply>(
             ov::pass::low_precision::NetworkHelper::swapMultiplyAndAdd(ov::as_type_ptr<ov::opset1::Add>(add), 0));
         if (!new_mul) {
@@ -121,8 +110,9 @@ inline ov::matcher_pass_callback make_int8_bias_reorder_callback(
 template <class GemmBlock>
 class ConvertGemmBias : public ov::pass::MatcherPass {
 protected:
-    explicit ConvertGemmBias(const char* pass_name) {
-        auto block = std::make_shared<GemmBlock>(true);
+    template <class... BlockArgs>
+    explicit ConvertGemmBias(const char* pass_name, BlockArgs... block_args) {
+        auto block = std::make_shared<GemmBlock>(true, block_args...);
         register_matcher(std::make_shared<ov::pass::pattern::Matcher>(block, pass_name),
                          make_int8_bias_reorder_callback(block));
     }

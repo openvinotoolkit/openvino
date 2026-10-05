@@ -76,19 +76,18 @@ ov::intel_cpu::FallbackUnsupportedLPConvToFP16::FallbackUnsupportedLPConvToFP16(
         const bool has_subtract = u8_subtract_out.has_value() || i8_subtract_out.has_value();
 
         if (has_subtract) {
-        const auto u8_zero_point_out = conv_mul_add_fq->get_anchor("u8_zero_point", pattern_map);
-        const auto i8_zero_point_out = conv_mul_add_fq->get_anchor("i8_zero_point", pattern_map);
-        const auto zero_point_out = u8_zero_point_out ? u8_zero_point_out : i8_zero_point_out;
+            const auto u8_zero_point_out = conv_mul_add_fq->get_anchor("u8_zero_point", pattern_map);
+            const auto i8_zero_point_out = conv_mul_add_fq->get_anchor("i8_zero_point", pattern_map);
+            const auto zero_point_out = u8_zero_point_out ? u8_zero_point_out : i8_zero_point_out;
             if (const auto zp_constant = ov::as_type_ptr<ov::op::v0::Constant>(zero_point_out->get_node_shared_ptr())) {
                 const auto zp = zp_constant->cast_vector<float>();
                 OPENVINO_ASSERT(!zp.empty(), "zero point constant is unexpectedly empty in fp16 fallback");
                 const auto activation_out = conv_mul_add_fq->get_anchor("activation", pattern_map);
-                const auto zp_values = zp[0];
-                const bool uniform = std::all_of(zp.begin(), zp.end(), [zp_values](float value) {
-                    return value == zp_values;
-                });
-                // currently only u8-tail case can be fused as int8. A mismatched (e.g. i8) tail has no u8-src path in ACL.
-                // TODO: relax this check when u8-src f32-output LP conv is supported (corresponding to TODO in graph_optimizer.cpp)
+                const bool uniform = is_uniform_zero_point(zp_constant);
+                // currently only u8-tail case can be fused as int8. A mismatched (e.g. i8) tail has no u8-src path in
+                // ACL.
+                // TODO: relax this check when u8-src f32-output LP conv is supported (corresponding to TODO in
+                // graph_optimizer.cpp)
                 if (uniform && !activation_out && fake_quantize->get_output_element_type(0) == element::u8) {
                     return false;
                 }
