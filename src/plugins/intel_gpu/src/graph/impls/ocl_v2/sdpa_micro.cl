@@ -83,10 +83,11 @@ typedef ugemm_vs_c_type a_tile_type;
 #error "I8_VS needs the transposed V: the integer V*S gemm contracts over the contiguous axis"
 #endif
 
-/* I8_KQ requires Q to arrive holding exact integer codes, so that rounding it into SLM loses
-   nothing. Rotating Q first mixes two codes into each output element, which is neither integral
-   nor bounded by the original code range -- it saturates against the s8 grid. RoPESDPAFusion
-   declines to fuse onto an i8 key for this reason; this is the kernel-side statement of it. */
+/* I8_KQ rounds Q to s8 while staging it into SLM, which loses nothing only for a Q that already
+   holds integers in the s8 range; the GPU pipeline keeps an i8 key only for such a query.
+   Rotating Q first mixes two of those integers into each output element, which is neither
+   integral nor bounded by the s8 range -- it saturates. RoPESDPAFusion declines to fuse onto an
+   i8 key for this reason; this is the kernel-side statement of it. */
 #if I8_KQ && WITH_ROPE_Q
 #error "I8_KQ is incompatible with a fused Q rotation"
 #endif
