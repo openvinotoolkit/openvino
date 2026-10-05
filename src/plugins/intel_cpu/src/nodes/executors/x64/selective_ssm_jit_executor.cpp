@@ -111,6 +111,11 @@ bool SelectiveSSMJitExecutorBase::configure_resources(const ResourceRequirements
     }
 
     KernelBundle kernels;
+    // Prefill iterates over tokens using an FP32 working state (final output or worker scratch), updated
+    // in_place to avoid low-precision rounding between timesteps. Single-token decode uses separate mode:
+    // read the initial/cache state and write the final state or a cache snapshot in data_precision directly.
+    // Paged decode with caching disabled uses no_store, so computing the output never modifies the read cache.
+    // Build the variants here; the runtime chooses between them from sequence length and cache schedule.
     kernels.fp32_state = get_or_create_kernel(m_context,
                                               requirements.data_precision,
                                               ov::element::f32,
