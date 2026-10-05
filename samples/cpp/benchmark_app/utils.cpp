@@ -11,6 +11,8 @@
 #include <utility>
 #include <vector>
 
+#include "openvino/util/common_util.hpp"
+
 // clang-format off
 #include <samples/args_helper.hpp>
 #include <samples/common.hpp>
@@ -173,9 +175,15 @@ std::vector<std::string> parse_devices(const std::string& device_string) {
 
     auto devices = split(comma_separated_devices, ',');
     for (auto&& device : devices) {
+        device = std::string(ov::util::trim(device));
+
+        if (device.empty())
+            continue;
+
         // e.g. in AUTO:-CPU,-GPU
         if (device.front() == '-')
             device.erase(device.begin());
+
         result.push_back(device);
     }
     return result;
