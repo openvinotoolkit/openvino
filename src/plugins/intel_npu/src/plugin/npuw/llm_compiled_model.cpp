@@ -113,7 +113,8 @@ public:
                 matched_node_last_op = node_to_output[matmul_convert].get_node_shared_ptr();
             } else if (node_to_output.count(matmul_multiply)) {
                 matched_node_last_op = node_to_output[matmul_multiply].get_node_shared_ptr();
-            } else if (node_to_output.count(matmul_divide)) {
+            } else if (node_to_output.count(matmul_divide)) {  // It is important to check divide after multiply, as
+                                                               // divide is a part of multiply chain too.
                 matched_node_last_op = node_to_output[matmul_divide].get_node_shared_ptr();
             } else {
                 matched_node_last_op = matched_node_matmul;
