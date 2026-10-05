@@ -188,11 +188,10 @@ inline uint FUNC(get_bt_index_value)(OPTIONAL_SHAPE_INFO_ARG uint b, uint f, uin
 #endif
 #endif
 #if HAS_SCALE_INPUT
-#if HAS_ATTN_MASK_INPUT
+// Scale always occupies the fixed SCALE input slot (index 4) of the SDPA primitive,
+// regardless of whether the attention-mask input is actually used at runtime
+// (a placeholder attn_mask input is still present whenever scale is provided).
 #define SCALE_TYPE INPUT4_TYPE
-#else
-#define SCALE_TYPE INPUT3_TYPE
-#endif
 #endif
 
 KERNEL(sdpa_ref)(
