@@ -98,16 +98,14 @@ def build_body(item: dict[str, Any], facts: list[dict[str, str]], source: dict[s
     """Build the Adaptive Card body blocks for the investigation notification."""
     title = item.get("title") or ""
     description = item.get("description") or ""
-    statistics = item.get("statistics") or ""
 
+    # The pattern database is intentionally NOT rendered in the card; it is
+    # uploaded as the statistics workflow artifact instead (see persist_statistics).
     body: list[dict[str, Any]] = [
         {"type": "TextBlock", "text": f"\U0001f534 [{source['badge']}] {title}", "weight": "Bolder", "size": "Medium", "color": "Attention", "wrap": True},
         {"type": "FactSet", "facts": facts},
         {"type": "TextBlock", "text": description, "wrap": True, "spacing": "Medium"},
     ]
-    if statistics:
-        body.append({"type": "TextBlock", "text": "Pattern Database Statistics", "weight": "Bolder", "size": "Medium", "spacing": "Large", "separator": True})
-        body.append({"type": "TextBlock", "text": statistics, "wrap": True, "spacing": "Small"})
     return body
 
 

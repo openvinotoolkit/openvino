@@ -407,61 +407,50 @@ const std::vector<bool> sortResDesc = {true, false};
 const std::vector<float> nmsEta = {0.6f, 1.0f};
 const std::vector<bool> normalized = {true, false};
 
-const auto params_v9_2Inputs = ::testing::Combine(
-    ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(shapes2Inputs)),
-    ::testing::Combine(::testing::Values(ov::element::f32),
-                       ::testing::Values(ov::element::i32)),
-    ::testing::ValuesIn(nmsTopK),
-    ::testing::Combine(::testing::ValuesIn(iouThreshold), ::testing::ValuesIn(scoreThreshold), ::testing::ValuesIn(nmsEta)),
-    ::testing::ValuesIn(backgroundClass),
-    ::testing::ValuesIn(keepTopK),
-    ::testing::ValuesIn(outType),
-    ::testing::ValuesIn(sortResultType),
-    ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
-    ::testing::Values(ov::test::utils::DEVICE_GPU));
+INSTANTIATE_TEST_SUITE_P(
+    smoke_MulticlassNmsLayerTest_v9_2inputs,
+    MulticlassNmsLayerTestGPU,
+    ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(shapes2Inputs)),
+                       ::testing::Combine(::testing::Values(ov::element::f32), ::testing::Values(ov::element::i32)),
+                       ::testing::ValuesIn(nmsTopK),
+                       ::testing::Combine(::testing::ValuesIn(iouThreshold), ::testing::ValuesIn(scoreThreshold), ::testing::ValuesIn(nmsEta)),
+                       ::testing::ValuesIn(backgroundClass),
+                       ::testing::ValuesIn(keepTopK),
+                       ::testing::ValuesIn(outType),
+                       ::testing::ValuesIn(sortResultType),
+                       ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
+                       ::testing::Values(ov::test::utils::DEVICE_GPU)),
+    MulticlassNmsLayerTestGPU::getTestCaseName);
 
+INSTANTIATE_TEST_SUITE_P(
+    smoke_MulticlassNmsLayerTest_v9_3inputs,
+    MulticlassNmsLayerTestGPU,
+    ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(shapes3Inputs)),
+                       ::testing::Combine(::testing::Values(ov::element::f32), ::testing::Values(ov::element::i32)),
+                       ::testing::ValuesIn(nmsTopK),
+                       ::testing::Combine(::testing::ValuesIn(iouThreshold), ::testing::ValuesIn(scoreThreshold), ::testing::ValuesIn(nmsEta)),
+                       ::testing::ValuesIn(backgroundClass),
+                       ::testing::ValuesIn(keepTopK),
+                       ::testing::ValuesIn(outType),
+                       ::testing::ValuesIn(sortResultType),
+                       ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
+                       ::testing::Values(ov::test::utils::DEVICE_GPU)),
+    MulticlassNmsLayerTestGPU::getTestCaseName);
 
-INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest_v9_2inputs,
-                         MulticlassNmsLayerTestGPU,
-                         params_v9_2Inputs,
-                         MulticlassNmsLayerTestGPU::getTestCaseName);
-
-const auto params_v9_3Inputs = ::testing::Combine(
-    ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(shapes3Inputs)),
-    ::testing::Combine(::testing::Values(ov::element::f32),
-                       ::testing::Values(ov::element::i32)),
-    ::testing::ValuesIn(nmsTopK),
-    ::testing::Combine(::testing::ValuesIn(iouThreshold), ::testing::ValuesIn(scoreThreshold), ::testing::ValuesIn(nmsEta)),
-    ::testing::ValuesIn(backgroundClass),
-    ::testing::ValuesIn(keepTopK),
-    ::testing::ValuesIn(outType),
-    ::testing::ValuesIn(sortResultType),
-    ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
-    ::testing::Values(ov::test::utils::DEVICE_GPU));
-
-INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest_v9_3inputs,
-                         MulticlassNmsLayerTestGPU,
-                         params_v9_3Inputs,
-                         MulticlassNmsLayerTestGPU::getTestCaseName);
-
-const auto params_v8 = ::testing::Combine(
-    ::testing::ValuesIn(ov::test::static_shapes_to_test_representation(shapes2Inputs)),
-    ::testing::Combine(::testing::Values(ov::element::f32),
-                       ::testing::Values(ov::element::i32)),
-    ::testing::ValuesIn(nmsTopK),
-    ::testing::Combine(::testing::ValuesIn(iouThreshold), ::testing::ValuesIn(scoreThreshold), ::testing::ValuesIn(nmsEta)),
-    ::testing::ValuesIn(backgroundClass),
-    ::testing::ValuesIn(keepTopK),
-    ::testing::ValuesIn(outType),
-    ::testing::ValuesIn(sortResultType),
-    ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
-    ::testing::Values(ov::test::utils::DEVICE_GPU));
-
-
-INSTANTIATE_TEST_SUITE_P(smoke_MulticlassNmsLayerTest_v8,
-                         MulticlassNmsLayerTestGPU8,
-                         params_v8,
-                         MulticlassNmsLayerTestGPU8::getTestCaseName);
+INSTANTIATE_TEST_SUITE_P(
+    smoke_MulticlassNmsLayerTest_v8,
+    MulticlassNmsLayerTestGPU8,
+    ::testing::Combine(::testing::ValuesIn(ov::test::static_shapes_to_test_representation(shapes2Inputs)),
+                       ::testing::Combine(::testing::Values(ov::element::f32), ::testing::Values(ov::element::i32)),
+                       ::testing::ValuesIn(nmsTopK),
+                       ::testing::Combine(::testing::ValuesIn(iouThreshold), ::testing::ValuesIn(scoreThreshold), ::testing::ValuesIn(nmsEta)),
+                       ::testing::ValuesIn(backgroundClass),
+                       ::testing::ValuesIn(keepTopK),
+                       ::testing::ValuesIn(outType),
+                       ::testing::ValuesIn(sortResultType),
+                       ::testing::Combine(::testing::ValuesIn(sortResDesc), ::testing::ValuesIn(normalized)),
+                       ::testing::Values(ov::test::utils::DEVICE_GPU)),
+    MulticlassNmsLayerTestGPU8::getTestCaseName);
 
 }  // namespace
 }  // namespace GPULayerTestsDefinitions

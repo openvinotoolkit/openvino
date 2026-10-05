@@ -7,9 +7,7 @@
 #include "openvino/frontend/tensorflow/hash_table.hpp"
 #include "openvino/frontend/tensorflow/variable.hpp"
 
-namespace ov {
-namespace frontend {
-namespace tensorflow {
+namespace ov::frontend::tensorflow {
 
 // a container of Variables state for each operation node in a graph
 class VariableMap {
@@ -106,6 +104,4 @@ private:
     std::set<Variable::Ptr> m_uninitialized_variables;
 };
 
-}  // namespace tensorflow
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::tensorflow

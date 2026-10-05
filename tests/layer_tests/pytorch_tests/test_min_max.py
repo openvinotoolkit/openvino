@@ -3,7 +3,7 @@
 
 import pytest
 
-from pytorch_layer_test_class import PytorchLayerTest, skip_if_export
+from pytorch_layer_test_class import PytorchLayerTest
 
 
 class TestMinMax(PytorchLayerTest):
@@ -339,7 +339,7 @@ class TestAminAmax(PytorchLayerTest):
     @pytest.mark.parametrize("op_type", ["amin", "amax"])
     @pytest.mark.parametrize("axis", [None, 0, -1, 1, [1, 2], [-1, -2], [2, 0, -1], [0, 1, 2, 3]])
     @pytest.mark.parametrize("keep_dims", [True, False])
-    @pytest.mark.parametrize("out", [skip_if_export(True), False])
+    @pytest.mark.parametrize("out", [True, False])
     @pytest.mark.parametrize("input_dtype", ['float32', 'int32', 'int64', 'float64'])
     @pytest.mark.precommit
     @pytest.mark.precommit_torch_export
