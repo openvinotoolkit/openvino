@@ -56,6 +56,7 @@
 #include "partitioning/patterns/pre_compute.hpp"
 #include "partitioning/patterns/sdpa.hpp"
 #include "shared_weights_assigner.hpp"
+#include "shared_weights_contex_extractor.hpp"
 #include "serialization.hpp"
 #include "transformations/convert_precision.hpp"
 #include "util.hpp"
@@ -763,8 +764,6 @@ void ov::npuw::LLMCompiledModel::compile_generate_model_variants(
 
 void ov::npuw::LLMCompiledModel::assign_shared_weight_to_model_if_possible(const std::shared_ptr<ov::Model> model, const std::shared_ptr<const ov::IPlugin>& plugin,
 const ov::AnyMap& properties) {
-    constexpr size_t single_weight_shared_source_size_max = static_cast<size_t>(2ULL * 1024 * 1024 * 1024);
-
     NPUW_ASSERT(model && "Model for assigning shared weights must not be null");
     NPUW_ASSERT(plugin && "Plugin for assigning shared weights must not be null");
     auto shared_weight_property_it = properties.find("SHARED_WEIGHTS");
@@ -776,17 +775,11 @@ const ov::AnyMap& properties) {
         ov::DeviceIDParser::get_hetero_devices(shared_weight_property_it->second.as<std::string>());
     ::ov::intel_npu::SharedWeightsAssigner::Options shared_weights_assigner_options;
     shared_weights_assigner_options.shared_device_contexts = std::move(shared_device_contexts);
-    shared_weights_assigner_options.single_weight_shared_source_size_max = single_weight_shared_source_size_max;
     shared_weights_assigner_options.preserve_weightless_cache_attr = (std::getenv("NO_WEIGHTLESS_ATTR") == nullptr);
     ::ov::intel_npu::SharedWeightsAssigner shared_weights_assigner(std::move(shared_weights_assigner_options));
     auto collect_result = shared_weights_assigner.collect_and_partition(model);
 
     LOG_INFO("[NPUW] SHARED_WEIGHTS: " << collect_result.statistic.to_string());
-    for (size_t i = 0; i < collect_result.statistic.partition_constant_counts.size(); ++i) {
-        LOG_INFO("[NPUW] SHARED_WEIGHTS: partition " << i + 1 << "/"
-                 << collect_result.statistic.partition_constant_counts.size()
-                 << ", constants count: " << collect_result.statistic.partition_constant_counts[i]);
-    }
 
     auto shared_sources_with_constants =
         shared_weights_assigner.mutate_model_with_constant_sharing(std::move(collect_result.partitioned_constants));
