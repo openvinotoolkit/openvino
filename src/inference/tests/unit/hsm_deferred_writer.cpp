@@ -6,6 +6,8 @@
 
 #include <gtest/gtest.h>
 
+#include <array>
+#include <limits>
 #include <optional>
 #include <sstream>
 #include <string>
@@ -124,17 +126,54 @@ TEST(HsmDeferredWriterTest, writes_into_a_preallocated_buffer) {
     EXPECT_EQ(payload_string(*container, *entry), "model-bytes");
 }
 
+TEST(HsmDeferredWriterTest, sized_section_encoder_rejects_a_chunk_without_overflowing_the_capacity_check) {
+    std::vector<std::byte> buffer(k_buffer_capacity);
+    auto writer = open_buffer_writer(buffer.data(), buffer.size());
+    const std::byte dummy{};
+    const size_t huge = std::numeric_limits<size_t>::max() - 31;
+    writer.add_section(hsm::any_device_id, hsm::model_tag, huge, [&dummy](const hsm::SectionSink& sink) {
+        sink({&dummy, huge});
+    });
+    EXPECT_EQ(writer.finalize(), hsm::WriteErrc::write_failed);
+}
+
+TEST(HsmDeferredWriterTest, sized_section_encoder_fits_a_buffer_sized_to_the_exact_byte) {
+    constexpr size_t section_size = 4;
+    constexpr size_t exact_capacity = sizeof(hsm::Header) + section_size + sizeof(hsm::ManifestEntry);
+    std::vector<std::byte> buffer(exact_capacity);
+    auto writer = open_buffer_writer(buffer.data(), buffer.size());
+    writer.add_section(hsm::any_device_id, hsm::model_tag, section_size, [](const hsm::SectionSink& sink) {
+        const std::array<std::byte, section_size> data{};
+        sink({data.data(), data.size()});
+    });
+    EXPECT_FALSE(writer.finalize());
+}
+
+TEST(HsmDeferredWriterTest, sized_section_encoder_rejects_a_buffer_one_byte_short_of_fitting) {
+    constexpr size_t section_size = 4;
+    constexpr size_t exact_capacity = sizeof(hsm::Header) + section_size + sizeof(hsm::ManifestEntry);
+    std::vector<std::byte> buffer(exact_capacity - 1);
+    auto writer = open_buffer_writer(buffer.data(), buffer.size());
+    writer.add_section(hsm::any_device_id, hsm::model_tag, section_size, [](const hsm::SectionSink& sink) {
+        const std::array<std::byte, section_size> data{};
+        sink({data.data(), data.size()});
+    });
+    EXPECT_EQ(writer.finalize(), hsm::WriteErrc::write_failed);
+}
+
 TEST(HsmDeferredWriterTest, finalize_reports_write_failed_for_an_undersized_buffer) {
     std::vector<std::byte> too_small(sizeof(hsm::Header));  // no room for even one section
     auto writer = open_buffer_writer(too_small.data(), too_small.size());
-    writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(std::string("model")));
+    const std::string model = "model";
+    writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(model));
     EXPECT_EQ(writer.finalize(), hsm::WriteErrc::write_failed);
 }
 
 TEST(HsmDeferredWriterTest, finalize_reports_write_failed_when_the_stream_is_already_bad) {
     std::stringstream stream;
     auto writer = open_writer(stream);
-    writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(std::string("model")));
+    const std::string model = "model";
+    writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(model));
     stream.setstate(std::ios::badbit);  // fails every subsequent write
     EXPECT_EQ(writer.finalize(), hsm::WriteErrc::write_failed);
 }
@@ -160,7 +199,8 @@ TEST(HsmDeferredWriterTest, unsized_section_encoder_rejects_an_inline_mode_tag) 
 TEST(HsmDeferredWriterTest, finalize_is_idempotent) {
     std::stringstream stream;
     auto writer = open_writer(stream);
-    writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(std::string("model")));
+    const std::string model = "model";
+    writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(model));
     const auto first = writer.finalize();
     const auto written_once = stream.str();
     const auto second = writer.finalize();
@@ -178,19 +218,36 @@ TEST(HsmDeferredWriterTest, finalize_propagates_an_exception_thrown_by_a_section
     EXPECT_THROW(writer.finalize(), ov::Exception);
 }
 
-TEST(HsmDeferredWriterTest, finalize_does_not_retry_the_encoder_after_it_threw) {
+TEST(HsmDeferredWriterTest, finalize_retries_the_encoder_after_a_thrown_attempt_and_can_then_succeed) {
     int call_count = 0;
+    bool should_throw = true;
     std::stringstream stream;
     auto writer = open_writer(stream);
-    writer.add_section(hsm::any_device_id, hsm::model_tag, 4, [&call_count](const hsm::SectionSink&) -> void {
+    writer.add_section(hsm::any_device_id, hsm::model_tag, 4, [&](const hsm::SectionSink& sink) {
         ++call_count;
-        OPENVINO_THROW("encoder blew up");
+        if (should_throw) {
+            OPENVINO_THROW("encoder blew up");
+        }
+        sink({reinterpret_cast<const std::byte*>("data"), 4});
     });
     EXPECT_THROW(writer.finalize(), ov::Exception);
     EXPECT_EQ(call_count, 1);
 
-    EXPECT_NO_THROW(writer.finalize());
-    EXPECT_EQ(call_count, 1);  // not invoked again
+    should_throw = false;  // the transient issue is gone by the next attempt
+    EXPECT_FALSE(writer.finalize());
+    EXPECT_EQ(call_count, 2);
+}
+
+TEST(HsmDeferredWriterTest, finalize_caches_a_normal_non_throwing_failure_instead_of_retrying) {
+    std::stringstream stream;
+    auto writer = open_writer(stream);
+    const std::string model = "model";
+    writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(model));
+    stream.setstate(std::ios::badbit);
+    EXPECT_EQ(writer.finalize(), hsm::WriteErrc::write_failed);
+
+    stream.clear();
+    EXPECT_EQ(writer.finalize(), hsm::WriteErrc::write_failed);  // cached, not re-derived
 }
 
 TEST(HsmDeferredWriterTest, unsized_section_forces_the_header_to_be_patched_after_the_fact) {
@@ -205,6 +262,28 @@ TEST(HsmDeferredWriterTest, unsized_section_forces_the_header_to_be_patched_afte
     ASSERT_FALSE(writer.finalize());
 
     const auto container = parse_container(stream.str());
+    ASSERT_TRUE(container.has_value());
+    EXPECT_TRUE(hsm::is_valid_header_fields(container->header));
+    const auto entry = find_entry(*container, hsm::any_device_id, hsm::model);
+    ASSERT_NE(entry, nullptr);
+    EXPECT_EQ(payload_string(*container, *entry), "discovered-at-write-time");
+}
+
+TEST(HsmDeferredWriterTest, patches_the_unsized_section_header_relative_to_a_nonzero_stream_start) {
+    std::stringstream stream;
+    const std::string prefix = "PREFIX-BYTES";
+    stream.write(prefix.data(), static_cast<std::streamsize>(prefix.size()));
+
+    auto writer = open_writer(stream);
+    writer.add_section(hsm::any_device_id, hsm::model_tag, [](const hsm::SectionSink& sink) {
+        const std::string content = "discovered-at-write-time";
+        sink({reinterpret_cast<const std::byte*>(content.data()), content.size()});
+    });
+    ASSERT_FALSE(writer.finalize());
+
+    const auto whole = stream.str();
+    ASSERT_EQ(whole.compare(0, prefix.size(), prefix), 0);  // prefix left untouched by the patch
+    const auto container = parse_container(whole.substr(prefix.size()));
     ASSERT_TRUE(container.has_value());
     EXPECT_TRUE(hsm::is_valid_header_fields(container->header));
     const auto entry = find_entry(*container, hsm::any_device_id, hsm::model);

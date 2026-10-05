@@ -63,6 +63,14 @@ public:
                      SectionEncoder encode,
                      SectionAlignment align = {}) override;
     bool add_section(DeviceId device, SectionTag tag, SectionEncoder encode, SectionAlignment align = {}) override;
+
+    /**
+     * @brief See #IWriter::finalize().
+     *
+     * @return A repeated call after success, or after a normal (non-throwing) failure, just reports the
+     * same outcome again. A repeated call after a thrown exception instead retries the whole attempt
+     * from the container's start - each #SectionEncoder may run again.
+     */
     std::error_code finalize() override;
 
 private:
@@ -107,6 +115,7 @@ private:
     void patch(size_t offset, ov::util::MemoryView data);
     size_t written_size() const;
     bool destination_good() const;
+    void reset_destination();
 
     static void write_into(StreamDestination& destination, ov::util::MemoryView data);
     static void write_into(BufferDestination& destination, ov::util::MemoryView data);
@@ -114,6 +123,7 @@ private:
     static void patch_into(BufferDestination& destination, size_t offset, ov::util::MemoryView data);
     static bool is_good(const StreamDestination& destination);
     static bool is_good(const BufferDestination& destination);
+    static std::streampos container_start(const StreamDestination& destination);
 
     ManifestEntry write_section(DeviceId device,
                                 SectionTag tag,
@@ -130,7 +140,7 @@ private:
 
     std::variant<StreamDestination, BufferDestination> m_destination;
     std::vector<PendingSection> m_sections;
-    bool m_finalized;
+    std::optional<std::error_code> m_result;
     bool m_has_unsized_section;
 };
 

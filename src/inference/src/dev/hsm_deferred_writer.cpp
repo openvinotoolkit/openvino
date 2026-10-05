@@ -13,6 +13,7 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/util/memory.hpp"
+#include "openvino/util/variant_visitor.hpp"
 
 namespace ov::runtime::hsm {
 inline namespace v1 {
@@ -49,13 +50,12 @@ constexpr SectionSlot reserve_slot(size_t cursor, size_t size, SectionAlignment 
 }  // namespace
 
 std::optional<size_t> DeferredWriter::reserve(BufferDestination& destination, size_t extra) {
-    if (!destination.good || destination.size + extra > destination.capacity) {
+    OPENVINO_ASSERT(destination.size <= destination.capacity, "HSM writer: buffer size exceeds its capacity");
+    if (!destination.good || extra > destination.capacity - destination.size) {
         destination.good = false;
         return std::nullopt;
     } else {
-        const auto at = destination.size;
-        destination.size += extra;
-        return at;
+        return std::exchange(destination.size, destination.size + extra);
     }
 }
 
@@ -81,16 +81,20 @@ void DeferredWriter::write(ov::util::MemoryView data) {
 void DeferredWriter::write_zeros(size_t count) {
     static constexpr std::array<std::byte, 256> zeros{};
     size_t remaining = count;
-    while (remaining > 0) {
+    while (remaining > 0 && destination_good()) {
         const size_t chunk = std::min(remaining, zeros.size());
         write({zeros.data(), chunk});
         remaining -= chunk;
     }
 }
 
+std::streampos DeferredWriter::container_start(const StreamDestination& destination) {
+    return destination.stream->tellp() - static_cast<std::streamoff>(destination.size);
+}
+
 void DeferredWriter::patch_into(StreamDestination& destination, size_t offset, ov::util::MemoryView data) {
     const auto resume = destination.stream->tellp();
-    destination.stream->seekp(static_cast<std::streamoff>(offset));
+    destination.stream->seekp(container_start(destination) + static_cast<std::streamoff>(offset));
     destination.stream->write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
     destination.stream->seekp(resume);
 }
@@ -130,6 +134,20 @@ bool DeferredWriter::destination_good() const {
             return is_good(destination);
         },
         m_destination);
+}
+
+void DeferredWriter::reset_destination() {
+    std::visit(ov::util::VariantVisitor{
+                   [](StreamDestination& destination) {
+                       destination.stream->seekp(container_start(destination));
+                       destination.size = 0;
+                   },
+                   [](BufferDestination& destination) {
+                       destination.size = 0;
+                       destination.good = true;
+                   },
+               },
+               m_destination);
 }
 
 ManifestEntry DeferredWriter::write_section(DeviceId device,
@@ -213,13 +231,13 @@ ManifestEntry DeferredWriter::write_section(DeviceId device,
 DeferredWriter::DeferredWriter(std::ostream& stream) noexcept
     : m_destination{StreamDestination{&stream}},
       m_sections{},
-      m_finalized{false},
+      m_result{},
       m_has_unsized_section{false} {}
 
 DeferredWriter::DeferredWriter(std::byte* dst, size_t capacity) noexcept
     : m_destination{BufferDestination{dst, capacity}},
       m_sections{},
-      m_finalized{false},
+      m_result{},
       m_has_unsized_section{false} {}
 
 std::optional<DeferredWriter> DeferredWriter::open(std::ostream& stream) {
@@ -267,8 +285,8 @@ bool DeferredWriter::add_section(DeviceId device, SectionTag tag, SectionEncoder
 }
 
 std::error_code DeferredWriter::finalize() {
-    if (!m_finalized) {
-        m_finalized = true;
+    if (!m_result.has_value()) {
+        reset_destination();
         const auto section_count = m_sections.size();
         size_t manifest_offset = 0;
         if (m_has_unsized_section) {
@@ -331,8 +349,9 @@ std::error_code DeferredWriter::finalize() {
             header.container_size = written_size();
             patch(0, {reinterpret_cast<const std::byte*>(&header), sizeof(header)});
         }
+        m_result = destination_good() ? std::error_code{} : make_error_code(WriteErrc::write_failed);
     }
-    return destination_good() ? std::error_code{} : make_error_code(WriteErrc::write_failed);
+    return *m_result;
 }
 
 }  // namespace v1
