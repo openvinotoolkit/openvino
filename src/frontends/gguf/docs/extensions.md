@@ -132,6 +132,86 @@ generic operations without configuring a decoder. See the
 [porting walkthrough](porting_a_llama_cpp_model.md) for complete builders, tensor layout rules,
 state contracts, and promotion into the built-in catalog.
 
+### Example: a whole decoder architecture in an extension
+
+The example below supplies the whole model through a custom `ModelBuilder`: token embeddings,
+every decoder layer, final normalization, and the output projection. It reuses the frontend's
+attention and FFN blocks, but the extension decides how to connect them. It does not use
+`make_decoder_architecture()` to select the built-in topology.
+
+This follows the Qwen3 builder tested in
+[`test_architecture_extension.cpp`](../tests/test_architecture_extension.cpp). It replaces the
+built-in `qwen3` handler so it can load a Qwen3 GGUF file. For a new architecture, use its actual
+`general.architecture` string and `RegistrationMode::Add`, and implement its layer order and
+options according to the reference model.
+
+Save this as `extension.cpp`:
+
+```cpp
+#include "openvino/frontend/gguf/builder/graph_context.hpp"
+#include "openvino/frontend/gguf/extension/architecture.hpp"
+
+namespace example {
+using namespace ov::frontend::gguf;
+
+class Qwen3Builder : public ModelBuilder {
+public:
+    explicit Qwen3Builder(const BuildContext& context) : m_context(context) {}
+
+    std::shared_ptr<GgufGraph> build() override {
+        GgufGraphContext graph(m_context);
+        const auto dimensions = graph.configure_decoder(RopeMode::Neox);
+        auto tensors = graph.tensors();
+        auto cur = graph.build_inp_embd(tensors.require("token_embd.weight"));
+        graph.build_inp_pos();
+        graph.build_attn_inp_kv();
+
+        for (int layer = 0; layer < dimensions.layers; ++layer) {
+            auto norm = graph.build_norm(
+                cur, tensors.layer(layer, "attn_norm.weight"), dimensions.norm_epsilon);
+            cur = graph.node("GGML_OP_ADD", {graph.decoder_attention(layer, norm), cur});
+            norm = graph.build_norm(
+                cur, tensors.layer(layer, "ffn_norm.weight"), dimensions.norm_epsilon);
+            cur = graph.node("GGML_OP_ADD", {graph.decoder_ffn(layer, norm), cur});
+        }
+
+        cur = graph.build_norm(cur, tensors.require("output_norm.weight"), dimensions.norm_epsilon);
+        auto output_weight = tensors("output.weight");
+        if (!output_weight) {
+            output_weight = tensors.require("token_embd.weight");
+        }
+        graph.set_primary_output(graph.node("GGML_OP_MUL_MAT", {output_weight, cur}));
+        return graph.finish();
+    }
+
+private:
+    BuildContext m_context;
+};
+
+ArchitectureDefinition qwen3_architecture() {
+    return {"qwen3", "qwen3", [](const BuildContext& context) {
+                return std::make_shared<Qwen3Builder>(context);
+            }};
+}
+}  // namespace example
+
+OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>{
+    std::make_shared<ov::frontend::gguf::ArchitectureExtension>(
+        example::qwen3_architecture(), ov::frontend::gguf::RegistrationMode::Replace)});
+```
+
+Build it as a shared library linked to `openvino::frontend::gguf`. Use the
+[standalone CMake example](../examples/architecture_extension/CMakeLists.txt), changing its source
+list to just `extension.cpp`. Then load the library on the frontend before loading the model,
+as shown in [Build and load a shared library](#build-and-load-a-shared-library).
+Register `GGUFMakeStateful` and `AdaptToGenAI` separately if the consumer needs them; supplying
+the architecture does not select the state or input/output contract.
+
+For a whole model that uses its own operations instead of shared decoder blocks, see the
+[complete new-family builder](porting_a_llama_cpp_model.md#4-implement-a-whole-model-builder).
+The runnable [projector extension](../examples/architecture_extension) shows the same packaging
+with separate builder and entry-point files.
+
 ### Matching and replacement
 
 Matching first checks `general.architecture`, then the optional predicate. Two handlers with
