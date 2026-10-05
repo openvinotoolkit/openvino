@@ -60,6 +60,7 @@
 #include "openvino/core/parallel.hpp"
 #include "openvino/core/type.hpp"
 #include "openvino/core/type/element_type.hpp"
+#include "openvino/core/weights_prefetch.hpp"
 #include "openvino/itt.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/parameter.hpp"
@@ -392,6 +393,19 @@ void Graph::Init(const std::shared_ptr<const ov::Model>& model,
     Configure();
 }
 
+namespace {
+
+// Weights a dynamic node reads only to repack them into its own memory, on its first preparation.
+std::shared_ptr<ov::op::v0::Constant> getRepackedWeights(const Node& node) {
+    if (node.getType() != Type::FullyConnected || !node.isDynamicNode()) {
+        return nullptr;
+    }
+    const auto input = std::dynamic_pointer_cast<node::Input>(node.getParentEdgeAt(1)->getParent());
+    return input ? input->getConstOp() : nullptr;
+}
+
+}  // namespace
+
 void Graph::Activate() {
     // @todo It is possible that execution graph is already created in scope of
     // the allocation context collection from the outer graph so the state for inner graph is "Ready"
@@ -400,6 +414,15 @@ void Graph::Activate() {
     Allocate();
 
     CreatePrimitivesAndExecConstants();
+
+    m_weightsToPrefetch.clear();
+    if (ov::weight_sharing::PrefetchScheduler::get_lookahead() > 0) {
+        for (const auto& node : m_executableGraphNodes) {
+            if (auto weights = getRepackedWeights(*node)) {
+                m_weightsToPrefetch.push_back(std::move(weights));
+            }
+        }
+    }
 
 #ifndef CPU_DEBUG_CAPS
     for (auto& graphNode : graphNodes) {
@@ -1369,17 +1392,31 @@ void Graph::InferStatic(SyncInferRequest* request, int numaId) {
 
 namespace {
 
+// The repacked weights are waited for right before the node is prepared and evicted right after.
+void updateNodeDynamicParams(const NodePtr& node, ov::weight_sharing::PrefetchScheduler* weightsPrefetch) {
+    const auto weights = weightsPrefetch ? getRepackedWeights(*node) : nullptr;
+    if (weights) {
+        weightsPrefetch->acquire(*weights);
+    }
+    node->updateDynamicParams();
+    if (weights) {
+        weightsPrefetch->release(*weights);
+    }
+}
+
 class UpdateNodesSeq {
 public:
-    explicit UpdateNodesSeq(std::vector<NodePtr>& executableGraphNodes)
-        : m_executableGraphNodes(executableGraphNodes) {}
+    explicit UpdateNodesSeq(std::vector<NodePtr>& executableGraphNodes,
+                            ov::weight_sharing::PrefetchScheduler* weightsPrefetch = nullptr)
+        : m_executableGraphNodes(executableGraphNodes),
+          m_weightsPrefetch(weightsPrefetch) {}
 
     void operator()(size_t stopIndx) {
         for (; prepareCounter < stopIndx; ++prepareCounter) {
             const auto& node = m_executableGraphNodes[prepareCounter];
             if (node->isDynamicNode()) {
                 node->updateShapes();
-                node->updateDynamicParams();
+                updateNodeDynamicParams(node, m_weightsPrefetch);
             }
         }
     }
@@ -1387,6 +1424,7 @@ public:
 private:
     size_t prepareCounter = 0;
     std::vector<NodePtr>& m_executableGraphNodes;
+    ov::weight_sharing::PrefetchScheduler* m_weightsPrefetch;
 };
 
 #if (OV_THREAD == OV_THREAD_SEQ)
@@ -1398,8 +1436,10 @@ using UpdateNodes = UpdateNodesSeq;
 
 class UpdateNodesBase {
 public:
-    explicit UpdateNodesBase(std::vector<NodePtr>& executableGraphNodes)
-        : m_executableGraphNodes(executableGraphNodes) {}
+    explicit UpdateNodesBase(std::vector<NodePtr>& executableGraphNodes,
+                             ov::weight_sharing::PrefetchScheduler* weightsPrefetch = nullptr)
+        : m_executableGraphNodes(executableGraphNodes),
+          m_weightsPrefetch(weightsPrefetch) {}
     void updateShapes(size_t node_indx, size_t stop_indx) {
         try {
             for (size_t i = node_indx; i < stop_indx; i++) {
@@ -1428,7 +1468,7 @@ public:
             while (local_counter < prepareCounter) {
                 const auto& node = m_executableGraphNodes[local_counter++];
                 if (node->isDynamicNode()) {
-                    node->updateDynamicParams();
+                    updateNodeDynamicParams(node, m_weightsPrefetch);
                 }
             }
         }
@@ -1438,6 +1478,7 @@ protected:
     std::atomic<size_t> m_prepareCounter{0};
     std::atomic<bool> m_completion{false};
     std::vector<NodePtr>& m_executableGraphNodes;
+    ov::weight_sharing::PrefetchScheduler* m_weightsPrefetch;
 };
 
 // NOLINTBEGIN(misc-include-cleaner) tbb has multiple implicit includes, which are not supposed to be included directly
@@ -1660,12 +1701,21 @@ void Graph::Infer(SyncInferRequest* request) {
 
     m_context->allocateMemory();
 
+    // The weights are repacked on the first inference, that is when they are loaded.
+    std::unique_ptr<ov::weight_sharing::PrefetchScheduler> weightsPrefetch;
+    if (!m_weightsToPrefetch.empty()) {
+        weightsPrefetch = std::make_unique<ov::weight_sharing::PrefetchScheduler>(
+            m_weightsToPrefetch,
+            ov::weight_sharing::PrefetchScheduler::get_lookahead());
+        m_weightsToPrefetch.clear();
+    }
+
     switch (status) {
     case Status::ReadyDynamic:
-        InferDynamic(request, numaId, UpdateNodes(m_executableGraphNodes));
+        InferDynamic(request, numaId, UpdateNodes(m_executableGraphNodes, weightsPrefetch.get()));
         break;
     case Status::ReadyDynamicSeq:
-        InferDynamic(request, numaId, UpdateNodesSeq(m_executableGraphNodes));
+        InferDynamic(request, numaId, UpdateNodesSeq(m_executableGraphNodes, weightsPrefetch.get()));
         break;
     case Status::ReadyStatic:
         InferStatic(request, numaId);

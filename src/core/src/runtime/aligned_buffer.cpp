@@ -60,4 +60,18 @@ void AlignedBuffer::hint_prefetch() const {}
 void AlignedBuffer::invoke_hint_prefetch(const AlignedBuffer& buffer) {
     buffer.hint_prefetch();
 }
+
+std::shared_future<void> AlignedBuffer::hint_prefetch_async() const {
+    return {};
+}
+
+std::shared_future<void> AlignedBuffer::hint_prefetch_async(size_t offset, size_t size) const {
+    return {};
+}
+
+std::shared_future<void> AlignedBuffer::invoke_hint_prefetch_async(const AlignedBuffer& buffer,
+                                                                    size_t offset,
+                                                                    size_t size) {
+    return buffer.hint_prefetch_async(offset, size);
+}
 }  // namespace ov

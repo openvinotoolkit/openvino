@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstddef>
+#include <future>
 #include <type_traits>
 
 #include "openvino/runtime/aligned_buffer.hpp"
@@ -44,6 +45,10 @@ public:
         }
     }
 
+    std::shared_future<void> hint_prefetch_async() const override {
+        return hint_prefetch_async(get_offset(), m_byte_size);
+    }
+
 protected:
     template <typename U>
     struct is_aligned_buffer_ptr : std::false_type {};
@@ -57,8 +62,25 @@ protected:
             if (m_shared_object) {
                 m_shared_object->hint_evict(offset, size);
             }
-        } else {
+        } else if constexpr (is_aligned_buffer_ptr_v<T>) {
+            if (m_shared_object) {
+                invoke_evict(*m_shared_object, offset, size);
+            }
         }
+    }
+
+    // The offset is relative to the root source buffer, so it is forwarded to the parents unchanged.
+    std::shared_future<void> hint_prefetch_async(size_t offset, size_t size) const override {
+        if constexpr (std::is_same_v<std::shared_ptr<ov::MappedMemory>, T>) {
+            if (m_shared_object) {
+                return m_shared_object->hint_prefetch_async(offset, size);
+            }
+        } else if constexpr (is_aligned_buffer_ptr_v<T>) {
+            if (m_shared_object) {
+                return invoke_hint_prefetch_async(*m_shared_object, offset, size);
+            }
+        }
+        return {};
     }
 
     void hint_prefetch() const override {
