@@ -4,8 +4,8 @@
 
 #include <gtest/gtest.h>
 
-#include <cstddef>
 #include <cpu/x64/cpu_isa_traits.hpp>
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <tuple>
