@@ -671,16 +671,9 @@ void WeightlessGraph::set_weights_inputs() {
 }
 
 void WeightlessGraph::release_init_blob(const size_t initIndex) {
-    if ((_zeGraphExt != nullptr && _zeGraphExt->isBlobDataImported(_graphDesc)) || _blobIsPersistent ||
-        _initBlobs == std::nullopt || _zeroInitStruct->getGraphDdiTable().version() < ZE_MAKE_VERSION(1, 8)) {
-        return;
-    }
-
-    ze_graph_properties_2_t properties = {};
-    properties.stype = ZE_STRUCTURE_TYPE_GRAPH_PROPERTIES_2;
-    _zeroInitStruct->getGraphDdiTable().pfnGetProperties2(_initsGraphDesc.at(initIndex)._handle, &properties);
-
-    if (~properties.initStageRequired & ZE_GRAPH_STAGE_INITIALIZE) {
+    if (_blobIsPersistent || _initBlobs == std::nullopt || _zeGraphExt == nullptr ||
+        _zeGraphExt->isBlobDataImported(_graphDesc) ||
+        !_zeGraphExt->isInitStageRequired(_initsGraphDesc.at(initIndex))) {
         return;
     }
 
