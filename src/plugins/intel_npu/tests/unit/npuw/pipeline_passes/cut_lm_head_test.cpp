@@ -66,7 +66,7 @@ std::shared_ptr<ov::Model> build_attached_result_model() {
 }
 
 std::shared_ptr<ov::op::v0::Result> find_result_by_name(const std::shared_ptr<ov::Model>& model,
-                                                       const std::string& name) {
+                                                        const std::string& name) {
     for (const auto& r : model->get_results()) {
         if (r->output(0).get_names().count(name)) {
             return r;
@@ -86,12 +86,10 @@ TEST(CutLMHeadTest, BasicCut) {
     ASSERT_EQ(model->get_results().size(), 1u);
 
     std::shared_ptr<ov::Model> lm_head_model;
-    std::string output_embeds_name;
-    const bool changed = ov::npuw::CutLMHead(lm_head_model, output_embeds_name).run_on_model(model);
+    const bool changed = ov::npuw::CutLMHead(lm_head_model).run_on_model(model);
 
     EXPECT_TRUE(changed);
     ASSERT_NE(lm_head_model, nullptr);
-    EXPECT_EQ(output_embeds_name, LLMCompiledModel::layer_names::output_embeds);
 
     // Original model: the logits Result is renamed to output_embeds and now reads
     // directly from the hidden Parameter (the MatMul moved to the LM head sub-model).
@@ -109,25 +107,25 @@ TEST(CutLMHeadTest, BasicCut) {
 }
 
 // --- Test 2 -------------------------------------------------------------------
-// Attached-Result case: a Result already exists on the MatMul input source. The pass
-// keeps that Result as the terminal of the original model and drops the matched
-// logits Result (no new output is added to the original model).
-TEST(CutLMHeadTest, ReusesAttachedResult) {
+// Attached-Result case: a Result already exists on the MatMul input source (the
+// OmniThinker pre-head embeddings output). The pass repurposes the matched logits
+// Result as the output-embeddings Result and keeps the pre-existing Result, so the
+// original model now has two Results sharing the same producer.
+TEST(CutLMHeadTest, AttachedResultKeepsBothOutputs) {
     auto model = build_attached_result_model();
     ASSERT_EQ(model->get_results().size(), 2u);
 
     std::shared_ptr<ov::Model> lm_head_model;
-    std::string output_embeds_name;
-    const bool changed = ov::npuw::CutLMHead(lm_head_model, output_embeds_name).run_on_model(model);
+    const bool changed = ov::npuw::CutLMHead(lm_head_model).run_on_model(model);
 
     EXPECT_TRUE(changed);
     ASSERT_NE(lm_head_model, nullptr);
-    // The pre-existing Result is reused, so its name is reported as the output-embeds name.
-    EXPECT_EQ(output_embeds_name, "last_hidden_state");
 
-    // Original model: only the pre-existing Result remains; logits has been dropped.
-    ASSERT_EQ(model->get_results().size(), 1u);
+    // Original model: the pre-existing Result stays and the logits Result is repurposed
+    // as the output-embeddings Result; logits is gone.
+    ASSERT_EQ(model->get_results().size(), 2u);
     EXPECT_NE(find_result_by_name(model, "last_hidden_state"), nullptr);
+    EXPECT_NE(find_result_by_name(model, LLMCompiledModel::layer_names::output_embeds), nullptr);
     EXPECT_EQ(find_result_by_name(model, LLMCompiledModel::layer_names::logits), nullptr);
 
     // LM head sub-model: single Parameter feeding the LM head MatMul.
@@ -147,16 +145,13 @@ TEST(CutLMHeadTest, NoLogitsIsUntouched) {
     result->set_friendly_name("not_logits");
     result->output(0).set_names({"not_logits"});
 
-    auto model =
-        std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{hidden}, "no_logits_model");
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{hidden}, "no_logits_model");
 
     std::shared_ptr<ov::Model> lm_head_model;
-    std::string output_embeds_name;
-    const bool changed = ov::npuw::CutLMHead(lm_head_model, output_embeds_name).run_on_model(model);
+    const bool changed = ov::npuw::CutLMHead(lm_head_model).run_on_model(model);
 
     EXPECT_FALSE(changed);
     EXPECT_EQ(lm_head_model, nullptr);
-    EXPECT_TRUE(output_embeds_name.empty());
     ASSERT_EQ(model->get_results().size(), 1u);
     EXPECT_EQ(find_result_by_name(model, "not_logits"), result);
 }
