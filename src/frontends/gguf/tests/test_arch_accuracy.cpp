@@ -20,10 +20,13 @@
 #include "openvino/frontend/gguf/adapt_to_genai.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/frontend/gguf/make_stateful.hpp"
+#include "openvino/op/broadcast.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/multiply.hpp"
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
+#include "openvino/op/read_value.hpp"
+#include "openvino/op/unsqueeze.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
@@ -249,6 +252,50 @@ TEST(GGUFMultimodalBackboneAdaptation, GatedDeltaNetRejectsMissingOrZeroGroupCou
         OV_EXPECT_THROW(frontend.convert(frontend.load(temporary.path)),
                         ov::Exception,
                         testing::HasSubstr("ssm.group_count"));
+    }
+}
+
+// The grouped-query KV broadcast may reach MakeStateful as Multiply(ones, Unsqueeze(kv)); the
+// cache read behind it must still be found, so the fused cache gets its batch-shaped initializer.
+TEST(GGUFMultimodalBackboneAdaptation, MakeStatefulFindsCachesBehindReversedGroupedQueryMultiply) {
+    auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen3.npz");
+    const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+    for (const bool reversed : {false, true}) {
+        SCOPED_TRACE(reversed ? "ones * kv" : "kv * ones");
+        size_t rewritten = 0;
+        const auto to_multiply = [&](const std::shared_ptr<ov::Model>& model) {
+            for (const auto& node : model->get_ordered_ops()) {
+                auto broadcast = ov::as_type_ptr<ov::op::v3::Broadcast>(node);
+                auto shape = broadcast ? ov::as_type_ptr<ov::op::v0::Constant>(broadcast->get_input_node_shared_ptr(1))
+                                       : nullptr;
+                if (!shape || !ov::is_type<ov::op::v0::Unsqueeze>(broadcast->get_input_node_ptr(0)))
+                    continue;
+                auto ones = ov::op::v0::Constant::create(broadcast->get_output_element_type(0),
+                                                         ov::Shape(shape->cast_vector<size_t>()),
+                                                         {1.f});
+                const auto kv = broadcast->input_value(0);
+                ov::replace_node(broadcast,
+                                 reversed ? std::make_shared<ov::op::v1::Multiply>(ones, kv)
+                                          : std::make_shared<ov::op::v1::Multiply>(kv, ones));
+                broadcast->input(0).replace_source_output(ones);  // the replaced node no longer reads kv
+                ++rewritten;
+            }
+            return rewritten > 0;
+        };
+        ov::frontend::gguf::FrontEnd frontend;
+        frontend.add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(to_multiply));
+        frontend.add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(
+            ov::frontend::gguf::pass::GGUFMakeStateful()));
+        std::shared_ptr<ov::Model> model;
+        ASSERT_NO_THROW(model = frontend.convert(frontend.load(temporary.path)));
+        ASSERT_GT(rewritten, 0u);
+        size_t batch_initialized = 0;
+        for (const auto& node : model->get_ordered_ops()) {
+            if (ov::is_type<ov::op::v6::ReadValue>(node) && node->get_input_size() == 1 &&
+                ov::is_type<ov::op::v3::Broadcast>(node->get_input_node_ptr(0)))
+                ++batch_initialized;
+        }
+        EXPECT_EQ(batch_initialized, rewritten);
     }
 }
 

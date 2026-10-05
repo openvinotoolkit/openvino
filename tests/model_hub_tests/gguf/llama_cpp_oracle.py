@@ -12,6 +12,8 @@ Set GGUF_MMPROJ_ORACLE to an already built mmproj_oracle to skip the build; the 
 still fetched for its gguf-py package.
 """
 
+import contextlib
+import fcntl
 import os
 import shutil
 import subprocess
@@ -48,9 +50,21 @@ def _root() -> Path:
     return cache / LLAMA_CPP_REVISION
 
 
-def llama_cpp_checkout() -> Path:
-    """The pinned llama.cpp source tree, fetched on first use."""
-    source = _root() / "src"
+@contextlib.contextmanager
+def _locked():
+    """Serialize fetching and building across processes that share the cache."""
+    root = _root()
+    root.mkdir(parents=True, exist_ok=True)
+    with open(root / ".lock", "w") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        try:
+            yield root
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
+
+
+def _checkout(root: Path) -> Path:
+    source = root / "src"
     if not (source / "CMakeLists.txt").exists():
         shutil.rmtree(source, ignore_errors=True)
         source.mkdir(parents=True)
@@ -60,14 +74,24 @@ def llama_cpp_checkout() -> Path:
     return source
 
 
+def llama_cpp_checkout() -> Path:
+    """The pinned llama.cpp source tree, fetched on first use."""
+    with _locked() as root:
+        return _checkout(root)
+
+
 def build_mmproj_oracle() -> Path:
     if prebuilt := os.environ.get("GGUF_MMPROJ_ORACLE"):
         return Path(prebuilt)
-    root = _root()
-    oracle = root / "mmproj_oracle"
-    if oracle.exists():
+    with _locked() as root:
+        oracle = root / "mmproj_oracle"
+        if not oracle.exists():
+            _build(root, _checkout(root), oracle)
         return oracle
-    source, build = llama_cpp_checkout(), root / "build"
+
+
+def _build(root: Path, source: Path, oracle: Path):
+    build = root / "build"
     cc, cxx = _compilers()
     _run(["cmake", "-S", source, "-B", build, "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Release",
           f"-DCMAKE_C_COMPILER={cc}", f"-DCMAKE_CXX_COMPILER={cxx}", "-DGGML_NATIVE=OFF",
@@ -78,6 +102,5 @@ def build_mmproj_oracle() -> Path:
     _run([cxx, "-std=c++17", "-O2", frontend_test_file("mmproj_oracle.cpp"),
           "-I", source / "tools" / "mtmd", "-I", source / "include", "-I", source / "ggml" / "include",
           "-L", libraries, f"-Wl,-rpath,{libraries}",
-          "-lmtmd", "-lllama", "-lggml", "-lggml-base", "-o", oracle.with_suffix(".tmp")])
-    oracle.with_suffix(".tmp").rename(oracle)
-    return oracle
+          "-lmtmd", "-lllama", "-lggml", "-lggml-base", "-o", oracle.with_suffix(f".{os.getpid()}.tmp")])
+    oracle.with_suffix(f".{os.getpid()}.tmp").replace(oracle)

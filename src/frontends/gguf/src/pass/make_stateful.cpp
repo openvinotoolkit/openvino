@@ -177,7 +177,8 @@ std::optional<KvRead> match_kv_read(const ov::Output<ov::Node>& value, const ov:
     auto kv = wrap_type<ov::op::v0::Concat>();
     auto present = kv | std::get<0>(ov::op::util::match_multi_query_bcst(kv));
     // The CPU drops this type alignment before fusing.
-    auto aligned = optional<ov::op::v1::ConvertLike, ov::op::v0::Convert>({present, any_input()}) |
+    auto like = any_input();
+    auto aligned = optional<ov::op::v1::ConvertLike, ov::op::v0::Convert>({present, like}) |
                    optional<ov::op::v0::Convert>({present});
     auto order = wrap_type<ov::op::v0::Constant>();
     Matcher matcher(aligned | wrap_type<ov::op::v1::Transpose>({aligned, order}));
@@ -187,10 +188,23 @@ std::optional<KvRead> match_kv_read(const ov::Output<ov::Node>& value, const ov:
     KvRead read{map.at(kv).get_node(), {}};
     if (map.count(order))
         read.order = ov::as_type_ptr<ov::op::v0::Constant>(map.at(order).get_node_shared_ptr())->cast_vector<int64_t>();
-    // Nodes between the cache and SDPA must have no other readers.
-    for (auto node = value.get_node(); node != read.concat; node = node->get_input_node_ptr(0)) {
+    // Nodes between the cache and SDPA must have no other readers. Walk the matched branch: the
+    // grouped-query Multiply accepts either operand order.
+    std::unordered_set<const ov::Node*> branch;
+    for (const auto& [pattern, bound] : map) {
+        if (pattern != like && !ov::is_type<ov::op::v0::Constant>(bound.get_node()))
+            branch.insert(bound.get_node());
+    }
+    for (auto node = value.get_node(); node != read.concat;) {
         if (node->get_output_target_inputs(0).size() != 1)
             return std::nullopt;
+        const auto inputs = node->input_values();
+        const auto next = std::find_if(inputs.begin(), inputs.end(), [&](const ov::Output<ov::Node>& input) {
+            return branch.count(input.get_node());
+        });
+        if (next == inputs.end())
+            return std::nullopt;
+        node = next->get_node();
     }
     // The cache feeds SDPA and Assign, plus at most a ShapeOf. Removed Results still hold inputs.
     auto readers = read.concat->get_output_target_inputs(0);
