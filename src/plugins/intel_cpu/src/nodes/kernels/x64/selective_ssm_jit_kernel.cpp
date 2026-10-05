@@ -105,7 +105,7 @@ void jit_selective_ssm_kernel<isa>::store_output(const Vmm& source, int element_
 template <cpu_isa_t isa>
 void jit_selective_ssm_kernel<isa>::prepare_row_scales() {
     const Xbyak::Xmm packed_scales(vmm_input_projection.getIdx());
-    const Xbyak::Xmm delta(accumulator_vmm(0).getIdx());
+    const Xbyak::Xmm delta(delta_scratch_vmm_idx);
     load(vmm_input_projection, reg_x, m_jcp.data_precision, max_row_tile, 0, false);
     vbroadcastss(delta, ptr[reg_steps + offsetof(jit_selective_ssm_step, delta)]);
     vmulps(packed_scales, packed_scales, delta);
@@ -118,12 +118,12 @@ void jit_selective_ssm_kernel<isa>::prepare_row_scales() {
 
 template <cpu_isa_t isa>
 void jit_selective_ssm_kernel<isa>::store_row_tile() {
-    const Xbyak::Xmm packed_output(state_vmm(0).getIdx());
-    const Xbyak::Xmm packed_output_high(state_vmm(1).getIdx());
+    const Xbyak::Xmm packed_output(packed_output_low_vmm_idx);
+    const Xbyak::Xmm packed_output_high(packed_output_high_vmm_idx);
     vunpcklps(packed_output, Xbyak::Xmm(accumulator_vmm(0).getIdx()), Xbyak::Xmm(accumulator_vmm(1).getIdx()));
     vunpcklps(packed_output_high, Xbyak::Xmm(accumulator_vmm(2).getIdx()), Xbyak::Xmm(accumulator_vmm(3).getIdx()));
     vshufps(packed_output, packed_output, packed_output_high, 0x44);
-    store_output(state_vmm(0), max_row_tile);
+    store_output(Vmm(packed_output_low_vmm_idx), max_row_tile);
 }
 
 template <cpu_isa_t isa>

@@ -67,6 +67,12 @@ private:
     static constexpr size_t max_unrolled_vectors = 16;
     static_assert(max_unrolled_vectors % 2 == 0);
 
+    // Preparation scratch aliases the first accumulator, before any accumulation bank is initialized.
+    static constexpr size_t delta_scratch_vmm_idx = max_row_tile;
+    // Output packing reuses state registers only after every state store and scalar reduction is complete.
+    static constexpr size_t packed_output_low_vmm_idx = 0;
+    static constexpr size_t packed_output_high_vmm_idx = 1;
+
     void generate() override;
     void emit_row_tile(size_t rows);
     void emit_state_vector(size_t rows, size_t active_lanes, size_t projection_offset, size_t state_vector_offset);
