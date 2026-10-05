@@ -353,6 +353,36 @@ TEST_F(tile_gpu, dynamic) {
     this->test_dynamic_1x2x2x2_axis_f();
 }
 
+TEST_F(tile_gpu, fbyx_in2x1x1x2_axis_y_legacy_shape_infer) {
+    auto& engine = get_test_engine();
+    auto input = engine.allocate_memory({ov::PartialShape{2, 1, 1, 2}, data_types::f32, format::fbyx});
+    set_values(input, {1.f, 0.f, 5.f, 1.5f});
+
+    topology topology;
+    topology.add(input_layout("input", input->get_layout()));
+    topology.add(tile("tile", input_info("input"), std::vector<int64_t>{1, 1, 4, 1}));
+
+    auto config = get_test_default_config(engine);
+    config.set_property(ov::intel_gpu::allow_new_shape_infer(false));
+    network network(engine, topology, config);
+    network.set_input_data("input", input);
+
+    auto outputs = network.execute();
+    auto output = outputs.at("tile").get_memory();
+    EXPECT_EQ(output->get_layout().get_partial_shape(), (ov::PartialShape{2, 1, 4, 2}));
+    ASSERT_EQ(output->get_layout().format, format::bfyx);
+
+    const std::vector<float> expected = {
+        1.f, 0.f, 1.f, 0.f, 1.f, 0.f, 1.f, 0.f,
+        5.f, 1.5f, 5.f, 1.5f, 5.f, 1.5f, 5.f, 1.5f
+    };
+    cldnn::mem_lock<float, mem_lock_type::read> output_ptr(output, get_test_stream());
+    ASSERT_EQ(output->count(), expected.size());
+    for (size_t i = 0; i < expected.size(); ++i) {
+        EXPECT_EQ(output_ptr[i], expected[i]) << "Index=" << i;
+    }
+}
+
 class tile_cpu_impl : public tile_gpu {};
 TEST_F(tile_cpu_impl, basic_in1x2x2x2_axis_b) {
     this->test_basic_in1x2x2x2_axis_b(false, impl_types::cpu);
