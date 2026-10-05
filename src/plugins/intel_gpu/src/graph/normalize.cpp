@@ -30,7 +30,7 @@ std::string normalize_inst::to_string(normalize_node const& node) {
     auto node_info = node.desc_to_json();
     auto desc = node.get_primitive();
     auto epsilon = desc->epsilon;
-    auto norm_region = desc->across_spatial ? "across spatial" : "within spatial";
+    const auto* norm_region = desc->across_spatial ? "across spatial" : "within spatial";
     auto& input = node.input();
     auto& scale_input = node.scale();
 

@@ -6,10 +6,14 @@ import pytest
 import torch
 from openvino import PartialShape
 
-from torch_utils import TestTorchConvertModel
+from torch_utils import TestTorchConvertModel, skip_npu_precommit
 
 # To make tests reproducible we seed the random generator
 torch.manual_seed(0)
+
+NPU_PRECOMMIT_SKIP = {
+    "recognizer": "*",
+}
 
 
 class TestEasyOCRConvertModel(TestTorchConvertModel):
@@ -38,6 +42,7 @@ class TestEasyOCRConvertModel(TestTorchConvertModel):
     def test_convert_model(self, name, ie_device):
         if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
             pytest.skip("EasyOCR models are not enabled on ARM")
+        skip_npu_precommit(name, ie_device, NPU_PRECOMMIT_SKIP)
         self.run(name, None, ie_device)
 
     @pytest.mark.precommit
@@ -46,5 +51,6 @@ class TestEasyOCRConvertModel(TestTorchConvertModel):
     def test_convert_model_export(self, name, ie_device):
         if platform.machine() in ['arm', 'armv7l', 'aarch64', 'arm64', 'ARM64']:
             pytest.skip("EasyOCR models are not enabled on ARM")
+        skip_npu_precommit(name, ie_device, NPU_PRECOMMIT_SKIP)
         self.mode = "export"
         self.run(name, None, ie_device)

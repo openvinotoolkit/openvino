@@ -1829,6 +1829,7 @@ public:
     struct gpu_outputs {
         std::map<cldnn::primitive_id, cldnn::network_output> outputs;
         cldnn::memory::ptr key_cache_mem;
+        cldnn::memory::ptr value_cache_mem;
         cldnn::network::ptr network;
     };
 
@@ -1938,7 +1939,7 @@ public:
         } else {
             result.key_cache_mem = pam.get_key_cache_memory();
         }
-        auto value_cache_mem = pam.get_value_cache_memory();
+        result.value_cache_mem = pam.get_value_cache_memory();
 
         auto past_lens_mem = pam.get_past_lens_memory();
         auto subsequence_begins_mem = pam.get_subsequence_begins_memory();
@@ -1974,7 +1975,7 @@ public:
         auto key_layout = key_mem->get_layout();
         auto value_layout = value_mem->get_layout();
         auto key_cache_layout = result.key_cache_mem->get_layout();
-        auto value_cache_layout = value_cache_mem->get_layout();
+        auto value_cache_layout = result.value_cache_mem->get_layout();
         auto past_lens_layout = past_lens_mem->get_layout();
         auto subsequence_begins_layout = subsequence_begins_mem->get_layout();
         auto block_indices_layout = block_indices_mem->get_layout();
@@ -2181,7 +2182,7 @@ public:
         network->set_input_data("key", key_mem);
         network->set_input_data("value", value_mem);
         network->set_input_data("key_cache", result.key_cache_mem);
-        network->set_input_data("value_cache", value_cache_mem);
+        network->set_input_data("value_cache", result.value_cache_mem);
         network->set_input_data("past_lens", past_lens_mem);
         network->set_input_data("subsequence_begins", subsequence_begins_mem);
         network->set_input_data("block_indices", block_indices_mem);

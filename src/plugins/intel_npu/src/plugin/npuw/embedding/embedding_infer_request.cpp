@@ -119,6 +119,8 @@ void ov::npuw::EmbeddingInferRequest::infer_chunked_prefill(ov::SoPtr<ov::ITenso
                                               static_cast<uint32_t>(chunk_prompt_len));
 
         // Copy with proper stride handling
+        NPUW_ASSERT(pos_ids_slice._ptr &&
+                    "null slice of position IDs tensor — source tensor may be uninitialized or have wrong shape");
         actual_position_ids_slice->copy_to(pos_ids_slice._ptr);
 
         m_prefill_base_request->update_history_size(kvcache_desc.num_stored_tokens);

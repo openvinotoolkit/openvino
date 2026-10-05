@@ -38,12 +38,11 @@ public:
     IncreasePositionIdsPrecisionForGPTOSS();
 };
 
-class IncreasePositionIdsPrecisionForGemma4 : public ov::pass::MatcherPass {
+class IncreasePositionIdsPrecisionForDirectMatMulSinCos : public ov::pass::MatcherPass {
 public:
-    OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionForGemma4");
-    IncreasePositionIdsPrecisionForGemma4();
+    OPENVINO_MATCHER_PASS_RTTI("IncreasePositionIdsPrecisionForDirectMatMulSinCos");
+    IncreasePositionIdsPrecisionForDirectMatMulSinCos();
 };
-
 
 /**
  * @brief This pass adds additional convert nodes on the position_ids input branch (around MatMul or Multiply operation),

@@ -103,7 +103,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |LogSoftmax                                              |13, 1                   |13, 11, 1                       |                                |
 |                        |Loop                                                    |1                       |21, 19, 16, 13, 11, 1           |                                |
 |                        |LpNormalization                                         |1                       |22, 1                           |                                |
-|                        |LpPool                                                  |                        |22, 18, 11, 2, 1                |                                |
+|                        |LpPool                                                  |2, 1                    |22, 18, 11, 2, 1                |                                |
 |                        |MatMul                                                  |1                       |13, 9, 1                        |                                |
 |                        |MatMulInteger                                           |10                      |10                              |                                |
 |                        |Max                                                     |8, 1                    |13, 12, 8, 6, 1                 |                                |
@@ -196,6 +196,7 @@ OpenVINO provides support for operations of Default Opset (empty in table below)
 |                        |StringSplit                                             |                        |20                              |                                |
 |                        |Sub                                                     |7, 1                    |14, 13, 7, 6, 1                 |                                |
 |                        |Sum                                                     |8, 1                    |13, 8, 6, 1                     |                                |
+|                        |Swish                                                   |24                      |24                              |                                |
 |                        |Tan                                                     |7                       |22, 7                           |                                |
 |                        |Tanh                                                    |1                       |13, 6, 1                        |                                |
 |                        |TfIdfVectorizer                                         |                        |9                               |Supported through openvino_tokenizers|

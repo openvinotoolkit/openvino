@@ -4,8 +4,21 @@
 
 set(TARGET_NAME "benchmark_app")
 
-file (GLOB SRC ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp)
-file (GLOB HDR ${CMAKE_CURRENT_SOURCE_DIR}/*.hpp)
+set(SRC
+    ${CMAKE_CURRENT_SOURCE_DIR}/inputs_filling.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/main.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/remote_tensors_filling.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/statistics_report.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils.cpp
+)
+set(HDR
+    ${CMAKE_CURRENT_SOURCE_DIR}/benchmark_app.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/infer_request_wrap.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/inputs_filling.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/remote_tensors_filling.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/statistics_report.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/utils.hpp
+)
 
 ov_add_sample(NAME ${TARGET_NAME}
               SOURCES ${SRC}

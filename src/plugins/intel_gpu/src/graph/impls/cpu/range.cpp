@@ -44,7 +44,7 @@ struct range_impl : public typed_primitive_impl<range> {
             stream.wait_for_events(events);
         }
 
-        auto params = instance.get_impl_params();
+        const auto* params = instance.get_impl_params();
 
         ov::TensorVector input_host_tensors;
         ov::TensorVector output_host_tensors;

@@ -83,7 +83,7 @@ struct crop_in_place_optimization : pattern_match_optimization_typed<crop_in_pla
     //                  update_in_place_crop_padding_simple_data_format and
     //                  avoids relying on reshape's calc_output_layouts (which
     //                  resets padding to empty for reshape_mode::base).
-    static void update_in_place_crop_padding_along_feature(const program_node& node,
+    static bool update_in_place_crop_padding_along_feature(const program_node& node,
                                                            layout& crop_layout,
                                                            layout& pred_layout,
                                                            std::pair<const program_node*, layout>& user_info,

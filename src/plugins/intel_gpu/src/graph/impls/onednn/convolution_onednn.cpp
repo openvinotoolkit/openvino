@@ -121,20 +121,18 @@ static std::shared_ptr<dnnl::convolution_forward::primitive_desc> get_convolutio
             pad_l,
             pad_r,
             attr);
-    } else {
-        return std::make_shared<dnnl::convolution_forward::primitive_desc>(
-            engine.get_onednn_engine(),
-            dnnl::prop_kind::forward_inference,
-            dnnl::algorithm::convolution_direct,
-            input_md,
-            weights_md,
-            output_md,
-            stride,
-            dilation,
-            pad_l,
-            pad_r,
-            attr);
     }
+    return std::make_shared<dnnl::convolution_forward::primitive_desc>(engine.get_onednn_engine(),
+                                                                       dnnl::prop_kind::forward_inference,
+                                                                       dnnl::algorithm::convolution_direct,
+                                                                       input_md,
+                                                                       weights_md,
+                                                                       output_md,
+                                                                       stride,
+                                                                       dilation,
+                                                                       pad_l,
+                                                                       pad_r,
+                                                                       attr);
 }
 
 struct convolution_onednn : typed_primitive_onednn_impl<convolution> {
@@ -173,7 +171,7 @@ protected:
             // In the case of dynamic model, if choose_impl was executed in runtime,
             // a_zp could be remained as u8 or i8.
             if (a_zp->get_layout().data_type != data_types::i32) {
-                auto& conv_node = instance.get_node().as<convolution>();
+                const auto& conv_node = instance.get_node().as<convolution>();
                 auto& a_zp_node = conv_node.activations_zero_points().as<data>();
                 a_zp = a_zp_node.get_attached_memory_ptr();
             }
@@ -384,7 +382,7 @@ public:
 
     static std::unique_ptr<primitive_impl> create(const convolution_node& arg, const kernel_impl_params& impl_params) {
         auto& engine = impl_params.prog->get_engine();
-        auto& config = impl_params.prog->get_config();
+        const auto& config = impl_params.prog->get_config();
         int zero_point_mask = -1;
         dnnl::memory::data_type wzp_data_type = dnnl::memory::data_type::undef;
 

@@ -58,7 +58,7 @@ struct concatenation_impl : public typed_primitive_impl<concatenation> {
             stream.wait_for_events(events);
         }
 
-        auto params = instance.get_impl_params();
+        const auto* params = instance.get_impl_params();
 
         ov::TensorVector input_host_tensors;
         ov::TensorVector output_host_tensors;
@@ -69,7 +69,7 @@ struct concatenation_impl : public typed_primitive_impl<concatenation> {
 
         std::vector<memory::ptr> input_mem_ptrs;
         for (size_t i = 0; i < instance.dependencies().size(); i++) {
-            auto& dep = instance.dependencies().at(i);
+            const auto& dep = instance.dependencies().at(i);
             if (dep.first->get_output_layout().count() > 0) {
                 auto mem_ptr = instance.dep_memory_ptr(i);
                 input_host_tensors.push_back(make_tensor(params->input_layouts[i], mem_ptr->lock(stream, mem_lock_type::read)));

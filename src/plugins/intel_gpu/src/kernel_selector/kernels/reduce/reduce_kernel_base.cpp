@@ -11,13 +11,13 @@
 namespace kernel_selector {
 
 bool ReduceKernelBase::Validate(const Params& p) const {
-    auto& params = dynamic_cast<const reduce_params&>(p);
+    const auto& params = dynamic_cast<const reduce_params&>(p);
 
     if (params.GetType() != KernelType::REDUCE) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    for (auto& fused_op : params.fused_ops) {
+    for (const auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
             DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
@@ -183,14 +183,18 @@ Datatype ReduceKernelBase::GetAccumulatorType(const reduce_params& params) const
 
     if (reduce_mode == ReduceMode::MAX || reduce_mode == ReduceMode::MIN) {
         return input_dt;
-    } else {
-        switch (input_dt) {
-            case Datatype::F32: return Datatype::F32;
-            case Datatype::F16: return Datatype::F32;
-            case Datatype::INT8: return Datatype::INT32;
-            case Datatype::UINT8: return Datatype::INT32;
-            default: return Datatype::F32;
-        }
+    }
+    switch (input_dt) {
+    case Datatype::F32:
+        return Datatype::F32;
+    case Datatype::F16:
+        return Datatype::F32;
+    case Datatype::INT8:
+        return Datatype::INT32;
+    case Datatype::UINT8:
+        return Datatype::INT32;
+    default:
+        return Datatype::F32;
     }
 }
 
@@ -203,16 +207,14 @@ Datatype ReduceKernelBase::GetFinalAccumulatorType(const reduce_params& params) 
         reduce_mode == ReduceMode::L2 ||
         reduce_mode == ReduceMode::L1) {
         return Datatype::F32;
-    } else {
-        return GetAccumulatorType(params);
     }
+    return GetAccumulatorType(params);
 }
 
 Datatype ReduceKernelBase::GetActivationType(const reduce_params& params) const {
     if (params.outputs[0].GetDType() == Datatype::F16)
         return Datatype::F16;
-    else
-        return Datatype::F32;
+    return Datatype::F32;
 }
 
 void ReduceKernelBase::GetUpdateDispatchDataFunc(KernelData& kd) const {

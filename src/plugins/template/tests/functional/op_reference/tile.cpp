@@ -115,6 +115,23 @@ std::vector<TileParams> generateParams() {
 }
 
 template <element::Type_t ET, element::Type_t ET_INT>
+std::vector<TileParams> generateParamsNegativeRepeats() {
+    using T = typename element_type_traits<ET>::value_type;
+    using T_INT = typename element_type_traits<ET_INT>::value_type;
+    std::vector<TileParams> params{
+        TileParams(reference_tests::Tensor(ET, {3}, std::vector<T>{1, 2, 3}),
+                   reference_tests::Tensor(ET_INT, {1}, std::vector<T_INT>{-1}),
+                   reference_tests::Tensor(ET, {0}, std::vector<T>{}),
+                   "tile_1d_to_1d_with_negative_repeats"),
+        TileParams(reference_tests::Tensor(ET, {2, 2}, std::vector<T>{1, 2, 3, 4}),
+                   reference_tests::Tensor(ET_INT, {2}, std::vector<T_INT>{2, -1}),
+                   reference_tests::Tensor(ET, {4, 0}, std::vector<T>{}),
+                   "tile_2d_mixed_sign_repeats_with_negative_axis"),
+    };
+    return params;
+}
+
+template <element::Type_t ET, element::Type_t ET_INT>
 std::vector<TileParams> generateParamsFloatValue() {
     using T = typename element_type_traits<ET>::value_type;
     using T_INT = typename element_type_traits<ET_INT>::value_type;
@@ -261,7 +278,12 @@ std::vector<TileParams> generateCombinedParams() {
         generateParamsFloatValue<element::Type_t::bf16, element::Type_t::u8>(),
         generateParamsFloatValue<element::Type_t::bf16, element::Type_t::u16>(),
         generateParamsFloatValue<element::Type_t::bf16, element::Type_t::u32>(),
-        generateParamsFloatValue<element::Type_t::bf16, element::Type_t::u64>()};
+        generateParamsFloatValue<element::Type_t::bf16, element::Type_t::u64>(),
+        // test negative repeats
+        generateParamsNegativeRepeats<element::Type_t::f32, element::Type_t::i8>(),
+        generateParamsNegativeRepeats<element::Type_t::f32, element::Type_t::i16>(),
+        generateParamsNegativeRepeats<element::Type_t::f32, element::Type_t::i32>(),
+        generateParamsNegativeRepeats<element::Type_t::f32, element::Type_t::i64>()};
     std::vector<TileParams> combinedParams;
 
     for (const auto& params : generatedParams) {

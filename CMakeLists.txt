@@ -27,6 +27,14 @@ if(POLICY CMP0177)
     cmake_policy(SET CMP0177 NEW)
 endif()
 
+if(POLICY CMP0194)
+    # NOTE: Keeping the policy "OLD" in order to retain custom assembler search (icpx/icx/icx.exe)
+    # Making it "NEW" would result in (incorrect) usage of cl64.exe in certain contexts on Windows
+    set(CMAKE_POLICY_DEFAULT_CMP0194 OLD)
+    # NOTE: Some CMake versions have a typo in the policy number, so we set both to be safe
+    set(CMAKE_POLICY_DEFAULT_CMP194 OLD)
+endif()
+
 # set CMAKE_POLICY_VERSION_MINIMUM to avoid errors from 3rd party dependencies
 # after cmake is updated to 4.0
 set(CMAKE_POLICY_VERSION_MINIMUM 3.5)

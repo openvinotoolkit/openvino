@@ -4,11 +4,10 @@
 
 #include <memory>
 
-#include "openvino/op/constant.hpp"
-#include "openvino/op/cum_sum.hpp"
-
 #include "node_context.hpp"
 #include "op_table.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/cum_sum.hpp"
 #include "utils.hpp"
 
 namespace ov {

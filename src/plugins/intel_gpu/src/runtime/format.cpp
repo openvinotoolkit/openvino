@@ -189,7 +189,8 @@ const format_traits& format::traits() const {
 std::string format::to_string() const {
     if (value == any) {
         return "any";
-    } else if (value == custom) {
+    }
+    if (value == custom) {
         return "custom";
     }
     return traits(value).str;
@@ -266,7 +267,7 @@ format format::adjust_to_rank(format fmt, size_t new_rank) {
         align_order(current_order, current_rank, new_rank);
     }
 
-    for (auto& kv : format_traits_map) {
+    for (const auto& kv : format_traits_map) {
         auto candidate_tag = kv.first;
         auto candidate_traits = kv.second;
         auto candidate_order = candidate_traits._order;
@@ -328,7 +329,7 @@ format format::find_format(const std::vector<uint64_t>& order,
     };
 
     std::vector<format> finded_formats;
-    for (auto& traits : format_traits_map) {
+    for (const auto& traits : format_traits_map) {
         if (is_suitable_traits(traits))
             finded_formats.emplace_back(traits.first);
     }

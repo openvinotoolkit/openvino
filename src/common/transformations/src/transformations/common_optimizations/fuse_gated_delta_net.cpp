@@ -227,6 +227,10 @@ ov::pass::FuseGDNLoop::FuseGDNLoop() {
         const auto& pattern_map = m.get_pattern_value_map();
         auto loop_node = pattern_map.at(loop_output).get_node_shared_ptr();
 
+        if (transformation_callback(loop_node)) {
+            return false;
+        }
+
         auto perm_bhls_to_blhs = v0::Constant::create(ov::element::i64, {4}, {0, 2, 1, 3});
         auto perm_bhl_to_blh = v0::Constant::create(ov::element::i64, {3}, {0, 2, 1});
         ov::Output<ov::Node> q_in = pattern_map.at(query);

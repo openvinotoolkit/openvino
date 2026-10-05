@@ -63,6 +63,8 @@ const std::vector<std::regex>& disabled_test_patterns() {
             std::regex(R"(.*smoke.*BehaviorTests.*InferFullyDynamicNetworkWith(S|G)etTensor.*)"),
             std::regex(R"(.*smoke.*BehaviorTests.*DynamicOutputToDynamicInput.*)"),
             std::regex(R"(.*smoke.*BehaviorTests.*DynamicInputToDynamicOutput.*)"),
+            // TODO: Implement RGBtoNV12/BGRtoNV12 in GPU plugin.
+            std::regex(R"(.*smoke_PostProcess.*convert_color_(rgb|bgr)_to_nv12.*)"),
             // TODO: Issue: 180519
             std::regex(R"(.*CoreThreadingTestsWithIter.*)"),
             // TODO: Issue: 145926

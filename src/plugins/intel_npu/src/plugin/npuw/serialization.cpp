@@ -134,6 +134,20 @@ void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::HostFlashAtten
         info._tile_input_indices.acc & info._tile_input_indices.max & info._tile_input_indices.d &
         info._tile_output_indices.acc & info._tile_output_indices.max & info._tile_output_indices.d & var._tile_size &
         var._can_use_tensor_view;
+    if (stream.input()) {
+        // Port indices are model-specific but must fit in a sane range; SIZE_MAX indicates a corrupted blob.
+        constexpr std::size_t kMaxPortIndex = static_cast<std::size_t>(std::numeric_limits<uint16_t>::max());
+        OPENVINO_ASSERT(
+            info._tile_input_indices.q <= kMaxPortIndex && info._tile_input_indices.k <= kMaxPortIndex &&
+                info._tile_input_indices.v <= kMaxPortIndex && info._tile_input_indices.mask <= kMaxPortIndex &&
+                info._tile_input_indices.acc <= kMaxPortIndex && info._tile_input_indices.max <= kMaxPortIndex &&
+                info._tile_input_indices.d <= kMaxPortIndex,
+            "HFA tile input index out of range in deserialized blob");
+        OPENVINO_ASSERT(info._tile_output_indices.acc <= kMaxPortIndex &&
+                            info._tile_output_indices.max <= kMaxPortIndex &&
+                            info._tile_output_indices.d <= kMaxPortIndex,
+                        "HFA tile output index out of range in deserialized blob");
+    }
 }
 
 void ov::npuw::orc::serialize(Stream& stream, ov::npuw::compiled::MoEExperts& var) {

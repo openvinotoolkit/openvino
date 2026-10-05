@@ -1017,6 +1017,7 @@ void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std:
             auto out_view =
                 ov::npuw::util::view(m_spatial_io[real_idx].input_tails.at(param.idx), param.dim, 0, spatial.tail_size);
 
+            NPUW_ASSERT(out_view._ptr && "null view of spatial input tail tensor — m_spatial_io may be uninitialized");
             in_view->copy_to(out_view._ptr);
             r->set_tensor(iport, m_spatial_io[real_idx].input_tails.at(param.idx));
         }  // for(params)
@@ -1041,6 +1042,7 @@ void ov::npuw::JustInferRequest::unsafe_infer_spatial(std::size_t real_idx, std:
                                                  spatial.out_dim,
                                                  offset,
                                                  spatial.tail_size);
+            NPUW_ASSERT(out_view._ptr && "null view of spatial output tensor — m_spatial_io may be uninitialized");
             in_view->copy_to(out_view._ptr);
         }  // for(outputs)
     }

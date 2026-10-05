@@ -126,10 +126,10 @@ private:
 
     void add_keys_with_any_layout() {
         std::set<data_types> supported_types;
-        for (auto& key : m_keys) {
+        for (const auto& key : m_keys) {
             supported_types.insert(std::get<0>(key));
         }
-        for (auto& dt : supported_types) {
+        for (const auto& dt : supported_types) {
             m_keys.insert({dt, format::any});
         }
     }

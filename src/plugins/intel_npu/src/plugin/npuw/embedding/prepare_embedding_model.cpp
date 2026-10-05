@@ -8,6 +8,7 @@
 #include <optional>
 #include <regex>
 
+#include "../llm_compiled_model_utils.hpp"
 #include "../logging.hpp"
 #include "openvino/op/ops.hpp"
 #include "openvino/openvino.hpp"
@@ -237,27 +238,6 @@ public:
 
     explicit ReConstructEmbeddingModel(uint32_t seq_len_dim) : m_seq_len_dim(seq_len_dim) {}
 
-    std::optional<std::shared_ptr<ov::Node>> check_kv_concat_nodes(std::shared_ptr<ov::Node> sdpa_node) {
-        // Key input is at index 1
-        // Concat->Broadcast->Reshape->SDPA
-        auto reshape_node = sdpa_node->input(1).get_source_output().get_node();
-        if (strstr(reshape_node->get_type_name(), "Reshape") == nullptr) {
-            return std::nullopt;
-        }
-
-        auto broadcast_node = reshape_node->input(0).get_source_output().get_node();
-        if (strstr(broadcast_node->get_type_name(), "Broadcast") == nullptr) {
-            return std::nullopt;
-        }
-
-        auto concat_node = broadcast_node->input(1).get_source_output().get_node();
-        if (strstr(concat_node->get_type_name(), "Concat") == nullptr) {
-            return std::nullopt;
-        }
-
-        return concat_node->shared_from_this();
-    }
-
     bool check_sdpa_nodes(const std::shared_ptr<ov::Model> model) {
         for (const auto& op : model->get_ops()) {
             if (ov::is_type<ov::op::v13::ScaledDotProductAttention>(op)) {
@@ -274,13 +254,13 @@ public:
                 }
 
                 // Check all SDPA nodes share the same kv concat node
-                auto concat_node = check_kv_concat_nodes(sdpa);
-                if (!concat_node.has_value()) {
+                auto concat_node = ov::npuw::util::find_kv_cache_concat(sdpa);
+                if (!concat_node) {
                     return false;
                 }
                 if (!m_kv_concat.has_value()) {
-                    m_kv_concat = concat_node.value();
-                } else if (m_kv_concat.value() != concat_node.value()) {
+                    m_kv_concat = concat_node;
+                } else if (m_kv_concat.value() != concat_node) {
                     return false;
                 }
             }

@@ -36,6 +36,8 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
         const auto& primitive = impl_param.typed_desc<broadcast>();
         auto params = get_default_params<kernel_selector::broadcast_params>(impl_param, is_shape_agnostic);
 
+        params.is_explicit_mode = !primitive->axes_mapping.empty();
+
         const auto format = impl_param.get_output_layout().format;
         size_t max_axes_num = format.dimension();
 
@@ -84,7 +86,7 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
                 int next_axis = -1;
                 size_t currentRank = 0;
                 int axe_idx = 0;
-                for (auto& axis : primitive->axes_mapping) {
+                for (const auto& axis : primitive->axes_mapping) {
                     prev_axis = next_axis;
                     next_axis = static_cast<int>(axis);
 
@@ -101,7 +103,7 @@ struct broadcast_impl : typed_primitive_impl_ocl<broadcast> {
                 // insert 1 to extend dimensions by axes_mapping
                 ov::Shape tmp_shape;
                 size_t idx = 0;
-                for (auto& axis : primitive->axes_mapping) {
+                for (const auto& axis : primitive->axes_mapping) {
                     if (idx == axis) {
                         tmp_shape.insert(tmp_shape.begin() + idx, 1, -1);
                         idx += 1;
@@ -145,6 +147,7 @@ attach_broadcast_impl::attach_broadcast_impl() {
     auto types = {
         data_types::f32,
         data_types::f16,
+        data_types::bf16,
         data_types::i8,
         data_types::u8,
         data_types::i32,

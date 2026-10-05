@@ -107,6 +107,7 @@ ParamsKey PermuteKernelRef::GetSupportedKey() const {
     k.EnableInputDataType(Datatype::INT32);
     k.EnableInputDataType(Datatype::INT64);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::UINT8);
@@ -186,7 +187,7 @@ JitConstants PermuteKernelRef::GetJitConstants(const permute_params& params, con
     }
 
     assert(params.order.size() == in_idx.size());
-    for (auto& o : params.order) {
+    for (const auto& o : params.order) {
         permute_out_idx.push_back(in_idx[o]);
     }
 

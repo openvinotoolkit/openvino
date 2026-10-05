@@ -38,14 +38,13 @@ std::vector<layout> swiglu_inst::calc_output_layouts(swiglu_node const& /*node*/
         op.set_axis(desc->axis);
         std::vector<ov::PartialShape> output_shapes = shape_infer(&op, input_shapes);
         return {layout(output_shapes[0], output_type, output_format)};
-    } else {
-        ov::op::internal::GLU op;
-        op.set_axis(desc->axis);
-        op.set_split_lengths(desc->glu_stride);
-
-        std::vector<ShapeType> output_shapes = shape_infer(&op, input_shapes);
-        return {layout(output_shapes[0], output_type, output_format)};
     }
+    ov::op::internal::GLU op;
+    op.set_axis(desc->axis);
+    op.set_split_lengths(desc->glu_stride);
+
+    std::vector<ShapeType> output_shapes = shape_infer(&op, input_shapes);
+    return {layout(output_shapes[0], output_type, output_format)};
 }
 
 template std::vector<layout> swiglu_inst::calc_output_layouts<ov::PartialShape>(swiglu_node const& node,

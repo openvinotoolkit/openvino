@@ -33,7 +33,7 @@ size_t CumSumKernelBase::GetRealAxisIndex(const cum_sum_params& params) const {
     size_t index = params.outputs[0].Dimentions() - GetCumSumAxisIndex(params) - 1;
     if (params.outputs[0].Dimentions() == 6)
         return index;
-    else if (params.outputs[0].Dimentions() == 5)
+    if (params.outputs[0].Dimentions() == 5)
         return (index > 1) ? index + 1 : index;
     return (index > 1) ? index + 2 : index;
 }
@@ -108,7 +108,7 @@ bool CumSumKernelBase::Validate(const Params& p) const {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
 
-    auto& params = static_cast<const cum_sum_params&>(p);
+    const auto& params = static_cast<const cum_sum_params&>(p);
     if (GetCumSumAxisIndex(params) == -1)
         DO_NOT_USE_THIS_KERNEL(p.layerID);
 

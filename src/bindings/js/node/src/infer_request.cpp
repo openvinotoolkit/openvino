@@ -4,6 +4,7 @@
 
 #include "node/include/infer_request.hpp"
 
+#include <exception>
 #include <mutex>
 
 #include "node/include/addon.hpp"
@@ -200,8 +201,10 @@ void FinalizerCallback(Napi::Env env, void* finalizeData, TsfnContext* context) 
     delete context;
 };
 
-void performInferenceThread(TsfnContext* context) {
-    {
+namespace {
+void perform_inference_thread(TsfnContext* context) {
+    std::exception_ptr stored_exception;
+    try {
         const std::lock_guard<std::mutex> lock(infer_mutex);
         for (size_t i = 0; i < context->_inputs.size(); ++i) {
             context->_ir->set_input_tensor(i, context->_inputs[i]);
@@ -219,21 +222,34 @@ void performInferenceThread(TsfnContext* context) {
         }
 
         context->result = outputs;
+    } catch (...) {
+        stored_exception = std::current_exception();
     }
 
-    auto callback = [](Napi::Env env, Napi::Function, TsfnContext* context) {
-        const auto& res = context->result;
-        auto outputs_obj = Napi::Object::New(env);
+    auto callback = [stored_exception](Napi::Env env, Napi::Function, TsfnContext* context) {
+        try {
+            if (stored_exception) {
+                std::rethrow_exception(stored_exception);
+            }
+            const auto& res = context->result;
+            auto outputs_obj = Napi::Object::New(env);
 
-        for (const auto& [key, tensor] : res) {
-            outputs_obj.Set(key, TensorWrap::wrap(env, tensor));
+            for (const auto& [key, tensor] : res) {
+                outputs_obj.Set(key, TensorWrap::wrap(env, tensor));
+            }
+            context->deferred.Resolve(outputs_obj);
+        } catch (const std::exception& e) {
+            context->deferred.Reject(Napi::Error::New(env, e.what()).Value());
         }
-        context->deferred.Resolve(outputs_obj);
     };
 
-    context->tsfn.BlockingCall(context, callback);
+    const auto status = context->tsfn.BlockingCall(context, callback);
+    if (status != napi_ok && status != napi_closing) {
+        std::cerr << "ThreadSafeFunction::BlockingCall failed with status " << status << '\n';
+    }
     context->tsfn.Release();
 }
+}  // namespace
 
 Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
     if (info.Length() != 1) {
@@ -253,6 +269,6 @@ Napi::Value InferRequestWrap::infer_async(const Napi::CallbackInfo& info) {
     context->tsfn =
         Napi::ThreadSafeFunction::New(env, Napi::Function(), "TSFN", 0, 1, context, FinalizerCallback, (void*)nullptr);
 
-    context->native_thread = std::thread(performInferenceThread, context);
+    context->native_thread = std::thread(perform_inference_thread, context);
     return context->deferred.Promise();
 }

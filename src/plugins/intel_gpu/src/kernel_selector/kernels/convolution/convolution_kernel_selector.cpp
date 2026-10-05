@@ -6,6 +6,7 @@
 #include "convolution_kernel_ref.h"
 #include "convolution_kernel_bfyx_1x1_opt.h"
 #include "convolution_kernel_bfyx_gemm_like.h"
+#include "convolution_kernel_1d_small_ic_gemm.h"
 #include "convolution_kernel_bfyx_direct_10_12_16.h"
 #include "convolution_kernel_bfyx_os_iyx_osv16.h"
 #include "convolution_kernel_bfyx_os_iyx_osv32.h"
@@ -76,6 +77,7 @@ convolution_kernel_selector::convolution_kernel_selector() {
 
     // bfyx fp
     Attach<convolution_kernel_bfyx_1x1_opt>();
+    Attach<ConvolutionKernel_1d_small_ic_gemm>();
     Attach<ConvolutionKernel_bfyx_GEMMLike>();
     Attach<ConvolutionKernel_bfyx_Direct_10_10_12>();
     Attach<ConvolutionKernel_bfyx_os_iyx_osv16>();

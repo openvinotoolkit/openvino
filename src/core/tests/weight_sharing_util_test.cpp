@@ -381,4 +381,51 @@ TEST_F(WeightShareExtensionTest, rebuild_constant_from_shared_context) {
         EXPECT_EQ(ov::wsh::Extension::get_constant_id(*c), const_id_from_blob);
     }
 }
+
+TEST_F(WeightShareExtensionTest, get_buffer_by_source_id_oob_throws) {
+    weight_sharing::Context ctx;
+    const weight_sharing::DataID source_id = 42;
+    const weight_sharing::DataID const_id = 0;
+
+    auto raw = std::make_shared<ov::AlignedBuffer>(20);
+    auto src_buf = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+        raw->get_ptr<char>(),
+        raw->size(),
+        raw,
+        ov::create_base_descriptor(source_id, 0, raw));
+    ctx.m_cache_sources[source_id] = {"test", src_buf};
+    ctx.m_weight_registry[source_id][const_id] = {0, 0x1000000000ULL, element::f32};
+
+    OV_EXPECT_THROW(weight_sharing::get_buffer(ctx, source_id, const_id), ov::Exception, testing::_);
+}
+
+TEST_F(WeightShareExtensionTest, get_buffer_by_aligned_buffer_oob_throws) {
+    weight_sharing::Context ctx;
+    const weight_sharing::DataID source_id = 43;
+    const weight_sharing::DataID const_id = 0;
+
+    auto raw = std::make_shared<ov::AlignedBuffer>(20);
+    auto src_buf = std::make_shared<ov::SharedBuffer<std::shared_ptr<ov::AlignedBuffer>>>(
+        raw->get_ptr<char>(),
+        raw->size(),
+        raw,
+        ov::create_base_descriptor(source_id, 0, raw));
+    ctx.m_weight_registry[source_id][const_id] = {0, 0x1000000000ULL, element::f32};
+
+    OV_EXPECT_THROW(weight_sharing::get_buffer(ctx, src_buf, const_id), ov::Exception, testing::_);
+}
+
+TEST_F(WeightShareExtensionTest, get_buffer_by_mmap_oob_throws) {
+    const auto weights_path = test_dir / "weights.bin";
+    create_test_weights_file(weights_path, /*size=*/5);
+
+    weight_sharing::Context ctx;
+    auto mmap = ov::load_mmap_object(weights_path);
+    ASSERT_TRUE(mmap);
+    const weight_sharing::DataID const_id = 0;
+    ctx.m_weight_registry[mmap->get_id()][const_id] = {0, 0x1000000000ULL, element::f32};
+
+    OV_EXPECT_THROW(weight_sharing::get_buffer(ctx, mmap, const_id), ov::Exception, testing::_);
+}
+
 }  // namespace ov::test

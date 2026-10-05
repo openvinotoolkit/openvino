@@ -11,6 +11,7 @@
 #include "exceptions.hpp"
 #include "openvino/frontend/exception.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/constant.hpp"
 #include "openvino/op/divide.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
@@ -48,8 +49,22 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     const auto rotary_interleaved = node.get_attribute_value<int64_t>("rotary_interleaved", 0);
     // Quantized KV cache attributes (com.microsoft spec). Default to the unquantized (float KV) behavior.
     const auto kv_cache_bit_width = node.get_attribute_value<int64_t>("kv_cache_bit_width", 0);
-    const auto k_quant_type = node.get_attribute_value<std::string>("k_quant_type", "NONE");
-    const auto v_quant_type = node.get_attribute_value<std::string>("v_quant_type", "NONE");
+    const auto parse_quant_type = [&](const std::string& quant_type_name) {
+        using QuantType = ov::op::internal::GroupQueryAttentionQuantType;
+        if (quant_type_name == "NONE") {
+            return QuantType::NONE;
+        }
+        if (quant_type_name == "PER_TENSOR") {
+            return QuantType::PER_TENSOR;
+        }
+        if (quant_type_name == "PER_CHANNEL") {
+            return QuantType::PER_CHANNEL;
+        }
+        FRONT_END_GENERAL_CHECK(false, "GroupQueryAttention: unsupported quant type '", quant_type_name, "'.");
+        return QuantType::NONE;
+    };
+    const auto k_quant_type = parse_quant_type(node.get_attribute_value<std::string>("k_quant_type", "NONE"));
+    const auto v_quant_type = parse_quant_type(node.get_attribute_value<std::string>("v_quant_type", "NONE"));
     // Sliding-window / softcap / smooth-softmax attributes (com.microsoft spec). Default to no-op values,
     // matching the ONNX Runtime defaults (local_window_size = -1 disables the window).
     const auto local_window_size = node.get_attribute_value<int64_t>("local_window_size", -1);
@@ -80,14 +95,6 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         FRONT_END_OP_CONVERSION_CHECK(
             common::is_input_valid(onnx_op_inputs, 3) && common::is_input_valid(onnx_op_inputs, 4),
             "GroupQueryAttention: sliding_window_cache=1 requires past_key and past_value.");
-        // attention_bias (input 10) is indexed by absolute total_sequence_length, but a windowed cache rolls
-        // with front eviction so cache slot j holds absolute key (survivor_start + j). After the first
-        // eviction the bias columns no longer align with the cache slots, and the decomposition slices the
-        // bias as bias[..., 0:capacity] regardless. Reject the combination until the bias is gathered with
-        // the same survivor/new index sets that build the present buffer.
-        FRONT_END_OP_CONVERSION_CHECK(
-            !common::is_input_valid(onnx_op_inputs, 10),
-            "GroupQueryAttention: attention_bias is not supported together with sliding_window_cache=1.");
         // Only single-token decode (sequence_length == 1) is supported for the windowed cache: it always
         // stays within the window and matches ONNX Runtime exactly. Any multi-token step is the staging
         // regime (ORT runs it against a temporary larger buffer), which this decomposition does not model
@@ -151,6 +158,11 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     const auto hidden_size_node = detail::get_dimensions(q_shape_node, {2});
 
     OutputVector ov_op_inputs;
+
+    const auto make_empty_optional_input = []() {
+        return v0::Constant::create(ov::element::dynamic, ov::Shape{0}, {})->output(0);
+    };
+
     if (ov::op::util::is_null(K) && ov::op::util::is_null(V)) {
         auto total_num_heads_node =
             v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_heads + kv_num_heads + kv_num_heads});
@@ -194,8 +206,18 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         ov_op_inputs.push_back(std::move(V));
     }
 
-    for (size_t i = ov_op_inputs.size(); i < onnx_op_inputs.size(); ++i) {
-        ov_op_inputs.push_back(onnx_op_inputs[i]);
+    FRONT_END_OP_CONVERSION_CHECK(
+        common::is_input_valid(onnx_op_inputs, 3) && common::is_input_valid(onnx_op_inputs, 4),
+        "GroupQueryAttention: past_key (input 3) and past_value (input 4) must be provided as tensors");
+    // Process optional inputs: use a zero-sized Constant placeholder for missing optional ONNX inputs.
+    // Note: When the ONNX's input index changed, the corresponding index in the GroupQueryAttentionInputs enum must
+    // also be updated and  may need mapping the index manually.
+    for (size_t i = ov_op_inputs.size(); i < inputs_count_max; ++i) {
+        if (i < onnx_op_inputs.size() && !ov::op::util::is_null(onnx_op_inputs[i])) {
+            ov_op_inputs.push_back(onnx_op_inputs[i]);
+        } else {
+            ov_op_inputs.push_back(make_empty_optional_input());
+        }
     }
 
     return std::make_shared<internal::GroupQueryAttention>(ov_op_inputs,

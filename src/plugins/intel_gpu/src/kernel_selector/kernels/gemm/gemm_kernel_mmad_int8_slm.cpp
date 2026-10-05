@@ -140,10 +140,9 @@ KernelsPriority GemmKernelMMADslmInt8::GetKernelsPriority(const Params& params) 
 
     if ((mmad_operations_number >= 1024 * 1024 * 1024) || (tuning_data.size_m == 384 && tuning_data.size_k == 384 && tuning_data.size_n == 64))
         return FORCE_PRIORITY_2;
-    else if (mmad_operations_number <= 65536 || tuning_data.size_k <= 64)
+    if (mmad_operations_number <= 65536 || tuning_data.size_k <= 64)
         return DONT_USE_IF_HAVE_SOMETHING_ELSE;
-    else
-        return FORCE_PRIORITY_5;
+    return FORCE_PRIORITY_5;
 }
 
 bool GemmKernelMMADslmInt8::Validate(const Params& params) const {

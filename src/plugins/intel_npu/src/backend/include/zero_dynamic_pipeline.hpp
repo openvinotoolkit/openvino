@@ -134,8 +134,7 @@ public:
                     const std::shared_ptr<IGraph>& graph,
                     const Config& config,
                     const std::vector<std::vector<std::shared_ptr<ZeroTensor>>>& input_tensors,
-                    const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors,
-                    size_t batch_size = 1);
+                    const std::vector<std::shared_ptr<ZeroTensor>>& output_tensors);
 
     DynamicPipeline(const DynamicPipeline&) = delete;
     DynamicPipeline& operator=(const DynamicPipeline&) = delete;
@@ -168,7 +167,7 @@ private:
 
     // VM execution context owned by this pipeline; shared between shape prediction and execution.
     VMExecutionContext _executionContext;
-    std::vector<std::unique_ptr<PipelinedCommandLists>> _command_lists;
+    std::unique_ptr<PipelinedCommandLists> _command_list_group;
 };
 
 }  // namespace intel_npu

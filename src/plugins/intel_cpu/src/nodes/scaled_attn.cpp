@@ -201,7 +201,7 @@ struct MHAKernel {
         if (sink != nullptr) {
             sum += std::exp((*sink) - max);
         }
-        float scale = 1.0F / sum;
+        float scale = (sum != 0.0F) ? (1.0F / sum) : 0.0F;
         for (int i = 0; i < len; i++) {
             a[i] *= scale;
         }

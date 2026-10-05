@@ -94,7 +94,7 @@ OutputVector translate_varhandle_op(const NodeContext& node) {
     std::shared_ptr<Node> const_node;
     if (ov_type == element::dynamic) {
         const_node = std::make_shared<UnsupportedConstant>();
-    } else if (var_index.get() == nullptr) {
+    } else if (!var_index || var_index->empty()) {
         auto ov_shape = node.get_attribute<ov::PartialShape>("shape").get_shape();
         const_node =
             std::make_shared<frontend::tensorflow::Variable>(node.get_name(), ov_shape, ov_type, node.get_decoder());

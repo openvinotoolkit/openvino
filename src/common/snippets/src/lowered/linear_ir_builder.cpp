@@ -90,6 +90,7 @@ void LinearIRBuilder::clone(const LinearIR* src, LinearIR* dst, ExpressionMap& e
     dst->m_loop_manager = src->m_loop_manager->clone_with_new_expr(expression_map);
     // It's Ok to share shapeInfer factory ptr, since the factory doesn't depend on LIR in any way
     dst->m_shape_infer_factory = src->m_shape_infer_factory;
+    dst->m_expression_factory = std::make_shared<ExpressionFactory>(dst->m_shape_infer_factory);
     dst->m_shape_infer = std::make_shared<LinearIR::LIRShapeInfer>(dst->m_expressions,
                                                                    dst->m_parameter_expressions,
                                                                    dst->m_result_expressions);

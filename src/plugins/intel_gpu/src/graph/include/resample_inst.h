@@ -26,9 +26,8 @@ public:
         // if vector of sizes or scales exists, resample in CreateInterpolateOp generates no dependency for inputs of sizes and scales
         if (!typed_desc()->sizes.empty() && !typed_desc()->scales.empty()) {
             return {};
-        } else {
-            return {1, 2};
         }
+        return {1, 2};
     }
 };
 

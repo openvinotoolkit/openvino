@@ -28,6 +28,17 @@ namespace frontend {
 namespace onnx {
 namespace com_microsoft {
 namespace opset_1 {
+namespace {
+// MatMulNBits repacks B/scales/zero_point initializers into new low-bit Constants. Preserve the
+// original ONNX initializer's friendly name and tensor names on the repacked Constant so weight
+// sharing / weights-as-input can still identify it as the same external weight.
+void preserve_initializer_name(const std::shared_ptr<v0::Constant>& repacked,
+                               const std::shared_ptr<v0::Constant>& original) {
+    repacked->set_friendly_name(original->get_friendly_name());
+    repacked->get_output_tensor(0).set_names(original->get_output_tensor(0).get_names());
+}
+}  // namespace
+
 ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
     common::default_op_checks(node, 3);
     // Original documentation:
@@ -177,10 +188,9 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
         }
 
         // Preserve the original B initializer name on the repacked weight constant so it can still be
-        // identified by name downstream (e.g. for weight sharing). Only B is named.
+        // identified by name downstream (e.g. for weight sharing).
         if (const auto casted_b_const = ov::as_type_ptr<v0::Constant>(casted_b.get_node_shared_ptr())) {
-            casted_b_const->set_friendly_name(b_const->get_friendly_name());
-            casted_b_const->get_output_tensor(0).set_names(b_const->get_output_tensor(0).get_names());
+            preserve_initializer_name(casted_b_const, b_const);
         }
 
         ov::Output<ov::Node> converted_zero_points;
@@ -226,6 +236,12 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                 converted_zero_points = std::make_shared<v0::Constant>(a.get_element_type(),
                                                                        casted_zp_shape,
                                                                        zero_points_const->get_data_ptr());
+                // Preserve the original zero_point name on the repacked Constant (as done for B) so weight
+                // sharing / weights-as-input can still identify it by name.
+                if (const auto casted_zp_const =
+                        ov::as_type_ptr<v0::Constant>(converted_zero_points.get_node_shared_ptr())) {
+                    preserve_initializer_name(casted_zp_const, zero_points_const);
+                }
             } else if (zero_points.get_element_type() == ov::element::u8) {
                 // for alignment, n_blocks_per_col might not aligned to num_per_byte
                 uint64_t num_per_byte = 8 / bits;
@@ -235,6 +251,11 @@ ov::OutputVector matmulnbits(const ov::frontend::onnx::Node& node) {
                     ov::Shape{static_cast<size_t>(N), static_cast<size_t>(num_elements_aligned), 1};
                 auto casted_zp_org =
                     std::make_shared<v0::Constant>(zp_element_type, casted_zp_shape, zero_points_const->get_data_ptr());
+                // Preserve the original zero_point name on the repacked Constant (as done for B) so weight
+                // sharing can promote it. The packed Constant keeps the source uint8 byte count, so the
+                // promoted input's tensor matches the external weight at runtime - true whether or not the
+                // Slice below is inserted, so name it unconditionally.
+                preserve_initializer_name(casted_zp_org, zero_points_const);
                 converted_zero_points = std::make_shared<v0::Convert>(casted_zp_org, a.get_element_type());
                 if (n_blocks_per_col != num_elements_aligned) {
                     // if not align

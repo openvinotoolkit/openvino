@@ -20,6 +20,8 @@ ParamsKey ConcatenationKernel_b_fs_yx_fsv32::GetSupportedKey() const {
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::F16);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableInputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableOutputLayout(DataLayout::b_fs_yx_fsv32);
     k.EnableTensorOffset();

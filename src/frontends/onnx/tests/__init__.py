@@ -115,7 +115,6 @@ xfail_issue_58676 = xfail_test(reason="AssertionError: Not equal to tolerance rt
 skip_issue_58676 = pytest.mark.skip(reason="AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")
 xfail_issue_onnx_models_140 = xfail_test(reason="https://github.com/onnx/models/issues/140")
 
-xfail_issue_63033 = xfail_test(reason="BatchNormalization: Training mode is not supported")
 xfail_issue_63043 = xfail_test(reason="Recurrent node expects constants as W, R, B inputs.")
 
 skip_rng_tests = pytest.mark.skip(reason="Tests use random number generator with no seed.")
@@ -142,7 +141,6 @@ xfail_issue_119900 = xfail_test(reason="While validating ONNX node '<Node(Resize
                                        "tf_half_pixel_for_nn, asymmetric, align_corners, pytorch_half_pixel, "
                                        "half_pixel")
 xfail_issue_119903 = xfail_test(reason="DeformConv operation is not supported")
-xfail_issue_119906 = xfail_test(reason="LpPool operation is not supported")
 xfail_issue_119919 = xfail_test(reason="While validating ONNX node '<Node(Pad): y>': Unsupported padding mode: [wrap]")
 xfail_issue_119922 = xfail_test(reason="ai.onnx.ml operators domain isn't supported")
 xfail_issue_119925 = xfail_test(reason="AveragePool AssertionError: Not equal to tolerance rtol=0.001, atol=1e-07")

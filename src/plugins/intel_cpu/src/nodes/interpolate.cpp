@@ -8,6 +8,7 @@
 #include <cassert>
 #include <cmath>
 #include <common/primitive_attr.hpp>
+#include <common/primitive_hashing.hpp>
 #include <common/primitive_hashing_utils.hpp>
 #include <common/utils.hpp>
 #include <cstddef>

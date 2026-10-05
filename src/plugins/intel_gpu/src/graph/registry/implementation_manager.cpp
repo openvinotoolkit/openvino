@@ -9,12 +9,12 @@
 namespace cldnn {
 
 shape_types ImplementationManager::get_shape_type(const kernel_impl_params& impl_params) {
-    for (auto& in_shape : impl_params.input_layouts) {
+    for (const auto& in_shape : impl_params.input_layouts) {
         if (in_shape.is_dynamic()) {
             return shape_types::dynamic_shape;
         }
     }
-    for (auto& out_shape : impl_params.output_layouts) {
+    for (const auto& out_shape : impl_params.output_layouts) {
         if (out_shape.is_dynamic()) {
             return shape_types::dynamic_shape;
         }
@@ -24,12 +24,12 @@ shape_types ImplementationManager::get_shape_type(const kernel_impl_params& impl
 }
 
 shape_types ImplementationManager::get_shape_type(const program_node& node) {
-    for (auto& in_layout : node.get_input_layouts()) {
+    for (const auto& in_layout : node.get_input_layouts()) {
         if (in_layout.is_dynamic()) {
             return shape_types::dynamic_shape;
         }
     }
-    for (auto& out_layout : node.get_output_layouts()) {
+    for (const auto& out_layout : node.get_output_layouts()) {
         if (out_layout.is_dynamic()) {
             return shape_types::dynamic_shape;
         }

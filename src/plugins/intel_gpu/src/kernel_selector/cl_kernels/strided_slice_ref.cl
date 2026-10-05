@@ -347,7 +347,13 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
     const uint output_index = OUTPUT_GET_INDEX(batch, feature, w, z, y, x);
 #endif
 
-    output[output_index] = input[input_index];
+#if HAS_FUSED_OPS
+    INPUT0_TYPE input_data = input[input_index];
+    FUSED_OPS;
+    output[output_index] = FUSED_OPS_RESULT;
+#else
+    output[output_index] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(input[input_index]), ACTIVATION_PARAMS));
+#endif
 
 #else // NEW_AXIS_MODE
 #ifdef OUTPUT_LAYOUT_BFYX
@@ -420,7 +426,7 @@ KERNEL(strided_slice_ref)(OPTIONAL_SHAPE_INFO_ARG
     FUSED_OPS;
     output[output_index] = FUSED_OPS_RESULT;
 #else
-    output[output_index] = ACTIVATION(input[input_index], ACTIVATION_PARAMS);
+    output[output_index] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(input[input_index]), ACTIVATION_PARAMS));
 #endif
 #endif // NEW_AXIS_MODE
 }

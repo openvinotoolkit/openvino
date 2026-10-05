@@ -79,9 +79,9 @@ static void CreatePA_KV_ReorderOp(ProgramBuilder& p, const std::shared_ptr<ov::o
                     "[GPU] pa_kv_reorder expects 4D value cache, got rank ", value_cache_ps.rank());
 
     const auto& rt_info = op->get_rt_info();
-    const auto k_head_size_id = "k_head_size";
-    const auto v_head_size_id = "v_head_size";
-    const auto num_k_heads_id = "num_k_heads";
+    const auto* const k_head_size_id = "k_head_size";
+    const auto* const v_head_size_id = "v_head_size";
+    const auto* const num_k_heads_id = "num_k_heads";
 
     OPENVINO_ASSERT(rt_info.find(k_head_size_id) != rt_info.end() &&
                     rt_info.find(v_head_size_id) != rt_info.end() &&

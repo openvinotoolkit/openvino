@@ -4,16 +4,14 @@
 
 #pragma once
 
+#include "convert_gemm_bias.hpp"
+#include "fc_mul_add_fq_block.hpp"
 #include "openvino/pass/matcher_pass.hpp"
 
 /*
  * Description:
- *     ConvertFullyConnectedBias detects the int8 FullyConnected requantization pattern
- *     MatMul -> Multiply -> Add(bias) -> FakeQuantize
- *     and inserts a Convert to i32 between the constant bias and the Add node.
- *     Convert to i32 is necessary because the ACL int8 FullyConnected executor supports i32 bias only.
- *     Also, the order of Add and Multiply is swapped to satisfy ACL requirements (the dequantization Multiply
- *     must directly follow the GEMM, with the bias added as an i32 input). This mirrors ConvertConvolutionBias.
+ *     ConvertFullyConnectedBias is the FullyConnected specialization of ConvertGemmBias
+ *     It matches the int8 FullyConnected requantization chain via FCMulAddFQBlock
  *
  * Before:  MatMul -> Multiply -> Add(bias f16/f32) -> FakeQuantize -> Result
  * After:   MatMul -> Add(Round(bias)->Convert i32) -> Multiply -> FakeQuantize -> Result
@@ -25,10 +23,10 @@
 
 namespace ov::intel_cpu {
 
-class ConvertFullyConnectedBias : public ov::pass::MatcherPass {
+class ConvertFullyConnectedBias : public ConvertGemmBias<FCMulAddFQBlock> {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ConvertFullyConnectedBias");
-    ConvertFullyConnectedBias();
+    ConvertFullyConnectedBias() : ConvertGemmBias("ConvertFullyConnectedBias") {}
 };
 
 }  // namespace ov::intel_cpu

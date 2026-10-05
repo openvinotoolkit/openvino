@@ -17,14 +17,16 @@ KERNEL(activation)(
     unsigned int output_offset = x + OUTPUT_OFFSET;
 
     typedef CAT(INPUT0_TYPE, 4) input_t;
+	typedef CAT(INPUT0_COMPUTE_TYPE, 4) input_compute_t;
     typedef CAT(OUTPUT_TYPE, 4) output_t;
 
     input_t v = ((__global input_t*) (input + input_offset))[0];
 
-    v = ACTIVATION_KERNEL(v, ACTIVATION_PARAMS_KERNEL);
+    input_compute_t v_compute = ACTIVATION_KERNEL(DECODE_INPUT0_COMPUTE_VECTOR_TYPE(v, 4), ACTIVATION_PARAMS_KERNEL);
 
 #if HAS_FUSED_OPS
     output_t result;
+	v = TO_INPUT0_VECTOR_TYPE(v_compute, 4);
     #if !CAN_USE_VECTOR
         for (int i = 0; i < 4; i++) {
             FUSED_OPS_SCALAR;
@@ -36,6 +38,6 @@ KERNEL(activation)(
     #endif
     *((__global output_t*)(output + output_offset)) = result;
 #else
-    *((__global output_t*)(output + output_offset)) = v;
+    *((__global output_t*)(output + output_offset)) = TO_OUTPUT_VECTOR_TYPE(v_compute, 4);
 #endif
 }

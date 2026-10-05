@@ -228,7 +228,7 @@ void dump_graph_init(std::ofstream& graph,
     };
 
     graph << "digraph cldnn_program {\n";
-    for (auto& node : program.get_processing_order()) {
+    for (const auto& node : program.get_processing_order()) {
 #ifdef __clang__
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wpotentially-evaluated-expression"
@@ -284,7 +284,7 @@ void dump_graph_init(std::ofstream& graph,
         // <user_node, user's input port>
         std::set<std::pair<program_node *, int>> marked_connection;
 
-        for (auto& user : node->get_users()) {
+        for (const auto& user : node->get_users()) {
             bool doubled = true;
             auto it = user->get_dependencies().begin();
             while (it != user->get_dependencies().end()) {
@@ -315,7 +315,7 @@ void dump_graph_init(std::ofstream& graph,
             graph << ";\n";
         }
 
-        for (auto& dep : node->get_dependencies()) {
+        for (const auto& dep : node->get_dependencies()) {
             if (std::find(dep.first->get_users().begin(), dep.first->get_users().end(), node) != dep.first->get_users().end()) {
                 continue;
             }
@@ -329,20 +329,21 @@ void dump_graph_init(std::ofstream& graph,
 }
 
 void dump_graph_processing_order(std::ofstream& graph, const program& program) {
-    for (auto node : program.get_processing_order())
+    for (auto* node : program.get_processing_order())
         graph << reinterpret_cast<uintptr_t>(node) << " (" << node->id() << ")\n";
     graph << '\n';
     close_stream(graph);
 }
 
 void dump_graph_optimized(std::ofstream& graph, const program& program) {
-    for (auto& prim_id : program.get_optimized_out()) graph << prim_id << "\n";
+    for (const auto& prim_id : program.get_optimized_out())
+        graph << prim_id << "\n";
     graph << '\n';
     close_stream(graph);
 }
 
 void dump_graph_info(std::ofstream& graph, const program& program) {
-    for (auto& node : program.get_processing_order()) {
+    for (const auto& node : program.get_processing_order()) {
         dump_full_node(graph, node);
         graph << std::endl << std::endl;
     }

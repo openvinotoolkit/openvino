@@ -191,7 +191,6 @@ void ov::template_plugin::InferRequest::infer_preprocess() {
                             "Template plugin: Unsupported ROI tensor with element type having ",
                             std::to_string(tensor->get_element_type().bitwidth()),
                             " bits size");
-            ov::Shape shape = tensor->get_shape();
             // Perform manual extraction of ROI tensor
             // Basic implementation doesn't take axis order into account `desc.getBlockingDesc().getOrder()`
             // Performance of manual extraction is not optimal, but it is ok for template implementation
@@ -291,7 +290,7 @@ std::vector<ov::ProfilingInfo> ov::template_plugin::InferRequest::get_profiling_
     info.emplace_back(fill_profiling_info("execution time", m_durations[StartPipeline]));
     auto template_model = get_template_model();
     for (const auto& op : template_model->get_runtime_model()->get_ops()) {
-        auto rt_info = op->get_rt_info();
+        const auto& rt_info = op->get_rt_info();
         const auto& it = rt_info.find(ov::runtime::interpreter::PERF_COUNTER_NAME);
         OPENVINO_ASSERT(it != rt_info.end(), "Operation ", op, " doesn't contain performance counter");
         auto counter = it->second.as<std::shared_ptr<ov::runtime::interpreter::PerfCounter>>();

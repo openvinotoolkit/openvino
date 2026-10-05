@@ -21,6 +21,7 @@
 #include "transformations/common_optimizations/nop_elimination.hpp"
 #include "transformations/hash.hpp"
 #include "transformations/op_conversions/convert_interpolate11_downgrade.hpp"
+#include "transformations/op_conversions/group_query_attention_decomposition.hpp"
 #include "xml_serializer.hpp"
 
 namespace {
@@ -85,6 +86,8 @@ std::string ovPrecisionToLegacyPrecisionString(const ov::element::Type& precisio
         return "FP8_E5M2";
     case ov::element::Type_t::f8e8m0:
         return "FP8_E8M0";
+    case ov::element::Type_t::f4e2m1:
+        return "FP4_E2M1";
     case ov::element::Type_t::nf4:
         return "NF4";
     case ov::element::Type_t::i4:
@@ -320,6 +323,17 @@ protected:
         if ((_compilerVersion.major < 7) || (_compilerVersion.major == 7 && _compilerVersion.minor <= 26)) {
             manager.register_pass<ov::pass::EliminateIdentity>();
         }
+
+        // Registers the passes that adapt a model to whichever compiler package is currently loaded, before it is
+        // handed to that compiler. ov::pass::GroupQueryAttentionDecomposition is registered unconditionally instead:
+        // the compiler runs its own copy of this pass, built against its own OpenVINO revision, and neither that
+        // revision nor a GQA-spec capability is queryable at runtime - so a stale copy (wrong optional-input
+        // convention, or an attribute it predates, e.g. local_window_size) can't be detected and worked around from
+        // here. A MatcherPass is a no-op where the operator is absent, so this is safe to always register; delete it
+        // once the loaded compiler is known to be caught up.
+
+        manager.register_pass<ov::pass::GroupQueryAttentionDecomposition>();
+
         manager.run_passes(model);
 
         // Step 2: store the WeightlessCacheAttributes if requested

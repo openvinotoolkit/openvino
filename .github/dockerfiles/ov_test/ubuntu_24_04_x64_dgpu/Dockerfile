@@ -30,6 +30,8 @@ RUN apt-get update && \
         pigz \
         # Samples
         clang \
+        # required by cv2 (pulled in via diffusers → imwatermark)
+        libgl1 \
         # Python
         python3-full \
         libhdf5-dev \

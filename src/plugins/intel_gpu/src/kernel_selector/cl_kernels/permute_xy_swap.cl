@@ -22,10 +22,14 @@
 //   TILE_SIZE      - tile edge length in elements
 //   WG_DIM         - WG size along each of X/Y (kept at 16 for SIMD8 occupancy)
 //   ELEMS_PER_DIM  - TILE_SIZE / WG_DIM
+//   REMAINDER      - 1 when ragged-edge bounds checks are needed, else 0
 //
 // Required WG size: (WG_DIM, WG_DIM, 1).
-// GWS: (INPUT0_SIZE_X / ELEMS_PER_DIM, INPUT0_SIZE_Y / ELEMS_PER_DIM, B*F).
-// Input X and Y must both be multiples of TILE_SIZE (enforced by Validate).
+// GWS: (ceil(INPUT0_SIZE_X, TILE_SIZE) * WG_DIM,
+//       ceil(INPUT0_SIZE_Y, TILE_SIZE) * WG_DIM, B*F).
+// When REMAINDER is set, X/Y need not be multiples of TILE_SIZE and out-of-range
+// reads/writes are guarded. When REMAINDER is 0, TILE_SIZE is chosen so it
+// divides both X and Y (host-side tile selection).
 
 __attribute__((reqd_work_group_size(WG_DIM, WG_DIM, 1)))
 KERNEL(permute_xy_swap)(
@@ -58,7 +62,12 @@ KERNEL(permute_xy_swap)(
         for (uint dx = 0; dx < ELEMS_PER_DIM; ++dx) {
             const uint sub_x = lx + dx * WG_DIM;   // 0 .. TILE_SIZE-1
             const uint in_x  = tx * TILE_SIZE + sub_x;
+#if REMAINDER
+            if (in_y < INPUT0_SIZE_Y && in_x < INPUT0_SIZE_X)
+                tile[sub_y][sub_x] = input[INPUT0_GET_INDEX(b, f, in_y, in_x)];
+#else
             tile[sub_y][sub_x] = input[INPUT0_GET_INDEX(b, f, in_y, in_x)];
+#endif
         }
     }
 
@@ -75,13 +84,17 @@ KERNEL(permute_xy_swap)(
         for (uint dx = 0; dx < ELEMS_PER_DIM; ++dx) {
             const uint sub_x = lx + dx * WG_DIM;   // local col in output tile
             const uint out_x = ty * TILE_SIZE + sub_x;
+#if REMAINDER
+            if (out_y >= OUTPUT_SIZE_Y || out_x >= OUTPUT_SIZE_X)
+                continue;
+#endif
             const INPUT0_TYPE val = tile[sub_x][sub_y];  // transposed SLM read
 
 #if HAS_FUSED_OPS
             FUSED_OPS;
             output[OUTPUT_GET_INDEX(b, f, out_y, out_x)] = FUSED_OPS_RESULT;
 #else
-            output[OUTPUT_GET_INDEX(b, f, out_y, out_x)] = ACTIVATION(val, ACTIVATION_PARAMS);
+            output[OUTPUT_GET_INDEX(b, f, out_y, out_x)] = TO_OUTPUT_TYPE(ACTIVATION(DECODE_INPUT0_COMPUTE_TYPE(val), ACTIVATION_PARAMS));
 #endif
         }
     }

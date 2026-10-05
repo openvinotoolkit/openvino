@@ -41,12 +41,17 @@ public:
                                  std::shared_ptr<const ov::Model>,
                                  std::pair<std::string, std::shared_ptr<ov::ICore>>>&& weightsSource,
                     const FilteredConfig& config,
-                    const bool blobIsPersistent = false);
+                    const bool blobIsPersistent = false,
+                    const std::optional<std::string>& compatibilityDescriptor = std::nullopt);
 
     /**
      * @brief The main schedule along with the weights initialization ones are exported.
      */
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
+
+    GraphKind get_kind() const override {
+        return GraphKind::Weightless;
+    }
 
     /**
      * @brief Implementation hook for "IGraph::initialize" that initializes all underlying graph handles.
@@ -54,8 +59,6 @@ public:
      * compiled model.
      */
     void initialize_impl(const FilteredConfig& config) override;
-
-    std::optional<std::string_view> get_compatibility_descriptor() const override;
 
     // TODO: public for multi-threaded execution
     struct InputData {

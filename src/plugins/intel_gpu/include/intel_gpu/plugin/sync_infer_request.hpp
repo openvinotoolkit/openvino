@@ -61,7 +61,7 @@ struct TensorWrapper {
     size_t actual_size;
 };
 
-// Couples the lazily-allocated user-input map with its mutex so the map is reachable only
+// Couples a lazily-allocated user tensor map with its mutex so the map is reachable only
 // through a held lock: read() takes a shared lock (read-only view), write() an exclusive one.
 class GuardedMap {
 public:
@@ -127,10 +127,13 @@ private:
     // an exclusive lock on m_user_inputs.
     void ensure_input_allocated(size_t input_idx) const;
 
+    // Materializes a deferred (lazy) static output slot on first access (get_tensor/enqueue).
+    void ensure_output_allocated(size_t output_idx) const;
+
     // Mutable so the const lazy-alloc path (get_tensor) can take a write lock.
     // Self-guarding: reachable only via read()/write(), which lock internally.
     mutable GuardedMap m_user_inputs;
-    std::unordered_map<size_t, TensorWrapper> m_user_outputs;
+    mutable GuardedMap m_user_outputs;
 
     std::unordered_map<size_t, TensorWrapper> m_plugin_inputs;
     std::unordered_map<size_t, TensorWrapper> m_plugin_outputs;
@@ -173,7 +176,9 @@ private:
     void allocate_outputs();
     void allocate_states();
     void allocate_input(size_t input_idx, GuardedMap::map_t& user_inputs);
-    void allocate_output(const ov::Output<const ov::Node>& port, size_t output_idx);
+    void allocate_output(const ov::Output<const ov::Node>& port,
+                         size_t output_idx,
+                         GuardedMap::map_t& user_outputs);
     cldnn::event::ptr copy_output_data(cldnn::memory::ptr src, ov::ITensor& dst) const;
 
     void init_mappings();

@@ -16,6 +16,7 @@ constexpr std::string_view NPU3720 = "3720";             // NPU3720
 constexpr std::string_view NPU4000 = "4000";             // NPU4000
 constexpr std::string_view NPU5010 = "5010";             // NPU5010
 constexpr std::string_view NPU5020 = "5020";             // NPU5020
+constexpr std::string_view NPU6010 = "6010";             // NPU6010
 
 /**
  * @brief Converts the given platform value to the standard one.

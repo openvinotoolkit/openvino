@@ -823,7 +823,8 @@ void Node::updateDynamicParams() {
 }
 
 void Node::execute(const dnnl::stream& strm, int numaId) {
-    OV_ITT_SCOPED_TASK_BASE(itt::domains::ov_op_cpu_details, getName());
+    OV_ITT_SCOPED_TASK_BASE(itt::domains::ov_op_cpu_details, openvino::itt::handle(getName()));
+
     if (isDynamicNode()) {
         executeDynamic(strm, numaId);
     } else {

@@ -581,6 +581,7 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
             RO_property(ov::device::capabilities.name()),
             RO_property(ov::device::type.name()),
             RO_property(ov::device::architecture.name()),
+            RO_property(ov::compatibility_check.name()),
         };
         // the whole config is RW before model is loaded.
 
@@ -703,6 +704,16 @@ ov::Any Plugin::get_ro_property(const std::string& name, [[maybe_unused]] const 
 #    error "Undefined system processor"
 #endif
     }
+    if (name == ov::compatibility_check) {
+        if (auto it = options.find(ov::runtime_requirements.name()); it != options.end()) {
+            const auto& requirements = it->second.as<std::string>();
+            if (!requirements.empty()) {
+                return is_runtime_requirements_compatible(requirements) ? ov::CompatibilityCheck::SUPPORTED
+                                                                        : ov::CompatibilityCheck::UNSUPPORTED;
+            }
+        }
+        return ov::CompatibilityCheck::NOT_APPLICABLE;
+    }
 
     OPENVINO_THROW("Cannot get unsupported property: ", name);
 }
@@ -768,12 +779,75 @@ static bool get_cache_decrypt_fn(const ov::AnyMap& config, CacheDecrypt& decrypt
     }
 }
 
+static void validate_runtime_requirements(const char* base_ptr, size_t total_bytes, size_t& offset) {
+    // requirements_magic
+    OPENVINO_ASSERT(offset + sizeof(uint64_t) <= total_bytes,
+                    "[CPU] Cannot import compiled blob: buffer underflow reading magic.");
+    uint64_t requirements_magic = 0;
+    std::memcpy(&requirements_magic, base_ptr + offset, sizeof(requirements_magic));
+    offset += sizeof(requirements_magic);
+    OPENVINO_ASSERT(requirements_magic == runtime_requirements_magic,
+                    "[CPU] Cannot import compiled blob: incompatible runtime requirements magic.");
+
+    // requirements_version
+    OPENVINO_ASSERT(offset + sizeof(uint32_t) <= total_bytes,
+                    "[CPU] Cannot import compiled blob: buffer underflow reading version.");
+    uint32_t requirements_version = 0;
+    std::memcpy(&requirements_version, base_ptr + offset, sizeof(requirements_version));
+    offset += sizeof(requirements_version);
+    OPENVINO_ASSERT(requirements_version == runtime_requirements_version,
+                    "[CPU] Cannot import compiled blob: incompatible runtime requirements version.");
+
+    // runtime_requirements
+    OPENVINO_ASSERT(offset + sizeof(uint64_t) <= total_bytes,
+                    "[CPU] Cannot import compiled blob: buffer underflow reading requirements size.");
+    uint64_t reqs_size = 0;
+    std::memcpy(&reqs_size, base_ptr + offset, sizeof(reqs_size));
+    offset += sizeof(reqs_size);
+    OPENVINO_ASSERT(reqs_size > 0 && reqs_size <= runtime_requirements_max_size && offset + reqs_size <= total_bytes,
+                    "[CPU] Cannot import compiled blob: corrupted runtime requirements block.");
+    std::string runtime_requirements(base_ptr + offset, static_cast<size_t>(reqs_size));
+    offset += static_cast<size_t>(reqs_size);
+    OPENVINO_ASSERT(is_runtime_requirements_compatible(runtime_requirements),
+                    "[CPU] Cannot import compiled blob: it was built for a different runtime "
+                    "configuration (OpenVINO version/isa mismatch) and cannot be executed on "
+                    "this device.\n"
+                    "  blob:    ",
+                    runtime_requirements,
+                    "\n"
+                    "  current: ",
+                    build_runtime_requirements());
+}
+
+static void read_header(std::istream& model_stream) {
+    constexpr size_t max_header_footprint =
+        sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t) + runtime_requirements_max_size;
+    std::vector<char> header_buffer(max_header_footprint);
+
+    model_stream.read(header_buffer.data(), static_cast<std::streamsize>(max_header_footprint));
+    size_t bytes_read = static_cast<size_t>(model_stream.gcount());
+
+    OPENVINO_ASSERT(bytes_read >= (sizeof(uint64_t) + sizeof(uint32_t) + sizeof(uint64_t)),
+                    "[CPU] Cannot import compiled blob: failed to read minimal requirements header.");
+
+    size_t offset = 0;
+    validate_runtime_requirements(header_buffer.data(), bytes_read, offset);
+
+    // Clear stream flags in case we hit EOF while over-reading into our fixed scratch buffer
+    model_stream.clear();
+
+    std::streamoff remaining_unread_bytes = static_cast<std::streamoff>(bytes_read - offset);
+    model_stream.seekg(-remaining_unread_bytes, std::ios_base::cur);
+}
+
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& model_stream, const ov::AnyMap& config) const {
     OV_ITT_SCOPE(FIRST_INFERENCE, itt::domains::ov_intel_cpu_LT, "import_model");
 
     CacheDecrypt decrypt{codec_xor};
     auto decrypt_from_string = get_cache_decrypt_fn(config, decrypt);
     const auto origin_weights_path = get_origin_weights_path(config);
+
+    read_header(model_stream);
 
     ModelDeserializer deserializer(model_stream, get_core(), decrypt, decrypt_from_string, origin_weights_path);
 
@@ -788,11 +862,19 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(const ov::Tensor& model
     auto decrypt_from_string = get_cache_decrypt_fn(config, decrypt);
     const auto origin_weights_path = get_origin_weights_path(config);
 
+    size_t total_bytes = model_tensor.get_byte_size();
+    size_t offset = 0;
+
     // `const_cast` intentionally used as AlignedBuffer requires non-const pointer
     // but is used as read-only in deserializer
-    auto* model_data_ptr = reinterpret_cast<char*>(const_cast<void*>(model_tensor.data()));
+    auto* base_ptr = reinterpret_cast<char*>(const_cast<void*>(model_tensor.data()));
+
+    validate_runtime_requirements(base_ptr, total_bytes, offset);
+
+    auto* model_data_ptr = base_ptr + offset;
+    size_t remaining_bytes = total_bytes - offset;
     std::shared_ptr<ov::AlignedBuffer> model_buffer =
-        std::make_shared<ov::SharedBuffer<ov::Tensor>>(model_data_ptr, model_tensor.get_byte_size(), model_tensor);
+        std::make_shared<ov::SharedBuffer<ov::Tensor>>(model_data_ptr, remaining_bytes, model_tensor);
 
     ModelDeserializer deserializer(model_buffer, get_core(), decrypt, decrypt_from_string, origin_weights_path);
 

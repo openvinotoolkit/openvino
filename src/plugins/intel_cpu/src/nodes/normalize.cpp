@@ -10,6 +10,7 @@
 #include <common/c_types_map.hpp>
 #include <common/float16.hpp>
 #include <common/nstl.hpp>
+#include <common/primitive_hashing.hpp>
 #include <common/utils.hpp>
 #include <cpu/primitive_attr_postops.hpp>
 #include <cpu/ref_depthwise_injector.hpp>

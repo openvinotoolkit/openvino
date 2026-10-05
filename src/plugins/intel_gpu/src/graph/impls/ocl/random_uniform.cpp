@@ -61,6 +61,7 @@ attach_random_uniform_impl::attach_random_uniform_impl() {
     auto types = {
         data_types::f32,
         data_types::f16,
+        data_types::bf16,
         data_types::i32,
         data_types::i64
     };

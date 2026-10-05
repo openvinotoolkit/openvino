@@ -22,8 +22,7 @@ protected:
     WeightsLayout GetPreferredWeightsLayout(const deconvolution_params& p) const override {
         if (p.outputs[0].GetLayout() == DataLayout::b_fs_yx_fsv16)
             return WeightsLayout::gs_oiyx_gsv16;
-        else
-            return WeightsLayout::gs_oizyx_gsv16;
+        return WeightsLayout::gs_oizyx_gsv16;
     }
     bool Validate(const Params& p) const override;
     CommonDispatchData SetDefault(const deconvolution_params& arg) const override;

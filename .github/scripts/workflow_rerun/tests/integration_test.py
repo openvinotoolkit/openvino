@@ -131,6 +131,7 @@ class IntegrationTest(unittest.TestCase):
             self.assertEqual(args[0], repository_name)
             self.assertEqual(args[1], run_id)
             self.assertEqual(args[3], rerunner_run_id)
+            self.assertTrue(args[5], 'category argument should be recorded')
 
     @classmethod
     def tearDownClass(cls) -> None:

@@ -27,6 +27,9 @@ void PluginConfig::set_default() {
         std::make_tuple(ov::hint::num_requests, 0, UnsignedTypeValidator()),
         std::make_tuple(ov::intel_auto::enable_startup_fallback, true),
         std::make_tuple(ov::intel_auto::enable_runtime_fallback, true),
+        std::make_tuple(ov::intel_auto::devices_utilization_threshold, std::map<std::string, unsigned>{}, DeviceUtilizationThresholdValidator()),
+        std::make_tuple(ov::intel_auto::perf_curve_table, ov::intel_auto::PerfCurveTable{}, PerfCurveTableValidator()),
+        std::make_tuple(ov::intel_auto::low_power_device, std::string{}),
         // RO for register only
         std::make_tuple(ov::device::full_name),
         std::make_tuple(ov::device::capabilities),
@@ -50,9 +53,11 @@ void PluginConfig::set_property(const ov::AnyMap& properties) {
         if (is_supported(kv.first)) {
             OPENVINO_ASSERT(property_validators.at(name)->is_valid(val),
                     "Invalid value for property ", name,  ": ", val.as<std::string>());
-            internal_properties[name] = val;
+            // Store the validator-normalized value so get_property() returns a consistent type.
+            auto normalized_val = property_validators.at(name)->convert(val);
+            internal_properties[name] = normalized_val;
             // when user call set_property to set some config to plugin, we also respect this and pass through the config in this case
-            user_properties[name] = val;
+            user_properties[name] = normalized_val;
             if (kv.first == ov::log::level.name()) {
                 if (!set_log_level(kv.second)) {
                     OPENVINO_THROW("Unsupported log level: ", kv.second.as<std::string>());
@@ -96,8 +101,9 @@ void PluginConfig::set_user_property(const ov::AnyMap& config) {
         if (is_supported(name)) {
             OPENVINO_ASSERT(property_validators.at(name)->is_valid(val),
                         "Invalid value for property ", name,  ": ", val.as<std::string>());
-            internal_properties[kv.first] = kv.second;
-            user_properties[kv.first] = kv.second;
+            auto normalized_val = property_validators.at(name)->convert(val);
+            internal_properties[kv.first] = normalized_val;
+            user_properties[kv.first] = normalized_val;
         } else {
             user_properties[kv.first] = kv.second;
         }

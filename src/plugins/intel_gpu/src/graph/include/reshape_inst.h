@@ -79,6 +79,7 @@ public:
                 axis == 1 &&
                 !input_pshape[1].is_dynamic() &&
                 input_pshape[1].get_length() == 1 &&
+                prim->output_partial_shape.size() >= 2 &&
                 prim->output_partial_shape.size() + 1 == input_pshape.size();
             if (!is_axis1_size1_squeeze)
                 return false;
@@ -134,8 +135,15 @@ public:
         // shape tensor (not a compile-time constant) for the Reshape second input,
         // leaving output_pattern empty — requiring it would incorrectly block this
         // case even though conditions 1–3 are fully sufficient.
+        // Only the TransposeSplitMatcher pattern is safe: crop [batch, 1, H, S] → reshape
+        // drops the size-1 dim → [batch, H, S].  The output must stay ≥ 2D so that the
+        // downstream CM/OCL kernel still has at least one inner stride to carry the offset.
+        // A 2D → 1D squeeze (e.g. NMS bbox-coord split [-1, 4] → [-1, 1] → [-1]) does NOT
+        // meet this condition and must not be optimized — its downstream arithmetic kernels
+        // are compiled without dynamic-padding support.
         if (axis == 1 && !input_pshape[1].is_dynamic() && input_pshape[1].get_length() == 1) {
-            if (prim->output_partial_shape.size() + 1 == input_pshape.size()) {
+            if (prim->output_partial_shape.size() >= 2 &&
+                prim->output_partial_shape.size() + 1 == input_pshape.size()) {
                 return true;
             }
         }

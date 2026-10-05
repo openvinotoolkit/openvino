@@ -117,6 +117,15 @@ describe("ov.InferRequest tests", () => {
       );
     });
 
+    it("Test inferAsync rejects on incompatible tensor shape", async () => {
+      const incompatibleTensor = new ov.Tensor(ov.element.f32, [1, 3, 32, 31]);
+
+      await assert.rejects(
+        async () => await inferRequest.inferAsync([incompatibleTensor]),
+        /are incompatible/,
+      );
+    });
+
     it("Test inferAsync([data]) throws", async () => {
       await assert.rejects(
         async () => await inferRequest.inferAsync(["string"]),

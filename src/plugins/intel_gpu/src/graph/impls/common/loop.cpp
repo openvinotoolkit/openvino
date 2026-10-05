@@ -233,7 +233,7 @@ struct loop_impl : typed_primitive_impl<loop> {
             }
 
             // Collect output events for waiting for all iterations finishing
-            for (auto& out : body_network->get_outputs()) {
+            for (const auto& out : body_network->get_outputs()) {
                 auto output_id = out->id();
                 if (body_network->has_event(output_id)) {
                     auto output_event = body_network->get_primitive_event(output_id);

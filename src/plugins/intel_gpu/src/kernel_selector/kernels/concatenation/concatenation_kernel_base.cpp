@@ -43,7 +43,7 @@ bool ConcatenationKernelBase::Validate(const Params& p) const {
 
     const concatenation_params& params = static_cast<const concatenation_params&>(p);
 
-    for (auto& fused_op : params.fused_ops) {
+    for (const auto& fused_op : params.fused_ops) {
         if (!IsFusedPrimitiveSupported(fused_op))
             DO_NOT_USE_THIS_KERNEL(p.layerID);
     }
@@ -56,7 +56,7 @@ bool ConcatenationKernelBase::Validate(const Params& p) const {
 }
 
 JitConstants ConcatenationKernelBase::GetJitConstants(const concatenation_params& params) const {
-    auto& inputs = params.original_input_layouts;
+    const auto& inputs = params.original_input_layouts;
     bool is_dynamic = std::any_of(inputs.begin(), inputs.end(), [](const DataTensor& t) { return t.is_dynamic(); }) ||
                       std::any_of(params.outputs.begin(), params.outputs.end(), [](const DataTensor& t) { return t.is_dynamic(); });
     JitConstants jit = MakeBaseParamsJitConstants(params, !is_dynamic);

@@ -41,18 +41,16 @@ ConvolutionKernel_b_fs_yx_fsv16::AutoTuneOption ConvolutionKernel_b_fs_yx_fsv16:
     if (x * f <= 256) {
         if (x <= 8 || x * f <= 128)
             return { 2, EXE_MODE_DEFAULT };
-        else
-            return { 4, EXE_MODE_DEFAULT };
-    } else if (x * f <= 1536) {
-        return { 4, EXE_MODE_DEFAULT };
-    } else {
-        if (x >= 8  && x < 12 && x * f < 2600)
-            return { 4, EXE_MODE_DEFAULT };
-        else if (x < 12 && x * f < 8192)
-            return { 8, EXE_MODE_DEFAULT };
-        else
-            return { 8, EXE_MODE_AGE_BASED };
+        return {4, EXE_MODE_DEFAULT};
     }
+    if (x * f <= 1536) {
+        return { 4, EXE_MODE_DEFAULT };
+    }
+    if (x >= 8 && x < 12 && x * f < 2600)
+        return {4, EXE_MODE_DEFAULT};
+    if (x < 12 && x * f < 8192)
+        return {8, EXE_MODE_DEFAULT};
+    return {8, EXE_MODE_AGE_BASED};
 }
 
 float ConvolutionKernel_b_fs_yx_fsv16::EstimateOccupancy(const convolution_params& params,

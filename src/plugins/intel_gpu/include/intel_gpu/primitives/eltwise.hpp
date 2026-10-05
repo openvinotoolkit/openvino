@@ -196,7 +196,7 @@ struct eltwise : public primitive_base<eltwise> {
         size_t seed = primitive::hash();
         seed = cldnn::hash_combine(seed, mode);
         seed = cldnn::hash_range(seed, coefficients.begin(), coefficients.end());
-        for (auto& s : stride) {
+        for (const auto& s : stride) {
             seed = cldnn::hash_combine(seed, s.hash());
         }
         seed = cldnn::hash_combine(seed, m_pythondiv);

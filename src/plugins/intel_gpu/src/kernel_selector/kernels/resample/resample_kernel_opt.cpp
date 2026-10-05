@@ -30,10 +30,12 @@ static size_t GetOptimalDivisor(const size_t input_size, size_t max_val = 16) {
 ParamsKey ResampleKernelOpt::GetSupportedKey() const {
     ParamsKey k;
     k.EnableInputDataType(Datatype::F16);
+    k.EnableInputDataType(Datatype::BF16);
     k.EnableInputDataType(Datatype::F32);
     k.EnableInputDataType(Datatype::UINT8);
     k.EnableInputDataType(Datatype::INT8);
     k.EnableOutputDataType(Datatype::F16);
+    k.EnableOutputDataType(Datatype::BF16);
     k.EnableOutputDataType(Datatype::F32);
     k.EnableOutputDataType(Datatype::UINT8);
     k.EnableOutputDataType(Datatype::INT8);
@@ -84,9 +86,8 @@ DeviceFeaturesKey ResampleKernelOpt::get_required_device_features_key(const Para
 static size_t get_vec_size(const resample_params &params) {
     if (params.inputs[0].GetLayout() == DataLayout::fs_b_yx_fsv32) {
         return 2;
-    } else {
-        return 1;
     }
+    return 1;
 }
 
 static int get_feature_slice_size(const resample_params &params) {

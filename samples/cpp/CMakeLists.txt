@@ -144,8 +144,7 @@ function(ov_add_samples_to_build)
     foreach (dir ${ARGN})
         if (IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/${dir})
             # check if a subdirectory contains CMakeLists.txt. In this case we can build it.
-            file(GLOB is_sample_dir "${CMAKE_CURRENT_SOURCE_DIR}/${dir}/CMakeLists.txt")
-            if(is_sample_dir)
+            if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${dir}/CMakeLists.txt")
                 # check if specified sample/demo is found.
                 if (BUILD_SAMPLE_NAME)
                     list(FIND BUILD_SAMPLE_NAME ${dir} index)
@@ -247,13 +246,15 @@ macro(ov_add_sample)
     unset(SAMPLE_INCLUDE_DIRECTORIES)
 endmacro()
 
-# collect all samples subdirectories
-file(GLOB samples_dirs RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *)
-
-# skip building of unnecessary subdirectories
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/thirdparty")
-    list(REMOVE_ITEM samples_dirs thirdparty)
-endif()
-list(REMOVE_ITEM samples_dirs common)
+set(samples_dirs
+    benchmark
+    benchmark_app
+    classification_sample_async
+    hello_classification
+    hello_nv12_input_classification
+    hello_query_device
+    hello_reshape_ssd
+    model_creation_sample
+)
 
 ov_add_samples_to_build(${samples_dirs})

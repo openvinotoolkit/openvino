@@ -88,7 +88,7 @@ struct eltwise_impl : public typed_primitive_impl<eltwise> {
             stream.wait_for_events(events);
         }
 
-        auto params = instance.get_impl_params();
+        const auto* params = instance.get_impl_params();
 
         ov::TensorVector input_host_tensors;
         ov::TensorVector output_host_tensors;
@@ -240,6 +240,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
     auto types = {
         data_types::f32,
         data_types::f16,
+        data_types::bf16,
         data_types::i32,
         data_types::i64,
         data_types::i8,

@@ -14,7 +14,7 @@
 using namespace cldnn;
 
 void update_inner_program_io_map::run(program& p) {
-    for (auto& node : p.get_processing_order()) {
+    for (const auto& node : p.get_processing_order()) {
         if (node->is_type<loop>()) {
             loop_node& node2 = node->as<loop>();
             for (const auto& info : p.get_optimized()) {

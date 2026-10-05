@@ -15,9 +15,9 @@ std::ostream& get_verbose_stream() {
         if (!fout.is_open())
             fout.open(ExecutionConfig::get_log_to_file());
         return fout;
-    } else {
-        return std::cout;
     }
+    return std::cout;
+
 #else
     return std::cout;
 #endif

@@ -136,7 +136,7 @@ std::vector<layout> crop_inst::calc_output_layouts(const crop_node& /*node*/, co
         can_update_offsets = output_layouts[prev].is_static();
     }
     if (can_update_offsets) {
-        auto p_param = const_cast<kernel_impl_params*>(&impl_param);
+        auto* p_param = const_cast<kernel_impl_params*>(&impl_param);
         ov::Shape startOffset(input_shape.size());
         auto dims = p_param->input_layouts[0].get_partial_shape().size();
         for (int32_t prev = 0; prev < desc->output_idx; prev++) {

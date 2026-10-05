@@ -37,20 +37,21 @@ keys, `imports`, `safe-outputs`, tools, and the `gh aw compile` workflow.
 ## Golden rules
 
 1. **Never edit a `.lock.yml` by hand.** It is generated. Edit the `.md` source (or an imported shared
-   file), then recompile. If a user skips recompilation, tell them to recompile themselves before committing.  
-2. **Always recompile after editing** any `.md` source or imported file:
+   file), then recompile. If a user skips recompilation, tell them to recompile themselves before committing.
+2. **Never read `.lock.yml` file directly.** It is a generated artifact; the source `.md` is the authoritative description of the workflow.
+3. **Always recompile after editing** any `.md` source or imported file:
    ```bash
    gh aw compile
    ```
    Commit the `.md` **and** the regenerated `.lock.yml` together in the same change.
-3. **Keep trigger guards intact.** Agentic workflows commonly gate execution with an `if:` condition
+4. **Keep trigger guards intact.** Agentic workflows commonly gate execution with an `if:` condition
    (an actor allow-list, a specific event/conclusion combination, a slash command, etc.). Do not loosen
    a guard without explicit intent — re-read the workflow's own description of how it is
    invoked/triggered first.
-4. **Preserve source-inspection safeguards.** Investigative workflows typically cap how much of the
+5. **Preserve source-inspection safeguards.** Investigative workflows typically cap how much of the
    codebase the agent may read (file/search budgets, PR-diff-first, "stop and report" conditions). Keep
    these bounds when editing a prompt — they bound cost and blast radius.
-5. **Respect `safe-outputs` as the only side-effect boundary.** The agent itself must never be granted
+6. **Respect `safe-outputs` as the only side-effect boundary.** The agent itself must never be granted
    permission to directly comment, notify, merge, or otherwise mutate shared state — that must go
    through a `safe-outputs` job with its own narrowly-scoped `permissions:`.
 

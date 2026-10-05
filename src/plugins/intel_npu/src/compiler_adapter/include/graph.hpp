@@ -27,8 +27,7 @@ public:
           std::optional<ov::Tensor> blob,
           const FilteredConfig& config,
           const std::optional<std::string>& compatibilityDescriptor = std::nullopt,
-          const bool blobIsPersistent = false,
-          const bool calledFromWeightlessGraph = false);
+          const bool blobIsPersistent = false);
 
     std::pair<uint64_t, std::optional<std::vector<uint64_t>>> export_blob(std::ostream& stream) const override;
 

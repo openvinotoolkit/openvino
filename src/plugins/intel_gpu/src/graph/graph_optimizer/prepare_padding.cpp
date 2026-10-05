@@ -84,7 +84,7 @@ void prepare_padding::run(program& p) {
                 // Add extra reorder for cldnn primitive to handle required padding if needed
                 auto& input = node.get_dependency(0);
                 bool is_usr_onednn = false;
-                for (auto& input_usr : input.get_users())
+                for (const auto& input_usr : input.get_users())
                     if (input_usr->get_preferred_impl_type() == impl_types::onednn)
                         is_usr_onednn = true;
 

@@ -220,6 +220,8 @@ void utils::parseCommandLine(int argc, char* argv[]) {
  * @example parsePerLayerValues("logits:0.03;pred_boxes:0.05", 1.0)
  *          returns {"logits": 0.03, "pred_boxes": 0.05}
  * @example parsePerLayerValues("0.01", 1.0) returns {"*": 0.01}
+ * @example parsePerLayerValues("3dconv:0.01;head:0.02", 1.0)
+ *          returns {"3dconv": 0.01, "head": 0.02} (layer names may start with a digit)
  */
 utils::PerLayerValueMap utils::parsePerLayerValues(const std::string& str, double defaultValue) {
     PerLayerValueMap result;
@@ -232,13 +234,17 @@ utils::PerLayerValueMap utils::parsePerLayerValues(const std::string& str, doubl
         return result;
     }
 
-    // Try to parse as a single number first
-    try {
-        double value = std::stod(str);
-        result["*"] = value;
-        return result;
-    } catch (...) {
-        // Not a single number, parse as key:value pairs
+    if (str.find_first_of(":;") == std::string::npos) {
+        try {
+            size_t pos = 0;
+            const double value = std::stod(str, &pos);
+            if (str.find_first_not_of(" \t", pos) == std::string::npos) {
+                result["*"] = value;
+                return result;
+            }
+        } catch (...) {
+            // Not a single number; fall through to per-layer parsing.
+        }
     }
 
     // Parse "layer1:value1;layer2:value2" format
