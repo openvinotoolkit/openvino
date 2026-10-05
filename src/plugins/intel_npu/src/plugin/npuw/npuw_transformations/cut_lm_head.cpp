@@ -34,9 +34,7 @@ namespace {
 class CutLMHeadMatcher : public ov::pass::MatcherPass {
 public:
     OPENVINO_MATCHER_PASS_RTTI("ov::npuw::patterns::CutLMHeadMatcher");
-    explicit CutLMHeadMatcher(std::shared_ptr<ov::Model>& lm_head_model,
-                              std::shared_ptr<ov::op::v0::Result>& drop_result,
-                              std::string& output_embeds_name) {
+    explicit CutLMHeadMatcher(std::shared_ptr<ov::Model>& lm_head_model) {
         // We are interested at first input to MatMul as a cut point
         auto matmul = opp::wrap_type<ov::op::v0::MatMul>({opp::any_input(), opp::any_input()});
 
@@ -60,7 +58,7 @@ public:
                                                                       matmul_multiply->output(0)});
         auto res = opp::wrap_type<ov::op::v0::Result>({last_op->output(0)});
 
-        auto callback = [=, &lm_head_model, &drop_result, &output_embeds_name](opp::Matcher& m) {
+        auto callback = [=, &lm_head_model](opp::Matcher& m) {
             auto& node_to_output = m.get_pattern_value_map();
 
             auto matched_matmul =
@@ -97,33 +95,15 @@ public:
             // Cut point:
             auto matmul_first_source = matched_matmul->input(0).get_source_output();
 
-            // Reuse any Result already attached to the cut point (e.g. OmniThinker exposes
-            // the pre-head embeddings as a model output); otherwise repurpose the matched
-            // logits Result as the output-embeddings Result of the original model.
-            std::shared_ptr<ov::op::v0::Result> embeds_result;
-            for (const auto& consumer : matmul_first_source.get_target_inputs()) {
-                embeds_result = ov::as_type_ptr<ov::op::v0::Result>(consumer.get_node()->shared_from_this());
-                if (embeds_result) {
-                    break;
-                }
-            }
-            if (embeds_result) {
-                // Reroute to keep the model valid; the outer ModelPass drops the matched Result.
-                matched_result->input(0).replace_source_output(matmul_first_source);
-                drop_result = matched_result;
-            } else {
-                matched_result->input(0).replace_source_output(matmul_first_source);
-                // FIXME: Somehow for KVCache model result output gets renamed in
-                //        ICompiledModel::ICompiledModel().
-                //        As a WA, setting the same name to output from MatMul
-                //        avoids the issue.
-                matmul_first_source.set_names({ov::npuw::LLMCompiledModel::layer_names::output_embeds});
-                matched_result->output(0).set_names({ov::npuw::LLMCompiledModel::layer_names::output_embeds});
-                embeds_result = matched_result;
-            }
-            embeds_result->validate_and_infer_types();
-            OPENVINO_ASSERT(!embeds_result->output(0).get_names().empty(), "Output embeds result must have a name.");
-            output_embeds_name = *embeds_result->output(0).get_names().begin();
+            // Cut original model:
+            matched_result->input(0).replace_source_output(matmul_first_source);
+            // FIXME: Somehow for KVCache model result output gets renamed in
+            //        ICompiledModel::ICompiledModel().
+            //        As a WA, setting the same name to output from MatMul
+            //        avoids the issue.
+            matmul_first_source.set_names({ov::npuw::LLMCompiledModel::layer_names::output_embeds});
+            matched_result->output(0).set_names({ov::npuw::LLMCompiledModel::layer_names::output_embeds});
+            matched_result->validate_and_infer_types();
 
             // Create an additional model after cut point:
             auto new_param = std::make_shared<ov::op::v0::Parameter>(matmul_first_source.get_element_type(),
@@ -148,18 +128,12 @@ public:
 
 namespace ov::npuw {
 
-CutLMHead::CutLMHead(std::shared_ptr<ov::Model>& lm_head_model, std::string& output_embeds_name)
-    : m_lm_head_model(lm_head_model),
-      m_output_embeds_name(output_embeds_name) {}
+CutLMHead::CutLMHead(std::shared_ptr<ov::Model>& lm_head_model) : m_lm_head_model(lm_head_model) {}
 
 bool CutLMHead::run_on_model(const std::shared_ptr<ov::Model>& model) {
-    std::shared_ptr<ov::op::v0::Result> drop_result;
     ov::pass::GraphRewrite rewr;
-    rewr.add_matcher<CutLMHeadMatcher>(m_lm_head_model, drop_result, m_output_embeds_name);
+    rewr.add_matcher<CutLMHeadMatcher>(m_lm_head_model);
     rewr.run_on_model(model);
-    if (drop_result) {
-        model->remove_result(drop_result);
-    }
     return m_lm_head_model != nullptr;
 }
 
