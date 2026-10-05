@@ -129,8 +129,8 @@ public:
 
     /**
      * @brief Writes the header, every section, and the manifest.
-     * @note Must be called exactly once, after the last add_section(). Idempotent: a repeated call just reports the
-     * same outcome again.
+     * @note Call after the last add_section(). Behavior of a repeated call, and of a call after an
+     * exception escapes a previous one, is defined by the concrete implementation.
      */
     virtual std::error_code finalize() = 0;
 
