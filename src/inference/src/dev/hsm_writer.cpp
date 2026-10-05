@@ -34,7 +34,9 @@ std::error_code make_error_code(WriteErrc e) noexcept {
 
 void IWriter::add_sections(const std::vector<ISectionWriterHandler*>& handlers) {
     for (const auto* handler : handlers) {
-        handler->handle_section(*this);
+        if (handler != nullptr) {
+            handler->handle_section(*this);
+        }
     }
 }
 

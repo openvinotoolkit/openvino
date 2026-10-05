@@ -284,6 +284,14 @@ TEST(HsmWriterTest, rejects_non_power_of_two_alignment) {
                  ov::AssertFailure);
 }
 
+TEST(HsmWriterTest, inline_section_ignores_a_non_power_of_two_alignment) {
+    const std::string id = "x";
+    std::stringstream stream;
+    auto writer = open_writer(stream);
+    EXPECT_NO_THROW(writer.add_section(hsm::any_device_id, hsm::model_id_tag, view_of(id), {/*offset_align=*/3}));
+    EXPECT_FALSE(writer.finalize());
+}
+
 TEST(HsmWriterTest, zero_size_align_inherits_alignment) {
     const std::string weights = "weights";  // 7 bytes
     const std::string tail = "tail";
@@ -448,6 +456,33 @@ TEST(HsmWriterTest, add_sections_lets_a_handler_contribute_its_own_sections) {
     const auto container = parse_container(stream.str());
     ASSERT_TRUE(container.has_value());
     const auto tag = hsm::SectionTag::make_device_tag(3, false);
+    const auto* section = find_entry(*container, fake_device_id, tag.id());
+    ASSERT_NE(section, nullptr);
+    EXPECT_EQ(payload_string(*container, *section), "plugin-section");
+}
+
+TEST(HsmWriterTest, add_sections_skips_a_null_handler) {
+    class PluginWriter : public hsm::ISectionWriterHandler {
+    public:
+        void handle_section(hsm::IWriter& writer) const override {
+            writer.add_section(fake_device_id,
+                               hsm::SectionTag::make_device_tag(/*local_id=*/4, /*is_inline=*/false),
+                               view_of(m_payload));
+        }
+
+    private:
+        std::string m_payload = "plugin-section";
+    };
+
+    std::stringstream stream;
+    auto writer = open_writer(stream);
+    PluginWriter plugin;
+    EXPECT_NO_THROW(writer.add_sections({nullptr, &plugin, nullptr}));
+    ASSERT_FALSE(writer.finalize());
+
+    const auto container = parse_container(stream.str());
+    ASSERT_TRUE(container.has_value());
+    const auto tag = hsm::SectionTag::make_device_tag(4, false);
     const auto* section = find_entry(*container, fake_device_id, tag.id());
     ASSERT_NE(section, nullptr);
     EXPECT_EQ(payload_string(*container, *section), "plugin-section");
