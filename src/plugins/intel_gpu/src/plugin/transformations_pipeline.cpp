@@ -64,6 +64,7 @@
 #include "openvino/op/abs.hpp"
 #include "openvino/op/ceiling.hpp"
 #include "openvino/op/clamp.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/reduce_mean.hpp"
 #include "openvino/op/reduce_sum.hpp"
 #include "openvino/op/reshape.hpp"
@@ -237,6 +238,7 @@
 #include "ov_ops/moe_compressed.hpp"
 #include "ov_ops/grouped_matmul_compressed.hpp"
 #include "openvino/op/roll.hpp"
+#include "openvino/op/round.hpp"
 #include "openvino/op/shuffle_channels.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/util/log.hpp"
@@ -500,6 +502,34 @@ bool has_dequantization_absorbing_consumer(const std::shared_ptr<const ov::Node>
                 queue.push_back(user);
             }
         }
+    }
+    return false;
+}
+
+// The integer K^T*Q path (I8_KQ in sdpa_gen_micro.cpp) rounds the query to s8 while staging it,
+// which gives the product the op specifies only when the query already holds integers in the s8
+// range. That is read off the graph: the query is a Convert from i8, or a Round and a Clamp to
+// integral bounds within [-128, 127], in either order. Ops that only move values are skipped.
+bool holds_s8_integers(std::shared_ptr<const ov::Node> node) {
+    while (is_type_any_of<ov::op::v1::Reshape, ov::op::v1::Transpose, ov::op::v0::Squeeze, ov::op::v0::Unsqueeze>(node)) {
+        node = node->get_input_node_shared_ptr(0);
+    }
+    if (const auto convert = ov::as_type_ptr<const ov::op::v0::Convert>(node)) {
+        return convert->get_input_element_type(0) == ov::element::i8;
+    }
+    const auto is_s8_clamp = [](const std::shared_ptr<const ov::Node>& n) {
+        const auto clamp = ov::as_type_ptr<const ov::op::v0::Clamp>(n);
+        return clamp && clamp->get_min() >= -128.0 && clamp->get_max() <= 127.0 && std::floor(clamp->get_min()) == clamp->get_min() &&
+               std::floor(clamp->get_max()) == clamp->get_max();
+    };
+    const auto is_round = [](const std::shared_ptr<const ov::Node>& n) {
+        return ov::is_type<ov::op::v5::Round>(n);
+    };
+    if (is_s8_clamp(node)) {
+        return is_round(node->get_input_node_shared_ptr(0));
+    }
+    if (is_round(node)) {
+        return is_s8_clamp(node->get_input_node_shared_ptr(0));
     }
     return false;
 }
@@ -996,11 +1026,16 @@ void TransformationsPipeline::apply(std::shared_ptr<ov::Model> func) {
             // type before the attention (see the ScaledDotProductAttention specification). The
             // micro-kernel SDPA path reads an i8 key or value as it is (sdpa_gen_micro.cpp), so
             // those stay; any other integer type is decomposed, which inserts that conversion.
+            // An i8 key stays only with a query that provably holds s8 integers, since its
+            // integer K^T*Q path rounds the query (see holds_s8_integers).
             const auto unsupported_quantized_kv = [](const ov::element::Type& t) {
                 return ov::op::v13::ScaledDotProductAttention::is_quantized_kv_type(t) && t != ov::element::i8;
             };
             if (unsupported_quantized_kv(sdpa->get_input_element_type(1)) ||
                 unsupported_quantized_kv(sdpa->get_input_element_type(2))) {
+                return false;
+            }
+            if (sdpa->get_input_element_type(1) == ov::element::i8 && !holds_s8_integers(sdpa->get_input_node_shared_ptr(0))) {
                 return false;
             }
 
