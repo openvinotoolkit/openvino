@@ -480,10 +480,7 @@ bool get_branch_info(const ov::Output<ov::Node>& endpoint_output,
             expected_output_dims.push_back(camera_input_shape[i]);
         }
     }
-    if (ov::PartialShape(expected_output_dims) != camera_output_shape) {
-        return false;
-    }
-    return true;
+    return ov::PartialShape(expected_output_dims) == camera_output_shape;
 }
 
 bool branch_nodes_are_disjoint(const std::vector<BranchInfo>& branches) {
