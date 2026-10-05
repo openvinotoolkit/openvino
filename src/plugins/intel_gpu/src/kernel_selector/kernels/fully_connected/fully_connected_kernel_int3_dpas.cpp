@@ -417,8 +417,9 @@ DeviceFeaturesKey FullyConnected_int3_dpas::get_required_device_features_key(con
 }
 
 bool FullyConnected_int3_dpas::Validate(const Params& params) const {
-    if (!Parent::Validate(params))
+    if (!Parent::Validate(params)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     const auto& fc_params = static_cast<const fully_connected_params&>(params);
     const auto& input = fc_params.inputs[0];
@@ -427,68 +428,84 @@ bool FullyConnected_int3_dpas::Validate(const Params& params) const {
 
     // The matrix engine is the whole point of this kernel; without it the generic
     // kernels are a better choice.
-    if (!fc_params.engineInfo.supports_immad)
+    if (!fc_params.engineInfo.supports_immad) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
-    if (!fc_params.compressed || weights.GetDType() != WeightsType::UINT3)
+    if (!fc_params.compressed || weights.GetDType() != WeightsType::UINT3) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
-    if (input.GetDType() != Datatype::F16)
+    if (input.GetDType() != Datatype::F16) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
-    if (input.GetFirstElementOffset() != 0)
+    if (input.GetFirstElementOffset() != 0) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     if (input.X().pad.Total() != 0 || input.Y().pad.Total() != 0 || input.Feature().pad.Total() != 0 ||
-        input.Batch().pad.Total() != 0)
+        input.Batch().pad.Total() != 0) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
-    if (output.GetLayout() == DataLayout::bfyx && input.X().v > 1)
+    if (output.GetLayout() == DataLayout::bfyx && input.X().v > 1) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     // The weights reorder produces whole (16 output x 32 input) blocks; anything
     // that does not fill them exactly would need edge handling the GEMM lacks.
     const size_t ifm = get_input_bf_size(fc_params).second;
     const size_t ofm = get_output_aligned_bf_size(fc_params, false).second;
-    if (ifm == 0 || ofm == 0 || weights.IFM().v != ifm || weights.OFM().v != ofm)
+    if (ifm == 0 || ofm == 0 || weights.IFM().v != ifm || weights.OFM().v != ofm) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
-    if ((ifm % k_chunk) != 0 || (ofm % osv) != 0)
+    }
+    if ((ifm % k_chunk) != 0 || (ofm % osv) != 0) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     // Rows of the quantized activation buffer are read with uint / block_read_us4,
     // both of which need the row stride to stay 4-byte aligned.
-    if ((ifm % 4) != 0)
+    if ((ifm % 4) != 0) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     // The quantizer walks the activation tensor as one flat run and the GEMM
     // addresses it by row stride, so the two only agree when the stride is the
     // row length. That also keeps the per-group scale index (row * var_pitch + g)
     // exact.
-    if (get_input_b_pitch(fc_params) != ifm)
+    if (get_input_b_pitch(fc_params) != ifm) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     const size_t group_size = get_quantize_group_size(fc_params);
-    if (group_size < k_chunk || (group_size % k_chunk) != 0 || (ifm % group_size) != 0)
+    if (group_size < k_chunk || (group_size % k_chunk) != 0 || (ifm % group_size) != 0) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     // The weight scale, and the weight zero point when there is one, have to be
     // constant across a dynamic quantization group: the group is the unit at which
     // the integer accumulator is drained and rescaled.
     const size_t scale_group_size = get_wei_scale_group_size(fc_params);
-    if (scale_group_size < group_size || (scale_group_size % group_size) != 0)
+    if (scale_group_size < group_size || (scale_group_size % group_size) != 0) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
-    if (!is_addressable_dtype(fc_params.decompression_scale.GetDType()))
+    }
+    if (!is_addressable_dtype(fc_params.decompression_scale.GetDType())) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     if (fc_params.has_decompression_zp && !fc_params.scalar_zp) {
         const auto zp_groups = fc_params.decompression_zero_point.Feature().v;
-        if (zp_groups == 0)
+        if (zp_groups == 0) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
         const size_t zp_group_size = weights.IFM().v / zp_groups;
-        if (zp_group_size < group_size || (zp_group_size % group_size) != 0)
+        if (zp_group_size < group_size || (zp_group_size % group_size) != 0) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
-        if (!is_addressable_dtype(fc_params.decompression_zero_point.GetDType()))
+        }
+        if (!is_addressable_dtype(fc_params.decompression_zero_point.GetDType())) {
             DO_NOT_USE_THIS_KERNEL(params.layerID);
+        }
     }
 
     return true;
