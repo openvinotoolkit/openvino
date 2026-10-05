@@ -73,7 +73,6 @@ private:
     void advance_row_pointers(size_t rows);
     void advance_state_pointers(int64_t elements);
     void reduce_to_scalar(const Vmm& accumulator);
-    void clear_inactive_lanes(const Vmm& value, size_t active_lanes);
     void store_output(const Vmm& source, int element_count, size_t offset = 0);
     void prepare_row_scales();
     void store_row_tile();
@@ -123,6 +122,8 @@ private:
     const Vmm vmm_output_projection = Vmm(3 * max_row_tile + 2);
     const Vmm vmm_reduce_tmp0 = Vmm(3 * max_row_tile + 3);
     const Vmm vmm_reduce_tmp1 = Vmm(3 * max_row_tile + 4);
+    // Shared load/store emitters use k1; keep the recurrence tail mask in a separate register.
+    const Xbyak::Opmask k_tail = k2;
 
     std::unordered_map<size_t, std::unique_ptr<jit_emitter>> emitters;
     const std::vector<size_t> pool_aux_gpr_idxs = {static_cast<size_t>(rax.getIdx()),

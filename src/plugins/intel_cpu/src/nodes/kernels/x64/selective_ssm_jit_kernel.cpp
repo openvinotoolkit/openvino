@@ -98,21 +98,6 @@ void jit_selective_ssm_kernel<isa>::reduce_to_scalar(const Vmm& accumulator) {
 }
 
 template <cpu_isa_t isa>
-void jit_selective_ssm_kernel<isa>::clear_inactive_lanes(const Vmm& value, size_t active_lanes) {
-    const auto active_mask = static_cast<uint16_t>((uint32_t{1} << active_lanes) - 1U);
-    const auto vector_mask = static_cast<uint16_t>((uint32_t{1} << vector_size) - 1U);
-    const auto inactive_mask = static_cast<uint16_t>(vector_mask & ~active_mask);
-    uni_vpxor(vmm_reduce_tmp0, vmm_reduce_tmp0, vmm_reduce_tmp0);
-    if constexpr (isa == avx2) {
-        vblendps(value, value, vmm_reduce_tmp0, static_cast<uint8_t>(inactive_mask));
-    } else {
-        mov(r14.cvt32(), inactive_mask);
-        kmovw(k1, r14.cvt32());
-        vblendmps(value | k1, value, vmm_reduce_tmp0);
-    }
-}
-
-template <cpu_isa_t isa>
 void jit_selective_ssm_kernel<isa>::store_output(const Vmm& source, int element_count, size_t offset) {
     store(reg_output, source, m_jcp.data_precision, element_count, offset);
 }
@@ -197,8 +182,13 @@ void jit_selective_ssm_kernel<isa>::emit_state_vector(size_t rows,
         // state[p, n] = decay * state[p, n] + (delta * x[p]) * B[n]
         vmulps(state, state, vmm_decay);
         vfmadd231ps(state, vmm_input_projection, input_scale_vmm(row));
-        if (!is_full_vector) {
-            clear_inactive_lanes(state, active_lanes);
+        if constexpr (isa == avx2) {
+            if (!is_full_vector) {
+                // B's inactive lanes are already zero-filled by the load emitter. Reuse those zeros rather
+                // than allocating/clearing scratch; 0 * Inf during the state update may have produced NaNs.
+                const auto inactive_mask = static_cast<uint8_t>(0xFFU << active_lanes);
+                vblendps(state, state, vmm_input_projection, inactive_mask);
+            }
         }
 
         if (m_jcp.state_mode == jit_selective_ssm_state_mode::in_place) {
@@ -206,7 +196,16 @@ void jit_selective_ssm_kernel<isa>::emit_state_vector(size_t rows,
         }
         // output[p] = sum_n(state[p, n] * C[n])
         const auto vector = projection_offset / (vector_size * sizeof(float));
-        vfmadd231ps(accumulator_vmm(row, vector), state, vmm_output_projection);
+        if constexpr (isa == avx2) {
+            vfmadd231ps(accumulator_vmm(row, vector), state, vmm_output_projection);
+        } else {
+            if (is_full_vector) {
+                vfmadd231ps(accumulator_vmm(row, vector), state, vmm_output_projection);
+            } else {
+                // Do not evaluate inactive products, including NaN * 0 from non-finite decay/input.
+                vfmadd231ps(accumulator_vmm(row, vector) | k_tail, state, vmm_output_projection);
+            }
+        }
         if constexpr (isa == avx2) {
             if (m_jcp.state_mode == jit_selective_ssm_state_mode::separate) {
                 emit_store(row);
@@ -337,6 +336,13 @@ void jit_selective_ssm_kernel<isa>::generate() {
     mov(reg_x, ptr[reg_args + GET_OFF(x)]);
     mov(reg_output, ptr[reg_args + GET_OFF(output)]);
     mov(reg_steps, ptr[reg_args + GET_OFF(steps)]);
+    if constexpr (isa != avx2) {
+        const auto tail = m_jcp.state_size % vector_size;
+        if (tail != 0) {
+            mov(eax, static_cast<uint32_t>((uint32_t{1} << tail) - 1U));
+            kmovw(k_tail, eax);
+        }
+    }
     Xbyak::Label token_loop;
     Xbyak::Label kernel_exit;
     if (m_jcp.state_mode == jit_selective_ssm_state_mode::in_place) {
