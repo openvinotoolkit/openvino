@@ -27,7 +27,9 @@
 namespace ov::intel_cpu::kernel {
 namespace {
 
-// Bound stack storage while amortizing the JIT call over several timesteps.
+// The recurrence timestep loop runs inside JIT. Only preparation of exp(A * delta) remains here, in bounded
+// batches to keep stack storage independent of sequence length. Paged batches also end at snapshot boundaries,
+// where C++ must publish the working state before the next token overwrites it.
 constexpr size_t max_token_batch = 64;
 
 template <typename Destination, typename Source>

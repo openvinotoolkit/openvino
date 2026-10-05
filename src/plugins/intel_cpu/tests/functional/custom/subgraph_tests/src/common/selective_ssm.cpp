@@ -13,6 +13,11 @@ std::vector<selective_ssm_params> selective_ssm_test_cases = {
     {2, 5, 6, 3, 7, 5, ov::element::f32, "CPU"},
     {1, 4, 4, 2, 8, 16, ov::element::f32, "CPU"},
     {2, 3, 4, 1, 8, 8, ov::element::f32, "CPU"},
+    // Exercise JIT token-batch boundaries with row/vector tails and grouped projections through CPU inference.
+    {2, 63, 4, 2, 5, 17, ov::element::f32, "CPU"},
+    {1, 64, 4, 2, 9, 128, ov::element::f32, "CPU"},
+    {2, 65, 4, 2, 5, 129, ov::element::f32, "CPU"},
+    {1, 129, 4, 2, 5, 17, ov::element::f32, "CPU"},
     {1, 4, 4, 2, 8, 16, ov::element::f16, "CPU"},
     {1, 1, 4, 2, 8, 16, ov::element::f16, "CPU"},
     {1, 4, 4, 2, 8, 16, ov::element::bf16, "CPU"},

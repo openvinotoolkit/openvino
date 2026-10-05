@@ -133,10 +133,13 @@ void SelectiveSSM::generate_inputs(const std::vector<ov::Shape>& targetInputStat
         const auto& param = params[i];
         const auto& shape = targetInputStaticShapes[i];
         if (i == 0) {
+            // Keep long recurrences contractive, so this indexing/batching test does not amplify FP32 rounding
+            // exponentially. Short cases also exercise positive A values.
+            const auto upper_bound = std::get<1>(GetParam()) >= 63 ? 0.0f : 0.2f;
             inputs[param] = ov::test::utils::create_and_fill_tensor_real_distribution(param->get_element_type(),
                                                                                       shape,
                                                                                       -0.5f,
-                                                                                      0.2f,
+                                                                                      upper_bound,
                                                                                       1);
         } else if (i == 1) {
             inputs[param] = ov::test::utils::create_and_fill_tensor_real_distribution(param->get_element_type(),
@@ -178,7 +181,9 @@ void SelectiveSSM::SetUp() {
     configuration[ov::hint::inference_precision.name()] = prec;
 
     if (prec == ov::element::f32) {
-        abs_threshold = 1e-6f;
+        // The oracle materializes delta * B before multiplying by x; both the reference executor and JIT
+        // use (delta * x) * B. Long recurrences amplify the different FP32 rounding, especially near zero.
+        abs_threshold = seq_len >= 63 ? 1e-5f : 1e-6f;
     } else if (prec == ov::element::bf16) {
         abs_threshold = 1e-2f;
     } else {
