@@ -112,6 +112,7 @@ void jit_selective_ssm_kernel<isa>::prepare_row_scales() {
 
     for (size_t row = 0; row < max_row_tile; ++row) {
         const Xbyak::Xmm scale(input_scale_vmm(row).getIdx());
+        // vpermilps has four 2-bit selectors; multiplying by 0x55 repeats the row's lane index in every field.
         vpermilps(scale, packed_scales, static_cast<uint8_t>(row * 0x55U));
     }
 }
