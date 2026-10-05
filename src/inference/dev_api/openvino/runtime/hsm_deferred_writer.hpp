@@ -33,7 +33,8 @@ public:
      * @brief Opens a DeferredWriter that writes into the given output stream.
      *
      * @param stream The output stream to write into. Must remain valid until #finalize() is called, and
-     * seekable too if any section uses the unsized overload of #add_section().
+     * be seekable - needed both to retry after a thrown exception and to revisit the destination when
+     * the unsized overload of #add_section() is used.
      * @return A DeferredWriter instance if the stream is usable; std::nullopt otherwise.
      */
     static std::optional<DeferredWriter> open(std::ostream& stream);
@@ -98,11 +99,12 @@ private:
     };
 
     // Where bytes actually go - a stream (own running size tracked, since a stream has no addressable
-    // pointer to fill directly and may not reliably support tellp()) or a caller-owned fixed buffer
-    // (additionally tracks capacity and a sticky failure flag once it runs out of room). A raw pointer,
-    // not a reference, so this stays assignable when held in m_destination below.
+    // pointer to fill directly) or a caller-owned fixed buffer (additionally tracks capacity and a
+    // sticky failure flag once it runs out of room). A raw pointer, not a reference, so this stays
+    // assignable when held in m_destination below.
     struct StreamDestination {
         std::ostream* stream = nullptr;  // destination stream
+        std::streampos start{};          // container's first byte, captured once at open()
         size_t size = 0;                 // bytes written so far (the write cursor)
     };
     struct BufferDestination {
@@ -127,7 +129,6 @@ private:
     static void patch_into(BufferDestination& destination, size_t offset, ov::util::MemoryView data);
     static bool is_good(const StreamDestination& destination);
     static bool is_good(const BufferDestination& destination);
-    static std::streampos container_start(const StreamDestination& destination);
 
     ManifestEntry write_section(DeviceId device,
                                 SectionTag tag,

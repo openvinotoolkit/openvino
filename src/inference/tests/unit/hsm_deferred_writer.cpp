@@ -39,14 +39,22 @@ hsm::DeferredWriter open_buffer_writer(std::byte* dst, size_t size) {
     return std::move(writer).value();
 }
 
-class NonSeekableStreamBuf : public std::streambuf {
+// Fails (writing only half the requested bytes) on a chosen xsputn() call, simulating a stream write
+// that partially succeeds before std::ostream sets badbit - built on std::stringbuf so seeking still
+// works, letting finalize()'s retry be observed.
+class FlakyOnceStreamBuf : public std::stringbuf {
 public:
-    std::string data;
+    int fail_on_call = -1;  // -1 = never fail
+    int call_count = 0;
 
 protected:
     std::streamsize xsputn(const char* s, std::streamsize n) override {
-        data.append(s, static_cast<size_t>(n));
-        return n;
+        if (++call_count == fail_on_call) {
+            const auto partial = n / 2;
+            std::stringbuf::xsputn(s, partial);
+            return partial;
+        }
+        return std::stringbuf::xsputn(s, n);
     }
 };
 
@@ -108,6 +116,13 @@ static_assert(!std::is_copy_assignable_v<hsm::DeferredWriter>);
 TEST(HsmDeferredWriterTest, open_stream_rejects_an_already_failed_stream) {
     std::stringstream stream;
     stream.setstate(std::ios::badbit);
+    EXPECT_FALSE(hsm::DeferredWriter::open(stream).has_value());
+}
+
+TEST(HsmDeferredWriterTest, open_stream_rejects_a_non_seekable_stream) {
+    struct NonSeekableStreamBuf : std::streambuf {};  // base class's seekoff/seekpos always fail
+    NonSeekableStreamBuf buf;
+    std::ostream stream(&buf);
     EXPECT_FALSE(hsm::DeferredWriter::open(stream).has_value());
 }
 
@@ -249,6 +264,50 @@ TEST(HsmDeferredWriterTest, finalize_retries_the_encoder_after_a_thrown_attempt_
     EXPECT_EQ(call_count, 2);
 }
 
+TEST(HsmDeferredWriterTest, finalize_retries_correctly_after_a_stream_write_throws_partway) {
+    FlakyOnceStreamBuf buf;
+    buf.fail_on_call = 2;  // the header write succeeds; the payload write fails partway through
+    std::ostream stream(&buf);
+    stream.exceptions(std::ios::badbit);
+
+    auto writer = open_writer(stream);
+    const std::string model = "model-bytes";
+    writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(model));
+    EXPECT_THROW(writer.finalize(), std::ios_base::failure);
+
+    stream.clear();
+    buf.fail_on_call = -1;  // the transient issue is gone by the next attempt
+    EXPECT_FALSE(writer.finalize());
+
+    const auto container = parse_container(buf.str());
+    ASSERT_TRUE(container.has_value());
+    const auto entry = find_entry(*container, hsm::any_device_id, hsm::model);
+    ASSERT_NE(entry, nullptr);
+    EXPECT_EQ(payload_string(*container, *entry), "model-bytes");
+}
+
+TEST(HsmDeferredWriterTest, finalize_retries_correctly_after_the_header_write_itself_throws_partway) {
+    FlakyOnceStreamBuf buf;
+    buf.fail_on_call = 1;  // the header write itself fails partway through, before size is ever updated
+    std::ostream stream(&buf);
+    stream.exceptions(std::ios::badbit);
+
+    auto writer = open_writer(stream);
+    const std::string model = "model-bytes";
+    writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(model));
+    EXPECT_THROW(writer.finalize(), std::ios_base::failure);
+
+    stream.clear();
+    buf.fail_on_call = -1;  // the transient issue is gone by the next attempt
+    EXPECT_FALSE(writer.finalize());
+
+    const auto container = parse_container(buf.str());
+    ASSERT_TRUE(container.has_value());
+    const auto entry = find_entry(*container, hsm::any_device_id, hsm::model);
+    ASSERT_NE(entry, nullptr);
+    EXPECT_EQ(payload_string(*container, *entry), "model-bytes");
+}
+
 TEST(HsmDeferredWriterTest, finalize_caches_a_normal_non_throwing_failure_instead_of_retrying) {
     std::stringstream stream;
     auto writer = open_writer(stream);
@@ -300,21 +359,6 @@ TEST(HsmDeferredWriterTest, patches_the_unsized_section_header_relative_to_a_non
     const auto entry = find_entry(*container, hsm::any_device_id, hsm::model);
     ASSERT_NE(entry, nullptr);
     EXPECT_EQ(payload_string(*container, *entry), "discovered-at-write-time");
-}
-
-TEST(HsmDeferredWriterTest, finalize_succeeds_on_a_non_seekable_stream_when_every_section_is_sized) {
-    NonSeekableStreamBuf buf;
-    std::ostream stream(&buf);
-    auto writer = open_writer(stream);
-    const std::string model = "model-bytes";
-    writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(model));
-    ASSERT_FALSE(writer.finalize());
-
-    const auto container = parse_container(buf.data);
-    ASSERT_TRUE(container.has_value());
-    const auto entry = find_entry(*container, hsm::any_device_id, hsm::model);
-    ASSERT_NE(entry, nullptr);
-    EXPECT_EQ(payload_string(*container, *entry), "model-bytes");
 }
 
 TEST(HsmDeferredWriterTest, empty_inline_payload_is_written_without_undefined_behavior) {

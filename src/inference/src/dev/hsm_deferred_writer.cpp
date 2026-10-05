@@ -114,13 +114,9 @@ void DeferredWriter::write_zeros(size_t count) {
     }
 }
 
-std::streampos DeferredWriter::container_start(const StreamDestination& destination) {
-    return destination.stream->tellp() - static_cast<std::streamoff>(destination.size);
-}
-
 void DeferredWriter::patch_into(StreamDestination& destination, size_t offset, ov::util::MemoryView data) {
     const auto resume = destination.stream->tellp();
-    destination.stream->seekp(container_start(destination) + static_cast<std::streamoff>(offset));
+    destination.stream->seekp(destination.start + static_cast<std::streamoff>(offset));
     destination.stream->write(reinterpret_cast<const char*>(data.data()), static_cast<std::streamsize>(data.size()));
     destination.stream->seekp(resume);
 }
@@ -165,12 +161,8 @@ bool DeferredWriter::destination_good() const {
 void DeferredWriter::reset_destination() {
     std::visit(ov::util::VariantVisitor{
                    [](StreamDestination& destination) {
-                       if (destination.size != 0) {
-                           // Nothing written yet on a fresh writer - a seek would needlessly require a
-                           // seekable stream even for a container made only of sized sections.
-                           destination.stream->seekp(container_start(destination));
-                           destination.size = 0;
-                       }
+                       destination.stream->seekp(destination.start);
+                       destination.size = 0;
                    },
                    [](BufferDestination& destination) {
                        destination.size = 0;
@@ -259,7 +251,7 @@ ManifestEntry DeferredWriter::write_section(DeviceId device,
 }
 
 DeferredWriter::DeferredWriter(std::ostream& stream) noexcept
-    : m_destination{StreamDestination{&stream}},
+    : m_destination{StreamDestination{&stream, stream.tellp()}},
       m_sections{},
       m_result{},
       m_has_unsized_section{false} {}
@@ -271,8 +263,12 @@ DeferredWriter::DeferredWriter(std::byte* dst, size_t capacity) noexcept
       m_has_unsized_section{false} {}
 
 std::optional<DeferredWriter> DeferredWriter::open(std::ostream& stream) {
-    DeferredWriter writer{stream};
-    return writer.destination_good() ? std::optional<DeferredWriter>{std::move(writer)} : std::nullopt;
+    if (stream.tellp() == std::streampos(-1)) {
+        return std::nullopt;
+    } else {
+        DeferredWriter writer{stream};
+        return writer.destination_good() ? std::optional<DeferredWriter>{std::move(writer)} : std::nullopt;
+    }
 }
 
 std::optional<DeferredWriter> DeferredWriter::open(std::byte* dst, size_t size) {
@@ -288,10 +284,13 @@ bool DeferredWriter::add_section(DeviceId device,
                                  SectionTag tag,
                                  ov::util::MemoryView payload,
                                  SectionAlignment align) {
-    const auto resolved = resolve_alignment(align);
-    OPENVINO_ASSERT(!tag.is_inline() || payload.size() <= k_inline_capacity,
-                    "HSM inline section payload exceeds the manifest entry's inline capacity");
-    m_sections.emplace_back(resolved, payload, device, tag);
+    if (tag.is_inline()) {
+        OPENVINO_ASSERT(payload.size() <= k_inline_capacity,
+                        "HSM inline section payload exceeds the manifest entry's inline capacity");
+        m_sections.emplace_back(align, payload, device, tag);
+    } else {
+        m_sections.emplace_back(resolve_alignment(align), payload, device, tag);
+    }
     return true;
 }
 
