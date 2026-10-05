@@ -8,6 +8,7 @@
 #include "intel_gpu/graph/topology.hpp"
 #include "intel_gpu/primitives/activation.hpp"
 #include "intel_gpu/primitives/data.hpp"
+#include "intel_gpu/primitives/eltwise.hpp"
 #include "intel_gpu/primitives/input_layout.hpp"
 #include "intel_gpu/primitives/reorder.hpp"
 #include "intel_gpu/primitives/stateless_kv.hpp"
@@ -16,6 +17,7 @@
 
 #include <map>
 #include <string>
+#include <vector>
 
 using namespace cldnn;
 using namespace ::tests;
@@ -37,7 +39,8 @@ protected:
     topology make_topology(int output_port = 0,
                            bool converting_output = false,
                            bool other_reader = false,
-                           bool intermediate = false) {
+                           bool intermediate = false,
+                           bool late_reader = false) {
         auto stateless_kv_prim = stateless_kv(producer, {input_info(past), input_info(new_token), input_info(present_len)}, 2, true);
         stateless_kv_prim.num_outputs = 2;
         stateless_kv_prim.output_data_types = {data_types::f32, data_types::f32};
@@ -52,6 +55,9 @@ protected:
         };
         if (other_reader)
             topo.add(reorder("other_reader", input_info(past), format::bfyx, data_types::f16));
+        // Reading stateless_kv's output 1 forces this reader of past to run after stateless_kv.
+        if (late_reader)
+            topo.add(eltwise("late_reader", input_info(past), input_info(producer, 1), eltwise_mode::sum));
 
         if (intermediate) {
             topo.add(activation("middle", input_info(producer, 0), activation_func::relu));
@@ -74,6 +80,8 @@ protected:
         ExecutionConfig config = get_test_default_config(get_test_engine());
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::optimize_data(true));
+        // Earlier readers of an aliased input are not yet guarded on out-of-order queues.
+        config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
         network net(get_test_engine(), topo, config);
 
         std::map<std::string, memory::ptr> inputs;
@@ -107,22 +115,30 @@ TEST_F(InputOutputAliasTest, stateless_kv_rejects_unsupported_output_port) {
     EXPECT_FALSE(query(topo, net_output, past));
 }
 
-TEST_F(InputOutputAliasTest, another_reader_of_past_disables_in_place_binding) {
+// The other reader of past is scheduled before stateless_kv, so the in-place update can't affect it.
+TEST_F(InputOutputAliasTest, earlier_reader_of_past_keeps_in_place_binding) {
     auto topo = make_topology(0, false, true);
 
+    EXPECT_TRUE(query(topo, net_output, past));
+}
+
+TEST_F(InputOutputAliasTest, later_reader_of_past_disables_in_place_binding) {
+    auto topo = make_topology(0, false, false, false, true);
+
     EXPECT_FALSE(query(topo, net_output, past));
 }
 
-TEST_F(InputOutputAliasTest, converting_output_reorder_is_the_writer) {
+// past has no reader left once the output is written; stateless_kv then computes into its own buffer.
+TEST_F(InputOutputAliasTest, converting_output_reorder_after_last_past_reader_is_aliasable) {
     auto topo = make_topology(0, true);
 
-    EXPECT_FALSE(query(topo, net_output, past));
+    EXPECT_TRUE(query(topo, net_output, past));
 }
 
-TEST_F(InputOutputAliasTest, intermediate_writer_does_not_inherit_stateless_kv_support) {
+TEST_F(InputOutputAliasTest, intermediate_writer_after_last_past_reader_is_aliasable) {
     auto topo = make_topology(0, false, false, true);
 
-    EXPECT_FALSE(query(topo, net_output, past));
+    EXPECT_TRUE(query(topo, net_output, past));
 }
 
 TEST_F(InputOutputAliasTest, non_overlapping_output_memory_is_allowed) {
@@ -140,5 +156,83 @@ TEST_F(InputOutputAliasTest, ordinary_reorder_rejects_input_alias_but_allows_sep
     EXPECT_FALSE(query(topo, net_output, past));
     EXPECT_TRUE(query(topo, net_output, past, true));
 }
+
+constexpr auto in0 = "in0";
+constexpr auto in1 = "in1";
+
+class InputOutputAliasGenericTest : public ::testing::TestWithParam<bool> {
+protected:
+    layout data_layout{ov::PartialShape{1, 4}, data_types::f32, format::bfyx};
+
+    // The parameter toggles the memory pool: aliasing decisions must not depend on it.
+    bool may_alias(topology& topo, const primitive_id& output_id, const primitive_id& input_id, std::vector<std::string> outputs = {}) {
+        ExecutionConfig config = get_test_default_config(get_test_engine());
+        config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
+        config.set_property(ov::intel_gpu::enable_memory_pool(GetParam()));
+        if (!outputs.empty())
+            config.set_property(ov::intel_gpu::custom_outputs(outputs));
+        network net(get_test_engine(), topo, config);
+        return net.may_alias(output_id, input_id);
+    }
+};
+
+// The output writer reads the input, so it can't write into the input's buffer.
+TEST_P(InputOutputAliasGenericTest, writer_reading_input_is_not_aliasable) {
+    topology topo{
+        input_layout(in0, data_layout),
+        input_layout(in1, data_layout),
+        eltwise(net_output, input_info(in0), input_info(in1), eltwise_mode::sum),
+    };
+
+    EXPECT_FALSE(may_alias(topo, net_output, in0));
+    EXPECT_FALSE(may_alias(topo, net_output, in1));
+}
+
+TEST_P(InputOutputAliasGenericTest, converting_reorder_of_input_is_not_aliasable) {
+    topology topo{
+        input_layout(in0, data_layout),
+        reorder(net_output, input_info(in0), format::bfyx, data_types::f16),
+    };
+
+    EXPECT_FALSE(may_alias(topo, net_output, in0));
+}
+
+TEST_P(InputOutputAliasGenericTest, pass_through_of_input_is_not_aliasable) {
+    topology topo{
+        input_layout(in0, layout{ov::PartialShape{1, -1}, data_types::f32, format::bfyx}),
+        reorder(net_output, input_info(in0), format::bfyx, data_types::f32),
+    };
+
+    EXPECT_FALSE(may_alias(topo, net_output, in0));
+}
+
+// in0 has no reader left once the output writer runs, so the writer may reuse in0's buffer.
+TEST_P(InputOutputAliasGenericTest, writer_after_last_input_reader_is_aliasable) {
+    topology topo{
+        input_layout(in0, data_layout),
+        input_layout(in1, data_layout),
+        activation("reader", input_info(in0), activation_func::relu),
+        eltwise(net_output, input_info("reader"), input_info(in1), eltwise_mode::sum),
+    };
+
+    EXPECT_TRUE(may_alias(topo, net_output, in0));
+    EXPECT_FALSE(may_alias(topo, net_output, in1));
+}
+
+// A later reader of in0 still needs its data after the output writer ran, wherever in0 sits in the processing order.
+TEST_P(InputOutputAliasGenericTest, writer_before_last_input_reader_is_not_aliasable) {
+    topology topo{
+        input_layout(in0, data_layout),
+        input_layout(in1, data_layout),
+        activation(net_output, input_info(in1), activation_func::relu),
+        eltwise("late_reader", input_info(in0), input_info(net_output), eltwise_mode::sum),
+    };
+
+    EXPECT_FALSE(may_alias(topo, net_output, in0, {net_output, "late_reader"}));
+}
+
+INSTANTIATE_TEST_SUITE_P(smoke, InputOutputAliasGenericTest, ::testing::Bool(), [](const ::testing::TestParamInfo<bool>& info) {
+    return info.param ? "MemoryPool" : "NoMemoryPool";
+});
 
 }  // namespace

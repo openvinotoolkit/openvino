@@ -12,6 +12,7 @@
 #include <set>
 #include <stack>
 #include <string>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -699,41 +700,61 @@ bool network::can_bind_user_output_memory(const primitive_id& output_id, const m
     if (!aliased_input)
         return true;
 
-    // An optimized output forwards its producer's buffer. Look through one such node only.
-    const primitive_inst* writer = output.get();
-    size_t writer_port = 0;
-    if (output->can_be_optimized()) {
-        const auto& dependencies = output->dependencies();
-        if (dependencies.size() != 1)
-            return false;
-        writer = dependencies.front().first;
-        writer_port = static_cast<size_t>(dependencies.front().second);
-        if (writer->can_be_optimized())
-            return false;
-    }
+    return may_alias(output_id, aliased_input->id());
+}
 
-    // The writer must be the input's only reader.
-    const auto& input_users = aliased_input->get_node().get_users();
-    if (input_users.size() != 1 || input_users.front() != &writer->get_node())
+bool network::may_alias(const primitive_id& output_id, const primitive_id& input_id) const {
+    const auto output = find_primitive(output_id);
+    const auto input = find_primitive(input_id);
+    if (!output->is_output() || !input->is_input())
         return false;
 
-    // Find the writer's one use of this input and check whether its output may share the buffer.
-    const auto& writer_deps = writer->dependencies();
-    size_t alias_input_idx = writer_deps.size();
-    for (size_t i = 0; i < writer_deps.size(); ++i) {
-        if (writer_deps[i].first == aliased_input) {
-            if (alias_input_idx != writer_deps.size())
+    const auto input_pos_it = _exec_positions.find(input.get());
+    if (input_pos_it == _exec_positions.end())
+        return false;
+
+    // Walk back from the output to the primitives that actually write its buffer; none of them
+    // may be restricted from sharing a buffer with the input.
+    // TODO: on out-of-order queues an earlier reader of the input may still run concurrently with the writer.
+    const auto input_uid = static_cast<uint32_t>(input->get_node().get_unique_id());
+    std::unordered_set<const primitive_inst*> visited;
+    std::stack<const primitive_inst*> pending;
+    pending.push(output.get());
+    while (!pending.empty()) {
+        const auto* inst = pending.top();
+        pending.pop();
+        if (!visited.insert(inst).second)
+            continue;
+        // A pure pass-through of the input is conservatively rejected.
+        if (inst == input.get())
+            return false;
+        if (inst->get_runtime_memory_dependencies().contains(input_uid))
+            return false;
+        // The input holds data from the start of execution, so anything running before it would
+        // overwrite data that its readers still need; restrictions only cover the range after it.
+        const auto pos_it = _exec_positions.find(inst);
+        if (pos_it == _exec_positions.end() || pos_it->second < input_pos_it->second)
+            return false;
+        const auto& node = inst->get_node();
+        if (!node.can_be_optimized() && !node.is_runtime_skippable())
+            continue;
+        // May borrow its buffer from a producer; if it still executes, it was already checked as a writer above.
+        const auto shape_deps = node.get_shape_infer_dependencies();
+        const auto& deps = inst->dependencies();
+        bool has_data_dep = false;
+        for (size_t i = 0; i < deps.size(); ++i) {
+            if (std::find(shape_deps.begin(), shape_deps.end(), i) != shape_deps.end())
+                continue;
+            // Restrictions are per node, so a buffer coming from a non-primary output can't be proven.
+            if (deps[i].second != 0)
                 return false;
-            alias_input_idx = i;
+            pending.push(deps[i].first);
+            has_data_dep = true;
         }
+        if (!has_data_dep)
+            return false;
     }
-    if (alias_input_idx == writer_deps.size() ||
-        !writer->get_node().can_support_input_output_alias(alias_input_idx, writer_port))
-        return false;
-
-    // Confirm the writer reads the buffer the caller provided.
-    const auto aliased_memory = writer->input_memory_ptr(alias_input_idx);
-    return aliased_memory && engine.is_the_same_buffer(*aliased_memory, candidate);
+    return true;
 }
 
 std::string network::get_implementation_info(const primitive_id& id) const {
@@ -975,6 +996,7 @@ void network::clear_output_memory_blocks() {
 
 void network::add_to_exec_order(const primitive_id& id) {
     auto inst = get_primitive(id);
+    _exec_positions.emplace(inst.get(), _exec_order.size());
     _exec_order.push_back(inst);
 }
 
