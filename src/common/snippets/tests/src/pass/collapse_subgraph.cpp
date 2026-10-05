@@ -6,26 +6,16 @@
 
 #include <gtest/gtest.h>
 
-#include <memory>
 #include <pass/collapse_subgraph.hpp>
 #include <subgraph_common_parent.hpp>
 #include <subgraph_converts.hpp>
 #include <subgraph_fq.hpp>
+#include <subgraph_bitwise.hpp>
 #include <subgraph_simple.hpp>
 
-#include "common_test_utils/ov_test_utils.hpp"
-#include "openvino/core/model.hpp"
 #include "openvino/core/partial_shape.hpp"
 #include "openvino/core/type/element_type.hpp"
-#include "openvino/op/bitwise_and.hpp"
-#include "openvino/op/bitwise_not.hpp"
-#include "openvino/op/bitwise_or.hpp"
-#include "openvino/op/bitwise_xor.hpp"
-#include "openvino/op/parameter.hpp"
-#include "snippets/op/result.hpp"
-#include "snippets/op/subgraph.hpp"
 #include "snippets/pass/tokenization.hpp"
-#include "snippets_helpers.hpp"
 #include "utils.hpp"
 
 namespace ov {
@@ -33,38 +23,6 @@ namespace test {
 namespace snippets {
 
 namespace {
-class BitwiseFunction : public SnippetsFunctionBase {
-public:
-    explicit BitwiseFunction(const ov::element::Type_t precision)
-        : SnippetsFunctionBase({ov::PartialShape{2, 16}, ov::PartialShape{2, 16}}, precision) {}
-
-protected:
-    [[nodiscard]] std::shared_ptr<ov::Model> initOriginal() const override {
-        auto p0 = std::make_shared<ov::op::v0::Parameter>(precision, input_shapes[0]);
-        auto p1 = std::make_shared<ov::op::v0::Parameter>(precision, input_shapes[1]);
-        auto bitwise_and = std::make_shared<ov::op::v13::BitwiseAnd>(p0, p1);
-        auto bitwise_or = std::make_shared<ov::op::v13::BitwiseOr>(bitwise_and, p1);
-        auto bitwise_xor = std::make_shared<ov::op::v13::BitwiseXor>(bitwise_or, p0);
-        auto bitwise_not = std::make_shared<ov::op::v13::BitwiseNot>(bitwise_xor);
-        return std::make_shared<ov::Model>(ov::OutputVector{bitwise_not}, ov::ParameterVector{p0, p1});
-    }
-
-    [[nodiscard]] std::shared_ptr<ov::Model> initReference() const override {
-        auto p0 = std::make_shared<ov::op::v0::Parameter>(precision, input_shapes[0]);
-        auto p1 = std::make_shared<ov::op::v0::Parameter>(precision, input_shapes[1]);
-        auto ip0 = std::make_shared<ov::op::v0::Parameter>(precision, input_shapes[0]);
-        auto ip1 = std::make_shared<ov::op::v0::Parameter>(precision, input_shapes[1]);
-        auto bitwise_and = std::make_shared<ov::op::v13::BitwiseAnd>(ip0, ip1);
-        auto bitwise_or = std::make_shared<ov::op::v13::BitwiseOr>(bitwise_and, ip1);
-        auto bitwise_xor = std::make_shared<ov::op::v13::BitwiseXor>(bitwise_or, ip0);
-        auto bitwise_not = std::make_shared<ov::op::v13::BitwiseNot>(bitwise_xor);
-        auto result = std::make_shared<ov::snippets::op::Result>(bitwise_not);
-        auto body = std::make_shared<ov::Model>(ov::OutputVector{result}, ov::ParameterVector{ip0, ip1});
-        auto subgraph = std::make_shared<ov::snippets::op::Subgraph>(ov::OutputVector{p0, p1}, body);
-        return std::make_shared<ov::Model>(ov::OutputVector{subgraph}, ov::ParameterVector{p0, p1});
-    }
-};
-
 class BitwiseTokenizationTests : public CollapseSubgraphTests,
                                  public testing::WithParamInterface<ov::element::Type_t> {};
 }  // namespace
@@ -86,7 +44,7 @@ TEST_F(CollapseSubgraphTests, smoke_Snippets_Eltwise) {
 }
 
 TEST_P(BitwiseTokenizationTests, smokeSnippetsBitwise) {
-    const auto f = BitwiseFunction(GetParam());
+    const auto f = BitwiseFunction({{2, 16}, {2, 16}}, GetParam());
     execute_and_validate_function(*this, f);
 }
 

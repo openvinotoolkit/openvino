@@ -1451,7 +1451,15 @@ void Transformations::MainSnippets() {
     };
 #endif  // OPENVINO_ARCH_X86_64
 
-    auto is_supported_op = []([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
+    auto is_supported_op = [ignoreCallback]([[maybe_unused]] const std::shared_ptr<const ov::Node>& n) -> bool {
+#if !defined(OPENVINO_ARCH_ARM64)
+        if (ov::is_type_any_of<const ov::op::util::BinaryElementwiseBitwise, const ov::op::v13::BitwiseNot>(n)) {
+            return false;
+        }
+#endif
+        if (ignoreCallback) {
+            return true;
+        }
         // CPU Plugin supports Swish in Subgraph via conversion to SwishCPU that requires scalar beta.
         // CPU Plugin does not support Mish for x64
         auto is_unsupported = [](const std::shared_ptr<const ov::Node>& n) {
@@ -1612,15 +1620,8 @@ void Transformations::MainSnippets() {
     }
 
     auto tokenize_snippets_callback = [&](const std::shared_ptr<const ov::Node>& n) -> bool {
-#if !defined(OPENVINO_ARCH_ARM64)
-        if (ov::is_type_any_of<const ov::op::util::BinaryElementwiseBitwise, const ov::op::v13::BitwiseNot>(n)) {
+        if ((!ignoreCallback && n->is_dynamic()) || !is_supported_op(n)) {
             return true;
-        }
-#endif
-        if (!ignoreCallback) {
-            if (n->is_dynamic() || !is_supported_op(n)) {
-                return true;
-            }
         }
 
         const auto& inputs = n->inputs();
