@@ -9,6 +9,7 @@
 #include "common_test_utils/test_assertions.hpp"
 #include "common_test_utils/type_prop.hpp"
 #include "openvino/op/concat.hpp"
+#include "openvino/op/reduce_prod.hpp"
 #include "openvino/op/subtract.hpp"
 #include "openvino/op/util/framework_node.hpp"
 
@@ -17,6 +18,7 @@ using ov::op::v0::Concat;
 using ov::op::v0::Constant;
 using ov::op::v0::Parameter;
 using ov::op::v0::Result;
+using ov::op::v1::ReduceProd;
 using ov::op::v1::Subtract;
 using ov::op::v3::ShapeOf;
 
@@ -85,4 +87,29 @@ TEST(BoundEvaluatorTest, no_exception_on_single_bound) {
     EXPECT_EQ(o_[0], 0);
     OV_ASSERT_NO_THROW(sub->evaluate_upper(output));
     EXPECT_EQ(o_[0], 10);
+}
+
+TEST(BoundEvaluatorTest, reduce_prod_no_bounds_for_possibly_negative_data) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{{1, 2}, {1, 3}});
+    const auto shape = std::make_shared<ShapeOf>(data);
+    // bounds of shape - 3 are [-2, -2] and [-1, 0], prod of them is not a valid interval
+    const auto shifted = std::make_shared<Subtract>(shape, Constant::create(element::i64, Shape{1}, {3}));
+    const auto axes = Constant::create(element::i64, Shape{1}, {0});
+    const auto prod = std::make_shared<ReduceProd>(shifted, axes, false);
+
+    const auto& [lower, upper] = ov::util::evaluate_both_bounds(prod->output(0));
+    EXPECT_FALSE(lower);
+    EXPECT_FALSE(upper);
+}
+
+TEST(BoundEvaluatorTest, reduce_prod_bounds_for_non_negative_data) {
+    const auto data = std::make_shared<Parameter>(element::f32, PartialShape{{1, 2}, {1, 3}});
+    const auto shape = std::make_shared<ShapeOf>(data);
+    const auto axes = Constant::create(element::i64, Shape{1}, {0});
+    const auto prod = std::make_shared<ReduceProd>(shape, axes, false);
+
+    const auto& [lower, upper] = ov::util::evaluate_both_bounds(prod->output(0));
+    ASSERT_TRUE(lower && upper);
+    EXPECT_EQ(lower.data<int64_t>()[0], 1);
+    EXPECT_EQ(upper.data<int64_t>()[0], 6);
 }

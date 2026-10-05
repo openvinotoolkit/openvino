@@ -15,19 +15,23 @@
 
 namespace ov {
 class Model;
-namespace op {
+}  // namespace ov
+
+namespace ov::op {
 namespace v0 {
 class Parameter;
 }  // namespace v0
 namespace v3 {
 class ShapeOf;
 }  // namespace v3
-}  // namespace op
+}  // namespace ov::op
 
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 void num_inputs_check(const NodeContext& context, size_t min_inputs, size_t max_inputs);
+
+/// \brief Resolve one combined or two explicit GLU inputs and apply the decoder's swapped flag.
+std::pair<ov::Output<ov::Node>, ov::Output<ov::Node>> get_glu_inputs(const NodeContext& context);
 
 /// \brief Find a Parameter whose friendly name or output tensor names include `name`.
 /// Returns nullptr if the model has no such Parameter.
@@ -85,6 +89,4 @@ OutputVector translate_1to1_match_2_inputs(const NodeContext& context) {
 }
 }  // namespace op
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

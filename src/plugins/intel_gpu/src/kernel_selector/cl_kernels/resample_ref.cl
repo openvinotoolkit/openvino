@@ -25,20 +25,49 @@ inline int FUNC(get_nearest_val)(float num, bool is_downsample)
 #endif
 }
 
+inline float FUNC(ref_divide)(float numerator, float denominator)
+{
+    volatile float numerator_value = numerator;
+    volatile float denominator_value = denominator;
+    volatile float quotient = numerator_value / denominator_value;
+    volatile float residual = numerator_value - quotient * denominator_value;
+    return quotient + residual / denominator_value;
+}
+
 inline float FUNC(get_original_coordinate)(float num, float scale, int length_resized, int length_original)
 {
     if (scale == 1.0f)
         return num;
 #if defined(COORD_TRANS_MODE_HALF_PIXEL)
+#if RESAMPLE_USE_LEGACY_SCALE == 1
     return (num + 0.5f) * scale - 0.5f;
+#else
+    return FUNC_CALL(ref_divide)(num + 0.5f, scale) - 0.5f;
+#endif
 #elif defined(COORD_TRANS_MODE_PYTORCH_HALF_PIXEL)
+#if RESAMPLE_USE_LEGACY_SCALE == 1
     return (length_resized > 1) ? (num + 0.5f) * scale - 0.5f : 0.f;
+#else
+    return (length_resized > 1) ? FUNC_CALL(ref_divide)(num + 0.5f, scale) - 0.5f : 0.f;
+#endif
 #elif defined(COORD_TRANS_MODE_ASYMMETRIC)
+#if RESAMPLE_USE_LEGACY_SCALE == 1
     return num * scale;
+#else
+    return FUNC_CALL(ref_divide)(num, scale);
+#endif
 #elif defined(COORD_TRANS_MODE_TF_HALF_PIXEL_FOR_NN)
+#if RESAMPLE_USE_LEGACY_SCALE == 1
     return (num + 0.5f) * scale;
+#else
+    return FUNC_CALL(ref_divide)(num + 0.5f, scale);
+#endif
 #elif defined(COORD_TRANS_MODE_ALIGN_CORNERS)
-    return (length_resized != 1) ? num * (length_original - 1) / (length_resized - 1) : 0.f;
+    if (length_resized == 1)
+        return 0.f;
+    if (num == 0.f || num == (float)(length_resized - 1))
+        return num == 0.f ? 0.f : (float)(length_original - 1);
+    return FUNC_CALL(ref_divide)((float)((int)num * (length_original - 1)), (float)(length_resized - 1));
 #else
 #error [clDNN resample_ref.cl]: coordinate transformation mode - not supported
 #endif
@@ -46,11 +75,54 @@ inline float FUNC(get_original_coordinate)(float num, float scale, int length_re
 
 inline void FUNC(get_cubic_coeff)(float* cubic_coef, float coord, float coef)
 {
+    // NOTE: The multiply-then-add/sub sequences below (e.g. "coef * x0 - 5.0f * coef")
+    // must be evaluated with separate rounding steps (as-if FP_CONTRACT/mad were OFF)
+    // to match the reference implementation bit-for-bit. Instead of disabling
+    // FP_CONTRACT/"-cl-mad-enable" for the whole translation unit (which would also
+    // block FMA/mad fusion for unrelated, perf-sensitive code), we locally block
+    // fusion only for these specific multiplications by routing *both* operands of
+    // every add/sub whose left- or right-hand side is itself a multiplication
+    // through a volatile temporary. This forces each multiplication to be
+    // rounded/stored (single rounding step) before it is combined with the
+    // following add/sub, regardless of which operand the compiler would have
+    // otherwise chosen to fuse.
     float abs_num = fabs(coord);
-    cubic_coef[0] = coef * (abs_num - 1.0) * (abs_num - 1.0) * abs_num;
-    cubic_coef[1] = ((coef + 2.0) * abs_num - (coef + 3.0)) * abs_num * abs_num + 1.0;
-    cubic_coef[2] = (((-coef - 2.0) * abs_num + (2.0 * coef + 3.0)) * abs_num - coef) * abs_num;
-    cubic_coef[3] = -coef * abs_num * abs_num * (abs_num - 1.0);
+    float x0 = abs_num + 1.0f;
+    float x1 = abs_num;
+    float x2 = 1.0f - abs_num;
+    float x3 = 2.0f - abs_num;
+
+    volatile float t0_m1 = coef * x0;
+    volatile float t0_c1 = 5.0f * coef;
+    float t0 = t0_m1 - t0_c1;
+    volatile float t0_m2 = t0 * x0;
+    volatile float t0_c2 = 8.0f * coef;
+    t0 = t0_m2 + t0_c2;
+    volatile float t0_m3 = t0 * x0;
+    volatile float t0_c3 = 4.0f * coef;
+    cubic_coef[0] = t0_m3 - t0_c3;
+
+    volatile float t1_m1 = (coef + 2.0f) * x1;
+    float t1 = t1_m1 - (coef + 3.0f);
+    t1 = t1 * x1;
+    volatile float t1_m2 = t1 * x1;
+    cubic_coef[1] = t1_m2 + 1.0f;
+
+    volatile float t2_m1 = (coef + 2.0f) * x2;
+    float t2 = t2_m1 - (coef + 3.0f);
+    t2 = t2 * x2;
+    volatile float t2_m2 = t2 * x2;
+    cubic_coef[2] = t2_m2 + 1.0f;
+
+    volatile float t3_m1 = coef * x3;
+    volatile float t3_c1 = 5.0f * coef;
+    float t3 = t3_m1 - t3_c1;
+    volatile float t3_m2 = t3 * x3;
+    volatile float t3_c2 = 8.0f * coef;
+    t3 = t3_m2 + t3_c2;
+    volatile float t3_m3 = t3 * x3;
+    volatile float t3_c3 = 4.0f * coef;
+    cubic_coef[3] = t3_m3 - t3_c3;
 }
 
 #define TRIANGLE_COEFF(x) (ACCUMULATOR_MAX_FUNC(ACCUMULATOR_VAL_ZERO, ACCUMULATOR_VAL_ONE - ACCUMULATOR_ABS_FUNC(x)))
@@ -80,18 +152,28 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     out_coords[1] = ((int)get_global_id(2) * PACK_SIZE) % OUTPUT_FEATURE_NUM;
     out_coords[0] = ((int)get_global_id(2) * PACK_SIZE) / OUTPUT_FEATURE_NUM;
     int in_coords[5];
+    int safe_in_coords[5];
     bool isOutOfBounds = false;
+#if RESAMPLE_FAST_NEAREST == 1
+    safe_in_coords[4] = (int)floor(out_coords[4] * SCALES[4]);
+    safe_in_coords[3] = (int)floor(out_coords[3] * SCALES[3]);
+    safe_in_coords[2] = (int)floor(out_coords[2] * SCALES[2]);
+    safe_in_coords[1] = out_coords[1];
+    safe_in_coords[0] = out_coords[0];
+#else
     unroll_for (int i = 0; i < 5; ++i) {
         const float orig_coord = FUNC_CALL(get_original_coordinate)(out_coords[i], SCALES[i], out_size[i], in_size[i] + PADS_BEGIN[i] +  PADS_END[i]);
-        const int nearest_pixel = FUNC_CALL(get_nearest_val)(orig_coord, SCALES[i] > 1) - PADS_BEGIN[i];
-        in_coords[i] = max(-PADS_BEGIN[0], min(nearest_pixel, in_size[i] + PADS_END[i] - 1));
+        const int nearest_pixel = FUNC_CALL(get_nearest_val)(orig_coord, SCALES[i] < 1) - PADS_BEGIN[i];
+        in_coords[i] = max(-PADS_BEGIN[i], min(nearest_pixel, in_size[i] + PADS_END[i] - 1));
+        safe_in_coords[i] = clamp(in_coords[i], 0, in_size[i] - 1);
 #if PADDING_USED == 1
         if (in_coords[i] < 0 || in_coords[i] >= in_size[i])
             isOutOfBounds = true;
 #endif
     }
+#endif
 
-    uint input_idx = FUNC_CALL(get_input_index)(in_coords[0], in_coords[1], 0, in_coords[2], in_coords[3], in_coords[4]);
+    uint input_idx = FUNC_CALL(get_input_index)(safe_in_coords[0], safe_in_coords[1], 0, safe_in_coords[2], safe_in_coords[3], safe_in_coords[4]);
     uint output_idx = FUNC_CALL(get_output_index)(out_coords[0], out_coords[1], 0, out_coords[2], out_coords[3], out_coords[4]);
 
     in_pack_t interp_val_pack = ((const __global in_pack_t*)(input + input_idx))[0];
@@ -134,17 +216,27 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     out_coords[1] = (int)get_global_id(2) % OUTPUT_FEATURE_NUM;
     out_coords[0] = (int)get_global_id(2) / OUTPUT_FEATURE_NUM;
     int in_coords[5];
+    int safe_in_coords[5];
     bool isOutOfBounds = false;
+#if RESAMPLE_FAST_NEAREST == 1
+    safe_in_coords[4] = (int)floor(out_coords[4] * SCALES[4]);
+    safe_in_coords[3] = (int)floor(out_coords[3] * SCALES[3]);
+    safe_in_coords[2] = (int)floor(out_coords[2] * SCALES[2]);
+    safe_in_coords[1] = out_coords[1];
+    safe_in_coords[0] = out_coords[0];
+#else
     unroll_for (int i = 0; i < 5; ++i) {
         const float orig_coord = FUNC_CALL(get_original_coordinate)(out_coords[i], SCALES[i], out_size[i], in_size[i] + PADS_BEGIN[i] + PADS_END[i]);
-        int nearest_pixel = FUNC_CALL(get_nearest_val)(orig_coord, SCALES[i] > 1) - PADS_BEGIN[i];
+        int nearest_pixel = FUNC_CALL(get_nearest_val)(orig_coord, SCALES[i] < 1) - PADS_BEGIN[i];
         in_coords[i] = max(-PADS_BEGIN[i], min(nearest_pixel, in_size[i] + PADS_END[i] - 1));
+        safe_in_coords[i] = clamp(in_coords[i], 0, in_size[i] - 1);
 #if PADDING_USED == 1
         if (in_coords[i] < 0 || in_coords[i] >= in_size[i])
             isOutOfBounds = true;
 #endif
     }
-    INPUT0_TYPE interp_val = input[FUNC_CALL(get_input_index)(in_coords[0], in_coords[1], 0, in_coords[2], in_coords[3], in_coords[4])];
+#endif
+    INPUT0_TYPE interp_val = input[FUNC_CALL(get_input_index)(safe_in_coords[0], safe_in_coords[1], 0, safe_in_coords[2], safe_in_coords[3], safe_in_coords[4])];
 #if PADDING_USED == 1
     if (isOutOfBounds)
         interp_val = TO_INPUT0_TYPE(INPUT0_VAL_ZERO);
@@ -182,12 +274,38 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     float cubic_coeff[5][4];
     unroll_for (int i = 0; i < 5; ++i) {
         float orig_coord = FUNC_CALL(get_original_coordinate)(out_coords[i], SCALES[i], out_size[i], in_size[i] + PADS_BEGIN[i] + PADS_END[i]) - PADS_BEGIN[i];
+    #if SHAPE_CALC_MODE_SIZES && PADDING_USED == 1 && defined(COORD_TRANS_MODE_TF_HALF_PIXEL_FOR_NN)
+        // Only re-derive the coordinate when the axis is actually being resized
+        // (SCALES[i] != 1.0f). get_original_coordinate() has its own early-out
+        // for unit scale (returns "num" as-is); axes that are only padded but not
+        // resized (e.g. explicit sizes matching the padded input size) must keep
+        // that behavior, otherwise an incorrect half-pixel shift would be applied.
+        if (SCALES[i] != 1.0f) {
+            if ((PADS_BEGIN[i] == 0) != (PADS_END[i] == 0)) {
+                // Split into separate statements (with a volatile intermediate)
+                // so the final "- PADS_BEGIN[i]" is not fused by the compiler
+                // with the preceding multiplication into a single FMA, which
+                // would change rounding relative to the reference.
+                volatile float scaled = ((float)out_coords[i] + 0.5f) / (float)out_size[i] * (float)(in_size[i] + PADS_BEGIN[i] + PADS_END[i]);
+                orig_coord = scaled - PADS_BEGIN[i];
+            } else if (PADS_BEGIN[i] != 0 && PADS_END[i] != 0) {
+                volatile float inv_scale = 1.0f / SCALES[i];
+                volatile float scaled = ((float)out_coords[i] + 0.5f) * inv_scale;
+                orig_coord = scaled - PADS_BEGIN[i];
+            }
+        }
+    #elif SHAPE_CALC_MODE_SIZES && PADDING_USED == 1 && defined(COORD_TRANS_MODE_ASYMMETRIC)
+        if (SCALES[i] != 1.0f) {
+            volatile float scaled = (float)out_coords[i] / (float)out_size[i] * (float)(in_size[i] + PADS_BEGIN[i] + PADS_END[i]);
+            orig_coord = scaled - PADS_BEGIN[i];
+        }
+    #endif
         in_coords[i] = floor(orig_coord);
         orig_coord = (orig_coord - in_coords[i]) * AXES_USED[i];
         FUNC_CALL(get_cubic_coeff)(cubic_coeff[i], orig_coord, CUBE_COEFF);
     }
 
-    INPUT0_COMPUTE_TYPE interp_val = INPUT0_VAL_ZERO;
+    ACCUMULATOR_TYPE interp_val = ACCUMULATOR_VAL_ZERO;
     int index[5];
     unroll_for (index[0] = 0; index[0] <= 3; ++index[0]) {
         unroll_for (index[1] = 0; index[1] <= 3; ++index[1]) {
@@ -208,7 +326,11 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
 #if PADDING_USED == 1
                         if (!isOutOfBounds)
 #endif
-                            interp_val += coeff_prod * DECODE_INPUT0_COMPUTE_TYPE(input[FUNC_CALL(get_input_index)(coords_sum[0], coords_sum[1], 0, coords_sum[2], coords_sum[3], coords_sum[4])]);
+                        {
+                            interp_val = fma((ACCUMULATOR_TYPE)coeff_prod,
+                                             (ACCUMULATOR_TYPE)DECODE_INPUT0_COMPUTE_TYPE(input[FUNC_CALL(get_input_index)(coords_sum[0], coords_sum[1], 0, coords_sum[2], coords_sum[3], coords_sum[4])]),
+                                             interp_val);
+                        }
                     }
                 }
             }
@@ -499,11 +621,11 @@ KERNEL (resample_gpu_ref)(__global INPUT0_TYPE* input,
     ACCUMULATOR_TYPE sum[fp_max] = {0};
     ACCUMULATOR_TYPE wsum[fp_max] = {0};
 
-    unroll_for(int b = b_init; b < b_max; b++) {
-        unroll_for(int f = f_init; f < f_max; f++) {
-            unroll_for(int z = z_init; z < z_max; z++) {
-                unroll_for(int y = y_init; y < y_max; y++) {
-                    unroll_for(int x = x_init; x < x_max; x++) {
+    for (int b = b_init; b < b_max; b++) {
+        for (int f = f_init; f < f_max; f++) {
+            for (int z = z_init; z < z_max; z++) {
+                for (int y = y_init; y < y_max; y++) {
+                    for (int x = x_init; x < x_max; x++) {
                         unroll_for(int fp = 0; fp < fp_max; fp++) {
 #if PADDING_USED == 1
                             bool isOutOfBounds = b < 0 || f < 0 || z < 0 || y < 0 || x < 0 ||

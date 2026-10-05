@@ -8,8 +8,7 @@
 #include "openvino/frontend/visibility.hpp"
 #include "openvino/op/util/framework_node.hpp"
 
-namespace ov {
-namespace frontend {
+namespace ov::frontend {
 
 /// \brief Variable is a special node used in a conversion step
 /// It can have several values (or states) during the conversion.
@@ -113,5 +112,4 @@ protected:
     uint64_t m_init_counter;
 };
 
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend
