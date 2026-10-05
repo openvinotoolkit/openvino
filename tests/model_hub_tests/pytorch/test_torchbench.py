@@ -81,11 +81,11 @@ class TestTorchbenchmarkConvertModel(TestTorchConvertModel):
                    for m in marks), f"Incorrect test case for {name}"
         if "skip" in marks or f"skip_{mode}" in marks:
             pytest.skip(reason)
-        if "xfail" in marks or f"xfail_{mode}" in marks:
-            request.node.add_marker(pytest.mark.xfail(reason=reason))
         if name not in self.installed_models:
             subprocess.check_call([sys.executable, "install.py", name], cwd=self.repo_dir.name,
                                   timeout=self.infer_timeout)
             self.installed_models.add(name)
+        if "xfail" in marks or f"xfail_{mode}" in marks:
+            request.node.add_marker(pytest.mark.xfail(reason=reason))
         self.mode = mode
         self.run(name, link, ie_device)
