@@ -166,6 +166,7 @@ bool query_microkernels_supported(cldnn::engine& e, const cldnn::ExecutionConfig
         return cache.at(device);
     }
 
+    // The probe uses Intel specific instructions, so skip it for other vendors.
     if (e.get_device_info().vendor_id != INTEL_VENDOR_ID) {
         cache[device] = false;
         return false;
