@@ -211,16 +211,16 @@ ManifestEntry DeferredWriter::write_section(DeviceId device,
 }
 
 DeferredWriter::DeferredWriter(std::ostream& stream) noexcept
-    : m_destination(StreamDestination{&stream}),
-      m_sections(),
-      m_finalized(false),
-      m_has_unsized_section(false) {}
+    : m_destination{StreamDestination{&stream}},
+      m_sections{},
+      m_finalized{false},
+      m_has_unsized_section{false} {}
 
 DeferredWriter::DeferredWriter(std::byte* dst, size_t capacity) noexcept
-    : m_destination(BufferDestination{dst, capacity}),
-      m_sections(),
-      m_finalized(false),
-      m_has_unsized_section(false) {}
+    : m_destination{BufferDestination{dst, capacity}},
+      m_sections{},
+      m_finalized{false},
+      m_has_unsized_section{false} {}
 
 std::optional<DeferredWriter> DeferredWriter::open(std::ostream& stream) {
     DeferredWriter writer{stream};
@@ -278,7 +278,7 @@ std::error_code DeferredWriter::finalize() {
         } else {
             // std::get is safe here - m_has_unsized_section already rules out a SectionEncoder payload.
             const auto payload_size = [](const PendingSection& section) -> size_t {
-                if (const auto* view = std::get_if<ov::util::MemoryView>(&section.payload)) {
+                if (const auto view = std::get_if<ov::util::MemoryView>(&section.payload)) {
                     return view->size();
                 } else {
                     return std::get<PendingEncode>(section.payload).size;
