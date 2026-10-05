@@ -74,6 +74,17 @@ void run_jit_paged_selective_ssm(const PagedSelectiveSSMKernelTestArgs& args, bo
     ov::intel_cpu::kernel::paged_selective_ssm_jit(runtime_args);
 }
 
+TEST_F(PagedSelectiveSSMJitKernel, InternalInt64MetadataCoversCacheIntervalExtremes) {
+    // The graph operation accepts only i32 metadata. Exercise the internal i64 runtime contract directly.
+    for (const bool reuse_state_cache : {false, true}) {
+        SCOPED_TRACE(testing::Message() << "reuse_state_cache=" << reuse_state_cache);
+        const auto run = [reuse_state_cache](const PagedSelectiveSSMKernelTestArgs& args) {
+            run_jit_paged_selective_ssm(args, reuse_state_cache);
+        };
+        run_paged_selective_ssm_differential_stress(element::f32, element::i64, 1e-5F, run);
+    }
+}
+
 TEST(SelectiveSSMJitFactory, FactoryRejectsUnsupportedConfigurations) {
     EXPECT_EQ(ov::intel_cpu::kernel::create_selective_ssm_jit_kernel(element::i8, 1), nullptr);
     EXPECT_EQ(ov::intel_cpu::kernel::create_selective_ssm_jit_kernel(element::f32, 0), nullptr);

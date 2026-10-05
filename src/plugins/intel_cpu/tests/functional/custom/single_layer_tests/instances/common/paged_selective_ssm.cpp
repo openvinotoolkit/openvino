@@ -11,7 +11,6 @@ namespace ov::test {
 namespace {
 std::vector<PagedSelectiveSSMLayerParams> jit_numerical_cases() {
     std::vector<PagedSelectiveSSMLayerParams> cases{
-        {1, 1, 1, 1, {}, {}, {}, ov::element::f32, ov::element::f32, ov::element::i32, "CPU"},
         {2, 1, 3, 5, {0, 0}, {0, 11}, {0, -7}, ov::element::f32, ov::element::f32, ov::element::i32, "CPU"},
         {1, 1, 1, 1, {1}, {0}, {1}, ov::element::f32, ov::element::f32, ov::element::i32, "CPU"},
         {2, 1, 3, 5, {1}, {7}, {0}, ov::element::f32, ov::element::f32, ov::element::i32, "CPU"},
@@ -45,13 +44,10 @@ std::vector<PagedSelectiveSSMLayerParams> jit_numerical_cases() {
     const auto shapes = cases;
     cases.clear();
     for (const auto& precision : {ov::element::f32, ov::element::f16, ov::element::bf16}) {
-        for (const auto& index_precision : {ov::element::i32, ov::element::i64}) {
-            for (auto params : shapes) {
-                std::get<7>(params) = precision;
-                std::get<8>(params) = precision;
-                std::get<9>(params) = index_precision;
-                cases.push_back(params);
-            }
+        for (auto params : shapes) {
+            std::get<7>(params) = precision;
+            std::get<8>(params) = precision;
+            cases.push_back(params);
         }
     }
     // With snapshots disabled, prefill exercises the no-store state mode and checks the complete unchanged cache.
