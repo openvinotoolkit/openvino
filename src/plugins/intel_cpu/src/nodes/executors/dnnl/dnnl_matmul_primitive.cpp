@@ -484,9 +484,6 @@ static std::pair<VectorDims, VectorDims> makeDummyInputDims(const Shape& in0,
 
     swapTranspDims(inDims0, inDims1);
 
-    std::replace(inDims0.begin(), inDims0.end(), 0, 1);
-    std::replace(inDims1.begin(), inDims1.end(), 0, 1);
-
     return {inDims0, inDims1};
 }
 
@@ -545,9 +542,9 @@ DnnlShapeAgnosticDataPtr DnnlMatMulPrimitive::createShapeAgnosticData(const MatM
     const auto postOpData =
         createPrimitiveAttrs(attrs, memory, context, useWeightsDecompression, attrs.weightsNonTransposed);
 
-    const auto& srcShape = srcDesc->getShape();
-    const auto& weiShape = weiDesc->getShape();
-    if (srcShape.isDynamic() || weiShape.isDynamic() || srcShape.hasZeroDims() || weiShape.hasZeroDims()) {
+    if (srcDesc->getShape().isDynamic() || weiDesc->getShape().isDynamic()) {
+        const auto& srcShape = srcDesc->getShape();
+        const auto& weiShape = weiDesc->getShape();
         auto [inDymmyDims, weiDymmyDims] =
             makeDummyInputDims(srcShape, weiShape, dstDesc->getShape(), attrs.transposeA, attrs.transposeB);
         const auto& outDymmyDims = makeDummyOutputDims(inDymmyDims,
