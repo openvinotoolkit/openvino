@@ -73,9 +73,9 @@ bool is_aligned_to(T value, T alignment) {
 }  // namespace
 
 namespace {
-std::shared_ptr<ov::Model> cut_lm_head(const std::shared_ptr<ov::Model>& model, std::string& output_embeds_name) {
+std::shared_ptr<ov::Model> cut_lm_head(const std::shared_ptr<ov::Model>& model) {
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
-    ov::npuw::CutLMHead(lm_head_model, output_embeds_name).run_on_model(model);
+    ov::npuw::CutLMHead(lm_head_model).run_on_model(model);
     if (lm_head_model) {
         lm_head_model->set_friendly_name(model->get_friendly_name() + "_lm_head");
     }
@@ -522,14 +522,12 @@ ov::element::Type choose_kv_cache_storage_type(const std::shared_ptr<ov::Model>&
     return kv_kache_storage_type;
 }
 
-std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model>& m,
-                                                 const ::intel_npu::Config& cfg,
-                                                 std::string& output_embeds_name) {
+std::shared_ptr<ov::Model> check_and_cut_lm_head(const std::shared_ptr<ov::Model>& m, const ::intel_npu::Config& cfg) {
     bool shared_head_enabled = cfg.get<::intel_npu::NPUW_LLM_SHARED_HEAD>();
     std::shared_ptr<ov::Model> lm_head_model = nullptr;
     if (shared_head_enabled) {
         LOG_DEBUG("Trying to separate Vocabulary matrix multiplication op into additional model...");
-        lm_head_model = cut_lm_head(m, output_embeds_name);
+        lm_head_model = cut_lm_head(m);
         if (lm_head_model) {
             LOG_INFO("Three-model pipeline will be created: LM head will be shared between prefill and generate.");
         } else {
@@ -968,7 +966,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     ov::npuw::ReplaceDeepstackScatterWithAdd().run_on_model(kvcache_model);
 
-    auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg, m_output_embeds_name);
+    auto lm_head_model = check_and_cut_lm_head(kvcache_model, m_cfg);
 
     // Detect attention mask kind before the SDPA subgraph is isolated by partitioning,
     // annotating each SDPA node's rt_info. HostFlashAttention reads this per-node to
@@ -1576,11 +1574,10 @@ void ov::npuw::LLMCompiledModel::rebuild_prefill_other_outs_to_seqdims(
     const auto& prefill_outs = m_prefill_compiled->outputs();
     for (const auto& [port_name, seqdim] : by_name) {
         const auto& name = port_name;
-        auto it = std::find_if(prefill_outs.begin(),
-                               prefill_outs.end(),
-                               [&name](const ov::Output<const ov::Node>& out) {
-                                   return out.get_names().count(name) > 0;
-                               });
+        auto it =
+            std::find_if(prefill_outs.begin(), prefill_outs.end(), [&name](const ov::Output<const ov::Node>& out) {
+                return out.get_names().count(name) > 0;
+            });
         OPENVINO_ASSERT(it != prefill_outs.end(),
                         "NPUW blob: prefill output '",
                         port_name,
@@ -1617,7 +1614,7 @@ void ov::npuw::LLMCompiledModel::serialize(std::ostream& raw_stream, const ov::n
             m_kvcache_desc.v_tensors_transposed_gen & m_prefill_chunk_size & m_use_chunk_prefill & m_max_lora_rank &
             m_enable_prefix_caching & m_prefix_caching_block_size & m_prefix_caching_max_num_blocks &
             m_longrope_context_limit & m_is_whisper & m_eos_token_id & m_decomposed_sdpa_size & m_is_eagle &
-            m_is_embedding & m_is_block_kv_cache & m_is_encoder_embedding & m_swa_window_size & m_output_embeds_name;
+            m_is_embedding & m_is_block_kv_cache & m_is_encoder_embedding & m_swa_window_size;
 
         // LongRoPE cos/sin tables: the transformed graphs have npuw_lr_cos/npuw_lr_sin
         // inputs the host must fill every call, but deserialization imports already-
@@ -1821,8 +1818,7 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
             compiled->m_prefix_caching_block_size & compiled->m_prefix_caching_max_num_blocks &
             compiled->m_longrope_context_limit & compiled->m_is_whisper & compiled->m_eos_token_id &
             compiled->m_decomposed_sdpa_size & compiled->m_is_eagle & compiled->m_is_embedding &
-            compiled->m_is_block_kv_cache & compiled->m_is_encoder_embedding & compiled->m_swa_window_size &
-            compiled->m_output_embeds_name;
+            compiled->m_is_block_kv_cache & compiled->m_is_encoder_embedding & compiled->m_swa_window_size;
 
         // LongRoPE cos/sin tables - see the matching comment in serialize()
         stream & compiled->m_longrope_tables;
