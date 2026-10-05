@@ -383,7 +383,10 @@ void jit_selective_ssm_kernel<isa>::generate() {
     if (m_jcp.state_mode == jit_selective_ssm_state_mode::in_place) {
         dec(reg_tokens);
         jz(kernel_exit, T_NEAR);
-        // Row traversal advances x/output; restore their token bases before applying the token stride.
+        // main_loop visits max_row_tile rows per iteration and tail_loop one; together they visit exactly
+        // row_count rows. Each advance_row_pointers(rows) adds rows * data_precision.size() to x/output,
+        // so their accumulated displacement is row_count * data_precision.size(). Subtract that amount
+        // to restore the token bases before applying input_stride, which also skips the other heads/tiles.
         mov(rax, ptr[reg_args + GET_OFF(row_count)]);
         imul(rax, rax, static_cast<int>(m_jcp.data_precision.size()));
         sub(reg_x, rax);
