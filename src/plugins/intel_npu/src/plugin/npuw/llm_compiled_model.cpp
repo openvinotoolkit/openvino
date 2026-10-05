@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <queue>
 #include "llm_compiled_model.hpp"
 
 #include <algorithm>
@@ -844,16 +843,16 @@ void ov::npuw::LLMCompiledModel::compile_generate_model_variants(
 }
 
 void ov::npuw::LLMCompiledModel::assign_shared_weight_to_model_if_possible(const std::shared_ptr<ov::Model> model, const std::shared_ptr<const ov::IPlugin>& plugin,
-const ov::AnyMap& properties) {
+const ov::Any& shared_weight_property) {
     NPUW_ASSERT(model && "Model for assigning shared weights must not be null");
     NPUW_ASSERT(plugin && "Plugin for assigning shared weights must not be null");
-    auto shared_weight_property_it = properties.find("SHARED_WEIGHTS");
-    if (shared_weight_property_it == properties.end()) {
+    if (shared_weight_property.empty()) {
         return;
     }
 
+    NPUW_ASSERT(shared_weight_property.is<std::string>() && "NPU shared weight property must be a std::string");
     auto shared_device_contexts =
-        ov::DeviceIDParser::get_hetero_devices(shared_weight_property_it->second.as<std::string>());
+        ov::DeviceIDParser::get_hetero_devices(shared_weight_property.as<std::string>());
     ::ov::intel_npu::SharedWeightsAssigner::Options shared_weights_assigner_options;
     shared_weights_assigner_options.shared_device_contexts = std::move(shared_device_contexts);
     shared_weights_assigner_options.preserve_weightless_cache_attr = (std::getenv("NO_WEIGHTLESS_ATTR") == nullptr);
@@ -874,6 +873,9 @@ const ov::AnyMap& properties) {
         // Keep source buffers alive for the lifetime of this compiled model.
         m_shared_weight_sources.push_back(shared_source);
     }
+
+    NPUW_ASSERT(!m_shared_ctx_ptr && "Shared weight context must not be already assigned");
+    m_shared_ctx_ptr = ::ov::intel_npu::SharedWeightsContextExtractor::extract_weight_sharing_context(shared_sources_with_constants);
 }
 
 ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& model,
