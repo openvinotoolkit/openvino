@@ -8,9 +8,7 @@
 
 #include "openvino/core/except.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
+namespace ov::frontend::gguf {
 
 GgufBuilderDecoder::GgufBuilderDecoder(std::shared_ptr<GgufGraph> graph, int node_index)
     : m_graph(std::move(graph)),
@@ -131,6 +129,4 @@ const ov::AnyMap& GgufBuilderDecoder::get_tokenizer_config() const {
     return m_graph->tokenizer_config;
 }
 
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf

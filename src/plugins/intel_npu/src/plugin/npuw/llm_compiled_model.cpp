@@ -187,19 +187,6 @@ bool is_cw_compressed(const std::shared_ptr<ov::Model>& model) {
     return false;
 }
 
-bool is_int8_compressed(const std::shared_ptr<ov::Model>& model) {
-    std::vector<std::string> rt_info_path = {"nncf", "weight_compression", "mode"};
-    if (!model->has_rt_info(rt_info_path)) {
-        // NB: Model isn't compressed by NNCF - skip
-        return false;
-    }
-    auto mode = model->get_rt_info<std::string>(rt_info_path);
-    if (mode.find("int8") != std::string::npos) {
-        return true;
-    }
-    return false;
-}
-
 struct NPUDesc {
     std::string arch;
     int64_t max_tiles = 0;
@@ -368,6 +355,8 @@ ov::AnyMap get_default_common_config(const std::optional<NPUDesc>& npudesc) {
         } else if (npu_platform == ov::intel_npu::Platform::NPU5010 ||
                    npu_platform == ov::intel_npu::Platform::NPU5020) {
             set_npu_tiles = true;
+        } else if (npu_platform == ov::intel_npu::Platform::NPU6010) {
+            arch_added_compilation_param = "performance-hint-override=latency";
         } else if (npu_platform == ov::intel_npu::Platform::AUTO_DETECT) {
             arch_added_compilation_param = "performance-hint-override=latency";
         } else {
@@ -1052,7 +1041,6 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         m_cfg.update({{"NPUW_LLM_SHARED_HEAD", "NO"}});
         m_cfg.update({{"NPUW_LLM_PREFILL_CHUNK_SIZE", "0"}});
         m_cfg.update({{"NPUW_LLM_CACHE_ROPE", "NO"}});
-        m_cfg.update({{"NPUW_LLM_OPTIMIZE_V_TENSORS", "NO"}});
 
         m_eos_token_id = m_cfg.get<::intel_npu::NPUW_WHISPER_EOS_TOKEN>();
     }
@@ -1156,6 +1144,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     auto use_text_embed_key = pop_option(other_props, std::string("NPUW_TEXT_EMBED"));
     m_is_embedding = use_text_embed_key.value_or(false).as<bool>() == true;
 
+    // The rerank tag only gates the batched wrapper at the entry point. Pop it here
+    // so it stays out of the submodel configs, like the embed tag above.
+    pop_option(other_props, std::string("NPUW_TEXT_RERANK"));
+
     if (m_is_embedding) {
         // Both embedding flavours only ever prefill; what differs is how they attend. An
         // autoregressive embedder (Qwen3-Embedding-style) has a causal mask and a KV cache to
@@ -1228,6 +1220,27 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // decide whether the regular-tile mask-skipping optimization is safe for that layer.
     ov::npuw::DetectAttentionMask().run_on_model(kvcache_model);
     ov::npuw::log_detected_masks(kvcache_model);
+
+    const bool is_per_layer_inputs_model = has_per_layer_inputs(kvcache_model);
+    // Gemma-4 E2B/E4B cross-group KV sharing models benefit the most from shrinking the SWA KV
+    // cache and from hoisting the LM-head output slice through the SWA/Global boundary, so
+    // auto-enable both options for them unless the user explicitly configured it.
+    bool propagate_slice_up = m_cfg.get<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>();
+    if (is_per_layer_inputs_model) {
+        // SWA shrink is incompatible with prefix caching, multi-token generation (e.g. speculative
+        // decoding), and continuous prefill.
+        const bool swa_shrink_compatible =
+            !m_enable_prefix_caching && max_generation_token_len == 1 && !m_enable_continuous_prefill;
+        if (swa_shrink_compatible && !m_cfg.has<::intel_npu::NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK>()) {
+            m_cfg.update({{"NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK", "YES"}});
+            LOG_INFO("Gemma-4 cross-group KV model: auto-enabling NPUW_LLM_ENABLE_SWA_KV_CACHE_SHRINK");
+        }
+        if (!m_cfg.has<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>()) {
+            m_cfg.update({{"NPUW_LLM_PROPAGATE_SLICE_UP", "YES"}});
+            propagate_slice_up = true;
+            LOG_INFO("Gemma-4 cross-group KV model: auto-enabling NPUW_LLM_PROPAGATE_SLICE_UP");
+        }
+    }
 
     // Two mutually-exclusive ways to handle sliding-window attention (SWA) layers:
     //  - PatchSlidingWindowMask (default): only fixes up the attention mask for correctness;
@@ -1335,22 +1348,11 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
         LOG_DEBUG("Encoder embedding model: skipping generate model variants (prefill-only).");
     }
 
-    const bool is_per_layer_inputs_model = has_per_layer_inputs(prefill_model);
-    bool propagate_slice_up = m_cfg.get<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>();
-
     if (lm_head_model) {
         LOG_DEBUG("Shared LM head: slice the prefill output");
         // KVCache model is already reshaped to [1, max_generation_token_len, embed size],
         // so only apply slice to the Prefill model:
         ov::npuw::SliceOutEmbeds(axes.batch, m_kvcache_desc.max_generation_token_len).run_on_model(prefill_model);
-        // Gemma-4 E2B/E4B cross-group KV sharing models benefit the most from hoisting the slice
-        // through the SWA/Global boundary, so auto-enable this option for them unless the user
-        // explicitly configured it.
-        if (is_per_layer_inputs_model && !m_cfg.has<::intel_npu::NPUW_LLM_PROPAGATE_SLICE_UP>()) {
-            m_cfg.update({{"NPUW_LLM_PROPAGATE_SLICE_UP", "YES"}});
-            propagate_slice_up = true;
-            LOG_INFO("Gemma-4 cross-group KV model: auto-enabling NPUW_LLM_PROPAGATE_SLICE_UP");
-        }
         if (propagate_slice_up) {
             ov::npuw::PropagateSliceUp().run_on_model(prefill_model);
         }
@@ -1379,7 +1381,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
             // Apply optimization to all variants and track results
             size_t optimized_count = 0;
             for (auto& model_variant : generate_model_variants) {
-                if (ov::npuw::util::OptimizeValueTensors(false).run_on_model(model_variant)) {
+                if (ov::npuw::util::OptimizeValueTensors(false, m_is_whisper).run_on_model(model_variant)) {
                     ++optimized_count;
                 }
             }
@@ -1401,7 +1403,7 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
                                 " variants were optimized, which is not allowed.");
             }
         }
-        if (!prefill_attn_dyn && ov::npuw::util::OptimizeValueTensors(true).run_on_model(prefill_model)) {
+        if (!prefill_attn_dyn && ov::npuw::util::OptimizeValueTensors(true, m_is_whisper).run_on_model(prefill_model)) {
             LOG_DEBUG("V-tensors tranposed in prefill model");
             m_kvcache_desc.v_tensors_transposed_pre = true;
         }
@@ -1425,10 +1427,12 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     }
     LOG_DEBUG("Converting KV-cache in generate model to" << kv_kache_storage_type);
     for (size_t i = 0; i < generate_model_variants.size(); ++i) {
-        ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(generate_model_variants[i]);
+        ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type, m_kvcache_desc.v_tensors_transposed_gen)
+            .run_on_model(generate_model_variants[i]);
     }
     LOG_DEBUG("Converting KV-cache in prefill model to" << kv_kache_storage_type);
-    ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type).run_on_model(prefill_model);
+    ov::npuw::ConvertKVCacheToPrecision(kv_kache_storage_type, m_kvcache_desc.v_tensors_transposed_pre)
+        .run_on_model(prefill_model);
 
     std::optional<std::string> user_compilation_mode_params = std::nullopt;
     if (const auto it = other_props.find("NPU_COMPILATION_MODE_PARAMS"); it != other_props.end()) {
@@ -1536,11 +1540,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
 
     if (m_is_whisper) {
         update_config_for_whisper(prefill_config);
-        if (is_int8_compressed(model)) {
-            disable_ws_for_whisper(prefill_config);
-            disable_ws_for_whisper(generate_config);
-            LOG_INFO(" WS is disabled for Whisper int8 model!");
-        }
+        disable_ws_for_whisper(prefill_config);
+        disable_ws_for_whisper(generate_config);
+        LOG_INFO("NPUW_FOLD and NPUW_FUNCALL_FOR_ALL are disabled for Whisper model.");
     }
 
     if (m_is_embedding) {
@@ -1645,6 +1647,10 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     // Apply block-based KV cache transformation for chunk prefill after ShapeOfParameter
     // This ensures ShapeOf nodes are already regularized before transformation
     if (m_cfg.get<::intel_npu::NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE>()) {
+        const bool integer_kv_cache =
+            kv_kache_storage_type == ov::element::i8 || kv_kache_storage_type == ov::element::u8;
+        OPENVINO_ASSERT(!integer_kv_cache,
+                        "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE cannot be combined with integer KV-cache precision.");
         OPENVINO_ASSERT(!m_enable_prefix_caching,
                         "NPUW_LLM_ENABLE_BLOCK_BASED_KV_CACHE and NPUW_LLM_ENABLE_PREFIX_CACHING "
                         "cannot be enabled simultaneously — this combination is not yet supported. "
@@ -1766,15 +1772,7 @@ void ov::npuw::LLMCompiledModel::export_model(std::ostream& stream) const {
     }
 
     // Write header regardless of encryption requirement - to identify NPUW serializated blobs
-    // Serialize magic number first
-    write(stream, NPUW_SERIALIZATION_INDICATOR);
-    // Serilize LLMCompiledModel identifier
-    write(stream, NPUW_LLM_COMPILED_MODEL_INDICATOR);
-    // Serialize general meta info
-    write(stream, OPENVINO_VERSION_MAJOR);
-    write(stream, OPENVINO_VERSION_MINOR);
-    write(stream, OPENVINO_VERSION_PATCH);
-    write(stream, std::string(NPUW_SERIALIZATION_VERSION));
+    write_header(stream, NPUW_LLM_COMPILED_MODEL_INDICATOR);
     // Serialize encrypted flag
     write(stream, encryption_required);
     // Write flow identifier
@@ -1902,44 +1900,8 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::import_m
 
     using namespace ov::npuw::s11n;
 
-    // Sanity check magic number
-    ov::npuw::s11n::IndicatorType serialization_indicator;
-    read(stream, serialization_indicator);
-    NPUW_ASSERT(serialization_indicator == NPUW_SERIALIZATION_INDICATOR && "This blob wasn't serialized via NPUW!");
-
-    ov::npuw::s11n::IndicatorType llm_compiled_indicator;
-    read(stream, llm_compiled_indicator);
-    NPUW_ASSERT(llm_compiled_indicator == NPUW_LLM_COMPILED_MODEL_INDICATOR &&
-                "This blob wasn't serialized via LLMCompiledModel!");
-
-    // Deserialize general meta info
-    int vmajor, vminor, vpatch;
-    std::string s11n_version;
-    read(stream, vmajor);
-    read(stream, vminor);
-    read(stream, vpatch);
-    read(stream, s11n_version);
-
-    if (vmajor != OPENVINO_VERSION_MAJOR || vminor != OPENVINO_VERSION_MINOR || vpatch != OPENVINO_VERSION_PATCH ||
-        s11n_version != std::string(NPUW_SERIALIZATION_VERSION)) {
-        OPENVINO_THROW("This blobs was serialized with different OV version!",
-                       "\nSerialized by OV ",
-                       vmajor,
-                       '.',
-                       vminor,
-                       '.',
-                       vpatch,
-                       "\nCurrent OV version ",
-                       OPENVINO_VERSION_MAJOR,
-                       '.',
-                       OPENVINO_VERSION_MINOR,
-                       '.',
-                       OPENVINO_VERSION_PATCH,
-                       "\nNPUW serialized by version ",
-                       s11n_version,
-                       "\nNPUW current serialization version ",
-                       NPUW_SERIALIZATION_VERSION);
-    }
+    // Sanity check the header (magic numbers + versions)
+    read_and_check_header(stream, NPUW_LLM_COMPILED_MODEL_INDICATOR, "LLMCompiledModel");
 
     bool encrypted = false;
     read(stream, encrypted);
@@ -2077,6 +2039,18 @@ std::shared_ptr<ov::npuw::LLMCompiledModel> ov::npuw::LLMCompiledModel::deserial
         stream & compiled->m_kvcache_sizes;
         uint32_t num_variants = 0;
         stream & num_variants;
+
+        // m_kvcache_sizes and the generate variants are conceptually one object: the size table
+        // has exactly one entry per variant. They are serialized as two independent fields, so a
+        // corrupted blob can declare a size table that disagrees with the variant count. The two
+        // containers are later indexed by each other's size, so a mismatch is an out-of-bounds
+        // access. Enforce the invariant here, at restore time, before anything can consume it.
+        OPENVINO_ASSERT(compiled->m_kvcache_sizes.size() == num_variants,
+                        "NPUW blob: kvcache size table (",
+                        compiled->m_kvcache_sizes.size(),
+                        ") does not match generate variant count (",
+                        num_variants,
+                        ").");
 
         compiled->m_generate_compiled_variants.reserve(num_variants);
 
@@ -2280,6 +2254,7 @@ void ov::npuw::LLMCompiledModel::implement_properties() {
                           BIND(npuw::whisper::whisper_eos_token, NPUW_WHISPER_EOS_TOKEN, get),
                           BIND(npuw::whisper::whisper_decompose_sdpa, NPUW_WHISPER_DECOMPOSE_SDPA, get),
                           BIND(npuw::eagle::enabled, NPUW_EAGLE, get),
-                          BIND(npuw::text_embed::enabled, NPUW_TEXT_EMBED, get)});
+                          BIND(npuw::text_embed::enabled, NPUW_TEXT_EMBED, get),
+                          BIND(npuw::text_rerank::enabled, NPUW_TEXT_RERANK, get)});
 #undef BIND
 }

@@ -18,9 +18,7 @@ class NodeProto;
 class ValueInfoProto;
 }  // namespace ONNX_NAMESPACE
 
-namespace ov {
-namespace frontend {
-namespace onnx {
+namespace ov::frontend::onnx {
 
 using ::ONNX_NAMESPACE::GraphProto;
 
@@ -100,6 +98,4 @@ private:
     /// \param subgraph An object describing the subgraph to be extracted (elems to be kept)
     void extract_subgraph_from_onnx_model(const SubgraphComponents& subgraph);
 };
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx
