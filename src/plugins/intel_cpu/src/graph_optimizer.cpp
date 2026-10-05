@@ -974,7 +974,8 @@ void GraphOptimizer::FuseConvolutionAndZeroPoints(Graph& graph) {
         }
 
         // compare precision of Fakequantize output and real activation output to prevent u8->i8 case
-        // current ACL has no low-precision with f32 output (ACLConvolutionExecutor::supports has isQuantizedI8DstF32 but no u8 equivalent)
+        // current ACL has no low-precision with f32 output (ACLConvolutionExecutor::supports has isQuantizedI8DstF32
+        // but no u8 equivalent)
         // TODO: remove this guard when u8-src f32-output LP conv is supported (u8->f32)
         NodePtr current = conv;
         NodePtr fakeQuantizeNode = nullptr;
