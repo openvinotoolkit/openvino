@@ -92,8 +92,10 @@ public:
      * @brief Adds a section owned by @p device whose content is produced on demand by @p encode, for a
      * payload that doesn't exist as a view yet (e.g. generated, or assembled piecemeal) - avoids an
      * intermediate allocation just to call the view overload.
-     * @note @p encode is invoked at most once, and must write exactly @p size bytes to `sink` (across
-     * one or more calls) - never buffer a copy of its own first.
+     * @note @p encode is invoked at most once per finalization attempt - see #finalize()'s note on how
+     * a repeated call, or a call after an exception, is handled by the concrete implementation. It must
+     * write exactly @p size bytes to `sink` (across one or more calls) - never buffer a copy of its own
+     * first.
      *
      * @param device The device that owns the section.
      * @param tag The section tag.
@@ -113,10 +115,11 @@ public:
      * @brief Adds a section owned by @p device whose content is produced by @p encode and whose size is
      * only known once @p encode has finished writing it (e.g. serializing an object whose encoded length
      * depends on its runtime data).
-     * @note @p encode is invoked at most once. Pointer-mode only (same restriction as the sized overload
-     * for inline tags). Forces #finalize() to revisit the destination once every real size is known,
-     * instead of computing the header up front - a stream destination must be seekable if any section
-     * uses this overload.
+     * @note @p encode is invoked at most once per finalization attempt - see #finalize()'s note on how
+     * a repeated call, or a call after an exception, is handled by the concrete implementation.
+     * Pointer-mode only (same restriction as the sized overload for inline tags). Forces #finalize() to
+     * revisit the destination once every real size is known, instead of computing the header up front -
+     * a stream destination must be seekable if any section uses this overload.
      *
      * @param device The device that owns the section.
      * @param tag The section tag.
