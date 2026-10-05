@@ -102,7 +102,12 @@ SharedWeightsAssigner::SharedSourcesWithConstants SharedWeightsAssigner::mutate_
     SharedSourcesWithConstants shared_sources;
     for (const auto& partition : partitioned_constants) {
         auto shared_source = make_shared_source(partition);
-        size_t constant_id = 0;  // constants ID is a weight offset in the shared source buffer
+        // By consideration with ov::Core, the constant ID is a weight offset in the shared source buffer
+        // The offset allows distinguishing between different constants within the same shared source buffer.
+        // Thus the offsets as the constant IDs serves two purposes: 
+        // 1. provides uniqueness of the constant in terms of source_id
+        // 2. keeps consecutive constants properly ordered within the shared source buffer.
+        size_t constant_id = 0;  
         std::vector<SharedConstant> shared_constants;
         for (const auto& constant : partition) {
             auto const_descriptor =
