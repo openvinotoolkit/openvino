@@ -189,10 +189,14 @@ protected:
     // Relocate page-aligned constants into shared cross-device memory if SHARED_WEIGHTS is set.
     void assign_shared_weight_to_model_if_possible(const std::shared_ptr<ov::Model> model,
                                                    const std::shared_ptr<const ov::IPlugin>& plugin,
-                                                   const ov::AnyMap& properties);
+                                                   const ov::Any& shared_weight_property);
 
     bool m_is_eagle = false;
 
+    // Shared weight context built by assign_shared_weight_to_model_if_possible.
+    // Expose it via get_property(ov::internal::model_sharing_context) so that ov::Core could
+    // write it back into SingleFileStorage after compilation.
+    std::shared_ptr<ov::weight_sharing::Context> m_shared_ctx_ptr;
     std::vector<std::shared_ptr<AlignedBuffer>> m_shared_weight_sources;
 };
 
