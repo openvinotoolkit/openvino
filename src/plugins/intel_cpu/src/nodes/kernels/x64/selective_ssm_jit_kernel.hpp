@@ -151,8 +151,6 @@ private:
     const Vmm vmm_output_projection = Vmm(3 * max_row_tile + 2);
     const Vmm vmm_reduce_tmp0 = Vmm(reduction_tmp0_vmm_idx);
     const Vmm vmm_reduce_tmp1 = Vmm(reduction_tmp1_vmm_idx);
-    // Emitters are inactive during recurrence, so AVX2 can reuse their auxiliary for tail zeroing.
-    const Vmm vmm_tail_zero = Vmm(aux_vmm_base);
     // Shared load/store emitters use k1; keep the recurrence tail mask in a separate register.
     const Xbyak::Opmask k_tail = k2;
 

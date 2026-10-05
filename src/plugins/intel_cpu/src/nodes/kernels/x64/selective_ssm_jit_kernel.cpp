@@ -184,12 +184,10 @@ void jit_selective_ssm_kernel<isa>::compute_state(size_t row, size_t active_lane
     vfmadd231ps(state, vmm_input_projection, input_scale_vmm(row));
     if constexpr (isa == avx2) {
         if (!is_full_vector) {
-            // Load/store emitters are inactive during compute, so their auxiliary register is free here.
-            // A zero idiom avoids a blend dependency on the loaded B vector.
-            uni_vpxor(vmm_tail_zero, vmm_tail_zero, vmm_tail_zero);
-            // Zero-filled loads alone are insufficient: 0 * Inf during the update may produce NaNs.
+            // Shared loads zero-fill C's tail. Mask state using those zeros before accumulating,
+            // including NaNs produced in inactive lanes by 0 * infinite decay/input.
             const auto inactive_mask = static_cast<uint8_t>(0xFFU << active_lanes);
-            vblendps(state, state, vmm_tail_zero, inactive_mask);
+            vblendps(state, state, vmm_output_projection, inactive_mask);
         }
     }
 }
