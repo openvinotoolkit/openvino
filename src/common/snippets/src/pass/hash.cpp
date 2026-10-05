@@ -328,8 +328,6 @@ void hash_rt_info(uint64_t& hash, const std::string& key, const ov::Any& data) {
         }
     } else if (data.is<bool>()) {
         hash_rt_info_leaf<bool>(hash, key, data);
-    } else if (data.is<std::string>()) {
-        hash_rt_info_leaf<std::string>(hash, key, data);
     } else if (data.is<int64_t>()) {
         hash_rt_info_leaf<int64_t>(hash, key, data);
     } else if (data.is<uint64_t>()) {
