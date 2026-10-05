@@ -5,6 +5,7 @@
 #pragma once
 
 #include <functional>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -32,7 +33,7 @@ public:
 
     struct Options {
         std::vector<std::string> shared_device_contexts;
-        size_t single_weight_shared_source_size_max = 0;
+        size_t single_weight_shared_source_size_max = std::numeric_limits<size_t>::max();
         bool preserve_weightless_cache_attr = true;
         std::function<size_t()> source_id_generator;
     };
@@ -40,9 +41,12 @@ public:
     struct Statistic {
         std::vector<size_t> partition_constant_counts;
         size_t collected_constants_count = 0;
+        size_t constant_cannot_be_shared_count = 0;
         size_t total_shared_constant_bytes = 0;
         size_t total_non_shared_constant_bytes_released = 0;
 
+        void set_collection_statistics(size_t collected_constants_count, size_t constant_cannot_be_shared_count);
+        void set_partition_statistics(const PartitionedConstants& partitioned_constants, size_t alignment);
         std::string to_string() const;
     };
 
@@ -58,24 +62,16 @@ public:
 private:
     bool constant_can_be_shared(const ov::op::v0::Constant& constant) const;
 
-    std::vector<SharedConstant> collect_weights_to_share(const std::shared_ptr<ov::Model>& model) const;
+    std::tuple<std::vector<SharedWeightsAssigner::SharedConstant>, size_t> collect_weights_to_share(const std::shared_ptr<ov::Model>& model) const;
 
     PartitionedConstants partition_constants_by_size(std::vector<SharedConstant>&& constants) const;
-
-    SharedSourcesWithConstants make_constant_shareable(
-        PartitionedConstants&& partitioned_constants) const;
 
     std::shared_ptr<ov::AlignedBuffer> make_shared_source(const std::vector<SharedConstant>& partition) const;
 
     size_t get_constant_aligned_size(const ov::op::v0::Constant& constant) const;
 
-    static size_t align_bytes(size_t bytes, size_t alignment);
-
-    std::vector<std::string> m_shared_device_contexts;
-    std::function<size_t()> m_source_id_generator;
-    bool m_preserve_weightless_cache_attr = true;
+    Options m_options;
     size_t m_min_relocate_bytes = 0;
-    size_t m_single_weight_shared_source_size_max = 0;
 };
 
 }  // namespace intel_npu
