@@ -152,12 +152,12 @@ protected:
     // variants take its leading rows. Part of the exported blob (see serialize()).
     ov::npuw::patterns::pre_compute::LongRopeCosSin m_longrope_tables;
 
-    // Continuous prefill support. Opted in via NPUW_LLM_ENABLE_CONTINUOUS_PREFILL and
-    // mutually exclusive with hash prefix caching, which fails compilation.
+    // Continuous prefill is on whenever this compiled model can serve it, unless
+    // NPUW_LLM_ENABLE_CONTINUOUS_PREFILL is set to NO. Resolved once after compilation
+    // or import and written back, so the option reports the effective state.
     bool m_enable_continuous_prefill = false;
-    // Computes the NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED read-only property from
-    // compiled model state. Not serialized, recomputed identically after import.
-    bool compute_continuous_prefill_supported() const;
+    void resolve_continuous_prefill();
+    bool can_continue_prefill() const;
 
     // Friend declarations for PrefixCachingHelper to access protected members
     friend class PrefixCachingHelper;

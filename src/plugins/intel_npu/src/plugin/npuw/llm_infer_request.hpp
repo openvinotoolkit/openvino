@@ -195,8 +195,8 @@ protected:
     // Support reset of stored tokens to 0 from external pipeline
     ov::SoPtr<ov::npuw::StoredTokensState> m_stored_tokens_state;
 
-    // Continuous prefill transaction coordinator, disabled unless the compiled model
-    // reports the capability.
+    // Continuous prefill transaction coordinator, disabled unless continuous prefill
+    // is enabled for the compiled model.
     ContinuationCoordinator m_continuation;
     // Absolute KV position the current chunked prefill started at. Non-zero only while
     // a continued prefill is running, where the caller tensors hold just the delta and
