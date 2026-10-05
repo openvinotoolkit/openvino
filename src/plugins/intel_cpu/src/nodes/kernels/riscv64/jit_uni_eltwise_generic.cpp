@@ -474,10 +474,7 @@ struct EltwiseEmitter<jit_relu_emitter> {
 template <>
 struct EltwiseEmitter<jit_swish_emitter> {
     void operator()(EltwiseEmitterContext& ctx) {
-        ctx.emitter = std::make_shared<jit_swish_emitter>(ctx.host,
-                                                          ctx.opData.alpha,
-                                                          ctx.host_isa,
-                                                          ctx.exec_prc);
+        ctx.emitter = std::make_shared<jit_swish_emitter>(ctx.host, ctx.opData.alpha, ctx.host_isa, ctx.exec_prc);
     }
 };
 
@@ -539,8 +536,8 @@ std::shared_ptr<jit_emitter> jit_uni_eltwise_generic<isa>::create_eltwise_emitte
               OV_CASE(Algorithm::EltwiseSqrt, jit_sqrt_emitter),
               OV_CASE(Algorithm::EltwiseSquaredDifference, jit_squared_difference_emitter),
               OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter),
-	          OV_CASE(Algorithm::EltwiseSwish, jit_swish_emitter),
-              OV_CASE(Algorithm::EltwiseTanh, jit_tanh_emitter));
+              OV_CASE(Algorithm::EltwiseSwish, jit_swish_emitter),             
+	      OV_CASE(Algorithm::EltwiseTanh, jit_tanh_emitter));
 
     OPENVINO_ASSERT(ctx.emitter, "Unsupported operation type '" + algToString(data.algo) + "' for Eltwise emitter");
 
@@ -704,7 +701,7 @@ std::set<std::vector<element::Type>> eltwise_precision_helper::get_supported_pre
               OV_CASE(Algorithm::EltwiseSqrt, jit_sqrt_emitter),
               OV_CASE(Algorithm::EltwiseSquaredDifference, jit_squared_difference_emitter),
               OV_CASE(Algorithm::EltwiseSubtract, jit_subtract_emitter),
-	          OV_CASE(Algorithm::EltwiseSwish, jit_swish_emitter),
+              OV_CASE(Algorithm::EltwiseSwish, jit_swish_emitter),
               OV_CASE(Algorithm::EltwiseTanh, jit_tanh_emitter));
 
     OPENVINO_ASSERT(!precisions.empty(), "Unsupported operation type for Eltwise emitter");
