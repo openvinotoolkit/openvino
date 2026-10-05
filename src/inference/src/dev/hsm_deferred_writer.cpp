@@ -13,7 +13,6 @@
 
 #include "openvino/core/except.hpp"
 #include "openvino/util/memory.hpp"
-#include "openvino/util/variant_visitor.hpp"
 
 namespace ov::runtime::hsm {
 inline namespace v1 {
@@ -42,9 +41,9 @@ struct SectionSlot {
     size_t end;
 };
 
-constexpr SectionSlot reserve_slot(size_t cursor, size_t offset_align, size_t size_align, size_t size) {
-    const auto start = ov::util::align_size_up(cursor, offset_align);
-    return {start, start + ov::util::align_size_up(size, size_align)};
+constexpr SectionSlot reserve_slot(size_t cursor, size_t size, SectionAlignment align) {
+    const auto start = ov::util::align_size_up(cursor, align.offset_align);
+    return {start, start + ov::util::align_size_up(size, align.size_align)};
 }
 
 }  // namespace
@@ -133,12 +132,10 @@ bool DeferredWriter::destination_good() const {
         m_destination);
 }
 
-// Writes one pointer- or inline-mode section from an already-available view, producing its manifest entry.
-ManifestEntry DeferredWriter::write_view_section(DeviceId device,
-                                                 SectionTag tag,
-                                                 size_t offset_align,
-                                                 size_t size_align,
-                                                 ov::util::MemoryView payload) {
+ManifestEntry DeferredWriter::write_section(DeviceId device,
+                                            SectionTag tag,
+                                            SectionAlignment align,
+                                            ov::util::MemoryView payload) {
     ManifestEntry entry{};
     entry.device = device;
     entry.tag = tag;
@@ -146,7 +143,7 @@ ManifestEntry DeferredWriter::write_view_section(DeviceId device,
         std::memcpy(entry.inline_bytes.data(), payload.data(), payload.size());
         return entry;
     }
-    const auto slot = reserve_slot(written_size(), offset_align, size_align, payload.size());
+    const auto slot = reserve_slot(written_size(), payload.size(), align);
     write_zeros(slot.start - written_size());  // pad to the aligned start
     if (destination_good()) {
         write(payload);
@@ -159,26 +156,23 @@ ManifestEntry DeferredWriter::write_view_section(DeviceId device,
     return entry;
 }
 
-// Same as above, but the payload is generated on demand by @p encode - always pointer-mode.
-ManifestEntry DeferredWriter::write_encoded_section(DeviceId device,
-                                                    SectionTag tag,
-                                                    size_t offset_align,
-                                                    size_t size_align,
-                                                    size_t size,
-                                                    const SectionEncoder& encode) {
+ManifestEntry DeferredWriter::write_section(DeviceId device,
+                                            SectionTag tag,
+                                            SectionAlignment align,
+                                            const PendingEncode& payload) {
     ManifestEntry entry{};
     entry.device = device;
     entry.tag = tag;
-    const auto slot = reserve_slot(written_size(), offset_align, size_align, size);
+    const auto slot = reserve_slot(written_size(), payload.size, align);
     write_zeros(slot.start - written_size());
     if (destination_good()) {
-        size_t remaining = size;
+        size_t remaining = payload.size;
         const SectionSink sink = [this, &remaining](ov::util::MemoryView data) {
             OPENVINO_ASSERT(data.size() <= remaining, "HSM SectionEncoder wrote past its declared size");
             remaining -= data.size();
             write(data);
         };
-        encode(sink);
+        payload.encode(sink);
         // A destination that ran out of room mid-encode already failed for an unrelated reason - don't
         // also flag that as a broken encoder.
         OPENVINO_ASSERT(!destination_good() || remaining == 0,
@@ -188,22 +182,18 @@ ManifestEntry DeferredWriter::write_encoded_section(DeviceId device,
         write_zeros(slot.end - written_size());
     }
     entry.offset = slot.start;
-    entry.size = size;
+    entry.size = payload.size;
     return entry;
 }
 
-// Same as write_encoded_section(), but @p encode's output length isn't known until it returns - only the
-// aligned start can be computed up front; the slot's end (and the manifest entry's size) are measured
-// from how far the destination actually grew.
-ManifestEntry DeferredWriter::write_open_encoded_section(DeviceId device,
-                                                         SectionTag tag,
-                                                         size_t offset_align,
-                                                         size_t size_align,
-                                                         const SectionEncoder& encode) {
+ManifestEntry DeferredWriter::write_section(DeviceId device,
+                                            SectionTag tag,
+                                            SectionAlignment align,
+                                            const SectionEncoder& encode) {
     ManifestEntry entry{};
     entry.device = device;
     entry.tag = tag;
-    const size_t start = ov::util::align_size_up(written_size(), offset_align);
+    const size_t start = ov::util::align_size_up(written_size(), align.offset_align);
     write_zeros(start - written_size());
     if (destination_good()) {
         const SectionSink sink = [this](ov::util::MemoryView data) {
@@ -213,7 +203,7 @@ ManifestEntry DeferredWriter::write_open_encoded_section(DeviceId device,
     }
     const size_t real_size = destination_good() ? written_size() - start : 0;
     if (destination_good()) {
-        write_zeros(ov::util::align_size_up(real_size, size_align) - real_size);
+        write_zeros(ov::util::align_size_up(real_size, align.size_align) - real_size);
     }
     entry.offset = start;
     entry.size = real_size;
@@ -240,9 +230,10 @@ std::optional<DeferredWriter> DeferredWriter::open(std::ostream& stream) {
 std::optional<DeferredWriter> DeferredWriter::open(std::byte* dst, size_t size) {
     if (dst == nullptr || size < sizeof(Header)) {
         return std::nullopt;
+    } else {
+        DeferredWriter writer{dst, size};
+        return writer.destination_good() ? std::optional<DeferredWriter>{std::move(writer)} : std::nullopt;
     }
-    DeferredWriter writer{dst, size};
-    return writer.destination_good() ? std::optional<DeferredWriter>{std::move(writer)} : std::nullopt;
 }
 
 bool DeferredWriter::add_section(DeviceId device,
@@ -285,31 +276,19 @@ std::error_code DeferredWriter::finalize() {
             // computed up front - write a placeholder and patch it once every real size is known.
             write_zeros(sizeof(Header));
         } else {
-            // Every section's size is already known (nothing is written until finalize()), so the header
-            // can be computed up front, in a pure pass with no I/O, and written first - no seek-back needed.
+            // std::get is safe here - m_has_unsized_section already rules out a SectionEncoder payload.
             const auto payload_size = [](const PendingSection& section) -> size_t {
-                return std::visit(ov::util::VariantVisitor{
-                                      [](const ov::util::MemoryView& payload) {
-                                          return payload.size();
-                                      },
-                                      [](const PendingEncode& payload) {
-                                          return payload.size;
-                                      },
-                                      [](const auto&) -> size_t {
-                                          OPENVINO_THROW("unreachable: m_has_unsized_section guards this path");
-                                      },
-                                  },
-                                  section.payload);
+                if (const auto* view = std::get_if<ov::util::MemoryView>(&section.payload)) {
+                    return view->size();
+                } else {
+                    return std::get<PendingEncode>(section.payload).size;
+                }
             };
 
             auto body_size = sizeof(Header);
             for (const auto& section : m_sections) {
                 if (!section.tag.is_inline()) {
-                    body_size = reserve_slot(body_size,
-                                             section.align.offset_align,
-                                             section.align.size_align,
-                                             payload_size(section))
-                                    .end;
+                    body_size = reserve_slot(body_size, payload_size(section), section.align).end;
                 }
             }
 
@@ -327,31 +306,11 @@ std::error_code DeferredWriter::finalize() {
         std::vector<ManifestEntry> entries(section_count);
         for (size_t i = 0; i < section_count && destination_good(); ++i) {
             const auto& section = m_sections[i];
-            entries[i] = std::visit(ov::util::VariantVisitor{
-                                        [&](const ov::util::MemoryView& payload) -> ManifestEntry {
-                                            return write_view_section(section.device,
-                                                                      section.tag,
-                                                                      section.align.offset_align,
-                                                                      section.align.size_align,
-                                                                      payload);
-                                        },
-                                        [&](const PendingEncode& payload) -> ManifestEntry {
-                                            return write_encoded_section(section.device,
-                                                                         section.tag,
-                                                                         section.align.offset_align,
-                                                                         section.align.size_align,
-                                                                         payload.size,
-                                                                         payload.encode);
-                                        },
-                                        [&](const SectionEncoder& encode) -> ManifestEntry {
-                                            return write_open_encoded_section(section.device,
-                                                                              section.tag,
-                                                                              section.align.offset_align,
-                                                                              section.align.size_align,
-                                                                              encode);
-                                        },
-                                    },
-                                    section.payload);
+            entries[i] = std::visit(
+                [&](const auto& payload) -> ManifestEntry {
+                    return write_section(section.device, section.tag, section.align, payload);
+                },
+                section.payload);
         }
 
         if (m_has_unsized_section) {

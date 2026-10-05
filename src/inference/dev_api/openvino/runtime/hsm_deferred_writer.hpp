@@ -115,22 +115,18 @@ private:
     static bool is_good(const StreamDestination& destination);
     static bool is_good(const BufferDestination& destination);
 
-    ManifestEntry write_view_section(DeviceId device,
-                                     SectionTag tag,
-                                     size_t offset_align,
-                                     size_t size_align,
-                                     ov::util::MemoryView payload);
-    ManifestEntry write_encoded_section(DeviceId device,
-                                        SectionTag tag,
-                                        size_t offset_align,
-                                        size_t size_align,
-                                        size_t size,
-                                        const SectionEncoder& encode);
-    ManifestEntry write_open_encoded_section(DeviceId device,
-                                             SectionTag tag,
-                                             size_t offset_align,
-                                             size_t size_align,
-                                             const SectionEncoder& encode);
+    ManifestEntry write_section(DeviceId device,
+                                SectionTag tag,
+                                SectionAlignment alignment,
+                                ov::util::MemoryView payload);
+    ManifestEntry write_section(DeviceId device,
+                                SectionTag tag,
+                                SectionAlignment alignment,
+                                const PendingEncode& payload);
+    ManifestEntry write_section(DeviceId device,
+                                SectionTag tag,
+                                SectionAlignment alignment,
+                                const SectionEncoder& encode);
 
     std::variant<StreamDestination, BufferDestination> m_destination;
     std::vector<PendingSection> m_sections;
