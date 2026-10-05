@@ -201,14 +201,11 @@ std::pair<ov::AnyMap, GQAModelStage> with_gqa_defaults(const std::shared_ptr<ov:
 
     // with_gqa_defaults() only runs once identify_case() already confirmed V0 or V1,
     // so online partitioning is disabled for both.
-    ov::AnyMap config = {
-        {"NPUW_ONLINE_PIPELINE", "NONE"},
-        {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU"},
-        {ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SPEED},
-        {std::string(::intel_npu::NPUW_UNQDQ::key()), "YES"},
-        // {"NPU_COMPILER_TYPE", "DRIVER"},
-        // {"LOG_LEVEL", "LOG_INFO"}
-    };
+    ov::AnyMap config = {{"NPUW_ONLINE_PIPELINE", "NONE"},
+                         {"NPU_COMPILER_DYNAMIC_QUANTIZATION", "YES"},
+                         {std::string(::intel_npu::NPUW_DEVICES::key()), "NPU"},
+                         {ov::cache_mode.name(), ov::CacheMode::OPTIMIZE_SPEED},
+                         {std::string(::intel_npu::NPUW_UNQDQ::key()), "YES"}};
 
     const auto stage = detect_gqa_model_stage();
     if (stage == GQAModelStage::PREFILL) {
@@ -490,8 +487,8 @@ std::optional<std::string> ov::npuw::GQAInferRequest::present_to_past_name(const
 }
 
 void ov::npuw::GQAInferRequest::copy_kv_cache_prefix(const ov::SoPtr<ov::ITensor>& src,
-                                                      const ov::SoPtr<ov::ITensor>& dst,
-                                                      size_t axis) {
+                                                     const ov::SoPtr<ov::ITensor>& dst,
+                                                     size_t axis) {
     OPENVINO_ASSERT(src->get_element_type() == dst->get_element_type());
     const auto& src_shape = src->get_shape();
     const auto& dst_shape = dst->get_shape();
