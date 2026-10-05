@@ -4,6 +4,7 @@
 
 #include "test_utils.h"
 
+#include <intel_gpu/primitives/activation.hpp>
 #include <intel_gpu/primitives/crop.hpp>
 #include <intel_gpu/primitives/dynamic_quantize.hpp>
 #include <intel_gpu/primitives/input_layout.hpp>
@@ -927,11 +928,11 @@ TEST(rms_gpu_test, rms_test_bf16_bfyx_opt_near_zero) {
                  /*abs_floor=*/0.01f, /*rel_tol=*/0.05f);
 }
 
-class rms_mxfp8_dynamic_quantize_test : public ::testing::TestWithParam<std::tuple<size_t, data_types>> {};
+class rms_mxfp8_dynamic_quantize_test : public ::testing::TestWithParam<std::tuple<size_t, data_types, bool>> {};
 
 TEST_P(rms_mxfp8_dynamic_quantize_test, rms_test_bfyx_opt_mxfp8_dynamic_quantize) {
     auto& engine = get_test_engine();
-    const auto [data_size, quantization_dt] = GetParam();
+    const auto [data_size, quantization_dt, additional_fusion] = GetParam();
     const ov::Shape input_shape{1, 1, data_size};
     const auto epsilon = 1e-6f;
 
@@ -964,7 +965,12 @@ TEST_P(rms_mxfp8_dynamic_quantize_test, rms_test_bfyx_opt_mxfp8_dynamic_quantize
         topology.add(input_layout("input", input->get_layout()));
         topology.add(data("gamma", gamma));
         topology.add(rms("rms", input_info("input"), input_info("gamma"), epsilon));
-        topology.add(dynamic_quantize("dyn_quan", input_info("rms"), dq_config));
+        if (additional_fusion) {
+            topology.add(activation("activation", input_info("rms"), activation_func::relu));
+            topology.add(dynamic_quantize("dyn_quan", input_info("activation"), dq_config));
+        } else {
+            topology.add(dynamic_quantize("dyn_quan", input_info("rms"), dq_config));
+        }
         topology.add(reorder("output_data", input_info("dyn_quan", 0), layout{input_shape, data_types::f16, format::bfyx}));
         topology.add(reorder("output_scale", input_info("dyn_quan", 1), layout{scale_shape, data_types::f16, format::bfyx}));
         return topology;
@@ -987,9 +993,25 @@ TEST_P(rms_mxfp8_dynamic_quantize_test, rms_test_bfyx_opt_mxfp8_dynamic_quantize
 
     const auto ref_network_prims = ref_network.get_all_primitive_ids();
     const auto fused_network_prims = fused_network.get_all_primitive_ids();
+
+	const auto fused_primitives_info = fused_network.get_primitives_info();
+	const auto fused_rms_info = std::find_if(fused_primitives_info.begin(), fused_primitives_info.end(),
+		[](const auto& info) { return info.original_id == "rms"; });
+	ASSERT_NE(fused_rms_info, fused_primitives_info.end());
+	const auto& fused_prim_ids = fused_rms_info->c_fused_ids;
+
+    ASSERT_EQ(fused_network.get_primitive("rms")->outputs_memory_count(), 2);
+    ASSERT_EQ(fused_prim_ids.size(), 1 + additional_fusion);
+    ASSERT_EQ(fused_prim_ids.back(), "dyn_quan");
+
     ASSERT_NE(std::find(ref_network_prims.begin(), ref_network_prims.end(), "dyn_quan"), ref_network_prims.end());
     ASSERT_EQ(std::find(fused_network_prims.begin(), fused_network_prims.end(), "dyn_quan"), fused_network_prims.end());
-    ASSERT_EQ(fused_network.get_primitive("rms")->outputs_memory_count(), 2);
+
+    if (additional_fusion) {
+		ASSERT_EQ(fused_prim_ids[0], "activation");
+		ASSERT_NE(std::find(ref_network_prims.begin(), ref_network_prims.end(), "activation"), ref_network_prims.end());
+        ASSERT_EQ(std::find(fused_network_prims.begin(), fused_network_prims.end(), "activation"), fused_network_prims.end());
+    }
 
     auto compare_output = [&](const primitive_id& output_id) {
         auto output_mem = outputs.at(output_id).get_memory();
@@ -1009,4 +1031,5 @@ TEST_P(rms_mxfp8_dynamic_quantize_test, rms_test_bfyx_opt_mxfp8_dynamic_quantize
 INSTANTIATE_TEST_SUITE_P(rms_mxfp8,
                          rms_mxfp8_dynamic_quantize_test,
                          ::testing::Combine(::testing::Values(size_t{32}, size_t{320}, size_t{4096}),
-                                            ::testing::Values(data_types::f8e4m3, data_types::f8e5m2)));
+                                            ::testing::Values(data_types::f8e4m3, data_types::f8e5m2),
+                                            ::testing::Values(true, false)));

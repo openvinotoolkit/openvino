@@ -71,6 +71,11 @@ struct fused_primitive_desc {
 
     bool has_outer_dep() const { return outer_dep_start_idx >= 0; }
 
+    layout get_output_layout() const {
+        OPENVINO_ASSERT(output_layouts.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
+        return output_layouts[0];
+    }
+
     std::shared_ptr<const primitive> desc;
     std::shared_ptr<NodeFuseParams> f_param;
 

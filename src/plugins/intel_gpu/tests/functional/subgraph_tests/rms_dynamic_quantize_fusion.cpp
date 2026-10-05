@@ -17,13 +17,18 @@
 #include "openvino/op/result.hpp"
 #include "openvino/op/sqrt.hpp"
 
+#include <tuple>
+
 namespace {
 
-class RMSDynamicQuantizeFusion : public testing::WithParamInterface<ov::element::Type>,
-                                 virtual public ov::test::SubgraphBaseStaticTest {
+using RMSDynamicQuantizeFusionParams = std::tuple<ov::element::Type, bool>;
+
+class RMSDynamicQuantizeFusion : public testing::WithParamInterface<RMSDynamicQuantizeFusionParams>,
+                                 virtual public ov::test::SubgraphBaseTest {
 public:
-    static std::string getTestCaseName(const testing::TestParamInfo<ov::element::Type>& info) {
-        return info.param.get_type_name();
+    static std::string getTestCaseName(const testing::TestParamInfo<RMSDynamicQuantizeFusionParams>& info) {
+        const auto& [quantization_type, dynamic_shapes] = info.param;
+        return quantization_type.get_type_name() + (dynamic_shapes ? "_dynamic" : "_static");
     }
 
 protected:
@@ -56,13 +61,17 @@ protected:
             return count;
         };
 
-        ASSERT_EQ(count_dynamic_quantize(compiledModel), 0);
-        ASSERT_EQ(count_dynamic_quantize(unfused_model), 1);
+        EXPECT_EQ(count_dynamic_quantize(compiledModel), 0);
+        EXPECT_EQ(count_dynamic_quantize(unfused_model), 1);
 
-        ASSERT_EQ(fused_outputs.size(), 2);
-        ASSERT_EQ(unfused_outputs.size(), fused_outputs.size());
-        ASSERT_EQ(fused_outputs[0].get_shape(), input_shape);
-        ASSERT_EQ(fused_outputs[1].get_shape(), scale_shape);
+        const auto input_shape = inputs.at(parameters[0]).get_shape();
+        auto expected_scale_shape = input_shape;
+        expected_scale_shape.back() = 1;
+
+        EXPECT_EQ(fused_outputs.size(), 2);
+        EXPECT_EQ(unfused_outputs.size(), fused_outputs.size());
+        EXPECT_EQ(fused_outputs[0].get_shape(), input_shape);
+        EXPECT_EQ(fused_outputs[1].get_shape(), expected_scale_shape);
         for (size_t i = 0; i < fused_outputs.size(); ++i) {
             ov::test::utils::compare(unfused_outputs[i], fused_outputs[i]);
         }
@@ -71,15 +80,19 @@ protected:
     void SetUp() override {
         targetDevice = ov::test::utils::DEVICE_GPU;
 
-        input_shape = {1, 1, 32};
-        scale_shape = {1, 1, 1};
+        const auto dynamic_shapes = std::get<1>(GetParam());
+        if (dynamic_shapes) {
+            init_input_shapes({{ov::PartialShape{-1, -1, 32}, {{1, 1, 32}, {2, 3, 32}, {1, 5, 32}}}});
+        } else {
+            init_input_shapes({{ov::PartialShape{1, 1, 32}, {{1, 1, 32}}}});
+        }
         function = create_model(true);
     }
 
 private:
     std::shared_ptr<ov::Model> create_model(bool use_reduce_mean) const {
         const auto input_type = ov::element::f16;
-        auto input = std::make_shared<ov::op::v0::Parameter>(input_type, input_shape);
+        auto input = std::make_shared<ov::op::v0::Parameter>(input_type, inputDynamicShapes[0]);
         auto axes = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1});
         auto squared = std::make_shared<ov::op::v1::Power>(
             input,
@@ -106,7 +119,7 @@ private:
 
         ov::op::internal::DynamicQuantize::Attributes attributes;
         attributes.quantization_type = ov::op::internal::DynamicQuantize::QuantizationType::Symmetric;
-        attributes.quantization_dt = GetParam();
+        attributes.quantization_dt = std::get<0>(GetParam());
         attributes.scale_dt = ov::element::f8e8m0;
         attributes.group_sizes = {1, 1, 32};
         attributes.scales_zp_output_order = {0, 1, 2};
@@ -114,12 +127,11 @@ private:
 
         auto dynamic_quantize = std::make_shared<ov::op::internal::DynamicQuantize>(rms, attributes);
         return std::make_shared<ov::Model>(ov::OutputVector{dynamic_quantize->output(0),
-                                                             dynamic_quantize->output(1)},
+                                                            dynamic_quantize->output(1)},
                                             ov::ParameterVector{input});
     }
 
     ov::Shape input_shape;
-    ov::Shape scale_shape;
 };
 
 TEST_P(RMSDynamicQuantizeFusion, Inference) {
@@ -128,7 +140,8 @@ TEST_P(RMSDynamicQuantizeFusion, Inference) {
 
 INSTANTIATE_TEST_SUITE_P(smoke_RMSDynamicQuantizeFusion,
                          RMSDynamicQuantizeFusion,
-                         ::testing::Values(ov::element::f8e4m3, ov::element::f8e5m2),
+                         ::testing::Combine(::testing::Values(ov::element::f8e4m3, ov::element::f8e5m2),
+                                            ::testing::Bool()),
                          RMSDynamicQuantizeFusion::getTestCaseName);
 
 }  // namespace

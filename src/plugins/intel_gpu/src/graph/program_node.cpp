@@ -743,7 +743,7 @@ void program_node::set_num_outputs(size_t new_num_outputs) {
         output_layouts.insert(output_layouts.end(), new_num_outputs - output_layouts.size(), {});
     }
     if (preferred_output_fmts.size() < new_num_outputs) {
-        preferred_output_fmts.insert(preferred_output_fmts.end(), new_num_outputs - preferred_output_fmts.size(), {});
+        preferred_output_fmts.insert(preferred_output_fmts.end(), new_num_outputs - preferred_output_fmts.size(), format::any);
     }
 
     desc->num_outputs = new_num_outputs;
@@ -875,6 +875,18 @@ void program_node::save(cldnn::BinaryOutputBuffer& ob) const {
                     ob << false;
                     ob << casted->_desc;
                 }
+            } else if (f_desc.f_param->type() == dynamic_quantize::type_id()) {
+                auto casted = std::dynamic_pointer_cast<DynamicQuantizeFuseParams>(f_desc.f_param);
+				ob << make_data(&casted->_attrs.quantization_type, sizeof(casted->_attrs.quantization_type));
+				ob << make_data(&casted->_attrs.quantization_dt, sizeof(casted->_attrs.quantization_dt));
+				ob << make_data(&casted->_attrs.scale_dt, sizeof(casted->_attrs.scale_dt));
+				ob << make_data(&casted->_attrs.zp_dt, sizeof(casted->_attrs.zp_dt));
+				ob << make_data(&casted->_attrs.precomputed_reduction_dt, sizeof(casted->_attrs.precomputed_reduction_dt));
+				ob << casted->_attrs.precomputed_reduction;
+				ob << casted->_attrs.group_sizes;
+				ob << casted->_attrs.scales_zp_output_order;
+				ob << make_data(&casted->_attrs.output_storage_type, sizeof(casted->_attrs.output_storage_type));
+                ob << casted->_input_size;
             }
 
             ob << f_desc.deps.size();
@@ -1123,6 +1135,20 @@ void program_node::load(cldnn::BinaryInputBuffer& ib) {
                 }
                 f_desc.f_param = std::make_shared<SwigluFuseParams>(param_desc);
 
+            } else if (f_param_type == dynamic_quantize::type_id()) {
+                dynamic_quantize::Attributes attrs;
+                size_t input_size;
+				ib >> make_data(&attrs.quantization_type, sizeof(attrs.quantization_type));
+				ib >> make_data(&attrs.quantization_dt, sizeof(attrs.quantization_dt));
+				ib >> make_data(&attrs.scale_dt, sizeof(attrs.scale_dt));
+				ib >> make_data(&attrs.zp_dt, sizeof(attrs.zp_dt));
+				ib >> make_data(&attrs.precomputed_reduction_dt, sizeof(attrs.precomputed_reduction_dt));
+				ib >> attrs.precomputed_reduction;
+				ib >> attrs.group_sizes;
+				ib >> attrs.scales_zp_output_order;
+				ib >> make_data(&attrs.output_storage_type, sizeof(attrs.output_storage_type));
+                ib >> input_size;
+                f_desc.f_param = std::make_shared<DynamicQuantizeFuseParams>(attrs, input_size);
             } else {
                 f_desc.f_param = std::make_shared<NodeFuseParams>(f_param_type);
             }
@@ -1875,8 +1901,7 @@ void program_node::create_onednn_primitive_attributes(const std::vector<fused_pr
                 }
 
                 // 2. round
-                OPENVINO_ASSERT(desc.output_layouts.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
-                auto out_dt = desc.output_layouts[0].data_type;
+                auto out_dt = desc.get_output_layout().data_type;
                 {
                     bool output_type_is_int8 = out_dt == data_types::u8 || out_dt == data_types::i8;
                     if (!output_type_is_int8) {

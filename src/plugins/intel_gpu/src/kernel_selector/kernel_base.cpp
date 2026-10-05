@@ -154,6 +154,10 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
         return jit;
     }
 
+    const bool has_dyn_quan = std::any_of(params.fused_ops.cbegin(), params.fused_ops.cend(), [](fused_operation_desc desc) {
+        return desc.GetType() == KernelType::DYNAMIC_QUANTIZE;
+    });
+
     try {
         for (const auto& c : conf) {
             std::string fused_ops;
@@ -198,7 +202,8 @@ JitConstants KernelBase::MakeFusedOpsJitConstants(const kernel_selector::base_pa
             jit.AddConstant(MakeJitConstant("FUSED_OPS_PRELOAD" + c.suffix, fused_ops_preload));
             jit.AddConstant(MakeJitConstant("FUSED_OPS_CALC" + c.suffix, fused_ops_calc));
             // Convert dtype, only if last fused op has a different one from kernel output
-            if (!params.outputs.empty() && params.outputs[0].GetDType() != last_fused_out_dtype) {
+            // Unless dynamic quantize is fused later, then it's handled separately.
+            if (!params.outputs.empty() && params.outputs[0].GetDType() != last_fused_out_dtype && !has_dyn_quan) {
                 if (last_fused_out_dtype == Datatype::BF16) {
                     out_name = "CONVERT_AS_BFLOAT16_FLOAT(" + out_name + ", " + toCodeString(c.vec_size) + ")";
                 }

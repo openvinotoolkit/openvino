@@ -216,7 +216,7 @@ JitConstants FusedOpsCodeGenerator::make_fused_tensor_jit_constants(const FusedO
     }
     OPENVINO_ASSERT(desc.output_layouts.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
     // Use shape_ids from output tensor as won't support fused ops which changes out shape for now
-    jit.add(make_layout_jit_constants(get_output_tensor_name().str(), desc.output_layouts[0], params.out_port_to_shape_info_offset.at(0)));
+    jit.add(make_layout_jit_constants(get_output_tensor_name().str(), desc.get_output_layout(), params.out_port_to_shape_info_offset.at(0)));
     return jit;
 }
 
@@ -303,8 +303,7 @@ JitConstants FusedOpsCodeGenerator::make_op_jit_constants(const FusedOpsConfigur
     std::vector<JitTerm> input_vars;
 
     out_var = get_output_var_name(in_var, op_idx);
-    OPENVINO_ASSERT(desc.output_layouts.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
-    const auto& out_type = desc.output_layouts[0].data_type;
+    const auto& out_type = desc.get_output_layout().data_type;
 
     if (conf.load_type == FusedOpsConfiguration::LoadType::FEATURE_SHUFFLE && desc.is_type<quantize>()) {
         is_shuffled = true;
@@ -321,8 +320,7 @@ JitConstants FusedOpsCodeGenerator::make_op_jit_constants(const FusedOpsConfigur
     }
 
     auto get_acc_t = [&]() -> ov::element::Type {
-        OPENVINO_ASSERT(desc.output_layouts.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
-        std::vector<ov::element::Type> input_types = {desc.output_layouts[0].data_type};
+        std::vector<ov::element::Type> input_types = {desc.get_output_layout().data_type};
         for (const auto& dep : dep_data) {
             input_types.emplace_back(params.input_layouts[dep.m_idx].data_type);
         }
@@ -449,7 +447,7 @@ JitConstants FusedOpsCodeGenerator::make_op_jit_constants(const FusedOpsConfigur
 
             OPENVINO_ASSERT(desc.output_layouts.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
             // Round operation isn't needed if output type is int8/uint8 and scale coefficient in all output channels is equal to 1.0
-            bool output_type_is_int8 = desc.output_layouts[0].data_type == ov::element::u8 || desc.output_layouts[0].data_type == ov::element::i8;
+            bool output_type_is_int8 = desc.get_output_layout().data_type == ov::element::u8 || desc.get_output_layout().data_type == ov::element::i8;
             if (((p->_need_post_scale || p->_need_post_shift) && output_type_is_int8) || !output_type_is_int8) {
                 op_decls += make_statement(tmp_var.assign(round(tmp_var))).str();
             }
@@ -511,7 +509,7 @@ JitConstants FusedOpsCodeGenerator::make_op_jit_constants(const FusedOpsConfigur
 
             OPENVINO_ASSERT(desc.output_layouts.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
             // Round operation isn't needed if output type is int8/uint8 and scale coefficient in all output channels is equal to 1.0
-            bool output_type_is_int8 = desc.output_layouts[0].data_type == ov::element::u8 || desc.output_layouts[0].data_type == ov::element::i8;
+            bool output_type_is_int8 = desc.get_output_layout().data_type == ov::element::u8 || desc.get_output_layout().data_type == ov::element::i8;
             if (((p->_need_post_scale || p->_need_post_shift) && output_type_is_int8) || !output_type_is_int8) {
                 op_decls += make_statement(tmp_var.assign(round(tmp_var))).str();
             }
@@ -760,19 +758,16 @@ JitTerm FusedOpsCodeGenerator::get_output_var_name(const JitTerm& input_var, siz
 }
 
 JitTerm FusedOpsCodeGenerator::get_output_type(size_t vec_size) const {
-    OPENVINO_ASSERT(desc.output_layouts.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
-    return make_type(desc.output_layouts[0].data_type, vec_size);
+    return make_type(desc.get_output_layout().data_type, vec_size);
 }
 
 JitTerm FusedOpsCodeGenerator::convert_to_output_type(const JitTerm& var, size_t vec_size) const {
-    OPENVINO_ASSERT(desc.output_layouts.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
-    return convert_to_type(var, desc.output_layouts[0].data_type, vec_size);
+    return convert_to_type(var, desc.get_output_layout().data_type, vec_size);
 }
 
 JitTerm FusedOpsCodeGenerator::convert_to_output_type_sat(const JitTerm& var, size_t vec_size) const {
-    OPENVINO_ASSERT(desc.output_layouts.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
-    if (desc.output_layouts[0].data_type == ov::element::f32 || desc.output_layouts[0].data_type == ov::element::f16) {
-        return convert_to_type(var, desc.output_layouts[0].data_type, vec_size);
+    if (desc.get_output_layout().data_type == ov::element::f32 || desc.get_output_layout().data_type == ov::element::f16) {
+        return convert_to_type(var, desc.get_output_layout().data_type, vec_size);
     }
 
     return concat("convert_", get_output_type(vec_size), "_sat_rte")(var);

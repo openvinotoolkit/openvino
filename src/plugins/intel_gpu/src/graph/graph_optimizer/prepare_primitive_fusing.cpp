@@ -536,6 +536,14 @@ void prepare_primitive_fusing::fuse_simple_primitives(program &p) {
         auto node_itr = itr++;
         const auto& node = (*node_itr);
 
+        auto& fused_primitives = node->get_fused_primitives();
+        if (std::any_of(fused_primitives.begin(), fused_primitives.end(), [](const fused_primitive_desc& f_desc) {
+                return f_desc.is_type<dynamic_quantize>();
+            })) {
+            GPU_DEBUG_TRACE_DETAIL << node->id() << " has fused dynamic_quantize. Skip fusing more primitives" << std::endl;
+            continue;
+        }
+
         if (node->is_output() || node->is_constant())
             continue;
 
@@ -1620,8 +1628,7 @@ void prepare_primitive_fusing::optimize_fused_ops(program& p) {
                 const auto& act_prim = fp.typed_desc<activation>();
                 const auto& quant_param = fp_next.get_typed_fuse_params<QuantizeFuseParams>();
 
-                OPENVINO_ASSERT(fp_next.output_layouts.size() == 1, "Design changed to allow multiple layouts, this path is not expected to be impacted.");
-                bool can_skip = fp.deps.empty() && data_type_traits::is_i8_u8(fp_next.output_layouts[0].data_type);
+                bool can_skip = fp.deps.empty() && data_type_traits::is_i8_u8(fp_next.get_output_layout().data_type);
                 can_skip &= ((act_prim->activation_function == activation_func::relu) && (act_prim->additional_params.a == 0.0f));
                 can_skip &= (quant_param->_scale_shift_opt && !quant_param->_need_pre_shift);
 
