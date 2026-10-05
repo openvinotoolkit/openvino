@@ -321,8 +321,7 @@ void EltwiseRefExecutor<T, Enable>::exec(const jit_eltwise_call_args_ptrs& args_
                     if constexpr (std::is_integral_v<T> && std::is_signed_v<T>) {
                         const auto quotient = src_f[0] / src_f[1];
                         const auto remainder = src_f[0] % src_f[1];
-                        *dst_ptr_f =
-                            quotient - ((remainder != 0) && ((src_f[0] < 0) != (src_f[1] < 0)));
+                        *dst_ptr_f = quotient - ((remainder != 0) && ((src_f[0] < 0) != (src_f[1] < 0)));
                     } else {
                         *dst_ptr_f = src_f[0] / src_f[1];
                     }
