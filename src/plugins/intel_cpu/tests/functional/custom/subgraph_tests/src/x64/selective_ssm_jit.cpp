@@ -129,23 +129,19 @@ void fill_inputs(ov::InferRequest& request, bool paged, const std::array<float, 
     }
 }
 
-TEST_P(SelectiveSSMJitIntegrationTest, InfersWithSelectedExecutorAndPreservedDataPrecision) {
-    const auto& [paged, precision] = GetParam();
-    if (!ov::intel_cpu::hasHardwareSupport(precision)) {
-        GTEST_SKIP() << "CPU precision policy does not preserve " << precision << " on this system";
-    }
-
-    ov::Core core;
-    const ov::AnyMap properties{{ov::hint::inference_precision.name(), precision}};
-    auto compiled_model = core.compile_model(make_selective_ssm_model(precision, paged), "CPU", properties);
+void expect_selected_executor(const ov::CompiledModel& compiled_model,
+                              bool paged,
+                              const ov::element::Type& precision,
+                              bool jit_state_size = true) {
     const auto runtime_model = compiled_model.get_runtime_model();
 
     const auto expected_layer = paged ? std::string{"PagedSelectiveSSM"} : std::string{"SelectiveSSM"};
     // Match the executor's effective ISA, including oneDNN's runtime ISA limit.
     using namespace dnnl::impl::cpu::x64;
-    const bool native = precision == ov::element::f32   ? mayiuse(avx2)
-                        : precision == ov::element::f16 ? mayiuse(avx512_core_fp16) || mayiuse(avx2_vnni_2)
-                                                        : mayiuse(avx512_core_bf16) || mayiuse(avx2_vnni_2);
+    const bool native_precision = precision == ov::element::f32   ? mayiuse(avx2)
+                                  : precision == ov::element::f16 ? mayiuse(avx512_core_fp16) || mayiuse(avx2_vnni_2)
+                                                                  : mayiuse(avx512_core_bf16) || mayiuse(avx2_vnni_2);
+    const bool native = native_precision && jit_state_size;
     const auto expected_implementation =
         std::string{mayiuse(avx512_core) ? "jit_avx512_" : "jit_avx2_"} + precision.get_type_name();
     size_t matching_nodes = 0;
@@ -168,6 +164,18 @@ TEST_P(SelectiveSSMJitIntegrationTest, InfersWithSelectedExecutorAndPreservedDat
         EXPECT_EQ(node->get_output_element_type(0), precision);
     }
     EXPECT_EQ(matching_nodes, 1U);
+}
+
+TEST_P(SelectiveSSMJitIntegrationTest, InfersWithSelectedExecutorAndPreservedDataPrecision) {
+    const auto& [paged, precision] = GetParam();
+    if (!ov::intel_cpu::hasHardwareSupport(precision)) {
+        GTEST_SKIP() << "CPU precision policy does not preserve " << precision << " on this system";
+    }
+
+    ov::Core core;
+    const ov::AnyMap properties{{ov::hint::inference_precision.name(), precision}};
+    auto compiled_model = core.compile_model(make_selective_ssm_model(precision, paged), "CPU", properties);
+    expect_selected_executor(compiled_model, paged, precision);
 
     auto request = compiled_model.create_infer_request();
     // Exactly representable values give an independent oracle for both executors and all data precisions:
@@ -191,6 +199,54 @@ TEST_P(SelectiveSSMJitIntegrationTest, InfersWithSelectedExecutorAndPreservedDat
         EXPECT_EQ(state.get_element_type(), precision);
         for (size_t i = 0; i < state.get_size(); ++i) {
             EXPECT_FLOAT_EQ(tensor_value(state, i), 0.75F) << "state index " << i;
+        }
+    }
+}
+
+TEST_P(SelectiveSSMJitIntegrationTest, StateSizeLimitSelectsJitOrReferenceWithCorrectRecurrence) {
+    const auto& [paged, precision] = GetParam();
+    if (!ov::intel_cpu::hasHardwareSupport(precision)) {
+        GTEST_SKIP() << "CPU precision policy does not preserve " << precision << " on this system";
+    }
+
+    ov::Core core;
+    const auto round_output = [&](float value) {
+        if (precision == ov::element::f16) {
+            return static_cast<float>(ov::float16(value));
+        }
+        if (precision == ov::element::bf16) {
+            return static_cast<float>(ov::bfloat16(value));
+        }
+        return value;
+    };
+    // Check the advertised maximum and the reference fallback beyond it through both decode and prefill.
+    for (const size_t state_size : {4096U, 4097U}) {
+        for (const size_t tokens : {1U, 3U}) {
+            SCOPED_TRACE(testing::Message() << "state_size=" << state_size << " tokens=" << tokens);
+            auto compiled = core.compile_model(make_selective_ssm_model(precision, paged, state_size, tokens),
+                                               "CPU",
+                                               ov::hint::inference_precision(precision));
+            expect_selected_executor(compiled, paged, precision, state_size == 4096);
+            auto request = compiled.create_infer_request();
+            fill_inputs(request, paged, {0.F, 0.5F, 0.25F, 2.F, 0.125F, 0.5F});
+            request.infer();
+            const auto output = request.get_output_tensor(0);
+            ASSERT_EQ(output.get_size(), tokens * 20);
+            for (size_t i = 0; i < output.get_size(); ++i) {
+                const auto state_value = 0.75F + 0.25F * static_cast<float>(i / 20);
+                EXPECT_FLOAT_EQ(tensor_value(output, i), round_output(state_value * 0.125F * state_size))
+                    << "output index " << i;
+            }
+            const auto state = paged ? request.get_input_tensor(5) : request.get_output_tensor(1);
+            const auto block_size = paged ? state.get_size() / 2 : state.get_size();
+            const auto final_value = 0.5F + 0.25F * static_cast<float>(tokens);
+            for (size_t i = 0; i < block_size; ++i) {
+                if (paged) {
+                    EXPECT_FLOAT_EQ(tensor_value(state, i), 0.5F) << "read block index " << i;
+                }
+                EXPECT_FLOAT_EQ(tensor_value(state, paged ? block_size + i : i), final_value)
+                    << "final state index " << i;
+            }
         }
     }
 }
