@@ -246,10 +246,9 @@ TEST(PagedSelectiveSSMJitIntegrationTest, HandlesInt32CacheIntervalExtremes) {
     for (const bool store_snapshot : {false, true}) {
         SCOPED_TRACE(testing::Message() << "store_snapshot=" << store_snapshot);
         const size_t tokens = store_snapshot ? 1 : 2;
-        auto compiled =
-            core.compile_model(make_selective_ssm_model(ov::element::f32, true, 5, tokens),
-                               "CPU",
-                               ov::hint::inference_precision(ov::element::f32));
+        auto compiled = core.compile_model(make_selective_ssm_model(ov::element::f32, true, 5, tokens),
+                                           "CPU",
+                                           ov::hint::inference_precision(ov::element::f32));
         auto request = compiled.create_infer_request();
         fill_inputs(request, true, {0.F, 0.5F, 0.25F, 2.F, 0.125F, 0.5F});
         request.get_input_tensor(9).data<int32_t>()[0] = std::numeric_limits<int32_t>::max();
