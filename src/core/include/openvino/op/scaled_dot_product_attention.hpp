@@ -55,16 +55,14 @@ public:
     bool visit_attributes(AttributeVisitor& visitor) override;
     void validate_and_infer_types() override;
 
-    /// \brief Tells whether an element type is accepted on the key and value operands as
-    ///        quantization codes rather than values.
+    /// \brief Tells whether an element type is accepted on the key and value operands as an
+    ///        integer type, whose values the operation converts to the query's type.
     ///
-    /// The mapping from codes to values is not carried by this operation, so a consumer that
-    /// cannot define one is expected to reject such an operand rather than read the codes as
-    /// magnitudes. Deliberately not element::Type::is_quantized(): that predicate is true for
-    /// i32, which this operation still rejects, and false for u4, which it accepts.
+    /// Deliberately not element::Type::is_quantized(): that predicate is true for i32, which this
+    /// operation still rejects, and false for u4, which it accepts.
     static bool is_quantized_kv_type(const element::Type& type);
 
-    /// \brief Tells whether the key or value operand of \p node holds quantization codes.
+    /// \brief Tells whether the key or value operand of \p node has an integer type.
     static bool has_quantized_kv(const ScaledDotProductAttention& node);
 
     bool get_causal() const {

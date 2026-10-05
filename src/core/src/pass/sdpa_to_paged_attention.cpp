@@ -83,10 +83,10 @@ bool ov::pass::SDPAToPagedAttention::run_on_model(const std::shared_ptr<ov::Mode
                     "No ScaledDotProductAttention operation observed in the graph, cannot perform "
                     "the SDPAToPagedAttention transformation.");
 
-    // PagedAttentionExtension has no operand able to carry the mapping from quantization codes to
-    // values, so a quantized key or value cannot be converted. Reject here, before any parameter is
-    // added or any match is rewritten: a model holding a supported SDPA ahead of a quantized one
-    // would otherwise be left half-converted by a throw from inside the matcher callback.
+    // PagedAttentionExtension takes its key and value in the query's type and keeps its own cache,
+    // so an integer key or value cannot be converted. Reject here, before any parameter is added or
+    // any match is rewritten: a model holding a supported SDPA ahead of an integer one would
+    // otherwise be left half-converted by a throw from inside the matcher callback.
     for (const auto& op : model->get_ordered_ops()) {
         const auto sdpa = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(op);
         if (sdpa && ov::op::v13::ScaledDotProductAttention::has_quantized_kv(*sdpa)) {
