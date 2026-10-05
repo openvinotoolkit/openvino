@@ -365,11 +365,14 @@ static constexpr ov::Property<WSVersion> separate_weights_version{"NPU_SEPARATE_
 static constexpr ov::Property<ModelSerializerVersion> model_serializer_version{"NPU_MODEL_SERIALIZER_VERSION"};
 
 /**
- * @brief [Experimental, only for NPU Plugin]
+ * @brief [Only for NPU Plugin]
  * Type: integer.
  *
  * Used for communicating a state to the compiler when compiling a model using the compiler-in-driver interfaces. This
  * takes effect only when weights separation is enabled and "NPU_SEPARATE_WEIGHTS_VERSION" is set to "ITERATIVE".
+ *
+ * Note: This property is internal, it is used strictly for plugin -> compiler synchronization and is not meant to be
+ * used by the application. Setting or getting it from user code will throw.
  */
 static constexpr ov::Property<uint32_t> ws_compile_call_number{"WS_COMPILE_CALL_NUMBER"};
 
@@ -452,6 +455,15 @@ static constexpr ov::Property<bool> import_raw_blob{"NPU_IMPORT_RAW_BLOB"};
  * This option allows to skip writing plugin metadata to compiled model when exporting it
  */
 static constexpr ov::Property<bool> export_raw_blob{"NPU_EXPORT_RAW_BLOB"};
+
+/**
+ * @brief [Only for NPU Plugin]
+ * Type: boolean, default is true.
+ * Allows importing a blob that declares a payload running in-process on the host VM runtime instead of the NPU driver.
+ * Enabled by default. A higher-privilege importer that only expects native device blobs can set this to false to refuse
+ * such a payload forged across a trust boundary.
+ */
+static constexpr ov::Property<bool> allow_bytecode{"NPU_ALLOW_BYTECODE"};
 
 /**
  * @brief [Only for NPU Plugin]

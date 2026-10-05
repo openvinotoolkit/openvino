@@ -181,7 +181,7 @@ private:
         // Update variables map using information by resolving AssignVariableOp graph nodes
         std::map<std::string, std::string> var_map;
         VariablesIndex::map_assignvariable(m_graph_def, var_map, m_hash_table_keys_map, m_hash_table_values_map);
-        if (m_variables_index && !m_variables_index->empty()) {
+        if (m_variables_index) {
             for (auto var : var_map) {
                 m_variables_index->map_variable(var.first, var.second);
             }

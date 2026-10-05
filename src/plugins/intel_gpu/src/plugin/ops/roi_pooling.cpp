@@ -2,24 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "intel_gpu/plugin/program_builder.hpp"
-#include "intel_gpu/plugin/common_utils.hpp"
-
 #include "openvino/op/roi_pooling.hpp"
-#include "openvino/op/psroi_pooling.hpp"
-#include "openvino/op/deformable_psroi_pooling.hpp"
 
+#include "intel_gpu/plugin/common_utils.hpp"
+#include "intel_gpu/plugin/program_builder.hpp"
 #include "intel_gpu/primitives/roi_pooling.hpp"
+#include "openvino/op/deformable_psroi_pooling.hpp"
+#include "openvino/op/psroi_pooling.hpp"
 
 namespace ov::intel_gpu {
 
 static cldnn::pooling_mode GetPoolingMode(std::string method) {
-    if (method == "bilinear")
+    if (method == "bilinear") {
         return cldnn::pooling_mode::bilinear;
-    if (method == "max")
+    }
+    if (method == "max") {
         return cldnn::pooling_mode::max;
-    if (method == "average")
+    }
+    if (method == "average") {
         return cldnn::pooling_mode::average;
+    }
     return cldnn::pooling_mode::deformable_bilinear;
 }
 

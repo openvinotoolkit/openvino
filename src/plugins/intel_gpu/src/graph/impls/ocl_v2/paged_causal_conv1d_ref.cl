@@ -27,7 +27,28 @@ KERNEL(paged_causal_conv1d_ref)
  int bias_hidden_stride,
  int output_token_stride,
  int output_hidden_stride,
- int num_blocks) {
+ int num_blocks,
+ int input_offset,
+ int state_offset,
+ int weight_offset,
+ int bias_offset,
+ int subsequence_offset,
+ int block_indices_offset,
+ int block_begins_offset,
+ int past_lens_offset,
+ int cache_interval_offset,
+ int output_offset) {
+    input_embeds += input_offset;
+    conv_state_table += state_offset;
+    conv_weight += weight_offset;
+    conv_bias += bias_offset;
+    subsequence_begins += subsequence_offset;
+    block_indices += block_indices_offset;
+    block_indices_begins += block_begins_offset;
+    past_lens += past_lens_offset;
+    cache_interval += cache_interval_offset;
+    output_embeds += output_offset;
+
     const int seq = (int)get_global_id(0);
     const int h = (int)get_global_id(1);
 

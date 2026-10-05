@@ -6,7 +6,7 @@
 #include <openvino/c/gpu/gpu_plugin_properties.h>
 #include <openvino/runtime/intel_gpu/ocl/ocl.hpp>
 
-#ifdef WIN32
+#ifdef _WIN32
 typedef void* ID3D11Device;
 #elif defined(ENABLE_LIBVA)
 #include <openvino/runtime/intel_gpu/ocl/va.hpp>
@@ -19,7 +19,7 @@ cl_command_queue get_cl_queue();
 cl::Buffer allocate_buffer(size_t size);
 cl::Image2D allocate_image(size_t size);
 
-#ifdef WIN32
+#ifdef _WIN32
 ID3D11Device* get_d3d_device();
 #elif defined(ENABLE_LIBVA)
 VADisplay get_va_display();
@@ -221,7 +221,7 @@ int main() {
     //! [context_from_cl_queue]
 }
 
-#ifdef WIN32
+#ifdef _WIN32
 {
     //! [context_from_d3d_device]
     ID3D11Device* device = get_d3d_device();

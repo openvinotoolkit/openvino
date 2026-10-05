@@ -35,7 +35,7 @@ KERNEL (mvn_gpu_bfyx_opt)(
     //each WI reads items_num consecutive items from batch*feature
     for (uint i=0; i<iters_num; ++i)
     {
-        my_sum += (float)input[my_data_offset + i * workers_per_data_set];
+        my_sum += DECODE_INPUT0_COMPUTE_TYPE(input[my_data_offset + i * workers_per_data_set]);
     }
 
     my_sum = work_group_reduce_add(my_sum) / data_set_size;
@@ -43,7 +43,7 @@ KERNEL (mvn_gpu_bfyx_opt)(
 #if NORMALIZE_VARIANCE == 0
     for (uint i=0; i<iters_num; ++i) {
         uint iteration_in_data_set_offset = i * workers_per_data_set;
-        ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(input[my_data_offset + iteration_in_data_set_offset]) - TO_ACTIVATION_TYPE(my_sum);
+        ACTIVATION_TYPE result = TO_ACTIVATION_TYPE(DECODE_INPUT0_COMPUTE_TYPE(input[my_data_offset + iteration_in_data_set_offset])) - TO_ACTIVATION_TYPE(my_sum);
 #   if HAS_FUSED_OPS
         FUSED_OPS;
         output[my_data_offset + iteration_in_data_set_offset] = FUSED_OPS_RESULT;
@@ -57,7 +57,7 @@ KERNEL (mvn_gpu_bfyx_opt)(
     //each WI reads items_num consecutive items from batch*feature
     for (uint i=0; i<iters_num; ++i)
     {
-        tmp = (float)input[my_data_offset + i * workers_per_data_set];
+        tmp = DECODE_INPUT0_COMPUTE_TYPE(input[my_data_offset + i * workers_per_data_set]);
         tmp -= my_sum;
         my_variance = fma(tmp, tmp, my_variance);
     }
@@ -79,7 +79,7 @@ KERNEL (mvn_gpu_bfyx_opt)(
 
     for (uint i=0; i<iters_num; ++i) {
         uint iteration_in_data_set_offset = i * workers_per_data_set;
-        ACTIVATION_TYPE result = (TO_ACTIVATION_TYPE(input[my_data_offset + iteration_in_data_set_offset]) - TO_ACTIVATION_TYPE(my_sum)) * TO_ACTIVATION_TYPE(my_variance);
+        ACTIVATION_TYPE result = (TO_ACTIVATION_TYPE(DECODE_INPUT0_COMPUTE_TYPE(input[my_data_offset + iteration_in_data_set_offset])) - TO_ACTIVATION_TYPE(my_sum)) * TO_ACTIVATION_TYPE(my_variance);
 #   if HAS_FUSED_OPS
         FUSED_OPS;
         output[my_data_offset + iteration_in_data_set_offset] = FUSED_OPS_RESULT;

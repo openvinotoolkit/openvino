@@ -21,11 +21,6 @@ for more streamlined resource management.
 
 NPU Plugin is now available through all relevant OpenVINO distribution channels.
 
-| **Supported Platforms:**
-|   Host: Intel® Core™ Ultra series
-|   NPU device: NPU 3720
-|   OS: Ubuntu* 22.04 64-bit (with Linux kernel 6.6+), MS Windows* 11 64-bit (22H2, 23H2)
-
 NPU Plugin needs an NPU Driver to be installed on the system to execute a model.
 Follow the instructions below to install the latest NPU drivers:
 

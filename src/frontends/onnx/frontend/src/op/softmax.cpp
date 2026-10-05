@@ -9,6 +9,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "utils/common.hpp"
 #include "utils/reshape.hpp"
 using namespace ov::op;
 
@@ -65,7 +66,11 @@ ov::OutputVector softmax(const ov::frontend::onnx::Node& node) {
         break;
     }
     default: {
-        result = std::make_shared<v8::Softmax>(data, axis);
+        // ONNX Softmax opset 11/12 coerces the input to a 2-D matrix
+        // [prod(d0..d_axis-1), prod(d_axis..d_rank-1)], applies softmax on the second
+        // axis and restores the shape (same semantics as opset 1-10).
+        const auto normalized_axis = common::normalize_axis(node.get_description(), axis, data_rank);
+        result = onnx_softmax(data, normalized_axis);
         break;
     }
     }

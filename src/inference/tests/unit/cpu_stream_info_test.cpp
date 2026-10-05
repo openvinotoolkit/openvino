@@ -638,4 +638,79 @@ INSTANTIATE_TEST_SUITE_P(CpuStreamType,
                                          _1sockets_32cores_all_proc_bind_subset_of_core_kinds,
                                          _1sockets_32cores_all_proc_skip_binding_all_core_kinds));
 #endif
+
+TEST(StreamProcessorGroupId, DistributesArenaThreadsAcrossGroups) {
+    // Within one stream, consecutive worker slots fan out across processor groups.
+    EXPECT_EQ(get_thread_processor_group(0, 0, 6), 0);
+    EXPECT_EQ(get_thread_processor_group(0, 1, 6), 1);
+    EXPECT_EQ(get_thread_processor_group(0, 5, 6), 5);
+    EXPECT_EQ(get_thread_processor_group(0, 6, 6), 0);
+}
+
+TEST(StreamProcessorGroupId, OffsetsStreamsSoSingleThreadStreamsFanOut) {
+    // With one thread per stream (slot 0), streams still spread across groups via the stream offset.
+    EXPECT_EQ(get_thread_processor_group(0, 0, 6), 0);
+    EXPECT_EQ(get_thread_processor_group(1, 0, 6), 1);
+    EXPECT_EQ(get_thread_processor_group(7, 0, 6), 1);
+}
+
+TEST(StreamProcessorGroupId, HandlesNegativeInputs) {
+    // Negative stream id / thread index degrade to 0 rather than an out-of-range index.
+    EXPECT_EQ(get_thread_processor_group(-1, -1, 6), 0);
+}
+
+TEST(StreamProcessorGroupId, ReturnsNoGroupOnSingleOrInvalidGroupCount) {
+    // A single group (or invalid count) means no distribution is needed: no group policy is applied.
+    EXPECT_EQ(get_thread_processor_group(7, 3, 1), -1);
+    EXPECT_EQ(get_thread_processor_group(7, 3, 0), -1);
+    EXPECT_EQ(get_thread_processor_group(7, 3, -1), -1);
+}
+
+TEST(StreamProcessorGroupId, ManySingleThreadStreamsFillAllGroups) {
+    // 288 concurrency-1 streams (slot 0) must spread evenly across 6 groups.
+    const int group_count = 6;
+    const int stream_count = 288;
+    std::vector<int> per_group(group_count, 0);
+    for (int stream_id = 0; stream_id < stream_count; ++stream_id) {
+        per_group[get_thread_processor_group(stream_id, 0, group_count)]++;
+    }
+    for (int group = 0; group < group_count; ++group) {
+        EXPECT_EQ(per_group[group], stream_count / group_count);
+    }
+}
+
+TEST(StreamProcessorGroupId, FewLargeStreamsFillAllGroups) {
+    // The reported case: 2 streams of 144 threads each must fill all 6 groups (48 threads per group),
+    // not just 2 groups. Every (stream, slot) worker thread is mapped to a group.
+    const int group_count = 6;
+    const int streams = 2;
+    const int threads_per_stream = 144;
+    std::vector<int> per_group(group_count, 0);
+    for (int stream_id = 0; stream_id < streams; ++stream_id) {
+        for (int slot = 0; slot < threads_per_stream; ++slot) {
+            per_group[get_thread_processor_group(stream_id, slot, group_count)]++;
+        }
+    }
+    for (int group = 0; group < group_count; ++group) {
+        EXPECT_EQ(per_group[group], streams * threads_per_stream / group_count);
+    }
+}
+
+TEST(StreamProcessorGroupId, NumProcessorGroupsIsAtLeastOne) {
+    // Always at least one group; on non-Windows platforms there is exactly one.
+    EXPECT_GE(get_num_processor_groups(), 1);
+#if !defined(_WIN32)
+    EXPECT_EQ(get_num_processor_groups(), 1);
+#endif
+}
+
+TEST(StreamProcessorGroupId, NoDistributionWhenSystemReportsSingleGroup) {
+    // End-to-end guard: on a single-group system (e.g. non-Windows CI) threads get no group policy,
+    // so behavior is unchanged regardless of stream index or slot.
+    if (get_num_processor_groups() <= 1) {
+        for (int i = 0; i < 16; ++i) {
+            EXPECT_EQ(get_thread_processor_group(i, i, get_num_processor_groups()), -1);
+        }
+    }
+}
 }  // namespace

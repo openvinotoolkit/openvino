@@ -34,8 +34,8 @@ OutputVector translate_sub_common(const NodeContext& context, bool inplace) {
     }
 
     // default alpha is 1 so no need to multiply if alpha is not provided
-    if (!context.input_is_none(2)) {
-        auto alpha = context.get_input(2);
+    if (!context.input_is_none(2) || context.has_attribute("alpha")) {
+        auto alpha = context.input_is_none(2) ? context.get_input("alpha") : context.get_input(2);
         auto casted_alpha = ComplexTypeMark::convert_like(context, alpha, y);
 
         y = ComplexTypeMark::mul(context, casted_alpha, y);
@@ -54,20 +54,6 @@ OutputVector translate_sub(const NodeContext& context) {
 
 OutputVector translate_sub_(const NodeContext& context) {
     return translate_sub_common(context, true);
-};
-
-OutputVector translate_sub_fx(const NodeContext& context) {
-    num_inputs_check(context, 2, 2);
-    Output<Node> x;
-    Output<Node> y;
-    std::tie(x, y) = get_inputs_with_promoted_types(context, 0, 1);
-    // default alpha is 1 so no need to multiply if alpha is not provided
-    if (context.has_attribute("alpha")) {
-        auto alpha = context.get_attribute<Output<Node>>("alpha");
-        auto casted_alpha = context.mark_node(std::make_shared<v1::ConvertLike>(alpha, y));
-        y = context.mark_node(std::make_shared<v1::Multiply>(casted_alpha, y));
-    }
-    return {context.mark_node(std::make_shared<v1::Subtract>(x, y))};
 };
 
 }  // namespace op

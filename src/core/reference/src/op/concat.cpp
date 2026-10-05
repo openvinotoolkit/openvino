@@ -55,9 +55,9 @@ void concat(const std::vector<const char*>& args,
     for (size_t step = 0; step < steps; ++step) {
         for (size_t in_index = 0; in_index < args.size(); ++in_index) {
             size_t size = shape_sizes[in_index] / steps;
-            const size_t in_offset = step * size;
             if (elem_type == ov::element::u4 || elem_type == ov::element::i4)
                 size /= 2;
+            const size_t in_offset = step * size;
             copy_func(args[in_index], out, in_offset, out_offset, size, elem_size);
 
             out_offset += size;

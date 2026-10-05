@@ -24,8 +24,9 @@ std::vector<layout> space_to_depth_inst::calc_output_layouts(space_to_depth_node
     auto input_layout = impl_param.get_input_layout(0);
 
     auto output_type = desc->output_data_types[0].value_or(input_layout.data_type);
-    if (impl_param.has_fused_primitives())
+    if (impl_param.has_fused_primitives()) {
         output_type = impl_param.get_output_element_type();
+    }
 
     auto output_format = input_layout.format;
 
@@ -58,30 +59,34 @@ layout space_to_depth_inst::calc_output_layout(space_to_depth_node const& node, 
         output_type = impl_param.get_output_element_type();
     }
 
-    if (depth_mode != SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST && depth_mode != SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST)
+    if (depth_mode != SpaceToDepth::SpaceToDepthMode::DEPTH_FIRST && depth_mode != SpaceToDepth::SpaceToDepthMode::BLOCKS_FIRST) {
         CLDNN_ERROR_MESSAGE(desc->id,
                             "Invalid mode for spaceToDepth: must be \"blocks_first\" or \"depth_first\" only");
+    }
 
-    if (block_size == 0)
+    if (block_size == 0) {
         CLDNN_ERROR_MESSAGE(desc->id,
                             "Invalid spaceToDepth block_size value (should be >= 1). Actual block size is" +
                                 std::to_string(block_size));
+    }
 
-    if (input_layout.spatial(0) % block_size != 0 || input_layout.spatial(1) % block_size != 0)
+    if (input_layout.spatial(0) % block_size != 0 || input_layout.spatial(1) % block_size != 0) {
         CLDNN_ERROR_MESSAGE(
             desc->id,
             "Sizes of spatials x, y must be divisible by block size. Actual spatial sizes are " +
                 std::to_string(input_layout.spatial(0)) + ", " + std::to_string(input_layout.spatial(1)) +
                     " (x, y). Actual block size is " + std::to_string(block_size));
+    }
 
 
     if (input_layout.format.dimension() == 5) {
-        if (input_layout.spatial(2) % block_size != 0)
+        if (input_layout.spatial(2) % block_size != 0) {
         CLDNN_ERROR_MESSAGE(
             desc->id,
             "Sizes of spatials z must be divisible by block size. Actual spatial sizes are " +
                 std::to_string(input_layout.spatial(2)) +
                     " (z). Block size is " + std::to_string(block_size));
+        }
 
         const size_t feature = input_layout.feature() * block_size * block_size * block_size;
         const size_t z = input_layout.spatial(2) / block_size;

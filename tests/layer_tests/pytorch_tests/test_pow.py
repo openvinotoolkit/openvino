@@ -49,8 +49,6 @@ class TestPow(PytorchLayerTest):
     @pytest.mark.precommit_torch_export
     @pytest.mark.precommit_fx_backend
     def test_pow(self, inplace, ie_device, precision, ir_version, test_input):
-        if inplace and PytorchLayerTest.use_torch_export():
-            pytest.skip(reason="export fails for inplace")
         self.test_input = test_input
         self._test(*self.create_model(inplace), ie_device, precision,
                    ir_version, use_convert_model=True)

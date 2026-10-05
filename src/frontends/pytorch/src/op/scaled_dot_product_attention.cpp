@@ -178,7 +178,7 @@ std::shared_ptr<ov::Node> translate_scaled_dot_product_attention_common(const No
         scale = context.get_input("scale");
         scale = context.mark_node(std::make_shared<v1::ConvertLike>(scale, query));
     }
-    if (!context.input_is_none(7) && context.const_input<bool>(7)) {
+    if (get_const_input_or_attribute(context, 7, "enable_gqa", false)) {
         return decompose_gqa(context, query, key, value, scale, attn_mask, is_causal);
     }
 

@@ -3,9 +3,11 @@
 //
 
 #include "space_to_depth_kernel_ref.h"
-#include "kernel_selector_utils.h"
+
 #include <string>
 #include <vector>
+
+#include "kernel_selector_utils.h"
 
 namespace kernel_selector {
 ParamsKey SpaceToDepthKernelRef::GetSupportedKey() const {
@@ -36,12 +38,14 @@ bool SpaceToDepthKernelRef::Validate(const Params& p) const {
 
     const space_to_depth_params& params = static_cast<const space_to_depth_params&>(p);
     for (const auto& fused_op : params.fused_ops) {
-        if (!IsFusedPrimitiveSupported(fused_op))
+        if (!IsFusedPrimitiveSupported(fused_op)) {
             DO_NOT_USE_THIS_KERNEL(p.layerID);
+        }
     }
 
-    if (params.inputs[0].Dimentions() > 5)
+    if (params.inputs[0].Dimentions() > 5) {
         DO_NOT_USE_THIS_KERNEL(p.layerID);
+    }
 
     return true;
 }
@@ -50,13 +54,13 @@ CommonDispatchData SpaceToDepthKernelRef::SetDefault(const space_to_depth_params
     CommonDispatchData dispatchData;
     auto in_layout = params.inputs[0].GetLayout();
     auto out_layout = params.outputs[0].GetLayout();
-    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{ Tensor::DataChannelName::BATCH },
-                                                                     { Tensor::DataChannelName::FEATURE },
-                                                                     { Tensor::DataChannelName::X, Tensor::DataChannelName::Y, Tensor::DataChannelName::Z }};
+    std::vector<std::vector<Tensor::DataChannelName>> dims_by_gws = {{Tensor::DataChannelName::BATCH},
+                                                                     {Tensor::DataChannelName::FEATURE},
+                                                                     {Tensor::DataChannelName::X, Tensor::DataChannelName::Y, Tensor::DataChannelName::Z}};
 
-    dispatchData.gws = { params.outputs[0].Batch().v,
-                         params.outputs[0].Feature().v,
-                         params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v };
+    dispatchData.gws = {params.outputs[0].Batch().v,
+                        params.outputs[0].Feature().v,
+                        params.outputs[0].Z().v * params.outputs[0].Y().v * params.outputs[0].X().v};
     dispatchData.lws = GetOptimalLocalWorkGroupSizes(dispatchData.gws, params.engineInfo, in_layout, out_layout, dims_by_gws);
 
     return dispatchData;
@@ -66,10 +70,11 @@ JitConstants SpaceToDepthKernelRef::GetJitConstants(const space_to_depth_params&
     JitConstants jit = MakeBaseParamsJitConstants(params);
 
     jit.AddConstant(MakeJitConstant("BLOCK_SIZE", params.block_size));
-    if (params.depth_mode == SpaceToDepthMode::BLOCKS_FIRST)
+    if (params.depth_mode == SpaceToDepthMode::BLOCKS_FIRST) {
         jit.AddConstant(MakeJitConstant("BLOCKS_FIRST_MODE", true));
-    else
+    } else {
         jit.AddConstant(MakeJitConstant("DEPTH_FIRST_MODE", true));
+    }
 
     auto input = params.inputs[0];
     auto input_dt = input.GetDType();
@@ -102,8 +107,17 @@ KernelsData SpaceToDepthKernelRef::GetKernelsData(const Params& params) const {
 
     auto& kernel = kd.kernels[0];
 
-    FillCLKernelData(kernel, dispatchData, params.engineInfo, kernelName, jit, entry_point,
-                     EXE_MODE_DEFAULT, false, false, 1, GetFusedPrimitiveInputsCount(params));
+    FillCLKernelData(kernel,
+                     dispatchData,
+                     params.engineInfo,
+                     kernelName,
+                     jit,
+                     entry_point,
+                     EXE_MODE_DEFAULT,
+                     false,
+                     false,
+                     1,
+                     GetFusedPrimitiveInputsCount(params));
 
     return {kd};
 }

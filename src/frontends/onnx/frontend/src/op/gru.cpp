@@ -98,6 +98,11 @@ ov::OutputVector gru(const ov::frontend::onnx::Node& node) {
     const auto Y = gru_sequence->output(0);
     const auto Y_h = gru_sequence->output(1);
 
+    if (attributes.m_layout == 1) {
+        // OV [batch, num_directions, seq, hidden] -> ONNX [batch, seq, num_directions, hidden]; Y_h already matches.
+        return {ov::op::util::reorder_axes(Y, {0, 2, 1, 3}), Y_h};
+    }
+
     return {ov::op::util::reorder_axes(Y, {2, 1, 0, 3}), ov::op::util::reorder_axes(Y_h, {1, 0, 2})};
 }
 ONNX_OP("GRU", OPSET_SINCE(1), ai_onnx::opset_1::gru);

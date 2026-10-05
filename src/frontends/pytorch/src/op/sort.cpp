@@ -28,11 +28,15 @@ OutputVector translate_sort_common(const NodeContext& context, bool stable, int6
 }
 
 OutputVector translate_sort(const NodeContext& context) {
-    num_inputs_check(context, 3, 4);
+    num_inputs_check(context, 1, 4);
     bool stable, descending;
     int64_t dim;
 
-    if (context.get_input_size() == 4) {
+    if (context.has_attribute("stable")) {
+        stable = context.get_attribute<bool>("stable");
+        dim = context.get_attribute<int64_t>("dim", -1);
+        descending = context.get_attribute<bool>("descending", false);
+    } else if (context.get_input_size() == 4) {
         stable = context.const_input<bool>(1);
         dim = context.const_input<int64_t>(2);
         descending = context.const_input<bool>(3);
@@ -45,70 +49,9 @@ OutputVector translate_sort(const NodeContext& context) {
     return translate_sort_common(context, stable, dim, descending);
 };
 
-OutputVector translate_sort_fx(const NodeContext& context) {
-    // aten.sort.default(Tensor self, int dim=-1, bool descending=False) -> (Tensor values, Tensor indices)
-    // aten.sort.stable(Tensor self, *, bool? stable=None, int dim=-1, bool descending=False) -> (Tensor values, Tensor
-    // indices)
-    num_inputs_check(context, 1, 4);
-    bool descending = false;
-    bool stable = false;
-    int64_t dim = -1;
-
-    if (context.has_attribute("stable")) {
-        // aten.sort.stable: keyword args (stable, dim, descending)
-        stable = context.get_attribute<bool>("stable");
-        if (context.has_attribute("dim")) {
-            dim = context.get_attribute<int64_t>("dim");
-        }
-        if (context.has_attribute("descending")) {
-            descending = context.get_attribute<bool>("descending");
-        }
-    } else {
-        // aten.sort.default: positional args (self, dim, descending)
-        if (!context.input_is_none(1)) {
-            dim = context.const_input<int64_t>(1);
-        }
-        if (!context.input_is_none(2)) {
-            descending = context.const_input<bool>(2);
-        }
-    }
-
-    auto topk_outputs = translate_sort_common(context, stable, dim, descending);
-    return {context.mark_node(make_list_construct(OutputVector({topk_outputs[0], topk_outputs[1]})))};
-};
-
 OutputVector translate_argsort(const NodeContext& context) {
     auto sort = translate_sort(context);
     return {sort[1]};
-};
-
-OutputVector translate_argsort_fx(const NodeContext& context) {
-    // aten.argsort.default(Tensor self, int dim=-1, bool descending=False) -> Tensor
-    // aten.argsort.stable(Tensor self, *, bool? stable=None, int dim=-1, bool descending=False) -> Tensor
-    num_inputs_check(context, 1, 3);
-    bool descending = false;
-    bool stable = false;
-    int64_t dim = -1;
-
-    if (context.has_attribute("stable")) {
-        stable = context.get_attribute<bool>("stable");
-        if (context.has_attribute("dim")) {
-            dim = context.get_attribute<int64_t>("dim");
-        }
-        if (context.has_attribute("descending")) {
-            descending = context.get_attribute<bool>("descending");
-        }
-    } else {
-        if (!context.input_is_none(1)) {
-            dim = context.const_input<int64_t>(1);
-        }
-        if (!context.input_is_none(2)) {
-            descending = context.const_input<bool>(2);
-        }
-    }
-
-    auto topk_outputs = translate_sort_common(context, stable, dim, descending);
-    return {topk_outputs[1]};
 };
 
 }  // namespace op

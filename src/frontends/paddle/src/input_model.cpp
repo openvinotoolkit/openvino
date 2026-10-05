@@ -184,7 +184,7 @@ ov::Shape make_shape_checked(const DimsT& dims) {
 }
 
 std::filesystem::path get_const_path(const std::filesystem::path& folder_with_weights, const std::string& name) {
-    return folder_with_weights / ov::util::make_path(name);
+    return ov::util::sanitize_path(folder_with_weights, ov::util::make_path(name));
 }
 
 bool is_pdmodel(const std::filesystem::path& path) {
