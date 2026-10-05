@@ -838,9 +838,38 @@ void primitive_inst::realloc_outputs_for_stateless_kv() {
     OPENVINO_ASSERT(past_tensor, "[GPU] Input memory is not prepared for stateless_kv node ", id());
     const auto present_tensor = result.output_memory_ptr();
     OPENVINO_ASSERT(present_tensor, "[GPU] Output memory of ", result.id(), " is not prepared for stateless_kv node ", id());
-    const auto is_same = _network.get_engine().is_the_same_buffer(*present_tensor, *past_tensor);
+    auto& engine = _network.get_engine();
+    const auto is_same = engine.is_the_same_buffer(*present_tensor, *past_tensor);
     const auto& present_layout = result._impl_params->get_output_layout();
-    if (mid_layout == present_layout) {
+    const auto same_placement = [&]() {
+        return past_layout.data_type == mid_layout.data_type && past_layout.format == mid_layout.format &&
+               past_layout.get_pitches() == mid_layout.get_pitches() && past_layout.get_linear_offset() == mid_layout.get_linear_offset();
+    };
+    // The Result buffer may be a caller buffer that is also one of our inputs; check our own restrictions.
+    const auto aliases_restricted_input = [&]() {
+        const auto& deps = dependencies();
+        for (size_t i = 0; i < deps.size() && i < inputs_memory_count(); ++i) {
+            const auto dep_memory = input_memory_ptr(i);
+            if (!dep_memory || !engine.is_the_same_buffer(*present_tensor, *dep_memory))
+                continue;
+            for (const auto* dep = deps[i].first; dep != nullptr;) {
+                if (_runtime_memory_dependencies.contains(static_cast<uint32_t>(dep->get_node().get_unique_id())))
+                    return true;
+                dep = dep->can_be_optimized() && !dep->dependencies().empty() ? dep->dependencies().front().first : nullptr;
+            }
+        }
+        return false;
+    };
+    // Write present into a private buffer when the Result buffer can't hold our output in place:
+    // a different element type or format, a restricted input, or past whose elements would move.
+    const auto use_private_present = present_layout.data_type != mid_layout.data_type || present_layout.format != mid_layout.format ||
+                                     aliases_restricted_input() || (is_same && !same_placement());
+    auto kv_present = present_tensor;
+    if (use_private_present) {
+        kv_present = engine.allocate_memory(mid_layout, engine.get_preferred_memory_allocation_type(), false);
+        // The Result stays a real reorder and copies the private present into its own buffer.
+        result.set_can_be_optimized(false);
+    } else if (mid_layout == present_layout) {
         result.set_can_be_optimized(true);
     }
     GPU_DEBUG_TRACE_DETAIL << id() << ": input[" << past_tensor->buffer_ptr() << "](" << past_tensor->get_layout().to_short_string() << ") and output["
@@ -853,8 +882,8 @@ void primitive_inst::realloc_outputs_for_stateless_kv() {
     if (_outputs[0]) {
         OPENVINO_ASSERT(!_mem_allocated, "stateless_kv should never allocate output[0] for itself");
     }
-    _outputs[0] = present_tensor;
-    _outputs[1] = get_network().get_engine().reinterpret_buffer(*present_tensor, target_layout);
+    _outputs[0] = kv_present;
+    _outputs[1] = engine.reinterpret_buffer(*kv_present, target_layout);
     this->_mem_allocated = false;
 }
 
@@ -903,7 +932,8 @@ void primitive_inst::realloc_outputs(bool prev_execution_skipped) {
         _remote_permute_output_alias.reset();
     }
 
-    if (users.size() == 1 && users.front()->get_node().is_type<reorder>() && users.front()->can_be_optimized()) {
+    // stateless_kv picks both outputs from its Result in realloc_outputs_for_stateless_kv().
+    if (!get_node().is_type<stateless_kv>() && users.size() == 1 && users.front()->get_node().is_type<reorder>() && users.front()->can_be_optimized()) {
         auto* reorder_inst = users.front();
         if (reorder_inst->is_output() && reorder_inst->output_memory_ptr() && get_network().has_output_remote_memory_ptr(reorder_inst->id()) &&
             get_network().get_engine().is_the_same_buffer(get_network().get_output_remote_memory(reorder_inst->id()), reorder_inst->output_memory())) {

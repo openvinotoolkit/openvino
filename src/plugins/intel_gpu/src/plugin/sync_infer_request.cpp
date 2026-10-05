@@ -1282,9 +1282,8 @@ std::vector<cldnn::event::ptr> SyncInferRequest::prepare_output(size_t output_id
                     m_plugin_outputs[output_idx] = create_plugin_output();
                 }
             } else if (overlap_unsupported) {
-                // The output buffer is also used as an input (and the producer doesn't support the exact
-                // in-place contract): allocate plugin-owned memory to avoid overwriting the input data
-                // before it is read. The result is copied out in wait().
+                // The output buffer partially overlaps an input, or overlaps several: allocate plugin-owned memory
+                // to avoid overwriting the input data before it is read. The result is copied out in wait().
                 m_plugin_outputs[output_idx] = create_plugin_output();
             } else if (had_caller_owned_output_buffer) {
                 // The new host tensor is ineligible for direct binding, so replace the stale caller allocation.
@@ -1353,8 +1352,8 @@ bool SyncInferRequest::can_use_caller_output_memory(const std::shared_ptr<ov::IT
         const size_t input_size = std::max(input_logical_size, wrapper.actual_size);
         if (!byte_ranges_overlap(output_ptr, output_size, input_ptr, input_size))
             continue;
-        // A partial/offset overlap is never safe; only an exact-address overlap can be tolerated,
-        // and only for the producer's declared in-place contract (checked by the caller).
+        // A partial/offset overlap is never safe; an exact-address overlap is left to
+        // network::can_bind_user_output_memory().
         if (input_ptr != output_ptr)
             return false;
         if (++overlapping_inputs > 1)

@@ -743,6 +743,56 @@ TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostShrinkThenGrowTailAliasIsS
     }
 }
 
+// The output may reuse an input's buffer once that input has no reader left (Relu runs before Add writes).
+// Whether zero-copy is granted depends on graph fusions, so only correctness is asserted.
+TEST(TensorTest, smoke_dynamicOutputCallerOwnedUsmHostReusesDeadInputBuffer) {
+    auto core = ov::Core();
+    if (!gpu_supports_usm_host_output_sharing(core)) {
+        GTEST_SKIP() << "Caller-owned USM-host output sharing requires an iGPU with USM support";
+    }
+
+    auto in0 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 4});
+    auto in1 = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::PartialShape{-1, 4});
+    auto relu = std::make_shared<ov::op::v0::Relu>(in0);
+    auto add = std::make_shared<ov::op::v1::Add>(relu, in1);
+    auto model = std::make_shared<ov::Model>(ov::OutputVector{add}, ov::ParameterVector{in0, in1});
+    auto compiled_model = core.compile_model(model,
+                                             core.get_default_context(ov::test::utils::DEVICE_GPU),
+                                             ov::hint::inference_precision(ov::element::f32));
+    auto gpu_context = compiled_model.get_context().as<ov::intel_gpu::ocl::ClContext>();
+    auto request = compiled_model.create_infer_request();
+
+    const ov::Shape shape{2, 4};
+    auto usm_allocation = gpu_context.create_usm_host_tensor(ov::element::f32, shape);
+    auto* buffer = static_cast<float*>(usm_allocation.get());
+    ov::Tensor in0_tensor(ov::element::f32, shape, buffer);
+    ov::Tensor output_tensor(ov::element::f32, shape, buffer);
+    ov::Tensor in1_tensor(ov::element::f32, shape);
+    request.set_input_tensor(0, in0_tensor);
+    request.set_input_tensor(1, in1_tensor);
+    request.set_output_tensor(output_tensor);
+
+    std::vector<float> expected(ov::shape_size(shape));
+    for (int iter = 0; iter < 4; ++iter) {
+        auto* in1_data = in1_tensor.data<float>();
+        for (size_t i = 0; i < expected.size(); ++i) {
+            const float in = relu_test_input(i) + static_cast<float>(iter);
+            buffer[i] = in;
+            in1_data[i] = static_cast<float>(i) * 0.5f;
+            expected[i] = (in > 0.0f ? in : 0.0f) + in1_data[i];
+        }
+
+        OV_ASSERT_NO_THROW(request.infer());
+
+        auto actual = request.get_output_tensor();
+        ASSERT_EQ(actual.data(), buffer);
+        ASSERT_EQ(actual.get_size(), expected.size());
+        for (size_t i = 0; i < actual.get_size(); ++i) {
+            ASSERT_FLOAT_EQ(actual.data<const float>()[i], expected[i]) << "element " << i << " on iteration " << iter;
+        }
+    }
+}
+
 // AUTO_BATCH's shared buffer must be sized batch=N, not the slot's own batch=1 port. Checked
 // by value: an offset bug doesn't change the exposed shape, only which bytes get read/written.
 TEST(TensorTest, smoke_lazyAllocAutoBatchUsesBatchedShapeNotSlotShape) {    constexpr int kBatch = 4;

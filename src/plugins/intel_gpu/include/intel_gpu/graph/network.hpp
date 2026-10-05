@@ -172,6 +172,8 @@ public:
     bool does_node_need_lockable_output(const primitive_id& id) const;
     // Returns whether a caller-owned memory can be bound to the given network output.
     bool can_bind_user_output_memory(const primitive_id& output_id, const memory& candidate) const;
+    // Returns whether the buffer of network output `output_id` may be the buffer of network input `input_id`.
+    bool may_alias(const primitive_id& output_id, const primitive_id& input_id) const;
     std::shared_ptr<primitive_inst> get_primitive(const primitive_id& id);
     std::shared_ptr<const primitive_inst> get_primitive(const primitive_id& id) const;
     std::string get_primitive_info(const primitive_id& id) const;
@@ -267,6 +269,8 @@ private:
     std::vector<std::shared_ptr<primitive_inst>> _inputs;
     std::vector<std::shared_ptr<primitive_inst>> _outputs;
     std::list<std::shared_ptr<primitive_inst>> _exec_order;
+    // First position of each primitive in _exec_order.
+    std::unordered_map<const primitive_inst*, size_t> _exec_positions;
     std::list<std::shared_ptr<primitive_inst>> _data_outputs;
 
     ov::intel_gpu::VariablesMap _variables_states;
