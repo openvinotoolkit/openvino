@@ -5,6 +5,7 @@
 #include <gtest/gtest.h>
 
 #include <cstddef>
+#include <cpu/x64/cpu_isa_traits.hpp>
 #include <memory>
 #include <string>
 #include <tuple>
@@ -19,7 +20,6 @@
 #include "openvino/runtime/core.hpp"
 #include "openvino/runtime/exec_model_info.hpp"
 #include "openvino/runtime/properties.hpp"
-#include "openvino/runtime/system_conf.hpp"
 #include "utils/precision_support.h"
 
 namespace ov::test {
@@ -39,11 +39,11 @@ std::shared_ptr<ov::Model> make_selective_ssm_model(const ov::element::Type& pre
         const auto B = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{1, 2, 16});
         const auto x = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{1, 4, 5});
         const auto C = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{1, 2, 16});
-        const auto subsequences = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{2});
-        const auto blocks = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{2});
-        const auto block_begins = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{2});
-        const auto processed = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1});
-        const auto intervals = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::Shape{1});
+        const auto subsequences = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2});
+        const auto blocks = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2});
+        const auto block_begins = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2});
+        const auto processed = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+        const auto intervals = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
         parameters = {A, dt, B, x, C, state, subsequences, blocks, block_begins, processed, intervals};
         operation = std::make_shared<ov::op::internal::PagedSelectiveSSM>(parameters[0],
                                                                           parameters[1],
@@ -88,12 +88,13 @@ TEST_P(SelectiveSSMJitIntegrationTest, SelectsExecutorWithoutWideningDataPrecisi
     const auto runtime_model = compiled_model.get_runtime_model();
 
     const auto expected_layer = paged ? std::string{"PagedSelectiveSSM"} : std::string{"SelectiveSSM"};
-    const bool native = precision == ov::element::f32 ? ov::with_cpu_x86_avx2()
-                        : precision == ov::element::f16
-                            ? ov::with_cpu_x86_avx512_core_fp16() || ov::with_cpu_x86_avx2_vnni_2()
-                            : ov::with_cpu_x86_bfloat16() || ov::with_cpu_x86_avx2_vnni_2();
+    // Match the executor's effective ISA, including oneDNN's runtime ISA limit.
+    using namespace dnnl::impl::cpu::x64;
+    const bool native = precision == ov::element::f32   ? mayiuse(avx2)
+                        : precision == ov::element::f16 ? mayiuse(avx512_core_fp16) || mayiuse(avx2_vnni_2)
+                                                        : mayiuse(avx512_core_bf16) || mayiuse(avx2_vnni_2);
     const auto expected_implementation =
-        std::string{ov::with_cpu_x86_avx512_core() ? "jit_avx512_" : "jit_avx2_"} + precision.get_type_name();
+        std::string{mayiuse(avx512_core) ? "jit_avx512_" : "jit_avx2_"} + precision.get_type_name();
     size_t matching_nodes = 0;
     for (const auto& node : runtime_model->get_ops()) {
         const auto& rt_info = node->get_rt_info();
