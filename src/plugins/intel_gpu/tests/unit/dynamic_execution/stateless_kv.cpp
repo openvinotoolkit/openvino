@@ -34,6 +34,8 @@ struct stateless_kv_runtime_params {
 
 class stateless_kv_runtime : public testing::TestWithParam<stateless_kv_runtime_params> {};
 
+namespace {
+
 topology make_stateless_kv_topology(const layout& new_token_layout, data_types result_type = data_types::f32) {
     auto kv = stateless_kv("stateless_kv", {input_info("past"), input_info("new_token"), input_info("present_len")}, 2, true);
     kv.num_outputs = 2;
@@ -62,6 +64,8 @@ std::vector<float> expected_concatenated_cache(const std::vector<float>& past_va
     }
     return expected;
 }
+
+}  // namespace
 
 TEST_P(stateless_kv_runtime, output_memory_reuse) {
     const auto& params = GetParam();
