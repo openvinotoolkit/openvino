@@ -372,7 +372,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
 
 void WeightlessGraph::initialize_impl(const Config& config) {
     if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
-        // To ensure that does not throw an issue when subsequently calling `_zeroInitStruct->getDevice()`
+        // To ensure that no issues are thrown during subsequent calls.
         return;
     }
 
@@ -586,11 +586,6 @@ void WeightlessGraph::run_init_multi_threaded() {
         },
         [&](QueueData&& data, std::condition_variable& cv, std::atomic_bool& flag) {
             // Create zero-pipeline and run it (infer init schedule)
-            ze_device_properties_t properties = {};
-            properties.stype = ZE_STRUCTURE_TYPE_DEVICE_PROPERTIES;
-            THROW_ON_FAIL_FOR_LEVELZERO("zeDeviceGetProperties",
-                                        zeDeviceGetProperties(_zeroInitStruct->getDevice(), &properties));
-
             create_pipeline(data.initIndex, data.inputs.tensors, data.outputs.tensors);
 
             // progress task 1:
