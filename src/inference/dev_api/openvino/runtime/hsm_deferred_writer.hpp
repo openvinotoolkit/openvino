@@ -91,6 +91,10 @@ private:
         std::variant<ov::util::MemoryView, PendingEncode, SectionEncoder> payload;
         DeviceId device;
         SectionTag tag;
+
+        PendingSection(SectionAlignment align, ov::util::MemoryView payload, DeviceId device, SectionTag tag);
+        PendingSection(SectionAlignment align, PendingEncode payload, DeviceId device, SectionTag tag);
+        PendingSection(SectionAlignment align, SectionEncoder payload, DeviceId device, SectionTag tag);
     };
 
     // Where bytes actually go - a stream (own running size tracked, since a stream has no addressable
