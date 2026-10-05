@@ -9,6 +9,7 @@
 #include <intel_gpu/primitives/paged_selective_ssm.hpp>
 #include <intel_gpu/primitives/reorder.hpp>
 #include <numeric>
+#include <string>
 #include <vector>
 
 #include "paged_selective_ssm_inst.h"
@@ -20,6 +21,8 @@ using namespace ::tests;
 namespace {
 
 constexpr int32_t large_state_size = 32 * 1024 + 1;
+
+enum class expected_ssm_impl { any, jit, fallback };
 
 template <typename T>
 std::vector<T> make_test_values(size_t count, float scale, float shift = 0.f) {
@@ -40,7 +43,7 @@ struct paged_selective_ssm_test_params {
     ov::element::Type precision;
     ov::element::Type index_precision;
     bool dynamic_shapes;
-    std::vector<bool> alias_first_write = {};
+    std::vector<bool> alias_first_write;
     bool reverse_blocks = false;
     bool caching_test = false;
     bool padded_layouts = false;
@@ -48,16 +51,28 @@ struct paged_selective_ssm_test_params {
     int32_t invalid_metadata = 0;
     bool accumulation_test = false;
     float relative_output_tolerance = 5e-5f;
+    ov::element::Type state_precision = ov::element::dynamic;
+    expected_ssm_impl expected_impl = expected_ssm_impl::any;
 };
 
+paged_selective_ssm_test_params with_state_precision(paged_selective_ssm_test_params params, const ov::element::Type& state_precision) {
+    params.state_precision = state_precision;
+    return params;
+}
+
+paged_selective_ssm_test_params expect_impl(paged_selective_ssm_test_params params, expected_ssm_impl expected) {
+    params.expected_impl = expected;
+    return params;
+}
+
 struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_selective_ssm_test_params> {
-    template <typename T>
-    static void run_reference(const std::vector<T>& A,
-                              const std::vector<T>& dt,
-                              const std::vector<T>& B,
-                              const std::vector<T>& x,
-                              const std::vector<T>& C,
-                              std::vector<T>& state,
+    template <typename DataT, typename StateT>
+    static void run_reference(const std::vector<DataT>& A,
+                              const std::vector<DataT>& dt,
+                              const std::vector<DataT>& B,
+                              const std::vector<DataT>& x,
+                              const std::vector<DataT>& C,
+                              std::vector<StateT>& state,
                               const std::vector<int32_t>& subsequence_begins,
                               const std::vector<int32_t>& block_indices,
                               const std::vector<int32_t>& block_indices_begins,
@@ -67,7 +82,7 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
                               int32_t num_groups,
                               int32_t head_dim,
                               int32_t state_size,
-                              std::vector<T>& output) {
+                              std::vector<DataT>& output) {
         const int32_t heads_per_group = num_heads / num_groups;
         const int32_t num_sequences = static_cast<int32_t>(subsequence_begins.size()) - 1;
         const int32_t tokens = static_cast<int32_t>(x.size()) / (num_heads * head_dim);
@@ -105,18 +120,18 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
                             local_state[n] = new_state;
                             acc += local_state[n] * static_cast<float>(C[(token * num_groups + g) * state_size + n]);
                         }
-                        output[(token * num_heads + h) * head_dim + p] = static_cast<T>(acc);
+                        output[(token * num_heads + h) * head_dim + p] = static_cast<DataT>(acc);
 
                         const int32_t processed_now = (token - token_begin) + 1;
                         const int32_t cached_tokens = prev_nums + processed_now;
                         const bool reached_interval_boundary = interval > 0 && ((cached_tokens % interval) == 0);
                         const bool reached_sequence_end = token == token_end - 1;
-                        if (interval > 0 && (reached_interval_boundary || reached_sequence_end)) {
-                            const int32_t slot = 1 + (cached_tokens - 1) / interval;
+                        if (reached_interval_boundary || reached_sequence_end) {
+                            const int32_t slot = interval > 0 ? 1 + (cached_tokens - 1) / interval : 1;
                             if (slot < seq_blocks) {
                                 const int32_t block_id = block_indices[block_begin + slot];
                                 for (int32_t n = 0; n < state_size; n++) {
-                                    state[state_off(block_id, h, p, n)] = static_cast<T>(local_state[n]);
+                                    state[state_off(block_id, h, p, n)] = static_cast<StateT>(local_state[n]);
                                 }
                             }
                         }
@@ -126,10 +141,12 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
         }
     }
 
-    template <typename T>
+    template <typename DataT, typename StateT>
     void execute_t(const paged_selective_ssm_test_params& p) {
         auto& engine = get_test_engine();
         const auto data_type = cldnn::element_type_to_data_type(p.precision);
+        const auto state_precision = p.state_precision == ov::element::dynamic ? p.precision : p.state_precision;
+        const auto state_data_type = cldnn::element_type_to_data_type(state_precision);
         const auto index_data_type = cldnn::element_type_to_data_type(p.index_precision);
         const int32_t num_sequences = static_cast<int32_t>(p.seq_tokens.size());
         const int32_t tokens = static_cast<int32_t>(std::accumulate(p.seq_tokens.begin(), p.seq_tokens.end(), 0));
@@ -140,7 +157,7 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
         int32_t total_blocks = 0;
         for (int32_t seq = 0; seq < num_sequences; seq++) {
             subsequence_begins.push_back(subsequence_begins.back() + p.seq_tokens[seq]);
-            int32_t required_slots = 1;
+            int32_t required_slots = p.seq_tokens[seq] > 0 ? 2 : 1;
             if (p.cache_intervals[seq] > 0) {
                 const int32_t processed = std::max(p.processed_tokens[seq], 0);
                 const int32_t prev_nums = processed % p.cache_intervals[seq];
@@ -173,7 +190,7 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
         layout dt_layout({tokens, p.num_heads}, data_type, format::bfyx);
         layout BC_layout({tokens, p.num_groups, p.state_size}, data_type, format::bfyx);
         layout x_layout({tokens, p.num_heads, p.head_dim}, data_type, format::bfyx);
-        layout state_layout({total_blocks, p.num_heads, p.head_dim, p.state_size}, data_type, format::bfyx);
+        layout state_layout({total_blocks, p.num_heads, p.head_dim, p.state_size}, state_data_type, format::bfyx);
         const auto state_memory_layout = p.padded_layouts ? state_layout.with_padding(padding({1, 2, 1, 3}, {2, 1, 2, 1})) : state_layout;
         const auto state_pitches = state_memory_layout.get_pitches();
         const auto state_offset = [&](int32_t block, int32_t h, int32_t dim, int32_t n) {
@@ -204,21 +221,21 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
         auto processed_mem = allocate(processed_layout);
         auto interval_mem = allocate(processed_layout);
 
-        auto A_data = make_test_values<T>(A_mem->count(), -0.03f, -0.2f);
-        auto dt_data = make_test_values<T>(dt_mem->count(), 0.006f, 0.07f);
-        auto B_data = make_test_values<T>(B_mem->count(), 0.009f);
-        auto x_data = make_test_values<T>(x_mem->count(), 0.013f);
-        auto C_data = make_test_values<T>(C_mem->count(), 0.011f);
-        auto state_data = make_test_values<T>(state_layout.count(), 0.007f);
+        auto A_data = make_test_values<DataT>(A_mem->count(), -0.03f, -0.2f);
+        auto dt_data = make_test_values<DataT>(dt_mem->count(), 0.006f, 0.07f);
+        auto B_data = make_test_values<DataT>(B_mem->count(), 0.009f);
+        auto x_data = make_test_values<DataT>(x_mem->count(), 0.013f);
+        auto C_data = make_test_values<DataT>(C_mem->count(), 0.011f);
+        auto state_data = make_test_values<StateT>(state_layout.count(), 0.007f);
 
         if (p.accumulation_test) {
-            A_data.assign(A_data.size(), static_cast<T>(0.f));
-            dt_data.assign(dt_data.size(), static_cast<T>(1.f));
-            B_data.assign(B_data.size(), static_cast<T>(1.f));
+            A_data.assign(A_data.size(), static_cast<DataT>(0.f));
+            dt_data.assign(dt_data.size(), static_cast<DataT>(1.f));
+            B_data.assign(B_data.size(), static_cast<DataT>(1.f));
             const float increment = p.precision == ov::element::bf16 ? 0.0546875f : 0.195068359375f;
-            x_data.assign(x_data.size(), static_cast<T>(increment));
-            C_data.assign(C_data.size(), static_cast<T>(1.f));
-            state_data.assign(state_data.size(), static_cast<T>(0.f));
+            x_data.assign(x_data.size(), static_cast<DataT>(increment));
+            C_data.assign(C_data.size(), static_cast<DataT>(1.f));
+            state_data.assign(state_data.size(), static_cast<StateT>(0.f));
         }
 
         const auto set_non_empty = [](const memory::ptr& mem, const auto& values) {
@@ -231,9 +248,9 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
         set_non_empty(x_mem, x_data);
         set_non_empty(C_mem, C_data);
         if (p.padded_layouts && !state_data.empty()) {
-            cldnn::mem_lock<T, mem_lock_type::write> state_ptr(state_mem, get_test_stream());
+            cldnn::mem_lock<StateT, mem_lock_type::write> state_ptr(state_mem, get_test_stream());
             for (size_t i = 0; i < state_ptr.size(); i++)
-                state_ptr[i] = T{};
+                state_ptr[i] = StateT{};
             for (int32_t block = 0; block < total_blocks; block++) {
                 for (int32_t h = 0; h < p.num_heads; h++) {
                     for (int32_t dim = 0; dim < p.head_dim; dim++) {
@@ -271,7 +288,7 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
         const auto BC_input_layout = p.dynamic_shapes ? layout{ov::PartialShape{-1, p.num_groups, p.state_size}, data_type, format::bfyx} : BC_layout;
         const auto x_input_layout = p.dynamic_shapes ? layout{ov::PartialShape{-1, p.num_heads, p.head_dim}, data_type, format::bfyx} : x_layout;
         const auto state_input_layout =
-            p.dynamic_shapes ? layout{ov::PartialShape{-1, p.num_heads, p.head_dim, p.state_size}, data_type, format::bfyx} : state_memory_layout;
+            p.dynamic_shapes ? layout{ov::PartialShape{-1, p.num_heads, p.head_dim, p.state_size}, state_data_type, format::bfyx} : state_memory_layout;
         const auto dynamic_index_layout = layout{ov::PartialShape{-1}, index_data_type, format::bfyx};
         const auto index_vec_input_layout = p.dynamic_shapes ? dynamic_index_layout : index_vec_layout;
         const auto block_indices_input_layout = p.dynamic_shapes ? dynamic_index_layout : block_indices_layout;
@@ -335,6 +352,14 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
         ExecutionConfig config = get_test_default_config(engine);
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         auto network = get_network(engine, topo, config, get_test_stream_ptr(), p.caching_test);
+        if (p.expected_impl != expected_ssm_impl::any) {
+            const auto primitive = network->get_primitive("paged_selective_ssm");
+            ASSERT_NE(primitive, nullptr);
+            auto* const impl = primitive->get_impl();
+            ASSERT_NE(impl, nullptr);
+            const bool is_jit = impl->get_kernel_name().find("jit_") != std::string::npos;
+            EXPECT_EQ(is_jit, p.expected_impl == expected_ssm_impl::jit) << "selected implementation: " << impl->get_kernel_name();
+        }
         network->set_input_data("A", A_mem);
         network->set_input_data("dt", dt_mem);
         network->set_input_data("B", B_mem);
@@ -347,13 +372,17 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
         network->set_input_data("num_processed_tokens", processed_mem);
         network->set_input_data("cache_interval", interval_mem);
 
-        std::vector<T> ref_output;
+        std::vector<DataT> ref_output;
         auto ref_state = state_data;
-        const float tol = p.precision == ov::element::f32 ? 2e-4f : (p.precision == ov::element::bf16 ? 0.08f : 0.03f);
+        const auto tolerance_for = [](const ov::element::Type& precision) {
+            return precision == ov::element::bf16 ? 0.08f : (precision == ov::element::f16 ? 0.03f : 2e-4f);
+        };
+        const float output_abs_tolerance = tolerance_for(p.precision);
+        const float state_tolerance = tolerance_for(state_precision);
         for (int32_t iteration = 0; iteration < p.iterations; iteration++) {
             auto outputs = network->execute();
             if (p.invalid_metadata != 0) {
-                ref_output.assign(static_cast<size_t>(tokens) * p.num_heads * p.head_dim, T{});
+                ref_output.assign(static_cast<size_t>(tokens) * p.num_heads * p.head_dim, DataT{});
             } else {
                 run_reference(A_data,
                               dt_data,
@@ -376,23 +405,25 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
             if (!ref_output.empty()) {
                 auto out_mem = outputs.at("output").get_memory();
                 ASSERT_NE(out_mem, nullptr);
-                cldnn::mem_lock<T, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
+                cldnn::mem_lock<DataT, mem_lock_type::read> out_ptr(out_mem, get_test_stream());
                 for (size_t i = 0; i < ref_output.size(); i++) {
                     const float reference = static_cast<float>(ref_output[i]);
-                    const float output_tol = p.precision == ov::element::f32 ? std::max(tol, std::abs(reference) * p.relative_output_tolerance) : tol;
-                    ASSERT_NEAR(static_cast<float>(out_ptr[i]), reference, output_tol) << "iteration=" << iteration << ", output idx=" << i;
+                    const float output_tolerance = p.precision == ov::element::f32
+                                                       ? std::max(output_abs_tolerance, std::abs(reference) * p.relative_output_tolerance)
+                                                       : output_abs_tolerance;
+                    ASSERT_NEAR(static_cast<float>(out_ptr[i]), reference, output_tolerance) << "iteration=" << iteration << ", output idx=" << i;
                 }
             }
 
             if (!ref_state.empty()) {
-                cldnn::mem_lock<T, mem_lock_type::read> state_ptr(state_mem, get_test_stream());
+                cldnn::mem_lock<StateT, mem_lock_type::read> state_ptr(state_mem, get_test_stream());
                 for (int32_t block = 0; block < total_blocks; block++) {
                     for (int32_t h = 0; h < p.num_heads; h++) {
                         for (int32_t dim = 0; dim < p.head_dim; dim++) {
                             for (int32_t n = 0; n < p.state_size; n++) {
                                 const auto logical_idx = ((block * p.num_heads + h) * p.head_dim + dim) * p.state_size + n;
                                 const auto physical_idx = state_offset(block, h, dim, n);
-                                ASSERT_NEAR(static_cast<float>(state_ptr[physical_idx]), static_cast<float>(ref_state[logical_idx]), tol)
+                                ASSERT_NEAR(static_cast<float>(state_ptr[physical_idx]), static_cast<float>(ref_state[logical_idx]), state_tolerance)
                                     << "iteration=" << iteration << ", state idx=" << logical_idx;
                             }
                         }
@@ -402,13 +433,25 @@ struct paged_selective_ssm_gpu_test : public ::testing::TestWithParam<paged_sele
         }
     }
 
+    template <typename DataT>
+    void execute_with_data_type(const paged_selective_ssm_test_params& p) {
+        const auto state_precision = p.state_precision == ov::element::dynamic ? p.precision : p.state_precision;
+        if (state_precision == ov::element::f16) {
+            execute_t<DataT, ov::float16>(p);
+        } else if (state_precision == ov::element::bf16) {
+            execute_t<DataT, ov::bfloat16>(p);
+        } else {
+            execute_t<DataT, float>(p);
+        }
+    }
+
     void execute(const paged_selective_ssm_test_params& p) {
         if (p.precision == ov::element::f16) {
-            execute_t<ov::float16>(p);
+            execute_with_data_type<ov::float16>(p);
         } else if (p.precision == ov::element::bf16) {
-            execute_t<ov::bfloat16>(p);
+            execute_with_data_type<ov::bfloat16>(p);
         } else {
-            execute_t<float>(p);
+            execute_with_data_type<float>(p);
         }
     }
 };
@@ -426,7 +469,30 @@ INSTANTIATE_TEST_SUITE_P(
         paged_selective_ssm_test_params{{3, 2}, {1, 2}, {2, 0}, 4, 2, 8, 8, ov::element::f16, ov::element::i32, false},
         paged_selective_ssm_test_params{{2, 1}, {0, 3}, {2, 1}, 2, 1, 4, 16, ov::element::f32, ov::element::i64, false},
         paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 16, ov::element::bf16, ov::element::i32, false},
-        paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 2, 513, ov::element::f32, ov::element::i32, false},
+        // The data path and recurrent state have independent floating-point types. A state size below the
+        // subgroup width exercises the universal optimized path without depending on its internal kernel name.
+        with_state_precision(paged_selective_ssm_test_params{{3, 2}, {1, 2}, {2, 0}, 4, 2, 8, 8, ov::element::f32, ov::element::i32, false}, ov::element::bf16),
+        with_state_precision(paged_selective_ssm_test_params{{3, 2}, {1, 2}, {2, 0}, 4, 2, 8, 8, ov::element::bf16, ov::element::i32, false}, ov::element::f16),
+        expect_impl(paged_selective_ssm_test_params{{8}, {0}, {8}, 64, 1, 64, 128, ov::element::f32, ov::element::i32, false}, expected_ssm_impl::jit),
+        expect_impl(with_state_precision(paged_selective_ssm_test_params{{8}, {0}, {8}, 64, 1, 64, 128, ov::element::f32, ov::element::i32, false},
+                                         ov::element::f16),
+                    expected_ssm_impl::jit),
+        // Non-prefix-cached GenAI decode uses interval zero and aliases the read block with the final live-state write.
+        // Multiple executions ensure that every decode step consumes the state produced by the preceding one.
+        expect_impl(
+            with_state_precision(
+                paged_selective_ssm_test_params{{1}, {0}, {0}, 64, 1, 64, 128, ov::element::f32, ov::element::i32, true, {true}, false, false, false, 4},
+                ov::element::f16),
+            expected_ssm_impl::jit),
+        paged_selective_ssm_test_params{{8}, {0}, {8}, 64, 1, 64, 128, ov::element::f16, ov::element::i32, false},
+        expect_impl(paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 256, ov::element::f32, ov::element::i32, true, {}, false, true},
+                    expected_ssm_impl::jit),
+        paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 256, ov::element::f16, ov::element::i32, false},
+        paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 256, ov::element::bf16, ov::element::i32, false},
+        paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 512, ov::element::f16, ov::element::i32, false},
+        paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 512, ov::element::f32, ov::element::i32, false},
+        paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 512, ov::element::bf16, ov::element::i32, false},
+        expect_impl(paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 2, 513, ov::element::f32, ov::element::i32, false}, expected_ssm_impl::fallback),
         paged_selective_ssm_test_params{{2, 3}, {1, 0}, {2, 3}, 4, 2, 4, 16, ov::element::f32, ov::element::i64, true},
         // Five page-aliasing cases from the published specification.
         paged_selective_ssm_test_params{{5}, {0}, {2}, 4, 2, 5, 17, ov::element::f32, ov::element::i32, false, {true}, true},
@@ -434,16 +500,26 @@ INSTANTIATE_TEST_SUITE_P(
         paged_selective_ssm_test_params{{5}, {3}, {2}, 4, 2, 5, 17, ov::element::f16, ov::element::i32, false, {true}, true},
         paged_selective_ssm_test_params{{1}, {4}, {2}, 4, 2, 5, 17, ov::element::f32, ov::element::i64, false, {false}, true},
         paged_selective_ssm_test_params{{1}, {3}, {2}, 4, 2, 5, 17, ov::element::bf16, ov::element::i64, false, {true}, true},
-        // Disabled cache must leave every state block unchanged.
-        paged_selective_ssm_test_params{{4, 3}, {9, 2}, {0, -3}, 4, 2, 4, 31, ov::element::f32, ov::element::i64, false, {}, true},
+        // Interval zero disables intermediate checkpoints but still persists the final live state in slot one.
+        paged_selective_ssm_test_params{{4, 3}, {9, 2}, {0, -3}, 4, 2, 4, 31, ov::element::f32, ov::element::i64, false, {true, true}, true},
         // Empty sequences and completely empty token batches are legal no-ops.
         paged_selective_ssm_test_params{{0, 3, 0}, {0, 1, 7}, {2, 2, 0}, 4, 2, 4, 16, ov::element::f32, ov::element::i32, false, {true, false, false}, true},
         paged_selective_ssm_test_params{{0}, {0}, {2}, 2, 1, 2, 8, ov::element::f32, ov::element::i32, true, {true}, false},
         // Exercise binary serialization of the optimized implementation.
         paged_selective_ssm_test_params{{3, 2}, {1, 0}, {2, 2}, 4, 2, 4, 16, ov::element::f16, ov::element::i64, true, {true, true}, true, true},
-        paged_selective_ssm_test_params{{4, 2}, {3, 7}, {2, 3}, 4, 2, 3, 19, ov::element::f32, ov::element::i64, false, {true, false}, true, false, true},
+        expect_impl(
+            paged_selective_ssm_test_params{{4, 2}, {3, 7}, {2, 3}, 4, 2, 3, 19, ov::element::f32, ov::element::i64, false, {true, false}, true, false, true},
+            expected_ssm_impl::fallback),
         paged_selective_ssm_test_params{{3, 2}, {1, 0}, {2, 2}, 4, 2, 4, 16, ov::element::f16, ov::element::i32, true, {true, true}, true, false, false, 3},
+        with_state_precision(
+            paged_selective_ssm_test_params{{3, 2}, {1, 0}, {2, 2}, 4, 2, 4, 16, ov::element::f16, ov::element::i32, true, {true, true}, true, false, false, 3},
+            ov::element::f32),
         paged_selective_ssm_test_params{{32, 17, 5}, {3, 7, 1}, {4, 3, 2}, 8, 4, 16, 64, ov::element::f16, ov::element::i64, true},
+        // Exercise serialization of a dynamic-shape configuration eligible for the device-specific JIT kernels.
+        paged_selective_ssm_test_params{{32, 17, 5}, {3, 7, 1}, {4, 3, 2}, 8, 4, 16, 64, ov::element::f16, ov::element::i64, true, {}, false, true},
+        // Exercise serialization of the long dynamic recurrence that selects Xe2 dA precomputation.
+        expect_impl(paged_selective_ssm_test_params{{3072}, {0}, {3072}, 2, 1, 64, 128, ov::element::f16, ov::element::i32, true, {}, false, true},
+                    expected_ssm_impl::jit),
         paged_selective_ssm_test_params{{128}, {0}, {32}, 4, 2, 8, 32, ov::element::f16, ov::element::i32, false},
         paged_selective_ssm_test_params{{128}, {0}, {32}, 4, 2, 8, 32, ov::element::bf16, ov::element::i32, false},
         paged_selective_ssm_test_params{{128}, {0}, {128}, 1, 1, 1, 1, ov::element::f16, ov::element::i32, false, {}, false, false, false, 1, 0, true},
@@ -451,6 +527,14 @@ INSTANTIATE_TEST_SUITE_P(
         paged_selective_ssm_test_params{{3}, {-7}, {2}, 2, 1, 4, 8, ov::element::f32, ov::element::i32, false},
         paged_selective_ssm_test_params{{3}, {0}, {2}, 2, 1, 4, 8, ov::element::f32, ov::element::i32, false, {}, false, false, false, 1, 1},
         paged_selective_ssm_test_params{{3}, {0}, {2}, 2, 1, 4, 8, ov::element::f16, ov::element::i64, false, {}, false, false, false, 1, 2},
+        expect_impl(paged_selective_ssm_test_params{{3}, {0}, {2}, 2, 1, 4, 64, ov::element::f32, ov::element::i32, false, {}, false, false, false, 1, 1},
+                    expected_ssm_impl::jit),
+        expect_impl(paged_selective_ssm_test_params{{3}, {0}, {2}, 2, 1, 4, 64, ov::element::f16, ov::element::i64, false, {}, false, false, false, 1, 2},
+                    expected_ssm_impl::jit),
+        expect_impl(with_state_precision(
+                        paged_selective_ssm_test_params{{3}, {0}, {2}, 2, 1, 4, 64, ov::element::f16, ov::element::i64, false, {}, false, false, false, 2},
+                        ov::element::bf16),
+                    expected_ssm_impl::jit),
         // Exercise local-memory-driven 4 -> 3 -> 2 -> 1 blocking and tails.
         paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 4, 5000, ov::element::f32, ov::element::i32, false},
         paged_selective_ssm_test_params{{2}, {0}, {2}, 2, 1, 3, 6000, ov::element::f32, ov::element::i32, false},
@@ -474,6 +558,9 @@ INSTANTIATE_TEST_SUITE_P(
                                         0,
                                         false,
                                         2e-4f},
-        paged_selective_ssm_test_params{{2}, {0}, {2}, 1, 1, 1, large_state_size, ov::element::f16, ov::element::i32, true, {}, false, true}));
+        paged_selective_ssm_test_params{{2}, {0}, {2}, 1, 1, 1, large_state_size, ov::element::f16, ov::element::i32, true, {}, false, true},
+        with_state_precision(
+            paged_selective_ssm_test_params{{2}, {0}, {2}, 1, 1, 1, large_state_size, ov::element::f16, ov::element::i32, true, {}, false, true},
+            ov::element::bf16)));
 
 }  // namespace

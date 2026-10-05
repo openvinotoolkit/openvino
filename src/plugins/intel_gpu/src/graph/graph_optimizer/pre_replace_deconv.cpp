@@ -29,8 +29,9 @@ void pre_replace_deconv::run(program& p) {
         auto& node = (*node_itr).second;
         // find deconvolution primitives with stride 1 and change them to convolution with transposed weights
         if (node->is_type<deconvolution>()) {
-            if (node->is_dynamic())
+            if (node->is_dynamic()) {
                 continue;
+            }
 
             auto& deconv_node = node->as<deconvolution>();
             auto& weights_node = deconv_node.weights();
@@ -59,8 +60,9 @@ void pre_replace_deconv::run(program& p) {
                 // int8/uint8 input
                 perform_opt |= (input_layout.data_type == data_types::i8 || input_layout.data_type == data_types::u8);
 
-                if (!perform_opt)
+                if (!perform_opt) {
                     continue;
+                }
 
                 // setting convolution parameters based on deconvolution params
                 auto output_layout = deconv_node.get_output_layout();
@@ -73,19 +75,10 @@ void pre_replace_deconv::run(program& p) {
                 auto output_padding = deconv_prim->output_paddings[0];
                 auto grouped_weights_shape = deconv_prim->grouped_weights_shape;
 
-                // remove deconvolution node and its connections to weights and biases, rename it and move to the optimized list
-                p.remove_connection(input_node, deconv_node);
-                std::vector<std::shared_ptr<program_node>> weight_connections;
-                auto weights_iter = p.nodes_map.find(weights_nodes_id.pid);
-                OPENVINO_ASSERT(weights_iter != p.nodes_map.end());
-
-                auto weights_node_ptr = weights_iter->second;
-                weight_connections.push_back(weights_node_ptr);
-                p.remove_connection(*weights_node_ptr, deconv_node);
-
                 ov::CoordinateDiff pad_begin(spatial_rank, 0);
                 ov::CoordinateDiff pad_end(spatial_rank, 0);
 
+                bool invalid_pad = false;
                 for (size_t i = 0; i < spatial_rank; i++) {
                     auto fs = filter_layout.spatial(spatial_rank - i - 1);
                     auto out_dim = output_pshape[2 + i].get_length();
@@ -93,17 +86,39 @@ void pre_replace_deconv::run(program& p) {
 
                     pad_begin[i] = (fs - 1) - std::abs(pad[i]);
                     pad_end[i] = (out_dim - 1) * stride[i] + fs - in_dim - pad_begin[i];
+                    if (pad_begin[i] < 0 || pad_end[i] < 0) {
+                        invalid_pad = true;
+                        break;
+                    }
                 }
+
+                if (invalid_pad) {
+                    continue;
+                }
+
+                auto weights_iter = p.nodes_map.find(weights_nodes_id.pid);
+                OPENVINO_ASSERT(weights_iter != p.nodes_map.end());
+                auto weights_node_ptr = weights_iter->second;
 
                 std::vector<std::shared_ptr<program_node>> bias_connections;
                 if (biases_nodes_id.is_valid()) {
                     auto bias_iter = p.nodes_map.find(biases_nodes_id.pid);
-                    if (bias_iter == p.nodes_map.end())
+                    if (bias_iter == p.nodes_map.end()) {
                         continue;
+                    }
 
                     auto bias_id_node_ptr = bias_iter->second;
                     bias_connections.push_back(bias_id_node_ptr);
-                    p.remove_connection(*bias_id_node_ptr, deconv_node);
+                }
+
+                // remove deconvolution node and its connections to weights and biases, rename it and move to the optimized list
+                p.remove_connection(input_node, deconv_node);
+                std::vector<std::shared_ptr<program_node>> weight_connections;
+                weight_connections.push_back(weights_node_ptr);
+                p.remove_connection(*weights_node_ptr, deconv_node);
+
+                for (auto& bias_node_ptr : bias_connections) {
+                    p.remove_connection(*bias_node_ptr, deconv_node);
                 }
                 auto was_output = deconv_node.is_output();
                 if (was_output) {
@@ -184,8 +199,9 @@ void pre_replace_deconv::run(program& p) {
                 if (weights_data_type != data_types::f16 &&
                     weights_data_type != data_types::f32 &&
                     bias_data_type != data_types::f16 &&
-                    bias_data_type != data_types::f32)
+                    bias_data_type != data_types::f32) {
                     continue;
+                }
 
                 // setting convolution parameters based on deconvolution params
                 ov::Strides stride(spatial_rank, 1);
@@ -218,12 +234,14 @@ void pre_replace_deconv::run(program& p) {
 
                      if (weights_data_type == data_types::f16) {
                          mem_lock<ov::float16, mem_lock_type::read> src{ weights_node_ptr->as<data>().get_attached_memory_ptr(), stream };
-                         for (uint32_t i = 0; i < weights_layout.count(); i++)
+                         for (uint32_t i = 0; i < weights_layout.count(); i++) {
                              weights_vec_float.push_back(static_cast<float>(src.data()[i]));
+                         }
                      } else {
                          mem_lock<float, mem_lock_type::read> src{ weights_node_ptr->as<data>().get_attached_memory_ptr(), stream };
-                         for (uint32_t i = 0; i < weights_layout.count(); i++)
+                         for (uint32_t i = 0; i < weights_layout.count(); i++) {
                              weights_vec_float.push_back(src.data()[i]);
+                         }
                      }
 
                      std::vector<std::vector<std::vector<float> > > subpixel_weights(pixel_shuffle_size);

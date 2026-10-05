@@ -6,10 +6,12 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
 #include <string>
 #include <unordered_set>
 #include <vector>
 
+#include "common_test_utils/node_builders/constant.hpp"
 #include "common_test_utils/ov_test_utils.hpp"
 #include "openvino/op/assign.hpp"
 #include "openvino/op/concat.hpp"
@@ -26,6 +28,7 @@
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/pass/sdpa_to_paged_attention.hpp"
+#include "transformations/rt_info/keep_const_precision.hpp"
 
 namespace {
 
@@ -46,15 +49,6 @@ constexpr int64_t G = 2;
 constexpr int64_t P = 8;
 constexpr int64_t N = 6;
 
-std::shared_ptr<v0::Parameter> make_param(const std::string& name,
-                                          ov::element::Type et,
-                                          const ov::PartialShape& shape) {
-    auto p = std::make_shared<v0::Parameter>(et, shape);
-    p->set_friendly_name(name);
-    p->get_output_tensor(0).set_names({name});
-    return p;
-}
-
 struct SSMInputs {
     std::shared_ptr<v0::Parameter> a;
     std::shared_ptr<v0::Parameter> dt;
@@ -66,12 +60,12 @@ struct SSMInputs {
 
 SSMInputs make_ssm_inputs() {
     SSMInputs in;
-    in.a = make_param("A", element::f32, Shape{static_cast<size_t>(H)});
-    in.dt = make_param("dt", element::f32, Shape{B, L, H});
-    in.b = make_param("B", element::f32, Shape{B, L, G, N});
-    in.x = make_param("x", element::f32, Shape{B, L, H, P});
-    in.c = make_param("C", element::f32, Shape{B, L, G, N});
-    in.recurrent_state = make_param("past_ssm_state", element::f32, Shape{B, H, P, N});
+    in.a = ov::test::utils::make_param(element::f32, Shape{static_cast<size_t>(H)}, "A");
+    in.dt = ov::test::utils::make_param(element::f32, Shape{B, L, H}, "dt");
+    in.b = ov::test::utils::make_param(element::f32, Shape{B, L, G, N}, "B");
+    in.x = ov::test::utils::make_param(element::f32, Shape{B, L, H, P}, "x");
+    in.c = ov::test::utils::make_param(element::f32, Shape{B, L, G, N}, "C");
+    in.recurrent_state = ov::test::utils::make_param(element::f32, Shape{B, H, P, N}, "past_ssm_state");
     in.recurrent_state->get_output_tensor(0).set_names({"cache_params.past.ssm_state.0"});
     return in;
 }
@@ -85,7 +79,7 @@ struct GatheredState {
 
 GatheredState make_gathered_state(const SSMInputs& in) {
     GatheredState s;
-    s.beam_idx = make_param("beam_idx", element::i32, PartialShape{-1});
+    s.beam_idx = ov::test::utils::make_param(element::i32, PartialShape{-1}, "beam_idx");
     s.variable = std::make_shared<ov::op::util::Variable>(
         ov::op::util::VariableInfo{PartialShape{B, H, P, N}, element::f32, "ssm_var_0"});
     s.read_value = std::make_shared<v6::ReadValue>(in.recurrent_state->output(0), s.variable);
@@ -153,11 +147,11 @@ struct PagedParams {
 
 PagedParams make_paged_params() {
     PagedParams p;
-    p.subseq_begins = make_param("subsequence_begins", element::i32, PartialShape{-1});
-    p.block_indices = make_param("la.block_indices", element::i32, PartialShape{-1});
-    p.block_indices_begins = make_param("la.block_indices_begins", element::i32, PartialShape{-1});
-    p.past_lens = make_param("la.past_lens", element::i32, PartialShape{-1});
-    p.cache_interval = make_param("la.cache_interval", element::i32, PartialShape{-1});
+    p.subseq_begins = ov::test::utils::make_param(element::i32, PartialShape{-1}, "subsequence_begins");
+    p.block_indices = ov::test::utils::make_param(element::i32, PartialShape{-1}, "la.block_indices");
+    p.block_indices_begins = ov::test::utils::make_param(element::i32, PartialShape{-1}, "la.block_indices_begins");
+    p.past_lens = ov::test::utils::make_param(element::i32, PartialShape{-1}, "la.past_lens");
+    p.cache_interval = ov::test::utils::make_param(element::i32, PartialShape{-1}, "la.cache_interval");
     return p;
 }
 
@@ -178,8 +172,9 @@ std::shared_ptr<ov::Model> build_reference_model() {
     auto in = make_ssm_inputs();
     auto pp = make_paged_params();
     // SelectiveSSM recurrent_state [B,H,P,N] -> state table [num_blocks,H,P,N].
-    auto state_table =
-        make_param("selective_ssm_state_table.0", element::dynamic, PartialShape{Dimension::dynamic(), H, P, N});
+    auto state_table = ov::test::utils::make_param(element::dynamic,
+                                                   PartialShape{Dimension::dynamic(), H, P, N},
+                                                   "selective_ssm_state_table.0");
 
     const auto paged_ssm_out = build_paged_ssm_block(in,
                                                      state_table,
@@ -235,6 +230,15 @@ TEST_F(PagedSelectiveSSMFusionTest, FusePagedSSM) {
 
     const auto var_ids_to_remove = run_paged_selective_ssm_fusion(model);
     EXPECT_EQ(var_ids_to_remove.count("ssm_var_0"), 1u);
+
+    const auto& parameters = model->get_parameters();
+    const auto state_table =
+        std::find_if(parameters.begin(), parameters.end(), [](const std::shared_ptr<v0::Parameter>& parameter) {
+            return parameter->get_friendly_name() == "selective_ssm_state_table.0";
+        });
+    ASSERT_NE(state_table, parameters.end());
+    EXPECT_TRUE(ov::is_keep_const_precision(*state_table));
+    EXPECT_EQ((*state_table)->get_output_element_type(0), ov::element::dynamic);
 }
 
 TEST(PagedSelectiveSSMFusionCount, ReportsConvertedCount) {

@@ -6,7 +6,7 @@ set(TARGET_NAME openvino_interpreter_backend)
 
 add_definitions(-DIN_OV_COMPONENT)
 
-file(GLOB OPS_SRC "${CMAKE_CURRENT_SOURCE_DIR}/ops/*.cpp")
+include(sources.cmake)
 
 set (SRC
     backend.cpp
@@ -45,7 +45,7 @@ target_include_directories(${TARGET_NAME} PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRE
                                                  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ops/>
                                                  $<INSTALL_INTERFACE:developer_package/include/${TARGET_NAME}>)
 
-file(GLOB_RECURSE all_backends_src "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp")
+set(all_backends_src ${SRC} ${OPS_SRC} ${BACKEND_EXTRA_HEADERS})
 ov_add_clang_format_target(${TARGET_NAME}_clang FOR_SOURCES ${all_backends_src})
 
 # install & export

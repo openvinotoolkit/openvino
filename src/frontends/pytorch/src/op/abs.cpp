@@ -5,10 +5,7 @@
 #include "openvino/frontend/complex_type_mark.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace pytorch {
-namespace op {
+namespace ov::frontend::pytorch::op {
 
 using namespace ov::op;
 using namespace std;
@@ -27,7 +24,4 @@ OutputVector translate_abs(const NodeContext& context) {
     return {res};
 };
 
-}  // namespace op
-}  // namespace pytorch
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::pytorch::op

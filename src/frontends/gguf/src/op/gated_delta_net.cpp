@@ -7,6 +7,7 @@
 #include <cmath>
 #include <cstdint>
 #include <memory>
+#include <numeric>
 #include <vector>
 
 #include "node_context.hpp"
@@ -15,8 +16,10 @@
 #include "openvino/op/broadcast.hpp"
 #include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/exp.hpp"
 #include "openvino/op/gather.hpp"
+#include "openvino/op/less.hpp"
 #include "openvino/op/loop.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/multiply.hpp"
@@ -29,10 +32,7 @@
 #include "openvino/op/unsqueeze.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 static OutputVector translate_gated_delta_net_ref(const NodeContext& context);
 
@@ -43,14 +43,14 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context);
 OutputVector translate_gated_delta_net(const NodeContext& context) {
     num_inputs_check(context, 6, 6);
 
-    auto v_shape = context.get_input_shape(2).to_shape();  // [B, T, H_v, S_v]
-    auto q_shape = context.get_input_shape(0).to_shape();  // [B, T, H_k, S_k]
-    auto g_shape = context.get_input_shape(3).to_shape();  // [B, T, H_v, 1 or S_v]
+    auto v_shape = context.get_input_shape(2);  // [B, T, H_v, S_v]
+    auto q_shape = context.get_input_shape(0);  // [B, T, H_k, S_k]
+    auto g_shape = context.get_input_shape(3);  // [B, T, H_v, 1 or S_v]
 
-    const int64_t H_v = v_shape[2];
-    const int64_t S_v = v_shape[3];
-    const int64_t H_k = q_shape[2];
-    const bool kda = (g_shape[3] == (size_t)S_v);
+    const int64_t H_v = v_shape[2].get_length();
+    const int64_t S_v = v_shape[3].get_length();
+    const int64_t H_k = q_shape[2].get_length();
+    const bool kda = (g_shape[3].get_length() == S_v);
 
     // ggml reserves K * S_v * n_seqs state rows for K per-token snapshots (K = 1 + n_rs_seq, > 1 only
     // for speculative-decode rollback), while both paths here pack exactly one S_v-row block. Reject
@@ -92,6 +92,24 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     g = std::make_shared<ov::op::v0::Squeeze>(g, sq_axis_3);
     beta = std::make_shared<ov::op::v0::Squeeze>(beta, sq_axis_3);
 
+    if (context.has_input("chunk_valid_len")) {
+        const auto& g_shape = g.get_partial_shape();
+        FRONT_END_OP_CONVERSION_CHECK(
+            g_shape.rank().is_static() && g_shape.rank().get_length() == 3 && g_shape[1].is_static(),
+            "GATED_DELTA_NET pad masking requires a static token dimension");
+        const int64_t n_tokens = g_shape[1].get_length();
+        std::vector<int64_t> positions(n_tokens);
+        std::iota(positions.begin(), positions.end(), 0);
+        auto valid = std::make_shared<ov::op::v1::Less>(
+            ov::op::v0::Constant::create(ov::element::i64, {static_cast<size_t>(n_tokens)}, positions),
+            context.get_input("chunk_valid_len"));
+        auto mask = std::make_shared<ov::op::v0::Unsqueeze>(
+            std::make_shared<ov::op::v0::Convert>(valid, g.get_element_type()),
+            ov::op::v0::Constant::create(ov::element::i64, {2}, std::vector<int64_t>{0, 2}));
+        g = std::make_shared<ov::op::v1::Multiply>(g, mask);
+        beta = std::make_shared<ov::op::v1::Multiply>(beta, mask);
+    }
+
     auto gdn = std::make_shared<ov::op::internal::GatedDeltaNet>(q, k, v, state, g, beta);
     auto attn_4d = gdn->output(0);
     auto state_4d = gdn->output(1);  // [B, H_v, key_dim, value_dim]
@@ -107,7 +125,7 @@ OutputVector translate_gated_delta_net(const NodeContext& context) {
     auto out_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, -1, S_v * H_v});
     auto res = std::make_shared<ov::op::v1::Reshape>(packed, out_shape, false);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
 // Serializable reference path: a recurrent OV Loop scan over the sequence built from core ops,
@@ -122,23 +140,35 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
     auto beta = context.get_input(4);
     auto state = context.get_input(5);
 
-    auto v_shape = context.get_input_shape(2).to_shape();  // [B, T, H_v, S_v]
-    auto q_shape = context.get_input_shape(0).to_shape();  // [B, T, H_k, S_k]
-    auto g_shape = context.get_input_shape(3).to_shape();  // [B, T, H_v, 1 or S_v]
+    auto v_shape = context.get_input_shape(2);  // [B, T, H_v, S_v]
+    auto q_shape = context.get_input_shape(0);  // [B, T, H_k, S_k]
+    auto g_shape = context.get_input_shape(3);  // [B, T, H_v, 1 or S_v]
 
-    const int64_t B = v_shape[0];
-    const int64_t T = v_shape[1];
-    const int64_t H_v = v_shape[2];
-    const int64_t S_v = v_shape[3];
-    const int64_t H_k = q_shape[2];
-    const bool kda = (g_shape[3] == (size_t)S_v);
+    const int64_t B = v_shape[0].get_length();
+    const int64_t H_v = v_shape[2].get_length();
+    const int64_t S_v = v_shape[3].get_length();
+    const int64_t H_k = q_shape[2].get_length();
+    const bool kda = (g_shape[3].get_length() == S_v);
 
     const int64_t rq1 = H_v / H_k;  // GQA head repeat factor
     const float scale = 1.0f / std::sqrt((float)S_v);
 
-    // T is dynamic at runtime: T-dependent reshapes use -1 and the Loop trip count is read at
-    // runtime, so the convert-time T is only used for the static dims (B/H_v/S_v/H_k).
-    (void)T;
+    if (context.has_input("chunk_valid_len")) {
+        FRONT_END_OP_CONVERSION_CHECK(v_shape[1].is_static(),
+                                      "GATED_DELTA_NET pad masking requires a static token dimension");
+        const int64_t T = v_shape[1].get_length();
+        std::vector<int64_t> positions(T);
+        std::iota(positions.begin(), positions.end(), 0);
+        auto valid = std::make_shared<ov::op::v1::Less>(
+            ov::op::v0::Constant::create(ov::element::i64, {static_cast<size_t>(T)}, positions),
+            context.get_input("chunk_valid_len"));
+        auto mask = std::make_shared<ov::op::v1::Reshape>(
+            std::make_shared<ov::op::v0::Convert>(valid, g.get_element_type()),
+            ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, T, 1, 1}),
+            false);
+        g = std::make_shared<ov::op::v1::Multiply>(g, mask);
+        beta = std::make_shared<ov::op::v1::Multiply>(beta, mask);
+    }
 
     auto axis_0 = ov::op::v0::Constant::create(ov::element::i64, {1}, {0});
     auto axis_1 = ov::op::v0::Constant::create(ov::element::i64, {1}, {1});
@@ -272,10 +302,7 @@ static OutputVector translate_gated_delta_net_ref(const NodeContext& context) {
     auto out_shape = ov::op::v0::Constant::create(ov::element::i64, {4}, std::vector<int64_t>{1, 1, -1, S_v * H_v});
     auto res = std::make_shared<ov::op::v1::Reshape>(packed, out_shape, false);
 
-    return rename_outputs_with_suffix({res}, context.get_name());
+    return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op

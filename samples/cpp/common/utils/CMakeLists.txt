@@ -4,7 +4,19 @@
 
 set(TARGET_NAME "ie_samples_utils")
 
-file(GLOB_RECURSE SOURCES "*.cpp" "*.hpp" "*.h")
+set(SOURCES
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/samples/args_helper.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/samples/classification_results.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/samples/common.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/samples/console_progress.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/samples/csv_dumper.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/samples/latency_metrics.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/samples/os/windows/w_dirent.h
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/samples/slog.hpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/args_helper.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/latency_metrics.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/slog.cpp
+)
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
 add_library(${TARGET_NAME} STATIC ${SOURCES})

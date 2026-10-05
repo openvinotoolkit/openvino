@@ -10,6 +10,8 @@
 #include <string>
 
 #include "openvino/c/ov_common.h"
+#include "openvino/c/ov_property.h"
+#include "openvino/c/ov_remote_context.h"
 #include "openvino/core/except.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/runtime/exception.hpp"
@@ -71,6 +73,94 @@
         ov::Any value = _value;                                                                                \
         property[property_key] = value;                                                                        \
     }
+
+/**
+ * @brief Converts an ov_encryption_callbacks C struct into an ov::EncryptionCallbacks C++ object.
+ */
+inline ov::EncryptionCallbacks make_ov_encryption_callbacks(const ov_encryption_callbacks* cb) {
+    if (!cb || !cb->encrypt_func || !cb->decrypt_func) {
+        OPENVINO_THROW("ov_property_key_cache_encryption_callbacks: value must be a valid ov_encryption_callbacks* "
+                       "with non-null encrypt_func and decrypt_func");
+    }
+    auto encrypt_func = cb->encrypt_func;
+    auto decrypt_func = cb->decrypt_func;
+    std::function<std::string(const std::string&)> encrypt_fn = [encrypt_func](const std::string& in) {
+        size_t out_size = 0;
+        std::string out_str;
+        encrypt_func(in.c_str(), in.length(), nullptr, &out_size);
+        if (out_size > 0) {
+            std::unique_ptr<char[]> output_ptr(new char[out_size]);
+            if (output_ptr) {
+                char* output = output_ptr.get();
+                encrypt_func(in.c_str(), in.length(), output, &out_size);
+                out_str.assign(output, out_size);
+            }
+        }
+        return out_str;
+    };
+    std::function<std::string(const std::string&)> decrypt_fn = [decrypt_func](const std::string& in) {
+        size_t out_size = 0;
+        std::string out_str;
+        decrypt_func(in.c_str(), in.length(), nullptr, &out_size);
+        if (out_size > 0) {
+            std::unique_ptr<char[]> output_ptr(new char[out_size]);
+            if (output_ptr) {
+                char* output = output_ptr.get();
+                decrypt_func(in.c_str(), in.length(), output, &out_size);
+                out_str.assign(output, out_size);
+            }
+        }
+        return out_str;
+    };
+    return ov::EncryptionCallbacks{std::move(encrypt_fn), std::move(decrypt_fn)};
+}
+
+/**
+ * @brief Returns true for GPU property keys whose value is a raw pointer (OCL/VA handle),
+ *        not a null-terminated string.  Mirrors the logic in GET_INTEL_GPU_PROPERTY_FROM_ARGS_LIST.
+ */
+inline bool ov_property_value_is_gpu_ptr(const std::string& key) {
+#ifdef _WIN32
+    return key == ov_property_key_intel_gpu_ocl_context || key == ov_property_key_intel_gpu_ocl_queue ||
+           key == ov_property_key_intel_gpu_va_device || key == ov_property_key_intel_gpu_mem_handle ||
+           key == ov_property_key_intel_gpu_dev_object_handle;
+#else
+    return key == ov_property_key_intel_gpu_ocl_context || key == ov_property_key_intel_gpu_ocl_queue ||
+           key == ov_property_key_intel_gpu_va_device || key == ov_property_key_intel_gpu_mem_handle;
+#endif
+}
+
+/**
+ * @brief Builds an ov::AnyMap from a flat array of ov_property_t.
+ *
+ * The value field is a const void*.  The correct C++ type is determined from the key,
+ * mirroring the existing GET_PROPERTY_FROM_ARGS_LIST / GET_INTEL_GPU_PROPERTY_FROM_ARGS_LIST
+ * variadic macros:
+ *   - ov_property_key_cache_encryption_callbacks → cast to ov_encryption_callbacks*
+ *   - known GPU handle keys                      → store as void* (ov::Any)
+ *   - everything else                            → cast to const char* and copy as std::string
+ */
+inline ov::AnyMap ov_build_property_map(const ov_property_t* properties, size_t num_properties) {
+    ov::AnyMap result;
+    for (size_t i = 0; i < num_properties; ++i) {
+        if (!properties[i].key) {
+            OPENVINO_THROW("ov_property_t: key must not be null");
+        }
+        const std::string key = properties[i].key;
+        const void* val = properties[i].value;
+        if (!val) {
+            OPENVINO_THROW("ov_property_t: value for key '", key, "' must not be null");
+        }
+        if (key == ov::cache_encryption_callbacks.name()) {
+            result[key] = make_ov_encryption_callbacks(static_cast<const ov_encryption_callbacks*>(val));
+        } else if (ov_property_value_is_gpu_ptr(key)) {
+            result[key] = ov::Any(const_cast<void*>(val));
+        } else {
+            result[key] = std::string(static_cast<const char*>(val));
+        }
+    }
+    return result;
+}
 
 /**
  * @struct ov_core

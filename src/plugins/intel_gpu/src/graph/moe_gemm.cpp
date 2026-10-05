@@ -22,8 +22,9 @@ std::vector<layout> moe_gemm_inst::calc_output_layouts(moe_gemm_node const& /*no
     size_t num_experts_per_token = desc->num_experts_per_token;
     auto input_layout = impl_param.get_input_layout(0);
     size_t input_rank = input_layout.get_partial_shape().size();
-    if (input_rank != 3)
+    if (input_rank != 3) {
         OPENVINO_THROW("moe_gemm's input rank should be 3");
+    }
     auto experts_layout = impl_param.get_input_layout(1);
     auto out_n_dim = input_rank - 1;
     auto output_shape = input_layout.get_partial_shape();
@@ -64,8 +65,9 @@ std::string moe_gemm_inst::to_string(moe_gemm_node const& node) {
     std::stringstream primitive_description;
 
     json_composite moe_gemm_info;
-    if (desc->output_data_types[0].has_value())
+    if (desc->output_data_types[0].has_value()) {
         moe_gemm_info.add("out dt: ", dt_to_str(*desc->output_data_types[0]));
+    }
     node_info->dump(primitive_description);
 
     return primitive_description.str();

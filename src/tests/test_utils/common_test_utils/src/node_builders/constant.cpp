@@ -5,6 +5,7 @@
 #include "common_test_utils/node_builders/constant.hpp"
 
 #include "common_test_utils/type_ranges.hpp"
+#include "openvino/op/util/node_util.hpp"
 
 namespace ov {
 namespace test {
@@ -28,6 +29,16 @@ std::shared_ptr<ov::Node> make_constant(const ov::element::Type& type,
 
     auto tensor = create_and_fill_tensor(type, shape, in_data);
     return std::make_shared<ov::op::v0::Constant>(tensor);
+}
+
+std::shared_ptr<ov::op::v0::Parameter> make_param(ov::element::Type et,
+                                                  const ov::PartialShape& shape,
+                                                  std::string_view name) {
+    auto p = std::make_shared<ov::op::v0::Parameter>(et, shape);
+    if (!name.empty()) {
+        ov::op::util::set_name(*p, name);
+    }
+    return p;
 }
 }  // namespace utils
 }  // namespace test

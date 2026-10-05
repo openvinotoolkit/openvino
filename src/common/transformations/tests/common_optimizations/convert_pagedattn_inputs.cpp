@@ -11,6 +11,7 @@
 #include "openvino/op/paged_attention.hpp"
 #include "openvino/op/paged_causal_conv1d.hpp"
 #include "openvino/op/paged_gated_delta_net.hpp"
+#include "openvino/op/paged_selective_ssm.hpp"
 #include "openvino/pass/constant_folding.hpp"
 #include "openvino/pass/manager.hpp"
 #include "openvino/runtime/properties.hpp"
@@ -531,6 +532,146 @@ TEST_F(ConvertPagedAttnInputsStateTableTest, ConvertPagedGatedDeltaNetPrecision)
     // Verify no Convert node between Parameter and PagedGatedDeltaNet
     EXPECT_TRUE(ov::is_type<v0::Parameter>(paged_gdn->get_input_node_shared_ptr(3)));
     EXPECT_EQ(gated_delta_state_table->get_element_type(), ov::element::f16);
+}
+
+TEST_F(ConvertPagedAttnInputsStateTableTest, ConvertPagedSelectiveSSMPrecision) {
+    auto A = std::make_shared<v0::Parameter>(element::f32, PartialShape{4});
+    auto dt = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 4});
+    auto B = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 16});
+    auto x = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 4, 8});
+    auto C = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 16});
+    auto selective_ssm_state_table = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1, 4, 8, 16});
+    selective_ssm_state_table->set_friendly_name("selective_ssm_state_table.0");
+    enable_keep_const_precision(selective_ssm_state_table);
+    auto subsequence_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto block_indices = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto block_indices_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto num_processed_tokens = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto cache_interval = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+
+    auto paged_ssm = std::make_shared<op::internal::PagedSelectiveSSM>(A,
+                                                                       dt,
+                                                                       B,
+                                                                       x,
+                                                                       C,
+                                                                       selective_ssm_state_table,
+                                                                       subsequence_begins,
+                                                                       block_indices,
+                                                                       block_indices_begins,
+                                                                       num_processed_tokens,
+                                                                       cache_interval);
+    auto local_model = std::make_shared<Model>(OutputVector{paged_ssm},
+                                               ParameterVector{A,
+                                                               dt,
+                                                               B,
+                                                               x,
+                                                               C,
+                                                               selective_ssm_state_table,
+                                                               subsequence_begins,
+                                                               block_indices,
+                                                               block_indices_begins,
+                                                               num_processed_tokens,
+                                                               cache_interval});
+
+    // Replicate GPU pipeline: clear keep_const_precision on all nodes
+    for (auto& node : local_model->get_ops()) {
+        ov::disable_keep_const_precision(node);
+    }
+
+    ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
+    cacheConfig.inferencePrecision = ov::element::f16;
+
+    ov::pass::Manager local_manager;
+
+    precisions_map fp_convert_precision_map = {{ov::element::f64, ov::element::f32},
+                                               {ov::element::f32, ov::element::f16}};
+    type_to_fuse_map empty_fuse_map = {};
+    local_manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
+                                                            empty_fuse_map,
+                                                            /*keep_precision_sensitive_in_fp32*/ true,
+                                                            /*convert_input_output_precision*/ false,
+                                                            /*store_original_precision_as_rt_attribute*/ true);
+
+    auto update_paged_attention_shape_func =
+        [](const ov::element::Type&, const bool, const size_t, int64_t&, int64_t&) {};
+    local_manager.register_pass<ov::pass::ConvertPagedAttnInputs>(cacheConfig, update_paged_attention_shape_func);
+    local_manager.run_passes(local_model);
+
+    for (size_t input = 0; input < 5; ++input) {
+        EXPECT_EQ(paged_ssm->get_input_element_type(input), element::f16);
+    }
+    // Verify no Convert node between Parameter and PagedSelectiveSSM
+    EXPECT_TRUE(ov::is_type<v0::Parameter>(paged_ssm->get_input_node_shared_ptr(5)));
+    EXPECT_EQ(selective_ssm_state_table->get_element_type(), ov::element::f16);
+    EXPECT_EQ(paged_ssm->get_output_element_type(0), element::f16);
+}
+
+TEST_F(ConvertPagedAttnInputsStateTableTest, ConvertPagedSelectiveSSMIndependentStatePrecision) {
+    auto A = std::make_shared<v0::Parameter>(element::f32, PartialShape{4});
+    auto dt = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 4});
+    auto B = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 16});
+    auto x = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 4, 8});
+    auto C = std::make_shared<v0::Parameter>(element::f32, PartialShape{-1, 2, 16});
+    auto selective_ssm_state_table = std::make_shared<v0::Parameter>(element::dynamic, PartialShape{-1, 4, 8, 16});
+    selective_ssm_state_table->set_friendly_name("selective_ssm_state_table.0");
+    for (const auto& parameter : {A, dt, B, x, C, selective_ssm_state_table}) {
+        enable_keep_const_precision(parameter);
+    }
+    auto subsequence_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto block_indices = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto block_indices_begins = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto num_processed_tokens = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+    auto cache_interval = std::make_shared<v0::Parameter>(element::i32, PartialShape{-1});
+
+    auto paged_ssm = std::make_shared<op::internal::PagedSelectiveSSM>(A,
+                                                                       dt,
+                                                                       B,
+                                                                       x,
+                                                                       C,
+                                                                       selective_ssm_state_table,
+                                                                       subsequence_begins,
+                                                                       block_indices,
+                                                                       block_indices_begins,
+                                                                       num_processed_tokens,
+                                                                       cache_interval);
+    auto local_model = std::make_shared<Model>(OutputVector{paged_ssm},
+                                               ParameterVector{A,
+                                                               dt,
+                                                               B,
+                                                               x,
+                                                               C,
+                                                               selective_ssm_state_table,
+                                                               subsequence_begins,
+                                                               block_indices,
+                                                               block_indices_begins,
+                                                               num_processed_tokens,
+                                                               cache_interval});
+
+    ov::pass::ConvertPagedAttnInputs::KVCacheConfig cacheConfig;
+    cacheConfig.inferencePrecision = ov::element::f16;
+
+    ov::pass::Manager local_manager;
+
+    precisions_map fp_convert_precision_map = {{ov::element::f64, ov::element::f32},
+                                               {ov::element::f32, ov::element::f16}};
+    type_to_fuse_map empty_fuse_map = {};
+    local_manager.register_pass<ov::pass::ConvertPrecision>(fp_convert_precision_map,
+                                                            empty_fuse_map,
+                                                            /*keep_precision_sensitive_in_fp32*/ true,
+                                                            /*convert_input_output_precision*/ false,
+                                                            /*store_original_precision_as_rt_attribute*/ true);
+
+    auto update_paged_attention_shape_func =
+        [](const ov::element::Type&, const bool, const size_t, int64_t&, int64_t&) {};
+    local_manager.register_pass<ov::pass::ConvertPagedAttnInputs>(cacheConfig, update_paged_attention_shape_func);
+    local_manager.run_passes(local_model);
+
+    for (size_t input = 0; input < 5; ++input) {
+        EXPECT_EQ(paged_ssm->get_input_element_type(input), element::f32);
+    }
+    EXPECT_TRUE(ov::is_type<v0::Parameter>(paged_ssm->get_input_node_shared_ptr(5)));
+    EXPECT_EQ(selective_ssm_state_table->get_element_type(), ov::element::f16);
+    EXPECT_EQ(paged_ssm->get_output_element_type(0), element::f32);
 }
 
 }  // namespace

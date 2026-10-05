@@ -5,8 +5,8 @@ description: |
   start from a compact summary instead of re-downloading logs itself.
 
   The step auto-detects its mode from the environment (no parameters required):
-    - run mode  (RUN_ID set):    analyse a single workflow run (CI Doctor — Merge Queue).
-    - pr mode   (PR_NUMBER set):  analyse every failed run on a pull request head commit.
+    - run mode  (RUN_ID set):    analyse a single workflow run (run-ID doctors: Merge Queue, Post-Commit).
+    - pr mode   (PR_NUMBER set):  analyse every failed run on a pull request head commit (on-demand /ci-doctor).
 
   Output layout (identical in both modes):
     - /tmp/gh-aw/agent/ci-doctor/logs/job-<job-id>.log

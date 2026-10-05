@@ -26,7 +26,8 @@ void LLMContinuousKVCacheStrategy::on_initialize() {
     m_kv_pairs.clear();
     m_kv_pairs.reserve(m_req.m_kvcache_past_names.size());
     for (const auto& name : m_req.m_kvcache_past_names) {
-        m_kv_pairs.push_back({name, ov::npuw::util::isPastValueParam(name)});
+        const bool is_value = ov::npuw::util::isPastValueParam(name) || ov::npuw::util::isDQScaleOrZPValue(name);
+        m_kv_pairs.push_back({name, is_value});
     }
 
     // Step 1: share past KV buffers across generate variants.
@@ -135,6 +136,7 @@ void LLMContinuousKVCacheStrategy::on_generate_variant_switch(const std::shared_
 
         // Copy via a temporary CPU buffer to avoid aliasing (src and dst share backing memory).
         auto tmp = uu::allocMem(src->get_element_type(), src_slice->get_shape(), "CPU", nullptr);
+        NPUW_ASSERT(tmp._ptr && "CPU buffer allocation for KV copy failed — check memory availability");
         src_slice->copy_to(tmp._ptr);
         uu::copy_tensor_by_dim(tmp, dst_slice, kv_dim, kv_dim);
     }
@@ -261,6 +263,7 @@ void LLMContinuousKVCacheStrategy::continue_prefill(uint32_t keep, uint32_t delt
             // flight hold staging memory at any moment rather than the whole
             // preserved prefix at once.
             auto temp = uu::allocMem(src->get_element_type(), src_slice->get_shape(), "CPU", nullptr);
+            NPUW_ASSERT(temp._ptr && "CPU buffer allocation for KV repack failed — check memory availability");
             src_slice->copy_to(temp._ptr);
             uu::copy_tensor_by_dim(temp, dst_slice, entry.src_dim, entry.dst_dim);
         } else {

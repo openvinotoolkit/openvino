@@ -247,7 +247,7 @@ std::vector<QuantizationParams> withSwishQuantizationParams{
 
 INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_withSwish_CPU,
                          ConvAndFQ,
-                         ::testing::Combine(::testing::ValuesIn(inputShapes),
+                         ::testing::Combine(::testing::Values(inputShapes.front()),
                                             ::testing::Values(element::f32),
                                             ::testing::ValuesIn(withSwishQuantizationParams),
                                             ::testing::Values(true),  // withBias
@@ -279,6 +279,12 @@ std::vector<QuantizationParams> asymmetricZeroPointWithBiasParams{
      false},  // per-channel zp
 };
 
+std::vector<QuantizationParams> withSwishDynamicQuantizationParams{
+    {signedIntervals, signedIntervals, {}, expectedConvPrecBySignedFQRange, false},  // i8 -> i8, per-tensor
+    {unsignedIntervals, unsignedIntervals, {}, element::f32, false},  // u8 -> u8, per-tensor (fallbacks to f32)
+    {signedIntervals, signedIntervals, {}, element::f32, true},       // i8 -> f32, per-channel (fallbacks to f32)
+};
+
 INSTANTIATE_TEST_SUITE_P(
     smoke_ConvAndFQ_asymmetricZeroPointNoBias_CPU,
     ConvAndFQ,
@@ -300,6 +306,16 @@ INSTANTIATE_TEST_SUITE_P(
                        ::testing::Values(false),  // withSwish
                        ::testing::Values(ov::test::utils::DEVICE_CPU)),
     ConvAndFQ::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_ConvAndFQ_withSwish_CPU_Dynamic,
+                         ConvAndFQ,
+                         ::testing::Combine(::testing::Values(inputShapes.back()),
+                                            ::testing::Values(element::f32),
+                                            ::testing::ValuesIn(withSwishDynamicQuantizationParams),
+                                            ::testing::Values(true),  // withBias
+                                            ::testing::Values(true),  // withSwish
+                                            ::testing::Values(ov::test::utils::DEVICE_CPU)),
+                         ConvAndFQ::getTestCaseName);
 }  // namespace
 }  // namespace test
 }  // namespace ov

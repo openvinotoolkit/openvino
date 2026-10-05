@@ -92,6 +92,15 @@ void GetGRUActivationParams(const std::shared_ptr<T>& op,
     }
 }
 
+static float NormalizeRNNClip(float clip, const std::string& layer_name) {
+    const auto clip_mode = ov::op::util::classify_rnn_clip(clip);
+    if (clip_mode == ov::op::util::RNNClipMode::INVALID) {
+        GPU_DEBUG_LOG << "[" << layer_name << "] Ignoring invalid RNN clip value " << clip
+                      << "; using no clipping" << std::endl;
+    }
+    return clip_mode == ov::op::util::RNNClipMode::CLAMP ? clip : 0.0f;
+}
+
 static void CreateGRUSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v5::GRUSequence>& op) {
     validate_inputs_count(op, {6});
     std::string layerName = layer_type_name_ID(op);
@@ -100,7 +109,7 @@ static void CreateGRUSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op:
     std::vector<cldnn::activation_func> activations;
     std::vector<cldnn::activation_additional_params> activation_params;
     GetGRUActivationParams(op, activations, activation_params);
-    float clip = op->get_clip();
+    const float clip = NormalizeRNNClip(op->get_clip(), layerName);
     if (op->get_input_shape(2).size() != 1 || op->get_input_shape(3).size() != 3 \
             || op->get_input_shape(4).size() != 3 || op->get_input_shape(5).size() != 2)
             OPENVINO_THROW("Wrong input shapes for GRUSequence op ", op->get_friendly_name());
@@ -121,7 +130,7 @@ static void CreateLSTMCellOp(ProgramBuilder& p, const std::shared_ptr<ov::op::v4
     std::vector<cldnn::activation_func> activations;
     std::vector<cldnn::activation_additional_params> activation_params;
     GetLSTMActivationParams(op, activations, activation_params);
-    float clip = op->get_clip();
+    const float clip = NormalizeRNNClip(op->get_clip(), layerName);
     OPENVINO_ASSERT(!inputs[5].pid.empty());
     OPENVINO_ASSERT(p.use_new_shape_infer());
     p.add_primitive(*op, cldnn::lstm_cell(layerName, inputs[0], inputs[1], inputs[2], inputs[3], inputs[4], inputs[5], cldnn::input_info(),
@@ -136,7 +145,7 @@ static void CreateLSTMSequenceOp(ProgramBuilder& p, const std::shared_ptr<ov::op
     std::vector<cldnn::activation_func> activations;
     std::vector<cldnn::activation_additional_params> activation_params;
     GetLSTMActivationParams(op, activations, activation_params);
-    const float clip = op->get_clip();
+    const float clip = NormalizeRNNClip(op->get_clip(), layerName);
     OPENVINO_ASSERT(op->get_input_shape(2).size() == 3 && op->get_input_shape(3).size() == 1 && op->get_input_shape(4).size() == 3 &&
         op->get_input_shape(5).size() == 3 && op->get_input_shape(6).size() == 2, "Wrong input shapes for LSTMSequence op ", op->get_friendly_name());
     auto direction = op->get_direction();

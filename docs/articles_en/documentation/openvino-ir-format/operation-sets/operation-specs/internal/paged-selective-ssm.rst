@@ -124,7 +124,7 @@ Cases for reading and updating blocks:
   Grouped output projection for all tokens in the batch. Shared across heads within a group.
   **Required.**
 
-* **6**: ``recurrent_state_table`` - Tensor of type *T* and shape
+* **6**: ``recurrent_state_table`` - Tensor of type *T_cache* and shape
   ``[num_blocks, num_heads, head_dim, state_size]``.
   Paged table of recurrent state snapshots. Each row is one block storing a complete state for
   all heads at a cached token position. This tensor is updated in place during execution.
@@ -177,7 +177,11 @@ Cases for reading and updating blocks:
 **Types**
 
 * *T*: any floating-point type.
-* *T_IND*: ``int32`` or ``int64``.
+
+* *T_IND*: ``int32``.
+
+* *T_cache* - cache precision; may differ from *T*.
+  Allowed for ``recurrent_state_table`` (input 6): ``f16``, ``f32``, ``bf16``.
 
 
 **Example**
