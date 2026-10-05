@@ -23,6 +23,9 @@ class TRANSFORMATIONS_API RestoreTracedBatch;
  * batch one turns into a constant. Only this subgraph is matched: a leading constant one cannot be told apart from an
  * intentional collapse in general, so the pass is not a generic batch restoration.
  *
+ * The batch may reach the last `Reshape` through a `Convert`. A pinned shape target shared with other `Reshape`s is
+ * copied, so only the matched one is restored.
+ *
  * ## Before
  *
  *           windows [B * nW, ws, ws, C]
@@ -36,6 +39,8 @@ class TRANSFORMATIONS_API RestoreTracedBatch;
  *          Roll(non-leading axes)                        (optional, shifted windows)
  *                      |
  *     Reshape(Concat(Gather(ShapeOf(Parameter), 0), H * W, C))
+ *
+ * Every node between the two pinned `Reshape`s and the last one must have a single consumer.
  *
  * ## After
  *
