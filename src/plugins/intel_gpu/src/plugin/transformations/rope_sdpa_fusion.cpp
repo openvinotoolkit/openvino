@@ -130,9 +130,10 @@ RoPESDPAFusion::RoPESDPAFusion() {
         if (cfg.rotary_ndims != static_cast<size_t>(head_size) || head_size % 2 != 0)
             return false;
 
-        for (size_t i = 1; i < 3; i++)
+        for (size_t i = 1; i < 3; i++) {
             if (!is_flat_cos_sin(rope->input_value(i), batch, tokens, head_size))
                 return false;
+        }
 
         if (transformation_callback(sdpa))
             return false;
