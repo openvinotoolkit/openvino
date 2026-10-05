@@ -78,10 +78,8 @@ public:
         } else {
             for (size_t i = 0; i < params.inputs.size(); i++) {
                 if (!params.inputs[i].SameDims(params.outputs[0])) {
-                    std::vector<ov::Dimension::value_type> input_size =
-                        impl_param.input_layouts[i].get_tensor().raw.vector();
-                    std::vector<ov::Dimension::value_type> output_size =
-                        impl_param.get_output_layout().get_tensor().raw.vector();
+                    std::vector<ov::Dimension::value_type> input_size = impl_param.input_layouts[i].get_tensor().raw.vector();
+                    std::vector<ov::Dimension::value_type> output_size = impl_param.get_output_layout().get_tensor().raw.vector();
                     bool broadcast = false;
                     for (size_t d = 0; d < output_size.size(); d++) {
                         if (output_size[d] != 1 && input_size[d] == 1) {
@@ -259,8 +257,8 @@ attach_eltwise_impl::attach_eltwise_impl() {
         std::make_tuple(data_types::i16, format::bfwzyx),
         std::make_tuple(data_types::u16, format::bfwzyx),
         std::make_tuple(data_types::u32, format::bfwzyx),
-        std::make_tuple(data_types::i32, format::bfzyx),
-        std::make_tuple(data_types::i64, format::bfzyx),
+        std::make_tuple(data_types::i32, format::bfwzyx),
+        std::make_tuple(data_types::i64, format::bfwzyx),
 
         std::make_tuple(data_types::f32, format::bfuwzyx),
         std::make_tuple(data_types::f16, format::bfuwzyx),
@@ -275,7 +273,7 @@ attach_eltwise_impl::attach_eltwise_impl() {
 
         std::make_tuple(data_types::f32, format::bfvuwzyx),
         std::make_tuple(data_types::f16, format::bfvuwzyx),
-        std::make_tuple(data_types::bfvuwzyx),
+        std::make_tuple(data_types::bf16, format::bfvuwzyx),
         std::make_tuple(data_types::i8, format::bfvuwzyx),
         std::make_tuple(data_types::u8, format::bfvuwzyx),
         std::make_tuple(data_types::i16, format::bfvuwzyx),
