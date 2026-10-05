@@ -10,11 +10,19 @@
 //   Phase 3: Bitonic sort in SLM (45 barriers for K<=512 vs 3000+ for iterative)
 //   Phase 4: Write sorted results to output
 //
+// Chunked mode (RADIX_CHUNK_STAGE + RADIX_MERGE_STAGE kernels):
+//   One work-group per operation leaves most of the GPU idle when there are only a few
+//   long rows. The chunk stage runs the algorithm above on RADIX_CHUNKS slices of each
+//   row and stores every slice's top-K keys and indices. The merge stage runs it again
+//   on the RADIX_CANDIDATES_NUM survivors of each row and writes the outputs. Survivors
+//   are laid out by chunk and sorted with the same (key, index) ordering, so among equal
+//   keys their position order matches the original index order.
+//
 // Design principles:
 //   - Read input exactly ONCE to avoid GPU cache inconsistency
 //   - Single global buffer for sortable keys (N * 4 bytes per operation)
 //   - SLM bitonic sort for Phase 3 (fast, no global memory for sorting)
-//   - Total SLM: ~5KB (histogram 1KB + sort buffers 4KB)
+//   - Total SLM: ~6KB (histogram 1KB + tie counters 1KB + sort buffers 4KB)
 //
 
 #include "include/fetch_utils.cl"
@@ -57,6 +65,10 @@
 #endif
 
 #define NUM_BUCKETS 256
+#define BUCKET_GROUP_SIZE 16
+#define BUCKET_GROUPS (NUM_BUCKETS / BUCKET_GROUP_SIZE)
+#define TIE_GROUP_SIZE 16
+#define TIE_GROUPS (WG_SIZE / TIE_GROUP_SIZE)
 
 // Coarse-to-fine radix select: one 8-bit digit per pass, MSD first.
 #define NUM_PASSES (SORTABLE_BITS / 8)
@@ -148,40 +160,62 @@ KERNEL(arg_max_min_topk_radix)(
     ,__global OUTPUT1_TYPE* second_output
 #endif
     ,__global uint* sortable_buf            // Cached sortable keys: VALUES_NUM per operation
+#if defined(RADIX_CHUNK_STAGE) || defined(RADIX_MERGE_STAGE)
+    ,__global uint* candidate_keys          // Per-chunk top-K keys: RADIX_CANDIDATES_NUM per operation
+    ,__global uint* candidate_idxs          // Original indices of candidate_keys
+#endif
 )
 {
     const uint lid = (uint)get_local_id(0);
+#ifdef RADIX_CHUNK_STAGE
+    const uint chunk_group_idx = (uint)get_group_id(0);
+    const uint output_idx = chunk_group_idx / RADIX_CHUNKS;
+    const uint chunk_begin = (chunk_group_idx % RADIX_CHUNKS) * RADIX_CHUNK_SIZE;
+    const uint values_count = min((uint)RADIX_CHUNK_SIZE, (uint)VALUES_NUM - chunk_begin);
+    __global uint* my_sortable = sortable_buf + chunk_group_idx * RADIX_CHUNK_SIZE;
+#elif defined(RADIX_MERGE_STAGE)
     const uint output_idx = (uint)get_group_id(0);
+    const uint values_count = RADIX_CANDIDATES_NUM;
+    // Keys were already converted by the chunk stage; positions index candidate_idxs.
+    const __global uint* my_sortable = candidate_keys + output_idx * RADIX_CANDIDATES_NUM;
+#else
+    const uint output_idx = (uint)get_group_id(0);
+    const uint chunk_begin = 0;
+    const uint values_count = VALUES_NUM;
+    __global uint* my_sortable = sortable_buf + output_idx * VALUES_NUM;
+#endif
 
     uint base_indices[] = { 0, 0, 0, 0, 0 };
     if (OPERATION_NUM > 1) {
         FUNC_CALL(get_indices_from_dims)(OPTIONAL_SHAPE_INFO_TENSOR output_idx, base_indices);
     }
 
-    // Global buffer pointer for this operation's sortable keys
-    __global uint* my_sortable = sortable_buf + output_idx * VALUES_NUM;
-
     // ============================================================
     // SLM declarations (all at outermost kernel scope)
-    // Total SLM: 256*4 + 512*4 + 512*4 + ~20 ~= 5KB
+    // Total SLM: 256*4 + 16*4 + 256*4 + 16*4 + 512*4 + 512*4 + ~20 ~= 6KB
     // ============================================================
     __local uint histogram[NUM_BUCKETS];        // 1KB
+    __local uint bucket_group_counts[BUCKET_GROUPS];
+    __local uint tie_counts[WG_SIZE];           // per work-item tie counts for ordered tie gathering
+    __local uint tie_group_counts[TIE_GROUPS];
     __local uint sort_keys[PADDED_K];           // sortable uint keys for bitonic sort
     __local uint sort_idxs[PADDED_K];           // original indices
     __local uint threshold_bucket;
     __local uint count_above;
     __local uint gather_count;
 
+#ifndef RADIX_MERGE_STAGE
     // ============================================================
     // Phase 0: Read input ONCE, convert to sortable keys, cache in global buffer
     // ============================================================
-    for (uint i = lid; i < VALUES_NUM; i += WG_SIZE) {
-        base_indices[AXIS] = i;
+    for (uint i = lid; i < values_count; i += WG_SIZE) {
+        base_indices[AXIS] = chunk_begin + i;
         INPUT0_TYPE val = input[FUNC_CALL(get_input_index)(OPTIONAL_SHAPE_INFO_TENSOR
             base_indices[0], base_indices[1], 0, base_indices[2], base_indices[3], base_indices[4])];
         my_sortable[i] = FUNC_CALL(to_sortable)(val);
     }
     barrier(CLK_LOCAL_MEM_FENCE | CLK_GLOBAL_MEM_FENCE);
+#endif
 
     // ============================================================
     // Phase 1: MSD radix select - resolve the K-th key one byte at a time.
@@ -200,7 +234,7 @@ KERNEL(arg_max_min_topk_radix)(
         }
         barrier(CLK_LOCAL_MEM_FENCE);
 
-        for (uint i = lid; i < VALUES_NUM; i += WG_SIZE) {
+        for (uint i = lid; i < values_count; i += WG_SIZE) {
             uint sortable = my_sortable[i];
             uint hi = (hi_shift >= SORTABLE_BITS) ? 0u : (sortable >> hi_shift);
             if (hi == prefix) {
@@ -209,10 +243,25 @@ KERNEL(arg_max_min_topk_radix)(
         }
         barrier(CLK_LOCAL_MEM_FENCE);
 
+        // Two-level search for the threshold bucket: group sums first, then buckets of one group.
+        if (lid < BUCKET_GROUPS) {
+            uint group_count = 0;
+            for (uint j = 0; j < BUCKET_GROUP_SIZE; j++) {
+                group_count += histogram[lid * BUCKET_GROUP_SIZE + j];
+            }
+            bucket_group_counts[lid] = group_count;
+        }
+        barrier(CLK_LOCAL_MEM_FENCE);
+
         if (lid == 0) {
             uint cumulative = already_above;
 #ifdef MAX_OUT
-            for (int b = NUM_BUCKETS - 1; b >= 0; b--) {
+            int group = BUCKET_GROUPS - 1;
+            while (group > 0 && cumulative + bucket_group_counts[group] < TOP_K) {
+                cumulative += bucket_group_counts[group];
+                group--;
+            }
+            for (int b = (group + 1) * BUCKET_GROUP_SIZE - 1; b >= 0; b--) {
                 cumulative += histogram[b];
                 if (cumulative >= TOP_K) {
                     threshold_bucket = (uint)b;
@@ -221,7 +270,12 @@ KERNEL(arg_max_min_topk_radix)(
                 }
             }
 #else
-            for (uint b = 0; b < NUM_BUCKETS; b++) {
+            uint group = 0;
+            while (group < BUCKET_GROUPS - 1 && cumulative + bucket_group_counts[group] < TOP_K) {
+                cumulative += bucket_group_counts[group];
+                group++;
+            }
+            for (uint b = group * BUCKET_GROUP_SIZE; b < NUM_BUCKETS; b++) {
                 cumulative += histogram[b];
                 if (cumulative >= TOP_K) {
                     threshold_bucket = b;
@@ -262,7 +316,7 @@ KERNEL(arg_max_min_topk_radix)(
     // Phase 2a: Gather elements strictly ABOVE threshold into SLM
     // Read from cached sortable buffer
     // ============================================================
-    for (uint i = lid; i < VALUES_NUM; i += WG_SIZE) {
+    for (uint i = lid; i < values_count; i += WG_SIZE) {
         uint sortable = my_sortable[i];
         bool is_above;
 #ifdef MAX_OUT
@@ -283,9 +337,10 @@ KERNEL(arg_max_min_topk_radix)(
     // ============================================================
     // Phase 2b: Gather elements AT threshold into SLM
     // Strategy: check if all at-threshold elements fit in remaining slots.
-    //   - Fast path (common): all fit. parallel atomic_add (no correctness issue)
-    //   - Slow path (rare):   overflow. single WI sequential scan for deterministic
-    //     index ordering (smallest indices first, matching TF/ONNX behavior)
+    //   - Fast path: all fit. parallel atomic_add (no correctness issue)
+    //   - Ordered path: overflow. Each work-item owns a contiguous index block, so a
+    //     prefix sum of per-block tie counts places the smallest indices first
+    //     (matching TF/ONNX behavior) without a single work-item scan.
     // histogram[threshold & 0xFF] still holds the fine histogram count from Phase 1.
     // ============================================================
     uint current_count = min(gather_count, (uint)PADDED_K);
@@ -300,7 +355,7 @@ KERNEL(arg_max_min_topk_radix)(
 
         if (at_count <= available_slots) {
             // Fast path: all at-threshold elements fit, parallel gather is safe
-            for (uint i = lid; i < VALUES_NUM; i += WG_SIZE) {
+            for (uint i = lid; i < values_count; i += WG_SIZE) {
                 uint sortable = my_sortable[i];
                 if (sortable == threshold) {
                     uint pos = atomic_add(&gather_count, 1);
@@ -311,19 +366,43 @@ KERNEL(arg_max_min_topk_radix)(
                 }
             }
         } else {
-            // Slow path: more at-threshold elements than slots,
-            // sequential scan ensures smallest indices are selected first
-            if (lid == 0) {
+            const uint block_size = (values_count + WG_SIZE - 1) / WG_SIZE;
+            const uint block_begin = min(lid * block_size, values_count);
+            const uint block_end = min(block_begin + block_size, values_count);
+
+            uint block_ties = 0;
+            for (uint i = block_begin; i < block_end; i++) {
+                block_ties += (my_sortable[i] == threshold) ? 1u : 0u;
+            }
+            tie_counts[lid] = block_ties;
+            barrier(CLK_LOCAL_MEM_FENCE);
+
+            const uint tie_group = lid / TIE_GROUP_SIZE;
+            if (lid < TIE_GROUPS) {
+                uint group_ties = 0;
+                for (uint j = 0; j < TIE_GROUP_SIZE; j++) {
+                    group_ties += tie_counts[lid * TIE_GROUP_SIZE + j];
+                }
+                tie_group_counts[lid] = group_ties;
+            }
+            barrier(CLK_LOCAL_MEM_FENCE);
+
+            if (block_ties != 0) {
                 uint pos = current_count;
-                for (uint i = 0; i < VALUES_NUM && pos < PADDED_K; i++) {
-                    uint sortable = my_sortable[i];
-                    if (sortable == threshold) {
-                        sort_keys[pos] = sortable;
+                for (uint g = 0; g < tie_group; g++) {
+                    pos += tie_group_counts[g];
+                }
+                for (uint j = tie_group * TIE_GROUP_SIZE; j < lid; j++) {
+                    pos += tie_counts[j];
+                }
+
+                for (uint i = block_begin; i < block_end && pos < PADDED_K; i++) {
+                    if (my_sortable[i] == threshold) {
+                        sort_keys[pos] = threshold;
                         sort_idxs[pos] = i;
                         pos++;
                     }
                 }
-                gather_count = pos;
             }
         }
     }
@@ -360,12 +439,25 @@ KERNEL(arg_max_min_topk_radix)(
         }
     }
 
+#ifdef RADIX_CHUNK_STAGE
+    // ============================================================
+    // Phase 4: Store this chunk's sorted top-K as merge candidates
+    // ============================================================
+    for (uint k = lid; k < TOP_K; k += WG_SIZE) {
+        candidate_keys[chunk_group_idx * TOP_K + k] = sort_keys[k];
+        candidate_idxs[chunk_group_idx * TOP_K + k] = chunk_begin + sort_idxs[k];
+    }
+#else
     // ============================================================
     // Phase 4: Write sorted top-K results to output
     // ============================================================
     for (uint k = lid; k < TOP_K; k += WG_SIZE) {
         INPUT0_TYPE val = FUNC_CALL(from_sortable)(sort_keys[k]);
+#ifdef RADIX_MERGE_STAGE
+        uint idx = candidate_idxs[output_idx * RADIX_CANDIDATES_NUM + sort_idxs[k]];
+#else
         uint idx = sort_idxs[k];
+#endif
 
         base_indices[AXIS] = k;
         uint out_offset = FUNC_CALL(get_output_index)(OPTIONAL_SHAPE_INFO_TENSOR
@@ -384,6 +476,7 @@ KERNEL(arg_max_min_topk_radix)(
     #endif
 #endif
     }
+#endif
 }
 
 #undef COMPARE_SIGN
@@ -393,6 +486,10 @@ KERNEL(arg_max_min_topk_radix)(
 #undef WG_SIZE
 #undef PADDED_K
 #undef NUM_BUCKETS
+#undef BUCKET_GROUP_SIZE
+#undef BUCKET_GROUPS
+#undef TIE_GROUP_SIZE
+#undef TIE_GROUPS
 #undef SORTABLE_BITS
 #undef NUM_PASSES
 #undef PAIR_GT
