@@ -604,6 +604,13 @@ std::map<ov::Output<const ov::Node>, std::size_t> find_other_outputs_with_seqdim
                     ++match_count;
                 }
             }
+
+            if (match_count == 0) {
+                LOG_INFO("No dynamic dimension matched the max sequence length for output port: "
+                         << port.get_any_name() << ", assuming that given output doesn't need accumulation.");
+                continue;
+            }
+
             // Assert that only one match is found:
             OPENVINO_ASSERT(match_count == 1,
                             "Only one dynamic dimension is expected to be reshaped to the max sequence length, but "
@@ -2001,7 +2008,7 @@ std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_sync_i
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_llm_infer_request() {
     auto this_sptr = std::static_pointer_cast<ov::npuw::LLMCompiledModel>(shared_from_this());
-    return std::make_shared<ov::npuw::LLMInferRequest>(this_sptr, m_prefill_other_outs_to_seqdims);
+    return std::make_shared<ov::npuw::LLMInferRequest>(this_sptr);
 }
 
 std::shared_ptr<ov::ISyncInferRequest> ov::npuw::LLMCompiledModel::create_whisper_infer_request() {

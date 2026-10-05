@@ -45,8 +45,6 @@ namespace npuw {
 class LLMInferRequest : public ov::npuw::LLMInferBaseRequest {
 public:
     explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model);
-    explicit LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model,
-                             const std::map<ov::Output<const ov::Node>, std::size_t>& prefill_other_outs_to_seqdims);
 
     void infer() override;
 

@@ -288,11 +288,6 @@ void ov::npuw::LLMInferRequest::init_lora_states() {
 }
 
 ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model)
-    : LLMInferRequest(compiled_model, std::map<ov::Output<const ov::Node>, std::size_t>{}) {}
-
-ov::npuw::LLMInferRequest::LLMInferRequest(
-    const std::shared_ptr<ov::npuw::LLMCompiledModel>& compiled_model,
-    const std::map<ov::Output<const ov::Node>, std::size_t>& prefill_other_outs_to_seqdims)
     : ov::npuw::LLMInferBaseRequest(compiled_model) {
     init_ports();
 
@@ -421,7 +416,7 @@ ov::npuw::LLMInferRequest::LLMInferRequest(
     }
 
     if (compiled_model->m_use_chunk_prefill) {
-        m_prefill_other_out_seqdims = prefill_other_outs_to_seqdims;
+        m_prefill_other_out_seqdims = compiled_model->m_prefill_other_outs_to_seqdims;
         for (auto&& [out_port, out_dim] : m_prefill_other_out_seqdims) {
             const auto& chunked_shape = out_port.get_partial_shape();
             auto full_max_len_shape = chunked_shape;
