@@ -4,6 +4,8 @@
 
 #include "fc_horizontal_fusion.hpp"
 
+#include <string_view>
+
 #include "intel_gpu/op/fully_connected.hpp"
 #include "intel_gpu/op/fully_connected_compressed.hpp"
 #include "intel_gpu/op/placeholder.hpp"
@@ -162,7 +164,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
         // Concatenates and folds the given constant-like nodes into a Constant right away, instead of relying on ConstantFolding pass:
         // unfolded Concat on weights (e.g. in case of unsupported precision) may then fail the pipeline if the GPU also doesn't support this.
         // So if the concatenation at ov::Model is not possible, the transformation just returns false
-        auto concat_and_fold = [](const ov::OutputVector& outputs, int64_t axis, const std::string& name_suffix) -> std::shared_ptr<ov::Node> {
+        auto concat_and_fold = [](const ov::OutputVector& outputs, int64_t axis, std::string_view name_suffix) -> std::shared_ptr<ov::Node> {
             auto concat = std::make_shared<ov::op::v0::Concat>(outputs, axis);
             auto folded = ov::util::get_constant_from_source(concat);
             if (!folded) {
@@ -170,7 +172,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 return nullptr;
             }
             const auto nodes = ov::as_node_vector(outputs);
-            folded->set_friendly_name(nodes[0]->get_friendly_name() + name_suffix);
+            folded->set_friendly_name(nodes[0]->get_friendly_name() + std::string(name_suffix));
             ov::copy_runtime_info(nodes, folded);
             return folded;
         };
@@ -256,10 +258,9 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
 
         std::shared_ptr<ov::Node> fused_zps;
         if (!zp_nodes.empty()) {
-            // scalar zp
-            bool is_scalar = (ov::shape_size(zp_nodes[0].get_shape()) == 1);
+            bool single_zp_value = (ov::shape_size(zp_nodes[0].get_shape()) == 1);
             int32_t scalar_zp_val = 0;
-            if (is_scalar) {
+            if (single_zp_value) {
                 if (auto zp_const = ov::as_type_ptr<ov::op::v0::Constant>(zp_nodes[0].get_node_shared_ptr())) {
                     scalar_zp_val = zp_const->cast_vector<int32_t>()[0];
                 } else if (auto zp_convert = ov::as_type_ptr<ov::op::v0::Convert>(zp_nodes[0].get_node_shared_ptr())) {
@@ -268,7 +269,7 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                 }
                 fused_zps = zp_nodes[0].get_node_shared_ptr();
             }
-            if (is_scalar) {
+            if (single_zp_value) {
                 for (size_t i = 1; i < zp_nodes.size(); ++i) {
                     bool current_is_scalar = (ov::shape_size(zp_nodes[i].get_shape()) == 1);
                     if (!current_is_scalar) {
