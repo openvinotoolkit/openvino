@@ -420,6 +420,11 @@ std::shared_ptr<JitKernelBase> create_selective_ssm_jit_kernel(const ov::element
                                                                size_t state_size,
                                                                const ov::element::Type& state_precision,
                                                                jit_selective_ssm_state_mode state_mode) {
+    // FP32 requires AVX2; BF16/FP16 additionally require their native conversion ISA (AVX-512 BF16/FP16 or
+    // AVX2 VNNI2). Recurrence arithmetic is always FP32. States contain 1..4096 elements and may be stored
+    // in FP32 or data_precision. Multi-token in_place mode keeps the working state in FP32; separate/no_store
+    // are single-token modes and may read/write the native data precision. Unsupported combinations return
+    // nullptr so executor selection can fall back to the portable implementation.
     if (!is_selective_ssm_jit_precision_supported(data_precision)) {
         return nullptr;
     }
