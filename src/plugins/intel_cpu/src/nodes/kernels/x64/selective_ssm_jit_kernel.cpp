@@ -76,8 +76,8 @@ void jit_selective_ssm_kernel<isa>::reduce_to_scalar(const Vmm& accumulator) {
     const Xbyak::Xmm accumulator_xmm(accumulator.getIdx());
     // AVX2 decode uses all 16 SIMD registers for a four-row tile. State vectors are dead once reduction starts, so
     // their low registers can safely host the VEX-encoded 128-bit reduction instructions.
-    const auto tmp0_idx = isa == avx2 ? 0 : vmm_reduce_tmp0.getIdx();
-    const auto tmp1_idx = isa == avx2 ? 1 : vmm_reduce_tmp1.getIdx();
+    const auto tmp0_idx = vmm_reduce_tmp0.getIdx();
+    const auto tmp1_idx = vmm_reduce_tmp1.getIdx();
     const Xbyak::Xmm tmp0_xmm(tmp0_idx);
     const Xbyak::Xmm tmp1_xmm(tmp1_idx);
 
@@ -186,10 +186,10 @@ void jit_selective_ssm_kernel<isa>::compute_state(size_t row, size_t active_lane
         if (!is_full_vector) {
             // Load/store emitters are inactive during compute, so their auxiliary register is free here.
             // A zero idiom avoids a blend dependency on the loaded B vector.
-            uni_vpxor(vmm_reduce_tmp0, vmm_reduce_tmp0, vmm_reduce_tmp0);
+            uni_vpxor(vmm_tail_zero, vmm_tail_zero, vmm_tail_zero);
             // Zero-filled loads alone are insufficient: 0 * Inf during the update may produce NaNs.
             const auto inactive_mask = static_cast<uint8_t>(0xFFU << active_lanes);
-            vblendps(state, state, vmm_reduce_tmp0, inactive_mask);
+            vblendps(state, state, vmm_tail_zero, inactive_mask);
         }
     }
 }

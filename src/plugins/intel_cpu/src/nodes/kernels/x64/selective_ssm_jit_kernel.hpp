@@ -74,6 +74,14 @@ private:
     static constexpr size_t packed_output_low_vmm_idx = 0;
     static constexpr size_t packed_output_high_vmm_idx = 1;
 
+    // Conversion emitters own this contiguous range while load/store helpers are active.
+    static constexpr size_t aux_vmm_base = isa == dnnl::impl::cpu::x64::avx2 ? 3 * max_row_tile + 3 : 20;
+    static constexpr size_t aux_vmm_count = isa == dnnl::impl::cpu::x64::avx2 ? 1 : 6;
+    static constexpr size_t second_accumulator_vmm_base = aux_vmm_base + aux_vmm_count;
+    // AVX2 reduction reuses state registers after all state stores; recurrence uses all 16 YMM registers.
+    static constexpr size_t reduction_tmp0_vmm_idx = isa == dnnl::impl::cpu::x64::avx2 ? 0 : 3 * max_row_tile + 3;
+    static constexpr size_t reduction_tmp1_vmm_idx = isa == dnnl::impl::cpu::x64::avx2 ? 1 : 3 * max_row_tile + 4;
+
     void generate() override;
     void emit_row_tile(size_t rows);
     void emit_state_vector(size_t rows,
@@ -109,9 +117,8 @@ private:
     }
     static Vmm accumulator_vmm(size_t row, size_t vector = 0) {
         if constexpr ((isa & dnnl::impl::cpu::x64::zmm_bit) != 0) {
-            // Registers 20-25 belong to conversion emitters.
             if (vector % 2 != 0) {
-                return Vmm(26 + row);
+                return Vmm(second_accumulator_vmm_base + row);
             }
         }
         return Vmm(max_row_tile + row);
@@ -135,8 +142,10 @@ private:
     const Vmm vmm_decay = Vmm(3 * max_row_tile);
     const Vmm vmm_input_projection = Vmm(3 * max_row_tile + 1);
     const Vmm vmm_output_projection = Vmm(3 * max_row_tile + 2);
-    const Vmm vmm_reduce_tmp0 = Vmm(3 * max_row_tile + 3);
-    const Vmm vmm_reduce_tmp1 = Vmm(3 * max_row_tile + 4);
+    const Vmm vmm_reduce_tmp0 = Vmm(reduction_tmp0_vmm_idx);
+    const Vmm vmm_reduce_tmp1 = Vmm(reduction_tmp1_vmm_idx);
+    // Emitters are inactive during recurrence, so AVX2 can reuse their auxiliary for tail zeroing.
+    const Vmm vmm_tail_zero = Vmm(aux_vmm_base);
     // Shared load/store emitters use k1; keep the recurrence tail mask in a separate register.
     const Xbyak::Opmask k_tail = k2;
 
@@ -144,9 +153,13 @@ private:
     const std::vector<size_t> pool_aux_gpr_idxs = {static_cast<size_t>(rax.getIdx()),
                                                    static_cast<size_t>(r14.getIdx()),
                                                    static_cast<size_t>(r15.getIdx())};
-    const std::vector<size_t> pool_aux_vmm_idxs = (isa & dnnl::impl::cpu::x64::zmm_bit) == 0
-                                                      ? std::vector<size_t>{15}
-                                                      : std::vector<size_t>{20, 21, 22, 23, 24, 25};
+    const std::vector<size_t> pool_aux_vmm_idxs = [] {
+        std::vector<size_t> indices(aux_vmm_count);
+        for (size_t index = 0; index < aux_vmm_count; ++index) {
+            indices[index] = aux_vmm_base + index;
+        }
+        return indices;
+    }();
 };
 
 bool is_selective_ssm_jit_precision_supported(const ov::element::Type& precision);
