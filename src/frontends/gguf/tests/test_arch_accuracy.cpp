@@ -12,6 +12,7 @@
 
 #include "cnpy.h"
 #include "common_test_utils/common_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
 #include "gtest/gtest.h"
 #include "op_test_utils.hpp"
 #include "openvino/frontend/extension/decoder_transformation.hpp"
@@ -222,6 +223,33 @@ TEST(GGUFMultimodalBackboneAdaptation, AdaptersRegisteredAsExtensionsSeeModelMet
                                 {std::make_shared<DecoderTransformationExtension>(
                                     pass::AdaptMmprojToGenAI(pass::AdaptMmprojToGenAI::Modality::VISION))});
     EXPECT_EQ(names(vision->outputs()), (std::set<std::string>{"image_features", "deepstack_features.0"}));
+}
+
+// The Gated-DeltaNet key-head count divides the value-head count; a missing or zero one must
+// fail conversion with a message instead of dividing by zero.
+TEST(GGUFMultimodalBackboneAdaptation, GatedDeltaNetRejectsMissingOrZeroGroupCount) {
+    auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/qwen35.npz");
+    const auto& model = ov_gguf_test::npz_array(arrays, "model");
+    const std::string key = "qwen35.ssm.group_count";
+    for (const bool missing : {false, true}) {
+        SCOPED_TRACE(missing ? "missing" : "zero");
+        std::vector<uint8_t> bytes(model.data<uint8_t>(), model.data<uint8_t>() + model.num_vals);
+        const auto at = std::search(bytes.begin(), bytes.end(), key.begin(), key.end());
+        ASSERT_NE(at, bytes.end());
+        if (missing) {
+            at[key.size() - 1] = 'X';  // the loader then defaults the count to zero
+        } else {
+            const auto value = at + key.size() + sizeof(uint32_t);  // after the u32 type tag
+            std::fill(value, value + sizeof(uint32_t), 0);
+        }
+        cnpy::NpyArray patched({bytes.size()}, sizeof(uint8_t), false);
+        std::copy(bytes.begin(), bytes.end(), patched.data<uint8_t>());
+        const ov_gguf_test::TemporaryGguf temporary(patched);
+        ov::frontend::gguf::FrontEnd frontend;
+        OV_EXPECT_THROW(frontend.convert(frontend.load(temporary.path)),
+                        ov::Exception,
+                        testing::HasSubstr("ssm.group_count"));
+    }
 }
 
 TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {

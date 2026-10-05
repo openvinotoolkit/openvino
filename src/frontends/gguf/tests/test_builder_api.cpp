@@ -303,6 +303,19 @@ TEST(GGUFBuilderAPI, RecurrentStateDeclarationReachesMakeStateful) {
     EXPECT_EQ(model->get_sinks().size(), 1);
 }
 
+// A named output can expose an input or another output; every name stays addressable.
+TEST(GGUFBuilderAPI, NamedOutputsKeepTheNamesOfTheValuesTheyExpose) {
+    Environment env;
+    GgufGraphContext graph(env.context);
+    auto input = graph.add_input("x", ov::element::f32, {1, 1, 1, 4});
+    graph.set_output(input, "first");
+    graph.set_output(input, "second");
+    auto model = convert(graph.finish());
+    EXPECT_NO_THROW(model->input("x"));
+    EXPECT_NO_THROW(model->output("first"));
+    EXPECT_NO_THROW(model->output("second"));
+}
+
 TEST(GGUFBuilderAPI, SlidingWindowDeclarationSurvivesConversion) {
     Environment env;
     GgufGraphContext graph(env.context);

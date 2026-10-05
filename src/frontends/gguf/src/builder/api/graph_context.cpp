@@ -211,7 +211,8 @@ void GgufGraphContext::set_output(const GgufValue& value, const std::string& nam
                     "[GGUF] output name is already used: ",
                     name);
     emitter.add_op("GGML_OP_CONT", name, {m_impl->value_name(value)}, 1, {{"op_case", 1}});
-    emitter.value(name).get_tensor().set_names({name});
+    // The copy may be the source tensor itself; keep the names it already exposes.
+    emitter.value(name).get_tensor().add_names({name});
     emitter.graph()->model_output_names.push_back(name);
 }
 

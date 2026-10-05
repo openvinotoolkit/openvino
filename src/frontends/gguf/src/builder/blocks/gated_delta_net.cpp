@@ -55,7 +55,7 @@ ov::Tensor permute_row_blocks(const ov::Tensor& t,
                               size_t rows_per_block,
                               const std::vector<int64_t>& src) {
     const auto& shape = t.get_shape();
-    if (shape.empty() || t.get_byte_size() % shape[0] != 0) {
+    if (shape.empty() || shape[0] == 0 || rows_per_block == 0 || t.get_byte_size() % shape[0] != 0) {
         return {};
     }
     const size_t chunk = t.get_byte_size() / shape[0] * rows_per_block;
@@ -75,7 +75,7 @@ ov::Tensor permute_col_blocks(const ov::Tensor& t,
     if (shape.size() == 2 && shape[1] == 1) {
         return t;
     }
-    if (shape.size() != 2 || t.get_byte_size() % shape[0] != 0) {
+    if (shape.size() != 2 || shape[0] == 0 || logical_cols == 0 || t.get_byte_size() % shape[0] != 0) {
         return {};
     }
     const size_t row_bytes = t.get_byte_size() / shape[0];
@@ -113,6 +113,7 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     const int64_t S = cfg.ssm_state_size;     // head_k_dim == head_v_dim
     const int64_t H_k = cfg.ssm_group_count;  // num_k_heads
     const int64_t H_v = cfg.ssm_dt_rank;      // num_v_heads
+    OPENVINO_ASSERT(H_k > 0, "[GGUF] Gated-DeltaNet requires a positive ssm.group_count, got ", H_k);
     OPENVINO_ASSERT(H_v > 0 && cfg.ssm_inner_size % H_v == 0,
                     "[GGUF] Gated-DeltaNet: ssm_inner_size (",
                     cfg.ssm_inner_size,
