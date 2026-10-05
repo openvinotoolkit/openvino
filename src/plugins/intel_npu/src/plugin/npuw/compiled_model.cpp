@@ -2769,22 +2769,8 @@ void ov::npuw::CompiledModel::set_property(const ov::AnyMap& properties) {
     };
     for (auto& desc : m_compiled_submodels) {
         add_target(desc.compiled_model);
-        if (const auto* pyramid = ov::npuw::attn::get_compiled_pyramid(desc.pipeline.context)) {
-            for (const auto& cm : pyramid->_compiled_models) {
-                add_target(cm);
-            }
-        }
-        if (const auto* hfa = ov::npuw::attn::get_compiled_hfa(desc.pipeline.context)) {
-            add_target(hfa->_compiled_tile_model);
-            add_target(hfa->_compiled_final_tile_model);
-        }
-        if (const auto* experts = ov::npuw::moe::get_compiled_experts(desc.pipeline.context)) {
-            for (const auto& [chunk_size, cm] : experts->_compiled_models) {
-                add_target(cm);
-            }
-        }
-        if (const auto* downstream = ov::npuw::moe::get_compiled_downstream(desc.pipeline.context)) {
-            add_target(downstream->_compiled_model);
+        if (desc.pipeline.for_each_extra_compiled_model) {
+            desc.pipeline.for_each_extra_compiled_model(desc.pipeline.context, add_target);
         }
     }
 

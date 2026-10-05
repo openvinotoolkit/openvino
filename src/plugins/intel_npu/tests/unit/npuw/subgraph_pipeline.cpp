@@ -7,12 +7,19 @@
 #include <gtest/gtest.h>
 
 #include <string>
+#include <vector>
 
 #include "attn/attn_subgraph.hpp"
+#include "host_flash_attention.hpp"
 #include "moe/moe_executor.hpp"
+#include "moe/moe_subgraph.hpp"
+#include "moe_transformations/moe_transformation.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
 #include "partitioning/partitioning.hpp"
 #include "partitioning/patterns/moe.hpp"
 #include "partitioning/patterns/sdpa.hpp"
+#include "pyramid_attention.hpp"
 
 namespace {
 
@@ -23,6 +30,85 @@ struct TestPayload {
     TestPayload() = default;
     TestPayload(int value, std::string name) : value(value), name(std::move(name)) {}
 };
+
+class NullPlugin final : public ov::IPlugin {
+public:
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
+                                                      const ov::AnyMap&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> compile_model(const std::shared_ptr<const ov::Model>&,
+                                                      const ov::AnyMap&,
+                                                      const ov::SoPtr<ov::IRemoteContext>&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream&, const ov::AnyMap&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(std::istream&,
+                                                     const ov::SoPtr<ov::IRemoteContext>&,
+                                                     const ov::AnyMap&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&, const ov::AnyMap&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ICompiledModel> import_model(const ov::Tensor&,
+                                                     const ov::SoPtr<ov::IRemoteContext>&,
+                                                     const ov::AnyMap&) const override {
+        return {};
+    }
+    ov::SupportedOpsMap query_model(const std::shared_ptr<const ov::Model>&, const ov::AnyMap&) const override {
+        return {};
+    }
+    void set_property(const ov::AnyMap&) override {}
+    ov::Any get_property(const std::string&, const ov::AnyMap&) const override {
+        return {};
+    }
+    ov::SoPtr<ov::IRemoteContext> create_context(const ov::AnyMap&) const override {
+        return {};
+    }
+    ov::SoPtr<ov::IRemoteContext> get_default_context(const ov::AnyMap&) const override {
+        return {};
+    }
+};
+
+// Stands in for a device-level compiled model: only its identity matters to these tests
+class FakeCompiledModel final : public ov::ICompiledModel {
+public:
+    FakeCompiledModel(const std::shared_ptr<ov::Model>& model, const std::shared_ptr<const ov::IPlugin>& plugin)
+        : ov::ICompiledModel(model, plugin) {}
+
+    void export_model(std::ostream&) const override {}
+    std::shared_ptr<const ov::Model> get_runtime_model() const override {
+        return nullptr;
+    }
+    void set_property(const ov::AnyMap&) override {}
+    ov::Any get_property(const std::string&) const override {
+        return {};
+    }
+    std::shared_ptr<ov::ISyncInferRequest> create_sync_infer_request() const override {
+        return nullptr;
+    }
+};
+
+ov::SoPtr<ov::ICompiledModel> make_fake_compiled_model() {
+    static const auto plugin = std::make_shared<NullPlugin>();
+    auto param = std::make_shared<ov::op::v0::Parameter>(ov::element::f32, ov::Shape{1});
+    auto result = std::make_shared<ov::op::v0::Result>(param);
+    auto model = std::make_shared<ov::Model>(ov::ResultVector{result}, ov::ParameterVector{param});
+    return {std::make_shared<FakeCompiledModel>(model, plugin), {}};
+}
+
+// Runs the pipeline's extra-compiled-models hook and returns what it visited, in order
+std::vector<const ov::ICompiledModel*> visit_extra_compiled_models(
+    const ov::npuw::v1::subgraphs::CompiledPipeline& pipeline) {
+    std::vector<const ov::ICompiledModel*> visited;
+    pipeline.for_each_extra_compiled_model(pipeline.context, [&](const ov::SoPtr<ov::ICompiledModel>& cm) {
+        visited.push_back(cm._ptr.get());
+    });
+    return visited;
+}
 
 }  // namespace
 
@@ -207,4 +293,80 @@ TEST(SubgraphPipelineBehaviorTest, AttnCompileStageAttachesHFABehaviorWhenHintIs
     ASSERT_TRUE(compiled.runtime_behavior.has_value());
     auto behavior = compiled.runtime_behavior->factory(compiled.runtime_behavior->context);
     EXPECT_NE(behavior, nullptr);
+}
+
+// The extra-compiled-models hook is set by attach_runtime_behavior(), which runs both at
+// compile time (before the extra models are compiled) and on import (after the state is
+// restored). In every test below the models are filled in only after attaching, so the
+// hook must look them up when it is called rather than capture them when it is set.
+
+TEST(SubgraphPipelineExtraCompiledModelsTest, AttnPyramidVisitsAllPyramidModels) {
+    ov::npuw::v1::subgraphs::CompiledPipeline pipeline;
+    auto pyramid = std::make_shared<ov::npuw::compiled::PyramidAttentionContiguous>();
+    ov::npuw::attn::put_compiled_pyramid(pipeline.context, pyramid);
+    ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::Pyramid);
+    ASSERT_TRUE(static_cast<bool>(pipeline.for_each_extra_compiled_model));
+
+    const auto level_0 = make_fake_compiled_model();
+    const auto level_1 = make_fake_compiled_model();
+    const auto level_2 = make_fake_compiled_model();
+    pyramid->_compiled_models = {level_0, level_1, level_2};
+
+    EXPECT_EQ(visit_extra_compiled_models(pipeline),
+              (std::vector<const ov::ICompiledModel*>{level_0._ptr.get(), level_1._ptr.get(), level_2._ptr.get()}));
+}
+
+TEST(SubgraphPipelineExtraCompiledModelsTest, AttnHfaVisitsRegularAndFinalTiles) {
+    ov::npuw::v1::subgraphs::CompiledPipeline pipeline;
+    auto hfa = std::make_shared<ov::npuw::compiled::HostFlashAttention>();
+    ov::npuw::attn::put_compiled_hfa(pipeline.context, hfa);
+    ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::HFA);
+    ASSERT_TRUE(static_cast<bool>(pipeline.for_each_extra_compiled_model));
+
+    const auto tile = make_fake_compiled_model();
+    const auto final_tile = make_fake_compiled_model();
+    hfa->set_compiled_tile_model(tile);
+    hfa->set_compiled_final_tile_model(final_tile);
+
+    EXPECT_EQ(visit_extra_compiled_models(pipeline),
+              (std::vector<const ov::ICompiledModel*>{tile._ptr.get(), final_tile._ptr.get()}));
+}
+
+TEST(SubgraphPipelineExtraCompiledModelsTest, AttnDynamicVisitsNothing) {
+    ov::npuw::v1::subgraphs::CompiledPipeline pipeline;
+    ov::npuw::attn::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::attn::BehaviorKind::Dynamic);
+    ASSERT_TRUE(static_cast<bool>(pipeline.for_each_extra_compiled_model));
+
+    // Dynamic attention runs on the subgraph's own compiled model only
+    EXPECT_TRUE(visit_extra_compiled_models(pipeline).empty());
+}
+
+TEST(SubgraphPipelineExtraCompiledModelsTest, MoeExpertsVisitsEveryChunkModel) {
+    ov::npuw::v1::subgraphs::CompiledPipeline pipeline;
+    auto experts = std::make_shared<ov::npuw::compiled::MoEExperts>();
+    ov::npuw::moe::put_compiled_experts(pipeline.context, experts);
+    ov::npuw::moe::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::moe::BehaviorRole::EXPERTS, true);
+    ASSERT_TRUE(static_cast<bool>(pipeline.for_each_extra_compiled_model));
+
+    const auto chunk_64 = make_fake_compiled_model();
+    const auto chunk_128 = make_fake_compiled_model();
+    experts->_compiled_models[64] = chunk_64;
+    experts->_compiled_models[128] = chunk_128;
+
+    EXPECT_EQ(visit_extra_compiled_models(pipeline),
+              (std::vector<const ov::ICompiledModel*>{chunk_64._ptr.get(), chunk_128._ptr.get()}));
+}
+
+TEST(SubgraphPipelineExtraCompiledModelsTest, MoeDownstreamVisitsItsModel) {
+    ov::npuw::v1::subgraphs::CompiledPipeline pipeline;
+    auto downstream = std::make_shared<ov::npuw::compiled::MoEDownstream>();
+    ov::npuw::moe::put_compiled_downstream(pipeline.context, downstream);
+    ov::npuw::moe::attach_runtime_behavior(pipeline, pipeline.context, ov::npuw::moe::BehaviorRole::DOWNSTREAM, true);
+    ASSERT_TRUE(static_cast<bool>(pipeline.for_each_extra_compiled_model));
+
+    const auto downstream_model = make_fake_compiled_model();
+    downstream->_compiled_model = downstream_model;
+
+    EXPECT_EQ(visit_extra_compiled_models(pipeline),
+              (std::vector<const ov::ICompiledModel*>{downstream_model._ptr.get()}));
 }
