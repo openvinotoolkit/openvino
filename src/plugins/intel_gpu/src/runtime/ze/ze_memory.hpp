@@ -13,6 +13,11 @@
 #include <cassert>
 #include <mutex>
 #include <memory>
+#include <variant>
+
+namespace cl {
+class SharedSurfLock;
+}
 
 namespace cldnn {
 namespace ze {
@@ -82,6 +87,36 @@ protected:
     size_t _width;
     size_t _height;
     bool _needs_write_back;
+};
+
+struct gpu_dx_buffer : public gpu_usm {
+    gpu_dx_buffer(ze_engine* engine, const layout& new_layout, shared_mem_params params);
+    shared_mem_params get_internal_params(runtime_types rt_type) const override;
+private:
+    void* _device;
+    void* _resource;
+};
+
+struct gpu_media_buffer : public gpu_image2d {
+    using d3d11_texture_t = void*;
+    using va_surface_t = uint32_t;
+    gpu_media_buffer(ze_engine* engine, const layout& new_layout, shared_mem_params params);
+    shared_mem_params get_internal_params(runtime_types rt_type) const override;
+private:
+    void* _device;
+    std::variant<d3d11_texture_t, va_surface_t> _surface;
+    uint32_t _plane;
+};
+
+struct gpu_buffer_from_handle : public gpu_usm {
+    gpu_buffer_from_handle(ze_engine* engine, const layout& layout, ov::intel_gpu::os_handle_param external_handle);
+};
+
+struct ze_surfaces_lock : public surfaces_lock {
+    ze_surfaces_lock(std::vector<memory::ptr> mem, const stream& stream);
+    ~ze_surfaces_lock() override = default;
+private:
+    std::unique_ptr<cl::SharedSurfLock> _lock = nullptr;
 };
 
 }  // namespace ze

@@ -807,11 +807,11 @@ void ROIAlign::createJitKernel(const ov::element::Type& dataPrec, const ROIAlign
     jcp.pooled_h = pooledH;
     jcp.pooled_w = pooledW;
 #if defined(OPENVINO_ARCH_X86_64)
-    if (mayiuse(cpu::x64::avx512_core)) {
+    if (ov::with_cpu_x86_avx512_core()) {
         roi_align_kernel = std::make_shared<jit_uni_roi_align_kernel_f32<cpu::x64::avx512_core>>(jcp);
-    } else if (mayiuse(cpu::x64::avx2)) {
+    } else if (ov::with_cpu_x86_avx2()) {
         roi_align_kernel = std::make_shared<jit_uni_roi_align_kernel_f32<cpu::x64::avx2>>(jcp);
-    } else if (mayiuse(cpu::x64::sse41)) {
+    } else if (ov::with_cpu_x86_sse42()) {
         roi_align_kernel = std::make_shared<jit_uni_roi_align_kernel_f32<cpu::x64::sse41>>(jcp);
     }
     if (roi_align_kernel) {

@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "intel_gpu/graph/kernel_impl_params.hpp"
+#include "intel_gpu/op/sdpa.hpp"
 #include "intel_gpu/runtime/utils.hpp"
 #include "program_node.h"
 #include "registry/implementation_manager.hpp"
@@ -28,16 +29,15 @@ struct SDPAOpt : public ImplementationManager {
     explicit SDPAOpt(shape_types shape_type, ValidateFunc vf = nullptr) : ImplementationManager(impl_types::ocl, shape_type, std::move(vf)) {}
     [[nodiscard]] std::unique_ptr<primitive_impl> create_impl(const program_node& node, const RuntimeParams& params) const override;
     [[nodiscard]] static bool supports_micro_sdpa(const kernel_impl_params& params);
+    [[nodiscard]] static bool has_per_channel_compressed_kv(const kernel_impl_params& params);
     [[nodiscard]] bool validate_impl(const program_node& node) const override {
         const auto desc = node.as<scaled_dot_product_attention>().get_primitive();
-        static constexpr std::array supported_q_types = {
-            ov::element::f32,
-            ov::element::f16,
+        const auto& supported_precisions = ov::intel_gpu::op::SDPA::get_supported_precisions();
+        const auto is_supported_precision = [&supported_precisions](const ov::element::Type& dt) {
+            return one_of(dt, supported_precisions);
         };
-        static constexpr std::array supported_kv_types = {
-            ov::element::f32,
-            ov::element::f16,
-            ov::element::i8,
+        const auto is_supported_kv_precision = [&is_supported_precision](const ov::element::Type& dt) {
+            return is_supported_precision(dt) || dt == ov::element::i8;
         };
         const auto& q_layout = node.get_input_layout(ScaledDotProductAttentionInputIdx::QUERY);
         const auto& k_layout = node.get_input_layout(ScaledDotProductAttentionInputIdx::KEY);
@@ -47,11 +47,11 @@ struct SDPAOpt : public ImplementationManager {
             return false;
         }
 
-        if (!one_of(k_layout.data_type, supported_kv_types) || !one_of(v_layout.data_type, supported_kv_types)) {
+        if (!is_supported_kv_precision(k_layout.data_type) || !is_supported_kv_precision(v_layout.data_type)) {
             return false;
         }
 
-        if (!one_of(q_layout.data_type, supported_q_types) || !one_of(out_layout.data_type, supported_q_types)) {
+        if (!is_supported_precision(q_layout.data_type) || !is_supported_precision(out_layout.data_type)) {
             return false;
         }
 
@@ -64,8 +64,9 @@ struct SDPAOpt : public ImplementationManager {
         if (desc->has_sink_input) {
             auto sink_layout = node.get_input_layout(ScaledDotProductAttentionInputIdx::SINK);
             auto q_heads_num = q_layout.get_partial_shape()[1].get_length();
-            if (sink_layout.count() != static_cast<size_t>(q_heads_num))
+            if (sink_layout.count() != static_cast<size_t>(q_heads_num)) {
                 OPENVINO_THROW("Currently only supporting per-head sink.Sink_layout : ", sink_layout.to_short_string(), " heads_num  :", q_heads_num);
+            }
         }
 
         const bool use_asymmetric_quantization =
@@ -73,6 +74,9 @@ struct SDPAOpt : public ImplementationManager {
         const bool combine_scales_and_zp = desc->quantization_attributes.output_storage_type != ov::op::internal::DynamicQuantize::OutputStorageType::Planar;
 
         auto p = node.get_kernel_impl_params();
+        if (has_per_channel_compressed_kv(*p) && !supports_micro_sdpa(*p)) {
+            return false;
+        }
         return !use_asymmetric_quantization || combine_scales_and_zp || supports_micro_sdpa(*p);
     }
 };

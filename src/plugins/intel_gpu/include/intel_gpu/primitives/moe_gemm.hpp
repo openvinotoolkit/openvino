@@ -58,8 +58,9 @@ struct moe_gemm : public primitive_base<moe_gemm> {
     }
 
     bool operator==(const primitive& rhs) const override {
-        if (!compare_common_params(rhs))
+        if (!compare_common_params(rhs)) {
             return false;
+        }
         auto rhs_casted = downcast<const moe_gemm>(rhs);
         return has_bias == rhs_casted.has_bias &&
                num_experts_per_token == rhs_casted.num_experts_per_token &&

@@ -36,8 +36,9 @@ bool ReorderKernel_to_yxfb_batched::Validate(const Params& params) const {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
     }
 
-    if (!IsSIMDSizeSupported(params.engineInfo, 8))
+    if (!IsSIMDSizeSupported(params.engineInfo, 8)) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     const reorder_params& r_params = static_cast<const reorder_params&>(params);
 
@@ -49,8 +50,9 @@ bool ReorderKernel_to_yxfb_batched::Validate(const Params& params) const {
     }
 
     if ((r_params.inputs[0].GetLayout() == DataLayout::b_fs_zyx_fsv16 || r_params.inputs[0].GetLayout() == DataLayout::bs_fs_zyx_bsv16_fsv16) &&
-        r_params.inputs[0].Z().v != 1)
+        r_params.inputs[0].Z().v != 1) {
         DO_NOT_USE_THIS_KERNEL(params.layerID);
+    }
 
     return true;
 }
