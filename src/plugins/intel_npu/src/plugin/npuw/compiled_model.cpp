@@ -8,6 +8,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <unordered_set>
 
 #include "accuracy/comparator.hpp"
 #include "attn/attn_subgraph.hpp"
@@ -2738,20 +2739,24 @@ std::shared_ptr<ov::IAsyncInferRequest> ov::npuw::CompiledModel::create_infer_re
 }
 
 void ov::npuw::CompiledModel::set_property(const ov::AnyMap& properties) {
-    // Only the model priority can be changed after compilation
+    // Properties which can be changed after compilation.
+    static const std::unordered_set<std::string> runtime_mutable = {ov::hint::model_priority.name()};
+
+    ov::AnyMap updates;
     for (const auto& [key, value] : properties) {
-        if (key != ov::hint::model_priority.name()) {
+        if (!runtime_mutable.count(key)) {
             OPENVINO_THROW("NPUW CompiledModel: '", key, "' cannot be changed after the model is compiled");
         }
+        updates.emplace(key, value);
     }
-
-    const auto& name = ov::hint::model_priority.name();
-    const auto it = properties.find(name);
-    if (it == properties.end()) {
+    if (updates.empty()) {
         return;
     }
-    const auto priority = it->second.as<ov::hint::Priority>();
-    const ov::AnyMap priority_prop = {{name, priority}};
+
+    // Validate the value and store it in its typed form
+    if (auto it = updates.find(ov::hint::model_priority.name()); it != updates.end()) {
+        it->second = it->second.as<ov::hint::Priority>();
+    }
 
     // Collect every distinct device-level compiled model owned by this partitioned model.
     // Function bodies, pyramid/HFA final tiles and similar reuse the same instance, so dedup.
@@ -2783,28 +2788,38 @@ void ov::npuw::CompiledModel::set_property(const ov::AnyMap& properties) {
         }
     }
 
+    // Each submodel gets only the keys its device can change (e.g. CPU can't change any)
     for (const auto& cm : targets) {
-        if (!ov::npuw::util::is_mutable_property(cm, name)) {
-            LOG_DEBUG("Skipping " << name << " for a submodel which doesn't support changing it");
+        const auto cm_mutable = ov::npuw::util::mutable_properties(
+            cm->get_property(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>());
+        ov::AnyMap cm_updates;
+        for (const auto& [key, value] : updates) {
+            if (cm_mutable.count(key)) {
+                cm_updates.emplace(key, value);
+            }
+        }
+        if (cm_updates.empty()) {
+            LOG_DEBUG("Skipping a submodel which can't change any of the requested properties");
             continue;
         }
-        cm->set_property(priority_prop);
+        cm->set_property(cm_updates);
     }
 
     // Keep the per-device configs in sync so submodels compiled later (e.g. failsafe
-    // fallbacks) inherit the new priority, and remember it for get_property/export
+    // fallbacks) inherit the new values, and remember them for get_property/export
     auto core = get_npuw_plugin()->get_core();
     for (auto& [device, device_props] : m_meta_devices) {
-        const auto supported_properties = core->get_property(device, ov::supported_properties);
-        const bool supports_priority =
-            std::any_of(supported_properties.begin(), supported_properties.end(), [&](const ov::PropertyName& p) {
-                return p == name && p.is_mutable();
-            });
-        if (supports_priority) {
-            device_props[name] = priority;
+        const auto device_mutable =
+            ov::npuw::util::mutable_properties(core->get_property(device, ov::supported_properties));
+        for (const auto& [key, value] : updates) {
+            if (device_mutable.count(key)) {
+                device_props[key] = value;
+            }
         }
     }
-    m_non_npuw_props[name] = priority;
+    for (const auto& [key, value] : updates) {
+        m_non_npuw_props[key] = value;
+    }
 }
 
 std::shared_ptr<const ov::Model> ov::npuw::CompiledModel::get_runtime_model() const {

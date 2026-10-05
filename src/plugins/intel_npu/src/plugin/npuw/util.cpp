@@ -195,12 +195,15 @@ bool ov::npuw::util::starts_with(const std::string& str, const std::string& pref
     return str.substr(0, prefix.size()) == prefix;
 }
 
-bool ov::npuw::util::is_mutable_property(const ov::SoPtr<ov::ICompiledModel>& compiled_model, const std::string& name) {
-    const auto supported =
-        compiled_model->get_property(ov::supported_properties.name()).as<std::vector<ov::PropertyName>>();
-    return std::any_of(supported.begin(), supported.end(), [&](const ov::PropertyName& p) {
-        return p == name && p.is_mutable();
-    });
+std::unordered_set<std::string> ov::npuw::util::mutable_properties(
+    const std::vector<ov::PropertyName>& supported_properties) {
+    std::unordered_set<std::string> result;
+    for (const auto& p : supported_properties) {
+        if (p.is_mutable()) {
+            result.insert(p);
+        }
+    }
+    return result;
 }
 
 bool ov::npuw::util::is_supported_position_ids_input(const ov::Output<const ov::Node>& p) {
