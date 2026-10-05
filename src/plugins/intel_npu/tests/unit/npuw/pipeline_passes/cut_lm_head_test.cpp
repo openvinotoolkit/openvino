@@ -12,6 +12,7 @@
 
 #include "llm_compiled_model.hpp"
 #include "openvino/op/constant.hpp"
+#include "openvino/op/convert.hpp"
 #include "openvino/op/matmul.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/result.hpp"
@@ -109,8 +110,9 @@ TEST(CutLMHeadTest, BasicCut) {
 // --- Test 2 -------------------------------------------------------------------
 // Attached-Result case: a Result already exists on the MatMul input source (the
 // OmniThinker pre-head embeddings output). The pass repurposes the matched logits
-// Result as the output-embeddings Result and keeps the pre-existing Result, so the
-// original model now has two Results sharing the same producer.
+// Result as the output-embeddings Result and keeps the pre-existing Result. To keep
+// the two outputs distinct, the embeddings Result reads a pass-through Convert while
+// the pre-existing Result keeps reading the shared producer directly.
 TEST(CutLMHeadTest, AttachedResultKeepsBothOutputs) {
     auto model = build_attached_result_model();
     ASSERT_EQ(model->get_results().size(), 2u);
@@ -124,9 +126,21 @@ TEST(CutLMHeadTest, AttachedResultKeepsBothOutputs) {
     // Original model: the pre-existing Result stays and the logits Result is repurposed
     // as the output-embeddings Result; logits is gone.
     ASSERT_EQ(model->get_results().size(), 2u);
-    EXPECT_NE(find_result_by_name(model, "last_hidden_state"), nullptr);
-    EXPECT_NE(find_result_by_name(model, LLMCompiledModel::layer_names::output_embeds), nullptr);
+    const auto hidden_result = find_result_by_name(model, "last_hidden_state");
+    const auto embeds_result = find_result_by_name(model, LLMCompiledModel::layer_names::output_embeds);
+    ASSERT_NE(hidden_result, nullptr);
+    ASSERT_NE(embeds_result, nullptr);
     EXPECT_EQ(find_result_by_name(model, LLMCompiledModel::layer_names::logits), nullptr);
+
+    const auto& hidden_param = model->get_parameters().front();
+    // The pre-existing Result keeps reading the shared producer directly.
+    EXPECT_EQ(hidden_result->input_value(0).get_node(), hidden_param.get());
+    // The embeddings Result reads a distinct pass-through Convert over the same producer.
+    const auto embeds_src = embeds_result->input_value(0).get_node_shared_ptr();
+    EXPECT_NE(embeds_src.get(), hidden_param.get());
+    const auto embeds_convert = ov::as_type_ptr<ov::op::v0::Convert>(embeds_src);
+    ASSERT_NE(embeds_convert, nullptr);
+    EXPECT_EQ(embeds_convert->input_value(0).get_node(), hidden_param.get());
 
     // LM head sub-model: single Parameter feeding the LM head MatMul.
     ASSERT_EQ(lm_head_model->get_parameters().size(), 1u);
