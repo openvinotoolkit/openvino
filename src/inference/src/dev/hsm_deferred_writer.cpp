@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <array>
-#include <cstring>
 #include <optional>
 #include <utility>
 #include <variant>
@@ -93,7 +92,7 @@ void DeferredWriter::write_into(StreamDestination& destination, ov::util::Memory
 
 void DeferredWriter::write_into(BufferDestination& destination, ov::util::MemoryView data) {
     if (const auto at = reserve(destination, data.size())) {
-        std::memcpy(destination.dst + *at, data.data(), data.size());
+        std::copy_n(data.data(), data.size(), destination.dst + *at);
     }
 }
 
@@ -128,7 +127,7 @@ void DeferredWriter::patch_into(StreamDestination& destination, size_t offset, o
 
 void DeferredWriter::patch_into(BufferDestination& destination, size_t offset, ov::util::MemoryView data) {
     OPENVINO_ASSERT(destination.good && offset + data.size() <= destination.size, "HSM writer: patch out of bounds");
-    std::memcpy(destination.dst + offset, data.data(), data.size());
+    std::copy_n(data.data(), data.size(), destination.dst + offset);
 }
 
 void DeferredWriter::patch(size_t offset, ov::util::MemoryView data) {
@@ -166,8 +165,12 @@ bool DeferredWriter::destination_good() const {
 void DeferredWriter::reset_destination() {
     std::visit(ov::util::VariantVisitor{
                    [](StreamDestination& destination) {
-                       destination.stream->seekp(container_start(destination));
-                       destination.size = 0;
+                       if (destination.size != 0) {
+                           // Nothing written yet on a fresh writer - a seek would needlessly require a
+                           // seekable stream even for a container made only of sized sections.
+                           destination.stream->seekp(container_start(destination));
+                           destination.size = 0;
+                       }
                    },
                    [](BufferDestination& destination) {
                        destination.size = 0;
@@ -185,7 +188,7 @@ ManifestEntry DeferredWriter::write_section(DeviceId device,
     entry.device = device;
     entry.tag = tag;
     if (tag.is_inline()) {
-        std::memcpy(entry.inline_bytes.data(), payload.data(), payload.size());
+        std::copy_n(reinterpret_cast<const uint8_t*>(payload.data()), payload.size(), entry.inline_bytes.data());
         return entry;
     }
     const auto slot = reserve_slot(written_size(), payload.size(), align);

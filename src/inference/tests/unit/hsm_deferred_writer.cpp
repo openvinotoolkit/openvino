@@ -39,6 +39,17 @@ hsm::DeferredWriter open_buffer_writer(std::byte* dst, size_t size) {
     return std::move(writer).value();
 }
 
+class NonSeekableStreamBuf : public std::streambuf {
+public:
+    std::string data;
+
+protected:
+    std::streamsize xsputn(const char* s, std::streamsize n) override {
+        data.append(s, static_cast<size_t>(n));
+        return n;
+    }
+};
+
 // Raw container parsing, no Reader dependency - same pattern as hsm_writer.cpp, kept file-local on purpose.
 struct ParsedContainer {
     hsm::Header header{};
@@ -130,7 +141,7 @@ TEST(HsmDeferredWriterTest, sized_section_encoder_rejects_a_chunk_without_overfl
     std::vector<std::byte> buffer(k_buffer_capacity);
     auto writer = open_buffer_writer(buffer.data(), buffer.size());
     const std::byte dummy{};
-    const size_t huge = std::numeric_limits<size_t>::max() - 31;
+    static constexpr size_t huge = std::numeric_limits<size_t>::max() - 31;
     writer.add_section(hsm::any_device_id, hsm::model_tag, huge, [&dummy](const hsm::SectionSink& sink) {
         sink({&dummy, huge});
     });
@@ -138,7 +149,7 @@ TEST(HsmDeferredWriterTest, sized_section_encoder_rejects_a_chunk_without_overfl
 }
 
 TEST(HsmDeferredWriterTest, sized_section_encoder_fits_a_buffer_sized_to_the_exact_byte) {
-    constexpr size_t section_size = 4;
+    static constexpr size_t section_size = 4;
     constexpr size_t exact_capacity = sizeof(hsm::Header) + section_size + sizeof(hsm::ManifestEntry);
     std::vector<std::byte> buffer(exact_capacity);
     auto writer = open_buffer_writer(buffer.data(), buffer.size());
@@ -150,7 +161,7 @@ TEST(HsmDeferredWriterTest, sized_section_encoder_fits_a_buffer_sized_to_the_exa
 }
 
 TEST(HsmDeferredWriterTest, sized_section_encoder_rejects_a_buffer_one_byte_short_of_fitting) {
-    constexpr size_t section_size = 4;
+    static constexpr size_t section_size = 4;
     constexpr size_t exact_capacity = sizeof(hsm::Header) + section_size + sizeof(hsm::ManifestEntry);
     std::vector<std::byte> buffer(exact_capacity - 1);
     auto writer = open_buffer_writer(buffer.data(), buffer.size());
@@ -289,6 +300,50 @@ TEST(HsmDeferredWriterTest, patches_the_unsized_section_header_relative_to_a_non
     const auto entry = find_entry(*container, hsm::any_device_id, hsm::model);
     ASSERT_NE(entry, nullptr);
     EXPECT_EQ(payload_string(*container, *entry), "discovered-at-write-time");
+}
+
+TEST(HsmDeferredWriterTest, finalize_succeeds_on_a_non_seekable_stream_when_every_section_is_sized) {
+    NonSeekableStreamBuf buf;
+    std::ostream stream(&buf);
+    auto writer = open_writer(stream);
+    const std::string model = "model-bytes";
+    writer.add_section(hsm::any_device_id, hsm::model_tag, view_of(model));
+    ASSERT_FALSE(writer.finalize());
+
+    const auto container = parse_container(buf.data);
+    ASSERT_TRUE(container.has_value());
+    const auto entry = find_entry(*container, hsm::any_device_id, hsm::model);
+    ASSERT_NE(entry, nullptr);
+    EXPECT_EQ(payload_string(*container, *entry), "model-bytes");
+}
+
+TEST(HsmDeferredWriterTest, empty_inline_payload_is_written_without_undefined_behavior) {
+    std::stringstream stream;
+    auto writer = open_writer(stream);
+    writer.add_section(hsm::any_device_id, hsm::model_id_tag, ov::util::MemoryView{});
+    EXPECT_FALSE(writer.finalize());
+}
+
+TEST(HsmDeferredWriterTest, empty_pointer_mode_payload_is_written_without_undefined_behavior) {
+    std::stringstream stream;
+    auto writer = open_writer(stream);
+    writer.add_section(hsm::any_device_id, hsm::model_tag, ov::util::MemoryView{});
+    ASSERT_FALSE(writer.finalize());
+
+    const auto container = parse_container(stream.str());
+    ASSERT_TRUE(container.has_value());
+    const auto entry = find_entry(*container, hsm::any_device_id, hsm::model);
+    ASSERT_NE(entry, nullptr);
+    EXPECT_EQ(entry->size, 0u);
+}
+
+TEST(HsmDeferredWriterTest, empty_encoder_chunk_is_written_without_undefined_behavior) {
+    std::stringstream stream;
+    auto writer = open_writer(stream);
+    writer.add_section(hsm::any_device_id, hsm::model_tag, 0, [](const hsm::SectionSink& sink) {
+        sink(ov::util::MemoryView{});
+    });
+    EXPECT_FALSE(writer.finalize());
 }
 
 }  // namespace ov::test
