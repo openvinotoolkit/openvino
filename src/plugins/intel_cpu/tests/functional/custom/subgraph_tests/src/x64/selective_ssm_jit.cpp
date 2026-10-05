@@ -13,6 +13,7 @@
 #include <limits>
 #include <memory>
 #include <string>
+#include <thread>
 #include <tuple>
 
 #include "openvino/core/any.hpp"
@@ -38,7 +39,9 @@ using SelectiveSSMJitParams = std::tuple<bool, ov::element::Type>;
 
 std::shared_ptr<ov::Model> make_selective_ssm_model(const ov::element::Type& precision,
                                                     bool paged,
-                                                    size_t state_size = 16) {
+                                                    size_t state_size = 16,
+                                                    size_t tokens = 1,
+                                                    const ov::element::Type& index_precision = ov::element::i32) {
     const auto A = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{4});
     const auto state =
         std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{paged ? size_t{2} : size_t{1}, 4, 5, state_size});
@@ -46,15 +49,15 @@ std::shared_ptr<ov::Model> make_selective_ssm_model(const ov::element::Type& pre
     ov::ParameterVector parameters;
     std::shared_ptr<ov::Node> operation;
     if (paged) {
-        const auto dt = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{1, 4});
-        const auto B = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{1, 2, state_size});
-        const auto x = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{1, 4, 5});
-        const auto C = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{1, 2, state_size});
-        const auto subsequences = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2});
-        const auto blocks = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2});
-        const auto block_begins = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{2});
-        const auto processed = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
-        const auto intervals = std::make_shared<ov::op::v0::Parameter>(ov::element::i32, ov::Shape{1});
+        const auto dt = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{tokens, 4});
+        const auto B = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{tokens, 2, state_size});
+        const auto x = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{tokens, 4, 5});
+        const auto C = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{tokens, 2, state_size});
+        const auto subsequences = std::make_shared<ov::op::v0::Parameter>(index_precision, ov::Shape{2});
+        const auto blocks = std::make_shared<ov::op::v0::Parameter>(index_precision, ov::Shape{2});
+        const auto block_begins = std::make_shared<ov::op::v0::Parameter>(index_precision, ov::Shape{2});
+        const auto processed = std::make_shared<ov::op::v0::Parameter>(index_precision, ov::Shape{1});
+        const auto intervals = std::make_shared<ov::op::v0::Parameter>(index_precision, ov::Shape{1});
         parameters = {A, dt, B, x, C, state, subsequences, blocks, block_begins, processed, intervals};
         operation = std::make_shared<ov::op::internal::PagedSelectiveSSM>(parameters[0],
                                                                           parameters[1],
@@ -68,10 +71,10 @@ std::shared_ptr<ov::Model> make_selective_ssm_model(const ov::element::Type& pre
                                                                           parameters[9],
                                                                           parameters[10]);
     } else {
-        const auto dt = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{1, 1, 4});
-        const auto B = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{1, 1, 2, state_size});
-        const auto x = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{1, 1, 4, 5});
-        const auto C = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{1, 1, 2, state_size});
+        const auto dt = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{1, tokens, 4});
+        const auto B = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{1, tokens, 2, state_size});
+        const auto x = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{1, tokens, 4, 5});
+        const auto C = std::make_shared<ov::op::v0::Parameter>(precision, ov::Shape{1, tokens, 2, state_size});
         parameters = {A, dt, B, x, C, state};
         operation = std::make_shared<ov::op::internal::SelectiveSSM>(parameters[0],
                                                                      parameters[1],
@@ -118,10 +121,15 @@ void fill_inputs(ov::InferRequest& request, bool paged, const std::array<float, 
         fill_data_tensor(tensor, values[i]);
     }
     if (paged) {
-        constexpr int32_t metadata[][2] = {{0, 1}, {0, 1}, {0, 2}, {0, 0}, {1, 0}};
+        const auto tokens = static_cast<int64_t>(request.get_input_tensor(3).get_shape()[0]);
+        const int64_t metadata[][2] = {{0, tokens}, {0, 1}, {0, 2}, {0, 0}, {tokens, 0}};
         for (size_t i = 0; i < 5; ++i) {
             auto tensor = request.get_input_tensor(6 + i);
-            std::copy_n(metadata[i], tensor.get_size(), tensor.data<int32_t>());
+            if (tensor.get_element_type() == ov::element::i64) {
+                std::copy_n(metadata[i], tensor.get_size(), tensor.data<int64_t>());
+            } else {
+                std::copy_n(metadata[i], tensor.get_size(), tensor.data<int32_t>());
+            }
         }
     }
 }
@@ -189,6 +197,114 @@ TEST_P(SelectiveSSMJitIntegrationTest, InfersWithSelectedExecutorAndPreservedDat
         for (size_t i = 0; i < state.get_size(); ++i) {
             EXPECT_FLOAT_EQ(tensor_value(state, i), 0.75F) << "state index " << i;
         }
+    }
+}
+
+TEST_P(SelectiveSSMJitIntegrationTest, SerialRecurrenceWorksOnFreshThread) {
+    const auto& [paged, precision] = GetParam();
+    if (!ov::intel_cpu::hasHardwareSupport(precision)) {
+        GTEST_SKIP() << "CPU precision policy does not preserve " << precision << " on this system";
+    }
+
+    ov::Core core;
+    // With no streams or parallel workers, inference runs on the calling thread outside a TBB arena.
+    auto compiled = core.compile_model(make_selective_ssm_model(precision, paged, 16, 3),
+                                       "CPU",
+                                       ov::hint::inference_precision(precision),
+                                       ov::num_streams(0),
+                                       ov::inference_num_threads(1));
+    std::thread worker([&] {
+        EXPECT_NO_THROW({
+            for (const bool alias_state : {false, true}) {
+                if (paged && alias_state) {
+                    continue;
+                }
+                SCOPED_TRACE(testing::Message() << "alias_state=" << alias_state);
+                auto request = compiled.create_infer_request();
+                fill_inputs(request, paged, {0.F, 0.5F, 0.25F, 2.F, 0.125F, 0.5F});
+                if (alias_state) {
+                    request.set_output_tensor(1, request.get_input_tensor(5));
+                }
+                request.infer();
+                const auto output = request.get_output_tensor(0);
+                // Each token adds 0.25 to state; all 20 head/row positions have the same exact output.
+                for (size_t i = 0; i < output.get_size(); ++i) {
+                    EXPECT_FLOAT_EQ(tensor_value(output, i), 1.5F + 0.5F * static_cast<float>(i / 20));
+                }
+                const auto state = paged ? request.get_input_tensor(5) : request.get_output_tensor(1);
+                const auto state_size = paged ? state.get_size() / 2 : state.get_size();
+                for (size_t i = 0; i < state_size; ++i) {
+                    if (paged) {
+                        EXPECT_FLOAT_EQ(tensor_value(state, i), 0.5F) << "read block index " << i;
+                    }
+                    EXPECT_FLOAT_EQ(tensor_value(state, paged ? state_size + i : i), 1.25F)
+                        << "final state index " << i;
+                }
+            }
+        });
+    });
+    worker.join();
+}
+
+TEST(PagedSelectiveSSMJitIntegrationTest, HandlesInt64CacheIntervalExtremes) {
+    ov::Core core;
+    for (const bool store_snapshot : {false, true}) {
+        SCOPED_TRACE(testing::Message() << "store_snapshot=" << store_snapshot);
+        const size_t tokens = store_snapshot ? 1 : 2;
+        auto compiled =
+            core.compile_model(make_selective_ssm_model(ov::element::f32, true, 5, tokens, ov::element::i64),
+                               "CPU",
+                               ov::hint::inference_precision(ov::element::f32));
+        auto request = compiled.create_infer_request();
+        fill_inputs(request, true, {0.F, 0.5F, 0.25F, 2.F, 0.125F, 0.5F});
+        request.get_input_tensor(9).data<int64_t>()[0] = std::numeric_limits<int64_t>::max();
+        request.get_input_tensor(10).data<int64_t>()[0] =
+            store_snapshot ? std::numeric_limits<int64_t>::max() : std::numeric_limits<int64_t>::min();
+        request.infer();
+        const auto output = request.get_output_tensor(0);
+        for (size_t i = 0; i < output.get_size(); ++i) {
+            EXPECT_FLOAT_EQ(tensor_value(output, i), 5.F * 0.125F * (0.75F + 0.25F * static_cast<float>(i / 20)));
+        }
+        const auto cache = request.get_input_tensor(5);
+        const auto block_size = cache.get_size() / 2;
+        for (size_t i = 0; i < block_size; ++i) {
+            EXPECT_FLOAT_EQ(tensor_value(cache, i), 0.5F) << "read block index " << i;
+            EXPECT_FLOAT_EQ(tensor_value(cache, block_size + i), store_snapshot ? 0.75F : 0.5F)
+                << "snapshot index " << i;
+        }
+    }
+}
+
+TEST(PagedSelectiveSSMJitIntegrationTest, DisabledCacheAllowsSharedReadBlocks) {
+    auto model = make_selective_ssm_model(ov::element::f32, true, 5, 3);
+    const auto& params = model->get_parameters();
+    params[6]->set_partial_shape(ov::Shape{3});
+    params[8]->set_partial_shape(ov::Shape{3});
+    params[9]->set_partial_shape(ov::Shape{2});
+    params[10]->set_partial_shape(ov::Shape{2});
+    model->validate_nodes_and_infer_types();
+    ov::Core core;
+    auto compiled = core.compile_model(model, "CPU", ov::hint::inference_precision(ov::element::f32));
+    auto request = compiled.create_infer_request();
+    for (size_t i = 0; i < 6; ++i) {
+        auto tensor = request.get_input_tensor(i);
+        const std::array<float, 6> values{0.F, 0.5F, 0.25F, 2.F, 0.125F, 0.5F};
+        fill_data_tensor(tensor, values[i]);
+    }
+    const int32_t metadata[][3] = {{0, 1, 3}, {0, 0}, {0, 1, 2}, {7, 9}, {0, -3}};
+    for (size_t i = 0; i < 5; ++i) {
+        auto tensor = request.get_input_tensor(6 + i);
+        std::copy_n(metadata[i], tensor.get_size(), tensor.data<int32_t>());
+    }
+    request.infer();
+    const auto output = request.get_output_tensor(0);
+    for (size_t i = 0; i < output.get_size(); ++i) {
+        const auto state_value = i / 20 == 2 ? 1.F : 0.75F;
+        EXPECT_FLOAT_EQ(tensor_value(output, i), 5.F * 0.125F * state_value) << "output index " << i;
+    }
+    const auto cache = request.get_input_tensor(5);
+    for (size_t i = 0; i < cache.get_size(); ++i) {
+        EXPECT_FLOAT_EQ(tensor_value(cache, i), 0.5F) << "unchanged cache index " << i;
     }
 }
 
