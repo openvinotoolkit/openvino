@@ -70,13 +70,17 @@ private:
     void generate() override;
     void emit_row_tile(size_t rows);
     void emit_state_vector(size_t rows, size_t active_lanes, size_t projection_offset, size_t state_vector_offset);
+    void load_projections(size_t active_lanes, size_t projection_offset);
+    void load_state(const Vmm& destination, size_t active_lanes, size_t offset);
+    void compute_state(size_t row, size_t active_lanes);
+    void accumulate_output(size_t row, size_t active_lanes, size_t vector);
+    void store_state(const Vmm& source, size_t active_lanes, size_t offset);
     void advance_row_pointers(size_t rows);
     void advance_state_pointers(int64_t elements);
     void reduce_to_scalar(const Vmm& accumulator);
     void store_output(const Vmm& source, int element_count, size_t offset = 0);
     void prepare_row_scales();
     void store_row_tile();
-    void store_state(const Vmm& source, int element_count, size_t offset);
     void load(const Vmm& destination,
               const Xbyak::Reg64& source,
               const ov::element::Type& source_precision,

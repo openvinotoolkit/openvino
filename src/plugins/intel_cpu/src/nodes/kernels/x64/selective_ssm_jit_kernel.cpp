@@ -127,19 +127,25 @@ void jit_selective_ssm_kernel<isa>::store_row_tile() {
 }
 
 template <cpu_isa_t isa>
-void jit_selective_ssm_kernel<isa>::store_state(const Vmm& source, int element_count, size_t offset) {
-    const auto& destination =
-        m_jcp.state_mode == jit_selective_ssm_state_mode::separate ? reg_output_state : reg_input_state;
-    store(destination, source, m_jcp.state_precision, element_count, offset);
-}
-
-template <cpu_isa_t isa>
 void jit_selective_ssm_kernel<isa>::emit_state_vector(size_t rows,
                                                       size_t active_lanes,
                                                       size_t projection_offset,
                                                       size_t state_vector_offset) {
-    const auto state_element_size = m_jcp.state_precision.size();
-    const auto state_row_bytes = m_jcp.state_size * state_element_size;
+    load_projections(active_lanes, projection_offset);
+    const auto state_row_bytes = m_jcp.state_size * m_jcp.state_precision.size();
+    const auto vector = projection_offset / (vector_size * sizeof(float));
+    for (size_t row = 0; row < rows; ++row) {
+        const auto state = state_vmm(row);
+        const auto offset = row * state_row_bytes + state_vector_offset;
+        load_state(state, active_lanes, offset);
+        compute_state(row, active_lanes);
+        store_state(state, active_lanes, offset);
+        accumulate_output(row, active_lanes, vector);
+    }
+}
+
+template <cpu_isa_t isa>
+void jit_selective_ssm_kernel<isa>::load_projections(size_t active_lanes, size_t projection_offset) {
     const bool is_full_vector = active_lanes == vector_size;
 
     if (is_full_vector) {
@@ -157,68 +163,64 @@ void jit_selective_ssm_kernel<isa>::emit_state_vector(size_t rows,
              static_cast<int>(active_lanes),
              projection_offset);
     }
+}
 
-    const auto emit_store = [&](size_t row) {
-        const auto state = state_vmm(row);
-        const auto state_offset = row * state_row_bytes + state_vector_offset;
-        if (is_full_vector && m_jcp.state_precision == ov::element::f32) {
-            const auto& destination =
-                m_jcp.state_mode == jit_selective_ssm_state_mode::separate ? reg_output_state : reg_input_state;
-            vmovups(ptr[destination + state_offset], state);
-        } else {
-            store_state(state, static_cast<int>(active_lanes), state_offset);
-        }
-    };
+template <cpu_isa_t isa>
+void jit_selective_ssm_kernel<isa>::load_state(const Vmm& destination, size_t active_lanes, size_t offset) {
+    if (active_lanes == vector_size && m_jcp.state_precision == ov::element::f32) {
+        vmovups(destination, ptr[reg_input_state + offset]);
+    } else {
+        load(destination, reg_input_state, m_jcp.state_precision, static_cast<int>(active_lanes), offset);
+    }
+}
 
-    for (size_t row = 0; row < rows; ++row) {
-        const auto state = state_vmm(row);
-        const auto state_offset = row * state_row_bytes + state_vector_offset;
-        if (is_full_vector && m_jcp.state_precision == ov::element::f32) {
-            vmovups(state, ptr[reg_input_state + state_offset]);
-        } else {
-            load(state, reg_input_state, m_jcp.state_precision, static_cast<int>(active_lanes), state_offset);
-        }
-
-        // state[p, n] = decay * state[p, n] + (delta * x[p]) * B[n]
-        vmulps(state, state, vmm_decay);
-        vfmadd231ps(state, vmm_input_projection, input_scale_vmm(row));
-        if constexpr (isa == avx2) {
-            if (!is_full_vector) {
-                // B's inactive lanes are already zero-filled by the load emitter. Reuse those zeros rather
-                // than allocating/clearing scratch; 0 * Inf during the state update may have produced NaNs.
-                const auto inactive_mask = static_cast<uint8_t>(0xFFU << active_lanes);
-                vblendps(state, state, vmm_input_projection, inactive_mask);
-            }
-        }
-
-        if (m_jcp.state_mode == jit_selective_ssm_state_mode::in_place) {
-            emit_store(row);
-        }
-        // output[p] = sum_n(state[p, n] * C[n])
-        const auto vector = projection_offset / (vector_size * sizeof(float));
-        if constexpr (isa == avx2) {
-            vfmadd231ps(accumulator_vmm(row, vector), state, vmm_output_projection);
-        } else {
-            if (is_full_vector) {
-                vfmadd231ps(accumulator_vmm(row, vector), state, vmm_output_projection);
-            } else {
-                // Do not evaluate inactive products, including NaN * 0 from non-finite decay/input.
-                vfmadd231ps(accumulator_vmm(row, vector) | k_tail, state, vmm_output_projection);
-            }
-        }
-        if constexpr (isa == avx2) {
-            if (m_jcp.state_mode == jit_selective_ssm_state_mode::separate) {
-                emit_store(row);
-            }
+template <cpu_isa_t isa>
+void jit_selective_ssm_kernel<isa>::compute_state(size_t row, size_t active_lanes) {
+    const bool is_full_vector = active_lanes == vector_size;
+    const auto state = state_vmm(row);
+    // state[p, n] = decay * state[p, n] + (delta * x[p]) * B[n]
+    vmulps(state, state, vmm_decay);
+    vfmadd231ps(state, vmm_input_projection, input_scale_vmm(row));
+    if constexpr (isa == avx2) {
+        if (!is_full_vector) {
+            // Load/store emitters are inactive during compute, so their auxiliary register is free here.
+            // A zero idiom avoids a blend dependency on the loaded B vector.
+            uni_vpxor(vmm_reduce_tmp0, vmm_reduce_tmp0, vmm_reduce_tmp0);
+            // Zero-filled loads alone are insufficient: 0 * Inf during the update may produce NaNs.
+            const auto inactive_mask = static_cast<uint8_t>(0xFFU << active_lanes);
+            vblendps(state, state, vmm_reduce_tmp0, inactive_mask);
         }
     }
+}
 
-    if constexpr (isa != avx2) {
-        if (m_jcp.state_mode == jit_selective_ssm_state_mode::separate) {
-            for (size_t row = 0; row < rows; ++row) {
-                emit_store(row);
-            }
+template <cpu_isa_t isa>
+void jit_selective_ssm_kernel<isa>::accumulate_output(size_t row, size_t active_lanes, size_t vector) {
+    const auto state = state_vmm(row);
+    const bool is_full_vector = active_lanes == vector_size;
+    // output[p] = sum_n(state[p, n] * C[n])
+    if constexpr (isa == avx2) {
+        vfmadd231ps(accumulator_vmm(row, vector), state, vmm_output_projection);
+    } else {
+        if (is_full_vector) {
+            vfmadd231ps(accumulator_vmm(row, vector), state, vmm_output_projection);
+        } else {
+            // Do not evaluate inactive products, including NaN * 0 from non-finite decay/input.
+            vfmadd231ps(accumulator_vmm(row, vector) | k_tail, state, vmm_output_projection);
         }
+    }
+}
+
+template <cpu_isa_t isa>
+void jit_selective_ssm_kernel<isa>::store_state(const Vmm& source, size_t active_lanes, size_t offset) {
+    if (m_jcp.state_mode == jit_selective_ssm_state_mode::no_store) {
+        return;
+    }
+    const auto& destination =
+        m_jcp.state_mode == jit_selective_ssm_state_mode::separate ? reg_output_state : reg_input_state;
+    if (active_lanes == vector_size && m_jcp.state_precision == ov::element::f32) {
+        vmovups(ptr[destination + offset], source);
+    } else {
+        store(destination, source, m_jcp.state_precision, static_cast<int>(active_lanes), offset);
     }
 }
 
