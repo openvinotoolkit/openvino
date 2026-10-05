@@ -27,6 +27,15 @@
 #include "llm_infer_request.hpp"
 #include "llm_kvcache_strategy.hpp"
 #include "llm_test_helpers.hpp"
+#include "openvino/op/add.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
+#include "openvino/op/gather_nd.hpp"
+#include "openvino/op/non_zero.hpp"
+#include "openvino/op/parameter.hpp"
+#include "openvino/op/result.hpp"
+#include "openvino/op/scatter_nd_update.hpp"
+#include "openvino/op/transpose.hpp"
 #include "openvino/openvino.hpp"
 #include "util.hpp"
 
@@ -94,6 +103,16 @@ using ov::test::npuw::LLMContinuedPrefillTestAccess;
 using ov::test::npuw::NullPlugin;
 class FakeSubCompiledModel;
 
+// Inputs of the prefill sub-request captured at every infer(), keyed by port name.
+using PrefillJournal = std::vector<std::unordered_map<std::string, std::vector<uint8_t>>>;
+
+std::vector<uint8_t> materialize_bytes(const ov::SoPtr<ov::ITensor>& tensor) {
+    ov::Tensor copy(tensor->get_element_type(), tensor->get_shape());
+    tensor->copy_to(ov::get_tensor_impl(copy)._ptr);
+    auto* data = static_cast<uint8_t*>(copy.data());
+    return std::vector<uint8_t>(data, data + copy.get_byte_size());
+}
+
 class FakeSubInferRequest final : public ov::ISyncInferRequest {
 public:
     explicit FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledModel> compiled_model);
@@ -118,9 +137,19 @@ class FakeSubCompiledModel final : public ov::npuw::ICompiledModel_v0 {
 public:
     FakeSubCompiledModel(const std::shared_ptr<ov::Model>& model,
                          const std::shared_ptr<const ov::IPlugin>& plugin,
-                         const ov::AnyMap&)
+                         std::shared_ptr<PrefillJournal> journal)
         : ov::npuw::ICompiledModel_v0(model, plugin),
-          m_model(model) {}
+          m_model(model),
+          m_journal(std::move(journal)) {}
+
+    // Only the prefill submodel is journaled.
+    PrefillJournal* journal() const {
+        const auto& name = m_model->get_friendly_name();
+        const std::string suffix = "_prefill";
+        const bool is_prefill =
+            name.size() >= suffix.size() && name.compare(name.size() - suffix.size(), suffix.size(), suffix) == 0;
+        return is_prefill ? m_journal.get() : nullptr;
+    }
 
     void export_model(std::ostream&) const override {}
     std::shared_ptr<const ov::Model> get_runtime_model() const override {
@@ -161,6 +190,7 @@ public:
 
 private:
     std::shared_ptr<ov::Model> m_model;
+    std::shared_ptr<PrefillJournal> m_journal;
 };
 
 FakeSubInferRequest::FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledModel> compiled_model)
@@ -177,6 +207,13 @@ FakeSubInferRequest::FakeSubInferRequest(std::shared_ptr<const FakeSubCompiledMo
 }
 
 void FakeSubInferRequest::infer() {
+    const auto* compiled = static_cast<const FakeSubCompiledModel*>(get_compiled_model().get());
+    if (auto* journal = compiled->journal()) {
+        auto& entry = journal->emplace_back();
+        for (const auto& input : get_compiled_model()->inputs()) {
+            entry.emplace(input.get_any_name(), materialize_bytes(ov::ISyncInferRequest::get_tensor(input)));
+        }
+    }
     for (const auto& output : get_compiled_model()->outputs()) {
         auto tensor = ov::ISyncInferRequest::get_tensor(output);
         std::memset(tensor->data(), 0, tensor->get_byte_size());
@@ -185,13 +222,18 @@ void FakeSubInferRequest::infer() {
 
 class ContinuedPrefillFactory {
 public:
+    explicit ContinuedPrefillFactory(std::shared_ptr<PrefillJournal> journal = {}) : m_journal(std::move(journal)) {}
+
     ov::npuw::LLMCompiledModel::CompiledModelFactory make_factory() {
-        return [](const std::shared_ptr<ov::Model>& model,
-                  const std::shared_ptr<const ov::IPlugin>& plugin,
-                  const ov::AnyMap& props) -> std::shared_ptr<ov::npuw::ICompiledModel_v0> {
-            return std::make_shared<FakeSubCompiledModel>(model, plugin, props);
+        return [journal = m_journal](const std::shared_ptr<ov::Model>& model,
+                                     const std::shared_ptr<const ov::IPlugin>& plugin,
+                                     const ov::AnyMap&) -> std::shared_ptr<ov::npuw::ICompiledModel_v0> {
+            return std::make_shared<FakeSubCompiledModel>(model, plugin, journal);
         };
     }
+
+private:
+    std::shared_ptr<PrefillJournal> m_journal;
 };
 
 // Delegates every strategy call to the real contiguous strategy but fails the
@@ -234,13 +276,6 @@ private:
     std::unique_ptr<ov::npuw::LLMKVCacheStrategy> m_inner;
 };
 
-std::vector<uint8_t> materialize_bytes(const ov::SoPtr<ov::ITensor>& tensor) {
-    ov::Tensor copy(tensor->get_element_type(), tensor->get_shape());
-    tensor->copy_to(ov::get_tensor_impl(copy)._ptr);
-    auto* data = static_cast<uint8_t*>(copy.data());
-    return std::vector<uint8_t>(data, data + copy.get_byte_size());
-}
-
 void fill_tensor_pattern(const ov::SoPtr<ov::ITensor>& tensor, uint8_t seed) {
     ov::Tensor dense(tensor->get_element_type(), tensor->get_shape());
     auto* data = static_cast<uint8_t*>(dense.data());
@@ -268,9 +303,11 @@ protected:
         init({});
     }
 
-    void init(const ov::AnyMap& extra_props) {
+    void init(const ov::AnyMap& extra_props,
+              const std::shared_ptr<ov::Model>& model = build_llm_test_model(),
+              std::shared_ptr<PrefillJournal> journal = {}) {
         m_plugin = std::make_shared<NullPlugin>();
-        ContinuedPrefillFactory factory;
+        ContinuedPrefillFactory factory(std::move(journal));
         ov::AnyMap props{{"NPUW_LLM", "YES"},
                          {"NPUW_DEVICES", "CPU"},
                          {"NPUW_LLM_MAX_PROMPT_LEN", "256"},
@@ -281,10 +318,7 @@ protected:
         for (const auto& [key, value] : extra_props) {
             props[key] = value;
         }
-        m_compiled = std::make_shared<ov::npuw::LLMCompiledModel>(build_llm_test_model(),
-                                                                  m_plugin,
-                                                                  props,
-                                                                  factory.make_factory());
+        m_compiled = std::make_shared<ov::npuw::LLMCompiledModel>(model, m_plugin, props, factory.make_factory());
         ASSERT_NE(m_compiled, nullptr);
         ASSERT_TRUE(m_compiled->get_property("NPUW_LLM_CONTINUOUS_PREFILL_SUPPORTED").as<bool>());
 
@@ -664,5 +698,324 @@ TEST_F(LLMBlockContinuedPrefillTest, GrantedContinuationTruncatesBlockPoolAndRun
     run_generate_step(104);
     EXPECT_EQ(stored_tokens(), 105);
 }
+
+// VLM language models feed the prefill with inputs_embeds and, depending on the
+// family, token_type_ids (Gemma-3), 3-D M-RoPE position ids (Qwen2.5-VL) or
+// M-RoPE plus DeepStack injections (Qwen3-VL). Every caller tensor of a
+// continued prefill holds only the delta, so the tests below check that the
+// chunks of a continuation stage exactly what the same chunks of a full-history
+// prefill stage.
+enum class VlmInputs { InputsEmbeds, TokenTypeIds, MRoPE, DeepStack };
+
+constexpr size_t kVlmTotal = 104;      // full second-turn history
+constexpr size_t kVlmFirstTurn = 72;   // history prefilled by the first turn
+constexpr size_t kVlmKeep = 64;        // chunk-aligned grant, inside the image block
+constexpr size_t kVlmImageBegin = 40;  // image block [40, 80), a 5 x 8 grid
+constexpr size_t kVlmImageEnd = 80;
+constexpr size_t kVlmImageWidth = 8;
+constexpr size_t kVlmDeepstackLayers = 2;
+
+bool is_vlm_image_token(size_t i) {
+    return i >= kVlmImageBegin && i < kVlmImageEnd;
+}
+
+size_t vlm_image_tokens_before(size_t i) {
+    return std::clamp(i, kVlmImageBegin, kVlmImageEnd) - kVlmImageBegin;
+}
+
+// Gemma-3 style token_type_ids input. The model builder's bidirectional image
+// mask reads token_type_ids over the whole history, which does not reshape to a
+// chunked prefill, so the input reaches the graph through a probe output. The
+// fake sub-requests never execute the graph; the tests check the staged chunk.
+void add_token_type_ids_input(const std::shared_ptr<ov::Model>& model) {
+    auto token_type_ids = std::make_shared<ov::op::v0::Parameter>(ov::element::i64, ov::PartialShape{-1, -1});
+    token_type_ids->output(0).set_names({"token_type_ids"});
+    auto zero = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1, 1}, {0});
+    auto probe = std::make_shared<ov::op::v1::Add>(token_type_ids, zero);
+    probe->output(0).set_names({"token_type_ids_probe"});
+    auto result = std::make_shared<ov::op::v0::Result>(probe);
+    model->add_parameters({token_type_ids});
+    model->add_results({result});
+    model->validate_nodes_and_infer_types();
+}
+
+// Qwen3-VL style DeepStack injection on the input embeddings, the pattern
+// ReplaceDeepstackScatterWithAdd turns into a dense residual add.
+void add_deepstack_injection(const std::shared_ptr<ov::Model>& model, size_t hidden_size) {
+    std::shared_ptr<ov::op::v0::Parameter> embeds;
+    for (const auto& param : model->get_parameters()) {
+        if (param->output(0).get_names().count("inputs_embeds") > 0) {
+            embeds = param;
+        }
+    }
+    ASSERT_NE(embeds, nullptr);
+    const auto consumers = embeds->output(0).get_target_inputs();
+
+    auto masks = std::make_shared<ov::op::v0::Parameter>(ov::element::boolean, ov::PartialShape{-1, -1});
+    masks->output(0).set_names({"visual_pos_masks"});
+    auto deepstack =
+        std::make_shared<ov::op::v0::Parameter>(ov::element::f32,
+                                                ov::PartialShape{-1, -1, static_cast<int64_t>(hidden_size)});
+    deepstack->output(0).set_names({"deepstack_visual_embeds"});
+
+    auto nonzero = std::make_shared<ov::op::v3::NonZero>(masks, ov::element::i64);
+    auto perm = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{2}, {1, 0});
+    auto pos = std::make_shared<ov::op::v1::Transpose>(nonzero, perm);
+    auto axis0 = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {0});
+    ov::Output<ov::Node> hidden = embeds->output(0);
+    for (size_t l = 0; l < kVlmDeepstackLayers; ++l) {
+        auto gathered = std::make_shared<ov::op::v8::GatherND>(hidden, pos);
+        auto layer = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{}, {static_cast<int64_t>(l)});
+        auto level = std::make_shared<ov::op::v8::Gather>(deepstack, layer, axis0);
+        auto add = std::make_shared<ov::op::v1::Add>(gathered, level);
+        hidden = std::make_shared<ov::op::v3::ScatterNDUpdate>(hidden, pos, add);
+    }
+    for (auto consumer : consumers) {
+        consumer.replace_source_output(hidden);
+    }
+    model->add_parameters({masks, deepstack});
+    model->validate_nodes_and_infer_types();
+}
+
+std::shared_ptr<ov::Model> build_vlm_test_model(VlmInputs kind) {
+    auto cfg = ov::test::npuw::make_test_model_config();
+    cfg.use_inputs_embeds = true;
+    if (kind == VlmInputs::MRoPE || kind == VlmInputs::DeepStack) {
+        cfg.position_ids = ov::test::npuw::make_position_ids_3d();
+    }
+    ov::test::npuw::ModelBuilder mb;
+    auto model = mb.build_llm(cfg);
+    if (kind == VlmInputs::TokenTypeIds) {
+        add_token_type_ids_input(model);
+    }
+    if (kind == VlmInputs::DeepStack) {
+        add_deepstack_injection(model, cfg.hidden_size);
+    }
+    return model;
+}
+
+// Copies [begin, end) of one axis into a dense tensor.
+ov::Tensor slice_axis(const ov::Tensor& tensor, size_t axis, size_t begin, size_t end) {
+    ov::Coordinate lo(tensor.get_shape().size(), 0u);
+    ov::Coordinate hi(tensor.get_shape());
+    lo[axis] = begin;
+    hi[axis] = end;
+    const ov::Tensor roi(tensor, lo, hi);
+    ov::Tensor dense(tensor.get_element_type(), roi.get_shape());
+    roi.copy_to(dense);
+    return dense;
+}
+
+// The inputs of one VLM prefill. Per-token tensors are indexed by the token
+// position in the full history; slice() cuts them to [begin, end) the way the
+// caller does for a continued prefill.
+struct VlmPrompt {
+    ov::Tensor inputs_embeds;     // [1, T, hidden]
+    ov::Tensor position_ids;      // [1, T] or M-RoPE [3, 1, T]
+    ov::Tensor token_type_ids;    // [1, T]
+    ov::Tensor visual_pos_masks;  // [1, T]
+    ov::Tensor deepstack;         // [layers, image tokens, hidden]
+
+    static VlmPrompt full_history(bool mrope, size_t hidden) {
+        VlmPrompt p;
+        p.inputs_embeds = ov::Tensor(ov::element::f32, ov::Shape{1, kVlmTotal, hidden});
+        p.token_type_ids = ov::Tensor(ov::element::i64, ov::Shape{1, kVlmTotal});
+        p.visual_pos_masks = ov::Tensor(ov::element::boolean, ov::Shape{1, kVlmTotal});
+        const size_t image_tokens = kVlmImageEnd - kVlmImageBegin;
+        p.deepstack = ov::Tensor(ov::element::f32, ov::Shape{kVlmDeepstackLayers, image_tokens, hidden});
+        for (size_t i = 0; i < kVlmTotal; ++i) {
+            for (size_t e = 0; e < hidden; ++e) {
+                p.inputs_embeds.data<float>()[i * hidden + e] = static_cast<float>(i * 100 + e);
+            }
+            p.token_type_ids.data<int64_t>()[i] = is_vlm_image_token(i) ? 1 : 0;
+            p.visual_pos_masks.data<bool>()[i] = is_vlm_image_token(i);
+        }
+        for (size_t i = 0; i < p.deepstack.get_size(); ++i) {
+            p.deepstack.data<float>()[i] = 1e5f + static_cast<float>(i);
+        }
+        if (!mrope) {
+            p.position_ids = make_i64_iota({1, kVlmTotal}, 0);
+            return p;
+        }
+        // M-RoPE: text advances all three axes together, an image token takes
+        // (block start, block start + row, block start + column), and the text
+        // after the block resumes from the block's largest position plus one.
+        p.position_ids = ov::Tensor(ov::element::i64, ov::Shape{3, 1, kVlmTotal});
+        auto* pos = p.position_ids.data<int64_t>();
+        const auto start = static_cast<int64_t>(kVlmImageBegin);
+        const auto rows = static_cast<int64_t>((kVlmImageEnd - kVlmImageBegin) / kVlmImageWidth);
+        const int64_t after_image = start + std::max<int64_t>(rows, static_cast<int64_t>(kVlmImageWidth));
+        for (size_t i = 0; i < kVlmTotal; ++i) {
+            int64_t t = static_cast<int64_t>(i), h = t, w = t;
+            if (is_vlm_image_token(i)) {
+                const auto j = static_cast<int64_t>(i - kVlmImageBegin);
+                t = start;
+                h = start + j / static_cast<int64_t>(kVlmImageWidth);
+                w = start + j % static_cast<int64_t>(kVlmImageWidth);
+            } else if (i >= kVlmImageEnd) {
+                t = h = w = after_image + static_cast<int64_t>(i - kVlmImageEnd);
+            }
+            pos[i] = t;
+            pos[kVlmTotal + i] = h;
+            pos[2 * kVlmTotal + i] = w;
+        }
+        return p;
+    }
+
+    VlmPrompt slice(size_t begin, size_t end) const {
+        VlmPrompt p;
+        p.inputs_embeds = slice_axis(inputs_embeds, 1, begin, end);
+        p.position_ids = slice_axis(position_ids, position_ids.get_shape().size() - 1, begin, end);
+        p.token_type_ids = slice_axis(token_type_ids, 1, begin, end);
+        p.visual_pos_masks = slice_axis(visual_pos_masks, 1, begin, end);
+        p.deepstack = slice_axis(deepstack, 1, vlm_image_tokens_before(begin), vlm_image_tokens_before(end));
+        return p;
+    }
+};
+
+class LLMVlmContinuedPrefillTest : public LLMContinuedPrefillTest, public ::testing::WithParamInterface<VlmInputs> {
+protected:
+    void SetUp() override {}
+
+    bool mrope() const {
+        return GetParam() == VlmInputs::MRoPE || GetParam() == VlmInputs::DeepStack;
+    }
+
+    // Compiles a fresh model and request whose prefill sub-request is journaled.
+    // The base fixture asserts that the capability reports support.
+    void start_session() {
+        m_journal = std::make_shared<PrefillJournal>();
+        init({}, build_vlm_test_model(GetParam()), m_journal);
+    }
+
+    void set_input(const std::string& name, const ov::Tensor& tensor) {
+        const auto port = ov::npuw::util::find_port_by_name(request().get_inputs(), name);
+        if (port.has_value()) {
+            request().set_tensor(port.value(), ov::get_tensor_impl(tensor));
+        }
+    }
+
+    void run_prefill(const VlmPrompt& prompt, size_t history_len) {
+        set_input("inputs_embeds", prompt.inputs_embeds);
+        set_input("attention_mask", make_i64({1, history_len}, 1));
+        set_input("position_ids", prompt.position_ids);
+        set_input("token_type_ids", prompt.token_type_ids);
+        set_input("visual_pos_masks", prompt.visual_pos_masks);
+        set_input("deepstack_visual_embeds", prompt.deepstack);
+        request().infer();
+    }
+
+    void run_vlm_generate_step(size_t live_tokens, size_t hidden) {
+        VlmPrompt step;
+        step.inputs_embeds = ov::Tensor(ov::element::f32, ov::Shape{1, 1, hidden});
+        std::fill_n(step.inputs_embeds.data<float>(), hidden, 0.5f);
+        step.position_ids = mrope() ? make_i64({3, 1, 1}, static_cast<int64_t>(live_tokens))
+                                    : make_i64({1, 1}, static_cast<int64_t>(live_tokens));
+        step.token_type_ids = make_i64({1, 1}, 0);
+        step.visual_pos_masks = ov::Tensor(ov::element::boolean, ov::Shape{1, 1});
+        step.visual_pos_masks.data<bool>()[0] = false;
+        step.deepstack = ov::Tensor(ov::element::f32, ov::Shape{kVlmDeepstackLayers, 1, hidden});
+        std::fill_n(step.deepstack.data<float>(), step.deepstack.get_size(), 0.f);
+        run_prefill(step, live_tokens + 1);
+    }
+
+    // First turn, one generate step, then a negotiated grant of kVlmKeep.
+    void prepare_continuation(const VlmPrompt& full, size_t hidden) {
+        run_prefill(full.slice(0, kVlmFirstTurn), kVlmFirstTurn);
+        run_vlm_generate_step(kVlmFirstTurn, hidden);
+        propose(kVlmFirstTurn + 1);
+        ASSERT_EQ(stored_tokens(), static_cast<int64_t>(kVlmKeep));
+    }
+
+    std::vector<std::string> staged_inputs() const {
+        std::vector<std::string> names{"inputs_embeds", "attention_mask", "position_ids"};
+        if (GetParam() == VlmInputs::TokenTypeIds) {
+            names.push_back("token_type_ids");
+        }
+        if (GetParam() == VlmInputs::DeepStack) {
+            names.push_back("deepstack_visual_embeds");
+        }
+        return names;
+    }
+
+    std::shared_ptr<PrefillJournal> m_journal;
+};
+
+// Turn two continued at a grant inside the image block stages exactly the
+// chunks a full-history prefill of the same conversation stages for the same
+// absolute range. The grant is chunk-aligned, so the chunk boundaries match.
+TEST_P(LLMVlmContinuedPrefillTest, ContinuedPrefillStagesTheSameChunksAsFullHistory) {
+    constexpr size_t kHidden = 64;
+    const auto full = VlmPrompt::full_history(mrope(), kHidden);
+
+    // Reference: the whole second-turn history prefilled on a fresh request.
+    start_session();
+    run_prefill(full, kVlmTotal);
+    const PrefillJournal reference = *m_journal;
+    ASSERT_EQ(reference.size(), 4u);  // chunks of 32 over 104 tokens
+
+    // Continuation: first turn, generate, grant, then only the delta.
+    start_session();
+    prepare_continuation(full, kHidden);
+    m_journal->clear();
+    run_prefill(full.slice(kVlmKeep, kVlmTotal), kVlmTotal);
+    EXPECT_EQ(stored_tokens(), static_cast<int64_t>(kVlmTotal));
+    ASSERT_EQ(m_journal->size(), 2u);  // chunks [64, 96) and [96, 104)
+
+    for (size_t chunk = 0; chunk < m_journal->size(); ++chunk) {
+        const auto& expected = reference.at(chunk + kVlmKeep / 32u);
+        const auto& actual = m_journal->at(chunk);
+        for (const auto& name : staged_inputs()) {
+            ASSERT_EQ(actual.count(name), 1u) << name;
+            EXPECT_EQ(actual.at(name), expected.at(name)) << name << " differs in delta chunk " << chunk;
+        }
+    }
+}
+
+// A per-token input left at full-history length is a preflight rejection: the
+// grant stays armed and the correctly sliced delta still completes.
+TEST_P(LLMVlmContinuedPrefillTest, FullHistoryInputIsRejectedBeforeTheRepack) {
+    constexpr size_t kHidden = 64;
+    const auto full = VlmPrompt::full_history(mrope(), kHidden);
+    start_session();
+    prepare_continuation(full, kHidden);
+
+    auto wrong = full.slice(kVlmKeep, kVlmTotal);
+    switch (GetParam()) {
+    case VlmInputs::InputsEmbeds:
+    case VlmInputs::MRoPE:
+        wrong.position_ids = full.position_ids;
+        break;
+    case VlmInputs::TokenTypeIds:
+        wrong.token_type_ids = full.token_type_ids;
+        break;
+    case VlmInputs::DeepStack:
+        wrong.deepstack = full.deepstack;
+        break;
+    }
+    EXPECT_THROW(run_prefill(wrong, kVlmTotal), ov::Exception);
+    EXPECT_EQ(stored_tokens(), static_cast<int64_t>(kVlmKeep));
+
+    run_prefill(full.slice(kVlmKeep, kVlmTotal), kVlmTotal);
+    EXPECT_EQ(stored_tokens(), static_cast<int64_t>(kVlmTotal));
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    VlmInputs,
+    LLMVlmContinuedPrefillTest,
+    ::testing::Values(VlmInputs::InputsEmbeds, VlmInputs::TokenTypeIds, VlmInputs::MRoPE, VlmInputs::DeepStack),
+    [](const ::testing::TestParamInfo<VlmInputs>& info) {
+        switch (info.param) {
+        case VlmInputs::InputsEmbeds:
+            return std::string("InputsEmbeds");
+        case VlmInputs::TokenTypeIds:
+            return std::string("TokenTypeIds");
+        case VlmInputs::MRoPE:
+            return std::string("MRoPE");
+        case VlmInputs::DeepStack:
+            return std::string("DeepStack");
+        }
+        return std::string();
+    });
 
 }  // namespace
