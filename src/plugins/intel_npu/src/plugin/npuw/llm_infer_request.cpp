@@ -361,8 +361,8 @@ ov::npuw::LLMInferRequest::LLMInferRequest(const std::shared_ptr<ov::npuw::LLMCo
     //       Mamba inherently preserves information about the order of tokens.
     if (m_prefill_in_ports.find(layer_names::position_ids) == m_prefill_in_ports.end()) {
         m_position_ids_present = false;
-        for (auto&& [__, variant_ports] : m_generate_variant_in_ports) {
-            OPENVINO_ASSERT(variant_ports.find(layer_names::position_ids) == variant_ports.end(),
+        for (const auto& variant : m_generate_variant_in_ports) {
+            OPENVINO_ASSERT(variant.second.find(layer_names::position_ids) == variant.second.end(),
                             "Generate model variant unexpectedly has position_ids port while prefill hasn't!");
         }
     }

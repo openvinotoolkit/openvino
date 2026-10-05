@@ -47,7 +47,7 @@ inline std::shared_ptr<ov::Model> build_llm_test_model() {
     return mb.build_llm(make_test_model_config());
 }
 
-/// Build an LLM test model with no position_ids input, mirroring modelw with NoPE 
+/// Build an LLM test model with no position_ids input, mirroring models with NoPE
 /// such as granite-4.0-h-micro. An identity RoPE leaves setup_position_ids with
 /// no RoPE Range pattern, so the builder creates no position_ids Parameter and
 /// AddPositionIdsParam stays a no-op during compilation.

@@ -147,7 +147,7 @@ ov::Tensor make_i64(std::initializer_list<size_t> shape, int64_t fill_value) {
 
 class LLMNoPositionIdsTest : public ::testing::Test {
 protected:
-    void build(const std::shared_ptr<ov::Model>& model) {
+    void build(const std::shared_ptr<ov::Model>& model, const ov::AnyMap& extra_props = {}) {
         m_plugin = std::make_shared<NullPlugin>();
         NoPositionIdsFactory factory;
         ov::AnyMap props{{"NPUW_LLM", "YES"},
@@ -156,6 +156,9 @@ protected:
                          {"NPUW_LLM_MIN_RESPONSE_LEN", "64"},
                          {"NPUW_LLM_PREFILL_HINT", "DYNAMIC"},
                          {"NPUW_LLM_PREFILL_CHUNK_SIZE", "32"}};
+        for (const auto& kv : extra_props) {
+            props[kv.first] = kv.second;
+        }
         m_compiled = std::make_shared<ov::npuw::LLMCompiledModel>(model, m_plugin, props, factory.make_factory());
         ASSERT_NE(m_compiled, nullptr);
         m_request = std::make_unique<ov::npuw::LLMInferRequest>(m_compiled);
@@ -210,6 +213,24 @@ TEST_F(LLMNoPositionIdsTest, PrefillAndGenerateRunWithoutPositionIds) {
     ASSERT_NE(logits(), nullptr);
 
     // Generate step: a single token with the history exposed in the mask.
+    set_input("input_ids", make_i64({1, 1}, 1));
+    set_input("attention_mask", make_i64({1, kPromptLen + 1}, 1));
+    ASSERT_NO_THROW(m_request->infer());
+    EXPECT_NE(logits(), nullptr);
+}
+
+// Static prefill (no chunking) must also run end-to-end without position_ids,
+// exercising the whole-prefill guard in infer_whole_prefill.
+TEST_F(LLMNoPositionIdsTest, PrefillAndGenerateRunWithoutPositionIdsStaticPrefill) {
+    build(build_llm_test_model_without_position_ids(), {{"NPUW_LLM_PREFILL_HINT", "STATIC"}});
+    ASSERT_FALSE(has_input("position_ids"));
+
+    constexpr size_t kPromptLen = 72u;
+    set_input("input_ids", make_i64({1, kPromptLen}, 1));
+    set_input("attention_mask", make_i64({1, kPromptLen}, 1));
+    ASSERT_NO_THROW(m_request->infer());
+    ASSERT_NE(logits(), nullptr);
+
     set_input("input_ids", make_i64({1, 1}, 1));
     set_input("attention_mask", make_i64({1, kPromptLen + 1}, 1));
     ASSERT_NO_THROW(m_request->infer());
