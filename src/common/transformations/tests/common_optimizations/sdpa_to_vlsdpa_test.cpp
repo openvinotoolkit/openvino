@@ -99,8 +99,8 @@ TEST_F(TransformationTestsF, SDPA2VLSDPAWindowAttentionMaskTest) {
     comparator.enable(FunctionsComparator::CmpValues::NAMES);
 }
 
-// A key holding quantization codes has no meaning VLSDPA can express, so the rewrite must leave
-// the model alone rather than produce a VLSDPA that reads the codes as values.
+// VLSDPA takes its key in the query's type, so the rewrite must leave an SDPA with an integer key
+// alone rather than produce a VLSDPA that reinterprets it.
 TEST_F(TransformationTestsF, SDPA2VLSDPAQuantizedKeyIsNotConverted) {
     disable_rt_info_check();
     {

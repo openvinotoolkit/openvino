@@ -60,7 +60,7 @@ void op::v13::ScaledDotProductAttention::validate_and_infer_types() {
     }
     for (size_t i = 1; i < input_size; i++) {
         const auto& element_type = get_input_element_type(i);
-        // A key or value holding quantization codes rather than values does not take part in the
+        // An integer key or value is converted to the query's type, so it does not take part in the
         // type merge, and the output type keeps following the query.
         if ((i == 1 || i == 2) && is_quantized_kv_type(element_type)) {
             continue;

@@ -242,10 +242,10 @@ INSTANTIATE_TEST_SUITE_P(TransformationTests, StateConcatSDPAWithExtraNodeTests,
         InsertPoint::At_MQ_Multiply,
         InsertPoint::At_MQ_Reshape));
 
-// A quantized K/V cache has no operand carrying the mapping from codes to values, and
-// ScaledDotProductAttentionWithKVCache would read the codes at the query's precision. The guard in
-// StatefulSDPAFusion must leave the graph alone: the original v13 SDPA survives and no CPU node is
-// built. model_ref being the unmodified graph is the assertion.
+// ScaledDotProductAttentionWithKVCache would read an integer K/V cache at the query's precision
+// instead of converting it. The guard in StatefulSDPAFusion must leave the graph alone: the
+// original v13 SDPA survives and no CPU node is built. model_ref being the unmodified graph is the
+// assertion.
 static std::shared_ptr<ov::Model> makeQuantizedKvSDPA(const ov::PartialShape& inputShape) {
     auto q = std::make_shared<ov::op::v0::Parameter>(element::f32, inputShape);
     auto k = std::make_shared<ov::op::v0::Parameter>(element::i8, inputShape);

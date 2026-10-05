@@ -13,8 +13,8 @@
 #include "openvino/pass/serialize.hpp"
 #include "read_ir.hpp"
 
-// A key or value holding quantization codes is only useful if it survives a round-trip through
-// IR: the operand exists so a model can carry it, and a model carries it through a file.
+// An integer key or value is only useful if it survives a round-trip through IR: the operand
+// exists so a model can carry it, and a model carries it through a file.
 class QuantizedSDPAOperandsSerializationTest : public ov::test::TestsCommon {
 public:
     std::string m_out_xml_path;

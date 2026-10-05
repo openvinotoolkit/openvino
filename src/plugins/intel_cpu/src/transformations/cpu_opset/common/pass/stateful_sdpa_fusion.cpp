@@ -120,9 +120,9 @@ StatefulSDPAFusion::StatefulSDPAFusion() {
         const auto& pattern_map = m.get_pattern_value_map();
         auto root = m.get_match_root();
 
-        // This fusion has no operand able to carry the mapping from quantization codes to values,
-        // and the node it builds would widen them as magnitudes. Decline, so the graph reaches
-        // ScaledDotProductAttentionDecomposition and is reported against the SDPA node by name.
+        // The node this fusion builds reads its key and value cache at the query's precision, so
+        // an integer one would be reinterpreted rather than converted. Decline: the unfused SDPA
+        // gets its key and value converted on the way in.
         const auto sdpa_root = ov::as_type_ptr<ov::op::v13::ScaledDotProductAttention>(root);
         if (sdpa_root && ov::op::v13::ScaledDotProductAttention::has_quantized_kv(*sdpa_root)) {
             return false;

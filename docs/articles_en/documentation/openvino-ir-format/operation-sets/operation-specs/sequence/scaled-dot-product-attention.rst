@@ -21,6 +21,7 @@ omitting training-related parameter.
 	:force:
 
 	def ScaledDotProductAttention(query, key, value, attn_mask=None, scale=None, sink=None, *, causal):
+	    key, value = ConvertLike(key, query), ConvertLike(value, query)
 	    L, S = Gather(ShapeOf(query), -2), Gather(ShapeOf(key), -2)
 	    if scale is None:
 	        scale = 1.0 / Sqrt(ConvertLike(Gather(ShapeOf(query), -1), query))
@@ -76,11 +77,11 @@ omitting training-related parameter.
 
 .. note::
 
-    A *T_QUANT* ``key`` or ``value`` is available since 2026.4 OpenVINO release. The pseudo-code
-    above describes the operation for a *T* ``key`` and ``value`` only. When either is *T_QUANT*
-    it holds quantization codes rather than values, and the mapping from codes to values is
-    defined by the implementation that consumes the operation, not by this specification. An
-    implementation that does not define such a mapping is expected to reject the operation.
+    A *T_QUANT* ``key`` or ``value`` is available since 2026.4 OpenVINO release. Its elements are
+    integer values, converted to *T* by the first line of the pseudo-code above, which leaves a *T*
+    ``key`` or ``value`` unchanged. Quantization scales and zero points are not inputs of this
+    operation; a model applies them outside it, for example by folding a per-tensor key scale
+    into ``scale`` and multiplying the output by a per-tensor value scale.
 
 **Outputs**
 
