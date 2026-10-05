@@ -123,7 +123,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
         const uint offset = INPUT0_GET_INDEX(b + b_off, f + f_off, y + y_off, 0);
         int x;
         for (x = 0; x < INPUT0_SIZE_X / 8; x++) {
-            INPUT_VEC8_TYPE val = DECODE_INPUT0_COMPUTE_VECTOR_TYPE(vload8(0, (INPUT0_TYPE*)input + offset + x * 8), 8);
+            INPUT_VEC8_TYPE val = DECODE_INPUT0_COMPUTE_VECTOR_TYPE(vload8(0, &input[offset + x * 8]), 8);
             INPUT_VEC8_TYPE abs_val = fabs(val);
             for (int j = 0; j < 8; j++) {
 #if ASYMMETRIC_QUANTIZATION
@@ -206,7 +206,7 @@ KERNEL(dynamic_quantize_gpu_ref)(
         const uint byte_offset = out_offset / ELEMENTS_PER_BYTE;
         int x;
         for (x = 0; x < INPUT0_SIZE_X / 8; x++) {
-            INPUT_VEC8_TYPE val = DECODE_INPUT0_COMPUTE_VECTOR_TYPE(vload8(0, (INPUT0_TYPE*)input + in_offset + x * 8), 8);
+            INPUT_VEC8_TYPE val = DECODE_INPUT0_COMPUTE_VECTOR_TYPE(vload8(0, &input[in_offset + x * 8]), 8);
             val = CAT(convert_, INPUT_VEC8_TYPE)(TO_SCALE_TYPE_8(val) * (MAKE_VECTOR_TYPE(SCALE_TYPE, 8))scale);
 #if ASYMMETRIC_QUANTIZATION
             val += zp;
