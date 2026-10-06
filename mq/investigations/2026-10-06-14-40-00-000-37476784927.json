@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-06-14-40-00-000-37476784927",
+  "timestamp": "2026-10-06T14:40:00Z",
+  "run_id": "37476784927",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37476784927",
+  "workflow_name": "Build / Build",
+  "pr_number": "38601",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38601",
+  "author": "PatrikStepan",
+  "category": "Infrastructure",
+  "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_reference",
+  "signature": "cc1plus error cmake_pch hxx gch not a pch file werror invalid pch|Infrastructure",
+  "signature_hash": "5b4b1e6917a69856",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "cc1plus: error: cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch] while compiling src/op/einsum.cpp in the OpenVINO JS API (ARM64 cross-compile) step"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Overall status check failed because the upstream Build job failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/einsum.cpp.o",
+    "cc1plus: error: /__w/openvino/openvino/openvino/openvino_build/src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]",
+    "cc1plus: all warnings being treated as errors",
+    "ninja: build stopped: subcommand failed.",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "The ARM64 cross-compilation runner's precompiled header (cmake_pch.hxx.gch) for the openvino_reference target became invalid/corrupted or stale before the actual compile of einsum.cpp, and because -Werror is enabled, GCC's invalid-pch warning is promoted to a hard error, aborting the build. This is the 13th occurrence of this exact signature in the knowledge base over the last ~12 days, strongly indicating a persistent infrastructure problem (likely sccache/PCH cache corruption, PCH generated under a different compiler flag set, or stale PCH artifacts surviving on a shared/cached runner image) rather than anything introduced by this PR's NPU-only source changes (ze_graph_ext_wrappers.hpp/.cpp, graph.cpp, weightless_graph.cpp), none of which touch src/core/reference or PCH configuration.",
+  "reproduction_steps": "Not reliably reproducible locally; it stems from the CI runner's cached/sccache-backed PCH state for the ARM64 cross-compilation job. To reproduce in CI, re-run the 'Build / Build' job for the 'ARM64 cross-compilation' workflow on the same runner image/cache; if the PCH cache is still stale it will reproduce. Locally, deleting the build directory (or disabling precompiled headers with -DENABLE_PCH=OFF, if supported) and rebuilding from scratch does not reproduce the corruption since it only appears with the shared CI cache.",
+  "recommended_actions": [
+    "Re-run the failed 'Build' job (transient infra issue) — a retry with a clean/regenerated PCH typically succeeds.",
+    "Invalidate or version the sccache/PCH cache key for the ARM64 cross-compilation job so a corrupted cmake_pch.hxx.gch cannot be reused across runs.",
+    "Consider disabling -Werror specifically for the invalid-pch diagnostic (e.g., -Wno-error=invalid-pch) as a stopgap so a stale PCH degrades to a (slow) recompile instead of a hard failure.",
+    "Escalate to CI infra owners given 13 occurrences over 12 days: investigate whether the ARM64 cross-compile runner image or cache volume is corrupting/retaining PCH files between jobs."
+  ],
+  "prevention_strategies": "Add a PCH cache key that includes the compiler version/flags hash so stale or incompatible precompiled headers are never reused; add a CI step that validates the PCH file (e.g. checks its magic/header) before the main build and discards it if invalid; monitor this signature's recurrence count and alert the infra team once a few occurrences accumulate rather than waiting for recurring escalation.",
+  "historical_context": "This exact signature (cc1plus error on cmake_pch.hxx.gch, Infrastructure category) has recurred 13 times since 2026-09-24, with 10 of those occurrences in the last 24 hours and 8 in the last 12 hours, affecting many unrelated PRs (#38559, #37717, #38261, #37908, #38604, #38607, #38611, #38030, #38483, #38380, and now #38601). This confirms it is a persistent, unresolved CI infrastructure defect rather than a per-PR code issue."
+}
