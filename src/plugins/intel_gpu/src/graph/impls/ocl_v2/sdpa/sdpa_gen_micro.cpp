@@ -1527,6 +1527,17 @@ JitConstants SDPAMicroGenerator::get_jit_constants(const kernel_impl_params& par
         jit.add(convert_strides("KEY", "INPUT1", extended_input_k_transpose_order));
         jit.add(convert_strides("VAL", "INPUT2", extended_input_v_transpose_order));
         jit.add(convert_strides("DST", "OUTPUT", extended_output_transpose_order));
+
+        // Q/K/V batch may be broadcast (each is 1 or equal). An input whose batch differs from the
+        // output batch, or is dynamic, needs a modulo on its batch index in the kernel.
+        const auto q_batch = get_batch_size(params.get_input_layout(0), extended_input_q_transpose_order);
+        const auto k_batch = get_batch_size(params.get_input_layout(1), extended_input_k_transpose_order);
+        const auto v_batch = get_batch_size(params.get_input_layout(2), extended_input_v_transpose_order);
+        // -1 means dynamic
+        const auto out_batch = get_broadcast_batch(q_batch, k_batch, v_batch);
+        jit.make("BROADCAST_Q_BATCH", (out_batch == -1) || (q_batch != out_batch) ? 1 : 0);
+        jit.make("BROADCAST_K_BATCH", (out_batch == -1) || (k_batch != out_batch) ? 1 : 0);
+        jit.make("BROADCAST_V_BATCH", (out_batch == -1) || (v_batch != out_batch) ? 1 : 0);
     }
 
     jit.add(unit_parameters("QRY"));
