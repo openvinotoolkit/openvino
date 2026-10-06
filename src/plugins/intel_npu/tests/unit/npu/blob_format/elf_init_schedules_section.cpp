@@ -144,7 +144,7 @@ TEST_F(ELFInitSchedulesSectionTest, WorkingDecryption) {
     }
 }
 
-TEST_F(ELFInitSchedulesSectionTest, ReadingATooSmallSection) {
+TEST_F(ELFInitSchedulesSectionTest, ReadingWithoutConfig) {
     const std::string section_content = "0";
 
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
@@ -158,20 +158,39 @@ TEST_F(ELFInitSchedulesSectionTest, ReadingATooSmallSection) {
     OV_EXPECT_THROW(ELFInitSchedulesSection::read(reader), ov::Exception, _);
 }
 
+TEST_F(ELFInitSchedulesSectionTest, ReadingATooSmallSection) {
+    const std::string section_content = "0";
+    const auto options = std::make_shared<OptionsDesc>();
+    FilteredConfig empty_config(options);
+
+    ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
+    BlobSource source(tensor);
+    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size(), empty_config);
+    OV_EXPECT_THROW(ELFInitSchedulesSection::read(reader), ov::Exception, _);
+
+    std::istringstream stream(section_content);
+    source = BlobSource(stream);
+    reader = BlobReaderInterface(source, 0, section_content.size(), 0, section_content.size(), empty_config);
+    OV_EXPECT_THROW(ELFInitSchedulesSection::read(reader), ov::Exception, _);
+}
+
 TEST_F(ELFInitSchedulesSectionTest, ReadNumberOfInitsTooBig) {
     std::string section_content("\x02\x00", 2);                             // number of inits
     section_content += std::string("\x05\x00\x00\x00\x00\x00\x00\x00", 8);  // the size of init schedule 1
     section_content += std::string("\x00\x00", 2);                          // padding size
     section_content += "dummy";                                             // the content of init schedule 1
 
+    const auto options = std::make_shared<OptionsDesc>();
+    FilteredConfig empty_config(options);
+
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
     BlobSource source(tensor);
-    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size());
+    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size(), empty_config);
     OV_EXPECT_THROW(ELFInitSchedulesSection::read(reader), ov::Exception, _);
 
     std::istringstream stream(section_content);
     source = BlobSource(stream);
-    reader = BlobReaderInterface(source, 0, section_content.size(), 0, section_content.size());
+    reader = BlobReaderInterface(source, 0, section_content.size(), 0, section_content.size(), empty_config);
     OV_EXPECT_THROW(ELFInitSchedulesSection::read(reader), ov::Exception, _);
 }
 
@@ -181,14 +200,17 @@ TEST_F(ELFInitSchedulesSectionTest, ReadNumberOfInitsTooSmall) {
     section_content += std::string("\x00\x00", 2);                          // padding size
     section_content += "dummy";                                             // the content of init schedule 1
 
+    const auto options = std::make_shared<OptionsDesc>();
+    FilteredConfig empty_config(options);
+
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
     BlobSource source(tensor);
-    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size());
+    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size(), empty_config);
     OV_EXPECT_THROW(ELFInitSchedulesSection::read(reader), ov::Exception, _);
 
     std::istringstream stream(section_content);
     source = BlobSource(stream);
-    reader = BlobReaderInterface(source, 0, section_content.size(), 0, section_content.size());
+    reader = BlobReaderInterface(source, 0, section_content.size(), 0, section_content.size(), empty_config);
     OV_EXPECT_THROW(ELFInitSchedulesSection::read(reader), ov::Exception, _);
 }
 
@@ -198,15 +220,67 @@ TEST_F(ELFInitSchedulesSectionTest, ReadInitSizeTooBig) {
     section_content += std::string("\x00\x00", 2);                          // padding size
     section_content += "dummy";                                             // the content of init schedule 1
 
+    const auto options = std::make_shared<OptionsDesc>();
+    FilteredConfig empty_config(options);
+
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
     BlobSource source(tensor);
-    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size());
+    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size(), empty_config);
     OV_EXPECT_THROW(ELFInitSchedulesSection::read(reader), ov::Exception, _);
 
     std::istringstream stream(section_content);
     source = BlobSource(stream);
-    reader = BlobReaderInterface(source, 0, section_content.size(), 0, section_content.size());
+    reader = BlobReaderInterface(source, 0, section_content.size(), 0, section_content.size(), empty_config);
     OV_EXPECT_THROW(ELFInitSchedulesSection::read(reader), ov::Exception, _);
+}
+
+TEST_F(ELFInitSchedulesSectionTest, ReadIntegerOverflow) {
+    std::string section_content("\x02\x00", 2);                             // number of inits
+    section_content += std::string("\x05\x00\x00\x00\x00\x00\x00\x00", 8);  // the size of init schedule 1
+    section_content += std::string("\xFF\xFF\xFF\xFF\xFF\xFF\xFF\xFF", 8);  // the size of init schedule 2
+    section_content += std::string("\x00\x00", 2);                          // padding size
+    section_content += "dummy";                                             // the content of init schedule 1
+    section_content += "dummy";                                             // the content of init schedule 2
+
+    const auto options = std::make_shared<OptionsDesc>();
+    FilteredConfig empty_config(options);
+
+    ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
+    BlobSource source(tensor);
+    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size(), empty_config);
+    OV_EXPECT_THROW(ELFInitSchedulesSection::read(reader), ov::Exception, testing::HasSubstr("Integer overflow"));
+
+    std::istringstream stream(section_content);
+    source = BlobSource(stream);
+    reader = BlobReaderInterface(source, 0, section_content.size(), 0, section_content.size(), empty_config);
+    OV_EXPECT_THROW(ELFInitSchedulesSection::read(reader), ov::Exception, testing::HasSubstr("Integer overflow"));
+}
+
+TEST_F(ELFInitSchedulesSectionTest, ReadEmptySchedule) {
+    std::shared_ptr<ELFInitSchedulesSection> section;
+
+    std::string section_content("\x01\x00", 2);                             // number of inits
+    section_content += std::string("\x00\x00\x00\x00\x00\x00\x00\x00", 8);  // the size of init schedule 1
+    section_content += std::string("\x00\x00", 2);                          // padding size
+
+    const auto options = std::make_shared<OptionsDesc>();
+    FilteredConfig empty_config(options);
+
+    ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
+    BlobSource source(tensor);
+    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size(), empty_config);
+    OV_ASSERT_NO_THROW(section =
+                           std::dynamic_pointer_cast<ELFInitSchedulesSection>(ELFInitSchedulesSection::read(reader)));
+    ASSERT_EQ(section->get_schedules().size(), 1);
+    ASSERT_EQ(section->get_schedules().at(0).get_byte_size(), 0);
+
+    std::istringstream stream(section_content);
+    source = BlobSource(stream);
+    reader = BlobReaderInterface(source, 0, section_content.size(), 0, section_content.size(), empty_config);
+    OV_ASSERT_NO_THROW(section =
+                           std::dynamic_pointer_cast<ELFInitSchedulesSection>(ELFInitSchedulesSection::read(reader)));
+    ASSERT_EQ(section->get_schedules().size(), 1);
+    ASSERT_EQ(section->get_schedules().at(0).get_byte_size(), 0);
 }
 
 TEST_F(ELFInitSchedulesSectionTest, ReadPaddingTooBig) {
@@ -215,14 +289,17 @@ TEST_F(ELFInitSchedulesSectionTest, ReadPaddingTooBig) {
     section_content += std::string("\x06\x00", 2);                          // padding size
     section_content += "dummy";                                             // the content of init schedule 1
 
+    const auto options = std::make_shared<OptionsDesc>();
+    FilteredConfig empty_config(options);
+
     ov::Tensor tensor(ov::element::u8, ov::Shape{section_content.size()}, section_content.data());
     BlobSource source(tensor);
-    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size());
+    BlobReaderInterface reader(source, 0, tensor.get_byte_size(), 0, tensor.get_byte_size(), empty_config);
     OV_EXPECT_THROW(ELFInitSchedulesSection::read(reader), ov::Exception, _);
 
     std::istringstream stream(section_content);
     source = BlobSource(stream);
-    reader = BlobReaderInterface(source, 0, section_content.size(), 0, section_content.size());
+    reader = BlobReaderInterface(source, 0, section_content.size(), 0, section_content.size(), empty_config);
     OV_EXPECT_THROW(ELFInitSchedulesSection::read(reader), ov::Exception, _);
 }
 

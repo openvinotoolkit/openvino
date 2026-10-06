@@ -202,6 +202,7 @@ std::vector<std::shared_ptr<CREToken>> ELFInitSchedulesSection::get_compatibilit
     return {std::make_shared<SectionType>(get_type()), std::make_shared<SectionID>(get_id().value())};
 }
 
+// TODO document the form of the section on disk
 void ELFInitSchedulesSection::write(BlobWriterInterface& writer) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "ELFInitSchedulesSection::write");
     const auto* weightless_graph = std::get_if<std::shared_ptr<WeightlessGraph>>(&m_graph_or_schedules);

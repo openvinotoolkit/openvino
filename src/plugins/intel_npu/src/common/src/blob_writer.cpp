@@ -153,6 +153,7 @@ size_t BlobWriter::count_registered_sections_of_type(const SectionType type) con
                          });
 }
 
+// TODO might need to replace this with a BlobSectionsRegistry when adapting the OV format
 RuntimeRequirements BlobWriter::build_runtime_requirements() const {
     m_logger.debug("Building the runtime requirements");
     std::map<SectionID, std::string> sections_requirements;
