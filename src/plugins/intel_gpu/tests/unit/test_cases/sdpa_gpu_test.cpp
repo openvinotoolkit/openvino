@@ -1581,9 +1581,10 @@ INSTANTIATE_TEST_SUITE_P(
         micro_sdpa_i8_params{64, 4, 128, 256, true, 0.999f},
         micro_sdpa_i8_params{128, 2, 128, 256, true, 0.999f},
         micro_sdpa_i8_params{64, 4, 1, 256, false, 0.999f},
-        // head 32 leaves D_MAX / 4 below one packed row per subgroup lane, so I8_KQ declines and
-        // the gemm dequantizes the i8 key instead. The answer must not change when it does, and
-        // the micro kernel must still be the one that runs.
+        // head 32 gives D_MAX / 4 = 8 packed rows: one per lane of an 8-wide subgroup (Xe-HPG),
+        // where I8_KQ runs, and too few for a 16-wide one (Xe2 and later), where it declines and
+        // the gemm dequantizes the i8 key instead. Either way the answer must not change, and the
+        // micro kernel must be the one that runs.
         micro_sdpa_i8_params{32, 4, 128, 256, true, 0.999f}
     ),
     sdpa_micro_i8_test::PrintToStringParamName

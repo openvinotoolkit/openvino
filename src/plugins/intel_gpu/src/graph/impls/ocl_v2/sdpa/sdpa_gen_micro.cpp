@@ -1908,6 +1908,15 @@ void SDPAMicroGenerator::init_microkernels(const kernel_impl_params& params,
                            << config->wg_n_kq << ", " << config->wg_m_vs << ", " << config->wg_n_vs << ", " << std::endl;
     OPENVINO_ASSERT(config != nullptr);
 
+    // gemmstone offers no s8 x s8 K^T*Q strategy at unroll_m 32 on Xe-HPG. Halving it keeps both
+    // workgroup shapes and the query tile, so the V*S problem is unchanged.
+    sdpa_config_t i8_kq_config;
+    if (i8_kq && device_info.arch == gpu_arch::xe_hpg && config->unroll_m_kq > 16) {
+        i8_kq_config = *config;
+        i8_kq_config.unroll_m_kq = 16;
+        config = &i8_kq_config;
+    }
+
     /* Get device information */
     micro::HWInformation hw_info;
     hw_info.euCount = device_info.execution_units_count;
