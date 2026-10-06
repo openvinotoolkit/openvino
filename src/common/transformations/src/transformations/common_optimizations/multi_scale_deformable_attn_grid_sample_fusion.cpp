@@ -160,8 +160,8 @@ MultiScaleDeformableAttnGridSampleFusion::MultiScaleDeformableAttnGridSampleFusi
             position += h * w;
         }
         if (!value || !value->get_output_partial_shape(0).is_static() || value->get_output_shape(0).size() != 4 ||
-            value->get_output_shape(0)[1] != position || !locations->get_output_partial_shape(0).is_static() ||
-            !weights->get_output_partial_shape(0).is_static())
+            value->get_output_shape(0)[1] != static_cast<size_t>(position) ||
+            !locations->get_output_partial_shape(0).is_static() || !weights->get_output_partial_shape(0).is_static())
             return false;
         // Heads and channels come from the value projection, levels and points
         // from the sampling pattern; no dimension is architecture specific.
@@ -172,7 +172,7 @@ MultiScaleDeformableAttnGridSampleFusion::MultiScaleDeformableAttnGridSampleFusi
             loc_shape[2] != value_shape[2] || loc_shape[3] != num_levels || loc_shape[5] != 2 ||
             weight_shape != ov::Shape({loc_shape[0], loc_shape[1], loc_shape[2], num_levels, loc_shape[4]}) ||
             reshape->get_output_partial_shape(0) !=
-                ov::PartialShape({value_shape[0], value_shape[2] * value_shape[3], loc_shape[1]}))
+                ov::PartialShape(ov::Shape{value_shape[0], value_shape[2] * value_shape[3], loc_shape[1]}))
             return false;
 
         auto shapes = opset12::Constant::create(ov::element::i32, ov::Shape{num_levels, 2}, spatial_shapes);

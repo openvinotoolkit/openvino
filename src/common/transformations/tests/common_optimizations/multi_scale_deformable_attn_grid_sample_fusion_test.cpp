@@ -76,8 +76,9 @@ std::shared_ptr<ov::Model> build_pattern(const PatternParams& p) {
     for (size_t l = 0; l < p.levels; ++l)
         keys += level_h(l) * level_w(l);
 
-    const PartialShape value_ps = p.dynamic_value ? PartialShape{Dimension(), keys, p.heads, p.embed}
-                                                  : PartialShape{p.batch, keys, p.heads, p.embed};
+    PartialShape value_ps(Shape{p.batch, keys, p.heads, p.embed});
+    if (p.dynamic_value)
+        value_ps[0] = Dimension::dynamic();
     auto value = std::make_shared<v0::Parameter>(element::f32, value_ps);
     value->set_friendly_name("value");
     auto weights =
@@ -97,7 +98,7 @@ std::shared_ptr<ov::Model> build_pattern(const PatternParams& p) {
     ParameterVector params{value, loc_param, weights};
     std::shared_ptr<v0::Parameter> foreign_value;
     if (p.foreign_second_level_value) {
-        foreign_value = std::make_shared<v0::Parameter>(element::f32, PartialShape{p.batch, keys, p.heads, p.embed});
+        foreign_value = std::make_shared<v0::Parameter>(element::f32, Shape{p.batch, keys, p.heads, p.embed});
         foreign_value->set_friendly_name("foreign_value");
         params.push_back(foreign_value);
     }
