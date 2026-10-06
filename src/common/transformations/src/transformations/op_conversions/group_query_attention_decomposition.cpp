@@ -27,6 +27,7 @@
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/logical_or.hpp"
+#include "openvino/op/matmul.hpp"
 #include "openvino/op/maximum.hpp"
 #include "openvino/op/minimum.hpp"
 #include "openvino/op/multiply.hpp"
@@ -40,8 +41,10 @@
 #include "openvino/op/select.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/op/slice.hpp"
+#include "openvino/op/softmax.hpp"
 #include "openvino/op/squeeze.hpp"
 #include "openvino/op/subtract.hpp"
+#include "openvino/op/tanh.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/op/unsqueeze.hpp"
 #include "openvino/op/variadic_split.hpp"
@@ -91,7 +94,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto local_window_size = node->get_local_window_size();
     const auto smooth_softmax = node->get_smooth_softmax();
     const auto causal = node->get_causal();
-    // TODO: add softcap support
+    const auto softcap = node->get_softcap();
 
     const auto has_input = [&](const GQAInputs input_pos) {
         const auto pos = static_cast<size_t>(input_pos);
@@ -298,7 +301,11 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         present_v = V;
     }
 
-    const auto compressed_kv = prepare_compressed_kv(node, K, V, k_scale, v_scale);
+    // The explicit softcap attention chain consumes plain (dequantized) K/V, so skip the compressed-KV SDPA form.
+    std::optional<CompressedKV> compressed_kv;
+    if (softcap == 0.0f) {
+        compressed_kv = prepare_compressed_kv(node, K, V, k_scale, v_scale);
+    }
 
     // Dequantize the assembled cache to the compute (float) type for the attention math. Everything downstream
     // (head broadcast, mask, SDPA) then operates in float exactly as in the non-quantized path.
@@ -334,18 +341,33 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     }
     const bool has_head_sink = has_input(GQAInputs::HEAD_SINK);
     const bool has_sink = has_head_sink || smooth_softmax;
-    const auto mask = make_attention_mask(curr_seqlen_scalar,
-                                          concat_kv_len_scalar,
-                                          concat_kv_len,
-                                          mask_past_seqlen,
-                                          T,
-                                          causal,
-                                          local_window_size,
-                                          external_bias,
-                                          bias_col_offset,
-                                          node->get_sliding_window_cache(),
-                                          scale,
-                                          has_sink);
+    // The softcap chain has no is_causal fallback, so it always takes the explicit (base) mask; overrides may
+    // drop the mask in favor of SDPA's own causal flag.
+    const auto mask = softcap > 0.0f
+                          ? GroupQueryAttentionDecomposition::make_attention_mask(curr_seqlen_scalar,
+                                                                                  concat_kv_len_scalar,
+                                                                                  concat_kv_len,
+                                                                                  mask_past_seqlen,
+                                                                                  T,
+                                                                                  causal,
+                                                                                  local_window_size,
+                                                                                  external_bias,
+                                                                                  bias_col_offset,
+                                                                                  node->get_sliding_window_cache(),
+                                                                                  scale,
+                                                                                  has_sink)
+                          : make_attention_mask(curr_seqlen_scalar,
+                                                concat_kv_len_scalar,
+                                                concat_kv_len,
+                                                mask_past_seqlen,
+                                                T,
+                                                causal,
+                                                local_window_size,
+                                                external_bias,
+                                                bias_col_offset,
+                                                node->get_sliding_window_cache(),
+                                                scale,
+                                                has_sink);
 
     // head_sink (input 11) or smooth_softmax add an extra logit to the softmax denominator. SDPA models
     // this with its sink input: a [1, num_heads, 1, 1] tensor appended as one logit column, included in
@@ -368,18 +390,22 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         }
     }
 
-    std::shared_ptr<ov::Node> qga_output;
-    if (sink.get_node_shared_ptr()) {
-        // SDPA's 6-input form requires an explicit scale; use the op scale or the default 1/sqrt(head_size).
-        ov::Output<ov::Node> scale_node;
+    // Explicit scale: the op scale or the default 1/sqrt(head_size).
+    const auto make_scale_node = [&]() -> ov::Output<ov::Node> {
         if (scale != 0.0f) {
-            scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
-        } else {
-            const auto head_size_t = register_new_node<v0::Convert>(head_size_node, T);
-            const auto neg_half = register_new_node(v0::Constant::create(T, Shape{}, {-0.5f}));
-            scale_node = register_new_node<v0::Squeeze>(register_new_node<ov::op::v1::Power>(head_size_t, neg_half));
+            return register_new_node(v0::Constant::create(T, Shape{}, {scale}));
         }
-        qga_output = make_sdpa(Q, K, V, mask, scale_node, sink, false, compressed_kv);
+        const auto head_size_t = register_new_node<v0::Convert>(head_size_node, T);
+        const auto neg_half = register_new_node(v0::Constant::create(T, Shape{}, {-0.5f}));
+        return register_new_node<v0::Squeeze>(register_new_node<ov::op::v1::Power>(head_size_t, neg_half));
+    };
+
+    std::shared_ptr<ov::Node> qga_output;
+    if (softcap > 0.0f) {
+        qga_output = make_softcap_attention(Q, K, V, mask, make_scale_node(), sink, softcap);
+    } else if (sink.get_node_shared_ptr()) {
+        // SDPA's 6-input form requires an explicit scale.
+        qga_output = make_sdpa(Q, K, V, mask, make_scale_node(), sink, false, compressed_kv);
     } else if (scale != 0.0f) {
         auto scale_node = register_new_node(v0::Constant::create(T, Shape{}, {scale}));
         qga_output = make_sdpa(Q, K, V, mask, scale_node, {}, false, compressed_kv);
@@ -415,6 +441,51 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_sdpa(
         return register_new_node<v13::ScaledDotProductAttention>(query, key, value, mask, is_causal);
     }
     return register_new_node<v13::ScaledDotProductAttention>(query, key, value, is_causal);
+}
+
+std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::make_softcap_attention(
+    const ov::Output<ov::Node>& query,
+    const ov::Output<ov::Node>& key,
+    const ov::Output<ov::Node>& value,
+    const ov::Output<ov::Node>& mask,
+    const ov::Output<ov::Node>& scale,
+    const ov::Output<ov::Node>& sink,
+    float softcap) {
+    // SDPA has no hook between Q*K^T and softmax, so softcap uses the explicit chain in ONNX Runtime order
+    // (gqa_attention_base.h): scale -> softcap * tanh(x / softcap) -> + bias/mask -> softmax (+ sink) -> * V.
+    const auto T = query.get_element_type();
+    const auto scores = register_new_node<v0::MatMul>(query, key, false, true);
+    const auto inv_cap = register_new_node(v0::Constant::create(T, Shape{}, {1.0f / softcap}));
+    const auto cap = register_new_node(v0::Constant::create(T, Shape{}, {softcap}));
+    const auto scaled = register_new_node<v1::Multiply>(scores, register_new_node<v1::Multiply>(scale, inv_cap));
+    std::shared_ptr<ov::Node> logits = register_new_node<v1::Multiply>(register_new_node<v0::Tanh>(scaled), cap);
+    logits = register_new_node<v1::Add>(logits, mask);
+    if (T != ov::element::f32) {
+        // The mask fills with the type's finite lowest(); keep lowest() + logit from overflowing to -inf in
+        // reduced precision, so a fully-masked row cannot softmax to NaN.
+        const auto lowest = T == ov::element::f16 ? static_cast<float>(std::numeric_limits<ov::float16>::lowest())
+                                                  : static_cast<float>(std::numeric_limits<ov::bfloat16>::lowest());
+        logits = register_new_node<v1::Maximum>(logits, register_new_node(v0::Constant::create(T, Shape{}, {lowest})));
+    }
+
+    std::shared_ptr<ov::Node> probs;
+    if (sink.get_node()) {
+        // Append the per-head sink as one extra logit column, softmax over it, then drop it.
+        const auto zero = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {0}));
+        const auto one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {1}));
+        const auto minus_one = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {-1}));
+        const auto three = register_new_node(v0::Constant::create(ov::element::i64, ov::Shape{1}, {3}));
+        const auto logits_shape = register_new_node<v3::ShapeOf>(logits);
+        const auto sink_shape =
+            register_new_node<v0::Concat>(ov::NodeVector{get_dimensions(logits_shape, {0, 1, 2}), one}, 0);
+        const auto sink_col = register_new_node<v3::Broadcast>(sink, sink_shape);
+        const auto with_sink = register_new_node<v0::Concat>(ov::OutputVector{logits, sink_col}, 3);
+        probs = register_new_node<v8::Softmax>(with_sink, -1);
+        probs = register_new_node<v8::Slice>(probs, zero, minus_one, one, three);
+    } else {
+        probs = register_new_node<v8::Softmax>(logits, -1);
+    }
+    return register_new_node<v0::MatMul>(probs, value);
 }
 
 std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::windowed_cache_end(

@@ -76,7 +76,8 @@ public:
                         int64_t local_window_size = -1,
                         bool sliding_window_cache = false,
                         bool smooth_softmax = false,
-                        bool causal = true);
+                        bool causal = true,
+                        float softcap = 0.0f);
     void validate_and_infer_types() override;
     bool visit_attributes(AttributeVisitor& visitor) override;
     std::shared_ptr<ov::Node> clone_with_new_inputs(const ov::OutputVector& new_args) const override;
@@ -130,6 +131,11 @@ public:
     bool get_causal() const {
         return m_causal;
     }
+    // Logit soft-capping (Gemma-style): when > 0, scaled scores become softcap * tanh(score / softcap)
+    // before the attention bias/mask and softmax. 0 disables it.
+    float get_softcap() const {
+        return m_softcap;
+    }
 
 private:
     int64_t m_num_heads = 0;
@@ -144,6 +150,7 @@ private:
     bool m_sliding_window_cache = false;
     bool m_smooth_softmax = false;
     bool m_causal = true;
+    float m_softcap = 0.0f;
 };
 
 }  // namespace ov::op::internal

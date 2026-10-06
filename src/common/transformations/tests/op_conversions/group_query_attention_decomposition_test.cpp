@@ -16,16 +16,21 @@
 #include "openvino/core/model.hpp"
 #include "openvino/op/add.hpp"
 #include "openvino/op/broadcast.hpp"
+#include "openvino/op/concat.hpp"
 #include "openvino/op/constant.hpp"
 #include "openvino/op/greater.hpp"
 #include "openvino/op/greater_eq.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/minimum.hpp"
+#include "openvino/op/multiply.hpp"
 #include "openvino/op/parameter.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/result.hpp"
 #include "openvino/op/scaled_dot_product_attention.hpp"
 #include "openvino/op/scatter_update.hpp"
+#include "openvino/op/slice.hpp"
+#include "openvino/op/softmax.hpp"
+#include "openvino/op/tanh.hpp"
 #include "openvino/pass/manager.hpp"
 
 using namespace ov;
@@ -59,6 +64,7 @@ struct GqaParams {
     bool smooth_softmax = false;
     bool head_sink = false;
     bool causal = true;
+    float softcap = 0.0f;
     bool attention_bias = false;
     Dimension bias_kv_len = Dimension::dynamic();
     Dimension past_len = Dimension::dynamic();
@@ -98,6 +104,10 @@ struct GqaParams {
     GqaParams& sink_head() {
         head_sink = true;
         expected_sdpa_inputs = 6;
+        return *this;
+    }
+    GqaParams& soft_cap(float cap) {
+        softcap = cap;
         return *this;
     }
     GqaParams& bidirectional() {
@@ -176,7 +186,8 @@ std::shared_ptr<Model> make_gqa_model(const GqaParams& p) {
                                                            p.local_window_size,
                                                            p.sliding_window_cache,
                                                            p.smooth_softmax,
-                                                           p.causal);
+                                                           p.causal,
+                                                           p.softcap);
     ResultVector results;
     for (size_t i = 0; i < gqa->get_output_size(); ++i)
         results.push_back(std::make_shared<op::v0::Result>(gqa->output(i)));
@@ -429,6 +440,63 @@ TEST(GroupQueryAttentionValues, head_sink_reshapes_input_to_per_head_sink) {
     auto shape_const = as_type_ptr<op::v0::Constant>(sink_reshape->get_input_node_shared_ptr(1));
     ASSERT_NE(shape_const, nullptr);
     EXPECT_EQ(shape_const->cast_vector<int64_t>(), (std::vector<int64_t>{1, -1, 1, 1}));
+}
+
+namespace {
+// softcap > 0 replaces SDPA with the explicit chain softmax(cap * tanh(scale * QK^T / cap) + mask) * V.
+void expect_softcap_chain(const std::shared_ptr<Model>& model, float cap) {
+    EXPECT_EQ(find_sdpa(model), nullptr) << "softcap must not lower to SDPA (no logit-capping hook)";
+    std::shared_ptr<op::v0::Tanh> tanh;
+    size_t softmax_count = 0;
+    for (const auto& n : model->get_ordered_ops()) {
+        if (auto t = as_type_ptr<op::v0::Tanh>(n))
+            tanh = t;
+        softmax_count += is_type<op::v8::Softmax>(n) ? 1 : 0;
+    }
+    ASSERT_NE(tanh, nullptr);
+    EXPECT_EQ(softmax_count, 1u);
+    // cap * tanh(...): the Tanh output is multiplied by the softcap constant.
+    bool scaled_by_cap = false;
+    for (const auto& in : tanh->output(0).get_target_inputs()) {
+        auto mul = as_type<op::v1::Multiply>(in.get_node());
+        if (!mul)
+            continue;
+        for (size_t i = 0; i < 2; ++i) {
+            auto c = as_type_ptr<op::v0::Constant>(mul->get_input_node_shared_ptr(i));
+            if (c && c->cast_vector<float>() == std::vector<float>{cap})
+                scaled_by_cap = true;
+        }
+    }
+    EXPECT_TRUE(scaled_by_cap);
+}
+}  // namespace
+
+TEST(GroupQueryAttentionValues, softcap_uses_explicit_tanh_chain) {
+    auto model = make_gqa_model(GqaParams{"softcap"}.soft_cap(30.0f));
+    decompose(model);
+    expect_softcap_chain(model, 30.0f);
+}
+
+TEST(GroupQueryAttentionValues, softcap_with_head_sink_appends_sink_column) {
+    auto model = make_gqa_model(GqaParams{"softcap_sink"}.soft_cap(50.0f).sink_head());
+    decompose(model);
+    expect_softcap_chain(model, 50.0f);
+    // The sink joins the softmax as one extra column on the last axis, which is sliced off afterwards.
+    bool sliced = false;
+    for (const auto& n : model->get_ordered_ops()) {
+        if (auto sm = as_type_ptr<op::v8::Softmax>(n)) {
+            ASSERT_TRUE(is_type<op::v0::Concat>(sm->get_input_node_shared_ptr(0)));
+            for (const auto& in : sm->output(0).get_target_inputs())
+                sliced |= is_type<op::v8::Slice>(in.get_node());
+        }
+    }
+    EXPECT_TRUE(sliced);
+}
+
+TEST(GroupQueryAttentionOpValidation, rejects_negative_softcap) {
+    OV_EXPECT_THROW(std::ignore = make_gqa_model(GqaParams{"neg_softcap"}.soft_cap(-1.0f)),
+                    ov::NodeValidationFailure,
+                    testing::HasSubstr("softcap >= 0"));
 }
 
 TEST(GroupQueryAttentionValues, bidirectional_mask_has_no_causal_comparison) {

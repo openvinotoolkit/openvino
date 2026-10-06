@@ -40,6 +40,16 @@ protected:
                                                 const ov::Output<ov::Node>& sink,
                                                 bool is_causal,
                                                 const std::optional<CompressedKV>& compressed_kv);
+    // Explicit attention for softcap > 0 (SDPA cannot soft-cap the logits):
+    // softmax(softcap * tanh(scale * Q * K^T / softcap) + mask [, sink]) * V.
+    std::shared_ptr<ov::Node> make_softcap_attention(const ov::Output<ov::Node>& query,
+                                                     const ov::Output<ov::Node>& key,
+                                                     const ov::Output<ov::Node>& value,
+                                                     const ov::Output<ov::Node>& mask,
+                                                     const ov::Output<ov::Node>& scale,
+                                                     const ov::Output<ov::Node>& sink,
+                                                     float softcap);
+
     virtual std::optional<CompressedKV> prepare_compressed_kv(
         const std::shared_ptr<ov::op::internal::GroupQueryAttention>& node,
         const ov::Output<ov::Node>& key,
