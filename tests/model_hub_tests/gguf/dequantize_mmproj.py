@@ -18,8 +18,10 @@ def dequantize_mmproj(source, destination):
     """Write an F32 copy of every tensor in source to destination, keeping all metadata."""
     reader = gguf.GGUFReader(source)
     writer = gguf.GGUFWriter(destination, reader.fields["general.architecture"].contents(), use_temp_file=True)
+    if "general.alignment" in reader.fields:
+        writer.add_custom_alignment(int(reader.fields["general.alignment"].contents()))
     for name, field in reader.fields.items():
-        if name.startswith("GGUF.") or name == "general.architecture":
+        if name.startswith("GGUF.") or name in ("general.architecture", "general.alignment"):
             continue
         writer.add_key_value(name, field.contents(), field.types[0],
                              field.types[-1] if len(field.types) > 1 else None)

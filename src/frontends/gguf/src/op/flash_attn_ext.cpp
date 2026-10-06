@@ -251,13 +251,12 @@ OutputVector translate_flash_attn_ext(const NodeContext& context) {
         // over [B, n_head, q, 1] (rank must equal the query rank, last dim 1).
         using namespace ov::op;
         auto sink = context.get_input(4);
-        auto sink_f16 = sink.get_element_type() != element::f16
-                            ? std::make_shared<v0::Convert>(sink, element::f16)->output(0)
-                            : sink;
+        auto sink_typed =
+            sink.get_element_type() != sdpa_type ? std::make_shared<v0::Convert>(sink, sdpa_type)->output(0) : sink;
         auto sink_shape = v0::Constant::create(element::i64,
                                                {4},
                                                std::vector<int64_t>{1, (int64_t)q_shape[head_axis].get_length(), 1, 1});
-        auto sink_r = std::make_shared<v1::Reshape>(sink_f16, sink_shape, false);
+        auto sink_r = std::make_shared<v1::Reshape>(sink_typed, sink_shape, false);
         sdpa = std::make_shared<ov::op::v13::ScaledDotProductAttention>(q_t,
                                                                         k_t,
                                                                         v_t,

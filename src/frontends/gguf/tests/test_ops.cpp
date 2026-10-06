@@ -2182,7 +2182,7 @@ TEST(GGUFOps, FlashAttnExtFlatKvWithMask) {
 // T on this layout (head_axis == 1), not n_head, so with n_head != T the reshape either throws a
 // shape mismatch or silently broadcasts the wrong values into the softmax denominator. Using
 // n_head=2 and T=3 (both != 1, and different from each other) makes either failure mode observable.
-TEST(GGUFOps, FlashAttnExtWithSinksCgraphLayout) {
+void check_flash_attn_ext_with_sinks(bool f32_attention) {
     const size_t n_head = 2, T = 3, Tk = 3, D = 2;
     const float scale = 1.0f;
     auto model = SingleOpBuilder()
@@ -2194,6 +2194,7 @@ TEST(GGUFOps, FlashAttnExtWithSinksCgraphLayout) {
                      .input("sinks", ov::element::f32, {n_head})
                      .output("out", ov::element::f32, {1, T, n_head, D})
                      .attr<float>("scale", scale)
+                     .attr<bool>("f32_attention", f32_attention)
                      .build();
 
     std::vector<float> q, k, v;
@@ -2240,7 +2241,15 @@ TEST(GGUFOps, FlashAttnExtWithSinksCgraphLayout) {
             }
         }
     }
-    expect_near(out, expected, 2e-2f);  // fp16 SDPA
+    expect_near(out, expected, 2e-2f);
+}
+
+TEST(GGUFOps, FlashAttnExtWithSinksCgraphLayout) {
+    check_flash_attn_ext_with_sinks(false);
+}
+
+TEST(GGUFOps, FlashAttnExtWithSinksF32Attention) {
+    check_flash_attn_ext_with_sinks(true);
 }
 
 // GatedDeltaNet, reference (Loop) path. With head size S=1 the gate last-dim equals S_v, so this is
