@@ -12,10 +12,7 @@
 #include "openvino/frontend/jax/node_context.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace jax {
-namespace op {
+namespace ov::frontend::jax::op {
 
 using namespace ov::op;
 
@@ -29,7 +26,4 @@ OutputVector translate_transpose(const NodeContext& context) {
     return {res};
 };
 
-}  // namespace op
-}  // namespace jax
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::jax::op

@@ -13,9 +13,9 @@
 #include <vector>
 
 #include "compiler_option_support_helper.hpp"
-#include "intel_npu/common/filtered_config.hpp"
 #include "intel_npu/common/icompiler_adapter.hpp"
 #include "intel_npu/common/npu.hpp"
+#include "intel_npu/config/config.hpp"
 #include "intel_npu/config/npuw.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
 #include "property_registration.hpp"
@@ -37,8 +37,8 @@ public:
     ov::Any getProperty(const std::string& name, const ov::AnyMap& arguments = {}) const;
     bool isPropertySupported(const std::string& name, const ov::AnyMap& arguments = {}) const;
 
-    std::pair<FilteredConfig, ov::AnyMap> getMergedConfigAndUnknownProperties(const ov::AnyMap& properties,
-                                                                              ConfigMergeMode mergeMode);
+    std::pair<Config, ov::AnyMap> getMergedConfigAndUnknownProperties(const ov::AnyMap& properties,
+                                                                      ConfigMergeMode mergeMode);
 
     std::string determinePlatform(const ov::AnyMap& properties) const;
     std::string determineDeviceId(const ov::AnyMap& properties) const;
@@ -46,12 +46,17 @@ public:
 
 private:
     void registerProperties();
-    std::optional<ov::intel_npu::CompilerType> resolveCompilerType(ov::intel_npu::CompilerType compilerType,
-                                                                   const std::string& deviceId,
-                                                                   const std::string& platform) const;
+
+    // The helpers below read the value from the arguments and fall back to the stored config when missing.
+    // They don't lock _mutex, callers must hold it.
+    std::string getDeviceIdOrDefault(const ov::AnyMap& arguments) const;
+    std::string getPlatformOrDefault(const ov::AnyMap& arguments) const;
+    std::optional<ov::intel_npu::CompilerType> getCompilerTypeOrDefault(const ov::AnyMap& arguments) const;
+    std::optional<ov::intel_npu::CompilerType> resolveCompilerType(const ov::AnyMap& arguments) const;
+
     void warnCompilerOnlyOptionSkipped(const std::string& key) const;
 
-    FilteredConfig _config;
+    Config _config;
 
     ov::SoPtr<IEngineBackend> _backend;
     std::shared_ptr<CompilerOptionSupportHelper> _compilerOptionSupportHelper;
@@ -63,6 +68,7 @@ private:
         std::vector<ov::PropertyName> properties = {
             ov::cache_mode.name(),
             ov::enable_profiling.name(),
+            ov::intel_npu::profiling_type.name(),
             ov::device::architecture.name(),
             ov::hint::execution_mode.name(),
             ov::hint::inference_precision.name(),

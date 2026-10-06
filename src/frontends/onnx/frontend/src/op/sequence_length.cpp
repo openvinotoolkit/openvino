@@ -13,11 +13,7 @@
 #include "openvino/op/constant.hpp"
 #include "utils/common.hpp"
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_11 {
+namespace ov::frontend::onnx::ai_onnx::opset_11 {
 
 /// @brief Implements the SequenceLength operator
 /// @param node Input ONNX node with a single sequence input.
@@ -38,8 +34,4 @@ ov::OutputVector sequence_length(const ov::frontend::onnx::Node& node) {
 
 ONNX_OP("SequenceLength", OPSET_SINCE(1), ai_onnx::opset_11::sequence_length);
 
-}  // namespace opset_11
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_11

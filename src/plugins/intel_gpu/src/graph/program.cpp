@@ -24,6 +24,7 @@
 #include "intel_gpu/graph/program.hpp"
 
 
+#include "allocation_order.hpp"
 #include "layout_optimizer.h"
 #include "pass_manager.h"
 #include "primitive_type.h"
@@ -782,41 +783,18 @@ const std::vector<primitive_id>& program::get_allocating_order(bool forced_updat
     if (!forced_update && !allocating_order.empty())
         return allocating_order;
 
-    std::vector<std::shared_ptr<program_node>> nodes_to_allocate{};
+    std::vector<std::pair<allocation_order_key, program_node*>> nodes_to_allocate;
     auto& po = get_processing_order();
+    nodes_to_allocate.reserve(po.size());
     for (auto* node : po) {
-        nodes_to_allocate.push_back(get_node_ptr(node->id()));
+        nodes_to_allocate.emplace_back(allocation_order_key(node->get_output_layout(), node->get_unique_id(), nodes_to_allocate.size()), node);
     }
 
-    std::sort(nodes_to_allocate.begin(),
-            nodes_to_allocate.end(),
-            [&po](std::shared_ptr<program_node> const& lhs, std::shared_ptr<program_node> const& rhs) {
-                    auto lhs_layout = lhs->get_output_layout();
-                    auto rhs_layout = rhs->get_output_layout();
-                    if (lhs_layout.is_dynamic() && lhs_layout.has_upper_bound()) {
-                        lhs_layout.set_tensor(lhs_layout.get_tensor());
-                    }
-                    if (rhs_layout.is_dynamic() && rhs_layout.has_upper_bound()) {
-                        rhs_layout.set_tensor(rhs_layout.get_tensor());
-                    }
+    std::sort(nodes_to_allocate.begin(), nodes_to_allocate.end(), [](const auto& lhs, const auto& rhs) {
+        return lhs.first < rhs.first;
+    });
 
-                    if (rhs_layout.is_dynamic() && !rhs_layout.has_upper_bound() && lhs_layout.is_dynamic() && !lhs_layout.has_upper_bound()) {
-                        return po.get_processing_number(lhs.get()) < po.get_processing_number(rhs.get());
-                    }
-
-                    if (rhs_layout.is_dynamic() && !lhs_layout.is_dynamic())
-                        return true;
-                    if (lhs_layout.is_dynamic() && !rhs_layout.is_dynamic())
-                        return false;
-
-                    if (lhs_layout.bytes_count() == rhs_layout.bytes_count()) {
-                        return lhs->get_unique_id() < rhs->get_unique_id();
-                    }
-
-                    return (lhs_layout.bytes_count() > rhs_layout.bytes_count());
-            });
-
-    for (auto const& node : nodes_to_allocate) {
+    for (const auto& [key, node] : nodes_to_allocate) {
         allocating_order.emplace_back(node->id());
     }
 
@@ -832,6 +810,10 @@ void program::prepare_memory_dependencies() {
     apply_opt_pass<basic_memory_dependencies>();
     apply_opt_pass<skipped_branch_memory_dependencies>();
     apply_opt_pass<oooq_memory_dependencies>();
+    // Publish sorted restriction vectors before runtime consumers can access them.
+    for (const auto& node : get_processing_order()) {
+        node->get_memory_dependencies();
+    }
 }
 
 std::string program::get_memory_dependencies_string() const {
@@ -1542,8 +1524,9 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
                 is_dynamic_batch_onednn_conv = is_dynamic_batch && !is_fp32_conv;
                 if (is_dynamic_batch_onednn_conv)
                     dynamic_batch_onednn_conv_count++;
-            } else {
+            }
 #endif
+            if (!conv.is_dynamic()) {
                 auto input_size = node->get_input_layout(0).get_tensor();
                 auto ifm = static_cast<uint32_t>(input_size.feature[0]);
                 if (conv.get_primitive()->groups == ifm && conv.get_primitive()->groups >= 16) {
@@ -1557,9 +1540,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
 
                 if (input_size.spatial[0] == 1 && input_size.spatial[1] == 1)
                     total_1x1_fm_conv_layers++;
-#ifdef ENABLE_ONEDNN_FOR_GPU
             }
-#endif
             lo.update_formats_map(conv);
 
             if (conv.weights_zero_points_term() || conv.activations_zero_points_term())
@@ -1617,6 +1598,7 @@ void program::set_layout_optimizer_attributes(layout_optimizer& lo) {
             prim.type() != cldnn::normalize::type_id() &&
             prim.type() != cldnn::group_normalization::type_id() &&
             prim.type() != cldnn::mvn::type_id() &&
+            prim.type() != cldnn::gather_elements::type_id() &&
             prim.type() != cldnn::gather::type_id() &&
             prim.type() != cldnn::scatter_nd_update::type_id() &&
             prim.type() != cldnn::broadcast::type_id() &&

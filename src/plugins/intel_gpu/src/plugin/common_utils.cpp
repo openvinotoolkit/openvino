@@ -198,7 +198,7 @@ bool is_supported(ov::element::Type_t et) {
         case ov::element::Type_t::i32: return true;
         case ov::element::Type_t::i64: return true; // converted to i32
         case ov::element::Type_t::u1: return true;
-        case ov::element::Type_t::u2: return false;
+        case ov::element::Type_t::u2: return true;
         case ov::element::Type_t::u3: return false;
         case ov::element::Type_t::u4: return true;
         case ov::element::Type_t::u6: return true;
@@ -340,6 +340,10 @@ void convert_and_copy(const ov::ITensor* src, ov::ITensor* dst, const cldnn::str
                               dst_et,
                               size,
                               cldnn::layout({}, ov::element::dynamic, cldnn::format::bfyx, cldnn::padding()));
+}
+
+void convert_and_copy(const void* src_ptr, ov::element::Type src_et, void* dst_ptr, ov::element::Type dst_et, size_t size, const cldnn::layout& layout) {
+    ::convert_and_copy(src_ptr, src_et, dst_ptr, dst_et, size, layout);
 }
 
 std::vector<cldnn::optional_data_type> get_output_data_types(const ov::Node* op, PrecisionMap precision_map) {
