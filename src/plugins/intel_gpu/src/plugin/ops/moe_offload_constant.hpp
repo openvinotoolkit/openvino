@@ -5,6 +5,7 @@
 #pragma once
 
 #include <atomic>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -14,6 +15,7 @@
 #include "intel_gpu/runtime/engine.hpp"
 #include "intel_gpu/runtime/execution_config.hpp"
 #include "intel_gpu/runtime/memory.hpp"
+#include "openvino/core/model.hpp"
 #include "openvino/op/constant.hpp"
 
 namespace ov::intel_gpu {
@@ -32,6 +34,9 @@ struct PartialUploadDesc {
 };
 
 bool is_moe_related_constant(const std::shared_ptr<ov::op::v0::Constant>& op);
+
+uint64_t get_model_resident_constant_bytes(const ov::Model& model, size_t offload_ratio);
+void validate_model_resident_constant_memory(const ov::Model& model, size_t offload_ratio, uint64_t device_memory_bytes);
 
 class PartialUploadLogState {
 public:
