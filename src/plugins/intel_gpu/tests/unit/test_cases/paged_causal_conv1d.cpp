@@ -27,6 +27,8 @@ struct paged_causal_conv1d_test_params {
     bool with_bias;
     bool is_caching_test = false;
     bool padded_input = false;
+    // Spacing between convolution taps; causal_window = (kernel_size-1)*dilation+1.
+    int32_t dilation = 1;
 };
 
 struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_causal_conv1d_test_params> {
@@ -121,13 +123,15 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
                               const std::vector<int32_t>& past_lens,
                               const std::vector<int32_t>& cache_interval,
                               int32_t hidden_size,
-                              int32_t kernel_size,
+                              int32_t num_taps,
+                              int32_t dilation,
                               std::vector<T>& output_embeds) {
+        const int32_t window = (num_taps - 1) * dilation + 1;
         const int32_t token_count = static_cast<int32_t>(input_embeds.size()) / hidden_size;
         output_embeds.resize(static_cast<size_t>(token_count) * hidden_size);
 
-        auto state_off = [hidden_size, kernel_size](int32_t block, int32_t h, int32_t k) {
-            return (block * hidden_size + h) * kernel_size + k;
+        auto state_off = [hidden_size, window](int32_t block, int32_t h, int32_t k) {
+            return (block * hidden_size + h) * window + k;
         };
 
         for (int32_t seq = 0; seq < static_cast<int32_t>(subsequence_begins.size()) - 1; seq++) {
@@ -151,25 +155,25 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
             const int32_t read_physical_block = block_indices[blk_begin];
 
             for (int32_t h = 0; h < hidden_size; h++) {
-                std::vector<float> state(static_cast<size_t>(kernel_size), 0.0f);
-                for (int32_t k = 0; k < kernel_size; k++) {
+                std::vector<float> state(static_cast<size_t>(window), 0.0f);
+                for (int32_t k = 0; k < window; k++) {
                     state[k] = static_cast<float>(conv_state_table[state_off(read_physical_block, h, k)]);
                 }
 
                 const float bias_val = conv_bias.empty() ? 0.0f : static_cast<float>(conv_bias[h]);
 
                 for (int32_t t = 0; t < seq_tokens; t++) {
-                    for (int32_t k = 0; k + 1 < kernel_size; k++) {
+                    for (int32_t k = 0; k + 1 < window; k++) {
                         state[k] = state[k + 1];
                     }
 
                     const int32_t token_idx = token_begin + t;
-                    state[kernel_size - 1] = static_cast<float>(input_embeds[token_idx * hidden_size + h]);
+                    state[window - 1] = static_cast<float>(input_embeds[token_idx * hidden_size + h]);
 
                     float sum = bias_val;
-                    const int32_t w_base = h * kernel_size;
-                    for (int32_t k = 0; k < kernel_size; k++) {
-                        sum = std::fma(state[k], static_cast<float>(conv_weight[w_base + k]), sum);
+                    const int32_t w_base = h * num_taps;
+                    for (int32_t k = 0; k < num_taps; k++) {
+                        sum = std::fma(state[k * dilation], static_cast<float>(conv_weight[w_base + k]), sum);
                     }
 
                     output_embeds[token_idx * hidden_size + h] = to_data_type<T>(sum);
@@ -181,7 +185,7 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
                         const int32_t slot = (seq_interval > 0) ? (1 + (cached_tokens - 1) / seq_interval) : 1;
                         if (slot >= 1 && slot < block_span) {
                             const int32_t physical_block = block_indices[blk_begin + slot];
-                            for (int32_t k = 0; k < kernel_size; k++) {
+                            for (int32_t k = 0; k < window; k++) {
                                 conv_state_table[state_off(physical_block, h, k)] = to_data_type<T>(state[k]);
                             }
                         }
@@ -200,7 +204,8 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
                              layout block_idx_begins_data_layout,
                              layout past_lens_data_layout,
                              layout cache_interval_data_layout,
-                             data_types output_dt) {
+                             data_types output_dt,
+                             int32_t dilation = 1) {
         topology topo;
 
         topo.add(input_layout("input_embeds", input_data_layout));
@@ -213,16 +218,18 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
         topo.add(input_layout("past_lens", past_lens_data_layout));
         topo.add(input_layout("cache_interval", cache_interval_data_layout));
 
-        topo.add(paged_causal_conv1d("paged_causal_conv1d",
-                                     {input_info("input_embeds"),
-                                      input_info("conv_state_table"),
-                                      input_info("conv_weight"),
-                                      input_info("conv_bias"),
-                                      input_info("subsequence_begins"),
-                                      input_info("block_indices"),
-                                      input_info("block_indices_begins"),
-                                      input_info("past_lens"),
-                                      input_info("cache_interval")}));
+        paged_causal_conv1d prim("paged_causal_conv1d",
+                                 {input_info("input_embeds"),
+                                  input_info("conv_state_table"),
+                                  input_info("conv_weight"),
+                                  input_info("conv_bias"),
+                                  input_info("subsequence_begins"),
+                                  input_info("block_indices"),
+                                  input_info("block_indices_begins"),
+                                  input_info("past_lens"),
+                                  input_info("cache_interval")});
+        prim.dilation = static_cast<size_t>(dilation);
+        topo.add(prim);
 
         topo.add(reorder("output", input_info("paged_causal_conv1d"), format::bfyx, output_dt));
         return topo;
@@ -267,10 +274,11 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
         auto& engine = get_test_engine();
 
         const auto page = make_paging_desc(p.tokens, p.num_sequences);
+        const int32_t window = (p.kernel_size - 1) * p.dilation + 1;
 
         const auto input_padding = p.padded_input ? padding({0, 3}, {0, 5}) : padding{};
         const layout input_layout({p.tokens, p.hidden_size}, data_type, format::bfyx, input_padding);
-        const layout state_layout({page.num_blocks, p.hidden_size, p.kernel_size}, data_type, format::bfyx);
+        const layout state_layout({page.num_blocks, p.hidden_size, window}, data_type, format::bfyx);
         const layout weight_layout({p.hidden_size, 1, p.kernel_size}, data_type, format::bfyx);
         const layout bias_layout({p.with_bias ? p.hidden_size : 0}, data_type, format::bfyx);
 
@@ -311,6 +319,7 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
                       page.cache_interval,
                       p.hidden_size,
                       p.kernel_size,
+                      p.dilation,
                       ref_output);
 
         if (p.padded_input)
@@ -337,7 +346,8 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
                                     block_idx_begins_layout,
                                     past_lens_layout,
                                     cache_interval_layout,
-                                    data_type);
+                                    data_type,
+                                    p.dilation);
 
         auto [out_mem, net] = run_network(topo,
                                           input_mem,
@@ -390,7 +400,7 @@ struct paged_causal_conv1d_gpu_test : public ::testing::TestWithParam<paged_caus
         const auto& p = info.param;
         return "paged_causal_conv1d_gpu_test_" + p.precision.to_string() + "_tokens_" + std::to_string(p.tokens) + "_seq_" + std::to_string(p.num_sequences) +
                "_hidden_" + std::to_string(p.hidden_size) + "_kernel_" + std::to_string(p.kernel_size) + (p.with_bias ? "_bias" : "_no_bias") +
-               (p.is_caching_test ? "_cached" : "") + (p.padded_input ? "_padded_input" : "");
+               (p.is_caching_test ? "_cached" : "") + (p.padded_input ? "_padded_input" : "") + "_dilation_" + std::to_string(p.dilation);
     }
 };
 
@@ -409,7 +419,10 @@ INSTANTIATE_TEST_SUITE_P(smoke_paged_causal_conv1d_gpu_test,
                                            paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f32, false},
                                            paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f16, true, true},
                                            paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f32, true, false, true},
-                                           paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f16, true, false, true}),
+                                           paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f16, true, false, true},
+                                           // PLE scenario: num_taps=4, dilation=ngram_size=3 -> window=10.
+                                           paged_causal_conv1d_test_params{8, 2, 16, 4, ov::element::f32, true, false, false, 3},
+                                           paged_causal_conv1d_test_params{12, 3, 32, 5, ov::element::f16, true, false, false, 2}),
                          paged_causal_conv1d_gpu_test::PrintToStringParamName);
 
 }  // namespace

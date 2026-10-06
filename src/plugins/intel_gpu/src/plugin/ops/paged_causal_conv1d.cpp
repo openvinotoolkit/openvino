@@ -44,6 +44,7 @@ static void CreatePagedCausalConv1DOp(ProgramBuilder& p, const std::shared_ptr<o
             prim.kernel_size = kernel.get_length();
         }
     }
+    prim.dilation = op->get_dilation();
 
     prim.num_outputs = 1;
     p.add_primitive(*op, prim);

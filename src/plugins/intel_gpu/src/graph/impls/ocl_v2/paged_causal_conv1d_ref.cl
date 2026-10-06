@@ -110,8 +110,8 @@ KERNEL(paged_causal_conv1d_ref)
 
         float sum = bias_val;
         const int w_base = h * weight_hidden_stride;
-        for (int k = 0; k < KERNEL_SIZE; k++) {
-            sum = fma(state[k], convert_float(conv_weight[w_base + k * weight_kernel_stride]), sum);
+        for (int k = 0; k < NUM_TAPS; k++) {
+            sum = fma(state[k * DILATION], convert_float(conv_weight[w_base + k * weight_kernel_stride]), sum);
         }
 
         const int out_off = token_idx * output_token_stride + h * output_hidden_stride;
