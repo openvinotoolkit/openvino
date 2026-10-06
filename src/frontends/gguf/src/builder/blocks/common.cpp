@@ -31,7 +31,11 @@ std::string layer_norm(GraphEmitter& e,
     e.add_weight(weight);
     auto norm = e.add_op("GGML_OP_NORM", out_prefix + ".norm", {in}, 0, {{"eps", eps}});
     auto scaled = e.add_op("GGML_OP_MUL", out_prefix + ".scaled", {norm, weight});
-    return add_bias(e, scaled, strip_weight_suffix(weight) + ".bias", out_prefix);
+    return add_bias(e, scaled, bias_weight_name(weight), out_prefix);
+}
+
+std::string bias_weight_name(const std::string& weight_name) {
+    return strip_weight_suffix(weight_name) + ".bias";
 }
 
 std::string scale(GraphEmitter& e, const std::string& x, float factor, const std::string& name) {

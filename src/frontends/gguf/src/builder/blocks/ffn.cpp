@@ -13,11 +13,6 @@ namespace ov::frontend::gguf::blocks {
 
 namespace {
 
-// "<name>.weight" -> "<name>.bias".
-std::string bias_weight_name(const std::string& weight_name) {
-    return strip_weight_suffix(weight_name) + ".bias";
-}
-
 std::string gated_gate_up(GraphEmitter& e,
                           const std::string& glu_op,
                           const std::string& gate_w,
@@ -113,22 +108,17 @@ std::string moe_ffn(GraphEmitter& e,
                     const std::string& input,
                     const std::string& router_input) {
     // Routing uses one flat token axis for both SDPA and PA layouts.
-    const auto ffn_norm =
-        e.add_op("GGML_OP_RESHAPE",
-                 p + "moe_input",
-                 {input},
-                 6,
-                 {{"reshape_target", std::vector<int64_t>{1, 1, -1, cfg.n_embd}}, {"special_zero", false}});
+    const auto flatten = [&](const std::string& name, const std::string& x) {
+        return e.add_op("GGML_OP_RESHAPE",
+                        name,
+                        {x},
+                        6,
+                        {{"reshape_target", std::vector<int64_t>{1, 1, -1, cfg.n_embd}}, {"special_zero", false}});
+    };
+    const auto ffn_norm = flatten(p + "moe_input", input);
     // --- router: logits [1,1,T,E] = gate_inp · x ---
     e.add_weight(p + "ffn_gate_inp.weight");
-    auto router =
-        router_input.empty()
-            ? ffn_norm
-            : e.add_op("GGML_OP_RESHAPE",
-                       p + "moe_router_input",
-                       {router_input},
-                       6,
-                       {{"reshape_target", std::vector<int64_t>{1, 1, -1, cfg.n_embd}}, {"special_zero", false}});
+    auto router = router_input.empty() ? ffn_norm : flatten(p + "moe_router_input", router_input);
     auto logits = e.add_op("GGML_OP_MUL_MAT", p + "moe_logits", {p + "ffn_gate_inp.weight", router});
     if (cfg.has_moe_gate_bias) {
         logits = add_bias(e, logits, p + "ffn_gate_inp.bias", p + "moe_logits_b");
@@ -215,8 +205,6 @@ std::string moe_ffn(GraphEmitter& e,
     if (eb) {
         e.add_named_weight(p + "ffn_up_exps.bias");
         up = e.add_op("GGML_OP_ADD_ID", p + "moe_up_b", {up, p + "ffn_up_exps.bias", selected});
-    }
-    if (eb) {
         e.add_named_weight(p + "ffn_gate_exps.bias");
         gate = e.add_op("GGML_OP_ADD_ID", p + "moe_gate_b", {gate, p + "ffn_gate_exps.bias", selected});
     }

@@ -42,9 +42,10 @@ std::shared_ptr<const ProjectorDefinition> ProjectorRegistry::find(const GgufMet
                                                                    const std::string& modality,
                                                                    const std::string& projector_type) const {
     std::shared_ptr<const ProjectorDefinition> found;
+    const auto architecture = metadata.architecture();
     for (const auto& entry : m_definitions) {
         const auto& definition = entry.second;
-        if (definition->architecture != metadata.architecture() || definition->modality != modality ||
+        if (definition->architecture != architecture || definition->modality != modality ||
             definition->projector_type != projector_type || (definition->match && !definition->match(metadata)))
             continue;
         OPENVINO_ASSERT(!found,

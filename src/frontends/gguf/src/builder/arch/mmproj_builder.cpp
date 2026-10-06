@@ -8,6 +8,7 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <optional>
 #include <sstream>
 
 #include "builder/api/metadata_store.hpp"
@@ -88,14 +89,13 @@ constexpr ProjectorTopology projector_catalog[] = {
 };
 
 struct EncoderConfig {
-    std::string modality, projector, prefix, activation;
+    std::string projector, prefix, activation;
     int64_t width, heads, layers, image_size = 0, patch = 0, merge = 1;
     EncoderTopology topology;
     int64_t window_pattern = 0;
     int64_t version = 0, queries = 0, kv_heads = 0;
     std::vector<int64_t> feature_layers;
     float eps;
-    bool clip = false;  // clamp linear inputs/outputs to the recorded per-tensor bounds
     unsigned traits = 0;
     bool rms = false;  // encoder norms are RMS rather than layer norms
 };
@@ -116,7 +116,6 @@ int64_t positive(const GgufMetadata& meta, const std::string& key) {
 
 EncoderConfig config(const GgufMetadata& meta, const std::string& modality, const std::string& projector) {
     EncoderConfig c;
-    c.modality = modality;
     c.prefix = modality == "vision" ? "v." : "a.";
     const auto key = "clip." + modality + ".";
     c.projector = projector;
@@ -132,7 +131,6 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality, cons
                     "'");
     c.topology = entry->topology;
     c.traits = entry->traits;
-    c.clip = c.topology == EncoderTopology::GEMMA4 || c.topology == EncoderTopology::GEMMA4_AUDIO;
     if (c.topology == EncoderTopology::UNIFIED_AUDIO) {
         c.width = 640;
         c.heads = 1;
@@ -170,10 +168,12 @@ EncoderConfig config(const GgufMetadata& meta, const std::string& modality, cons
         if (c.topology == EncoderTopology::OCR || c.topology == EncoderTopology::OCR2) {
             c.patch = 16;
             c.merge = 4;
-            if (c.topology == EncoderTopology::OCR)
+            if (c.topology == EncoderTopology::OCR) {
                 c.eps = 1e-5f;
-            else
+                c.activation = "GGML_UNARY_OP_GELU_QUICK";
+            } else {
                 c.activation = "GGML_UNARY_OP_SILU";
+            }
             return c;
         }
         if (c.topology == EncoderTopology::PIXTRAL || c.topology == EncoderTopology::GEMMA4 ||
@@ -243,7 +243,7 @@ public:
     ProjectorResult build(const std::string& modality, const std::string& projector) {
         auto c = config(g.metadata(), modality, projector);
         c.rms = rms_encoder(c);
-        clippable = c.clip;
+        clippable = c.topology == EncoderTopology::GEMMA4 || c.topology == EncoderTopology::GEMMA4_AUDIO;
         ProjectorResult result;
         result.output = modality == "vision" ? vision(c) : audio(c);
         result.config[modality + ".merge"] = std::to_string(c.merge);
@@ -920,9 +920,7 @@ private:
             auto cls_pos = slice(reshape(pos, {1, 1, 1, -1}), 3, side * side / int64_t(pos.type().size()), c.width);
             auto tables = concat(original, concat(resized, cls_pos, 1), 1);
             pos = gather_rows(tables, "position_indices");
-            EncoderConfig clip = c;
-            clip.activation = "GGML_UNARY_OP_GELU_QUICK";
-            x = vit(x, clip, pos);
+            x = vit(x, c, pos);
             x = slice(x, 2, 1, std::numeric_limits<int32_t>::max() - 1);
             x = concat(x, sam_features);
         }
@@ -970,12 +968,9 @@ private:
         };
         auto index = scale(g.node("GGML_OP_CUMSUM", {transpose(scale(slice(x, 3, 0, 1), 0.f, 1.f))}), 1.f, -1.f);
         auto distance = g.node("GGML_OP_SUB", {transpose(index), index});  // query - key
-        auto relative = g.node("GGML_OP_CPY",
-                               {clamp(scale(distance, -1.f, float(horizon)), 0.f, float(horizon))},
-                               0,
-                               {{"dst_type", ov::element::i32}});
-        auto inside =
-            mul(clamp(scale(distance, 1.f, 1.f), 0.f, 1.f), clamp(scale(distance, -1.f, float(horizon)), 0.f, 1.f));
+        const auto ahead = scale(distance, -1.f, float(horizon));
+        auto relative = g.node("GGML_OP_CPY", {clamp(ahead, 0.f, float(horizon))}, 0, {{"dst_type", ov::element::i32}});
+        auto inside = mul(clamp(scale(distance, 1.f, 1.f), 0.f, 1.f), clamp(ahead, 0.f, 1.f));
         auto mask = scale(inside, 1e9f, -1e9f);
         const auto rms = [&](const GgufValue& value, const std::string& name) {
             return g.build_norm(value, g.tensors().require(name + ".weight"), c.eps);
@@ -1104,8 +1099,8 @@ public:
     explicit MmprojBuilder(const BuildContext& context) : ctx(context), g(context) {}
 
     std::shared_ptr<GgufGraph> build() override {
-        const ProjectorRegistry defaults;
-        const auto& registry = ctx.projectors ? *ctx.projectors : defaults;
+        std::optional<ProjectorRegistry> defaults;
+        const auto& registry = ctx.projectors ? *ctx.projectors : defaults.emplace();
         std::vector<std::shared_ptr<const ProjectorDefinition>> encoders;
         for (const auto* modality : {"vision", "audio"}) {
             if (!ctx.metadata.get_bool(std::string("clip.has_") + modality + "_encoder").value_or(false))
@@ -1122,11 +1117,11 @@ public:
             auto result = definition->build(g);
             OPENVINO_ASSERT(result.output, "[GGUF] projector handler '", definition->id, "' returned no output");
             g.set_output(result.output, definition->modality + ".embeddings");
-            for (const auto& entry : result.config)
+            for (const auto& entry : result.config) {
                 OPENVINO_ASSERT(entry.first.rfind(definition->modality + ".", 0) == 0,
                                 "[GGUF] projector metadata must use its modality prefix");
-            for (const auto& entry : result.config)
                 branch_config[entry.first] = entry.second;
+            }
             branch_config[definition->modality + ".projector"] = definition->projector_type;
         }
         auto graph = g.finish();

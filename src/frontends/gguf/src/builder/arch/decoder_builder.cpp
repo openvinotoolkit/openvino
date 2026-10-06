@@ -207,7 +207,7 @@ std::string DecoderBuilder::inject_per_layer_embedding(int il, const std::string
     // gemma4.cpp:347-349: also filter pl_slice so the MUL doesn't broadcast it back to the full
     // sequence length.
     std::string pl_slice_used = pl_slice;
-    if (il == m_cfg.n_layer - 1 && !m_cfg.embedding_model) {
+    if (selects_output_rows(il)) {
         pl_slice_used = p + "per_layer_slice_sel";
         m_emit.add_op("GGML_OP_GET_ROWS", pl_slice_used, {pl_slice, "inp_out_ids"});
     }
@@ -249,7 +249,7 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
         const std::string gdn_out = blocks::gated_delta_net(m_emit, m_cfg, il, attn_norm);
         std::string sa = inpSA;
         std::string ao = gdn_out;
-        if (il == m_cfg.n_layer - 1 && !m_cfg.embedding_model) {
+        if (selects_output_rows(il)) {
             ao = m_emit.add_op("GGML_OP_GET_ROWS", p + "attn_out_g", {gdn_out, "inp_out_ids"});
             sa = m_emit.add_op("GGML_OP_GET_ROWS", p + "inpSA_g", {inpSA, "inp_out_ids"});
         }
@@ -274,7 +274,7 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
     }
     std::string sa = inpSA;
     std::string ao = attn_out;
-    if (il == m_cfg.n_layer - 1 && !m_cfg.embedding_model) {
+    if (selects_output_rows(il)) {
         ao = m_emit.add_op("GGML_OP_GET_ROWS", p + "attn_out_g", {attn_out, "inp_out_ids"});
         sa = m_emit.add_op("GGML_OP_GET_ROWS", p + "inpSA_g", {inpSA, "inp_out_ids"});
     }

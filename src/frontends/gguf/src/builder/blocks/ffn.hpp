@@ -37,7 +37,7 @@ std::string geglu_ffn(GraphEmitter& e,
 std::string moe_ffn(GraphEmitter& e,
                     const DecoderConfig& cfg,
                     const std::string& prefix,
-                    const std::string& ffn_norm,
+                    const std::string& input,
                     const std::string& router_input = "");
 
 // Gemma4 uses separately normalized dense and routed experts and a scaled router.
