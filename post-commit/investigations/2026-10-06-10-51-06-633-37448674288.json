@@ -1,0 +1,45 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-06-10-51-06-633-37448674288",
+  "timestamp": "2026-10-06T10:51:06Z",
+  "run_id": "37448674288",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37448674288",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "commit_sha": "e345d4559f5db304ebdcc43ab644c75b8c81d5d3",
+  "pr_number": null,
+  "pr_url": null,
+  "author": null,
+  "category": "Infrastructure",
+  "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+  "signature": "cc1plus: error: cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]|Infrastructure",
+  "signature_hash": "0ee6d7327812b344",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "CMake configure, build and install - OpenVINO JS API step fails: cc1plus reports cmake_pch.hxx.gch is not a valid PCH file, -Werror=invalid-pch turns it fatal"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Check status of all jobs step fails because the upstream Build / Build job failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/convert.cpp.o",
+    "cc1plus: error: /__w/openvino/openvino/openvino/openvino_build/src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]",
+    "cc1plus: all warnings being treated as errors",
+    "##[error]Process completed with exit code 1."
+  ],
+  "root_cause": "During the 'CMake configure, build and install - OpenVINO JS API' step, the same build directory (openvino_build) is reconfigured in-place with 'cmake -UTBB* ... -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -DENABLE_WHEEL=OFF' and rebuilt with ENABLE_FASTER_BUILD precompiled headers enabled. The reconfigure changes compiler flags/defines for openvino_reference without invalidating or regenerating the previously-built cmake_pch.hxx.gch, so cc1plus rejects the stale .gch as 'not a PCH file'. Because CMAKE_COMPILE_WARNING_AS_ERROR/-Werror=invalid-pch is on, this normally-recoverable PCH mismatch becomes a hard build failure. This is a recurring CI configuration/caching issue (9 prior occurrences since 2026-09-25) tied to how the JS API build step reuses the main build tree's PCH artifacts rather than a regression introduced by this commit.",
+  "reproduction_steps": "Locally: 1) Configure and build openvino for Linux_aarch64 cross-compilation with ENABLE_FASTER_BUILD=ON (precompiled headers), 2) Without a clean build dir, reconfigure the same build dir with 'cmake -UTBB* -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -DENABLE_WHEEL=OFF' (the JS API step in job_build_linux.yml), 3) Run 'cmake --build' again; cc1plus will reject the previously generated cmake_pch.hxx.gch as invalid once source flags changed.",
+  "recommended_actions": [
+    "In .github/workflows/job_build_linux.yml, force regeneration of precompiled headers for the JS API reconfigure step (e.g., rm the affected *_pch.hxx.gch / *.dir trees, or disable ENABLE_FASTER_BUILD for that reconfigured build) instead of reusing the shared build directory in place.",
+    "Alternatively, use a separate build directory for the OpenVINO JS API cmake/npm build so it does not share a PCH-enabled object tree with the main build.",
+    "Downgrade -Werror=invalid-pch to a warning for this specific reconfigure step, or pass -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF when invoking the JS API build.",
+    "Since this has recurred 9+ times since 2026-09-25, escalate to the build/CI owners of job_build_linux.yml rather than treating as a one-off."
+  ],
+  "prevention_strategies": "Avoid reconfiguring/rebuilding an already-PCH-populated build directory with different compiler flags in place; always use a clean or dedicated build directory per CMAKE_COMPILE flag-set, or explicitly invalidate stale .gch files before a flag-changing reconfigure. Add a CI guard that detects and removes stale precompiled header artifacts whenever CPACK_GENERATOR or ENABLE_* cmake options change between successive cmake invocations in the same build tree.",
+  "historical_context": "This exact signature has been observed 9 times since 2026-09-25T10:37:07Z, always in the ARM64 cross-compilation post-commit build, always in the OpenVINO JS API reconfigure/build step of job_build_linux.yml. No fix has landed yet; recommend prioritizing a permanent fix (separate build dir or PCH invalidation) given the recurrence rate."
+}
