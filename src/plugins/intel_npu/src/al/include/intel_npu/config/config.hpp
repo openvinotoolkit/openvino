@@ -569,38 +569,26 @@ public:
     details::OptionConcept getOpt(std::string_view key) const;
 
     /**
-     * @brief Adds or updates an internal configuration value for compiler-specific needs.
-     * @param key The key of the internal configuration to add or update.
-     * @param value The value to set for the internal configuration.
+     * @brief Moves the options which have set values and are selected by the given predicate out of the configuration
+     * into the given map. The values are serialized as strings, existing entries with the same keys are overwritten.
+     * @param target The map receiving the extracted options.
+     * @param shouldExtract Predicate called with the key of each option which has a set value. It must not modify
+     * the configuration.
      */
-    void addOrUpdateInternal(std::string key, std::string value);
+    void extractTo(ov::AnyMap& target, const std::function<bool(std::string_view)>& shouldExtract);
 
     /**
-     * @brief Checks if an internal compiler configuration exists.
-     * @param key The key of the internal configuration to check.
-     * @return True if the internal configuration exists, false otherwise.
+     * @brief Copies the options which have set values and are selected by the given predicate into the given map,
+     * keeping them in the configuration. The values are serialized as strings, existing entries with the same keys
+     * are overwritten.
+     * @param target The map receiving the copied options.
+     * @param shouldCopy Predicate called with the key of each option which has a set value.
      */
-    bool hasInternal(std::string_view key) const;
-
-    /**
-     * @brief Retrieves an internal configuration value by its key.
-     * @param key The key of the internal configuration to retrieve.
-     * @return The value associated with the specified internal configuration key.
-     */
-    std::string getInternal(std::string_view key) const;
-
-    /**
-     * @brief Generates a compiler configuration string for options supported by the current compiler.
-     * @param isSupported Predicate used to filter compile-time and internal compiler options.
-     * @return A string containing the supported configuration keys and values.
-     */
-    std::string toStringForCompiler(const std::function<bool(const std::string&)>& isSupported) const;
+    void copyTo(ov::AnyMap& target, const std::function<bool(std::string_view)>& shouldCopy) const;
 
 private:
     std::shared_ptr<const OptionsDesc> _desc;
     std::unordered_map<std::string_view, std::shared_ptr<details::OptionValue>> _impl;
-
-    ConfigMap _internal_compiler_configs;  ///< Map to store internal (hidden) configurations used for compiler.
 
     Logger _log{Logger::global().clone("Config")};
 };
