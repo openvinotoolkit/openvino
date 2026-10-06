@@ -23,7 +23,7 @@ set(HDR
 ov_add_sample(NAME ${TARGET_NAME}
               SOURCES ${SRC}
               HEADERS ${HDR}
-              DEPENDENCIES ${GFLAGS_TARGET} format_reader ie_samples_utils)
+              DEPENDENCIES ${GFLAGS_TARGET} format_reader ie_samples_utils openvino::util)
 
 # Required nlohmann_json dependency
 
