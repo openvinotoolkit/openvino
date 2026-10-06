@@ -143,6 +143,15 @@ std::shared_ptr<ov::Model> decompose_gqa_model(const GQAConfig& cfg) {
     return model;
 }
 
+void expect_sdpa_kv_not_broadcast(const std::shared_ptr<ov::intel_gpu::op::SDPA>& sdpa) {
+    for (size_t input_index = 1; input_index <= 2; ++input_index) {
+        const auto& kv_shape = sdpa->input_value(input_index).get_partial_shape();
+        ASSERT_TRUE(kv_shape.rank().is_static());
+        ASSERT_GE(kv_shape.rank().get_length(), 2);
+        EXPECT_EQ(kv_shape[1], ov::Dimension(kv_num_heads)) << "SDPA input " << input_index << " has broadcasted KV heads";
+    }
+}
+
 std::shared_ptr<ov::intel_gpu::op::SDPA> decompose_and_get_sdpa(const GQAConfig& cfg) {
     auto model = decompose_gqa_model(cfg);
 
@@ -152,6 +161,10 @@ std::shared_ptr<ov::intel_gpu::op::SDPA> decompose_and_get_sdpa(const GQAConfig&
         if (auto sdpa = ov::as_type_ptr<ov::intel_gpu::op::SDPA>(node)) {
             result = sdpa;
         }
+    }
+    EXPECT_NE(result, nullptr);
+    if (result) {
+        expect_sdpa_kv_not_broadcast(result);
     }
     return result;
 }
@@ -174,6 +187,7 @@ void expect_stateless_kv_cache_connections(const GQAConfig& cfg) {
     }
 
     ASSERT_NE(sdpa, nullptr);
+    expect_sdpa_kv_not_broadcast(sdpa);
     ASSERT_EQ(statelesskvs.size(), 2u);
 
     std::shared_ptr<ov::intel_gpu::op::StatelessKV> key;

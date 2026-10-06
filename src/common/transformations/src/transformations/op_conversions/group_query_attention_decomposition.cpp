@@ -599,9 +599,8 @@ std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::get_dimens
     return get_dimensions(register_new_node<v3::ShapeOf>(node), dims);
 }
 
-std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::get_dimensions(
-    const ov::Output<ov::Node>& output,
-    const std::vector<int>& dims) {
+std::shared_ptr<ov::Node> ov::pass::GroupQueryAttentionDecomposition::get_dimensions(const ov::Output<ov::Node>& output,
+                                                                                     const std::vector<int>& dims) {
     return get_dimensions(register_new_node<v3::ShapeOf>(output), dims);
 }
 

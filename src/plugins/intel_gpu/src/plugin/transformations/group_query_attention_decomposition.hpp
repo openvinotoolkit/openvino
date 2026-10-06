@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include <optional>
 #include "intel_gpu/op/sdpa.hpp"
 #include "transformations/op_conversions/group_query_attention_decomposition.hpp"
 

@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "openvino/core/any.hpp"
 #include "openvino/op/group_query_attention.hpp"
 #include "openvino/op/shape_of.hpp"
 #include "openvino/pass/matcher_pass.hpp"

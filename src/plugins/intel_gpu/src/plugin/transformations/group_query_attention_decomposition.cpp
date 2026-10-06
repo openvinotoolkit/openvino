@@ -3,6 +3,7 @@
 //
 
 #include <limits>
+#include <optional>
 #include <utility>
 
 #include "group_query_attention_decomposition.hpp"
@@ -69,6 +70,8 @@ void GroupQueryAttentionDecomposition::prepare_compressed_kv(const std::shared_p
     using GQAQuantType = ov::op::internal::GroupQueryAttentionQuantType;
 
     auto& metadata = static_cast<StatelessKVMetadata&>(metadata_);
+    // covers ExpandBroadcastReshapeSDPAFusion, gpu sdpa supports broadcast natively
+    metadata.should_broadcast_kv = false; 
 
     const auto kv_cache_bit_width = node->get_kv_cache_bit_width();
     const auto key_quant_type = node->get_k_quant_type();
@@ -112,7 +115,6 @@ void GroupQueryAttentionDecomposition::prepare_compressed_kv(const std::shared_p
     compressed_kv.quantization_attrs.scales_zp_output_order = {0, 1, 2, 3};
 
     metadata.should_dequantize_kv = false;
-    metadata.should_broadcast_kv = false;
 }
 
 std::unique_ptr<ov::pass::GroupQueryAttentionDecomposition::KVCacheMetadata> GroupQueryAttentionDecomposition::create_metadata(
