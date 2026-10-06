@@ -300,10 +300,18 @@ FullyConnectedHorizontalFusion::FullyConnectedHorizontalFusion(bool fuse_mlp_swi
                                                                     fused_scale,
                                                                     fused_zps,
                                                                     fc_nodes[0]->get_output_type(),
-                                                                    transpose_b);
+                                                                    transpose_b,
+                                                                    fc_nodes[0]->get_transpose_b_scale(),
+                                                                    fc_nodes[0]->get_transpose_b_zp());
         } else {
-            new_fc =
-                std::make_shared<op::FullyConnectedCompressed>(input_node, fused_weight, fused_bias, fused_scale, fc_nodes[0]->get_output_type(), transpose_b);
+            new_fc = std::make_shared<op::FullyConnectedCompressed>(input_node,
+                                                                    fused_weight,
+                                                                    fused_bias,
+                                                                    fused_scale,
+                                                                    fc_nodes[0]->get_output_type(),
+                                                                    transpose_b,
+                                                                    fc_nodes[0]->get_transpose_b_scale(),
+                                                                    fc_nodes[0]->get_transpose_b_zp());
         }
 
         auto new_fc_name = fc_nodes[0]->get_friendly_name() + "_fused_" + std::to_string(fc_nodes.size()) + "FCs";

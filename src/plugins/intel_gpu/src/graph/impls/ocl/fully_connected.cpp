@@ -177,14 +177,31 @@ public:
         auto params = get_weights_bias_default_params<kernel_selector::fully_connected_params>(updated_impl_param, false, is_shape_agnostic);
         params.allowInputReordering = true;
 
-        bool commpressed = primitive->decompression_scale.is_valid();
+        auto convert_decompression_tensor = [&](const layout& param_layout, const bool transpose_b_param) {
+            auto tensor = convert_data_tensor(param_layout);
+
+            if (tensor.GetLayout() == kernel_selector::DataLayout::bfyx && !transpose_b_param && tensor.Feature().v == params.weights.OFM().v) {
+                // bfyx [G, N] already stores N in the innermost physical dimension. Reinterpret it as
+                // fbyx so existing kernels continue to address batch as N and feature as G.
+                return kernel_selector::DataTensor(tensor.GetDims(),
+                                                   tensor.GetDType(),
+                                                   kernel_selector::DataLayout::fbyx,
+                                                   tensor.GetViewOffset(),
+                                                   tensor.PhysicalSize(),
+                                                   tensor.GetPaddedVal());
+            }
+
+            return tensor;
+        };
+
+        bool compressed = primitive->decompression_scale.is_valid();
         bool with_zp = primitive->decompression_zero_point.is_valid();
-        if (commpressed) {
+        if (compressed) {
             params.compressed = true;
-            params.decompression_scale = convert_data_tensor(updated_impl_param.input_layouts[2]);
+            params.decompression_scale = convert_decompression_tensor(updated_impl_param.input_layouts[2], primitive->transpose_b_scale);
             if (with_zp) {
                 params.has_decompression_zp = true;
-                params.decompression_zero_point = convert_data_tensor(updated_impl_param.input_layouts[3]);
+                params.decompression_zero_point = convert_decompression_tensor(updated_impl_param.input_layouts[3], primitive->transpose_b_zp);
                 if (updated_impl_param.input_layouts[3].get_linear_size() == 1 && primitive->decompression_zero_point_scalar.has_value()) {
                     params.scalar_zp = true;
                     params.zp_value = primitive->decompression_zero_point_scalar.value();
