@@ -74,6 +74,16 @@ protected:
         std::shared_ptr<ov::Node> pooling;
         if (ov::test::utils::PoolingTypes::MAX == poolType) {
             pooling = std::make_shared<ov::op::v1::MaxPool>(poolInput, stride, padBegin, padEnd, kernel, roundingType, padType);
+        } else if (roundingType == ov::op::RoundingType::CEIL_TORCH) {
+            pooling = std::make_shared<ov::op::v16::AvgPool>(poolInput,
+                                                             stride,
+                                                             ov::Strides(stride.size(), 1),
+                                                             padBegin,
+                                                             padEnd,
+                                                             kernel,
+                                                             excludePad,
+                                                             roundingType,
+                                                             padType);
         } else {
             pooling = std::make_shared<ov::op::v1::AvgPool>(poolInput, stride, padBegin, padEnd, kernel, excludePad, roundingType, padType);
         }
@@ -233,6 +243,20 @@ INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_GPU_3D, PoolingLayerGPUTest,
                                  ::testing::ValuesIn(paramsAvg3D),
                                  ::testing::ValuesIn(inputShapes3D),
                                  ::testing::ValuesIn(inpOutPrecision)),
+                         PoolingLayerGPUTest::getTestCaseName);
+
+INSTANTIATE_TEST_SUITE_P(smoke_AvgPool_CeilTorch_GPU_3D,
+                         PoolingLayerGPUTest,
+                         ::testing::Combine(::testing::Values(ov::test::poolSpecificParams{ov::test::utils::PoolingTypes::AVG,
+                                                                                           {100},
+                                                                                           {100},
+                                                                                           {0},
+                                                                                           {0},
+                                                                                           ov::op::RoundingType::CEIL_TORCH,
+                                                                                           ov::op::PadType::EXPLICIT,
+                                                                                           true}),
+                                            ::testing::Values(InputShape{{-1, 128, -1}, {{1, 128, 173}, {1, 128, 200}}}),
+                                            ::testing::ValuesIn(inpOutPrecision)),
                          PoolingLayerGPUTest::getTestCaseName);
 
 /* ============= Pooling (2D) ============= */
