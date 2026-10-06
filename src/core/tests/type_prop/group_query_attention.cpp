@@ -378,6 +378,20 @@ TEST(type_prop, group_query_attention_head_sink_invalid_length) {
                     HasSubstr("head_sink must have num_heads (6) elements"));
 }
 
+TEST(type_prop, group_query_attention_head_sink_zero_length_invalid) {
+    const auto args = make_gqa_args_with_head_sink(element::f32, PartialShape{0});
+    OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false),
+                    ov::NodeValidationFailure,
+                    HasSubstr("head_sink must have num_heads (6) elements"));
+}
+
+TEST(type_prop, group_query_attention_head_sink_absent_placeholder_valid) {
+    auto args = make_gqa_args_with_head_sink(element::f32, PartialShape{6});
+    args.back() = op::v0::Constant::create(element::f32, Shape{0}, {});
+    OV_ASSERT_NO_THROW(std::ignore =
+                           std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false));
+}
+
 TEST(type_prop, group_query_attention_head_sink_invalid_type) {
     const auto args = make_gqa_args_with_head_sink(element::i32, PartialShape{6});
     OV_EXPECT_THROW(std::ignore = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false),

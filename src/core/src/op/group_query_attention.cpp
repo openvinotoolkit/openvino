@@ -198,12 +198,13 @@ void GroupQueryAttention::validate_and_infer_types() {
     check_input(GroupQueryAttentionInputs::ATTENTION_BIAS, {4}, {}, false);
     check_input(GroupQueryAttentionInputs::HEAD_SINK, {1}, float_types, false);
     // head_sink holds one softmax-sink logit per query head (ONNX spec shape [num_heads]).
-    if (get_input_size() > static_cast<size_t>(GroupQueryAttentionInputs::HEAD_SINK)) {
-        const auto& sink_ps = get_input_partial_shape(static_cast<size_t>(GroupQueryAttentionInputs::HEAD_SINK));
+    // Only the internal empty-constant placeholder means "absent"; a real zero-length sink is rejected.
+    const auto sink_pos = static_cast<size_t>(GroupQueryAttentionInputs::HEAD_SINK);
+    if (sink_pos < get_input_size() && !ov::util::is_empty_constant_tensor(input_value(sink_pos))) {
+        const auto& sink_ps = get_input_partial_shape(sink_pos);
         NODE_VALIDATION_CHECK(this,
                               sink_ps.rank().is_dynamic() || sink_ps.rank().get_length() != 1 ||
-                                  sink_ps[0].is_dynamic() || sink_ps[0].get_length() == 0 ||
-                                  sink_ps[0].get_length() == m_num_heads,
+                                  sink_ps[0].is_dynamic() || sink_ps[0].get_length() == m_num_heads,
                               "GroupQueryAttention: head_sink must have num_heads (",
                               m_num_heads,
                               ") elements, got shape ",
