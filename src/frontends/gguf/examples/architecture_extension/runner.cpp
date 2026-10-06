@@ -52,9 +52,12 @@ int main(int argc, char** argv) {
                             name.find("mask") != std::string::npos ? 0.f : 1.f);
             else if (tensor.get_element_type() == ov::element::i32)
                 std::fill_n(tensor.data<int32_t>(), tensor.get_size(), 0);
-            else if (tensor.get_element_type() == ov::element::i64)
-                std::fill_n(tensor.data<int64_t>(), tensor.get_size(), name == "token_len_per_seq" ? tokens : 0);
-            else
+            else if (tensor.get_element_type() == ov::element::i64) {
+                const int64_t value = name == "token_len_per_seq" ? static_cast<int64_t>(tokens)
+                                      : name == "attention_mask"  ? 1
+                                                                  : 0;
+                std::fill_n(tensor.data<int64_t>(), tensor.get_size(), value);
+            } else
                 throw std::runtime_error("Unsupported example input type for " + name);
             if (name == "position_ids" && tensor.get_element_type() == ov::element::i64)
                 for (size_t i = 0; i < tensor.get_size(); ++i)
