@@ -1,0 +1,42 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-06-10-37-24-000-37448993556",
+  "timestamp": "2026-10-06T10:37:24Z",
+  "run_id": "37448993556",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37448993556",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "37908",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37908",
+  "author": "egalli",
+  "category": "Infrastructure",
+  "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_reference",
+  "signature": "cc1plus error cmake_pch hxx gch not a pch file werror invalid pch|Infrastructure",
+  "signature_hash": "5b4b1e6917a69856",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "cmake --build fails compiling src/core/reference objects: cc1plus rejects the precompiled header (cmake_pch.hxx.gch) as 'not a PCH file' under -Werror=invalid-pch, stopping ninja with multiple FAILED entries."
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Aggregate status-check job reports failure because the upstream Build job failed."
+    }
+  ],
+  "key_errors": [
+    "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/convert.cpp.o\ncc1plus: error: /__w/openvino/openvino/openvino/openvino_build/src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]",
+    "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/einsum.cpp.o\ncc1plus: error: /__w/openvino/openvino/openvino/openvino_build/src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]\nninja: build stopped: subcommand failed."
+  ],
+  "root_cause": "The ARM64 cross-compilation build uses a precompiled header (cmake_pch.hxx.gch) for the openvino_reference target together with sccache as the compiler launcher. The sccache-cached/launched cc1plus invocation picks up a stale or incompatible .gch artifact (likely produced by a different compiler invocation/toolchain variant, or corrupted/truncated by a concurrent cache write) and rejects it as 'not a PCH file'. Because CMAKE_COMPILE_WARNING_AS_ERROR=ON turns the resulting -Winvalid-pch warning into a hard error, every translation unit in the openvino_reference target that consumes the shared PCH fails to compile, cascading into a full ninja build-stop. This is the 9th occurrence of the exact same signature recorded in the pattern database (6 occurrences in the last 12 hours alone), strongly indicating an infrastructure/toolchain-cache issue (sccache + PCH interaction on the ARM64 cross-compile runners) rather than anything introduced by this PR's MVN-6 axis-validation change, which does not touch build configuration, PCH settings, or any file in src/core/reference's compiled list.",
+  "reproduction_steps": "Not reliably reproducible locally outside the ARM64 cross-compilation CI runners / sccache configuration. To attempt reproduction: configure with the same cmake-options as the job (-DCMAKE_TOOLCHAIN_FILE=cmake/arm64.toolchain.cmake -DCMAKE_COMPILE_WARNING_AS_ERROR=ON -DENABLE_FASTER_BUILD=ON) using sccache as CMAKE_CXX_COMPILER_LAUNCHER, build the openvino_reference target, and watch for a stale/truncated cmake_pch.hxx.gch under a warm sccache cache; clearing the sccache cache/precompiled-header artifact before build is the most likely way to force or avoid the symptom.",
+  "recommended_actions": [
+    "Clear/invalidate the sccache cache (or the specific cached PCH artifact) for the ubuntu_22_04_arm64_cross_compile_Release key used by this job, since the .gch file is almost certainly stale or produced by an incompatible compiler invocation.",
+    "Consider disabling or relaxing -Werror=invalid-pch for this specific toolchain (cross-compilation + sccache), or disabling PCH (ENABLE_FASTER_BUILD/precompiled headers) for the openvino_reference target on ARM64 cross-compile until the sccache+PCH interaction is fixed, since this has now recurred 9 times.",
+    "Call remediate_transient_failure to re-run the failed jobs / re-queue the PR, since a clean (non-cached) rebuild is very likely to succeed.",
+    "File/escalate a tracking issue against the ARM64 cross-compilation CI config to investigate sccache compatibility with precompiled headers, given the high recurrence count."
+  ],
+  "prevention_strategies": "Add a CI safeguard that detects PCH/sccache cache corruption (e.g., validate the .gch artifact's age/hash against the current compiler invocation before reuse) and automatically purges stale PCH caches. Alternatively, disable precompiled headers for cross-compilation targets where sccache is the launcher, since sccache does not natively understand PCH semantics and can serve a mismatched .gch file.",
+  "historical_context": "This exact signature has now been recorded 9 times in the CI Doctor MQ pattern database (first seen 2026-09-24, most recently 6 times in the last 12 hours alone, across unrelated PRs #37942, #38030, #38380, #38393, #38483, #38604, #38607, #38611, and now #37908). All occurrences point to the same ARM64 cross-compilation 'Build / Build' job and the same cc1plus invalid-pch error in src/core/reference, confirming this is a persistent CI infrastructure issue unrelated to the specific PR content."
+}
