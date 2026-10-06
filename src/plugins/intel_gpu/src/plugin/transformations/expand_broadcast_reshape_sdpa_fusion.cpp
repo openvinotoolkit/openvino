@@ -4,6 +4,7 @@
 
 #include "expand_broadcast_reshape_sdpa_fusion.hpp"
 
+#include <algorithm>
 #include <optional>
 
 #include "intel_gpu/op/kv_cache.hpp"
@@ -84,7 +85,12 @@ ExpandBroadcastReshapeSDPAFusion::ExpandBroadcastReshapeSDPAFusion() {
         bool reshape_check =
             reshape_input && reshape_input->get_output_partial_shape(0).rank().is_static() && reshape_input->get_output_partial_shape(0).size() == 5;
 
-        return concat && concat->get_axis() == 2 && concat->get_input_size() > 2 && reshape_check;
+        // A KV head expand repeats one tensor (any factor >= 2, e.g. 2 query heads per KV head).
+        const auto& inputs = concat->input_values();
+        const bool same_input = std::all_of(inputs.begin(), inputs.end(), [&](const ov::Output<ov::Node>& in) {
+            return in == inputs[0];
+        });
+        return concat->get_axis() == 2 && concat->get_input_size() >= 2 && same_input && reshape_check;
     };
 
     auto reshape_k_m = wrap_type<ov::op::v1::Reshape>({any_input(), any_input()});
