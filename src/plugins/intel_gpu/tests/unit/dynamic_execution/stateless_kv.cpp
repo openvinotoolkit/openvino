@@ -277,6 +277,8 @@ TEST(stateless_kv_runtime, caller_output_binding_respects_inplace_contract) {
     auto config = get_test_default_config(engine);
     config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
     config.set_property(ov::intel_gpu::optimize_data(true));
+    // network::may_alias() always rejects on out-of-order queues.
+    config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
     network net(engine, topo, config);
 
     auto past = engine.allocate_memory(past_layout, allocation_type::usm_host);

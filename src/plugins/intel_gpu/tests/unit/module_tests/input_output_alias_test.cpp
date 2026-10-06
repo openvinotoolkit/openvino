@@ -80,7 +80,7 @@ protected:
         ExecutionConfig config = get_test_default_config(get_test_engine());
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::optimize_data(true));
-        // Earlier readers of an aliased input are not yet guarded on out-of-order queues.
+        // network::may_alias() always rejects on out-of-order queues.
         config.set_property(ov::intel_gpu::queue_type(QueueTypes::in_order));
         network net(get_test_engine(), topo, config);
 
@@ -165,13 +165,30 @@ protected:
     layout data_layout{ov::PartialShape{1, 4}, data_types::f32, format::bfyx};
 
     // The parameter toggles the memory pool: aliasing decisions must not depend on it.
-    bool may_alias(topology& topo, const primitive_id& output_id, const primitive_id& input_id, std::vector<std::string> outputs = {}) {
+    bool may_alias(topology& topo,
+                   const primitive_id& output_id,
+                   const primitive_id& input_id,
+                   std::vector<std::string> outputs = {},
+                   QueueTypes queue_type = QueueTypes::in_order,
+                   bool* queue_type_supported = nullptr) {
         ExecutionConfig config = get_test_default_config(get_test_engine());
         config.set_property(ov::intel_gpu::allow_new_shape_infer(true));
         config.set_property(ov::intel_gpu::enable_memory_pool(GetParam()));
+        config.set_property(ov::intel_gpu::queue_type(queue_type));
+        // oneDNN forces an in-order queue; it must be user-set to stay disabled on XMX devices.
+        if (queue_type == QueueTypes::out_of_order)
+            config.set_user_property(ov::intel_gpu::use_onednn(false));
         if (!outputs.empty())
             config.set_property(ov::intel_gpu::custom_outputs(outputs));
         network net(get_test_engine(), topo, config);
+        const bool queue_type_matches = net.get_stream().get_queue_type() == queue_type;
+        if (queue_type_supported) {
+            *queue_type_supported = queue_type_matches;
+            if (!queue_type_matches)
+                return false;
+        } else {
+            EXPECT_EQ(net.get_stream().get_queue_type(), queue_type);
+        }
         return net.may_alias(output_id, input_id);
     }
 };
@@ -217,6 +234,23 @@ TEST_P(InputOutputAliasGenericTest, writer_after_last_input_reader_is_aliasable)
 
     EXPECT_TRUE(may_alias(topo, net_output, in0));
     EXPECT_FALSE(may_alias(topo, net_output, in1));
+}
+
+// Independent readers of an input aren't ordered before the writer on an out-of-order queue.
+TEST_P(InputOutputAliasGenericTest, out_of_order_queue_is_not_aliasable) {
+    topology topo{
+        input_layout(in0, data_layout),
+        input_layout(in1, data_layout),
+        activation("reader", input_info(in0), activation_func::relu),
+        eltwise(net_output, input_info("reader"), input_info(in1), eltwise_mode::sum),
+    };
+
+    bool out_of_order_queue_supported = false;
+    const auto aliasable = may_alias(topo, net_output, in0, {}, QueueTypes::out_of_order, &out_of_order_queue_supported);
+    if (!out_of_order_queue_supported)
+        GTEST_SKIP() << "Out-of-order queues are unavailable for this device/configuration";
+
+    EXPECT_FALSE(aliasable);
 }
 
 // A later reader of in0 still needs its data after the output writer ran, wherever in0 sits in the processing order.

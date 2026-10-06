@@ -709,13 +709,16 @@ bool network::may_alias(const primitive_id& output_id, const primitive_id& input
     if (!output->is_output() || !input->is_input())
         return false;
 
+    // Processing order doesn't serialize independent readers of the input with the writer on an out-of-order queue.
+    if (get_stream().get_queue_type() == QueueTypes::out_of_order)
+        return false;
+
     const auto input_pos_it = _exec_positions.find(input.get());
     if (input_pos_it == _exec_positions.end())
         return false;
 
     // Walk back from the output to the primitives that actually write its buffer; none of them
     // may be restricted from sharing a buffer with the input.
-    // TODO: on out-of-order queues an earlier reader of the input may still run concurrently with the writer.
     const auto input_uid = static_cast<uint32_t>(input->get_node().get_unique_id());
     std::unordered_set<const primitive_inst*> visited;
     std::stack<const primitive_inst*> pending;

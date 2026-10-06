@@ -27,7 +27,6 @@ void basic_memory_dependencies::run(program& p) {
         }
 
         // stateless_kv may update input 0 (`past`) in place.
-        // TODO: on out-of-order queues a concurrent earlier reader of `past` is not recorded against this node.
         const bool inplace_kv = node->is_type<stateless_kv>();
 
         // add my dependencies to restriction list (can't share input.output buffers)
