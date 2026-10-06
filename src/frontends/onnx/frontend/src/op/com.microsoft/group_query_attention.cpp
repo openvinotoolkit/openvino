@@ -71,7 +71,9 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
     // matching the ONNX Runtime defaults (local_window_size = -1 disables the window).
     const auto local_window_size = node.get_attribute_value<int64_t>("local_window_size", -1);
     const auto sliding_window_cache = node.get_attribute_value<int64_t>("sliding_window_cache", 0);
-    const auto softcap = node.get_attribute_value<float>("softcap", 0.0f);
+    // ONNX Runtime applies softcap only when it is > 0 (CPU and CUDA); any other value (negative, NaN) disables it.
+    const auto softcap_attr = node.get_attribute_value<float>("softcap", 0.0f);
+    const auto softcap = softcap_attr > 0.0f ? softcap_attr : 0.0f;
     const auto smooth_softmax = node.get_attribute_value<int64_t>("smooth_softmax", 0);
     const auto qk_output = node.get_attribute_value<int64_t>("qk_output", 0);
 
