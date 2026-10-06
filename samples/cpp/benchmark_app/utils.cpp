@@ -5,7 +5,6 @@
 #include <format_reader_ptr.h>
 
 #include <algorithm>
-#include <cctype>
 #include <map>
 #include <regex>
 #include <string>
@@ -157,16 +156,6 @@ void update_device_properties_setting(const std::string& device_name,
     // overwrite if this config existed
     secondary_property.erase(device_property.first);
     secondary_property.insert(device_property);
-}
-
-static std::string trim(const std::string& str) {
-    auto begin = std::find_if_not(str.begin(), str.end(), [](unsigned char ch) {
-        return std::isspace(ch);
-    });
-    auto end = std::find_if_not(str.rbegin(), str.rend(), [](unsigned char ch) {
-        return std::isspace(ch);
-    }).base();
-    return (begin < end) ? std::string(begin, end) : std::string{};
 }
 
 std::vector<std::string> parse_devices(const std::string& device_string) {
