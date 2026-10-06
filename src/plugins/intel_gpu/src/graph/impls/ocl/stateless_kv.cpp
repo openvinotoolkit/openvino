@@ -286,7 +286,8 @@ private:
 namespace detail {
 
 attach_stateless_kv_impl::attach_stateless_kv_impl() {
-    auto types = {data_types::i8, data_types::f16, data_types::f32};
+    // u8 / f8e4m3 cover compressed KV caches (u8 also carries packed i4); concat_ref and scatter_update_ref support them.
+    auto types = {data_types::i8, data_types::u8, data_types::f8e4m3, data_types::f16, data_types::f32};
     auto formats = {format::bfyx};
     implementation_map<stateless_kv>::add(impl_types::ocl, shape_types::dynamic_shape, stateless_kv_impl::create, types, formats);
     implementation_map<stateless_kv>::add(impl_types::ocl, shape_types::static_shape, stateless_kv_impl::create, types, formats);
