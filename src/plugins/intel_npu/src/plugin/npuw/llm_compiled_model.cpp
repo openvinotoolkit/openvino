@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include <queue>
 #include "llm_compiled_model.hpp"
+
+#include <queue>
 
 #include "embedding/embedding_infer_request.hpp"
 #include "embedding/encoder_embedding_infer_request.hpp"
@@ -54,8 +55,8 @@
 #include "partitioning/patterns/moe.hpp"
 #include "partitioning/patterns/pre_compute.hpp"
 #include "partitioning/patterns/sdpa.hpp"
-#include "shared_weights_producer.hpp"
 #include "serialization.hpp"
+#include "shared_weights_producer.hpp"
 #include "transformations/convert_precision.hpp"
 #include "util.hpp"
 #include "whisper/prepare_whisper_model.hpp"
@@ -890,7 +891,9 @@ ov::npuw::LLMCompiledModel::LLMCompiledModel(const std::shared_ptr<ov::Model>& m
     if (shared_weight_property_it != properties.end()) {
         LOG_DEBUG("Try to assign shared weights to the model if possible.");
         std::tie(m_shared_weight_sources, m_shared_ctx_ptr) =
-            ::ov::intel_npu::transformations::assign_shared_weight_to_model_if_possible(model, shared_weight_property_it->second);
+            ::ov::intel_npu::transformations::assign_shared_weight_to_model_if_possible(
+                model,
+                shared_weight_property_it->second);
     }
 
     const uint32_t batch_dim = m_cfg.get<::intel_npu::NPUW_LLM_BATCH_DIM>();

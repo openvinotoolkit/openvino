@@ -27,8 +27,7 @@ SharedWeightsResult assign_shared_weight_to_model_if_possible(const std::shared_
     }
 
     OPENVINO_ASSERT(shared_weight_property.is<std::string>(), "NPU shared weight property must be a std::string");
-    auto shared_device_contexts =
-        ov::DeviceIDParser::get_hetero_devices(shared_weight_property.as<std::string>());
+    auto shared_device_contexts = ov::DeviceIDParser::get_hetero_devices(shared_weight_property.as<std::string>());
     SharedWeightsAssigner::Options options;
     options.shared_device_contexts = std::move(shared_device_contexts);
     options.preserve_weightless_cache_attr = (std::getenv("NO_WEIGHTLESS_ATTR") == nullptr);
