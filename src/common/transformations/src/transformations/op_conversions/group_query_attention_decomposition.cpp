@@ -176,7 +176,10 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
         Q = rotaryEmbedding(Q, cos, sin, rotary_interleaved);
         K = rotaryEmbedding(K, cos, sin, rotary_interleaved);
     }
-    const auto is_static_input = K.get_partial_shape().is_static() && past_key.get_partial_shape().is_static();
+    // A static past is a preallocated max-length buffer written in place. A zero-capacity past (an absent ONNX
+    // past or an empty cache) has nothing to write into, so it grows by concatenation instead.
+    const auto is_static_input = K.get_partial_shape().is_static() && past_key.get_partial_shape().is_static() &&
+                                 past_key.get_partial_shape()[2].get_length() > 0;
 
     // Quantize-on-write: when the cache is quantized, quantize the (post-RoPE) current K/V into the cache type
     // before appending them, so the assembled present cache stays quantized and the past bytes are preserved

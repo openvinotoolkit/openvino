@@ -15,6 +15,7 @@
 #include "openvino/op/divide.hpp"
 #include "openvino/op/reshape.hpp"
 #include "openvino/op/shape_of.hpp"
+#include "openvino/op/slice.hpp"
 #include "openvino/op/transpose.hpp"
 #include "utils/attention.hpp"
 #include "utils/common.hpp"
@@ -219,9 +220,26 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         ov_op_inputs.push_back(std::move(V));
     }
 
-    FRONT_END_OP_CONVERSION_CHECK(
-        common::is_input_valid(onnx_op_inputs, 3) && common::is_input_valid(onnx_op_inputs, 4),
-        "GroupQueryAttention: past_key (input 3) and past_value (input 4) must be provided as tensors");
+    const bool has_past_key = common::is_input_valid(onnx_op_inputs, 3);
+    const bool has_past_value = common::is_input_valid(onnx_op_inputs, 4);
+    FRONT_END_OP_CONVERSION_CHECK(has_past_key == has_past_value,
+                                  "GroupQueryAttention: past_key (input 3) and past_value (input 4) must be provided "
+                                  "together.");
+    if (!has_past_key) {
+        // Absent past (ONNX spec: optional) is an empty cache. A quantized cache needs a past tensor to carry its
+        // element type into present_key/present_value, so it cannot be inferred from the float K/V.
+        FRONT_END_OP_CONVERSION_CHECK(kv_cache_bit_width == 0,
+                                      "GroupQueryAttention: a quantized KV cache (kv_cache_bit_width != 0) requires "
+                                      "past_key and past_value.");
+        // Zero-length [B, kv_num_heads, 0, head_size] past, sliced from the already transposed K so it carries the
+        // batch/head/head_size dims and element type without extra shape arithmetic.
+        const auto zero = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+        const auto one = v0::Constant::create(ov::element::i64, ov::Shape{1}, {1});
+        const auto seq_axis = v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
+        const auto empty_past = std::make_shared<v8::Slice>(ov_op_inputs[1], zero, zero, one, seq_axis)->output(0);
+        ov_op_inputs.push_back(empty_past);
+        ov_op_inputs.push_back(empty_past);
+    }
     // Process optional inputs: use a zero-sized Constant placeholder for missing optional ONNX inputs.
     // Note: When the ONNX's input index changed, the corresponding index in the GroupQueryAttentionInputs enum must
     // also be updated and  may need mapping the index manually.

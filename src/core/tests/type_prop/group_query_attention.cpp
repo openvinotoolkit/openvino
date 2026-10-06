@@ -384,5 +384,22 @@ TEST(type_prop, group_query_attention_head_sink_invalid_type) {
                     HasSubstr("Element type of `head_sink` input is not compatible"));
 }
 
+TEST(type_prop, group_query_attention_static_empty_past_grows_by_current) {
+    using ov::op::v0::Parameter;
+    auto args = make_valid_gqa_args();
+    // A zero-capacity past (absent ONNX past) cannot be written in place: present = current tokens only.
+    args[3] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 0, 8});
+    args[4] = std::make_shared<Parameter>(element::f32, PartialShape{1, 2, 0, 8});
+    const auto op = std::make_shared<op::internal::GroupQueryAttention>(args, 6, 2, 1.0f, false, false);
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, 4, 8}));
+    EXPECT_EQ(op->get_output_partial_shape(2), (PartialShape{1, 2, 4, 8}));
+}
+
+TEST(type_prop, group_query_attention_static_past_keeps_capacity) {
+    const auto op =
+        std::make_shared<op::internal::GroupQueryAttention>(make_valid_gqa_args(), 6, 2, 1.0f, false, false);
+    EXPECT_EQ(op->get_output_partial_shape(1), (PartialShape{1, 2, 5, 8}));
+}
+
 }  // namespace testing
 }  // namespace ov
