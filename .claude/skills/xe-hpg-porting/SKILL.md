@@ -9,12 +9,13 @@ description: Playbook for porting or adapting an Xe2 DPAS/2D-block OpenCL kernel
 방법론(A/B, 귀속, 성능 규율)은 스킬 `ocl-kernel-ab-methodology`. 커널 기법은 01~04장.
 작업 사본/계획: 메모리 `sdpa-ocl-xe-hpg-plan`(허브), `-facts`, `-s7-performance`(최우선), `test/sdpa_ocl_xe_hpg/`.
 
-## 0. 현재 상태 (2026-10-02 기준, 이후 변경은 git/메모리로 재확인)
-- S0~S6c 완료: plain SDPA f16/bf16/mask/causal/sink/dynamic/q<=1, plain i8 KV가 xe_hpg SG8 arm에서 동작.
-  `kHpgTiersReady = PLAIN_F16_STATIC | PLAIN_EXT | PLAIN_I8` (`src/graph/impls/ocl_v2/sdpa/sdpa_ocl_hpg.hpp:33`). 다음은 S7a (PA PREFILL).
+## 0. 현재 상태 (2026-10-06)
+- S0~S6c 완료: plain SDPA f16/bf16/mask/causal/sink/dynamic/q<=1, plain i8 KV가 xe_hpg SG8 arm에서 동작. committed HEAD `d20cac7`의 `kHpgTiersReady`는 `PLAIN_F16_STATIC | PLAIN_EXT | PLAIN_I8`이다.
+- 미커밋 작업 트리에는 `PA_PREFILL` bit와 PREFILL/MIXED 개별 routing 및 `KV_TILED` 전처리 prototype이 있다. 이 변경은 standalone 게이트를 통과한 vISA raw-kernel 정책과 다르고, 제품 빌드·정확도·성능으로 검증되지 않았다. 현재 소스에 ready bit가 보이더라도 S7a 제품 준비 완료로 분류하지 않는다. raw-kernel 제품 통합은 별도 후속 작업이다.
 - **S9 전까지 xe_hpg 기본 동작은 불변**: `TEST_USE_SDPA_OCL_HPG=1`일 때만 sdpa_ocl lane. 거부된 op는 `TEMP(S9)` 2곳 (`sdpa/sdpa_opt.cpp:86`, `sdpa/paged_attention_opt.cpp:1623`)이 sdpa_micro lane으로 돌린다.
 - 실기 검증은 **DG2 (Arc A770)만**. ARL-H(12.74)는 S9 기본값/캐시 태그에 포함되지만 **런타임 정확도/성능 미검증**. B70/Xe2 회귀 + corpus/pset 불변 증명은 DG2-only로 면제되지 않는다.
-- S7 이후 성능 우선순위 PA PREFILL > PA MIXED > plain q=1, 이슈별 FIXED/REFUTED/승인된 ACCEPTED·DEFERRED. DG2 sdpa_ocl 성능 수치는 **아직 없다** (측정 전 개선/회귀 주장 금지).
+- S7a PA PREFILL 초기 product path는 head128/32:8/seq4096에서 micro보다 약 24–28배 느린 것이 device-USM ABBA로 확인됐다. 후속 standalone raw K/V kernel은 2026-10-04에 명시된 3% gate를 측정 matrix에서 통과했으나, product integration/end-to-end/S6/SG16/B70/ARL-H 증거가 아니다. 자세한 원인과 결과는 [성능 사례 §6.3](../../../src/plugins/intel_gpu/docs/ocl_perf_guide/06-performance-gap-investigation.md)에 있다.
+- S7 이후 성능 우선순위 PA PREFILL > PA MIXED > plain q=1, 이슈별 FIXED/REFUTED/승인된 ACCEPTED·DEFERRED. DG2 실측을 다른 Xe 장치나 미측정 shape로 일반화하지 않는다.
 
 ## 1. 하드웨어 차이표 (MEASURED = DG2 S0/S2 실기)
 | 항목 | Xe2 (B70) | Xe-HPG (DG2) |
@@ -47,7 +48,7 @@ description: Playbook for porting or adapting an Xe2 DPAS/2D-block OpenCL kernel
 - 술어 분리 (S3): `sdpa_ocl_arch_ok` / `sdpa_ocl_hpg_enabled` / `sdpa_ocl_decode_reader_available`. 옛 단일 술어 `sdpa_ocl_selected = env && immad && arch>=xe2`는 여러 의미를 겸했다.
 - **landmine**: `by_channel_token_major_readable()`(paged_attention_opt.cpp)가 `sdpa_ocl_selected`를 "decode reader 있음"의 대용으로 써서, 술어만 넓히면 xe_hpg에서 token-major 페이지가 생기고 d-major GENERATE reader가 예외를 낸다.
 - **라우팅 함정**: `sdpa_ocl_selected` true인데 `supported()` false -> `none` (opt 커널). micro tail로 안 떨어짐 (`paged_attention_opt.cpp:1615-1620`). `add_stage`는 codegen 예외를 삼켜 SG8 빌드 실패가 **조용히 opt로 강등** -> census로 stage 존재 확인.
-- Tier 비트 (`sdpa_ocl_hpg.hpp:20-29`): PLAIN_F16_STATIC, PLAIN_EXT, PLAIN_I8 (READY), PA_PREFILL, PA_MIXED_F16, PA_FEATURES, PA_I8_TOKEN, PA_I8_CHANNEL, PA_U4 (미준비). `supported()`가 `hpg_tiers_cover(hpg_tier_required(params), hpg_tiers_ready())`로 거부 -> TEMP(S9)가 micro lane으로. PA는 PREFILL/MIXED 두 스테이지가 함께 컴파일되므로 현재 **둘 다 필수** (S7a가 PREFILL=OCL / MIXED=micro로 분리하는 호스트 변경을 해야 함; 공유 block-start 버퍼 stride/cache serialize 영향 검증).
+- Tier 비트 (`sdpa_ocl_hpg.hpp:20-29`): committed HEAD에서는 PLAIN_F16_STATIC, PLAIN_EXT, PLAIN_I8만 READY. PA_PREFILL/PA_MIXED_F16/PA_FEATURES/PA_I8_TOKEN/PA_I8_CHANNEL/PA_U4는 제품 게이트 미완료다. 현재 작업 트리의 PREFILL-only routing과 `KV_TILED` pre-pass는 미검증 prototype이며, 별도-pre-pass 없는 raw assembly 측정 결과를 제품에 연결하지 않는다. Tier별 단계 상태는 [성능 사례 §6.3](../../../src/plugins/intel_gpu/docs/ocl_perf_guide/06-performance-gap-investigation.md)에서 다시 확인한다.
 - 새 tier 비트를 켤 때: `kHpgTiersReady`에 비트 추가 + `hpg_tier_required` 경계 확정 + 테스트 미러 `expected_dpas_backend_for(...)`에 op별 기대 추가 (tier 0 동안은 "SKIP"이 아니라 **정확한 기대**로 미러) + `sdpa_ocl_serves_prefill_mixed()` 가드 정합.
 - `SDPA_OCL_*_2D/_1D/PA_CUR_F16` env는 xe_hpg에서 `block2d_io_allowed(sg)`가 **무시**하고 0으로 강제. tiling은 `tiling_fits_device()` (SLM 64KiB, WG 1024)로 `choose_config`와 `supported()`가 공유 (KQ override도 평가).
 - 모델 캐시 descriptor (`compiled_model.cpp:282-303`)에 lane/스테이지 레이아웃/`TEST_USE_SDPA_OCL`이 없어 옛 micro-lane blob이 재사용된다 -> S9 캐시 태그 필요 (xe_hpg DG2 + ARL-H 둘 다; Xe2/기타 arch/no-XMX/oneDNN 없는 빌드의 캐시 문자열은 불변).
@@ -73,6 +74,8 @@ description: Playbook for porting or adapting an Xe2 DPAS/2D-block OpenCL kernel
 
 ## 5. 성능 점검 루프 (S7+)
 정확도/실제 dispatch -> 정적 점검 (기존 corpus, 타일/SLM/GRF/private 배열 수명/gather 중복/barrier) -> 승인된 대표 케이스 짧은 스크리닝 -> 트리거 시 한 변경 통제 실험 -> §4.5 회귀 + 사용자 처분.
+- 큰 격차는 [ocl-kernel-performance-investigation](../ocl-kernel-performance-investigation/SKILL.md) 순서로 비교 유효성을 먼저 검사하고, VTune/GTPin/ISA를 각각 한 질문에 연결한다. S7a에서 usm_host 입력, 최종 fusion 전의 micro wrapper, 그리고 소스만 보고 예상한 K/V gather 종류는 모두 잘못된 결론을 낼 수 있었다.
+- S7a raw-kernel PASS는 vISA inline-assembly standalone harness 결과다. 실제 product dispatch/census, 제품 정확도, end-to-end, S6와 SG16/B70 invariant를 별도로 닫기 전에는 “sdpa_ocl이 micro를 대체했다”고 보고하지 않는다. 미커밋 `KV_TILED`/전처리 branch는 해당 gate와 다른 prototype이며, 최신 체크포인트에서 final raw-kernel 경로에 필요 없는 이전 구현으로 기록됐다.
 - 비교축: **현재 OCL vs 현재 실제 micro/opt** (이름이 아니라 실제 stage 확인), 같은 Release 빌드/DG2/driver/입력/캐시. 이전 OCL checkpoint는 별도 축. S1 Debug micro 표는 성능 baseline이 아님.
 - ocloc spill (plain h64 7,968 B / h128 12,128 B / h256 28,064 B)은 **정적 보고값**, DG2 런타임 spill/시간이 아니다. 런타임 `CL_KERNEL_SPILL_MEM_SIZE_INTEL` 조회는 가능 (S2 PASS) 하지만 latency가 아니다.
 - 공통 SG8 튜닝은 완료된 S6 plain/q=1에 영향을 주면 해당 정확도/성능 회귀 필수.
