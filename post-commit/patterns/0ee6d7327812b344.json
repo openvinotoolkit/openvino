@@ -4,20 +4,23 @@
     "signature_hash": "0ee6d7327812b344",
     "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
     "category": "Infrastructure",
-    "count": 3,
+    "count": 4,
     "first_seen": "2026-09-25T10:37:07Z",
-    "last_seen": "2026-10-06T01:01:26Z",
+    "last_seen": "2026-10-06T04:20:18Z",
     "recent_run_urls": [
+        "https://github.com/openvinotoolkit/openvino/actions/runs/37410819403",
         "https://github.com/openvinotoolkit/openvino/actions/runs/37394029538",
         "https://github.com/openvinotoolkit/openvino/actions/runs/37391757947",
         "https://github.com/openvinotoolkit/openvino/actions/runs/36123294303"
     ],
     "affected_commits": [
+        "321ef18afc7d43fb5a9423ea4139090c42d78e5b",
         "58472656deac72b13857d9363e9dde61d0856766",
         "7fab4ed8f924875369e0cb75d85b8ffc365adc54",
         "a1bf0fb1ea427b651f8c65a74c22268b26dcf4a8"
     ],
     "recent_timestamps": [
+        "2026-10-06T04:20:18Z",
         "2026-10-06T01:01:26Z",
         "2026-10-06T00:24:07Z"
     ]
