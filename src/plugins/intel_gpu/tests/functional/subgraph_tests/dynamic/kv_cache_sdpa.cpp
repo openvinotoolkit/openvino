@@ -493,7 +493,7 @@ std::vector<Params> get_test_params() {
     p.push_back({with_rearrange, with_mask, !with_scale, causal, compressed, 2, ov::element::Type_t::bf16, 10, 4, 64, 64, 1, {0, 2, 1, 3}});
 
     // Compressed KV-cache the new token must be appended by the dynamic quantize kernel that supports append mode.
-    for (size_t hs : {32u, 80u, 96u, 128u, 192u, 256u, 512u})
+    for (size_t hs : {32u, 80u, 96u, 128u, 192u, 256u, 512u}) {
         // The test mask is not shifted by the past length, so at q=1 only the first key is visible and the appended token is not checked.
         p.push_back({with_rearrange, with_mask, !with_scale, !causal, compressed, 1, ov::element::Type_t::f16, 5, 4, hs, hs, 1, {0, 1, 2, 3}});
         // Without a mask all keys are visible, so the appended token contributes to the result.
