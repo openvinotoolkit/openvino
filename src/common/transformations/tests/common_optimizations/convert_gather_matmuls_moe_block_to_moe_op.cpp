@@ -355,9 +355,9 @@ inline std::shared_ptr<ov::Model> build_3gemm_bgm_model(
                                             op::v0::Constant::create(element::i64, Shape{1}, std::vector<int64_t>{0}),
                                             false);
 
-    const std::vector<int64_t> output_shape = has_batch_dim
-                                                  ? std::vector<int64_t>{static_cast<int64_t>(batch), -1, static_cast<int64_t>(hidden_size)}
-                                                  : std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)};
+    const std::vector<int64_t> output_shape =
+        has_batch_dim ? std::vector<int64_t>{static_cast<int64_t>(batch), -1, static_cast<int64_t>(hidden_size)}
+                      : std::vector<int64_t>{-1, static_cast<int64_t>(hidden_size)};
     auto end_reshape = std::make_shared<op::v1::Reshape>(
         reduce_sum,
         op::v0::Constant::create(element::i64, Shape{output_shape.size()}, output_shape),
@@ -756,7 +756,8 @@ TEST_F(TransformationTestsF, Convert3GatherMatmulMoeBlockToMoeOp_without_batch_d
     local_manager.run_passes(model);
 
     ASSERT_EQ(model->get_output_partial_shape(0), ov::PartialShape({-1, 2048}));
-    const auto moe = ov::as_type_ptr<ov::op::internal::MOE>(model->get_results().front()->input_value(0).get_node_shared_ptr());
+    const auto moe =
+        ov::as_type_ptr<ov::op::internal::MOE>(model->get_results().front()->input_value(0).get_node_shared_ptr());
     ASSERT_NE(moe, nullptr);
     EXPECT_EQ(moe->get_input_partial_shape(0), ov::PartialShape({-1, 2048}));
 }
