@@ -298,8 +298,12 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         NPUW_ASSERT(type_scale == ov::element::f16 || type_scale == ov::element::f32);
         NPUW_ASSERT(type_to == ov::element::f16);
     } else if (type_from == ov::element::u8) {
-        NPUW_ASSERT(type_zerop == ov::element::u8);
+        NPUW_ASSERT(type_zerop == type_from);
         NPUW_ASSERT(type_scale == ov::element::f16);
+        NPUW_ASSERT(type_to == ov::element::f16);
+    } else if (type_from == ov::element::i8) {
+        NPUW_ASSERT(type_zerop == type_from);
+        NPUW_ASSERT(type_scale == ov::element::f16 || type_scale == ov::element::f32);
         NPUW_ASSERT(type_to == ov::element::f16);
     } else {
         NPUW_ASSERT(false && "Unsupported combination");
@@ -344,7 +348,7 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
         } else {
             NPUW_ASSERT(false);
         }
-    } else if (type_from == ov::element::u8) {
+    } else if (type_from == ov::element::u8 || type_from == ov::element::i8) {
         if (scale_shape.size() == 3 && scale_shape[1] == 1 && scale_shape[2] == 1) {
             // Special case for broadcasting vocab by 2 dimensions
             // FIXME: all this logic probably should be in some specific unpack or another util function
@@ -364,11 +368,19 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
                                     scale->data(),
                                     ov::Strides{scale_strides[0], scale_strides[2]});
 
-            ov::npuw::util::XARCH::unpack_u8f16(ov::get_tensor_impl(wraped_from),
-                                                ov::get_tensor_impl(wraped_zerop),
-                                                ov::get_tensor_impl(wraped_scale),
-                                                to,
-                                                unpack_options);
+            if (type_from == ov::element::u8) {
+                ov::npuw::util::XARCH::unpack_u8f16(ov::get_tensor_impl(wraped_from),
+                                                    ov::get_tensor_impl(wraped_zerop),
+                                                    ov::get_tensor_impl(wraped_scale),
+                                                    to,
+                                                    unpack_options);
+            } else {
+                ov::npuw::util::XARCH::unpack_i8f16_zp(ov::get_tensor_impl(wraped_from),
+                                                       ov::get_tensor_impl(wraped_zerop),
+                                                       ov::get_tensor_impl(wraped_scale),
+                                                       to,
+                                                       unpack_options);
+            }
         } else if (scale_shape.size() == 3 && scale_shape[0] == 1 && scale_shape[2] == 1) {
             // Special case for broadcasting vocab by 2 dimensions
             // FIXME: all this logic probably should be in some specific unpack or another util function
@@ -380,17 +392,33 @@ void ov::npuw::util::unpack(const ov::SoPtr<ov::ITensor>& from,
                                     ov::Shape{scale_shape[1], scale_shape[2]},
                                     scale->data());
 
-            ov::npuw::util::XARCH::unpack_u8f16(ov::get_tensor_impl(wraped_from),
-                                                ov::get_tensor_impl(wraped_zerop),
-                                                ov::get_tensor_impl(wraped_scale),
-                                                to,
-                                                unpack_options);
+            if (type_from == ov::element::u8) {
+                ov::npuw::util::XARCH::unpack_u8f16(ov::get_tensor_impl(wraped_from),
+                                                    ov::get_tensor_impl(wraped_zerop),
+                                                    ov::get_tensor_impl(wraped_scale),
+                                                    to,
+                                                    unpack_options);
+            } else {
+                ov::npuw::util::XARCH::unpack_i8f16_zp(ov::get_tensor_impl(wraped_from),
+                                                       ov::get_tensor_impl(wraped_zerop),
+                                                       ov::get_tensor_impl(wraped_scale),
+                                                       to,
+                                                       unpack_options);
+            }
         } else if (scale_shape.size() == 2 && scale_shape[0] == from_shape[0] && scale_shape[1] == 1) {
-            ov::npuw::util::XARCH::unpack_u8f16(from, zerop, scale, to, unpack_options);
+            if (type_from == ov::element::u8) {
+                ov::npuw::util::XARCH::unpack_u8f16(from, zerop, scale, to, unpack_options);
+            } else {
+                ov::npuw::util::XARCH::unpack_i8f16_zp(from, zerop, scale, to, unpack_options);
+            }
         } else {
             NPUW_ASSERT(false);
         }
     }
+}
+
+void ov::npuw::util::subtract_128(const ov::SoPtr<ov::ITensor>& from, const ov::SoPtr<ov::ITensor>& to) {
+    ov::npuw::util::XARCH::subtract_128(from, to);
 }
 
 void ov::npuw::util::gather(const ov::SoPtr<ov::ITensor>& src,
@@ -1061,6 +1089,67 @@ std::optional<int> ov::npuw::util::isPresentKeyValuesValue(const std::string& st
         int index = std::stoi(match[1].str());
         return index;
     }
+    return std::nullopt;
+}
+
+bool ov::npuw::util::isKVCacheName(const std::string& str) {
+    return isPastKeyValuesKey(str).has_value() || isPastKeyValuesValue(str).has_value() ||
+           isPresentKeyValuesKey(str).has_value() || isPresentKeyValuesValue(str).has_value() ||
+           str.find("/" + std::string(constants::past_key_values) + "/") != std::string::npos ||
+           str.find("/" + std::string(constants::present) + "/") != std::string::npos;
+}
+
+std::string ov::npuw::util::present_to_past_key_values_name(const std::string& output_name) {
+    const std::string present_prefix = constants::present;
+    const std::string past_prefix = constants::past_key_values;
+
+    if (output_name.rfind(present_prefix, 0) == 0) {
+        return past_prefix + output_name.substr(present_prefix.size());
+    }
+
+    auto mapped_name = output_name;
+    const auto pos = mapped_name.find(present_prefix);
+    if (pos != std::string::npos) {
+        mapped_name.replace(pos, present_prefix.size(), past_prefix);
+    }
+    return mapped_name;
+}
+
+std::string ov::npuw::util::past_key_values_to_present_name(const std::string& input_name) {
+    const std::string present_prefix = constants::present;
+    const std::string past_prefix = constants::past_key_values;
+
+    if (input_name.rfind(past_prefix, 0) == 0) {
+        return present_prefix + input_name.substr(past_prefix.size());
+    }
+
+    auto mapped_name = input_name;
+    const auto pos = mapped_name.find(past_prefix);
+    if (pos != std::string::npos) {
+        mapped_name.replace(pos, past_prefix.size(), present_prefix);
+    }
+    return mapped_name;
+}
+
+std::optional<std::string> ov::npuw::util::resolveKVInputName(
+    const std::string& output_name,
+    const std::function<bool(const std::string&)>& has_input_name) {
+    auto input_name = present_to_past_key_values_name(output_name);
+    if (has_input_name(input_name)) {
+        return input_name;
+    }
+
+    const auto marker = std::string(constants::past_key_values);
+    const auto marker_pos = input_name.find(marker);
+    if (marker_pos == std::string::npos) {
+        return std::nullopt;
+    }
+
+    auto canonical_name = input_name.substr(marker_pos);
+    if (has_input_name(canonical_name)) {
+        return canonical_name;
+    }
+
     return std::nullopt;
 }
 

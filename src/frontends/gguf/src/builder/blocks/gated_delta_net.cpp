@@ -9,10 +9,7 @@
 #include "builder/blocks/common.hpp"
 #include "openvino/core/except.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace blocks {
+namespace ov::frontend::gguf::blocks {
 
 std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, const std::string& attn_norm) {
     using ov::element::f32;
@@ -148,7 +145,4 @@ std::string gated_delta_net(GraphEmitter& e, const DecoderConfig& cfg, int il, c
     return e.add_op("GGML_OP_MUL_MAT", p + "linear_attn_out", {p + "ssm_out.weight", out});
 }
 
-}  // namespace blocks
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::blocks

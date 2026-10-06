@@ -263,7 +263,6 @@ WeightlessGraph::WeightlessGraph(
     std::optional<std::vector<ov::Tensor>> initBlobs,
     std::variant<std::monostate, std::shared_ptr<const ov::Model>, std::pair<std::string, std::shared_ptr<ov::ICore>>>&&
         weightsSource,
-    const FilteredConfig& config,
     const bool blobIsPersistent,
     const std::optional<std::string>& compatibilityDescriptor)
     : Graph(zeGraphExt,
@@ -271,14 +270,13 @@ WeightlessGraph::WeightlessGraph(
             mainGraphDesc,
             std::move(mainMetadata),
             std::move(mainBlob),
-            config,
             compatibilityDescriptor,
             blobIsPersistent),
       _initsGraphDesc(initGraphDesc),
       _initBlobs(std::move(initBlobs)),
       _initsMetadata(std::move(initMetadata)),
       _constants(extract_constants_map(std::move(weightsSource), _initsMetadata)),
-      _wgLogger("WeightlessGraph", config.get<LOG_LEVEL>()) {}
+      _wgLogger("WeightlessGraph", Logger::global().level()) {}
 
 std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::export_blob(std::ostream& stream) const {
     if (_blobIsReleased) {
@@ -370,7 +368,7 @@ std::pair<uint64_t, std::optional<std::vector<uint64_t>>> WeightlessGraph::expor
     return std::make_pair(totalBlobSize, initSizes);
 }
 
-void WeightlessGraph::initialize_impl(const FilteredConfig& config) {
+void WeightlessGraph::initialize_impl(const Config& config) {
     if (_zeGraphExt == nullptr || _graphDesc._handle == nullptr || _zeroInitStruct == nullptr) {
         // To ensure that does not throw an issue when subsequently calling `_zeroInitStruct->getDevice()`
         return;

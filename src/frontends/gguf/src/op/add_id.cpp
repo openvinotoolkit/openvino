@@ -16,10 +16,7 @@
 #include "openvino/op/shape_of.hpp"
 #include "utils.hpp"
 
-namespace ov {
-namespace frontend {
-namespace gguf {
-namespace op {
+namespace ov::frontend::gguf::op {
 
 namespace {
 // Collapse a 4D [1, 1, a, b] input to 2D [a, b] when it isn't already 2D. Bias/id constants may
@@ -74,7 +71,4 @@ OutputVector translate_add_id(const NodeContext& context) {
     return rename_outputs_with_suffix({std::move(res)}, context.get_name());
 }
 
-}  // namespace op
-}  // namespace gguf
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::gguf::op
