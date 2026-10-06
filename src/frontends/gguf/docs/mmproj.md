@@ -37,6 +37,20 @@ Not implemented: `ldp`, `ldpv2`, `adapter`, `step3vl`, `gemma3nv`, `llama4`, `qw
 `kimik25`, `nemotron_v2_vl`, `exaone4_5`, `hunyuanvl`, `granite_speech`, `mimovl`,
 `granite4_vision`. `gemma3na` has no graph builder in the reference.
 
+## Validation coverage
+
+| Evidence | Scope and limits |
+|---|---|
+| Offline numerical fixtures | Every catalog projector has a small CPU encoder reference; tests compare raw and GenAI-adapted features |
+| Dynamic fixtures | Multiple sizes reuse one compiled model; variants are listed in the [fixture README](../tests/test_data/mmproj_accuracy/README.md) |
+| Real-checkpoint lists | [Precommit](../../../../tests/model_hub_tests/gguf/gguf_mmproj_precommit) and [nightly](../../../../tests/model_hub_tests/gguf/gguf_mmproj_nightly) select checkpoints, including combined Gemma4 and Qwen2.5-Omni files |
+| Qwen2-VL real checkpoint | CPU NMSE limit is explicitly relaxed to `2e-4`; the list records reference patch-embedding arithmetic as the reason |
+| DeepSeek-OCR real checkpoint | Skipped: model-hub input preparation does not yet implement SAM tiles/views; offline OCR fixtures remain covered |
+| Full media application | Encoder fixtures and generated-input checkpoint tests do not validate host preprocessing, media insertion, or complete VLM/audio generation |
+
+See [testing](testing.md) for commands and acceptance. A catalog entry is not a claim of coverage
+for every checkpoint, resolution, quantization, or device.
+
 ## Files with vision and audio encoders
 
 A projector file holds at most one vision and one audio encoder; Gemma4 E2B/E4B/12B files carry
@@ -59,8 +73,9 @@ turns it into one encoder; apply it to a clone per modality to obtain both.
 
 ## Graph boundary
 
-Preprocessing belongs to the caller. Activations are F32 and indices I32; spatial sizes stay
-dynamic, so one compiled model serves different image sizes.
+Preprocessing belongs to the caller. Activations are F32 and indices I32, except the
+explicit F32 positional inputs below. Dynamic encoders accept different spatial sizes;
+fixed-resolution encoders retain the size recorded in metadata.
 
 | Family | Inputs |
 |---|---|
@@ -97,6 +112,50 @@ arrays are comma-separated, and string arrays are `length:value` entries flagged
 `<key>.encoding` companion. The metadata survives IR serialization and adaptation; supplied
 cgraph decoders return an empty map.
 
+## Run vision and audio fixtures
+
+With NumPy and an OpenVINO Python build containing this frontend, run the following from the
+repository root. It converts and evaluates one vision and one audio model using committed
+inputs and llama.cpp outputs; no download or oracle build is needed.
+
+```python
+from pathlib import Path
+from tempfile import TemporaryDirectory
+import numpy as np
+import openvino as ov
+from openvino.frontend import FrontEndManager
+
+fixtures = Path("src/frontends/gguf/tests/test_data/mmproj_accuracy")
+manager, core = FrontEndManager(), ov.Core()
+for family, modality in (("gemma3", "vision"), ("qwen2a", "audio")):
+    with np.load(fixtures / f"{family}.npz") as arrays, TemporaryDirectory() as tmp:
+        model_path = Path(tmp) / "mmproj.gguf"
+        model_path.write_bytes(arrays["model"].tobytes())
+        frontend = manager.load_by_framework("gguf")
+        model = frontend.convert(frontend.load(str(model_path)))
+        data = arrays["inputs"]
+        feeds = {f"{modality}." + ("pixel_values" if modality == "vision" else "features"): data}
+        if modality == "audio":
+            feeds["audio.position_ids"] = np.arange((data.shape[-1] + 1) // 2, dtype=np.int32).reshape(1, 1, 1, -1)
+        request = core.compile_model(model, "CPU", {
+            "INFERENCE_PRECISION_HINT": "f32", "DYNAMIC_QUANTIZATION_GROUP_SIZE": 0,
+        }).create_infer_request()
+        request.infer(feeds)
+        actual, expected = request.get_output_tensor().data, arrays["embeddings"]
+        assert actual.shape == expected.shape and np.isfinite(actual).all()
+        error = np.sum((actual.astype(np.float64) - expected) ** 2) / np.sum(expected.astype(np.float64) ** 2)
+        assert error < 1e-5, (family, error)
+        print(family, actual.shape, "NMSE", error)
+```
+
+For real files, [model-hub commands](testing.md#real-checkpoints) reproduce encoder comparisons
+with generated inputs. [`checkpoint_inputs`](../tests/mmproj_fixtures.py) illustrates supported
+index construction; it creates random pixels/features and is not a media preprocessor.
+For real Gemma3 images, reproduce the reference resize/crop and RGB channel normalization from
+`clip.vision.image_mean` / `clip.vision.image_std` before supplying NCHW pixels. Whisper-derived
+audio needs the reference mel extraction and frame padding before `audio.features`; Gemma4 unified
+audio instead takes consecutive 640-sample frames from a 16 kHz waveform, without mel extraction.
+
 ## Using the encoders and a language model
 
 [`AdaptMmprojToGenAI`](../include/openvino/frontend/gguf/adapt_mmproj_to_genai.hpp) keeps one
@@ -109,78 +168,47 @@ mode prepares the language model for media injection:
 
 - the token lookup moves to `get_embedding_model()`, sharing its weights, and the language model
   takes `inputs_embeds [B,T,D]`; token-embedding scaling is applied once;
-- Gemma4 E2B/E4B per-layer token embeddings become a second embedding output and the
-  `per_layer_inputs` language input;
+- Gemma4 E2B/E4B use a separate `get_per_layer_embedding_model()` whose output feeds
+  `per_layer_inputs [B,T,layers,width]`; it is not a second output of `get_embedding_model()`;
 - Gemma3 and Gemma4 without per-layer embeddings take `token_type_ids [B,T]`: image tokens attend
   bidirectionally within their image, in every Gemma3 layer and in Gemma4 sliding-window layers;
 - interleaved M-RoPE models take `position_ids [4,B,T]`: GenAI's sequence, time, height and width
   sections.
 
-## Projector extensions
-
-Start with the [extension guide](extensions.md#extend-mmproj-with-a-projector-component)
-for component examples, registry selection, replacement and shared-library packaging.
-
-`ProjectorExtension` derives from `ArchitectureExtension`, so it uses the same
-`frontend.add_extension(...)` and shared-library loading paths. It adds a component
-registration to the projector registry, not another whole-model `clip` handler.
-Whole-model `ArchitectureExtension` remains available for a different file format or
-an implementation that needs control of the complete graph.
-
-A `ProjectorDefinition` contains a unique handler id, the GGUF architecture name,
-modality (`vision` or `audio`), resolved projector type, a branch-building callback,
-and an optional metadata predicate. The callback receives the coordinator's
-`GgufGraphContext` and returns `ProjectorResult`: one output and optional string
-metadata under its own modality prefix. It must not call `finish()` or register the
-branch's primary output; the coordinator names it `vision.embeddings` or
-`audio.embeddings`, builds every declared modality, and finishes the shared graph.
-Any extra branch inputs must have unique names.
+Register the stateful pass before converting the language model; stateless normalization
+otherwise consumes the cache-write placeholders. In C++, with a `FrontEndManager manager`
+and an already converted combined `mmproj` model:
 
 ```cpp
-#include <openvino/frontend/gguf/extension/projector.hpp>
+#include <openvino/frontend/extension/decoder_transformation.hpp>
+#include <openvino/frontend/gguf/adapt_mmproj_to_genai.hpp>
+#include <openvino/frontend/gguf/adapt_to_genai.hpp>
+#include <openvino/frontend/gguf/make_stateful.hpp>
 
-using namespace ov::frontend::gguf;
-
-ProjectorDefinition definition{
-    "clip.vision.my-projector", "clip", "vision", "my-projector",
-    [](GgufGraphContext& graph) {
-        // Reuse a built-in encoder/projector topology with compatible metadata and weights.
-        return build_builtin_projector(graph, "vision", "gemma3");
-    },
-    {}};
-frontend.add_extension(std::make_shared<ProjectorExtension>(definition));
+using namespace ov::frontend::gguf::pass;
+auto vision = mmproj->clone();
+auto audio = mmproj->clone();
+AdaptMmprojToGenAI(AdaptMmprojToGenAI::Modality::VISION).run_on_model(vision);
+AdaptMmprojToGenAI(AdaptMmprojToGenAI::Modality::AUDIO).run_on_model(audio);
+auto frontend = manager.load_by_framework("gguf");
+frontend->add_extension(std::make_shared<ov::frontend::DecoderTransformationExtension>(GGUFMakeStateful()));
+auto language = frontend->convert(frontend->load("language.gguf"));
+AdaptToGenAI adapt(AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS);
+adapt.run_on_model(language);
+auto token_lookup = adapt.get_embedding_model();
+auto per_layer_lookup = adapt.get_per_layer_embedding_model();
 ```
 
-A new topology instead uses `graph.metadata()`, `graph.tensors()`, `graph.add_input()`
-and `graph.node()` to construct its branch. It does not need to implement the other
-modality, metadata preservation, whole-model selection, or final graph assembly.
-`build_builtin_projector` reuses a complete built-in encoder/projector branch;
-it does not expose replacement of an individual internal encoder layer.
+`per_layer_lookup` is null for models without that branch. Compile the selected encoders and
+lookup models; the consumer inserts their raw features into `inputs_embeds` at the model's media
+token positions and supplies masks, positions, and any per-layer inputs. Keep model-specific
+placeholder handling and DeepStack delivery in the consumer. These passes expose graph contracts;
+they do not construct tokenizers, media preprocessing, or a complete GenAI pipeline.
 
-The coordinator first resolves the global projector type, falling back to the
-per-modality key when it is empty. Legacy `qwen2.5o` resolves to the respective vision
-and audio types before registry lookup. Selection requires architecture, modality
-and resolved type to match, followed by the optional predicate. An unknown type
-fails conversion; two matching component handlers are an ambiguity error.
+## Projector extensions
 
-Duplicate handler ids are rejected. To override an existing component, use its id
-with `RegistrationMode::Replace`, for example `clip.vision.gemma3`. Other projector
-registrations remain active. A replacement id must already exist. Registration is
-isolated to the frontend instance. Loaded input models retain the registry snapshot
-from `load()`; register projector extensions before loading the file.
-
-The code-level lists are `ArchRegistry::supported_archs()` and
-`ArchRegistry::projectors().supported_projectors()`. The latter returns definitions
-with ids, architecture names, modalities and types, including extension entries.
-For a shared-library plugin, return the `ProjectorExtension` through
-`OPENVINO_CREATE_EXTENSIONS`, as with an architecture extension; see the
-[plugin instructions](porting_a_llama_cpp_model.md#build-and-load-an-external-plugin).
-The buildable [mmproj plugin example](../examples/architecture_extension/mmproj_extension.cpp)
-exports a Gemma3 alias and a custom audio projection branch. The example CMake project
-builds it as `gguf_mmproj_extension`; its [README](../examples/architecture_extension/README.md)
-includes a fixture generator and CPU runner commands.
-
-`clip` is the architecture label of the supported llama.cpp mmproj formats, not a
-promise that future formats use it. A projector registration for another architecture
-also needs a whole-model coordinator registered for that architecture. Listing
-`clip` as supported does not imply support for every projector type.
+Use [ProjectorExtension](extensions.md#extend-mmproj-with-a-projector-component) for one
+vision/audio branch under the existing mmproj coordinator. That guide owns component contracts,
+selection, replacement, and library packaging; the [examples](../examples/architecture_extension/README.md)
+provide build/run commands. A different whole-model format can use `ArchitectureExtension`.
+`clip` is the supported mmproj format label, not a promise about future formats or every projector.

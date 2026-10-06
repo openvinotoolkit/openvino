@@ -65,22 +65,13 @@ operation converters, normalization passes, registration timing and shared-libra
 * [Add a built-in architecture](docs/adding_an_architecture.md).
 * [Port a llama.cpp model or build an external architecture extension](docs/porting_a_llama_cpp_model.md).
 * [Debug accuracy differences](docs/debugging_accuracy.md).
+* [Understand weight formats and precision](docs/quantization.md).
 * [Convert multimodal projectors](docs/mmproj.md).
-* [Generate architecture accuracy fixtures](tests/test_data/arch_accuracy/README.md).
-* [Generate multimodal accuracy fixtures](tests/test_data/mmproj_accuracy/README.md).
+* [Build, test, and regenerate references](docs/testing.md).
 
 ## Building and testing
 
-Follow the repository [build guide](../../../docs/dev/build.md) for prerequisites.
-The frontend is controlled by `ENABLE_OV_GGUF_FRONTEND`. From the repository root,
-configure a shared-library build with tests enabled:
-
-```sh
-cmake -S . -B build -DENABLE_OV_GGUF_FRONTEND=ON -DENABLE_TESTS=ON -DBUILD_SHARED_LIBS=ON
-cmake --build build --target openvino_gguf_frontend ov_gguf_frontend_tests
-```
-
-The GGUF frontend unit-test target is unavailable in static builds. See
-[test configuration](tests/CMakeLists.txt) for fixture requirements and the
-[operation testing guide](docs/how_to_add_op.md#test-and-the-coverage-gate) for
-reference generation and coverage checks.
+The frontend defaults to enabled. C++ tests require a shared-library build and `ENABLE_TESTS=ON`.
+See [testing](docs/testing.md) for exact build commands, both test binaries, fixture prerequisites,
+model-hub runs, and acceptance criteria. Generated architecture headers must be present for
+fingerprint coverage; an otherwise successful test run can skip that suite.

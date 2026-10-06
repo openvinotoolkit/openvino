@@ -1,79 +1,52 @@
-# GGUF Frontend — Internal Operations Policy
+# GGUF internal operations and serialization
 
-## Summary
+GGUF normally emits public OpenVINO operations. It also uses shared core internal operations
+for fused execution and a frontend placeholder for cache writes. These have different lifetimes.
 
-OpenVINO frontends are, as a rule, thin translators: they emit only ops from the
-public opsets so that the produced `ov::Model` is portable and serializable to IR.
-The GGUF frontend makes a **scoped, deliberate exception**: it is allowed to emit
-ops from the shared internal opset (`ov::op::internal`, defined in `core`'s
-`dev_api`) when doing so materially simplifies translation or lets the target device
-use a fused kernel instead of a hand-built subgraph.
+## Conversion placeholder
 
-This is a pragmatic tradeoff, not a general license. It applies to the GGUF frontend
-only, and only to ops that already ship as part of OpenVINO core (with registered
-`type_info`, shape inference, a reference implementation, and plugin support). The
-frontend never defines its own operations.
-
-## Why this is acceptable here
-
-Unlike a frontend-private op, a shared `ov::op::internal` op is known to the rest of
-the stack:
-
-- It has a registered `type_info`, so plugins link against it, and passes,
-  matchers, and `visualize_tree` recognize it.
-- Plugins that support it natively keep it (e.g. the fused CPU/GPU
-  `GatedDeltaNet` kernels); plugins that do not can decompose it in their own
-  pipeline. No mandatory frontend-side decomposition is forced on every consumer.
-- Shape inference and a reference `evaluate` already exist and are tested in core,
-  so `PartialShape` propagation and CPU fallback work without extra frontend code.
-
-The GGUF frontend is also a `LINKABLE_FRONTEND` consumed directly by the
-`llama.cpp` `ggml-openvino` backend and by OpenVINO GenAI, both of which build and
-run the model in-process on a device. Neither relies on IR serialization, so the
-main cost of internal ops (below) does not affect the primary use cases.
-
-## The cost: models are not IR-serializable
-
-An `ov::op::internal` op is **not** part of any IR serialization opset. A model that
-contains one cannot round-trip through `ov::save_model` / the IR frontend, which also
-means the following flows do not work for such a model:
-
-- `ov::save_model`, `ovc`, and `benchmark_app -o`
-- model caching (`ov::cache_dir`) and offline `compile_model` blob export
-- weightless-cache flows
-
-**Important behavioral note:** serialization does not currently fail loudly. An
-internal op has no opset `version_id`, so `ov::pass::Serialize` writes it with
-`version="experimental"` and `save_model` *succeeds*. The resulting IR is unloadable
-and fails only later, at deserialize time, with an opaque "operation is not
-registered" error. Do not rely on serialization to reject these models — treat any
-model that went through an internal-op translation path as non-serializable by
-construction.
-
-If a serializable model is required, use a translation path built only from public
-opset ops. Where an internal-op path has a core-op fallback, that fallback is
-serializable — see the example below.
+[`ov::frontend::gguf::SetRows`](../include/openvino/frontend/gguf/set_rows_op.hpp) represents
+`GGML_OP_SET_ROWS`. A caller-registered `GGUFMakeStateful` can consume cache writes before
+the built-in `LowerSetRowsStateless` lowers remaining writes to ordinary graph operations.
+`SetRows` must not survive normalization into the model returned by `convert()`.
+See [pass registration order](extensions.md#register-normalization-passes) and
+[`test_extensions.cpp`](../tests/test_extensions.cpp).
 
 ## Current internal ops emitted
 
-| Op | GGML op | Path | Fallback |
-|---|---|---|---|
-| `ov::op::internal::SelectiveSSM` | `GGML_OP_SSM_SCAN` | `translate_ssm_scan` (Mamba 2 scalar decay) | No frontend decomposition |
-| `ov::op::internal::GatedDeltaNet` | `GGML_OP_GATED_DELTA_NET` | `translate_gated_delta_net` (scalar gate) | `translate_gated_delta_net_ref` — a serializable `Loop` scan, used for per-key-dimension gating (`kda`) and as a portable fallback |
+These core `ov::op::internal` operations can remain in the converted model:
 
-Native builder graphs request `split_outputs` from `GGML_OP_GATED_DELTA_NET`: the op then
-returns attention and the new state as separate outputs, and the state input and output keep
-the internal op's `[B, H_v, key_dim, value_dim]` layout. ggml graphs keep ggml's packed
-output and state layout. The split form requires the fused (scalar-gate) path.
+| Operation | GGML operation and selection | Alternative |
+|---|---|---|
+| `SelectiveSSM` | `SSM_SCAN`, Mamba 2 scalar decay | No frontend decomposition |
+| `GatedDeltaNet` | `GATED_DELTA_NET`, scalar gate | `Loop` reference path for per-key gating or `force_ref`; incompatible with `split_outputs` |
+| `GatherMatmul` | `MUL_MAT_ID`, eligible constant-backed expert weights | Generic Gather/MatMul path for other weights; selected by the converter, not a global portability switch |
 
-See [`src/op/gated_delta_net.cpp`](../src/op/gated_delta_net.cpp).
+Consult [`ssm_scan.cpp`](../src/op/ssm_scan.cpp),
+[`gated_delta_net.cpp`](../src/op/gated_delta_net.cpp), and
+[`mul_mat_id.cpp`](../src/op/mul_mat_id.cpp) for exact selection conditions.
+Native GatedDeltaNet graphs request separate attention/state outputs with state layout
+`[B,H_v,key_dim,value_dim]`; supplied ggml graphs retain their packed output/state convention.
+The split form requires the fused scalar-gate path.
 
-## Guidance for adding a new internal-op path
+## Serialization and compiled-model caching
 
-1. Only emit ops that already exist in `ov::op::internal` (core `dev_api`) with
-   plugin support — do not define new ops in the frontend.
-2. Prefer keeping a core-op-only reference path (as `translate_<op>_ref`) so callers
-   that need serialization, or devices without native support, have a route.
-3. Update the table above and note the non-serializable consequence.
-4. Be aware `dev_api` internal ops are marked "under development and subject to
-   change"; their inputs/attributes may shift between releases.
+Core internal operations are outside the public IR opsets. Saving an IR can succeed with an
+experimental operation version and still produce a file the ordinary IR frontend cannot reload.
+Validate the save/read round trip; successful serialization alone is insufficient. If portable IR
+is required, use supported public-op decompositions for every surviving internal operation.
+An available per-op fallback is not a guarantee that the whole model has such a route.
+
+Compiled-model export/import and caching use device-specific implementations. Do not infer their
+support solely from IR serializability: check the target plugin, cache mode, and resulting graph,
+then test export/import or cache reuse on that configuration. GGUF's in-process conversion paths
+do not require an intermediate IR file.
+
+## Adding an internal-op path
+
+Prefer existing core operations with the required shape inference and target-plugin support.
+Check evaluation/decomposition support explicitly rather than assuming every internal operation
+has a portable fallback. Retain a public-op reference path where practical, test it against the
+same oracle, and update the table with selection and serialization limits. Frontend placeholders
+must have a normalization lowering; they are not device operations. Internal developer APIs may
+change between releases.

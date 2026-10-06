@@ -22,7 +22,7 @@ translators (`src/op/*.cpp`) run for both the native path and the llama.cpp cgra
 A single generic `DecoderBuilder` covers the whole "llama family" of decoder-only transformers.
 This is deliberately **not** llama.cpp's one-file-per-architecture layout: llama.cpp needs that
 because every architecture enumerates its tensors by hand, whereas this builder derives them from
-the tensor table, so a same-family architecture costs zero lines of code.
+the tensor table, so a compatible architecture can reuse the existing topology through registration.
 
 ## Two routes: in-tree, or an extension
 
@@ -33,7 +33,7 @@ same definition in `builtin_architectures()`. Read
 register and use them. See
 [porting_a_llama_cpp_model.md](porting_a_llama_cpp_model.md) for the builder API and integration steps.
 
-## The 90% case: add a decoder definition
+## Reuse an existing decoder topology
 
 For an existing decoder topology, add a row to the `architectures` catalog in
 [`arch_registry.cpp`](../src/builder/arch_registry.cpp):
@@ -108,7 +108,7 @@ so the topology stays declarative:
 If a new arch adds a per-layer dimension, extend these accessors rather than adding a new
 inline ternary in `build_layer()`.
 
-## The 10% case: structurally novel architectures need code
+## Extend the decoder topology
 
 The generic decoder builder assumes the standard block: `norm -> QKV -> RoPE -> attention ->
 norm -> FFN/MoE -> residual`. Architectures that break this shape need a new detected flag on
@@ -151,8 +151,9 @@ should ship in-tree; the builder itself is written the same way either way.
    registered frontend converter directly; new operations need no builder-side support.
    A non-decoder reads its own metadata and does not call `configure_decoder`.
 2. Return an `ArchitectureDefinition` with a unique handler id, GGUF architecture name, factory,
-   and optional metadata predicate. Predicates distinguish, for example, vision and audio files
-   that both name themselves `clip`.
+   and optional metadata predicate for disjoint file contracts. For a branch inside a standard
+   `clip` mmproj file, use [ProjectorExtension](extensions.md#extend-mmproj-with-a-projector-component)
+   instead of adding a whole-model handler that overlaps the built-in coordinator.
 3. Add its name, builder factory and predicate to the `architectures` catalog in `arch_registry.cpp`. Family detection is
    only a diagnostic fallback when no definition matches; no new dispatch branch is needed.
 
@@ -165,32 +166,13 @@ passes (`MakeStateful`, `AdaptToGenAI`) are caller-registered rather than built 
 
 ## Verifying a new architecture
 
-Use the existing suites for different kinds of coverage:
+Follow [testing.md](testing.md) for build commands, fixture preparation, and acceptance criteria.
+Add a small nonzero numerical fixture and a real-checkpoint reference comparison. Decoder cases
+exercise prefill, cached decode/append, nonzero positions, distinct query/KV heads, and relevant
+window boundaries. New encoder families compare features through their own oracle.
 
-| Suite | What it checks |
-|---|---|
-| [`tests/model_hub_tests/gguf`](../../../../tests/model_hub_tests/gguf) | Real checkpoints: download, conversion, compilation, finite logits and KV-cache updates |
-| [`test_arch_accuracy.cpp`](../tests/test_arch_accuracy.cpp) | Small offline fixtures: full-logit agreement with llama.cpp CPU through prefill and cached decode |
-| Builder API and architecture extension tests | Registration, custom builders, metadata validation, dynamic shapes, operation types and shared-library loading |
-
-Model-hub smoke tests do not compare predicted tokens or logits with a reference and do not
-register architecture extensions. Keep focused regression tests for those behaviors; add real
-checkpoint coverage to the existing model-hub lists.
-
-1. **Converts + compiles**: convert through the frontend, then `core.compile_model(m, "CPU")`.
-   The frontend is not auto-selectable, so ask for it by name:
-   `fe = FrontEndManager().load_by_framework("gguf"); m = fe.convert(fe.load("model.gguf"))`.
-2. **Graph is sane**: check the op-type histogram — attention should collapse to a single SDPA op
-   and MoE routing to a single grouped-matmul op, not a long chain of primitives.
-3. **Numerics**: run generation through OpenVINO GenAI (`greedy_causal_lm model.gguf "..."`) and
-   compare to native llama.cpp (`build-ref/bin/llama-cli`) on the same prompt — the greedy tokens
-   should match (small drift after ~dozens of tokens is expected from kernel differences).
-4. **No graph regression** for existing archs: `tests/test_arch_conversion.cpp` converts every
-   architecture fixture and asserts a pinned `(op count, input count)` fingerprint, so any
-   restructuring of a supported architecture shows up there.
-
-5. **Numerical regression**: add a nonzero fixture to `tests/gen_arch_accuracy.py`, evaluate it
-   with `tests/architecture_oracle.cpp` linked to real llama.cpp CPU, and commit its NPZ.
-   Register the case in `test_arch_accuracy.cpp`. Exercise distinct query/KV heads, nonzero
-   token positions, and prefill plus cached decode. Architecture promotion also requires a
-   real-checkpoint comparison; synthetic conversion alone is insufficient.
+Update the architecture fixture manifest and pinned graph expectations where applicable;
+generated headers must be present for that suite to run. Add model-hub checkpoint coverage,
+but keep reference comparisons separately: decoder model-hub tests check finite outputs and
+state updates without validating predicted tokens. Extensions also need actual library loading
+and numerical checks. Successful registration, compilation, or coherent text alone is insufficient.

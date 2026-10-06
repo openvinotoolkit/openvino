@@ -28,33 +28,11 @@ scale and RoPE parameters when implementing a custom attention fragment.
 
 ## Define a decoder
 
-```cpp
-#include "openvino/frontend/gguf/extension/architecture.hpp"
-
-ov::frontend::gguf::ArchitectureDefinition my_architecture() {
-    using namespace ov::frontend::gguf;
-    return make_decoder_architecture(
-        "my-arch", RopeMode::Neox,
-        [](const GgufMetadata& metadata) {
-            DecoderOptions options;
-            options.geglu = true;
-            return options;
-        });
-}
-```
-
-Omit the callback when no overrides are required. `RopeMode` explicitly distinguishes consecutive
-pairs (`Normal`), rotate-halves (`Neox`), and interleaved multimodal RoPE (`Interleaved`). Verify the
-mode against the architecture's reference implementation.
-
-`DecoderOptions` contains supported architectural overrides, not mutable dimensions or execution
-plans. The callback runs before configuration resolution. The native resolver validates the options
-and derives the SWA RoPE configuration and KV plan afterward. There is no separate hyperparameter
-reader: both built-in and custom decoder topologies use `decoder_config_from_meta` and
-`DecoderConfig`, including their defaults and RoPE scaling rules. The resolved configuration stays
-internal to the frontend. Options also cover QK-norm placement (`qk_norm_after_rope`),
-post-norm-only blocks (`post_norm_only`), selected expert normalization
-(`normalize_expert_weights`), and periodic NoPE layers (`rope_skip_period`, zero to disable).
+Use `make_decoder_architecture(name, rope, options_callback)` for shared decoder topology.
+See [decoder definitions](extensions.md#reuse-the-decoder-builder) for the short constructor,
+RoPE modes, and a complete `DecoderOptions` example. Both built-in and custom decoder topologies
+use `decoder_config_from_meta` and `DecoderConfig`; options are applied before dependent SWA,
+RoPE, and KV configuration is resolved. They describe architecture facts, not execution plans.
 
 ## Define a custom builder
 
@@ -454,52 +432,18 @@ and builds one branch in the coordinator's graph; see
 
 ## Selection and replacement
 
-A definition has both a unique handler **id** and the file's **architecture**. Matching requires
-`general.architecture` to agree, followed by the optional metadata predicate. For example, two
-handlers may share `architecture = "clip"` but use ids `"clip.vision"` and `"clip.audio"`, with
-disjoint modality predicates. They coexist without overwriting each other.
-
-Two matching handlers are an error. Duplicate ids are also an error. To intentionally replace an
-existing handler, including a built-in, register with `RegistrationMode::Replace`:
-
-```cpp
-frontend.add_extension(std::make_shared<ArchitectureExtension>(
-    my_architecture(), RegistrationMode::Replace));
-```
-
-Replacement requires the id to already exist. Registries belong to individual frontends, so a
-replacement never changes another frontend's catalog.
+Follow [matching and replacement](extensions.md#matching-and-replacement): handler IDs identify
+registrations; architecture strings and optional predicates select files. Overlapping handlers
+are errors. For ordinary mmproj vision/audio branches, use `ProjectorExtension` under the
+existing coordinator, as described in [component selection](extensions.md#selection-replacement-and-support-lists).
 
 ## Build and load an external plugin
 
-The plugin entry point only wraps the definition:
-
-```cpp
-OPENVINO_CREATE_EXTENSIONS(std::vector<ov::Extension::Ptr>{
-    std::make_shared<ov::frontend::gguf::ArchitectureExtension>(my_architecture())});
-```
-
-Link against `openvino::frontend::gguf`. The
-[standalone CMake example](../examples/architecture_extension/CMakeLists.txt) builds against the
-installed OpenVINO package:
-
-```sh
-cmake -S src/frontends/gguf/examples/architecture_extension -B /tmp/gguf-extension \
-    -DOpenVINO_DIR=/path/to/openvino/runtime/cmake
-cmake --build /tmp/gguf-extension
-```
-
-Load by framework name: GGUF is currently hidden from automatic frontend selection.
-
-```cpp
-ov::frontend::FrontEndManager manager;
-auto frontend = manager.load_by_framework("gguf");
-frontend->add_extension("/path/to/libgguf_projector_extension.so");
-auto model = frontend->convert(frontend->load("model.gguf"));
-```
-
-A consumer integrating through `Core` must arrange for its extensions to reach the explicitly
-selected GGUF frontend. Registering on an unrelated frontend instance does not forward them.
+Wrap the definition in `ArchitectureExtension` and export it through `OPENVINO_CREATE_EXTENSIONS`.
+The [shared-library instructions](extensions.md#build-and-load-a-shared-library) cover linking to
+`openvino::frontend::gguf` and registering the library on the explicitly selected frontend.
+Use the [standalone examples](../examples/architecture_extension/README.md) to build and run it;
+registration must reach the same frontend instance before `load()`.
 
 ## Promote the same implementation into OpenVINO
 
@@ -522,9 +466,6 @@ this migration path.
 
 ## Validate
 
-- Compile an external plugin using installed headers and load the actual library.
-- Compare numerical results against a reference, including multiple token lengths and subsequent
-  decoding with previously generated state. Check SWA beyond its window and non-default RoPE scaling.
-- Run `ov_gguf_frontend_tests` architecture fixtures to check built-in graph fingerprints.
-- For a real architecture, compare its outputs to llama.cpp on the same checkpoint and document
-  the results: logits/generation for decoders, and features or pooled/projected outputs for encoders.
+Use the [validation sequence above](#6-build-and-validate-the-port-in-increasing-scope) and
+[testing guide](testing.md) for targets, fixtures, checkpoint runs, and acceptance limits.
+Exercise the actual external library as well as in-process builder tests.

@@ -7,12 +7,15 @@ Embedding fixtures contain `embeddings` instead of `logits`, and cover causal/bi
 per-token output plus mean, first-token and last-token pooling.
 OpenVINO does not participate in reference generation.
 
-The 40 decoder fixtures and five embedding fixtures, including Muse Glimmer, Qwen3.5 dense/MoE (separate and fused
+The 40 decoder fixtures and five embedding fixtures include Muse Glimmer, Qwen3.5 dense/MoE (separate and fused
 expert projections, and F16 Gated-DeltaNet gate/beta projections that disable the frontend's
 projection merges as mixed quantization does in real checkpoints), Gemma4 mixed-head MQA/MoE variants and an E2B/E4B-style Gemma4 with
-per-layer embeddings and shared KV layers (`gemma4-ple`), use the CPU oracle from upstream
-[ggml-org/llama.cpp `03fa73cb27f5c251b9528489b18d303b1366aca4`](https://github.com/ggml-org/llama.cpp/commit/03fa73cb27f5c251b9528489b18d303b1366aca4)
-(2026-09-08). Muse Glimmer support is included upstream; no fork is needed.
+per-layer embeddings and shared KV layers (`gemma4-ple`). Reference revisions are:
+
+| Fixtures | Upstream llama.cpp CPU oracle |
+|---|---|
+| Decoder/embedding fixtures other than the Mamba cases below | `03fa73cb27f5c251b9528489b18d303b1366aca4` (2026-09-08; includes Muse Glimmer) |
+| `mamba2`, `mamba2-tied`, `nemotron_h` | `476c01efe88aad7880a8132d5d3a415f2ca75139`, recorded when these fixtures were added |
 
 The cases use distinct nonzero weights and nonuniform norm scales, four query heads,
 grouped-query attention (single KV head for Gemma), and token batches `[1,2,3]`, `[4]`,
@@ -35,7 +38,7 @@ F16 KV state and dynamic activation quantization disabled. It checks every logit
 normalized MSE below `1e-5`. Missing references fail the test. These fixtures run in the
 regular frontend suite, including offline CI; llama.cpp is only needed to regenerate them.
 
-To regenerate all fixtures, check out the revision above and build it with
+To regenerate selected fixtures, check out their revision above and build it with
 `GGML_OPENVINO=OFF`. Run from `src/frontends/gguf/tests`, with `LLAMA_SRC` and
 `LLAMA_BUILD` pointing to that checkout and its build directory:
 
@@ -49,8 +52,13 @@ c++ -std=c++17 embedding_oracle.cpp \
     -L "$LLAMA_BUILD/bin" -Wl,-rpath,"$LLAMA_BUILD/bin" \
     -lllama -lggml -lggml-base -o embedding_oracle
 PYTHONPATH="$LLAMA_SRC/gguf-py" python3 gen_arch_accuracy.py \
-    --oracle ./architecture_oracle --embedding-oracle ./embedding_oracle
+    --oracle ./architecture_oracle --embedding-oracle ./embedding_oracle --architectures llama qwen3
 ```
+
+Choose other names from `CASES` in `gen_arch_accuracy.py`. For the Mamba group, build the oracle
+against its recorded revision and use `--architectures mamba2 mamba2-tied nemotron_h`.
+Omitting `--architectures` attempts every case with the supplied oracle; use it only for a
+deliberate full reference refresh and review the numerical changes and provenance together.
 
 For an additional real-checkpoint check, create `<arch>.gguf` in a separate directory,
 then run `architecture_oracle <arch>.gguf <arch>.bin "The capital of France is"`.

@@ -55,5 +55,6 @@ shared by the generator and the model hub tests.
 
 `tests/model_hub_tests/gguf/test_gguf_mmproj.py` compares downloaded projector files with
 `mmproj_oracle`, which it builds at the revision above, on an F32 copy of the same weights.
-To check local files, list them with an empty `repo_id` and set `GGUF_MMPROJ_LIST`; see the
-test for the list format.
+See [testing](../../../docs/testing.md#real-checkpoints) for pytest commands, dependencies,
+oracle caches, and local-file lists, and [coverage limits](../../../docs/mmproj.md#validation-coverage)
+for checkpoint tolerance overrides and skipped cases.

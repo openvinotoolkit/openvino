@@ -127,9 +127,8 @@ CPU tests cover prefill, decode and state reset through the stateful frontend pa
 GenAI paged integration is not included. Beam search and prefix-cache reuse are not tested.
 Mamba 1 and `nemotron_h_moe` are not supported.
 
-Regenerate the Mamba references with `gen_arch_accuracy.py --oracle <oracle>
---architectures mamba2 mamba2-tied nemotron_h`, using
-`architecture_oracle.cpp` built against llama.cpp `476c01efe88aad7880a8132d5d3a415f2ca75139`.
+See [reference provenance and regeneration](../tests/test_data/arch_accuracy/README.md)
+for the Mamba 2/Nemotron-H oracle revision and commands.
 
 ### Reference-checked checkpoints
 
@@ -167,44 +166,24 @@ choices across prefill and those twelve steps. Q4_K checks use
 | `qwen35moe` | Qwen3.6-35B-A3B Q4_K_M / Q4_0 | 13/13 / 12/13 |
 | `smollm3` | SmolLM3-3B Q4_K_M | 12/13 |
 
-K-EXAONE-236B-A23B Q2_K passes functional checks for staged OpenVINO CPU chat.
-Its raw-completion real-checkpoint comparison gives
-11/13 matching choices, with the same first prediction. Steps 4 and 5 differ, so this
-checkpoint has not passed the token-agreement threshold. The two F32 architecture fixtures,
-including the NextN variant, pass. Replaying the same histories with llama.cpp and
-F16 KV caches reproduces the recorded logits byte-for-byte with one and four CPU
-threads. An F32-cache replay changes choices at steps 3, 4 and 5, demonstrating
-precision sensitivity; this does not establish the cause of the OpenVINO difference.
-A diagnostic llama.cpp run that streams each quantized weight row through ggml
-dequantization and F32 matmul gives 12/13 against the original reference, differing
-at step 4. Disabling weight repacking and the alternative GEMM alone gives 11/13,
-differing at steps 3 and 4. These reference-side arithmetic changes demonstrate
-variation in token rankings; OpenVINO's exact discrepancy remains unresolved.
+K-EXAONE-236B-A23B Q2_K remains below the numerical acceptance threshold: 11/13 choices,
+same first prediction, differences at steps 4 and 5. Its two F32 fixtures, including NextN,
+pass. Reference replay with F16 KV is byte-identical at one/four CPU threads; F32 KV changes
+choices at steps 3–5. Reference-side F32 matmul over decoded quantized rows gives 12/13;
+disabling repacking and alternative GEMM gives 11/13. These expose ranking sensitivity but do
+not establish the cause of OpenVINO's discrepancy.
 
-A separate CPU chat check of the same checkpoint through OpenVINO completed three
-single-turn prompts with coherent answers: Paris as France's capital, 19 pencils
-remaining after `3 * 8 - 5`, and a two-sentence explanation of blue-light scattering.
-All reached end-of-turn. The validation runner executed the frontend graph one
-layer at a time because the reverted u2 expert path expands to F32 during CPU
-compilation. CPU llama.cpp proposed draft continuations; every accepted token,
-including end-of-turn, was checked against OpenVINO's greedy logits, and draft
-mismatches were replaced with OpenVINO predictions. The runner passed the existing
-EXAONE prefill/decode fixture with maximum NMSE below 2e-7. This establishes bounded
-chat functionality for staged CPU execution; it does not validate a single compiled
-full-model deployment or resolve the 11/13 raw-completion comparison.
+A separate staged CPU chat runner produced coherent, end-of-turn answers to three prompts:
+France's capital, `3 * 8 - 5`, and blue-light scattering. It executed one frontend layer at a
+time because u2 expert weights expand during CPU compilation. llama.cpp supplied draft tokens;
+OpenVINO's greedy logits verified every accepted token and replaced mismatches. The runner
+passed the EXAONE prefill/decode fixture below `2e-7` NMSE. This establishes bounded staged chat
+functionality, not full-model compilation, general answer quality, or a resolution of 11/13.
 
-Functional validation does not require identical wording: the chat check produced
-correct answers despite differences from the llama.cpp draft. Numerical changes can
-alter greedy token rankings without making the resulting answer incorrect. The three
-prompts establish basic chat functionality, not general answer quality.
-
-The raw-completion reference check requires the same first prediction and at least 90% matching
-choices. It records full-logit errors but does not apply the F32 fixture tolerance to
-lossy weight conversions. This is bounded decoder validation, not a quality benchmark
-or a guarantee for every checkpoint, context length, quantization or device. In particular,
-the default requantization of Q4_K, Q4_1 (u4) and Q5_K (u8) weights to integer zero points,
-and the U8 KV cache, can change output. `OV_GGUF_Q4_K_ZP_F16=1` keeps the exact fractional zero
-points of Q4_K and Q4_1 weights, at the cost of a slower matmul.
+The [acceptance criteria](testing.md#acceptance) require the same first prediction and at least
+90% matching choices; full-logit errors are recorded separately. These checks use
+[accuracy settings](quantization.md#accuracy-controls), including fractional Q4_K/Q4_1 zero points,
+and do not establish equivalent accuracy under the default weight/cache precision.
 
 Native Q8_0 preserves weight codes and scales. These comparisons disable OpenVINO's dynamic
 activation quantization (`DYNAMIC_QUANTIZATION_GROUP_SIZE=0`) and use F32 inference.
@@ -221,13 +200,10 @@ with the same first prediction. Comparing against F32 arithmetic on the exact sa
 Q4_K_M weights gives 13/13 choices and maximum normalized logit error of 6e-6. The quantized
 CPU mismatch remains a validation limitation.
 
-Two-bit expert weights retain u2 storage in the frontend. The CPU compressed expert
-matmul path does not currently support u2, so large Q2 MoE checkpoints can expand during
-compilation. Repacked tensors have independent buffers so replacement does not retain an
-entire model's original compressed allocation. Large MoE checkpoints still require substantial
-RAM and swap for compilation and CPU weight reorders. The tested MiniMax-M2.1 REAP-50
-Q2_K case peaked at about 222 GiB combined process RAM and swap on the validation machine;
-it does not fit a 64 GiB nightly runner.
+Large Q2 MoE models can expand at CPU compilation; see [weight-memory limits](quantization.md#memory-and-packaging-limits).
+MiniMax-M2.1 REAP-50 Q2_K peaked at about 222 GiB combined process RAM and swap on the validation
+machine, beyond a 64 GiB nightly runner. Repacked tensors use independent buffers so replacement
+does not retain the original whole-model compressed allocation.
 
 See [reference generation and reproduction instructions](../tests/test_data/arch_accuracy/README.md).
 These references are shipped with the frontend tests; no model download or llama.cpp
@@ -248,9 +224,8 @@ pooled outputs as `[1, width]`; L2 normalization is left to the caller.
   `gguf_recurrent_states` metadata to reset, rather than trim, SDPA state.
 - **Multimodal models:** a tested language backbone does not establish support for its
   vision or audio components, preprocessing or full application pipeline.
-- **Ternary Bonsai packaging:** `Ternary-Bonsai-27B-Q2_0.gguf` uses g128 packing that does
-  not match upstream `Q2_0` (g64). Use `Ternary-Bonsai-27B-Q2_g64.gguf`. The frontend
-  rejects the mismatched file.
+- **Quantization and memory:** see [formats, packaging, and compilation limits](quantization.md).
+  Ternary Bonsai requires upstream-compatible Q2_0 g64 packing.
 
 ## Extending support
 

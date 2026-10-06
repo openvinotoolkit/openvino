@@ -1,8 +1,9 @@
 # Adding an op translator to the GGUF frontend
 
-Procedure for enabling a ggml operation. For the *concepts* behind it — the two decoder paths, the
-`GGML_OP_NONE` weight convention, `op_case` numbering, the memory model — read
-`frontend_design.md` first; this document does not repeat them.
+Procedure for enabling a ggml operation. Start with the [two input paths](../README.md),
+[tensor/layout contracts](porting_a_llama_cpp_model.md#tensor-operations-and-shapes), and
+[weight representations](quantization.md). Weight leaves use `GGML_OP_NONE` and supply data
+to `translate_weight`; input leaves use the same op name but are resolved to Parameters first.
 
 Related: [adding_an_architecture.md](adding_an_architecture.md) (enabling a model family, which
 usually needs *no* new op), [debugging_accuracy.md](debugging_accuracy.md) (when a translator
@@ -16,12 +17,11 @@ same frontend as any architecture or projector extension before conversion.
 
 Check that an op translator is actually what is missing:
 
-- **A new architecture** normally needs only an entry in `arch_registry.cpp` — see
-  [adding_an_architecture.md](adding_an_architecture.md). Reach for a translator only when the graph
-  genuinely contains a ggml op the table does not have.
+- **A new architecture or projector** needs an appropriate [builder registration](extensions.md#choose-an-extension).
+  Add a translator only when its computation needs an operation missing from the table.
 - **A structurally different use of an existing op** is an `op_case`, not a new translator. Read the
-  `op_case` section of `frontend_design.md` before adding a case — a case that
-  exists only to mean "this came from the builder" is a defect.
+  [tensor operation contracts](porting_a_llama_cpp_model.md#tensor-operations-and-shapes) before
+  adding a case. Its number selects a converter's semantic variant, not the decoder's identity.
 - Both decoder paths (native builder and llama.cpp cgraph) share translator bodies, so a change here
   affects both. Keep the body path-agnostic; branch on `op_case`, never on "which decoder made this".
 
@@ -155,9 +155,7 @@ TEST(GGUFOps, Scale) {
 `SingleOpBuilder` drives the real `FrontEnd::convert` through an in-memory `SingleOpDecoder`, so no
 `.gguf` file is involved. Helpers are in [`op_test_utils.hpp`](../tests/op_test_utils.hpp).
 
-**Where the expected values come from matters more than the test's shape.** Per the one rule in
-[debugging_accuracy.md](debugging_accuracy.md), the reference must come from real ggml, not from
-your own reading of the op's math:
+Use the [reference policy](debugging_accuracy.md#reference-and-precision):
 
 - Simple elementwise ops with an unambiguous closed form — compute inline in the test.
 - Anything with layout, geometry or head structure (rope, conv, attention, views) — generate the
@@ -175,32 +173,15 @@ tuned only on fp32 x86 will fail there.
 To find the closest existing example without reading the whole (large) file:
 
 ```bash
-grep -n "^TEST(" src/frontends/gguf/tests/test_ops.cpp
+rg -n '^TEST\(' src/frontends/gguf/tests/test_ops.cpp
 ```
 
 ## Build and run
 
-The frontend is **off by default** (`ENABLE_OV_GGUF_FRONTEND` in
-[`cmake/features.cmake`](../../../../cmake/features.cmake)); without it the test target does not
-exist.
-
-```bash
-cmake -B build -DENABLE_OV_GGUF_FRONTEND=ON -DENABLE_TESTS=ON
-cmake --build build --target ov_gguf_frontend_tests -j$(nproc)
-
-# iterate on one op ...
-./build/bin/*/*/ov_gguf_frontend_tests --gtest_filter='GGUFOps.<Name>*'
-# ... then unfiltered, so the coverage gate actually runs
-./build/bin/*/*/ov_gguf_frontend_tests
-```
-
-CI runs the same binary in the "GGUF frontend tests" step of
-[`job_cxx_unit_tests.yml`](../../../../.github/workflows/job_cxx_unit_tests.yml), ungated by Smart CI.
-
-For a change that touches a shared translator or a VIEW/`op_case` predicate, also re-run the
-graph-fingerprint check ([`tests/graph_fingerprint.py`](../tests/graph_fingerprint.py)) across the
-supported architectures: a guard that fixes one arch can reject another's legitimately-contiguous
-view.
+Follow [testing.md](testing.md) for build flags, binary paths, filters, and CI coverage.
+Run the frontend binary unfiltered before finishing so the operation-coverage gate executes.
+Shared translator or VIEW/`op_case` changes also need architecture fingerprints and numerical
+regressions: a guard that fixes one model can reject another's legitimately contiguous view.
 
 ## Bringing up a model that hits a missing op
 
