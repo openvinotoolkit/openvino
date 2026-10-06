@@ -15,6 +15,7 @@
 #include "concatenation_inst.h"
 #include "convolution_inst.h"
 #include "eltwise_inst.h"
+#include "fully_connected_inst.h"
 #include "intel_gpu/graph/program.hpp"
 #include "layout_optimizer.h"
 #include "lora_inst.h"
@@ -37,6 +38,10 @@ public:
 private:
     const std::string name;
 };
+
+// Defined in prepare_quantization.cpp; reused by prepare_primitive_fusing::fixup_u2_decompression_layout
+// for the post-fusion u2/CM re-check (has_fused_primitives() isn't reliable before fusion runs).
+void reorder_fc_decompression_params_if_needed(fully_connected_node& fc_node, program& p);
 
 class pass_manager {
 public:
@@ -161,6 +166,9 @@ private:
     void fuse_constant_transposes(program& p);
     void optimize_fused_ops(program& p);
     void remove_redundant_reshape(program& p);
+    // Re-checks CM eligibility for u2 FC nodes now that fusion is finalized, and reorders their
+    // decompression scale/zp for oneDNN if CM no longer applies (see reorder_fc_decompression_params_if_needed).
+    void fixup_u2_decompression_layout(program& p);
 };
 
 class pre_replace_deconv : public base_pass {
