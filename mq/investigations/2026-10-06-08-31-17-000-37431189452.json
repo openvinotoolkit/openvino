@@ -1,0 +1,41 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-06-08-31-17-000-37431189452",
+  "timestamp": "2026-10-06T08:31:17Z",
+  "run_id": "37431189452",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37431189452",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "38607",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38607",
+  "author": "PatrikStepan",
+  "category": "Infrastructure",
+  "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_reference",
+  "signature": "cc1plus error cmake_pch hxx gch not a pch file werror invalid pch|Infrastructure",
+  "signature_hash": "5b4b1e6917a69856",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "cc1plus: error: cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch] across dozens of src/core/reference/*.cpp.o targets"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Downstream overall-status job fails because the Build job failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/convert.cpp.o\ncc1plus: error: /__w/openvino/openvino/openvino/openvino_build/src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]\ncc1plus: all warnings being treated as errors",
+    "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/fake_convert.cpp.o\ncc1plus: error: .../cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]\ncc1plus: all warnings being treated as errors"
+  ],
+  "root_cause": "The precompiled header file cmake_pch.hxx.gch for the openvino_reference target is corrupted or stale (produced by a different compiler invocation/sccache cache entry than the one currently compiling against it), causing GCC's cc1plus to reject it with 'not a PCH file'. Because -Werror is enabled, this is immediately fatal. This is the same recurring sccache/PCH staleness issue previously seen across multiple ARM64 cross-compilation merge-queue runs (pattern 5b4b1e6917a69856, now 7 occurrences), unrelated to the PR's actual change (a one-line removal of an unused device-properties query in the NPU WeightlessGraph compiler adapter, which does not touch src/core/reference). The second build attempt (run_attempt=2) on this same run was in progress and had already passed the Cmake build - OpenVINO step successfully, consistent with a non-deterministic/cache-related failure.",
+  "reproduction_steps": "Not reliably reproducible locally; requires the same stale/corrupted sccache-backed PCH artifact. To reproduce in CI, rerun the ARM64 cross-compilation Build job from a clean sccache state after deleting the PCH blob; locally, a clean build (rm -rf build directory, clear sccache, cmake --build) does not reproduce the issue because it does not hit the same stale cache entry.",
+  "recommended_actions": [
+    "Re-run the failed Build job (a plain restart without a dirty PCH cache entry typically succeeds) — the job's second attempt on this run already progressed past the earlier failure point.",
+    "Consider disabling or scoping down precompiled headers for the openvino_reference target on ARM64 cross-compilation, or clearing/versioning the sccache PCH cache key so stale .gch blobs cannot be reused across incompatible compiler invocations.",
+    "If this pattern keeps recurring (now 7 times), escalate to the CI infrastructure owners to investigate sccache cache corruption/staleness on the ARM64 cross-compilation runners."
+  ],
+  "prevention_strategies": "Add a cache-busting mechanism for PCH artifacts (e.g., include the compiler version/flags hash in the sccache key), or validate the .gch file's magic header before reuse and evict it automatically on mismatch. Track recurrence count in repo-memory (already at 7) and consider a dedicated workflow_rerun auto-remediation rule using the stored rerun_search_string.",
+  "historical_context": "This exact failure signature has now been recorded 7 times since 2026-09-24 across unrelated PRs (#38611, #38030, #38483, #38380, #38393, #37942, and now #38607), confirming it is a systemic ARM64 cross-compilation PCH/sccache infrastructure issue, not caused by any of the affected PRs' actual code changes."
+}
