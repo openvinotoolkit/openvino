@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-06-12-10-34-000-37457680616",
+  "timestamp": "2026-10-06T12:10:34Z",
+  "run_id": "37457680616",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37457680616",
+  "workflow_name": "Build / Build",
+  "pr_number": "37717",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/37717",
+  "author": "v-Golubev",
+  "category": "Infrastructure",
+  "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_reference",
+  "signature": "cc1plus error cmake_pch hxx gch not a pch file werror invalid pch|Infrastructure",
+  "signature_hash": "5b4b1e6917a69856",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "arm64 cross-compilation CMake build fails compiling src/core/reference objects: cc1plus rejects cmake_pch.hxx.gch as not a PCH file"
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Overall status check fails because the upstream Build job failed"
+    }
+  ],
+  "key_errors": [
+    "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/convert.cpp.o",
+    "cc1plus: error: /__w/openvino/openvino/openvino/openvino_build/src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]",
+    "cc1plus: all warnings being treated as errors"
+  ],
+  "root_cause": "The arm64 cross-compilation Build job uses a precompiled header (cmake_pch.hxx) for src/core/reference (ENABLE_FASTER_BUILD=ON). The .gch file generated/cached for this build (likely restored from sccache or an incompatible toolchain state) does not match what the current cc1plus invocation expects, so GCC rejects it with 'not a PCH file'. Combined with -Werror=invalid-pch (part of the strict CMAKE_COMPILE_WARNING_AS_ERROR build), this turns an otherwise-recoverable PCH mismatch into a hard build failure across every TU in openvino_reference that includes the PCH. This is not caused by the PR's own changes (PR #37717 only touches documentation/skill markdown files under .claude/skills and src/common/transformations/docs) and has been recorded recurring across many unrelated merge-queue runs since 2026-09-24, strongly indicating a toolchain/cache/runner-image issue in the arm64 cross-compilation environment rather than a code defect.",
+  "reproduction_steps": "Not reliably reproducible locally outside the arm64 cross-compilation CI container/runner image; depends on the state of the PCH cache (and possibly sccache) on the specific runner instance. To attempt reproduction: run the arm64 cross-compile CMake configure+build from the 'Build' job (same cmake-options as in the log) inside the ubuntu22 arm64 cross-compilation container, deleting any previously cached cmake_pch.hxx.gch before the build to see if a clean PCH resolves it.",
+  "recommended_actions": [
+    "Re-run the failed jobs for this PR (the failure is unrelated to the PR's documentation-only changes) via the automated remediation already requested.",
+    "Investigate whether the arm64 cross-compilation runner image/container caches a stale or architecture-mismatched cmake_pch.hxx.gch between builds, and if so, ensure the PCH is invalidated/rebuilt per-run instead of reused.",
+    "Consider temporarily disabling ENABLE_FASTER_BUILD (precompiled headers) for the arm64 cross-compile job, or add -Wno-error=invalid-pch for that specific build, as a stop-gap until the root infrastructure cause is fixed.",
+    "Escalate to CI infra maintainers given this signature has now recurred 10+ times across more than a dozen different PRs over the last 2 weeks."
+  ],
+  "prevention_strategies": "Ensure precompiled header artifacts are never shared/cached across incompatible toolchain or compiler invocations in the arm64 cross-compilation job; add a build-cache fingerprint/version check so a mismatched PCH is rebuilt rather than silently reused and failing with -Werror=invalid-pch. Consider monitoring recurring merge-queue pattern counts (via this doctor's pattern DB) to auto-escalate infra issues before they block many unrelated PRs.",
+  "historical_context": "This exact failure signature (cc1plus: not a PCH file, -Werror=invalid-pch, openvino_reference, arm64 cross-compile) has been recorded 10 times previously in the CI Doctor MQ pattern database since 2026-09-24T23:04:41Z, most recently at 2026-10-06T11:31:16Z (run 37453488195, PR #38261), affecting at least 10 distinct PRs. This run is the 11th occurrence. All prior investigations also categorized it as Infrastructure; no PR-code-level fix has resolved it, reinforcing the infrastructure/toolchain-cache hypothesis."
+}
