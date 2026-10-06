@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/gather_nd.hpp"
-
+#include "common_test_utils/test_assertions.hpp"
 #include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/op/gather_nd.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 
 namespace ov {
@@ -181,17 +181,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_GatherND8DynamicBD_2,
                          subset_BD2,
                          GatherNDLayerCPUTest::getTestCaseName);
 
-class GatherND8LayerCPUTestNegative : public GatherND8LayerCPUTest {};
+class GatherND8LayerCPUErrorConditionTest : public GatherND8LayerCPUTest {};
 
-TEST_P(GatherND8LayerCPUTestNegative, ThrowsOnOutOfRangeIndices) {
+TEST_P(GatherND8LayerCPUErrorConditionTest, ThrowsOnOutOfRangeIndices) {
     SKIP_IF_CURRENT_TEST_IS_DISABLED();
-    bool exception_caught = false;
-    set_callback_exception([&exception_caught](const std::exception& ex) {
-        exception_caught = true;
-        EXPECT_NE(dynamic_cast<const ov::Exception*>(&ex), nullptr) << "Expected ov::Exception but got: " << ex.what();
-    });
-    run();
-    EXPECT_TRUE(exception_caught) << "Expected an ov::Exception to be thrown for out-of-range indices";
+    compile_model();
+    // Both CPU and TEMPLATE plugins should throw; a mismatch is a bug.
+    for (const auto& targetStaticShapeVec : targetStaticShapes) {
+        generate_inputs(targetStaticShapeVec);
+        OV_EXPECT_THROW(get_plugin_outputs(), ov::Exception, ::testing::_);
+        OV_EXPECT_THROW(calculate_refs(), ov::Exception, ::testing::_);
+    }
 }
 
 const std::vector<InputShape> inputShapesOutOfRange = {
@@ -203,7 +203,7 @@ const std::vector<std::pair<Shape, std::vector<int>>> indexesShapesOutOfRange = 
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_GatherND8OutOfRangeIndices,
-                         GatherND8LayerCPUTestNegative,
+                         GatherND8LayerCPUErrorConditionTest,
                          ::testing::Combine(::testing::ValuesIn(inputShapesOutOfRange),
                                             ::testing::ValuesIn(indexesShapesOutOfRange),
                                             ::testing::ValuesIn(inputPrecisions),

@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
+#include "common_test_utils/test_assertions.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
 #include "openvino/op/scatter_update.hpp"
-
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 
@@ -133,16 +134,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs,
                                             ::testing::ValuesIn(constantPrecisions)),
                          ScatterUpdateLayerCPUTest::getTestCaseName);
 
-class ScatterUpdateLayerCPUTestNegative : public ScatterUpdateLayerCPUTest {};
+class ScatterUpdateLayerCPUErrorConditionTest : public ScatterUpdateLayerCPUTest {};
 
-TEST_P(ScatterUpdateLayerCPUTestNegative, ThrowsOnOutOfRangeIndices) {
-    bool exception_caught = false;
-    set_callback_exception([&exception_caught](const std::exception& ex) {
-        exception_caught = true;
-        EXPECT_NE(dynamic_cast<const ov::Exception*>(&ex), nullptr) << "Expected ov::Exception but got: " << ex.what();
-    });
-    run();
-    EXPECT_TRUE(exception_caught) << "Expected an ov::Exception to be thrown for out-of-range indices";
+TEST_P(ScatterUpdateLayerCPUErrorConditionTest, ThrowsOnOutOfRangeIndices) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    compile_model();
+    // Both CPU and TEMPLATE plugins should throw; a mismatch is a bug.
+    for (const auto& targetStaticShapeVec : targetStaticShapes) {
+        generate_inputs(targetStaticShapeVec);
+        OV_EXPECT_THROW(get_plugin_outputs(), ov::Exception, ::testing::_);
+        OV_EXPECT_THROW(calculate_refs(), ov::Exception, ::testing::_);
+    }
 }
 
 const std::vector<ScatterUpdateLayerParams> scatterUpdateOutOfRangeParams = {
@@ -152,7 +154,7 @@ const std::vector<ScatterUpdateLayerParams> scatterUpdateOutOfRangeParams = {
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdate1DFastPathOutOfRangeIndices,
-                         ScatterUpdateLayerCPUTestNegative,
+                         ScatterUpdateLayerCPUErrorConditionTest,
                          ::testing::Combine(::testing::ValuesIn(scatterUpdateOutOfRangeParams),
                                             ::testing::Values(ElementType::i32),
                                             ::testing::Values(ElementType::i32)),
@@ -165,7 +167,7 @@ const std::vector<ScatterUpdateLayerParams> scatterUpdateGeneralPathOutOfRangePa
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ScatterUpdateGeneralPathOutOfRangeIndices,
-                         ScatterUpdateLayerCPUTestNegative,
+                         ScatterUpdateLayerCPUErrorConditionTest,
                          ::testing::Combine(::testing::ValuesIn(scatterUpdateGeneralPathOutOfRangeParams),
                                             ::testing::ValuesIn(inputPrecisions),
                                             ::testing::ValuesIn(constantPrecisions)),

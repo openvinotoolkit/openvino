@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "openvino/op/scatter_elements_update.hpp"
-
 #include "common_test_utils/ov_tensor_utils.hpp"
+#include "common_test_utils/test_assertions.hpp"
+#include "functional_test_utils/skip_tests_config.hpp"
+#include "openvino/op/scatter_elements_update.hpp"
 #include "shared_test_classes/base/ov_subgraph.hpp"
 #include "utils/cpu_test_utils.hpp"
 
@@ -171,16 +172,17 @@ INSTANTIATE_TEST_SUITE_P(smoke_CompareWithRefs,
                                             ::testing::ValuesIn(constantPrecisions)),
                          ScatterElementsUpdateLayerCPUTest::getTestCaseName);
 
-class ScatterElementsUpdateLayerCPUTestNegative : public ScatterElementsUpdateLayerCPUTest {};
+class ScatterElementsUpdateLayerCPUErrorConditionTest : public ScatterElementsUpdateLayerCPUTest {};
 
-TEST_P(ScatterElementsUpdateLayerCPUTestNegative, ThrowsOnOutOfRangeIndices) {
-    bool exception_caught = false;
-    set_callback_exception([&exception_caught](const std::exception& ex) {
-        exception_caught = true;
-        EXPECT_NE(dynamic_cast<const ov::Exception*>(&ex), nullptr) << "Expected ov::Exception but got: " << ex.what();
-    });
-    run();
-    EXPECT_TRUE(exception_caught) << "Expected an ov::Exception to be thrown for out-of-range indices";
+TEST_P(ScatterElementsUpdateLayerCPUErrorConditionTest, ThrowsOnOutOfRangeIndices) {
+    SKIP_IF_CURRENT_TEST_IS_DISABLED();
+    compile_model();
+    // Both CPU and TEMPLATE plugins should throw; a mismatch is a bug.
+    for (const auto& targetStaticShapeVec : targetStaticShapes) {
+        generate_inputs(targetStaticShapeVec);
+        OV_EXPECT_THROW(get_plugin_outputs(), ov::Exception, ::testing::_);
+        OV_EXPECT_THROW(calculate_refs(), ov::Exception, ::testing::_);
+    }
 }
 
 const std::vector<ScatterElementsUpdateLayerParams> scatterOutOfRangeParams = {
@@ -191,7 +193,7 @@ const std::vector<ScatterElementsUpdateLayerParams> scatterOutOfRangeParams = {
 };
 
 INSTANTIATE_TEST_SUITE_P(smoke_ScatterElementsUpdateOutOfRangeIndices,
-                         ScatterElementsUpdateLayerCPUTestNegative,
+                         ScatterElementsUpdateLayerCPUErrorConditionTest,
                          ::testing::Combine(::testing::ValuesIn(scatterOutOfRangeParams),
                                             ::testing::Values(std::int64_t{0}),
                                             ::testing::ValuesIn(inputPrecisions),
