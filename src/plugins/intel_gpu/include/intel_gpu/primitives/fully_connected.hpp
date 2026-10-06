@@ -93,7 +93,9 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const data_types data_type,
                     const size_t input_size = 2,
                     const size_t weights_rank = 2,
-                    const bool weights_transposed = true)
+                    const bool weights_transposed = true,
+                    const int64_t scale_ifm_dim_idx = 1,
+                    const int64_t zp_ifm_dim_idx = 1)
         : primitive_base(id, { input }, 1, {optional_data_type{data_type}}),
           weights(weights),
           bias(bias),
@@ -104,7 +106,9 @@ struct fully_connected : public primitive_base<fully_connected> {
           dynamic_quantized_activation_zp(false),
           input_size(input_size),
           weights_rank(weights_rank),
-          weights_transposed(weights_transposed) {
+          weights_transposed(weights_transposed),
+          scale_ifm_dim_idx(scale_ifm_dim_idx),
+          zp_ifm_dim_idx(zp_ifm_dim_idx) {
         OPENVINO_ASSERT(!decompression_scale.empty(), "[GPU] Compressed fully connected requires at least decompression scale input");
     }
 
@@ -130,7 +134,9 @@ struct fully_connected : public primitive_base<fully_connected> {
                     const data_types data_type,
                     const size_t input_size = 2,
                     const size_t weights_rank = 2,
-                    const bool weights_transposed = true)
+                    const bool weights_transposed = true,
+                    const int64_t scale_ifm_dim_idx = 1,
+                    const int64_t zp_ifm_dim_idx = 1)
         : primitive_base(id, { input }, 1, {optional_data_type{data_type}}),
           weights(weights),
           bias(bias),
@@ -144,7 +150,9 @@ struct fully_connected : public primitive_base<fully_connected> {
           activation_precomputed_reduction(activation_precomputed_reduction),
           input_size(input_size),
           weights_rank(weights_rank),
-          weights_transposed(weights_transposed) {
+          weights_transposed(weights_transposed),
+          scale_ifm_dim_idx(scale_ifm_dim_idx),
+          zp_ifm_dim_idx(zp_ifm_dim_idx) {
         if (activation_scale.is_valid()) {
             dynamic_quantized_activation = true;
         }
@@ -180,6 +188,8 @@ struct fully_connected : public primitive_base<fully_connected> {
     size_t weights_rank = 2;
     /// @brief Weights transposed.
     bool weights_transposed = true;
+    int64_t scale_ifm_dim_idx = 1;
+    int64_t zp_ifm_dim_idx = 1;
 
 
     size_t hash() const override {
@@ -187,6 +197,8 @@ struct fully_connected : public primitive_base<fully_connected> {
         seed = hash_combine(seed, input_size);
         seed = hash_combine(seed, weights_rank);
         seed = hash_combine(seed, weights_transposed);
+        seed = hash_combine(seed, scale_ifm_dim_idx);
+        seed = hash_combine(seed, zp_ifm_dim_idx);
         seed = hash_combine(seed, bias.is_valid());
         seed = hash_combine(seed, compressed_weights);
         seed = hash_combine(seed, !decompression_scale.is_valid());
@@ -209,6 +221,8 @@ struct fully_connected : public primitive_base<fully_connected> {
         return input_size == rhs_casted.input_size &&
                weights_rank == rhs_casted.weights_rank &&
                weights_transposed == rhs_casted.weights_transposed &&
+               scale_ifm_dim_idx == rhs_casted.scale_ifm_dim_idx &&
+               zp_ifm_dim_idx == rhs_casted.zp_ifm_dim_idx &&
                bias.is_valid() == rhs_casted.bias.is_valid() &&
                compressed_weights == rhs_casted.compressed_weights &&
                decompression_scale.is_valid() == rhs_casted.decompression_scale.is_valid() &&
@@ -232,6 +246,8 @@ struct fully_connected : public primitive_base<fully_connected> {
         ob << input_size;
         ob << weights_rank;
         ob << weights_transposed;
+        ob << scale_ifm_dim_idx;
+        ob << zp_ifm_dim_idx;
         ob << dynamic_quantized_activation;
         ob << dynamic_quantized_activation_zp;
         ob << dynamic_quantized_precomputed_reduction;
@@ -258,6 +274,8 @@ struct fully_connected : public primitive_base<fully_connected> {
         ib >> input_size;
         ib >> weights_rank;
         ib >> weights_transposed;
+        ib >> scale_ifm_dim_idx;
+        ib >> zp_ifm_dim_idx;
         ib >> dynamic_quantized_activation;
         ib >> dynamic_quantized_activation_zp;
         ib >> dynamic_quantized_precomputed_reduction;
