@@ -76,6 +76,12 @@ literal `general.architecture` string and its RoPE mode. `Normal` rotates consec
 `Neox` rotates halves, and `Interleaved` selects interleaved multimodal RoPE. Determine the mode
 from the reference implementation; registering a name does not establish numerical correctness.
 
+The specified mode is passed to the decoder configuration, including for architecture names
+absent from the built-in catalog. It is required when reusing the decoder builder.
+Custom builders use `ArchitectureExtension(ArchitectureDefinition)` without a RoPE argument
+and implement any positional encoding themselves. `ProjectorExtension` likewise requires
+no decoder RoPE mode; its branch builder owns positional encoding.
+
 When tensor names and metadata cannot determine an architectural choice, use
 `make_decoder_architecture()` with an options callback:
 

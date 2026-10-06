@@ -15,7 +15,7 @@ translators (`src/op/*.cpp`) run for both the native path and the llama.cpp cgra
 | [`blocks/`](../src/builder/blocks) | reusable graph fragments: `common` (norm/scale/bias), `ffn` (dense/GeGLU/MoE), `attention`, `gated_delta_net`, `qkv_repack` | a decoder layer |
 | [`decoder_config.hpp`](../src/builder/decoder_config.hpp) | all per-architecture detection + per-layer accessors | one model's hyperparameters |
 | [`arch/decoder_builder.cpp`](../src/builder/arch/decoder_builder.cpp) | the order a decoder is assembled in | the whole decoder family |
-| [`arch_registry.cpp`](../src/builder/arch_registry.cpp) | which architectures are accepted, and their RoPE mode | architecture definitions |
+| [`arch_registry.cpp`](../src/builder/arch_registry.cpp) | accepted architectures, decoder RoPE modes and custom builder factories | architecture definitions |
 | [`model_kind.hpp`](../src/builder/model_kind.hpp) | family diagnosis for an unclaimed file | raw metadata |
 | [`gguf_builder.cpp`](../src/builder/gguf_builder.cpp) | parse → resolve definition → invoke its `ModelBuilder` | the entry point |
 
@@ -48,7 +48,15 @@ its RoPE mode or custom builder factory and optional metadata predicate.
 Adding a whole-model `ArchitectureExtension` updates this list for that frontend instance.
 A derived `ProjectorExtension` instead updates the separate modality/projector-type list;
 see [projector extensions](mmproj.md#projector-extensions).
-Check the RoPE mode against the reference implementation.
+Decoder entries require a RoPE mode; check it against the reference implementation.
+Custom builder entries take a factory without a RoPE argument, for example:
+
+```cpp
+{"mamba2", make_mamba2_builder},
+```
+
+The `clip` mmproj and Mamba-family entries use this form. Their custom builders own
+positional encoding where applicable; the catalog does not configure decoder RoPE for them.
 
 For an architecture requiring overrides, define it with `make_decoder_architecture` and a callback
 returning `DecoderOptions`, then register its builder factory in the `architectures` catalog. The exact same

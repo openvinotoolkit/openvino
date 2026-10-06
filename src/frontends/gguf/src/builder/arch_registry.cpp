@@ -4,6 +4,9 @@
 
 #include "arch_registry.hpp"
 
+#include <optional>
+#include <utility>
+
 #include "builder/arch/mamba_builder.hpp"
 #include "builder/arch/mmproj_builder.hpp"
 #include "openvino/core/except.hpp"
@@ -12,8 +15,19 @@ namespace ov::frontend::gguf {
 
 namespace {
 struct ArchitectureEntry {
+    ArchitectureEntry(const char* name, RopeMode rope) : name(name), rope(rope) {}
+
+    ArchitectureEntry(const char* name,
+                      ArchitectureDefinition::BuilderFactory factory,
+                      ArchitectureDefinition::MatchFn match = {},
+                      const char* id = nullptr)
+        : name(name),
+          factory(std::move(factory)),
+          match(std::move(match)),
+          id(id) {}
+
     const char* name;
-    RopeMode rope;
+    std::optional<RopeMode> rope;
     ArchitectureDefinition::BuilderFactory factory = {};
     ArchitectureDefinition::MatchFn match = {};
     const char* id = nullptr;
@@ -21,7 +35,6 @@ struct ArchitectureEntry {
 const ArchitectureEntry architectures[] = {
     {"bailingmoe2", RopeMode::Neox},
     {"clip",
-     RopeMode::Normal,
      make_mmproj_builder,
      [](const GgufMetadata& meta) {
          return meta.has("clip.projector_type") || meta.has("clip.vision.projector_type") ||
@@ -44,13 +57,13 @@ const ArchitectureEntry architectures[] = {
     {"llama", RopeMode::Normal},
     {"llama-embed", RopeMode::Normal},
     {"maincoder", RopeMode::Normal},
-    {"mamba2", RopeMode::Normal, make_mamba2_builder},
+    {"mamba2", make_mamba2_builder},
     {"mellum", RopeMode::Neox},
     {"minicpm", RopeMode::Normal},
     {"minimax-m2", RopeMode::Neox},
     {"mistral3", RopeMode::Normal},
     {"muse-glimmer", RopeMode::Normal},
-    {"nemotron_h", RopeMode::Normal, make_mamba2_builder},
+    {"nemotron_h", make_mamba2_builder},
     {"olmoe", RopeMode::Neox},
     {"phi3", RopeMode::Neox},
     {"plamo3", RopeMode::Neox},
@@ -69,7 +82,7 @@ std::vector<ArchitectureDefinition> builtin_architectures() {
         if (entry.factory) {
             definitions.push_back({entry.id ? entry.id : entry.name, entry.name, entry.factory, entry.match});
         } else {
-            definitions.push_back(make_decoder_architecture(entry.name, entry.rope));
+            definitions.push_back(make_decoder_architecture(entry.name, entry.rope.value()));
         }
     }
     return definitions;
