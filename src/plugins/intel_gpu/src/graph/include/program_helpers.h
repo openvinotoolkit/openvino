@@ -133,6 +133,7 @@ struct onednn_add_fusing_helpers {
                             std::function<void(const program_node&, const fused_primitive_desc&)> func);
     static add_fusing_type get_add_fusing_type(const program_node& node, const fused_primitive_desc& desc);
     static int32_t get_reused_eltwmem_idx(const program_node& node);
+    static bool can_use_mul_inplace(const program_node& node, const fused_primitive_desc& desc);
 };
 
 using add_fusing_type = onednn_add_fusing_helpers::add_fusing_type;

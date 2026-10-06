@@ -29,6 +29,12 @@ void basic_memory_dependencies::run(program& p) {
         for (const auto& it : node->get_dependencies()) {
             add_memory_dependency(node, it.first);
             add_memory_dependency(it.first, node);
+
+            if (auto alias_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(*it.first); alias_idx != -1) {
+                auto& alias = it.first->get_dependency(alias_idx);
+                node->add_memory_dependency(alias);
+                alias.add_memory_dependency(*node);
+            }
         }
 
         // LoRA can reuse the memory of the previous node, but not be optimized
