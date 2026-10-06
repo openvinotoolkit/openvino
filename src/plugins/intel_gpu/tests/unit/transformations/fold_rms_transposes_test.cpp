@@ -15,6 +15,8 @@
 namespace ov::test::intel_gpu {
 
 TEST_F(TransformationTestsF, FoldRMSTransposesFeatureAxis) {
+    comparator.enable(FunctionsComparator::CmpValues::ATTRIBUTES);
+
     auto input = std::make_shared<ov::op::v0::Parameter>(ov::element::f16, ov::PartialShape{-1, 288, 1, -1, -1});
     auto input_order = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, {0, 2, 3, 4, 1});
     auto input_transpose = std::make_shared<ov::op::v1::Transpose>(input, input_order);
@@ -26,8 +28,7 @@ TEST_F(TransformationTestsF, FoldRMSTransposesFeatureAxis) {
     model = std::make_shared<ov::Model>(ov::OutputVector{output_transpose}, ov::ParameterVector{input});
     manager.register_pass<ov::intel_gpu::FoldRMSTransposes>();
 
-    auto ref_rms = std::make_shared<ov::op::internal::RMS>(input, gamma, 1e-6);
-    ref_rms->set_axis(1);
+    auto ref_rms = std::make_shared<ov::op::internal::RMS>(input, gamma, 1e-6, ov::element::f16, 1);
     ref_rms->set_friendly_name("channel_rms");
     model_ref = std::make_shared<ov::Model>(ov::OutputVector{ref_rms}, ov::ParameterVector{input});
 }

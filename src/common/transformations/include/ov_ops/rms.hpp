@@ -24,17 +24,23 @@ public:
     /// \param gamma Gamma values for weight
     /// \param eps Epsilon for not dividing by zero while normalizing the value
     /// \param output_type Output element type
+    /// \param axis Axis to normalize
     RMS(const Output<Node>& data,
         const Output<Node>& gamma,
         double epsilon,
-        const ov::element::Type output_type = ov::element::dynamic);
+        const ov::element::Type output_type = ov::element::dynamic,
+        int64_t axis = -1);
 
     /// @brief Constructs an RMS operation without gamma.
     ///
     /// @param data Input tensor with data
     /// @param eps Epsilon for not dividing by zero while normalizing the value
     /// @param output_type Output element type
-    RMS(const Output<Node>& data, double epsilon, const ov::element::Type output_type = ov::element::dynamic);
+    /// @param axis Axis to normalize
+    RMS(const Output<Node>& data,
+        double epsilon,
+        const ov::element::Type output_type = ov::element::dynamic,
+        int64_t axis = -1);
 
     bool visit_attributes(ov::AttributeVisitor& visitor) override;
 

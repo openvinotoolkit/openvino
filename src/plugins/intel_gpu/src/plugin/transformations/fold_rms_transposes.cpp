@@ -9,6 +9,7 @@
 #include "openvino/op/constant.hpp"
 #include "openvino/op/transpose.hpp"
 #include "openvino/pass/pattern/op/wrap_type.hpp"
+#include "openvino/util/pp.hpp"
 #include "ov_ops/rms.hpp"
 
 namespace ov::intel_gpu {
@@ -23,7 +24,7 @@ FoldRMSTransposes::FoldRMSTransposes() {
     auto output_order_m = wrap_type<ov::op::v0::Constant>();
     auto output_transpose_m = wrap_type<ov::op::v1::Transpose>({rms_m, output_order_m});
 
-    ov::matcher_pass_callback callback = [this, input_m, input_order_m, rms_m, gamma_m, output_order_m](Matcher& matcher) {
+    ov::matcher_pass_callback callback = [OV_CAPTURE_CPY_AND_THIS](Matcher& matcher) {
         const auto& pattern_map = matcher.get_pattern_value_map();
         if (transformation_callback(matcher.get_match_root())) {
             return false;
@@ -53,8 +54,7 @@ FoldRMSTransposes::FoldRMSTransposes() {
 
         const auto input = pattern_map.at(input_m);
         const auto gamma = pattern_map.at(gamma_m);
-        auto new_rms = std::make_shared<ov::op::internal::RMS>(input, gamma, rms->get_epsilon(), rms->get_output_element_type(0));
-        new_rms->set_axis(axis);
+        auto new_rms = std::make_shared<ov::op::internal::RMS>(input, gamma, rms->get_epsilon(), rms->get_output_element_type(0), axis);
         new_rms->set_friendly_name(matcher.get_match_root()->get_friendly_name());
         ov::copy_runtime_info(matcher.get_matched_nodes(), new_rms);
         ov::replace_node(matcher.get_match_root(), new_rms);
