@@ -4,6 +4,10 @@ An architecture is described by an `ArchitectureDefinition`. The native catalog 
 extensions consume the **same definition**, invoke the same factory, and use the same conversion
 and normalization pipeline. `ArchitectureExtension` is only the runtime registration adapter.
 
+Start with [extensions.md](extensions.md) for an overview of extension types, registration timing,
+handler replacement, operation converters, and normalization passes. This document focuses on
+implementing and validating the builder itself.
+
 Build extensions against the OpenVINO release they will run with. The builder API does not promise
 compatibility across releases. Loading an extension does not require rebuilding OpenVINO.
 
@@ -282,7 +286,7 @@ ArchitectureDefinition new_family_architecture() {
 
 `BuildContext` is copied here only for the synchronous factory/build lifecycle. The built graph
 retains its weights, but the builder must not keep using the borrowed context after that call.
-The definition defaults to experimental maturity. Its id identifies the handler; its architecture
+Its id identifies the handler; its architecture
 string must match the file. Add a metadata predicate if multiple implementations share that string.
 
 For your target, replace this example's contract and layer body with the traced reference graph,
@@ -341,7 +345,7 @@ Validate more than graph construction:
    Test multiple sequence lengths, nonzero positions, state resets and relevant window boundaries.
 4. **Real checkpoint:** repeat with the actual model and quantization. Keep tokenizer, preprocessing,
    masks and precision settings aligned. Coherent text alone does not verify an encoder, pooling
-   path or multimodal projector. Document any untested variants rather than marking them verified.
+   path or multimodal projector. Document the tested configurations and any untested variants.
 5. **Regression:** retain a small reproducible numerical fixture. For decoder fixtures, reuse
    [`tests/gen_arch_accuracy.py`](../tests/gen_arch_accuracy.py) and the
    [reference-generation instructions](../tests/test_data/arch_accuracy/README.md). A new family's
@@ -352,7 +356,7 @@ Validate more than graph construction:
 See [debugging_accuracy.md](debugging_accuracy.md) for comparing intermediates. A static shape
 match or successful one-token run is a useful initial check, not evidence of numerical correctness.
 
-### 7. Integrate the verified implementation into the frontend
+### 7. Integrate the tested implementation into the frontend
 
 Keep the architecture definition separate from the plugin entry point throughout development.
 Then follow [Promote the same implementation into OpenVINO](#promote-the-same-implementation-into-openvino):
@@ -443,6 +447,11 @@ These declarations are passed through the same `GgufGraph` and `TranslateSession
 built-in decoder. A consumer selects `GGUFMakeStateful` and `AdaptToGenAI` through transformation
 extensions; an architecture definition does not select a device or force stateful execution.
 
+For a component inside an mmproj file, use the derived `ProjectorExtension` rather
+than another whole-model `clip` definition. It extends the separate projector list
+and builds one branch in the coordinator's graph; see
+[projector extensions](mmproj.md#projector-extensions).
+
 ## Selection and replacement
 
 A definition has both a unique handler **id** and the file's **architecture**. Matching requires
@@ -498,14 +507,13 @@ selected GGUF frontend. Registering on an unrelated frontend instance does not f
    `src/builder/arch/`. Keep the definition factory and `ModelBuilder` unchanged. The frontend
    source collection includes files under this directory.
 2. Include its header in `src/builder/arch_registry.cpp` and add
-   `definitions.push_back(my_architecture());` to `builtin_architectures()`.
+   its name, builder factory, optional predicate and handler id to the `architectures` catalog.
 3. Add the source to the explicit frontend-source list in `tests/CMakeLists.txt`, and retain its
    conversion and accuracy tests. The plugin-only `OPENVINO_CREATE_EXTENSIONS` source is not needed.
-4. Update supported-model documentation and declare `Maturity::Verified` only after real-model
-   accuracy validation. Synthetic conversion tests do not establish model support.
+4. Update supported-model documentation with real-model accuracy validation. Synthetic conversion tests do not establish model support.
 
-For a plain decoder, add a row to the decoder catalog with name, RoPE mode, and maturity. For a
-decoder with options, add the unchanged definition factory instead. Do not also register a plain
+For a plain decoder, add a row to the architecture catalog with name and RoPE mode. For a
+decoder with options, register the unchanged definition's builder factory instead. Do not also register a plain
 decoder row under the same id.
 
 No new family-dispatch branch, frontend registration method, or alternate graph implementation is
@@ -518,5 +526,5 @@ this migration path.
 - Compare numerical results against a reference, including multiple token lengths and subsequent
   decoding with previously generated state. Check SWA beyond its window and non-default RoPE scaling.
 - Run `ov_gguf_frontend_tests` architecture fixtures to check built-in graph fingerprints.
-- For a real architecture, compare its outputs to llama.cpp on the same checkpoint before marking
-  it verified: logits/generation for decoders, and features or pooled/projected outputs for encoders.
+- For a real architecture, compare its outputs to llama.cpp on the same checkpoint and document
+  the results: logits/generation for decoders, and features or pooled/projected outputs for encoders.

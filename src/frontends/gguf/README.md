@@ -10,7 +10,11 @@ the `GgufDecoder` interface into `ov::Model` objects. It supports two input path
 
 Both paths use the same operation translators. Their architecture coverage is
 validated separately; consult [supported models and limitations](docs/supported_models.md)
-for verified configurations and experimental support.
+for supported configurations and validation coverage.
+
+The native builder has a single [supported architecture list](docs/supported_models.md#supported-architectures).
+Projector types have a separate [support list and extension API](docs/mmproj.md).
+Checkpoint results and runtime limitations are documented alongside those lists.
 
 ## Loading a model
 
@@ -36,25 +40,26 @@ KV cache can register a decoder transformation extension using
 [`AdaptToGenAI`](include/openvino/frontend/gguf/adapt_to_genai.hpp) then gives a stateful
 language model the OpenVINO GenAI input contract. Multimodal projector files convert to
 encoder models; see [native multimodal conversion](docs/mmproj.md).
-The [frontend API](include/openvino/frontend/gguf/frontend.hpp) documents supported
-extensions; [internal operation guidance](docs/internal_ops.md) describes lowering
-and serialization constraints.
+The [extension guide](docs/extensions.md) explains architecture and projector handlers,
+operation converters, normalization passes, registration timing and shared-library loading.
+[Internal operation guidance](docs/internal_ops.md) describes lowering and serialization constraints.
 
 ## Source layout
 
 | Location | Purpose |
 | --- | --- |
 | [include](include/openvino/frontend/gguf/) | Frontend, decoder, tokenizer metadata, and conversion-pass interfaces |
-| [dev_api](dev_api/openvino/frontend/gguf/) | Model-builder and architecture-extension APIs; compatibility across releases is not guaranteed |
-| [src/builder](src/builder/) | Architecture registry, native model builders, and graph construction |
+| [dev_api](dev_api/openvino/frontend/gguf/) | Model-builder, architecture-extension and projector-extension APIs; compatibility across releases is not guaranteed |
+| [src/builder](src/builder/) | Architecture/projector registries, native model builders, and graph construction |
 | [src/quant](src/quant/) | GGUF parsing, weight loading, and quantization handling |
 | [src/op](src/op/) and [op_table.cpp](src/op_table.cpp) | Operation translators and their registration |
 | [src/pass](src/pass/) | Stateful conversion, GenAI adaptation, and graph cleanup |
 | [tests](tests/) | Operation, architecture, multimodal, quantization, and extension tests, fixtures, fixture generators and llama.cpp oracles |
-| [examples](examples/) | Architecture-extension example |
+| [examples](examples/) | Architecture and projector extension examples |
 
 ## Development guides
 
+* [Register and combine frontend extensions](docs/extensions.md).
 * [Add an operation translator](docs/how_to_add_op.md).
 * [Add a built-in architecture](docs/adding_an_architecture.md).
 * [Port a llama.cpp model or build an external architecture extension](docs/porting_a_llama_cpp_model.md).

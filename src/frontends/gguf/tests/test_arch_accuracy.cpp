@@ -299,6 +299,122 @@ TEST(GGUFMultimodalBackboneAdaptation, MakeStatefulFindsCachesBehindReversedGrou
     }
 }
 
+TEST(GGUFEmbeddingAccuracy, TokenEmbeddingsAndPoolingMatchLlamaCPU) {
+    for (const auto* family :
+         {"llama-embed", "llama-embed-noncausal", "llama-embed-mean", "llama-embed-cls", "llama-embed-last"}) {
+        SCOPED_TRACE(family);
+        auto arrays = cnpy::npz_load(ov_gguf_test::test_data_dir() + "/arch_accuracy/" + family + ".npz");
+        const ov_gguf_test::TemporaryGguf temporary(ov_gguf_test::npz_array(arrays, "model"));
+        ov::frontend::gguf::FrontEnd frontend;
+        auto model = frontend.convert(frontend.load(temporary.path));
+        ASSERT_EQ(model->get_results().size(), 1);
+        EXPECT_NO_THROW(model->output("embeddings"));
+        for (const auto mode : {ov::frontend::gguf::pass::AdaptToGenAI::InputMode::IDS_TO_LOGITS,
+                                ov::frontend::gguf::pass::AdaptToGenAI::InputMode::EMBEDS_TO_LOGITS}) {
+            ov::frontend::gguf::pass::AdaptToGenAI adapter(mode);
+            EXPECT_FALSE(adapter.run_on_model(model));
+        }
+        ov::Core core;
+        auto compiled = core.compile_model(model,
+                                           "CPU",
+                                           ov::hint::inference_precision(ov::element::f32),
+                                           ov::hint::dynamic_quantization_group_size(0));
+        auto request = compiled.create_infer_request();
+        EXPECT_TRUE(request.query_state().empty());
+        const auto infer = [&](size_t count, bool compare_reference) {
+            for (const auto& input : compiled.inputs()) {
+                const auto name = input.get_any_name();
+                if (name == "token_len_per_seq") {
+                    ov::Tensor lengths(ov::element::i64, {1});
+                    lengths.data<int64_t>()[0] = count;
+                    request.set_tensor(name, lengths);
+                } else if (name == "self_kq_mask") {
+                    ov::Tensor mask(ov::element::f32, {1, 1, count, count});
+                    for (size_t q = 0; q < count; ++q)
+                        for (size_t k = 0; k < count; ++k)
+                            mask.data<float>()[q * count + k] = k <= q ? 0.f : -INFINITY;
+                    request.set_tensor(name, mask);
+                } else {
+                    ASSERT_TRUE(name == "inp_tokens" || name == "inp_pos");
+                    ov::Tensor values(ov::element::i32, {1, 1, 1, count});
+                    for (size_t i = 0; i < count; ++i)
+                        values.data<int32_t>()[i] = i + (name == "inp_tokens" ? 1 : 0);
+                    request.set_tensor(name, values);
+                }
+            }
+            request.infer();
+            auto output = request.get_tensor("embeddings");
+            const auto& expected = ov_gguf_test::npz_array(arrays, "embeddings");
+            const bool pooled = std::string(family) != "llama-embed" && std::string(family) != "llama-embed-noncausal";
+            ASSERT_EQ(output.get_shape(), (ov::Shape{pooled ? 1 : count, expected.shape.back()}));
+            if (compare_reference || std::string(family) == "llama-embed") {
+                ov_gguf_test::expect_nmse_below(
+                    ov_gguf_test::nmse(output.data<const float>(), expected.data<float>(), output.get_size()),
+                    1e-5);
+            }
+        };
+        infer(3, true);
+        infer(1, false);
+        infer(2, false);
+        infer(3, true);
+    }
+}
+
+TEST(GGUFEmbeddingAccuracy, RealCheckpointTokenEmbeddingsMatchLlamaCPU) {
+    const auto* directory = std::getenv("OV_GGUF_EMBEDDING_DATA");
+    if (!directory)
+        GTEST_SKIP() << "Set OV_GGUF_EMBEDDING_DATA for real embedding checkpoint validation";
+    const auto base = std::filesystem::path(directory) / "llama-embed";
+    std::ifstream file(base.string() + ".bin", std::ios::binary);
+    ASSERT_TRUE(file);
+    int32_t width = 0, count = 0;
+    file.read(reinterpret_cast<char*>(&width), sizeof(width));
+    file.read(reinterpret_cast<char*>(&count), sizeof(count));
+    ASSERT_GT(width, 0);
+    ASSERT_GT(count, 0);
+    ASSERT_LE(count, 64);
+    std::vector<int32_t> tokens(count);
+    std::vector<float> expected(static_cast<size_t>(count) * width);
+    file.read(reinterpret_cast<char*>(tokens.data()), tokens.size() * sizeof(int32_t));
+    file.read(reinterpret_cast<char*>(expected.data()), expected.size() * sizeof(float));
+    ASSERT_TRUE(file);
+    ov::frontend::gguf::FrontEnd frontend;
+    auto model = frontend.convert(frontend.load(base.string() + ".gguf"));
+    ov::Core core;
+    auto compiled = core.compile_model(model,
+                                       "CPU",
+                                       ov::hint::inference_precision(ov::element::f32),
+                                       ov::hint::dynamic_quantization_group_size(0),
+                                       ov::inference_num_threads(4));
+    auto request = compiled.create_infer_request();
+    for (const auto& input : compiled.inputs()) {
+        const auto name = input.get_any_name();
+        if (name == "token_len_per_seq") {
+            ov::Tensor lengths(ov::element::i64, {1});
+            lengths.data<int64_t>()[0] = count;
+            request.set_tensor(name, lengths);
+        } else if (name == "self_kq_mask") {
+            ov::Tensor mask(ov::element::f32, {1, 1, size_t(count), size_t(count)});
+            for (int q = 0; q < count; ++q)
+                for (int k = 0; k < count; ++k)
+                    mask.data<float>()[q * count + k] = k <= q ? 0.f : -INFINITY;
+            request.set_tensor(name, mask);
+        } else {
+            ASSERT_TRUE(name == "inp_tokens" || name == "inp_pos");
+            ov::Tensor values(ov::element::i32, {1, 1, 1, size_t(count)});
+            for (int i = 0; i < count; ++i)
+                values.data<int32_t>()[i] = name == "inp_tokens" ? tokens[i] : i;
+            request.set_tensor(name, values);
+        }
+    }
+    request.infer();
+    auto output = request.get_tensor("embeddings");
+    ASSERT_EQ(output.get_shape(), (ov::Shape{size_t(count), size_t(width)}));
+    const auto metric = ov_gguf_test::nmse(output.data<const float>(), expected.data(), expected.size());
+    RecordProperty("nmse", std::to_string(metric.value()));
+    ov_gguf_test::expect_nmse_below(metric, 1e-5);
+}
+
 TEST_P(GGUFArchitectureAccuracy, PrefillAndCachedDecodeMatchLlamaCPU) {
     const char* override_dir = std::getenv("OV_GGUF_ACCURACY_DATA");
     const bool mamba = std::string(GetParam()).find("mamba2") == 0 || std::string(GetParam()) == "nemotron_h";
@@ -460,6 +576,12 @@ INSTANTIATE_TEST_SUITE_P(Architectures,
                                            "olmoe",
                                            "hunyuan-dense",
                                            "hunyuan-moe",
+                                           "exaone-moe",
+                                           "exaone-moe-nextn",
+                                           "glm4moe",
+                                           "jais2",
+                                           "minimax-m2",
+                                           "plamo3",
                                            "qwen3moe",
                                            "gemma",
                                            "gemma2",

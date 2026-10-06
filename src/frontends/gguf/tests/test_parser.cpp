@@ -120,6 +120,26 @@ TEST_F(GGUFParser, Q4KZeroPointModeAppliesToLanguageAndProjectorModels) {
     }
 }
 
+TEST_F(GGUFParser, QuantizedBuffersOutliveParserResult) {
+    const auto bytes = load_npy<uint8_t>("q2_k_qbytes");
+    const auto reference = load_npy<float>("q2_k_deq");
+    ASSERT_NO_FATAL_FAILURE(write_tensor("blk.0.attn_q.weight", GGUF_TYPE_Q2_K, 256, 4, bytes));
+    WeightTensors tensors;
+    {
+        const auto loaded = get_gguf_data(m_path);
+        const auto& arrays = std::get<1>(loaded);
+        tensors = {arrays.at("blk.0.attn_q.weight"), arrays.at("blk.0.attn_q.scales"), arrays.at("blk.0.attn_q.zp")};
+    }
+    ov::test::utils::removeFile(m_path);
+    const auto node = make_weight_node(tensors, GGUF_TYPE_Q2_K, "blk.0.attn_q");
+    tensors = {};
+    const auto model = std::make_shared<ov::Model>(ov::OutputVector{node}, ov::ParameterVector{});
+    const auto output = run_on_cpu(model, {});
+    ASSERT_EQ(output.get_size(), reference.size());
+    for (size_t i = 0; i < reference.size(); ++i)
+        EXPECT_NEAR(output.data<const float>()[i], reference[i], 3e-3f);
+}
+
 TEST_F(GGUFParser, AcceptsEmptyQuantizedTensors) {
     constexpr std::array types{
         std::pair{"Q4_0", GGUF_TYPE_Q4_0},

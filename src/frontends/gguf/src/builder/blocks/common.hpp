@@ -28,6 +28,12 @@ std::string rms_norm(GraphEmitter& e,
                      float eps);
 
 // Scale a tensor by a constant: GGML_OP_SCALE with attr "scale" (and bias 0).
+std::string layer_norm(GraphEmitter& e,
+                       const std::string& in,
+                       const std::string& weight,
+                       const std::string& out_prefix,
+                       float eps);
+
 std::string scale(GraphEmitter& e, const std::string& x, float factor, const std::string& name);
 
 // Elementwise add of a (broadcast) bias weight: GGML_OP_ADD(x, bias_weight).

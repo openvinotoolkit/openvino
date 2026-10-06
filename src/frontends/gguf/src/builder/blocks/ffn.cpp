@@ -81,7 +81,13 @@ std::string dense_ffn(GraphEmitter& e, const DecoderConfig& cfg, const std::stri
     const bool fused_ffn = !e.has_weight(p + "ffn_gate.weight");  // phi-3: fused gate+up
     const bool has_ffn_bias = e.has_weight(p + "ffn_up.bias");
     std::string glu;
-    if (fused_ffn) {
+    if (cfg.relu_squared_ffn) {
+        auto up = e.add_op("GGML_OP_MUL_MAT", p + "ffn_up", {p + "ffn_up.weight", ffn_norm});
+        if (has_ffn_bias)
+            up = add_bias(e, up, p + "ffn_up.bias", p + "ffn_up_b");
+        auto relu = e.add_op("GGML_UNARY_OP_RELU", p + "ffn_relu", {up});
+        glu = e.add_op("GGML_OP_SQR", p + "ffn_relu_squared", {relu});
+    } else if (fused_ffn) {
         auto up = e.add_op("GGML_OP_MUL_MAT", p + "ffn_up", {p + "ffn_up.weight", ffn_norm});
         glu = e.add_op("GGML_GLU_OP_SWIGLU", p + "ffn_swiglu", {up}, 0, {{"swapped", false}});
     } else {

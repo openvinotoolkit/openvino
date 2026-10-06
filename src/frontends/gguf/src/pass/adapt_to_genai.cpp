@@ -194,6 +194,11 @@ int64_t max_kv_cache_head_size(const std::shared_ptr<ov::Model>& model) {
 bool AdaptToGenAI::run_on_model(const std::shared_ptr<ov::Model>& model) {
     using namespace ov::op;
 
+    for (const auto& output : model->outputs()) {
+        if (output.get_names().count("embeddings"))
+            return false;
+    }
+
     // Token count is optional: custom builders may leave it unused, so conversion prunes it.
     // The remaining inputs identify a GGUF graph that has not already been adapted.
     auto inp_tokens = find_parameter(model, "inp_tokens");

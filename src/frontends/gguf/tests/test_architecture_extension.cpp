@@ -130,6 +130,18 @@ TEST(GGUFArchitectureExtension, UnknownArchitectureIsRejectedWithoutAnExtension)
                                    testing::HasSubstr("ArchitectureExtension")));
 }
 
+TEST(GGUFArchitectureExtension, UnsupportedDiagnosticIncludesRegisteredArchitectures) {
+    ScratchDir scratch;
+    const auto path = write_decoder_gguf(scratch.path(), "unknown-decoder");
+    ASSERT_FALSE(path.empty());
+    ov::frontend::gguf::FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ArchitectureExtension>("custom-decoder", RopeMode::Neox));
+    OV_EXPECT_THROW(frontend.convert(frontend.load(path)),
+                    ov::Exception,
+                    testing::AllOf(testing::HasSubstr("Supported:"), testing::HasSubstr("custom-decoder")));
+    OV_EXPECT_THROW(convert_with(path), ov::Exception, testing::Not(testing::HasSubstr("custom-decoder")));
+}
+
 TEST(GGUFArchitectureExtension, DecoderDefinitionMatchesBuiltInGraph) {
     ScratchDir scratch;
 

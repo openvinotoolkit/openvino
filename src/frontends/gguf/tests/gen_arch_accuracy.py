@@ -26,7 +26,18 @@ CASES = {
     "qwen35-mixed": {"architecture": "qwen35", "f16": ("attn_gate", "blk.2.ssm_beta")},
     "nemotron_h": {},
     "mamba2": {}, "mamba2-tied": {"architecture": "mamba2", "tied": True},
-    "llama": {}, "qwen2": {"bias": True}, "qwen3": {"qk": True},
+    "llama": {},
+    "llama-embed": {"embedding_output": True, "tied": True},
+    "llama-embed-noncausal": {"architecture": "llama-embed", "embedding_output": True, "tied": True, "causal": False},
+    "llama-embed-mean": {"architecture": "llama-embed", "embedding_output": True, "tied": True, "pooling": 1},
+    "llama-embed-cls": {"architecture": "llama-embed", "embedding_output": True, "tied": True, "pooling": 2},
+    "llama-embed-last": {"architecture": "llama-embed", "embedding_output": True, "tied": True, "pooling": 3},
+    "exaone-moe": {"qk": True, "moe": True, "shared": True, "lead": 1, "swa": True, "layers": 4},
+    "exaone-moe-nextn": {"architecture": "exaone-moe", "qk": True, "moe": True, "shared": True, "lead": 1, "swa": True, "layers": 4, "nextn": 1, "sigmoid": True, "selection_bias": True, "expert_scale": 2.5},
+    "glm4moe": {"qk": True, "moe": True, "shared": True, "lead": 1, "selection_bias": True, "sigmoid": True, "ffn_post_attn": True},
+    "jais2": {"layer_norm": True, "relu_squared": True, "bias": True},
+    "minimax-m2": {"moe": True, "full_qk": True, "selection_bias": True, "rope_dims": 4, "sigmoid": True},
+    "plamo3": {"qk": True, "fused": True, "fused_ffn": True, "post": True, "bare_post": True, "swa": True}, "qwen2": {"bias": True}, "qwen3": {"qk": True},
     "phi3": {"fused": True, "fused_ffn": True}, "minicpm": {},
     "olmoe": {"moe": True, "full_qk": True},
     "hunyuan-dense": {"qk": True}, "hunyuan-moe": {"qk": True, "moe": True, "shared": True},
@@ -87,6 +98,8 @@ def write_mamba2_model(path, opts, arch="mamba2"):
 
     tensor("token_embd.weight", (vocab, d))
     tensor("output_norm.weight", (d,), True)
+    if opts.get("layer_norm"):
+        tensor("output_norm.bias", (d,))
     if not opts.get("tied"):
         tensor("output.weight", (vocab, d))
     conv_dim = inner + 2 * groups * state
@@ -272,17 +285,25 @@ def write_model(path, arch, opts):
     layers = opts.get("layers", 2)
     w.add_context_length(128)
     w.add_embedding_length(d)
-    w.add_block_count(layers)
+    w.add_block_count(layers + opts.get("nextn", 0))
+    if opts.get("nextn"):
+        w.add_nextn_predict_layers(opts["nextn"])
     w.add_feed_forward_length(ff)
     w.add_head_count(heads)
     w.add_head_count_kv(kv)
     w.add_key_length(head)
     w.add_value_length(head)
-    w.add_rope_dimension_count(head)
+    w.add_rope_dimension_count(opts.get("rope_dims", head))
     w.add_rope_freq_base(10000.0 if arch == "deepseek2-ocr" else 100.0)
-    w.add_layer_norm_rms_eps(1e-5)
+    if opts.get("layer_norm"):
+        w.add_layer_norm_eps(1e-5)
+    else:
+        w.add_layer_norm_rms_eps(1e-5)
     w.add_vocab_size(vocab)
     w.add_tokenizer_model("none")
+    if opts.get("embedding_output"):
+        w.add_uint32(arch + ".pooling_type", opts.get("pooling", 0))
+        w.add_bool(arch + ".attention.causal", opts.get("causal", True))
     if opts.get("linear"):
         w.add_rope_scaling_type(gguf.RopeScalingType.LINEAR)
         w.add_rope_scaling_factor(opts["linear"])
@@ -298,6 +319,8 @@ def write_model(path, arch, opts):
     if opts.get("swa"):
         w.add_sliding_window(2)
         w.add_sliding_window_pattern(2)
+        if arch == "plamo3":
+            w.add_rope_freq_base_swa(100.0)
     if opts.get("softcap"):
         w.add_attn_logit_softcapping(2.0)
         w.add_final_logit_softcapping(3.0)
@@ -312,7 +335,9 @@ def write_model(path, arch, opts):
             w.add_expert_shared_count(int(opts.get("shared", False)))
         w.add_expert_shared_feed_forward_length(ff if opts.get("shared") else 0)
         w.add_uint32(arch + ".expert_gating_func", 2 if opts.get("sigmoid") else 1)
-        if arch not in ("qwen3moe", "ernie4_5-moe", "mellum"):
+        if opts.get("expert_scale"):
+            w.add_expert_weights_scale(opts["expert_scale"])
+        if arch not in ("hunyuan-moe", "qwen3moe", "ernie4_5-moe", "mellum", "minimax-m2"):
             w.add_expert_weights_norm(arch != "olmoe")
         if arch == "bailingmoe2":
             w.add_expert_group_count(2)
@@ -324,16 +349,20 @@ def write_model(path, arch, opts):
 
     tensor("token_embd.weight", (vocab, d))
     tensor("output_norm.weight", (d,), True)
+    if opts.get("layer_norm"):
+        tensor("output_norm.bias", (d,))
     if not opts.get("tied"):
         tensor("output.weight", (vocab, d))
     for layer in range(layers):
         p = f"blk.{layer}."
         if not opts.get("post_only"):
-            for name in ("attn_norm", "ffn_norm"):
+            for name in ("attn_norm", "post_attention_norm" if opts.get("ffn_post_attn") else "ffn_norm"):
                 tensor(p + name + ".weight", (d,), True)
+                if opts.get("layer_norm"):
+                    tensor(p + name + ".bias", (d,))
         if opts.get("post") or opts.get("post_only"):
             for name in ("post_attention_norm", "post_ffw_norm"):
-                tensor(p + name + ".weight", (d,), True)
+                tensor(p + name + ("" if opts.get("bare_post") else ".weight"), (d,), True)
         if opts.get("fused"):
             tensor(p + "attn_qkv.weight", ((heads + 2 * kv) * head, d))
         else:
@@ -342,6 +371,8 @@ def write_model(path, arch, opts):
                 if opts.get("bias"):
                     tensor(p + f"attn_{name}.bias", (width,))
         tensor(p + "attn_output.weight", (d, heads * head))
+        if opts.get("layer_norm"):
+            tensor(p + "attn_output.bias", (d,))
         if opts.get("qk") or opts.get("full_qk"):
             for name, width in (("q", heads * head), ("k", kv * head)):
                 tensor(p + f"attn_{name}_norm.weight", (width if opts.get("full_qk") else head,), True)
@@ -356,30 +387,58 @@ def write_model(path, arch, opts):
             if opts.get("shared"):
                 for name, shape in (("gate", (ff, d)), ("up", (ff, d)), ("down", (d, ff))):
                     tensor(p + f"ffn_{name}_shexp.weight", shape)
+        elif opts.get("relu_squared"):
+            for name, shape in (("up", (ff, d)), ("down", (d, ff))):
+                tensor(p + f"ffn_{name}.weight", shape)
+                tensor(p + f"ffn_{name}.bias", (shape[0],))
         elif opts.get("fused_ffn"):
             tensor(p + "ffn_up.weight", (2 * ff, d))
             tensor(p + "ffn_down.weight", (d, ff))
         else:
             for name, shape in (("gate", (ff, d)), ("up", (ff, d)), ("down", (d, ff))):
                 tensor(p + f"ffn_{name}.weight", shape)
+    if opts.get("nextn"):
+        p = f"blk.{layers}."
+        for name, width in (("q", heads * head), ("k", kv * head), ("v", kv * head)):
+            tensor(p + f"attn_{name}.weight", (width, d))
+        tensor(p + "attn_output.weight", (d, heads * head))
+        for name in ("attn_norm", "attn_q_norm", "attn_k_norm", "ffn_norm"):
+            tensor(p + name + ".weight", (head if "_q_" in name or "_k_" in name else d,), True)
+        for name, shape in (("gate", (ff, d)), ("up", (ff, d)), ("down", (d, ff))):
+            tensor(p + f"ffn_{name}.weight", shape)
+        tensor(p + "nextn.eh_proj.weight", (d, 2 * d))
+        for name in ("enorm", "hnorm"):
+            tensor(p + "nextn." + name + ".weight", (d,), True)
     finish(w)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--oracle", required=True)
+    parser.add_argument("--embedding-oracle")
     parser.add_argument("--out-dir", type=Path, default=Path(__file__).parent / "test_data/arch_accuracy")
     parser.add_argument("--architectures", nargs="+", default=list(CASES))
     args = parser.parse_args()
+    if not args.embedding_oracle and any(CASES[arch].get("embedding_output") for arch in args.architectures):
+        parser.error("--embedding-oracle is required to generate embedding fixtures")
     args.out_dir.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory() as tmp:
         for arch in args.architectures:
             model = Path(tmp) / f"{arch}.gguf"
             reference = model.with_suffix(".bin")
             write_model(model, arch, CASES[arch])
-            result = subprocess.run([args.oracle, str(model), str(reference)], capture_output=True)
+            oracle = args.embedding_oracle if CASES[arch].get("embedding_output") else args.oracle
+            result = subprocess.run([oracle, str(model), str(reference)], capture_output=True)
             if result.returncode:
                 raise RuntimeError(f"{arch}: oracle failed\n{result.stderr.decode()}")
+            if CASES[arch].get("embedding_output"):
+                dim, count = np.fromfile(reference, dtype="<i4", count=2)
+                values = np.fromfile(reference, dtype="<f4", offset=8 + 4 * count).reshape(count, dim)
+                pool = CASES[arch].get("pooling", 0)
+                expected = values.mean(axis=0, keepdims=True) if pool == 1 else values[:1] if pool == 2 else values[-1:] if pool == 3 else values
+                save_npz(args.out_dir / f"{arch}.npz", {"model": np.fromfile(model, dtype=np.uint8), "embeddings": expected})
+                print(f"{arch}: embeddings {expected.shape}", flush=True)
+                continue
             vocab = np.fromfile(reference, dtype="<i4", count=1)[0]
             logits = np.fromfile(reference, dtype="<f4", offset=4).reshape(3, vocab)
             assert np.isfinite(logits).all() and np.linalg.norm(logits) > 0

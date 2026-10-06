@@ -21,7 +21,7 @@ import pytest
 
 from models_hub_common.constants import clean_hf_cache_dir, hf_cache_dir
 from models_hub_common.utils import cleanup_dir
-from utils import assert_valid_logits, parse_gguf_model_list, run_gguf_model
+from utils import assert_valid_logits, parse_gguf_model_list, run_gguf_embedding_model, run_gguf_model
 
 
 class TestGGUF:
@@ -35,6 +35,10 @@ class TestGGUF:
             pytest.skip(reason)
         if mark == "xfail":
             pytest.xfail(reason)
+
+        if arch == "llama-embed":
+            run_gguf_embedding_model(repo_id, filename, device=ie_device)
+            return
 
         logits = run_gguf_model(repo_id, filename, device=ie_device)
         assert_valid_logits(logits)

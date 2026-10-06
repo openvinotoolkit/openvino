@@ -20,7 +20,13 @@
 #include "builder/blocks/common.hpp"
 #include "builder/blocks/ffn.hpp"
 #include "builder/blocks/gated_delta_net.hpp"
+#include "openvino/op/constant.hpp"
+#include "openvino/op/gather.hpp"
 #include "openvino/op/parameter.hpp"
+#include "openvino/op/reduce_mean.hpp"
+#include "openvino/op/shape_of.hpp"
+#include "openvino/op/squeeze.hpp"
+#include "openvino/op/subtract.hpp"
 
 namespace ov::frontend::gguf {
 
@@ -54,7 +60,8 @@ void DecoderBuilder::build_inputs() {
     // index inputs.
     m_emit.add_input("inp_tokens", i32, ps({1, 1, 1, D}));
     m_emit.add_input("inp_pos", i32, ps({1, 1, 1, D}));
-    m_emit.add_input("inp_out_ids", i32, ps({1, 1, 1, D}));
+    if (!m_cfg.embedding_model)
+        m_emit.add_input("inp_out_ids", i32, ps({1, 1, 1, D}));
     m_emit.add_input("self_kq_mask", f32, ps({1, 1, D, D}));
     // gpt-oss alternates sliding-window / full attention; the windowed mask is a separate
     // input. Only added when the model uses SWA.
@@ -68,7 +75,8 @@ void DecoderBuilder::build_inputs() {
     // Gather on the past, is emitted.
 
     // KV-cache update index (consumed by SET_ROWS; unused in the stateful Concat branch).
-    m_emit.add_input("inp_kv_idx", i32, ps({1, 1, 1, D}));
+    if (!m_cfg.embedding_model)
+        m_emit.add_input("inp_kv_idx", i32, ps({1, 1, 1, D}));
 
     // token_len_per_seq: number of new tokens per sequence; used by TranslateSession's mask
     // slicing (add_sliced_mask) to build KQ_mask_sliced. An extra (Parameter) input.
@@ -199,7 +207,7 @@ std::string DecoderBuilder::inject_per_layer_embedding(int il, const std::string
     // gemma4.cpp:347-349: also filter pl_slice so the MUL doesn't broadcast it back to the full
     // sequence length.
     std::string pl_slice_used = pl_slice;
-    if (il == m_cfg.n_layer - 1) {
+    if (il == m_cfg.n_layer - 1 && !m_cfg.embedding_model) {
         pl_slice_used = p + "per_layer_slice_sel";
         m_emit.add_op("GGML_OP_GET_ROWS", pl_slice_used, {pl_slice, "inp_out_ids"});
     }
@@ -228,11 +236,11 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
 
     // eps for the post-attention / post-FFN norms; 0 in the config means "reuse rms_eps"
     // (muse-glimmer's post-norms use a tighter 1e-8 than its pre-norms).
+    const auto norm = m_cfg.layer_norm ? blocks::layer_norm : blocks::rms_norm;
     const float post_eps = m_cfg.post_norm_eps > 0.0f ? m_cfg.post_norm_eps : m_cfg.rms_eps;
 
     const std::string attn_norm =
-        m_cfg.post_norm_only ? cur
-                             : blocks::rms_norm(m_emit, cur, p + m_cfg.attn_norm_key, p + "attn_norm", m_cfg.rms_eps);
+        m_cfg.post_norm_only ? cur : norm(m_emit, cur, p + m_cfg.attn_norm_key, p + "attn_norm", m_cfg.rms_eps);
 
     if (m_cfg.is_qwen35 && m_cfg.is_recurrent_layer(il)) {
         // Hybrid stack: 3 of every 4 layers replace attention with a Gated DeltaNet block.
@@ -241,7 +249,7 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
         const std::string gdn_out = blocks::gated_delta_net(m_emit, m_cfg, il, attn_norm);
         std::string sa = inpSA;
         std::string ao = gdn_out;
-        if (il == m_cfg.n_layer - 1) {
+        if (il == m_cfg.n_layer - 1 && !m_cfg.embedding_model) {
             ao = m_emit.add_op("GGML_OP_GET_ROWS", p + "attn_out_g", {gdn_out, "inp_out_ids"});
             sa = m_emit.add_op("GGML_OP_GET_ROWS", p + "inpSA_g", {inpSA, "inp_out_ids"});
         }
@@ -266,22 +274,21 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
     }
     std::string sa = inpSA;
     std::string ao = attn_out;
-    if (il == m_cfg.n_layer - 1) {
+    if (il == m_cfg.n_layer - 1 && !m_cfg.embedding_model) {
         ao = m_emit.add_op("GGML_OP_GET_ROWS", p + "attn_out_g", {attn_out, "inp_out_ids"});
         sa = m_emit.add_op("GGML_OP_GET_ROWS", p + "inpSA_g", {inpSA, "inp_out_ids"});
     }
     // Gemma2: post-attention RMSNorm applied to the sublayer output before residual add.
     // Applied after GET_ROWS so the selected-token path matches gemma2.cpp's order.
     if (m_cfg.has_attn_post_norm) {
-        ao = blocks::rms_norm(m_emit, ao, p + "post_attention_norm.weight", p + "attn_post_norm", post_eps);
+        ao = blocks::rms_norm(m_emit, ao, p + m_cfg.attn_post_norm_key, p + "attn_post_norm", post_eps);
     }
 
     auto ffn_inp = m_emit.add_op("GGML_OP_ADD", p + "ffn_inp", {ao, sa});
 
     // Pre-FFN/MoE norm. Key varies by arch (ffn_norm_key is resolved in DecoderConfig).
-    auto ffn_norm = m_cfg.post_norm_only
-                        ? ffn_inp
-                        : blocks::rms_norm(m_emit, ffn_inp, p + m_cfg.ffn_norm_key, p + "ffn_norm", m_cfg.rms_eps);
+    auto ffn_norm =
+        m_cfg.post_norm_only ? ffn_inp : norm(m_emit, ffn_inp, p + m_cfg.ffn_norm_key, p + "ffn_norm", m_cfg.rms_eps);
 
     // Hybrid MoE: lead layers (il < n_dense_lead) are always dense regardless of is_moe.
     const bool is_moe_layer = m_cfg.layer_is_moe(il);
@@ -296,7 +303,7 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
     }
     // Gemma2: post-FFN RMSNorm applied to the FFN output before residual add.
     if (m_cfg.has_ffn_post_norm) {
-        down = blocks::rms_norm(m_emit, down, p + "post_ffw_norm.weight", p + "ffn_post_norm", post_eps);
+        down = blocks::rms_norm(m_emit, down, p + m_cfg.ffn_post_norm_key, p + "ffn_post_norm", post_eps);
     }
 
     cur = m_emit.add_op("GGML_OP_ADD", p + "l_out", {down, ffn_inp});
@@ -315,7 +322,30 @@ std::string DecoderBuilder::build_layer(int il, const std::string& layer_in) {
 
 std::string DecoderBuilder::build_head(const std::string& in) {
     // final norm + lm_head
-    std::string cur = blocks::rms_norm(m_emit, in, "output_norm.weight", "result_norm", m_cfg.rms_eps);
+    const auto norm = m_cfg.layer_norm ? blocks::layer_norm : blocks::rms_norm;
+    std::string cur = norm(m_emit, in, "output_norm.weight", "result_norm", m_cfg.rms_eps);
+    if (m_cfg.embedding_model) {
+        using namespace ov::op;
+        auto embeddings = m_emit.value(cur);
+        ov::Output<ov::Node> output = embeddings;
+        auto token_axis = v0::Constant::create(i64, {1}, {2});
+        if (m_cfg.pooling_type == 1) {
+            output = std::make_shared<v1::ReduceMean>(embeddings, token_axis, true);
+        } else if (m_cfg.pooling_type == 2 || m_cfg.pooling_type == 3) {
+            ov::Output<ov::Node> index = v0::Constant::create(i64, {1}, {0});
+            if (m_cfg.pooling_type == 3) {
+                auto shape = std::make_shared<v3::ShapeOf>(embeddings);
+                auto axis = v0::Constant::create(i64, {}, {0});
+                auto count = std::make_shared<v8::Gather>(shape, token_axis, axis);
+                index = std::make_shared<v1::Subtract>(count, v0::Constant::create(i64, {1}, {1}));
+            }
+            output = std::make_shared<v8::Gather>(embeddings, index, token_axis);
+        }
+        output = std::make_shared<v0::Squeeze>(output, v0::Constant::create(i64, {2}, {0, 1}));
+        output.set_names({"embeddings"});
+        (*m_emit.graph()->values)["embeddings"] = output;
+        return "embeddings";
+    }
 
     const std::string lm_head_w = m_emit.has_weight("output.weight") ? "output.weight" : "token_embd.weight";
     m_emit.add_weight(lm_head_w);

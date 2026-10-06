@@ -57,7 +57,7 @@ hunyuan_vl-dense.gguf.hdr 4732800 reject
 hy_v3-moe.gguf.hdr 11815360 reject
 internlm2-dense.gguf.hdr 4730752 reject
 jais-dense.gguf.hdr 4745856 reject
-jais2-dense.gguf.hdr 3956480 broken
+jais2-dense.gguf.hdr 3956480 convert
 jamba-dense.gguf.hdr 6061856 reject
 kimi-linear-moe.gguf.hdr 2833984 reject
 lfm2-dense.gguf.hdr 4731520 reject

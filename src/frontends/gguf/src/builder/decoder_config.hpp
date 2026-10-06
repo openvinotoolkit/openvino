@@ -34,6 +34,11 @@ struct DecoderConfig {
     int head_size = 0;
     int n_embd = 0;
     float rms_eps = 0.0f;
+    bool embedding_model = false;
+    int pooling_type = 0;
+    bool causal_attention = true;
+    bool layer_norm = false;
+    bool relu_squared_ffn = false;
     std::vector<uint32_t> n_head_kv_per_layer;  // non-empty when head_count_kv varies by layer
 
     // ---- auto-detected per-architecture structure ----
@@ -54,6 +59,8 @@ struct DecoderConfig {
     bool has_swa = false;
     bool has_attn_post_norm = false;
     bool has_ffn_post_norm = false;
+    std::string attn_post_norm_key{"post_attention_norm.weight"};
+    std::string ffn_post_norm_key{"post_ffw_norm.weight"};
     bool is_geglu = false;
     bool has_v_norm = false;  // gemma4: V is also RMSNorm'd like K
 

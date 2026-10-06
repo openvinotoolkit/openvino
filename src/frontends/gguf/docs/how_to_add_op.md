@@ -8,6 +8,10 @@ Related: [adding_an_architecture.md](adding_an_architecture.md) (enabling a mode
 usually needs *no* new op), [debugging_accuracy.md](debugging_accuracy.md) (when a translator
 converts but produces wrong numbers).
 
+To supply a converter from an external library without modifying the built-in table, use
+[`ConversionExtension`](extensions.md#add-or-override-an-operation-converter). Register it on the
+same frontend as any architecture or projector extension before conversion.
+
 ## Before writing a translator
 
 Check that an op translator is actually what is missing:

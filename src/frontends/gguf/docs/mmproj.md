@@ -1,4 +1,4 @@
-# Native GGUF multimodal conversion (experimental)
+# Native GGUF multimodal conversion
 
 A llama.cpp multimodal projector file (`general.architecture = clip`, usually named
 `mmproj-*.gguf`) converts to an `ov::Model` that runs its vision and/or audio encoder and
@@ -6,7 +6,9 @@ projector. The language model is a separate `.gguf` converted by the regular dec
 
 ## Supported projectors
 
-The catalog is `projector_catalog` in
+Projector support is separate from the architecture list: `clip` selects the mmproj coordinator,
+and the per-frontend projector registry selects each vision/audio branch. Built-in entries come
+from `projector_catalog` in
 [`mmproj_builder.cpp`](../src/builder/arch/mmproj_builder.cpp). Every entry has a small
 numerical fixture checked against the llama.cpp CPU encoder (see
 [the fixture README](../tests/test_data/mmproj_accuracy/README.md)).
@@ -113,3 +115,71 @@ mode prepares the language model for media injection:
   bidirectionally within their image, in every Gemma3 layer and in Gemma4 sliding-window layers;
 - interleaved M-RoPE models take `position_ids [4,B,T]`: GenAI's sequence, time, height and width
   sections.
+
+## Projector extensions
+
+Start with the [extension guide](extensions.md#extend-mmproj-with-a-projector-component)
+for component examples, registry selection, replacement and shared-library packaging.
+
+`ProjectorExtension` derives from `ArchitectureExtension`, so it uses the same
+`frontend.add_extension(...)` and shared-library loading paths. It adds a component
+registration to the projector registry, not another whole-model `clip` handler.
+Whole-model `ArchitectureExtension` remains available for a different file format or
+an implementation that needs control of the complete graph.
+
+A `ProjectorDefinition` contains a unique handler id, the GGUF architecture name,
+modality (`vision` or `audio`), resolved projector type, a branch-building callback,
+and an optional metadata predicate. The callback receives the coordinator's
+`GgufGraphContext` and returns `ProjectorResult`: one output and optional string
+metadata under its own modality prefix. It must not call `finish()` or register the
+branch's primary output; the coordinator names it `vision.embeddings` or
+`audio.embeddings`, builds every declared modality, and finishes the shared graph.
+Any extra branch inputs must have unique names.
+
+```cpp
+#include <openvino/frontend/gguf/extension/projector.hpp>
+
+using namespace ov::frontend::gguf;
+
+ProjectorDefinition definition{
+    "clip.vision.my-projector", "clip", "vision", "my-projector",
+    [](GgufGraphContext& graph) {
+        // Reuse a built-in encoder/projector topology with compatible metadata and weights.
+        return build_builtin_projector(graph, "vision", "gemma3");
+    },
+    {}};
+frontend.add_extension(std::make_shared<ProjectorExtension>(definition));
+```
+
+A new topology instead uses `graph.metadata()`, `graph.tensors()`, `graph.add_input()`
+and `graph.node()` to construct its branch. It does not need to implement the other
+modality, metadata preservation, whole-model selection, or final graph assembly.
+`build_builtin_projector` reuses a complete built-in encoder/projector branch;
+it does not expose replacement of an individual internal encoder layer.
+
+The coordinator first resolves the global projector type, falling back to the
+per-modality key when it is empty. Legacy `qwen2.5o` resolves to the respective vision
+and audio types before registry lookup. Selection requires architecture, modality
+and resolved type to match, followed by the optional predicate. An unknown type
+fails conversion; two matching component handlers are an ambiguity error.
+
+Duplicate handler ids are rejected. To override an existing component, use its id
+with `RegistrationMode::Replace`, for example `clip.vision.gemma3`. Other projector
+registrations remain active. A replacement id must already exist. Registration is
+isolated to the frontend instance. Loaded input models retain the registry snapshot
+from `load()`; register projector extensions before loading the file.
+
+The code-level lists are `ArchRegistry::supported_archs()` and
+`ArchRegistry::projectors().supported_projectors()`. The latter returns definitions
+with ids, architecture names, modalities and types, including extension entries.
+For a shared-library plugin, return the `ProjectorExtension` through
+`OPENVINO_CREATE_EXTENSIONS`, as with an architecture extension; see the
+[plugin instructions](porting_a_llama_cpp_model.md#build-and-load-an-external-plugin).
+The buildable [mmproj plugin example](../examples/architecture_extension/mmproj_extension.cpp)
+exports an alias of the Gemma3 branch; the example CMake project builds it as
+`gguf_mmproj_extension`.
+
+`clip` is the architecture label of the supported llama.cpp mmproj formats, not a
+promise that future formats use it. A projector registration for another architecture
+also needs a whole-model coordinator registered for that architecture. Listing
+`clip` as supported does not imply support for every projector type.

@@ -6,6 +6,9 @@
 #include <cmath>
 #include <filesystem>
 
+#include "builder/api/metadata_store.hpp"
+#include "builder/arch_registry.hpp"
+#include "builder/projector_registry.hpp"
 #include "cnpy.h"
 #include "common_test_utils/common_utils.hpp"
 #include "common_test_utils/test_assertions.hpp"
@@ -13,6 +16,7 @@
 #include "gtest/gtest.h"
 #include "op_test_utils.hpp"
 #include "openvino/frontend/gguf/adapt_mmproj_to_genai.hpp"
+#include "openvino/frontend/gguf/extension/projector.hpp"
 #include "openvino/frontend/gguf/frontend.hpp"
 #include "openvino/openvino.hpp"
 #include "openvino/pass/serialize.hpp"
@@ -79,6 +83,173 @@ protected:
         return frontend.convert(frontend.load(path));
     }
 };
+
+TEST_F(GGUFMMProj, ExtensionAddsOneBranchAlongsideBuiltinVision) {
+    using namespace ov::frontend::gguf;
+    encoder("vision", "gemma3");
+    writer.kv_bool("clip.has_audio_encoder", true);
+    writer.kv_str("clip.audio.projector_type", "custom-audio");
+    ASSERT_TRUE(writer.write(path));
+    FrontEnd frontend;
+    std::shared_ptr<ArchitectureExtension> extension = std::make_shared<ProjectorExtension>(ProjectorDefinition{
+        "clip.audio.custom",
+        "clip",
+        "audio",
+        "custom-audio",
+        [](GgufGraphContext& graph) {
+            auto input = graph.add_input("audio.custom", ov::element::f32, {1, 1, 2, 3});
+            return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, 0, {{"scale", 2.0f}, {"bias", 0.0f}}),
+                                   {{"audio.merge", "1"}}};
+        },
+        {}});
+    frontend.add_extension(extension);
+    auto model = frontend.convert(frontend.load(path));
+    ASSERT_EQ(model->inputs().size(), 2);
+    ASSERT_EQ(model->outputs().size(), 2);
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "audio.projector"}), "custom-audio");
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"}), "gemma3");
+    auto request = ov::Core{}.compile_model(model, "CPU").create_infer_request();
+    auto audio = request.get_tensor("audio.custom");
+    std::fill_n(audio.data<float>(), audio.get_size(), 3.0f);
+    auto vision = request.get_tensor("vision.pixel_values");
+    std::fill_n(vision.data<float>(), vision.get_size(), 0.0f);
+    request.infer();
+    auto output = request.get_tensor("audio.embeddings");
+    for (size_t i = 0; i < output.get_size(); ++i)
+        EXPECT_FLOAT_EQ(output.data<float>()[i], 6.0f);
+    FrontEnd isolated;
+    OV_EXPECT_THROW(isolated.convert(isolated.load(path)), ov::Exception, testing::HasSubstr("custom-audio"));
+}
+
+TEST_F(GGUFMMProj, ExtensionReusesBuiltinProjectorAndReplacementIsExplicit) {
+    using namespace ov::frontend::gguf;
+    encoder("vision", "custom-gemma3");
+    ASSERT_TRUE(writer.write(path));
+    ProjectorDefinition definition{"clip.vision.alias",
+                                   "clip",
+                                   "vision",
+                                   "custom-gemma3",
+                                   [](GgufGraphContext& graph) {
+                                       return build_builtin_projector(graph, "vision", "gemma3");
+                                   },
+                                   {}};
+    FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ProjectorExtension>(definition));
+    auto model = frontend.convert(frontend.load(path));
+    EXPECT_EQ(model->output().get_shape(), (ov::Shape{1, 1, 4, 6}));
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "vision.projector"}), "custom-gemma3");
+    EXPECT_THROW(frontend.add_extension(std::make_shared<ProjectorExtension>(definition)), ov::Exception);
+    definition.build = [](GgufGraphContext& graph) {
+        return ProjectorResult{graph.add_input("replacement", ov::element::f32, {1, 1, 2, 3}), {}};
+    };
+    frontend.add_extension(std::make_shared<ProjectorExtension>(definition, RegistrationMode::Replace));
+    EXPECT_EQ(frontend.convert(frontend.load(path))->output().get_shape(), (ov::Shape{1, 1, 2, 3}));
+    definition.id = "missing";
+    EXPECT_THROW(frontend.add_extension(std::make_shared<ProjectorExtension>(definition, RegistrationMode::Replace)),
+                 ov::Exception);
+}
+
+TEST_F(GGUFMMProj, ExtensionReplacesOnlyOneBuiltinComponent) {
+    using namespace ov::frontend::gguf;
+    encoder("vision", "gemma3");
+    encoder("audio", "qwen2a");
+    ASSERT_TRUE(writer.write(path));
+    ProjectorDefinition definition{
+        "clip.vision.gemma3",
+        "clip",
+        "vision",
+        "gemma3",
+        [](GgufGraphContext& graph) {
+            auto input = graph.add_input("replacement", ov::element::f32, {1, 1, 2, 3});
+            return ProjectorResult{graph.node("GGML_OP_SCALE", {input}, 0, {{"scale", 2.0f}, {"bias", 0.0f}}), {}};
+        },
+        {}};
+    FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ProjectorExtension>(definition, RegistrationMode::Replace));
+    auto model = frontend.convert(frontend.load(path));
+    EXPECT_EQ(model->output("vision.embeddings").get_shape(), (ov::Shape{1, 1, 2, 3}));
+    EXPECT_EQ(model->get_rt_info<std::string>({"gguf_mmproj", "audio.projector"}), "qwen2a");
+    EXPECT_EQ(model->inputs().size(), 3);
+    EXPECT_NO_THROW(model->input("replacement"));
+    EXPECT_NO_THROW(model->input("audio.features"));
+    EXPECT_NO_THROW(model->input("audio.position_ids"));
+}
+
+TEST_F(GGUFMMProj, LoadedInputRetainsProjectorRegistrationSnapshot) {
+    using namespace ov::frontend::gguf;
+    encoder("vision", "custom");
+    ASSERT_TRUE(writer.write(path));
+    ProjectorDefinition definition{"custom",
+                                   "clip",
+                                   "vision",
+                                   "custom",
+                                   [](GgufGraphContext& graph) {
+                                       return ProjectorResult{graph.add_input("first", ov::element::f32, {1, 1, 2, 3}),
+                                                              {}};
+                                   },
+                                   {}};
+    FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ProjectorExtension>(definition));
+    const auto loaded = frontend.load(path);
+    definition.build = [](GgufGraphContext& graph) {
+        return ProjectorResult{graph.add_input("second", ov::element::f32, {1, 1, 4, 5}), {}};
+    };
+    frontend.add_extension(std::make_shared<ProjectorExtension>(definition, RegistrationMode::Replace));
+    EXPECT_EQ(frontend.convert(loaded)->output().get_shape(), (ov::Shape{1, 1, 2, 3}));
+    EXPECT_EQ(frontend.convert(frontend.load(path))->output().get_shape(), (ov::Shape{1, 1, 4, 5}));
+}
+
+TEST(GGUFProjectorRegistry, SeparateListsPredicatesAndAmbiguity) {
+    using namespace ov::frontend::gguf;
+    ArchRegistry registry;
+    const auto architectures = registry.supported_archs();
+    const auto projectors = registry.projectors().supported_projectors().size();
+    ProjectorDefinition definition{"custom",
+                                   "clip",
+                                   "vision",
+                                   "custom",
+                                   [](GgufGraphContext&) {
+                                       return ProjectorResult{};
+                                   },
+                                   {}};
+    registry.add_extension(std::make_shared<ProjectorExtension>(definition));
+    EXPECT_EQ(registry.supported_archs(), architectures);
+    EXPECT_EQ(registry.projectors().supported_projectors().size(), projectors + 1);
+    EXPECT_EQ(ArchRegistry{}.projectors().supported_projectors().size(), projectors);
+    std::unordered_map<std::string, GGUFMetaData> metadata{{"general.architecture", std::string("clip")}};
+    detail::MetadataStore store{metadata};
+    GgufMetadata view(store);
+    ASSERT_TRUE(registry.projectors().find(view, "vision", "custom"));
+    EXPECT_FALSE(registry.projectors().find(view, "audio", "custom"));
+    definition.id = "conditional";
+    definition.match = [](const GgufMetadata& meta) {
+        return meta.has("custom.flag");
+    };
+    registry.add_extension(std::make_shared<ProjectorExtension>(definition));
+    EXPECT_TRUE(registry.projectors().find(view, "vision", "custom"));
+    metadata["custom.flag"] = std::string("present");
+    EXPECT_THROW(registry.projectors().find(view, "vision", "custom"), ov::Exception);
+    metadata["general.architecture"] = std::string("other");
+    EXPECT_FALSE(registry.projectors().find(view, "vision", "custom"));
+    definition.build = {};
+    EXPECT_THROW(registry.add_extension(std::make_shared<ProjectorExtension>(definition)), ov::Exception);
+}
+
+TEST_F(GGUFMMProj, EmptyBranchIsRejected) {
+    using namespace ov::frontend::gguf;
+    encoder("vision", "empty");
+    ASSERT_TRUE(writer.write(path));
+    FrontEnd frontend;
+    frontend.add_extension(std::make_shared<ProjectorExtension>(ProjectorDefinition{"empty",
+                                                                                    "clip",
+                                                                                    "vision",
+                                                                                    "empty",
+                                                                                    [](GgufGraphContext&) {
+                                                                                        return ProjectorResult{};
+                                                                                    },
+                                                                                    {}}));
+    OV_EXPECT_THROW(frontend.convert(frontend.load(path)), ov::Exception, testing::HasSubstr("returned no output"));
+}
 
 TEST_F(GGUFMMProj, Gemma3CompilesAndMetadataSurvivesSerialization) {
     encoder("vision", "gemma3");

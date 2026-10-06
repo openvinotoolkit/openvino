@@ -28,24 +28,30 @@ the tensor table, so a same-family architecture costs zero lines of code.
 
 Both routes use `ArchitectureDefinition`, the same factory, and the same conversion pipeline.
 An external library wraps its definition in `ArchitectureExtension`; the frontend registers that
-same definition in `builtin_architectures()`. See
+same definition in `builtin_architectures()`. Read
+[extensions.md](extensions.md) to learn what extensions are, how to write them, and how to
+register and use them. See
 [porting_a_llama_cpp_model.md](porting_a_llama_cpp_model.md) for the builder API and integration steps.
 
 ## The 90% case: add a decoder definition
 
-For an existing decoder topology, add a row to the `decoders` catalog in
+For an existing decoder topology, add a row to the `architectures` catalog in
 [`arch_registry.cpp`](../src/builder/arch_registry.cpp):
 
 ```cpp
-{"your-arch", RopeMode::Neox, Maturity::Experimental},
+{"your-arch", RopeMode::Neox},
 ```
 
-The catalog owns the architecture name, RoPE mode and maturity together. `verified_archs()` and
-`experimental_archs()` are derived views, not separate registration sites. Check the RoPE mode
-against the reference implementation.
+The catalog owns every built-in architecture name, including Mamba and mmproj, together with
+its RoPE mode or custom builder factory and optional metadata predicate.
+`ArchRegistry::supported_archs()` derives the supported names from the active registry.
+Adding a whole-model `ArchitectureExtension` updates this list for that frontend instance.
+A derived `ProjectorExtension` instead updates the separate modality/projector-type list;
+see [projector extensions](mmproj.md#projector-extensions).
+Check the RoPE mode against the reference implementation.
 
 For an architecture requiring overrides, define it with `make_decoder_architecture` and a callback
-returning `DecoderOptions`, then add the definition to `builtin_architectures()`. The exact same
+returning `DecoderOptions`, then register its builder factory in the `architectures` catalog. The exact same
 function can be shipped externally. Overrides are applied before dependent configuration is resolved.
 `qk_norm_after_rope`, `post_norm_only`, `normalize_expert_weights` and `rope_skip_period`
 cover order and routing semantics that tensor names alone cannot determine. For example,
@@ -59,7 +65,7 @@ pre-FFN norm. Reuse the shared blocks with explicit options for such differences
 | Feature | Detected from |
 |---|---|
 | Per-head Q/K norm (qwen3, hunyuan; ordering is architecture-specific) | `blk.0.attn_q_norm.weight` |
-| Full-width Q/K norm (OLMoE) | `attn_q_norm.weight` width == `n_head*head_size` |
+| Full-width Q/K norm (OLMoE, MiniMax M2) | `attn_q_norm.weight` width == `n_head*head_size` |
 | Q/K/V projection biases (qwen2) | `blk.0.attn_q.bias` |
 | Output-projection bias | `blk.0.attn_output.bias` |
 | Fused QKV (phi-3, minicpm) | `blk.0.attn_qkv.weight` |
@@ -103,6 +109,8 @@ norm -> FFN/MoE -> residual`. Architectures that break this shape need a new det
 - **MoE routing** — `blocks::moe_ffn()` (`MUL_MAT_ID` lowering, top-k, gated activation).
 - **gpt-oss** — attention sinks (5th `FLASH_ATTN_EXT` input), OAI gated activation
   (`GGML_GLU_OP_SWIGLU_OAI`), softmax-after-topk gating.
+- **jais2** — biased LayerNorm and ungated ReLU-squared FFN.
+- **llama-embed** — token embeddings and optional pooling, without decoder caches or a language-model head.
 - **gemma2/3** — post-attention / post-FFN norms, attention & final-logit soft-caps.
 - **gemma4** — per-layer input embeddings, shared-KV layers, per-op RoPE (SWA vs global differ).
 - **qwen35** — a hybrid stack where 3 of every 4 layers are a Gated DeltaNet block
@@ -137,7 +145,7 @@ should ship in-tree; the builder itself is written the same way either way.
 2. Return an `ArchitectureDefinition` with a unique handler id, GGUF architecture name, factory,
    and optional metadata predicate. Predicates distinguish, for example, vision and audio files
    that both name themselves `clip`.
-3. Add that definition to `builtin_architectures()` in `arch_registry.cpp`. Family detection is
+3. Add its name, builder factory and predicate to the `architectures` catalog in `arch_registry.cpp`. Family detection is
    only a diagnostic fallback when no definition matches; no new dispatch branch is needed.
 
 Nothing in the decoder family changes.

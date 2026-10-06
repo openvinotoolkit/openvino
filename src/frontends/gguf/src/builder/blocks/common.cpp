@@ -15,9 +15,23 @@ std::string rms_norm(GraphEmitter& e,
                      const std::string& weight,
                      const std::string& out_prefix,
                      float eps) {
-    e.add_weight(weight);
+    if (strip_weight_suffix(weight) == weight)
+        e.add_named_weight(weight);
+    else
+        e.add_weight(weight);
     auto norm = e.add_op("GGML_OP_RMS_NORM", out_prefix + ".rms", {in}, 0, {{"eps", eps}});
     return e.add_op("GGML_OP_MUL", out_prefix, {norm, weight});
+}
+
+std::string layer_norm(GraphEmitter& e,
+                       const std::string& in,
+                       const std::string& weight,
+                       const std::string& out_prefix,
+                       float eps) {
+    e.add_weight(weight);
+    auto norm = e.add_op("GGML_OP_NORM", out_prefix + ".norm", {in}, 0, {{"eps", eps}});
+    auto scaled = e.add_op("GGML_OP_MUL", out_prefix + ".scaled", {norm, weight});
+    return add_bias(e, scaled, strip_weight_suffix(weight) + ".bias", out_prefix);
 }
 
 std::string scale(GraphEmitter& e, const std::string& x, float factor, const std::string& name) {

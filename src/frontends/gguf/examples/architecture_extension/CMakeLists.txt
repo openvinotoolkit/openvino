@@ -7,3 +7,7 @@ find_package(OpenVINO REQUIRED)
 add_library(gguf_projector_extension MODULE projector.cpp extension.cpp)
 target_compile_features(gguf_projector_extension PRIVATE cxx_std_17)
 target_link_libraries(gguf_projector_extension PRIVATE openvino::frontend::gguf)
+
+add_library(gguf_mmproj_extension MODULE mmproj_extension.cpp)
+target_compile_features(gguf_mmproj_extension PRIVATE cxx_std_17)
+target_link_libraries(gguf_mmproj_extension PRIVATE openvino::frontend::gguf)

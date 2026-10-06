@@ -13,6 +13,7 @@
 namespace ov::frontend::gguf {
 
 // Opaque graph produced by GgufGraphContext; defined in builder/gguf_graph.hpp.
+class ProjectorRegistry;
 struct GgufGraph;
 
 namespace detail {
@@ -29,6 +30,7 @@ struct GGUF_FRONTEND_API BuildContext {
 
     // Opaque weight tables accessed through GgufTensors.
     detail::WeightStore* weights = nullptr;
+    const ProjectorRegistry* projectors = nullptr;
 };
 
 // Whole-model builder for any family, registered through ArchitectureDefinition.
