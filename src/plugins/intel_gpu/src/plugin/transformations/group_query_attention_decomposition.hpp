@@ -43,8 +43,6 @@ protected:
         const ov::Output<ov::Node>& value_scale) override;
 
     op::SDPA::QuantizationAttribute m_quantization_attrs;
-    // Set per node by prepare_compressed_kv: the quantized cache is dequantized by explicit ops in front of SDPA.
-    bool m_explicit_kv_dequant = false;
 };
 
 }  // namespace ov::intel_gpu

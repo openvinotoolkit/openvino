@@ -318,25 +318,11 @@ TEST(GQADecompositionTest, int4_u8_cache_uses_u4_zp8) {
     expect_fixed_int4_zero_point(sdpa->input_value(6));
 }
 
-// A full-length static KV cache stays mask-free: StatelessKVFusion later trims it to the valid length.
-TEST(GQADecompositionTest, static_kv_cache_uses_lower_right_without_mask) {
+// A sliding-window cache retains the explicit attention mask.
+// A full-length static KV cache has unused tail slots: LOWER_RIGHT alignment would expose them, so the mask is kept.
+TEST(GQADecompositionTest, static_kv_cache_keeps_mask) {
     GQAConfig cfg;
     cfg.past_len = 8;
-
-    const auto sdpa = decompose_and_get_sdpa(cfg);
-    ASSERT_NE(sdpa, nullptr);
-    EXPECT_EQ(sdpa->get_input_size(), 3u) << "Q, K, V only";
-    EXPECT_TRUE(sdpa->get_causal());
-    EXPECT_EQ(sdpa->get_causal_mask_alignment(), ov::intel_gpu::op::SDPA::CausalMaskAlignment::LOWER_RIGHT);
-}
-
-// An explicitly dequantized static cache cannot be trimmed, so its unused tail slots stay masked.
-TEST(GQADecompositionTest, static_dequantized_kv_cache_keeps_mask) {
-    GQAConfig cfg;
-    cfg.past_len = 8;
-    cfg.kv_cache_bit_width = 8;
-    cfg.kv_quant = QuantType::PER_TENSOR;
-    cfg.out_quant = QuantType::PER_TENSOR;
 
     const auto sdpa = decompose_and_get_sdpa(cfg);
     ASSERT_NE(sdpa, nullptr);
@@ -344,8 +330,6 @@ TEST(GQADecompositionTest, static_dequantized_kv_cache_keeps_mask) {
     EXPECT_TRUE(slot_holds_a_mask(sdpa->input_value(3)));
     EXPECT_FALSE(sdpa->get_causal());
 }
-
-// A sliding-window cache retains the explicit attention mask.
 
 TEST(GQADecompositionTest, sliding_window_keeps_mask) {
     GQAConfig cfg;
