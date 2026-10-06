@@ -7,6 +7,7 @@ description: Playbook for proving and measuring changes to high-performance Open
 
 깊은 설명과 표: `src/plugins/intel_gpu/docs/ocl_perf_guide/05-methodology-and-pitfalls.md` (이하 "05장"). 커널 기법은 01~04장.
 저장소 규칙(`AGENTS.md`): 수치 정확성 우선, 측정 없는 성능 주장 금지, 방법론 명시, measured vs assumed 구분, 범위 확장/기회적 정리 금지.
+비교 arm 오류와 unexplained gap의 조사·도구 선택은 [`ocl-kernel-performance-investigation`](../ocl-kernel-performance-investigation/SKILL.md) 및 [06장](../../../src/plugins/intel_gpu/docs/ocl_perf_guide/06-performance-gap-investigation.md)을 참조한다.
 
 ## 0. 먼저 지킬 작업 규칙
 - **빌드, gtest, ab(전체 corpus), 덤프, 벤치, `-fsyntax-only`, `built`, `l0`은 사용자가 실행한다.** 에이전트는 정확한 명령 블록 + 예측값을 제시한다 (직접 실행 허락이 명시된 경우만 예외, 그것도 세션마다 다시 확인).
@@ -62,6 +63,7 @@ description: Playbook for proving and measuring changes to high-performance Open
 - Debug 바이너리로 정확도, Release/RelWithDebInfo로 성능. 사용자가 "빌드했다"고 해도 어느 트리인지 확인.
 
 ## 5. 성능 측정/주장 규율
+- 원인 불명의 큰 격차에서는 VTune/ISA 출력 전에 비교 유효성을 확인한다: 실제 dispatch/device, device memory, final-linked reference binary, 동일 useful work와 cadence. 06장의 DG2 사례에서 usm_host 입력과 wrapper-only micro binary는 둘 다 잘못된 비교를 만들었다.
 - 지표: **커널 device time** (cliloader `-d -dv`) vs 전체 primitive vs e2e를 구분 표기. SDPA prefill은 1st token의 ~10-15%라 커널 7% = e2e ~0.9%.
 - B70은 **2800 MHz 핀**. 호출 수가 적은 커널은 평균 대신 **MIN/median over N runs**. arm 간 순서 교차(ABBA), 분산이 차이보다 크면 판단 보류.
 - 비교는 **같은 소스/빌드/입력/캐시 상태, env 하나만 다른 별도 프로세스** (env는 프로세스 내 캐시됨).
