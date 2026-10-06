@@ -41,7 +41,7 @@ struct ConvertRMS {
         // x^2
         auto two = arith::ConstantOp::create(builder, loc, ::mlir::DenseElementsAttr::get(out_type, builder.getFloatAttr(mlir_el_type, 2.0)));
         auto sq_empty = tensor::EmptyOp::create(builder, loc, out_type, out_dims);
-        Value squared = linalg::PowFOp::create(builder, loc, ValueRange{x, two}, ValueRange{sq_empty}).getResult(0);
+        Value squared = linalg::ElementwiseOp::create(builder, loc, ValueRange{x, two}, ValueRange{sq_empty}, linalg::ElementwiseKind::powf).getResult(0);
 
         // sum(x^2, axis)
         auto sum_empty = tensor::EmptyOp::create(builder, loc, reduced_type, reduced_dims);
@@ -63,7 +63,7 @@ struct ConvertRMS {
                                       loc,
                                       ::mlir::DenseElementsAttr::get(reduced_type, builder.getFloatAttr(mlir_el_type, static_cast<double>(num_els))));
         auto div_empty = tensor::EmptyOp::create(builder, loc, reduced_type, reduced_dims);
-        Value mean = linalg::DivOp::create(builder, loc, ValueRange{sum, n_const}, ValueRange{div_empty}).getResult(0);
+        Value mean = linalg::ElementwiseOp::create(builder, loc, ValueRange{sum, n_const}, ValueRange{div_empty}, linalg::ElementwiseKind::div).getResult(0);
 
         // 1 / sqrt(mean + eps)
         PartialShape scale_shape = reduced_shape;
@@ -77,9 +77,15 @@ struct ConvertRMS {
             return tensor::EmptyOp::create(builder, loc, scale_type, scale_dims);
         };
         Value inv_rms = linalg::BroadcastOp::create(builder, loc, mean, scale_empty(), SmallVector<int64_t>{axis}).getResult()[0];
-        inv_rms = linalg::AddOp::create(builder, loc, ValueRange{inv_rms, scale_const(rms->get_epsilon())}, ValueRange{scale_empty()}).getResult(0);
-        inv_rms = linalg::SqrtOp::create(builder, loc, ValueRange{inv_rms}, ValueRange{scale_empty()}).getResult(0);
-        inv_rms = linalg::DivOp::create(builder, loc, ValueRange{scale_const(1.0), inv_rms}, ValueRange{scale_empty()}).getResult(0);
+        inv_rms = linalg::ElementwiseOp::create(builder,
+                                                loc,
+                                                ValueRange{inv_rms, scale_const(rms->get_epsilon())},
+                                                ValueRange{scale_empty()},
+                                                linalg::ElementwiseKind::add)
+                      .getResult(0);
+        inv_rms = linalg::ElementwiseOp::create(builder, loc, ValueRange{inv_rms}, ValueRange{scale_empty()}, linalg::ElementwiseKind::sqrt).getResult(0);
+        inv_rms = linalg::ElementwiseOp::create(builder, loc, ValueRange{scale_const(1.0), inv_rms}, ValueRange{scale_empty()}, linalg::ElementwiseKind::div)
+                      .getResult(0);
 
         // broadcast back over the reduced axis and scale x
         SmallVector<::mlir::ReassociationIndices> collapse(axis);
@@ -91,7 +97,7 @@ struct ConvertRMS {
         auto bcast_empty = tensor::EmptyOp::create(builder, loc, out_type, out_dims);
         Value bcast = linalg::BroadcastOp::create(builder, loc, squeezed, bcast_empty, SmallVector<int64_t>{axis}).getResult()[0];
         auto mul_empty = tensor::EmptyOp::create(builder, loc, out_type, out_dims);
-        Operation* result = linalg::MulOp::create(builder, loc, ValueRange{bcast, x}, ValueRange{mul_empty});
+        Operation* result = linalg::ElementwiseOp::create(builder, loc, ValueRange{bcast, x}, ValueRange{mul_empty}, linalg::ElementwiseKind::mul);
 
         if (rms->get_elementwise_affine()) {
             Value gamma = inputs[1];
@@ -102,7 +108,7 @@ struct ConvertRMS {
                 gamma = linalg::BroadcastOp::create(builder, loc, squeezed, empty, dimensions).getResult()[0];
             }
             auto empty = tensor::EmptyOp::create(builder, loc, out_type, out_dims);
-            result = linalg::MulOp::create(builder, loc, ValueRange{result->getResult(0), gamma}, ValueRange{empty});
+            result = linalg::ElementwiseOp::create(builder, loc, ValueRange{result->getResult(0), gamma}, ValueRange{empty}, linalg::ElementwiseKind::mul);
         }
         return result;
     }

@@ -1333,15 +1333,8 @@ JitConstants MakeActivationJitConstants(ActivationFunction activation_function,
             break;
         }
         case ActivationFunction::SOFTPLUS: {
-            // Numerically stable softplus: max(x, 0) + log(1 + exp(-|x|)).
-            // Mathematically equivalent to log(1 + exp(x)) for all x, but
-            // exp(-|x|) is in [0, 1] so it never overflows even at the
-            // float16 limit (~65504). Uses only type-dispatched helpers and
-            // vector-generic builtins, so it compiles for both the scalar ref
-            // kernel and the vectorised opt kernel without width-specific
-            // type conversions.
-            jitConstants.AddConstant(MakeJitConstant(macro_def,
-                    (max_func(input, zero) + log(one + exp(neg(abs_func(input))))).str()));
+            const auto threshold = (out_dt == Datatype::F32) ? "20.0f"_jit : "11.0h"_jit;
+            jitConstants.AddConstant(MakeJitConstant(macro_def, ternary(input.lt(threshold), log(exp(input) + one), input).str()));
             break;
         }
         case ActivationFunction::SOFTSIGN: {
