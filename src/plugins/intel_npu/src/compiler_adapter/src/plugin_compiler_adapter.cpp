@@ -13,8 +13,8 @@
 #include "intel_npu/common/itt.hpp"
 #include "intel_npu/config/options.hpp"
 #include "intel_npu/npu_private_properties.hpp"
-#include "intel_npu/utils/string_map_utils.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/string_map_utils.hpp"
 #include "intel_npu/utils/utils.hpp"
 #include "intel_npu/utils/vm/npu_vm_runtime_api.hpp"
 #include "intel_npu/utils/zero/zero_result.hpp"
@@ -112,8 +112,8 @@ std::shared_ptr<IGraph> PluginCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     std::map<std::string, std::string> localProperties = compilerProperties;
     if (!string_map::has(localProperties, ov::intel_npu::separate_weights_version.name())) {
         string_map::set(localProperties,
-                     ov::intel_npu::separate_weights_version.name(),
-                     SEPARATE_WEIGHTS_VERSION::toString(ov::intel_npu::WSVersion::ONE_SHOT));
+                        ov::intel_npu::separate_weights_version.name(),
+                        SEPARATE_WEIGHTS_VERSION::toString(ov::intel_npu::WSVersion::ONE_SHOT));
     }
     const auto wsVersion = SEPARATE_WEIGHTS_VERSION::parse(
         string_map::get(localProperties, ov::intel_npu::separate_weights_version.name()));

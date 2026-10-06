@@ -286,10 +286,10 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
     OV_ITT_TASK_CHAIN(PLUGIN_COMPILE_MODEL, itt::domains::NPUPlugin, "Plugin::compile_model", "fork_local_config");
     auto mergedConfig = _propertiesManager->getMergedConfigForCompilation(localProperties, ConfigMergeMode::Compile);
     // The runtime properties don't contain the compile-time-only options, they are found only in the compiler
-    // properties (values stored as strings), which are sent to the compiler.
+    // properties (values stored as strings), which are sent to the compiler. Both are updated in place below, the
+    // merged config is handed over as a whole to the compiled model.
     auto& runtimeProperties = mergedConfig.runtimeConfig;
     auto& compilerProperties = mergedConfig.compilerProperties;
-    auto& unknownProperties = mergedConfig.unknownProperties;
 
     runtimeProperties.update(ov::intel_npu::compiler_version.name(), compiler->get_version());
 
@@ -408,8 +408,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         device != nullptr && device->getName() == compilationPlatform) {
         try {
             string_map::set(compilerProperties,
-                         ov::intel_npu::max_tiles.name(),
-                         std::to_string(device->getMaxNumSlices()));
+                            ov::intel_npu::max_tiles.name(),
+                            std::to_string(device->getMaxNumSlices()));
         } catch (...) {
             _logger.warning("Max tiles information not implemented by selected backend. Default value will be used.");
         }
@@ -447,8 +447,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
         }
 
         string_map::set(compilerProperties,
-                     ov::enable_weightless.name(),
-                     ENABLE_WEIGHTLESS::toString(cacheModeOptimizeSize));
+                        ov::enable_weightless.name(),
+                        ENABLE_WEIGHTLESS::toString(cacheModeOptimizeSize));
     }
 
     std::shared_ptr<intel_npu::IGraph> graph;
@@ -513,8 +513,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
             _compilerOptionSupportHelper->isOptionSupported(compilerType, ov::hint::performance_mode.name())) {
             _logger.info("Setting performance mode to THROUGHPUT for batched model compilation.");
             string_map::set(propertiesForCompiler,
-                         ov::hint::performance_mode.name(),
-                         PERFORMANCE_HINT::toString(ov::hint::PerformanceMode::THROUGHPUT));
+                            ov::hint::performance_mode.name(),
+                            PERFORMANCE_HINT::toString(ov::hint::PerformanceMode::THROUGHPUT));
         }
 
         graph = compileWithProperties(std::move(modelToCompile), propertiesForCompiler);
@@ -543,14 +543,7 @@ std::shared_ptr<ov::ICompiledModel> Plugin::compile_model(const std::shared_ptr<
 
     std::shared_ptr<ov::ICompiledModel> compiledModel;
     try {
-        compiledModel = std::make_shared<CompiledModel>(model,
-                                                        shared_from_this(),
-                                                        device,
-                                                        graph,
-                                                        runtimeProperties,
-                                                        unknownProperties,
-                                                        batch,
-                                                        compilerProperties);
+        compiledModel = std::make_shared<CompiledModel>(model, shared_from_this(), device, graph, mergedConfig, batch);
     } catch (const std::exception& ex) {
         OPENVINO_THROW(ex.what());
     } catch (...) {
@@ -645,7 +638,8 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
     OPENVINO_ASSERT(_backend != nullptr, NO_BACKEND_MESSAGE);
 
     OV_ITT_TASK_CHAIN(PLUGIN_PARSE_MODEL, itt::domains::NPUPlugin, "Plugin::import_model", "fork_local_config");
-    auto [runtimeConfig, unknownProperties] = _propertiesManager->getMergedConfigForImport(properties);
+    auto mergedConfig = _propertiesManager->getMergedConfigForImport(properties);
+    const auto& runtimeConfig = mergedConfig.runtimeConfig;
 
     std::unique_ptr<IBlobFormatImporter> blobFormatImporter = blob_format_importer_factory::create(
         blobSource,
@@ -666,13 +660,13 @@ std::shared_ptr<ov::ICompiledModel> Plugin::import_model(BlobSource& blobSource,
                                          device->getName(),
                                          get_core());
 
-    return std::make_shared<CompiledModel>(blobFormatImporter->create_dummy_model(),
-                                           shared_from_this(),
-                                           device,
-                                           graph,
-                                           blobFormatImporter->get_config(),
-                                           unknownProperties,
-                                           graph->get_batch_size());
+    return std::make_shared<CompiledModel>(
+        blobFormatImporter->create_dummy_model(),
+        shared_from_this(),
+        device,
+        graph,
+        MergedConfig{blobFormatImporter->get_config(), {}, std::move(mergedConfig.unknownProperties)},
+        graph->get_batch_size());
 }
 
 std::shared_ptr<ov::ICompiledModel> Plugin::import_model(std::istream& stream,

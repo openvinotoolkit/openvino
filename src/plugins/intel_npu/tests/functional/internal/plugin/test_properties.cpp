@@ -377,7 +377,7 @@ TEST_P(CompatibilityCheckTests, CheckTurboWithGetMergedConfigAndUnknownPropertie
     };
 
     if (backend->isCommandQueueExtSupported()) {
-        auto [config, unknownProperties] = [&]() {
+        auto [config, compilerProperties, unknownProperties] = [&]() {
             utils::LogCallbackGuard log_callback_guard(log_cb);
             utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
             return propertiesManager->getMergedConfigForImport({{ov::intel_npu::turbo(true)}});
@@ -388,7 +388,7 @@ TEST_P(CompatibilityCheckTests, CheckTurboWithGetMergedConfigAndUnknownPropertie
         ASSERT_TRUE(unknownProperties.empty());
     } else {
         {
-            auto [config, unknownProperties] = [&]() {
+            auto [config, compilerProperties, unknownProperties] = [&]() {
                 utils::LogCallbackGuard log_callback_guard(log_cb);
                 utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
                 return propertiesManager->getMergedConfigForImport({{ov::intel_npu::turbo(true)}});
@@ -492,7 +492,7 @@ TEST_P(CompatibilityCheckTests, CheckCompilerPropertyWithGetMergedConfigAndUnkno
         logs.push_back('\n');
     };
 
-    auto [config, unknownProperties] = [&]() {
+    auto [config, compilerProperties, unknownProperties] = [&]() {
         utils::LogCallbackGuard log_callback_guard(log_cb);
         utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
         return propertiesManager->getMergedConfigForImport(
@@ -502,6 +502,8 @@ TEST_P(CompatibilityCheckTests, CheckCompilerPropertyWithGetMergedConfigAndUnkno
     ASSERT_FALSE(config.has<::intel_npu::COMPILER_TYPE>());
     ASSERT_FALSE(config.has<::intel_npu::PLATFORM>());
     ASSERT_FALSE(config.has<::intel_npu::COMPILER_TYPE>());
+    // Nothing is sent to the compiler on the import path, the model is already compiled
+    ASSERT_TRUE(compilerProperties.empty());
     ASSERT_TRUE(unknownProperties.empty());
 
     ASSERT_NE(
@@ -553,7 +555,7 @@ TEST_P(CompatibilityCheckTests, CheckLoadedFromCacheWithGetMergedConfigAndUnknow
         logs.push_back('\n');
     };
 
-    auto [config, unknownProperties] = [&]() {
+    auto [config, compilerProperties, unknownProperties] = [&]() {
         utils::LogCallbackGuard log_callback_guard(log_cb);
         utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
         return propertiesManager->getMergedConfigForImport(
@@ -620,7 +622,7 @@ TEST_P(CompatibilityCheckTests, CheckDummyPropertyWithGetMergedConfigAndUnknownP
         logs.push_back('\n');
     };
 
-    auto [config, unknownProperties] = [&]() {
+    auto [config, compilerProperties, unknownProperties] = [&]() {
         utils::LogCallbackGuard log_callback_guard(log_cb);
         utils::LoggerLevelGuard logger_level_guard(ov::log::Level::INFO);
         return propertiesManager->getMergedConfigForImport(
@@ -739,11 +741,13 @@ TEST_P(CompatibilityCheckTests, CheckModelPtrWithGetMergedConfigAndUnknownProper
 
     std::optional<::intel_npu::Config> config;
     for (const auto& modelProperty : {ov::hint::model(model), ov::hint::model(constModel)}) {
-        auto [localConfig, unknownProperties] = propertiesManager->getMergedConfigForImport({{modelProperty}});
+        auto [localConfig, compilerProperties, unknownProperties] =
+            propertiesManager->getMergedConfigForImport({{modelProperty}});
         config = std::move(localConfig);
 
         ASSERT_TRUE(config->has<::intel_npu::MODEL_PTR>());
         ASSERT_EQ(config->get<::intel_npu::MODEL_PTR>().lock(), model);
+        ASSERT_TRUE(compilerProperties.empty());
         ASSERT_TRUE(unknownProperties.empty());
     }
 
@@ -753,7 +757,7 @@ TEST_P(CompatibilityCheckTests, CheckModelPtrWithGetMergedConfigAndUnknownProper
 }
 
 TEST_P(CompatibilityCheckTests, CheckCacheEncryptionCallbacksWithGetMergedConfigAndUnknownProperties) {
-    auto [config, unknownProperties] = [&]() {
+    auto [config, compilerProperties, unknownProperties] = [&]() {
         return propertiesManager->getMergedConfigForImport(
             {{ov::cache_encryption_callbacks(ov::EncryptionCallbacks{ov::util::codec_xor, nullptr})}});
     }();
@@ -968,7 +972,7 @@ TEST_P(DisableIdleMemoryPruningPropertyTests, AcceptsStringValues) {
 TEST_P(DisableIdleMemoryPruningPropertyTests, IsARunTimeOption) {
     // An empty property map is enough to get hold of the option descriptors and it keeps the compiler adapters out of
     // this test.
-    auto [config, unknownProperties] = propertiesManager->getMergedConfigForImport({});
+    auto [config, compilerProperties, unknownProperties] = propertiesManager->getMergedConfigForImport({});
 
     ASSERT_TRUE(config.hasOpt(ov::intel_npu::disable_idle_memory_prunning.name()));
     ASSERT_EQ(config.getOpt(ov::intel_npu::disable_idle_memory_prunning.name()).mode(),
@@ -983,10 +987,7 @@ TEST_P(DisableIdleMemoryPruningPropertyTests, IsKeptByTheMergedConfigurationOnEv
         if (mergeMode == ::intel_npu::ConfigMergeMode::Import) {
             return propertiesManager->getMergedConfigForImport(properties);
         }
-        auto merged = propertiesManager->getMergedConfigForCompilation(properties, mergeMode);
-        // A runtime option is never sent to the compiler
-        EXPECT_EQ(merged.compilerProperties.count(ov::intel_npu::disable_idle_memory_prunning.name()), 0);
-        return std::make_pair(std::move(merged.runtimeConfig), std::move(merged.unknownProperties));
+        return propertiesManager->getMergedConfigForCompilation(properties, mergeMode);
     };
 
     for (const auto mergeMode : {::intel_npu::ConfigMergeMode::Compile,
@@ -1000,11 +1001,13 @@ TEST_P(DisableIdleMemoryPruningPropertyTests, IsKeptByTheMergedConfigurationOnEv
         }
 
         for (const bool requestedValue : {true, false}) {
-            auto [config, unknownProperties] =
+            auto [config, compilerProperties, unknownProperties] =
                 mergeConfig({{ov::intel_npu::disable_idle_memory_prunning(requestedValue)}}, mergeMode);
 
             ASSERT_TRUE(config.has<::intel_npu::DISABLE_IDLE_MEMORY_PRUNING>());
             ASSERT_EQ(config.get<::intel_npu::DISABLE_IDLE_MEMORY_PRUNING>(), requestedValue);
+            // A runtime option is never sent to the compiler
+            ASSERT_EQ(compilerProperties.count(ov::intel_npu::disable_idle_memory_prunning.name()), 0);
             ASSERT_TRUE(unknownProperties.empty());
         }
     }

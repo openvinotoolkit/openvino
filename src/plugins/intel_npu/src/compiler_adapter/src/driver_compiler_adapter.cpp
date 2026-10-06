@@ -15,8 +15,8 @@
 #include "intel_npu/common/option_support_cache.hpp"
 #include "intel_npu/config/config.hpp"
 #include "intel_npu/config/options.hpp"
-#include "intel_npu/utils/string_map_utils.hpp"
 #include "intel_npu/utils/logger/logger.hpp"
+#include "intel_npu/utils/string_map_utils.hpp"
 #include "mem_usage.hpp"
 #include "model_serializer.hpp"
 #include "openvino/core/model.hpp"
@@ -112,8 +112,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compile(const std::shared_ptr<con
     std::map<std::string, std::string> updatedProperties = compilerProperties;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
         string_map::set(updatedProperties,
-                     ov::intel_npu::model_serializer_version.name(),
-                     MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
+                        ov::intel_npu::model_serializer_version.name(),
+                        MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
     }
 
     std::string buildFlags;
@@ -164,8 +164,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     std::map<std::string, std::string> localProperties = compilerProperties;
     if (!string_map::has(localProperties, ov::intel_npu::separate_weights_version.name())) {
         string_map::set(localProperties,
-                     ov::intel_npu::separate_weights_version.name(),
-                     SEPARATE_WEIGHTS_VERSION::toString(ov::intel_npu::WSVersion::ITERATIVE));
+                        ov::intel_npu::separate_weights_version.name(),
+                        SEPARATE_WEIGHTS_VERSION::toString(ov::intel_npu::WSVersion::ITERATIVE));
     }
     const auto wsVersion = SEPARATE_WEIGHTS_VERSION::parse(
         string_map::get(localProperties, ov::intel_npu::separate_weights_version.name()));
@@ -191,8 +191,8 @@ std::shared_ptr<IGraph> DriverCompilerAdapter::compileWS(std::shared_ptr<ov::Mod
     std::map<std::string, std::string> updatedProperties = compilerProperties;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
         string_map::set(updatedProperties,
-                     ov::intel_npu::model_serializer_version.name(),
-                     MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
+                        ov::intel_npu::model_serializer_version.name(),
+                        MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
     }
 
     std::string buildFlags;
@@ -295,8 +295,8 @@ ov::SupportedOpsMap DriverCompilerAdapter::query(const std::shared_ptr<const ov:
     std::map<std::string, std::string> updatedProperties = compilerProperties;
     if (is_option_supported(ov::intel_npu::model_serializer_version.name())) {
         string_map::set(updatedProperties,
-                     ov::intel_npu::model_serializer_version.name(),
-                     MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
+                        ov::intel_npu::model_serializer_version.name(),
+                        MODEL_SERIALIZER_VERSION::toString(serializedIR.serializerVersion));
     }
 
     std::string buildFlags;

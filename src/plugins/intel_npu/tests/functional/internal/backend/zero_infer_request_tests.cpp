@@ -254,14 +254,12 @@ TEST_P(ZeroInferRequestTests, BooleanSetTensorSetTensorsWork) {
         graph->set_batch_size(batch.value());
     }
 
-    ov::AnyMap unknownProperties = ov::AnyMap{};
     auto compiledModel = std::make_shared<intel_npu::CompiledModel>(
         ov_model,
         std::make_shared<ov::test::utils::MockPlugin>(),  // MockPlugin needed only to avoid throw for nullptr
         device,
         graph,
-        *npu_config,
-        unknownProperties,
+        ::intel_npu::MergedConfig{*npu_config, compilerProperties, ov::AnyMap{}},
         batch);
     OPENVINO_ASSERT(compiledModel->inputs()[0].get_element_type() == element_type);
     OPENVINO_ASSERT(compiledModel->inputs()[1].get_element_type() == element_type);

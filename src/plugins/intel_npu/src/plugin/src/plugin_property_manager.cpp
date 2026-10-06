@@ -264,7 +264,7 @@ MergedConfig PluginPropertyManager::getMergedConfigForCompilation(const ov::AnyM
     return merged;
 }
 
-std::pair<Config, ov::AnyMap> PluginPropertyManager::getMergedConfigForImport(const ov::AnyMap& properties) {
+MergedConfig PluginPropertyManager::getMergedConfigForImport(const ov::AnyMap& properties) {
     ov::AnyMap propertyArguments = properties;
     // Mark the compiler type as unavailable in the property arguments when importing a model with both
     // compile-time and runtime options to check only runtime availability. An empty value is used instead of
@@ -287,8 +287,9 @@ std::pair<Config, ov::AnyMap> PluginPropertyManager::getMergedConfigForImport(co
     // Remove all compile-time-only configurations as they are not relevant for the import path. The internal compiler
     // options returned in the compiler properties are dropped for the same reason.
     runtimeConfig.removeCompileTimeConfigs();
+    merged.compilerProperties.clear();
 
-    return {std::move(runtimeConfig), std::move(merged.unknownProperties)};
+    return merged;
 }
 
 MergedConfig PluginPropertyManager::mergeConfig(const ov::AnyMap& properties, ConfigMergeMode mergeMode) {
