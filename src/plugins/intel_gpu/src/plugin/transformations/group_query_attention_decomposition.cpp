@@ -53,10 +53,12 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_attention_mask(
                                                                                 bool sliding_window_cache,
                                                                                 float scale,
                                                                                 bool has_sink) {
-    // The kernel applies the window natively via is_causal + sliding_window_size (see make_sdpa),
-    // so the explicit mask subgraph is unneeded whenever that path is reachable.
-    if (causal && !external_bias.get_node() && scale == 0.0f && !has_sink &&
-        (local_window_size == -1 || sliding_window_cache)) {
+    // The kernel applies the window natively via is_causal + sliding_window_size (see make_sdpa) only
+    // when there's no window at all (plain causal). A windowed KV cache still needs the explicit mask:
+    // the kernel's native window math assumes absolute Q/K positions, which don't line up with a
+    // capacity-limited rolling cache buffer (see onnx_model_gqa_sliding_window_cache in
+    // onnx_import_com_microsoft.in.cpp, which fails numerically if this is skipped for that case).
+    if (causal && local_window_size == -1 && !sliding_window_cache && !external_bias.get_node() && scale == 0.0f && !has_sink) {
         return nullptr;
     }
 
