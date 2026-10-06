@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "investigation_id": "2026-10-06-14-58-37-000-37479314236",
+  "timestamp": "2026-10-06T14:58:37Z",
+  "run_id": "37479314236",
+  "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37479314236",
+  "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+  "pr_number": "38407",
+  "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38407",
+  "author": "VijayabaskarR-06",
+  "category": "Infrastructure",
+  "title": "ARM64 cross-compilation build fails with cc1plus: not a PCH file (invalid-pch) in openvino_reference",
+  "signature": "cc1plus error cmake_pch hxx gch not a pch file werror invalid pch|Infrastructure",
+  "signature_hash": "5b4b1e6917a69856",
+  "confidence": "High",
+  "failed_jobs": [
+    {
+      "name": "Build / Build",
+      "conclusion": "failure",
+      "symptom": "CMake configure, build and install - OpenVINO JS API step fails: cc1plus reports cmake_pch.hxx.gch is not a PCH file and -Werror=invalid-pch turns it into a build error."
+    },
+    {
+      "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+      "conclusion": "failure",
+      "symptom": "Aggregate status check fails because the upstream Build job failed."
+    }
+  ],
+  "key_errors": [
+    "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/einsum.cpp.o",
+    "cc1plus: error: /__w/openvino/openvino/openvino/openvino_build/src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]",
+    "cc1plus: all warnings being treated as errors",
+    "ninja: build stopped: subcommand failed."
+  ],
+  "root_cause": "This is a known recurring infrastructure issue (pattern 5b4b1e6917a69856, seen 13 times, 9 of them in the last 12 hours) on the ARM64 cross-compilation job. A second cmake re-configure/build invocation for the OpenVINO JS API package (`cmake -UTBB* ... -DCPACK_GENERATOR=NPM -DENABLE_SYSTEM_TBB=OFF -DENABLE_WHEEL=OFF`) re-uses the same BUILD_DIR as the primary build and re-triggers compilation of openvino_reference sources. Because the precompiled header file cmake_pch.hxx.gch under that build directory was generated/partially invalidated by a stale or concurrently-written ninja build graph (sccache + a reconfigured cmake invocation touching the same binary dir), gcc on the ARM64 cross-compile toolchain rejects it as 'not a PCH file', and -Werror=invalid-pch escalates the warning to a hard build failure. This is unrelated to the PR's actual source change (src/plugins/intel_cpu/src/nodes/matmul.cpp) which is never referenced in the failing compile unit (src/core/reference/src/op/einsum.cpp).",
+  "reproduction_steps": "Not reliably reproducible locally — it depends on stale/corrupted PCH artifacts left over from a prior cmake re-configuration against the same build directory. To approximate: run the two-stage CMake sequence used by ubuntu_22_arm64_cross_compilation (primary release build with ENABLE_FASTER_BUILD=ON/PCH enabled, followed by the `-UTBB* -DCPACK_GENERATOR=NPM` re-configure/build against the SAME BUILD_DIR) and attempt to recompile src/core/reference/src/op/einsum.cpp; the PCH mismatch surfaces intermittently.",
+  "recommended_actions": [
+    "Use a separate BUILD_DIR (or clear/regenerate cmake_pch.hxx.gch) for the OpenVINO JS API re-configure step instead of reusing the primary release BUILD_DIR, so stale PCH objects from the first build cannot be picked up by the second ninja invocation.",
+    "Consider disabling ENABLE_FASTER_BUILD (PCH) specifically for the ARM64 cross-compile job, or set -DCMAKE_COMPILE_WARNING_AS_ERROR=OFF only around the JS API re-build stage, given this is a secondary packaging stage rather than primary validation.",
+    "Call remediate_transient_failure so the automated rerunner re-attempts the failed jobs — this has resolved prior occurrences of this exact pattern.",
+    "If this continues to recur at this frequency, escalate to the CI infra owners of ubuntu_22_arm64_cross_compilation.yml / job_build_linux.yml to fix the PCH reuse bug at the root (tracked via this pattern's recurring escalation)."
+  ],
+  "prevention_strategies": "Isolate the JS API npm-package CMake re-configure/build invocation into its own build directory (or force a clean of CMakeFiles/*.dir/cmake_pch.hxx.gch before the second ninja run) so precompiled headers generated for one CMake configuration are never reused by a subsequent, differently-configured build in the same directory. Add a CI guard that detects 'not a PCH file' and automatically retries once before failing the job.",
+  "historical_context": "Identical failure recorded 13 times since 2026-09-24 (pattern 5b4b1e6917a69856), with 9 occurrences in the preceding 12 hours alone, affecting many unrelated PRs (#38601, #38559, #37717, #38261, #37908, #38604, #38607, #38611, #38030, #38483, and now #38407). This is a confirmed, long-standing flaky CI infrastructure defect in the ARM64 cross-compilation job's JS API build stage, not specific to this PR's code change."
+}
