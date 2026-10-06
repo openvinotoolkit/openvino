@@ -64,6 +64,7 @@ struct GqaParams {
     bool smooth_softmax = false;
     bool head_sink = false;
     bool causal = true;
+    bool shared_kv = false;
     float softcap = 0.0f;
     bool attention_bias = false;
     Dimension bias_kv_len = Dimension::dynamic();
@@ -110,6 +111,10 @@ struct GqaParams {
         softcap = cap;
         return *this;
     }
+    GqaParams& shared() {
+        shared_kv = true;
+        return *this;
+    }
     GqaParams& bidirectional() {
         causal = false;
         return *this;
@@ -149,9 +154,10 @@ std::shared_ptr<Model> make_gqa_model(const GqaParams& p) {
 
     // The internal op receives Q/K/V already transposed to [batch, heads, seq, head_size] (the ONNX FE
     // splits the packed QKV before creating it).
-    add(f32, PartialShape{1, NUM_HEADS, p.seq_len, HEAD_SIZE});              // 0: query
-    add(f32, PartialShape{1, KV_NUM_HEADS, p.seq_len, HEAD_SIZE});           // 1: key
-    add(f32, PartialShape{1, KV_NUM_HEADS, p.seq_len, HEAD_SIZE});           // 2: value
+    add(f32, PartialShape{1, NUM_HEADS, p.seq_len, HEAD_SIZE});  // 0: query
+    const Dimension kv_seq = p.shared_kv ? Dimension(0) : p.seq_len;
+    add(f32, PartialShape{1, KV_NUM_HEADS, kv_seq, HEAD_SIZE});              // 1: key
+    add(f32, PartialShape{1, KV_NUM_HEADS, kv_seq, HEAD_SIZE});              // 2: value
     add(p.kv_type, PartialShape{1, KV_NUM_HEADS, p.past_len, stored_head});  // 3: past_key
     add(p.kv_type, PartialShape{1, KV_NUM_HEADS, p.past_len, stored_head});  // 4: past_value
     add(element::i32, PartialShape{1});                                      // 5: seqlens_k
@@ -491,6 +497,24 @@ TEST(GroupQueryAttentionValues, softcap_with_head_sink_appends_sink_column) {
         }
     }
     EXPECT_TRUE(sliced);
+}
+
+TEST(GroupQueryAttentionValues, shared_kv_attends_to_past_and_returns_it_as_present) {
+    auto model = make_gqa_model(GqaParams{"shared_kv"}.shared().rotary());
+    decompose(model);
+
+    // present_key/present_value are the past parameters themselves (nothing appended).
+    const auto& params = model->get_parameters();
+    EXPECT_EQ(model->get_results()[1]->get_input_node_shared_ptr(0), params[3]);
+    EXPECT_EQ(model->get_results()[2]->get_input_node_shared_ptr(0), params[4]);
+    // Attention reads a Slice of the past; no Concat/ScatterUpdate cache write is emitted.
+    auto sdpa = find_sdpa(model);
+    ASSERT_NE(sdpa, nullptr);
+    for (const auto& n : model->get_ordered_ops()) {
+        EXPECT_FALSE(is_type<op::v3::ScatterUpdate>(n)) << n;
+    }
+    // RoPE is applied to Q only: the (empty) key parameter has no consumers.
+    EXPECT_TRUE(params[1]->output(0).get_target_inputs().empty());
 }
 
 TEST(GroupQueryAttentionOpValidation, rejects_negative_softcap) {

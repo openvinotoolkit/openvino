@@ -185,17 +185,20 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         FRONT_END_OP_CONVERSION_CHECK(!ov::op::util::is_null(K), "GroupQueryAttention: Expecting K not null.");
         FRONT_END_OP_CONVERSION_CHECK(!ov::op::util::is_null(V), "GroupQueryAttention: Expecting V not null.");
 
-        // "Shared KV" (kv_sequence_length == 0): ORT treats this as the past buffer already holding the
-        // complete KV, with nothing new appended and K/V skipping RoPE (helper.h). The reshape below sizes
-        // K/V using Q's sequence dim (current_seqlen_size_node), so a genuinely empty K/V cannot even be
-        // reshaped to it; reject cleanly here instead of failing inside the Reshape with an unrelated
-        // element-count-mismatch error.
+        // "Shared KV" (kv_sequence_length == 0, ORT helper.h): the past buffer already holds the complete KV and
+        // nothing new is appended. Supported when the empty K/V is statically known, so the graph structure is
+        // decided at conversion; the decomposition then attends to the past directly.
         const auto& k_ps = K.get_partial_shape();
-        FRONT_END_OP_CONVERSION_CHECK(
-            !(k_ps.rank().is_static() && k_ps.rank().get_length() == 3 && k_ps[1].is_static() &&
-              k_ps[1].get_length() == 0),
-            "GroupQueryAttention: kv_sequence_length == 0 (shared KV / past buffer already complete) is not "
-            "supported.");
+        const bool shared_kv = k_ps.rank().is_static() && k_ps.rank().get_length() == 3 && k_ps[1].is_static() &&
+                               k_ps[1].get_length() == 0;
+        if (shared_kv) {
+            FRONT_END_OP_CONVERSION_CHECK(
+                common::is_input_valid(onnx_op_inputs, 3) && common::is_input_valid(onnx_op_inputs, 4),
+                "GroupQueryAttention: kv_sequence_length == 0 (shared KV) requires past_key and past_value.");
+            FRONT_END_OP_CONVERSION_CHECK(sliding_window_cache == 0,
+                                          "GroupQueryAttention: kv_sequence_length == 0 (shared KV) is not "
+                                          "supported with sliding_window_cache=1.");
+        }
 
         auto num_heads_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {num_heads});
         auto head_size_node = std::make_shared<v1::Divide>(hidden_size_node, num_heads_node);
@@ -207,17 +210,30 @@ ov::OutputVector group_query_attention(const ov::frontend::onnx::Node& node) {
         Q = std::make_shared<v1::Transpose>(Q, perm);
         ov_op_inputs.push_back(std::move(Q));
 
-        auto kv_num_heads_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {kv_num_heads});
-        auto kv_shape = std::make_shared<v0::Concat>(
-            ov::NodeVector{batch_size_node, current_seqlen_size_node, kv_num_heads_node, head_size_node},
-            0);
+        if (shared_kv) {
+            // [B, 0, kv_num_heads * head_size] -> [B, kv_num_heads, 0, head_size] with a single Reshape: there is no
+            // data to transpose, and the zero sequence dim stays static for the op. K/V remain connected so the
+            // model keeps its key/value inputs.
+            const auto kv_num_heads_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {kv_num_heads});
+            const auto zero_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {0});
+            const auto empty_kv_shape = std::make_shared<v0::Concat>(
+                ov::NodeVector{batch_size_node, kv_num_heads_node, zero_node, head_size_node},
+                0);
+            ov_op_inputs.push_back(std::make_shared<v1::Reshape>(K, empty_kv_shape, false));
+            ov_op_inputs.push_back(std::make_shared<v1::Reshape>(V, empty_kv_shape, false));
+        } else {
+            auto kv_num_heads_node = v0::Constant::create(ov::element::i64, ov::Shape{1}, {kv_num_heads});
+            auto kv_shape = std::make_shared<v0::Concat>(
+                ov::NodeVector{batch_size_node, current_seqlen_size_node, kv_num_heads_node, head_size_node},
+                0);
 
-        K = std::make_shared<v1::Reshape>(K, kv_shape, false)->output(0);
-        V = std::make_shared<v1::Reshape>(V, kv_shape, false)->output(0);
-        K = std::make_shared<v1::Transpose>(K, perm);
-        V = std::make_shared<v1::Transpose>(V, perm);
-        ov_op_inputs.push_back(std::move(K));
-        ov_op_inputs.push_back(std::move(V));
+            K = std::make_shared<v1::Reshape>(K, kv_shape, false)->output(0);
+            V = std::make_shared<v1::Reshape>(V, kv_shape, false)->output(0);
+            K = std::make_shared<v1::Transpose>(K, perm);
+            V = std::make_shared<v1::Transpose>(V, perm);
+            ov_op_inputs.push_back(std::move(K));
+            ov_op_inputs.push_back(std::move(V));
+        }
     }
 
     const bool has_past_key = common::is_input_valid(onnx_op_inputs, 3);
