@@ -307,7 +307,7 @@ MergedConfig PluginPropertyManager::mergeConfig(const ov::AnyMap& properties, Co
 
     // Start from the internal compiler options stored through set_property, the ones passed to the current call
     // override them.
-    ov::AnyMap compilerProperties(_internalCompilerProperties.begin(), _internalCompilerProperties.end());
+    std::map<std::string, std::string> compilerProperties = _internalCompilerProperties;
     ov::AnyMap unknownProperties;
     auto updatedConfig = _config;
     for (auto&& value : properties) {

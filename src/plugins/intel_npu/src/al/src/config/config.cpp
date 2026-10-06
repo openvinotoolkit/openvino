@@ -314,7 +314,8 @@ void Config::removeCompileTimeConfigs() {
     }
 }
 
-void Config::extractTo(ov::AnyMap& target, const std::function<bool(std::string_view)>& shouldExtract) {
+void Config::extractTo(std::map<std::string, std::string>& target,
+                       const std::function<bool(std::string_view)>& shouldExtract) {
     OPENVINO_ASSERT(shouldExtract, "Config::extractTo requires a valid predicate");
 
     for (auto it = _impl.begin(); it != _impl.end();) {
@@ -327,7 +328,8 @@ void Config::extractTo(ov::AnyMap& target, const std::function<bool(std::string_
     }
 }
 
-void Config::copyTo(ov::AnyMap& target, const std::function<bool(std::string_view)>& shouldCopy) const {
+void Config::copyTo(std::map<std::string, std::string>& target,
+                    const std::function<bool(std::string_view)>& shouldCopy) const {
     OPENVINO_ASSERT(shouldCopy, "Config::copyTo requires a valid predicate");
 
     for (const auto& [key, value] : _impl) {

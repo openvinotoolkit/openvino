@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <map>
 #include <mutex>
 #include <optional>
 
@@ -27,8 +28,10 @@ public:
      * @param plugin Pointer towards the NPU plugin instance
      * @param device Backend specific object through which inference requests can be created
      * @param graph Object holding the graph handle along with distinct fields for metadata
-     * @param config Custom configuration object
+     * @param config Custom configuration object, holds the runtime options
      * @param batchSize Optional batch size value.
+     * @param compilerProperties The compiler options the model was compiled with, values stored as strings. Used only
+     * for exposing the compile-time properties, empty if the model was imported.
      */
     CompiledModel(const std::shared_ptr<const ov::Model>& model,
                   const std::shared_ptr<const ov::IPlugin>& plugin,
@@ -36,7 +39,8 @@ public:
                   const std::shared_ptr<IGraph>& graph,
                   const Config& config,
                   const ov::AnyMap& properties,
-                  const std::optional<int64_t>& batchSize);
+                  const std::optional<int64_t>& batchSize,
+                  const std::map<std::string, std::string>& compilerProperties = {});
 
     CompiledModel(const CompiledModel&) = delete;
 

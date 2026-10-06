@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -29,7 +30,7 @@ struct MergedConfig {
     Config runtimeConfig;
     // Compile-time, both-mode and internal compiler options supported by the resolved compiler, serialized as strings.
     // Includes the values set through set_property and environment variables, overridden by the merged properties.
-    ov::AnyMap compilerProperties;
+    std::map<std::string, std::string> compilerProperties;
     // Properties unknown to the plugin, forwarded as they are to the compiled model.
     ov::AnyMap unknownProperties;
 };

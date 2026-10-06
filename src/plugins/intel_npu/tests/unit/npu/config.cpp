@@ -324,10 +324,6 @@ private:
     std::string _name;
 };
 
-bool containsEntry(const std::string& serialized, std::string_view key, std::string_view value) {
-    return serialized.find(std::string(key) + "=\"" + std::string(value) + "\"") != std::string::npos;
-}
-
 std::shared_ptr<OptionsDesc> makeDummyOptionsDesc() {
     auto desc = std::make_shared<OptionsDesc>();
     desc->add<DUMMY_BOTH_OPTION>();
@@ -1063,140 +1059,109 @@ TEST_F(ConfigUnitTests, OptionDescriptorLookupIsForwardedToTheDesc) {
     OV_EXPECT_THROW_HAS_SUBSTRING(config.getOpt("SOME_UNKNOWN_OPTION"), ov::Exception, "[ NOT_FOUND ]");
 }
 
-//
-// Config - internal compiler options
-//
-
-TEST_F(ConfigUnitTests, InternalOptionCanBeAddedAndRead) {
-    auto config = makeConfig();
-    config.addOrUpdateInternal("INTERNAL_OPTION", "1");
-
-    EXPECT_TRUE(config.hasInternal("INTERNAL_OPTION"));
-    EXPECT_EQ("1", config.getInternal("INTERNAL_OPTION"));
-}
-
-TEST_F(ConfigUnitTests, InternalOptionIsOverwrittenOnSecondAdd) {
-    auto config = makeConfig();
-    config.addOrUpdateInternal("INTERNAL_OPTION", "1");
-    config.addOrUpdateInternal("INTERNAL_OPTION", "2");
-
-    EXPECT_EQ("2", config.getInternal("INTERNAL_OPTION"));
-}
-
-TEST_F(ConfigUnitTests, ReadingMissingInternalOptionThrows) {
-    const auto config = makeConfig();
-
-    EXPECT_FALSE(config.hasInternal("INTERNAL_OPTION"));
-    OV_EXPECT_THROW_HAS_SUBSTRING(config.getInternal("INTERNAL_OPTION"), ov::Exception, "does not exist");
-}
-
 TEST_F(ConfigUnitTests, RemoveCompileTimeConfigsKeepsRunTimeAndBothOptions) {
     auto config = makeConfig();
     config.update({{std::string(DUMMY_BOTH_OPTION::key()), "custom"},
                    {std::string(DUMMY_COMPILE_TIME_OPTION::key()), "custom"},
                    {std::string(DUMMY_RUN_TIME_OPTION::key()), "7"}});
-    config.addOrUpdateInternal("INTERNAL_OPTION", "1");
 
     config.removeCompileTimeConfigs();
 
     EXPECT_FALSE(config.has<DUMMY_COMPILE_TIME_OPTION>());
     EXPECT_TRUE(config.has<DUMMY_BOTH_OPTION>());
     EXPECT_TRUE(config.has<DUMMY_RUN_TIME_OPTION>());
-    EXPECT_FALSE(config.hasInternal("INTERNAL_OPTION"));
 }
 
 //
-// Config - compiler serialization
+// Config - extracting and copying options to a map
 //
 
-TEST_F(ConfigUnitTests, ToStringForCompilerRequiresAPredicate) {
-    const auto config = makeConfig();
+TEST_F(ConfigUnitTests, ExtractToRequiresAPredicate) {
+    auto config = makeConfig();
+    std::map<std::string, std::string> target;
 
-    OV_EXPECT_THROW_HAS_SUBSTRING(config.toStringForCompiler(nullptr),
-                                  ov::Exception,
-                                  "requires a valid support predicate");
+    OV_EXPECT_THROW_HAS_SUBSTRING(config.extractTo(target, nullptr), ov::Exception, "requires a valid predicate");
 }
 
-TEST_F(ConfigUnitTests, ToStringForCompilerSerializesSupportedCompileTimeAndBothOptions) {
+TEST_F(ConfigUnitTests, ExtractToMovesOnlySelectedOptionsAsStrings) {
+    auto config = makeConfig();
+    config.update({{std::string(DUMMY_COMPILE_TIME_OPTION::key()), "compile_value"},
+                   {std::string(DUMMY_RUN_TIME_OPTION::key()), "7"}});
+    std::map<std::string, std::string> target;
+
+    config.extractTo(target, [](std::string_view key) {
+        return key == DUMMY_COMPILE_TIME_OPTION::key() || key == DUMMY_RUN_TIME_OPTION::key();
+    });
+
+    ASSERT_EQ(2u, target.size());
+    EXPECT_EQ("compile_value", target.at(std::string(DUMMY_COMPILE_TIME_OPTION::key())));
+    EXPECT_EQ("7", target.at(std::string(DUMMY_RUN_TIME_OPTION::key())));
+    EXPECT_FALSE(config.has<DUMMY_COMPILE_TIME_OPTION>());
+    EXPECT_FALSE(config.has<DUMMY_RUN_TIME_OPTION>());
+}
+
+TEST_F(ConfigUnitTests, ExtractToKeepsUnselectedOptions) {
     auto config = makeConfig();
     config.update({{std::string(DUMMY_BOTH_OPTION::key()), "both_value"},
                    {std::string(DUMMY_COMPILE_TIME_OPTION::key()), "compile_value"}});
+    std::map<std::string, std::string> target;
 
-    const auto serialized = config.toStringForCompiler([](const std::string&) {
+    config.extractTo(target, [](std::string_view key) {
+        return key == DUMMY_COMPILE_TIME_OPTION::key();
+    });
+
+    EXPECT_EQ(0u, target.count(std::string(DUMMY_BOTH_OPTION::key())));
+    EXPECT_TRUE(config.has<DUMMY_BOTH_OPTION>());
+    EXPECT_EQ("both_value", config.get<DUMMY_BOTH_OPTION>());
+}
+
+// Unset options are never passed to the predicate, so their defaults don't end up in the target map
+TEST_F(ConfigUnitTests, ExtractToSkipsOptionsWithoutSetValue) {
+    auto config = makeConfig();
+    std::map<std::string, std::string> target;
+
+    config.extractTo(target, [](std::string_view) {
         return true;
     });
 
-    EXPECT_TRUE(containsEntry(serialized, DUMMY_BOTH_OPTION::key(), "both_value")) << serialized;
-    EXPECT_TRUE(containsEntry(serialized, DUMMY_COMPILE_TIME_OPTION::key(), "compile_value")) << serialized;
+    EXPECT_TRUE(target.empty());
 }
 
-TEST_F(ConfigUnitTests, ToStringForCompilerSkipsRunTimeOptions) {
-    auto config = makeConfig();
-    config.update(DUMMY_RUN_TIME_OPTION::key(), "7");
-
-    const auto serialized = config.toStringForCompiler([](const std::string&) {
-        return true;
-    });
-
-    EXPECT_EQ("", serialized);
-}
-
-// A "Both" option the compiler doesn't know about is still usable by the plugin, so it is silently dropped
-TEST_F(ConfigUnitTests, ToStringForCompilerSkipsUnsupportedBothOptions) {
-    auto config = makeConfig();
-    config.update(DUMMY_BOTH_OPTION::key(), "both_value");
-
-    const auto serialized = config.toStringForCompiler([](const std::string&) {
-        return false;
-    });
-
-    EXPECT_EQ("", serialized);
-}
-
-// A compile-time-only option the compiler doesn't know about cannot be honored, hence the hard error
-TEST_F(ConfigUnitTests, ToStringForCompilerThrowsOnUnsupportedCompileTimeOption) {
+TEST_F(ConfigUnitTests, ExtractToOverwritesExistingEntriesAndKeepsTheOthers) {
     auto config = makeConfig();
     config.update(DUMMY_COMPILE_TIME_OPTION::key(), "compile_value");
+    std::map<std::string, std::string> target = {{std::string(DUMMY_COMPILE_TIME_OPTION::key()), "old_value"},
+                                                 {"OTHER_KEY", "other_value"}};
 
-    OV_EXPECT_THROW_HAS_SUBSTRING(config.toStringForCompiler([](const std::string&) {
-        return false;
-    }),
-                                  ov::Exception,
-                                  "[ NOT_FOUND ]");
-}
-
-TEST_F(ConfigUnitTests, ToStringForCompilerSerializesInternalOptions) {
-    auto config = makeConfig();
-    config.addOrUpdateInternal("INTERNAL_OPTION", "1");
-
-    const auto serialized = config.toStringForCompiler([](const std::string&) {
+    config.extractTo(target, [](std::string_view) {
         return true;
     });
 
-    EXPECT_TRUE(containsEntry(serialized, "INTERNAL_OPTION", "1")) << serialized;
+    EXPECT_EQ("compile_value", target.at(std::string(DUMMY_COMPILE_TIME_OPTION::key())));
+    EXPECT_EQ("other_value", target.at("OTHER_KEY"));
 }
 
-TEST_F(ConfigUnitTests, ToStringForCompilerThrowsOnUnsupportedInternalOption) {
-    auto config = makeConfig();
-    config.addOrUpdateInternal("INTERNAL_OPTION", "1");
+TEST_F(ConfigUnitTests, CopyToRequiresAPredicate) {
+    const auto config = makeConfig();
+    std::map<std::string, std::string> target;
 
-    OV_EXPECT_THROW_HAS_SUBSTRING(config.toStringForCompiler([](const std::string&) {
-        return false;
-    }),
-                                  ov::Exception,
-                                  "[ NOT_FOUND ]");
+    OV_EXPECT_THROW_HAS_SUBSTRING(config.copyTo(target, nullptr), ov::Exception, "requires a valid predicate");
 }
 
-TEST_F(ConfigUnitTests, SerializedEntriesAreSpaceSeparated) {
+TEST_F(ConfigUnitTests, CopyToCopiesSelectedOptionsAndKeepsThemInTheConfig) {
     auto config = makeConfig();
-    config.update(DUMMY_COMPILE_TIME_OPTION::key(), "compile_value");
-    config.addOrUpdateInternal("INTERNAL_OPTION", "1");
+    config.update({{std::string(DUMMY_BOTH_OPTION::key()), "both_value"},
+                   {std::string(DUMMY_RUN_TIME_OPTION::key()), "7"}});
+    std::map<std::string, std::string> target = {{std::string(DUMMY_BOTH_OPTION::key()), "old_value"}};
 
-    const auto serialized = config.toStringForCompiler([](const std::string&) {
-        return true;
+    config.copyTo(target, [](std::string_view key) {
+        return key == DUMMY_BOTH_OPTION::key();
     });
 
-    EXPECT_EQ(1u, std::count(serialized.begin(), serialized.end(), ' ')) << serialized;
+    ASSERT_EQ(1u, target.size());
+    EXPECT_EQ("both_value", target.at(std::string(DUMMY_BOTH_OPTION::key())));
+    EXPECT_TRUE(config.has<DUMMY_BOTH_OPTION>());
+    EXPECT_TRUE(config.has<DUMMY_RUN_TIME_OPTION>());
 }
 
 //

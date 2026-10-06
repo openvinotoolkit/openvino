@@ -575,7 +575,8 @@ public:
      * @param shouldExtract Predicate called with the key of each option which has a set value. It must not modify
      * the configuration.
      */
-    void extractTo(ov::AnyMap& target, const std::function<bool(std::string_view)>& shouldExtract);
+    void extractTo(std::map<std::string, std::string>& target,
+                   const std::function<bool(std::string_view)>& shouldExtract);
 
     /**
      * @brief Copies the options which have set values and are selected by the given predicate into the given map,
@@ -584,7 +585,8 @@ public:
      * @param target The map receiving the copied options.
      * @param shouldCopy Predicate called with the key of each option which has a set value.
      */
-    void copyTo(ov::AnyMap& target, const std::function<bool(std::string_view)>& shouldCopy) const;
+    void copyTo(std::map<std::string, std::string>& target,
+                const std::function<bool(std::string_view)>& shouldCopy) const;
 
 private:
     std::shared_ptr<const OptionsDesc> _desc;

@@ -75,16 +75,23 @@ flowchart TD
     D --> F
     E --> F
 
-    B --> G[getMergedConfigAndUnknownProperties]
-    G --> H[Config plus unknownProperties]
-    H --> I[Config]
+    B --> G[getMergedConfigForCompilation]
+    G --> H[runtimeConfig, compilerProperties, unknownProperties]
+    H --> I[runtimeConfig: Config]
+    H --> Q[compilerProperties: std::map of strings]
     H --> J[unknownProperties: ov::AnyMap]
 
-    I --> K[Compiler]
+    B --> R[getMergedConfigForImport]
+    R --> S[runtimeConfig plus unknownProperties]
+    S --> I
+    S --> J
+
+    Q --> K[Compiler adapters]
     I --> L[Import path]
     I --> M[Other runtime components]
 
     I --> N[CompiledModel]
+    Q --> N
     J --> N
     N --> O[CompiledModelPropertyManager]
     O --> P[Compiled-model properties]
@@ -96,43 +103,58 @@ flowchart TD
 
 - `getProperty`, `setProperty`, and `isPropertySupported` resolve individual properties through the registered property
     descriptors, support predicates, getters, and setters.
-- `getMergedConfigAndUnknownProperties` prepares the configuration for a larger operation and returns both the merged
-    configuration and properties that the plugin does not consume.
+- `getMergedConfigForCompilation` (compile and query paths) and `getMergedConfigForImport` (import path) prepare the
+    configuration for a larger operation. They merge the given properties into a copy of the stored configuration
+    (values set through `set_property` and environment variables) and also return the properties that the plugin does
+    not consume.
 
-`Config` is the shared configuration used by the compiler, import path, and other runtime components.
-
-`PluginPropertyManager::getMergedConfigAndUnknownProperties` returns:
+`PluginPropertyManager::getMergedConfigForCompilation` returns a `MergedConfig`:
 
 ```cpp
-std::pair<Config, ov::AnyMap>
+struct MergedConfig {
+    Config runtimeConfig;
+    std::map<std::string, std::string> compilerProperties;
+    ov::AnyMap unknownProperties;
+};
 ```
 
-- The returned `Config` is the merged `Config` view after property support, compiler type, option mode, and
-    operation rules have been applied. It is consumed by the compiler, import path, other runtime components, and the
-    compiled model.
-- `unknownProperties` is an `ov::AnyMap` containing keys that the plugin does not consume. During compilation and import,
-    this map is passed together with the merged `Config` to `CompiledModel`, which constructs
-    `CompiledModelPropertyManager` with both values.
+- `runtimeConfig` is the merged `Config` view used by the plugin, the runtime components and the compiled model. It
+    doesn't contain the compile-time-only options.
+- `compilerProperties` holds the options sent to the compiler, every value is stored as a string. It contains the
+    compile-time-only options, the `Both` options supported by the compiler and the internal compiler options (keys unknown
+    to the plugin but supported by the compiler). Every option is checked against the compiler resolved for the current
+    call: an unsupported compile-time-only or internal option is an error, an unsupported `Both` option is kept only in
+    `runtimeConfig`. The compiler adapters consume only this map. Use the option's own parser (e.g. `BATCH_MODE::parse`)
+    together with the helpers from `intel_npu/utils/string_map_utils.hpp` when a typed value is needed.
+- `unknownProperties` is an `ov::AnyMap` containing keys that the plugin does not consume.
+
+During compilation, all three are passed to `CompiledModel`, which constructs `CompiledModelPropertyManager` with them.
+The compile-time properties of a compiled model are read from `compilerProperties`.
+
+`PluginPropertyManager::getMergedConfigForImport` returns `std::pair<Config, ov::AnyMap>`: the runtime configuration and the
+unknown properties. Compile-time-only options and internal compiler options are not relevant for an already compiled
+model, so they are dropped.
 
 Compiler options are represented by the same option descriptors as other options. Their `OptionMode` determines where
 they are used:
 
-- `CompileTime`: used by the compiler and removed or skipped on import.
-- `Runtime`: used by plugin/runtime components and not sent to the compiler.
-- `Both`: available to the compiler during compilation and to applicable runtime components.
+- `CompileTime`: found only in `compilerProperties`, removed or skipped on import.
+- `Runtime`: found only in `runtimeConfig`, not sent to the compiler.
+- `Both`: found in `runtimeConfig`, and also in `compilerProperties` if the compiler supports it.
 
-The `mergeMode` controls how the pair is produced:
+The `mergeMode` controls how the result is produced:
 
 | Mode | Behavior |
 |:-----|:---------|
-| `Compile` | Compiler-supported unknown keys are stored as internal configuration. Other unknown keys are returned in `unknownProperties` for the compiled model. |
+| `Compile` | Compiler-supported unknown keys are stored as internal compiler options in `compilerProperties`. Other unknown keys are returned in `unknownProperties` for the compiled model. |
 | `Import` | Compile-time-only options are removed or skipped because the model is already compiled. If `LOADED_FROM_CACHE` is true, compiler options are checked and skipped with a warning; otherwise they are not relevant to the import path. |
-| `Query` | Unsupported unknown keys cause an exception instead of being forwarded. |
+| `Query` | Same as `Compile`, but unsupported unknown keys cause an exception instead of being forwarded. |
 
 For registered properties, the manager validates mutability and support before updating `Config`. For compiler-only
 properties skipped during import, `unknownProperties` remains empty and the manager logs that the property will not be used
-for the current configuration. In `Query` mode, only the merged `Config` view is used; the `unknownProperties` map is not
-forwarded to a compiled model. Compiled-model properties are normally registered as read-only.
+for the current configuration. In `Query` mode, only `compilerProperties` is used, by the compiler; the
+`unknownProperties` map is not forwarded to a compiled model. Compiled-model properties are normally registered as
+read-only.
 
 ### OptionBase\<T\> 
 Implements the option descriptor. This class contains all the details of a config option: name, datatype, default value, parser, public/private, mutability, compiler version (for legacy support), etc. This serves as the key in our configuration map. 

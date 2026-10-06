@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -22,7 +23,14 @@ namespace intel_npu {
 
 class CompiledModelPropertyManager final : private PropertyRegistrationBase {
 public:
+    /**
+     * @param config The runtime configuration of the compiled model.
+     * @param compilerProperties The compiler options the model was compiled with, values stored as strings. The
+     * compile-time properties are exposed from here.
+     * @param properties Properties unknown to the plugin, set into the property descriptors.
+     */
     CompiledModelPropertyManager(const Config& config,
+                                 const std::map<std::string, std::string>& compilerProperties,
                                  const ov::AnyMap& properties,
                                  const std::shared_ptr<IDevice>& device,
                                  const std::shared_ptr<IGraph>& graph,
@@ -38,6 +46,7 @@ private:
     void registerProperties();
 
     Config _config;
+    const std::map<std::string, std::string> _compilerProperties;
 
     const std::shared_ptr<IDevice> _device;
     std::shared_ptr<IGraph> _graph;

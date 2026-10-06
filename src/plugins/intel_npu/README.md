@@ -165,14 +165,16 @@ Note: this logic does not affect OptionMode::Runtime type of options/properties.
 ### Property manager and configuration flow
 
 The property manager handles individual property requests through `getProperty`, `setProperty`, and
-`isPropertySupported`. For compilation, import, and query operations, it also provides
-`getMergedConfigAndUnknownProperties`, which returns a merged `Config` and an `ov::AnyMap` of properties that are not
-consumed by the plugin.
+`isPropertySupported`. For compilation and query operations, it also provides `getMergedConfigForCompilation`, which
+returns the merged runtime `Config`, the compiler properties (a `std::map<std::string, std::string>` sent to the compiler) and an
+`ov::AnyMap` of properties that are not consumed by the plugin. For import operations, `getMergedConfigForImport` returns
+only the merged runtime `Config` and the unconsumed properties.
 
-The merged `Config` is shared with the compiler, import path, and other runtime components. During compilation and
-import, the `Config` and `unknownProperties` are passed together to the compiled model, which uses them to initialize its
-property manager. Compiler-supported internal options are kept in `Config`; only the remaining unconsumed properties are
-forwarded in `unknownProperties`.
+The runtime `Config` is shared with the import path and other runtime components, it doesn't contain the
+compile-time-only options. The compiler adapters receive only the compiler properties, which hold the compile-time
+options, the `Both` options supported by the compiler and the compiler-supported internal options, including the values
+set through `set_property`. During compilation, all of them are passed to the compiled model, which uses them to
+initialize its property manager; during import, only the runtime `Config` and `unknownProperties` are passed.
 
 The detailed property and configuration design, is described in [NPU Properties](./docs/npu-properties-howto.md).
 

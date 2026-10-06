@@ -7,6 +7,7 @@
 #pragma once
 
 #include <memory>
+#include <map>
 #include <optional>
 
 #include "intel_npu/common/icompiler_adapter.hpp"
@@ -34,14 +35,15 @@ public:
                           std::shared_ptr<IVCLCompiler> compiler);
 
     std::shared_ptr<IGraph> compile(const std::shared_ptr<const ov::Model>& model,
-                                    const Config& config,
+                                    const std::map<std::string, std::string>& compilerProperties,
                                     const AdapterDescriptor& adapterDesc) const override;
 
     std::shared_ptr<IGraph> compileWS(std::shared_ptr<ov::Model>&& model,
-                                      const Config& config,
+                                      const std::map<std::string, std::string>& compilerProperties,
                                       const AdapterDescriptor& adapterDesc) const override;
 
-    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
+    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
+                              const std::map<std::string, std::string>& compilerProperties) const override;
 
     std::vector<std::string> get_supported_options() const override;
 

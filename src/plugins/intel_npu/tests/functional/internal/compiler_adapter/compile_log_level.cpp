@@ -4,11 +4,8 @@
 
 #include <gtest/gtest.h>
 
-#include <memory>
 #include <string>
 
-#include "intel_npu/config/config.hpp"
-#include "intel_npu/config/options.hpp"
 #include "model_serializer.hpp"
 #include "openvino/runtime/intel_npu/properties.hpp"
 
@@ -16,17 +13,8 @@ namespace {
 
 class CompileLogLevelSerializeConfigTests : public ::testing::Test {
 protected:
-    std::shared_ptr<::intel_npu::OptionsDesc> options;
-    std::unique_ptr<::intel_npu::Config> config;
-
-    void SetUp() override {
-        using namespace ::intel_npu;
-
-        options = std::make_shared<OptionsDesc>();
-        options->add<LOG_LEVEL>();
-        options->add<COMPILE_LOG_LEVEL>();
-        config = std::make_unique<Config>(options);
-    }
+    // The compiler properties hold the values as strings
+    std::map<std::string, std::string> compilerProperties;
 
     static ze_graph_compiler_version_info_t modernCompilerVersion() {
         ze_graph_compiler_version_info_t version{};
@@ -36,15 +24,12 @@ protected:
     }
 
     std::string serialize() const {
-        const auto allSupported = [](const std::string&) {
-            return true;
-        };
-        return ::intel_npu::compiler_utils::serializeConfig(*config, modernCompilerVersion(), allSupported);
+        return ::intel_npu::compiler_utils::serializeConfig(compilerProperties, modernCompilerVersion());
     }
 };
 
 TEST_F(CompileLogLevelSerializeConfigTests, BackwardCompatibleCompilerLogUnsetPluginLogSet) {
-    config->update(ov::log::level.name(), "LOG_DEBUG");
+    compilerProperties[ov::log::level.name()] = std::string("LOG_DEBUG");
 
     const std::string flags = serialize();
 
@@ -54,8 +39,8 @@ TEST_F(CompileLogLevelSerializeConfigTests, BackwardCompatibleCompilerLogUnsetPl
 }
 
 TEST_F(CompileLogLevelSerializeConfigTests, CompileLogLevelSetPrioritizedOverUnchangedPluginLogLevel) {
-    config->update(ov::log::level.name(), "LOG_DEBUG");
-    config->update(ov::intel_npu::compile_log_level.name(), "LOG_ERROR");
+    compilerProperties[ov::log::level.name()] = std::string("LOG_DEBUG");
+    compilerProperties[ov::intel_npu::compile_log_level.name()] = std::string("LOG_ERROR");
 
     const std::string flags = serialize();
 
@@ -66,7 +51,7 @@ TEST_F(CompileLogLevelSerializeConfigTests, CompileLogLevelSetPrioritizedOverUnc
 }
 
 TEST_F(CompileLogLevelSerializeConfigTests, CompileLogLevelSetPrioritizedOverChangedPluginLogLevel) {
-    config->update(ov::intel_npu::compile_log_level.name(), "LOG_TRACE");
+    compilerProperties[ov::intel_npu::compile_log_level.name()] = std::string("LOG_TRACE");
 
     const std::string flags = serialize();
 
