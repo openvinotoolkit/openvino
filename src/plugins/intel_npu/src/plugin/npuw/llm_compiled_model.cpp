@@ -4,7 +4,6 @@
 #include "llm_compiled_model.hpp"
 
 #include <algorithm>
-#include <set>
 
 #include "embedding/embedding_infer_request.hpp"
 #include "embedding/encoder_embedding_infer_request.hpp"
@@ -1886,18 +1885,19 @@ std::shared_ptr<const ov::Model> ov::npuw::LLMCompiledModel::get_runtime_model()
 }
 
 void ov::npuw::LLMCompiledModel::set_property(const ov::AnyMap& properties) {
-    // Propagate to every inner compiled model; they validate which keys are mutable.
-    // m_kvcache_compiled aliases the last generate variant when variants are used.
-    std::set<const ov::ICompiledModel*> visited;
+    // Propagate to every inner compiled model once; they validate which keys are mutable
     auto apply = [&](const std::shared_ptr<ov::npuw::ICompiledModel_v0>& cm) {
-        if (cm && visited.insert(cm.get()).second) {
+        if (cm) {
             cm->set_property(properties);
         }
     };
     apply(m_prefill_compiled);
-    apply(m_kvcache_compiled);
     for (const auto& variant : m_generate_compiled_variants) {
         apply(variant);
+    }
+    // m_kvcache_compiled is the last generate variant when variants are used
+    if (m_generate_compiled_variants.empty()) {
+        apply(m_kvcache_compiled);
     }
     apply(m_lm_head_compiled);
 }
