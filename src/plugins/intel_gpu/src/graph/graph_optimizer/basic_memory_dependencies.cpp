@@ -37,6 +37,12 @@ void basic_memory_dependencies::run(program& p) {
             }
             add_memory_dependency(node, deps[i].first);
             add_memory_dependency(deps[i].first, node);
+
+            if (auto alias_idx = onednn_add_fusing_helpers::get_reused_eltwmem_idx(*deps[i].first); alias_idx != -1) {
+                auto& alias = deps[i].first->get_dependency(alias_idx);
+                node->add_memory_dependency(alias);
+                alias.add_memory_dependency(*node);
+            }
         }
 
         if (inplace_kv) {
