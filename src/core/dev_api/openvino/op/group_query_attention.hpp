@@ -135,7 +135,7 @@ public:
     // hold the complete KV, so nothing is appended and present_key/present_value equal the past.
     bool is_shared_kv() const;
     // Logit soft-capping (Gemma-style): when > 0, scaled scores become softcap * tanh(score / softcap)
-    // before the attention bias/mask and softmax. 0 disables it.
+    // before the attention bias/mask and softmax. 0 disables it (the ONNX frontend maps ORT's "<= 0 disables" to 0).
     float get_softcap() const {
         return m_softcap;
     }

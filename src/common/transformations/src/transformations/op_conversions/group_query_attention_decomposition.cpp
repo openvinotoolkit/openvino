@@ -95,6 +95,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const auto smooth_softmax = node->get_smooth_softmax();
     const auto causal = node->get_causal();
     const auto softcap = node->get_softcap();
+    const bool use_softcap = softcap > 0.0f;
 
     const auto has_input = [&](const GQAInputs input_pos) {
         const auto pos = static_cast<size_t>(input_pos);
@@ -335,7 +336,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
 
     // The explicit softcap attention chain consumes plain (dequantized) K/V, so skip the compressed-KV SDPA form.
     std::optional<CompressedKV> compressed_kv;
-    if (softcap == 0.0f) {
+    if (!use_softcap) {
         compressed_kv = prepare_compressed_kv(node, K, V, k_scale, v_scale);
     }
 
@@ -352,7 +353,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     // Broadcast KV if grouped query attention
     const size_t kv_num_heads_factor = num_heads / kv_num_heads;
     // The softcap chain groups query heads per KV head itself (no KV replication), see make_softcap_attention.
-    if (kv_num_heads_factor > 1 && !compressed_kv && softcap == 0.0f) {
+    if (kv_num_heads_factor > 1 && !compressed_kv && !use_softcap) {
         const auto kv_shape = register_new_node<v3::ShapeOf>(K);
         const auto kv_shape_prev_2 = get_dimensions(kv_shape, {0, 1});
         const auto kv_shape_last_2 = get_dimensions(kv_shape, {2, 3});
@@ -376,7 +377,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     const bool has_sink = has_head_sink || smooth_softmax;
     // The softcap chain has no is_causal fallback, and shared KV must hide the past rows beyond `total`, so both
     // always take the explicit (base) mask; overrides may otherwise drop it in favor of SDPA's causal flag.
-    const bool explicit_mask = softcap > 0.0f || shared_kv;
+    const bool explicit_mask = use_softcap || shared_kv;
     const auto mask = explicit_mask
                           ? GroupQueryAttentionDecomposition::make_attention_mask(curr_seqlen_scalar,
                                                                                   concat_kv_len_scalar,
@@ -435,7 +436,7 @@ ov::OutputVector ov::pass::GroupQueryAttentionDecomposition::decompose(
     };
 
     std::shared_ptr<ov::Node> qga_output;
-    if (softcap > 0.0f) {
+    if (use_softcap) {
         qga_output = make_softcap_attention(Q, K, V, mask, make_scale_node(), sink, softcap, kv_num_heads);
     } else if (sink.get_node_shared_ptr()) {
         // SDPA's 6-input form requires an explicit scale.
