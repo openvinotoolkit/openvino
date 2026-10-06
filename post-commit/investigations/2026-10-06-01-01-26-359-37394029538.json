@@ -1,0 +1,45 @@
+{
+    "schema_version": "1.0",
+    "investigation_id": "2026-10-06-01-01-26-359-37394029538",
+    "timestamp": "2026-10-06T01:01:26Z",
+    "run_id": "37394029538",
+    "run_url": "https://github.com/openvinotoolkit/openvino/actions/runs/37394029538",
+    "workflow_name": "Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)",
+    "commit_sha": "58472656deac72b13857d9363e9dde61d0856766",
+    "pr_number": "38602",
+    "pr_url": "https://github.com/openvinotoolkit/openvino/pull/38602",
+    "author": "mvafin",
+    "category": "Infrastructure",
+    "title": "ARM64 cross-compilation build fails with cc1plus invalid-pch error on shared cmake_pch.hxx.gch",
+    "signature": "cc1plus: error: cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]|Infrastructure",
+    "signature_hash": "0ee6d7327812b344",
+    "confidence": "Medium",
+    "failed_jobs": [
+        {
+            "name": "Build / Build",
+            "conclusion": "failure",
+            "symptom": "CMake configure, build and install - OpenVINO JS API step fails: dozens of cc1plus invocations in src/core/reference report cmake_pch.hxx.gch is not a PCH file, escalated to an error by -Werror=invalid-pch"
+        },
+        {
+            "name": "ci/gha_overall_status_ubuntu_22_arm64_cross_compilation",
+            "conclusion": "failure",
+            "symptom": "Aggregate status job exits failure because the Build job failed"
+        }
+    ],
+    "key_errors": [
+        "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/convert.cpp.o\ncc1plus: error: /__w/openvino/openvino/openvino/openvino_build/src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]",
+        "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/fake_convert.cpp.o\ncc1plus: error: .../cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]",
+        "FAILED: [code=1] src/core/reference/CMakeFiles/openvino_reference.dir/src/op/einsum.cpp.o\ncc1plus: error: .../cmake_pch.hxx.gch: not a PCH file [-Werror=invalid-pch]\n##[error]Process completed with exit code 1."
+    ],
+    "root_cause": "During the ARM64 cross-compilation build, 13+ translation units in the openvino_reference CMake target failed to compile because the precompiled header cmake_pch.hxx.gch consumed by cc1plus is not recognized as a valid PCH file. Because CMAKE_COMPILE_WARNING_AS_ERROR is enabled, the 'not a PCH file' diagnostic is escalated by -Werror=invalid-pch into a hard ninja build failure. The commit under investigation (#38602) only changes ONNX frontend Dropout training_mode handling (src/frontends/onnx/frontend/src/op/dropout.cpp and its test) - it does not touch src/core/reference, PCH generation, or cmake/toolchain configuration, so the failure is unrelated to this PR's diff. This is now the 3rd recorded occurrence of the identical signature (first seen 2026-09-25 in openvino_shape_inference, 2nd seen 2026-10-06 00:24 also in openvino_reference, both on unrelated PRs), confirming a recurring build-environment/toolchain issue rather than a source regression: most likely a stale or partially-written .gch artifact being reused across build/cache restores (sccache + CMake PCH interaction) instead of being regenerated before consumption, possibly exacerbated by parallel ninja jobs racing on the same PCH compile unit.",
+    "reproduction_steps": "Not directly reproducible from a clean checkout without the exact runner image/cache state. To attempt reproduction: use the ARM64 cross-compilation Docker image referenced by this workflow, configure with the same cmake options (-DCMAKE_TOOLCHAIN_FILE=cmake/arm64.toolchain.cmake, CMAKE_COMPILE_WARNING_AS_ERROR=ON, CMAKE_CXX_COMPILER_LAUNCHER=sccache), restore a prior build-directory/sccache cache, then run a parallel ninja build and check whether src/core/reference/CMakeFiles/openvino_reference.dir/cmake_pch.hxx.gch is cleanly regenerated before being consumed by dependent .cpp.o compiles.",
+    "recommended_actions": [
+        "Re-run the failed 'Linux (Ubuntu 22.04, ARM64 cross-compilation, Python 3.11)' workflow; this is the 3rd occurrence of the same signature on unrelated PRs, so a rerun is very likely to pass.",
+        "Escalate to infra/build-tooling owners: this signature has now recurred 3 times across different targets (openvino_shape_inference, openvino_reference twice) - prioritize root-causing the PCH/sccache cache interaction rather than treating each occurrence as independent flakiness.",
+        "Investigate whether sccache is caching/restoring PCH-related compiler invocations (CMAKE_CXX_COMPILER_LAUNCHER=sccache combined with CMake PCH) across build directories/containers for the ARM64 cross-compilation job, and whether a partially-written or stale .gch from a previous run is reused instead of regenerated.",
+        "Consider excluding PCH object files (cmake_pch.hxx.gch) from any build-directory/sccache cache restored between runs for this job, or add an explicit freshness check (checksum/timestamp of .gch vs its source header) before the compile step consumes it.",
+        "As a stopgap, consider not escalating -Werror=invalid-pch to a hard failure for PCH-consuming targets on this cross-compilation configuration until the underlying cache/race is fixed, since a stale PCH should trigger a full regeneration rather than fail the whole build."
+    ],
+    "prevention_strategies": "Ensure PCH artifacts (cmake_pch.hxx.gch) are always freshly generated per build and are never restored from a cross-run build-directory or sccache cache for the ARM64 cross-compilation job. Add a CI step that verifies PCH freshness before the compile step consumes it, so a stale artifact triggers a clean rebuild instead of a hard failure. Given this is a 3rd recurrence, treat it as a tracked infra defect rather than ad-hoc flakiness.",
+    "historical_context": "Exact same signature recorded twice before: 2026-09-25 (run 36123294303, PR #38393, failed in openvino_shape_inference) and 2026-10-06 00:24 (run 37391757947, PR #38483, failed in openvino_reference). All three occurrences are on PRs whose diffs are unrelated to src/core/reference, PCH generation, or cmake/toolchain configuration, confirming this is a recurring (now 3x) build-environment/cache issue in the post-commit knowledge base, not a code regression."
+}
