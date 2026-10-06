@@ -5,6 +5,7 @@
 #pragma once
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
@@ -13,7 +14,6 @@
 
 #include "intel_npu/common/npu.hpp"
 #include "intel_npu/common/option_support_cache.hpp"
-#include "intel_npu/config/config.hpp"
 #include "intel_npu/utils/vcl/vcl_api.hpp"
 #include "ivcl_compiler.hpp"
 #include "openvino/core/except.hpp"
@@ -42,13 +42,13 @@ public:
      * @brief Transforms a network from the OpenVINO model representation to a format executable
      * by a NPU device
      * @param model a shared pointer to the OpenVINO model to be compiled
-     * @param config a reference to NPUConfig containing plugin config options
-     *        including config options related to compilation
+     * @param compilerProperties the compiler options, values stored as strings
      * @return a pair containing an ov::Tensor object with the compiled model (blob) and an optional
      *         string with runtime requirements for the blob
      */
-    std::pair<ov::Tensor, std::optional<std::string>> compile(const std::shared_ptr<const ov::Model>& model,
-                                                              const Config& config) const override;
+    std::pair<ov::Tensor, std::optional<std::string>> compile(
+        const std::shared_ptr<const ov::Model>& model,
+        const std::map<std::string, std::string>& compilerProperties) const override;
 
     /**
      * @brief Compiles the model, weights separation enabled. All init schedules along with the main one are compiled in
@@ -58,7 +58,7 @@ public:
      */
     std::pair<std::vector<ov::Tensor>, std::optional<std::string>> compileWsOneShot(
         const std::shared_ptr<ov::Model>& model,
-        const Config& config) const override;
+        const std::map<std::string, std::string>& compilerProperties) const override;
     /**
      * @brief Sequential compilation of Init(s) and Main
      *
@@ -73,17 +73,18 @@ public:
      * Compiler should somehow understand which Init (or Main) to return
      * Plugin does not know total numbers of Init schedules
      */
-    std::pair<ov::Tensor, std::optional<std::string>> compileWsIterative(const std::shared_ptr<ov::Model>& model,
-                                                                         const Config& config,
-                                                                         size_t callNumber) const override;
+    std::pair<ov::Tensor, std::optional<std::string>> compileWsIterative(
+        const std::shared_ptr<ov::Model>& model,
+        const std::map<std::string, std::string>& compilerProperties,
+        size_t callNumber) const override;
     /**
      * @brief Returns information about supported layers of the network passed
      * @param model The model to be queried
-     * @param config A reference to NPUConfig containing plugin config options
-     *        including config options related to compilation
+     * @param compilerProperties The compiler options, values stored as strings
      * @returns SupportedOpsMap structure with information about supported layers
      */
-    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model, const Config& config) const override;
+    ov::SupportedOpsMap query(const std::shared_ptr<const ov::Model>& model,
+                              const std::map<std::string, std::string>& compilerProperties) const override;
 
     /**
      * @brief Returns the compiler version
@@ -121,9 +122,10 @@ private:
      * the "WeightlessCacheAttribute" may be stored within the serialized model if requested.
      * @note Storing the "WeightlessCacheAttribute" is necessary if the "weights separation" flow is being used.
      */
-    std::pair<ov::Tensor, std::optional<std::string>> compile(const std::shared_ptr<const ov::Model>& model,
-                                                              const Config& config,
-                                                              const bool storeWeightlessCacheAttributeFlag) const;
+    std::pair<ov::Tensor, std::optional<std::string>> compile(
+        const std::shared_ptr<const ov::Model>& model,
+        const std::map<std::string, std::string>& compilerProperties,
+        const bool storeWeightlessCacheAttributeFlag) const;
 
     std::shared_ptr<const VCLFunctionTable> _functions;
     vcl_log_handle_t _logHandle = nullptr;

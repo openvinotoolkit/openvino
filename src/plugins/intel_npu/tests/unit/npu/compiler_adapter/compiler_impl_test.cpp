@@ -27,9 +27,7 @@
 #include "ze_graph_ext_wrappers.hpp"
 
 using ::fake_vcl::FakeVcl;
-using ::intel_npu::Config;
 using ::intel_npu::IDevice;
-using ::intel_npu::OptionsDesc;
 using ::intel_npu::OptionSupportCache;
 using ::intel_npu::ScopedOptionSupportCache;
 using ::intel_npu::VCLCompilerImpl;
@@ -40,18 +38,10 @@ namespace {
 constexpr OptionSupportCache::CacheKey kFirstKey = 1u;
 constexpr OptionSupportCache::CacheKey kSecondKey = 2u;
 
-/// Registers just the options the compiler-in-plugin path reads, so `config.get<>` resolves.
-std::shared_ptr<OptionsDesc> makeOptionsDesc() {
-    auto desc = std::make_shared<OptionsDesc>();
-    desc->add<::intel_npu::MODEL_SERIALIZER_VERSION>();
-    desc->add<::intel_npu::WS_COMPILE_CALL_NUMBER>();
-    return desc;
-}
-
-Config makeConfig() {
-    // Registration is all that is needed: compileWsIterative writes WS_COMPILE_CALL_NUMBER via
-    // update(), and MODEL_SERIALIZER_VERSION is read through config.get<>.
-    return Config(makeOptionsDesc());
+std::map<std::string, std::string> makeCompilerProperties() {
+    // Nothing is needed: compileWsIterative writes WS_COMPILE_CALL_NUMBER itself, and MODEL_SERIALIZER_VERSION
+    // falls back to its default value when it is missing.
+    return {};
 }
 
 /// A minimal model with one weight, enough for the serializer to produce a real IR.
@@ -519,7 +509,7 @@ TEST_F(VCLCompilerImplTest, CompileHonoursACachedNegativeWithoutQueryingTheCompi
     cache->addSupportedOption(kFirstKey, serializerVersion, false);
     auto compiler = makeCachingCompiler(cache);
 
-    const auto [tensor, compatibility] = compiler->compile(makeModel(), makeConfig());
+    const auto [tensor, compatibility] = compiler->compile(makeModel(), makeCompilerProperties());
     (void)tensor;
     (void)compatibility;
 
@@ -542,7 +532,7 @@ TEST_F(VCLCompilerImplTest, CompileAsksAboutEachOptionNameOnlyOnceWhenCaching) {
     auto cache = std::make_shared<OptionSupportCache>();
     auto compiler = makeCachingCompiler(cache);
 
-    const auto result = compiler->compile(makeModel(), makeConfig());
+    const auto result = compiler->compile(makeModel(), makeCompilerProperties());
     (void)result;
 
     ASSERT_FALSE(fake.optionSupportQueries.empty());
@@ -563,7 +553,7 @@ TEST_F(VCLCompilerImplTest, WithoutACacheCompileRepeatsTheSameOptionQueries) {
     // regression that stops wiring it would show up here as an unchanged query count.
     auto compiler = makeCompiler();
 
-    const auto result = compiler->compile(makeModel(), makeConfig());
+    const auto result = compiler->compile(makeModel(), makeCompilerProperties());
     (void)result;
 
     std::vector<std::string> names;
@@ -673,9 +663,9 @@ TEST_F(VCLCompilerImplTest, ProcessProfilingOutputThrowsWhenDestroyFails) {
 
 TEST_F(VCLCompilerImplTest, CompileProducesABlobAndACompatibilityString) {
     auto compiler = makeCompiler();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
 
-    const auto [tensor, compatibility] = compiler->compile(makeModel(), config);
+    const auto [tensor, compatibility] = compiler->compile(makeModel(), compilerProperties);
 
     EXPECT_EQ(fake.callCount("vclAllocatedExecutableCreate4"), 1u);
     EXPECT_GT(tensor.get_byte_size(), 0u);
@@ -686,14 +676,14 @@ TEST_F(VCLCompilerImplTest, CompileProducesABlobAndACompatibilityString) {
 TEST_F(VCLCompilerImplTest, CompileBuildFlagsAreIoInfoThenSpaceThenSerializedConfig) {
     // This is the plugin's actual contract with the compiler; nothing else pins it down.
     auto compiler = makeCompiler();
-    // compile() stamps the resolved serializer version into a local copy of the config, but only
-    // when the compiler advertises the option. Model a compiler that does not, so the flags are a
-    // pure function of the config the test holds. The stamping branch is covered separately.
+    // compile() stamps the resolved serializer version into a local copy of the compiler properties,
+    // but only when the compiler advertises the option. Model a compiler that does not, so the flags
+    // are a pure function of the properties the test holds. The stamping branch is covered separately.
     fake.unsupportedOptions.insert(std::string(ov::intel_npu::model_serializer_version.name()));
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
     const auto model = makeModel();
 
-    const auto [tensor, compatibility] = compiler->compile(model, config);
+    const auto [tensor, compatibility] = compiler->compile(model, compilerProperties);
     (void)tensor;
     (void)compatibility;
 
@@ -701,11 +691,8 @@ TEST_F(VCLCompilerImplTest, CompileBuildFlagsAreIoInfoThenSpaceThenSerializedCon
     compilerVersion.major = fake.propertiesVersion.major;
     compilerVersion.minor = fake.propertiesVersion.minor;
 
-    const auto isSupported = [&compiler](const std::string& name) {
-        return compiler->is_option_supported(name);
-    };
     const std::string expected = ::intel_npu::compiler_utils::serializeIOInfo(model, true) + " " +
-                                 ::intel_npu::compiler_utils::serializeConfig(config, compilerVersion, isSupported);
+                                 ::intel_npu::compiler_utils::serializeConfig(compilerProperties, compilerVersion);
 
     ASSERT_EQ(fake.buildFlags.size(), 1u);
     EXPECT_EQ(fake.buildFlags[0], expected);
@@ -715,7 +702,7 @@ TEST_F(VCLCompilerImplTest, CompileStampsTheResolvedSerializerVersionWhenAdverti
     // compile() serializes the IR first, then writes back the serializer version it actually used
     // so the compiler parses the IR the same way. The value is serializeIR's choice, so pin the key.
     auto compiler = makeCompiler();
-    const auto [tensor, compatibility] = compiler->compile(makeModel(), makeConfig());
+    const auto [tensor, compatibility] = compiler->compile(makeModel(), makeCompilerProperties());
     (void)tensor;
     (void)compatibility;
 
@@ -730,7 +717,7 @@ TEST_F(VCLCompilerImplTest, CompileOmitsTheSerializerVersionWhenNotAdvertised) {
     auto compiler = makeCompiler();
     fake.unsupportedOptions.insert(std::string(ov::intel_npu::model_serializer_version.name()));
 
-    const auto [tensor, compatibility] = compiler->compile(makeModel(), makeConfig());
+    const auto [tensor, compatibility] = compiler->compile(makeModel(), makeCompilerProperties());
     (void)tensor;
     (void)compatibility;
 
@@ -743,9 +730,9 @@ TEST_F(VCLCompilerImplTest, CompileReturnsTheAlignedAllocatorSizeNotTheVclBlobSi
     // that is what was actually reserved and what the deleter will free.
     fake.blobPayload.assign(5, 0xAB);
     auto compiler = makeCompiler();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
 
-    const auto [tensor, compatibility] = compiler->compile(makeModel(), config);
+    const auto [tensor, compatibility] = compiler->compile(makeModel(), compilerProperties);
     (void)compatibility;
 
     const size_t alignedExpected = ::intel_npu::utils::align_size_to_standard_page_size(5);
@@ -757,9 +744,9 @@ TEST_F(VCLCompilerImplTest, CompileReturnsTheAlignedAllocatorSizeNotTheVclBlobSi
 
 TEST_F(VCLCompilerImplTest, CompileDestroysTheExecutableOnTheSuccessPath) {
     auto compiler = makeCompiler();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
 
-    const auto result = compiler->compile(makeModel(), config);
+    const auto result = compiler->compile(makeModel(), compilerProperties);
     (void)result;
 
     EXPECT_EQ(fake.executableDestroyCount, 1);
@@ -767,12 +754,12 @@ TEST_F(VCLCompilerImplTest, CompileDestroysTheExecutableOnTheSuccessPath) {
 
 TEST_F(VCLCompilerImplTest, CompileCleansUpAllocationsWhenExecutableCreationFails) {
     auto compiler = makeCompiler();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
     fake.logString = "create4-failed";
     fake.failWith("vclAllocatedExecutableCreate4", VCL_RESULT_ERROR_OUT_OF_MEMORY);
 
     try {
-        compiler->compile(makeModel(), config);
+        compiler->compile(makeModel(), compilerProperties);
         FAIL() << "Expected compile to throw";
     } catch (const ov::Exception& error) {
         const std::string what = error.what();
@@ -783,20 +770,20 @@ TEST_F(VCLCompilerImplTest, CompileCleansUpAllocationsWhenExecutableCreationFail
 
 TEST_F(VCLCompilerImplTest, CompileDestroysTheExecutableWhenTheCompatibilityLookupThrows) {
     auto compiler = makeCompiler();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
     // A hard failure (not UNSUPPORTED_FEATURE) propagates, but must not leak the executable.
     fake.failWith("vclExecutableGetCompatibilityString", VCL_RESULT_ERROR_UNKNOWN);
 
-    EXPECT_THROW(compiler->compile(makeModel(), config), ov::Exception);
+    EXPECT_THROW(compiler->compile(makeModel(), compilerProperties), ov::Exception);
     EXPECT_EQ(fake.executableDestroyCount, 1);
 }
 
 TEST_F(VCLCompilerImplTest, CompileTreatsUnsupportedCompatibilityStringAsAbsentNotAnError) {
     auto compiler = makeCompiler();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
     fake.compatibilityString.reset();  // makes the fake report UNSUPPORTED_FEATURE
 
-    const auto [tensor, compatibility] = compiler->compile(makeModel(), config);
+    const auto [tensor, compatibility] = compiler->compile(makeModel(), compilerProperties);
     (void)tensor;
 
     EXPECT_FALSE(compatibility.has_value());
@@ -805,10 +792,10 @@ TEST_F(VCLCompilerImplTest, CompileTreatsUnsupportedCompatibilityStringAsAbsentN
 
 TEST_F(VCLCompilerImplTest, CompileTrimsTheTrailingNulFromTheCompatibilityString) {
     auto compiler = makeCompiler();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
     fake.compatibilityString = std::string("compat-value");
 
-    const auto [tensor, compatibility] = compiler->compile(makeModel(), config);
+    const auto [tensor, compatibility] = compiler->compile(makeModel(), compilerProperties);
     (void)tensor;
 
     ASSERT_TRUE(compatibility.has_value());
@@ -819,28 +806,28 @@ TEST_F(VCLCompilerImplTest, CompileTrimsTheTrailingNulFromTheCompatibilityString
 
 TEST_F(VCLCompilerImplTest, CompileThrowsOnZeroSizedCompatibilityString) {
     auto compiler = makeCompiler();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
     fake.compatibilityString = std::string("ignored");
     fake.compatibilityStringSizeOverride = 0u;
 
-    EXPECT_THROW(compiler->compile(makeModel(), config), ov::Exception);
+    EXPECT_THROW(compiler->compile(makeModel(), compilerProperties), ov::Exception);
     EXPECT_EQ(fake.executableDestroyCount, 1);
 }
 
 TEST_F(VCLCompilerImplTest, CompileThrowsWhenExecutableDestroyFails) {
     auto compiler = makeCompiler();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
     fake.failWith("vclExecutableDestroy", VCL_RESULT_ERROR_UNKNOWN);
 
-    EXPECT_THROW(compiler->compile(makeModel(), config), ov::Exception);
+    EXPECT_THROW(compiler->compile(makeModel(), compilerProperties), ov::Exception);
 }
 
 TEST_F(VCLCompilerImplTest, CompileThrowsWhenTheLibraryIsBelowTheSupportedFloor) {
     fake.reportedCompilerVersion = {VCL_COMPILER_VERSION_MAJOR - 1, 0};
     auto compiler = makeCompiler();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
 
-    EXPECT_THROW(compiler->compile(makeModel(), config), ov::Exception);
+    EXPECT_THROW(compiler->compile(makeModel(), compilerProperties), ov::Exception);
     // The version gate fires before any executable is created.
     EXPECT_FALSE(fake.called("vclAllocatedExecutableCreate4"));
 }
@@ -850,9 +837,9 @@ TEST_F(VCLCompilerImplTest, QueryThrowsWhenTheLibraryIsBelowTheSupportedFloor) {
     // unsupported library would otherwise be asked to parse an IR it cannot understand.
     fake.reportedCompilerVersion = {VCL_COMPILER_VERSION_MAJOR - 1, 0};
     auto compiler = makeCompiler();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
 
-    EXPECT_THROW(compiler->query(makeModel(), config), ov::Exception);
+    EXPECT_THROW(compiler->query(makeModel(), compilerProperties), ov::Exception);
     // The version gate fires before the query handle is created.
     EXPECT_FALSE(fake.called("vclQueryNetworkCreate"));
 }
@@ -864,9 +851,9 @@ TEST_F(VCLCompilerImplTest, QueryThrowsWhenTheLibraryIsBelowTheSupportedFloor) {
 TEST_F(VCLCompilerImplTest, CompileWsOneShotReturnsOneTensorPerAllocation) {
     fake.wsBlobSizes = {8, 16, 32};
     auto compiler = makeCompiler();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
 
-    const auto [tensors, compatibility] = compiler->compileWsOneShot(makeModel(), config);
+    const auto [tensors, compatibility] = compiler->compileWsOneShot(makeModel(), compilerProperties);
 
     EXPECT_EQ(fake.callCount("vclAllocatedExecutableCreateWSOneShot2"), 1u);
     ASSERT_EQ(tensors.size(), 3u);
@@ -878,9 +865,9 @@ TEST_F(VCLCompilerImplTest, CompileWsOneShotOrdersInitSchedulesBeforeMain) {
     // The adapter consumes the last tensor as the main schedule, so allocation order is load-bearing.
     fake.wsBlobSizes = {8, 16, 4096 * 3};
     auto compiler = makeCompiler();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
 
-    const auto [tensors, compatibility] = compiler->compileWsOneShot(makeModel(), config);
+    const auto [tensors, compatibility] = compiler->compileWsOneShot(makeModel(), compilerProperties);
     (void)compatibility;
 
     ASSERT_EQ(tensors.size(), 3u);
@@ -890,10 +877,10 @@ TEST_F(VCLCompilerImplTest, CompileWsOneShotOrdersInitSchedulesBeforeMain) {
 TEST_F(VCLCompilerImplTest, CompileWsOneShotThrowsAndDestroysExecutableWhenNothingWasAllocated) {
     fake.wsBlobSizes.clear();  // no allocations -> m_info stays empty
     auto compiler = makeCompiler();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
 
     try {
-        compiler->compileWsOneShot(makeModel(), config);
+        compiler->compileWsOneShot(makeModel(), compilerProperties);
         FAIL() << "Expected compileWsOneShot to throw";
     } catch (const ov::Exception& error) {
         EXPECT_NE(std::string(error.what()).find("blobCount is zero"), std::string::npos) << error.what();
@@ -903,10 +890,10 @@ TEST_F(VCLCompilerImplTest, CompileWsOneShotThrowsAndDestroysExecutableWhenNothi
 
 TEST_F(VCLCompilerImplTest, CompileWsOneShotThrowsWhenCreationFails) {
     auto compiler = makeCompiler();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
     fake.failWith("vclAllocatedExecutableCreateWSOneShot2", VCL_RESULT_ERROR_UNKNOWN);
 
-    EXPECT_THROW(compiler->compileWsOneShot(makeModel(), config), ov::Exception);
+    EXPECT_THROW(compiler->compileWsOneShot(makeModel(), compilerProperties), ov::Exception);
 }
 
 //
@@ -915,9 +902,9 @@ TEST_F(VCLCompilerImplTest, CompileWsOneShotThrowsWhenCreationFails) {
 
 TEST_F(VCLCompilerImplTest, CompileWsIterativeGoesThroughTheSingleBlobPath) {
     auto compiler = makeCompiler();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
 
-    const auto [tensor, compatibility] = compiler->compileWsIterative(makeModel(), config, 2);
+    const auto [tensor, compatibility] = compiler->compileWsIterative(makeModel(), compilerProperties, 2);
     (void)compatibility;
 
     EXPECT_EQ(fake.callCount("vclAllocatedExecutableCreate4"), 1u);
@@ -932,9 +919,9 @@ TEST_F(VCLCompilerImplTest, QueryParsesSupportedLayersAndKeysThemToNPU) {
     const std::string payload = "<Parameter_0><Add_1>";
     fake.queryResultBuffer.assign(payload.begin(), payload.end());
     auto compiler = makeCompiler();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
 
-    const auto supported = compiler->query(makeModel(), config);
+    const auto supported = compiler->query(makeModel(), compilerProperties);
 
     ASSERT_EQ(supported.size(), 2u);
     ASSERT_TRUE(supported.count("Parameter_0"));
@@ -947,9 +934,9 @@ TEST_F(VCLCompilerImplTest, QueryUsesTheTwoCallSizeProtocolAndDestroysTheHandle)
     const std::string payload = "<Add_1>";
     fake.queryResultBuffer.assign(payload.begin(), payload.end());
     auto compiler = makeCompiler();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
 
-    const auto supported = compiler->query(makeModel(), config);
+    const auto supported = compiler->query(makeModel(), compilerProperties);
     (void)supported;
 
     EXPECT_EQ(fake.callCount("vclQueryNetworkCreate"), 1u);
@@ -960,36 +947,36 @@ TEST_F(VCLCompilerImplTest, QueryUsesTheTwoCallSizeProtocolAndDestroysTheHandle)
 TEST_F(VCLCompilerImplTest, QueryReturnsAnEmptyMapForAnEmptyResult) {
     fake.queryResultBuffer.clear();
     auto compiler = makeCompiler();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
 
-    EXPECT_TRUE(compiler->query(makeModel(), config).empty());
+    EXPECT_TRUE(compiler->query(makeModel(), compilerProperties).empty());
 }
 
 TEST_F(VCLCompilerImplTest, QueryThrowsWhenCreationFails) {
     auto compiler = makeCompiler();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
     fake.failWith("vclQueryNetworkCreate", VCL_RESULT_ERROR_INVALID_IR);
 
-    EXPECT_THROW(compiler->query(makeModel(), config), ov::Exception);
+    EXPECT_THROW(compiler->query(makeModel(), compilerProperties), ov::Exception);
     EXPECT_EQ(fake.queryDestroyCount, 0);
 }
 
 TEST_F(VCLCompilerImplTest, QueryThrowsWhenTheResultFetchFails) {
     auto compiler = makeCompiler();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
     fake.failWith("vclQueryNetwork", VCL_RESULT_ERROR_UNKNOWN);
 
-    EXPECT_THROW(compiler->query(makeModel(), config), ov::Exception);
+    EXPECT_THROW(compiler->query(makeModel(), compilerProperties), ov::Exception);
 }
 
 TEST_F(VCLCompilerImplTest, QueryThrowsWhenDestroyFails) {
     const std::string payload = "<Add_1>";
     fake.queryResultBuffer.assign(payload.begin(), payload.end());
     auto compiler = makeCompiler();
-    auto config = makeConfig();
+    auto compilerProperties = makeCompilerProperties();
     fake.failWith("vclQueryNetworkDestroy", VCL_RESULT_ERROR_UNKNOWN);
 
-    EXPECT_THROW(compiler->query(makeModel(), config), ov::Exception);
+    EXPECT_THROW(compiler->query(makeModel(), compilerProperties), ov::Exception);
 }
 
 }  // namespace

@@ -8,6 +8,7 @@
 
 #include "intel_npu/common/device_helpers.hpp"
 #include "intel_npu/config/options.hpp"
+#include "intel_npu/utils/string_map_utils.hpp"
 #include "metadata.hpp"
 
 namespace {
@@ -56,12 +57,14 @@ std::string buildRuntimeRequirements(const std::shared_ptr<intel_npu::IGraph>& g
 namespace intel_npu {
 
 CompiledModelPropertyManager::CompiledModelPropertyManager(const Config& config,
+                                                           const std::map<std::string, std::string>& compilerProperties,
                                                            const ov::AnyMap& properties,
                                                            const std::shared_ptr<IDevice>& device,
                                                            const std::shared_ptr<IGraph>& graph,
                                                            const std::optional<int64_t>& batchSize,
                                                            Logger& logger)
     : _config(config),
+      _compilerProperties(compilerProperties),
       _device(device),
       _graph(graph),
       _batchSize(batchSize),
@@ -116,11 +119,12 @@ ov::Any CompiledModelPropertyManager::getProperty(const std::string& name) const
         return propertyIt->second.get(ov::AnyMap{});
     }
 
-    try {
-        return _config.getInternal(name);
-    } catch (...) {
-        OPENVINO_THROW("Unsupported configuration key: ", name);
+    // Internal compiler options are unknown to the plugin, they can be found only in the compiler properties
+    const auto internalPropertyIt = _compilerProperties.find(name);
+    if (!_config.hasOpt(name) && internalPropertyIt != _compilerProperties.end()) {
+        return internalPropertyIt->second;
     }
+    OPENVINO_THROW("Unsupported configuration key: ", name);
 }
 
 Config CompiledModelPropertyManager::getConfig() const {
@@ -143,16 +147,31 @@ void CompiledModelPropertyManager::registerProperties() {
                                          hasPropertyValue](const auto optionTag, bool isPublic, bool requireValue) {
         using OptionType = std::decay_t<decltype(optionTag)>;
         const auto propertyName = std::string(OptionType::key());
-        const auto isSupported = [this, propertyName, hasPropertyValue, requireValue](const ov::AnyMap&) {
-            return requireValue ? hasPropertyValue(propertyName) : _config.hasOpt(propertyName);
+        // Compile-time-only options are not part of the runtime config, they are read from the compiler properties.
+        // TODO: OptionMode is going to be removed from Config, classify the compile-time properties differently.
+        const bool isCompileTime = OptionType::mode() == OptionMode::CompileTime;
+        const auto isSupported = [this, propertyName, hasPropertyValue, requireValue, isCompileTime](
+                                     const ov::AnyMap&) {
+            if (!requireValue) {
+                return _config.hasOpt(propertyName);
+            }
+            return isCompileTime ? string_map::has(_compilerProperties, propertyName) : hasPropertyValue(propertyName);
         };
         register_property(
             propertyName,
             isPublic,
             ov::PropertyMutability::RO,
             isSupported,
-            [this](const ov::AnyMap&) {
-                return _config.get<OptionType>();
+            [this, propertyName, isCompileTime](const ov::AnyMap&) -> ov::Any {
+                if (!isCompileTime) {
+                    return _config.get<OptionType>();
+                }
+                if (string_map::has(_compilerProperties, propertyName)) {
+                    return OptionType::parse(string_map::get(_compilerProperties, propertyName));
+                }
+                const std::optional<typename OptionType::ValueType> defaultValue = OptionType::defaultValue();
+                OPENVINO_ASSERT(defaultValue.has_value(), "Unsupported configuration key: ", propertyName);
+                return defaultValue.value();
             },
             [](const ov::Any&) {
                 OPENVINO_THROW("READ-ONLY configuration key");
@@ -207,23 +226,28 @@ void CompiledModelPropertyManager::registerProperties() {
     // INFERENCE_PRECISION_HINT and EXECUTION_MODE_HINT are used by the compiler, but their values aren't guaranteed to
     // be correct if the user doesn't set it explicitly when compiling a model. Even if it is set when compiling a
     // model, importing the same model, it can again produce a wrong value.
-    register_property(ov::hint::inference_precision.name(), _config.has<INFERENCE_PRECISION_HINT>(), ov::PropertyMutability::RO,
+    // Both are compile-time-only options, they are read from the compiler properties.
+    register_property(ov::hint::inference_precision.name(), string_map::has(_compilerProperties, ov::hint::inference_precision.name()), ov::PropertyMutability::RO,
         [this](const ov::AnyMap&) {
             return _config.hasOpt(ov::hint::inference_precision.name());
         },
         [this](const ov::AnyMap&) {
-            return _config.get<INFERENCE_PRECISION_HINT>();
+            return string_map::has(_compilerProperties, ov::hint::inference_precision.name())
+                       ? INFERENCE_PRECISION_HINT::parse(string_map::get(_compilerProperties, ov::hint::inference_precision.name()))
+                       : INFERENCE_PRECISION_HINT::defaultValue();
         },
         [](const ov::Any&) {
             OPENVINO_THROW("READ-ONLY configuration key");
         }
     );
-    register_property(ov::hint::execution_mode.name(), _config.has<EXECUTION_MODE_HINT>(), ov::PropertyMutability::RO,
+    register_property(ov::hint::execution_mode.name(), string_map::has(_compilerProperties, ov::hint::execution_mode.name()), ov::PropertyMutability::RO,
         [this](const ov::AnyMap&) {
             return _config.hasOpt(ov::hint::execution_mode.name());
         },
         [this](const ov::AnyMap&) {
-            return _config.get<EXECUTION_MODE_HINT>();
+            return string_map::has(_compilerProperties, ov::hint::execution_mode.name())
+                       ? EXECUTION_MODE_HINT::parse(string_map::get(_compilerProperties, ov::hint::execution_mode.name()))
+                       : EXECUTION_MODE_HINT::defaultValue();
         },
         [](const ov::Any&) {
             OPENVINO_THROW("READ-ONLY configuration key");

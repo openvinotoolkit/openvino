@@ -28,14 +28,20 @@ CompiledModel::CompiledModel(const std::shared_ptr<const ov::Model>& model,
                              const std::shared_ptr<IGraph>& graph,
                              const Config& config,
                              const ov::AnyMap& properties,
-                             const std::optional<int64_t>& batchSize)
+                             const std::optional<int64_t>& batchSize,
+                             const std::map<std::string, std::string>& compilerProperties)
     : ICompiledModel(model, plugin, nullptr, nullptr),
       _logger("CompiledModel", config.get<LOG_LEVEL>()),
       _device(device),
       _graph(graph),
       _batchSize(batchSize),
-      _propertiesManager(
-          std::make_unique<CompiledModelPropertyManager>(config, properties, _device, _graph, _batchSize, _logger)) {
+      _propertiesManager(std::make_unique<CompiledModelPropertyManager>(config,
+                                                                        compilerProperties,
+                                                                        properties,
+                                                                        _device,
+                                                                        _graph,
+                                                                        _batchSize,
+                                                                        _logger)) {
     OV_ITT_SCOPED_TASK(itt::domains::NPUPlugin, "CompiledModel::CompiledModel");
 
     OPENVINO_ASSERT(_graph != nullptr, "Invalid graph handle! Failed to initialize compiled model!");
