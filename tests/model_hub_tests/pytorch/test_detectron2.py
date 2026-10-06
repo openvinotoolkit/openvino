@@ -24,6 +24,10 @@ class TestDetectron2ConvertModel(TestTorchConvertModel):
         self.image = self.image.resize([640, 480])
 
         subprocess.check_call([sys.executable, "-m", "pip", "install",
+                              # detectron2 has no pyproject.toml, so its setup.py (which does `import
+                              # torch` at module level) must run in the current env, not an isolated
+                              # PEP 517 build env that doesn't have torch installed.
+                              "--no-build-isolation",
                               "setuptools<78",  # detectron2 needs pkg_resources, removed in setuptools>=78
                               "git+https://github.com/facebookresearch/detectron2.git@017abbfa5f2c2a2afa045200c2af9ccf2fc6227f"])
 

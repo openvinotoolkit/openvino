@@ -75,6 +75,16 @@ class TestTransformersModel(TestTorchConvertModel):
         model_kwargs = {"torchscript": True}
         if "bart" in mi.tags:
             model_kwargs["attn_implementation"] = "eager"
+        if "t5" in mi.tags:
+            # newer transformers wraps T5's decoder past_key_values in an EncoderDecoderCache, which
+            # torch.jit.trace can't infer a type for; disabling the KV cache for this
+            # torchscript-tracing-only forward pass keeps the traced output plain tensors.
+            model_kwargs["use_cache"] = False
+        if "clip" in mi.tags and "clip_vision_model" not in mi.tags and "xclip" not in mi.tags:
+            # newer transformers' CLIP forward mixes a Tensor and a Dict[str, Tensor] in its output
+            # when return_dict defaults to True, which torch.jit.trace rejects; return_dict=False
+            # makes it a plain tuple of tensors again.
+            model_kwargs["return_dict"] = False
         try:
             auto_model = mi.transformersInfo['auto_model']
             if "processor" in mi.transformersInfo:
