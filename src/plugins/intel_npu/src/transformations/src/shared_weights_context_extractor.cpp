@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 //
 
-#include "shared_weights_contex_extractor.hpp"
+#include "shared_weights_context_extractor.hpp"
 
 #include "openvino/core/except.hpp"
 #include "openvino/core/weight_sharing_util.hpp"
 
 namespace ov {
 namespace intel_npu {
+namespace transformations {
 
 SharedWeightsContextExtractor::WeightSharingContextPtr
 SharedWeightsContextExtractor::extract_weight_sharing_context(const std::shared_ptr<ov::Model>& model) {
@@ -31,5 +32,6 @@ SharedWeightsContextExtractor::extract_weight_sharing_context(const SharedSource
     }
     return context;
 }
+}  // namespace transformations
 }  // namespace intel_npu
 }  // namespace ov

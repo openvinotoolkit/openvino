@@ -22,14 +22,14 @@
 #include "openvino/op/result.hpp"
 #include "openvino/util/mmap_object.hpp"
 #include "shared_weights_assigner.hpp"
-#include "shared_weights_contex_extractor.hpp"
+#include "shared_weights_context_extractor.hpp"
 #include "shared_weights_producer.hpp"
 
 namespace {
 
-using SharedConstant = ov::intel_npu::SharedWeightsAssigner::SharedConstant;
-using PartitionedConstants = ov::intel_npu::SharedWeightsAssigner::PartitionedConstants;
-using SharedSourcesWithConstants = ov::intel_npu::SharedWeightsAssigner::SharedSourcesWithConstants;
+using SharedConstant = ov::intel_npu::transformations::SharedWeightsAssigner::SharedConstant;
+using PartitionedConstants = ov::intel_npu::transformations::SharedWeightsAssigner::PartitionedConstants;
+using SharedSourcesWithConstants = ov::intel_npu::transformations::SharedWeightsAssigner::SharedSourcesWithConstants;
 
 std::shared_ptr<ov::Model> make_test_model(size_t element_count,
                                            std::unordered_map<std::string, std::shared_ptr<ov::op::v0::Constant>>& by_name) {
@@ -72,8 +72,8 @@ std::unordered_map<std::string, std::shared_ptr<ov::op::v0::Constant>> collect_n
     return result;
 }
 
-ov::intel_npu::SharedWeightsAssigner::Options make_options(size_t max_source_size) {
-    ov::intel_npu::SharedWeightsAssigner::Options options;
+ov::intel_npu::transformations::SharedWeightsAssigner::Options make_options(size_t max_source_size) {
+    ov::intel_npu::transformations::SharedWeightsAssigner::Options options;
     options.single_weight_shared_source_size_max = max_source_size;
     options.preserve_weightless_cache_attr = true;
     options.source_id_generator = [id = static_cast<size_t>(100)]() mutable {
@@ -83,7 +83,7 @@ ov::intel_npu::SharedWeightsAssigner::Options make_options(size_t max_source_siz
 }
 
 TEST(SharedWeightsAssignerTest, OptionsDefaultToMaximumSharedSourceSize) {
-    const ov::intel_npu::SharedWeightsAssigner::Options options{};
+    const ov::intel_npu::transformations::SharedWeightsAssigner::Options options{};
     EXPECT_EQ(options.single_weight_shared_source_size_max, std::numeric_limits<size_t>::max());
 }
 
@@ -95,7 +95,7 @@ TEST(SharedWeightsAssignerTest, CollectAndPartitionProvidesStatsWithoutMutation)
     const size_t model_constants_count = original_by_name.size();
 
     size_t expected_constant_partition_count = (model_constants_count - 1);
-    ov::intel_npu::SharedWeightsAssigner assigner(make_options(expected_constant_partition_count * page_size));
+    ov::intel_npu::transformations::SharedWeightsAssigner assigner(make_options(expected_constant_partition_count * page_size));
     auto collect_result = assigner.collect_and_partition(model);
 
     ASSERT_EQ(collect_result.statistic.collected_constants_count, model_constants_count);
@@ -121,7 +121,7 @@ TEST(SharedWeightsAssignerTest, MutateModelWithConstantSharingReturnsExpectedBuf
     const size_t model_constants_count = original_by_name.size();
 
     const size_t expected_constant_partition_count = model_constants_count - 1;
-    ov::intel_npu::SharedWeightsAssigner assigner(make_options(expected_constant_partition_count * page_size));
+    ov::intel_npu::transformations::SharedWeightsAssigner assigner(make_options(expected_constant_partition_count * page_size));
     auto collect_result = assigner.collect_and_partition(model);
     auto shared_sources_with_constants =
         assigner.mutate_model_with_constant_sharing(std::move(collect_result.partitioned_constants));
@@ -150,7 +150,7 @@ TEST(SharedWeightsAssignerTest, MutateModelWithConstantSharingReturnsExpectedBuf
         ASSERT_EQ(constant.get(), original_by_name.at(name).get());
     }
 
-    auto model_context = ov::intel_npu::SharedWeightsContextExtractor::extract_weight_sharing_context(model);
+    auto model_context = ov::intel_npu::transformations::SharedWeightsContextExtractor::extract_weight_sharing_context(model);
     ASSERT_EQ(model_context->m_runtime_sources.size(), expected_constant_partition_count);
     EXPECT_TRUE(model_context->m_cache_sources.empty());
     size_t model_context_constant_count = 0;
@@ -159,7 +159,7 @@ TEST(SharedWeightsAssignerTest, MutateModelWithConstantSharingReturnsExpectedBuf
     }
     EXPECT_EQ(model_context_constant_count, model_constants_count);
 
-    auto shared_sources_context = ov::intel_npu::SharedWeightsContextExtractor::extract_weight_sharing_context(
+    auto shared_sources_context = ov::intel_npu::transformations::SharedWeightsContextExtractor::extract_weight_sharing_context(
         shared_sources_with_constants);
     ASSERT_EQ(shared_sources_context->m_runtime_sources.size(), expected_constant_partition_count);
     EXPECT_TRUE(shared_sources_context->m_cache_sources.empty());
@@ -174,7 +174,7 @@ TEST(SharedWeightsProducerTest, EmptyPropertyDoesNotMutateModel) {
     std::unordered_map<std::string, std::shared_ptr<ov::op::v0::Constant>> original_by_name;
     auto model = make_test_model(static_cast<size_t>(ov::util::get_system_page_size()), original_by_name);
 
-    auto [sources, context] = ov::intel_npu::assign_shared_weight_to_model_if_possible(model, ov::Any{});
+    auto [sources, context] = ov::intel_npu::transformations::assign_shared_weight_to_model_if_possible(model, ov::Any{});
 
     EXPECT_TRUE(sources.empty());
     EXPECT_EQ(context, nullptr);
@@ -189,7 +189,7 @@ TEST(SharedWeightsProducerTest, ReturnsSourcesAndContextForSharedConstants) {
     std::unordered_map<std::string, std::shared_ptr<ov::op::v0::Constant>> original_by_name;
     auto model = make_test_model(page_size, original_by_name);
 
-    auto [sources, context] = ov::intel_npu::assign_shared_weight_to_model_if_possible(model, std::string("NPU"));
+    auto [sources, context] = ov::intel_npu::transformations::assign_shared_weight_to_model_if_possible(model, std::string("NPU"));
 
     ASSERT_EQ(sources.size(), 1u);
     ASSERT_NE(context, nullptr);
@@ -213,7 +213,7 @@ TEST(SharedWeightsProducerTest, RejectsNonStringProperty) {
     std::unordered_map<std::string, std::shared_ptr<ov::op::v0::Constant>> original_by_name;
     auto model = make_test_model(static_cast<size_t>(ov::util::get_system_page_size()), original_by_name);
 
-    EXPECT_THROW(ov::intel_npu::assign_shared_weight_to_model_if_possible(model, 123), ov::Exception);
+    EXPECT_THROW(ov::intel_npu::transformations::assign_shared_weight_to_model_if_possible(model, 123), ov::Exception);
 }
 
 }  // namespace
