@@ -338,7 +338,7 @@ TEST(GGUFEmbeddingAccuracy, TokenEmbeddingsAndPoolingMatchLlamaCPU) {
                     ASSERT_TRUE(name == "inp_tokens" || name == "inp_pos");
                     ov::Tensor values(ov::element::i32, {1, 1, 1, count});
                     for (size_t i = 0; i < count; ++i)
-                        values.data<int32_t>()[i] = i + (name == "inp_tokens" ? 1 : 0);
+                        values.data<int32_t>()[i] = static_cast<int32_t>(i) + (name == "inp_tokens" ? 1 : 0);
                     request.set_tensor(name, values);
                 }
             }
