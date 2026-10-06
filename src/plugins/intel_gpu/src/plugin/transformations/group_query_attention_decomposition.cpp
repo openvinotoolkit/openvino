@@ -209,7 +209,7 @@ std::shared_ptr<ov::Node> GroupQueryAttentionDecomposition::make_sdpa(const ov::
                                                                       const ov::Output<ov::Node>& sink,
                                                                       bool is_causal,
                                                                       const KVCacheMetadata& metadata_) {
-    auto& metadata = static_cast<const StatelessKVMetadata&>(metadata_);
+    const auto& metadata = static_cast<const StatelessKVMetadata&>(metadata_);
     const auto& compressed_kv = metadata.compressed_kv;
     ov::OutputVector inputs{query, compressed_kv ? compressed_kv->key : key, compressed_kv ? compressed_kv->value : value};
     if (mask.get_node()) {
