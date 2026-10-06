@@ -97,7 +97,8 @@ Properties that follow from the definition:
 * A row holds ``min(token_budget / compress_ratio, (p + 1) // compress_ratio)`` valid block indices
   for the query position ``p``, followed by ``-1`` padding. Rows of the first
   ``compress_ratio - 1`` positions have no valid entries.
-* ``block_count`` holds the number of valid entries of every row of ``block_indices``. The valid
+* ``block_count`` holds the number of valid entries of every row of ``block_indices`` and is passed
+  to the ``block_count`` input of *BlockSparseAttention*. The valid
   entries are the first ``block_count`` ones, so a consumer can use it as a loop bound instead of
   scanning for ``-1``, like the trailing count column of the vLLM selection buffer. In a batch
   aligned to the right the count depends only on the query position, so it is the same for every

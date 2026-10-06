@@ -40,7 +40,7 @@ Blocks consist of ``compress_ratio`` consecutive key tokens: block ``b`` holds t
 ``b * compress_ratio .. b * compress_ratio + compress_ratio - 1``. A query token at the position
 ``p`` attends to:
 
-* all tokens of every block listed in its row of ``block_indices``;
+* all tokens of the first ``block_count`` blocks listed in its row of ``block_indices``;
 * the tokens of the incomplete block that contains it, ``floor((p + 1) / compress_ratio) * compress_ratio .. p``:
   at most ``compress_ratio - 1`` tokens, including the query itself. This part is empty when
   ``p + 1`` is a multiple of ``compress_ratio``, because the block of the query is then complete
@@ -57,7 +57,7 @@ than in a paged cache.
 .. code-block:: py
    :force:
 
-    def BlockSparseAttention(query, key, value, block_indices, scale=None, *, compress_ratio):
+    def BlockSparseAttention(query, key, value, block_indices, block_count, scale=None, *, compress_ratio):
         N, H, L, E = query.shape
         Hkv, S = key.shape[1], key.shape[2]
         r = compress_ratio
@@ -68,7 +68,7 @@ than in a paged cache.
         for n in range(N):
             for l in range(L):
                 p = S - L + l                                   # position of the query token
-                blocks = block_indices[n, l][block_indices[n, l] >= 0]
+                blocks = block_indices[n, l, :int(block_count[n, l])]   # the rest of the row is ignored
                 selected = (blocks[:, None] * r + numpy.arange(r)[None, :]).reshape(-1)
                 tail = numpy.arange((p + 1) // r * r, p + 1)    # incomplete block, < r tokens
                 mask[n, l, selected] = True
@@ -89,14 +89,19 @@ Properties that follow from the definition:
   ``S - L + l``.
 * With the valid block indices of a row in ``[0, (p + 1) // compress_ratio)``, as produced by
   *SparseAttentionIndexer*, every attended token is at or before ``p``. A query attends to
-  ``(number of valid block indices) * compress_ratio + (p + 1) % compress_ratio`` tokens.
-* The result does not depend on the order of the block indices in a row or on the amount of
-  ``-1`` padding.
+  ``block_count * compress_ratio + (p + 1) % compress_ratio`` tokens, so the number of key and value
+  rows of every query is known before any of them is read.
+* ``block_count`` is the loop bound over the selected blocks of a row: an implementation reads only
+  the first ``block_count`` entries and never scans the row for ``-1``. It can also size the work of
+  a query and skip rows without selected blocks without reading ``block_indices``, like the valid-entry
+  count column that the vLLM sparse attention kernel uses as its tile-loop bound.
+* The result does not depend on the order of the valid block indices in a row or on the entries
+  after the first ``block_count`` ones, which are ignored.
 * With the rows produced by *SparseAttentionIndexer*, the result is identical to causal
   *ScaledDotProductAttention* as long as every complete block is selected, that is for the first
   ``token_budget + compress_ratio - 1`` positions.
 * A query token attends to nothing only if ``p + 1`` is a multiple of ``compress_ratio`` and its
-  row has no valid block index. *SparseAttentionIndexer* never produces such a row.
+  ``block_count`` is ``0``. *SparseAttentionIndexer* never produces such a row.
 * The operation can be expressed with other operations by expanding ``block_indices`` and the
   incomplete block into a boolean mask and passing it to *ScaledDotProductAttention* as
   ``attention_mask``, as llama.cpp does. That costs time and memory proportional to ``S`` for every
@@ -140,11 +145,16 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
   of all tokens, including the past ones. **Required.**
 
 * **4**: ``block_indices`` - 3D tensor of type *T_IND* and shape ``[N, L, KB]``: for every query
-  token at the position ``p``, the indices of the key blocks it attends to, padded with ``-1``.
-  Valid entries are in ``[0, (p + 1) // compress_ratio)`` and unique within a row; otherwise the
-  behavior is undefined. **Required.**
+  token at the position ``p``, the indices of the key blocks it attends to in its first
+  ``block_count`` entries. These entries are in ``[0, (p + 1) // compress_ratio)`` and unique within
+  a row; otherwise the behavior is undefined. The remaining entries are ignored; *SparseAttentionIndexer*
+  sets them to ``-1``. **Required.**
 
-* **5**: ``scale`` - a scalar or single element 1D tensor of type *T*: the attention scale factor,
+* **5**: ``block_count`` - 2D tensor of type *T_IND* and shape ``[N, L]``: the number of valid
+  entries in every row of ``block_indices``, ``0 <= block_count <= KB``. Normally the
+  ``block_count`` output of *SparseAttentionIndexer*. **Required.**
+
+* **6**: ``scale`` - a scalar or single element 1D tensor of type *T*: the attention scale factor,
   used instead of the default ``1 / sqrt(E)``. **Optional.**
 
 
@@ -215,9 +225,13 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
                 <dim>-1</dim>   <!-- L -->
                 <dim>512</dim>  <!-- KB -->
             </port>
+            <port id="4" precision="I32"> <!-- block_count from SparseAttentionIndexer -->
+                <dim>1</dim>    <!-- N -->
+                <dim>-1</dim>   <!-- L -->
+            </port>
         </input>
         <output>
-            <port id="4" precision="BF16">
+            <port id="5" precision="BF16">
                 <dim>1</dim>    <!-- N -->
                 <dim>24</dim>   <!-- H -->
                 <dim>-1</dim>   <!-- L -->
@@ -257,11 +271,15 @@ The sigmoid output gate of the Qwen3.8-Flash-Next attention is applied to the ou
                 <dim>1</dim>     <!-- L -->
                 <dim>512</dim>   <!-- KB -->
             </port>
-            <port id="4" precision="FP32"/> <!-- scale -->
+            <port id="4" precision="I32"> <!-- block_count from SparseAttentionIndexer: 512 -->
+                <dim>2</dim>     <!-- N -->
+                <dim>1</dim>     <!-- L -->
+            </port>
+            <port id="5" precision="FP32"/> <!-- scale -->
         </input>
         <output>
             <!-- each query attends to 512 blocks x 4 tokens + 1 token of its incomplete block = 2049 of the 10001 tokens -->
-            <port id="5" precision="FP32">
+            <port id="6" precision="FP32">
                 <dim>2</dim>     <!-- N -->
                 <dim>24</dim>    <!-- H -->
                 <dim>1</dim>     <!-- L -->
