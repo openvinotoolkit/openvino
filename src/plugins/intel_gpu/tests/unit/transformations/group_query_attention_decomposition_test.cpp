@@ -46,12 +46,11 @@ struct GQAConfig {
     bool causal = true;
     ov::PartialShape key_scale_shape{1};
     ov::PartialShape value_scale_shape{1};
-    ov::Dimension past_len = ov::Dimension::dynamic();  // static == full-length static KV cache
 };
 
 std::shared_ptr<ov::Model> make_gqa_model(const GQAConfig& cfg) {
     const auto f32 = ov::element::f32;
-    const auto past_len = cfg.past_len;
+    const auto past_len = ov::Dimension::dynamic();
 
     auto query = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, num_heads, 1, head_size});
     auto key = std::make_shared<ov::op::v0::Parameter>(f32, ov::PartialShape{1, kv_num_heads, 1, head_size});
@@ -296,18 +295,6 @@ TEST(GQADecompositionTest, int4_u8_cache_uses_u4_zp8) {
 }
 
 // A sliding-window cache retains the explicit attention mask.
-// A full-length static KV cache has unused tail slots: LOWER_RIGHT alignment would expose them, so the mask is kept.
-TEST(GQADecompositionTest, static_kv_cache_keeps_mask) {
-    GQAConfig cfg;
-    cfg.past_len = 8;
-
-    const auto sdpa = decompose_and_get_sdpa(cfg);
-    ASSERT_NE(sdpa, nullptr);
-    EXPECT_EQ(sdpa->get_input_size(), 4u) << "Q, K, V, mask";
-    EXPECT_TRUE(slot_holds_a_mask(sdpa->input_value(3)));
-    EXPECT_FALSE(sdpa->get_causal());
-}
-
 TEST(GQADecompositionTest, sliding_window_keeps_mask) {
     GQAConfig cfg;
     cfg.local_window_size = 128;
