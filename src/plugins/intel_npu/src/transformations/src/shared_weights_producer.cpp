@@ -13,10 +13,11 @@
 #include "openvino/core/except.hpp"
 #include "openvino/runtime/device_id_parser.hpp"
 #include "shared_weights_assigner.hpp"
-#include "shared_weights_contex_extractor.hpp"
+#include "shared_weights_context_extractor.hpp"
 
 namespace ov {
 namespace intel_npu {
+namespace transformations {
 
 SharedWeightsResult assign_shared_weight_to_model_if_possible(const std::shared_ptr<ov::Model>& model,
                                                               const ov::Any& shared_weight_property) {
@@ -55,5 +56,6 @@ SharedWeightsResult assign_shared_weight_to_model_if_possible(const std::shared_
     return {std::move(shared_weight_sources), std::move(shared_ctx_ptr)};
 }
 
+}  // namespace transformations
 }  // namespace intel_npu
 }  // namespace ov

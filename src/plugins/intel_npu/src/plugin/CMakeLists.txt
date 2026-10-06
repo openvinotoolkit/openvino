@@ -46,11 +46,16 @@ target_link_libraries(${TARGET_NAME}
         openvino::npu_ops
 )
 
+# Embed objects directly instead of target_link_libraries so the static plugin export does not require
+# openvino_npu_transformations to be installed
+target_sources(${TARGET_NAME} PRIVATE $<TARGET_OBJECTS:openvino_npu_transformations>)
+
 target_include_directories(${TARGET_NAME}
     PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/>
+        $<TARGET_PROPERTY:openvino_npu_transformations,INTERFACE_INCLUDE_DIRECTORIES>
 )
 
 cross_compiled_file(${TARGET_NAME}

@@ -17,6 +17,7 @@
 
 namespace ov {
 namespace intel_npu {
+namespace transformations {
 
 struct SharedWeightsContextExtractor {
     using WeightSharingContextPtr = std::shared_ptr<ov::weight_sharing::Context>;
@@ -28,5 +29,6 @@ struct SharedWeightsContextExtractor {
     static WeightSharingContextPtr extract_weight_sharing_context(const SharedSourcesWithConstants& collected_sources_with_constants);
 };
 
+}  // namespace transformations
 }  // namespace intel_npu
 }  // namespace ov
