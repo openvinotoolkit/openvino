@@ -224,22 +224,6 @@ TEST_F(TransformationTestsF, StatelessKVFusion_Update) {
     });
 }
 
-// Full static ScatterUpdate feeding a full-buffer-sized Reshape (not SDPA) must stay unfused: no trimmed mask can follow it
-TEST_F(TransformationTestsF, StatelessKVFusion_Update_NonSDPAConsumer) {
-    static constexpr int64_t current_seqlen = 2;
-    build_stateless_kv_fusion_test<1>(this, current_seqlen, false, [](bool, const auto& parameters) {
-        const auto& [seqlens_k, query, key, value, past_key, past_value] = parameters;
-        const auto position_ids = make_static_posids(seqlens_k, current_seqlen).second;
-        const auto axis = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{1}, {2});
-        const auto present_key = std::make_shared<ov::op::v3::ScatterUpdate>(past_key, position_ids, key, axis);
-        const auto present_value = std::make_shared<ov::op::v3::ScatterUpdate>(past_value, position_ids, value, axis);
-        const auto full_shape = ov::op::v0::Constant::create(ov::element::i64, ov::Shape{5}, {1, 2, 1, 8, 4});
-        const auto key_5d = std::make_shared<ov::op::v1::Reshape>(present_key, full_shape, false);
-        const auto value_5d = std::make_shared<ov::op::v1::Reshape>(present_value, full_shape, false);
-        return ov::OutputVector{key_5d, value_5d, present_key, present_value};
-    });
-}
-
 // Static pastKV and dynamic Q ScatterUpdate with VariadicSplit towards SDPA
 TEST_F(TransformationTestsF, StatelessKVFusion_UpdateSplit) {
     static constexpr int64_t current_seqlen = -1;

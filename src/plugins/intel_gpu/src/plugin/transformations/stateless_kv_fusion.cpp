@@ -300,11 +300,6 @@ StatelessKVFusionMatcher::StatelessKVFusionMatcher() {
         if (transformation_callback(kv_sdpa_node)) {
             return false;
         }
-        // The pure-scatter pattern trims the full static cache to the valid length and only an SDPA consumer gets a matching trimmed mask.
-        // Any other consumer (e.g. a KV head broadcast Reshape) is sized for the full buffer, so keep the original graph.
-        if (!is_slice_concat && !is_update_split && !sdpa_node) {
-            return false;
-        }
 
         auto get_trimmed_mask = [&](const ov::Output<ov::Node>& full_mask, const ov::Dimension& cur_seqlen) -> std::shared_ptr<ov::Node> {
             if (cache->present_kv_len.get_node() && cur_seqlen.is_static()) {
