@@ -9,7 +9,6 @@ Output structure:
           "<test_type>": {
             "<model>": {
               "compilation_memory_usage_kb": <float|null>,
-              "plugin_reported_memory_usage_kb": <float|null>,
               "compile_net_time_ms": <float|null>
             }
           }
@@ -36,7 +35,7 @@ import re
 from pathlib import Path
 
 ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
-METRIC_KEYS = ("compilation_memory_usage_kb", "plugin_reported_memory_usage_kb", "compile_net_time_ms")
+METRIC_KEYS = ("compilation_memory_usage_kb", "compile_net_time_ms")
 TEST_TYPES = {
     "tensorflow": {"convert_model", "read_model"},
     "jax": {"jax"},
@@ -47,24 +46,18 @@ TEST_TYPES = {
 # tests/.../test_timm.py::TestTimm::test_timm_precommit[NPU-resnet18-...] PASSED
 PYTEST_CASE = re.compile(r"^(?P<nodeid>.+?\.py::.+?\[(?P<model>.+)\])(?:\s|$)")
 
-# Both time metrics are reported by the NPU compiler itself, which logs under the
-# "vpux-compiler" tag, e.g.:
+# Both metrics are reported by the NPU compiler itself, which logs under the "vpux-compiler"
+# tag, e.g.:
 #     [INFO] 15:08:13.409 [vpux-compiler] Compilation memory usage: Peak 137816 KB
-# The OpenVINO NPU plugin's own compiler adapters independently track their own process-level
-# peak and emit an identically worded "Compilation memory usage" line, tagged
-# [DriverCompilerAdapter] / [PluginCompilerAdapter] instead. Matching on the tag keeps the two
-# apart: compilation_memory_usage_kb is always the compiler's own number, while
-# plugin_reported_memory_usage_kb is the plugin-side cross-check, independent of the
-# closed-source compiler's own counter.
+# The OpenVINO NPU plugin's own compiler adapters emit an identically worded
+# "Compilation memory usage" line from the weights-separation path, tagged
+# [DriverCompilerAdapter] / [PluginCompilerAdapter], but it measures the plugin-side process
+# peak rather than the compiler's. Matching on the tag keeps the two apart, so whichever
+# happens to print last for a model cannot silently overwrite the other.
 COMPILER_TAG = r"\[vpux-compiler\]\s*"
-PLUGIN_TAG = r"\[(?:PluginCompilerAdapter|DriverCompilerAdapter)\]\s*"
 
 MEMORY_PATTERNS = [
     re.compile(COMPILER_TAG + r"Compilation memory usage:\s*Peak\s*(?P<value>\d+(?:\.\d+)?)\s*KB", re.I),
-]
-
-PLUGIN_MEMORY_PATTERNS = [
-    re.compile(PLUGIN_TAG + r"Compilation memory usage:\s*Peak\s*(?P<value>\d+(?:\.\d+)?)\s*KB", re.I),
 ]
 
 TIME_PATTERNS = [
@@ -187,11 +180,6 @@ def main() -> None:
         memory_kb = find_value(MEMORY_PATTERNS, line)
         if memory_kb is not None:
             models[current_model]["compilation_memory_usage_kb"] = memory_kb
-            continue
-
-        plugin_memory_kb = find_value(PLUGIN_MEMORY_PATTERNS, line)
-        if plugin_memory_kb is not None:
-            models[current_model]["plugin_reported_memory_usage_kb"] = plugin_memory_kb
             continue
 
         compile_time_ms = find_value(TIME_PATTERNS, line)
