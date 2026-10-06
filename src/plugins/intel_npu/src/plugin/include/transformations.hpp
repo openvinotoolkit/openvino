@@ -17,10 +17,10 @@
 namespace intel_npu {
 
 /**
- * @brief Decides whether a model with at least one dynamic dimension (bounded or unbounded) in its inputs or outputs
- * should be compiled with the 'HostCompile_Interpreter' compilation mode. Models with any dynamic-rank input or output
- * are rejected. This is a pure predicate: it does not read from or mutate any Config. The caller is responsible for
- * updating the config when this returns true.
+ * @brief Decides whether a model with at least one dynamic non-batch dimension (bounded or unbounded) in its inputs or
+ * outputs should be compiled with the 'HostCompile_Interpreter' compilation mode. Models whose only dynamic dimension
+ * is the batch, and models with any dynamic-rank input or output, are rejected. This is a pure predicate: it does not
+ * read from or mutate any Config. The caller is responsible for updating the config when this returns true.
  * @param model The OpenVINO model to inspect
  * @param compilerType The resolved compiler type
  * @param compilationModeSet Whether NPU_COMPILATION_MODE was already provided

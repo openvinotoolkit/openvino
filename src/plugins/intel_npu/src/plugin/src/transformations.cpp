@@ -28,10 +28,11 @@ bool should_use_host_compile_interpreter(const std::shared_ptr<const ov::Model>&
         return port.get_partial_shape().rank().is_static();
     };
 
-    // Any dynamic dimension, bounded or unbounded, makes the model a HostCompile model: HostCompile sizes dynamic
-    // buffers at run time from the bound tensor or the predicted output shape.
+    // Any dynamic dimension other than batch, bounded or unbounded, makes the model a HostCompile model: HostCompile
+    // sizes dynamic buffers at run time from the bound tensor or the predicted output shape. A dynamic batch alone is
+    // not supported well by HostCompile yet, so such models are left to plugin batching.
     const auto isDynamicPort = [](const auto& port) {
-        return port.get_partial_shape().is_dynamic();
+        return batch_helpers::hasOtherDynamicDims(port.get_partial_shape());
     };
 
     const auto& modelInputs = model->inputs();

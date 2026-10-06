@@ -140,8 +140,16 @@ TEST_F(ShouldUseHostCompileInterpreterTest, NonFourDimensionalModelEnablesHostCo
     EXPECT_TRUE(run(make_relu_model({1, bounded(), 16})));
 }
 
-TEST_F(ShouldUseHostCompileInterpreterTest, DynamicBatchEnablesHostCompile) {
-    EXPECT_TRUE(run(make_relu_model({bounded(), 3, 16, 32})));
+TEST_F(ShouldUseHostCompileInterpreterTest, DynamicBatchOnlyDoesNotEnableHostCompile) {
+    EXPECT_FALSE(run(make_relu_model({bounded(), 3, 16, 32})));
+}
+
+TEST_F(ShouldUseHostCompileInterpreterTest, UnboundedBatchOnlyDoesNotEnableHostCompile) {
+    EXPECT_FALSE(run(make_relu_model({unbounded(), 3, 16, 32})));
+}
+
+TEST_F(ShouldUseHostCompileInterpreterTest, DynamicBatchOnlyOnEveryPortDoesNotEnableHostCompile) {
+    EXPECT_FALSE(run(make_two_input_relu_model({bounded(), 3, 16, 32}, {unbounded(), 3, 16, 32})));
 }
 
 TEST_F(ShouldUseHostCompileInterpreterTest, DynamicBatchWithDynamicSpatialEnablesHostCompile) {
