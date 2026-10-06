@@ -10,6 +10,8 @@ GENERATE stage.
 This document holds the design rationale, derivations and measurements behind the two kernels.
 The code comments only keep the short "why" at each site.
 
+The end-to-end performance investigation, including the B70 Xe2 gap closure and the later DG2 raw-kernel study, is summarized in [the OpenCL performance guide, chapter 06](ocl_perf_guide/06-performance-gap-investigation.md). That chapter distinguishes standalone kernel measurements from product integration and end-to-end evidence.
+
 ## Where it runs
 
 | Primitive / stage | Generator | Kernel | Gate |
