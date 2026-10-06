@@ -10,11 +10,7 @@
 #include "utils/norm.hpp"
 using namespace ov::op;
 
-namespace ov {
-namespace frontend {
-namespace onnx {
-namespace ai_onnx {
-namespace opset_1 {
+namespace ov::frontend::onnx::ai_onnx::opset_1 {
 ov::OutputVector lp_norm(const ov::frontend::onnx::Node& node) {
     const ov::Output<ov::Node> data{node.get_ov_inputs().at(0)};
     const auto data_shape = data.get_partial_shape();
@@ -40,8 +36,4 @@ ov::OutputVector lp_norm(const ov::frontend::onnx::Node& node) {
 }
 
 ONNX_OP("LpNormalization", OPSET_SINCE(1), ai_onnx::opset_1::lp_norm);
-}  // namespace opset_1
-}  // namespace ai_onnx
-}  // namespace onnx
-}  // namespace frontend
-}  // namespace ov
+}  // namespace ov::frontend::onnx::ai_onnx::opset_1

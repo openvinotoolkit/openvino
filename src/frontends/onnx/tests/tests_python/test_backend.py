@@ -29,7 +29,6 @@ from tests import (
     xfail_issue_47323,
     xfail_issue_48052,
     xfail_issue_52463,
-    xfail_issue_63043,
     xfail_issue_63137,
     xfail_issue_69444,
     xfail_issue_82039,
@@ -270,12 +269,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_sequence_insert_at_front_cpu",
     ),
     (
-        xfail_issue_63043,
-        "OnnxBackendNodeModelTest.test_gru_batchwise_cpu",
-        "OnnxBackendNodeModelTest.test_lstm_batchwise_cpu",
-        "OnnxBackendNodeModelTest.test_simple_rnn_batchwise_cpu",
-    ),
-    (
         skip_rng_tests,
         "OnnxBackendNodeModelTest.test_bernoulli_cpu",
         "OnnxBackendNodeModelTest.test_bernoulli_double_cpu",
@@ -312,8 +305,6 @@ tests_expected_to_fail = [
         "OnnxBackendNodeModelTest.test_sequence_map_identity_1_sequence_1_tensor_cpu",
         "OnnxBackendNodeModelTest.test_sequence_map_identity_1_sequence_cpu",
         "OnnxBackendNodeModelTest.test_sequence_map_identity_2_sequences_cpu",
-        "OnnxBackendNodeModelTest.test_stft_cpu",
-        "OnnxBackendNodeModelTest.test_stft_with_window_cpu",
     ),
     (
         xfail_issue_99952,
