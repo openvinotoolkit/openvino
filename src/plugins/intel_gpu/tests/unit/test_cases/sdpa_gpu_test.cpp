@@ -1463,8 +1463,6 @@ TEST_P(sdpa_micro_i8_test, i8_key_matches_the_same_codes_held_as_f16) {
 
     if (!device_info.supports_immad)
         GTEST_SKIP() << "sdpa_micro requires a device with systolic (immad) support";
-    if (device_info.arch == cldnn::gpu_arch::xe3p && p.head_size <= 64)
-        GTEST_SKIP() << "micro SDPA is disabled on xe3p for head_size <= 64";
 
     const ov::Shape q_shape{1, static_cast<size_t>(p.num_heads), static_cast<size_t>(p.seq_len_q),
                             static_cast<size_t>(p.head_size)};
