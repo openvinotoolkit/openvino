@@ -16,6 +16,7 @@ namespace weight_sharing {
 struct Context;
 }
 namespace intel_npu {
+namespace transformations {
 
 using SharedWeightsResult =
     std::tuple<std::vector<std::shared_ptr<ov::AlignedBuffer>>, std::shared_ptr<ov::weight_sharing::Context>>;
@@ -23,5 +24,6 @@ using SharedWeightsResult =
 SharedWeightsResult assign_shared_weight_to_model_if_possible(const std::shared_ptr<ov::Model>& model,
                                                               const ov::Any& shared_weight_property);
 
+}  // namespace transformations
 }  // namespace intel_npu
 }  // namespace ov

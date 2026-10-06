@@ -22,6 +22,7 @@
 
 namespace ov {
 namespace intel_npu {
+namespace transformations {
 
 void SharedWeightsAssigner::Statistic::set_collection_statistics(size_t collected_constants_count,
                                                                  size_t constant_cannot_be_shared_count) {
@@ -228,5 +229,6 @@ size_t SharedWeightsAssigner::get_constant_aligned_size(const ov::op::v0::Consta
     return ov::util::align_size_up(constant.get_byte_size(), m_min_relocate_bytes);
 }
 
+}  // namespace transformations
 }  // namespace intel_npu
 }  // namespace ov

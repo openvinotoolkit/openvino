@@ -23,6 +23,7 @@ class Constant;
 
 namespace ov {
 namespace intel_npu {
+namespace transformations {
 
 class SharedWeightsAssigner {
 public:
@@ -74,5 +75,6 @@ private:
     size_t m_min_relocate_bytes = 0;
 };
 
+}  // namespace transformations
 }  // namespace intel_npu
 }  // namespace ov
