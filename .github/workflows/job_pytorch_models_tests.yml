@@ -196,7 +196,7 @@ jobs:
         if: ${{ inputs.model_scope == 'precommit' }}
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_pa_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_pagedattention_tests.html --self-contained-html -vvv -s --tb=short -n 2
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_pa_transformation.py -m "precommit and not optimum_intel_legacy and not optimum_intel_gptq" --html=${INSTALL_TEST_DIR}/TEST-torch_pagedattention_tests.html --self-contained-html -vvv -s --tb=short -n 2
         env:
           TEST_DEVICE: CPU
 
@@ -205,6 +205,28 @@ jobs:
         run: |
           export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
           python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_stateful_to_stateless_transformation.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_stateful_to_stateless_tests.html --self-contained-html -v --tb=short
+        env:
+          TEST_DEVICE: CPU
+
+      - name: PagedAttention and RoPE Tests (legacy transformers)
+        if: ${{ inputs.model_scope == 'precommit' }}
+        run: |
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          python3 -m pip install -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/optimum_intel_legacy.txt
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_pa_transformation.py ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py -m "precommit and optimum_intel_legacy" --html=${INSTALL_TEST_DIR}/TEST-torch_transformations_legacy_tests.html --self-contained-html -vvv -s --tb=short -n 2
+        env:
+          TEST_DEVICE: CPU
+
+      - name: PagedAttention GPTQ Test
+        if: ${{ inputs.model_scope == 'precommit' }}
+        run: |
+          export PYTHONPATH=${MODEL_HUB_TESTS_INSTALL_DIR}:$PYTHONPATH
+          # optimum 1.x ships regular packages; remove the optimum 2.x namespace packages first
+          python3 -m pip uninstall -y optimum optimum-onnx optimum-intel
+          python3 -m pip install \
+            -r ${INSTALL_TEST_DIR}/requirements_pytorch \
+            -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/optimum_intel_gptq.txt
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_pa_transformation.py -m "precommit and optimum_intel_gptq" --html=${INSTALL_TEST_DIR}/TEST-torch_pagedattention_gptq_tests.html --self-contained-html -vvv -s --tb=short
         env:
           TEST_DEVICE: CPU
 
@@ -244,7 +266,7 @@ jobs:
           python3 -m pip install \
             -r ${INSTALL_TEST_DIR}/requirements_pytorch \
             -r ${MODEL_HUB_TESTS_INSTALL_DIR}/pytorch/envs/rope.txt
-          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py -m precommit --html=${INSTALL_TEST_DIR}/TEST-torch_rope_tests.html --self-contained-html -v --tb=short -n 2
+          python3 -m pytest ${MODEL_HUB_TESTS_INSTALL_DIR}/transformation_tests/test_transformations.py -m "precommit and not optimum_intel_legacy" --html=${INSTALL_TEST_DIR}/TEST-torch_rope_tests.html --self-contained-html -v --tb=short -n 2
         env:
           TEST_DEVICE: CPU
 

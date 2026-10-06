@@ -103,7 +103,8 @@ def main():
             if cls is OVModelForCausalLM:
                 ov_model = model.model
             elif cls is OVModelForVisualCausalLM:
-                ov_model = model.lm_model
+                # newer optimum-intel renamed lm_model to language_model
+                ov_model = model.language_model.model if hasattr(model, "language_model") else model.lm_model
             elif cls is OVModelForSeq2SeqLM:
                 ov_model = model.decoder_with_past_model
             else:
