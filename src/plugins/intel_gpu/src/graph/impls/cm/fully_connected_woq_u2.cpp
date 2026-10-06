@@ -24,6 +24,17 @@ constexpr size_t rows_per_thread = 32;
 constexpr uint32_t scale_idx = 2;
 constexpr uint32_t zp_idx = 3;
 
+// Index into the FC's dependencies of the SwiGLU multiply's external operand (up_proj's output), or -1
+// if this FC has no fused epilogue. validate_impl (FullyConnectedWoqU2ImplementationManager::
+// is_supported_swiglu_epilogue) guarantees at most this one fused pattern reaches create_impl.
+int32_t epi_dep_idx(const RuntimeParams& params) {
+    for (const auto& fd : params.fused_desc) {
+        if (fd.has_outer_dep())
+            return fd.outer_dep_start_idx;
+    }
+    return -1;
+}
+
 class WoqU2FCGenerator : public KernelGenerator {
 public:
     WoqU2FCGenerator() : KernelGenerator("woq_u2_gemm_dual") {}
@@ -35,24 +46,33 @@ protected:
 
     [[nodiscard]] JitConstants get_jit_constants(const RuntimeParams& params) const override {
         auto jit = KernelGenerator::get_jit_constants(params);
+        const auto epi_idx = epi_dep_idx(params);
+        const bool epi_f16 = epi_idx >= 0 && params.get_input_layout(static_cast<size_t>(epi_idx)).data_type == data_types::f16;
         jit.add({
             make_jit_constant("KERNEL_NAME", get_entry_point(params)),
             // N-major unless a test selected the group-major path (see fully_connected_woq_u2.hpp).
             make_jit_constant("WLAYOUT", static_cast<int>(woq_u2_weight_layout_for_tests())),
             make_jit_constant("OUT_F16", params.get_output_layout(0).data_type == data_types::f16 ? 1 : 0),
+            make_jit_constant("EPI_F16", epi_f16 ? 1 : 0),
         });
         return jit;
     }
 
-    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& /*params*/) const override {
-        // Kernel ABI: (A, Wq, scales, zps, epi, C, M, K, N, epi_mode). The FC has no fused epilogue, so
-        // epi_mode = 0; the kernel never reads `epi` then, and the output buffer is bound in its place.
+    [[nodiscard]] Arguments get_arguments_desc(const RuntimeParams& params) const override {
+        // Kernel ABI: (A, Wq, scales, zps, epi, C, M, K, N, epi_mode). Plain FC: epi_mode = 0, epi bound
+        // to a harmless placeholder (the kernel never reads it then). gate_proj-style SwiGLU epilogue
+        // (see FullyConnectedWoqU2ImplementationManager::is_supported_swiglu_epilogue): epi_mode = 2,
+        // epi bound to the fused multiply's external operand (up_proj's output).
         Arguments args;
         args.push_back({ArgumentDescriptor::Types::INPUT, 0});          // A
         args.push_back({ArgumentDescriptor::Types::INPUT, 1});          // Wq
         args.push_back({ArgumentDescriptor::Types::INPUT, scale_idx});  // scales
         args.push_back({ArgumentDescriptor::Types::INPUT, zp_idx});     // zero points (u8)
-        args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});         // epi (unused, epi_mode = 0)
+        const auto epi_idx = epi_dep_idx(params);
+        if (epi_idx >= 0)
+            args.push_back({ArgumentDescriptor::Types::INPUT, static_cast<uint32_t>(epi_idx)});  // epi
+        else
+            args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});     // epi (unused, epi_mode = 0)
         args.push_back({ArgumentDescriptor::Types::OUTPUT, 0});         // C
         args.push_back({ArgumentDescriptor::Types::SCALAR, 0});         // M
         args.push_back({ArgumentDescriptor::Types::SCALAR, 1});         // K
@@ -80,7 +100,10 @@ protected:
 
             auto& scalars = kd.params.scalars;
             scalars.resize(4);
-            const size_t vals[4] = {M, K, N, 0};  // epi_mode 0: no epilogue
+            // epi_mode 2: gate_proj-style SwiGLU epilogue (swish(acc) * epi); 0: no epilogue. validate_impl
+            // only allows that one fused pattern through, so has_fused_primitives() alone decides it here.
+            const int32_t epi_mode = params.has_fused_primitives() ? 2 : 0;
+            const size_t vals[4] = {M, K, N, static_cast<size_t>(epi_mode)};
             for (size_t i = 0; i < 4; i++) {
                 scalars[i].t = ScalarDescriptor::Types::INT32;
                 scalars[i].v.s32 = static_cast<int32_t>(vals[i]);
