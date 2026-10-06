@@ -296,12 +296,14 @@ jobs:
           # Install runtime into install dir; fallback to full install if component is unavailable
           cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component core
           cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component core_c
+          cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component tbb
           cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component cpu
           cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component template
 
           # Install developer files (cmake config + headers) so downstream projects can find_package(OpenVINO)
           cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component core_dev
           cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component core_c_dev
+          cmake --install ${BUILD_DIR} --config ${{ env.BUILD_TYPE }} --prefix ${INSTALL_DIR} --component tbb_dev
 
           # Install frontends referenced by the exported OpenVINO cmake targets
           for frontend in ir onnx paddle pytorch tensorflow tensorflow_lite jax gguf; do
@@ -316,15 +318,8 @@ jobs:
             find ${INSTALL_TEST_DIR}/tests -name "libopenvino_template_plugin*.so*" -type f -exec cp {} ${INSTALL_DIR}/runtime/lib/intel64/ \; 2>/dev/null || true
           fi
 
-          # Add TBB and libc++ shared to runtime package
-          find ${TBB_INSTALL}/lib -name "*.so*" -type f -exec cp {} ${INSTALL_DIR}/lib/ \; 2>/dev/null || echo "No .so files in TBB_INSTALL/lib"
+          # NDK C++ runtime is not part of any OpenVINO install component
           cp "${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/lib/${{ env.ANDROID_ABI_CONFIG }}-linux-android/libc++_shared.so" ${INSTALL_DIR}/lib/ || echo "libc++_shared.so not found"
-
-          # Stage TBB cmake config so OpenVINOConfig.cmake find_dependency(TBB) resolves in downstream builds
-          mkdir -p ${INSTALL_DIR}/runtime/3rdparty/tbb/lib
-          cp -r ${TBB_INSTALL}/lib/cmake ${INSTALL_DIR}/runtime/3rdparty/tbb/lib/cmake
-          cp -r ${TBB_INSTALL}/include ${INSTALL_DIR}/runtime/3rdparty/tbb/include
-          find ${TBB_INSTALL}/lib -name "*.so*" -type f -exec cp {} ${INSTALL_DIR}/runtime/3rdparty/tbb/lib/ \; 2>/dev/null || echo "No .so files in TBB_INSTALL/lib"
 
       # Release build keeps -g (NDK default); strip unused debug symbols to shrink every download
       - name: Strip debug symbols from test binaries and runtime libraries
@@ -469,8 +464,7 @@ jobs:
             echo "Pushing unit test binary and libraries to device..."
             adb push ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_unit_tests /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests
             # Push OpenVINO libraries from runtime package
-            for lib in ${INSTALL_DIR}/runtime/lib/intel64/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
-            for lib in ${INSTALL_DIR}/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
+            for lib in ${INSTALL_DIR}/runtime/lib/intel64/*.so* ${INSTALL_DIR}/runtime/3rdparty/tbb/lib/*.so* ${INSTALL_DIR}/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test/; done
             adb shell "chmod 755 /data/local/tmp/ov_test/intel64/Release/ov_cpu_unit_tests"
             echo "Running CPU unit tests..."
             adb shell "cd /data/local/tmp/ov_test && export LD_LIBRARY_PATH=/data/local/tmp/ov_test:$LD_LIBRARY_PATH && timeout 1800 ./intel64/Release/ov_cpu_unit_tests --gtest_output=xml:/data/local/tmp/ov_test/unit_test_results.xml" || { echo "Unit test execution failed"; adb shell "ls -la /data/local/tmp/ov_test/"; exit 1; }
@@ -568,8 +562,7 @@ jobs:
             echo "Pushing functional test binary and libraries to device..."
             adb push ${INSTALL_TEST_DIR}/bin/intel64/Release/ov_cpu_func_tests /data/local/tmp/ov_test_func/intel64/Release/ov_cpu_func_tests
             # Push OpenVINO libraries from runtime package
-            for lib in ${INSTALL_DIR}/runtime/lib/intel64/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test_func/intel64/Release; done
-            for lib in ${INSTALL_DIR}/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test_func/intel64/Release; done
+            for lib in ${INSTALL_DIR}/runtime/lib/intel64/*.so* ${INSTALL_DIR}/runtime/3rdparty/tbb/lib/*.so* ${INSTALL_DIR}/lib/*.so*; do [ -f "$lib" ] && adb push "$lib" /data/local/tmp/ov_test_func/intel64/Release; done
             adb shell "chmod 755 /data/local/tmp/ov_test_func/intel64/Release/ov_cpu_func_tests"
             echo "Running CPU functional tests..."
             adb shell "cd /data/local/tmp/ov_test_func && export LD_LIBRARY_PATH=/data/local/tmp/ov_test_func/intel64/Release:$LD_LIBRARY_PATH && timeout 3600 ./intel64/Release/ov_cpu_func_tests  --gtest_filter=${{ env.GTEST_FILTER }} --gtest_output=xml:/data/local/tmp/ov_test_func/intel64/Release/func_test_results.xml" || { echo "Functional test execution failed"; adb shell "ls -la /data/local/tmp/ov_test_func/intel64/Release/"; exit 1; }
