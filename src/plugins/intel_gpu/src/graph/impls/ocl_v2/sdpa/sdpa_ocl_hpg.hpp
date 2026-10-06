@@ -23,10 +23,10 @@ enum HpgTier : uint32_t {
     PLAIN_I8 = 1u << 2,          // plain SDPA on a compressed i8 KV input (u4 is refused outright on xe_hpg, see supported())
     PA_PREFILL = 1u << 3,        // paged attention, both stages compile, so every PA op needs PA_PREFILL and PA_MIXED_F16
     PA_MIXED_F16 = 1u << 4,
-    PA_FEATURES = 1u << 5,       // PA with a sink, token_type_ids, qq_bias, a sliding window, k_head_size != v_head_size or a runtime scale
-    PA_I8_TOKEN = 1u << 6,       // PA on an i8 BY_TOKEN cache
-    PA_I8_CHANNEL = 1u << 7,     // PA on an i8 BY_CHANNEL K cache
-    PA_U4 = 1u << 8,             // PA on a u4 cache
+    PA_FEATURES = 1u << 5,    // PA with a sink, token_type_ids, qq_bias, a sliding window, k_head_size != v_head_size or a runtime scale
+    PA_I8_TOKEN = 1u << 6,    // PA on an i8 BY_TOKEN cache
+    PA_I8_CHANNEL = 1u << 7,  // PA on an i8 BY_CHANNEL K cache
+    PA_U4 = 1u << 8,          // PA on a u4 cache
 };
 
 // Bits ready on xe_hpg. PLAIN_F16_STATIC since plan S6a (the first SG8 kernel arm), PLAIN_EXT since S6b, PLAIN_I8 since S6c; the later steps add theirs.
@@ -60,7 +60,6 @@ struct SDPAOclTilingInfo {
     int kq_wg_tile_queries = 0;
     size_t slm_bytes = 0;
 };
-
 
 // The tiling sdpa_ocl uses for these head sizes on `arch`, with the SDPA_OCL_KQ_* overrides applied like choose_config() does;
 // false when there is none or it does not fit the device (local memory, workgroup size). Never throws.
